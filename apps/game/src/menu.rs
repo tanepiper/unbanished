@@ -36,6 +36,8 @@ pub struct MenuLoop {
     climate_items: Vec<usize>,
     condition_items: Vec<usize>,
     terrain_items: Vec<usize>,
+    /// Accepted city names from `Game/Names/Cities.ndb`.
+    town_names: Vec<String>,
 }
 
 /// Shared settings defaults (`FUN_140042850`) before `Game/Last*` persistence is applied:
@@ -59,6 +61,7 @@ impl MenuLoop {
             climate_items: Vec::new(),
             condition_items: Vec::new(),
             terrain_items: Vec::new(),
+            town_names: Vec::new(),
         }
     }
 
@@ -112,7 +115,23 @@ impl MenuLoop {
             }
         }
         self.new_seed(ctx);
+        self.new_town_name(ctx);
         self.refresh_description(ctx);
+    }
+
+    fn new_town_name(&mut self, ctx: &mut Ctx) {
+        let (Some(screen), Some(d)) = (&self.screen, self.new_game) else {
+            return;
+        };
+        let Some(edit) = screen.find(ctx.ui, d, "editName") else {
+            return;
+        };
+        if self.town_names.is_empty() {
+            log::warn!("town names unavailable: Game/Names/Cities.ndb did not load");
+            return;
+        }
+        let index = ctx.rng.rand_below(self.town_names.len() as u32) as usize;
+        ctx.ui.set_text(edit, &self.town_names[index]);
     }
 
     /// Event `0x14` on `comboCondition`: show the selected condition's description.
@@ -307,6 +326,14 @@ impl GameLoop for MenuLoop {
     }
 
     fn load(&mut self, ctx: &mut Ctx) {
+        match ctx
+            .archive
+            .read("Game/Names/Cities_resource.crs")
+            .and_then(|bytes| banished_formats::names::NameDatabase::read(&bytes))
+        {
+            Ok(database) => self.town_names = database.names,
+            Err(e) => log::error!("town names: {e}"),
+        }
         self.scene_index = ctx.rng.rand_below(MENU_SCENES);
         if let Some(forced) = std::env::var("BANISHED_MENU_SCENE")
             .ok()
@@ -378,7 +405,7 @@ impl GameLoop for MenuLoop {
             } else if self.is(ctx.ui, d, "buttonCancel", id) {
                 self.close_new_game(ctx);
             } else if self.is(ctx.ui, d, "buttonNewName", id) {
-                log::info!("town name generation is not implemented yet");
+                self.new_town_name(ctx);
             }
             return Next::Stay;
         }

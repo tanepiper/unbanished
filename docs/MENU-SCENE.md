@@ -136,10 +136,12 @@ and their Damage variants. OpaqueInWater and Damage variants currently use the O
 
 ## Remaining menu-scene work
 
-The renderer still does not draw chimney or forge smoke, or falling rain. The menu town-name box is
-empty; the generator path has been traced but its name-list file still needs decoding. Menu music
-currently decodes the full track at once, which can pause the loading spinner; stream or chunk the
-decode to keep loading responsive. Button click sounds are not wired. Browser playback start-after-
-first-click behavior has not been confirmed in a real browser. A small visual issue remains: distant
-summer trees look too pale. These shader and interaction details should be checked against saved
-headless captures and, where relevant, a real browser session.
+The renderer still does not draw chimney or forge smoke, or falling rain. The new-game town-name
+box now selects a name from the decoded city-name pool; see
+[`TOWN-NAME-DATABASE.md`](TOWN-NAME-DATABASE.md) for the resource findings and the remaining gap
+between this and the original transition-based generator. Menu music currently decodes the full
+track at once, which can pause the loading spinner; stream or chunk the decode to keep loading
+responsive. Button click sounds are not wired. Browser playback start-after-first-click behavior
+has not been confirmed in a real browser. A small visual issue remains: distant summer trees look
+too pale. These shader and interaction details should be checked against saved headless captures
+and, where relevant, a real browser session.

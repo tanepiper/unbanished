@@ -68,6 +68,11 @@ The same initialization method restores selector indices from shared settings (f
 index zero when out of range), generates a town name through `FUN_14009ef90`, and seeds the map-seed
 edit with a random integer in the numeric control's allowed range.
 
+The current port reads `Game/Names/Cities.ndb` as a `NameDatabase` and fills `editName` from its
+accepted-name pool both when opening the dialog and when `buttonNewName` is pressed. Selection is
+uniform over the pool; the original transition-based name distribution and its `vill` suffix
+adjustment remain unported. See [`TOWN-NAME-DATABASE.md`](TOWN-NAME-DATABASE.md).
+
 That setup method assigns IDs as follows: `buttonNewName` 0, `buttonNewSeed` 1, `buttonOk` 2,
 `buttonCancel` 3, and `comboCondition` 4. (`buttonOk` is the element stored at instance `+0xf0`;
 an earlier reading of the pseudocode swapped the two buttons.) For event kind `0x12`, the handler
