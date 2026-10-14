@@ -59,7 +59,8 @@ The shipped [Status Bar tree and controller](GAME-LOOP-STEP-06.md) are traced th
 `StatusBarUI` bindings and `OnUpdateLayout` callback in [step 07](GAME-LOOP-STEP-07.md). The
 gameplay bootstrap adds the Toolbar dialog, and the packaged `Game/Toolbar` graph contains a
 status-bar entry that references `Template/UtilityStatusBar`, whose UI points at `Dialog/StatusBar`.
-The resource route is established; the click-time instantiation path remains unproven.
+The general resource-backed dialog activation path is traced in [step 10](GAME-LOOP-STEP-10.md);
+the action metadata for this particular status-bar entry remains to be decoded.
 
 ## Evidence pointers and next trace
 
