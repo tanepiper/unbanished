@@ -258,6 +258,18 @@ impl Lighting {
             user: Vec4::ZERO,
         }
     }
+
+    /// Apply the date-driven foliage controls computed by `FUN_1400988f0`.
+    pub fn set_seasonal_foliage(&mut self, month_position: f32) {
+        self.user.y = ((month_position - 6.0) / 1.5).clamp(0.0, 1.0);
+        self.user.z = if month_position < 0.5 {
+            (1.0 - month_position / 0.5).clamp(0.0, 1.0)
+        } else if month_position <= 7.5 {
+            0.0
+        } else {
+            ((month_position - 7.5) * 2.0).clamp(0.0, 1.0)
+        };
+    }
 }
 
 const BLIT_WGSL: &str = r#"

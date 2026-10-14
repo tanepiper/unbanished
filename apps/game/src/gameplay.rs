@@ -221,6 +221,8 @@ impl GameLoop for GameplayLoop {
             let next = &self.environment_months[(self.month + 1) % self.environment_months.len()];
             view.lighting =
                 Lighting::between_months(month, next, self.month_elapsed / MONTH_SECONDS);
+            view.lighting
+                .set_seasonal_foliage(self.month as f32 + self.month_elapsed / MONTH_SECONDS);
         }
         Next::Stay
     }

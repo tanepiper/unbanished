@@ -68,12 +68,19 @@ applies the resulting fog and sunlight to the render context.
 
 The port now interpolates adjacent month records each frame instead of switching lighting only at
 month boundaries. The implementation is in `Lighting::between_months` and the `GameplayLoop`
-update. The stochastic climate state, effect-slot creation and ambient emitters remain unported.
+update. It also ports the original month-position curves for autumn tint and leaf loss from
+`FUN_1400988f0`: autumn begins at month 6 and reaches full tint by month 7.5; leaves clear by month
+0.5, stay full through month 7.5, then disappear by month 8. These values feed the existing
+billboard shaders through `user.y` and `user.z`.
+
+Snow coverage (`user.x`) still depends on the stochastic temperature/noise state, and rain (`user.w`)
+comes from the active effect geometry. The stochastic climate state, effect-slot creation and
+ambient emitters remain unported.
 
 ## What remains to identify
 
 - Trace the unlabelled climate settings into their exact temperature, intensity and persistence
-  consumers.
+  consumers, then port the resulting snow coverage value.
 - Follow how the 0–5 precipitation level affects snow accumulation and the terrain/model shaders.
 - Follow the climate state into the ambient-light and surface/material parameters, then port the
   complete weather transition without replacing its random state with a visual guess.
