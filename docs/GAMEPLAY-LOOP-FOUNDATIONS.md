@@ -4,6 +4,9 @@ This note separates the original `Game/Game` startup from the first interactive 
 implemented in the port. The original path is traced from Ghidra 12.1.4 pseudocode for the Steam
 x64 executable; this is static evidence, not a live-game observation.
 
+Use [GAME-LOOP-CHECKLIST.md](GAME-LOOP-CHECKLIST.md) for the consolidated progress and remaining
+reverse-engineering and implementation tasks.
+
 ## Original handoff
 
 The New Game dialog passes the town name, seed, terrain size, selected `MapGenerator`,
