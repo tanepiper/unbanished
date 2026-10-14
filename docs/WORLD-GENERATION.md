@@ -60,6 +60,19 @@ It obtains an additional result from `FUN_1400d4910`, then invokes `FUN_1400b1c5
 and `FUN_1400b0730` in sequence. It also appends records from counted input arrays into a
 dynamically grown collection.
 
+`FUN_1400d4910` seeds a `Utility::PerlinNoise` instance with two values from the same random state
+(`RandTol(..., 0xffffff)` for each). It traverses the grid, records each cell's integer grid
+coordinates, a float sample, and a three-float vector returned by `FUN_1400d4620`. It then builds a
+32-bit value per cell by combining two 8-bit channels derived from threshold tests and Perlin noise;
+a later pass adds another byte using normalized neighboring vectors. The exact meanings of those
+packed channels and the float sample remain unresolved.
+
+The next calls cross into graphics data: `FUN_1400b1c50` creates an image buffer and uploads the
+packed cell values as a texture. `FUN_1400b16b0` creates vertex and index buffers for terrain tiles;
+each tile covers a 32-by-32 cell block, and its index pattern alternates triangle diagonals by cell
+parity. These calls show how generated grid data is prepared for drawing, while `FUN_1400b0730` and
+the gameplay consumers of the terrain fields remain to be traced.
+
 The code establishes the buffer sizes, conversion and helper-call order. The field names and
 coordinate meaning of the grid values, the algorithms inside those helpers, and the record types
 being appended are not resolved yet. In particular, this note does not label the 16-bit values as
@@ -81,8 +94,8 @@ currently documented only by type and offset in the ignored Ghidra export.
 
 ## Remaining world-generation trace
 
-- Follow `FUN_1400d4860`, `FUN_1400d4910`, `FUN_1400b1c50`, `FUN_1400b16b0` and `FUN_1400b0730` to
-  name the generated grid and each transformation.
+- Follow `FUN_1400d4860`, `FUN_1400d4910`, `FUN_1400d4620` and `FUN_1400b0730` to identify each
+  terrain transformation and the meanings of its packed channels.
 - Trace how generated terrain cells become water, slopes, trees, rocks and resource deposits.
 - Follow the counted arrays in `MapGenerator` to the initial population, household inventory and
   stock-placement operations.
