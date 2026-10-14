@@ -48,3 +48,10 @@ python3 -I "$repo/tools/pkg_extract.py" "$out/extracted" \
 
 (cd "$out/original" && shasum -a 256 *.exe *.dll WinData/*.pkg) > "$out/MANIFEST.sha256"
 echo "Wrote $out/MANIFEST.sha256"
+
+# Audio is xWMA, which browsers cannot play; decode it to MP3 when FFmpeg is available.
+if command -v ffmpeg >/dev/null && command -v cargo >/dev/null; then
+  (cd "$repo" && cargo run -q --release -p banished-cli -- export-audio) || echo "Audio export failed." >&2
+else
+  echo "Skipping audio export (needs ffmpeg and cargo)." >&2
+fi

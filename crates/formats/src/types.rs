@@ -357,3 +357,99 @@ decode_fn!(image_buffer, ImageBuffer);
 decode_fn!(graphics_mesh, GraphicsMesh);
 decode_fn!(material_instance, MaterialInstance);
 decode_fn!(vertex_layout, VertexLayout);
+
+// ---------------------------------------------------------------- SoundBuffer
+
+/// `WAVEFORMATEX` header carried by every sound. All shipped audio is xWMA (`tag == 0x161`).
+#[derive(Debug, Clone, Copy)]
+pub struct WaveFormat {
+    pub tag: u16,
+    pub channels: u16,
+    pub sample_rate: u32,
+    pub avg_bytes_per_sec: u32,
+    pub block_align: u16,
+    pub bits_per_sample: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct SoundBuffer {
+    pub looping: bool,
+    /// Streamed sounds keep their packets in a raw `.str` package entry named by `stream_entry`.
+    pub streamed: bool,
+    /// Original source file, e.g. `Audio\Animal\Chicken0.wav`.
+    pub source: String,
+    pub stream_entry: String,
+    pub length_seconds: f32,
+    pub format: WaveFormat,
+    /// Raw `WAVEFORMATEX(TENSIBLE)` bytes (40).
+    pub format_bytes: Vec<u8>,
+    /// xWMA `dpds` table: cumulative decoded bytes per packet, u32 LE.
+    pub packet_table: Vec<u8>,
+    /// xWMA packets (empty when streamed).
+    pub data: Vec<u8>,
+}
+
+impl SoundBuffer {
+    pub const CLASS: &'static str = "SoundBuffer";
+
+    /// `Audio::SoundBuffer::Serialize` (0x1800e2cd0) + `PlatformSerialize` (0x1800e2e10).
+    pub fn read(r: &mut Reader) -> Result<Self> {
+        r.block(|r, _| {
+            let looping = r.bool()?;
+            let streamed = r.bool()?;
+            let source = r.string()?;
+            let stream_entry = r.string()?;
+            let length_seconds = r.f32()?;
+            let data_len = r.count()?;
+            let table_len = r.count()?;
+            let packet_table = r.bytes(table_len)?.to_vec();
+            let format_bytes = r.bytes(0x28)?.to_vec();
+            let data = r.bytes(data_len)?.to_vec();
+            let u16_at = |o: usize| u16::from_le_bytes([format_bytes[o], format_bytes[o + 1]]);
+            let u32_at = |o: usize| u32::from_le_bytes(format_bytes[o..o + 4].try_into().unwrap());
+            let format = WaveFormat {
+                tag: u16_at(0),
+                channels: u16_at(2),
+                sample_rate: u32_at(4),
+                avg_bytes_per_sec: u32_at(8),
+                block_align: u16_at(12),
+                bits_per_sample: u16_at(14),
+            };
+            Ok(SoundBuffer {
+                looping,
+                streamed,
+                source,
+                stream_entry,
+                length_seconds,
+                format,
+                format_bytes,
+                packet_table,
+                data,
+            })
+        })
+    }
+
+    /// Wrap as a standard xWMA RIFF file (`RIFF/XWMA` with `fmt `, `dpds`, `data`), which FFmpeg
+    /// and XAudio2 tooling read. `stream` supplies the packets for streamed sounds.
+    pub fn to_xwma(&self, stream: Option<&[u8]>) -> Vec<u8> {
+        fn chunk(out: &mut Vec<u8>, tag: &[u8; 4], body: &[u8]) {
+            out.extend_from_slice(tag);
+            out.extend_from_slice(&(body.len() as u32).to_le_bytes());
+            out.extend_from_slice(body);
+            if body.len() % 2 == 1 {
+                out.push(0);
+            }
+        }
+        let data = stream.unwrap_or(&self.data);
+        let mut body = b"XWMA".to_vec();
+        chunk(&mut body, b"fmt ", &self.format_bytes[..18]);
+        chunk(&mut body, b"dpds", &self.packet_table);
+        chunk(&mut body, b"data", data);
+        let mut out = b"RIFF".to_vec();
+        out.extend_from_slice(&(body.len() as u32).to_le_bytes());
+        out.extend_from_slice(&body);
+        out
+    }
+}
+
+decode_fn!(sound_buffer, SoundBuffer);

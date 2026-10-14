@@ -68,6 +68,22 @@ fn decodes_all_supported_resources() {
                 types::material_instance(&data).unwrap_or_else(|e| panic!("{name}: {e}"));
                 "MaterialInstance"
             }
+            t if t == type_id("SoundBuffer") => {
+                let snd = types::sound_buffer(&data).unwrap_or_else(|e| panic!("{name}: {e}"));
+                assert_eq!(snd.format.tag, 0x161, "{name}: expected xWMA");
+                assert_eq!(snd.packet_table.len() % 4, 0, "{name}");
+                if snd.streamed {
+                    assert!(snd.data.is_empty(), "{name}");
+                    assert!(
+                        archive.get(&snd.stream_entry).is_some(),
+                        "{name}: missing {}",
+                        snd.stream_entry
+                    );
+                } else {
+                    assert!(!snd.data.is_empty(), "{name}");
+                }
+                "SoundBuffer"
+            }
             t if t == type_id("VertexLayout") => {
                 types::vertex_layout(&data).unwrap_or_else(|e| panic!("{name}: {e}"));
                 "VertexLayout"
@@ -82,6 +98,7 @@ fn decodes_all_supported_resources() {
     assert_eq!(counts["GraphicsMesh"], 271);
     assert_eq!(counts["MaterialInstance"], 209);
     assert_eq!(counts["VertexLayout"], 19);
+    assert_eq!(counts["SoundBuffer"], 72);
 }
 
 /// Bind-pose skinning must reproduce each skinned mesh's stored bounds.
