@@ -68,6 +68,6 @@ or establish the full event-notification/autosave behavior.
 
 The toolbar action trace is now recorded in [GAMEPLAY-SPEED-AND-TOOLBAR.md](GAMEPLAY-SPEED-AND-TOOLBAR.md):
 the packaged values are 1, 2, 5 and 10 iterations per frame, and the toolbar buttons update the
-controller fields described above. The calendar accumulator and month/year transition rules remain
-unresolved. Next, follow how elapsed time reaches simulation components and identify which manager
-advances the displayed calendar.
+controller fields described above. The calendar accumulator and month/year transition rules are
+now traced in [GAME-LOOP-STEP-03.md](GAME-LOOP-STEP-03.md). Next, follow how elapsed time reaches
+simulation components and identify the weather/season transition path.

@@ -13,7 +13,10 @@ use crate::render::Lighting;
 use crate::scene::{Camera, SceneCamera, SceneView};
 use crate::world::{World, WorldParams};
 
-const MONTH_SECONDS: f32 = 12.0;
+const YEAR_SECONDS: f32 = 3_600.0;
+const MONTHS_PER_YEAR: usize = 12;
+const MONTH_SECONDS: f32 = YEAR_SECONDS / MONTHS_PER_YEAR as f32;
+const SPEED_LEVELS: [f32; 4] = [1.0, 2.0, 5.0, 10.0];
 const FONT_SMALL: &str = r"Font\FontSmall.rsc:resource";
 const FONT_MEDIUM: &str = r"Font\FontMedium.rsc:resource";
 
@@ -25,8 +28,9 @@ pub struct GameplayLoop {
     year: u32,
     month: usize,
     month_elapsed: f32,
-    /// 0 paused, 1 normal, 2 fast.
+    /// Index into the original 1x, 2x, 5x, 10x simulation iteration values.
     speed: u8,
+    paused: bool,
     date_label: Option<NodeId>,
     pause_button: Option<NodeId>,
 }
@@ -41,7 +45,8 @@ impl GameplayLoop {
             year: 1,
             month: 0,
             month_elapsed: 0.0,
-            speed: 1,
+            speed: 0,
+            paused: false,
             date_label: None,
             pause_button: None,
         }
@@ -141,10 +146,10 @@ impl GameplayLoop {
         if let Some(date) = self.date_label {
             let key = format!("Month{}", self.month);
             let season = ui.res.string(Some(r"Dialog\StringTable.rsc:seasons"), &key);
-            let speed = match self.speed {
-                0 => "Paused",
-                2 => "4x",
-                _ => "1x",
+            let speed = if self.paused {
+                "Paused".to_string()
+            } else {
+                format!("{}x", SPEED_LEVELS[self.speed as usize] as u32)
             };
             ui.set_text(
                 date,
@@ -152,7 +157,7 @@ impl GameplayLoop {
             );
         }
         if let Some(button) = self.pause_button {
-            ui.set_text(button, if self.speed == 0 { "Resume" } else { "Pause" });
+            ui.set_text(button, if self.paused { "Resume" } else { "Pause" });
         }
     }
 
@@ -206,13 +211,12 @@ impl GameLoop for GameplayLoop {
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
-        if self.speed != 0 {
-            let multiplier = if self.speed == 2 { 4.0 } else { 1.0 };
-            self.month_elapsed += dt * multiplier;
+        if !self.paused {
+            self.month_elapsed += dt * SPEED_LEVELS[self.speed as usize];
             while self.month_elapsed >= MONTH_SECONDS {
                 self.month_elapsed -= MONTH_SECONDS;
                 self.month += 1;
-                if self.month == 12 {
+                if self.month == MONTHS_PER_YEAR {
                     self.month = 0;
                     self.year += 1;
                 }
@@ -235,13 +239,13 @@ impl GameLoop for GameplayLoop {
             return Next::Stay;
         };
         if ctx.ui.find(screen.root, "buttonPause") == Some(id) {
-            self.speed = if self.speed == 0 { 1 } else { 0 };
+            self.paused = !self.paused;
             self.update_hud(ctx.ui);
         } else if ctx.ui.find(screen.root, "buttonSlower") == Some(id) {
             self.speed = self.speed.saturating_sub(1);
             self.update_hud(ctx.ui);
         } else if ctx.ui.find(screen.root, "buttonFaster") == Some(id) {
-            self.speed = (self.speed + 1).min(2);
+            self.speed = (self.speed + 1).min((SPEED_LEVELS.len() - 1) as u8);
             self.update_hud(ctx.ui);
         } else if ctx.ui.find(screen.root, "buttonMenu") == Some(id) {
             return Self::return_to_menu();

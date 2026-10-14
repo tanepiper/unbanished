@@ -41,10 +41,9 @@ The string table describes these as slowing down, pausing, resuming and speeding
 
 ## Port boundary
 
-The port's HUD still uses its placeholder calendar and speed steps. Its current faster control caps
-at 4x, whereas the original toolbar exposes 1x, 2x, 5x and 10x simulation iterations. The port has
-not yet established the original calendar accumulator or month/year transition rules, so the
-iteration values must not be translated into calendar rates without tracing that code.
+The port now uses the original 1x, 2x, 5x and 10x levels. The calendar accumulator and year/month
+transitions have since been traced and ported; see [GAME-LOOP-STEP-03.md](GAME-LOOP-STEP-03.md).
+Production and entity systems have not yet been connected to those simulation iterations.
 
 ## Evidence pointers
 
