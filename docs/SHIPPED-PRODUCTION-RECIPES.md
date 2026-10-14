@@ -35,8 +35,12 @@ flags at `+0x5c`. The storage and production callbacks use `+0x48` as unit
 weight. `CreateRawMaterial` (`0x1400cc010`) selects one of `+0x40` or `+0x44`
 based on an owner-field comparison, then multiplies by its action float at
 `+0x4c`. The two stored quantities below are therefore reported as raw data
-fields before that action multiplier; they are not asserted to be final yields
-per work cycle.
+fields, before accounting for that action multiplier. In the standard
+`0x1400c4440` production path, the `CreateRawMaterial` constructor receives
+`DAT_14017884c` for this field; that executable constant is IEEE-754 `1.0`.
+Thus the selected field is the nominal quantity produced by that action in this
+path. The comparison's meaning and the production rate per unit time are still
+unresolved; the latter also depends on timed work and scheduling.
 
 | Workplace data resource | Inputs → output | Output label / template | Raw material `+0x40` / `+0x44` | Unit weight `+0x48` | Group |
 | --- | --- | --- | ---: | ---: | ---: |
@@ -90,4 +94,4 @@ remain untraced. The work callback and action lifecycle are described in
 [RESOURCE-PRODUCTION-FLOW.md](RESOURCE-PRODUCTION-FLOW.md).
 
 This is a static decode of shipped data and code. No production session was run,
-and no final per-cycle output rate is claimed.
+and no output rate per unit time is claimed.
