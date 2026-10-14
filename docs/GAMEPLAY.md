@@ -90,8 +90,13 @@ an appropriately focused section here:
    detailed [terrain-grid transform trace](TERRAIN-GRID-TRANSFORMS.md). The Hard/Medium/Easy
    starting-condition inputs are documented in [START-CONDITION-PROFILES.md](START-CONDITION-PROFILES.md).
 3. Description/template load → entity construction → component ownership and lifecycle/update order.
+   Component allocation, initialization, update dispatch and deferred removal are detailed in
+   [ENTITY-COMPONENT-LIFECYCLE.md](ENTITY-COMPONENT-LIFECYCLE.md).
 4. Work selection → pathfinding and task execution → production/consumption → storage and market transfer.
+   See [RESOURCE-PRODUCTION-FLOW.md](RESOURCE-PRODUCTION-FLOW.md) for the current partial trace of
+   recipes, inventory ledgers, reservations and market restocking.
 5. Citizen needs, household assignment, birth/death, health, education and migration transitions.
+   Current static findings are in [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md).
 6. Calendar, seasons, weather, crop/forest growth and natural-resource regeneration/depletion.
 7. Construction, upgrades, demolition, disasters, trading, taxation and events.
 8. Save/load serialization and restoration order, including any state rebuilt rather than serialized.
