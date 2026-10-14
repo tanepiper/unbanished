@@ -43,6 +43,10 @@ temperature and annually biased weather thresholds are now traced in
 objects remain unported.
 See [GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md).
 
+The original Status Bar resource composition and the environment controller's serialized weather
+state are recorded in [GAME-LOOP-STEP-06.md](GAME-LOOP-STEP-06.md); its runtime bindings remain
+unidentified.
+
 The outer update and its follow-up are documented in [GAME-LOOP-STEP-01.md](GAME-LOOP-STEP-01.md)
 and [GAME-LOOP-STEP-02.md](GAME-LOOP-STEP-02.md). The trace establishes pause/speed gating,
 camera input in the game-loop update, elapsed-time entity scheduling, the three packaged UI dialogs

@@ -55,6 +55,10 @@ controller's registered state. This proves that the original gameplay UI is buil
 dialog resources and a dynamically populated toolbar. It does not yet identify each toolbar action
 or establish the full event-notification/autosave behavior.
 
+The shipped [Status Bar resource tree and weather controller state](GAME-LOOP-STEP-06.md) are now
+decoded. The resource layout includes season/year, population, weather/temperature, stats, health
+and happiness groups; the code path that populates those values is still untraced.
+
 ## Evidence pointers and next trace
 
 - `FUN_14009b850` (`0x14009b850`): loop ordering and controller iteration count.
@@ -69,5 +73,7 @@ or establish the full event-notification/autosave behavior.
 The toolbar action trace is now recorded in [GAMEPLAY-SPEED-AND-TOOLBAR.md](GAMEPLAY-SPEED-AND-TOOLBAR.md):
 the packaged values are 1, 2, 5 and 10 iterations per frame, and the toolbar buttons update the
 controller fields described above. The calendar accumulator and month/year transition rules are
-now traced in [GAME-LOOP-STEP-03.md](GAME-LOOP-STEP-03.md). Next, follow how elapsed time reaches
-simulation components and identify the weather/season transition path.
+now traced in [GAME-LOOP-STEP-03.md](GAME-LOOP-STEP-03.md). The weather state and climate update are
+in [GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md), [GAME-LOOP-STEP-05.md](GAME-LOOP-STEP-05.md) and
+[GAME-LOOP-STEP-06.md](GAME-LOOP-STEP-06.md). Next, follow the status bar's update controller and
+how elapsed time reaches simulation components.

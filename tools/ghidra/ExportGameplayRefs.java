@@ -16,7 +16,8 @@ public class ExportGameplayRefs extends GhidraScript {
     "Game/Terrain/TerrainList.rsc", "Dialog/NewGame.rsc", "ResourceProduceComponent",
     "WorkComponent", "WorkDescription", "CitizenAIComponent", "CitizenDescription",
     "NaturalResourceComponent", "StorageComponent", "MapComponent", "buttonNewName",
-    "buttonNewSeed", "comboTerrain", "editSeed", "numberSeed"
+    "buttonNewSeed", "comboTerrain", "editSeed", "numberSeed", "Dialog/StatusBar.rsc",
+    "Dialog/Toolbar.rsc", "Dialog/EventNotify.rsc", "Dialog/AutoSave.rsc"
   };
 
   private DecompInterface decompiler;
