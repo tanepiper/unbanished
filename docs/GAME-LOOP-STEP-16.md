@@ -1,9 +1,9 @@
-# Game loop step 16: natural-resource removal and animation completion
+# Game loop step 16: natural-resource actions and animation completion
 
-This step traces the two callers that reach `FUN_14012b5c0` and clarifies how the resource transition
-continues through the entity manager. The evidence is static Ghidra pseudocode, class registration
-data and the original executable's vtable entries. The higher-level action executor and its cadence
-are not established.
+This step traces the natural-resource action methods and how an animation transition continues
+through the entity manager. The evidence is static Ghidra pseudocode, class registration data and
+the original executable's vtable entries. The higher-level action executor and its cadence are not
+established.
 
 ## Description-selected transition
 
@@ -51,22 +51,38 @@ separate resource-category counter, and create/register a raw-material entity as
 [GAME-LOOP-STEP-15.md](GAME-LOOP-STEP-15.md). Static evidence does not show which system invokes
 this Action or when, so this is not yet tied to a specific player command or scheduled interval.
 
+## AnimateNaturalResource action
+
+The `AnimateNaturalResource` Action uses vtable slot `+0x20` for `FUN_1400caad0`. Its serializer
+`FUN_1400cab30` stores an internal component reference at `+0x20`, an integer at `+0x28`, and a
+boolean at `+0x2c` (in addition to the base Action state). The method resolves the referenced
+component, calls `FUN_14012b910(component, action[+0x28])`, then returns the stored boolean at
+`+0x2c`.
+
+This Action therefore enters the same state dispatcher used by the GrowthComponent transition,
+but supplies its own integer state and completion result. If the component description's `+0x64`
+byte is set, `FUN_14012b910` starts that mesh animation and sets the scheduled bit-`0x04` callback;
+otherwise its flag checks can take the immediate shared-cleanup route. The Action's serialized
+fields establish the dispatch inputs, but do not reveal which system creates or schedules it.
+
 ## Evidence and limits
 
 - `analysis/export/Application-steam-x64.exe/decomp.c`: `FUN_14012bc50` sets flag `0x200000` and
   selects state 2; `FUN_14012b910` selects animation or immediate cleanup; `FUN_14012b110` handles
   animation completion; `FUN_1400c82b0` dispatches the bit-`0x04` set; `FUN_1400cffe0` implements the
-  `RemoveNaturalResource` action; `FUN_14012b5c0` performs shared removal/output work.
+  `RemoveNaturalResource` action; `FUN_1400caad0` implements `AnimateNaturalResource`;
+  `FUN_14012b5c0` performs shared removal/output work.
 - Type registration at `0x1401553d0` identifies `NaturalResourceComponent`; vtable slot `+0x40`
   points to `FUN_14012b110`. Action registration and the original PE vtable identify
-  `RemoveNaturalResource` and slot `+0x20` -> `FUN_1400cffe0`.
+  `RemoveNaturalResource` and slot `+0x20` -> `FUN_1400cffe0`, plus `AnimateNaturalResource` and
+  slot `+0x20` -> `FUN_1400caad0`.
 - [ENTITY-COMPONENT-LIFECYCLE.md](ENTITY-COMPONENT-LIFECYCLE.md) documents the manager capability
   sets; [GAME-LOOP-STEP-14.md](GAME-LOOP-STEP-14.md) maps the description flag to shipped resource
   families; [GAME-LOOP-STEP-15.md](GAME-LOOP-STEP-15.md) traces the guarded output path.
 
 ## Next trace
 
-Find the Action executor that invokes `RemoveNaturalResource`, and identify the values supplied at
-`+0x248` and `+0x30`. Then find producers of NaturalResourceComponent byte `+0x2d` and consumers of
-the category counter at `+0x10`; compare those paths with a decoded save before assigning gameplay
-names.
+Find the Action executor that invokes `RemoveNaturalResource` and `AnimateNaturalResource`, and
+identify the values supplied at their serialized fields. Then find producers of
+NaturalResourceComponent byte `+0x2d` and consumers of the category counter at `+0x10`; compare
+those paths with a decoded save before assigning gameplay names.

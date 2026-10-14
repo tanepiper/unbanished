@@ -57,8 +57,8 @@ Status Bar's `+0x00` value.
 
 ## Next trace
 
-The animation-completion and `RemoveNaturalResource` action callers are traced in
-[GAME-LOOP-STEP-16.md](GAME-LOOP-STEP-16.md). Next identify the Action executor and producers of
-component byte `+0x2d`, then trace the `+0x10` category counter and `FUN_140059930`'s keyed component
-array to their consumers. Keep both distinct from the Status Bar's `+0x00` count until their
-serializers and update owners are identified.
+The `AnimateNaturalResource` and `RemoveNaturalResource` actions plus animation completion are
+traced in [GAME-LOOP-STEP-16.md](GAME-LOOP-STEP-16.md). Next identify the Action executor and
+producers of component byte `+0x2d`, then trace the `+0x10` category counter and
+`FUN_140059930`'s keyed component array to their consumers. Keep both distinct from the Status Bar's
+`+0x00` count until their serializers and update owners are identified.
