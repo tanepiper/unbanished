@@ -5,6 +5,10 @@
 //! Runtime-steam-x64.dll, and drawn as textured quads that a renderer batches. Behaviour notes and
 //! addresses are in `docs/FINDINGS.md`.
 
+mod controls;
+mod dialog;
+mod document;
+mod input;
 mod resources;
 mod text;
 
@@ -13,6 +17,9 @@ use std::rc::Rc;
 use banished_formats::pkg::Archive;
 use banished_formats::ui::{flags, Element, ElementKind};
 
+pub use controls::{Control, EditData, SliderData};
+pub use dialog::{Binding, DialogInstance};
+pub use input::Key;
 pub use resources::{FontId, LoadedFont, LoadedSheet, Resources, SheetId, SpriteRef};
 pub use text::TextLayout;
 
@@ -104,12 +111,16 @@ pub enum Kind {
         texture: u32,
         size: [i32; 2],
     },
+    Control(Control),
     Unsupported(&'static str),
 }
 
 #[derive(Debug, Clone)]
 pub struct Node {
     pub name: String,
+    pub reference: String,
+    pub border: Option<NodeId>,
+    pub shortcut: Option<u32>,
     /// left, right, top, bottom
     pub margins: [i32; 4],
     pub min_size: [i32; 2],
@@ -119,6 +130,7 @@ pub struct Node {
     pub kind: Kind,
     pub children: Vec<NodeId>,
     pub tooltip: String,
+    pub tooltip_dialog: Option<String>,
     pub enabled: bool,
     /// Content size from the last size pass.
     pub size: [i32; 2],
@@ -130,6 +142,9 @@ impl Node {
     pub fn new(kind: Kind) -> Node {
         Node {
             name: String::new(),
+            reference: String::new(),
+            border: None,
+            shortcut: None,
             margins: [0; 4],
             min_size: [0; 2],
             alignment: 0,
@@ -138,6 +153,7 @@ impl Node {
             kind,
             children: Vec::new(),
             tooltip: String::new(),
+            tooltip_dialog: None,
             enabled: true,
             size: [0; 2],
             rect: [0; 4],
@@ -157,6 +173,9 @@ impl Node {
 pub enum Event {
     Clicked(NodeId),
     Selected(NodeId, usize),
+    Changed(NodeId),
+    Submitted(NodeId),
+    Link(NodeId, usize),
 }
 
 pub struct Ui {
@@ -167,6 +186,12 @@ pub struct Ui {
     pointer_down: bool,
     hot: Option<NodeId>,
     pressed: Option<NodeId>,
+    focus: Option<NodeId>,
+    input_root: Option<NodeId>,
+    tooltip_instance: Option<(NodeId, NodeId)>,
+    pending: Vec<Event>,
+    stack: Vec<String>,
+    overrides: Vec<std::collections::HashMap<String, Option<String>>>,
 }
 
 fn argb_to_rgba(c: u32, alpha: u8) -> [u8; 4] {
@@ -189,6 +214,12 @@ impl Ui {
             pointer_down: false,
             hot: None,
             pressed: None,
+            focus: None,
+            input_root: None,
+            tooltip_instance: None,
+            pending: Vec::new(),
+            stack: Vec::new(),
+            overrides: Vec::new(),
         }
     }
 
@@ -213,12 +244,34 @@ impl Ui {
 
     /// Build a node tree from an element reference such as `Dialog\MainMenu.rsc:main`.
     pub fn instantiate(&mut self, reference: &str) -> Option<NodeId> {
+        let name = reference
+            .rsplit_once(':')
+            .map_or(reference, |(_, name)| name);
+        let reference = self
+            .overrides
+            .last()
+            .and_then(|o| o.get(name))
+            .cloned()
+            .unwrap_or_else(|| Some(reference.to_string()))?;
+        if self.stack.len() >= 128 || self.stack.contains(&reference) {
+            log::warn!("recursive UI reference: {reference}");
+            return None;
+        }
+        self.stack.push(reference.clone());
+        let result = self.instantiate_reference(&reference);
+        self.stack.pop();
+        result
+    }
+
+    fn instantiate_reference(&mut self, reference: &str) -> Option<NodeId> {
         let element = self.res.element(reference)?;
         let name = reference
             .rsplit_once(':')
             .map_or(reference, |(_, n)| n)
             .to_string();
-        Some(self.instantiate_element(&element, name))
+        let id = self.instantiate_element(&element, name);
+        self.nodes[id].reference = reference.to_string();
+        Some(id)
     }
 
     fn text_data(&mut self, t: &banished_formats::ui::Text) -> TextData {
@@ -238,9 +291,7 @@ impl Ui {
         let child = |ui: &mut Ui, r: &Option<String>| r.as_deref().and_then(|r| ui.instantiate(r));
         let mut children = Vec::new();
         let kind = match &e.kind {
-            ElementKind::Group { children: c }
-            | ElementKind::Page { children: c, .. }
-            | ElementKind::Radio { children: c, .. } => {
+            ElementKind::Group { children: c } => {
                 children = c.iter().filter_map(|r| child(self, r)).collect();
                 Kind::Group
             }
@@ -282,9 +333,7 @@ impl Ui {
                 sprite: self.res.sprite(sprite_sheet.as_deref(), sprite),
                 size: *size,
             },
-            ElementKind::Button(b)
-            | ElementKind::Check { button: b, .. }
-            | ElementKind::Combo { button: b, .. } => {
+            ElementKind::Button(b) => {
                 let mut states = [None; 4];
                 for (s, r) in states.iter_mut().zip(&b.states) {
                     *s = child(self, r);
@@ -307,7 +356,7 @@ impl Ui {
                 min_text_width: l.min_text_width,
                 gap: l.gap,
             },
-            _ => Kind::Unsupported(e.class),
+            _ => Kind::Control(self.instantiate_control(&e.kind)),
         };
         let b = &e.base;
         let mut node = Node::new(kind);
@@ -319,6 +368,9 @@ impl Ui {
         node.color = b.color;
         node.children = children;
         node.tooltip = self.res.string(b.string_table.as_deref(), &b.tooltip);
+        node.tooltip_dialog = b.tooltip_dialog.clone();
+        node.border = child(self, &b.border);
+
         self.add(node)
     }
 
@@ -335,6 +387,10 @@ impl Ui {
     fn child_ids(&self, id: NodeId) -> Vec<NodeId> {
         let n = &self.nodes[id];
         let mut out = n.children.clone();
+        out.extend(n.border);
+        if let Kind::Control(c) = &n.kind {
+            out.extend(c.children());
+        }
         if let Kind::Button {
             states, content, ..
         } = &n.kind
@@ -355,6 +411,15 @@ impl Ui {
         };
         match &mut self.nodes[target].kind {
             Kind::Text(t) | Kind::Label { text: t, .. } => t.text = text.to_string(),
+            Kind::Control(Control::Edit(e)) => {
+                e.text.text = text.to_string();
+                e.cursor = text.chars().count();
+            }
+            Kind::Control(Control::Document(d)) => d.text = text.to_string(),
+            Kind::Control(Control::Combo { button, .. } | Control::Check { button, .. }) => {
+                let b = *button;
+                self.set_text(b, text);
+            }
             _ => log::warn!("set_text on non-text node {}", self.nodes[target].name),
         }
     }
@@ -612,8 +677,15 @@ impl Ui {
                 self.nodes[id].min_size
             }
             Kind::Unsupported(_) => [0, 0],
+            Kind::Control(c) => self.measure_control(id, c),
         };
-        self.nodes[id].size = size;
+        self.nodes[id].size = [
+            size[0].max(self.nodes[id].min_size[0]),
+            size[1].max(self.nodes[id].min_size[1]),
+        ];
+        if let Some(b) = self.nodes[id].border {
+            self.compute_size(b);
+        }
     }
 
     fn layout_text(&self, t: &mut TextData) {
@@ -671,8 +743,15 @@ impl Ui {
     /// (`DialogInstance::ComputeLayout`, 0x180116620), unlike ordinary groups which fill.
     pub fn layout_dialog(&mut self, root: NodeId, rect: [i32; 4]) {
         self.compute_size(root);
+        if !matches!(self.nodes[root].kind, Kind::Group) {
+            self.compute_layout(root, rect[0], rect[1], rect[2], rect[3]);
+            return;
+        }
         self.place(root, rect[0], rect[1], rect[2], rect[3]);
         let rc = self.nodes[root].rect;
+        if let Some(border) = self.nodes[root].border {
+            self.compute_layout(border, rc[0], rc[1], rc[2], rc[3]);
+        }
         for c in self.nodes[root].children.clone() {
             if self.nodes[c].visible() {
                 self.compute_layout(c, rc[0], rc[1], rc[2], rc[3]);
@@ -682,203 +761,110 @@ impl Ui {
 
     /// `ComputeLayout` for each element class.
     fn compute_layout(&mut self, id: NodeId, l: i32, t: i32, r: i32, b: i32) {
-        match self.nodes[id].kind.clone() {
-            Kind::Group | Kind::Viewport | Kind::List(_) | Kind::Picture { .. } => {
-                // GroupElement fills the space offered, less its margins.
-                let n = &mut self.nodes[id];
-                let [ml, mr, mt, mb] = n.margins;
-                if matches!(n.kind, Kind::Group)
-                    || n.flags & (flags::FILL_WIDTH | flags::FILL_HEIGHT) != 0
-                {
-                    n.rect = [l + ml, t + mt, r - mr, b - mb];
-                    if !matches!(n.kind, Kind::Group) {
-                        let full = n.rect;
-                        self.place(id, l, t, r, b);
-                        let n = &mut self.nodes[id];
-                        if n.flags & flags::FILL_WIDTH != 0 {
-                            (n.rect[0], n.rect[2]) = (full[0], full[2]);
-                        }
-                        if n.flags & flags::FILL_HEIGHT != 0 {
-                            (n.rect[1], n.rect[3]) = (full[1], full[3]);
-                        }
-                    }
-                } else {
-                    self.place(id, l, t, r, b);
-                }
-                self.reveal_selection(id);
-                let rc = self.nodes[id].rect;
-                for c in self.nodes[id].children.clone() {
-                    if self.nodes[c].visible() {
-                        self.compute_layout(c, rc[0], rc[1], rc[2], rc[3]);
-                    }
-                }
-            }
-            Kind::Border { .. } => {
-                let n = &mut self.nodes[id];
-                let [ml, mr, mt, mb] = n.margins;
-                n.rect = [l + ml, t + mt, r - mr, b - mb];
-            }
-            Kind::Ribbon {
-                vertical,
-                spacing,
-                cells,
-                ..
-            } => {
-                self.place(id, l, t, r, b);
-                let rc = self.nodes[id].rect;
-                let fill_last = self.nodes[id].flags
-                    & if vertical {
-                        flags::FILL_HEIGHT
-                    } else {
-                        flags::FILL_WIDTH
-                    }
-                    != 0;
-                let children = self.nodes[id].children.clone();
-                let mut offset = 0;
-                for (i, c) in children.iter().copied().enumerate() {
-                    if !self.nodes[c].visible() {
-                        continue;
-                    }
-                    let cell = cells.get(i).copied().unwrap_or(0);
-                    let last = i + 1 == children.len();
-                    let p = self.padded_size(c);
-                    if vertical {
-                        let bottom = if fill_last && last {
-                            rc[3]
-                        } else {
-                            rc[1] + offset + cell
-                        };
-                        self.compute_layout(c, rc[0], rc[1] + offset, rc[2], bottom);
-                    } else {
-                        let right = if fill_last && last {
-                            rc[2]
-                        } else {
-                            rc[0] + offset + cell
-                        };
-                        self.compute_layout(c, rc[0] + offset, rc[1], right, rc[3]);
-                    }
-                    offset += cell;
-                    if p[0] > 0 && p[1] > 0 {
-                        offset += spacing;
-                    }
-                }
-            }
-            Kind::Button {
-                states, content, ..
-            } => {
-                self.place(id, l, t, r, b);
-                let rc = self.nodes[id].rect;
-                for c in states.iter().flatten().chain(content.iter()) {
-                    self.compute_layout(*c, rc[0], rc[1], rc[2], rc[3]);
-                }
-            }
-            Kind::Text(_) | Kind::Label { .. } | Kind::Image { .. } | Kind::Unsupported(_) => {
-                self.place(id, l, t, r, b)
-            }
-        }
-    }
-
-    // ------------------------------------------------------------ input
-
-    pub fn pointer_move(&mut self, x: i32, y: i32, root: NodeId) {
-        self.pointer = (x, y);
-        self.hot = self.hit(root, x, y);
-        self.update_states(root);
-        // List hover rows.
-        for n in &mut self.nodes {
-            if let Kind::List(l) = &mut n.kind {
-                l.hovered = None;
-            }
-        }
-        if let Some(h) = self.hot {
-            let rect = self.nodes[h].rect;
-            if let Kind::List(l) = &mut self.nodes[h].kind {
-                let row = ((y - rect[1] + l.scroll) / l.row_height.max(1)) as usize;
-                l.hovered = (row < l.items.len()).then_some(row);
-            }
-        }
-    }
-
-    pub fn pointer_button(&mut self, down: bool, root: NodeId) -> Option<Event> {
-        self.pointer_down = down;
-        let mut event = None;
-        if down {
-            self.pressed = self.hot;
-            if let Some(h) = self.hot {
-                if let Kind::List(l) = &mut self.nodes[h].kind {
-                    if let Some(row) = l.hovered {
-                        l.selected = Some(row);
-                        event = Some(Event::Selected(h, row));
-                    }
-                }
-            }
+        if matches!(self.nodes[id].kind, Kind::Control(_)) {
+            self.place(id, l, t, r, b);
+            self.layout_control(id);
         } else {
-            if let (Some(p), Some(h)) = (self.pressed, self.hot) {
-                if p == h
-                    && matches!(self.nodes[h].kind, Kind::Button { .. })
-                    && self.nodes[h].enabled
-                {
-                    event = Some(Event::Clicked(h));
+            match self.nodes[id].kind.clone() {
+                Kind::Group | Kind::Viewport | Kind::List(_) | Kind::Picture { .. } => {
+                    // GroupElement fills the space offered, less its margins.
+                    let n = &mut self.nodes[id];
+                    let [ml, mr, mt, mb] = n.margins;
+                    if matches!(n.kind, Kind::Group)
+                        || n.flags & (flags::FILL_WIDTH | flags::FILL_HEIGHT) != 0
+                    {
+                        n.rect = [l + ml, t + mt, r - mr, b - mb];
+                        if !matches!(n.kind, Kind::Group) {
+                            let full = n.rect;
+                            self.place(id, l, t, r, b);
+                            let n = &mut self.nodes[id];
+                            if n.flags & flags::FILL_WIDTH != 0 {
+                                (n.rect[0], n.rect[2]) = (full[0], full[2]);
+                            }
+                            if n.flags & flags::FILL_HEIGHT != 0 {
+                                (n.rect[1], n.rect[3]) = (full[1], full[3]);
+                            }
+                        }
+                    } else {
+                        self.place(id, l, t, r, b);
+                    }
+                    self.reveal_selection(id);
+                    let rc = self.nodes[id].rect;
+                    for c in self.nodes[id].children.clone() {
+                        if self.nodes[c].visible() {
+                            self.compute_layout(c, rc[0], rc[1], rc[2], rc[3]);
+                        }
+                    }
                 }
+                Kind::Border { .. } => {
+                    let n = &mut self.nodes[id];
+                    let [ml, mr, mt, mb] = n.margins;
+                    n.rect = [l + ml, t + mt, r - mr, b - mb];
+                }
+                Kind::Ribbon {
+                    vertical,
+                    spacing,
+                    cells,
+                    ..
+                } => {
+                    self.place(id, l, t, r, b);
+                    let rc = self.nodes[id].rect;
+                    let fill_last = self.nodes[id].flags
+                        & if vertical {
+                            flags::FILL_HEIGHT
+                        } else {
+                            flags::FILL_WIDTH
+                        }
+                        != 0;
+                    let children = self.nodes[id].children.clone();
+                    let mut offset = 0;
+                    for (i, c) in children.iter().copied().enumerate() {
+                        if !self.nodes[c].visible() {
+                            continue;
+                        }
+                        let cell = cells.get(i).copied().unwrap_or(0);
+                        let last = i + 1 == children.len();
+                        let p = self.padded_size(c);
+                        if vertical {
+                            let bottom = if fill_last && last {
+                                rc[3]
+                            } else {
+                                rc[1] + offset + cell
+                            };
+                            self.compute_layout(c, rc[0], rc[1] + offset, rc[2], bottom);
+                        } else {
+                            let right = if fill_last && last {
+                                rc[2]
+                            } else {
+                                rc[0] + offset + cell
+                            };
+                            self.compute_layout(c, rc[0] + offset, rc[1], right, rc[3]);
+                        }
+                        offset += cell;
+                        if p[0] > 0 && p[1] > 0 {
+                            offset += spacing;
+                        }
+                    }
+                }
+                Kind::Button {
+                    states, content, ..
+                } => {
+                    self.place(id, l, t, r, b);
+                    let rc = self.nodes[id].rect;
+                    for c in states.iter().flatten().chain(content.iter()) {
+                        self.compute_layout(*c, rc[0], rc[1], rc[2], rc[3]);
+                    }
+                }
+                Kind::Text(_) | Kind::Label { .. } | Kind::Image { .. } | Kind::Unsupported(_) => {
+                    self.place(id, l, t, r, b)
+                }
+                Kind::Control(_) => unreachable!(),
             }
-            self.pressed = None;
         }
-        self.update_states(root);
-        event
-    }
-
-    /// Scroll the list under the pointer; returns true if something scrolled.
-    pub fn wheel(&mut self, delta_pixels: i32) -> bool {
-        let Some(h) = self.hot else { return false };
-        let height = self.nodes[h].rect[3] - self.nodes[h].rect[1];
-        if let Kind::List(l) = &mut self.nodes[h].kind {
-            let max = (l.items.len() as i32 * l.row_height - height).max(0);
-            l.scroll = (l.scroll - delta_pixels).clamp(0, max);
-            return true;
+        if let Some(border) = self.nodes[id].border {
+            let [l, t, r, b] = self.nodes[id].rect;
+            self.compute_layout(border, l, t, r, b);
         }
-        false
-    }
-
-    /// Topmost interactive node (button or list) under the point.
-    fn hit(&self, id: NodeId, x: i32, y: i32) -> Option<NodeId> {
-        let n = &self.nodes[id];
-        if !n.visible() {
-            return None;
-        }
-        for &c in n.children.iter().rev() {
-            if let Some(h) = self.hit(c, x, y) {
-                return Some(h);
-            }
-        }
-        (matches!(n.kind, Kind::Button { .. } | Kind::List(_)) && n.contains(x, y)).then_some(id)
-    }
-
-    /// `ButtonElement::Update`: 0 enabled, 1 disabled, 2 highlight, 3 pressed.
-    fn update_states(&mut self, _root: NodeId) {
-        for id in 0..self.nodes.len() {
-            let (hot, pressed) = (
-                self.hot == Some(id),
-                self.pressed == Some(id) && self.pointer_down,
-            );
-            let enabled = self.nodes[id].enabled;
-            if let Kind::Button { state, .. } = &mut self.nodes[id].kind {
-                *state = if !enabled {
-                    1
-                } else if hot && pressed {
-                    3
-                } else if hot {
-                    2
-                } else {
-                    0
-                };
-            }
-        }
-    }
-
-    pub fn hovered_tooltip(&self) -> Option<&str> {
-        self.hot
-            .map(|h| self.nodes[h].tooltip.as_str())
-            .filter(|t| !t.is_empty())
     }
 
     // ------------------------------------------------------------ drawing
@@ -886,6 +872,7 @@ impl Ui {
     pub fn draw(&self, root: NodeId) -> Vec<Quad> {
         let mut out = Vec::new();
         self.draw_node(root, 0xFFFF_FFFF, None, &mut out);
+        self.draw_tooltip(root, &mut out);
         out
     }
 
@@ -951,7 +938,11 @@ impl Ui {
             color = (color & 0x00FF_FFFF) | ((color >> 25) << 24);
         }
         let [l, t, r, b] = n.rect;
+        if let Some(border) = n.border {
+            self.draw_node(border, color, clip, out);
+        }
         match &n.kind {
+            Kind::Control(c) => self.draw_control(id, c, color, clip, out),
             Kind::Border { sprites } => {
                 let w = |i: usize| sprites[i].map_or(0, |s| s.width);
                 let h = |i: usize| sprites[i].map_or(0, |s| s.height);
@@ -1051,7 +1042,7 @@ impl Ui {
                 self.draw_text(text, [x, y], color, clip, out);
             }
             Kind::List(list) => {
-                let list_clip = Some([l, t, r, b]);
+                let list_clip = controls::intersect(clip, [l, t, r, b]);
                 let first = (list.scroll / list.row_height.max(1)).max(0) as usize;
                 let rows = ((b - t) / list.row_height.max(1) + 2) as usize;
                 for i in first..(first + rows).min(list.items.len()) {

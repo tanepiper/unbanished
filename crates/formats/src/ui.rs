@@ -561,24 +561,22 @@ fn read_element(class: &'static str, r: &mut Reader) -> Result<Element> {
                 .collect::<Result<_>>()?;
             Ok(ElementKind::Table { unknown, cells })
         })?,
-        "DocumentTextDescription" => {
-            r.block(|r, _| {
-                Ok(ElementKind::DocumentText(DocumentText {
-                    string_table: r.external_ref()?,
-                    text: r.string()?,
-                    sprite_sheet: r.external_ref()?,
-                    bullets: (0..r.count()?).map(|_| r.string()).collect::<Result<_>>()?,
-                    underline_sprite: r.string()?,
-                    link_colors: [r.u32()?, r.u32()?, r.u32()?],
-                    indent: r.i32()?,
-                    width: r.i32()?,
-                    fonts: refs(r)?,
-                    sheets: refs(r)?,
-                    colors: (0..r.count()?).map(|_| r.u32()).collect::<Result<_>>()?,
-                    images: r.external_ref()?,
-                }))
-            })?
-        }
+        "DocumentTextDescription" => r.block(|r, _| {
+            Ok(ElementKind::DocumentText(DocumentText {
+                string_table: r.external_ref()?,
+                text: r.string()?,
+                sprite_sheet: r.external_ref()?,
+                bullets: (0..r.count()?).map(|_| r.string()).collect::<Result<_>>()?,
+                underline_sprite: r.string()?,
+                link_colors: [r.u32()?, r.u32()?, r.u32()?],
+                indent: r.i32()?,
+                width: r.i32()?,
+                fonts: refs(r)?,
+                sheets: refs(r)?,
+                colors: (0..r.count()?).map(|_| r.u32()).collect::<Result<_>>()?,
+                images: r.external_ref()?,
+            }))
+        })?,
         _ => return Err(Error::Unsupported(format!("element class {class}"))),
     };
     Ok(Element { class, base, kind })
