@@ -775,18 +775,14 @@ impl Renderer {
         let light = Vec3::new(-0.4, -0.3, -1.0).normalize();
         let globals = Globals {
             view_proj: frame.view_proj.to_cols_array_2d(),
-            light_dir: light
-                .extend(if frame.vertices_only {
+            light_dir: light.extend(frame.render_mode.shader_flag()).to_array(),
+            eye: frame
+                .eye
+                .extend(if frame.render_mode == RenderMode::Textured {
                     1.0
-                } else if frame.wireframe {
-                    2.0
                 } else {
                     0.0
                 })
-                .to_array(),
-            eye: frame
-                .eye
-                .extend(if frame.textures { 1.0 } else { 0.0 })
                 .to_array(),
         };
         self.queue
@@ -829,13 +825,13 @@ impl Renderer {
                     pass.set_bind_group(0, &self.globals_group, &[]);
                     pass.set_bind_group(2, &mesh.skin, &[]);
                     for part in &mesh.parts {
-                        pass.set_pipeline(if frame.vertices_only {
+                        pass.set_pipeline(if frame.render_mode == RenderMode::Vertices {
                             if part.skinned {
                                 &self.skinned_points
                             } else {
                                 &self.static_points
                             }
-                        } else if frame.wireframe {
+                        } else if frame.render_mode == RenderMode::Wireframe {
                             if part.skinned {
                                 &self.skinned_wireframe
                             } else {
@@ -848,7 +844,7 @@ impl Renderer {
                         });
                         pass.set_bind_group(1, &part.textures, &[]);
                         pass.set_vertex_buffer(0, part.vertices.slice(..));
-                        if frame.wireframe {
+                        if frame.render_mode == RenderMode::Wireframe {
                             pass.set_index_buffer(
                                 part.wire_indices.slice(..),
                                 wgpu::IndexFormat::Uint16,
@@ -882,9 +878,24 @@ pub struct Frame<'a> {
     /// Pixel rectangle (x, y, w, h) for the 3D view; the whole target when `None`.
     pub viewport: Option<[f32; 4]>,
     pub ui: Option<(&'a banished_ui::Ui, &'a [banished_ui::Quad])>,
-    pub textures: bool,
-    pub vertices_only: bool,
-    pub wireframe: bool,
+    pub render_mode: RenderMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RenderMode {
+    Textured,
+    Vertices,
+    Wireframe,
+}
+
+impl RenderMode {
+    fn shader_flag(self) -> f32 {
+        match self {
+            Self::Textured => 0.0,
+            Self::Vertices => 1.0,
+            Self::Wireframe => 2.0,
+        }
+    }
 }
 
 pub const CLEAR_SKY: wgpu::Color = wgpu::Color {

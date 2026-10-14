@@ -10,7 +10,7 @@ use web_time::Instant;
 
 use crate::assets::Assets;
 use crate::audio::Player;
-use crate::render::{Frame, GpuMesh, Renderer, CLEAR_DARK, CLEAR_SKY};
+use crate::render::{Frame, GpuMesh, RenderMode, Renderer, CLEAR_DARK, CLEAR_SKY};
 
 const FONT: &str = r"Font\FontMedium.rsc:resource";
 const FONT_SMALL: &str = r"Font\FontSmall.rsc:resource";
@@ -91,13 +91,9 @@ pub struct Tool {
     picture: NodeId,
     audio_controls: NodeId,
     model_controls: NodeId,
-    textures_button: NodeId,
-    vertices_button: NodeId,
-    wireframe_button: NodeId,
+    render_buttons: Vec<(RenderMode, NodeId)>,
+    render_mode: RenderMode,
     visible_items: Vec<String>,
-    textures_enabled: bool,
-    vertices_only: bool,
-    wireframe: bool,
     play: NodeId,
     stop: NodeId,
     animation_next: NodeId,
@@ -208,15 +204,19 @@ impl Tool {
             n.flags = flags::FILL_WIDTH;
             n.min_size = [0, 36];
         }
-        let textures_button = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
-        ui.set_text(textures_button, "Textures: On");
-        let vertices_button = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
-        ui.set_text(vertices_button, "Vertices: Off");
-        let wireframe_button = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
-        ui.set_text(wireframe_button, "Wireframe: Off");
-        ui.add_child(model_controls, textures_button);
-        ui.add_child(model_controls, vertices_button);
-        ui.add_child(model_controls, wireframe_button);
+        let render_buttons = [
+            (RenderMode::Textured, "Textured"),
+            (RenderMode::Vertices, "Vertices"),
+            (RenderMode::Wireframe, "Wireframe"),
+        ]
+        .into_iter()
+        .map(|(mode, label)| {
+            let button = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
+            ui.set_text(button, label);
+            ui.add_child(model_controls, button);
+            (mode, button)
+        })
+        .collect::<Vec<_>>();
         ui.add_child(sidebar_stack, categories_label);
         ui.add_child(sidebar_stack, categories);
         ui.add_child(sidebar_stack, subcategories_label);
@@ -303,13 +303,9 @@ impl Tool {
             picture,
             audio_controls,
             model_controls,
-            textures_button,
-            vertices_button,
-            wireframe_button,
+            render_buttons,
+            render_mode: RenderMode::Textured,
             visible_items: Vec::new(),
-            textures_enabled: true,
-            vertices_only: false,
-            wireframe: false,
             play,
             stop,
             animation_next,
@@ -345,6 +341,7 @@ impl Tool {
             tool.assets.dialogs.len()
         );
         tool.set_status(&counts);
+        tool.set_render_mode(RenderMode::Textured);
         tool
     }
 
@@ -454,6 +451,18 @@ impl Tool {
 
     fn set_info(&mut self, text: &str) {
         self.ui.set_text(self.info, text);
+    }
+
+    fn set_render_mode(&mut self, mode: RenderMode) {
+        self.render_mode = mode;
+        for &(button_mode, button) in &self.render_buttons {
+            let node = self.ui.node_mut(button);
+            node.flags = if button_mode == mode {
+                node.flags & !flags::DIM
+            } else {
+                node.flags | flags::DIM
+            };
+        }
     }
 
     pub fn set_mode(&mut self, renderer: &mut Renderer, mode: Mode) {
@@ -805,9 +814,7 @@ impl Tool {
             eye: self.camera.eye(),
             viewport: Some(vp),
             ui: Some((&self.ui, quads)),
-            textures: self.textures_enabled,
-            vertices_only: self.vertices_only,
-            wireframe: self.wireframe,
+            render_mode: self.render_mode,
         }
     }
 
@@ -844,44 +851,10 @@ impl Tool {
                     self.seek_animation(-0.1);
                 } else if id == self.animation_forward {
                     self.seek_animation(0.1);
-                } else if id == self.textures_button {
-                    self.textures_enabled = !self.textures_enabled;
-                    self.ui.set_text(
-                        self.textures_button,
-                        if self.textures_enabled {
-                            "Textures: On"
-                        } else {
-                            "Textures: Off"
-                        },
-                    );
-                } else if id == self.vertices_button {
-                    self.vertices_only = !self.vertices_only;
-                    if self.vertices_only {
-                        self.wireframe = false;
-                        self.ui.set_text(self.wireframe_button, "Wireframe: Off");
-                    }
-                    self.ui.set_text(
-                        self.vertices_button,
-                        if self.vertices_only {
-                            "Vertices: On"
-                        } else {
-                            "Vertices: Off"
-                        },
-                    );
-                } else if id == self.wireframe_button {
-                    self.wireframe = !self.wireframe;
-                    if self.wireframe {
-                        self.vertices_only = false;
-                        self.ui.set_text(self.vertices_button, "Vertices: Off");
-                    }
-                    self.ui.set_text(
-                        self.wireframe_button,
-                        if self.wireframe {
-                            "Wireframe: On"
-                        } else {
-                            "Wireframe: Off"
-                        },
-                    );
+                } else if let Some((mode, _)) =
+                    self.render_buttons.iter().find(|(_, button)| *button == id)
+                {
+                    self.set_render_mode(*mode);
                 } else {
                     self.dialog_event(event);
                 }
