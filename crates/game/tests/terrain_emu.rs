@@ -2,7 +2,7 @@
 //! Produce it with `tools/emu/terrain_stages.py game-data/derived/emu/valleys-small-290 290 ...`;
 //! the test is skipped when that git-ignored folder is absent.
 
-use banished_game::terrain::{Generator, SizeRecord};
+use banished_game::terrain::{Generator, HeightGrid, SizeRecord, TerrainMesh};
 use std::path::PathBuf;
 
 fn truth_dir(name: &str) -> Option<PathBuf> {
@@ -116,6 +116,46 @@ fn check(dir: &str, seed: u32, wire: [i32; 17], upto: u32) {
             eprintln!("stage 3 records: {count} hill circles bit-exact");
         }
         eprintln!("stage {n}: bit-exact");
+    }
+    let tiles = dir.join("tiles.bin");
+    if upto >= 5 && tiles.exists() {
+        let heights = g.heights();
+        let grid = HeightGrid {
+            width: g.width(),
+            heights: &heights,
+        };
+        let got = TerrainMesh::build(&grid, g.size as usize).vertex_bytes();
+        let want = std::fs::read(tiles).unwrap();
+        assert_eq!(got.len(), want.len(), "tile vertex bytes");
+        if let Some(i) = (0..got.len()).find(|&i| got[i] != want[i]) {
+            let v = i / 16;
+            panic!(
+                "tile vertex {v} differs: got {:02x?} want {:02x?}",
+                &got[v * 16..v * 16 + 16],
+                &want[v * 16..v * 16 + 16]
+            );
+        }
+        eprintln!("terrain tile vertices: bit-exact");
+    }
+    let surface = dir.join("surface.u32");
+    if upto >= 5 && surface.exists() {
+        let want = floats(&std::fs::read(surface).unwrap());
+        let got = g.surface_map();
+        assert_eq!(got.len(), want.len(), "surface size");
+        let bad: Vec<usize> = (0..got.len()).filter(|&i| got[i] != want[i]).collect();
+        if let Some(&i) = bad.first() {
+            let n = g.size as usize;
+            panic!(
+                "surface: {} of {} texels differ; first at ({}, {}): got {:06x} want {:06x}",
+                bad.len(),
+                got.len(),
+                i % n,
+                i / n,
+                got[i],
+                want[i]
+            );
+        }
+        eprintln!("surface map: bit-exact");
     }
 }
 

@@ -5,7 +5,11 @@
 //! Each stage is ported from disassembly and checked against emulated ground truth
 //! (tools/emu/terrain_stages.py) and against saved maps.
 
+mod mesh;
 mod stages;
+mod surface;
+
+pub use mesh::{tile_indices, HeightGrid, TerrainMesh, TerrainVertex, TILE_CELLS, TILE_VERTS};
 
 use crate::random::Random;
 

@@ -1,7 +1,8 @@
 """Ground truth for the terrain generator (FUN_1400d4860) stage by stage.
 
 Usage: .venv/bin/python tools/emu/terrain_stages.py OUT_DIR SEED STRUCT_WORDS(17 comma-separated)
-Writes grid_N.f32 after each stage plus paths.bin / points.bin / lakes.bin.
+Writes grid_N.f32 after each stage plus paths.bin / points.bin / lakes.bin, then runs the
+packed surface-map builder (FUN_1400d4910) and writes surface.u32. Set SURFACE=0 to skip it.
 """
 import os
 import struct
@@ -59,6 +60,13 @@ def main(out, seed, words):
     dump_vec(0x48, 12, 'lakes.bin')
     with open(os.path.join(out, 'random.bin'), 'wb') as fh:
         fh.write(emu.read(ctx + 0x58, 2504))
+    if os.environ.get('SURFACE', '1') != '0':
+        t = time.time()
+        ptr = emu.call(0x1400d4910, ctx)
+        n = emu.i32(ctx)
+        with open(os.path.join(out, 'surface.u32'), 'wb') as fh:
+            fh.write(emu.read(ptr, 4 * n * n))
+        print(f'surface FUN_1400d4910: {time.time() - t:.1f}s', flush=True)
 
 
 if __name__ == '__main__':
