@@ -2,7 +2,8 @@
 
 This note follows the three filenames stored in each `TerrainGenerator` through the extracted
 resource data. It establishes the referenced asset types and their material inputs; it does not
-establish which generated mesh group uses the river or lake material.
+establish shader behavior. The generated path-to-River and point/height-grid-to-Lake bindings are
+now traced separately in [TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md).
 
 ## Generator paths to material instances
 
@@ -16,8 +17,9 @@ The `Valleys` and `Mountains` `TerrainGenerator` resources both store these file
 | `Terrain\\Lake.rsc` | `Terrain/Lake_resource.crs` | `MaterialInstance` (`0x2ebeed54`) | `Material/Lake/LakeMaterial.rsc:resource` |
 
 The mapping is supported by the paths in the serialized generator records, the matching extracted
-files, and each file's serialized material reference. The generated path-record mesh is built in a
-separate call (`FUN_1400b0730`); this evidence does not connect that mesh to either water material.
+files, and each file's serialized material reference. The MapComponent render method submits its
+path-derived group list with the River material and its separate lake-point group list with the Lake
+material; see [TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md).
 
 ## Texture slots
 
@@ -44,8 +46,6 @@ been traced.
 
 ## Next trace
 
-- Follow the three filenames copied by `FUN_1400b5700` into the renderer/resource-loader calls.
 - Identify the material-instance serializer and any conditional slot use before documenting
   rendering rules.
-- Trace the generated path mesh and water resource references to the same map-state/render path
-  before labeling the mesh as a river or lake.
+- Trace material texture slots through shader code to document the visual effects of each binding.

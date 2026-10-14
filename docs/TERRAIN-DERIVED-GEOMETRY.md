@@ -28,17 +28,19 @@ indices, then creates a separate vertex buffer at map-state offset `+0x160` and 
 `+0x180`.
 
 This proves that the generated path records feed a second mesh alongside the tiled terrain surface.
-The profile objects also name `Terrain/River.rsc` and `Terrain/Lake.rsc`, but the examined call chain
-does not bind a specific record group to either resource. The mesh is therefore called
-path-derived geometry here, without labeling it river or lake geometry.
+The MapComponent render path now resolves its groups: records from the `+0x18` path collection are
+submitted with the River material, while a separate `+0x48` point collection and height-grid pass
+are submitted with the Lake material. The producer-to-render details are in
+[TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md).
 
 The three referenced `.rsc` files resolve to material instances and their serialized texture slots;
-see [TERRAIN-MATERIAL-RESOURCES.md](TERRAIN-MATERIAL-RESOURCES.md). That confirms the separate water
-render assets exist, but does not yet connect them to this path-derived mesh.
+see [TERRAIN-MATERIAL-RESOURCES.md](TERRAIN-MATERIAL-RESOURCES.md). The renderer submits the
+path-derived groups with those water materials as described above.
 
 ## What remains unresolved
 
-- Trace map-state offsets `+0xf8`, `+0x150`, and `+0x158` from the copied terrain, river, and lake
-  filenames through resource loading and drawing.
+- Trace material-instance slot use through the shader and drawing code to identify the visual
+  terrain class and water rendering rules.
 - Identify the source/meaning of the packed per-cell channels and the encoded vertex normal bytes.
-- Compare generated path meshes with captured runtime maps before assigning a visible feature name.
+- Compare generated geometry with captured runtime maps to verify the static producer-to-material
+  mapping against in-game appearance.

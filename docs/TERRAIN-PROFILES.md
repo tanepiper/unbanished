@@ -18,8 +18,10 @@ records. Both shipped profiles set the boolean to true and reference:
 | Second filename | `Terrain\\River.rsc` |
 | Third filename | `Terrain\\Lake.rsc` |
 
-This establishes that both terrain profiles name terrain, river, and lake resources. It does not
-by itself establish which procedural point/path collection feeds each resource.
+This establishes that both terrain profiles name terrain, river, and lake resources. The map-render
+call graph binds the generated path collection to River material draws and a separate generated
+point/height-grid collection to Lake material draws; see
+[TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md).
 
 The matching extracted files are `MaterialInstance` resources with named material and texture
 links; see [TERRAIN-MATERIAL-RESOURCES.md](TERRAIN-MATERIAL-RESOURCES.md) for those serialized
@@ -64,8 +66,6 @@ trace.
 ## Next trace
 
 - Follow the copied `Terrain.rsc`, `River.rsc`, and `Lake.rsc` resources from the terrain setup state
-  into resource loading and map-state construction.
-- Trace the resource schema/constructors and compare their geometry or data with the generated
-  point/path collections before identifying those collections as river or lake features.
+  through material-instance loading and shader binding.
 - Identify the remaining profile fields from their call sites, not from the values or their apparent
   correlation with size.

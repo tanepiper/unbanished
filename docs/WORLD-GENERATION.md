@@ -71,26 +71,28 @@ The next calls cross into graphics data: `FUN_1400b1c50` creates an image buffer
 packed cell values as a texture. `FUN_1400b16b0` creates vertex and index buffers for terrain tiles;
 each tile covers a 32-by-32 cell block, and its index pattern alternates triangle diagonals by cell
 parity. These calls show how generated grid data is prepared for drawing, while `FUN_1400b0730` and
-the gameplay consumers of the terrain fields remain to be traced.
+the terrain material and gameplay consumers remain to be traced. The map-render handoff now shows
+that the generated path list is submitted with the River material and a separate point/height-grid
+list with the Lake material; see [TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md).
 
 The internal five-stage float-grid transform is documented separately in
 [TERRAIN-GRID-TRANSFORMS.md](TERRAIN-GRID-TRANSFORMS.md). That trace confirms noise initialization,
 path/point-driven spatial passes, a downhill neighbor redistribution, and two neighborhood
-averaging passes. It does not yet prove that the path records are rivers or that the float grid is
-elevation.
+averaging passes. The separate path and point collections now trace to River and Lake material
+draws, respectively; their evidence is in [TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md).
 
 The render-buffer handoff is followed in [TERRAIN-DERIVED-GEOMETRY.md](TERRAIN-DERIVED-GEOMETRY.md):
-the height samples feed 32-by-32 terrain tiles, while the counted path records also produce a second
-mesh whose feature identity is not yet established.
+grid samples feed 32-by-32 terrain tiles, while path and lake-point records produce separate draw
+ranges on a second mesh.
 
 The shipped `Valleys` and `Mountains` `TerrainGenerator` profiles and their Small/Medium/Large
 integer rows are documented in [TERRAIN-PROFILES.md](TERRAIN-PROFILES.md). Each profile points to
-terrain, river, and lake resources; the procedural record-to-resource mapping remains open.
+terrain, river, and lake resources; the path and separate lake-point collections feed the matching
+River and Lake material draw lists.
 
-The code establishes the buffer sizes, conversion and helper-call order. The field names and
-coordinate meaning of the grid values, the algorithms inside those helpers, and the record types
-being appended are not resolved yet. In particular, this note does not label the 16-bit values as
-elevation without tracing the consumer.
+The code establishes the buffer sizes, conversion and helper-call order. The signed 16-bit samples
+are used as the third terrain-vertex coordinate; the other meanings and units of the scalar field
+remain unresolved. Other generated records still need to be traced to their consumers.
 
 ## Starting-condition setup
 

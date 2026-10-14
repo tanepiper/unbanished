@@ -15,14 +15,14 @@ then runs the following functions in order. It stores the stage number at
 | Progress | Calls, in order | Confirmed operation |
 |---|---|---|
 | 1 | `FUN_1400d3aa0` | Initialize the float grid from two independently seeded Perlin-noise fields and per-cell random values. |
-| 2 | `FUN_1400d2560`, `FUN_1400d2620`, `FUN_1400d2430` | Ensure at least one path record exists, append randomized point records, then attempt a configured number of additional path records (up to 1,000 attempts each). |
+| 2 | `FUN_1400d2560`, `FUN_1400d2620`, `FUN_1400d2430` | Ensure at least one path record exists, append randomized point records, then attempt a configured number of additional path records (up to 1,000 attempts each). The separate path and lake-point collections feed River and Lake draws; see [TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md). |
 | 3 | `FUN_1400d2930`, `FUN_1400d3de0` | Add randomized local grid modifications, then rasterize stored point/path records into auxiliary arrays and combine them with the float grid. |
 | 4 | `FUN_1400d1550` | Repeatedly walk from random interior cells toward lower-valued neighbors and redistribute part of the difference. |
 | 5 | `FUN_1400d4120`, `FUN_1400d1820`, `FUN_1400d1820` | Apply another point/path-driven grid transform, then run the neighborhood averaging transform twice. |
 
-The stage labels above describe observable operations and call order. The terrain-generator record
-does not yet reveal whether the path-like records represent watercourses, ridgelines, or another
-feature, so this note does not assign those meanings.
+The stage labels above describe observable operations and call order. The River/Lake render bindings
+identify two generated feature groups; other randomized local modifications and the scalar-field
+units still need downstream traces.
 
 ## Noise initialization
 
@@ -42,12 +42,12 @@ until the segments are subdivided. In the indexed branch it chooses an existing 
 endpoint source and builds another candidate. Before appending, the function rejects candidates
 that cross themselves or any already stored record; it returns success/failure.
 
-`FUN_1400d2560` repeats candidate generation until the record collection is nonempty.
+`FUN_1400d2560` repeats candidate generation until the path collection is nonempty.
 `FUN_1400d2430` reads a count at `param_1 + 0xa28 + 0x20` and makes that many further attempts,
-giving each candidate at most 1,000 tries. `FUN_1400d2620` appends additional two-float records to
-collections at offsets `+0x38` and `+0x48`; its coordinates and values are derived from the grid
-size and random ranges in the configuration structure. These layouts support calling the data
-path/point records, but not assigning a game-world feature name.
+giving each candidate at most 1,000 tries. `FUN_1400d2620` appends three-float records to collections
+at offsets `+0x38` and `+0x48`; the `+0x48` records are consumed by the lake-surface builder. The
+separate `+0x18` path collection is expanded into the River draw groups. Producer and material
+bindings are detailed in [TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md).
 
 ## Grid transforms driven by records
 
