@@ -78,6 +78,6 @@ map's natural-resource fields.
 ## Next trace
 
 Growth thresholds, periodic child placement, neighborhood limits and the map-cell transition are
-traced in [GAME-LOOP-STEP-12.md](GAME-LOOP-STEP-12.md). Next follow placement validation and the
-linked-object transition helpers; preserve the distinction between target growth, smoothed output,
-and discrete map-cell state.
+traced in [GAME-LOOP-STEP-12.md](GAME-LOOP-STEP-12.md). Placement validation and linked resource
+transition dispatch are traced in [GAME-LOOP-STEP-13.md](GAME-LOOP-STEP-13.md); preserve the
+distinction between target growth, smoothed output and discrete map-cell state.

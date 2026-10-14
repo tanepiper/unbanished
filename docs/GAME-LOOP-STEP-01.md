@@ -47,6 +47,7 @@ environment's 48-slice weather cadence and interpolated monthly lighting are in
 [GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md). The first concrete manager component path, natural
 resource growth and its separate follow-up cadence, is traced in
 [GAME-LOOP-STEP-11.md](GAME-LOOP-STEP-11.md). Its growth thresholds, child spawning and map-cell
-transition are traced in [GAME-LOOP-STEP-12.md](GAME-LOOP-STEP-12.md). Continue through placement
-validation and linked-object cleanup; do not equate the entity scheduler's elapsed time with the
-calendar accumulator.
+transition are traced in [GAME-LOOP-STEP-12.md](GAME-LOOP-STEP-12.md), with cell admission and
+linked-resource dispatch in [GAME-LOOP-STEP-13.md](GAME-LOOP-STEP-13.md). Continue with
+template/save correlation; do not equate the entity scheduler's elapsed time with the calendar
+accumulator.

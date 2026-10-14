@@ -66,8 +66,9 @@ routing and recent drag-mode correction are recorded in [CAMERA-INPUT-FINDING.md
 The first concrete scheduled component, natural-resource `GrowthComponent`, and its once-per-active
 update smoothing pass are traced in [GAME-LOOP-STEP-11.md](GAME-LOOP-STEP-11.md). Its timed child
 placement, eight-neighbor density gate, and map-cell transition are traced in
-[GAME-LOOP-STEP-12.md](GAME-LOOP-STEP-12.md). Exact placement helper semantics, linked-object
-transition details, resource removal, and map-byte meaning remain open.
+[GAME-LOOP-STEP-12.md](GAME-LOOP-STEP-12.md). Cell admission and linked-resource transition
+dispatch are in [GAME-LOOP-STEP-13.md](GAME-LOOP-STEP-13.md). Resource-description branch meanings,
+resource removal semantics, and map-byte meanings still need save/template comparison.
 
 ## Remaining work before this is a full game loop
 

@@ -64,6 +64,6 @@ fraction and the map's discrete per-cell state.
 
 ## Next trace
 
-Trace the placement helper's exact cell tests and the natural-resource linked-object transition
-through `FUN_14012bc50` / `FUN_14012b910`. Then compare the map bytes against an actual seeded save
-to distinguish tree occupancy, growth density and other cell state.
+Placement cell tests and the natural-resource linked-component transition are traced in
+[GAME-LOOP-STEP-13.md](GAME-LOOP-STEP-13.md). Compare the map bytes against an actual seeded save
+to distinguish the cell state at `+0x28` from the growth-updated byte at `+0x2c`.
