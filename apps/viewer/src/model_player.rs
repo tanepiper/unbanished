@@ -24,6 +24,7 @@ pub struct ModelPlayerUi {
     pub step_back: NodeId,
     pub step_forward: NodeId,
     pub seek: NodeId,
+    model_info: NodeId,
     clip: NodeId,
     position: NodeId,
     duration: f32,
@@ -75,6 +76,21 @@ impl ModelPlayerUi {
         ui.add_child(header, heading);
         ui.add_child(drag_handle, header);
         ui.add_child(content, drag_handle);
+
+        let model_info = ui.text(FONT_SMALL, "");
+        {
+            let node = ui.node_mut(model_info);
+            node.min_size = [0, 32];
+            node.margins = [6, 6, 2, 2];
+            node.color = 0xFFEFE0C4;
+            if let Kind::Text(text) = &mut node.kind {
+                text.wrap = true;
+                text.max_width = 500;
+            }
+        }
+        let model_info_border = ui.instantiate(PANEL);
+        ui.node_mut(model_info).border = model_info_border;
+        ui.add_child(content, model_info);
 
         let clip_card = ui.group();
         ui.node_mut(clip_card).min_size = [0, 38];
@@ -158,6 +174,7 @@ impl ModelPlayerUi {
             step_back,
             step_forward,
             seek,
+            model_info,
             clip,
             position,
             duration: 0.0,
@@ -173,6 +190,22 @@ impl ModelPlayerUi {
         };
         ui.set_text(self.clip, &label);
         ui.set_slider_range(self.seek, [0.0, self.duration.max(0.001)]);
+        let enabled = count > 0;
+        for id in [
+            self.previous_clip,
+            self.play,
+            self.stop,
+            self.next_clip,
+            self.step_back,
+            self.step_forward,
+            self.seek,
+        ] {
+            ui.node_mut(id).enabled = enabled;
+        }
+    }
+
+    pub fn set_model_info(&self, ui: &mut Ui, text: &str) {
+        ui.set_text(self.model_info, text);
     }
 
     pub fn set_playing(&self, ui: &mut Ui, playing: bool) {

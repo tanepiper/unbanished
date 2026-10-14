@@ -708,6 +708,7 @@ impl Tool {
         self.ui
             .set_visible(self.audio_player.window, mode == Mode::Audio);
         self.ui.set_visible(self.model_player.window, false);
+        self.ui.set_visible(self.info, mode != Mode::Models);
         self.ui
             .set_visible(self.resources_label, mode != Mode::Dialogs);
         self.ui.node_mut(self.sidebar_stack).children = if mode == Mode::Dialogs {
@@ -810,21 +811,24 @@ impl Tool {
                     self.animation_playing = false;
                     self.animation_index = 0;
                     self.ui.set_visible(self.audio_controls, false);
-                    self.ui
-                        .set_visible(self.model_player.window, !self.animation_clips.is_empty());
+                    self.ui.set_visible(self.model_player.window, true);
                     self.ui.set_text(self.play, "Play");
                     self.refresh_animation_label();
                     self.model_player.set_position(&mut self.ui, 0.0);
                     self.model_player.set_playing(&mut self.ui, false);
                     self.mesh = Some(mesh);
-                    self.set_info(&format!(
+                    self.model_player.set_model_info(&mut self.ui, &format!(
                         "{shown}\n{parts} part(s)   drag to orbit, wheel to zoom\n{} animation clip(s)",
                         self.animation_clips.len()
                     ));
+                    self.set_info("");
                 }
                 Err(e) => {
-                    self.ui.set_visible(self.model_player.window, false);
-                    self.set_info(&format!("{shown}\n{e}"));
+                    self.ui.set_visible(self.model_player.window, true);
+                    self.model_player.set_clip(&mut self.ui, "", 0, 0, 0.0);
+                    self.model_player
+                        .set_model_info(&mut self.ui, &format!("{shown}\n{e}"));
+                    self.set_info("");
                 }
             },
             Mode::Textures => match self.assets.image_entry(&name) {
@@ -1279,8 +1283,11 @@ impl Tool {
                 [520, 220],
                 &mut self.audio_window_position,
             );
-        } else if self.mode == Mode::Models && !self.animation_clips.is_empty() {
+        } else if self.mode == Mode::Models && self.ui.node(self.model_player.window).visible() {
             let area = self.ui.node(self.main).rect;
+            if self.model_window_position.is_none() {
+                self.model_window_position = Some([area[0] + 12, area[1] + 12]);
+            }
             layout_floating_window(
                 &mut self.ui,
                 self.model_player.window,
