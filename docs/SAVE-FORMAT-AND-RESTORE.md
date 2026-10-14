@@ -37,10 +37,11 @@ flags, and full compatibility rules have not been established.
 Each file contains a metadata block beginning with `0xAAAAAAAA`. It starts at file offset `0x39`
 in `starter-save.sav` and `0x41` in the other three. The following little-endian 32-bit words are
 the block byte size and metadata version: `(0x15820, 2)` for the starter save, `(0x15998, 3)` for
-`Save2`, `(0x159a4, 3)` for `Auto`, and `(0x15bc6, 3)` for `allportez`. The bytes before the
-marker differ by save version and include a 28-byte region in the observed samples, but its table
-fields have not yet been decoded. The ordinary `.crs` whole-file parser therefore cannot be applied
-to the save file as if it were a standalone resource.
+`Save2`, `(0x159a4, 3)` for `Auto`, and `(0x15bc6, 3)` for `allportez`. The metadata is inside the
+first compressed payload; after expanding that stream, the marker begins the metadata block. The
+stream has a 28-byte table (a count of three plus three 8-byte entries), followed by LZF bytes. The
+ordinary `.crs` whole-file parser therefore cannot be applied to the save file as if it were a
+standalone resource.
 
 ## Runtime write path
 
@@ -51,8 +52,39 @@ blocks. The observed file header contains a metadata block ID value `0x24` and a
 `1`; matching those on-disk fields to the descriptors is strongly indicated by the decompilation,
 but the enclosing header layout still needs to be decoded before treating the mapping as final.
 
+Both payloads use the engine's `IO::CompressedStream` table: `u32 block_count`, followed by entries
+`{u32 data_offset, u16 compressed_size, u16 raw_size}`, then LZF or stored block bytes. Offsets are
+relative to the beginning of that payload. For the first payload, all four tables have three
+windows with raw sizes `0x8000`, `0x8000`, and a final partial window. The compressed bytes expand
+to one metadata block with the ordinary `0xAAAAAAAA`, byte-size, version header and a final
+`0xBBBBBBBB` terminator. The metadata block size is the expanded payload length plus that
+terminator; the earlier version 2 sample ends immediately after its terminator and has no mod list.
+
+The second payload is also a valid `CompressedStream`, and every LZF block expands to its declared
+size without exceeding the engine's `0x8000` window. Its whole stream then expands to a version 3
+block of `12 + block_size` bytes, ending in `0xBBBBBBBB`. The four gameplay snapshots expand to
+about 25.6–33.2 MiB. This verifies the two compression layers and file boundaries, but the object
+records inside the game-state block are still not decoded.
+
+| File | First stream blocks / raw bytes | Metadata name | Preview | Metadata extension value | Mod count |
+|---|---:|---|---:|---:|---:|
+| `starter-save.sav` | 3 / 88,108 | `Aurelin` | 172×128 RGBA | absent (metadata version 2) | absent |
+| `Save2.sav` | 3 / 88,484 | `Driscola` | 172×128 RGBA | 2 | 4 |
+| `Auto.sav` | 3 / 88,496 | `Автосохранение` | 172×128 RGBA | 2 | 4 |
+| `allportez.sav` | 3 / 89,042 | `Allportez` | 172×128 RGBA | 2 | 17 |
+
+Version 3 metadata stores the extra 32-bit value after the image, then a signed mod count and
+records. Each record has two strings and three 32-bit values. The strings identify a displayed mod
+name and a `.pkm` file; the meanings of the three integers remain unknown. `Save2` and `Auto` list
+the same four mods: Cheat Mod, Fast Road Mod Test, Translation Russian, and Unlimited mines and
+quarries. `allportez` lists 17 mods, including Animal Example, Better Schools, Cheat Mod, Debug
+Menu, Unlimited mines and quarries, Building Example, Camellia Crop, Colorful 2 Floors Little
+Houses, Crop Example, Dairy Milk and Creamery, Fig Example, Japanese Houses, Jatropha integerrima
+Crop, New Medieval Town version 1.1b, Rose Crop, Stone Bridge, and Translation To Russian.
+
 `SaveMetaData` writes, in order, the save name, image width, image height, `width * height * 4`
-image bytes, a 32-bit field, then a count and per-mod strings/integers. It constructs a
+image bytes, a 32-bit field, then a count and per-mod strings/integers for the current metadata
+version. It constructs a
 `CompressedMemoryStream`, requests two compression windows, and stores the resulting memory stream
 through `SavedState::Store`. `LoadMetaData` (`0x1800c43a0`) reopens that compressed stream and reads
 the corresponding name, dimensions, image, and metadata version; it reads the mod list only when
@@ -76,20 +108,16 @@ the game loop; see the save-state call sites in `analysis/gameplay-gameloop-meth
 
 The game loop serializes its own payload through `FUN_14009ae90`: the save side writes the loop to a
 `CompressedMemoryStream` and stores it in `SavedState`; the load side retrieves the bytes, opens the
-compressed stream and deserializes the loop. This means `.sav` recovery needs both the outer
-Persistence file framing and the inner memory-stream format before the gameplay payload can be
-decoded faithfully.
+compressed stream and deserializes the loop. The decoded stream begins with a version 3 block whose
+first nested block is version 0; names and nested object data follow. These objects still need to be
+mapped to game types before a gameplay-state decoder can be built.
 
 ## Open work
 
-- Identify the purpose of the first payload's internal 28-byte region and determine how the
-  version 1 header's implicit first block ID is selected.
+- Determine how the version 1 header's implicit first block ID is selected.
 - Identify the timestamp and flags and establish version compatibility rules.
-- Extract both logical payloads and validate their declared sizes and compression windows against
-  `IO::CompressedStream::Open`.
-- Decode metadata fields and identify the image, save name, game dimensions, timestamp and mod
-  records in each sample.
-- Trace game deserialization order and identify which world fields are serialized versus rebuilt.
+- Trace game deserialization order and identify the nested object types and which world fields are
+  serialized versus rebuilt.
 - Check older/newer version behavior against a real game load before implementing a writer.
 
 Useful Runtime Ghidra locations: `Save::SaveLoad::UpdateSave` (`0x1800c52f0`),

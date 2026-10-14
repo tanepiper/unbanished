@@ -97,8 +97,8 @@ an appropriately focused section here:
 8. Save/load serialization and restoration order, including any state rebuilt rather than serialized.
 
 The first Runtime DLL save-container and restore-path trace is in
-[SAVE-FORMAT-AND-RESTORE.md](SAVE-FORMAT-AND-RESTORE.md). Its on-disk header and gameplay-state
-payload decoder are still open.
+[SAVE-FORMAT-AND-RESTORE.md](SAVE-FORMAT-AND-RESTORE.md). Save headers, both compression layers and
+metadata decode; the gameplay-state object tree remains open.
 
 Until these paths are traced against code and shipped data, the repository's simulation milestones
 remain incomplete. Runtime verification against the game is a separate future step; static findings

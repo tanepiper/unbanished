@@ -54,9 +54,10 @@ traced in the resource manager).
   `*_music.crs`. Next: parse that header, wrap in a RIFF/XWMA container, decode with FFmpeg, and
   transcode to Opus for the browser.
 - **`.sav` files**: these are not standalone `.crs` block streams. The Runtime `SaveLoad` code writes
-  two logical blocks (metadata and game state); four added saves expose a metadata marker/version and
-  match the Runtime metadata serializer. The outer file table and gameplay payload remain undecoded
-  (see [SAVE-FORMAT-AND-RESTORE.md](SAVE-FORMAT-AND-RESTORE.md)).
+  two logical blocks (metadata and game state). Four added saves now decode through the outer
+  payload table and both LZF streams; names, previews and mod lists are recovered. The gameplay
+  block's nested object serialization remains undecoded (see
+  [SAVE-FORMAT-AND-RESTORE.md](SAVE-FORMAT-AND-RESTORE.md)).
 
 ## 3. Resource format (`.crs`)
 
