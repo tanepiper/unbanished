@@ -1,0 +1,449 @@
+//! Integration coverage using the player's packages; skipped when no game install is present.
+use std::collections::BTreeSet;
+use std::path::PathBuf;
+use std::rc::Rc;
+
+use banished_formats::pkg::{Archive, Package};
+use banished_formats::{crs, ui as format};
+use banished_ui::{Control, Event, Key, Kind, Node, NodeId, Ui};
+
+fn game_ui() -> Option<Ui> {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../game-data/original/WinData");
+    if !dir.join("data0.pkg").exists() {
+        eprintln!("game packages absent; skipping controls integration tests");
+        return None;
+    }
+    let mut archive = Archive::default();
+    for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+        archive.add(Package::parse(std::fs::read(dir.join(name)).unwrap()).unwrap());
+    }
+    Some(Ui::new(Rc::new(archive)))
+}
+
+fn click(ui: &mut Ui, root: NodeId, id: NodeId) {
+    let [l, t, r, b] = ui.nodes[id].rect;
+    assert!(
+        r > l && b > t,
+        "{} has no clickable area",
+        ui.nodes[id].name
+    );
+    ui.pointer_move((l + r) / 2, (t + b) / 2, root);
+    ui.pointer_button(true, root);
+    ui.pointer_button(false, root);
+}
+
+#[test]
+fn every_shipped_element_class_instantiates_lays_out_and_draws() {
+    let Some(mut ui) = game_ui() else { return };
+    let entries: Vec<_> = ui
+        .res
+        .archive
+        .names()
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    let mut classes = BTreeSet::new();
+    let mut elements = 0;
+    for entry in entries {
+        if !entry.ends_with(".crs") {
+            continue;
+        }
+        let bytes = ui.res.archive.read(&entry).unwrap();
+        if !format::is_element(crs::header(&bytes).unwrap().type_id) {
+            continue;
+        }
+        let element = format::element(&bytes).unwrap();
+        classes.insert(element.class);
+        let root = ui.instantiate(&entry).unwrap_or_else(|| panic!("{entry}"));
+        assert!(
+            ui.nodes
+                .iter()
+                .all(|n| !matches!(n.kind, Kind::Unsupported(_))),
+            "{entry}"
+        );
+        ui.layout_dialog(root, [0, 0, 1280, 720]);
+        let quads = ui.draw(root);
+        assert!(
+            quads.iter().all(|q| q.rect.iter().all(|v| v.is_finite())),
+            "{entry}"
+        );
+        elements += 1;
+        ui.nodes.clear();
+    }
+    assert_eq!(format::ELEMENT_CLASSES.len(), 27);
+    let missing: Vec<_> = format::ELEMENT_CLASSES
+        .iter()
+        .copied()
+        .filter(|class| !classes.contains(class))
+        .collect();
+    assert_eq!(missing, vec!["ClipRegionDescription"]);
+    assert_eq!(classes.len(), 26);
+    assert_eq!(elements, 1439);
+}
+
+#[test]
+fn options_tabs_reveal_sound_controls_and_slider_accepts_input() {
+    let Some(mut ui) = game_ui() else { return };
+    let root = ui.instantiate(r"Dialog\Options.rsc:main").unwrap();
+    ui.layout_dialog(root, [0, 0, 1280, 720]);
+    let tab = ui.find(root, "tabOptions").unwrap();
+    let sound = ui.find(root, "buttonSound").unwrap();
+    click(&mut ui, root, sound);
+    ui.layout_dialog(root, [0, 0, 1280, 720]);
+    assert!(matches!(
+        ui.nodes[tab].kind,
+        Kind::Control(Control::Tabs { selected: 2, .. })
+    ));
+    let music = ui.find(root, "sliderMusic").unwrap();
+    assert!(ui.nodes[music].rect[2] > ui.nodes[music].rect[0]);
+    click(&mut ui, root, music);
+    let before = ui.value(music).unwrap();
+    ui.key(root, Key::Right);
+    assert!(
+        ui.value(music).unwrap() > before,
+        "focused music slider must advance"
+    );
+    let range = match &ui.nodes[music].kind {
+        Kind::Control(Control::Slider(s)) => s.range,
+        _ => panic!("music slider"),
+    };
+    ui.set_value(music, f32::MAX);
+    assert_eq!(ui.value(music), Some(range[0].max(range[1])));
+    ui.set_value(music, f32::NAN);
+    assert!(ui.value(music).unwrap().is_finite());
+    assert!(!ui.draw(root).is_empty());
+}
+
+#[test]
+fn new_game_name_edit_enforces_length_and_edits_at_cursor() {
+    let Some(mut ui) = game_ui() else { return };
+    let edit = ui.instantiate(r"Dialog\NewGame.rsc:editName").unwrap();
+    ui.layout_dialog(edit, [0, 0, 640, 100]);
+    click(&mut ui, edit, edit);
+    ui.text_input("ABCDEFGHIJKLMNOPQRSTUV");
+    let text = |ui: &Ui| match &ui.nodes[edit].kind {
+        Kind::Control(Control::Edit(e)) => e.text.text.clone(),
+        _ => panic!("name edit"),
+    };
+    assert_eq!(text(&ui), "ABCDEFGHIJKLMNOPQR");
+    ui.key(edit, Key::Home);
+    ui.key(edit, Key::Delete);
+    ui.key(edit, Key::End);
+    ui.key(edit, Key::Backspace);
+    assert_eq!(text(&ui), "BCDEFGHIJKLMNOPQ");
+    assert!(!ui.draw(edit).is_empty());
+}
+
+#[test]
+fn progress_fill_is_clipped_to_its_fraction_and_clamped() {
+    let Some(mut ui) = game_ui() else { return };
+    let progress = ui.instantiate(r"Dialog\Storage.rsc:capacityFull").unwrap();
+    ui.nodes[progress].flags |= format::flags::FILL_WIDTH;
+    ui.layout(progress, [20, 20, 420, 60]);
+    ui.set_value(progress, 0.0);
+    let empty = ui.draw(progress);
+    ui.set_value(progress, 0.25);
+    let quarter = ui.draw(progress);
+    assert!(
+        quarter.len() > empty.len(),
+        "positive progress adds fill geometry"
+    );
+    let [l, t, r, b] = ui.nodes[progress].rect;
+    let fill_right = l + (r - l) / 4;
+    let fill: Vec<_> = quarter
+        .iter()
+        .filter(|q| q.clip.is_some_and(|c| c == [l, t, fill_right, b]))
+        .collect();
+    assert!(
+        !fill.is_empty(),
+        "fill quads must carry fractional clipping"
+    );
+    assert!(fill.iter().all(|q| q.rect[2] <= fill_right as f32));
+    ui.set_value(progress, 4.0);
+    assert_eq!(ui.value(progress), Some(1.0));
+    ui.set_value(progress, -1.0);
+    assert_eq!(ui.value(progress), Some(0.0));
+}
+
+#[test]
+fn overflowing_container_scrolls_content_and_preserves_its_clip() {
+    let Some(mut ui) = game_ui() else { return };
+    let root = ui.instantiate(r"Dialog\Options.rsc:gameOptions").unwrap();
+    let body = ui.ribbon(true, 2);
+    for i in 0..40 {
+        let text = ui.text(r"Font\FontSmall.rsc:resource", &format!("Visible row {i}"));
+        ui.add_child(body, text);
+    }
+    if let Kind::Control(Control::Container {
+        content,
+        size,
+        offset,
+        ..
+    }) = &mut ui.nodes[root].kind
+    {
+        *content = Some(body);
+        *size = [220, 100];
+        *offset = [0, 150];
+    } else {
+        panic!("options container");
+    }
+    ui.layout_dialog(root, [0, 0, 800, 600]);
+    let (view, bar, offset) = match ui.nodes[root].kind {
+        Kind::Control(Control::Container {
+            view, bars, offset, ..
+        }) => (view, bars[1].unwrap(), offset),
+        _ => unreachable!(),
+    };
+    assert_eq!(offset[1], 150);
+    assert!(
+        ui.nodes[body].rect[1] < view[1],
+        "scroll moves content above its viewport"
+    );
+    assert!(
+        ui.nodes[bar].rect[3] > ui.nodes[bar].rect[1],
+        "overflow exposes a scrollbar"
+    );
+    let quads = ui.draw(root);
+    let content_quads: Vec<_> = quads.iter().filter(|q| q.clip == Some(view)).collect();
+    assert!(
+        !content_quads.is_empty(),
+        "content uses the viewport scissor"
+    );
+    assert!(
+        content_quads.iter().any(|q| q.rect[1] < view[1] as f32),
+        "scissor clips offscreen text"
+    );
+    let value = ui.value(bar).unwrap();
+    assert!(
+        value > 0.0 && value < 1.0,
+        "scrollbar tracks content offset"
+    );
+}
+
+#[test]
+fn town_hall_table_positions_cells_and_graph_draws_finite_samples() {
+    let Some(mut ui) = game_ui() else { return };
+    let table = ui.instantiate(r"Dialog\TownHall.rsc:limits").unwrap();
+    ui.layout(table, [0, 0, 1200, 700]);
+    let cells = match &ui.nodes[table].kind {
+        Kind::Control(Control::Table { cells, .. }) => cells.clone(),
+        _ => panic!("limits table"),
+    };
+    assert_eq!(cells.len(), 66);
+    for row in 0..11 {
+        let mut row_cells: Vec<_> = cells.iter().filter(|c| c.1 == row).collect();
+        row_cells.sort_by_key(|c| c.0);
+        for pair in row_cells.windows(2) {
+            assert!(
+                ui.nodes[pair[0].2].rect[2] <= ui.nodes[pair[1].2].rect[0],
+                "table columns overlap in row {row}"
+            );
+        }
+    }
+    let graph = ui.instantiate(r"Dialog\TownHall.rsc:graphData").unwrap();
+    ui.layout(graph, [0, 0, 640, 480]);
+    let empty_count = ui.draw(graph).len();
+    ui.set_graph_series(
+        graph,
+        vec![
+            vec![-2.0, 0.0, 3.0, f32::NAN, 1.0],
+            vec![2.0, 1.0, 0.0, 1.0],
+        ],
+    );
+    let data = ui.draw(graph);
+    assert!(
+        data.len() > empty_count,
+        "graph samples add visible line segments"
+    );
+    assert!(
+        data.iter().all(|q| q.rect.iter().all(|v| v.is_finite())),
+        "NaN samples must never reach the renderer"
+    );
+}
+
+#[test]
+fn clip_region_keeps_scrolled_text_inside_its_viewport() {
+    let Some(mut ui) = game_ui() else { return };
+    // This supported class has no standalone resource in the shipped packages.
+    let content = ui.text(
+        r"Font\FontSmall.rsc:resource",
+        "A long line passing both edges of a narrow clip region",
+    );
+    let root = ui.add(Node::new(Kind::Control(Control::Clip {
+        content: Some(content),
+        size: [50, 20],
+        offset: [30, 0],
+    })));
+    ui.layout(root, [0, 0, 100, 100]);
+    let quads = ui.draw(root);
+    assert!(!quads.is_empty());
+    assert!(quads.iter().all(|q| q.clip == Some(ui.nodes[root].rect)));
+    assert!(quads
+        .iter()
+        .any(|q| q.rect[0] < ui.nodes[root].rect[0] as f32));
+    assert!(quads
+        .iter()
+        .any(|q| q.rect[2] > ui.nodes[root].rect[2] as f32));
+}
+
+#[test]
+fn combo_selects_pointer_choice_and_escape_closes_dropdown() {
+    let Some(mut ui) = game_ui() else { return };
+    let combo = ui.instantiate(r"Dialog\NewGame.rsc:comboTerrain").unwrap();
+    ui.set_choices(
+        combo,
+        vec!["Valleys".into(), "Mountains".into(), "Plains".into()],
+    );
+    ui.layout(combo, [0, 0, 320, 48]);
+    click(&mut ui, combo, combo);
+    ui.layout(combo, [0, 0, 320, 48]);
+    let list = match ui.nodes[combo].kind {
+        Kind::Control(Control::Combo {
+            open: true, list, ..
+        }) => list,
+        _ => panic!("dropdown did not open"),
+    };
+    let row_height = match &ui.nodes[list].kind {
+        Kind::List(l) => l.row_height,
+        _ => unreachable!(),
+    };
+    let rc = ui.nodes[list].rect;
+    ui.pointer_move(
+        (rc[0] + rc[2]) / 2,
+        rc[1] + row_height + row_height / 2,
+        combo,
+    );
+    let event = ui.pointer_button(true, combo);
+    ui.pointer_button(false, combo);
+    assert_eq!(event, Some(Event::Selected(combo, 1)));
+    assert!(matches!(
+        ui.nodes[combo].kind,
+        Kind::Control(Control::Combo { open: false, .. })
+    ));
+    assert!(matches!(&ui.nodes[list].kind,Kind::List(l) if l.selected==Some(1)));
+    click(&mut ui, combo, combo);
+    assert!(matches!(
+        ui.nodes[combo].kind,
+        Kind::Control(Control::Combo { open: true, .. })
+    ));
+    assert!(ui.key(combo, Key::Escape));
+    assert!(matches!(
+        ui.nodes[combo].kind,
+        Kind::Control(Control::Combo { open: false, .. })
+    ));
+}
+
+#[test]
+fn tab_focus_and_unicode_cursor_editing_emit_changes() {
+    let Some(mut ui) = game_ui() else { return };
+    let root = ui.group();
+    let edit = ui.instantiate(r"Dialog\NewGame.rsc:editName").unwrap();
+    ui.add_child(root, edit);
+    ui.layout(root, [0, 0, 640, 100]);
+    assert!(ui.key(root, Key::Tab));
+    assert_eq!(ui.focused(), Some(edit));
+    assert!(ui.text_input("Aé🦀B"));
+    ui.key(root, Key::Left);
+    ui.key(root, Key::Backspace);
+    let text = |ui: &Ui| match &ui.nodes[edit].kind {
+        Kind::Control(Control::Edit(e)) => e.text.text.clone(),
+        _ => unreachable!(),
+    };
+    assert_eq!(text(&ui), "AéB");
+    ui.key(root, Key::Backspace);
+    assert_eq!(text(&ui), "AB");
+    ui.key(root, Key::Home);
+    ui.key(root, Key::Delete);
+    assert_eq!(text(&ui), "B");
+    assert!(
+        ui.drain_events()
+            .iter()
+            .filter(|e| **e == Event::Changed(edit))
+            .count()
+            >= 4
+    );
+}
+
+#[test]
+fn hidden_and_disabled_ancestors_block_pointer_and_shortcuts() {
+    let Some(mut ui) = game_ui() else { return };
+    let root = ui.group();
+    let button = ui.instantiate(r"Dialog\Options.rsc:buttonSound").unwrap();
+    ui.add_child(root, button);
+    ui.set_shortcut(button, 'S' as u32);
+    ui.layout(root, [0, 0, 320, 80]);
+    let [l, t, r, b] = ui.nodes[button].rect;
+    ui.nodes[root].enabled = false;
+    ui.pointer_move((l + r) / 2, (t + b) / 2, root);
+    assert_eq!(ui.pointer_button(true, root), None);
+    assert_eq!(ui.pointer_button(false, root), None);
+    assert!(!ui.key(root, Key::Character('s')));
+    ui.nodes[root].enabled = true;
+    ui.set_visible(root, false);
+    ui.pointer_move((l + r) / 2, (t + b) / 2, root);
+    assert_eq!(ui.pointer_button(true, root), None);
+    assert_eq!(ui.pointer_button(false, root), None);
+    assert!(!ui.key(root, Key::Character('s')));
+    ui.set_visible(root, true);
+    assert!(ui.key(root, Key::Character('s')));
+    assert!(ui.drain_events().contains(&Event::Clicked(button)));
+}
+
+#[test]
+fn dialog_named_overrides_suppress_slots_and_dispatch_binding_callbacks() {
+    let Some(mut ui) = game_ui() else { return };
+    let d = ui
+        .instantiate_dialog(r"Dialog\Options.rsc:inputBind")
+        .unwrap();
+    assert!(ui.find(d.root, "inputBindText").is_some());
+    assert!(ui.find(d.root, "buttonYes").is_some());
+    assert!(ui.find(d.root, "buttonNo").is_none());
+    assert!(ui.find(d.root, "buttonOk").is_none());
+    ui.layout_dialog(d.root, [0, 0, 1280, 720]);
+    assert!(!ui.draw(d.root).is_empty());
+    let bound = ui
+        .instantiate_dialog(r"Dialog\ToolTipTitleDesc.rsc:resource")
+        .unwrap();
+    assert_eq!(bound.bindings.len(), 1);
+    let source = *ui.nodes[bound.root]
+        .children
+        .first()
+        .expect("tooltip child");
+    let event = Event::Changed(source);
+    let mut callbacks = Vec::new();
+    bound.dispatch(&ui, event, |binding, event| {
+        callbacks.push((binding.controller, event))
+    });
+    assert_eq!(callbacks, vec![(870715395, event)]);
+    let unrelated = ui.group();
+    bound.dispatch(&ui, Event::Changed(unrelated), |_, _| {
+        panic!("unrelated event reached controller")
+    });
+}
+
+#[test]
+fn hover_tooltip_adds_text_and_pressing_suppresses_it() {
+    let Some(mut ui) = game_ui() else { return };
+    let button = ui.instantiate(r"Dialog\Options.rsc:buttonSound").unwrap();
+    ui.nodes[button].tooltip = "Adjust the volume of music and sound effects".into();
+    ui.layout(button, [0, 0, 320, 80]);
+    ui.pointer_move(-1, -1, button);
+    let idle = ui.draw(button);
+    let [l, t, r, b] = ui.nodes[button].rect;
+    ui.pointer_move((l + r) / 2, (t + b) / 2, button);
+    assert_eq!(
+        ui.hovered_tooltip(),
+        Some("Adjust the volume of music and sound effects")
+    );
+    let hovered = ui.draw(button);
+    assert!(hovered.len() > idle.len());
+    assert!(
+        hovered.iter().any(|q| q.color == [255, 232, 192, 255]),
+        "tooltip text must reach renderer"
+    );
+    ui.pointer_button(true, button);
+    assert!(!ui
+        .draw(button)
+        .iter()
+        .any(|q| q.color == [255, 232, 192, 255]));
+}

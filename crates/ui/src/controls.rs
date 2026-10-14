@@ -360,6 +360,7 @@ impl Ui {
             },
             ElementKind::Combo { button, refs } => {
                 let b = self.control_button(button);
+                self.set_text(b, "");
                 let font = refs[1]
                     .as_deref()
                     .and_then(|r| self.res.element(r))
@@ -853,7 +854,18 @@ impl Ui {
             }
             Control::Slider(s) => {
                 if let Some(n) = s.number {
-                    layout(self, n, [l, t, r, b]);
+                    let width = self.padded_size(n)[0];
+                    let knob = s.sprites.get(3).and_then(|sp| *sp).map_or(0, |sp| sp.width);
+                    let x = l
+                        + s.inset
+                        + ((r - l - 2 * s.inset - knob).max(0) as f32 * fraction(s.value, s.range))
+                            as i32;
+                    let tx = if x + knob + width < r {
+                        x + knob + s.inset
+                    } else {
+                        x - width
+                    };
+                    layout(self, n, [tx, t + s.track_y, tx + width, b]);
                 }
             }
             Control::Spinner { parts, .. } => {

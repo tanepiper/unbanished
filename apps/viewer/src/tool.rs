@@ -3,7 +3,7 @@
 
 use banished_formats::texture::decode_rgba;
 use banished_formats::ui::flags;
-use banished_ui::{Event, Kind, NodeId, Ui};
+use banished_ui::{DialogInstance, Event, Key, Kind, NodeId, Ui};
 use glam::{Mat4, Vec3};
 
 use crate::assets::Assets;
@@ -88,6 +88,8 @@ pub struct Tool {
     stop: NodeId,
     dialog_host: NodeId,
     status: NodeId,
+    dialog: Option<DialogInstance>,
+    permanent_nodes: usize,
     pub mode: Mode,
     pub mesh: Option<GpuMesh>,
     pub camera: Camera,
@@ -127,6 +129,7 @@ impl Tool {
             if let Some(b) = ui.instantiate(BUTTON) {
                 ui.set_text(b, mode.label());
                 ui.node_mut(b).name = mode.label().to_string();
+                ui.set_shortcut(b, b'1' as u32 + mode_buttons.len() as u32);
                 ui.add_child(buttons, b);
                 mode_buttons.push((mode, b));
             }
@@ -209,6 +212,7 @@ impl Tool {
         }
         ui.add_child(root, status);
 
+        let permanent_nodes = ui.nodes.len();
         let mut tool = Tool {
             assets,
             ui,
@@ -223,6 +227,8 @@ impl Tool {
             stop,
             dialog_host,
             status,
+            dialog: None,
+            permanent_nodes,
             mode: Mode::Models,
             mesh: None,
             camera: Camera {
@@ -301,6 +307,10 @@ impl Tool {
             return;
         };
         self.ui.list_select(self.list, Some(index));
+        self.ui.clear_input();
+        self.ui.nodes.truncate(self.permanent_nodes);
+        self.ui.node_mut(self.dialog_host).children.clear();
+        self.dialog = None;
         let shown = Self::display_name(&name);
         match self.mode {
             Mode::Models => match renderer.load_mesh(&self.assets, &name) {
@@ -369,22 +379,13 @@ impl Tool {
                         .trim_end_matches(".crs")
                 );
                 self.ui.node_mut(self.dialog_host).children.clear();
-                let dialog = self
-                    .assets
-                    .archive
-                    .read(&name)
-                    .and_then(|d| banished_formats::ui::dialog(&d));
-                match dialog {
-                    Ok(d) => {
-                        if let Some(root) = d.root.as_deref().and_then(|r| self.ui.instantiate(r)) {
-                            self.ui.add_child(self.dialog_host, root);
-                        }
-                        self.set_info(&format!(
-                            "{reference}\nroot {}",
-                            d.root.as_deref().unwrap_or("(none)")
-                        ));
+                match self.ui.instantiate_dialog(&reference) {
+                    Some(d) => {
+                        self.ui.add_child(self.dialog_host, d.root);
+                        self.set_info(&reference);
+                        self.dialog = Some(d);
                     }
-                    Err(e) => self.set_info(&format!("{shown}\n{e}")),
+                    None => self.set_info(&format!("{shown}\nUnable to load dialog")),
                 }
             }
         }
@@ -494,19 +495,24 @@ impl Tool {
                     self.play_selected();
                 } else if id == self.stop {
                     self.player.stop();
+                    self.set_status("Stopped");
+                } else {
+                    self.dialog_event(event);
                 }
             }
-            Event::Selected(_, index) => self.select(renderer, index),
+            Event::Selected(id, index) if id == self.list => self.select(renderer, index),
+            _ => self.dialog_event(event),
         }
     }
 
-    pub fn pointer_move(&mut self, x: i32, y: i32) {
+    pub fn pointer_move(&mut self, renderer: &mut Renderer, x: i32, y: i32) {
         self.ui.pointer_move(x, y, self.root);
         if let (true, Some((px, py))) = (self.dragging, self.last_cursor) {
             self.camera.yaw -= (x - px) as f32 * 0.01;
             self.camera.pitch = (self.camera.pitch + (y - py) as f32 * 0.01).clamp(-1.5, 1.5);
         }
         self.last_cursor = Some((x, y));
+        self.handle_pending(renderer);
     }
 
     pub fn pointer_button(&mut self, renderer: &mut Renderer, down: bool) {
@@ -517,11 +523,66 @@ impl Tool {
         if let Some(e) = event {
             self.handle(renderer, e);
         }
+        self.handle_pending(renderer);
     }
 
     pub fn wheel(&mut self, lines: f32) {
         if !self.ui.wheel((lines * 40.0) as i32) && self.mode == Mode::Models {
             self.camera.distance *= (1.0 - lines * 0.1).clamp(0.5, 1.5);
         }
+    }
+
+    fn dialog_event(&mut self, event: Event) {
+        let Some(dialog) = &self.dialog else { return };
+        // Application controllers receive events only from their attached subtree.
+        let mut handled = false;
+        dialog.dispatch(&self.ui, event, |_, _| handled = true);
+        let id = match event {
+            Event::Clicked(id)
+            | Event::Changed(id)
+            | Event::Selected(id, _)
+            | Event::Submitted(id)
+            | Event::Link(id, _) => id,
+        };
+        if let Event::Link(id, index) = event {
+            if let Some(target) = self.ui.document_link(id, index).map(str::to_owned) {
+                self.set_status(&format!("Link: {target}"));
+                return;
+            }
+        }
+        if id >= self.permanent_nodes {
+            let action = self.ui.node(id).name.clone();
+            self.set_status(&format!(
+                "{}{}",
+                action,
+                if handled { " updated" } else { " selected" }
+            ));
+        }
+    }
+
+    fn handle_pending(&mut self, renderer: &mut Renderer) {
+        for event in self.ui.drain_events() {
+            self.handle(renderer, event);
+        }
+    }
+
+    pub fn key(&mut self, renderer: &mut Renderer, key: Key, text: Option<&str>) {
+        let handled =
+            self.ui.key(self.root, key) || text.is_some_and(|text| self.ui.text_input(text));
+        self.handle_pending(renderer);
+        if !handled {
+            match key {
+                Key::Down | Key::Right => self.step(renderer, 1),
+                Key::Up | Key::Left => self.step(renderer, -1),
+                Key::PageDown => self.step(renderer, 20),
+                Key::PageUp => self.step(renderer, -20),
+                _ => {}
+            }
+        }
+    }
+
+    pub fn text_input(&mut self, renderer: &mut Renderer, text: &str) {
+        self.ui.text_input(text);
+        self.handle_pending(renderer);
     }
 }

@@ -37,6 +37,7 @@ struct App {
     renderer: Option<Renderer>,
     tool: Option<Tool>,
     pending_packages: Option<Vec<(String, Vec<u8>)>>,
+    shift: bool,
 }
 
 fn audio_player() -> audio::Player {
@@ -94,6 +95,7 @@ impl ApplicationHandler<UserEvent> for App {
             attrs = attrs.with_canvas(Some(web::canvas()));
         }
         let window = Arc::new(event_loop.create_window(attrs).expect("create window"));
+        window.set_ime_allowed(true);
         self.window = Some(window.clone());
         let proxy = self.proxy.clone();
         let init = async move {
@@ -155,16 +157,37 @@ impl ApplicationHandler<UserEvent> for App {
                 return;
             }
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
-                match event.logical_key {
-                    Key::Named(NamedKey::ArrowDown | NamedKey::ArrowRight) => {
-                        tool.step(renderer, 1)
-                    }
-                    Key::Named(NamedKey::ArrowUp | NamedKey::ArrowLeft) => tool.step(renderer, -1),
-                    Key::Named(NamedKey::PageDown) => tool.step(renderer, 20),
-                    Key::Named(NamedKey::PageUp) => tool.step(renderer, -20),
-                    _ => {}
+                use banished_ui::Key as UiKey;
+                let key = match &event.logical_key {
+                    Key::Named(NamedKey::Tab) => Some(if self.shift {
+                        UiKey::BackTab
+                    } else {
+                        UiKey::Tab
+                    }),
+                    Key::Named(NamedKey::Enter) => Some(UiKey::Enter),
+                    Key::Named(NamedKey::Escape) => Some(UiKey::Escape),
+                    Key::Named(NamedKey::Space) => Some(UiKey::Space),
+                    Key::Named(NamedKey::ArrowDown) => Some(UiKey::Down),
+                    Key::Named(NamedKey::ArrowUp) => Some(UiKey::Up),
+                    Key::Named(NamedKey::ArrowLeft) => Some(UiKey::Left),
+                    Key::Named(NamedKey::ArrowRight) => Some(UiKey::Right),
+                    Key::Named(NamedKey::PageDown) => Some(UiKey::PageDown),
+                    Key::Named(NamedKey::PageUp) => Some(UiKey::PageUp),
+                    Key::Named(NamedKey::Home) => Some(UiKey::Home),
+                    Key::Named(NamedKey::End) => Some(UiKey::End),
+                    Key::Named(NamedKey::Backspace) => Some(UiKey::Backspace),
+                    Key::Named(NamedKey::Delete) => Some(UiKey::Delete),
+                    Key::Character(s) => s.chars().next().map(UiKey::Character),
+                    _ => None,
+                };
+                if let Some(key) = key {
+                    tool.key(renderer, key, event.text.as_deref());
                 }
             }
+            WindowEvent::Ime(winit::event::Ime::Commit(text)) => tool.text_input(renderer, &text),
+            WindowEvent::ModifiersChanged(modifiers) => self.shift = modifiers.state().shift_key(),
+            WindowEvent::Focused(false) => tool.ui.clear_input(),
+            WindowEvent::CursorLeft { .. } => tool.pointer_move(renderer, -1, -1),
             WindowEvent::MouseInput {
                 button: MouseButton::Left,
                 state,
@@ -173,7 +196,7 @@ impl ApplicationHandler<UserEvent> for App {
                 tool.pointer_button(renderer, state == ElementState::Pressed);
             }
             WindowEvent::CursorMoved { position, .. } => {
-                tool.pointer_move(position.x as i32, position.y as i32)
+                tool.pointer_move(renderer, position.x as i32, position.y as i32)
             }
             WindowEvent::MouseWheel { delta, .. } => tool.wheel(match delta {
                 MouseScrollDelta::LineDelta(_, y) => y,
@@ -313,6 +336,7 @@ fn main() {
         renderer: None,
         tool: None,
         pending_packages: None,
+        shift: false,
     };
     event_loop.run_app(&mut app).expect("run");
 }
@@ -334,6 +358,7 @@ fn main() {
         renderer: None,
         tool: None,
         pending_packages: None,
+        shift: false,
     });
 }
 
@@ -433,7 +458,10 @@ mod web {
             // Permit selecting the same files again after a read or parse error.
             target.set_value("");
             if files.is_empty() {
-                set_status("Select one or more .pkg files from your WinData folder.", false);
+                set_status(
+                    "Select one or more .pkg files from your WinData folder.",
+                    false,
+                );
                 return;
             }
             target.set_disabled(true);
