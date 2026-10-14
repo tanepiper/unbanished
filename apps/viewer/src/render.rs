@@ -473,7 +473,7 @@ impl Renderer {
                     .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: Some("material params"),
                         contents: bytemuck::cast_slice(&material_params),
-                        usage: wgpu::BufferUsages::UNIFORM,
+                        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                     });
                 let textures = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: Some(&part.name),
@@ -535,7 +535,7 @@ impl Renderer {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("skin"),
                 contents: bytemuck::cast_slice(&matrices),
-                usage: wgpu::BufferUsages::UNIFORM,
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             });
         let skin = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("skin"),
