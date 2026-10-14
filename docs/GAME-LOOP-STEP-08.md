@@ -1,19 +1,20 @@
 # Game loop step 08: status bar population and stock values
 
 This step follows the values written by `StatusBarUI` to their source data. Evidence is static Ghidra
-12.1.4 decompilation of the Steam x64 executable and its Runtime DLL. It traces the fields and
-predicates used by the status bar; it does not identify every owning class or prove the localized
-meaning of the three population groups.
+12.1.4 decompilation of the Steam x64 executable and its Runtime DLL plus decoded UI resources. It
+traces the fields and predicates used by the status bar; the producers of citizen flags and stock
+updates remain unidentified.
 
 ## Population and citizen status
 
 `FUN_14007eda0` (`0x14007eda0`) obtains an entity pointer array at `*(game + 0xF0) + 0xA0`, with
 the element count at `*(game + 0xF0) + 0xA8`. Each entry is an entity object. Its component list is
 at `entity + 0x10`; the update scans that list for a component matching type-info pointer
-`DAT_1401CFE08`, then reads a 32-bit flag word at `component + 0xF0`. The exported type record does
-not name this component. The entity shape includes a `CitizenDescription*` at `entity + 0x288`, so
-the list is strongly identified as citizens, but the concrete owner and component type remain
-unresolved.
+`DAT_1401CFE08`, then reads a 32-bit flag word at `component + 0xF0`. The type record initialized by
+`FUN_140155910` (`0x140155910`) identifies this component as `StatusIconComponent`, derived from
+`Component`; its constructor `FUN_140131590` zeroes the flag word. The entity shape includes a
+`CitizenDescription*` at `entity + 0x288`, so the iterated entries are citizens, while the concrete
+owner of the entity array remains unresolved.
 
 The six status counts independently test bits 0 through 5 of that word. They are accumulated as
 separate totals, so a citizen can contribute to more than one count and the counts need not sum to
@@ -21,12 +22,18 @@ the population.
 
 | Flag bit | Status Bar values |
 |---:|---|
-| 0 | `numberStatusHome`, `imageStatusHome` |
-| 1 | `numberStatusFood`, `imageStatusFood` |
-| 2 | `numberStatusCold`, `imageStatusCold` |
-| 3 | `numberStatusJob`, `imageStatusJob` |
-| 4 | `numberStatusTool`, `imageStatusTool` |
-| 5 | `numberStatusDisease`, `imageStatusDisease` |
+| 0 | Home: `numberStatusHome`, `imageStatusHome` |
+| 1 | Food: `numberStatusFood`, `imageStatusFood` |
+| 2 | Cold: `numberStatusCold`, `imageStatusCold` |
+| 3 | Job: `numberStatusJob`, `imageStatusJob` |
+| 4 | Tool: `numberStatusTool`, `imageStatusTool` |
+| 5 | Disease: `numberStatusDisease`, `imageStatusDisease` |
+
+The paired `Dialog/StringTable.rsc:gameDialogs` tooltip keys (`StatusHomeTip` through
+`StatusDiseaseTip`) describe these as citizens without homes, hungry, freezing, without jobs,
+without tools, and with diseases, respectively. The matching per-citizen tips confirm the same
+ordering. The consuming path and resource labels identify the bits' meanings, but the code that sets
+them has not been found.
 
 The `textPopulation` element receives three independently formatted parameters. The three branches
 are mutually exclusive and together cover the entity array:
@@ -36,10 +43,13 @@ are mutually exclusive and together cover the entity array:
 2. `entity + 0x208` is null and the first branch's threshold comparison is false.
 3. `entity + 0x208` is non-null, regardless of that comparison.
 
-These are the exact predicates used for parameters 0, 1, and 2. The age/age-class interpretation of
-the float comparison is plausible from the `CitizenDescription` field, but the localized labels and
-the role of the pointer at `+0x208` have not been established. The three parameter totals sum to the
-entity-array count.
+The element `Dialog/StatusBar_textPopulation.crs` selects `Dialog/StringTable.rsc:gameDialogs` key
+`Population`, whose format is `@0 / @1 / @2`; `PopulationTip` labels them as adults, students, and
+children. The decompiled writes therefore map parameter 0 to Adults, parameter 1 to Students, and
+parameter 2 to Children. The adult predicate is the threshold comparison with a null `+0x208`
+pointer; the student predicate is non-null `+0x208`; the child predicate is a failed threshold
+comparison with null `+0x208`. The three parameter totals sum to the entity-array count. This is
+English resource evidence; locale variants have not been inspected.
 
 ## Resource stock values
 
@@ -79,7 +89,6 @@ name.
 - Local Ghidra exports: `analysis/gameplay-statusbar-controller.txt` and
   `analysis/statusbar-global-owner.txt`.
 
-Still open: identify the concrete owner and component types, map the three population parameters to
-their localized labels, and trace the resource stock table's update operations back to production,
-consumption and transfer. The game port still renders a compact HUD rather than these Status Bar
-values.
+Still open: identify the concrete owner of the entity array and stock table, find the code that sets
+the `StatusIconComponent` bits, and trace the stock value at row `+0` through production,
+consumption and transfer. The port still renders a compact HUD rather than these Status Bar values.

@@ -57,8 +57,9 @@ or establish the full event-notification/autosave behavior.
 
 The shipped [Status Bar tree and controller](GAME-LOOP-STEP-06.md) are traced through its
 `StatusBarUI` bindings and `OnUpdateLayout` callback in [step 07](GAME-LOOP-STEP-07.md). The
-gameplay bootstrap adds the Toolbar dialog, and the package graph references `UtilityStatusBar`, but
-the direct resource handoff from Toolbar to that utility is still unproven.
+gameplay bootstrap adds the Toolbar dialog, and the packaged `Game/Toolbar` graph contains a
+status-bar entry that references `Template/UtilityStatusBar`, whose UI points at `Dialog/StatusBar`.
+The resource route is established; the click-time instantiation path remains unproven.
 
 ## Evidence pointers and next trace
 

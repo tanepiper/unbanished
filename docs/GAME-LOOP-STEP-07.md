@@ -3,7 +3,7 @@
 This step follows the shipped Status Bar resource tree into its controller constructor and layout
 refresh callback. Evidence is static Ghidra 12.1.4 decompilation of the Steam x64 executable and
 Runtime DLL plus decoded compiled UI resources. It identifies the callback lifecycle, but not a
-direct code-level handoff from Toolbar to `UtilityStatusBar` or a live game's rendered values.
+code-level click handler from Toolbar to `UtilityStatusBar` or a live game's rendered values.
 
 ## Controller bindings
 
@@ -33,12 +33,13 @@ the dialog instance.
 
 ## Packaged utility route
 
-The package contains a `Template/UtilityStatusBar` trio. Its component resource points to `ui` and
-`toolbar`; the UI description references `Dialog/StatusBar.rsc:content` and
-`Dialog/StatusBar.rsc:groupEffects`, while the toolbar description names the `ToolStatusBar` icon and
-tooltip. This connects the controller and Status Bar elements to the utility toolbar resource
-family. These resources establish the packaged route; the gameplay call site that creates the
-utility and attaches its UI is still being traced.
+The compiled `Game/Toolbar_resource.crs` enumerates a `statusbar` item, and
+`Game/Toolbar_statusbar.crs` references `Template/UtilityStatusBar.rsc:resource`. The utility resource
+then points to `ui` and `toolbar`; its UI references `Dialog/StatusBar.rsc:content` and
+`Dialog/StatusBar.rsc:groupEffects`, and its toolbar description names the `ToolStatusBar` icon and
+tooltip. This establishes the packaged resource route from the game's toolbar to the Status Bar UI.
+The code that handles activation and creates/registers the `StatusBarUI` controller from this route
+has not been identified.
 
 ## Layout refresh callback
 
@@ -73,12 +74,11 @@ ordering is directly visible in the code; its effect on an actual game display h
 
 The controller's Runtime creation and callback lifecycle is known: `DialogInstance::AddController`
 resolves the type through `Object::Factory`, creates it, supplies its dialog/element/config context,
-calls `OnCreated`, and registers it. The gameplay bootstrap that adds the Toolbar dialog is also
-known. The direct resource-driven handoff from Toolbar to `Template/UtilityStatusBar` is not proven
-by a code reference. The source fields and bit predicates for its population, status, and stock
-values are traced in [step 08](GAME-LOOP-STEP-08.md), while their concrete owner classes and some
-localized meanings remain unresolved. The current port uses its compact HUD and does not render this
-original status bar.
+calls `OnCreated`, and registers it. The gameplay bootstrap adds the Toolbar dialog, and the
+compiled resource route reaches `Dialog/StatusBar.rsc`. The code-level activation path remains
+unidentified. The values are traced in [step 08](GAME-LOOP-STEP-08.md); the code that sets citizen
+status flags and updates stock quantities remains open. The current port uses its compact HUD and
+does not render this original status bar.
 
 ## Evidence pointers
 
@@ -100,6 +100,8 @@ original status bar.
 - `Template/UtilityStatusBar_resource.crs`, `Template/UtilityStatusBar_ui.crs`, and
   `Template/UtilityStatusBar_toolbar.crs`; packaged references connect them to the status bar
   content and `ToolStatusBar` button.
+- `Game/Toolbar_resource.crs` and `Game/Toolbar_statusbar.crs`; the toolbar list includes a
+  `statusbar` item that references the utility template.
 - Local exports: `analysis/gameplay-statusbar-controller.txt`,
   `analysis/gameplay-statusbar-references.txt`, and `analysis/statusbar-address-references.txt`.
   These Ghidra pseudocode exports remain local; this note records the findings needed in source
