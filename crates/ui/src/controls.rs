@@ -468,6 +468,15 @@ impl Ui {
             _ => None,
         }
     }
+    pub fn set_slider_range(&mut self, id: NodeId, range: [f32; 2]) {
+        if let Kind::Control(Control::Slider(slider)) = &mut self.nodes[id].kind {
+            slider.range = range;
+            slider.value = slider
+                .value
+                .clamp(range[0].min(range[1]), range[0].max(range[1]));
+            slider.step = (range[1] - range[0]).abs() / 100.0;
+        }
+    }
     pub fn set_choices(&mut self, id: NodeId, choices: Vec<String>) {
         if let Kind::Control(Control::Combo { list, .. }) = self.nodes[id].kind {
             self.set_list_items(list, choices);
@@ -943,28 +952,56 @@ impl Ui {
         });
         match c {
             Control::Slider(s) => {
-                strip(
-                    out,
-                    &s.sprites[..3],
-                    [
-                        l,
-                        t + s.track_y,
-                        r,
-                        t + s.track_y + s.sprites.get(1).and_then(|s| *s).map_or(4, |s| s.height),
-                    ],
-                    color,
-                    clip,
-                    false,
-                );
-                if let Some(sp) = s
+                let track_sprites = &s.sprites[..3];
+                let knob_sprite = s
                     .sprites
                     .get(if self.hot == Some(id) { 4 } else { 3 })
-                    .and_then(|s| *s)
-                {
-                    let f = fraction(s.value, s.range);
+                    .and_then(|s| *s);
+                if track_sprites.iter().any(Option::is_some) {
+                    strip(
+                        out,
+                        track_sprites,
+                        [
+                            l,
+                            t + s.track_y,
+                            r,
+                            t + s.track_y
+                                + s.sprites.get(1).and_then(|s| *s).map_or(4, |s| s.height),
+                        ],
+                        color,
+                        clip,
+                        false,
+                    );
+                }
+                let f = fraction(s.value, s.range);
+                if let Some(sp) = knob_sprite {
                     let x =
                         l + s.inset + ((r - l - 2 * s.inset - sp.width).max(0) as f32 * f) as i32;
                     Self::sprite_quad(out, &sp, [x, t, x + sp.width, t + sp.height], color, clip);
+                } else if let Some(solid) = solid {
+                    let track = [
+                        l + s.inset,
+                        t + (b - t) / 2 - 3,
+                        r - s.inset,
+                        t + (b - t) / 2 + 3,
+                    ];
+                    Self::sprite_quad(out, &solid, track, modulate(0xFF49453F, color), clip);
+                    let fill = [
+                        track[0],
+                        track[1],
+                        track[0] + ((track[2] - track[0]) as f32 * f) as i32,
+                        track[3],
+                    ];
+                    Self::sprite_quad(out, &solid, fill, modulate(0xFFC7AF61, color), clip);
+                    let x = l + s.inset + ((r - l - 2 * s.inset - 14).max(0) as f32 * f) as i32;
+                    let y = t + ((b - t - 18).max(0) / 2);
+                    Self::sprite_quad(
+                        out,
+                        &solid,
+                        [x, y, x + 14, y + 18],
+                        modulate(0xFFE9E0C8, color),
+                        clip,
+                    );
                 }
             }
             Control::Progress {

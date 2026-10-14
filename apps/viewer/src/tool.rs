@@ -10,6 +10,7 @@ use web_time::Instant;
 
 use crate::assets::Assets;
 use crate::audio::Player;
+use crate::audio_player::AudioPlayerUi;
 use crate::render::{Frame, GpuMesh, RenderMode, Renderer, CLEAR_DARK, CLEAR_SKY};
 
 const FONT: &str = r"Font\FontMedium.rsc:resource";
@@ -93,6 +94,14 @@ pub struct Tool {
     info: NodeId,
     picture: NodeId,
     audio_controls: NodeId,
+    audio_player: AudioPlayerUi,
+    audio_window_position: Option<[i32; 2]>,
+    audio_window_dragging: bool,
+    audio_drag_offset: [i32; 2],
+    audio_duration: f32,
+    audio_seek_position: f32,
+    audio_looping: bool,
+    audio_volume: f32,
     model_controls: NodeId,
     render_buttons: Vec<(RenderMode, NodeId)>,
     render_mode: RenderMode,
@@ -285,6 +294,8 @@ impl Tool {
         ui.node_mut(animation_label).margins = [8, 0, 0, 0];
         ui.add_child(audio_controls, animation_label);
         ui.add_child(main, audio_controls);
+        let audio_player = AudioPlayerUi::new(&mut ui);
+        ui.add_child(main, audio_player.window);
         ui.add_child(root, main);
 
         // Status line.
@@ -314,6 +325,14 @@ impl Tool {
             info,
             picture,
             audio_controls,
+            audio_player,
+            audio_window_position: None,
+            audio_window_dragging: false,
+            audio_drag_offset: [0, 0],
+            audio_duration: 0.0,
+            audio_seek_position: 0.0,
+            audio_looping: false,
+            audio_volume: 1.0,
             model_controls,
             render_buttons,
             render_mode: RenderMode::Textured,
@@ -566,6 +585,7 @@ impl Tool {
         self.animation_playing = false;
         self.dialog_animation_playing = false;
         self.dialog_animation_elapsed = 0.0;
+        self.audio_player.set_playing(&mut self.ui, false);
         self.animation_clips.clear();
         self.animation_index = 0;
         let categories = self.category_names();
@@ -607,6 +627,8 @@ impl Tool {
         }
         self.ui.set_visible(self.picture, mode == Mode::Textures);
         self.ui.set_visible(self.list, mode != Mode::Dialogs);
+        self.ui
+            .set_visible(self.audio_player.window, mode == Mode::Audio);
         self.ui.node_mut(self.sidebar_stack).children = if mode == Mode::Dialogs {
             vec![
                 self.categories_label,
@@ -628,8 +650,7 @@ impl Tool {
         };
         self.ui
             .set_visible(self.model_controls, mode == Mode::Models);
-        self.ui
-            .set_visible(self.audio_controls, mode == Mode::Audio);
+        self.ui.set_visible(self.audio_controls, false);
         self.ui.set_visible(
             self.animation_next,
             mode == Mode::Models && !self.animation_clips.is_empty(),
@@ -661,6 +682,12 @@ impl Tool {
             Some(index),
         );
         self.ui.clear_input();
+        if self.mode == Mode::Audio {
+            self.audio_seek_position = 0.0;
+            self.audio_duration = 0.0;
+            self.audio_player.set_track(&mut self.ui, "", 0.0, false);
+            self.audio_player.set_position(&mut self.ui, 0.0);
+        }
         self.ui
             .node_mut(self.dialog_background_host)
             .children
@@ -752,6 +779,23 @@ impl Tool {
             },
             Mode::Audio => match self.assets.sound(&name) {
                 Ok(s) => {
+                    self.audio_duration = s.length_seconds.max(0.0);
+                    self.audio_looping = s.looping;
+                    self.player.set_looping(self.audio_looping).ok();
+                    let track_name = name
+                        .rsplit(['\\', '/'])
+                        .next()
+                        .unwrap_or(&name)
+                        .trim_end_matches(".crs")
+                        .replace('_', " ");
+                    self.audio_player.set_track(
+                        &mut self.ui,
+                        &track_name,
+                        self.audio_duration,
+                        self.audio_looping,
+                    );
+                    self.audio_player
+                        .set_volume(&mut self.ui, self.audio_volume);
                     self.set_info(&format!(
                         "{shown}\n{:.1}s   {} ch   {} Hz   {}{}   source {}",
                         s.length_seconds,
@@ -914,10 +958,18 @@ impl Tool {
                     None
                 };
                 let pcm = crate::audio::decode(&sound, stream.as_deref())?;
-                self.player.play(pcm, sound.looping)
+                self.player.play(pcm, self.audio_looping)?;
+                if self.audio_seek_position > 0.0 {
+                    self.player
+                        .seek(std::time::Duration::from_secs_f32(self.audio_seek_position))?;
+                }
+                Ok(())
             });
         match result {
-            Ok(()) => self.set_status(&format!("Playing {}", Self::display_name(&name))),
+            Ok(()) => {
+                self.audio_player.set_playing(&mut self.ui, true);
+                self.set_status(&format!("Playing {}", Self::display_name(&name)));
+            }
             Err(e) => self.set_status(&format!("{}: {e}", Self::display_name(&name))),
         }
     }
@@ -945,6 +997,7 @@ impl Tool {
 
     pub fn animation_is_playing(&self) -> bool {
         self.animation_playing
+            || (self.mode == Mode::Audio && self.player.is_playing())
             || (self.mode == Mode::Dialogs
                 && self.dialog_animation_playing
                 && self.ui.has_animations())
@@ -973,6 +1026,19 @@ impl Tool {
             }
             self.ui.update_animations(self.dialog_animation_elapsed);
             self.refresh_dialog_animation_label();
+        }
+        if self.mode == Mode::Audio {
+            if self.player.is_playing() || self.player.is_paused() {
+                self.audio_seek_position = self.player.position().as_secs_f32();
+            } else if self.audio_duration > 0.0 {
+                self.audio_seek_position = self.audio_seek_position.min(self.audio_duration);
+            }
+            self.audio_player
+                .set_position(&mut self.ui, self.audio_seek_position);
+            self.audio_player
+                .set_volume(&mut self.ui, self.audio_volume);
+            self.audio_player
+                .set_playing(&mut self.ui, self.player.is_playing());
         }
     }
 
@@ -1089,6 +1155,28 @@ impl Tool {
             }
         }
         self.ui.node_mut(self.dialog_host).children = dialogs;
+        if self.mode == Mode::Audio {
+            let area = self.ui.node(self.main).rect;
+            self.ui.layout_dialog(self.audio_player.window, area);
+            let window = self.ui.node(self.audio_player.window).rect;
+            let width = (window[2] - window[0]).max(520);
+            let height = (window[3] - window[1]).max(220);
+            let mut position = self
+                .audio_window_position
+                .unwrap_or([area[2] - width - 24, area[1] + 24]);
+            position[0] = position[0].clamp(area[0], (area[2] - width).max(area[0]));
+            position[1] = position[1].clamp(area[1], (area[3] - height).max(area[1]));
+            self.audio_window_position = Some(position);
+            self.ui.layout_dialog(
+                self.audio_player.window,
+                [
+                    position[0],
+                    position[1],
+                    position[0] + width,
+                    position[1] + height,
+                ],
+            );
+        }
     }
 
     fn suppress_overlapping_text(&mut self, root: NodeId) {
@@ -1222,6 +1310,40 @@ impl Tool {
             Event::Clicked(id) => {
                 if let Some(&(mode, _)) = self.mode_buttons.iter().find(|(_, b)| *b == id) {
                     self.set_mode(renderer, mode);
+                } else if id == self.audio_player.play && self.mode == Mode::Audio {
+                    if self.player.is_playing() {
+                        self.audio_seek_position = self.player.position().as_secs_f32();
+                        self.player.pause();
+                        self.audio_player.set_playing(&mut self.ui, false);
+                        self.set_status("Paused");
+                    } else if self.player.is_paused() {
+                        self.player.resume();
+                        self.audio_player.set_playing(&mut self.ui, true);
+                        self.set_status("Resumed");
+                    } else {
+                        self.play_selected();
+                    }
+                } else if id == self.audio_player.stop && self.mode == Mode::Audio {
+                    self.player.stop();
+                    self.audio_seek_position = 0.0;
+                    self.audio_player.set_position(&mut self.ui, 0.0);
+                    self.audio_player.set_playing(&mut self.ui, false);
+                    self.set_status("Stopped");
+                } else if id == self.audio_player.previous && self.mode == Mode::Audio {
+                    self.step(renderer, -1);
+                } else if id == self.audio_player.next && self.mode == Mode::Audio {
+                    self.step(renderer, 1);
+                } else if id == self.audio_player.loop_toggle && self.mode == Mode::Audio {
+                    self.audio_looping = !self.audio_looping;
+                    match self.player.set_looping(self.audio_looping) {
+                        Ok(()) => {
+                            self.audio_player
+                                .set_looping(&mut self.ui, self.audio_looping);
+                        }
+                        Err(error) => {
+                            self.set_status(&format!("Could not change looping: {error}"))
+                        }
+                    }
                 } else if id == self.play {
                     if self.mode == Mode::Audio {
                         self.play_selected();
@@ -1271,6 +1393,27 @@ impl Tool {
                     self.set_render_mode(*mode);
                 } else {
                     self.dialog_event(event);
+                }
+            }
+            Event::Changed(id) if id == self.audio_player.seek && self.mode == Mode::Audio => {
+                if let Some(position) = self.ui.value(id) {
+                    self.audio_seek_position = position.clamp(0.0, self.audio_duration);
+                    if let Err(error) = self
+                        .player
+                        .seek(std::time::Duration::from_secs_f32(self.audio_seek_position))
+                    {
+                        self.set_status(&format!("Could not seek audio: {error}"));
+                    }
+                    self.audio_player
+                        .set_position(&mut self.ui, self.audio_seek_position);
+                }
+            }
+            Event::Changed(id) if id == self.audio_player.volume && self.mode == Mode::Audio => {
+                if let Some(volume) = self.ui.value(id) {
+                    self.audio_volume = volume.clamp(0.0, 1.0);
+                    self.player.set_volume(self.audio_volume);
+                    self.audio_player
+                        .set_volume(&mut self.ui, self.audio_volume);
                 }
             }
             Event::Selected(id, index) if id == self.list => self.select(renderer, index),
@@ -1323,6 +1466,16 @@ impl Tool {
 
     pub fn pointer_move(&mut self, renderer: &mut Renderer, x: i32, y: i32) {
         self.ui.pointer_move(x, y, self.root);
+        if self.audio_window_dragging && self.mode == Mode::Audio {
+            let area = self.ui.node(self.main).rect;
+            let rect = self.ui.node(self.audio_player.window).rect;
+            let width = rect[2] - rect[0];
+            let height = rect[3] - rect[1];
+            self.audio_window_position = Some([
+                (x - self.audio_drag_offset[0]).clamp(area[0], (area[2] - width).max(area[0])),
+                (y - self.audio_drag_offset[1]).clamp(area[1], (area[3] - height).max(area[1])),
+            ]);
+        }
         if let (true, Some((px, py))) = (self.dragging, self.last_cursor) {
             self.camera.yaw -= (x - px) as f32 * 0.01;
             self.camera.pitch = (self.camera.pitch + (y - py) as f32 * 0.01).clamp(-1.5, 1.5);
@@ -1332,8 +1485,18 @@ impl Tool {
     }
 
     pub fn pointer_button(&mut self, renderer: &mut Renderer, down: bool) {
-        let event = self.ui.pointer_button(down, self.root);
         let (x, y) = self.last_cursor.unwrap_or((-1, -1));
+        let header = self.ui.node(self.audio_player.drag_handle).rect;
+        let start_drag = down && self.mode == Mode::Audio && rect_contains(header, x, y);
+        let event = self.ui.pointer_button(down, self.root);
+        if start_drag && event.is_none() {
+            let window = self.ui.node(self.audio_player.window).rect;
+            self.audio_window_dragging = true;
+            self.audio_drag_offset = [x - window[0], y - window[1]];
+        }
+        if !down {
+            self.audio_window_dragging = false;
+        }
         let in_view = rect_contains(self.ui.node(self.main).rect, x, y);
         self.dragging = down && event.is_none() && in_view && self.mode == Mode::Models;
         if let Some(e) = event {

@@ -529,6 +529,19 @@ impl Ui {
         })))
     }
 
+    /// Create a simple horizontal slider with a built-in solid track and knob.
+    pub fn slider(&mut self, range: [f32; 2]) -> NodeId {
+        self.add(Node::new(Kind::Control(Control::Slider(SliderData {
+            sprites: vec![None; 5],
+            range,
+            value: range[0],
+            step: (range[1] - range[0]).abs() / 100.0,
+            inset: 8,
+            track_y: 0,
+            number: None,
+        }))))
+    }
+
     pub fn set_list_items(&mut self, id: NodeId, items: Vec<String>) {
         if let Kind::List(l) = &mut self.nodes[id].kind {
             l.items = items;
