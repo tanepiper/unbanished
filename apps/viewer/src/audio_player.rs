@@ -36,12 +36,16 @@ impl AudioPlayerUi {
         let window = ui.group();
         {
             let node = ui.node_mut(window);
-            node.min_size = [520, 208];
+            node.min_size = [520, 216];
             node.alignment = 0;
         }
 
         let background = ui.instantiate(PANEL).unwrap_or_else(|| ui.group());
-        ui.node_mut(background).flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
+        {
+            let node = ui.node_mut(background);
+            node.flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
+            node.color = 0xFFE9D7B2;
+        }
         ui.add_child(window, background);
 
         let content = ui.ribbon(true, 4);
@@ -65,15 +69,45 @@ impl AudioPlayerUi {
         }
         let heading = ui.text(FONT, "Audio Player");
         ui.node_mut(heading).flags = flags::FILL_WIDTH;
+        ui.node_mut(heading).color = 0xFFFFE8B2;
+        let speaker = ui.res.sprite(Some(SPRITES), "OptionsSound");
+        let speaker_icon = ui.add(Node::new(Kind::Image {
+            sprite: speaker,
+            size: [16, 16],
+        }));
+        ui.node_mut(speaker_icon).color = 0xFFFFD46E;
+        ui.add_child(header_content, speaker_icon);
         ui.add_child(header_content, heading);
         ui.add_child(drag_handle, header_content);
         ui.add_child(content, drag_handle);
 
+        let track_card = ui.group();
+        ui.node_mut(track_card).min_size = [0, 38];
+        let track_background = ui.instantiate(PANEL).unwrap_or_else(|| ui.group());
+        ui.node_mut(track_background).flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
+        ui.add_child(track_card, track_background);
+        let track_content = ui.ribbon(false, 8);
+        {
+            let node = ui.node_mut(track_content);
+            node.flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
+            node.margins = [10, 10, 4, 4];
+        }
+        let track_icon_sprite = ui.res.sprite(Some(SPRITES), "OptionsSound");
+        let track_icon = ui.add(Node::new(Kind::Image {
+            sprite: track_icon_sprite,
+            size: [20, 20],
+        }));
+        ui.node_mut(track_icon).color = 0xFFFFC95D;
         let track = ui.text(FONT, "Select a sound from the list");
         ui.node_mut(track).flags = flags::FILL_WIDTH;
-        ui.add_child(content, track);
+        ui.node_mut(track).color = 0xFFFFE8B2;
+        ui.add_child(track_content, track_icon);
+        ui.add_child(track_content, track);
+        ui.add_child(track_card, track_content);
+        ui.add_child(content, track_card);
 
         let position = ui.text(FONT_SMALL, "00:00 / 00:00");
+        ui.node_mut(position).color = 0xFFE6D6B8;
         ui.add_child(content, position);
         let seek = ui
             .instantiate(r"Dialog\Options.rsc:sliderMusic")
@@ -104,6 +138,7 @@ impl AudioPlayerUi {
                 sprite,
                 size: [16, 16],
             }));
+            ui.node_mut(icon).color = 0xFFFFD98A;
             let caption = ui.text(FONT, label);
             ui.node_mut(caption).margins = [2, 2, 0, 0];
             ui.add_child(button_content, icon);
@@ -123,6 +158,7 @@ impl AudioPlayerUi {
         ui.add_child(content, buttons);
 
         let volume_text = ui.text(FONT_SMALL, "Volume 100%");
+        ui.node_mut(volume_text).color = 0xFFE7D4AA;
         ui.add_child(content, volume_text);
         let volume = ui
             .instantiate(r"Dialog\Options.rsc:sliderMusic")
@@ -185,6 +221,7 @@ impl AudioPlayerUi {
             self.loop_caption,
             if looping { "Loop On" } else { "Loop Off" },
         );
+        ui.node_mut(self.loop_caption).color = if looping { 0xFFFFD46E } else { 0xFFE7D4AA };
     }
 
     pub fn set_position(&self, ui: &mut Ui, seconds: f32) {
