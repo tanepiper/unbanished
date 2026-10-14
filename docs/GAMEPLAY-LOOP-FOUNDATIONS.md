@@ -69,8 +69,10 @@ placement, eight-neighbor density gate, and map-cell transition are traced in
 [GAME-LOOP-STEP-12.md](GAME-LOOP-STEP-12.md). Cell admission and linked-resource transition
 dispatch are in [GAME-LOOP-STEP-13.md](GAME-LOOP-STEP-13.md). Resource branch coverage across the
 shipped templates is in [GAME-LOOP-STEP-14.md](GAME-LOOP-STEP-14.md); its guarded entity creation
-and separate category-counter path is in [GAME-LOOP-STEP-15.md](GAME-LOOP-STEP-15.md). Exact branch
-names, counter meanings, and map-byte meanings still need save/runtime comparison.
+and separate category-counter path is in [GAME-LOOP-STEP-15.md](GAME-LOOP-STEP-15.md). The
+animation-completion and `RemoveNaturalResource` action routes are in
+[GAME-LOOP-STEP-16.md](GAME-LOOP-STEP-16.md). Action triggers, counter meanings, and map-byte
+meanings still need executor and save/runtime comparison.
 
 ## Remaining work before this is a full game loop
 
