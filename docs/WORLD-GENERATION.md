@@ -104,18 +104,28 @@ record, selects entries with the game-loop random generator, and dispatches them
 `FUN_140096ef0` or `FUN_1400a5fe0`.
 
 This confirms that `MapGenerator` is the start-condition input despite its class name. The exact
-entities/resources created by the arrays and their ordering relative to map decoration still need
-to be identified. The corresponding description serializer is at `0x1400a7e50`; its fields are
-currently documented only by type and offset in the ignored Ghidra export.
+profile groups and their current consumers are documented in
+[START-CONDITION-PROFILES.md](START-CONDITION-PROFILES.md). The code chooses a terrain-valid start
+point, places the profile's explicit structures relative to it, registers raw-material and
+randomly selected crop/tree template entries, and for Easy selects one livestock type and places
+eight instances near the start. Its household records create two linked Citizens plus a random
+zero-to-three additional members per record; see
+[START-CONDITION-PROFILES.md](START-CONDITION-PROFILES.md) for the per-setting ranges. The
+corresponding serializer is `0x1400a7e50`; the same profile note follows the Perlin-gated
+rock/ore/tree seeding pass, while exact template threshold meanings and inventory quantities remain
+open.
 
 ## Remaining world-generation trace
 
 - Follow `FUN_1400d4910`, `FUN_1400d4620` and `FUN_1400b0730` to identify the meanings of the
   packed channels; the internal `FUN_1400d4860` transform order is now recorded in
   [TERRAIN-GRID-TRANSFORMS.md](TERRAIN-GRID-TRANSFORMS.md).
-- Trace how generated terrain cells become water, slopes, trees, rocks and resource deposits.
-- Follow the counted arrays in `MapGenerator` to the initial population, household inventory and
-  stock-placement operations.
+- Trace how generated terrain cells become slopes and other cell contents; the distinct River and
+  Lake mesh production/draw path is recorded in [TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md),
+  and the profile-driven rock/ore/tree seed pass in [START-CONDITION-PROFILES.md](START-CONDITION-PROFILES.md).
+- Continue from the profile-specific placements into exact household inventory and stock quantities;
+  see [START-CONDITION-PROFILES.md](START-CONDITION-PROFILES.md) for the confirmed entry path and
+  resource-seeding pass.
 - Trace how `ClimateGenerator` and `Environment.rsc` control climate, weather and seasonal updates.
 - Establish generation determinism and seed consumption order against a runtime or reproducible
   save comparison.
