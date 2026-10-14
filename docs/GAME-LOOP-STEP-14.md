@@ -26,7 +26,9 @@ The other fifteen are not set:
 This establishes that the shipped tree family selects the animation branch and all other listed
 natural-resource families select the alternate branch. It does not establish the player-facing
 meaning of animation index 2 or prove that every alternate-branch instance is removed or spawns
-material; those outcomes also depend on the component state.
+material; those outcomes also depend on the component state. In the specific GrowthComponent
+threshold path, `FUN_140125520` clears the linked component's byte `+0x2d` before the alternate
+dispatch, so that call queues owner removal without entering the optional clone-and-register block.
 
 ## Correct field ownership in the alternate branch
 
@@ -54,6 +56,7 @@ inventory consumer trace.
 
 ## Next trace
 
-Trace the positive-amount path from `FUN_14012b5c0` through `FUN_14008e3c0` and the registered
-referenced-resource entity to the stock/container update. Compare this output path with a save's
-serialized entity records before naming the amount as inventory or a harvest yield.
+Trace other callers that can reach `FUN_14012b5c0` with component byte `+0x2d` set. The guarded
+clone path and its separate category counter are followed in
+[GAME-LOOP-STEP-15.md](GAME-LOOP-STEP-15.md). Compare it with serialized entity records before
+naming the amount as inventory or a harvest yield.

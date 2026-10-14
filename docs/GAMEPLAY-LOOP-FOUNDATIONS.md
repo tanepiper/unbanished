@@ -67,10 +67,10 @@ The first concrete scheduled component, natural-resource `GrowthComponent`, and 
 update smoothing pass are traced in [GAME-LOOP-STEP-11.md](GAME-LOOP-STEP-11.md). Its timed child
 placement, eight-neighbor density gate, and map-cell transition are traced in
 [GAME-LOOP-STEP-12.md](GAME-LOOP-STEP-12.md). Cell admission and linked-resource transition
-dispatch are in [GAME-LOOP-STEP-13.md](GAME-LOOP-STEP-13.md). Resource-description branch meanings,
-resource branch coverage across the shipped templates is in [GAME-LOOP-STEP-14.md](GAME-LOOP-STEP-14.md).
-Exact branch names, resource removal semantics, and map-byte meanings still need save/runtime
-comparison.
+dispatch are in [GAME-LOOP-STEP-13.md](GAME-LOOP-STEP-13.md). Resource branch coverage across the
+shipped templates is in [GAME-LOOP-STEP-14.md](GAME-LOOP-STEP-14.md); its guarded entity creation
+and separate category-counter path is in [GAME-LOOP-STEP-15.md](GAME-LOOP-STEP-15.md). Exact branch
+names, counter meanings, and map-byte meanings still need save/runtime comparison.
 
 ## Remaining work before this is a full game loop
 
