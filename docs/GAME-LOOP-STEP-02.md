@@ -18,7 +18,9 @@ simulation iterations when that byte is clear.
 It handles movement input, optional screen-edge scrolling, camera rotation/height state, and
 clamps the camera against the generated map. `FUN_140103da0` applies one of five saved camera
 presets from the controller's table at `+0x70`; the shortcuts reach it from `FUN_140104bb0`. The
-exact human-readable key names still require decoding the shipped key-map bindings.
+registered action IDs now have names from `FUN_14009e7c0`; see
+[KEYMAP-AND-CAMERA-CONTROLS.md](KEYMAP-AND-CAMERA-CONTROLS.md). Its final `KeyMap::Load` call means
+the registered device/code pairs are defaults that user settings can override.
 
 This is a second reason the HUD must not swallow unused keys: Banished handles camera input in the
 game-loop update path even while the in-game toolbar is present. The port's adapter now forwards
@@ -64,6 +66,6 @@ or establish the full event-notification/autosave behavior.
 - `FUN_1400bede0` (`0x1400bede0`): toolbar element construction.
 - `FUN_140069410` and `FUN_14005eb90`: event notification and autosave dialog constructors.
 
-Next, decode the toolbar item records and key-map bindings, then trace the toolbar speed action into
-the controller's `+0x34` value. Separately follow how entity-manager elapsed time reaches simulation
-components and whether any manager advances the displayed calendar.
+Next, decode the toolbar item records and trace the toolbar speed action into the controller's
+`+0x34` value. Separately follow how entity-manager elapsed time reaches simulation components and
+whether any manager advances the displayed calendar.
