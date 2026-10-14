@@ -10,7 +10,10 @@ use banished_formats::Result;
 use banished_game::terrain::{Generator, HeightGrid, SizeRecord, TerrainMesh};
 
 pub struct WorldParams {
+    pub town_name: String,
     pub terrain: String,
+    pub climate: String,
+    pub start_condition: String,
     /// 0 Small, 1 Medium, 2 Large.
     pub size: usize,
     pub seed: u32,
@@ -19,7 +22,10 @@ pub struct WorldParams {
 impl Default for WorldParams {
     fn default() -> Self {
         WorldParams {
+            town_name: "New Settlement".into(),
             terrain: "Valleys".into(),
+            climate: "Fair".into(),
+            start_condition: "Medium".into(),
             size: 0,
             seed: 290,
         }

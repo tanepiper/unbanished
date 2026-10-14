@@ -1,6 +1,6 @@
 //! Banished, reimplemented. Boots like the original: global data, the Shining Rock splash, the
-//! loading screen, then the main menu with its music. New Game generates the map with the
-//! bit-exact world generator and shows it with the game's terrain shading.
+//! loading screen, then the main menu with its music. New Game enters the generated world with an
+//! interactive HUD, calendar, time controls and camera navigation.
 //!
 //! Native: `cargo run -p banished-app --release -- [path/to/WinData]`
 //! Web:    `tools/dev-web.sh --app game --release`, then open `/?data=/game-data/`.
@@ -11,6 +11,7 @@
 //!
 //! On the map: drag to rotate, wheel to zoom, WASD/arrows to move, Escape for the main menu.
 
+mod gameplay;
 mod global;
 mod loops;
 mod menu;

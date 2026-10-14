@@ -5,6 +5,9 @@ first map-generation helpers. It records static Ghidra pseudocode and decoded sh
 runtime behavior. Binary hashes and analysis setup are in [GAMEPLAY.md](GAMEPLAY.md); the menu
 handoff is in [NEW-GAME-FLOW.md](NEW-GAME-FLOW.md).
 
+The first interactive in-game HUD and calendar slice, its static startup trace, and the remaining
+game-loop boundary are recorded in [GAMEPLAY-LOOP-FOUNDATIONS.md](GAMEPLAY-LOOP-FOUNDATIONS.md).
+
 ## Selector data entering the game loop
 
 The UI list resources contain external references that can be decoded directly from their

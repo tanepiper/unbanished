@@ -73,6 +73,10 @@ accepted-name pool both when opening the dialog and when `buttonNewName` is pres
 uniform over the pool; the original transition-based name distribution and its `vill` suffix
 adjustment remain unported. See [`TOWN-NAME-DATABASE.md`](TOWN-NAME-DATABASE.md).
 
+On Ok, the port now carries the town name, terrain, climate label, start-condition label, size and
+seed into `GameplayLoop`. Its current HUD and calendar implementation, and the remaining gap to the
+original managers, are documented in [`GAMEPLAY-LOOP-FOUNDATIONS.md`](GAMEPLAY-LOOP-FOUNDATIONS.md).
+
 That setup method assigns IDs as follows: `buttonNewName` 0, `buttonNewSeed` 1, `buttonOk` 2,
 `buttonCancel` 3, and `comboCondition` 4. (`buttonOk` is the element stored at instance `+0xf0`;
 an earlier reading of the pseudocode swapped the two buttons.) For event kind `0x12`, the handler

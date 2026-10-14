@@ -7,10 +7,10 @@
 use banished_audio::Pcm;
 use banished_ui::{Control, Event, Kind, NodeId, Ui};
 
-use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
+use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, Screen, View};
 use crate::render::Lighting;
-use crate::scene::{Camera, MenuCamera, SceneCamera, SceneView};
-use crate::world::{Terrain, World, WorldParams};
+use crate::scene::{MenuCamera, SceneCamera, SceneView};
+use crate::world::{Terrain, WorldParams};
 
 const MENU_DIALOG: &str = "Dialog/MainMenu.rsc:resource";
 const BUILD_ID_DIALOG: &str = "Dialog/BuildId.rsc:resource";
@@ -182,28 +182,69 @@ impl MenuLoop {
         let (Some(screen), Some(d)) = (&self.screen, self.new_game) else {
             return Next::Stay;
         };
-        let ui = &*ctx.ui;
-        let index = |name: &str| screen.find(ui, d, name).map_or(0, |c| combo_index(ui, c));
+        let terrain_index = screen
+            .find(ctx.ui, d, "comboTerrain")
+            .map_or(0, |c| combo_index(ctx.ui, c));
+        let size_index = screen
+            .find(ctx.ui, d, "comboTerrainSize")
+            .map_or(0, |c| combo_index(ctx.ui, c));
+        let climate_index = screen
+            .find(ctx.ui, d, "comboClimate")
+            .map_or(0, |c| combo_index(ctx.ui, c));
+        let condition_index = screen
+            .find(ctx.ui, d, "comboCondition")
+            .map_or(0, |c| combo_index(ctx.ui, c));
         let terrain = self
             .terrain_items
-            .get(index("comboTerrain"))
+            .get(terrain_index)
             .and_then(|&i| ctx.global.as_ref()?.terrains.get(i));
         if let Some(t) = terrain {
             log::info!("terrain profile {}", t.reference);
         }
         let terrain = terrain.map_or_else(|| "Valleys".to_string(), |t| t.name.clone());
+        let town_name = screen
+            .find(ctx.ui, d, "editName")
+            .and_then(|e| edit_text(ctx.ui, e))
+            .filter(|name| !name.trim().is_empty())
+            .unwrap_or_else(|| "New Settlement".to_string());
+        let climate = self
+            .climate_items
+            .get(climate_index)
+            .and_then(|&i| ctx.global.as_ref()?.climates.get(i))
+            .map(|choice| {
+                ctx.ui
+                    .res
+                    .string(choice.label.0.as_deref(), &choice.label.1)
+            })
+            .unwrap_or_else(|| "Fair".to_string());
+        let start_condition = self
+            .condition_items
+            .get(condition_index)
+            .and_then(|&i| ctx.global.as_ref()?.start_conditions.get(i))
+            .map(|choice| {
+                ctx.ui
+                    .res
+                    .string(choice.data.list.as_deref(), &choice.data.name)
+            })
+            .unwrap_or_else(|| "Medium".to_string());
         let seed = screen
-            .find(ui, d, "editSeed")
-            .and_then(|e| edit_text(ui, e))
+            .find(ctx.ui, d, "editSeed")
+            .and_then(|e| edit_text(ctx.ui, e))
             .and_then(|t| t.trim().parse::<i64>().ok())
             .unwrap_or(0) as u32;
         let params = WorldParams {
+            town_name,
             terrain,
-            size: index("comboTerrainSize"),
+            climate,
+            start_condition,
+            size: size_index,
             seed,
         };
         log::info!(
-            "new game: {} size {} seed {}",
+            "new game: {} / {} / {} terrain {} size {} seed {}",
+            params.town_name,
+            params.climate,
+            params.start_condition,
             params.terrain,
             params.size,
             params.seed
@@ -213,7 +254,7 @@ impl MenuLoop {
         Next::Switch(Box::new(DialogLoaderLoop::new(
             screen_ref,
             0.5,
-            Box::new(MapLoop::new(params)),
+            Box::new(crate::gameplay::GameplayLoop::new(params)),
         )))
     }
 }
@@ -421,77 +462,5 @@ impl GameLoop for MenuLoop {
 
     fn screen(&self) -> Option<&Screen> {
         self.screen.as_ref()
-    }
-}
-
-/// Stand-in for the game loop (`FUN_14009d530`, "Game/Game"): generates the chosen map and lets
-/// the player look around it. Escape returns to the main menu.
-pub struct MapLoop {
-    params: WorldParams,
-    view: Option<SceneView>,
-}
-
-impl MapLoop {
-    pub fn new(params: WorldParams) -> MapLoop {
-        MapLoop { params, view: None }
-    }
-}
-
-impl GameLoop for MapLoop {
-    fn name(&self) -> &'static str {
-        "Game/Game"
-    }
-
-    fn load(&mut self, ctx: &mut Ctx) {
-        match World::generate(ctx.archive, &self.params) {
-            Ok(world) => {
-                log::info!("{} terrain ready", world.profile.name);
-                let lighting = Lighting::from_month(&world.environment.months[3]);
-                self.view = Some(SceneView::new(
-                    world.terrain,
-                    SceneCamera::Map(Camera::ground()),
-                    lighting,
-                ));
-            }
-            Err(e) => log::error!("world generation failed: {e}"),
-        }
-    }
-
-    fn startup(&mut self, _ctx: &mut Ctx) {}
-
-    fn update(&mut self, _ctx: &mut Ctx, _dt: f32) -> Next {
-        Next::Stay
-    }
-
-    fn raw(&mut self, _ctx: &mut Ctx, input: RawInput) -> Next {
-        let Some(SceneView {
-            camera: SceneCamera::Map(camera),
-            terrain,
-            ..
-        }) = &mut self.view
-        else {
-            return Next::Stay;
-        };
-        match input {
-            RawInput::Drag(dx, dy) => camera.rotate(dx, dy),
-            RawInput::Wheel(steps) => camera.zoom(steps),
-            RawInput::Pan(forward, right) => camera.pan(forward, right, terrain),
-            RawInput::Escape => {
-                return Next::Switch(Box::new(DialogLoaderLoop::new(
-                    "Dialog/Loading.rsc:resource".into(),
-                    1.0,
-                    Box::new(MenuLoop::new()),
-                )))
-            }
-        }
-        Next::Stay
-    }
-
-    fn screen(&self) -> Option<&Screen> {
-        None
-    }
-
-    fn view(&self) -> View<'_> {
-        self.view.as_ref().map_or(View::None, View::World)
     }
 }
