@@ -47,14 +47,20 @@ impl Ui {
         self.overrides.pop();
         let root = root?;
         for (name, key) in [("buttonOk", 13), ("buttonCancel", 27)] {
-            if let Some(id) = self.find(root, name) { self.set_shortcut(id, key); }
+            if let Some(id) = self.find(root, name) {
+                self.set_shortcut(id, key);
+            }
         }
         let mut bindings = Vec::new();
         for b in d.bindings {
             let element = if b.name.is_empty() {
-                root
+                Some(root)
             } else {
-                self.find(root, &b.name).unwrap_or(root)
+                self.find(root, &b.name)
+            };
+            let Some(element) = element else {
+                log::warn!("unresolved dialog controller host: {}", b.name);
+                continue;
             };
             // Ghidra AddController (0x180115d00) optionally creates an element description
             // under the named host before attaching its controller.

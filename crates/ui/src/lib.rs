@@ -52,6 +52,8 @@ pub struct TextData {
     pub max_width: i32,
     pub justify: u32,
     pub wrap: bool,
+    pub shadow: bool,
+    pub ellipsis_width: i32,
     pub layout: TextLayout,
 }
 
@@ -283,6 +285,8 @@ impl Ui {
             max_width: t.max_width,
             justify: t.justify,
             wrap: t.wrap,
+            shadow: t.shadow,
+            ellipsis_width: t.ellipsis_width,
             layout: TextLayout::default(),
         }
     }
@@ -456,6 +460,8 @@ impl Ui {
             max_width: 0,
             justify: 0,
             wrap: false,
+            shadow: false,
+            ellipsis_width: 0,
             layout: TextLayout::default(),
         };
         self.add(Node::new(Kind::Text(data)))
@@ -689,11 +695,26 @@ impl Ui {
     }
 
     fn layout_text(&self, t: &mut TextData) {
+        let mut display = t.text.clone();
+        if !t.wrap && t.ellipsis_width > 0 {
+            if let Some(f) = t.font {
+                if TextLayout::compute(&self.res, f, &display, None, 0).width > t.ellipsis_width {
+                    while !display.is_empty()
+                        && TextLayout::compute(&self.res, f, &format!("{display}..."), None, 0)
+                            .width
+                            > t.ellipsis_width
+                    {
+                        display.pop();
+                    }
+                    display.push_str("...");
+                }
+            }
+        }
         t.layout = match t.font {
             Some(f) => TextLayout::compute(
                 &self.res,
                 f,
-                &t.text,
+                &display,
                 t.wrap.then_some(t.max_width),
                 t.justify,
             ),
@@ -908,6 +929,17 @@ impl Ui {
             return;
         };
         let sprites = &self.res.sheets[sheet].sheet.sprites;
+        if t.shadow {
+            let mut shadow = t.clone();
+            shadow.shadow = false;
+            self.draw_text(
+                &shadow,
+                [origin[0] + 1, origin[1] + 1],
+                color & 0xFF000000,
+                clip,
+                out,
+            );
+        }
         for g in &t.layout.glyphs {
             let Some(sp) = sprites.get(g.glyph) else {
                 continue;
@@ -1068,6 +1100,8 @@ impl Ui {
                         max_width: 0,
                         justify: 0,
                         wrap: false,
+                        shadow: false,
+                        ellipsis_width: 0,
                         layout,
                     };
                     let ty = y + (list.row_height - text.layout.height) / 2;

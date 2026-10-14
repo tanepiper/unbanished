@@ -447,3 +447,96 @@ fn hover_tooltip_adds_text_and_pressing_suppresses_it() {
         .iter()
         .any(|q| q.color == [255, 232, 192, 255]));
 }
+
+#[test]
+fn dialog_preview_layout_is_stable_on_first_frame() {
+    let Some(mut ui) = game_ui() else {
+        return;
+    };
+    for name in ["NewGame", "Options"] {
+        let host = ui.group();
+        let d = ui
+            .instantiate_dialog(&format!(r"Dialog\{name}.rsc:resource"))
+            .unwrap_or_else(|| panic!("dialog {name}"));
+        ui.add_child(host, d.root);
+        let mut rects = Vec::new();
+        for _ in 0..3 {
+            ui.layout(host, [400, 56, 1392, 822]);
+            ui.layout_dialog(d.root, [412, 104, 1380, 810]);
+            rects.push((ui.nodes[d.root].size, ui.nodes[d.root].rect));
+        }
+        assert_eq!(rects[0], rects[1], "{name}: {rects:?}");
+        assert_eq!(rects[1], rects[2], "{name}: {rects:?}");
+    }
+}
+
+#[test]
+fn spinner_respects_typed_value_range_and_stacks_its_arrow_buttons() {
+    let Some(mut ui) = game_ui() else { return };
+    let root = ui
+        .instantiate(r"Dialog\Trade.rsc:spinnerPurchaseDesired")
+        .unwrap();
+    ui.layout_dialog(root, [0, 0, 400, 200]);
+    let parts = match ui.nodes[root].kind {
+        Kind::Control(Control::Spinner { parts, .. }) => parts,
+        _ => panic!("spinner"),
+    };
+    let [edit, up, down] = parts.map(Option::unwrap);
+    assert!(ui.nodes[up].rect[3] <= ui.nodes[down].rect[1]);
+    ui.set_value(edit, 42.0);
+    click(&mut ui, root, up);
+    assert_eq!(ui.value(edit), Some(62.0));
+    click(&mut ui, root, down);
+    assert_eq!(ui.value(edit), Some(42.0));
+    ui.set_value(edit, 9990.0);
+    click(&mut ui, root, up);
+    assert_eq!(ui.value(edit), Some(9999.0));
+}
+
+#[test]
+fn text_shadow_and_wrapping_are_separate_and_ellipsis_is_not_a_shortcut() {
+    let Some(mut ui) = game_ui() else { return };
+    let root = ui.instantiate(r"Dialog\Mod.rsc:textModTitle").unwrap();
+    assert_eq!(ui.nodes[root].shortcut, None);
+    ui.set_text(
+        root,
+        "A long title that must fit within the original single line width limit",
+    );
+    ui.layout_dialog(root, [0, 0, 1000, 100]);
+    let Kind::Text(t) = &ui.nodes[root].kind else {
+        panic!("text")
+    };
+    assert_eq!(t.ellipsis_width, 154);
+    assert!(t.layout.width <= 154);
+    assert_eq!(t.layout.height, ui.res.fonts[t.font.unwrap()].font.size);
+}
+
+#[test]
+fn combo_keyboard_browsing_keeps_popup_open_until_confirmation() {
+    let Some(mut ui) = game_ui() else {
+        return;
+    };
+    let root = ui.instantiate(r"Dialog\Options.rsc:comboAdapter").unwrap();
+    ui.set_choices(root, vec!["First".into(), "Second".into(), "Third".into()]);
+    ui.layout_dialog(root, [0, 0, 600, 300]);
+    click(&mut ui, root, root);
+    assert!(ui.key(root, Key::Down));
+    assert!(ui.key(root, Key::Down));
+    let list = match ui.nodes[root].kind {
+        Kind::Control(Control::Combo {
+            list, open: true, ..
+        }) => list,
+        _ => panic!("open combo"),
+    };
+    assert!(matches!(&ui.nodes[list].kind,Kind::List(l) if l.selected==Some(1)));
+    ui.drain_events();
+    assert!(ui.key(root, Key::Enter));
+    assert!(matches!(
+        ui.nodes[root].kind,
+        Kind::Control(Control::Combo { open: false, .. })
+    ));
+    assert_eq!(
+        ui.drain_events(),
+        vec![banished_ui::Event::Selected(root, 1)]
+    );
+}

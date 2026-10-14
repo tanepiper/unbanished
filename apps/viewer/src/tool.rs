@@ -438,16 +438,20 @@ impl Tool {
 
     pub fn layout(&mut self, size: (u32, u32)) {
         self.ui.screen = [size.0 as i32, size.1 as i32];
+        // Dialog roots have their own placement pass. Laying them out as ordinary children
+        // first can change the constraints of their containers before their first frame.
+        let dialogs = std::mem::take(&mut self.ui.node_mut(self.dialog_host).children);
         self.ui
             .layout(self.root, [0, 0, size.0 as i32, size.1 as i32]);
         if self.mode == Mode::Dialogs {
             // Centre previewed dialogs in the main area (DialogInstance::ComputeLayout).
             let r = self.ui.node(self.main).rect;
-            for c in self.ui.node(self.dialog_host).children.clone() {
+            for &c in &dialogs {
                 self.ui
                     .layout_dialog(c, [r[0] + 12, r[1] + 48, r[2] - 12, r[3] - 12]);
             }
         }
+        self.ui.node_mut(self.dialog_host).children = dialogs;
     }
 
     pub fn viewport(&self) -> [f32; 4] {

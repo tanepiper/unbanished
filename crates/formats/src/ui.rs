@@ -101,13 +101,15 @@ pub struct Text {
     pub string_table: Ref,
     /// String-table key, or literal text when no table is given.
     pub text: String,
+    /// Draw a black shadow one pixel down and right (TextElement::Draw).
+    pub shadow: bool,
     pub wrap: bool,
-    pub unknown_85: bool,
     /// Width limit passed to `Font::ComputeStringLayout` (wrapping / ellipsis).
     pub max_width: i32,
     /// `Font::Justify`: 0 left, 1 centre, 2 right.
     pub justify: u32,
-    pub unknown_8c: i32,
+    /// Non-wrapped line width at which the engine inserts "...". This is not a key code.
+    pub ellipsis_width: i32,
 }
 
 #[derive(Debug, Clone)]
@@ -325,11 +327,11 @@ fn read_text(r: &mut Reader) -> Result<Text> {
             font: r.external_ref()?,
             string_table: r.external_ref()?,
             text: r.string()?,
+            shadow: r.bool()?,
             wrap: r.bool()?,
-            unknown_85: r.bool()?,
             max_width: r.i32()?,
             justify: r.u32()?,
-            unknown_8c: r.i32()?,
+            ellipsis_width: r.i32()?,
         })
     })
 }
@@ -634,9 +636,13 @@ pub fn is_element(type_id_value: u32) -> bool {
 
 #[derive(Debug, Clone)]
 pub struct DialogBinding {
+    /// Application controller type ID (CRC32 of its class name).
     pub unknown: u32,
+    /// Optional element description created beneath the named host.
     pub source: Ref,
+    /// Optional controller configuration resource.
     pub target: Ref,
+    /// Host element path identifier, or empty for the dialog root.
     pub name: String,
 }
 
@@ -651,7 +657,7 @@ pub struct Dialog {
     pub named: Vec<(Ref, String)>,
     pub children: Vec<Ref>,
     pub bindings: Vec<DialogBinding>,
-    /// Other dialogs this one opens.
+    /// Associated resources, including nested dialogs and string tables.
     pub dialogs: Vec<Ref>,
     pub unknown_34: i32,
 }

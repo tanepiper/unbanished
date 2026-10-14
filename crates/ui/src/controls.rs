@@ -175,6 +175,8 @@ impl Ui {
             max_width: 0,
             justify: 0,
             wrap: false,
+            shadow: false,
+            ellipsis_width: 0,
             layout: TextLayout::default(),
         }
     }
@@ -722,6 +724,17 @@ impl Ui {
                     layout(self, *a, [x, t + *gap, x + s[0], t + *header_height]);
                     x += s[0] + *gap;
                 }
+                for (i, &(header, _)) in tabs.iter().enumerate() {
+                    if let Kind::Button { state, .. } = &mut self.nodes[header].kind {
+                        *state = if i == *selected {
+                            3
+                        } else if self.hot == Some(header) {
+                            2
+                        } else {
+                            0
+                        };
+                    }
+                }
                 if let Some((_, n)) = tabs.get(*selected) {
                     layout(
                         self,
@@ -892,6 +905,14 @@ impl Ui {
             Control::Document(d) => {
                 d.width = (r - l).max(1);
                 self.layout_document(d);
+            }
+            Control::Radio { children, selected } => {
+                for (i, &n) in children.iter().enumerate() {
+                    if let Kind::Control(Control::Check { checked, .. }) = &mut self.nodes[n].kind {
+                        *checked = i == *selected;
+                    }
+                    layout(self, n, [l, t, r, b]);
+                }
             }
             _ => {
                 for n in c.active_children() {

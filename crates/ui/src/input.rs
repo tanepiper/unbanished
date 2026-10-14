@@ -242,6 +242,12 @@ impl Ui {
         let id = event_node(event);
         for parent in self.active_nodes(root) {
             let mut selected_text = None;
+            let spinner_current = match &self.nodes[parent].kind {
+                Kind::Control(Control::Spinner { parts, .. }) => {
+                    parts[0].and_then(|n| self.value(n))
+                }
+                _ => None,
+            };
             let routed = match &mut self.nodes[parent].kind {
                 Kind::Control(Control::Tabs { tabs, selected, .. }) => {
                     if let Some(i) = tabs.iter().position(|&(a, _)| a == id) {
@@ -290,8 +296,12 @@ impl Ui {
                         0
                     };
                     if delta != 0 {
-                        *value += delta;
+                        *value =
+                            (spinner_current.unwrap_or(*value as f32) as i32).saturating_add(delta);
                         selected_text = parts[0].map(|n| (n, usize::MAX, *value as usize));
+                        Some(Event::Changed(parent))
+                    } else if parts[0] == Some(id) {
+                        *value = spinner_current.unwrap_or(*value as f32) as i32;
                         Some(Event::Changed(parent))
                     } else {
                         None
@@ -301,6 +311,7 @@ impl Ui {
             };
             if let Some((button, list, i)) = selected_text {
                 let text = if list == usize::MAX {
+                    self.set_value(button, i as i32 as f32);
                     (i as i32).to_string()
                 } else {
                     match &self.nodes[list].kind {
@@ -308,7 +319,9 @@ impl Ui {
                         _ => String::new(),
                     }
                 };
-                self.set_text(button, &text);
+                if list != usize::MAX {
+                    self.set_text(button, &text);
+                }
             }
             if let Some(routed) = routed {
                 return routed;
@@ -483,6 +496,57 @@ impl Ui {
             return true;
         }
         if let Some(id) = self.focus {
+            // A combo's popup retains focus while arrows browse; Enter confirms and Escape
+            // closes it. These keys must not fall through to the asset browser's navigation.
+            let combo = active
+                .iter()
+                .find_map(|&parent| match self.nodes[parent].kind {
+                    Kind::Control(Control::Combo { list, .. }) if parent == id || list == id => {
+                        Some((parent, list))
+                    }
+                    _ => None,
+                });
+            if let Some((parent, list)) = combo {
+                if matches!(key, Key::Up | Key::Down | Key::Home | Key::End) {
+                    if let Kind::Control(Control::Combo { open, .. }) = &mut self.nodes[parent].kind
+                    {
+                        *open = true;
+                    }
+                    if let Kind::List(l) = &mut self.nodes[list].kind {
+                        if !l.items.is_empty() {
+                            let last = l.items.len() - 1;
+                            let i = match key {
+                                Key::Home => 0,
+                                Key::End => last,
+                                Key::Up => l.selected.unwrap_or(0).saturating_sub(1),
+                                _ => l.selected.map_or(0, |i| (i + 1).min(last)),
+                            };
+                            l.selected = Some(i);
+                            l.reveal = true;
+                        }
+                    }
+                    self.focus = Some(list);
+                    return true;
+                }
+                if key == Key::Escape {
+                    if let Kind::Control(Control::Combo { open, .. }) = &mut self.nodes[parent].kind
+                    {
+                        *open = false;
+                    }
+                    self.focus = Some(parent);
+                    return true;
+                }
+                if id == list && matches!(key, Key::Enter | Key::Space) {
+                    if let Kind::List(l) = &self.nodes[list].kind {
+                        if let Some(i) = l.selected {
+                            let event = self.route_event(root, Event::Selected(list, i));
+                            self.pending.push(event);
+                        }
+                    }
+                    self.focus = Some(parent);
+                    return true;
+                }
+            }
             if let Kind::Control(Control::Edit(e)) = &mut self.nodes[id].kind {
                 let len = e.text.text.chars().count();
                 e.cursor = e.cursor.min(len);
@@ -557,7 +621,7 @@ impl Ui {
                 let current = l.selected.unwrap_or(0);
                 let selected = match key {
                     Key::Up => Some(current.saturating_sub(1)),
-                    Key::Down => Some((current + 1).min(last)),
+                    Key::Down => Some(l.selected.map_or(0, |i| (i + 1).min(last))),
                     Key::Home => Some(0),
                     Key::End => Some(last),
                     Key::PageUp => Some(current.saturating_sub(10)),
@@ -771,6 +835,8 @@ impl Ui {
             max_width: 320,
             justify: 0,
             wrap: true,
+            shadow: false,
+            ellipsis_width: 0,
             layout,
         };
         self.draw_text(&text, [x + 8, y + 6], 0xFFFFE8C0, None, out);

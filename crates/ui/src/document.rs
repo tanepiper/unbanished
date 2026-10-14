@@ -317,6 +317,8 @@ impl Ui {
                         max_width: 0,
                         justify: 0,
                         wrap: false,
+                        shadow: false,
+                        ellipsis_width: 0,
                         layout,
                     };
                     self.document_item(doc, &mut row, Content::Text(data), size);
