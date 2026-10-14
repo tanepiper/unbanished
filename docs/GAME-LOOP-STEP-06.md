@@ -2,8 +2,9 @@
 
 This step records the environment controller's starting and serialized state, then decodes the
 shipped Status Bar resource tree. Evidence combines static Ghidra 12.1.4 pseudocode for the Steam
-x64 executable with compiled UI resources decoded by `tools/crs/types/ui.py`. It does not establish a
-live game's displayed values or the complete status bar update path.
+x64 executable with compiled UI resources decoded by `tools/crs/types/ui.py`. The controller's
+bindings and update behavior are traced in [GAME-LOOP-STEP-07.md](GAME-LOOP-STEP-07.md); no live
+game's displayed values have been observed.
 
 ## Environment controller state
 
@@ -42,11 +43,8 @@ Rain, and Snow images. The resource files and sprite names confirm the intended 
 do not tell which state corresponds to every controller threshold or when the icons are shown.
 
 These resources expose more of the intended gameplay HUD than the current port's single date label.
-The current Ghidra string-reference export finds the toolbar, event notification and autosave setup
-in `FUN_14009d0d0`, but no direct `Dialog/StatusBar.rsc` string reference. That bounded search does
-not prove the status bar is unused; its construction or binding may be indirect. The status bar's
-dynamic field update path remains open, so the current port should not invent temperature or icon
-values from the static layout alone.
+The direct dialog installation path in `FUN_14009d0d0` remains separate from the Status Bar
+controller constructor and periodic update routine identified in step 07.
 
 ## Evidence pointers
 

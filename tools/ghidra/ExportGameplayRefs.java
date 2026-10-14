@@ -17,7 +17,10 @@ public class ExportGameplayRefs extends GhidraScript {
     "WorkComponent", "WorkDescription", "CitizenAIComponent", "CitizenDescription",
     "NaturalResourceComponent", "StorageComponent", "MapComponent", "buttonNewName",
     "buttonNewSeed", "comboTerrain", "editSeed", "numberSeed", "Dialog/StatusBar.rsc",
-    "Dialog/Toolbar.rsc", "Dialog/EventNotify.rsc", "Dialog/AutoSave.rsc"
+    "Dialog/Toolbar.rsc", "Dialog/EventNotify.rsc", "Dialog/AutoSave.rsc", "groupSeason",
+    "groupWeather", "imageTemperature", "numberTemperature", "numberYear", "imageSunny",
+    "imagePartlySunny", "imageCloudy", "imageRain", "imageSnow", "checkShowCelsius",
+    "textShowCelsius", "GameShowCelsius"
   };
 
   private DecompInterface decompiler;
