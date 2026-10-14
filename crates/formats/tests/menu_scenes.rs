@@ -25,7 +25,7 @@ fn menu_scenes_parse() {
         eprintln!(
             "scene {i} '{}': size {} | {} water verts, {} rivers, {} lakes, {} decals (+{}), \
              {} placements of {} meshes, {} particles | sky {:?} | colours {:08x?} floats {:?} \
-             | camera pos {:?} target {:?} {:?}",
+             | camera pos {:?} target {:?} {:?} | user {:?}",
             s.name,
             m.dims[0],
             m.water_vertices.len(),
@@ -42,6 +42,7 @@ fn menu_scenes_parse() {
             s.camera.position,
             s.camera.target,
             s.camera.floats,
+            s.vector,
         );
     }
 }

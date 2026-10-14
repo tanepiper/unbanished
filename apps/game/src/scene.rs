@@ -10,6 +10,7 @@ use crate::world::Terrain;
 pub struct SceneView {
     pub id: u64,
     pub terrain: Terrain,
+    pub models: Option<crate::models::SceneModels>,
     pub camera: SceneCamera,
     pub lighting: Lighting,
 }
@@ -26,6 +27,7 @@ impl SceneView {
         SceneView {
             id: NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             terrain,
+            models: None,
             camera,
             lighting,
         }
@@ -35,6 +37,30 @@ impl SceneView {
         match &self.camera {
             SceneCamera::Map(c) => c.view_proj(&self.terrain, aspect),
             SceneCamera::Menu(c) => c.view_proj(aspect),
+        }
+    }
+
+    /// Eye and look-at target in world space.
+    pub fn eye_target(&self) -> (Vec3, Vec3) {
+        match &self.camera {
+            SceneCamera::Map(c) => (c.eye(&self.terrain), c.focus(&self.terrain)),
+            SceneCamera::Menu(c) => (c.eye(), c.target),
+        }
+    }
+
+    /// Camera, lighting and the camera's right/forward/up axes for this frame.
+    pub fn frame(&self, aspect: f32, time: f32) -> crate::render::SceneFrame {
+        let (eye, target) = self.eye_target();
+        let forward = (target - eye).normalize_or(Vec3::Y);
+        let right = forward.cross(Vec3::Z).normalize_or(Vec3::X);
+        let up = right.cross(forward);
+        crate::render::SceneFrame {
+            view_proj: self.view_proj(aspect),
+            lighting: self.lighting,
+            right,
+            forward,
+            up,
+            time,
         }
     }
 }
@@ -129,12 +155,12 @@ impl Camera {
         }
     }
 
-    fn focus(&self, terrain: &Terrain) -> Vec3 {
+    pub fn focus(&self, terrain: &Terrain) -> Vec3 {
         self.target
             .extend(terrain.height_at(self.target.x, self.target.y).max(0.0))
     }
 
-    fn eye(&self, terrain: &Terrain) -> Vec3 {
+    pub fn eye(&self, terrain: &Terrain) -> Vec3 {
         let (sy, cy) = self.yaw.sin_cos();
         let (sp, cp) = self.pitch.sin_cos();
         self.focus(terrain) + Vec3::new(-sy * cp, -cy * cp, sp) * self.distance

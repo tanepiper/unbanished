@@ -14,6 +14,7 @@
 mod global;
 mod loops;
 mod menu;
+mod models;
 mod render;
 mod scene;
 #[cfg(target_arch = "wasm32")]
@@ -234,7 +235,7 @@ impl Game {
                 renderer.set_scene(view);
                 let fog = view.lighting.fog_color;
                 (
-                    Some((view.view_proj(renderer.aspect()), view.lighting)),
+                    Some(view.frame(renderer.aspect(), self.main.elapsed)),
                     // Until the sky mesh is drawn, clear to the fog colour.
                     wgpu::Color {
                         r: fog.x as f64,
@@ -598,7 +599,7 @@ mod native {
         let view = SceneView::new(world.terrain, SceneCamera::Map(camera), lighting);
         renderer.set_scene(&view);
         let rgba = renderer.capture(&Frame {
-            terrain: Some((view.view_proj(renderer.aspect()), view.lighting)),
+            terrain: Some(view.frame(renderer.aspect(), 0.0)),
             clear: wgpu::Color {
                 r: 0.75,
                 g: 0.75,

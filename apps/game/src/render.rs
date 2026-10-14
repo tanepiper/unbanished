@@ -25,6 +25,11 @@ struct Globals {
     fog_color: [f32; 4],
     fog: [f32; 4],
     user: [f32; 4],
+    /// Camera axes in world space for billboards (`gc_worldToCamera` columns); `forward.w` is
+    /// the time in seconds (`gc_time`).
+    camera_right: [f32; 4],
+    camera_forward: [f32; 4],
+    camera_up: [f32; 4],
 }
 
 /// Lighting for one frame, in the units of `EnvironmentDescription`.
@@ -38,12 +43,25 @@ pub struct Lighting {
     pub fog_max: f32,
     pub fog_start: f32,
     pub fog_end: f32,
-    pub snow: f32,
+    /// `pc_userPosition`: x snow, y autumn colour, z leaf loss, w rain (menu scenes set it;
+    /// in game the climate does).
+    pub user: Vec4,
 }
 
-/// Everything drawn in one frame: optional terrain (camera and lighting), then UI quads.
+/// Camera and lighting of a 3D frame.
+#[derive(Clone, Copy)]
+pub struct SceneFrame {
+    pub view_proj: Mat4,
+    pub lighting: Lighting,
+    pub right: Vec3,
+    pub forward: Vec3,
+    pub up: Vec3,
+    pub time: f32,
+}
+
+/// Everything drawn in one frame: optional terrain and models, then UI quads.
 pub struct Frame<'a> {
-    pub terrain: Option<(Mat4, Lighting)>,
+    pub terrain: Option<SceneFrame>,
     pub clear: wgpu::Color,
     pub ui: Option<(&'a banished_ui::Ui, &'a [banished_ui::Quad])>,
 }
@@ -72,6 +90,7 @@ pub struct Renderer {
     /// `SceneView::id` of the uploaded terrain.
     pub world_id: u64,
     ui: banished_gfx::UiRenderer,
+    models: crate::models::ModelRenderer,
     pub backend: String,
 }
 
@@ -118,7 +137,7 @@ impl Lighting {
             fog_max: m.fog_max,
             fog_start: m.fog_start,
             fog_end: m.fog_end,
-            snow: 0.0,
+            user: Vec4::ZERO,
         }
     }
 }
@@ -291,6 +310,13 @@ impl Renderer {
                 resource: globals.as_entire_binding(),
             }],
         });
+        let models = crate::models::ModelRenderer::new(
+            &device,
+            &queue,
+            &globals_layout,
+            format,
+            DEPTH_FORMAT,
+        );
         let mut ui = banished_gfx::UiRenderer::new(&device, format, DEPTH_FORMAT);
         let white = banished_gfx::upload_rgba_as(
             &device,
@@ -316,6 +342,7 @@ impl Renderer {
             terrain: None,
             world_id: 0,
             ui,
+            models,
             backend,
         }
     }
@@ -418,6 +445,10 @@ impl Renderer {
     pub fn set_scene(&mut self, view: &crate::scene::SceneView) {
         if self.world_id != view.id {
             self.set_terrain(&view.terrain);
+            match &view.models {
+                Some(m) => self.models.upload(&self.device, &self.queue, m),
+                None => self.models.clear(),
+            }
             self.world_id = view.id;
         }
     }
@@ -584,8 +615,8 @@ impl Renderer {
 
     fn draw(&mut self, view: &wgpu::TextureView, frame: &Frame) {
         let draw_terrain = frame.terrain.is_some() && self.terrain.is_some();
-        if let Some((view_proj, l)) = &frame.terrain {
-            self.write_globals(view_proj, l);
+        if let Some(scene) = &frame.terrain {
+            self.write_globals(scene);
         }
         let mut encoder = self.device.create_command_encoder(&Default::default());
         {
@@ -627,6 +658,7 @@ impl Renderer {
                     );
                     pass.draw_indexed(0..t.index_count, 0, 0..1);
                 }
+                self.models.draw(&mut pass, &self.globals_bind);
             }
             if let Some((ui, quads)) = frame.ui {
                 self.ui
@@ -636,15 +668,19 @@ impl Renderer {
         self.queue.submit([encoder.finish()]);
     }
 
-    fn write_globals(&mut self, view_proj: &Mat4, l: &Lighting) {
+    fn write_globals(&mut self, scene: &SceneFrame) {
+        let l = &scene.lighting;
         let globals = Globals {
-            view_proj: view_proj.to_cols_array_2d(),
+            view_proj: scene.view_proj.to_cols_array_2d(),
             light_dir: l.light_dir.extend(0.0).to_array(),
             light_color: l.light_color.extend(1.0).to_array(),
             ambient_color: l.ambient_color.extend(1.0).to_array(),
             fog_color: l.fog_color.extend(l.fog_max).to_array(),
             fog: Vec4::new(-l.fog_start, 1.0 / (l.fog_end - l.fog_start), 0.0, 0.0).to_array(),
-            user: [l.snow, 0.0, 0.0, 0.0],
+            user: l.user.to_array(),
+            camera_right: scene.right.extend(0.0).to_array(),
+            camera_forward: scene.forward.extend(scene.time).to_array(),
+            camera_up: scene.up.extend(0.0).to_array(),
         };
         self.queue
             .write_buffer(&self.globals, 0, bytemuck::bytes_of(&globals));

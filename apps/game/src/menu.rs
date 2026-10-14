@@ -203,6 +203,7 @@ impl MenuLoop {
 fn load_menu_scene(ctx: &mut Ctx, index: u32) -> banished_formats::Result<SceneView> {
     let reference = format!("Game/MenuScene/Scene{index}.rsc:resource");
     let scene = banished_formats::menu_scene::menu_scene(&ctx.archive.read_ref(&reference)?)?;
+    let models = crate::models::SceneModels::from_menu_scene(ctx.archive, &scene);
     let map = scene.map;
     let material = map
         .terrain_material
@@ -225,7 +226,7 @@ fn load_menu_scene(ctx: &mut Ctx, index: u32) -> banished_formats::Result<SceneV
     };
     // Same layout as an EnvironmentMonth: ambient, sun, fog colours; fog start, end, maximum;
     // sun yaw and pitch.
-    let lighting = Lighting::from_month(&banished_formats::game::EnvironmentMonth {
+    let mut lighting = Lighting::from_month(&banished_formats::game::EnvironmentMonth {
         ambient_color: scene.colors[0],
         sun_color: scene.colors[1],
         fog_color: scene.colors[2],
@@ -235,11 +236,16 @@ fn load_menu_scene(ctx: &mut Ctx, index: u32) -> banished_formats::Result<SceneV
         sun_yaw: scene.floats[3],
         sun_pitch: scene.floats[4],
     });
+    // `pc_userPosition` from the scene (`FUN_1400a0910`): snow, autumn, leaf loss, rain.
+    lighting.user = glam::Vec4::from(scene.vector);
     log::info!(
-        "menu scene {index}: {} placed meshes",
-        scene.placements.len()
+        "menu scene {index}: {} placed meshes in {} groups",
+        scene.placements.len(),
+        models.groups.len()
     );
-    Ok(SceneView::new(terrain, SceneCamera::Menu(camera), lighting))
+    let mut view = SceneView::new(terrain, SceneCamera::Menu(camera), lighting);
+    view.models = Some(models);
+    Ok(view)
 }
 
 /// `UI::TextElement::SetParameter`: replace `@0`, `@1`, … in a text element.
@@ -409,6 +415,7 @@ impl GameLoop for MapLoop {
     fn load(&mut self, ctx: &mut Ctx) {
         match World::generate(ctx.archive, &self.params) {
             Ok(world) => {
+                log::info!("{} terrain ready", world.profile.name);
                 let lighting = Lighting::from_month(&world.environment.months[3]);
                 self.view = Some(SceneView::new(
                     world.terrain,
