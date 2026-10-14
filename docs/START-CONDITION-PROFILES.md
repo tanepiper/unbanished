@@ -110,15 +110,17 @@ not inferred here.
 All profiles also include one `PopulationDeer` manager input and the same raw-material candidate
 list. The population input's resource chain and limits of the current wildlife trace are recorded in
 [WILDLIFE-POPULATION.md](WILDLIFE-POPULATION.md). This trace does not yet identify how the
-natural-resource lists become the starting map's actual resource distribution or how inventory
-quantities are assigned. The three audio ambience resources and their placement loops are documented
-separately in [STARTING-AUDIO-EMITTERS.md](STARTING-AUDIO-EMITTERS.md).
+natural-resource lists become the starting map's actual resource distribution. The raw-material
+candidate list and seven capacity-aware assignment caps are documented in
+[STARTING-INVENTORY-DISTRIBUTION.md](STARTING-INVENTORY-DISTRIBUTION.md). The three audio ambience
+resources and their placement loops are documented separately in
+[STARTING-AUDIO-EMITTERS.md](STARTING-AUDIO-EMITTERS.md).
 
 ## Remaining trace
 
 - Follow the deduplicated crop/tree lists into their later placement consumers, and the raw-material
   list into inventory initialization.
-- Identify the seven trailing integer settings and the fixed boolean/integer records in the
+- Identify the fixed boolean/integer row flag and remaining unnamed numeric settings in the
   `MapGenerator` serializer before naming their gameplay effects.
 - Trace the manager update path and wildlife entity counts; see
   [WILDLIFE-POPULATION.md](WILDLIFE-POPULATION.md).
