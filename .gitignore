@@ -1,0 +1,22 @@
+# Original game data and anything derived from it. Never commit these.
+# Populate locally with tools/extract-assets.sh.
+/game-data/
+*.pkg
+*.crs
+*.rsc
+*.str
+*.sav
+
+# Decompiler output reproduces the original program code. Local only.
+# Populate with tools/ghidra/export.sh.
+/analysis/
+
+# Original binaries
+*.exe
+*.dll
+
+# Tooling
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
