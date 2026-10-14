@@ -5,6 +5,7 @@
 //! font size; `\n` breaks lines and, when wrapping, lines break at the last space before the limit.
 
 use crate::resources::{FontId, Resources};
+use banished_formats::ui::Sprite;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlacedGlyph {
@@ -19,6 +20,9 @@ pub struct TextLayout {
     pub glyphs: Vec<PlacedGlyph>,
     pub width: i32,
     pub height: i32,
+    /// Distinct input characters absent from the font, rendered using the fallback policy.
+    /// Kept even when the font has no replacement glyph, so missing text is diagnosable.
+    pub missing_characters: Vec<char>,
 }
 
 struct Line {
@@ -26,12 +30,46 @@ struct Line {
     width: i32,
 }
 
+/// Keep fallback rendering inside the game's atlas. The only synthesized character is a middle
+/// dot: its period bitmap is centered on the x-height. All other missing printable characters
+/// use the replacement character or question mark, preserving a visible advance during wrapping.
+fn resolve_glyph(
+    font: &banished_formats::ui::Font,
+    sprites: Option<&[Sprite]>,
+    ch: char,
+) -> Option<(usize, i32)> {
+    if let Some(glyph) = font.glyph_index(ch) {
+        return Some((glyph, 0));
+    }
+    if ch == '\u{00a0}' {
+        if let Some(glyph) = font.glyph_index(' ') {
+            return Some((glyph, 0));
+        }
+    }
+    if ch == '·' {
+        if let Some(((dot, body), sprites)) = font
+            .glyph_index('.')
+            .zip(font.glyph_index('x').or_else(|| font.glyph_index('H')))
+            .zip(sprites)
+        {
+            if let Some((dot_sprite, body_sprite)) = sprites.get(dot).zip(sprites.get(body)) {
+                let raised_bottom =
+                    font.glyphs[body][3] + (body_sprite.height - dot_sprite.height) / 2;
+                return Some((dot, raised_bottom - font.glyphs[dot][3]));
+            }
+        }
+    }
+    font.glyph_index('\u{fffd}')
+        .or_else(|| font.glyph_index('?'))
+        .map(|glyph| (glyph, 0))
+}
+
 fn layout_line(res: &Resources, font: FontId, text: &str, y: i32) -> Line {
     let loaded = &res.fonts[font];
     let sprites = loaded.sheet.map(|s| &res.sheets[s].sheet.sprites);
     let (mut x, mut prev_c, mut glyphs) = (0, 0, Vec::new());
     for ch in text.chars() {
-        let Some(g) = loaded.font.glyph_index(ch) else {
+        let Some((g, raise)) = resolve_glyph(&loaded.font, sprites.map(Vec::as_slice), ch) else {
             continue;
         };
         let [a, c, b, d] = loaded.font.glyphs[g];
@@ -40,7 +78,7 @@ fn layout_line(res: &Resources, font: FontId, text: &str, y: i32) -> Line {
         glyphs.push(PlacedGlyph {
             glyph: g,
             x,
-            y: y + loaded.ascent - d - h,
+            y: y + loaded.ascent - d - h - raise,
         });
         x += b;
         prev_c = c;
@@ -65,6 +103,19 @@ impl TextLayout {
         wrap_width: Option<i32>,
         justify: u32,
     ) -> TextLayout {
+        let mut missing_characters = Vec::new();
+        for ch in text.chars().filter(|ch| *ch != '\n') {
+            if res.fonts[font].font.glyph_index(ch).is_none() && !missing_characters.contains(&ch) {
+                missing_characters.push(ch);
+            }
+        }
+        if !missing_characters.is_empty() {
+            log::debug!(
+                "font {} uses fallback glyphs for {:?}",
+                res.fonts[font].font.name,
+                missing_characters
+            );
+        }
         let line_height = res.fonts[font].font.size;
         let mut lines: Vec<String> = Vec::new();
         for para in text.split('\n') {
@@ -116,6 +167,7 @@ impl TextLayout {
             glyphs,
             width,
             height,
+            missing_characters,
         }
     }
 }
@@ -193,7 +245,67 @@ mod tests {
         // Tallest top above baseline is 9, but the serialized baseline is 16 - 4 = 12.
         assert_eq!(res.fonts[0].font.baseline_offset(), 12);
         let layout = TextLayout::compute(&res, 0, "Ag\nA", None, 0);
-        assert_eq!(layout.glyphs.iter().map(|g| g.y).collect::<Vec<_>>(), [3, 6, 19]);
+        assert_eq!(
+            layout.glyphs.iter().map(|g| g.y).collect::<Vec<_>>(),
+            [3, 6, 19]
+        );
         assert_eq!((layout.width, layout.height), (16, 32));
+    }
+
+    #[test]
+    fn centers_missing_middle_dot_in_x_height_with_original_atlas() {
+        let res = resources();
+        let layout = TextLayout::compute(&res, 0, "x·x", None, 0);
+        assert_eq!(
+            layout.glyphs.iter().map(|g| g.glyph).collect::<Vec<_>>(),
+            [2, 3, 2]
+        );
+        // x occupies y=5..12; a two-pixel period centered on it occupies y=8..10.
+        assert_eq!(layout.glyphs[1].y, 8);
+        assert_eq!(layout.missing_characters, ['·']);
+        assert_eq!(layout.width, 18);
+    }
+
+    #[test]
+    fn missing_characters_remain_visible_and_take_part_in_wrapping() {
+        let res = resources();
+        let layout = TextLayout::compute(&res, 0, "A ☃☃", Some(20), 0);
+        assert_eq!(
+            layout.glyphs.iter().map(|g| g.glyph).collect::<Vec<_>>(),
+            [0, 4, 4]
+        );
+        assert_eq!(layout.glyphs[1].y, 19);
+        assert_eq!((layout.width, layout.height), (16, 32));
+        assert_eq!(layout.missing_characters, ['☃']);
+    }
+
+    #[test]
+    fn direct_unicode_glyph_takes_precedence_over_fallback() {
+        let mut res = resources();
+        res.fonts[0].font.char_map.resize(184, -1);
+        res.fonts[0].font.char_map['·' as usize] = 4;
+        let layout = TextLayout::compute(&res, 0, "·", None, 0);
+        assert_eq!(
+            layout.glyphs[0],
+            PlacedGlyph {
+                glyph: 4,
+                x: 1,
+                y: 3
+            }
+        );
+        assert!(layout.missing_characters.is_empty());
+    }
+
+    #[test]
+    fn absent_replacement_is_reported_and_nonbreaking_space_keeps_its_advance() {
+        let mut res = resources();
+        res.fonts[0].font.char_map['?' as usize] = -1;
+        let layout = TextLayout::compute(&res, 0, "A\u{a0}☃A", None, 0);
+        assert_eq!(
+            layout.glyphs.iter().map(|g| g.glyph).collect::<Vec<_>>(),
+            [0, 5, 0]
+        );
+        assert_eq!(layout.width, 20);
+        assert_eq!(layout.missing_characters, ['\u{a0}', '☃']);
     }
 }
