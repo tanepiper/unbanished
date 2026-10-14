@@ -1,0 +1,171 @@
+type_id	class_name	resource_count	file_versions	example_resource	application_string_addresses	application_string_xref_functions	runtime_string_addresses	runtime_string_xref_functions	type_info_global	registration_function	parent_class	allocating_callback	in_place_callback	application_registration_status
+0x00305aa7	TutorialImage	12	4096	Game/Scenario/TutorialSurvival_iconNoWork.crs	140166e50	140153790,1401537d0,140153810,140153850			DAT_1401ce588	140153790	Object::External	FUN_1400282e0	FUN_140028340	confirmed
+0x01871732	MenuScene	10	1	Game/MenuScene/Scene0_resource.crs	1401651e8	140152a40			DAT_1401cd9f0	140152a40	Object::External	FUN_14001c120	(_func_Base_ptr_void_ptr *)&LAB_14001c160	confirmed
+0x022f4517	TerraformDescription	2	3	Template/Tunnel_terraform.crs	140160988	1401516c0			DAT_1401cc9f8	1401516c0	Description	FUN_14000ccf0	FUN_14000cd60	confirmed
+0x03d99b74	AnimalDescription	4	2	Template/LivestockSheep_animal.crs	140168510	1401543d0			DAT_1401cefd0	1401543d0	Description	FUN_14002f9e0	(_func_Base_ptr_void_ptr *)&LAB_14002fa20	confirmed
+0x09e0cce3	TornadoDescription	1	1	Template/Tornado_tornado.crs	140160b88	140151780			DAT_1401ccaa0	140151780	Description	FUN_14000d560	(_func_Base_ptr_void_ptr *)&LAB_14000d5a0	confirmed
+0x0cc521de	ProfessionList	1	2	Game/Profession/Profession_resource.crs	1401653a8	140152b50			DAT_1401cdad0	140152b50	Object::External	FUN_14001ef20	FUN_14001ef90	confirmed
+0x0f7635fb	UIDescription	42	4	Template/TradingPost_ui.crs	14016ae10	140155b90			DAT_1401cff90	140155b90	Description	FUN_140039f10	FUN_140039f80	confirmed
+0x12e38b5a	Tutorial	4	2	Game/Scenario/TutorialTrade_tutorial.crs	140166b50	1401535d0			DAT_1401ce400	1401535d0	Object::External	FUN_1400277b0	FUN_140027810	confirmed
+0x14c14555	ClimateGenerator	3	3	Game/Climate/Fair_resource.crs	140164548	140152940			DAT_1401cd910	140152940	Object::External	FUN_140019900	(_func_Base_ptr_void_ptr *)&LAB_140019940	confirmed
+0x15b34526	SoundBuffer	72	10	Audio/Music/Interlude_music.crs			180157a00	18000c150,18000c190,1800be4a0						no-application-registration-match
+0x178ee2d7	Tornado	1	4097	ParticleSystems/Tornado/Tornado_resource.crs	1401665a0	1401532d0			DAT_1401ce160	1401532d0	Graphics::Particle	FUN_1400257f0	(_func_Base_ptr_void_ptr *)&LAB_140025830	confirmed
+0x1821d6a5	SpriteSheet	31	6	Cursor/Query_spriteSheet.crs			1801575c8	180002e10,180002e50						no-application-registration-match
+0x1b888b9f	Disease	12	2	Game/Disease/ScarletFever_resource.crs	1401645a8	140152980			DAT_1401cd948	140152980	Object::External	FUN_1400199e0	FUN_140019a50	confirmed
+0x1d43375e	TutorialGoalDialog	12	1	Game/Scenario/TutorialSurvival_selectherbalist.crs	140166c70	140153690			DAT_1401ce4a8	140153690	TutorialGoal	FUN_140027da0	FUN_140027e10	confirmed
+0x1d462f6b	ZoneDescription	31	1	Template/Quarry_zone.crs	14016b240	140155e50			DAT_1401d0188	140155e50	Description	FUN_14003b060	FUN_14003b0c0	confirmed
+0x1fbcf488	StatusIconDescription	31	1	Template/CropField_statusicon.crs	14016aa20	140155950			DAT_1401cfe40	140155950	Description	FUN_140039280	FUN_1400392f0	confirmed
+0x2294ccae	StatGoal	125	1	Game/Achievement/Builder_fishermansdock.crs	140166928	140153450			DAT_1401ce2b0	140153450	Achievement::Goal	FUN_140026e30	(_func_Base_ptr_void_ptr *)&LAB_140026e70	confirmed
+0x2515acc5	VertexProgram	61	5	Material/SelectionEdge/SelectionEdgeMaterial_Skin_vs.crs			18015ab40	18004eff0,18004f030						no-application-registration-match
+0x25651a7f	FishingDescription	1	4	Template/FishermansDock_fishing.crs	140169630	140154e10			DAT_1401cf698	140154e10	Description	FUN_140034d20	FUN_140034d90	confirmed
+0x267841e8	BoatDescription	1	2	Template/TraderBoat_boat.crs	14015eff0	140150740			DAT_1401cc058	140150740	Description	FUN_140003760	FUN_1400037c0	confirmed
+0x2729b5d7	TutorialImageInputKey	13	4097	Game/Scenario/TutorialGettingStarted_keyPitchUp.crs	140166f20	140153810			DAT_1401ce5f8	140153810	TutorialImage	FUN_140028800	FUN_140028860	confirmed
+0x29a7727c	TutorialGoalCount	53	5	Game/Scenario/TutorialGettingStarted_goalwoodhouse2.crs	140166d50	140153710			DAT_1401ce518	140153710	TutorialGoal	FUN_140028110	(_func_Base_ptr_void_ptr *)&LAB_140028150	confirmed
+0x2bcb883f	TabDescription	9	260	Template/ToolMaker_inventoryTab2.crs			18015a868	18004ccb0,18004ccf0						no-application-registration-match
+0x2c5aa2d8	TutorialImageHotKey	31	4097	Game/Scenario/TutorialGettingStarted_hotkeyclearbuilt.crs	140166eb0	1401537d0			DAT_1401ce5c0	1401537d0	TutorialImage	FUN_140028660	(_func_Base_ptr_void_ptr *)&LAB_1400286a0	confirmed
+0x2de80b80	ListDescription	2	260	Dialog/ModUpdate_listPublished.crs			180159e38	180045660,1800456a0						no-application-registration-match
+0x2ebeed54	MaterialInstance	209	4	Cursor/Place_material.crs			1801575b0	1800027d0,180002810						no-application-registration-match
+0x2f73934e	ResidenceDescription	3	2	Template/Hostel_residence.crs	14016a670	140155690			DAT_1401cfd28	140155690	Description	FUN_140037e00	FUN_140037e60	confirmed
+0x31c7f810	Cursor	6	1	Cursor/Query_cursor.crs			180159660	18003ba40,18003ba80						no-application-registration-match
+0x35c17fb8	RibbonDescription	184	516	Template/CropField_resourceLimit.crs			180159e10	180044bf0,180044c30						no-application-registration-match
+0x3777aaa7	NaturalResourceDescription	24	4	Template/NaturalResourceHerb_naturalresource.crs	14016a220	140155410			DAT_1401cfb68	140155410	Description	FUN_140036f30	(_func_Base_ptr_void_ptr *)&LAB_140036f70	confirmed
+0x3bc4d9a5	PointList	27	5	Models/Buildings/Well/WellPoints_resource.crs			18015c050	1800718d0,180071910						no-application-registration-match
+0x3d00937c	SelectDescription	19	1	Template/LivestockSheep_select.crs	1401606f0	140151540			DAT_1401cc8a8	140151540	Description	FUN_14000bb90	FUN_14000bc00	confirmed
+0x40ec9e81	FinishTutorialGoal	4	1	Game/Scenario/TutorialSurvival_completeTutorial.crs	140166820	1401533d0			DAT_1401ce240	1401533d0	Achievement::Goal	FUN_140026a50	FUN_140026ab0	confirmed
+0x41499211	StorageDisplayDescription	1	1	Template/StorageYard_storagedisplay.crs	140160878	140151640			DAT_1401cc988	140151640	Description	FUN_14000c7d0	FUN_14000c830	confirmed
+0x418398a4	Material	39	5	Material/SelectionEdge/SelectionEdgeMaterial_resource.crs			180157d18	180012170,1800121b0						no-application-registration-match
+0x48b28673	VertexLayout	19	3	MeshLayout/TerrainLayout_resource.crs			18015ab18	18004e760,18004e7a0						no-application-registration-match
+0x48e0dea3	CropFieldDescription	1	3	Template/CropField_cropfield.crs	140169288	140154b90			DAT_1401cf548	140154b90	Description	FUN_140033890	FUN_1400338f0	confirmed
+0x4a96367e	HighlightDescription	54	2	Template/TunnelStart_highlight.crs	14015fa98	140150e00			DAT_1401cc448	140150e00	Description	FUN_140006ea0	FUN_140006f10	confirmed
+0x4f654296	HerdDescription	1	2	Template/PopulationDeer_herd.crs	140169a90	140155010			DAT_1401cf858	140155010	Description	FUN_140035690	FUN_1400356f0	confirmed
+0x4f976fb7	LayoutDescription	28	772	Dialog/ToolTipUpgrade_content.crs			180159d30	180043800,180043840						no-application-registration-match
+0x4fcc106b	Dialog	55	6	Dialog/Scenario_resource.crs			180159394	180038f00,180038f40						no-application-registration-match
+0x5194ab79	AmbientEnvironmentDescription	1	2	Audio/Effects/Environment_ambientenvironment.crs	14015ec70	140150540			DAT_1401cbf08	140150540	Description	FUN_140001f40	FUN_140001fb0	confirmed
+0x52c0002c	LivestockDescription	3	1	Template/LivestockChicken_livestock.crs	140169db0	140155190			DAT_1401cf9a8	140155190	Description	FUN_140035e40	FUN_140035eb0	confirmed
+0x541cc42e	PickingDescription	47	4	Template/WoodBridge8_picking.crs	14016a470	140155590			DAT_1401cfc48	140155590	Description	FUN_140037760	FUN_1400377d0	confirmed
+0x576d4f54	PastureDescription	1	2	Template/Pasture_pasture.crs	14016a458	140155490			DAT_1401cfbd8	140155490	Description	FUN_140037100	FUN_140037160	confirmed
+0x58171cb6	SoundEffect	46	3	Audio/Music/Merchant_resource.crs			18015adc8	180050dd0,180050e10						no-application-registration-match
+0x5834dc38	CreateRoadDescription	2	2	Template/DirtRoad_createroad.crs	140169200	140154b10			DAT_1401cf4d8	140154b10	Description	FUN_140033690	FUN_140033700	confirmed
+0x5bb04d14	TutorialSetupDialog	120	6	Game/Scenario/TutorialFood_highlightorchardwork.crs	140167120	140153950			DAT_1401ce710	140153950	TutorialSetup	FUN_140028f10	(_func_Base_ptr_void_ptr *)&LAB_140028f50	confirmed
+0x5f0cd0b6	WorkDescription	71	4	Template/RawMaterialCherry_work.crs	14016aff0	140155cd0			DAT_1401d00a8	140155cd0	Description	FUN_14003a830	(_func_Base_ptr_void_ptr *)&LAB_14003a870	confirmed
+0x5f49afa9	WildAnimalDescription	1	1	Template/WildAnimalDeer_wildanimal.crs	14016aef0	140155c50			DAT_1401d0038	140155c50	Description	FUN_14003a5e0	FUN_14003a640	confirmed
+0x61ae8351	TutorialImageToolbarIcon	35	4097	Game/Scenario/TutorialSurvival_iconherbalist.crs	140166f90	140153850			DAT_1401ce630	140153850	TutorialImage	FUN_140028980	(_func_Base_ptr_void_ptr *)&LAB_1400289c0	confirmed
+0x65d6876c	RadioDescription	1	4356	Dialog/Toolbar_toolBar.crs			18015a2e0	180048130,180048170						no-application-registration-match
+0x6ab5f8fc	ReflectionImageBuffer	1	4103	Terrain/RiverReflect2Texture_resource.crs			180158258	180022a70,180022ab0						no-application-registration-match
+0x6b46c172	ContainerDescription	28	516	Dialog/TownHall_statisticsContainer.crs			1801594a0	18003a390,18003a3d0						no-application-registration-match
+0x6c7bbf56	SliderDescription	23	772	Dialog/Options_sliderMusic.crs			18015a578	18004a210,18004a250						no-application-registration-match
+0x6d90e7b4	ParticleDescription	26	7	Template/Well_particle.crs	140160468	1401513c0			DAT_1401cc758	1401513c0	Description	FUN_14000a3c0	FUN_14000a430	confirmed
+0x70d00fb9	AmbientEmitterDescription	24	2	Template/HunterLodge_ambientemitter.crs	14015eb58	1401504c0			DAT_1401cbe98	1401504c0	Description	FUN_140001510	FUN_140001580	confirmed
+0x7242ee81	UpgradeUIConfig	1	1	Template/WoodHouse_upgradeConfig.crs	140164308	140152880			DAT_1401cd868	140152880	UI::DialogControllerConfig	FUN_140017610	FUN_140017670	confirmed
+0x7319bd9d	VideoProgram	66	1	Material/SelectionEdge/SelectionEdgeSkinMaterial_normal.crs			18015ab60	18004f6e0,18004f720						no-application-registration-match
+0x740c6f1c	FireDescription	5	4	Template/Common_fireStoneHouse.crs	14015f560	140150a80			DAT_1401cc218	140150a80	Description	FUN_140005640	(_func_Base_ptr_void_ptr *)&LAB_140005680	confirmed
+0x741792d4	FrameCopyImageBuffer	1	4103	Terrain/RiverFrameCopyTexture_resource.crs			180157fc8	18001f850,18001f890						no-application-registration-match
+0x745a1bb8	NumberEditDescription	4	4100	Dialog/SharedElements_spinnerEditSmall.crs			18015a020	180046950,180046990						no-application-registration-match
+0x7630ef2c	TutorialGoalGameSpeed	2	1	Game/Scenario/TutorialGettingStarted_goalspeed5x.crs	140166ce0	1401536d0			DAT_1401ce4e0	1401536d0	TutorialGoal	FUN_140027f90	FUN_140027ff0	confirmed
+0x779102e5	RenderState	24	3	Material/SelectionEdge/SelectionEdgeMaterial_rs.crs			18015a810	18004c030,18004c070						no-application-registration-match
+0x78e68d30	EdgeMesh	150	2	Models/Fences/WoodFenceGateMesh_edge.crs			180157d38	180013530,180013570						no-application-registration-match
+0x78fd8f20	ButtonDescription	138	260	Template/Orchard_harvestButton.crs			18015a308	1800488f0,180048930,180049150,180075580						no-application-registration-match
+0x7ca971e4	Scenario	4	1539	Game/Scenario/TutorialSurvival_resource.crs	140165428	140152b90			DAT_1401cdb08	140152b90	::Achievement::Achievement	FUN_14001f350	FUN_14001f3d0	confirmed
+0x819ef8cc	MarketLocationDescription	1	1	Template/Market_marketlocation.crs	14015fe78	140151000			DAT_1401cc598	140151000	Description	FUN_140008720	FUN_140008780	confirmed
+0x83c94c87	TutorialSetupRestrictPlayer	34	4	Game/Scenario/TutorialSurvival_buildforester.crs	140167220	1401539d0			DAT_1401ce780	1401539d0	TutorialSetup	FUN_1400294a0	(_func_Base_ptr_void_ptr *)&LAB_1400294e0	confirmed
+0x841939ff	ConsumeProduceDescription	6	12	Template/CutterYard_consumeproduce.crs	140168e88	140154990			DAT_1401cf388	140154990	Description	FUN_140032cc0	(_func_Base_ptr_void_ptr *)&LAB_140032d00	confirmed
+0x84e6f2dd	ImageBuffer	406	7	Cursor/Arrow_resource.crs			180157f88	18001f1a0,18001f1e0						no-application-registration-match
+0x852ec05b	ToolbarDescription	53	4	Template/Tunnel_toolbar.crs	14016ad90	140155b50			DAT_1401cff58	140155b50	Description	FUN_140039df0	(_func_Base_ptr_void_ptr *)&LAB_140039e30	confirmed
+0x85a1bdbc	InteractDescription	31	1	Template/GathererShelter_interact.crs	140169ca0	140155110			DAT_1401cf938	140155110	Description	FUN_140035b60	(_func_Base_ptr_void_ptr *)&LAB_140035ba0	confirmed
+0x8773bf1f	CreateBridgeDescription	2	2	Template/WoodBridge_createbridge.crs	140169040	140154a10			DAT_1401cf3f8	140154a10	Description	FUN_1400331e0	(_func_Base_ptr_void_ptr *)&LAB_140033220	confirmed
+0x88053e15	NomadDescription	1	2	Template/Nomad_nomad.crs	1401600d0	1401511c0			DAT_1401cc678	1401511c0	Description	FUN_140009090	FUN_140009100	confirmed
+0x897a0803	FloorDescription	9	1	Template/FishermansDock_floor.crs	140169770	140154e90			DAT_1401cf708	140154e90	Description	FUN_140034fc0	FUN_140035030	confirmed
+0x8a72943e	GroupDescription	145	260	Template/UtilityLimits_limit6.crs			18015a130	180047120,180047160,1800479b0,180048140						no-application-registration-match
+0x8b557673	TutorialSetupGameSpeed	3	1	Game/Scenario/TutorialCommon_normalspeed.crs	1401671a0	140153990			DAT_1401ce748	140153990	TutorialSetup	FUN_140029320	FUN_140029380	confirmed
+0x8c206d64	TradeDescription	1	7	Template/TradingPost_trade.crs	140160d80	1401518c0			DAT_1401ccbb8	1401518c0	Description	FUN_14000dbd0	(_func_Base_ptr_void_ptr *)&LAB_14000dc10	confirmed
+0x90fefb46	HappinessDescription	9	3	Template/Chapel_happiness.crs	14015f688	140150b80			DAT_1401cc2f8	140150b80	Description	FUN_140005c10	FUN_140005c80	confirmed
+0x93056daf	ComboDescription	32	8452	Template/CropField_selectResource.crs			18015c118	180075570,1800755b0						no-application-registration-match
+0x9460c3cc	EnvironmentDescription	1	7	Environment/Environment_resource.crs	1401645f8	1401529c0			DAT_1401cd980	1401529c0	Object::External	FUN_140019b30	(_func_Base_ptr_void_ptr *)&LAB_140019b70	confirmed
+0x94ee6491	AnimatedImageDescription	2	66052	Dialog/Loading_animatedImage.crs			1801590c0	180037190,1800371d0						no-application-registration-match
+0x95f2f398	CreateFencedDescription	2	3	Template/Cemetery_createfenced.crs	14015f2a0	140150940			DAT_1401cc100	140150940	Description	FUN_1400048e0	(_func_Base_ptr_void_ptr *)&LAB_140004920	confirmed
+0x96f8b310	Achievement	36	3	Game/Achievement/Healthy_resource.crs			180157530	180001000,180001040						no-application-registration-match
+0x97101adf	StateMachineDescription	33	1	Template/Orchard_statemachine.crs	14016a8e8	140155850			DAT_1401cfdd0	140155850	Description	FUN_140038c90	FUN_140038cf0	confirmed
+0x99134887	FrustumOutlineDescription	1	260	Dialog/Map_frustum.crs	140162338	140152080			DAT_1401cd168	140152080	ElementDescription	FUN_1400122c0	FUN_140012330	confirmed
+0x99a746df	AnimationGroup	15	8	Models/Buildings/TradingPost/BoatAnims_resource.crs			180157e38	180016bb0,180016bf0						no-application-registration-match
+0x9adeff28	MapDescription	120	1	Template/StoneHouse_map.crs	140169ec0	140155210			DAT_1401cfa18	140155210	Description	FUN_1400360c0	(_func_Base_ptr_void_ptr *)&LAB_140036100	confirmed
+0x9ae409dc	ComponentDescription	155	2	Template/RawMaterialSquash_resource.crs	140168e58	140154910			DAT_1401cf318	140154910	Object::External	FUN_140032890	FUN_1400328f0	confirmed
+0x9b691c82	ClearAreaDescription	30	6	Template/DoctorHouse_cleararea.crs	140168a70	1401546d0			DAT_1401cf200	1401546d0	Description	FUN_140031860	FUN_1400318e0	confirmed
+0x9bdfebbb	ScrollDescription	1	260	Dialog/SharedElements_verticalScrollbar.crs			1801594d0	18003abe0,18003ac20						no-application-registration-match
+0x9c2301f9	PickingMesh	161	9	Models/Fences/StoneFenceGatePicking_resource.crs			18015c0a8	180072540,180072580						no-application-registration-match
+0x9e39dd50	CaptureBoxDescription	1	260	Dialog/Capture_captureBox.crs	1401637e0	1401525c0			DAT_1401cd600	1401525c0	ElementDescription	FUN_1400147a0	FUN_140014800	confirmed
+0x9e629af7	SpawnDescription	1	2	Template/NaturalResourceTree_spawn.crs	140160770	1401515c0			DAT_1401cc918	1401515c0	Description	FUN_14000c1d0	FUN_14000c230	confirmed
+0x9f4b140d	PopulationDescription	1	3	Template/PopulationDeer_population.crs	140160498	140151440			DAT_1401cc7c8	140151440	Description	FUN_14000afb0	(_func_Base_ptr_void_ptr *)&LAB_14000aff0	confirmed
+0xa0127c9f	WorkPlaceDescription	28	2	Template/Tunnel_workplace.crs	14016b0e0	140155d50			DAT_1401d0118	140155d50	Description	FUN_14003a9f0	FUN_14003aa60	confirmed
+0xa0755e66	WellDescription	1	1	Template/Well_well.crs	140160f50	140151a00			DAT_1401ccc60	140151a00	Description	FUN_14000fce0	FUN_14000fd40	confirmed
+0xa396054f	CreateRemovalDescription	8	1	Template/ClearStone_createremoval.crs	140169190	140154ad0			DAT_1401cf4a0	140154ad0	Description	FUN_1400334d0	FUN_140033540	confirmed
+0xa59314b7	CheckDescription	51	4356	Template/TradingPost_enableTradeWorkButton.crs			18015a330	180049140,180049180						no-application-registration-match
+0xa86bf867	BorderDescription	34	260	Game/Scenario/TutorialCommon_keyBorderPad.crs			1801599f8	1800414a0,1800414e0						no-application-registration-match
+0xacf1cc84	CitizenAIDescription	1	1	Template/Citizen_citizenai.crs	140168860	1401545d0			DAT_1401cf120	1401545d0	Description	FUN_1400304e0	FUN_140030540	confirmed
+0xb1403226	ProgressDescription	15	516	Dialog/Storage_capacityFull.crs			18015c268	180078200,180078240						no-application-registration-match
+0xb4b71df9	BuildDescription	27	2	Template/ForesterLodge_build.crs	140168600	140154450			DAT_1401cf040	140154450	Description	FUN_14002fc80	FUN_14002fcf0	confirmed
+0xb599893f	ModelDescription	122	1	Template/IronMine_modeldestroyed.crs	140169fa0	140155290			DAT_1401cfa88	140155290	Description	FUN_140036290	FUN_140036300	confirmed
+0xb6616772	AttendanceDescription	3	1	Template/Chapel_attendance.crs	14015ed90	1401505c0			DAT_1401cbf78	1401505c0	Description	FUN_1400026f0	FUN_140002750	confirmed
+0xb79aeef6	TombstoneDescription	1	1	Template/Tombstone_tombstone.crs	140160a88	140151740			DAT_1401cca68	140151740	Description	FUN_14000d2e0	FUN_14000d350	confirmed
+0xb876882c	TutorialSetupCamera	10	1	Game/Scenario/TutorialFood_focusgatherer.crs	1401670a8	140153910			DAT_1401ce6d8	140153910	TutorialSetup	FUN_140028d60	FUN_140028dd0	confirmed
+0xb9f9bd84	ExternalList	13	3	Game/Toolbar_resource.crs			180157838	180007330,180007370						no-application-registration-match
+0xbb47aa94	MarketDescription	1	3	Template/Market_market.crs	14015fd40	140150f80			DAT_1401cc528	140150f80	Description	FUN_140008290	FUN_140008300	confirmed
+0xbd9fe140	ImmigrationDescription	1	2	Template/TownHall_immigration.crs	14015fbe0	140150e80			DAT_1401cc4b8	140150e80	Description	FUN_140007a80	(_func_Base_ptr_void_ptr *)&LAB_140007ac0	confirmed
+0xbe044769	AbsorbResourceDescription	1	1	Template/StorageYard_absorbresource.crs	1401683b0	1401542d0			DAT_1401cef60	1401542d0	Description	FUN_14002f3e0	FUN_14002f440	confirmed
+0xc03519e4	StringTable	115	1	Game/Scenario/TutorialTrade_tutorialStrings.crs			1801575a0	180002150,180002190						no-application-registration-match
+0xc0871a74	StorageLocationDescription	4	2	Template/Tavern_storagelocation.crs	14016ac20	140155a50			DAT_1401cff20	140155a50	Description	FUN_1400397b0	FUN_140039810	confirmed
+0xc0e562d4	Weather	2	5	Environment/Snow_resource.crs	140166650	140153310			DAT_1401ce198	140153310	Object::External	FUN_140025910	(_func_Base_ptr_void_ptr *)&LAB_140025950	confirmed
+0xc1e2ef37	ControlUIConfig	25	1	Template/Pasture_splitConfig.crs	140161478	140151cc0			DAT_1401cce20	140151cc0	UI::DialogControllerConfig	FUN_140010cd0	FUN_140010d30	confirmed
+0xc343dfbb	TimeGoal	9	1	Game/Achievement/Miner_for5years.crs	140166950	140153490			DAT_1401ce2e8	140153490	Achievement::Goal	FUN_140027050	FUN_1400270b0	confirmed
+0xc4740d8e	AnimAudioEvent	10	2	Audio/Animal/Sheep_event.crs	1401644a8	140152900			DAT_1401cd8d8	140152900	Graphics::AnimationEvent	FUN_140017910	FUN_140017970	confirmed
+0xc517410b	GrowthDescription	22	3	Template/NaturalResourcePotato_growth.crs	1401699a0	140154f90			DAT_1401cf7e8	140154f90	Description	FUN_1400354d0	(_func_Base_ptr_void_ptr *)&LAB_140035510	confirmed
+0xc55b3c77	ForesterDescription	1	2	Template/ForesterLodge_forester.crs	140169878	140154f10			DAT_1401cf778	140154f10	Description	FUN_140035240	FUN_1400352b0	confirmed
+0xc5f0f728	TutorialGoalButton	38	2	Game/Scenario/TutorialFood_goalhunter.crs	140166c08	140153650			DAT_1401ce470	140153650	TutorialGoal	FUN_140027bf0	FUN_140027c60	confirmed
+0xc706a657	DiseaseDescription	3	1	Template/Pasture_disease.crs	14015f398	140150a00			DAT_1401cc1a8	140150a00	Description	FUN_140004e10	FUN_140004e70	confirmed
+0xc72a6505	ValueDescription	59	3	Template/RawMaterialVenison_value.crs	140160ed0	140151980			DAT_1401ccbf0	140151980	Description	FUN_14000faa0	FUN_14000fb10	confirmed
+0xc9022aa3	EditDescription	12	516	Dialog/Noise_noiseCutOff.crs			1801598e8	180040190,1800401d0						no-application-registration-match
+0xc974f55b	TextDescription	298	772	Game/Scenario/TutorialCommon_textKeyPress.crs			180159b80	180042590,1800425d0,180042e80						no-application-registration-match
+0xc97d055d	DecalDescription	33	4	Template/SchoolHouse_decal.crs	1401693e0	140154c90			DAT_1401cf5b8	140154c90	Description	FUN_140034180	(_func_Base_ptr_void_ptr *)&LAB_1400341c0	confirmed
+0xc9dd0172	Toolbar	71	4	Game/Toolbar_storage.crs	140166530	140153290			DAT_1401ce128	140153290	Object::External	FUN_140025500	(_func_Base_ptr_void_ptr *)&LAB_140025540	confirmed
+0xc9f8e694	TutorialStep	190	1	Game/Scenario/TutorialSurvival_stepBuild9.crs	1401672a0	140153a10			DAT_1401ce7b8	140153a10	Object::External	FUN_1400295b0	(_func_Base_ptr_void_ptr *)&LAB_1400295f0	confirmed
+0xca06d4fd	MapGenerator	3	8	Game/StartCondition/Medium_resource.crs	140165188	140152a00			DAT_1401cd9b8	140152a00	Object::External	FUN_14001b740	(_func_Base_ptr_void_ptr *)&LAB_14001b780	confirmed
+0xcaf7ff58	StatusIconUIConfig	1	1	Template/CropField_titleBuildStatus.crs	140163ca8	1401526c0			DAT_1401cd6e0	1401526c0	UI::DialogControllerConfig	FUN_140014c60	FUN_140014cb0	confirmed
+0xcc824ef1	AutoPickupDescription	7	1	Template/Pasture_autopickup.crs	14015eef8	1401506c0			DAT_1401cbfe8	1401506c0	Description	FUN_140003420	FUN_140003480	confirmed
+0xd2da2cd3	FruitDescription	8	1	Template/NaturalResourceChestnutTree_fruit.crs	14015f580	140150b00			DAT_1401cc288	140150b00	Description	FUN_140005980	FUN_1400059f0	confirmed
+0xd56baba8	SpriteCapture	192	1	Game/Help/Dialog/UIMine_resource.crs			1801598d0	18003d2d0,18003d310						no-application-registration-match
+0xd91ccdf1	PixelProgram	73	5	Material/SelectionEdge/SelectionEdgeMaterial_ps.crs			18015ab50	18004f370,18004f3b0						no-application-registration-match
+0xdc667cd5	StorageDescription	29	2	Template/Quarry_storage.crs	14016ab38	1401559d0			DAT_1401cfeb0	1401559d0	Description	FUN_140039510	FUN_140039580	confirmed
+0xdd34b41f	MineDescription	1	1	Template/IronMine_mine.crs	14015ffe0	140151140			DAT_1401cc608	140151140	Description	FUN_140008e30	FUN_140008e90	confirmed
+0xdf280dd6	RawMaterialDescription	40	8	Template/RawMaterialOnion_rawmaterial.crs	14016a570	140155610			DAT_1401cfcb8	140155610	Description	FUN_140037c30	(_func_Base_ptr_void_ptr *)&LAB_140037c70	confirmed
+0xdf2f53be	CharacterDescription	7	6	Template/Citizen_character.crs	140168778	140154550			DAT_1401cf0b0	140154550	Description	FUN_140030320	(_func_Base_ptr_void_ptr *)&LAB_140030360	confirmed
+0xe0433376	CemeteryDescription	1	1	Template/Cemetery_cemetery.crs	14015f158	140150840			DAT_1401cc0c8	140150840	Description	FUN_1400040b0	FUN_140004110	confirmed
+0xe16728ca	CitizenDescription	1	17	Template/Citizen_citizen.crs	140168978	140154650			DAT_1401cf190	140154650	Description	FUN_140030ad0	(_func_Base_ptr_void_ptr *)&LAB_140030b10	confirmed
+0xe23078d2	MultiObjectDescription	4	1	Template/Cemetery_multiobject.crs	14016a0b8	140155310			DAT_1401cfaf8	140155310	Description	FUN_1400368b0	FUN_140036910	confirmed
+0xe28e0152	GraphDescription	1	260	Dialog/TownHall_graphData.crs			1801599d0	180040b50,180040b90						no-application-registration-match
+0xe2caa0f9	ResourceLimitUIConfig	21	1	Template/Quarry_resourceLimitConfig.crs	1401635f8	1401524c0			DAT_1401cd520	1401524c0	UI::DialogControllerConfig	FUN_140014190	FUN_1400141f0	confirmed
+0xe3d8954e	Font	4	8	Font/Font_resource.crs										no-application-registration-match
+0xe61c2ffe	GraphicsMesh	271	13333	Models/Fences/StoneFenceStraightLongBuild02Mesh_resource.crs			180157d28	180012c30,180012c70						no-application-registration-match
+0xe7d69af7	PageDescription	2	4356	Dialog/StandardDialog_pages.crs			18015a158	1800479a0,1800479e0						no-application-registration-match
+0xe8163373	CreateDragDescription	4	2	Template/StorageYard_createdrag.crs	1401690b0	140154a50			DAT_1401cf430	140154a50	Description	FUN_1400332d0	(_func_Base_ptr_void_ptr *)&LAB_140033310	confirmed
+0xe8f1549e	TrackerDescription	14	1	Template/ToolMaker_tracker.crs	140160c88	140151840			DAT_1401ccb48	140151840	Description	FUN_14000d830	FUN_14000d890	confirmed
+0xea223ef6	NameDatabase	3	1025	Game/Names/Cities_resource.crs	1401652b0	140152ac0								no-application-registration-match
+0xeae1d5ff	OrchardDescription	1	3	Template/Orchard_orchard.crs	140160238	1401512c0			DAT_1401cc6e8	1401512c0	Description	FUN_1400098d0	FUN_140009940	confirmed
+0xec3779bb	DocumentTextDescription	7	516	Dialog/ModUpdate_linkUser.crs			1801598a0	18003c3c0,18003c400						no-application-registration-match
+0xeca6998f	SpinnerDescription	15	516	Template/CutterYard_editLimit.crs			18015a730	18004b820,18004b860						no-application-registration-match
+0xed730d49	Profession	22	3	Game/Profession/Profession_herbalist.crs	140165398	140152b10			DAT_1401cda98	140152b10	Object::External	FUN_14001ee90	(_func_Base_ptr_void_ptr *)&LAB_14001eed0	confirmed
+0xeeee5945	DestroyDescription	31	5	Template/SchoolHouse_destroy.crs	1401694e8	140154d10			DAT_1401cf628	140154d10	Description	FUN_140034590	FUN_140034600	confirmed
+0xef9a5ee5	TableDescription	44	516	Template/UtilityLimits_limitTable.crs			18015c348	180079960,1800799a0						no-application-registration-match
+0xefc2f724	TerrainGenerator	2	4	Game/Terrain/Mountains_resource.crs	140165578	140152bd0			DAT_1401cdb40	140152bd0	Object::External	FUN_140020ef0	(_func_Base_ptr_void_ptr *)&LAB_140020f30	confirmed
+0xf00915c5	ParticleSystem	6	4097	ParticleSystems/ChimneySmoke/ChimneySmoke_resource.crs			180158100	180020c80,180020cc0						no-application-registration-match
+0xf0cbd6ea	LabelDescription	145	8964	Template/CropField_cropComboLabel.crs			180159ba0	180042e70,180042eb0						no-application-registration-match
+0xf1375b0d	MusicList	1	1	Game/MusicTracks_resource.crs	140165248	140152a80			DAT_1401cda28	140152a80	Object::External	FUN_14001cbc0	FUN_14001cc20	confirmed
+0xf436355e	CreatePathDescription	1	1	Template/UtilityPath_createpath.crs	14015f310	140150980			DAT_1401cc138	140150980	Description	FUN_140004c30	FUN_140004c90	confirmed
+0xf49dae05	CharacterSet	1	1	Font/CharacterSet_resource.crs			180159308	180037f10,180037f50						no-application-registration-match
+0xf4d38a48	CreatePlacedDescription	45	4	Template/StoneFenceGate_createplaced.crs	140169120	140154a90			DAT_1401cf468	140154a90	Description	FUN_1400333c0	(_func_Base_ptr_void_ptr *)&LAB_140033400	confirmed
+0xf4ff367a	QuarryDescription	1	4	Template/Quarry_quarry.crs	140160590	1401514c0			DAT_1401cc838	1401514c0	Description	FUN_14000b430	FUN_14000b4a0	confirmed
+0xf5b4d6df	ClearResourceDescription	1	1	Template/Clear_clearresource.crs	140168be8	1401547d0			DAT_1401cf270	1401547d0	Description	FUN_140031f60	FUN_140031fc0	confirmed
+0xf7d9cb06	HerbalistDescription	2	2	Template/Herbalist_herbalist.crs	14015f968	140150d80			DAT_1401cc3d8	140150d80	Description	FUN_140006bb0	FUN_140006c20	confirmed
+0xfb8de193	NumberDescription	53	260	Dialog/Debug_numberBatches.crs			18015a5a0	18004ad00,18004ad40						no-application-registration-match
+0xfc3f1d49	HealerDescription	1	1	Template/Herbalist_healer.crs	14015f7e0	140150c80			DAT_1401cc368	140150c80	Description	FUN_1400064f0	FUN_140006550	confirmed
+0xfdd24e9a	ImageDescription	165	516	Game/Scenario/TutorialGettingStarted_imageHungry.crs			180159098	180036790,1800367d0,1800371a0						no-application-registration-match
+0xfebe0c61	HuntDescription	1	3	Template/HunterLodge_hunt.crs	140169b90	140155090			DAT_1401cf8c8	140155090	Description	FUN_1400358f0	FUN_140035950	confirmed
+0xff926b43	RadiusDescription	14	1	Template/Well_radius.crs	140160680	140151500			DAT_1401cc870	140151500	Description	FUN_14000b9e0	FUN_14000ba50	confirmed

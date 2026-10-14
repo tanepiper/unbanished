@@ -58,6 +58,13 @@ decompiles to `return "Font"`, so the class-name value is known, while its liter
 direct data xrefs remain unresolved. References outside functions are kept as data xrefs and are
 not treated as registration calls without further evidence.
 
+Confirmed Application `BaseTypeInfo` registrations are crosswalked with resource IDs, parent
+classes and factory callbacks in [GAME-TYPE-REGISTRATIONS.tsv](GAME-TYPE-REGISTRATIONS.tsv), with
+method and coverage notes in [GAME-TYPE-REGISTRATION-FINDINGS.md](GAME-TYPE-REGISTRATION-FINDINGS.md).
+This currently confirms 116 of 170 class registrations in the Application pseudocode; Runtime name
+references for the other rows remain separate evidence and do not by themselves establish
+registration.
+
 For the existing Application Ghidra project, export the type-string references with:
 
 ```sh
