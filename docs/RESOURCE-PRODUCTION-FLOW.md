@@ -193,6 +193,69 @@ haulers, or which storage is selected first for each category. `0x14011b330` ind
 destinations for carried goods using `0x140092a60` and schedules resulting work, so carrying and
 storage allocation also exist outside the market-specific selection callback.
 
+## Production actions consume inputs and materialize outputs
+
+Action type registrations map `ConsumeRawMaterial` to `0x140022a20`,
+`CreateRawMaterial` to `0x140022c30`, `DropOffRawMaterial` to `0x140022f60`, and
+`PickupRawMaterial` to `0x1400235c0`. Their constructors install these vtables and
+the fourth virtual slot is the execute callback:
+
+| Action | Vtable | Execute callback | Observed result |
+| --- | --- | --- | --- |
+| `ConsumeRawMaterial` | `0x140166050` | `0x1400cb420` | Validate and subtract recipe resource quantities from storage |
+| `CreateRawMaterial` | `0x140166130` | `0x1400cc010` | Create map entities carrying output quantities |
+| `DropOffRawMaterial` | `0x1401661a0` | `0x1400cc7d0` | Deliver carried goods through the capacity-checked path above |
+| `PickupRawMaterial` | `0x140166330` | `0x1400ceda0` | Add a map resource entity's quantity to owner storage and queue its removal |
+| `PickupStoredRawMaterial` | `0x1401663a0` | `0x1400cf210` | Transfer quantities between storage ledgers, described above |
+
+`0x1400cb420` executes the consume action. It returns status `2` if its resource
+list is empty. For every listed resource, when action byte `+0x38` is clear it
+checks `stored - reserved` and returns `2` if stock is below the requested amount.
+When that byte is set, it subtracts the requested amount from the reservation and
+clamps the reservation at zero. The callback then subtracts the amount from the
+storage ledger with `0x140132620`. It also increments a manager table counter
+selected through `0x14008e460`; the table's original counter meaning is unknown.
+The callback does not reveal whether this status means completion or failure in
+the surrounding action scheduler.
+
+`0x1400cc010` executes the create action. It resolves a `RawMaterialDescription`
+(`DAT_1401cfcb8`) from the action's component template at `+0x20`. It selects one
+of that description's integers at `+0x40` or `+0x44` according to the comparison
+between the owner's fields `+0x210` and `CitizenDescription+0x118`, then multiplies
+the selected integer by action float `+0x4c` and truncates to an integer. This is
+the requested output quantity for the action; the description fields' names and
+the selector's gameplay meaning have not been recovered.
+
+The callback divides action integer `+0x40` by raw-material unit weight
+(`RawMaterialDescription+0x48`) to bound each created entity's quantity. While
+the remaining requested amount is positive, it caps the current batch to that
+bound, searches for a map placement near the action's grid index `+0x44` through
+`0x1400a1210`, and creates a `ComponentEntity` from the output template with
+`0x1400c8bf0`. It finds that entity's registered `RawMaterialComponent`
+(`DAT_1401cfc80`), writes the batch quantity to component `+0x28`, and calls
+`0x14012ec30` to set its grid coordinates and transform. The new entity is then
+registered with the entity manager (`0x1400c9d70`). The component constructor at
+`0x14012e8d0` initializes `RawMaterialComponent`; its owner, template and runtime
+component attachment follow the general entity construction path in
+[ENTITY-COMPONENT-LIFECYCLE.md](ENTITY-COMPONENT-LIFECYCLE.md).
+
+This establishes that this production callback makes output available as placed
+map entities rather than directly adding it to workplace storage. The pickup
+callback `0x1400ceda0` resolves the entity's `RawMaterialComponent`, reads its
+quantity from `+0x28`, adds the entity's template and quantity to the worker's
+storage through `0x1401324d0`, calls the entity's removal callback, then queues
+the entity for manager removal. Thus a produced unit can pass through three
+distinct states in the observed code: recipe output action, placed raw-material
+entity, then stored inventory after pickup.
+
+The work-construction path inserts a `CreateRawMaterial` action and, when the
+selected recipe has a nonempty resource array, also inserts a
+`ConsumeRawMaterial` action populated from that array. These allocations occur
+in `0x1400c4440`, but insertion order alone does not establish execution order;
+the action-collection scheduler's ordering and status/retry policy remain open.
+The trace also does not prove that all workplaces use this pair, how quantities
+are modified by tools or education, or the effects of interrupted work.
+
 ## Evidence retained locally and remaining scope
 
 Focused exports from this pass are in `/tmp/resource-factories.txt`,
@@ -205,8 +268,12 @@ Focused exports from this pass are in `/tmp/resource-factories.txt`,
 evidence, not durable repository artifacts; the addresses above allow repeat export with tracked
 `tools/ghidra/ExportAddressBatch.java` and `ExportVtableSlots.java`.
 
-The storage schema, reservation mutation and successful pickup/delivery quantity operations are
-established. Work construction and recipe/market scheduling are partially established. Output
-creation, complete input consumption, exact recipe values, all worker modifiers, reservation
-cancellation, action execution order, full destination selection and original-game runtime
+The follow-up action vtables and callbacks were exported with the same scripts to
+`/tmp/production-action-vtables.tsv`, `/tmp/production-action-callbacks.txt` and
+`/tmp/production-output-helpers.txt`; these are also temporary local evidence.
+
+The storage schema, reservation mutation, input removal, output materialization, raw-material pickup,
+and successful pickup/delivery quantity operations are established statically. Work construction and
+recipe/market scheduling are partially established. Exact recipe values, all worker modifiers,
+reservation cancellation, action execution order, full destination selection and original-game runtime
 confirmation remain unresolved. No gameplay implementation or tests were added by this trace.
