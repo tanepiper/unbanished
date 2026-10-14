@@ -21,9 +21,12 @@ STAGES = [
 ]
 
 
-def main(out, seed, words):
-    os.makedirs(out, exist_ok=True)
-    emu = Emu('game-data/original/Application-steam-x64.exe', 'game-data/original/Runtime-steam-x64.dll')
+def new_emu():
+    return Emu('game-data/original/Application-steam-x64.exe', 'game-data/original/Runtime-steam-x64.dll')
+
+
+def build_context(emu, seed, words):
+    """A generation context as FUN_1400b5700 prepares it for FUN_1400d4860."""
     # Progress object written by FUN_1400d4860 (DAT_1401cbdd8 + 0x24).
     progress = emu.malloc(0x100)
     emu.write(0x1401cbdd8, struct.pack('<Q', progress))
@@ -33,6 +36,23 @@ def main(out, seed, words):
     emu.write(ctx + 0xa28, struct.pack('<Q', record))
     emu.call(emu.exports['??0Random@System@@QEAA@I@Z'], ctx + 0x58, seed)
     emu.write(ctx, struct.pack('<i', words[0] * 2))  # FUN_1400d4860 sets *ctx = n * 2
+    return ctx
+
+
+def generate(emu, seed, words, after_stage=None):
+    ctx = build_context(emu, seed, words)
+    for stage, funcs in STAGES:
+        for f in funcs:
+            emu.call(int(f, 16), ctx)
+        if after_stage:
+            after_stage(stage, ctx)
+    return ctx
+
+
+def main(out, seed, words):
+    os.makedirs(out, exist_ok=True)
+    emu = new_emu()
+    ctx = build_context(emu, seed, words)
     for stage, funcs in STAGES:
         for f in funcs:
             t = time.time()

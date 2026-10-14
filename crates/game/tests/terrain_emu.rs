@@ -3,7 +3,7 @@
 //! the test is skipped when that git-ignored folder is absent.
 
 use banished_game::terrain::{Generator, HeightGrid, SizeRecord, TerrainMesh};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn truth_dir(name: &str) -> Option<PathBuf> {
     let d = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -83,6 +83,50 @@ fn check_records(dir: &PathBuf, g: &Generator) {
     );
 }
 
+/// Gameplay terrain queries: natural cell types and ground height/normal samples.
+fn check_queries(dir: &Path, g: &Generator) {
+    let heights = g.heights();
+    let grid = HeightGrid {
+        width: g.width(),
+        heights: &heights,
+    };
+    if let Ok(want) = std::fs::read(dir.join("cell_types.u8")) {
+        let bad: Vec<usize> = (0..want.len())
+            .filter(|&i| grid.natural_cell_type(g.size as usize, i).0 != want[i])
+            .collect();
+        if let Some(&i) = bad.first() {
+            panic!(
+                "cell types: {} of {} differ; first {i}: got {} want {}",
+                bad.len(),
+                want.len(),
+                grid.natural_cell_type(g.size as usize, i).0,
+                want[i]
+            );
+        }
+        eprintln!("natural cell types: bit-exact ({} cells)", want.len());
+    }
+    if let Ok(b) = std::fs::read(dir.join("height_samples.bin")) {
+        for (k, rec) in b.chunks_exact(24).enumerate() {
+            let f = floats(rec);
+            let (x, y) = (f32::from_bits(f[0]), f32::from_bits(f[1]));
+            let mut normal = [0.0f32; 3];
+            let h = grid.ground(x, y, &mut normal);
+            let got = [
+                h.to_bits(),
+                normal[0].to_bits(),
+                normal[1].to_bits(),
+                normal[2].to_bits(),
+            ];
+            assert_eq!(
+                got,
+                [f[2], f[3], f[4], f[5]],
+                "ground sample {k} at ({x}, {y})"
+            );
+        }
+        eprintln!("ground height samples: bit-exact ({})", b.len() / 24);
+    }
+}
+
 /// Run stages up to `upto`, failing at the first stage that differs.
 fn check(dir: &str, seed: u32, wire: [i32; 17], upto: u32) {
     let Some(dir) = truth_dir(dir) else {
@@ -136,6 +180,9 @@ fn check(dir: &str, seed: u32, wire: [i32; 17], upto: u32) {
             );
         }
         eprintln!("terrain tile vertices: bit-exact");
+    }
+    if upto >= 5 {
+        check_queries(&dir, &g);
     }
     let surface = dir.join("surface.u32");
     if upto >= 5 && surface.exists() {

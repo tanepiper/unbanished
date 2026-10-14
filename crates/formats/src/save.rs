@@ -29,6 +29,37 @@ pub struct MapHeights {
     pub heights: Vec<i16>,
 }
 
+/// One gameplay map cell as `FUN_14001b570` serializes it (in-memory record is 48 bytes).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MapCell {
+    /// Whether the two object pointers (`+0x00`, `+0x08`) are set.
+    pub objects: [bool; 2],
+    /// External reference id at `+0x10` (`u32::MAX` when unset).
+    pub external: u32,
+    /// Bytes `+0x1c..+0x25`.
+    pub flags: [u8; 9],
+    /// `+0x26`.
+    pub value: u16,
+    /// Bytes `+0x28..+0x2d`; `[1]` (`+0x29`) is the cell type.
+    pub bytes: [u8; 6],
+}
+
+impl MapCell {
+    pub fn cell_type(&self) -> u8 {
+        self.bytes[1]
+    }
+}
+
+/// The gameplay map (`FUN_1400a45d0`, serializer version 4): `size × size` cells covering the
+/// centre of the terrain (the terrain grid is twice as wide).
+#[derive(Debug, Clone)]
+pub struct MapCells {
+    pub size: usize,
+    pub cells: Vec<MapCell>,
+    /// The nine shorts at map `+0x90`.
+    pub trailer: [i16; 9],
+}
+
 fn u32_at(b: &[u8], at: usize) -> Result<u32> {
     b.get(at..at + 4)
         .map(|s| u32::from_le_bytes(s.try_into().unwrap()))
@@ -127,6 +158,58 @@ impl Save {
             }
         }
         format_err("no map block found")
+    }
+}
+
+impl Save {
+    /// Locate the gameplay map block (`0xaaaaaaaa, size, 4, n, n²`) and read its cells.
+    /// `n` is half the terrain size (see `map_heights`).
+    pub fn map_cells(&self) -> Result<MapCells> {
+        let n = (self.map_heights()?.width - 1) / 2;
+        let pat: Vec<u8> = [0xaaaa_aaaau32, 0, 4, n as u32, (n * n) as u32]
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect();
+        let at = self
+            .state
+            .windows(pat.len())
+            .position(|w| w[..4] == pat[..4] && w[8..] == pat[8..])
+            .ok_or_else(|| Error::Format("no map cell block found".into()))?;
+        let mut r = Reader::new(&self.state[at + 20..]);
+        let ptr = |r: &mut Reader| -> Result<bool> {
+            let set = r.u8()? != 0;
+            if set {
+                r.bytes(12)?;
+            }
+            Ok(set)
+        };
+        let mut cells = Vec::with_capacity(n * n);
+        for _ in 0..n * n {
+            let objects = [ptr(&mut r)?, ptr(&mut r)?];
+            let external = r.u32()?;
+            let flags: [u8; 9] = r.bytes(9)?.try_into().unwrap();
+            let value = u16::from_le_bytes(r.bytes(2)?.try_into().unwrap());
+            let bytes: [u8; 6] = r.bytes(6)?.try_into().unwrap();
+            cells.push(MapCell {
+                objects,
+                external,
+                flags,
+                value,
+                bytes,
+            });
+        }
+        let mut trailer = [0i16; 9];
+        for t in &mut trailer {
+            *t = i16::from_le_bytes(r.bytes(2)?.try_into().unwrap());
+        }
+        if r.u32()? != 0xbbbb_bbbb {
+            return format_err("map cell block does not end with its terminator");
+        }
+        Ok(MapCells {
+            size: n,
+            cells,
+            trailer,
+        })
     }
 }
 

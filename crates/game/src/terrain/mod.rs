@@ -6,10 +6,12 @@
 //! (tools/emu/terrain_stages.py) and against saved maps.
 
 mod mesh;
+mod query;
 mod stages;
 mod surface;
 
 pub use mesh::{tile_indices, HeightGrid, TerrainMesh, TerrainVertex, TILE_CELLS, TILE_VERTS};
+pub use query::CellType;
 
 use crate::random::Random;
 
