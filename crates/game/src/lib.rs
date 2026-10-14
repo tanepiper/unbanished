@@ -6,3 +6,4 @@
 
 pub mod noise;
 pub mod random;
+pub mod terrain;
