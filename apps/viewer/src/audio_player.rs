@@ -102,7 +102,7 @@ impl AudioPlayerUi {
             let sprite = icon_name.and_then(|name| ui.res.sprite(Some(SPRITES), name));
             let icon = ui.add(Node::new(Kind::Image {
                 sprite,
-                size: [0, 0],
+                size: [16, 16],
             }));
             let caption = ui.text(FONT, label);
             ui.node_mut(caption).margins = [2, 2, 0, 0];

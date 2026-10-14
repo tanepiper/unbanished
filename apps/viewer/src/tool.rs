@@ -1171,9 +1171,10 @@ impl Tool {
             let window = self.ui.node(self.audio_player.window).rect;
             let width = (window[2] - window[0]).max(520);
             let height = (window[3] - window[1]).max(220);
-            let mut position = self
-                .audio_window_position
-                .unwrap_or([area[2] - width - 24, area[1] + 24]);
+            let mut position = self.audio_window_position.unwrap_or([
+                area[0] + ((area[2] - area[0] - width) / 2).max(0),
+                area[1] + ((area[3] - area[1] - height) / 2).max(0),
+            ]);
             position[0] = position[0].clamp(area[0], (area[2] - width).max(area[0]));
             position[1] = position[1].clamp(area[1], (area[3] - height).max(area[1]));
             self.audio_window_position = Some(position);
