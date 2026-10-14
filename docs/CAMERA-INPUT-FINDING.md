@@ -29,6 +29,24 @@ preserves map gestures alongside the HUD. The explicit drag state and middle-but
 missed releases and provide a direct pan gesture. Interactive runtime verification is not recorded
 here.
 
+## Follow-up: new-game loop boundary
+
+The new gameplay path still forwards camera input through the same chain: the window handler sends
+drag and wheel gestures to `Game`, `MainLoop::raw` forwards them to the current loop, and
+`GameplayLoop::raw` updates the `SceneCamera::Map` camera. The full-screen gameplay HUD only captures
+left presses whose current hit target is an interactive control; wheel input falls through unless
+a scrollable UI control consumes it, and right/middle drags bypass UI capture.
+
+`MainLoop::raw` ignores input while a fade transition has a pending loop. Loading/dialog loops also
+have no map camera. Once `GameplayLoop` is current, the source path is present. I have not isolated a
+source-level loss in that settled path. The user reports that the camera no longer responds; the
+interactive reproducer (platform and gesture) remains unconfirmed, so this is recorded as an open
+runtime regression rather than calling the earlier source-traced fix verified.
+
+The current environment had the browser dev server running, but access to its Arc window was denied
+by the computer-use approval gate. No interaction claim is made from that unavailable browser
+session.
+
 ## Follow-up: stale hit target after a loop switch
 
 The game keeps the UI's last hovered control while a loop changes its screen. If the menu is
