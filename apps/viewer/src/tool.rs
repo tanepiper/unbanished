@@ -86,6 +86,7 @@ pub struct Tool {
     subcategories: NodeId,
     categories_label: NodeId,
     subcategories_label: NodeId,
+    sidebar_stack: NodeId,
     selected_category: usize,
     selected_subcategory: usize,
     main: NodeId,
@@ -306,6 +307,7 @@ impl Tool {
             subcategories,
             categories_label,
             subcategories_label,
+            sidebar_stack,
             selected_category: 0,
             selected_subcategory: 0,
             main,
@@ -537,10 +539,25 @@ impl Tool {
                 "Type"
             },
         );
+        {
+            let category_list = self.ui.node_mut(self.categories);
+            category_list.min_size = [0, if mode == Mode::Dialogs { 128 } else { 76 }];
+            category_list.flags = flags::FILL_WIDTH;
+        }
+        {
+            let state_list = self.ui.node_mut(self.subcategories);
+            state_list.min_size = [0, if mode == Mode::Dialogs { 0 } else { 76 }];
+            state_list.flags = flags::FILL_WIDTH
+                | if mode == Mode::Dialogs {
+                    flags::FILL_HEIGHT
+                } else {
+                    0
+                };
+        }
         self.ui.set_text(
             self.subcategories_label,
             if mode == Mode::Dialogs {
-                "Object"
+                "State / resource"
             } else {
                 "Category"
             },
@@ -552,21 +569,33 @@ impl Tool {
         self.animation_clips.clear();
         self.animation_index = 0;
         let categories = self.category_names();
+        let initial_category = usize::from(mode == Mode::Dialogs && categories.len() > 1);
         self.ui.set_list_items(self.categories, categories);
-        self.ui.list_select(self.categories, Some(0));
-        self.selected_category = 0;
+        self.ui.list_select(self.categories, Some(initial_category));
+        self.selected_category = initial_category;
         self.selected_subcategory = 0;
-        self.ui
-            .set_list_items(self.subcategories, self.subcategory_names(0));
-        self.ui.list_select(self.subcategories, Some(0));
-        self.visible_items = self.filtered_items(0, 0);
-        self.ui.set_list_items(
-            self.list,
-            self.visible_items
-                .iter()
-                .map(|n| self.display_resource_name(n))
-                .collect(),
-        );
+        self.visible_items = self.filtered_items(initial_category, 0);
+        if mode == Mode::Dialogs {
+            self.ui.set_list_items(
+                self.subcategories,
+                self.visible_items
+                    .iter()
+                    .map(|name| self.display_resource_name(name))
+                    .collect(),
+            );
+            self.ui.list_select(self.subcategories, Some(0));
+        } else {
+            self.ui
+                .set_list_items(self.subcategories, self.subcategory_names(0));
+            self.ui.list_select(self.subcategories, Some(0));
+            self.ui.set_list_items(
+                self.list,
+                self.visible_items
+                    .iter()
+                    .map(|n| self.display_resource_name(n))
+                    .collect(),
+            );
+        }
         for &(m, b) in &self.mode_buttons {
             // Highlight the active mode by dimming the others.
             let n = self.ui.node_mut(b);
@@ -577,6 +606,26 @@ impl Tool {
             };
         }
         self.ui.set_visible(self.picture, mode == Mode::Textures);
+        self.ui.set_visible(self.list, mode != Mode::Dialogs);
+        self.ui.node_mut(self.sidebar_stack).children = if mode == Mode::Dialogs {
+            vec![
+                self.categories_label,
+                self.categories,
+                self.model_controls,
+                self.list,
+                self.subcategories_label,
+                self.subcategories,
+            ]
+        } else {
+            vec![
+                self.categories_label,
+                self.categories,
+                self.subcategories_label,
+                self.subcategories,
+                self.model_controls,
+                self.list,
+            ]
+        };
         self.ui
             .set_visible(self.model_controls, mode == Mode::Models);
         self.ui
@@ -603,7 +652,14 @@ impl Tool {
         let Some(name) = self.visible_items.get(index).cloned() else {
             return;
         };
-        self.ui.list_select(self.list, Some(index));
+        self.ui.list_select(
+            if self.mode == Mode::Dialogs {
+                self.subcategories
+            } else {
+                self.list
+            },
+            Some(index),
+        );
         self.ui.clear_input();
         self.ui
             .node_mut(self.dialog_background_host)
@@ -760,6 +816,53 @@ impl Tool {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn select_matching(&mut self, renderer: &mut Renderer, filter: &str) -> bool {
         let filter = filter.to_lowercase();
+        if self.mode == Mode::Dialogs {
+            let categories = self.category_names();
+            let group = categories
+                .iter()
+                .skip(1)
+                .find(|group| group.to_lowercase() == filter)
+                .cloned();
+            let target = if let Some(group) = group {
+                self.filtered_items(0, 0)
+                    .into_iter()
+                    .find(|item| self.resource_dirs(item).first() == Some(&group))
+            } else {
+                self.assets
+                    .dialogs
+                    .iter()
+                    .find(|item| item.to_lowercase().contains(&filter))
+                    .cloned()
+            };
+            let Some(target) = target else {
+                return false;
+            };
+            let Some(group) = self.resource_dirs(&target).first().cloned() else {
+                return false;
+            };
+            let Some(category) = categories.iter().position(|name| *name == group) else {
+                return false;
+            };
+            self.selected_category = category;
+            self.selected_subcategory = 0;
+            self.ui.list_select(self.categories, Some(category));
+            self.visible_items = self.filtered_items(category, 0);
+            self.ui.set_list_items(
+                self.subcategories,
+                self.visible_items
+                    .iter()
+                    .map(|name| self.display_resource_name(name))
+                    .collect(),
+            );
+            let index = self
+                .visible_items
+                .iter()
+                .position(|item| *item == target)
+                .unwrap_or(0);
+            self.ui.list_select(self.subcategories, Some(index));
+            self.select(renderer, index);
+            return true;
+        }
         let Some(index) = self
             .visible_items
             .iter()
@@ -776,7 +879,12 @@ impl Tool {
         if n == 0 {
             return;
         }
-        let current = match &self.ui.node(self.list).kind {
+        let selection_list = if self.mode == Mode::Dialogs {
+            self.subcategories
+        } else {
+            self.list
+        };
+        let current = match &self.ui.node(selection_list).kind {
             Kind::List(l) => l.selected.unwrap_or(0) as isize,
             _ => 0,
         };
@@ -1169,20 +1277,35 @@ impl Tool {
             Event::Selected(id, index) if id == self.categories => {
                 self.selected_category = index;
                 self.selected_subcategory = 0;
-                self.ui
-                    .set_list_items(self.subcategories, self.subcategory_names(index));
-                self.ui.list_select(self.subcategories, Some(0));
                 self.visible_items = self.filtered_items(index, 0);
-                self.ui.set_list_items(
-                    self.list,
-                    self.visible_items
-                        .iter()
-                        .map(|n| self.display_resource_name(n))
-                        .collect(),
-                );
+                if self.mode == Mode::Dialogs {
+                    self.ui.set_list_items(
+                        self.subcategories,
+                        self.visible_items
+                            .iter()
+                            .map(|name| self.display_resource_name(name))
+                            .collect(),
+                    );
+                } else {
+                    self.ui
+                        .set_list_items(self.subcategories, self.subcategory_names(index));
+                    self.ui.set_list_items(
+                        self.list,
+                        self.visible_items
+                            .iter()
+                            .map(|n| self.display_resource_name(n))
+                            .collect(),
+                    );
+                }
+                self.ui.list_select(self.subcategories, Some(0));
                 self.select(renderer, 0);
             }
             Event::Selected(id, index) if id == self.subcategories => {
+                if self.mode == Mode::Dialogs {
+                    self.selected_subcategory = index;
+                    self.select(renderer, index);
+                    return;
+                }
                 self.selected_subcategory = index;
                 self.visible_items = self.filtered_items(self.selected_category, index);
                 self.ui.set_list_items(

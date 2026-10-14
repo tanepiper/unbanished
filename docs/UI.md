@@ -52,12 +52,13 @@ and original resource data; no decompiled code or assets are committed.
 | Named substitutions and controller attachment | `Dialog::CreateElement` 0x180115760; `DialogInstance::AddController` 0x180115d00 |
 | Text shadow, wrapping, ellipsis and baseline | `TextElement::Draw` 0x180121b10; `ComputeSize` 0x1801218f0; `Font::ComputeLineLayout` 0x180119500 |
 
-The asset browser groups dialog resources by name. Loading variants share one representative preview,
-and animated images support play, pause, first-frame reset and frame stepping using their decoded
-rate. SaveLoad defaults to its explicit load-confirmation resource; its generic resource combines
-unrelated Save and Load states and is available through the resource selector. The SaveLoad preview
-hides overlapping text elements that share a parent when their rendered text bounds cover at least
-90% of one another. Exact original-game screenshot parity remains
+The asset browser groups dialogs in a group list and updates a second state/resource list when a
+group is selected. Loading variants share a representative preview, and animated images support
+play, pause, first-frame reset and frame stepping using their decoded rate. SaveLoad defaults to its
+explicit load-confirmation resource; its generic resource combines unrelated Save and Load states
+and remains available in the resource list. The SaveLoad preview hides overlapping text elements
+that share a parent when their rendered text bounds cover at least 90% of one another. Exact
+original-game screenshot parity remains
 unverified. Keyboard focus conventions and pointer editing are host behavior where engine parity has
 not been established. Middle-dot synthesis is an approximation; other absent Unicode glyphs use
 visible replacements. Custom rotated captures are currently axis aligned. Original game controllers

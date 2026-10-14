@@ -203,7 +203,8 @@ keyboard input and text editing. See [UI.md](UI.md) and [BROWSER.md](BROWSER.md)
 progress values. Application-specific entity/build/toolbar controllers belong to the simulation
 milestones; dispatching a controller callback does not implement that simulation. Exact screenshot
 parity with the original executable has not been established. Dialog previews group resources by
-dialog name; Loading variants resolve to one representative preview, with controls for playing,
+dialog name and show a second state/resource list for each selected group. Loading variants resolve
+to one representative preview, with controls for playing,
 pausing and stepping through all 60 frames at the decoded 30 fps. SaveLoad defaults to its explicit
 load-confirmation dialog instead of the generic Save/Load screen, which combines unrelated button
 states; its loading animation is therefore absent from that idle preview. The SaveLoad preview
