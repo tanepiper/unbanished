@@ -3,6 +3,9 @@
 This file records small, evidence-backed slices of the game behavior as they are traced. It is a
 working research log, not a claim that the simulation has been fully reconstructed. Decompiled output
 is Ghidra pseudocode for the shipped Windows binary, not original source code or runtime observation.
+The package TOC baseline and cross-layer identity rules are collected in
+[GAME-IDENTITY-MAP.md](GAME-IDENTITY-MAP.md); the complete current package path inventory is
+[GAME-RESOURCE-INVENTORY.tsv](GAME-RESOURCE-INVENTORY.tsv).
 
 ## Evidence and repeatability
 
@@ -96,10 +99,14 @@ an appropriately focused section here:
    See [RESOURCE-PRODUCTION-FLOW.md](RESOURCE-PRODUCTION-FLOW.md) for the current partial trace of
    recipes, inventory ledgers, reservations and market restocking.
 5. Citizen needs, household assignment, birth/death, health, education and migration transitions.
-   Current static findings are in [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md).
+   Current static findings are in [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md);
+   the school attendance sender remains open in [SCHOOL-ATTENDANCE-TRACE.md](SCHOOL-ATTENDANCE-TRACE.md).
 6. Calendar, seasons, weather, crop/forest growth and natural-resource regeneration/depletion.
 7. Construction, upgrades, demolition, disasters, trading, taxation and events.
 8. Save/load serialization and restoration order, including any state rebuilt rather than serialized.
+9. Stable identities across all package entries, serialized type IDs, Ghidra strings and code
+   addresses, then runtime object pointers where an owner and lifetime can be established. Start
+   from [GAME-IDENTITY-MAP.md](GAME-IDENTITY-MAP.md) and its generated package inventory.
 
 The first Runtime DLL save-container and restore-path trace is in
 [SAVE-FORMAT-AND-RESTORE.md](SAVE-FORMAT-AND-RESTORE.md). Save headers, both compression layers and
