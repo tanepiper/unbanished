@@ -17,9 +17,11 @@ and entity manager. The controller reads the elapsed year time from the calendar
 When the slice index changes, it calls `FUN_140098ac0`, which samples the selected climate's
 month-indexed thresholds and updates a weather state. The three cutoffs are the same in the
 shipped Mild, Fair and Harsh profiles; the fourth float in each monthly record is `1.0` and is not
-read by this selector. The state advances through 0–3 by comparing one random float with the
-cutoffs in order. State 0 also increments a separate level, while state 3 decreases it; that level
-is clamped to 0–5.
+read by this selector. A later trace found the controller adds a small annually selected climate
+bias to each cutoff before comparing one random float. The table below is the unshifted
+distribution, before this per-year bias; see [GAME-LOOP-STEP-05.md](GAME-LOOP-STEP-05.md). The state
+advances through 0–3 by comparing one random float with the cutoffs in order. State 0 also
+increments a separate level, while state 3 decreases it; that level is clamped to 0–5.
 
 The decoded `Environment/Environment.rsc` identifies its two slots as `Environment/Rain.rsc` with
 `Audio/Effects/RainEffect.rsc:ambient`, and `Environment/Snow.rsc` with no ambient audio. In
@@ -52,10 +54,10 @@ participate in this selection.
 | 10 | 0.7, 0.8, 0.9 | 70% / 10% / 10% / 10% |
 | 11 | 0.6, 0.7, 0.9 | 60% / 10% / 20% / 10% |
 
-The profiles differ in other serialized settings: Mild `[50, 30, 2, 20]`, Fair `[50, 30, 5, 40]`,
-Harsh `[50, 30, 15, 50]`, followed by `[0.1, 100, 1]`, `[0.4, 100, 1]` and `[0.6, 100, 1]`
-respectively. The consumer traces show these values affect the temperature/noise and weather state,
-but several field meanings are not established, so they remain recorded in wire order.
+The climate consumers are traced in [GAME-LOOP-STEP-05.md](GAME-LOOP-STEP-05.md): the first four
+values are baseline temperature, seasonal amplitude, Perlin-noise amplitude, and annual random
+baseline range; the first trailing value scales the annual weather-cutoff bias. The meanings of the
+last two values remain open.
 
 ## Monthly lighting is continuous
 
@@ -79,8 +81,9 @@ ambient emitters remain unported.
 
 ## What remains to identify
 
-- Trace the unlabelled climate settings into their exact temperature, intensity and persistence
-  consumers, then port the resulting snow coverage value.
+- Trace the two remaining climate settings into their consumers; temperature and snow coverage are
+  mapped in [GAME-LOOP-STEP-05.md](GAME-LOOP-STEP-05.md), but the engine random/Perlin sequence is
+  still needed before those values can be ported faithfully.
 - Follow how the 0–5 precipitation level affects snow accumulation and the terrain/model shaders.
 - Follow the climate state into the ambient-light and surface/material parameters, then port the
   complete weather transition without replacing its random state with a visual guess.

@@ -37,8 +37,10 @@ into twelve 300-second months, with speed levels 1x, 2x, 5x and 10x. At 1x that 
 minutes per month; higher levels scale simulation time by their iteration count. The trace is in
 [GAME-LOOP-STEP-03.md](GAME-LOOP-STEP-03.md). Pause and speed controls currently operate this
 calendar and lighting only. Monthly lighting now interpolates continuously between environment
-records, and its date-based autumn and leaf-loss factors reach the foliage shaders. The climate's
-stochastic weather states and their effect/audio objects remain unported.
+records, and its date-based autumn and leaf-loss factors reach the foliage shaders. Climate
+temperature and annually biased weather thresholds are now traced in
+[GAME-LOOP-STEP-05.md](GAME-LOOP-STEP-05.md); stochastic weather transitions and their effect/audio
+objects remain unported.
 See [GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md).
 
 The outer update and its follow-up are documented in [GAME-LOOP-STEP-01.md](GAME-LOOP-STEP-01.md)
