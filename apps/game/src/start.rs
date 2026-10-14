@@ -1,6 +1,7 @@
 //! New Game start-condition setup (`FUN_1400a87d0`): start point, profile structures and natural
 //! resource seeding, run on the game's shared random stream. See docs/RESOURCE-SEEDING.md and
-//! START-CONDITION-PROFILES.md. Households, deer, crops, orchards and livestock come next.
+//! START-CONDITION-PROFILES.md. Starting households and scheduled natural resources are active;
+//! deer, crops, orchards and livestock come next.
 
 use std::collections::HashMap;
 
@@ -14,6 +15,7 @@ use banished_formats::pkg::Archive;
 use banished_game::citizens::{Citizen, CitizenRules, Households};
 use banished_game::map::Map;
 use banished_game::random::Random;
+use banished_game::scheduler::EntityScheduler;
 use banished_game::seeding::{Cells, Placed, Seeder, Template};
 use banished_game::stock::{distribute, RawMaterial, Storage};
 use banished_game::terrain::HeightGrid;
@@ -48,10 +50,12 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         .ok()?;
     let mut t = Template {
         reference: key.clone(),
+        bucket: desc.bucket as usize,
         map: None,
         model: None,
         natural: None,
         growth: None,
+        growth_reference: None,
         spawn: Vec::new(),
         size: None,
         storage: None,
@@ -67,7 +71,10 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
             "map" => t.map = map_description(&data).ok(),
             "model" => t.model = model_description(&data).ok(),
             "naturalresource" => t.natural = natural_resource_description(&data).ok(),
-            "growth" => t.growth = growth_description(&data).ok(),
+            "growth" => {
+                t.growth = growth_description(&data).ok();
+                t.growth_reference = Some(normalise(d));
+            }
             "spawn" => spawn = spawn_description(&data).unwrap_or_default(),
             "storage" => {
                 t.storage = storage_description(&data)
@@ -236,6 +243,10 @@ pub struct StartingTown {
     pub storages: Vec<Storage>,
     pub templates: Vec<Template>,
     pub placed: Vec<Placed>,
+    pub cells: Cells,
+    scheduler: EntityScheduler<usize>,
+    removed: Vec<usize>,
+    citizen_model: Option<banished_formats::game::ModelDescription>,
 }
 
 impl StartingTown {
@@ -269,16 +280,24 @@ impl StartingTown {
             .iter()
             .filter_map(|r| load_template(archive, r, &mut templates))
             .collect();
+        let mut cells = Cells::new(map_size, map.types);
+        let mut placed = Vec::new();
+        let mut removed = Vec::new();
         let mut seeder = Seeder {
             templates: &templates,
             terrain,
-            cells: Cells::new(map_size, map.types),
+            cells: &mut cells,
             rng,
-            placed: Vec::new(),
+            placed: &mut placed,
+            removed: &mut removed,
         };
         seeder.place_structures(&structures, start.0, start.1);
         seeder.seed(&list, start.0, start.1, radius * radius);
-        let placed = std::mem::take(&mut seeder.placed);
+        drop(seeder);
+        let mut scheduler = EntityScheduler::default();
+        for (id, p) in placed.iter().enumerate() {
+            scheduler.register(id, templates[p.template].bucket);
+        }
         // `FUN_1400a62a0`: the starting households around the start cell centre.
         let (citizens, rules) = households(
             archive,
@@ -301,13 +320,62 @@ impl StartingTown {
             storages,
             templates,
             placed,
+            cells,
+            scheduler,
+            removed,
+            citizen_model: read(archive, r"Template\Citizen.rsc:model")
+                .and_then(|d| banished_formats::game::model_description(&d).ok()),
         })
+    }
+
+    /// FUN_1400c9560: run placed entities on their template's scheduled bucket.
+    pub fn iterate(
+        &mut self,
+        terrain: &HeightGrid,
+        rng: &mut Random,
+        dt: f32,
+        temperature: f32,
+    ) -> bool {
+        Seeder {
+            templates: &self.templates,
+            terrain,
+            cells: &mut self.cells,
+            rng,
+            placed: &mut self.placed,
+            removed: &mut self.removed,
+        }
+        .iterate(&mut self.scheduler, dt, temperature, false)
+    }
+
+    /// FUN_1400c98a0's post-iteration phase; also runs when the toolbar pauses simulation.
+    pub fn smooth(&mut self, terrain: &HeightGrid, rng: &mut Random) -> bool {
+        Seeder {
+            templates: &self.templates,
+            terrain,
+            cells: &mut self.cells,
+            rng,
+            placed: &mut self.placed,
+            removed: &mut self.removed,
+        }
+        .smooth()
     }
 
     /// Model instances of every placed entity, grouped by mesh.
     pub fn models(&self, archive: &Archive) -> SceneModels {
+        SceneModels::from_instances(archive, self.model_instances())
+    }
+
+    /// Keep mesh/texture resources cached while GrowthComponent changes only instance scales.
+    pub fn refresh_models(&self, archive: &Archive, models: &mut SceneModels) {
+        models.update_instances(archive, self.model_instances());
+    }
+
+    fn model_instances(&self) -> Vec<(String, usize, Vec<[f32; 16]>)> {
         let mut groups: HashMap<String, Vec<[f32; 16]>> = HashMap::new();
         for p in &self.placed {
+            if !p.alive {
+                continue;
+            }
             let Some(model) = &self.templates[p.template].model else {
                 continue;
             };
@@ -329,9 +397,7 @@ impl StartingTown {
         }
         // Citizens: `Template/Citizen.rsc:model` variant 0 (men) or 1 (women); children use
         // the scale `DAT_140178818` (`FUN_14011a700`). Facing is not set at creation (yaw 0).
-        let citizen_model = read(archive, r"Template\Citizen.rsc:model")
-            .and_then(|d| banished_formats::game::model_description(&d).ok());
-        if let Some(model) = &citizen_model {
+        if let Some(model) = &self.citizen_model {
             for c in &self.citizens {
                 let variant = if c.male { 0 } else { 1 };
                 let Some(Some(mesh)) = model.variants.get(variant).and_then(|v| v.meshes.first())
@@ -351,6 +417,6 @@ impl StartingTown {
         }
         let mut list: Vec<_> = groups.into_iter().map(|(m, i)| (m, 0, i)).collect();
         list.sort_by(|a, b| a.0.cmp(&b.0));
-        SceneModels::from_instances(archive, list)
+        list
     }
 }

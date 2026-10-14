@@ -164,9 +164,11 @@ Deviations and assumptions:
   draws and models are.
 - *Inferred:* the model transform's offset is the computed footprint centre. The decompiled call
   passes a stack vector the decompiler did not resolve.
-- The density check compares templates rather than growth-description pointers (each shipped
-  growth description belongs to one template).
-- The spot check treats cell `+0x00` and byte `+0x28` as empty, which they are at New Game.
+- The density check uses cached external growth-description identities in place of original
+  pointers; primary occupancy and the placement flag are retained as distinct cell state.
+
+Seeded maxima, timers and cell state now survive into the scheduled growth loop, periodic
+same-template offspring and visual smoothing; see [GAME-LOOP-STEP-18.md](GAME-LOOP-STEP-18.md).
 
 ## Open items
 

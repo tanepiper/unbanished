@@ -1,8 +1,5 @@
-//! First playable `Game/Game` loop: generated world, Banished-styled HUD, calendar and time controls.
-//!
-//! The original startup installs several specialized dialogs and initializes simulation managers.
-//! This port keeps the new-game selections alive and supplies a smaller UI until those managers
-//! are implemented.
+//! Game/Game: calendar, climate, scheduled natural-resource growth and packaged gameplay UI.
+//! Citizen AI, production and the remaining component/manager callbacks still await ports.
 
 use banished_formats::game::climate_generator;
 use banished_formats::game::EnvironmentMonth;
@@ -72,8 +69,7 @@ impl GameplayLoop {
         self.update_hud(ui);
     }
 
-    /// The values the Status Bar's `FUN_14007eda0` reads from the game managers. Managers that
-    /// are not ported yet (citizens, stock, weather) report their empty-town values.
+    /// The values the Status Bar's FUN_14007eda0 reads from the starting town and environment.
     fn status_values(&self) -> StatusValues {
         StatusValues {
             town_name: self.params.town_name.clone(),
@@ -110,9 +106,9 @@ impl GameplayLoop {
         ((self.elapsed / YEAR_SECONDS * MONTHS_PER_YEAR as f32) as usize).min(MONTHS_PER_YEAR - 1)
     }
 
-    /// One simulation iteration of `FUN_14009b850`: the calendar, then the environment
-    /// (`FUN_1400999b0`). Entities, animation and the stock/citizen managers are not ported yet.
-    fn iterate(&mut self, dt: f32) {
+    /// Port of FUN_14009b850: calendar, environment (FUN_1400999b0), then entity scheduler.
+    /// Returns whether spawning/removal changed the model instances.
+    fn iterate(&mut self, dt: f32) -> bool {
         self.elapsed += dt;
         if self.elapsed >= YEAR_SECONDS {
             self.year += 1;
@@ -121,6 +117,15 @@ impl GameplayLoop {
         if let Some(env) = &mut self.environment {
             env.update(self.elapsed, &mut self.rng);
         }
+        if let (Some(town), Some(view)) = (&mut self.town, &self.view) {
+            let grid = banished_game::terrain::HeightGrid {
+                width: view.terrain.size + 1,
+                heights: &view.terrain.heights,
+            };
+            let temperature = self.environment.as_ref().map_or(0.0, |e| e.temperature);
+            return town.iterate(&grid, &mut self.rng, dt, temperature);
+        }
+        false
     }
 
     fn return_to_menu() -> Next {
@@ -198,12 +203,26 @@ impl GameLoop for GameplayLoop {
         if let Some(toolbar) = &self.toolbar {
             toolbar.relayout(ctx.ui);
         }
-        self.utility.update(ctx.ui, &self.status_values());
+        let mut models_changed = false;
         if !self.paused {
             for _ in 0..SPEED_LEVELS[self.speed as usize] {
-                self.iterate(dt);
+                models_changed |= self.iterate(dt);
             }
         }
+        // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
+        if let (Some(town), Some(view)) = (&mut self.town, &mut self.view) {
+            let grid = banished_game::terrain::HeightGrid {
+                width: view.terrain.size + 1,
+                heights: &view.terrain.heights,
+            };
+            models_changed |= town.smooth(&grid, &mut self.rng);
+            if models_changed {
+                if let Some(models) = &mut view.models {
+                    town.refresh_models(ctx.archive, models);
+                }
+            }
+        }
+        self.utility.update(ctx.ui, &self.status_values());
         let month = self.month();
         let into_month = (self.elapsed - month as f32 * MONTH_SECONDS) / MONTH_SECONDS;
         if let (Some(view), Some(from)) = (self.view.as_mut(), self.environment_months.get(month)) {
@@ -272,5 +291,106 @@ impl GameLoop for GameplayLoop {
 
     fn view(&self) -> View<'_> {
         self.view.as_ref().map_or(View::None, View::World)
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn speed_loop_smooths_once_and_pause_still_updates_gpu_instances() {
+        let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        if !dir.join("data0.pkg").exists() {
+            eprintln!("game data missing; skipping gameplay growth integration");
+            return;
+        }
+        let packages = ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"]
+            .into_iter()
+            .filter_map(|name| {
+                std::fs::read(dir.join(name))
+                    .ok()
+                    .map(|data| (name.to_owned(), data))
+            })
+            .collect();
+        let mut game = crate::Game::new(packages).unwrap();
+        let mut gameplay = GameplayLoop::new(WorldParams {
+            start_condition_ref: r"Game\StartCondition\Medium.rsc:resource".into(),
+            ..WorldParams::default()
+        });
+        game.with_ctx(|_, ctx| {
+            gameplay.load(ctx);
+            gameplay.startup(ctx);
+        });
+        let town = gameplay.town.as_mut().expect("generated starting town");
+        // Use the first scheduled tree so the quota visits it during this update. Deliberately
+        // lag its visible scale to distinguish one smoothing pass from ten speed iterations.
+        let id = town
+            .placed
+            .iter()
+            .position(|p| {
+                p.alive
+                    && town.templates[p.template]
+                        .growth
+                        .as_ref()
+                        .is_some_and(|d| d.f28 > 0.0)
+            })
+            .expect("growing tree");
+        town.placed[id].growth = 0.2;
+        let state = town.placed[id].growth_state.as_mut().unwrap();
+        state.smoothed = 0.0;
+        state.smoothing = true;
+        gameplay.speed = 3; // 10 iterations
+        game.with_ctx(|_, ctx| {
+            gameplay.update(ctx, 0.5);
+        });
+        assert_eq!(gameplay.elapsed, 5.0);
+        let town = gameplay.town.as_ref().unwrap();
+        let value = town.placed[id].growth;
+        let d = town.templates[town.placed[id].template]
+            .growth
+            .as_ref()
+            .unwrap();
+        let target = value.min(1.0).max(d.f60);
+        let smoothed = town.placed[id].growth_state.as_ref().unwrap().smoothed;
+        assert_eq!(smoothed.to_bits(), (target * 0.009_999_99f32).to_bits());
+        let revision = gameplay
+            .view
+            .as_ref()
+            .unwrap()
+            .models
+            .as_ref()
+            .unwrap()
+            .revision;
+        assert!(revision > 0);
+
+        let mut renderer = pollster::block_on(crate::render::Renderer::headless(320, 200));
+        renderer.set_scene(gameplay.view.as_ref().unwrap());
+        gameplay.paused = true;
+        game.with_ctx(|_, ctx| {
+            gameplay.update(ctx, 0.5);
+        });
+        assert_eq!(gameplay.elapsed, 5.0);
+        let town = gameplay.town.as_ref().unwrap();
+        assert_eq!(town.placed[id].growth.to_bits(), value.to_bits());
+        let after_pause = town.placed[id].growth_state.as_ref().unwrap().smoothed;
+        assert_eq!(
+            after_pause.to_bits(),
+            (smoothed * 0.99 + target * 0.009_999_99f32).to_bits()
+        );
+        let view = gameplay.view.as_ref().unwrap();
+        assert!(view.models.as_ref().unwrap().revision > revision);
+        renderer.set_scene(view); // exercises COPY_DST updates on an already uploaded scene
+        let rgba = renderer.capture(&crate::render::Frame {
+            terrain: Some(view.frame(renderer.aspect(), 5.0)),
+            clear: crate::CLEAR,
+            ui: None,
+        });
+        assert_eq!(rgba.len(), 320 * 200 * 4);
+        assert!(rgba.chunks_exact(4).any(|pixel| pixel[..3] != [0, 0, 0]));
+        eprintln!(
+            "generated town: speed/pause growth phases and live GPU instance upload verified"
+        );
     }
 }

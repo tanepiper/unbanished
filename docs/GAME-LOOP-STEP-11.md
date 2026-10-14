@@ -14,7 +14,7 @@ capability flags to `0xCB`, which includes scheduled-update bit `0x08`. In the f
 `FUN_140125520` advances the growth value stored at the linked growth object `+0x28`, using the
 delta passed by the entity scheduler. Its base rate is inversely proportional to the growth
 description float at `+0x28`, scaled by the executable constant `DAT_140178934`. When the description
-boolean at `+0x2C` is set, the current season value (environment state at `+0x18`) and description
+boolean at `+0x2C` is set, the current temperature (environment state at `+0x18`) and description
 fields `+0x30/+0x34` produce a seasonal weight: a parabolic `1 - t²` within the configured interval,
 zero outside it, with a separate constant-valued branch below `DAT_1401788d0`. When the flag is
 clear, the seasonal multiplier is 1. The exact C++ field names and units represented by these

@@ -35,11 +35,11 @@ adds its magnitude. The result is scaled by `DAT_14017892c` and clamped to a byt
 does not name this map byte, so this note does not assign it a visual or gameplay label.
 
 When the GrowthComponent's instance threshold at `+0x4c` is positive and crossed by the updated
-growth value, `FUN_140125520` also writes the owning entity pointer into the map's per-cell table
-(cell record `+0x10`). It adjusts the cell byte through `FUN_140125940`, clears growth-instance
+growth value, `FUN_140125520` also writes the owner's external ComponentDescription reference
+into the map's per-cell table (cell record `+0x10`). It adjusts the cell byte through `FUN_140125940`, clears growth-instance
 fields, calls `FUN_14012bc50` on the linked growth object, and clears component capability bits
 `0x08` and `0x10` through `FUN_14011de20`. The same cleanup shape appears when growth would fall
-below zero and the description's allow-negative flag is clear. These are terminal transitions out
+below zero and the linked natural resource's allow-negative capability flag is clear. These are terminal transitions out
 of the scheduled and smoothing passes; whether the entity is now mature, dormant, or being removed
 depends on the branch and is not established by these calls alone.
 

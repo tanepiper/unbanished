@@ -186,7 +186,8 @@ pointer, capability mask and description reference.
 
 ## Remaining unknowns
 
-- Original C++ phase names, bucket names, configured quotas and exact scheduling cadence.
+- Original C++ phase names and bucket names. Quotas and cursor/elapsed-time behavior are now
+  recovered and emulator-verified in [GAME-LOOP-STEP-18.md](GAME-LOOP-STEP-18.md).
 - The complete description-type-to-component-type mapping, including every description that
   returns zero from slot `+0x40`.
 - All message/event slots after those listed above, component-specific state machines and

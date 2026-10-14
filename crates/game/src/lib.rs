@@ -6,11 +6,13 @@
 
 pub mod citizens;
 pub mod environment;
+pub mod growth;
 pub mod map;
 pub mod math;
 pub mod names;
 pub mod noise;
 pub mod random;
+pub mod scheduler;
 pub mod seeding;
 pub mod stock;
 pub mod terrain;

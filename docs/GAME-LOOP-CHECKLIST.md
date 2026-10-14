@@ -1,6 +1,6 @@
 # Game loop reverse-engineering and port checklist
 
-Updated 2026-10-14. This checklist tracks the gap between the new-game map view and a complete,
+Updated 2026-10-15. This checklist tracks the gap between the new-game map view and a complete,
 interactive Banished game loop. The linked step documents hold the supporting Ghidra/resource
 evidence; static traces are not claims of live-game behavior.
 
@@ -21,6 +21,8 @@ evidence; static traces are not claims of live-game behavior.
   neighbor-density gate, map-cell admission, and shipped resource-description branches. See
   [GAME-LOOP-STEP-11.md](GAME-LOOP-STEP-11.md) through
   [GAME-LOOP-STEP-14.md](GAME-LOOP-STEP-14.md).
+- [x] Recover the five scheduler quotas and verify growth, initialization and bucket visits against
+  the original functions under emulation. See [GAME-LOOP-STEP-18.md](GAME-LOOP-STEP-18.md).
 - [x] Trace the guarded natural-resource output and distinguish its category counter from the
   Status Bar stock count. See [GAME-LOOP-STEP-15.md](GAME-LOOP-STEP-15.md).
 - [x] Trace `AnimateNaturalResource` and `RemoveNaturalResource`, animation completion, their action
@@ -72,6 +74,11 @@ evidence; static traces are not claims of live-game behavior.
   Professions, Map, …), and the original pause/options dialogs.
 - [x] Port the environment controller (temperature, weather state, level, snow/autumn/leaf values)
   and run it per simulation iteration after the calendar. See [ENVIRONMENT.md](ENVIRONMENT.md).
+- [x] Connect seeded natural resources to scheduled growth, periodic same-template spawning,
+  map transitions and non-tree removal, with one post-iteration smoothing pass and live GPU
+  instance updates. Tree expiry records its animation request; animation completion remains open.
+  See [GAME-LOOP-STEP-18.md](GAME-LOOP-STEP-18.md).
+- [ ] Port tree expiry animation index 2 and ongoing SpawnComponent cross-template spawning.
 - [ ] Port weather effects (rain/snow geometry, ambient audio, timed spawn) and connect weather to
   citizens, production, events, and resource consumption.
 - [ ] Add save/load, autosave, and event notifications to the active gameplay loop.
@@ -87,5 +94,7 @@ evidence; static traces are not claims of live-game behavior.
 - A previous source audit found that the loading handoff can discard input while a transition is
   pending. It does not explain a camera that remains unresponsive after gameplay has settled; that
   needs a runtime reproduction with the affected platform and gesture recorded.
-- The foundation note records prior desktop and `wasm32` compilation. No interactive runtime
-  capture of the new-game loop is recorded, and no tests were run for this checklist update.
+- Step 18 records a passed full workspace test run (two existing save tests ignored), a release
+  WASM build, original-function growth/scheduler parity, a generated-town GPU integration test,
+  and an inspected native New Game capture. Interactive browser/camera verification and
+  original-game transition/visual parity remain open.

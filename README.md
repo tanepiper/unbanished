@@ -55,7 +55,7 @@ tools/ghidra/export.sh
 | `crates/formats` | Dependency-free readers for `.pkg`, `.crs`, textures, meshes, skeletons, sounds, UI resources |
 | `crates/ui` | Reimplementation of the game's UI system: element tree, layout, fonts, drawing, input |
 | `crates/wma` | Pure-Rust WMA v2 decoder for the game's xWMA audio (native and WASM) |
-| `crates/game` | The 1:1 game logic: bit-exact `Random`, `PerlinNoise`, terrain generator, surface image and terrain mesh |
+| `crates/game` | Game logic: verified RNG/terrain/name generation, households, stock, climate, scheduled natural-resource growth and spawning |
 | `crates/gfx` | Shared wgpu pieces: UI renderer (incl. the splash Logo material), texture upload |
 | `crates/audio` | xWMA playback for native (rodio) and web (Web Audio) |
 | `apps/game` | `banished`: the game itself: boot sequence, main menu with music and the 3D menu scenes, New Game dialog, generated maps |
@@ -88,7 +88,9 @@ terrain and starting-condition handoff in [docs/WORLD-GENERATION.md](docs/WORLD-
       renders generated maps with the ported terrain shader and monthly lighting; the app boots to the
       main menu with music and the 3D menu scenes. Next: water, sky, decals, particles,
       resource/tree placement, starting town)
-- [ ] M6: simulation components
+- [ ] M6: simulation components (calendar/climate and scheduled natural-resource growth/spawning
+      are active; citizen AI, production and tree expiry animation remain open; see
+      [game loop step 18](docs/GAME-LOOP-STEP-18.md))
 - [ ] M7: save/load, audio in game, polish (audio decoding done)
 
 ## Legal

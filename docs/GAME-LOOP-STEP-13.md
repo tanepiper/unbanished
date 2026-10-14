@@ -31,9 +31,9 @@ numeric meaning of the `+0x28` cell byte is not assigned here.
 ## Threshold transition on a natural resource
 
 The GrowthComponent holds a linked `NaturalResourceComponent` at `+0x28`. When its configured
-instance threshold is crossed, `FUN_140125520` updates the cell's map byte, writes the owning entity
-pointer into the map cell's entity slot at `+0x10`, clears the linked component's integer at `+0x28`
-and byte at `+0x2d`, then calls `FUN_14012bc50`. It subsequently removes the GrowthComponent's
+instance threshold is crossed, `FUN_140125520` updates the cell's map byte, writes the owner's
+external ComponentDescription reference into map cell `+0x10`, clears the linked component's growth
+float at `+0x28` and byte at `+0x2d`, then calls `FUN_14012bc50`. It subsequently removes the GrowthComponent's
 scheduled and smoothing capability bits (`0x08` and `0x10`).
 
 `FUN_14012bc50` sets flag `0x200000` on the linked resource component and calls

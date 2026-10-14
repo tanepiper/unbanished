@@ -80,6 +80,7 @@ pub struct ModelGroup {
 
 pub struct SceneModels {
     pub groups: Vec<ModelGroup>,
+    pub revision: u64,
 }
 
 fn with_object(reference: &str) -> String {
@@ -269,7 +270,10 @@ impl SceneModels {
                 instances: by_key.remove(&key).unwrap_or_default(),
             });
         }
-        SceneModels { groups }
+        SceneModels {
+            groups,
+            revision: 0,
+        }
     }
 
     /// Build groups from `(mesh reference, material set, instance transforms)` — entities placed
@@ -290,7 +294,35 @@ impl SceneModels {
                 })
             })
             .collect();
-        SceneModels { groups }
+        SceneModels {
+            groups,
+            revision: 0,
+        }
+    }
+
+    /// Growth/removal changes transforms without decoding meshes or textures again. Retain
+    /// empty groups so later offspring can reuse their assets and group indices stay stable.
+    pub fn update_instances(
+        &mut self,
+        archive: &Archive,
+        instances: Vec<(String, usize, Vec<[f32; 16]>)>,
+    ) {
+        for group in &mut self.groups {
+            group.instances.clear();
+        }
+        let mut textures = HashMap::new();
+        for (name, set, instances) in instances {
+            if let Some(group) = self.groups.iter_mut().find(|g| g.name == name) {
+                group.instances = instances;
+            } else if let Some(ranges) = load_group(archive, &name, set, &mut textures) {
+                self.groups.push(ModelGroup {
+                    name,
+                    ranges,
+                    instances,
+                });
+            }
+        }
+        self.revision += 1;
     }
 }
 
@@ -725,12 +757,38 @@ impl ModelRenderer {
                     instances: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: Some("instances"),
                         contents: bytemuck::cast_slice(&g.instances),
-                        usage: wgpu::BufferUsages::VERTEX,
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                     }),
                     count: g.instances.len() as u32,
                 }
             })
             .collect();
+    }
+
+    /// Refresh the instance buffers only. New mesh groups still take the ordinary upload path.
+    pub fn update_instances(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        models: &SceneModels,
+    ) {
+        if self.groups.len() != models.groups.len() {
+            self.upload(device, queue, models);
+            return;
+        }
+        for (gpu, group) in self.groups.iter_mut().zip(&models.groups) {
+            let data = bytemuck::cast_slice(&group.instances);
+            if data.len() as u64 > gpu.instances.size() {
+                gpu.instances = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("grown instances"),
+                    contents: data,
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                });
+            } else if !data.is_empty() {
+                queue.write_buffer(&gpu.instances, 0, data);
+            }
+            gpu.count = group.instances.len() as u32;
+        }
     }
 
     pub fn draw<'p>(&'p self, pass: &mut wgpu::RenderPass<'p>, globals: &'p wgpu::BindGroup) {

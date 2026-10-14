@@ -4,16 +4,18 @@
 //!
 //! The original builds full component entities here. This port keeps only what the pass reads
 //! and writes — the map cells it stamps, the growth and model choices and every draw from the
-//! game's shared random stream, in the original order — and returns the placed entities for the
-//! renderer and later simulation.
+//! game's shared random stream, in the original order. It also runs scheduled growth, periodic
+//! child placement and natural-resource removal; see docs/GAME-LOOP-STEP-18.md.
 
 use banished_formats::game::{
     GrowthDescription, MapDescription, ModelDescription, NaturalResourceDescription,
     PlacedStructure,
 };
 
+use crate::growth::{adjust_map_byte, Growth};
 use crate::noise::PerlinNoise;
 use crate::random::Random;
+use crate::scheduler::EntityScheduler;
 use crate::terrain::{CellType, HeightGrid};
 
 /// The descriptions of one template that seeding reads.
@@ -21,10 +23,14 @@ use crate::terrain::{CellType, HeightGrid};
 pub struct Template {
     /// `Template\X.rsc:resource`.
     pub reference: String,
+    /// ComponentDescription +0x20: scheduled bucket; 6 means unscheduled.
+    pub bucket: usize,
     pub map: Option<MapDescription>,
     pub model: Option<ModelDescription>,
     pub natural: Option<NaturalResourceDescription>,
     pub growth: Option<GrowthDescription>,
+    /// Cached external GrowthDescription identity, used by FUN_140126100's pointer comparison.
+    pub growth_reference: Option<String>,
     /// Spawn entries: (index into the template table, lo, hi).
     pub spawn: Vec<(usize, f32, f32)>,
     /// `CreatePlacedDescription +0x44/+0x48`: building footprint size.
@@ -51,6 +57,8 @@ pub struct Placed {
     pub mesh: usize,
     /// Growth value (`NaturalResourceComponent +0x28`); 0 without a growth component.
     pub growth: f32,
+    pub growth_state: Option<Growth>,
+    pub alive: bool,
     /// Mesh instance scale (`MeshInstance +0x134`).
     pub scale: [f32; 4],
 }
@@ -62,6 +70,14 @@ pub struct Cells {
     pub types: Vec<CellType>,
     /// `+0x08`: entity on the cell (index into the placed list).
     pub objects: Vec<Option<usize>>,
+    /// +0x00: occupancy used by FUN_1400a4aa0; distinct from stamped objects at +0x08.
+    pub occupants: Vec<Option<usize>>,
+    /// +0x28: placement admission flag, deliberately unnamed.
+    pub flags: Vec<u8>,
+    /// +0x10: external ComponentDescription reference from a growth transition.
+    pub previous_template: Vec<Option<usize>>,
+    /// +0x2c: growth-adjusted map byte (zero in FUN_14001b3f0's constructor).
+    pub growth_bytes: Vec<u8>,
 }
 
 impl Cells {
@@ -69,6 +85,10 @@ impl Cells {
         Cells {
             size,
             objects: vec![None; types.len()],
+            occupants: vec![None; types.len()],
+            flags: vec![0; types.len()],
+            previous_template: vec![None; types.len()],
+            growth_bytes: vec![0; types.len()],
             types,
         }
     }
@@ -79,8 +99,6 @@ const HALF: f32 = 0.5;
 const ONE: f32 = 1.0;
 /// `DAT_140178920`: yaw range (degrees) of the jittered transform.
 const YAW_RANGE: f32 = 180.0;
-/// `DAT_1401787f4`: width growth divisor of `tall` growth shapes.
-const TALL_WIDTH: f32 = 0.15;
 /// `FUN_1400560e0` spot check: normal z and height tolerance (`DAT_140178840`, `DAT_140178948`).
 const SPAWN_NORMAL: f32 = 0.98;
 const SPAWN_HEIGHT_TOLERANCE: f32 = 1000.0;
@@ -88,9 +106,11 @@ const SPAWN_HEIGHT_TOLERANCE: f32 = 1000.0;
 pub struct Seeder<'a> {
     pub templates: &'a [Template],
     pub terrain: &'a HeightGrid<'a>,
-    pub cells: Cells,
+    pub cells: &'a mut Cells,
     pub rng: &'a mut Random,
-    pub placed: Vec<Placed>,
+    pub placed: &'a mut Vec<Placed>,
+    /// Removal requests in callback order (FUN_1400c9560 drains this after all buckets).
+    pub removed: &'a mut Vec<usize>,
 }
 
 impl<'a> Seeder<'a> {
@@ -163,6 +183,8 @@ impl<'a> Seeder<'a> {
                 variant,
                 mesh,
                 growth: 0.0,
+                growth_state: None,
+                alive: true,
                 scale: [ONE; 4],
             });
         }
@@ -208,32 +230,31 @@ impl<'a> Seeder<'a> {
     }
 
     /// `FUN_140126280`: set the growth from a 0..1 fraction of the maximum and draw the timer.
-    fn set_growth(&mut self, template: usize, max_growth: f32, fraction: f32) -> (f32, [f32; 4]) {
-        let growth = fraction * max_growth;
-        let clamped = growth.min(ONE);
-        let tall = self.templates[template]
-            .growth
-            .as_ref()
-            .is_some_and(|g| g.tall);
-        let scale = if tall {
-            let width = (clamped / TALL_WIDTH).clamp(0.0, ONE);
-            [width, width, growth.min(ONE), ONE]
-        } else {
-            [clamped; 4]
-        };
-        // Growth timer: `RandFloat · timer_months · 300` seconds (not simulated yet).
-        self.rng.rand_float();
-        (growth, scale)
+    fn set_growth(
+        &mut self,
+        template: usize,
+        max_growth: f32,
+        fraction: f32,
+    ) -> (Growth, f32, [f32; 4]) {
+        Growth::initialise(
+            self.templates[template].growth.as_ref().unwrap(),
+            max_growth,
+            fraction,
+            self.rng,
+        )
     }
 
     /// `FUN_1400c9d70` → `FUN_140129840`: register and stamp the map footprint (natural
     /// resources: one cell of the description's type).
     fn register(&mut self, placed: Placed) -> usize {
         let id = self.placed.len();
-        let t = &self.templates[placed.template];
-        if let Some(map) = &t.map {
+        if let Some(map) = self.templates[placed.template].map.clone() {
             if map.stamp && !map.no_stamp {
                 let i = (placed.cell.1 * self.n() + placed.cell.0) as usize;
+                // FUN_1400a30f0 queues the old stamped entity's removal before replacing it.
+                if let Some(old) = self.cells.objects[i] {
+                    self.remove(old);
+                }
                 self.cells.types[i] = CellType(map.cell_type as u8);
                 self.cells.objects[i] = Some(id);
             }
@@ -243,9 +264,8 @@ impl<'a> Seeder<'a> {
     }
 
     /// `FUN_140126100`: at most `max_neighbours` occupied cells and `max_same` of the same
-    /// growth type among the 8 neighbours. The original compares growth-description pointers;
-    /// every shipped growth description belongs to exactly one template, so templates are
-    /// compared here.
+    /// growth type among the 8 neighbours. Cached external-reference identities replace the
+    /// original GrowthDescription pointer comparison (including descriptions shared by templates).
     fn density_ok(&self, template: usize, x: i32, y: i32) -> bool {
         let Some(growth) = &self.templates[template].growth else {
             return true;
@@ -259,7 +279,9 @@ impl<'a> Seeder<'a> {
                 }
                 if let Some(o) = self.cells.objects[(cy * n + cx) as usize] {
                     occupied += 1;
-                    if self.placed[o].template == template {
+                    if self.templates[self.placed[o].template].growth_reference
+                        == self.templates[template].growth_reference
+                    {
                         same += 1;
                     }
                 }
@@ -277,6 +299,9 @@ impl<'a> Seeder<'a> {
         }
         let i = y * n + x;
         if self.cells.types[i as usize] != CellType::GROUND {
+            return false;
+        }
+        if self.cells.occupants[i as usize].is_some() || self.cells.flags[i as usize] != 0 {
             return false;
         }
         let (px, py) = self.cell_position(i);
@@ -324,7 +349,7 @@ impl<'a> Seeder<'a> {
         }
         let (variant, mesh, max_growth) = self.construct(child);
         let (position, yaw) = self.position(child, n * y + x);
-        let (mut growth, mut scale) = self.set_growth(child, max_growth, 0.0);
+        let (state, growth, scale) = self.set_growth(child, max_growth, 0.0);
         let id = self.register(Placed {
             template: child,
             cell: (x, y),
@@ -333,12 +358,167 @@ impl<'a> Seeder<'a> {
             variant,
             mesh,
             growth,
+            growth_state: Some(state),
+            alive: true,
             scale,
         });
         let fraction = self.rng.rand_float();
-        (growth, scale) = self.set_growth(child, max_growth, fraction);
+        let (state, growth, scale) = self.set_growth(child, max_growth, fraction);
         self.placed[id].growth = growth;
         self.placed[id].scale = scale;
+        self.placed[id].growth_state = Some(state);
+    }
+
+    /// Port of FUN_140125070: reproduce using the parent's template and model variant. Unlike
+    /// FUN_1400560e0's startup children, this path initializes the child's growth at zero and
+    /// selects a mesh after the timer draw; it never draws a random initial growth fraction.
+    fn periodic_spawn(&mut self, parent: usize) -> Option<usize> {
+        let template = self.placed[parent].template;
+        let g = self.templates[template].growth.as_ref()?;
+        if self.rng.rand_float() > ONE / g.spawn_one_in as f32 {
+            return None;
+        }
+        let (px, py) = self.placed[parent].cell;
+        let x = px + self.rng.rand_tol(g.spawn_radius);
+        let y = py + self.rng.rand_tol(g.spawn_radius);
+        if !self.spawn_spot_ok(x, y) || !self.density_ok(template, x, y) {
+            return None;
+        }
+        let variant = self.placed[parent].variant;
+        let (_, _, maximum) = self.construct(template);
+        let (position, yaw) = self.position(template, y * self.n() + x);
+        let (state, growth, scale) = self.set_growth(template, maximum, 0.0);
+        let meshes = self.templates[template]
+            .model
+            .as_ref()?
+            .variants
+            .get(variant)?
+            .meshes
+            .len();
+        let mesh = self.rng.rand_below(meshes as u32) as usize;
+        Some(self.register(Placed {
+            template,
+            cell: (x, y),
+            position,
+            yaw,
+            variant,
+            mesh,
+            growth,
+            growth_state: Some(state),
+            alive: true,
+            scale,
+        }))
+    }
+
+    /// Port of FUN_140125a30 and FUN_1400a33b0 for one-cell natural-resource removal. Keep
+    /// handles stable; the scheduler swaps its bucket entries separately at the end of the tick.
+    fn remove(&mut self, id: usize) {
+        let p = &mut self.placed[id];
+        if !p.alive {
+            return;
+        }
+        p.alive = false;
+        self.removed.push(id);
+        let (x, y) = p.cell;
+        let i = y as usize * self.cells.size + x as usize;
+        if let Some(d) = &self.templates[p.template].growth {
+            if p.growth != 0.0 {
+                let factor = if self.cells.previous_template[i] == Some(p.template) {
+                    d.f3c
+                } else {
+                    d.f40
+                };
+                self.cells.growth_bytes[i] =
+                    adjust_map_byte(self.cells.growth_bytes[i], p.growth.min(1.0) * factor);
+                self.cells.previous_template[i] = Some(p.template);
+            }
+        }
+        if self.cells.objects[i] == Some(id) {
+            self.cells.types[i] = self.terrain.natural_cell_type(self.cells.size, i);
+            self.cells.objects[i] = None;
+        }
+    }
+
+    /// Port of FUN_1400c9560 → FUN_140125520 for the placed entities' GrowthComponents.
+    /// Other component callbacks are not installed yet. `disabled` is Game +0xd0 bit 10,
+    /// which suppresses spawning and maximum transitions, but not growth or freezing decay.
+    pub fn iterate(
+        &mut self,
+        scheduler: &mut EntityScheduler<usize>,
+        dt: f32,
+        temperature: f32,
+        disabled: bool,
+    ) -> bool {
+        scheduler.advance(dt);
+        let mut changed = false;
+        for bucket in 0..5 {
+            for (_, id, elapsed) in scheduler.visit_bucket(bucket) {
+                let p = &mut self.placed[id];
+                if !p.alive {
+                    continue;
+                }
+                let Some(state) = &mut p.growth_state else {
+                    continue;
+                };
+                let d = self.templates[p.template].growth.as_ref().unwrap();
+                let result = state.update(d, &mut p.growth, elapsed, temperature, disabled);
+                if !disabled {
+                    for _ in 0..result.spawn_attempts {
+                        if let Some(child) = self.periodic_spawn(id) {
+                            let handle = scheduler.register(
+                                child,
+                                self.templates[self.placed[child].template].bucket,
+                            );
+                            debug_assert_eq!(handle, child);
+                            changed = true;
+                        }
+                    }
+                }
+                if let Some(adjustment) = result.map_adjustment {
+                    let p = &self.placed[id];
+                    let i = (p.cell.1 * self.n() + p.cell.0) as usize;
+                    self.cells.growth_bytes[i] =
+                        adjust_map_byte(self.cells.growth_bytes[i], adjustment);
+                    self.cells.previous_template[i] = Some(p.template);
+                    if self.templates[p.template]
+                        .natural
+                        .as_ref()
+                        .is_some_and(|n| n.flag)
+                    {
+                        // Deviation: record animation index 2, leaving the existing mesh visible
+                        // until the mesh-animation controller is ported. Never fake a removal.
+                        self.placed[id]
+                            .growth_state
+                            .as_mut()
+                            .unwrap()
+                            .pending_animation = true;
+                    } else {
+                        self.remove(id);
+                        changed = true;
+                    }
+                }
+            }
+        }
+        // FUN_1400c9560 drains removal requests only after all five buckets.
+        for id in self.removed.drain(..) {
+            scheduler.remove(id);
+        }
+        changed
+    }
+
+    /// Port of FUN_1400c98a0 → FUN_140125370: a single post-iteration smoothing phase.
+    pub fn smooth(&mut self) -> bool {
+        let mut changed = false;
+        for p in self.placed.iter_mut() {
+            if !p.alive {
+                continue;
+            }
+            if let Some(state) = &mut p.growth_state {
+                let d = self.templates[p.template].growth.as_ref().unwrap();
+                changed |= state.smooth(d, p.growth, &mut p.scale);
+            }
+        }
+        changed
     }
 
     fn perlin(&mut self, persistence: f32, octaves: f32) -> PerlinNoise {
@@ -400,10 +580,14 @@ impl<'a> Seeder<'a> {
                     }
                     let (mut variant, mut mesh, max_growth) = self.construct(template);
                     let (position, yaw) = self.position(template, index);
-                    let (mut growth, mut scale) = (0.0, [ONE; 4]);
+                    let (mut growth, mut scale, mut growth_state) = (0.0, [ONE; 4], None);
                     if self.templates[template].growth.is_some() {
                         let fraction = self.rng.rand_float();
-                        (growth, scale) = self.set_growth(template, max_growth, fraction);
+                        let (state, value, output) =
+                            self.set_growth(template, max_growth, fraction);
+                        growth = value;
+                        scale = output;
+                        growth_state = Some(state);
                     }
                     let id = self.register(Placed {
                         template,
@@ -413,6 +597,8 @@ impl<'a> Seeder<'a> {
                         variant,
                         mesh,
                         growth,
+                        growth_state,
+                        alive: true,
                         scale,
                     });
                     if !self.templates[template].spawn.is_empty() {
@@ -442,5 +628,217 @@ impl<'a> Seeder<'a> {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scheduler::ticks;
+    use banished_formats::game::ModelVariant;
+
+    fn template() -> Template {
+        Template {
+            reference: "test:resource".into(),
+            bucket: 3,
+            map: Some(MapDescription {
+                cell_type: 4,
+                footprint: String::new(),
+                stamp: true,
+                no_stamp: false,
+                minimap: false,
+                color: 0,
+            }),
+            model: Some(ModelDescription {
+                variants: vec![
+                    ModelVariant {
+                        animations: None,
+                        meshes: vec![None; 3]
+                    };
+                    2
+                ],
+                variant: 0,
+                mesh: 0,
+                random_variant: true,
+            }),
+            natural: None,
+            growth: Some(GrowthDescription {
+                max_base: 4.0,
+                max_range: 1.0,
+                f28: 2.0,
+                b2c: false,
+                f30: 60.0,
+                f34: 20.0,
+                b38: false,
+                f3c: 0.5,
+                f40: 0.5,
+                b44: true,
+                spawn_radius: 1,
+                timer_months: 1,
+                spawn_one_in: 1,
+                threshold: 0.75,
+                max_neighbours: 8,
+                max_same: 8,
+                f60: 0.0,
+                tall: false,
+            }),
+            growth_reference: Some("test:growth".into()),
+            spawn: Vec::new(),
+            size: None,
+            storage: None,
+            storage_location: false,
+        }
+    }
+
+    fn parent() -> Placed {
+        Placed {
+            template: 0,
+            cell: (8, 8),
+            position: [0.5, 0.5, 0.0],
+            yaw: 0.0,
+            variant: 1,
+            mesh: 2,
+            growth: 1.0,
+            growth_state: Some(Growth {
+                maximum: 4.0,
+                timer: 0,
+                smoothed: 1.0,
+                scheduled: true,
+                smoothing: false,
+                allow_negative: false,
+                pending_animation: false,
+            }),
+            alive: true,
+            scale: [1.0; 4],
+        }
+    }
+
+    #[test]
+    fn periodic_children_start_at_zero_and_preserve_draw_order() {
+        let templates = [template()];
+        let heights = vec![0i16; 33 * 33];
+        let terrain = HeightGrid {
+            width: 33,
+            heights: &heights,
+        };
+        let mut cells = Cells::new(16, vec![CellType::GROUND; 256]);
+        cells.objects[8 * 16 + 8] = Some(0);
+        cells.types[8 * 16 + 8] = CellType(4);
+        let mut placed = vec![parent()];
+        let mut removed = Vec::new();
+        let mut rng = Random::new(290);
+        let mut expected = rng.clone();
+        // FUN_140125070's order, including the constructor's variant draw which is overwritten.
+        expected.rand_float();
+        let x = 8 + expected.rand_tol(1);
+        let y = 8 + expected.rand_tol(1);
+        assert_ne!((x, y), (8, 8));
+        expected.rand_below(2);
+        let maximum = expected.rand_float_tol() + 4.0;
+        expected.rand_float_tol();
+        expected.rand_float_tol();
+        expected.rand_float_tol();
+        let timer = ticks(expected.rand_float() * 300.0);
+        let mesh = expected.rand_below(3) as usize;
+        let mut world = Seeder {
+            templates: &templates,
+            terrain: &terrain,
+            cells: &mut cells,
+            rng: &mut rng,
+            placed: &mut placed,
+            removed: &mut removed,
+        };
+        let child = world.periodic_spawn(0).unwrap();
+        assert_eq!(world.placed[child].cell, (x, y));
+        assert_eq!(world.placed[child].variant, 1);
+        assert_eq!(world.placed[child].mesh, mesh);
+        assert_eq!(world.placed[child].growth, 0.0);
+        let state = world.placed[child].growth_state.as_ref().unwrap();
+        assert_eq!(state.maximum.to_bits(), maximum.to_bits());
+        assert_eq!(state.timer, timer);
+        assert!(!state.smoothing);
+        assert_eq!(world.rng.rand(), expected.rand());
+        assert_eq!(
+            world.cells.objects[y as usize * 16 + x as usize],
+            Some(child)
+        );
+    }
+
+    #[test]
+    fn placement_gates_reject_before_constructor_draws() {
+        let mut templates = [template()];
+        templates[0].growth.as_mut().unwrap().spawn_radius = 0;
+        let heights = vec![0i16; 33 * 33];
+        let terrain = HeightGrid {
+            width: 33,
+            heights: &heights,
+        };
+        let mut cells = Cells::new(16, vec![CellType::GROUND; 256]);
+        let mut placed = vec![parent()];
+        let mut removed = Vec::new();
+        let mut rng = Random::new(290);
+        let mut world = Seeder {
+            templates: &templates,
+            terrain: &terrain,
+            cells: &mut cells,
+            rng: &mut rng,
+            placed: &mut placed,
+            removed: &mut removed,
+        };
+        for gate in 0..3 {
+            world.cells.types[136] = if gate == 0 {
+                CellType(4)
+            } else {
+                CellType::GROUND
+            };
+            world.cells.flags[136] = if gate == 1 { 1 } else { 0 };
+            world.cells.occupants[136] = if gate == 2 { Some(0) } else { None };
+            let mut expected = world.rng.clone();
+            expected.rand_float();
+            expected.rand_tol(0);
+            expected.rand_tol(0);
+            assert!(world.periodic_spawn(0).is_none());
+            assert_eq!(world.rng.rand(), expected.rand());
+        }
+        assert_eq!(world.placed.len(), 1);
+    }
+
+    #[test]
+    fn newborns_wait_until_next_bucket_visit_and_removal_clears_occupancy() {
+        let mut templates = [template()];
+        templates[0].growth.as_mut().unwrap().max_range = 0.0;
+        let heights = vec![0i16; 33 * 33];
+        let terrain = HeightGrid {
+            width: 33,
+            heights: &heights,
+        };
+        let mut cells = Cells::new(16, vec![CellType::GROUND; 256]);
+        cells.types[136] = CellType(4);
+        cells.objects[136] = Some(0);
+        let mut placed = vec![parent()];
+        let mut removed = Vec::new();
+        let mut rng = Random::new(290);
+        let mut scheduler = EntityScheduler::default();
+        scheduler.register(0, 3);
+        let mut world = Seeder {
+            templates: &templates,
+            terrain: &terrain,
+            cells: &mut cells,
+            rng: &mut rng,
+            placed: &mut placed,
+            removed: &mut removed,
+        };
+        assert!(world.iterate(&mut scheduler, 901.0, 60.0, false));
+        assert!(world.placed.len() > 1);
+        assert!(world.placed[1..].iter().all(|p| p.growth == 0.0));
+        world.iterate(&mut scheduler, 1.0, 60.0, false);
+        assert!(world.placed[1..].iter().all(|p| p.growth > 0.0));
+        world.placed[0].growth_state.as_mut().unwrap().maximum = 1.0;
+        world.iterate(&mut scheduler, 1.0, 60.0, false);
+        assert!(!world.placed[0].alive);
+        assert_eq!(world.cells.objects[136], None);
+        assert_eq!(world.cells.types[136], CellType::GROUND);
+        assert_eq!(world.cells.previous_template[136], Some(0));
+        assert!(!scheduler.visit_bucket(3).iter().any(|v| v.1 == 0));
     }
 }

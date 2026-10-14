@@ -117,6 +117,7 @@ pub struct Renderer {
     terrain: Option<TerrainGpu>,
     /// `SceneView::id` of the uploaded scene.
     pub world_id: u64,
+    models_revision: u64,
     ui: banished_gfx::UiRenderer,
     models: crate::models::ModelRenderer,
     extras: SceneExtrasRenderer,
@@ -574,6 +575,7 @@ impl Renderer {
             material_layout,
             terrain: None,
             world_id: 0,
+            models_revision: 0,
             ui,
             models,
             extras,
@@ -706,6 +708,13 @@ impl Renderer {
                 &self.targets.reflection_view,
             );
             self.world_id = view.id;
+            self.models_revision = view.models.as_ref().map_or(0, |m| m.revision);
+        } else if let Some(models) = &view.models {
+            if self.models_revision != models.revision {
+                self.models
+                    .update_instances(&self.device, &self.queue, models);
+                self.models_revision = models.revision;
+            }
         }
     }
 
