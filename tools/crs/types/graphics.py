@@ -26,12 +26,12 @@ def graphics_mesh(r, file_version):
         }
         parts = []
         for _ in range(r.i32()):
-            part = {'lod_distance': r.f32(), 'name': r.string(), 'material': external_ref(r)}
+            part = {'lod_distance': r.f32(), 'name': r.string(), 'ao_texture': external_ref(r)}
             if blk.version == 0:
                 raise NotImplementedError('GraphicsMesh block version 0 (FUN_1800a55c0)')
             parts.append(part)
         mesh['parts'] = parts
-        mesh['material_sets'] = [[external_ref(r) for _ in range(r.i32())] for _ in range(r.i32())]
+        mesh['material_instances'] = [[external_ref(r) for _ in range(r.i32())] for _ in range(r.i32())]
         mesh['bones'] = [{
             'name': r.string(),
             'parent': r.i32(),
@@ -78,3 +78,13 @@ VERTEX_FORMATS = {
     0: 'float4', 1: 'float3', 2: 'float2', 3: 'float1',
     4: 'sint16x4', 5: 'sint16x2', 6: 'bgra8unorm', 7: 'uint8x4', 8: 'unorm8x4',
 }
+
+
+@decoder('MaterialInstance')
+def material_instance(r, file_version):
+    # Graphics::MaterialInstance::Serialize (0x180106300)
+    with r.block():
+        material = external_ref(r)
+        textures = {r.string(): external_ref(r) for _ in range(r.i32())}
+        vectors = {r.string(): r.array('f', 4) for _ in range(r.i32())}
+    return {'material': material, 'textures': textures, 'vectors': vectors}
