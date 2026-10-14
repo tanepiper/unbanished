@@ -107,6 +107,14 @@ fn check(dir: &str, seed: u32, wire: [i32; 17], upto: u32) {
         if n == 2 {
             check_records(&dir, &g);
         }
+        if n == 3 {
+            let b = std::fs::read(dir.join("vec28.bin")).unwrap();
+            let count = i32::from_le_bytes(b[..4].try_into().unwrap()) as usize;
+            assert_eq!(g.vec28.len(), count, "hill circle count");
+            let got: Vec<u32> = g.vec28.iter().flatten().map(|f| f.to_bits()).collect();
+            assert_eq!(got, floats(&b[4..]), "hill circles");
+            eprintln!("stage 3 records: {count} hill circles bit-exact");
+        }
         eprintln!("stage {n}: bit-exact");
     }
 }
