@@ -137,10 +137,62 @@ Suggested milestones:
 2. ✅ `.crs` deserializer: container, type ids, textures, meshes, material instances, vertex layouts
    (remaining classes are decoded as later milestones need them).
 3. ✅ Model viewer, native and in the browser (Rust + wgpu; WebGPU with WebGL2 fallback). Terrain moves to M5.
-4. UI system rendering the main menu from `Dialog/MainMenu.rsc`.
+4. ✅ UI system: all 1,644 UI resources decode; `crates/ui` renders the main menu and the asset
+   browser from game data (see §6).
 5. Map generation and terrain from `Terrain/` plus the Perlin-noise code.
 6. Simulation components, one at a time (resources → storage → work → citizens → seasons).
-7. Save/load, audio, polish.
+7. Save/load, audio, polish. Audio decoding is done (§7).
+
+## 6. UI system
+
+Decoders: `crates/formats/src/ui.rs`. Runtime: `crates/ui`. All 1,644 UI resources decode exactly:
+55 `Dialog`, 4 `Font`, 31 `SpriteSheet`, 115 `StringTable` and 1,439 elements across 27
+`*Description` classes.
+
+**Element base** (`ElementDescription::Serialize` 0x180119390, defaults from its constructor):
+margins (left, right, top, bottom), minimum size, alignment 0–8 (3×3 grid, default 3), flags
+(bit 0 hidden, bits 2/3 fill width/height, bits 4/5 screen-relative size, bit 18 half alpha),
+ARGB colour (default white), id, then border, tooltip-dialog and string-table refs and a tooltip key.
+
+**Layout** is two-pass, as in the engine: `ComputeSize` bottom-up, then `ComputeLayout` top-down.
+- Groups fill the space offered.
+- Ribbons stack their children with spacing; the last child can stretch.
+- Borders fill.
+- Other elements are placed at their size by alignment within their margins.
+- Dialog roots are placed at their own size (`DialogInstance::ComputeLayout` 0x180116620).
+
+**Drawing:**
+- Borders are 9-slice: corners at natural size, edges and centre stretched.
+- Buttons draw their current state element (0 enabled, 1 disabled, 2 highlight, 3 pressed) and then
+  their content, tinted by a per-state colour.
+- Labels pair an icon sprite with text; `orientation` places the icon left, right, above or below.
+
+**Fonts** (`Font::Serialize` v2): an int code-point→glyph map and per-glyph `(a, c, b, d)` metrics.
+The pen advances `a` plus the previous glyph's `c`; the glyph is `b` wide and raised by `d`. Glyph
+bitmaps are sprites in the font's sprite sheet, and a sheet's image is a `MaterialInstance` `diffuse`
+texture. The fonts only cover code points up to 169 (©).
+
+**Verified:** the main menu renders from `Dialog\MainMenu.rsc:main` with its translucent border, seven
+float buttons with icons, and labels from `StringTable:mainMenu` (New, Load, Tutorials,
+Achievements, Options, Mods, Exit).
+
+**Not yet implemented:**
+- Edit, Slider, Spinner, Tab, Table, Scroll, Combo dropdown, Progress, Graph, Layout and
+  DocumentText elements are decoded but drawn as nothing.
+- Tooltips.
+- Keyboard bindings (`TextDescription.unknown_8c`).
+- Dialog bindings and `named` lists.
+- Exact baseline maths: the ascent is derived from glyph data rather than traced.
+
+## 7. Audio
+
+All 72 `SoundBuffer`s are **xWMA** (WMA v2, tag 0x161, 48 kbps). Each holds a WAVEFORMATEX, a `dpds`
+packet table and packets, or for the 16 music tracks a reference to a raw `.str` package entry.
+`SoundBuffer::to_xwma()` writes a standard RIFF/XWMA file.
+
+`crates/wma` is a pure-Rust WMA v2 decoder (built in a parallel session). It matches FFmpeg on all
+72 sounds and builds for WASM. The asset browser decodes in-process and plays through rodio
+natively and Web Audio in the browser.
 
 ## 5. Analysis artefacts
 

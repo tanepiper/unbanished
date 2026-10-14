@@ -29,6 +29,12 @@ struct GpuPart {
     textures: wgpu::BindGroup,
 }
 
+impl GpuMesh {
+    pub fn part_count(&self) -> usize {
+        self.parts.len()
+    }
+}
+
 pub struct GpuMesh {
     parts: Vec<GpuPart>,
     skin: wgpu::BindGroup,
@@ -53,6 +59,7 @@ pub struct Renderer {
     sampler: wgpu::Sampler,
     white: wgpu::TextureView,
     pub backend: String,
+    pub ui: crate::ui_render::UiRenderer,
 }
 
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -316,6 +323,7 @@ impl Renderer {
         });
         let white = upload_rgba(&device, &queue, "white", 1, 1, &[vec![255; 4]]);
         let depth = depth_view(&device, width, height);
+        let ui = crate::ui_render::UiRenderer::new(&device, format, DEPTH_FORMAT);
 
         Renderer {
             surface,
@@ -333,6 +341,7 @@ impl Renderer {
             sampler,
             white,
             backend,
+            ui,
         }
     }
 
@@ -340,6 +349,7 @@ impl Renderer {
         if width == 0 || height == 0 {
             return;
         }
+        log::debug!("resize {width}x{height}");
         self.size = (width, height);
         if let Some((surface, config)) = &mut self.surface {
             config.width = width;
@@ -488,11 +498,28 @@ impl Renderer {
         })
     }
 
-    pub fn render(&self, mesh: Option<&GpuMesh>, view_proj: Mat4, eye: Vec3) {
+    pub fn device(&self) -> &wgpu::Device {
+        &self.device
+    }
+
+    pub fn queue(&self) -> &wgpu::Queue {
+        &self.queue
+    }
+
+    pub fn size(&self) -> (u32, u32) {
+        self.size
+    }
+
+    /// Register an application texture the UI can draw as `Texture::External(id)`.
+    pub fn set_ui_texture(&mut self, id: u32, view: &wgpu::TextureView) {
+        self.ui.set_external(&self.device, id, view);
+    }
+
+    pub fn render(&mut self, frame: Frame) {
         let Some((surface, config)) = &self.surface else {
             return;
         };
-        let frame = match surface.get_current_texture() {
+        let target = match surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(f)
             | wgpu::CurrentSurfaceTexture::Suboptimal(f) => f,
             other => {
@@ -506,14 +533,14 @@ impl Renderer {
                 return;
             }
         };
-        let view = frame.texture.create_view(&Default::default());
-        self.draw(&view, mesh, view_proj, eye);
-        self.queue.present(frame);
+        let view = target.texture.create_view(&Default::default());
+        self.draw(&view, frame);
+        self.queue.present(target);
     }
 
     /// Render one frame offscreen and return it as tightly packed RGBA8.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn capture(&self, mesh: Option<&GpuMesh>, view_proj: Mat4, eye: Vec3) -> Vec<u8> {
+    pub fn capture(&mut self, frame: Frame) -> Vec<u8> {
         let (w, h) = self.size;
         let target = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("capture"),
@@ -529,12 +556,7 @@ impl Renderer {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
-        self.draw(
-            &target.create_view(&Default::default()),
-            mesh,
-            view_proj,
-            eye,
-        );
+        self.draw(&target.create_view(&Default::default()), frame);
         let row = (w * 4).next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
         let readback = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("readback"),
@@ -580,12 +602,12 @@ impl Renderer {
         out
     }
 
-    fn draw(&self, view: &wgpu::TextureView, mesh: Option<&GpuMesh>, view_proj: Mat4, eye: Vec3) {
+    fn draw(&mut self, view: &wgpu::TextureView, frame: Frame) {
         let light = Vec3::new(-0.4, -0.3, -1.0).normalize();
         let globals = Globals {
-            view_proj: view_proj.to_cols_array_2d(),
+            view_proj: frame.view_proj.to_cols_array_2d(),
             light_dir: light.extend(0.0).to_array(),
-            eye: eye.extend(1.0).to_array(),
+            eye: frame.eye.extend(1.0).to_array(),
         };
         self.queue
             .write_buffer(&self.globals, 0, bytemuck::bytes_of(&globals));
@@ -599,12 +621,7 @@ impl Renderer {
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.42,
-                            g: 0.52,
-                            b: 0.62,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Clear(frame.clear),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -620,27 +637,64 @@ impl Renderer {
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
-            pass.set_bind_group(0, &self.globals_group, &[]);
-            if let Some(mesh) = mesh {
-                pass.set_bind_group(2, &mesh.skin, &[]);
+            if let Some(mesh) = frame.mesh {
+                let [x, y, w, h] =
+                    frame
+                        .viewport
+                        .unwrap_or([0.0, 0.0, self.size.0 as f32, self.size.1 as f32]);
+                let (x, y) = (x.max(0.0), y.max(0.0));
+                let (w, h) = (w.min(self.size.0 as f32 - x), h.min(self.size.1 as f32 - y));
+                if w >= 1.0 && h >= 1.0 {
+                    pass.set_viewport(x, y, w, h, 0.0, 1.0);
+                    pass.set_bind_group(0, &self.globals_group, &[]);
+                    pass.set_bind_group(2, &mesh.skin, &[]);
+                    for part in &mesh.parts {
+                        pass.set_pipeline(if part.skinned {
+                            &self.skinned_pipeline
+                        } else {
+                            &self.static_pipeline
+                        });
+                        pass.set_bind_group(1, &part.textures, &[]);
+                        pass.set_vertex_buffer(0, part.vertices.slice(..));
+                        pass.set_index_buffer(part.indices.slice(..), wgpu::IndexFormat::Uint16);
+                        pass.draw_indexed(0..part.index_count, 0, 0..1);
+                    }
+                }
             }
-            for part in mesh.map(|m| m.parts.as_slice()).unwrap_or_default() {
-                pass.set_pipeline(if part.skinned {
-                    &self.skinned_pipeline
-                } else {
-                    &self.static_pipeline
-                });
-                pass.set_bind_group(1, &part.textures, &[]);
-                pass.set_vertex_buffer(0, part.vertices.slice(..));
-                pass.set_index_buffer(part.indices.slice(..), wgpu::IndexFormat::Uint16);
-                pass.draw_indexed(0..part.index_count, 0, 0..1);
+            if let Some((ui, quads)) = frame.ui {
+                self.ui
+                    .draw(&self.device, &self.queue, &mut pass, ui, quads, self.size);
             }
         }
         self.queue.submit([encoder.finish()]);
     }
 }
 
-fn upload_rgba(
+/// Everything drawn in one frame.
+pub struct Frame<'a> {
+    pub clear: wgpu::Color,
+    pub mesh: Option<&'a GpuMesh>,
+    pub view_proj: Mat4,
+    pub eye: Vec3,
+    /// Pixel rectangle (x, y, w, h) for the 3D view; the whole target when `None`.
+    pub viewport: Option<[f32; 4]>,
+    pub ui: Option<(&'a banished_ui::Ui, &'a [banished_ui::Quad])>,
+}
+
+pub const CLEAR_SKY: wgpu::Color = wgpu::Color {
+    r: 0.42,
+    g: 0.52,
+    b: 0.62,
+    a: 1.0,
+};
+pub const CLEAR_DARK: wgpu::Color = wgpu::Color {
+    r: 0.075,
+    g: 0.08,
+    b: 0.09,
+    a: 1.0,
+};
+
+pub(crate) fn upload_rgba(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     label: &str,
@@ -687,7 +741,7 @@ fn upload_rgba(
     texture.create_view(&Default::default())
 }
 
-fn upload_image(
+pub(crate) fn upload_image(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     label: &str,

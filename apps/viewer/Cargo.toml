@@ -8,6 +8,8 @@ repository.workspace = true
 
 [dependencies]
 banished-formats = { path = "../../crates/formats" }
+banished-ui = { path = "../../crates/ui" }
+banished-wma = { path = "../../crates/wma" }
 wgpu = { version = "30", features = ["webgl"] }
 winit = "0.30"
 glam = { version = "0.34", features = ["bytemuck"] }
@@ -18,11 +20,12 @@ log = "0.4"
 env_logger = "0.11"
 pollster = "1"
 png = "0.18"
+rodio = { version = "0.21.1", default-features = false, features = ["playback"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.129"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
-web-sys = { version = "0.3", features = ["Document", "Window", "Location", "Element", "HtmlCanvasElement", "HtmlInputElement", "File", "FileList", "Blob", "Event", "EventTarget", "Response", "UrlSearchParams"] }
+web-sys = { version = "0.3", features = ["Document", "Window", "Location", "Element", "HtmlCanvasElement", "HtmlInputElement", "File", "FileList", "Blob", "Event", "EventTarget", "Response", "UrlSearchParams", "AudioContext", "BaseAudioContext", "AudioBuffer", "AudioBufferSourceNode", "AudioScheduledSourceNode", "AudioNode", "AudioDestinationNode"] }
 console_error_panic_hook = "0.1"
 console_log = "1"

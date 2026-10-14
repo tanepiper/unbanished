@@ -103,8 +103,10 @@ pub struct Text {
     pub text: String,
     pub wrap: bool,
     pub unknown_85: bool,
+    /// Width limit passed to `Font::ComputeStringLayout` (wrapping / ellipsis).
     pub max_width: i32,
-    pub color: u32,
+    /// `Font::Justify`: 0 left, 1 centre, 2 right.
+    pub justify: u32,
     pub unknown_8c: i32,
 }
 
@@ -309,7 +311,7 @@ fn read_text(r: &mut Reader) -> Result<Text> {
             wrap: r.bool()?,
             unknown_85: r.bool()?,
             max_width: r.i32()?,
-            color: r.u32()?,
+            justify: r.u32()?,
             unknown_8c: r.i32()?,
         })
     })

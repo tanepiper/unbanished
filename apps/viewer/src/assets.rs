@@ -1,14 +1,19 @@
-//! Loading game data from the player's own `.pkg` files.
+//! Loading game data from the player's own `.pkg` files and indexing it by resource class.
+
+use std::rc::Rc;
 
 use banished_formats::crc::type_id;
 use banished_formats::pkg::{Archive, Package};
-use banished_formats::types::{self, GraphicsMesh, ImageBuffer, MaterialInstance};
+use banished_formats::types::{self, GraphicsMesh, ImageBuffer, MaterialInstance, SoundBuffer};
 use banished_formats::{crs, Result};
 
 pub struct Assets {
-    pub archive: Archive,
-    /// Entry names of every `GraphicsMesh` resource, sorted.
+    pub archive: Rc<Archive>,
+    /// Entry names per browsable class, sorted.
     pub meshes: Vec<String>,
+    pub textures: Vec<String>,
+    pub sounds: Vec<String>,
+    pub dialogs: Vec<String>,
 }
 
 impl Assets {
@@ -23,22 +28,45 @@ impl Assets {
             );
             archive.add(pkg);
         }
-        let mesh_id = type_id(GraphicsMesh::CLASS);
-        let meshes = archive
-            .names()
-            .into_iter()
-            .filter(|n| n.starts_with("Models\\") && n.ends_with(".crs"))
-            .filter(|n| {
-                archive
-                    .read(n)
-                    .ok()
-                    .and_then(|d| crs::header(&d).ok())
-                    .is_some_and(|h| h.type_id == mesh_id)
-            })
-            .map(str::to_owned)
-            .collect::<Vec<_>>();
-        log::info!("{} resources, {} meshes", archive.len(), meshes.len());
-        Ok(Assets { archive, meshes })
+        let (mesh, image, sound, dialog) = (
+            type_id("GraphicsMesh"),
+            type_id("ImageBuffer"),
+            type_id("SoundBuffer"),
+            type_id("Dialog"),
+        );
+        let mut assets = Assets {
+            archive: Rc::new(Archive::default()),
+            meshes: Vec::new(),
+            textures: Vec::new(),
+            sounds: Vec::new(),
+            dialogs: Vec::new(),
+        };
+        for name in archive.names() {
+            if !name.ends_with(".crs") {
+                continue;
+            }
+            let Ok(header) = archive.read(name).and_then(|d| crs::header(&d)) else {
+                continue;
+            };
+            let list = match header.type_id {
+                t if t == mesh => &mut assets.meshes,
+                t if t == image => &mut assets.textures,
+                t if t == sound => &mut assets.sounds,
+                t if t == dialog => &mut assets.dialogs,
+                _ => continue,
+            };
+            list.push(name.to_string());
+        }
+        log::info!(
+            "{} resources: {} meshes, {} textures, {} sounds, {} dialogs",
+            archive.len(),
+            assets.meshes.len(),
+            assets.textures.len(),
+            assets.sounds.len(),
+            assets.dialogs.len()
+        );
+        assets.archive = Rc::new(archive);
+        Ok(assets)
     }
 
     pub fn mesh(&self, name: &str) -> Result<GraphicsMesh> {
@@ -51,6 +79,14 @@ impl Assets {
 
     pub fn image(&self, reference: &str) -> Result<ImageBuffer> {
         types::image_buffer(&self.archive.read_ref(reference)?)
+    }
+
+    pub fn image_entry(&self, name: &str) -> Result<ImageBuffer> {
+        types::image_buffer(&self.archive.read(name)?)
+    }
+
+    pub fn sound(&self, name: &str) -> Result<SoundBuffer> {
+        types::sound_buffer(&self.archive.read(name)?)
     }
 }
 

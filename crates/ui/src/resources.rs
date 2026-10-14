@@ -1,0 +1,170 @@
+//! Cached access to UI resources in the game archive.
+
+use std::collections::HashMap;
+use std::rc::Rc;
+
+use banished_formats::pkg::Archive;
+use banished_formats::types;
+use banished_formats::ui::{self, Element, Font, SpriteSheet};
+
+/// Index of a sprite sheet in [`Resources::sheets`].
+pub type SheetId = usize;
+pub type FontId = usize;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SpriteRef {
+    pub sheet: SheetId,
+    pub width: i32,
+    pub height: i32,
+    pub uv: [f32; 4],
+}
+
+pub struct LoadedSheet {
+    pub reference: String,
+    pub sheet: SpriteSheet,
+    /// `ImageBuffer` reference holding the sheet image (the material's `diffuse` slot).
+    pub image: Option<String>,
+}
+
+pub struct LoadedFont {
+    pub font: Font,
+    pub sheet: Option<SheetId>,
+    /// Pixels from the line top to the baseline.
+    pub ascent: i32,
+}
+
+pub struct Resources {
+    pub archive: Rc<Archive>,
+    elements: HashMap<String, Option<Rc<Element>>>,
+    sheet_ids: HashMap<String, Option<SheetId>>,
+    pub sheets: Vec<LoadedSheet>,
+    font_ids: HashMap<String, Option<FontId>>,
+    pub fonts: Vec<LoadedFont>,
+    tables: HashMap<String, Rc<HashMap<String, String>>>,
+}
+
+impl Resources {
+    pub fn new(archive: Rc<Archive>) -> Self {
+        Resources {
+            archive,
+            elements: HashMap::new(),
+            sheet_ids: HashMap::new(),
+            sheets: Vec::new(),
+            font_ids: HashMap::new(),
+            fonts: Vec::new(),
+            tables: HashMap::new(),
+        }
+    }
+
+    pub fn element(&mut self, reference: &str) -> Option<Rc<Element>> {
+        if let Some(e) = self.elements.get(reference) {
+            return e.clone();
+        }
+        let e = self
+            .archive
+            .read_ref(reference)
+            .and_then(|d| ui::element(&d))
+            .map_err(|e| log::warn!("{reference}: {e}"))
+            .ok()
+            .map(Rc::new);
+        self.elements.insert(reference.to_string(), e.clone());
+        e
+    }
+
+    pub fn sheet(&mut self, reference: &str) -> Option<SheetId> {
+        if let Some(id) = self.sheet_ids.get(reference) {
+            return *id;
+        }
+        let id = self
+            .archive
+            .read_ref(reference)
+            .and_then(|d| ui::sprite_sheet(&d))
+            .map_err(|e| log::warn!("{reference}: {e}"))
+            .ok()
+            .map(|sheet| {
+                let image = sheet.material.as_deref().and_then(|m| {
+                    let mi = types::material_instance(&self.archive.read_ref(m).ok()?).ok()?;
+                    mi.texture("diffuse").map(str::to_owned)
+                });
+                self.sheets.push(LoadedSheet {
+                    reference: reference.to_string(),
+                    sheet,
+                    image,
+                });
+                self.sheets.len() - 1
+            });
+        self.sheet_ids.insert(reference.to_string(), id);
+        id
+    }
+
+    pub fn sprite(&mut self, sheet_ref: Option<&str>, name: &str) -> Option<SpriteRef> {
+        if name.is_empty() {
+            return None;
+        }
+        let sheet = self.sheet(sheet_ref?)?;
+        let s = self.sheets[sheet].sheet.sprite(name)?;
+        Some(SpriteRef {
+            sheet,
+            width: s.width,
+            height: s.height,
+            uv: s.uv,
+        })
+    }
+
+    pub fn font(&mut self, reference: &str) -> Option<FontId> {
+        if let Some(id) = self.font_ids.get(reference) {
+            return *id;
+        }
+        let id = self
+            .archive
+            .read_ref(reference)
+            .and_then(|d| ui::font(&d))
+            .map_err(|e| log::warn!("{reference}: {e}"))
+            .ok()
+            .map(|font| {
+                let sheet = font.sprite_sheet.as_deref().and_then(|s| self.sheet(s));
+                // Baseline: tallest glyph top above it (sprite height + per-glyph offset).
+                let ascent = sheet
+                    .map(|s| {
+                        let sprites = &self.sheets[s].sheet.sprites;
+                        font.glyphs
+                            .iter()
+                            .zip(sprites)
+                            .map(|(g, sp)| sp.height + g[3])
+                            .max()
+                            .unwrap_or(font.size)
+                    })
+                    .unwrap_or(font.size);
+                self.fonts.push(LoadedFont {
+                    font,
+                    sheet,
+                    ascent,
+                });
+                self.fonts.len() - 1
+            });
+        self.font_ids.insert(reference.to_string(), id);
+        id
+    }
+
+    /// Resolve a string-table key; falls back to the key itself.
+    pub fn string(&mut self, table: Option<&str>, key: &str) -> String {
+        let Some(table) = table else {
+            return key.to_string();
+        };
+        let map = match self.tables.get(table) {
+            Some(m) => m.clone(),
+            None => {
+                let m: HashMap<String, String> = self
+                    .archive
+                    .read_ref(table)
+                    .and_then(|d| ui::string_table(&d))
+                    .map(|v| v.into_iter().collect())
+                    .unwrap_or_default();
+                let m = Rc::new(m);
+                self.tables.insert(table.to_string(), m.clone());
+                m
+            }
+        };
+        map.get(key).cloned().unwrap_or_else(|| key.to_string())
+    }
+}

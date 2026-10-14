@@ -28,11 +28,14 @@ Requirements: Python 3.10+ and Rust (stable, with `rustup target add wasm32-unkn
 # 1. Copy and extract your game data (auto-detects Steam; or set BANISHED_DIR)
 tools/extract-assets.sh
 
-# 2. Native model viewer (reads game-data/original/WinData)
+# 2. Native asset browser: models, textures, audio, dialogs (reads game-data/original/WinData)
 cargo run -p banished-viewer --release
 
-# 3. Web viewer on http://127.0.0.1:8731/?data=/game-data/ (or pick your .pkg files in the page)
+# 3. Web version on http://127.0.0.1:8731/?data=/game-data/ (or pick your .pkg files in the page)
 tools/dev-web.sh --release
+
+# Headless screenshot of the browser in a mode, e.g. the main menu dialog
+cargo run -p banished-viewer --release -- --screenshot menu.png dialogs MainMenu_resource
 
 # Tests (the game-data tests skip if game-data/ is missing)
 cargo test --release
@@ -43,8 +46,11 @@ tools/ghidra/export.sh
 
 | Crate | Purpose |
 |---|---|
-| `crates/formats` | Dependency-free readers for `.pkg`, `.crs`, textures, meshes, skeletons |
-| `apps/viewer` | wgpu model viewer: native window, browser (WASM), and `--capture` to PNG |
+| `crates/formats` | Dependency-free readers for `.pkg`, `.crs`, textures, meshes, skeletons, sounds, UI resources |
+| `crates/ui` | Reimplementation of the game's UI system: element tree, layout, fonts, drawing, input |
+| `crates/wma` | Pure-Rust WMA v2 decoder for the game's xWMA audio (native and WASM) |
+| `apps/viewer` | Asset browser built on `crates/ui`: native window, browser (WASM), `--screenshot`, `--capture` |
+| `apps/cli` | `banished-cli export-audio`: decode all sounds to MP3 via FFmpeg |
 
 ## Status
 
@@ -53,10 +59,10 @@ See [docs/FINDINGS.md](docs/FINDINGS.md) for what is known and the milestone pla
 - [x] M1: package (`.pkg`) reader and extractor
 - [x] M2: resource (`.crs`) deserializer (core graphics types; others as needed)
 - [x] M3: model viewer, native and browser (terrain moves to M5)
-- [ ] M4: UI system and main menu
+- [x] M4: UI system and main menu (core element types; see FINDINGS for the rest)
 - [ ] M5: map generation and terrain
 - [ ] M6: simulation components
-- [ ] M7: save/load, audio, polish
+- [ ] M7: save/load, audio in game, polish (audio decoding done)
 
 ## Legal
 
