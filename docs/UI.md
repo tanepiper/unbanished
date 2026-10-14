@@ -54,8 +54,10 @@ and original resource data; no decompiled code or assets are committed.
 
 The asset browser groups dialog resources by name. Loading variants share one representative preview,
 and animated images support play, pause, first-frame reset and frame stepping using their decoded
-rate. The SaveLoad preview hides overlapping text elements that share a parent when their rendered
-text bounds cover at least 90% of one another. Exact original-game screenshot parity remains
+rate. SaveLoad defaults to its explicit load-confirmation resource; its generic resource combines
+unrelated Save and Load states and is available through the resource selector. The SaveLoad preview
+hides overlapping text elements that share a parent when their rendered text bounds cover at least
+90% of one another. Exact original-game screenshot parity remains
 unverified. Keyboard focus conventions and pointer editing are host behavior where engine parity has
 not been established. Middle-dot synthesis is an approximation; other absent Unicode glyphs use
 visible replacements. Custom rotated captures are currently axis aligned. Original game controllers

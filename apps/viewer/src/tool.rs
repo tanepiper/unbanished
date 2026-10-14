@@ -450,14 +450,19 @@ impl Tool {
                 .into_iter()
                 .filter_map(|(group, mut items)| {
                     items.sort();
-                    let selected = if group == "Loading" {
-                        items.iter().position(|item| item.contains("_gameLoad0."))
-                    } else {
-                        items
-                            .iter()
-                            .position(|item| item.ends_with("_resource.crs"))
-                    }
-                    .unwrap_or(0);
+                    let preferred = match group.as_str() {
+                        "Loading" => "_gameLoad0.",
+                        // The generic SaveLoad resource combines the Save title
+                        // with a Load action. Use its explicit Load dialog as
+                        // the group's preview; the selector still lists every
+                        // SaveLoad resource, including the generic resource.
+                        "SaveLoad" => "_confirmLoad.",
+                        _ => "_resource.",
+                    };
+                    let selected = items
+                        .iter()
+                        .position(|item| item.contains(preferred))
+                        .unwrap_or(0);
                     items.get(selected).cloned()
                 })
                 .collect();

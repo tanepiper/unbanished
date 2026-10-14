@@ -204,10 +204,12 @@ progress values. Application-specific entity/build/toolbar controllers belong to
 milestones; dispatching a controller callback does not implement that simulation. Exact screenshot
 parity with the original executable has not been established. Dialog previews group resources by
 dialog name; Loading variants resolve to one representative preview, with controls for playing,
-pausing and stepping through all 60 frames at the decoded 30 fps. The SaveLoad preview suppresses
-text elements that overlap within the same parent. Custom rotated SpriteCapture parts draw axis
-aligned with a diagnostic. Shipped captures have no rotation. Arbitrary unsupported scripts display
-replacement glyphs rather than a new font.
+pausing and stepping through all 60 frames at the decoded 30 fps. SaveLoad defaults to its explicit
+load-confirmation dialog instead of the generic Save/Load screen, which combines unrelated button
+states; its loading animation is therefore absent from that idle preview. The SaveLoad preview
+suppresses text elements that overlap within the same parent. Custom rotated SpriteCapture parts
+draw axis aligned with a diagnostic. Shipped captures have no rotation. Arbitrary unsupported
+scripts display replacement glyphs rather than a new font.
 
 **Model browser additions (2026-10-14):** model, texture and audio lists now filter through the
 package directory categories. Model previews can hide material textures, render indexed vertices as
