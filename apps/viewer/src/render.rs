@@ -27,7 +27,9 @@ struct GpuPart {
     index_range: std::ops::Range<u32>,
     base_vertex: i32,
     skinned: bool,
+    rigid_bone: Option<usize>,
     textures: wgpu::BindGroup,
+    material_params: wgpu::Buffer,
 }
 
 impl GpuMesh {
@@ -513,7 +515,9 @@ impl Renderer {
                         ..(range.start_index + range.index_count) as u32,
                     base_vertex: range.start_vertex,
                     skinned: range.bone < 0,
+                    rigid_bone: usize::try_from(range.bone).ok(),
                     textures,
+                    material_params: params,
                 });
             }
         }
@@ -607,6 +611,16 @@ impl Renderer {
                 }
             })
             .collect();
+        let world = world_transforms(&mesh.bones, &locals);
+        for part in &mesh.parts {
+            if let Some(bone) = part.rigid_bone.and_then(|i| world.get(i)) {
+                self.queue.write_buffer(
+                    &part.material_params,
+                    16,
+                    bytemuck::cast_slice(&bone.to_matrix()),
+                );
+            }
+        }
         let palette = banished_formats::skeleton::palette(&mesh.bones, &locals);
         let matrices: Vec<[f32; 16]> = palette.iter().map(Transform::to_matrix).collect();
         self.queue
