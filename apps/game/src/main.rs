@@ -472,6 +472,10 @@ impl ApplicationHandler<UserEvent> for App {
                 let Some(game) = &mut self.game else { return };
                 match button {
                     MouseButton::Left => {
+                        // A loop switch can replace the screen beneath a stationary cursor
+                        // without producing another CursorMoved event. Refresh the hit target
+                        // against the current loop before deciding whether the UI captures drag.
+                        game.pointer_move(self.cursor.0 as i32, self.cursor.1 as i32);
                         let captured = game.pointer_button(down);
                         if down {
                             self.drag_button = (!captured).then_some(MouseButton::Left);

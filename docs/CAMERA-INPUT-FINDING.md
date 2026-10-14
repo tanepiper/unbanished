@@ -28,3 +28,13 @@ The regression was established by source tracing in `apps/game/src/main.rs` and
 preserves map gestures alongside the HUD. The explicit drag state and middle-button pan address
 missed releases and provide a direct pan gesture. Interactive runtime verification is not recorded
 here.
+
+## Follow-up: stale hit target after a loop switch
+
+The game keeps the UI's last hovered control while a loop changes its screen. If the menu is
+replaced by gameplay under a stationary cursor, there may be no new cursor-move event before the
+next mouse press. In that case the old menu button can still be marked as the hit target, and the
+first left drag is incorrectly captured by the UI instead of rotating the camera. The native event
+handler now refreshes the pointer hit target against the current loop immediately before deciding
+whether a left press starts a camera drag. This is a source-traced regression fix; it has not yet
+been confirmed in an interactive runtime.
