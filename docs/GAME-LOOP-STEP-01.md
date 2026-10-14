@@ -44,6 +44,7 @@ continue afterward. The timing evidence is detailed in [GAME-LOOP-STEP-03.md](GA
 
 The calendar and toolbar timing are traced in [GAME-LOOP-STEP-03.md](GAME-LOOP-STEP-03.md). The
 environment's 48-slice weather cadence and interpolated monthly lighting are in
-[GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md). Continue with manager elapsed time into specific
-simulation components; do not equate the entity scheduler's elapsed time with the calendar
-accumulator.
+[GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md). The first concrete manager component path, natural
+resource growth and its separate follow-up cadence, is traced in
+[GAME-LOOP-STEP-11.md](GAME-LOOP-STEP-11.md). Continue from its growth thresholds into spawning and
+map occupancy; do not equate the entity scheduler's elapsed time with the calendar accumulator.

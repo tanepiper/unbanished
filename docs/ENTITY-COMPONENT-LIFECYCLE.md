@@ -156,8 +156,11 @@ template in this data selects 0 or 5.
 
 `FUN_1400c98a0` separately processes the bit-`0x10` set through `FUN_1400c8140`. The application
 update function `FUN_14009b850` calls the timed manager update inside its simulation-step loop
-after `Graphics::AnimationManager::Update`, and calls `FUN_1400c98a0` after that loop. This proves
-separate update phases; it does not establish real-world frequencies or category names.
+after `Graphics::AnimationManager::Update`, and calls `FUN_1400c98a0` once after that loop. The
+GrowthComponent trace in [GAME-LOOP-STEP-11.md](GAME-LOOP-STEP-11.md) confirms this call relationship:
+the timed update repeats with the simulation iteration count, while the bit-`0x10` pass still runs
+once when simulation speed is paused. A UI state that pauses the game bypasses both passes. Bucket
+quotas, exact scheduled intervals and original phase names remain unresolved.
 
 `FUN_1400c9ea0` requests removal: if the entity exists and is not already marked, it invokes
 `FUN_1400c8370` and appends the pointer to the manager's pending-removal array at `+0xd0` with

@@ -59,8 +59,9 @@ The shipped [Status Bar tree and controller](GAME-LOOP-STEP-06.md) are traced th
 `StatusBarUI` bindings and `OnUpdateLayout` callback in [step 07](GAME-LOOP-STEP-07.md). The
 gameplay bootstrap adds the Toolbar dialog, and the packaged `Game/Toolbar` graph contains a
 status-bar entry that references `Template/UtilityStatusBar`, whose UI points at `Dialog/StatusBar`.
-The general resource-backed dialog activation path is traced in [step 10](GAME-LOOP-STEP-10.md);
-the action metadata for this particular status-bar entry remains to be decoded.
+The status-bar item carries action 2 and its utility resource at `+0x58`; the native dialog path and
+`StatusBarUI` controller attachment are traced in [step 10](GAME-LOOP-STEP-10.md). Live visibility
+has not been observed.
 
 ## Evidence pointers and next trace
 
@@ -78,5 +79,6 @@ the packaged values are 1, 2, 5 and 10 iterations per frame, and the toolbar but
 controller fields described above. The calendar accumulator and month/year transition rules are
 now traced in [GAME-LOOP-STEP-03.md](GAME-LOOP-STEP-03.md). The weather state and climate update are
 in [GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md), [GAME-LOOP-STEP-05.md](GAME-LOOP-STEP-05.md) and
-[GAME-LOOP-STEP-06.md](GAME-LOOP-STEP-06.md). Continue with the Toolbar/`UtilityStatusBar` resource
-handoff and trace how elapsed time reaches simulation components.
+[GAME-LOOP-STEP-06.md](GAME-LOOP-STEP-06.md). The statusbar click and controller handoff are traced
+in [GAME-LOOP-STEP-10.md](GAME-LOOP-STEP-10.md). Continue from
+[GAME-LOOP-STEP-11.md](GAME-LOOP-STEP-11.md) into growth-triggered spawning and map occupancy.

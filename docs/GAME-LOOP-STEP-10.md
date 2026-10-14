@@ -20,30 +20,51 @@ resource-driven Toolbar-to-dialog activation mechanism in the native code.
 
 ## Status Bar connection and limit
 
-The compiled resources form a matching candidate route:
+The compiled `Game/Toolbar_statusbar.crs` record stores action value **2** at Toolbar item offset
+`+0x48`, parent `Game/Toolbar.rsc:reports` at `+0x60`, and
+`Template/UtilityStatusBar.rsc:resource` at `+0x58`. These are the exact value and field consumed
+by `FUN_1400be770`'s action-2 branch, which passes `item +0x58` to `FUN_140106f50`. The status-bar
+item therefore enters the resource-backed dialog path.
+
+The resource chain is:
 
 `Game/Toolbar.rsc:statusbar` -> `Game/Toolbar_statusbar.crs` ->
 `Template/UtilityStatusBar.rsc` -> `ui` -> `Dialog/StatusBar.rsc:content`.
 
-The utility template also names `toolbar`; its ToolbarDescription names the `ToolStatusBar` icon
-and tooltip. Combined with `FUN_140106f50`, this shows how a Toolbar item can resolve a packaged UI
-description and display it. The available decoded resource record does not yet establish the
-numeric action value at the Toolbar item's `+0x48`, so this trace does not claim that
-`FUN_140106f50` is definitively the `statusbar` item's click branch. Nor does it establish a live
-session's visibility state.
+`FUN_140106f50` searches the selected UtilityStatusBar external for its `UIDescription`, creates a
+`UI::DialogInstance` from that description while passing the selected utility resource as context,
+and adds the dialog to the gameplay `UserInterface`. If that dialog is already open, the function
+closes it. The utility template also names `toolbar`; its ToolbarDescription names the
+`ToolStatusBar` icon and tooltip. `Template/UtilityStatusBar_ui.crs` is a `UIDescription` whose
+controller table contains type ID `0x509d1aea`, the CRC32 type ID for `StatusBarUI`, alongside
+`Dialog/StatusBar.rsc:content` and element name `userGroup0`. The Runtime
+`UI::DialogInstance::DialogInstance` constructor iterates the `UIDescription` controller table and
+calls `AddController`; `AddController` resolves the type through `Object::Factory`, constructs it,
+and runs its setup path with the utility resource context. This closes the static controller
+attachment path as well as the Toolbar click path.
+
+The click, dialog add/close, and `StatusBarUI` attachment are established from static code and
+resource bytes. A live game's visibility state and rendered values have not been captured.
 
 ## Relation to the port
 
 The port currently renders a compact gameplay HUD and does not build the original Toolbar or
-Status Bar dialog tree. The native activation path is now partially traced, but porting this UI still
-depends on decoding Toolbar action metadata and following the utility template's controller
-creation/configuration.
+Status Bar dialog tree. The native activation and controller path are traced. Porting this UI still
+depends on implementing its dialog bindings and update behavior.
 
 ## Evidence pointers
 
 - `analysis/export/Application-steam-x64.exe/decomp.c`: `FUN_1400be770` (`0x1400be770`) dispatches
   Toolbar events; `FUN_140106f50` (`0x140106f50`) resolves a `UIDescription`, creates a dialog and
   adds it to the gameplay `UserInterface`.
+- `Game/Toolbar_statusbar.crs`, `data0.pkg` offset `41,337,962`, class `Toolbar`: action `2`, parent
+  `Game/Toolbar.rsc:reports`, related external `Template/UtilityStatusBar.rsc:resource`. Field order
+  follows `FUN_1400d74e0` (`0x1400d74e0`) serialization.
+- `Template/UtilityStatusBar_ui.crs`, class `UIDescription`: controller type `0x509d1aea` matches
+  `StatusBarUI`, with the `Dialog/StatusBar.rsc:content` element binding. The application serializer
+  is `FUN_140133350` (`0x140133350`). Runtime dialog construction and controller registration are
+  in `analysis/export/Runtime-steam-x64.dll/decomp.c` at `UI::DialogInstance::DialogInstance`
+  (`0x180117100`) and `AddController` (`0x180115d00`).
 - `analysis/export/Application-steam-x64.exe/decomp.c`: type metadata at `0x1401cff90` names
   `UIDescription` derived from `Description`.
 - `Game/Toolbar.rsc`, `Game/Toolbar_statusbar.crs`, and the `Template/UtilityStatusBar_*` compiled
@@ -54,6 +75,5 @@ creation/configuration.
 
 ## Next trace
 
-Decode the Toolbar item's action field and follow the utility template's controller configuration.
-Then continue the new-game loop into the first simulation manager after calendar/environment
-updates, recording each manager's input and output before porting its behavior.
+Continue the new-game loop into the next simulation manager after calendar/environment updates,
+recording each manager's input and output before porting its behavior.

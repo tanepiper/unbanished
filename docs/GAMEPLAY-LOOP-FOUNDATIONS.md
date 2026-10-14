@@ -45,13 +45,14 @@ See [GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md).
 
 The original Status Bar resources and serialized weather state are in
 [GAME-LOOP-STEP-06.md](GAME-LOOP-STEP-06.md); its `StatusBarUI` controller, update logic and
-`UtilityStatusBar` package route are traced in [GAME-LOOP-STEP-07.md](GAME-LOOP-STEP-07.md). The
-click-time activation path remains open. Population/status meanings and the fixed-stride stock table
-are recorded in [GAME-LOOP-STEP-08.md](GAME-LOOP-STEP-08.md); flag producers, stock update owners,
+`UtilityStatusBar` package route are traced in [GAME-LOOP-STEP-07.md](GAME-LOOP-STEP-07.md). Its
+click dispatch and controller attachment are closed statically in [GAME-LOOP-STEP-10.md](GAME-LOOP-STEP-10.md).
+Population/status meanings and the fixed-stride stock table are recorded in
+[GAME-LOOP-STEP-08.md](GAME-LOOP-STEP-08.md); flag producers, stock update owners,
 and concrete container types are traced in [GAME-LOOP-STEP-09.md](GAME-LOOP-STEP-09.md) and remain
-partially open for tool transitions and stock accounting. Toolbar activation into resource-backed
-dialogs is partially traced in [GAME-LOOP-STEP-10.md](GAME-LOOP-STEP-10.md); decoding the statusbar
-item's action metadata remains open.
+partially open for tool transitions and stock accounting. The statusbar item's action-2 dispatch,
+dialog lifecycle and `StatusBarUI` attachment are traced in
+[GAME-LOOP-STEP-10.md](GAME-LOOP-STEP-10.md); live visibility remains unverified.
 
 The outer update and its follow-up are documented in [GAME-LOOP-STEP-01.md](GAME-LOOP-STEP-01.md)
 and [GAME-LOOP-STEP-02.md](GAME-LOOP-STEP-02.md). The trace establishes pause/speed gating,
@@ -61,6 +62,10 @@ calendar's 3,600-second year split into twelve equal months. The environment upd
 cadence are in [GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md). Toolbar dispatch is in
 [GAMEPLAY-SPEED-AND-TOOLBAR.md](GAMEPLAY-SPEED-AND-TOOLBAR.md). The gameplay HUD's camera-input
 routing and recent drag-mode correction are recorded in [CAMERA-INPUT-FINDING.md](CAMERA-INPUT-FINDING.md).
+
+The first concrete scheduled component, natural-resource `GrowthComponent`, and its once-per-active
+update smoothing pass are traced in [GAME-LOOP-STEP-11.md](GAME-LOOP-STEP-11.md). Growth spawning,
+resource removal and map occupancy transitions remain open.
 
 ## Remaining work before this is a full game loop
 
