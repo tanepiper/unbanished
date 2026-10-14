@@ -1,0 +1,12 @@
+[package]
+name = "banished-wma"
+version = "0.1.0"
+description = "Pure-Rust Windows Media Audio v2 (xWMA) decoder"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+banished-formats = { path = "../formats" }

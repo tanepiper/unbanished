@@ -209,6 +209,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "banished-wma"
+version = "0.1.0"
+dependencies = [
+ "banished-formats",
+]
+
+[[package]]
 name = "bit-set"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
