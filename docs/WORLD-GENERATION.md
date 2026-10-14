@@ -128,6 +128,8 @@ open.
   resource-seeding pass.
 - Trace the `PopulationDeer` registration into wildlife creation and population updates; current
   resource links and unconfirmed numeric fields are in [WILDLIFE-POPULATION.md](WILDLIFE-POPULATION.md).
+- Follow the start-condition ambience emitters into the audio manager and playback lifecycle; their
+  serialized placement is documented in [STARTING-AUDIO-EMITTERS.md](STARTING-AUDIO-EMITTERS.md).
 - Trace how `ClimateGenerator` and `Environment.rsc` control climate, weather and seasonal updates.
 - Establish generation determinism and seed consumption order against a runtime or reproducible
   save comparison.

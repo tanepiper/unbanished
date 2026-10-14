@@ -111,7 +111,8 @@ All profiles also include one `PopulationDeer` manager input and the same raw-ma
 list. The population input's resource chain and limits of the current wildlife trace are recorded in
 [WILDLIFE-POPULATION.md](WILDLIFE-POPULATION.md). This trace does not yet identify how the
 natural-resource lists become the starting map's actual resource distribution or how inventory
-quantities are assigned.
+quantities are assigned. The three audio ambience resources and their placement loops are documented
+separately in [STARTING-AUDIO-EMITTERS.md](STARTING-AUDIO-EMITTERS.md).
 
 ## Remaining trace
 
