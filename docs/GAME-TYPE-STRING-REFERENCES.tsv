@@ -1,0 +1,479 @@
+program	class_name	string_address	reference_address	function_address	function_name	reference_type
+Application-steam-x64.exe	AbsorbResourceDescription	1401683b0	1401542e2	1401542d0	FUN_1401542d0	DATA
+Application-steam-x64.exe	Achievement	<not-found>				
+Application-steam-x64.exe	AmbientEmitterDescription	14015eb58	1401504d2	1401504c0	FUN_1401504c0	DATA
+Application-steam-x64.exe	AmbientEnvironmentDescription	14015ec70	140150552	140150540	FUN_140150540	DATA
+Application-steam-x64.exe	AnimalDescription	140168510	1401543e2	1401543d0	FUN_1401543d0	DATA
+Application-steam-x64.exe	AnimatedImageDescription	<not-found>				
+Application-steam-x64.exe	AnimationGroup	<not-found>				
+Application-steam-x64.exe	AnimAudioEvent	1401644a8	140152912	140152900	FUN_140152900	DATA
+Application-steam-x64.exe	AttendanceDescription	14015ed90	1401505d2	1401505c0	FUN_1401505c0	DATA
+Application-steam-x64.exe	AutoPickupDescription	14015eef8	1401506d2	1401506c0	FUN_1401506c0	DATA
+Application-steam-x64.exe	BoatDescription	14015eff0	140150752	140150740	FUN_140150740	DATA
+Application-steam-x64.exe	BorderDescription	<not-found>				
+Application-steam-x64.exe	BuildDescription	140168600	140154462	140154450	FUN_140154450	DATA
+Application-steam-x64.exe	ButtonDescription	<not-found>				
+Application-steam-x64.exe	CaptureBoxDescription	1401637e0	1401525d2	1401525c0	FUN_1401525c0	DATA
+Application-steam-x64.exe	CemeteryDescription	14015f158	140150852	140150840	FUN_140150840	DATA
+Application-steam-x64.exe	CharacterDescription	140168778	140154562	140154550	FUN_140154550	DATA
+Application-steam-x64.exe	CharacterSet	<not-found>				
+Application-steam-x64.exe	CheckDescription	<not-found>				
+Application-steam-x64.exe	CitizenAIDescription	140168860	1401545e2	1401545d0	FUN_1401545d0	DATA
+Application-steam-x64.exe	CitizenDescription	140168978	140154662	140154650	FUN_140154650	DATA
+Application-steam-x64.exe	ClearAreaDescription	140168a70	1401546e2	1401546d0	FUN_1401546d0	DATA
+Application-steam-x64.exe	ClearResourceDescription	140168be8	1401547e2	1401547d0	FUN_1401547d0	DATA
+Application-steam-x64.exe	ClimateGenerator	140164548	140152952	140152940	FUN_140152940	DATA
+Application-steam-x64.exe	ComboDescription	<not-found>				
+Application-steam-x64.exe	ComponentDescription	140168e58	140154922	140154910	FUN_140154910	DATA
+Application-steam-x64.exe	ConsumeProduceDescription	140168e88	1401549a2	140154990	FUN_140154990	DATA
+Application-steam-x64.exe	ContainerDescription	<not-found>				
+Application-steam-x64.exe	ControlUIConfig	140161478	140151cd2	140151cc0	FUN_140151cc0	DATA
+Application-steam-x64.exe	CreateBridgeDescription	140169040	140154a22	140154a10	FUN_140154a10	DATA
+Application-steam-x64.exe	CreateDragDescription	1401690b0	140154a62	140154a50	FUN_140154a50	DATA
+Application-steam-x64.exe	CreateFencedDescription	14015f2a0	140150952	140150940	FUN_140150940	DATA
+Application-steam-x64.exe	CreatePathDescription	14015f310	140150992	140150980	FUN_140150980	DATA
+Application-steam-x64.exe	CreatePlacedDescription	140169120	140154aa2	140154a90	FUN_140154a90	DATA
+Application-steam-x64.exe	CreateRemovalDescription	140169190	140154ae2	140154ad0	FUN_140154ad0	DATA
+Application-steam-x64.exe	CreateRoadDescription	140169200	140154b22	140154b10	FUN_140154b10	DATA
+Application-steam-x64.exe	CropFieldDescription	140169288	140154ba2	140154b90	FUN_140154b90	DATA
+Application-steam-x64.exe	Cursor	<not-found>				
+Application-steam-x64.exe	DecalDescription	1401693e0	140154ca2	140154c90	FUN_140154c90	DATA
+Application-steam-x64.exe	DestroyDescription	1401694e8	140154d22	140154d10	FUN_140154d10	DATA
+Application-steam-x64.exe	Dialog	<not-found>				
+Application-steam-x64.exe	Disease	1401645a8	140152992	140152980	FUN_140152980	DATA
+Application-steam-x64.exe	DiseaseDescription	14015f398	140150a12	140150a00	FUN_140150a00	DATA
+Application-steam-x64.exe	DocumentTextDescription	<not-found>				
+Application-steam-x64.exe	EdgeMesh	<not-found>				
+Application-steam-x64.exe	EditDescription	<not-found>				
+Application-steam-x64.exe	EnvironmentDescription	1401645f8	1401529d2	1401529c0	FUN_1401529c0	DATA
+Application-steam-x64.exe	ExternalList	<not-found>				
+Application-steam-x64.exe	FinishTutorialGoal	140166820	1401533e2	1401533d0	FUN_1401533d0	DATA
+Application-steam-x64.exe	FireDescription	14015f560	140150a92	140150a80	FUN_140150a80	DATA
+Application-steam-x64.exe	FishingDescription	140169630	140154e22	140154e10	FUN_140154e10	DATA
+Application-steam-x64.exe	FloorDescription	140169770	140154ea2	140154e90	FUN_140154e90	DATA
+Application-steam-x64.exe	Font	<not-found>				
+Application-steam-x64.exe	ForesterDescription	140169878	140154f22	140154f10	FUN_140154f10	DATA
+Application-steam-x64.exe	FrameCopyImageBuffer	<not-found>				
+Application-steam-x64.exe	FruitDescription	14015f580	140150b12	140150b00	FUN_140150b00	DATA
+Application-steam-x64.exe	FrustumOutlineDescription	140162338	140152092	140152080	FUN_140152080	DATA
+Application-steam-x64.exe	GraphDescription	<not-found>				
+Application-steam-x64.exe	GraphicsMesh	<not-found>				
+Application-steam-x64.exe	GroupDescription	<not-found>				
+Application-steam-x64.exe	GrowthDescription	1401699a0	140154fa2	140154f90	FUN_140154f90	DATA
+Application-steam-x64.exe	HappinessDescription	14015f688	140150b92	140150b80	FUN_140150b80	DATA
+Application-steam-x64.exe	HealerDescription	14015f7e0	140150c92	140150c80	FUN_140150c80	DATA
+Application-steam-x64.exe	HerbalistDescription	14015f968	140150d92	140150d80	FUN_140150d80	DATA
+Application-steam-x64.exe	HerdDescription	140169a90	140155022	140155010	FUN_140155010	DATA
+Application-steam-x64.exe	HighlightDescription	14015fa98	140150e12	140150e00	FUN_140150e00	DATA
+Application-steam-x64.exe	HuntDescription	140169b90	1401550a2	140155090	FUN_140155090	DATA
+Application-steam-x64.exe	ImageBuffer	<not-found>				
+Application-steam-x64.exe	ImageDescription	<not-found>				
+Application-steam-x64.exe	ImmigrationDescription	14015fbe0	140150e92	140150e80	FUN_140150e80	DATA
+Application-steam-x64.exe	InteractDescription	140169ca0	140155122	140155110	FUN_140155110	DATA
+Application-steam-x64.exe	LabelDescription	<not-found>				
+Application-steam-x64.exe	LayoutDescription	<not-found>				
+Application-steam-x64.exe	ListDescription	<not-found>				
+Application-steam-x64.exe	LivestockDescription	140169db0	1401551a2	140155190	FUN_140155190	DATA
+Application-steam-x64.exe	MapDescription	140169ec0	140155222	140155210	FUN_140155210	DATA
+Application-steam-x64.exe	MapGenerator	140165188	140152a12	140152a00	FUN_140152a00	DATA
+Application-steam-x64.exe	MarketDescription	14015fd40	140150f92	140150f80	FUN_140150f80	DATA
+Application-steam-x64.exe	MarketLocationDescription	14015fe78	140151012	140151000	FUN_140151000	DATA
+Application-steam-x64.exe	Material	<not-found>				
+Application-steam-x64.exe	MaterialInstance	<not-found>				
+Application-steam-x64.exe	MenuScene	1401651e8	140152a52	140152a40	FUN_140152a40	DATA
+Application-steam-x64.exe	MineDescription	14015ffe0	140151152	140151140	FUN_140151140	DATA
+Application-steam-x64.exe	ModelDescription	140169fa0	1401552a2	140155290	FUN_140155290	DATA
+Application-steam-x64.exe	MultiObjectDescription	14016a0b8	140155322	140155310	FUN_140155310	DATA
+Application-steam-x64.exe	MusicList	140165248	140152a92	140152a80	FUN_140152a80	DATA
+Application-steam-x64.exe	NameDatabase	1401652b0	140152ae5	140152ac0	FUN_140152ac0	DATA
+Application-steam-x64.exe	NaturalResourceDescription	14016a220	140155422	140155410	FUN_140155410	DATA
+Application-steam-x64.exe	NomadDescription	1401600d0	1401511d2	1401511c0	FUN_1401511c0	DATA
+Application-steam-x64.exe	NumberDescription	<not-found>				
+Application-steam-x64.exe	NumberEditDescription	<not-found>				
+Application-steam-x64.exe	OrchardDescription	140160238	1401512d2	1401512c0	FUN_1401512c0	DATA
+Application-steam-x64.exe	PageDescription	<not-found>				
+Application-steam-x64.exe	ParticleDescription	140160468	1401513d2	1401513c0	FUN_1401513c0	DATA
+Application-steam-x64.exe	ParticleSystem	<not-found>				
+Application-steam-x64.exe	PastureDescription	14016a458	1401554a2	140155490	FUN_140155490	DATA
+Application-steam-x64.exe	PickingDescription	14016a470	1401555a2	140155590	FUN_140155590	DATA
+Application-steam-x64.exe	PickingMesh	<not-found>				
+Application-steam-x64.exe	PixelProgram	<not-found>				
+Application-steam-x64.exe	PointList	<not-found>				
+Application-steam-x64.exe	PopulationDescription	140160498	140151452	140151440	FUN_140151440	DATA
+Application-steam-x64.exe	Profession	140165398	140152b22	140152b10	FUN_140152b10	DATA
+Application-steam-x64.exe	ProfessionList	1401653a8	140152b62	140152b50	FUN_140152b50	DATA
+Application-steam-x64.exe	ProgressDescription	<not-found>				
+Application-steam-x64.exe	QuarryDescription	140160590	1401514d2	1401514c0	FUN_1401514c0	DATA
+Application-steam-x64.exe	RadioDescription	<not-found>				
+Application-steam-x64.exe	RadiusDescription	140160680	140151512	140151500	FUN_140151500	DATA
+Application-steam-x64.exe	RawMaterialDescription	14016a570	140155622	140155610	FUN_140155610	DATA
+Application-steam-x64.exe	ReflectionImageBuffer	<not-found>				
+Application-steam-x64.exe	RenderState	<not-found>				
+Application-steam-x64.exe	ResidenceDescription	14016a670	1401556a2	140155690	FUN_140155690	DATA
+Application-steam-x64.exe	ResourceLimitUIConfig	1401635f8	1401524d2	1401524c0	FUN_1401524c0	DATA
+Application-steam-x64.exe	RibbonDescription	<not-found>				
+Application-steam-x64.exe	Scenario	140165428	140152ba2	140152b90	FUN_140152b90	DATA
+Application-steam-x64.exe	ScrollDescription	<not-found>				
+Application-steam-x64.exe	SelectDescription	1401606f0	140151552	140151540	FUN_140151540	DATA
+Application-steam-x64.exe	SliderDescription	<not-found>				
+Application-steam-x64.exe	SoundBuffer	<not-found>				
+Application-steam-x64.exe	SoundEffect	<not-found>				
+Application-steam-x64.exe	SpawnDescription	140160770	1401515d2	1401515c0	FUN_1401515c0	DATA
+Application-steam-x64.exe	SpinnerDescription	<not-found>				
+Application-steam-x64.exe	SpriteCapture	<not-found>				
+Application-steam-x64.exe	SpriteSheet	<not-found>				
+Application-steam-x64.exe	StateMachineDescription	14016a8e8	140155862	140155850	FUN_140155850	DATA
+Application-steam-x64.exe	StatGoal	140166928	140153462	140153450	FUN_140153450	DATA
+Application-steam-x64.exe	StatusIconDescription	14016aa20	140155962	140155950	FUN_140155950	DATA
+Application-steam-x64.exe	StatusIconUIConfig	140163ca8	1401526d2	1401526c0	FUN_1401526c0	DATA
+Application-steam-x64.exe	StorageDescription	14016ab38	1401559e2	1401559d0	FUN_1401559d0	DATA
+Application-steam-x64.exe	StorageDisplayDescription	140160878	140151652	140151640	FUN_140151640	DATA
+Application-steam-x64.exe	StorageLocationDescription	14016ac20	140155a62	140155a50	FUN_140155a50	DATA
+Application-steam-x64.exe	StringTable	<not-found>				
+Application-steam-x64.exe	TabDescription	<not-found>				
+Application-steam-x64.exe	TableDescription	<not-found>				
+Application-steam-x64.exe	TerraformDescription	140160988	1401516d2	1401516c0	FUN_1401516c0	DATA
+Application-steam-x64.exe	TerrainGenerator	140165578	140152be2	140152bd0	FUN_140152bd0	DATA
+Application-steam-x64.exe	TextDescription	<not-found>				
+Application-steam-x64.exe	TimeGoal	140166950	1401534a2	140153490	FUN_140153490	DATA
+Application-steam-x64.exe	TombstoneDescription	140160a88	140151752	140151740	FUN_140151740	DATA
+Application-steam-x64.exe	Toolbar	140166530	1401532a2	140153290	FUN_140153290	DATA
+Application-steam-x64.exe	ToolbarDescription	14016ad90	140155b62	140155b50	FUN_140155b50	DATA
+Application-steam-x64.exe	Tornado	1401665a0	1401532e2	1401532d0	FUN_1401532d0	DATA
+Application-steam-x64.exe	TornadoDescription	140160b88	140151792	140151780	FUN_140151780	DATA
+Application-steam-x64.exe	TrackerDescription	140160c88	140151852	140151840	FUN_140151840	DATA
+Application-steam-x64.exe	TradeDescription	140160d80	1401518d2	1401518c0	FUN_1401518c0	DATA
+Application-steam-x64.exe	Tutorial	140166b50	1401535e2	1401535d0	FUN_1401535d0	DATA
+Application-steam-x64.exe	TutorialGoalButton	140166c08	140153662	140153650	FUN_140153650	DATA
+Application-steam-x64.exe	TutorialGoalCount	140166d50	140153722	140153710	FUN_140153710	DATA
+Application-steam-x64.exe	TutorialGoalDialog	140166c70	1401536a2	140153690	FUN_140153690	DATA
+Application-steam-x64.exe	TutorialGoalGameSpeed	140166ce0	1401536e2	1401536d0	FUN_1401536d0	DATA
+Application-steam-x64.exe	TutorialImage	140166e50	1401537a2	140153790	FUN_140153790	DATA
+Application-steam-x64.exe	TutorialImage	140166e50	1401537db	1401537d0	FUN_1401537d0	DATA
+Application-steam-x64.exe	TutorialImage	140166e50	14015381b	140153810	FUN_140153810	DATA
+Application-steam-x64.exe	TutorialImage	140166e50	14015385b	140153850	FUN_140153850	DATA
+Application-steam-x64.exe	TutorialImageHotKey	140166eb0	1401537e2	1401537d0	FUN_1401537d0	DATA
+Application-steam-x64.exe	TutorialImageInputKey	140166f20	140153822	140153810	FUN_140153810	DATA
+Application-steam-x64.exe	TutorialImageToolbarIcon	140166f90	140153862	140153850	FUN_140153850	DATA
+Application-steam-x64.exe	TutorialSetupCamera	1401670a8	140153922	140153910	FUN_140153910	DATA
+Application-steam-x64.exe	TutorialSetupDialog	140167120	140153962	140153950	FUN_140153950	DATA
+Application-steam-x64.exe	TutorialSetupGameSpeed	1401671a0	1401539a2	140153990	FUN_140153990	DATA
+Application-steam-x64.exe	TutorialSetupRestrictPlayer	140167220	1401539e2	1401539d0	FUN_1401539d0	DATA
+Application-steam-x64.exe	TutorialStep	1401672a0	140153a22	140153a10	FUN_140153a10	DATA
+Application-steam-x64.exe	UIDescription	14016ae10	140155ba2	140155b90	FUN_140155b90	DATA
+Application-steam-x64.exe	UpgradeUIConfig	140164308	140152892	140152880	FUN_140152880	DATA
+Application-steam-x64.exe	ValueDescription	140160ed0	140151992	140151980	FUN_140151980	DATA
+Application-steam-x64.exe	VertexLayout	<not-found>				
+Application-steam-x64.exe	VertexProgram	<not-found>				
+Application-steam-x64.exe	VideoProgram	<not-found>				
+Application-steam-x64.exe	Weather	140166650	140153322	140153310	FUN_140153310	DATA
+Application-steam-x64.exe	WellDescription	140160f50	140151a12	140151a00	FUN_140151a00	DATA
+Application-steam-x64.exe	WildAnimalDescription	14016aef0	140155c62	140155c50	FUN_140155c50	DATA
+Application-steam-x64.exe	WorkDescription	14016aff0	140155ce2	140155cd0	FUN_140155cd0	DATA
+Application-steam-x64.exe	WorkPlaceDescription	14016b0e0	140155d62	140155d50	FUN_140155d50	DATA
+Application-steam-x64.exe	ZoneDescription	14016b240	140155e62	140155e50	FUN_140155e50	DATA
+Runtime-steam-x64.dll	AbsorbResourceDescription	<not-found>				
+Runtime-steam-x64.dll	Achievement	180157530	180001000	180001000	Achievement::Achievement::_TypeName	DATA
+Runtime-steam-x64.dll	Achievement	180157530	180001040	180001040	Achievement::Achievement::TypeName	DATA
+Runtime-steam-x64.dll	Achievement	180157530	1801fd8a0		<none>	DATA
+Runtime-steam-x64.dll	AmbientEmitterDescription	<not-found>				
+Runtime-steam-x64.dll	AmbientEnvironmentDescription	<not-found>				
+Runtime-steam-x64.dll	AnimalDescription	<not-found>				
+Runtime-steam-x64.dll	AnimatedImageDescription	1801590c0	180037190	180037190	UI::AnimatedImageDescription::_TypeName	DATA
+Runtime-steam-x64.dll	AnimatedImageDescription	1801590c0	1800371d0	1800371d0	UI::AnimatedImageDescription::TypeName	DATA
+Runtime-steam-x64.dll	AnimatedImageDescription	1801590c0	1801fdc90		<none>	DATA
+Runtime-steam-x64.dll	AnimationGroup	180157e38	180016bb0	180016bb0	Graphics::AnimationGroup::_TypeName	DATA
+Runtime-steam-x64.dll	AnimationGroup	180157e38	180016bf0	180016bf0	Graphics::AnimationGroup::TypeName	DATA
+Runtime-steam-x64.dll	AnimationGroup	180157e38	1801fe6d8		<none>	DATA
+Runtime-steam-x64.dll	AnimAudioEvent	<not-found>				
+Runtime-steam-x64.dll	AttendanceDescription	<not-found>				
+Runtime-steam-x64.dll	AutoPickupDescription	<not-found>				
+Runtime-steam-x64.dll	BoatDescription	<not-found>				
+Runtime-steam-x64.dll	BorderDescription	1801599f8	1800414a0	1800414a0	UI::BorderDescription::_TypeName	DATA
+Runtime-steam-x64.dll	BorderDescription	1801599f8	1800414e0	1800414e0	UI::BorderDescription::TypeName	DATA
+Runtime-steam-x64.dll	BorderDescription	1801599f8	1801fe898		<none>	DATA
+Runtime-steam-x64.dll	BuildDescription	<not-found>				
+Runtime-steam-x64.dll	ButtonDescription	18015a308	1800488f0	1800488f0	UI::ButtonDescription::_TypeName	DATA
+Runtime-steam-x64.dll	ButtonDescription	18015a308	180048930	180048930	UI::ButtonDescription::TypeName	DATA
+Runtime-steam-x64.dll	ButtonDescription	18015a308	180049150	180049150	UI::CheckDescription::_ParentTypeName	DATA
+Runtime-steam-x64.dll	ButtonDescription	18015a308	180075580	180075580	UI::ComboDescription::_ParentTypeName	DATA
+Runtime-steam-x64.dll	ButtonDescription	18015a308	18014c8a7		<none>	DATA
+Runtime-steam-x64.dll	ButtonDescription	18015a308	18014c8e6		<none>	DATA
+Runtime-steam-x64.dll	ButtonDescription	18015a308	18014c8f3		<none>	DATA
+Runtime-steam-x64.dll	ButtonDescription	18015a308	18014c9f7		<none>	DATA
+Runtime-steam-x64.dll	ButtonDescription	18015a308	18014ca36		<none>	DATA
+Runtime-steam-x64.dll	ButtonDescription	18015a308	18014ca43		<none>	DATA
+Runtime-steam-x64.dll	ButtonDescription	18015a308	1801fe908		<none>	DATA
+Runtime-steam-x64.dll	ButtonDescription	18015a308	1801fe980		<none>	DATA
+Runtime-steam-x64.dll	ButtonDescription	18015a308	1801fea28		<none>	DATA
+Runtime-steam-x64.dll	CaptureBoxDescription	<not-found>				
+Runtime-steam-x64.dll	CemeteryDescription	<not-found>				
+Runtime-steam-x64.dll	CharacterDescription	<not-found>				
+Runtime-steam-x64.dll	CharacterSet	180159308	180037f10	180037f10	UI::CharacterSet::_TypeName	DATA
+Runtime-steam-x64.dll	CharacterSet	180159308	180037f50	180037f50	UI::CharacterSet::TypeName	DATA
+Runtime-steam-x64.dll	CharacterSet	180159308	1801fdd00		<none>	DATA
+Runtime-steam-x64.dll	CheckDescription	18015a330	180049140	180049140	UI::CheckDescription::_TypeName	DATA
+Runtime-steam-x64.dll	CheckDescription	18015a330	180049180	180049180	UI::CheckDescription::TypeName	DATA
+Runtime-steam-x64.dll	CheckDescription	18015a330	1801fe978		<none>	DATA
+Runtime-steam-x64.dll	CitizenAIDescription	<not-found>				
+Runtime-steam-x64.dll	CitizenDescription	<not-found>				
+Runtime-steam-x64.dll	ClearAreaDescription	<not-found>				
+Runtime-steam-x64.dll	ClearResourceDescription	<not-found>				
+Runtime-steam-x64.dll	ClimateGenerator	<not-found>				
+Runtime-steam-x64.dll	ComboDescription	18015c118	180075570	180075570	UI::ComboDescription::_TypeName	DATA
+Runtime-steam-x64.dll	ComboDescription	18015c118	1800755b0	1800755b0	UI::ComboDescription::TypeName	DATA
+Runtime-steam-x64.dll	ComboDescription	18015c118	1801fea20		<none>	DATA
+Runtime-steam-x64.dll	ComponentDescription	<not-found>				
+Runtime-steam-x64.dll	ConsumeProduceDescription	<not-found>				
+Runtime-steam-x64.dll	ContainerDescription	1801594a0	18003a390	18003a390	UI::ContainerDescription::_TypeName	DATA
+Runtime-steam-x64.dll	ContainerDescription	1801594a0	18003a3d0	18003a3d0	UI::ContainerDescription::TypeName	DATA
+Runtime-steam-x64.dll	ContainerDescription	1801594a0	1801fdda8		<none>	DATA
+Runtime-steam-x64.dll	ControlUIConfig	<not-found>				
+Runtime-steam-x64.dll	CreateBridgeDescription	<not-found>				
+Runtime-steam-x64.dll	CreateDragDescription	<not-found>				
+Runtime-steam-x64.dll	CreateFencedDescription	<not-found>				
+Runtime-steam-x64.dll	CreatePathDescription	<not-found>				
+Runtime-steam-x64.dll	CreatePlacedDescription	<not-found>				
+Runtime-steam-x64.dll	CreateRemovalDescription	<not-found>				
+Runtime-steam-x64.dll	CreateRoadDescription	<not-found>				
+Runtime-steam-x64.dll	CropFieldDescription	<not-found>				
+Runtime-steam-x64.dll	Cursor	180159660	18003ba40	18003ba40	UI::Cursor::_TypeName	DATA
+Runtime-steam-x64.dll	Cursor	180159660	18003ba80	18003ba80	UI::Cursor::TypeName	DATA
+Runtime-steam-x64.dll	Cursor	180159660	1801fde18		<none>	DATA
+Runtime-steam-x64.dll	DecalDescription	<not-found>				
+Runtime-steam-x64.dll	DestroyDescription	<not-found>				
+Runtime-steam-x64.dll	Dialog	180159394	180038f00	180038f00	UI::Dialog::_TypeName	DATA
+Runtime-steam-x64.dll	Dialog	180159394	180038f40	180038f40	UI::Dialog::TypeName	DATA
+Runtime-steam-x64.dll	Dialog	180159394	1801fea90		<none>	DATA
+Runtime-steam-x64.dll	Disease	<not-found>				
+Runtime-steam-x64.dll	DiseaseDescription	<not-found>				
+Runtime-steam-x64.dll	DocumentTextDescription	1801598a0	18003c3c0	18003c3c0	UI::DocumentTextDescription::_TypeName	DATA
+Runtime-steam-x64.dll	DocumentTextDescription	1801598a0	18003c400	18003c400	UI::DocumentTextDescription::TypeName	DATA
+Runtime-steam-x64.dll	DocumentTextDescription	1801598a0	1801fdec0		<none>	DATA
+Runtime-steam-x64.dll	EdgeMesh	180157d38	180013530	180013530	Graphics::EdgeMesh::_TypeName	DATA
+Runtime-steam-x64.dll	EdgeMesh	180157d38	180013570	180013570	Graphics::EdgeMesh::TypeName	DATA
+Runtime-steam-x64.dll	EdgeMesh	180157d38	1801fd9b8		<none>	DATA
+Runtime-steam-x64.dll	EditDescription	1801598e8	180040190	180040190	UI::EditDescription::_TypeName	DATA
+Runtime-steam-x64.dll	EditDescription	1801598e8	1800401d0	1800401d0	UI::EditDescription::TypeName	DATA
+Runtime-steam-x64.dll	EditDescription	1801598e8	1801fdf30		<none>	DATA
+Runtime-steam-x64.dll	EnvironmentDescription	<not-found>				
+Runtime-steam-x64.dll	ExternalList	180157838	180007330	180007330	Object::ExternalList::_TypeName	DATA
+Runtime-steam-x64.dll	ExternalList	180157838	180007370	180007370	Object::ExternalList::TypeName	DATA
+Runtime-steam-x64.dll	ExternalList	180157838	1801fdbe8		<none>	DATA
+Runtime-steam-x64.dll	FinishTutorialGoal	<not-found>				
+Runtime-steam-x64.dll	FireDescription	<not-found>				
+Runtime-steam-x64.dll	FishingDescription	<not-found>				
+Runtime-steam-x64.dll	FloorDescription	<not-found>				
+Runtime-steam-x64.dll	Font	<not-found>				
+Runtime-steam-x64.dll	ForesterDescription	<not-found>				
+Runtime-steam-x64.dll	FrameCopyImageBuffer	180157fc8	18001f850	18001f850	Graphics::FrameCopyImageBuffer::_TypeName	DATA
+Runtime-steam-x64.dll	FrameCopyImageBuffer	180157fc8	18001f890	18001f890	Graphics::FrameCopyImageBuffer::TypeName	DATA
+Runtime-steam-x64.dll	FrameCopyImageBuffer	180157fc8	1801fd9f0		<none>	DATA
+Runtime-steam-x64.dll	FruitDescription	<not-found>				
+Runtime-steam-x64.dll	FrustumOutlineDescription	<not-found>				
+Runtime-steam-x64.dll	GraphDescription	1801599d0	180040b50	180040b50	UI::GraphDescription::_TypeName	DATA
+Runtime-steam-x64.dll	GraphDescription	1801599d0	180040b90	180040b90	UI::GraphDescription::TypeName	DATA
+Runtime-steam-x64.dll	GraphDescription	1801599d0	1801fdfa0		<none>	DATA
+Runtime-steam-x64.dll	GraphicsMesh	180157d28	180012c30	180012c30	Graphics::GraphicsMesh::_TypeName	DATA
+Runtime-steam-x64.dll	GraphicsMesh	180157d28	180012c70	180012c70	Graphics::GraphicsMesh::TypeName	DATA
+Runtime-steam-x64.dll	GraphicsMesh	180157d28	1801fe710		<none>	DATA
+Runtime-steam-x64.dll	GroupDescription	18015a130	180047120	180047120	UI::GroupDescription::_TypeName	DATA
+Runtime-steam-x64.dll	GroupDescription	18015a130	180047160	180047160	UI::GroupDescription::TypeName	DATA
+Runtime-steam-x64.dll	GroupDescription	18015a130	1800479b0	1800479b0	UI::PageDescription::_ParentTypeName	DATA
+Runtime-steam-x64.dll	GroupDescription	18015a130	180048140	180048140	UI::RadioDescription::_ParentTypeName	DATA
+Runtime-steam-x64.dll	GroupDescription	18015a130	18014b8b7		<none>	DATA
+Runtime-steam-x64.dll	GroupDescription	18015a130	18014b8f6		<none>	DATA
+Runtime-steam-x64.dll	GroupDescription	18015a130	18014b903		<none>	DATA
+Runtime-steam-x64.dll	GroupDescription	18015a130	18014b997		<none>	DATA
+Runtime-steam-x64.dll	GroupDescription	18015a130	18014b9d6		<none>	DATA
+Runtime-steam-x64.dll	GroupDescription	18015a130	18014b9e3		<none>	DATA
+Runtime-steam-x64.dll	GroupDescription	18015a130	1801fe1d8		<none>	DATA
+Runtime-steam-x64.dll	GroupDescription	18015a130	1801fe248		<none>	DATA
+Runtime-steam-x64.dll	GroupDescription	18015a130	1801feba8		<none>	DATA
+Runtime-steam-x64.dll	GrowthDescription	<not-found>				
+Runtime-steam-x64.dll	HappinessDescription	<not-found>				
+Runtime-steam-x64.dll	HealerDescription	<not-found>				
+Runtime-steam-x64.dll	HerbalistDescription	<not-found>				
+Runtime-steam-x64.dll	HerdDescription	<not-found>				
+Runtime-steam-x64.dll	HighlightDescription	<not-found>				
+Runtime-steam-x64.dll	HuntDescription	<not-found>				
+Runtime-steam-x64.dll	ImageBuffer	180157f88	18001f1a0	18001f1a0	Video::ImageBuffer::_TypeName	DATA
+Runtime-steam-x64.dll	ImageBuffer	180157f88	18001f1e0	18001f1e0	Video::ImageBuffer::TypeName	DATA
+Runtime-steam-x64.dll	ImageBuffer	180157f88	1801fe550		<none>	DATA
+Runtime-steam-x64.dll	ImageDescription	180159098	180036790	180036790	UI::ImageDescription::_TypeName	DATA
+Runtime-steam-x64.dll	ImageDescription	180159098	1800367d0	1800367d0	UI::ImageDescription::TypeName	DATA
+Runtime-steam-x64.dll	ImageDescription	180159098	1800371a0	1800371a0	UI::AnimatedImageDescription::_ParentTypeName	DATA
+Runtime-steam-x64.dll	ImageDescription	180159098	18014ae37		<none>	DATA
+Runtime-steam-x64.dll	ImageDescription	180159098	18014ae76		<none>	DATA
+Runtime-steam-x64.dll	ImageDescription	180159098	18014ae83		<none>	DATA
+Runtime-steam-x64.dll	ImageDescription	180159098	1801fdc98		<none>	DATA
+Runtime-steam-x64.dll	ImageDescription	180159098	1801fec18		<none>	DATA
+Runtime-steam-x64.dll	ImmigrationDescription	<not-found>				
+Runtime-steam-x64.dll	InteractDescription	<not-found>				
+Runtime-steam-x64.dll	LabelDescription	180159ba0	180042e70	180042e70	UI::LabelDescription::_TypeName	DATA
+Runtime-steam-x64.dll	LabelDescription	180159ba0	180042eb0	180042eb0	UI::LabelDescription::TypeName	DATA
+Runtime-steam-x64.dll	LabelDescription	180159ba0	1801fe010		<none>	DATA
+Runtime-steam-x64.dll	LayoutDescription	180159d30	180043800	180043800	UI::LayoutDescription::_TypeName	DATA
+Runtime-steam-x64.dll	LayoutDescription	180159d30	180043840	180043840	UI::LayoutDescription::TypeName	DATA
+Runtime-steam-x64.dll	LayoutDescription	180159d30	1801fe080		<none>	DATA
+Runtime-steam-x64.dll	ListDescription	180159e38	180045660	180045660	UI::ListDescription::_TypeName	DATA
+Runtime-steam-x64.dll	ListDescription	180159e38	1800456a0	1800456a0	UI::ListDescription::TypeName	DATA
+Runtime-steam-x64.dll	ListDescription	180159e38	1801fe0f0		<none>	DATA
+Runtime-steam-x64.dll	LivestockDescription	<not-found>				
+Runtime-steam-x64.dll	MapDescription	<not-found>				
+Runtime-steam-x64.dll	MapGenerator	<not-found>				
+Runtime-steam-x64.dll	MarketDescription	<not-found>				
+Runtime-steam-x64.dll	MarketLocationDescription	<not-found>				
+Runtime-steam-x64.dll	Material	180157d18	180012170	180012170	Graphics::Material::_TypeName	DATA
+Runtime-steam-x64.dll	Material	180157d18	1800121b0	1800121b0	Graphics::Material::TypeName	DATA
+Runtime-steam-x64.dll	Material	180157d18	1801fe748		<none>	DATA
+Runtime-steam-x64.dll	MaterialInstance	1801575b0	1800027d0	1800027d0	Graphics::MaterialInstance::_TypeName	DATA
+Runtime-steam-x64.dll	MaterialInstance	1801575b0	180002810	180002810	Graphics::MaterialInstance::TypeName	DATA
+Runtime-steam-x64.dll	MaterialInstance	1801575b0	1801fe780		<none>	DATA
+Runtime-steam-x64.dll	MenuScene	<not-found>				
+Runtime-steam-x64.dll	MineDescription	<not-found>				
+Runtime-steam-x64.dll	ModelDescription	<not-found>				
+Runtime-steam-x64.dll	MultiObjectDescription	<not-found>				
+Runtime-steam-x64.dll	MusicList	<not-found>				
+Runtime-steam-x64.dll	NameDatabase	<not-found>				
+Runtime-steam-x64.dll	NaturalResourceDescription	<not-found>				
+Runtime-steam-x64.dll	NomadDescription	<not-found>				
+Runtime-steam-x64.dll	NumberDescription	18015a5a0	18004ad00	18004ad00	UI::NumberDescription::_TypeName	DATA
+Runtime-steam-x64.dll	NumberDescription	18015a5a0	18004ad40	18004ad40	UI::NumberDescription::TypeName	DATA
+Runtime-steam-x64.dll	NumberDescription	18015a5a0	1801fec88		<none>	DATA
+Runtime-steam-x64.dll	NumberEditDescription	18015a020	180046950	180046950	UI::NumberEditDescription::_TypeName	DATA
+Runtime-steam-x64.dll	NumberEditDescription	18015a020	180046990	180046990	UI::NumberEditDescription::TypeName	DATA
+Runtime-steam-x64.dll	NumberEditDescription	18015a020	1801fe160		<none>	DATA
+Runtime-steam-x64.dll	OrchardDescription	<not-found>				
+Runtime-steam-x64.dll	PageDescription	18015a158	1800479a0	1800479a0	UI::PageDescription::_TypeName	DATA
+Runtime-steam-x64.dll	PageDescription	18015a158	1800479e0	1800479e0	UI::PageDescription::TypeName	DATA
+Runtime-steam-x64.dll	PageDescription	18015a158	1801fe1d0		<none>	DATA
+Runtime-steam-x64.dll	ParticleDescription	<not-found>				
+Runtime-steam-x64.dll	ParticleSystem	180158100	180020c80	180020c80	Graphics::ParticleSystem::_TypeName	DATA
+Runtime-steam-x64.dll	ParticleSystem	180158100	180020cc0	180020cc0	Graphics::ParticleSystem::TypeName	DATA
+Runtime-steam-x64.dll	ParticleSystem	180158100	1801fda60		<none>	DATA
+Runtime-steam-x64.dll	PastureDescription	<not-found>				
+Runtime-steam-x64.dll	PickingDescription	<not-found>				
+Runtime-steam-x64.dll	PickingMesh	18015c0a8	180072540	180072540	Picking::PickingMesh::_TypeName	DATA
+Runtime-steam-x64.dll	PickingMesh	18015c0a8	180072580	180072580	Picking::PickingMesh::TypeName	DATA
+Runtime-steam-x64.dll	PickingMesh	18015c0a8	1801fef28		<none>	DATA
+Runtime-steam-x64.dll	PixelProgram	18015ab50	18004f370	18004f370	Video::PixelProgram::_TypeName	DATA
+Runtime-steam-x64.dll	PixelProgram	18015ab50	18004f3b0	18004f3b0	Video::PixelProgram::TypeName	DATA
+Runtime-steam-x64.dll	PixelProgram	18015ab50	1801fe588		<none>	DATA
+Runtime-steam-x64.dll	PointList	18015c050	1800718d0	1800718d0	Pathfinding::PointList::_TypeName	DATA
+Runtime-steam-x64.dll	PointList	18015c050	180071910	180071910	Pathfinding::PointList::TypeName	DATA
+Runtime-steam-x64.dll	PointList	18015c050	1801fe860		<none>	DATA
+Runtime-steam-x64.dll	PopulationDescription	<not-found>				
+Runtime-steam-x64.dll	Profession	<not-found>				
+Runtime-steam-x64.dll	ProfessionList	<not-found>				
+Runtime-steam-x64.dll	ProgressDescription	18015c268	180078200	180078200	UI::ProgressDescription::_TypeName	DATA
+Runtime-steam-x64.dll	ProgressDescription	18015c268	180078240	180078240	UI::ProgressDescription::TypeName	DATA
+Runtime-steam-x64.dll	ProgressDescription	18015c268	1801fecf8		<none>	DATA
+Runtime-steam-x64.dll	QuarryDescription	<not-found>				
+Runtime-steam-x64.dll	RadioDescription	18015a2e0	180048130	180048130	UI::RadioDescription::_TypeName	DATA
+Runtime-steam-x64.dll	RadioDescription	18015a2e0	180048170	180048170	UI::RadioDescription::TypeName	DATA
+Runtime-steam-x64.dll	RadioDescription	18015a2e0	1801fe240		<none>	DATA
+Runtime-steam-x64.dll	RadiusDescription	<not-found>				
+Runtime-steam-x64.dll	RawMaterialDescription	<not-found>				
+Runtime-steam-x64.dll	ReflectionImageBuffer	180158258	180022a70	180022a70	Graphics::ReflectionImageBuffer::_TypeName	DATA
+Runtime-steam-x64.dll	ReflectionImageBuffer	180158258	180022ab0	180022ab0	Graphics::ReflectionImageBuffer::TypeName	DATA
+Runtime-steam-x64.dll	ReflectionImageBuffer	180158258	1801fda98		<none>	DATA
+Runtime-steam-x64.dll	RenderState	18015a810	18004c030	18004c030	Video::RenderState::_TypeName	DATA
+Runtime-steam-x64.dll	RenderState	18015a810	18004c070	18004c070	Video::RenderState::TypeName	DATA
+Runtime-steam-x64.dll	RenderState	18015a810	1801fe5f8		<none>	DATA
+Runtime-steam-x64.dll	ResidenceDescription	<not-found>				
+Runtime-steam-x64.dll	ResourceLimitUIConfig	<not-found>				
+Runtime-steam-x64.dll	RibbonDescription	180159e10	180044bf0	180044bf0	UI::RibbonDescription::_TypeName	DATA
+Runtime-steam-x64.dll	RibbonDescription	180159e10	180044c30	180044c30	UI::RibbonDescription::TypeName	DATA
+Runtime-steam-x64.dll	RibbonDescription	180159e10	1801fe2b0		<none>	DATA
+Runtime-steam-x64.dll	Scenario	<not-found>				
+Runtime-steam-x64.dll	ScrollDescription	1801594d0	18003abe0	18003abe0	UI::ScrollDescription::_TypeName	DATA
+Runtime-steam-x64.dll	ScrollDescription	1801594d0	18003ac20	18003ac20	UI::ScrollDescription::TypeName	DATA
+Runtime-steam-x64.dll	ScrollDescription	1801594d0	1801fed68		<none>	DATA
+Runtime-steam-x64.dll	SelectDescription	<not-found>				
+Runtime-steam-x64.dll	SliderDescription	18015a578	18004a210	18004a210	UI::SliderDescription::_TypeName	DATA
+Runtime-steam-x64.dll	SliderDescription	18015a578	18004a250	18004a250	UI::SliderDescription::TypeName	DATA
+Runtime-steam-x64.dll	SliderDescription	18015a578	1801fe320		<none>	DATA
+Runtime-steam-x64.dll	SoundBuffer	180157a00	18000c150	18000c150	Audio::SoundBuffer::_TypeName	DATA
+Runtime-steam-x64.dll	SoundBuffer	180157a00	18000c190	18000c190	Audio::SoundBuffer::TypeName	DATA
+Runtime-steam-x64.dll	SoundBuffer	180157a00	1800be777	1800be4a0	Object::External::Save	DATA
+Runtime-steam-x64.dll	SoundBuffer	180157a00	1801fe4e0		<none>	DATA
+Runtime-steam-x64.dll	SoundEffect	18015adc8	180050dd0	180050dd0	Audio::SoundEffect::_TypeName	DATA
+Runtime-steam-x64.dll	SoundEffect	18015adc8	180050e10	180050e10	Audio::SoundEffect::TypeName	DATA
+Runtime-steam-x64.dll	SoundEffect	18015adc8	1801fe518		<none>	DATA
+Runtime-steam-x64.dll	SpawnDescription	<not-found>				
+Runtime-steam-x64.dll	SpinnerDescription	18015a730	18004b820	18004b820	UI::SpinnerDescription::_TypeName	DATA
+Runtime-steam-x64.dll	SpinnerDescription	18015a730	18004b860	18004b860	UI::SpinnerDescription::TypeName	DATA
+Runtime-steam-x64.dll	SpinnerDescription	18015a730	1801fe390		<none>	DATA
+Runtime-steam-x64.dll	SpriteCapture	1801598d0	18003d2d0	18003d2d0	UI::SpriteCapture::_TypeName	DATA
+Runtime-steam-x64.dll	SpriteCapture	1801598d0	18003d310	18003d310	UI::SpriteCapture::TypeName	DATA
+Runtime-steam-x64.dll	SpriteCapture	1801598d0	1801fe400		<none>	DATA
+Runtime-steam-x64.dll	SpriteSheet	1801575c8	180002e10	180002e10	UI::SpriteSheet::_TypeName	DATA
+Runtime-steam-x64.dll	SpriteSheet	1801575c8	180002e50	180002e50	UI::SpriteSheet::TypeName	DATA
+Runtime-steam-x64.dll	SpriteSheet	1801575c8	1801fedd8		<none>	DATA
+Runtime-steam-x64.dll	StateMachineDescription	<not-found>				
+Runtime-steam-x64.dll	StatGoal	<not-found>				
+Runtime-steam-x64.dll	StatusIconDescription	<not-found>				
+Runtime-steam-x64.dll	StatusIconUIConfig	<not-found>				
+Runtime-steam-x64.dll	StorageDescription	<not-found>				
+Runtime-steam-x64.dll	StorageDisplayDescription	<not-found>				
+Runtime-steam-x64.dll	StorageLocationDescription	<not-found>				
+Runtime-steam-x64.dll	StringTable	1801575a0	180002150	180002150	UI::StringTable::_TypeName	DATA
+Runtime-steam-x64.dll	StringTable	1801575a0	180002190	180002190	UI::StringTable::TypeName	DATA
+Runtime-steam-x64.dll	StringTable	1801575a0	1801fee10		<none>	DATA
+Runtime-steam-x64.dll	TabDescription	18015a868	18004ccb0	18004ccb0	UI::TabDescription::_TypeName	DATA
+Runtime-steam-x64.dll	TabDescription	18015a868	18004ccf0	18004ccf0	UI::TabDescription::TypeName	DATA
+Runtime-steam-x64.dll	TabDescription	18015a868	1801fe438		<none>	DATA
+Runtime-steam-x64.dll	TableDescription	18015c348	180079960	180079960	UI::TableDescription::_TypeName	DATA
+Runtime-steam-x64.dll	TableDescription	18015c348	1800799a0	1800799a0	UI::TableDescription::TypeName	DATA
+Runtime-steam-x64.dll	TableDescription	18015c348	1801fee48		<none>	DATA
+Runtime-steam-x64.dll	TerraformDescription	<not-found>				
+Runtime-steam-x64.dll	TerrainGenerator	<not-found>				
+Runtime-steam-x64.dll	TextDescription	180159b80	180042590	180042590	UI::TextDescription::_TypeName	DATA
+Runtime-steam-x64.dll	TextDescription	180159b80	1800425d0	1800425d0	UI::TextDescription::TypeName	DATA
+Runtime-steam-x64.dll	TextDescription	180159b80	180042e80	180042e80	UI::LabelDescription::_ParentTypeName	DATA
+Runtime-steam-x64.dll	TextDescription	180159b80	18014b537		<none>	DATA
+Runtime-steam-x64.dll	TextDescription	180159b80	18014b576		<none>	DATA
+Runtime-steam-x64.dll	TextDescription	180159b80	18014b583		<none>	DATA
+Runtime-steam-x64.dll	TextDescription	180159b80	1801fe018		<none>	DATA
+Runtime-steam-x64.dll	TextDescription	180159b80	1801feeb8		<none>	DATA
+Runtime-steam-x64.dll	TimeGoal	<not-found>				
+Runtime-steam-x64.dll	TombstoneDescription	<not-found>				
+Runtime-steam-x64.dll	Toolbar	<not-found>				
+Runtime-steam-x64.dll	ToolbarDescription	<not-found>				
+Runtime-steam-x64.dll	Tornado	<not-found>				
+Runtime-steam-x64.dll	TornadoDescription	<not-found>				
+Runtime-steam-x64.dll	TrackerDescription	<not-found>				
+Runtime-steam-x64.dll	TradeDescription	<not-found>				
+Runtime-steam-x64.dll	Tutorial	<not-found>				
+Runtime-steam-x64.dll	TutorialGoalButton	<not-found>				
+Runtime-steam-x64.dll	TutorialGoalCount	<not-found>				
+Runtime-steam-x64.dll	TutorialGoalDialog	<not-found>				
+Runtime-steam-x64.dll	TutorialGoalGameSpeed	<not-found>				
+Runtime-steam-x64.dll	TutorialImage	<not-found>				
+Runtime-steam-x64.dll	TutorialImageHotKey	<not-found>				
+Runtime-steam-x64.dll	TutorialImageInputKey	<not-found>				
+Runtime-steam-x64.dll	TutorialImageToolbarIcon	<not-found>				
+Runtime-steam-x64.dll	TutorialSetupCamera	<not-found>				
+Runtime-steam-x64.dll	TutorialSetupDialog	<not-found>				
+Runtime-steam-x64.dll	TutorialSetupGameSpeed	<not-found>				
+Runtime-steam-x64.dll	TutorialSetupRestrictPlayer	<not-found>				
+Runtime-steam-x64.dll	TutorialStep	<not-found>				
+Runtime-steam-x64.dll	UIDescription	<not-found>				
+Runtime-steam-x64.dll	UpgradeUIConfig	<not-found>				
+Runtime-steam-x64.dll	ValueDescription	<not-found>				
+Runtime-steam-x64.dll	VertexLayout	18015ab18	18004e760	18004e760	Video::VertexLayout::_TypeName	DATA
+Runtime-steam-x64.dll	VertexLayout	18015ab18	18004e7a0	18004e7a0	Video::VertexLayout::TypeName	DATA
+Runtime-steam-x64.dll	VertexLayout	18015ab18	1801fe668		<none>	DATA
+Runtime-steam-x64.dll	VertexProgram	18015ab40	18004eff0	18004eff0	Video::VertexProgram::_TypeName	DATA
+Runtime-steam-x64.dll	VertexProgram	18015ab40	18004f030	18004f030	Video::VertexProgram::TypeName	DATA
+Runtime-steam-x64.dll	VertexProgram	18015ab40	1801fe6a0		<none>	DATA
+Runtime-steam-x64.dll	VideoProgram	18015ab60	18004f6e0	18004f6e0	Video::VideoProgram::_TypeName	DATA
+Runtime-steam-x64.dll	VideoProgram	18015ab60	18004f720	18004f720	Video::VideoProgram::TypeName	DATA
+Runtime-steam-x64.dll	VideoProgram	18015ab60	1801fe5c0		<none>	DATA
+Runtime-steam-x64.dll	Weather	<not-found>				
+Runtime-steam-x64.dll	WellDescription	<not-found>				
+Runtime-steam-x64.dll	WildAnimalDescription	<not-found>				
+Runtime-steam-x64.dll	WorkDescription	<not-found>				
+Runtime-steam-x64.dll	WorkPlaceDescription	<not-found>				
+Runtime-steam-x64.dll	ZoneDescription	<not-found>				

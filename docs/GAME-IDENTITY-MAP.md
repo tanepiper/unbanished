@@ -46,6 +46,37 @@ resolution/alias rules are still open. These file-header edges are not the same 
 inside class payloads: for example, the school template's header dependency count is zero even
 though its decoded component-description payload references component descriptions.
 
+The type-name string xrefs are in [`GAME-TYPE-STRING-REFERENCES.tsv`](GAME-TYPE-STRING-REFERENCES.tsv).
+They were exported from Ghidra 12.1.4 for the Application and Runtime DLL independently with
+`tools/ghidra/ExportTypeStringReferences.java`, then combined by
+`tools/schema/combine_type_string_references.py`. The 478 rows cover all 170 observed resource
+class candidates in both binaries: 169 names are present in at least one image, and 169 have at
+least one direct reference. Ghidra reports 307 direct references total, 231 inside defined functions
+spanning 228 distinct function addresses. `Font` is the one candidate not recovered as a defined
+string data item in either image. Its Runtime function `UI::Font::_TypeName` at `0x180032480`
+decompiles to `return "Font"`, so the class-name value is known, while its literal address and
+direct data xrefs remain unresolved. References outside functions are kept as data xrefs and are
+not treated as registration calls without further evidence.
+
+For the existing Application Ghidra project, export the type-string references with:
+
+```sh
+"$GHIDRA_INSTALL_DIR/support/analyzeHeadless" analysis/gameplay-project banished-gameplay \
+  -readOnly -process Application-steam-x64.exe -noanalysis \
+  -scriptPath tools/ghidra -postScript ExportTypeStringReferences.java \
+  /tmp/application-type-strings.tsv tools/schema/types.json
+```
+
+The Runtime DLL was imported and analyzed in the ignored local project
+`analysis/runtime-identity-project/banished-runtime`, then the same post-script was run with
+`-readOnly -process Runtime-steam-x64.dll -noanalysis`. Combine both exports with:
+
+```sh
+python3 tools/schema/combine_type_string_references.py \
+  docs/GAME-TYPE-STRING-REFERENCES.tsv \
+  /tmp/application-type-strings.tsv /tmp/runtime-type-strings.tsv
+```
+
 ## Identity layers
 
 Keep these keys distinct when documenting a finding:
@@ -57,6 +88,7 @@ Keep these keys distinct when documenting a finding:
 | Resource type ID | Serialized four-byte class/type identifier | Parsed from a `.crs` header, then cross-checked against the unique name candidate in `tools/schema/types.json` and registered class factories |
 | Resource field/reference | Path or typed reference serialized inside another resource | School template → `attendance`, `workplace`, and other descriptions |
 | PE virtual address | Stable location in a specific shipped binary image | e.g. `Application-steam-x64.exe:0x140116d10`, keyed by binary SHA-256 |
+| Type-name string VA | Address of a defined resource class-name string inside one PE image | `Application-steam-x64.exe:0x140168e58` contains `ComponentDescription`; direct xrefs are listed in the type-string TSV |
 | Runtime object pointer | Process-local address of an allocated object | Only meaningful for the process/session and object lifetime where observed; not yet inventoried globally |
 | String literal | Text stored in a binary or resource | PE address in `analysis/export/Application-steam-x64.exe/strings.txt`, or resource-relative string field |
 
@@ -85,6 +117,22 @@ Other verified identity links already documented:
   resources by their serialized paths and labels.
 
 ## Mapping procedure and open coverage
+
+Some initial type-name links are now concrete:
+
+| Resource class | Serialized type ID | Application string address | Direct-reference function |
+|---|---:|---:|---|
+| `ComponentDescription` | `0x9ae409dc` | `0x140168e58` | `0x140154910` |
+| `CitizenDescription` | `0xe16728ca` | `0x140168978` | `0x140154650` |
+| `WorkDescription` | `0x5f0cd0b6` | `0x14016aff0` | `0x140155cd0` |
+| `AttendanceDescription` | `0xb6616772` | `0x14015ed90` | `0x1401505c0` |
+
+These rows connect the serialized class ID to a literal string address and a referencing function;
+the function's detailed registration role still needs call-site verification before assigning it a
+stronger semantic label. Runtime type strings also have engine-symbol references such as
+`Runtime-steam-x64.dll:0x180159b80` (`TextDescription`) from
+`UI::TextDescription::_TypeName` (`0x180042590`) and `UI::TextDescription::TypeName`
+(`0x1800425d0`).
 
 For each resource family, record: exact package path and package hash; serialized type ID and
 version; header dependencies separately from payload references; the type registration/factory; serializer field offsets;
