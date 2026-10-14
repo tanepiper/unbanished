@@ -237,3 +237,8 @@ Ghidra exports (decompiled C, functions, strings, imports and exports per binary
 (git-ignored). To regenerate them, run `tools/ghidra/export.sh`, which wraps
 `analyzeHeadless <proj> banished -import <binaries> -scriptPath tools/ghidra -postScript ExportAll.java <outdir>` with
 `GHIDRA_INSTALL_DIR=/opt/homebrew/opt/ghidra/libexec`.
+
+Gameplay-specific string-reference, explicit-address and virtual-table exporters are also available
+under `tools/ghidra/`. Their first static findings, binary hashes, repeatability notes and open tracing
+paths are recorded separately in [GAMEPLAY.md](GAMEPLAY.md); generated pseudocode remains local and
+git-ignored.

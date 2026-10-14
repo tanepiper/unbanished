@@ -64,7 +64,8 @@ controllers; the asset viewer previews templates without a running simulation.
 
 ## Status
 
-See [docs/FINDINGS.md](docs/FINDINGS.md) for what is known and the milestone plan.
+See [docs/FINDINGS.md](docs/FINDINGS.md) for the format/engine findings and milestone plan, and
+[docs/GAMEPLAY.md](docs/GAMEPLAY.md) for the evidence-backed gameplay and data-flow research log.
 
 - [x] M1: package (`.pkg`) reader and extractor
 - [x] M2: resource (`.crs`) deserializer (core graphics types; others as needed)
