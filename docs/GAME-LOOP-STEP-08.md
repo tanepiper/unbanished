@@ -76,7 +76,9 @@ Other routines use `+8` in each entry for the editable resource limit. A transfe
 `FUN_14004b0e0` increments `+0xC`; the meaning of that field is not established here. The concrete
 type of the object at `game + 0xF0` and the resource-table class are also not identified, so
 “inventory manager” is a convenient description of the observed data path, not a confirmed type
-name.
+name. A separate natural-resource path increments entry `+0x10`; its guard, category selection and
+entity-clone path are traced in [GAME-LOOP-STEP-15.md](GAME-LOOP-STEP-15.md), but that counter's
+meaning remains unresolved.
 
 ## Evidence pointers and remaining work
 
@@ -90,6 +92,7 @@ name.
   `analysis/statusbar-global-owner.txt`.
 
 The status flag producers are traced in [step 09](GAME-LOOP-STEP-09.md). Still open: identify the
-concrete owner of the entity array and stock table, trace the stock value at row `+0` through
-production, consumption and transfer, and resolve the tool-bit transition in the separate event
-path. The port still renders a compact HUD rather than these Status Bar values.
+concrete owner of the entity array and stock table, trace the Status Bar value at row `+0` through
+production, consumption and transfer, explain the separate `+0x10` counter, and resolve the tool-bit
+transition in the separate event path. The port still renders a compact HUD rather than these
+Status Bar values.
