@@ -53,8 +53,10 @@ traced in the resource manager).
   (*inferred*). The header (format, decoded-packet table) is probably in the paired
   `*_music.crs`. Next: parse that header, wrap in a RIFF/XWMA container, decode with FFmpeg, and
   transcode to Opus for the browser.
-- **4 × `Save/Tutorial*.sav`**: fail the block-stream size check, so they use a different save container
-  (see the `Save::` / `SaveLoad` classes).
+- **`.sav` files**: these are not standalone `.crs` block streams. The Runtime `SaveLoad` code writes
+  two logical blocks (metadata and game state); four added saves expose a metadata marker/version and
+  match the Runtime metadata serializer. The outer file table and gameplay payload remain undecoded
+  (see [SAVE-FORMAT-AND-RESTORE.md](SAVE-FORMAT-AND-RESTORE.md)).
 
 ## 3. Resource format (`.crs`)
 

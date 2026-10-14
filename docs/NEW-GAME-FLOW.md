@@ -31,9 +31,9 @@ controls, so the effective action IDs are assigned by game code:
 
 The callback is vtable slot 8 (`0x1400b9020`). It handles these IDs only when event kind `0x12` is
 received. The dialog resource itself declares references to the corresponding dialog resources;
-the handler selects them and constructs the internal dialog objects. For the two SaveLoad paths,
-the named control establishes which path is intended as load or save, while the meaning of the
-constructor's numeric mode has not yet been traced inside `SaveLoad`.
+the handler selects them and constructs the internal dialog objects. The SaveLoad mode and
+asynchronous request paths are traced in [SAVE-FORMAT-AND-RESTORE.md](SAVE-FORMAT-AND-RESTORE.md):
+mode 1 follows load and mode 0 follows save.
 
 ## New-game dialog construction
 
@@ -97,4 +97,5 @@ traced in [WORLD-GENERATION.md](WORLD-GENERATION.md); later generation stages re
 
 - Verify the Cancel/Ok behavior against a running game or trace the UI callback argument contract.
 - Follow the generation helpers and record arrays listed in [WORLD-GENERATION.md](WORLD-GENERATION.md).
-- Trace save/load constructor mode `0` versus `1` to confirm the MainMenu mapping semantics.
+- Decode the save container and trace the world-state serializer; see
+  [SAVE-FORMAT-AND-RESTORE.md](SAVE-FORMAT-AND-RESTORE.md).

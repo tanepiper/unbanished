@@ -34,6 +34,8 @@ to disassemble and create a function at a supplied address when analysis has not
 `ExportVtableSlots.java` takes output path, label, table address and optional slot count pairs. It
 assumes 64-bit pointers and should only be used after identifying the table address from a relevant
 constructor or registration record.
+`ExportNamedFunctions.java` decompiles analyzed functions whose names contain any supplied search
+terms; it is useful for tracing the separately analyzed Runtime DLL.
 
 ## Observed startup and new-game dialog path
 
@@ -93,6 +95,10 @@ an appropriately focused section here:
 6. Calendar, seasons, weather, crop/forest growth and natural-resource regeneration/depletion.
 7. Construction, upgrades, demolition, disasters, trading, taxation and events.
 8. Save/load serialization and restoration order, including any state rebuilt rather than serialized.
+
+The first Runtime DLL save-container and restore-path trace is in
+[SAVE-FORMAT-AND-RESTORE.md](SAVE-FORMAT-AND-RESTORE.md). Its on-disk header and gameplay-state
+payload decoder are still open.
 
 Until these paths are traced against code and shipped data, the repository's simulation milestones
 remain incomplete. Runtime verification against the game is a separate future step; static findings
