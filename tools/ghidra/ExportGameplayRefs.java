@@ -20,7 +20,7 @@ public class ExportGameplayRefs extends GhidraScript {
     "Dialog/Toolbar.rsc", "Dialog/EventNotify.rsc", "Dialog/AutoSave.rsc", "groupSeason",
     "groupWeather", "imageTemperature", "numberTemperature", "numberYear", "imageSunny",
     "imagePartlySunny", "imageCloudy", "imageRain", "imageSnow", "checkShowCelsius",
-    "textShowCelsius", "GameShowCelsius"
+    "textShowCelsius", "GameShowCelsius", "StatusBarUI", "StatusIconUI"
   };
 
   private DecompInterface decompiler;

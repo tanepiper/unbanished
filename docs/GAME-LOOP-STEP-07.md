@@ -24,6 +24,12 @@ This connects the static resource tree described in [step 06](GAME-LOOP-STEP-06.
 controller. It also shows that `FUN_14009d0d0`'s toolbar/event/autosave installation is not the only
 gameplay UI setup path.
 
+The executable's type metadata identifies the controller as `StatusBarUI`, derived from
+`UI::DialogController`. `FUN_140152640` initializes that type record; its factory allocates a
+`0x1d0`-byte instance and the object constructor installs the matching vtable and clears its fields.
+The type record and object constructor are distinct from `FUN_14007f8a0`, which binds controls from
+the dialog instance.
+
 ## Periodic update
 
 `FUN_14007eda0` reads the game calendar and state counters, then writes the bound `NumberElement`
@@ -48,16 +54,19 @@ ordering is directly visible in the code; its effect on an actual game display h
 
 ## What is still open
 
-The constructor and update functions are present in static function-pointer data, but the current
-reference export does not identify the owning class name or the call site that creates and schedules
-this controller. The values behind all resource counters and each status category also need to be
-traced to their owning managers before reproducing them. The current port still uses its compact HUD
-and does not render this original status bar.
+The type identity and factory are now known, but the current reference export does not identify the
+call site that creates and schedules this controller or connects it to `Dialog/StatusBar.rsc`. The
+values behind all resource counters and each status category also need to be traced to their owning
+managers before reproducing them. The current port still uses its compact HUD and does not render
+this original status bar.
 
 ## Evidence pointers
 
 - `FUN_14007f8a0` (`0x14007f8a0`): binds the Status Bar controls and stores the five weather images.
 - `FUN_14007eda0` (`0x14007eda0`): refreshes calendar, temperature, weather icon and HUD counters.
+- `FUN_140152640` (`0x140152640`): registers type metadata for `StatusBarUI` with base
+  `UI::DialogController`; `FUN_140014af0` is its allocation factory and `FUN_1400803f0` initializes
+  the instance fields and vtable.
 - `FUN_140099430` / `FUN_140099160`: environment controller defaults and serialized weather state,
   described in [step 06](GAME-LOOP-STEP-06.md).
 - `Dialog/StatusBar_content`, `Dialog/Options_checkShowCelsius.crs`, and
