@@ -1,0 +1,1702 @@
+{
+ "0x84e6f2dd": {
+  "names": [
+   "ImageBuffer"
+  ],
+  "count": 406,
+  "versions": [
+   7
+  ],
+  "example": "Cursor/Arrow_resource.crs"
+ },
+ "0xc974f55b": {
+  "names": [
+   "TextDescription"
+  ],
+  "count": 298,
+  "versions": [
+   772
+  ],
+  "example": "Game/Scenario/TutorialCommon_textKeyPress.crs"
+ },
+ "0xe61c2ffe": {
+  "names": [
+   "GraphicsMesh"
+  ],
+  "count": 271,
+  "versions": [
+   13333
+  ],
+  "example": "Models/Fences/StoneFenceStraightLongBuild02Mesh_resource.crs"
+ },
+ "0x2ebeed54": {
+  "names": [
+   "MaterialInstance"
+  ],
+  "count": 209,
+  "versions": [
+   4
+  ],
+  "example": "Cursor/Place_material.crs"
+ },
+ "0xd56baba8": {
+  "names": [
+   "SpriteCapture"
+  ],
+  "count": 192,
+  "versions": [
+   1
+  ],
+  "example": "Game/Help/Dialog/UIMine_resource.crs"
+ },
+ "0xc9f8e694": {
+  "names": [
+   "TutorialStep"
+  ],
+  "count": 190,
+  "versions": [
+   1
+  ],
+  "example": "Game/Scenario/TutorialSurvival_stepBuild9.crs"
+ },
+ "0x35c17fb8": {
+  "names": [
+   "RibbonDescription"
+  ],
+  "count": 184,
+  "versions": [
+   516
+  ],
+  "example": "Template/CropField_resourceLimit.crs"
+ },
+ "0xfdd24e9a": {
+  "names": [
+   "ImageDescription"
+  ],
+  "count": 165,
+  "versions": [
+   516
+  ],
+  "example": "Game/Scenario/TutorialGettingStarted_imageHungry.crs"
+ },
+ "0x9c2301f9": {
+  "names": [
+   "PickingMesh"
+  ],
+  "count": 161,
+  "versions": [
+   9
+  ],
+  "example": "Models/Fences/StoneFenceGatePicking_resource.crs"
+ },
+ "0x9ae409dc": {
+  "names": [
+   "ComponentDescription"
+  ],
+  "count": 155,
+  "versions": [
+   2
+  ],
+  "example": "Template/RawMaterialSquash_resource.crs"
+ },
+ "0x78e68d30": {
+  "names": [
+   "EdgeMesh"
+  ],
+  "count": 150,
+  "versions": [
+   2
+  ],
+  "example": "Models/Fences/WoodFenceGateMesh_edge.crs"
+ },
+ "0x8a72943e": {
+  "names": [
+   "GroupDescription"
+  ],
+  "count": 145,
+  "versions": [
+   260
+  ],
+  "example": "Template/UtilityLimits_limit6.crs"
+ },
+ "0xf0cbd6ea": {
+  "names": [
+   "LabelDescription"
+  ],
+  "count": 145,
+  "versions": [
+   8964
+  ],
+  "example": "Template/CropField_cropComboLabel.crs"
+ },
+ "0x78fd8f20": {
+  "names": [
+   "ButtonDescription"
+  ],
+  "count": 138,
+  "versions": [
+   260
+  ],
+  "example": "Template/Orchard_harvestButton.crs"
+ },
+ "0x2294ccae": {
+  "names": [
+   "StatGoal"
+  ],
+  "count": 125,
+  "versions": [
+   1
+  ],
+  "example": "Game/Achievement/Builder_fishermansdock.crs"
+ },
+ "0xb599893f": {
+  "names": [
+   "ModelDescription"
+  ],
+  "count": 122,
+  "versions": [
+   1
+  ],
+  "example": "Template/IronMine_modeldestroyed.crs"
+ },
+ "0x9adeff28": {
+  "names": [
+   "MapDescription"
+  ],
+  "count": 120,
+  "versions": [
+   1
+  ],
+  "example": "Template/StoneHouse_map.crs"
+ },
+ "0x5bb04d14": {
+  "names": [
+   "TutorialSetupDialog"
+  ],
+  "count": 120,
+  "versions": [
+   6
+  ],
+  "example": "Game/Scenario/TutorialFood_highlightorchardwork.crs"
+ },
+ "0xc03519e4": {
+  "names": [
+   "StringTable"
+  ],
+  "count": 115,
+  "versions": [
+   1
+  ],
+  "example": "Game/Scenario/TutorialTrade_tutorialStrings.crs"
+ },
+ "0xd91ccdf1": {
+  "names": [
+   "PixelProgram"
+  ],
+  "count": 73,
+  "versions": [
+   5
+  ],
+  "example": "Material/SelectionEdge/SelectionEdgeMaterial_ps.crs"
+ },
+ "0x15b34526": {
+  "names": [
+   "SoundBuffer"
+  ],
+  "count": 72,
+  "versions": [
+   10
+  ],
+  "example": "Audio/Music/Interlude_music.crs"
+ },
+ "0x5f0cd0b6": {
+  "names": [
+   "WorkDescription"
+  ],
+  "count": 71,
+  "versions": [
+   4
+  ],
+  "example": "Template/RawMaterialCherry_work.crs"
+ },
+ "0xc9dd0172": {
+  "names": [
+   "Toolbar"
+  ],
+  "count": 71,
+  "versions": [
+   4
+  ],
+  "example": "Game/Toolbar_storage.crs"
+ },
+ "0x7319bd9d": {
+  "names": [
+   "VideoProgram"
+  ],
+  "count": 66,
+  "versions": [
+   1
+  ],
+  "example": "Material/SelectionEdge/SelectionEdgeSkinMaterial_normal.crs"
+ },
+ "0x2515acc5": {
+  "names": [
+   "VertexProgram"
+  ],
+  "count": 61,
+  "versions": [
+   5
+  ],
+  "example": "Material/SelectionEdge/SelectionEdgeMaterial_Skin_vs.crs"
+ },
+ "0xc72a6505": {
+  "names": [
+   "ValueDescription"
+  ],
+  "count": 59,
+  "versions": [
+   3
+  ],
+  "example": "Template/RawMaterialVenison_value.crs"
+ },
+ "0x4fcc106b": {
+  "names": [
+   "Dialog"
+  ],
+  "count": 55,
+  "versions": [
+   6
+  ],
+  "example": "Dialog/Scenario_resource.crs"
+ },
+ "0x4a96367e": {
+  "names": [
+   "HighlightDescription"
+  ],
+  "count": 54,
+  "versions": [
+   2
+  ],
+  "example": "Template/TunnelStart_highlight.crs"
+ },
+ "0x852ec05b": {
+  "names": [
+   "ToolbarDescription"
+  ],
+  "count": 53,
+  "versions": [
+   4
+  ],
+  "example": "Template/Tunnel_toolbar.crs"
+ },
+ "0x29a7727c": {
+  "names": [
+   "TutorialGoalCount"
+  ],
+  "count": 53,
+  "versions": [
+   5
+  ],
+  "example": "Game/Scenario/TutorialGettingStarted_goalwoodhouse2.crs"
+ },
+ "0xfb8de193": {
+  "names": [
+   "NumberDescription"
+  ],
+  "count": 53,
+  "versions": [
+   260
+  ],
+  "example": "Dialog/Debug_numberBatches.crs"
+ },
+ "0xa59314b7": {
+  "names": [
+   "CheckDescription"
+  ],
+  "count": 51,
+  "versions": [
+   4356
+  ],
+  "example": "Template/TradingPost_enableTradeWorkButton.crs"
+ },
+ "0x541cc42e": {
+  "names": [
+   "PickingDescription"
+  ],
+  "count": 47,
+  "versions": [
+   4
+  ],
+  "example": "Template/WoodBridge8_picking.crs"
+ },
+ "0x58171cb6": {
+  "names": [
+   "SoundEffect"
+  ],
+  "count": 46,
+  "versions": [
+   3
+  ],
+  "example": "Audio/Music/Merchant_resource.crs"
+ },
+ "0xf4d38a48": {
+  "names": [
+   "CreatePlacedDescription"
+  ],
+  "count": 45,
+  "versions": [
+   4
+  ],
+  "example": "Template/StoneFenceGate_createplaced.crs"
+ },
+ "0xef9a5ee5": {
+  "names": [
+   "TableDescription"
+  ],
+  "count": 44,
+  "versions": [
+   516
+  ],
+  "example": "Template/UtilityLimits_limitTable.crs"
+ },
+ "0x0f7635fb": {
+  "names": [
+   "UIDescription"
+  ],
+  "count": 42,
+  "versions": [
+   4
+  ],
+  "example": "Template/TradingPost_ui.crs"
+ },
+ "0xdf280dd6": {
+  "names": [
+   "RawMaterialDescription"
+  ],
+  "count": 40,
+  "versions": [
+   8
+  ],
+  "example": "Template/RawMaterialOnion_rawmaterial.crs"
+ },
+ "0x418398a4": {
+  "names": [
+   "Material"
+  ],
+  "count": 39,
+  "versions": [
+   5
+  ],
+  "example": "Material/SelectionEdge/SelectionEdgeMaterial_resource.crs"
+ },
+ "0xc5f0f728": {
+  "names": [
+   "TutorialGoalButton"
+  ],
+  "count": 38,
+  "versions": [
+   2
+  ],
+  "example": "Game/Scenario/TutorialFood_goalhunter.crs"
+ },
+ "0x96f8b310": {
+  "names": [
+   "Achievement"
+  ],
+  "count": 36,
+  "versions": [
+   3
+  ],
+  "example": "Game/Achievement/Healthy_resource.crs"
+ },
+ "0x61ae8351": {
+  "names": [
+   "TutorialImageToolbarIcon"
+  ],
+  "count": 35,
+  "versions": [
+   4097
+  ],
+  "example": "Game/Scenario/TutorialSurvival_iconherbalist.crs"
+ },
+ "0x83c94c87": {
+  "names": [
+   "TutorialSetupRestrictPlayer"
+  ],
+  "count": 34,
+  "versions": [
+   4
+  ],
+  "example": "Game/Scenario/TutorialSurvival_buildforester.crs"
+ },
+ "0xa86bf867": {
+  "names": [
+   "BorderDescription"
+  ],
+  "count": 34,
+  "versions": [
+   260
+  ],
+  "example": "Game/Scenario/TutorialCommon_keyBorderPad.crs"
+ },
+ "0xc97d055d": {
+  "names": [
+   "DecalDescription"
+  ],
+  "count": 33,
+  "versions": [
+   4
+  ],
+  "example": "Template/SchoolHouse_decal.crs"
+ },
+ "0x97101adf": {
+  "names": [
+   "StateMachineDescription"
+  ],
+  "count": 33,
+  "versions": [
+   1
+  ],
+  "example": "Template/Orchard_statemachine.crs"
+ },
+ "0x93056daf": {
+  "names": [
+   "ComboDescription"
+  ],
+  "count": 32,
+  "versions": [
+   8452
+  ],
+  "example": "Template/CropField_selectResource.crs"
+ },
+ "0x1821d6a5": {
+  "names": [
+   "SpriteSheet"
+  ],
+  "count": 31,
+  "versions": [
+   6
+  ],
+  "example": "Cursor/Query_spriteSheet.crs"
+ },
+ "0xeeee5945": {
+  "names": [
+   "DestroyDescription"
+  ],
+  "count": 31,
+  "versions": [
+   5
+  ],
+  "example": "Template/SchoolHouse_destroy.crs"
+ },
+ "0x1d462f6b": {
+  "names": [
+   "ZoneDescription"
+  ],
+  "count": 31,
+  "versions": [
+   1
+  ],
+  "example": "Template/Quarry_zone.crs"
+ },
+ "0x1fbcf488": {
+  "names": [
+   "StatusIconDescription"
+  ],
+  "count": 31,
+  "versions": [
+   1
+  ],
+  "example": "Template/CropField_statusicon.crs"
+ },
+ "0x85a1bdbc": {
+  "names": [
+   "InteractDescription"
+  ],
+  "count": 31,
+  "versions": [
+   1
+  ],
+  "example": "Template/GathererShelter_interact.crs"
+ },
+ "0x2c5aa2d8": {
+  "names": [
+   "TutorialImageHotKey"
+  ],
+  "count": 31,
+  "versions": [
+   4097
+  ],
+  "example": "Game/Scenario/TutorialGettingStarted_hotkeyclearbuilt.crs"
+ },
+ "0x9b691c82": {
+  "names": [
+   "ClearAreaDescription"
+  ],
+  "count": 30,
+  "versions": [
+   6
+  ],
+  "example": "Template/DoctorHouse_cleararea.crs"
+ },
+ "0xdc667cd5": {
+  "names": [
+   "StorageDescription"
+  ],
+  "count": 29,
+  "versions": [
+   2
+  ],
+  "example": "Template/Quarry_storage.crs"
+ },
+ "0xa0127c9f": {
+  "names": [
+   "WorkPlaceDescription"
+  ],
+  "count": 28,
+  "versions": [
+   2
+  ],
+  "example": "Template/Tunnel_workplace.crs"
+ },
+ "0x4f976fb7": {
+  "names": [
+   "LayoutDescription"
+  ],
+  "count": 28,
+  "versions": [
+   772
+  ],
+  "example": "Dialog/ToolTipUpgrade_content.crs"
+ },
+ "0x6b46c172": {
+  "names": [
+   "ContainerDescription"
+  ],
+  "count": 28,
+  "versions": [
+   516
+  ],
+  "example": "Dialog/TownHall_statisticsContainer.crs"
+ },
+ "0xb4b71df9": {
+  "names": [
+   "BuildDescription"
+  ],
+  "count": 27,
+  "versions": [
+   2
+  ],
+  "example": "Template/ForesterLodge_build.crs"
+ },
+ "0x3bc4d9a5": {
+  "names": [
+   "PointList"
+  ],
+  "count": 27,
+  "versions": [
+   5
+  ],
+  "example": "Models/Buildings/Well/WellPoints_resource.crs"
+ },
+ "0x6d90e7b4": {
+  "names": [
+   "ParticleDescription"
+  ],
+  "count": 26,
+  "versions": [
+   7
+  ],
+  "example": "Template/Well_particle.crs"
+ },
+ "0xc1e2ef37": {
+  "names": [
+   "ControlUIConfig"
+  ],
+  "count": 25,
+  "versions": [
+   1
+  ],
+  "example": "Template/Pasture_splitConfig.crs"
+ },
+ "0x70d00fb9": {
+  "names": [
+   "AmbientEmitterDescription"
+  ],
+  "count": 24,
+  "versions": [
+   2
+  ],
+  "example": "Template/HunterLodge_ambientemitter.crs"
+ },
+ "0x3777aaa7": {
+  "names": [
+   "NaturalResourceDescription"
+  ],
+  "count": 24,
+  "versions": [
+   4
+  ],
+  "example": "Template/NaturalResourceHerb_naturalresource.crs"
+ },
+ "0x779102e5": {
+  "names": [
+   "RenderState"
+  ],
+  "count": 24,
+  "versions": [
+   3
+  ],
+  "example": "Material/SelectionEdge/SelectionEdgeMaterial_rs.crs"
+ },
+ "0x6c7bbf56": {
+  "names": [
+   "SliderDescription"
+  ],
+  "count": 23,
+  "versions": [
+   772
+  ],
+  "example": "Dialog/Options_sliderMusic.crs"
+ },
+ "0xc517410b": {
+  "names": [
+   "GrowthDescription"
+  ],
+  "count": 22,
+  "versions": [
+   3
+  ],
+  "example": "Template/NaturalResourcePotato_growth.crs"
+ },
+ "0xed730d49": {
+  "names": [
+   "Profession"
+  ],
+  "count": 22,
+  "versions": [
+   3
+  ],
+  "example": "Game/Profession/Profession_herbalist.crs"
+ },
+ "0xe2caa0f9": {
+  "names": [
+   "ResourceLimitUIConfig"
+  ],
+  "count": 21,
+  "versions": [
+   1
+  ],
+  "example": "Template/Quarry_resourceLimitConfig.crs"
+ },
+ "0x48b28673": {
+  "names": [
+   "VertexLayout"
+  ],
+  "count": 19,
+  "versions": [
+   3
+  ],
+  "example": "MeshLayout/TerrainLayout_resource.crs"
+ },
+ "0x3d00937c": {
+  "names": [
+   "SelectDescription"
+  ],
+  "count": 19,
+  "versions": [
+   1
+  ],
+  "example": "Template/LivestockSheep_select.crs"
+ },
+ "0xeca6998f": {
+  "names": [
+   "SpinnerDescription"
+  ],
+  "count": 15,
+  "versions": [
+   516
+  ],
+  "example": "Template/CutterYard_editLimit.crs"
+ },
+ "0x99a746df": {
+  "names": [
+   "AnimationGroup"
+  ],
+  "count": 15,
+  "versions": [
+   8
+  ],
+  "example": "Models/Buildings/TradingPost/BoatAnims_resource.crs"
+ },
+ "0xb1403226": {
+  "names": [
+   "ProgressDescription"
+  ],
+  "count": 15,
+  "versions": [
+   516
+  ],
+  "example": "Dialog/Storage_capacityFull.crs"
+ },
+ "0xe8f1549e": {
+  "names": [
+   "TrackerDescription"
+  ],
+  "count": 14,
+  "versions": [
+   1
+  ],
+  "example": "Template/ToolMaker_tracker.crs"
+ },
+ "0xff926b43": {
+  "names": [
+   "RadiusDescription"
+  ],
+  "count": 14,
+  "versions": [
+   1
+  ],
+  "example": "Template/Well_radius.crs"
+ },
+ "0xb9f9bd84": {
+  "names": [
+   "ExternalList"
+  ],
+  "count": 13,
+  "versions": [
+   3
+  ],
+  "example": "Game/Toolbar_resource.crs"
+ },
+ "0x2729b5d7": {
+  "names": [
+   "TutorialImageInputKey"
+  ],
+  "count": 13,
+  "versions": [
+   4097
+  ],
+  "example": "Game/Scenario/TutorialGettingStarted_keyPitchUp.crs"
+ },
+ "0x1b888b9f": {
+  "names": [
+   "Disease"
+  ],
+  "count": 12,
+  "versions": [
+   2
+  ],
+  "example": "Game/Disease/ScarletFever_resource.crs"
+ },
+ "0x1d43375e": {
+  "names": [
+   "TutorialGoalDialog"
+  ],
+  "count": 12,
+  "versions": [
+   1
+  ],
+  "example": "Game/Scenario/TutorialSurvival_selectherbalist.crs"
+ },
+ "0x00305aa7": {
+  "names": [
+   "TutorialImage"
+  ],
+  "count": 12,
+  "versions": [
+   4096
+  ],
+  "example": "Game/Scenario/TutorialSurvival_iconNoWork.crs"
+ },
+ "0xc9022aa3": {
+  "names": [
+   "EditDescription"
+  ],
+  "count": 12,
+  "versions": [
+   516
+  ],
+  "example": "Dialog/Noise_noiseCutOff.crs"
+ },
+ "0xb876882c": {
+  "names": [
+   "TutorialSetupCamera"
+  ],
+  "count": 10,
+  "versions": [
+   1
+  ],
+  "example": "Game/Scenario/TutorialFood_focusgatherer.crs"
+ },
+ "0x01871732": {
+  "names": [
+   "MenuScene"
+  ],
+  "count": 10,
+  "versions": [
+   1
+  ],
+  "example": "Game/MenuScene/Scene0_resource.crs"
+ },
+ "0xc4740d8e": {
+  "names": [
+   "AnimAudioEvent"
+  ],
+  "count": 10,
+  "versions": [
+   2
+  ],
+  "example": "Audio/Animal/Sheep_event.crs"
+ },
+ "0x897a0803": {
+  "names": [
+   "FloorDescription"
+  ],
+  "count": 9,
+  "versions": [
+   1
+  ],
+  "example": "Template/FishermansDock_floor.crs"
+ },
+ "0x90fefb46": {
+  "names": [
+   "HappinessDescription"
+  ],
+  "count": 9,
+  "versions": [
+   3
+  ],
+  "example": "Template/Chapel_happiness.crs"
+ },
+ "0x2bcb883f": {
+  "names": [
+   "TabDescription"
+  ],
+  "count": 9,
+  "versions": [
+   260
+  ],
+  "example": "Template/ToolMaker_inventoryTab2.crs"
+ },
+ "0xc343dfbb": {
+  "names": [
+   "TimeGoal"
+  ],
+  "count": 9,
+  "versions": [
+   1
+  ],
+  "example": "Game/Achievement/Miner_for5years.crs"
+ },
+ "0xa396054f": {
+  "names": [
+   "CreateRemovalDescription"
+  ],
+  "count": 8,
+  "versions": [
+   1
+  ],
+  "example": "Template/ClearStone_createremoval.crs"
+ },
+ "0xd2da2cd3": {
+  "names": [
+   "FruitDescription"
+  ],
+  "count": 8,
+  "versions": [
+   1
+  ],
+  "example": "Template/NaturalResourceChestnutTree_fruit.crs"
+ },
+ "0xcc824ef1": {
+  "names": [
+   "AutoPickupDescription"
+  ],
+  "count": 7,
+  "versions": [
+   1
+  ],
+  "example": "Template/Pasture_autopickup.crs"
+ },
+ "0xdf2f53be": {
+  "names": [
+   "CharacterDescription"
+  ],
+  "count": 7,
+  "versions": [
+   6
+  ],
+  "example": "Template/Citizen_character.crs"
+ },
+ "0xec3779bb": {
+  "names": [
+   "DocumentTextDescription"
+  ],
+  "count": 7,
+  "versions": [
+   516
+  ],
+  "example": "Dialog/ModUpdate_linkUser.crs"
+ },
+ "0x31c7f810": {
+  "names": [
+   "Cursor"
+  ],
+  "count": 6,
+  "versions": [
+   1
+  ],
+  "example": "Cursor/Query_cursor.crs"
+ },
+ "0xf00915c5": {
+  "names": [
+   "ParticleSystem"
+  ],
+  "count": 6,
+  "versions": [
+   4097
+  ],
+  "example": "ParticleSystems/ChimneySmoke/ChimneySmoke_resource.crs"
+ },
+ "0x841939ff": {
+  "names": [
+   "ConsumeProduceDescription"
+  ],
+  "count": 6,
+  "versions": [
+   12
+  ],
+  "example": "Template/CutterYard_consumeproduce.crs"
+ },
+ "0x740c6f1c": {
+  "names": [
+   "FireDescription"
+  ],
+  "count": 5,
+  "versions": [
+   4
+  ],
+  "example": "Template/Common_fireStoneHouse.crs"
+ },
+ "0x03d99b74": {
+  "names": [
+   "AnimalDescription"
+  ],
+  "count": 4,
+  "versions": [
+   2
+  ],
+  "example": "Template/LivestockSheep_animal.crs"
+ },
+ "0xc0871a74": {
+  "names": [
+   "StorageLocationDescription"
+  ],
+  "count": 4,
+  "versions": [
+   2
+  ],
+  "example": "Template/Tavern_storagelocation.crs"
+ },
+ "0xe23078d2": {
+  "names": [
+   "MultiObjectDescription"
+  ],
+  "count": 4,
+  "versions": [
+   1
+  ],
+  "example": "Template/Cemetery_multiobject.crs"
+ },
+ "0xe8163373": {
+  "names": [
+   "CreateDragDescription"
+  ],
+  "count": 4,
+  "versions": [
+   2
+  ],
+  "example": "Template/StorageYard_createdrag.crs"
+ },
+ "0x40ec9e81": {
+  "names": [
+   "FinishTutorialGoal"
+  ],
+  "count": 4,
+  "versions": [
+   1
+  ],
+  "example": "Game/Scenario/TutorialSurvival_completeTutorial.crs"
+ },
+ "0x12e38b5a": {
+  "names": [
+   "Tutorial"
+  ],
+  "count": 4,
+  "versions": [
+   2
+  ],
+  "example": "Game/Scenario/TutorialTrade_tutorial.crs"
+ },
+ "0x7ca971e4": {
+  "names": [
+   "Scenario"
+  ],
+  "count": 4,
+  "versions": [
+   1539
+  ],
+  "example": "Game/Scenario/TutorialSurvival_resource.crs"
+ },
+ "0x745a1bb8": {
+  "names": [
+   "NumberEditDescription"
+  ],
+  "count": 4,
+  "versions": [
+   4100
+  ],
+  "example": "Dialog/SharedElements_spinnerEditSmall.crs"
+ },
+ "0xe3d8954e": {
+  "names": [
+   "Font"
+  ],
+  "count": 4,
+  "versions": [
+   8
+  ],
+  "example": "Font/Font_resource.crs"
+ },
+ "0x2f73934e": {
+  "names": [
+   "ResidenceDescription"
+  ],
+  "count": 3,
+  "versions": [
+   2
+  ],
+  "example": "Template/Hostel_residence.crs"
+ },
+ "0xc706a657": {
+  "names": [
+   "DiseaseDescription"
+  ],
+  "count": 3,
+  "versions": [
+   1
+  ],
+  "example": "Template/Pasture_disease.crs"
+ },
+ "0x52c0002c": {
+  "names": [
+   "LivestockDescription"
+  ],
+  "count": 3,
+  "versions": [
+   1
+  ],
+  "example": "Template/LivestockChicken_livestock.crs"
+ },
+ "0xb6616772": {
+  "names": [
+   "AttendanceDescription"
+  ],
+  "count": 3,
+  "versions": [
+   1
+  ],
+  "example": "Template/Chapel_attendance.crs"
+ },
+ "0xea223ef6": {
+  "names": [
+   "NameDatabase"
+  ],
+  "count": 3,
+  "versions": [
+   1025
+  ],
+  "example": "Game/Names/Cities_resource.crs"
+ },
+ "0xca06d4fd": {
+  "names": [
+   "MapGenerator"
+  ],
+  "count": 3,
+  "versions": [
+   8
+  ],
+  "example": "Game/StartCondition/Medium_resource.crs"
+ },
+ "0x8b557673": {
+  "names": [
+   "TutorialSetupGameSpeed"
+  ],
+  "count": 3,
+  "versions": [
+   1
+  ],
+  "example": "Game/Scenario/TutorialCommon_normalspeed.crs"
+ },
+ "0x14c14555": {
+  "names": [
+   "ClimateGenerator"
+  ],
+  "count": 3,
+  "versions": [
+   3
+  ],
+  "example": "Game/Climate/Fair_resource.crs"
+ },
+ "0x95f2f398": {
+  "names": [
+   "CreateFencedDescription"
+  ],
+  "count": 2,
+  "versions": [
+   3
+  ],
+  "example": "Template/Cemetery_createfenced.crs"
+ },
+ "0x8773bf1f": {
+  "names": [
+   "CreateBridgeDescription"
+  ],
+  "count": 2,
+  "versions": [
+   2
+  ],
+  "example": "Template/WoodBridge_createbridge.crs"
+ },
+ "0x5834dc38": {
+  "names": [
+   "CreateRoadDescription"
+  ],
+  "count": 2,
+  "versions": [
+   2
+  ],
+  "example": "Template/DirtRoad_createroad.crs"
+ },
+ "0x022f4517": {
+  "names": [
+   "TerraformDescription"
+  ],
+  "count": 2,
+  "versions": [
+   3
+  ],
+  "example": "Template/Tunnel_terraform.crs"
+ },
+ "0xf7d9cb06": {
+  "names": [
+   "HerbalistDescription"
+  ],
+  "count": 2,
+  "versions": [
+   2
+  ],
+  "example": "Template/Herbalist_herbalist.crs"
+ },
+ "0x7630ef2c": {
+  "names": [
+   "TutorialGoalGameSpeed"
+  ],
+  "count": 2,
+  "versions": [
+   1
+  ],
+  "example": "Game/Scenario/TutorialGettingStarted_goalspeed5x.crs"
+ },
+ "0xefc2f724": {
+  "names": [
+   "TerrainGenerator"
+  ],
+  "count": 2,
+  "versions": [
+   4
+  ],
+  "example": "Game/Terrain/Mountains_resource.crs"
+ },
+ "0x2de80b80": {
+  "names": [
+   "ListDescription"
+  ],
+  "count": 2,
+  "versions": [
+   260
+  ],
+  "example": "Dialog/ModUpdate_listPublished.crs"
+ },
+ "0xe7d69af7": {
+  "names": [
+   "PageDescription"
+  ],
+  "count": 2,
+  "versions": [
+   4356
+  ],
+  "example": "Dialog/StandardDialog_pages.crs"
+ },
+ "0x94ee6491": {
+  "names": [
+   "AnimatedImageDescription"
+  ],
+  "count": 2,
+  "versions": [
+   66052
+  ],
+  "example": "Dialog/Loading_animatedImage.crs"
+ },
+ "0xc0e562d4": {
+  "names": [
+   "Weather"
+  ],
+  "count": 2,
+  "versions": [
+   5
+  ],
+  "example": "Environment/Snow_resource.crs"
+ },
+ "0x178ee2d7": {
+  "names": [
+   "Tornado"
+  ],
+  "count": 1,
+  "versions": [
+   4097
+  ],
+  "example": "ParticleSystems/Tornado/Tornado_resource.crs"
+ },
+ "0xbe044769": {
+  "names": [
+   "AbsorbResourceDescription"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/StorageYard_absorbresource.crs"
+ },
+ "0x48e0dea3": {
+  "names": [
+   "CropFieldDescription"
+  ],
+  "count": 1,
+  "versions": [
+   3
+  ],
+  "example": "Template/CropField_cropfield.crs"
+ },
+ "0xf436355e": {
+  "names": [
+   "CreatePathDescription"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/UtilityPath_createpath.crs"
+ },
+ "0x88053e15": {
+  "names": [
+   "NomadDescription"
+  ],
+  "count": 1,
+  "versions": [
+   2
+  ],
+  "example": "Template/Nomad_nomad.crs"
+ },
+ "0x9e629af7": {
+  "names": [
+   "SpawnDescription"
+  ],
+  "count": 1,
+  "versions": [
+   2
+  ],
+  "example": "Template/NaturalResourceTree_spawn.crs"
+ },
+ "0xeae1d5ff": {
+  "names": [
+   "OrchardDescription"
+  ],
+  "count": 1,
+  "versions": [
+   3
+  ],
+  "example": "Template/Orchard_orchard.crs"
+ },
+ "0xf4ff367a": {
+  "names": [
+   "QuarryDescription"
+  ],
+  "count": 1,
+  "versions": [
+   4
+  ],
+  "example": "Template/Quarry_quarry.crs"
+ },
+ "0x7242ee81": {
+  "names": [
+   "UpgradeUIConfig"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/WoodHouse_upgradeConfig.crs"
+ },
+ "0xfc3f1d49": {
+  "names": [
+   "HealerDescription"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/Herbalist_healer.crs"
+ },
+ "0xdd34b41f": {
+  "names": [
+   "MineDescription"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/IronMine_mine.crs"
+ },
+ "0xfebe0c61": {
+  "names": [
+   "HuntDescription"
+  ],
+  "count": 1,
+  "versions": [
+   3
+  ],
+  "example": "Template/HunterLodge_hunt.crs"
+ },
+ "0xc55b3c77": {
+  "names": [
+   "ForesterDescription"
+  ],
+  "count": 1,
+  "versions": [
+   2
+  ],
+  "example": "Template/ForesterLodge_forester.crs"
+ },
+ "0xcaf7ff58": {
+  "names": [
+   "StatusIconUIConfig"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/CropField_titleBuildStatus.crs"
+ },
+ "0x9f4b140d": {
+  "names": [
+   "PopulationDescription"
+  ],
+  "count": 1,
+  "versions": [
+   3
+  ],
+  "example": "Template/PopulationDeer_population.crs"
+ },
+ "0x41499211": {
+  "names": [
+   "StorageDisplayDescription"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/StorageYard_storagedisplay.crs"
+ },
+ "0x819ef8cc": {
+  "names": [
+   "MarketLocationDescription"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/Market_marketlocation.crs"
+ },
+ "0x576d4f54": {
+  "names": [
+   "PastureDescription"
+  ],
+  "count": 1,
+  "versions": [
+   2
+  ],
+  "example": "Template/Pasture_pasture.crs"
+ },
+ "0x09e0cce3": {
+  "names": [
+   "TornadoDescription"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/Tornado_tornado.crs"
+ },
+ "0xacf1cc84": {
+  "names": [
+   "CitizenAIDescription"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/Citizen_citizenai.crs"
+ },
+ "0x5f49afa9": {
+  "names": [
+   "WildAnimalDescription"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/WildAnimalDeer_wildanimal.crs"
+ },
+ "0xf5b4d6df": {
+  "names": [
+   "ClearResourceDescription"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/Clear_clearresource.crs"
+ },
+ "0x8c206d64": {
+  "names": [
+   "TradeDescription"
+  ],
+  "count": 1,
+  "versions": [
+   7
+  ],
+  "example": "Template/TradingPost_trade.crs"
+ },
+ "0x4f654296": {
+  "names": [
+   "HerdDescription"
+  ],
+  "count": 1,
+  "versions": [
+   2
+  ],
+  "example": "Template/PopulationDeer_herd.crs"
+ },
+ "0xb79aeef6": {
+  "names": [
+   "TombstoneDescription"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/Tombstone_tombstone.crs"
+ },
+ "0xe0433376": {
+  "names": [
+   "CemeteryDescription"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/Cemetery_cemetery.crs"
+ },
+ "0xbd9fe140": {
+  "names": [
+   "ImmigrationDescription"
+  ],
+  "count": 1,
+  "versions": [
+   2
+  ],
+  "example": "Template/TownHall_immigration.crs"
+ },
+ "0xa0755e66": {
+  "names": [
+   "WellDescription"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Template/Well_well.crs"
+ },
+ "0xbb47aa94": {
+  "names": [
+   "MarketDescription"
+  ],
+  "count": 1,
+  "versions": [
+   3
+  ],
+  "example": "Template/Market_market.crs"
+ },
+ "0x267841e8": {
+  "names": [
+   "BoatDescription"
+  ],
+  "count": 1,
+  "versions": [
+   2
+  ],
+  "example": "Template/TraderBoat_boat.crs"
+ },
+ "0xe16728ca": {
+  "names": [
+   "CitizenDescription"
+  ],
+  "count": 1,
+  "versions": [
+   17
+  ],
+  "example": "Template/Citizen_citizen.crs"
+ },
+ "0x25651a7f": {
+  "names": [
+   "FishingDescription"
+  ],
+  "count": 1,
+  "versions": [
+   4
+  ],
+  "example": "Template/FishermansDock_fishing.crs"
+ },
+ "0xf1375b0d": {
+  "names": [
+   "MusicList"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Game/MusicTracks_resource.crs"
+ },
+ "0x0cc521de": {
+  "names": [
+   "ProfessionList"
+  ],
+  "count": 1,
+  "versions": [
+   2
+  ],
+  "example": "Game/Profession/Profession_resource.crs"
+ },
+ "0x9bdfebbb": {
+  "names": [
+   "ScrollDescription"
+  ],
+  "count": 1,
+  "versions": [
+   260
+  ],
+  "example": "Dialog/SharedElements_verticalScrollbar.crs"
+ },
+ "0xe28e0152": {
+  "names": [
+   "GraphDescription"
+  ],
+  "count": 1,
+  "versions": [
+   260
+  ],
+  "example": "Dialog/TownHall_graphData.crs"
+ },
+ "0x9e39dd50": {
+  "names": [
+   "CaptureBoxDescription"
+  ],
+  "count": 1,
+  "versions": [
+   260
+  ],
+  "example": "Dialog/Capture_captureBox.crs"
+ },
+ "0x99134887": {
+  "names": [
+   "FrustumOutlineDescription"
+  ],
+  "count": 1,
+  "versions": [
+   260
+  ],
+  "example": "Dialog/Map_frustum.crs"
+ },
+ "0x65d6876c": {
+  "names": [
+   "RadioDescription"
+  ],
+  "count": 1,
+  "versions": [
+   4356
+  ],
+  "example": "Dialog/Toolbar_toolBar.crs"
+ },
+ "0x5194ab79": {
+  "names": [
+   "AmbientEnvironmentDescription"
+  ],
+  "count": 1,
+  "versions": [
+   2
+  ],
+  "example": "Audio/Effects/Environment_ambientenvironment.crs"
+ },
+ "0x6ab5f8fc": {
+  "names": [
+   "ReflectionImageBuffer"
+  ],
+  "count": 1,
+  "versions": [
+   4103
+  ],
+  "example": "Terrain/RiverReflect2Texture_resource.crs"
+ },
+ "0x741792d4": {
+  "names": [
+   "FrameCopyImageBuffer"
+  ],
+  "count": 1,
+  "versions": [
+   4103
+  ],
+  "example": "Terrain/RiverFrameCopyTexture_resource.crs"
+ },
+ "0x9460c3cc": {
+  "names": [
+   "EnvironmentDescription"
+  ],
+  "count": 1,
+  "versions": [
+   7
+  ],
+  "example": "Environment/Environment_resource.crs"
+ },
+ "0xf49dae05": {
+  "names": [
+   "CharacterSet"
+  ],
+  "count": 1,
+  "versions": [
+   1
+  ],
+  "example": "Font/CharacterSet_resource.crs"
+ }
+}
