@@ -83,6 +83,9 @@ pub struct Tool {
     mode_buttons: Vec<(Mode, NodeId)>,
     list: NodeId,
     categories: NodeId,
+    subcategories: NodeId,
+    selected_category: usize,
+    selected_subcategory: usize,
     main: NodeId,
     info: NodeId,
     picture: NodeId,
@@ -90,9 +93,11 @@ pub struct Tool {
     model_controls: NodeId,
     textures_button: NodeId,
     vertices_button: NodeId,
+    wireframe_button: NodeId,
     visible_items: Vec<String>,
     textures_enabled: bool,
     vertices_only: bool,
+    wireframe: bool,
     play: NodeId,
     stop: NodeId,
     animation_next: NodeId,
@@ -182,8 +187,16 @@ impl Tool {
         {
             let n = ui.node_mut(categories);
             n.flags = flags::FILL_WIDTH;
-            n.min_size = [0, 112];
+            n.min_size = [0, 76];
         }
+        let categories_label = ui.text(FONT_SMALL, "Type");
+        let subcategories = ui.list(FONT_SMALL);
+        {
+            let n = ui.node_mut(subcategories);
+            n.flags = flags::FILL_WIDTH;
+            n.min_size = [0, 76];
+        }
+        let subcategories_label = ui.text(FONT_SMALL, "Category");
         let list = ui.list(FONT_SMALL);
         {
             let n = ui.node_mut(list);
@@ -199,9 +212,15 @@ impl Tool {
         ui.set_text(textures_button, "Textures: On");
         let vertices_button = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
         ui.set_text(vertices_button, "Vertices: Off");
+        let wireframe_button = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
+        ui.set_text(wireframe_button, "Wireframe: Off");
         ui.add_child(model_controls, textures_button);
         ui.add_child(model_controls, vertices_button);
+        ui.add_child(model_controls, wireframe_button);
+        ui.add_child(sidebar_stack, categories_label);
         ui.add_child(sidebar_stack, categories);
+        ui.add_child(sidebar_stack, subcategories_label);
+        ui.add_child(sidebar_stack, subcategories);
         ui.add_child(sidebar_stack, model_controls);
         ui.add_child(sidebar_stack, list);
         ui.add_child(side, sidebar_stack);
@@ -276,6 +295,9 @@ impl Tool {
             mode_buttons,
             list,
             categories,
+            subcategories,
+            selected_category: 0,
+            selected_subcategory: 0,
             main,
             info,
             picture,
@@ -283,9 +305,11 @@ impl Tool {
             model_controls,
             textures_button,
             vertices_button,
+            wireframe_button,
             visible_items: Vec::new(),
             textures_enabled: true,
             vertices_only: false,
+            wireframe: false,
             play,
             stop,
             animation_next,
@@ -333,34 +357,75 @@ impl Tool {
         }
     }
 
+    fn resource_dirs(&self, item: &str) -> Vec<String> {
+        let path = item.replace('\\', "/");
+        let mut parts: Vec<_> = path.split('/').collect();
+        parts.pop(); // resource filename
+        let Some(first) = parts.first().copied() else {
+            return Vec::new();
+        };
+        let root: &[&str] = match self.mode {
+            Mode::Models => &[
+                "Models",
+                "Model",
+                "Meshes",
+                "Mesh",
+                "Graphics",
+                "GraphicsMesh",
+                "",
+            ],
+            Mode::Textures => &["Textures", "Texture", "Images", "ImageBuffer", ""],
+            Mode::Audio => &["Audio", "Sounds", "Sound", "SoundBuffer", ""],
+            Mode::Dialogs => &["Dialogs", "Dialog", "UI", ""],
+        };
+        let skip = root
+            .iter()
+            .any(|name| !name.is_empty() && first.eq_ignore_ascii_case(name));
+        parts
+            .into_iter()
+            .skip(usize::from(skip))
+            .map(str::to_owned)
+            .collect()
+    }
+
     fn category_names(&self) -> Vec<String> {
-        let mut names = vec!["All".to_owned()];
         let categories: std::collections::BTreeSet<_> = self
             .items(self.mode)
             .iter()
-            .filter_map(|item| {
-                let path = item.replace('\\', "/");
-                let parts: Vec<_> = path.split('/').collect();
-                (parts.len() > 2).then(|| parts[1..parts.len() - 1].join("/"))
-            })
+            .filter_map(|item| self.resource_dirs(item).first().cloned())
             .collect();
-        names.extend(categories);
-        names
+        std::iter::once("All".to_owned())
+            .chain(categories)
+            .collect()
     }
 
-    fn filtered_items(&self, category: usize) -> Vec<String> {
+    fn subcategory_names(&self, category: usize) -> Vec<String> {
+        let selected = self.category_names().get(category).cloned();
+        let subcategories: std::collections::BTreeSet<_> = self
+            .items(self.mode)
+            .iter()
+            .filter_map(|item| {
+                let dirs = self.resource_dirs(item);
+                if category > 0 && dirs.first() != selected.as_ref() {
+                    return None;
+                }
+                dirs.get(1).cloned()
+            })
+            .collect();
+        std::iter::once("All".to_owned())
+            .chain(subcategories)
+            .collect()
+    }
+
+    fn filtered_items(&self, category: usize, subcategory: usize) -> Vec<String> {
         let category_name = self.category_names().get(category).cloned();
+        let subcategory_name = self.subcategory_names(category).get(subcategory).cloned();
         self.items(self.mode)
             .iter()
             .filter(|item| {
-                if category == 0 {
-                    return true;
-                }
-                let path = item.replace('\\', "/");
-                let parts: Vec<_> = path.split('/').collect();
-                parts.len() > 2
-                    && parts[1..parts.len() - 1].join("/")
-                        == category_name.as_deref().unwrap_or_default()
+                let dirs = self.resource_dirs(item);
+                (category == 0 || dirs.first() == category_name.as_ref())
+                    && (subcategory == 0 || dirs.get(1) == subcategory_name.as_ref())
             })
             .cloned()
             .collect()
@@ -368,6 +433,18 @@ impl Tool {
 
     fn display_name(entry: &str) -> String {
         entry.trim_end_matches(".crs").replace('\\', "/")
+    }
+
+    fn display_resource_name(&self, entry: &str) -> String {
+        let path = entry.replace('\\', "/");
+        let mut parts: Vec<_> = path.split('/').collect();
+        let dirs = self.resource_dirs(entry);
+        let root_parts = parts.len().saturating_sub(dirs.len() + 1);
+        let category_parts = usize::from(self.selected_category > 0).min(dirs.len());
+        let subcategory_parts = usize::from(self.selected_subcategory > 0)
+            .min(dirs.len().saturating_sub(category_parts));
+        parts.drain(..root_parts + category_parts + subcategory_parts);
+        parts.join("/").trim_end_matches(".crs").to_owned()
     }
 
     pub fn set_status(&mut self, text: &str) {
@@ -388,12 +465,17 @@ impl Tool {
         let categories = self.category_names();
         self.ui.set_list_items(self.categories, categories);
         self.ui.list_select(self.categories, Some(0));
-        self.visible_items = self.filtered_items(0);
+        self.selected_category = 0;
+        self.selected_subcategory = 0;
+        self.ui
+            .set_list_items(self.subcategories, self.subcategory_names(0));
+        self.ui.list_select(self.subcategories, Some(0));
+        self.visible_items = self.filtered_items(0, 0);
         self.ui.set_list_items(
             self.list,
             self.visible_items
                 .iter()
-                .map(|n| Self::display_name(n))
+                .map(|n| self.display_resource_name(n))
                 .collect(),
         );
         for &(m, b) in &self.mode_buttons {
@@ -725,6 +807,7 @@ impl Tool {
             ui: Some((&self.ui, quads)),
             textures: self.textures_enabled,
             vertices_only: self.vertices_only,
+            wireframe: self.wireframe,
         }
     }
 
@@ -773,6 +856,10 @@ impl Tool {
                     );
                 } else if id == self.vertices_button {
                     self.vertices_only = !self.vertices_only;
+                    if self.vertices_only {
+                        self.wireframe = false;
+                        self.ui.set_text(self.wireframe_button, "Wireframe: Off");
+                    }
                     self.ui.set_text(
                         self.vertices_button,
                         if self.vertices_only {
@@ -781,18 +868,49 @@ impl Tool {
                             "Vertices: Off"
                         },
                     );
+                } else if id == self.wireframe_button {
+                    self.wireframe = !self.wireframe;
+                    if self.wireframe {
+                        self.vertices_only = false;
+                        self.ui.set_text(self.vertices_button, "Vertices: Off");
+                    }
+                    self.ui.set_text(
+                        self.wireframe_button,
+                        if self.wireframe {
+                            "Wireframe: On"
+                        } else {
+                            "Wireframe: Off"
+                        },
+                    );
                 } else {
                     self.dialog_event(event);
                 }
             }
             Event::Selected(id, index) if id == self.list => self.select(renderer, index),
             Event::Selected(id, index) if id == self.categories => {
-                self.visible_items = self.filtered_items(index);
+                self.selected_category = index;
+                self.selected_subcategory = 0;
+                self.ui
+                    .set_list_items(self.subcategories, self.subcategory_names(index));
+                self.ui.list_select(self.subcategories, Some(0));
+                self.visible_items = self.filtered_items(index, 0);
                 self.ui.set_list_items(
                     self.list,
                     self.visible_items
                         .iter()
-                        .map(|n| Self::display_name(n))
+                        .map(|n| self.display_resource_name(n))
+                        .collect(),
+                );
+                self.select(renderer, 0);
+            }
+            Event::Selected(id, index) if id == self.subcategories => {
+                self.selected_subcategory = index;
+                self.visible_items = self.filtered_items(self.selected_category, index);
+                self.ui.set_list_items(
+                    self.list,
+                    self.visible_items
+                        .iter()
+                        .map(|n| self.display_resource_name(n))
                         .collect(),
                 );
                 self.select(renderer, 0);

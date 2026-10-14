@@ -24,6 +24,8 @@ const MAX_BONES: usize = 32;
 struct GpuPart {
     vertices: wgpu::Buffer,
     indices: wgpu::Buffer,
+    wire_indices: wgpu::Buffer,
+    wire_index_count: u32,
     index_range: std::ops::Range<u32>,
     base_vertex: i32,
     skinned: bool,
@@ -59,6 +61,8 @@ pub struct Renderer {
     skinned_pipeline: wgpu::RenderPipeline,
     static_points: wgpu::RenderPipeline,
     skinned_points: wgpu::RenderPipeline,
+    static_wireframe: wgpu::RenderPipeline,
+    skinned_wireframe: wgpu::RenderPipeline,
     globals: wgpu::Buffer,
     globals_group: wgpu::BindGroup,
     texture_layout: wgpu::BindGroupLayout,
@@ -334,6 +338,20 @@ impl Renderer {
             "skinned points",
             wgpu::PrimitiveTopology::PointList,
         );
+        let static_wireframe = pipeline(
+            STATIC_STRIDE,
+            "vs_main",
+            &static_attributes,
+            "static wireframe",
+            wgpu::PrimitiveTopology::LineList,
+        );
+        let skinned_wireframe = pipeline(
+            SKINNED_STRIDE,
+            "vs_skinned",
+            &skinned_attributes,
+            "skinned wireframe",
+            wgpu::PrimitiveTopology::LineList,
+        );
 
         let globals = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("globals"),
@@ -372,6 +390,8 @@ impl Renderer {
             skinned_pipeline,
             static_points,
             skinned_points,
+            static_wireframe,
+            skinned_wireframe,
             globals,
             globals_group,
             texture_layout,
@@ -508,9 +528,29 @@ impl Renderer {
                 // Index buffers must be 4-byte aligned in size for writes on some backends.
                 let mut indices = index_data.to_vec();
                 indices.resize(indices.len().next_multiple_of(4), 0);
+                let first = range.start_index as usize * 2;
+                let end = (range.start_index + range.index_count) as usize * 2;
+                let wire_data: Vec<u16> = index_data[first..end]
+                    .chunks_exact(6)
+                    .flat_map(|tri| {
+                        let a = u16::from_le_bytes([tri[0], tri[1]]);
+                        let b = u16::from_le_bytes([tri[2], tri[3]]);
+                        let c = u16::from_le_bytes([tri[4], tri[5]]);
+                        [a, b, b, c, c, a]
+                    })
+                    .collect();
+                let wire_index_count = wire_data.len() as u32;
                 parts.push(GpuPart {
                     vertices: buffer(vertex_data, wgpu::BufferUsages::VERTEX),
                     indices: buffer(&indices, wgpu::BufferUsages::INDEX),
+                    wire_indices: self.device.create_buffer_init(
+                        &wgpu::util::BufferInitDescriptor {
+                            label: Some("wireframe indices"),
+                            contents: bytemuck::cast_slice(&wire_data),
+                            usage: wgpu::BufferUsages::INDEX,
+                        },
+                    ),
+                    wire_index_count,
                     index_range: range.start_index as u32
                         ..(range.start_index + range.index_count) as u32,
                     base_vertex: range.start_vertex,
@@ -736,7 +776,13 @@ impl Renderer {
         let globals = Globals {
             view_proj: frame.view_proj.to_cols_array_2d(),
             light_dir: light
-                .extend(if frame.vertices_only { 1.0 } else { 0.0 })
+                .extend(if frame.vertices_only {
+                    1.0
+                } else if frame.wireframe {
+                    2.0
+                } else {
+                    0.0
+                })
                 .to_array(),
             eye: frame
                 .eye
@@ -789,6 +835,12 @@ impl Renderer {
                             } else {
                                 &self.static_points
                             }
+                        } else if frame.wireframe {
+                            if part.skinned {
+                                &self.skinned_wireframe
+                            } else {
+                                &self.static_wireframe
+                            }
                         } else if part.skinned {
                             &self.skinned_pipeline
                         } else {
@@ -796,8 +848,19 @@ impl Renderer {
                         });
                         pass.set_bind_group(1, &part.textures, &[]);
                         pass.set_vertex_buffer(0, part.vertices.slice(..));
-                        pass.set_index_buffer(part.indices.slice(..), wgpu::IndexFormat::Uint16);
-                        pass.draw_indexed(part.index_range.clone(), part.base_vertex, 0..1);
+                        if frame.wireframe {
+                            pass.set_index_buffer(
+                                part.wire_indices.slice(..),
+                                wgpu::IndexFormat::Uint16,
+                            );
+                            pass.draw_indexed(0..part.wire_index_count, part.base_vertex, 0..1);
+                        } else {
+                            pass.set_index_buffer(
+                                part.indices.slice(..),
+                                wgpu::IndexFormat::Uint16,
+                            );
+                            pass.draw_indexed(part.index_range.clone(), part.base_vertex, 0..1);
+                        }
                     }
                 }
             }
@@ -821,6 +884,7 @@ pub struct Frame<'a> {
     pub ui: Option<(&'a banished_ui::Ui, &'a [banished_ui::Quad])>,
     pub textures: bool,
     pub vertices_only: bool,
+    pub wireframe: bool,
 }
 
 pub const CLEAR_SKY: wgpu::Color = wgpu::Color {
