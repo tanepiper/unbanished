@@ -1,0 +1,48 @@
+---
+name: banished-shader
+description: Port one of Banished's compiled D3D9 shaders (VertexProgram/PixelProgram resources) to WGSL for the wgpu renderer, matching the original maths and working on WebGL2. Use when adding or fixing a material — terrain, water, sky, decals, models, foliage, snow, particles, rain, UI materials.
+---
+
+# Port a shader to WGSL
+
+## 1. Find and disassemble
+
+Materials reference programs by resource path (decode the `MaterialInstance`/material with
+`banished-format` tools to find them). Disassemble the shipped D3D9 bytecode:
+
+```bash
+python3 tools/shader/d3d9_disasm.py game-data/extracted/<path>/X_vs.crs        # list variants
+python3 tools/shader/d3d9_disasm.py game-data/extracted/<path>/X_ps.crs 0 > analysis/X_ps0.txt
+```
+Each resource holds several D3D9 variants then DXBC blobs; the CTAB lists constant names and
+registers — that tells you what each `c#` is (`view_proj`, `light_dir`, `fog`…). Pick the variant
+the game uses (usually 0; confirm via the material's program index). Keep dumps in `analysis/`.
+
+## 2. Translate
+
+- Translate instruction by instruction first, then simplify only where provably identical.
+  Keep the original constants verbatim (e.g. `0.00390625`, `-0.666666687`).
+- D3D9 → wgpu differences:
+  - clip-space depth is 0..1 in both; but matrices are row-vector in D3D9 (`m4x4` = dot rows) —
+    check transpose against the CPU side;
+  - `texkill` → `discard`;
+  - `sincos`, `lrp(a,b,c)` = `mix(c, b, a)`; `sge/slt` → `select`/`step`;
+  - saturate modifiers `_sat` → `clamp(x, 0.0, 1.0)`.
+- World space is the terrain's: x/y in cells (map-centred), z up = saved height / 256.
+- Prepend the shared `GLOBALS_WGSL` (`scene_gfx.rs`) instead of redeclaring `Globals`; call
+  `reflect_clip(world_z)` for the planar reflection pass.
+
+## 3. WGSL / WebGL2 rules (learned the hard way)
+
+- `textureSample` needs uniform control flow: **do every sample before any `discard`**
+  (put `reflect_clip()` / alpha-test discards at the end).
+- WebGL2 has no base-vertex draws, limited storage buffers in vertex stages, and needs
+  `downlevel_webgl2_defaults` limits — use vertex/index buffers and uniforms.
+- Render targets use `SCENE_FORMAT` (`Rgba8Unorm`) and `DEPTH_FORMAT` from `scene_gfx.rs`.
+- To preserve destination alpha (e.g. decals over terrain) use an alpha blend of `Zero/One`.
+
+## 4. Verify
+
+Render with headless capture (`banished-verify`) and compare against a screenshot of the original
+at a similar view. Note any intentional deviation in the shader header comment, and record the
+shader's constant mapping in the topic doc (e.g. `docs/TERRAIN-DERIVED-GEOMETRY.md`).
