@@ -29,6 +29,11 @@ pub struct Template {
     pub spawn: Vec<(usize, f32, f32)>,
     /// `CreatePlacedDescription +0x44/+0x48`: building footprint size.
     pub size: Option<(i32, i32)>,
+    /// `StorageDescription`: accepted flags `+0x28`, capacity `+0x24`, capacity per footprint
+    /// cell `+0x20`.
+    pub storage: Option<(u32, i32, bool)>,
+    /// Has a `StorageLocationDescription` (a town storage the starting goods go to).
+    pub storage_location: bool,
 }
 
 /// A placed entity.

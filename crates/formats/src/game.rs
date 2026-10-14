@@ -848,3 +848,97 @@ pub fn create_placed_description(data: &[u8]) -> Result<CreatePlacedDescription>
     })?;
     Ok(value)
 }
+
+/// `RawMaterialDescription` (serializer `FUN_14012e9f0`): a storable resource.
+#[derive(Debug, Clone)]
+pub struct RawMaterialDescription {
+    pub sprite_sheet: Option<String>,
+    pub string_table: Option<String>,
+    /// `+0x30`, `+0x38`: name keys (`Log`, `LogSmall`).
+    pub name: String,
+    pub name_small: String,
+    /// `+0x40`, `+0x44`.
+    pub value_40: i32,
+    pub value_44: i32,
+    /// `+0x48`: storage units per item (`FUN_140132250`).
+    pub size: i32,
+    /// `+0x4c`.
+    pub value_4c: i32,
+    /// `+0x5c`: category flags (`FUN_14008f3a0` maps them to the stock table).
+    pub flags: u32,
+    /// `+0x50`.
+    pub value_50: f32,
+    /// `+0x54`.
+    pub value_54: i32,
+    /// `+0x58`.
+    pub flag_58: bool,
+}
+
+pub fn raw_material_description(data: &[u8]) -> Result<RawMaterialDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("RawMaterialDescription") {
+            return format_err(format!(
+                "expected RawMaterialDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(RawMaterialDescription {
+                sprite_sheet: r.external_ref()?,
+                string_table: r.external_ref()?,
+                name: r.string()?,
+                name_small: r.string()?,
+                value_40: r.i32()?,
+                value_44: r.i32()?,
+                size: r.i32()?,
+                value_4c: r.i32()?,
+                flags: r.u32()?,
+                value_50: r.f32()?,
+                value_54: r.i32()?,
+                flag_58: r.bool()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `StorageDescription` (serializer `FUN_140131e70`).
+#[derive(Debug, Clone)]
+pub struct StorageDescription {
+    /// `+0x28`: raw-material flags this storage accepts.
+    pub accepts: u32,
+    pub flag_20: bool,
+    pub flag_21: bool,
+    /// `+0x24`: capacity in storage units.
+    pub capacity: i32,
+    /// `+0x30`: `(count, raw material)` entries.
+    pub items: Vec<(i32, Option<String>)>,
+}
+
+pub fn storage_description(data: &[u8]) -> Result<StorageDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("StorageDescription") {
+            return format_err(format!(
+                "expected StorageDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let accepts = r.u32()?;
+            let flag_20 = r.bool()?;
+            let flag_21 = r.bool()?;
+            let capacity = r.i32()?;
+            let items = (0..r.count()?)
+                .map(|_| Ok((r.i32()?, r.external_ref()?)))
+                .collect::<Result<_>>()?;
+            Ok(StorageDescription {
+                accepts,
+                flag_20,
+                flag_21,
+                capacity,
+                items,
+            })
+        })
+    })?;
+    Ok(value)
+}

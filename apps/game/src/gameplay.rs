@@ -81,6 +81,10 @@ impl GameplayLoop {
             month: self.month(),
             temperature: self.environment.as_ref().map_or(0.0, |e| e.temperature),
             weather: self.environment.as_ref().map_or(3, |e| e.state),
+            // `FUN_14008f3a0`, recomputed from the town storages.
+            stock: self.town.as_ref().map_or([0; 21], |t| {
+                banished_game::stock::stock_table(&t.storages, &t.materials)
+            }),
             ..StatusValues::default()
         }
     }

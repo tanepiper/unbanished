@@ -1102,7 +1102,10 @@ impl Ui {
             }
             Control::Edit(e) => {
                 let clip = intersect(clip, rc);
-                self.draw_text(&e.text, [l + 3 - e.scroll, t], color, clip, out);
+                // Edit boxes inset their text 3px; display-only numbers (`NumberElement`) draw
+                // in their own rectangle.
+                let inset = if e.max_length > 0 { 3 } else { 0 };
+                self.draw_text(&e.text, [l + inset - e.scroll, t], color, clip, out);
                 if self.focus == Some(id) && e.max_length > 0 {
                     if let Some(sp) = solid {
                         let prefix = e.text.text.chars().take(e.cursor).collect::<String>();

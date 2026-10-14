@@ -134,3 +134,24 @@ fn create_placed_parse() {
     println!("{barn:?}");
     assert!(barn.width > 0 && barn.height > 0);
 }
+
+#[test]
+fn raw_materials_and_storage_parse() {
+    use banished_formats::game::{raw_material_description, storage_description};
+    let Some(archive) = archive() else { return };
+    for name in entries(&archive, "_rawmaterial.crs") {
+        let r = raw_material_description(&archive.read(name).unwrap())
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        println!(
+            "{name}: size {} flags {:#x} {:?}",
+            r.size,
+            r.flags,
+            (r.value_40, r.value_44, r.value_4c, r.value_50, r.value_54)
+        );
+    }
+    for name in entries(&archive, "_storage.crs") {
+        let s = storage_description(&archive.read(name).unwrap())
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        println!("{name}: {s:?}");
+    }
+}

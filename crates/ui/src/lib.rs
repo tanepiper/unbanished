@@ -448,7 +448,12 @@ impl Ui {
             Kind::Text(t) | Kind::Label { text: t, .. } => t.text = text.to_string(),
             Kind::Control(Control::Edit(e)) => {
                 e.text.text = text.to_string();
-                e.cursor = text.chars().count();
+                // Display-only number elements (`NumberElement`, no max length) never scroll.
+                e.cursor = if e.max_length > 0 {
+                    text.chars().count()
+                } else {
+                    0
+                };
             }
             Kind::Control(Control::Document(d)) => d.text = text.to_string(),
             Kind::Control(Control::Combo { button, .. } | Control::Check { button, .. }) => {

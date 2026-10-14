@@ -6,13 +6,14 @@ use std::collections::HashMap;
 
 use banished_formats::game::{
     component_description, create_placed_description, growth_description, map_description,
-    map_generator, model_description, natural_resource_description, spawn_description,
-    MapGenerator,
+    map_generator, model_description, natural_resource_description, raw_material_description,
+    spawn_description, storage_description, MapGenerator,
 };
 use banished_formats::pkg::Archive;
 use banished_game::map::Map;
 use banished_game::random::Random;
 use banished_game::seeding::{Cells, Placed, Seeder, Template};
+use banished_game::stock::{distribute, RawMaterial, Storage};
 use banished_game::terrain::HeightGrid;
 
 use crate::models::{placement_matrix, SceneModels};
@@ -48,6 +49,8 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         growth: None,
         spawn: Vec::new(),
         size: None,
+        storage: None,
+        storage_location: false,
     };
     let mut spawn = Vec::new();
     for d in desc.descriptions.iter().flatten() {
@@ -61,6 +64,12 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
             "naturalresource" => t.natural = natural_resource_description(&data).ok(),
             "growth" => t.growth = growth_description(&data).ok(),
             "spawn" => spawn = spawn_description(&data).unwrap_or_default(),
+            "storage" => {
+                t.storage = storage_description(&data)
+                    .ok()
+                    .map(|d| (d.accepts, d.capacity, d.flag_20))
+            }
+            "storagelocation" => t.storage_location = true,
             "createplaced" => {
                 t.size = create_placed_description(&data)
                     .ok()
@@ -83,8 +92,77 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
     Some(index)
 }
 
+/// `FUN_1400a87d0` → `FUN_140097330` / `FUN_1400a73d0`: the profile's raw materials become the
+/// candidate list, then seven `(mask, cap)` passes of `FUN_140096b30` fill the town storages.
+///
+/// *Inferred:* the town storage list holds the structures with a `storagelocation` component in
+/// creation order (barn, yard, cart); houses and citizens are not in it. Their capacity is
+/// `capacity · (per-cell ? footprint area : 1)` as in `FUN_140131b10`.
+fn starting_goods(
+    archive: &Archive,
+    profile: &MapGenerator,
+    structures: &[(banished_formats::game::PlacedStructure, Option<usize>)],
+    templates: &[Template],
+) -> (Vec<RawMaterial>, Vec<Storage>) {
+    let mut materials = Vec::new();
+    for r in &profile.raw_materials {
+        let key = normalise(r);
+        if materials.iter().any(|m: &RawMaterial| m.reference == key) {
+            continue;
+        }
+        let Some(d) = read(archive, &key.replace(":resource", ":rawmaterial"))
+            .and_then(|d| raw_material_description(&d).ok())
+        else {
+            continue;
+        };
+        materials.push(RawMaterial {
+            reference: key,
+            size: d.size,
+            flags: d.flags,
+        });
+    }
+    let mut storages: Vec<Storage> = structures
+        .iter()
+        .filter_map(|(record, t)| {
+            let t = &templates[(*t)?];
+            if !t.storage_location {
+                return None;
+            }
+            let (accepts, capacity, per_cell) = t.storage?;
+            let (w, h) = t.size.unwrap_or((record.a, record.b));
+            Some(Storage {
+                capacity: capacity * if per_cell { w * h } else { 1 },
+                accepts,
+                items: Vec::new(),
+            })
+        })
+        .collect();
+    let candidates: Vec<usize> = (0..materials.len()).collect();
+    const MASKS: [u32; 7] = [0x400, 0x800, 0x1000, 0x200, 0x20, 0x40, 0x4000];
+    for (i, mask) in MASKS.iter().enumerate() {
+        distribute(
+            &mut storages,
+            &materials,
+            &candidates,
+            *mask,
+            profile.ints[i + 1],
+        );
+    }
+    for s in &storages {
+        log::debug!(
+            "storage cap {} accepts {:#x} used {}",
+            s.capacity,
+            s.accepts,
+            s.used(&materials)
+        );
+    }
+    (materials, storages)
+}
+
 pub struct StartingTown {
     pub start: (i32, i32),
+    pub materials: Vec<RawMaterial>,
+    pub storages: Vec<Storage>,
     pub templates: Vec<Template>,
     pub placed: Vec<Placed>,
 }
@@ -130,6 +208,9 @@ impl StartingTown {
         seeder.place_structures(&structures, start.0, start.1);
         seeder.seed(&list, start.0, start.1, radius * radius);
         let placed = std::mem::take(&mut seeder.placed);
+        // Households, deer and other populations (`FUN_1400a62a0`, `FUN_1400a5eb0`,
+        // `FUN_1400a57c0`) come here; not ported yet.
+        let (materials, storages) = starting_goods(archive, &profile, &structures, &templates);
         log::info!(
             "start {:?}: {} natural resources placed",
             start,
@@ -137,6 +218,8 @@ impl StartingTown {
         );
         Some(StartingTown {
             start,
+            materials,
+            storages,
             templates,
             placed,
         })

@@ -50,11 +50,92 @@ control total one-unit assignment attempts for their respective resource masks. 
 one fixed amount for every building: actual assignments depend on which components are present,
 their current contents and their capacity.
 
-## Remaining work
+## Classes, capacities and the stock table (resolved)
 
-- Identify the runtime class names represented by the candidate flag field and destination holding
-  component type.
-- Map each of the seven masks to its matching subset of the seven `RawMaterial` templates.
-- Trace the destination objects and component capacities back to the placed starting structures.
-- Confirm whether later new-game initialization changes these quantities before the player receives
-  control.
+- **Candidate flag field.** The candidate flag field is `RawMaterialDescription +0x5c` (serializer
+  `FUN_14012e9f0`). In serialized order the description holds:
+  - sprite sheet, string table, name and small-name keys;
+  - four ints, including the storage size per item at `+0x48`;
+  - the flags;
+  - a float, an int and a bool.
+- **Flags and sizes of the candidates:**
+
+  | Raw material | Flags | Size per item |
+  |---|---|---|
+  | Wood | `0x400` | 11 |
+  | Stone | `0x800` | 15 |
+  | Iron | `0x1000` | 25 |
+  | Tool | `0x200` | 10 |
+  | Potato | `0x22` | 1 |
+  | Firewood | `0xc0` | 4 |
+  | LeatherCoat | `0x4000` | 10 |
+
+  So each mask selects exactly one candidate. The seven caps are wood, stone, iron, tools, food,
+  firewood and clothing.
+- **Holding component.** The holding component is `StorageComponent`. `FUN_140132250` accepts a
+  unit when `component +0x3c & flags` is non-zero and `size · n + used ≤ +0x38`. `FUN_1401323e0`
+  sums `size · count` over the component's `(raw material, count)` list.
+- **Storage description** (`FUN_140131e70`). Its fields are:
+  - accepted flags `+0x28`;
+  - per-cell flag `+0x20`;
+  - activate flag `+0x21`;
+  - capacity `+0x24`;
+  - initial items.
+
+  Activation (`FUN_140131b10`, when `+0x21` is set) sets capacity = `+0x24 · (per-cell ? w·h : 1)`
+  and accepts = `+0x28`. The capacities are:
+
+  | Storage | Accepts | Capacity |
+  |---|---|---|
+  | Barn | `0x16220` | 6000 |
+  | Yard | `0x1c40` | 250 per cell |
+  | Cart | `0x16260` | 2500 |
+  | Houses | `0x60` | 1000 |
+- **Status Bar totals.** `FUN_14008f3a0`, called every simulation iteration from the town update
+  `FUN_140091780`, clears the stock table and re-sums every storage's items into it. Each raw
+  material counts towards one slot, tested in this order:
+  1. `0x20` → food (slot 5);
+  2. bit 7 → firewood (3);
+  3. bit 8 → coal (9);
+  4. bit 9 → tools (4);
+  5. bit 10 → wood (0);
+  6. bit 11 → stone (1);
+  7. bit 12 → iron (2);
+  8. bit 13 → herbs (6);
+  9. bit 14 → clothes (7);
+  10. bit 17 → alcohol (8);
+  11. bit 16 → textile (10);
+  12. bits 18–27 → custom slots 11–20.
+
+  The same pass adds storage units to two totals, split by mask `0x1c40`: building materials, and
+  everything else.
+
+### Medium result
+
+The table below is the port's output for a Medium start:
+
+| Storage | Units used | Contents |
+|---|---:|---|
+| Barn | 2500 | tools 40, food 1800, coats 30 |
+| Yard (4×6) | 4020 | wood 120, stone 60, iron 40, firewood 200 |
+
+On Hard, the cart does not accept wood, stone or iron, so those caps place nothing.
+
+## Port
+
+- `crates/game/src/stock.rs` ports `FUN_140096b30`, the capacity checks and the stock-table
+  mapping.
+- `apps/game/src/start.rs` fills the start structures' storages.
+- The Status Bar reads the recomputed table.
+
+### Inferred
+
+- The town storage list (`Game +0xf0`, list `+0x00`) holds the structures with a
+  `storagelocation` component, in creation order (barn, yard, cart). Houses and citizens are not
+  in it. Who appends to that list has not been traced.
+- The barn's storage (activate flag clear) gets the same capacity when its instant build completes.
+
+### Remaining work
+
+- Confirm the storage-list owner.
+- Port households, which are created before this pass (`FUN_1400a62a0`).
