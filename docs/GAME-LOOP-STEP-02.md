@@ -3,7 +3,9 @@
 This step follows three edges from the `Game/Game` outer update: its per-frame input controller,
 the entity manager tick, and the UI installed on entry to gameplay. Evidence is static Ghidra
 12.1.4 pseudocode for the Steam x64 executable, plus existing entity lifecycle tracing. No live
-Banished session was observed in this pass.
+Banished session was observed in this pass. The current REA Ghidra provider is unconfigured
+(`GHIDRA_INSTALL_DIR` is unset), so this pass uses the repository's existing Ghidra exports and
+does not claim a fresh REA analysis session or Evidence ID.
 
 ## Per-frame controller is also the camera input path
 
