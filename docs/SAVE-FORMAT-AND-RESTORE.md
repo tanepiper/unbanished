@@ -63,8 +63,10 @@ terminator; the earlier version 2 sample ends immediately after its terminator a
 The second payload is also a valid `CompressedStream`, and every LZF block expands to its declared
 size without exceeding the engine's `0x8000` window. Its whole stream then expands to a version 3
 block of `12 + block_size` bytes, ending in `0xBBBBBBBB`. The four gameplay snapshots expand to
-about 25.6–33.2 MiB. This verifies the two compression layers and file boundaries, but the object
-records inside the game-state block are still not decoded.
+about 25.6–33.2 MiB. The block counts are 881 (`starter-save`), 1,064 (`Save2`), 1,063 (`Auto`),
+and 819 (`allportez`); each table accounts for the exact declared payload size. This verifies the
+two compression layers and file boundaries, but the object records inside the game-state block are
+still not decoded.
 
 | File | First stream blocks / raw bytes | Metadata name | Preview | Metadata extension value | Mod count |
 |---|---:|---|---:|---:|---:|
@@ -109,8 +111,12 @@ the game loop; see the save-state call sites in `analysis/gameplay-gameloop-meth
 The game loop serializes its own payload through `FUN_14009ae90`: the save side writes the loop to a
 `CompressedMemoryStream` and stores it in `SavedState`; the load side retrieves the bytes, opens the
 compressed stream and deserializes the loop. The decoded stream begins with a version 3 block whose
-first nested block is version 0; names and nested object data follow. These objects still need to be
-mapped to game types before a gameplay-state decoder can be built.
+first nested block is version 0. In `Save2`, that nested block starts at expanded offset `0x0c`, has
+size `0x7c22c`, and ends at `0x7c244`; another small version 0 block follows at that boundary. The
+first nested block starts with `0x1567`, `1`, and a length-prefixed UTF-16 path
+`Audio\Animal\Chicken.rsc:event`. This resembles a counted serialized reference collection, but
+the count and record type have not been confirmed from the owning serializer. These objects still
+need to be mapped to game types before a gameplay-state decoder can be built.
 
 ## Open work
 
