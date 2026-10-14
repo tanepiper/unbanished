@@ -92,7 +92,8 @@ impl Ui {
         })
     }
 
-    pub(crate) fn descendant(&self, root: NodeId, node: NodeId) -> bool {
+    /// Whether `node` is `root` or inside it.
+    pub fn descendant(&self, root: NodeId, node: NodeId) -> bool {
         root == node
             || self
                 .child_ids(root)

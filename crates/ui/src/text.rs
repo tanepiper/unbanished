@@ -209,6 +209,7 @@ mod tests {
         res.sheets.push(LoadedSheet {
             reference: "test".into(),
             image: None,
+            shader: None,
             sheet: SpriteSheet {
                 material_path: String::new(),
                 source_image: String::new(),

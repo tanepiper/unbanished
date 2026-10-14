@@ -201,14 +201,23 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 name = "banished-app"
 version = "0.1.0"
 dependencies = [
+ "banished-audio",
  "banished-formats",
  "banished-game",
+ "banished-gfx",
+ "banished-ui",
  "bytemuck",
+ "console_error_panic_hook",
+ "console_log",
  "env_logger",
  "glam",
+ "js-sys",
  "log",
  "png",
  "pollster",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
  "web-time",
  "wgpu",
  "winit",

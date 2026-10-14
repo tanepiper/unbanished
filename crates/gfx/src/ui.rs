@@ -39,10 +39,31 @@ fn vs_main(@location(0) pos: vec2<f32>, @location(1) uv: vec2<f32>, @location(2)
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     return textureSample(tex, samp, in.uv) * in.color;
 }
+
+// `Material\UI\Logo` (the Shining Rock splash), from the D3D9 pixel shader: red is the logo, green
+// where rays show, blue a ray pattern sampled after rotating by `userPosition.x` (seconds) about
+// texel (800, 421) of the 1600x900 image. Dark logo on white.
+@fragment
+fn fs_logo(in: VsOut) -> @location(0) vec4<f32> {
+    let base = textureSample(tex, samp, in.uv);
+    let a = screen.size.z;
+    let s = sin(a);
+    let c = cos(a);
+    let p = in.uv * vec2<f32>(1600.0, 900.0) + vec2<f32>(-800.0, -421.0);
+    let r = vec2<f32>(c * p.x + s * p.y + 800.0, -s * p.x + c * p.y + 421.0);
+    let rays = textureSample(tex, samp, r * vec2<f32>(0.000624999986, 0.00111111114));
+    let i = base.r + base.g * (1.0 - rays.b);
+    return vec4<f32>(vec3<f32>(1.0) - i * vec3<f32>(0.831372559, 0.792156875, 0.752941191), in.color.a);
+}
 "#;
 
 pub struct UiRenderer {
     pipeline: wgpu::RenderPipeline,
+    logo_pipeline: wgpu::RenderPipeline,
+    /// Sheets drawn with the Logo material.
+    logo_sheets: std::collections::HashSet<Texture>,
+    /// `pc_userPosition.x` for material shaders (seconds since the loader loop started).
+    time: f32,
     screen: wgpu::Buffer,
     screen_group: wgpu::BindGroup,
     texture_layout: wgpu::BindGroupLayout,
@@ -71,7 +92,7 @@ impl UiRenderer {
         });
         let uniform_entry = wgpu::BindGroupLayoutEntry {
             binding: 0,
-            visibility: wgpu::ShaderStages::VERTEX,
+            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Uniform,
                 has_dynamic_offset: false,
@@ -109,7 +130,8 @@ impl UiRenderer {
             bind_group_layouts: &[Some(&screen_layout), Some(&texture_layout)],
             immediate_size: 0,
         });
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let make = |entry: &str| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("ui"),
             layout: Some(&layout),
             vertex: wgpu::VertexState {
@@ -133,7 +155,7 @@ impl UiRenderer {
             multisample: Default::default(),
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: Some("fs_main"),
+                entry_point: Some(entry),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format,
@@ -143,7 +165,10 @@ impl UiRenderer {
             }),
             multiview_mask: None,
             cache: None,
-        });
+        })
+        };
+        let pipeline = make("fs_main");
+        let logo_pipeline = make("fs_logo");
         let screen = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("ui screen"),
             size: 16,
@@ -165,6 +190,9 @@ impl UiRenderer {
         });
         UiRenderer {
             pipeline,
+            logo_pipeline,
+            logo_sheets: Default::default(),
+            time: 0.0,
             screen,
             screen_group,
             texture_layout,
@@ -228,7 +256,19 @@ impl UiRenderer {
             );
             let group = self.bind(device, &view);
             self.textures.insert(Texture::Sheet(i), group);
+            if sheet
+                .shader
+                .as_deref()
+                .is_some_and(|m| m.replace('/', "\\").contains("Material\\UI\\Logo"))
+            {
+                self.logo_sheets.insert(Texture::Sheet(i));
+            }
         }
+    }
+
+    /// Time for animated UI materials (`pc_userPosition.x`).
+    pub fn set_time(&mut self, seconds: f32) {
+        self.time = seconds;
     }
 
     pub fn draw<'p>(
@@ -244,7 +284,7 @@ impl UiRenderer {
         queue.write_buffer(
             &self.screen,
             0,
-            bytemuck::cast_slice(&[size.0 as f32, size.1 as f32, 0.0, 0.0]),
+            bytemuck::cast_slice(&[size.0 as f32, size.1 as f32, self.time, 0.0]),
         );
         let mut vertices = Vec::with_capacity(quads.len() * 6);
         let mut batches: Vec<Batch> = Vec::new();
@@ -293,10 +333,19 @@ impl UiRenderer {
         let buffer = self.vertices.as_ref().unwrap();
         queue.write_buffer(buffer, 0, bytes);
         pass.set_viewport(0.0, 0.0, size.0 as f32, size.1 as f32, 0.0, 1.0);
-        pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.screen_group, &[]);
         pass.set_vertex_buffer(0, buffer.slice(..));
+        let mut logo = None;
         for b in batches {
+            let is_logo = self.logo_sheets.contains(&b.texture);
+            if logo != Some(is_logo) {
+                pass.set_pipeline(if is_logo {
+                    &self.logo_pipeline
+                } else {
+                    &self.pipeline
+                });
+                logo = Some(is_logo);
+            }
             let Some(group) = self.textures.get(&b.texture) else {
                 continue;
             };

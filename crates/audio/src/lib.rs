@@ -179,6 +179,9 @@ impl Player {
         Ok(())
     }
 
+    /// Browsers start audio suspended until a user gesture; call from input handlers.
+    pub fn unlock(&mut self) {}
+
     pub fn stop(&mut self) {
         if let Some(s) = self.sink.take() {
             s.stop();
@@ -389,6 +392,21 @@ impl Player {
             source.set_loop(looping);
         }
         Ok(())
+    }
+
+    /// Resume a context the browser created suspended (autoplay policy). Call from a user
+    /// gesture handler such as a click or key press.
+    pub fn unlock(&mut self) {
+        if let Some(context) = &self.context {
+            if context.state() == web_sys::AudioContextState::Suspended {
+                log::info!("resuming Web Audio after a user gesture");
+                if let Ok(promise) = context.resume() {
+                    wasm_bindgen_futures::spawn_local(async move {
+                        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                    });
+                }
+            }
+        }
     }
 
     pub fn stop(&mut self) {

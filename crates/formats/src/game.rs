@@ -252,3 +252,49 @@ pub fn map_generator(data: &[u8]) -> Result<MapGenerator> {
     })?;
     Ok(value)
 }
+
+/// `ExternalList`: an ordered list of resource references (e.g. `Game/Terrain/TerrainList.rsc`,
+/// the New Game selectors filled by `FUN_14009f280`).
+pub fn external_list(data: &[u8]) -> Result<Vec<String>> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("ExternalList") {
+            return format_err(format!("expected ExternalList, found {:#010x}", h.type_id));
+        }
+        r.block(|r, _| {
+            (0..r.count()?)
+                .map(|_| Ok(r.external_ref()?.unwrap_or_default()))
+                .collect()
+        })
+    })?;
+    Ok(value)
+}
+
+/// The leading fields of a `ClimateGenerator` (New Game climate profile): string table, name key
+/// and the "listed" flag at `+0x38`. The climate parameters that follow are not decoded yet.
+#[derive(Debug, Clone)]
+pub struct ClimateHeader {
+    pub string_table: Option<String>,
+    pub name: String,
+    pub listed: bool,
+}
+
+pub fn climate_header(data: &[u8]) -> Result<ClimateHeader> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("ClimateGenerator") {
+            return format_err(format!(
+                "expected ClimateGenerator, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let header = ClimateHeader {
+                string_table: r.external_ref()?,
+                name: r.string()?,
+                listed: r.bool()?,
+            };
+            r.skip_rest();
+            Ok(header)
+        })
+    })?;
+    Ok(value)
+}

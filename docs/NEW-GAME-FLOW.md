@@ -63,16 +63,21 @@ The same initialization method restores selector indices from shared settings (f
 index zero when out of range), generates a town name through `FUN_14009ef90`, and seeds the map-seed
 edit with a random integer in the numeric control's allowed range.
 
-That setup method assigns IDs as follows: `buttonNewName` 0, `buttonNewSeed` 1, `buttonCancel` 2,
-`buttonOk` 3, and `comboCondition` 4. For event kind `0x12`, the handler maps ID 0 to another
-generated name, ID 1 to another random seed, ID 2 to `FUN_140075750`, and ID 3 to closing the
-dialog. For event kind `0x14`, ID 4 refreshes the starting-condition description text.
+That setup method assigns IDs as follows: `buttonNewName` 0, `buttonNewSeed` 1, `buttonOk` 2,
+`buttonCancel` 3, and `comboCondition` 4. (`buttonOk` is the element stored at instance `+0xf0`;
+an earlier reading of the pseudocode swapped the two buttons.) For event kind `0x12`, the handler
+maps ID 0 to another generated name, ID 1 to another random seed, ID 2 (Ok) to `FUN_140075750`,
+which starts the game, and ID 3 (Cancel) to closing the dialog. For event kind `0x14`, ID 4
+refreshes the starting-condition description text.
 
-There is a static mismatch that needs a runtime check: `buttonCancel` resolves to the shared button
-whose text is “Cancel”, but its assigned ID 2 enters the start path; `buttonOk` resolves to “Ok”,
-but ID 3 closes the dialog. The control names, strings, assigned IDs and handler branches all agree
-in the decompilation/resource data, so this is recorded as an unresolved shipped behavior rather
-than silently swapping the IDs in a port.
+Each selector lists only profiles whose flag at `+0x38` is set, labelled with
+`UI::String(profile +0x20 string table, +0x28 name key)`. The Terrain Size and Disasters combos
+take their items from the string table named by the combo element's third reference
+(`Dialog\StringTable.rsc:terrainSize`, …). Initial selections come from the shared settings
+(`Game/Last*` persistence) whose defaults, set in `FUN_140042850`, are terrain 0, size 0,
+climate 1, start condition 1 and disasters 0. The condition description is
+`UI::String(table, +0x30 description key)`. The map seed is `Rand(max + 1)` over the seed edit's
+numeric range.
 
 ## Parameter handoff and loading loop
 

@@ -94,7 +94,11 @@ impl<'a> Reader<'a> {
         if n & 0x8000_0000 != 0 {
             let b = self.bytes((n & 0x7FFF_FFFF) as usize)?;
             let end = b.iter().position(|&c| c == 0).unwrap_or(b.len());
-            Ok(b[..end].iter().map(|&c| c as char).collect())
+            // 8-bit strings hold UTF-8 (e.g. the build notice's `©`); fall back to Latin-1.
+            Ok(match std::str::from_utf8(&b[..end]) {
+                Ok(s) => s.to_owned(),
+                Err(_) => b[..end].iter().map(|&c| c as char).collect(),
+            })
         } else {
             let b = self.bytes(n as usize * 2)?;
             let units: Vec<u16> = b
@@ -143,6 +147,11 @@ impl<'a> Reader<'a> {
         }
         self.pos = end;
         Ok(value)
+    }
+
+    /// Skip the rest of the current block (for partially decoded types).
+    pub fn skip_rest(&mut self) {
+        self.pos = self.end;
     }
 
     /// Skip a block without interpreting it.

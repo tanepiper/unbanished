@@ -41,10 +41,11 @@ pub struct Lighting {
     pub snow: f32,
 }
 
-pub struct Frame {
-    pub view_proj: Mat4,
-    pub lighting: Lighting,
+/// Everything drawn in one frame: optional terrain (camera and lighting), then UI quads.
+pub struct Frame<'a> {
+    pub terrain: Option<(Mat4, Lighting)>,
     pub clear: wgpu::Color,
+    pub ui: Option<(&'a banished_ui::Ui, &'a [banished_ui::Quad])>,
 }
 
 struct TerrainGpu {
@@ -59,6 +60,7 @@ pub struct Renderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
     surface: Option<(wgpu::Surface<'static>, wgpu::SurfaceConfiguration)>,
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     format: wgpu::TextureFormat,
     size: (u32, u32),
     depth: wgpu::TextureView,
@@ -67,6 +69,9 @@ pub struct Renderer {
     globals_bind: wgpu::BindGroup,
     material_layout: wgpu::BindGroupLayout,
     terrain: Option<TerrainGpu>,
+    /// `SceneView::id` of the uploaded terrain.
+    pub world_id: u64,
+    ui: banished_gfx::UiRenderer,
     pub backend: String,
 }
 
@@ -286,6 +291,17 @@ impl Renderer {
                 resource: globals.as_entire_binding(),
             }],
         });
+        let mut ui = banished_gfx::UiRenderer::new(&device, format, DEPTH_FORMAT);
+        let white = banished_gfx::upload_rgba_as(
+            &device,
+            &queue,
+            "white",
+            1,
+            1,
+            &[vec![255; 4]],
+            wgpu::TextureFormat::Rgba8Unorm,
+        );
+        ui.set_external(&device, crate::loops::WHITE, &white);
         Renderer {
             depth: depth_view(&device, width, height),
             device,
@@ -298,6 +314,8 @@ impl Renderer {
             globals_bind,
             material_layout,
             terrain: None,
+            world_id: 0,
+            ui,
             backend,
         }
     }
@@ -311,6 +329,15 @@ impl Renderer {
             surface.configure(&self.device, config);
         }
         self.depth = depth_view(&self.device, width, height);
+    }
+
+    /// Seconds since the current loop started (animated UI materials).
+    pub fn set_ui_time(&mut self, seconds: f32) {
+        self.ui.set_time(seconds);
+    }
+
+    pub fn size(&self) -> (u32, u32) {
+        self.size
     }
 
     pub fn aspect(&self) -> f32 {
@@ -385,6 +412,14 @@ impl Renderer {
             wgpu::TextureFormat::Rgba8Unorm,
             &mips,
         )
+    }
+
+    /// Upload a scene's world if it is not the one on the GPU.
+    pub fn set_scene(&mut self, view: &crate::scene::SceneView) {
+        if self.world_id != view.id {
+            self.set_world(&view.world);
+            self.world_id = view.id;
+        }
     }
 
     /// Upload a generated world's terrain mesh, surface image and textures.
@@ -548,18 +583,10 @@ impl Renderer {
     }
 
     fn draw(&mut self, view: &wgpu::TextureView, frame: &Frame) {
-        let l = &frame.lighting;
-        let globals = Globals {
-            view_proj: frame.view_proj.to_cols_array_2d(),
-            light_dir: l.light_dir.extend(0.0).to_array(),
-            light_color: l.light_color.extend(1.0).to_array(),
-            ambient_color: l.ambient_color.extend(1.0).to_array(),
-            fog_color: l.fog_color.extend(l.fog_max).to_array(),
-            fog: Vec4::new(-l.fog_start, 1.0 / (l.fog_end - l.fog_start), 0.0, 0.0).to_array(),
-            user: [l.snow, 0.0, 0.0, 0.0],
-        };
-        self.queue
-            .write_buffer(&self.globals, 0, bytemuck::bytes_of(&globals));
+        let draw_terrain = frame.terrain.is_some() && self.terrain.is_some();
+        if let Some((view_proj, l)) = &frame.terrain {
+            self.write_globals(view_proj, l);
+        }
         let mut encoder = self.device.create_command_encoder(&Default::default());
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -585,7 +612,7 @@ impl Renderer {
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
-            if let Some(t) = &self.terrain {
+            if let (true, Some(t)) = (draw_terrain, &self.terrain) {
                 pass.set_pipeline(&self.pipeline);
                 pass.set_bind_group(0, &self.globals_bind, &[]);
                 pass.set_bind_group(1, &t.bind_group, &[]);
@@ -601,7 +628,25 @@ impl Renderer {
                     pass.draw_indexed(0..t.index_count, 0, 0..1);
                 }
             }
+            if let Some((ui, quads)) = frame.ui {
+                self.ui
+                    .draw(&self.device, &self.queue, &mut pass, ui, quads, self.size);
+            }
         }
         self.queue.submit([encoder.finish()]);
+    }
+
+    fn write_globals(&mut self, view_proj: &Mat4, l: &Lighting) {
+        let globals = Globals {
+            view_proj: view_proj.to_cols_array_2d(),
+            light_dir: l.light_dir.extend(0.0).to_array(),
+            light_color: l.light_color.extend(1.0).to_array(),
+            ambient_color: l.ambient_color.extend(1.0).to_array(),
+            fog_color: l.fog_color.extend(l.fog_max).to_array(),
+            fog: Vec4::new(-l.fog_start, 1.0 / (l.fog_end - l.fog_start), 0.0, 0.0).to_array(),
+            user: [l.snow, 0.0, 0.0, 0.0],
+        };
+        self.queue
+            .write_buffer(&self.globals, 0, bytemuck::bytes_of(&globals));
     }
 }

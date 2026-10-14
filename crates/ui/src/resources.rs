@@ -24,6 +24,9 @@ pub struct LoadedSheet {
     pub sheet: SpriteSheet,
     /// `ImageBuffer` reference holding the sheet image (the material's `diffuse` slot).
     pub image: Option<String>,
+    /// The material instance's base material (e.g. `Material\UI\Logo.rsc:resource`), which
+    /// selects the shader. Most sheets use the plain UI material.
+    pub shader: Option<String>,
 }
 
 pub struct LoadedFont {
@@ -75,24 +78,28 @@ impl Resources {
         if let Some(id) = self.sheet_ids.get(reference) {
             return *id;
         }
-        let id = self
-            .archive
-            .read_ref(reference)
-            .and_then(|d| ui::sprite_sheet(&d))
-            .map_err(|e| log::warn!("{reference}: {e}"))
-            .ok()
-            .map(|sheet| {
-                let image = sheet.material.as_deref().and_then(|m| {
-                    let mi = types::material_instance(&self.archive.read_ref(m).ok()?).ok()?;
-                    mi.texture("diffuse").map(str::to_owned)
+        let id =
+            self.archive
+                .read_ref(reference)
+                .and_then(|d| ui::sprite_sheet(&d))
+                .map_err(|e| log::warn!("{reference}: {e}"))
+                .ok()
+                .map(|sheet| {
+                    let mi = sheet.material.as_deref().and_then(|m| {
+                        types::material_instance(&self.archive.read_ref(m).ok()?).ok()
+                    });
+                    let image = mi
+                        .as_ref()
+                        .and_then(|mi| mi.texture("diffuse").map(str::to_owned));
+                    let shader = mi.and_then(|mi| mi.material);
+                    self.sheets.push(LoadedSheet {
+                        reference: reference.to_string(),
+                        sheet,
+                        image,
+                        shader,
+                    });
+                    self.sheets.len() - 1
                 });
-                self.sheets.push(LoadedSheet {
-                    reference: reference.to_string(),
-                    sheet,
-                    image,
-                });
-                self.sheets.len() - 1
-            });
         self.sheet_ids.insert(reference.to_string(), id);
         id
     }
