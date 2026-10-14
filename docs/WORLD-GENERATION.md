@@ -79,6 +79,10 @@ path/point-driven spatial passes, a downhill neighbor redistribution, and two ne
 averaging passes. It does not yet prove that the path records are rivers or that the float grid is
 elevation.
 
+The render-buffer handoff is followed in [TERRAIN-DERIVED-GEOMETRY.md](TERRAIN-DERIVED-GEOMETRY.md):
+the height samples feed 32-by-32 terrain tiles, while the counted path records also produce a second
+mesh whose feature identity is not yet established.
+
 The shipped `Valleys` and `Mountains` `TerrainGenerator` profiles and their Small/Medium/Large
 integer rows are documented in [TERRAIN-PROFILES.md](TERRAIN-PROFILES.md). Each profile points to
 terrain, river, and lake resources; the procedural record-to-resource mapping remains open.
