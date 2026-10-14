@@ -17,6 +17,7 @@ struct Globals {
 struct MaterialParams {
     // xy scale, zw offset applied to the diffuse UV (OpaqueCharacterMaterial picks an atlas cell).
     uv_transform: vec4<f32>,
+    rigid_transform: mat4x4<f32>,
 };
 @group(1) @binding(3) var<uniform> material: MaterialParams;
 
@@ -50,7 +51,9 @@ fn finish(p: vec3<f32>, n: vec3<f32>, texcoord: vec4<i32>) -> VsOut {
 
 @vertex
 fn vs_main(v: VsIn) -> VsOut {
-    return finish(vec3<f32>(v.position.xyz) / 512.0, v.normal.xyz * 2.0 - 1.0, v.texcoord);
+    let p = material.rigid_transform * vec4<f32>(vec3<f32>(v.position.xyz) / 512.0, 1.0);
+    let n = material.rigid_transform * vec4<f32>(v.normal.xyz * 2.0 - 1.0, 0.0);
+    return finish(p.xyz, n.xyz, v.texcoord);
 }
 
 struct SkinnedIn {

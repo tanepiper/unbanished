@@ -50,7 +50,7 @@ def graphics_mesh(r, file_version):
                 r.i32()
                 for part in parts:
                     part['ranges'] = [dict(zip(
-                        ('start_vertex', 'vertex_count', 'start_index', 'index_count', 'base_vertex', 'bone'),
+                        ('start_vertex', 'vertex_count', 'start_index', 'index_count', 'material_index', 'bone'),
                         r.array('i', 6))) for _ in range(r.i32())]
                     # Static geometry uses ModelLayout (24-byte stride), skinned uses
                     # ModelSkinLayout (32-byte stride). Positions are int16 / 512.

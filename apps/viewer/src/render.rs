@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use banished_formats::skeleton::{bind_palette, Transform};
+use banished_formats::skeleton::{bind_palette, local_bind, world_transforms, Transform};
 use banished_formats::texture::decode_rgba;
 use banished_formats::types::{ImageBuffer, SKINNED_STRIDE, STATIC_STRIDE};
 use glam::{Mat4, Vec3};
@@ -24,7 +24,8 @@ const MAX_BONES: usize = 32;
 struct GpuPart {
     vertices: wgpu::Buffer,
     indices: wgpu::Buffer,
-    index_count: u32,
+    index_range: std::ops::Range<u32>,
+    base_vertex: i32,
     skinned: bool,
     textures: wgpu::BindGroup,
 }
@@ -191,7 +192,7 @@ impl Renderer {
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 3,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -384,86 +385,102 @@ impl Renderer {
     pub fn load_mesh(&self, assets: &Assets, name: &str) -> banished_formats::Result<GpuMesh> {
         let mesh = assets.mesh(name)?;
         let mut parts = Vec::new();
-        for (i, part) in mesh.parts.iter().enumerate() {
-            if part.indices.is_empty() {
-                continue;
-            }
-            let instance_ref = mesh
-                .material_instances
-                .iter()
-                .find_map(|set| set.get(i).cloned().flatten());
-            let instance = instance_ref.as_deref().and_then(|r| {
-                assets
-                    .material_instance(r)
-                    .map_err(|e| log::warn!("{r}: {e}"))
-                    .ok()
-            });
-            let diffuse_ref = instance
-                .as_ref()
-                .and_then(|mi| mi.texture("diffuse").map(str::to_owned));
-            let (diffuse, aspect) = self
-                .texture(assets, diffuse_ref.as_deref())
-                .unwrap_or_else(|| (self.white.clone(), 1.0));
-            let ao = self
-                .texture(assets, part.ao_texture.as_deref())
-                .map_or_else(|| self.white.clone(), |t| t.0);
-            // Character materials index one square cell of a horizontal outfit atlas (variant 0 here).
-            let character = instance
-                .as_ref()
-                .and_then(|mi| mi.material.as_deref())
-                .is_some_and(|m| m.contains("OpaqueCharacterMaterial"));
-            let uv_transform: [f32; 4] = if character {
-                [aspect, 1.0, 0.0, 0.0]
-            } else {
-                [1.0, 1.0, 0.0, 0.0]
-            };
-            let params = self
-                .device
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("material params"),
-                    contents: bytemuck::cast_slice(&uv_transform),
-                    usage: wgpu::BufferUsages::UNIFORM,
+        let locals: Vec<_> = mesh.bones.iter().map(local_bind).collect();
+        let world = world_transforms(&mesh.bones, &locals);
+        // Parts are detail levels; the asset browser displays the most detailed one.
+        for part in mesh.parts.iter().take(1) {
+            for range in &part.ranges {
+                let (index_data, vertex_data, _) = part.geometry(range);
+                if range.index_count == 0 || index_data.is_empty() {
+                    continue;
+                }
+                let instance_ref = mesh
+                    .material_instances
+                    .iter()
+                    .find_map(|set| set.get(range.material_index as usize).cloned().flatten());
+                let instance = instance_ref.as_deref().and_then(|r| {
+                    assets
+                        .material_instance(r)
+                        .map_err(|e| log::warn!("{r}: {e}"))
+                        .ok()
                 });
-            let textures = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some(&part.name),
-                layout: &self.texture_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&diffuse),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::TextureView(&ao),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: wgpu::BindingResource::Sampler(&self.sampler),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 3,
-                        resource: params.as_entire_binding(),
-                    },
-                ],
-            });
-            let buffer = |data: &[u8], usage| {
-                self.device
+                let diffuse_ref = instance
+                    .as_ref()
+                    .and_then(|mi| mi.texture("diffuse").map(str::to_owned));
+                let (diffuse, aspect) = self
+                    .texture(assets, diffuse_ref.as_deref())
+                    .unwrap_or_else(|| (self.white.clone(), 1.0));
+                let ao = self
+                    .texture(assets, part.ao_texture.as_deref())
+                    .map_or_else(|| self.white.clone(), |t| t.0);
+                // Character materials index one square cell of a horizontal outfit atlas (variant 0 here).
+                let character = instance
+                    .as_ref()
+                    .and_then(|mi| mi.material.as_deref())
+                    .is_some_and(|m| m.contains("OpaqueCharacterMaterial"));
+                let uv_transform: [f32; 4] = if character {
+                    [aspect, 1.0, 0.0, 0.0]
+                } else {
+                    [1.0, 1.0, 0.0, 0.0]
+                };
+                // Rigid triangle lists use the node's world transform; weighted lists already
+                // apply world * inverse_bind through the skin palette in the vertex shader.
+                let rigid = world
+                    .get(range.bone as usize)
+                    .copied()
+                    .unwrap_or(Transform::IDENTITY);
+                let mut material_params = uv_transform.to_vec();
+                material_params.extend_from_slice(&rigid.to_matrix());
+                let params = self
+                    .device
                     .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some(&part.name),
-                        contents: data,
-                        usage,
-                    })
-            };
-            // Index buffers must be 4-byte aligned in size for writes on some backends.
-            let mut indices = part.indices.clone();
-            indices.resize(indices.len().next_multiple_of(4), 0);
-            parts.push(GpuPart {
-                vertices: buffer(&part.vertices, wgpu::BufferUsages::VERTEX),
-                indices: buffer(&indices, wgpu::BufferUsages::INDEX),
-                index_count: (part.indices.len() / 2) as u32,
-                skinned: part.skinned,
-                textures,
-            });
+                        label: Some("material params"),
+                        contents: bytemuck::cast_slice(&material_params),
+                        usage: wgpu::BufferUsages::UNIFORM,
+                    });
+                let textures = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some(&part.name),
+                    layout: &self.texture_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(&diffuse),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::TextureView(&ao),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: wgpu::BindingResource::Sampler(&self.sampler),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 3,
+                            resource: params.as_entire_binding(),
+                        },
+                    ],
+                });
+                let buffer = |data: &[u8], usage| {
+                    self.device
+                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some(&part.name),
+                            contents: data,
+                            usage,
+                        })
+                };
+                // Index buffers must be 4-byte aligned in size for writes on some backends.
+                let mut indices = index_data.to_vec();
+                indices.resize(indices.len().next_multiple_of(4), 0);
+                parts.push(GpuPart {
+                    vertices: buffer(vertex_data, wgpu::BufferUsages::VERTEX),
+                    indices: buffer(&indices, wgpu::BufferUsages::INDEX),
+                    index_range: range.start_index as u32
+                        ..(range.start_index + range.index_count) as u32,
+                    base_vertex: range.start_vertex,
+                    skinned: range.bone < 0,
+                    textures,
+                });
+            }
         }
         let mut palette = bind_palette(&mesh.bones);
         if palette.len() > MAX_BONES {
@@ -657,7 +674,7 @@ impl Renderer {
                         pass.set_bind_group(1, &part.textures, &[]);
                         pass.set_vertex_buffer(0, part.vertices.slice(..));
                         pass.set_index_buffer(part.indices.slice(..), wgpu::IndexFormat::Uint16);
-                        pass.draw_indexed(0..part.index_count, 0, 0..1);
+                        pass.draw_indexed(part.index_range.clone(), part.base_vertex, 0..1);
                     }
                 }
             }

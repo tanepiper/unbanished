@@ -48,18 +48,21 @@ fn decodes_all_supported_resources() {
             t if t == type_id("GraphicsMesh") => {
                 let mesh = types::graphics_mesh(&data).unwrap_or_else(|e| panic!("{name}: {e}"));
                 for part in &mesh.parts {
-                    let stride = if part.skinned {
-                        types::SKINNED_STRIDE
-                    } else {
-                        types::STATIC_STRIDE
-                    };
-                    assert_eq!(part.vertices.len() % stride, 0, "{name}");
-                    let verts = part.vertices.len() / stride;
-                    for ix in part.indices.chunks_exact(2) {
-                        assert!(
-                            (u16::from_le_bytes([ix[0], ix[1]]) as usize) < verts,
-                            "{name}: index out of range"
-                        );
+                    for range in &part.ranges {
+                        let (indices, vertices, stride) = part.geometry(range);
+                        assert_eq!(vertices.len() % stride, 0, "{name}");
+                        assert_eq!(indices.len() % 2, 0, "{name}");
+                        let verts = vertices.len() / stride;
+                        let start = usize::try_from(range.start_index).unwrap() * 2;
+                        let end = start + usize::try_from(range.index_count).unwrap() * 2;
+                        let base = usize::try_from(range.start_vertex).unwrap();
+                        assert!(end <= indices.len(), "{name}: index range out of bounds");
+                        assert!(base + range.vertex_count as usize <= verts, "{name}");
+                        for ix in indices[start..end].chunks_exact(2) {
+                            let index = u16::from_le_bytes([ix[0], ix[1]]) as usize;
+                            assert!(index < range.vertex_count as usize, "{name}: local index");
+                            assert!(base + index < verts, "{name}: index out of range");
+                        }
                     }
                 }
                 "GraphicsMesh"
@@ -101,10 +104,10 @@ fn decodes_all_supported_resources() {
     assert_eq!(counts["SoundBuffer"], 72);
 }
 
-/// Bind-pose skinning must reproduce each skinned mesh's stored bounds.
+/// Combined rigid and weighted geometry must reproduce every skinned mesh's stored bounds.
 #[test]
 fn skinned_bind_pose_matches_bounds() {
-    use banished_formats::skeleton::bind_palette;
+    use banished_formats::skeleton::{bind_palette, local_bind, world_transforms};
     use banished_formats::types::{POSITION_SCALE, SKINNED_STRIDE};
     let Some(archive) = archive() else { return };
     let mut checked = 0;
@@ -117,31 +120,43 @@ fn skinned_bind_pose_matches_bounds() {
             continue;
         }
         let mesh = types::graphics_mesh(&data).unwrap();
-        if !mesh.parts.iter().any(|p| p.skinned) {
-            continue;
-        }
-        // Known exception: the boat's skinned result sits ~2.7 units outside its bounds.
-        if name.contains("BoatMesh") {
+        if !mesh.parts.iter().any(|p| !p.skinned_vertices.is_empty()) {
             continue;
         }
         let pal = bind_palette(&mesh.bones);
+        let locals: Vec<_> = mesh.bones.iter().map(local_bind).collect();
+        let world = world_transforms(&mesh.bones, &locals);
         let (mut lo, mut hi) = ([f32::MAX; 3], [f32::MIN; 3]);
-        for part in mesh.parts.iter().filter(|p| p.skinned) {
-            for v in part.vertices.chunks_exact(SKINNED_STRIDE) {
-                let pos =
-                    [0, 2, 4].map(|o| i16::from_le_bytes([v[o], v[o + 1]]) as f32 * POSITION_SCALE);
-                let mut acc = [0.0f32; 3];
-                for k in 0..4 {
-                    let w = v[24 + k] as f32 / 255.0;
-                    if w > 0.0 {
-                        let p = pal[v[28 + k] as usize].apply(pos);
-                        (0..3).for_each(|i| acc[i] += p[i] * w);
-                    }
+        // The viewer uses the first detail level. Its triangle lists address both streams.
+        for part in mesh.parts.iter().take(1) {
+            for range in &part.ranges {
+                let (indices, vertices, stride) = part.geometry(range);
+                let start = range.start_index as usize * 2;
+                let end = start + range.index_count as usize * 2;
+                for ix in indices[start..end].chunks_exact(2) {
+                    let i =
+                        range.start_vertex as usize + u16::from_le_bytes([ix[0], ix[1]]) as usize;
+                    let v = &vertices[i * stride..(i + 1) * stride];
+                    let pos = [0, 2, 4]
+                        .map(|o| i16::from_le_bytes([v[o], v[o + 1]]) as f32 * POSITION_SCALE);
+                    let acc = if stride == SKINNED_STRIDE {
+                        let mut acc = [0.0f32; 3];
+                        for k in 0..4 {
+                            let w = v[24 + k] as f32 / 255.0;
+                            if w > 0.0 {
+                                let p = pal[v[28 + k] as usize].apply(pos);
+                                (0..3).for_each(|i| acc[i] += p[i] * w);
+                            }
+                        }
+                        acc
+                    } else {
+                        world[range.bone as usize].apply(pos)
+                    };
+                    (0..3).for_each(|i| {
+                        lo[i] = lo[i].min(acc[i]);
+                        hi[i] = hi[i].max(acc[i]);
+                    });
                 }
-                (0..3).for_each(|i| {
-                    lo[i] = lo[i].min(acc[i]);
-                    hi[i] = hi[i].max(acc[i]);
-                });
             }
         }
         for i in 0..3 {
@@ -158,7 +173,7 @@ fn skinned_bind_pose_matches_bounds() {
         }
         checked += 1;
     }
-    assert_eq!(checked, 7);
+    assert_eq!(checked, 8);
 }
 
 /// Every UI resource decodes with exact block consumption.

@@ -114,11 +114,13 @@ impl ImageBuffer {
 
 #[derive(Debug, Clone)]
 pub struct DrawRange {
+    /// Base vertex added to each range-local u16 index.
     pub start_vertex: i32,
     pub vertex_count: i32,
     pub start_index: i32,
     pub index_count: i32,
-    pub base_vertex: i32,
+    pub material_index: i32,
+    /// Rigid node transform, or -1 for weighted skinning.
     pub bone: i32,
 }
 
@@ -128,10 +130,26 @@ pub struct MeshPart {
     pub name: String,
     pub ao_texture: Option<String>,
     pub ranges: Vec<DrawRange>,
-    /// u16 indices and vertices; static parts use [`STATIC_STRIDE`], skinned parts [`SKINNED_STRIDE`].
-    pub indices: Vec<u8>,
-    pub vertices: Vec<u8>,
-    pub skinned: bool,
+    /// Both streams can be present in one detail level (for example, the trader boat).
+    pub static_indices: Vec<u8>,
+    pub static_vertices: Vec<u8>,
+    pub skinned_indices: Vec<u8>,
+    pub skinned_vertices: Vec<u8>,
+}
+
+impl MeshPart {
+    /// Select the index and vertex stream used by a triangle list.
+    pub fn geometry(&self, range: &DrawRange) -> (&[u8], &[u8], usize) {
+        if range.bone < 0 {
+            (
+                &self.skinned_indices,
+                &self.skinned_vertices,
+                SKINNED_STRIDE,
+            )
+        } else {
+            (&self.static_indices, &self.static_vertices, STATIC_STRIDE)
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -182,9 +200,10 @@ impl GraphicsMesh {
                     name: r.string()?,
                     ao_texture: r.external_ref()?,
                     ranges: Vec::new(),
-                    indices: Vec::new(),
-                    vertices: Vec::new(),
-                    skinned: false,
+                    static_indices: Vec::new(),
+                    static_vertices: Vec::new(),
+                    skinned_indices: Vec::new(),
+                    skinned_vertices: Vec::new(),
                 });
             }
             let mut material_instances = Vec::new();
@@ -216,7 +235,7 @@ impl GraphicsMesh {
                             vertex_count: v[1],
                             start_index: v[2],
                             index_count: v[3],
-                            base_vertex: v[4],
+                            material_index: v[4],
                             bone: v[5],
                         });
                     }
@@ -225,9 +244,10 @@ impl GraphicsMesh {
                         let n = r.u32()? as usize;
                         Ok(r.bytes(n)?.to_vec())
                     };
-                    let (si, sv, ki, kv) = (buffer()?, buffer()?, buffer()?, buffer()?);
-                    part.skinned = !kv.is_empty();
-                    (part.indices, part.vertices) = if part.skinned { (ki, kv) } else { (si, sv) };
+                    part.static_indices = buffer()?;
+                    part.static_vertices = buffer()?;
+                    part.skinned_indices = buffer()?;
+                    part.skinned_vertices = buffer()?;
                     r.i32()?;
                 }
                 Ok(())
