@@ -1,7 +1,7 @@
 //! Skeleton maths for `GraphicsMesh` bones.
 //!
-//! Convention (established by making every influencing bone of 7/8 skinned meshes agree, and the
-//! skinned result match the stored bounds to within quantisation error):
+//! Convention (verified against all eight skinned meshes, combining weighted geometry with
+//! rigid node geometry when comparing stored bounds):
 //! - stored quaternions are conjugated relative to the column-vector convention used here;
 //! - world = parent_world * local;
 //! - skinning matrix = world * inverse_bind, where `inv_rotation`/`inv_translation` is the inverse bind.

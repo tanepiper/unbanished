@@ -23,9 +23,9 @@
   <canvas id="viewer" tabindex="0"></canvas>
   <div id="panel">
     <label for="packages">Load your game data</label>
-    <input id="packages" type="file" accept=".pkg" multiple>
-    <div class="hint">Select data0.pkg, data1.pkg, patch0.pkg and patch1.pkg from Banished's WinData folder. Files stay in your browser.</div>
-    <div id="status">Starting…</div>
+    <input id="packages" type="file" accept=".pkg" multiple aria-describedby="package-hint status">
+    <div id="package-hint" class="hint">Select data0.pkg, data1.pkg, patch0.pkg and patch1.pkg from Banished's WinData folder. Files stay in your browser.</div>
+    <div id="status" role="status" aria-live="polite">Starting…</div>
   </div>
 </body>
 </html>

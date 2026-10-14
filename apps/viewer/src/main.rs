@@ -401,6 +401,13 @@ mod web {
                     Err(e) => log::warn!("{url}: {e:?}"),
                 }
             }
+            if packages.is_empty() {
+                set_status(
+                    "Could not fetch game data. Select your .pkg files to continue.",
+                    false,
+                );
+                return;
+            }
             let _ = proxy.send_event(UserEvent::Packages(packages));
         });
     }
@@ -415,23 +422,43 @@ mod web {
         let target = input.clone();
         let on_change = Closure::<dyn FnMut()>::new(move || {
             let Some(files) = target.files() else { return };
-            let files: Vec<web_sys::File> =
-                (0..files.length()).filter_map(|i| files.get(i)).collect();
+            // Cancelling the chooser must leave the current viewer alone.
+            if files.length() == 0 {
+                return;
+            }
+            let files: Vec<web_sys::File> = (0..files.length())
+                .filter_map(|i| files.get(i))
+                .filter(|f| f.name().to_lowercase().ends_with(".pkg"))
+                .collect();
+            // Permit selecting the same files again after a read or parse error.
+            target.set_value("");
+            if files.is_empty() {
+                set_status("Select one or more .pkg files from your WinData folder.", false);
+                return;
+            }
+            target.set_disabled(true);
+            let input = target.clone();
             let proxy = proxy.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let mut packages = Vec::new();
-                for file in files
-                    .into_iter()
-                    .filter(|f| f.name().to_lowercase().ends_with(".pkg"))
-                {
+                for file in files {
                     set_status(&format!("Loading {}…", file.name()), false);
                     match wasm_bindgen_futures::JsFuture::from(file.array_buffer()).await {
                         Ok(buf) => {
                             packages.push((file.name(), js_sys::Uint8Array::new(&buf).to_vec()))
                         }
-                        Err(e) => log::error!("{}: {e:?}", file.name()),
+                        Err(e) => {
+                            log::error!("{}: {e:?}", file.name());
+                            set_status(
+                                &format!("Could not read {}. Select the files again.", file.name()),
+                                false,
+                            );
+                            input.set_disabled(false);
+                            return;
+                        }
                     }
                 }
+                input.set_disabled(false);
                 let _ = proxy.send_event(UserEvent::Packages(packages));
             });
         });
