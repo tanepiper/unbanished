@@ -32,6 +32,10 @@ The profile objects also name `Terrain/River.rsc` and `Terrain/Lake.rsc`, but th
 does not bind a specific record group to either resource. The mesh is therefore called
 path-derived geometry here, without labeling it river or lake geometry.
 
+The three referenced `.rsc` files resolve to material instances and their serialized texture slots;
+see [TERRAIN-MATERIAL-RESOURCES.md](TERRAIN-MATERIAL-RESOURCES.md). That confirms the separate water
+render assets exist, but does not yet connect them to this path-derived mesh.
+
 ## What remains unresolved
 
 - Trace map-state offsets `+0xf8`, `+0x150`, and `+0x158` from the copied terrain, river, and lake

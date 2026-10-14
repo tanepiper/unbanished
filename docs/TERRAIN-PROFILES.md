@@ -21,6 +21,10 @@ records. Both shipped profiles set the boolean to true and reference:
 This establishes that both terrain profiles name terrain, river, and lake resources. It does not
 by itself establish which procedural point/path collection feeds each resource.
 
+The matching extracted files are `MaterialInstance` resources with named material and texture
+links; see [TERRAIN-MATERIAL-RESOURCES.md](TERRAIN-MATERIAL-RESOURCES.md) for those serialized
+bindings.
+
 ## Size records
 
 `TerrainSize0`, `TerrainSize1`, and `TerrainSize2` resolve through
