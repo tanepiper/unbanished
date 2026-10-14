@@ -139,7 +139,9 @@ Suggested milestones:
 3. ✅ Model viewer, native and in the browser (Rust + wgpu; WebGPU with WebGL2 fallback). Terrain moves to M5.
 4. ✅ UI system: all 1,644 UI resources decode; `crates/ui` renders the main menu and the asset
    browser from game data (see §6).
-5. Map generation and terrain from `Terrain/` plus the Perlin-noise code.
+5. Map generation and terrain from `Terrain/` plus the Perlin-noise code. The initial settings-to-grid
+   path is partially traced in [WORLD-GENERATION.md](WORLD-GENERATION.md); the terrain algorithms
+   and world-population paths remain incomplete.
 6. Simulation components, one at a time (resources → storage → work → citizens → seasons).
 7. Save/load, audio, polish. Audio decoding is done (§7).
 

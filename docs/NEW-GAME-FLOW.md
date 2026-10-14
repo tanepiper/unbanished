@@ -47,13 +47,21 @@ climate, disasters and starting conditions. `StringTable_mainMenu` supplies thos
 “Town Name”, “Map Seed”, “Terrain Type”, “Terrain Size”, “Climate”, “Disasters” and “Starting
 Conditions”. The dialog also contains a name-generation button and a seed-generation button.
 
-`FUN_140075ba0` finds the named edit, numeric and combo elements. It obtains three external lists
-from a shared game-data object and adds list entries to the `comboCondition`, `comboClimate` and
-`comboTerrain` controls. Each added choice keeps the source list index as item data. It initializes
-the selectors from saved/current global indices (falling back to index zero when an index is out of
-range), generates a town name through `FUN_14009ef90`, and seeds the map-seed edit with a random
-integer in the numeric control's allowed range. The concrete class names and semantic meaning of
-the three external lists remain to be resolved.
+`FUN_14009f280` loads `Game/Climate/ClimateList.rsc`,
+`Game/StartCondition/StartConditions.rsc` and `Game/Terrain/TerrainList.rsc` into a shared game-data
+object. `FUN_140075ba0` reads those list references and adds their entries to `comboClimate`,
+`comboCondition` and `comboTerrain`, respectively. Each added choice keeps the source-list index as
+item data. The packaged list contents and registered resource types are:
+
+| Selector | List resource | Item class | Shipped entries in list order |
+|---|---|---|---|
+| Starting conditions | `Game/StartCondition/StartConditions.rsc` | `MapGenerator` | `Hard`, `Medium`, `Easy` |
+| Climate | `Game/Climate/ClimateList.rsc` | `ClimateGenerator` | `Mild`, `Fair`, `Harsh` |
+| Terrain | `Game/Terrain/TerrainList.rsc` | `TerrainGenerator` | `Valleys`, `Mountains` |
+
+The same initialization method restores selector indices from shared settings (falling back to
+index zero when out of range), generates a town name through `FUN_14009ef90`, and seeds the map-seed
+edit with a random integer in the numeric control's allowed range.
 
 That setup method assigns IDs as follows: `buttonNewName` 0, `buttonNewSeed` 1, `buttonCancel` 2,
 `buttonOk` 3, and `comboCondition` 4. For event kind `0x12`, the handler maps ID 0 to another
@@ -70,23 +78,23 @@ than silently swapping the IDs in a port.
 
 `FUN_140075750` reads the selected combo indices and writes them into shared configuration fields at
 offsets `+0x20` (terrain), `+0x24` (terrain size), `+0x28` (climate), `+0x2c` (starting condition)
-and `+0x30` (disaster). It reads the seed from the numeric edit, retrieves selected records from the
-external lists using each combo's stored item data, and passes the town name, seed, size/disaster
-values and selected record pointers into `FUN_1400b9a10`. The argument-to-class mapping and meaning
-of every field are not yet fully established.
+and `+0x30` (disaster). It reads the seed from the numeric edit, retrieves the selected
+`MapGenerator`, `TerrainGenerator` and `ClimateGenerator` records from their respective lists using
+the combos' stored item data, and passes these records together with the town name, seed and
+size/disaster values into `FUN_1400b9a10`. The child-loop field layout and first terrain/starting-
+condition calls are traced separately in [WORLD-GENERATION.md](WORLD-GENERATION.md); later field
+meanings remain unresolved.
 
 `FUN_1400b9a10` constructs a child update loop with `FUN_14009d530`, wraps it in an
 `Engine::DialogLoaderLoopT`/`Engine::LoaderLoop` and applies a fullscreen fade. It stores that
 transition on the current loop context; the game-loop update method later calls
 `Engine::MainLoop::SetNextLoop` when the fade has completed. The child loop's vtable is at
 `0x140164880`; slot 10 is `FUN_14001a6a0`, which returns the path string `Game/Game`. This identifies
-the game-loop resource name, but the consumer that loads that resource and the subsequent
-`MapGenerator` call chain still need to be traced.
+the game-loop resource name. Its first terrain, starting-condition and climate setup calls are
+traced in [WORLD-GENERATION.md](WORLD-GENERATION.md); later generation stages remain open.
 
 ## Next evidence to gather
 
 - Verify the Cancel/Ok behavior against a running game or trace the UI callback argument contract.
-- Resolve the external-list classes and map each UI selector to its corresponding data type.
-- Follow `FUN_1400b9a10` into the child loop's `Game/Game` load and map-generator construction.
-- Trace the settings tuple through terrain generation and initial settlement placement.
+- Follow the generation helpers and record arrays listed in [WORLD-GENERATION.md](WORLD-GENERATION.md).
 - Trace save/load constructor mode `0` versus `1` to confirm the MainMenu mapping semantics.
