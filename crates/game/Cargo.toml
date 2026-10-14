@@ -1,0 +1,10 @@
+[package]
+name = "banished-game"
+version = "0.1.0"
+description = "1:1 reimplementation of Banished's game logic (world generation, simulation)"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+banished-formats = { path = "../formats" }

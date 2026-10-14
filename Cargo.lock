@@ -210,6 +210,13 @@ name = "banished-formats"
 version = "0.1.0"
 
 [[package]]
+name = "banished-game"
+version = "0.1.0"
+dependencies = [
+ "banished-formats",
+]
+
+[[package]]
 name = "banished-ui"
 version = "0.1.0"
 dependencies = [
