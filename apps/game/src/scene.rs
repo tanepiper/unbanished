@@ -188,6 +188,17 @@ impl Camera {
         self.target = self.target.clamp(Vec2::splat(-half), Vec2::splat(half));
     }
 
+    /// Pan opposite a screen-space drag, keeping the target in the camera's ground plane.
+    pub fn pan_drag(&mut self, dx: f32, dy: f32, terrain: &Terrain) {
+        let (sy, cy) = self.yaw.sin_cos();
+        let right = Vec2::new(cy, -sy);
+        let forward = Vec2::new(sy, cy);
+        let scale = self.distance * 0.0015;
+        self.target += right * (-dx * scale) + forward * (dy * scale);
+        let half = terrain.size as f32 / 2.0;
+        self.target = self.target.clamp(Vec2::splat(-half), Vec2::splat(half));
+    }
+
     pub fn rotate(&mut self, dx: f32, dy: f32) {
         self.yaw += dx * 0.005;
         self.pitch = (self.pitch + dy * 0.005).clamp(10f32.to_radians(), 89f32.to_radians());

@@ -30,9 +30,11 @@ switching. The simulation manager at `+0xe8` is the separate entity scheduler de
 
 The current port's calendar advances from wall-clock time at an invented 12-second month interval.
 The Ghidra trace establishes a UI pause check and a separate simulation iteration count, but does
-not establish the original interval, speed values, or calendar transition rules. Those remain
-open. The evidence does establish that a paused UI bypasses the outer per-iteration manager block;
-the active UI update path still runs afterward.
+not establish the original interval or calendar transition rules. Those remain open. The original
+toolbar's iteration values are now traced as 1, 2, 5 and 10 in
+[GAMEPLAY-SPEED-AND-TOOLBAR.md](GAMEPLAY-SPEED-AND-TOOLBAR.md). The evidence also establishes that
+a paused UI bypasses the outer per-iteration manager block; the active UI update path still runs
+afterward.
 
 ## Evidence pointers
 
@@ -43,6 +45,7 @@ the active UI update path still runs afterward.
 
 ## Next trace
 
-Trace the toolbar's speed controls to the controller's `+0x34` iteration count and determine how
-those values are selected. The game calendar and its displayed month/year transitions remain
-unresolved; do not equate the entity scheduler's accumulated elapsed time with the calendar.
+The toolbar's selected value and UI dispatch are traced in
+[GAMEPLAY-SPEED-AND-TOOLBAR.md](GAMEPLAY-SPEED-AND-TOOLBAR.md). Continue with the calendar and its
+displayed month/year transitions; do not equate the entity scheduler's accumulated elapsed time
+with the calendar.

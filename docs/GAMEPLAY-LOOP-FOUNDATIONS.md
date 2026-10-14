@@ -38,10 +38,11 @@ speed controls operate this calendar and lighting only.
 
 The outer update and its follow-up are documented in [GAME-LOOP-STEP-01.md](GAME-LOOP-STEP-01.md)
 and [GAME-LOOP-STEP-02.md](GAME-LOOP-STEP-02.md). The trace establishes pause/speed gating,
-camera input in the game-loop update, elapsed-time entity scheduling, and the three packaged UI
-dialogs installed at gameplay startup. It does not yet recover the game's calendar rules or toolbar
-speed-action mapping. The gameplay HUD's camera-input regression and routing correction are
-recorded in [CAMERA-INPUT-FINDING.md](CAMERA-INPUT-FINDING.md).
+camera input in the game-loop update, elapsed-time entity scheduling, the three packaged UI dialogs
+installed at gameplay startup, and the original 1x/2x/5x/10x simulation iteration values. It does
+not yet recover the game's calendar rules. Toolbar dispatch is in
+[GAMEPLAY-SPEED-AND-TOOLBAR.md](GAMEPLAY-SPEED-AND-TOOLBAR.md). The gameplay HUD's camera-input
+routing and recent drag-mode correction are recorded in [CAMERA-INPUT-FINDING.md](CAMERA-INPUT-FINDING.md).
 
 ## Remaining work before this is a full game loop
 

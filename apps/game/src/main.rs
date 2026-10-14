@@ -9,7 +9,8 @@
 //!   `banished --capture OUT.png [--seed N --terrain Valleys|Mountains --size 0|1|2 --month M
 //!    --view overview|ground]` renders a generated map.
 //!
-//! On the map: drag to rotate, wheel to zoom, WASD/arrows to move, Escape for the main menu.
+//! On the map: left/right drag to rotate, middle drag to pan, wheel to zoom, WASD/arrows to move,
+//! Escape for the main menu.
 
 mod gameplay;
 mod global;
@@ -320,7 +321,7 @@ struct App {
     game: Option<Game>,
     last_frame: Option<Instant>,
     cursor: (f64, f64),
-    dragging: bool,
+    drag_button: Option<MouseButton>,
     shift: bool,
 }
 
@@ -334,7 +335,7 @@ impl App {
             game: None,
             last_frame: None,
             cursor: (0.0, 0.0),
-            dragging: false,
+            drag_button: None,
             shift: false,
         }
     }
@@ -454,20 +455,37 @@ impl ApplicationHandler<UserEvent> for App {
                 self.cursor = (position.x, position.y);
                 if let Some(game) = &mut self.game {
                     game.pointer_move(position.x as i32, position.y as i32);
-                    if self.dragging {
-                        game.drag(dx as f32, dy as f32);
+                    match self.drag_button {
+                        Some(MouseButton::Left | MouseButton::Right) => {
+                            game.drag(dx as f32, dy as f32);
+                        }
+                        Some(MouseButton::Middle) => {
+                            game.raw(RawInput::PanDrag(dx as f32, dy as f32))
+                        }
+                        _ => {}
                     }
                 }
             }
+            WindowEvent::Focused(false) => self.drag_button = None,
             WindowEvent::MouseInput { button, state, .. } => {
                 let down = state == ElementState::Pressed;
                 let Some(game) = &mut self.game else { return };
                 match button {
                     MouseButton::Left => {
                         let captured = game.pointer_button(down);
-                        self.dragging = down && !captured;
+                        if down {
+                            self.drag_button = (!captured).then_some(MouseButton::Left);
+                        } else if self.drag_button == Some(MouseButton::Left) {
+                            self.drag_button = None;
+                        }
                     }
-                    MouseButton::Right => self.dragging = down,
+                    MouseButton::Right | MouseButton::Middle => {
+                        if down {
+                            self.drag_button = Some(button);
+                        } else if self.drag_button == Some(button) {
+                            self.drag_button = None;
+                        }
+                    }
                     _ => {}
                 }
             }

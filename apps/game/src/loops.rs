@@ -29,6 +29,7 @@ pub struct Ctx<'a> {
 /// Input not consumed by the UI (camera control).
 pub enum RawInput {
     Drag(f32, f32),
+    PanDrag(f32, f32),
     Wheel(f32),
     Pan(f32, f32),
     Escape,

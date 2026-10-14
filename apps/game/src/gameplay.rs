@@ -260,6 +260,7 @@ impl GameLoop for GameplayLoop {
         };
         match input {
             RawInput::Drag(dx, dy) => camera.rotate(dx, dy),
+            RawInput::PanDrag(dx, dy) => camera.pan_drag(dx, dy, terrain),
             RawInput::Wheel(steps) => camera.zoom(steps),
             RawInput::Pan(forward, right) => camera.pan(forward, right, terrain),
             RawInput::Escape => return Self::return_to_menu(),

@@ -66,6 +66,8 @@ or establish the full event-notification/autosave behavior.
 - `FUN_1400bede0` (`0x1400bede0`): toolbar element construction.
 - `FUN_140069410` and `FUN_14005eb90`: event notification and autosave dialog constructors.
 
-Next, decode the toolbar item records and trace the toolbar speed action into the controller's
-`+0x34` value. Separately follow how entity-manager elapsed time reaches simulation components and
-whether any manager advances the displayed calendar.
+The toolbar action trace is now recorded in [GAMEPLAY-SPEED-AND-TOOLBAR.md](GAMEPLAY-SPEED-AND-TOOLBAR.md):
+the packaged values are 1, 2, 5 and 10 iterations per frame, and the toolbar buttons update the
+controller fields described above. The calendar accumulator and month/year transition rules remain
+unresolved. Next, follow how elapsed time reaches simulation components and identify which manager
+advances the displayed calendar.
