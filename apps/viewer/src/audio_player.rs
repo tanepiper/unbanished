@@ -1,22 +1,28 @@
 //! Reusable floating audio-player UI built from the game UI runtime.
 
 use banished_formats::ui::flags;
-use banished_ui::{NodeId, Ui};
+use banished_ui::{Control, Kind, Node, NodeId, SpriteRef, Ui};
 
 const FONT: &str = r"Font\FontMedium.rsc:resource";
 const FONT_SMALL: &str = r"Font\FontSmall.rsc:resource";
 const BUTTON: &str = r"Dialog\SharedElements.rsc:buttonOk";
 const PANEL: &str = r"Dialog\SharedElements.rsc:sunkenBorder";
 const BAR: &str = r"Dialog\SharedElements.rsc:dialogBorder";
+const SPRITES: &str = r"Dialog\SpriteSheet.rsc:resource";
 
 pub struct AudioPlayerUi {
     pub window: NodeId,
     pub drag_handle: NodeId,
     pub play: NodeId,
+    play_icon: NodeId,
+    play_caption: NodeId,
+    play_sprite: Option<SpriteRef>,
+    pause_sprite: Option<SpriteRef>,
     pub stop: NodeId,
     pub previous: NodeId,
     pub next: NodeId,
     pub loop_toggle: NodeId,
+    loop_caption: NodeId,
     pub seek: NodeId,
     pub volume: NodeId,
     track: NodeId,
@@ -30,7 +36,7 @@ impl AudioPlayerUi {
         let window = ui.group();
         {
             let node = ui.node_mut(window);
-            node.min_size = [520, 220];
+            node.min_size = [520, 208];
             node.alignment = 0;
         }
 
@@ -69,38 +75,66 @@ impl AudioPlayerUi {
 
         let position = ui.text(FONT_SMALL, "00:00 / 00:00");
         ui.add_child(content, position);
-        let seek = ui.slider([0.0, 1.0]);
+        let seek = ui
+            .instantiate(r"Dialog\Options.rsc:sliderMusic")
+            .unwrap_or_else(|| ui.slider([0.0, 1.0]));
         {
             let node = ui.node_mut(seek);
             node.flags = flags::FILL_WIDTH;
             node.min_size = [0, 24];
             node.margins = [4, 4, 0, 0];
         }
+        if let Kind::Control(Control::Slider(slider)) = &mut ui.node_mut(seek).kind {
+            slider.number = None;
+        }
         ui.add_child(content, seek);
 
         let buttons = ui.ribbon(false, 6);
         ui.node_mut(buttons).flags = flags::FILL_WIDTH;
-        let make_button = |ui: &mut Ui, label: &str| {
+        let make_button = |ui: &mut Ui, label: &str, icon_name: Option<&str>| {
             let button = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
-            ui.set_text(button, label);
+            let button_content = ui.ribbon(false, 5);
+            {
+                let node = ui.node_mut(button_content);
+                node.flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
+                node.margins = [5, 5, 2, 2];
+            }
+            let sprite = icon_name.and_then(|name| ui.res.sprite(Some(SPRITES), name));
+            let icon = ui.add(Node::new(Kind::Image {
+                sprite,
+                size: [0, 0],
+            }));
+            let caption = ui.text(FONT, label);
+            ui.node_mut(caption).margins = [2, 2, 0, 0];
+            ui.add_child(button_content, icon);
+            ui.add_child(button_content, caption);
+            if let Kind::Button { content, .. } = &mut ui.node_mut(button).kind {
+                *content = Some(button_content);
+            }
+            ui.node_mut(button).min_size = [74, 40];
             ui.add_child(buttons, button);
-            button
+            (button, icon, caption)
         };
-        let previous = make_button(ui, "Prev");
-        let play = make_button(ui, "Play");
-        let stop = make_button(ui, "Stop");
-        let next = make_button(ui, "Next");
-        let loop_toggle = make_button(ui, "Loop Off");
+        let (previous, _, _) = make_button(ui, "Prev", Some("ArrowLeft"));
+        let (play, play_icon, play_caption) = make_button(ui, "Play", Some("ToolbarPlay"));
+        let (stop, _, _) = make_button(ui, "Stop", None);
+        let (next, _, _) = make_button(ui, "Next", Some("ArrowRight"));
+        let (loop_toggle, _, loop_caption) = make_button(ui, "Loop Off", None);
         ui.add_child(content, buttons);
 
         let volume_text = ui.text(FONT_SMALL, "Volume 100%");
         ui.add_child(content, volume_text);
-        let volume = ui.slider([0.0, 1.0]);
+        let volume = ui
+            .instantiate(r"Dialog\Options.rsc:sliderMusic")
+            .unwrap_or_else(|| ui.slider([0.0, 1.0]));
         {
             let node = ui.node_mut(volume);
             node.flags = flags::FILL_WIDTH;
             node.min_size = [0, 24];
             node.margins = [4, 4, 0, 0];
+        }
+        if let Kind::Control(Control::Slider(slider)) = &mut ui.node_mut(volume).kind {
+            slider.number = None;
         }
         ui.add_child(content, volume);
 
@@ -108,10 +142,15 @@ impl AudioPlayerUi {
             window,
             drag_handle,
             play,
+            play_icon,
+            play_caption,
+            play_sprite: ui.res.sprite(Some(SPRITES), "ToolbarPlay"),
+            pause_sprite: ui.res.sprite(Some(SPRITES), "ToolbarPause"),
             stop,
             previous,
             next,
             loop_toggle,
+            loop_caption,
             seek,
             volume,
             track,
@@ -131,12 +170,19 @@ impl AudioPlayerUi {
     }
 
     pub fn set_playing(&self, ui: &mut Ui, playing: bool) {
-        ui.set_text(self.play, if playing { "Pause" } else { "Play" });
+        ui.set_text(self.play_caption, if playing { "Pause" } else { "Play" });
+        if let Kind::Image { sprite, .. } = &mut ui.node_mut(self.play_icon).kind {
+            *sprite = if playing {
+                self.pause_sprite
+            } else {
+                self.play_sprite
+            };
+        }
     }
 
     pub fn set_looping(&self, ui: &mut Ui, looping: bool) {
         ui.set_text(
-            self.loop_toggle,
+            self.loop_caption,
             if looping { "Loop On" } else { "Loop Off" },
         );
     }

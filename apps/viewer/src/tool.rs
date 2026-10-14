@@ -683,9 +683,11 @@ impl Tool {
         );
         self.ui.clear_input();
         if self.mode == Mode::Audio {
+            self.player.stop();
             self.audio_seek_position = 0.0;
             self.audio_duration = 0.0;
             self.audio_player.set_track(&mut self.ui, "", 0.0, false);
+            self.audio_player.set_playing(&mut self.ui, false);
             self.audio_player.set_position(&mut self.ui, 0.0);
         }
         self.ui
@@ -933,6 +935,14 @@ impl Tool {
             _ => 0,
         };
         self.select(renderer, (current + delta).rem_euclid(n) as usize);
+    }
+
+    fn step_audio(&mut self, renderer: &mut Renderer, delta: isize) {
+        let was_playing = self.player.is_playing();
+        self.step(renderer, delta);
+        if was_playing {
+            self.play_selected();
+        }
     }
 
     fn play_selected(&mut self) {
@@ -1330,9 +1340,9 @@ impl Tool {
                     self.audio_player.set_playing(&mut self.ui, false);
                     self.set_status("Stopped");
                 } else if id == self.audio_player.previous && self.mode == Mode::Audio {
-                    self.step(renderer, -1);
+                    self.step_audio(renderer, -1);
                 } else if id == self.audio_player.next && self.mode == Mode::Audio {
-                    self.step(renderer, 1);
+                    self.step_audio(renderer, 1);
                 } else if id == self.audio_player.loop_toggle && self.mode == Mode::Audio {
                     self.audio_looping = !self.audio_looping;
                     match self.player.set_looping(self.audio_looping) {
