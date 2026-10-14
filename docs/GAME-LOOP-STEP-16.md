@@ -86,7 +86,8 @@ reveal which system creates or schedules it.
 
 ## Next trace
 
-Find the Action executor that invokes `RemoveNaturalResource` and `AnimateNaturalResource`, and
-identify the values supplied at their serialized fields. Then find producers of
-NaturalResourceComponent byte `+0x2d` and consumers of the category counter at `+0x10`; compare
-those paths with a decoded save before assigning gameplay names.
+Resolve the four `FUN_1400c7380` callers to named job/resource transitions and identify the inputs
+that choose the Remove/Animate sequence; the action queue dispatch and construction sites are traced
+in [GAME-LOOP-STEP-17.md](GAME-LOOP-STEP-17.md). Then find producers of NaturalResourceComponent
+byte `+0x2d` and consumers of the category counter at `+0x10`; compare those paths with a decoded
+save before assigning gameplay names.

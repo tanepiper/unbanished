@@ -71,8 +71,11 @@ dispatch are in [GAME-LOOP-STEP-13.md](GAME-LOOP-STEP-13.md). Resource branch co
 shipped templates is in [GAME-LOOP-STEP-14.md](GAME-LOOP-STEP-14.md); its guarded entity creation
 and separate category-counter path is in [GAME-LOOP-STEP-15.md](GAME-LOOP-STEP-15.md). The
 animation-completion, `AnimateNaturalResource`, and `RemoveNaturalResource` action routes are in
-[GAME-LOOP-STEP-16.md](GAME-LOOP-STEP-16.md). Action triggers, counter meanings, and map-byte
-meanings still need executor and save/runtime comparison.
+[GAME-LOOP-STEP-16.md](GAME-LOOP-STEP-16.md). Their sequence dispatcher, CharacterComponent update
+site, task-transition call site, and resource/job construction path are traced in
+[GAME-LOOP-STEP-17.md](GAME-LOOP-STEP-17.md). The four task/resource callers still need to be
+resolved to named transitions; counter meanings and map-byte meanings still need save/runtime
+comparison.
 
 ## Remaining work before this is a full game loop
 
