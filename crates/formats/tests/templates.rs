@@ -155,3 +155,21 @@ fn raw_materials_and_storage_parse() {
         println!("{name}: {s:?}");
     }
 }
+
+#[test]
+fn citizen_description_parses() {
+    use banished_formats::game::citizen_description;
+    let Some(archive) = archive() else { return };
+    let c =
+        citizen_description(&archive.read_ref("Template/Citizen.rsc:citizen").unwrap()).unwrap();
+    println!(
+        "adult {} start {:?} lifespan {:?} edu {} health {} happy {}",
+        c.adult_age(),
+        c.start_age(),
+        c.lifespan(),
+        c.i(0x118),
+        c.f(0x70),
+        c.f(0xa4)
+    );
+    assert!(c.adult_age() > 0.0);
+}

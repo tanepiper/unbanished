@@ -81,6 +81,9 @@ impl GameplayLoop {
             month: self.month(),
             temperature: self.environment.as_ref().map_or(0.0, |e| e.temperature),
             weather: self.environment.as_ref().map_or(3, |e| e.state),
+            adults: self.population().0,
+            students: self.population().1,
+            children: self.population().2,
             // `FUN_14008f3a0`, recomputed from the town storages.
             stock: self.town.as_ref().map_or([0; 21], |t| {
                 banished_game::stock::stock_table(&t.storages, &t.materials)
@@ -94,6 +97,12 @@ impl GameplayLoop {
             toolbar.refresh(ui, SPEED_LEVELS[self.speed as usize], self.paused);
         }
         self.utility.update(ui, &self.status_values());
+    }
+
+    fn population(&self) -> (u32, u32, u32) {
+        self.town.as_ref().map_or((0, 0, 0), |t| {
+            banished_game::citizens::population(&t.citizens, &t.rules)
+        })
     }
 
     /// `floor(elapsed / 3600 × 12)`.

@@ -942,3 +942,102 @@ pub fn storage_description(data: &[u8]) -> Result<StorageDescription> {
     })?;
     Ok(value)
 }
+
+/// `CitizenDescription` (serializer `FUN_140119dd0`). The class has ~60 scalar fields; they are
+/// kept keyed by their runtime offset (as the original code reads them) with named getters for
+/// the ones whose consumers are traced.
+#[derive(Debug, Clone)]
+pub struct CitizenDescription {
+    /// Scalar fields by runtime offset.
+    pub fields: std::collections::BTreeMap<u32, Scalar>,
+    /// `+0x138`: external references (`FUN_14001c620`).
+    pub list: Vec<Option<String>>,
+    /// `+0x20`, `+0x28`, `+0x30`.
+    pub refs: [Option<String>; 3],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Scalar {
+    F32(f32),
+    I32(i32),
+}
+
+impl CitizenDescription {
+    pub fn f(&self, offset: u32) -> f32 {
+        match self.fields.get(&offset) {
+            Some(Scalar::F32(v)) => *v,
+            Some(Scalar::I32(v)) => *v as f32,
+            None => 0.0,
+        }
+    }
+    pub fn i(&self, offset: u32) -> i32 {
+        match self.fields.get(&offset) {
+            Some(Scalar::I32(v)) => *v,
+            Some(Scalar::F32(v)) => *v as i32,
+            None => 0,
+        }
+    }
+    /// `+0x44`: age at which a citizen counts as an adult.
+    pub fn adult_age(&self) -> f32 {
+        self.f(0x44)
+    }
+    /// `+0x50`, `+0x54`: starting adults' age range (`FUN_1400a62a0` uses `+0x54 / 2`).
+    pub fn start_age(&self) -> (f32, f32) {
+        (self.f(0x50), self.f(0x54))
+    }
+    /// `+0x38`, `+0x3c`: lifespan base and random range (`FUN_14011c550`).
+    pub fn lifespan(&self) -> (f32, f32) {
+        (self.f(0x38), self.f(0x3c))
+    }
+}
+
+pub fn citizen_description(data: &[u8]) -> Result<CitizenDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("CitizenDescription") {
+            return format_err(format!(
+                "expected CitizenDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            use Scalar::*;
+            let mut fields = std::collections::BTreeMap::new();
+            let mut f = |r: &mut Reader, o: u32| -> Result<()> {
+                fields.insert(o, F32(r.f32()?));
+                Ok(())
+            };
+            for o in [
+                0x44, 0x6c, 0x70, 0x74, 0x78, 0x7c, 0x80, 0x84, 0x88, 0x8c, 0x90, 0x38, 0x3c, 0x40,
+                0xc0, 0xd8, 0xdc, 0xe0, 0xe4, 0x48, 0x4c, 0x50, 0x54, 0x58, 0x5c, 0x60, 0xc4, 0xd4,
+                0xc8, 0xcc, 0xd0, 0xe8, 0xec, 0xf0, 0xf4,
+            ] {
+                f(r, o)?;
+            }
+            fields.insert(0x110, I32(r.i32()?));
+            let list = (0..r.count()?)
+                .map(|_| r.external_ref())
+                .collect::<Result<_>>()?;
+            fields.insert(0x114, F32(r.f32()?));
+            fields.insert(0x118, I32(r.i32()?));
+            for o in [0x120, 0x11c, 0x128, 0x124, 0x130, 0xa4] {
+                fields.insert(o, F32(r.f32()?));
+            }
+            fields.insert(0xa8, I32(r.i32()?));
+            fields.insert(0xac, I32(r.i32()?));
+            fields.insert(0xa0, F32(r.f32()?));
+            fields.insert(0xb0, I32(r.i32()?));
+            fields.insert(0xb4, F32(r.f32()?));
+            fields.insert(0xb8, F32(r.f32()?));
+            fields.insert(0xbc, I32(r.i32()?));
+            let refs = [r.external_ref()?, r.external_ref()?, r.external_ref()?];
+            fields.insert(0x64, F32(r.f32()?));
+            fields.insert(0x68, F32(r.f32()?));
+            for o in [0xf8, 0xfc, 0x100, 0x104, 0x108] {
+                fields.insert(o, I32(r.i32()?));
+            }
+            fields.insert(0x10c, F32(r.f32()?));
+            Ok(CitizenDescription { fields, list, refs })
+        })
+    })?;
+    Ok(value)
+}

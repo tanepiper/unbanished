@@ -355,3 +355,43 @@ A port needs both serialized scalar state and the shared entity-reference graph.
 Persisting home references without Residence occupant vectors, guardian rings,
 partner pointers, AI timers and need-event accumulators would discard behavior
 that this update path explicitly reads and mutates.
+
+## Starting households (ported)
+
+`FUN_1400a62a0` walks the profile's `+0x60` rows `(educated, extra)`. Each row produces a couple,
+then children:
+
+- **Adults.** The husband is created first, then the wife. Each age is
+  `RandFloat() · (+0x54 · 0.5 − +0x50) + +0x50`, using `CitizenDescription` (serializer
+  `FUN_140119dd0`).
+- **Spouses.** The two are linked at `+0x250`.
+- **Children.** There are `Rand(extra + 1)` of them. Each age is `RandFloat() · adult age (+0x44)`.
+  They are added to the wife's household (`FUN_14011bd70`). Their sex alternates across *all*
+  households, starting female.
+
+Each citizen (`FUN_1400a6510` → `FUN_14011c550`) draws, in order:
+
+1. Position: `RandFloatTol` for y, then for x, times the profile's `+0x40`, around the start cell
+   centre (`FUN_140002080`).
+2. The name: `FUN_1400aa130`, using the male or female database.
+3. Appearance: `(Rand() + Rand()) & 7` into `+0x34`, which `FUN_14011a5e0` and `FUN_14011a700`
+   write as the mesh instance's `w`.
+4. Lifespan: `RandFloatTol · +0x3c + +0x38`.
+
+Other setup:
+
+- **Model variant:** 0 for men and 1 for women, with no draw.
+- **Education:** educated adults get `+0x220 = 1` and `+0x210 = +0x118` (400). Children are never
+  educated.
+- **Scale:** children get the scale constant `DAT_140178818` and adults 1.0.
+
+The shipped citizen description gives adult age 2.0, starting ages 2.2–4.0 and lifespan 15 ± 3 in
+the description's age units. A Medium start makes 5 couples and 0 to 25 children, for example
+10 / 0 / 5.
+
+The port is in `crates/game/src/citizens.rs`, and the Status Bar shows its population. Not ported
+yet:
+
+- the citizens' models and animation;
+- needs and AI;
+- homes (none are assigned at New Game unless Easy houses exist).

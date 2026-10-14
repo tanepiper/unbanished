@@ -5,11 +5,13 @@
 use std::collections::HashMap;
 
 use banished_formats::game::{
-    component_description, create_placed_description, growth_description, map_description,
-    map_generator, model_description, natural_resource_description, raw_material_description,
-    spawn_description, storage_description, MapGenerator,
+    citizen_description, component_description, create_placed_description, growth_description,
+    map_description, map_generator, model_description, natural_resource_description,
+    raw_material_description, spawn_description, storage_description, MapGenerator,
 };
+use banished_formats::names::NameDatabase;
 use banished_formats::pkg::Archive;
+use banished_game::citizens::{Citizen, CitizenRules, Households};
 use banished_game::map::Map;
 use banished_game::random::Random;
 use banished_game::seeding::{Cells, Placed, Seeder, Template};
@@ -159,8 +161,74 @@ fn starting_goods(
     (materials, storages)
 }
 
+/// `FUN_140002080`: the start cell's centre on the ground.
+fn grid_start(map_size: usize, terrain: &HeightGrid, start: (i32, i32)) -> [f32; 3] {
+    let n = map_size as i32;
+    let c = (n >> 1) as f32 - 0.5;
+    let (x, y) = (start.0 as f32 - c, start.1 as f32 - c);
+    let mut normal = [0.0; 3];
+    [x, y, terrain.ground(x, y, &mut normal)]
+}
+
+fn households(
+    archive: &Archive,
+    profile: &MapGenerator,
+    start: &[f32; 3],
+    rng: &mut Random,
+) -> (Vec<Citizen>, CitizenRules) {
+    let rules = read(
+        archive,
+        &normalise(&profile.citizen).replace(":resource", ":citizen"),
+    )
+    .and_then(|d| citizen_description(&d).ok())
+    .map(|c| CitizenRules {
+        adult_age: c.adult_age(),
+        start_age: c.start_age(),
+        lifespan: c.lifespan(),
+        education: c.i(0x118),
+    });
+    let names = |n: &str| {
+        archive
+            .read(&format!("Game/Names/{n}_resource.crs"))
+            .ok()
+            .and_then(|d| NameDatabase::read(&d).ok())
+    };
+    let (Some(rules), Some(male), Some(female)) = (rules, names("Male"), names("Female")) else {
+        log::warn!("households: citizen description or name databases missing");
+        return (
+            Vec::new(),
+            CitizenRules {
+                adult_age: 2.0,
+                start_age: (2.2, 8.0),
+                lifespan: (15.0, 3.0),
+                education: 0,
+            },
+        );
+    };
+    let mut h = Households {
+        rules,
+        male_names: &male,
+        female_names: &female,
+        spread: profile.value_40,
+        start: *start,
+        citizens: Vec::new(),
+    };
+    h.create_all(rng, &profile.households);
+    log::info!(
+        "{} citizens: {:?}",
+        h.citizens.len(),
+        h.citizens
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect::<Vec<_>>()
+    );
+    (h.citizens, rules)
+}
+
 pub struct StartingTown {
     pub start: (i32, i32),
+    pub citizens: Vec<Citizen>,
+    pub rules: CitizenRules,
     pub materials: Vec<RawMaterial>,
     pub storages: Vec<Storage>,
     pub templates: Vec<Template>,
@@ -208,8 +276,14 @@ impl StartingTown {
         seeder.place_structures(&structures, start.0, start.1);
         seeder.seed(&list, start.0, start.1, radius * radius);
         let placed = std::mem::take(&mut seeder.placed);
-        // Households, deer and other populations (`FUN_1400a62a0`, `FUN_1400a5eb0`,
-        // `FUN_1400a57c0`) come here; not ported yet.
+        // `FUN_1400a62a0`: the starting households around the start cell centre.
+        let (citizens, rules) = households(
+            archive,
+            &profile,
+            &grid_start(map_size, terrain, start),
+            rng,
+        );
+        // Deer and other populations (`FUN_1400a5eb0`, `FUN_1400a57c0`) come here; not ported yet.
         let (materials, storages) = starting_goods(archive, &profile, &structures, &templates);
         log::info!(
             "start {:?}: {} natural resources placed",
@@ -218,6 +292,8 @@ impl StartingTown {
         );
         Some(StartingTown {
             start,
+            citizens,
+            rules,
             materials,
             storages,
             templates,

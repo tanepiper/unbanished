@@ -35,14 +35,40 @@ The Rust decoder is [`crates/formats/src/names.rs`](../crates/formats/src/names.
 the resource type, pool offsets, NUL termination, transition masks, start indices and sorted name
 order. The game currently reads the city resource through the package archive when the menu loads.
 
-## Current UI behavior and fidelity gap
+## Generator (ported, bit-exact)
 
-Opening New Game and pressing `buttonNewName` both select a name from the decoded accepted-name
-pool and place it in `editName`. The current selection is uniform over the accepted names. This is
-deliberately a simple first implementation: it produces valid shipped town names but does not
-reproduce the game's transition-walk probabilities, min/max length choices, 50-attempt collision
-behavior, or `vill` suffix adjustment. Male and female databases are decoded but are not used by
-this UI path.
+`crates/game/src/names.rs` ports the generator from the disassembly.
 
-The exact generator can be ported later from `FUN_1400a9d50` and `FUN_1400aa000` if matching the
-original distribution is needed. The serializer and resource schema are no longer blockers.
+- **`FUN_1400a9d50`** (one candidate):
+  1. Draw a start record with `Rand(start count)`. Copy its 4-byte prefix and uppercase the first
+     letter (−0x20).
+  2. Draw a target length with `Rand(min, max − 4)`.
+  3. Run up to `2·max − 3` steps. Each step:
+     - binary-search the transition table for the current 4-character window (big-endian,
+       unsigned compare);
+     - stop if the window is missing or its mask is empty;
+     - at or past `max`, stop at a boundary record; otherwise a boundary records the cut point
+       `written + 4`;
+     - pick the next letter as the `Rand(popcount(mask & 0x7ffffff))`-th set bit;
+     - end the name (NUL at `written + 4`) when that bit is 26, or when past the target length
+       and bit 26 is allowed;
+     - otherwise append the letter and slide the window.
+  4. If all steps run out, truncate at the last boundary.
+- **`FUN_1400aa000`** (retries): up to 50 candidates. It keeps the first one that has at least
+  `min` letters and is not in the sorted shipped-name pool (`String::StrCompare`, a signed-char
+  strcmp). After 50 tries it returns the last candidate.
+- **`FUN_1400aa130`** (citizens): `Male.ndb` or `Female.ndb`, 3 to 10 letters.
+- **`FUN_14009ef90`** (towns):
+  - `Cities.ndb`, at least 5 letters, with maximum `(editName max length / 3) · 2`
+    (`FUN_140075ba0`);
+  - a name ending in `vill` gets `e` appended (string literals at `0x140165078` and `0x140165080`).
+
+### Verification
+
+`tools/emu/names.py` runs the original `FUN_1400aa000` under the emulator. It generates 25
+consecutive names for each of seeds 1–40 in each database. `crates/game/tests/names_emu.rs`
+matches all 3,000 exactly, which also confirms that every random draw happens in the original
+order.
+
+The New Game dialog now uses the town generator. The dialog's stream (`+0x118`) is the engine's
+default clock-seeded `Random()`.

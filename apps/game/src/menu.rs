@@ -36,8 +36,8 @@ pub struct MenuLoop {
     climate_items: Vec<usize>,
     condition_items: Vec<usize>,
     terrain_items: Vec<usize>,
-    /// Accepted city names from `Game/Names/Cities.ndb`.
-    town_names: Vec<String>,
+    /// `Game/Names/Cities.ndb`.
+    town_names: Option<banished_formats::names::NameDatabase>,
 }
 
 /// Shared settings defaults (`FUN_140042850`) before `Game/Last*` persistence is applied:
@@ -61,7 +61,7 @@ impl MenuLoop {
             climate_items: Vec::new(),
             condition_items: Vec::new(),
             terrain_items: Vec::new(),
-            town_names: Vec::new(),
+            town_names: None,
         }
     }
 
@@ -126,12 +126,18 @@ impl MenuLoop {
         let Some(edit) = screen.find(ctx.ui, d, "editName") else {
             return;
         };
-        if self.town_names.is_empty() {
+        let Some(db) = &self.town_names else {
             log::warn!("town names unavailable: Game/Names/Cities.ndb did not load");
             return;
-        }
-        let index = ctx.rng.rand_below(self.town_names.len() as u32) as usize;
-        ctx.ui.set_text(edit, &self.town_names[index]);
+        };
+        // `FUN_140075ba0`: `FUN_14009ef90(rng, (editName max length / 3) · 2)`. The dialog's
+        // own clock-seeded stream (`+0x118`) is the engine default `Random()` here.
+        let max_length = match &ctx.ui.node(edit).kind {
+            banished_ui::Kind::Control(banished_ui::Control::Edit(e)) => e.max_length as i32,
+            _ => 30,
+        };
+        let name = banished_game::names::town_name(db, ctx.rng, max_length / 3 * 2);
+        ctx.ui.set_text(edit, &name);
     }
 
     /// Event `0x14` on `comboCondition`: show the selected condition's description.
@@ -382,7 +388,7 @@ impl GameLoop for MenuLoop {
             .read("Game/Names/Cities_resource.crs")
             .and_then(|bytes| banished_formats::names::NameDatabase::read(&bytes))
         {
-            Ok(database) => self.town_names = database.names,
+            Ok(database) => self.town_names = Some(database),
             Err(e) => log::error!("town names: {e}"),
         }
         self.scene_index = ctx.rng.rand_below(MENU_SCENES);

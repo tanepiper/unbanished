@@ -58,8 +58,14 @@ evidence; static traces are not claims of live-game behavior.
 - [x] Seed the starting map from the selected profile: start point, structure draws, and rock, ore
   and tree seeding with spawned herbs, mushrooms and berries. Rendered in game. See
   [RESOURCE-SEEDING.md](RESOURCE-SEEDING.md).
-- [ ] Create the start structures (barn, yard, cart, houses) as entities, households, deer, crops,
-  orchards, livestock and starting inventories.
+- [x] Starting goods into the start storages, shown in the Status Bar. See
+  [STARTING-INVENTORY-DISTRIBUTION.md](STARTING-INVENTORY-DISTRIBUTION.md).
+- [x] Starting households (couples, children, names, ages, lifespans), shown as Status Bar
+  population. Port the exact name generator, verified bit-exact under emulation. See
+  [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md) and
+  [TOWN-NAME-DATABASE.md](TOWN-NAME-DATABASE.md).
+- [ ] Citizen models and animation, deer, crops, orchards, livestock, and building decals and
+  footprints.
 - [x] Replace the compact HUD with the packaged toolbar and Status Bar controllers. See
   [IN-GAME-TOOLBAR.md](IN-GAME-TOOLBAR.md) and [UTILITY-WINDOWS.md](UTILITY-WINDOWS.md).
 - [ ] Add build/tool modes, object selection, the remaining utility-window controllers (Event Log,
