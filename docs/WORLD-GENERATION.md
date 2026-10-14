@@ -115,12 +115,17 @@ corresponding serializer is `0x1400a7e50`; the same profile note follows the Per
 rock/ore/tree seeding pass, while exact template threshold meanings and inventory quantities remain
 open.
 
+## Verified ports
+
+The terrain generator, surface image, tile mesh, ground query and natural cell types are ported
+bit-exactly (`crates/game`); see [TERRAIN-DERIVED-GEOMETRY.md](TERRAIN-DERIVED-GEOMETRY.md) and
+[MAP-CELLS.md](MAP-CELLS.md). The gameplay map is `n × n` cells over the centre of the `2n` terrain.
+
 ## Remaining world-generation trace
 
-- Follow `FUN_1400d4910`, `FUN_1400d4620` and `FUN_1400b0730` to identify the meanings of the
-  packed channels; the internal `FUN_1400d4860` transform order is now recorded in
-  [TERRAIN-GRID-TRANSFORMS.md](TERRAIN-GRID-TRANSFORMS.md).
-- Trace how generated terrain cells become slopes and other cell contents; the distinct River and
+- Port the river strip builder `FUN_1400d4fd0` (ground truth: `tools/emu/river_mesh.py`) and the
+  lake surface builder in `FUN_1400b0730`.
+- The distinct River and
   Lake mesh production/draw path is recorded in [TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md),
   and the profile-driven rock/ore/tree seed pass in [START-CONDITION-PROFILES.md](START-CONDITION-PROFILES.md).
 - Continue from the profile-specific placements into exact household inventory and stock quantities;
