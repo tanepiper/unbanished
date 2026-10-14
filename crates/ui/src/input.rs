@@ -25,6 +25,15 @@ impl Ui {
     pub fn focused(&self) -> Option<NodeId> {
         self.focus
     }
+    /// Whether the current pointer target is a control that consumes pointer input.
+    pub fn pointer_over_interactive(&self) -> bool {
+        self.hot.is_some_and(|id| self.interactive(id))
+    }
+    /// Whether key input should be reserved for an active text edit control.
+    pub fn text_edit_focused(&self) -> bool {
+        self.focus
+            .is_some_and(|id| matches!(&self.nodes[id].kind, Kind::Control(Control::Edit(_))))
+    }
     pub fn drain_events(&mut self) -> Vec<Event> {
         std::mem::take(&mut self.pending)
     }

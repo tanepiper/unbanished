@@ -148,19 +148,22 @@ impl Game {
         }
     }
 
-    pub fn pointer_button(&mut self, down: bool) {
+    pub fn pointer_button(&mut self, down: bool) -> bool {
         self.audio.unlock();
         if let Some(root) = self.input_root() {
+            let captured = self.ui.pointer_over_interactive();
             if let Some(event) = self.ui.pointer_button(down, root) {
                 self.with_ctx(|main, ctx| main.inject(ctx, event));
             }
             self.deliver_events();
+            captured
+        } else {
+            false
         }
     }
 
     pub fn wheel(&mut self, steps: f32) {
-        if self.input_root().is_some() {
-            self.ui.wheel((steps * 40.0) as i32);
+        if self.input_root().is_some() && self.ui.wheel((steps * 40.0) as i32) {
             self.deliver_events();
         } else {
             self.raw(RawInput::Wheel(steps));
@@ -168,9 +171,7 @@ impl Game {
     }
 
     pub fn drag(&mut self, dx: f32, dy: f32) {
-        if self.input_root().is_none() {
-            self.raw(RawInput::Drag(dx, dy));
-        }
+        self.raw(RawInput::Drag(dx, dy));
     }
 
     pub fn key(&mut self, key: banished_ui::Key, text: Option<&str>) {
@@ -187,12 +188,31 @@ impl Game {
             };
             return self.raw(raw);
         };
-        if !self.ui.key(root, key) {
+        let handled = self.ui.key(root, key);
+        if !handled {
             if let Some(text) = text.filter(|t| t.chars().all(|c| !c.is_control())) {
                 self.ui.text_input(text);
             }
         }
         self.deliver_events();
+        if !handled && !self.ui.text_edit_focused() {
+            use banished_ui::Key as K;
+            let raw = match key {
+                K::Escape => Some(RawInput::Escape),
+                K::Up => Some(RawInput::Pan(1.0, 0.0)),
+                K::Down => Some(RawInput::Pan(-1.0, 0.0)),
+                K::Left => Some(RawInput::Pan(0.0, -1.0)),
+                K::Right => Some(RawInput::Pan(0.0, 1.0)),
+                K::Character('w') => Some(RawInput::Pan(1.0, 0.0)),
+                K::Character('s') => Some(RawInput::Pan(-1.0, 0.0)),
+                K::Character('a') => Some(RawInput::Pan(0.0, -1.0)),
+                K::Character('d') => Some(RawInput::Pan(0.0, 1.0)),
+                _ => None,
+            };
+            if let Some(raw) = raw {
+                self.raw(raw);
+            }
+        }
     }
 
     /// Click the named control through the normal pointer path (scripted runs): lay out the
@@ -444,8 +464,8 @@ impl ApplicationHandler<UserEvent> for App {
                 let Some(game) = &mut self.game else { return };
                 match button {
                     MouseButton::Left => {
-                        game.pointer_button(down);
-                        self.dragging = down;
+                        let captured = game.pointer_button(down);
+                        self.dragging = down && !captured;
                     }
                     MouseButton::Right => self.dragging = down,
                     _ => {}
