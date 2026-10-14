@@ -21,6 +21,9 @@ use banished_game::terrain::HeightGrid;
 use crate::models::{placement_matrix, SceneModels};
 
 /// `Template\X.rsc:resource` (profile lists omit the object name).
+/// `DAT_140178818`: children's model scale.
+const CHILD_SCALE: f32 = 0.66;
+
 fn normalise(reference: &str) -> String {
     let r = reference.replace('/', "\\");
     if r.contains(':') {
@@ -323,6 +326,28 @@ impl StartingTown {
                     [p.scale[0], p.scale[1], p.scale[2]],
                     p.yaw,
                 ));
+        }
+        // Citizens: `Template/Citizen.rsc:model` variant 0 (men) or 1 (women); children use
+        // the scale `DAT_140178818` (`FUN_14011a700`). Facing is not set at creation (yaw 0).
+        let citizen_model = read(archive, r"Template\Citizen.rsc:model")
+            .and_then(|d| banished_formats::game::model_description(&d).ok());
+        if let Some(model) = &citizen_model {
+            for c in &self.citizens {
+                let variant = if c.male { 0 } else { 1 };
+                let Some(Some(mesh)) = model.variants.get(variant).and_then(|v| v.meshes.first())
+                else {
+                    continue;
+                };
+                let s = if c.is_adult(&self.rules) {
+                    1.0
+                } else {
+                    CHILD_SCALE
+                };
+                groups
+                    .entry(mesh.clone())
+                    .or_default()
+                    .push(placement_matrix(c.position, [s, s, s], 0.0));
+            }
         }
         let mut list: Vec<_> = groups.into_iter().map(|(m, i)| (m, 0, i)).collect();
         list.sort_by(|a, b| a.0.cmp(&b.0));

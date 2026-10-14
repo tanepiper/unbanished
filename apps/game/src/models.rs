@@ -11,10 +11,10 @@ use std::collections::HashMap;
 
 use banished_formats::menu_scene::MenuScene;
 use banished_formats::pkg::Archive;
-use banished_formats::skeleton::{local_bind, world_transforms, Transform};
+use banished_formats::skeleton::{bind_palette, local_bind, world_transforms, Transform};
 use banished_formats::texture::decode_rgba;
 use banished_formats::types::{
-    graphics_mesh, image_buffer, material_instance, ImageBuffer, STATIC_STRIDE,
+    graphics_mesh, image_buffer, material_instance, ImageBuffer, SKINNED_STRIDE, STATIC_STRIDE,
 };
 use glam::{Mat4, Quat, Vec3};
 use wgpu::util::DeviceExt;
@@ -107,6 +107,53 @@ pub fn placement_matrix(position: [f32; 3], scale: [f32; 3], yaw: f32) -> [f32; 
     .to_cols_array()
 }
 
+/// Skin 32-byte skinned vertices (`ModelSkinLayout`: i16×4 position /512, i16×4 texcoords,
+/// unorm8×4 normal, unorm8×4 weights, u8×4 bones) with a palette into the 24-byte static layout.
+fn skin_to_static(vertices: &[u8], palette: &[Transform]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(vertices.len() / SKINNED_STRIDE * STATIC_STRIDE);
+    for v in vertices.chunks_exact(SKINNED_STRIDE) {
+        let i16_at = |o: usize| i16::from_le_bytes([v[o], v[o + 1]]) as f32;
+        let p = [i16_at(0) / 512.0, i16_at(2) / 512.0, i16_at(4) / 512.0];
+        let n = [
+            v[16] as f32 / 127.5 - 1.0,
+            v[17] as f32 / 127.5 - 1.0,
+            v[18] as f32 / 127.5 - 1.0,
+        ];
+        let (mut sp, mut sn) = ([0.0f32; 3], [0.0f32; 3]);
+        for k in 0..4 {
+            let w = v[24 + k] as f32 / 255.0;
+            if w == 0.0 {
+                continue;
+            }
+            let t = palette
+                .get(v[28 + k] as usize)
+                .copied()
+                .unwrap_or(Transform::IDENTITY);
+            let q = t.apply(p);
+            let r = t.apply([0.0; 3]);
+            let m = t.apply(n);
+            for a in 0..3 {
+                sp[a] += q[a] * w;
+                sn[a] += (m[a] - r[a]) * w;
+            }
+        }
+        let len = (sn[0] * sn[0] + sn[1] * sn[1] + sn[2] * sn[2])
+            .sqrt()
+            .max(1e-6);
+        for a in 0..3 {
+            out.extend_from_slice(&((sp[a] * 512.0).round() as i16).to_le_bytes());
+        }
+        out.extend_from_slice(&v[6..8]);
+        out.extend_from_slice(&v[8..16]);
+        for a in 0..3 {
+            out.push(((sn[a] / len * 0.5 + 0.5) * 255.0).round() as u8);
+        }
+        out.push(v[19]);
+        out.extend_from_slice(&[0; 4]);
+    }
+    out
+}
+
 fn load_group(
     archive: &Archive,
     mesh_ref: &str,
@@ -132,18 +179,28 @@ fn load_group(
     };
     let ao = cached(part.ao_texture.clone());
     let mut ranges = Vec::new();
+    let skin = bind_palette(&mesh.bones);
     for range in &part.ranges {
-        if range.bone < 0 || range.index_count == 0 {
+        if range.index_count == 0 {
             continue;
         }
-        let (index_data, vertex_data, _) = part.geometry(range);
+        let (index_data, vertex_data, stride) = part.geometry(range);
         let first = range.start_index as usize * 2;
         let end = (range.start_index + range.index_count) as usize * 2;
-        let v0 = range.start_vertex as usize * STATIC_STRIDE;
-        let v1 = v0 + range.vertex_count as usize * STATIC_STRIDE;
+        let v0 = range.start_vertex as usize * stride;
+        let v1 = v0 + range.vertex_count as usize * stride;
         let (Some(indices), Some(vertices)) = (index_data.get(first..end), vertex_data.get(v0..v1))
         else {
             continue;
+        };
+        // Deviation: skinned ranges (citizens, animals) are skinned once on the CPU in their
+        // bind pose and drawn as static geometry until GPU skinning and animation are ported.
+        let skinned;
+        let vertices = if range.bone < 0 {
+            skinned = skin_to_static(vertices, &skin);
+            &skinned[..]
+        } else {
+            vertices
         };
         let mut indices = indices.to_vec();
         indices.resize(indices.len().next_multiple_of(4), 0);
@@ -165,11 +222,15 @@ fn load_group(
             index_count: range.index_count as u32,
             diffuse: cached(diffuse_ref),
             ao: ao.clone(),
-            rigid: world
-                .get(range.bone as usize)
-                .copied()
-                .unwrap_or(Transform::IDENTITY)
-                .to_matrix(),
+            rigid: if range.bone < 0 {
+                Transform::IDENTITY.to_matrix()
+            } else {
+                world
+                    .get(range.bone as usize)
+                    .copied()
+                    .unwrap_or(Transform::IDENTITY)
+                    .to_matrix()
+            },
         });
     }
     Some(ranges)
