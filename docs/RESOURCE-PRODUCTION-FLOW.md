@@ -91,6 +91,8 @@ The original boolean names and footprint coordinate conventions are not establis
 The scheduling callback `0x1400ecd10` indexes its records with a 0x28-byte stride. These are
 recipe-like alternatives; the term “recipe” is a descriptive interpretation supported by their
 use as resource/quantity lists, not a recovered C++ field name.
+The six shipped descriptions and their exact resource pairs, UI labels, output templates and raw
+quantity fields are cataloged in [SHIPPED-PRODUCTION-RECIPES.md](SHIPPED-PRODUCTION-RECIPES.md).
 
 `0x14011e3c0` initializes the component's active selector at `+0x50` from description `+0x4c`,
 sizes the component's float array at `+0x58`/`+0x60` to the description's alternative count,
@@ -121,18 +123,16 @@ adds resource/quantity pairs from the selected record's `+0` array, count `+8`, 
 The registrations prove that `ConsumeRawMaterial` (`0x140152f90`), `CreateRawMaterial`
 (`0x140153010`), `DropOffRawMaterial` (`0x140153050`), `PickupRawMaterial` (`0x140153150`)
 and `PickupStoredRawMaterial` (`0x140153190`) are distinct `Action` classes. The named
-factory-to-constructor-to-execute link for each production action was not completed. In
-particular, this note does not identify the last resource list above as inputs or outputs solely
-from its position in the action collection, and does not assume collection insertion order is
-execution order. Recipe yield, education/tool modifiers, and exactly where newly produced goods
-first appear remain explicit gaps.
+factory-to-constructor-to-execute links and the input/output meanings are traced below. Exact final
+per-cycle yields, education/tool modifiers and alternate negative-selector modes remain open.
 
 ## Reservations, pickup and delivery
 
 The transfer builder `0x1400c4c60` installs a sequence of action objects into the same citizen
 collection. It accepts two owner references and positions, constructs movement/timed actions,
 constructs the pickup object with `0x1400cf9f0`, returns a reference to that pickup object, and
-appends it through `0x1400ca9b0`. The complete ordering semantics of the collection remain open.
+appends it through `0x1400ca9b0`. Entries are processed newest-first by `0x1400ca120`; the
+stack-like collection and its completion/abort statuses are described in Production actions below.
 
 `0x1400cf9f0` obtains storage from its source owner at object `+0x28`. If a resource is supplied,
 it computes a pickup count from the requested count or the citizen's carrying allowance divided
