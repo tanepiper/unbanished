@@ -54,13 +54,16 @@ evidence; static traces are not claims of live-game behavior.
 
 ## Remaining port work
 
-- [ ] Make climate selection affect simulation state, not only the HUD label and environment
-  presentation.
+- [x] Make climate selection drive the environment controller's temperatures and weather draws.
 - [ ] Apply the selected starting condition and seed the correct starting entities and inventories.
-- [ ] Replace the compact HUD with the packaged toolbar and Status Bar controllers; add build/tool
-  modes, object selection, and the original pause/options dialogs.
-- [ ] Port weather and seasonal transitions and connect them to calendar advancement, citizens,
-  production, events, and resource consumption.
+- [x] Replace the compact HUD with the packaged toolbar and Status Bar controllers. See
+  [IN-GAME-TOOLBAR.md](IN-GAME-TOOLBAR.md) and [UTILITY-WINDOWS.md](UTILITY-WINDOWS.md).
+- [ ] Add build/tool modes, object selection, the remaining utility-window controllers (Event Log,
+  Professions, Map, …), and the original pause/options dialogs.
+- [x] Port the environment controller (temperature, weather state, level, snow/autumn/leaf values)
+  and run it per simulation iteration after the calendar. See [ENVIRONMENT.md](ENVIRONMENT.md).
+- [ ] Port weather effects (rain/snow geometry, ambient audio, timed spawn) and connect weather to
+  citizens, production, events, and resource consumption.
 - [ ] Add save/load, autosave, and event notifications to the active gameplay loop.
 - [ ] Verify the new-game flow in browser and desktop builds, including camera behavior after the
   fade. Capture the failing platform and gesture, then confirm camera rotation, middle-drag pan,

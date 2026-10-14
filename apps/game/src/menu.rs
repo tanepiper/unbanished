@@ -207,10 +207,14 @@ impl MenuLoop {
             .and_then(|e| edit_text(ctx.ui, e))
             .filter(|name| !name.trim().is_empty())
             .unwrap_or_else(|| "New Settlement".to_string());
-        let climate = self
+        let climate_choice = self
             .climate_items
             .get(climate_index)
-            .and_then(|&i| ctx.global.as_ref()?.climates.get(i))
+            .and_then(|&i| ctx.global.as_ref()?.climates.get(i));
+        let climate_ref = climate_choice
+            .map(|choice| choice.reference.clone())
+            .unwrap_or_else(|| WorldParams::default().climate_ref);
+        let climate = climate_choice
             .map(|choice| {
                 ctx.ui
                     .res
@@ -236,6 +240,7 @@ impl MenuLoop {
             town_name,
             terrain,
             climate,
+            climate_ref,
             start_condition,
             size: size_index,
             seed,

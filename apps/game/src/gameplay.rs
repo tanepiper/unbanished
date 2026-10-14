@@ -4,7 +4,10 @@
 //! This port keeps the new-game selections alive and supplies a smaller UI until those managers
 //! are implemented.
 
+use banished_formats::game::climate_generator;
 use banished_formats::game::EnvironmentMonth;
+use banished_game::environment::{Climate, Environment, YEAR_SECONDS};
+use banished_game::random::Random;
 use banished_ui::{Event, Ui};
 
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
@@ -15,45 +18,44 @@ use crate::toolbar::{Action, Toolbar};
 use crate::utility::{StatusValues, UtilityWindows};
 use crate::world::{World, WorldParams};
 
-const YEAR_SECONDS: f32 = 3_600.0;
 const MONTHS_PER_YEAR: usize = 12;
 const MONTH_SECONDS: f32 = YEAR_SECONDS / MONTHS_PER_YEAR as f32;
-const SPEED_LEVELS: [f32; 4] = [1.0, 2.0, 5.0, 10.0];
+/// Simulation iterations per frame (`Game/Game +0x120 → +0x34`).
+const SPEED_LEVELS: [u32; 4] = [1, 2, 5, 10];
 
 pub struct GameplayLoop {
     params: WorldParams,
     view: Option<SceneView>,
     environment_months: Vec<EnvironmentMonth>,
     screen: Option<Screen>,
+    /// Calendar (`Game/Game +0x128`): year count and time into the year.
     year: u32,
-    month: usize,
-    month_elapsed: f32,
+    elapsed: f32,
+    /// The game's shared random stream (`Game/Game +0xd8`, `Random(seed)` in `FUN_14009bfd0`).
+    rng: Random,
+    environment: Option<Environment>,
     /// Index into the original 1x, 2x, 5x, 10x simulation iteration values.
     speed: u8,
     paused: bool,
     toolbar: Option<Toolbar>,
     utility: UtilityWindows,
-    /// Environment controller temperature (°F, `+0x18`) and weather state (`+0x10`).
-    temperature: f32,
-    weather: i32,
 }
 
 impl GameplayLoop {
     pub fn new(params: WorldParams) -> Self {
         Self {
+            rng: Random::new(params.seed),
             params,
             view: None,
             environment_months: Vec::new(),
             screen: None,
             year: 1,
-            month: 0,
-            month_elapsed: 0.0,
+            elapsed: 0.0,
+            environment: None,
             speed: 0,
             paused: false,
             toolbar: None,
             utility: UtilityWindows::default(),
-            temperature: 50.0,
-            weather: 3,
         }
     }
 
@@ -73,18 +75,36 @@ impl GameplayLoop {
         StatusValues {
             town_name: self.params.town_name.clone(),
             year: self.year,
-            month: self.month,
-            temperature: self.temperature,
-            weather: self.weather,
+            month: self.month(),
+            temperature: self.environment.as_ref().map_or(0.0, |e| e.temperature),
+            weather: self.environment.as_ref().map_or(3, |e| e.state),
             ..StatusValues::default()
         }
     }
 
     fn update_hud(&self, ui: &mut Ui) {
         if let Some(toolbar) = &self.toolbar {
-            toolbar.refresh(ui, SPEED_LEVELS[self.speed as usize] as u32, self.paused);
+            toolbar.refresh(ui, SPEED_LEVELS[self.speed as usize], self.paused);
         }
         self.utility.update(ui, &self.status_values());
+    }
+
+    /// `floor(elapsed / 3600 × 12)`.
+    fn month(&self) -> usize {
+        ((self.elapsed / YEAR_SECONDS * MONTHS_PER_YEAR as f32) as usize).min(MONTHS_PER_YEAR - 1)
+    }
+
+    /// One simulation iteration of `FUN_14009b850`: the calendar, then the environment
+    /// (`FUN_1400999b0`). Entities, animation and the stock/citizen managers are not ported yet.
+    fn iterate(&mut self, dt: f32) {
+        self.elapsed += dt;
+        if self.elapsed >= YEAR_SECONDS {
+            self.year += 1;
+            self.elapsed -= YEAR_SECONDS;
+        }
+        if let Some(env) = &mut self.environment {
+            env.update(self.elapsed, &mut self.rng);
+        }
     }
 
     fn return_to_menu() -> Next {
@@ -121,6 +141,16 @@ impl GameLoop for GameplayLoop {
             }
             Err(e) => log::error!("world generation failed: {e}"),
         }
+        // `FUN_14009bfd0` → `FUN_140099300`: bind the environment to the selected climate.
+        let reference = self.params.climate_ref.replace('\\', "/");
+        match ctx
+            .archive
+            .read_ref(&reference)
+            .and_then(|d| climate_generator(&d))
+        {
+            Ok(c) => self.environment = Some(Environment::new(Climate::from(&c))),
+            Err(e) => log::error!("{reference}: {e}"),
+        }
     }
 
     fn startup(&mut self, ctx: &mut Ctx) {
@@ -133,25 +163,20 @@ impl GameLoop for GameplayLoop {
         }
         self.utility.update(ctx.ui, &self.status_values());
         if !self.paused {
-            self.month_elapsed += dt * SPEED_LEVELS[self.speed as usize];
-            while self.month_elapsed >= MONTH_SECONDS {
-                self.month_elapsed -= MONTH_SECONDS;
-                self.month += 1;
-                if self.month == MONTHS_PER_YEAR {
-                    self.month = 0;
-                    self.year += 1;
-                }
-                self.update_hud(ctx.ui);
+            for _ in 0..SPEED_LEVELS[self.speed as usize] {
+                self.iterate(dt);
             }
         }
-        if let (Some(view), Some(month)) =
-            (self.view.as_mut(), self.environment_months.get(self.month))
-        {
-            let next = &self.environment_months[(self.month + 1) % self.environment_months.len()];
-            view.lighting =
-                Lighting::between_months(month, next, self.month_elapsed / MONTH_SECONDS);
-            view.lighting
-                .set_seasonal_foliage(self.month as f32 + self.month_elapsed / MONTH_SECONDS);
+        let month = self.month();
+        let into_month = (self.elapsed - month as f32 * MONTH_SECONDS) / MONTH_SECONDS;
+        if let (Some(view), Some(from)) = (self.view.as_mut(), self.environment_months.get(month)) {
+            // `FUN_140098f90`: blend this month's lighting towards the next.
+            let to = &self.environment_months[(month + 1) % self.environment_months.len()];
+            view.lighting = Lighting::between_months(from, to, into_month);
+            if let Some(env) = &self.environment {
+                let s = env.season;
+                view.lighting.user = glam::Vec4::new(s.snow, s.autumn, s.leaf_loss, s.rain);
+            }
         }
         Next::Stay
     }

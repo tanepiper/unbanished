@@ -21,7 +21,7 @@ The update path gives the first four fields concrete consumers:
 At weather-slice indices 0 and 24, `FUN_140098ac0` reinitializes the Perlin seed and samples two
 sets of twelve uniform random values. Each set is summed after multiplying each sample by `1/12`.
 The first average selects an annual target in
-`[climate[+0x34], climate[+0x34] + climate[+0x40]]`; the second is multiplied by the climate's
+`climate[+0x34] ± climate[+0x40]` (`RandFloatTol` is in (−1, 1]; see [ENVIRONMENT.md](ENVIRONMENT.md)); the second is multiplied by the climate's
 `+0x104` value to select that year's weather-cutoff bias. The same random generator is shared with
 the wider game, so these equations do not by themselves reproduce the game's random sequence.
 
@@ -48,7 +48,7 @@ comparison.
 
 The other trailing climate values (`+0x108` and `+0x10c`, 100 and 1 in all shipped profiles) have
 not been connected to a consumer yet. Rain geometry intensity, accumulation, and the full weather
-state interpretation remain open; no weather simulation is ported from this trace.
+state interpretation remain open; the controller itself is now ported; see [ENVIRONMENT.md](ENVIRONMENT.md).
 
 ## Evidence pointers
 

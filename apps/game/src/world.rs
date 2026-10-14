@@ -13,6 +13,8 @@ pub struct WorldParams {
     pub town_name: String,
     pub terrain: String,
     pub climate: String,
+    /// The selected `ClimateGenerator` (`Game\Climate\Fair.rsc:resource`).
+    pub climate_ref: String,
     pub start_condition: String,
     /// 0 Small, 1 Medium, 2 Large.
     pub size: usize,
@@ -25,6 +27,7 @@ impl Default for WorldParams {
             town_name: "New Settlement".into(),
             terrain: "Valleys".into(),
             climate: "Fair".into(),
+            climate_ref: r"Game\Climate\Fair.rsc:resource".into(),
             start_condition: "Medium".into(),
             size: 0,
             seed: 290,
