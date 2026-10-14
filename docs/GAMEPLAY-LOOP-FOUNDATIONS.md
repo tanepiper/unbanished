@@ -36,13 +36,16 @@ The port's calendar now follows the traced game clock: 3,600 simulation seconds 
 into twelve 300-second months, with speed levels 1x, 2x, 5x and 10x. At 1x that is five real
 minutes per month; higher levels scale simulation time by their iteration count. The trace is in
 [GAME-LOOP-STEP-03.md](GAME-LOOP-STEP-03.md). Pause and speed controls currently operate this
-calendar and lighting only; entity simulation is still not implemented.
+calendar and lighting only. Monthly lighting now interpolates continuously between environment
+records; the climate's stochastic weather states and their effect/audio objects remain unported.
+See [GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md).
 
 The outer update and its follow-up are documented in [GAME-LOOP-STEP-01.md](GAME-LOOP-STEP-01.md)
 and [GAME-LOOP-STEP-02.md](GAME-LOOP-STEP-02.md). The trace establishes pause/speed gating,
 camera input in the game-loop update, elapsed-time entity scheduling, the three packaged UI dialogs
 installed at gameplay startup, the original 1x/2x/5x/10x simulation iteration values, and the
-calendar's 3,600-second year split into twelve equal months. Toolbar dispatch is in
+calendar's 3,600-second year split into twelve equal months. The environment update and weather
+cadence are in [GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md). Toolbar dispatch is in
 [GAMEPLAY-SPEED-AND-TOOLBAR.md](GAMEPLAY-SPEED-AND-TOOLBAR.md). The gameplay HUD's camera-input
 routing and recent drag-mode correction are recorded in [CAMERA-INPUT-FINDING.md](CAMERA-INPUT-FINDING.md).
 

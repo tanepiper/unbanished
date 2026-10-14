@@ -225,7 +225,21 @@ fn color(argb: u32) -> Vec3 {
 impl Lighting {
     /// One month of `EnvironmentDescription`, as `FUN_140098da0` applies it.
     pub fn from_month(m: &banished_formats::game::EnvironmentMonth) -> Lighting {
-        let (yaw, pitch) = (m.sun_yaw.to_radians(), m.sun_pitch.to_radians());
+        Lighting::between_months(m, m, 0.0)
+    }
+
+    /// Interpolate adjacent month records as `FUN_140098f90` does before applying the sun and fog.
+    pub fn between_months(
+        from: &banished_formats::game::EnvironmentMonth,
+        to: &banished_formats::game::EnvironmentMonth,
+        amount: f32,
+    ) -> Lighting {
+        let amount = amount.clamp(0.0, 1.0);
+        let blend = |a: f32, b: f32| a + (b - a) * amount;
+        let (yaw, pitch) = (
+            blend(from.sun_yaw, to.sun_yaw).to_radians(),
+            blend(from.sun_pitch, to.sun_pitch).to_radians(),
+        );
         // Math::Vector3::FromYawPitch points towards the sun; the shader wants the travel
         // direction (inferred from the sign of its diffuse term).
         let to_sun = Vec3::new(
@@ -235,12 +249,12 @@ impl Lighting {
         );
         Lighting {
             light_dir: -to_sun,
-            light_color: color(m.sun_color),
-            ambient_color: color(m.ambient_color),
-            fog_color: color(m.fog_color),
-            fog_max: m.fog_max,
-            fog_start: m.fog_start,
-            fog_end: m.fog_end,
+            light_color: color(from.sun_color).lerp(color(to.sun_color), amount),
+            ambient_color: color(from.ambient_color).lerp(color(to.ambient_color), amount),
+            fog_color: color(from.fog_color).lerp(color(to.fog_color), amount),
+            fog_max: blend(from.fog_max, to.fog_max),
+            fog_start: blend(from.fog_start, to.fog_start),
+            fog_end: blend(from.fog_end, to.fog_end),
             user: Vec4::ZERO,
         }
     }

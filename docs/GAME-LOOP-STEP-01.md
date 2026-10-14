@@ -42,6 +42,8 @@ continue afterward. The timing evidence is detailed in [GAME-LOOP-STEP-03.md](GA
 
 ## Next trace
 
-The calendar and toolbar timing are now traced. Continue by following manager elapsed time into
-specific simulation components and the weather/season transition path; do not equate the entity
-scheduler's elapsed time with the calendar accumulator.
+The calendar and toolbar timing are traced in [GAME-LOOP-STEP-03.md](GAME-LOOP-STEP-03.md). The
+environment's 48-slice weather cadence and interpolated monthly lighting are in
+[GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md). Continue with manager elapsed time into specific
+simulation components; do not equate the entity scheduler's elapsed time with the calendar
+accumulator.

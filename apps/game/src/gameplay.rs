@@ -4,6 +4,7 @@
 //! This port keeps the new-game selections alive and supplies a smaller UI until those managers
 //! are implemented.
 
+use banished_formats::game::EnvironmentMonth;
 use banished_formats::ui::flags;
 use banished_ui::{Event, Kind, Node, NodeId, Ui};
 
@@ -23,7 +24,7 @@ const FONT_MEDIUM: &str = r"Font\FontMedium.rsc:resource";
 pub struct GameplayLoop {
     params: WorldParams,
     view: Option<SceneView>,
-    month_lighting: Vec<Lighting>,
+    environment_months: Vec<EnvironmentMonth>,
     screen: Option<Screen>,
     year: u32,
     month: usize,
@@ -40,7 +41,7 @@ impl GameplayLoop {
         Self {
             params,
             view: None,
-            month_lighting: Vec::new(),
+            environment_months: Vec::new(),
             screen: None,
             year: 1,
             month: 0,
@@ -178,17 +179,8 @@ impl GameLoop for GameplayLoop {
     fn load(&mut self, ctx: &mut Ctx) {
         match World::generate(ctx.archive, &self.params) {
             Ok(world) => {
-                self.month_lighting = world
-                    .environment
-                    .months
-                    .iter()
-                    .map(Lighting::from_month)
-                    .collect();
-                let lighting = self
-                    .month_lighting
-                    .first()
-                    .copied()
-                    .unwrap_or_else(|| Lighting::from_month(&world.environment.months[0]));
+                let lighting = Lighting::from_month(&world.environment.months[0]);
+                self.environment_months = world.environment.months;
                 log::info!(
                     "{} terrain ready for {} ({}, {})",
                     world.profile.name,
@@ -220,13 +212,15 @@ impl GameLoop for GameplayLoop {
                     self.month = 0;
                     self.year += 1;
                 }
-                if let (Some(view), Some(&lighting)) =
-                    (self.view.as_mut(), self.month_lighting.get(self.month))
-                {
-                    view.lighting = lighting;
-                }
                 self.update_hud(ctx.ui);
             }
+        }
+        if let (Some(view), Some(month)) =
+            (self.view.as_mut(), self.environment_months.get(self.month))
+        {
+            let next = &self.environment_months[(self.month + 1) % self.environment_months.len()];
+            view.lighting =
+                Lighting::between_months(month, next, self.month_elapsed / MONTH_SECONDS);
         }
         Next::Stay
     }

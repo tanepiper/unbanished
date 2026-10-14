@@ -140,6 +140,8 @@ bit-exactly (`crates/game`); see [TERRAIN-DERIVED-GEOMETRY.md](TERRAIN-DERIVED-G
   component types; see [STARTING-INVENTORY-DISTRIBUTION.md](STARTING-INVENTORY-DISTRIBUTION.md).
 - Follow the start-condition ambience emitters into the audio manager and playback lifecycle; their
   serialized placement is documented in [STARTING-AUDIO-EMITTERS.md](STARTING-AUDIO-EMITTERS.md).
-- Trace how `ClimateGenerator` and `Environment.rsc` control climate, weather and seasonal updates.
+- The climate/environment controller and its 48-slice weather cadence are traced in
+  [GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md); mapping the effect slots to specific weather states
+  remains open.
 - Establish generation determinism and seed consumption order against a runtime or reproducible
   save comparison.
