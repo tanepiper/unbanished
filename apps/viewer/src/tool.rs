@@ -9,11 +9,11 @@ use glam::{Mat4, Vec3};
 use web_time::Instant;
 
 use crate::assets::Assets;
-use crate::audio::Player;
 use crate::audio_player::AudioPlayerUi;
 use crate::dialog_player::DialogPlayerUi;
 use crate::model_player::ModelPlayerUi;
 use crate::render::{Frame, GpuMesh, RenderMode, Renderer, CLEAR_DARK, CLEAR_SKY};
+use banished_audio::Player;
 
 const FONT: &str = r"Font\FontMedium.rsc:resource";
 const FONT_SMALL: &str = r"Font\FontSmall.rsc:resource";
@@ -866,7 +866,7 @@ impl Tool {
                         img.source
                     ));
                     if let Some(rgba) = rgba {
-                        let view = crate::render::upload_rgba(
+                        let view = banished_gfx::upload_rgba(
                             renderer.device(),
                             renderer.queue(),
                             &name,
@@ -1056,7 +1056,7 @@ impl Tool {
                 } else {
                     None
                 };
-                let pcm = crate::audio::decode(&sound, stream.as_deref())?;
+                let pcm = banished_audio::decode(&sound, stream.as_deref())?;
                 self.player.play(pcm, self.audio_looping)?;
                 if self.audio_seek_position > 0.0 {
                     self.player

@@ -1,0 +1,20 @@
+[package]
+name = "banished-audio"
+version = "0.1.0"
+description = "Game audio playback: xWMA decoding (banished-wma) and rodio / Web Audio output"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+banished-formats = { path = "../formats" }
+banished-wma = { path = "../wma" }
+log = "0.4"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rodio = { version = "0.21.1", default-features = false, features = ["playback"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.129"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["AudioContext", "BaseAudioContext", "AudioBuffer", "AudioBufferSourceNode", "AudioScheduledSourceNode", "AudioNode", "AudioDestinationNode", "AudioParam", "GainNode"] }

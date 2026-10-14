@@ -9,13 +9,11 @@
 //! Controls: click modes and list entries, Up/Down to change entry, drag to orbit, wheel to zoom.
 
 mod assets;
-mod audio;
 mod audio_player;
 mod dialog_player;
 mod model_player;
 mod render;
 mod tool;
-mod ui_render;
 
 use std::sync::Arc;
 
@@ -43,8 +41,8 @@ struct App {
     shift: bool,
 }
 
-fn audio_player() -> audio::Player {
-    audio::Player::default()
+fn audio_player() -> banished_audio::Player {
+    banished_audio::Player::default()
 }
 
 impl App {

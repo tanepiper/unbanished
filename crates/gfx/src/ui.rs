@@ -49,6 +49,8 @@ pub struct UiRenderer {
     sampler: wgpu::Sampler,
     textures: HashMap<Texture, wgpu::BindGroup>,
     vertices: Option<wgpu::Buffer>,
+    /// Sprite sheets are sRGB when the target is, so colours come out unchanged either way.
+    sheet_format: wgpu::TextureFormat,
 }
 
 struct Batch {
@@ -169,6 +171,11 @@ impl UiRenderer {
             sampler,
             textures: HashMap::new(),
             vertices: None,
+            sheet_format: if format.is_srgb() {
+                wgpu::TextureFormat::Rgba8UnormSrgb
+            } else {
+                wgpu::TextureFormat::Rgba8Unorm
+            },
         }
     }
 
@@ -210,7 +217,15 @@ impl UiRenderer {
                 log::warn!("sprite sheet {} has no readable image", sheet.reference);
                 (1, 1, vec![255; 4])
             });
-            let view = crate::render::upload_rgba(device, queue, &sheet.reference, w, h, &[data]);
+            let view = crate::upload_rgba_as(
+                device,
+                queue,
+                &sheet.reference,
+                w,
+                h,
+                &[data],
+                self.sheet_format,
+            );
             let group = self.bind(device, &view);
             self.textures.insert(Texture::Sheet(i), group);
         }

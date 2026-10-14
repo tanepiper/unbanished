@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use banished_formats::skeleton::{bind_palette, local_bind, world_transforms, Transform};
-use banished_formats::texture::decode_rgba;
-use banished_formats::types::{AnimationClip, Bone, ImageBuffer, SKINNED_STRIDE, STATIC_STRIDE};
+use banished_formats::types::{AnimationClip, Bone, SKINNED_STRIDE, STATIC_STRIDE};
+use banished_gfx::{upload_image, upload_rgba};
 use glam::{Mat4, Vec3};
 use wgpu::util::DeviceExt;
 use winit::window::Window;
@@ -70,7 +70,7 @@ pub struct Renderer {
     sampler: wgpu::Sampler,
     white: wgpu::TextureView,
     pub backend: String,
-    pub ui: crate::ui_render::UiRenderer,
+    pub ui: banished_gfx::UiRenderer,
 }
 
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -377,7 +377,7 @@ impl Renderer {
         });
         let white = upload_rgba(&device, &queue, "white", 1, 1, &[vec![255; 4]]);
         let depth = depth_view(&device, width, height);
-        let ui = crate::ui_render::UiRenderer::new(&device, format, DEPTH_FORMAT);
+        let ui = banished_gfx::UiRenderer::new(&device, format, DEPTH_FORMAT);
 
         Renderer {
             surface,
@@ -910,70 +910,3 @@ pub const CLEAR_DARK: wgpu::Color = wgpu::Color {
     b: 0.09,
     a: 1.0,
 };
-
-pub(crate) fn upload_rgba(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    label: &str,
-    width: u32,
-    height: u32,
-    mips: &[Vec<u8>],
-) -> wgpu::TextureView {
-    let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some(label),
-        size: wgpu::Extent3d {
-            width,
-            height,
-            depth_or_array_layers: 1,
-        },
-        mip_level_count: mips.len() as u32,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Rgba8UnormSrgb,
-        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-        view_formats: &[],
-    });
-    for (level, data) in mips.iter().enumerate() {
-        let (w, h) = ((width >> level).max(1), (height >> level).max(1));
-        queue.write_texture(
-            wgpu::TexelCopyTextureInfo {
-                texture: &texture,
-                mip_level: level as u32,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            data,
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(w * 4),
-                rows_per_image: Some(h),
-            },
-            wgpu::Extent3d {
-                width: w,
-                height: h,
-                depth_or_array_layers: 1,
-            },
-        );
-    }
-    texture.create_view(&Default::default())
-}
-
-pub(crate) fn upload_image(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    label: &str,
-    img: &ImageBuffer,
-) -> Option<wgpu::TextureView> {
-    let mips: Option<Vec<Vec<u8>>> = img.levels[..img.mip_count()]
-        .iter()
-        .enumerate()
-        .map(|(i, level)| decode_rgba(img.format, img.width >> i, img.height >> i, level))
-        .collect();
-    let mips = mips?;
-    if mips.is_empty() {
-        return None;
-    }
-    Some(upload_rgba(
-        device, queue, label, img.width, img.height, &mips,
-    ))
-}

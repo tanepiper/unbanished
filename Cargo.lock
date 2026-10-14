@@ -215,6 +215,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "banished-audio"
+version = "0.1.0"
+dependencies = [
+ "banished-formats",
+ "banished-wma",
+ "log",
+ "rodio",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "banished-cli"
 version = "0.1.0"
 dependencies = [
@@ -234,6 +247,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "banished-gfx"
+version = "0.1.0"
+dependencies = [
+ "banished-formats",
+ "banished-ui",
+ "bytemuck",
+ "log",
+ "wgpu",
+]
+
+[[package]]
 name = "banished-ui"
 version = "0.1.0"
 dependencies = [
@@ -245,7 +269,9 @@ dependencies = [
 name = "banished-viewer"
 version = "0.1.0"
 dependencies = [
+ "banished-audio",
  "banished-formats",
+ "banished-gfx",
  "banished-ui",
  "banished-wma",
  "bytemuck",
@@ -257,7 +283,6 @@ dependencies = [
  "log",
  "png",
  "pollster",
- "rodio",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
