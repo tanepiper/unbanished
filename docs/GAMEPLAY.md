@@ -84,7 +84,8 @@ an appropriately focused section here:
 
 1. New-game control IDs → named button/resource bindings → map-parameter dialog.
 2. Continue the partially traced map-settings and seed path through terrain samples, water, trees,
-   rocks and initial resource placement; see [WORLD-GENERATION.md](WORLD-GENERATION.md).
+   rocks and initial resource placement; see [WORLD-GENERATION.md](WORLD-GENERATION.md) and its
+   detailed [terrain-grid transform trace](TERRAIN-GRID-TRANSFORMS.md).
 3. Description/template load → entity construction → component ownership and lifecycle/update order.
 4. Work selection → pathfinding and task execution → production/consumption → storage and market transfer.
 5. Citizen needs, household assignment, birth/death, health, education and migration transitions.

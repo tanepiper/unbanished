@@ -73,6 +73,12 @@ each tile covers a 32-by-32 cell block, and its index pattern alternates triangl
 parity. These calls show how generated grid data is prepared for drawing, while `FUN_1400b0730` and
 the gameplay consumers of the terrain fields remain to be traced.
 
+The internal five-stage float-grid transform is documented separately in
+[TERRAIN-GRID-TRANSFORMS.md](TERRAIN-GRID-TRANSFORMS.md). That trace confirms noise initialization,
+path/point-driven spatial passes, a downhill neighbor redistribution, and two neighborhood
+averaging passes. It does not yet prove that the path records are rivers or that the float grid is
+elevation.
+
 The code establishes the buffer sizes, conversion and helper-call order. The field names and
 coordinate meaning of the grid values, the algorithms inside those helpers, and the record types
 being appended are not resolved yet. In particular, this note does not label the 16-bit values as
@@ -94,8 +100,9 @@ currently documented only by type and offset in the ignored Ghidra export.
 
 ## Remaining world-generation trace
 
-- Follow `FUN_1400d4860`, `FUN_1400d4910`, `FUN_1400d4620` and `FUN_1400b0730` to identify each
-  terrain transformation and the meanings of its packed channels.
+- Follow `FUN_1400d4910`, `FUN_1400d4620` and `FUN_1400b0730` to identify the meanings of the
+  packed channels; the internal `FUN_1400d4860` transform order is now recorded in
+  [TERRAIN-GRID-TRANSFORMS.md](TERRAIN-GRID-TRANSFORMS.md).
 - Trace how generated terrain cells become water, slopes, trees, rocks and resource deposits.
 - Follow the counted arrays in `MapGenerator` to the initial population, household inventory and
   stock-placement operations.
