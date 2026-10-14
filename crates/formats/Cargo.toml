@@ -1,0 +1,9 @@
+[package]
+name = "banished-formats"
+version = "0.1.0"
+description = "Readers for Shining Rock engine data formats (.pkg packages, .crs resources)"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
