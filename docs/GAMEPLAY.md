@@ -41,17 +41,10 @@ The type-registration code registers `MapParamsDialog` as a `UI::DialogInstance`
 `MapGenerator` as an `Object::External` subtype. Registration gives each class a factory and an
 initializer callback; it does not establish when or how those objects are used during a game.
 
-The function at `0x1400b8af0` constructs the filename `Dialog/NewGame.rsc`, asks
-`Object::ExternalFactory::FindOrLoad` for it, checks that the result derives from the expected dialog
-type, allocates a `0xae8`-byte internal instance, and passes it to `UI::UserInterface::AddDialog`.
-This is a concrete resource-to-dialog load path.
-
-The handler at `0x1400b9020` branches when its event-type argument is `0x12`, then dispatches on a
-numeric action argument. Action `1` closes the dialog; action `0` calls the loader above; action `6`
-calls `Application::Quit`; other values call separate functions. The numeric values have not yet
-been mapped to named resource controls, so their user-visible meaning is unknown. The string
-`Game/Game` has a data reference but no code reference in this pass; the transition from the new-game
-dialog into game creation remains untraced.
+The main-menu action IDs and the New Game dialog's parameter handoff are now traced through the
+loading-loop transition. See the dedicated [NEW-GAME-FLOW.md](NEW-GAME-FLOW.md) for the named
+controls, selector initialization, observed caption/ID mismatch, and the remaining path into
+`Game/Game` and map generation.
 
 ## Registered gameplay types
 

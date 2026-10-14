@@ -66,6 +66,7 @@ controllers; the asset viewer previews templates without a running simulation.
 
 See [docs/FINDINGS.md](docs/FINDINGS.md) for the format/engine findings and milestone plan, and
 [docs/GAMEPLAY.md](docs/GAMEPLAY.md) for the evidence-backed gameplay and data-flow research log.
+The first menu-to-new-game trace is documented in [docs/NEW-GAME-FLOW.md](docs/NEW-GAME-FLOW.md).
 
 - [x] M1: package (`.pkg`) reader and extractor
 - [x] M2: resource (`.crs`) deserializer (core graphics types; others as needed)

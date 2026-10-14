@@ -10,10 +10,11 @@ import java.util.*;
 
 public class ExportGameplayRefs extends GhidraScript {
   private static final String[] TERMS = {
-    "MapGenerator", "MapParamsDialog", "Game/Global", "Game/Game",
+    "MapGenerator", "MapParamsDialog", "MainMenuDialog", "Game/Global", "Game/Game",
     "Game/Terrain/TerrainList", "Dialog/NewGame.rsc", "ResourceProduceComponent",
     "WorkComponent", "WorkDescription", "CitizenAIComponent", "CitizenDescription",
-    "NaturalResourceComponent", "StorageComponent", "MapComponent"
+    "NaturalResourceComponent", "StorageComponent", "MapComponent", "buttonNewName",
+    "buttonNewSeed", "comboTerrain", "editSeed", "numberSeed"
   };
 
   private DecompInterface decompiler;
