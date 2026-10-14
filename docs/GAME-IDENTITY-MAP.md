@@ -146,6 +146,8 @@ semantic claim should link both a data source and a code path where possible.
 
 The inventory is the base layer, not complete identity coverage. Resource payloads still need to be
 classified and linked, most Ghidra addresses remain unnamed, global pointer tables remain partly
-unresolved, runtime object identities have not been enumerated, and the user-provided save-game
-files need their own inventory and crosswalk to serialized object/template IDs.
+unresolved, and runtime object identities have not been enumerated. The supplied saves now have a
+reproducible external-reference index and package-path crosswalk in
+[SAVE-REFERENCE-IDENTITIES.md](SAVE-REFERENCE-IDENTITIES.md); serialized object records and their
+reference-bearing fields still need to be decoded.
 
