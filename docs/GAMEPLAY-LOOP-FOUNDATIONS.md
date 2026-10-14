@@ -36,11 +36,12 @@ The port's clock is an explicit placeholder: one calendar month advances every 1
 1x and every 3 real seconds at 4x. These rates are not claimed to match Banished's clock. Pause and
 speed controls operate this calendar and lighting only.
 
-The first outer-loop update trace is documented in [GAME-LOOP-STEP-01.md](GAME-LOOP-STEP-01.md).
-It confirms that the original UI pause state gates a multi-iteration manager update and that a
-separate simulation controller supplies the per-frame iteration count. It does not yet recover the
-clock interval or calendar rules. The gameplay HUD's camera-input regression and routing correction
-are recorded in [CAMERA-INPUT-FINDING.md](CAMERA-INPUT-FINDING.md).
+The outer update and its follow-up are documented in [GAME-LOOP-STEP-01.md](GAME-LOOP-STEP-01.md)
+and [GAME-LOOP-STEP-02.md](GAME-LOOP-STEP-02.md). The trace establishes pause/speed gating,
+camera input in the game-loop update, elapsed-time entity scheduling, and the three packaged UI
+dialogs installed at gameplay startup. It does not yet recover the game's calendar rules or toolbar
+speed-action mapping. The gameplay HUD's camera-input regression and routing correction are
+recorded in [CAMERA-INPUT-FINDING.md](CAMERA-INPUT-FINDING.md).
 
 ## Remaining work before this is a full game loop
 

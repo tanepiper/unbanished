@@ -20,11 +20,11 @@ reads the simulation controller at `Game/Game +0x120`:
 4. The loop then updates achievement state, applies the camera transform, updates the UI, and calls
    `FUN_140107b70` with the frame delta and the inverse of the UI flag at `+0xd9`.
 
-In `FUN_140107b70`, the system initializes or switches an internal object held at `+0x28`, checks
-`Application::IsPaused`, then calls `FUN_140104bb0`, `FUN_140104390`, and virtual methods at slots
-`+0x38` and `+0x60` on that object. The exact domain meaning and internal work of these helpers are
-not established by this outer trace; the next step is to follow those calls and the manager at
-`+0xe8` rather than label them as a complete simulation clock or production pass.
+The helper `FUN_140107b70` is not a calendar clock. Its call to `FUN_140104390` updates the camera
+from keyboard and edge-scroll input. `FUN_140104bb0` handles the pause toggle and camera-preset
+shortcuts. The object at `+0x28` provides camera-preset support and participates in controller
+switching. The simulation manager at `+0xe8` is the separate entity scheduler described in
+[GAME-LOOP-STEP-02.md](GAME-LOOP-STEP-02.md) and [ENTITY-COMPONENT-LIFECYCLE.md](ENTITY-COMPONENT-LIFECYCLE.md).
 
 ## Port boundary
 
@@ -43,6 +43,6 @@ the active UI update path still runs afterward.
 
 ## Next trace
 
-Inspect `FUN_140104bb0`, `FUN_140104390`, the virtual targets invoked by `FUN_140107b70`, and the
-responsibility of `FUN_1400c9560`. Preserve the current unknowns until those paths identify what
-advances game time, entities and presentation state.
+Trace the toolbar's speed controls to the controller's `+0x34` iteration count and determine how
+those values are selected. The game calendar and its displayed month/year transitions remain
+unresolved; do not equate the entity scheduler's accumulated elapsed time with the calendar.
