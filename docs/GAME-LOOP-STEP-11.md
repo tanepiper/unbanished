@@ -77,6 +77,7 @@ map's natural-resource fields.
 
 ## Next trace
 
-Follow `FUN_140125520`'s growth thresholds into `FUN_140125070`, the natural-resource map update,
-and any spawned-template registration. Preserve the distinction between the target growth value,
-the smoothed linked-object fields, and the map's discrete occupancy state.
+Growth thresholds, periodic child placement, neighborhood limits and the map-cell transition are
+traced in [GAME-LOOP-STEP-12.md](GAME-LOOP-STEP-12.md). Next follow placement validation and the
+linked-object transition helpers; preserve the distinction between target growth, smoothed output,
+and discrete map-cell state.
