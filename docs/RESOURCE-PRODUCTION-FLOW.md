@@ -251,10 +251,24 @@ entity, then stored inventory after pickup.
 The work-construction path inserts a `CreateRawMaterial` action and, when the
 selected recipe has a nonempty resource array, also inserts a
 `ConsumeRawMaterial` action populated from that array. These allocations occur
-in `0x1400c4440`, but insertion order alone does not establish execution order;
-the action-collection scheduler's ordering and status/retry policy remain open.
-The trace also does not prove that all workplaces use this pair, how quantities
-are modified by tools or education, or the effects of interrupted work.
+in `0x1400c4440`. The action collection is stack-like: append helper
+`0x1400ca9b0` increments its current entry index and stores at that index;
+update helper `0x1400ca120` starts from the current index and decrements it when
+an entry completes. Consequently, among those entries the most recently
+appended action is processed first, and an earlier entry can resume after newer
+entries are popped. This is a LIFO scheduling fact; it does not by itself
+establish the full order of callbacks inside each action chain.
+
+`0x1400ca120` also exposes the raw action status handling. It marks each action
+in an entry's linked chain active and calls vtable slot `+0x20`; if the chain
+returns status `1`, it calls slot `+0x28` to advance it. Status `1` leaves the
+current entry in place for another update. Status `0` clears active state,
+calls slot `+0x38` for active chain members, deletes the completed entry, and
+decrements the current index. Status `2` clears the whole collection through
+`0x1400ca8d0`. These are scheduler effects, not semantic names for the status
+codes. The trace does not prove that all workplaces use this action pair, how
+quantities are modified by tools or education, or the effects of interrupted
+work.
 
 ## Evidence retained locally and remaining scope
 
@@ -270,7 +284,8 @@ evidence, not durable repository artifacts; the addresses above allow repeat exp
 
 The follow-up action vtables and callbacks were exported with the same scripts to
 `/tmp/production-action-vtables.tsv`, `/tmp/production-action-callbacks.txt` and
-`/tmp/production-output-helpers.txt`; these are also temporary local evidence.
+`/tmp/production-output-helpers.txt`; scheduler functions are in
+`/tmp/production-action-scheduler.txt`. These are also temporary local evidence.
 
 The storage schema, reservation mutation, input removal, output materialization, raw-material pickup,
 and successful pickup/delivery quantity operations are established statically. Work construction and
