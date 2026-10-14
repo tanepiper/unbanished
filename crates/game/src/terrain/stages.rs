@@ -419,11 +419,83 @@ impl Generator {
         }
     }
 
+    /// Stage 4, `FUN_1400d1550`: `record[+0x24]` walks from random interior cells, each moving
+    /// to the lowest 3x3 neighbour and exchanging a fraction of the height difference.
     pub fn stage4_downhill(&mut self) {
-        todo!("FUN_1400d1550")
+        let w = self.size + 1;
+        for _ in 0..self.record.at(0x24) {
+            let mut x = self.rng.rand_below((w - 2) as u32) as i32 + 1;
+            let mut y = self.rng.rand_below((w - 2) as u32) as i32 + 1;
+            loop {
+                let idx = y * w + x;
+                let h = self.grid[idx as usize];
+                if 0.0 >= h {
+                    break;
+                }
+                let (mut low, mut low_idx, mut lx, mut ly) = (h, idx, -1, -1);
+                for ny in [y - 1, y, y + 1] {
+                    for nx in [x - 1, x, x + 1] {
+                        let v = self.grid[(ny * w + nx) as usize];
+                        if low > v {
+                            (low, low_idx, lx, ly) = (v, ny * w + nx, nx, ny);
+                        }
+                    }
+                }
+                let mut d = (h - low) * 0.0625;
+                if d > 0.8 {
+                    d = 0.8;
+                }
+                self.grid[idx as usize] = (1.0 - d) * h + d * low;
+                self.grid[low_idx as usize] = (1.0 - d) * low + d * h;
+                if low_idx == idx || lx < 1 || ly < 1 || lx >= w - 1 || ly >= w - 1 {
+                    break;
+                }
+                (x, y) = (lx, ly);
+            }
+        }
     }
 
+    /// Stage 5: `FUN_1400d4120` (carve rivers and lakes again, no hill mask) then
+    /// `FUN_1400d1820` twice.
     pub fn stage5_smooth(&mut self) {
-        todo!("FUN_1400d4120 / FUN_1400d1820 x2")
+        let n = self.grid.len();
+        let (mut carve, mut raise) = (vec![1.0f32; n], vec![0.0f32; n]);
+        for path in &self.paths {
+            for p in path {
+                let [depth, r1, b1, r2, b2] = p.params;
+                self.stamp(&mut carve, p.pos, r1, b1, 1.0, false);
+                self.stamp(&mut raise, p.pos, r2, b2, depth, true);
+            }
+        }
+        for p in &self.points {
+            self.stamp(&mut raise, [p[0], p[1]], p[2], LAKE_STEEPNESS, 2.0, true);
+        }
+        for i in 0..n {
+            self.grid[i] = carve[i] * self.grid[i] - raise[i];
+        }
+        self.blur();
+        self.blur();
+    }
+
+    /// `FUN_1400d1820`: `(2 * centre + (x-1, y-1) + (x-1, y+1)) / 4` with clamped reads, written
+    /// for `x, y < size`. The temporary buffer's last row and column are never written; the
+    /// original leaves them as whatever its allocator returned, taken here as zero.
+    fn blur(&mut self) {
+        let w = self.size + 1;
+        let clamp = |v: i32| v.clamp(0, w - 1);
+        let mut out = vec![0.0f32; self.grid.len()];
+        for y in 0..self.size {
+            for x in 0..self.size {
+                let at = |gx: i32, gy: i32| self.grid[(clamp(gy) * w + clamp(gx)) as usize];
+                let mut sum = at(x, y) * 2.0;
+                let mut weight = 2.0f32;
+                for dy in [-1, 1] {
+                    sum += at(x - 1, y + dy);
+                    weight += 1.0;
+                }
+                out[(y * w + x) as usize] = sum / weight;
+            }
+        }
+        self.grid = out;
     }
 }
