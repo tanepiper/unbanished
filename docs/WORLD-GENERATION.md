@@ -126,6 +126,8 @@ open.
 - Continue from the profile-specific placements into exact household inventory and stock quantities;
   see [START-CONDITION-PROFILES.md](START-CONDITION-PROFILES.md) for the confirmed entry path and
   resource-seeding pass.
+- Trace the `PopulationDeer` registration into wildlife creation and population updates; current
+  resource links and unconfirmed numeric fields are in [WILDLIFE-POPULATION.md](WILDLIFE-POPULATION.md).
 - Trace how `ClimateGenerator` and `Environment.rsc` control climate, weather and seasonal updates.
 - Establish generation determinism and seed consumption order against a runtime or reproducible
   save comparison.

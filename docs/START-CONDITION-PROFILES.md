@@ -108,8 +108,10 @@ table are registered as unique template entries; their later placement is handle
 not inferred here.
 
 All profiles also include one `PopulationDeer` manager input and the same raw-material candidate
-list. This trace does not yet identify how the natural-resource lists become the starting map's
-actual resource distribution or how inventory quantities are assigned.
+list. The population input's resource chain and limits of the current wildlife trace are recorded in
+[WILDLIFE-POPULATION.md](WILDLIFE-POPULATION.md). This trace does not yet identify how the
+natural-resource lists become the starting map's actual resource distribution or how inventory
+quantities are assigned.
 
 ## Remaining trace
 
@@ -117,4 +119,5 @@ actual resource distribution or how inventory quantities are assigned.
   list into inventory initialization.
 - Identify the seven trailing integer settings and the fixed boolean/integer records in the
   `MapGenerator` serializer before naming their gameplay effects.
-- Trace how the loaded `PopulationDeer` input becomes wildlife entities and initial counts.
+- Trace the manager update path and wildlife entity counts; see
+  [WILDLIFE-POPULATION.md](WILDLIFE-POPULATION.md).
