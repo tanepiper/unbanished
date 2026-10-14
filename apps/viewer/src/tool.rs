@@ -87,6 +87,7 @@ pub struct Tool {
     subcategories: NodeId,
     categories_label: NodeId,
     subcategories_label: NodeId,
+    resources_label: NodeId,
     sidebar_stack: NodeId,
     selected_category: usize,
     selected_subcategory: usize,
@@ -150,12 +151,13 @@ impl Tool {
             n.min_size = [0, TOP_BAR_HEIGHT];
         }
         if let Some(bar) = ui.instantiate(BAR) {
+            ui.node_mut(bar).color = 0xFFE6D4AE;
             ui.add_child(top, bar);
         }
         let buttons = ui.ribbon(false, 6);
         {
             let n = ui.node_mut(buttons);
-            n.margins = [10, 10, 0, 0];
+            n.margins = [12, 12, 0, 0];
             n.alignment = 3; // middle-left
         }
         ui.add_child(top, buttons);
@@ -164,6 +166,7 @@ impl Tool {
             if let Some(b) = ui.instantiate(BUTTON) {
                 ui.set_text(b, mode.label());
                 ui.node_mut(b).name = mode.label().to_string();
+                ui.node_mut(b).color = 0xFFF2E2C1;
                 ui.set_shortcut(b, b'1' as u32 + mode_buttons.len() as u32);
                 ui.add_child(buttons, b);
                 mode_buttons.push((mode, b));
@@ -174,6 +177,7 @@ impl Tool {
             let n = ui.node_mut(title);
             n.alignment = 5; // middle-right
             n.margins = [0, 16, 0, 0];
+            n.color = 0xFFFFE1A1;
         }
         ui.add_child(top, title);
         ui.add_child(root, top);
@@ -187,13 +191,14 @@ impl Tool {
             n.margins = [8, 0, TOP_BAR_HEIGHT + 8, STATUS_HEIGHT + 8];
         }
         if let Some(panel) = ui.instantiate(PANEL) {
+            ui.node_mut(panel).color = 0xFFE9D9BB;
             ui.add_child(side, panel);
         }
-        let sidebar_stack = ui.ribbon(true, 6);
+        let sidebar_stack = ui.ribbon(true, 10);
         {
             let n = ui.node_mut(sidebar_stack);
             n.flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
-            n.margins = [6, 6, 6, 6];
+            n.margins = [8, 8, 8, 8];
         }
         let categories = ui.list(FONT_SMALL);
         {
@@ -202,6 +207,8 @@ impl Tool {
             n.min_size = [0, 76];
         }
         let categories_label = ui.text(FONT_SMALL, "Type");
+        ui.node_mut(categories_label).color = 0xFFFFD77C;
+        ui.node_mut(categories_label).margins = [3, 0, 0, 0];
         let subcategories = ui.list(FONT_SMALL);
         {
             let n = ui.node_mut(subcategories);
@@ -209,10 +216,18 @@ impl Tool {
             n.min_size = [0, 76];
         }
         let subcategories_label = ui.text(FONT_SMALL, "Category");
+        ui.node_mut(subcategories_label).color = 0xFFFFD77C;
+        ui.node_mut(subcategories_label).margins = [3, 0, 0, 0];
+        let resources_label = ui.text(FONT_SMALL, "Resources");
+        ui.node_mut(resources_label).color = 0xFFFFD77C;
+        ui.node_mut(resources_label).margins = [3, 0, 0, 0];
+        ui.node_mut(categories).color = 0xFFFFE7C1;
+        ui.node_mut(subcategories).color = 0xFFFFE7C1;
         let list = ui.list(FONT_SMALL);
         {
             let n = ui.node_mut(list);
             n.flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
+            n.color = 0xFFFFE7C1;
         }
         let model_controls = ui.ribbon(false, 4);
         {
@@ -220,6 +235,7 @@ impl Tool {
             n.flags = flags::FILL_WIDTH;
             n.min_size = [0, 36];
         }
+        ui.node_mut(model_controls).color = 0xFFF2E2C1;
         let render_buttons = [
             (RenderMode::Textured, "Textured"),
             (RenderMode::Vertices, "Vertices"),
@@ -229,6 +245,7 @@ impl Tool {
         .map(|(mode, label)| {
             let button = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
             ui.set_text(button, label);
+            ui.node_mut(button).color = 0xFFF2E2C1;
             ui.add_child(model_controls, button);
             (mode, button)
         })
@@ -238,6 +255,7 @@ impl Tool {
         ui.add_child(sidebar_stack, subcategories_label);
         ui.add_child(sidebar_stack, subcategories);
         ui.add_child(sidebar_stack, model_controls);
+        ui.add_child(sidebar_stack, resources_label);
         ui.add_child(sidebar_stack, list);
         ui.add_child(side, sidebar_stack);
         ui.add_child(root, side);
@@ -250,10 +268,12 @@ impl Tool {
             n.margins = [SIDEBAR_WIDTH + 16, 8, TOP_BAR_HEIGHT + 8, STATUS_HEIGHT + 8];
         }
         let picture = ui.picture();
+        let picture_border = ui.instantiate(PANEL);
         {
             let n = ui.node_mut(picture);
             n.flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
             n.margins = [12, 12, 48, 12];
+            n.border = picture_border;
         }
         ui.add_child(main, picture);
         let dialog_background_host = ui.group();
@@ -263,12 +283,15 @@ impl Tool {
         let info = ui.text(FONT, "");
         {
             let n = ui.node_mut(info);
-            n.margins = [12, 12, 10, 0];
+            n.margins = [16, 16, 12, 0];
+            n.color = 0xFFFFE7C1;
             if let Kind::Text(t) = &mut n.kind {
                 t.wrap = true;
                 t.max_width = 900;
             }
         }
+        let info_border = ui.instantiate(PANEL);
+        ui.node_mut(info).border = info_border;
         ui.add_child(main, info);
         let audio_controls = ui.ribbon(false, 8);
         {
@@ -303,8 +326,22 @@ impl Tool {
         {
             let n = ui.node_mut(status);
             n.alignment = 6; // bottom-left
-            n.margins = [12, 0, 0, 8];
+            n.margins = [14, 0, 0, 8];
+            n.color = 0xFFE9D6AA;
         }
+        let status_panel = ui.viewport();
+        {
+            let n = ui.node_mut(status_panel);
+            n.flags = flags::FILL_WIDTH;
+            n.min_size = [0, STATUS_HEIGHT];
+            n.alignment = 6;
+        }
+        if let Some(background) = ui.instantiate(BAR) {
+            ui.node_mut(background).flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
+            ui.node_mut(background).color = 0xFFE6D4AE;
+            ui.add_child(status_panel, background);
+        }
+        ui.add_child(root, status_panel);
         ui.add_child(root, status);
 
         let permanent_nodes = ui.nodes.len();
@@ -318,6 +355,7 @@ impl Tool {
             subcategories,
             categories_label,
             subcategories_label,
+            resources_label,
             sidebar_stack,
             selected_category: 0,
             selected_subcategory: 0,
@@ -629,6 +667,8 @@ impl Tool {
         self.ui.set_visible(self.list, mode != Mode::Dialogs);
         self.ui
             .set_visible(self.audio_player.window, mode == Mode::Audio);
+        self.ui
+            .set_visible(self.resources_label, mode != Mode::Dialogs);
         self.ui.node_mut(self.sidebar_stack).children = if mode == Mode::Dialogs {
             vec![
                 self.categories_label,
@@ -645,6 +685,7 @@ impl Tool {
                 self.subcategories_label,
                 self.subcategories,
                 self.model_controls,
+                self.resources_label,
                 self.list,
             ]
         };
