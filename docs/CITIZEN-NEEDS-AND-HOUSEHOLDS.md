@@ -83,11 +83,12 @@ Offsets in this section are relative to `CitizenComponent`; `D` denotes its cach
 | `+0x68` / `+0x70` / `+0x78` | Disease description / disease duration / spread timer | Disease selection, transmission and recovery in `0x140117ca0`, `0x140117940`, `0x140117880` |
 | `+0x80` / `+0x88` / `+0x90` | Happiness / state and event flags / periodic timer | CitizenUI maps `+0x80` to `groupStars`; update calls `0x140117fb0`; education completion sets bit `0x400` at `+0x88` |
 | `+0x98` / `+0xa0` | Distinct food-resource array / length | Eating records previously unseen resource descriptions in `0x14011a7b0` |
-| `+0x208` | AttendanceComponent reference | Type-checked while serializing in `0x140119630`; cleared when education progress completes in `0x140116c70` |
+| `+0x208` | School attendance provider | Type-checked as AttendanceComponent in `0x140119630`; cleared when education progress completes in `0x140116c70` |
 | `+0x210` | Education progress counter | Incremented by Citizen message 4; compared with `CitizenDescription+0x118` by message handling, CitizenUI and production output selection |
 | `+0x218` | Elapsed time while an AttendanceComponent is assigned | `0x140118340` adds each citizen update delta while `+0x208` is non-null; message 4 compares it with `CitizenDescription+0x11c * 3600` |
 | `+0x220` | Boolean set when an attendance reference is accepted | Set by `0x140116d10`; it tracks an accepted attendance association, but other uses are not yet traced |
 | `+0x1e0` / `+0x1e4` / `+0x1e8` | Clothing state / effective insulation state / expiry timer | `textClothing` UI, messages 6–7, and cold-rate indexing; exact garment names remain data-driven |
+| `+0x228` / `+0x230` | Doctor / priest attendance providers | Assigned by `0x140116a60` / `0x140116bc0`; disease recovery uses `+0x228`, happiness uses `+0x230` |
 
 The heart/star interpretation is supported by both `CitizenUI` initialization
 `0x140065b00` (`groupHearts` stored at UI `+0xa0`, `groupStars` at UI `+0xc0`) and
@@ -170,11 +171,36 @@ Once age reaches that threshold and `+0x208` is null, it attempts an
 AttendanceComponent lookup through `0x140116d10` if `+0x220` is false. A
 successful lookup reports code 10; a failed lookup, or a previously set flag,
 reports code 9 through `0x140118fc0`. The lookup searches registered components
-whose description reference matches CitizenDescription `+0x20` and ranks
-candidates with `0x140008830`; the rank's units and tie behavior remain
-unresolved. This establishes when the attendance association is attempted, but
-does not yet identify which gameplay building/resource type supplies the
-matching components or which producer sends message 4.
+whose workplace-description reference matches CitizenDescription `+0x20`, checks
+capacity and map reachability with `0x140044a50`, and keeps a candidate with the
+lowest `0x140008830` route rank. The rank's units and tie behavior remain
+unresolved. In the shipped `Citizen_citizen` resource, the three external
+references at description offsets `+0x20`, `+0x28` and `+0x30` serialize in the
+order `ProfessionTeacher`, `ProfessionPriest` and `ProfessionDoctor`. The shipped
+`SchoolHouse_resource` contains both `attendance` and `workplace` component
+descriptions, and its workplace resource is
+`Game\Profession\Profession.rsc:teacher`. This ties the `+0x208` provider
+lookup to a school building configured with the teacher workplace description.
+
+The other two CitizenDescription keys use the same provider search helper:
+`0x140116bc0` pairs `+0x28` with citizen slot `+0x230`, while `0x140116a60`
+pairs `+0x30` with slot `+0x228`. In the shipped resources those keys are
+`ProfessionPriest` and `ProfessionDoctor` respectively. Citizen happiness
+`0x140117fb0` receives a positive attendance contribution when `+0x230` is
+assigned; disease recovery `0x140117880` changes its probability when `+0x228`
+is assigned. The shipped Chapel, DoctorHouse and SchoolHouse resource templates
+each include both `workplace` and `attendance` descriptions. Their workplace
+resources point to `ProfessionPriest`, `ProfessionDoctor` and `ProfessionTeacher`
+respectively, and their attendance resources are `Chapel_attendance`,
+`DoctorHouse_attendance` and `SchoolHouse_attendance`. This confirms the three
+service-slot mappings in shipped data.
+
+`AttendanceDescription` capacity is the integer at `+0x20`; constructor
+`0x1400450b0` uses 15 as its fallback, while the three shipped resources
+override it: Chapel 200, DoctorHouse 30 and SchoolHouse 20. Serializer
+`0x140045010` persists this field. `0x140044a50` refuses assignment when the
+component's current attendee count reaches the resource's value. The producer
+that periodically sends Citizen message 4 is still not identified.
 
 Production output creation `0x1400cc010` uses the same comparison and branch
 polarity: below the threshold selects `RawMaterialDescription+0x40`; at or above
