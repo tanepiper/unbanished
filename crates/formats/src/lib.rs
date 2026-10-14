@@ -6,8 +6,10 @@
 pub mod crc;
 pub mod crs;
 pub mod error;
+pub mod game;
 pub mod lzf;
 pub mod pkg;
+pub mod save;
 pub mod skeleton;
 pub mod stream;
 pub mod texture;

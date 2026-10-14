@@ -74,6 +74,14 @@ impl Generator {
         (self.size + 1) as usize
     }
 
+    /// The map's signed 16-bit height samples (`FUN_1400b1980`): `(short)(int)(grid * 256)`.
+    pub fn heights(&self) -> Vec<i16> {
+        self.grid
+            .iter()
+            .map(|&v| (v * 256.0) as i32 as i16)
+            .collect()
+    }
+
     /// `FUN_1400d4860`: run every stage. `after_stage` sees the grid after each of the five.
     pub fn run(&mut self, mut after_stage: impl FnMut(u32, &Generator)) {
         self.size = self.record.half_size() * 2;
