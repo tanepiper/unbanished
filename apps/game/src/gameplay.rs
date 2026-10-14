@@ -12,6 +12,7 @@ use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View
 use crate::menu::MenuLoop;
 use crate::render::Lighting;
 use crate::scene::{Camera, SceneCamera, SceneView};
+use crate::toolbar::{Action, Toolbar};
 use crate::world::{World, WorldParams};
 
 const YEAR_SECONDS: f32 = 3_600.0;
@@ -33,7 +34,7 @@ pub struct GameplayLoop {
     speed: u8,
     paused: bool,
     date_label: Option<NodeId>,
-    pause_button: Option<NodeId>,
+    toolbar: Option<Toolbar>,
 }
 
 impl GameplayLoop {
@@ -49,7 +50,7 @@ impl GameplayLoop {
             speed: 0,
             paused: false,
             date_label: None,
-            pause_button: None,
+            toolbar: None,
         }
     }
 
@@ -58,35 +59,7 @@ impl GameplayLoop {
         ui.node_mut(node).border = border;
     }
 
-    fn add_button(ui: &mut Ui, row: NodeId, name: &str, label: &str) -> NodeId {
-        let states = [
-            "buttonEnabledBorder",
-            "buttonHighlightBorder",
-            "buttonPressedBorder",
-            "buttonDisabledBorder",
-        ]
-        .map(|part| ui.instantiate(&format!(r"Dialog\SharedElements.rsc:{part}")));
-        let text = ui.text(FONT_MEDIUM, label);
-        if let Kind::Text(data) = &mut ui.node_mut(text).kind {
-            data.justify = 1;
-        }
-        ui.node_mut(text).alignment = 4;
-
-        let mut button = Node::new(Kind::Button {
-            states,
-            content: Some(text),
-            colors: [0; 4],
-            state: 0,
-        });
-        button.name = name.to_string();
-        button.min_size = [78, 40];
-        button.margins = [3, 3, 3, 3];
-        let id = ui.add(button);
-        ui.add_child(row, id);
-        id
-    }
-
-    fn build_hud(&mut self, ui: &mut Ui) {
+    fn build_hud(&mut self, ui: &mut Ui, archive: &banished_formats::pkg::Archive) {
         let screen = Screen::new(ui);
         let mut overlay = Node::new(Kind::Group);
         overlay.flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
@@ -122,23 +95,11 @@ impl GameplayLoop {
         ui.add_child(overlay, date);
         self.date_label = Some(date);
 
-        let mut controls = Node::new(Kind::Ribbon {
-            vertical: false,
-            uniform: false,
-            spacing: 2,
-            cells: Vec::new(),
-        });
-        controls.name = "gameControls".to_string();
-        controls.alignment = 8;
-        controls.margins = [12, 12, 0, 12];
-        let controls = ui.add(controls);
-        ui.add_child(overlay, controls);
-        Self::add_button(ui, controls, "buttonSlower", "Slower");
-        let pause = Self::add_button(ui, controls, "buttonPause", "Pause");
-        Self::add_button(ui, controls, "buttonFaster", "Faster");
-        Self::add_button(ui, controls, "buttonMenu", "Menu");
-        self.pause_button = Some(pause);
-
+        // `FUN_14009d0d0` installs the toolbar with the other in-game dialogs.
+        let mut screen = screen;
+        let mut toolbar = Toolbar::load(archive);
+        toolbar.install(ui, &mut screen);
+        self.toolbar = Some(toolbar);
         self.screen = Some(screen);
         self.update_hud(ui);
     }
@@ -157,8 +118,8 @@ impl GameplayLoop {
                 &format!("Year {}  |  {}  |  {}", self.year, season, speed),
             );
         }
-        if let Some(button) = self.pause_button {
-            ui.set_text(button, if self.paused { "Resume" } else { "Pause" });
+        if let Some(toolbar) = &self.toolbar {
+            toolbar.refresh(ui, SPEED_LEVELS[self.speed as usize] as u32, self.paused);
         }
     }
 
@@ -199,10 +160,13 @@ impl GameLoop for GameplayLoop {
     }
 
     fn startup(&mut self, ctx: &mut Ctx) {
-        self.build_hud(ctx.ui);
+        self.build_hud(ctx.ui, ctx.archive);
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
+        if let (Some(screen), Some(toolbar)) = (&self.screen, &self.toolbar) {
+            toolbar.relayout(ctx.ui, screen);
+        }
         if !self.paused {
             self.month_elapsed += dt * SPEED_LEVELS[self.speed as usize];
             while self.month_elapsed >= MONTH_SECONDS {
@@ -228,24 +192,24 @@ impl GameLoop for GameplayLoop {
     }
 
     fn event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
-        let Event::Clicked(id) = event else {
+        let (Event::Clicked(id) | Event::Changed(id)) = event else {
             return Next::Stay;
         };
-        let Some(screen) = &self.screen else {
+        let (Some(screen), Some(toolbar)) = (self.screen.as_mut(), self.toolbar.as_mut()) else {
             return Next::Stay;
         };
-        if ctx.ui.find(screen.root, "buttonPause") == Some(id) {
-            self.paused = !self.paused;
-            self.update_hud(ctx.ui);
-        } else if ctx.ui.find(screen.root, "buttonSlower") == Some(id) {
-            self.speed = self.speed.saturating_sub(1);
-            self.update_hud(ctx.ui);
-        } else if ctx.ui.find(screen.root, "buttonFaster") == Some(id) {
-            self.speed = (self.speed + 1).min((SPEED_LEVELS.len() - 1) as u8);
-            self.update_hud(ctx.ui);
-        } else if ctx.ui.find(screen.root, "buttonMenu") == Some(id) {
-            return Self::return_to_menu();
+        let Some(action) = toolbar.click(ctx.ui, screen, id) else {
+            return Next::Stay;
+        };
+        match action {
+            // `FUN_1400be770` kinds 6-9 write the simulation controller's pause flag and speed.
+            Action::Pause => self.paused = true,
+            Action::Play => self.paused = false,
+            Action::Slower => self.speed = self.speed.saturating_sub(1),
+            Action::Faster => self.speed = (self.speed + 1).min((SPEED_LEVELS.len() - 1) as u8),
+            other => log::info!("toolbar action not implemented yet: {other:?}"),
         }
+        self.update_hud(ctx.ui);
         Next::Stay
     }
 

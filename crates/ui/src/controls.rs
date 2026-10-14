@@ -485,6 +485,50 @@ impl Ui {
             slider.step = (range[1] - range[0]).abs() / 100.0;
         }
     }
+    /// `UI::TableElement::SetChild(child, index)`: put `child` in cell `index` (row-major).
+    pub fn set_table_child(&mut self, table: NodeId, index: usize, child: NodeId) {
+        if let Kind::Control(Control::Table {
+            cells,
+            columns,
+            rows,
+            ..
+        }) = &mut self.nodes[table].kind
+        {
+            let cols = columns.len().max(1);
+            let (x, y) = (index % cols, index / cols);
+            if y >= rows.len() {
+                rows.resize(y + 1, 0);
+            }
+            cells.retain(|c| (c.0, c.1) != (x, y));
+            cells.push((x, y, child));
+        }
+    }
+
+    /// `UI::ImageElement::SetSprite` on every image inside `id`.
+    pub fn set_images(&mut self, id: NodeId, sprite: SpriteRef) {
+        let mut stack = vec![id];
+        while let Some(n) = stack.pop() {
+            if let Kind::Image { sprite: s, .. } = &mut self.nodes[n].kind {
+                *s = Some(sprite);
+            }
+            stack.extend(self.child_ids(n));
+        }
+    }
+
+    /// Whether a check control is checked.
+    pub fn checked(&self, id: NodeId) -> bool {
+        matches!(
+            self.nodes[id].kind,
+            Kind::Control(Control::Check { checked: true, .. })
+        )
+    }
+
+    pub fn set_checked(&mut self, id: NodeId, value: bool) {
+        if let Kind::Control(Control::Check { checked, .. }) = &mut self.nodes[id].kind {
+            *checked = value;
+        }
+    }
+
     pub fn set_choices(&mut self, id: NodeId, choices: Vec<String>) {
         if let Kind::Control(Control::Combo { list, .. }) = self.nodes[id].kind {
             self.set_list_items(list, choices);
