@@ -75,8 +75,9 @@ The controller's Runtime creation and callback lifecycle is known: `DialogInstan
 resolves the type through `Object::Factory`, creates it, supplies its dialog/element/config context,
 calls `OnCreated`, and registers it. The gameplay bootstrap that adds the Toolbar dialog is also
 known. The direct resource-driven handoff from Toolbar to `Template/UtilityStatusBar` is not proven
-by a code reference, and the values behind resource counters and status categories still need to be
-traced to their owning managers. The current port uses its compact HUD and does not render this
+by a code reference. The source fields and bit predicates for its population, status, and stock
+values are traced in [step 08](GAME-LOOP-STEP-08.md), while their concrete owner classes and some
+localized meanings remain unresolved. The current port uses its compact HUD and does not render this
 original status bar.
 
 ## Evidence pointers
@@ -107,5 +108,5 @@ original status bar.
 ## Next trace
 
 Trace the compiled Toolbar/UtilityStatusBar resource handoff far enough to establish whether it
-creates the StatusBar dialog and controller. Then follow each displayed counter to its game manager,
-keeping resource inventory, citizen status counts and global settings as separate data sources.
+creates the StatusBar dialog and controller. Continue from [step 08](GAME-LOOP-STEP-08.md) into the
+concrete owners and update paths for citizen status and resource stock values.

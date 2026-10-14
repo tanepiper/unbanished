@@ -46,7 +46,9 @@ See [GAME-LOOP-STEP-04.md](GAME-LOOP-STEP-04.md).
 The original Status Bar resources and serialized weather state are in
 [GAME-LOOP-STEP-06.md](GAME-LOOP-STEP-06.md); its `StatusBarUI` controller, update logic and
 `UtilityStatusBar` package path are traced in [GAME-LOOP-STEP-07.md](GAME-LOOP-STEP-07.md). Its
-gameplay installation call site and displayed counter sources remain open.
+Toolbar handoff and owner-class identity remain open. The observed population/status predicates and
+the fixed-stride resource stock table are recorded in [GAME-LOOP-STEP-08.md](GAME-LOOP-STEP-08.md);
+the localized population group names and counter update owners remain open.
 
 The outer update and its follow-up are documented in [GAME-LOOP-STEP-01.md](GAME-LOOP-STEP-01.md)
 and [GAME-LOOP-STEP-02.md](GAME-LOOP-STEP-02.md). The trace establishes pause/speed gating,
