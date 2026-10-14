@@ -81,8 +81,12 @@ Offsets in this section are relative to `CitizenComponent`; `D` denotes its cach
 | `+0x4c` | Reproduction / recovery countdown | Birth creation and cooldown branches in `0x140118340` |
 | `+0x50` / `+0x54` / `+0x58` | Health / accumulated health events / periodic timer | CitizenUI maps `+0x50` to `groupHearts`; update calls `0x140117e60` |
 | `+0x68` / `+0x70` / `+0x78` | Disease description / disease duration / spread timer | Disease selection, transmission and recovery in `0x140117ca0`, `0x140117940`, `0x140117880` |
-| `+0x80` / `+0x88` / `+0x90` | Happiness / accumulated events / periodic timer | CitizenUI maps `+0x80` to `groupStars`; update calls `0x140117fb0` |
+| `+0x80` / `+0x88` / `+0x90` | Happiness / state and event flags / periodic timer | CitizenUI maps `+0x80` to `groupStars`; update calls `0x140117fb0`; education completion sets bit `0x400` at `+0x88` |
 | `+0x98` / `+0xa0` | Distinct food-resource array / length | Eating records previously unseen resource descriptions in `0x14011a7b0` |
+| `+0x208` | AttendanceComponent reference | Type-checked while serializing in `0x140119630`; cleared when education progress completes in `0x140116c70` |
+| `+0x210` | Education progress counter | Incremented by Citizen message 4; compared with `CitizenDescription+0x118` by message handling, CitizenUI and production output selection |
+| `+0x218` | Time value used by education progress completion | Read as seconds in `0x140116c70` and compared with `CitizenDescription+0x11c * 3600`; its writers and reset rules are not yet traced |
+| `+0x220` | Boolean set when an attendance reference is accepted | Set by `0x140116d10`; it tracks an accepted attendance association, but other uses are not yet traced |
 | `+0x1e0` / `+0x1e4` / `+0x1e8` | Clothing state / effective insulation state / expiry timer | `textClothing` UI, messages 6–7, and cold-rate indexing; exact garment names remain data-driven |
 
 The heart/star interpretation is supported by both `CitizenUI` initialization
@@ -138,7 +142,27 @@ movement/task scheduler is outside this trace, but the receivers are identified:
 | 0 | `0x1401176b0`: resolve the supplied entity's ResidenceComponent; clear cold only if `0x140130100` says it is warm |
 | 2 | `0x14011a7b0`: choose food, remove one inventory unit through `0x140132620`, subtract **1** hunger, repeat until satisfied or food selection fails; clamp hunger to zero |
 | 3 | Set health-event bit `0x200` and add `0.5` health; the semantic service type is not established here |
+| 4 | `0x140116c70`: increment education progress `+0x210`; if it remains below `D+0x118` and elapsed time `+0x218` is no greater than `D+0x11c * 3600`, return. Otherwise clamp progress to `D+0x118`, set state bit `0x400`, clear the AttendanceComponent reference, and send state event 9 |
+| 5 | Calls `0x140116a10`; its effects are not yet traced |
 | 6 / 7 | Set clothing and effective insulation to 1 / 2; start a timer of `D[0x130] * 300` |
+| 8 | Set state bit `0x40000`; no further effect in this receiver |
+
+### Education progress and production quality
+
+CitizenUI refresh `0x140065440` compares citizen `+0x210` with its
+CitizenDescription `+0x118`: below the threshold it displays `textEducatedNo`,
+and at or above the threshold it displays `textEducatedYes`. The update also
+binds the settlement statistic named `percentEducated` to its UI element. This,
+combined with the message-4 progress handler and its completion path, identifies
+the counter as education progress. The exact numeric scale, how attendance
+updates `+0x218`, and which producer sends message 4 remain unresolved.
+
+Production output creation `0x1400cc010` uses the same comparison and branch
+polarity: below the threshold selects `RawMaterialDescription+0x40`; at or above
+it selects `+0x44`. Thus the shipped data's first quantity is used before the
+education threshold and its second quantity at completion. The recipe catalog
+records these fields and their nominal amounts in
+[SHIPPED-PRODUCTION-RECIPES.md](SHIPPED-PRODUCTION-RECIPES.md).
 
 The eat helper also records food diversity and copies category bits from
 `RawMaterialDescription+0x5c` into health-event bits. Its caller can consume home

@@ -39,8 +39,14 @@ fields, before accounting for that action multiplier. In the standard
 `0x1400c4440` production path, the `CreateRawMaterial` constructor receives
 `DAT_14017884c` for this field; that executable constant is IEEE-754 `1.0`.
 Thus the selected field is the nominal quantity produced by that action in this
-path. The comparison's meaning and the production rate per unit time are still
-unresolved; the latter also depends on timed work and scheduling.
+path. The comparison is against citizen education progress: CitizenUI
+`0x140065440` uses the same citizen counter and description threshold to display
+`textEducatedNo` or `textEducatedYes`. The production code selects `+0x40` while
+the progress counter is below the threshold, and `+0x44` at or above it. The
+production rate per unit time also remains unresolved because it depends on
+timed work and scheduling. See
+[CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md) for the
+education-progress trace.
 
 | Workplace data resource | Inputs → output | Output label / template | Raw material `+0x40` / `+0x44` | Unit weight `+0x48` | Group |
 | --- | --- | --- | ---: | ---: | ---: |
