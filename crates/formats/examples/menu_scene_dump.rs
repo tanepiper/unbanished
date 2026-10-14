@@ -12,6 +12,58 @@ fn main() {
     }
     let r = format!("Game/MenuScene/Scene{index}.rsc:resource");
     let s = banished_formats::menu_scene::menu_scene(&archive.read_ref(&r).unwrap()).unwrap();
+    {
+        let m = &s.map;
+        let z: Vec<i16> = m
+            .water_vertices
+            .iter()
+            .map(|v| i16::from_le_bytes([v[4], v[5]]))
+            .collect();
+        let w: Vec<i16> = m
+            .water_vertices
+            .iter()
+            .map(|v| i16::from_le_bytes([v[6], v[7]]))
+            .collect();
+        let mut zs = z.clone();
+        zs.sort();
+        zs.dedup();
+        let mut ws = w.clone();
+        ws.sort();
+        ws.dedup();
+        println!(
+            "WATER z values {:?} (n={}) w {:?}",
+            &zs[..zs.len().min(12)],
+            zs.len(),
+            &ws[..ws.len().min(8)]
+        );
+        println!("WATER first verts {:?}", &m.water_vertices[..3]);
+        println!("RIVERS {:?}\nLAKES {:?}", m.river_ranges, m.lake_ranges);
+        println!(
+            "DECALS {} extra {} materials {:?}",
+            m.decals.len(),
+            m.extra_decals.len(),
+            m.decal_materials
+        );
+        for d in m.decals.iter().chain(m.extra_decals.iter()).take(4) {
+            println!(
+                "DECAL {:?} ints {:?} b {} i6 {} f7 {} floats {:?} f13 {} fv2 {} verts {} idx {}",
+                d.material,
+                d.ints,
+                d.byte,
+                d.int6,
+                d.flag7,
+                d.floats,
+                d.flag13,
+                d.flag_v2,
+                d.vertices.len(),
+                d.indices.len()
+            );
+            if let Some(v) = d.vertices.first() {
+                println!("  v0 {:?}", v);
+            }
+        }
+        println!("INTS {:?}", &m.ints[..m.ints.len().min(20)]);
+    }
     let mut counts = vec![0usize; s.meshes.len()];
     for p in &s.placements {
         counts[p.mesh as usize] += 1;

@@ -204,6 +204,8 @@ fn load_menu_scene(ctx: &mut Ctx, index: u32) -> banished_formats::Result<SceneV
     let reference = format!("Game/MenuScene/Scene{index}.rsc:resource");
     let scene = banished_formats::menu_scene::menu_scene(&ctx.archive.read_ref(&reference)?)?;
     let models = crate::models::SceneModels::from_menu_scene(ctx.archive, &scene);
+    let extras =
+        crate::scene_assets::SceneExtras::from_map(ctx.archive, &scene.map, scene.sky.as_deref());
     let map = scene.map;
     let material = map
         .terrain_material
@@ -245,6 +247,7 @@ fn load_menu_scene(ctx: &mut Ctx, index: u32) -> banished_formats::Result<SceneV
     );
     let mut view = SceneView::new(terrain, SceneCamera::Menu(camera), lighting);
     view.models = Some(models);
+    view.extras = Some(extras);
     Ok(view)
 }
 

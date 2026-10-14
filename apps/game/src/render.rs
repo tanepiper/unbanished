@@ -1,5 +1,13 @@
 //! wgpu renderer for the game world. Native windows, the web canvas and headless captures share
 //! one path. Colours are handled as raw (non-sRGB) values like the original D3D9 renderer.
+//!
+//! A 3D frame is drawn offscreen like the original pipeline:
+//! 1. planar reflection (half size): sky, terrain and models mirrored about the water surface,
+//!    clipping what lies below it (`ReflectionImageBuffer`);
+//! 2. the scene: sky, terrain, models, decals;
+//! 3. a copy of the scene for the water shader to refract (`FrameCopyImageBuffer`);
+//! 4. the river and lake surface;
+//! 5. the scene is copied to the window, then the UI and fades are drawn over it.
 
 use std::sync::Arc;
 
@@ -10,11 +18,12 @@ use glam::{Mat4, Vec3, Vec4};
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
+use crate::scene_gfx::{SceneExtrasRenderer, DEPTH_FORMAT, GLOBALS_WGSL, SCENE_FORMAT};
 use crate::world::Terrain;
 
-const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 const CAPTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
+/// Matches `scene_gfx::GLOBALS_WGSL`.
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct Globals {
@@ -25,11 +34,11 @@ struct Globals {
     fog_color: [f32; 4],
     fog: [f32; 4],
     user: [f32; 4],
-    /// Camera axes in world space for billboards (`gc_worldToCamera` columns); `forward.w` is
-    /// the time in seconds (`gc_time`).
     camera_right: [f32; 4],
     camera_forward: [f32; 4],
     camera_up: [f32; 4],
+    camera_pos: [f32; 4],
+    clip: [f32; 4],
 }
 
 /// Lighting for one frame, in the units of `EnvironmentDescription`.
@@ -53,13 +62,15 @@ pub struct Lighting {
 pub struct SceneFrame {
     pub view_proj: Mat4,
     pub lighting: Lighting,
+    pub eye: Vec3,
+    pub far: f32,
     pub right: Vec3,
     pub forward: Vec3,
     pub up: Vec3,
     pub time: f32,
 }
 
-/// Everything drawn in one frame: optional terrain and models, then UI quads.
+/// Everything drawn in one frame: an optional 3D scene, then UI quads.
 pub struct Frame<'a> {
     pub terrain: Option<SceneFrame>,
     pub clear: wgpu::Color,
@@ -74,6 +85,18 @@ struct TerrainGpu {
     bind_group: wgpu::BindGroup,
 }
 
+/// Offscreen render targets, recreated on resize.
+struct Targets {
+    scene: wgpu::Texture,
+    scene_view: wgpu::TextureView,
+    frame_copy: wgpu::Texture,
+    frame_copy_view: wgpu::TextureView,
+    reflection_view: wgpu::TextureView,
+    reflection_depth: wgpu::TextureView,
+    depth: wgpu::TextureView,
+    blit_bind: wgpu::BindGroup,
+}
+
 pub struct Renderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -81,36 +104,117 @@ pub struct Renderer {
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     format: wgpu::TextureFormat,
     size: (u32, u32),
-    depth: wgpu::TextureView,
-    pipeline: wgpu::RenderPipeline,
+    targets: Targets,
+    terrain_pipeline: wgpu::RenderPipeline,
+    blit_pipeline: wgpu::RenderPipeline,
+    blit_layout: wgpu::BindGroupLayout,
+    blit_sampler: wgpu::Sampler,
     globals: wgpu::Buffer,
     globals_bind: wgpu::BindGroup,
+    reflect_globals: wgpu::Buffer,
+    reflect_bind: wgpu::BindGroup,
     material_layout: wgpu::BindGroupLayout,
     terrain: Option<TerrainGpu>,
-    /// `SceneView::id` of the uploaded terrain.
+    /// `SceneView::id` of the uploaded scene.
     pub world_id: u64,
     ui: banished_gfx::UiRenderer,
     models: crate::models::ModelRenderer,
+    extras: SceneExtrasRenderer,
     pub backend: String,
 }
 
-fn depth_view(device: &wgpu::Device, w: u32, h: u32) -> wgpu::TextureView {
-    device
-        .create_texture(&wgpu::TextureDescriptor {
-            label: Some("depth"),
-            size: wgpu::Extent3d {
-                width: w.max(1),
-                height: h.max(1),
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: DEPTH_FORMAT,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        })
-        .create_view(&Default::default())
+fn texture(
+    device: &wgpu::Device,
+    label: &str,
+    (w, h): (u32, u32),
+    format: wgpu::TextureFormat,
+    usage: wgpu::TextureUsages,
+) -> wgpu::Texture {
+    device.create_texture(&wgpu::TextureDescriptor {
+        label: Some(label),
+        size: wgpu::Extent3d {
+            width: w.max(1),
+            height: h.max(1),
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format,
+        usage,
+        view_formats: &[],
+    })
+}
+
+impl Targets {
+    fn new(
+        device: &wgpu::Device,
+        size: (u32, u32),
+        blit_layout: &wgpu::BindGroupLayout,
+        sampler: &wgpu::Sampler,
+    ) -> Targets {
+        use wgpu::TextureUsages as U;
+        let scene = texture(
+            device,
+            "scene",
+            size,
+            SCENE_FORMAT,
+            U::RENDER_ATTACHMENT | U::TEXTURE_BINDING | U::COPY_SRC,
+        );
+        let frame_copy = texture(
+            device,
+            "frame copy",
+            size,
+            SCENE_FORMAT,
+            U::TEXTURE_BINDING | U::COPY_DST,
+        );
+        let half = ((size.0 / 2).max(1), (size.1 / 2).max(1));
+        let reflection = texture(
+            device,
+            "reflection",
+            half,
+            SCENE_FORMAT,
+            U::RENDER_ATTACHMENT | U::TEXTURE_BINDING,
+        );
+        let view = |t: &wgpu::Texture| t.create_view(&Default::default());
+        let scene_view = view(&scene);
+        let blit_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("blit"),
+            layout: blit_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&scene_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(sampler),
+                },
+            ],
+        });
+        Targets {
+            frame_copy_view: view(&frame_copy),
+            frame_copy,
+            reflection_view: view(&reflection),
+            reflection_depth: view(&texture(
+                device,
+                "reflection depth",
+                half,
+                DEPTH_FORMAT,
+                U::RENDER_ATTACHMENT,
+            )),
+            depth: view(&texture(
+                device,
+                "depth",
+                size,
+                DEPTH_FORMAT,
+                U::RENDER_ATTACHMENT,
+            )),
+            scene_view,
+            scene,
+            blit_bind,
+        }
+    }
 }
 
 fn color(argb: u32) -> Vec3 {
@@ -141,6 +245,30 @@ impl Lighting {
         }
     }
 }
+
+const BLIT_WGSL: &str = r#"
+@group(0) @binding(0) var scene: texture_2d<f32>;
+@group(0) @binding(1) var samp: sampler;
+
+struct BlitOut {
+    @builtin(position) pos: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+};
+
+@vertex
+fn vs_blit(@builtin(vertex_index) i: u32) -> BlitOut {
+    let p = vec2<f32>(f32((i << 1u) & 2u), f32(i & 2u));
+    var o: BlitOut;
+    o.pos = vec4<f32>(p * 2.0 - 1.0, 0.0, 1.0);
+    o.uv = vec2<f32>(p.x, 1.0 - p.y);
+    return o;
+}
+
+@fragment
+fn fs_blit(i: BlitOut) -> @location(0) vec4<f32> {
+    return vec4<f32>(textureSample(scene, samp, i.uv).rgb, 1.0);
+}
+"#;
 
 impl Renderer {
     pub async fn new(window: Arc<Window>) -> Renderer {
@@ -205,10 +333,6 @@ impl Renderer {
         });
         let format = surface.as_ref().map_or(CAPTURE_FORMAT, |(_, c)| c.format);
 
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("terrain"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("terrain.wgsl").into()),
-        });
         let globals_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("globals"),
             entries: &[wgpu::BindGroupLayoutEntry {
@@ -250,16 +374,23 @@ impl Renderer {
                 sampler(6),
             ],
         });
-        let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+
+        let terrain_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("terrain"),
+            source: wgpu::ShaderSource::Wgsl(
+                format!("{GLOBALS_WGSL}{}", include_str!("terrain.wgsl")).into(),
+            ),
+        });
+        let terrain_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("terrain"),
             bind_group_layouts: &[Some(&globals_layout), Some(&material_layout)],
             immediate_size: 0,
         });
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let terrain_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("terrain"),
-            layout: Some(&layout),
+            layout: Some(&terrain_layout),
             vertex: wgpu::VertexState {
-                module: &shader,
+                module: &terrain_shader,
                 entry_point: Some("vs_main"),
                 compilation_options: Default::default(),
                 buffers: &[Some(wgpu::VertexBufferLayout {
@@ -271,13 +402,14 @@ impl Renderer {
                 })],
             },
             fragment: Some(wgpu::FragmentState {
-                module: &shader,
+                module: &terrain_shader,
                 entry_point: Some("fs_main"),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format,
+                    format: SCENE_FORMAT,
                     blend: None,
-                    write_mask: wgpu::ColorWrites::COLOR,
+                    // Alpha carries the underwater factor for the water shader.
+                    write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
             primitive: wgpu::PrimitiveState {
@@ -296,27 +428,96 @@ impl Renderer {
             multiview_mask: None,
             cache: None,
         });
-        let globals = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("globals"),
-            size: std::mem::size_of::<Globals>() as u64,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
+
+        let blit_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("blit"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
         });
-        let globals_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("globals"),
-            layout: &globals_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: globals.as_entire_binding(),
-            }],
+        let blit_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("blit"),
+            source: wgpu::ShaderSource::Wgsl(BLIT_WGSL.into()),
         });
-        let models = crate::models::ModelRenderer::new(
-            &device,
-            &queue,
-            &globals_layout,
-            format,
-            DEPTH_FORMAT,
-        );
+        let blit_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("blit"),
+            layout: Some(
+                &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("blit"),
+                    bind_group_layouts: &[Some(&blit_layout)],
+                    immediate_size: 0,
+                }),
+            ),
+            vertex: wgpu::VertexState {
+                module: &blit_shader,
+                entry_point: Some("vs_blit"),
+                compilation_options: Default::default(),
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &blit_shader,
+                entry_point: Some("fs_blit"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: Default::default(),
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH_FORMAT,
+                depth_write_enabled: Some(false),
+                depth_compare: Some(wgpu::CompareFunction::Always),
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
+            multisample: Default::default(),
+            multiview_mask: None,
+            cache: None,
+        });
+        let blit_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let globals_buffer = |label| {
+            let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some(label),
+                size: std::mem::size_of::<Globals>() as u64,
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            });
+            let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some(label),
+                layout: &globals_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: buffer.as_entire_binding(),
+                }],
+            });
+            (buffer, bind)
+        };
+        let (globals, globals_bind) = globals_buffer("globals");
+        let (reflect_globals, reflect_bind) = globals_buffer("reflection globals");
+        let models = crate::models::ModelRenderer::new(&device, &queue, &globals_layout);
+        let extras = SceneExtrasRenderer::new(&device, &queue, &globals_layout);
         let mut ui = banished_gfx::UiRenderer::new(&device, format, DEPTH_FORMAT);
         let white = banished_gfx::upload_rgba_as(
             &device,
@@ -328,34 +529,54 @@ impl Renderer {
             wgpu::TextureFormat::Rgba8Unorm,
         );
         ui.set_external(&device, crate::loops::WHITE, &white);
+        let targets = Targets::new(&device, (width, height), &blit_layout, &blit_sampler);
         Renderer {
-            depth: depth_view(&device, width, height),
             device,
             queue,
             surface,
             format,
             size: (width, height),
-            pipeline,
+            targets,
+            terrain_pipeline,
+            blit_pipeline,
+            blit_layout,
+            blit_sampler,
             globals,
             globals_bind,
+            reflect_globals,
+            reflect_bind,
             material_layout,
             terrain: None,
             world_id: 0,
             ui,
             models,
+            extras,
             backend,
         }
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
         let (width, height) = (width.max(1), height.max(1));
+        if self.size == (width, height) {
+            return;
+        }
         self.size = (width, height);
         if let Some((surface, config)) = &mut self.surface {
             config.width = width;
             config.height = height;
             surface.configure(&self.device, config);
         }
-        self.depth = depth_view(&self.device, width, height);
+        self.targets = Targets::new(
+            &self.device,
+            self.size,
+            &self.blit_layout,
+            &self.blit_sampler,
+        );
+        self.extras.bind_targets(
+            &self.device,
+            &self.targets.frame_copy_view,
+            &self.targets.reflection_view,
+        );
     }
 
     /// Seconds since the current loop started (animated UI materials).
@@ -441,7 +662,7 @@ impl Renderer {
         )
     }
 
-    /// Upload a scene's world if it is not the one on the GPU.
+    /// Upload a scene's terrain, models, sky, water and decals if it is not the one on the GPU.
     pub fn set_scene(&mut self, view: &crate::scene::SceneView) {
         if self.world_id != view.id {
             self.set_terrain(&view.terrain);
@@ -449,6 +670,15 @@ impl Renderer {
                 Some(m) => self.models.upload(&self.device, &self.queue, m),
                 None => self.models.clear(),
             }
+            match &view.extras {
+                Some(e) => self.extras.upload(&self.device, &self.queue, e),
+                None => self.extras.clear(),
+            }
+            self.extras.bind_targets(
+                &self.device,
+                &self.targets.frame_copy_view,
+                &self.targets.reflection_view,
+            );
             self.world_id = view.id;
         }
     }
@@ -534,7 +764,7 @@ impl Renderer {
     }
 
     pub fn render(&mut self, frame: &Frame) {
-        let Some((surface, _)) = &self.surface else {
+        let Some((surface, config)) = &self.surface else {
             return;
         };
         let texture = match surface.get_current_texture() {
@@ -542,6 +772,12 @@ impl Renderer {
             | wgpu::CurrentSurfaceTexture::Suboptimal(t) => t,
             other => {
                 log::warn!("surface unavailable: {other:?}");
+                if matches!(
+                    other,
+                    wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Lost
+                ) {
+                    surface.configure(&self.device, config);
+                }
                 return;
             }
         };
@@ -613,15 +849,116 @@ impl Renderer {
         out
     }
 
-    fn draw(&mut self, view: &wgpu::TextureView, frame: &Frame) {
-        let draw_terrain = frame.terrain.is_some() && self.terrain.is_some();
-        if let Some(scene) = &frame.terrain {
-            self.write_globals(scene);
+    fn draw_terrain<'p>(&'p self, pass: &mut wgpu::RenderPass<'p>, globals: &'p wgpu::BindGroup) {
+        let Some(t) = &self.terrain else { return };
+        pass.set_pipeline(&self.terrain_pipeline);
+        pass.set_bind_group(0, globals, &[]);
+        pass.set_bind_group(1, &t.bind_group, &[]);
+        pass.set_index_buffer(t.indices.slice(..), wgpu::IndexFormat::Uint16);
+        // One draw per 32×32-cell tile, each with its own 33×33 vertices (as the game does).
+        // Binding at an offset avoids base-vertex, which WebGL2 lacks.
+        let tile_bytes = (TILE_VERTS * TILE_VERTS * 16) as u64;
+        for tile in 0..t.tiles as u64 {
+            pass.set_vertex_buffer(
+                0,
+                t.vertices.slice(tile * tile_bytes..(tile + 1) * tile_bytes),
+            );
+            pass.draw_indexed(0..t.index_count, 0, 0..1);
         }
+    }
+
+    fn scene_pass<'e>(
+        encoder: &'e mut wgpu::CommandEncoder,
+        label: &str,
+        color: &'e wgpu::TextureView,
+        depth: &'e wgpu::TextureView,
+        clear: Option<wgpu::Color>,
+    ) -> wgpu::RenderPass<'e> {
+        encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some(label),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: color,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: clear.map_or(wgpu::LoadOp::Load, wgpu::LoadOp::Clear),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: depth,
+                depth_ops: Some(wgpu::Operations {
+                    load: if clear.is_some() {
+                        wgpu::LoadOp::Clear(1.0)
+                    } else {
+                        wgpu::LoadOp::Load
+                    },
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        })
+    }
+
+    fn draw(&mut self, view: &wgpu::TextureView, frame: &Frame) {
+        let scene = frame.terrain.filter(|_| self.terrain.is_some());
         let mut encoder = self.device.create_command_encoder(&Default::default());
+        if let Some(scene) = &scene {
+            let water = self.extras.water_level();
+            self.write_globals(&self.globals, scene, None);
+            if let Some(level) = water {
+                self.write_globals(&self.reflect_globals, scene, Some(level));
+            }
+            self.extras.place_sky(&self.queue, scene.eye, scene.far);
+            let fog = scene.lighting.fog_color;
+            let clear = wgpu::Color {
+                r: fog.x as f64,
+                g: fog.y as f64,
+                b: fog.z as f64,
+                a: 0.0,
+            };
+            let t = &self.targets;
+            if water.is_some() {
+                let mut pass = Self::scene_pass(
+                    &mut encoder,
+                    "reflection",
+                    &t.reflection_view,
+                    &t.reflection_depth,
+                    Some(clear),
+                );
+                self.extras.draw_sky(&mut pass, &self.reflect_bind);
+                self.draw_terrain(&mut pass, &self.reflect_bind);
+                self.models.draw(&mut pass, &self.reflect_bind);
+            }
+            {
+                let mut pass =
+                    Self::scene_pass(&mut encoder, "scene", &t.scene_view, &t.depth, Some(clear));
+                self.extras.draw_sky(&mut pass, &self.globals_bind);
+                self.draw_terrain(&mut pass, &self.globals_bind);
+                self.models.draw(&mut pass, &self.globals_bind);
+                self.extras.draw_decals(&mut pass, &self.globals_bind);
+            }
+            if water.is_some() {
+                encoder.copy_texture_to_texture(
+                    t.scene.as_image_copy(),
+                    t.frame_copy.as_image_copy(),
+                    wgpu::Extent3d {
+                        width: self.size.0,
+                        height: self.size.1,
+                        depth_or_array_layers: 1,
+                    },
+                );
+                let mut pass =
+                    Self::scene_pass(&mut encoder, "water", &t.scene_view, &t.depth, None);
+                self.extras.draw_water(&mut pass, &self.globals_bind);
+            }
+        }
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("world"),
+                label: Some("screen"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view,
                     depth_slice: None,
@@ -632,7 +969,7 @@ impl Renderer {
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.depth,
+                    view: &self.targets.depth,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
                         store: wgpu::StoreOp::Discard,
@@ -643,22 +980,10 @@ impl Renderer {
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
-            if let (true, Some(t)) = (draw_terrain, &self.terrain) {
-                pass.set_pipeline(&self.pipeline);
-                pass.set_bind_group(0, &self.globals_bind, &[]);
-                pass.set_bind_group(1, &t.bind_group, &[]);
-                pass.set_index_buffer(t.indices.slice(..), wgpu::IndexFormat::Uint16);
-                // One draw per 32×32-cell tile, each with its own 33×33 vertices (as the game
-                // does). Binding at an offset avoids base-vertex, which WebGL2 lacks.
-                let tile_bytes = (TILE_VERTS * TILE_VERTS * 16) as u64;
-                for tile in 0..t.tiles as u64 {
-                    pass.set_vertex_buffer(
-                        0,
-                        t.vertices.slice(tile * tile_bytes..(tile + 1) * tile_bytes),
-                    );
-                    pass.draw_indexed(0..t.index_count, 0, 0..1);
-                }
-                self.models.draw(&mut pass, &self.globals_bind);
+            if scene.is_some() {
+                pass.set_pipeline(&self.blit_pipeline);
+                pass.set_bind_group(0, &self.targets.blit_bind, &[]);
+                pass.draw(0..3, 0..1);
             }
             if let Some((ui, quads)) = frame.ui {
                 self.ui
@@ -668,10 +993,21 @@ impl Renderer {
         self.queue.submit([encoder.finish()]);
     }
 
-    fn write_globals(&mut self, scene: &SceneFrame) {
+    /// Write a pass's globals. With `reflect`, mirror the scene about that water height and clip
+    /// what lies below it.
+    fn write_globals(&self, buffer: &wgpu::Buffer, scene: &SceneFrame, reflect: Option<f32>) {
         let l = &scene.lighting;
+        let (view_proj, clip) = match reflect {
+            Some(level) => (
+                scene.view_proj
+                    * Mat4::from_translation(Vec3::new(0.0, 0.0, 2.0 * level))
+                    * Mat4::from_scale(Vec3::new(1.0, 1.0, -1.0)),
+                [1.0, level, 0.0, 0.0],
+            ),
+            None => (scene.view_proj, [0.0; 4]),
+        };
         let globals = Globals {
-            view_proj: scene.view_proj.to_cols_array_2d(),
+            view_proj: view_proj.to_cols_array_2d(),
             light_dir: l.light_dir.extend(0.0).to_array(),
             light_color: l.light_color.extend(1.0).to_array(),
             ambient_color: l.ambient_color.extend(1.0).to_array(),
@@ -681,8 +1017,10 @@ impl Renderer {
             camera_right: scene.right.extend(0.0).to_array(),
             camera_forward: scene.forward.extend(scene.time).to_array(),
             camera_up: scene.up.extend(0.0).to_array(),
+            camera_pos: scene.eye.extend(1.0).to_array(),
+            clip,
         };
         self.queue
-            .write_buffer(&self.globals, 0, bytemuck::bytes_of(&globals));
+            .write_buffer(buffer, 0, bytemuck::bytes_of(&globals));
     }
 }

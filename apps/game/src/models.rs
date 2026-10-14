@@ -3,9 +3,9 @@
 //!
 //! Each placement is `FromYawPitchOffset(yaw, offset)` (`FUN_1400a9030`): a rotation about z by
 //! `yaw` degrees and a translation. Every scene mesh uses rigid triangle lists (one node
-//! transform per range), so no skinning is needed here. Shading is an approximation of the model
-//! materials until their shaders are ported: diffuse with alpha test, sun + ambient (with the
-//! part's AO texture) and the same fog as the terrain.
+//! transform per range), so no skinning is needed here. Shading follows the disassembled model
+//! programs: Opaque, OpaqueSnow (roof snow), AlphaTest, Foliage (pines: wind and snow) and
+//! Billboard (leaf cards). See docs/MENU-SCENE.md.
 
 use std::collections::HashMap;
 
@@ -22,20 +22,36 @@ use wgpu::util::DeviceExt;
 /// Which of the ported model shaders a range uses, from its material's base material.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum MaterialKind {
-    /// `Material\Opaque`, `OpaqueSnow`, `OpaqueInWater` (`OpaqueMaterial_ps`).
+    /// `Material\Opaque`, `OpaqueInWater` (`OpaqueMaterial_ps`).
     Opaque,
-    /// `Material\AlphaTest`, `Material\Foliage`: opaque with a 0.5 alpha cut.
+    /// `Material\OpaqueSnow`: roofs collect snow where the diffuse alpha allows.
+    OpaqueSnow,
+    /// `Material\AlphaTest`: opaque with a 0.5 alpha cut.
     AlphaTest,
+    /// `Material\Foliage`: pines sway with the wind and hold snow on upward faces.
+    Foliage,
     /// `Material\Billboard`: leaf cards expanded towards the camera (`BillboardMaterial_vs/ps`).
     Billboard,
 }
+
+pub const KINDS: [MaterialKind; 5] = [
+    MaterialKind::Opaque,
+    MaterialKind::OpaqueSnow,
+    MaterialKind::AlphaTest,
+    MaterialKind::Foliage,
+    MaterialKind::Billboard,
+];
 
 impl MaterialKind {
     fn of(base: Option<&str>) -> MaterialKind {
         let base = base.unwrap_or_default().replace('/', "\\");
         if base.contains("\\Billboard\\") {
             MaterialKind::Billboard
-        } else if base.contains("\\AlphaTest\\") || base.contains("\\Foliage\\") {
+        } else if base.contains("\\Foliage\\") {
+            MaterialKind::Foliage
+        } else if base.contains("\\OpaqueSnow\\") {
+            MaterialKind::OpaqueSnow
+        } else if base.contains("\\AlphaTest\\") {
             MaterialKind::AlphaTest
         } else {
             MaterialKind::Opaque
@@ -51,6 +67,7 @@ pub struct RangeData {
     pub index_count: u32,
     pub diffuse: Option<ImageBuffer>,
     pub ao: Option<ImageBuffer>,
+    pub snow: Option<ImageBuffer>,
     pub rigid: [f32; 16],
 }
 
@@ -137,8 +154,12 @@ fn load_group(
             .as_ref()
             .and_then(|mi| mi.texture("diffuse").map(str::to_owned));
         let kind = MaterialKind::of(instance.as_ref().and_then(|mi| mi.material.as_deref()));
+        let snow_ref = instance
+            .as_ref()
+            .and_then(|mi| mi.texture("snow").map(str::to_owned));
         ranges.push(RangeData {
             kind,
+            snow: cached(snow_ref),
             vertices: vertices.to_vec(),
             indices,
             index_count: range.index_count as u32,
@@ -192,29 +213,18 @@ impl SceneModels {
 }
 
 const SHADER: &str = r#"
-struct Globals {
-    view_proj: mat4x4<f32>,
-    light_dir: vec4<f32>,
-    light_color: vec4<f32>,
-    ambient_color: vec4<f32>,
-    fog_color: vec4<f32>,
-    fog: vec4<f32>,
-    user: vec4<f32>,
-    camera_right: vec4<f32>,
-    camera_forward: vec4<f32>,
-    camera_up: vec4<f32>,
-};
-@group(0) @binding(0) var<uniform> g: Globals;
 @group(1) @binding(0) var diffuse_tex: texture_2d<f32>;
 @group(1) @binding(1) var ao_tex: texture_2d<f32>;
 @group(1) @binding(2) var samp: sampler;
 @group(1) @binding(3) var<uniform> rigid: mat4x4<f32>;
+@group(1) @binding(4) var snow_tex: texture_2d<f32>;
 
 struct VsIn {
     @location(0) position: vec4<i32>,
     @location(1) texcoord: vec4<i32>,
     @location(2) normal: vec4<f32>,
-    @location(3) corner: vec2<i32>,
+    // userData: billboard corner or foliage wind weight.
+    @location(3) user: vec2<i32>,
     @location(5) m0: vec4<f32>,
     @location(6) m1: vec4<f32>,
     @location(7) m2: vec4<f32>,
@@ -227,6 +237,8 @@ struct VsOut {
     @location(1) uv_ao: vec2<f32>,
     // x: diffuse (-n.L), y: ambient factor (n.L / 2 + 1.5), z: fog, w: leaf flag.
     @location(2) light: vec4<f32>,
+    // xy: snow UV (world / 16), z: world normal z, w: world z (reflection clip).
+    @location(3) snow: vec4<f32>,
 };
 
 fn finish(world: vec3<f32>, n: vec3<f32>, texcoord: vec4<i32>, leaf: f32) -> VsOut {
@@ -236,6 +248,7 @@ fn finish(world: vec3<f32>, n: vec3<f32>, texcoord: vec4<i32>, leaf: f32) -> VsO
     out.uv_ao = vec2<f32>(texcoord.zw) / 8192.0;
     let d = dot(n, g.light_dir.xyz);
     out.light = vec4<f32>(-d, d * 0.5 + 1.5, (out.clip.w + g.fog.x) * g.fog.y, leaf);
+    out.snow = vec4<f32>(world.xy * 0.0625, n.z, world.z);
     return out;
 }
 
@@ -245,6 +258,17 @@ fn vs_main(v: VsIn) -> VsOut {
     let p = model * vec4<f32>(vec3<f32>(v.position.xyz) / 512.0, 1.0);
     let n = normalize((model * vec4<f32>(v.normal.xyz * 2.0 - 1.0, 0.0)).xyz);
     return finish(p.xyz, n, v.texcoord, 0.0);
+}
+
+// FoliageMaterial_vs: sway by sin(world.xy + time) weighted by userData.
+@vertex
+fn vs_foliage(v: VsIn) -> VsOut {
+    let model = mat4x4<f32>(v.m0, v.m1, v.m2, v.m3) * rigid;
+    var p = (model * vec4<f32>(vec3<f32>(v.position.xyz) / 512.0, 1.0)).xyz;
+    let n = normalize((model * vec4<f32>(v.normal.xyz * 2.0 - 1.0, 0.0)).xyz);
+    let wind = sin(p.xy + g.camera_forward.w) * vec2<f32>(v.user);
+    p = vec3<f32>(p.xy + wind * 3.05175786e-06, p.z);
+    return finish(p, n, v.texcoord, 0.0);
 }
 
 // BillboardMaterial_vs: vertices with a corner offset (userData) are leaf cards. They are pushed
@@ -257,7 +281,7 @@ fn vs_billboard(v: VsIn) -> VsOut {
     var world = (model * vec4<f32>(local, 1.0)).xyz;
     let scale = vec3<f32>(length(v.m0.xyz), length(v.m1.xyz), length(v.m2.xyz));
     let n = normalize((model * vec4<f32>(normalize(v.normal.xyz * 2.0 - 1.0), 0.0)).xyz);
-    let corner = vec2<f32>(v.corner);
+    let corner = vec2<f32>(v.user);
     let leaf = select(0.0, 1.0, dot(corner, corner) >= 0.05);
     let right = g.camera_right.xyz;
     let forward = g.camera_forward.xyz;
@@ -274,40 +298,78 @@ fn vs_billboard(v: VsIn) -> VsOut {
     return finish(world, lit_normal, v.texcoord, leaf);
 }
 
-fn shade(base: vec3<f32>, in: VsOut) -> vec4<f32> {
-    let ao = textureSample(ao_tex, samp, in.uv_ao).r;
+fn lit(base: vec3<f32>, ao: f32, in: VsOut) -> vec3<f32> {
     let light = g.ambient_color.rgb * in.light.y * ao + g.light_color.rgb * clamp(in.light.x, 0.0, 1.0);
-    let lit = base * light;
-    let fog = clamp(min(g.fog_color.w, in.light.z), 0.0, 1.0);
-    return vec4<f32>(lit + fog * (g.fog_color.rgb - lit), 1.0);
+    let c = base * light;
+    let fog = min(g.fog_color.w, clamp(in.light.z, 0.0, 1.0));
+    return c + fog * (g.fog_color.rgb - c);
 }
 
+// OpaqueMaterial_ps.
 @fragment
 fn fs_opaque(in: VsOut) -> @location(0) vec4<f32> {
-    return shade(textureSample(diffuse_tex, samp, in.uv).rgb, in);
+    let base = textureSample(diffuse_tex, samp, in.uv);
+    let ao = textureSample(ao_tex, samp, in.uv_ao).r;
+    let c = lit(base.rgb, ao, in);
+    reflect_clip(in.snow.w);
+    return vec4<f32>(c, base.a);
+}
+
+// OpaqueSnowMaterial_ps: snow where diffuse alpha × up-facing × snow amount × AO².
+@fragment
+fn fs_snow(in: VsOut) -> @location(0) vec4<f32> {
+    let base = textureSample(diffuse_tex, samp, in.uv);
+    let s = textureSample(snow_tex, samp, in.snow.xy);
+    let ao = textureSample(ao_tex, samp, in.uv_ao).r;
+    let m = base.a * in.snow.z * g.user.x * ao * ao;
+    let c = lit(mix(base.rgb, s.rgb, m), ao, in);
+    reflect_clip(in.snow.w);
+    return vec4<f32>(c, 0.0);
 }
 
 @fragment
 fn fs_alpha(in: VsOut) -> @location(0) vec4<f32> {
     let base = textureSample(diffuse_tex, samp, in.uv);
+    let ao = textureSample(ao_tex, samp, in.uv_ao).r;
+    let c = lit(base.rgb, ao, in);
     if (base.a < 0.5) {
         discard;
     }
-    return shade(base.rgb, in);
+    reflect_clip(in.snow.w);
+    return vec4<f32>(c, base.a);
+}
+
+// FoliageMaterial_ps: alpha cut; snow on upward faces weighted by AO⁴.
+@fragment
+fn fs_foliage(in: VsOut) -> @location(0) vec4<f32> {
+    let base = textureSample(diffuse_tex, samp, in.uv);
+    let ao = textureSample(ao_tex, samp, in.uv_ao).r;
+    let s = textureSample(snow_tex, samp, in.snow.xy);
+    let a2 = ao * ao;
+    let m = a2 * a2 * in.snow.z * g.user.x;
+    let c = lit(mix(base.rgb, s.rgb, m), ao, in);
+    if (base.a < 0.5) {
+        discard;
+    }
+    reflect_clip(in.snow.w);
+    return vec4<f32>(c, 0.0);
 }
 
 // BillboardMaterial_ps: leaves thin out with userPosition.z and turn autumn-coloured with .y.
 @fragment
 fn fs_billboard(in: VsOut) -> @location(0) vec4<f32> {
-    var base = textureSample(diffuse_tex, samp, in.uv);
+    let base = textureSample(diffuse_tex, samp, in.uv);
+    let ao = textureSample(ao_tex, samp, in.uv_ao).r;
     let alpha = base.a - in.light.w * g.user.z;
-    if (alpha < 0.5) {
-        discard;
-    }
     let lum = dot(base.rgb, base.rgb);
     let autumn = lum * vec3<f32>(0.913725495, 0.725490212, 0.278431386);
     let rgb = base.rgb + in.light.w * g.user.y * (autumn - base.rgb);
-    return shade(rgb, in);
+    let c = lit(rgb, ao, in);
+    if (alpha < 0.5) {
+        discard;
+    }
+    reflect_clip(in.snow.w);
+    return vec4<f32>(c, 0.0);
 }
 "#;
 
@@ -326,7 +388,7 @@ struct GpuGroup {
 }
 
 pub struct ModelRenderer {
-    pipelines: [wgpu::RenderPipeline; 3],
+    pipelines: [wgpu::RenderPipeline; 5],
     layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
     white: wgpu::TextureView,
@@ -338,12 +400,16 @@ impl ModelRenderer {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         globals_layout: &wgpu::BindGroupLayout,
-        format: wgpu::TextureFormat,
-        depth: wgpu::TextureFormat,
     ) -> ModelRenderer {
+        let (format, depth) = (
+            crate::scene_gfx::SCENE_FORMAT,
+            crate::scene_gfx::DEPTH_FORMAT,
+        );
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("models"),
-            source: wgpu::ShaderSource::Wgsl(SHADER.into()),
+            source: wgpu::ShaderSource::Wgsl(
+                format!("{}{SHADER}", crate::scene_gfx::GLOBALS_WGSL).into(),
+            ),
         });
         let tex = |binding| wgpu::BindGroupLayoutEntry {
             binding,
@@ -376,6 +442,7 @@ impl ModelRenderer {
                     },
                     count: None,
                 },
+                tex(4),
             ],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -415,7 +482,7 @@ impl ModelRenderer {
                     targets: &[Some(wgpu::ColorTargetState {
                         format,
                         blend: None,
-                        write_mask: wgpu::ColorWrites::COLOR,
+                        write_mask: wgpu::ColorWrites::ALL,
                     })],
                 }),
                 primitive: wgpu::PrimitiveState {
@@ -436,9 +503,12 @@ impl ModelRenderer {
                 cache: None,
             })
         };
+        // Same order as `KINDS`.
         let pipelines = [
             make("vs_main", "fs_opaque"),
+            make("vs_main", "fs_snow"),
             make("vs_main", "fs_alpha"),
+            make("vs_foliage", "fs_foliage"),
             make("vs_billboard", "fs_billboard"),
         ];
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -521,7 +591,8 @@ impl ModelRenderer {
                             contents: bytemuck::cast_slice(&r.rigid),
                             usage: wgpu::BufferUsages::UNIFORM,
                         });
-                        let (diffuse, ao) = (view_of(&r.diffuse), view_of(&r.ao));
+                        let (diffuse, ao, snow) =
+                            (view_of(&r.diffuse), view_of(&r.ao), view_of(&r.snow));
                         let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
                             label: Some(&g.name),
                             layout: &self.layout,
@@ -541,6 +612,10 @@ impl ModelRenderer {
                                 wgpu::BindGroupEntry {
                                     binding: 3,
                                     resource: rigid.as_entire_binding(),
+                                },
+                                wgpu::BindGroupEntry {
+                                    binding: 4,
+                                    resource: wgpu::BindingResource::TextureView(&snow),
                                 },
                             ],
                         });
@@ -581,14 +656,7 @@ impl ModelRenderer {
             return;
         }
         pass.set_bind_group(0, globals, &[]);
-        for (i, kind) in [
-            MaterialKind::Opaque,
-            MaterialKind::AlphaTest,
-            MaterialKind::Billboard,
-        ]
-        .into_iter()
-        .enumerate()
-        {
+        for (i, kind) in KINDS.into_iter().enumerate() {
             pass.set_pipeline(&self.pipelines[i]);
             for g in &self.groups {
                 pass.set_vertex_buffer(1, g.instances.slice(..));

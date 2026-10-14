@@ -2,21 +2,7 @@
 // program 0 (D3D9; see docs/TERRAIN-DERIVED-GEOMETRY.md). World space is the terrain's own:
 // x/y in cells (map-centred), z = height (saved value / 256), z up.
 
-struct Globals {
-    view_proj: mat4x4<f32>,
-    // Direction the sunlight travels (lc_nearPlane in the original shader).
-    light_dir: vec4<f32>,
-    light_color: vec4<f32>,
-    ambient_color: vec4<f32>,
-    // rgb, w = maximum fog amount.
-    fog_color: vec4<f32>,
-    // x = -fog start, y = 1 / (fog end - fog start).
-    fog: vec4<f32>,
-    // x = snow amount (pc_userPosition.x).
-    user: vec4<f32>,
-};
-
-@group(0) @binding(0) var<uniform> g: Globals;
+// `Globals`, `g` and `reflect_clip` come from scene_gfx::GLOBALS_WGSL (prepended).
 @group(1) @binding(0) var grass: texture_2d<f32>;
 @group(1) @binding(1) var dirt: texture_2d<f32>;
 @group(1) @binding(2) var snow: texture_2d<f32>;
@@ -40,6 +26,7 @@ struct VsOut {
     @location(2) t2: vec3<f32>,
     // x: rock V (height / 16), y: underwater factor.
     @location(3) t3: vec2<f32>,
+    @location(4) world_z: f32,
 };
 
 @vertex
@@ -52,6 +39,7 @@ fn vs_main(v: VsIn) -> VsOut {
     o.t1.y = (d + 3.0) * 0.5;
     let p = vec3<f32>(f32(v.pos.x), f32(v.pos.y), f32(v.pos.z) * 0.00390625);
     o.clip = g.view_proj * vec4<f32>(p, 1.0);
+    o.world_z = p.z;
     // The original uses clip-space z of a D3D projection; view depth (w) is its equivalent here.
     o.t1.z = (o.clip.w + g.fog.x) * g.fog.y;
     o.t0 = vec4<f32>(f32(v.pos.x) * 0.0625, f32(v.pos.y) * 0.0625,
@@ -84,5 +72,7 @@ fn fs_main(i: VsOut) -> @location(0) vec4<f32> {
         + g.ambient_color.rgb * i.t1.y * tr.x;
     let lit = color * light;
     let fog = clamp(min(g.fog_color.w, i.t1.z), 0.0, 1.0);
+    // After all samples: textureSample needs uniform control flow.
+    reflect_clip(i.world_z);
     return vec4<f32>(lit + fog * (g.fog_color.rgb - lit), i.t3.y);
 }

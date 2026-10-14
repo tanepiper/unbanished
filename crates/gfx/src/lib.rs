@@ -3,5 +3,7 @@
 mod texture;
 mod ui;
 
-pub use texture::{upload_image, upload_rgba, upload_rgba_as};
+pub use texture::{
+    decode_levels, upload_cube, upload_image, upload_image_linear, upload_rgba, upload_rgba_as,
+};
 pub use ui::UiRenderer;

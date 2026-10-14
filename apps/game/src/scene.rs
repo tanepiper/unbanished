@@ -11,6 +11,7 @@ pub struct SceneView {
     pub id: u64,
     pub terrain: Terrain,
     pub models: Option<crate::models::SceneModels>,
+    pub extras: Option<crate::scene_assets::SceneExtras>,
     pub camera: SceneCamera,
     pub lighting: Lighting,
 }
@@ -28,6 +29,7 @@ impl SceneView {
             id: NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             terrain,
             models: None,
+            extras: None,
             camera,
             lighting,
         }
@@ -54,9 +56,15 @@ impl SceneView {
         let forward = (target - eye).normalize_or(Vec3::Y);
         let right = forward.cross(Vec3::Z).normalize_or(Vec3::X);
         let up = right.cross(forward);
+        let far = match &self.camera {
+            SceneCamera::Map(c) => c.distance * 4.0 + 100.0,
+            SceneCamera::Menu(_) => 512.0,
+        };
         crate::render::SceneFrame {
             view_proj: self.view_proj(aspect),
             lighting: self.lighting,
+            eye,
+            far,
             right,
             forward,
             up,

@@ -92,3 +92,96 @@ pub fn upload_image(
         device, queue, label, img.width, img.height, &mips,
     ))
 }
+
+/// Decode an `ImageBuffer` into RGBA8 levels: `faces × mips` (face-major, as stored).
+pub fn decode_levels(img: &ImageBuffer) -> Option<Vec<Vec<u8>>> {
+    let mips = img.mip_count().max(1);
+    let mut out = Vec::with_capacity(img.faces() * mips);
+    for face in 0..img.faces() {
+        for mip in 0..mips {
+            let level = img.levels.get(face * mips + mip)?;
+            let (w, h) = ((img.width >> mip).max(1), (img.height >> mip).max(1));
+            out.push(decode_rgba(img.format, w, h, level)?);
+        }
+    }
+    Some(out)
+}
+
+/// Upload a 2D `ImageBuffer` (all mips) as linear RGBA8, the way the D3D9 renderer samples it.
+pub fn upload_image_linear(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    label: &str,
+    img: &ImageBuffer,
+) -> Option<wgpu::TextureView> {
+    let levels = decode_levels(img)?;
+    Some(upload_rgba_as(
+        device,
+        queue,
+        label,
+        img.width,
+        img.height,
+        &levels[..img.mip_count().max(1)],
+        wgpu::TextureFormat::Rgba8Unorm,
+    ))
+}
+
+/// Upload a cube-map `ImageBuffer` (6 faces, D3D order +X −X +Y −Y +Z −Z) as a cube view.
+pub fn upload_cube(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    label: &str,
+    img: &ImageBuffer,
+) -> Option<wgpu::TextureView> {
+    if img.faces() != 6 {
+        return None;
+    }
+    let levels = decode_levels(img)?;
+    let mips = img.mip_count().max(1);
+    let texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some(label),
+        size: wgpu::Extent3d {
+            width: img.width,
+            height: img.height,
+            depth_or_array_layers: 6,
+        },
+        mip_level_count: mips as u32,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+    for face in 0..6 {
+        for mip in 0..mips {
+            let (w, h) = ((img.width >> mip).max(1), (img.height >> mip).max(1));
+            queue.write_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &texture,
+                    mip_level: mip as u32,
+                    origin: wgpu::Origin3d {
+                        x: 0,
+                        y: 0,
+                        z: face as u32,
+                    },
+                    aspect: wgpu::TextureAspect::All,
+                },
+                &levels[face * mips + mip],
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(w * 4),
+                    rows_per_image: Some(h),
+                },
+                wgpu::Extent3d {
+                    width: w,
+                    height: h,
+                    depth_or_array_layers: 1,
+                },
+            );
+        }
+    }
+    Some(texture.create_view(&wgpu::TextureViewDescriptor {
+        dimension: Some(wgpu::TextureViewDimension::Cube),
+        ..Default::default()
+    }))
+}
