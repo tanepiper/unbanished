@@ -8,7 +8,9 @@ pub mod crs;
 pub mod error;
 pub mod lzf;
 pub mod pkg;
+pub mod skeleton;
 pub mod stream;
+pub mod texture;
 pub mod types;
 
 pub use error::{Error, Result};

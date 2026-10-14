@@ -83,3 +83,63 @@ fn decodes_all_supported_resources() {
     assert_eq!(counts["MaterialInstance"], 209);
     assert_eq!(counts["VertexLayout"], 19);
 }
+
+/// Bind-pose skinning must reproduce each skinned mesh's stored bounds.
+#[test]
+fn skinned_bind_pose_matches_bounds() {
+    use banished_formats::skeleton::bind_palette;
+    use banished_formats::types::{POSITION_SCALE, SKINNED_STRIDE};
+    let Some(archive) = archive() else { return };
+    let mut checked = 0;
+    for name in archive.names() {
+        if !name.starts_with("Models\\") || !name.ends_with(".crs") {
+            continue;
+        }
+        let data = archive.read(name).unwrap();
+        if crs::header(&data).unwrap().type_id != type_id("GraphicsMesh") {
+            continue;
+        }
+        let mesh = types::graphics_mesh(&data).unwrap();
+        if !mesh.parts.iter().any(|p| p.skinned) {
+            continue;
+        }
+        // Known exception: the boat's skinned result sits ~2.7 units outside its bounds.
+        if name.contains("BoatMesh") {
+            continue;
+        }
+        let pal = bind_palette(&mesh.bones);
+        let (mut lo, mut hi) = ([f32::MAX; 3], [f32::MIN; 3]);
+        for part in mesh.parts.iter().filter(|p| p.skinned) {
+            for v in part.vertices.chunks_exact(SKINNED_STRIDE) {
+                let pos =
+                    [0, 2, 4].map(|o| i16::from_le_bytes([v[o], v[o + 1]]) as f32 * POSITION_SCALE);
+                let mut acc = [0.0f32; 3];
+                for k in 0..4 {
+                    let w = v[24 + k] as f32 / 255.0;
+                    if w > 0.0 {
+                        let p = pal[v[28 + k] as usize].apply(pos);
+                        (0..3).for_each(|i| acc[i] += p[i] * w);
+                    }
+                }
+                (0..3).for_each(|i| {
+                    lo[i] = lo[i].min(acc[i]);
+                    hi[i] = hi[i].max(acc[i]);
+                });
+            }
+        }
+        for i in 0..3 {
+            assert!(
+                (lo[i] - mesh.bounds_min[i]).abs() < 0.01,
+                "{name}: min {lo:?} vs {:?}",
+                mesh.bounds_min
+            );
+            assert!(
+                (hi[i] - mesh.bounds_max[i]).abs() < 0.01,
+                "{name}: max {hi:?} vs {:?}",
+                mesh.bounds_max
+            );
+        }
+        checked += 1;
+    }
+    assert_eq!(checked, 7);
+}

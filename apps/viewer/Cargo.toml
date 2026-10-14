@@ -1,0 +1,28 @@
+[package]
+name = "banished-viewer"
+version = "0.1.0"
+description = "Model and texture viewer for Banished game data (native and WebGPU/WebGL2)"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+banished-formats = { path = "../../crates/formats" }
+wgpu = "30"
+winit = "0.30"
+glam = { version = "0.34", features = ["bytemuck"] }
+bytemuck = { version = "1.25", features = ["derive"] }
+log = "0.4"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+env_logger = "0.11"
+pollster = "1"
+png = "0.18"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.129"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["Document", "Window", "Element", "HtmlCanvasElement", "HtmlInputElement", "File", "FileList", "Blob", "Event", "EventTarget"] }
+console_error_panic_hook = "0.1"
+console_log = "1"
