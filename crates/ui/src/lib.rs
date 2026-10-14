@@ -88,6 +88,12 @@ pub enum Kind {
         sprite: Option<SpriteRef>,
         size: [i32; 2],
     },
+    AnimatedImage {
+        sprites: Vec<Option<SpriteRef>>,
+        size: [i32; 2],
+        frames_per_second: i32,
+        frame: usize,
+    },
     Button {
         states: [Option<NodeId>; 4],
         content: Option<NodeId>,
@@ -327,16 +333,35 @@ impl Ui {
                 sprite_sheet,
                 sprite,
                 size,
-            }
-            | ElementKind::AnimatedImage {
-                sprite_sheet,
-                sprite,
-                size,
-                ..
             } => Kind::Image {
                 sprite: self.res.sprite(sprite_sheet.as_deref(), sprite),
                 size: *size,
             },
+            ElementKind::AnimatedImage {
+                sprite_sheet,
+                sprite,
+                size,
+                frames,
+                rate,
+            } => {
+                let mut sprites = if frames.is_empty() {
+                    vec![self.res.sprite(sprite_sheet.as_deref(), sprite)]
+                } else {
+                    frames
+                        .iter()
+                        .map(|frame| self.res.sprite(sprite_sheet.as_deref(), frame))
+                        .collect()
+                };
+                if sprites.is_empty() {
+                    sprites.push(self.res.sprite(sprite_sheet.as_deref(), sprite));
+                }
+                Kind::AnimatedImage {
+                    sprites,
+                    size: *size,
+                    frames_per_second: *rate,
+                    frame: 0,
+                }
+            }
             ElementKind::Button(b) => {
                 let mut states = [None; 4];
                 for (s, r) in states.iter_mut().zip(&b.states) {
@@ -403,6 +428,12 @@ impl Ui {
             out.extend(content.iter());
         }
         out
+    }
+
+    /// Return every node rendered or owned directly below this node, including
+    /// control and button content that is stored outside `Node::children`.
+    pub fn children(&self, id: NodeId) -> Vec<NodeId> {
+        self.child_ids(id)
     }
 
     /// Replace the text of a Text/Label node, or of a Button's content.
@@ -619,6 +650,26 @@ impl Ui {
                     sprite.map_or(0, |s| s.height)
                 },
             ],
+            Kind::AnimatedImage {
+                sprites,
+                size,
+                frame,
+                ..
+            } => {
+                let sprite = sprites.get(frame).copied().flatten();
+                [
+                    if size[0] > 0 {
+                        size[0]
+                    } else {
+                        sprite.map_or(0, |s| s.width)
+                    },
+                    if size[1] > 0 {
+                        size[1]
+                    } else {
+                        sprite.map_or(0, |s| s.height)
+                    },
+                ]
+            }
             Kind::Button {
                 states,
                 content,
@@ -780,6 +831,68 @@ impl Ui {
         }
     }
 
+    /// True if the current tree contains an animated image with frames and a positive frame rate.
+    pub fn has_animations(&self) -> bool {
+        self.nodes.iter().any(|node| {
+            matches!(
+                &node.kind,
+                Kind::AnimatedImage {
+                    sprites,
+                    frames_per_second,
+                    ..
+                } if sprites.len() > 1 && *frames_per_second > 0
+            )
+        })
+    }
+
+    /// Select each animated image's frame at the supplied elapsed time in seconds.
+    pub fn update_animations(&mut self, elapsed_seconds: f32) {
+        for node in &mut self.nodes {
+            if let Kind::AnimatedImage {
+                sprites,
+                frames_per_second,
+                frame,
+                ..
+            } = &mut node.kind
+            {
+                if !sprites.is_empty() && *frames_per_second > 0 {
+                    *frame = ((elapsed_seconds.max(0.0) * *frames_per_second as f32).floor()
+                        as usize)
+                        % sprites.len();
+                }
+            }
+        }
+    }
+
+    /// Current frame, frame count, and frame rate for the first animated image in the tree.
+    pub fn animation_info(&self) -> Option<(usize, usize, i32)> {
+        self.nodes.iter().find_map(|node| match &node.kind {
+            Kind::AnimatedImage {
+                sprites,
+                frames_per_second,
+                frame,
+                ..
+            } if !sprites.is_empty() => Some((*frame, sprites.len(), *frames_per_second)),
+            _ => None,
+        })
+    }
+
+    /// Select the same frame in every animated image, wrapping each image's own frame count.
+    pub fn set_animation_frame(&mut self, frame: usize) {
+        for node in &mut self.nodes {
+            if let Kind::AnimatedImage {
+                sprites,
+                frame: current,
+                ..
+            } = &mut node.kind
+            {
+                if !sprites.is_empty() {
+                    *current = frame % sprites.len();
+                }
+            }
+        }
+    }
+
     /// `ComputeLayout` for each element class.
     fn compute_layout(&mut self, id: NodeId, l: i32, t: i32, r: i32, b: i32) {
         if matches!(self.nodes[id].kind, Kind::Control(_)) {
@@ -787,7 +900,12 @@ impl Ui {
             self.layout_control(id);
         } else {
             match self.nodes[id].kind.clone() {
-                Kind::Group | Kind::Viewport | Kind::List(_) | Kind::Picture { .. } => {
+                Kind::Group
+                | Kind::Viewport
+                | Kind::List(_)
+                | Kind::Picture { .. }
+                | Kind::Image { .. }
+                | Kind::AnimatedImage { .. } => {
                     // GroupElement fills the space offered, less its margins.
                     let n = &mut self.nodes[id];
                     let [ml, mr, mt, mb] = n.margins;
@@ -876,7 +994,7 @@ impl Ui {
                         self.compute_layout(*c, rc[0], rc[1], rc[2], rc[3]);
                     }
                 }
-                Kind::Text(_) | Kind::Label { .. } | Kind::Image { .. } | Kind::Unsupported(_) => {
+                Kind::Text(_) | Kind::Label { .. } | Kind::Unsupported(_) => {
                     self.place(id, l, t, r, b)
                 }
                 Kind::Control(_) => unreachable!(),
@@ -998,6 +1116,11 @@ impl Ui {
             Kind::Image {
                 sprite: Some(s), ..
             } => Self::sprite_quad(out, s, n.rect, color, clip),
+            Kind::AnimatedImage { sprites, frame, .. } => {
+                if let Some(Some(sprite)) = sprites.get(*frame) {
+                    Self::sprite_quad(out, sprite, n.rect, color, clip);
+                }
+            }
             Kind::Button {
                 states,
                 content,

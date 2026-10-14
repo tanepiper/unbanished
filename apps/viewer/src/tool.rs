@@ -4,7 +4,7 @@
 use banished_formats::texture::decode_rgba;
 use banished_formats::types::AnimationClip;
 use banished_formats::ui::flags;
-use banished_ui::{DialogInstance, Event, Key, Kind, NodeId, Ui};
+use banished_ui::{DialogInstance, Event, Key, Kind, Node, NodeId, Ui};
 use glam::{Mat4, Vec3};
 use web_time::Instant;
 
@@ -84,6 +84,8 @@ pub struct Tool {
     list: NodeId,
     categories: NodeId,
     subcategories: NodeId,
+    categories_label: NodeId,
+    subcategories_label: NodeId,
     selected_category: usize,
     selected_subcategory: usize,
     main: NodeId,
@@ -106,8 +108,12 @@ pub struct Tool {
     animation_started: Instant,
     animation_elapsed: f32,
     dialog_host: NodeId,
+    dialog_background_host: NodeId,
     status: NodeId,
     dialog: Option<DialogInstance>,
+    dialog_animation_started: Instant,
+    dialog_animation_elapsed: f32,
+    dialog_animation_playing: bool,
     permanent_nodes: usize,
     pub mode: Mode,
     pub mesh: Option<GpuMesh>,
@@ -240,6 +246,8 @@ impl Tool {
             n.margins = [12, 12, 48, 12];
         }
         ui.add_child(main, picture);
+        let dialog_background_host = ui.group();
+        ui.add_child(main, dialog_background_host);
         let dialog_host = ui.group();
         ui.add_child(main, dialog_host);
         let info = ui.text(FONT, "");
@@ -296,6 +304,8 @@ impl Tool {
             list,
             categories,
             subcategories,
+            categories_label,
+            subcategories_label,
             selected_category: 0,
             selected_subcategory: 0,
             main,
@@ -318,8 +328,12 @@ impl Tool {
             animation_started: Instant::now(),
             animation_elapsed: 0.0,
             dialog_host,
+            dialog_background_host,
             status,
             dialog: None,
+            dialog_animation_started: Instant::now(),
+            dialog_animation_elapsed: 0.0,
+            dialog_animation_playing: false,
             permanent_nodes,
             mode: Mode::Models,
             mesh: None,
@@ -356,6 +370,12 @@ impl Tool {
 
     fn resource_dirs(&self, item: &str) -> Vec<String> {
         let path = item.replace('\\', "/");
+        if self.mode == Mode::Dialogs {
+            let stem = path.trim_end_matches(".crs");
+            let stem = stem.strip_prefix("Dialog/").unwrap_or(stem);
+            let (group, object) = stem.rsplit_once('_').unwrap_or((stem, "resource"));
+            return vec![group.to_owned(), object.to_owned()];
+        }
         let mut parts: Vec<_> = path.split('/').collect();
         parts.pop(); // resource filename
         let Some(first) = parts.first().copied() else {
@@ -417,6 +437,31 @@ impl Tool {
     fn filtered_items(&self, category: usize, subcategory: usize) -> Vec<String> {
         let category_name = self.category_names().get(category).cloned();
         let subcategory_name = self.subcategory_names(category).get(subcategory).cloned();
+        if self.mode == Mode::Dialogs && category == 0 && subcategory == 0 {
+            // The default dialog list represents each named dialog once. The
+            // group and object selectors expose its individual resources.
+            let mut groups = std::collections::BTreeMap::<String, Vec<String>>::new();
+            for item in self.items(self.mode) {
+                if let Some(group) = self.resource_dirs(item).first() {
+                    groups.entry(group.clone()).or_default().push(item.clone());
+                }
+            }
+            return groups
+                .into_iter()
+                .filter_map(|(group, mut items)| {
+                    items.sort();
+                    let selected = if group == "Loading" {
+                        items.iter().position(|item| item.contains("_gameLoad0."))
+                    } else {
+                        items
+                            .iter()
+                            .position(|item| item.ends_with("_resource.crs"))
+                    }
+                    .unwrap_or(0);
+                    items.get(selected).cloned()
+                })
+                .collect();
+        }
         self.items(self.mode)
             .iter()
             .filter(|item| {
@@ -434,6 +479,18 @@ impl Tool {
 
     fn display_resource_name(&self, entry: &str) -> String {
         let path = entry.replace('\\', "/");
+        if self.mode == Mode::Dialogs {
+            let stem = path.trim_end_matches(".crs");
+            let stem = stem.strip_prefix("Dialog/").unwrap_or(stem);
+            let (group, object) = stem.rsplit_once('_').unwrap_or((stem, "resource"));
+            return if self.selected_category == 0 {
+                group.to_owned()
+            } else if self.selected_subcategory > 0 {
+                format!("{group}_{object}")
+            } else {
+                object.to_owned()
+            };
+        }
         let mut parts: Vec<_> = path.split('/').collect();
         let dirs = self.resource_dirs(entry);
         let root_parts = parts.len().saturating_sub(dirs.len() + 1);
@@ -467,8 +524,26 @@ impl Tool {
 
     pub fn set_mode(&mut self, renderer: &mut Renderer, mode: Mode) {
         self.mode = mode;
+        self.ui.set_text(
+            self.categories_label,
+            if mode == Mode::Dialogs {
+                "Dialog group"
+            } else {
+                "Type"
+            },
+        );
+        self.ui.set_text(
+            self.subcategories_label,
+            if mode == Mode::Dialogs {
+                "Object"
+            } else {
+                "Category"
+            },
+        );
         self.player.stop();
         self.animation_playing = false;
+        self.dialog_animation_playing = false;
+        self.dialog_animation_elapsed = 0.0;
         self.animation_clips.clear();
         self.animation_index = 0;
         let categories = self.category_names();
@@ -525,9 +600,16 @@ impl Tool {
         };
         self.ui.list_select(self.list, Some(index));
         self.ui.clear_input();
+        self.ui
+            .node_mut(self.dialog_background_host)
+            .children
+            .clear();
         self.ui.nodes.truncate(self.permanent_nodes);
         self.ui.node_mut(self.dialog_host).children.clear();
         self.dialog = None;
+        self.dialog_animation_started = Instant::now();
+        self.dialog_animation_elapsed = 0.0;
+        self.dialog_animation_playing = false;
         let shown = Self::display_name(&name);
         match self.mode {
             Mode::Models => match renderer.load_mesh(&self.assets, &name) {
@@ -622,22 +704,66 @@ impl Tool {
                 Err(e) => self.set_info(&format!("{shown}\n{e}")),
             },
             Mode::Dialogs => {
-                let reference = format!(
-                    "{}.rsc:resource",
-                    name.trim_end_matches("_resource.crs")
-                        .trim_end_matches(".crs")
-                );
+                let reference = Self::dialog_reference(&name);
                 self.ui.node_mut(self.dialog_host).children.clear();
                 match self.ui.instantiate_dialog(&reference) {
                     Some(d) => {
+                        if let Some(sprite) = d.background {
+                            let background = self.ui.add(Node::new(Kind::Image {
+                                sprite: Some(sprite),
+                                size: [-1, -1],
+                            }));
+                            self.ui.node_mut(background).flags =
+                                flags::FILL_WIDTH | flags::FILL_HEIGHT;
+                            self.ui.add_child(self.dialog_background_host, background);
+                        }
                         self.ui.add_child(self.dialog_host, d.root);
                         self.set_info(&reference);
                         self.dialog = Some(d);
+                        self.dialog_animation_started = Instant::now();
+                        self.dialog_animation_elapsed = 0.0;
+                        self.dialog_animation_playing = self.ui.has_animations();
+                        let animated = self.ui.has_animations();
+                        self.ui.set_visible(self.audio_controls, animated);
+                        for node in [
+                            self.animation_next,
+                            self.animation_back,
+                            self.animation_label,
+                        ] {
+                            self.ui.set_visible(node, animated);
+                        }
+                        self.ui.set_visible(self.animation_forward, false);
+                        self.ui.set_text(
+                            self.play,
+                            if self.dialog_animation_playing {
+                                "Pause"
+                            } else {
+                                "Play"
+                            },
+                        );
+                        self.ui.set_text(self.stop, "First frame");
+                        self.ui.set_text(self.animation_next, "Next frame");
+                        self.ui.set_text(self.animation_back, "Prev frame");
+                        self.refresh_dialog_animation_label();
                     }
                     None => self.set_info(&format!("{shown}\nUnable to load dialog")),
                 }
             }
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn select_matching(&mut self, renderer: &mut Renderer, filter: &str) -> bool {
+        let filter = filter.to_lowercase();
+        let Some(index) = self
+            .visible_items
+            .iter()
+            .position(|item| item.to_lowercase().contains(&filter))
+        else {
+            return false;
+        };
+        self.select(renderer, index);
+        true
     }
 
     pub fn step(&mut self, renderer: &mut Renderer, delta: isize) {
@@ -706,25 +832,89 @@ impl Tool {
 
     pub fn animation_is_playing(&self) -> bool {
         self.animation_playing
+            || (self.mode == Mode::Dialogs
+                && self.dialog_animation_playing
+                && self.ui.has_animations())
     }
 
     pub fn update_animation(&mut self, renderer: &Renderer) {
-        let Some(clip) = self.animation_clips.get(self.animation_index).cloned() else {
+        if let Some(clip) = self.animation_clips.get(self.animation_index).cloned() {
+            if self.animation_playing {
+                self.animation_elapsed = self.animation_started.elapsed().as_secs_f32();
+                let duration = self.animation_duration();
+                if !clip.looping && self.animation_elapsed >= duration {
+                    self.animation_elapsed = duration;
+                    self.animation_playing = false;
+                    self.ui.set_text(self.play, "Play");
+                }
+                self.refresh_animation_label();
+            }
+            if let Some(mesh) = &self.mesh {
+                renderer.set_animation_pose(mesh, &clip, self.animation_elapsed);
+            }
+        }
+        if self.mode == Mode::Dialogs {
+            if self.dialog_animation_playing {
+                self.dialog_animation_elapsed =
+                    self.dialog_animation_started.elapsed().as_secs_f32();
+            }
+            self.ui.update_animations(self.dialog_animation_elapsed);
+            self.refresh_dialog_animation_label();
+        }
+    }
+
+    fn refresh_dialog_animation_label(&mut self) {
+        if let Some((frame, count, fps)) = self.ui.animation_info() {
+            self.ui.set_text(
+                self.animation_label,
+                &format!("Frame {}/{}  {} fps", frame + 1, count, fps),
+            );
+        } else {
+            self.ui.set_text(self.animation_label, "");
+        }
+    }
+
+    fn toggle_dialog_animation(&mut self) {
+        if !self.ui.has_animations() {
+            return;
+        }
+        if self.dialog_animation_playing {
+            self.dialog_animation_elapsed = self.dialog_animation_started.elapsed().as_secs_f32();
+            self.dialog_animation_playing = false;
+        } else {
+            self.dialog_animation_started =
+                Instant::now() - std::time::Duration::from_secs_f32(self.dialog_animation_elapsed);
+            self.dialog_animation_playing = true;
+        }
+        self.ui.set_text(
+            self.play,
+            if self.dialog_animation_playing {
+                "Pause"
+            } else {
+                "Play"
+            },
+        );
+    }
+
+    fn step_dialog_frame(&mut self, delta: isize) {
+        let Some((frame, count, fps)) = self.ui.animation_info() else {
             return;
         };
-        if self.animation_playing {
-            self.animation_elapsed = self.animation_started.elapsed().as_secs_f32();
-            let duration = self.animation_duration();
-            if !clip.looping && self.animation_elapsed >= duration {
-                self.animation_elapsed = duration;
-                self.animation_playing = false;
-                self.ui.set_text(self.play, "Play");
-            }
-            self.refresh_animation_label();
+        if count == 0 {
+            return;
         }
-        if let Some(mesh) = &self.mesh {
-            renderer.set_animation_pose(mesh, &clip, self.animation_elapsed);
-        }
+        let next = (frame as isize + delta).rem_euclid(count as isize) as usize;
+        self.dialog_animation_playing = false;
+        self.dialog_animation_elapsed = next as f32 / fps.max(1) as f32;
+        self.ui.set_animation_frame(next);
+        self.ui.set_text(self.play, "Play");
+        self.refresh_dialog_animation_label();
+    }
+
+    fn dialog_reference(name: &str) -> String {
+        let stem = name.trim_end_matches(".crs");
+        let (path, object) = stem.rsplit_once('_').unwrap_or((stem, "resource"));
+        format!("{path}.rsc:{object}")
     }
 
     fn toggle_animation(&mut self) {
@@ -782,9 +972,99 @@ impl Tool {
             for &c in &dialogs {
                 self.ui
                     .layout_dialog(c, [r[0] + 12, r[1] + 48, r[2] - 12, r[3] - 12]);
+                self.suppress_overlapping_text(c);
             }
         }
         self.ui.node_mut(self.dialog_host).children = dialogs;
+    }
+
+    fn suppress_overlapping_text(&mut self, root: NodeId) {
+        let mut pending = vec![(root, root)];
+        let mut texts = Vec::new();
+        while let Some((id, parent)) = pending.pop() {
+            let node = self.ui.node(id);
+            if !node.visible() {
+                continue;
+            }
+            pending.extend(self.ui.children(id).into_iter().map(|child| (child, id)));
+            {
+                let rect = match &node.kind {
+                    Kind::Text(text) if !text.text.is_empty() => {
+                        let [l, t, r, _] = node.rect;
+                        let x = match text.justify {
+                            1 => l + ((r - l) - text.layout.width) / 2,
+                            2 => r - text.layout.width,
+                            _ => l,
+                        };
+                        Some([x, t, x + text.layout.width, t + text.layout.height])
+                    }
+                    Kind::Label {
+                        text,
+                        icon,
+                        icon_size,
+                        text_alignment,
+                        orientation,
+                        gap,
+                        ..
+                    } if !text.text.is_empty() => {
+                        let [l, t, r, b] = node.rect;
+                        let iw = if icon_size[0] > 0 {
+                            icon_size[0]
+                        } else {
+                            icon.map_or(0, |s| s.width)
+                        };
+                        let ih = if icon_size[1] > 0 {
+                            icon_size[1]
+                        } else {
+                            icon.map_or(0, |s| s.height)
+                        };
+                        let [al, at, ar, ab] = match orientation {
+                            0 => [l, t, r - gap - iw, b],
+                            1 => [l + iw + gap, t, r, b],
+                            3 => [l, t + ih + gap, r, b],
+                            _ => [l, t, r, b - ih - gap],
+                        };
+                        let w = text.layout.width;
+                        let h = text.layout.height;
+                        let x = match text_alignment % 3 {
+                            1 => al + ((ar - al) - w) / 2,
+                            2 => ar - w,
+                            _ => al,
+                        };
+                        let y = match text_alignment / 3 {
+                            1 => at + ((ab - at) - h) / 2,
+                            2 => ab - h,
+                            _ => at,
+                        };
+                        Some([x, y, x + w, y + h])
+                    }
+                    _ => None,
+                };
+                if let Some(rect) = rect {
+                    texts.push((id, parent, rect));
+                }
+            }
+        }
+        texts.sort_by_key(|(id, _, _)| *id);
+        let mut kept: Vec<(NodeId, [i32; 4])> = Vec::new();
+        for (id, parent, rect) in texts {
+            let area = ((rect[2] - rect[0]).max(0) as i64) * ((rect[3] - rect[1]).max(0) as i64);
+            let covered = kept.iter().any(|(kept_parent, other)| {
+                if *kept_parent != parent {
+                    return false;
+                }
+                let w = (rect[2].min(other[2]) - rect[0].max(other[0])).max(0) as i64;
+                let h = (rect[3].min(other[3]) - rect[1].max(other[1])).max(0) as i64;
+                let other_area =
+                    ((other[2] - other[0]).max(0) as i64) * ((other[3] - other[1]).max(0) as i64);
+                area.min(other_area) > 0 && w * h * 10 >= area.min(other_area) * 9
+            });
+            if covered {
+                self.ui.set_visible(id, false);
+            } else {
+                kept.push((parent, rect));
+            }
+        }
     }
 
     pub fn viewport(&self) -> [f32; 4] {
@@ -832,6 +1112,8 @@ impl Tool {
                 } else if id == self.play {
                     if self.mode == Mode::Audio {
                         self.play_selected();
+                    } else if self.mode == Mode::Dialogs {
+                        self.toggle_dialog_animation();
                     } else {
                         self.toggle_animation();
                     }
@@ -839,6 +1121,13 @@ impl Tool {
                     if self.mode == Mode::Audio {
                         self.player.stop();
                         self.set_status("Stopped");
+                    } else if self.mode == Mode::Dialogs {
+                        self.dialog_animation_playing = false;
+                        self.dialog_animation_elapsed = 0.0;
+                        self.dialog_animation_started = Instant::now();
+                        self.ui.set_animation_frame(0);
+                        self.ui.set_text(self.play, "Play");
+                        self.refresh_dialog_animation_label();
                     } else {
                         self.animation_playing = false;
                         self.animation_elapsed = 0.0;
@@ -846,11 +1135,23 @@ impl Tool {
                         self.refresh_animation_label();
                     }
                 } else if id == self.animation_next {
-                    self.next_animation();
+                    if self.mode == Mode::Dialogs {
+                        self.step_dialog_frame(1);
+                    } else {
+                        self.next_animation();
+                    }
                 } else if id == self.animation_back {
-                    self.seek_animation(-0.1);
+                    if self.mode == Mode::Dialogs {
+                        self.step_dialog_frame(-1);
+                    } else {
+                        self.seek_animation(-0.1);
+                    }
                 } else if id == self.animation_forward {
-                    self.seek_animation(0.1);
+                    if self.mode == Mode::Dialogs {
+                        self.step_dialog_frame(1);
+                    } else {
+                        self.seek_animation(0.1);
+                    }
                 } else if let Some((mode, _)) =
                     self.render_buttons.iter().find(|(_, button)| *button == id)
                 {

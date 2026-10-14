@@ -245,16 +245,7 @@ fn screenshot(file: &std::path::Path, mode: Option<&str>, filter: Option<&str>) 
     let mode = mode.and_then(Mode::parse).unwrap_or(Mode::Models);
     tool.set_mode(&mut renderer, mode);
     if let Some(f) = filter {
-        let f = f.to_lowercase();
-        let items = match mode {
-            Mode::Models => &tool.assets.meshes,
-            Mode::Textures => &tool.assets.textures,
-            Mode::Audio => &tool.assets.sounds,
-            Mode::Dialogs => &tool.assets.dialogs,
-        };
-        if let Some(i) = items.iter().position(|n| n.to_lowercase().contains(&f)) {
-            tool.select(&mut renderer, i);
-        }
+        tool.select_matching(&mut renderer, f);
     }
     tool.layout(renderer.size());
     let quads = tool.quads();
