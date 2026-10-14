@@ -6,6 +6,11 @@ executable plus decoded shipped `.crs` resources. It is not runtime observation 
 The executable and Runtime DLL hashes are recorded in [GAMEPLAY.md](GAMEPLAY.md). Ghidra output is
 local under ignored `analysis/`.
 
+## Before the menu
+
+The startup loader chain (Game/Global, the Shining Rock splash, the loading screen), the menu
+loop, its music and the 3D menu scenes are described in [MENU-SCENE.md](MENU-SCENE.md).
+
 ## Main-menu dispatch
 
 `MainMenuDialog` is registered as a `UI::DialogInstance` subtype at `0x140152cd0`; its initializer
