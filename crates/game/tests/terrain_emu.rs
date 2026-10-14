@@ -2,6 +2,7 @@
 //! Produce it with `tools/emu/terrain_stages.py game-data/derived/emu/valleys-small-290 290 ...`;
 //! the test is skipped when that git-ignored folder is absent.
 
+use banished_game::map::Map;
 use banished_game::terrain::{Generator, HeightGrid, SizeRecord, TerrainMesh};
 use std::path::{Path, PathBuf};
 
@@ -124,6 +125,21 @@ fn check_queries(dir: &Path, g: &Generator) {
             );
         }
         eprintln!("ground height samples: bit-exact ({})", b.len() / 24);
+    }
+    if let Ok(want) = std::fs::read(dir.join("map_types.u8")) {
+        let map = Map::new(g.size as usize / 2, &grid);
+        let got: Vec<u8> = map.types.iter().map(|t| t.0).collect();
+        assert_eq!(got, want, "gameplay map types");
+        let start = std::fs::read_to_string(dir.join("start.txt")).unwrap();
+        let v: Vec<i32> = start
+            .split_whitespace()
+            .map(|s| s.parse().unwrap())
+            .collect();
+        assert_eq!(map.find_start(v[0]), (v[1], v[2]), "start point");
+        eprintln!(
+            "gameplay map and start point ({}, {}): bit-exact",
+            v[1], v[2]
+        );
     }
 }
 
