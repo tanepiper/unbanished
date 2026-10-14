@@ -8,6 +8,7 @@ pub mod crs;
 pub mod error;
 pub mod game;
 pub mod lzf;
+pub mod menu_scene;
 pub mod pkg;
 pub mod save;
 pub mod skeleton;

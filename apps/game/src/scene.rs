@@ -1,33 +1,103 @@
 //! 3D content drawn behind a loop's UI.
 
-use glam::{Mat4, Vec2, Vec3};
+use glam::{Mat4, Vec2, Vec3, Vec4};
 
 use crate::render::Lighting;
-use crate::world::World;
+use crate::world::Terrain;
 
-/// A terrain world with its camera and lighting. `id` changes whenever `world` does, so the
-/// renderer knows when to upload it again.
+/// A terrain with its camera and lighting. `id` changes whenever `terrain` does, so the renderer
+/// knows when to upload it again.
 pub struct SceneView {
     pub id: u64,
-    pub world: World,
-    pub camera: Camera,
+    pub terrain: Terrain,
+    pub camera: SceneCamera,
     pub lighting: Lighting,
+}
+
+pub enum SceneCamera {
+    Map(Camera),
+    Menu(MenuCamera),
 }
 
 static NEXT_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 impl SceneView {
-    pub fn new(world: World, camera: Camera, lighting: Lighting) -> SceneView {
+    pub fn new(terrain: Terrain, camera: SceneCamera, lighting: Lighting) -> SceneView {
         SceneView {
             id: NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
-            world,
+            terrain,
             camera,
             lighting,
         }
     }
 
     pub fn view_proj(&self, aspect: f32) -> Mat4 {
-        self.camera.view_proj(&self.world, aspect)
+        match &self.camera {
+            SceneCamera::Map(c) => c.view_proj(&self.terrain, aspect),
+            SceneCamera::Menu(c) => c.view_proj(aspect),
+        }
+    }
+}
+
+/// `Math::Vector3::FromYawPitch` (degrees): the direction a camera with this yaw and pitch faces.
+pub fn from_yaw_pitch(yaw: f32, pitch: f32) -> Vec3 {
+    let (y, p) = (yaw.to_radians(), pitch.to_radians());
+    Vec3::new(-p.cos() * y.sin(), p.cos() * y.cos(), p.sin())
+}
+
+/// The game's projection (`FUN_14009db30`): `vfov` degrees vertically and `aspect × vfov`
+/// horizontally (each angle used directly, not through `tan`), up to 16:9.
+pub fn projection(vfov: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
+    const WIDE: f32 = 16.0 / 9.0;
+    let hfov = if aspect <= WIDE {
+        aspect * vfov
+    } else {
+        // Beyond 16:9 the original widens through tan/atan; inferred from the call shape.
+        2.0 * ((WIDE * vfov * 0.5).to_radians().tan() * aspect / WIDE)
+            .atan()
+            .to_degrees()
+    };
+    let sx = 1.0 / (hfov * 0.5).to_radians().tan();
+    let sy = 1.0 / (vfov * 0.5).to_radians().tan();
+    // Right-handed view space, depth 0..1 (wgpu).
+    let a = far / (near - far);
+    Mat4::from_cols(
+        Vec4::new(sx, 0.0, 0.0, 0.0),
+        Vec4::new(0.0, sy, 0.0, 0.0),
+        Vec4::new(0.0, 0.0, a, -1.0),
+        Vec4::new(0.0, 0.0, a * near, 0.0),
+    )
+}
+
+/// The main menu's camera (`FUN_14009dcd0`, `FUN_14009d8c0`): orbits `target` at `distance`,
+/// facing `FromYawPitch(yaw, pitch)`. The menu sways the yaw by `2·cos(t·11.25°)`
+/// (`FUN_1400a0bb0`); drawn with a 40° field of view, near 2, far 512 (`FUN_1400a0910`).
+#[derive(Clone, Copy)]
+pub struct MenuCamera {
+    pub target: Vec3,
+    pub base_yaw: f32,
+    pub pitch: f32,
+    pub distance: f32,
+    /// Sway phase in degrees.
+    pub angle: f32,
+}
+
+impl MenuCamera {
+    pub fn yaw(&self) -> f32 {
+        self.base_yaw + 2.0 * self.angle.to_radians().cos()
+    }
+
+    pub fn update(&mut self, dt: f32) {
+        self.angle += dt * 11.25;
+    }
+
+    pub fn eye(&self) -> Vec3 {
+        self.target - from_yaw_pitch(self.yaw(), self.pitch) * self.distance
+    }
+
+    pub fn view_proj(&self, aspect: f32) -> Mat4 {
+        use glam::camera::rh::view::look_at_mat4;
+        projection(40.0, aspect, 2.0, 512.0) * look_at_mat4(self.eye(), self.target, Vec3::Z)
     }
 }
 
@@ -41,12 +111,12 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn overview(world: &World) -> Camera {
+    pub fn overview(terrain: &Terrain) -> Camera {
         Camera {
             target: Vec2::ZERO,
             yaw: 0.0,
             pitch: 60f32.to_radians(),
-            distance: world.size as f32 * 1.1,
+            distance: terrain.size as f32 * 1.1,
         }
     }
 
@@ -59,28 +129,28 @@ impl Camera {
         }
     }
 
-    fn focus(&self, world: &World) -> Vec3 {
+    fn focus(&self, terrain: &Terrain) -> Vec3 {
         self.target
-            .extend(world.height_at(self.target.x, self.target.y).max(0.0))
+            .extend(terrain.height_at(self.target.x, self.target.y).max(0.0))
     }
 
-    fn eye(&self, world: &World) -> Vec3 {
+    fn eye(&self, terrain: &Terrain) -> Vec3 {
         let (sy, cy) = self.yaw.sin_cos();
         let (sp, cp) = self.pitch.sin_cos();
-        self.focus(world) + Vec3::new(-sy * cp, -cy * cp, sp) * self.distance
+        self.focus(terrain) + Vec3::new(-sy * cp, -cy * cp, sp) * self.distance
     }
 
-    pub fn view_proj(&self, world: &World, aspect: f32) -> Mat4 {
+    pub fn view_proj(&self, terrain: &Terrain, aspect: f32) -> Mat4 {
         use glam::camera::rh::{proj::directx::perspective, view::look_at_mat4};
         let proj = perspective(45f32.to_radians(), aspect, 0.5, self.distance * 4.0 + 100.0);
-        proj * look_at_mat4(self.eye(world), self.focus(world), Vec3::Z)
+        proj * look_at_mat4(self.eye(terrain), self.focus(terrain), Vec3::Z)
     }
 
-    pub fn pan(&mut self, forward: f32, right: f32, world: &World) {
+    pub fn pan(&mut self, forward: f32, right: f32, terrain: &Terrain) {
         let (sy, cy) = self.yaw.sin_cos();
         let step = self.distance * 0.02;
         self.target += Vec2::new(sy, cy) * forward * step + Vec2::new(cy, -sy) * right * step;
-        let half = world.size as f32 / 2.0;
+        let half = terrain.size as f32 / 2.0;
         self.target = self.target.clamp(Vec2::splat(-half), Vec2::splat(half));
     }
 

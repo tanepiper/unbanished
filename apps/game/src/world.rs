@@ -33,15 +33,66 @@ pub struct TerrainTextures {
     pub rock: ImageBuffer,
 }
 
-pub struct World {
-    pub profile: TerrainGenerator,
+/// Everything needed to draw a terrain: generated (New Game) or loaded (menu scenes, saves).
+pub struct Terrain {
     /// Cells per side.
     pub size: usize,
+    /// `(size + 1)²` saved height samples (`grid × 256`).
     pub heights: Vec<i16>,
     pub mesh: TerrainMesh,
-    /// `size²` texels of `dirt | rock << 8 | light << 16` (BGRA8 in memory).
-    pub surface: Vec<u32>,
+    /// `size²` texels of `[dirt, rock, light, snow]` bytes (BGRA8 in memory).
+    pub surface: Vec<u8>,
     pub textures: TerrainTextures,
+}
+
+impl Terrain {
+    /// Build from saved heights and surface bytes, with textures from the terrain material.
+    pub fn new(
+        archive: &Archive,
+        material: &str,
+        size: usize,
+        heights: Vec<i16>,
+        surface: Vec<u8>,
+    ) -> Result<Terrain> {
+        let mesh = TerrainMesh::build(
+            &HeightGrid {
+                width: size + 1,
+                heights: &heights,
+            },
+            size,
+        );
+        let material = material_instance(&archive.read_ref(&with_object(material))?)?;
+        let textures = TerrainTextures {
+            grass: texture(archive, &material.textures, "grass")?,
+            dirt: texture(archive, &material.textures, "dirt")?,
+            snow: texture(archive, &material.textures, "snow")?,
+            rock: texture(archive, &material.textures, "rock")?,
+        };
+        Ok(Terrain {
+            size,
+            heights,
+            mesh,
+            surface,
+            textures,
+        })
+    }
+
+    pub fn width(&self) -> usize {
+        self.size + 1
+    }
+
+    /// Float height at the nearest cell corner (map-centred cell coordinates).
+    pub fn height_at(&self, x: f32, y: f32) -> f32 {
+        let half = (self.size / 2) as f32;
+        let cx = ((x + half).round() as isize).clamp(0, self.size as isize) as usize;
+        let cy = ((y + half).round() as isize).clamp(0, self.size as isize) as usize;
+        self.heights[cy * self.width() + cx] as f32 / 256.0
+    }
+}
+
+pub struct World {
+    pub profile: TerrainGenerator,
+    pub terrain: Terrain,
     pub environment: EnvironmentDescription,
 }
 
@@ -79,15 +130,12 @@ impl World {
         let mut g = Generator::new(SizeRecord::from_wire(wire), params.seed);
         g.run(|_, _| {});
         let heights = g.heights();
-        let surface = g.surface_map();
+        let surface = g
+            .surface_map()
+            .iter()
+            .flat_map(|t| t.to_le_bytes())
+            .collect();
         let size = g.size as usize;
-        let mesh = TerrainMesh::build(
-            &HeightGrid {
-                width: g.width(),
-                heights: &heights,
-            },
-            size,
-        );
         log::info!(
             "generated {} {} seed {} ({size} cells) in {:.2}s",
             profile.name,
@@ -95,36 +143,13 @@ impl World {
             params.seed,
             start.elapsed().as_secs_f32()
         );
-
-        let material = material_instance(&archive.read_ref(&with_object(&profile.materials[0]))?)?;
-        let textures = TerrainTextures {
-            grass: texture(archive, &material.textures, "grass")?,
-            dirt: texture(archive, &material.textures, "dirt")?,
-            snow: texture(archive, &material.textures, "snow")?,
-            rock: texture(archive, &material.textures, "rock")?,
-        };
+        let terrain = Terrain::new(archive, &profile.materials[0], size, heights, surface)?;
         let environment =
             environment_description(&archive.read_ref("Environment/Environment.rsc:resource")?)?;
         Ok(World {
             profile,
-            size,
-            heights,
-            mesh,
-            surface,
-            textures,
+            terrain,
             environment,
         })
-    }
-
-    pub fn width(&self) -> usize {
-        self.size + 1
-    }
-
-    /// Float height at a cell corner (map-centred cell coordinates).
-    pub fn height_at(&self, x: f32, y: f32) -> f32 {
-        let half = (self.size / 2) as f32;
-        let cx = ((x + half).round() as isize).clamp(0, self.size as isize) as usize;
-        let cy = ((y + half).round() as isize).clamp(0, self.size as isize) as usize;
-        self.heights[cy * self.width() + cx] as f32 / 256.0
     }
 }

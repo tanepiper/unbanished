@@ -9,8 +9,8 @@ use banished_ui::{Control, Event, Kind, NodeId, Ui};
 
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
 use crate::render::Lighting;
-use crate::scene::{Camera, SceneView};
-use crate::world::{World, WorldParams};
+use crate::scene::{Camera, MenuCamera, SceneCamera, SceneView};
+use crate::world::{Terrain, World, WorldParams};
 
 const MENU_DIALOG: &str = "Dialog/MainMenu.rsc:resource";
 const BUILD_ID_DIALOG: &str = "Dialog/BuildId.rsc:resource";
@@ -26,6 +26,9 @@ pub const MENU_SCENES: u32 = 10;
 pub struct MenuLoop {
     music: Option<(Pcm, bool)>,
     pub scene_index: u32,
+    /// The 3D background (`Game/MenuScene/Scene%i.rsc`); `None` if it failed to load, in which
+    /// case only the dialog's backdrop shows, as in the original.
+    scene: Option<SceneView>,
     screen: Option<Screen>,
     /// Index of the New Game dialog in `screen.dialogs` while it is open.
     new_game: Option<usize>,
@@ -50,6 +53,7 @@ impl MenuLoop {
         MenuLoop {
             music: None,
             scene_index: 0,
+            scene: None,
             screen: None,
             new_game: None,
             climate_items: Vec::new(),
@@ -195,6 +199,49 @@ impl MenuLoop {
     }
 }
 
+/// `FUN_14009fe00`: load `Game/MenuScene/Scene{index}.rsc` and set up its camera and lighting.
+fn load_menu_scene(ctx: &mut Ctx, index: u32) -> banished_formats::Result<SceneView> {
+    let reference = format!("Game/MenuScene/Scene{index}.rsc:resource");
+    let scene = banished_formats::menu_scene::menu_scene(&ctx.archive.read_ref(&reference)?)?;
+    let map = scene.map;
+    let material = map
+        .terrain_material
+        .clone()
+        .unwrap_or_else(|| "Terrain\\Terrain.rsc:resource".into());
+    let terrain = Terrain::new(
+        ctx.archive,
+        &material,
+        map.dims[0] as usize,
+        map.heights,
+        map.surface,
+    )?;
+    let c = scene.camera;
+    let camera = MenuCamera {
+        target: c.target.into(),
+        base_yaw: c.floats[0],
+        pitch: c.floats[1],
+        distance: c.floats[2],
+        angle: 0.0,
+    };
+    // Same layout as an EnvironmentMonth: ambient, sun, fog colours; fog start, end, maximum;
+    // sun yaw and pitch.
+    let lighting = Lighting::from_month(&banished_formats::game::EnvironmentMonth {
+        ambient_color: scene.colors[0],
+        sun_color: scene.colors[1],
+        fog_color: scene.colors[2],
+        fog_start: scene.floats[0],
+        fog_end: scene.floats[1],
+        fog_max: scene.floats[2],
+        sun_yaw: scene.floats[3],
+        sun_pitch: scene.floats[4],
+    });
+    log::info!(
+        "menu scene {index}: {} placed meshes",
+        scene.placements.len()
+    );
+    Ok(SceneView::new(terrain, SceneCamera::Menu(camera), lighting))
+}
+
 /// `UI::TextElement::SetParameter`: replace `@0`, `@1`, … in a text element.
 fn set_parameters(ui: &mut Ui, id: NodeId, values: &[&str]) {
     let text = match &ui.node(id).kind {
@@ -252,6 +299,16 @@ impl GameLoop for MenuLoop {
 
     fn load(&mut self, ctx: &mut Ctx) {
         self.scene_index = ctx.rng.rand_below(MENU_SCENES);
+        if let Some(forced) = std::env::var("BANISHED_MENU_SCENE")
+            .ok()
+            .and_then(|v| v.parse().ok())
+        {
+            self.scene_index = forced;
+        }
+        match load_menu_scene(ctx, self.scene_index) {
+            Ok(view) => self.scene = Some(view),
+            Err(e) => log::error!("menu scene {}: {e}", self.scene_index),
+        }
         match banished_audio::load_sound(ctx.archive, MENU_MUSIC) {
             Ok(music) => self.music = Some(music),
             Err(e) => log::error!("menu music: {e}"),
@@ -279,8 +336,19 @@ impl GameLoop for MenuLoop {
         ctx.audio.stop();
     }
 
-    fn update(&mut self, _ctx: &mut Ctx, _dt: f32) -> Next {
+    fn update(&mut self, _ctx: &mut Ctx, dt: f32) -> Next {
+        if let Some(SceneView {
+            camera: SceneCamera::Menu(camera),
+            ..
+        }) = &mut self.scene
+        {
+            camera.update(dt);
+        }
         Next::Stay
+    }
+
+    fn view(&self) -> View<'_> {
+        self.scene.as_ref().map_or(View::None, View::World)
     }
 
     fn event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
@@ -342,7 +410,11 @@ impl GameLoop for MapLoop {
         match World::generate(ctx.archive, &self.params) {
             Ok(world) => {
                 let lighting = Lighting::from_month(&world.environment.months[3]);
-                self.view = Some(SceneView::new(world, Camera::ground(), lighting));
+                self.view = Some(SceneView::new(
+                    world.terrain,
+                    SceneCamera::Map(Camera::ground()),
+                    lighting,
+                ));
             }
             Err(e) => log::error!("world generation failed: {e}"),
         }
@@ -355,13 +427,18 @@ impl GameLoop for MapLoop {
     }
 
     fn raw(&mut self, _ctx: &mut Ctx, input: RawInput) -> Next {
-        let Some(view) = &mut self.view else {
+        let Some(SceneView {
+            camera: SceneCamera::Map(camera),
+            terrain,
+            ..
+        }) = &mut self.view
+        else {
             return Next::Stay;
         };
         match input {
-            RawInput::Drag(dx, dy) => view.camera.rotate(dx, dy),
-            RawInput::Wheel(steps) => view.camera.zoom(steps),
-            RawInput::Pan(forward, right) => view.camera.pan(forward, right, &view.world),
+            RawInput::Drag(dx, dy) => camera.rotate(dx, dy),
+            RawInput::Wheel(steps) => camera.zoom(steps),
+            RawInput::Pan(forward, right) => camera.pan(forward, right, terrain),
             RawInput::Escape => {
                 return Next::Switch(Box::new(DialogLoaderLoop::new(
                     "Dialog/Loading.rsc:resource".into(),

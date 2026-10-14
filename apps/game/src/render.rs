@@ -10,7 +10,7 @@ use glam::{Mat4, Vec3, Vec4};
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
-use crate::world::World;
+use crate::world::Terrain;
 
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 const CAPTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
@@ -417,14 +417,14 @@ impl Renderer {
     /// Upload a scene's world if it is not the one on the GPU.
     pub fn set_scene(&mut self, view: &crate::scene::SceneView) {
         if self.world_id != view.id {
-            self.set_world(&view.world);
+            self.set_terrain(&view.terrain);
             self.world_id = view.id;
         }
     }
 
-    /// Upload a generated world's terrain mesh, surface image and textures.
-    pub fn set_world(&mut self, world: &World) {
-        let surface: Vec<u8> = world.surface.iter().flat_map(|t| t.to_le_bytes()).collect();
+    /// Upload a terrain's mesh, surface image and textures.
+    pub fn set_terrain(&mut self, world: &Terrain) {
+        let surface = world.surface.clone();
         let size = world.size as u32;
         let views = [
             self.upload_image("grass", &world.textures.grass),

@@ -229,16 +229,26 @@ impl Game {
             .unwrap_or_default();
         quads.extend(loops::fade_quad(self.main.fade.level, size));
         renderer.set_ui_time(self.main.elapsed);
-        let terrain = match self.main.current().view() {
+        let (terrain, clear) = match self.main.current().view() {
             View::World(view) => {
                 renderer.set_scene(view);
-                Some((view.view_proj(renderer.aspect()), view.lighting))
+                let fog = view.lighting.fog_color;
+                (
+                    Some((view.view_proj(renderer.aspect()), view.lighting)),
+                    // Until the sky mesh is drawn, clear to the fog colour.
+                    wgpu::Color {
+                        r: fog.x as f64,
+                        g: fog.y as f64,
+                        b: fog.z as f64,
+                        a: 1.0,
+                    },
+                )
             }
-            View::None => None,
+            View::None => (None, CLEAR),
         };
         let frame = Frame {
             terrain,
-            clear: CLEAR,
+            clear,
             ui: Some((&self.ui, &quads)),
         };
         if capture {
@@ -544,7 +554,7 @@ mod native {
 
     /// The generated-map capture from M5 (`--capture`).
     pub fn map_capture(args: &[String], out: &str) {
-        use crate::scene::{Camera, SceneView};
+        use crate::scene::{Camera, SceneCamera, SceneView};
         use crate::world::{World, WorldParams};
         let mut params = WorldParams::default();
         let (mut month, mut overview) = (3usize, false);
@@ -579,13 +589,13 @@ mod native {
             // Fog distances are tuned for the in-game camera; push them out for whole-map views.
             lighting.fog_start = 1e5;
             lighting.fog_end = 2e5;
-            Camera::overview(&world)
+            Camera::overview(&world.terrain)
         } else {
             Camera::ground()
         };
         let size = (1280, 800);
         let mut renderer = pollster::block_on(Renderer::headless(size.0, size.1));
-        let view = SceneView::new(world, camera, lighting);
+        let view = SceneView::new(world.terrain, SceneCamera::Map(camera), lighting);
         renderer.set_scene(&view);
         let rgba = renderer.capture(&Frame {
             terrain: Some((view.view_proj(renderer.aspect()), view.lighting)),
