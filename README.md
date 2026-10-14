@@ -34,6 +34,10 @@ cargo run -p banished-viewer --release
 # 3. Web version on http://127.0.0.1:8731/?data=/game-data/ (or pick your .pkg files in the page)
 tools/dev-web.sh --release
 
+# The game: generate a New Game map and walk around it (native window)
+cargo run -p banished-app --release -- --seed 290 --terrain Valleys --size 0
+cargo run -p banished-app --release -- --capture map.png --view overview
+
 # Headless screenshot of the browser in a mode, e.g. the main menu dialog
 cargo run -p banished-viewer --release -- --screenshot menu.png dialogs MainMenu_resource
 
@@ -49,6 +53,8 @@ tools/ghidra/export.sh
 | `crates/formats` | Dependency-free readers for `.pkg`, `.crs`, textures, meshes, skeletons, sounds, UI resources |
 | `crates/ui` | Reimplementation of the game's UI system: element tree, layout, fonts, drawing, input |
 | `crates/wma` | Pure-Rust WMA v2 decoder for the game's xWMA audio (native and WASM) |
+| `crates/game` | The 1:1 game logic: bit-exact `Random`, `PerlinNoise`, terrain generator, surface image and terrain mesh |
+| `apps/game` | `banished`: the game itself (world generation and terrain rendering so far) |
 | `apps/viewer` | Asset browser built on `crates/ui`: native window, browser (WASM), `--screenshot`, `--capture` |
 | `apps/cli` | `banished-cli export-audio`: decode all sounds to MP3 via FFmpeg |
 
@@ -73,7 +79,10 @@ terrain and starting-condition handoff in [docs/WORLD-GENERATION.md](docs/WORLD-
 - [x] M2: resource (`.crs`) deserializer (core graphics types; others as needed)
 - [x] M3: model viewer, native and browser (terrain moves to M5)
 - [x] M4: UI system and main menu (all decoded controls render; see FINDINGS for fidelity limits)
-- [ ] M5: map generation and terrain
+- [ ] M5: map generation and terrain (in progress: generator, surface image and terrain mesh are
+      bit-exact with the original executable under emulation and match real saves; `banished`
+      renders generated maps with the ported terrain shader and monthly lighting. Next: river and
+      lake meshes, resource/tree placement, starting town)
 - [ ] M6: simulation components
 - [ ] M7: save/load, audio in game, polish (audio decoding done)
 
