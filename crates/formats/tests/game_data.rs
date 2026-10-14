@@ -160,3 +160,47 @@ fn skinned_bind_pose_matches_bounds() {
     }
     assert_eq!(checked, 7);
 }
+
+/// Every UI resource decodes with exact block consumption.
+#[test]
+fn decodes_all_ui_resources() {
+    use banished_formats::ui;
+    let Some(archive) = archive() else { return };
+    let mut counts = std::collections::BTreeMap::<&str, usize>::new();
+    for name in archive.names() {
+        if !name.ends_with(".crs") {
+            continue;
+        }
+        let data = archive.read(name).unwrap();
+        let tid = crs::header(&data).unwrap().type_id;
+        let class = if ui::is_element(tid) {
+            ui::element(&data)
+                .unwrap_or_else(|e| panic!("{name}: {e}"))
+                .class
+        } else if tid == type_id("Dialog") {
+            ui::dialog(&data).unwrap_or_else(|e| panic!("{name}: {e}"));
+            "Dialog"
+        } else if tid == type_id("SpriteSheet") {
+            ui::sprite_sheet(&data).unwrap_or_else(|e| panic!("{name}: {e}"));
+            "SpriteSheet"
+        } else if tid == type_id("Font") {
+            let f = ui::font(&data).unwrap_or_else(|e| panic!("{name}: {e}"));
+            assert!(f.glyph_index('A').is_some(), "{name}");
+            "Font"
+        } else if tid == type_id("StringTable") {
+            ui::string_table(&data).unwrap_or_else(|e| panic!("{name}: {e}"));
+            "StringTable"
+        } else {
+            continue;
+        };
+        *counts.entry(class).or_default() += 1;
+    }
+    eprintln!("{counts:?}");
+    assert_eq!(counts["Dialog"], 55);
+    assert_eq!(counts["Font"], 4);
+    assert_eq!(counts["SpriteSheet"], 31);
+    assert_eq!(counts["StringTable"], 115);
+    assert_eq!(counts["ButtonDescription"], 138);
+    assert_eq!(counts["LabelDescription"], 145);
+    assert_eq!(counts.values().sum::<usize>(), 1644);
+}

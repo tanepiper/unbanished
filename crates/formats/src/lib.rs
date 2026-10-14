@@ -12,5 +12,6 @@ pub mod skeleton;
 pub mod stream;
 pub mod texture;
 pub mod types;
+pub mod ui;
 
 pub use error::{Error, Result};
