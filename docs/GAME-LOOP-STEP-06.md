@@ -43,8 +43,9 @@ Rain, and Snow images. The resource files and sprite names confirm the intended 
 do not tell which state corresponds to every controller threshold or when the icons are shown.
 
 These resources expose more of the intended gameplay HUD than the current port's single date label.
-The direct dialog installation path in `FUN_14009d0d0` remains separate from the Status Bar
-controller constructor and periodic update routine identified in step 07.
+`FUN_14009d0d0` installs the top-level Toolbar, EventNotify and AutoSave dialogs. The Status Bar
+controller's `OnUpdateLayout` callback is identified in step 07; the direct Toolbar-to-StatusBar
+resource handoff remains unproven.
 
 ## Evidence pointers
 
@@ -60,6 +61,6 @@ controller constructor and periodic update routine identified in step 07.
 
 ## Next trace
 
-Find the status bar's creation and update controller, then follow the environment state through its
-weather level, effect geometry, temperature text, and icon selection. Keep the saved controller
-state intact when connecting restore behavior.
+Follow the `UtilityStatusBar` gameplay installation in step 07. Separately trace the environment
+weather level through effect geometry and any consumer beyond the status icon. Keep the saved
+controller state intact when connecting restore behavior.

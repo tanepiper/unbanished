@@ -1,9 +1,9 @@
 # Game loop step 07: status bar bindings and live values
 
-This step follows the shipped Status Bar resource tree into its controller constructor and periodic
-update. Evidence is static Ghidra 12.1.4 decompilation of the Steam x64 executable and decoded
-compiled UI resources. It identifies the update logic, but not the controller's full creation and
-registration lifecycle or a live game's rendered values.
+This step follows the shipped Status Bar resource tree into its controller constructor and layout
+refresh callback. Evidence is static Ghidra 12.1.4 decompilation of the Steam x64 executable and
+Runtime DLL plus decoded compiled UI resources. It identifies the callback lifecycle, but not a
+direct code-level handoff from Toolbar to `UtilityStatusBar` or a live game's rendered values.
 
 ## Controller bindings
 
@@ -21,8 +21,9 @@ The weather image pointers are stored in this order:
 | `+0x1c8` | `imageSnow` |
 
 This connects the static resource tree described in [step 06](GAME-LOOP-STEP-06.md) to a concrete
-controller. It also shows that `FUN_14009d0d0`'s toolbar/event/autosave installation is not the only
-gameplay UI setup path.
+controller. `FUN_14009d0d0` adds the top-level Toolbar, EventNotify, and AutoSave dialogs. The
+UtilityStatusBar resource references make a Toolbar-to-StatusBar route plausible, but no direct
+native-code call naming `Template/UtilityStatusBar` has been found.
 
 The executable's type metadata identifies the controller as `StatusBarUI`, derived from
 `UI::DialogController`. `FUN_140152640` initializes that type record; its factory allocates a
@@ -30,7 +31,23 @@ The executable's type metadata identifies the controller as `StatusBarUI`, deriv
 The type record and object constructor are distinct from `FUN_14007f8a0`, which binds controls from
 the dialog instance.
 
-## Periodic update
+## Packaged utility route
+
+The package contains a `Template/UtilityStatusBar` trio. Its component resource points to `ui` and
+`toolbar`; the UI description references `Dialog/StatusBar.rsc:content` and
+`Dialog/StatusBar.rsc:groupEffects`, while the toolbar description names the `ToolStatusBar` icon and
+tooltip. This connects the controller and Status Bar elements to the utility toolbar resource
+family. These resources establish the packaged route; the gameplay call site that creates the
+utility and attaches its UI is still being traced.
+
+## Layout refresh callback
+
+`FUN_14007eda0` is not proven to be a per-frame update. The StatusBar vtable at `0x140163c40` puts
+it in slot 7 (`+0x38`), which the Runtime `DialogController` vtable identifies as
+`OnUpdateLayout`. At each UI update, `UI::UserInterface::Update` traverses registered dialogs;
+`DialogInstance::OnUpdateLayout` walks its controller list and dispatches that slot. Thus the status
+refresh is tied to dialog layout updates. The available static evidence does not establish the
+frequency of those layout updates in a live game.
 
 `FUN_14007eda0` reads the game calendar and state counters, then writes the bound `NumberElement`
 and `TextElement` values. It uses the current year and elapsed game time to select `Month0` through
@@ -54,11 +71,13 @@ ordering is directly visible in the code; its effect on an actual game display h
 
 ## What is still open
 
-The type identity and factory are now known, but the current reference export does not identify the
-call site that creates and schedules this controller or connects it to `Dialog/StatusBar.rsc`. The
-values behind all resource counters and each status category also need to be traced to their owning
-managers before reproducing them. The current port still uses its compact HUD and does not render
-this original status bar.
+The controller's Runtime creation and callback lifecycle is known: `DialogInstance::AddController`
+resolves the type through `Object::Factory`, creates it, supplies its dialog/element/config context,
+calls `OnCreated`, and registers it. The gameplay bootstrap that adds the Toolbar dialog is also
+known. The direct resource-driven handoff from Toolbar to `Template/UtilityStatusBar` is not proven
+by a code reference, and the values behind resource counters and status categories still need to be
+traced to their owning managers. The current port uses its compact HUD and does not render this
+original status bar.
 
 ## Evidence pointers
 
@@ -67,10 +86,19 @@ this original status bar.
 - `FUN_140152640` (`0x140152640`): registers type metadata for `StatusBarUI` with base
   `UI::DialogController`; `FUN_140014af0` is its allocation factory and `FUN_1400803f0` initializes
   the instance fields and vtable.
+- StatusBar vtable `0x140163c40`: slot 5 (`+0x28`) is `FUN_14007f8a0` (the `OnOpened`-position
+  binding callback); slot 7 (`+0x38`) is `FUN_14007eda0` (`OnUpdateLayout`). Runtime
+  `DialogInstance::AddController` creates/registers controllers; `DialogInstance::OnUpdateLayout`
+  dispatches the layout callback.
+- `FUN_14009d0d0` (`0x14009d0d0`) finds and adds `Dialog/Toolbar.rsc`, `Dialog/EventNotify.rsc`, and
+  `Dialog/AutoSave.rsc` to the gameplay `UserInterface`.
 - `FUN_140099430` / `FUN_140099160`: environment controller defaults and serialized weather state,
   described in [step 06](GAME-LOOP-STEP-06.md).
 - `Dialog/StatusBar_content`, `Dialog/Options_checkShowCelsius.crs`, and
   `Dialog/Options_textShowCelsius.crs`, decoded with `tools/crs/types/ui.py`.
+- `Template/UtilityStatusBar_resource.crs`, `Template/UtilityStatusBar_ui.crs`, and
+  `Template/UtilityStatusBar_toolbar.crs`; packaged references connect them to the status bar
+  content and `ToolStatusBar` button.
 - Local exports: `analysis/gameplay-statusbar-controller.txt`,
   `analysis/gameplay-statusbar-references.txt`, and `analysis/statusbar-address-references.txt`.
   These Ghidra pseudocode exports remain local; this note records the findings needed in source
@@ -78,6 +106,6 @@ this original status bar.
 
 ## Next trace
 
-Identify the class and lifecycle that owns the Status Bar controller. Then follow each displayed
-counter to the game manager that supplies it, keeping resource inventory, citizen status counts and
-global settings as separate data sources.
+Trace the compiled Toolbar/UtilityStatusBar resource handoff far enough to establish whether it
+creates the StatusBar dialog and controller. Then follow each displayed counter to its game manager,
+keeping resource inventory, citizen status counts and global settings as separate data sources.
