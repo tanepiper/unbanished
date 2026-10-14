@@ -35,11 +35,12 @@ impl SizeRecord {
     }
 }
 
-/// One entry of a path record (28 bytes): a 2D point plus five copied words.
+/// One entry of a path record (28 bytes): a 2D point plus five parameters copied from the
+/// caller (`FUN_1400d1d20` arguments 4..8).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PathPoint {
     pub pos: [f32; 2],
-    pub extra: [u32; 5],
+    pub params: [f32; 5],
 }
 
 pub struct Generator {
