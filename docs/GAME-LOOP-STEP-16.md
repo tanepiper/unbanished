@@ -55,23 +55,27 @@ this Action or when, so this is not yet tied to a specific player command or sch
 
 The `AnimateNaturalResource` Action uses vtable slot `+0x20` for `FUN_1400caad0`. Its serializer
 `FUN_1400cab30` stores an internal component reference at `+0x20`, an integer at `+0x28`, and a
-boolean at `+0x2c` (in addition to the base Action state). The method resolves the referenced
-component, calls `FUN_14012b910(component, action[+0x28])`, then returns the stored boolean at
-`+0x2c`.
+boolean at `+0x2c` (in addition to the base Action state). Vtable slot `+0x28` is
+`FUN_1400caa80`, which queries whether the linked entity's mesh is currently animating. The method
+at slot `+0x20` resolves the referenced component, calls `FUN_14012b910(component, action[+0x28])`,
+then returns the stored boolean at `+0x2c`.
 
 This Action therefore enters the same state dispatcher used by the GrowthComponent transition,
 but supplies its own integer state and completion result. If the component description's `+0x64`
-byte is set, `FUN_14012b910` starts that mesh animation and sets the scheduled bit-`0x04` callback;
-otherwise its flag checks can take the immediate shared-cleanup route. The Action's serialized
-fields establish the dispatch inputs, but do not reveal which system creates or schedules it.
+byte is set, `FUN_14012b910` starts that mesh animation and sets the scheduled bit-`0x04` callback.
+If the byte is clear, that dispatcher only takes the immediate shared-cleanup route when flag
+`0x200000` was already set. The Action itself does not set that flag and does not directly call
+`FUN_14012bc50` or `FUN_14012b5c0`. Its serialized fields establish the dispatch inputs, but do not
+reveal which system creates or schedules it.
 
 ## Evidence and limits
 
 - `analysis/export/Application-steam-x64.exe/decomp.c`: `FUN_14012bc50` sets flag `0x200000` and
   selects state 2; `FUN_14012b910` selects animation or immediate cleanup; `FUN_14012b110` handles
   animation completion; `FUN_1400c82b0` dispatches the bit-`0x04` set; `FUN_1400cffe0` implements the
-  `RemoveNaturalResource` action; `FUN_1400caad0` implements `AnimateNaturalResource`;
-  `FUN_14012b5c0` performs shared removal/output work.
+  `RemoveNaturalResource` action; `FUN_1400caad0` implements `AnimateNaturalResource`, and
+  `FUN_1400caa80` queries its linked mesh animation state; `FUN_14012b5c0` performs shared
+  removal/output work.
 - Type registration at `0x1401553d0` identifies `NaturalResourceComponent`; vtable slot `+0x40`
   points to `FUN_14012b110`. Action registration and the original PE vtable identify
   `RemoveNaturalResource` and slot `+0x20` -> `FUN_1400cffe0`, plus `AnimateNaturalResource` and
