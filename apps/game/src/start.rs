@@ -4,6 +4,7 @@
 //! deer, crops, orchards and livestock come next.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use banished_formats::game::{
     citizen_description, component_description, create_placed_description, growth_description,
@@ -20,7 +21,7 @@ use banished_game::seeding::{Cells, Placed, Seeder, Template};
 use banished_game::stock::{distribute, RawMaterial, Storage};
 use banished_game::terrain::HeightGrid;
 
-use crate::models::{placement_matrix, SceneModels};
+use crate::models::{placement_matrix, ModelInstance, SceneModels};
 
 /// `Template\X.rsc:resource` (profile lists omit the object name).
 /// `DAT_140178818`: children's model scale.
@@ -53,6 +54,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         bucket: desc.bucket as usize,
         map: None,
         model: None,
+        animations: Vec::new(),
         natural: None,
         growth: None,
         growth_reference: None,
@@ -69,7 +71,29 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         let object = d.rsplit(':').next().unwrap_or("");
         match object {
             "map" => t.map = map_description(&data).ok(),
-            "model" => t.model = model_description(&data).ok(),
+            "model" => {
+                t.model = model_description(&data).ok();
+                let mut cache = HashMap::new();
+                if let Some(model) = &t.model {
+                    t.animations = model
+                        .variants
+                        .iter()
+                        .map(|v| {
+                            let reference = v.animations.as_deref()?;
+                            cache
+                                .entry(reference.to_owned())
+                                .or_insert_with(|| {
+                                    read(archive, reference)
+                                        .and_then(|bytes| {
+                                            banished_formats::types::animation_group(&bytes).ok()
+                                        })
+                                        .map(Arc::new)
+                                })
+                                .clone()
+                        })
+                        .collect();
+                }
+            }
             "naturalresource" => t.natural = natural_resource_description(&data).ok(),
             "growth" => {
                 t.growth = growth_description(&data).ok();
@@ -246,6 +270,7 @@ pub struct StartingTown {
     pub cells: Cells,
     scheduler: EntityScheduler<usize>,
     removed: Vec<usize>,
+    pub animation_events: Vec<(usize, String)>,
     citizen_model: Option<banished_formats::game::ModelDescription>,
 }
 
@@ -283,6 +308,7 @@ impl StartingTown {
         let mut cells = Cells::new(map_size, map.types);
         let mut placed = Vec::new();
         let mut removed = Vec::new();
+        let mut animation_events = Vec::new();
         let mut seeder = Seeder {
             templates: &templates,
             terrain,
@@ -290,6 +316,7 @@ impl StartingTown {
             rng,
             placed: &mut placed,
             removed: &mut removed,
+            animation_events: &mut animation_events,
         };
         seeder.place_structures(&structures, start.0, start.1);
         seeder.seed(&list, start.0, start.1, radius * radius);
@@ -323,6 +350,7 @@ impl StartingTown {
             cells,
             scheduler,
             removed,
+            animation_events,
             citizen_model: read(archive, r"Template\Citizen.rsc:model")
                 .and_then(|d| banished_formats::game::model_description(&d).ok()),
         })
@@ -343,6 +371,7 @@ impl StartingTown {
             rng,
             placed: &mut self.placed,
             removed: &mut self.removed,
+            animation_events: &mut self.animation_events,
         }
         .iterate(&mut self.scheduler, dt, temperature, false)
     }
@@ -356,6 +385,7 @@ impl StartingTown {
             rng,
             placed: &mut self.placed,
             removed: &mut self.removed,
+            animation_events: &mut self.animation_events,
         }
         .smooth()
     }
@@ -370,8 +400,8 @@ impl StartingTown {
         models.update_instances(archive, self.model_instances());
     }
 
-    fn model_instances(&self) -> Vec<(String, usize, Vec<[f32; 16]>)> {
-        let mut groups: HashMap<String, Vec<[f32; 16]>> = HashMap::new();
+    fn model_instances(&self) -> Vec<(String, usize, Vec<ModelInstance>)> {
+        let mut groups: HashMap<String, Vec<ModelInstance>> = HashMap::new();
         for p in &self.placed {
             if !p.alive {
                 continue;
@@ -386,14 +416,17 @@ impl StartingTown {
             else {
                 continue;
             };
-            groups
-                .entry(mesh.clone())
-                .or_default()
-                .push(placement_matrix(
-                    p.position,
-                    [p.scale[0], p.scale[1], p.scale[2]],
-                    p.yaw,
-                ));
+            groups.entry(mesh.clone()).or_default().push(ModelInstance {
+                matrix: placement_matrix(p.position, [p.scale[0], p.scale[1], p.scale[2]], p.yaw),
+                locals: p.animation.as_ref().and_then(|playback| {
+                    self.templates[p.template]
+                        .animations
+                        .get(p.variant)
+                        .and_then(Option::as_ref)
+                        .and_then(|g| g.clips.get(playback.clip))
+                        .map(|clip| playback.pose(clip))
+                }),
+            });
         }
         // Citizens: `Template/Citizen.rsc:model` variant 0 (men) or 1 (women); children use
         // the scale `DAT_140178818` (`FUN_14011a700`). Facing is not set at creation (yaw 0).
@@ -409,10 +442,10 @@ impl StartingTown {
                 } else {
                     CHILD_SCALE
                 };
-                groups
-                    .entry(mesh.clone())
-                    .or_default()
-                    .push(placement_matrix(c.position, [s, s, s], 0.0));
+                groups.entry(mesh.clone()).or_default().push(ModelInstance {
+                    matrix: placement_matrix(c.position, [s, s, s], 0.0),
+                    locals: None,
+                });
             }
         }
         let mut list: Vec<_> = groups.into_iter().map(|(m, i)| (m, 0, i)).collect();

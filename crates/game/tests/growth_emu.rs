@@ -63,7 +63,6 @@ fn scheduled_growth_and_smoothing_match_original_bits() {
             scheduled: true,
             smoothing: false,
             allow_negative: int(8) != 0,
-            pending_animation: false,
         };
         let result = state.update(&d, &mut value, ticks(float(5)), float(2), int(9) != 0);
         let mut output = [0.0; 4];

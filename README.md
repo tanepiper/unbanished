@@ -89,8 +89,8 @@ terrain and starting-condition handoff in [docs/WORLD-GENERATION.md](docs/WORLD-
       main menu with music and the 3D menu scenes. Next: water, sky, decals, particles,
       resource/tree placement, starting town)
 - [ ] M6: simulation components (calendar/climate and scheduled natural-resource growth/spawning
-      are active; citizen AI, production and tree expiry animation remain open; see
-      [game loop step 18](docs/GAME-LOOP-STEP-18.md))
+      and packaged tree expiry animation are active; citizen AI, production and spatial event
+      audio remain open; see [game loop step 19](docs/GAME-LOOP-STEP-19.md))
 - [ ] M7: save/load, audio in game, polish (audio decoding done)
 
 ## Legal

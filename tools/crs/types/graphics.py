@@ -2,6 +2,34 @@
 from ..crs import decoder
 
 
+@decoder('AnimationGroup')
+def animation_group(r, file_version):
+    # Runtime AnimationGroup::Serialize 0x1800fdf30 / Animation::Serialize 0x1800fd910.
+    with r.block():
+        clips = []
+        for _ in range(r.u32()):
+            clip = dict(name=r.string(), mesh_name=r.string(), source_name=r.string(),
+                        start_frame=r.i32(), end_frame=r.i32(), declared_rate=r.f32(),
+                        looping=r.bool(), loop_start_frame=r.i32(), instance_count=r.i32(),
+                        instanced=r.bool())
+            clip['events'] = [dict(frame=r.i32(), resource=external_ref(r))
+                              for _ in range(r.u32())]
+            clip['frame_count'] = r.u32()
+            clip['sample_rate'] = r.f32()
+            clip['sample_interval'] = r.f32()
+            clip['bone_count'] = r.u32()
+            samples = r.u32()
+            assert samples == clip['frame_count'] * clip['bone_count']
+            clip['samples'] = [r.array('f', 7) for _ in range(samples)]
+            clip['duration_ticks'] = r.i64()
+            clips.append(clip)
+        blends = [dict(source=r.string(), target=r.string(), seconds=r.f32())
+                  for _ in range(r.u32())]
+        default_blend = r.f32()
+        matrix = r.array('f', r.u32())
+        return dict(clips=clips, blends=blends, default_blend=default_blend, blend_matrix=matrix)
+
+
 def external_ref(r):
     # Object::ExternalPtr serialization (e.g. FUN_18005dbc0): bool present, then "Path\File.rsc:object".
     return r.string() if r.bool() else None

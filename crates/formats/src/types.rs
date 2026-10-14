@@ -180,15 +180,47 @@ pub struct AnimationClip {
     pub source_name: String,
     pub looping: bool,
     pub sample_rate: f32,
+    /// Animation +0x30/+0x34: source frame range for loop-point conversion.
+    pub start_frame: i32,
+    pub end_frame: i32,
+    /// +0x38 / +0x48: declared rate and stored sample interval.
+    pub declared_rate: f32,
+    pub sample_interval: f32,
+    /// +0x40: source frame at which a looping animation resumes.
+    pub loop_start_frame: i32,
+    /// +0x28 / +0x2c: shared animation-instance configuration.
+    pub instance_count: i32,
+    pub instanced: bool,
     pub loop_start: usize,
     pub bone_count: usize,
     /// Frame-major quaternion (xyzw) + translation (xyz) samples.
     pub frames: Vec<Vec<crate::skeleton::Transform>>,
+    /// +0x58: serialized System::Time, in microsecond ticks (Timer::Startup 0x1800cd030).
+    pub duration_ticks: i64,
+    pub events: Vec<AnimationEvent>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AnimationEvent {
+    pub frame: i32,
+    pub resource: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AnimationBlend {
+    pub source: String,
+    pub target: String,
+    pub seconds: f32,
 }
 
 #[derive(Debug, Clone)]
 pub struct AnimationGroup {
     pub clips: Vec<AnimationClip>,
+    /// +0x30: fallback blend time; +0x38/+0x40: named blend overrides.
+    pub default_blend: f32,
+    pub blends: Vec<AnimationBlend>,
+    /// +0x48/+0x50: precompiled [new clip][previous clip] transition matrix.
+    pub blend_matrix: Vec<f32>,
 }
 
 impl AnimationGroup {
@@ -207,20 +239,18 @@ impl AnimationGroup {
                 let source_name = r.string()?;
                 let start_frame = r.i32()?;
                 let end_frame = r.i32()?;
-                let _declared_rate = r.f32()?;
+                let declared_rate = r.f32()?;
                 let looping = r.bool()?;
                 let loop_start_frame = r.i32()?;
-                let _instance_count = r.i32()?;
-                let _instanced = r.bool()?;
+                let instance_count = r.i32()?;
+                let instanced = r.bool()?;
                 let event_count = r.count()?;
-                for _ in 0..event_count {
-                    // Animation events contain a frame index and an optional event resource.
-                    let _event_frame = r.i32()?;
-                    let _event = r.external_ref()?;
-                }
+                let events = (0..event_count).map(|_| Ok(AnimationEvent {
+                    frame: r.i32()?, resource: r.external_ref()?,
+                })).collect::<Result<Vec<_>>>()?;
                 let frame_count = r.count()?;
                 let sample_rate = r.f32()?;
-                let _sample_interval = r.f32()?;
+                let sample_interval = r.f32()?;
                 let bone_count = r.count()?;
                 let sample_count = r.count()?;
                 if sample_count != frame_count.saturating_mul(bone_count) {
@@ -253,31 +283,35 @@ impl AnimationGroup {
                     }
                     frames.push(frame);
                 }
-                let _duration = r.i64()?;
+                let duration_ticks = r.i64()?;
                 clips.push(AnimationClip {
                     name,
                     mesh_name,
                     source_name,
                     looping,
                     sample_rate,
+                    start_frame,
+                    end_frame,
+                    declared_rate,
+                    sample_interval,
+                    loop_start_frame,
+                    instance_count,
+                    instanced,
                     loop_start,
                     bone_count,
                     frames,
+                    duration_ticks,
+                    events,
                 });
             }
             let blend_count = r.count()?;
-            for _ in 0..blend_count {
-                let _from = r.string()?;
-                let _to = r.string()?;
-                let _time = r.f32()?;
-            }
-                let default_blend = r.f32()?;
+            let blends = (0..blend_count).map(|_| Ok(AnimationBlend {
+                source: r.string()?, target: r.string()?, seconds: r.f32()?,
+            })).collect::<Result<Vec<_>>>()?;
+            let default_blend = r.f32()?;
             let blend_matrix_count = r.count()?;
-            for _ in 0..blend_matrix_count {
-                let _ = r.f32()?;
-            }
-            let _ = default_blend;
-            Ok(AnimationGroup { clips })
+            let blend_matrix = (0..blend_matrix_count).map(|_| r.f32()).collect::<Result<Vec<_>>>()?;
+            Ok(AnimationGroup { clips, default_blend, blends, blend_matrix })
         })
     }
 }

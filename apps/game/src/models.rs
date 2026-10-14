@@ -11,10 +11,13 @@ use std::collections::HashMap;
 
 use banished_formats::menu_scene::MenuScene;
 use banished_formats::pkg::Archive;
-use banished_formats::skeleton::{bind_palette, local_bind, world_transforms, Transform};
+use banished_formats::skeleton::{
+    bind_palette, inverse_bind, local_bind, world_transforms, Transform,
+};
 use banished_formats::texture::decode_rgba;
 use banished_formats::types::{
-    graphics_mesh, image_buffer, material_instance, ImageBuffer, SKINNED_STRIDE, STATIC_STRIDE,
+    graphics_mesh, image_buffer, material_instance, Bone, ImageBuffer, SKINNED_STRIDE,
+    STATIC_STRIDE,
 };
 use glam::{Mat4, Quat, Vec3};
 use wgpu::util::DeviceExt;
@@ -76,6 +79,52 @@ pub struct ModelGroup {
     pub name: String,
     pub ranges: Vec<RangeData>,
     pub instances: Vec<[f32; 16]>,
+    bones: Vec<Bone>,
+    animation_bone: Option<usize>,
+}
+
+/// A placement plus its current animation pose. Rigid trees share mesh/texture assets while
+/// each expiring instance has its own playback clock and node transform.
+pub struct ModelInstance {
+    pub matrix: [f32; 16],
+    pub locals: Option<Vec<Transform>>,
+}
+
+struct ModelAsset {
+    ranges: Vec<RangeData>,
+    bones: Vec<Bone>,
+    animation_bone: Option<usize>,
+}
+
+impl ModelGroup {
+    fn matrices(&self, instances: Vec<ModelInstance>) -> Vec<[f32; 16]> {
+        instances
+            .into_iter()
+            .map(|instance| {
+                let Some(mut locals) = instance.locals else {
+                    return instance.matrix;
+                };
+                let Some(bone) = self.animation_bone else {
+                    return instance.matrix;
+                };
+                if locals.len() != self.bones.len() {
+                    return instance.matrix;
+                }
+                // Runtime UpdateNodes (0x1800ff4b0) extracts root movement, then replaces the root
+                // pose with the placement transform. Tree root movement is zero in shipped clips.
+                if let Some(root) = locals.first_mut() {
+                    *root = Transform::IDENTITY;
+                }
+                let world = world_transforms(&self.bones, &locals);
+                // The existing range uniform contains the bind node transform. Cancel that bind
+                // frame in the instance transform before applying this instance's animated node.
+                let correction = world[bone].mul(&inverse_bind(&self.bones[bone]));
+                (Mat4::from_cols_array(&instance.matrix)
+                    * Mat4::from_cols_array(&correction.to_matrix()))
+                .to_cols_array()
+            })
+            .collect()
+    }
 }
 
 pub struct SceneModels {
@@ -160,7 +209,7 @@ fn load_group(
     mesh_ref: &str,
     material_set: usize,
     textures: &mut HashMap<String, Option<ImageBuffer>>,
-) -> Option<Vec<RangeData>> {
+) -> Option<ModelAsset> {
     let mesh = graphics_mesh(&archive.read_ref(&with_object(mesh_ref)).ok()?)
         .map_err(|e| log::warn!("{mesh_ref}: {e}"))
         .ok()?;
@@ -234,7 +283,20 @@ fn load_group(
             },
         });
     }
-    Some(ranges)
+    let mut rigid_nodes = part
+        .ranges
+        .iter()
+        .filter(|r| r.index_count > 0)
+        .map(|r| r.bone);
+    let animation_bone = rigid_nodes
+        .next()
+        .filter(|&first| first >= 0 && rigid_nodes.all(|bone| bone == first))
+        .map(|bone| bone as usize);
+    Some(ModelAsset {
+        ranges,
+        bones: mesh.bones,
+        animation_bone,
+    })
 }
 
 impl SceneModels {
@@ -260,14 +322,16 @@ impl SceneModels {
             let Some(Some(mesh_ref)) = scene.meshes.get(key.0 as usize) else {
                 continue;
             };
-            let Some(ranges) = load_group(archive, mesh_ref, key.1.max(0) as usize, &mut textures)
+            let Some(asset) = load_group(archive, mesh_ref, key.1.max(0) as usize, &mut textures)
             else {
                 continue;
             };
             groups.push(ModelGroup {
                 name: mesh_ref.clone(),
-                ranges,
+                ranges: asset.ranges,
                 instances: by_key.remove(&key).unwrap_or_default(),
+                bones: asset.bones,
+                animation_bone: asset.animation_bone,
             });
         }
         SceneModels {
@@ -280,18 +344,22 @@ impl SceneModels {
     /// by the game (natural resources, buildings).
     pub fn from_instances(
         archive: &Archive,
-        instances: Vec<(String, usize, Vec<[f32; 16]>)>,
+        instances: Vec<(String, usize, Vec<ModelInstance>)>,
     ) -> SceneModels {
         let mut textures = HashMap::new();
         let groups = instances
             .into_iter()
             .filter_map(|(mesh_ref, set, instances)| {
-                let ranges = load_group(archive, &mesh_ref, set, &mut textures)?;
-                Some(ModelGroup {
+                let asset = load_group(archive, &mesh_ref, set, &mut textures)?;
+                let mut group = ModelGroup {
                     name: mesh_ref,
-                    ranges,
-                    instances,
-                })
+                    ranges: asset.ranges,
+                    instances: Vec::new(),
+                    bones: asset.bones,
+                    animation_bone: asset.animation_bone,
+                };
+                group.instances = group.matrices(instances);
+                Some(group)
             })
             .collect();
         SceneModels {
@@ -305,7 +373,7 @@ impl SceneModels {
     pub fn update_instances(
         &mut self,
         archive: &Archive,
-        instances: Vec<(String, usize, Vec<[f32; 16]>)>,
+        instances: Vec<(String, usize, Vec<ModelInstance>)>,
     ) {
         for group in &mut self.groups {
             group.instances.clear();
@@ -313,13 +381,17 @@ impl SceneModels {
         let mut textures = HashMap::new();
         for (name, set, instances) in instances {
             if let Some(group) = self.groups.iter_mut().find(|g| g.name == name) {
-                group.instances = instances;
-            } else if let Some(ranges) = load_group(archive, &name, set, &mut textures) {
-                self.groups.push(ModelGroup {
+                group.instances = group.matrices(instances);
+            } else if let Some(asset) = load_group(archive, &name, set, &mut textures) {
+                let mut group = ModelGroup {
                     name,
-                    ranges,
-                    instances,
-                });
+                    ranges: asset.ranges,
+                    instances: Vec::new(),
+                    bones: asset.bones,
+                    animation_bone: asset.animation_bone,
+                };
+                group.instances = group.matrices(instances);
+                self.groups.push(group);
             }
         }
         self.revision += 1;

@@ -30,9 +30,9 @@ ported in `crates/game/src/scheduler.rs`.
 
 Runtime Time construction (`0x1800078c0`) divides f32 seconds by f64 seconds-per-tick and truncates
 to integer ticks. AsSeconds (`0x180007900`) multiplies ticks by that f64 value, then converts to
-f32. **Deviation:** Rust uses nanosecond ticks on all platforms rather than Windows' performance
-timer frequency. Emulator parity uses the same configured frequency; it does not establish
-equality to every possible Windows timer frequency.
+f32. The initial step-18 port assumed nanosecond ticks. That interpretation is superseded by
+[step 19](GAME-LOOP-STEP-19.md): Timer::Startup establishes fixed microsecond units. Rust and
+all growth fixtures have been corrected and regenerated at that original frequency.
 
 ## Corrected growth inputs and transitions
 
@@ -111,7 +111,8 @@ found their controls. This is not an interactive browser-camera or original-game
 
 ## Remaining work
 
-- Port tree animation index 2 and its completion/removal chain.
+- Tree animation index 2 and its completion/removal chain are now ported in
+  [step 19](GAME-LOOP-STEP-19.md); spatial audio dispatch remains open.
 - Port ongoing SpawnComponent cross-template spawning and other component/manager phases.
 - Add citizen AI/action scheduling, movement, needs and production/storage transfers. Citizens
   are not yet registered in this placed-entity scheduler and their starting models remain static.

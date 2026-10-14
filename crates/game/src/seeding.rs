@@ -12,11 +12,14 @@ use banished_formats::game::{
     PlacedStructure,
 };
 
+use crate::animation::Playback;
 use crate::growth::{adjust_map_byte, Growth};
 use crate::noise::PerlinNoise;
 use crate::random::Random;
-use crate::scheduler::EntityScheduler;
+use crate::scheduler::{ticks, EntityScheduler};
 use crate::terrain::{CellType, HeightGrid};
+use banished_formats::types::AnimationGroup;
+use std::sync::Arc;
 
 /// The descriptions of one template that seeding reads.
 #[derive(Debug, Clone)]
@@ -27,6 +30,8 @@ pub struct Template {
     pub bucket: usize,
     pub map: Option<MapDescription>,
     pub model: Option<ModelDescription>,
+    /// ModelDescription variant animation groups, cached in the original ExternalFactory.
+    pub animations: Vec<Option<Arc<AnimationGroup>>>,
     pub natural: Option<NaturalResourceDescription>,
     pub growth: Option<GrowthDescription>,
     /// Cached external GrowthDescription identity, used by FUN_140126100's pointer comparison.
@@ -59,6 +64,9 @@ pub struct Placed {
     pub growth: f32,
     pub growth_state: Option<Growth>,
     pub alive: bool,
+    /// NaturalResourceComponent flag 0x200000 (FUN_14012bc50).
+    pub removal_requested: bool,
+    pub animation: Option<Playback>,
     /// Mesh instance scale (`MeshInstance +0x134`).
     pub scale: [f32; 4],
 }
@@ -111,6 +119,8 @@ pub struct Seeder<'a> {
     pub placed: &'a mut Vec<Placed>,
     /// Removal requests in callback order (FUN_1400c9560 drains this after all buckets).
     pub removed: &'a mut Vec<usize>,
+    /// Original animation callbacks: owning entity and external event resource reference.
+    pub animation_events: &'a mut Vec<(usize, String)>,
 }
 
 impl<'a> Seeder<'a> {
@@ -185,6 +195,8 @@ impl<'a> Seeder<'a> {
                 growth: 0.0,
                 growth_state: None,
                 alive: true,
+                removal_requested: false,
+                animation: None,
                 scale: [ONE; 4],
             });
         }
@@ -360,6 +372,8 @@ impl<'a> Seeder<'a> {
             growth,
             growth_state: Some(state),
             alive: true,
+            removal_requested: false,
+            animation: None,
             scale,
         });
         let fraction = self.rng.rand_float();
@@ -406,6 +420,8 @@ impl<'a> Seeder<'a> {
             growth,
             growth_state: Some(state),
             alive: true,
+            removal_requested: false,
+            animation: None,
             scale,
         }))
     }
@@ -450,7 +466,9 @@ impl<'a> Seeder<'a> {
         disabled: bool,
     ) -> bool {
         scheduler.advance(dt);
-        let mut changed = false;
+        // FUN_1400c9560's bit-0x04 component phase precedes scheduled growth. Within a tree
+        // the ModelComponent (FUN_140129e30) runs before NaturalResource (FUN_14012b110).
+        let mut changed = self.animate(ticks(dt));
         for bucket in 0..5 {
             for (_, id, elapsed) in scheduler.visit_bucket(bucket) {
                 let p = &mut self.placed[id];
@@ -485,13 +503,16 @@ impl<'a> Seeder<'a> {
                         .as_ref()
                         .is_some_and(|n| n.flag)
                     {
-                        // Deviation: record animation index 2, leaving the existing mesh visible
-                        // until the mesh-animation controller is ported. Never fake a removal.
-                        self.placed[id]
-                            .growth_state
-                            .as_mut()
-                            .unwrap()
-                            .pending_animation = true;
+                        // FUN_14012bc50 -> FUN_14012b910 -> FUN_14012a5c0: use the selected
+                        // model variant's animation group, index 2, start time zero.
+                        let p = &mut self.placed[id];
+                        p.removal_requested = true;
+                        p.animation = self.templates[p.template]
+                            .animations
+                            .get(p.variant)
+                            .and_then(Option::as_ref)
+                            .and_then(|g| g.clips.get(2))
+                            .map(|_| Playback::new(2, 0));
                     } else {
                         self.remove(id);
                         changed = true;
@@ -517,6 +538,50 @@ impl<'a> Seeder<'a> {
                 let d = self.templates[p.template].growth.as_ref().unwrap();
                 changed |= state.smooth(d, p.growth, &mut p.scale);
             }
+        }
+        changed
+    }
+
+    /// Port of FUN_140129e30 -> Runtime MeshInstance::Update (0x180103090), followed by
+    /// FUN_14012b110's completion/removal callback. The clock advances per simulation iteration,
+    /// while the published pose uses the old clock; pause runs neither callback.
+    fn animate(&mut self, dt: i64) -> bool {
+        let mut finished = Vec::new();
+        let mut changed = false;
+        for (id, p) in self.placed.iter_mut().enumerate() {
+            if !p.alive {
+                continue;
+            }
+            let Some(playback) = &mut p.animation else {
+                if p.removal_requested {
+                    finished.push(id);
+                }
+                continue;
+            };
+            let Some(clip) = self.templates[p.template]
+                .animations
+                .get(p.variant)
+                .and_then(Option::as_ref)
+                .and_then(|g| g.clips.get(playback.clip))
+            else {
+                continue;
+            };
+            if !playback.is_animating(clip) {
+                continue;
+            }
+            for event in playback.update(clip, dt) {
+                if let Some(reference) = &clip.events[event].resource {
+                    self.animation_events.push((id, reference.clone()));
+                }
+            }
+            changed = true;
+            if !playback.is_animating(clip) && p.removal_requested {
+                finished.push(id);
+            }
+        }
+        for id in finished {
+            self.remove(id);
+            changed = true;
         }
         changed
     }
@@ -599,6 +664,8 @@ impl<'a> Seeder<'a> {
                         growth,
                         growth_state,
                         alive: true,
+                        removal_requested: false,
+                        animation: None,
                         scale,
                     });
                     if !self.templates[template].spawn.is_empty() {
@@ -662,6 +729,7 @@ mod tests {
                 random_variant: true,
             }),
             natural: None,
+            animations: Vec::new(),
             growth: Some(GrowthDescription {
                 max_base: 4.0,
                 max_range: 1.0,
@@ -706,9 +774,10 @@ mod tests {
                 scheduled: true,
                 smoothing: false,
                 allow_negative: false,
-                pending_animation: false,
             }),
             alive: true,
+            removal_requested: false,
+            animation: None,
             scale: [1.0; 4],
         }
     }
@@ -726,6 +795,7 @@ mod tests {
         cells.types[8 * 16 + 8] = CellType(4);
         let mut placed = vec![parent()];
         let mut removed = Vec::new();
+        let mut animation_events = Vec::new();
         let mut rng = Random::new(290);
         let mut expected = rng.clone();
         // FUN_140125070's order, including the constructor's variant draw which is overwritten.
@@ -747,6 +817,7 @@ mod tests {
             rng: &mut rng,
             placed: &mut placed,
             removed: &mut removed,
+            animation_events: &mut animation_events,
         };
         let child = world.periodic_spawn(0).unwrap();
         assert_eq!(world.placed[child].cell, (x, y));
@@ -776,6 +847,7 @@ mod tests {
         let mut cells = Cells::new(16, vec![CellType::GROUND; 256]);
         let mut placed = vec![parent()];
         let mut removed = Vec::new();
+        let mut animation_events = Vec::new();
         let mut rng = Random::new(290);
         let mut world = Seeder {
             templates: &templates,
@@ -784,6 +856,7 @@ mod tests {
             rng: &mut rng,
             placed: &mut placed,
             removed: &mut removed,
+            animation_events: &mut animation_events,
         };
         for gate in 0..3 {
             world.cells.types[136] = if gate == 0 {
@@ -817,6 +890,7 @@ mod tests {
         cells.objects[136] = Some(0);
         let mut placed = vec![parent()];
         let mut removed = Vec::new();
+        let mut animation_events = Vec::new();
         let mut rng = Random::new(290);
         let mut scheduler = EntityScheduler::default();
         scheduler.register(0, 3);
@@ -827,6 +901,7 @@ mod tests {
             rng: &mut rng,
             placed: &mut placed,
             removed: &mut removed,
+            animation_events: &mut animation_events,
         };
         assert!(world.iterate(&mut scheduler, 901.0, 60.0, false));
         assert!(world.placed.len() > 1);

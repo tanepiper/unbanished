@@ -1,10 +1,10 @@
 //! Entity-manager buckets (`FUN_1400c9460`, `FUN_1400c9560`, `FUN_1400c9d70`).
 //! Stable Rust handles replace InternalBasePtr; bucket deletion still swaps with the last entry.
 
-/// Deviation: use nanosecond ticks on every platform instead of the Windows performance timer's
-/// frequency. `System::Time` converts through f64, truncating on construction (Runtime
-/// `0x1800078c0`) and rounding to f32 on AsSeconds (`0x180007900`).
-pub const SECONDS_PER_TICK: f64 = 1e-9;
+/// Port of Runtime System::Timer::Startup (0x1800cd030): the performance counter is normalized
+/// to 1,000,000 ticks/second. System::Time converts through f64, truncating on construction
+/// (0x1800078c0) and rounding to f32 on AsSeconds (0x180007900).
+pub const SECONDS_PER_TICK: f64 = 1e-6;
 
 pub fn ticks(seconds: f32) -> i64 {
     (seconds as f64 / SECONDS_PER_TICK) as i64

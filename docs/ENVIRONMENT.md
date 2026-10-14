@@ -21,7 +21,10 @@ Each iteration gets the same frame delta. In order, each iteration:
 3. calls `FUN_1400999b0`, the environment update;
 4. calls the citizen manager and the other managers.
 
-The port runs the calendar and environment steps of that loop. The other managers are not ported.
+The port now runs the scheduled natural-resource/unique-animation phase, integer calendar and
+environment in this order. Other managers remain unported. Step 19's bounded original-loop
+emulation confirms the order and corrects the previous Rust driver's calendar/environment-first
+sequence; see [GAME-LOOP-STEP-19.md](GAME-LOOP-STEP-19.md).
 
 ## Construction and binding
 

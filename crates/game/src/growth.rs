@@ -26,8 +26,6 @@ pub struct Growth {
     pub smoothing: bool,
     /// NaturalResourceComponent capability bit 0x100000; false on newly seeded resources.
     pub allow_negative: bool,
-    /// The tree-family transition awaits mesh animation index 2 (FUN_14012b910).
-    pub pending_animation: bool,
 }
 
 #[derive(Debug, Default)]
@@ -57,7 +55,6 @@ impl Growth {
                 scheduled: true,
                 smoothing: false,
                 allow_negative: false,
-                pending_animation: false,
             },
             value,
             scale(smoothed, d.tall),

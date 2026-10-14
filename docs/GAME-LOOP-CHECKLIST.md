@@ -11,9 +11,9 @@ evidence; static traces are not claims of live-game behavior.
   [GAMEPLAY-LOOP-FOUNDATIONS.md](GAMEPLAY-LOOP-FOUNDATIONS.md),
   [WORLD-GENERATION.md](WORLD-GENERATION.md), and
   [START-CONDITION-PROFILES.md](START-CONDITION-PROFILES.md).
-- [x] Implement an interactive generated map, compact HUD, date display, pause/speed controls,
-  camera rotation, pan and zoom, and monthly environment lighting. The selected climate and
-  starting-condition labels currently display, but do not yet create their game effects or entities.
+- [x] Implement the generated map, packaged toolbar/Status Bar, date and pause/speed controls,
+  camera navigation and monthly lighting. Selected climate and starting profiles drive their
+  currently ported environment, structures, inventory, households and natural resources.
 - [x] Trace the outer loop, calendar, climate temperature/weather thresholds, and packaged gameplay
   dialogs. See [GAME-LOOP-STEP-01.md](GAME-LOOP-STEP-01.md) through
   [GAME-LOOP-STEP-10.md](GAME-LOOP-STEP-10.md).
@@ -23,6 +23,9 @@ evidence; static traces are not claims of live-game behavior.
   [GAME-LOOP-STEP-14.md](GAME-LOOP-STEP-14.md).
 - [x] Recover the five scheduler quotas and verify growth, initialization and bucket visits against
   the original functions under emulation. See [GAME-LOOP-STEP-18.md](GAME-LOOP-STEP-18.md).
+- [x] Recover original microsecond time units and verify loop order/calendar, animation sampling,
+  playback clocks, completion and event intervals under emulation. See
+  [GAME-LOOP-STEP-19.md](GAME-LOOP-STEP-19.md).
 - [x] Trace the guarded natural-resource output and distinguish its category counter from the
   Status Bar stock count. See [GAME-LOOP-STEP-15.md](GAME-LOOP-STEP-15.md).
 - [x] Trace `AnimateNaturalResource` and `RemoveNaturalResource`, animation completion, their action
@@ -46,11 +49,10 @@ evidence; static traces are not claims of live-game behavior.
 - [ ] Trace production, harvest, storage, and stock updates from resource entities through the
   Status Bar counters. Existing status flags and fixed-stride stock layout are only partially
   identified; see steps 8-9.
-- [ ] Trace start-condition application from `FUN_1400a87d0`: initial structures, households,
-  inventories, raw materials, and natural-resource seeding.
-- [ ] Trace how the selected climate profile changes temperatures, annual weather thresholds,
-  weather transitions, precipitation/snow, effects, and audio. Only climate configuration and
-  threshold setup are currently mapped.
+- [ ] Complete start-condition application beyond the traced structures, household creation,
+  inventory and natural-resource seeding: residence assignment, wildlife and other populations.
+- [ ] Complete climate precipitation geometry/effects and ambient audio beyond the traced and
+  ported temperature, weather-state, threshold and seasonal controllers.
 - [ ] Extend beyond natural resources into citizen/job scheduling, movement, needs, production,
   consumption, events, and entity removal.
 
@@ -66,7 +68,8 @@ evidence; static traces are not claims of live-game behavior.
   population. Port the exact name generator, verified bit-exact under emulation. See
   [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md) and
   [TOWN-NAME-DATABASE.md](TOWN-NAME-DATABASE.md).
-- [ ] Citizen models and animation, deer, crops, orchards, livestock, and building decals and
+- [x] Draw starting citizen meshes in bind pose; animation and movement remain below.
+- [ ] Citizen animation/movement, deer, crops, orchards, livestock, and building decals and
   footprints.
 - [x] Replace the compact HUD with the packaged toolbar and Status Bar controllers. See
   [IN-GAME-TOOLBAR.md](IN-GAME-TOOLBAR.md) and [UTILITY-WINDOWS.md](UTILITY-WINDOWS.md).
@@ -76,9 +79,13 @@ evidence; static traces are not claims of live-game behavior.
   and run it per simulation iteration after the calendar. See [ENVIRONMENT.md](ENVIRONMENT.md).
 - [x] Connect seeded natural resources to scheduled growth, periodic same-template spawning,
   map transitions and non-tree removal, with one post-iteration smoothing pass and live GPU
-  instance updates. Tree expiry records its animation request; animation completion remains open.
+  instance updates. Tree expiry animation/completion is covered by step 19 below.
   See [GAME-LOOP-STEP-18.md](GAME-LOOP-STEP-18.md).
-- [ ] Port tree expiry animation index 2 and ongoing SpawnComponent cross-template spawning.
+- [x] Play tree expiry animation index 2 from its packaged group, update each instance's rigid
+  node pose, and remove the entity/map stamp at the serialized completion tick; verify on GPU.
+  See [GAME-LOOP-STEP-19.md](GAME-LOOP-STEP-19.md).
+- [ ] Port ongoing SpawnComponent cross-template spawning and spatial AnimAudioEvent/SoundEffect
+  dispatch. Shared/blended animation states and animated skin rendering also remain open.
 - [ ] Port weather effects (rain/snow geometry, ambient audio, timed spawn) and connect weather to
   citizens, production, events, and resource consumption.
 - [ ] Add save/load, autosave, and event notifications to the active gameplay loop.
@@ -98,3 +105,6 @@ evidence; static traces are not claims of live-game behavior.
   WASM build, original-function growth/scheduler parity, a generated-town GPU integration test,
   and an inspected native New Game capture. Interactive browser/camera verification and
   original-game transition/visual parity remain open.
+- Step 19 corrects time units and entity/calendar/environment order, proves animation poses and
+  unique playback against original functions, and records inspected native tree-expiry captures.
+  These are bounded original-function and remake tests; the complete game is not yet verified.

@@ -5,7 +5,7 @@ Usage: .venv/bin/python tools/emu/growth.py OUT_DIR
 Writes growth.tsv (initialization, scheduled growth, spawn interval counts, map transition and
 visual smoothing) and scheduler.tsv (five-bucket visits). Dumps stay under game-data/derived/emu.
 Rendering, entity spawning and owner-mask callbacks are stubbed; arithmetic and interval branches
-execute in the original functions. System::Timer is configured to nanosecond ticks, as in Rust.
+execute in the original functions. System::Timer::Startup establishes its original microsecond ticks.
 """
 import itertools
 import os
@@ -19,7 +19,10 @@ def main(out_dir):
     os.makedirs(out_dir, exist_ok=True)
     emu = Emu('game-data/original/Application-steam-x64.exe',
               'game-data/original/Runtime-steam-x64.dll')
-    emu.write(0x180202728, struct.pack('<d', 1e-9))
+    emu.hook_function(0x1800cd0d0, 'platform performance-counter initialization', lambda a: 1)
+    emu.call(0x1800cd030)
+    seconds_per_tick = struct.unpack('<d', emu.read(0x180202728, 8))[0]
+    assert seconds_per_tick == 1e-6
     emu.hook_function(emu.exports['?CheckPtr@InternalBasePtr@Object@@IEBAXXZ'],
                       'CheckPtr (valid synthetic objects)', lambda a: 0)
     emu.hook_function(0x1400c8940, 'owner capability notification', lambda a: 0)
@@ -61,7 +64,7 @@ def main(out_dir):
     for rate, seasonal, temperature, value, maximum, dt, timer, tall, allow, disabled in itertools.product(
         (2.0, -2.0), (0, 1), (20.0, 32.0, 50.0, 60.0, 100.0),
         (0.0, 0.75, 1.0, 1.5), (1.0, 4.0, -1.0),
-        (0.0, 0.25, 300.0, 901.0), (0, 300_000_000_000), (0, 1), (0, 1), (0, 1)):
+        (0.0, 0.25, 300.0, 901.0), (0, 300_000_000), (0, 1), (0, 1), (0, 1)):
         emu.write(description, bytes(0x68))
         f32(description + 0x28, rate)
         emu.write(description + 0x2c, bytes([seasonal]))
@@ -83,7 +86,7 @@ def main(out_dir):
         f32(environment + 0x18, temperature)
         u32(game + 0xd0, disabled << 10)
         emu.write(map_cells + 0x2c, b'\x80')
-        emu.write(time, struct.pack('<q', int(dt / 1e-9)))
+        emu.call(emu.exports['??0Time@System@@QEAA@M@Z'], time, F32(dt))
         attempts[0] = 0
         emu.call(0x140125520, component, time)
         # Only invoke the follow-up while capability bit 0x10 is set, as the manager does.
