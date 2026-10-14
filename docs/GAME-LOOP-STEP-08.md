@@ -89,6 +89,7 @@ name.
 - Local Ghidra exports: `analysis/gameplay-statusbar-controller.txt` and
   `analysis/statusbar-global-owner.txt`.
 
-Still open: identify the concrete owner of the entity array and stock table, find the code that sets
-the `StatusIconComponent` bits, and trace the stock value at row `+0` through production,
-consumption and transfer. The port still renders a compact HUD rather than these Status Bar values.
+The status flag producers are traced in [step 09](GAME-LOOP-STEP-09.md). Still open: identify the
+concrete owner of the entity array and stock table, trace the stock value at row `+0` through
+production, consumption and transfer, and resolve the tool-bit transition in the separate event
+path. The port still renders a compact HUD rather than these Status Bar values.

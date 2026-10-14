@@ -48,7 +48,8 @@ The original Status Bar resources and serialized weather state are in
 `UtilityStatusBar` package route are traced in [GAME-LOOP-STEP-07.md](GAME-LOOP-STEP-07.md). The
 click-time activation path remains open. Population/status meanings and the fixed-stride stock table
 are recorded in [GAME-LOOP-STEP-08.md](GAME-LOOP-STEP-08.md); flag producers, stock update owners,
-and concrete container types remain open.
+and concrete container types are traced in [GAME-LOOP-STEP-09.md](GAME-LOOP-STEP-09.md) and remain
+partially open for tool transitions and stock accounting.
 
 The outer update and its follow-up are documented in [GAME-LOOP-STEP-01.md](GAME-LOOP-STEP-01.md)
 and [GAME-LOOP-STEP-02.md](GAME-LOOP-STEP-02.md). The trace establishes pause/speed gating,
