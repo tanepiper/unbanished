@@ -119,3 +119,81 @@ impl TextLayout {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::resources::{LoadedFont, LoadedSheet};
+    use banished_formats::pkg::Archive;
+    use banished_formats::ui::{Font, Sprite, SpriteSheet};
+    use std::rc::Rc;
+
+    fn resources() -> Resources {
+        let mut res = Resources::new(Rc::new(Archive::default()));
+        let chars = ['A', 'g', 'x', '.', '?', ' '];
+        let mut char_map = vec![-1; 128];
+        for (i, ch) in chars.into_iter().enumerate() {
+            char_map[ch as usize] = i as i32;
+        }
+        let font = Font {
+            name: "test".into(),
+            size: 16,
+            sheet_width: 64,
+            sheet_height: 64,
+            character_set: None,
+            sprite_sheet: None,
+            material: None,
+            char_map,
+            glyphs: vec![
+                [1, 1, 6, 0],
+                [1, 1, 6, -3],
+                [1, 1, 5, 0],
+                [1, 1, 2, 0],
+                [1, 1, 6, 0],
+                [0, 0, 4, 0],
+            ],
+            unknown: [4, 12, 4],
+        };
+        res.sheets.push(LoadedSheet {
+            reference: "test".into(),
+            image: None,
+            sheet: SpriteSheet {
+                material_path: String::new(),
+                source_image: String::new(),
+                width: 64,
+                height: 64,
+                unknown_flag: false,
+                material: None,
+                sprites: [9, 9, 7, 2, 9, 0]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, height)| Sprite {
+                        name: String::new(),
+                        source: String::new(),
+                        offset: [0, 0],
+                        width: font.glyphs[i][2],
+                        height,
+                        unknown: 0,
+                        uv: [0.0, 0.0, 1.0, 1.0],
+                    })
+                    .collect(),
+            },
+        });
+        res.fonts.push(LoadedFont {
+            ascent: font.baseline_offset(),
+            font,
+            sheet: Some(0),
+        });
+        res
+    }
+
+    #[test]
+    fn uses_serialized_descent_for_baseline_and_line_spacing() {
+        let res = resources();
+        // Tallest top above baseline is 9, but the serialized baseline is 16 - 4 = 12.
+        assert_eq!(res.fonts[0].font.baseline_offset(), 12);
+        let layout = TextLayout::compute(&res, 0, "Ag\nA", None, 0);
+        assert_eq!(layout.glyphs.iter().map(|g| g.y).collect::<Vec<_>>(), [3, 6, 19]);
+        assert_eq!((layout.width, layout.height), (16, 32));
+    }
+}

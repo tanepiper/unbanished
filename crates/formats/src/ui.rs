@@ -248,7 +248,24 @@ pub enum ElementKind {
         unknown: [i32; 3],
         cells: Vec<TableCell>,
     },
-    DocumentText,
+    DocumentText(DocumentText),
+}
+
+/// Rich text configuration (`DocumentTextDescription::Serialize`, 0x1800d2110).
+#[derive(Debug, Clone)]
+pub struct DocumentText {
+    pub string_table: Ref,
+    pub text: String,
+    pub sprite_sheet: Ref,
+    pub bullets: Vec<String>,
+    pub underline_sprite: String,
+    pub link_colors: [u32; 3],
+    pub indent: i32,
+    pub width: i32,
+    pub fonts: Vec<Ref>,
+    pub sheets: Vec<Ref>,
+    pub colors: Vec<u32>,
+    pub images: Ref,
 }
 
 #[derive(Debug, Clone)]
@@ -545,9 +562,22 @@ fn read_element(class: &'static str, r: &mut Reader) -> Result<Element> {
             Ok(ElementKind::Table { unknown, cells })
         })?,
         "DocumentTextDescription" => {
-            // Rich text with embedded images; payload not interpreted yet.
-            r.skip_block()?;
-            ElementKind::DocumentText
+            r.block(|r, _| {
+                Ok(ElementKind::DocumentText(DocumentText {
+                    string_table: r.external_ref()?,
+                    text: r.string()?,
+                    sprite_sheet: r.external_ref()?,
+                    bullets: (0..r.count()?).map(|_| r.string()).collect::<Result<_>>()?,
+                    underline_sprite: r.string()?,
+                    link_colors: [r.u32()?, r.u32()?, r.u32()?],
+                    indent: r.i32()?,
+                    width: r.i32()?,
+                    fonts: refs(r)?,
+                    sheets: refs(r)?,
+                    colors: (0..r.count()?).map(|_| r.u32()).collect::<Result<_>>()?,
+                    images: r.external_ref()?,
+                }))
+            })?
         }
         _ => return Err(Error::Unsupported(format!("element class {class}"))),
     };
@@ -754,12 +784,19 @@ pub struct Font {
     pub material: Ref,
     /// Code point -> glyph index; negative or 0xffff means no glyph.
     pub char_map: Vec<i32>,
-    /// Per glyph: (a, c, b, unknown): advance = a + b, with the previous glyph's c added as kerning.
+    /// Per glyph: (a, c, b, d): advance = a + b, with the previous glyph's c added;
+    /// d raises the bottom of the sprite above the baseline.
     pub glyphs: Vec<[i32; 4]>,
+    /// Serialized descent, ellipsis advance, and space advance (Runtime Font +0x54/58/5c).
     pub unknown: [i32; 3],
 }
 
 impl Font {
+    /// Baseline relative to a text element's top, as used by TextElement::Draw (0x180121b10).
+    pub fn baseline_offset(&self) -> i32 {
+        self.size - self.unknown[0]
+    }
+
     pub fn glyph_index(&self, ch: char) -> Option<usize> {
         let g = *self.char_map.get(ch as usize)?;
         (g >= 0 && g != 0xFFFF && (g as usize) < self.glyphs.len()).then_some(g as usize)

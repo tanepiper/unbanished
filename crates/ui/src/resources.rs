@@ -123,18 +123,8 @@ impl Resources {
             .ok()
             .map(|font| {
                 let sheet = font.sprite_sheet.as_deref().and_then(|s| self.sheet(s));
-                // Baseline: tallest glyph top above it (sprite height + per-glyph offset).
-                let ascent = sheet
-                    .map(|s| {
-                        let sprites = &self.sheets[s].sheet.sprites;
-                        font.glyphs
-                            .iter()
-                            .zip(sprites)
-                            .map(|(g, sp)| sp.height + g[3])
-                            .max()
-                            .unwrap_or(font.size)
-                    })
-                    .unwrap_or(font.size);
+                // TextElement::Draw uses the serialized descent, not the tallest bitmap.
+                let ascent = font.baseline_offset();
                 self.fonts.push(LoadedFont {
                     font,
                     sheet,
