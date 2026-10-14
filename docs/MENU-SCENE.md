@@ -49,7 +49,32 @@ random (`FUN_14009e600`).
 - **Draw (`FUN_1400a0910`).** The camera frustum is set by `FUN_14009db30(40, 2, 512)`: 40°
   vertically and `aspect × 40°` horizontally up to 16:9, with each angle used directly. The draw
   sets the sun (`FromYawPitch(yaw, pitch)`), the light and ambient colours, the fog and
-  `pc_userPosition`, renders the scene and then the UI.
+  `pc_userPosition`, renders the 3D scene to an offscreen target, copies it to the window, and then
+  draws the UI and fades over it.
+
+## Current menu-scene rendering
+
+The headless renderer has been captured for menu scenes 0, 1, 3, 5 and 9. The current scene pass
+draws the sky, terrain, placed models and ground decals offscreen; if water is present, it also
+renders a half-size planar reflection, copies the scene for refraction, and draws the river/lake
+surface. The final offscreen scene is blitted to the window before UI composition, matching the
+original render order.
+
+The implemented scene details are:
+
+- **Sky:** the sky dome samples its cube texture and mixes toward the mirrored overcast view using
+  the scene's snow and rain values.
+- **Water:** rivers and lakes use moving ripples, the copied scene for refraction, the planar scene
+  reflection, environment highlights and soft shoreline alpha.
+- **Ground markings:** tiled decals draw roads, market squares, fields and building footprints,
+  including snow coverage where the decal material supports it.
+- **Snow:** terrain, roof materials and pines use each scene's `userPosition.x` snow value.
+- **Pines:** foliage vertices sway using their wind weights and scene time.
+- **Deciduous trees:** billboard leaf cards turn with autumn colour and thin out with leaf loss.
+
+The scene fields are the values from the original MenuScene resources; these captures establish
+that the listed paths render in the headless build for those five selected scenes. They do not
+verify every one of the ten scenes in a browser or against a live game capture.
 
 ## MenuScene format (`FUN_1400a8b00`, version 2)
 
@@ -97,7 +122,7 @@ The disassembled D3D9 programs give the shading:
 
 - **OpaqueMaterial:** `diffuse × (sun × sat(−n·L) + ambient × (n·L/2 + 1.5) × AO)`, then fog.
 - **AlphaTest** (herbs, crops) **and Foliage** (pines): the same with a 0.5 alpha cut. Foliage
-  wind is not ported yet.
+  also sways by the per-vertex wind weight and scene time.
 - **BillboardMaterial** (deciduous trees). A vertex with a non-zero `userData` corner is a leaf
   card:
   - it is pushed out along the camera's right and up axes, bent towards the view by the normal;
@@ -107,10 +132,14 @@ The disassembled D3D9 programs give the shading:
     `.y`, using `lum × (0.914, 0.725, 0.278)`.
 
 The other materials in use are OpaqueSnow (snow on roofs from `userPosition.x`), OpaqueInWater
-and their Damage variants. These are drawn as Opaque for now.
+and their Damage variants. OpaqueInWater and Damage variants currently use the Opaque draw path.
 
-## Not yet drawn
+## Remaining menu-scene work
 
-The sky mesh, the water surface, decals, chimney and iron smoke, rain, roof snow and foliage wind.
-The water surface shader needs a copy of the frame for refraction, plus reflection and highlight
-maps.
+The renderer still does not draw chimney or forge smoke, or falling rain. The menu town-name box is
+empty; the generator path has been traced but its name-list file still needs decoding. Menu music
+currently decodes the full track at once, which can pause the loading spinner; stream or chunk the
+decode to keep loading responsive. Button click sounds are not wired. Browser playback start-after-
+first-click behavior has not been confirmed in a real browser. A small visual issue remains: distant
+summer trees look too pale. These shader and interaction details should be checked against saved
+headless captures and, where relevant, a real browser session.
