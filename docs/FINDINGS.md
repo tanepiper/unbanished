@@ -94,9 +94,9 @@ ExternalPtr = bool present, String "Path\File.rsc:object"   (stored as Path\File
   weights and uint8x4 bone indices.
 - Skeleton convention (`crates/formats/src/skeleton.rs`): stored quaternions are conjugated;
   world = parent × local; skinning matrix = world × inverse bind. **Skinned vertices sit in a per-mesh
-  rotated frame**, so they must be skinned even in bind pose. Verified: bind-pose skinning reproduces
-  the stored bounds within 2 mm for 7 of 8 skinned meshes. The **boat** is the exception (2.7 units
-  off) and is still unexplained.
+  rotated frame**, so they must be skinned even in bind pose. All eight skinned meshes, including the
+  boat, reproduce stored bounds within 2 mm. The boat combines rigid hull/oars with a skinned merchant;
+  both streams, local index base vertices and per-range materials must be retained. See [BOAT.md](BOAT.md).
 - `OpaqueCharacterMaterial` diffuse textures are horizontal atlases of square outfit variants
   (citizens: 8 variants, 1024×128); the mesh UVs cover a single cell.
 
@@ -146,8 +146,9 @@ Suggested milestones:
 ## 6. UI system
 
 Decoders: `crates/formats/src/ui.rs`. Runtime: `crates/ui`. All 1,644 UI resources decode exactly:
-55 `Dialog`, 4 `Font`, 31 `SpriteSheet`, 115 `StringTable` and 1,439 elements across 27
-`*Description` classes.
+55 `Dialog`, 4 `Font`, 31 `SpriteSheet`, 115 `StringTable` and 1,439 elements across 26 shipped
+`*Description` classes. All 27 decoder classes have runtime representations; ClipRegion has no standalone
+resource in this install and is covered with a constructed fixture.
 
 **Element base** (`ElementDescription::Serialize` 0x180119390, defaults from its constructor):
 margins (left, right, top, bottom), minimum size, alignment 0–8 (3×3 grid, default 3), flags
@@ -170,19 +171,40 @@ ARGB colour (default white), id, then border, tooltip-dialog and string-table re
 **Fonts** (`Font::Serialize` v2): an int code-point→glyph map and per-glyph `(a, c, b, d)` metrics.
 The pen advances `a` plus the previous glyph's `c`; the glyph is `b` wide and raised by `d`. Glyph
 bitmaps are sprites in the font's sprite sheet, and a sheet's image is a `MaterialInstance` `diffuse`
-texture. The fonts only cover code points up to 169 (©).
+texture. The font baseline is `size - descent`, traced from `TextElement::Draw` and
+`Font::ComputeLineLayout`, rather than estimated from glyphs. The original fonts cover code points up
+to 169 (©). A missing middle dot uses a centered period bitmap; other missing characters use a visible
+replacement and are reported by `TextLayout::missing_characters`. See [FONTS.md](FONTS.md).
 
 **Verified:** the main menu renders from `Dialog\MainMenu.rsc:main` with its translucent border, seven
 float buttons with icons, and labels from `StringTable:mainMenu` (New, Load, Tutorials,
 Achievements, Options, Mods, Exit).
 
-**Not yet implemented:**
-- Edit, Slider, Spinner, Tab, Table, Scroll, Combo dropdown, Progress, Graph, Layout and
-  DocumentText elements are decoded but drawn as nothing.
-- Tooltips.
-- Keyboard bindings (`TextDescription.unknown_8c`).
-- Dialog bindings and `named` lists.
-- Exact baseline maths: the ascent is derived from glyph data rather than traced.
+**Additional controls and input (2026-10-14):** sliders, scrollbars, clipped containers, tabs/pages,
+radio/check buttons, tables with wildcard cell templates, relative layouts, edits/number edits,
+spinners, dropdowns, progress bars, graphs and rich documents now produce runtime layout/draw data.
+The rich text decoder consumes its complete payload and supports native caret markup, font/color
+changes, wrapping, bullets, inline sprites, captured images and link hit regions.
+
+Pointer input, keyboard focus/Tab/Shift-Tab, edit cursor operations, slider keys, list navigation,
+shortcuts, tooltip templates and link events are wired through the viewer. Named dialog substitutions
+(including null suppression) and controller bindings resolve to runtime elements; `DialogInstance::dispatch`
+delivers events to host callbacks. The viewer supplies mode shortcuts 1–4 and dialog OK/Cancel use
+Enter/Escape. `TextDescription` field 0x8c is an ellipsis width, **not a keyboard binding**; the preceding
+booleans are shadow and wrapping. Text shadows and ellipsis now follow those decoded fields.
+
+`crates/ui/tests/controls.rs` exercises all 1,439 element resources and actual Options/NewGame controls,
+plus dropdown selection, clipping, Unicode edits, numeric limits, hidden/disabled input, tooltips,
+named substitutions and binding dispatch. Document tests process 790 shipped strings and all 192
+SpriteCapture resources. Native Metal captures were inspected, and Chrome exercised tabs, sliders,
+keyboard input and text editing. See [UI.md](UI.md) and [BROWSER.md](BROWSER.md).
+
+**Fidelity limits:** host controllers still supply game state, combo/list choices, graph series and
+progress values. Application-specific entity/build/toolbar controllers belong to the simulation
+milestones; dispatching a controller callback does not implement that simulation. Exact screenshot
+parity with the original executable has not been established. Animated images currently show their
+first frame; custom rotated SpriteCapture parts draw axis aligned with a diagnostic. Shipped captures
+have no rotation. Arbitrary unsupported scripts display replacement glyphs rather than a new font.
 
 ## 7. Audio
 
@@ -192,7 +214,8 @@ packet table and packets, or for the 16 music tracks a reference to a raw `.str`
 
 `crates/wma` is a pure-Rust WMA v2 decoder (built in a parallel session). It matches FFmpeg on all
 72 sounds and builds for WASM. The asset browser decodes in-process and plays through rodio
-natively and Web Audio in the browser.
+natively and Web Audio in the browser. Chrome checks cover mono, streamed stereo and looping audio,
+nonzero live graph output, Stop silence and context cleanup on package reload; see [BROWSER.md](BROWSER.md).
 
 ## 5. Analysis artefacts
 

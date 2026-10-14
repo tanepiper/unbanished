@@ -52,6 +52,11 @@ tools/ghidra/export.sh
 | `apps/viewer` | Asset browser built on `crates/ui`: native window, browser (WASM), `--screenshot`, `--capture` |
 | `apps/cli` | `banished-cli export-audio`: decode all sounds to MP3 via FFmpeg |
 
+Viewer keys: **1–4** switch modes; **Up/Down** browse assets. **Tab/Shift-Tab** move UI focus,
+**Enter/Escape** activate OK/Cancel or close dropdowns, and arrow keys adjust focused sliders/lists.
+Edit boxes accept text and cursor keys. Dropdown choices and live game values are supplied by host
+controllers; the asset viewer previews templates without a running simulation.
+
 ## Status
 
 See [docs/FINDINGS.md](docs/FINDINGS.md) for what is known and the milestone plan.
@@ -59,7 +64,7 @@ See [docs/FINDINGS.md](docs/FINDINGS.md) for what is known and the milestone pla
 - [x] M1: package (`.pkg`) reader and extractor
 - [x] M2: resource (`.crs`) deserializer (core graphics types; others as needed)
 - [x] M3: model viewer, native and browser (terrain moves to M5)
-- [x] M4: UI system and main menu (core element types; see FINDINGS for the rest)
+- [x] M4: UI system and main menu (all decoded controls render; see FINDINGS for fidelity limits)
 - [ ] M5: map generation and terrain
 - [ ] M6: simulation components
 - [ ] M7: save/load, audio in game, polish (audio decoding done)

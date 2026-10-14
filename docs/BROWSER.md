@@ -56,6 +56,15 @@ a parse error with the input enabled, the same invalid package triggered a new
 load on reselection, and an injected File read rejection displayed its filename
 and re-enabled the chooser. `node --check tools/browser-smoke.js` passed.
 
+The integrated dialog preview was also exercised in Chrome: Options switched
+between its Video and Audio pages, clicking the Music slider set its value to
+0.60, and a trusted ArrowRight key changed it to 0.70. NewGame's town-name edit
+accepted trusted `B`, `a`, `n` keys and Backspace. The selected widget names
+(`tabOptions`, `sliderMusic`, `editName`) were reported through dialog events.
+After the preview layout fix, the first screenshots immediately after selecting
+Options and NewGame matched their respective screenshots after a subsequent
+pointer-move redraw byte for byte; both dialogs were centered on the first frame.
+
 The automation's native file-upload tool rejected this workspace path, so OS
 chooser navigation was not exercised. The browser `File.arrayBuffer()` read,
 multiple-file change callback, package parsing and rendering were exercised.
