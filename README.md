@@ -15,28 +15,44 @@ the original data from your install into local, git-ignored folders.
 | `tools/` | Extractors, decoders, Ghidra scripts | yes |
 | `game-data/original/` | Copy of your game's binaries and `.pkg` files | **no** |
 | `game-data/extracted/` | Decompressed resources | **no** |
+| `game-data/derived/` | Exported PNGs, captures | **no** |
 | `analysis/` | Ghidra project and decompiled output | **no** |
 
 ## Getting started
 
-Requirements: Python 3.10+. For analysis you also need Ghidra 12.1.x and JDK 21
+Requirements: Python 3.10+ and Rust (stable, with `rustup target add wasm32-unknown-unknown` and
+`cargo install trunk` for the web build). For analysis you also need Ghidra 12.1.x and JDK 21
 (`brew install ghidra` on macOS).
 
 ```bash
 # 1. Copy and extract your game data (auto-detects Steam; or set BANISHED_DIR)
 tools/extract-assets.sh
 
-# 2. Optional: regenerate the Ghidra analysis (about 20 minutes)
+# 2. Native model viewer (reads game-data/original/WinData)
+cargo run -p banished-viewer --release
+
+# 3. Web viewer on http://127.0.0.1:8731/?data=/game-data/ (or pick your .pkg files in the page)
+tools/dev-web.sh --release
+
+# Tests (the game-data tests skip if game-data/ is missing)
+cargo test --release
+
+# Optional: regenerate the Ghidra analysis (about 20 minutes)
 tools/ghidra/export.sh
 ```
+
+| Crate | Purpose |
+|---|---|
+| `crates/formats` | Dependency-free readers for `.pkg`, `.crs`, textures, meshes, skeletons |
+| `apps/viewer` | wgpu model viewer: native window, browser (WASM), and `--capture` to PNG |
 
 ## Status
 
 See [docs/FINDINGS.md](docs/FINDINGS.md) for what is known and the milestone plan.
 
 - [x] M1: package (`.pkg`) reader and extractor
-- [ ] M2: resource (`.crs`) deserializer
-- [ ] M3: browser model and terrain viewer
+- [x] M2: resource (`.crs`) deserializer (core graphics types; others as needed)
+- [x] M3: model viewer, native and browser (terrain moves to M5)
 - [ ] M4: UI system and main menu
 - [ ] M5: map generation and terrain
 - [ ] M6: simulation components

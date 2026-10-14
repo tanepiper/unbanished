@@ -1,0 +1,12 @@
+[build]
+target = "index.html"
+dist = "../../dist/viewer"
+
+[serve]
+addresses = ["127.0.0.1"]
+port = 8731
+
+# Dev only: tools/dev-web.sh serves your local game-data/original/WinData on 8732.
+[[proxy]]
+backend = "http://127.0.0.1:8732/"
+rewrite = "/game-data/"

@@ -1,7 +1,8 @@
 //! Banished model viewer.
 //!
 //! Native: `cargo run -p banished-viewer --release [-- path/to/WinData]`
-//! Web:    `trunk serve` in apps/viewer, then choose your `WinData/*.pkg` files.
+//! Web:    `tools/dev-web.sh`, then choose your `WinData/*.pkg` files, or open `/?data=/game-data/`
+//!         to load them from the local dev server (never deploy that proxy).
 //!
 //! Capture: `cargo run -p banished-viewer --release -- --capture OUT_DIR [FILTER ...]`
 //!          renders every mesh whose name contains a filter to OUT_DIR/*.png (no window).
@@ -352,6 +353,7 @@ fn main() {
         .expect("event loop");
     let proxy = event_loop.create_proxy();
     web::install_file_picker(proxy.clone());
+    web::load_from_query(proxy.clone());
     use winit::platform::web::EventLoopExtWebSys;
     event_loop.spawn_app(App::new(proxy));
 }
@@ -379,6 +381,46 @@ mod web {
         if let Some(el) = document().get_element_by_id("status") {
             el.set_text_content(Some(text));
         }
+    }
+
+    /// Dev mode: `?data=<base url>` fetches the four packages from that base (e.g. the trunk proxy).
+    pub fn load_from_query(proxy: EventLoopProxy<UserEvent>) {
+        let search = web_sys::window()
+            .unwrap()
+            .location()
+            .search()
+            .unwrap_or_default();
+        let Ok(params) = web_sys::UrlSearchParams::new_with_str(&search) else {
+            return;
+        };
+        let Some(base) = params.get("data") else {
+            return;
+        };
+        wasm_bindgen_futures::spawn_local(async move {
+            let mut packages = Vec::new();
+            for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+                set_status(&format!("Fetching {name}…"));
+                let url = format!("{base}{name}");
+                let window = web_sys::window().unwrap();
+                let result = async {
+                    let resp: web_sys::Response =
+                        wasm_bindgen_futures::JsFuture::from(window.fetch_with_str(&url))
+                            .await?
+                            .dyn_into()?;
+                    if !resp.ok() {
+                        return Err(JsValue::from_str(&format!("HTTP {}", resp.status())));
+                    }
+                    let buf = wasm_bindgen_futures::JsFuture::from(resp.array_buffer()?).await?;
+                    Ok::<_, JsValue>(js_sys::Uint8Array::new(&buf).to_vec())
+                }
+                .await;
+                match result {
+                    Ok(bytes) => packages.push((name.to_string(), bytes)),
+                    Err(e) => log::warn!("{url}: {e:?}"),
+                }
+            }
+            let _ = proxy.send_event(UserEvent::Packages(packages));
+        });
     }
 
     /// Reads `.pkg` files chosen in the `#packages` input and hands them to the app.

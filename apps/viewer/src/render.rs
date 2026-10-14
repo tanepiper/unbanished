@@ -40,6 +40,7 @@ pub struct Renderer {
     surface: Option<(wgpu::Surface<'static>, wgpu::SurfaceConfiguration)>,
     device: wgpu::Device,
     queue: wgpu::Queue,
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     format: wgpu::TextureFormat,
     size: (u32, u32),
     depth: wgpu::TextureView,

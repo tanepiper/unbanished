@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Banished Viewer</title>
+  <link data-trunk rel="rust" data-bin="banished-viewer" data-wasm-opt="s" />
+  <style>
+    :root { color-scheme: dark; --bg: #1b1f24; --fg: #e6e1d6; --muted: #9a958a; --accent: #c9a24a; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+                 font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    canvas#viewer { display: block; width: 100vw; height: 100vh; outline: none; touch-action: none; }
+    #panel { position: fixed; top: 12px; left: 12px; right: 12px; max-width: 640px; padding: 10px 12px;
+             background: rgb(20 23 27 / 0.82); border: 1px solid #333a42; border-radius: 8px; }
+    #panel label { color: var(--accent); font-weight: 600; cursor: pointer; }
+    #panel input { margin-left: 8px; max-width: 100%; }
+    #status { margin-top: 6px; color: var(--muted); word-break: break-all; }
+    .hint { margin-top: 4px; color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <canvas id="viewer" tabindex="0"></canvas>
+  <div id="panel">
+    <label for="packages">Load your game data</label>
+    <input id="packages" type="file" accept=".pkg" multiple>
+    <div class="hint">Select data0.pkg, data1.pkg, patch0.pkg and patch1.pkg from Banished's WinData folder. Files stay in your browser.</div>
+    <div id="status">Starting…</div>
+    <div class="hint">Drag to orbit · wheel to zoom · ←/→ change model (Shift ×10)</div>
+  </div>
+</body>
+</html>

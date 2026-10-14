@@ -56,21 +56,49 @@ traced in the resource manager).
 - **4 × `Save/Tutorial*.sav`**: fail the block-stream size check, so they use a different save container
   (see the `Save::` / `SaveLoad` classes).
 
-## 3. Resource format (`.crs`) — partially observed
+## 3. Resource format (`.crs`)
 
-Decompressed resources are serialized engine objects (`IO::Serializer`). The sample
-`Game/Toolbar_storage.crs` starts with a `0xaaaaaaaa` marker, a size and a 32-bit type hash
-(`0x5412a91f`), followed by fields that include cross-references written as `Path\File.rsc:objectName`
-strings.
+Implemented in `crates/formats/src/crs.rs` (Rust) and `tools/crs/` (Python, for exploration).
 
-Resource names carry a component suffix (`Name_component.crs`). The most common are `resource` (1,717),
-`edge`, `model`, `map`, `work`, `value`, `ps`/`vs` (pixel/vertex shaders), `toolbar`,
-`picking`, `statemachine`, `rawmaterial`, `storage`, `zone` and `interact`.
+```text
+block    = u32 0xaaaaaaaa, u32 size, u32 version, payload, u32 0xbbbbbbbb   (size covers payload + terminator)
+resource = block { u32 0x5412a91f, u32 typeId, u32 fileVersion,
+                   u32 depCount, depCount x { String path, u64 FILETIME }, object... }
+String   = u32 n|0x80000000 then n bytes (8-bit, NUL included) | u32 n then n UTF-16 units
+ExternalPtr = bool present, String "Path\File.rsc:object"   (stored as Path\File_object.crs)
+```
 
-**Port implication:** gameplay is substantially **data-driven**. Buildings, citizens and resources are
-component bundles in `Game/` and `Template/` (2,700 files), and the exe implements one
-`*Description` class per component type (`MarketDescription`, `OrchardDescription`, `DiseaseDescription`
-and so on). A port reimplements those component types and loads the original data unchanged.
+- Sources: `IO::BinaryWriter` ctor (0x1800a9980) and terminator, `Object::External::Save`
+  (0x1800be4a0), `System::String::Serialize` (0x1800cc1a0).
+- **Type ids are `CRC32(UTF-16LE(className))`** (`Object::Factory::Startup`, 0x1800c2ea0). All 170
+  observed ids are named in `tools/schema/types.json`.
+- Every class level of `Serialize(Stream&)` opens its own nested block. Fields are written through
+  virtual calls on `IO::BinaryReader`/`BinaryWriter`; the vtable slot → type map (dumped with
+  `tools/ghidra/vtable.py`) is: `+0x18..+0x68` array overloads, `+0x70` char, `+0x78` bool,
+  `+0x80` float, `+0x88` u64, `+0x90` i64, `+0x98` u32, `+0xa0` i32, `+0xa8` u16, `+0xb0` i16,
+  `+0xb8` u8, `+0xc0` i8, `+0xc8` bytes. Field names are passed as null in this build.
+- Every block is consumed exactly by the decoders, which is the main correctness check.
+
+### Decoded classes
+
+| Class | Count | Notes |
+|---|---|---|
+| `ImageBuffer` | 406/406 | w, h, type (0=2D, else cube), usage, format, generateMips, address×3, filter, source, levels. Format enum → DXGI via VideoDX11: 0 BC1, 1/2 BC3, 3 A8, 4 R8, 5 BGRA8, 6 R32F, 7 R24G8. All 3,179 levels match their sizes. |
+| `GraphicsMesh` | 271/271 | parts (LOD distance, name, **AO texture** ref), material-instance lists, skeleton, bounds, then a DX9 and a DX11 geometry sub-block. DX11: per part draw ranges + 4 buffers (u8 flag, u32 len, bytes): static IB, static VB, skinned IB, skinned VB. |
+| `MaterialInstance` | 209/209 | material ref, named texture slots (`diffuse`, `snow`, `damage`, …), named float4s. |
+| `VertexLayout` | 19/19 | elements (semantic, stream, offset, usage, usageIndex, format) + DXBC input signature. Formats: 0 f32x4, 1 f32x3, 2 f32x2, 3 f32, 4 **sint16x4**, 5 sint16x2, 6 bgra8unorm, 7 uint8x4, 8 unorm8x4. |
+
+### Geometry details
+- `ModelLayout` (static, 24-byte stride): sint16x4 position **/512**, sint16x4 texcoord (xy /512
+  diffuse, zw /8192 AO), unorm8x4 normal, 4 bytes padding. `ModelSkinLayout` (32 bytes) adds unorm8x4
+  weights and uint8x4 bone indices.
+- Skeleton convention (`crates/formats/src/skeleton.rs`): stored quaternions are conjugated;
+  world = parent × local; skinning matrix = world × inverse bind. **Skinned vertices sit in a per-mesh
+  rotated frame**, so they must be skinned even in bind pose. Verified: bind-pose skinning reproduces
+  the stored bounds within 2 mm for 7 of 8 skinned meshes. The **boat** is the exception (2.7 units
+  off) and is still unexplained.
+- `OpaqueCharacterMaterial` diffuse textures are horizontal atlases of square outfit variants
+  (citizens: 8 variants, 1024×128); the mesh UVs cover a single cell.
 
 | Directory | Files | Size |
 |---|---|---|
@@ -106,8 +134,9 @@ same model as OpenMW and OpenRCT2. The repository ships no original code or asse
 
 Suggested milestones:
 1. ✅ Package reader and extractor.
-2. `.crs` deserializer: type-hash table → field schemas, starting with `Material`, `Model`, `Terrain`.
-3. Model/terrain viewer in the browser (WebGPU), which proves the asset pipeline end to end.
+2. ✅ `.crs` deserializer: container, type ids, textures, meshes, material instances, vertex layouts
+   (remaining classes are decoded as later milestones need them).
+3. ✅ Model viewer, native and in the browser (Rust + wgpu; WebGPU with WebGL2 fallback). Terrain moves to M5.
 4. UI system rendering the main menu from `Dialog/MainMenu.rsc`.
 5. Map generation and terrain from `Terrain/` plus the Perlin-noise code.
 6. Simulation components, one at a time (resources → storage → work → citizens → seasons).
