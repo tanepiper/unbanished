@@ -111,12 +111,29 @@ the game loop; see the save-state call sites in `analysis/gameplay-gameloop-meth
 The game loop serializes its own payload through `FUN_14009ae90`: the save side writes the loop to a
 `CompressedMemoryStream` and stores it in `SavedState`; the load side retrieves the bytes, opens the
 compressed stream and deserializes the loop. The decoded stream begins with a version 3 block whose
-first nested block is version 0. In `Save2`, that nested block starts at expanded offset `0x0c`, has
-size `0x7c22c`, and ends at `0x7c244`; another small version 0 block follows at that boundary. The
-first nested block starts with `0x1567`, `1`, and a length-prefixed UTF-16 path
-`Audio\Animal\Chicken.rsc:event`. This resembles a counted serialized reference collection, but
-the count and record type have not been confirmed from the owning serializer. These objects still
-need to be mapped to game types before a gameplay-state decoder can be built.
+first nested block is the external reference table. `FUN_14009af60` first enables external-reference
+mode, constructs a version 3 serializer, calls `Object::ExternalFactory::SerializeReferenceTable`
+(`Runtime:0x1800bf3d0`), then calls `Object::InternalFactory::ResetPersistState`. The Runtime
+reference-table serializer reads/writes a count followed by sequential integer IDs and strings; on
+load it normalizes delimiters and reconnects paths through the external factory. This matches the
+first block's bytes exactly.
+
+In `Save2`, the reference-table block starts at expanded offset `0x0c`, has size `0x7c22c`, and
+ends at `0x7c244`. Its count is 5,479; IDs are sequential from 1, every path is unique, and the
+first entries are `Audio\Animal\Chicken.rsc:event`, `Audio\Animal\Chicken.rsc:resource`, and
+`Audio\Animal\Chicken.rsc:version0`. The next block is a small version 0 block at `0x7c244`; its
+role is not assigned yet.
+
+| File | External references | Unique paths | Root serializer version |
+|---|---:|---:|---:|
+| `starter-save.sav` | 5,352 | 5,352 | 3 |
+| `Save2.sav` | 5,479 | 5,479 | 3 |
+| `Auto.sav` | 5,479 | 5,479 | 3 |
+| `allportez.sav` | 12,583 | 12,583 | 3 |
+
+The reference table exposes asset paths used by each save and provides a verified index-to-path
+mapping for decoding later serialized internal objects. Those internal object records and their
+restore order still need to be mapped to game types.
 
 ## Open work
 
@@ -131,6 +148,8 @@ Useful Runtime Ghidra locations: `Save::SaveLoad::UpdateSave` (`0x1800c52f0`),
 (`0x1800c4dd0`), `Save::SaveLoad::SaveMetaData` (`0x1800c3d00`),
 `Save::SaveLoad::LoadMetaData` (`0x1800c43a0`), `IO::Persistence::BeginSave` (`0x1800ba270`),
 `IO::Persistence::BeginLoad` (`0x1800ba1d0`), and `IO::CompressedStream::Open` (`0x1800ab4b0`).
+The gameplay serializer is `FUN_14009af60` in the Application binary; the reference-table writer is
+`Object::ExternalFactory::SerializeReferenceTable` at Runtime address `0x1800bf3d0`.
 
 To repeat the named-function export against the analyzed Runtime project:
 
