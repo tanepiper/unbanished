@@ -115,6 +115,59 @@ pub fn environment_description(data: &[u8]) -> Result<EnvironmentDescription> {
     Ok(value)
 }
 
+/// `ClimateGenerator` (`FUN_140098470`): monthly weather thresholds used by the environment loop.
+#[derive(Debug, Clone)]
+pub struct ClimateGenerator {
+    pub string_table: Option<String>,
+    pub name: String,
+    pub enabled: bool,
+    /// Four serialized climate settings at in-memory offsets `+0x34..+0x40`.
+    pub settings: [f32; 4],
+    /// Four floats per month at `+0x44`; the weather selector reads the first three as cutoffs.
+    pub monthly_thresholds: [[f32; 4]; 12],
+    /// Three serialized climate settings at in-memory offsets `+0x104..+0x10c`.
+    pub trailing_settings: [f32; 3],
+}
+
+pub fn climate_generator(data: &[u8]) -> Result<ClimateGenerator> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("ClimateGenerator") {
+            return format_err(format!(
+                "expected ClimateGenerator, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let string_table = r.external_ref()?;
+            let name = r.string()?;
+            let enabled = r.bool()?;
+            let mut settings = [0.0; 4];
+            for value in &mut settings {
+                *value = r.f32()?;
+            }
+            let mut monthly_thresholds = [[0.0; 4]; 12];
+            for month in &mut monthly_thresholds {
+                for value in month {
+                    *value = r.f32()?;
+                }
+            }
+            let mut trailing_settings = [0.0; 3];
+            for value in &mut trailing_settings {
+                *value = r.f32()?;
+            }
+            Ok(ClimateGenerator {
+                string_table,
+                name,
+                enabled,
+                settings,
+                monthly_thresholds,
+                trailing_settings,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// A structure placed relative to the start point (`FUN_14001c020` record, `FUN_1400a7490`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlacedStructure {
