@@ -47,6 +47,20 @@ The current environment had the browser dev server running, but access to its Ar
 by the computer-use approval gate. No interaction claim is made from that unavailable browser
 session.
 
+## Source audit for the reported loss of control
+
+A fresh static audit of `apps/game/src/main.rs`, `apps/game/src/gameplay.rs`, and
+`apps/game/src/loops.rs` did not find a persistent input-routing break. Cursor movement forwards
+left/right drag deltas to `Game::drag`, middle drag to `PanDrag`, and the wheel to `Game::wheel`;
+`GameplayLoop::raw` applies rotate, pan, and zoom to the map camera. Left-button capture is limited
+to an interactive UI hit target. The latest source change refreshes that hit target at press time,
+which closes the stale-menu-hover path documented above.
+
+The one confirmed suppression is `MainLoop::raw`: it ignores raw input while a loop transition is
+pending (`apps/game/src/loops.rs`). This can drop gestures during a fade, but cannot explain camera
+controls staying unresponsive after the gameplay loop settles. There is still no platform and
+gesture reproduction, so a persistent runtime regression remains unresolved.
+
 ## Follow-up: stale hit target after a loop switch
 
 The game keeps the UI's last hovered control while a loop changes its screen. If the menu is

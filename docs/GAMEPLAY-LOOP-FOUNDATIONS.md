@@ -49,7 +49,9 @@ The original Status Bar resources and serialized weather state are in
 click-time activation path remains open. Population/status meanings and the fixed-stride stock table
 are recorded in [GAME-LOOP-STEP-08.md](GAME-LOOP-STEP-08.md); flag producers, stock update owners,
 and concrete container types are traced in [GAME-LOOP-STEP-09.md](GAME-LOOP-STEP-09.md) and remain
-partially open for tool transitions and stock accounting.
+partially open for tool transitions and stock accounting. Toolbar activation into resource-backed
+dialogs is partially traced in [GAME-LOOP-STEP-10.md](GAME-LOOP-STEP-10.md); decoding the statusbar
+item's action metadata remains open.
 
 The outer update and its follow-up are documented in [GAME-LOOP-STEP-01.md](GAME-LOOP-STEP-01.md)
 and [GAME-LOOP-STEP-02.md](GAME-LOOP-STEP-02.md). The trace establishes pause/speed gating,

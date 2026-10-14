@@ -2,8 +2,9 @@
 
 This step follows the shipped Status Bar resource tree into its controller constructor and layout
 refresh callback. Evidence is static Ghidra 12.1.4 decompilation of the Steam x64 executable and
-Runtime DLL plus decoded compiled UI resources. It identifies the callback lifecycle, but not a
-code-level click handler from Toolbar to `UtilityStatusBar` or a live game's rendered values.
+Runtime DLL plus decoded compiled UI resources. The general Toolbar-to-dialog dispatch is now
+traced in [step 10](GAME-LOOP-STEP-10.md), but the resource's numeric action kind and a live game's
+rendered values remain unverified.
 
 ## Controller bindings
 
@@ -22,8 +23,8 @@ The weather image pointers are stored in this order:
 
 This connects the static resource tree described in [step 06](GAME-LOOP-STEP-06.md) to a concrete
 controller. `FUN_14009d0d0` adds the top-level Toolbar, EventNotify, and AutoSave dialogs. The
-UtilityStatusBar resource references make a Toolbar-to-StatusBar route plausible, but no direct
-native-code call naming `Template/UtilityStatusBar` has been found.
+UtilityStatusBar resource route and the native Toolbar dialog-dispatch mechanism now agree; see
+[step 10](GAME-LOOP-STEP-10.md) for the remaining action-kind limitation.
 
 The executable's type metadata identifies the controller as `StatusBarUI`, derived from
 `UI::DialogController`. `FUN_140152640` initializes that type record; its factory allocates a
@@ -75,10 +76,11 @@ ordering is directly visible in the code; its effect on an actual game display h
 The controller's Runtime creation and callback lifecycle is known: `DialogInstance::AddController`
 resolves the type through `Object::Factory`, creates it, supplies its dialog/element/config context,
 calls `OnCreated`, and registers it. The gameplay bootstrap adds the Toolbar dialog, and the
-compiled resource route reaches `Dialog/StatusBar.rsc`. The code-level activation path remains
-unidentified. The values are traced in [step 08](GAME-LOOP-STEP-08.md); the code that sets citizen
-status flags and updates stock quantities remains open. The current port uses its compact HUD and
-does not render this original status bar.
+compiled resource route reaches `Dialog/StatusBar.rsc`. The generic Toolbar activation mechanism is
+traced in [step 10](GAME-LOOP-STEP-10.md); decoding the statusbar item's numeric action and verifying
+controller creation from its utility template remain open. The values are traced in
+[step 08](GAME-LOOP-STEP-08.md); the code that sets citizen status flags and updates stock quantities
+remains open. The current port uses its compact HUD and does not render this original status bar.
 
 ## Evidence pointers
 
@@ -109,6 +111,6 @@ does not render this original status bar.
 
 ## Next trace
 
-Trace the compiled Toolbar/UtilityStatusBar resource handoff far enough to establish whether it
-creates the StatusBar dialog and controller. Continue from [step 08](GAME-LOOP-STEP-08.md) into the
-concrete owners and update paths for citizen status and resource stock values.
+Decode the statusbar item's numeric Toolbar action and verify its controller configuration. Continue
+from [step 08](GAME-LOOP-STEP-08.md) into the concrete owners and update paths for citizen status and
+resource stock values.
