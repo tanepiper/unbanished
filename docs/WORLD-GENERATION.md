@@ -79,6 +79,10 @@ path/point-driven spatial passes, a downhill neighbor redistribution, and two ne
 averaging passes. It does not yet prove that the path records are rivers or that the float grid is
 elevation.
 
+The shipped `Valleys` and `Mountains` `TerrainGenerator` profiles and their Small/Medium/Large
+integer rows are documented in [TERRAIN-PROFILES.md](TERRAIN-PROFILES.md). Each profile points to
+terrain, river, and lake resources; the procedural record-to-resource mapping remains open.
+
 The code establishes the buffer sizes, conversion and helper-call order. The field names and
 coordinate meaning of the grid values, the algorithms inside those helpers, and the record types
 being appended are not resolved yet. In particular, this note does not label the 16-bit values as
