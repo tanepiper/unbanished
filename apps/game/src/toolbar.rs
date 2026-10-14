@@ -60,7 +60,8 @@ pub enum Action {
 }
 
 struct Level {
-    dialog: usize,
+    /// Root element of this level's `Dialog/Toolbar.rsc` instance.
+    root: NodeId,
     parent: Option<usize>,
     /// (button node, entry index).
     buttons: Vec<(NodeId, usize)>,
@@ -179,7 +180,7 @@ impl Toolbar {
             buttons.push((node, index));
         }
         Some(Level {
-            dialog,
+            root: screen.dialogs[dialog].root,
             parent,
             buttons,
             speed_text,
@@ -221,7 +222,7 @@ impl Toolbar {
 
     fn close_popup(&mut self, ui: &mut Ui, screen: &mut Screen) {
         if let Some(level) = self.popup.take() {
-            screen.remove_dialog(ui, level.dialog);
+            screen.remove_root(ui, level.root);
         }
         if let Some(root) = &self.root {
             for &(node, _) in &root.buttons {
@@ -250,7 +251,7 @@ impl Toolbar {
                 if !open {
                     ui.set_checked(button, true);
                     self.popup = self.build_level(ui, screen, Some(index));
-                    self.place_popup(ui, screen, button);
+                    self.place_popup(ui, button);
                 }
                 None
             }
@@ -279,16 +280,11 @@ impl Toolbar {
 
     /// Position the sub-menu the way `FUN_1400be770` pads its root: right padding so it is centred
     /// on the button, bottom padding equal to the main bar's height.
-    fn place_popup(&self, ui: &mut Ui, screen: &Screen, button: NodeId) {
+    fn place_popup(&self, ui: &mut Ui, button: NodeId) {
         let (Some(popup), Some(root)) = (&self.popup, &self.root) else {
             return;
         };
-        let (Some(popup_root), Some(bar_root)) = (
-            screen.dialogs.get(popup.dialog).map(|d| d.root),
-            screen.dialogs.get(root.dialog).map(|d| d.root),
-        ) else {
-            return;
-        };
+        let (popup_root, bar_root) = (popup.root, root.root);
         let screen_w = ui.screen[0];
         let screen_h = ui.screen[1];
         let b = ui.node(button).rect;
@@ -299,7 +295,7 @@ impl Toolbar {
     }
 
     /// Re-centre an open sub-menu after layout (its width is known only then).
-    pub fn relayout(&self, ui: &mut Ui, screen: &Screen) {
+    pub fn relayout(&self, ui: &mut Ui) {
         let Some(popup) = &self.popup else { return };
         let Some(parent) = popup.parent else { return };
         let button = self
@@ -308,7 +304,7 @@ impl Toolbar {
             .and_then(|r| r.buttons.iter().find(|&&(_, i)| i == parent))
             .map(|&(n, _)| n);
         if let Some(button) = button {
-            self.place_popup(ui, screen, button);
+            self.place_popup(ui, button);
         }
     }
 }

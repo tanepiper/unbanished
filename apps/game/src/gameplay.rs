@@ -5,22 +5,20 @@
 //! are implemented.
 
 use banished_formats::game::EnvironmentMonth;
-use banished_formats::ui::flags;
-use banished_ui::{Event, Kind, Node, NodeId, Ui};
+use banished_ui::{Event, Ui};
 
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
 use crate::menu::MenuLoop;
 use crate::render::Lighting;
 use crate::scene::{Camera, SceneCamera, SceneView};
 use crate::toolbar::{Action, Toolbar};
+use crate::utility::{StatusValues, UtilityWindows};
 use crate::world::{World, WorldParams};
 
 const YEAR_SECONDS: f32 = 3_600.0;
 const MONTHS_PER_YEAR: usize = 12;
 const MONTH_SECONDS: f32 = YEAR_SECONDS / MONTHS_PER_YEAR as f32;
 const SPEED_LEVELS: [f32; 4] = [1.0, 2.0, 5.0, 10.0];
-const FONT_SMALL: &str = r"Font\FontSmall.rsc:resource";
-const FONT_MEDIUM: &str = r"Font\FontMedium.rsc:resource";
 
 pub struct GameplayLoop {
     params: WorldParams,
@@ -33,8 +31,11 @@ pub struct GameplayLoop {
     /// Index into the original 1x, 2x, 5x, 10x simulation iteration values.
     speed: u8,
     paused: bool,
-    date_label: Option<NodeId>,
     toolbar: Option<Toolbar>,
+    utility: UtilityWindows,
+    /// Environment controller temperature (°F, `+0x18`) and weather state (`+0x10`).
+    temperature: f32,
+    weather: i32,
 }
 
 impl GameplayLoop {
@@ -49,54 +50,16 @@ impl GameplayLoop {
             month_elapsed: 0.0,
             speed: 0,
             paused: false,
-            date_label: None,
             toolbar: None,
+            utility: UtilityWindows::default(),
+            temperature: 50.0,
+            weather: 3,
         }
     }
 
-    fn add_panel_border(ui: &mut Ui, node: NodeId, border: &str) {
-        let border = ui.instantiate(border);
-        ui.node_mut(node).border = border;
-    }
-
+    /// `FUN_14009d0d0` installs the toolbar with the other in-game dialogs.
     fn build_hud(&mut self, ui: &mut Ui, archive: &banished_formats::pkg::Archive) {
-        let screen = Screen::new(ui);
-        let mut overlay = Node::new(Kind::Group);
-        overlay.flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
-        let overlay = ui.add(overlay);
-        ui.add_child(screen.root, overlay);
-
-        let title = ui.text(FONT_MEDIUM, &self.params.town_name);
-        ui.node_mut(title).margins = [10, 10, 5, 2];
-        let detail_text = format!(
-            "{}  |  {}  |  {}  |  Seed {}",
-            self.params.terrain, self.params.climate, self.params.start_condition, self.params.seed
-        );
-        let detail = ui.text(FONT_SMALL, &detail_text);
-        ui.node_mut(detail).margins = [10, 10, 2, 5];
-        let mut identity = Node::new(Kind::Ribbon {
-            vertical: true,
-            uniform: false,
-            spacing: 0,
-            cells: Vec::new(),
-        });
-        identity.name = "gameIdentity".to_string();
-        identity.margins = [12, 0, 12, 0];
-        identity.children = vec![title, detail];
-        let identity = ui.add(identity);
-        Self::add_panel_border(ui, identity, r"Dialog\SharedElements.rsc:dialogBorder");
-        ui.add_child(overlay, identity);
-
-        let date = ui.text(FONT_MEDIUM, "Year 1  |  Early Spring");
-        ui.node_mut(date).alignment = 2;
-        ui.node_mut(date).margins = [0, 12, 12, 0];
-        ui.node_mut(date).min_size = [240, 40];
-        Self::add_panel_border(ui, date, r"Dialog\SharedElements.rsc:dialogBorder");
-        ui.add_child(overlay, date);
-        self.date_label = Some(date);
-
-        // `FUN_14009d0d0` installs the toolbar with the other in-game dialogs.
-        let mut screen = screen;
+        let mut screen = Screen::new(ui);
         let mut toolbar = Toolbar::load(archive);
         toolbar.install(ui, &mut screen);
         self.toolbar = Some(toolbar);
@@ -104,23 +67,24 @@ impl GameplayLoop {
         self.update_hud(ui);
     }
 
-    fn update_hud(&self, ui: &mut Ui) {
-        if let Some(date) = self.date_label {
-            let key = format!("Month{}", self.month);
-            let season = ui.res.string(Some(r"Dialog\StringTable.rsc:seasons"), &key);
-            let speed = if self.paused {
-                "Paused".to_string()
-            } else {
-                format!("{}x", SPEED_LEVELS[self.speed as usize] as u32)
-            };
-            ui.set_text(
-                date,
-                &format!("Year {}  |  {}  |  {}", self.year, season, speed),
-            );
+    /// The values the Status Bar's `FUN_14007eda0` reads from the game managers. Managers that
+    /// are not ported yet (citizens, stock, weather) report their empty-town values.
+    fn status_values(&self) -> StatusValues {
+        StatusValues {
+            town_name: self.params.town_name.clone(),
+            year: self.year,
+            month: self.month,
+            temperature: self.temperature,
+            weather: self.weather,
+            ..StatusValues::default()
         }
+    }
+
+    fn update_hud(&self, ui: &mut Ui) {
         if let Some(toolbar) = &self.toolbar {
             toolbar.refresh(ui, SPEED_LEVELS[self.speed as usize] as u32, self.paused);
         }
+        self.utility.update(ui, &self.status_values());
     }
 
     fn return_to_menu() -> Next {
@@ -164,9 +128,10 @@ impl GameLoop for GameplayLoop {
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
-        if let (Some(screen), Some(toolbar)) = (&self.screen, &self.toolbar) {
-            toolbar.relayout(ctx.ui, screen);
+        if let Some(toolbar) = &self.toolbar {
+            toolbar.relayout(ctx.ui);
         }
+        self.utility.update(ctx.ui, &self.status_values());
         if !self.paused {
             self.month_elapsed += dt * SPEED_LEVELS[self.speed as usize];
             while self.month_elapsed >= MONTH_SECONDS {
@@ -199,6 +164,10 @@ impl GameLoop for GameplayLoop {
             return Next::Stay;
         };
         let Some(action) = toolbar.click(ctx.ui, screen, id) else {
+            // The host dialog's close button (`Dialog/StandardDialog.rsc`).
+            if ctx.ui.node(id).name == "buttonClose" {
+                self.utility.close_containing(ctx.ui, screen, id);
+            }
             return Next::Stay;
         };
         match action {
@@ -207,6 +176,9 @@ impl GameLoop for GameplayLoop {
             Action::Play => self.paused = false,
             Action::Slower => self.speed = self.speed.saturating_sub(1),
             Action::Faster => self.speed = (self.speed + 1).min((SPEED_LEVELS.len() - 1) as u8),
+            Action::Utility(template) => {
+                self.utility.toggle(ctx.ui, screen, ctx.archive, &template);
+            }
             other => log::info!("toolbar action not implemented yet: {other:?}"),
         }
         self.update_hud(ctx.ui);

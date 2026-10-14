@@ -81,7 +81,7 @@ compiled resource route reaches `Dialog/StatusBar.rsc`. The statusbar item's act
 activation, dialog add/close path, and `StatusBarUI` attachment are traced in
 [step 10](GAME-LOOP-STEP-10.md). The values are traced in
 [step 08](GAME-LOOP-STEP-08.md); the code that sets citizen status flags and updates stock quantities
-remains open. The current port uses its compact HUD and does not render this original status bar.
+remains open. The port renders this status bar through the original utility-window path; see [UTILITY-WINDOWS.md](UTILITY-WINDOWS.md).
 
 ## Evidence pointers
 

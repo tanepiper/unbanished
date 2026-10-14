@@ -448,3 +448,61 @@ pub fn toolbar_description(data: &[u8]) -> Result<ToolbarDescription> {
     })?;
     Ok(value)
 }
+
+/// One entry of a `UIDescription` controller table (`FUN_140133530`).
+#[derive(Debug, Clone)]
+pub struct UiController {
+    /// CRC32 type id of the `UI::DialogController` to attach (0 = none, e.g. `StatusBarUI`
+    /// `0x509d1aea`).
+    pub type_id: u32,
+    /// The element to instantiate into the named slot.
+    pub element: Option<String>,
+    /// Controller configuration (`+0x10`).
+    pub config: Option<String>,
+    /// Tab label element (`+0x18`), used when the slot is a `TabElement`.
+    pub tab: Option<String>,
+    /// Name of the slot element in the dialog (`userGroup0`, `userTitle0`).
+    pub slot: String,
+}
+
+/// `UIDescription` (serializer `FUN_140133350`): a utility window built from a host dialog with
+/// content placed into its named slots, each with an optional controller.
+#[derive(Debug, Clone)]
+pub struct UiDescription {
+    /// Host dialog, e.g. `Dialog\StandardDialog.rsc:resource`.
+    pub dialog: Option<String>,
+    /// `+0x40`.
+    pub flags: i32,
+    pub controllers: Vec<UiController>,
+    /// `+0x20`.
+    pub value: i32,
+}
+
+pub fn ui_description(data: &[u8]) -> Result<UiDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("UIDescription") {
+            return format_err(format!("expected UIDescription, found {:#010x}", h.type_id));
+        }
+        r.block(|r, _| {
+            let dialog = r.external_ref()?;
+            let flags = r.i32()?;
+            let mut controllers = Vec::new();
+            for _ in 0..r.count()? {
+                controllers.push(UiController {
+                    type_id: r.u32()?,
+                    element: r.external_ref()?,
+                    config: r.external_ref()?,
+                    tab: r.external_ref()?,
+                    slot: r.string()?,
+                });
+            }
+            Ok(UiDescription {
+                dialog,
+                flags,
+                controllers,
+                value: r.i32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}

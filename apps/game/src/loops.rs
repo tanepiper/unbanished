@@ -134,6 +134,13 @@ impl Screen {
         };
     }
 
+    /// Remove the dialog whose root element is `root` (indices of later dialogs shift down).
+    pub fn remove_root(&mut self, ui: &mut Ui, root: NodeId) {
+        if let Some(i) = self.dialogs.iter().position(|d| d.root == root) {
+            self.remove_dialog(ui, i);
+        }
+    }
+
     pub fn find(&self, ui: &Ui, dialog: usize, name: &str) -> Option<NodeId> {
         ui.find(self.dialogs.get(dialog)?.root, name)
     }

@@ -22,6 +22,7 @@ mod scene;
 mod scene_assets;
 mod scene_gfx;
 mod toolbar;
+mod utility;
 #[cfg(target_arch = "wasm32")]
 mod web;
 mod world;
