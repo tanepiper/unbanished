@@ -5,7 +5,8 @@ working research log, not a claim that the simulation has been fully reconstruct
 is Ghidra pseudocode for the shipped Windows binary, not original source code or runtime observation.
 The package TOC baseline and cross-layer identity rules are collected in
 [GAME-IDENTITY-MAP.md](GAME-IDENTITY-MAP.md); the complete current package path inventory is
-[GAME-RESOURCE-INVENTORY.tsv](GAME-RESOURCE-INVENTORY.tsv).
+[GAME-RESOURCE-INVENTORY.tsv](GAME-RESOURCE-INVENTORY.tsv), with the serialized dependency edge list
+in [GAME-RESOURCE-REFERENCES.tsv](GAME-RESOURCE-REFERENCES.tsv).
 
 ## Evidence and repeatability
 
