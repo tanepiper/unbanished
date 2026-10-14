@@ -63,3 +63,14 @@ unverified. Keyboard focus conventions and pointer editing are host behavior whe
 not been established. Middle-dot synthesis is an approximation; other absent Unicode glyphs use
 visible replacements. Custom rotated captures are currently axis aligned. Original game controllers
 and material effects remain separate work.
+
+## Asset browser playback panels
+
+Audio, model and dialog playback controls use floating panels styled with Banished's own UI sprites
+and button resources. The audio panel opens centered and provides track navigation, play/pause, stop,
+scrubbing, looping and volume. Model and dialog panels open in the upper-left of the preview area.
+Each panel can be dragged; its position is retained for the current viewer session. The model panel
+shows the selected resource, part count, orbit/zoom hint and animation clip controls. The dialog
+panel shows the selected dialog resource and provides play/pause, first-frame reset, frame stepping
+and scrubbing; static dialogs keep the panel visible with playback controls disabled. Playback state
+and position reset when a new resource is selected.
