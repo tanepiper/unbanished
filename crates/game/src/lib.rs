@@ -9,4 +9,5 @@ pub mod map;
 pub mod math;
 pub mod noise;
 pub mod random;
+pub mod seeding;
 pub mod terrain;

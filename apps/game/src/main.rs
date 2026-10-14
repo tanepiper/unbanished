@@ -21,6 +21,7 @@ mod render;
 mod scene;
 mod scene_assets;
 mod scene_gfx;
+mod start;
 mod toolbar;
 mod utility;
 #[cfg(target_arch = "wasm32")]

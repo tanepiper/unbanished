@@ -55,7 +55,11 @@ evidence; static traces are not claims of live-game behavior.
 ## Remaining port work
 
 - [x] Make climate selection drive the environment controller's temperatures and weather draws.
-- [ ] Apply the selected starting condition and seed the correct starting entities and inventories.
+- [x] Seed the starting map from the selected profile: start point, structure draws, and rock, ore
+  and tree seeding with spawned herbs, mushrooms and berries. Rendered in game. See
+  [RESOURCE-SEEDING.md](RESOURCE-SEEDING.md).
+- [ ] Create the start structures (barn, yard, cart, houses) as entities, households, deer, crops,
+  orchards, livestock and starting inventories.
 - [x] Replace the compact HUD with the packaged toolbar and Status Bar controllers. See
   [IN-GAME-TOOLBAR.md](IN-GAME-TOOLBAR.md) and [UTILITY-WINDOWS.md](UTILITY-WINDOWS.md).
 - [ ] Add build/tool modes, object selection, the remaining utility-window controllers (Event Log,

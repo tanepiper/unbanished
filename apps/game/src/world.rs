@@ -16,6 +16,8 @@ pub struct WorldParams {
     /// The selected `ClimateGenerator` (`Game\Climate\Fair.rsc:resource`).
     pub climate_ref: String,
     pub start_condition: String,
+    /// The selected `MapGenerator` (`Game\\StartCondition\\Medium.rsc:resource`).
+    pub start_condition_ref: String,
     /// 0 Small, 1 Medium, 2 Large.
     pub size: usize,
     pub seed: u32,
@@ -29,6 +31,7 @@ impl Default for WorldParams {
             climate: "Fair".into(),
             climate_ref: r"Game\Climate\Fair.rsc:resource".into(),
             start_condition: "Medium".into(),
+            start_condition_ref: String::new(),
             size: 0,
             seed: 290,
         }

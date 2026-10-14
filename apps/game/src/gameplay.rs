@@ -14,6 +14,7 @@ use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View
 use crate::menu::MenuLoop;
 use crate::render::Lighting;
 use crate::scene::{Camera, SceneCamera, SceneView};
+use crate::start::StartingTown;
 use crate::toolbar::{Action, Toolbar};
 use crate::utility::{StatusValues, UtilityWindows};
 use crate::world::{World, WorldParams};
@@ -34,6 +35,7 @@ pub struct GameplayLoop {
     /// The game's shared random stream (`Game/Game +0xd8`, `Random(seed)` in `FUN_14009bfd0`).
     rng: Random,
     environment: Option<Environment>,
+    town: Option<StartingTown>,
     /// Index into the original 1x, 2x, 5x, 10x simulation iteration values.
     speed: u8,
     paused: bool,
@@ -52,6 +54,7 @@ impl GameplayLoop {
             year: 1,
             elapsed: 0.0,
             environment: None,
+            town: None,
             speed: 0,
             paused: false,
             toolbar: None,
@@ -133,11 +136,32 @@ impl GameLoop for GameplayLoop {
                     self.params.climate,
                     self.params.start_condition
                 );
-                self.view = Some(SceneView::new(
-                    world.terrain,
-                    SceneCamera::Map(Camera::ground()),
-                    lighting,
-                ));
+                // `FUN_1400a87d0`: start point, structures and natural resources, drawn from
+                // the game stream before anything else consumes it.
+                let grid = banished_game::terrain::HeightGrid {
+                    width: world.terrain.size + 1,
+                    heights: &world.terrain.heights,
+                };
+                let town = StartingTown::create(
+                    ctx.archive,
+                    &self.params.start_condition_ref,
+                    world.terrain.size / 2,
+                    &grid,
+                    &mut self.rng,
+                );
+                // Inferred: the camera opens over the start point (not yet traced).
+                let mut camera = Camera::ground();
+                if let Some(town) = &town {
+                    let c = (world.terrain.size / 4) as f32 - 0.5;
+                    camera.target =
+                        glam::Vec2::new(town.start.0 as f32 - c, town.start.1 as f32 - c);
+                }
+                let mut view = SceneView::new(world.terrain, SceneCamera::Map(camera), lighting);
+                if let Some(town) = &town {
+                    view.models = Some(town.models(ctx.archive));
+                }
+                self.town = town;
+                self.view = Some(view);
             }
             Err(e) => log::error!("world generation failed: {e}"),
         }

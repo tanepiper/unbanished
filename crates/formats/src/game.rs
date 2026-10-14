@@ -506,3 +506,301 @@ pub fn ui_description(data: &[u8]) -> Result<UiDescription> {
     })?;
     Ok(value)
 }
+
+/// An entity template (`ComponentDescription`, serializer `FUN_14011dfc0`): the scheduling bucket
+/// and the ordered component descriptions (`model`, `naturalresource`, `growth`, …).
+#[derive(Debug, Clone)]
+pub struct ComponentDescription {
+    /// `+0x20`: manager bucket (default 6 = unscheduled).
+    pub bucket: u32,
+    /// `+0x28`: description references.
+    pub descriptions: Vec<Option<String>>,
+}
+
+pub fn component_description(data: &[u8]) -> Result<ComponentDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("ComponentDescription") {
+            return format_err(format!(
+                "expected ComponentDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let bucket = r.u32()?;
+            let descriptions = (0..r.count()?)
+                .map(|_| r.external_ref())
+                .collect::<Result<_>>()?;
+            Ok(ComponentDescription {
+                bucket,
+                descriptions,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// One model variant: an animation set and its alternative meshes.
+#[derive(Debug, Clone)]
+pub struct ModelVariant {
+    pub animations: Option<String>,
+    pub meshes: Vec<Option<String>>,
+}
+
+/// `ModelDescription` (serializer `FUN_14012a290`), read by the model component's setup
+/// `FUN_140129f90`.
+#[derive(Debug, Clone)]
+pub struct ModelDescription {
+    /// `+0x20` / `+0x28`, 0x18 bytes each.
+    pub variants: Vec<ModelVariant>,
+    /// `+0x30`: variant used unless `random_variant`.
+    pub variant: i32,
+    /// `+0x34`: mesh index within the variant (negative = no mesh).
+    pub mesh: i32,
+    /// `+0x38`: pick the variant with `Rand(variant count)`.
+    pub random_variant: bool,
+}
+
+pub fn model_description(data: &[u8]) -> Result<ModelDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("ModelDescription") {
+            return format_err(format!(
+                "expected ModelDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let mut variants = Vec::new();
+            for _ in 0..r.count()? {
+                let animations = r.external_ref()?;
+                let meshes = (0..r.count()?)
+                    .map(|_| r.external_ref())
+                    .collect::<Result<_>>()?;
+                variants.push(ModelVariant { animations, meshes });
+            }
+            Ok(ModelDescription {
+                variants,
+                variant: r.i32()?,
+                mesh: r.i32()?,
+                random_variant: r.bool()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `NaturalResourceDescription` (serializer `FUN_14012b2e0`). Field offsets are in the runtime
+/// object; see docs/RESOURCE-SEEDING.md and GAME-LOOP-STEP-14.md.
+#[derive(Debug, Clone)]
+pub struct NaturalResourceDescription {
+    /// `+0x20`: the raw material it yields.
+    pub raw_material: Option<String>,
+    /// `+0x28`, `+0x2c`: placement noise persistence and octaves.
+    pub noise_persistence: f32,
+    pub noise_octaves: f32,
+    /// `+0x30`: placement noise scale (sampled at `cell / scale`).
+    pub noise_scale: f32,
+    /// `+0x34`: minimum `noise · 0.5 + 0.5`.
+    pub noise_min: f32,
+    /// `+0x38`: `RandFloat()` must be at most this.
+    pub chance: f32,
+    /// `+0x48`: choose the model variant by noise clusters.
+    pub cluster: bool,
+    /// `+0x4c`, `+0x50`: cluster noise persistence and octaves.
+    pub cluster_persistence: f32,
+    pub cluster_octaves: f32,
+    /// `+0x54`, `+0x58`: cluster noise scale and threshold.
+    pub cluster_scale: f32,
+    pub cluster_threshold: f32,
+    /// `+0x5c`: 1-in-N chance of a random variant instead.
+    pub random_variant_one_in: i32,
+    /// `+0x3c`, `+0x40`: ground height range.
+    pub height_min: f32,
+    pub height_max: f32,
+    /// `+0x44`: minimum ground normal z.
+    pub normal_min: f32,
+    /// `+0x64`: transition flag (GAME-LOOP-STEP-14).
+    pub flag: bool,
+    /// `+0x68`, `+0x70`: `System::Time` values (microseconds).
+    pub time_a: i64,
+    pub time_b: i64,
+    /// `+0x80`.
+    pub value: u32,
+    /// `+0x78`.
+    pub related: Option<String>,
+    /// `+0x60`: used by the positioning component.
+    pub position_scale: f32,
+}
+
+pub fn natural_resource_description(data: &[u8]) -> Result<NaturalResourceDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("NaturalResourceDescription") {
+            return format_err(format!(
+                "expected NaturalResourceDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(NaturalResourceDescription {
+                raw_material: r.external_ref()?,
+                noise_persistence: r.f32()?,
+                noise_octaves: r.f32()?,
+                noise_scale: r.f32()?,
+                noise_min: r.f32()?,
+                chance: r.f32()?,
+                cluster: r.bool()?,
+                cluster_persistence: r.f32()?,
+                cluster_octaves: r.f32()?,
+                cluster_scale: r.f32()?,
+                cluster_threshold: r.f32()?,
+                random_variant_one_in: r.i32()?,
+                height_min: r.f32()?,
+                height_max: r.f32()?,
+                normal_min: r.f32()?,
+                flag: r.bool()?,
+                time_a: r.i64()?,
+                time_b: r.i64()?,
+                value: r.u32()?,
+                related: r.external_ref()?,
+                position_scale: r.f32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `GrowthDescription` (serializer `FUN_140125e50`). See GAME-LOOP-STEP-11/12 and
+/// RESOURCE-SEEDING.md for the consumers.
+#[derive(Debug, Clone)]
+pub struct GrowthDescription {
+    /// `+0x20` / `+0x24`: maximum growth `= RandFloatTol · range + base` when base > 0
+    /// (`FUN_140125bc0`); otherwise −1. Also the spawn step (`FUN_140056620`).
+    pub max_base: f32,
+    pub max_range: f32,
+    pub f28: f32,
+    pub b2c: bool,
+    pub f30: f32,
+    pub f34: f32,
+    pub b38: bool,
+    pub f3c: f32,
+    pub f40: f32,
+    pub b44: bool,
+    /// `+0x4c`: spawn radius in cells (`RandTol`).
+    pub spawn_radius: i32,
+    /// `+0x50`: growth timer scale (`RandFloat · value · 300` seconds).
+    pub timer_months: i32,
+    /// `+0x48`: spawn chance is `1 / value`.
+    pub spawn_one_in: i32,
+    /// `+0x54`.
+    pub threshold: f32,
+    /// `+0x58`: maximum occupied neighbours (`FUN_140126100`).
+    pub max_neighbours: i32,
+    /// `+0x5c`: maximum neighbours of the same growth type.
+    pub max_same: i32,
+    pub f60: f32,
+    /// `+0x64`: scale shape: false = uniform growth, true = `(g/0.15, g/0.15, g, 1)` clamped.
+    pub tall: bool,
+}
+
+pub fn growth_description(data: &[u8]) -> Result<GrowthDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("GrowthDescription") {
+            return format_err(format!(
+                "expected GrowthDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(GrowthDescription {
+                max_base: r.f32()?,
+                max_range: r.f32()?,
+                f28: r.f32()?,
+                b2c: r.bool()?,
+                f30: r.f32()?,
+                f34: r.f32()?,
+                b38: r.bool()?,
+                f3c: r.f32()?,
+                f40: r.f32()?,
+                b44: r.bool()?,
+                spawn_radius: r.i32()?,
+                timer_months: r.i32()?,
+                spawn_one_in: r.i32()?,
+                threshold: r.f32()?,
+                max_neighbours: r.i32()?,
+                max_same: r.i32()?,
+                f60: r.f32()?,
+                tall: r.bool()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// One `SpawnDescription` entry: a template spawned while the parent's growth is in `[lo, hi]`.
+#[derive(Debug, Clone)]
+pub struct SpawnEntry {
+    pub template: Option<String>,
+    pub lo: f32,
+    pub hi: f32,
+}
+
+/// `SpawnDescription` (serializer `FUN_140056a10`).
+pub fn spawn_description(data: &[u8]) -> Result<Vec<SpawnEntry>> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("SpawnDescription") {
+            return format_err(format!(
+                "expected SpawnDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            (0..r.count()?)
+                .map(|_| {
+                    Ok(SpawnEntry {
+                        template: r.external_ref()?,
+                        lo: r.f32()?,
+                        hi: r.f32()?,
+                    })
+                })
+                .collect()
+        })
+    })?;
+    Ok(value)
+}
+
+/// `MapDescription` (serializer `FUN_140129a30`): how an entity stamps the gameplay map.
+#[derive(Debug, Clone)]
+pub struct MapDescription {
+    /// `+0x20`: cell type written under the footprint (4 for natural resources).
+    pub cell_type: u32,
+    /// `+0x28`: footprint rows (`#` own type, `_` ground, `.` untouched); empty = whole area.
+    pub footprint: String,
+    /// `+0x30`: stamp on activation.
+    pub stamp: bool,
+    /// `+0x31`: never stamp.
+    pub no_stamp: bool,
+    /// `+0x32`: draw on the minimap with `color`.
+    pub minimap: bool,
+    pub color: u32,
+}
+
+pub fn map_description(data: &[u8]) -> Result<MapDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("MapDescription") {
+            return format_err(format!(
+                "expected MapDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(MapDescription {
+                cell_type: r.u32()?,
+                footprint: r.string()?,
+                stamp: r.bool()?,
+                no_stamp: r.bool()?,
+                minimap: r.bool()?,
+                color: r.u32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}

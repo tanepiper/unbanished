@@ -91,10 +91,76 @@ For each template, in order:
 The cell occupancy written in each step feeds the object and density checks of later cells and
 later templates, so the order above matters.
 
+## Component setup, growth, spawn and stamping (traced for the port)
+
+Constructing an entity (`FUN_1400c8bf0`) runs each component's setup (vtable slot `+0x20`) in
+template order. For natural resources (map, model, naturalresource, growth, spawn) only two of them
+draw from the stream:
+
+- **model** (`FUN_140129f90`): `Rand(variant count)` only when the `ModelDescription`
+  random-variant flag (`+0x38`) is set. This is true for Rock, Ore and the spawned herbs, false for
+  Tree;
+- **growth** (`FUN_140125bc0`): maximum growth = `RandFloatTol() · +0x24 + +0x20` when `+0x20 > 0`,
+  otherwise −1. Tree: 5 ± 1.
+
+A scan of every `Component` class's setup and activation slots (to call depth 2) found draws only
+in Model, Growth, Population, Tombstone, Tornado and Animal.
+
+The remaining steps:
+
+- **Growth** (`FUN_140126280(g)`): the growth is `g · max`, stored at
+  `NaturalResourceComponent +0x28`. The mesh-instance scale (`+0x134`) is `min(growth, 1)` on all
+  axes. When `GrowthDescription +0x64` is set it is instead `(clamp(g/0.15), same, g, 1)`. The
+  function then draws one `RandFloat()` for the timer, `· +0x50 · 300` s.
+- **Stamping** (map activation `FUN_140129840` → `FUN_140129680` → `FUN_1400a30f0`): it runs only
+  when the `MapDescription` stamp flag (`+0x30`) is set. Natural resources have an empty footprint
+  and type 4, so their cell becomes type 4 and its `+0x08` points at the entity. Buildings (barn,
+  houses) have this flag clear, so placing the start structures does not change the cells.
+- **Spawn** (`FUN_140056620`). For each entry whose `[lo, hi]` contains the parent's growth, it
+  makes `(int)(growth / child +0x20) + 1` attempts of `FUN_1400560e0`. Each attempt:
+  1. draws `RandFloat() ≤ 1 / child +0x48`;
+  2. draws two `RandTol(child +0x4c)` offsets;
+  3. checks the spot with `FUN_1400a4aa0(map, x, y, mask 4, 0.98, 1000, 0, …)`: type 2, no entity
+     at `+0x00`, cell byte `+0x28` clear, normal z ≥ 0.98;
+  4. runs the density check;
+  5. constructs the child (setup draws), positions it (three `RandFloatTol()`), and calls growth
+     with 0.0 (one timer draw);
+  6. registers it;
+  7. then `RandFloat()` and growth again (another timer draw).
+- **Model variant with clusters:** the final mesh is `Rand(mesh count)`, passed to
+  `FUN_14012a8a0(model, variant, mesh)`.
+- **Position** (`FUN_14012ba10`): the first `RandFloatTol` jitters y and the second x, both
+  `· +0x60`. Height is the ground at the cell centre. Yaw is `RandFloatTol · 180°`.
+- **Start structures** (`FUN_1400a7490`). For each record:
+  - construct the template;
+  - take its size from `CreatePlacedDescription +0x44/+0x48`, or the record's two ints;
+  - position it at the midpoint of the ground at its two corner cells;
+  - set the map component rectangle and rotation;
+  - for templates with a model, draw `Rand(variant count)` → `FUN_14012a8a0(model, v, 0)`;
+  - register it.
+
+  The yard has no model, so the Medium profile draws once (barn) and Easy draws seven times.
+
+The new descriptions parse completely across the shipped data
+(`crates/formats/tests/templates.rs`): `ComponentDescription`, `ModelDescription`,
+`NaturalResourceDescription`, `GrowthDescription`, `SpawnDescription` and `MapDescription`.
+
+## Port
+
+`crates/game/src/seeding.rs` ports the structure draws and the full pass, including spawning.
+`apps/game/src/start.rs` runs it at New Game on the game stream `Random(seed)` before the
+environment draws, then draws the placed models.
+
+Deviations and assumptions:
+
+- The structures' map rectangles and building entities are not created, only their draws.
+- The density check compares templates rather than growth-description pointers (each shipped
+  growth description belongs to one template).
+- The spot check treats cell `+0x00` and byte `+0x28` as empty, which they are at New Game.
+
 ## Open items
 
-- Decode the Rock and Ore `NaturalResourceDescription` values and the spawn, growth and model
-  descriptions, then port the pass.
+- Verify the port entity for entity against a save made right after New Game.
 - Confirm `FUN_1400a4aa0` (spawn spot check) and the exact transform maths in `FUN_14012ba10`.
 - Verify against a save made right after New Game with the current build. That save holds every
   initial entity and its transform.

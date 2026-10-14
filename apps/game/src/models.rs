@@ -210,6 +210,27 @@ impl SceneModels {
         }
         SceneModels { groups }
     }
+
+    /// Build groups from `(mesh reference, material set, instance transforms)` — entities placed
+    /// by the game (natural resources, buildings).
+    pub fn from_instances(
+        archive: &Archive,
+        instances: Vec<(String, usize, Vec<[f32; 16]>)>,
+    ) -> SceneModels {
+        let mut textures = HashMap::new();
+        let groups = instances
+            .into_iter()
+            .filter_map(|(mesh_ref, set, instances)| {
+                let ranges = load_group(archive, &mesh_ref, set, &mut textures)?;
+                Some(ModelGroup {
+                    name: mesh_ref,
+                    ranges,
+                    instances,
+                })
+            })
+            .collect();
+        SceneModels { groups }
+    }
 }
 
 const SHADER: &str = r#"

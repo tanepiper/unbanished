@@ -221,10 +221,14 @@ impl MenuLoop {
                     .string(choice.label.0.as_deref(), &choice.label.1)
             })
             .unwrap_or_else(|| "Fair".to_string());
-        let start_condition = self
+        let condition_choice = self
             .condition_items
             .get(condition_index)
-            .and_then(|&i| ctx.global.as_ref()?.start_conditions.get(i))
+            .and_then(|&i| ctx.global.as_ref()?.start_conditions.get(i));
+        let start_condition_ref = condition_choice
+            .map(|choice| choice.reference.clone())
+            .unwrap_or_default();
+        let start_condition = condition_choice
             .map(|choice| {
                 ctx.ui
                     .res
@@ -242,6 +246,7 @@ impl MenuLoop {
             climate,
             climate_ref,
             start_condition,
+            start_condition_ref,
             size: size_index,
             seed,
         };
