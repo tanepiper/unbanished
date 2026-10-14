@@ -155,8 +155,10 @@ CitizenDescription `+0x118`: below the threshold it displays `textEducatedNo`,
 and at or above the threshold it displays `textEducatedYes`. The update also
 binds the settlement statistic named `percentEducated` to its UI element. This,
 combined with the message-4 progress handler and its completion path, identifies
-the counter as education progress. The exact numeric scale, how attendance
-increments the counter, and which producer sends message 4 remain unresolved.
+the counter as education progress. The school AI sender and typed message-dispatch
+path are now traced in [SCHOOL-ATTENDANCE-TRACE.md](SCHOOL-ATTENDANCE-TRACE.md).
+The exact numeric scale and message cadence relative to task execution remain
+unresolved.
 
 Citizen update `0x140118340` increments `+0x218` by its simulation delta only
 while the AttendanceComponent reference at `+0x208` is non-null. That duration
@@ -199,8 +201,11 @@ service-slot mappings in shipped data.
 `0x1400450b0` uses 15 as its fallback, while the three shipped resources
 override it: Chapel 200, DoctorHouse 30 and SchoolHouse 20. Serializer
 `0x140045010` persists this field. `0x140044a50` refuses assignment when the
-component's current attendee count reaches the resource's value. The producer
-that periodically sends Citizen message 4 is still not identified.
+component's current attendee count reaches the resource's value. Citizen AI
+action 10 sends message 4 through the typed component-message queue; see the
+dedicated [school attendance trace](SCHOOL-ATTENDANCE-TRACE.md) for the
+constructor fields, dispatch slot, and receiver. Queue timing and progress
+cadence remain open.
 
 Production output creation `0x1400cc010` uses the same comparison and branch
 polarity: below the threshold selects `RawMaterialDescription+0x40`; at or above

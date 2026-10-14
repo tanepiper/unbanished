@@ -104,7 +104,10 @@ the school attendance chain in [SCHOOL-ATTENDANCE-TRACE.md](SCHOOL-ATTENDANCE-TR
 
 `Template/SchoolHouse_resource` → `SchoolHouse_workplace` →
 `Game/Profession/Profession.rsc:teacher` and `SchoolHouse_attendance` → citizen description's
-teacher reference → citizen slot `+0x208` → education progress and UI/output threshold.
+teacher reference → citizen slot `+0x208` → CitizenAI action 10 (`0x140112a30`) → typed
+CitizenComponent message code 4 → vtable `0x1401689a0` slot 15 → education progress and UI/output
+threshold. This links the serialized resource identity to an AI action, message constructor and
+dispatcher, and receiving component vtable; detailed field-level evidence is in the school trace.
 
 Other verified identity links already documented:
 
