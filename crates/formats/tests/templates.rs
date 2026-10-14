@@ -114,3 +114,23 @@ fn growth_spawn_map_parse() {
     .unwrap();
     assert_eq!(tree.cell_type, 4);
 }
+
+#[test]
+fn create_placed_parse() {
+    use banished_formats::game::create_placed_description;
+    let Some(archive) = archive() else { return };
+    let names = entries(&archive, "_createplaced.crs");
+    assert!(names.len() > 40, "{}", names.len());
+    for name in names {
+        create_placed_description(&archive.read(name).unwrap())
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+    }
+    let barn = create_placed_description(
+        &archive
+            .read_ref("Template/StorageBarn.rsc:createplaced")
+            .unwrap(),
+    )
+    .unwrap();
+    println!("{barn:?}");
+    assert!(barn.width > 0 && barn.height > 0);
+}

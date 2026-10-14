@@ -804,3 +804,47 @@ pub fn map_description(data: &[u8]) -> Result<MapDescription> {
     })?;
     Ok(value)
 }
+
+/// `CreatePlacedDescription` (serializer `FUN_14011eda0`): how a building is placed; the start
+/// structures (`FUN_1400a7490`) take their size from it.
+#[derive(Debug, Clone)]
+pub struct CreatePlacedDescription {
+    /// `+0x20`.
+    pub flags: u32,
+    /// `+0x30`.
+    pub values: Vec<u32>,
+    /// `+0x28`.
+    pub name: String,
+    /// `+0x44`, `+0x48`: footprint width and height in cells.
+    pub width: i32,
+    pub height: i32,
+    /// `+0x40`.
+    pub value: i32,
+    /// `+0x50`.
+    pub related: Option<String>,
+}
+
+pub fn create_placed_description(data: &[u8]) -> Result<CreatePlacedDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("CreatePlacedDescription") {
+            return format_err(format!(
+                "expected CreatePlacedDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let flags = r.u32()?;
+            let values = (0..r.count()?).map(|_| r.u32()).collect::<Result<_>>()?;
+            Ok(CreatePlacedDescription {
+                flags,
+                values,
+                name: r.string()?,
+                width: r.i32()?,
+                height: r.i32()?,
+                value: r.i32()?,
+                related: r.external_ref()?,
+            })
+        })
+    })?;
+    Ok(value)
+}

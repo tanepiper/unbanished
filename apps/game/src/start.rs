@@ -5,8 +5,9 @@
 use std::collections::HashMap;
 
 use banished_formats::game::{
-    component_description, growth_description, map_description, map_generator, model_description,
-    natural_resource_description, spawn_description, MapGenerator,
+    component_description, create_placed_description, growth_description, map_description,
+    map_generator, model_description, natural_resource_description, spawn_description,
+    MapGenerator,
 };
 use banished_formats::pkg::Archive;
 use banished_game::map::Map;
@@ -46,6 +47,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         natural: None,
         growth: None,
         spawn: Vec::new(),
+        size: None,
     };
     let mut spawn = Vec::new();
     for d in desc.descriptions.iter().flatten() {
@@ -59,6 +61,11 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
             "naturalresource" => t.natural = natural_resource_description(&data).ok(),
             "growth" => t.growth = growth_description(&data).ok(),
             "spawn" => spawn = spawn_description(&data).unwrap_or_default(),
+            "createplaced" => {
+                t.size = create_placed_description(&data)
+                    .ok()
+                    .map(|c| (c.width, c.height))
+            }
             _ => {}
         }
     }
@@ -120,7 +127,7 @@ impl StartingTown {
             rng,
             placed: Vec::new(),
         };
-        seeder.place_structures(&structures);
+        seeder.place_structures(&structures, start.0, start.1);
         seeder.seed(&list, start.0, start.1, radius * radius);
         let placed = std::mem::take(&mut seeder.placed);
         log::info!(

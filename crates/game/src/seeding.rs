@@ -27,6 +27,8 @@ pub struct Template {
     pub growth: Option<GrowthDescription>,
     /// Spawn entries: (index into the template table, lo, hi).
     pub spawn: Vec<(usize, f32, f32)>,
+    /// `CreatePlacedDescription +0x44/+0x48`: building footprint size.
+    pub size: Option<(i32, i32)>,
 }
 
 /// A placed entity.
@@ -104,19 +106,60 @@ impl<'a> Seeder<'a> {
         (h, normal[2])
     }
 
-    /// `FUN_1400a7490`: the profile's start structures. The original constructs each as a
-    /// building entity; their component setup draws nothing from the stream, and the explicit
-    /// `Rand(variant count)` happens for templates with a model. Buildings do not stamp the map
-    /// on activation (their `MapDescription` stamp flag is clear), so no cells change here.
-    pub fn place_structures(&mut self, structures: &[(PlacedStructure, Option<usize>)]) {
-        for (_, template) in structures {
-            let Some(model) = template.and_then(|t| self.templates[t].model.as_ref()) else {
+    /// `FUN_1400a7490`: the profile's start structures, relative to the start cell.
+    ///
+    /// Each is built in "instant" mode (`Game +0xd0 |= 1`), so the build component
+    /// (`FUN_14010cfb0`) shows the last (finished) mesh. Component setup draws nothing from the
+    /// stream except the model's variant; buildings do not stamp the map on activation.
+    pub fn place_structures(
+        &mut self,
+        structures: &[(PlacedStructure, Option<usize>)],
+        sx: i32,
+        sy: i32,
+    ) {
+        let n = self.n();
+        let corner = |s: &Self, x: i32, y: i32| {
+            let i = n * y + x;
+            let half = (n >> 1) as f32;
+            let (px, py) = ((i % n) as f32 - half, (i / n) as f32 - half);
+            let (z, _) = s.ground(px, py);
+            [px, py, z]
+        };
+        for (record, template) in structures {
+            let Some(t) = *template else { continue };
+            // Size from the template, otherwise the record's two integers; swapped when turned
+            // by ±90 or 270 degrees.
+            let (mut w, mut h) = self.templates[t].size.unwrap_or((record.a, record.b));
+            if matches!(record.rotation, 90 | -90 | 270) {
+                std::mem::swap(&mut w, &mut h);
+            }
+            let (x, y) = (sx + record.x, sy + record.y);
+            let p0 = corner(self, x, y);
+            let p1 = corner(self, x + w, y + h);
+            let position = [
+                (p1[0] + p0[0]) * HALF,
+                (p1[1] + p0[1]) * HALF,
+                (p1[2] + p0[2]) * HALF,
+            ];
+            self.construct(t);
+            let Some(model) = self.templates[t].model.as_ref() else {
                 continue;
             };
-            if model.random_variant {
-                self.rng.rand_below(model.variants.len() as u32);
-            }
-            self.rng.rand_below(model.variants.len() as u32);
+            let variant = self.rng.rand_below(model.variants.len() as u32) as usize;
+            let mesh = model
+                .variants
+                .get(variant)
+                .map_or(0, |v| v.meshes.len().saturating_sub(1));
+            self.placed.push(Placed {
+                template: t,
+                cell: (x, y),
+                position,
+                yaw: record.rotation.rem_euclid(360) as f32,
+                variant,
+                mesh,
+                growth: 0.0,
+                scale: [ONE; 4],
+            });
         }
     }
 

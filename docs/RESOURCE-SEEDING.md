@@ -151,9 +151,19 @@ The new descriptions parse completely across the shipped data
 `apps/game/src/start.rs` runs it at New Game on the game stream `Random(seed)` before the
 environment draws, then draws the placed models.
 
+Start structures are drawn at their footprint centre with the finished mesh. Creation runs with
+`Game +0xd0` bit 0 set: the build component (`FUN_14010cfb0`) then selects mesh `count − 1`
+instead of the first construction stage, and the clear-area component (`FUN_14011ce30` →
+`FUN_14011d230`) clears entities under the footprint. Sizes come from `CreatePlacedDescription`
+(`FUN_14011eda0`: u32, u32 list, footprint string, width `+0x44`, height `+0x48`, `+0x40`,
+external). The barn is 8×5.
+
 Deviations and assumptions:
 
-- The structures' map rectangles and building entities are not created, only their draws.
+- The structures' map rectangles, decals and building behaviour are not created yet. Only their
+  draws and models are.
+- *Inferred:* the model transform's offset is the computed footprint centre. The decompiled call
+  passes a stack vector the decompiler did not resolve.
 - The density check compares templates rather than growth-description pointers (each shipped
   growth description belongs to one template).
 - The spot check treats cell `+0x00` and byte `+0x28` as empty, which they are at New Game.
