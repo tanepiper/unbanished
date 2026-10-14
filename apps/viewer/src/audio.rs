@@ -75,15 +75,25 @@ pub struct Player {
 impl Player {
     pub fn play(&mut self, pcm: Pcm, looping: bool) -> Result<(), String> {
         let err = |e: wasm_bindgen::JsValue| format!("{e:?}");
+        let channels = pcm.channels as usize;
+        if channels == 0
+            || pcm.sample_rate == 0
+            || pcm.samples.is_empty()
+            || pcm.samples.len() % channels != 0
+        {
+            return Err(
+                "PCM must contain complete frames with a channel count and sample rate".into(),
+            );
+        }
+        let frames = u32::try_from(pcm.samples.len() / channels)
+            .map_err(|_| "PCM is too long for Web Audio")?;
         self.stop();
         if self.context.is_none() {
             self.context = Some(web_sys::AudioContext::new().map_err(err)?);
         }
         let ctx = self.context.as_ref().unwrap();
-        let channels = pcm.channels.max(1) as usize;
-        let frames = pcm.samples.len() / channels;
         let buffer = ctx
-            .create_buffer(channels as u32, frames as u32, pcm.sample_rate as f32)
+            .create_buffer(channels as u32, frames, pcm.sample_rate as f32)
             .map_err(err)?;
         for ch in 0..channels {
             let mut plane: Vec<f32> = pcm
@@ -101,7 +111,12 @@ impl Player {
         source
             .connect_with_audio_node(&ctx.destination())
             .map_err(err)?;
-        let _ = ctx.resume();
+        let resume = ctx.resume().map_err(err)?;
+        wasm_bindgen_futures::spawn_local(async move {
+            if let Err(e) = wasm_bindgen_futures::JsFuture::from(resume).await {
+                log::error!("Could not resume Web Audio: {e:?}");
+            }
+        });
         source.start().map_err(err)?;
         self.source = Some(source);
         Ok(())
@@ -111,6 +126,17 @@ impl Player {
         if let Some(s) = self.source.take() {
             #[allow(deprecated)]
             let _ = s.stop();
+            let _ = s.disconnect();
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Drop for Player {
+    fn drop(&mut self) {
+        self.stop();
+        if let Some(context) = self.context.take() {
+            let _ = context.close();
         }
     }
 }
