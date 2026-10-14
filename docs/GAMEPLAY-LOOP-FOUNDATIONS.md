@@ -68,7 +68,9 @@ update smoothing pass are traced in [GAME-LOOP-STEP-11.md](GAME-LOOP-STEP-11.md)
 placement, eight-neighbor density gate, and map-cell transition are traced in
 [GAME-LOOP-STEP-12.md](GAME-LOOP-STEP-12.md). Cell admission and linked-resource transition
 dispatch are in [GAME-LOOP-STEP-13.md](GAME-LOOP-STEP-13.md). Resource-description branch meanings,
-resource removal semantics, and map-byte meanings still need save/template comparison.
+resource branch coverage across the shipped templates is in [GAME-LOOP-STEP-14.md](GAME-LOOP-STEP-14.md).
+Exact branch names, resource removal semantics, and map-byte meanings still need save/runtime
+comparison.
 
 ## Remaining work before this is a full game loop
 

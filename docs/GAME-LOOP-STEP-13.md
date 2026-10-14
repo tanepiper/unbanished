@@ -45,9 +45,10 @@ byte at `+0x64`:
   time constant. It then sets animation-component flag `0x04`.
 - If the byte is zero and the component has flag `0x200000`, it calls `FUN_14012b5c0` with a null
   replacement pointer. That helper queues the current owner for removal if it is still registered.
-  When the resource component's byte `+0x2d` is set, it can also clone an entity from the description
-  at `+0x20`, choose a count from description integer `+0x40` or `+0x44` scaled by the component
-  value capped at one, and register the clone when the resulting count is positive.
+  When the resource component's byte `+0x2d` is set, it can also clone an entity from the
+  `NaturalResourceDescription` reference at `+0x20`. The amount comes from the referenced resource's
+  integer at `+0x40` or `+0x44`, selected by component byte `+0x2c`, and is scaled by the component
+  float at `+0x28` capped at one. It registers the clone only when the resulting amount is positive.
 
 The executable establishes these conditions and effects, but not whether the branches mean a
 particular gameplay concept such as maturity, harvest, depletion, or regrowth. That mapping needs
@@ -78,6 +79,6 @@ into a generic growth completion event.
 ## Next trace
 
 Correlate the description fields at `+0x40`, `+0x44`, `+0x64` and the component byte at `+0x2d`
-against decoded resource templates and saved-game instances. Then compare cell byte `+0x28` and the
-growth-updated byte `+0x2c` before and after the transition. This should establish branch names and
-which resource families use the animation, removal and clone paths.
+against decoded resource templates and saved-game instances. The shipped description split is
+documented in [GAME-LOOP-STEP-14.md](GAME-LOOP-STEP-14.md). Then compare cell byte `+0x28` and the
+growth-updated byte `+0x2c` before and after the transition to establish their meanings.
