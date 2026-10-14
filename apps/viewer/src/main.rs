@@ -11,6 +11,7 @@
 mod assets;
 mod audio;
 mod audio_player;
+mod model_player;
 mod render;
 mod tool;
 mod ui_render;
