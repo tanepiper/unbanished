@@ -53,6 +53,8 @@ pub struct Renderer {
     depth: wgpu::TextureView,
     static_pipeline: wgpu::RenderPipeline,
     skinned_pipeline: wgpu::RenderPipeline,
+    static_points: wgpu::RenderPipeline,
+    skinned_points: wgpu::RenderPipeline,
     globals: wgpu::Buffer,
     globals_group: wgpu::BindGroup,
     texture_layout: wgpu::BindGroupLayout,
@@ -257,48 +259,77 @@ impl Renderer {
                 shader_location: 4,
             },
         ];
-        let pipeline =
-            |stride: usize, entry: &str, attributes: &[wgpu::VertexAttribute], label: &str| {
-                device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some(label),
-                    layout: Some(&layout),
-                    vertex: wgpu::VertexState {
-                        module: &shader,
-                        entry_point: Some(entry),
-                        compilation_options: Default::default(),
-                        buffers: &[Some(wgpu::VertexBufferLayout {
-                            array_stride: stride as u64,
-                            step_mode: wgpu::VertexStepMode::Vertex,
-                            attributes,
-                        })],
-                    },
-                    primitive: wgpu::PrimitiveState {
-                        // The original renderer culls with D3D's clockwise front faces.
-                        front_face: wgpu::FrontFace::Cw,
-                        cull_mode: None,
-                        ..Default::default()
-                    },
-                    depth_stencil: Some(wgpu::DepthStencilState {
-                        format: DEPTH_FORMAT,
-                        depth_write_enabled: Some(true),
-                        depth_compare: Some(wgpu::CompareFunction::Less),
-                        stencil: Default::default(),
-                        bias: Default::default(),
-                    }),
-                    multisample: Default::default(),
-                    fragment: Some(wgpu::FragmentState {
-                        module: &shader,
-                        entry_point: Some("fs_main"),
-                        compilation_options: Default::default(),
-                        targets: &[Some(format.into())],
-                    }),
-                    multiview_mask: None,
-                    cache: None,
-                })
-            };
-        let static_pipeline = pipeline(STATIC_STRIDE, "vs_main", &static_attributes, "static");
-        let skinned_pipeline =
-            pipeline(SKINNED_STRIDE, "vs_skinned", &skinned_attributes, "skinned");
+        let pipeline = |stride: usize,
+                        entry: &str,
+                        attributes: &[wgpu::VertexAttribute],
+                        label: &str,
+                        topology: wgpu::PrimitiveTopology| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(label),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some(entry),
+                    compilation_options: Default::default(),
+                    buffers: &[Some(wgpu::VertexBufferLayout {
+                        array_stride: stride as u64,
+                        step_mode: wgpu::VertexStepMode::Vertex,
+                        attributes,
+                    })],
+                },
+                primitive: wgpu::PrimitiveState {
+                    // The original renderer culls with D3D's clockwise front faces.
+                    front_face: wgpu::FrontFace::Cw,
+                    cull_mode: None,
+                    topology,
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: DEPTH_FORMAT,
+                    depth_write_enabled: Some(true),
+                    depth_compare: Some(wgpu::CompareFunction::Less),
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: Default::default(),
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some("fs_main"),
+                    compilation_options: Default::default(),
+                    targets: &[Some(format.into())],
+                }),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+        let static_pipeline = pipeline(
+            STATIC_STRIDE,
+            "vs_main",
+            &static_attributes,
+            "static",
+            wgpu::PrimitiveTopology::TriangleList,
+        );
+        let skinned_pipeline = pipeline(
+            SKINNED_STRIDE,
+            "vs_skinned",
+            &skinned_attributes,
+            "skinned",
+            wgpu::PrimitiveTopology::TriangleList,
+        );
+        let static_points = pipeline(
+            STATIC_STRIDE,
+            "vs_main",
+            &static_attributes,
+            "static points",
+            wgpu::PrimitiveTopology::PointList,
+        );
+        let skinned_points = pipeline(
+            SKINNED_STRIDE,
+            "vs_skinned",
+            &skinned_attributes,
+            "skinned points",
+            wgpu::PrimitiveTopology::PointList,
+        );
 
         let globals = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("globals"),
@@ -335,6 +366,8 @@ impl Renderer {
             depth,
             static_pipeline,
             skinned_pipeline,
+            static_points,
+            skinned_points,
             globals,
             globals_group,
             texture_layout,
@@ -624,7 +657,10 @@ impl Renderer {
         let globals = Globals {
             view_proj: frame.view_proj.to_cols_array_2d(),
             light_dir: light.extend(0.0).to_array(),
-            eye: frame.eye.extend(1.0).to_array(),
+            eye: frame
+                .eye
+                .extend(if frame.textures { 1.0 } else { 0.0 })
+                .to_array(),
         };
         self.queue
             .write_buffer(&self.globals, 0, bytemuck::bytes_of(&globals));
@@ -666,7 +702,13 @@ impl Renderer {
                     pass.set_bind_group(0, &self.globals_group, &[]);
                     pass.set_bind_group(2, &mesh.skin, &[]);
                     for part in &mesh.parts {
-                        pass.set_pipeline(if part.skinned {
+                        pass.set_pipeline(if frame.vertices_only {
+                            if part.skinned {
+                                &self.skinned_points
+                            } else {
+                                &self.static_points
+                            }
+                        } else if part.skinned {
                             &self.skinned_pipeline
                         } else {
                             &self.static_pipeline
@@ -696,6 +738,8 @@ pub struct Frame<'a> {
     /// Pixel rectangle (x, y, w, h) for the 3D view; the whole target when `None`.
     pub viewport: Option<[f32; 4]>,
     pub ui: Option<(&'a banished_ui::Ui, &'a [banished_ui::Quad])>,
+    pub textures: bool,
+    pub vertices_only: bool,
 }
 
 pub const CLEAR_SKY: wgpu::Color = wgpu::Color {

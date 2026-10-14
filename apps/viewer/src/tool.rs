@@ -80,10 +80,17 @@ pub struct Tool {
     root: NodeId,
     mode_buttons: Vec<(Mode, NodeId)>,
     list: NodeId,
+    categories: NodeId,
     main: NodeId,
     info: NodeId,
     picture: NodeId,
     audio_controls: NodeId,
+    model_controls: NodeId,
+    textures_button: NodeId,
+    vertices_button: NodeId,
+    visible_items: Vec<String>,
+    textures_enabled: bool,
+    vertices_only: bool,
     play: NodeId,
     stop: NodeId,
     dialog_host: NodeId,
@@ -154,12 +161,33 @@ impl Tool {
         if let Some(panel) = ui.instantiate(PANEL) {
             ui.add_child(side, panel);
         }
+        let categories = ui.list(FONT_SMALL);
+        {
+            let n = ui.node_mut(categories);
+            n.flags = flags::FILL_WIDTH;
+            n.min_size = [0, 112];
+            n.margins = [6, 6, 6, 0];
+        }
+        ui.add_child(side, categories);
         let list = ui.list(FONT_SMALL);
         {
             let n = ui.node_mut(list);
             n.flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
             n.margins = [6, 6, 6, 6];
         }
+        let model_controls = ui.ribbon(false, 4);
+        {
+            let n = ui.node_mut(model_controls);
+            n.flags = flags::FILL_WIDTH;
+            n.margins = [6, 2, 6, 4];
+        }
+        let textures_button = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
+        ui.set_text(textures_button, "Textures: On");
+        let vertices_button = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
+        ui.set_text(vertices_button, "Vertices: Off");
+        ui.add_child(model_controls, textures_button);
+        ui.add_child(model_controls, vertices_button);
+        ui.add_child(side, model_controls);
         ui.add_child(side, list);
         ui.add_child(root, side);
 
@@ -219,10 +247,17 @@ impl Tool {
             root,
             mode_buttons,
             list,
+            categories,
             main,
             info,
             picture,
             audio_controls,
+            model_controls,
+            textures_button,
+            vertices_button,
+            visible_items: Vec::new(),
+            textures_enabled: true,
+            vertices_only: false,
             play,
             stop,
             dialog_host,
@@ -261,6 +296,34 @@ impl Tool {
         }
     }
 
+    fn category_names(&self) -> Vec<String> {
+        let mut names = vec!["All".to_owned()];
+        let mut seen = std::collections::BTreeSet::new();
+        for item in self.items(self.mode) {
+            let path = item.replace('\\', "/");
+            let mut parts = path.split('/');
+            let _root = parts.next();
+            if let Some(category) = parts.next() {
+                if seen.insert(category.to_owned()) {
+                    names.push(category.to_owned());
+                }
+            }
+        }
+        names
+    }
+
+    fn filtered_items(&self, category: usize) -> Vec<String> {
+        let category_name = self.category_names().get(category).cloned();
+        self.items(self.mode)
+            .iter()
+            .filter(|item| {
+                category == 0
+                    || item.replace('\\', "/").split('/').nth(1) == category_name.as_deref()
+            })
+            .cloned()
+            .collect()
+    }
+
     fn display_name(entry: &str) -> String {
         entry.trim_end_matches(".crs").replace('\\', "/")
     }
@@ -277,12 +340,17 @@ impl Tool {
     pub fn set_mode(&mut self, renderer: &mut Renderer, mode: Mode) {
         self.mode = mode;
         self.player.stop();
-        let names = self
-            .items(mode)
-            .iter()
-            .map(|n| Self::display_name(n))
-            .collect();
-        self.ui.set_list_items(self.list, names);
+        let categories = self.category_names();
+        self.ui.set_list_items(self.categories, categories);
+        self.ui.list_select(self.categories, Some(0));
+        self.visible_items = self.filtered_items(0);
+        self.ui.set_list_items(
+            self.list,
+            self.visible_items
+                .iter()
+                .map(|n| Self::display_name(n))
+                .collect(),
+        );
         for &(m, b) in &self.mode_buttons {
             // Highlight the active mode by dimming the others.
             let n = self.ui.node_mut(b);
@@ -294,6 +362,8 @@ impl Tool {
         }
         self.ui.set_visible(self.picture, mode == Mode::Textures);
         self.ui
+            .set_visible(self.model_controls, mode == Mode::Models);
+        self.ui
             .set_visible(self.audio_controls, mode == Mode::Audio);
         self.ui.set_visible(self.dialog_host, mode == Mode::Dialogs);
         self.ui.node_mut(self.dialog_host).children.clear();
@@ -303,7 +373,7 @@ impl Tool {
     }
 
     pub fn select(&mut self, renderer: &mut Renderer, index: usize) {
-        let Some(name) = self.items(self.mode).get(index).cloned() else {
+        let Some(name) = self.visible_items.get(index).cloned() else {
             return;
         };
         self.ui.list_select(self.list, Some(index));
@@ -392,7 +462,7 @@ impl Tool {
     }
 
     pub fn step(&mut self, renderer: &mut Renderer, delta: isize) {
-        let n = self.items(self.mode).len() as isize;
+        let n = self.visible_items.len() as isize;
         if n == 0 {
             return;
         }
@@ -407,7 +477,7 @@ impl Tool {
         let Kind::List(l) = &self.ui.node(self.list).kind else {
             return;
         };
-        let Some(name) = l.selected.and_then(|i| self.assets.sounds.get(i)).cloned() else {
+        let Some(name) = l.selected.and_then(|i| self.visible_items.get(i)).cloned() else {
             return;
         };
         let result = self
@@ -481,6 +551,8 @@ impl Tool {
             eye: self.camera.eye(),
             viewport: Some(vp),
             ui: Some((&self.ui, quads)),
+            textures: self.textures_enabled,
+            vertices_only: self.vertices_only,
         }
     }
 
@@ -500,11 +572,42 @@ impl Tool {
                 } else if id == self.stop {
                     self.player.stop();
                     self.set_status("Stopped");
+                } else if id == self.textures_button {
+                    self.textures_enabled = !self.textures_enabled;
+                    self.ui.set_text(
+                        self.textures_button,
+                        if self.textures_enabled {
+                            "Textures: On"
+                        } else {
+                            "Textures: Off"
+                        },
+                    );
+                } else if id == self.vertices_button {
+                    self.vertices_only = !self.vertices_only;
+                    self.ui.set_text(
+                        self.vertices_button,
+                        if self.vertices_only {
+                            "Vertices: On"
+                        } else {
+                            "Vertices: Off"
+                        },
+                    );
                 } else {
                     self.dialog_event(event);
                 }
             }
             Event::Selected(id, index) if id == self.list => self.select(renderer, index),
+            Event::Selected(id, index) if id == self.categories => {
+                self.visible_items = self.filtered_items(index);
+                self.ui.set_list_items(
+                    self.list,
+                    self.visible_items
+                        .iter()
+                        .map(|n| Self::display_name(n))
+                        .collect(),
+                );
+                self.select(renderer, 0);
+            }
             _ => self.dialog_event(event),
         }
     }

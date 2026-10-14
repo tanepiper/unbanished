@@ -286,6 +286,8 @@ fn capture(out_dir: &std::path::Path, filters: &[String]) {
             eye: camera.eye(),
             viewport: None,
             ui: None,
+            textures: true,
+            vertices_only: false,
         });
         let file = out_dir.join(name.trim_end_matches(".crs").replace('\\', "_") + ".png");
         write_png(&file, (SIZE, SIZE), &rgba);

@@ -75,6 +75,9 @@ fn vs_skinned(v: SkinnedIn) -> VsOut {
 
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
+    if (globals.eye.w < 0.5) {
+        return vec4<f32>(0.2 + 0.8 * abs(normalize(in.normal)), 1.0);
+    }
     let base = textureSample(diffuse_tex, samp, in.uv * material.uv_transform.xy + material.uv_transform.zw);
     let ao = textureSample(ao_tex, samp, in.uv_ao).r;
     if (base.a < 0.5) {
