@@ -4,7 +4,9 @@ use std::rc::Rc;
 
 use banished_formats::crc::type_id;
 use banished_formats::pkg::{Archive, Package};
-use banished_formats::types::{self, GraphicsMesh, ImageBuffer, MaterialInstance, SoundBuffer};
+use banished_formats::types::{
+    self, AnimationClip, AnimationGroup, GraphicsMesh, ImageBuffer, MaterialInstance, SoundBuffer,
+};
 use banished_formats::{crs, Result};
 
 pub struct Assets {
@@ -14,6 +16,7 @@ pub struct Assets {
     pub textures: Vec<String>,
     pub sounds: Vec<String>,
     pub dialogs: Vec<String>,
+    pub animations: Vec<(String, Vec<AnimationClip>)>,
 }
 
 impl Assets {
@@ -28,11 +31,12 @@ impl Assets {
             );
             archive.add(pkg);
         }
-        let (mesh, image, sound, dialog) = (
+        let (mesh, image, sound, dialog, animation_group) = (
             type_id("GraphicsMesh"),
             type_id("ImageBuffer"),
             type_id("SoundBuffer"),
             type_id("Dialog"),
+            type_id(AnimationGroup::CLASS),
         );
         let mut assets = Assets {
             archive: Rc::new(Archive::default()),
@@ -40,6 +44,7 @@ impl Assets {
             textures: Vec::new(),
             sounds: Vec::new(),
             dialogs: Vec::new(),
+            animations: Vec::new(),
         };
         for name in archive.names() {
             if !name.ends_with(".crs") {
@@ -53,17 +58,29 @@ impl Assets {
                 t if t == image => &mut assets.textures,
                 t if t == sound => &mut assets.sounds,
                 t if t == dialog => &mut assets.dialogs,
+                t if t == animation_group => {
+                    match archive
+                        .read(name)
+                        .and_then(|bytes| types::animation_group(&bytes))
+                    {
+                        Ok(group) => assets.animations.push((name.to_owned(), group.clips)),
+                        Err(err) => log::warn!("{name}: animation decode failed: {err}"),
+                    }
+                    continue;
+                }
                 _ => continue,
             };
             list.push(name.to_string());
         }
         log::info!(
-            "{} resources: {} meshes, {} textures, {} sounds, {} dialogs",
+            "{} resources: {} meshes, {} textures, {} sounds, {} dialogs, {} animation groups / {} clips",
             archive.len(),
             assets.meshes.len(),
             assets.textures.len(),
             assets.sounds.len(),
-            assets.dialogs.len()
+            assets.dialogs.len(),
+            assets.animations.len(),
+            assets.animations.iter().map(|(_, clips)| clips.len()).sum::<usize>()
         );
         assets.archive = Rc::new(archive);
         Ok(assets)
@@ -87,6 +104,27 @@ impl Assets {
 
     pub fn sound(&self, name: &str) -> Result<SoundBuffer> {
         types::sound_buffer(&self.archive.read(name)?)
+    }
+
+    pub fn animations_for_mesh(&self, mesh_name: &str, source_name: &str) -> Vec<AnimationClip> {
+        let matches = |candidate: &str| {
+            let norm = |s: &str| s.replace('\\', "/").to_ascii_lowercase();
+            let wanted = norm(mesh_name);
+            let source = norm(source_name);
+            let candidate = norm(candidate);
+            candidate == wanted
+                || candidate == source
+                || wanted.ends_with(&candidate)
+                || source.ends_with(&candidate)
+                || candidate.ends_with(&wanted)
+                || candidate.ends_with(&source)
+        };
+        self.animations
+            .iter()
+            .flat_map(|(_, clips)| clips)
+            .filter(|clip| matches(&clip.mesh_name) || matches(&clip.source_name))
+            .cloned()
+            .collect()
     }
 }
 

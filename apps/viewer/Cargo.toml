@@ -12,6 +12,7 @@ banished-ui = { path = "../../crates/ui" }
 banished-wma = { path = "../../crates/wma" }
 wgpu = { version = "30", features = ["webgl"] }
 winit = "0.30"
+web-time = "1"
 glam = { version = "0.34", features = ["bytemuck"] }
 bytemuck = { version = "1.25", features = ["derive"] }
 log = "0.4"

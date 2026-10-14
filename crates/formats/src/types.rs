@@ -173,6 +173,115 @@ pub struct GraphicsMesh {
     pub bounds_max: [f32; 3],
 }
 
+#[derive(Debug, Clone)]
+pub struct AnimationClip {
+    pub name: String,
+    pub mesh_name: String,
+    pub source_name: String,
+    pub looping: bool,
+    pub sample_rate: f32,
+    pub loop_start: usize,
+    pub bone_count: usize,
+    /// Frame-major quaternion (xyzw) + translation (xyz) samples.
+    pub frames: Vec<Vec<crate::skeleton::Transform>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AnimationGroup {
+    pub clips: Vec<AnimationClip>,
+}
+
+impl AnimationGroup {
+    pub const CLASS: &'static str = "AnimationGroup";
+
+    /// `Graphics::AnimationGroup::Serialize` and `Graphics::Animation::Serialize` from the
+    /// Ghidra Runtime export (0x1800fdf30 / 0x1800fd910). Animation samples are 4 quaternion
+    /// floats and 3 translation floats; UpdateNodes interpolates adjacent samples per mesh node.
+    pub fn read(r: &mut Reader) -> Result<Self> {
+        r.block(|r, _| {
+            let clip_count = r.count()?;
+            let mut clips = Vec::with_capacity(clip_count);
+            for _ in 0..clip_count {
+                let name = r.string()?;
+                let mesh_name = r.string()?;
+                let source_name = r.string()?;
+                let start_frame = r.i32()?;
+                let end_frame = r.i32()?;
+                let _declared_rate = r.f32()?;
+                let looping = r.bool()?;
+                let loop_start_frame = r.i32()?;
+                let _instance_count = r.i32()?;
+                let _instanced = r.bool()?;
+                let event_count = r.count()?;
+                for _ in 0..event_count {
+                    // Animation events contain a frame index and an optional event resource.
+                    let _event_frame = r.i32()?;
+                    let _event = r.external_ref()?;
+                }
+                let frame_count = r.count()?;
+                let sample_rate = r.f32()?;
+                let _sample_interval = r.f32()?;
+                let bone_count = r.count()?;
+                let sample_count = r.count()?;
+                if sample_count != frame_count.saturating_mul(bone_count) {
+                    return Err(crate::error::Error::Format(format!(
+                        "animation {name}: {sample_count} samples != {frame_count} frames x {bone_count} bones"
+                    )));
+                }
+                let loop_start = if loop_start_frame == 0 || end_frame == start_frame {
+                    0
+                } else {
+                    ((((loop_start_frame - start_frame) as f32
+                        / (end_frame - start_frame) as f32)
+                        * frame_count as f32) as usize)
+                        .min(frame_count.saturating_sub(1))
+                };
+                let mut frames = Vec::with_capacity(frame_count);
+                for _ in 0..frame_count {
+                    let mut frame = Vec::with_capacity(bone_count);
+                    for _ in 0..bone_count {
+                        frame.push(crate::skeleton::Transform {
+                            // Engine quaternions use the inverse convention to our column-vector
+                            // transform math, as do the serialized mesh bind rotations.
+                            rotation: {
+                                let mut q = r.f32s()?;
+                                q[..3].iter_mut().for_each(|v| *v = -*v);
+                                q
+                            },
+                            translation: r.f32s()?,
+                        });
+                    }
+                    frames.push(frame);
+                }
+                let _duration = r.i64()?;
+                clips.push(AnimationClip {
+                    name,
+                    mesh_name,
+                    source_name,
+                    looping,
+                    sample_rate,
+                    loop_start,
+                    bone_count,
+                    frames,
+                });
+            }
+            let blend_count = r.count()?;
+            for _ in 0..blend_count {
+                let _from = r.string()?;
+                let _to = r.string()?;
+                let _time = r.f32()?;
+            }
+                let default_blend = r.f32()?;
+            let blend_matrix_count = r.count()?;
+            for _ in 0..blend_matrix_count {
+                let _ = r.f32()?;
+            }
+            let _ = default_blend;
+            Ok(AnimationGroup { clips })
+        })
+    }
+}
+
 /// `ModelLayout`: sint16x4 position, sint16x4 texcoords, unorm8x4 normal, 4 bytes padding.
 pub const STATIC_STRIDE: usize = 24;
 /// `ModelSkinLayout`: as static, plus unorm8x4 weights at 24 and uint8x4 bone indices at 28.
@@ -375,6 +484,7 @@ macro_rules! decode_fn {
 
 decode_fn!(image_buffer, ImageBuffer);
 decode_fn!(graphics_mesh, GraphicsMesh);
+decode_fn!(animation_group, AnimationGroup);
 decode_fn!(material_instance, MaterialInstance);
 decode_fn!(vertex_layout, VertexLayout);
 

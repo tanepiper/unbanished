@@ -151,6 +151,7 @@ impl ApplicationHandler<UserEvent> for App {
                         renderer.resize(size.width, size.height);
                     }
                 }
+                tool.update_animation(renderer);
                 tool.layout(renderer.size());
                 let quads = tool.quads();
                 renderer.render(tool.frame(&quads));
@@ -205,6 +206,17 @@ impl ApplicationHandler<UserEvent> for App {
             _ => return,
         }
         self.redraw();
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if self.tool.as_ref().is_some_and(Tool::animation_is_playing) {
+            event_loop.set_control_flow(winit::event_loop::ControlFlow::WaitUntil(
+                web_time::Instant::now() + std::time::Duration::from_millis(16),
+            ));
+            self.redraw();
+        } else {
+            event_loop.set_control_flow(winit::event_loop::ControlFlow::Wait);
+        }
     }
 }
 

@@ -69,6 +69,9 @@ impl<'a> Reader<'a> {
     pub fn u64(&mut self) -> Result<u64> {
         Ok(u64::from_le_bytes(self.arr()?))
     }
+    pub fn i64(&mut self) -> Result<i64> {
+        Ok(i64::from_le_bytes(self.arr()?))
+    }
     pub fn f32(&mut self) -> Result<f32> {
         Ok(f32::from_le_bytes(self.arr()?))
     }

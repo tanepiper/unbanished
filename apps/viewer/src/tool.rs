@@ -2,9 +2,11 @@
 //! widget templates from `Dialog\SharedElements`.
 
 use banished_formats::texture::decode_rgba;
+use banished_formats::types::AnimationClip;
 use banished_formats::ui::flags;
 use banished_ui::{DialogInstance, Event, Key, Kind, NodeId, Ui};
 use glam::{Mat4, Vec3};
+use web_time::Instant;
 
 use crate::assets::Assets;
 use crate::audio::Player;
@@ -93,6 +95,15 @@ pub struct Tool {
     vertices_only: bool,
     play: NodeId,
     stop: NodeId,
+    animation_next: NodeId,
+    animation_back: NodeId,
+    animation_forward: NodeId,
+    animation_label: NodeId,
+    animation_clips: Vec<AnimationClip>,
+    animation_index: usize,
+    animation_playing: bool,
+    animation_started: Instant,
+    animation_elapsed: f32,
     dialog_host: NodeId,
     status: NodeId,
     dialog: Option<DialogInstance>,
@@ -161,25 +172,28 @@ impl Tool {
         if let Some(panel) = ui.instantiate(PANEL) {
             ui.add_child(side, panel);
         }
+        let sidebar_stack = ui.ribbon(true, 6);
+        {
+            let n = ui.node_mut(sidebar_stack);
+            n.flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
+            n.margins = [6, 6, 6, 6];
+        }
         let categories = ui.list(FONT_SMALL);
         {
             let n = ui.node_mut(categories);
             n.flags = flags::FILL_WIDTH;
             n.min_size = [0, 112];
-            n.margins = [6, 6, 6, 0];
         }
-        ui.add_child(side, categories);
         let list = ui.list(FONT_SMALL);
         {
             let n = ui.node_mut(list);
             n.flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
-            n.margins = [6, 6, 6, 6];
         }
         let model_controls = ui.ribbon(false, 4);
         {
             let n = ui.node_mut(model_controls);
             n.flags = flags::FILL_WIDTH;
-            n.margins = [6, 2, 6, 4];
+            n.min_size = [0, 36];
         }
         let textures_button = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
         ui.set_text(textures_button, "Textures: On");
@@ -187,8 +201,10 @@ impl Tool {
         ui.set_text(vertices_button, "Vertices: Off");
         ui.add_child(model_controls, textures_button);
         ui.add_child(model_controls, vertices_button);
-        ui.add_child(side, model_controls);
-        ui.add_child(side, list);
+        ui.add_child(sidebar_stack, categories);
+        ui.add_child(sidebar_stack, model_controls);
+        ui.add_child(sidebar_stack, list);
+        ui.add_child(side, sidebar_stack);
         ui.add_child(root, side);
 
         // Main area.
@@ -226,8 +242,20 @@ impl Tool {
         ui.set_text(play, "Play");
         let stop = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
         ui.set_text(stop, "Stop");
+        let animation_next = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
+        ui.set_text(animation_next, "Next clip");
+        let animation_back = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
+        ui.set_text(animation_back, "-0.1s");
+        let animation_forward = ui.instantiate(BUTTON).unwrap_or_else(|| ui.group());
+        ui.set_text(animation_forward, "+0.1s");
         ui.add_child(audio_controls, play);
         ui.add_child(audio_controls, stop);
+        ui.add_child(audio_controls, animation_next);
+        ui.add_child(audio_controls, animation_back);
+        ui.add_child(audio_controls, animation_forward);
+        let animation_label = ui.text(FONT_SMALL, "");
+        ui.node_mut(animation_label).margins = [8, 0, 0, 0];
+        ui.add_child(audio_controls, animation_label);
         ui.add_child(main, audio_controls);
         ui.add_child(root, main);
 
@@ -260,6 +288,15 @@ impl Tool {
             vertices_only: false,
             play,
             stop,
+            animation_next,
+            animation_back,
+            animation_forward,
+            animation_label,
+            animation_clips: Vec::new(),
+            animation_index: 0,
+            animation_playing: false,
+            animation_started: Instant::now(),
+            animation_elapsed: 0.0,
             dialog_host,
             status,
             dialog: None,
@@ -298,17 +335,16 @@ impl Tool {
 
     fn category_names(&self) -> Vec<String> {
         let mut names = vec!["All".to_owned()];
-        let mut seen = std::collections::BTreeSet::new();
-        for item in self.items(self.mode) {
-            let path = item.replace('\\', "/");
-            let mut parts = path.split('/');
-            let _root = parts.next();
-            if let Some(category) = parts.next() {
-                if seen.insert(category.to_owned()) {
-                    names.push(category.to_owned());
-                }
-            }
-        }
+        let categories: std::collections::BTreeSet<_> = self
+            .items(self.mode)
+            .iter()
+            .filter_map(|item| {
+                let path = item.replace('\\', "/");
+                let parts: Vec<_> = path.split('/').collect();
+                (parts.len() > 2).then(|| parts[1..parts.len() - 1].join("/"))
+            })
+            .collect();
+        names.extend(categories);
         names
     }
 
@@ -317,8 +353,14 @@ impl Tool {
         self.items(self.mode)
             .iter()
             .filter(|item| {
-                category == 0
-                    || item.replace('\\', "/").split('/').nth(1) == category_name.as_deref()
+                if category == 0 {
+                    return true;
+                }
+                let path = item.replace('\\', "/");
+                let parts: Vec<_> = path.split('/').collect();
+                parts.len() > 2
+                    && parts[1..parts.len() - 1].join("/")
+                        == category_name.as_deref().unwrap_or_default()
             })
             .cloned()
             .collect()
@@ -340,6 +382,9 @@ impl Tool {
     pub fn set_mode(&mut self, renderer: &mut Renderer, mode: Mode) {
         self.mode = mode;
         self.player.stop();
+        self.animation_playing = false;
+        self.animation_clips.clear();
+        self.animation_index = 0;
         let categories = self.category_names();
         self.ui.set_list_items(self.categories, categories);
         self.ui.list_select(self.categories, Some(0));
@@ -365,6 +410,17 @@ impl Tool {
             .set_visible(self.model_controls, mode == Mode::Models);
         self.ui
             .set_visible(self.audio_controls, mode == Mode::Audio);
+        self.ui.set_visible(
+            self.animation_next,
+            mode == Mode::Models && !self.animation_clips.is_empty(),
+        );
+        self.ui.set_visible(
+            self.animation_label,
+            mode == Mode::Models && !self.animation_clips.is_empty(),
+        );
+        self.ui.set_visible(self.animation_back, false);
+        self.ui.set_visible(self.animation_forward, false);
+        self.ui.set_text(self.play, "Play");
         self.ui.set_visible(self.dialog_host, mode == Mode::Dialogs);
         self.ui.node_mut(self.dialog_host).children.clear();
         self.mesh = None;
@@ -388,9 +444,41 @@ impl Tool {
                     self.camera.target = mesh.center;
                     self.camera.distance = mesh.radius * 2.6;
                     let parts = mesh.part_count();
+                    if let Ok(definition) = self.assets.mesh(&name) {
+                        self.animation_clips = self
+                            .assets
+                            .animations_for_mesh(&name, &definition.source)
+                            .into_iter()
+                            .filter(|clip| {
+                                clip.bone_count == definition.bones.len() && !clip.frames.is_empty()
+                            })
+                            .collect();
+                    }
+                    log::info!(
+                        "{}: matched {} animation clips",
+                        shown,
+                        self.animation_clips.len()
+                    );
+                    self.animation_elapsed = 0.0;
+                    self.animation_playing = false;
+                    self.ui.set_visible(
+                        self.audio_controls,
+                        self.mode == Mode::Audio || !self.animation_clips.is_empty(),
+                    );
+                    self.ui
+                        .set_visible(self.animation_next, !self.animation_clips.is_empty());
+                    self.ui
+                        .set_visible(self.animation_label, !self.animation_clips.is_empty());
+                    self.ui
+                        .set_visible(self.animation_back, !self.animation_clips.is_empty());
+                    self.ui
+                        .set_visible(self.animation_forward, !self.animation_clips.is_empty());
+                    self.ui.set_text(self.play, "Play");
+                    self.refresh_animation_label();
                     self.mesh = Some(mesh);
                     self.set_info(&format!(
-                        "{shown}\n{parts} part(s)   drag to orbit, wheel to zoom"
+                        "{shown}\n{parts} part(s)   drag to orbit, wheel to zoom\n{} animation clip(s)",
+                        self.animation_clips.len()
                     ));
                 }
                 Err(e) => self.set_info(&format!("{shown}\n{e}")),
@@ -504,6 +592,90 @@ impl Tool {
         }
     }
 
+    fn animation_duration(&self) -> f32 {
+        self.animation_clips
+            .get(self.animation_index)
+            .map(|clip| clip.frames.len() as f32 / clip.sample_rate.max(0.001))
+            .unwrap_or(0.0)
+    }
+
+    fn refresh_animation_label(&mut self) {
+        if let Some(clip) = self.animation_clips.get(self.animation_index) {
+            let label = format!(
+                "{}   {:.2}/{:.2}s",
+                clip.name,
+                self.animation_elapsed,
+                self.animation_duration()
+            );
+            self.ui.set_text(self.animation_label, &label);
+        } else {
+            self.ui.set_text(self.animation_label, "");
+        }
+    }
+
+    pub fn animation_is_playing(&self) -> bool {
+        self.animation_playing
+    }
+
+    pub fn update_animation(&mut self, renderer: &Renderer) {
+        let Some(clip) = self.animation_clips.get(self.animation_index).cloned() else {
+            return;
+        };
+        if self.animation_playing {
+            self.animation_elapsed = self.animation_started.elapsed().as_secs_f32();
+            let duration = self.animation_duration();
+            if !clip.looping && self.animation_elapsed >= duration {
+                self.animation_elapsed = duration;
+                self.animation_playing = false;
+                self.ui.set_text(self.play, "Play");
+            }
+            self.refresh_animation_label();
+        }
+        if let Some(mesh) = &self.mesh {
+            renderer.set_animation_pose(mesh, &clip, self.animation_elapsed);
+        }
+    }
+
+    fn toggle_animation(&mut self) {
+        if self.animation_clips.is_empty() {
+            return;
+        }
+        self.animation_playing = !self.animation_playing;
+        if self.animation_playing {
+            self.animation_started =
+                Instant::now() - std::time::Duration::from_secs_f32(self.animation_elapsed);
+        }
+        self.ui.set_text(
+            self.play,
+            if self.animation_playing {
+                "Pause"
+            } else {
+                "Play"
+            },
+        );
+    }
+
+    fn next_animation(&mut self) {
+        if self.animation_clips.is_empty() {
+            return;
+        }
+        self.animation_index = (self.animation_index + 1) % self.animation_clips.len();
+        self.animation_elapsed = 0.0;
+        self.animation_playing = false;
+        self.ui.set_text(self.play, "Play");
+        self.refresh_animation_label();
+    }
+
+    fn seek_animation(&mut self, seconds: f32) {
+        self.animation_elapsed =
+            (self.animation_elapsed + seconds).clamp(0.0, self.animation_duration());
+        if self.animation_playing {
+            self.animation_started =
+                Instant::now() - std::time::Duration::from_secs_f32(self.animation_elapsed);
+        }
+        self.refresh_animation_label();
+    }
+
     // ------------------------------------------------------------ frame
 
     pub fn layout(&mut self, size: (u32, u32)) {
@@ -568,10 +740,27 @@ impl Tool {
                 if let Some(&(mode, _)) = self.mode_buttons.iter().find(|(_, b)| *b == id) {
                     self.set_mode(renderer, mode);
                 } else if id == self.play {
-                    self.play_selected();
+                    if self.mode == Mode::Audio {
+                        self.play_selected();
+                    } else {
+                        self.toggle_animation();
+                    }
                 } else if id == self.stop {
-                    self.player.stop();
-                    self.set_status("Stopped");
+                    if self.mode == Mode::Audio {
+                        self.player.stop();
+                        self.set_status("Stopped");
+                    } else {
+                        self.animation_playing = false;
+                        self.animation_elapsed = 0.0;
+                        self.ui.set_text(self.play, "Play");
+                        self.refresh_animation_label();
+                    }
+                } else if id == self.animation_next {
+                    self.next_animation();
+                } else if id == self.animation_back {
+                    self.seek_animation(-0.1);
+                } else if id == self.animation_forward {
+                    self.seek_animation(0.1);
                 } else if id == self.textures_button {
                     self.textures_enabled = !self.textures_enabled;
                     self.ui.set_text(
@@ -679,6 +868,12 @@ impl Tool {
         self.handle_pending(renderer);
         if !handled {
             match key {
+                Key::Right if self.mode == Mode::Models && !self.animation_clips.is_empty() => {
+                    self.seek_animation(0.1)
+                }
+                Key::Left if self.mode == Mode::Models && !self.animation_clips.is_empty() => {
+                    self.seek_animation(-0.1)
+                }
                 Key::Down | Key::Right => self.step(renderer, 1),
                 Key::Up | Key::Left => self.step(renderer, -1),
                 Key::PageDown => self.step(renderer, 20),

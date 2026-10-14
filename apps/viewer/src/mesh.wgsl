@@ -75,6 +75,9 @@ fn vs_skinned(v: SkinnedIn) -> VsOut {
 
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
+    if (globals.light_dir.w > 0.5) {
+        return vec4<f32>(0.2 + 0.8 * abs(normalize(in.normal)), 1.0);
+    }
     if (globals.eye.w < 0.5) {
         return vec4<f32>(0.2 + 0.8 * abs(normalize(in.normal)), 1.0);
     }

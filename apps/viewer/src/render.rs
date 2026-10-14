@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use banished_formats::skeleton::{bind_palette, local_bind, world_transforms, Transform};
 use banished_formats::texture::decode_rgba;
-use banished_formats::types::{ImageBuffer, SKINNED_STRIDE, STATIC_STRIDE};
+use banished_formats::types::{AnimationClip, Bone, ImageBuffer, SKINNED_STRIDE, STATIC_STRIDE};
 use glam::{Mat4, Vec3};
 use wgpu::util::DeviceExt;
 use winit::window::Window;
@@ -39,6 +39,8 @@ impl GpuMesh {
 pub struct GpuMesh {
     parts: Vec<GpuPart>,
     skin: wgpu::BindGroup,
+    skin_buffer: wgpu::Buffer,
+    bones: Vec<Bone>,
     pub center: Vec3,
     pub radius: f32,
 }
@@ -543,9 +545,72 @@ impl Renderer {
         Ok(GpuMesh {
             parts,
             skin,
+            skin_buffer,
+            bones: mesh.bones,
             center: (min + max) * 0.5,
             radius: ((max - min).length() * 0.5).max(0.1),
         })
+    }
+
+    pub fn set_animation_pose(&self, mesh: &GpuMesh, clip: &AnimationClip, seconds: f32) {
+        if clip.frames.is_empty()
+            || clip.bone_count != mesh.bones.len()
+            || mesh.bones.len() > MAX_BONES
+            || clip.sample_rate <= 0.0
+        {
+            return;
+        }
+        let frame_position = (seconds.max(0.0) * clip.sample_rate).max(0.0);
+        let count = clip.frames.len();
+        let raw_frame = frame_position.floor() as usize;
+        let first = if raw_frame < count {
+            raw_frame
+        } else if clip.looping {
+            let loop_start = clip.loop_start.min(count - 1);
+            loop_start + raw_frame % (count - loop_start).max(1)
+        } else {
+            count - 1
+        };
+        let second = if first + 1 < count {
+            first + 1
+        } else if clip.looping {
+            clip.loop_start.min(count - 1)
+        } else {
+            first
+        };
+        let t = frame_position.fract();
+        let locals: Vec<_> = clip.frames[first]
+            .iter()
+            .zip(&clip.frames[second])
+            .map(|(a, b)| {
+                let mut qb = glam::Quat::from_xyzw(
+                    b.rotation[0],
+                    b.rotation[1],
+                    b.rotation[2],
+                    b.rotation[3],
+                );
+                let qa = glam::Quat::from_xyzw(
+                    a.rotation[0],
+                    a.rotation[1],
+                    a.rotation[2],
+                    a.rotation[3],
+                );
+                if qa.dot(qb) < 0.0 {
+                    qb = -qb;
+                }
+                let q = qa.lerp(qb, t).normalize();
+                Transform {
+                    rotation: q.to_array(),
+                    translation: std::array::from_fn(|i| {
+                        a.translation[i] + (b.translation[i] - a.translation[i]) * t
+                    }),
+                }
+            })
+            .collect();
+        let palette = banished_formats::skeleton::palette(&mesh.bones, &locals);
+        let matrices: Vec<[f32; 16]> = palette.iter().map(Transform::to_matrix).collect();
+        self.queue
+            .write_buffer(&mesh.skin_buffer, 0, bytemuck::cast_slice(&matrices));
     }
 
     pub fn device(&self) -> &wgpu::Device {
@@ -656,7 +721,9 @@ impl Renderer {
         let light = Vec3::new(-0.4, -0.3, -1.0).normalize();
         let globals = Globals {
             view_proj: frame.view_proj.to_cols_array_2d(),
-            light_dir: light.extend(0.0).to_array(),
+            light_dir: light
+                .extend(if frame.vertices_only { 1.0 } else { 0.0 })
+                .to_array(),
             eye: frame
                 .eye
                 .extend(if frame.textures { 1.0 } else { 0.0 })

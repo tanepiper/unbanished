@@ -52,7 +52,10 @@ tools/ghidra/export.sh
 | `apps/viewer` | Asset browser built on `crates/ui`: native window, browser (WASM), `--screenshot`, `--capture` |
 | `apps/cli` | `banished-cli export-audio`: decode all sounds to MP3 via FFmpeg |
 
-Viewer keys: **1–4** switch modes; **Up/Down** browse assets. **Tab/Shift-Tab** move UI focus,
+Viewer keys: **1–4** switch modes; **Up/Down** browse assets. Model previews can play/pause clips,
+step to the next clip, and seek with **Left/Right**; “Textures” hides material maps and “Vertices”
+shows the mesh's indexed vertices as points. The sidebar first groups by resource mode, then offers
+the package folder categories for models, textures and audio. **Tab/Shift-Tab** move UI focus,
 **Enter/Escape** activate OK/Cancel or close dropdowns, and arrow keys adjust focused sliders/lists.
 Edit boxes accept text and cursor keys. Dropdown choices and live game values are supplied by host
 controllers; the asset viewer previews templates without a running simulation.

@@ -206,6 +206,14 @@ parity with the original executable has not been established. Animated images cu
 first frame; custom rotated SpriteCapture parts draw axis aligned with a diagnostic. Shipped captures
 have no rotation. Arbitrary unsupported scripts display replacement glyphs rather than a new font.
 
+**Model browser additions (2026-10-14):** model, texture and audio lists now filter through the
+package directory categories. Model previews can hide material textures, render indexed vertices as
+points, and play/pause, step through, or seek shipped mesh animation clips. AnimationGroup and
+Animation samples were decoded from the format and Ghidra traces of `Animation::GetPoseAtTime` and
+`AnimationState::UpdateNodes`; all 15 shipped groups and 64 clips load, and clips are offered only
+when their mesh path and bone count match. This preview uses sampled poses and does not implement
+the game's animation blending, root-motion controllers, or event callbacks.
+
 ## 7. Audio
 
 All 72 `SoundBuffer`s are **xWMA** (WMA v2, tag 0x161, 48 kbps). Each holds a WAVEFORMATEX, a `dpds`
