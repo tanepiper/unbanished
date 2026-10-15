@@ -1102,14 +1102,11 @@ impl Ui {
                 value,
                 ..
             } => {
-                strip(
-                    out,
-                    &sprites[3..],
-                    rc,
-                    modulate(*background_color, color),
-                    clip,
-                    false,
-                );
+                // `ProgressElement::Draw` (0x18011bb50) tints the track with `+0x120`, which the
+                // constructor sets to white and nothing changes; the description's colour
+                // (`+0x68`) is not read by `CreateInstance`.
+                let _ = background_color;
+                strip(out, &sprites[3..], rc, color, clip, false);
                 if *value > 0.0 {
                     let fill = [l, t, l + ((r - l) as f32 * value.clamp(0.0, 1.0)) as i32, b];
                     strip(

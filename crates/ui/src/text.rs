@@ -158,7 +158,9 @@ impl TextLayout {
                 ..g
             }));
         }
-        let height = if text.is_empty() {
+        // `Font::ComputeStringLayout` (0x180119860): unwrapped text is always one line high,
+        // even empty; wrapped text has no lines when empty.
+        let height = if text.is_empty() && wrap_width.is_some_and(|w| w > 0) {
             0
         } else {
             lines.len() as i32 * line_height

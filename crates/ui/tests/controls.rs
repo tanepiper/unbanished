@@ -583,3 +583,25 @@ fn new_game_combos_fill_and_description_sits_in_its_box() {
         "box {border:?} must surround text {text:?}"
     );
 }
+
+/// The build panel's slots keep their height when blanked (unwrapped empty text is one line
+/// high, `Font::ComputeStringLayout`), so the empty slot lines up with the others.
+#[test]
+fn blank_build_slots_line_up() {
+    let Some(mut ui) = game_ui() else { return };
+    ui.screen = [1280, 800];
+    let root = ui.instantiate(r"Dialog\Build.rsc:build").unwrap();
+    let table = ui.find(root, "storageTable").unwrap();
+    let kids = ui.children(table);
+    let last = *kids.last().unwrap();
+    let l = ui.find(last, "labelStorage").unwrap();
+    let t = ui.find(last, "textTotal").unwrap();
+    ui.set_text(l, "");
+    ui.set_text(t, "");
+    if let Kind::Label { icon, .. } = &mut ui.nodes[l].kind {
+        *icon = None;
+    }
+    ui.layout(root, [100, 100, 560, 260]);
+    assert_eq!(ui.nodes[last].rect[1], ui.nodes[kids[1]].rect[1]);
+    assert_eq!(ui.nodes[last].rect[3], ui.nodes[kids[1]].rect[3]);
+}
