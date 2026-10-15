@@ -74,3 +74,10 @@ are following along.
 - `cargo run -q --release -p banished-app --example imgdiff -- A.png B.png [--out heat.png]
   [--resize] [--ignore x,y,w,h] [--json]`: MAE/PSNR, mismatch share, bounding box and a 4×4 grid
   of where frames differ; use it for before/after checks and against original-game screenshots.
+
+## Against the original game (Steam Remote Play)
+
+When the original is streamed to this Mac, capture reference frames and compare: see
+`tools/reference/README.md` (file captures with `tools/reference/save.sh` into the git-ignored
+`game-data/reference/`; compare with `imgdiff --resize --blur 2`). Write behaviour you observe
+into the topic doc under "Observed in the original" with seed, settings and in-game time.

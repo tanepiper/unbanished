@@ -15,7 +15,8 @@ Deterministic helpers for deciding what to trace, port or check next. All read l
 | `tools/emu/rng_trace.py` + `rngdiff.py ORIG PORT` | Does the port draw from `System::Random` in the same order as the original? (see below) |
 | `deviations.py [--check]` | Every comment marking a deviation or unported piece, as `docs/DEVIATIONS.md` |
 | `determinism.sh [SECS] [SEED]` | Do two runs with the same seed render identical frames? |
-| `cargo run -p banished-app --example imgdiff -- A.png B.png` | How and where do two screenshots differ (MAE, PSNR, mismatch %, bounding box, 4×4 grid, heat map; `--resize`, `--ignore x,y,w,h`, `--json`)? |
+| `tools/reference/` (`save.sh`, `windows.swift`, README) | Reference frames of the original game streamed via Steam Remote Play, filed locally for comparison |
+| `cargo run -p banished-app --example imgdiff -- A.png B.png` | How and where do two screenshots differ (MAE, PSNR, mismatch %, bounding box, 4×4 grid, heat map; `--resize`, `--ignore x,y,w,h`, `--crop-a/--crop-b x,y,w,h`, `--blur R` for streamed references, `--json`)? |
 
 "Traced" means the address appears in `docs/`, `crates/`, `apps/` or `tools/`, so naming the
 original function in a doc or a code comment is what marks it done. Small functions that only

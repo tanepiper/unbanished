@@ -3,6 +3,7 @@
 //! ```text
 //! cargo run -q --release -p banished-app --example imgdiff -- A.png B.png
 //!     [--out diff.png] [--threshold 16] [--resize] [--ignore x,y,w,h]... [--json]
+//!     [--crop-a x,y,w,h] [--crop-b x,y,w,h] [--blur R]
 //! ```
 //!
 //! Reports mean absolute error, PSNR, the share of pixels whose largest channel difference
@@ -10,6 +11,9 @@
 //! can be located. `--resize` scales B to A's size (nearest neighbour) when captures differ in
 //! resolution; `--ignore` masks regions such as the clock or a cursor. `--out` writes a heat
 //! map: A in grey with mismatching pixels in red (brighter = larger difference).
+//! `--crop-a`/`--crop-b` compare a region of each image (e.g. the same dialog in windows of
+//! different sizes); `--blur R` box-blurs both first, which tolerates the video compression of
+//! a Steam Remote Play stream of the original game.
 
 use std::fs::File;
 use std::io::BufWriter;
@@ -74,11 +78,76 @@ fn resize(img: &Image, w: usize, h: usize) -> Image {
     }
 }
 
+fn crop(img: &Image, r: [usize; 4]) -> Image {
+    let [x0, y0, w, h] = r;
+    assert!(x0 + w <= img.width && y0 + h <= img.height, "crop outside image");
+    let mut rgba = Vec::with_capacity(w * h * 4);
+    for y in y0..y0 + h {
+        let i = (y * img.width + x0) * 4;
+        rgba.extend_from_slice(&img.rgba[i..i + w * 4]);
+    }
+    Image {
+        width: w,
+        height: h,
+        rgba,
+    }
+}
+
+/// Separable box blur of radius `r` (edges clamped).
+fn blur(img: &Image, r: usize) -> Image {
+    if r == 0 {
+        return Image {
+            width: img.width,
+            height: img.height,
+            rgba: img.rgba.clone(),
+        };
+    }
+    let (w, h) = (img.width, img.height);
+    let pass = |src: &[u8], horizontal: bool| -> Vec<u8> {
+        let mut out = vec![0u8; src.len()];
+        for y in 0..h {
+            for x in 0..w {
+                let mut acc = [0u32; 4];
+                let mut n = 0;
+                for d in -(r as isize)..=(r as isize) {
+                    let (sx, sy) = if horizontal {
+                        ((x as isize + d).clamp(0, w as isize - 1) as usize, y)
+                    } else {
+                        (x, (y as isize + d).clamp(0, h as isize - 1) as usize)
+                    };
+                    let i = (sy * w + sx) * 4;
+                    for c in 0..4 {
+                        acc[c] += src[i + c] as u32;
+                    }
+                    n += 1;
+                }
+                let o = (y * w + x) * 4;
+                for c in 0..4 {
+                    out[o + c] = (acc[c] / n) as u8;
+                }
+            }
+        }
+        out
+    };
+    let rgba = pass(&pass(&img.rgba, true), false);
+    Image {
+        width: w,
+        height: h,
+        rgba,
+    }
+}
+
+fn rect(s: &str) -> [usize; 4] {
+    let v: Vec<usize> = s.split(',').map(|s| s.parse().unwrap()).collect();
+    [v[0], v[1], v[2], v[3]]
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut paths = Vec::new();
     let (mut out, mut threshold, mut do_resize, mut json) = (None, 16u8, false, false);
     let mut ignore: Vec<[usize; 4]> = Vec::new();
+    let (mut crop_a, mut crop_b, mut blur_r) = (None, None, 0usize);
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -91,6 +160,18 @@ fn main() {
                 threshold = args[i].parse().expect("threshold 0-255");
             }
             "--resize" => do_resize = true,
+            "--crop-a" => {
+                i += 1;
+                crop_a = Some(rect(&args[i]));
+            }
+            "--crop-b" => {
+                i += 1;
+                crop_b = Some(rect(&args[i]));
+            }
+            "--blur" => {
+                i += 1;
+                blur_r = args[i].parse().expect("blur radius");
+            }
             "--json" => json = true,
             "--ignore" => {
                 i += 1;
@@ -102,8 +183,14 @@ fn main() {
         i += 1;
     }
     assert!(paths.len() == 2, "usage: imgdiff A.png B.png [options]");
-    let a = load(&paths[0]);
+    let mut a = load(&paths[0]);
     let mut b = load(&paths[1]);
+    if let Some(r) = crop_a {
+        a = crop(&a, r);
+    }
+    if let Some(r) = crop_b {
+        b = crop(&b, r);
+    }
     if (a.width, a.height) != (b.width, b.height) {
         assert!(
             do_resize,
@@ -111,6 +198,10 @@ fn main() {
             a.width, a.height, b.width, b.height
         );
         b = resize(&b, a.width, a.height);
+    }
+    if blur_r > 0 {
+        a = blur(&a, blur_r);
+        b = blur(&b, blur_r);
     }
     let (w, h) = (a.width, a.height);
     let masked = |x: usize, y: usize| {
