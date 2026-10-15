@@ -116,6 +116,29 @@ doctor. Herbs (4) take a herb from the nearest storage to the nearest staffed he
 treated there for 5 s (message 3). Play (11) walks next to the guardian's partner (the
 original's `Rand(1)` is always 0), or the guardian, and idles `RandFloat · 7 + 3` s.
 
+## Happiness buildings (`crates/game/src/happiness.rs`)
+
+HappinessComponent is a controller. Its table is `FUN_14004b570`, and its interface vtable
+is `0x14015f6a0`.
+
+| Piece | Original | Port |
+|---|---|---|
+| HappinessDescription (`FUN_14004b610`) | `+0x20` kind; `+0x24` needs workers; `+0x25` needs stock; `+0x28` raw-material mask; `+0x2c` loiter padding. The kinds are 0 well, 1 market and trading post, 2 tavern, 3 chapel and cemetery, 4 doctor, 5 mines and quarry | yes |
+| Active (`FUN_14004aeb0`) | Kind 5 always counts. With workers needed, the workplace must be staffed and switched on. With stock needed, the storage must hold a raw material matching the mask | yes |
+| States 2 and 0xd | Enter (`FUN_14004b350`) registers an active building. The scheduled update (`FUN_14004b300`) registers or unregisters it as its activity changes | yes |
+| State 3, removal | `FUN_14004b2a0`, `FUN_14004b380`: unregister | yes |
+| Register (`FUN_14004ae50` / `FUN_14004ae00`) | Join or leave the town manager's list (`+0x50`), and add ±1 on the kind's map layer (kinds above 4 use layer 5) within the radius around the map rectangle's centre (`FUN_14004ac60` → `FUN_1400a4e60`) | yes |
+| Visit (message 0, `FUN_14004b0e0`) | With stock needed, one unit of the first matching, unreserved raw material is used up, and the stock slot's consumption counter goes up | yes; the counter is not ported |
+| Loiter target (`FUN_14004b080`, `FUN_14008eea0`) | A registered building that is not kind 5. The pick is `Rand(count)` over those whose first use point is within path rank `2 · range` and reachable | yes |
+
+Happiness (`FUN_140117fb0`) reads the home entrance cell's layers. Layers 0–4 count one
+each when nonzero, layer 5 subtracts its value, and the total is at least 0; a shared home
+gets a quarter of it. The entrance is `FUN_14008d480`, which draws `Rand(n)` for homes with
+several use points.
+
+The citizens' entity views are taken once per update, so a building registered during an
+iteration becomes a loitering target in the next one.
+
 ## Verification
 
 `placement_tool::construction_tests`:
@@ -126,10 +149,11 @@ original's `Rand(1)` is always 0), or the guardian, and idles `RandFloat · 7 + 
   sequences, and the registry and families let go of them.
 - `a_teacher_staffs_the_school_and_a_student_learns`: a new schoolhouse gets a teacher; a child
   coming of age takes a place there and sits a lesson.
+- `a_well_registers_its_happiness`: a new well registers, marks layer 0 within its radius
+  and becomes a loitering target.
 
 ## Not ported yet
 
 The workplace searches
-(`FUN_140115490`, `FUN_140115940`, `FUN_140115eb0`), burial and cemeteries, the map-cell
-happiness counters, accidents (`+0x1f8`), the residence's ClearStorage work, and the stock
+(`FUN_140115490`, `FUN_140115940`, `FUN_140115eb0`), burial and cemeteries, accidents (`+0x1f8`), the residence's ClearStorage work, and the stock
 consumption counters.

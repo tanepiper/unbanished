@@ -1052,6 +1052,43 @@ pub fn forester_description(data: &[u8]) -> Result<ForesterDescription> {
     Ok(value)
 }
 
+/// `HappinessDescription` (serializer `FUN_14004b610`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct HappinessDescription {
+    /// `+0x20`: the kind, which picks the map layer (0 well, 1 market and trading post, 2
+    /// tavern, 3 chapel and cemetery, 4 doctor, 5 the unhappy mines and quarry).
+    pub kind: i32,
+    /// `+0x24`: only while someone works there.
+    pub needs_workers: bool,
+    /// `+0x25`: only while the storage holds goods matching `mask`, one consumed per visit.
+    pub needs_stock: bool,
+    /// `+0x28`: raw-material flags.
+    pub mask: u32,
+    /// `+0x2c`: cells around the building a loitering citizen stands in.
+    pub pad: i32,
+}
+
+pub fn happiness_description(data: &[u8]) -> Result<HappinessDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("HappinessDescription") {
+            return format_err(format!(
+                "expected HappinessDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(HappinessDescription {
+                kind: r.i32()?,
+                needs_workers: r.bool()?,
+                needs_stock: r.bool()?,
+                mask: r.u32()?,
+                pad: r.i32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `AutoPickupDescription` (serializer `FUN_1400454c0`): `+0x20`, whether the workplace's
 /// workers pick up the piles they make first.
 pub fn auto_pickup_description(data: &[u8]) -> Result<bool> {

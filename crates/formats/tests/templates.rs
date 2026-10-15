@@ -447,3 +447,26 @@ fn forester_description_parses() {
     );
     assert_eq!(d.group, 0);
 }
+
+#[test]
+fn happiness_descriptions_parse() {
+    use banished_formats::game::happiness_description;
+    let Some(archive) = archive() else { return };
+    let read = |n: &str| {
+        happiness_description(
+            &archive
+                .read_ref(&format!("Template/{n}.rsc:happiness"))
+                .unwrap(),
+        )
+        .unwrap()
+    };
+    let tavern = read("Tavern");
+    assert_eq!(
+        (tavern.kind, tavern.needs_workers, tavern.needs_stock),
+        (2, true, true)
+    );
+    assert_eq!((tavern.mask, tavern.pad), (0x20000, 3));
+    assert_eq!(read("Well").kind, 0);
+    assert_eq!(read("Quarry").kind, 5);
+    assert_eq!(read("DoctorHouse").pad, 5);
+}

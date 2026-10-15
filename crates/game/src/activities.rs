@@ -208,7 +208,8 @@ pub struct Loiter {
 
 /// `FUN_14010fa30` (activity 12): choose a spot near something to stand at. `cell` is the
 /// citizen's cell, `home` its home entity, `range` `CitizenDescription +0xbc`.
-/// `ground(cell)` returns a cell centre on the ground.
+/// `ground(cell)` returns a cell centre on the ground; `rank(a, b)` is `FUN_140008830`'s
+/// path-rank distance.
 pub fn loiter(
     town: &TownView,
     cell: i32,
@@ -216,6 +217,7 @@ pub fn loiter(
     range: i32,
     rng: &mut Random,
     ground: impl Fn(i32) -> [f32; 3],
+    rank: &mut dyn FnMut(i32, i32) -> i32,
 ) -> Option<Loiter> {
     let n = town.size as i32;
     let home_cell = home.map_or(-1, |h| town.entrance(h, rng));
@@ -233,9 +235,9 @@ pub fn loiter(
                 .is_some_and(|&p| town.reachable(WALKABLE, cell, town.cell_of(p)))
     });
     if chosen.is_none() {
-        chosen = nearest_happiness(town, cell, range, rng);
+        chosen = nearest_happiness(town, cell, range, rng, rank);
         if chosen.is_none() && home_cell >= 0 {
-            chosen = nearest_happiness(town, home_cell, range, rng);
+            chosen = nearest_happiness(town, home_cell, range, rng, rank);
         }
     }
     let mut pad = chosen.and_then(|e| town.entities[e].happiness).unwrap_or(6);
@@ -311,12 +313,31 @@ pub fn loiter(
     })
 }
 
-/// `FUN_14008eea0`: a random registered HappinessComponent owner within `2 * range` of `cell`
-/// (by path rank) and reachable. With an empty registry (New Game) this draws nothing.
-fn nearest_happiness(town: &TownView, _cell: i32, _range: i32, _rng: &mut Random) -> Option<usize> {
-    if town.happiness.is_empty() {
+/// `FUN_14008eea0`: a random registered HappinessComponent owner (not the unhappy kind) whose
+/// first use point is within path rank `2 * range` of `cell` and reachable, in registry
+/// order, picked with `Rand(count)`. Nothing is drawn without candidates.
+fn nearest_happiness(
+    town: &TownView,
+    cell: i32,
+    range: i32,
+    rng: &mut Random,
+    rank: &mut dyn FnMut(i32, i32) -> i32,
+) -> Option<usize> {
+    let mut found = Vec::new();
+    for &e in town.happiness {
+        let point = town.point_cell(e);
+        if point < 0 {
+            continue;
+        }
+        if rank(cell, point) < range * 2
+            && town.reachable(WALKABLE, cell, point)
+            && town.entities[e].happiness.is_some()
+        {
+            found.push(e);
+        }
+    }
+    if found.is_empty() {
         return None;
     }
-    // Not ported: happiness registry search and the random pick among candidates.
-    None
+    Some(found[rng.rand_below(found.len() as u32) as usize])
 }

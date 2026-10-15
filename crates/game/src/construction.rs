@@ -30,6 +30,8 @@ pub enum Controller {
     Attendance,
     /// HealerComponent (`FUN_14004b980` table): the herbalist.
     Healer,
+    /// HappinessComponent (`FUN_14004b570` table).
+    Happiness,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -81,6 +83,11 @@ pub enum Callback {
     /// `FUN_14004b790` / `FUN_14004b750`: register / unregister the healer.
     HealerEnter2,
     HealerEnter3,
+    /// `FUN_14004b350` (states 2 and 0xd enter), `FUN_14004b300` (their scheduled update),
+    /// `FUN_14004b2a0` (state 3 enter).
+    HappinessEnter,
+    HappinessUpdate,
+    HappinessLeave,
     /// Callbacks whose port is still missing (they pass the state on).
     Missing,
 }
@@ -226,6 +233,30 @@ const HEALER: &[StateDef] = &[
     },
 ];
 
+const HAPPINESS: &[StateDef] = &[
+    StateDef {
+        id: 2,
+        enter: C::HappinessEnter,
+        update: C::HappinessUpdate,
+        exit: C::None,
+        transitions: &[(3, C::None)],
+    },
+    StateDef {
+        id: 0xd,
+        enter: C::HappinessEnter,
+        update: C::HappinessUpdate,
+        exit: C::None,
+        transitions: &[(3, C::None)],
+    },
+    StateDef {
+        id: 3,
+        enter: C::HappinessLeave,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(6, C::None), (4, C::None), (5, C::None)],
+    },
+];
+
 const CLEAR_RESOURCE: &[StateDef] = &[StateDef {
     id: 2,
     enter: C::ClearResourceEnter2,
@@ -271,6 +302,7 @@ impl Controller {
             Controller::ResourceProduce => RESOURCE_PRODUCE,
             Controller::Attendance => ATTENDANCE,
             Controller::Healer => HEALER,
+            Controller::Happiness => HAPPINESS,
         }
     }
 
@@ -485,6 +517,8 @@ pub struct SiteTemplate {
     pub auto_pickup: Option<bool>,
     /// ForesterDescription, resolved.
     pub forester: Option<crate::forester::ForesterTemplate>,
+    /// HappinessDescription.
+    pub happiness: Option<banished_formats::game::HappinessDescription>,
 }
 
 impl SiteTemplate {
@@ -581,6 +615,8 @@ pub struct Site {
     pub auto_pickup: Option<crate::herbalist::AutoPickup>,
     /// ForesterComponent's toggles.
     pub forester: Option<crate::forester::Forester>,
+    /// HappinessComponent `+0x28`: registered.
+    pub happiness_registered: bool,
 }
 
 /// The job manager, professions, workforce and every construction site.
@@ -616,6 +652,8 @@ pub struct Construction {
     pub attendance_list: Vec<usize>,
     /// The town manager's HealerComponents (`+0x70`).
     pub healers: Vec<usize>,
+    /// The town manager's registered HappinessComponents (`+0x50`), by entity.
+    pub happiness: Vec<usize>,
 }
 
 /// AttendanceComponent (vtable `0x14015ee00`): who attends a school, chapel or doctor.

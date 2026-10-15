@@ -202,7 +202,7 @@ impl Sim<'_, '_> {
             occupants: &self.cells.occupants,
             objects: &self.cells.objects,
             entities: self.entities,
-            happiness: &[],
+            happiness: self.happiness,
         };
         town.entrance(e, self.rng)
     }

@@ -874,6 +874,86 @@ mod construction_tests {
         assert_reservations_held(&town);
     }
 
+    /// A well near the start: once built, its HappinessComponent registers with the town and
+    /// marks layer 0 within its radius; the citizens' views see it as a loitering spot.
+    #[test]
+    fn a_well_registers_its_happiness() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool =
+            PlacementTool::start(&archive, &mut town, r"Template\Well.rsc:resource", &mut rng)
+                .unwrap();
+        let spot = tool.find_clear_spot(&town, &terrain, town.start);
+        tool.hover(&town, &terrain, spot, 0);
+        let id = tool.place(&archive, &mut town, 0).unwrap();
+        let builder = town.construction.professions.builder;
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 2,
+            });
+        let mut warnings = banished_game::events::StockWarnings::default();
+        let dt = 1.0 / 30.0;
+        let mut registered_at = None;
+        for step in 0..30 * 60 * 10 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            if town.construction.happiness.contains(&id) {
+                registered_at = Some(step);
+                break;
+            }
+        }
+        eprintln!("registered at {registered_at:?}");
+        assert!(registered_at.is_some(), "the well never registered");
+        let st = town.construction.sites[&id].template;
+        let radius = town.construction.templates[st].radius.unwrap();
+        let p = &town.placed[id];
+        let n = town.cells.size as i32;
+        let centre = (p.cell.1 + (p.footprint.1 >> 1)) * n + p.cell.0 + (p.footprint.0 >> 1);
+        assert_eq!(town.cells.layers[centre as usize][0], 1);
+        assert_eq!(town.cells.layer_totals[0], 1);
+        let far = centre + radius + 1;
+        assert_eq!(town.cells.layers[far as usize][0], 0);
+        let views =
+            banished_game::agents::entity_views(&town.placed, &town.templates, &town.construction);
+        assert_eq!(views[id].happiness, Some(2));
+    }
+
     /// A seed-1234 Medium town with its terrain and stream, after `setup`.
     fn with_town(test: impl FnOnce(&Archive, &HeightGrid, &mut StartingTown, &mut Random)) {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

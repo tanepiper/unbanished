@@ -121,6 +121,11 @@ pub struct Cells {
     pub previous_template: Vec<Option<usize>>,
     /// +0x2c: growth-adjusted map byte (zero in FUN_14001b3f0's constructor).
     pub growth_bytes: Vec<u8>,
+    /// `+0x1c..+0x27`: per-cell layer counters (`FUN_1400a4e60`): 0..=5 the
+    /// HappinessComponent kinds, 8 the fishing docks.
+    pub layers: Vec<[u8; 12]>,
+    /// Map `+0x90`: registrations per layer.
+    pub layer_totals: [i16; 12],
 }
 
 impl Cells {
@@ -132,8 +137,27 @@ impl Cells {
             flags: vec![0; types.len()],
             previous_template: vec![None; types.len()],
             growth_bytes: vec![0; types.len()],
+            layers: vec![[0; 12]; types.len()],
+            layer_totals: [0; 12],
             types,
         }
+    }
+
+    /// `FUN_1400a4e60`: add `delta` to `layer` on every cell within `radius` of `(cx, cy)`
+    /// (a byte, wrapping) and to the layer's total.
+    pub fn add_layer(&mut self, layer: usize, cx: i32, cy: i32, radius: i32, delta: i32) {
+        let n = self.size as i32;
+        for y in cy - radius..=cy + radius {
+            for x in cx - radius..=cx + radius {
+                let (dx, dy) = (cx - x, cy - y);
+                if x < 0 || y < 0 || x >= n || y >= n || dx * dx + dy * dy > radius * radius {
+                    continue;
+                }
+                let b = &mut self.layers[(n * y + x) as usize][layer];
+                *b = b.wrapping_add(delta as u8);
+            }
+        }
+        self.layer_totals[layer] = self.layer_totals[layer].wrapping_add(delta as i16);
     }
 }
 

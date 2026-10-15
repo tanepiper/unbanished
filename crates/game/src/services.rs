@@ -172,7 +172,7 @@ impl Sim<'_, '_> {
                 occupants: &self.cells.occupants,
                 objects: &self.cells.objects,
                 entities: self.entities,
-                happiness: &[],
+                happiness: self.happiness,
             };
             if !town.reachable(WALKABLE, from, to) {
                 continue;
@@ -197,7 +197,7 @@ impl Sim<'_, '_> {
             occupants: &self.cells.occupants,
             objects: &self.cells.objects,
             entities: self.entities,
-            happiness: &[],
+            happiness: self.happiness,
         };
         let mut g = crate::activities::StorageGeometry {
             town: &town,

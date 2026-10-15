@@ -1022,6 +1022,12 @@ impl StartingTown {
                         .ok()
                         .map(|(r, _)| r);
                 }
+                "happiness" => {
+                    if let Ok(d) = banished_formats::game::happiness_description(&data) {
+                        t.controllers.push(Controller::Happiness);
+                        t.happiness = Some(d);
+                    }
+                }
                 "forester" => {
                     let Ok(d) = banished_formats::game::forester_description(&data) else {
                         continue;
@@ -1157,6 +1163,7 @@ impl StartingTown {
                     .forester
                     .as_ref()
                     .map(|_| banished_game::forester::Forester::default()),
+                happiness_registered: false,
                 auto_pickup: t
                     .auto_pickup
                     .map(|enabled| banished_game::herbalist::AutoPickup {

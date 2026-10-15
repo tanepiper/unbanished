@@ -90,6 +90,7 @@ pub struct Sim<'s, 't> {
     pub attendance: &'s mut BTreeMap<usize, crate::construction::Attendance>,
     pub attendance_list: &'s mut Vec<usize>,
     pub healers: &'s mut Vec<usize>,
+    pub happiness: &'s mut Vec<usize>,
     pub site_list: &'s mut Vec<usize>,
     pub events: Vec<JobEvent>,
     pub piles: &'s mut BTreeMap<usize, Pile>,
@@ -192,7 +193,7 @@ impl Sim<'_, '_> {
             occupants: &self.cells.occupants,
             objects: &self.cells.objects,
             entities: self.entities,
-            happiness: &[],
+            happiness: self.happiness,
         }
     }
 
@@ -696,6 +697,8 @@ impl Sim<'_, '_> {
             return;
         }
         self.remove_work(jobs, e);
+        // The components' removal slots (`FUN_14004b380`).
+        self.happiness_leave(e);
         self.sites.remove(&e);
         self.site_list.retain(|&s| s != e);
         let n = self.size as i32;
@@ -924,6 +927,18 @@ impl Callbacks for Sim<'_, '_> {
                 if !self.healers.contains(&e) {
                     self.healers.push(e);
                 }
+                false
+            }
+            Callback::HappinessEnter => {
+                self.happiness_enter(e);
+                false
+            }
+            Callback::HappinessUpdate => {
+                self.happiness_update(e);
+                false
+            }
+            Callback::HappinessLeave => {
+                self.happiness_leave(e);
                 false
             }
             Callback::HealerEnter3 => {
@@ -1285,7 +1300,7 @@ impl Sim<'_, '_> {
                     occupants: &self.cells.occupants,
                     objects: &self.cells.objects,
                     entities: self.entities,
-                    happiness: &[],
+                    happiness: self.happiness,
                 };
                 let (size, terrain) = (self.size, self.terrain);
                 let ground = move |cell: i32| cell_ground(size, terrain, cell);
@@ -2046,7 +2061,7 @@ impl Sim<'_, '_> {
             occupants: &self.cells.occupants,
             objects: &self.cells.objects,
             entities: self.entities,
-            happiness: &[],
+            happiness: self.happiness,
         };
         let (size, terrain) = (self.size, self.terrain);
         let ground = move |cell: i32| cell_ground(size, terrain, cell);
@@ -2085,7 +2100,7 @@ impl Sim<'_, '_> {
             occupants: &self.cells.occupants,
             objects: &self.cells.objects,
             entities: self.entities,
-            happiness: &[],
+            happiness: self.happiness,
         };
         let (size, terrain) = (self.size, self.terrain);
         let ground = move |cell: i32| cell_ground(size, terrain, cell);

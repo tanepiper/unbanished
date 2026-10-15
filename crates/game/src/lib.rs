@@ -16,6 +16,7 @@ pub mod environment;
 pub mod events;
 pub mod forester;
 pub mod growth;
+pub mod happiness;
 pub mod herbalist;
 pub mod jobs;
 pub mod life;

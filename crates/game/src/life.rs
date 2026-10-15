@@ -193,6 +193,8 @@ pub struct People<'a, 'b> {
     pub residences: &'a [usize],
     pub rules: &'a LifeRules,
     pub town: &'a TownView<'b>,
+    /// Map cells `+0x1c..+0x27` ([`crate::seeding::Cells::layers`]).
+    pub layers: &'a [[u8; 12]],
     pub rng: &'a mut Random,
     pub temperature: f32,
     pub diseases: &'a [Disease],
@@ -892,10 +894,15 @@ impl People<'_, '_> {
     fn happiness(&mut self, c: usize) {
         let r = self.rules;
         let home_bonus = self.states[c].home.map(|h| {
-            // The home entrance cell's five nonzero surroundings counts, less the sixth.
-            // Not ported: those map-cell counters (`MapCell +0x1c..+0x21`, written by
-            // HappinessComponent radii); they read as zero.
-            let v: i32 = 0;
+            // The home entrance cell's layers 0..=4 that are nonzero, less layer 5 (the
+            // HappinessComponent radii, `FUN_1400a4e60`), at least 0.
+            let cell = self.town.entrance(h, self.rng);
+            let l = usize::try_from(cell)
+                .ok()
+                .and_then(|i| self.layers.get(i))
+                .copied()
+                .unwrap_or_default();
+            let v = (l[..5].iter().filter(|&&b| b != 0).count() as i32 - l[5] as i32).max(0);
             if self.homes.get(&h).is_some_and(|h| h.families.len() > 1) {
                 v >> 2
             } else {

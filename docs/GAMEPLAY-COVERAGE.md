@@ -24,7 +24,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Residence | WoodHouse, StoneHouse, Hostel | families, heating, moving in; ClearStorage work open |
 | **Immigration**, **Nomad** | TownHall, Nomad | missing |
 | Attendance | School, Chapel, Doctor | yes (staff by LocationWork, places, lessons, treatment) |
-| **Happiness** | Tavern, Well, Market, Cemetery, Chapel, TradingPost, Quarry, Mine | missing |
+| **Happiness** | Tavern, Well, Market, Cemetery, Chapel, TradingPost, Quarry, Mine | yes (`happiness.rs`; map layers, registry, visits, loitering pick) |
 | Healer, Disease (citizens) | Herbalist | registry and herb treatment; crop disease (fields) missing |
 | **Cemetery**, **Tombstone** | Cemetery | missing |
 | **Well**, **Fire** | Well; every building | missing |

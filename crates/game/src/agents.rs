@@ -307,6 +307,7 @@ impl Agents {
                 attendance: &mut c.attendance,
                 attendance_list: &mut c.attendance_list,
                 healers: &mut c.healers,
+                happiness: &mut c.happiness,
                 site_list: &mut c.site_list,
                 events: Vec::new(),
                 piles: &mut c.piles,
@@ -347,7 +348,7 @@ impl Agents {
         if commands.is_empty() && placed.is_empty() && destroy.is_empty() {
             return;
         }
-        let entities = entity_views(env.placed, env.templates);
+        let entities = entity_views(env.placed, env.templates, env.construction);
         let adult = self.adults(citizens);
         let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
         // Placing activates at once in the original (`FUN_1400c9d70`); a cancel comes after.
@@ -368,7 +369,7 @@ impl Agents {
                 occupants: &sim.cells.occupants,
                 objects: &sim.cells.objects,
                 entities: sim.entities,
-                happiness: &[],
+                happiness: sim.happiness,
             };
             let (size, terrain) = (sim.size, sim.terrain);
             let ground = move |c: i32| cell_ground(size, terrain, c);
@@ -416,7 +417,7 @@ impl Agents {
             );
         }
         self.sectors.age_cache(ticks(dt));
-        let entities = entity_views(env.placed, env.templates);
+        let entities = entity_views(env.placed, env.templates, env.construction);
         let mut animating = crate::town::animating(env.placed, env.templates);
         let adult = self.adults(citizens);
         for (ch, group) in self.characters.iter_mut().zip(groups) {
@@ -548,6 +549,7 @@ impl Agents {
             .iter()
             .map(|c| !c.stack.is_active())
             .collect();
+        let happiness = env.construction.happiness.clone();
         let town = TownView {
             size: env.cells.size,
             types: &env.cells.types,
@@ -555,7 +557,7 @@ impl Agents {
             occupants: &env.cells.occupants,
             objects: &env.cells.objects,
             entities,
-            happiness: &[],
+            happiness: &happiness,
         };
         let c = &mut *env.construction;
         let mut people = crate::life::People {
@@ -566,6 +568,7 @@ impl Agents {
             residences: &c.workforce.residences,
             rules: &self.life,
             town: &town,
+            layers: &env.cells.layers,
             rng: env.rng,
             temperature: env.temperature,
             diseases: &self.diseases,
@@ -607,6 +610,7 @@ impl Agents {
             sim.characters[c].stack.set_on_empty(Vec::new());
             jobs.drain(&mut sim);
         }
+        let happiness = env.construction.happiness.clone();
         let town = TownView {
             size: env.cells.size,
             types: &env.cells.types,
@@ -614,7 +618,7 @@ impl Agents {
             occupants: &env.cells.occupants,
             objects: &env.cells.objects,
             entities,
-            happiness: &[],
+            happiness: &happiness,
         };
         let k = &mut *env.construction;
         let mut born = Vec::new();
@@ -628,6 +632,7 @@ impl Agents {
             residences: &k.workforce.residences,
             rules: &self.life,
             town: &town,
+            layers: &env.cells.layers,
             rng: env.rng,
             temperature: env.temperature,
             diseases: &self.diseases,
@@ -813,6 +818,15 @@ impl Agents {
                     }
                     jobs.drain(&mut sim);
                 }
+                Component::Happiness => {
+                    let Some(e) = m.entity else { continue };
+                    if m.message != 0 {
+                        continue;
+                    }
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    sim.happiness_visit(e);
+                    jobs.drain(&mut sim);
+                }
                 Component::Pile => {
                     let Some(e) = m.entity else { continue };
                     let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
@@ -900,7 +914,7 @@ impl Agents {
                         occupants: &env.cells.occupants,
                         objects: &env.cells.objects,
                         entities,
-                        happiness: &[],
+                        happiness: &env.construction.happiness,
                     };
                     let cell = town.cell_of(self.characters[i].position);
                     self.states[i]
@@ -936,7 +950,7 @@ impl Agents {
                         occupants: &env.cells.occupants,
                         objects: &env.cells.objects,
                         entities,
-                        happiness: &[],
+                        happiness: &env.construction.happiness,
                     };
                     let mut needs = crate::needs::Needs {
                         town: &town,
@@ -1017,7 +1031,7 @@ impl Agents {
                         occupants: &env.cells.occupants,
                         objects: &env.cells.objects,
                         entities,
-                        happiness: &[],
+                        happiness: &env.construction.happiness,
                     };
                     let mut stock = TownStock {
                         materials: env.materials,
@@ -1193,7 +1207,23 @@ fn run(
                 let mut normal = [0.0; 3];
                 [x, y, terrain.ground(x, y, &mut normal)]
             };
-            let Some(plan) = loiter(town, cell, state.home, rules.loiter_range, rng, ground) else {
+            let ground_cell = move |c: i32| cell_ground(size, terrain, c);
+            let mut geometry = StorageGeometry {
+                town,
+                sectors,
+                ground: &ground_cell,
+            };
+            let mut rank =
+                |a: i32, b: i32| crate::stock::StorageSearchMap::rank(&mut geometry, a, b);
+            let Some(plan) = loiter(
+                town,
+                cell,
+                state.home,
+                rules.loiter_range,
+                rng,
+                ground,
+                &mut rank,
+            ) else {
                 return false;
             };
             // `FUN_1400bfb80`.
@@ -1245,8 +1275,12 @@ fn run(
 }
 
 /// The parts of each placed entity the activities read.
-pub fn entity_views(placed: &[Placed], templates: &[Template]) -> Vec<EntityView> {
-    placed
+pub fn entity_views(
+    placed: &[Placed],
+    templates: &[Template],
+    construction: &crate::construction::Construction,
+) -> Vec<EntityView> {
+    let mut views: Vec<EntityView> = placed
         .iter()
         .map(|p| {
             let t = &templates[p.template];
@@ -1276,7 +1310,17 @@ pub fn entity_views(placed: &[Placed], templates: &[Template]) -> Vec<EntityView
                 happiness: None,
             }
         })
-        .collect()
+        .collect();
+    // `FUN_14004b080`: registered, and not the unhappy kind.
+    for (&e, site) in &construction.sites {
+        let d = construction.templates[site.template].happiness;
+        if let (Some(d), Some(v)) = (d, views.get_mut(e)) {
+            if site.happiness_registered && d.kind != 5 {
+                v.happiness = Some(d.pad);
+            }
+        }
+    }
+    views
 }
 
 /// An entity's StorageComponent: a construction site's (houses, workplaces), else a town
