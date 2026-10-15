@@ -1042,6 +1042,86 @@ pub fn citizen_description(data: &[u8]) -> Result<CitizenDescription> {
     Ok(value)
 }
 
+/// A named point of a `Pathfinding::PointList` (position in model space, yaw in degrees).
+#[derive(Debug, Clone, PartialEq)]
+pub struct NamedPoint {
+    pub name: String,
+    pub position: [f32; 3],
+    pub yaw: f32,
+}
+
+/// `Pathfinding::PointList` (Runtime serializer `0x180111f70`): mesh name, a second string,
+/// path points (`+0x40`) and named points (`+0x30`).
+#[derive(Debug, Clone)]
+pub struct PointList {
+    pub mesh: String,
+    pub source: String,
+    pub path_points: Vec<NamedPoint>,
+    pub points: Vec<NamedPoint>,
+}
+
+pub fn point_list(data: &[u8]) -> Result<PointList> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("PointList") {
+            return format_err(format!("expected PointList, found {:#010x}", h.type_id));
+        }
+        r.block(|r, _| {
+            let mesh = r.string()?;
+            let source = r.string()?;
+            let list = |r: &mut Reader| -> Result<Vec<NamedPoint>> {
+                (0..r.count()?)
+                    .map(|_| {
+                        Ok(NamedPoint {
+                            name: r.string()?,
+                            position: r.f32s::<3>()?,
+                            yaw: r.f32()?,
+                        })
+                    })
+                    .collect()
+            };
+            let path_points = list(r)?;
+            let points = list(r)?;
+            Ok(PointList {
+                mesh,
+                source,
+                path_points,
+                points,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `InteractDescription` (serializer `FUN_1401289d0`): the point list whose named points
+/// "use", "build" and "create" become the three interaction categories (`+0x28/+0x38/+0x48`).
+#[derive(Debug, Clone)]
+pub struct InteractDescription {
+    pub points: Option<String>,
+}
+
+pub fn interact_description(data: &[u8]) -> Result<InteractDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("InteractDescription") {
+            return format_err(format!(
+                "expected InteractDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(InteractDescription {
+                points: r.external_ref()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// Interaction points of one category (0 use, 1 build, 2 create) in point-list order.
+pub fn interaction_points(list: &PointList, category: usize) -> Vec<&NamedPoint> {
+    let name = ["use", "build", "create"][category];
+    list.points.iter().filter(|p| p.name == name).collect()
+}
+
 /// `CharacterDescription` (serializer `FUN_14010f2a0`, defaults from constructor `FUN_14010f3e0`):
 /// how a walking entity moves (CharacterComponent update `FUN_14010e990`, MoveTo `FUN_1400cda40`).
 #[derive(Debug, Clone, Copy, PartialEq)]

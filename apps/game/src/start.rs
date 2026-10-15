@@ -13,6 +13,8 @@ use banished_formats::game::{
 };
 use banished_formats::names::NameDatabase;
 use banished_formats::pkg::Archive;
+use banished_game::agents::{Agents, CitizenRulesAi};
+use banished_game::ai::Thresholds;
 use banished_game::citizens::{Citizen, CitizenRules, Households};
 use banished_game::map::Map;
 use banished_game::random::Random;
@@ -63,6 +65,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         size: None,
         storage: None,
         storage_location: false,
+        use_points: Vec::new(),
     };
     let mut spawn = Vec::new();
     for d in desc.descriptions.iter().flatten() {
@@ -111,6 +114,20 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                     .map(|d| (d.accepts, d.capacity, d.flag_20))
             }
             "storagelocation" => t.storage_location = true,
+            "interact" => {
+                t.use_points = banished_formats::game::interact_description(&data)
+                    .ok()
+                    .and_then(|i| i.points)
+                    .and_then(|r| read(archive, &normalise(&r)))
+                    .and_then(|d| banished_formats::game::point_list(&d).ok())
+                    .map(|l| {
+                        banished_formats::game::interaction_points(&l, 0)
+                            .iter()
+                            .map(|p| p.position)
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            }
             "createplaced" => {
                 t.size = create_placed_description(&data)
                     .ok()
@@ -218,11 +235,6 @@ fn citizen_animations(
         .collect()
 }
 
-/// Index of a named clip.
-fn clip_index(group: &banished_formats::types::AnimationGroup, name: &str) -> Option<usize> {
-    group.clips.iter().position(|c| c.name == name)
-}
-
 /// `FUN_140002080`: the start cell's centre on the ground.
 fn grid_start(map_size: usize, terrain: &HeightGrid, start: (i32, i32)) -> [f32; 3] {
     let n = map_size as i32;
@@ -302,9 +314,8 @@ pub struct StartingTown {
     citizen_model: Option<banished_formats::game::ModelDescription>,
     /// Each variant's animation group (`Models\Citizen\CitizenAnims.rsc`).
     citizen_anims: Vec<Option<Arc<banished_formats::types::AnimationGroup>>>,
-    /// One unique animation state per citizen. Until the citizen AI is ported every citizen
-    /// plays `Idle` from time 0 (`AnimationState::PlayAnimation` start 0).
-    citizen_playback: Vec<banished_game::animation::Playback>,
+    /// The citizens' CharacterComponent and CitizenAIComponent (docs/CITIZEN-AI.md).
+    pub agents: Agents,
     /// The placement tool's ghost (`PlacementTool +0x68`): mesh and transform.
     pub ghost: Option<(String, [f32; 16])>,
 }
@@ -376,10 +387,35 @@ impl StartingTown {
         );
         let citizen_model = read(archive, r"Template\Citizen.rsc:model")
             .and_then(|d| banished_formats::game::model_description(&d).ok());
-        let citizen_playback = citizens
-            .iter()
-            .map(|_| banished_game::animation::Playback::new(0, 0))
-            .collect();
+        let citizen_ref = normalise(&profile.citizen);
+        let character = read(archive, &citizen_ref.replace(":resource", ":character"))
+            .and_then(|d| banished_formats::game::character_description(&d).ok())
+            .unwrap_or_default();
+        let ai_rules = read(archive, &citizen_ref.replace(":resource", ":citizen"))
+            .and_then(|d| citizen_description(&d).ok())
+            .map(|c| CitizenRulesAi {
+                thresholds: Thresholds {
+                    adult_age: c.f(0x44),
+                    health_low: c.f(0x74),
+                    happy_low: c.f(0xb4),
+                    happy_unhappy: c.f(0xb8),
+                    hungry: c.f(0xc8),
+                    hungry_urgent: c.f(0xcc),
+                    cold: c.f(0xe8),
+                    cold_urgent: c.f(0xec),
+                },
+                health: c.f(0x6c),
+                happiness: c.f(0xa4),
+                loiter_range: c.i(0xbc),
+            })
+            .unwrap_or_default();
+        let agents = Agents::new(&citizens, &cells, character, ai_rules, |c| {
+            if c.is_adult(&rules) {
+                1.0
+            } else {
+                CHILD_SCALE
+            }
+        });
         Some(StartingTown {
             start,
             citizens,
@@ -397,7 +433,7 @@ impl StartingTown {
                 .map(|m| citizen_animations(archive, m))
                 .unwrap_or_default(),
             citizen_model,
-            citizen_playback,
+            agents,
             ghost: None,
         })
     }
@@ -427,21 +463,28 @@ impl StartingTown {
         .iterate(&mut self.scheduler, dt, temperature, false)
     }
 
-    /// `Graphics::AnimationManager::Update` for the citizens: advance each `Idle` state by one
-    /// simulation iteration. Returns whether any citizen is drawn animated.
-    pub fn animate_citizens(&mut self, dt: f32) -> bool {
-        let ticks = banished_game::scheduler::ticks(dt);
-        for (c, playback) in self.citizens.iter().zip(&mut self.citizen_playback) {
-            let variant = usize::from(!c.male);
-            let Some(group) = self.citizen_anims.get(variant).and_then(Option::as_ref) else {
-                continue;
-            };
-            let Some(idle) = clip_index(group, "Idle") else {
-                continue;
-            };
-            playback.clip = idle;
-            playback.update(&group.clips[idle], ticks);
-        }
+    /// The citizens' animation, characters and AI for one simulation iteration
+    /// (`banished_game::agents`). Returns whether any citizen is drawn.
+    pub fn update_citizens(&mut self, terrain: &HeightGrid, rng: &mut Random, dt: f32) -> bool {
+        let groups: Vec<Option<&banished_formats::types::AnimationGroup>> = self
+            .citizens
+            .iter()
+            .map(|c| {
+                self.citizen_anims
+                    .get(usize::from(!c.male))
+                    .and_then(Option::as_deref)
+            })
+            .collect();
+        self.agents.update(
+            &mut self.citizens,
+            &self.cells,
+            &self.placed,
+            &self.templates,
+            terrain,
+            &groups,
+            rng,
+            dt,
+        );
         !self.citizens.is_empty()
     }
 
@@ -498,7 +541,7 @@ impl StartingTown {
             });
         }
         // Citizens: `Template/Citizen.rsc:model` variant 0 (men) or 1 (women); children use
-        // the scale `DAT_140178818` (`FUN_14011a700`). Facing is not set at creation (yaw 0).
+        // the scale `DAT_140178818` (`FUN_14011a700`).
         if let Some(model) = &self.citizen_model {
             for (i, c) in self.citizens.iter().enumerate() {
                 let variant = if c.male { 0 } else { 1 };
@@ -513,13 +556,17 @@ impl StartingTown {
                 };
                 // FUN_14011a5e0/FUN_14011a700 write the outfit (`+0x34`) into the mesh
                 // instance's `w`, read by the character shader from the root translation.
-                let mut matrix = placement_matrix(c.position, [s, s, s], 0.0);
+                // CharacterComponent: model yaw (heading + yaw offset) and its animation.
+                let ch = self.agents.characters.get(i);
+                let yaw = ch.map_or(0.0, |ch| ch.yaw);
+                let mut matrix = placement_matrix(c.position, [s, s, s], yaw);
                 matrix[15] = c.appearance as f32;
-                let locals = self
-                    .citizen_playback
-                    .get(i)
+                let locals = ch
                     .zip(self.citizen_anims.get(variant).and_then(Option::as_ref))
-                    .and_then(|(p, g)| g.clips.get(p.clip).map(|clip| p.pose(clip)));
+                    .and_then(|(ch, g)| {
+                        let p = &ch.animation;
+                        g.clips.get(p.clip).map(|clip| p.pose(clip))
+                    });
                 groups
                     .entry(mesh.clone())
                     .or_default()

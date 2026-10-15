@@ -340,6 +340,58 @@ impl CitizenAi {
         }
     }
 
+    /// `FUN_1401148b0`: the scheduled update. `busy()` is the character's "has actions" test
+    /// (`+0x60 >= 0`); `run` dispatches an activity (see [`CitizenAi::choose`]). Eating from a
+    /// stocked home before an urgent choice (`FUN_14011a7b0`) and the per-profession inventory
+    /// size and model refresh (`FUN_140114c70`, `FUN_140114d60`) are the caller's.
+    pub fn update(
+        &mut self,
+        dt: i64,
+        view: &CitizenView,
+        d: &Thresholds,
+        rng: &mut Random,
+        busy: impl Fn() -> bool,
+        mut run: impl FnMut(&mut CitizenAi, u32, &mut Random) -> bool,
+    ) {
+        self.tick(dt, view.carrying);
+        let urgent_running = (self.eating && self.current == EAT_URGENT)
+            || (self.warming && self.current == WARM_URGENT);
+        let in_urgent = self.current == EAT_URGENT || self.current == WARM_URGENT;
+        if view.hunger <= d.hungry_urgent
+            || urgent_running
+            || in_urgent
+            || self.cooldowns[EAT_URGENT as usize] > 0
+        {
+            if self.eating && view.hunger <= d.hungry_urgent {
+                self.eating = false;
+            }
+        } else {
+            self.choose(view, d, true, rng, &mut run);
+            self.eating = self.current == EAT_URGENT;
+        }
+        // `bVar4` is computed once, before the hunger choice.
+        let in_urgent = self.current == EAT_URGENT || self.current == WARM_URGENT;
+        if view.cold <= d.cold_urgent
+            || urgent_running
+            || in_urgent
+            || self.cooldowns[WARM_URGENT as usize] > 0
+        {
+            if self.warming && view.cold <= d.cold_urgent {
+                self.warming = false;
+            }
+        } else {
+            self.choose(view, d, true, rng, &mut run);
+            self.warming = self.current == WARM_URGENT;
+        }
+        if !self.eating && !self.warming && view.emergency && self.current != EMERGENCY {
+            self.choose(view, d, true, rng, &mut run);
+        }
+        if busy() {
+            return;
+        }
+        self.choose(view, d, false, rng, &mut run);
+    }
+
     /// `FUN_140113060`: run the queued activity, or try candidates in order until `run`
     /// leaves the character busy. `run(activity)` is the dispatcher (`FUN_1401146c0`) and
     /// returns whether the character now has actions queued.
@@ -349,10 +401,10 @@ impl CitizenAi {
         d: &Thresholds,
         urgent_only: bool,
         rng: &mut Random,
-        mut run: impl FnMut(&mut CitizenAi, u32) -> bool,
+        mut run: impl FnMut(&mut CitizenAi, u32, &mut Random) -> bool,
     ) {
         if let Some(q) = self.queued {
-            if self.dispatch(q, &mut run) {
+            if self.dispatch(q, &mut run, rng) {
                 self.current = q;
                 self.queued = None;
                 return;
@@ -363,7 +415,7 @@ impl CitizenAi {
             shuffle_and_sort(&mut list, rng);
         }
         for (activity, _) in list {
-            if self.dispatch(activity, &mut run) {
+            if self.dispatch(activity, &mut run, rng) {
                 self.current = activity;
                 break;
             }
@@ -374,12 +426,13 @@ impl CitizenAi {
     fn dispatch(
         &mut self,
         activity: u32,
-        run: &mut impl FnMut(&mut CitizenAi, u32) -> bool,
+        run: &mut impl FnMut(&mut CitizenAi, u32, &mut Random) -> bool,
+        rng: &mut Random,
     ) -> bool {
         if self.cooldowns[activity as usize] >= 1 {
             return false;
         }
-        run(self, activity)
+        run(self, activity, rng)
     }
 }
 

@@ -44,6 +44,8 @@ pub enum Status {
 pub enum Component {
     CitizenAi,
     Citizen,
+    /// `DAT_1401cc2c0`.
+    Happiness,
 }
 
 /// A message an action delivered (slot `+0x78` of the receiving component). The owner

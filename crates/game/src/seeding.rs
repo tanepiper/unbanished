@@ -48,6 +48,8 @@ pub struct Template {
     pub storage: Option<(u32, i32, bool)>,
     /// Has a `StorageLocationDescription` (a town storage the starting goods go to).
     pub storage_location: bool,
+    /// InteractDescription "use" points in model space (its point list's category 0).
+    pub use_points: Vec<[f32; 3]>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -803,6 +805,7 @@ mod tests {
             size: None,
             storage: None,
             storage_location: false,
+            use_points: Vec::new(),
         }
     }
 

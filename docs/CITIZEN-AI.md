@@ -214,6 +214,16 @@ Ported: regions, path manager costs and A* (verified), request validation, chara
 the action stack, MoveTo, PlayAnimation, PerformWork, SendComponentMessage, the AI's candidate
 list, shuffle and sort (verified), choice and timers (`crates/game/src/ai.rs`).
 
-Open: each activity's builder and its storage, job and building queries (town manager
+In the game (`crates/game/src/agents.rs`, driven from `StartingTown::update_citizens`) each
+citizen has a Character and a CitizenAI. Activity 12 (loiter, `crates/game/src/activities.rs`)
+is ported: the occupant/happiness checks, the 13×13 scan for reachable map objects (entrance
+cells from InteractDescription "use" points, including the discarded `Rand` when there are
+several), the padded rectangle, the walk target and idle time, and the `FUN_1400bfb80`
+sequence. Activities 3 and 8 set their 75 s cooldowns but their storage queries are not ported,
+so new citizens currently loiter instead of fetching tools and clothing. Deviations: the AI runs
+every iteration rather than on its bucket quota; the loiter set is ordered by creation instead
+of object address; the happiness registry search (`FUN_14008eea0`) is empty.
+
+Open: each remaining activity's builder and its storage, job and building queries (town manager
 `Game +0xf0`, job manager `Game +0x118`), the remaining actions, animation blending and bridge
 ground picking.

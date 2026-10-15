@@ -222,3 +222,26 @@ fn character_descriptions_parse() {
     }
     assert!(n >= 6, "{n}");
 }
+
+#[test]
+fn interact_descriptions_resolve_points() {
+    let Some(archive) = archive() else { return };
+    let mut n = 0;
+    for name in entries(&archive, "_interact.crs") {
+        let d = banished_formats::game::interact_description(&archive.read(name).unwrap())
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        // A few (the Cemetery) have no points.
+        let Some(r) = d.points else { continue };
+        let file = r.split(':').next().unwrap().replace('\\', "/");
+        let list = banished_formats::game::point_list(
+            &archive.read_ref(&format!("{file}:resource")).unwrap(),
+        )
+        .unwrap_or_else(|e| panic!("{name} {r}: {e}"));
+        let uses = banished_formats::game::interaction_points(&list, 0).len();
+        if name.contains("StorageBarn") || name.contains("StorageCart") {
+            eprintln!("{name}: {r} use {uses} {:?}", list.points);
+        }
+        n += 1;
+    }
+    assert!(n >= 25, "{n}");
+}
