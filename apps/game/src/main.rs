@@ -91,6 +91,10 @@ pub struct Game {
     /// `os_scale × UIScale / 100` so a high-density display does not shrink it; the original
     /// knows only `UIScale` (`UserInterface +0xdc`).
     os_scale: f32,
+    /// The pointer in window pixels, once it has moved.
+    pointer: Option<(i32, i32)>,
+    /// The software pointer (`Cursor/Arrow.rsc:cursor`): its sheet and hotspot.
+    cursor: Option<(banished_ui::SpriteRef, [i32; 2])>,
 }
 
 /// The startup chain built in `FUN_140042850`: a loader loop for "Game/Global" (`FUN_14009f280`),
@@ -158,6 +162,8 @@ impl Game {
             app_paused: false,
             settings,
             os_scale: 1.0,
+            pointer: None,
+            cursor: None,
         })
         .map(|mut g: Game| {
             g.apply_settings();
@@ -174,6 +180,41 @@ impl Game {
             ambient: a.ambient,
             effect: a.effect,
         };
+    }
+
+    /// "Use Software Mouse" (`Input::Configuration +10`): the pointer is drawn by the game, at
+    /// its image's own size, instead of by the system (`UserInterface::SetCursor` hands the
+    /// cursor's sheet image and hotspot to the device). Not ported: the other cursors (Hand,
+    /// Place, Move, …) the original switches between by `UserInterface::GetMouseCursorIndex`;
+    /// only the arrow is drawn.
+    fn cursor_quad(&mut self) -> Option<banished_ui::Quad> {
+        let (x, y) = self.pointer?;
+        if self.cursor.is_none() {
+            let data = self.archive.read_ref("Cursor/Arrow.rsc:cursor").ok()?;
+            let c = banished_formats::ui::cursor(&data).ok()?;
+            let sheet_ref = c.sprite_sheet?.replace('\\', "/");
+            let sheet = self.ui.res.sheet(&sheet_ref)?;
+            let loaded = &self.ui.res.sheets[sheet].sheet;
+            let sprite = banished_ui::SpriteRef {
+                sheet,
+                width: loaded.width,
+                height: loaded.height,
+                uv: loaded
+                    .sprites
+                    .first()
+                    .map_or([0.0, 0.0, 1.0, 1.0], |s| s.uv),
+            };
+            self.cursor = Some((sprite, c.hotspot));
+        }
+        let (sprite, [hx, hy]) = self.cursor?;
+        let (x, y) = ((x - hx) as f32, (y - hy) as f32);
+        Some(banished_ui::Quad {
+            texture: banished_ui::Texture::Sheet(sprite.sheet),
+            rect: [x, y, x + sprite.width as f32, y + sprite.height as f32],
+            uv: sprite.uv,
+            color: [255; 4],
+            clip: None,
+        })
     }
 
     /// The display's scale factor (`Window::scale_factor`).
@@ -241,6 +282,7 @@ impl Game {
 
     /// The pointer at window pixel `(x, y)`.
     pub fn pointer_move(&mut self, x: i32, y: i32) {
+        self.pointer = Some((x, y));
         let s = self.ui_scale();
         self.pointer_move_ui((x as f32 / s) as i32, (y as f32 / s) as i32);
     }
@@ -314,10 +356,6 @@ impl Game {
             use keymap::id;
             let raw = match id {
                 id::CANCEL => RawInput::Escape,
-                id::FORWARD => RawInput::Pan(1.0, 0.0),
-                id::BACK => RawInput::Pan(-1.0, 0.0),
-                id::LEFT => RawInput::Pan(0.0, -1.0),
-                id::RIGHT => RawInput::Pan(0.0, 1.0),
                 id => RawInput::Action(id),
             };
             self.raw(raw);
@@ -327,6 +365,10 @@ impl Game {
     /// A key or mouse button released (`Input::Device::Released`), for the key-binding box.
     pub fn released(&mut self, binding: keymap::Binding) {
         self.raw(RawInput::Released(binding));
+        let actions: Vec<usize> = self.settings.keymap.actions_for(binding).collect();
+        for id in actions {
+            self.raw(RawInput::ActionReleased(id));
+        }
     }
 
     /// Click the named control through the normal pointer path (scripted runs): lay out the
@@ -405,6 +447,9 @@ impl Game {
             .unwrap_or_default();
         scale_quads(&mut quads, self.ui_scale());
         quads.extend(loops::fade_quad(self.main.fade.level, size));
+        if self.settings.input.mouse_display {
+            quads.extend(self.cursor_quad());
+        }
         renderer.set_ui_time(self.main.elapsed);
         let g = &self.settings.game;
         renderer.icon_options = status_icons::IconOptions {
@@ -485,6 +530,29 @@ fn ui_key(key: &Key, shift: bool) -> Option<banished_ui::Key> {
     })
 }
 
+/// The window's fullscreen state for a video configuration: exclusive when a monitor mode
+/// matches the chosen resolution and refresh rate, otherwise borderless on the current monitor.
+#[cfg(not(target_arch = "wasm32"))]
+fn fullscreen(window: &Window, video: &settings::VideoConfig) -> Option<winit::window::Fullscreen> {
+    use winit::window::Fullscreen;
+    if !video.fullscreen {
+        return None;
+    }
+    let monitor = window.current_monitor();
+    let mode = monitor.as_ref().and_then(|m| {
+        m.video_modes().find(|v| {
+            v.size().width as i32 == video.width
+                && v.size().height as i32 == video.height
+                && v.refresh_rate_millihertz() as i64 * video.refresh_d.max(1) as i64
+                    == video.refresh_n as i64 * 1000
+        })
+    });
+    Some(match mode {
+        Some(m) => Fullscreen::Exclusive(m),
+        None => Fullscreen::Borderless(monitor),
+    })
+}
+
 struct App {
     proxy: EventLoopProxy<UserEvent>,
     window: Option<Arc<Window>>,
@@ -495,6 +563,10 @@ struct App {
     cursor: (f64, f64),
     drag_button: Option<MouseButton>,
     shift: bool,
+    /// The stored settings until the game takes them over.
+    settings: Option<settings::Settings>,
+    /// The settings revision whose video and input configuration the window shows.
+    applied: u32,
 }
 
 impl App {
@@ -509,6 +581,133 @@ impl App {
             cursor: (0.0, 0.0),
             drag_button: None,
             shift: false,
+            settings: Some(settings::Settings::load()),
+            applied: 0,
+        }
+    }
+
+    fn settings(&self) -> Option<&settings::Settings> {
+        self.game
+            .as_ref()
+            .map(|g| &g.settings)
+            .or(self.settings.as_ref())
+    }
+
+    fn settings_mut(&mut self) -> Option<&mut settings::Settings> {
+        match &mut self.game {
+            Some(g) => Some(&mut g.settings),
+            None => self.settings.as_mut(),
+        }
+    }
+
+    /// Build a renderer for the window with the configured interface and adapter
+    /// (`Video::Device::Startup`); it arrives as `UserEvent::Renderer`.
+    fn start_renderer(&self) {
+        let (Some(window), Some(settings)) = (self.window.clone(), self.settings()) else {
+            return;
+        };
+        let video = render::VideoSettings::from(&settings.video);
+        let proxy = self.proxy.clone();
+        let init = async move {
+            let renderer = Renderer::new(window, video).await;
+            let _ = proxy.send_event(UserEvent::Renderer(Box::new(renderer)));
+        };
+        #[cfg(not(target_arch = "wasm32"))]
+        pollster::block_on(init);
+        #[cfg(target_arch = "wasm32")]
+        wasm_bindgen_futures::spawn_local(init);
+    }
+
+    /// The display modes of the window's monitor, largest first (`Adapter::FindDisplayMode`
+    /// lists). The browser offers only the canvas size.
+    fn display_modes(&self) -> Vec<settings::DisplayMode> {
+        let mut modes: Vec<settings::DisplayMode> = Vec::new();
+        let Some(window) = &self.window else {
+            return modes;
+        };
+        if let Some(monitor) = window.current_monitor() {
+            for m in monitor.video_modes() {
+                let (w, h) = (m.size().width as i32, m.size().height as i32);
+                let rate = (m.refresh_rate_millihertz() as i32, 1000);
+                match modes.iter_mut().find(|d| d.width == w && d.height == h) {
+                    Some(d) if !d.refresh.contains(&rate) => d.refresh.push(rate),
+                    Some(_) => {}
+                    None => modes.push(settings::DisplayMode {
+                        width: w,
+                        height: h,
+                        refresh: vec![rate],
+                    }),
+                }
+            }
+        }
+        if modes.is_empty() {
+            let size = window.inner_size();
+            let rate = window
+                .current_monitor()
+                .and_then(|m| m.refresh_rate_millihertz())
+                .map_or((60, 1), |r| (r as i32, 1000));
+            modes.push(settings::DisplayMode {
+                width: size.width as i32,
+                height: size.height as i32,
+                refresh: vec![rate],
+            });
+        }
+        modes.sort_by_key(|m| (m.width, m.height));
+        for m in &mut modes {
+            m.refresh.sort_by_key(|&(n, d)| n / d.max(1));
+        }
+        modes
+    }
+
+    /// `Video::Device::ApplyChangedSettings` and `Input::Device::EnableMouseClipping` for the
+    /// current settings: fullscreen, window size, present mode, cursor clipping; a new renderer
+    /// when the interface, adapter, filtering or shadow resolution changed.
+    fn apply_settings(&mut self) {
+        let (Some(window), Some(settings)) = (self.window.clone(), self.settings()) else {
+            return;
+        };
+        let video = settings.video.clone();
+        let clip = settings.input.mouse_clipping;
+        let mouse_display = settings.input.mouse_display;
+        self.applied = settings.revision;
+        // Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            window.set_fullscreen(fullscreen(&window, &video));
+            if !video.fullscreen && video.window_width > 0 && video.window_height > 0 {
+                let size = winit::dpi::PhysicalSize::new(
+                    video.window_width as u32,
+                    video.window_height as u32,
+                );
+                if window.inner_size() != size {
+                    let _ = window.request_inner_size(size);
+                }
+            }
+        }
+        // Software mouse: the game draws the pointer, so the system's is hidden.
+        window.set_cursor_visible(!mouse_display);
+        use winit::window::CursorGrabMode;
+        let grab = if clip {
+            window
+                .set_cursor_grab(CursorGrabMode::Confined)
+                .or_else(|_| window.set_cursor_grab(CursorGrabMode::Locked))
+        } else {
+            window.set_cursor_grab(CursorGrabMode::None)
+        };
+        if let Err(e) = grab {
+            log::warn!("mouse clipping: {e}");
+        }
+        let next = render::VideoSettings::from(&video);
+        let restart = self
+            .renderer
+            .as_ref()
+            .is_some_and(|r| r.video.needs_restart(&next));
+        if restart {
+            log::info!("video settings changed: restarting the renderer");
+            self.renderer = None;
+            self.start_renderer();
+        } else if let Some(r) = &mut self.renderer {
+            r.apply_video(next);
         }
     }
 
@@ -519,7 +718,11 @@ impl App {
         let Some(packages) = self.pending_packages.take() else {
             return;
         };
-        match Game::new(packages) {
+        let settings = self
+            .settings
+            .take()
+            .unwrap_or_else(settings::Settings::load);
+        match Game::with_settings(packages, settings) {
             Ok(mut game) => {
                 if let Some(w) = &self.window {
                     game.set_os_scale(w.scale_factor() as f32);
@@ -551,7 +754,15 @@ impl ApplicationHandler<UserEvent> for App {
         let mut attrs = Window::default_attributes().with_title("Banished");
         #[cfg(not(target_arch = "wasm32"))]
         {
-            attrs = attrs.with_inner_size(winit::dpi::LogicalSize::new(1280.0, 800.0));
+            let video = self.settings().map(|s| s.video.clone()).unwrap_or_default();
+            attrs = if video.window_width > 0 && video.window_height > 0 {
+                attrs.with_inner_size(winit::dpi::PhysicalSize::new(
+                    video.window_width as u32,
+                    video.window_height as u32,
+                ))
+            } else {
+                attrs.with_inner_size(winit::dpi::LogicalSize::new(1280.0, 800.0))
+            };
         }
         #[cfg(target_arch = "wasm32")]
         {
@@ -560,16 +771,8 @@ impl ApplicationHandler<UserEvent> for App {
         }
         let window = Arc::new(event_loop.create_window(attrs).expect("create window"));
         window.set_ime_allowed(true);
-        self.window = Some(window.clone());
-        let proxy = self.proxy.clone();
-        let init = async move {
-            let renderer = Renderer::new(window).await;
-            let _ = proxy.send_event(UserEvent::Renderer(Box::new(renderer)));
-        };
-        #[cfg(not(target_arch = "wasm32"))]
-        pollster::block_on(init);
-        #[cfg(target_arch = "wasm32")]
-        wasm_bindgen_futures::spawn_local(init);
+        self.window = Some(window);
+        self.start_renderer();
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: UserEvent) {
@@ -580,7 +783,25 @@ impl ApplicationHandler<UserEvent> for App {
                     renderer.resize(size.width, size.height);
                 }
                 log::info!("GPU: {}", renderer.backend);
+                let modes = self.display_modes();
+                for interface in &mut renderer.display.interfaces {
+                    for adapter in &mut interface.adapters {
+                        adapter.modes = modes.clone();
+                    }
+                }
+                renderer.display.desktop = self
+                    .window
+                    .as_ref()
+                    .and_then(|w| w.current_monitor())
+                    .map(|m| (m.size().width as i32, m.size().height as i32));
+                if let Some(s) = self.settings_mut() {
+                    s.display = renderer.display.clone();
+                }
+                let first = self.renderer.is_none() && self.game.is_none();
                 self.renderer = Some(*renderer);
+                if first {
+                    self.apply_settings();
+                }
             }
             UserEvent::Packages(packages) => {
                 set_status(&format!("Reading {} package(s)…", packages.len()), false);
@@ -628,6 +849,9 @@ impl ApplicationHandler<UserEvent> for App {
                     return;
                 }
                 game.draw(renderer, false);
+                if game.settings.revision != self.applied {
+                    self.apply_settings();
+                }
             }
             WindowEvent::ModifiersChanged(m) => self.shift = m.state().shift_key(),
             WindowEvent::CursorMoved { position, .. } => {
@@ -773,6 +997,22 @@ mod native {
         {
             settings.game.ui_scale = v;
         }
+        // `--setting KEY=VALUE` sets a stored setting by its original name (`InputMouseDisplay=1`,
+        // `VideoReflectionDetail=2`, `InputForward=297`, …).
+        let stored: Vec<&str> = args
+            .windows(2)
+            .filter(|w| w[0] == "--setting")
+            .map(|w| w[1].as_str())
+            .collect();
+        if !stored.is_empty() {
+            settings.persistence.parse(&stored.join("\n"));
+            let p = &settings.persistence;
+            settings.video = crate::settings::VideoConfig::load(p);
+            settings.audio = crate::settings::AudioConfig::load(p);
+            settings.input = crate::settings::InputConfig::load(p);
+            settings.game = crate::settings::GameOptions::load(p);
+            settings.keymap = crate::keymap::KeyMap::load(p);
+        }
         let mut game =
             Game::with_settings(read_packages(&data_dir(args)), settings).expect("game data");
         game.audio.set_master_volume(0.0);
@@ -785,7 +1025,26 @@ mod native {
                 Some((a.parse().ok()?, b.parse().ok()?))
             })
             .unwrap_or((1280, 800));
-        let mut renderer = pollster::block_on(Renderer::headless(size.0, size.1));
+        let mut renderer = pollster::block_on(Renderer::headless_with(
+            size.0,
+            size.1,
+            render::VideoSettings::from(&game.settings.video),
+        ));
+        // The Options dialog lists the capture device with one mode, the capture size.
+        game.settings.display = renderer.display.clone();
+        for adapter in game
+            .settings
+            .display
+            .interfaces
+            .iter_mut()
+            .flat_map(|i| i.adapters.iter_mut())
+        {
+            adapter.modes = vec![settings::DisplayMode {
+                width: size.0 as i32,
+                height: size.1 as i32,
+                refresh: vec![(60, 1)],
+            }];
+        }
         // `--press NAME@SECONDS` clicks a control at a given time.
         let mut presses: Vec<(String, f32)> = args
             .windows(2)

@@ -38,12 +38,27 @@ and the five `Camera0`–`Camera4` preset actions. `FUN_140103da0` applies a sel
 controller's preset table. These reads corroborate the label-to-ID mapping independently of the
 registration call.
 
-## Relevance to the port
+## Port
 
-The current port provides drag rotation, wheel zoom and WASD/arrows, which are a simplified control
-scheme rather than a reproduction of these action bindings. The registration routine's final
-`KeyMap::Load` means the game can use configured bindings; a faithful port should first decode the
-serialized key-map settings and only then choose its default physical keys.
+`apps/game/src/keymap.rs` registers the same 50 actions with these defaults and stores them like
+`KeyMap::Save` (`Input<Action>` / `Input<Action>Alt` = `device << 8 | input`, −1 unbound). The
+keyboard codes follow `StringTable.rsc:keyNames` (`Keyboard0` Escape … `Keyboard103` Numpad 9), so
+code `0x2d` is W, `0x29` S, `0x17` A, `0x1a` D, `0x27` Q and `0x1b` E. The Options dialog's Input
+tab rebinds them (see [OPTIONS.md](OPTIONS.md)).
+
+The gameplay camera follows `FUN_140104390`:
+
+| Input | Effect |
+|---|---|
+| RotateLeft / RotateRight held | yaw −/+ 90° per second |
+| Forward / Back / Left / Right held, or the pointer within 4 pixels of the left/top edge or 5 of the right/bottom (game option EdgeScroll) | the pivot moves `f·70 + (1−f)·12` units per second along the camera's ground axes, `f = (zoom target − 20) / 110`; keys override the edges |
+| ZoomIn / ZoomOut pressed, mouse wheel | zoom target ∓5 within 20..130 |
+| PitchUp / PitchDown pressed | pitch slider ±0.125 within 0..1 |
+| TogglePause | pause toggle |
+| Toolbar0–8, Tool0–9, Camera0–4 | the shown toolbar button holding that key (`FUN_1400bede0` hands them out by depth) |
+
+The mouse actions (`MouseLeft`, `MouseRight`, `MouseMiddle`) are listed and stored but the port
+still reads the mouse buttons directly; `PathMethod` and the screenshot keys are not ported.
 
 ## Evidence pointers
 

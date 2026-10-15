@@ -426,6 +426,8 @@ pub struct DisplayInfo {
     pub multisample: Vec<bool>,
     /// `Device +0x98`: the largest anisotropy.
     pub max_anisotropy: i32,
+    /// The desktop's resolution (`GetDefaultResolution` reads `EnumDisplaySettings`).
+    pub desktop: Option<(i32, i32)>,
 }
 
 impl Default for DisplayInfo {
@@ -445,6 +447,7 @@ impl Default for DisplayInfo {
             }],
             multisample: vec![true],
             max_anisotropy: 0,
+            desktop: None,
         }
     }
 }
@@ -457,9 +460,11 @@ impl DisplayInfo {
             .map_or(&[], |a| &a.modes)
     }
 
-    /// `Video::Device::ValidateConfiguration`: clamp a configuration to what the device offers.
-    /// An unknown resolution becomes the largest mode, an unknown refresh rate the mode's first,
-    /// an unsupported sample count none, and the filter at most the largest anisotropy.
+    /// `Video::Device::ValidateConfiguration` (`0x1800f9bc0`). An interface or adapter out of
+    /// range becomes 0; an unknown resolution becomes the desktop's
+    /// (`GetDefaultResolution`, else the first mode); an unknown refresh rate the first with
+    /// the same whole hertz, else the first; an unsupported sample count none; a filter above
+    /// the largest anisotropy that maximum.
     #[allow(clippy::too_many_arguments)]
     pub fn validate(
         &self,
@@ -471,42 +476,51 @@ impl DisplayInfo {
         multisample: &mut i32,
         filter: &mut i32,
     ) {
-        let interfaces = self.interfaces.len() as i32;
-        *interface = (*interface).clamp(0, (interfaces - 1).max(0));
+        if *interface < 0 || *interface as usize >= self.interfaces.len() {
+            *interface = 0;
+        }
         let adapters = self
             .interfaces
             .get(*interface as usize)
-            .map_or(0, |i| i.adapters.len() as i32);
-        *adapter = (*adapter).clamp(0, (adapters - 1).max(0));
+            .map_or(0, |i| i.adapters.len());
+        if *adapter < 0 || *adapter as usize >= adapters {
+            *adapter = 0;
+        }
         let modes = self.modes(*interface, *adapter);
-        let mode = modes
-            .iter()
-            .find(|m| m.width == *width && m.height == *height)
-            .or_else(|| {
-                modes
-                    .iter()
-                    .max_by_key(|m| m.width as i64 * m.height as i64)
-            });
+        let find = |w: i32, h: i32| modes.iter().find(|m| m.width == w && m.height == h);
+        let mode = find(*width, *height)
+            .or_else(|| self.desktop.and_then(|(w, h)| find(w, h)))
+            .or(modes.first());
         if let Some(m) = mode {
             *width = m.width;
             *height = m.height;
             if !m.refresh.contains(refresh) {
-                *refresh = m.refresh.first().copied().unwrap_or((60, 1));
+                let hz = |(n, d): (i32, i32)| n / d.max(1);
+                *refresh = m
+                    .refresh
+                    .iter()
+                    .copied()
+                    .find(|&r| hz(r) == hz(*refresh))
+                    .or(m.refresh.first().copied())
+                    .unwrap_or(*refresh);
             }
         }
-        if *multisample < 0
-            || !self
-                .multisample
-                .get(*multisample as usize)
-                .copied()
-                .unwrap_or(false)
-        {
+        let supported = usize::try_from(*multisample)
+            .ok()
+            .and_then(|i| self.multisample.get(i))
+            .copied()
+            .unwrap_or(false);
+        if !supported {
             *multisample = 0;
         }
-        *filter = (*filter).clamp(-1, self.max_anisotropy.max(0));
+        if *filter > self.max_anisotropy {
+            *filter = self.max_anisotropy;
+        }
     }
 }
 
+// Deviation: the original keeps these values in the registry; the port writes the same names to
+// a settings file natively and to localStorage in the browser.
 #[cfg(not(target_arch = "wasm32"))]
 mod storage {
     use std::path::PathBuf;

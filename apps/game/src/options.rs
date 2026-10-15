@@ -14,6 +14,11 @@
 //! - Apply (`FUN_140077db0`): video (`FUN_1400772e0`), input (`FUN_140077830`), audio, game
 //!   (`FUN_1400778f0`), then `Persistence::WriteSettings`.
 //! - Cancel (`FUN_140077d10`): re-read the input, key map, audio and game settings.
+//!
+//! Deviation: the Renderer combo lists wgpu backends (Vulkan, Metal, DirectX 12, OpenGL, WebGPU)
+//! where the original lists its DirectX 9 and 11 interfaces. Not ported: the autosave interval and
+//! auto slow-down are stored but have no effect, as saving and disasters are not ported.
+//! See docs/OPTIONS.md.
 
 use banished_ui::{Control, Event, Kind, NodeId, Ui};
 

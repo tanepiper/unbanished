@@ -791,6 +791,25 @@ pub fn sprite_sheet(data: &[u8]) -> Result<SpriteSheet> {
     })
 }
 
+/// `UI::Cursor` (`Serialize` 0x1800cf980, version 1): the sprite sheet whose image is the
+/// pointer, and its hotspot.
+#[derive(Debug, Clone)]
+pub struct Cursor {
+    pub sprite_sheet: Ref,
+    pub hotspot: [i32; 2],
+}
+
+pub fn cursor(data: &[u8]) -> Result<Cursor> {
+    expect(data, "Cursor", |r| {
+        r.block(|r, _| {
+            Ok(Cursor {
+                sprite_sheet: r.external_ref()?,
+                hotspot: [r.i32()?, r.i32()?],
+            })
+        })
+    })
+}
+
 /// `UI::Font` (0x180119f60), block version 2.
 #[derive(Debug, Clone)]
 pub struct Font {

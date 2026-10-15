@@ -38,13 +38,14 @@ pub enum RawInput {
     Click,
     /// Left button released (anywhere): `KeyMap::Released(MouseLeft)`.
     Release,
-    /// A key-map action pressed on the keyboard (`crate::keymap::id`), other than Cancel and
-    /// the movement actions, which arrive as `Escape` and `Pan`.
+    /// A key-map action pressed on the keyboard (`crate::keymap::id`), other than Cancel, which
+    /// arrives as `Escape`.
     Action(usize),
+    /// A key-map action's key released (`KeyMap::Released`).
+    ActionReleased(usize),
     Drag(f32, f32),
     PanDrag(f32, f32),
     Wheel(f32),
-    Pan(f32, f32),
     Escape,
     /// A key or mouse button released, as an engine `(device, input)` (`Input::Device::Released`).
     Released(crate::keymap::Binding),

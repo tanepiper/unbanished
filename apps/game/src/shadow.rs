@@ -6,9 +6,8 @@
 //! buffer (`SunLight::DrawShadowMap` 0x180109450), and the lit pixel shaders compare against it
 //! through `lc[10..13]`, the shadow projection set by `SunLight::Draw` 0x180109040.
 //!
-//! Deviation: the shadow detail (Medium, 4 taps) and resolution (1024²) are the
-//! `Video::Configuration` defaults; the Options dialog's choices are not wired up. Casters are
-//! not culled by the main camera's frustum as the original's sun draw group is (`BeginDrawGroup`
+//! The Options dialog's shadow resolution sets the map size and its shadow quality the number
+//! of taps (`render::VideoSettings`). Deviation: casters are not culled by the main camera's frustum as the original's sun draw group is (`BeginDrawGroup`
 //! with the main camera as cull camera), so objects just off screen still cast into view. The
 //! planar reflection samples the main view's shadow map rather than one fitted to its own camera.
 
@@ -17,8 +16,9 @@ use glam::{Mat4, Vec3, Vec4};
 /// `SunLight::SunLight` (0x18010aa80) creates a 2048² depth ImageBuffer (format 7, flag 0x40
 /// "shadow map"); shadow maps are shifted right by `Video::Configuration +0x2c` (the
 /// "ShadowScalar" setting, Options' shadow resolution High/Medium/Low = 0/1/2), default 1.
-pub const SHADOW_SCALAR: u32 = 1;
-pub const SHADOW_SIZE: u32 = 2048 >> SHADOW_SCALAR;
+pub fn shadow_size(scalar: i32) -> u32 {
+    2048 >> scalar.clamp(0, 2)
+}
 
 pub const SHADOW_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
@@ -233,7 +233,7 @@ pub struct ShadowMap {
 }
 
 impl ShadowMap {
-    pub fn new(device: &wgpu::Device) -> ShadowMap {
+    pub fn new(device: &wgpu::Device, size: u32) -> ShadowMap {
         let make = |label, size| {
             device
                 .create_texture(&wgpu::TextureDescriptor {
@@ -265,8 +265,8 @@ impl ShadowMap {
             ..Default::default()
         });
         ShadowMap {
-            size: SHADOW_SIZE,
-            view: make("sun shadow map", SHADOW_SIZE),
+            size,
+            view: make("sun shadow map", size),
             dummy: make("shadow stand-in", 1),
             sampler,
             lookup: None,
@@ -426,7 +426,7 @@ mod tests {
         let sun = sun_camera(
             &camera(),
             Vec3::new(0.3, 0.5, -0.8).normalize(),
-            SHADOW_SIZE,
+            shadow_size(1),
         );
         let p = sun.lookup() * (sun.position + sun.forward * 100.0).extend(1.0);
         assert!((p.x - 0.5).abs() < 1e-5 && (p.y - 0.5).abs() < 1e-5);
@@ -505,9 +505,9 @@ mod tests {
         let sun = sun_camera(
             &camera(),
             Vec3::new(0.3, 0.5, -0.8).normalize(),
-            SHADOW_SIZE,
+            shadow_size(1),
         );
-        let texel = sun.radius * 2.0 / SHADOW_SIZE as f32;
+        let texel = sun.radius * 2.0 / shadow_size(1) as f32;
         for axis in [sun.right, sun.forward, sun.up] {
             let v = axis.dot(sun.position) / texel;
             assert!((v - v.round()).abs() < 1e-2, "{v}");

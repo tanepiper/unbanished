@@ -870,13 +870,8 @@ impl ModelRenderer {
             make("vs_character", "fs_opaque"),
         ];
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::Repeat,
-            address_mode_v: wgpu::AddressMode::Repeat,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::MipmapFilterMode::Linear,
-            anisotropy_clamp: 8,
-            ..Default::default()
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            ..crate::scene_gfx::material_sampler(wgpu::AddressMode::Repeat)
         });
         let white = banished_gfx::upload_rgba_as(
             device,

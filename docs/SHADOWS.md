@@ -8,8 +8,8 @@ The original casts one orthographic shadow map from the sun each frame. The port
 
 | Item | Original | Port |
 |---|---|---|
-| Shadow map | `SunLight::SunLight` 0x18010aa80: a 2048² depth `ImageBuffer` (format 7) with flag 0x40 (`ImageBuffer::IsShadowMap` 0x18001f400) at `SunLight +0xf8`. The size is shifted right by `Video::Configuration +0x2c` ("ShadowScalar", default 1). | `SHADOW_SIZE` = 1024, `Depth32Float` |
-| Shadow detail | `Configuration +0x30` ("ShaderDetail", default 2), copied to `Renderer +0x3c`. It selects the program variant of every lit shader: 0 none, 1 one tap, 2 four taps, 3 nine taps (`StringTable_shadowDetail`: None/Low/Medium/High). `DrawShadowMap` does nothing at 0. | Program 2 |
+| Shadow map | `SunLight::SunLight` 0x18010aa80: a 2048² depth `ImageBuffer` (format 7) with flag 0x40 (`ImageBuffer::IsShadowMap` 0x18001f400) at `SunLight +0xf8`. The size is shifted right by `Video::Configuration +0x2c` ("ShadowScalar", default 1). | `shadow::shadow_size(ShadowScalar)`: 1024 by default, `Depth32Float`; the Options dialog's Shadow Resolution rebuilds the renderer |
+| Shadow detail | `Configuration +0x30` ("ShaderDetail", default 2), copied to `Renderer +0x3c`. It selects the program variant of every lit shader: 0 none, 1 one tap, 2 four taps, 3 nine taps (`StringTable_shadowDetail`: None/Low/Medium/High). `DrawShadowMap` does nothing at 0. | `render::VideoSettings::shadow_detail` → `shadow_params.z`; `sun_shadow()` takes one, four or nine taps, and detail 0 skips the shadow pass |
 | Taps | Program 2: four taps at (±½, ±½) texels, averaged; `pc[0].x` = 1 / map width (`Context::SetLight` 0x18001b230 stores it at `Context +0x248`). Program 3: 3×3 taps at ±1 texel / 9. | `sun_shadow()` |
 | Lookup | Hardware depth compare (`ref <= stored` lit) with bilinear PCF. The lit term is `light · shadow · sat(−n·l) + ambient · …`. The river's constant 0.165 sun term (program 0) becomes the sum of the four taps × 0.04125. | Comparison sampler, LessEqual, linear, clamp |
 

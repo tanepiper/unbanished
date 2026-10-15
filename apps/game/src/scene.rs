@@ -260,13 +260,27 @@ impl Camera {
         (Vec2::new(-s, c), Vec2::new(c, s))
     }
 
-    /// Keyboard/edge movement. Deviation: the original moves `f·70 + (1−f)·12` cells per
-    /// second along its camera axes; the port keeps a per-event step.
-    pub fn pan(&mut self, forward: f32, right: f32, terrain: &Terrain) {
+    /// `FUN_140104390`'s movement: a direction from the held movement keys and the screen
+    /// edges (x −1 left / +1 right, y −1 forward / +1 back), normalized, moves the pivot
+    /// `f·70 + (1−f)·12` units per second with `f = (zoom target − 20) / 110`.
+    pub fn travel(&mut self, direction: Vec2, dt: f32, terrain: &Terrain) {
+        if direction == Vec2::ZERO {
+            return;
+        }
+        if self.distance_target == 0.0 {
+            self.distance_target = self.distance;
+        }
+        let f = (self.distance_target - ZOOM_MIN) / 110.0;
+        let speed = f * 70.0 + (1.0 - f) * 12.0;
+        let d = direction.normalize() * speed * dt;
         let (fw, rt) = self.axes();
-        let step = self.distance * 0.02;
-        self.target += fw * forward * step + rt * right * step;
+        self.target += rt * d.x - fw * d.y;
         self.clamp(terrain);
+    }
+
+    /// RotateLeft / RotateRight held: 90° per second.
+    pub fn turn(&mut self, direction: f32, dt: f32) {
+        self.yaw += direction * 90.0 * dt;
     }
 
     /// Pan opposite a screen-space drag, keeping the target in the camera's ground plane.
@@ -283,10 +297,10 @@ impl Camera {
         self.yaw -= dx * 0.2;
     }
 
-    /// PitchUp / PitchDown: move the pitch slider that `update` blends the pitch target with.
-    /// Deviation: one step of 0.05 per key event; the original's rate is not decoded.
+    /// PitchUp / PitchDown pressed: the pitch slider that `update` blends the pitch target with
+    /// moves 0.125, within 0..1.
     pub fn pitch(&mut self, steps: f32) {
-        self.pitch_slider = (self.pitch_slider + steps * 0.05).clamp(0.0, 1.0);
+        self.pitch_slider = (self.pitch_slider + steps * 0.125).clamp(0.0, 1.0);
     }
 
     /// Mouse wheel / ZoomIn / ZoomOut: the zoom target moves 5 (towards the ground for a positive

@@ -129,6 +129,9 @@ pub struct Renderer {
     terrain: Option<TerrainGpu>,
     /// `SceneView::id` of the uploaded scene.
     pub world_id: u64,
+    /// What the Options dialog may choose from (display modes are added by the platform).
+    pub display: crate::settings::DisplayInfo,
+    pub video: VideoSettings,
     models_revision: u64,
     ui: banished_gfx::UiRenderer,
     models: crate::models::ModelRenderer,
@@ -321,8 +324,76 @@ fn fs_blit(i: BlitOut) -> @location(0) vec4<f32> {
 }
 "#;
 
+/// The video configuration the renderer is built with (`Video::Configuration`). Interface,
+/// adapter, filtering and shadow resolution take effect when the renderer is created; the rest
+/// with [`Renderer::apply_video`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VideoSettings {
+    /// Index into [`Renderer::display`]'s interfaces (wgpu backends).
+    pub interface: i32,
+    pub adapter: i32,
+    /// "TextureFilter": −1 bilinear, 0 trilinear, n anisotropic.
+    pub filter: i32,
+    /// "ShadowScalar": the shadow map is 2048 >> scalar.
+    pub shadow_scalar: i32,
+    /// "ShaderDetail": 0 no shadows, 1/2/3 one, four or nine shadow taps.
+    pub shadow_detail: i32,
+    /// "ReflectionDetail": 0 sky only, 1 terrain, 2 everything in the water reflection.
+    pub reflection: i32,
+    pub vsync: bool,
+}
+
+impl Default for VideoSettings {
+    fn default() -> Self {
+        Self::from(&crate::settings::VideoConfig::default())
+    }
+}
+
+impl From<&crate::settings::VideoConfig> for VideoSettings {
+    fn from(v: &crate::settings::VideoConfig) -> Self {
+        VideoSettings {
+            interface: v.interface,
+            adapter: v.adapter,
+            filter: v.texture_filter,
+            shadow_scalar: v.shadow_scalar,
+            shadow_detail: v.shader_detail,
+            reflection: v.reflection_detail,
+            vsync: v.vsync,
+        }
+    }
+}
+
+impl VideoSettings {
+    /// Whether going from `self` to `next` needs a new renderer (`Video::Device::Shutdown` /
+    /// `Startup` in the original for the interface and adapter; here also the samplers and the
+    /// shadow map, which are made at creation).
+    pub fn needs_restart(&self, next: &VideoSettings) -> bool {
+        self.interface != next.interface
+            || self.adapter != next.adapter
+            || self.filter != next.filter
+            || self.shadow_scalar != next.shadow_scalar
+    }
+}
+
+/// The wgpu backends in the order the Renderer combo lists them.
+const BACKENDS: [(wgpu::Backend, &str); 5] = [
+    (wgpu::Backend::Vulkan, "Vulkan"),
+    (wgpu::Backend::Metal, "Metal"),
+    (wgpu::Backend::Dx12, "DirectX 12"),
+    (wgpu::Backend::Gl, "OpenGL"),
+    (wgpu::Backend::BrowserWebGpu, "WebGPU"),
+];
+
+fn present_mode(vsync: bool) -> wgpu::PresentMode {
+    if vsync {
+        wgpu::PresentMode::AutoVsync
+    } else {
+        wgpu::PresentMode::AutoNoVsync
+    }
+}
+
 impl Renderer {
-    pub async fn new(window: Arc<Window>) -> Renderer {
+    pub async fn new(window: Arc<Window>, video: VideoSettings) -> Renderer {
         let size = window.inner_size();
         let instance =
             wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
@@ -332,15 +403,41 @@ impl Renderer {
             Some(surface),
             size.width.max(1),
             size.height.max(1),
+            video,
         )
         .await
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn headless(width: u32, height: u32) -> Renderer {
+        Self::headless_with(width, height, VideoSettings::default()).await
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn headless_with(width: u32, height: u32, video: VideoSettings) -> Renderer {
         let instance =
             wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
-        Self::init(&instance, None, width, height).await
+        Self::init(&instance, None, width, height, video).await
+    }
+
+    /// The adapters usable for `surface`, grouped by backend in [`BACKENDS`] order.
+    async fn interfaces(
+        instance: &wgpu::Instance,
+        surface: Option<&wgpu::Surface<'static>>,
+    ) -> Vec<(&'static str, Vec<wgpu::Adapter>)> {
+        let all = instance.enumerate_adapters(wgpu::Backends::all()).await;
+        BACKENDS
+            .iter()
+            .filter_map(|&(backend, name)| {
+                let adapters: Vec<wgpu::Adapter> = all
+                    .iter()
+                    .filter(|a| a.get_info().backend == backend)
+                    .filter(|a| surface.is_none_or(|s| a.is_surface_supported(s)))
+                    .cloned()
+                    .collect();
+                (!adapters.is_empty()).then_some((name, adapters))
+            })
+            .collect()
     }
 
     async fn init(
@@ -348,19 +445,57 @@ impl Renderer {
         surface: Option<wgpu::Surface<'static>>,
         width: u32,
         height: u32,
+        video: VideoSettings,
     ) -> Renderer {
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: surface.as_ref(),
-                force_fallback_adapter: false,
-                apply_limit_buckets: false,
-            })
-            .await
-            .expect("no suitable GPU adapter");
+        let interfaces = Self::interfaces(instance, surface.as_ref()).await;
+        let chosen = interfaces
+            .get(video.interface.max(0) as usize)
+            .and_then(|(_, adapters)| adapters.get(video.adapter.max(0) as usize))
+            .cloned();
+        let adapter = match chosen {
+            Some(adapter) => adapter,
+            None => instance
+                .request_adapter(&wgpu::RequestAdapterOptions {
+                    power_preference: wgpu::PowerPreference::HighPerformance,
+                    compatible_surface: surface.as_ref(),
+                    force_fallback_adapter: false,
+                    apply_limit_buckets: false,
+                })
+                .await
+                .expect("no suitable GPU adapter"),
+        };
+        crate::scene_gfx::set_texture_filter(video.filter);
         let info = adapter.get_info();
         let backend = format!("{:?} ({})", info.backend, info.name);
         log::info!("adapter: {backend}");
+        let display = crate::settings::DisplayInfo {
+            interfaces: interfaces
+                .iter()
+                .map(|(name, adapters)| crate::settings::GraphicsInterface {
+                    name: name.to_string(),
+                    adapters: adapters
+                        .iter()
+                        .map(|a| crate::settings::Adapter {
+                            name: a.get_info().name,
+                            modes: Vec::new(),
+                        })
+                        .collect(),
+                })
+                .collect(),
+            // Deviation: the port renders single-sampled, so the Options dialog offers only
+            // "None" for antialiasing.
+            multisample: vec![true],
+            max_anisotropy: if adapter
+                .get_downlevel_capabilities()
+                .flags
+                .contains(wgpu::DownlevelFlags::ANISOTROPIC_FILTERING)
+            {
+                16
+            } else {
+                0
+            },
+            desktop: None,
+        };
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: Some("game"),
@@ -379,6 +514,7 @@ impl Renderer {
             if let Some(linear) = caps.formats.iter().find(|f| !f.is_srgb()) {
                 config.format = *linear;
             }
+            config.present_mode = present_mode(video.vsync);
             surface.configure(&device, &config);
             (surface, config)
         });
@@ -568,7 +704,8 @@ impl Renderer {
             ..Default::default()
         });
 
-        let shadow = crate::shadow::ShadowMap::new(&device);
+        let shadow =
+            crate::shadow::ShadowMap::new(&device, crate::shadow::shadow_size(video.shadow_scalar));
         let globals_buffer = |label, shadow_view: &wgpu::TextureView| {
             let buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some(label),
@@ -654,7 +791,21 @@ impl Renderer {
             minimap: None,
             minimap_overlay: 0,
             backend,
+            display,
+            video,
         }
+    }
+
+    /// `Video::Device::ApplyChangedSettings`: the settings that need no new renderer.
+    pub fn apply_video(&mut self, video: VideoSettings) {
+        if let Some((surface, config)) = &mut self.surface {
+            let mode = present_mode(video.vsync);
+            if config.present_mode != mode {
+                config.present_mode = mode;
+                surface.configure(&self.device, config);
+            }
+        }
+        self.video = video;
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -990,13 +1141,8 @@ impl Renderer {
         ];
         let sampler = |mode| {
             self.device.create_sampler(&wgpu::SamplerDescriptor {
-                address_mode_u: mode,
-                address_mode_v: mode,
-                mag_filter: wgpu::FilterMode::Linear,
-                min_filter: wgpu::FilterMode::Linear,
-                mipmap_filter: wgpu::MipmapFilterMode::Linear,
-                anisotropy_clamp: 8,
-                ..Default::default()
+                address_mode_w: wgpu::AddressMode::ClampToEdge,
+                ..crate::scene_gfx::material_sampler(mode)
             })
         };
         let wrap = sampler(wgpu::AddressMode::Repeat);
@@ -1220,9 +1366,9 @@ impl Renderer {
                 a: 0.0,
             };
             let t = &self.targets;
-            {
-                // `SunLight::DrawShadowMap`: every caster's depth pass (terrain tiles included;
-                // the sky's has no programs).
+            // `SunLight::DrawShadowMap`: every caster's depth pass (terrain tiles included; the
+            // sky's has no programs). It does nothing at shadow detail 0.
+            if self.video.shadow_detail > 0 {
                 let mut pass = self.shadow.begin_pass(&mut encoder);
                 self.draw_terrain_with(&mut pass, &self.shadow_bind, &self.terrain_depth_pipeline);
                 self.models.draw_depth(&mut pass, &self.shadow_bind);
@@ -1235,9 +1381,15 @@ impl Renderer {
                     &t.reflection_depth,
                     Some(clear),
                 );
+                // `ReflectionImageBuffer::Render` draws its group at the configured
+                // ReflectionDetail: None, Terrain or Everything.
                 self.extras.draw_sky(&mut pass, &self.reflect_bind);
-                self.draw_terrain(&mut pass, &self.reflect_bind);
-                self.models.draw(&mut pass, &self.reflect_bind);
+                if self.video.reflection >= 1 {
+                    self.draw_terrain(&mut pass, &self.reflect_bind);
+                }
+                if self.video.reflection >= 2 {
+                    self.models.draw(&mut pass, &self.reflect_bind);
+                }
             }
             {
                 let mut pass =
@@ -1381,12 +1533,12 @@ impl Renderer {
             shadow: self.shadow.lookup.unwrap_or(Mat4::ZERO).to_cols_array_2d(),
             shadow_params: [
                 1.0 / self.shadow.size as f32,
-                if self.shadow.lookup.is_some() {
+                if self.shadow.lookup.is_some() && self.video.shadow_detail > 0 {
                     1.0
                 } else {
                     0.0
                 },
-                0.0,
+                self.video.shadow_detail as f32,
                 0.0,
             ],
         };

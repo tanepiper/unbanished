@@ -92,7 +92,8 @@ terrain and starting-condition handoff in [docs/WORLD-GENERATION.md](docs/WORLD-
       and packaged tree expiry animation are active; citizen movement, storage search and tool/clothing
       fetching are active. Remaining citizen activities, production and spatial event
       audio remain open; see [game loop step 19](docs/GAME-LOOP-STEP-19.md))
-- [ ] M7: save/load, audio in game, polish (audio decoding done)
+- [ ] M7: save/load, audio in game, polish (audio decoding done; the Options dialog, stored
+      settings, key bindings and UI scaling are in, see [docs/OPTIONS.md](docs/OPTIONS.md))
 
 ## Legal
 

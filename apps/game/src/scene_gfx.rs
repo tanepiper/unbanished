@@ -55,8 +55,24 @@ fn sun_shadow(t: vec3<f32>) -> f32 {
     if (g.shadow_params.y < 0.5) {
         return 1.0;
     }
-    let h = 0.5 * g.shadow_params.x;
     let z = clamp(t.z, 0.0, 1.0);
+    // ShaderDetail selects the program variant: 1 one tap, 2 four taps at ±½ texel, 3 nine
+    // taps at ±1 texel.
+    if (g.shadow_params.z < 1.5) {
+        return textureSampleCompareLevel(shadow_map, shadow_cmp, t.xy, z);
+    }
+    if (g.shadow_params.z > 2.5) {
+        let s = g.shadow_params.x;
+        var sum = 0.0;
+        for (var i = -1; i <= 1; i++) {
+            for (var j = -1; j <= 1; j++) {
+                let o = vec2<f32>(f32(i), f32(j)) * s;
+                sum += textureSampleCompareLevel(shadow_map, shadow_cmp, t.xy + o, z);
+            }
+        }
+        return sum / 9.0;
+    }
+    let h = 0.5 * g.shadow_params.x;
     let a = textureSampleCompareLevel(shadow_map, shadow_cmp, t.xy + vec2<f32>(h, h), z);
     let b = textureSampleCompareLevel(shadow_map, shadow_cmp, t.xy + vec2<f32>(h, -h), z);
     let c = textureSampleCompareLevel(shadow_map, shadow_cmp, t.xy + vec2<f32>(-h, h), z);
@@ -92,16 +108,34 @@ fn sampler_entry(binding: u32) -> wgpu::BindGroupLayoutEntry {
 }
 
 pub fn sampler(device: &wgpu::Device, mode: wgpu::AddressMode) -> wgpu::Sampler {
-    device.create_sampler(&wgpu::SamplerDescriptor {
+    device.create_sampler(&material_sampler(mode))
+}
+
+/// `Video::Configuration` "TextureFilter" (+0x28) for samplers made from now on: −1 bilinear,
+/// 0 trilinear, n ≥ 1 anisotropic n×. The renderer is rebuilt when it changes.
+static TEXTURE_FILTER: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(0);
+
+pub fn set_texture_filter(filter: i32) {
+    TEXTURE_FILTER.store(filter, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// A material sampler with the configured filtering.
+pub fn material_sampler(mode: wgpu::AddressMode) -> wgpu::SamplerDescriptor<'static> {
+    let filter = TEXTURE_FILTER.load(std::sync::atomic::Ordering::Relaxed);
+    wgpu::SamplerDescriptor {
         address_mode_u: mode,
         address_mode_v: mode,
         address_mode_w: mode,
         mag_filter: wgpu::FilterMode::Linear,
         min_filter: wgpu::FilterMode::Linear,
-        mipmap_filter: wgpu::MipmapFilterMode::Linear,
-        anisotropy_clamp: 8,
+        mipmap_filter: if filter < 0 {
+            wgpu::MipmapFilterMode::Nearest
+        } else {
+            wgpu::MipmapFilterMode::Linear
+        },
+        anisotropy_clamp: filter.clamp(1, 16) as u16,
         ..Default::default()
-    })
+    }
 }
 
 struct PipelineSpec<'a> {
