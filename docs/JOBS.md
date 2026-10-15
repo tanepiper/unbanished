@@ -515,6 +515,53 @@ Verification: `placement_tool::construction_tests::gatherers_harvest_wild_food` 
 Medium). A gatherer's shelter is built near the start and two gatherers are assigned. They
 harvest wild food, and the AutoPickup records the pile, which is picked up.
 
+## Foresters (`ForesterComponent`, its work)
+
+Port: `crates/game/src/forester.rs`.
+
+- **Component.** ForesterComponent (vtable `0x140169890`) uses the ResourceProduce states.
+  - ForesterDescription (`FUN_140124f50`, versioned): the tree template `+0x20`, then, from
+    version 1, the stock slot `+0x28` (logs, 0).
+  - The component has two toggles, `+0x50` plant and `+0x51` cut. They are saved
+    (`FUN_140124e30`), queried by the lodge's buttons (`FUN_140124df0`), and switched by
+    `FUN_140124d60`. Turning the last one off, or the first one on, switches production
+    (slot `+0x70`).
+  - Slot `+0x90` (`FUN_140124c50`) turns both toggles on when both are off and the state is
+    not 0xe. It then makes the work (vtable `0x1401677c0`, with the gatherer's fields).
+- **Try** (`FUN_1400f0390`). It uses the same AutoPickup offers, worker cap, draws, misses
+  and fallbacks as the gatherer, with these differences:
+  - The limit only sets the icon.
+  - A drawn cell that is not water passes on two conditions. First, it lies in the
+    entrance's region (`FUN_1400a1950` relabels; either cell type 5–8 passes too). Second, it
+    has no occupant and is within path rank `2r` of the entrance.
+  - **Plant.** When planting is on and the cell holds no object, the cell must be reachable
+    from the citizen, pass `FUN_1400a4aa0(x, y, 4, 0.97, 1000, 0)` and pass the tree's
+    neighbour limits (`FUN_140126100`). The citizen then runs `FUN_1400c3bb0`:
+    1. ShowTool 3.
+    2. Walk (mode 3) to the cell.
+    3. PerformWork anim 0xc for 2.1 s, which uses up the tool.
+    4. CreateNaturalResource.
+    5. ShowTool −1.
+    6. CompleteTask.
+  - **Cut.** When cutting is on, the cell holds a natural resource, and the stock slot is
+    under its limit, the resource's raw material must have neither flag `0x20` (food) nor
+    `0x2000` (herbs). It must also be grown to 1, unclaimed, and next to a reachable cell.
+    The citizen then runs the removal sequence with the auto-pickup flag.
+- **CreateNaturalResource** (vtable `0x1401660c0`, start `FUN_1400cbb20`). The action fails
+  unless the cell has no object and the expected occupant. `FUN_1400a1fd0` must also allow
+  it (no cell type 0 or 1), and the cell's flags `+0x28` must be 0. Otherwise it clones the
+  template and places it in the cell (`FUN_14012ba10`). Growth starts at 0
+  (`FUN_140126280`), then the action draws `Rand(variants)` and `Rand(meshes)` and registers
+  the tree.
+
+Not ported:
+- the cell byte `+0x2a` and the map's set at `+0xe8` in `FUN_1400a1fd0`;
+- the toggle buttons (the toggles default on);
+- the status icon.
+
+Verification: `placement_tool::construction_tests::foresters_plant_and_cut`. Two foresters
+plant a sapling, cut a tree, and the logs are picked up.
+
 ## Removal tools (`RemovalTool : DragTool`, vtable `0x140168200`)
 
 The toolbar's Harvest Trees, Harvest Stone, Harvest Iron, Clear Resources, Remove Roads, Remove

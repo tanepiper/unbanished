@@ -747,6 +747,133 @@ mod construction_tests {
         assert_reservations_held(&town);
     }
 
+    /// A forester's lodge near the start gets two foresters: they plant saplings on free
+    /// ground in the lodge's region and cut grown trees, whose logs are picked up.
+    #[test]
+    fn foresters_plant_and_cut() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool = PlacementTool::start(
+            &archive,
+            &mut town,
+            r"Template\ForesterLodge.rsc:resource",
+            &mut rng,
+        )
+        .unwrap();
+        let spot = tool.find_clear_spot(&town, &terrain, town.start);
+        tool.hover(&town, &terrain, spot, 0);
+        let id = tool.place(&archive, &mut town, 0).unwrap();
+        let st = town.construction.sites[&id].template;
+        let tree = town.construction.templates[st]
+            .forester
+            .clone()
+            .expect("no ForesterDescription")
+            .tree;
+        let p = &town.construction.professions;
+        let builder = p.builder;
+        let forester = p
+            .list
+            .iter()
+            .position(|p| p.reference.to_ascii_lowercase().ends_with(":forester"))
+            .expect("no forester profession");
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 2,
+            });
+        let mut warnings = banished_game::events::StockWarnings::default();
+        warnings.limits[0] = 100_000;
+        let saplings = |town: &StartingTown| {
+            town.placed
+                .iter()
+                .filter(|p| p.alive && p.template == tree && p.growth < 0.05)
+                .count()
+        };
+        let dt = 1.0 / 30.0;
+        let (mut built_at, mut planted_at, mut cut_at, mut stored_at) = (None, None, None, None);
+        let mut base = 0;
+        let mut seen = std::collections::BTreeSet::new();
+        for step in 0..30 * 60 * 15 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            if built_at.is_none() && town.construction.sites[&id].complete {
+                built_at = Some(step);
+                base = saplings(&town);
+                town.construction
+                    .commands
+                    .push(banished_game::professions::Command::SetCount {
+                        profession: forester,
+                        count: 2,
+                    });
+            }
+            if built_at.is_some() && planted_at.is_none() && saplings(&town) > base {
+                planted_at = Some(step);
+            }
+            let piles: Vec<usize> = town
+                .construction
+                .piles
+                .iter()
+                .filter(|(_, p)| p.auto_pickup == Some(id))
+                .map(|(&e, _)| e)
+                .collect();
+            if cut_at.is_none() && !piles.is_empty() {
+                cut_at = Some(step);
+            }
+            seen.extend(piles.iter().copied());
+            if stored_at.is_none() && seen.iter().any(|e| !piles.contains(e)) {
+                stored_at = Some(step);
+            }
+            if planted_at.is_some() && stored_at.is_some() {
+                break;
+            }
+        }
+        eprintln!(
+            "built {built_at:?}, planted {planted_at:?}, cut {cut_at:?}, stored {stored_at:?}, \
+             toggles {:?}",
+            town.construction.sites[&id].forester
+        );
+        assert!(built_at.is_some(), "the lodge was not built");
+        assert!(planted_at.is_some(), "no sapling was planted");
+        assert!(cut_at.is_some(), "no tree was cut");
+        assert!(stored_at.is_some(), "no log pile was picked up");
+        assert_reservations_held(&town);
+    }
+
     /// A seed-1234 Medium town with its terrain and stream, after `setup`.
     fn with_town(test: impl FnOnce(&Archive, &HeightGrid, &mut StartingTown, &mut Random)) {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

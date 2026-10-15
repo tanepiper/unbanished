@@ -61,6 +61,9 @@ pub enum Component {
     /// CreateRawMaterial's start (`FUN_1400cc010`): `a` the output template, `b` the cell,
     /// `entity` the workplace.
     CreateRawMaterial,
+    /// CreateNaturalResource's start (`FUN_1400cbb20`) once the cell is free: `a` the
+    /// template, `b` the cell.
+    CreateNaturalResource,
 }
 
 /// A message an action delivered (slot `+0x78` of the receiving component). The owner
@@ -78,6 +81,10 @@ pub struct Message {
 pub struct World<'a> {
     pub size: usize,
     pub types: &'a [CellType],
+    /// Map cells `+0x08` (stamped objects), `+0x00` (occupants) and `+0x28` (flags).
+    pub objects: &'a [Option<usize>],
+    pub occupants: &'a [Option<usize>],
+    pub flags: &'a [u8],
     pub regions: &'a [u16],
     pub terrain: &'a HeightGrid<'a>,
     pub pathfinder: &'a mut Pathfinder,
@@ -517,6 +524,13 @@ pub enum Action {
         batch: i32,
         workplace: Option<usize>,
     },
+    /// `CreateNaturalResource` (vtable `0x1401660c0`, constructor `FUN_1400cbef0`): plant
+    /// `template` on `cell`, which must hold no object and `occupant` as its occupant.
+    CreateNaturalResource {
+        template: usize,
+        occupant: Option<usize>,
+        cell: i32,
+    },
     /// `DropOffRawMaterial` (vtable `0x1401661a0`, start `FUN_1400cc7d0`): move up to `count`
     /// carried units into `storage`.
     DropOff {
@@ -598,6 +612,30 @@ impl Action {
                     component: Component::CreateRawMaterial,
                     message: 0,
                     entity: *workplace,
+                    a: *template as i32,
+                    b: *cell,
+                });
+                Status::Done
+            }
+            // `FUN_1400cbb20`: the cell must be free (`FUN_1400a1fd0`: not cell types 0 or 1;
+            // the per-cell byte `+0x2a` and the map's set at `+0xe8` are not ported) and
+            // without flags. Otherwise the action fails.
+            Action::CreateNaturalResource {
+                template,
+                occupant,
+                cell,
+            } => {
+                let i = *cell as usize;
+                let free =
+                    world.objects.get(i) == Some(&None) && world.occupants.get(i) == Some(occupant);
+                let ty = 1u32 << (world.types[i].0 & 0x1f);
+                if !free || ty & 3 != 0 || world.flags[i] != 0 {
+                    return Status::Failed;
+                }
+                world.messages.push(Message {
+                    component: Component::CreateNaturalResource,
+                    message: 0,
+                    entity: None,
                     a: *template as i32,
                     b: *cell,
                 });
@@ -759,7 +797,8 @@ impl Action {
             // The base update returns 0.
             Action::RemoveResource { .. }
             | Action::PickupPile { .. }
-            | Action::CreateRawMaterial { .. } => Status::Done,
+            | Action::CreateRawMaterial { .. }
+            | Action::CreateNaturalResource { .. } => Status::Done,
             Action::SendMessage(_)
             | Action::ConsumeStoredRawMaterial { .. }
             | Action::PickupStoredRawMaterial { .. }

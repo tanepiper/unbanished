@@ -49,6 +49,9 @@ pub enum WorkKind {
     /// HerbalistComponent's work (vtable `0x1401679c0`, made by `FUN_14004bac0`): gatherers
     /// and herbalists.
     Herbalist(crate::herbalist::HerbalistWork),
+    /// ForesterComponent's work (vtable `0x1401677c0`, made by `FUN_140124c50`), with the
+    /// same fields.
+    Forester(crate::herbalist::HerbalistWork),
     /// A test stand-in.
     Test(i32),
 }

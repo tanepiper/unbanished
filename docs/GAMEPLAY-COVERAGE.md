@@ -34,7 +34,8 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **CropField**, **Orchard**, **Pasture**, **Livestock**, **Fruit** | fields, orchards, pastures, animals | missing |
 | **Herd**, **Population**, **WildAnimal**, **Animal** | deer | missing |
 | ResourceProduce subtype **Herbalist** (gather) | gatherer's shelter, herbalist | yes (`herbalist.rs`) |
-| ResourceProduce subtypes **Hunt**, **Fishing**, **Forester** | lodges, dock | missing (state machine shared) |
+| ResourceProduce subtype **Forester** | forester's lodge | yes (`forester.rs`; toggle buttons not wired) |
+| ResourceProduce subtypes **Hunt**, **Fishing** | hunter's lodge, dock | missing (state machine shared) |
 | **AutoPickup** | gatherers, hunters, foresters | yes |
 | **AbsorbResource**, **StorageDisplay** | fields, StorageYard | missing |
 | **MultiObject**, **Terraform**, **Floor** | bridges, tunnels, fences, dock | missing |

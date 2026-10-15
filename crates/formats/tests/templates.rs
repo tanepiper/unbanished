@@ -430,3 +430,20 @@ fn herbalist_and_auto_pickup_descriptions_parse() {
     )
     .unwrap());
 }
+
+#[test]
+fn forester_description_parses() {
+    use banished_formats::game::forester_description;
+    let Some(archive) = archive() else { return };
+    let d = forester_description(
+        &archive
+            .read_ref("Template/ForesterLodge.rsc:forester")
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        d.tree.as_deref(),
+        Some(r"Template\NaturalResourceTree.rsc:resource")
+    );
+    assert_eq!(d.group, 0);
+}

@@ -315,6 +315,8 @@ impl Agents {
                 models_dirty: &mut c.models_dirty,
                 offers: Vec::new(),
                 offers_again: false,
+                removed: Vec::new(),
+                animation_events: Vec::new(),
                 produce_resume: None,
             },
             &mut c.jobs,
@@ -430,6 +432,9 @@ impl Agents {
                 let mut world = World {
                     size: env.cells.size,
                     types: &env.cells.types,
+                    objects: &env.cells.objects,
+                    occupants: &env.cells.occupants,
+                    flags: &env.cells.flags,
                     regions: &self.regions,
                     terrain: env.terrain,
                     pathfinder: &mut self.pathfinder,
@@ -778,6 +783,11 @@ impl Agents {
                     let educated = citizens[i].education >= self.rules.education;
                     let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
                     sim.create_raw_material(jobs, i, m.a.max(0) as usize, m.b, educated);
+                    jobs.drain(&mut sim);
+                }
+                Component::CreateNaturalResource => {
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    sim.plant(m.a.max(0) as usize, m.b);
                     jobs.drain(&mut sim);
                 }
                 Component::NaturalResource => {

@@ -1027,6 +1027,31 @@ pub fn herbalist_description(data: &[u8]) -> Result<HerbalistDescription> {
     Ok(value)
 }
 
+/// `ForesterDescription` (serializer `FUN_140124f50`): the tree template it plants (`+0x20`)
+/// and, from version 1, the stock-manager slot of its limit (`+0x28`; logs, 0).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ForesterDescription {
+    pub tree: Option<String>,
+    pub group: i32,
+}
+
+pub fn forester_description(data: &[u8]) -> Result<ForesterDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("ForesterDescription") {
+            return format_err(format!(
+                "expected ForesterDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, version| {
+            let tree = r.external_ref()?;
+            let group = if version > 0 { r.i32()? } else { 0 };
+            Ok(ForesterDescription { tree, group })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `AutoPickupDescription` (serializer `FUN_1400454c0`): `+0x20`, whether the workplace's
 /// workers pick up the piles they make first.
 pub fn auto_pickup_description(data: &[u8]) -> Result<bool> {

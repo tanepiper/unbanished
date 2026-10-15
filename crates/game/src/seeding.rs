@@ -319,7 +319,7 @@ impl<'a> Seeder<'a> {
     /// `FUN_140126100`: at most `max_neighbours` occupied cells and `max_same` of the same
     /// growth type among the 8 neighbours. Cached external-reference identities replace the
     /// original GrowthDescription pointer comparison (including descriptions shared by templates).
-    fn density_ok(&self, template: usize, x: i32, y: i32) -> bool {
+    pub(crate) fn density_ok(&self, template: usize, x: i32, y: i32) -> bool {
         let Some(growth) = &self.templates[template].growth else {
             return true;
         };
@@ -445,6 +445,44 @@ impl<'a> Seeder<'a> {
             self.placed[id].growth_state = Some(state);
         }
         Some(id)
+    }
+
+    /// CreateNaturalResource's start (`FUN_1400cbb20`) on a free cell: clone the template
+    /// (`FUN_1400c8bf0`), place it in the cell (`FUN_14012ba10`), growth 0 (`FUN_140126280`),
+    /// then a random model variant and mesh (`FUN_14012a8a0`), and register it.
+    pub fn plant(&mut self, template: usize, cell: i32) -> usize {
+        let (_, _, max_growth) = self.construct(template);
+        let (position, yaw) = self.position(template, cell);
+        let (state, growth, scale) = self.set_growth(template, max_growth, 0.0);
+        let variants = self.templates[template]
+            .model
+            .as_ref()
+            .map_or(1, |m| m.variants.len().max(1));
+        let variant = self.rng.rand_below(variants as u32) as usize;
+        let meshes = self.templates[template]
+            .model
+            .as_ref()
+            .and_then(|m| m.variants.get(variant))
+            .map_or(1, |v| v.meshes.len().max(1));
+        let mesh = self.rng.rand_below(meshes as u32) as usize;
+        let n = self.n();
+        self.register(Placed {
+            template,
+            bucket: self.templates[template].bucket,
+            cell: (cell % n, cell / n),
+            footprint: (1, 1),
+            position,
+            yaw,
+            variant,
+            mesh,
+            growth,
+            growth_state: Some(state),
+            spawn_state: self.spawn_state(template),
+            alive: true,
+            removal_requested: false,
+            animation: None,
+            scale,
+        })
     }
 
     fn spawn_state(&self, template: usize) -> Option<Spawn> {

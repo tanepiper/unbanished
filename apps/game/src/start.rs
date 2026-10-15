@@ -1022,6 +1022,17 @@ impl StartingTown {
                         .ok()
                         .map(|(r, _)| r);
                 }
+                "forester" => {
+                    let Ok(d) = banished_formats::game::forester_description(&data) else {
+                        continue;
+                    };
+                    t.controllers.push(Controller::ResourceProduce);
+                    let tree = self.load_template(archive, d.tree.as_deref()?)?;
+                    t.forester = Some(banished_game::forester::ForesterTemplate {
+                        tree,
+                        group: d.group,
+                    });
+                }
                 "autopickup" => {
                     t.auto_pickup = banished_formats::game::auto_pickup_description(&data).ok();
                 }
@@ -1139,10 +1150,13 @@ impl StartingTown {
                         produced: 0,
                     })
                     .or_else(|| {
-                        t.herbalist
-                            .as_ref()
-                            .map(|_| banished_game::construction::ProduceState::default())
+                        (t.herbalist.is_some() || t.forester.is_some())
+                            .then(banished_game::construction::ProduceState::default)
                     }),
+                forester: t
+                    .forester
+                    .as_ref()
+                    .map(|_| banished_game::forester::Forester::default()),
                 auto_pickup: t
                     .auto_pickup
                     .map(|enabled| banished_game::herbalist::AutoPickup {

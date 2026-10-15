@@ -483,6 +483,8 @@ pub struct SiteTemplate {
     pub radius: Option<i32>,
     /// AutoPickupDescription `+0x20`.
     pub auto_pickup: Option<bool>,
+    /// ForesterDescription, resolved.
+    pub forester: Option<crate::forester::ForesterTemplate>,
 }
 
 impl SiteTemplate {
@@ -577,6 +579,8 @@ pub struct Site {
     pub produce: Option<ProduceState>,
     /// AutoPickupComponent.
     pub auto_pickup: Option<crate::herbalist::AutoPickup>,
+    /// ForesterComponent's toggles.
+    pub forester: Option<crate::forester::Forester>,
 }
 
 /// The job manager, professions, workforce and every construction site.

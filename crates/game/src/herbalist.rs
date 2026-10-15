@@ -10,10 +10,8 @@
 
 use std::collections::BTreeSet;
 
-use crate::character::Action;
 use crate::jobs::{Work, WorkKind};
 use crate::pathfind::nearest_neighbour;
-use crate::scheduler::ticks;
 use crate::town::{cell_ground, Sim};
 
 /// The work's state: `+0x48` the workers (a set; `+0x50` its size), `+0x58` misses in a row.
@@ -186,24 +184,7 @@ impl Sim<'_, '_> {
             self.drop_off(c);
             return 2;
         }
-        // `FUN_1400c7960`: stand a moment, then report.
-        self.clear_citizen(c, Some(work));
-        self.on_empty_think(c);
-        self.push(
-            c,
-            Action::CompleteTask {
-                work: work.id,
-                param: 0,
-            },
-        );
-        self.push(
-            c,
-            Action::PlayAnimation {
-                anim: 0,
-                duration: ticks(0.25),
-                elapsed: 0,
-            },
-        );
+        self.wait_sequence(c, work);
         self.took_job(c, work);
         if let WorkKind::Herbalist(h) = &mut work.kind {
             h.workers.insert(c);
