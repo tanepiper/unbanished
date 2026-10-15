@@ -89,8 +89,8 @@ Deviation: 30, Not ported: 63, Not traced: 4.
 
 - [Deviation] [crates/game/src/agents.rs:1](../crates/game/src/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance (`AnimationManager::Update`), every character runs its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run the AI with zero time (`FUN_140114810`), then the AI updates. Deviations: the AI runs every iteration instead of on its bucket's quota, and after the placed entities' bucket pass instead of interleaved with it.
 - [Not ported] [crates/game/src/agents.rs:75](../crates/game/src/agents.rs#L75): Not ported: tool use during jobs and the citizen clothing-wear countdown.
-- [Not ported] [crates/game/src/agents.rs:883](../crates/game/src/agents.rs#L883): `FUN_140119170`: the dead citizen's components let go of the town (a removed entity's CharacterComponent abandons its actions, CitizenComponent leaves its home, family, workplace and registry; a laborer takes over its profession). Not ported: the carried goods (StorageComponent removal) are lost.
-- [Not ported] [crates/game/src/agents.rs:1451](../crates/game/src/agents.rs#L1451): Not ported: drawing the StatusIconComponent's billboard (its mask is live).
+- [Not ported] [crates/game/src/agents.rs:889](../crates/game/src/agents.rs#L889): `FUN_140119170`: the dead citizen's components let go of the town (a removed entity's CharacterComponent abandons its actions, CitizenComponent leaves its home, family, workplace and registry; a laborer takes over its profession). Not ported: the carried goods (StorageComponent removal) are lost.
+- [Not ported] [crates/game/src/agents.rs:1457](../crates/game/src/agents.rs#L1457): Not ported: drawing the StatusIconComponent's billboard (its mask is live).
 
 ## `crates/game/src/animation.rs`
 
@@ -156,7 +156,7 @@ Deviation: 30, Not ported: 63, Not traced: 4.
 - [Not traced] [crates/game/src/life.rs:1059](../crates/game/src/life.rs#L1059): Not traced: what counts citizen `+0x84` up; it stays 0 (the half bonus).
 - [Not ported] [crates/game/src/life.rs:1158](../crates/game/src/life.rs#L1158): `FUN_14011c060`: catch disease `d` (not while immune, nor a doctor at work). Not ported: the doctor exception (profession `+0x4d` with a workplace) and the AutoSlow request of the outbreak event.
 - [Not ported] [crates/game/src/life.rs:1246](../crates/game/src/life.rs#L1246): Citizen message 2 (`FUN_14011a7b0`): eat from `storage` until no longer hungry: one unit of food (`FUN_140094410` category 0) per point of hunger, remembering each kind for variety. Not ported: the stock's consumption counter (`FUN_14008e460`).
-- [Not ported] [crates/game/src/life.rs:1281](../crates/game/src/life.rs#L1281): `FUN_14012ee40`: a residence's update. The fire burns down; with residents, while it is colder than the house's warmth, one unit of firewood keeps it burning for `+0x2c` seconds. The food and firewood status icons clear when there is some. Not ported: the ClearStorage work of an empty house that still holds goods, and the stock's consumption counter.
+- [Not ported] [crates/game/src/life.rs:1281](../crates/game/src/life.rs#L1281): `FUN_14012ee40`: a residence's update. The fire burns down; with residents, while it is colder than the house's warmth, one unit of firewood keeps it burning for `+0x2c` seconds. The food and firewood status icons clear when there is some. The ClearStorage work comes first ([`crate::town::Sim::residence_clear_storage`]). Not ported: the stock's consumption counter.
 
 ## `crates/game/src/needs.rs`
 
@@ -213,9 +213,9 @@ Deviation: 30, Not ported: 63, Not traced: 4.
 - [Not ported] [crates/game/src/town.rs:1137](../crates/game/src/town.rs#L1137): Not ported: the decal's alpha.
 - [Not ported] [crates/game/src/town.rs:1200](../crates/game/src/town.rs#L1200): Not ported: building status icons.
 - [Not ported] [crates/game/src/town.rs:1310](../crates/game/src/town.rs#L1310): Not ported: emergencies (fires).
-- [Not ported] [crates/game/src/town.rs:2030](../crates/game/src/town.rs#L2030): Not ported: the empty-cell phase (`+0x71`, roads and fields: `FUN_1400c54a0`).
-- [Not ported] [crates/game/src/town.rs:2194](../crates/game/src/town.rs#L2194): Not ported: the stock manager's production counter (`FUN_14008e3c0`). `FUN_140045170` once the pile's work is registered ([`Sim::activate_piles`]).
-- [Not ported] [crates/game/src/town.rs:2630](../crates/game/src/town.rs#L2630): The final drop-off with no target (its redirect search is not ported).
+- [Not ported] [crates/game/src/town.rs:2039](../crates/game/src/town.rs#L2039): Not ported: the empty-cell phase (`+0x71`, roads and fields: `FUN_1400c54a0`).
+- [Not ported] [crates/game/src/town.rs:2203](../crates/game/src/town.rs#L2203): Not ported: the stock manager's production counter (`FUN_14008e3c0`). `FUN_140045170` once the pile's work is registered ([`Sim::activate_piles`]).
+- [Not ported] [crates/game/src/town.rs:2639](../crates/game/src/town.rs#L2639): The final drop-off with no target (its redirect search is not ported).
 
 ## `crates/game/src/wildlife.rs`
 

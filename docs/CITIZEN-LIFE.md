@@ -196,7 +196,22 @@ Test: `placement_tool::construction_tests::the_dead_are_buried_in_the_cemetery`.
 Test: `placement_tool::construction_tests::a_builder_dies_in_an_accident`, with the builder's
 odds made near certain.
 
+## Empty houses (ClearStorage)
+
+The residence update (`FUN_14012ee40`) first checks its goods. A house nobody lives in
+(`FUN_14012f4c0`) that still holds goods (`FUN_1401323e0`) gets a ClearStorage work
+(`FUN_1400ec920`, mask 1); once its storage is empty the work is removed.
+
+The work's try (`FUN_1400ec120`) takes the first item with unreserved units, as many as the
+hauler can carry. A full hauler drops off first (`FUN_14011b330`). It needs a town storage that
+takes the item (`FUN_140092a60`, depositing, excluding the house), the work's cell in reach,
+and the patience check. Then the hauler carries the goods from the house's first use point
+(`FUN_1400c4c60`, completing at the pickup, parameter `amount << 8 | item`). Haulers join the
+work's set (`+0x58`); complete and fail (`FUN_1400ec100`, `FUN_1400ec0f0`) leave it.
+
+Test: `placement_tool::construction_tests::an_empty_house_is_cleared`.
+
 ## Not ported yet
 
-The residence's ClearStorage work, and the stock consumption counters.
+The stock consumption counters (with the trackers, Town Info).
 (The workplace searches are described in [JOBS.md](JOBS.md#workplace-searches).)

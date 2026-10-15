@@ -2671,4 +2671,104 @@ mod construction_tests {
             "the accident's profession"
         );
     }
+
+    /// A finished house nobody has moved into, holding food, gets a ClearStorage work and
+    /// laborers carry the food to the town's storage.
+    #[test]
+    fn an_empty_house_is_cleared() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool = PlacementTool::start(
+            &archive,
+            &mut town,
+            r"Template\WoodHouse.rsc:resource",
+            &mut rng,
+        )
+        .unwrap();
+        let spot = tool
+            .find_clear_spot(&town, &terrain, town.start)
+            .expect("no spot");
+        tool.hover(&town, &terrain, Some(spot), 0);
+        let id = tool.place(&archive, &mut town, 0).unwrap();
+        let builder = town.construction.professions.builder;
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 2,
+            });
+        // Food the house can hold.
+        let food = (0..town.materials.len())
+            .find(|&m| banished_game::stock::stock_slot(town.materials[m].flags) == Some(5))
+            .expect("no food material");
+        let mut warnings = banished_game::events::StockWarnings::default();
+        let dt = 1.0 / 30.0;
+        let (mut stocked, mut registered, mut cleared) = (false, false, false);
+        for _ in 0..30 * 60 * 15 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            let site = &town.construction.sites[&id];
+            let storage = site.storage;
+            if !stocked && site.complete && town.construction.homes.contains_key(&id) {
+                stocked = true;
+                // Nobody may live there while the test watches: the house leaves the
+                // residences and anyone who moved in leaves it.
+                town.construction.workforce.residences.retain(|&r| r != id);
+                let home = town.construction.homes.get_mut(&id).unwrap();
+                for c in home.families.iter_mut().flat_map(std::mem::take) {
+                    town.agents.states[c].home = None;
+                    town.agents.states[c].home_slot = -1;
+                }
+                town.storages[storage].add(food, 5);
+            }
+            if stocked && !registered {
+                let w = town.construction.sites[&id].work_id;
+                registered = matches!(
+                    town.construction.jobs.works.get(&w).map(|w| &w.kind),
+                    Some(banished_game::jobs::WorkKind::ClearStorage(_))
+                );
+            }
+            if stocked && town.storages[storage].items.iter().all(|i| i.count == 0) {
+                cleared = true;
+                break;
+            }
+        }
+        assert!(stocked, "the house was not finished empty");
+        assert!(registered, "no ClearStorage work");
+        assert!(cleared, "the food stayed in the house");
+    }
 }

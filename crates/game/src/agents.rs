@@ -542,7 +542,13 @@ impl Agents {
             sim.place_burials();
             jobs.drain(&mut sim);
         }
-        // The residences' state-2 updates (`FUN_14012ee40`).
+        // The residences' state-2 updates (`FUN_14012ee40`): the ClearStorage work, then the
+        // fire.
+        {
+            let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
+            sim.residence_clear_storage(jobs);
+            jobs.drain(&mut sim);
+        }
         {
             let c = &mut *env.construction;
             for home in c.homes.values_mut() {

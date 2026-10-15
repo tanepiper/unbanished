@@ -69,6 +69,9 @@ pub enum WorkKind {
     /// PastureComponent's work (vtable `0x140167bc0`, constructor `FUN_1400f8250`): the
     /// ranchers tending (`+0x48`), as the gatherer's.
     Pasture(crate::herbalist::HerbalistWork),
+    /// `ClearStorage` (vtable `0x1401675c0`, constructor `FUN_1400ec920`): an empty house's
+    /// goods go to the town's storage; `+0x58` the haulers.
+    ClearStorage(crate::herbalist::HerbalistWork),
     /// `FishingWork` (vtable `0x140167740`, constructor `FUN_1400eff90`).
     Fishing(crate::fishing::FishingWork),
     /// A test stand-in.

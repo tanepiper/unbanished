@@ -1351,7 +1351,8 @@ impl WorkHost for Sim<'_, '_> {
             | WorkKind::Forester(h)
             | WorkKind::Hunt(h)
             | WorkKind::TendArea(h)
-            | WorkKind::Pasture(h) => h.workers.iter().copied(),
+            | WorkKind::Pasture(h)
+            | WorkKind::ClearStorage(h) => h.workers.iter().copied(),
             // `FUN_1400f4c90`: the worker no longer holds the task.
             WorkKind::Location(l) => {
                 if let Some(c) = l.worker {
@@ -1393,7 +1394,8 @@ impl WorkHost for Sim<'_, '_> {
             | WorkKind::Forester(h)
             | WorkKind::Hunt(h)
             | WorkKind::TendArea(h)
-            | WorkKind::Pasture(h) => {
+            | WorkKind::Pasture(h)
+            | WorkKind::ClearStorage(h) => {
                 for c in &gone {
                     h.workers.remove(c);
                 }
@@ -1425,6 +1427,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Pickup(_) => self.pickup_try(work, c, time),
             WorkKind::Produce(_) => self.produce_try(work, c, time),
             WorkKind::Location(_) => self.location_try(work, c),
+            WorkKind::ClearStorage(_) => self.clear_storage_try(work, c, time),
             WorkKind::Fishing(_) => self.fishing_try(work, c),
             WorkKind::PlantArea(_) => self.plant_try(work, c),
             WorkKind::PlantOrchard(_) => self.plant_orchard_try(work, c),
@@ -1526,12 +1529,13 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::PickFruit(_) => Self::pick_done(work, param, false),
             // `FUN_1400f4d20`: free for the next one; the work stays.
             WorkKind::Location(l) => l.worker = None,
-            // `FUN_1400f3860` / `FUN_1400f0370` / `FUN_1400f7820`.
+            // `FUN_1400f3860` / `FUN_1400f0370` / `FUN_1400f7820` / `FUN_1400ec100`.
             WorkKind::Herbalist(h)
             | WorkKind::Forester(h)
             | WorkKind::Hunt(h)
             | WorkKind::TendArea(h)
-            | WorkKind::Pasture(h) => {
+            | WorkKind::Pasture(h)
+            | WorkKind::ClearStorage(h) => {
                 h.workers.remove(&c);
             }
             WorkKind::Test(_) => {}
@@ -1573,7 +1577,10 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::PickFruit(_) => Self::pick_done(work, param, true),
             WorkKind::Location(l) => l.worker = None,
             WorkKind::Pasture(_) => self.pasture_fail(work, c, param),
-            // `FUN_1400f3850` / `FUN_1400f0360`.
+            // `FUN_1400f3850` / `FUN_1400f0360` / `FUN_1400ec0f0`.
+            WorkKind::ClearStorage(h) => {
+                h.workers.remove(&c);
+            }
             WorkKind::Herbalist(h)
             | WorkKind::Forester(h)
             | WorkKind::Hunt(h)
@@ -1621,7 +1628,8 @@ impl WorkHost for Sim<'_, '_> {
                 | WorkKind::Forester(h)
                 | WorkKind::Hunt(h)
                 | WorkKind::TendArea(h)
-                | WorkKind::Pasture(h) => h.workers.first().copied(),
+                | WorkKind::Pasture(h)
+                | WorkKind::ClearStorage(h) => h.workers.first().copied(),
                 WorkKind::Produce(_) | WorkKind::Test(_) => None,
             };
             let Some(c) = next else { return };
@@ -1649,7 +1657,8 @@ impl WorkHost for Sim<'_, '_> {
                 | WorkKind::Forester(h)
                 | WorkKind::Hunt(h)
                 | WorkKind::TendArea(h)
-                | WorkKind::Pasture(h) => {
+                | WorkKind::Pasture(h)
+                | WorkKind::ClearStorage(h) => {
                     h.workers.remove(&c);
                 }
                 WorkKind::Fishing(fw) => {
@@ -2673,4 +2682,108 @@ pub fn clear_remaining(objects: &[Option<usize>], n: i32, placed: &Placed, e: us
         }
     }
     count
+}
+
+impl Sim<'_, '_> {
+    /// The residence update's work (`FUN_14012ee40`): a house nobody lives in that still
+    /// holds goods gets a ClearStorage work (mask 1); an empty storage has it removed.
+    pub fn residence_clear_storage(&mut self, jobs: &mut Jobs) {
+        let homes: Vec<usize> = self.homes.keys().copied().collect();
+        for e in homes {
+            let Some(site) = self.sites.get(&e) else {
+                continue;
+            };
+            let storage = site.storage;
+            let registered = site.work_id >= 0 && jobs.works.contains_key(&site.work_id);
+            let residents: usize = self.homes[&e].families.iter().map(Vec::len).sum();
+            let used = self.storages[storage].used(self.materials);
+            if residents == 0 && used != 0 && !registered {
+                let work = Work::new(
+                    e,
+                    self.rect_cell(e),
+                    self.professions.laborer,
+                    WorkKind::ClearStorage(crate::herbalist::HerbalistWork::default()),
+                );
+                self.set_work(jobs, e, work, 1, false);
+            } else if registered && used == 0 {
+                self.remove_work(jobs, e);
+            }
+        }
+    }
+
+    /// ClearStorage's slot `+0x20` (`FUN_1400ec120`): the first item still unclaimed that a
+    /// town storage takes, as much as the hauler can carry, is carried there from the house's
+    /// first use point (a full hauler drops off first).
+    pub(crate) fn clear_storage_try(&mut self, work: &mut Work, c: usize, time: i64) -> u8 {
+        let e = work.entity;
+        let Some(storage) = self.sites.get(&e).map(|s| s.storage) else {
+            return 1;
+        };
+        let here = self.citizen_cell(c);
+        let items: Vec<(usize, i32)> = self.storages[storage]
+            .items
+            .iter()
+            .map(|i| (i.material, i.count - i.reserved))
+            .collect();
+        for (k, (material, left)) in items.into_iter().enumerate() {
+            if left <= 0 {
+                continue;
+            }
+            let mut amount = left;
+            let size = self.materials[material].size.max(1);
+            let carried = &self.states[c].carried;
+            let free = carried.capacity - carried.used(self.materials);
+            if free < size * amount {
+                amount = free / size;
+            }
+            if amount == 0 {
+                // The drop-off activity (`FUN_14011b330`).
+                self.drop_off(c);
+                return 2;
+            }
+            let Some(found) = self.find_storage_excluding(material, amount, true, work.cell, e)
+            else {
+                continue;
+            };
+            if !self.reachable(here, work.cell) {
+                return 1;
+            }
+            // The house has no StorageLocation: its first use point.
+            if self.templates[self.placed[e].template]
+                .use_points
+                .is_empty()
+            {
+                return 1;
+            }
+            let (source, _) = self.use_point(e, 0);
+            let source_cell = self.cell_of(source);
+            if !self.patience(work, c, source_cell, here, time) {
+                return 0;
+            }
+            let target_entity = self.storage_sites[found.site].entity;
+            self.haul(
+                c,
+                work,
+                Haul {
+                    target_entity,
+                    target_storage: found.storage,
+                    target: found.target,
+                    source_storage: storage,
+                    source_entity: e,
+                    source,
+                    material,
+                    amount,
+                    param: (amount << 8) | k as i32,
+                    partial: false,
+                    complete_on_pickup: true,
+                },
+            );
+            self.took_job(c, work);
+            if let WorkKind::ClearStorage(h) = &mut work.kind {
+                h.workers.insert(c);
+            }
+            return 2;
+        }
+        1
+    }
 }

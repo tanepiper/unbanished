@@ -1281,8 +1281,8 @@ pub fn eat(
 /// `FUN_14012ee40`: a residence's update. The fire burns down; with residents, while it is
 /// colder than the house's warmth, one unit of firewood keeps it burning for `+0x2c` seconds.
 /// The food and firewood status icons clear when there is some.
-/// Not ported: the ClearStorage work of an empty house that still holds goods, and the
-/// stock's consumption counter.
+/// The ClearStorage work comes first ([`crate::town::Sim::residence_clear_storage`]).
+/// Not ported: the stock's consumption counter.
 pub fn update_home(
     home: &mut Home,
     storages: &mut [Storage],
