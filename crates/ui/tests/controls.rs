@@ -554,3 +554,32 @@ fn tooltips_need_a_dialog() {
     ui.pointer_move((l + r) / 2, (t + b) / 2, button);
     assert_eq!(ui.draw(button).len(), idle);
 }
+
+/// The New Game dialog's combos fill their 160-pixel column (the button is the combo) and the
+/// description's padded box surrounds its text (the border takes the text's slot).
+#[test]
+fn new_game_combos_fill_and_description_sits_in_its_box() {
+    let Some(mut ui) = game_ui() else { return };
+    ui.screen = [1280, 800];
+    let d = ui
+        .instantiate_dialog(r"Dialog\NewGame.rsc:resource")
+        .unwrap();
+    let desc = ui.find(d.root, "textDescription").unwrap();
+    ui.set_parameters(desc, &[(0, "A medium game begins with five families. Clothing, food, firewood, tools, and construction materials, are provided.")]);
+    ui.layout_dialog(d.root, [0, 0, 1280, 800]);
+    let combo = ui.find(d.root, "comboTerrain").unwrap();
+    let Kind::Control(Control::Combo { button, .. }) = ui.nodes[combo].kind else {
+        panic!()
+    };
+    let frame = ui.children(button)[0];
+    assert_eq!(ui.nodes[frame].rect, ui.nodes[combo].rect);
+    let text = ui.nodes[desc].rect;
+    let border = ui.nodes[ui.nodes[desc].border.unwrap()].rect;
+    assert!(
+        border[0] <= text[0]
+            && border[1] <= text[1]
+            && border[2] >= text[2]
+            && border[3] >= text[3],
+        "box {border:?} must surround text {text:?}"
+    );
+}

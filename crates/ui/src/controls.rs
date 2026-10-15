@@ -368,6 +368,8 @@ impl Ui {
             },
             ElementKind::Combo { button, refs } => {
                 let b = self.control_button(button);
+                // ComboElement derives from ButtonElement: the button is the whole combo.
+                self.nodes[b].flags |= crate::flags::FILL_WIDTH | crate::flags::FILL_HEIGHT;
                 self.set_text(b, "");
                 let font = refs[1]
                     .as_deref()

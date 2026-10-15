@@ -949,6 +949,7 @@ impl Ui {
 
     /// `ComputeLayout` for each element class.
     fn compute_layout(&mut self, id: NodeId, l: i32, t: i32, r: i32, b: i32) {
+        let slot = [l, t, r, b];
         if matches!(self.nodes[id].kind, Kind::Control(_)) {
             self.place(id, l, t, r, b);
             self.layout_control(id);
@@ -1055,9 +1056,11 @@ impl Ui {
                 Kind::Control(_) => unreachable!(),
             }
         }
+        // `Element::ComputeLayout` (0x180119160) and its subclasses hand the border the slot
+        // the element was given, before the element's own margins: a padded text sits inside
+        // its box rather than the box inside the text.
         if let Some(border) = self.nodes[id].border {
-            let [l, t, r, b] = self.nodes[id].rect;
-            self.compute_layout(border, l, t, r, b);
+            self.compute_layout(border, slot[0], slot[1], slot[2], slot[3]);
         }
     }
 
