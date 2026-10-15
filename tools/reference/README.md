@@ -23,6 +23,21 @@ Captures are **local only** (`game-data/reference/`, git-ignored); never commit 
    The stream is video-compressed: compare with `--blur 2` and a threshold around 24, and judge
    layout from the grid and bounding box rather than PSNR alone.
 
+## One-step comparison
+
+`tools/reference/compare.sh REF [--no-autocrop] [--ignore x,y,w,h]... -- SECONDS PORT-ARGS...`
+crops the reference's black bars (`imgdiff --autocrop-a`; disable for the main menu), captures
+the port at the remaining size with the scripted options, and writes `port.png`, `panels.png`
+(reference | port | blend), `heat.png` and `report.json` under
+`game-data/reference/compare/REF/`. The seeded start reproduces with:
+
+```bash
+W=$(python3 -c "print(' '.join(f'--wheel -1@{9+i*0.05:.2f}' for i in range(25)))")
+BANISHED_SEED=999518904 tools/reference/compare.sh seed-999518904/start-t0 --ignore 0,0,120,130 -- \
+  16 --press buttonNew@4.5 --combo comboTerrain=Mountains@4.8 --combo comboTerrainSize=Small@4.8 \
+  --press buttonOk@5.0 ${=W}   # zsh; use $W in bash
+```
+
 ## What to capture (highest value first)
 
 | Reference | Why it is a 1:1 check |

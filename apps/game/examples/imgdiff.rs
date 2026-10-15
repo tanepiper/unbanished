@@ -3,7 +3,8 @@
 //! ```text
 //! cargo run -q --release -p banished-app --example imgdiff -- A.png B.png
 //!     [--out diff.png] [--threshold 16] [--resize] [--ignore x,y,w,h]... [--json]
-//!     [--crop-a x,y,w,h] [--crop-b x,y,w,h] [--blur R] [--compose panels.png]
+//!     [--crop-a x,y,w,h | --autocrop-a] [--crop-b x,y,w,h] [--blur R] [--compose panels.png]
+//!     [--print-crop]
 //! ```
 //!
 //! Reports mean absolute error, PSNR, the share of pixels whose largest channel difference
@@ -14,7 +15,9 @@
 //! `--crop-a`/`--crop-b` compare a region of each image (e.g. the same dialog in windows of
 //! different sizes); `--blur R` box-blurs both first, which tolerates the video compression of
 //! a Steam Remote Play stream of the original game. `--compose` writes A, B and a 50/50 blend
-//! side by side (before blurring), which shows offsets at a glance.
+//! side by side (before blurring), which shows offsets at a glance. `--autocrop-a` removes black
+//! letterbox/pillarbox bars around A (a stream of the original at another aspect ratio);
+//! `--print-crop` prints A's content rectangle as `x,y,w,h` and exits.
 
 use std::fs::File;
 use std::io::BufWriter;
@@ -141,6 +144,44 @@ fn blur(img: &Image, r: usize) -> Image {
     }
 }
 
+/// The rectangle inside black bars: rows/columns whose mean brightness stays under 8.
+fn content_rect(img: &Image) -> [usize; 4] {
+    let dark_row = |y: usize| {
+        let row = &img.rgba[y * img.width * 4..(y + 1) * img.width * 4];
+        let sum: u64 = row
+            .chunks_exact(4)
+            .map(|p| p[0] as u64 + p[1] as u64 + p[2] as u64)
+            .sum();
+        sum / (img.width as u64 * 3) < 8
+    };
+    let dark_col = |x: usize, y0: usize, y1: usize| {
+        let sum: u64 = (y0..y1)
+            .map(|y| {
+                let i = (y * img.width + x) * 4;
+                img.rgba[i] as u64 + img.rgba[i + 1] as u64 + img.rgba[i + 2] as u64
+            })
+            .sum();
+        sum / ((y1 - y0).max(1) as u64 * 3) < 8
+    };
+    let mut y0 = 0;
+    while y0 < img.height / 2 && dark_row(y0) {
+        y0 += 1;
+    }
+    let mut y1 = img.height;
+    while y1 > img.height / 2 && dark_row(y1 - 1) {
+        y1 -= 1;
+    }
+    let mut x0 = 0;
+    while x0 < img.width / 2 && dark_col(x0, y0, y1) {
+        x0 += 1;
+    }
+    let mut x1 = img.width;
+    while x1 > img.width / 2 && dark_col(x1 - 1, y0, y1) {
+        x1 -= 1;
+    }
+    [x0, y0, x1 - x0, y1 - y0]
+}
+
 fn rect(s: &str) -> [usize; 4] {
     let v: Vec<usize> = s.split(',').map(|s| s.parse().unwrap()).collect();
     [v[0], v[1], v[2], v[3]]
@@ -153,6 +194,7 @@ fn main() {
     let mut ignore: Vec<[usize; 4]> = Vec::new();
     let (mut crop_a, mut crop_b, mut blur_r) = (None, None, 0usize);
     let mut compose: Option<String> = None;
+    let (mut autocrop, mut print_crop) = (false, false);
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -173,6 +215,8 @@ fn main() {
                 i += 1;
                 crop_b = Some(rect(&args[i]));
             }
+            "--autocrop-a" => autocrop = true,
+            "--print-crop" => print_crop = true,
             "--compose" => {
                 i += 1;
                 compose = Some(args[i].clone());
@@ -191,8 +235,17 @@ fn main() {
         }
         i += 1;
     }
+    if print_crop {
+        let r = content_rect(&load(&paths[0]));
+        println!("{},{},{},{}", r[0], r[1], r[2], r[3]);
+        return;
+    }
     assert!(paths.len() == 2, "usage: imgdiff A.png B.png [options]");
     let mut a = load(&paths[0]);
+    if autocrop {
+        let r = content_rect(&a);
+        a = crop(&a, r);
+    }
     let mut b = load(&paths[1]);
     if let Some(r) = crop_a {
         a = crop(&a, r);
@@ -233,7 +286,11 @@ fn main() {
         let mut encoder = png::Encoder::new(file, (w * 3) as u32, h as u32);
         encoder.set_color(png::ColorType::Rgba);
         encoder.set_depth(png::BitDepth::Eight);
-        encoder.write_header().unwrap().write_image_data(&out).unwrap();
+        encoder
+            .write_header()
+            .unwrap()
+            .write_image_data(&out)
+            .unwrap();
     }
     if blur_r > 0 {
         a = blur(&a, blur_r);
