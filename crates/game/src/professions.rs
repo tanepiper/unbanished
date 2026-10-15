@@ -1,0 +1,500 @@
+//! Professions (`Game +0xb0`), workplaces (WorkPlaceComponent, the town manager's workplace
+//! registry `Game +0xf0 → +0x100`) and who takes a job when the player changes a profession's
+//! count. See docs/JOBS.md.
+//!
+//! The ProfessionUI spinners (`FUN_14007b890`) and the WorkPlaceUI buttons (`FUN_14008ccb0`)
+//! call the town manager directly in the original, between simulation iterations; the port
+//! queues them as [`Command`]s that the simulation applies before its next iteration, which is
+//! the same point in the game's Random stream.
+
+use std::collections::BTreeMap;
+
+use crate::random::Random;
+use crate::stock::StorageSearchMap;
+
+/// `Profession` (serializer `FUN_1400ae3e0`) fields the simulation reads.
+#[derive(Debug, Clone, Default)]
+pub struct Profession {
+    /// `Game\Profession\Profession.rsc:<key>`.
+    pub reference: String,
+    /// `+0x30`: name key (`ProfessionBuilder`).
+    pub name: String,
+    /// `+0x4c`: works anywhere (laborers and builders): `Jobs::TryList` (`FUN_1400fce80`) offers
+    /// it work outside its workplace, and the job status icon stays off without one.
+    pub works_anywhere: bool,
+}
+
+/// The profession manager (`Game +0xb0`, `Profession.rsc:resource`, serializer
+/// `FUN_1400ae300`): the list (`+0x20/+0x28`, `Profession.rsc:professionList`) and the
+/// laborer (`+0x30`) and builder (`+0x38`) entries; `+0x40`/`+0x48` are child and student.
+#[derive(Debug, Clone, Default)]
+pub struct Professions {
+    pub list: Vec<Profession>,
+    pub laborer: usize,
+    pub builder: usize,
+}
+
+impl Professions {
+    pub fn works_anywhere(&self, p: usize) -> bool {
+        self.list.get(p).is_some_and(|p| p.works_anywhere)
+    }
+}
+
+/// WorkPlaceComponent (vtable `0x14016b160`, constructor `FUN_1401347b0`) plus the entity's
+/// WorkComponent most-workers value (`+0x30`).
+#[derive(Debug, Clone)]
+pub struct WorkPlace {
+    /// `+0x48`: the profession its workers take (builder while under construction).
+    pub profession: Option<usize>,
+    /// WorkPlaceDescription `+0x20`: the profession once built (none for houses and barns).
+    pub description_profession: Option<usize>,
+    /// `+0x50`: accepting workers (the constructor sets it).
+    pub enabled: bool,
+    /// `+0x58/+0x60`: citizen indices, in assignment order.
+    pub workers: Vec<usize>,
+    /// WorkComponent `+0x30` (`FUN_140133a90`): most workers.
+    pub max_workers: i32,
+}
+
+impl WorkPlace {
+    pub fn new(description_profession: Option<usize>, max_workers: i32) -> WorkPlace {
+        WorkPlace {
+            profession: None,
+            description_profession,
+            enabled: true,
+            workers: Vec::new(),
+            max_workers,
+        }
+    }
+}
+
+/// The citizen fields assignment reads and writes (Citizen `+0x1f0`, `+0x248`, `+0x238`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Worker {
+    /// `desc+0x44 <= age` and no school (`+0x208`): the citizens every search counts.
+    pub adult: bool,
+    pub profession: usize,
+    pub workplace: Option<usize>,
+    pub home: Option<usize>,
+}
+
+/// A player action on professions, applied by the simulation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Command {
+    /// ProfessionUI spinner `300 + profession` set to `count` (`FUN_14007b890`).
+    SetCount { profession: usize, count: i32 },
+    /// WorkPlaceUI `0x1450`: one more worker of the workplace's profession (`FUN_1400918a0`).
+    AddWorker { entity: usize },
+    /// WorkPlaceUI `0x1451`: one fewer (`FUN_140096650`).
+    RemoveWorker { entity: usize },
+    /// WorkPlaceUI `0x1452/0x1453`: most workers ± 1 (`FUN_14008cae0` → `FUN_140134fd0`).
+    ChangeMaxWorkers { entity: usize, delta: i32 },
+}
+
+/// The town manager's workplace and residence registries and every WorkPlaceComponent.
+#[derive(Debug, Clone, Default)]
+pub struct Workforce {
+    /// Entity → WorkPlaceComponent.
+    pub workplaces: BTreeMap<usize, WorkPlace>,
+    /// `+0x100`: profession → workplace entities, in registration order (`FUN_14008ea70`).
+    pub registry: BTreeMap<usize, Vec<usize>>,
+    /// `+0x20/+0x28`: residence entities (`FUN_14012f2b0` appends on completion).
+    pub residences: Vec<usize>,
+}
+
+impl Workforce {
+    /// `FUN_14008ea70`: register `entity` under `profession` once.
+    pub fn register(&mut self, entity: usize, profession: usize) {
+        let list = self.registry.entry(profession).or_default();
+        if !list.contains(&entity) {
+            list.push(entity);
+        }
+    }
+
+    /// `FUN_140002cc0` on the registry list: remove every occurrence, keeping order.
+    pub fn unregister(&mut self, entity: usize, profession: usize) {
+        if let Some(list) = self.registry.get_mut(&profession) {
+            list.retain(|&e| e != entity);
+        }
+    }
+
+    /// `FUN_1401173b0`: move citizen `c` to workplace `wp` (removing it from its old one,
+    /// `FUN_140134cb0`, then appending to the new one, `FUN_140134ef0`).
+    /// Not ported: the workplaces' StatusIconComponent bits and entity flags 2/3.
+    pub fn set_workplace(&mut self, workers: &mut [Worker], c: usize, wp: Option<usize>) {
+        if let Some(old) = workers[c].workplace {
+            if let Some(w) = self.workplaces.get_mut(&old) {
+                w.workers.retain(|&x| x != c);
+            }
+        }
+        workers[c].workplace = wp;
+        if let Some(new) = wp {
+            if let Some(w) = self.workplaces.get_mut(&new) {
+                w.workers.push(c);
+            }
+        }
+    }
+
+    /// The assignment tail shared by every search: change the workplace and profession only
+    /// when either differs.
+    fn assign(&mut self, workers: &mut [Worker], c: usize, profession: usize, wp: Option<usize>) {
+        if workers[c].profession != profession || workers[c].workplace != wp {
+            self.set_workplace(workers, c, wp);
+            workers[c].profession = profession;
+        }
+    }
+
+    /// `FUN_14008e940`: shuffle a profession's workplace list (`Rand(n)` per position, when it
+    /// has at least two).
+    fn shuffle_workplaces(&mut self, profession: usize, rng: &mut Random) {
+        if let Some(list) = self.registry.get_mut(&profession) {
+            shuffle(list, rng);
+        }
+    }
+
+    /// `FUN_1400925d0`: shuffle, then the first enabled workplace with a free place.
+    pub fn free_workplace(&mut self, profession: usize, rng: &mut Random) -> Option<usize> {
+        self.shuffle_workplaces(profession, rng);
+        let list = self.registry.get(&profession)?;
+        list.iter().copied().find(|e| {
+            self.workplaces
+                .get(e)
+                .is_some_and(|w| (w.workers.len() as i32) < w.max_workers && w.enabled)
+        })
+    }
+
+    /// `FUN_1400918a0` (and the loop body of `FUN_14007b890`): make one laborer take
+    /// `profession` at `wp`. Searches, in order: a laborer sharing a home with someone of that
+    /// profession (`FUN_1400920c0`), the homed laborer nearest the workplace (`FUN_140091ef0`),
+    /// the household with the most laborers (`FUN_140091ac0`), then the first laborer
+    /// (`FUN_140091980`).
+    pub fn hire(
+        &mut self,
+        workers: &mut [Worker],
+        laborer: usize,
+        profession: usize,
+        wp: Option<usize>,
+        map: &mut dyn StorageSearchMap,
+        rng: &mut Random,
+    ) -> Option<usize> {
+        if let Some(c) = self.family_member(workers, laborer, profession, wp, map, rng) {
+            return Some(c);
+        }
+        if let Some(w) = wp {
+            if let Some(c) = self.nearest_laborer(workers, laborer, profession, w, map, rng) {
+                return Some(c);
+            }
+        }
+        if let Some(c) = self.largest_family(workers, laborer, profession, wp, rng) {
+            return Some(c);
+        }
+        let c = workers
+            .iter()
+            .position(|w| w.adult && w.profession == laborer)?;
+        self.assign(workers, c, profession, wp);
+        Some(c)
+    }
+
+    /// `FUN_1400920c0`: a laborer in the family of a citizen who already has `profession`,
+    /// nearest (home entrance to workplace entrance) when there is a workplace.
+    /// Not ported: ResidenceComponent families (`+0x50`); every home has none, so this only
+    /// keeps the original's entrance queries (and their Random draws).
+    fn family_member(
+        &mut self,
+        workers: &mut [Worker],
+        _laborer: usize,
+        profession: usize,
+        wp: Option<usize>,
+        map: &mut dyn StorageSearchMap,
+        rng: &mut Random,
+    ) -> Option<usize> {
+        let target = wp.map(|w| map.entrance(w, rng));
+        let mut best = 0x7ffffff;
+        for w in workers.iter() {
+            if !(w.adult && w.profession == profession) {
+                continue;
+            }
+            let Some(home) = w.home else { continue };
+            let e = map.entrance(home, rng);
+            let d = match target {
+                Some(t) if t >= 0 => map.rank(e, t),
+                _ => best,
+            };
+            if d <= best {
+                best = d;
+                // The residence's family lists are not ported: no laborer is found here.
+            }
+        }
+        None
+    }
+
+    /// `FUN_140091ef0`: the homed laborer whose home entrance is nearest the workplace's
+    /// (path rank, ties to the later citizen).
+    fn nearest_laborer(
+        &mut self,
+        workers: &mut [Worker],
+        laborer: usize,
+        profession: usize,
+        wp: usize,
+        map: &mut dyn StorageSearchMap,
+        rng: &mut Random,
+    ) -> Option<usize> {
+        let target = map.entrance(wp, rng);
+        let mut best = 0x7ffffff;
+        let mut found = None;
+        for (i, w) in workers.iter().enumerate() {
+            if !(w.adult && w.profession == laborer) {
+                continue;
+            }
+            let Some(home) = w.home else { continue };
+            let e = map.entrance(home, rng);
+            let d = map.rank(e, target);
+            if d <= best {
+                best = d;
+                found = Some(i);
+            }
+        }
+        let c = found?;
+        self.assign(workers, c, profession, Some(wp));
+        Some(c)
+    }
+
+    /// `FUN_140091ac0`: shuffle the residences (`FUN_14008eb70`), then the first laborer of
+    /// the family with the most laborers. Not ported: families, so only the shuffle happens.
+    fn largest_family(
+        &mut self,
+        _workers: &mut [Worker],
+        _laborer: usize,
+        _profession: usize,
+        _wp: Option<usize>,
+        rng: &mut Random,
+    ) -> Option<usize> {
+        shuffle(&mut self.residences, rng);
+        None
+    }
+
+    /// `FUN_140096650`: one citizen of `profession` becomes a laborer: the first without a
+    /// workplace, else the first worker of the workplace with the most workers, else the
+    /// first of that profession.
+    pub fn fire(
+        &mut self,
+        workers: &mut [Worker],
+        laborer: usize,
+        profession: usize,
+    ) -> Option<usize> {
+        if let Some(c) = workers
+            .iter()
+            .position(|w| w.adult && w.profession == profession && w.workplace.is_none())
+        {
+            self.assign(workers, c, laborer, None);
+            return Some(c);
+        }
+        let mut most = 0;
+        let mut chosen = None;
+        for e in self.registry.get(&profession).into_iter().flatten() {
+            let n = self.workplaces.get(e).map_or(0, |w| w.workers.len());
+            if most < n {
+                most = n;
+                chosen = Some(*e);
+            }
+        }
+        if let Some(e) = chosen {
+            let c = self.workplaces[&e].workers[0];
+            self.assign(workers, c, laborer, None);
+            return Some(c);
+        }
+        let c = workers
+            .iter()
+            .position(|w| w.adult && w.profession == profession)?;
+        self.assign(workers, c, laborer, None);
+        Some(c)
+    }
+
+    /// `FUN_14007ba70`'s counts: adults per profession.
+    pub fn counts(&self, workers: &[Worker], professions: usize) -> Vec<i32> {
+        let mut out = vec![0; professions];
+        for w in workers.iter().filter(|w| w.adult) {
+            if let Some(n) = out.get_mut(w.profession) {
+                *n += 1;
+            }
+        }
+        out
+    }
+
+    /// `FUN_14007ba70`'s "of N": the most workers of every enabled workplace of a profession.
+    pub fn capacity(&self, profession: usize) -> i32 {
+        self.registry
+            .get(&profession)
+            .into_iter()
+            .flatten()
+            .filter_map(|e| self.workplaces.get(e))
+            .filter(|w| w.enabled)
+            .map(|w| w.max_workers)
+            .sum()
+    }
+
+    /// `FUN_14007b890`: move the profession's count toward `count`, one citizen at a time.
+    pub fn set_count(
+        &mut self,
+        workers: &mut [Worker],
+        professions: &Professions,
+        profession: usize,
+        count: i32,
+        map: &mut dyn StorageSearchMap,
+        rng: &mut Random,
+    ) {
+        let current = self.counts(workers, professions.list.len())[profession];
+        for _ in current..count {
+            let wp = self.free_workplace(profession, rng);
+            self.hire(workers, professions.laborer, profession, wp, map, rng);
+        }
+        for _ in count..current {
+            self.fire(workers, professions.laborer, profession);
+        }
+    }
+
+    /// `FUN_140134fd0`: set the most workers, then let workers go until they fit.
+    /// Not ported: the evicted worker's search for another workplace (`FUN_140115490` /
+    /// `FUN_140115940`); the port leaves it without a workplace.
+    pub fn set_max_workers(&mut self, workers: &mut [Worker], entity: usize, max: i32) {
+        let Some(w) = self.workplaces.get_mut(&entity) else {
+            return;
+        };
+        w.max_workers = max;
+        while self.workplaces[&entity].max_workers < self.workplaces[&entity].workers.len() as i32 {
+            let c = self.workplaces[&entity].workers[0];
+            self.set_workplace(workers, c, None);
+        }
+    }
+
+    /// `FUN_140134330`: every worker leaves.
+    pub fn clear_workers(&mut self, workers: &mut [Worker], entity: usize) {
+        while let Some(&c) = self.workplaces.get(&entity).and_then(|w| w.workers.first()) {
+            self.set_workplace(workers, c, None);
+        }
+    }
+
+    /// Apply a UI command.
+    pub fn apply(
+        &mut self,
+        command: Command,
+        workers: &mut [Worker],
+        professions: &Professions,
+        map: &mut dyn StorageSearchMap,
+        rng: &mut Random,
+    ) {
+        match command {
+            Command::SetCount { profession, count } => {
+                self.set_count(workers, professions, profession, count, map, rng)
+            }
+            Command::AddWorker { entity } => {
+                let Some(p) = self.workplaces.get(&entity).and_then(|w| w.profession) else {
+                    return;
+                };
+                let wp = self.free_workplace(p, rng);
+                self.hire(workers, professions.laborer, p, wp, map, rng);
+            }
+            Command::RemoveWorker { entity } => {
+                if let Some(p) = self.workplaces.get(&entity).and_then(|w| w.profession) {
+                    self.fire(workers, professions.laborer, p);
+                }
+            }
+            Command::ChangeMaxWorkers { entity, delta } => {
+                if let Some(w) = self.workplaces.get(&entity) {
+                    let max = w.max_workers + delta;
+                    self.set_max_workers(workers, entity, max);
+                }
+            }
+        }
+    }
+}
+
+/// `FUN_14008e940` / `FUN_14008eb70`: for each position `i`, swap with `Rand(n)` (no draws
+/// below two entries).
+pub fn shuffle<T>(list: &mut [T], rng: &mut Random) {
+    let n = list.len();
+    if n < 2 {
+        return;
+    }
+    for i in 0..n {
+        let j = rng.rand_below(n as u32) as usize;
+        if i != j {
+            list.swap(i, j);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct Flat;
+    impl StorageSearchMap for Flat {
+        fn entrance(&mut self, entity: usize, _rng: &mut Random) -> i32 {
+            entity as i32
+        }
+        fn rank(&mut self, a: i32, b: i32) -> i32 {
+            (a - b).abs()
+        }
+        fn market_position(&mut self, _: usize, _: i32, _: &mut Random) -> Option<(i32, [f32; 3])> {
+            None
+        }
+        fn storage_position(&mut self, _: usize, _: i32) -> Option<(i32, [f32; 3])> {
+            None
+        }
+    }
+
+    fn professions() -> Professions {
+        Professions {
+            list: (0..3)
+                .map(|i| Profession {
+                    works_anywhere: i < 2,
+                    ..Default::default()
+                })
+                .collect(),
+            laborer: 0,
+            builder: 1,
+        }
+    }
+
+    #[test]
+    fn spinner_promotes_the_first_laborers_and_demotes_unattached_first() {
+        let p = professions();
+        let mut workers = vec![
+            Worker {
+                adult: false,
+                profession: 0,
+                workplace: None,
+                home: None,
+            };
+            1
+        ];
+        workers.extend((0..4).map(|_| Worker {
+            adult: true,
+            profession: 0,
+            workplace: None,
+            home: None,
+        }));
+        let mut force = Workforce::default();
+        force.workplaces.insert(10, WorkPlace::new(None, 1));
+        force.workplaces.get_mut(&10).unwrap().profession = Some(1);
+        force.register(10, 1);
+        let mut rng = Random::new(1);
+        force.set_count(&mut workers, &p, 1, 2, &mut Flat, &mut rng);
+        // The first builder fills the site's free place; the second has no workplace.
+        assert_eq!(workers[1].profession, 1);
+        assert_eq!(workers[1].workplace, Some(10));
+        assert_eq!(workers[2].profession, 1);
+        assert_eq!(workers[2].workplace, None);
+        assert_eq!(force.counts(&workers, 3), vec![2, 2, 0]);
+        assert_eq!(force.capacity(1), 1);
+        // Demotion takes the builder without a workplace first.
+        force.set_count(&mut workers, &p, 1, 1, &mut Flat, &mut rng);
+        assert_eq!(workers[2].profession, 0);
+        assert_eq!(workers[1].profession, 1);
+        force.set_count(&mut workers, &p, 1, 0, &mut Flat, &mut rng);
+        assert_eq!(workers[1].profession, 0);
+        assert_eq!(workers[1].workplace, None);
+        assert!(force.workplaces[&10].workers.is_empty());
+    }
+}

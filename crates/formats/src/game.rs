@@ -1300,6 +1300,83 @@ pub fn build_description(data: &[u8]) -> Result<BuildDescription> {
     Ok(value)
 }
 
+/// `WorkDescription` (`Template\X.rsc:work`, serializer `FUN_140133d80`).
+#[derive(Debug, Clone, Default)]
+pub struct WorkDescription {
+    /// `+0x24`: most workers (`FUN_140133a90`).
+    pub max_workers: i32,
+    pub value_28: i32,
+    pub value_2c: i32,
+    /// `+0x34`: scale the most workers by the footprint area over `+0x30` cells.
+    pub per_area: bool,
+    pub area: i32,
+    pub flag_20: bool,
+}
+
+pub fn work_description(data: &[u8]) -> Result<WorkDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("WorkDescription") {
+            return format_err(format!(
+                "expected WorkDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(WorkDescription {
+                max_workers: r.i32()?,
+                value_28: r.i32()?,
+                value_2c: r.i32()?,
+                per_area: r.bool()?,
+                area: r.i32()?,
+                flag_20: r.bool()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `ClearAreaDescription` (`Template\X.rsc:cleararea`, serializer `FUN_14011d5c0`).
+#[derive(Debug, Clone, Default)]
+pub struct ClearAreaDescription {
+    /// `+0x20`: an external reference handed to the ClearArea work (`FUN_1400ebe30`).
+    pub reference: Option<String>,
+    /// `+0x28..+0x2a`: the ClearArea work's flags (natural resources, empty cells, piles).
+    pub clear_resources: bool,
+    pub clear_cells: bool,
+    pub clear_piles: bool,
+    /// `+0x2b`: register the work keeping its priority.
+    pub keep_priority: bool,
+    /// `+0x2c`: stamp the footprint once cleared (`FUN_14011d740`).
+    pub stamp: bool,
+    /// `+0x2d`: remove everything in the footprint at once (`FUN_14011d230`).
+    pub instant: bool,
+    pub value_30: i32,
+}
+
+pub fn clear_area_description(data: &[u8]) -> Result<ClearAreaDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("ClearAreaDescription") {
+            return format_err(format!(
+                "expected ClearAreaDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(ClearAreaDescription {
+                reference: r.external_ref()?,
+                clear_resources: r.bool()?,
+                clear_cells: r.bool()?,
+                clear_piles: r.bool()?,
+                keep_priority: r.bool()?,
+                stamp: r.bool()?,
+                instant: r.bool()?,
+                value_30: r.i32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `Profession` (serializer `FUN_1400ae3e0`): a job citizens can be assigned to.
 #[derive(Debug, Clone)]
 pub struct Profession {
