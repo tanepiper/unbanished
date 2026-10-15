@@ -522,8 +522,11 @@ impl Scene {
                                 mixer.set_volume(c, e.variant_volume * e.volume * type_volume);
                             }
                         }
-                    } else if e.flags[s] & 1 == 0 {
-                        // `GetSoundBuffer`: a random variant and a random pitch.
+                    } else {
+                        // In the window: start it (`GetSoundBuffer`: a random variant and a
+                        // random pitch). The original does not check whether the sound already
+                        // started; after an unpause the window reopens at 0, so paused sounds
+                        // restart at the effect's elapsed time, which resumes them.
                         let n = sound.variants.len() as u32;
                         let v = if n == 0 { 0 } else { (rand() % n) as usize };
                         let r = rand();
@@ -719,7 +722,10 @@ mod tests {
         assert_eq!(mixer.stopped.len(), 1);
         scene.pause(&mut mixer, sound_type::MUSIC, false);
         scene.update(&mut mixer, 1, 0, &mut || 0, Vec3::ZERO, 0.0);
-        // Started sounds are not restarted.
-        assert_eq!(mixer.playing.len(), 1);
+        // Unpausing reopens the window at 0: the paused sound starts again (resumed at the
+        // effect's elapsed time).
+        assert_eq!(mixer.playing.len(), 2);
+        scene.update(&mut mixer, 1, 0, &mut || 0, Vec3::ZERO, 0.0);
+        assert_eq!(mixer.playing.len(), 2);
     }
 }
