@@ -435,17 +435,14 @@ fn hover_tooltip_adds_text_and_pressing_suppresses_it() {
         ui.hovered_tooltip(),
         Some("Adjust the volume of music and sound effects")
     );
+    // The generic tooltip dialog: its border panel and the text.
     let hovered = ui.draw(button);
-    assert!(hovered.len() > idle.len());
     assert!(
-        hovered.iter().any(|q| q.color == [255, 232, 192, 255]),
-        "tooltip text must reach renderer"
+        hovered.len() > idle.len() + 9,
+        "tooltip panel and text must reach renderer"
     );
     ui.pointer_button(true, button);
-    assert!(!ui
-        .draw(button)
-        .iter()
-        .any(|q| q.color == [255, 232, 192, 255]));
+    assert!(ui.draw(button).len() < hovered.len());
 }
 
 #[test]
@@ -539,4 +536,22 @@ fn combo_keyboard_browsing_keeps_popup_open_until_confirmation() {
         ui.drain_events(),
         vec![banished_ui::Event::Selected(root, 1)]
     );
+}
+
+/// An element with tooltip text and no tooltip dialog of its own shows the generic tooltip
+/// dialog (bordered panel), not bare text.
+#[test]
+fn plain_tooltips_use_the_generic_dialog() {
+    let Some(mut ui) = game_ui() else { return };
+    ui.screen = [1280, 800];
+    let d = ui
+        .instantiate_dialog(banished_ui::DEFAULT_TOOLTIP)
+        .expect("generic tooltip");
+    assert!(ui.find(d.root, "toolTipBorder").is_some());
+    let text = ui.find(d.root, "textToolTip").unwrap();
+    ui.set_parameters(text, &[(0, "Hello")]);
+    match &ui.nodes[text].kind {
+        Kind::Text(t) => assert!(t.text.contains("Hello"), "{}", t.text),
+        _ => panic!("textToolTip is not text"),
+    }
 }

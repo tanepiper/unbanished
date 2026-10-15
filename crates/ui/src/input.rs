@@ -790,9 +790,12 @@ impl Ui {
         if self.tooltip_instance.is_some_and(|(s, _)| s == source) {
             return;
         }
-        let Some(reference) = self.nodes[source].tooltip_dialog.clone() else {
-            return;
-        };
+        // Inferred: an element without its own tooltip dialog uses the generic one (a
+        // `toolTipBorder` panel around `textToolTip`).
+        let reference = self.nodes[source]
+            .tooltip_dialog
+            .clone()
+            .unwrap_or_else(|| DEFAULT_TOOLTIP.to_string());
         if let Some(dialog) = self.instantiate_dialog(&reference) {
             let text = self.nodes[source].tooltip.clone();
             for name in ["textToolTip", "text", "textDescription"] {
@@ -934,6 +937,9 @@ pub(crate) fn event_node(e: Event) -> NodeId {
         | Event::Link(n, _) => n,
     }
 }
+
+/// The tooltip dialog of elements that name none.
+pub const DEFAULT_TOOLTIP: &str = "Dialog/ToolTip.rsc:resource";
 
 /// CRC32 type ids of the game's tooltip controllers handled by the UI itself.
 pub mod tooltip_controller {

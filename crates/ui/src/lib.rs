@@ -19,7 +19,7 @@ use banished_formats::ui::{flags, Element, ElementKind};
 
 pub use controls::{Control, EditData, SliderData};
 pub use dialog::{Binding, DialogInstance};
-pub use input::{tooltip_controller, Key};
+pub use input::{tooltip_controller, Key, DEFAULT_TOOLTIP};
 pub use resources::{FontId, LoadedFont, LoadedSheet, Resources, SheetId, SpriteRef};
 pub use text::TextLayout;
 
