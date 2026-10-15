@@ -579,3 +579,20 @@ fn disease_descriptions_parse() {
     );
     read("Template/Orchard.rsc:disease");
 }
+
+#[test]
+fn cemetery_descriptions_parse() {
+    use banished_formats::game::{cemetery_description, tombstone_description};
+    let Some(archive) = archive() else { return };
+    let read = |r: &str| archive.read_ref(r).unwrap();
+    assert_eq!(
+        cemetery_description(&read("Template/Cemetery.rsc:cemetery"))
+            .unwrap()
+            .as_deref(),
+        Some(r"Template\Tombstone.rsc:resource")
+    );
+    assert_eq!(
+        tombstone_description(&read("Template/Tombstone.rsc:tombstone")).unwrap(),
+        (60.0, 24.0)
+    );
+}

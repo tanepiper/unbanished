@@ -1519,6 +1519,7 @@ impl StartingTown {
         );
         let wildlife = &mut self.wildlife;
         let fruits = &mut self.construction.fruits;
+        let tombstones = &mut self.construction.tombstones;
         let calendar = self.construction.calendar;
         let changed = Seeder {
             templates: &self.templates,
@@ -1535,6 +1536,16 @@ impl StartingTown {
             temperature,
             false,
             &mut |seeder, scheduler, id, elapsed| {
+                // TombstoneComponent (`FUN_140058130`).
+                if tombstones.contains_key(&id) {
+                    return banished_game::cemetery::tombstone_visit(
+                        tombstones,
+                        seeder.cells,
+                        seeder.placed,
+                        id,
+                        elapsed,
+                    );
+                }
                 // FruitComponent (`FUN_14004a740`) after the tree's growth.
                 let p = &seeder.placed[id];
                 if let Some(f) = seeder.templates[p.template].fruit {
@@ -1825,6 +1836,29 @@ impl StartingTown {
                     }
                 }
                 "absorbresource" => t.controllers.push(Controller::AbsorbResource),
+                "cemetery" => {
+                    let tombstone = banished_formats::game::cemetery_description(&data)
+                        .ok()
+                        .flatten()
+                        .and_then(|r| {
+                            let stone = self.load_template(archive, &r)?;
+                            let life =
+                                read(archive, &normalise(&r).replace(":resource", ":tombstone"))
+                                    .and_then(|d| {
+                                        banished_formats::game::tombstone_description(&d).ok()
+                                    })
+                                    .unwrap_or((60.0, 24.0));
+                            Some((stone, life))
+                        });
+                    if let Some((stone, (life, range))) = tombstone {
+                        t.cemetery = Some(banished_game::cemetery::CemeteryTemplate {
+                            tombstone: stone,
+                            life,
+                            range,
+                        });
+                        t.controllers.push(Controller::Cemetery);
+                    }
+                }
                 "storagelocation" => t.controllers.push(Controller::StorageLocation),
                 "disease" => {
                     t.disease = banished_formats::game::disease_description(&data).ok();
@@ -2028,6 +2062,7 @@ impl StartingTown {
                         works: Vec::new(),
                     }),
                 parts: Vec::new(),
+                graves: Vec::new(),
                 // DiseaseComponent's setup (`FUN_1400495b0`): on a pasture or not.
                 disease: t.disease.map(|_| banished_game::blight::Blight {
                     pasture: t.pasture.is_some(),

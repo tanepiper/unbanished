@@ -89,8 +89,8 @@ Deviation: 30, Not ported: 63, Not traced: 4.
 
 - [Deviation] [crates/game/src/agents.rs:1](../crates/game/src/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance (`AnimationManager::Update`), every character runs its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run the AI with zero time (`FUN_140114810`), then the AI updates. Deviations: the AI runs every iteration instead of on its bucket's quota, and after the placed entities' bucket pass instead of interleaved with it.
 - [Not ported] [crates/game/src/agents.rs:75](../crates/game/src/agents.rs#L75): Not ported: tool use during jobs and the citizen clothing-wear countdown.
-- [Not ported] [crates/game/src/agents.rs:857](../crates/game/src/agents.rs#L857): `FUN_140119170`: the dead citizen's components let go of the town (a removed entity's CharacterComponent abandons its actions, CitizenComponent leaves its home, family, workplace and registry; a laborer takes over its profession). Not ported: the carried goods (StorageComponent removal) are lost.
-- [Not ported] [crates/game/src/agents.rs:1422](../crates/game/src/agents.rs#L1422): Not ported: drawing the StatusIconComponent's billboard (its mask is live).
+- [Not ported] [crates/game/src/agents.rs:864](../crates/game/src/agents.rs#L864): `FUN_140119170`: the dead citizen's components let go of the town (a removed entity's CharacterComponent abandons its actions, CitizenComponent leaves its home, family, workplace and registry; a laborer takes over its profession). Not ported: the carried goods (StorageComponent removal) are lost.
+- [Not ported] [crates/game/src/agents.rs:1432](../crates/game/src/agents.rs#L1432): Not ported: drawing the StatusIconComponent's billboard (its mask is live).
 
 ## `crates/game/src/animation.rs`
 
@@ -152,11 +152,11 @@ Deviation: 30, Not ported: 63, Not traced: 4.
 ## `crates/game/src/life.rs`
 
 - [Deviation] [crates/game/src/life.rs:1](../crates/game/src/life.rs#L1): CitizenComponent (vtable `0x1401689a0`) and ResidenceComponent (vtable `0x14016a6a0`): needs, age, death, health, happiness, disease, homes, partners and births. See docs/CITIZEN-NEEDS-AND-HOUSEHOLDS.md and docs/CITIZEN-LIFE.md. The CitizenDescription (`D`, citizen `+0x288`) is kept as an offset table so the ported code reads the same fields as the original. Deviations: the entity references the original keeps (home, partner, guardian, dependents) are citizen and entity indices; the dependents' ring is a vector in ring order. Disease spread (`FUN_140117940`) visits the citizens within the radius in registration order where the original asks its spatial index.
-- [Not ported] [crates/game/src/life.rs:499](../crates/game/src/life.rs#L499): `FUN_14011c2a0`: queue the citizen's death (`reason`) and tell the family. Not ported: burial (`FUN_14008ec10` searches the cemeteries; with a plot the family gets event bit `0x40` instead).
-- [Not traced] [crates/game/src/life.rs:987](../crates/game/src/life.rs#L987): Not traced: what counts citizen `+0x84` up; it stays 0 (the half bonus).
-- [Not ported] [crates/game/src/life.rs:1086](../crates/game/src/life.rs#L1086): `FUN_14011c060`: catch disease `d` (not while immune, nor a doctor at work). Not ported: the doctor exception (profession `+0x4d` with a workplace) and the AutoSlow request of the outbreak event.
-- [Not ported] [crates/game/src/life.rs:1174](../crates/game/src/life.rs#L1174): Citizen message 2 (`FUN_14011a7b0`): eat from `storage` until no longer hungry: one unit of food (`FUN_140094410` category 0) per point of hunger, remembering each kind for variety. Not ported: the stock's consumption counter (`FUN_14008e460`).
-- [Not ported] [crates/game/src/life.rs:1209](../crates/game/src/life.rs#L1209): `FUN_14012ee40`: a residence's update. The fire burns down; with residents, while it is colder than the house's warmth, one unit of firewood keeps it burning for `+0x2c` seconds. The food and firewood status icons clear when there is some. Not ported: the ClearStorage work of an empty house that still holds goods, and the stock's consumption counter.
+- [Not ported] [crates/game/src/life.rs:504](../crates/game/src/life.rs#L504): `FUN_14011c2a0`: queue the citizen's death (`reason`) and tell the family. Buried in a cemetery (`FUN_14008ec10` from the home's entrance, else where the citizen stands), the family's bit is `0x40`; otherwise `2` for old age, else `0x80`. Not ported: the debug flag that stops deaths (`Game +0xd0` bit 8).
+- [Not traced] [crates/game/src/life.rs:1045](../crates/game/src/life.rs#L1045): Not traced: what counts citizen `+0x84` up; it stays 0 (the half bonus).
+- [Not ported] [crates/game/src/life.rs:1144](../crates/game/src/life.rs#L1144): `FUN_14011c060`: catch disease `d` (not while immune, nor a doctor at work). Not ported: the doctor exception (profession `+0x4d` with a workplace) and the AutoSlow request of the outbreak event.
+- [Not ported] [crates/game/src/life.rs:1232](../crates/game/src/life.rs#L1232): Citizen message 2 (`FUN_14011a7b0`): eat from `storage` until no longer hungry: one unit of food (`FUN_140094410` category 0) per point of hunger, remembering each kind for variety. Not ported: the stock's consumption counter (`FUN_14008e460`).
+- [Not ported] [crates/game/src/life.rs:1267](../crates/game/src/life.rs#L1267): `FUN_14012ee40`: a residence's update. The fire burns down; with residents, while it is colder than the house's warmth, one unit of firewood keeps it burning for `+0x2c` seconds. The food and firewood status icons clear when there is some. Not ported: the ClearStorage work of an empty house that still holds goods, and the stock's consumption counter.
 
 ## `crates/game/src/needs.rs`
 
@@ -202,20 +202,20 @@ Deviation: 30, Not ported: 63, Not traced: 4.
 
 ## `crates/game/src/town.rs`
 
-- [Not ported] [crates/game/src/town.rs:489](../crates/game/src/town.rs#L489): `FUN_1400c4c60` with its flags: `partial` (`param_11`, the pickup may take less), `complete_on_pickup` (`param_12`, the CompleteTask follows the pickup rather than the delivery). Not ported: `param_13` (a Citizen message) and `param_14` (tool use, faster walk), which no ported caller sets.
-- [Not ported] [crates/game/src/town.rs:587](../crates/game/src/town.rs#L587): A destroy work messages the DestroyComponent instead (not ported).
-- [Not ported] [crates/game/src/town.rs:639](../crates/game/src/town.rs#L639): `FUN_14011d910` for a footprint whose description clears resources and piles: every cell's object `+0x08` is empty (`FUN_1400a2f90`). Not ported: the `+0x29` empty-cell test (`FUN_1400a2d30`) and the reference-filtered test (`FUN_1400a2e00`).
-- [Deviation] [crates/game/src/town.rs:801](../crates/game/src/town.rs#L801): Deviation: every site's scheduled update runs each iteration (bucket 3's quota of five visits each entity every iteration while it holds at most five).
-- [Not ported] [crates/game/src/town.rs:819](../crates/game/src/town.rs#L819): The entity manager's removal of a destroyed site entity (`FUN_1400c8370`, then each component's remove slot): its work goes (citizens doing it abort), the ZoneComponent frees its cells and the entity is gone. Not ported: WorkPlace and Residence removal (only removal markers are destroyed yet).
-- [Not ported] [crates/game/src/town.rs:867](../crates/game/src/town.rs#L867): `FUN_14011ce30`. Not ported: the instant clear (`FUN_14011d230`, description `+0x2d` or the game's instant flag); no shipped site sets it.
-- [Not ported] [crates/game/src/town.rs:1042](../crates/game/src/town.rs#L1042): `FUN_1401350d0(1)`. Not ported: its status icons.
-- [Not ported] [crates/game/src/town.rs:1077](../crates/game/src/town.rs#L1077): Not ported: MultiObject stage counts and the ClearArea's terrain flattening (`FUN_14011d740` → `FUN_1400a35b0`).
-- [Not ported] [crates/game/src/town.rs:1126](../crates/game/src/town.rs#L1126): Not ported: the decal's alpha.
-- [Not ported] [crates/game/src/town.rs:1189](../crates/game/src/town.rs#L1189): Not ported: building status icons.
-- [Not ported] [crates/game/src/town.rs:1299](../crates/game/src/town.rs#L1299): Not ported: emergencies (fires).
-- [Not ported] [crates/game/src/town.rs:2019](../crates/game/src/town.rs#L2019): Not ported: the empty-cell phase (`+0x71`, roads and fields: `FUN_1400c54a0`).
-- [Not ported] [crates/game/src/town.rs:2183](../crates/game/src/town.rs#L2183): Not ported: the stock manager's production counter (`FUN_14008e3c0`). `FUN_140045170` once the pile's work is registered ([`Sim::activate_piles`]).
-- [Not ported] [crates/game/src/town.rs:2619](../crates/game/src/town.rs#L2619): The final drop-off with no target (its redirect search is not ported).
+- [Not ported] [crates/game/src/town.rs:492](../crates/game/src/town.rs#L492): `FUN_1400c4c60` with its flags: `partial` (`param_11`, the pickup may take less), `complete_on_pickup` (`param_12`, the CompleteTask follows the pickup rather than the delivery). Not ported: `param_13` (a Citizen message) and `param_14` (tool use, faster walk), which no ported caller sets.
+- [Not ported] [crates/game/src/town.rs:590](../crates/game/src/town.rs#L590): A destroy work messages the DestroyComponent instead (not ported).
+- [Not ported] [crates/game/src/town.rs:642](../crates/game/src/town.rs#L642): `FUN_14011d910` for a footprint whose description clears resources and piles: every cell's object `+0x08` is empty (`FUN_1400a2f90`). Not ported: the `+0x29` empty-cell test (`FUN_1400a2d30`) and the reference-filtered test (`FUN_1400a2e00`).
+- [Deviation] [crates/game/src/town.rs:804](../crates/game/src/town.rs#L804): Deviation: every site's scheduled update runs each iteration (bucket 3's quota of five visits each entity every iteration while it holds at most five).
+- [Not ported] [crates/game/src/town.rs:822](../crates/game/src/town.rs#L822): The entity manager's removal of a destroyed site entity (`FUN_1400c8370`, then each component's remove slot): its work goes (citizens doing it abort), the ZoneComponent frees its cells and the entity is gone. Not ported: WorkPlace and Residence removal (only removal markers are destroyed yet).
+- [Not ported] [crates/game/src/town.rs:870](../crates/game/src/town.rs#L870): `FUN_14011ce30`. Not ported: the instant clear (`FUN_14011d230`, description `+0x2d` or the game's instant flag); no shipped site sets it.
+- [Not ported] [crates/game/src/town.rs:1053](../crates/game/src/town.rs#L1053): `FUN_1401350d0(1)`. Not ported: its status icons.
+- [Not ported] [crates/game/src/town.rs:1088](../crates/game/src/town.rs#L1088): Not ported: MultiObject stage counts and the ClearArea's terrain flattening (`FUN_14011d740` → `FUN_1400a35b0`).
+- [Not ported] [crates/game/src/town.rs:1137](../crates/game/src/town.rs#L1137): Not ported: the decal's alpha.
+- [Not ported] [crates/game/src/town.rs:1200](../crates/game/src/town.rs#L1200): Not ported: building status icons.
+- [Not ported] [crates/game/src/town.rs:1310](../crates/game/src/town.rs#L1310): Not ported: emergencies (fires).
+- [Not ported] [crates/game/src/town.rs:2030](../crates/game/src/town.rs#L2030): Not ported: the empty-cell phase (`+0x71`, roads and fields: `FUN_1400c54a0`).
+- [Not ported] [crates/game/src/town.rs:2194](../crates/game/src/town.rs#L2194): Not ported: the stock manager's production counter (`FUN_14008e3c0`). `FUN_140045170` once the pile's work is registered ([`Sim::activate_piles`]).
+- [Not ported] [crates/game/src/town.rs:2630](../crates/game/src/town.rs#L2630): The final drop-off with no target (its redirect search is not ported).
 
 ## `crates/game/src/wildlife.rs`
 

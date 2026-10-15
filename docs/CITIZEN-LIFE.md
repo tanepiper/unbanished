@@ -152,8 +152,33 @@ iteration becomes a loitering target in the next one.
 - `a_well_registers_its_happiness`: a new well registers, marks layer 0 within its radius
   and becomes a loitering target.
 
+## Burial (`crates/game/src/cemetery.rs`)
+
+- **Cemeteries.** A cemetery is placed with the fenced tool (its first part is the gate) and
+  built. Its CemeteryComponent (states `FUN_140048100`):
+  - Activation (`FUN_140047b60`) lays out the graves. They are the cells inside the fence on
+    every other row (columns when it is turned 90 or 270 degrees), except the two lines in
+    front of the gate. An 8 × 8 cemetery has 12.
+  - State 2 enter (`FUN_140047920`) joins the town's cemeteries (`+0x40`) and makes graves
+    without a tombstone plain ground. State 3 enter (`FUN_1400478e0`) leaves.
+- **A death** (`FUN_14011c2a0`) looks for a grave from the home's entrance, or where the
+  citizen stands (`FUN_14008ec10`). It takes the cemetery nearest by path rank (`n +` distance
+  when there is no path) whose use point can be reached and which has a free grave
+  (`FUN_1400475c0`: from `Rand(graves)` on, the first without a tombstone).
+  - With one, the family's bit is `0x40` (−2 happiness) and the grave is chosen with a
+    second `FUN_1400475c0`. The tombstone (`FUN_1400473f0`) goes on the plain ground of the
+    grave, turned as the cemetery.
+  - Without one, the bit is 2 for old age (−8), else `0x80` (−4).
+- **Tombstones** (TombstoneComponent) stand for `(+0x20 + RandFloat × +0x24)` × 300 s: 60 to
+  84 months (`FUN_1400581c0`). Their scheduled update (`FUN_140058130`) then removes them, and
+  the grave is free again.
+- The port decides the grave at the death, with the original's draws. It places the
+  tombstone (and draws its lifetime) after the citizens' update. The debug flag that stops
+  deaths (`Game +0xd0` bit 8) is not ported.
+
+Test: `placement_tool::construction_tests::the_dead_are_buried_in_the_cemetery`.
+
 ## Not ported yet
 
-Burial and cemeteries, accidents (`+0x1f8`), the residence's ClearStorage work, and the stock
-consumption counters. (The workplace searches are described in
-[JOBS.md](JOBS.md#workplace-searches).)
+Accidents (`+0x1f8`), the residence's ClearStorage work, and the stock consumption counters.
+(The workplace searches are described in [JOBS.md](JOBS.md#workplace-searches).)

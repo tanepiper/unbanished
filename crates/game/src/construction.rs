@@ -43,6 +43,8 @@ pub enum Controller {
     AbsorbResource,
     /// StorageLocationComponent (`FUN_1401328e0` table): a town storage.
     StorageLocation,
+    /// CemeteryComponent (`FUN_140048100` table).
+    Cemetery,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -115,6 +117,9 @@ pub enum Callback {
     CropUpdate10,
     CropEnter11,
     CropUpdate11,
+    /// `FUN_140047920` / `FUN_1400478e0`: the cemetery joins / leaves the town's.
+    CemeteryEnter2,
+    CemeteryEnter3,
     /// `FUN_14010ae20`: AbsorbResource's state 0 update.
     AbsorbUpdate0,
     /// `FUN_140132700` / `FUN_1401326c0`: join / leave the town's storages.
@@ -374,6 +379,23 @@ const ORCHARD: &[StateDef] = &[
     },
 ];
 
+const CEMETERY: &[StateDef] = &[
+    StateDef {
+        id: 2,
+        enter: C::CemeteryEnter2,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(3, C::None)],
+    },
+    StateDef {
+        id: 3,
+        enter: C::CemeteryEnter3,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(6, C::None), (4, C::None), (5, C::None)],
+    },
+];
+
 const ABSORB_RESOURCE: &[StateDef] = &[StateDef {
     id: 0,
     enter: C::None,
@@ -489,6 +511,7 @@ impl Controller {
             Controller::Pasture => PASTURE,
             Controller::AbsorbResource => ABSORB_RESOURCE,
             Controller::StorageLocation => STORAGE_LOCATION,
+            Controller::Cemetery => CEMETERY,
         }
     }
 
@@ -717,6 +740,8 @@ pub struct SiteTemplate {
     pub pasture: Option<i32>,
     /// DiseaseDescription (fields, orchards, pastures).
     pub disease: Option<banished_formats::game::DiseaseDescription>,
+    /// CemeteryDescription's tombstone template and its TombstoneDescription.
+    pub cemetery: Option<crate::cemetery::CemeteryTemplate>,
 }
 
 impl SiteTemplate {
@@ -828,6 +853,8 @@ pub struct Site {
     pub parts: Vec<usize>,
     /// DiseaseComponent.
     pub disease: Option<crate::blight::Blight>,
+    /// CemeteryComponent `+0x48`: the grave cells (`FUN_140047b60`).
+    pub graves: Vec<i32>,
 }
 
 /// The job manager, professions, workforce and every construction site.
@@ -879,6 +906,12 @@ pub struct Construction {
     /// StorageLocationComponents joining (`true`) or leaving the town's storages (`+0x00`),
     /// in order; the town applies them after the iteration's update.
     pub storage_changes: Vec<(usize, bool)>,
+    /// The town's cemeteries (`+0x40`), in order.
+    pub cemeteries: Vec<usize>,
+    /// TombstoneComponents and the time each has left (`+0x28`).
+    pub tombstones: BTreeMap<usize, i64>,
+    /// Burials decided at a death (cemetery, grave cell), placed after the citizens' update.
+    pub burials: Vec<(usize, i32)>,
     /// The town manager's known crops, orchard trees and livestock (`FUN_140096ef0`), as
     /// placed-object templates.
     pub known: Vec<usize>,

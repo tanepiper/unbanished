@@ -27,7 +27,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **Happiness** | Tavern, Well, Market, Cemetery, Chapel, TradingPost, Quarry, Mine | yes (`happiness.rs`; map layers, registry, visits, loitering pick) |
 | Healer, Disease (citizens) | Herbalist | registry and herb treatment |
 | Disease (blight) | fields, orchards, pastures | yes ([FARMING.md](FARMING.md#blight-cratesgamesrcblightrs)) |
-| **Cemetery**, **Tombstone** | Cemetery | missing |
+| **Cemetery**, **Tombstone** | Cemetery | yes ([CITIZEN-LIFE.md](CITIZEN-LIFE.md#burial-cratesgamesrccemeteryrs)) |
 | **Well**, **Fire** | Well; every building | missing |
 | **Market**, **MarketLocation** | Market | missing |
 | **Trade**, **Boat** | TradingPost, TraderBoat | missing |

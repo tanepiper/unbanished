@@ -102,6 +102,9 @@ pub struct Sim<'s, 't> {
     pub keep_piles: &'s mut BTreeMap<usize, bool>,
     pub site_events: &'s mut Vec<(i32, i32, usize)>,
     pub storage_changes: &'s mut Vec<(usize, bool)>,
+    pub cemeteries: &'s mut Vec<usize>,
+    pub tombstones: &'s mut BTreeMap<usize, i64>,
+    pub burials: &'s mut Vec<(usize, i32)>,
     pub site_list: &'s mut Vec<usize>,
     pub events: Vec<JobEvent>,
     pub piles: &'s mut BTreeMap<usize, Pile>,
@@ -718,7 +721,7 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_1400a30f0` through the MapComponent (entity flag 1).
-    fn stamp(&mut self, entity: usize) {
+    pub(crate) fn stamp(&mut self, entity: usize) {
         let p = &self.placed[entity];
         let Some(map) = &self.templates[p.template].map else {
             return;
@@ -1002,6 +1005,14 @@ impl Callbacks for Sim<'_, '_> {
             Callback::AbsorbUpdate0 => {
                 self.absorb_piles(jobs, e);
                 true
+            }
+            Callback::CemeteryEnter2 => {
+                self.cemetery_enter2(e);
+                false
+            }
+            Callback::CemeteryEnter3 => {
+                self.cemeteries.retain(|&c| c != e);
+                false
             }
             Callback::StorageEnter2 => {
                 self.storage_changes.push((e, true));

@@ -1427,6 +1427,35 @@ pub fn disease_description(data: &[u8]) -> Result<DiseaseDescription> {
     Ok(value)
 }
 
+/// `CemeteryDescription` (serializer `FUN_140048160`): the tombstone template `+0x20`.
+pub fn cemetery_description(data: &[u8]) -> Result<Option<String>> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("CemeteryDescription") {
+            return format_err(format!(
+                "expected CemeteryDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| r.external_ref())
+    })?;
+    Ok(value)
+}
+
+/// `TombstoneDescription` (serializer `FUN_140058380`): a grave lasts `(+0x20 + RandFloat ×
+/// +0x24)` × 300 s (`FUN_1400581c0`).
+pub fn tombstone_description(data: &[u8]) -> Result<(f32, f32)> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("TombstoneDescription") {
+            return format_err(format!(
+                "expected TombstoneDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| Ok((r.f32()?, r.f32()?)))
+    })?;
+    Ok(value)
+}
+
 /// `PastureDescription` (serializer `FUN_14012d6f0`, versioned): from version 1 the stock slot
 /// of its products' limit `+0x20` (5 by the factory `FUN_140037100`).
 pub fn pasture_description(data: &[u8]) -> Result<i32> {

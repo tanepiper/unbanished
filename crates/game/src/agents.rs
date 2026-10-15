@@ -315,6 +315,9 @@ impl Agents {
                 keep_piles: &mut c.keep_piles,
                 site_events: &mut c.site_events,
                 storage_changes: &mut c.storage_changes,
+                cemeteries: &mut c.cemeteries,
+                tombstones: &mut c.tombstones,
+                burials: &mut c.burials,
                 site_list: &mut c.site_list,
                 events: Vec::new(),
                 piles: &mut c.piles,
@@ -521,6 +524,7 @@ impl Agents {
             sim.age_piles(jobs, ticks(dt));
             sim.update_hunts(ticks(dt));
             sim.update_blight(ticks(dt));
+            sim.place_burials();
             jobs.drain(&mut sim);
         }
         // The residences' state-2 updates (`FUN_14012ee40`).
@@ -848,6 +852,9 @@ impl Agents {
             workforce: &mut c.workforce,
             professions: &c.professions,
             sites: &c.sites,
+            cemeteries: &c.cemeteries,
+            tombstones: &c.tombstones,
+            burials: &mut c.burials,
             sectors: &mut self.sectors,
             terrain: env.terrain,
         };
@@ -913,6 +920,9 @@ impl Agents {
             workforce: &mut k.workforce,
             professions: &k.professions,
             sites: &k.sites,
+            cemeteries: &k.cemeteries,
+            tombstones: &k.tombstones,
+            burials: &mut k.burials,
             sectors: &mut self.sectors,
             terrain: env.terrain,
         };

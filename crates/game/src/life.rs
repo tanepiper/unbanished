@@ -217,8 +217,13 @@ pub struct People<'a, 'b> {
     /// The workplaces and residences (town manager `+0x20`, `+0x100`).
     pub workforce: &'a mut crate::professions::Workforce,
     pub professions: &'a crate::professions::Professions,
-    /// The sites (their works' priorities).
+    /// The sites (their works' priorities, a cemetery's graves).
     pub sites: &'a BTreeMap<usize, crate::construction::Site>,
+    /// The town's cemeteries (`+0x40`) and the tombstones standing.
+    pub cemeteries: &'a [usize],
+    pub tombstones: &'a BTreeMap<usize, i64>,
+    /// Burials decided this update (cemetery, grave cell); the tombstones follow.
+    pub burials: &'a mut Vec<(usize, i32)>,
     /// The path-rank cache.
     pub sectors: &'a mut crate::sectors::SectorGraph,
     pub terrain: &'a crate::terrain::HeightGrid<'b>,
@@ -496,14 +501,29 @@ impl People<'_, '_> {
         }
     }
 
-    /// `FUN_14011c2a0`: queue the citizen's death (`reason`) and tell the family.
-    /// Not ported: burial (`FUN_14008ec10` searches the cemeteries; with a plot the family gets
-    /// event bit `0x40` instead).
+    /// `FUN_14011c2a0`: queue the citizen's death (`reason`) and tell the family. Buried in a
+    /// cemetery (`FUN_14008ec10` from the home's entrance, else where the citizen stands), the
+    /// family's bit is `0x40`; otherwise `2` for old age, else `0x80`.
+    /// Not ported: the debug flag that stops deaths (`Game +0xd0` bit 8).
     pub fn die(&mut self, c: usize, reason: i32, extra: Option<(Option<String>, String)>) -> bool {
         if self.dying(c) {
             return true;
         }
-        let bit = if reason == reason::OLD_AGE { 2 } else { 0x80 };
+        let from = match self.states[c].home {
+            Some(h) => self.town.point_cell(h),
+            None => self.cell(c),
+        };
+        let bit = match self.find_cemetery(from) {
+            Some(cemetery) => {
+                if let Some(slot) = self.free_grave(cemetery) {
+                    let cell = self.sites[&cemetery].graves[slot];
+                    self.burials.push((cemetery, cell));
+                }
+                0x40
+            }
+            None if reason == reason::OLD_AGE => 2,
+            None => 0x80,
+        };
         if let Some(g) = self.citizens[c].parent {
             self.states[g].flags |= bit;
         }
@@ -519,6 +539,44 @@ impl People<'_, '_> {
         self.report(c, reason, 1, extra);
         self.dying.push((c, reason));
         true
+    }
+
+    /// `FUN_14008ec10`: the cemetery nearest `cell` by path rank (or `n + distance`) whose
+    /// use point can be reached and which has a free grave.
+    fn find_cemetery(&mut self, cell: i32) -> Option<usize> {
+        let mut best = None;
+        let mut nearest = i32::MAX;
+        let n = self.town.size as i32;
+        for &e in self.cemeteries {
+            let to = self.town.point_cell(e);
+            let mut rank = self.rank(cell, to);
+            if rank < 0 {
+                let (dx, dy) = ((cell % n - to % n) as f32, (cell / n - to / n) as f32);
+                rank = n + (dx * dx + dy * dy).sqrt() as i32;
+            }
+            if rank < nearest
+                && self.town.reachable(WALKABLE, cell, to)
+                && self.free_grave(e).is_some()
+            {
+                best = Some(e);
+                nearest = rank;
+            }
+        }
+        best
+    }
+
+    /// `FUN_1400475c0`: from a random grave on, the first without a tombstone.
+    fn free_grave(&mut self, cemetery: usize) -> Option<usize> {
+        let graves = &self.sites.get(&cemetery)?.graves;
+        let count = graves.len();
+        let start = self.rng.rand_below(count as u32) as usize;
+        (0..count).map(|i| (start + i) % count).find(|&i| {
+            let cell = graves[i];
+            let taken = self.town.objects[cell as usize]
+                .is_some_and(|o| self.tombstones.contains_key(&o))
+                || self.burials.iter().any(|&(_, b)| b == cell);
+            !taken
+        })
     }
 
     /// The family part of `FUN_140119170` (CitizenComponent removal): leave school, the
