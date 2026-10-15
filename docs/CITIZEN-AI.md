@@ -199,11 +199,21 @@ below 9 elements), so equal priorities keep a shuffled order.
 New citizens start without a tool (`+0xac = 0`) or clothing (`+0x1e4 = 0`), so an adult's first
 candidates are 8 [5], 3 [3], 9 [2] and 12 [0].
 
+## Verification
+
+Emulating the original functions (`tools/emu/`, compared by tests in `crates/game/tests/`):
+
+- `regions.py` → `regions_emu.rs`: region labels of 20 random 40×40 maps are identical;
+- `astar.py` → `astar_emu.rs`: 600 searches on 30 random 32×32 grids with the citizen costs
+  return identical paths (547 found, 53 unreachable), reusing one solver as the game does;
+- `candidate_sort.py` → `candidate_sort.rs`: 400 random candidate lists sort identically.
+
 ## Status of the port
 
-Ported: regions, path manager costs and A*, request validation, character movement, the action
-stack, MoveTo, PlayAnimation, PerformWork and SendComponentMessage.
+Ported: regions, path manager costs and A* (verified), request validation, character movement,
+the action stack, MoveTo, PlayAnimation, PerformWork, SendComponentMessage, the AI's candidate
+list, shuffle and sort (verified), choice and timers (`crates/game/src/ai.rs`).
 
-Open: the AI update and candidate selection, each activity's builder and its storage, job and
-building queries (town manager `Game +0xf0`, job manager `Game +0x118`), the remaining actions,
-animation blending, bridge ground picking, and emulator verification of the A* tie-breaking.
+Open: each activity's builder and its storage, job and building queries (town manager
+`Game +0xf0`, job manager `Game +0x118`), the remaining actions, animation blending and bridge
+ground picking.
