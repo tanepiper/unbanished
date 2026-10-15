@@ -157,16 +157,20 @@ impl GameplayLoop {
     /// The values the Status Bar's FUN_14007eda0 reads from the starting town and environment.
     fn status_values(&self) -> StatusValues {
         let summary = self.town.as_ref().map_or_else(Default::default, |t| {
-            banished_game::status::aggregate(t.citizens.iter().zip(&t.agents.states).map(
-                |(c, s)| banished_game::status::CitizenValue {
-                    age: c.age,
-                    adult_age: t.rules.adult_age,
-                    school: c.school.is_some(),
-                    health: s.health,
-                    happiness: s.happiness,
-                    status: s.status,
-                },
-            ))
+            banished_game::status::aggregate(
+                t.citizens
+                    .iter()
+                    .zip(&t.agents.states)
+                    .filter(|(c, _)| c.alive)
+                    .map(|(c, s)| banished_game::status::CitizenValue {
+                        age: c.age,
+                        adult_age: t.rules.adult_age,
+                        school: c.school.is_some(),
+                        health: s.health,
+                        happiness: s.happiness,
+                        status: s.status,
+                    }),
+            )
         });
         StatusValues {
             events: Some(self.events.clone()),
@@ -650,6 +654,57 @@ impl GameplayLoop {
         models_changed
     }
 
+    /// `FUN_140118fc0`: the citizens' births, deaths and coming of age posted to the event
+    /// log with `@2` the citizen's name, `@3` its role (profession, child or student) and `@4`
+    /// the disease's or accident's name.
+    fn log_life_events(&mut self, ctx: &mut Ctx) {
+        let (month, year) = (self.month(), self.calendar.year as i32);
+        let Some(town) = &mut self.town else { return };
+        let events = std::mem::take(&mut town.agents.events);
+        if events.is_empty() {
+            return;
+        }
+        for e in events {
+            let Some(c) = town.citizens.get(e.citizen) else {
+                continue;
+            };
+            let state = &town.agents.states[e.citizen];
+            let child = c.age < town.rules.adult_age;
+            let key = if c.school.is_some() {
+                Some("student")
+            } else if child {
+                Some("child")
+            } else {
+                None
+            };
+            let role = match key {
+                Some(k) => town.profession(k).map(|p| (p.string_table, p.name)),
+                None => town
+                    .construction
+                    .professions
+                    .list
+                    .get(state.profession)
+                    .map(|p| (p.string_table.clone(), p.name.clone())),
+            }
+            .map(|(t, k)| ctx.ui.res.string(t.as_deref(), &k))
+            .unwrap_or_default();
+            let extra = e
+                .extra
+                .map(|(t, k)| ctx.ui.res.string(t.as_deref(), &k))
+                .unwrap_or_default();
+            let auto_slow = ctx.settings.game.auto_slow;
+            self.events.add(
+                e.kind,
+                e.severity,
+                -1,
+                month,
+                year,
+                [c.name.clone(), role, extra],
+                auto_slow,
+            );
+        }
+    }
+
     /// `FUN_14006cf10`: the camera's four far-frustum corner rays met with the ground plane
     /// (z = 0), ordered top-left, top-right, bottom-left, bottom-right.
     fn frustum(&self) -> Option<[[f32; 2]; 4]> {
@@ -1043,6 +1098,7 @@ impl GameLoop for GameplayLoop {
                 }
             }
         }
+        self.log_life_events(ctx);
         self.move_cooldown -= dt;
         self.update_audio(ctx, dt);
         let month = self.month();

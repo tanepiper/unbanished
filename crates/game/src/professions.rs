@@ -9,6 +9,7 @@
 
 use std::collections::BTreeMap;
 
+use crate::life::Home;
 use crate::random::Random;
 use crate::stock::StorageSearchMap;
 
@@ -187,16 +188,18 @@ impl Workforce {
     /// profession (`FUN_1400920c0`), the homed laborer nearest the workplace (`FUN_140091ef0`),
     /// the household with the most laborers (`FUN_140091ac0`), then the first laborer
     /// (`FUN_140091980`).
+    #[allow(clippy::too_many_arguments)]
     pub fn hire(
         &mut self,
         workers: &mut [Worker],
         laborer: usize,
         profession: usize,
         wp: Option<usize>,
+        homes: &BTreeMap<usize, Home>,
         map: &mut dyn StorageSearchMap,
         rng: &mut Random,
     ) -> Option<usize> {
-        if let Some(c) = self.family_member(workers, laborer, profession, wp, map, rng) {
+        if let Some(c) = self.family_member(workers, laborer, profession, wp, homes, map, rng) {
             return Some(c);
         }
         if let Some(w) = wp {
@@ -204,7 +207,7 @@ impl Workforce {
                 return Some(c);
             }
         }
-        if let Some(c) = self.largest_family(workers, laborer, profession, wp, rng) {
+        if let Some(c) = self.largest_family(workers, laborer, profession, wp, homes, rng) {
             return Some(c);
         }
         let c = workers
@@ -214,37 +217,60 @@ impl Workforce {
         Some(c)
     }
 
-    /// `FUN_1400920c0`: a laborer in the family of a citizen who already has `profession`,
-    /// nearest (home entrance to workplace entrance) when there is a workplace.
-    /// Not ported: ResidenceComponent families (`+0x50`); every home has none, so this only
-    /// keeps the original's entrance queries (and their Random draws).
+    /// `FUN_1400920c0`: a laborer in the household of a citizen who already has `profession`:
+    /// with a workplace, the household whose home entrance is nearest it (ties to the later
+    /// one); without, the first such laborer at once.
+    #[allow(clippy::too_many_arguments)]
     fn family_member(
         &mut self,
         workers: &mut [Worker],
-        _laborer: usize,
+        laborer: usize,
         profession: usize,
         wp: Option<usize>,
+        homes: &BTreeMap<usize, Home>,
         map: &mut dyn StorageSearchMap,
         rng: &mut Random,
     ) -> Option<usize> {
-        let target = wp.map(|w| map.entrance(w, rng));
+        let target = wp.map_or(-1, |w| map.entrance(w, rng));
         let mut best = 0x7ffffff;
-        for w in workers.iter() {
-            if !(w.adult && w.profession == profession) {
+        let mut found: Option<(usize, usize)> = None;
+        let free =
+            |workers: &[Worker], m: usize| workers[m].adult && workers[m].profession == laborer;
+        for c in 0..workers.len() {
+            if !(workers[c].adult && workers[c].profession == profession) {
                 continue;
             }
-            let Some(home) = w.home else { continue };
-            let e = map.entrance(home, rng);
-            let d = match target {
-                Some(t) if t >= 0 => map.rank(e, t),
-                _ => best,
+            let Some(home) = workers[c].home else {
+                continue;
             };
-            if d <= best {
-                best = d;
-                // The residence's family lists are not ported: no laborer is found here.
+            let e = map.entrance(home, rng);
+            let d = if target < 0 {
+                best
+            } else {
+                let d = map.rank(e, target);
+                if d > best {
+                    continue;
+                }
+                d
+            };
+            let Some(h) = homes.get(&home) else { continue };
+            for (slot, family) in h.families.iter().enumerate() {
+                if let Some(&m) = family.iter().find(|&&m| free(workers, m)) {
+                    if wp.is_none() {
+                        self.assign(workers, m, profession, None);
+                        return Some(m);
+                    }
+                    found = Some((home, slot));
+                    best = d;
+                }
             }
         }
-        None
+        let (home, slot) = found?;
+        let m = *homes[&home].families[slot]
+            .iter()
+            .find(|&&m| free(workers, m))?;
+        self.assign(workers, m, profession, wp);
+        Some(m)
     }
 
     /// `FUN_140091ef0`: the homed laborer whose home entrance is nearest the workplace's
@@ -279,17 +305,37 @@ impl Workforce {
     }
 
     /// `FUN_140091ac0`: shuffle the residences (`FUN_14008eb70`), then the first laborer of
-    /// the family with the most laborers. Not ported: families, so only the shuffle happens.
+    /// the household with the most laborers (the first such household on ties).
     fn largest_family(
         &mut self,
-        _workers: &mut [Worker],
-        _laborer: usize,
-        _profession: usize,
-        _wp: Option<usize>,
+        workers: &mut [Worker],
+        laborer: usize,
+        profession: usize,
+        wp: Option<usize>,
+        homes: &BTreeMap<usize, Home>,
         rng: &mut Random,
     ) -> Option<usize> {
         shuffle(&mut self.residences, rng);
-        None
+        let free =
+            |workers: &[Worker], m: usize| workers[m].adult && workers[m].profession == laborer;
+        let mut most = 0;
+        let mut found = None;
+        for &e in &self.residences {
+            let Some(h) = homes.get(&e) else { continue };
+            for (slot, family) in h.families.iter().enumerate() {
+                let n = family.iter().filter(|&&m| free(workers, m)).count();
+                if most < n {
+                    most = n;
+                    found = Some((e, slot));
+                }
+            }
+        }
+        let (e, slot) = found?;
+        let m = *homes[&e].families[slot]
+            .iter()
+            .find(|&&m| free(workers, m))?;
+        self.assign(workers, m, profession, wp);
+        Some(m)
     }
 
     /// `FUN_140096650`: one citizen of `profession` becomes a laborer: the first without a
@@ -359,13 +405,22 @@ impl Workforce {
         professions: &Professions,
         profession: usize,
         count: i32,
+        homes: &BTreeMap<usize, Home>,
         map: &mut dyn StorageSearchMap,
         rng: &mut Random,
     ) {
         let current = self.counts(workers, professions.list.len())[profession];
         for _ in current..count {
             let wp = self.free_workplace(profession, rng);
-            self.hire(workers, professions.laborer, profession, wp, map, rng);
+            self.hire(
+                workers,
+                professions.laborer,
+                profession,
+                wp,
+                homes,
+                map,
+                rng,
+            );
         }
         for _ in count..current {
             self.fire(workers, professions.laborer, profession);
@@ -412,19 +467,20 @@ impl Workforce {
         command: Command,
         workers: &mut [Worker],
         professions: &Professions,
+        homes: &BTreeMap<usize, Home>,
         map: &mut dyn StorageSearchMap,
         rng: &mut Random,
     ) {
         match command {
             Command::SetCount { profession, count } => {
-                self.set_count(workers, professions, profession, count, map, rng)
+                self.set_count(workers, professions, profession, count, homes, map, rng)
             }
             Command::AddWorker { entity } => {
                 let Some(p) = self.workplaces.get(&entity).and_then(|w| w.profession) else {
                     return;
                 };
                 let wp = self.free_workplace(p, rng);
-                self.hire(workers, professions.laborer, p, wp, map, rng);
+                self.hire(workers, professions.laborer, p, wp, homes, map, rng);
             }
             Command::RemoveWorker { entity } => {
                 if let Some(p) = self.workplaces.get(&entity).and_then(|w| w.profession) {
@@ -513,7 +569,15 @@ mod tests {
         force.workplaces.get_mut(&10).unwrap().profession = Some(1);
         force.register(10, 1);
         let mut rng = Random::new(1);
-        force.set_count(&mut workers, &p, 1, 2, &mut Flat, &mut rng);
+        force.set_count(
+            &mut workers,
+            &p,
+            1,
+            2,
+            &BTreeMap::new(),
+            &mut Flat,
+            &mut rng,
+        );
         // The first builder fills the site's free place; the second has no workplace.
         assert_eq!(workers[1].profession, 1);
         assert_eq!(workers[1].workplace, Some(10));
@@ -522,10 +586,26 @@ mod tests {
         assert_eq!(force.counts(&workers, 3), vec![2, 2, 0]);
         assert_eq!(force.capacity(1), 1);
         // Demotion takes the builder without a workplace first.
-        force.set_count(&mut workers, &p, 1, 1, &mut Flat, &mut rng);
+        force.set_count(
+            &mut workers,
+            &p,
+            1,
+            1,
+            &BTreeMap::new(),
+            &mut Flat,
+            &mut rng,
+        );
         assert_eq!(workers[2].profession, 0);
         assert_eq!(workers[1].profession, 1);
-        force.set_count(&mut workers, &p, 1, 0, &mut Flat, &mut rng);
+        force.set_count(
+            &mut workers,
+            &p,
+            1,
+            0,
+            &BTreeMap::new(),
+            &mut Flat,
+            &mut rng,
+        );
         assert_eq!(workers[1].profession, 0);
         assert_eq!(workers[1].workplace, None);
         assert!(force.workplaces[&10].workers.is_empty());

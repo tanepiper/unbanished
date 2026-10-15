@@ -24,6 +24,9 @@ use crate::stock::{find_storage, RawMaterial, Storage, StorageSite};
 use crate::terrain::{CellType, HeightGrid};
 use crate::town::{Env, Sim};
 
+/// `DAT_140178818`: children's model and walk scale (`FUN_14011a700`).
+const CHILD_SCALE: f32 = 0.66;
+
 /// `DAT_1401788fc`: cooldown set by the fetch-tool and fetch-clothing activities.
 const FETCH_COOLDOWN: f32 = 75.0;
 
@@ -87,6 +90,47 @@ pub struct CitizenState {
     pub workplace: Option<usize>,
     /// The tool ShowTool attached (−1 none, −2 carried goods).
     pub shown_tool: i32,
+    /// `+0x240`: family slot in the home's ResidenceComponent (−1 none).
+    pub home_slot: i32,
+    /// `+0x4c`: pregnancy (positive, counting down) or the wait after a birth (negative).
+    pub reproduction: f32,
+    /// `+0x58`, `+0x90`: time towards the next health and happiness step.
+    pub health_timer: i64,
+    pub happiness_timer: i64,
+    /// `+0x98`: every kind of food eaten.
+    pub foods: Vec<usize>,
+    /// `+0x260` ring: children and other dependents, in ring order.
+    pub dependents: Vec<usize>,
+    /// `+0x218`: time attending school.
+    pub school_time: i64,
+    /// `+0x228`, `+0x230`: the doctor's and the chapel's AttendanceComponent entity.
+    pub doctor: Option<usize>,
+    pub priest: Option<usize>,
+    /// `+0x68`: the disease (index into the disease list).
+    pub disease: Option<usize>,
+    /// `+0x70`: illness left while sick, immunity left after.
+    pub disease_left: i64,
+    pub immunity: i64,
+    /// `+0x78`: time to the next spread attempt.
+    pub spread: i64,
+    /// `+0x60`: time since the last disease check.
+    pub disease_clock: i64,
+    /// `+0x84`.
+    pub field_84: i32,
+}
+
+impl CitizenState {
+    /// A new citizen (`FUN_140119c40` and setup `FUN_140119520`).
+    pub fn newborn(rules: &crate::life::LifeRules) -> CitizenState {
+        CitizenState {
+            job: -1,
+            shown_tool: -1,
+            home_slot: -1,
+            health: rules.f(0x6c),
+            happiness: rules.f(0xa4),
+            ..Default::default()
+        }
+    }
 }
 
 impl CitizenState {
@@ -120,6 +164,24 @@ pub struct Agents {
     pub characters: Vec<Character>,
     pub ais: Vec<CitizenAi>,
     pub states: Vec<CitizenState>,
+    /// The CitizenDescription for the CitizenComponent's update.
+    pub life: crate::life::LifeRules,
+    /// Town manager `+0xa0`: living citizens in activation order.
+    pub registry: Vec<usize>,
+    /// Log entries the citizens asked for since the caller last took them.
+    pub events: Vec<crate::life::LifeEvent>,
+    /// `Game/Disease/Diseases.rsc` (`GameGlobal +0xa8`).
+    pub diseases: Vec<banished_formats::game::Disease>,
+    /// Town manager `+0x1a8`.
+    pub town_disease: f32,
+    /// The character description new citizens get.
+    desc: CharacterDescription,
+    /// A new citizen's carried storage.
+    carried: Storage,
+    /// Citizens queued for deletion this iteration (`FUN_14011c2a0`), with the reason.
+    dying: Vec<(usize, i32)>,
+    /// The laborer profession's `+0x50` (what home stocking carries at least).
+    pub carry: i32,
     sectors: SectorGraph,
     pathfinder: Pathfinder,
     regions: Vec<u16>,
@@ -136,23 +198,40 @@ impl Agents {
         carried: Storage,
         scale: impl Fn(&Citizen) -> f32,
     ) -> Agents {
+        let mut states: Vec<CitizenState> = citizens
+            .iter()
+            .map(|_| CitizenState {
+                job: -1,
+                shown_tool: -1,
+                home_slot: -1,
+                health: rules.health,
+                happiness: rules.happiness,
+                carried: carried.clone(),
+                ..Default::default()
+            })
+            .collect();
+        // `FUN_14011bd70` put each child in its guardian's ring.
+        for (i, c) in citizens.iter().enumerate() {
+            if let Some(g) = c.parent {
+                states[g].dependents.push(i);
+            }
+        }
         Agents {
             characters: citizens
                 .iter()
                 .map(|c| Character::new(desc, c.position, scale(c)))
                 .collect(),
             ais: citizens.iter().map(|_| CitizenAi::default()).collect(),
-            states: citizens
-                .iter()
-                .map(|_| CitizenState {
-                    job: -1,
-                    shown_tool: -1,
-                    health: rules.health,
-                    happiness: rules.happiness,
-                    carried: carried.clone(),
-                    ..Default::default()
-                })
-                .collect(),
+            states,
+            life: crate::life::LifeRules::default(),
+            registry: (0..citizens.len()).collect(),
+            events: Vec::new(),
+            diseases: Vec::new(),
+            town_disease: 0.0,
+            desc,
+            carried,
+            carry: 0,
+            dying: Vec::new(),
             sectors: SectorGraph::new(cells.size, &cells.types),
             pathfinder: Pathfinder::new(cells.size, &cells.types),
             regions: regions(cells.size, &cells.types),
@@ -217,6 +296,7 @@ impl Agents {
                 workforce: &mut c.workforce,
                 site_templates: &c.templates,
                 sites: &mut c.sites,
+                homes: &mut c.homes,
                 site_list: &mut c.site_list,
                 events: Vec::new(),
                 piles: &mut c.piles,
@@ -234,7 +314,7 @@ impl Agents {
     fn adults(&self, citizens: &[Citizen]) -> Vec<bool> {
         citizens
             .iter()
-            .map(|c| c.age >= self.rules.thresholds.adult_age && c.school.is_none())
+            .map(|c| c.alive && c.age >= self.rules.thresholds.adult_age && c.school.is_none())
             .collect()
     }
 
@@ -287,6 +367,7 @@ impl Agents {
                 command,
                 &mut workers,
                 sim.professions,
+                sim.homes,
                 &mut geometry,
                 sim.rng,
             );
@@ -294,17 +375,18 @@ impl Agents {
         }
     }
 
-    /// One simulation iteration of every citizen. `groups[i]` is citizen `i`'s animation group.
+    /// One simulation iteration of every citizen. `groups[i]` is citizen `i`'s animation group
+    /// (`None` for the dead); `newborn` makes a child (`FUN_14011c550`'s draws).
     pub fn update(
         &mut self,
-        citizens: &mut [Citizen],
+        citizens: &mut Vec<Citizen>,
         env: &mut Env,
         groups: &[Option<&AnimationGroup>],
         dt: f32,
+        newborn: &mut dyn FnMut(&mut Random, &Citizen, bool) -> Citizen,
     ) {
         self.sync_map(env.cells);
-        // FUN_140118340's icon writes belong to simulation, never layout/hover/draw.
-        // The surrounding needs/assignment updates remain unported; reflect their live fields.
+        // `FUN_140118340`'s job icon (bit 3): no workplace for a profession that needs one.
         let professions = env.construction.professions.clone();
         for state in &mut self.states {
             let anywhere = if professions.list.is_empty() {
@@ -312,25 +394,12 @@ impl Agents {
             } else {
                 professions.works_anywhere(state.profession)
             };
-            for (bit, on) in [
-                (0, state.home.is_none()),
-                (
-                    1,
-                    state.hunger
-                        > self.rules.thresholds.hungry_urgent
-                            + (self.rules.hunger_limit - self.rules.thresholds.hungry_urgent) * 0.5,
-                ),
-                (
-                    2,
-                    state.cold
-                        > self.rules.thresholds.cold_urgent
-                            + (self.rules.cold_limit - self.rules.thresholds.cold_urgent) * 0.25,
-                ),
-                (3, !anywhere && state.workplace.is_none()),
-                (5, state.sick),
-            ] {
-                crate::status::set_icon(&mut state.status, bit, on, false);
-            }
+            crate::status::set_icon(
+                &mut state.status,
+                3,
+                !anywhere && state.workplace.is_none(),
+                false,
+            );
         }
         self.sectors.age_cache(ticks(dt));
         let entities = entity_views(env.placed, env.templates);
@@ -374,11 +443,216 @@ impl Agents {
             sim.age_piles(jobs, ticks(dt));
             jobs.drain(&mut sim);
         }
+        // The residences' state-2 updates (`FUN_14012ee40`).
+        {
+            let c = &mut *env.construction;
+            for home in c.homes.values_mut() {
+                crate::life::update_home(
+                    home,
+                    env.storages,
+                    env.materials,
+                    env.temperature,
+                    ticks(dt),
+                );
+            }
+        }
         for i in 0..self.ais.len() {
-            if groups[i].is_none() {
+            if groups.get(i).copied().flatten().is_none() || !citizens[i].alive {
+                continue;
+            }
+            // CitizenComponent before CitizenAIComponent (the template's component order); a
+            // citizen queued for deletion stops there (entity flag `0x400`).
+            let born = self.live(i, citizens, env, &entities, ticks(dt), newborn);
+            for c in born {
+                let mut ch = Character::new(self.desc, citizens[c].position, CHILD_SCALE);
+                ch.yaw = self.characters[i].yaw;
+                self.characters.push(ch);
+                self.ais.push(CitizenAi::default());
+                self.states[c].carried = self.carried.clone();
+            }
+            if self.dying.iter().any(|&(d, _)| d == i) {
                 continue;
             }
             self.think(i, citizens, env, groups, &adult, &entities, ticks(dt));
+        }
+        // The entity manager deletes the queued entities (each component's remove slot);
+        // removals can queue more (orphaned children).
+        let mut k = 0;
+        while k < self.dying.len() {
+            let (c, _) = self.dying[k];
+            self.remove(c, citizens, env, groups, &entities);
+            k += 1;
+        }
+        self.dying.clear();
+    }
+
+    /// `FUN_140118340` for citizen `i`; returns the children born.
+    #[allow(clippy::too_many_arguments)]
+    fn live(
+        &mut self,
+        i: usize,
+        citizens: &mut Vec<Citizen>,
+        env: &mut Env,
+        entities: &[EntityView],
+        dt: i64,
+        newborn: &mut dyn FnMut(&mut Random, &Citizen, bool) -> Citizen,
+    ) -> Vec<usize> {
+        if !citizens[i].alive || self.dying.iter().any(|&(d, _)| d == i) {
+            return Vec::new();
+        }
+        let idle: Vec<bool> = self
+            .characters
+            .iter()
+            .map(|c| !c.stack.is_active())
+            .collect();
+        let was_child = citizens[i].age < self.life.adult_age();
+        let town = TownView {
+            size: env.cells.size,
+            types: &env.cells.types,
+            regions: &self.regions,
+            occupants: &env.cells.occupants,
+            objects: &env.cells.objects,
+            entities,
+            happiness: &[],
+        };
+        let c = &mut *env.construction;
+        let mut born = Vec::new();
+        let mut people = crate::life::People {
+            citizens,
+            states: &mut self.states,
+            registry: &mut self.registry,
+            homes: &mut c.homes,
+            residences: &c.workforce.residences,
+            rules: &self.life,
+            town: &town,
+            rng: env.rng,
+            temperature: env.temperature,
+            diseases: &self.diseases,
+            town_disease: self.town_disease,
+            storages: env.storages,
+            materials: env.materials,
+            idle: &idle,
+            events: &mut self.events,
+            dying: &mut self.dying,
+            newborn,
+            born: &mut born,
+        };
+        people.update(i, dt);
+        // `FUN_1401195c0`: an adult's model and walk at full scale.
+        if was_child && citizens[i].age >= self.life.adult_age() {
+            self.characters[i].scale = 1.0;
+        }
+        born
+    }
+
+    /// `FUN_140119170`: the dead citizen's components let go of the town (a removed entity's
+    /// CharacterComponent abandons its actions, CitizenComponent leaves its home, family,
+    /// workplace and registry; a laborer takes over its profession).
+    /// Not ported: the carried goods (StorageComponent removal) are lost.
+    #[allow(clippy::too_many_arguments)]
+    fn remove(
+        &mut self,
+        c: usize,
+        citizens: &mut Vec<Citizen>,
+        env: &mut Env,
+        groups: &[Option<&AnimationGroup>],
+        entities: &[EntityView],
+    ) {
+        // Abandon the action stack: aborted CompleteTasks fail their works.
+        {
+            let adult = self.adults(citizens);
+            let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, entities);
+            sim.clear_citizen(c, None);
+            sim.characters[c].stack.set_on_empty(Vec::new());
+            jobs.drain(&mut sim);
+        }
+        let town = TownView {
+            size: env.cells.size,
+            types: &env.cells.types,
+            regions: &self.regions,
+            occupants: &env.cells.occupants,
+            objects: &env.cells.objects,
+            entities,
+            happiness: &[],
+        };
+        let k = &mut *env.construction;
+        let mut born = Vec::new();
+        let mut never = |_: &mut Random, m: &Citizen, _| m.clone();
+        let idle = vec![true; citizens.len()];
+        let mut people = crate::life::People {
+            citizens,
+            states: &mut self.states,
+            registry: &mut self.registry,
+            homes: &mut k.homes,
+            residences: &k.workforce.residences,
+            rules: &self.life,
+            town: &town,
+            rng: env.rng,
+            temperature: env.temperature,
+            diseases: &self.diseases,
+            town_disease: self.town_disease,
+            storages: env.storages,
+            materials: env.materials,
+            idle: &idle,
+            events: &mut self.events,
+            dying: &mut self.dying,
+            newborn: &mut never,
+            born: &mut born,
+        };
+        let workplace = people.states[c].workplace;
+        let profession = people.states[c].profession;
+        people.bury(c);
+        let laborer = k.professions.laborer;
+        people.citizens[c].alive = false;
+        // `FUN_1401173b0(None)` then `Town::Hire` for anything but a laborer.
+        let mut workers: Vec<crate::professions::Worker> = people
+            .states
+            .iter()
+            .zip(people.citizens.iter())
+            .map(|(s, ci)| crate::professions::Worker {
+                adult: ci.alive && ci.age >= self.life.adult_age() && ci.school.is_none(),
+                profession: s.profession,
+                workplace: s.workplace,
+                home: s.home,
+            })
+            .collect();
+        k.workforce.set_workplace(&mut workers, c, None);
+        if profession != laborer && !k.professions.list.is_empty() {
+            let ground_size = env.cells.size;
+            let terrain = env.terrain;
+            let ground = move |cell: i32| cell_ground(ground_size, terrain, cell);
+            let mut geometry = StorageGeometry {
+                town: &town,
+                sectors: &mut self.sectors,
+                ground: &ground,
+            };
+            let hired = k.workforce.hire(
+                &mut workers,
+                laborer,
+                profession,
+                workplace,
+                &k.homes,
+                &mut geometry,
+                env.rng,
+            );
+            match hired {
+                Some(h) => self.events.push(crate::life::LifeEvent {
+                    kind: crate::life::reason::REPLACED,
+                    severity: 1,
+                    citizen: h,
+                    extra: Some((None, citizens[c].name.clone())),
+                }),
+                None => self.events.push(crate::life::LifeEvent {
+                    kind: crate::life::reason::NOT_REPLACED,
+                    severity: 1,
+                    citizen: c,
+                    extra: None,
+                }),
+            }
+        }
+        for (s, w) in self.states.iter_mut().zip(&workers) {
+            s.profession = w.profession;
+            s.workplace = w.workplace;
         }
     }
 
@@ -388,7 +662,7 @@ impl Agents {
         &mut self,
         i: usize,
         messages: Vec<Message>,
-        citizens: &[Citizen],
+        citizens: &mut Vec<Citizen>,
         env: &mut Env,
         groups: &[Option<&AnimationGroup>],
         adult: &[bool],
@@ -396,9 +670,36 @@ impl Agents {
     ) {
         for m in messages {
             match m.component {
-                Component::Citizen => self.states[i].message(m, self.rules),
+                Component::Citizen => match m.message {
+                    0 => {
+                        let home = m.entity.and_then(|e| env.construction.homes.get(&e));
+                        crate::life::warm_at(&mut self.states[i], home, env.temperature);
+                    }
+                    2 => {
+                        if let Some(st) = m.entity.and_then(|e| storage_of(env, e)) {
+                            crate::life::eat(
+                                &mut self.states[i],
+                                &mut env.storages[st],
+                                env.materials,
+                                env.rng,
+                            );
+                        }
+                    }
+                    3 => {
+                        // Treated by the herbalist or doctor.
+                        self.states[i].health_events |= 0x200;
+                        self.states[i].health += 0.5;
+                    }
+                    _ => self.states[i].message(m, self.rules),
+                },
                 Component::CitizenAi if m.message == 0 => {
-                    self.think(i, citizens, env, groups, adult, entities, 0);
+                    // `FUN_140114810`: the CitizenComponent's update with no time (while the
+                    // character is idle: hunger, cold and old age can end it here), then the
+                    // AI's unless the entity is going.
+                    self.live(i, citizens, env, entities, 0, &mut |_, m, _| m.clone());
+                    if !self.dying.iter().any(|&(d, _)| d == i) {
+                        self.think(i, citizens, env, groups, adult, entities, 0);
+                    }
                 }
                 Component::Build if m.message == 0 => {
                     // `FUN_14010dbe0`: one unit of work.
@@ -467,9 +768,35 @@ impl Agents {
         entities: &[EntityView],
         dt: i64,
     ) {
-        let Some(group) = groups[i] else { return };
+        let Some(group) = groups.get(i).copied().flatten() else {
+            return;
+        };
         let c = &citizens[i];
+        let (home_food, home_fuel) = self.states[i]
+            .home
+            .and_then(|h| env.construction.homes.get(&h))
+            .map_or((false, false), |h| {
+                (
+                    crate::needs::home_has_food(
+                        h,
+                        self.states[i].home_slot,
+                        env.storages,
+                        env.materials,
+                        &self.life,
+                    ),
+                    crate::needs::home_has_fuel(h, env.storages, env.materials, &self.life),
+                )
+            });
+        let spouse_activity = c
+            .spouse
+            .map(|p| self.states[p].supply_activity)
+            .filter(|&a| a == 1 || a == 2)
+            .map(|a| a as u32);
         let view = CitizenView {
+            home_food,
+            home_fuel,
+            spouse_activity,
+            doctor: self.states[i].doctor.is_some(),
             age: c.age,
             school: c.school.is_some(),
             tool: self.states[i].tool_uses,
@@ -496,7 +823,85 @@ impl Agents {
             || busy,
             |ai, a, rng| {
                 std::mem::swap(env.rng, rng);
-                let done = if a == activity::DROP_OFF {
+                // `FUN_14011ada0` once for the home-stocking activities.
+                let home_reachable = (a == activity::HOME_FOOD || a == activity::HOME_FUEL) && {
+                    let town = TownView {
+                        size: env.cells.size,
+                        types: &env.cells.types,
+                        regions: &self.regions,
+                        occupants: &env.cells.occupants,
+                        objects: &env.cells.objects,
+                        entities,
+                        happiness: &[],
+                    };
+                    let cell = town.cell_of(self.characters[i].position);
+                    self.states[i]
+                        .home
+                        .is_some_and(|h| town.can_reach(cell, h, env.rng))
+                };
+                let carrying = self.states[i].carried.used(env.materials) > 0;
+                let done = if home_reachable && carrying {
+                    // `FUN_140111160` / `FUN_1401108b0`: first drop off what is carried, then
+                    // this activity again.
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    sim.drop_off(i);
+                    jobs.drain(&mut sim);
+                    ai.queued = Some(a);
+                    true
+                } else if matches!(
+                    a,
+                    activity::EAT
+                        | activity::EAT_URGENT
+                        | activity::WARM
+                        | activity::WARM_URGENT
+                        | activity::HOME_FOOD
+                        | activity::HOME_FUEL
+                ) {
+                    let town = TownView {
+                        size: env.cells.size,
+                        types: &env.cells.types,
+                        regions: &self.regions,
+                        occupants: &env.cells.occupants,
+                        objects: &env.cells.objects,
+                        entities,
+                        happiness: &[],
+                    };
+                    let mut needs = crate::needs::Needs {
+                        town: &town,
+                        sectors: &mut self.sectors,
+                        sites: env.sites,
+                        storages: env.storages,
+                        materials: env.materials,
+                        homes: &mut env.construction.homes,
+                        temperature: env.temperature,
+                        life: &self.life,
+                        carry: self.carry,
+                        terrain: env.terrain,
+                        size: env.cells.size,
+                        rng: env.rng,
+                    };
+                    let mut who = crate::needs::Who {
+                        ai,
+                        ch: &mut self.characters[i],
+                        state: &mut self.states[i],
+                        group,
+                    };
+                    let done = match a {
+                        activity::EAT | activity::EAT_URGENT => needs.eat(&mut who),
+                        activity::WARM | activity::WARM_URGENT => needs.warm(&mut who),
+                        activity::HOME_FOOD => needs.stock_home(&mut who, false, home_reachable),
+                        _ => needs.stock_home(&mut who, true, home_reachable),
+                    };
+                    let outbox = std::mem::take(&mut self.characters[i].stack.outbox);
+                    if !outbox.is_empty() {
+                        let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                        for m in outbox {
+                            jobs.fail(m.a, i, m.b, &mut sim);
+                        }
+                        jobs.drain(&mut sim);
+                    }
+                    done
+                } else if a == activity::DROP_OFF {
                     // `FUN_14011b330`.
                     let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
                     sim.drop_off(i);
@@ -779,6 +1184,21 @@ pub fn entity_views(placed: &[Placed], templates: &[Template]) -> Vec<EntityView
             }
         })
         .collect()
+}
+
+/// An entity's StorageComponent: a construction site's (houses, workplaces), else a town
+/// storage's.
+fn storage_of(env: &Env, entity: usize) -> Option<usize> {
+    env.construction
+        .sites
+        .get(&entity)
+        .map(|s| s.storage)
+        .or_else(|| {
+            env.sites
+                .iter()
+                .find(|s| s.entity == entity)
+                .map(|s| s.storage)
+        })
 }
 
 /// FUN_1400a48b0 without bridge picking (same ground query as MoveTo).

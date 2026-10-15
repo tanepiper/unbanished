@@ -172,6 +172,19 @@ impl TownView<'_> {
         }
     }
 
+    /// `Interact::PointPosition(entity, 0)` as a cell (no draw): the first use point, else
+    /// the map rectangle's centre.
+    pub fn point_cell(&self, entity: usize) -> i32 {
+        let e = &self.entities[entity];
+        if let Some(p) = e.use_points.first() {
+            return self.cell_of(*p);
+        }
+        match e.rect {
+            Some((x, y, w, h)) => (y + (h >> 1)) * self.size as i32 + (w >> 1) + x,
+            None => -1,
+        }
+    }
+
     /// `FUN_14011ada0`: is `entity` reachable from `cell`?
     pub fn can_reach(&self, cell: i32, entity: usize, rng: &mut Random) -> bool {
         let e = self.entrance(entity, rng);

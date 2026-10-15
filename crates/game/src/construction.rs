@@ -165,8 +165,8 @@ const RESIDENCE: &[StateDef] = &[
     StateDef {
         id: 2,
         enter: C::ResidenceEnter2,
-        // Not ported: `FUN_14012ee40` (households moving in).
-        update: C::Missing,
+        // `FUN_14012ee40` runs in `Agents::update` (`life::update_home`).
+        update: C::None,
         exit: C::None,
         transitions: &[(3, C::None)],
     },
@@ -424,6 +424,8 @@ pub struct SiteTemplate {
     pub storage: Option<(u32, i32, bool)>,
     /// ModelDescription meshes per variant (construction stages, the last finished).
     pub meshes: Vec<usize>,
+    /// ResidenceDescription.
+    pub residence: Option<banished_formats::game::ResidenceDescription>,
 }
 
 impl SiteTemplate {
@@ -544,6 +546,8 @@ pub struct Construction {
     pub models_dirty: bool,
     /// Entities the player destroyed (RemovalTool cancel), before the next iteration.
     pub destroy: Vec<usize>,
+    /// Finished residences' ResidenceComponents, by entity.
+    pub homes: BTreeMap<usize, crate::life::Home>,
 }
 
 /// `RawMaterialComponent` (vtable `0x14016a5a0`, constructor `FUN_14012e8d0`): a loose pile.

@@ -462,6 +462,8 @@ pub struct StartingTown {
     pub ghost: Option<(String, [f32; 16])>,
     /// The job manager, professions, workplaces and construction sites (docs/JOBS.md).
     pub construction: Construction,
+    /// `Game/Names/Male` and `Female` (`FUN_1400aa130`), for births.
+    names: Option<(NameDatabase, NameDatabase)>,
 }
 
 impl StartingTown {
@@ -583,13 +585,38 @@ impl StartingTown {
                 items: Vec::new(),
             })
             .unwrap_or_default();
-        let agents = Agents::new(&citizens, &cells, character, ai_rules, carried, |c| {
+        let mut agents = Agents::new(&citizens, &cells, character, ai_rules, carried, |c| {
             if c.is_adult(&rules) {
                 1.0
             } else {
                 CHILD_SCALE
             }
         });
+        if let Some(d) = read(archive, &citizen_ref.replace(":resource", ":citizen"))
+            .and_then(|d| citizen_description(&d).ok())
+        {
+            agents.life = banished_game::life::LifeRules::new(&d);
+        }
+        agents.diseases = read(archive, "Game/Disease/Diseases.rsc:resource")
+            .and_then(|d| banished_formats::game::external_list(&d).ok())
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|r| read(archive, &normalise(r)))
+            .filter_map(|d| banished_formats::game::disease(&d).ok())
+            .collect();
+        agents.carry = read(archive, "Game/Profession/Profession.rsc:laborer")
+            .and_then(|d| banished_formats::game::profession(&d).ok())
+            .map_or(0, |p| p.value_50);
+        let names = ["Male", "Female"].map(|n| {
+            archive
+                .read(&format!("Game/Names/{n}_resource.crs"))
+                .ok()
+                .and_then(|d| NameDatabase::read(&d).ok())
+        });
+        let names = match names {
+            [Some(m), Some(f)] => Some((m, f)),
+            _ => None,
+        };
         let archive_professions = ["laborer", "child", "student"]
             .iter()
             .filter_map(|k| {
@@ -635,6 +662,7 @@ impl StartingTown {
                 professions: professions(archive),
                 ..Default::default()
             },
+            names,
         };
         town.resolve_piles(archive);
         Some(town)
@@ -691,7 +719,7 @@ impl StartingTown {
             .iter()
             .zip(&self.agents.states)
             .zip(&self.agents.characters)
-            .filter(|((_, s), _)| s.status != 0)
+            .filter(|((c, s), _)| c.alive && s.status != 0)
             .map(|((c, s), ch)| crate::status_icons::StatusIcon {
                 anchor: glam::Vec3::from(ch.position)
                     + glam::Vec3::Z * self.citizen_heights[usize::from(!c.male)],
@@ -807,6 +835,7 @@ impl StartingTown {
                 self.citizen_anims
                     .get(usize::from(!c.male))
                     .and_then(Option::as_deref)
+                    .filter(|_| c.alive)
             })
             .collect();
         let mut env = banished_game::town::Env {
@@ -845,6 +874,7 @@ impl StartingTown {
                 self.citizen_anims
                     .get(usize::from(!c.male))
                     .and_then(Option::as_deref)
+                    .filter(|_| c.alive)
             })
             .collect();
         let mut env = banished_game::town::Env {
@@ -860,8 +890,18 @@ impl StartingTown {
             stock,
             temperature,
         };
+        let rules = self.rules;
+        let names = self.names.as_ref();
+        let mut newborn = |rng: &mut Random, mother: &Citizen, male: bool| match names {
+            Some((m, f)) => banished_game::citizens::newborn(rng, &rules, m, f, mother, male),
+            None => Citizen {
+                male,
+                alive: true,
+                ..mother.clone()
+            },
+        };
         self.agents
-            .update(&mut self.citizens, &mut env, &groups, dt);
+            .update(&mut self.citizens, &mut env, &groups, dt, &mut newborn);
         // `FUN_1400c9d70`: piles left by cleared resources join the entity manager's buckets.
         for id in before..self.placed.len() {
             self.register_entity(id);
@@ -882,7 +922,7 @@ impl StartingTown {
         let c = &self.construction;
         let mut counts = vec![0; c.professions.list.len().max(1)];
         for (citizen, state) in self.citizens.iter().zip(&self.agents.states) {
-            if citizen.is_adult(&self.rules) && citizen.school.is_none() {
+            if citizen.alive && citizen.is_adult(&self.rules) && citizen.school.is_none() {
                 if let Some(n) = counts.get_mut(state.profession) {
                     *n += 1;
                 }
@@ -942,7 +982,10 @@ impl StartingTown {
                         t.materials.push((n, m));
                     }
                 }
-                "residence" => t.controllers.push(Controller::Residence),
+                "residence" => {
+                    t.controllers.push(Controller::Residence);
+                    t.residence = banished_formats::game::residence_description(&data).ok();
+                }
                 "clearresource" => t.controllers.push(Controller::ClearResource),
                 "consumeproduce" => {
                     let Ok(d) = banished_formats::game::consume_produce_description(&data) else {
@@ -1117,7 +1160,7 @@ impl StartingTown {
         // Citizens: `Template/Citizen.rsc:model` variant 0 (men) or 1 (women); children use
         // the scale `DAT_140178818` (`FUN_14011a700`).
         if let Some(model) = &self.citizen_model {
-            for (i, c) in self.citizens.iter().enumerate() {
+            for (i, c) in self.citizens.iter().enumerate().filter(|(_, c)| c.alive) {
                 let variant = if c.male { 0 } else { 1 };
                 let Some(Some(mesh)) = model.variants.get(variant).and_then(|v| v.meshes.first())
                 else {

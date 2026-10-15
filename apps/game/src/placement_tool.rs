@@ -378,10 +378,28 @@ mod construction_tests {
         // Builders keep their profession without a workplace once the site is done.
         assert_eq!(town.profession_counts().0[builder], 2);
         assert!(town.agents.states.iter().all(|s| s.workplace.is_none()));
-        assert!(town
-            .storages
-            .iter()
-            .all(|s| s.items.iter().all(|e| e.reserved == 0)));
+        assert_reservations_held(&town);
+    }
+
+    /// Every reserved stored unit belongs to an action still queued (a family carrying goods
+    /// home once the house is finished): construction left none behind.
+    fn assert_reservations_held(town: &StartingTown) {
+        let mut held = std::collections::BTreeMap::new();
+        for ch in &town.agents.characters {
+            for (storage, material, n) in ch.stack.pending_reservations() {
+                *held.entry((storage, material)).or_insert(0) += n;
+            }
+        }
+        for (si, s) in town.storages.iter().enumerate() {
+            for e in &s.items {
+                let h = held.get(&(si, e.material)).copied().unwrap_or(0);
+                assert_eq!(
+                    e.reserved, h,
+                    "storage {si} material {} reserved",
+                    e.material
+                );
+            }
+        }
     }
 
     /// A wood house placed over natural resources: laborers fell them (the site clears), the
@@ -598,5 +616,182 @@ mod construction_tests {
         assert!(stored_at.is_some(), "no firewood pile was hauled away");
         let after = stock_table(&town.registered_storages(), &town.materials);
         assert!(after[0] < logs_before.unwrap(), "no logs were used");
+    }
+
+    /// A seed-1234 Medium town with its terrain and stream, after `setup`.
+    fn with_town(test: impl FnOnce(&Archive, &HeightGrid, &mut StartingTown, &mut Random)) {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                eprintln!("game data missing; skipping life integration");
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        test(&archive, &terrain, &mut town, &mut rng);
+    }
+
+    /// One simulation iteration as the gameplay loop runs it, at `temperature`.
+    fn step(town: &mut StartingTown, terrain: &HeightGrid, rng: &mut Random, temperature: f32) {
+        let dt = 1.0 / 30.0;
+        town.apply_commands(terrain, rng);
+        town.iterate(terrain, rng, dt, temperature);
+        let warnings = banished_game::events::StockWarnings::default();
+        let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+        town.update_citizens(terrain, rng, dt, temperature, stock);
+        town.construction
+            .jobs
+            .step(banished_game::scheduler::ticks(dt));
+    }
+
+    /// A finished wood house gets a family, who eat from the town's storage, carry food home
+    /// and have a child there.
+    #[test]
+    fn a_family_moves_in_stocks_the_house_and_has_a_child() {
+        with_town(|archive, terrain, town, rng| {
+            let mut tool =
+                PlacementTool::start(archive, town, r"Template\WoodHouse.rsc:resource", rng)
+                    .unwrap();
+            let spot = tool.find_clear_spot(town, terrain, town.start).unwrap();
+            tool.hover(town, terrain, Some(spot), 0);
+            let id = tool.place(archive, town, 0).unwrap();
+            let builder = town.construction.professions.builder;
+            town.construction
+                .commands
+                .push(banished_game::professions::Command::SetCount {
+                    profession: builder,
+                    count: 2,
+                });
+            let mut built = false;
+            for _ in 0..30 * 60 * 8 {
+                step(town, terrain, rng, 50.0);
+                if town.construction.sites[&id].complete {
+                    built = true;
+                    break;
+                }
+            }
+            assert!(built, "the house was not built");
+            // Hungry enough to eat (`D[0xc8]`), not yet urgently.
+            let hungry = town.agents.life.f(0xc8) + 1.0;
+            for s in &mut town.agents.states {
+                s.hunger = hungry;
+            }
+            let mut moved_in = None;
+            for k in 0..30 * 60 * 3 {
+                step(town, terrain, rng, 50.0);
+                if moved_in.is_none() && town.construction.homes[&id].occupants() > 0 {
+                    moved_in = Some(k);
+                }
+                let home = &town.construction.homes[&id];
+                if moved_in.is_some()
+                    && banished_game::life::stored(&town.storages[home.storage], &town.materials, 5)
+                        > 0
+                    && town.agents.states.iter().any(|s| !s.foods.is_empty())
+                {
+                    break;
+                }
+            }
+            let home = town.construction.homes[&id].clone();
+            eprintln!("moved in after {moved_in:?}: {:?}", home.families);
+            assert!(moved_in.is_some(), "nobody moved in");
+            let family = &home.families[0];
+            for &c in family {
+                assert_eq!(town.agents.states[c].home, Some(id));
+            }
+            let food =
+                banished_game::life::stored(&town.storages[home.storage], &town.materials, 5);
+            eprintln!("food at home: {food}");
+            assert!(food > 0, "nobody carried food home");
+            assert!(
+                town.agents.states.iter().any(|s| !s.foods.is_empty()),
+                "nobody ate"
+            );
+            assert!(town.citizens.iter().all(|c| c.alive), "someone died");
+            // A married woman of the family: her pregnancy ends at once.
+            let mother = family
+                .iter()
+                .copied()
+                .find(|&c| {
+                    let ci = &town.citizens[c];
+                    !ci.male && ci.spouse.is_some() && ci.age >= town.rules.adult_age
+                })
+                .expect("no married woman in the house");
+            let before = town.citizens.len();
+            town.agents.states[mother].reproduction = 0.001;
+            town.agents.states[mother].health = 10.0;
+            for _ in 0..10 {
+                step(town, terrain, rng, 50.0);
+            }
+            assert_eq!(town.citizens.len(), before + 1, "no child was born");
+            let child = before;
+            assert_eq!(town.citizens[child].parent, Some(mother));
+            assert_eq!(town.agents.states[child].home, Some(id));
+            assert!(town.construction.homes[&id].families[0].contains(&child));
+            assert!(town.agents.registry.contains(&child));
+            assert!(
+                town.agents.states[mother].reproduction < 0.0,
+                "no wait after the birth"
+            );
+        });
+    }
+
+    /// Without food, hungry citizens starve once idle: the entity goes, the family and the
+    /// registry let go of it, and the log hears of it.
+    #[test]
+    fn citizens_starve_without_food() {
+        with_town(|_, terrain, town, rng| {
+            for s in &mut town.storages {
+                let materials = &town.materials;
+                s.items
+                    .retain(|e| materials[e.material].flags >> 5 & 1 == 0);
+            }
+            let max = town.agents.life.f(0xd0);
+            for s in &mut town.agents.states {
+                s.hunger = max - 0.01;
+            }
+            let n = town.citizens.len();
+            let mut events = Vec::new();
+            for _ in 0..30 * 30 {
+                step(town, terrain, rng, 50.0);
+                events.extend(std::mem::take(&mut town.agents.events));
+                if town.citizens.iter().all(|c| !c.alive) {
+                    break;
+                }
+            }
+            let dead = town.citizens.iter().filter(|c| !c.alive).count();
+            eprintln!("{dead} of {n} starved");
+            assert!(dead > 0, "nobody starved");
+            assert_eq!(town.agents.registry.len(), n - dead);
+            assert!(events
+                .iter()
+                .any(|e| e.kind == banished_game::life::reason::STARVED));
+            for (i, c) in town.citizens.iter().enumerate().filter(|(_, c)| !c.alive) {
+                assert!(c.spouse.is_none());
+                assert!(!town.agents.characters[i].stack.is_active());
+            }
+        });
     }
 }

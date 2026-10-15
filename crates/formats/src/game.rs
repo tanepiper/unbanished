@@ -943,6 +943,77 @@ pub fn storage_description(data: &[u8]) -> Result<StorageDescription> {
     Ok(value)
 }
 
+/// `Disease` (serializer `FUN_1400987a0`, version 2; `Game/Disease/Diseases.rsc` lists them).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Disease {
+    /// `+0x20` string table and `+0x28` key of the name.
+    pub table: Option<String>,
+    pub name: String,
+    /// `+0x30`: spread interval in 300 s units (`FUN_140117ca0`).
+    pub spread_interval: f32,
+    /// `+0x34`: chance a spread attempt infects (`FUN_140117940`).
+    pub spread_chance: f32,
+    /// `+0x38`: spread radius.
+    pub spread_radius: f32,
+    /// `+0x3c`: weight when an outbreak picks a disease (`FUN_140117af0`).
+    pub weight: f32,
+    /// `+0x40`: recovery divisor (`FUN_140117880`: recover when `RandFloat > 1 / this / doctor`).
+    pub recovery: f32,
+}
+
+pub fn disease(data: &[u8]) -> Result<Disease> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("Disease") {
+            return format_err(format!("expected Disease, found {:#010x}", h.type_id));
+        }
+        r.block(|r, _| {
+            Ok(Disease {
+                table: r.external_ref()?,
+                name: r.string()?,
+                spread_interval: r.f32()?,
+                spread_chance: r.f32()?,
+                spread_radius: r.f32()?,
+                weight: r.f32()?,
+                recovery: r.f32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `ResidenceDescription` (serializer `FUN_14012f8a0`, version 2).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ResidenceDescription {
+    /// `+0x20`: family slots (ResidenceComponent `+0x50`, count `+0x58`).
+    pub families: i32,
+    /// `+0x24`: residents per family before it counts as full (`FUN_14012f9c0`).
+    pub family_size: i32,
+    /// `+0x28`: at or above this temperature the home is warm without fuel (`FUN_140130100`).
+    pub warm_temperature: f32,
+    /// `+0x2c`: seconds one unit of firewood keeps the home warm (`FUN_14012ee40`).
+    pub fuel_seconds: f32,
+}
+
+pub fn residence_description(data: &[u8]) -> Result<ResidenceDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("ResidenceDescription") {
+            return format_err(format!(
+                "expected ResidenceDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(ResidenceDescription {
+                families: r.i32()?,
+                family_size: r.i32()?,
+                warm_temperature: r.f32()?,
+                fuel_seconds: r.f32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// StorageLocationDescription `+0x20` mask; serializer FUN_140132940 (version 2).
 pub fn storage_location_description(data: &[u8]) -> Result<u32> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {

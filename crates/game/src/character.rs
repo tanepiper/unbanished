@@ -846,6 +846,24 @@ impl ActionStack {
         self.on_empty.clear();
     }
 
+    /// The stored goods queued actions hold reserved: `(storage, material, count)` of each
+    /// unstarted PickupStoredRawMaterial and reserving ConsumeStoredRawMaterial.
+    pub fn pending_reservations(&self) -> Vec<(usize, usize, i32)> {
+        let mut out = Vec::new();
+        for t in self.chains.iter().flatten().filter(|t| !t.started) {
+            match &t.action {
+                Action::PickupStoredRawMaterial { storage, items, .. }
+                | Action::ConsumeStoredRawMaterial {
+                    storage,
+                    items,
+                    reserved: true,
+                } => out.extend(items.iter().map(|&(m, n)| (*storage, m, n))),
+                _ => {}
+            }
+        }
+        out
+    }
+
     /// `FUN_1400fc5d0`: does a chain start with this work's CompleteTask?
     pub fn holds_task(&self, work: i32) -> Option<i32> {
         self.chains

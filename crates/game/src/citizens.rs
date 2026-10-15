@@ -43,6 +43,8 @@ pub struct Citizen {
     pub parent: Option<usize>,
     /// `+0x208`: school (none at New Game).
     pub school: Option<usize>,
+    /// False once the entity is deleted (the port keeps its index).
+    pub alive: bool,
 }
 
 impl Citizen {
@@ -102,6 +104,7 @@ impl Households<'_> {
             spouse: None,
             parent: None,
             school: None,
+            alive: true,
         });
         self.citizens.len() - 1
     }
@@ -129,10 +132,42 @@ impl Households<'_> {
     }
 }
 
+/// `FUN_14011c550` for a child born to `mother` (`FUN_140117060`): its sex, a name from
+/// that sex's database, the appearance, no education and a lifespan. Position, age and family
+/// are set by the caller.
+pub fn newborn(
+    rng: &mut Random,
+    rules: &CitizenRules,
+    male_names: &NameDatabase,
+    female_names: &NameDatabase,
+    mother: &Citizen,
+    male: bool,
+) -> Citizen {
+    let name = citizen_name(if male { male_names } else { female_names }, rng);
+    let a = rng.rand();
+    let b = rng.rand();
+    let appearance = a.wrapping_add(b) & 7;
+    let lifespan = rng.rand_float_tol() * rules.lifespan.1 + rules.lifespan.0;
+    Citizen {
+        name,
+        male,
+        age: 0.0,
+        lifespan,
+        appearance,
+        educated: false,
+        education: 0,
+        position: mother.position,
+        spouse: None,
+        parent: None,
+        school: None,
+        alive: true,
+    }
+}
+
 /// Status Bar population (`FUN_14007eda0`): adults, students, children.
 pub fn population(citizens: &[Citizen], rules: &CitizenRules) -> (u32, u32, u32) {
     let (mut adults, mut students, mut children) = (0, 0, 0);
-    for c in citizens {
+    for c in citizens.iter().filter(|c| c.alive) {
         if c.age < rules.adult_age || c.school.is_some() {
             if c.school.is_none() {
                 children += 1;

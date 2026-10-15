@@ -220,3 +220,49 @@ fn decodes_all_ui_resources() {
     assert_eq!(counts["FrustumOutlineDescription"], 1);
     assert_eq!(counts.values().sum::<usize>(), 1645);
 }
+
+#[test]
+fn residences_parse() {
+    let Some(archive) = archive() else { return };
+    for name in ["WoodHouse", "StoneHouse", "Hostel"] {
+        let d = banished_formats::game::residence_description(
+            &archive
+                .read_ref(&format!("Template/{name}.rsc:residence"))
+                .unwrap(),
+        )
+        .unwrap();
+        eprintln!("{name}: {d:?}");
+        assert!(d.families >= 1 && d.family_size >= 1);
+    }
+}
+
+#[test]
+fn citizen_description_values() {
+    let Some(archive) = archive() else { return };
+    let d = banished_formats::game::citizen_description(
+        &archive.read_ref("Template/Citizen.rsc:citizen").unwrap(),
+    )
+    .unwrap();
+    for (o, v) in &d.fields {
+        eprintln!("{o:#x} = {v:?}");
+    }
+    eprintln!("refs {:?} list {:?}", d.refs, d.list);
+}
+
+#[test]
+fn diseases_parse() {
+    let Some(archive) = archive() else { return };
+    let list = banished_formats::game::external_list(
+        &archive
+            .read_ref("Game/Disease/Diseases.rsc:resource")
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(list.len(), 12);
+    for r in list {
+        let d = banished_formats::game::disease(&archive.read_ref(&r.replace('\\', "/")).unwrap())
+            .unwrap();
+        eprintln!("{r}: {d:?}");
+        assert!(d.weight > 0.0);
+    }
+}

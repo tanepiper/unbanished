@@ -20,8 +20,8 @@ simulation. Parsing it or drawing its mesh is not enough.
 | ResourceProduce (ConsumeProduce) | CutterYard, Tailor, ToolMaker, Tavern | cutter yard verified; the rest share the code |
 | StatusIcon | citizens, buildings | citizen bits; building bits missing |
 | AmbientEmitter, AmbientEnvironment | most buildings | environment, wind, river, rain |
-| **Citizen** (`0x1401689a0`) | Citizen | **missing**: needs, age, death, health, happiness, disease, births, home |
-| **Residence** | WoodHouse, StoneHouse, Hostel | **missing**: families, heating, moving in |
+| Citizen (`0x1401689a0`) | Citizen | needs, age, death, health, happiness, disease, homes, marriage, births ([CITIZEN-LIFE.md](CITIZEN-LIFE.md)); attendance searches, burial and accidents open |
+| Residence | WoodHouse, StoneHouse, Hostel | families, heating, moving in; ClearStorage work open |
 | **Immigration**, **Nomad** | TownHall, Nomad | missing |
 | **Attendance**, **Happiness** | School, Chapel, Doctor, Tavern, Well, Market, Cemetery, TradingPost, Quarry, Mine | missing |
 | **Healer**, **Disease** | Herbalist, DoctorHouse, fields | missing |
@@ -45,7 +45,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 |---|---|---|---|---|
 | BuildStructure, GatherRawMaterials, ClearArea, Pickup, ConsumeProduce | yes | | MoveTo, PlayAnimation, PerformWork, SendComponentMessage, CompleteTask, DropOffRawMaterial, PickupRawMaterial, PickupStoredRawMaterial, ShowTool, AnimateNaturalResource, RemoveNaturalResource, CreateRawMaterial | yes |
 | BuildRoad | no | | CompleteRoad | no |
-| PlantArea, TendArea (fields) | no | | ConsumeRawMaterial (eat, warm) | no |
+| PlantArea, TendArea (fields) | no | | ConsumeRawMaterial | no (eating and warming use Citizen messages 0 and 2) |
 | PlantOrchard | no | | CreateNaturalResource (planting) | no |
 | FishingWork | no | | HuntAnimal, RemoveAnimal | no |
 | AutoPickupWork, ClearStorage, LocationWork, MarketWork, TradeWork, FireWork | no | | | |
@@ -54,12 +54,12 @@ simulation. Parsing it or drawing its mesh is not enough.
 
 | Id | Activity | Port |
 |---:|---|---|
-| 0, 14 | eat (`0x140112250`) | no |
-| 1, 15 | warm up (`0x140112790`) | no |
+| 0, 14 | eat (`0x140112250`) | yes |
+| 1, 15 | warm up (`0x140112790`) | yes |
 | 2 | emergency work | yes |
 | 3, 8 | clothing, tool | yes |
 | 4, 5 | herbs, doctor | no |
-| 6, 7 | bring food / firewood home | no |
+| 6, 7 | bring food / firewood home | yes |
 | 9 | work | yes |
 | 10 | school | no |
 | 11 | play (children) | no |

@@ -168,7 +168,11 @@ impl Selection {
             .enumerate()
             .filter(|(_, p)| p.alive)
             .map(|(i, _)| Entity::Placed(i))
-            .chain((0..town.citizens.len()).map(Entity::Citizen));
+            .chain(
+                (0..town.citizens.len())
+                    .filter(|&i| town.citizens[i].alive)
+                    .map(Entity::Citizen),
+            );
         for entity in entities {
             let Some(mesh) = self.mesh(archive, town, entity) else {
                 continue;

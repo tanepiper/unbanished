@@ -86,6 +86,7 @@ pub struct Sim<'s, 't> {
     pub workforce: &'s mut Workforce,
     pub site_templates: &'s [SiteTemplate],
     pub sites: &'s mut BTreeMap<usize, Site>,
+    pub homes: &'s mut BTreeMap<usize, crate::life::Home>,
     pub site_list: &'s mut Vec<usize>,
     pub events: Vec<JobEvent>,
     pub piles: &'s mut BTreeMap<usize, Pile>,
@@ -885,7 +886,15 @@ impl Callbacks for Sim<'_, '_> {
                 false
             }
             Callback::ResidenceEnter2 => {
+                // `FUN_14012f2b0`: register; the component's family slots come from the
+                // description.
                 self.workforce.residences.push(e);
+                let site = &self.sites[&e];
+                if let Some(desc) = self.site_templates[site.template].residence {
+                    self.homes
+                        .entry(e)
+                        .or_insert_with(|| crate::life::Home::new(desc, site.storage));
+                }
                 false
             }
             Callback::ProduceEnter2 => {

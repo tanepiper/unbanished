@@ -326,7 +326,7 @@ fn workplace_info(town: &StartingTown, p: usize) -> Option<crate::building_ui::W
     let desc = c.professions.list.get(profession)?;
     let (mut holders, mut laborers) = (0, 0);
     for (citizen, state) in town.citizens.iter().zip(&town.agents.states) {
-        if citizen.is_adult(&town.rules) && citizen.school.is_none() {
+        if citizen.alive && citizen.is_adult(&town.rules) && citizen.school.is_none() {
             holders += i32::from(state.profession == profession);
             laborers += i32::from(state.profession == c.professions.laborer);
         }
