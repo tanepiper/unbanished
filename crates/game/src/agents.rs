@@ -12,7 +12,6 @@ use banished_formats::game::CharacterDescription;
 use banished_formats::types::AnimationGroup;
 
 use crate::activities::{loiter, EntityView, StorageGeometry, TownView};
-use crate::town::{Env, Sim};
 use crate::ai::{activity, CitizenAi, CitizenView, Thresholds};
 use crate::character::{Action, Character, Component, Message, MoveTo, World};
 use crate::citizens::Citizen;
@@ -23,6 +22,7 @@ use crate::sectors::SectorGraph;
 use crate::seeding::{Cells, Placed, Template};
 use crate::stock::{find_storage, RawMaterial, Storage, StorageSite};
 use crate::terrain::{CellType, HeightGrid};
+use crate::town::{Env, Sim};
 
 /// `DAT_1401788fc`: cooldown set by the fetch-tool and fetch-clothing activities.
 const FETCH_COOLDOWN: f32 = 75.0;
@@ -269,8 +269,13 @@ impl Agents {
                 sectors: sim.sectors,
                 ground: &ground,
             };
-            sim.workforce
-                .apply(command, &mut workers, sim.professions, &mut geometry, sim.rng);
+            sim.workforce.apply(
+                command,
+                &mut workers,
+                sim.professions,
+                &mut geometry,
+                sim.rng,
+            );
             sim.set_workers(&workers);
         }
     }
@@ -379,8 +384,7 @@ impl Agents {
                 }
                 Component::Build if m.message == 0 => {
                     // `FUN_14010dbe0`: one unit of work.
-                    if let Some(site) = m.entity.and_then(|e| env.construction.sites.get_mut(&e))
-                    {
+                    if let Some(site) = m.entity.and_then(|e| env.construction.sites.get_mut(&e)) {
                         site.progress += 1;
                     }
                 }
@@ -431,61 +435,68 @@ impl Agents {
         let busy = self.characters[i].stack.is_active();
         // The AI draws from the same stream the activities do.
         let mut rng = std::mem::replace(env.rng, Random::new(0));
-        ai.update(dt, &view, &rules.thresholds, &mut rng, || busy, |ai, a, rng| {
-            std::mem::swap(env.rng, rng);
-            let done = if a == activity::WORK || a == activity::EMERGENCY {
-                let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
-                if a == activity::WORK {
-                    jobs.assign_work(i, &mut sim);
-                } else {
-                    jobs.assign_emergency(i, &mut sim);
-                }
-                jobs.drain(&mut sim);
-                self.characters[i].stack.is_active()
-            } else {
-                let town = TownView {
-                    size: env.cells.size,
-                    types: &env.cells.types,
-                    regions: &self.regions,
-                    occupants: &env.cells.occupants,
-                    objects: &env.cells.objects,
-                    entities,
-                    happiness: &[],
-                };
-                let mut stock = TownStock {
-                    materials: env.materials,
-                    storages: env.storages,
-                    sites: env.sites,
-                };
-                let ch = &mut self.characters[i];
-                let done = run(
-                    ai,
-                    a,
-                    ch,
-                    &mut self.states[i],
-                    &town,
-                    &mut self.sectors,
-                    &mut stock,
-                    env.terrain,
-                    group,
-                    rules,
-                    env.cells.size,
-                    env.rng,
-                );
-                // Aborted CompleteTasks of the replaced sequence.
-                let outbox = std::mem::take(&mut ch.stack.outbox);
-                if !outbox.is_empty() {
+        ai.update(
+            dt,
+            &view,
+            &rules.thresholds,
+            &mut rng,
+            || busy,
+            |ai, a, rng| {
+                std::mem::swap(env.rng, rng);
+                let done = if a == activity::WORK || a == activity::EMERGENCY {
                     let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
-                    for m in outbox {
-                        jobs.fail(m.a, i, m.b, &mut sim);
+                    if a == activity::WORK {
+                        jobs.assign_work(i, &mut sim);
+                    } else {
+                        jobs.assign_emergency(i, &mut sim);
                     }
                     jobs.drain(&mut sim);
-                }
+                    self.characters[i].stack.is_active()
+                } else {
+                    let town = TownView {
+                        size: env.cells.size,
+                        types: &env.cells.types,
+                        regions: &self.regions,
+                        occupants: &env.cells.occupants,
+                        objects: &env.cells.objects,
+                        entities,
+                        happiness: &[],
+                    };
+                    let mut stock = TownStock {
+                        materials: env.materials,
+                        storages: env.storages,
+                        sites: env.sites,
+                    };
+                    let ch = &mut self.characters[i];
+                    let done = run(
+                        ai,
+                        a,
+                        ch,
+                        &mut self.states[i],
+                        &town,
+                        &mut self.sectors,
+                        &mut stock,
+                        env.terrain,
+                        group,
+                        rules,
+                        env.cells.size,
+                        env.rng,
+                    );
+                    // Aborted CompleteTasks of the replaced sequence.
+                    let outbox = std::mem::take(&mut ch.stack.outbox);
+                    if !outbox.is_empty() {
+                        let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                        for m in outbox {
+                            jobs.fail(m.a, i, m.b, &mut sim);
+                        }
+                        jobs.drain(&mut sim);
+                    }
+                    done
+                };
+                std::mem::swap(env.rng, rng);
                 done
-            };
-            std::mem::swap(env.rng, rng);
-            done
-        });
+            },
+        );
         *env.rng = rng;
         self.ais[i] = ai;
     }

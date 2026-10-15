@@ -798,9 +798,7 @@ impl StartingTown {
                 }
             }
         }
-        let capacity = (0..counts.len())
-            .map(|p| c.workforce.capacity(p))
-            .collect();
+        let capacity = (0..counts.len()).map(|p| c.workforce.capacity(p)).collect();
         (counts, capacity)
     }
 
@@ -856,8 +854,8 @@ impl StartingTown {
                 }
                 "residence" => t.controllers.push(Controller::Residence),
                 "work" => {
-                    t.max_workers = banished_formats::game::work_description(&data)
-                        .map_or(0, |w| w.max_workers)
+                    t.max_workers =
+                        banished_formats::game::work_description(&data).map_or(0, |w| w.max_workers)
                 }
                 "storage" => {
                     t.storage = storage_description(&data)

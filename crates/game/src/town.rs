@@ -148,7 +148,9 @@ impl Sim<'_, '_> {
     }
 
     fn build_point_count(&self, entity: usize) -> usize {
-        self.templates[self.placed[entity].template].build_points.len()
+        self.templates[self.placed[entity].template]
+            .build_points
+            .len()
     }
 
     /// The point `FUN_1400c7e70` faces: the model's position, else the map-rectangle centre.
@@ -324,7 +326,14 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_1400c5b60`: walk to a build point and work there once.
-    fn build_sequence(&mut self, c: usize, work: &mut Work, site: usize, point: [f32; 3], index: i32) {
+    fn build_sequence(
+        &mut self,
+        c: usize,
+        work: &mut Work,
+        site: usize,
+        point: [f32; 3],
+        index: i32,
+    ) {
         let facing = crate::character::work_facing(self.facing_centre(site), point);
         self.clear_citizen(c, Some(work));
         self.on_empty_think(c);
@@ -348,7 +357,10 @@ impl Sim<'_, '_> {
             }),
         );
         self.push(c, Action::ShowTool(-1));
-        self.push(c, self.perform(c, facing, if r != 0 { 13 } else { 16 }, 3.0, true));
+        self.push(
+            c,
+            self.perform(c, facing, if r != 0 { 13 } else { 16 }, 3.0, true),
+        );
         let walk = MoveTo::new(point, 2, 0, WALKABLE, 0, -1.0, self.rng);
         self.push(c, Action::move_to(walk));
         self.push(c, Action::ShowTool(if r != 0 { 4 } else { 7 }));
@@ -393,7 +405,8 @@ impl Sim<'_, '_> {
         let n = self.size as i32;
         let (x, y) = p.cell;
         let (w, h) = p.footprint;
-        (y..y + h).all(|cy| (x..x + w).all(|cx| self.cells.objects[(cy * n + cx) as usize].is_none()))
+        (y..y + h)
+            .all(|cy| (x..x + w).all(|cx| self.cells.objects[(cy * n + cx) as usize].is_none()))
     }
 
     /// `FUN_14010db00`: the site storage holds every requirement.
@@ -408,7 +421,11 @@ impl Sim<'_, '_> {
     /// `FUN_140134130`: register a work for the site's WorkComponent, replacing any.
     fn set_work(&mut self, jobs: &mut Jobs, entity: usize, work: Work, mask: u32, keep: bool) {
         self.remove_work(jobs, entity);
-        let keep = if keep { self.sites[&entity].work_priority } else { None };
+        let keep = if keep {
+            self.sites[&entity].work_priority
+        } else {
+            None
+        };
         let id = jobs.add(work, mask, keep);
         let priority = jobs.works[&id].priority;
         let site = self.sites.get_mut(&entity).unwrap();
@@ -832,12 +849,7 @@ impl Sim<'_, '_> {
     /// `FUN_1400f1310`: GatherRawMaterials' slot `+0x20`.
     fn gather_try(&mut self, work: &mut Work, c: usize, time: i64) -> u8 {
         let e = work.entity;
-        if !self
-            .workforce
-            .workplaces
-            .get(&e)
-            .is_some_and(|w| w.enabled)
-        {
+        if !self.workforce.workplaces.get(&e).is_some_and(|w| w.enabled) {
             return 1;
         }
         let cell = self.citizen_cell(c);

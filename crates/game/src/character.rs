@@ -473,7 +473,10 @@ pub enum Action {
     ShowTool(i32),
     /// `CompleteTask` (vtable `0x140165fe0`, constructor `FUN_1400cb270`): tell the job manager
     /// the task is done (start `FUN_1400cb010`) or abandoned (abort `FUN_1400caf90`).
-    CompleteTask { work: i32, param: i32 },
+    CompleteTask {
+        work: i32,
+        param: i32,
+    },
     /// `DropOffRawMaterial` (vtable `0x1401661a0`, start `FUN_1400cc7d0`): move up to `count`
     /// carried units into `storage`.
     DropOff {
@@ -542,7 +545,11 @@ impl Action {
             } => {
                 // `FUN_1400ccaf0`: as many as carried, up to the request, when they fit.
                 let carried = world.carried.available(*material);
-                let n = if *count >= 0 { carried.min(*count) } else { carried };
+                let n = if *count >= 0 {
+                    carried.min(*count)
+                } else {
+                    carried
+                };
                 if n > 0 && world.storages[*storage].fits(world.materials, *material, n) {
                     world.storages[*storage].add(*material, n);
                     world.carried.remove(*material, n);
@@ -698,10 +705,12 @@ impl ActionStack {
 
     /// `FUN_1400fc5d0`: does a chain start with this work's CompleteTask?
     pub fn holds_task(&self, work: i32) -> Option<i32> {
-        self.chains.iter().find_map(|c| match c.first().map(|t| &t.action) {
-            Some(Action::CompleteTask { work: w, param }) if *w == work => Some(*param),
-            _ => None,
-        })
+        self.chains
+            .iter()
+            .find_map(|c| match c.first().map(|t| &t.action) {
+                Some(Action::CompleteTask { work: w, param }) if *w == work => Some(*param),
+                _ => None,
+            })
     }
 
     pub fn set_on_empty(&mut self, actions: Vec<Action>) {

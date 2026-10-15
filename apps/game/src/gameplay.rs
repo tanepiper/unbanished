@@ -457,13 +457,10 @@ impl GameplayLoop {
             let changed = town.iterate(&grid, &mut self.rng, dt, temperature);
             // AnimationManager::Update runs inside the same iteration (FUN_14009b850).
             let stock = std::array::from_fn(|i| {
-                (
-                    self.stock_warnings.count[i],
-                    self.stock_warnings.limits[i],
-                )
+                (self.stock_warnings.count[i], self.stock_warnings.limits[i])
             });
-            let changed = town.update_citizens(&grid, &mut self.rng, dt, temperature, stock)
-                | changed;
+            let changed =
+                town.update_citizens(&grid, &mut self.rng, dt, temperature, stock) | changed;
             // AnimAudioEvents that passed their draw: `PlayEffect3D(effect, 4)` at the entity.
             for (entity, effect) in town.animation_events.drain(..) {
                 let p = town.placed[entity].position;
@@ -864,12 +861,9 @@ impl GameLoop for GameplayLoop {
             match self.utility.click(ctx.ui, id, &self.events, &values) {
                 Some(UtilityClick::ProfessionCount(profession, count)) => {
                     if let Some(town) = &mut self.town {
-                        town.construction
-                            .commands
-                            .push(banished_game::professions::Command::SetCount {
-                                profession,
-                                count,
-                            });
+                        town.construction.commands.push(
+                            banished_game::professions::Command::SetCount { profession, count },
+                        );
                     }
                     return Next::Stay;
                 }
@@ -1072,7 +1066,8 @@ impl GameLoop for GameplayLoop {
                     width: view.terrain.size + 1,
                     heights: &view.terrain.heights,
                 };
-                let Some(mut tool) = PlacementTool::start(ctx.archive, town, template, &mut self.rng)
+                let Some(mut tool) =
+                    PlacementTool::start(ctx.archive, town, template, &mut self.rng)
                 else {
                     return false;
                 };

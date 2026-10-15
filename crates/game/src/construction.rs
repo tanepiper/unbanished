@@ -263,7 +263,9 @@ pub fn run(host: &mut impl Callbacks, jobs: &mut Jobs, site: usize, scheduled: b
                     if index >= 0 && host.call(jobs, site, f) {
                         break;
                     }
-                    let Some(prev) = node.checked_sub(1) else { break };
+                    let Some(prev) = node.checked_sub(1) else {
+                        break;
+                    };
                     node = prev;
                     index = host.machine(site).controllers[node]
                         .find(state)
@@ -302,7 +304,9 @@ pub fn run(host: &mut impl Callbacks, jobs: &mut Jobs, site: usize, scheduled: b
                 if index >= 0 && host.call(jobs, site, f) {
                     break;
                 }
-                let Some(prev) = node.checked_sub(1) else { break };
+                let Some(prev) = node.checked_sub(1) else {
+                    break;
+                };
                 node = prev;
                 index = host.machine(site).controllers[node]
                     .find(state)
@@ -323,7 +327,9 @@ pub fn run(host: &mut impl Callbacks, jobs: &mut Jobs, site: usize, scheduled: b
                     if index >= 0 && host.call(jobs, site, f) {
                         break;
                     }
-                    let Some(prev) = node.checked_sub(1) else { break };
+                    let Some(prev) = node.checked_sub(1) else {
+                        break;
+                    };
                     node = prev;
                     index = host.machine(site).controllers[node]
                         .find(state)

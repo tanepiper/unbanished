@@ -226,7 +226,12 @@ impl PlacementTool {
     /// its BuildComponent starts building (`FUN_14010cfb0` shows mesh 0, the first stage). Its
     /// ZoneComponent reserves the footprint now (`FUN_1400a2830`); the map is stamped when the
     /// building is finished. Returns the new entity.
-    pub fn place(&mut self, archive: &Archive, town: &mut StartingTown, rotation: i32) -> Option<usize> {
+    pub fn place(
+        &mut self,
+        archive: &Archive,
+        town: &mut StartingTown,
+        rotation: i32,
+    ) -> Option<usize> {
         let rect = self.rect.filter(|_| self.valid)?;
         let degrees = (rotation * ROTATION_STEP as i32).rem_euclid(360);
         let id = town.placed.len();
@@ -298,9 +303,13 @@ mod construction_tests {
             &mut rng,
         )
         .unwrap();
-        let mut tool =
-            PlacementTool::start(&archive, &mut town, r"Template\WoodHouse.rsc:resource", &mut rng)
-                .unwrap();
+        let mut tool = PlacementTool::start(
+            &archive,
+            &mut town,
+            r"Template\WoodHouse.rsc:resource",
+            &mut rng,
+        )
+        .unwrap();
         let n = town.cells.size as i32;
         let spot = tool.find_clear_spot(&town, &terrain, town.start);
         let spot = spot.expect("no clear spot for a house");
@@ -323,7 +332,9 @@ mod construction_tests {
             let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
             town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
             warnings.recompute(&town.registered_storages(), &town.materials);
-            town.construction.jobs.step(banished_game::scheduler::ticks(dt));
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
             if step == 1 {
                 let (counts, capacity) = town.profession_counts();
                 assert_eq!(counts[builder], 2);
@@ -355,11 +366,7 @@ mod construction_tests {
         assert!(town.construction.jobs.is_empty());
         // Builders keep their profession without a workplace once the site is done.
         assert_eq!(town.profession_counts().0[builder], 2);
-        assert!(town
-            .agents
-            .states
-            .iter()
-            .all(|s| s.workplace.is_none()));
+        assert!(town.agents.states.iter().all(|s| s.workplace.is_none()));
         assert!(town
             .storages
             .iter()
