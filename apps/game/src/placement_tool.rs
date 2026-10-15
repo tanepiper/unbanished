@@ -2185,4 +2185,163 @@ mod construction_tests {
         assert!(laid_at.is_some(), "no eggs were laid");
         assert!(stored_at.is_some(), "no eggs were stored");
     }
+
+    /// Blight on a field withers its crops and passes to the field next to it, which grows
+    /// the same crop (and says so in the event log).
+    #[test]
+    fn blight_withers_a_field_and_spreads() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let crop = town
+            .construction
+            .known
+            .iter()
+            .copied()
+            .find(|&t| {
+                town.templates[t].growth.is_some() && !town.templates[t].reference.contains("Tree")
+            })
+            .expect("no known crop");
+        let n = town.cells.size as i32;
+        let empty = |town: &StartingTown, x: i32, y: i32| {
+            (y..y + 10).all(|cy| {
+                (x..x + 20).all(|cx| {
+                    let i = (cy * n + cx) as usize;
+                    cx < n
+                        && cy < n
+                        && town.cells.types[i] == banished_game::terrain::CellType::GROUND
+                        && town.cells.occupants[i].is_none()
+                        && town.cells.objects[i].is_none()
+                })
+            })
+        };
+        let (sx, sy) = town.start;
+        let rect = (8..150)
+            .flat_map(|r| (-r..=r).flat_map(move |d| [(d, -r), (d, r), (-r, d), (r, d)]))
+            .map(|(dx, dy)| (sx + dx, sy + dy))
+            .find(|&(x, y)| x > 0 && y > 0 && empty(&town, x, y))
+            .expect("no empty ground");
+        let mut fields = Vec::new();
+        // Big enough that a spread draw (±20 cells) falls on the other field often.
+        for dx in [0, 10] {
+            let id = town
+                .place_area(
+                    &archive,
+                    r"Template\CropField.rsc:resource",
+                    (rect.0 + dx, rect.1, 10, 10),
+                    &terrain,
+                )
+                .expect("the field was not placed");
+            town.construction
+                .commands
+                .push(banished_game::professions::Command::SetCrop {
+                    entity: id,
+                    crop: Some(crop),
+                });
+            fields.push(id);
+        }
+        let farmer = town
+            .construction
+            .professions
+            .list
+            .iter()
+            .position(|p| p.reference.to_ascii_lowercase().ends_with(":farmer"))
+            .expect("no farmer profession");
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: farmer,
+                count: 8,
+            });
+        let mut warnings = banished_game::events::StockWarnings::default();
+        warnings.limits[5] = 100_000;
+        let dt = 1.0 / 30.0;
+        let mut calendar = banished_game::calendar::Calendar::default();
+        let crops = |town: &StartingTown, e: usize| {
+            let f = town.construction.sites[&e].crop_field.as_ref().unwrap();
+            f.cells
+                .iter()
+                .filter_map(|c| c.entity)
+                .filter(|&x| town.placed[x].alive && !town.placed[x].removal_requested)
+                .count()
+        };
+        let (mut sick_at, mut withered, mut spread_at) = (None, false, None);
+        let mut before = 0;
+        let mut logged = false;
+        for step in 0..30 * 60 * 60 {
+            town.construction.calendar = calendar.seconds();
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 60.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 60.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            calendar.advance(banished_game::scheduler::ticks(dt));
+            // Both fields have crops coming up (planting goes on).
+            let growing = 20 <= crops(&town, fields[0]) && 5 <= crops(&town, fields[1]);
+            if sick_at.is_none() && growing {
+                sick_at = Some(step);
+                before = crops(&town, fields[0]);
+                let b = town.construction.sites.get_mut(&fields[0]).unwrap();
+                let b = b.disease.as_mut().unwrap();
+                b.left = banished_game::scheduler::ticks(8.0 * 300.0);
+                // Fast-forward: 200 spread intervals at once (a draw lands on the other
+                // field about one time in sixteen).
+                b.spread = banished_game::scheduler::ticks(200.0 * 0.125 * 300.0);
+            }
+            if sick_at.is_some() && crops(&town, fields[0]) < before {
+                withered = true;
+            }
+            for (kind, _, e) in std::mem::take(&mut town.construction.site_events) {
+                logged |= kind == 0xc && e == fields[1];
+            }
+            let other = town.construction.sites[&fields[1]]
+                .disease
+                .as_ref()
+                .unwrap();
+            if sick_at.is_some() && spread_at.is_none() && 0 < other.left {
+                spread_at = Some(step);
+            }
+            if withered && spread_at.is_some() {
+                break;
+            }
+        }
+        eprintln!(
+            "sick {sick_at:?} with {before} crops, now {}, spread {spread_at:?}",
+            crops(&town, fields[0])
+        );
+        assert!(sick_at.is_some(), "the fields never grew");
+        assert!(withered, "no crop withered");
+        assert!(spread_at.is_some(), "the blight did not spread");
+        assert!(logged, "the event log was not told");
+    }
 }

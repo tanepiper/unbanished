@@ -313,6 +313,7 @@ impl Agents {
                 fruits: &mut c.fruits,
                 wildlife: &mut *env.wildlife,
                 keep_piles: &mut c.keep_piles,
+                site_events: &mut c.site_events,
                 site_list: &mut c.site_list,
                 events: Vec::new(),
                 piles: &mut c.piles,
@@ -518,6 +519,7 @@ impl Agents {
             sim.update_attendance();
             sim.age_piles(jobs, ticks(dt));
             sim.update_hunts(ticks(dt));
+            sim.update_blight(ticks(dt));
             jobs.drain(&mut sim);
         }
         // The residences' state-2 updates (`FUN_14012ee40`).

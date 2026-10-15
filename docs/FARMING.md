@@ -213,7 +213,6 @@ The other slots:
 Not ported:
 
 - Status icons, the tracker and the production counter.
-- The pasture's DiseaseComponent (`Pasture_disease`), open with the crop fields' disease.
 - The debug fill `FUN_140060bf0`.
 
 Verification:
@@ -223,4 +222,48 @@ Verification:
   and with the limit at 2 the herdsman culls down to it, leaving meat.
 - `a_pasture_gathers_eggs`: hens in a pasture lay egg piles at the shelter, which are hauled
   to storage.
+
+## Blight (`crates/game/src/blight.rs`)
+
+Fields, orchards and pastures carry a DiseaseComponent (vtable `0x14015f3b0`). Fields and
+pastures share its DiseaseDescription (`FUN_1400497a0`) layout:
+
+| | Crop field | Pasture |
+|---|---|---|
+| Months it can start (`+0x20..+0x24`) | 3–7 | 0–12 |
+| Odds (`+0x28`, `+0x2c` when the same thing grew last) | 200, 150 | 200, 150 |
+| Check every (`+0x30` × 300 s) | 0.25 | 0.25 |
+| A death every (`+0x34` × 300 s) | 0.03 | 0.2 |
+| A spread every (`+0x38` × 300 s), within (`+0x40` cells) | 0.125, 20 | 0.125, 40 |
+| Lasts (`+0x3c` × 300 s) | 8 | 12 |
+
+- **Starting** (`FUN_140048f70`): while healthy and in its months, a check every interval.
+  The odds are one in `12 / check × odds`; `odds_same` applies when a cell's last growth
+  (`+0x10`) is what grew when the blight last ended (`FUN_1400a5030`). It only takes a built
+  site with something to blight (`FUN_140048d00`). That posts event 12 at severity 3 with the
+  site's toolbar name, which the game logs from `Construction::site_events`.
+- **While sick** (`FUN_1400494f0`):
+  - The time left runs down.
+  - It ends (`FUN_140048c80`, remembering what grows now) when the time runs out or nothing
+    is left (`FUN_140048b10`: no animal, or no natural resource on the cells).
+  - Each death interval kills one random target, up to 50 draws:
+    - a pasture: an animal no one has taken (`FUN_1400486d0`);
+    - otherwise a natural resource no one is removing (`FUN_1400484a0`). It withers: growth
+      0, no pile, flagged for removal, clip 2 when it has one.
+  - Each spread interval (`FUN_1400494f0`) picks a random cell within the radius of the
+    centre. The field or pasture there (occupant, else object) catches it when it grows the
+    same thing (`FUN_1400488e0`: the pasture's kind, the first natural resource, else the
+    crop or tree).
+
+Not ported:
+
+- the particles;
+- the debug flag that stops it (`Game +0xd0` bit 5, set from the console);
+- the town's list of DiseaseComponents (`+0xf0`).
+
+The updates run every iteration with the sites (see [JOBS.md](JOBS.md)).
+
+Verification: `placement_tool::construction_tests::blight_withers_a_field_and_spreads`. Two 10
+× 10 wheat fields; the first is made sick (with 200 spread intervals banked). Its crops
+wither, the second field catches it, and the event is posted.
 

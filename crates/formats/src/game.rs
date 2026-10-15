@@ -1386,6 +1386,47 @@ pub fn create_fenced_description(data: &[u8]) -> Result<CreateFencedDescription>
     Ok(value)
 }
 
+/// `DiseaseDescription` (serializer `FUN_1400497a0`): blight on fields, orchards and pastures.
+/// It can start in months `+0x20..=+0x24`, one check every `+0x30` × 300 s, with odds
+/// `1 / (12 / check × +0x28)` (`+0x2c` when a cell grew the same thing last), kills a crop,
+/// tree or animal every `+0x34` × 300 s, spreads within `+0x40` cells every `+0x38` × 300 s,
+/// and lasts `+0x3c` × 300 s.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct DiseaseDescription {
+    pub months: (i32, i32),
+    pub odds: f32,
+    pub odds_same: f32,
+    pub check: f32,
+    pub kill: f32,
+    pub spread: f32,
+    pub duration: f32,
+    pub radius: i32,
+}
+
+pub fn disease_description(data: &[u8]) -> Result<DiseaseDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("DiseaseDescription") {
+            return format_err(format!(
+                "expected DiseaseDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(DiseaseDescription {
+                months: (r.i32()?, r.i32()?),
+                odds: r.f32()?,
+                odds_same: r.f32()?,
+                check: r.f32()?,
+                kill: r.f32()?,
+                spread: r.f32()?,
+                duration: r.f32()?,
+                radius: r.i32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `PastureDescription` (serializer `FUN_14012d6f0`, versioned): from version 1 the stock slot
 /// of its products' limit `+0x20` (5 by the factory `FUN_140037100`).
 pub fn pasture_description(data: &[u8]) -> Result<i32> {

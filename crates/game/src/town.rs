@@ -100,6 +100,7 @@ pub struct Sim<'s, 't> {
     /// The animals (livestock and their pastures).
     pub wildlife: &'s mut crate::wildlife::Wildlife,
     pub keep_piles: &'s mut BTreeMap<usize, bool>,
+    pub site_events: &'s mut Vec<(i32, i32, usize)>,
     pub site_list: &'s mut Vec<usize>,
     pub events: Vec<JobEvent>,
     pub piles: &'s mut BTreeMap<usize, Pile>,

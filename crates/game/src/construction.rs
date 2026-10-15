@@ -678,6 +678,8 @@ pub struct SiteTemplate {
     pub orchard: Option<crate::orchard::OrchardTemplate>,
     /// PastureDescription `+0x20`: the stock slot of its products' limit.
     pub pasture: Option<i32>,
+    /// DiseaseDescription (fields, orchards, pastures).
+    pub disease: Option<banished_formats::game::DiseaseDescription>,
 }
 
 impl SiteTemplate {
@@ -787,6 +789,8 @@ pub struct Site {
     /// MultiObjectComponent `+0x48`: the entities placed with this one (a pasture's shelter
     /// and fences), in order.
     pub parts: Vec<usize>,
+    /// DiseaseComponent.
+    pub disease: Option<crate::blight::Blight>,
 }
 
 /// The job manager, professions, workforce and every construction site.
@@ -832,6 +836,9 @@ pub struct Construction {
     pub fruits: BTreeMap<usize, crate::orchard::Fruit>,
     /// NaturalResourceComponent `+0x2d` set by a crop field: whether harvesting leaves a pile.
     pub keep_piles: BTreeMap<usize, bool>,
+    /// Event-log entries the sites posted (`FUN_14009a2d0`): type, severity, entity; the
+    /// game formats them with the entity's toolbar name.
+    pub site_events: Vec<(i32, i32, usize)>,
     /// The town manager's known crops, orchard trees and livestock (`FUN_140096ef0`), as
     /// placed-object templates.
     pub known: Vec<usize>,

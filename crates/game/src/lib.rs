@@ -8,6 +8,7 @@ pub mod activities;
 pub mod agents;
 pub mod ai;
 pub mod animation;
+pub mod blight;
 pub mod calendar;
 pub mod character;
 pub mod citizens;

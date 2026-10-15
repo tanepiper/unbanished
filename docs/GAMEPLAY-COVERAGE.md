@@ -25,13 +25,14 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **Immigration**, **Nomad** | TownHall, Nomad | missing |
 | Attendance | School, Chapel, Doctor | yes (staff by LocationWork, places, lessons, treatment) |
 | **Happiness** | Tavern, Well, Market, Cemetery, Chapel, TradingPost, Quarry, Mine | yes (`happiness.rs`; map layers, registry, visits, loitering pick) |
-| Healer, Disease (citizens) | Herbalist | registry and herb treatment; crop disease (fields) missing |
+| Healer, Disease (citizens) | Herbalist | registry and herb treatment |
+| Disease (blight) | fields, orchards, pastures | yes ([FARMING.md](FARMING.md#blight-cratesgamesrcblightrs)) |
 | **Cemetery**, **Tombstone** | Cemetery | missing |
 | **Well**, **Fire** | Well; every building | missing |
 | **Market**, **MarketLocation** | Market | missing |
 | **Trade**, **Boat** | TradingPost, TraderBoat | missing |
 | **Destroy** | every building | missing (demolition) |
-| **CropField** | fields | yes ([FARMING.md](FARMING.md); crop disease open) |
+| **CropField** | fields | yes ([FARMING.md](FARMING.md)) |
 | **Orchard**, **Fruit** | orchards | yes ([FARMING.md](FARMING.md)) |
 | **Pasture**, **Livestock** | pastures, animals | yes ([FARMING.md](FARMING.md); breeding, culling, products, starting livestock) |
 | **Herd**, **Population**, **WildAnimal**, **Animal** | deer, livestock | yes (`wildlife.rs`) |

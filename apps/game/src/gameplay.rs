@@ -708,6 +708,40 @@ impl GameplayLoop {
         }
     }
 
+    /// The sites' events (`FUN_14009a2d0` with the entity): `@2` its toolbar name, at its
+    /// map-rectangle centre cell (`FUN_14009a500`).
+    fn log_site_events(&mut self, ctx: &mut Ctx) {
+        let (month, year) = (self.month(), self.calendar.year as i32);
+        let Some(town) = &mut self.town else { return };
+        let events = std::mem::take(&mut town.construction.site_events);
+        for (kind, severity, e) in events {
+            let Some(p) = town.placed.get(e) else {
+                continue;
+            };
+            let reference = &town.templates[p.template].reference;
+            let file = reference.split(':').next().unwrap_or("");
+            let name = ctx
+                .archive
+                .read_ref(&format!("{file}:toolbar"))
+                .ok()
+                .and_then(|d| banished_formats::game::toolbar_description(&d).ok())
+                .map(|t| ctx.ui.res.string(t.string_table.as_deref(), &t.name))
+                .unwrap_or_default();
+            let n = town.cells.size as i32;
+            let cell = (p.cell.1 + (p.footprint.1 >> 1)) * n + p.cell.0 + (p.footprint.0 >> 1);
+            let auto_slow = ctx.settings.game.auto_slow;
+            self.events.add(
+                kind,
+                severity,
+                cell,
+                month,
+                year,
+                [name, String::new(), String::new()],
+                auto_slow,
+            );
+        }
+    }
+
     /// `FUN_14006cf10`: the camera's four far-frustum corner rays met with the ground plane
     /// (z = 0), ordered top-left, top-right, bottom-left, bottom-right.
     fn frustum(&self) -> Option<[[f32; 2]; 4]> {
@@ -1102,6 +1136,7 @@ impl GameLoop for GameplayLoop {
             }
         }
         self.log_life_events(ctx);
+        self.log_site_events(ctx);
         self.move_cooldown -= dt;
         self.update_audio(ctx, dt);
         let month = self.month();

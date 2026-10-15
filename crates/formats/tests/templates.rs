@@ -560,3 +560,22 @@ fn pasture_descriptions_parse() {
         (5, 20, 6.0, 0.8, 0.6)
     );
 }
+
+#[test]
+fn disease_descriptions_parse() {
+    use banished_formats::game::disease_description;
+    let Some(archive) = archive() else { return };
+    let read = |r: &str| disease_description(&archive.read_ref(r).unwrap()).unwrap();
+    let field = read("Template/CropField.rsc:disease");
+    assert_eq!(
+        (field.months, field.odds, field.odds_same),
+        ((3, 7), 200.0, 150.0)
+    );
+    assert_eq!((field.check, field.duration, field.radius), (0.25, 8.0, 20));
+    let pasture = read("Template/Pasture.rsc:disease");
+    assert_eq!(
+        (pasture.months, pasture.kill, pasture.radius),
+        ((0, 12), 0.2, 40)
+    );
+    read("Template/Orchard.rsc:disease");
+}

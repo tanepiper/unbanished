@@ -1770,6 +1770,9 @@ impl StartingTown {
                         t.crop_field = Some(banished_game::farm::CropFieldTemplate { tend, group });
                     }
                 }
+                "disease" => {
+                    t.disease = banished_formats::game::disease_description(&data).ok();
+                }
                 "pasture" => {
                     if let Ok(group) = banished_formats::game::pasture_description(&data) {
                         t.controllers.push(Controller::Pasture);
@@ -1968,6 +1971,11 @@ impl StartingTown {
                         works: Vec::new(),
                     }),
                 parts: Vec::new(),
+                // DiseaseComponent's setup (`FUN_1400495b0`): on a pasture or not.
+                disease: t.disease.map(|_| banished_game::blight::Blight {
+                    pasture: t.pasture.is_some(),
+                    ..Default::default()
+                }),
             },
         );
         // PastureComponent's setup (`FUN_14012cf20`, no kind) over its MapComponent's area.
