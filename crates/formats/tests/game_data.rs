@@ -217,5 +217,6 @@ fn decodes_all_ui_resources() {
     assert_eq!(counts["StringTable"], 115);
     assert_eq!(counts["ButtonDescription"], 138);
     assert_eq!(counts["LabelDescription"], 145);
-    assert_eq!(counts.values().sum::<usize>(), 1644);
+    assert_eq!(counts["FrustumOutlineDescription"], 1);
+    assert_eq!(counts.values().sum::<usize>(), 1645);
 }

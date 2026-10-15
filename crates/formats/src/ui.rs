@@ -153,6 +153,13 @@ pub enum ElementKind {
         sprite: String,
         size: [i32; 2],
     },
+    /// The game's `FrustumOutlineDescription` (MapUI's camera outline): an image block whose
+    /// element draws lines instead of the sprite (`FUN_14006c7f0`).
+    FrustumOutline {
+        sprite_sheet: Ref,
+        sprite: String,
+        size: [i32; 2],
+    },
     AnimatedImage {
         sprite_sheet: Ref,
         sprite: String,
@@ -387,6 +394,14 @@ fn read_element(class: &'static str, r: &mut Reader) -> Result<Element> {
                 size,
             }
         }
+        "FrustumOutlineDescription" => {
+            let (sprite_sheet, sprite, size) = read_image(r)?;
+            ElementKind::FrustumOutline {
+                sprite_sheet,
+                sprite,
+                size,
+            }
+        }
         "AnimatedImageDescription" => {
             let (sprite_sheet, sprite, size) = read_image(r)?;
             r.block(|r, _| {
@@ -592,6 +607,7 @@ pub const ELEMENT_CLASSES: &[&str] = &[
     "BorderDescription",
     "ImageDescription",
     "AnimatedImageDescription",
+    "FrustumOutlineDescription",
     "ButtonDescription",
     "CheckDescription",
     "ComboDescription",

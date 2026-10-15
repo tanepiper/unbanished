@@ -70,15 +70,15 @@ fn every_shipped_element_class_instantiates_lays_out_and_draws() {
         elements += 1;
         ui.nodes.clear();
     }
-    assert_eq!(format::ELEMENT_CLASSES.len(), 27);
+    assert_eq!(format::ELEMENT_CLASSES.len(), 28);
     let missing: Vec<_> = format::ELEMENT_CLASSES
         .iter()
         .copied()
         .filter(|class| !classes.contains(class))
         .collect();
     assert_eq!(missing, vec!["ClipRegionDescription"]);
-    assert_eq!(classes.len(), 26);
-    assert_eq!(elements, 1439);
+    assert_eq!(classes.len(), 27);
+    assert_eq!(elements, 1440);
 }
 
 #[test]

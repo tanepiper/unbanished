@@ -18,6 +18,8 @@ pub struct SceneView {
     /// StatusIconComponent billboards and the icon sheets they use (slice E).
     pub status_icons: Vec<crate::status_icons::StatusIcon>,
     pub icon_sheets: std::collections::BTreeMap<String, crate::status_icons::IconSheet>,
+    /// Minimap overlay (`Game +0x148 → +0x28`): revision and RGBA rows, top row north.
+    pub minimap_overlay: Option<(u64, u32, Vec<u8>)>,
 }
 
 pub enum SceneCamera {
@@ -38,6 +40,7 @@ impl SceneView {
             lighting,
             highlight: Default::default(),
             status_icons: Vec::new(),
+            minimap_overlay: None,
             icon_sheets: Default::default(),
         }
     }

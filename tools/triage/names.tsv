@@ -120,3 +120,15 @@
 140067fa0	EventLogUI::OnOpened	docs/EVENT-LOG.md
 140067da0	EventLogUI::Refresh	docs/EVENT-LOG.md
 140067f30	EventLogUI::OnEvent	docs/EVENT-LOG.md
+14006d3e0	MapUI::OnOpened	docs/MAP-WINDOW.md
+14006d460	MapUI::BindImage	docs/MAP-WINDOW.md
+14006d340	MapUI::OnEvent	docs/MAP-WINDOW.md
+14006d1b0	MapUI::MoveCamera	docs/MAP-WINDOW.md
+14006c7f0	FrustumOutlineElement::Draw	docs/MAP-WINDOW.md
+14006cf10	FrustumOutline::GroundCorners	docs/MAP-WINDOW.md
+1400aa610	Minimap::Render	docs/MAP-WINDOW.md
+1400aa200	Minimap::PaintRect	docs/MAP-WINDOW.md
+1400aa5b0	Minimap::UploadOverlay	docs/MAP-WINDOW.md
+1400aa550	Minimap::SetSize	docs/MAP-WINDOW.md
+1400aa350	Minimap::CreateTextures	docs/MAP-WINDOW.md
+140129680	MapComponent::Activate	docs/MAP-WINDOW.md

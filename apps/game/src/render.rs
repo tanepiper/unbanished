@@ -125,6 +125,9 @@ pub struct Renderer {
     status_icons: crate::status_icons::StatusIconRenderer,
     pending_icons: Vec<crate::status_icons::StatusIcon>,
     icon_sheets: std::collections::BTreeMap<String, crate::status_icons::IconSheet>,
+    /// The minimap image (rendered once per world) and the overlay revision uploaded.
+    minimap: Option<wgpu::Texture>,
+    minimap_overlay: u64,
     pub backend: String,
 }
 
@@ -589,6 +592,8 @@ impl Renderer {
             pending_icons: Vec::new(),
             icon_sheets: Default::default(),
             extras,
+            minimap: None,
+            minimap_overlay: 0,
             backend,
         }
     }
@@ -726,6 +731,8 @@ impl Renderer {
             );
             self.world_id = view.id;
             self.models_revision = view.models.as_ref().map_or(0, |m| m.revision);
+            self.minimap = None;
+            self.minimap_overlay = 0;
         } else if let Some(models) = &view.models {
             if self.models_revision != models.revision {
                 self.models
@@ -733,6 +740,167 @@ impl Renderer {
                 self.models_revision = models.revision;
             }
         }
+    }
+
+    /// MapUI's images. `FUN_1400aa610` renders the terrain and water geometries once, on the
+    /// first game draw: an orthographic camera over the map (±size/2, near 0, far 512) at
+    /// height 100 looking straight down (pitch -90), the light from directly above, fog pushed
+    /// to 1000–1001, into a size×size image. The overlay (`FUN_1400aa5b0`) is uploaded when it
+    /// changes.
+    pub fn update_minimap(&mut self, view: &crate::scene::SceneView) {
+        let Some((revision, size, rgba)) = &view.minimap_overlay else {
+            return;
+        };
+        if self.minimap.is_none() && self.terrain.is_some() {
+            self.render_minimap(*size, &view.lighting);
+        }
+        if self.minimap_overlay != *revision {
+            let texture = banished_gfx::upload_rgba_as(
+                &self.device,
+                &self.queue,
+                "minimap overlay",
+                *size,
+                *size,
+                std::slice::from_ref(rgba),
+                wgpu::TextureFormat::Rgba8Unorm,
+            );
+            self.ui
+                .set_external(&self.device, crate::loops::MINIMAP_OVERLAY, &texture);
+            self.minimap_overlay = *revision;
+        }
+    }
+
+    fn render_minimap(&mut self, n: u32, lighting: &Lighting) {
+        let targets = Targets::new(&self.device, (n, n), &self.blit_layout, &self.blit_sampler);
+        let half = n as f32 * 0.5;
+        let eye = Vec3::new(0.0, 0.0, 100.0);
+        use glam::camera::rh::{proj::directx::orthographic, view::look_at_mat4};
+        let view_proj = orthographic(-half, half, -half, half, 0.0, 512.0)
+            * look_at_mat4(eye, Vec3::ZERO, Vec3::Y);
+        let mut lighting = *lighting;
+        lighting.light_dir = Vec3::NEG_Z;
+        lighting.fog_start = 1000.0;
+        lighting.fog_end = 1001.0;
+        lighting.fog_color = Vec3::ONE;
+        let scene = SceneFrame {
+            view_proj,
+            lighting,
+            eye,
+            far: 512.0,
+            right: Vec3::X,
+            forward: Vec3::NEG_Z,
+            up: Vec3::Y,
+            time: 0.0,
+        };
+        self.extras.bind_targets(
+            &self.device,
+            &targets.frame_copy_view,
+            &targets.reflection_view,
+        );
+        let water = self.extras.water_level();
+        self.write_globals(&self.globals, &scene, None);
+        if let Some(level) = water {
+            self.write_globals(&self.reflect_globals, &scene, Some(level));
+        }
+        let output = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("minimap"),
+            size: wgpu::Extent3d {
+                width: n,
+                height: n,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let output_view = output.create_view(&Default::default());
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        // `Context::Clear(7, 0xffff00ff)`.
+        let clear = wgpu::Color {
+            r: 1.0,
+            g: 0.0,
+            b: 1.0,
+            a: 1.0,
+        };
+        if water.is_some() {
+            let mut pass = Self::scene_pass(
+                &mut encoder,
+                "minimap reflection",
+                &targets.reflection_view,
+                &targets.reflection_depth,
+                Some(clear),
+            );
+            self.draw_terrain(&mut pass, &self.reflect_bind);
+        }
+        {
+            let mut pass = Self::scene_pass(
+                &mut encoder,
+                "minimap",
+                &targets.scene_view,
+                &targets.depth,
+                Some(clear),
+            );
+            self.draw_terrain(&mut pass, &self.globals_bind);
+        }
+        if water.is_some() {
+            encoder.copy_texture_to_texture(
+                targets.scene.as_image_copy(),
+                targets.frame_copy.as_image_copy(),
+                wgpu::Extent3d {
+                    width: n,
+                    height: n,
+                    depth_or_array_layers: 1,
+                },
+            );
+            let mut pass = Self::scene_pass(
+                &mut encoder,
+                "minimap water",
+                &targets.scene_view,
+                &targets.depth,
+                None,
+            );
+            self.extras.draw_water(&mut pass, &self.globals_bind);
+        }
+        {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("minimap blit"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &output_view,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(clear),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &targets.depth,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Discard,
+                    }),
+                    stencil_ops: None,
+                }),
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            pass.set_pipeline(&self.blit_pipeline);
+            pass.set_bind_group(0, &targets.blit_bind, &[]);
+            pass.draw(0..3, 0..1);
+        }
+        self.queue.submit([encoder.finish()]);
+        self.extras.bind_targets(
+            &self.device,
+            &self.targets.frame_copy_view,
+            &self.targets.reflection_view,
+        );
+        self.ui
+            .set_external(&self.device, crate::loops::MINIMAP, &output_view);
+        self.minimap = Some(output);
     }
 
     /// Upload a terrain's mesh, surface image and textures.

@@ -73,7 +73,7 @@ pub trait GameLoop {
     fn screen(&self) -> Option<&Screen>;
     /// A scripted capture command (`--event`); loops that do not take it return false.
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    fn script(&mut self, _command: &str) -> bool {
+    fn script(&mut self, _ctx: &mut Ctx, _command: &str) -> bool {
         false
     }
     fn view(&self) -> View<'_> {

@@ -57,6 +57,8 @@ pub struct GameplayLoop {
     stock_warnings: banished_game::events::StockWarnings,
     /// The event ribbon (`Dialog/EventNotify.rsc`) and its popups.
     notify: Option<crate::event_notify::EventNotify>,
+    /// Screen aspect of the last frame (MapUI's frustum outline).
+    aspect: f32,
 }
 
 impl GameplayLoop {
@@ -84,6 +86,7 @@ impl GameplayLoop {
             events: Default::default(),
             stock_warnings: Default::default(),
             notify: None,
+            aspect: 1.6,
         }
     }
 
@@ -114,6 +117,8 @@ impl GameplayLoop {
         });
         StatusValues {
             events: Some(self.events.clone()),
+            map_size: self.town.as_ref().map_or(0, |t| t.cells.size as u32),
+            frustum: self.frustum(),
             town_name: self.params.town_name.clone(),
             year: self.calendar.year,
             month: self.month(),
@@ -435,6 +440,28 @@ impl GameplayLoop {
         models_changed
     }
 
+    /// `FUN_14006cf10`: the camera's four far-frustum corner rays met with the ground plane
+    /// (z = 0), ordered top-left, top-right, bottom-left, bottom-right.
+    fn frustum(&self) -> Option<[[f32; 2]; 4]> {
+        let view = self.view.as_ref()?;
+        let SceneCamera::Map(camera) = &view.camera else {
+            return None;
+        };
+        let inv = camera.view_proj(&view.terrain, self.aspect).inverse();
+        let eye = camera.eye(&view.terrain);
+        let corner = |x: f32, y: f32| {
+            let dir = inv.project_point3(glam::Vec3::new(x, y, 1.0)) - eye;
+            let t = -eye.z / dir.z;
+            [eye.x + dir.x * t, eye.y + dir.y * t]
+        };
+        Some([
+            corner(-1.0, 1.0),
+            corner(1.0, 1.0),
+            corner(-1.0, -1.0),
+            corner(1.0, -1.0),
+        ])
+    }
+
     /// `FUN_140067cd0` / `FUN_140068f00`: centre the camera on a cell
     /// (`x = cell % w - (w/2 - 0.5)`, likewise `y`; the original also takes the ground height).
     fn go_to(&mut self, cell: i32) {
@@ -446,6 +473,11 @@ impl GameplayLoop {
         if let SceneCamera::Map(camera) = &mut view.camera {
             camera.target = glam::Vec2::new((cell % n) as f32 - half, (cell / n) as f32 - half);
         }
+    }
+
+    fn map_click(&self, ctx: &mut Ctx) -> Option<glam::Vec2> {
+        let size = self.town.as_ref()?.cells.size as u32;
+        self.utility.map_click(ctx.ui, self.cursor, size)
     }
 
     fn return_to_menu() -> Next {
@@ -520,6 +552,9 @@ impl GameLoop for GameplayLoop {
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
+        if ctx.ui.screen[0] > 0 && ctx.ui.screen[1] > 0 {
+            self.aspect = ctx.ui.screen[0] as f32 / ctx.ui.screen[1] as f32;
+        }
         if let Some(toolbar) = &self.toolbar {
             toolbar.relayout(ctx.ui);
         }
@@ -575,6 +610,12 @@ impl GameLoop for GameplayLoop {
                 self.highlight
                     .geometry(ctx.archive, town, &grid, self.selection.selected);
             view.status_icons = town.status_icons();
+            // Repainted when entities change (MapComponent activation/removal).
+            if models_changed || view.minimap_overlay.is_none() {
+                let revision = view.minimap_overlay.as_ref().map_or(0, |o| o.0) + 1;
+                view.minimap_overlay =
+                    Some((revision, town.cells.size as u32, town.minimap_overlay()));
+            }
             for r in town.icon_sheet_refs() {
                 if !view.icon_sheets.contains_key(&r) {
                     if let Some(sheet) = crate::status_icons::load_sheet(ctx.archive, &r) {
@@ -643,8 +684,15 @@ impl GameLoop for GameplayLoop {
             Action::Slower => self.speed = self.speed.saturating_sub(1),
             Action::Faster => self.speed = (self.speed + 1).min((SPEED_LEVELS.len() - 1) as u8),
             Action::Utility(template) => {
-                self.utility
-                    .toggle(ctx.ui, screen, ctx.archive, &template, Some(&self.events));
+                let map_size = self.town.as_ref().map_or(0, |t| t.cells.size as u32);
+                self.utility.toggle(
+                    ctx.ui,
+                    screen,
+                    ctx.archive,
+                    &template,
+                    Some(&self.events),
+                    map_size,
+                );
             }
             // Toolbar kind 1 → FUN_140108030: start (or end) the build tool.
             Action::Build(Some(template)) => {
@@ -704,6 +752,15 @@ impl GameLoop for GameplayLoop {
                         None => log::info!("{}: cannot build here", tool.reference),
                     }
                     self.refresh_placement(ctx);
+                } else if let Some(target) = self.map_click(ctx) {
+                    // MapUI: move the camera (`FUN_14006d1b0`).
+                    if let Some(SceneView {
+                        camera: SceneCamera::Map(c),
+                        ..
+                    }) = &mut self.view
+                    {
+                        c.target = target;
+                    }
                 } else {
                     self.select_at_cursor(ctx);
                     self.position_entity_window(ctx);
@@ -743,11 +800,28 @@ impl GameLoop for GameplayLoop {
         self.screen.as_ref()
     }
 
-    /// `event KIND [CELL]`: post an event at severity 3 (captures of the event UI).
-    fn script(&mut self, command: &str) -> bool {
+    /// Capture scripts: `event KIND [CELL]` posts an event at severity 3; `open TEMPLATE`
+    /// toggles a utility window.
+    fn script(&mut self, ctx: &mut Ctx, command: &str) -> bool {
         let mut words = command.split_whitespace();
-        if words.next() != Some("event") {
-            return false;
+        match words.next() {
+            Some("event") => {}
+            Some("open") => {
+                let (Some(template), Some(screen)) = (words.next(), self.screen.as_mut()) else {
+                    return false;
+                };
+                let map_size = self.town.as_ref().map_or(0, |t| t.cells.size as u32);
+                self.utility.toggle(
+                    ctx.ui,
+                    screen,
+                    ctx.archive,
+                    template,
+                    Some(&self.events),
+                    map_size,
+                );
+                return true;
+            }
+            _ => return false,
         }
         let Some(kind) = words.next().and_then(|k| k.parse().ok()) else {
             return false;
@@ -915,6 +989,7 @@ mod tests {
                     ctx.archive,
                     "Template/StatusBar.rsc",
                     None,
+                    0,
                 );
                 gameplay.update_hud(ctx.ui);
                 let screen = gameplay.screen.as_ref().unwrap();

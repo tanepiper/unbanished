@@ -114,6 +114,13 @@ pub enum Kind {
     Viewport,
     /// Scrolling list of text rows (tool widget, styled with game assets).
     List(ListData),
+    /// Line segments in element pixels, drawn with the sprite in the element colour and clipped
+    /// to the element (the game's `FrustumOutlineElement`, `SpriteContext::AddLine`).
+    Lines {
+        sprite: Option<SpriteRef>,
+        size: [i32; 2],
+        lines: Vec<[i32; 4]>,
+    },
     /// Application texture drawn letterboxed inside the element.
     Picture {
         texture: u32,
@@ -336,6 +343,15 @@ impl Ui {
             } => Kind::Image {
                 sprite: self.res.sprite(sprite_sheet.as_deref(), sprite),
                 size: *size,
+            },
+            ElementKind::FrustumOutline {
+                sprite_sheet,
+                sprite,
+                size,
+            } => Kind::Lines {
+                sprite: self.res.sprite(sprite_sheet.as_deref(), sprite),
+                size: *size,
+                lines: Vec::new(),
             },
             ElementKind::AnimatedImage {
                 sprite_sheet,
@@ -656,6 +672,7 @@ impl Ui {
                     (h(0) + h(6)).max(h(2) + h(8)),
                 ]
             }
+            Kind::Lines { size, .. } => size,
             Kind::Image { sprite, size } => [
                 if size[0] > 0 {
                     size[0]
@@ -923,6 +940,7 @@ impl Ui {
                 | Kind::List(_)
                 | Kind::Picture { .. }
                 | Kind::Image { .. }
+                | Kind::Lines { .. }
                 | Kind::AnimatedImage { .. } => {
                     // GroupElement fills the space offered, less its margins.
                     let n = &mut self.nodes[id];
@@ -1134,6 +1152,31 @@ impl Ui {
             Kind::Image {
                 sprite: Some(s), ..
             } => Self::sprite_quad(out, s, n.rect, color, clip),
+            Kind::Lines {
+                sprite: Some(s),
+                lines,
+                ..
+            } => {
+                // One-pixel steps along each segment, clipped to the element.
+                let r = n.rect;
+                let clip = Some(match clip {
+                    Some(c) => [
+                        c[0].max(r[0]),
+                        c[1].max(r[1]),
+                        c[2].min(r[2]),
+                        c[3].min(r[3]),
+                    ],
+                    None => r,
+                });
+                for &[x0, y0, x1, y1] in lines {
+                    let steps = (x1 - x0).abs().max((y1 - y0).abs()).max(1);
+                    for i in 0..=steps {
+                        let x = r[0] + x0 + (x1 - x0) * i / steps;
+                        let y = r[1] + y0 + (y1 - y0) * i / steps;
+                        Self::sprite_quad(out, s, [x, y, x + 1, y + 1], color, clip);
+                    }
+                }
+            }
             Kind::AnimatedImage { sprites, frame, .. } => {
                 if let Some(Some(sprite)) = sprites.get(*frame) {
                     Self::sprite_quad(out, sprite, n.rect, color, clip);

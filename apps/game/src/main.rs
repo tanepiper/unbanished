@@ -259,6 +259,12 @@ impl Game {
 
     /// Scripted runs: select the combo item whose text is `item` (case-insensitive), as a
     /// player would, so captures can reproduce New Game settings chosen in the original.
+    /// Run a loop script command (captures).
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    pub fn script(&mut self, command: &str) -> bool {
+        self.with_ctx(|main, ctx| main.current_mut().script(ctx, command))
+    }
+
     pub fn select_combo(&mut self, name: &str, item: &str, size: (u32, u32)) -> bool {
         let Some(screen) = self.main.current().screen() else {
             return false;
@@ -307,6 +313,7 @@ impl Game {
         let (terrain, clear) = match self.main.current().view() {
             View::World(view) => {
                 renderer.set_scene(view);
+                renderer.update_minimap(view);
                 let fog = view.lighting.fog_color;
                 (
                     Some(view.frame(renderer.aspect(), self.main.elapsed)),
@@ -672,13 +679,18 @@ mod native {
                 Some((name.to_string(), item.to_string(), at.parse().ok()?))
             })
             .collect();
-        // `--event KIND[:CELL]@SECONDS` posts an event (event ribbon and log captures).
+        // `--event KIND[:CELL]@SECONDS` posts an event (event ribbon and log captures);
+        // `--script "COMMAND@SECONDS"` runs a loop script command (`open TEMPLATE`).
         let mut events: Vec<(String, f32)> = args
             .windows(2)
-            .filter(|w| w[0] == "--event")
             .filter_map(|w| {
-                let (ev, at) = w[1].rsplit_once('@')?;
-                Some((format!("event {}", ev.replace(':', " ")), at.parse().ok()?))
+                let (cmd, at) = w[1].rsplit_once('@')?;
+                let cmd = match w[0].as_str() {
+                    "--event" => format!("event {}", cmd.replace(':', " ")),
+                    "--script" => cmd.to_string(),
+                    _ => return None,
+                };
+                Some((cmd, at.parse().ok()?))
             })
             .collect();
         let dt = 1.0 / 30.0;
@@ -699,7 +711,7 @@ mod native {
                 if t < *at {
                     return true;
                 }
-                if !game.main.current_mut().script(command) {
+                if !game.script(command) {
                     log::warn!("--event {command}: not in a game at {t:.2} s");
                 }
                 false
