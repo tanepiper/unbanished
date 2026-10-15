@@ -15,6 +15,7 @@
 mod building_ui;
 mod create_bar;
 mod entity_ui;
+mod event_notify;
 mod gameplay;
 mod global;
 mod highlight;
@@ -253,6 +254,35 @@ impl Game {
         self.pointer_move((x0 + x1) / 2, (y0 + y1) / 2);
         self.pointer_button(true);
         self.pointer_button(false);
+        true
+    }
+
+    /// Scripted runs: select the combo item whose text is `item` (case-insensitive), as a
+    /// player would, so captures can reproduce New Game settings chosen in the original.
+    pub fn select_combo(&mut self, name: &str, item: &str, size: (u32, u32)) -> bool {
+        let Some(screen) = self.main.current().screen() else {
+            return false;
+        };
+        screen.layout(&mut self.ui, size);
+        let Some(combo) = screen
+            .dialogs
+            .iter()
+            .rev()
+            .find_map(|d| self.ui.find(d.root, name))
+        else {
+            return false;
+        };
+        let Some(list) = crate::menu::combo_list(&self.ui, combo) else {
+            return false;
+        };
+        let index = match &self.ui.node(list).kind {
+            banished_ui::Kind::List(data) => {
+                data.items.iter().position(|t| t.eq_ignore_ascii_case(item))
+            }
+            _ => None,
+        };
+        let Some(index) = index else { return false };
+        crate::menu::select_combo(&mut self.ui, combo, index);
         true
     }
 
@@ -632,11 +662,30 @@ mod native {
                 Some((steps.parse().ok()?, at.parse().ok()?))
             })
             .collect();
+        // `--combo NAME=ITEM@SECONDS` selects a combo item by its text (New Game settings).
+        let mut combos: Vec<(String, String, f32)> = args
+            .windows(2)
+            .filter(|w| w[0] == "--combo")
+            .filter_map(|w| {
+                let (sel, at) = w[1].rsplit_once('@')?;
+                let (name, item) = sel.split_once('=')?;
+                Some((name.to_string(), item.to_string(), at.parse().ok()?))
+            })
+            .collect();
         let dt = 1.0 / 30.0;
         let mut t = 0.0;
         while t < seconds {
             game.update(dt);
             t += dt;
+            combos.retain(|(name, item, at)| {
+                if t < *at {
+                    return true;
+                }
+                if !game.select_combo(name, item, size) {
+                    log::warn!("--combo {name}={item}: not found at {t:.2} s");
+                }
+                false
+            });
             wheels.retain(|&(steps, at)| {
                 if t < at {
                     return true;

@@ -41,12 +41,36 @@ Mountains, size Small, climate Fair, disasters On, starting conditions Medium (t
 changed terrain/size before the capture). The description text under the combos is the Medium
 start condition's text.
 
-**Pending check — world generation for this seed:** the port's
+**Checked — world generation for this seed (match):** the port's
 `banished --capture OUT --seed 999518904 --terrain Mountains --size 0 --view overview` shows a
 river entering at the north edge, a lake just south-west of the centre with the river leaving
-south, a second small lake to its east, and mountains on all sides. When the original game
-starts with these settings, its minimap/overview should show the same layout; record the result
-here.
+south, a second small lake to its east, and mountains on all sides. The original's minimap
+after starting with these settings shows the same layout (`seed-999518904/start-t0`).
+
+## Seeded start (`seed-999518904/start-t0`, `start-t1`)
+
+Original: Sevelockwell, seed 999518904, Mountains, Small, Fair, disasters On, Medium; captured
+at the start view (t0, minimap open) and about 20 s later (t1). Port:
+`BANISHED_SEED=999518904 banished --boot-capture OUT 12 --capture-size 1384x868 --press
+buttonNew@4.5 --combo comboTerrain=Mountains@4.8 --combo comboTerrainSize=Small@4.8 --press
+buttonOk@5.0`.
+
+- **Matches:** minimap (river from the north into the central lake, smaller eastern lake);
+  start point (barn between the same hills, river to the east); rock clusters and tree groups
+  around the start; the yellow "homeless" status icon over every citizen.
+- **Stockpile (open):** the original has a stockpile of goods (crates, logs, stone) beside the
+  barn; the port draws only the barn. The Medium profile's yard/stockpile structure and its
+  goods models are missing in the port.
+- **Citizens at start (open):** at t0 the original's citizens stand in a ring of about 5–8
+  cells around the barn (household spread); at t1 a group gathers at the stockpile's north
+  edge and the barn door while others loiter, consistent with fetching tools and clothing
+  first (activities 8 and 3). The port's citizens are clumped at the barn door 7 s in; compare
+  the household spread (`MapGenerator +0x40`) and spawn positions at t = 0.
+- **Camera (open):** the original's start camera is higher and steeper (most of the start area
+  and the river in view); the port's starts lower and closer.
+- **Trees (check):** the original's forests look denser and rounder from above; compare
+  species/variant choice and density for this seed.
+- **Shadows (open):** as on the menu, none in the port.
 
 ## Driving the original
 

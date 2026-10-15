@@ -16,6 +16,10 @@ Captures are **local only** (`game-data/reference/`, git-ignored); never commit 
 3. Capture the same view in the port (`--boot-capture` with scripted presses, see the
    `banished-verify` skill) and compare:
    `cargo run -q --release -p banished-app --example imgdiff -- game-data/reference/ui/main-menu.png port.png --resize --blur 2 --out heat.png`.
+   To reproduce New Game settings chosen in the original, script the port's dialog:
+   `BANISHED_SEED=SEED banished --boot-capture OUT T --capture-size WxH --press buttonNew@4.5
+   --combo comboTerrain=Mountains@4.8 --combo comboTerrainSize=Small@4.8 --press buttonOk@5.0`
+   (`--combo NAME=ITEM@SECONDS` selects by the item's text).
    The stream is video-compressed: compare with `--blur 2` and a threshold around 24, and judge
    layout from the grid and bounding box rather than PSNR alone.
 

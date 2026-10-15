@@ -345,7 +345,7 @@ fn set_parameters(ui: &mut Ui, id: NodeId, values: &[&str]) {
     ui.set_text(id, &out);
 }
 
-fn combo_list(ui: &Ui, combo: NodeId) -> Option<NodeId> {
+pub(crate) fn combo_list(ui: &Ui, combo: NodeId) -> Option<NodeId> {
     match ui.node(combo).kind {
         Kind::Control(Control::Combo { list, .. }) => Some(list),
         _ => None,
@@ -362,7 +362,7 @@ fn combo_index(ui: &Ui, combo: NodeId) -> usize {
 }
 
 /// `ComboElement::SetCurrentItem`: select an item and show its text on the button.
-fn select_combo(ui: &mut Ui, combo: NodeId, index: usize) {
+pub(crate) fn select_combo(ui: &mut Ui, combo: NodeId, index: usize) {
     let Some(list) = combo_list(ui, combo) else {
         return;
     };
