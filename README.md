@@ -58,7 +58,7 @@ tools/ghidra/export.sh
 | `crates/game` | Game logic: verified RNG/terrain/name generation, households, storage/inventory search, citizen equipment fetching and loitering, climate, scheduled natural-resource growth and spawning |
 | `crates/gfx` | Shared wgpu pieces: UI renderer (incl. the splash Logo material), texture upload |
 | `crates/audio` | xWMA playback for native (rodio) and web (Web Audio) |
-| `apps/game` | `banished`: the game itself: boot sequence, main menu with music and the 3D menu scenes, New Game dialog, generated maps |
+| `apps/game` | `banished`: boot/menu flow, generated maps, live Status Bar, entity picking/gold outlines and packaged entity-window hosts |
 | `apps/viewer` | Asset browser built on `crates/ui`: native window, browser (WASM), `--screenshot`, `--capture` |
 | `apps/cli` | `banished-cli export-audio`: decode all sounds to MP3 via FFmpeg |
 

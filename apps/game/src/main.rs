@@ -13,8 +13,10 @@
 //! Escape for the main menu.
 
 mod create_bar;
+mod entity_ui;
 mod gameplay;
 mod global;
+mod highlight;
 mod loops;
 mod menu;
 mod models;
@@ -23,6 +25,7 @@ mod render;
 mod scene;
 mod scene_assets;
 mod scene_gfx;
+mod selection;
 mod start;
 mod toolbar;
 mod utility;

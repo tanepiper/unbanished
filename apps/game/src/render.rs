@@ -121,6 +121,7 @@ pub struct Renderer {
     ui: banished_gfx::UiRenderer,
     models: crate::models::ModelRenderer,
     extras: SceneExtrasRenderer,
+    highlight: crate::highlight::HighlightRenderer,
     pub backend: String,
 }
 
@@ -545,6 +546,7 @@ impl Renderer {
         let (reflect_globals, reflect_bind) = globals_buffer("reflection globals");
         let models = crate::models::ModelRenderer::new(&device, &queue, &globals_layout);
         let extras = SceneExtrasRenderer::new(&device, &queue, &globals_layout);
+        let highlight = crate::highlight::HighlightRenderer::new(&device);
         let mut ui = banished_gfx::UiRenderer::new(&device, format, DEPTH_FORMAT);
         let white = banished_gfx::upload_rgba_as(
             &device,
@@ -578,6 +580,7 @@ impl Renderer {
             models_revision: 0,
             ui,
             models,
+            highlight,
             extras,
             backend,
         }
@@ -692,6 +695,7 @@ impl Renderer {
 
     /// Upload a scene's terrain, models, sky, water and decals if it is not the one on the GPU.
     pub fn set_scene(&mut self, view: &crate::scene::SceneView) {
+        self.highlight.upload(&self.device, &view.highlight);
         if self.world_id != view.id {
             self.set_terrain(&view.terrain);
             match &view.models {
@@ -990,6 +994,14 @@ impl Renderer {
                     Self::scene_pass(&mut encoder, "water", &t.scene_view, &t.depth, None);
                 self.extras.draw_water(&mut pass, &self.globals_bind);
             }
+            self.highlight.draw(
+                &mut encoder,
+                &self.queue,
+                &t.scene_view,
+                &t.depth,
+                scene,
+                self.size.0,
+            );
         }
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

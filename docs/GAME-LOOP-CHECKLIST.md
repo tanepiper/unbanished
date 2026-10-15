@@ -52,6 +52,8 @@ evidence; static traces are not claims of live-game behavior.
 - [ ] Complete production, harvest, storage, and stock updates from resource entities through the
   Status Bar counters. Existing status flags and fixed-stride stock layout are only partially
   identified; see steps 8-9.
+- [x] Trace selection ray/terrain priority, picking triangle ranking, HighlightComponent edge
+  assets/stencil passes and entity UIDescription hosts. See [SELECTION.md](SELECTION.md).
 - [ ] Complete start-condition application beyond the traced structures, household creation,
   inventory and natural-resource seeding: residence assignment, wildlife and other populations.
 - [ ] Complete climate precipitation geometry/effects and ambient audio beyond the traced and
@@ -64,6 +66,11 @@ evidence; static traces are not claims of live-game behavior.
 - [x] Live Status Bar population, stock, StatusIcon mask counts and scaled whole/half health and
   happiness meters; 1,000 original-function cases and a UI read-only integration check. See
   [UTILITY-WINDOWS.md](UTILITY-WINDOWS.md#live-status-bar-slice-2026-10-15).
+- [x] Slice B: citizen/building/resource selection, shipped picking and highlight meshes,
+  gold stencil outline, entity hosts/tabs and pin/close. 700 original-function cases and a UI
+  read-only integration check; acceleration/host limits are explicit in [SELECTION.md](SELECTION.md).
+- [ ] Slices C–H: live building/citizen controller values and queued commands, status billboards,
+  Event Log/notifications, Map and full tooltip behavior. Work stopped after B at user request.
 
 - [x] Make climate selection drive the environment controller's temperatures and weather draws.
 - [x] Seed the starting map from the selected profile: start point, structure draws, and rock, ore
@@ -86,7 +93,7 @@ evidence; static traces are not claims of live-game behavior.
   [IN-GAME-TOOLBAR.md](IN-GAME-TOOLBAR.md) and [UTILITY-WINDOWS.md](UTILITY-WINDOWS.md).
 - [x] Building placement tool: ghost, rotation, variants, original validity and placement of
   construction sites. See [BUILD-TOOLS.md](BUILD-TOOLS.md).
-- [ ] Add drag/road/removal tools, construction progress, object selection, the remaining utility-window controllers (Event Log,
+- [ ] Add drag/road/removal tools, construction progress, the remaining utility-window controllers (Event Log,
   Professions, Map, …), and the original pause/options dialogs.
 - [x] Port the environment controller (temperature, weather state, level, snow/autumn/leaf values)
   and run it per simulation iteration after the calendar. See [ENVIRONMENT.md](ENVIRONMENT.md).

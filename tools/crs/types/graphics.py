@@ -2,6 +2,26 @@
 from ..crs import decoder
 
 
+@decoder('PickingMesh')
+def picking_mesh(r, file_version):
+    # PickingMesh::Serialize 1801251f0, SubMesh 18007b6f0, triangles 18007ae20.
+    with r.block():
+        out = dict(source=r.string(), name=r.string(), skinned=r.bool())
+        meshes = []
+        for _ in range(r.u32()):
+            mesh = dict(name=r.string(), node=r.i32(), rotation=r.array('f', 4),
+                        translation=r.array('f', 3), bounds_min=r.array('f', 3),
+                        bounds_max=r.array('f', 3))
+            mesh['vertices'] = [r.array('f', 3) for _ in range(r.u32())]
+            mesh['normals'] = [r.array('f', 3) for _ in range(r.u32())]
+            mesh['triangles'] = [dict(vertices=r.array('H', 3), normals=r.array('H', 3))
+                                 for _ in range(r.u32())]
+            mesh['edges'] = [r.array('H', 2) for _ in range(r.u32())]
+            meshes.append(mesh)
+        out['meshes'] = meshes
+        return out
+
+
 @decoder('AnimationGroup')
 def animation_group(r, file_version):
     # Runtime AnimationGroup::Serialize 0x1800fdf30 / Animation::Serialize 0x1800fd910.
@@ -39,6 +59,19 @@ def _buffer(r):
     # Video::{Index,Vertex}Buffer -> backend *BufferData::Serialize: u8 flag, u32 byte length, bytes.
     flag = r.u8()
     return {'flag': flag, 'data': r.bytes(r.u32())}
+
+
+@decoder('EdgeMesh')
+def edge_mesh(r, file_version):
+    # Graphics::EdgeMesh::Serialize 1800a3120, ranges 180015130.
+    with r.block():
+        out = dict(refs=[external_ref(r) for _ in range(5)])
+        out['ranges'] = [r.array('i', 6) for _ in range(r.u32())]
+        out['skin_ranges'] = [r.array('i', 6) for _ in range(r.u32())]
+        out['buffers'] = [_buffer(r) for _ in range(8)]
+        out['bounds_min'] = r.array('f', 3)
+        out['bounds_max'] = r.array('f', 3)
+        return out
 
 
 @decoder('GraphicsMesh')

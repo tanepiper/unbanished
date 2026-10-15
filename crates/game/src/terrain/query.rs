@@ -75,6 +75,58 @@ fn ray_triangle(
 }
 
 impl HeightGrid<'_> {
+    /// Terrain ray narrow phase FUN_1400afef0, used to clip EditTool picking to the ground.
+    /// Deviation: enumerate the ray's cell rectangle instead of FUN_1400afa00's DDA traversal.
+    pub fn intersect(&self, origin: Vec3, direction: Vec3, maximum: f32) -> Option<(f32, Vec3)> {
+        let n = self.width as i32 - 1;
+        let half = n >> 1;
+        let end = [
+            origin[0] + direction[0] * maximum,
+            origin[1] + direction[1] * maximum,
+        ];
+        let lo = std::array::from_fn::<_, 2, _>(|k| {
+            ((origin[k].min(end[k]) + half as f32).floor() as i32 - 1).clamp(0, n - 1)
+        });
+        let hi = std::array::from_fn::<_, 2, _>(|k| {
+            ((origin[k].max(end[k]) + half as f32).floor() as i32 + 1).clamp(0, n - 1)
+        });
+        let mut limit = maximum;
+        let mut found = false;
+        let mut normal = [0.; 3];
+        for y in lo[1]..=hi[1] {
+            for x in lo[0]..=hi[0] {
+                let [a, b, c, d] = [
+                    self.corner(x, y, half),
+                    self.corner(x + 1, y, half),
+                    self.corner(x + 1, y + 1, half),
+                    self.corner(x, y + 1, half),
+                ];
+                let triangles = if (x + y) & 1 == 0 {
+                    [[a, b, d], [b, c, d]]
+                } else {
+                    [[a, b, c], [a, c, d]]
+                };
+                for [a, b, c] in triangles {
+                    let mut t = limit;
+                    if ray_triangle(origin, direction, limit, a, b, c, &mut t, &mut normal) {
+                        limit = t;
+                        found = true;
+                    }
+                }
+            }
+        }
+        found.then(|| {
+            (
+                limit,
+                [
+                    origin[0] + direction[0] * limit,
+                    origin[1] + direction[1] * limit,
+                    origin[2] + direction[2] * limit,
+                ],
+            )
+        })
+    }
+
     fn corner(&self, x: i32, y: i32, half: i32) -> Vec3 {
         let hi = self.width as i32 - 1;
         let h = self.heights[y.clamp(0, hi) as usize * self.width + x.clamp(0, hi) as usize];

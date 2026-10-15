@@ -10,11 +10,13 @@ use banished_game::scheduler::ticks;
 use banished_ui::{Event, Ui};
 
 use crate::create_bar::CreateBar;
+use crate::entity_ui::EntityWindows;
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
 use crate::menu::MenuLoop;
 use crate::placement_tool::PlacementTool;
 use crate::render::Lighting;
 use crate::scene::{Camera, SceneCamera, SceneView};
+use crate::selection::{Entity, Selection};
 use crate::start::StartingTown;
 use crate::toolbar::{Action, Toolbar};
 use crate::utility::{StatusValues, UtilityWindows};
@@ -47,6 +49,9 @@ pub struct GameplayLoop {
     rotation: i32,
     /// Last cursor position in window pixels.
     cursor: (i32, i32),
+    selection: Selection,
+    entities: EntityWindows,
+    highlight: crate::highlight::Highlight,
 }
 
 impl GameplayLoop {
@@ -68,6 +73,9 @@ impl GameplayLoop {
             create_bar: None,
             rotation: 0,
             cursor: (0, 0),
+            selection: Selection::default(),
+            entities: EntityWindows::default(),
+            highlight: Default::default(),
         }
     }
 
@@ -136,6 +144,123 @@ impl GameplayLoop {
         self.town.as_ref().map_or((0, 0, 0), |t| {
             banished_game::citizens::population(&t.citizens, &t.rules)
         })
+    }
+
+    /// FUN_140105a70: ray from the camera eye through the viewport coordinate.
+    fn cursor_ray(&self, screen: [i32; 2]) -> Option<(glam::Vec3, glam::Vec3)> {
+        if screen[0] <= 0 || screen[1] <= 0 {
+            return None;
+        }
+        let view = self.view.as_ref()?;
+        let inv = view
+            .view_proj(screen[0] as f32 / screen[1] as f32)
+            .inverse();
+        let ndc = glam::Vec3::new(
+            self.cursor.0 as f32 / screen[0] as f32 * 2. - 1.,
+            1. - self.cursor.1 as f32 / screen[1] as f32 * 2.,
+            1.,
+        );
+        let eye = view.eye_target().0;
+        Some((eye, (inv.project_point3(ndc) - eye).normalize()))
+    }
+
+    fn select_at_cursor(&mut self, ctx: &mut Ctx) {
+        let Some((origin, direction)) = self.cursor_ray(ctx.ui.screen) else {
+            return;
+        };
+        let Some(town) = self.town.as_ref() else {
+            return;
+        };
+        let view = self.view.as_ref().unwrap();
+        let grid = banished_game::terrain::HeightGrid {
+            width: view.terrain.size + 1,
+            heights: &view.terrain.heights,
+        };
+        let ground = grid.intersect(origin.to_array(), direction.to_array(), 400.);
+        let cell = ground
+            .map(|(_, hit)| {
+                (
+                    (hit[0] + (town.cells.size / 2) as f32) as i32,
+                    (hit[1] + (town.cells.size / 2) as f32) as i32,
+                )
+            })
+            .filter(|&(x, y)| {
+                x >= 0 && y >= 0 && x < town.cells.size as i32 && y < town.cells.size as i32
+            });
+        let fallback = cell
+            .and_then(|(x, y)| {
+                town.cells
+                    .objects
+                    .get(y as usize * town.cells.size + x as usize)
+                    .copied()
+                    .flatten()
+            })
+            .map(Entity::Placed);
+        // Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain
+        // lookup from the same rectangles until registration supplies the original cell pointer.
+        let fallback = fallback.or_else(|| {
+            cell.and_then(|(x, y)| {
+                town.placed
+                    .iter()
+                    .position(|p| {
+                        p.alive
+                            && town.templates[p.template].storage.is_some()
+                            && x >= p.cell.0
+                            && y >= p.cell.1
+                            && x < p.cell.0 + p.footprint.0
+                            && y < p.cell.1 + p.footprint.1
+                    })
+                    .map(Entity::Placed)
+            })
+        });
+        let picked = self.selection.cast(
+            ctx.archive,
+            town,
+            origin,
+            direction,
+            ground.map_or(400., |g| g.0),
+            fallback,
+        );
+        if let Some(entity) = picked {
+            if self.selection.selected != Some(entity) {
+                self.selection.selected = Some(entity);
+                log::info!("selected {entity:?}");
+                if let Some(screen) = self.screen.as_mut() {
+                    self.entities
+                        .select(ctx.ui, screen, ctx.archive, town, entity);
+                }
+            }
+        }
+    }
+
+    fn position_entity_window(&mut self, ctx: &mut Ctx) {
+        let (Some(entity), Some(town), Some(view)) = (
+            self.selection.selected,
+            self.town.as_ref(),
+            self.view.as_ref(),
+        ) else {
+            return;
+        };
+        let Some([lo, hi]) = self.selection.bounds(ctx.archive, town, entity) else {
+            return;
+        };
+        let screen = ctx.ui.screen;
+        let vp = view.view_proj(screen[0] as f32 / screen[1] as f32);
+        let mut r = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
+        for x in [lo.x, hi.x] {
+            for y in [lo.y, hi.y] {
+                for z in [lo.z, hi.z] {
+                    let p = vp * glam::Vec4::new(x, y, z, 1.);
+                    if p.w <= 0. {
+                        return;
+                    }
+                    let x = (p.x / p.w * 0.5 + 0.5) * screen[0] as f32;
+                    let y = (0.5 - p.y / p.w * 0.5) * screen[1] as f32;
+                    r = [r[0].min(x), r[1].min(y), r[2].max(x), r[3].max(y)];
+                }
+            }
+        }
+        self.entities.position(ctx.ui, entity, r);
     }
 
     /// `FUN_140106740`: the map cell under the cursor. The original casts the camera ray
@@ -386,6 +511,16 @@ impl GameLoop for GameplayLoop {
             }
         }
         self.utility.update(ctx.ui, &self.status_values());
+        self.position_entity_window(ctx);
+        if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
+            let grid = banished_game::terrain::HeightGrid {
+                width: view.terrain.size + 1,
+                heights: &view.terrain.heights,
+            };
+            view.highlight =
+                self.highlight
+                    .geometry(ctx.archive, town, &grid, self.selection.selected);
+        }
         let month = self.month();
         let into_month = (self.calendar.seconds() - month as f32 * MONTH_SECONDS) / MONTH_SECONDS;
         if let (Some(view), Some(from)) = (self.view.as_mut(), self.environment_months.get(month)) {
@@ -411,6 +546,11 @@ impl GameLoop for GameplayLoop {
             // The host dialog's close button (`Dialog/StandardDialog.rsc`).
             if ctx.ui.node(id).name == "buttonClose" {
                 self.utility.close_containing(ctx.ui, screen, id);
+                if self.entities.close_containing(ctx.ui, screen, id) == self.selection.selected {
+                    self.selection.selected = None;
+                }
+            } else if ctx.ui.node(id).name == "checkPin" {
+                self.entities.pin(ctx.ui, id);
             }
             return Next::Stay;
         };
@@ -481,6 +621,9 @@ impl GameLoop for GameplayLoop {
                         None => log::info!("{}: cannot build here", tool.reference),
                     }
                     self.refresh_placement(ctx);
+                } else {
+                    self.select_at_cursor(ctx);
+                    self.position_entity_window(ctx);
                 }
                 return Next::Stay;
             }
@@ -551,6 +694,97 @@ mod tests {
             gameplay.startup(ctx);
         });
         Some((game, gameplay))
+    }
+
+    #[test]
+    fn selection_host_and_highlight_leave_simulation_unchanged() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        let town = gameplay.town.as_ref().unwrap();
+        let id = town
+            .storage_sites
+            .iter()
+            .map(|s| s.entity)
+            .find(|&i| {
+                town.templates[town.placed[i].template]
+                    .reference
+                    .contains("StorageBarn")
+            })
+            .unwrap();
+        let position = glam::Vec3::from(town.placed[id].position);
+        let origin = position + glam::Vec3::new(0., -12., 10.);
+        let direction = (position + glam::Vec3::Z - origin).normalize();
+        let rng = gameplay.rng.clone();
+        let time = gameplay.calendar.elapsed;
+        let before = format!(
+            "{:?}{:?}{:?}",
+            town.citizens, town.agents.states, town.storages
+        );
+        game.with_ctx(|_, ctx| {
+            let town = gameplay.town.as_ref().unwrap();
+            assert_eq!(
+                gameplay
+                    .selection
+                    .cast(ctx.archive, town, origin, direction, 400., None),
+                Some(Entity::Placed(id))
+            );
+            for _ in 0..3 {
+                gameplay.entities.select(
+                    ctx.ui,
+                    gameplay.screen.as_mut().unwrap(),
+                    ctx.archive,
+                    town,
+                    Entity::Placed(id),
+                );
+                assert_eq!(gameplay.entities.open.len(), 1);
+                let window = &gameplay.entities.open[0];
+                assert!(!window.controllers.is_empty());
+                let root = window.root;
+                assert!(ctx.ui.find(root, "labelTitle").is_some());
+                let pages = ctx.ui.find(root, "pages").unwrap();
+                assert!(matches!(
+                    ctx.ui.node(pages).kind,
+                    banished_ui::Kind::Control(banished_ui::Control::Page { selected: 1, .. })
+                ));
+                gameplay
+                    .screen
+                    .as_ref()
+                    .unwrap()
+                    .layout(ctx.ui, (1280, 800));
+                ctx.ui
+                    .pointer_move(80, 80, gameplay.screen.as_ref().unwrap().root);
+                let _ = ctx.ui.draw(gameplay.screen.as_ref().unwrap().root);
+                let view = gameplay.view.as_ref().unwrap();
+                let grid = banished_game::terrain::HeightGrid {
+                    width: view.terrain.size + 1,
+                    heights: &view.terrain.heights,
+                };
+                let geometry =
+                    gameplay
+                        .highlight
+                        .geometry(ctx.archive, town, &grid, Some(Entity::Placed(id)));
+                assert!(!geometry.is_empty());
+                assert_eq!(
+                    gameplay.entities.close_containing(
+                        ctx.ui,
+                        gameplay.screen.as_mut().unwrap(),
+                        root
+                    ),
+                    Some(Entity::Placed(id))
+                );
+            }
+        });
+        let town = gameplay.town.as_ref().unwrap();
+        assert_eq!(rng, gameplay.rng);
+        assert_eq!(time, gameplay.calendar.elapsed);
+        assert_eq!(
+            before,
+            format!(
+                "{:?}{:?}{:?}",
+                town.citizens, town.agents.states, town.storages
+            )
+        );
     }
 
     #[test]

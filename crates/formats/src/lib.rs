@@ -11,6 +11,7 @@ pub mod lzf;
 pub mod menu_scene;
 pub mod names;
 pub mod pkg;
+pub mod picking;
 pub mod save;
 pub mod skeleton;
 pub mod stream;

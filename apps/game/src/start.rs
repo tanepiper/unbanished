@@ -344,9 +344,9 @@ pub struct StartingTown {
     scheduler: EntityScheduler<usize>,
     removed: Vec<usize>,
     pub animation_events: Vec<(usize, String)>,
-    citizen_model: Option<banished_formats::game::ModelDescription>,
+    pub(crate) citizen_model: Option<banished_formats::game::ModelDescription>,
     /// Each variant's animation group (`Models\Citizen\CitizenAnims.rsc`).
-    citizen_anims: Vec<Option<Arc<banished_formats::types::AnimationGroup>>>,
+    pub(crate) citizen_anims: Vec<Option<Arc<banished_formats::types::AnimationGroup>>>,
     /// The citizens' CharacterComponent and CitizenAIComponent (docs/CITIZEN-AI.md).
     pub agents: Agents,
     /// The placement tool's ghost (`PlacementTool +0x68`): mesh and transform.

@@ -168,6 +168,12 @@ impl Control {
 }
 
 impl Ui {
+    /// Runtime UI::TabElement::AddTab: retain header/content order and select the first tab.
+    pub fn add_tab(&mut self, parent: NodeId, header: NodeId, content: NodeId) {
+        if let Kind::Control(Control::Tabs { tabs, .. }) = &mut self.nodes[parent].kind {
+            tabs.push((header, content));
+        }
+    }
     pub(crate) fn make_text(&mut self, font: Option<&str>, text: String) -> TextData {
         TextData {
             font: font.and_then(|f| self.res.font(f)),

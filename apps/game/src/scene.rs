@@ -14,6 +14,7 @@ pub struct SceneView {
     pub extras: Option<crate::scene_assets::SceneExtras>,
     pub camera: SceneCamera,
     pub lighting: Lighting,
+    pub highlight: crate::highlight::Geometry,
 }
 
 pub enum SceneCamera {
@@ -32,6 +33,7 @@ impl SceneView {
             extras: None,
             camera,
             lighting,
+            highlight: Default::default(),
         }
     }
 

@@ -25,5 +25,6 @@ pub mod sectors;
 pub mod seeding;
 pub mod spawn;
 pub mod status;
+pub mod picking;
 pub mod stock;
 pub mod terrain;

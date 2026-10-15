@@ -43,6 +43,10 @@ The toolbar's kind-2 branch passes the item's template:
 
 The toolbar is the only caller.
 
+Entity selection uses the sibling entry point `FUN_140102880` to construct the same description
+with an entity owner, `:entity` host, tab attachments and active page. See
+[SELECTION.md](SELECTION.md) for slice B and its verification/limits.
+
 ## Status Bar (`StatusBarUI`)
 
 `FUN_14007f8a0` (OnOpened) binds named elements:
@@ -131,5 +135,7 @@ identical across two seeded runs. Local visual capture:
   environment temperature and weather; packaged whole/half hearts and stars.
 - Professions: ordered packaged rows and live starting laborer counts; assignment commands remain.
 - Utility windows: open/close through UIDescription and StandardDialog; remembered positions.
-- Pending: other controllers, dragging/persistence, entity windows, status billboards, Map,
+- Entity hosts: click picking, selection outline, localized titles, packaged tabs, pin/close;
+  live building/citizen controller refresh is pending.
+- Pending: other controllers, dragging/persistence, status billboards, Map,
   event sources/notifications, full tooltip behavior. Unsupported controller ids are logged.
