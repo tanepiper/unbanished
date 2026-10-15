@@ -981,6 +981,21 @@ pub fn disease(data: &[u8]) -> Result<Disease> {
     Ok(value)
 }
 
+/// `AttendanceDescription` (serializer `FUN_140045010`): the capacity `+0x20` (Chapel 200,
+/// DoctorHouse 30, SchoolHouse 20).
+pub fn attendance_description(data: &[u8]) -> Result<i32> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("AttendanceDescription") {
+            return format_err(format!(
+                "expected AttendanceDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| r.i32())
+    })?;
+    Ok(value)
+}
+
 /// `ResidenceDescription` (serializer `FUN_14012f8a0`, version 2).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ResidenceDescription {

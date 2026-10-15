@@ -44,6 +44,8 @@ pub enum WorkKind {
     /// `ConsumeProduce` (vtable `0x140167640`, constructor `FUN_1400ee6d0`, made by
     /// ConsumeProduceComponent slot `+0x90` `FUN_14011e1d0`).
     Produce(crate::construction::ProduceWork),
+    /// `LocationWork` (vtable `0x140167ab0`): staff stand at a school, chapel or doctor.
+    Location(crate::services::LocationWork),
     /// A test stand-in.
     Test(i32),
 }

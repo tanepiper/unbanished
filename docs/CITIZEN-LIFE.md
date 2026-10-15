@@ -97,6 +97,25 @@ firewood relights it for `fuel_seconds`. Food and firewood clear the status icon
 The AI's inputs: home food is `families × members × D[0xc4]` (`FUN_14011abb0`), home firewood
 `families × D[0xd4]` (`FUN_14011acc0`), and the partner's errand stops both going.
 
+## Services (`crates/game/src/services.rs`)
+
+| Piece | Original | Port |
+|---|---|---|
+| AttendanceComponent (school, chapel, doctor) | state 2 enter `FUN_1400445f0`: register at town `+0x60`, a LocationWork, enable the workplace; exit `FUN_140044590` (icon 2 when every attendance of the kind is full); state 3 `FUN_140044530`: unregister, everyone leaves, disable; scheduled update `FUN_140044cd0`: everyone leaves when nobody works there | yes (the icon is computed, building icons are not drawn) |
+| LocationWork (`0x140167ab0`) | one staff member at a time walks to the nearest use point and works 1 s, then completes (and repeats) | yes |
+| HealerComponent | state 2 registers at town `+0x70`, state 3 unregisters | yes |
+| Joining (`FUN_140116e00` + `FUN_140044a50`) | the attendance whose workplace's profession matches `D+0x20/+0x28/+0x30`, with room, a worker and reachable, nearest the home (path rank between entrances) | yes |
+| School | at coming of age a place (event 10) or adulthood (9); message 4 adds a lesson; at `D[0x118]` lessons or after `D[0x11c]` hours: educated, out of school, event 9 | yes |
+| Chapel | searched every update while without one; +1 to the happiness target | yes |
+| Doctor | searched when falling ill and while ill; message 5 shortens the illness by `D[0x12c]` minutes; recovering leaves | yes |
+
+Activities: school (10) sits a lesson of `D[0x120]` s at the school's nearest use point, or
+leaves and looks for another school (`FUN_14011af20(c, 1)`). Doctor (5) is treated for
+`D[0x124]` s (reporting "not started", like the original), or rests at home 5 s without a
+doctor. Herbs (4) take a herb from the nearest storage to the nearest staffed herbalist and are
+treated there for 5 s (message 3). Play (11) walks next to the guardian's partner (the
+original's `Rand(1)` is always 0), or the guardian, and idles `RandFloat · 7 + 3` s.
+
 ## Verification
 
 `placement_tool::construction_tests`:
@@ -105,11 +124,12 @@ The AI's inputs: home food is `families × members × D[0xc4]` (`FUN_14011abb0`)
   into the household.
 - `citizens_starve_without_food`: with the food removed, all 15 starve at the end of their
   sequences, and the registry and families let go of them.
+- `a_teacher_staffs_the_school_and_a_student_learns`: a new schoolhouse gets a teacher; a child
+  coming of age takes a place there and sits a lesson.
 
 ## Not ported yet
 
-School, chapel and doctor attendance (`FUN_140116d10`, `FUN_140116bc0`, `FUN_140116a60`), the
-herbs and doctor activities (4, 5), play (11), school (10), the workplace searches
+The workplace searches
 (`FUN_140115490`, `FUN_140115940`, `FUN_140115eb0`), burial and cemeteries, the map-cell
 happiness counters, accidents (`+0x1f8`), the residence's ClearStorage work, and the stock
 consumption counters.

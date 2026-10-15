@@ -23,8 +23,9 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Citizen (`0x1401689a0`) | Citizen | needs, age, death, health, happiness, disease, homes, marriage, births ([CITIZEN-LIFE.md](CITIZEN-LIFE.md)); attendance searches, burial and accidents open |
 | Residence | WoodHouse, StoneHouse, Hostel | families, heating, moving in; ClearStorage work open |
 | **Immigration**, **Nomad** | TownHall, Nomad | missing |
-| **Attendance**, **Happiness** | School, Chapel, Doctor, Tavern, Well, Market, Cemetery, TradingPost, Quarry, Mine | missing |
-| **Healer**, **Disease** | Herbalist, DoctorHouse, fields | missing |
+| Attendance | School, Chapel, Doctor | yes (staff by LocationWork, places, lessons, treatment) |
+| **Happiness** | Tavern, Well, Market, Cemetery, Chapel, TradingPost, Quarry, Mine | missing |
+| Healer, Disease (citizens) | Herbalist | registry and herb treatment; crop disease (fields) missing |
 | **Cemetery**, **Tombstone** | Cemetery | missing |
 | **Well**, **Fire** | Well; every building | missing |
 | **Market**, **MarketLocation** | Market | missing |
@@ -43,12 +44,12 @@ simulation. Parsing it or drawing its mesh is not enough.
 
 | Work | Port | | Action | Port |
 |---|---|---|---|---|
-| BuildStructure, GatherRawMaterials, ClearArea, Pickup, ConsumeProduce | yes | | MoveTo, PlayAnimation, PerformWork, SendComponentMessage, CompleteTask, DropOffRawMaterial, PickupRawMaterial, PickupStoredRawMaterial, ShowTool, AnimateNaturalResource, RemoveNaturalResource, CreateRawMaterial | yes |
+| BuildStructure, GatherRawMaterials, ClearArea, Pickup, ConsumeProduce, LocationWork | yes | | MoveTo, PlayAnimation, PerformWork, SendComponentMessage, CompleteTask, DropOffRawMaterial, PickupRawMaterial, PickupStoredRawMaterial, ShowTool, AnimateNaturalResource, RemoveNaturalResource, CreateRawMaterial | yes |
 | BuildRoad | no | | CompleteRoad | no |
-| PlantArea, TendArea (fields) | no | | ConsumeRawMaterial | no (eating and warming use Citizen messages 0 and 2) |
+| PlantArea, TendArea (fields) | no | | ConsumeRawMaterial (`FUN_1400cb880`) | herbs (from what is carried); eating and warming use Citizen messages |
 | PlantOrchard | no | | CreateNaturalResource (planting) | no |
 | FishingWork | no | | HuntAnimal, RemoveAnimal | no |
-| AutoPickupWork, ClearStorage, LocationWork, MarketWork, TradeWork, FireWork | no | | | |
+| AutoPickupWork, ClearStorage, MarketWork, TradeWork, FireWork | no | | | |
 
 ## Citizen activities (`FUN_1401146c0`)
 
@@ -58,11 +59,11 @@ simulation. Parsing it or drawing its mesh is not enough.
 | 1, 15 | warm up (`0x140112790`) | yes |
 | 2 | emergency work | yes |
 | 3, 8 | clothing, tool | yes |
-| 4, 5 | herbs, doctor | no |
+| 4, 5 | herbs, doctor | yes |
 | 6, 7 | bring food / firewood home | yes |
 | 9 | work | yes |
-| 10 | school | no |
-| 11 | play (children) | no |
+| 10 | school | yes |
+| 11 | play (children) | yes |
 | 12 | idle / loiter | yes |
 | 13 | drop off what is carried | partly (no redirect) |
 

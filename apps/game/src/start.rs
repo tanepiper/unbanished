@@ -665,6 +665,17 @@ impl StartingTown {
             names,
         };
         town.resolve_piles(archive);
+        // CitizenDescription `+0x20/+0x28/+0x30`: the teacher's, priest's and doctor's
+        // professions.
+        if let Some(d) = read(archive, &citizen_ref.replace(":resource", ":citizen"))
+            .and_then(|d| citizen_description(&d).ok())
+        {
+            let list = &town.construction.professions.list;
+            town.agents.life.services = d.refs.clone().map(|r| {
+                let r = normalise(&r?);
+                list.iter().position(|p| normalise(&p.reference) == r)
+            });
+        }
         Some(town)
     }
 
@@ -982,6 +993,11 @@ impl StartingTown {
                         t.materials.push((n, m));
                     }
                 }
+                "attendance" => {
+                    t.controllers.push(Controller::Attendance);
+                    t.attendance = banished_formats::game::attendance_description(&data).ok();
+                }
+                "healer" => t.controllers.push(Controller::Healer),
                 "residence" => {
                     t.controllers.push(Controller::Residence);
                     t.residence = banished_formats::game::residence_description(&data).ok();
@@ -1273,7 +1289,14 @@ mod storage_fetch_tests {
             if citizen.is_adult(&town.rules) {
                 assert!(state.tool_uses > 0, "{} has no tool", citizen.name);
             }
-            assert_eq!(town.agents.ais[i].current, activity::IDLE);
+            // Adults loiter; children loiter or play next to a parent (activity 11).
+            let current = town.agents.ais[i].current;
+            assert!(
+                current == activity::IDLE
+                    || (!citizen.is_adult(&town.rules) && current == activity::PLAY),
+                "{} is doing {current}",
+                citizen.name
+            );
             assert_eq!(state.health_events & 4, 4);
             assert_ne!(citizen.position, positions[i]);
         }

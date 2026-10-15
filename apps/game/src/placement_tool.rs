@@ -794,4 +794,66 @@ mod construction_tests {
             }
         });
     }
+
+    /// A staffed school takes a child coming of age, who sits lessons there (message 4).
+    #[test]
+    fn a_teacher_staffs_the_school_and_a_student_learns() {
+        with_town(|archive, terrain, town, rng| {
+            let mut tool =
+                PlacementTool::start(archive, town, r"Template\SchoolHouse.rsc:resource", rng)
+                    .unwrap();
+            let spot = tool.find_clear_spot(town, terrain, town.start).unwrap();
+            tool.hover(town, terrain, Some(spot), 0);
+            let id = tool.place(archive, town, 0).unwrap();
+            let builder = town.construction.professions.builder;
+            town.construction
+                .commands
+                .push(banished_game::professions::Command::SetCount {
+                    profession: builder,
+                    count: 3,
+                });
+            let mut built = false;
+            for _ in 0..30 * 60 * 12 {
+                step(town, terrain, rng, 50.0);
+                if town.construction.sites[&id].complete {
+                    built = true;
+                    break;
+                }
+            }
+            assert!(built, "the school was not built");
+            assert!(town.construction.attendance_list.contains(&id));
+            let teacher = town.agents.life.services[0].expect("no teacher profession");
+            town.construction
+                .commands
+                .push(banished_game::professions::Command::AddWorker { entity: id });
+            for _ in 0..60 {
+                step(town, terrain, rng, 50.0);
+            }
+            let staff = town.construction.workforce.workplaces[&id].workers.clone();
+            assert_eq!(staff.len(), 1, "no teacher hired");
+            assert_eq!(town.agents.states[staff[0]].profession, teacher);
+            // A child about to come of age.
+            let adult = town.rules.adult_age;
+            let child = (0..town.citizens.len())
+                .find(|&c| town.citizens[c].age < adult)
+                .expect("no child");
+            town.citizens[child].age = adult - 0.0001;
+            let mut learned = false;
+            for _ in 0..30 * 60 * 4 {
+                step(town, terrain, rng, 50.0);
+                if town.citizens[child].education > 0 {
+                    learned = true;
+                    break;
+                }
+            }
+            eprintln!(
+                "school {:?}, attendees {:?}, education {}",
+                town.agents.states[child].school,
+                town.construction.attendance[&id].attendees,
+                town.citizens[child].education
+            );
+            assert_eq!(town.agents.states[child].school, Some(id));
+            assert!(learned, "no lesson");
+        });
+    }
 }

@@ -687,7 +687,14 @@ impl Action {
                 items,
                 reserved,
             } => {
-                if consume_stored(&mut world.storages[*storage], items, *reserved) {
+                // Storage `usize::MAX`: what the citizen carries (`FUN_1400cb880` on its own
+                // StorageComponent).
+                let target = if *storage == usize::MAX {
+                    &mut *world.carried
+                } else {
+                    &mut world.storages[*storage]
+                };
+                if consume_stored(target, items, *reserved) {
                     Status::Done
                 } else {
                     Status::Failed

@@ -103,6 +103,8 @@ pub struct CitizenState {
     pub dependents: Vec<usize>,
     /// `+0x218`: time attending school.
     pub school_time: i64,
+    /// `+0x208`: the school's AttendanceComponent entity (`Citizen::school` mirrors it).
+    pub school: Option<usize>,
     /// `+0x228`, `+0x230`: the doctor's and the chapel's AttendanceComponent entity.
     pub doctor: Option<usize>,
     pub priest: Option<usize>,
@@ -117,6 +119,8 @@ pub struct CitizenState {
     pub disease_clock: i64,
     /// `+0x84`.
     pub field_84: i32,
+    /// `+0x220`: has had a school place.
+    pub schooled: bool,
 }
 
 impl CitizenState {
@@ -210,6 +214,9 @@ impl Agents {
                 ..Default::default()
             })
             .collect();
+        for (s, c) in states.iter_mut().zip(citizens) {
+            s.school = c.school;
+        }
         // `FUN_14011bd70` put each child in its guardian's ring.
         for (i, c) in citizens.iter().enumerate() {
             if let Some(g) = c.parent {
@@ -297,6 +304,9 @@ impl Agents {
                 site_templates: &c.templates,
                 sites: &mut c.sites,
                 homes: &mut c.homes,
+                attendance: &mut c.attendance,
+                attendance_list: &mut c.attendance_list,
+                healers: &mut c.healers,
                 site_list: &mut c.site_list,
                 events: Vec::new(),
                 piles: &mut c.piles,
@@ -314,7 +324,8 @@ impl Agents {
     fn adults(&self, citizens: &[Citizen]) -> Vec<bool> {
         citizens
             .iter()
-            .map(|c| c.alive && c.age >= self.rules.thresholds.adult_age && c.school.is_none())
+            .zip(&self.states)
+            .map(|(c, s)| c.alive && c.age >= self.rules.thresholds.adult_age && s.school.is_none())
             .collect()
     }
 
@@ -440,6 +451,7 @@ impl Agents {
         {
             let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
             sim.update_sites(jobs);
+            sim.update_attendance();
             sim.age_piles(jobs, ticks(dt));
             jobs.drain(&mut sim);
         }
@@ -484,6 +496,9 @@ impl Agents {
             k += 1;
         }
         self.dying.clear();
+        for (c, s) in citizens.iter_mut().zip(&self.states) {
+            c.school = s.school;
+        }
     }
 
     /// `FUN_140118340` for citizen `i`; returns the children born.
@@ -500,12 +515,33 @@ impl Agents {
         if !citizens[i].alive || self.dying.iter().any(|&(d, _)| d == i) {
             return Vec::new();
         }
+        let was_child = citizens[i].age < self.life.adult_age();
+        let mut born = Vec::new();
+        self.with_people(citizens, env, entities, newborn, &mut born, |people| {
+            people.update(i, dt)
+        });
+        // `FUN_1401195c0`: an adult's model and walk at full scale.
+        if was_child && citizens[i].age >= self.life.adult_age() {
+            self.characters[i].scale = 1.0;
+        }
+        born
+    }
+
+    /// Run `f` over the citizens' life context.
+    pub(crate) fn with_people<R>(
+        &mut self,
+        citizens: &mut Vec<Citizen>,
+        env: &mut Env,
+        entities: &[EntityView],
+        newborn: &mut dyn FnMut(&mut Random, &Citizen, bool) -> Citizen,
+        born: &mut Vec<usize>,
+        f: impl FnOnce(&mut crate::life::People) -> R,
+    ) -> R {
         let idle: Vec<bool> = self
             .characters
             .iter()
             .map(|c| !c.stack.is_active())
             .collect();
-        let was_child = citizens[i].age < self.life.adult_age();
         let town = TownView {
             size: env.cells.size,
             types: &env.cells.types,
@@ -516,7 +552,6 @@ impl Agents {
             happiness: &[],
         };
         let c = &mut *env.construction;
-        let mut born = Vec::new();
         let mut people = crate::life::People {
             citizens,
             states: &mut self.states,
@@ -535,14 +570,14 @@ impl Agents {
             events: &mut self.events,
             dying: &mut self.dying,
             newborn,
-            born: &mut born,
+            born,
+            attendance: &mut c.attendance,
+            attendance_list: &c.attendance_list,
+            workplaces: &c.workforce.workplaces,
+            sectors: &mut self.sectors,
+            terrain: env.terrain,
         };
-        people.update(i, dt);
-        // `FUN_1401195c0`: an adult's model and walk at full scale.
-        if was_child && citizens[i].age >= self.life.adult_age() {
-            self.characters[i].scale = 1.0;
-        }
-        born
+        f(&mut people)
     }
 
     /// `FUN_140119170`: the dead citizen's components let go of the town (a removed entity's
@@ -598,6 +633,11 @@ impl Agents {
             dying: &mut self.dying,
             newborn: &mut never,
             born: &mut born,
+            attendance: &mut k.attendance,
+            attendance_list: &k.attendance_list,
+            workplaces: &k.workforce.workplaces,
+            sectors: &mut self.sectors,
+            terrain: env.terrain,
         };
         let workplace = people.states[c].workplace;
         let profession = people.states[c].profession;
@@ -610,7 +650,7 @@ impl Agents {
             .iter()
             .zip(people.citizens.iter())
             .map(|(s, ci)| crate::professions::Worker {
-                adult: ci.alive && ci.age >= self.life.adult_age() && ci.school.is_none(),
+                adult: ci.alive && ci.age >= self.life.adult_age() && s.school.is_none(),
                 profession: s.profession,
                 workplace: s.workplace,
                 home: s.home,
@@ -690,6 +730,23 @@ impl Agents {
                         self.states[i].health_events |= 0x200;
                         self.states[i].health += 0.5;
                     }
+                    4 | 5 => {
+                        let mut born = Vec::new();
+                        self.with_people(
+                            citizens,
+                            env,
+                            entities,
+                            &mut |_, m, _| m.clone(),
+                            &mut born,
+                            |p| {
+                                if m.message == 4 {
+                                    p.lesson(i)
+                                } else {
+                                    p.treated(i)
+                                }
+                            },
+                        );
+                    }
                     _ => self.states[i].message(m, self.rules),
                 },
                 Component::CitizenAi if m.message == 0 => {
@@ -761,7 +818,7 @@ impl Agents {
     fn think(
         &mut self,
         i: usize,
-        citizens: &[Citizen],
+        citizens: &mut Vec<Citizen>,
         env: &mut Env,
         groups: &[Option<&AnimationGroup>],
         adult: &[bool],
@@ -798,7 +855,7 @@ impl Agents {
             spouse_activity,
             doctor: self.states[i].doctor.is_some(),
             age: c.age,
-            school: c.school.is_some(),
+            school: self.states[i].school.is_some(),
             tool: self.states[i].tool_uses,
             clothing: self.states[i].clothing,
             home: self.states[i].home.is_some(),
@@ -840,9 +897,9 @@ impl Agents {
                         .is_some_and(|h| town.can_reach(cell, h, env.rng))
                 };
                 let carrying = self.states[i].carried.used(env.materials) > 0;
-                let done = if home_reachable && carrying {
-                    // `FUN_140111160` / `FUN_1401108b0`: first drop off what is carried, then
-                    // this activity again.
+                let done = if (home_reachable || a == activity::HERBS) && carrying {
+                    // `FUN_140111160` / `FUN_1401108b0` / `FUN_140111d60`: first drop off what
+                    // is carried, then this activity again.
                     let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
                     sim.drop_off(i);
                     jobs.drain(&mut sim);
@@ -856,6 +913,10 @@ impl Agents {
                         | activity::WARM_URGENT
                         | activity::HOME_FOOD
                         | activity::HOME_FUEL
+                        | activity::HERBS
+                        | activity::DOCTOR
+                        | activity::SCHOOL
+                        | activity::PLAY
                 ) {
                     let town = TownView {
                         size: env.cells.size,
@@ -879,6 +940,11 @@ impl Agents {
                         terrain: env.terrain,
                         size: env.cells.size,
                         rng: env.rng,
+                        healers: &env.construction.healers,
+                        workplaces: &env.construction.workforce.workplaces,
+                        attendance: &mut env.construction.attendance,
+                        citizens,
+                        reschool: false,
                     };
                     let mut who = crate::needs::Who {
                         ai,
@@ -890,8 +956,24 @@ impl Agents {
                         activity::EAT | activity::EAT_URGENT => needs.eat(&mut who),
                         activity::WARM | activity::WARM_URGENT => needs.warm(&mut who),
                         activity::HOME_FOOD => needs.stock_home(&mut who, false, home_reachable),
-                        _ => needs.stock_home(&mut who, true, home_reachable),
+                        activity::HOME_FUEL => needs.stock_home(&mut who, true, home_reachable),
+                        activity::HERBS => needs.herbs(&mut who),
+                        activity::DOCTOR => needs.doctor(&mut who, i),
+                        activity::SCHOOL => needs.school(&mut who),
+                        _ => needs.play(&mut who, i),
                     };
+                    if needs.reschool {
+                        // `FUN_14011af20(c, 1)`.
+                        let mut born = Vec::new();
+                        self.with_people(
+                            citizens,
+                            env,
+                            entities,
+                            &mut |_, m, _| m.clone(),
+                            &mut born,
+                            |p| p.leave_service(i, crate::life::service::SCHOOL, true),
+                        );
+                    }
                     let outbox = std::mem::take(&mut self.characters[i].stack.outbox);
                     if !outbox.is_empty() {
                         let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);

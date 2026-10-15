@@ -26,6 +26,10 @@ pub enum Controller {
     ClearResource,
     /// ResourceProduceComponent (`FUN_140130700` table), here ConsumeProduceComponent.
     ResourceProduce,
+    /// AttendanceComponent (`FUN_140044f90` table): school, chapel, doctor.
+    Attendance,
+    /// HealerComponent (`FUN_14004b980` table): the herbalist.
+    Healer,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -68,6 +72,15 @@ pub enum Callback {
     ProduceEnterD,
     /// `FUN_1401301f0`: remove the work and disable the workplace.
     ProduceEnterE,
+    /// `FUN_1400445f0`: register the attendance, its LocationWork, enable the workplace.
+    AttendanceEnter2,
+    /// `FUN_140044590`: status icon 2 when every attendance of the kind is full.
+    AttendanceExit2,
+    /// `FUN_140044530`: unregister, send the attendees away, disable the workplace.
+    AttendanceEnter3,
+    /// `FUN_14004b790` / `FUN_14004b750`: register / unregister the healer.
+    HealerEnter2,
+    HealerEnter3,
     /// Callbacks whose port is still missing (they pass the state on).
     Missing,
 }
@@ -179,6 +192,40 @@ const RESIDENCE: &[StateDef] = &[
     },
 ];
 
+const ATTENDANCE: &[StateDef] = &[
+    StateDef {
+        id: 2,
+        enter: C::AttendanceEnter2,
+        update: C::None,
+        exit: C::AttendanceExit2,
+        transitions: &[(3, C::None)],
+    },
+    StateDef {
+        id: 3,
+        enter: C::AttendanceEnter3,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(6, C::None), (4, C::None), (5, C::None)],
+    },
+];
+
+const HEALER: &[StateDef] = &[
+    StateDef {
+        id: 2,
+        enter: C::HealerEnter2,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(3, C::None), (0xd, C::None)],
+    },
+    StateDef {
+        id: 3,
+        enter: C::HealerEnter3,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(6, C::None), (4, C::None), (5, C::None)],
+    },
+];
+
 const CLEAR_RESOURCE: &[StateDef] = &[StateDef {
     id: 2,
     enter: C::ClearResourceEnter2,
@@ -222,6 +269,8 @@ impl Controller {
             Controller::Residence => RESIDENCE,
             Controller::ClearResource => CLEAR_RESOURCE,
             Controller::ResourceProduce => RESOURCE_PRODUCE,
+            Controller::Attendance => ATTENDANCE,
+            Controller::Healer => HEALER,
         }
     }
 
@@ -426,6 +475,8 @@ pub struct SiteTemplate {
     pub meshes: Vec<usize>,
     /// ResidenceDescription.
     pub residence: Option<banished_formats::game::ResidenceDescription>,
+    /// AttendanceDescription capacity.
+    pub attendance: Option<i32>,
 }
 
 impl SiteTemplate {
@@ -548,6 +599,22 @@ pub struct Construction {
     pub destroy: Vec<usize>,
     /// Finished residences' ResidenceComponents, by entity.
     pub homes: BTreeMap<usize, crate::life::Home>,
+    /// AttendanceComponents, by entity, and the town manager's registry (`+0x60`).
+    pub attendance: BTreeMap<usize, Attendance>,
+    pub attendance_list: Vec<usize>,
+    /// The town manager's HealerComponents (`+0x70`).
+    pub healers: Vec<usize>,
+}
+
+/// AttendanceComponent (vtable `0x14015ee00`): who attends a school, chapel or doctor.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Attendance {
+    /// AttendanceDescription `+0x20`.
+    pub capacity: i32,
+    /// `+0x28`: attendees in arrival order.
+    pub attendees: Vec<usize>,
+    /// The workplace's profession (teacher, priest, doctor).
+    pub profession: Option<usize>,
 }
 
 /// `RawMaterialComponent` (vtable `0x14016a5a0`, constructor `FUN_14012e8d0`): a loose pile.

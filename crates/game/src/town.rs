@@ -87,6 +87,9 @@ pub struct Sim<'s, 't> {
     pub site_templates: &'s [SiteTemplate],
     pub sites: &'s mut BTreeMap<usize, Site>,
     pub homes: &'s mut BTreeMap<usize, crate::life::Home>,
+    pub attendance: &'s mut BTreeMap<usize, crate::construction::Attendance>,
+    pub attendance_list: &'s mut Vec<usize>,
+    pub healers: &'s mut Vec<usize>,
     pub site_list: &'s mut Vec<usize>,
     pub events: Vec<JobEvent>,
     pub piles: &'s mut BTreeMap<usize, Pile>,
@@ -155,7 +158,7 @@ pub fn animating(placed: &[Placed], templates: &[Template]) -> Vec<bool> {
 }
 
 /// FUN_1400a48b0 without bridge picking.
-fn cell_ground(size: usize, terrain: &HeightGrid, cell: i32) -> [f32; 3] {
+pub(crate) fn cell_ground(size: usize, terrain: &HeightGrid, cell: i32) -> [f32; 3] {
     let n = size as i32;
     let h = (n >> 1) as f32 - 0.5;
     let (x, y) = ((cell % n) as f32 - h, (cell / n) as f32 - h);
@@ -897,6 +900,31 @@ impl Callbacks for Sim<'_, '_> {
                 }
                 false
             }
+            Callback::AttendanceEnter2 => {
+                self.attendance_enter(jobs, e);
+                false
+            }
+            Callback::AttendanceExit2 => {
+                // `FUN_1401318c0(icon, 2, full)`.
+                let _full = self.attendance_full(e);
+                // Not ported: building status icons.
+                false
+            }
+            Callback::AttendanceEnter3 => {
+                self.remove_work(jobs, e);
+                self.attendance_leave(e);
+                false
+            }
+            Callback::HealerEnter2 => {
+                if !self.healers.contains(&e) {
+                    self.healers.push(e);
+                }
+                false
+            }
+            Callback::HealerEnter3 => {
+                self.healers.retain(|&x| x != e);
+                false
+            }
             Callback::ProduceEnter2 => {
                 let off = self.sites[&e].produce.as_ref().is_some_and(|p| p.disabled);
                 self.machine(e).request(if off { 0xe } else { 0xd });
@@ -987,6 +1015,17 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Clear(_) => return self.clear_refresh(work),
             WorkKind::Pickup(_) => return self.pickup_refresh(work),
             WorkKind::Produce(_) => return self.produce_refresh(work),
+            // `FUN_1400f4c90`: the worker no longer holds the task.
+            WorkKind::Location(l) => {
+                if let Some(c) = l.worker {
+                    if self.characters[c].stack.holds_task(id).is_none() {
+                        if let WorkKind::Location(l) = &mut work.kind {
+                            l.worker = None;
+                        }
+                    }
+                }
+                return;
+            }
             WorkKind::Test(_) => return,
         }
         .filter(|&c| self.characters[c].stack.holds_task(id).is_none())
@@ -1013,8 +1052,11 @@ impl WorkHost for Sim<'_, '_> {
                     *o = held.contains(&(k as i32));
                 }
             }
-            WorkKind::Clear(_) | WorkKind::Pickup(_) | WorkKind::Produce(_) | WorkKind::Test(_) => {
-            }
+            WorkKind::Clear(_)
+            | WorkKind::Pickup(_)
+            | WorkKind::Produce(_)
+            | WorkKind::Location(_)
+            | WorkKind::Test(_) => {}
         }
         if let WorkKind::Gather(_) = work.kind {
             self.cancel(work);
@@ -1031,6 +1073,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Clear(_) => self.clear_try(work, c, time),
             WorkKind::Pickup(_) => self.pickup_try(work, c, time),
             WorkKind::Produce(_) => self.produce_try(work, c, time),
+            WorkKind::Location(_) => self.location_try(work, c),
             WorkKind::Test(_) => 0,
         }
     }
@@ -1077,6 +1120,8 @@ impl WorkHost for Sim<'_, '_> {
                 }
             }
             WorkKind::Produce(_) => Self::produce_complete(work, param, false),
+            // `FUN_1400f4d20`: free for the next one; the work stays.
+            WorkKind::Location(l) => l.worker = None,
             WorkKind::Test(_) => {}
         }
         false
@@ -1109,6 +1154,7 @@ impl WorkHost for Sim<'_, '_> {
                 }
             }
             WorkKind::Produce(_) => Self::produce_complete(work, param, true),
+            WorkKind::Location(l) => l.worker = None,
             WorkKind::Test(_) => {}
         }
     }
@@ -1136,6 +1182,8 @@ impl WorkHost for Sim<'_, '_> {
                     .get(&work.entity)
                     .filter(|p| p.state == 1)
                     .and_then(|p| p.claimer),
+                // `FUN_1400f4fc0`: the worker's stack is cleared.
+                WorkKind::Location(l) => l.worker,
                 WorkKind::Produce(_) | WorkKind::Test(_) => None,
             };
             let Some(c) = next else { return };
@@ -1158,6 +1206,7 @@ impl WorkHost for Sim<'_, '_> {
                         p.state = 0;
                     }
                 }
+                WorkKind::Location(l) => l.worker = None,
                 WorkKind::Produce(_) | WorkKind::Test(_) => {}
             }
         }

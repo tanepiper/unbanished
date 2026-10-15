@@ -39,6 +39,15 @@ pub struct Needs<'a, 'b> {
     pub terrain: &'a HeightGrid<'b>,
     pub size: usize,
     pub rng: &'a mut Random,
+    /// The town manager's HealerComponents (`+0x70`) and every WorkPlaceComponent.
+    pub healers: &'a [usize],
+    pub workplaces: &'a BTreeMap<usize, crate::professions::WorkPlace>,
+    pub attendance: &'a mut BTreeMap<usize, crate::construction::Attendance>,
+    /// Every citizen (play follows the guardian).
+    pub citizens: &'a [crate::citizens::Citizen],
+    /// Set when the school activity found no place to sit: the caller leaves the school and
+    /// looks for another (`FUN_14011af20(c, 1)`).
+    pub reschool: bool,
 }
 
 /// The citizen an activity runs for.
@@ -432,6 +441,288 @@ impl Needs<'_, '_> {
         who.state.health_events |= 4;
         who.state.job = -1;
         who.state.supply_activity = supply;
+        true
+    }
+}
+
+impl Needs<'_, '_> {
+    /// The path-rank distance from `a` to `b`.
+    fn rank(&mut self, a: i32, b: i32) -> i32 {
+        let (size, terrain) = (self.size, self.terrain);
+        let ground_at = move |c: i32| ground(size, terrain, c);
+        let mut g = StorageGeometry {
+            town: self.town,
+            sectors: self.sectors,
+            ground: &ground_at,
+        };
+        crate::stock::StorageSearchMap::rank(&mut g, a, b)
+    }
+
+    /// `FUN_1401280b0` over an entity's use points: the nearest reachable from `cell`.
+    fn nearest_point(&mut self, e: usize, cell: i32) -> Option<[f32; 3]> {
+        let points = self.town.entities.get(e)?.use_points.clone();
+        let mut best = 0xffff;
+        let mut found = None;
+        for p in points {
+            let to = self.town.cell_of(p);
+            if !self.town.reachable(WALKABLE, cell, to) {
+                continue;
+            }
+            let rank = self.rank(cell, to);
+            if rank < best {
+                best = rank;
+                found = Some(p);
+            }
+        }
+        found
+    }
+
+    /// `FUN_1400c0960(…, message, seconds, true)`: walk to `target`, work (no facing), then
+    /// Citizen message `message`.
+    fn visit(&mut self, who: &mut Who, target: [f32; 3], message: i32, secs: f32) {
+        let mut stack = self.begin(who);
+        stack.push(
+            who.ch,
+            who.group,
+            Action::SendMessage(Message {
+                component: Component::Citizen,
+                message,
+                entity: None,
+                a: 0,
+                b: 0,
+            }),
+        );
+        stack.push(
+            who.ch,
+            who.group,
+            Action::PerformWork {
+                facing: -1000.0,
+                anim: 8,
+                duration: ticks(secs),
+                elapsed: 0,
+                consume: false,
+            },
+        );
+        let walk = MoveTo::new(target, 1, 0, WALKABLE, 0, -1.0, self.rng);
+        stack.push(who.ch, who.group, Action::move_to(walk));
+        who.ch.stack = stack;
+        who.state.health_events |= 4;
+        who.state.job = -1;
+        who.state.supply_activity = 0;
+    }
+
+    /// `FUN_1400c2f20`: rest at home (walk there, warm up, 5 s).
+    fn rest_at_home(&mut self, who: &mut Who, home: usize) {
+        let target = self.point(home);
+        let mut stack = self.begin(who);
+        stack.push(
+            who.ch,
+            who.group,
+            Action::PerformWork {
+                facing: -1000.0,
+                anim: 8,
+                duration: ticks(5.0),
+                elapsed: 0,
+                consume: false,
+            },
+        );
+        stack.push(who.ch, who.group, citizen_message(0, home));
+        let walk = MoveTo::new(target, 1, 0, WALKABLE, 0, -1.0, self.rng);
+        stack.push(who.ch, who.group, Action::move_to(walk));
+        who.ch.stack = stack;
+        who.state.job = -1;
+        who.state.health_events |= 4;
+        who.state.supply_activity = 0;
+    }
+
+    /// `FUN_140112a30` (activity 10): sit a lesson at the school (`D[0x120]` s, message 4).
+    pub fn school(&mut self, who: &mut Who) -> bool {
+        let Some(school) = who.state.school else {
+            return false;
+        };
+        let cell = self.town.cell_of(who.ch.position);
+        match self.nearest_point(school, cell) {
+            Some(target) => {
+                self.visit(who, target, 4, self.life.f(0x120));
+                true
+            }
+            None => {
+                self.reschool = true;
+                false
+            }
+        }
+    }
+
+    /// `FUN_140112c60` (activity 5): with a doctor, be treated (`D[0x124]` s, message 5);
+    /// without one, or when the doctor cannot be reached, rest at a reachable home.
+    /// Like the original, it reports "not started" after a treatment visit.
+    pub fn doctor(&mut self, who: &mut Who, me: usize) -> bool {
+        let cell = self.town.cell_of(who.ch.position);
+        let home = who
+            .state
+            .home
+            .filter(|&h| self.town.can_reach(cell, h, self.rng));
+        let Some(doctor) = who.state.doctor else {
+            return match home {
+                Some(h) => {
+                    self.rest_at_home(who, h);
+                    true
+                }
+                None => false,
+            };
+        };
+        match self.nearest_point(doctor, cell) {
+            Some(target) => {
+                self.visit(who, target, 5, self.life.f(0x124));
+                false
+            }
+            None => {
+                // `FUN_14011ae80`, then home.
+                who.state.doctor = None;
+                if let Some(a) = self.attendance.get_mut(&doctor) {
+                    a.attendees.retain(|&x| x != me);
+                }
+                match who.state.home {
+                    Some(h) => {
+                        self.rest_at_home(who, h);
+                        true
+                    }
+                    None => false,
+                }
+            }
+        }
+    }
+
+    /// `FUN_140111d60` (activity 4): take a herb from the nearest storage to the nearest
+    /// staffed herbalist, be treated there (5 s, message 3). The caller drops off first.
+    pub fn herbs(&mut self, who: &mut Who) -> bool {
+        who.ai.cooldowns[4] = ticks(75.0);
+        let cell = self.town.cell_of(who.ch.position);
+        let Some((source, from)) = self.search(3, cell, who.state.home) else {
+            return false;
+        };
+        let Some(storage) = self.storage(source) else {
+            return false;
+        };
+        let Some(herb) = self.storages[storage].find_item(self.materials, 3, self.rng) else {
+            return false;
+        };
+        // `FUN_140094700`: the nearest staffed, reachable healer.
+        let mut best = 0xffff;
+        let mut healer = None;
+        for &e in self.healers {
+            if self.workplaces.get(&e).is_none_or(|w| w.workers.is_empty()) {
+                continue;
+            }
+            let p = self.point(e);
+            let to = self.town.cell_of(p);
+            if !self.town.reachable(WALKABLE, cell, to) {
+                continue;
+            }
+            let rank = self.rank(cell, to);
+            if rank < best {
+                best = rank;
+                healer = Some((e, p));
+            }
+        }
+        let Some((healer, at)) = healer else {
+            return false;
+        };
+        // `FUN_1400c1c60`.
+        let face_healer = work_facing(self.centre(healer), at);
+        let face_source = work_facing(self.centre(source), from);
+        self.storages[storage].reserve(herb, 1);
+        let mut stack = self.begin(who);
+        stack.push(who.ch, who.group, citizen_message(3, healer));
+        stack.push(
+            who.ch,
+            who.group,
+            Action::ConsumeStoredRawMaterial {
+                storage: usize::MAX,
+                items: vec![(herb, 1)],
+                reserved: false,
+            },
+        );
+        stack.push(
+            who.ch,
+            who.group,
+            Action::PerformWork {
+                facing: face_healer,
+                anim: 8,
+                duration: ticks(5.0),
+                elapsed: 0,
+                consume: false,
+            },
+        );
+        let walk = MoveTo::new(at, 1, 0, WALKABLE, 0, -1.0, self.rng);
+        stack.push(who.ch, who.group, Action::move_to(walk));
+        stack.push(
+            who.ch,
+            who.group,
+            Action::PickupStoredRawMaterial {
+                storage,
+                items: vec![(herb, 1)],
+                partial: true,
+            },
+        );
+        stack.push(
+            who.ch,
+            who.group,
+            Action::PerformWork {
+                facing: face_source,
+                anim: 8,
+                duration: ticks(1.0),
+                elapsed: 0,
+                consume: false,
+            },
+        );
+        let walk = MoveTo::new(from, 1, 0, WALKABLE, 0, -1.0, self.rng);
+        stack.push(who.ch, who.group, Action::move_to(walk));
+        who.ch.stack = stack;
+        who.state.health_events |= 4;
+        who.state.job = -1;
+        who.state.supply_activity = 0;
+        who.ai.cooldowns[4] = ticks(self.life.f(0x78) * 75.0);
+        true
+    }
+
+    /// `FUN_14010f780` (activity 11): a child plays next to its guardian (or the guardian's
+    /// partner), then idles `RandFloat · 7 + 3` s.
+    pub fn play(&mut self, who: &mut Who, me: usize) -> bool {
+        let Some(mut g) = self.citizens.get(me).and_then(|c| c.parent) else {
+            return false;
+        };
+        if let Some(p) = self.citizens[g].spouse {
+            // `Rand(1)` is always 0: the partner.
+            if self.rng.rand_below(1) == 0 {
+                g = p;
+            }
+        }
+        let from = self.town.cell_of(self.citizens[g].position);
+        let to = self.town.cell_of(who.ch.position);
+        let Some(cell) =
+            crate::pathfind::nearest_neighbour(self.size, self.town.types, from, to, WALKABLE)
+        else {
+            return false;
+        };
+        let target = ground(self.size, self.terrain, cell);
+        let idle = self.rng.rand_float() * 7.0 + 3.0;
+        // `FUN_1400c7b90`.
+        let mut stack = self.begin(who);
+        if 0.0 < idle {
+            stack.push(
+                who.ch,
+                who.group,
+                Action::PlayAnimation {
+                    anim: 0,
+                    duration: ticks(idle),
+                    elapsed: 0,
+                },
+            );
+        }
+        let walk = MoveTo::new(target, 1, 0, WALKABLE, 0, -1.0, self.rng);
+        stack.push(who.ch, who.group, Action::move_to(walk));
+        who.ch.stack = stack;
         true
     }
 }

@@ -31,6 +31,7 @@ pub mod random;
 pub mod scheduler;
 pub mod sectors;
 pub mod seeding;
+pub mod services;
 pub mod spawn;
 pub mod status;
 pub mod stock;

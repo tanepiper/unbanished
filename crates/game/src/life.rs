@@ -32,6 +32,16 @@ const HOUR: f32 = 3600.0;
 pub struct LifeRules {
     fields: BTreeMap<u32, f32>,
     ints: BTreeMap<u32, i32>,
+    /// `D+0x20`, `D+0x28`, `D+0x30`: the teacher's, priest's and doctor's professions (the
+    /// workplaces whose attendance a citizen joins), as profession indices.
+    pub services: [Option<usize>; 3],
+}
+
+/// Which service an attendance search is for (`D+0x20/+0x28/+0x30`).
+pub mod service {
+    pub const SCHOOL: usize = 0;
+    pub const CHAPEL: usize = 1;
+    pub const DOCTOR: usize = 2;
 }
 
 impl LifeRules {
@@ -201,6 +211,13 @@ pub struct People<'a, 'b> {
     // (the flag is the child's sex, `true` male)
     /// Children born this update (new citizen indices).
     pub born: &'a mut Vec<usize>,
+    /// AttendanceComponents and their registry (town manager `+0x60`).
+    pub attendance: &'a mut BTreeMap<usize, crate::construction::Attendance>,
+    pub attendance_list: &'a [usize],
+    pub workplaces: &'a BTreeMap<usize, crate::professions::WorkPlace>,
+    /// The path-rank cache.
+    pub sectors: &'a mut crate::sectors::SectorGraph,
+    pub terrain: &'a crate::terrain::HeightGrid<'b>,
 }
 
 impl People<'_, '_> {
@@ -312,6 +329,132 @@ impl People<'_, '_> {
         self.citizens[c].parent = None;
     }
 
+    /// The path-rank distance (`FUN_140008830`).
+    fn rank(&mut self, a: i32, b: i32) -> i32 {
+        let (size, terrain) = (self.town.size, self.terrain);
+        let ground = move |cell: i32| {
+            let n = size as i32;
+            let h = (n >> 1) as f32 - 0.5;
+            let (x, y) = ((cell % n) as f32 - h, (cell / n) as f32 - h);
+            let mut normal = [0.0; 3];
+            [x, y, terrain.ground(x, y, &mut normal)]
+        };
+        let mut g = crate::activities::StorageGeometry {
+            town: self.town,
+            sectors: self.sectors,
+            ground: &ground,
+        };
+        crate::stock::StorageSearchMap::rank(&mut g, a, b)
+    }
+
+    /// `FUN_140044a50`: room, a worker, and the building reachable from the citizen.
+    fn accepts(&self, e: usize, c: usize) -> bool {
+        let Some(a) = self.attendance.get(&e) else {
+            return false;
+        };
+        if a.attendees.len() as i32 >= a.capacity {
+            return false;
+        }
+        if self.workplaces.get(&e).is_none_or(|w| w.workers.is_empty()) {
+            return false;
+        }
+        let to = self.town.point_cell(e);
+        to >= 0 && self.town.reachable(WALKABLE, self.cell(c), to)
+    }
+
+    /// `FUN_140116e00`: the accepting attendance of `service` nearest the home (path rank
+    /// between entrances; any one without a home), skipping `exclude`.
+    fn find_service(&mut self, c: usize, service: usize, exclude: Option<usize>) -> Option<usize> {
+        let profession = self.rules.services[service]?;
+        let home = self.states[c]
+            .home
+            .map_or(-1, |h| self.town.entrance(h, self.rng));
+        let mut best = -1;
+        let mut found = None;
+        for &e in self.attendance_list {
+            // The workplace's description profession (`FUN_140116e00` compares `+0x48`).
+            if Some(e) == exclude
+                || self.workplaces.get(&e).and_then(|w| w.profession) != Some(profession)
+                || !self.accepts(e, c)
+            {
+                continue;
+            }
+            let entrance = self.town.entrance(e, self.rng);
+            let d = if home >= 0 {
+                self.rank(entrance, home)
+            } else {
+                1
+            };
+            if best < 0 || d < best {
+                best = d;
+                found = Some(e);
+            }
+        }
+        found
+    }
+
+    /// `FUN_140116d10`, `FUN_140116bc0`, `FUN_140116a60`: join the nearest school, chapel or
+    /// doctor; the school also sets `+0x220`.
+    pub fn join_service(&mut self, c: usize, service: usize, exclude: Option<usize>) -> bool {
+        let Some(e) = self.find_service(c, service, exclude) else {
+            return false;
+        };
+        if let Some(a) = self.attendance.get_mut(&e) {
+            a.attendees.push(c);
+        }
+        let s = &mut self.states[c];
+        match service {
+            service::SCHOOL => {
+                s.school = Some(e);
+                s.schooled = true;
+            }
+            service::CHAPEL => s.priest = Some(e),
+            _ => s.doctor = Some(e),
+        }
+        true
+    }
+
+    /// `FUN_14011af20` / `FUN_140116b20` / `FUN_14011ae80`: leave; the school can be swapped
+    /// for another at once (`again`).
+    pub fn leave_service(&mut self, c: usize, service: usize, again: bool) {
+        let slot = match service {
+            service::SCHOOL => self.states[c].school.take(),
+            service::CHAPEL => self.states[c].priest.take(),
+            _ => self.states[c].doctor.take(),
+        };
+        let Some(e) = slot else { return };
+        if let Some(a) = self.attendance.get_mut(&e) {
+            a.attendees.retain(|&x| x != c);
+        }
+        if again && service == service::SCHOOL && !self.join_service(c, service, None) {
+            self.states[c].school = None;
+        }
+    }
+
+    /// Citizen message 4 (`FUN_140116c70`): a lesson; at `D[0x118]` lessons, or after
+    /// `D[0x11c]` hours at school, educated (flag `0x400`), out of school and an adult (9).
+    pub fn lesson(&mut self, c: usize) {
+        let r = self.rules;
+        let s = &mut self.states[c];
+        self.citizens[c].education += 1;
+        if self.citizens[c].education < r.i(0x118) && seconds(s.school_time) <= r.f(0x11c) * HOUR {
+            return;
+        }
+        s.flags |= 0x400;
+        self.citizens[c].education = r.i(0x118);
+        self.citizens[c].educated = true;
+        self.leave_service(c, service::SCHOOL, false);
+        self.report(c, reason::ADULT, 0, None);
+    }
+
+    /// Citizen message 5 (`FUN_140116a10`): the doctor shortens the illness by `D[0x12c]`
+    /// minutes.
+    pub fn treated(&mut self, c: usize) {
+        if self.states[c].disease.is_some() {
+            self.states[c].disease_left -= ticks(self.rules.f(0x12c) * MINUTE);
+        }
+    }
+
     /// `FUN_14011c2a0`: queue the citizen's death (`reason`) and tell the family.
     /// Not ported: burial (`FUN_14008ec10` searches the cemeteries; with a plot the family gets
     /// event bit `0x40` instead).
@@ -341,9 +484,9 @@ impl People<'_, '_> {
     /// doctor, the chapel, the home and the guardian; a widow(er) takes the dependents, else
     /// children die (orphaned) and older dependents leave; the partner is single again.
     pub fn bury(&mut self, c: usize) {
-        self.citizens[c].school = None;
-        self.states[c].doctor = None;
-        self.states[c].priest = None;
+        self.leave_service(c, service::SCHOOL, false);
+        self.leave_service(c, service::DOCTOR, false);
+        self.leave_service(c, service::CHAPEL, false);
         self.set_home(c, None, -1);
         if let Some(g) = self.citizens[c].parent {
             self.remove_dependent(g, c);
@@ -357,7 +500,7 @@ impl People<'_, '_> {
                     } else {
                         self.set_guardian(d, None);
                         self.set_home(d, None, -1);
-                        self.citizens[d].school = None;
+                        self.leave_service(d, service::SCHOOL, false);
                     }
                 }
             }
@@ -378,7 +521,7 @@ impl People<'_, '_> {
         let r = self.rules;
         let secs = seconds(dt);
         let adult_age = r.adult_age();
-        let was_child = self.citizens[c].age < adult_age || self.citizens[c].school.is_some();
+        let was_child = self.citizens[c].age < adult_age || self.states[c].school.is_some();
         let age = secs * r.f(0x40) + self.citizens[c].age;
         self.citizens[c].age = age;
         {
@@ -386,7 +529,7 @@ impl People<'_, '_> {
             s.health_timer += dt;
             s.happiness_timer += dt;
             s.clothing_remaining -= dt;
-            if self.citizens[c].school.is_some() {
+            if s.school.is_some() {
                 s.school_time += dt;
             }
             s.disease_clock += dt;
@@ -396,9 +539,18 @@ impl People<'_, '_> {
             }
         }
         // Coming of age: a school place (code 10) or adulthood (code 9).
-        // Not ported: the school search `FUN_140116d10`; every child becomes an adult.
-        if was_child && adult_age <= age && self.citizens[c].school.is_none() {
-            self.report(c, reason::ADULT, 0, None);
+        if was_child && adult_age <= age && self.states[c].school.is_none() {
+            let student = !self.states[c].schooled && self.join_service(c, service::SCHOOL, None);
+            self.report(
+                c,
+                if student {
+                    reason::STUDENT
+                } else {
+                    reason::ADULT
+                },
+                0,
+                None,
+            );
         }
         let s = &mut self.states[c];
         if s.sick && s.doctor.is_some() {
@@ -439,9 +591,13 @@ impl People<'_, '_> {
         }
         if self.states[c].disease.is_some() {
             self.states[c].flags |= 1;
-            // Not ported: the doctor search `FUN_140116a60`.
+            if self.states[c].doctor.is_none() {
+                self.join_service(c, service::DOCTOR, None);
+            }
         }
-        // Not ported: the chapel search `FUN_140116bc0`.
+        if self.states[c].priest.is_none() {
+            self.join_service(c, service::CHAPEL, None);
+        }
         let warn_hunger = r.hunger_warning();
         let warn_cold = r.cold_warning();
         {
@@ -477,7 +633,7 @@ impl People<'_, '_> {
                 }
             }
         }
-        let child = self.citizens[c].age < adult_age || self.citizens[c].school.is_some();
+        let child = self.citizens[c].age < adult_age || self.states[c].school.is_some();
         // A child without a home follows its guardian's.
         if child && self.idle[c] && self.states[c].home.is_none() {
             if let Some(g) = self.citizens[c].parent {
@@ -545,7 +701,7 @@ impl People<'_, '_> {
         let r = self.rules;
         if self.citizens[c].male
             || self.citizens[c].age < r.adult_age()
-            || self.citizens[c].school.is_some()
+            || self.states[c].school.is_some()
         {
             return;
         }
@@ -660,7 +816,7 @@ impl People<'_, '_> {
             let single = self.homes.get(&mine).is_some_and(|h| h.families.len() == 1);
             let adult = self.rules.adult_age();
             for &o in self.registry.iter() {
-                if o == c || self.citizens[o].age < adult || self.citizens[o].school.is_some() {
+                if o == c || self.citizens[o].age < adult || self.states[o].school.is_some() {
                     continue;
                 }
                 let Some(h) = self.states[o].home else {
@@ -702,7 +858,7 @@ impl People<'_, '_> {
     /// `FUN_140117e60`: health from the last interval's events.
     fn health(&mut self, c: usize) {
         let r = self.rules;
-        let adult = self.adult(c) && self.citizens[c].school.is_none();
+        let adult = self.adult(c) && self.states[c].school.is_none();
         let s = &mut self.states[c];
         let e = s.health_events;
         let mut n = (e >> 8 & 1) + (e >> 6 & 1) + (e >> 5 & 1) + (e >> 4 & 1);
@@ -909,6 +1065,7 @@ impl People<'_, '_> {
         s.sick = true;
         s.disease_left = ticks((x * r.f(0x98) + r.f(0x94)) * MINUTE);
         s.spread = ticks(self.diseases.get(d).map_or(0.0, |d| d.spread_interval) * MINUTE);
+        self.join_service(c, service::DOCTOR, None);
     }
 
     /// `FUN_140117940`: perhaps infect one healthy citizen within the disease's radius.
@@ -958,7 +1115,7 @@ impl People<'_, '_> {
             s.sick = false;
         }
         // `FUN_14011ae80`: leave the doctor.
-        self.states[c].doctor = None;
+        self.leave_service(c, service::DOCTOR, false);
         lives
     }
 }
