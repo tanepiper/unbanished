@@ -144,6 +144,35 @@ Paths include both ends and are capped at 16,384 cells.
 `FUN_1400a21c0`: of the 8 neighbours of a cell whose type is allowed, the nearest (squared cell
 distance) to another cell; the first found wins ties.
 
+## Path-rank distance (coarse sector graph)
+
+Storage, job and building searches rank candidates with `FUN_1400a4ce0(map, a, b, store)`, not
+with full A*. Port: `crates/game/src/sectors.rs`.
+
+- **Sectors** (`FUN_1400adb40`): `n/8 × n/8` sectors of 8 × 8 cells. Each sector's walkable
+  cells are split into areas with an 8-connected FIFO scanline fill, rows outer
+  (`FUN_1400ad3f0`/`FUN_1400acfa0`). Each area is a node at the integer mean of its cell
+  coordinates (`FUN_1400ace20`); the cells next to the area just outside the sector become its
+  border list (`FUN_1400acc20`), and every cell records its node at `+0x18` (`FUN_1400acb40`).
+  Freed node ids are reused last-in first-out (`FUN_1400ad6d0`/`FUN_1400ad820`).
+- **Links** (`FUN_1400ac950`): a node links to the distinct nodes of its border cells.
+- **Changes** (`FUN_1400ae160`): a changed cell marks its sector for rebuilding and the 3 × 3
+  sectors around it for relinking; rebuilding is deferred to the next search
+  (`FUN_1400adf60`: all node rebuilds, then all relinks, in marking order). The initial build
+  marks every sector in index order.
+- **Distance:** `-1` unless `FUN_1400a55c0` says the cells are connected; each cell's node is its
+  `+0x18`, or the first node found on rings 1–3 around it (`FUN_1400a2570`); the same node gives
+  1; otherwise an A* over nodes (`FUN_14001e630`, same open-set order as the cell A*) with costs
+  and heuristic `(int) sqrtf(dx² + dy²)` between node positions, summed per hop
+  (`FUN_1400ae070`; 0 when no path). Callers treat −1 as `n + |a − b|`.
+- **Cache:** results stored with `store` go into a 131,072-entry FIFO ring keyed by node pair
+  (`FUN_1400ab000`); each simulation iteration, before `AnimationManager::Update`, the cache
+  clock advances and entries older than 120 s are dropped (`FUN_1400ab1e0`). Cached values are
+  not invalidated by graph rebuilds.
+
+`tools/emu/sectors.py` → `crates/game/tests/sectors_emu.rs`: on 12 random 64 × 64 maps every
+cell's node id (before and after 40 random changes) and 3,600 distances match the original.
+
 ## Choosing an activity (CitizenAIComponent)
 
 State: 16 cooldowns (`+0x40..+0xb8`, one per action), current action `+0x28`, queued action

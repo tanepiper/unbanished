@@ -21,6 +21,7 @@ pub mod pathfind;
 pub mod placement;
 pub mod random;
 pub mod scheduler;
+pub mod sectors;
 pub mod seeding;
 pub mod spawn;
 pub mod stock;
