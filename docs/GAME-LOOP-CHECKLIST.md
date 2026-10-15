@@ -46,7 +46,10 @@ evidence; static traces are not claims of live-game behavior.
 - [ ] Find producers of `NaturalResourceComponent` byte `+0x2d` and consumers of the category
   counter at `+0x10`; correlate those fields and the map-cell transition bytes with a decoded save
   before assigning gameplay meanings.
-- [ ] Trace production, harvest, storage, and stock updates from resource entities through the
+- [x] Trace town storage search, shared inventory ledgers, reservations and New Game tool/clothing
+  fetch sequences. Verify search/geometry/ledger/equipment messages against original functions;
+  see [CITIZEN-AI.md](CITIZEN-AI.md#storage-loose-piles-and-inventories).
+- [ ] Complete production, harvest, storage, and stock updates from resource entities through the
   Status Bar counters. Existing status flags and fixed-stride stock layout are only partially
   identified; see steps 8-9.
 - [ ] Complete start-condition application beyond the traced structures, household creation,
@@ -62,15 +65,19 @@ evidence; static traces are not claims of live-game behavior.
 - [x] Seed the starting map from the selected profile: start point, structure draws, and rock, ore
   and tree seeding with spawned herbs, mushrooms and berries. Rendered in game. See
   [RESOURCE-SEEDING.md](RESOURCE-SEEDING.md).
-- [x] Starting goods into the start storages, shown in the Status Bar. See
+- [x] Starting goods into entity-associated storage ledgers, with material counts, reservations,
+  masks and capacity; shown in the Status Bar. See
   [STARTING-INVENTORY-DISTRIBUTION.md](STARTING-INVENTORY-DISTRIBUTION.md).
 - [x] Starting households (couples, children, names, ages, lifespans), shown as Status Bar
   population. Port the exact name generator, verified bit-exact under emulation. See
   [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md) and
   [TOWN-NAME-DATABASE.md](TOWN-NAME-DATABASE.md).
 - [x] Draw starting citizen meshes in bind pose; animation and movement remain below.
-- [ ] Citizen animation/movement, deer, crops, orchards, livestock, and building decals and
-  footprints.
+- [x] Citizen movement/action stacks, loitering, sector-ranked storage search, reserved tool/clothing
+  fetching and equipment messages at New Game. Original-function parity and seeded integration
+  checks are recorded in [CITIZEN-AI.md](CITIZEN-AI.md).
+- [ ] Complete citizen activities/jobs/needs and bucket scheduling; deer, crops, orchards, livestock,
+  building decals and footprints.
 - [x] Replace the compact HUD with the packaged toolbar and Status Bar controllers. See
   [IN-GAME-TOOLBAR.md](IN-GAME-TOOLBAR.md) and [UTILITY-WINDOWS.md](UTILITY-WINDOWS.md).
 - [x] Building placement tool: ghost, rotation, variants, original validity and placement of
@@ -113,3 +120,10 @@ evidence; static traces are not claims of live-game behavior.
 - Step 19 corrects time units and entity/calendar/environment order, proves animation poses and
   unique playback against original functions, and records inspected native tree-expiry captures.
   These are bounded original-function and remake tests; the complete game is not yet verified.
+- The storage/equipment slice verifies 600 storage searches, 240 geometry queries, 240 facing angles,
+  400 ledger/action cases and 300 equipment messages against isolated original functions. The seeded New Game
+  integration checks equipment consumption, return to loitering, exhausted-storage failures and
+  reservation cancellation. Full original-game timing/visual parity remains unverified; the
+  explicit current deviation list is in CITIZEN-AI.md. Workspace tests: 99 passed, two existing
+  save tests ignored; release WASM builds; the inspected seed-1234 22-second capture is
+  deterministic across two runs.

@@ -200,6 +200,7 @@ impl PlacementTool {
             template: self.template,
             bucket: town.templates[self.template].bucket,
             cell: (rect.x0, rect.y0),
+            footprint: (rect.width(), rect.height()),
             position: self.position,
             yaw: degrees as f32,
             variant: self.variant,

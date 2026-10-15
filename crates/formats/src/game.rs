@@ -943,6 +943,28 @@ pub fn storage_description(data: &[u8]) -> Result<StorageDescription> {
     Ok(value)
 }
 
+/// StorageLocationDescription `+0x20` mask; serializer FUN_140132940 (version 2).
+pub fn storage_location_description(data: &[u8]) -> Result<u32> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("StorageLocationDescription") {
+            return format_err("expected StorageLocationDescription");
+        }
+        r.block(|r, _| r.u32())
+    })?;
+    Ok(value)
+}
+
+/// RadiusDescription (`FUN_140055e90`): radius `+0x28`, display reference `+0x20`.
+pub fn radius_description(data: &[u8]) -> Result<(i32, Option<String>)> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("RadiusDescription") {
+            return format_err("expected RadiusDescription");
+        }
+        r.block(|r, _| Ok((r.i32()?, r.external_ref()?)))
+    })?;
+    Ok(value)
+}
+
 /// `CitizenDescription` (serializer `FUN_140119dd0`). The class has ~60 scalar fields; they are
 /// kept keyed by their runtime offset (as the original code reads them) with named getters for
 /// the ones whose consumers are traced.

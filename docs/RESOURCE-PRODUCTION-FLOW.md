@@ -77,7 +77,9 @@ flag-like field; it does not provide their original field names.
 
 This extends the capacity-aware starting-inventory trace in
 [STARTING-INVENTORY-DISTRIBUTION.md](STARTING-INVENTORY-DISTRIBUTION.md): its destination type
-and raw-material type are now identified. The names of all individual category bits remain open.
+and raw-material type are now identified. The food/fuel/tool/herb/clothing search categories and their material bits are now established;
+see [CITIZEN-AI.md](CITIZEN-AI.md#finding-stored-goods) for search ranking, emulation and the
+New Game equipment-consumption path. The broader production chain remains partial.
 
 `0x140131b10` also shows initialization from `StorageDescription`: when its `+0x21` boolean is
 set, it clears the ledger, sets capacity from description `+0x24`, copies the mask from `+0x28`,

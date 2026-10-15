@@ -20,6 +20,42 @@ fn archive() -> Option<Archive> {
     Some(archive)
 }
 
+#[test]
+fn storage_search_descriptions_parse() {
+    use banished_formats::{
+        crc::type_id,
+        crs,
+        game::{radius_description, storage_location_description},
+    };
+    let Some(archive) = archive() else { return };
+    let mut counts = (0, 0);
+    for name in archive.names() {
+        if !name.ends_with(".crs") {
+            continue;
+        }
+        let bytes = archive.read(name).unwrap();
+        let h = crs::header(&bytes).unwrap();
+        if h.type_id == type_id("StorageLocationDescription") {
+            storage_location_description(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+            counts.0 += 1;
+        } else if h.type_id == type_id("RadiusDescription") {
+            let (radius, _) = radius_description(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+            assert!(radius > 0, "{name}");
+            counts.1 += 1;
+        }
+    }
+    assert_eq!(counts, (4, 14));
+    assert_eq!(
+        storage_location_description(
+            &archive
+                .read_ref("Template/StorageCart.rsc:storagelocation")
+                .unwrap()
+        )
+        .unwrap(),
+        0
+    );
+}
+
 fn entries<'a>(archive: &'a Archive, suffix: &str) -> Vec<&'a str> {
     archive
         .names()

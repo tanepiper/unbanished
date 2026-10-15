@@ -48,6 +48,10 @@ pub struct Template {
     pub storage: Option<(u32, i32, bool)>,
     /// Has a `StorageLocationDescription` (a town storage the starting goods go to).
     pub storage_location: bool,
+    pub storage_location_flags: u32,
+    pub market_radius: Option<i32>,
+    pub market_location: bool,
+    pub has_interact: bool,
     /// InteractDescription "use" points in model space (its point list's category 0).
     pub use_points: Vec<[f32; 3]>,
 }
@@ -67,6 +71,8 @@ pub struct Placed {
     pub bucket: usize,
     /// Map cell.
     pub cell: (i32, i32),
+    /// MapComponent +0x2c/+0x2e, after rotation; profile yards have variable dimensions.
+    pub footprint: (i32, i32),
     /// Map position (cells from the terrain centre) and ground height.
     pub position: [f32; 3],
     /// Degrees.
@@ -191,18 +197,21 @@ impl<'a> Seeder<'a> {
                 (p1[2] + p0[2]) * HALF,
             ];
             self.construct(t);
-            let Some(model) = self.templates[t].model.as_ref() else {
-                continue;
-            };
-            let variant = self.rng.rand_below(model.variants.len() as u32) as usize;
-            let mesh = model
-                .variants
-                .get(variant)
-                .map_or(0, |v| v.meshes.len().saturating_sub(1));
+            // The yard is an entity with storage/map components but no model. Retain it;
+            // only model-bearing structures consume the model-variant draw.
+            let (variant, mesh) = self.templates[t].model.as_ref().map_or((0, 0), |model| {
+                let variant = self.rng.rand_below(model.variants.len() as u32) as usize;
+                let mesh = model
+                    .variants
+                    .get(variant)
+                    .map_or(0, |v| v.meshes.len().saturating_sub(1));
+                (variant, mesh)
+            });
             self.placed.push(Placed {
                 template: t,
                 bucket: self.templates[t].bucket,
                 cell: (x, y),
+                footprint: (w, h),
                 position,
                 yaw: record.rotation.rem_euclid(360) as f32,
                 variant,
@@ -399,6 +408,7 @@ impl<'a> Seeder<'a> {
             template: child,
             bucket: self.templates[parent_template].bucket,
             cell: (x, y),
+            footprint: (1, 1),
             position,
             yaw,
             variant,
@@ -459,6 +469,7 @@ impl<'a> Seeder<'a> {
             template,
             bucket: self.templates[template].bucket,
             cell: (x, y),
+            footprint: (1, 1),
             position,
             yaw,
             variant,
@@ -705,6 +716,7 @@ impl<'a> Seeder<'a> {
                         template,
                         bucket: self.templates[template].bucket,
                         cell: (x, y),
+                        footprint: (1, 1),
                         position,
                         yaw,
                         variant,
@@ -805,6 +817,10 @@ mod tests {
             size: None,
             storage: None,
             storage_location: false,
+            storage_location_flags: 0,
+            market_radius: None,
+            market_location: false,
+            has_interact: false,
             use_points: Vec::new(),
         }
     }
@@ -814,6 +830,7 @@ mod tests {
             template: 0,
             bucket: 3,
             cell: (8, 8),
+            footprint: (1, 1),
             position: [0.5, 0.5, 0.0],
             yaw: 0.0,
             variant: 1,

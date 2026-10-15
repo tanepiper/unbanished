@@ -4,6 +4,8 @@
 
 use crate::pathfind::{WALKABLE, WATER};
 use crate::random::Random;
+use crate::sectors::SectorGraph;
+use crate::stock::StorageSearchMap;
 use crate::terrain::CellType;
 
 /// `MapComponent +0x28..+0x2e`: an entity's map rectangle `(x, y, w, h)`.
@@ -17,9 +19,100 @@ pub struct EntityView {
     pub rect: Option<MapRect>,
     /// InteractComponent "use" points in world space (category 0).
     pub use_points: Vec<[f32; 3]>,
+    pub has_interact: bool,
+    pub position: [f32; 3],
+    pub has_model: bool,
     /// A HappinessComponent usable for loitering (`FUN_14004b080`: description type != 5 and
     /// enabled): the description's loiter padding `+0x2c`.
     pub happiness: Option<i32>,
+}
+
+/// The geometry called by the town's storage search. Uses the same sector cache as the AI.
+pub struct StorageGeometry<'a, 'b> {
+    pub town: &'a TownView<'b>,
+    pub sectors: &'a mut SectorGraph,
+    pub ground: &'a dyn Fn(i32) -> [f32; 3],
+}
+
+impl StorageSearchMap for StorageGeometry<'_, '_> {
+    fn entrance(&mut self, entity: usize, rng: &mut Random) -> i32 {
+        self.town.entrance(entity, rng)
+    }
+
+    /// FUN_140008830: path rank, or map width plus truncated Euclidean cell distance.
+    fn rank(&mut self, a: i32, b: i32) -> i32 {
+        let n = self.town.size as i32;
+        self.sectors.rebuild(self.town.types);
+        let d = self.sectors.distance(
+            a,
+            b,
+            self.town.reachable(WALKABLE, a, b),
+            true,
+            self.town.types,
+        );
+        if d >= 0 {
+            d
+        } else {
+            let (dx, dy) = ((a % n - b % n) as f32, (a / n - b / n) as f32);
+            n + (dx * dx + dy * dy).sqrt() as i32
+        }
+    }
+
+    /// Port of FUN_14004f710: draw a use point (including Rand(1)), then test reachability.
+    fn market_position(
+        &mut self,
+        entity: usize,
+        from: i32,
+        rng: &mut Random,
+    ) -> Option<(i32, [f32; 3])> {
+        let points = &self.town.entities[entity].use_points;
+        let k = rng.rand_below(points.len() as u32) as usize;
+        let p = *points.get(k)?;
+        let cell = self.town.cell_of(p);
+        self.town
+            .reachable(WALKABLE, from, cell)
+            .then(|| (self.rank(from, cell), p))
+    }
+
+    /// Port of FUN_140132aa0: nearest reachable use point, or scan the grown map rectangle.
+    /// The rectangle branch includes one extra row at its upper end, as the x64 loop does.
+    fn storage_position(&mut self, entity: usize, from: i32) -> Option<(i32, [f32; 3])> {
+        let e = &self.town.entities[entity];
+        let mut best = i32::MAX;
+        let mut target = None;
+        if e.has_interact {
+            for p in &e.use_points {
+                let cell = self.town.cell_of(*p);
+                if self.town.reachable(WALKABLE, from, cell) {
+                    let d = self.rank(from, cell);
+                    if d >= 0 && d < best {
+                        best = d;
+                        target = Some(*p);
+                    }
+                }
+            }
+        } else if let Some((x, y, w, h)) = e.rect {
+            let n = self.town.size as i32;
+            for cy in y - 1..=y + h + 1 {
+                for cx in x - 1..x + w + 1 {
+                    if cx < 0 || cy < 0 || cx >= n || cy >= n {
+                        continue;
+                    }
+                    let cell = cy * n + cx;
+                    if (1u32 << (self.town.types[cell as usize].0 & 31)) & 0xe07 != 0
+                        && self.town.reachable(WALKABLE, from, cell)
+                    {
+                        let d = self.rank(cell, from);
+                        if d < best {
+                            best = d;
+                            target = Some((self.ground)(cell));
+                        }
+                    }
+                }
+            }
+        }
+        target.map(|p| (best, p))
+    }
 }
 
 /// The map and entities activities read.
@@ -206,12 +299,11 @@ pub fn loiter(
 }
 
 /// `FUN_14008eea0`: a random registered HappinessComponent owner within `2 * range` of `cell`
-/// (by path rank) and reachable. Path ranks (`FUN_1400a4ce0`) are not ported; with an empty
-/// registry (New Game) this draws nothing.
+/// (by path rank) and reachable. With an empty registry (New Game) this draws nothing.
 fn nearest_happiness(town: &TownView, _cell: i32, _range: i32, _rng: &mut Random) -> Option<usize> {
     if town.happiness.is_empty() {
         return None;
     }
-    // Not ported: path-rank distance and the random pick among candidates.
+    // Not ported: happiness registry search and the random pick among candidates.
     None
 }

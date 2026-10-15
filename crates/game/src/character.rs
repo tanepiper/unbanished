@@ -20,6 +20,7 @@ use crate::animation::Playback;
 use crate::pathfind::{self, Pathfinder};
 use crate::random::Random;
 use crate::scheduler::{seconds, ticks};
+use crate::stock::{consume_stored, pickup_stored, RawMaterial, Storage};
 use crate::terrain::{CellType, HeightGrid};
 
 /// `DAT_1401787d4`: arrival distance.
@@ -68,6 +69,9 @@ pub struct World<'a> {
     pub pathfinder: &'a mut Pathfinder,
     pub rng: &'a mut Random,
     pub messages: &'a mut Vec<Message>,
+    pub storages: &'a mut [Storage],
+    pub materials: &'a [RawMaterial],
+    pub carried: &'a mut Storage,
 }
 
 impl World<'_> {
@@ -98,6 +102,24 @@ impl World<'_> {
 /// `Math::Vector3::Heading`: `atan2(-x, y)` in degrees (0 faces +y).
 pub fn heading(dir: [f32; 2]) -> f32 {
     (-dir[0]).atan2(dir[1]).to_degrees()
+}
+
+/// FUN_1400c7e70: normalize the full 3D vector before taking its heading.
+pub fn work_facing(source: [f32; 3], target: [f32; 3]) -> f32 {
+    let mut d = [
+        source[0] - target[0],
+        source[1] - target[1],
+        source[2] - target[2],
+    ];
+    let length = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+    if length != 0.0 {
+        let inverse = 1.0 / length;
+        for v in &mut d {
+            *v *= inverse;
+        }
+    }
+    // Runtime Heading (18007d3d0) rounds the double-precision atan2 result to f32 first.
+    ((-(d[0] as f64)).atan2(d[1] as f64) as f32) * 57.29578
 }
 
 fn normalize2(v: [f32; 2]) -> [f32; 2] {
@@ -424,6 +446,18 @@ pub enum Action {
     },
     /// `SendComponentMessage` (vtable `0x1401664e0`): deliver a message on start.
     SendMessage(Message),
+    /// FUN_1400cb880 / FUN_1400cb980: reserve at construction; consume on start.
+    ConsumeStoredRawMaterial {
+        storage: usize,
+        items: Vec<(usize, i32)>,
+        reserved: bool,
+    },
+    /// FUN_1400cf9f0 / FUN_1400cf700: reserve at construction; transfer on start.
+    PickupStoredRawMaterial {
+        storage: usize,
+        items: Vec<(usize, i32)>,
+        partial: bool,
+    },
 }
 
 impl Action {
@@ -446,12 +480,40 @@ impl Action {
                     ch.direction = [-s, c, 0.0];
                     ch.target_heading = *facing;
                 }
-                // `+0x40` (citizen `+0xac` counter) is applied by the owner (not traced yet).
+                // Not ported: job PerformWork tool-use decrements; equipment pickup sets +0x40 false.
                 Status::Running
             }
             Action::SendMessage(m) => {
                 world.messages.push(*m);
                 Status::Done
+            }
+            Action::ConsumeStoredRawMaterial {
+                storage,
+                items,
+                reserved,
+            } => {
+                if consume_stored(&mut world.storages[*storage], items, *reserved) {
+                    Status::Done
+                } else {
+                    Status::Failed
+                }
+            }
+            Action::PickupStoredRawMaterial {
+                storage,
+                items,
+                partial,
+            } => {
+                if pickup_stored(
+                    &mut world.storages[*storage],
+                    world.carried,
+                    world.materials,
+                    items,
+                    *partial,
+                ) {
+                    Status::Done
+                } else {
+                    Status::Failed
+                }
             }
         }
     }
@@ -486,7 +548,9 @@ impl Action {
                 Status::Running
             }
             // The base update returns 0.
-            Action::SendMessage(_) => Status::Done,
+            Action::SendMessage(_)
+            | Action::ConsumeStoredRawMaterial { .. }
+            | Action::PickupStoredRawMaterial { .. } => Status::Done,
         }
     }
 
@@ -497,6 +561,24 @@ impl Action {
             Action::PerformWork { .. } => ch.play(0, group, 1.0),
             _ => {}
         }
+    }
+
+    /// FUN_1400cb300 / FUN_1400cf140: abort releases pending reservations.
+    fn abort(&mut self, ch: &mut Character, group: &AnimationGroup, storages: &mut [Storage]) {
+        match self {
+            Action::ConsumeStoredRawMaterial {
+                storage,
+                items,
+                reserved: true,
+            }
+            | Action::PickupStoredRawMaterial { storage, items, .. } => {
+                for &(material, count) in items.iter() {
+                    storages[*storage].unreserve(material, count);
+                }
+            }
+            _ => {}
+        }
+        self.stop(ch, group);
     }
 }
 
@@ -522,10 +604,10 @@ impl ActionStack {
 
     /// `FUN_1400ca8d0`: abort every chain (slot `+0x40` on all actions) and drop the
     /// "on empty" chain.
-    pub fn clear(&mut self, ch: &mut Character, group: &AnimationGroup) {
+    pub fn clear(&mut self, ch: &mut Character, group: &AnimationGroup, storages: &mut [Storage]) {
         for chain in &mut self.chains {
             for t in chain.iter_mut() {
-                t.action.stop(ch, group);
+                t.action.abort(ch, group, storages);
             }
         }
         self.chains.clear();
@@ -589,7 +671,7 @@ impl ActionStack {
                     }
                 }
                 // `FUN_1400ca8d0` also drops the "on empty" chain.
-                Status::Failed => self.clear(ch, group),
+                Status::Failed => self.clear(ch, group, world.storages),
                 Status::Running => {}
             }
             if ran {
@@ -616,4 +698,52 @@ pub fn duration(s: f32) -> i64 {
 /// Manager ticks as seconds.
 pub fn as_seconds(t: i64) -> f32 {
     seconds(t)
+}
+
+#[cfg(test)]
+mod inventory_action_tests {
+    use super::*;
+
+    #[test]
+    fn clearing_pending_consumption_and_pickup_releases_reservations() {
+        let group = AnimationGroup {
+            clips: vec![],
+            default_blend: 0.0,
+            blends: vec![],
+            blend_matrix: vec![],
+        };
+        let mut ch = Character::new(CharacterDescription::default(), [0.0; 3], 1.0);
+        let mut storages = vec![Storage {
+            capacity: 10,
+            accepts: u32::MAX,
+            items: vec![],
+        }];
+        storages[0].add(0, 3);
+        let mut stack = ActionStack::default();
+        for pickup in [false, true] {
+            storages[0].reserve(0, 1);
+            stack.push(
+                &mut ch,
+                &group,
+                if pickup {
+                    Action::PickupStoredRawMaterial {
+                        storage: 0,
+                        items: vec![(0, 1)],
+                        partial: false,
+                    }
+                } else {
+                    Action::ConsumeStoredRawMaterial {
+                        storage: 0,
+                        items: vec![(0, 1)],
+                        reserved: true,
+                    }
+                },
+            );
+        }
+        assert_eq!(storages[0].available(0), 1);
+        stack.clear(&mut ch, &group, &mut storages);
+        assert_eq!(storages[0].available(0), 3);
+        assert_eq!(storages[0].entry(0).unwrap().reserved, 0);
+        assert!(!stack.is_active());
+    }
 }

@@ -244,15 +244,187 @@ the action stack, MoveTo, PlayAnimation, PerformWork, SendComponentMessage, the 
 list, shuffle and sort (verified), choice and timers (`crates/game/src/ai.rs`).
 
 In the game (`crates/game/src/agents.rs`, driven from `StartingTown::update_citizens`) each
-citizen has a Character and a CitizenAI. Activity 12 (loiter, `crates/game/src/activities.rs`)
-is ported: the occupant/happiness checks, the 13×13 scan for reachable map objects (entrance
-cells from InteractDescription "use" points, including the discarded `Rand` when there are
-several), the padded rectangle, the walk target and idle time, and the `FUN_1400bfb80`
-sequence. Activities 3 and 8 set their 75 s cooldowns but their storage queries are not ported,
-so new citizens currently loiter instead of fetching tools and clothing. Deviations: the AI runs
-every iteration rather than on its bucket quota; the loiter set is ordered by creation instead
-of object address; the happiness registry search (`FUN_14008eea0`) is empty.
+citizen has a Character, CitizenAI, equipment state and carried StorageComponent ledger.
+Activity 12 (loiter, `crates/game/src/activities.rs`) and activities 3/8 (clothing/tool) are
+ported. The stock locations retain their placed-entity ids, packaged accepted masks and
+world-space interaction points. New citizens fetch equipment and then loiter.
 
-Open: each remaining activity's builder and its storage, job and building queries (town manager
-`Game +0xf0`, job manager `Game +0x118`), the remaining actions, animation blending and bridge
-ground picking.
+## Storage, loose piles and inventories
+
+This section adds static x64 Steam 1.0.7 evidence from the functions below, their disassembly,
+and original-function emulation. It does not establish full original-game visual or scheduler
+parity. Related evidence: [RESOURCE-PRODUCTION-FLOW.md](RESOURCE-PRODUCTION-FLOW.md) and
+[STARTING-INVENTORY-DISTRIBUTION.md](STARTING-INVENTORY-DISTRIBUTION.md).
+
+Stored goods are **not separate entities**. A StorageComponent on a barn, cart, market or citizen
+owns an ordered ledger (`+0x28` array, `+0x30` length, `+0x34` capacity). Each 16-byte entry holds
+a raw-material **template** reference at `+0`, signed quantity at `+8`, and signed reservation
+at `+0xc`. Its component `+0x38` is weighted capacity and `+0x3c` is the accepted category mask.
+`RawMaterialDescription +0x48` is unit weight; `+0x5c` is the category flags.
+
+| Routine | Operation |
+|---|---|
+| `FUN_1401323e0` | Sum quantity × unit weight, including reserved goods. |
+| `FUN_140132250` | Require intersecting accepted flags and sufficient weighted capacity. |
+| `FUN_1401324d0` | Merge into the first matching template entry; append with zero reservation only when absent. The previous Rust implementation incorrectly appended every addition. |
+| `FUN_140132620` | Subtract from the first matching entry; erase only when exactly zero, shifting subsequent entries without reordering. No negative clamp. |
+| `FUN_14011ba10` / `FUN_14011bc90` | Citizen remaining weighted capacity / available quantity (stored minus reserved). |
+
+Loose raw-material piles **are entities**, with a different component. RawMaterialComponent
+(`FUN_14012e8d0`, vtable `0x14016a5a0`) holds its pile quantity at `+0x28`, an internal reference
+at `+0x30`, and a time at `+0x38` (`FUN_14012e800`, version 2). Activation `FUN_14012e790`
+initializes that quantity from its description `+0x40`. `CreateRawMaterial`'s start
+`FUN_1400cc010` creates a pile entity, positions it and writes the produced quantity to that
+component. The exact role of the pile's `+0x30` reference is still open. This fetch slice uses
+stored ledgers; loose-pile pickup/production remains separate work.
+
+Starting goods retain the existing `FUN_140096b30` round-robin distribution, but now add to
+these same live ledgers, one material entry per storage. Storages are associated with actual
+placed barn/yard/cart entity ids rather than disconnected stock records. The model-less yard is
+retained as an entity, with its profile-defined 4×6 footprint and 6,000-unit capacity; world
+rectangles use the placed dimensions after rotation. Distribution visits the ordinary registry,
+excluding market owners. The citizen's carried
+capacity and accepted flags come from its packaged `:storage` description. Fetch consumption
+changes the source ledger that the Status Bar sums; equipping does not leave an extra item in
+the citizen's carried inventory.
+
+## Finding stored goods
+
+`FUN_140093200` walks the town manager (`Game +0xf0`) registries in their existing order:
+
+- market/radius owners at manager `+0x10`, length `+0x18`;
+- ordinary StorageLocation owners at `+0x00`, length `+0x08`.
+
+The query category is an **index**, not the raw-material flag mask:
+
+| Category | Meaning | RawMaterialDescription `+0x5c` bit |
+|---|---|---|
+| 0 | food | 5 (`0x20`) |
+| 1 | fuel | 6 (`0x40`) |
+| 2 | tool | 9 (`0x200`) |
+| 3 | herb | 13 (`0x2000`) |
+| 4 | clothing | 14 (`0x4000`) |
+
+`FUN_140094410` considers matching entries only while quantity − reserved > 0. The **last**
+eligible entry with description byte `+0x58` set wins without a draw. Otherwise it draws
+`Rand(eligible count)`, even for one entry, and selects that ordinal in ledger order. A rejected
+storage mask can therefore still have consumed a material-selection draw.
+
+For each radius owner the search obtains its entrance with `FUN_14008d480`, compares its path
+rank to the home entrance against `RadiusDescription +0x28` (inclusive), and ranks its entrance
+against the citizen. Only an entrance rank strictly below the current best triggers item
+selection. `FUN_14004f710` then draws one use point, checks connectivity and returns its path
+rank and world position. A strict improvement replaces the result. The covered-home flag is
+sticky once an eligible material is found, even when that owner's final use point fails. After
+**all** radius owners, a selected result plus that flag returns before ordinary storage is scanned.
+It is not an immediate return on the first market, nor necessarily the covered market itself.
+
+Otherwise ordinary owners undergo the same entrance-rank prefilter and material selection.
+Their selected material's flags must intersect `StorageLocationDescription +0x20`; zero in
+that field falls back to StorageComponent `+0x3c`. The packaged location serializer is
+`FUN_140132940` (version 2). `FUN_140132aa0` supplies the final target:
+
+- With InteractComponent, visit every use point in order, choosing the first reachable strict
+  minimum by path rank. An existing component with zero points fails; it does not use the map
+  rectangle fallback. No Random draws occur in this helper.
+- Without it, scan the map rectangle grown by one cell, rows outer, restricted to mask `0xe07`
+  and connectivity under `0xe1f`. The original includes an additional upper row: y is
+  `rect.y - 1 ..= rect.y + height + 1`, whereas x stops before `rect.x + width + 1`.
+  Strict minima retain the first cell; return its centre on the ground.
+
+Path rank is the existing SectorGraph implementation. Negative ranks use
+`map width + (int)sqrtf(dx² + dy²)` (`FUN_140008830`); slot targets still require connectivity.
+The graph is marked when cell types change, rebuilt before ranking, and its cache ages once per
+iteration before animations. `RadiusDescription`'s serializer `FUN_140055e90` stores the radius
+integer then its display external reference. All 14 radius and 4 location descriptions parse.
+
+## Fetch activities and actions
+
+`FUN_140111a50` (tool, activity 8) and `FUN_140111830` (clothing, activity 3) first set their
+75-second cooldown. Already-equipped citizens return false. Otherwise they compute the current
+cell, obtain the home entrance when assigned, and search category 2 or 4. Failure clears tool
+status `+0xa8` or clothing status `+0x1e0`, and sets citizen `+0x88 |= 4`. Tool failure also
+toggles a SelectableComponent overlay; that renderer behavior is not ported.
+
+On success `FUN_1400c2540` / `FUN_1400c2180` clear the character stack and install this execution
+order (pushed in reverse):
+
+1. MoveTo the returned target: walk clip 1, stand 0, mask `0xe1f`, cost mode 0, random speed
+   `1 + RandFloatTol() × 0.1`.
+2. PerformWork: face the source model (map-centre fallback, `FUN_1400c7e70`), clip 8,
+   duration 1 second, without spending a tool use.
+3. **ConsumeRawMaterial**, vtable `0x140166050`, constructor `FUN_1400cb880`, start
+   `FUN_1400cb420`: consume one selected unit directly from source storage. This action
+   reserves the unit during construction (`FUN_1400cb980`, builder stack argument is true).
+   It is not PickupStoredRawMaterial. Reserved consumption releases its reservation and
+   subtracts without rechecking available stock; unreserved consumption checks availability.
+4. Send Citizen message 1 with `RawMaterialDescription +0x54` for tools, or message
+   `6 + ((flags >> 15) & 1)` for clothing.
+5. On empty, send CitizenAI message 0 to choose again with zero elapsed time.
+
+Both activity success branches set citizen `+0x54 |= 4`, `+0xb0 = 0`, `+0x30 = -1`.
+Message receiver `FUN_140117730` dispatches tool message 1 to `FUN_1401152b0`: add the message
+amount to `+0xac`, set `+0xa8` to that amount, and toggle the tool overlay. Clothing messages
+6/7 set **both** `+0x1e0` and `+0x1e4` to 1/2, set `+0x88 |= 0x800`, and set `+0x1e8` to
+`CitizenDescription +0x130 × 300` seconds in original microsecond ticks.
+
+The distinct **PickupStoredRawMaterial** executor is also ported (`FUN_1400cf210`, vtable
+`0x1401663a0`). Serializer `FUN_1400cf5a0` records action state `+0x18`, citizen `+0x20`, source
+owner `+0x28`, material/count array `+0x30` with length `+0x38`, and partial flag `+0x40`.
+A nonpositive requested count uses remaining carried capacity / unit weight. For each entry,
+strict mode fails on insufficient total source quantity; partial mode clamps to total stock and
+fails at zero. It releases the actual count's reservation, subtracts source stock and adds to
+the carried ledger. Entries execute in order, so a later failure preserves earlier transfers.
+`FUN_1400cf700` reserves and merges pickup requests; its general job builder is not wired to any
+new activity in this slice. Abort `FUN_1400cf140` / consumption abort `FUN_1400cb300` release
+pending reservations, clamping to zero. ActionStack clearing now invokes that cleanup even
+when the reserved action has not started.
+
+### Shared Random order
+
+The fetch path uses only the game stream: home entrance first when present; each market entrance,
+then eligible material selection and market use-point selection when the rank gate passes;
+then each ordinary entrance, eligible material selection, and deterministic slot scan; finally
+MoveTo's speed draw. `FUN_14008d480` retains its discarded `Rand(use-point count)` when the
+count exceeds one, although entrance point zero is always returned. Ordinary slot scanning
+consumes nothing; a market use-point selection draws even when there is only one point.
+
+### Equipment verification and deviations
+
+All local original-function outputs are under ignored `game-data/derived/emu/storage/`:
+
+- `tools/emu/storage.py` → `storage_emu.rs`: 600 search rankings, masks, reservations, material
+  preference, ties and next-Random checks. Geometry metrics are injected in these search cases.
+- `storage_geometry.py` → `storage_emu.rs`: 240 entrance / nearest-slot / market queries on
+  eight 32×32 maps, using original regions and sector graphs. Identity/point transforms and
+  flat ground are injected; distance-cache writes are disabled. Ranks, targets and next Random
+  match, including disconnected maps and empty interaction lists. A further 240 facing angles
+  from `FUN_1400c7e70` match bit-for-bit: normalize the complete 3D vector, round double atan2
+  to f32, then multiply by the original degrees constant.
+- `storage_ledger.py` → `storage_emu.rs`: 400 add/remove/occupancy/consume/pickup cases,
+  including shortages, reservations, partial transfer, remaining capacity and multi-entry failure.
+  Historical consumption-counter updates and owner/type lookup are stubbed.
+- `equipment.py` → `equipment_emu.rs`: 300 tool/clothing messages match fields, flags and timers;
+  mesh-overlay toggles are stubbed.
+- The seeded Medium-profile integration test equips all 15 citizens with clothing and all 10
+  adults with tools, then observes loitering and zero outstanding reservations. Tools change
+  40 → 30 and clothes 30 → 15. It also asserts all eight starting stock totals and the yard's
+  dimensions/capacity, and checks exhausted storage's statuses/cooldowns and
+  pending-action abort cleanup. This proves remake behavior, not original gameplay timing.
+
+Final validation: `cargo test --workspace` passes 99 tests (two pre-existing old-build save tests
+ignored); the release `wasm32-unknown-unknown` app build succeeds. The requested seed-1234,
+22-second New Game capture was opened at `game-data/derived/captures/storage-fetch-22.png`.
+`tools/triage/determinism.sh 22 1234` produces byte-identical frames. These PNGs and emulator
+outputs remain ignored; no game assets or decompiled listings are committed.
+
+Known deviations retained: AI every iteration instead of bucket quota (and after placed-entity
+bucket work); loiter sets use creation order instead of object address; animation blending is
+absent; starting structures do not stamp the map. Additional boundaries: equipment overlay
+changes are not rendered; job-driven tool use, clothing wear and historical consumption counters
+are not connected; the general storage-pickup job builder, loose piles, ongoing production and
+save/load remain open. Registrations currently come from New Game placed structures; completion/
+destruction of later storage buildings is not implemented. The happiness registry remains empty.
+
+Open: remaining activity builders and their job/building queries, general pickup/delivery jobs,
+residence assignment, the remaining actions, animation blending and bridge ground picking.
