@@ -283,6 +283,12 @@ impl Camera {
         self.yaw -= dx * 0.2;
     }
 
+    /// PitchUp / PitchDown: move the pitch slider that `update` blends the pitch target with.
+    /// Deviation: one step of 0.05 per key event; the original's rate is not decoded.
+    pub fn pitch(&mut self, steps: f32) {
+        self.pitch_slider = (self.pitch_slider + steps * 0.05).clamp(0.0, 1.0);
+    }
+
     /// Mouse wheel / ZoomIn / ZoomOut: the zoom target moves 5 (towards the ground for a positive
     /// wheel) within 20..130.
     pub fn zoom(&mut self, steps: f32) {

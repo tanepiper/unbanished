@@ -26,6 +26,8 @@ pub struct Ctx<'a> {
     pub rng: &'a mut Random,
     /// `Application::IsPaused`: the window does not have the focus.
     pub app_paused: bool,
+    /// The stored configurations the Options dialog edits.
+    pub settings: &'a mut crate::settings::Settings,
 }
 
 /// Input not consumed by the UI (camera control).
@@ -36,14 +38,16 @@ pub enum RawInput {
     Click,
     /// Left button released (anywhere): `KeyMap::Released(MouseLeft)`.
     Release,
-    /// A key-map action by its default key: `r` StructureLeft (0x13), `t` StructureRight (0x14),
-    /// `f` StructureType (0x15).
-    Key(char),
+    /// A key-map action pressed on the keyboard (`crate::keymap::id`), other than Cancel and
+    /// the movement actions, which arrive as `Escape` and `Pan`.
+    Action(usize),
     Drag(f32, f32),
     PanDrag(f32, f32),
     Wheel(f32),
     Pan(f32, f32),
     Escape,
+    /// A key or mouse button released, as an engine `(device, input)` (`Input::Device::Released`).
+    Released(crate::keymap::Binding),
 }
 
 pub enum Next {
@@ -92,8 +96,8 @@ pub struct Screen {
     backdrop_owner: Option<NodeId>,
     dialog_host: NodeId,
     pub dialogs: Vec<DialogInstance>,
-    /// A dialog that takes all input while open (e.g. New Game over the main menu).
-    modal: Option<usize>,
+    /// Modal dialogs' roots (e.g. New Game over the main menu), innermost last (input goes to the last).
+    modal: Vec<NodeId>,
     /// Draw-list position where this frame's added dialogs go. `UserInterface::AddDialog`
     /// queues dialogs and `UserInterface::Update` appends the queue in reverse, so dialogs
     /// added in the same frame draw in reverse order (the toolbar over the event ribbon).
@@ -113,7 +117,7 @@ impl Screen {
             backdrop_owner: None,
             dialog_host,
             dialogs: Vec::new(),
-            modal: None,
+            modal: Vec::new(),
             batch: std::cell::Cell::new(0),
         }
     }
@@ -143,7 +147,7 @@ impl Screen {
     /// Add a dialog that receives all input until it is removed.
     pub fn add_modal(&mut self, ui: &mut Ui, reference: &str) -> Option<usize> {
         let index = self.add_dialog(ui, reference)?;
-        self.modal = Some(index);
+        self.modal.push(self.dialogs[index].root);
         // Drop hover and tooltips of the controls now covered.
         ui.clear_input();
         Some(index)
@@ -168,11 +172,7 @@ impl Screen {
                 self.batch.set(self.batch.get() - 1);
             }
         }
-        self.modal = match self.modal {
-            Some(m) if m == index => None,
-            Some(m) if m > index => Some(m - 1),
-            m => m,
-        };
+        self.modal.retain(|&r| r != d.root);
     }
 
     /// Remove the dialog whose root element is `root` (indices of later dialogs shift down).
@@ -200,9 +200,7 @@ impl Screen {
 
     /// Input goes to the modal dialog if one is open, otherwise to the whole screen.
     pub fn input_root(&self) -> NodeId {
-        self.modal
-            .and_then(|m| self.dialogs.get(m))
-            .map_or(self.root, |d| d.root)
+        self.modal.last().copied().unwrap_or(self.root)
     }
 }
 

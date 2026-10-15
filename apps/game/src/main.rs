@@ -20,10 +20,12 @@ mod event_notify;
 mod gameplay;
 mod global;
 mod highlight;
+mod keymap;
 mod loops;
 mod menu;
 mod models;
 mod music;
+mod options;
 mod pause_menu;
 mod placement_tool;
 mod removal_tool;
@@ -33,6 +35,7 @@ mod scene_assets;
 mod scene_gfx;
 mod selection;
 mod selection_overlay;
+mod settings;
 mod shadow;
 mod sound;
 mod start;
@@ -82,6 +85,12 @@ pub struct Game {
     /// `Application::IsPaused`: the window lost focus (`Application +0x11`, cleared on
     /// WM_KILLFOCUS, set on WM_SETFOCUS).
     app_paused: bool,
+    /// The Options dialog's configurations (`IO::Persistence`).
+    settings: settings::Settings,
+    /// The display's scale factor (1.0 for captures). Deviation: the UI is drawn at
+    /// `os_scale × UIScale / 100` so a high-density display does not shrink it; the original
+    /// knows only `UIScale` (`UserInterface +0xdc`).
+    os_scale: f32,
 }
 
 /// The startup chain built in `FUN_140042850`: a loader loop for "Game/Global" (`FUN_14009f280`),
@@ -121,7 +130,15 @@ fn clock_seed() -> u32 {
 }
 
 impl Game {
+    /// A game using the player's stored settings.
     pub fn new(packages: Vec<(String, Vec<u8>)>) -> Result<Game, String> {
+        Self::with_settings(packages, settings::Settings::load())
+    }
+
+    pub fn with_settings(
+        packages: Vec<(String, Vec<u8>)>,
+        settings: settings::Settings,
+    ) -> Result<Game, String> {
         let mut archive = Archive::default();
         for (name, bytes) in packages {
             archive.add(Package::parse(bytes).map_err(|e| format!("{name}: {e}"))?);
@@ -139,7 +156,48 @@ impl Game {
             rng: Random::new(clock_seed()),
             main: boot_chain(),
             app_paused: false,
+            settings,
+            os_scale: 1.0,
         })
+        .map(|mut g: Game| {
+            g.apply_settings();
+            g
+        })
+    }
+
+    /// The configurations' effects inside the game: the volumes (`Audio::Configuration`).
+    fn apply_settings(&mut self) {
+        let a = self.settings.audio;
+        self.audio.scene.volumes = banished_audio::scene::Volumes {
+            ui: a.ui,
+            music: a.music,
+            ambient: a.ambient,
+            effect: a.effect,
+        };
+    }
+
+    /// The display's scale factor (`Window::scale_factor`).
+    pub fn set_os_scale(&mut self, scale: f32) {
+        self.os_scale = if scale.is_finite() && scale > 0.0 {
+            scale
+        } else {
+            1.0
+        };
+    }
+
+    /// Physical pixels per UI unit (`UserInterface::UIScaled`).
+    pub fn ui_scale(&self) -> f32 {
+        (self.os_scale * self.settings.game.ui_scale as f32 / 100.0).max(0.25)
+    }
+
+    /// The UI's size in its own units for a window of `size` physical pixels
+    /// (`UserInterface::UIUnscaled`).
+    pub fn logical(&self, size: (u32, u32)) -> (u32, u32) {
+        let s = self.ui_scale();
+        (
+            (size.0 as f32 / s).round() as u32,
+            (size.1 as f32 / s).round() as u32,
+        )
     }
 
     fn with_ctx<R>(&mut self, f: impl FnOnce(&mut MainLoop, &mut Ctx) -> R) -> R {
@@ -150,12 +208,15 @@ impl Game {
             global: &mut self.global,
             rng: &mut self.rng,
             app_paused: self.app_paused,
+            settings: &mut self.settings,
         };
         f(&mut self.main, &mut ctx)
     }
 
     pub fn update(&mut self, dt: f32) {
         self.with_ctx(|main, ctx| main.update(ctx, dt));
+        // The Options dialog changes the volumes while its sliders move.
+        self.apply_settings();
     }
 
     fn input_root(&self) -> Option<usize> {
@@ -178,7 +239,14 @@ impl Game {
         }
     }
 
+    /// The pointer at window pixel `(x, y)`.
     pub fn pointer_move(&mut self, x: i32, y: i32) {
+        let s = self.ui_scale();
+        self.pointer_move_ui((x as f32 / s) as i32, (y as f32 / s) as i32);
+    }
+
+    /// The pointer at UI position `(x, y)`.
+    fn pointer_move_ui(&mut self, x: i32, y: i32) {
         if let Some(root) = self.input_root() {
             self.ui.pointer_move(x, y, root);
         }
@@ -216,51 +284,55 @@ impl Game {
         self.raw(RawInput::Drag(dx, dy));
     }
 
-    pub fn key(&mut self, key: banished_ui::Key, text: Option<&str>) {
+    /// A key pressed: `key` for the UI (focus, edit boxes, shortcuts), `code` the engine's
+    /// keyboard code for the key map.
+    pub fn key(&mut self, key: Option<banished_ui::Key>, text: Option<&str>, code: Option<u8>) {
         self.audio.unlock();
-        let Some(root) = self.input_root() else {
-            use banished_ui::Key as K;
-            let raw = match key {
-                K::Escape => RawInput::Escape,
-                K::Up | K::Character('w') => RawInput::Pan(1.0, 0.0),
-                K::Down | K::Character('s') => RawInput::Pan(-1.0, 0.0),
-                K::Left | K::Character('a') => RawInput::Pan(0.0, -1.0),
-                K::Right | K::Character('d') => RawInput::Pan(0.0, 1.0),
-                _ => return,
-            };
-            return self.raw(raw);
+        let handled = match (self.input_root(), key) {
+            (Some(root), Some(key)) => {
+                let handled = self.ui.key(root, key);
+                if !handled {
+                    if let Some(text) = text.filter(|t| t.chars().all(|c| !c.is_control())) {
+                        self.ui.text_input(text);
+                    }
+                }
+                self.deliver_events();
+                handled || self.ui.text_edit_focused()
+            }
+            _ => false,
         };
-        let handled = self.ui.key(root, key);
-        if !handled {
-            if let Some(text) = text.filter(|t| t.chars().all(|c| !c.is_control())) {
-                self.ui.text_input(text);
-            }
+        if handled {
+            return;
         }
-        self.deliver_events();
-        if !handled && !self.ui.text_edit_focused() {
-            use banished_ui::Key as K;
-            let raw = match key {
-                K::Escape => Some(RawInput::Escape),
-                K::Up => Some(RawInput::Pan(1.0, 0.0)),
-                K::Down => Some(RawInput::Pan(-1.0, 0.0)),
-                K::Left => Some(RawInput::Pan(0.0, -1.0)),
-                K::Right => Some(RawInput::Pan(0.0, 1.0)),
-                K::Character('w') => Some(RawInput::Pan(1.0, 0.0)),
-                K::Character('s') => Some(RawInput::Pan(-1.0, 0.0)),
-                K::Character('a') => Some(RawInput::Pan(0.0, -1.0)),
-                K::Character('d') => Some(RawInput::Pan(0.0, 1.0)),
-                K::Character(c @ ('r' | 't' | 'f')) => Some(RawInput::Key(c)),
-                _ => None,
+        let Some(code) = code else { return };
+        let actions: Vec<usize> = self
+            .settings
+            .keymap
+            .actions_for((keymap::KEYBOARD, code))
+            .collect();
+        for id in actions {
+            use keymap::id;
+            let raw = match id {
+                id::CANCEL => RawInput::Escape,
+                id::FORWARD => RawInput::Pan(1.0, 0.0),
+                id::BACK => RawInput::Pan(-1.0, 0.0),
+                id::LEFT => RawInput::Pan(0.0, -1.0),
+                id::RIGHT => RawInput::Pan(0.0, 1.0),
+                id => RawInput::Action(id),
             };
-            if let Some(raw) = raw {
-                self.raw(raw);
-            }
+            self.raw(raw);
         }
+    }
+
+    /// A key or mouse button released (`Input::Device::Released`), for the key-binding box.
+    pub fn released(&mut self, binding: keymap::Binding) {
+        self.raw(RawInput::Released(binding));
     }
 
     /// Click the named control through the normal pointer path (scripted runs): lay out the
     /// screen at `size`, move to the control's centre, press and release.
     pub fn press(&mut self, name: &str, size: (u32, u32)) -> bool {
+        let size = self.logical(size);
         let Some(screen) = self.main.current().screen() else {
             return false;
         };
@@ -272,7 +344,7 @@ impl Game {
             .find_map(|d| self.ui.find(d.root, name));
         let Some(id) = found else { return false };
         let [x0, y0, x1, y1] = self.ui.node(id).rect;
-        self.pointer_move((x0 + x1) / 2, (y0 + y1) / 2);
+        self.pointer_move_ui((x0 + x1) / 2, (y0 + y1) / 2);
         self.pointer_button(true);
         self.pointer_button(false);
         true
@@ -287,6 +359,7 @@ impl Game {
     }
 
     pub fn select_combo(&mut self, name: &str, item: &str, size: (u32, u32)) -> bool {
+        let size = self.logical(size);
         let Some(screen) = self.main.current().screen() else {
             return false;
         };
@@ -320,8 +393,9 @@ impl Game {
     /// Lay out the current loop's UI and build the frame.
     pub fn draw(&mut self, renderer: &mut Renderer, capture: bool) -> Option<Vec<u8>> {
         let size = renderer.size();
+        let logical = self.logical(size);
         if let Some(screen) = self.main.current().screen() {
-            screen.layout(&mut self.ui, size);
+            screen.layout(&mut self.ui, logical);
         }
         let mut quads = self
             .main
@@ -329,8 +403,15 @@ impl Game {
             .screen()
             .map(|s| self.ui.draw(s.root))
             .unwrap_or_default();
+        scale_quads(&mut quads, self.ui_scale());
         quads.extend(loops::fade_quad(self.main.fade.level, size));
         renderer.set_ui_time(self.main.elapsed);
+        let g = &self.settings.game;
+        renderer.icon_options = status_icons::IconOptions {
+            opacity: g.status_icon_opacity,
+            enabled: g.status_icon_enable,
+            scale: g.status_icon_scale,
+        };
         let (terrain, clear) = match self.main.current().view() {
             View::World(view) => {
                 renderer.set_scene(view);
@@ -360,6 +441,19 @@ impl Game {
         }
         renderer.render(&frame);
         None
+    }
+}
+
+/// UI units to window pixels (`UserInterface::UIScaled` at draw time).
+fn scale_quads(quads: &mut [banished_ui::Quad], s: f32) {
+    if s == 1.0 {
+        return;
+    }
+    for q in quads {
+        q.rect = q.rect.map(|v| v * s);
+        if let Some(c) = &mut q.clip {
+            *c = c.map(|v| (v as f32 * s).round() as i32);
+        }
     }
 }
 
@@ -426,7 +520,10 @@ impl App {
             return;
         };
         match Game::new(packages) {
-            Ok(game) => {
+            Ok(mut game) => {
+                if let Some(w) = &self.window {
+                    game.set_os_scale(w.scale_factor() as f32);
+                }
                 self.game = Some(game);
                 set_status("", true);
             }
@@ -499,6 +596,11 @@ impl ApplicationHandler<UserEvent> for App {
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                if let Some(game) = &mut self.game {
+                    game.set_os_scale(scale_factor as f32);
+                }
+            }
             WindowEvent::Resized(s) => {
                 if let Some(r) = &mut self.renderer {
                     r.resize(s.width, s.height);
@@ -577,6 +679,11 @@ impl ApplicationHandler<UserEvent> for App {
                     }
                     _ => {}
                 }
+                // After the UI has seen the release, so a click on the binding box's buttons
+                // wins over binding the button.
+                if let (false, Some(code)) = (down, keymap::mouse_code(button)) {
+                    game.released((keymap::MOUSE, code));
+                }
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 let steps = match delta {
@@ -587,11 +694,17 @@ impl ApplicationHandler<UserEvent> for App {
                     game.wheel(steps);
                 }
             }
-            WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
-                if let (Some(game), Some(key)) =
-                    (&mut self.game, ui_key(&event.logical_key, self.shift))
-                {
-                    game.key(key, event.text.as_deref());
+            WindowEvent::KeyboardInput { event, .. } => {
+                let Some(game) = &mut self.game else { return };
+                let code = match event.physical_key {
+                    winit::keyboard::PhysicalKey::Code(c) => keymap::keyboard_code(&c),
+                    _ => None,
+                };
+                if event.state == ElementState::Pressed {
+                    let key = ui_key(&event.logical_key, self.shift);
+                    game.key(key, event.text.as_deref(), code);
+                } else if let Some(code) = code {
+                    game.released((keymap::KEYBOARD, code));
                 }
             }
             WindowEvent::Ime(winit::event::Ime::Commit(text)) => {
@@ -651,7 +764,17 @@ mod native {
 
     /// Run the boot sequence headlessly at 30 frames per second and capture one frame.
     pub fn boot_capture(args: &[String], out: &str, seconds: f32) {
-        let mut game = Game::new(read_packages(&data_dir(args))).expect("game data");
+        // Captures ignore the player's stored settings; `--ui-scale PERCENT` sets UIScale.
+        let mut settings = crate::settings::Settings::default();
+        if let Some(v) = args
+            .windows(2)
+            .find(|w| w[0] == "--ui-scale")
+            .and_then(|w| w[1].parse().ok())
+        {
+            settings.game.ui_scale = v;
+        }
+        let mut game =
+            Game::with_settings(read_packages(&data_dir(args)), settings).expect("game data");
         game.audio.set_master_volume(0.0);
         // `--capture-size WxH` matches a reference frame's resolution (default 1280x800).
         let size = args
@@ -755,8 +878,9 @@ mod native {
                 if t < at {
                     return true;
                 }
+                let logical = game.logical(size);
                 if let Some(screen) = game.main.current().screen() {
-                    screen.layout(&mut game.ui, size);
+                    screen.layout(&mut game.ui, logical);
                 }
                 game.pointer_move(x, y);
                 if click {

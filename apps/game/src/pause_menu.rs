@@ -12,7 +12,7 @@
 //! - The dialog's flags (`Dialog +0x40` = 0x13) have bit 0 set, so `UserInterface::PausesGame`
 //!   holds while it is open: `FUN_14009b850` skips the simulation and the controller.
 //!
-//! Not ported: Load (2), Save (3), Options (4), Achievement (8), Mod (7) and Map (11) buttons;
+//! Options (4) opens `crate::options::OptionsDialog`. Not ported: Load (2), Save (3), Achievement (8), Mod (7) and Map (11) buttons;
 //! the Save/Mod disabling by game flag bit 10 and the Goal/Map choice by `+0x15c`.
 
 use banished_ui::{NodeId, Ui};
@@ -28,6 +28,8 @@ pub enum PauseClick {
     Resume,
     Menu,
     Quit,
+    /// Options (id 4): `FUN_1400b8ee0` opens the Options dialog over the menu.
+    Options,
     /// A button whose action is not ported, or a click on the dialog's background.
     Other,
 }
@@ -71,6 +73,8 @@ impl PauseMenu {
             PauseClick::Menu
         } else if is("buttonQuit") {
             PauseClick::Quit
+        } else if is("buttonOptions") {
+            PauseClick::Options
         } else {
             PauseClick::Other
         }

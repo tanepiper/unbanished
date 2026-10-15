@@ -12,6 +12,7 @@ use banished_ui::{Event, Ui};
 use crate::building_ui::WorkPlaceClick;
 use crate::create_bar::CreateBar;
 use crate::entity_ui::EntityWindows;
+use crate::keymap::id as keys;
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
 use crate::menu::MenuLoop;
 use crate::placement_tool::PlacementTool;
@@ -28,6 +29,9 @@ const MONTHS_PER_YEAR: usize = 12;
 const MONTH_SECONDS: f32 = YEAR_SECONDS / MONTHS_PER_YEAR as f32;
 /// Simulation iterations per frame (`Game/Game +0x120 → +0x34`).
 const SPEED_LEVELS: [u32; 4] = [1, 2, 5, 10];
+/// Degrees of yaw per RotateLeft/RotateRight key event (the port steps per key event, as for
+/// `Camera::pan`).
+const KEY_ROTATE: f32 = 25.0;
 
 pub struct GameplayLoop {
     params: WorldParams,
@@ -76,6 +80,10 @@ pub struct GameplayLoop {
     ambience_stale: bool,
     /// The pause menu (`Dialog/Pause.rsc`); while open `UserInterface::PausesGame` holds.
     pause_menu: Option<crate::pause_menu::PauseMenu>,
+    /// The Options dialog opened from the pause menu (id 4).
+    options: Option<crate::options::OptionsDialog>,
+    /// Game option `ShowCelcius` (`DAT_1401cbde0 +0x15`).
+    show_celsius: bool,
     /// The EnvironmentDescription's weather list: (Weather description, ambient entity).
     weather: Vec<(Option<String>, Option<String>)>,
     /// River centre lines (MapComponent `+0x1e0`).
@@ -116,16 +124,23 @@ impl GameplayLoop {
             ambience: None,
             ambience_stale: false,
             pause_menu: None,
+            options: None,
+            show_celsius: false,
             weather: Vec::new(),
             river_paths: Vec::new(),
         }
     }
 
     /// `FUN_14009d0d0` installs the toolbar with the other in-game dialogs.
-    fn build_hud(&mut self, ui: &mut Ui, archive: &banished_formats::pkg::Archive) {
+    fn build_hud(
+        &mut self,
+        ui: &mut Ui,
+        archive: &banished_formats::pkg::Archive,
+        keymap: &crate::keymap::KeyMap,
+    ) {
         let mut screen = Screen::new(ui);
         let mut toolbar = Toolbar::load(archive);
-        toolbar.install(ui, &mut screen);
+        toolbar.install(ui, &mut screen, keymap);
         self.toolbar = Some(toolbar);
         self.notify = crate::event_notify::EventNotify::open(ui, &mut screen, &self.events);
         self.screen = Some(screen);
@@ -181,6 +196,7 @@ impl GameplayLoop {
             stock: self.town.as_ref().map_or([0; 21], |t| {
                 banished_game::stock::stock_table(&t.registered_storages(), &t.materials)
             }),
+            show_celsius: self.show_celsius,
             ..StatusValues::default()
         }
     }
@@ -759,6 +775,36 @@ impl GameplayLoop {
         self.utility.map_click(ctx.ui, self.cursor, size)
     }
 
+    /// A toolbar button's action, from a click or its key (`FUN_1400be770`).
+    fn run_action(&mut self, ctx: &mut Ctx, action: Action) {
+        match action {
+            // `FUN_1400be770` kinds 6-9 write the simulation controller's pause flag and speed.
+            Action::Pause => self.paused = true,
+            Action::Play => self.paused = false,
+            Action::Slower => self.speed = self.speed.saturating_sub(1),
+            Action::Faster => self.speed = (self.speed + 1).min((SPEED_LEVELS.len() - 1) as u8),
+            Action::Utility(template) => {
+                let map_size = self.town.as_ref().map_or(0, |t| t.cells.size as u32);
+                let Some(screen) = self.screen.as_mut() else {
+                    return;
+                };
+                self.utility.toggle(
+                    ctx.ui,
+                    screen,
+                    ctx.archive,
+                    &template,
+                    Some(&self.events),
+                    map_size,
+                );
+            }
+            // Toolbar kind 1 → FUN_140108030: start (or end) the build tool.
+            Action::Build(Some(template)) => self.start_tool(ctx, &template),
+            Action::Build(None) => self.end_placement(ctx),
+            Action::Options => self.open_pause_menu(ctx),
+            other => log::info!("toolbar action not implemented yet: {other:?}"),
+        }
+    }
+
     /// `FUN_1401071b0`: open the pause menu (pauses effects, ambience and music).
     fn open_pause_menu(&mut self, ctx: &mut Ctx) {
         if let (None, Some(screen)) = (&self.pause_menu, self.screen.as_mut()) {
@@ -854,7 +900,7 @@ impl GameLoop for GameplayLoop {
     }
 
     fn startup(&mut self, ctx: &mut Ctx) {
-        self.build_hud(ctx.ui, ctx.archive);
+        self.build_hud(ctx.ui, ctx.archive, &ctx.settings.keymap);
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
@@ -862,13 +908,18 @@ impl GameLoop for GameplayLoop {
             self.aspect = ctx.ui.screen[0] as f32 / ctx.ui.screen[1] as f32;
         }
         self.fill_tooltip(ctx);
-        if let Some(toolbar) = &self.toolbar {
+        if let Some(toolbar) = &mut self.toolbar {
+            toolbar.set_keymap(ctx.ui, &ctx.settings.keymap);
             toolbar.relayout(ctx.ui);
         }
         // FUN_140107b70: while the application is paused (unfocused) the controller opens the
         // pause menu (game option `+0x18`, on by default) instead of running.
-        if ctx.app_paused && self.pause_menu.is_none() {
+        if ctx.app_paused && ctx.settings.game.auto_pause && self.pause_menu.is_none() {
             self.open_pause_menu(ctx);
+        }
+        self.show_celsius = ctx.settings.game.show_celsius;
+        if let Some(options) = &mut self.options {
+            options.update();
         }
         // `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller.
         let pauses_game = self.pause_menu.is_some();
@@ -959,6 +1010,12 @@ impl GameLoop for GameplayLoop {
     }
 
     fn event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
+        if let (Some(options), Some(screen)) = (&mut self.options, &mut self.screen) {
+            if options.event(ctx, screen, event) == crate::options::Outcome::Closed {
+                self.options = None;
+            }
+            return Next::Stay;
+        }
         let (Event::Clicked(id) | Event::Changed(id)) = event else {
             return Next::Stay;
         };
@@ -971,6 +1028,11 @@ impl GameLoop for GameplayLoop {
                     return Self::return_to_menu();
                 }
                 crate::pause_menu::PauseClick::Quit => return Next::Quit,
+                crate::pause_menu::PauseClick::Options => {
+                    if let Some(screen) = &mut self.screen {
+                        self.options = crate::options::OptionsDialog::open(ctx, screen);
+                    }
+                }
                 crate::pause_menu::PauseClick::Other if menu.contains(ctx.ui, id) => {
                     log::info!(
                         "pause menu: {} is not implemented yet",
@@ -1053,29 +1115,7 @@ impl GameLoop for GameplayLoop {
             }
             return Next::Stay;
         };
-        match action {
-            // `FUN_1400be770` kinds 6-9 write the simulation controller's pause flag and speed.
-            Action::Pause => self.paused = true,
-            Action::Play => self.paused = false,
-            Action::Slower => self.speed = self.speed.saturating_sub(1),
-            Action::Faster => self.speed = (self.speed + 1).min((SPEED_LEVELS.len() - 1) as u8),
-            Action::Utility(template) => {
-                let map_size = self.town.as_ref().map_or(0, |t| t.cells.size as u32);
-                self.utility.toggle(
-                    ctx.ui,
-                    screen,
-                    ctx.archive,
-                    &template,
-                    Some(&self.events),
-                    map_size,
-                );
-            }
-            // Toolbar kind 1 → FUN_140108030: start (or end) the build tool.
-            Action::Build(Some(template)) => self.start_tool(ctx, &template),
-            Action::Build(None) => self.end_placement(ctx),
-            Action::Options => self.open_pause_menu(ctx),
-            other => log::info!("toolbar action not implemented yet: {other:?}"),
-        }
+        self.run_action(ctx, action);
         self.update_hud(ctx.ui);
         Next::Stay
     }
@@ -1083,6 +1123,24 @@ impl GameLoop for GameplayLoop {
     fn raw(&mut self, ctx: &mut Ctx, input: RawInput) -> Next {
         // While the pause menu is open the controller does not run; Escape is buttonResume's
         // action 8.
+        if let (Some(options), Some(screen)) = (&mut self.options, &mut self.screen) {
+            let outcome = match input {
+                RawInput::Released(binding) => {
+                    options.released(ctx, screen, binding);
+                    crate::options::Outcome::Stay
+                }
+                RawInput::Escape => options.escape(ctx, screen),
+                RawInput::Cursor(x, y) => {
+                    self.cursor = (x, y);
+                    crate::options::Outcome::Stay
+                }
+                _ => crate::options::Outcome::Stay,
+            };
+            if outcome == crate::options::Outcome::Closed {
+                self.options = None;
+            }
+            return Next::Stay;
+        }
         if self.pause_menu.is_some() {
             match input {
                 RawInput::Escape => self.close_pause_menu(ctx),
@@ -1110,17 +1168,17 @@ impl GameLoop for GameplayLoop {
                 return Next::Stay;
             }
             // StructureLeft / StructureRight turn the RotationSetting through 0..3.
-            RawInput::Key('r') if self.placement.is_some() => {
+            RawInput::Action(keys::STRUCTURE_LEFT) if self.placement.is_some() => {
                 self.rotation = (self.rotation + 3) % 4;
                 self.refresh_placement(ctx);
                 return Next::Stay;
             }
-            RawInput::Key('t') if self.placement.is_some() => {
+            RawInput::Action(keys::STRUCTURE_RIGHT) if self.placement.is_some() => {
                 self.rotation = (self.rotation + 1) % 4;
                 self.refresh_placement(ctx);
                 return Next::Stay;
             }
-            RawInput::Key('f') => {
+            RawInput::Action(keys::STRUCTURE_TYPE) => {
                 if let Some(tool) = &mut self.placement {
                     tool.next_variant();
                     self.refresh_placement(ctx);
@@ -1173,7 +1231,23 @@ impl GameLoop for GameplayLoop {
                 }
                 return Next::Stay;
             }
-            RawInput::Key(_) => return Next::Stay,
+            RawInput::Action(keys::TOGGLE_PAUSE) => {
+                self.paused = !self.paused;
+                self.update_hud(ctx.ui);
+                return Next::Stay;
+            }
+            // Toolbar0..8, Tool0..9, Camera0..4: the shown button holding that key.
+            RawInput::Action(a @ keys::TOOLBAR0..=keys::CAMERA4) => {
+                let (Some(screen), Some(toolbar)) = (self.screen.as_mut(), self.toolbar.as_mut())
+                else {
+                    return Next::Stay;
+                };
+                if let Some(Some(action)) = toolbar.press_action(ctx.ui, screen, a as i32) {
+                    self.run_action(ctx, action);
+                }
+                self.update_hud(ctx.ui);
+                return Next::Stay;
+            }
             _ => {}
         }
         let Some(SceneView {
@@ -1189,6 +1263,12 @@ impl GameLoop for GameplayLoop {
             RawInput::PanDrag(dx, dy) => camera.pan_drag(dx, dy, terrain),
             RawInput::Wheel(steps) => camera.zoom(steps),
             RawInput::Pan(forward, right) => camera.pan(forward, right, terrain),
+            RawInput::Action(keys::ROTATE_LEFT) => camera.rotate(-KEY_ROTATE, 0.0),
+            RawInput::Action(keys::ROTATE_RIGHT) => camera.rotate(KEY_ROTATE, 0.0),
+            RawInput::Action(keys::ZOOM_IN) => camera.zoom(1.0),
+            RawInput::Action(keys::ZOOM_OUT) => camera.zoom(-1.0),
+            RawInput::Action(keys::PITCH_UP) => camera.pitch(1.0),
+            RawInput::Action(keys::PITCH_DOWN) => camera.pitch(-1.0),
             // Toolbar Options (kind 3) holds the fixed action 8, Escape.
             RawInput::Escape => self.open_pause_menu(ctx),
             _ => {}
@@ -1347,7 +1427,8 @@ mod tests {
                     .map(|data| (name.to_owned(), data))
             })
             .collect();
-        let mut game = crate::Game::new(packages).unwrap();
+        let mut game =
+            crate::Game::with_settings(packages, crate::settings::Settings::default()).unwrap();
         let mut gameplay = GameplayLoop::new(WorldParams {
             start_condition_ref: r"Game\StartCondition\Medium.rsc:resource".into(),
             ..WorldParams::default()

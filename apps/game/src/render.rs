@@ -139,6 +139,8 @@ pub struct Renderer {
     pending_overlay: Vec<crate::selection_overlay::OverlayVertex>,
     overlay_texture: Option<crate::selection_overlay::OverlayTexture>,
     pending_icons: Vec<crate::status_icons::StatusIcon>,
+    /// Game options `StatusIconOpacity`, `StatusIconEnable`, `StatusIconScale`.
+    pub icon_options: crate::status_icons::IconOptions,
     icon_sheets: std::collections::BTreeMap<String, crate::status_icons::IconSheet>,
     /// The minimap image (rendered once per world) and the overlay revision uploaded.
     minimap: Option<wgpu::Texture>,
@@ -646,6 +648,7 @@ impl Renderer {
             pending_overlay: Vec::new(),
             overlay_texture: None,
             pending_icons: Vec::new(),
+            icon_options: crate::status_icons::IconOptions::default(),
             icon_sheets: Default::default(),
             extras,
             minimap: None,
@@ -1281,7 +1284,7 @@ impl Renderer {
                 &self.pending_icons,
                 &self.icon_sheets,
                 scene,
-                crate::status_icons::IconOptions::default(),
+                self.icon_options,
             );
             self.status_icons
                 .draw(&mut encoder, &t.scene_view, &t.depth);

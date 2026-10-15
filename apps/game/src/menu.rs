@@ -6,7 +6,7 @@
 
 use banished_ui::{Control, Event, Kind, NodeId, Ui};
 
-use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, Screen, View};
+use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
 use crate::render::Lighting;
 use crate::scene::{MenuCamera, SceneCamera, SceneView};
 use crate::world::{Terrain, WorldParams};
@@ -38,6 +38,8 @@ pub struct MenuLoop {
     town_names: Option<banished_formats::names::NameDatabase>,
     /// `+0xb62`: `Application::IsPaused` of the last frame.
     app_paused: bool,
+    /// The Options dialog while it is open (`MainMenuDialog` element id 4).
+    options: Option<crate::options::OptionsDialog>,
 }
 
 /// Shared settings defaults (`FUN_140042850`) before `Game/Last*` persistence is applied:
@@ -62,6 +64,7 @@ impl MenuLoop {
             terrain_items: Vec::new(),
             town_names: None,
             app_paused: false,
+            options: None,
         }
     }
 
@@ -453,6 +456,26 @@ impl GameLoop for MenuLoop {
         {
             camera.update(dt);
         }
+        if let Some(options) = &mut self.options {
+            options.update();
+        }
+        Next::Stay
+    }
+
+    fn raw(&mut self, ctx: &mut Ctx, input: RawInput) -> Next {
+        if let (Some(options), Some(screen)) = (&mut self.options, &mut self.screen) {
+            let outcome = match input {
+                RawInput::Released(binding) => {
+                    options.released(ctx, screen, binding);
+                    crate::options::Outcome::Stay
+                }
+                RawInput::Escape => options.escape(ctx, screen),
+                _ => crate::options::Outcome::Stay,
+            };
+            if outcome == crate::options::Outcome::Closed {
+                self.options = None;
+            }
+        }
         Next::Stay
     }
 
@@ -461,6 +484,12 @@ impl GameLoop for MenuLoop {
     }
 
     fn event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
+        if let (Some(options), Some(screen)) = (&mut self.options, &mut self.screen) {
+            if options.event(ctx, screen, event) == crate::options::Outcome::Closed {
+                self.options = None;
+            }
+            return Next::Stay;
+        }
         if let (Event::Selected(..), Some(_)) = (event, self.new_game) {
             self.refresh_description(ctx);
             return Next::Stay;
@@ -484,6 +513,11 @@ impl GameLoop for MenuLoop {
         }
         if self.is(ctx.ui, 0, "buttonNew", id) {
             self.open_new_game(ctx);
+        } else if self.is(ctx.ui, 0, "buttonOptions", id) {
+            // `FUN_1400b9020` id 4 → `FUN_1400b8ee0`.
+            if let Some(screen) = &mut self.screen {
+                self.options = crate::options::OptionsDialog::open(ctx, screen);
+            }
         } else if self.is(ctx.ui, 0, "buttonQuit", id) {
             return Next::Quit;
         } else {

@@ -11,6 +11,7 @@ use banished_formats::game::{toolbar_description, toolbar_item, ToolbarDescripti
 use banished_formats::pkg::Archive;
 use banished_ui::{Kind, NodeId, Ui};
 
+use crate::keymap::KeyMap;
 use crate::loops::Screen;
 
 const DIALOG: &str = "Dialog/Toolbar.rsc:resource";
@@ -43,23 +44,12 @@ pub struct Entry {
     pub description: Option<ToolbarDescription>,
 }
 
-/// `FUN_14009e7c0`'s default keyboard input code for each registered action id (`0x08..0x31`;
-/// mouse actions `0x00..0x07` are not toolbar keys).
-fn default_key(action: i32) -> Option<i32> {
-    const CODES: [i32; 42] = [
-        0x00, 0x27, 0x1b, 0x2d, 0x29, 0x17, 0x1a, 0x4d, 0x50, 0x4f, 0x52, 0x28, 0x2a, 0x1c, 0x3e,
-        0x47, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0x4a, 0x4b, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14,
-        0x15, 0x16, 0x0d, 0x30, 0x2e, 0x19, 0x2c, 0x18,
-    ];
-    CODES.get(usize::try_from(action - 8).ok()?).copied()
-}
-
-/// `FUN_14009f0f0`: the bound key's display name, `keyNames:Keyboard{code}`.
-pub fn key_name(ui: &mut Ui, action: i32) -> Option<String> {
-    let code = default_key(action)?;
+/// `FUN_14009f0f0`: the action's primary binding's display name (`keyNames`).
+pub fn key_name(ui: &mut Ui, keymap: &KeyMap, action: i32) -> Option<String> {
+    let binding = keymap.binding(usize::try_from(action).ok()?, 0);
     Some(ui.res.string(
         Some(r"Dialog\StringTable.rsc:keyNames"),
-        &format!("Keyboard{code}"),
+        &crate::keymap::key_name_key(binding),
     ))
 }
 
@@ -95,6 +85,8 @@ struct Level {
     parent: Option<usize>,
     /// (button node, entry index).
     buttons: Vec<(NodeId, usize)>,
+    /// Each button's key-map action (element `+0xc0`), parallel to `buttons`.
+    actions: Vec<Option<i32>>,
     speed_text: Option<NodeId>,
 }
 
@@ -102,6 +94,8 @@ pub struct Toolbar {
     entries: Vec<Entry>,
     root: Option<Level>,
     popup: Option<Level>,
+    /// The bindings the hotkey tooltips name.
+    keymap: KeyMap,
 }
 
 fn object_name(reference: &str) -> &str {
@@ -140,6 +134,7 @@ impl Toolbar {
             entries,
             root: None,
             popup: None,
+            keymap: KeyMap::default(),
         }
     }
 
@@ -166,6 +161,7 @@ impl Toolbar {
         let dialog = screen.add_dialog(ui, DIALOG)?;
         let content = screen.find(ui, dialog, "toolbarContent")?;
         let mut buttons = Vec::new();
+        let mut actions = Vec::new();
         let mut speed_text = None;
         let mut depth = 0;
         let mut up = parent;
@@ -222,7 +218,7 @@ impl Toolbar {
                 ui.node_mut(node).tooltip = ui.res.string(table, tip);
             }
             if let Some(a) = action {
-                ui.node_mut(node).hotkey = key_name(ui, a);
+                ui.node_mut(node).hotkey = key_name(ui, &self.keymap, a);
             }
             if !sprite.is_empty() {
                 if let Some(s) = ui.res.sprite(sheet, sprite) {
@@ -234,18 +230,64 @@ impl Toolbar {
             }
             ui.set_table_child(content, slot, node);
             buttons.push((node, index));
+            actions.push(action);
         }
         Some(Level {
             root: screen.dialogs[dialog].root,
             parent,
             buttons,
+            actions,
             speed_text,
         })
     }
 
     /// `FUN_14009d0d0`: add the top-level toolbar.
-    pub fn install(&mut self, ui: &mut Ui, screen: &mut Screen) {
+    pub fn install(&mut self, ui: &mut Ui, screen: &mut Screen, keymap: &KeyMap) {
+        self.keymap = keymap.clone();
         self.root = self.build_level(ui, screen, None);
+    }
+
+    /// New bindings from the Options dialog: rename the shown buttons' hotkeys.
+    pub fn set_keymap(&mut self, ui: &mut Ui, keymap: &KeyMap) {
+        if self.keymap == *keymap {
+            return;
+        }
+        self.keymap = keymap.clone();
+        for level in self.root.iter().chain(self.popup.iter()) {
+            for (&(node, _), action) in level.buttons.iter().zip(&level.actions) {
+                if let Some(a) = *action {
+                    ui.node_mut(node).hotkey = key_name(ui, &self.keymap, a);
+                }
+            }
+        }
+    }
+
+    /// A key-map action pressed (`Toolbar0..8`, `Tool0..9`, `Camera0..4`): act as a click on
+    /// the shown button holding it. Check-style buttons toggle first, as a click would.
+    pub fn press_action(
+        &mut self,
+        ui: &mut Ui,
+        screen: &mut Screen,
+        action: i32,
+    ) -> Option<Option<Action>> {
+        let node = self
+            .popup
+            .iter()
+            .chain(self.root.iter())
+            .flat_map(|l| l.buttons.iter().zip(&l.actions))
+            .find(|(_, a)| **a == Some(action))
+            .map(|(&(n, _), _)| n)?;
+        if !ui.node(node).enabled {
+            return Some(None);
+        }
+        if matches!(
+            ui.node(node).kind,
+            Kind::Control(banished_ui::Control::Check { .. })
+        ) {
+            let on = ui.checked(node);
+            ui.set_checked(node, !on);
+        }
+        Some(self.click(ui, screen, node))
     }
 
     fn text_node(ui: &Ui, root: NodeId) -> Option<NodeId> {
