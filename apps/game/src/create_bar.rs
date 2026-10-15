@@ -46,53 +46,8 @@ impl CreateBar {
     ) -> Option<CreateBar> {
         let dialog = screen.add_dialog(ui, "Dialog/CreateBar.rsc:resource")?;
         let root = screen.dialogs[dialog].root;
+        fill_requirements(ui, archive, root, toolbar, build);
         let find = |ui: &Ui, n: &str| ui.find(root, n);
-        let table = toolbar.string_table.as_deref();
-        if let Some(icon) = find(ui, "imageIcon") {
-            if let Some(s) = ui
-                .res
-                .sprite(toolbar.sprite_sheet.as_deref(), &toolbar.sprite)
-            {
-                ui.set_images(icon, s);
-            }
-        }
-        if let Some(title) = find(ui, "textTitle") {
-            let t = ui.res.string(table, &toolbar.name);
-            ui.set_text(title, &t);
-        }
-        if let Some(multi) = find(ui, "labelBuildMulti") {
-            ui.set_visible(multi, false);
-        }
-        let mut labels = Vec::new();
-        while let Some(l) = find(ui, &format!("labelBuild{}", labels.len())) {
-            ui.set_visible(l, false);
-            labels.push(l);
-        }
-        if let Some(build) = build {
-            for ((count, material), &label) in build.materials.iter().zip(&labels) {
-                let template = text_of(ui, label);
-                if let Some(d) = material.as_deref().and_then(|m| {
-                    let file = m.split(':').next()?.replace('\\', "/");
-                    raw_material_description(
-                        &archive.read_ref(&format!("{file}:rawmaterial")).ok()?,
-                    )
-                    .ok()
-                }) {
-                    if let Some(s) = ui.res.sprite(d.sprite_sheet.as_deref(), &d.name_small) {
-                        if let Kind::Label { icon, .. } = &mut ui.node_mut(label).kind {
-                            *icon = Some(s);
-                        }
-                    }
-                }
-                with_param(ui, label, &template, &count.to_string());
-                ui.set_visible(label, true);
-            }
-            if build.multi {
-                if let Some(multi) = find(ui, "labelBuildMulti") {
-                    ui.set_visible(multi, true);
-                }
-            }
-        }
         let size = find(ui, "textSize").map(|n| (n, text_of(ui, n)));
         Some(CreateBar {
             root,
@@ -160,5 +115,63 @@ impl CreateBar {
         let node = ui.node_mut(self.root);
         node.alignment = 0;
         node.margins = [(p.0 as i32).max(0), 0, (p.1 as i32).max(0), 0];
+    }
+}
+
+/// `BuildRequirementUI` OnOpened (`FUN_14005f120`): `imageIcon` and `textTitle` from the
+/// template's ToolbarDescription, one `labelBuild{i}` per build requirement (raw material small
+/// sprite and count), and `labelBuildMulti` for the multi flag. Shared by the CreateBar and the
+/// toolbar's build tooltip (`Dialog/ToolTipToolBar.rsc`).
+pub fn fill_requirements(
+    ui: &mut Ui,
+    archive: &Archive,
+    root: NodeId,
+    toolbar: &ToolbarDescription,
+    build: Option<&BuildDescription>,
+) {
+    let find = |ui: &Ui, n: &str| ui.find(root, n);
+    let table = toolbar.string_table.as_deref();
+    if let Some(icon) = find(ui, "imageIcon") {
+        if let Some(s) = ui
+            .res
+            .sprite(toolbar.sprite_sheet.as_deref(), &toolbar.sprite)
+        {
+            ui.set_images(icon, s);
+        }
+    }
+    if let Some(title) = find(ui, "textTitle") {
+        let t = ui.res.string(table, &toolbar.name);
+        ui.set_text(title, &t);
+    }
+    if let Some(multi) = find(ui, "labelBuildMulti") {
+        ui.set_visible(multi, false);
+    }
+    let mut labels = Vec::new();
+    while let Some(l) = find(ui, &format!("labelBuild{}", labels.len())) {
+        ui.set_visible(l, false);
+        labels.push(l);
+    }
+    if let Some(build) = build {
+        for ((count, material), &label) in build.materials.iter().zip(&labels) {
+            let template = text_of(ui, label);
+            if let Some(d) = material.as_deref().and_then(|m| {
+                let file = m.split(':').next()?.replace('\\', "/");
+                raw_material_description(&archive.read_ref(&format!("{file}:rawmaterial")).ok()?)
+                    .ok()
+            }) {
+                if let Some(s) = ui.res.sprite(d.sprite_sheet.as_deref(), &d.name_small) {
+                    if let Kind::Label { icon, .. } = &mut ui.node_mut(label).kind {
+                        *icon = Some(s);
+                    }
+                }
+            }
+            with_param(ui, label, &template, &count.to_string());
+            ui.set_visible(label, true);
+        }
+        if build.multi {
+            if let Some(multi) = find(ui, "labelBuildMulti") {
+                ui.set_visible(multi, true);
+            }
+        }
     }
 }

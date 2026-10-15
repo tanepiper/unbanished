@@ -786,17 +786,69 @@ impl Ui {
             let text = self.nodes[source].tooltip.clone();
             for name in ["textToolTip", "text", "textDescription"] {
                 if let Some(id) = self.find(dialog.root, name) {
-                    self.set_text(id, &text);
+                    self.set_parameters(id, &[(0, &text)]);
                     break;
                 }
             }
-            self.compute_size(dialog.root);
-            let [w, h] = self.nodes[dialog.root].size;
-            let x = (self.pointer.0 + 16).min(self.screen[0] - w).max(0);
-            let y = (self.pointer.1 + 20).min(self.screen[1] - h).max(0);
-            self.layout_dialog(dialog.root, [x, y, x + w, y + h]);
+            let controllers: Vec<u32> = dialog.bindings.iter().map(|b| b.controller).collect();
+            // `HotKeyToolTipUI` (`FUN_14006b2e0`): with a key binding, its name is parameter 1
+            // of `textToolTip` and parameter 0 of `textHotKey`.
+            if controllers.contains(&tooltip_controller::HOT_KEY) {
+                if let Some(key) = self.nodes[source].hotkey.clone() {
+                    if let Some(id) = self.find(dialog.root, "textToolTip") {
+                        self.set_parameters(id, &[(1, &key)]);
+                    }
+                    if let Some(id) = self.find(dialog.root, "textHotKey") {
+                        self.set_parameters(id, &[(0, &key)]);
+                    }
+                }
+            }
+            // `TitleDescToolTipUI` (`FUN_140080c00`): the element's title and description.
+            if controllers.contains(&tooltip_controller::TITLE_DESC) {
+                if let Some((title, desc)) = self.nodes[source].title_desc.clone() {
+                    for (name, value) in [("textTitle", title), ("textDesc", desc)] {
+                        if let Some(id) = self.find(dialog.root, name) {
+                            self.set_parameters(id, &[(0, &value)]);
+                        }
+                    }
+                }
+            }
             self.tooltip_instance = Some((source, dialog.root));
+            self.tooltip_opened = Some((source, dialog.root, controllers));
+            self.place_tooltip();
         }
+    }
+
+    /// Size and place the open tooltip dialog next to the pointer (again after the application
+    /// filled it).
+    pub fn place_tooltip(&mut self) {
+        let Some((_, root)) = self.tooltip_instance else {
+            return;
+        };
+        self.compute_size(root);
+        let [w, h] = self.nodes[root].size;
+        let x = (self.pointer.0 + 16).min(self.screen[0] - w).max(0);
+        let y = (self.pointer.1 + 20).min(self.screen[1] - h).max(0);
+        self.layout_dialog(root, [x, y, x + w, y + h]);
+    }
+
+    /// The tooltip dialog opened since the last call: source element, dialog root and the
+    /// dialog's controller ids. Application controllers fill it, then call `place_tooltip`.
+    pub fn new_tooltip(&mut self) -> Option<(NodeId, NodeId, Vec<u32>)> {
+        self.tooltip_opened.take()
+    }
+
+    /// `UI::TextElement::SetParameter` on a text or label whose text still holds its template.
+    pub fn set_parameters(&mut self, id: NodeId, values: &[(usize, &str)]) {
+        let current = match &self.nodes[id].kind {
+            Kind::Text(t) | Kind::Label { text: t, .. } => t.text.clone(),
+            _ => return,
+        };
+        let mut out = current;
+        for (i, v) in values {
+            out = out.replace(&format!("@{i}"), v);
+        }
+        self.set_text(id, &out);
     }
     pub(crate) fn draw_tooltip(&self, root: NodeId, out: &mut Vec<Quad>) {
         if self.pointer_down {
@@ -870,4 +922,11 @@ pub(crate) fn event_node(e: Event) -> NodeId {
         | Event::Submitted(n)
         | Event::Link(n, _) => n,
     }
+}
+
+/// CRC32 type ids of the game's tooltip controllers handled by the UI itself.
+pub mod tooltip_controller {
+    pub const HOT_KEY: u32 = 0x5dd8_3c93;
+    pub const TITLE_DESC: u32 = 0x33e6_1003;
+    pub const BUILD_REQUIREMENT: u32 = 0xc3fe_f549;
 }

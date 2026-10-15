@@ -72,7 +72,11 @@ evidence; static traces are not claims of live-game behavior.
 - [x] Slices C/D (read-only parts): StorageUI, StorageCapacityUI, StatusIconUI, WorkPlaceUI
   visibility and CitizenUI with live values. See [BUILDING-WINDOWS.md](BUILDING-WINDOWS.md).
 - [ ] Slice C/D commands and BuildUI/DestroyUI/Residence/Upgrade (need construction and
-  profession assignment); slices F–H: Event Log/notifications, Map, tooltips.
+  profession assignment).
+- [x] Slice F: event log, stock warnings, notification ribbon, popups, Event Log checkboxes and
+  go-to ([EVENT-LOG.md](EVENT-LOG.md)); slice G: Map window and minimap
+  ([MAP-WINDOW.md](MAP-WINDOW.md)); slice H: tooltip controllers and toolbar hotkey names
+  ([TOOLTIPS.md](TOOLTIPS.md)).
 - [x] Slice E: StatusIconComponent billboards (screen-constant camera quads per status bit).
   See [STATUS-ICONS.md](STATUS-ICONS.md). Building status bits remain unported.
 

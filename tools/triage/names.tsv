@@ -132,3 +132,7 @@
 1400aa550	Minimap::SetSize	docs/MAP-WINDOW.md
 1400aa350	Minimap::CreateTextures	docs/MAP-WINDOW.md
 140129680	MapComponent::Activate	docs/MAP-WINDOW.md
+14006b2e0	HotKeyToolTipUI::OnOpened	docs/TOOLTIPS.md
+140080c00	TitleDescToolTipUI::OnOpened	docs/TOOLTIPS.md
+14009f0f0	GameGlobal::KeyName	docs/TOOLTIPS.md
+14009e7c0	Game::RegisterInputs	docs/TOOLTIPS.md

@@ -43,6 +43,36 @@ pub struct Entry {
     pub description: Option<ToolbarDescription>,
 }
 
+/// `FUN_14009e7c0`'s default keyboard input code for each registered action id (`0x08..0x31`;
+/// mouse actions `0x00..0x07` are not toolbar keys).
+fn default_key(action: i32) -> Option<i32> {
+    const CODES: [i32; 42] = [
+        0x00, 0x27, 0x1b, 0x2d, 0x29, 0x17, 0x1a, 0x4d, 0x50, 0x4f, 0x52, 0x28, 0x2a, 0x1c, 0x3e,
+        0x47, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0x4a, 0x4b, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14,
+        0x15, 0x16, 0x0d, 0x30, 0x2e, 0x19, 0x2c, 0x18,
+    ];
+    CODES.get(usize::try_from(action - 8).ok()?).copied()
+}
+
+/// `FUN_14009f0f0`: the bound key's display name, `keyNames:Keyboard{code}`.
+pub fn key_name(ui: &mut Ui, action: i32) -> Option<String> {
+    let code = default_key(action)?;
+    Some(ui.res.string(
+        Some(r"Dialog\StringTable.rsc:keyNames"),
+        &format!("Keyboard{code}"),
+    ))
+}
+
+/// `FUN_1400bede0`: the action ids a level hands out, by depth (root `Toolbar0..8`, then
+/// `Tool0..9`, then `Camera0..4`).
+fn key_pool(depth: usize) -> Vec<i32> {
+    match depth {
+        0 => (0x18..=0x20).collect(),
+        1 => (0x23..=0x2c).collect(),
+        _ => (0x2d..=0x31).collect(),
+    }
+}
+
 /// What a click asks the game to do.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
@@ -137,9 +167,32 @@ impl Toolbar {
         let content = screen.find(ui, dialog, "toolbarContent")?;
         let mut buttons = Vec::new();
         let mut speed_text = None;
+        let mut depth = 0;
+        let mut up = parent;
+        while let Some(p) = up {
+            depth += 1;
+            up = self.entries[p].item.parent.as_deref().and_then(|r| {
+                let r = r.replace('/', "\\");
+                self.entries.iter().position(|e| e.reference == r)
+            });
+        }
+        let mut pool = key_pool(depth);
         for (slot, index) in self.children(parent).into_iter().enumerate() {
             let entry = &self.entries[index];
             let kind = entry.item.kind;
+            // Element `+0xc0`: an entry that is not `enabled` keeps its own action id (and
+            // takes it out of the pool); the others take the next free id.
+            let action = if kind == kind::SPEED {
+                None
+            } else if !entry.item.enabled {
+                let v = entry.item.value as i32;
+                pool.retain(|&a| a != v);
+                Some(v)
+            } else if pool.is_empty() {
+                None
+            } else {
+                Some(pool.remove(0))
+            };
             let template = match kind {
                 kind::SPEED => 0,
                 kind::MENU => 1,
@@ -167,6 +220,9 @@ impl Toolbar {
             };
             if !tip.is_empty() {
                 ui.node_mut(node).tooltip = ui.res.string(table, tip);
+            }
+            if let Some(a) = action {
+                ui.node_mut(node).hotkey = key_name(ui, a);
             }
             if !sprite.is_empty() {
                 if let Some(s) = ui.res.sprite(sheet, sprite) {
@@ -201,6 +257,20 @@ impl Toolbar {
             stack.extend(ui.node(n).children.iter().copied());
         }
         None
+    }
+
+    /// The build template behind a toolbar button (`Element::GetUserData` for
+    /// BuildRequirementUI), with its ToolbarDescription.
+    pub fn build_entry(&self, node: NodeId) -> Option<(&str, &ToolbarDescription)> {
+        let level = self.root.iter().chain(self.popup.iter());
+        let (_, index) = level
+            .flat_map(|l| l.buttons.iter())
+            .find(|(n, _)| *n == node)?;
+        let e = &self.entries[*index];
+        if e.item.kind != kind::BUILD {
+            return None;
+        }
+        Some((e.item.template.as_deref()?, e.description.as_ref()?))
     }
 
     /// The root toolbar's layout width (`GetRoot()->+0x60`), which the event ribbon offsets by.

@@ -475,6 +475,36 @@ impl GameplayLoop {
         }
     }
 
+    /// Application tooltip controllers: `BuildRequirementUI` on the toolbar's build tooltip
+    /// (`Dialog/ToolTipToolBar.rsc`), filled from the button's template.
+    fn fill_tooltip(&self, ctx: &mut Ctx) {
+        let Some((source, root, controllers)) = ctx.ui.new_tooltip() else {
+            return;
+        };
+        if !controllers.contains(&banished_ui::tooltip_controller::BUILD_REQUIREMENT) {
+            return;
+        }
+        let Some((template, description)) =
+            self.toolbar.as_ref().and_then(|t| t.build_entry(source))
+        else {
+            return;
+        };
+        let file = template.split(':').next().unwrap_or("").replace('\\', "/");
+        let build = ctx
+            .archive
+            .read_ref(&format!("{file}:build"))
+            .ok()
+            .and_then(|d| banished_formats::game::build_description(&d).ok());
+        crate::create_bar::fill_requirements(
+            ctx.ui,
+            ctx.archive,
+            root,
+            description,
+            build.as_ref(),
+        );
+        ctx.ui.place_tooltip();
+    }
+
     fn map_click(&self, ctx: &mut Ctx) -> Option<glam::Vec2> {
         let size = self.town.as_ref()?.cells.size as u32;
         self.utility.map_click(ctx.ui, self.cursor, size)
@@ -555,6 +585,7 @@ impl GameLoop for GameplayLoop {
         if ctx.ui.screen[0] > 0 && ctx.ui.screen[1] > 0 {
             self.aspect = ctx.ui.screen[0] as f32 / ctx.ui.screen[1] as f32;
         }
+        self.fill_tooltip(ctx);
         if let Some(toolbar) = &self.toolbar {
             toolbar.relayout(ctx.ui);
         }
@@ -722,6 +753,7 @@ impl GameLoop for GameplayLoop {
         match input {
             RawInput::Cursor(x, y) => {
                 self.cursor = (x, y);
+                self.fill_tooltip(ctx);
                 if self.placement.is_some() {
                     self.refresh_placement(ctx);
                 }

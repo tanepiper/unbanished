@@ -19,7 +19,7 @@ use banished_formats::ui::{flags, Element, ElementKind};
 
 pub use controls::{Control, EditData, SliderData};
 pub use dialog::{Binding, DialogInstance};
-pub use input::Key;
+pub use input::{tooltip_controller, Key};
 pub use resources::{FontId, LoadedFont, LoadedSheet, Resources, SheetId, SpriteRef};
 pub use text::TextLayout;
 
@@ -146,6 +146,11 @@ pub struct Node {
     pub children: Vec<NodeId>,
     pub tooltip: String,
     pub tooltip_dialog: Option<String>,
+    /// Name of the element's key binding (`Element +0xc0` resolved through `keyNames`), for
+    /// `HotKeyToolTipUI`.
+    pub hotkey: Option<String>,
+    /// Title and description user data, for `TitleDescToolTipUI`.
+    pub title_desc: Option<(String, String)>,
     pub enabled: bool,
     /// Content size from the last size pass.
     pub size: [i32; 2],
@@ -169,6 +174,8 @@ impl Node {
             children: Vec::new(),
             tooltip: String::new(),
             tooltip_dialog: None,
+            hotkey: None,
+            title_desc: None,
             enabled: true,
             size: [0; 2],
             rect: [0; 4],
@@ -204,6 +211,9 @@ pub struct Ui {
     focus: Option<NodeId>,
     input_root: Option<NodeId>,
     tooltip_instance: Option<(NodeId, NodeId)>,
+    /// A tooltip dialog opened since the application last asked (`new_tooltip`), with its
+    /// controller ids, for application-defined tooltip controllers.
+    tooltip_opened: Option<(NodeId, NodeId, Vec<u32>)>,
     pending: Vec<Event>,
     stack: Vec<String>,
     overrides: Vec<std::collections::HashMap<String, Option<String>>>,
@@ -232,6 +242,7 @@ impl Ui {
             focus: None,
             input_root: None,
             tooltip_instance: None,
+            tooltip_opened: None,
             pending: Vec::new(),
             stack: Vec::new(),
             overrides: Vec::new(),
