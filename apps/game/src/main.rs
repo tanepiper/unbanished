@@ -94,6 +94,11 @@ fn boot_chain() -> MainLoop {
 }
 
 fn clock_seed() -> u32 {
+    // Scripted capture override: fix the separate engine/menu stream (town names, menu scene)
+    // as well as the world seed. Normal System::Random() still seeds from the clock.
+    if let Ok(seed) = std::env::var("BANISHED_SEED").unwrap_or_default().parse() {
+        return seed;
+    }
     let ms = web_time::SystemTime::now()
         .duration_since(web_time::UNIX_EPOCH)
         .map_or(0, |d| d.as_millis());

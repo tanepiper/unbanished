@@ -7,7 +7,7 @@
 //! Clicking the toolbar button again closes the window; the window's upper-left corner is
 //! remembered per template (default 0, 0).
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use banished_formats::game::{external_list, profession, ui_description, UiDescription};
 use banished_formats::pkg::Archive;
@@ -39,9 +39,11 @@ pub struct StatusValues {
     pub children: u32,
     /// Citizens with each status bit set: home, food, cold, job, tool, disease.
     pub status: [u32; 6],
-    /// Average health (hearts) and happiness (stars), 0..1.
+    /// Average raw Citizen values and the first CitizenDescription's scales (+0x70/+0xa4).
     pub health: f32,
     pub happiness: f32,
+    pub health_max: f32,
+    pub happiness_max: f32,
     /// Stock counts per resource category, in the order of the inventory (`+0x170`, stride 0x20):
     /// wood, stone, iron, firewood, tools, food, herbs, clothes, alcohol, coal, textile, then ten
     /// custom slots.
@@ -177,22 +179,25 @@ impl StatusBar {
                 ui.set_text(node, &v.stock[slot].to_string());
             }
         }
-        Self::set_meter(ui, self.hearts, v.health);
-        Self::set_meter(ui, self.stars, v.happiness);
+        Self::set_meter(ui, self.hearts, v.health, v.health_max);
+        Self::set_meter(ui, self.stars, v.happiness, v.happiness_max);
         if let Some(title) = &self.title {
             set_parameters(ui, title, &[v.town_name.clone()]);
         }
     }
 
-    /// `FUN_14006b830`: a row of icons (hearts, stars) showing a 0..1 value. The original also
-    /// takes a per-meter scale from the citizen description (`+0x70` / `+0xa4`); until citizens
-    /// exist every icon is hidden when the town is empty.
-    fn set_meter(ui: &mut Ui, group: Option<NodeId>, value: f32) {
+    /// FUN_14006b550 binds named whole/half images; FUN_14006b830 sets their visibility.
+    fn set_meter(ui: &mut Ui, group: Option<NodeId>, value: f32, maximum: f32) {
         let Some(group) = group else { return };
         let icons = ui.node(group).children.clone();
-        let shown = (value.clamp(0.0, 1.0) * icons.len() as f32).round() as usize;
-        for (i, icon) in icons.into_iter().enumerate() {
-            ui.set_visible(icon, i < shown);
+        let values = banished_game::status::meter(value, maximum, icons.len());
+        for (icon, (whole, half)) in icons.into_iter().zip(values) {
+            if let Some(n) = ui.find(icon, "whole") {
+                ui.set_visible(n, whole);
+            }
+            if let Some(n) = ui.find(icon, "half") {
+                ui.set_visible(n, half);
+            }
         }
     }
 }
@@ -301,7 +306,7 @@ struct Window {
 pub struct UtilityWindows {
     open: Vec<Window>,
     /// Upper-left corner per template (`param_1 + 0x50` map in `FUN_140106f50`).
-    positions: HashMap<String, (i32, i32)>,
+    positions: BTreeMap<String, (i32, i32)>,
 }
 
 fn description(archive: &Archive, template: &str) -> Option<UiDescription> {

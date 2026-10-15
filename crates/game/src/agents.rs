@@ -37,11 +37,24 @@ pub struct CitizenRulesAi {
     pub loiter_range: i32,
     /// CitizenDescription +0x130 multiplied by 300 (FUN_140117730).
     pub clothing_duration: f32,
+    pub health_max: f32,
+    /// FUN_140118340: midpoint for food, quarter-point for cold status warnings.
+    pub hunger_limit: f32,
+    pub cold_limit: f32,
+    pub profession_allows_idle: bool,
 }
 
 /// Citizen fields read/written by equipment activities and Citizen messages 1/6/7.
 #[derive(Debug, Clone, Default)]
 pub struct CitizenState {
+    pub health: f32,
+    pub happiness: f32,
+    pub hunger: f32,
+    pub cold: f32,
+    pub sick: bool,
+    pub work: Option<usize>,
+    /// StatusIconComponent +0xf0 (Citizen +0x280 points to that component).
+    pub status: u32,
     // Not ported: tool use during jobs and the citizen clothing-wear countdown.
     pub tool_status: i32,        // +0xa8
     pub tool_uses: i32,          // +0xac
@@ -61,6 +74,7 @@ impl CitizenState {
     pub fn message(&mut self, m: Message, rules: CitizenRulesAi) {
         match m.message {
             1 => {
+                crate::status::set_icon(&mut self.status, 4, false, false);
                 self.tool_uses = self.tool_uses.wrapping_add(m.a);
                 self.tool_status = m.a;
             }
@@ -112,6 +126,8 @@ impl Agents {
                 .iter()
                 .map(|_| CitizenState {
                     job: -1,
+                    health: rules.health,
+                    happiness: rules.happiness,
                     carried: carried.clone(),
                     ..Default::default()
                 })
@@ -122,6 +138,10 @@ impl Agents {
             region_types: cells.types.clone(),
             rules,
         }
+    }
+
+    pub fn rules(&self) -> CitizenRulesAi {
+        self.rules
     }
 
     /// `FUN_1400a1950` when the map changed, and the path grid's type commands.
@@ -157,6 +177,32 @@ impl Agents {
         dt: f32,
     ) {
         self.sync_map(cells);
+        // FUN_140118340's icon writes belong to simulation, never layout/hover/draw.
+        // The surrounding needs/assignment updates remain unported; reflect their live fields.
+        for state in &mut self.states {
+            for (bit, on) in [
+                (0, state.home.is_none()),
+                (
+                    1,
+                    state.hunger
+                        > self.rules.thresholds.hungry_urgent
+                            + (self.rules.hunger_limit - self.rules.thresholds.hungry_urgent) * 0.5,
+                ),
+                (
+                    2,
+                    state.cold
+                        > self.rules.thresholds.cold_urgent
+                            + (self.rules.cold_limit - self.rules.thresholds.cold_urgent) * 0.25,
+                ),
+                (
+                    3,
+                    !self.rules.profession_allows_idle && state.work.is_none(),
+                ),
+                (5, state.sick),
+            ] {
+                crate::status::set_icon(&mut state.status, bit, on, false);
+            }
+        }
         self.sectors.age_cache(ticks(dt));
         let mut stock = TownStock {
             materials,
@@ -237,8 +283,11 @@ impl Agents {
             clothing: self.states[i].clothing,
             home: self.states[i].home.is_some(),
             carrying: self.states[i].carried.used(stock.materials),
-            health: self.rules.health,
-            happiness: self.rules.happiness,
+            health: self.states[i].health,
+            happiness: self.states[i].happiness,
+            hunger: self.states[i].hunger,
+            cold: self.states[i].cold,
+            sick: self.states[i].sick,
             ..Default::default()
         };
         let rules = self.rules;
@@ -330,11 +379,12 @@ fn run(
             ) else {
                 if tool {
                     state.tool_status = 0;
+                    crate::status::set_icon(&mut state.status, 4, true, false);
                 } else {
                     state.clothing_status = 0;
                 }
                 state.flags |= 4;
-                // Deviation: SelectableComponent's no-tool overlay toggle is not rendered yet.
+                // Not ported: drawing the StatusIconComponent's billboard (its mask is live).
                 return false;
             };
             // FUN_1400c2540 / FUN_1400c2180: push in reverse execution order.

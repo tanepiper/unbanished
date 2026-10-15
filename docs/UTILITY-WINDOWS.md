@@ -62,7 +62,7 @@ The toolbar is the only caller.
   - Age `+0x3c` below the adult age (description `+0x44`) means a child, unless the citizen has a
     school at `+0x208`, in which case it counts as a student. Everyone else is an adult.
   - `textPopulation` takes `@0` adults, `@1` students, `@2` children.
-- **Status:** it ORs and counts each citizen's status bits (`+0xf0`): 1 home, 2 food, 4 cold, 8 job,
+- **Status:** it gets each citizen owner's StatusIconComponent and counts its bits (`+0xf0`): 1 home, 2 food, 4 cold, 8 job,
   16 tool, 32 disease. An icon and its count are hidden while no citizen has that bit.
 - **Hearts and stars:** these show the average health (`+0x50`) and happiness (`+0x80`), through
   `FUN_14006b830`, with the citizen description's scale.
@@ -78,18 +78,58 @@ The toolbar is the only caller.
 
 `UI::Element::SetFlagsOnOff(on, off)` with flag 1 is how elements are hidden and shown.
 
+## Live Status Bar slice (2026-10-15)
+
+Static x64 evidence, supplemented by original-function emulation:
+
+- `FUN_14007eda0` walks citizens in manager creation-list order. It counts adults, students and
+  children, sums six StatusIconComponent flags and averages raw health/happiness with f32
+  additions in that same order. The first citizen description supplies the health scale `+0x70`
+  and happiness scale `+0xa4`; the empty-town scale is 1. Stock already comes from the live
+  storage ledgers and retains stock-slot order.
+- Correction: `+0xf0` belongs to **StatusIconComponent**, type id `0x7f050e80` (registration
+  `FUN_140155910`, runtime record `DAT_1401cfe08`), reached through Citizen `+0x280`. It is
+  separate from Citizen `+0x88` state/event flags. `FUN_1401318c0` sets/clears one mask bit;
+  additions are suppressed for disabled owners, removals always work. Tool failure sets bit 4;
+  tool message 1 (`FUN_1401152b0`) clears it. This is not a SelectableComponent overlay.
+- Citizen update `FUN_140118340` sets home bit 0 when no home exists; food bit 1 above
+  `D+0xcc + (D+0xd0 - D+0xcc)*0.5`; cold bit 2 above
+  `D+0xec + (D+0xf0 - D+0xec)*0.25`; job bit 3 when profession byte `+0x4c` is false and
+  work `+0x248` is absent; disease bit 5 while `+0x68` is present. These writes are simulation
+  work. The UI only reads the resulting mask. The existing per-iteration citizen-driver
+  scheduling deviation remains; needs/assignment updates themselves are still incomplete.
+- `FUN_14006b550` binds `whole` and `half` children inside each packaged meter slot.
+  `FUN_14006b830` truncates `(value/scale)*(slotCount*2)+0.5`. For odd boundaries 1,3,5,…,
+  whole is visible below the truncated result, half is visible at equality. Containers retain
+  their resource geometry; hiding entire containers incorrectly changes the layout.
+- Status snapshots live in `crates/game/src/status.rs`; citizen health/happiness are live state
+  fields initialized from `FUN_140119520`. UI open/close/layout/hover/draw accept no mutable
+  simulation state or game Random. Utility positions use BTreeMap, open windows retain Vec order.
+
+`tools/emu/ui_status.py` produces 400 meters, 400 mask mutations and 200 complete original
+StatusBarUI aggregations, compared bit-for-bit by `crates/game/tests/ui_status_emu.rs`. UI writes,
+string construction, object identity and scene notifications are stubbed; aggregation and numeric
+logic execute in the original binary. An integration test repeatedly opens/closes, lays out,
+hovers and draws the packaged Status Bar and proves unchanged Random, simulation time and
+citizen state, including a visible half-heart at 50% health.
+
+The Status Bar opens with `--press reports@10 --click-at 474,713@10.3` at 1280×800.
+`tools/triage/determinism.sh` now accepts additional capture arguments after seconds/seed and
+fails if a named scripted control is missing. Use the same click sequence to verify this window.
+Opening the window exposed that town-name generation used the independent clock-seeded menu
+stream. The explicit `BANISHED_SEED` capture override now fixes that stream too; normal runs
+retain clock seeding. Opening/rendering the window never draws from either stream.
+
+Validation: `cargo test --workspace` passes 103 tests (two existing save tests ignored), and
+the wasm32 release build passes. Both the baseline and Status Bar scripted captures are
+identical across two seeded runs. Local visual capture:
+`game-data/derived/captures/ui-status-22.png` (1280×800, seed 1234, 22 seconds).
+
 ## Port status
 
-- **Done:**
-  - Utility windows open and close from the toolbar, built from their `UIDescription` into the
-    `StandardDialog` host. The title bar's close button also closes them.
-  - The Status Bar controller is ported. Its values come from the gameplay loop: town name,
-    calendar year and month, and temperature and weather.
-  - Citizens and stock are reported as an empty town until those managers exist.
-- **Not done:**
-  - The other controllers (Event Log, Professions, Map, …) are logged and show their raw
-    templates.
-  - Window dragging and saving positions.
-  - The hearts and stars scale.
-  - Temperature and weather use the placeholders 50 °F and sunny until the environment
-    controller is ported (see [GAME-LOOP-STEP-05.md](GAME-LOOP-STEP-05.md)).
+- Status Bar: live population, stock, status counts, health/happiness scales, town name, calendar,
+  environment temperature and weather; packaged whole/half hearts and stars.
+- Professions: ordered packaged rows and live starting laborer counts; assignment commands remain.
+- Utility windows: open/close through UIDescription and StandardDialog; remembered positions.
+- Pending: other controllers, dragging/persistence, entity windows, status billboards, Map,
+  event sources/notifications, full tooltip behavior. Unsupported controller ids are logged.

@@ -24,5 +24,6 @@ pub mod scheduler;
 pub mod sectors;
 pub mod seeding;
 pub mod spawn;
+pub mod status;
 pub mod stock;
 pub mod terrain;

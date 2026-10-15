@@ -61,6 +61,10 @@ evidence; static traces are not claims of live-game behavior.
 
 ## Remaining port work
 
+- [x] Live Status Bar population, stock, StatusIcon mask counts and scaled whole/half health and
+  happiness meters; 1,000 original-function cases and a UI read-only integration check. See
+  [UTILITY-WINDOWS.md](UTILITY-WINDOWS.md#live-status-bar-slice-2026-10-15).
+
 - [x] Make climate selection drive the environment controller's temperatures and weather draws.
 - [x] Seed the starting map from the selected profile: start point, structure draws, and rock, ore
   and tree seeding with spawned herbs, mushrooms and berries. Rendered in game. See

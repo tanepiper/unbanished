@@ -344,7 +344,7 @@ integer then its display external reference. All 14 radius and 4 location descri
 75-second cooldown. Already-equipped citizens return false. Otherwise they compute the current
 cell, obtain the home entrance when assigned, and search category 2 or 4. Failure clears tool
 status `+0xa8` or clothing status `+0x1e0`, and sets citizen `+0x88 |= 4`. Tool failure also
-toggles a SelectableComponent overlay; that renderer behavior is not ported.
+sets StatusIconComponent bit 4; the live mask is ported, while its billboard renderer remains open.
 
 On success `FUN_1400c2540` / `FUN_1400c2180` clear the character stack and install this execution
 order (pushed in reverse):
@@ -364,7 +364,7 @@ order (pushed in reverse):
 
 Both activity success branches set citizen `+0x54 |= 4`, `+0xb0 = 0`, `+0x30 = -1`.
 Message receiver `FUN_140117730` dispatches tool message 1 to `FUN_1401152b0`: add the message
-amount to `+0xac`, set `+0xa8` to that amount, and toggle the tool overlay. Clothing messages
+amount to `+0xac`, set `+0xa8` to that amount, and clear StatusIconComponent bit 4. Clothing messages
 6/7 set **both** `+0x1e0` and `+0x1e4` to 1/2, set `+0x88 |= 0x800`, and set `+0x1e8` to
 `CitizenDescription +0x130 × 300` seconds in original microsecond ticks.
 
@@ -420,8 +420,8 @@ outputs remain ignored; no game assets or decompiled listings are committed.
 
 Known deviations retained: AI every iteration instead of bucket quota (and after placed-entity
 bucket work); loiter sets use creation order instead of object address; animation blending is
-absent; starting structures do not stamp the map. Additional boundaries: equipment overlay
-changes are not rendered; job-driven tool use, clothing wear and historical consumption counters
+absent; starting structures do not stamp the map. Additional boundaries: StatusIconComponent
+billboards are not rendered; job-driven tool use, clothing wear and historical consumption counters
 are not connected; the general storage-pickup job builder, loose piles, ongoing production and
 save/load remain open. Registrations currently come from New Game placed structures; completion/
 destruction of later storage buildings is not implemented. The happiness registry remains empty.

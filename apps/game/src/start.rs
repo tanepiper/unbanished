@@ -442,6 +442,18 @@ impl StartingTown {
                 happiness: c.f(0xa4),
                 loiter_range: c.i(0xbc),
                 clothing_duration: c.f(0x130) * 300.0,
+                health_max: c.f(0x70),
+                hunger_limit: c.f(0xd0),
+                cold_limit: c.f(0xf0),
+                profession_allows_idle: read(
+                    archive,
+                    "Game/Profession/Profession.rsc:professionList",
+                )
+                .and_then(|d| banished_formats::game::external_list(&d).ok())
+                .and_then(|l| l.first().cloned())
+                .and_then(|r| read(archive, &r))
+                .and_then(|d| banished_formats::game::profession(&d).ok())
+                .is_some_and(|p| p.flag_4c),
             })
             .unwrap_or_default();
         let carried = read(archive, &citizen_ref.replace(":resource", ":storage"))

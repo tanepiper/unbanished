@@ -83,15 +83,38 @@ impl GameplayLoop {
 
     /// The values the Status Bar's FUN_14007eda0 reads from the starting town and environment.
     fn status_values(&self) -> StatusValues {
+        let summary = self.town.as_ref().map_or_else(Default::default, |t| {
+            banished_game::status::aggregate(t.citizens.iter().zip(&t.agents.states).map(
+                |(c, s)| banished_game::status::CitizenValue {
+                    age: c.age,
+                    adult_age: t.rules.adult_age,
+                    school: c.school.is_some(),
+                    health: s.health,
+                    happiness: s.happiness,
+                    status: s.status,
+                },
+            ))
+        });
         StatusValues {
             town_name: self.params.town_name.clone(),
             year: self.calendar.year,
             month: self.month(),
             temperature: self.environment.as_ref().map_or(0.0, |e| e.temperature),
             weather: self.environment.as_ref().map_or(3, |e| e.state),
-            adults: self.population().0,
-            students: self.population().1,
-            children: self.population().2,
+            adults: summary.adults,
+            students: summary.students,
+            children: summary.children,
+            status: summary.counts,
+            health: summary.health,
+            happiness: summary.happiness,
+            health_max: self
+                .town
+                .as_ref()
+                .map_or(1.0, |t| t.agents.rules().health_max),
+            happiness_max: self
+                .town
+                .as_ref()
+                .map_or(1.0, |t| t.agents.rules().happiness),
             // Every adult starts as a laborer (`FUN_14011c550` with the manager's `+0x30`).
             professions: vec![self.population().0],
             // `FUN_14008f3a0`, recomputed from the town storages.
@@ -528,6 +551,58 @@ mod tests {
             gameplay.startup(ctx);
         });
         Some((game, gameplay))
+    }
+
+    #[test]
+    fn status_bar_layout_open_close_and_draw_leave_simulation_unchanged() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        let town = gameplay.town.as_mut().unwrap();
+        let rules = town.agents.rules();
+        for s in &mut town.agents.states {
+            s.health = rules.health_max * 0.5;
+            s.happiness = rules.happiness * 0.5;
+            s.status = 1 | 16;
+        }
+        let people = town.citizens.len() as u32;
+        let state = format!("{:?}", town.agents.states);
+        let rng = gameplay.rng.clone();
+        let time = gameplay.calendar.elapsed;
+        let values = gameplay.status_values();
+        assert_eq!(values.status, [people, 0, 0, 0, people, 0]);
+        assert_eq!(values.stock[4], 40);
+        assert_eq!(values.stock[5], 1800);
+        assert_eq!(values.health, rules.health_max * 0.5);
+        game.with_ctx(|_, ctx| {
+            for _ in 0..4 {
+                gameplay.utility.toggle(
+                    ctx.ui,
+                    gameplay.screen.as_mut().unwrap(),
+                    ctx.archive,
+                    "Template/StatusBar.rsc",
+                );
+                gameplay.update_hud(ctx.ui);
+                let screen = gameplay.screen.as_ref().unwrap();
+                screen.layout(ctx.ui, (1280, 800));
+                ctx.ui.pointer_move(80, 80, screen.root);
+                let _ = ctx.ui.draw(screen.root);
+                if let Some(group) = ctx.ui.find(screen.root, "groupHearts") {
+                    let icons = ctx.ui.node(group).children.clone();
+                    assert_eq!(icons.len(), 5);
+                    let half = ctx.ui.find(icons[2], "half").unwrap();
+                    let whole = ctx.ui.find(icons[2], "whole").unwrap();
+                    assert_eq!(ctx.ui.node(half).flags & 1, 0);
+                    assert_eq!(ctx.ui.node(whole).flags & 1, 1);
+                }
+            }
+        });
+        assert_eq!(rng, gameplay.rng);
+        assert_eq!(time, gameplay.calendar.elapsed);
+        assert_eq!(
+            state,
+            format!("{:?}", gameplay.town.as_ref().unwrap().agents.states)
+        );
     }
 
     #[test]
