@@ -607,6 +607,39 @@ Verification: `placement_tool::construction_tests::fishermen_land_fish`. A dock 
 stream near the start counts on layer 8 with a water fraction of 0.58, and two fishermen
 land fish.
 
+## Hunters (`HuntComponent`, its work, `HuntAnimal`)
+
+Port: `crates/game/src/hunt.rs`; the notify is in `crates/game/src/agents.rs`.
+
+- **HuntDescription** (`FUN_140127e30`, versioned). The hunting time `+0x20` (2, × 300 s),
+  then from version 1 the stock slot `+0x24` (food).
+- **Hunting time.** HuntComponent's scheduled update (`FUN_140127c10`) adds
+  `dt · workers / most workers` to `+0x50`.
+- **Try** (`FUN_1400f44c0`). Three checks come first, in order:
+  - AutoPickup offers;
+  - a hunter carrying anything drops it off;
+  - the stock slot at its limit, or more workers than allowed, answers 1.
+
+  Then one random cell in the radius, kept on a map row, becomes the target. If it is not
+  water, is within path rank `2r` of the entrance, holds no object and is reachable, the
+  hunter walks there; otherwise they work 5 s where they stand. A `HuntAnimal` is linked into
+  that chain (`FUN_1400c1090`).
+- **HuntAnimal** (vtable `0x140166200`). It runs until done. Its notify (`FUN_1400cd2b0`)
+  waits for the lodge's time to reach `+0x20 · 300` s (`FUN_140127f50`). It then takes the
+  nearest wild animal within 8 (`FUN_140097730`), if not already taken, provided it has a
+  cell next to it that the hunter can reach.
+- **The attack** (`FUN_1400c1370`, pushed without clearing):
+  1. Walk next to the animal.
+  2. PerformWork anim 0xb for 4 s with the tool.
+  3. RemoveAnimal (`FUN_1400cfcc0`).
+  4. A CreateRawMaterial per raw material, on the animal's cell.
+
+  When the attack is set up, the animal stops and is flagged (`FUN_14010c730`), its herd
+  moves on, and the lodge's time resets.
+
+Verification: `placement_tool::construction_tests::hunters_take_deer`. Two hunters from a
+lodge near the start take a deer, and its venison is left.
+
 ## Removal tools (`RemovalTool : DragTool`, vtable `0x140168200`)
 
 The toolbar's Harvest Trees, Harvest Stone, Harvest Iron, Clear Resources, Remove Roads, Remove

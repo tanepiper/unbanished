@@ -487,3 +487,34 @@ fn fishing_description_parses() {
     );
     assert_eq!((d.mask, d.group), (0x180, 5));
 }
+
+#[test]
+fn wildlife_descriptions_parse() {
+    use banished_formats::game::{
+        animal_description, herd_description, hunt_description, population_description,
+    };
+    let Some(archive) = archive() else { return };
+    let read = |r: &str| archive.read_ref(r).unwrap();
+    let p = population_description(&read("Template/PopulationDeer.rsc:population")).unwrap();
+    assert_eq!(p.name, "Deer Population");
+    assert_eq!(
+        (p.cell, p.herd_block, p.habitat, p.forbidden),
+        (8, 64, 0x17, 0x68)
+    );
+    assert_eq!(
+        (p.no_occupants, p.capacity, p.regrowth, p.refresh),
+        (true, 2, 1, true)
+    );
+    assert_eq!(
+        p.herd.as_deref(),
+        Some(r"Template\PopulationDeer.rsc:deerHerd")
+    );
+    let h = herd_description(&read("Template/PopulationDeer.rsc:herd")).unwrap();
+    assert_eq!((h.max, h.min, h.area), (10, 5, 8));
+    assert_eq!((h.rest, h.rest_range, h.regrowth), (1.0, 0.75, 12.0));
+    let a = animal_description(&read("Template/WildAnimalDeer.rsc:animal")).unwrap();
+    assert_eq!(a.materials.len(), 2);
+    assert_eq!((a.area, a.life, a.life_range, a.adult), (8, 3.0, 0.5, 1.0));
+    let hunt = hunt_description(&read("Template/HunterLodge.rsc:hunt")).unwrap();
+    assert_eq!((hunt.time, hunt.group), (2.0, 5));
+}

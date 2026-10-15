@@ -447,6 +447,16 @@ impl Ambience {
         self.weather.get(slot).is_some_and(|w| w.is_some())
     }
 
+    /// The 3D effect handles of a weather slot's emitter.
+    #[cfg(test)]
+    pub fn weather_handles(&self, slot: usize) -> Vec<u32> {
+        self.weather
+            .get(slot)
+            .and_then(Option::as_ref)
+            .map(|e| e.slots.iter().map(|s| s.handle).collect())
+            .unwrap_or_default()
+    }
+
     #[cfg(test)]
     pub fn river_count(&self) -> usize {
         self.rivers.len()

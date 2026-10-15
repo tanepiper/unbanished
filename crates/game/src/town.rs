@@ -45,6 +45,8 @@ pub(crate) struct Haul {
 
 /// The world the citizens' update borrows (everything but the citizens themselves).
 pub struct Env<'a, 't> {
+    /// Wild animals (hunting).
+    pub wildlife: &'a mut crate::wildlife::Wildlife,
     pub cells: &'a mut Cells,
     pub placed: &'a mut Vec<Placed>,
     pub templates: &'a [Template],
@@ -164,7 +166,7 @@ pub fn animating(placed: &[Placed], templates: &[Template]) -> Vec<bool> {
 }
 
 /// FUN_1400a48b0 without bridge picking.
-pub(crate) fn cell_ground(size: usize, terrain: &HeightGrid, cell: i32) -> [f32; 3] {
+pub fn cell_ground(size: usize, terrain: &HeightGrid, cell: i32) -> [f32; 3] {
     let n = size as i32;
     let h = (n >> 1) as f32 - 0.5;
     let (x, y) = ((cell % n) as f32 - h, (cell / n) as f32 - h);
@@ -968,6 +970,8 @@ impl Callbacks for Sim<'_, '_> {
                     self.forester_work(e)
                 } else if t.fishing.is_some() {
                     self.fishing_work(e)
+                } else if t.hunt.is_some() {
+                    self.hunt_work(e)
                 } else {
                     self.produce_work(e)
                 };
@@ -1061,7 +1065,9 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Produce(_) => return self.produce_refresh(work),
             WorkKind::Fishing(_) => return self.fishing_refresh(work),
             // `FUN_1400f3620` / `FUN_1400f0130`.
-            WorkKind::Herbalist(h) | WorkKind::Forester(h) => h.workers.iter().copied(),
+            WorkKind::Herbalist(h) | WorkKind::Forester(h) | WorkKind::Hunt(h) => {
+                h.workers.iter().copied()
+            }
             // `FUN_1400f4c90`: the worker no longer holds the task.
             WorkKind::Location(l) => {
                 if let Some(c) = l.worker {
@@ -1099,7 +1105,7 @@ impl WorkHost for Sim<'_, '_> {
                     *o = held.contains(&(k as i32));
                 }
             }
-            WorkKind::Herbalist(h) | WorkKind::Forester(h) => {
+            WorkKind::Herbalist(h) | WorkKind::Forester(h) | WorkKind::Hunt(h) => {
                 for c in &gone {
                     h.workers.remove(c);
                 }
@@ -1128,7 +1134,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Produce(_) => self.produce_try(work, c, time),
             WorkKind::Location(_) => self.location_try(work, c),
             WorkKind::Fishing(_) => self.fishing_try(work, c),
-            WorkKind::Herbalist(_) | WorkKind::Forester(_) => {
+            WorkKind::Herbalist(_) | WorkKind::Forester(_) | WorkKind::Hunt(_) => {
                 let works: BTreeSet<i32> = self.piles.values().map(|p| p.work).collect();
                 if self.auto_pickup_offers(work.entity, |id| works.contains(&id)) {
                     return NESTED;
@@ -1152,6 +1158,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Produce(_) => self.produce_resume(work, c),
             WorkKind::Herbalist(_) => self.herbalist_try(work, c),
             WorkKind::Forester(_) => self.forester_try(work, c),
+            WorkKind::Hunt(_) => self.hunt_try(work, c),
             _ => 1,
         }
     }
@@ -1191,7 +1198,7 @@ impl WorkHost for Sim<'_, '_> {
             // `FUN_1400f4d20`: free for the next one; the work stays.
             WorkKind::Location(l) => l.worker = None,
             // `FUN_1400f3860` / `FUN_1400f0370`.
-            WorkKind::Herbalist(h) | WorkKind::Forester(h) => {
+            WorkKind::Herbalist(h) | WorkKind::Forester(h) | WorkKind::Hunt(h) => {
                 h.workers.remove(&c);
             }
             WorkKind::Test(_) => {}
@@ -1230,7 +1237,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Fishing(_) => Self::fishing_complete(work, param),
             WorkKind::Location(l) => l.worker = None,
             // `FUN_1400f3850` / `FUN_1400f0360`.
-            WorkKind::Herbalist(h) | WorkKind::Forester(h) => {
+            WorkKind::Herbalist(h) | WorkKind::Forester(h) | WorkKind::Hunt(h) => {
                 h.workers.remove(&c);
             }
             WorkKind::Test(_) => {}
@@ -1265,7 +1272,9 @@ impl WorkHost for Sim<'_, '_> {
                 // `FUN_1400efd00`: every worker's stack is cleared.
                 WorkKind::Fishing(fw) => fw.workers.iter().flatten().next().copied(),
                 // `FUN_1400f3fb0` / `FUN_1400f0d70`.
-                WorkKind::Herbalist(h) | WorkKind::Forester(h) => h.workers.first().copied(),
+                WorkKind::Herbalist(h) | WorkKind::Forester(h) | WorkKind::Hunt(h) => {
+                    h.workers.first().copied()
+                }
                 WorkKind::Produce(_) | WorkKind::Test(_) => None,
             };
             let Some(c) = next else { return };
@@ -1289,7 +1298,7 @@ impl WorkHost for Sim<'_, '_> {
                     }
                 }
                 WorkKind::Location(l) => l.worker = None,
-                WorkKind::Herbalist(h) | WorkKind::Forester(h) => {
+                WorkKind::Herbalist(h) | WorkKind::Forester(h) | WorkKind::Hunt(h) => {
                     h.workers.remove(&c);
                 }
                 WorkKind::Fishing(fw) => {

@@ -523,6 +523,8 @@ pub struct SiteTemplate {
     pub happiness: Option<banished_formats::game::HappinessDescription>,
     /// FishingDescription, resolved.
     pub fishing: Option<crate::fishing::FishingTemplate>,
+    /// HuntDescription.
+    pub hunt: Option<banished_formats::game::HuntDescription>,
 }
 
 impl SiteTemplate {
@@ -623,6 +625,8 @@ pub struct Site {
     pub happiness_registered: bool,
     /// FishingComponent.
     pub fishing: Option<crate::fishing::Fishing>,
+    /// HuntComponent `+0x50`: the hunting time gathered.
+    pub hunt_time: Option<i64>,
 }
 
 /// The job manager, professions, workforce and every construction site.

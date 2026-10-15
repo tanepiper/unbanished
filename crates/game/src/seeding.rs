@@ -601,6 +601,21 @@ impl<'a> Seeder<'a> {
         temperature: f32,
         disabled: bool,
     ) -> bool {
+        self.iterate_with(scheduler, dt, temperature, disabled, &mut |_, _, _, _| {
+            false
+        })
+    }
+
+    /// [`Seeder::iterate`] with the scheduled update of entities without growth (`visit`
+    /// returns whether the models changed).
+    pub fn iterate_with(
+        &mut self,
+        scheduler: &mut EntityScheduler<usize>,
+        dt: f32,
+        temperature: f32,
+        disabled: bool,
+        visit: &mut dyn FnMut(&mut Seeder, &mut EntityScheduler<usize>, usize, i64) -> bool,
+    ) -> bool {
         scheduler.advance(dt);
         // FUN_1400c9560's bit-0x04 component phase precedes scheduled growth. Within a tree
         // the ModelComponent (FUN_140129e30) runs before NaturalResource (FUN_14012b110).
@@ -612,6 +627,7 @@ impl<'a> Seeder<'a> {
                     continue;
                 }
                 let Some(state) = &mut p.growth_state else {
+                    changed |= visit(self, scheduler, id, elapsed);
                     continue;
                 };
                 let d = self.templates[p.template].growth.as_ref().unwrap();

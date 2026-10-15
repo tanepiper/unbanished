@@ -64,6 +64,8 @@ pub enum Component {
     /// CreateNaturalResource's start (`FUN_1400cbb20`) once the cell is free: `a` the
     /// template, `b` the cell.
     CreateNaturalResource,
+    /// RemoveAnimal's start (`FUN_1400cfcc0`): the animal `entity` is removed.
+    Animal,
 }
 
 /// A message an action delivered (slot `+0x78` of the receiving component). The owner
@@ -527,6 +529,17 @@ pub enum Action {
         /// fish).
         factor: f32,
     },
+    /// `HuntAnimal` (vtable `0x140166200`, constructor `FUN_1400cd8d0`), attached to a hunter's
+    /// walk or wait: running until its notify (`FUN_1400cd2b0`, run by the citizens' update)
+    /// has started an attack.
+    HuntAnimal {
+        lodge: usize,
+        done: bool,
+    },
+    /// `RemoveAnimal` (vtable `0x140166400`, start `FUN_1400cfcc0`).
+    RemoveAnimal {
+        entity: usize,
+    },
     /// `CreateNaturalResource` (vtable `0x1401660c0`, constructor `FUN_1400cbef0`): plant
     /// `template` on `cell`, which must hold no object and `occupant` as its occupant.
     CreateNaturalResource {
@@ -642,6 +655,24 @@ impl Action {
                     entity: None,
                     a: *template as i32,
                     b: *cell,
+                });
+                Status::Done
+            }
+            // `FUN_1400cd720`.
+            Action::HuntAnimal { done, .. } => {
+                if *done {
+                    Status::Done
+                } else {
+                    Status::Running
+                }
+            }
+            Action::RemoveAnimal { entity } => {
+                world.messages.push(Message {
+                    component: Component::Animal,
+                    message: 0,
+                    entity: Some(*entity),
+                    a: 0,
+                    b: 0,
                 });
                 Status::Done
             }
@@ -802,7 +833,16 @@ impl Action {
             Action::RemoveResource { .. }
             | Action::PickupPile { .. }
             | Action::CreateRawMaterial { .. }
-            | Action::CreateNaturalResource { .. } => Status::Done,
+            | Action::CreateNaturalResource { .. }
+            | Action::RemoveAnimal { .. } => Status::Done,
+            // `FUN_1400cd710`.
+            Action::HuntAnimal { done, .. } => {
+                if *done {
+                    Status::Done
+                } else {
+                    Status::Running
+                }
+            }
             Action::SendMessage(_)
             | Action::ConsumeStoredRawMaterial { .. }
             | Action::PickupStoredRawMaterial { .. }
@@ -920,6 +960,27 @@ impl ActionStack {
             .iter()
             .find_map(|c| match c.first().map(|t| &t.action) {
                 Some(Action::CompleteTask { work: w, param }) if *w == work => Some(*param),
+                _ => None,
+            })
+    }
+
+    /// Link `action` into the top chain (the original's `+0x10` of the top action).
+    pub fn attach(&mut self, action: Action) {
+        if let Some(top) = self.chains.last_mut() {
+            top.push(Task {
+                action,
+                started: false,
+            });
+        }
+    }
+
+    /// The top chain's `HuntAnimal`, if any: its lodge and its `done` flag.
+    pub fn hunt_watch(&mut self) -> Option<(usize, &mut bool)> {
+        self.chains
+            .last_mut()?
+            .iter_mut()
+            .find_map(|t| match &mut t.action {
+                Action::HuntAnimal { lodge, done } => Some((*lodge, done)),
                 _ => None,
             })
     }

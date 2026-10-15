@@ -1774,13 +1774,24 @@ mod tests {
                     direction: 1.0,
                 });
             gameplay.update(ctx, 1.0 / 30.0);
-            assert!(gameplay.ambience.as_ref().unwrap().weather_active(0));
-            let (_, during) = ctx.audio.scene.active();
-            assert_eq!(during, before + 1);
-            gameplay.environment.as_mut().unwrap().effects[0] = None;
+            let ambience = gameplay.ambience.as_ref().unwrap();
+            assert!(ambience.weather_active(0));
+            // The rain emitter's effect plays (other 3D one-shots come and go with the game
+            // stream, so the scene's total is not compared).
+            let handles = ambience.weather_handles(0);
+            assert!(handles
+                .iter()
+                .any(|&h| ctx.audio.scene.emitter_count(h) > 0));
+            let _ = before;
+            // Rain stops and cannot start again in this step (whatever the stream draws).
+            let env = gameplay.environment.as_mut().unwrap();
+            env.effects[0] = None;
+            env.fade_times[0] = None;
             gameplay.update(ctx, 1.0 / 30.0);
             assert!(!gameplay.ambience.as_ref().unwrap().weather_active(0));
-            assert_eq!(ctx.audio.scene.active().1, before);
+            assert!(handles
+                .iter()
+                .all(|&h| ctx.audio.scene.emitter_count(h) == 0));
         });
     }
 

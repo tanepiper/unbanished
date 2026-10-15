@@ -1121,6 +1121,192 @@ pub fn fishing_description(data: &[u8]) -> Result<FishingDescription> {
     Ok(value)
 }
 
+/// `PopulationDescription` (serializer `FUN_140055140`): the wildlife manager's grid and the
+/// herds it starts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PopulationDescription {
+    /// `+0x20`: the display name.
+    pub name: String,
+    /// `+0x28`: map cells per population cell (a side).
+    pub cell: i32,
+    /// `+0x2c`: map cells per herd block (a side).
+    pub herd_block: i32,
+    /// `+0x30`: cell types that count as habitat.
+    pub habitat: u32,
+    /// `+0x34`: cell types that rule a population cell out.
+    pub forbidden: u32,
+    /// `+0x38`: map occupants rule a population cell out.
+    pub no_occupants: bool,
+    /// `+0x3c`: a habitable cell's capacity.
+    pub capacity: i32,
+    /// `+0x40`: regrowth per 300 s.
+    pub regrowth: i32,
+    /// `+0x44`.
+    pub value_44: i32,
+    /// `+0x48`: recount a sixteenth of the cells every update.
+    pub refresh: bool,
+    /// `+0x50`: the herd entity template.
+    pub herd: Option<String>,
+}
+
+pub fn population_description(data: &[u8]) -> Result<PopulationDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("PopulationDescription") {
+            return format_err(format!(
+                "expected PopulationDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let cell = r.i32()?;
+            let herd_block = r.i32()?;
+            let habitat = r.u32()?;
+            let forbidden = r.u32()?;
+            let no_occupants = r.bool()?;
+            let capacity = r.i32()?;
+            let regrowth = r.i32()?;
+            let value_44 = r.i32()?;
+            let refresh = r.bool()?;
+            let herd = r.external_ref()?;
+            let name = r.string()?;
+            Ok(PopulationDescription {
+                name,
+                cell,
+                herd_block,
+                habitat,
+                forbidden,
+                no_occupants,
+                capacity,
+                regrowth,
+                value_44,
+                refresh,
+                herd,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `HerdDescription` (serializer `FUN_1401276b0`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct HerdDescription {
+    /// `+0x20`: the animal template.
+    pub animal: Option<String>,
+    /// `+0x28`, `+0x2c`: the most and fewest animals.
+    pub max: i32,
+    pub min: i32,
+    /// `+0x30`, `+0x34`: the rest between moves (× 300 s), base and random part.
+    pub rest: f32,
+    pub rest_range: f32,
+    /// `+0x38`: the side of the herd's area in cells.
+    pub area: i32,
+    /// `+0x3c`: the regrowth interval (× 300 s).
+    pub regrowth: f32,
+}
+
+pub fn herd_description(data: &[u8]) -> Result<HerdDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("HerdDescription") {
+            return format_err(format!(
+                "expected HerdDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(HerdDescription {
+                animal: r.external_ref()?,
+                max: r.i32()?,
+                min: r.i32()?,
+                rest: r.f32()?,
+                rest_range: r.f32()?,
+                area: r.i32()?,
+                regrowth: r.f32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `AnimalDescription` (serializer `FUN_14010c520`; `+0x40`, the idle time, is not stored and
+/// keeps the constructor's 4).
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnimalDescription {
+    /// `+0x48`: the raw materials a hunted animal leaves.
+    pub materials: Vec<Option<String>>,
+    /// `+0x20`: the side of the animal's home area in cells.
+    pub area: i32,
+    /// `+0x24`.
+    pub value_24: i32,
+    /// `+0x28`, `+0x2c`: the lifespan in years, base and tolerance.
+    pub life: f32,
+    pub life_range: f32,
+    /// `+0x30`: the age at full size (years).
+    pub adult: f32,
+    /// `+0x34`, `+0x38`.
+    pub value_34: f32,
+    pub value_38: f32,
+    /// `+0x3c`: turn to a random heading when idling.
+    pub turn: bool,
+    /// `+0x40`.
+    pub idle: f32,
+}
+
+pub fn animal_description(data: &[u8]) -> Result<AnimalDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("AnimalDescription") {
+            return format_err(format!(
+                "expected AnimalDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let n = r.i32()?;
+            let materials = (0..n.max(0))
+                .map(|_| r.external_ref())
+                .collect::<Result<Vec<_>>>()?;
+            Ok(AnimalDescription {
+                materials,
+                area: r.i32()?,
+                value_24: r.i32()?,
+                life: r.f32()?,
+                life_range: r.f32()?,
+                adult: r.f32()?,
+                value_34: r.f32()?,
+                value_38: r.f32()?,
+                turn: r.bool()?,
+                idle: 4.0,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `HuntDescription` (serializer `FUN_140127e30`, versioned): the hunting time a kill needs
+/// (`+0x20`, × 300 s of a full lodge's work) and, from version 1, the stock slot of its limit
+/// (`+0x24`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HuntDescription {
+    pub time: f32,
+    pub group: i32,
+}
+
+pub fn hunt_description(data: &[u8]) -> Result<HuntDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("HuntDescription") {
+            return format_err(format!(
+                "expected HuntDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, version| {
+            let time = r.f32()?;
+            let group = if version > 0 { r.i32()? } else { 0 };
+            Ok(HuntDescription { time, group })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `AutoPickupDescription` (serializer `FUN_1400454c0`): `+0x20`, whether the workplace's
 /// workers pick up the piles they make first.
 pub fn auto_pickup_description(data: &[u8]) -> Result<bool> {

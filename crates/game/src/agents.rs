@@ -460,6 +460,7 @@ impl Agents {
             sim.update_sites(jobs);
             sim.update_attendance();
             sim.age_piles(jobs, ticks(dt));
+            sim.update_hunts(ticks(dt));
             jobs.drain(&mut sim);
         }
         // The residences' state-2 updates (`FUN_14012ee40`).
@@ -479,6 +480,9 @@ impl Agents {
             if groups.get(i).copied().flatten().is_none() || !citizens[i].alive {
                 continue;
             }
+            // CharacterComponent's scheduled update (`FUN_14010e950`): the running chain's
+            // notify, a hunter's `HuntAnimal`.
+            self.hunt_notify(i, env, groups);
             // CitizenComponent before CitizenAIComponent (the template's component order); a
             // citizen queued for deletion stops there (entity flag `0x400`).
             let born = self.live(i, citizens, env, &entities, ticks(dt), newborn);
@@ -505,6 +509,204 @@ impl Agents {
         self.dying.clear();
         for (c, s) in citizens.iter_mut().zip(&self.states) {
             c.school = s.school;
+        }
+    }
+
+    /// The wild animals' CharacterComponent update (`FUN_14010e990`): animate, run the
+    /// actions, turn and move.
+    pub fn move_animals(
+        &mut self,
+        wildlife: &mut crate::wildlife::Wildlife,
+        cells: &Cells,
+        terrain: &HeightGrid,
+        rng: &mut Random,
+        materials: &[RawMaterial],
+        dt: f32,
+    ) {
+        self.sync_map(cells);
+        let mut animating = Vec::new();
+        let mut storages: Vec<Storage> = Vec::new();
+        let ids: Vec<usize> = wildlife.animals.keys().copied().collect();
+        for a in ids {
+            let (template, variant) = {
+                let animal = &wildlife.animals[&a];
+                if animal.dying {
+                    continue;
+                }
+                (animal.template, animal.variant)
+            };
+            let Some(group) = wildlife.groups.get(&(template, variant)).cloned() else {
+                continue;
+            };
+            let animal = wildlife.animals.get_mut(&a).unwrap();
+            let mut messages = Vec::new();
+            let (mut carried, mut tool_uses, mut shown_tool) = (Storage::default(), 0, -1);
+            let mut world = World {
+                size: cells.size,
+                types: &cells.types,
+                objects: &cells.objects,
+                occupants: &cells.occupants,
+                flags: &cells.flags,
+                regions: &self.regions,
+                terrain,
+                pathfinder: &mut self.pathfinder,
+                rng,
+                messages: &mut messages,
+                materials,
+                storages: &mut storages,
+                carried: &mut carried,
+                tool_uses: &mut tool_uses,
+                shown_tool: &mut shown_tool,
+                animating: &mut animating,
+            };
+            animal.character.animate(&group, dt);
+            animal.character.update(&mut world, &group, dt);
+        }
+    }
+
+    /// `HuntAnimal`'s notify (`FUN_1400cd2b0`): once the lodge has gathered its hunting time
+    /// (`FUN_140127f50`), the nearest wild animal within 8 (`FUN_140097730`), not already
+    /// taken, next to a cell the hunter can reach, is taken (`FUN_1400c1370` without clearing:
+    /// walk there, shoot 4 s, remove it, leave its raw materials where it stood), and its herd
+    /// moves on (`FUN_140127810`).
+    fn hunt_notify(&mut self, i: usize, env: &mut Env, groups: &[Option<&AnimationGroup>]) {
+        let Some(group) = groups.get(i).copied().flatten() else {
+            return;
+        };
+        let Some((lodge, done)) = self.characters[i].stack.hunt_watch() else {
+            return;
+        };
+        if *done {
+            return;
+        }
+        let Some(site) = env.construction.sites.get(&lodge) else {
+            return;
+        };
+        let Some(d) = env.construction.templates[site.template].hunt else {
+            return;
+        };
+        if site.hunt_time.unwrap_or(0) < ticks(d.time * 300.0) {
+            return;
+        }
+        let pos = self.characters[i].position;
+        let mut best = None;
+        let mut nearest = 8.0f32 * 8.0;
+        for (&a, animal) in &env.wildlife.animals {
+            if animal.dying {
+                continue;
+            }
+            let q = animal.character.position;
+            let (dx, dy, dz) = (q[0] - pos[0], q[1] - pos[1], q[2] - pos[2]);
+            let d2 = dx * dx + dy * dy + dz * dz;
+            if d2 < nearest {
+                nearest = d2;
+                best = Some(a);
+            }
+        }
+        let Some(a) = best else { return };
+        let animal = &env.wildlife.animals[&a];
+        if animal.flags & crate::wildlife::HUNTED != 0 {
+            return;
+        }
+        let n = env.cells.size as i32;
+        let cell_of = |p: [f32; 3]| {
+            let half = (n >> 1) as f32;
+            let x = ((p[0] + half) as i32).clamp(0, n - 1);
+            let y = ((p[1] + half) as i32).clamp(0, n - 1);
+            n * y + x
+        };
+        let (here, at) = (cell_of(pos), cell_of(animal.character.position));
+        let Some(nb) = crate::pathfind::nearest_neighbour(
+            env.cells.size,
+            &env.cells.types,
+            at,
+            here,
+            WALKABLE,
+        ) else {
+            return;
+        };
+        let town = TownView {
+            size: env.cells.size,
+            types: &env.cells.types,
+            regions: &self.regions,
+            occupants: &env.cells.occupants,
+            objects: &env.cells.objects,
+            entities: &[],
+            happiness: &[],
+        };
+        if !town.reachable(WALKABLE, nb, here) {
+            return;
+        }
+        if let Some((_, done)) = self.characters[i].stack.hunt_watch() {
+            *done = true;
+        }
+        let materials = env
+            .wildlife
+            .animal_kinds
+            .get(&animal.template)
+            .map(|k| k.materials.clone())
+            .unwrap_or_default();
+        let herd = animal.herd;
+        let batch = self.states[i].carried.capacity;
+        let workplace = self.states[i].workplace;
+        let mut duration = ticks(4.0);
+        if self.states[i].tool_uses < 1 {
+            duration = ticks(crate::scheduler::seconds(duration) * self.rules.no_tool_factor);
+        }
+        let target = cell_ground(env.cells.size, env.terrain, nb);
+        let walk = MoveTo::new(target, 1, 0, WALKABLE, 0, -1.0, env.rng);
+        let ch = &mut self.characters[i];
+        let mut stack = std::mem::take(&mut ch.stack);
+        for &m in &materials {
+            stack.push(
+                ch,
+                group,
+                Action::CreateRawMaterial {
+                    template: m,
+                    cell: at,
+                    batch,
+                    workplace,
+                    factor: 1.0,
+                },
+            );
+        }
+        stack.push(ch, group, Action::RemoveAnimal { entity: a });
+        stack.push(
+            ch,
+            group,
+            Action::PerformWork {
+                facing: -1000.0,
+                anim: 0xb,
+                duration,
+                elapsed: 0,
+                consume: true,
+            },
+        );
+        stack.push(ch, group, Action::move_to(walk));
+        ch.stack = stack;
+        // `FUN_14010c730`, then the herd's new target.
+        let mut scheduler = crate::scheduler::EntityScheduler::default();
+        let mut wild = crate::wildlife::Wild {
+            wildlife: env.wildlife,
+            placed: env.placed,
+            templates: env.templates,
+            cells: env.cells,
+            terrain: env.terrain,
+            rng: env.rng,
+            // Taking an animal creates no entity.
+            scheduler: &mut scheduler,
+        };
+        wild.hunted(a);
+        if let Some(h) = herd {
+            wild.retarget(h);
+        }
+        if let Some(t) = env
+            .construction
+            .sites
+            .get_mut(&lodge)
+            .and_then(|s| s.hunt_time.as_mut())
+        {
+            *t = 0;
         }
     }
 
@@ -818,6 +1020,11 @@ impl Agents {
                         _ => sim.animate_resource(e, m.a.max(0) as usize),
                     }
                     jobs.drain(&mut sim);
+                }
+                Component::Animal => {
+                    if let Some(a) = m.entity {
+                        env.wildlife.kill(a);
+                    }
                 }
                 Component::Happiness => {
                     let Some(e) = m.entity else { continue };

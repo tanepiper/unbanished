@@ -32,11 +32,11 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **Trade**, **Boat** | TradingPost, TraderBoat | missing |
 | **Destroy** | every building | missing (demolition) |
 | **CropField**, **Orchard**, **Pasture**, **Livestock**, **Fruit** | fields, orchards, pastures, animals | missing |
-| **Herd**, **Population**, **WildAnimal**, **Animal** | deer | missing |
+| **Herd**, **Population**, **WildAnimal**, **Animal** | deer | yes (`wildlife.rs`; livestock breeding with pastures) |
 | ResourceProduce subtype **Herbalist** (gather) | gatherer's shelter, herbalist | yes (`herbalist.rs`) |
 | ResourceProduce subtype **Forester** | forester's lodge | yes (`forester.rs`; toggle buttons not wired) |
 | ResourceProduce subtype **Fishing** | fisherman's dock | yes (`fishing.rs`, map layer 8) |
-| ResourceProduce subtype **Hunt** | hunter's lodge | missing (needs deer herds) |
+| ResourceProduce subtype **Hunt** | hunter's lodge | yes (`hunt.rs`, HuntAnimal, RemoveAnimal) |
 | **AutoPickup** | gatherers, hunters, foresters | yes |
 | **AbsorbResource**, **StorageDisplay** | fields, StorageYard | missing |
 | **MultiObject**, **Terraform**, **Floor** | bridges, tunnels, fences, dock | missing |

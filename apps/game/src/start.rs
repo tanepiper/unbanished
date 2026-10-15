@@ -98,6 +98,108 @@ fn read(archive: &Archive, reference: &str) -> Option<Vec<u8>> {
     archive.read_ref(&reference.replace('\\', "/")).ok()
 }
 
+/// A template's component descriptions by their key (`X.rsc:key`).
+fn description_refs(archive: &Archive, reference: &str) -> Vec<(String, String)> {
+    let key = normalise(reference);
+    read(archive, &key)
+        .and_then(|d| component_description(&d).ok())
+        .map(|desc| {
+            desc.descriptions
+                .iter()
+                .flatten()
+                .map(|d| (d.rsplit(':').next().unwrap_or("").to_string(), d.clone()))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// `FUN_1400a5eb0`'s templates: each population's, its herd's and its animal's, with their
+/// descriptions. Returns the population templates.
+fn wildlife_kinds(
+    archive: &Archive,
+    populations: &[String],
+    templates: &mut Vec<Template>,
+    wildlife: &mut banished_game::wildlife::Wildlife,
+) -> Vec<usize> {
+    use banished_game::wildlife::{AnimalKind, HerdKind, PopulationKind};
+    let find = |refs: &[(String, String)], k: &str| {
+        refs.iter()
+            .find(|(key, _)| key == k)
+            .and_then(|(_, r)| read(archive, &normalise(r)))
+    };
+    let mut out = Vec::new();
+    for r in populations {
+        let Some(pt) = load_template(archive, r, templates) else {
+            continue;
+        };
+        let refs = description_refs(archive, r);
+        let Some(pd) = find(&refs, "population")
+            .and_then(|d| banished_formats::game::population_description(&d).ok())
+        else {
+            continue;
+        };
+        let herd = pd
+            .herd
+            .as_deref()
+            .and_then(|h| load_template(archive, h, templates).map(|t| (h.to_string(), t)));
+        if let Some((href, ht)) = &herd {
+            let hrefs = description_refs(archive, href);
+            let hd = find(&hrefs, "herd")
+                .and_then(|d| banished_formats::game::herd_description(&d).ok());
+            if let Some(hd) = hd {
+                let animal = hd
+                    .animal
+                    .as_deref()
+                    .and_then(|a| load_template(archive, a, templates).map(|t| (a.to_string(), t)));
+                if let Some((aref, at)) = animal {
+                    let arefs = description_refs(archive, &aref);
+                    let ad = find(&arefs, "animal")
+                        .and_then(|d| banished_formats::game::animal_description(&d).ok());
+                    let cd = find(&arefs, "character")
+                        .and_then(|d| banished_formats::game::character_description(&d).ok());
+                    if let (Some(ad), Some(cd)) = (ad, cd) {
+                        let materials = ad
+                            .materials
+                            .iter()
+                            .flatten()
+                            .filter_map(|m| load_template(archive, m, templates))
+                            .collect();
+                        for (v, g) in templates[at].animations.iter().enumerate() {
+                            if let Some(g) = g {
+                                wildlife.groups.insert((at, v), g.clone());
+                            }
+                        }
+                        wildlife.animal_kinds.insert(
+                            at,
+                            AnimalKind {
+                                desc: ad,
+                                materials,
+                                character: cd,
+                            },
+                        );
+                    }
+                    wildlife.herd_kinds.insert(
+                        *ht,
+                        HerdKind {
+                            desc: hd,
+                            animal: at,
+                        },
+                    );
+                }
+            }
+        }
+        wildlife.population_kinds.insert(
+            pt,
+            PopulationKind {
+                desc: pd,
+                herd: herd.map(|(_, t)| t),
+            },
+        );
+        out.push(pt);
+    }
+    out
+}
+
 /// Load a template and (recursively) the templates it spawns.
 fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) -> Option<usize> {
     let key = normalise(reference);
@@ -458,6 +560,8 @@ pub struct StartingTown {
     pub(crate) citizen_anims: Vec<Option<Arc<banished_formats::types::AnimationGroup>>>,
     /// The citizens' CharacterComponent and CitizenAIComponent (docs/CITIZEN-AI.md).
     pub agents: Agents,
+    /// Wild animals, their herds and populations (docs/WILDLIFE-POPULATION.md).
+    pub wildlife: banished_game::wildlife::Wildlife,
     /// The placement tool's ghost (`PlacementTool +0x68`): mesh and transform.
     pub ghost: Option<(String, [f32; 16])>,
     /// The job manager, professions, workplaces and construction sites (docs/JOBS.md).
@@ -524,7 +628,22 @@ impl StartingTown {
             &grid_start(map_size, terrain, start),
             rng,
         );
-        // Deer and other populations (`FUN_1400a5eb0`, `FUN_1400a57c0`) come here; not ported yet.
+        // `FUN_1400a5eb0`: the wildlife populations (deer) and their herds.
+        let mut wildlife = banished_game::wildlife::Wildlife::default();
+        let populations =
+            wildlife_kinds(archive, &profile.populations, &mut templates, &mut wildlife);
+        for t in populations {
+            banished_game::wildlife::Wild {
+                wildlife: &mut wildlife,
+                placed: &mut placed,
+                templates: &templates,
+                cells: &cells,
+                terrain,
+                rng,
+                scheduler: &mut scheduler,
+            }
+            .start_population(t);
+        }
         let (materials, storages, storage_sites) =
             starting_goods(archive, &profile, &placed, &templates);
         log::info!(
@@ -657,6 +776,7 @@ impl StartingTown {
                 .unwrap_or_default(),
             citizen_model,
             agents,
+            wildlife,
             ghost: None,
             construction: Construction {
                 professions: professions(archive),
@@ -825,7 +945,17 @@ impl StartingTown {
         dt: f32,
         temperature: f32,
     ) -> bool {
-        Seeder {
+        // The wild animals' CharacterComponent (the bit-0x04 phase).
+        self.agents.move_animals(
+            &mut self.wildlife,
+            &self.cells,
+            terrain,
+            rng,
+            &self.materials,
+            dt,
+        );
+        let wildlife = &mut self.wildlife;
+        let changed = Seeder {
             templates: &self.templates,
             terrain,
             cells: &mut self.cells,
@@ -834,7 +964,37 @@ impl StartingTown {
             removed: &mut self.removed,
             animation_events: &mut self.animation_events,
         }
-        .iterate(&mut self.scheduler, dt, temperature, false)
+        .iterate_with(
+            &mut self.scheduler,
+            dt,
+            temperature,
+            false,
+            &mut |seeder, scheduler, id, elapsed| {
+                let mut wild = banished_game::wildlife::Wild {
+                    wildlife: &mut *wildlife,
+                    placed: seeder.placed,
+                    templates: seeder.templates,
+                    cells: seeder.cells,
+                    terrain: seeder.terrain,
+                    rng: seeder.rng,
+                    scheduler,
+                };
+                wild.scheduled(id, elapsed);
+                false
+            },
+        );
+        // The entity manager deletes the queued animals.
+        let buried = banished_game::wildlife::Wild {
+            wildlife: &mut self.wildlife,
+            placed: &mut self.placed,
+            templates: &self.templates,
+            cells: &self.cells,
+            terrain,
+            rng,
+            scheduler: &mut self.scheduler,
+        }
+        .bury();
+        changed | buried
     }
 
     /// Player commands and newly placed sites (before an iteration).
@@ -850,6 +1010,7 @@ impl StartingTown {
             })
             .collect();
         let mut env = banished_game::town::Env {
+            wildlife: &mut self.wildlife,
             cells: &mut self.cells,
             placed: &mut self.placed,
             templates: &self.templates,
@@ -889,6 +1050,7 @@ impl StartingTown {
             })
             .collect();
         let mut env = banished_game::town::Env {
+            wildlife: &mut self.wildlife,
             cells: &mut self.cells,
             placed: &mut self.placed,
             templates: &self.templates,
@@ -1026,6 +1188,12 @@ impl StartingTown {
                     if let Ok(d) = banished_formats::game::happiness_description(&data) {
                         t.controllers.push(Controller::Happiness);
                         t.happiness = Some(d);
+                    }
+                }
+                "hunt" => {
+                    if let Ok(d) = banished_formats::game::hunt_description(&data) {
+                        t.controllers.push(Controller::ResourceProduce);
+                        t.hunt = Some(d);
                     }
                 }
                 "fishing" => {
@@ -1168,14 +1336,18 @@ impl StartingTown {
                         produced: 0,
                     })
                     .or_else(|| {
-                        (t.herbalist.is_some() || t.forester.is_some() || t.fishing.is_some())
-                            .then(banished_game::construction::ProduceState::default)
+                        (t.herbalist.is_some()
+                            || t.forester.is_some()
+                            || t.fishing.is_some()
+                            || t.hunt.is_some())
+                        .then(banished_game::construction::ProduceState::default)
                     }),
                 forester: t
                     .forester
                     .as_ref()
                     .map(|_| banished_game::forester::Forester::default()),
                 happiness_registered: false,
+                hunt_time: t.hunt.map(|_| 0),
                 fishing: t
                     .fishing
                     .as_ref()
@@ -1275,6 +1447,31 @@ impl StartingTown {
                     .or_default()
                     .push(ModelInstance { matrix, locals });
             }
+        }
+        // Wild animals: their model's variant and mesh, placed by their CharacterComponent,
+        // scaled by age (`FUN_14010c7f0`).
+        for animal in self.wildlife.animals.values().filter(|a| !a.dying) {
+            let Some(model) = &self.templates[animal.template].model else {
+                continue;
+            };
+            let Some(Some(mesh)) = model
+                .variants
+                .get(animal.variant)
+                .and_then(|v| v.meshes.get(animal.mesh))
+            else {
+                continue;
+            };
+            let ch = &animal.character;
+            let s = animal.scale;
+            let locals = self.wildlife.group(animal).and_then(|g| {
+                g.clips
+                    .get(ch.animation.clip)
+                    .map(|clip| ch.animation.pose(clip))
+            });
+            groups.entry(mesh.clone()).or_default().push(ModelInstance {
+                matrix: placement_matrix(ch.position, [s, s, s], ch.yaw),
+                locals,
+            });
         }
         if let Some((mesh, matrix)) = &self.ghost {
             groups.entry(mesh.clone()).or_default().push(ModelInstance {
