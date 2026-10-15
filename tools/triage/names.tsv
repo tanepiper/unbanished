@@ -138,3 +138,21 @@
 14009e7c0	Game::RegisterInputs	docs/TOOLTIPS.md
 1801298a0	fmodf (CRT)	docs/SHADOWS.md
 18012a9a0	sqrtf (CRT)	docs/SHADOWS.md
+1400fce80	Jobs::TryList	docs/JOBS.md
+1400fd030	Jobs::OfferInOrder	docs/JOBS.md
+1400fd160	Jobs::SortByDistance	docs/JOBS.md
+1400fd4d0	Jobs::SortByPriority	docs/JOBS.md
+14010e250	BuildComponent::Serialize	docs/JOBS.md
+14010e210	BuildComponent::Activate	docs/JOBS.md
+14010dbe0	BuildComponent::OnMessage	docs/JOBS.md
+1400ea490	BuildStructure::TryAssign	docs/JOBS.md
+1400eb3b0	ClearArea::TryAssign	docs/JOBS.md
+1400f83d0	Pickup::TryAssign	docs/JOBS.md
+1400a95b0	MusicPlayer::Update	docs/AUDIO.md
+1400a57c0	MapGenerator::PlaceAmbience	docs/AUDIO.md
+140043c70	AmbientEnvironmentComponent::Update	docs/AUDIO.md
+140043370	AmbientEmitterComponent::SetSlot	docs/AUDIO.md
+14008d310	AnimAudioEvent::Fire	docs/AUDIO.md
+1401050c0	PlacementTool::PlayMove	docs/AUDIO.md
+1401055c0	PlacementTool::PlayThunk	docs/AUDIO.md
+140105610	PlacementTool::PlayError	docs/AUDIO.md
