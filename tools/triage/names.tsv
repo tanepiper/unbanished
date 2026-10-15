@@ -96,3 +96,9 @@
 140065a90	CitizenUI::Close	docs/BUILDING-WINDOWS.md
 140123b60	DestroyComponent::IsDamaged	docs/BUILDING-WINDOWS.md
 1401348f0	WorkPlaceDescription::Serialize	docs/BUILDING-WINDOWS.md
+1400af0e0	StatusIconGeometry::Draw	docs/STATUS-ICONS.md
+1400af910	StatusIconGeometry::Init	docs/STATUS-ICONS.md
+1401310a0	StatusIconComponent::UpdatePlacement	docs/STATUS-ICONS.md
+140131650	StatusIconDescription::Serialize	docs/STATUS-ICONS.md
+1401314c0	StatusIconComponent::Serialize	docs/STATUS-ICONS.md
+14009e030	GameOptions::Load	docs/STATUS-ICONS.md

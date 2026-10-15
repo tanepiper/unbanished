@@ -72,7 +72,9 @@ evidence; static traces are not claims of live-game behavior.
 - [x] Slices C/D (read-only parts): StorageUI, StorageCapacityUI, StatusIconUI, WorkPlaceUI
   visibility and CitizenUI with live values. See [BUILDING-WINDOWS.md](BUILDING-WINDOWS.md).
 - [ ] Slice C/D commands and BuildUI/DestroyUI/Residence/Upgrade (need construction and
-  profession assignment); slices E–H: status billboards, Event Log/notifications, Map, tooltips.
+  profession assignment); slices F–H: Event Log/notifications, Map, tooltips.
+- [x] Slice E: StatusIconComponent billboards (screen-constant camera quads per status bit).
+  See [STATUS-ICONS.md](STATUS-ICONS.md). Building status bits remain unported.
 
 - [x] Make climate selection drive the environment controller's temperatures and weather draws.
 - [x] Seed the starting map from the selected profile: start point, structure draws, and rock, ore

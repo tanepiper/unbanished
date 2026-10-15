@@ -122,6 +122,9 @@ pub struct Renderer {
     models: crate::models::ModelRenderer,
     extras: SceneExtrasRenderer,
     highlight: crate::highlight::HighlightRenderer,
+    status_icons: crate::status_icons::StatusIconRenderer,
+    pending_icons: Vec<crate::status_icons::StatusIcon>,
+    icon_sheets: std::collections::BTreeMap<String, crate::status_icons::IconSheet>,
     pub backend: String,
 }
 
@@ -547,6 +550,7 @@ impl Renderer {
         let models = crate::models::ModelRenderer::new(&device, &queue, &globals_layout);
         let extras = SceneExtrasRenderer::new(&device, &queue, &globals_layout);
         let highlight = crate::highlight::HighlightRenderer::new(&device);
+        let status_icons = crate::status_icons::StatusIconRenderer::new(&device);
         let mut ui = banished_gfx::UiRenderer::new(&device, format, DEPTH_FORMAT);
         let white = banished_gfx::upload_rgba_as(
             &device,
@@ -581,6 +585,9 @@ impl Renderer {
             ui,
             models,
             highlight,
+            status_icons,
+            pending_icons: Vec::new(),
+            icon_sheets: Default::default(),
             extras,
             backend,
         }
@@ -696,6 +703,12 @@ impl Renderer {
     /// Upload a scene's terrain, models, sky, water and decals if it is not the one on the GPU.
     pub fn set_scene(&mut self, view: &crate::scene::SceneView) {
         self.highlight.upload(&self.device, &view.highlight);
+        self.pending_icons.clone_from(&view.status_icons);
+        for (k, v) in &view.icon_sheets {
+            if !self.icon_sheets.contains_key(k) {
+                self.icon_sheets.insert(k.clone(), v.clone());
+            }
+        }
         if self.world_id != view.id {
             self.set_terrain(&view.terrain);
             match &view.models {
@@ -1002,6 +1015,16 @@ impl Renderer {
                 scene,
                 self.size.0,
             );
+            self.status_icons.prepare(
+                &self.device,
+                &self.queue,
+                &self.pending_icons,
+                &self.icon_sheets,
+                scene,
+                crate::status_icons::IconOptions::default(),
+            );
+            self.status_icons
+                .draw(&mut encoder, &t.scene_view, &t.depth);
         }
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

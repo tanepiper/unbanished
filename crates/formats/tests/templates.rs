@@ -281,3 +281,16 @@ fn interact_descriptions_resolve_points() {
     }
     assert!(n >= 25, "{n}");
 }
+
+#[test]
+fn status_icon_descriptions_parse() {
+    let Some(archive) = archive() else { return };
+    let mut n = 0;
+    for name in entries(&archive, "_statusicon.crs") {
+        let d = banished_formats::game::status_icon_description(&archive.read(name).unwrap())
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        assert!(d.sheet.is_some() && d.size > 0.0, "{name}");
+        n += 1;
+    }
+    assert_eq!(n, 31);
+}

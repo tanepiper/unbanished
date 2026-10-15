@@ -523,6 +523,14 @@ impl GameLoop for GameplayLoop {
             view.highlight =
                 self.highlight
                     .geometry(ctx.archive, town, &grid, self.selection.selected);
+            view.status_icons = town.status_icons();
+            for r in town.icon_sheet_refs() {
+                if !view.icon_sheets.contains_key(&r) {
+                    if let Some(sheet) = crate::status_icons::load_sheet(ctx.archive, &r) {
+                        view.icon_sheets.insert(r, sheet);
+                    }
+                }
+            }
         }
         let month = self.month();
         let into_month = (self.calendar.seconds() - month as f32 * MONTH_SECONDS) / MONTH_SECONDS;

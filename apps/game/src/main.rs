@@ -28,6 +28,7 @@ mod scene_assets;
 mod scene_gfx;
 mod selection;
 mod start;
+mod status_icons;
 mod toolbar;
 mod utility;
 #[cfg(target_arch = "wasm32")]

@@ -332,6 +332,9 @@ fn households(
 }
 
 pub struct StartingTown {
+    /// Citizen StatusIconDescription and the male/female mesh box heights (model `+0x5c`).
+    citizen_icons: Option<banished_formats::game::StatusIconDescription>,
+    citizen_heights: [f32; 2],
     /// Professions CitizenUI names (laborer, child, student), by resource key.
     archive_professions: Vec<(String, banished_formats::game::Profession)>,
     pub start: (i32, i32),
@@ -482,7 +485,19 @@ impl StartingTown {
                     .map(|p| (k.to_string(), p))
             })
             .collect();
+        let citizen_icons = read(archive, &citizen_ref.replace(":resource", ":statusicon"))
+            .and_then(|d| banished_formats::game::status_icon_description(&d).ok());
+        let citizen_heights = [0, 1].map(|v| {
+            citizen_model
+                .as_ref()
+                .and_then(|m| m.variants.get(v)?.meshes.first()?.clone())
+                .and_then(|r| read(archive, &normalise(&r)))
+                .and_then(|d| banished_formats::types::graphics_mesh(&d).ok())
+                .map_or(0.0, |m| m.bounds_max[2] - m.bounds_min[2])
+        });
         Some(StartingTown {
+            citizen_icons,
+            citizen_heights,
             archive_professions,
             start,
             citizens,
@@ -512,6 +527,39 @@ impl StartingTown {
             .iter()
             .find(|(k, _)| k == key)
             .map(|(_, p)| p.clone())
+    }
+
+    /// StatusIconComponent billboards (`FUN_1401310a0` anchors): each citizen with status bits,
+    /// above its model (position + model box height). Building status bits are not ported.
+    pub fn status_icons(&self) -> Vec<crate::status_icons::StatusIcon> {
+        let Some(d) = &self.citizen_icons else {
+            return Vec::new();
+        };
+        let Some(sheet) = d.sheet.clone() else {
+            return Vec::new();
+        };
+        self.citizens
+            .iter()
+            .zip(&self.agents.states)
+            .zip(&self.agents.characters)
+            .filter(|((_, s), _)| s.status != 0)
+            .map(|((c, s), ch)| crate::status_icons::StatusIcon {
+                anchor: glam::Vec3::from(ch.position)
+                    + glam::Vec3::Z * self.citizen_heights[usize::from(!c.male)],
+                mask: s.status,
+                sheet: sheet.clone(),
+                size: d.size,
+                screen_constant: d.screen_constant,
+            })
+            .collect()
+    }
+
+    /// The icon sheets `status_icons` refers to.
+    pub fn icon_sheet_refs(&self) -> Vec<String> {
+        self.citizen_icons
+            .iter()
+            .filter_map(|d| d.sheet.clone())
+            .collect()
     }
 
     /// Load (or find) a template for an entity created during play.

@@ -1064,6 +1064,35 @@ pub fn citizen_description(data: &[u8]) -> Result<CitizenDescription> {
     Ok(value)
 }
 
+/// `StatusIconDescription` (serializer `FUN_140131650`, constructor `FUN_140039280`): the icon
+/// sprite sheet (`+0x20`), icon size (`+0x28`) and screen-constant flag (`+0x30`). The height
+/// offset `+0x2c` is not serialized and stays 1.0.
+#[derive(Debug, Clone)]
+pub struct StatusIconDescription {
+    pub sheet: Option<String>,
+    pub size: f32,
+    pub screen_constant: bool,
+}
+
+pub fn status_icon_description(data: &[u8]) -> Result<StatusIconDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("StatusIconDescription") {
+            return format_err(format!(
+                "expected StatusIconDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(StatusIconDescription {
+                sheet: r.external_ref()?,
+                size: r.f32()?,
+                screen_constant: r.bool()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `WorkPlaceDescription` (serializer `FUN_1401348f0`): the profession its workers take
 /// (`+0x20`; none for storage barns and houses) and a second reference (`+0x28`).
 #[derive(Debug, Clone, Default)]

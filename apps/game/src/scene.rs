@@ -15,6 +15,9 @@ pub struct SceneView {
     pub camera: SceneCamera,
     pub lighting: Lighting,
     pub highlight: crate::highlight::Geometry,
+    /// StatusIconComponent billboards and the icon sheets they use (slice E).
+    pub status_icons: Vec<crate::status_icons::StatusIcon>,
+    pub icon_sheets: std::collections::BTreeMap<String, crate::status_icons::IconSheet>,
 }
 
 pub enum SceneCamera {
@@ -34,6 +37,8 @@ impl SceneView {
             camera,
             lighting,
             highlight: Default::default(),
+            status_icons: Vec::new(),
+            icon_sheets: Default::default(),
         }
     }
 
