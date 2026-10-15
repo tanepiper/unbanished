@@ -290,11 +290,49 @@ impl RemovalTool {
         )
     }
 
-    /// `FUN_140109c40`: a removal marker to take away. Not ported: cancelling a demolition
+    /// `FUN_140109c40`: a removal marker to take away, or a building being torn down
     /// (DestroyComponent `FUN_140123be0`).
     fn cancels(&self, town: &StartingTown, e: Option<usize>) -> bool {
         let Some(e) = e else { return false };
-        self.desc.cancel && Some(town.placed[e].template) == self.marker
+        if !self.desc.cancel {
+            return false;
+        }
+        Some(town.placed[e].template) == self.marker
+            || (Self::has_destroy(town, e) && matches!(Self::shown_state(town, e), 3..=5))
+    }
+
+    fn has_destroy(town: &StartingTown, e: usize) -> bool {
+        town.construction
+            .sites
+            .get(&e)
+            .is_some_and(|s| s.destroy.is_some())
+    }
+
+    /// The StateMachine's pending state, else its state (`+0x52`, `+0x50`).
+    fn shown_state(town: &StartingTown, e: usize) -> i8 {
+        town.construction.sites.get(&e).map_or(-1, |s| {
+            if s.machine.pending < 0 {
+                s.machine.state
+            } else {
+                s.machine.pending
+            }
+        })
+    }
+
+    /// `FUN_140109b40`: a building (not the marker) with a DestroyComponent not already being
+    /// torn down.
+    fn demolishes(&self, town: &StartingTown, e: Option<usize>) -> bool {
+        let Some(e) = e else { return false };
+        self.desc.buildings
+            && Some(town.placed[e].template) != self.marker
+            && Self::has_destroy(town, e)
+            && !matches!(Self::shown_state(town, e), 3..=5)
+    }
+
+    fn command(town: &mut StartingTown, command: banished_game::professions::Command) {
+        if !town.construction.commands.contains(&command) {
+            town.construction.commands.push(command);
+        }
     }
 
     /// `FUN_140133fa0` on the entity's WorkComponent: its work is registered.
@@ -307,8 +345,9 @@ impl RemovalTool {
             .then_some(site.work_id)
     }
 
-    /// `FUN_140108ab0` over the dragged rectangle. Not ported: ClearRoad (`FUN_1400a1bd0`,
-    /// roads) and ClearBuildings (`FUN_140109b40` → `FUN_140123470`, demolition).
+    /// `FUN_140108ab0` over the dragged rectangle: markers, cancels, demolition
+    /// (`FUN_140109b40` → `FUN_140123470`), priority. Not ported: ClearRoad (`FUN_1400a1bd0`,
+    /// roads).
     pub fn apply(
         &mut self,
         archive: &Archive,
@@ -329,9 +368,27 @@ impl RemovalTool {
                 }
                 if self.cancels(town, e) {
                     let e = e.unwrap();
-                    if !town.construction.destroy.contains(&e) {
-                        town.construction.destroy.push(e);
+                    if Some(town.placed[e].template) == self.marker {
+                        if !town.construction.destroy.contains(&e) {
+                            town.construction.destroy.push(e);
+                        }
+                    } else {
+                        // The state machine's message 0: the demolition is called off.
+                        Self::command(
+                            town,
+                            banished_game::professions::Command::DestroyMessage {
+                                entity: e,
+                                message: 0,
+                            },
+                        );
                     }
+                }
+                if self.demolishes(town, e) {
+                    let entity = e.unwrap();
+                    Self::command(
+                        town,
+                        banished_game::professions::Command::Demolish { entity },
+                    );
                 }
                 if self.desc.priority {
                     if let Some(id) = Self::work_of(town, e) {
@@ -374,6 +431,7 @@ impl RemovalTool {
                 let e = Self::entity_at(town, (y * n + x) as usize);
                 let acts = self.marks(town, terrain, e, x, y)
                     || self.cancels(town, e)
+                    || self.demolishes(town, e)
                     || (self.desc.priority && Self::work_of(town, e).is_some());
                 out.push((x, y, acts));
             }

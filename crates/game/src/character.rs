@@ -49,6 +49,8 @@ pub enum Component {
     Happiness,
     /// `DAT_1401cf008`: BuildComponent message 0 adds one unit of construction work.
     Build,
+    /// `DAT_1401cf5f0`: DestroyComponent message 0 adds one unit of deconstruction work.
+    Destroy,
     /// The job manager: message 0 is CompleteTask's start (`FUN_1400fdc30`), 1 its abort
     /// (`FUN_1400fdcd0`); `a` is the work id, `b` the task parameter.
     Jobs,

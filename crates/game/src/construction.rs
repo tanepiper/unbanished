@@ -47,6 +47,8 @@ pub enum Controller {
     Cemetery,
     /// MarketLocationComponent (`FUN_14004fa70` table): a town market.
     MarketLocation,
+    /// DestroyComponent (`FUN_1401231d0` table): demolition, damage and rubble.
+    Destroy,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -152,6 +154,18 @@ pub enum Callback {
     OrchardEnter14,
     OrchardExit14,
     OrchardUpdate14,
+    /// `FUN_14012edf0`: the families move out and the residence leaves the town's.
+    ResidenceEnter3,
+    /// Destroy: `FUN_140122c80` (3), `FUN_1401224a0` / `FUN_140122390` (4), `FUN_140122140` /
+    /// `FUN_1401215f0` (5), `FUN_1401229a0` / `FUN_140122960` / `FUN_1401228d0` (6).
+    DestroyEnter3,
+    DestroyEnter4,
+    DestroyUpdate4,
+    DestroyEnter5,
+    DestroyUpdate5,
+    DestroyEnter6,
+    DestroyUpdate6,
+    DestroyExit6,
     /// Callbacks whose port is still missing (they pass the state on).
     Missing,
 }
@@ -257,10 +271,50 @@ const RESIDENCE: &[StateDef] = &[
     },
     StateDef {
         id: 3,
-        enter: C::Missing,
+        enter: C::ResidenceEnter3,
         update: C::None,
         exit: C::None,
         transitions: &[(6, C::None), (4, C::None), (5, C::None)],
+    },
+];
+
+/// The state messages (`FUN_140122860` in 6, `FUN_140122770` / `FUN_140122670` in 7,
+/// `FUN_140121190` in 4 and 5) are [`crate::town::Sim::destroy_message`].
+const DESTROY: &[StateDef] = &[
+    StateDef {
+        id: 3,
+        enter: C::DestroyEnter3,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(4, C::None), (6, C::None)],
+    },
+    StateDef {
+        id: 6,
+        enter: C::DestroyEnter6,
+        update: C::DestroyUpdate6,
+        exit: C::DestroyExit6,
+        transitions: &[(7, C::None)],
+    },
+    StateDef {
+        id: 7,
+        enter: C::None,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(0, C::None), (8, C::None), (5, C::None)],
+    },
+    StateDef {
+        id: 4,
+        enter: C::DestroyEnter4,
+        update: C::DestroyUpdate4,
+        exit: C::None,
+        transitions: &[(5, C::None), (2, C::None)],
+    },
+    StateDef {
+        id: 5,
+        enter: C::DestroyEnter5,
+        update: C::DestroyUpdate5,
+        exit: C::None,
+        transitions: &[(0, C::None), (2, C::None), (8, C::None), (7, C::None)],
     },
 ];
 
@@ -535,6 +589,7 @@ impl Controller {
             Controller::StorageLocation => STORAGE_LOCATION,
             Controller::Cemetery => CEMETERY,
             Controller::MarketLocation => MARKET_LOCATION,
+            Controller::Destroy => DESTROY,
         }
     }
 
@@ -771,6 +826,10 @@ pub struct SiteTemplate {
     /// on (`ModelComponent +0x5c`).
     pub status_icon: Option<banished_formats::game::StatusIconDescription>,
     pub icon_height: Option<f32>,
+    /// DestroyDescription, resolved.
+    pub destroy: Option<crate::destroy::DestroyTemplate>,
+    /// The pile template of each BuildDescription material (the refunds' piles).
+    pub material_templates: Vec<Option<usize>>,
 }
 
 impl SiteTemplate {
@@ -884,6 +943,10 @@ pub struct Site {
     pub disease: Option<crate::blight::Blight>,
     /// CemeteryComponent `+0x48`: the grave cells (`FUN_140047b60`).
     pub graves: Vec<i32>,
+    /// DestroyComponent.
+    pub destroy: Option<crate::destroy::Destroy>,
+    /// The ResidenceComponent while the residence is out of the town's (its states 3 to 7).
+    pub home: Option<crate::life::Home>,
 }
 
 /// The job manager, professions, workforce and every construction site.
@@ -941,6 +1004,9 @@ pub struct Construction {
     pub tombstones: BTreeMap<usize, i64>,
     /// Burials decided at a death (cemetery, grave cell), placed after the citizens' update.
     pub burials: Vec<(usize, i32)>,
+    /// Entities a DestroyComponent puts in a torn-down building's place (`FUN_1400c9d70`),
+    /// created by the town after the update.
+    pub rebuilds: Vec<crate::destroy::Rebuild>,
     /// The town manager's known crops, orchard trees and livestock (`FUN_140096ef0`), as
     /// placed-object templates.
     pub known: Vec<usize>,

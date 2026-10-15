@@ -353,7 +353,6 @@ fn workplace_info(town: &StartingTown, p: usize) -> Option<crate::building_ui::W
 /// EntityUI refresh `FUN_1400676e0`: the host page for the entity's state. Page 2 while it
 /// is cleared or built, 3 in states 3..=7 (damaged or being destroyed), else the
 /// UIDescription's page (`+0x40`), keeping page 4 once the player opened it.
-/// Not ported: DestroyComponent (no demolition yet).
 fn entity_page(town: &StartingTown, entity: Entity, finished: i32, active: i32) -> i32 {
     use banished_game::construction::Controller as C;
     let Entity::Placed(p) = entity else {

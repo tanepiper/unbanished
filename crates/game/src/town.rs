@@ -109,6 +109,9 @@ pub struct Sim<'s, 't> {
     pub keep_piles: &'s mut BTreeMap<usize, bool>,
     pub site_events: &'s mut Vec<(i32, i32, usize)>,
     pub storage_changes: &'s mut Vec<(usize, bool)>,
+    pub rebuilds: &'s mut Vec<crate::destroy::Rebuild>,
+    /// The scheduled update's elapsed time (ticks) for the site callbacks.
+    pub site_dt: i64,
     pub cemeteries: &'s mut Vec<usize>,
     pub tombstones: &'s mut BTreeMap<usize, i64>,
     pub burials: &'s mut Vec<(usize, i32)>,
@@ -372,7 +375,7 @@ impl Sim<'_, '_> {
         self.world_point(entity, [0.0; 3])
     }
 
-    fn build_point_count(&self, entity: usize) -> usize {
+    pub(crate) fn build_point_count(&self, entity: usize) -> usize {
         self.interact_entities(entity)
             .iter()
             .map(|&x| self.templates[self.placed[x].template].build_points.len())
@@ -654,11 +657,16 @@ impl Sim<'_, '_> {
                 param: index,
             },
         );
-        // A destroy work messages the DestroyComponent instead (not ported).
+        // A destroy work messages the DestroyComponent instead.
+        let destroy = matches!(&work.kind, WorkKind::Build(b) if b.destroy);
         self.push(
             c,
             Action::SendMessage(Message {
-                component: Component::Build,
+                component: if destroy {
+                    Component::Destroy
+                } else {
+                    Component::Build
+                },
                 message: 0,
                 entity: Some(site),
                 a: 0,
@@ -725,6 +733,61 @@ impl Sim<'_, '_> {
         t.materials
             .iter()
             .all(|&(n, m)| self.storages[site.storage].available(m) >= n * site.stages)
+    }
+
+    /// `FUN_1401349f0` (WorkPlaceComponent::BecomeSite): the workers leave and builders work
+    /// here.
+    pub(crate) fn become_site(&mut self, jobs: &mut Jobs, e: usize) {
+        let builder = self.professions.builder;
+        let mut workers = self.workers();
+        self.workforce.clear_workers(&mut workers, e);
+        let id = self.sites[&e].work_id;
+        if let Some(old) = self.workforce.workplaces.get(&e).and_then(|w| w.profession) {
+            jobs.change_profession(id, old, builder);
+        }
+        if let Some(w) = self.workforce.workplaces.get_mut(&e) {
+            w.profession = Some(builder);
+            self.workforce.register(e, builder);
+            let max = self.build_point_count(e) as i32;
+            // Nobody to move: the workers were let go above.
+            self.set_workers(&workers);
+            self.with_search(|w, ws, search| w.set_max_workers(ws, e, max, search));
+            workers = self.workers();
+            // `FUN_1401350d0(1)`: the builders' profession is not its own, so no
+            // workers icon.
+            let w = self.workforce.workplaces.get_mut(&e).unwrap();
+            w.enabled = true;
+            w.set_icon(crate::professions::icon::WORK_DISABLED, false);
+            w.set_icon(crate::professions::icon::BUILD_PAUSED, false);
+        }
+        self.set_workers(&workers);
+    }
+
+    /// `FUN_140134b40` (WorkPlaceComponent::BecomeBuilding): back to its own profession.
+    pub(crate) fn become_building(&mut self, jobs: &mut Jobs, e: usize) {
+        let builder = self.professions.builder;
+        let mut workers = self.workers();
+        let template = self.sites[&e].template;
+        let id = self.sites[&e].work_id;
+        if let Some(w) = self.workforce.workplaces.get(&e) {
+            if w.profession == Some(builder) {
+                self.workforce.unregister(e, builder);
+                let desc = self.site_templates[template].profession;
+                let footprint = self.placed[e].footprint;
+                let max = self.site_templates[template].default_max_workers(footprint);
+                if let Some(p) = desc {
+                    jobs.change_profession(id, builder, p);
+                }
+                let w = self.workforce.workplaces.get_mut(&e).unwrap();
+                w.max_workers = max;
+                w.profession = desc;
+                self.workforce.clear_workers(&mut workers, e);
+            }
+            if let Some(p) = self.workforce.workplaces[&e].profession {
+                self.workforce.register(e, p);
+            }
+        }
+        self.set_workers(&workers);
     }
 
     /// `FUN_140134130`: register a work for the site's WorkComponent, replacing any.
@@ -899,6 +962,20 @@ impl Sim<'_, '_> {
         self.remove_work(jobs, e);
         // The components' removal slots (`FUN_14004b380`, `FUN_14012ccb0`).
         self.happiness_leave(e);
+        // A torn-down building's WorkPlace and Residence components (they left the town's
+        // registries in state 3).
+        if self.workforce.workplaces.contains_key(&e) {
+            let mut workers = self.workers();
+            self.workforce.clear_workers(&mut workers, e);
+            self.set_workers(&workers);
+            if let Some(p) = self.workforce.workplaces.get(&e).and_then(|w| w.profession) {
+                self.workforce.unregister(e, p);
+            }
+            self.workforce.workplaces.remove(&e);
+        }
+        if self.homes.contains_key(&e) {
+            self.residence_leave(e);
+        }
         if self.wildlife.pastures.contains_key(&e) {
             self.pasture_leave(e);
             self.wildlife.pastures.remove(&e);
@@ -1113,58 +1190,23 @@ impl Callbacks for Sim<'_, '_> {
                 false
             }
             Callback::WorkPlaceEnter0 => {
-                let builder = self.professions.builder;
-                let mut workers = self.workers();
-                self.workforce.clear_workers(&mut workers, e);
-                let id = self.sites[&e].work_id;
-                if let Some(old) = self.workforce.workplaces.get(&e).and_then(|w| w.profession) {
-                    jobs.change_profession(id, old, builder);
-                }
-                if let Some(w) = self.workforce.workplaces.get_mut(&e) {
-                    w.profession = Some(builder);
-                    self.workforce.register(e, builder);
-                    let max = self.build_point_count(e) as i32;
-                    // Nobody to move: the workers were let go above.
-                    self.set_workers(&workers);
-                    self.with_search(|w, ws, search| w.set_max_workers(ws, e, max, search));
-                    workers = self.workers();
-                    // `FUN_1401350d0(1)`: the builders' profession is not its own, so no
-                    // workers icon.
-                    let w = self.workforce.workplaces.get_mut(&e).unwrap();
-                    w.enabled = true;
-                    w.set_icon(crate::professions::icon::WORK_DISABLED, false);
-                    w.set_icon(crate::professions::icon::BUILD_PAUSED, false);
-                }
-                self.set_workers(&workers);
+                self.become_site(jobs, e);
                 false
             }
             Callback::WorkPlaceEnter2 => {
-                let builder = self.professions.builder;
-                let mut workers = self.workers();
-                let template = self.sites[&e].template;
-                let id = self.sites[&e].work_id;
-                if let Some(w) = self.workforce.workplaces.get(&e) {
-                    if w.profession == Some(builder) {
-                        self.workforce.unregister(e, builder);
-                        let desc = self.site_templates[template].profession;
-                        let footprint = self.placed[e].footprint;
-                        let max = self.site_templates[template].default_max_workers(footprint);
-                        if let Some(p) = desc {
-                            jobs.change_profession(id, builder, p);
-                        }
-                        let w = self.workforce.workplaces.get_mut(&e).unwrap();
-                        w.max_workers = max;
-                        w.profession = desc;
-                        self.workforce.clear_workers(&mut workers, e);
-                    }
-                    if let Some(p) = self.workforce.workplaces[&e].profession {
-                        self.workforce.register(e, p);
-                    }
-                }
-                self.set_workers(&workers);
+                self.become_building(jobs, e);
                 false
             }
-            Callback::WorkPlaceEnter3 => false,
+            // `FUN_140134230`: every worker leaves and the workplace leaves its profession's.
+            Callback::WorkPlaceEnter3 => {
+                let mut workers = self.workers();
+                self.workforce.clear_workers(&mut workers, e);
+                self.set_workers(&workers);
+                if let Some(p) = self.workforce.workplaces.get(&e).and_then(|w| w.profession) {
+                    self.workforce.unregister(e, p);
+                }
+                false
+            }
             Callback::BuildEnter1 => {
                 self.sites.get_mut(&e).unwrap().stages = 1;
                 // Not ported: MultiObject stage counts and the ClearArea's terrain flattening
@@ -1264,15 +1306,52 @@ impl Callbacks for Sim<'_, '_> {
             }
             Callback::ResidenceEnter2 => {
                 // `FUN_14012f2b0`: register; the component's family slots come from the
-                // description.
+                // description (it keeps its state while out of the town's).
                 self.workforce.residences.push(e);
-                let site = &self.sites[&e];
+                let site = self.sites.get_mut(&e).unwrap();
+                let kept = site.home.take();
+                let storage = site.storage;
                 if let Some(desc) = self.site_templates[site.template].residence {
-                    self.homes
-                        .entry(e)
-                        .or_insert_with(|| crate::life::Home::new(desc, site.storage));
+                    let home = kept.unwrap_or_else(|| crate::life::Home::new(desc, storage));
+                    self.homes.entry(e).or_insert(home);
                 }
                 false
+            }
+            Callback::ResidenceEnter3 => {
+                self.residence_leave(e);
+                false
+            }
+            Callback::DestroyEnter3 => {
+                self.destroy_enter3(jobs, e);
+                false
+            }
+            Callback::DestroyEnter4 => {
+                self.destroy_enter4(jobs, e);
+                false
+            }
+            Callback::DestroyUpdate4 => {
+                self.destroy_update4(jobs, e);
+                true
+            }
+            Callback::DestroyEnter5 => {
+                self.destroy_enter5(jobs, e);
+                true
+            }
+            Callback::DestroyUpdate5 => {
+                self.destroy_update5(jobs, e);
+                true
+            }
+            Callback::DestroyEnter6 => {
+                self.destroy_enter6(e);
+                false
+            }
+            Callback::DestroyUpdate6 => {
+                self.destroy_update6(e, self.site_dt);
+                true
+            }
+            Callback::DestroyExit6 => {
+                self.destroy_exit6(e);
+                true
             }
             Callback::AttendanceEnter2 => {
                 self.attendance_enter(jobs, e);

@@ -2772,6 +2772,261 @@ mod construction_tests {
         assert!(cleared, "the food stayed in the house");
     }
 
+    /// A finished, lived-in wood house is marked with Remove Buildings: its family moves out,
+    /// its goods are carried away, builders take it down and it leaves part of its materials
+    /// in piles on its footprint.
+    #[test]
+    fn a_house_is_torn_down() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool = PlacementTool::start(
+            &archive,
+            &mut town,
+            r"Template\WoodHouse.rsc:resource",
+            &mut rng,
+        )
+        .unwrap();
+        let spot = tool
+            .find_clear_spot(&town, &terrain, town.start)
+            .expect("no spot");
+        tool.hover(&town, &terrain, Some(spot), 0);
+        let id = tool.place(&archive, &mut town, 0).unwrap();
+        let builder = town.construction.professions.builder;
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 2,
+            });
+        let mut removal = crate::removal_tool::RemovalTool::start(
+            &archive,
+            &mut town,
+            r"Template\ClearBuildings.rsc:resource",
+        )
+        .expect("no Remove Buildings tool");
+        let n = town.cells.size as i32;
+        let (x, y) = town.placed[id].cell;
+        let (w, h) = town.placed[id].footprint;
+        let mut warnings = banished_game::events::StockWarnings::default();
+        let dt = 1.0 / 30.0;
+        let (mut marked, mut residents) = (false, Vec::new());
+        let (mut states, mut gone) = (Vec::new(), false);
+        let mut deconstructed = false;
+        for _ in 0..30 * 60 * 30 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            let Some(site) = town.construction.sites.get(&id) else {
+                gone = true;
+                break;
+            };
+            let state = site.machine.state;
+            if states.last() != Some(&state) {
+                states.push(state);
+            }
+            let w = site.work_id;
+            if let Some(banished_game::jobs::WorkKind::Build(b)) =
+                town.construction.jobs.works.get(&w).map(|w| &w.kind)
+            {
+                deconstructed |= b.destroy && !b.workers.is_empty();
+            }
+            if !marked
+                && town
+                    .construction
+                    .homes
+                    .get(&id)
+                    .is_some_and(|h| h.occupants() > 0)
+            {
+                marked = true;
+                residents = town.construction.homes[&id]
+                    .families
+                    .iter()
+                    .flatten()
+                    .copied()
+                    .collect();
+                let cell = (y + h / 2) * n + x + w / 2;
+                removal.drag(&archive, &mut town, &terrain, cell, cell);
+            }
+        }
+        assert!(marked, "nobody moved in: {states:?}");
+        assert!(gone, "the house still stands: {states:?}");
+        assert!(states.contains(&5), "{states:?}");
+        assert!(!town.placed[id].alive);
+        assert!(!town.construction.workforce.workplaces.contains_key(&id));
+        assert!(!town.construction.workforce.residences.contains(&id));
+        for c in residents {
+            assert_ne!(town.agents.states[c].home, Some(id));
+        }
+        for cy in y..y + h {
+            for cx in x..x + w {
+                let i = (cy * n + cx) as usize;
+                assert_ne!(town.cells.occupants[i], Some(id));
+                assert_ne!(town.cells.objects[i], Some(id));
+            }
+        }
+        let piles: Vec<(usize, i32)> = town
+            .construction
+            .piles
+            .iter()
+            .filter(|(&p, _)| {
+                let (px, py) = town.placed[p].cell;
+                (x..x + w).contains(&px) && (y..y + h).contains(&py)
+            })
+            .map(|(_, p)| (p.material, p.count))
+            .collect();
+        let heights: Vec<f32> = (y..y + h)
+            .flat_map(|cy| (x..x + w).map(move |cx| (cx, cy)))
+            .map(|(cx, cy)| {
+                banished_game::town::cell_ground(town.cells.size, &terrain, cy * n + cx)[2]
+            })
+            .collect();
+        // Half the 16 logs and 8 stone, where the cells are flat enough.
+        assert!(deconstructed, "no builder took the house down");
+        assert!(!piles.is_empty(), "no refund on {heights:?}");
+        assert!(piles.iter().map(|p| p.1).sum::<i32>() <= 12, "{piles:?}");
+    }
+
+    /// A house marked with Remove Buildings while being built, then Remove Cancel: it goes
+    /// back to being built and is finished.
+    #[test]
+    fn a_demolition_is_called_off() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool = PlacementTool::start(
+            &archive,
+            &mut town,
+            r"Template\WoodHouse.rsc:resource",
+            &mut rng,
+        )
+        .unwrap();
+        let spot = tool
+            .find_clear_spot(&town, &terrain, town.start)
+            .expect("no spot");
+        tool.hover(&town, &terrain, Some(spot), 0);
+        let id = tool.place(&archive, &mut town, 0).unwrap();
+        let builder = town.construction.professions.builder;
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 2,
+            });
+        let mut remove = crate::removal_tool::RemovalTool::start(
+            &archive,
+            &mut town,
+            r"Template\ClearBuildings.rsc:resource",
+        )
+        .unwrap();
+        let mut cancel = crate::removal_tool::RemovalTool::start(
+            &archive,
+            &mut town,
+            r"Template\ClearCancel.rsc:resource",
+        )
+        .unwrap();
+        let n = town.cells.size as i32;
+        let (x, y) = town.placed[id].cell;
+        let (w, h) = town.placed[id].footprint;
+        let cell = (y + h / 2) * n + x + w / 2;
+        let mut warnings = banished_game::events::StockWarnings::default();
+        let dt = 1.0 / 30.0;
+        let (mut marked, mut called_off) = (false, false);
+        let mut states = Vec::new();
+        for _ in 0..30 * 60 * 20 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            let site = &town.construction.sites[&id];
+            let state = site.machine.state;
+            if states.last() != Some(&state) {
+                states.push(state);
+            }
+            if !marked && state == 8 && 0 < site.progress {
+                marked = true;
+                remove.drag(&archive, &mut town, &terrain, cell, cell);
+            } else if marked && !called_off && state == 5 {
+                called_off = true;
+                cancel.drag(&archive, &mut town, &terrain, cell, cell);
+            }
+            if called_off && state == 2 {
+                break;
+            }
+        }
+        assert!(called_off, "{states:?}");
+        assert_eq!(
+            states.last(),
+            Some(&2),
+            "not finished after the cancel: {states:?}"
+        );
+        let site = &town.construction.sites[&id];
+        assert!(site.complete);
+    }
+
     /// A market is built and its vendors stock it from the town's storages by category; it
     /// joins the town's markets with its radius.
     #[test]

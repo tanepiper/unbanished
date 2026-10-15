@@ -319,6 +319,8 @@ impl Agents {
                 keep_piles: &mut c.keep_piles,
                 site_events: &mut c.site_events,
                 storage_changes: &mut c.storage_changes,
+                rebuilds: &mut c.rebuilds,
+                site_dt: 0,
                 cemeteries: &mut c.cemeteries,
                 tombstones: &mut c.tombstones,
                 burials: &mut c.burials,
@@ -409,6 +411,21 @@ impl Agents {
                 }
                 crate::professions::Command::SetEnabled { entity, enabled } => {
                     sim.enable_workplace(entity, enabled);
+                    jobs.drain(&mut sim);
+                    continue;
+                }
+                crate::professions::Command::Demolish { entity } => {
+                    sim.demolish(jobs, entity);
+                    jobs.drain(&mut sim);
+                    continue;
+                }
+                crate::professions::Command::DestroyMessage { entity, message } => {
+                    sim.destroy_message(jobs, entity, message);
+                    jobs.drain(&mut sim);
+                    continue;
+                }
+                crate::professions::Command::CancelDemolition { entity } => {
+                    sim.cancel_demolition(jobs, entity);
                     jobs.drain(&mut sim);
                     continue;
                 }
@@ -539,6 +556,7 @@ impl Agents {
         // (RawMaterialComponent's scheduled update, run every iteration here).
         {
             let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
+            sim.site_dt = ticks(dt);
             sim.update_sites(jobs);
             sim.update_attendance();
             sim.age_piles(jobs, ticks(dt));
@@ -1082,6 +1100,16 @@ impl Agents {
                     // `FUN_14010dbe0`: one unit of work.
                     if let Some(site) = m.entity.and_then(|e| env.construction.sites.get_mut(&e)) {
                         site.progress += 1;
+                    }
+                }
+                Component::Destroy if m.message == 0 => {
+                    // `FUN_140122fc0`: one unit of deconstruction.
+                    if let Some(d) = m
+                        .entity
+                        .and_then(|e| env.construction.sites.get_mut(&e))
+                        .and_then(|s| s.destroy.as_mut())
+                    {
+                        d.count += 1;
                     }
                 }
                 Component::Jobs => {

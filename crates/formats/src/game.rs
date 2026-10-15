@@ -1470,6 +1470,38 @@ pub fn cemetery_description(data: &[u8]) -> Result<Option<String>> {
     Ok(value)
 }
 
+/// `DestroyDescription` (serializer `FUN_140123340`): `+0x20` the template left in the
+/// building's place once it is torn down (the quarry's and mine's hole; none for most), `+0x28`
+/// the ModelComponent's material set while damaged (`FUN_14012a4f0`), `+0x2c` the decal while
+/// damaged, `+0x30` the lowest construction mesh a collapse steps down to (`FUN_140122aa0`).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DestroyDescription {
+    pub replace: Option<String>,
+    pub material: i32,
+    pub decal: i32,
+    pub min_mesh: i32,
+}
+
+pub fn destroy_description(data: &[u8]) -> Result<DestroyDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("DestroyDescription") {
+            return format_err(format!(
+                "expected DestroyDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(DestroyDescription {
+                replace: r.external_ref()?,
+                material: r.i32()?,
+                decal: r.i32()?,
+                min_mesh: r.i32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `TombstoneDescription` (serializer `FUN_140058380`): a grave lasts `(+0x20 + RandFloat ×
 /// +0x24)` × 300 s (`FUN_1400581c0`).
 pub fn tombstone_description(data: &[u8]) -> Result<(f32, f32)> {

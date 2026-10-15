@@ -11,6 +11,7 @@ pub mod animation;
 pub mod blight;
 pub mod calendar;
 pub mod cemetery;
+pub mod destroy;
 pub mod character;
 pub mod citizens;
 pub mod construction;

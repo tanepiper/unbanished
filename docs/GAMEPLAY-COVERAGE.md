@@ -18,10 +18,10 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Storage, StorageLocation | storage buildings, citizens | ledgers, search, reservations |
 | Build, ClearArea, WorkPlace, StateMachine, Work | buildings | construction, professions |
 | ResourceProduce (ConsumeProduce) | CutterYard, Tailor, ToolMaker, Tavern | cutter yard verified; the rest share the code |
-| StatusIcon | citizens, buildings | citizen bits; building bits missing |
+| StatusIcon | citizens, buildings | yes ([STATUS-ICONS.md](STATUS-ICONS.md); BuildDestroy with demolition) |
 | AmbientEmitter, AmbientEnvironment | most buildings | environment, wind, river, rain |
 | Citizen (`0x1401689a0`) | Citizen | needs, age, death, health, happiness, disease, homes, marriage, births, burial, accidents, ClearStorage ([CITIZEN-LIFE.md](CITIZEN-LIFE.md)); consumption counters open |
-| Residence | WoodHouse, StoneHouse, Hostel | families, heating, moving in, ClearStorage |
+| Residence | WoodHouse, StoneHouse, Hostel | families, heating, moving in, ClearStorage, moving out (state 3) |
 | **Immigration**, **Nomad** | TownHall, Nomad | missing |
 | Attendance | School, Chapel, Doctor | yes (staff by LocationWork, places, lessons, treatment) |
 | **Happiness** | Tavern, Well, Market, Cemetery, Chapel, TradingPost, Quarry, Mine | yes (`happiness.rs`; map layers, registry, visits, loitering pick) |
@@ -31,7 +31,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **Well**, **Fire** | Well; every building | missing |
 | **Market**, **MarketLocation** | Market | yes ([MARKETS.md](MARKETS.md)) |
 | **Trade**, **Boat** | TradingPost, TraderBoat | missing |
-| **Destroy** | every building | missing (demolition) |
+| **Destroy** | every building | yes ([JOBS.md](JOBS.md#demolition-cratesgamesrcdestroyrs); demolition, refunds, cancel, rubble; damage waits for fire) |
 | **CropField** | fields | yes ([FARMING.md](FARMING.md)) |
 | **Orchard**, **Fruit** | orchards | yes ([FARMING.md](FARMING.md)) |
 | **Pasture**, **Livestock** | pastures, animals | yes ([FARMING.md](FARMING.md); breeding, culling, products, starting livestock) |
@@ -85,7 +85,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Bridges, tunnels (drag placement, terraform) | no |
 | Fields, orchards, pastures, storage yard (drag areas) | placement only (CreateDrag parsed) |
 | Fences, cemetery (CreateFenced) | placement (`place_fenced`); the drag tool is not ported |
-| Demolition (Remove Buildings, DestroyUI) | no |
+| Demolition (Remove Buildings, DestroyUI) | Remove Buildings and its cancel; DestroyUI's buttons not wired |
 | Residence, upgrade, market, trade, field crop selection windows | no |
 | Town Info, Production/Population graphs | no |
 | Achievements, tutorial, scenarios | no |

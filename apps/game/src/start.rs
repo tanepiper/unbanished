@@ -1731,6 +1731,7 @@ impl StartingTown {
         for id in before..self.placed.len() {
             self.register_entity(id);
         }
+        self.apply_rebuilds();
         self.apply_storage_changes();
         self.place_displays(terrain);
         !self.citizens.is_empty()
@@ -1755,6 +1756,78 @@ impl StartingTown {
                 })
                 .collect();
             self.display_cells.insert(e, cells);
+        }
+    }
+
+    /// What DestroyComponents put in torn-down buildings' places (`FUN_1401215f0`): the
+    /// template over the same map rectangle, turned and placed as the old model, its zone
+    /// reserving the footprint; a site is activated before the next iteration, anything else
+    /// stamps the map now.
+    fn apply_rebuilds(&mut self) {
+        for r in std::mem::take(&mut self.construction.rebuilds) {
+            let id = self.placed.len();
+            let t = &self.templates[r.template];
+            let (bucket, reference) = (t.bucket, t.reference.clone());
+            let footprint = t
+                .map
+                .as_ref()
+                .map(|m| m.footprint.clone())
+                .unwrap_or_default();
+            let cell_type = t.map.as_ref().map_or(0, |m| m.cell_type as u8);
+            let stamps = t.map.as_ref().is_some_and(|m| !m.no_stamp);
+            let mesh = t.model.as_ref().map(|m| m.mesh.max(0) as usize);
+            self.placed.push(Placed {
+                template: r.template,
+                bucket,
+                cell: r.cell,
+                footprint: r.footprint,
+                position: r.position,
+                yaw: r.yaw,
+                variant: r.variant,
+                mesh: usize::MAX,
+                growth: 0.0,
+                growth_state: None,
+                spawn_state: None,
+                alive: true,
+                removal_requested: false,
+                animation: None,
+                scale: [1.0; 4],
+            });
+            self.register_entity(id);
+            let rules = banished_game::placement::PlacementRules {
+                mask: 0,
+                masks: Vec::new(),
+                mask_chars: String::new(),
+                footprint,
+                width: 0,
+                height: 0,
+                cell_type,
+            };
+            let rect = banished_game::placement::Rect {
+                x0: r.cell.0,
+                y0: r.cell.1,
+                x1: r.cell.0 + r.footprint.0 - 1,
+                y1: r.cell.1 + r.footprint.1 - 1,
+            };
+            let degrees = r.yaw as i32;
+            banished_game::placement::zone(&mut self.cells, &rules, rect, degrees, id);
+            if let Some(st) = self
+                .construction
+                .templates
+                .iter()
+                .position(|t| t.reference == reference)
+            {
+                self.add_site_from(st, id);
+            } else {
+                // A plain object: its model's mesh, its MapComponent stamped.
+                if let Some(mesh) = mesh {
+                    self.placed[id].mesh = mesh;
+                }
+                if stamps {
+                    banished_game::placement::stamp(&mut self.cells, &rules, rect, degrees, id);
+                }
+            }
+            self.construction.models_dirty = true;
         }
     }
 
@@ -1856,9 +1929,33 @@ impl StartingTown {
                     let b = banished_formats::game::build_description(&data).ok()?;
                     t.work = b.work;
                     for (n, m) in b.materials {
-                        let m = m.and_then(|m| material_index(archive, &mut self.materials, &m))?;
+                        let m = m?;
+                        let pile = self.load_template(archive, &m);
+                        let m = material_index(archive, &mut self.materials, &m)?;
                         t.materials.push((n, m));
+                        t.material_templates.push(pile);
                     }
+                }
+                "destroy" => {
+                    t.controllers.push(Controller::Destroy);
+                    let d = banished_formats::game::destroy_description(&data).ok()?;
+                    let replace = d
+                        .replace
+                        .as_deref()
+                        .and_then(|r| self.load_template(archive, r));
+                    // A replacement that is a site itself has its construction template ready
+                    // for when it is placed.
+                    if let Some(r) = replace {
+                        if r != template {
+                            self.site_template(archive, r);
+                        }
+                    }
+                    t.destroy = Some(banished_game::destroy::DestroyTemplate {
+                        replace,
+                        material: d.material,
+                        decal: d.decal,
+                        min_mesh: d.min_mesh,
+                    });
                 }
                 "attendance" => {
                     t.controllers.push(Controller::Attendance);
@@ -2075,6 +2172,11 @@ impl StartingTown {
         let Some(st) = self.site_template(archive, template) else {
             return;
         };
+        self.add_site_from(st, entity);
+    }
+
+    /// [`Self::add_site`] with its construction template loaded.
+    fn add_site_from(&mut self, st: usize, entity: usize) {
         let t = &self.construction.templates[st];
         let (w, h) = self.placed[entity].footprint;
         let storage = self.storages.len();
@@ -2148,6 +2250,8 @@ impl StartingTown {
                     }),
                 parts: Vec::new(),
                 graves: Vec::new(),
+                destroy: t.destroy.as_ref().map(banished_game::destroy::Destroy::new),
+                home: None,
                 // DiseaseComponent's setup (`FUN_1400495b0`): on a pasture or not.
                 disease: t.disease.map(|_| banished_game::blight::Blight {
                     pasture: t.pasture.is_some(),

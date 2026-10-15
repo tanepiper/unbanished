@@ -212,7 +212,7 @@ Tables (enter / scheduled update / exit; → transitions):
 | | 2 | — | 3 |
 | Residence `FUN_14012f820` | 2 | `FUN_14012f2b0` (returns false) / `FUN_14012ee40` | 3 |
 | | 3 | `FUN_14012edf0` | 6, 4, 5 |
-| Destroy `FUN_1401231d0` | 3, 6, 7, 4, 5 | (destruction) | |
+| Destroy `FUN_1401231d0` | 3, 6, 7, 4, 5 | see [Demolition](#demolition-cratesgamesrcdestroyrs) | |
 
 The wood house's controllers, in component order: ClearArea, WorkPlace, Build, Destroy,
 Residence. Its life:
@@ -742,9 +742,53 @@ WorkComponent `+0x30` limit (8) comes from MaxWorkers since the marker has no Wo
 
 Port: `apps/game/src/removal_tool.rs`, `selection_overlay.rs`; markers are sites with
 `Controller::ClearResource`, destroyed through `Sim::destroy_entity` (work removed, occupant
-freed). Not ported: roads (Remove Roads), demolition (Remove Buildings and cancelling one), the
+freed). Remove Buildings and cancelling a demolition become `Command::Demolish` and
+`Command::DestroyMessage { message: 0 }`, once per building. Not ported: roads (Remove Roads), the
 marker's decal, the tutorial's fixed rectangle (settings `+0x80`), the bar's requirement
 multiplier (`FUN_14005f060`).
+
+## Demolition (`crates/game/src/destroy.rs`)
+
+DestroyComponent (vtable `0x140169500`, 0x68 bytes; serializer `FUN_140123020`) keeps `+0x48`
+the damage time left, `+0x50` damaged, `+0x51` its materials come back, `+0x54` deconstruction
+work done (component message 0, `FUN_140122fc0`), `+0x58` the work it needs, `+0x60` what goes in
+its place (setup `FUN_140122fd0`: DestroyDescription `+0x20`). DestroyDescription (serializer
+`FUN_140123340`): `+0x20` the replacement template (the quarry's and mine's `destroyed` hole;
+none for the rest), `+0x28` the damaged material set, `+0x2c` the damaged decal, `+0x30` the
+lowest construction mesh a collapse reaches. In component order Destroy comes after WorkPlace and
+before Residence (`StoneHouse`: statemachine, cleararea, build, workplace, destroy, residence).
+
+`FUN_140123470` (Remove Buildings, `FUN_140109b40`; the 33000 event of a building window
+setting `+0x60` first) clears rubble (state message 1, `FUN_1401239a0`) when damaged (6 or 7),
+else runs the machine and requests 3:
+
+| State | Enter / update / exit | |
+|---|---|---|
+| 3 | `FUN_140122c80` | `+0x54` = 0; the work and every status icon go; damaged → 6, else → 4 and icon 5 (BuildDestroy). Returns false: Residence's `FUN_14012edf0` (icons 6 and 7 off, every family moves out with `FUN_14011b8a0(first, none, -1)`, the residence leaves the town's `+0x20`) and WorkPlace's `FUN_140134230` (the workers leave, the workplace leaves its profession's registry) run too |
+| 4 | `FUN_1401224a0` / `FUN_140122390` | BecomeSite (`FUN_1401349f0`); `+0x51` with a BuildComponent; a finished building with goods (`FUN_140122f50`) registers a ClearStorage work (mask 1), else → 5. Update: empty and no hauler on the work (`FUN_140133ef0`, slot `+0x58`) → 5, the work goes |
+| 5 | `FUN_140122140` / `FUN_1401215f0` | started (`+0x48` progress ≠ 0): `+0x58` = BuildDescription `+0x30` × stages / 2 (at least 1), a BuildStructure with the destroy flag (`FUN_1400eae90(.., 1)`, mask `0x2001`), whose builders message the DestroyComponent instead of the BuildComponent (`FUN_1400c5b60`). Not started: the refund (with `+0x51`) and the entity goes (`FUN_1400c8370`). Update: at `+0x54 ≥ +0x58` the work goes, BecomeBuilding (`FUN_140134b40`), the entity goes; with a `+0x60` and a finished (or damaged) building, the refund (only for a rebuild or another replacement than the description's) and the `+0x60` entity in its place (same map rectangle, rotation, model position and variant, `FUN_1400c9d70`); else the refund |
+| 6 | `FUN_1401229a0` / `FUN_140122960` / `FUN_1401228d0` | damaged: out of the town's storages, its goods lost; no time left → collapse (`FUN_140122aa0`: one construction mesh down, not below `+0x30`). Update: the time runs down to a collapse. Exit: a collapse with time left, and one more on `Rand(2) == 0`. Message 2 → 7 |
+| 7 | — | rubble. Message 0 (DestroyUI `0x1772`, `FUN_140122770`): BecomeSite, `+0x51`, `+0x60` = its own template → 5 (rebuilt after deconstruction). Message 1 (`0x1773`, `FUN_140122670`): BecomeSite, `+0x51` with a BuildComponent → 5 |
+
+Message 0 in 4 and 5 (`FUN_140121190`, Remove Cancel and DestroyUI `0x1771` = `FUN_1401238d0`,
+which also resets `+0x60`) calls it off: icon 5 and the work go; damaged → BecomeBuilding, 7; no
+BuildComponent → 2 (run at once); else by the first MultiObject part's mesh: none → 0, the last
+→ 2, else 8; BecomeBuilding. `FUN_140123c80` (damage, fire and tornado) does nothing to a site
+not started yet, else sets `+0x50`, `+0x48` and requests 3; `FUN_140123ee0` goes straight to 7.
+
+**Refund** (`FUN_140121a00(x, y, w, h)`): unfinished, the stored materials (`(count − reserved)
+/ 2` once work began, else all); finished, half of each BuildDescription material (a quarter
+when damaged; not times the stages). Piles of at most `100 / size`, turned `RandTol(2) × 90`, on
+the rectangle's cells by rows where the cell has no occupant (`+0x00`), type 2 and ground height
+`0 ≤ z < 0.2` (`FUN_1400a48b0` twice); the cell cursor carries over between materials. The
+entity's deactivation (`FUN_1400c8370` runs every component's slot `+0x38` at once) lifts its
+zone and stamp before the update-5 refund, but the state-5 enter's refund comes first, so an
+unbuilt site's materials only land on its `.` footprint cells.
+
+Port: `Controller::Destroy`; `Sim::{demolish, cancel_demolition, destroy_message, damage,
+to_rubble}`; replacements are `Construction::rebuilds`, placed by the town after the update
+(`StartingTown::apply_rebuilds`). The ResidenceComponent is kept on the site while out of the
+town's. Not ported: the damaged material, decal and picking (presentation), DestroyUI.
 
 ## Port status
 
