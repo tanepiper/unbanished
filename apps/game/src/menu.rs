@@ -36,6 +36,8 @@ pub struct MenuLoop {
     terrain_items: Vec<usize>,
     /// `Game/Names/Cities.ndb`.
     town_names: Option<banished_formats::names::NameDatabase>,
+    /// `+0xb62`: `Application::IsPaused` of the last frame.
+    app_paused: bool,
 }
 
 /// Shared settings defaults (`FUN_140042850`) before `Game/Last*` persistence is applied:
@@ -59,6 +61,7 @@ impl MenuLoop {
             condition_items: Vec::new(),
             terrain_items: Vec::new(),
             town_names: None,
+            app_paused: false,
         }
     }
 
@@ -427,11 +430,22 @@ impl GameLoop for MenuLoop {
     /// `FUN_1400a0750`: `Audio::Scene::StopAll`.
     fn shutdown(&mut self, ctx: &mut Ctx) {
         ctx.audio.stop_all();
+        // The menu has its own Scene in the original (`+0xb30`); the port shares one, so the
+        // menu's pause does not outlive it.
+        ctx.audio.pause(crate::sound::sound_type::MUSIC, false);
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
-        // `FUN_1400a0bb0`: `Scene::Update(dt, 0, random, origin, 0)`.
-        ctx.audio.update(dt, 0.0, glam::Vec3::ZERO, 0.0);
+        // `FUN_1400a0bb0`: the music pauses while the application is paused (unfocused), and
+        // otherwise `Scene::Update(dt, 0, random, origin, 0)`.
+        if ctx.app_paused != self.app_paused {
+            self.app_paused = ctx.app_paused;
+            ctx.audio
+                .pause(crate::sound::sound_type::MUSIC, ctx.app_paused);
+        }
+        if !ctx.app_paused {
+            ctx.audio.update(dt, 0.0, glam::Vec3::ZERO, 0.0);
+        }
         if let Some(SceneView {
             camera: SceneCamera::Menu(camera),
             ..

@@ -10,7 +10,7 @@
 //!    --view overview|ground]` renders a generated map.
 //!
 //! On the map: left/right drag to rotate, middle drag to pan, wheel to zoom, WASD/arrows to move,
-//! Escape for the main menu.
+//! Escape for the pause menu.
 
 mod ambience;
 mod building_ui;
@@ -24,6 +24,7 @@ mod loops;
 mod menu;
 mod models;
 mod music;
+mod pause_menu;
 mod placement_tool;
 mod render;
 mod scene;
@@ -76,6 +77,9 @@ pub struct Game {
     global: Option<global::GlobalData>,
     rng: Random,
     main: MainLoop,
+    /// `Application::IsPaused`: the window lost focus (`Application +0x11`, cleared on
+    /// WM_KILLFOCUS, set on WM_SETFOCUS).
+    app_paused: bool,
 }
 
 /// The startup chain built in `FUN_140042850`: a loader loop for "Game/Global" (`FUN_14009f280`),
@@ -132,6 +136,7 @@ impl Game {
             // `System::Random()` seeds from the clock.
             rng: Random::new(clock_seed()),
             main: boot_chain(),
+            app_paused: false,
         })
     }
 
@@ -142,6 +147,7 @@ impl Game {
             audio: &mut self.audio,
             global: &mut self.global,
             rng: &mut self.rng,
+            app_paused: self.app_paused,
         };
         f(&mut self.main, &mut ctx)
     }
@@ -534,7 +540,14 @@ impl ApplicationHandler<UserEvent> for App {
                     }
                 }
             }
-            WindowEvent::Focused(false) => self.drag_button = None,
+            WindowEvent::Focused(focused) => {
+                if !focused {
+                    self.drag_button = None;
+                }
+                if let Some(game) = &mut self.game {
+                    game.app_paused = !focused;
+                }
+            }
             WindowEvent::MouseInput { button, state, .. } => {
                 let down = state == ElementState::Pressed;
                 let Some(game) = &mut self.game else { return };

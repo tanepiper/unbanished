@@ -156,3 +156,5 @@
 1401050c0	PlacementTool::PlayMove	docs/AUDIO.md
 1401055c0	PlacementTool::PlayThunk	docs/AUDIO.md
 140105610	PlacementTool::PlayError	docs/AUDIO.md
+1401071b0	GameController::OpenPauseMenu	docs/AUDIO.md
+1400b9c60	MainMenuDialog::ReturnToMenu	docs/AUDIO.md

@@ -88,6 +88,11 @@ impl Audio {
         }
     }
 
+    /// `Scene::Pause(type, paused)`.
+    pub fn pause(&mut self, kind: u32, paused: bool) {
+        self.scene.pause(&mut self.device, kind, paused);
+    }
+
     pub fn stop_all(&mut self) {
         self.scene.stop_all(&mut self.device);
     }

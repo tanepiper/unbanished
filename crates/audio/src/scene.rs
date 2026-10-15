@@ -438,6 +438,11 @@ impl Scene {
         self.paused[k] = paused;
     }
 
+    /// `IsPaused(type)`.
+    pub fn is_paused(&self, kind: u32) -> bool {
+        self.paused.get(kind as usize).copied().unwrap_or(false)
+    }
+
     /// The device's end callback (`OnSoundEnded`): mark the sound ended.
     pub fn on_ended(&mut self, channel: Channel) {
         for e in self.effects.iter_mut().flatten() {

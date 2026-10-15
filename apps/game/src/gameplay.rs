@@ -70,6 +70,8 @@ pub struct GameplayLoop {
     ambience: Option<crate::ambience::Ambience>,
     /// The map changed since the ambience last weighed it.
     ambience_stale: bool,
+    /// The pause menu (`Dialog/Pause.rsc`); while open `UserInterface::PausesGame` holds.
+    pause_menu: Option<crate::pause_menu::PauseMenu>,
 }
 
 impl GameplayLoop {
@@ -104,6 +106,7 @@ impl GameplayLoop {
             pending_sounds: Vec::new(),
             ambience: None,
             ambience_stale: false,
+            pause_menu: None,
         }
     }
 
@@ -580,11 +583,8 @@ impl GameplayLoop {
             return;
         };
         let listener = camera.target.extend(0.0);
-        let speed = if self.paused {
-            0.0
-        } else {
-            SPEED_LEVELS[self.speed as usize] as f32
-        };
+        // The step reads the iteration count (`+0x34`) whether or not the game is paused.
+        let speed = SPEED_LEVELS[self.speed as usize] as f32;
         ctx.audio
             .update(dt, dt * speed * 6.0, listener, camera.distance);
     }
@@ -592,6 +592,20 @@ impl GameplayLoop {
     fn map_click(&self, ctx: &mut Ctx) -> Option<glam::Vec2> {
         let size = self.town.as_ref()?.cells.size as u32;
         self.utility.map_click(ctx.ui, self.cursor, size)
+    }
+
+    /// `FUN_1401071b0`: open the pause menu (pauses effects, ambience and music).
+    fn open_pause_menu(&mut self, ctx: &mut Ctx) {
+        if let (None, Some(screen)) = (&self.pause_menu, self.screen.as_mut()) {
+            self.pause_menu = crate::pause_menu::PauseMenu::open(ctx.ui, screen, ctx.audio);
+        }
+    }
+
+    /// `CloseDialog` → `FUN_1400b9130`: resume effects, ambience and music.
+    fn close_pause_menu(&mut self, ctx: &mut Ctx) {
+        if let (Some(menu), Some(screen)) = (self.pause_menu.take(), self.screen.as_mut()) {
+            menu.close(ctx.ui, screen, ctx.audio);
+        }
     }
 
     fn return_to_menu() -> Next {
@@ -673,25 +687,32 @@ impl GameLoop for GameplayLoop {
         if let Some(toolbar) = &self.toolbar {
             toolbar.relayout(ctx.ui);
         }
+        // FUN_140107b70: while the application is paused (unfocused) the controller opens the
+        // pause menu (game option `+0x18`, on by default) instead of running.
+        if ctx.app_paused && self.pause_menu.is_none() {
+            self.open_pause_menu(ctx);
+        }
+        // `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller.
+        let pauses_game = self.pause_menu.is_some();
         // Controller FUN_140107b70 → FUN_140104390: the camera eases toward its zoom and pitch
         // targets every frame.
-        if let Some(view) = &mut self.view {
+        if let Some(view) = self.view.as_mut().filter(|_| !pauses_game) {
             if let SceneCamera::Map(camera) = &mut view.camera {
                 camera.update(&view.terrain);
             }
         }
         // PlacementTool slot +0x38 runs every frame: ghost, validity and the CreateBar.
-        if self.placement.is_some() {
+        if self.placement.is_some() && !pauses_game {
             self.refresh_placement(ctx);
         }
         let mut models_changed = false;
-        if !self.paused {
+        if !self.paused && !pauses_game {
             for _ in 0..SPEED_LEVELS[self.speed as usize] {
                 models_changed |= self.iterate(dt);
             }
         }
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
-        if let (Some(town), Some(view)) = (&mut self.town, &mut self.view) {
+        if let (Some(town), Some(view), false) = (&mut self.town, &mut self.view, pauses_game) {
             let grid = banished_game::terrain::HeightGrid {
                 width: view.terrain.size + 1,
                 heights: &view.terrain.heights,
@@ -763,6 +784,25 @@ impl GameLoop for GameplayLoop {
         let (Event::Clicked(id) | Event::Changed(id)) = event else {
             return Next::Stay;
         };
+        if let Some(menu) = &self.pause_menu {
+            // `FUN_1400b9020`.
+            match menu.click(ctx.ui, id) {
+                crate::pause_menu::PauseClick::Resume => self.close_pause_menu(ctx),
+                crate::pause_menu::PauseClick::Menu => {
+                    self.close_pause_menu(ctx);
+                    return Self::return_to_menu();
+                }
+                crate::pause_menu::PauseClick::Quit => return Next::Quit,
+                crate::pause_menu::PauseClick::Other if menu.contains(ctx.ui, id) => {
+                    log::info!(
+                        "pause menu: {} is not implemented yet",
+                        ctx.ui.node(id).name
+                    );
+                }
+                crate::pause_menu::PauseClick::Other => {}
+            }
+            return Next::Stay;
+        }
         if let (Some(notify), Some(screen)) = (self.notify.as_mut(), self.screen.as_mut()) {
             if let Some(goto) = notify.click(ctx.ui, screen, &self.events, id) {
                 if let Some(cell) = goto {
@@ -833,6 +873,7 @@ impl GameLoop for GameplayLoop {
                 self.refresh_placement(ctx);
             }
             Action::Build(None) => self.end_placement(ctx),
+            Action::Options => self.open_pause_menu(ctx),
             other => log::info!("toolbar action not implemented yet: {other:?}"),
         }
         self.update_hud(ctx.ui);
@@ -840,6 +881,16 @@ impl GameLoop for GameplayLoop {
     }
 
     fn raw(&mut self, ctx: &mut Ctx, input: RawInput) -> Next {
+        // While the pause menu is open the controller does not run; Escape is buttonResume's
+        // action 8.
+        if self.pause_menu.is_some() {
+            match input {
+                RawInput::Escape => self.close_pause_menu(ctx),
+                RawInput::Cursor(x, y) => self.cursor = (x, y),
+                _ => {}
+            }
+            return Next::Stay;
+        }
         match input {
             RawInput::Cursor(x, y) => {
                 self.cursor = (x, y);
@@ -921,7 +972,8 @@ impl GameLoop for GameplayLoop {
             RawInput::PanDrag(dx, dy) => camera.pan_drag(dx, dy, terrain),
             RawInput::Wheel(steps) => camera.zoom(steps),
             RawInput::Pan(forward, right) => camera.pan(forward, right, terrain),
-            RawInput::Escape => return Self::return_to_menu(),
+            // Toolbar Options (kind 3) holds the fixed action 8, Escape.
+            RawInput::Escape => self.open_pause_menu(ctx),
             _ => {}
         }
         Next::Stay
@@ -1163,6 +1215,36 @@ mod tests {
             assert!(effects >= 1, "{effects}");
             let ambience = gameplay.ambience.as_ref().unwrap();
             assert!(ambience.region_count() > 0);
+        });
+    }
+
+    #[test]
+    fn pause_menu_pauses_sounds_and_the_simulation() {
+        use crate::sound::sound_type;
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            ctx.audio.set_master_volume(0.0);
+            gameplay.update(ctx, 1.0 / 30.0);
+            gameplay.raw(ctx, RawInput::Escape);
+            assert!(gameplay.pause_menu.is_some());
+            for kind in [sound_type::MUSIC, sound_type::AMBIENT, sound_type::EFFECT] {
+                assert!(ctx.audio.scene.is_paused(kind));
+            }
+            assert!(!ctx.audio.scene.is_paused(sound_type::UI));
+            let (rng, seconds) = (gameplay.rng.clone(), gameplay.calendar.seconds());
+            for _ in 0..3 {
+                gameplay.update(ctx, 1.0 / 30.0);
+            }
+            assert_eq!(gameplay.calendar.seconds(), seconds);
+            assert_eq!(format!("{:?}", gameplay.rng), format!("{rng:?}"));
+            // Escape is buttonResume's action.
+            gameplay.raw(ctx, RawInput::Escape);
+            assert!(gameplay.pause_menu.is_none());
+            assert!(!ctx.audio.scene.is_paused(sound_type::MUSIC));
+            gameplay.update(ctx, 1.0 / 30.0);
+            assert!(gameplay.calendar.seconds() > seconds);
         });
     }
 

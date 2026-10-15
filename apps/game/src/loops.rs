@@ -24,6 +24,8 @@ pub struct Ctx<'a> {
     pub global: &'a mut Option<GlobalData>,
     /// The engine's default `System::Random()`, seeded from the clock.
     pub rng: &'a mut Random,
+    /// `Application::IsPaused`: the window does not have the focus.
+    pub app_paused: bool,
 }
 
 /// Input not consumed by the UI (camera control).
@@ -84,6 +86,8 @@ pub trait GameLoop {
 pub struct Screen {
     pub root: NodeId,
     backdrop: NodeId,
+    /// The dialog whose background sprite is the backdrop.
+    backdrop_owner: Option<NodeId>,
     dialog_host: NodeId,
     pub dialogs: Vec<DialogInstance>,
     /// A dialog that takes all input while open (e.g. New Game over the main menu).
@@ -104,6 +108,7 @@ impl Screen {
         Screen {
             root,
             backdrop,
+            backdrop_owner: None,
             dialog_host,
             dialogs: Vec::new(),
             modal: None,
@@ -124,6 +129,7 @@ impl Screen {
             }));
             ui.node_mut(image).flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
             ui.node_mut(self.backdrop).children = vec![image];
+            self.backdrop_owner = Some(d.root);
         }
         let host = &mut ui.node_mut(self.dialog_host).children;
         let at = self.batch.get().min(host.len());
@@ -148,6 +154,11 @@ impl Screen {
 
     pub fn remove_dialog(&mut self, ui: &mut Ui, index: usize) {
         let d = self.dialogs.remove(index);
+        // The background is drawn with its dialog (the in-game pause menu's vignette).
+        if self.backdrop_owner == Some(d.root) {
+            ui.node_mut(self.backdrop).children.clear();
+            self.backdrop_owner = None;
+        }
         let host = &mut ui.node_mut(self.dialog_host).children;
         if let Some(p) = host.iter().position(|&c| c == d.root) {
             host.remove(p);

@@ -89,7 +89,7 @@ states update.
 
 Not yet done:
 
-- placement (kind 1), utility windows (kind 2), options, town info and camera presets, which are
-  logged only;
+- placement (kind 1), utility windows (kind 2), town info and camera presets, which are
+  logged only (Options opens the pause menu, see docs/AUDIO.md);
 - nested sub-menus (`camera` under `reports`), which replace the popup instead of stacking on it;
 - hotkeys and the `uiScale` factor.
