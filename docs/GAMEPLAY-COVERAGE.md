@@ -48,11 +48,11 @@ simulation. Parsing it or drawing its mesh is not enough.
 
 | Work | Port | | Action | Port |
 |---|---|---|---|---|
-| BuildStructure, GatherRawMaterials, ClearArea, Pickup, ConsumeProduce, LocationWork | yes | | MoveTo, PlayAnimation, PerformWork, SendComponentMessage, CompleteTask, DropOffRawMaterial, PickupRawMaterial, PickupStoredRawMaterial, ShowTool, AnimateNaturalResource, RemoveNaturalResource, CreateRawMaterial | yes |
+| BuildStructure, GatherRawMaterials, ClearArea, Pickup, ConsumeProduce, LocationWork, FishingWork, gatherer, forester and hunter works | yes | | MoveTo, PlayAnimation, PerformWork, SendComponentMessage, CompleteTask, DropOffRawMaterial, PickupRawMaterial, PickupStoredRawMaterial, ShowTool, AnimateNaturalResource, RemoveNaturalResource, CreateRawMaterial | yes |
 | BuildRoad | no | | CompleteRoad | no |
 | PlantArea, TendArea (fields) | no | | ConsumeRawMaterial (`FUN_1400cb880`) | herbs (from what is carried); eating and warming use Citizen messages |
-| PlantOrchard | no | | CreateNaturalResource (planting) | no |
-| FishingWork | no | | HuntAnimal, RemoveAnimal | no |
+| PlantOrchard | no | | CreateNaturalResource (planting) | yes (foresters) |
+| | | | HuntAnimal, RemoveAnimal | yes |
 | AutoPickupWork, ClearStorage, MarketWork, TradeWork, FireWork | no | | | |
 
 ## Citizen activities (`FUN_1401146c0`)
