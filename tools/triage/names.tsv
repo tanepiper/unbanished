@@ -158,3 +158,4 @@
 140105610	PlacementTool::PlayError	docs/AUDIO.md
 1401071b0	GameController::OpenPauseMenu	docs/AUDIO.md
 1400b9c60	MainMenuDialog::ReturnToMenu	docs/AUDIO.md
+1400bbc60	SaveLoadDialog::SetHoverRow	docs/AUDIO.md

@@ -16,7 +16,8 @@ use glam::Vec3;
 pub use banished_audio::sound_type;
 
 /// UI sound slots (`UserInterface +0x98 + slot·8`): 2 begin drag, 3 end drag, 4 button down,
-/// 5 button up, 6 alert.
+/// 5 button up, 6 alert. Slots 2, 3 and 6 are set but never played in 1.0.7 (no caller of
+/// `BeginDragDrop`, no `Play(6)`); see docs/AUDIO.md.
 const UI_SOUNDS: [(usize, &str); 5] = [
     (2, "Audio/UI/BeginDragEffect.rsc:resource"),
     (3, "Audio/UI/EndDragEffect.rsc:resource"),

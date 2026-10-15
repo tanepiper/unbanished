@@ -76,7 +76,8 @@ The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e
 | Scene update | `FUN_14009b850`: `Scene::Update(dt, dt × speed × 6, Random, camera pivot, eye–pivot distance)`; `speed` is the iteration count `+0x34`, read even while paused | `gameplay.rs` `update_audio` |
 | Pause menu | `FUN_1401071b0` opens `Dialog/Pause.rsc` as a `MainMenuDialog` bound to the game (toolbar Options, Escape, or the controller `FUN_140107b70` when the window loses focus). Its open (`FUN_1400b91a0`) pauses types 4, 3, 2; its close (`FUN_1400b9130`) resumes them. The dialog pauses the game (`PausesGame`, flags bit 0), so `FUN_14009b850` skips the simulation and the controller; music and `Scene::Update` keep running | `pause_menu.rs`, `gameplay.rs` |
 | Menu focus | `FUN_1400a0bb0`: while `Application::IsPaused` (the window lost focus: `+0x11` cleared on WM_KILLFOCUS) the menu pauses type 2 and does not update its scene | `menu.rs`; `Ctx::app_paused` from winit `Focused` |
-| UI clicks | `ButtonElement::Update`: `Play(4)` on press, `Play(5)` on click; slots set by `FUN_1400778f0` (2 BeginDrag, 3 EndDrag, 4 ButtonDown, 5 ButtonUp, 6 Alert) | `Ui::sounds` → `Audio::play_ui` |
+| UI clicks | `ButtonElement::Update`, `SliderElement::Update`, `ScrollElement::Update`: `Play(4)` on press, `Play(5)` on click; `ComboDialog::OnElementEvent` `Play(5)`; slots set by `FUN_1400778f0` (2 BeginDrag, 3 EndDrag, 4 ButtonDown, 5 ButtonUp, 6 Alert) | `Ui::sounds` → `Audio::play_ui` |
+| UI slots 2, 3, 6 | Never played in 1.0.7. `Play(2)` is only in `UserInterface::BeginDragDrop` (`0x180121e80`), which nothing calls: the exe does not import it and the DLL has no caller. `Play(3)` is only in `Element::Update` when a drag-drop ends, which needs one begun. No `Play(6)` exists in the DLL or the exe (the exe's only `Play` is `Play(4)` in the SaveLoad list hover `FUN_1400bbc60`) | slots loaded, nothing to trigger |
 | Placement | `FUN_1401050c0` move (new cell, every 0.05 s at most), `FUN_1401055c0` thunk, `FUN_140105610` error | `gameplay.rs` |
 | Event alert | `FUN_140068590`: `WarningEffect` when the ribbon gains a notification | `gameplay.rs` |
 | Animation sounds | `AnimAudioEvent` (`FUN_14008d310`): `RandFloat()` on the game Random against the probability, then `PlayEffect3D(effect, 4)` at the entity (tree falls, tools, animals) | the draw is in the simulation (`seeding.rs` `animate`); the sound plays on the next audio update |
@@ -102,6 +103,8 @@ The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e
   `+0x1e0`); generated worlds draw no water yet.
 - Building emitters (fire, crowd: autostart off, driven by building state), rain and tornado
   effects.
+- The SaveLoad dialog's hover click (`FUN_1400bbc60`, `Play(4)` when the hovered save row
+  changes): the dialog is not ported.
 - Pause menu buttons other than Resume, Menu and Quit (Load, Save, Options, Achievements, Mods,
   Map), and the Save/Mod disabling by game flag bit 10.
 - Packet-granular start offsets (the port starts at the exact sample) and the `Stream` path.
