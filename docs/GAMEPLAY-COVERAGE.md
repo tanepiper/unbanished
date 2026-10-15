@@ -30,7 +30,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **Cemetery**, **Tombstone** | Cemetery | yes ([CITIZEN-LIFE.md](CITIZEN-LIFE.md#burial-cratesgamesrccemeteryrs)) |
 | **Well**, **Fire** | Well; every building | yes ([FIRE.md](FIRE.md); ignition, spread, buckets, wells, emergencies, rubble) |
 | **Market**, **MarketLocation** | Market | yes ([MARKETS.md](MARKETS.md)) |
-| **Trade**, **Boat** | TradingPost, TraderBoat | missing |
+| **Trade**, **Boat** | TradingPost, TraderBoat | yes ([TRADE.md](TRADE.md); merchants, boat, offers, automatic trading, TradeWork; the trade window not wired) |
 | **Destroy** | every building | yes ([JOBS.md](JOBS.md#demolition-cratesgamesrcdestroyrs); demolition, refunds, cancel, damage, rubble) |
 | **CropField** | fields | yes ([FARMING.md](FARMING.md)) |
 | **Orchard**, **Fruit** | orchards | yes ([FARMING.md](FARMING.md)) |
@@ -57,8 +57,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | PlantOrchard, fruit picking | yes | | CreateNaturalResource (planting) | yes |
 | | | | HuntAnimal, RemoveAnimal | yes |
 | AutoPickupWork (base of the gatherer, forester, hunter, harvest and pasture works), PastureWork, ClearStorage | yes | | | |
-| MarketWork, FireWork | yes | | | |
-| TradeWork | no | | | |
+| MarketWork, FireWork, TradeWork | yes | | | |
 
 ## Citizen activities (`FUN_1401146c0`)
 

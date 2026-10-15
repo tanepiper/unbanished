@@ -981,6 +981,8 @@ impl GameLoop for GameplayLoop {
                 self.town = town;
                 if let Some(town) = &mut self.town {
                     town.construction.game_flags = if self.params.disasters { 0 } else { 0xf0 };
+                    // The trader boats' way (MapComponent `+0x1e0`'s first river).
+                    town.construction.river = self.river_paths.first().cloned().unwrap_or_default();
                 }
                 self.view = Some(view);
             }

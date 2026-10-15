@@ -75,6 +75,8 @@ pub enum WorkKind {
     /// `FireWork` (vtable `0x1401676c0`, constructor `FUN_1400ef0a0`): firefighters carrying
     /// buckets to a burning building; `+0x50` the workers.
     Fire(crate::herbalist::HerbalistWork),
+    /// `TradeWork` (vtable `0x140167e30`): haulers keeping the trading post's stock.
+    Trade(crate::trade::TradeWork),
     /// MarketWork (vtable `0x140167b40`, made by MarketComponent's slot `+0x90`).
     Market(crate::market::MarketWork),
     /// `FishingWork` (vtable `0x140167740`, constructor `FUN_1400eff90`).

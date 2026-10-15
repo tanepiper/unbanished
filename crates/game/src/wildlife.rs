@@ -195,6 +195,9 @@ pub struct Wildlife {
     /// Nomads by entity, and their kinds by template.
     pub nomads: BTreeMap<usize, crate::immigration::Nomad>,
     pub nomad_kinds: BTreeMap<usize, crate::immigration::NomadKind>,
+    /// Trader boats by entity, and their kinds by template.
+    pub boats: BTreeMap<usize, crate::boat::Boat>,
+    pub boat_kinds: BTreeMap<usize, crate::boat::BoatKind>,
 }
 
 /// The town state wildlife reads and writes.

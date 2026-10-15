@@ -120,6 +120,18 @@ pub struct Sim<'s, 't> {
     pub population: i32,
     /// Town manager `+0x1a8` / `+0x1a0`.
     pub visitors: &'s mut (f32, i64),
+    /// Town manager `+0x30` and `+0x1ac`.
+    pub trading_posts: &'s mut Vec<usize>,
+    pub trade_value: &'s mut i32,
+    pub trade_goods: &'s [crate::trade::TradeGood],
+    pub river: &'s [[f32; 2]],
+    /// The path manager (the trader boats' water paths).
+    pub pathfinder: &'s mut crate::pathfind::Pathfinder,
+    /// The citizens' name databases (the merchants' names).
+    pub names: Option<&'s (
+        banished_formats::names::NameDatabase,
+        banished_formats::names::NameDatabase,
+    )>,
     /// The scheduled update's elapsed time (ticks) for the site callbacks.
     pub site_dt: i64,
     pub cemeteries: &'s mut Vec<usize>,
@@ -946,6 +958,7 @@ impl Sim<'_, '_> {
 
     /// Activate the sites placed since the last iteration (`FUN_1400c9d70` → activate).
     pub fn activate(&mut self, jobs: &mut Jobs, entity: usize) {
+        self.trade_activate(entity);
         run(self, jobs, entity, false, false);
     }
 
@@ -1411,6 +1424,31 @@ impl Callbacks for Sim<'_, '_> {
                 self.send_band_away(e);
                 true
             }
+            Callback::TradeEnter2 => {
+                self.trade_enter2(jobs, e);
+                false
+            }
+            Callback::TradeUpdate2 => {
+                self.trade_update2(e, self.site_dt);
+                false
+            }
+            Callback::TradeEnter12 => true,
+            Callback::TradeEnter13 => {
+                self.trade_enter13(e);
+                true
+            }
+            Callback::TradeExit13 => {
+                self.trade_exit13(e);
+                true
+            }
+            Callback::TradeUpdate13 => {
+                self.trade_update13(e, self.site_dt);
+                true
+            }
+            Callback::TradeLeave => {
+                self.trade_leave(e);
+                true
+            }
             Callback::WellEnter2 => {
                 self.well_join(e, true);
                 false
@@ -1589,6 +1627,21 @@ impl WorkHost for Sim<'_, '_> {
             | WorkKind::Pasture(h)
             | WorkKind::ClearStorage(h)
             | WorkKind::Fire(h) => h.workers.iter().copied(),
+            // `FUN_1400fafb0`: the haulers no longer on it.
+            WorkKind::Trade(t) => {
+                let gone: Vec<usize> = t
+                    .haulers
+                    .keys()
+                    .copied()
+                    .filter(|&c| self.characters[c].stack.holds_task(id).is_none())
+                    .collect();
+                if let WorkKind::Trade(t) = &mut work.kind {
+                    for c in gone {
+                        t.haulers.remove(&c);
+                    }
+                }
+                return;
+            }
             // `FUN_1400f4c90`: the worker no longer holds the task.
             WorkKind::Location(l) => {
                 if let Some(c) = l.worker {
@@ -1662,6 +1715,7 @@ impl WorkHost for Sim<'_, '_> {
             | WorkKind::PickFruit(_)
             | WorkKind::Location(_)
             | WorkKind::Market(_)
+            | WorkKind::Trade(_)
             | WorkKind::Test(_) => {}
         }
         if let WorkKind::Gather(_) = work.kind {
@@ -1682,6 +1736,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Location(_) => self.location_try(work, c),
             WorkKind::ClearStorage(_) => self.clear_storage_try(work, c, time),
             WorkKind::Fire(_) => self.fire_try(work, c, time),
+            WorkKind::Trade(_) => self.trade_try(work, c),
             WorkKind::Market(_) => self.market_try(work, c),
             WorkKind::Fishing(_) => self.fishing_try(work, c),
             WorkKind::PlantArea(_) => self.plant_try(work, c),
@@ -1799,6 +1854,10 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Market(m) => {
                 m.plans.remove(&c);
             }
+            // `FUN_1400fb1f0`.
+            WorkKind::Trade(t) => {
+                t.haulers.remove(&c);
+            }
             WorkKind::Test(_) => {}
         }
         false
@@ -1852,6 +1911,10 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Market(m) => {
                 m.plans.remove(&c);
             }
+            // `FUN_1400fb1e0`.
+            WorkKind::Trade(t) => {
+                t.haulers.remove(&c);
+            }
             WorkKind::Test(_) => {}
         }
     }
@@ -1899,6 +1962,8 @@ impl WorkHost for Sim<'_, '_> {
                 | WorkKind::Fire(h) => h.workers.first().copied(),
                 // `FUN_1400f7170`: every vendor's stack is cleared.
                 WorkKind::Market(m) => m.plans.keys().next().copied(),
+                // `FUN_1400fc0b0`.
+                WorkKind::Trade(t) => t.haulers.keys().next().copied(),
                 WorkKind::Produce(_) | WorkKind::Test(_) => None,
             };
             let Some(c) = next else { return };
@@ -1955,6 +2020,9 @@ impl WorkHost for Sim<'_, '_> {
                 }
                 WorkKind::Market(m) => {
                     m.plans.remove(&c);
+                }
+                WorkKind::Trade(t) => {
+                    t.haulers.remove(&c);
                 }
                 WorkKind::Produce(_) | WorkKind::Test(_) => {}
             }

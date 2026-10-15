@@ -433,6 +433,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         build_points: Vec::new(),
         use_yaws: Vec::new(),
         create_points: Vec::new(),
+        named_points: Vec::new(),
         pile: None,
         pile_material: None,
         pile_yield: (0, 0),
@@ -554,6 +555,13 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                     banished_formats::game::interaction_points(l, 0)
                         .iter()
                         .map(|p| p.yaw)
+                        .collect()
+                });
+                t.named_points = list.as_ref().map_or(Vec::new(), |l| {
+                    l.points
+                        .iter()
+                        .filter(|p| !matches!(p.name.as_str(), "use" | "build" | "create"))
+                        .map(|p| (p.name.clone(), p.position, p.yaw))
                         .collect()
                 });
             }
@@ -1064,6 +1072,7 @@ impl StartingTown {
                 professions: professions(archive),
                 known,
                 water,
+                names: names.clone().map(std::sync::Arc::new),
                 ..Default::default()
             },
             names,
@@ -1952,6 +1961,22 @@ impl StartingTown {
                     }
                 }
                 "well" => t.controllers.push(Controller::Well),
+                "trade" => {
+                    if let Ok(d) = banished_formats::game::trade_description(&data) {
+                        let boat = d.boat.as_deref().and_then(|r| self.load_boat(archive, r));
+                        if let Some(boat) = boat {
+                            self.load_trade_goods(archive);
+                            t.trade = Some(banished_game::trade::TradeTemplate {
+                                boat,
+                                merchants: d.merchants.clone(),
+                                rows: d.rows.clone(),
+                                categories: d.categories.iter().map(|c| c.0).collect(),
+                            });
+                            t.trade_risk = Some((d.value_68, d.value_6c));
+                            t.controllers.push(Controller::Trade);
+                        }
+                    }
+                }
                 "immigration" => {
                     if let Ok(d) = banished_formats::game::immigration_description(&data) {
                         let nomad = d.nomad.as_deref().and_then(|r| self.load_nomad(archive, r));
@@ -2220,6 +2245,60 @@ impl StartingTown {
         self.add_site_from(st, entity);
     }
 
+    /// The trader boat template (`Template\\TraderBoat.rsc`): its CharacterDescription and
+    /// its model's animation group.
+    fn load_boat(&mut self, archive: &Archive, reference: &str) -> Option<usize> {
+        let template = self.load_template(archive, reference)?;
+        let file = normalise(reference).replace(":resource", ":character");
+        let character = read(archive, &file)
+            .and_then(|d| banished_formats::game::character_description(&d).ok())?;
+        if let Some(Some(g)) = self.templates[template].animations.first() {
+            self.wildlife.groups.insert((template, 0), g.clone());
+        }
+        self.wildlife
+            .boat_kinds
+            .insert(template, banished_game::boat::BoatKind { character });
+        Some(template)
+    }
+
+    /// Every template with a ValueDescription, in `Game/GameResources.rsc`'s order (inferred
+    /// for the original's factory order, `FUN_140059fd0`), its raw material registered.
+    fn load_trade_goods(&mut self, archive: &Archive) {
+        if !self.construction.trade_goods.is_empty() {
+            return;
+        }
+        let Some(list) = read(archive, "Game/GameResources.rsc:resource")
+            .and_then(|d| banished_formats::game::external_list(&d).ok())
+        else {
+            return;
+        };
+        for r in &list {
+            let r = normalise(r);
+            if !r.starts_with("Template") || !r.ends_with(":resource") {
+                continue;
+            }
+            let Some(value) = read(archive, &r.replace(":resource", ":value"))
+                .and_then(|d| banished_formats::game::value_description(&d).ok())
+            else {
+                continue;
+            };
+            let Some(template) = self.load_template(archive, &r) else {
+                continue;
+            };
+            let material = read(archive, &r.replace(":resource", ":rawmaterial"))
+                .is_some()
+                .then(|| material_index(archive, &mut self.materials, &r))
+                .flatten();
+            self.construction
+                .trade_goods
+                .push(banished_game::trade::TradeGood {
+                    template,
+                    material,
+                    value,
+                });
+        }
+    }
+
     /// The nomad template (`Template\\Nomad.rsc`): its CharacterDescription and its model's
     /// animation groups, for the nomads the town hall calls.
     fn load_nomad(&mut self, archive: &Archive, reference: &str) -> Option<usize> {
@@ -2316,6 +2395,8 @@ impl StartingTown {
                 graves: Vec::new(),
                 destroy: t.destroy.as_ref().map(banished_game::destroy::Destroy::new),
                 fire: t.fire.map(|_| banished_game::fire::Fire::default()),
+                // TradeComponent's activation names the merchants (`Sim::activate`).
+                trade: None,
                 immigration: t
                     .immigration
                     .as_ref()

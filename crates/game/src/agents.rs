@@ -328,6 +328,12 @@ impl Agents {
                 precipitation: c.precipitation,
                 population: c.population,
                 visitors: &mut c.visitors,
+                trading_posts: &mut c.trading_posts,
+                trade_value: &mut c.trade_value,
+                trade_goods: &c.trade_goods,
+                river: &c.river,
+                pathfinder: &mut self.pathfinder,
+                names: c.names.as_deref(),
                 cemeteries: &mut c.cemeteries,
                 tombstones: &mut c.tombstones,
                 burials: &mut c.burials,
@@ -438,6 +444,7 @@ impl Agents {
                     }
                     sim.destroy_message(jobs, entity, message);
                     sim.immigration_message(entity, message);
+                    sim.trade_message(entity, message);
                     jobs.drain(&mut sim);
                     continue;
                 }
@@ -686,6 +693,7 @@ impl Agents {
             sim.site_dt = ticks(dt);
             sim.update_sites(jobs);
             sim.update_nomads(ticks(dt));
+            sim.update_boats();
             sim.update_attendance();
             sim.age_piles(jobs, ticks(dt));
             sim.update_hunts(ticks(dt));
@@ -804,6 +812,41 @@ impl Agents {
             };
             animal.character.animate(&group, dt);
             animal.character.update(&mut world, &group, dt);
+        }
+        // The trader boats' CharacterComponent.
+        let ids: Vec<usize> = wildlife.boats.keys().copied().collect();
+        for id in ids {
+            let b = &wildlife.boats[&id];
+            let Some(group) = wildlife.groups.get(&(b.template, 0)).cloned() else {
+                continue;
+            };
+            let boat = wildlife.boats.get_mut(&id).unwrap();
+            let mut messages = Vec::new();
+            let (mut carried, mut tool_uses, mut shown_tool) = (Storage::default(), 0, -1);
+            let (mut accident, mut accident_timer) = (None, 0);
+            let mut world = World {
+                size: cells.size,
+                types: &cells.types,
+                objects: &cells.objects,
+                occupants: &cells.occupants,
+                flags: &cells.flags,
+                regions: &self.regions,
+                terrain,
+                pathfinder: &mut self.pathfinder,
+                rng,
+                messages: &mut messages,
+                materials,
+                storages: &mut storages,
+                carried: &mut carried,
+                tool_uses: &mut tool_uses,
+                shown_tool: &mut shown_tool,
+                animating: &mut animating,
+                accident: &mut accident,
+                accident_timer: &mut accident_timer,
+                accident_odds: None,
+            };
+            boat.character.animate(&group, dt);
+            boat.character.update(&mut world, &group, dt);
         }
         // The nomads' CharacterComponent.
         let ids: Vec<usize> = wildlife.nomads.keys().copied().collect();

@@ -53,6 +53,8 @@ pub enum Controller {
     Well,
     /// ImmigrationComponent (`FUN_14004f020` table): the town hall's nomads.
     Immigration,
+    /// TradeComponent (`FUN_14005cfb0` table): the trading post's merchants.
+    Trade,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -185,6 +187,15 @@ pub enum Callback {
     ImmigrationEnter11,
     ImmigrationUpdate11,
     ImmigrationLeave,
+    /// Trade: `FUN_14005b530` / `FUN_14005b3c0` (2), `FUN_14005b3b0` (0x12), `FUN_14005b160` /
+    /// `FUN_14005b030` / `FUN_14005b0e0` (0x13), `FUN_14005bac0` (→ 3).
+    TradeEnter2,
+    TradeUpdate2,
+    TradeEnter12,
+    TradeEnter13,
+    TradeExit13,
+    TradeUpdate13,
+    TradeLeave,
     /// Callbacks whose port is still missing (they pass the state on).
     Missing,
 }
@@ -384,6 +395,32 @@ const IMMIGRATION: &[StateDef] = &[
         update: C::ImmigrationUpdate11,
         exit: C::None,
         transitions: &[(3, C::ImmigrationLeave), (2, C::None)],
+    },
+];
+
+/// The state messages (9 and 0xb in 0x12, 0xa in 0x13) are
+/// [`crate::town::Sim::trade_message`].
+const TRADE: &[StateDef] = &[
+    StateDef {
+        id: 2,
+        enter: C::TradeEnter2,
+        update: C::TradeUpdate2,
+        exit: C::None,
+        transitions: &[(3, C::TradeLeave), (0x12, C::None)],
+    },
+    StateDef {
+        id: 0x12,
+        enter: C::TradeEnter12,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(3, C::TradeLeave), (0x13, C::None), (2, C::None)],
+    },
+    StateDef {
+        id: 0x13,
+        enter: C::TradeEnter13,
+        update: C::TradeUpdate13,
+        exit: C::TradeExit13,
+        transitions: &[(3, C::TradeLeave), (2, C::None)],
     },
 ];
 
@@ -661,6 +698,7 @@ impl Controller {
             Controller::Destroy => DESTROY,
             Controller::Well => WELL,
             Controller::Immigration => IMMIGRATION,
+            Controller::Trade => TRADE,
         }
     }
 
@@ -903,6 +941,11 @@ pub struct SiteTemplate {
     pub fire: Option<banished_formats::game::FireDescription>,
     /// ImmigrationDescription, resolved.
     pub immigration: Option<crate::immigration::ImmigrationTemplate>,
+    /// TradeDescription, resolved.
+    pub trade: Option<crate::trade::TradeTemplate>,
+    /// TradeDescription `+0x68` / `+0x6c`: the visitors' disease risk trading brings, and its
+    /// months.
+    pub trade_risk: Option<(f32, i32)>,
     /// The pile template of each BuildDescription material (the refunds' piles).
     pub material_templates: Vec<Option<usize>>,
 }
@@ -1024,6 +1067,8 @@ pub struct Site {
     pub fire: Option<crate::fire::Fire>,
     /// ImmigrationComponent.
     pub immigration: Option<crate::immigration::Immigration>,
+    /// TradeComponent.
+    pub trade: Option<crate::trade::Trade>,
     /// The ResidenceComponent while the residence is out of the town's (its states 3 to 7).
     pub home: Option<crate::life::Home>,
 }
@@ -1098,6 +1143,21 @@ pub struct Construction {
     pub visitors: (f32, i64),
     /// Town manager `+0x1b0`: nomads taken in.
     pub nomads_admitted: i32,
+    /// Town manager `+0x30`: the trading posts.
+    pub trading_posts: Vec<usize>,
+    /// Town manager `+0x1ac`: the value traded away.
+    pub trade_value: i32,
+    /// The goods with a ValueDescription, in the factory's order (`GameResources`).
+    pub trade_goods: Vec<crate::trade::TradeGood>,
+    /// MapComponent `+0x1e0`'s first river centre line, the trader boats' way.
+    pub river: Vec<[f32; 2]>,
+    /// `Game/Names/Male` and `Female`, for the merchants' names.
+    pub names: Option<
+        std::sync::Arc<(
+            banished_formats::names::NameDatabase,
+            banished_formats::names::NameDatabase,
+        )>,
+    >,
     /// The town manager's known crops, orchard trees and livestock (`FUN_140096ef0`), as
     /// placed-object templates.
     pub known: Vec<usize>,

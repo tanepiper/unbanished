@@ -1603,6 +1603,143 @@ pub fn immigration_description(data: &[u8]) -> Result<ImmigrationDescription> {
     Ok(value)
 }
 
+/// `ValueDescription` (serializer `FUN_14005d6c0`, constructor `FUN_14005d7e0`): `+0x20/+0x28`
+/// the icon (sprite sheet, name), `+0x30/+0x38` the name (string table, key), `+0x40` the
+/// value of one, `+0x44` a merchant's lot before the town's divisor (100), `+0x48` the
+/// smallest lot.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ValueDescription {
+    pub icon: (Option<String>, String),
+    pub name: (Option<String>, String),
+    pub value: i32,
+    pub lot: i32,
+    pub min_lot: i32,
+}
+
+pub fn value_description(data: &[u8]) -> Result<ValueDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("ValueDescription") {
+            return format_err(format!(
+                "expected ValueDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(ValueDescription {
+                icon: (r.external_ref()?, r.string()?),
+                name: (r.external_ref()?, r.string()?),
+                value: r.i32()?,
+                lot: r.i32()?,
+                min_lot: r.i32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// A TradeDescription merchant (`FUN_14005d510`, 0x48 bytes): its name (string table, key),
+/// `+0x20` the templates it always offers (seeds, livestock), `+0x30` (ints, unread), `+0x40`
+/// its lots before the town's divisor, `+0x10` the raw-material flags it sells, `+0x14` and
+/// `+0x18` more flag masks.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Merchant {
+    pub name: (Option<String>, String),
+    pub items: Vec<Option<String>>,
+    pub values: Vec<i32>,
+    pub lots: i32,
+    pub sells: u32,
+    pub flags: (u32, u32),
+}
+
+/// A TradeDescription row by population (`FUN_14005d480`, 0x14 bytes): towns below `+0`
+/// people see a merchant every `(+4 + RandFloatTol × +8)` × 300 s; `+0xc` and `+0x10` divide
+/// the merchant's lots and each lot's amount.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct TradeRow {
+    pub population: i32,
+    pub months: f32,
+    pub range: f32,
+    pub lot_divisor: i32,
+    pub amount_divisor: i32,
+}
+
+/// `TradeDescription` (serializer `FUN_14005d150`, constructor `FUN_14005d400`): `+0x30` the
+/// trader boat, `+0x48` the merchants, `+0x58` the rows by population, `+0x20/+0x28` the trade
+/// window's sprite sheet and strings, `+0x38` its categories (flags, two string keys),
+/// `+0x68` (0.33) and `+0x6c` (3).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct TradeDescription {
+    pub boat: Option<String>,
+    pub merchants: Vec<Merchant>,
+    pub rows: Vec<TradeRow>,
+    pub sprites: Option<String>,
+    pub strings: Option<String>,
+    pub categories: Vec<(u32, String, String)>,
+    pub value_68: f32,
+    pub value_6c: i32,
+}
+
+pub fn trade_description(data: &[u8]) -> Result<TradeDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("TradeDescription") {
+            return format_err(format!(
+                "expected TradeDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let boat = r.external_ref()?;
+            let merchants = (0..r.count()?)
+                .map(|_| {
+                    let name = (r.external_ref()?, r.string()?);
+                    let items = (0..r.count()?)
+                        .map(|_| r.external_ref())
+                        .collect::<Result<_>>()?;
+                    let values = (0..r.count()?).map(|_| r.i32()).collect::<Result<_>>()?;
+                    let lots = r.i32()?;
+                    let sells = r.u32()?;
+                    let flags = (r.u32()?, r.u32()?);
+                    Ok(Merchant {
+                        name,
+                        items,
+                        values,
+                        lots,
+                        sells,
+                        flags,
+                    })
+                })
+                .collect::<Result<_>>()?;
+            let rows = (0..r.count()?)
+                .map(|_| {
+                    Ok(TradeRow {
+                        population: r.i32()?,
+                        months: r.f32()?,
+                        range: r.f32()?,
+                        lot_divisor: r.i32()?,
+                        amount_divisor: r.i32()?,
+                    })
+                })
+                .collect::<Result<_>>()?;
+            let sprites = r.external_ref()?;
+            let strings = r.external_ref()?;
+            let categories = (0..r.count()?)
+                .map(|_| Ok((r.u32()?, r.string()?, r.string()?)))
+                .collect::<Result<_>>()?;
+            Ok(TradeDescription {
+                boat,
+                merchants,
+                rows,
+                sprites,
+                strings,
+                categories,
+                value_68: r.f32()?,
+                value_6c: r.i32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `TombstoneDescription` (serializer `FUN_140058380`): a grave lasts `(+0x20 + RandFloat ×
 /// +0x24)` × 300 s (`FUN_1400581c0`).
 pub fn tombstone_description(data: &[u8]) -> Result<(f32, f32)> {

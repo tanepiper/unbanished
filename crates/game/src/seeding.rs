@@ -73,6 +73,9 @@ pub struct Template {
     /// workplace leaves its output.
     pub use_yaws: Vec<f32>,
     pub create_points: Vec<[f32; 3]>,
+    /// The InteractDescription's other named points (name, position, yaw): the trading
+    /// post's "boat".
+    pub named_points: Vec<(String, [f32; 3], f32)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -960,6 +963,7 @@ mod tests {
             build_points: Vec::new(),
             use_yaws: Vec::new(),
             create_points: Vec::new(),
+            named_points: Vec::new(),
         }
     }
 
