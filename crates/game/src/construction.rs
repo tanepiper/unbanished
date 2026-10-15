@@ -24,6 +24,8 @@ pub enum Controller {
     Residence,
     /// ClearResourceComponent (`FUN_140032150` / `FUN_140032270` table): the removal marker.
     ClearResource,
+    /// ResourceProduceComponent (`FUN_140130700` table), here ConsumeProduceComponent.
+    ResourceProduce,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -57,6 +59,15 @@ pub enum Callback {
     ResidenceEnter2,
     /// `FUN_14011da30`: the marker destroys its entity once its cell is clear.
     ClearResourceEnter2,
+    /// `FUN_140130680`: built → producing (0xd), or idle (0xe) when switched off.
+    ProduceEnter2,
+    /// `FUN_140130460` (transition 2 → 0xd): the output points' cells become empty ground.
+    ProduceClearPoints,
+    /// `FUN_140130330`: register the production work and enable the workplace (0xe when
+    /// switched off).
+    ProduceEnterD,
+    /// `FUN_1401301f0`: remove the work and disable the workplace.
+    ProduceEnterE,
     /// Callbacks whose port is still missing (they pass the state on).
     Missing,
 }
@@ -176,6 +187,32 @@ const CLEAR_RESOURCE: &[StateDef] = &[StateDef {
     transitions: &[(3, C::None)],
 }];
 
+const RESOURCE_PRODUCE: &[StateDef] = &[
+    StateDef {
+        id: 2,
+        enter: C::ProduceEnter2,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(0xd, C::ProduceClearPoints), (0xe, C::None), (3, C::None)],
+    },
+    StateDef {
+        id: 0xd,
+        enter: C::ProduceEnterD,
+        // `FUN_140130660` → slot `+0xa8` (the base's no-op for ConsumeProduce).
+        update: C::None,
+        exit: C::None,
+        // `FUN_140130440` → slot `+0xa0` (no-op).
+        transitions: &[(0xe, C::None), (3, C::None)],
+    },
+    StateDef {
+        id: 0xe,
+        enter: C::ProduceEnterE,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(0xd, C::None), (3, C::None)],
+    },
+];
+
 impl Controller {
     pub fn table(self) -> &'static [StateDef] {
         match self {
@@ -184,6 +221,7 @@ impl Controller {
             Controller::Build => BUILD,
             Controller::Residence => RESIDENCE,
             Controller::ClearResource => CLEAR_RESOURCE,
+            Controller::ResourceProduce => RESOURCE_PRODUCE,
         }
     }
 
@@ -380,6 +418,8 @@ pub struct SiteTemplate {
     pub max_jobs: i32,
     /// WorkPlaceDescription `+0x20`.
     pub profession: Option<usize>,
+    /// ConsumeProduceDescription, resolved.
+    pub produce: Option<ProduceTemplate>,
     /// StorageDescription: accepted flags, capacity, per footprint cell.
     pub storage: Option<(u32, i32, bool)>,
     /// ModelDescription meshes per variant (construction stages, the last finished).
@@ -401,6 +441,55 @@ impl SiteTemplate {
             n
         }
     }
+}
+
+/// A resolved [`banished_formats::game::ConsumeProduceDescription`].
+#[derive(Debug, Clone, Default)]
+pub struct ProduceTemplate {
+    pub recipes: Vec<Recipe>,
+    /// `+0x40`: work cycles per production.
+    pub cycles: i32,
+    /// `+0x50`: work type (tool mesh, animation, walk).
+    pub work_type: u32,
+    /// `+0x38/+0x3c`: a message to the building's component of that type after a production.
+    pub message: (u32, i32),
+    /// `+0x44`: seconds per cycle.
+    pub duration: f32,
+    /// `+0x48`: productions before exhaustion (−1 never).
+    pub lifetime: i32,
+    /// `+0x4c`: initial selector.
+    pub selector: i32,
+}
+
+/// A production alternative: inputs (raw material, count), the output pile template and its
+/// raw material, and the stock group the limit check reads.
+#[derive(Debug, Clone, Default)]
+pub struct Recipe {
+    pub inputs: Vec<(usize, i32)>,
+    pub output: usize,
+    pub output_material: usize,
+    pub group: i32,
+}
+
+/// ConsumeProduceComponent state (`+0x48` switched off, `+0x50` selector, `+0x58` weights,
+/// `+0x68` productions so far).
+#[derive(Debug, Clone, Default)]
+pub struct ProduceState {
+    pub disabled: bool,
+    pub selector: i32,
+    pub weights: Vec<f32>,
+    pub produced: i32,
+}
+
+/// `ConsumeProduce` work state: `+0x58` the worker at each use point, `+0x68` each output
+/// point's state (0 free, 1 a production is under way, 2 holds output), `+0x48` every output
+/// point was taken, `+0x4c` work cycles towards the next production.
+#[derive(Debug, Clone, Default)]
+pub struct ProduceWork {
+    pub workers: Vec<Option<usize>>,
+    pub points: Vec<u8>,
+    pub full: bool,
+    pub cycles: i32,
 }
 
 /// One building under construction (and, once built, its WorkComponent).
@@ -425,6 +514,8 @@ pub struct Site {
     /// The entity was destroyed (`FUN_1400c8370`) during a state callback; the site goes
     /// once the machine has run.
     pub destroyed: bool,
+    /// ConsumeProduceComponent.
+    pub produce: Option<ProduceState>,
 }
 
 /// The job manager, professions, workforce and every construction site.

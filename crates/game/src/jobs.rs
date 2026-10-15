@@ -41,6 +41,9 @@ pub enum WorkKind {
     Clear(crate::construction::ClearWork),
     /// `Pickup` (vtable `0x140167c30`, built by RawMaterialComponent activation `FUN_14012e6a0`).
     Pickup(crate::construction::PickupWork),
+    /// `ConsumeProduce` (vtable `0x140167640`, constructor `FUN_1400ee6d0`, made by
+    /// ConsumeProduceComponent slot `+0x90` `FUN_14011e1d0`).
+    Produce(crate::construction::ProduceWork),
     /// A test stand-in.
     Test(i32),
 }
@@ -127,6 +130,11 @@ pub trait WorkHost {
     /// answering [`NESTED`] has queued them.
     fn take_offers(&mut self) -> Vec<i32> {
         Vec::new()
+    }
+    /// After a [`NESTED`] answer none of whose offers was taken: the rest of the try
+    /// (ConsumeProduce goes on to work a cycle).
+    fn resume(&mut self, _work: &mut Work, _citizen: usize) -> u8 {
+        1
     }
 }
 
@@ -345,7 +353,12 @@ impl Jobs {
                 return 2;
             }
         }
-        1
+        let Some(mut work) = self.works.remove(&id) else {
+            return 1;
+        };
+        let r = host.resume(&mut work, citizen);
+        self.works.insert(id, work);
+        r
     }
 
     /// `FUN_1400fdaf0`: offer one work by id, with a second try when the first answers

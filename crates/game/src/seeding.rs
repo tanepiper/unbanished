@@ -65,6 +65,10 @@ pub struct Template {
     /// InteractDescription "build" points in model space (category 1): where builders stand
     /// and materials are delivered.
     pub build_points: Vec<[f32; 3]>,
+    /// The "use" points' yaws (degrees), and the "create" points (category 2) where a
+    /// workplace leaves its output.
+    pub use_yaws: Vec<f32>,
+    pub create_points: Vec<[f32; 3]>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -852,6 +856,8 @@ mod tests {
             pile_material: None,
             pile_yield: (0, 0),
             build_points: Vec::new(),
+            use_yaws: Vec::new(),
+            create_points: Vec::new(),
         }
     }
 

@@ -397,6 +397,74 @@ For each carried material, it reuses a storage already chosen that takes it, or 
 stack ends with a DropOffRawMaterial without a target (its redirect search is not ported), and
 the citizen's job resets.
 
+## Production (`ResourceProduceComponent`, `ConsumeProduce` work)
+
+The wood cutter, blacksmith, tailor, tavern, quarry and mine hold a ConsumeProduceComponent
+(a ResourceProduceComponent, constructor `FUN_14011e520`) and a `ConsumeProduceDescription`
+(serializer `FUN_14011e5b0`; data in [SHIPPED-PRODUCTION-RECIPES.md](SHIPPED-PRODUCTION-RECIPES.md)).
+Setup `FUN_14011e3c0`: the selector `+0x50` from the description's `+0x4c`, one weight 1.0 per
+recipe (`+0x58`). `FUN_14011e940` returns a nonnegative selector, or for −1 the first recipe whose
+cumulative weight passes `RandFloat × total`.
+
+**States** (`FUN_140130700`): state 2 enter (`FUN_140130680`) asks for 0xd, or 0xe while switched
+off (`+0x48`), returning false; the 2 → 0xd transition (`FUN_140130460`) makes every "create"
+point's cell empty ground. 0xd enter (`FUN_140130330`): switched off → 0xe; otherwise register
+the work (slot `+0x90` `FUN_14011e1d0`, `FUN_140134130(…, 1, 0, …)`: mask 1, no kept priority) and
+enable the workplace. 0xe enter (`FUN_1401301f0`): remove the work, disable the workplace (its
+workers leave). `FUN_1401307e0` switches off and asks for 0xe; `FUN_1401309f0`/`FUN_140130a70`
+are the UI's state queries.
+
+**The work** (vtable `0x140167640`, constructor `FUN_1400ee6d0`): one worker slot per "use"
+interact point (`+0x58`), one state per "create" point (`+0x68`: 0 free, 1 under way, 2 holds
+output), `+0x48` full, `+0x4c` cycles. Profession: the workplace's (slot `+0x50`).
+
+Try (`FUN_1400ecd10`), for a worker of that profession:
+
+1. Select the recipe. The stock limit (manager `+0x170` slot of the recipe's group,
+   `count >= limit`; any group while selecting at random) or an exhausted lifetime
+   (`FUN_14011e870`: `produced < +0x48` unless −1; the mine and quarry, 2000) → not now
+   (exhausted: switch off).
+2. A free slot from `Rand(slots)` onwards.
+3. Each item in the building's storage that the recipe neither uses nor makes: carry what fits
+   (none → drop-off activity) to a storage that takes it (`FUN_140092a60` put, excluding the
+   building), CompleteTask after the pickup (`FUN_1400c4c60` flags 0,1,0,0).
+4. Each input short in the building: from a storage holding it, empty-handed, as much as the
+   worker carries (`FUN_1400c4c60` count −1, partial, CompleteTask after the delivery);
+   otherwise the drop-off activity.
+5. Create points: a point holding output (2) whose cell is empty again is free. All free →
+   not full; none free → full. With a free point, not full and every input present: work.
+   Otherwise each create point's pile is offered (`FUN_1400fdaf0`): the worker hauls the output
+   away; if none is taken and a point is free, work when the inputs are present.
+6. Work (`FUN_1400c4440`): when `+0x4c >= cycles` (description `+0x40`) this cycle produces
+   (`+0x4c −= cycles`, component `+0x68` + 1, the create point → 1). The stack, in execution
+   order: ShowTool(work type), MoveTo the use point (walk 2, or 3 for types 2–3, 1 above 7),
+   ConsumeRawMaterial of the inputs (producing; selected again), PerformWork (anim
+   `type + 9` below 11 else 8, `+0x44` seconds, uses the tool), ShowTool(−1), the description's
+   message (`+0x38/+0x3c`, producing), CreateRawMaterial (producing), CompleteTask with
+   `(producing ? 0x8000) | (point | 0x100) << 8 | slot`.
+
+Complete (`FUN_1400ecc90`): the slot frees; bit 15 marks the point as holding output; bit 16 adds
+a cycle. Fail (`FUN_1400ecc50`): the same without the cycle. Refresh (`FUN_1400eca00`): workers
+that lost the task free their slot; then points under way that no remaining worker's task names
+(it reads `(param >> 4) & 0xf`) become "holds output". Cancel (`FUN_1400ee400`): every worker's
+stack is cleared.
+
+CreateRawMaterial (`FUN_1400cc010`): the output's yield (RawMaterialDescription `+0x40`, or
+`+0x44` for an educated worker) × 1.0, in piles of at most the worker's capacity / unit
+weight, on the create point's cell or, once it holds something, the nearest free ground
+(`FUN_1400a1210`: rings 0..=6, no object or occupant, not water or road, type mask 4), each
+turned `RandTol(2) × 90°`; then the stock's production counter and the workplace's tracker
+(`FUN_14008e3c0`) and AutoPickupComponent. The piles' Pickup works let laborers carry them to
+storage. `FUN_14008e460` maps a raw material's flags to the manager slot.
+
+Port: `crates/game/src/produce.rs`; `jobs::WorkHost::resume` continues a try after its pile
+offers (the original offers inline). Verified by `placement_tool::construction_tests::
+cutter_yard_makes_firewood` (seed 1234, Medium, firewood limit raised): built at step 6978, the
+cutter fetches logs, the first firewood pile appears at 8730 and is hauled away at 9432. Not
+ported: status icon bits 2/3, the production counter and tracker, AutoPickup, the description's
+message (the quarry), a StorageLocationComponent's drop point (the tavern), the production UI
+(ConsumeProduceUI recipe choice, work button, limit editing).
+
 ## Removal tools (`RemovalTool : DragTool`, vtable `0x140168200`)
 
 The toolbar's Harvest Trees, Harvest Stone, Harvest Iron, Clear Resources, Remove Roads, Remove

@@ -342,3 +342,43 @@ fn removal_descriptions_parse() {
     assert_eq!(clear.mask, 0x14);
     assert!(!clear.override_occupant);
 }
+
+/// Every shipped ConsumeProduceDescription parses completely (docs/SHIPPED-PRODUCTION-RECIPES.md).
+#[test]
+fn consume_produce_descriptions_parse() {
+    use banished_formats::{crc::type_id, crs, game::consume_produce_description};
+    let Some(archive) = archive() else { return };
+    let mut found = Vec::new();
+    for name in archive.names() {
+        if !name.ends_with(".crs") {
+            continue;
+        }
+        let bytes = archive.read(name).unwrap();
+        if crs::header(&bytes).unwrap().type_id == type_id("ConsumeProduceDescription") {
+            let d = consume_produce_description(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+            found.push((name.to_string(), d));
+        }
+    }
+    assert_eq!(found.len(), 6);
+    let cutter = &found
+        .iter()
+        .find(|(n, _)| n.contains("CutterYard"))
+        .unwrap()
+        .1;
+    assert_eq!(cutter.recipes.len(), 1);
+    assert_eq!(cutter.recipes[0].inputs.len(), 1);
+    assert_eq!(cutter.recipes[0].inputs[0].1, 1);
+    assert_eq!(cutter.recipes[0].group, 3);
+    assert_eq!(
+        (cutter.cycles, cutter.duration, cutter.lifetime),
+        (1, 4.0, -1)
+    );
+    let tavern = &found.iter().find(|(n, _)| n.contains("Tavern")).unwrap().1;
+    assert_eq!(tavern.recipes.len(), 7);
+    let mine = &found
+        .iter()
+        .find(|(n, _)| n.contains("IronMine"))
+        .unwrap()
+        .1;
+    assert_eq!((mine.cycles, mine.work_type, mine.lifetime), (60, 1, 2000));
+}

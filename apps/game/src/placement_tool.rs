@@ -478,4 +478,125 @@ mod construction_tests {
         assert!(done_at.is_some(), "the house was not built");
         assert!(town.construction.claimed_resources.is_empty());
     }
+
+    /// A wood cutter near the start is built, two woodcutters take the ConsumeProduce work:
+    /// they fetch logs into the yard, work cycles and leave firewood piles that laborers haul to
+    /// storage.
+    #[test]
+    fn cutter_yard_makes_firewood() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool = PlacementTool::start(
+            &archive,
+            &mut town,
+            r"Template\CutterYard.rsc:resource",
+            &mut rng,
+        )
+        .unwrap();
+        let spot = tool.find_clear_spot(&town, &terrain, town.start);
+        tool.hover(&town, &terrain, spot, 0);
+        let id = tool.place(&archive, &mut town, 0).unwrap();
+        let p = &town.construction.professions;
+        let builder = p.builder;
+        let cutter = p
+            .list
+            .iter()
+            .position(|p| p.reference.to_ascii_lowercase().ends_with(":cutter"))
+            .expect("no cutter profession");
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 2,
+            });
+        let firewood = town
+            .materials
+            .iter()
+            .position(|m| m.reference.contains("Firewood"));
+        let mut warnings = banished_game::events::StockWarnings::default();
+        // The Medium start holds the default firewood limit (200) already: raise it, as the
+        // yard's limit control would.
+        warnings.limits[3] = 1000;
+        let dt = 1.0 / 30.0;
+        let (mut built_at, mut first_pile, mut stored_at) = (None, None, None);
+        let mut logs_before = None;
+        let mut seen = std::collections::BTreeSet::new();
+        for step in 0..30 * 60 * 12 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            if built_at.is_none() && town.construction.sites[&id].complete {
+                built_at = Some(step);
+                let stocked = stock_table(&town.registered_storages(), &town.materials);
+                logs_before = Some(stocked[0]);
+                town.construction
+                    .commands
+                    .push(banished_game::professions::Command::SetCount {
+                        profession: cutter,
+                        count: 2,
+                    });
+            }
+            let piles: Vec<usize> = town
+                .construction
+                .piles
+                .iter()
+                .filter(|(_, p)| Some(p.material) == firewood)
+                .map(|(&e, _)| e)
+                .collect();
+            if first_pile.is_none() && !piles.is_empty() {
+                first_pile = Some(step);
+            }
+            seen.extend(piles.iter().copied());
+            if seen.iter().any(|e| !piles.contains(e)) {
+                stored_at = Some(step);
+                break;
+            }
+        }
+        let site = &town.construction.sites[&id];
+        eprintln!(
+            "built {built_at:?}, first firewood pile {first_pile:?}, stored {stored_at:?}, \
+             state {} produced {:?}, yard {:?}",
+            site.machine.state,
+            site.produce.as_ref().map(|p| p.produced),
+            town.storages[site.storage].items
+        );
+        assert!(built_at.is_some(), "the yard was not built");
+        assert!(first_pile.is_some(), "no firewood was made");
+        assert!(stored_at.is_some(), "no firewood pile was hauled away");
+        let after = stock_table(&town.registered_storages(), &town.materials);
+        assert!(after[0] < logs_before.unwrap(), "no logs were used");
+    }
 }

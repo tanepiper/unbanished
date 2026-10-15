@@ -23,6 +23,7 @@ pub mod noise;
 pub mod pathfind;
 pub mod picking;
 pub mod placement;
+pub mod produce;
 pub mod professions;
 pub mod random;
 pub mod scheduler;

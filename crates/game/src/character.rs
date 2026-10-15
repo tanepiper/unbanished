@@ -58,6 +58,9 @@ pub enum Component {
     NaturalResource,
     /// A RawMaterialComponent pile: 0 picked up (PickupRawMaterial start).
     Pile,
+    /// CreateRawMaterial's start (`FUN_1400cc010`): `a` the output template, `b` the cell,
+    /// `entity` the workplace.
+    CreateRawMaterial,
 }
 
 /// A message an action delivered (slot `+0x78` of the receiving component). The owner
@@ -505,6 +508,15 @@ pub enum Action {
     PickupPile {
         entity: usize,
     },
+    /// `CreateRawMaterial` (vtable `0x140166130`, constructor `FUN_1400cc670`, start
+    /// `FUN_1400cc010`): leave the output as piles near `cell`, `batch` weight each (the
+    /// worker's capacity).
+    CreateRawMaterial {
+        template: usize,
+        cell: i32,
+        batch: i32,
+        workplace: Option<usize>,
+    },
     /// `DropOffRawMaterial` (vtable `0x1401661a0`, start `FUN_1400cc7d0`): move up to `count`
     /// carried units into `storage`.
     DropOff {
@@ -573,6 +585,21 @@ impl Action {
                     entity: Some(*entity),
                     a: *flag as i32,
                     b: 0,
+                });
+                Status::Done
+            }
+            Action::CreateRawMaterial {
+                template,
+                cell,
+                workplace,
+                ..
+            } => {
+                world.messages.push(Message {
+                    component: Component::CreateRawMaterial,
+                    message: 0,
+                    entity: *workplace,
+                    a: *template as i32,
+                    b: *cell,
                 });
                 Status::Done
             }
@@ -723,7 +750,9 @@ impl Action {
                 }
             }
             // The base update returns 0.
-            Action::RemoveResource { .. } | Action::PickupPile { .. } => Status::Done,
+            Action::RemoveResource { .. }
+            | Action::PickupPile { .. }
+            | Action::CreateRawMaterial { .. } => Status::Done,
             Action::SendMessage(_)
             | Action::ConsumeStoredRawMaterial { .. }
             | Action::PickupStoredRawMaterial { .. }

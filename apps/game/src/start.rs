@@ -128,6 +128,8 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         has_interact: false,
         use_points: Vec::new(),
         build_points: Vec::new(),
+        use_yaws: Vec::new(),
+        create_points: Vec::new(),
         pile: None,
         pile_material: None,
         pile_yield: (0, 0),
@@ -229,6 +231,13 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                 };
                 t.use_points = points(0);
                 t.build_points = points(1);
+                t.create_points = points(2);
+                t.use_yaws = list.as_ref().map_or(Vec::new(), |l| {
+                    banished_formats::game::interaction_points(l, 0)
+                        .iter()
+                        .map(|p| p.yaw)
+                        .collect()
+                });
             }
             "createplaced" => {
                 t.size = create_placed_description(&data)
@@ -935,6 +944,40 @@ impl StartingTown {
                 }
                 "residence" => t.controllers.push(Controller::Residence),
                 "clearresource" => t.controllers.push(Controller::ClearResource),
+                "consumeproduce" => {
+                    let Ok(d) = banished_formats::game::consume_produce_description(&data) else {
+                        continue;
+                    };
+                    t.controllers.push(Controller::ResourceProduce);
+                    let mut recipes = Vec::new();
+                    for r in &d.recipes {
+                        let mut inputs = Vec::new();
+                        for (m, n) in &r.inputs {
+                            let m = m
+                                .as_deref()
+                                .and_then(|m| material_index(archive, &mut self.materials, m))?;
+                            inputs.push((m, *n));
+                        }
+                        let out = r.output.as_deref()?;
+                        let output = self.load_template(archive, out)?;
+                        let output_material = self.templates[output].pile_material?;
+                        recipes.push(banished_game::construction::Recipe {
+                            inputs,
+                            output,
+                            output_material,
+                            group: r.group,
+                        });
+                    }
+                    t.produce = Some(banished_game::construction::ProduceTemplate {
+                        recipes,
+                        cycles: d.cycles,
+                        work_type: d.work_type,
+                        message: (d.message_type, d.message_value),
+                        duration: d.duration,
+                        lifetime: d.lifetime,
+                        selector: d.selector,
+                    });
+                }
                 "work" => {
                     if let Ok(w) = banished_formats::game::work_description(&data) {
                         t.max_workers = w.max_workers;
@@ -1004,6 +1047,16 @@ impl StartingTown {
                 complete: false,
                 clear_total: 0,
                 destroyed: false,
+                // `FUN_14011e3c0`: the selector from the description, every weight 1.
+                produce: t
+                    .produce
+                    .as_ref()
+                    .map(|p| banished_game::construction::ProduceState {
+                        disabled: false,
+                        selector: p.selector,
+                        weights: vec![1.0; p.recipes.len()],
+                        produced: 0,
+                    }),
             },
         );
         self.construction.placed.push(entity);

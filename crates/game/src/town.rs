@@ -28,6 +28,21 @@ use crate::terrain::HeightGrid;
 /// `0x2001`: the construction works' registration mask (category 13).
 pub const CONSTRUCTION_MASK: u32 = 0x2001;
 
+/// [`Sim::haul`]'s endpoints and flags.
+pub(crate) struct Haul {
+    pub target_entity: usize,
+    pub target_storage: usize,
+    pub target: [f32; 3],
+    pub source_storage: usize,
+    pub source_entity: usize,
+    pub source: [f32; 3],
+    pub material: usize,
+    pub amount: i32,
+    pub param: i32,
+    pub partial: bool,
+    pub complete_on_pickup: bool,
+}
+
 /// The world the citizens' update borrows (everything but the citizens themselves).
 pub struct Env<'a, 't> {
     pub cells: &'a mut Cells,
@@ -79,6 +94,8 @@ pub struct Sim<'s, 't> {
     pub models_dirty: &'s mut bool,
     /// Works a ClearArea try asked the manager to offer ([`WorkHost::take_offers`]).
     pub offers: Vec<i32>,
+    /// A ConsumeProduce try waiting on its pile offers ([`WorkHost::resume`]).
+    pub(crate) produce_resume: Option<crate::produce::ProduceResume>,
 }
 
 /// `FUN_14012e950`: a pile's work category mask from its material's flags.
@@ -146,7 +163,7 @@ fn cell_ground(size: usize, terrain: &HeightGrid, cell: i32) -> [f32; 3] {
 }
 
 impl Sim<'_, '_> {
-    fn cell_of(&self, p: [f32; 3]) -> i32 {
+    pub(crate) fn cell_of(&self, p: [f32; 3]) -> i32 {
         let n = self.size as i32;
         let half = (n >> 1) as f32;
         let x = ((p[0] + half) as i32).clamp(0, n - 1);
@@ -154,7 +171,7 @@ impl Sim<'_, '_> {
         n * y + x
     }
 
-    fn citizen_cell(&self, c: usize) -> i32 {
+    pub(crate) fn citizen_cell(&self, c: usize) -> i32 {
         self.cell_of(self.characters[c].position)
     }
 
@@ -170,7 +187,7 @@ impl Sim<'_, '_> {
         }
     }
 
-    fn reachable(&self, a: i32, b: i32) -> bool {
+    pub(crate) fn reachable(&self, a: i32, b: i32) -> bool {
         self.town().reachable(WALKABLE, a, b)
     }
 
@@ -194,7 +211,7 @@ impl Sim<'_, '_> {
     }
 
     /// An entity's model-space point in the world (`ModelComponent` transform).
-    fn world_point(&self, entity: usize, local: [f32; 3]) -> [f32; 3] {
+    pub(crate) fn world_point(&self, entity: usize, local: [f32; 3]) -> [f32; 3] {
         let p = &self.placed[entity];
         let (s, c) = p.yaw.to_radians().sin_cos();
         [
@@ -217,7 +234,7 @@ impl Sim<'_, '_> {
     }
 
     /// The point `FUN_1400c7e70` faces: the model's position, else the map-rectangle centre.
-    fn facing_centre(&self, entity: usize) -> [f32; 3] {
+    pub(crate) fn facing_centre(&self, entity: usize) -> [f32; 3] {
         let p = &self.placed[entity];
         if self.templates[p.template].model.is_some() {
             p.position
@@ -230,7 +247,7 @@ impl Sim<'_, '_> {
     }
 
     /// `Work +0x28`: the owner's map-rectangle centre cell.
-    fn rect_cell(&self, entity: usize) -> i32 {
+    pub(crate) fn rect_cell(&self, entity: usize) -> i32 {
         let p = &self.placed[entity];
         let n = self.size as i32;
         (p.cell.1 + (p.footprint.1 >> 1)) * n + (p.footprint.0 >> 1) + p.cell.0
@@ -258,7 +275,7 @@ impl Sim<'_, '_> {
 
     /// `FUN_1400ca8d0` on a citizen: abort everything; aborted CompleteTasks of `current` go
     /// straight to its fail slot, the others to the manager's queue.
-    fn clear_citizen(&mut self, c: usize, mut current: Option<&mut Work>) {
+    pub(crate) fn clear_citizen(&mut self, c: usize, mut current: Option<&mut Work>) {
         let groups = self.groups;
         let Some(group) = groups.get(c).copied().flatten() else {
             return;
@@ -282,7 +299,7 @@ impl Sim<'_, '_> {
         }
     }
 
-    fn push(&mut self, c: usize, action: Action) {
+    pub(crate) fn push(&mut self, c: usize, action: Action) {
         let groups = self.groups;
         let Some(group) = groups.get(c).copied().flatten() else {
             return;
@@ -293,7 +310,7 @@ impl Sim<'_, '_> {
         ch.stack = stack;
     }
 
-    fn on_empty_think(&mut self, c: usize) {
+    pub(crate) fn on_empty_think(&mut self, c: usize) {
         self.characters[c]
             .stack
             .set_on_empty(vec![Action::SendMessage(Message {
@@ -306,7 +323,14 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_1400cebf0`: PerformWork, slower without a tool when it uses one.
-    fn perform(&self, c: usize, facing: f32, anim: usize, secs: f32, tool: bool) -> Action {
+    pub(crate) fn perform(
+        &self,
+        c: usize,
+        facing: f32,
+        anim: usize,
+        secs: f32,
+        tool: bool,
+    ) -> Action {
         let mut duration = ticks(secs);
         if tool && self.states[c].tool_uses < 1 {
             duration = ticks(seconds(duration) * self.rules.no_tool_factor);
@@ -321,7 +345,7 @@ impl Sim<'_, '_> {
     }
 
     /// The writes every successful assignment makes on the citizen.
-    fn took_job(&mut self, c: usize, work: &Work) {
+    pub(crate) fn took_job(&mut self, c: usize, work: &Work) {
         let s = &mut self.states[c];
         s.health_events |= 4;
         s.job = work.id;
@@ -346,20 +370,59 @@ impl Sim<'_, '_> {
         amount: i32,
         param: i32,
     ) {
+        let site_storage = self.sites[&site].storage;
+        self.haul(
+            c,
+            work,
+            Haul {
+                target_entity: site,
+                target_storage: site_storage,
+                target,
+                source_storage,
+                source_entity,
+                source,
+                material,
+                amount,
+                param,
+                partial: false,
+                complete_on_pickup: false,
+            },
+        );
+    }
+
+    /// `FUN_1400c4c60` with its flags: `partial` (`param_11`, the pickup may take less),
+    /// `complete_on_pickup` (`param_12`, the CompleteTask follows the pickup rather than the
+    /// delivery). Not ported: `param_13` (a Citizen message) and `param_14` (tool use, faster
+    /// walk), which no ported caller sets.
+    pub(crate) fn haul(&mut self, c: usize, work: &mut Work, h: Haul) {
+        let Haul {
+            target_entity: site,
+            target_storage: site_storage,
+            target,
+            source_storage,
+            source_entity,
+            source,
+            material,
+            amount,
+            param,
+            partial,
+            complete_on_pickup,
+        } = h;
         self.clear_citizen(c, Some(work));
         self.on_empty_think(c);
         let face_target = crate::character::work_facing(self.facing_centre(site), target);
         let face_source = crate::character::work_facing(self.facing_centre(source_entity), source);
-        let site_storage = self.sites[&site].storage;
         self.push(c, self.perform(c, face_target, 7, 0.75, false));
         self.push(c, Action::ShowTool(-1));
-        self.push(
-            c,
-            Action::CompleteTask {
-                work: work.id,
-                param,
-            },
-        );
+        if !complete_on_pickup {
+            self.push(
+                c,
+                Action::CompleteTask {
+                    work: work.id,
+                    param,
+                },
+            );
+        }
         self.push(
             c,
             Action::DropOff {
@@ -373,16 +436,33 @@ impl Sim<'_, '_> {
         self.push(c, Action::move_to(walk));
         self.push(c, self.perform(c, face_source, 7, 0.75, false));
         self.push(c, Action::ShowTool(-2));
-        // `FUN_1400cf9f0` reserves at construction.
+        // `FUN_1400cf9f0` reserves at construction; without a count, as much as the citizen
+        // carries, capped at the unreserved stock.
+        let amount = if amount < 0 {
+            let carried = &self.states[c].carried;
+            (carried.capacity / self.materials[material].size.max(1))
+                .min(self.storages[source_storage].available(material))
+        } else {
+            amount
+        };
         self.storages[source_storage].reserve(material, amount);
         self.push(
             c,
             Action::PickupStoredRawMaterial {
                 storage: source_storage,
                 items: vec![(material, amount)],
-                partial: false,
+                partial,
             },
         );
+        if complete_on_pickup {
+            self.push(
+                c,
+                Action::CompleteTask {
+                    work: work.id,
+                    param,
+                },
+            );
+        }
         self.push(c, self.perform(c, face_source, 6, 0.75, false));
         let walk = MoveTo::new(source, 1, 0, WALKABLE, 0, -1.0, self.rng);
         self.push(c, Action::move_to(walk));
@@ -482,7 +562,14 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_140134130`: register a work for the site's WorkComponent, replacing any.
-    fn set_work(&mut self, jobs: &mut Jobs, entity: usize, work: Work, mask: u32, keep: bool) {
+    pub(crate) fn set_work(
+        &mut self,
+        jobs: &mut Jobs,
+        entity: usize,
+        work: Work,
+        mask: u32,
+        keep: bool,
+    ) {
         self.remove_work(jobs, entity);
         let keep = if keep {
             self.sites[&entity].work_priority
@@ -497,7 +584,7 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_140134020`: keep the priority, remove the work.
-    fn remove_work(&mut self, jobs: &mut Jobs, entity: usize) {
+    pub(crate) fn remove_work(&mut self, jobs: &mut Jobs, entity: usize) {
         let id = self.sites[&entity].work_id;
         if let Some(w) = jobs.works.get(&id) {
             self.sites.get_mut(&entity).unwrap().work_priority = Some(w.priority);
@@ -801,6 +888,39 @@ impl Callbacks for Sim<'_, '_> {
                 self.workforce.residences.push(e);
                 false
             }
+            Callback::ProduceEnter2 => {
+                let off = self.sites[&e].produce.as_ref().is_some_and(|p| p.disabled);
+                self.machine(e).request(if off { 0xe } else { 0xd });
+                false
+            }
+            Callback::ProduceClearPoints => {
+                self.produce_clear_points(e);
+                false
+            }
+            Callback::ProduceEnterD => {
+                if self.sites[&e].produce.as_ref().is_some_and(|p| p.disabled) {
+                    self.machine(e).request(0xe);
+                    return true;
+                }
+                // `FUN_140134130(work, 1, 0, …)`, then `FUN_1401350d0(1)`.
+                let work = self.produce_work(e);
+                self.set_work(jobs, e, work, 1, false);
+                if let Some(w) = self.workforce.workplaces.get_mut(&e) {
+                    w.enabled = true;
+                }
+                false
+            }
+            Callback::ProduceEnterE => {
+                // `FUN_140134020` when registered, then `FUN_1401350d0(0)`.
+                let id = self.sites[&e].work_id;
+                if id >= 0 && jobs.works.contains_key(&id) {
+                    self.remove_work(jobs, e);
+                }
+                let mut workers = self.workers();
+                self.workforce.set_enabled(&mut workers, e, false);
+                self.set_workers(&workers);
+                true
+            }
             Callback::ClearResourceEnter2 => {
                 // `FUN_1400c8370` flags the entity (`+0x40` bit 10) and queues it for the entity
                 // manager's removal.
@@ -857,6 +977,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Build(b) => b.workers.iter().copied(),
             WorkKind::Clear(_) => return self.clear_refresh(work),
             WorkKind::Pickup(_) => return self.pickup_refresh(work),
+            WorkKind::Produce(_) => return self.produce_refresh(work),
             WorkKind::Test(_) => return,
         }
         .filter(|&c| self.characters[c].stack.holds_task(id).is_none())
@@ -883,7 +1004,8 @@ impl WorkHost for Sim<'_, '_> {
                     *o = held.contains(&(k as i32));
                 }
             }
-            WorkKind::Clear(_) | WorkKind::Pickup(_) | WorkKind::Test(_) => {}
+            WorkKind::Clear(_) | WorkKind::Pickup(_) | WorkKind::Produce(_) | WorkKind::Test(_) => {
+            }
         }
         if let WorkKind::Gather(_) = work.kind {
             self.cancel(work);
@@ -899,12 +1021,20 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Build(_) => self.build_try(work, c),
             WorkKind::Clear(_) => self.clear_try(work, c, time),
             WorkKind::Pickup(_) => self.pickup_try(work, c, time),
+            WorkKind::Produce(_) => self.produce_try(work, c, time),
             WorkKind::Test(_) => 0,
         }
     }
 
     fn take_offers(&mut self) -> Vec<i32> {
         std::mem::take(&mut self.offers)
+    }
+
+    fn resume(&mut self, work: &mut Work, c: usize) -> u8 {
+        match work.kind {
+            WorkKind::Produce(_) => self.produce_resume(work, c),
+            _ => 1,
+        }
     }
 
     fn complete(&mut self, work: &mut Work, c: usize, param: i32) -> bool {
@@ -937,6 +1067,7 @@ impl WorkHost for Sim<'_, '_> {
                     p.state = 2;
                 }
             }
+            WorkKind::Produce(_) => Self::produce_complete(work, param, false),
             WorkKind::Test(_) => {}
         }
         false
@@ -968,6 +1099,7 @@ impl WorkHost for Sim<'_, '_> {
                     p.state = 0;
                 }
             }
+            WorkKind::Produce(_) => Self::produce_complete(work, param, true),
             WorkKind::Test(_) => {}
         }
     }
@@ -975,6 +1107,9 @@ impl WorkHost for Sim<'_, '_> {
     /// `FUN_1400f1950` / `FUN_1400eac70`: clear every worker's stack (their aborts leave the
     /// set through the fail slot).
     fn cancel(&mut self, work: &mut Work) {
+        if let WorkKind::Produce(_) = work.kind {
+            return self.produce_cancel(work);
+        }
         loop {
             let next = match &work.kind {
                 WorkKind::Gather(g) => g.workers.first().copied(),
@@ -992,7 +1127,7 @@ impl WorkHost for Sim<'_, '_> {
                     .get(&work.entity)
                     .filter(|p| p.state == 1)
                     .and_then(|p| p.claimer),
-                WorkKind::Test(_) => None,
+                WorkKind::Produce(_) | WorkKind::Test(_) => None,
             };
             let Some(c) = next else { return };
             self.clear_citizen(c, Some(work));
@@ -1014,7 +1149,7 @@ impl WorkHost for Sim<'_, '_> {
                         p.state = 0;
                     }
                 }
-                WorkKind::Test(_) => {}
+                WorkKind::Produce(_) | WorkKind::Test(_) => {}
             }
         }
     }
@@ -1077,7 +1212,8 @@ impl Sim<'_, '_> {
                 amount = free / size;
             }
             if amount == 0 {
-                // Not ported: the drop-off activity (`FUN_14011b330`).
+                // The drop-off activity (`FUN_14011b330`).
+                self.drop_off(c);
                 return 2;
             }
             amount = amount.min(self.storages[found.storage].available(material));
@@ -1251,7 +1387,7 @@ impl Sim<'_, '_> {
 
     /// WorkComponent `+0x30` (most workers): the WorkPlaceComponent's, else `FUN_140133a90`
     /// since nothing else sets it.
-    fn work_max(&self, e: usize) -> i32 {
+    pub(crate) fn work_max(&self, e: usize) -> i32 {
         match self.workforce.workplaces.get(&e) {
             Some(w) => w.max(),
             None => self.sites.get(&e).map_or(0, |s| {
@@ -1516,16 +1652,32 @@ impl Sim<'_, '_> {
             pt.pile_yield.0
         };
         let amount = (base as f32 * growth.min(1.0)) as i32;
-        let Some(material) = pt.pile_material else {
-            return;
-        };
-        if amount <= 0 {
+        if pt.pile_material.is_none() || amount <= 0 {
             return;
         }
+        let yaw = self.rng.rand_tol(2) as f32 * 90.0;
+        self.spawn_pile(pile_t, cell, amount, yaw, priority);
+    }
+
+    /// A RawMaterialComponent pile entity (`FUN_1400c8bf0` of a pile template, `FUN_14012ec30`
+    /// places it, turned `yaw`): stamped on its cell and activated with the next
+    /// [`Sim::activate_piles`].
+    pub(crate) fn spawn_pile(
+        &mut self,
+        pile_t: usize,
+        cell: (i32, i32),
+        amount: i32,
+        yaw: f32,
+        priority: Option<i32>,
+    ) -> usize {
+        let Some(material) = self.templates[pile_t].pile_material else {
+            return usize::MAX;
+        };
+        let pt = &self.templates[pile_t];
         let n = self.size as i32;
         let index = cell.1 * n + cell.0;
         let id = self.placed.len();
-        let mut yaw = (self.rng.rand_tol(2) as f32 * 90.0) as i32;
+        let mut yaw = yaw as i32;
         while yaw < 0 {
             yaw += 360;
         }
@@ -1565,6 +1717,7 @@ impl Sim<'_, '_> {
             },
         );
         self.new_piles.push(id);
+        id
     }
 
     /// RawMaterialComponent activation (`FUN_14012e6a0`): register each new pile's Pickup work.
@@ -1756,7 +1909,7 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_140092a60` from a cell (`put` finds a storage that takes the units).
-    fn find_storage(
+    pub(crate) fn find_storage(
         &mut self,
         material: usize,
         count: i32,
@@ -1788,6 +1941,45 @@ impl Sim<'_, '_> {
             put,
             cell,
             None,
+            &mut geometry,
+            self.rng,
+        )
+    }
+
+    /// [`Sim::find_storage`] passing over `exclude`'s own storage.
+    pub(crate) fn find_storage_excluding(
+        &mut self,
+        material: usize,
+        count: i32,
+        put: bool,
+        cell: i32,
+        exclude: usize,
+    ) -> Option<crate::stock::StorageMatch> {
+        let town = TownView {
+            size: self.size,
+            types: &self.cells.types,
+            regions: self.regions,
+            occupants: &self.cells.occupants,
+            objects: &self.cells.objects,
+            entities: self.entities,
+            happiness: &[],
+        };
+        let (size, terrain) = (self.size, self.terrain);
+        let ground = move |cell: i32| cell_ground(size, terrain, cell);
+        let mut geometry = StorageGeometry {
+            town: &town,
+            sectors: self.sectors,
+            ground: &ground,
+        };
+        find_material_storage(
+            self.storage_sites,
+            self.storages,
+            self.materials,
+            material,
+            count,
+            put,
+            cell,
+            Some(exclude),
             &mut geometry,
             self.rng,
         )

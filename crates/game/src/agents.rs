@@ -224,6 +224,7 @@ impl Agents {
                 new_piles: &mut c.new_piles,
                 models_dirty: &mut c.models_dirty,
                 offers: Vec::new(),
+                produce_resume: None,
             },
             &mut c.jobs,
         )
@@ -412,6 +413,12 @@ impl Agents {
                     } else {
                         jobs.fail(m.a, i, m.b, &mut sim);
                     }
+                    jobs.drain(&mut sim);
+                }
+                Component::CreateRawMaterial => {
+                    let educated = citizens[i].education >= self.rules.education;
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    sim.create_raw_material(jobs, i, m.a.max(0) as usize, m.b, educated);
                     jobs.drain(&mut sim);
                 }
                 Component::NaturalResource => {
