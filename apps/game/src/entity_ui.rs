@@ -95,7 +95,14 @@ impl EntityWindows {
                 ui.add_child(slot, element);
             }
             if c.type_id != 0 {
-                bound.push(Controller::bind(ui, archive, c.type_id, element));
+                bound.push(Controller::bind(
+                    ui,
+                    archive,
+                    c.type_id,
+                    element,
+                    root,
+                    c.config.is_some(),
+                ));
             }
             controllers.push((c, element));
         }
@@ -158,12 +165,17 @@ impl EntityWindows {
                     .get(i)
                     .map_or((None, 0), |s| (Some(&s.carried), s.status)),
             };
+            let citizen = match w.entity {
+                Entity::Citizen(i) => citizen_info(town, i),
+                Entity::Placed(_) => None,
+            };
             let data = EntityData {
                 storage,
                 materials: &town.materials,
                 status,
                 workplace_profession: w.workplace_profession,
                 active_page,
+                citizen,
             };
             for c in &mut w.bound {
                 c.refresh(ui, archive, &data);
@@ -206,4 +218,47 @@ impl EntityWindows {
             ];
         }
     }
+}
+
+/// The values CitizenUI (`FUN_140065440`) shows for citizen `i`.
+fn citizen_info(town: &StartingTown, i: usize) -> Option<crate::building_ui::CitizenInfo> {
+    let c = town.citizens.get(i)?;
+    let s = town.agents.states.get(i)?;
+    let ai = town.agents.ais.get(i)?;
+    let rules = town.agents.rules();
+    let child = c.age < town.rules.adult_age || c.school.is_some();
+    // Inferred from the resource names: ProfessionList `+0x40` child, `+0x48` student; adults
+    // show their profession (`+0x1f0`), laborer until professions are assigned.
+    let key = if !child {
+        "laborer"
+    } else if c.school.is_some() {
+        "student"
+    } else {
+        "child"
+    };
+    let profession = town
+        .profession(key)
+        .map(|p| (p.string_table.clone(), p.name.clone()));
+    let tool = if s.tool_uses < 1 {
+        0
+    } else {
+        i32::from(s.tool_status != rules.tool_grade) + 1
+    };
+    // Not ported: activity 9 shows 16 ("picking up resources") when the job's workplace is not
+    // the citizen's work (`FUN_1400fef30`); there are no jobs yet.
+    Some(crate::building_ui::CitizenInfo {
+        name: c.name.clone(),
+        male: c.male,
+        age: c.age,
+        educated: c.education >= town.rules.education,
+        clothing: s.clothing,
+        tool,
+        profession,
+        health: s.health,
+        health_max: rules.health_max,
+        happiness: s.happiness,
+        happiness_max: rules.happiness,
+        activity: ai.current as i32,
+        has_work: s.work.is_some() || c.school.is_some(),
+    })
 }

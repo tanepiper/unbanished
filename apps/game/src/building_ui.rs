@@ -15,6 +15,7 @@ pub const STORAGE_UI: u32 = 0x6186b6a4;
 pub const STORAGE_CAPACITY_UI: u32 = 0x3061173b;
 pub const WORKPLACE_UI: u32 = 0xbdb788dc;
 pub const STATUS_ICON_UI: u32 = 0xdf3a1bb2;
+pub const CITIZEN_UI: u32 = 0x03e455a9;
 pub const BUILD_UI: u32 = 0x293e60a1;
 pub const DESTROY_UI: u32 = 0x2e56a4c8;
 
@@ -28,6 +29,32 @@ pub struct EntityData<'a> {
     pub workplace_profession: bool,
     /// Host `pages` active page (StatusIconUI shows icons only on pages 2 and 3).
     pub active_page: usize,
+    pub citizen: Option<CitizenInfo>,
+}
+
+/// What CitizenUI's refresh (`FUN_140065440`) reads from the Citizen and CitizenAI components.
+#[derive(Debug, Clone)]
+pub struct CitizenInfo {
+    /// `+0x28`, `+0x38`, `+0x3c`.
+    pub name: String,
+    pub male: bool,
+    pub age: f32,
+    /// `+0x210 >= D+0x118`.
+    pub educated: bool,
+    /// `+0x1e4`: index into `Dialog\StringTable.rsc:clothing`.
+    pub clothing: i32,
+    /// 0 none, 1 iron, 2 steel (`+0xac`, `+0xa8` vs `D+0x110`).
+    pub tool: i32,
+    /// Profession shown: `(string table, key)`.
+    pub profession: Option<(Option<String>, String)>,
+    pub health: f32,
+    pub health_max: f32,
+    pub happiness: f32,
+    pub happiness_max: f32,
+    /// CitizenAI `+0x28`, or 16 while working away from the citizen's workplace.
+    pub activity: i32,
+    /// Profession button enabled (`+0x248` work or `+0x208` school).
+    pub has_work: bool,
 }
 
 fn text_of(ui: &Ui, id: NodeId) -> String {
@@ -238,8 +265,9 @@ impl WorkPlaceUi {
 }
 
 /// `StatusIconUI` (vtable `0x140163cd0`): bind `FUN_140080740` caches the `icons` children;
-/// refresh `FUN_140080570` shows icon `i` when status bit `i` is set and the host shows page 2
-/// or 3 (unless the controller config's `+0x20` flag is set).
+/// refresh `FUN_140080570` shows icon `i` when status bit `i` is set. Only a controller with a
+/// config (`+0x10`) whose `+0x20` flag is clear additionally requires the host page to be 2 or 3;
+/// the shipped entity hosts attach StatusIconUI without a config.
 pub struct StatusIconUi {
     icons: Vec<NodeId>,
     always: bool,
@@ -263,23 +291,127 @@ impl StatusIconUi {
     }
 }
 
+/// `CitizenUI` (vtable `0x140161b30`): bind `FUN_140065b00`, refresh `FUN_140065440`, close
+/// `FUN_140065a90`, events `FUN_140065a50`.
+pub struct CitizenUi {
+    male: Option<NodeId>,
+    female: Option<NodeId>,
+    name: Option<(NodeId, String)>,
+    age: Option<NodeId>,
+    profession: Option<NodeId>,
+    educated_yes: Option<NodeId>,
+    educated_no: Option<NodeId>,
+    clothing: Option<NodeId>,
+    tool: Option<NodeId>,
+    name_is: Option<(NodeId, String)>,
+    action: Option<NodeId>,
+    hearts: Option<NodeId>,
+    stars: Option<NodeId>,
+    /// Host buttons (element ids 0x227, 0x226, 0x228).
+    button_profession: Option<NodeId>,
+}
+
+impl CitizenUi {
+    pub fn bind(ui: &Ui, element: NodeId, root: NodeId) -> CitizenUi {
+        let f = |n: &str| ui.find(element, n);
+        let param = |n: &str| f(n).map(|id| (id, text_of(ui, id)));
+        CitizenUi {
+            male: f("imageMale"),
+            female: f("imageFemale"),
+            name: param("textName"),
+            age: f("numberAge"),
+            profession: f("textProfession"),
+            educated_yes: f("textEducatedYes"),
+            educated_no: f("textEducatedNo"),
+            clothing: f("textClothing"),
+            tool: f("textTool"),
+            name_is: param("textNameIs"),
+            action: f("textAction"),
+            hearts: f("groupHearts"),
+            stars: f("groupStars"),
+            button_profession: ui.find(root, "buttonProfession"),
+        }
+    }
+
+    pub fn refresh(&self, ui: &mut Ui, data: &EntityData) {
+        let Some(c) = &data.citizen else { return };
+        let show = |ui: &mut Ui, n: Option<NodeId>, v: bool| {
+            if let Some(n) = n {
+                ui.set_visible(n, v);
+            }
+        };
+        show(ui, self.female, !c.male);
+        show(ui, self.male, c.male);
+        show(ui, self.educated_no, !c.educated);
+        show(ui, self.educated_yes, c.educated);
+        for (id, template) in [&self.name, &self.name_is].into_iter().flatten() {
+            ui.set_text(*id, &template.replace("@0", &c.name));
+        }
+        // `DAT_140178898` = 5.
+        if let Some(n) = self.age {
+            ui.set_value(n, (c.age * 5.0) as i32 as f32);
+        }
+        if let Some(n) = self.clothing {
+            let t = ui
+                .res
+                .string_at(r"Dialog\StringTable.rsc:clothing", c.clothing);
+            ui.set_text(n, &t);
+        }
+        if let Some(n) = self.tool {
+            let t = ui.res.string_at(r"Dialog\StringTable.rsc:toolType", c.tool);
+            ui.set_text(n, &t);
+        }
+        if let (Some(n), Some((table, key))) = (self.profession, &c.profession) {
+            let t = ui.res.string(table.as_deref(), key);
+            ui.set_text(n, &t);
+        }
+        crate::utility::StatusBar::set_meter(ui, self.hearts, c.health, c.health_max);
+        crate::utility::StatusBar::set_meter(ui, self.stars, c.happiness, c.happiness_max);
+        if let Some(b) = self.button_profession {
+            ui.node_mut(b).enabled = c.has_work;
+        }
+        if let Some(n) = self.action {
+            let t = ui
+                .res
+                .string_at(r"Dialog\StringTable.rsc:citizenActions", c.activity);
+            ui.set_text(n, &t);
+        }
+    }
+}
+
 pub enum Controller {
+    Citizen(CitizenUi),
     Storage(StorageUi),
     Capacity(StorageCapacityUi),
     WorkPlace(WorkPlaceUi),
     StatusIcon(StatusIconUi),
     /// Attached, refresh not ported (logged once with its id).
+    #[allow(dead_code)]
     Pending(u32),
 }
 
 impl Controller {
-    pub fn bind(ui: &mut Ui, archive: &Archive, type_id: u32, element: NodeId) -> Controller {
+    pub fn bind(
+        ui: &mut Ui,
+        archive: &Archive,
+        type_id: u32,
+        element: NodeId,
+        root: NodeId,
+        has_config: bool,
+    ) -> Controller {
         let bound = match type_id {
+            CITIZEN_UI => Some(Controller::Citizen(CitizenUi::bind(ui, element, root))),
             STORAGE_UI => StorageUi::bind(ui, element, archive).map(Controller::Storage),
             STORAGE_CAPACITY_UI => StorageCapacityUi::bind(ui, element).map(Controller::Capacity),
             WORKPLACE_UI => Some(Controller::WorkPlace(WorkPlaceUi { element })),
-            // The config `+0x20` flag is not traced for shipped configs; entity hosts have none.
-            STATUS_ICON_UI => StatusIconUi::bind(ui, element, false).map(Controller::StatusIcon),
+            // Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
+            // Not ported: BuildUI (FUN_1400b7410/FUN_1400b6f20) and DestroyUI
+            // (FUN_140066ab0/FUN_140066460) read the StateMachine (`+0x50/+0x52`, 6/7 damaged or
+            // destroyed), Build and Destroy components, which arrive with construction.
+            BUILD_UI | DESTROY_UI => None,
+            STATUS_ICON_UI => {
+                StatusIconUi::bind(ui, element, !has_config).map(Controller::StatusIcon)
+            }
             _ => None,
         };
         bound.unwrap_or_else(|| {
@@ -290,6 +422,7 @@ impl Controller {
 
     pub fn refresh(&mut self, ui: &mut Ui, archive: &Archive, data: &EntityData) {
         match self {
+            Controller::Citizen(c) => c.refresh(ui, data),
             Controller::Storage(c) => c.refresh(ui, archive, data),
             Controller::Capacity(c) => c.refresh(ui, data),
             Controller::WorkPlace(c) => c.refresh(ui, data),

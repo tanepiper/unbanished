@@ -73,3 +73,26 @@
 140003110	Entity::GetComponentByType
 1400a9d50	Names::Candidate	docs/TOWN-NAME-DATABASE.md
 1400aa000	Names::Generate	docs/TOWN-NAME-DATABASE.md
+1400bdcf0	StorageUI::Bind	docs/BUILDING-WINDOWS.md
+1400bd920	StorageUI::Refresh	docs/BUILDING-WINDOWS.md
+1400bd840	StorageUI::NameLess	docs/BUILDING-WINDOWS.md
+140021d50	StorageUI::SortRows	docs/BUILDING-WINDOWS.md
+140080ad0	StorageCapacityUI::Bind	docs/BUILDING-WINDOWS.md
+1400809a0	StorageCapacityUI::Refresh	docs/BUILDING-WINDOWS.md
+14008ce10	WorkPlaceUI::Bind	docs/BUILDING-WINDOWS.md
+14008c550	WorkPlaceUI::Refresh	docs/BUILDING-WINDOWS.md
+14008ccb0	WorkPlaceUI::HandleEvent	docs/BUILDING-WINDOWS.md
+140080740	StatusIconUI::Bind	docs/BUILDING-WINDOWS.md
+140080570	StatusIconUI::Refresh	docs/BUILDING-WINDOWS.md
+140066ab0	DestroyUI::Bind	docs/BUILDING-WINDOWS.md
+140066460	DestroyUI::Refresh	docs/BUILDING-WINDOWS.md
+1400669e0	DestroyUI::HandleEvent	docs/BUILDING-WINDOWS.md
+1400b7410	BuildUI::Bind	docs/BUILDING-WINDOWS.md
+1400b6f20	BuildUI::Refresh	docs/BUILDING-WINDOWS.md
+1400b7370	BuildUI::HandleEvent	docs/BUILDING-WINDOWS.md
+140065b00	CitizenUI::Bind	docs/BUILDING-WINDOWS.md
+140065440	CitizenUI::Refresh	docs/BUILDING-WINDOWS.md
+140065a50	CitizenUI::HandleEvent	docs/BUILDING-WINDOWS.md
+140065a90	CitizenUI::Close	docs/BUILDING-WINDOWS.md
+140123b60	DestroyComponent::IsDamaged	docs/BUILDING-WINDOWS.md
+1401348f0	WorkPlaceDescription::Serialize	docs/BUILDING-WINDOWS.md

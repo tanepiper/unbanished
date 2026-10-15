@@ -44,6 +44,8 @@ pub struct Resources {
     font_ids: HashMap<String, Option<FontId>>,
     pub fonts: Vec<LoadedFont>,
     tables: HashMap<String, Rc<HashMap<String, String>>>,
+    /// The same tables in serialized order, for index lookups.
+    ordered: HashMap<String, Rc<Vec<(String, String)>>>,
 }
 
 impl Resources {
@@ -56,6 +58,7 @@ impl Resources {
             font_ids: HashMap::new(),
             fonts: Vec::new(),
             tables: HashMap::new(),
+            ordered: HashMap::new(),
         }
     }
 
@@ -141,6 +144,29 @@ impl Resources {
             });
         self.font_ids.insert(reference.to_string(), id);
         id
+    }
+
+    /// `UI::String(table, index)`: entry `index` of a string table in serialized order
+    /// (`StringTable::GetIndexFromName` searches that order). Empty when out of range.
+    pub fn string_at(&mut self, table: &str, index: i32) -> String {
+        let list = match self.ordered.get(table) {
+            Some(l) => l.clone(),
+            None => {
+                let l = Rc::new(
+                    self.archive
+                        .read_ref(table)
+                        .and_then(|d| ui::string_table(&d))
+                        .unwrap_or_default(),
+                );
+                self.ordered.insert(table.to_string(), l.clone());
+                l
+            }
+        };
+        usize::try_from(index)
+            .ok()
+            .and_then(|i| list.get(i))
+            .map(|(_, v)| v.clone())
+            .unwrap_or_default()
     }
 
     /// Resolve a string-table key; falls back to the key itself.

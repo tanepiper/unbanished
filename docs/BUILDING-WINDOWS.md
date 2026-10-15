@@ -1,0 +1,114 @@
+# Building and citizen windows (entity controllers)
+
+Slices C and D: the `UI::DialogController` subclasses that UIDescription attaches to an entity
+host ([SELECTION.md](SELECTION.md)). Port: `apps/game/src/building_ui.rs`, bound in
+`apps/game/src/entity_ui.rs`. Evidence: Ghidra pseudocode of the Steam x64 executable and
+Runtime DLL; `tools/triage/controller.py NAME` resolves a controller's factory and vtable.
+
+## Controllers
+
+A UIDescription controller row names its class by `CRC32(UTF-16LE name)`. Entity controllers
+share one slot layout: `+0x18` close/cleanup, `+0x20` bind (find elements), `+0x38` refresh,
+`+0x48` element events `(kind 0x12, element id)`. The port refreshes every open host each
+frame after the simulation; refresh reads only.
+
+| Id | Class | Vtable | Bind / refresh / events | Port |
+|---|---|---|---|---|
+| `0x6186b6a4` | StorageUI | `0x140165d80` | `FUN_1400bdcf0` / `FUN_1400bd920` | done |
+| `0x3061173b` | StorageCapacityUI | `0x140163d90` | `FUN_140080ad0` / `FUN_1400809a0` | done |
+| `0xbdb788dc` | WorkPlaceUI | `0x140164450` | `FUN_14008ce10` / `FUN_14008c550` / `FUN_14008ccb0` | visibility only |
+| `0xdf3a1bb2` | StatusIconUI | `0x140163cd0` | `FUN_140080740` / `FUN_140080570` | done |
+| `0x03e455a9` | CitizenUI | `0x140161b30` | `FUN_140065b00` / `FUN_140065440` / `FUN_140065a50` | done (no events) |
+| `0x293e60a1` | BuildUI | `0x140165620` | `FUN_1400b7410` / `FUN_1400b6f20` / `FUN_1400b7370` | pending |
+| `0x2e56a4c8` | DestroyUI | `0x140161c30` | `FUN_140066ab0` / `FUN_140066460` / `FUN_1400669e0` | pending |
+| `0x1701e613` | (Residence) | | | pending |
+| `0x061d5f73` | (Upgrade) | | | pending |
+
+Shipped hosts (all `Dialog\StandardDialog.rsc:entity`, page 1):
+
+- StorageBarn and StorageCart: StorageUI on `Dialog\Storage.rsc:storage`, StorageCapacityUI,
+  DestroyUI, StatusIconUI on `Dialog\Building.rsc:icons`; the barn also BuildUI and WorkPlaceUI.
+- StorageYard: StorageUI on `storageShorter`, capacity, build, destroy, icons.
+- WoodHouse: Residence, Upgrade (config `Template\WoodHouse.rsc:upgradeConfig`), StorageUI on
+  `storageShort`, build, destroy, WorkPlaceUI, icons.
+- Citizen: CitizenUI on `Dialog\Citizen.rsc:citizen`, StorageUI (carried inventory),
+  StatusIconUI on `Citizen.rsc:icons`, and the plain buttons `buttonProfession`, `buttonHome`,
+  `buttonFollow` (element ids `0x227`, `0x226`, `0x228`).
+
+## StorageUI
+
+- **Bind:** `storageTable` (else `storageTable2`) is sized for every RawMaterialDescription the
+  external factory holds: `ceil(n / columns)` rows, at least the resource's rows, every cell a
+  new instance of cell 0's element (`Dialog\Storage.rsc:storageItem`). Each cell's
+  `labelStorage` and `numberCount` are cached.
+- **Refresh:** the entity's StorageComponent items (`+0x28`, 16-byte entries of material and
+  count) with a non-zero count, sorted with the CRT qsort template (`FUN_140021d50`) by
+  `FUN_1400bd840`: localized name `<` via `System::String::operator<` → `StrCompare`, a byte
+  comparison on signed `char`. Names are unique, so the order is that total order. Each row sets
+  the label's sprite (`+0x20` sheet, `+0x30` name), text (`+0x28` table, `+0x30` key) and count;
+  unused cells hide their label and count.
+
+## StorageCapacityUI
+
+`fill = FUN_1401323e0(storage) / capacity (+0x38)` (0 without capacity) into the progress bar
+(`+0x128`) and its text parameter 0 as `%i` of `(int)(fill * 100 + 0.5)`.
+
+## WorkPlaceUI
+
+Refresh hides the whole element when the WorkPlaceComponent has no profession (`+0x48`).
+`WorkPlaceDescription` (`FUN_1401348f0`) holds two references, profession `+0x20` and `+0x28`;
+storage barns and houses have none, a school names `Profession.rsc:teacher`. With a profession
+it shows `@0 of @1` workers and the +/- buttons; events `0x1450`/`0x1451` add/remove a worker
+and `0x1452`/`0x1453` change the job count. Those need profession assignment in the simulation
+and remain pending.
+
+## StatusIconUI
+
+Bind caches the children of `icons`. Refresh shows icon `i` when bit `i` of the entity's
+StatusIconComponent `+0xf0` is set. Only a controller with a config (`+0x10`) whose `+0x20`
+byte is clear also requires the host's active page to be 2 or 3; no shipped StatusIconUI has a
+config. Citizens' bits are live (`CitizenState::status`); building bits are not ported (0).
+
+## CitizenUI
+
+Bind finds `imageMale/Female`, `textName`, `numberAge`, `textProfession`,
+`textEducatedYes/No`, `textClothing`, `textTool`, `textNameIs`, `textAction`, `groupHearts`,
+`groupStars` and, in the host, the three buttons. Refresh:
+
+| Element | Value |
+|---|---|
+| male/female image | citizen `+0x38` |
+| educated yes/no | `+0x210 >= D+0x118` |
+| name, "name is" | `@0` = `+0x28` |
+| age | `(int)(age +0x3c * 5.0)` (`DAT_140178898`) |
+| clothing | entry `+0x1e4` of `Dialog\StringTable.rsc:clothing` (Ragged, Fair, Excellent) |
+| tool | entry 0 if `+0xac < 1`, else 1 when `+0xa8 == D+0x110`, else 2, of `:toolType` (None, Iron, Steel) |
+| profession | child (`ProfessionList +0x40`) or student (`+0x48`) below adult age or at school, else `+0x1f0` |
+| hearts / stars | `FUN_14006b830(+0x50, D+0x70)` / `(+0x80, D+0xa4)`, the Status Bar meter |
+| profession button | enabled with work `+0x248` or school `+0x208` |
+| action | entry CitizenAI `+0x28` of `:citizenActions`; 9 becomes 16 ("picking up resources") when the job's workplace differs from the citizen's work |
+
+`UI::String(table, index)` is entry `index` in the table's serialized order
+(`StringTable::GetIndexFromName` searches that order linearly); `Resources::string_at` ports it.
+The child/student profession resources are matched by name (`Profession.rsc:child`,
+`:student`), inferred from the ProfessionList layout.
+
+## BuildUI and DestroyUI (pending)
+
+DestroyUI binds `progressRemove`, `progressDestruct`, `textRemove`, `textUpgrade`,
+`textDamage`, `textFixing`, `buttonReclaim`, `buttonDestroy`, `buttonRebuild`. Its refresh
+branches on the StateMachine state (`+0x52`, else `+0x50`; 6 and 7 are the damaged/destroyed
+states, `FUN_140123b60`), the storage fill, DestroyComponent progress `+0x54/+0x58` and target
+`+0x60`. Events `0x1771..0x1773` call `FUN_1401238d0`, `FUN_140123940`, `FUN_1401239a0`.
+BuildUI lists build materials (`labelStorage`, `textTotal`). Both need the StateMachine,
+Build and Destroy components, which arrive with construction.
+
+## Verification
+
+- Scripted captures (seed 1234 New Game and zoom, then `--wheel -12@10`):
+  `--click-at 450,230@10.5` shows the barn's sorted contents and live capacity; contents fall as
+  citizens fetch equipment. `--click-at 486,316@21.8` selects a citizen showing name, gender,
+  hearts/stars, age, clothing, tool, laborer, education and "is idling".
+- `tools/triage/determinism.sh 22 1234` stays identical; the controllers take no Random and
+  write no simulation state.
+- Not yet compared against original screenshots at the same view.

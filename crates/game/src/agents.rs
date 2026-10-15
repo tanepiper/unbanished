@@ -42,6 +42,8 @@ pub struct CitizenRulesAi {
     pub hunger_limit: f32,
     pub cold_limit: f32,
     pub profession_allows_idle: bool,
+    /// CitizenDescription `+0x110`: the tool type CitizenUI calls "Iron" (others are "Steel").
+    pub tool_grade: i32,
 }
 
 /// Citizen fields read/written by equipment activities and Citizen messages 1/6/7.

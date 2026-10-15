@@ -69,8 +69,10 @@ evidence; static traces are not claims of live-game behavior.
 - [x] Slice B: citizen/building/resource selection, shipped picking and highlight meshes,
   gold stencil outline, entity hosts/tabs and pin/close. 700 original-function cases and a UI
   read-only integration check; acceleration/host limits are explicit in [SELECTION.md](SELECTION.md).
-- [ ] Slices C–H: live building/citizen controller values and queued commands, status billboards,
-  Event Log/notifications, Map and full tooltip behavior. Work stopped after B at user request.
+- [x] Slices C/D (read-only parts): StorageUI, StorageCapacityUI, StatusIconUI, WorkPlaceUI
+  visibility and CitizenUI with live values. See [BUILDING-WINDOWS.md](BUILDING-WINDOWS.md).
+- [ ] Slice C/D commands and BuildUI/DestroyUI/Residence/Upgrade (need construction and
+  profession assignment); slices E–H: status billboards, Event Log/notifications, Map, tooltips.
 
 - [x] Make climate selection drive the environment controller's temperatures and weather draws.
 - [x] Seed the starting map from the selected profile: start point, structure draws, and rock, ore

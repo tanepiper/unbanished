@@ -54,7 +54,7 @@ pub struct StatusValues {
 }
 
 /// `StatusBarUI` (vtable `0x140163c40`): bound in `FUN_14007f8a0`, refreshed by `FUN_14007eda0`.
-struct StatusBar {
+pub(crate) struct StatusBar {
     title: Option<(NodeId, String)>,
     season: Option<NodeId>,
     population: Option<(NodeId, String)>,
@@ -187,7 +187,7 @@ impl StatusBar {
     }
 
     /// FUN_14006b550 binds named whole/half images; FUN_14006b830 sets their visibility.
-    fn set_meter(ui: &mut Ui, group: Option<NodeId>, value: f32, maximum: f32) {
+    pub(crate) fn set_meter(ui: &mut Ui, group: Option<NodeId>, value: f32, maximum: f32) {
         let Some(group) = group else { return };
         let icons = ui.node(group).children.clone();
         let values = banished_game::status::meter(value, maximum, icons.len());

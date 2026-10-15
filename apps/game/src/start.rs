@@ -332,6 +332,8 @@ fn households(
 }
 
 pub struct StartingTown {
+    /// Professions CitizenUI names (laborer, child, student), by resource key.
+    archive_professions: Vec<(String, banished_formats::game::Profession)>,
     pub start: (i32, i32),
     pub citizens: Vec<Citizen>,
     pub rules: CitizenRules,
@@ -442,6 +444,7 @@ impl StartingTown {
                 happiness: c.f(0xa4),
                 loiter_range: c.i(0xbc),
                 clothing_duration: c.f(0x130) * 300.0,
+                tool_grade: c.i(0x110),
                 health_max: c.f(0x70),
                 hunger_limit: c.f(0xd0),
                 cold_limit: c.f(0xf0),
@@ -471,7 +474,16 @@ impl StartingTown {
                 CHILD_SCALE
             }
         });
+        let archive_professions = ["laborer", "child", "student"]
+            .iter()
+            .filter_map(|k| {
+                read(archive, &format!("Game/Profession/Profession.rsc:{k}"))
+                    .and_then(|d| banished_formats::game::profession(&d).ok())
+                    .map(|p| (k.to_string(), p))
+            })
+            .collect();
         Some(StartingTown {
+            archive_professions,
             start,
             citizens,
             rules,
@@ -492,6 +504,14 @@ impl StartingTown {
             agents,
             ghost: None,
         })
+    }
+
+    /// `Game/Profession/Profession.rsc:<key>` (read on demand; presentation only).
+    pub fn profession(&self, key: &str) -> Option<banished_formats::game::Profession> {
+        self.archive_professions
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, p)| p.clone())
     }
 
     /// Load (or find) a template for an entity created during play.
