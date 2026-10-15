@@ -12,6 +12,7 @@ mod assets;
 mod audio_player;
 mod dialog_player;
 mod model_player;
+mod player;
 mod render;
 mod tool;
 
@@ -41,8 +42,8 @@ struct App {
     shift: bool,
 }
 
-fn audio_player() -> banished_audio::Player {
-    banished_audio::Player::default()
+fn audio_player() -> player::Player {
+    player::Player::default()
 }
 
 impl App {

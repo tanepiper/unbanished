@@ -4,7 +4,7 @@
 //! finds `Audio/Music/Menu.rsc`; Startup (`FUN_1400a0e00`) plays the music; the `MainMenuDialog`
 //! (`FUN_1400b91a0`) maps buttons to actions and adds `Dialog/BuildId.rsc`.
 
-use banished_audio::Pcm;
+use banished_audio::{PlayParams, Sound};
 use banished_ui::{Control, Event, Kind, NodeId, Ui};
 
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, Screen, View};
@@ -24,7 +24,7 @@ const MENU_MUSIC: &str = "Audio\\Music\\Menu.rsc:music";
 pub const MENU_SCENES: u32 = 10;
 
 pub struct MenuLoop {
-    music: Option<(Pcm, bool)>,
+    music: Option<Sound>,
     pub scene_index: u32,
     /// The 3D background (`Game/MenuScene/Scene%i.rsc`); `None` if it failed to load, in which
     /// case only the dialog's backdrop shows, as in the original.
@@ -407,7 +407,7 @@ impl GameLoop for MenuLoop {
             Ok(view) => self.scene = Some(view),
             Err(e) => log::error!("menu scene {}: {e}", self.scene_index),
         }
-        match banished_audio::load_sound(ctx.archive, MENU_MUSIC) {
+        match Sound::load(ctx.archive, MENU_MUSIC) {
             Ok(music) => self.music = Some(music),
             Err(e) => log::error!("menu music: {e}"),
         }
@@ -422,8 +422,8 @@ impl GameLoop for MenuLoop {
             }
         }
         self.screen = Some(screen);
-        if let Some((pcm, looping)) = self.music.clone() {
-            if let Err(e) = ctx.audio.play(pcm, looping) {
+        if let Some(music) = &self.music {
+            if let Err(e) = ctx.audio.play(music, PlayParams::default()) {
                 log::warn!("menu music: {e}");
             }
         }
@@ -431,7 +431,7 @@ impl GameLoop for MenuLoop {
 
     /// `FUN_1400a0750`: `Audio::Scene::StopAll`.
     fn shutdown(&mut self, ctx: &mut Ctx) {
-        ctx.audio.stop();
+        ctx.audio.stop_all();
     }
 
     fn update(&mut self, _ctx: &mut Ctx, dt: f32) -> Next {

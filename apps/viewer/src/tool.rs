@@ -12,8 +12,8 @@ use crate::assets::Assets;
 use crate::audio_player::AudioPlayerUi;
 use crate::dialog_player::DialogPlayerUi;
 use crate::model_player::ModelPlayerUi;
+use crate::player::Player;
 use crate::render::{Frame, GpuMesh, RenderMode, Renderer, CLEAR_DARK, CLEAR_SKY};
-use banished_audio::Player;
 
 const FONT: &str = r"Font\FontMedium.rsc:resource";
 const FONT_SMALL: &str = r"Font\FontSmall.rsc:resource";

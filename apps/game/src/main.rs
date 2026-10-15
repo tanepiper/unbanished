@@ -39,7 +39,7 @@ mod world;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use banished_audio::Player;
+use banished_audio::Device;
 use banished_formats::pkg::{Archive, Package};
 use banished_game::random::Random;
 use banished_ui::Ui;
@@ -69,7 +69,7 @@ const CLEAR: wgpu::Color = wgpu::Color {
 pub struct Game {
     archive: Rc<Archive>,
     ui: Ui,
-    audio: Player,
+    audio: Device,
     global: Option<global::GlobalData>,
     rng: Random,
     main: MainLoop,
@@ -124,7 +124,7 @@ impl Game {
         Ok(Game {
             ui: Ui::new(archive.clone()),
             archive,
-            audio: Player::default(),
+            audio: Device::default(),
             global: None,
             // `System::Random()` seeds from the clock.
             rng: Random::new(clock_seed()),
@@ -617,7 +617,7 @@ mod native {
     /// Run the boot sequence headlessly at 30 frames per second and capture one frame.
     pub fn boot_capture(args: &[String], out: &str, seconds: f32) {
         let mut game = Game::new(read_packages(&data_dir(args))).expect("game data");
-        game.audio.set_volume(0.0);
+        game.audio.set_master_volume(0.0);
         // `--capture-size WxH` matches a reference frame's resolution (default 1280x800).
         let size = args
             .windows(2)

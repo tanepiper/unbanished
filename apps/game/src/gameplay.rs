@@ -523,6 +523,13 @@ impl GameLoop for GameplayLoop {
         if let Some(toolbar) = &self.toolbar {
             toolbar.relayout(ctx.ui);
         }
+        // Controller FUN_140107b70 → FUN_140104390: the camera eases toward its zoom and pitch
+        // targets every frame.
+        if let Some(view) = &mut self.view {
+            if let SceneCamera::Map(camera) = &mut view.camera {
+                camera.update(&view.terrain);
+            }
+        }
         // PlacementTool slot +0x38 runs every frame: ghost, validity and the CreateBar.
         if self.placement.is_some() {
             self.refresh_placement(ctx);
@@ -550,7 +557,8 @@ impl GameLoop for GameplayLoop {
         if let (Some(notify), Some(screen)) = (self.notify.as_mut(), self.screen.as_mut()) {
             let width = self.toolbar.as_ref().map_or(0, |t| t.width(ctx.ui));
             if notify.update(ctx.ui, screen, &self.events, dt, width) {
-                // Not ported: `Audio::Scene::PlayEffect(WarningEffect)` needs an effect channel.
+                // Not ported: `Audio::Scene::PlayEffect(WarningEffect)`; the SoundEffect resource
+                // and the audio Scene are not parsed yet (the Device has free channels).
                 log::debug!("event alert sound (pending)");
             }
         }

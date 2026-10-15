@@ -8,7 +8,7 @@
 
 use std::rc::Rc;
 
-use banished_audio::Player;
+use banished_audio::Device;
 use banished_formats::pkg::Archive;
 use banished_formats::ui::flags;
 use banished_game::random::Random;
@@ -20,7 +20,8 @@ use crate::global::GlobalData;
 pub struct Ctx<'a> {
     pub archive: &'a Rc<Archive>,
     pub ui: &'a mut Ui,
-    pub audio: &'a mut Player,
+    /// The shared 64-channel mixer (`Audio::Device`).
+    pub audio: &'a mut Device,
     pub global: &'a mut Option<GlobalData>,
     /// The engine's default `System::Random()`, seeded from the clock.
     pub rng: &'a mut Random,
@@ -235,6 +236,9 @@ impl Fade {
 
 /// Texture id of the 1×1 white texture the renderer registers for fades.
 pub const WHITE: u32 = 0;
+/// Texture ids of MapUI's images: the terrain render and the entity overlay.
+pub const MINIMAP: u32 = 1;
+pub const MINIMAP_OVERLAY: u32 = 2;
 
 pub fn fade_quad(level: f32, size: (u32, u32)) -> Option<Quad> {
     (level > 0.0).then_some(Quad {
@@ -322,6 +326,8 @@ impl MainLoop {
         }
         let next = self.current.update(ctx, dt);
         self.apply(next);
+        // `Audio::Device::Update`: free the channels that finished.
+        ctx.audio.update();
     }
 
     pub fn raw(&mut self, ctx: &mut Ctx, input: RawInput) {

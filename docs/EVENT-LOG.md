@@ -121,7 +121,7 @@ runs.
 
 ## Pending
 
-- The alert sound: the audio Player has one music sink and no effect channel yet.
+- The alert sound: `Audio/UI/WarningEffect.rsc` is a SoundEffect, which is not parsed yet, and `Audio::Scene` is not ported. The 64-channel Device can already play it alongside the music.
 - The camera go-to keeps the port's camera height (the original uses the ground point).
 - Not compared against an original screenshot of the ribbon yet.
 - Event sources other than stock warnings (births, deaths, coming of age, disasters) post

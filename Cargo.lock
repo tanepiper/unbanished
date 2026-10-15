@@ -229,6 +229,7 @@ version = "0.1.0"
 dependencies = [
  "banished-formats",
  "banished-wma",
+ "js-sys",
  "log",
  "rodio",
  "wasm-bindgen",
