@@ -1041,3 +1041,81 @@ pub fn citizen_description(data: &[u8]) -> Result<CitizenDescription> {
     })?;
     Ok(value)
 }
+
+/// `BuildDescription` (serializer `FUN_14010e610`): what constructing a building costs.
+#[derive(Debug, Clone)]
+pub struct BuildDescription {
+    /// `+0x20`: `(count, raw material)` requirements.
+    pub materials: Vec<(i32, Option<String>)>,
+    /// `+0x30`: construction work.
+    pub work: i32,
+    /// `+0x34`: shows `labelBuildMulti` in the CreateBar (costs per area).
+    pub multi: bool,
+}
+
+pub fn build_description(data: &[u8]) -> Result<BuildDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("BuildDescription") {
+            return format_err(format!(
+                "expected BuildDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let materials = (0..r.count()?)
+                .map(|_| Ok((r.i32()?, r.external_ref()?)))
+                .collect::<Result<_>>()?;
+            Ok(BuildDescription {
+                materials,
+                work: r.i32()?,
+                multi: r.bool()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `Profession` (serializer `FUN_1400ae3e0`): a job citizens can be assigned to.
+#[derive(Debug, Clone)]
+pub struct Profession {
+    /// `+0x20`, `+0x28`.
+    pub string_table: Option<String>,
+    pub sprite_sheet: Option<String>,
+    /// `+0x30`: name key, also the icon's sprite name (`ProfessionBuilder`).
+    pub name: String,
+    /// `+0x38`, `+0x40`: tooltip and death-message keys.
+    pub tooltip: String,
+    pub death: String,
+    pub value_48: i32,
+    pub flag_4c: bool,
+    pub flag_4d: bool,
+    pub value_54: f32,
+    pub value_58: f32,
+    pub value_50: i32,
+    pub flag_4e: bool,
+}
+
+pub fn profession(data: &[u8]) -> Result<Profession> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("Profession") {
+            return format_err(format!("expected Profession, found {:#010x}", h.type_id));
+        }
+        r.block(|r, _| {
+            Ok(Profession {
+                string_table: r.external_ref()?,
+                sprite_sheet: r.external_ref()?,
+                name: r.string()?,
+                tooltip: r.string()?,
+                death: r.string()?,
+                value_48: r.i32()?,
+                flag_4c: r.bool()?,
+                flag_4d: r.bool()?,
+                value_54: r.f32()?,
+                value_58: r.f32()?,
+                value_50: r.i32()?,
+                flag_4e: r.bool()?,
+            })
+        })
+    })?;
+    Ok(value)
+}

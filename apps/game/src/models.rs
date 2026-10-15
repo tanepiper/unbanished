@@ -871,6 +871,11 @@ impl ModelRenderer {
         for (i, kind) in KINDS.into_iter().enumerate() {
             pass.set_pipeline(&self.pipelines[i]);
             for g in &self.groups {
+                // Groups emptied by removal or a moved placement ghost keep their assets but
+                // have nothing to draw (and an empty instance buffer cannot be bound).
+                if g.count == 0 || g.instances.size() == 0 {
+                    continue;
+                }
                 pass.set_vertex_buffer(1, g.instances.slice(..));
                 for r in g.ranges.iter().filter(|r| r.kind == kind) {
                     pass.set_bind_group(1, &r.bind, &[]);

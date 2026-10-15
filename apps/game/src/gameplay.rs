@@ -11,6 +11,8 @@ use banished_ui::{Event, Ui};
 
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
 use crate::menu::MenuLoop;
+use crate::create_bar::CreateBar;
+use crate::placement_tool::PlacementTool;
 use crate::render::Lighting;
 use crate::scene::{Camera, SceneCamera, SceneView};
 use crate::start::StartingTown;
@@ -39,6 +41,12 @@ pub struct GameplayLoop {
     paused: bool,
     toolbar: Option<Toolbar>,
     utility: UtilityWindows,
+    /// The active build tool (`Game +0x80 → +0x28`) and the shared RotationSetting (`+0x10`).
+    placement: Option<PlacementTool>,
+    create_bar: Option<CreateBar>,
+    rotation: i32,
+    /// Last cursor position in window pixels.
+    cursor: (i32, i32),
 }
 
 impl GameplayLoop {
@@ -56,6 +64,10 @@ impl GameplayLoop {
             paused: false,
             toolbar: None,
             utility: UtilityWindows::default(),
+            placement: None,
+            create_bar: None,
+            rotation: 0,
+            cursor: (0, 0),
         }
     }
 
@@ -80,6 +92,8 @@ impl GameplayLoop {
             adults: self.population().0,
             students: self.population().1,
             children: self.population().2,
+            // Every adult starts as a laborer (`FUN_14011c550` with the manager's `+0x30`).
+            professions: vec![self.population().0],
             // `FUN_14008f3a0`, recomputed from the town storages.
             stock: self.town.as_ref().map_or([0; 21], |t| {
                 banished_game::stock::stock_table(&t.storages, &t.materials)
@@ -99,6 +113,119 @@ impl GameplayLoop {
         self.town.as_ref().map_or((0, 0, 0), |t| {
             banished_game::citizens::population(&t.citizens, &t.rules)
         })
+    }
+
+    /// `FUN_140106740`: the map cell under the cursor. The original casts the camera ray
+    /// against the terrain (`FUN_1400afa00`); this marches the ray and refines the hit by
+    /// bisection on the exact ground query.
+    fn cursor_cell(&self, screen: [i32; 2]) -> Option<(i32, i32)> {
+        let (view, town) = (self.view.as_ref()?, self.town.as_ref()?);
+        if screen[0] <= 0 || screen[1] <= 0 {
+            return None;
+        }
+        let aspect = screen[0] as f32 / screen[1] as f32;
+        let inv = view.view_proj(aspect).inverse();
+        let ndc = glam::Vec2::new(
+            self.cursor.0 as f32 / screen[0] as f32 * 2.0 - 1.0,
+            1.0 - self.cursor.1 as f32 / screen[1] as f32 * 2.0,
+        );
+        let near = inv.project_point3(ndc.extend(0.0));
+        let far = inv.project_point3(ndc.extend(1.0));
+        let grid = banished_game::terrain::HeightGrid {
+            width: view.terrain.size + 1,
+            heights: &view.terrain.heights,
+        };
+        let below = |p: glam::Vec3| {
+            let mut normal = [0.0; 3];
+            p.z <= grid.ground(p.x, p.y, &mut normal)
+        };
+        let length = (far - near).length();
+        let dir = (far - near) / length;
+        let step = 0.5;
+        let mut t = 0.0;
+        let mut prev = 0.0;
+        while t < length {
+            if below(near + dir * t) {
+                let (mut lo, mut hi) = (prev, t);
+                for _ in 0..20 {
+                    let mid = (lo + hi) * 0.5;
+                    if below(near + dir * mid) {
+                        hi = mid;
+                    } else {
+                        lo = mid;
+                    }
+                }
+                let hit = near + dir * hi;
+                let n = town.cells.size as i32;
+                let x = ((hit.x + (n >> 1) as f32) as i32).clamp(0, n - 1);
+                let y = ((hit.y + (n >> 1) as f32) as i32).clamp(0, n - 1);
+                return Some((x, y));
+            }
+            prev = t;
+            t += step;
+        }
+        None
+    }
+
+    /// Update the placement ghost after the cursor, rotation or variant changed.
+    fn refresh_placement(&mut self, ctx: &mut Ctx) {
+        let cell = self.cursor_cell(ctx.ui.screen);
+        let (Some(tool), Some(town), Some(view)) = (
+            self.placement.as_mut(),
+            self.town.as_mut(),
+            self.view.as_mut(),
+        ) else {
+            return;
+        };
+        let grid = banished_game::terrain::HeightGrid {
+            width: view.terrain.size + 1,
+            heights: &view.terrain.heights,
+        };
+        tool.hover(town, &grid, cell, self.rotation);
+        let ghost = tool.ghost(self.rotation);
+        if ghost != town.ghost {
+            town.ghost = ghost;
+            if let Some(models) = &mut view.models {
+                town.refresh_models(ctx.archive, models);
+            }
+        }
+        // `FUN_140104080` / `FUN_140103e30`: the ghost's screen rectangle for the CreateBar.
+        let screen = ctx.ui.screen;
+        let rect = tool.ghost_corners(self.rotation).and_then(|corners| {
+            if screen[0] <= 0 || screen[1] <= 0 {
+                return None;
+            }
+            let vp = view.view_proj(screen[0] as f32 / screen[1] as f32);
+            let mut r = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
+            for c in corners {
+                let p = vp * c.extend(1.0);
+                if p.w <= 0.0 {
+                    return None;
+                }
+                let (x, y) = (
+                    (p.x / p.w * 0.5 + 0.5) * screen[0] as f32,
+                    (0.5 - p.y / p.w * 0.5) * screen[1] as f32,
+                );
+                r = [r[0].min(x), r[1].min(y), r[2].max(x), r[3].max(y)];
+            }
+            Some(r)
+        });
+        if let Some(bar) = &mut self.create_bar {
+            bar.update(ctx.ui, tool.size(), tool.valid(), rect);
+        }
+    }
+
+    fn end_placement(&mut self, ctx: &mut Ctx) {
+        self.placement = None;
+        if let (Some(bar), Some(screen)) = (self.create_bar.take(), self.screen.as_mut()) {
+            bar.close(ctx.ui, screen);
+        }
+        if let (Some(town), Some(view)) = (self.town.as_mut(), self.view.as_mut()) {
+            town.ghost = None;
+            if let Some(models) = &mut view.models {
+                town.refresh_models(ctx.archive, models);
+            }
+        }
     }
 
     /// `floor(elapsed / 3600 × 12)`.
@@ -210,6 +337,10 @@ impl GameLoop for GameplayLoop {
         if let Some(toolbar) = &self.toolbar {
             toolbar.relayout(ctx.ui);
         }
+        // PlacementTool slot +0x38 runs every frame: ghost, validity and the CreateBar.
+        if self.placement.is_some() {
+            self.refresh_placement(ctx);
+        }
         let mut models_changed = false;
         if !self.paused {
             for _ in 0..SPEED_LEVELS[self.speed as usize] {
@@ -267,13 +398,77 @@ impl GameLoop for GameplayLoop {
             Action::Utility(template) => {
                 self.utility.toggle(ctx.ui, screen, ctx.archive, &template);
             }
+            // Toolbar kind 1 → FUN_140108030: start (or end) the build tool.
+            Action::Build(Some(template)) => {
+                self.placement = self.town.as_mut().and_then(|town| {
+                    PlacementTool::start(ctx.archive, town, &template, &mut self.rng)
+                });
+                if let (Some(tool), Some(screen)) = (&self.placement, self.screen.as_mut()) {
+                    if let Some(old) = self.create_bar.take() {
+                        old.close(ctx.ui, screen);
+                    }
+                    self.create_bar = tool.toolbar.as_ref().and_then(|t| {
+                        CreateBar::open(ctx.ui, screen, ctx.archive, t, tool.build.as_ref())
+                    });
+                } else {
+                    log::info!("{template}: not a placed building (drag/path tools not ported)");
+                }
+                self.refresh_placement(ctx);
+            }
+            Action::Build(None) => self.end_placement(ctx),
             other => log::info!("toolbar action not implemented yet: {other:?}"),
         }
         self.update_hud(ctx.ui);
         Next::Stay
     }
 
-    fn raw(&mut self, _ctx: &mut Ctx, input: RawInput) -> Next {
+    fn raw(&mut self, ctx: &mut Ctx, input: RawInput) -> Next {
+        match input {
+            RawInput::Cursor(x, y) => {
+                self.cursor = (x, y);
+                if self.placement.is_some() {
+                    self.refresh_placement(ctx);
+                }
+                return Next::Stay;
+            }
+            // StructureLeft / StructureRight turn the RotationSetting through 0..3.
+            RawInput::Key('r') if self.placement.is_some() => {
+                self.rotation = (self.rotation + 3) % 4;
+                self.refresh_placement(ctx);
+                return Next::Stay;
+            }
+            RawInput::Key('t') if self.placement.is_some() => {
+                self.rotation = (self.rotation + 1) % 4;
+                self.refresh_placement(ctx);
+                return Next::Stay;
+            }
+            RawInput::Key('f') => {
+                if let Some(tool) = &mut self.placement {
+                    tool.next_variant();
+                    self.refresh_placement(ctx);
+                }
+                return Next::Stay;
+            }
+            RawInput::Click => {
+                if let (Some(tool), Some(town)) = (self.placement.as_mut(), self.town.as_mut()) {
+                    match tool.place(town, self.rotation) {
+                        Some(id) => log::info!("placed {} as entity {id}", tool.reference),
+                        None => log::info!("{}: cannot build here", tool.reference),
+                    }
+                    self.refresh_placement(ctx);
+                }
+                return Next::Stay;
+            }
+            RawInput::Escape if self.placement.is_some() => {
+                self.end_placement(ctx);
+                if let Some(toolbar) = &self.toolbar {
+                    toolbar.clear_build(ctx.ui);
+                }
+                return Next::Stay;
+            }
+            RawInput::Key(_) => return Next::Stay,
+            _ => {}
+        }
         let Some(SceneView {
             camera: SceneCamera::Map(camera),
             terrain,
@@ -288,6 +483,7 @@ impl GameLoop for GameplayLoop {
             RawInput::Wheel(steps) => camera.zoom(steps),
             RawInput::Pan(forward, right) => camera.pan(forward, right, terrain),
             RawInput::Escape => return Self::return_to_menu(),
+            _ => {}
         }
         Next::Stay
     }

@@ -13,6 +13,7 @@ pub mod map;
 pub mod math;
 pub mod names;
 pub mod noise;
+pub mod placement;
 pub mod random;
 pub mod scheduler;
 pub mod seeding;

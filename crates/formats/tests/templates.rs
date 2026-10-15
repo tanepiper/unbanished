@@ -173,3 +173,36 @@ fn citizen_description_parses() {
     );
     assert!(c.adult_age() > 0.0);
 }
+
+#[test]
+fn build_descriptions_parse() {
+    use banished_formats::game::build_description;
+    let Some(archive) = archive() else { return };
+    let names = entries(&archive, "_build.crs");
+    assert!(names.len() >= 27, "{}", names.len());
+    for name in names {
+        build_description(&archive.read(name).unwrap()).unwrap_or_else(|e| panic!("{name}: {e}"));
+    }
+    let house =
+        build_description(&archive.read_ref("Template/WoodHouse.rsc:build").unwrap()).unwrap();
+    assert_eq!(house.materials.len(), 2);
+    assert_eq!(house.materials[0].0, 16);
+}
+
+#[test]
+fn professions_parse() {
+    use banished_formats::game::{external_list, profession};
+    let Some(archive) = archive() else { return };
+    let list = external_list(
+        &archive
+            .read_ref("Game/Profession/Profession.rsc:professionList")
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(list.len() > 15, "{}", list.len());
+    for r in &list {
+        let path = r.replace('\\', "/");
+        profession(&archive.read_ref(&path).unwrap()).unwrap_or_else(|e| panic!("{r}: {e}"));
+    }
+    println!("{list:?}");
+}

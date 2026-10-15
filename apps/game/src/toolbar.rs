@@ -278,6 +278,17 @@ impl Toolbar {
         }
     }
 
+    /// Uncheck the open sub-menu's build buttons (the tool ended outside the toolbar).
+    pub fn clear_build(&self, ui: &mut Ui) {
+        if let Some(popup) = &self.popup {
+            for &(node, index) in &popup.buttons {
+                if self.entries[index].item.kind == kind::BUILD {
+                    ui.set_checked(node, false);
+                }
+            }
+        }
+    }
+
     /// Position the sub-menu the way `FUN_1400be770` pads its root: right padding so it is centred
     /// on the button, bottom padding equal to the main bar's height.
     fn place_popup(&self, ui: &mut Ui, button: NodeId) {

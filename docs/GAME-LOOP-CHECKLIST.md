@@ -73,7 +73,9 @@ evidence; static traces are not claims of live-game behavior.
   footprints.
 - [x] Replace the compact HUD with the packaged toolbar and Status Bar controllers. See
   [IN-GAME-TOOLBAR.md](IN-GAME-TOOLBAR.md) and [UTILITY-WINDOWS.md](UTILITY-WINDOWS.md).
-- [ ] Add build/tool modes, object selection, the remaining utility-window controllers (Event Log,
+- [x] Building placement tool: ghost, rotation, variants, original validity and placement of
+  construction sites. See [BUILD-TOOLS.md](BUILD-TOOLS.md).
+- [ ] Add drag/road/removal tools, construction progress, object selection, the remaining utility-window controllers (Event Log,
   Professions, Map, …), and the original pause/options dialogs.
 - [x] Port the environment controller (temperature, weather state, level, snow/autumn/leaf values)
   and run it per simulation iteration after the calendar. See [ENVIRONMENT.md](ENVIRONMENT.md).

@@ -9,7 +9,7 @@
 
 use std::collections::HashMap;
 
-use banished_formats::game::{ui_description, UiDescription};
+use banished_formats::game::{external_list, profession, ui_description, UiDescription};
 use banished_formats::pkg::Archive;
 use banished_ui::{Kind, NodeId, Ui};
 
@@ -18,6 +18,7 @@ use crate::loops::Screen;
 /// CRC32 type ids of the `UI::DialogController` subclasses.
 pub mod controller {
     pub const STATUS_BAR: u32 = 0x509d_1aea;
+    pub const PROFESSION: u32 = 0xc841_e4d4;
 }
 
 /// Game values shown by the Status Bar (`FUN_14007eda0` reads them from the town, calendar,
@@ -45,6 +46,9 @@ pub struct StatusValues {
     /// wood, stone, iron, firewood, tools, food, herbs, clothes, alcohol, coal, textile, then ten
     /// custom slots.
     pub stock: [i32; 21],
+    /// Adults (not students) per profession, in `Game/Profession/Profession.rsc:professionList`
+    /// order (laborer first): the counts `FUN_14007ba70` takes from citizen `+0x1f0`.
+    pub professions: Vec<u32>,
 }
 
 /// `StatusBarUI` (vtable `0x140163c40`): bound in `FUN_14007f8a0`, refreshed by `FUN_14007eda0`.
@@ -193,10 +197,98 @@ impl StatusBar {
     }
 }
 
+/// `ProfessionUI` (vtable `0x140163520`): one `professionRow` per profession, bound by
+/// `FUN_14007c170` (OnOpened) and refreshed by `FUN_14007ba70`.
+struct ProfessionUi {
+    /// Per profession: the spinner (`spinnerCount`, ids 300 + i) and its number edit.
+    spinners: Vec<Option<NodeId>>,
+}
+
+/// Set a spinner's value and its number text.
+fn set_spinner(ui: &mut Ui, id: NodeId, value: i32) {
+    let number = match &mut ui.node_mut(id).kind {
+        Kind::Control(banished_ui::Control::Spinner { parts, value: v, .. }) => {
+            *v = value;
+            parts[0]
+        }
+        _ => None,
+    };
+    if let Some(n) = number {
+        ui.set_text(n, &value.to_string());
+    }
+}
+
+impl ProfessionUi {
+    const ROW: &'static str = r"Dialog\Profession.rsc:professionRow";
+
+    fn bind(ui: &mut Ui, root: NodeId, archive: &Archive) -> ProfessionUi {
+        let list = archive
+            .read_ref("Game/Profession/Profession.rsc:professionList")
+            .ok()
+            .and_then(|d| external_list(&d).ok())
+            .unwrap_or_default();
+        let mut spinners = Vec::new();
+        let Some(table) = ui.find(root, "professionTable") else {
+            return ProfessionUi { spinners };
+        };
+        // The table holds the row template; rows replace it (`TableElement::SetSize/SetChild`).
+        ui.node_mut(table).children.clear();
+        for (i, reference) in list.iter().enumerate() {
+            let Some(p) = archive
+                .read_ref(&reference.replace('\\', "/"))
+                .ok()
+                .and_then(|d| profession(&d).ok())
+            else {
+                spinners.push(None);
+                continue;
+            };
+            let Some(row) = ui.instantiate(Self::ROW) else {
+                spinners.push(None);
+                continue;
+            };
+            ui.set_table_child(table, i, row);
+            let table_ref = p.string_table.as_deref();
+            if let Some(label) = ui.find(row, "labelProfession") {
+                let text = ui.res.string(table_ref, &p.name);
+                ui.set_text(label, &text);
+                ui.node_mut(label).tooltip = ui.res.string(table_ref, &p.tooltip);
+                if let Some(s) = ui.res.sprite(p.sprite_sheet.as_deref(), &p.name) {
+                    if let Kind::Label { icon, .. } = &mut ui.node_mut(label).kind {
+                        *icon = Some(s);
+                    }
+                }
+            }
+            let spinner = ui.find(row, "spinnerCount");
+            // The laborer row (manager `+0x30`) has no workplaces: no "of N" and no goto button.
+            if i == 0 {
+                for name in ["ofText", "numberAvailable", "buttonGoto"] {
+                    if let Some(n) = ui.find(row, name) {
+                        ui.set_visible(n, false);
+                    }
+                }
+            }
+            spinners.push(spinner);
+        }
+        ProfessionUi { spinners }
+    }
+
+    /// `FUN_14007ba70`: worker counts; the laborer spinner is fixed, the others may take up to
+    /// their count plus the laborers. Workplace capacity (`numberAvailable`) is 0 until
+    /// workplaces exist.
+    fn update(&self, ui: &mut Ui, values: &StatusValues) {
+        for (i, spinner) in self.spinners.iter().enumerate() {
+            if let Some(s) = *spinner {
+                set_spinner(ui, s, values.professions.get(i).copied().unwrap_or(0) as i32);
+            }
+        }
+    }
+}
+
 struct Window {
     template: String,
     root: NodeId,
     status_bar: Option<StatusBar>,
+    professions: Option<ProfessionUi>,
 }
 
 #[derive(Default)]
@@ -233,6 +325,7 @@ impl UtilityWindows {
         };
         let root = screen.dialogs[dialog].root;
         let mut status_bar = None;
+        let mut professions = None;
         for c in &desc.controllers {
             // `FUN_1401335d0`: instantiate the element into the named slot; a TabElement slot
             // would get a tab instead (no utility window uses one).
@@ -247,7 +340,20 @@ impl UtilityWindows {
             match c.type_id {
                 0 => {}
                 controller::STATUS_BAR => status_bar = Some(StatusBar::bind(ui, root)),
+                controller::PROFESSION => professions = Some(ProfessionUi::bind(ui, root, archive)),
                 other => log::info!("{template}: controller {other:#010x} not implemented yet"),
+            }
+        }
+        // Inferred: the host's `labelTitle` shows the utility's toolbar name ("Professions").
+        if let Some(title) = ui.find(root, "labelTitle") {
+            let file = template.split(':').next().unwrap_or("").replace('\\', "/");
+            if let Some(t) = archive
+                .read_ref(&format!("{file}:toolbar"))
+                .ok()
+                .and_then(|d| banished_formats::game::toolbar_description(&d).ok())
+            {
+                let text = ui.res.string(t.string_table.as_deref(), &t.name);
+                ui.set_text(title, &text);
             }
         }
         let (x, y) = *self.positions.entry(template.to_string()).or_insert((0, 0));
@@ -259,6 +365,7 @@ impl UtilityWindows {
             template: template.to_string(),
             root,
             status_bar,
+            professions,
         });
     }
 
@@ -281,6 +388,9 @@ impl UtilityWindows {
         for w in &self.open {
             if let Some(s) = &w.status_bar {
                 s.update(ui, values);
+            }
+            if let Some(p) = &w.professions {
+                p.update(ui, values);
             }
         }
     }

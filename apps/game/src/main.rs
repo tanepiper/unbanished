@@ -17,6 +17,8 @@ mod global;
 mod loops;
 mod menu;
 mod models;
+mod create_bar;
+mod placement_tool;
 mod render;
 mod scene;
 mod scene_assets;
@@ -150,6 +152,7 @@ impl Game {
         if let Some(root) = self.input_root() {
             self.ui.pointer_move(x, y, root);
         }
+        self.raw(RawInput::Cursor(x, y));
     }
 
     pub fn pointer_button(&mut self, down: bool) -> bool {
@@ -160,6 +163,9 @@ impl Game {
                 self.with_ctx(|main, ctx| main.inject(ctx, event));
             }
             self.deliver_events();
+            if down && !captured {
+                self.raw(RawInput::Click);
+            }
             captured
         } else {
             false
@@ -211,6 +217,7 @@ impl Game {
                 K::Character('s') => Some(RawInput::Pan(-1.0, 0.0)),
                 K::Character('a') => Some(RawInput::Pan(0.0, -1.0)),
                 K::Character('d') => Some(RawInput::Pan(0.0, 1.0)),
+                K::Character(c @ ('r' | 't' | 'f')) => Some(RawInput::Key(c)),
                 _ => None,
             };
             if let Some(raw) = raw {
@@ -582,11 +589,41 @@ mod native {
                 Some((name.to_string(), at.parse().ok()?))
             })
             .collect();
+        // `--move X,Y@SECONDS` moves the cursor; `--click-at X,Y@SECONDS` also presses and
+        // releases the left button there.
+        let mut pointer: Vec<(bool, i32, i32, f32)> = args
+            .windows(2)
+            .filter(|w| w[0] == "--move" || w[0] == "--click-at")
+            .filter_map(|w| {
+                let (xy, at) = w[1].split_once('@')?;
+                let (x, y) = xy.split_once(',')?;
+                Some((
+                    w[0] == "--click-at",
+                    x.parse().ok()?,
+                    y.parse().ok()?,
+                    at.parse().ok()?,
+                ))
+            })
+            .collect();
         let dt = 1.0 / 30.0;
         let mut t = 0.0;
         while t < seconds {
             game.update(dt);
             t += dt;
+            pointer.retain(|&(click, x, y, at)| {
+                if t < at {
+                    return true;
+                }
+                if let Some(screen) = game.main.current().screen() {
+                    screen.layout(&mut game.ui, size);
+                }
+                game.pointer_move(x, y);
+                if click {
+                    game.pointer_button(true);
+                    game.pointer_button(false);
+                }
+                false
+            });
             presses.retain(|(name, at)| {
                 if t < *at {
                     return true;

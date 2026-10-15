@@ -28,6 +28,13 @@ pub struct Ctx<'a> {
 
 /// Input not consumed by the UI (camera control).
 pub enum RawInput {
+    /// Cursor position in window pixels (always delivered, also over the UI).
+    Cursor(i32, i32),
+    /// Left button pressed over the world (not captured by the UI): `MouseLeft` (action 5).
+    Click,
+    /// A key-map action by its default key: `r` StructureLeft (0x13), `t` StructureRight (0x14),
+    /// `f` StructureType (0x15).
+    Key(char),
     Drag(f32, f32),
     PanDrag(f32, f32),
     Wheel(f32),

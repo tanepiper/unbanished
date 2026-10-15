@@ -277,6 +277,8 @@ pub struct StartingTown {
     removed: Vec<usize>,
     pub animation_events: Vec<(usize, String)>,
     citizen_model: Option<banished_formats::game::ModelDescription>,
+    /// The placement tool's ghost (`PlacementTool +0x68`): mesh and transform.
+    pub ghost: Option<(String, [f32; 16])>,
 }
 
 impl StartingTown {
@@ -358,7 +360,13 @@ impl StartingTown {
             animation_events,
             citizen_model: read(archive, r"Template\Citizen.rsc:model")
                 .and_then(|d| banished_formats::game::model_description(&d).ok()),
+            ghost: None,
         })
+    }
+
+    /// Load (or find) a template for an entity created during play.
+    pub fn load_template(&mut self, archive: &Archive, reference: &str) -> Option<usize> {
+        load_template(archive, reference, &mut self.templates)
     }
 
     /// FUN_1400c9560: run placed entities on their template's scheduled bucket.
@@ -452,6 +460,12 @@ impl StartingTown {
                     locals: None,
                 });
             }
+        }
+        if let Some((mesh, matrix)) = &self.ghost {
+            groups.entry(mesh.clone()).or_default().push(ModelInstance {
+                matrix: *matrix,
+                locals: None,
+            });
         }
         let mut list: Vec<_> = groups.into_iter().map(|(m, i)| (m, 0, i)).collect();
         list.sort_by(|a, b| a.0.cmp(&b.0));
