@@ -38,6 +38,7 @@ fn length(a: (i32, i32), b: (i32, i32)) -> i32 {
 struct Node {
     /// `+0`, `+4`: position (mean cell); `+8`: sector.
     pos: (i32, i32),
+    #[allow(dead_code)]
     sector: i32,
     /// `+0x10`: linked nodes; `+0x20`: cells just outside the sector next to this area.
     links: Vec<i32>,
