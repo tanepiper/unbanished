@@ -52,6 +52,8 @@ pub enum WorkKind {
     /// ForesterComponent's work (vtable `0x1401677c0`, made by `FUN_140124c50`), with the
     /// same fields.
     Forester(crate::herbalist::HerbalistWork),
+    /// `FishingWork` (vtable `0x140167740`, constructor `FUN_1400eff90`).
+    Fishing(crate::fishing::FishingWork),
     /// A test stand-in.
     Test(i32),
 }

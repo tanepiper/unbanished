@@ -74,6 +74,10 @@ pub enum Callback {
     ProduceEnterD,
     /// `FUN_1401301f0`: remove the work and disable the workplace.
     ProduceEnterE,
+    /// `FUN_140130660`: state 0xd's scheduled update → slot `+0xa8` (the dock's water).
+    ProduceUpdateD,
+    /// `FUN_140130440`: transition 0xd → 3 → slot `+0xa0` (the dock leaves the map layer).
+    ProduceLeaveD,
     /// `FUN_1400445f0`: register the attendance, its LocationWork, enable the workplace.
     AttendanceEnter2,
     /// `FUN_140044590`: status icon 2 when every attendance of the kind is full.
@@ -276,11 +280,9 @@ const RESOURCE_PRODUCE: &[StateDef] = &[
     StateDef {
         id: 0xd,
         enter: C::ProduceEnterD,
-        // `FUN_140130660` → slot `+0xa8` (the base's no-op for ConsumeProduce).
-        update: C::None,
+        update: C::ProduceUpdateD,
         exit: C::None,
-        // `FUN_140130440` → slot `+0xa0` (no-op).
-        transitions: &[(0xe, C::None), (3, C::None)],
+        transitions: &[(0xe, C::None), (3, C::ProduceLeaveD)],
     },
     StateDef {
         id: 0xe,
@@ -519,6 +521,8 @@ pub struct SiteTemplate {
     pub forester: Option<crate::forester::ForesterTemplate>,
     /// HappinessDescription.
     pub happiness: Option<banished_formats::game::HappinessDescription>,
+    /// FishingDescription, resolved.
+    pub fishing: Option<crate::fishing::FishingTemplate>,
 }
 
 impl SiteTemplate {
@@ -617,6 +621,8 @@ pub struct Site {
     pub forester: Option<crate::forester::Forester>,
     /// HappinessComponent `+0x28`: registered.
     pub happiness_registered: bool,
+    /// FishingComponent.
+    pub fishing: Option<crate::fishing::Fishing>,
 }
 
 /// The job manager, professions, workforce and every construction site.

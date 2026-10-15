@@ -954,6 +954,105 @@ mod construction_tests {
         assert_eq!(views[id].happiness, Some(2));
     }
 
+    /// A fisherman's dock on the stream near the start: once built it counts on map layer 8
+    /// with its share of water, and two fishermen land fish on its create points.
+    #[test]
+    fn fishermen_land_fish() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool = PlacementTool::start(
+            &archive,
+            &mut town,
+            r"Template\FishermansDock.rsc:resource",
+            &mut rng,
+        )
+        .unwrap();
+        let spot = tool.find_clear_spot(&town, &terrain, town.start);
+        assert!(spot.is_some(), "no shore near the start");
+        tool.hover(&town, &terrain, spot, 0);
+        let id = tool.place(&archive, &mut town, 0).unwrap();
+        let p = &town.construction.professions;
+        let builder = p.builder;
+        let fisherman = p
+            .list
+            .iter()
+            .position(|p| p.reference.to_ascii_lowercase().ends_with(":fisherman"))
+            .expect("no fisherman profession");
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 2,
+            });
+        let fish = town
+            .materials
+            .iter()
+            .position(|m| m.reference.contains("Fish"))
+            .expect("no fish material");
+        let mut warnings = banished_game::events::StockWarnings::default();
+        warnings.limits[5] = 100_000;
+        let dt = 1.0 / 30.0;
+        let (mut built_at, mut landed_at) = (None, None);
+        for step in 0..30 * 60 * 15 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            if built_at.is_none() && town.construction.sites[&id].complete {
+                built_at = Some(step);
+                town.construction
+                    .commands
+                    .push(banished_game::professions::Command::SetCount {
+                        profession: fisherman,
+                        count: 2,
+                    });
+            }
+            if town.construction.piles.values().any(|p| p.material == fish) {
+                landed_at = Some(step);
+                break;
+            }
+        }
+        let f = town.construction.sites[&id].fishing.unwrap();
+        eprintln!("built {built_at:?}, landed {landed_at:?}, dock {f:?}");
+        assert!(built_at.is_some(), "the dock was not built");
+        assert!(f.registered && f.water > 0.0, "{f:?}");
+        assert_eq!(town.cells.layer_totals[banished_game::fishing::LAYER], 1);
+        assert!(landed_at.is_some(), "no fish was landed");
+        assert_reservations_held(&town);
+    }
+
     /// A seed-1234 Medium town with its terrain and stream, after `setup`.
     fn with_town(test: impl FnOnce(&Archive, &HeightGrid, &mut StartingTown, &mut Random)) {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

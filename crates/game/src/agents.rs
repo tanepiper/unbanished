@@ -787,7 +787,8 @@ impl Agents {
                 Component::CreateRawMaterial => {
                     let educated = citizens[i].education >= self.rules.education;
                     let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
-                    sim.create_raw_material(jobs, i, m.a.max(0) as usize, m.b, educated);
+                    let factor = f32::from_bits(m.message as u32);
+                    sim.create_raw_material(jobs, i, m.a.max(0) as usize, m.b, educated, factor);
                     jobs.drain(&mut sim);
                 }
                 Component::CreateNaturalResource => {

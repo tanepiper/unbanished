@@ -184,7 +184,7 @@ impl Sim<'_, '_> {
             self.drop_off(c);
             return 2;
         }
-        self.wait_sequence(c, work);
+        self.wait_sequence(c, work, 0);
         self.took_job(c, work);
         if let WorkKind::Herbalist(h) = &mut work.kind {
             h.workers.insert(c);

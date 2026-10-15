@@ -966,6 +966,8 @@ impl Callbacks for Sim<'_, '_> {
                     self.herbalist_work(e)
                 } else if t.forester.is_some() {
                     self.forester_work(e)
+                } else if t.fishing.is_some() {
+                    self.fishing_work(e)
                 } else {
                     self.produce_work(e)
                 };
@@ -973,6 +975,8 @@ impl Callbacks for Sim<'_, '_> {
                 if let Some(w) = self.workforce.workplaces.get_mut(&e) {
                     w.enabled = true;
                 }
+                // Slot `+0x98`.
+                self.fishing_register(e);
                 false
             }
             Callback::ProduceEnterE => {
@@ -984,6 +988,18 @@ impl Callbacks for Sim<'_, '_> {
                 let mut workers = self.workers();
                 self.workforce.set_enabled(&mut workers, e, false);
                 self.set_workers(&workers);
+                // Slot `+0xa0`.
+                self.fishing_unregister(e);
+                true
+            }
+            Callback::ProduceUpdateD => {
+                // Slot `+0xa8`.
+                self.fishing_water(e);
+                false
+            }
+            Callback::ProduceLeaveD => {
+                // Slot `+0xa0`.
+                self.fishing_unregister(e);
                 true
             }
             Callback::ClearResourceEnter2 => {
@@ -1043,6 +1059,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Clear(_) => return self.clear_refresh(work),
             WorkKind::Pickup(_) => return self.pickup_refresh(work),
             WorkKind::Produce(_) => return self.produce_refresh(work),
+            WorkKind::Fishing(_) => return self.fishing_refresh(work),
             // `FUN_1400f3620` / `FUN_1400f0130`.
             WorkKind::Herbalist(h) | WorkKind::Forester(h) => h.workers.iter().copied(),
             // `FUN_1400f4c90`: the worker no longer holds the task.
@@ -1090,6 +1107,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Clear(_)
             | WorkKind::Pickup(_)
             | WorkKind::Produce(_)
+            | WorkKind::Fishing(_)
             | WorkKind::Location(_)
             | WorkKind::Test(_) => {}
         }
@@ -1109,6 +1127,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Pickup(_) => self.pickup_try(work, c, time),
             WorkKind::Produce(_) => self.produce_try(work, c, time),
             WorkKind::Location(_) => self.location_try(work, c),
+            WorkKind::Fishing(_) => self.fishing_try(work, c),
             WorkKind::Herbalist(_) | WorkKind::Forester(_) => {
                 let works: BTreeSet<i32> = self.piles.values().map(|p| p.work).collect();
                 if self.auto_pickup_offers(work.entity, |id| works.contains(&id)) {
@@ -1168,6 +1187,7 @@ impl WorkHost for Sim<'_, '_> {
                 }
             }
             WorkKind::Produce(_) => Self::produce_complete(work, param, false),
+            WorkKind::Fishing(_) => Self::fishing_complete(work, param),
             // `FUN_1400f4d20`: free for the next one; the work stays.
             WorkKind::Location(l) => l.worker = None,
             // `FUN_1400f3860` / `FUN_1400f0370`.
@@ -1206,6 +1226,8 @@ impl WorkHost for Sim<'_, '_> {
                 }
             }
             WorkKind::Produce(_) => Self::produce_complete(work, param, true),
+            // `FUN_1400ef350` calls the complete slot.
+            WorkKind::Fishing(_) => Self::fishing_complete(work, param),
             WorkKind::Location(l) => l.worker = None,
             // `FUN_1400f3850` / `FUN_1400f0360`.
             WorkKind::Herbalist(h) | WorkKind::Forester(h) => {
@@ -1240,6 +1262,8 @@ impl WorkHost for Sim<'_, '_> {
                     .and_then(|p| p.claimer),
                 // `FUN_1400f4fc0`: the worker's stack is cleared.
                 WorkKind::Location(l) => l.worker,
+                // `FUN_1400efd00`: every worker's stack is cleared.
+                WorkKind::Fishing(fw) => fw.workers.iter().flatten().next().copied(),
                 // `FUN_1400f3fb0` / `FUN_1400f0d70`.
                 WorkKind::Herbalist(h) | WorkKind::Forester(h) => h.workers.first().copied(),
                 WorkKind::Produce(_) | WorkKind::Test(_) => None,
@@ -1267,6 +1291,11 @@ impl WorkHost for Sim<'_, '_> {
                 WorkKind::Location(l) => l.worker = None,
                 WorkKind::Herbalist(h) | WorkKind::Forester(h) => {
                     h.workers.remove(&c);
+                }
+                WorkKind::Fishing(fw) => {
+                    for w in fw.workers.iter_mut().filter(|w| **w == Some(c)) {
+                        *w = None;
+                    }
                 }
                 WorkKind::Produce(_) | WorkKind::Test(_) => {}
             }

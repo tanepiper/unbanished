@@ -470,3 +470,20 @@ fn happiness_descriptions_parse() {
     assert_eq!(read("Quarry").kind, 5);
     assert_eq!(read("DoctorHouse").pad, 5);
 }
+
+#[test]
+fn fishing_description_parses() {
+    use banished_formats::game::fishing_description;
+    let Some(archive) = archive() else { return };
+    let d = fishing_description(
+        &archive
+            .read_ref("Template/FishermansDock.rsc:fishing")
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        d.output.as_deref(),
+        Some(r"Template\RawMaterialFish.rsc:resource")
+    );
+    assert_eq!((d.mask, d.group), (0x180, 5));
+}

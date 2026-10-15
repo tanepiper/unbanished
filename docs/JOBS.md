@@ -562,6 +562,51 @@ Not ported:
 Verification: `placement_tool::construction_tests::foresters_plant_and_cut`. Two foresters
 plant a sapling, cut a tree, and the logs are picked up.
 
+## Fishermen (`FishingComponent`, `FishingWork`)
+
+Port: `crates/game/src/fishing.rs`.
+
+- **Description.** FishingDescription (`FUN_140124640`, versioned): the catch's template
+  `+0x20`, the water cell types `+0x2c` (0x180: shallow and deep), and from version 1 the
+  stock slot `+0x28` (food, 5).
+- **Component** (vtable `0x140169660`). Fields `+0x50` registered and `+0x54` water fraction.
+  It hooks into the ResourceProduce states through three slots:
+
+  | Slot | Function | Called from | Does |
+  |---|---|---|---|
+  | `+0x98` | `FUN_140124350` | after state 0xd's enter | adds 1 to map layer 8 within the radius (`FUN_1401243a0` → `FUN_1400a4e60`) and works out the water fraction |
+  | `+0xa0` | `FUN_140124320` | state 0xe's enter, transition 0xd → 3 | subtracts the layer |
+  | `+0xa8` | `FUN_1401240e0` | state 0xd's scheduled update | recomputes the water fraction |
+
+  The water fraction is the cells of the water types in the disc around the rectangle's
+  centre, divided by half the disc's cells on the map.
+- **FishingWork** (`FUN_1400eff90`). It holds a worker per use point (`+0x48`), a state per
+  create point (`+0x58`: 0 free, 1 under way, 2 holding a catch), and misses (`+0x68`).
+- **Try** (`FUN_1400ef3f0`):
+  1. With the stock slot at its limit, answer 1 (icon 2).
+  2. Find the first free use point; with none, answer 1.
+  3. On create points, a held catch whose cell is empty frees the point; take the first
+     free one. With none, the catches on the create points are offered (`OfferOne(.., 1)`).
+  4. The use point must be reachable.
+  5. Up to ten draws within the radius look for a water cell on layer 8. On a hit, run
+     `FUN_1400c3fb0`:
+     1. ShowTool 5.
+     2. Walk (mode 2) to the use point.
+     3. PerformWork anim 0xe for 30 s, facing the point's yaw.
+     4. CreateRawMaterial on the create point, with the yield scaled by
+        `1 / layer 8 there · water fraction` (`+0x4c`).
+     5. CompleteTask with `((point | 0x800) << 4) | slot`.
+     6. ShowTool −1.
+  6. Without a hit, up to 11 waits (`FUN_1400c7960`, parameter = slot); after that, drop
+     off what is carried.
+- **Other slots.** Complete (`FUN_1400ef380`) and fail (`FUN_1400ef350`) free the use point
+  and, with bit 15, mark the create point as holding a catch. Refresh (`FUN_1400ef100`) is
+  ConsumeProduce's. Cancel (`FUN_1400efd00`) clears every worker's stack.
+
+Verification: `placement_tool::construction_tests::fishermen_land_fish`. A dock on the
+stream near the start counts on layer 8 with a water fraction of 0.58, and two fishermen
+land fish.
+
 ## Removal tools (`RemovalTool : DragTool`, vtable `0x140168200`)
 
 The toolbar's Harvest Trees, Harvest Stone, Harvest Iron, Clear Resources, Remove Roads, Remove

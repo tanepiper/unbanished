@@ -1089,6 +1089,38 @@ pub fn happiness_description(data: &[u8]) -> Result<HappinessDescription> {
     Ok(value)
 }
 
+/// `FishingDescription` (serializer `FUN_140124640`): the catch's raw-material template
+/// (`+0x20`), the cell types counted as fishing water (`+0x2c`) and, from version 1, the
+/// stock-manager slot of its limit (`+0x28`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FishingDescription {
+    pub output: Option<String>,
+    pub mask: u32,
+    pub group: i32,
+}
+
+pub fn fishing_description(data: &[u8]) -> Result<FishingDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("FishingDescription") {
+            return format_err(format!(
+                "expected FishingDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, version| {
+            let output = r.external_ref()?;
+            let mask = r.u32()?;
+            let group = if version > 0 { r.i32()? } else { 0 };
+            Ok(FishingDescription {
+                output,
+                mask,
+                group,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `AutoPickupDescription` (serializer `FUN_1400454c0`): `+0x20`, whether the workplace's
 /// workers pick up the piles they make first.
 pub fn auto_pickup_description(data: &[u8]) -> Result<bool> {

@@ -192,7 +192,7 @@ impl Sim<'_, '_> {
             self.drop_off(c);
             return 2;
         }
-        self.wait_sequence(c, work);
+        self.wait_sequence(c, work, 0);
         self.took_job(c, work);
         if let WorkKind::Forester(h) = &mut work.kind {
             h.workers.insert(c);
@@ -244,15 +244,15 @@ impl Sim<'_, '_> {
         self.push(c, Action::ShowTool(3));
     }
 
-    /// `FUN_1400c7960(citizen, work, 0)`: stand 0.25 s, then report.
-    pub(crate) fn wait_sequence(&mut self, c: usize, work: &mut Work) {
+    /// `FUN_1400c7960(citizen, work, param)`: stand 0.25 s, then report `param`.
+    pub(crate) fn wait_sequence(&mut self, c: usize, work: &mut Work, param: i32) {
         self.clear_citizen(c, Some(work));
         self.on_empty_think(c);
         self.push(
             c,
             Action::CompleteTask {
                 work: work.id,
-                param: 0,
+                param,
             },
         );
         self.push(

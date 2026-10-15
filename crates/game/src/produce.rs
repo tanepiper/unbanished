@@ -87,7 +87,7 @@ impl Sim<'_, '_> {
 
     /// `FUN_1401282f0(interact, 0, i)`: use point `i` in the world and its heading (the
     /// point's yaw turned with the building; inferred).
-    fn use_point(&self, e: usize, i: usize) -> ([f32; 3], f32) {
+    pub(crate) fn use_point(&self, e: usize, i: usize) -> ([f32; 3], f32) {
         let p = &self.placed[e];
         let t = &self.templates[p.template];
         let local = t.use_points.get(i).copied().unwrap_or_default();
@@ -102,7 +102,7 @@ impl Sim<'_, '_> {
     }
 
     /// The cell of create point `i` (`FUN_1401282f0(interact, 2, i)`).
-    fn create_cell(&self, e: usize, i: usize) -> i32 {
+    pub(crate) fn create_cell(&self, e: usize, i: usize) -> i32 {
         let t = &self.templates[self.placed[e].template];
         let local = t.create_points.get(i).copied().unwrap_or_default();
         self.cell_of(self.world_point(e, local))
@@ -499,6 +499,7 @@ impl Sim<'_, '_> {
                     cell: s.out_cell,
                     batch,
                     workplace: Some(work.entity),
+                    factor: 1.0,
                 },
             );
         }
@@ -541,13 +542,15 @@ impl Sim<'_, '_> {
         template: usize,
         cell: i32,
         educated: bool,
+        factor: f32,
     ) {
         let (material, yields) = {
             let pt = &self.templates[template];
             (pt.pile_material, pt.pile_yield)
         };
         let Some(material) = material else { return };
-        let mut remaining = if educated { yields.1 } else { yields.0 };
+        let base = if educated { yields.1 } else { yields.0 };
+        let mut remaining = (base as f32 * factor) as i32;
         let per = (self.states[c].carried.capacity / self.materials[material].size.max(1)).max(1);
         let mut search = false;
         while remaining > 0 {

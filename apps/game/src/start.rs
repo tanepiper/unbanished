@@ -1028,6 +1028,18 @@ impl StartingTown {
                         t.happiness = Some(d);
                     }
                 }
+                "fishing" => {
+                    let Ok(d) = banished_formats::game::fishing_description(&data) else {
+                        continue;
+                    };
+                    t.controllers.push(Controller::ResourceProduce);
+                    let output = self.load_template(archive, d.output.as_deref()?)?;
+                    t.fishing = Some(banished_game::fishing::FishingTemplate {
+                        output,
+                        mask: d.mask,
+                        group: d.group,
+                    });
+                }
                 "forester" => {
                     let Ok(d) = banished_formats::game::forester_description(&data) else {
                         continue;
@@ -1156,7 +1168,7 @@ impl StartingTown {
                         produced: 0,
                     })
                     .or_else(|| {
-                        (t.herbalist.is_some() || t.forester.is_some())
+                        (t.herbalist.is_some() || t.forester.is_some() || t.fishing.is_some())
                             .then(banished_game::construction::ProduceState::default)
                     }),
                 forester: t
@@ -1164,6 +1176,10 @@ impl StartingTown {
                     .as_ref()
                     .map(|_| banished_game::forester::Forester::default()),
                 happiness_registered: false,
+                fishing: t
+                    .fishing
+                    .as_ref()
+                    .map(|_| banished_game::fishing::Fishing::default()),
                 auto_pickup: t
                     .auto_pickup
                     .map(|enabled| banished_game::herbalist::AutoPickup {

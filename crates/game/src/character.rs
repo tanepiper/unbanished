@@ -59,7 +59,7 @@ pub enum Component {
     /// A RawMaterialComponent pile: 0 picked up (PickupRawMaterial start).
     Pile,
     /// CreateRawMaterial's start (`FUN_1400cc010`): `a` the output template, `b` the cell,
-    /// `entity` the workplace.
+    /// `entity` the workplace, `message` the yield factor (`+0x4c`) as `f32` bits.
     CreateRawMaterial,
     /// CreateNaturalResource's start (`FUN_1400cbb20`) once the cell is free: `a` the
     /// template, `b` the cell.
@@ -523,6 +523,9 @@ pub enum Action {
         cell: i32,
         batch: i32,
         workplace: Option<usize>,
+        /// `+0x4c`: the yield is scaled by this (1 for production; a dock's share of the
+        /// fish).
+        factor: f32,
     },
     /// `CreateNaturalResource` (vtable `0x1401660c0`, constructor `FUN_1400cbef0`): plant
     /// `template` on `cell`, which must hold no object and `occupant` as its occupant.
@@ -606,11 +609,12 @@ impl Action {
                 template,
                 cell,
                 workplace,
+                factor,
                 ..
             } => {
                 world.messages.push(Message {
                     component: Component::CreateRawMaterial,
-                    message: 0,
+                    message: factor.to_bits() as i32,
                     entity: *workplace,
                     a: *template as i32,
                     b: *cell,
