@@ -6,7 +6,7 @@ Deterministic helpers for deciding what to trace, port or check next. All read l
 | Tool | Question it answers |
 |---|---|
 | `decomp.py ADDR` | Readable decompilation: calls, globals, float constants, vtables and struct fields named; `CheckPtr` noise and inlined array appends collapsed (`--raw`, `--asm`, `--headless` for functions missing from the export, `--binary Runtime-steam-x64.dll`) |
-| `types.py class NAME` | A registered class's parent, type id, factory, size, constructor, subclasses and vtable slots with their lifecycle meaning; `owner ADDR` finds the class a method belongs to; `list --parent Action` |
+| `types.py class NAME` | A registered class's parent, type id, factory, size, constructor, subclasses and vtable slots with their lifecycle meaning; `owner ADDR` finds the class a method belongs to; `list --parent Action`. Slot meanings are known for components, actions and `UI::DialogController` (bind, close, refresh, handle event). `controller.py NAME` is a shortcut for `types.py class NAME` |
 | `fnindex.py info ADDR` | What does this function touch (callers, callees, class types, strings) and is it traced? |
 | `fnindex.py frontier ADDR --depth N` | Which untraced functions does this feature still depend on, largest first? |
 | `fnindex.py hot` | Which untraced functions are called most by already-traced code (best next targets)? |

@@ -1,63 +1,19 @@
 """Resolve a registered class (e.g. a UI controller) to its factory, constructor, vtable and
-slot functions, from the local Ghidra export.
+slot functions. Kept as a shortcut; the implementation lives in types.py.
 
 Usage: python3 tools/triage/controller.py ClassName [slots]
+  (same as: python3 tools/triage/types.py class ClassName --slots N)
 """
-import re
-import struct
+import os
+import subprocess
 import sys
 
-EXE = 'game-data/original/Application-steam-x64.exe'
-DECOMP = 'analysis/export/Application-steam-x64.exe/decomp.c'
-
-
-def sections(d):
-    pe = struct.unpack_from('<I', d, 0x3c)[0]
-    n = struct.unpack_from('<H', d, pe + 6)[0]
-    opt = struct.unpack_from('<H', d, pe + 20)[0]
-    out = []
-    for i in range(n):
-        vs, va, rs, rp = struct.unpack_from('<IIII', d, pe + 24 + opt + i * 40 + 8)
-        out.append((va, vs, rp))
-    return out
-
-
-def main(name, slots=24):
-    text = open(DECOMP).read()
-    d = open(EXE, 'rb').read()
-    secs = sections(d)
-
-    def q(a):
-        r = a - 0x140000000
-        for va, vs, rp in secs:
-            if va <= r < va + vs:
-                return struct.unpack_from('<Q', d, r - va + rp)[0]
-
-    def fn(addr):
-        m = re.search(r'// ==== %x [^\n]*\n(.*?)(?=\n// ==== )' % addr, text, re.S)
-        return m.group(1) if m else ''
-
-    m = re.search(r'"%s","([\w:]+)",\(char \*\)0x0,\s*(FUN_([0-9a-f]+))' % name, text)
-    if not m:
-        print('no registration found')
-        return
-    factory = int(m.group(3), 16)
-    print(f'{name} : {m.group(1)}  factory {factory:#x}')
-    body = fn(factory)
-    vts = re.findall(r'&PTR_FUN_([0-9a-f]+)', body)
-    if vts:
-        print(f'constructor inlined in factory, vtables {vts}')
-    else:
-        ctor = [int(c, 16) for c in re.findall(r'FUN_([0-9a-f]+)\(', body) if int(c, 16) != factory]
-        if not ctor:
-            print('no constructor')
-            return
-        vts = re.findall(r'&PTR_FUN_([0-9a-f]+)', fn(ctor[0]))
-        print(f'constructor {ctor[0]:#x}, vtables {vts}')
-    vt = int(vts[-1], 16)
-    for i in range(slots):
-        print(f'  +{i * 8:#05x} {q(vt + i * 8):#x}')
-
-
 if __name__ == '__main__':
-    main(sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 24)
+    if len(sys.argv) < 2:
+        print(__doc__)
+        sys.exit(1)
+    args = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'types.py'),
+            'class', sys.argv[1]]
+    if len(sys.argv) > 2:
+        args += ['--slots', sys.argv[2]]
+    sys.exit(subprocess.call(args))

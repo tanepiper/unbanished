@@ -15,7 +15,7 @@ import sys
 import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ghidra_index import ACTION_SLOTS, COMPONENT_SLOTS, Index, norm  # noqa: E402
+from ghidra_index import ACTION_SLOTS, COMPONENT_SLOTS, DIALOG_SLOTS, Index, norm  # noqa: E402
 
 
 def type_id(name):
@@ -27,6 +27,8 @@ def slot_meanings(ix, name, parent):
         return COMPONENT_SLOTS
     if parent == 'Action':
         return ACTION_SLOTS
+    if parent == 'UI::DialogController':
+        return DIALOG_SLOTS
     return {0x18: 'serialize'} if parent in ('Description', 'Object::External') else {}
 
 

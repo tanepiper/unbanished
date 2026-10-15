@@ -37,6 +37,12 @@ COMPONENT_SLOTS = {
     0x48: 'scheduled update with elapsed time (bit 0x08)', 0x50: 'post-iteration (bit 0x10)',
     0x78: 'message',
 }
+# UI::DialogController slots, from the labelled controllers in names.tsv (Bind x7, Refresh x7,
+# HandleEvent x4, Close x1 at these offsets; docs/BUILDING-WINDOWS.md).
+DIALOG_SLOTS = {
+    0x18: 'serialize', 0x20: 'bind (dialog opened)', 0x30: 'close', 0x38: 'refresh',
+    0x48: 'handle event',
+}
 ACTION_SLOTS = {
     0x18: 'serialize', 0x20: 'start', 0x28: 'update(dt)', 0x30: 'notify(dt)', 0x38: 'stop',
     0x40: 'abort',
