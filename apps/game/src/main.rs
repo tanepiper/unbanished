@@ -588,7 +588,15 @@ mod native {
     pub fn boot_capture(args: &[String], out: &str, seconds: f32) {
         let mut game = Game::new(read_packages(&data_dir(args))).expect("game data");
         game.audio.set_volume(0.0);
-        let size = (1280, 800);
+        // `--capture-size WxH` matches a reference frame's resolution (default 1280x800).
+        let size = args
+            .windows(2)
+            .find(|w| w[0] == "--capture-size")
+            .and_then(|w| {
+                let (a, b) = w[1].split_once('x')?;
+                Some((a.parse().ok()?, b.parse().ok()?))
+            })
+            .unwrap_or((1280, 800));
         let mut renderer = pollster::block_on(Renderer::headless(size.0, size.1));
         // `--press NAME@SECONDS` clicks a control at a given time.
         let mut presses: Vec<(String, f32)> = args

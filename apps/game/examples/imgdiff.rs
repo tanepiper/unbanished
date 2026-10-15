@@ -3,7 +3,7 @@
 //! ```text
 //! cargo run -q --release -p banished-app --example imgdiff -- A.png B.png
 //!     [--out diff.png] [--threshold 16] [--resize] [--ignore x,y,w,h]... [--json]
-//!     [--crop-a x,y,w,h] [--crop-b x,y,w,h] [--blur R]
+//!     [--crop-a x,y,w,h] [--crop-b x,y,w,h] [--blur R] [--compose panels.png]
 //! ```
 //!
 //! Reports mean absolute error, PSNR, the share of pixels whose largest channel difference
@@ -13,7 +13,8 @@
 //! map: A in grey with mismatching pixels in red (brighter = larger difference).
 //! `--crop-a`/`--crop-b` compare a region of each image (e.g. the same dialog in windows of
 //! different sizes); `--blur R` box-blurs both first, which tolerates the video compression of
-//! a Steam Remote Play stream of the original game.
+//! a Steam Remote Play stream of the original game. `--compose` writes A, B and a 50/50 blend
+//! side by side (before blurring), which shows offsets at a glance.
 
 use std::fs::File;
 use std::io::BufWriter;
@@ -80,7 +81,10 @@ fn resize(img: &Image, w: usize, h: usize) -> Image {
 
 fn crop(img: &Image, r: [usize; 4]) -> Image {
     let [x0, y0, w, h] = r;
-    assert!(x0 + w <= img.width && y0 + h <= img.height, "crop outside image");
+    assert!(
+        x0 + w <= img.width && y0 + h <= img.height,
+        "crop outside image"
+    );
     let mut rgba = Vec::with_capacity(w * h * 4);
     for y in y0..y0 + h {
         let i = (y * img.width + x0) * 4;
@@ -148,6 +152,7 @@ fn main() {
     let (mut out, mut threshold, mut do_resize, mut json) = (None, 16u8, false, false);
     let mut ignore: Vec<[usize; 4]> = Vec::new();
     let (mut crop_a, mut crop_b, mut blur_r) = (None, None, 0usize);
+    let mut compose: Option<String> = None;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -167,6 +172,10 @@ fn main() {
             "--crop-b" => {
                 i += 1;
                 crop_b = Some(rect(&args[i]));
+            }
+            "--compose" => {
+                i += 1;
+                compose = Some(args[i].clone());
             }
             "--blur" => {
                 i += 1;
@@ -198,6 +207,33 @@ fn main() {
             a.width, a.height, b.width, b.height
         );
         b = resize(&b, a.width, a.height);
+    }
+    if let Some(path) = &compose {
+        let (w, h) = (a.width, a.height);
+        let mut out = vec![0u8; w * 3 * h * 4];
+        for y in 0..h {
+            for x in 0..w {
+                let i = (y * w + x) * 4;
+                for (panel, px) in [
+                    (0, [a.rgba[i], a.rgba[i + 1], a.rgba[i + 2]]),
+                    (1, [b.rgba[i], b.rgba[i + 1], b.rgba[i + 2]]),
+                    (
+                        2,
+                        std::array::from_fn(|c| {
+                            ((a.rgba[i + c] as u16 + b.rgba[i + c] as u16) / 2) as u8
+                        }),
+                    ),
+                ] {
+                    let o = (y * w * 3 + panel * w + x) * 4;
+                    out[o..o + 4].copy_from_slice(&[px[0], px[1], px[2], 255]);
+                }
+            }
+        }
+        let file = BufWriter::new(File::create(path).unwrap());
+        let mut encoder = png::Encoder::new(file, (w * 3) as u32, h as u32);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        encoder.write_header().unwrap().write_image_data(&out).unwrap();
     }
     if blur_r > 0 {
         a = blur(&a, blur_r);
