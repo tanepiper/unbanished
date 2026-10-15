@@ -135,6 +135,9 @@ pub struct Renderer {
     extras: SceneExtrasRenderer,
     highlight: crate::highlight::HighlightRenderer,
     status_icons: crate::status_icons::StatusIconRenderer,
+    cell_overlay: crate::selection_overlay::OverlayRenderer,
+    pending_overlay: Vec<crate::selection_overlay::OverlayVertex>,
+    overlay_texture: Option<crate::selection_overlay::OverlayTexture>,
     pending_icons: Vec<crate::status_icons::StatusIcon>,
     icon_sheets: std::collections::BTreeMap<String, crate::status_icons::IconSheet>,
     /// The minimap image (rendered once per world) and the overlay revision uploaded.
@@ -599,6 +602,7 @@ impl Renderer {
         let extras = SceneExtrasRenderer::new(&device, &queue, &globals_layout);
         let highlight = crate::highlight::HighlightRenderer::new(&device);
         let status_icons = crate::status_icons::StatusIconRenderer::new(&device);
+        let cell_overlay = crate::selection_overlay::OverlayRenderer::new(&device);
         let mut ui = banished_gfx::UiRenderer::new(&device, format, DEPTH_FORMAT);
         let white = banished_gfx::upload_rgba_as(
             &device,
@@ -638,6 +642,9 @@ impl Renderer {
             models,
             highlight,
             status_icons,
+            cell_overlay,
+            pending_overlay: Vec::new(),
+            overlay_texture: None,
             pending_icons: Vec::new(),
             icon_sheets: Default::default(),
             extras,
@@ -758,6 +765,10 @@ impl Renderer {
     pub fn set_scene(&mut self, view: &crate::scene::SceneView) {
         self.highlight.upload(&self.device, &view.highlight);
         self.pending_icons.clone_from(&view.status_icons);
+        self.pending_overlay.clone_from(&view.cell_overlay);
+        if self.overlay_texture.is_none() {
+            self.overlay_texture.clone_from(&view.overlay_texture);
+        }
         for (k, v) in &view.icon_sheets {
             if !self.icon_sheets.contains_key(k) {
                 self.icon_sheets.insert(k.clone(), v.clone());
@@ -1255,6 +1266,15 @@ impl Renderer {
                 scene,
                 self.size.0,
             );
+            self.cell_overlay.prepare(
+                &self.device,
+                &self.queue,
+                &self.pending_overlay,
+                self.overlay_texture.as_ref(),
+                scene,
+            );
+            self.cell_overlay
+                .draw(&mut encoder, &t.scene_view, &t.depth);
             self.status_icons.prepare(
                 &self.device,
                 &self.queue,

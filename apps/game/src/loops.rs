@@ -34,6 +34,8 @@ pub enum RawInput {
     Cursor(i32, i32),
     /// Left button pressed over the world (not captured by the UI): `MouseLeft` (action 5).
     Click,
+    /// Left button released (anywhere): `KeyMap::Released(MouseLeft)`.
+    Release,
     /// A key-map action by its default key: `r` StructureLeft (0x13), `t` StructureRight (0x14),
     /// `f` StructureType (0x15).
     Key(char),

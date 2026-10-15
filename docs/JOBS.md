@@ -397,6 +397,60 @@ For each carried material, it reuses a storage already chosen that takes it, or 
 stack ends with a DropOffRawMaterial without a target (its redirect search is not ported), and
 the citizen's job resets.
 
+## Removal tools (`RemovalTool : DragTool`, vtable `0x140168200`)
+
+The toolbar's Harvest Trees, Harvest Stone, Harvest Iron, Clear Resources, Remove Roads, Remove
+Buildings, Cancel and Priority buttons start a RemovalTool for a template holding a
+`CreateRemovalDescription` (serializer `FUN_14011ef90`): `+0x20` mark natural resources,
+`+0x28/+0x30` the resource templates it marks (empty: all), `+0x38` the marker template
+(`Template\Clear.rsc`), then four flags: `+0x40` roads, `+0x41` demolish buildings, `+0x42`
+cancel, `+0x43` prioritise. Shipped: ClearTree/ClearStone/ClearIron filter
+`NaturalResourceTree`/`Rock`/`Ore`; ClearResources marks every resource.
+
+**DragTool input** (`FUN_140101b80`, fields `+0x28` dragging, `+0x29` waiting, `+0x2c` start
+cell, `+0x30` end cell, `+0x34` last sounded cell): MouseLeft pressed on the map starts a drag
+and opens the CreateBar (`FUN_140104eb0`). While dragging the end cell follows the cursor
+(`FUN_140106740`; a new one plays the move sound), slot `+0x70` gives the size and the bar shows
+`WxH` and toolbar message 0, centred on the corner cells (`FUN_140105130`, `FUN_140104140`).
+With the button up: on the start cell the tool waits for a second click (`+0x29`); off the map
+it plays the error sound every frame until the cursor is back; otherwise slot `+0x68` applies,
+thunk (error when it returns false), the bar closes. Slot `+0x48` (`FUN_140101b10`) stops a
+drag.
+
+**Apply** (`FUN_140108ab0`), every cell of the rectangle in rows; the cell's entity is the
+occupant (`+0x00`), else the object (`+0x08`):
+
+1. `FUN_140109d70`: with `+0x20`, the marker template's CreateDragDescription, a
+   NaturalResourceComponent entity whose template is in the filter (or no filter), and
+   `FUN_1400a4aa0(cell, drag +0x20, 0, 100, 0, drag +0x24, false, none)` (no occupant, `+0x28`
+   zero, cell type 2 or 4): a marker entity (`FUN_1400c8bf0`) at the cell, 1 × 1, added with
+   `FUN_1400c9d70`.
+2. With `+0x40`, a road cell (`FUN_1400a1bd0`, roads; then the road mesh `FUN_1400b4840`).
+3. `FUN_140109c40` with `+0x42`: a marker is destroyed (`FUN_1400c8370`); a DestroyComponent
+   being demolished (`FUN_140123be0`) returns to its previous state.
+4. `FUN_140109b40` with `+0x41`: a DestroyComponent not in states 3..5 starts demolition
+   (`FUN_140123470`).
+5. With `+0x43`, a registered WorkComponent work (`FUN_140133fa0`) → `Jobs::Prioritize`.
+
+**Draw** (`FUN_140109520`): each cell of the drag (or the hovered cell) through `FUN_140105d90`
+with `Terrain/Selection.rsc` (an 8-frame strip, `u = (u + frame) / 8`): frame 3 opaque red
+`0xffff0000` where apply would act (steps 1–5), frame 0 `0x8000ff00` elsewhere. The quads are
+two triangles per cell over the terrain vertices, split like the terrain by `x + y` parity
+(`FUN_1400b65b0`).
+
+**The marker** (`Clear.rsc`: map, zone, createdrag, decal, work (8 most workers), statemachine,
+cleararea, destroy, clearresource). Its controllers are ClearArea, Destroy and ClearResource; the
+first gives state 0, so ClearArea registers a `ClearArea` work over the marker's cell
+(`FUN_14011ce30`, the felling and piles above). Clear → 1 → 2; ClearResource's state 2 enter
+(`FUN_14011da30`, table `FUN_140032150`/`FUN_140032270`) destroys the marker. ClearArea's
+WorkComponent `+0x30` limit (8) comes from MaxWorkers since the marker has no WorkPlace.
+
+Port: `apps/game/src/removal_tool.rs`, `selection_overlay.rs`; markers are sites with
+`Controller::ClearResource`, destroyed through `Sim::destroy_entity` (work removed, occupant
+freed). Not ported: roads (Remove Roads), demolition (Remove Buildings and cancelling one), the
+marker's decal, the tutorial's fixed rectangle (settings `+0x80`), the bar's requirement
+multiplier (`FUN_14005f060`).
+
 ## Port status
 
 Ported (`crates/game`):
@@ -449,8 +503,10 @@ Deviations and gaps (all marked in code):
 
 Next steps:
 
-2. Work priority (`Jobs::prioritize`, the ClearPriority tool), CitizenUI profession from
-   `CitizenState::profession`.
+2. Roads (Remove Roads, the ClearArea cell phase) and demolition (DestroyComponent, Remove
+   Buildings, DestroyUI). Removal tools are ported (`removal_tool::tests::
+   clear_tree_marks_and_fells`: ClearTree near the start marks 9 trees, one marker cancelled
+   with ClearCancel, the other 8 felled by step 1225).
 3. Emulator check of the manager (`FUN_1400fdd70`, `FUN_1400fca20`, `FUN_1400fce80`) with fake
    works, like `tools/emu/storage.py`.
 4. Drop-off activity 13 and the redirect; families for the profession searches.

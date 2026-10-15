@@ -15,6 +15,7 @@ use crate::entity_ui::EntityWindows;
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
 use crate::menu::MenuLoop;
 use crate::placement_tool::PlacementTool;
+use crate::removal_tool::{DragSound, RemovalTool};
 use crate::render::Lighting;
 use crate::scene::{Camera, SceneCamera, SceneView};
 use crate::selection::{Entity, Selection};
@@ -46,6 +47,8 @@ pub struct GameplayLoop {
     utility: UtilityWindows,
     /// The active build tool (`Game +0x80 → +0x28`) and the shared RotationSetting (`+0x10`).
     placement: Option<PlacementTool>,
+    /// The removal tools (RemovalTool, a DragTool).
+    removal: Option<RemovalTool>,
     create_bar: Option<CreateBar>,
     rotation: i32,
     /// Last cursor position in window pixels.
@@ -95,6 +98,7 @@ impl GameplayLoop {
             toolbar: None,
             utility: UtilityWindows::default(),
             placement: None,
+            removal: None,
             create_bar: None,
             rotation: 0,
             cursor: (0, 0),
@@ -423,8 +427,139 @@ impl GameplayLoop {
         }
     }
 
+    /// Toolbar kind 1 → `FUN_140108030`: start the tool for `template`.
+    fn start_tool(&mut self, ctx: &mut Ctx, template: &str) {
+        // `FUN_140108030`: the tool class that handles one of the template's
+        // descriptions (CreatePlacedDescription, CreateRemovalDescription, ...).
+        self.removal = None;
+        self.placement = self
+            .town
+            .as_mut()
+            .and_then(|town| PlacementTool::start(ctx.archive, town, template, &mut self.rng));
+        if self.placement.is_none() {
+            self.removal = self
+                .town
+                .as_mut()
+                .and_then(|town| RemovalTool::start(ctx.archive, town, template));
+        }
+        // A DragTool opens its CreateBar only while dragging (`FUN_140104eb0`).
+        let bar = self
+            .placement
+            .as_ref()
+            .and_then(|tool| tool.toolbar.as_ref().map(|t| (t, tool.build.as_ref())));
+        if let Some(screen) = self.screen.as_mut() {
+            if let Some(old) = self.create_bar.take() {
+                old.close(ctx.ui, screen);
+            }
+            self.create_bar =
+                bar.and_then(|(t, build)| CreateBar::open(ctx.ui, screen, ctx.archive, t, build));
+        }
+        if self.placement.is_none() && self.removal.is_none() {
+            log::info!("{template}: no tool for it yet (drag and path tools not ported)");
+        }
+        self.refresh_placement(ctx);
+    }
+
+    /// The removal tool's input (DragTool `FUN_140101b80`) with the cell under the cursor
+    /// (`FUN_140106740`, −1 off the map).
+    fn removal_input(&mut self, ctx: &mut Ctx, input: DragInput) {
+        let cell = self.cursor_cell(ctx.ui.screen);
+        let (Some(tool), Some(town), Some(view)) = (
+            self.removal.as_mut(),
+            self.town.as_mut(),
+            self.view.as_mut(),
+        ) else {
+            return;
+        };
+        let n = town.cells.size as i32;
+        let cell = cell.map_or(-1, |(x, y)| y * n + x);
+        let grid = banished_game::terrain::HeightGrid {
+            width: view.terrain.size + 1,
+            heights: &view.terrain.heights,
+        };
+        let sound = match input {
+            DragInput::Press => tool.press(ctx.archive, town, &grid, cell),
+            DragInput::Move => tool.motion(ctx.archive, town, &grid, cell),
+            DragInput::Release => tool.release(ctx.archive, town, &grid, cell),
+        };
+        let cells: Vec<_> = tool
+            .cells(town, &grid, cell)
+            .into_iter()
+            .map(|(x, y, acts)| crate::selection_overlay::OverlayCell::removal(x, y, acts))
+            .collect();
+        view.cell_overlay = crate::selection_overlay::vertices(&cells, n, |x, y| {
+            let mut normal = [0.0; 3];
+            grid.ground(x, y, &mut normal)
+        });
+        if view.overlay_texture.is_none() && !cells.is_empty() {
+            view.overlay_texture = crate::selection_overlay::load_texture(ctx.archive);
+        }
+        // DragTool `+0x30`: the CreateBar is open while dragging (`FUN_140104eb0`), shows the
+        // drag's size and the toolbar message 0 (`FUN_140105130`) and closes with the drag.
+        let screen_size = ctx.ui.screen;
+        match (tool.drag_ends(), tool.drag_size(n)) {
+            (Some((a, b)), Some(size)) => {
+                if self.create_bar.is_none() {
+                    if let (Some(t), Some(screen)) = (tool.toolbar.as_ref(), self.screen.as_mut()) {
+                        self.create_bar = CreateBar::open(ctx.ui, screen, ctx.archive, t, None);
+                    }
+                }
+                let aspect = screen_size[0].max(1) as f32 / screen_size[1].max(1) as f32;
+                let vp = view.view_proj(aspect);
+                let half = (n >> 1) as f32 - 0.5;
+                let mut r = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
+                let mut visible = screen_size[0] > 0 && screen_size[1] > 0;
+                for (x, y) in [
+                    (a % n, a / n),
+                    (a % n, b / n),
+                    (b % n, a / n),
+                    (b % n, b / n),
+                ] {
+                    let (px, py) = (x as f32 - half, y as f32 - half);
+                    let mut normal = [0.0; 3];
+                    let p = vp * glam::Vec4::new(px, py, grid.ground(px, py, &mut normal), 1.0);
+                    if p.w <= 0.0 {
+                        visible = false;
+                        break;
+                    }
+                    let (sx, sy) = (
+                        (p.x / p.w * 0.5 + 0.5) * screen_size[0] as f32,
+                        (0.5 - p.y / p.w * 0.5) * screen_size[1] as f32,
+                    );
+                    r = [r[0].min(sx), r[1].min(sy), r[2].max(sx), r[3].max(sy)];
+                }
+                if let Some(bar) = &mut self.create_bar {
+                    bar.update_drag(ctx.ui, size, visible.then_some(r));
+                }
+            }
+            _ => {
+                if let (Some(bar), Some(screen)) = (self.create_bar.take(), self.screen.as_mut()) {
+                    bar.close(ctx.ui, screen);
+                }
+            }
+        }
+        let sound = match sound {
+            Some(DragSound::Move) if self.move_cooldown > 0.0 => None,
+            Some(DragSound::Move) => {
+                self.move_cooldown = 0.05;
+                Some(crate::sound::global::PLACEMENT_MOVE)
+            }
+            Some(DragSound::Thunk) => Some(crate::sound::global::PLACEMENT_THUNK),
+            Some(DragSound::Error) => Some(crate::sound::global::PLACEMENT_ERROR),
+            None => None,
+        };
+        if let Some(sound) = sound {
+            ctx.audio
+                .play(ctx.archive, sound, crate::sound::sound_type::UI);
+        }
+    }
+
     fn end_placement(&mut self, ctx: &mut Ctx) {
         self.placement = None;
+        self.removal = None;
+        if let Some(view) = self.view.as_mut() {
+            view.cell_overlay.clear();
+        }
         if let (Some(bar), Some(screen)) = (self.create_bar.take(), self.screen.as_mut()) {
             bar.close(ctx.ui, screen);
         }
@@ -936,22 +1071,7 @@ impl GameLoop for GameplayLoop {
                 );
             }
             // Toolbar kind 1 → FUN_140108030: start (or end) the build tool.
-            Action::Build(Some(template)) => {
-                self.placement = self.town.as_mut().and_then(|town| {
-                    PlacementTool::start(ctx.archive, town, &template, &mut self.rng)
-                });
-                if let (Some(tool), Some(screen)) = (&self.placement, self.screen.as_mut()) {
-                    if let Some(old) = self.create_bar.take() {
-                        old.close(ctx.ui, screen);
-                    }
-                    self.create_bar = tool.toolbar.as_ref().and_then(|t| {
-                        CreateBar::open(ctx.ui, screen, ctx.archive, t, tool.build.as_ref())
-                    });
-                } else {
-                    log::info!("{template}: not a placed building (drag/path tools not ported)");
-                }
-                self.refresh_placement(ctx);
-            }
+            Action::Build(Some(template)) => self.start_tool(ctx, &template),
             Action::Build(None) => self.end_placement(ctx),
             Action::Options => self.open_pause_menu(ctx),
             other => log::info!("toolbar action not implemented yet: {other:?}"),
@@ -978,6 +1098,15 @@ impl GameLoop for GameplayLoop {
                 if self.placement.is_some() {
                     self.refresh_placement(ctx);
                 }
+                if self.removal.is_some() {
+                    self.removal_input(ctx, DragInput::Move);
+                }
+                return Next::Stay;
+            }
+            RawInput::Release => {
+                if self.removal.is_some() {
+                    self.removal_input(ctx, DragInput::Release);
+                }
                 return Next::Stay;
             }
             // StructureLeft / StructureRight turn the RotationSetting through 0..3.
@@ -996,6 +1125,10 @@ impl GameLoop for GameplayLoop {
                     tool.next_variant();
                     self.refresh_placement(ctx);
                 }
+                return Next::Stay;
+            }
+            RawInput::Click if self.removal.is_some() => {
+                self.removal_input(ctx, DragInput::Press);
                 return Next::Stay;
             }
             RawInput::Click => {
@@ -1029,7 +1162,11 @@ impl GameLoop for GameplayLoop {
                 }
                 return Next::Stay;
             }
-            RawInput::Escape if self.placement.is_some() => {
+            // DragTool `+0x48` (`FUN_140101b10`): Escape first stops a drag in progress.
+            RawInput::Escape if self.removal.as_mut().is_some_and(|t| t.cancel()) => {
+                return Next::Stay;
+            }
+            RawInput::Escape if self.placement.is_some() || self.removal.is_some() => {
                 self.end_placement(ctx);
                 if let Some(toolbar) = &self.toolbar {
                     toolbar.clear_build(ctx.ui);
@@ -1112,6 +1249,39 @@ impl GameLoop for GameplayLoop {
                     }
                 }
                 return placed.is_some();
+            }
+            // `remove TEMPLATE RADIUS`: drag a removal tool over the square around the start.
+            Some("remove") => {
+                let (Some(template), Some(r), Some(town), Some(view)) = (
+                    words.next(),
+                    words.next().and_then(|w| w.parse::<i32>().ok()),
+                    self.town.as_mut(),
+                    self.view.as_ref(),
+                ) else {
+                    return false;
+                };
+                let Some(mut tool) = RemovalTool::start(ctx.archive, town, template) else {
+                    return false;
+                };
+                let grid = banished_game::terrain::HeightGrid {
+                    width: view.terrain.size + 1,
+                    heights: &view.terrain.heights,
+                };
+                let n = town.cells.size as i32;
+                let (x, y) = (town.start.0 as i32, town.start.1 as i32);
+                let clamp = |v: i32| v.clamp(0, n - 1);
+                let a = clamp(y - r) * n + clamp(x - r);
+                let b = clamp(y + r) * n + clamp(x + r);
+                tool.drag(ctx.archive, town, &grid, a, b);
+                return true;
+            }
+            // `tool TEMPLATE`: start a template's tool, as its toolbar button does.
+            Some("tool") => {
+                let Some(template) = words.next() else {
+                    return false;
+                };
+                self.start_tool(ctx, template);
+                return self.placement.is_some() || self.removal.is_some();
             }
             // `select`: select the most recently placed entity (EditTool::Select).
             Some("select") => {
@@ -1818,4 +1988,12 @@ mod tests {
             "tree Remove clip, per-instance pose, pause and exact-duration cleanup verified on GPU"
         );
     }
+}
+
+/// What the removal tool hears from the mouse.
+#[derive(Debug, Clone, Copy)]
+enum DragInput {
+    Press,
+    Move,
+    Release,
 }

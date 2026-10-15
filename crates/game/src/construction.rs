@@ -22,6 +22,8 @@ pub enum Controller {
     Build,
     /// `FUN_14012f820`.
     Residence,
+    /// ClearResourceComponent (`FUN_140032150` / `FUN_140032270` table): the removal marker.
+    ClearResource,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -53,6 +55,8 @@ pub enum Callback {
     BuildFinish,
     /// `FUN_14012f2b0`.
     ResidenceEnter2,
+    /// `FUN_14011da30`: the marker destroys its entity once its cell is clear.
+    ClearResourceEnter2,
     /// Callbacks whose port is still missing (they pass the state on).
     Missing,
 }
@@ -164,6 +168,14 @@ const RESIDENCE: &[StateDef] = &[
     },
 ];
 
+const CLEAR_RESOURCE: &[StateDef] = &[StateDef {
+    id: 2,
+    enter: C::ClearResourceEnter2,
+    update: C::None,
+    exit: C::None,
+    transitions: &[(3, C::None)],
+}];
+
 impl Controller {
     pub fn table(self) -> &'static [StateDef] {
         match self {
@@ -171,6 +183,7 @@ impl Controller {
             Controller::WorkPlace => WORKPLACE,
             Controller::Build => BUILD,
             Controller::Residence => RESIDENCE,
+            Controller::ClearResource => CLEAR_RESOURCE,
         }
     }
 
@@ -409,6 +422,9 @@ pub struct Site {
     pub complete: bool,
     /// ClearAreaComponent `+0x48`: objects on the footprint when clearing began.
     pub clear_total: i32,
+    /// The entity was destroyed (`FUN_1400c8370`) during a state callback; the site goes
+    /// once the machine has run.
+    pub destroyed: bool,
 }
 
 /// The job manager, professions, workforce and every construction site.
@@ -435,6 +451,8 @@ pub struct Construction {
     pub new_piles: Vec<usize>,
     /// Entities were created or removed (the models need refreshing).
     pub models_dirty: bool,
+    /// Entities the player destroyed (RemovalTool cancel), before the next iteration.
+    pub destroy: Vec<usize>,
 }
 
 /// `RawMaterialComponent` (vtable `0x14016a5a0`, constructor `FUN_14012e8d0`): a loose pile.

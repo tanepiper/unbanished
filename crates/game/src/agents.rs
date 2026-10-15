@@ -248,14 +248,20 @@ impl Agents {
         self.sync_map(env.cells);
         let commands = std::mem::take(&mut env.construction.commands);
         let placed = std::mem::take(&mut env.construction.placed);
-        if commands.is_empty() && placed.is_empty() {
+        let destroy = std::mem::take(&mut env.construction.destroy);
+        if commands.is_empty() && placed.is_empty() && destroy.is_empty() {
             return;
         }
         let entities = entity_views(env.placed, env.templates);
         let adult = self.adults(citizens);
         let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
+        // Placing activates at once in the original (`FUN_1400c9d70`); a cancel comes after.
         for e in placed {
             sim.activate(jobs, e);
+            jobs.drain(&mut sim);
+        }
+        for e in destroy {
+            sim.destroy_entity(jobs, e);
             jobs.drain(&mut sim);
         }
         for command in commands {

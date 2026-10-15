@@ -1377,6 +1377,89 @@ pub fn clear_area_description(data: &[u8]) -> Result<ClearAreaDescription> {
     Ok(value)
 }
 
+/// `CreateRemovalDescription` (`Template\ClearX.rsc:createremoval`, serializer
+/// `FUN_14011ef90`): what a RemovalTool drag does to each cell (`FUN_140108ab0`).
+#[derive(Debug, Clone, Default)]
+pub struct CreateRemovalDescription {
+    /// `+0x20`: mark natural resources for removal.
+    pub resources: bool,
+    /// `+0x28/+0x30`: the resource templates it marks (empty: every one).
+    pub filters: Vec<String>,
+    /// `+0x38`: the marker entity's template (`Template\Clear.rsc:resource`).
+    pub template: Option<String>,
+    /// `+0x40` roads, `+0x41` demolish buildings, `+0x42` cancel, `+0x43` prioritise.
+    pub roads: bool,
+    pub buildings: bool,
+    pub cancel: bool,
+    pub priority: bool,
+}
+
+pub fn create_removal_description(data: &[u8]) -> Result<CreateRemovalDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("CreateRemovalDescription") {
+            return format_err(format!(
+                "expected CreateRemovalDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let resources = r.bool()?;
+            let n = r.count()?;
+            let filters = (0..n)
+                .map(|_| Ok(r.external_ref()?.unwrap_or_default()))
+                .collect::<Result<_>>()?;
+            Ok(CreateRemovalDescription {
+                resources,
+                filters,
+                template: r.external_ref()?,
+                roads: r.bool()?,
+                buildings: r.bool()?,
+                cancel: r.bool()?,
+                priority: r.bool()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `CreateDragDescription` (`Template\X.rsc:createdrag`, serializer `FUN_14011ec20`).
+#[derive(Debug, Clone, Default)]
+pub struct CreateDragDescription {
+    /// `+0x20`: admitted cell types (`FUN_1400a4aa0`'s mask).
+    pub mask: u32,
+    pub value_28: i32,
+    pub value_2c: i32,
+    pub value_30: i32,
+    pub value_34: i32,
+    /// `+0x24`: ignore cell occupants.
+    pub override_occupant: bool,
+    /// `+0x38`: an external reference.
+    pub reference: Option<String>,
+}
+
+pub fn create_drag_description(data: &[u8]) -> Result<CreateDragDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("CreateDragDescription") {
+            return format_err(format!(
+                "expected CreateDragDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(CreateDragDescription {
+                mask: r.u32()?,
+                value_28: r.i32()?,
+                value_2c: r.i32()?,
+                value_30: r.i32()?,
+                value_34: r.i32()?,
+                override_occupant: r.bool()?,
+                reference: r.external_ref()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `Profession` (serializer `FUN_1400ae3e0`): a job citizens can be assigned to.
 #[derive(Debug, Clone)]
 pub struct Profession {

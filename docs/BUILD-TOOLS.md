@@ -21,7 +21,7 @@ description types, creates it through `Object::Factory`, and attaches the shared
 | `FencedTool` | `DragTool` | fenced areas |
 | `RoadTool`, `PathTool` | `DragTool`, `Tool` | roads |
 | `BridgeTool` | `DragTool` | bridges |
-| `RemovalTool` | `DragTool` | clearing |
+| `RemovalTool` | `DragTool` | clearing (ported: [JOBS.md](JOBS.md#removal-tools-removaltool--dragtool-vtable-0x140168200)) |
 | `EditTool` | `Tool` | editing |
 
 `RotationSetting` is a `ToolSetting`. Its `+0x10` holds 0..3 and is shared between placements.

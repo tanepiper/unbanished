@@ -20,6 +20,9 @@ pub struct SceneView {
     pub icon_sheets: std::collections::BTreeMap<String, crate::status_icons::IconSheet>,
     /// Minimap overlay (`Game +0x148 → +0x28`): revision and RGBA rows, top row north.
     pub minimap_overlay: Option<(u64, u32, Vec<u8>)>,
+    /// The tools' cell overlay (`FUN_140105d90`) and its texture.
+    pub cell_overlay: Vec<crate::selection_overlay::OverlayVertex>,
+    pub overlay_texture: Option<crate::selection_overlay::OverlayTexture>,
 }
 
 pub enum SceneCamera {
@@ -42,6 +45,8 @@ impl SceneView {
             status_icons: Vec::new(),
             minimap_overlay: None,
             icon_sheets: Default::default(),
+            cell_overlay: Vec::new(),
+            overlay_texture: None,
         }
     }
 

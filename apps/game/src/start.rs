@@ -708,6 +708,46 @@ impl StartingTown {
         debug_assert_eq!(handle, id);
     }
 
+    /// A removal marker (`FUN_1400c8bf0` of `CreateRemovalDescription +0x38`, its MapComponent
+    /// at `cell`, 1 × 1, then `FUN_1400c9d70`): registered, its ZoneComponent occupies the cell
+    /// and its StateMachine is activated before the next iteration.
+    pub fn add_marker(
+        &mut self,
+        archive: &Archive,
+        template: usize,
+        cell: (i32, i32),
+        terrain: &HeightGrid,
+    ) -> usize {
+        let n = self.cells.size as i32;
+        let half = (n >> 1) as f32 - 0.5;
+        let (px, py) = (cell.0 as f32 - half, cell.1 as f32 - half);
+        let mut normal = [0.0; 3];
+        let z = terrain.ground(px, py, &mut normal);
+        let id = self.placed.len();
+        self.placed.push(Placed {
+            template,
+            bucket: self.templates[template].bucket,
+            cell,
+            footprint: (1, 1),
+            position: [px, py, z],
+            yaw: 0.0,
+            variant: 0,
+            mesh: usize::MAX,
+            growth: 0.0,
+            growth_state: None,
+            spawn_state: None,
+            alive: true,
+            removal_requested: false,
+            animation: None,
+            scale: [1.0; 4],
+        });
+        self.register_entity(id);
+        let i = (cell.1 * n + cell.0) as usize;
+        self.cells.occupants[i] = Some(id);
+        self.add_site(archive, id);
+        id
+    }
+
     /// Load (or find) a template for an entity created during play.
     pub fn load_template(&mut self, archive: &Archive, reference: &str) -> Option<usize> {
         let t = load_template(archive, reference, &mut self.templates);
@@ -894,6 +934,7 @@ impl StartingTown {
                     }
                 }
                 "residence" => t.controllers.push(Controller::Residence),
+                "clearresource" => t.controllers.push(Controller::ClearResource),
                 "work" => {
                     if let Ok(w) = banished_formats::game::work_description(&data) {
                         t.max_workers = w.max_workers;
@@ -911,7 +952,8 @@ impl StartingTown {
                 _ => {}
             }
         }
-        if !has_build {
+        // Sites: buildings (BuildComponent) and removal markers (ClearResourceComponent).
+        if !has_build && !t.controllers.contains(&Controller::ClearResource) {
             return None;
         }
         t.meshes = self.templates[template]
@@ -961,6 +1003,7 @@ impl StartingTown {
                 storage,
                 complete: false,
                 clear_total: 0,
+                destroyed: false,
             },
         );
         self.construction.placed.push(entity);

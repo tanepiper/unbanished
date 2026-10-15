@@ -576,8 +576,46 @@ impl Sim<'_, '_> {
         // Deviation: every site's scheduled update runs each iteration (bucket 3's quota of
         // five visits each entity every iteration while it holds at most five).
         for e in ids {
-            run(self, jobs, e, true, true);
+            if !self.sites.get(&e).is_some_and(|s| s.destroyed) {
+                run(self, jobs, e, true, true);
+            }
         }
+        let destroyed: Vec<usize> = self
+            .sites
+            .iter()
+            .filter(|(_, s)| s.destroyed)
+            .map(|(&e, _)| e)
+            .collect();
+        for e in destroyed {
+            self.destroy_entity(jobs, e);
+        }
+    }
+
+    /// The entity manager's removal of a destroyed site entity (`FUN_1400c8370`, then each
+    /// component's remove slot): its work goes (citizens doing it abort), the ZoneComponent
+    /// frees its cells and the entity is gone.
+    /// Not ported: WorkPlace and Residence removal (only removal markers are destroyed yet).
+    pub fn destroy_entity(&mut self, jobs: &mut Jobs, e: usize) {
+        if !self.sites.contains_key(&e) {
+            return;
+        }
+        self.remove_work(jobs, e);
+        self.sites.remove(&e);
+        self.site_list.retain(|&s| s != e);
+        let n = self.size as i32;
+        let p = &mut self.placed[e];
+        p.alive = false;
+        let (x, y) = p.cell;
+        let (w, h) = p.footprint;
+        for cy in y..y + h {
+            for cx in x..x + w {
+                let i = (cy * n + cx) as usize;
+                if self.cells.occupants[i] == Some(e) {
+                    self.cells.occupants[i] = None;
+                }
+            }
+        }
+        *self.models_dirty = true;
     }
 }
 
@@ -762,6 +800,14 @@ impl Callbacks for Sim<'_, '_> {
             Callback::ResidenceEnter2 => {
                 self.workforce.residences.push(e);
                 false
+            }
+            Callback::ClearResourceEnter2 => {
+                // `FUN_1400c8370` flags the entity (`+0x40` bit 10) and queues it for the entity
+                // manager's removal.
+                if let Some(site) = self.sites.get_mut(&e) {
+                    site.destroyed = true;
+                }
+                true
             }
         }
     }
@@ -1203,6 +1249,17 @@ impl Sim<'_, '_> {
         self.set_work(jobs, e, work, mask, clear.keep_priority);
     }
 
+    /// WorkComponent `+0x30` (most workers): the WorkPlaceComponent's, else `FUN_140133a90`
+    /// since nothing else sets it.
+    fn work_max(&self, e: usize) -> i32 {
+        match self.workforce.workplaces.get(&e) {
+            Some(w) => w.max(),
+            None => self.sites.get(&e).map_or(0, |s| {
+                self.site_templates[s.template].default_max_workers(self.placed[e].footprint)
+            }),
+        }
+    }
+
     /// `FUN_14011d800`: the footprint cells holding another object.
     pub fn clear_remaining(&self, e: usize) -> i32 {
         clear_remaining(&self.cells.objects, self.size as i32, &self.placed[e], e)
@@ -1236,7 +1293,7 @@ impl Sim<'_, '_> {
     /// `FUN_1400eb3b0`: ClearArea's slot `+0x20`.
     fn clear_try(&mut self, work: &mut Work, c: usize, time: i64) -> u8 {
         let e = work.entity;
-        let max = self.workforce.workplaces.get(&e).map_or(0, |w| w.max());
+        let max = self.work_max(e);
         let WorkKind::Clear(cl) = &work.kind else {
             return 0;
         };

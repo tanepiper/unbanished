@@ -26,11 +26,13 @@ mod models;
 mod music;
 mod pause_menu;
 mod placement_tool;
+mod removal_tool;
 mod render;
 mod scene;
 mod scene_assets;
 mod scene_gfx;
 mod selection;
+mod selection_overlay;
 mod shadow;
 mod sound;
 mod start;
@@ -193,6 +195,8 @@ impl Game {
             self.deliver_events();
             if down && !captured {
                 self.raw(RawInput::Click);
+            } else if !down {
+                self.raw(RawInput::Release);
             }
             captured
         } else {

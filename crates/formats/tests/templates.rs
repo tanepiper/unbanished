@@ -294,3 +294,51 @@ fn status_icon_descriptions_parse() {
     }
     assert_eq!(n, 31);
 }
+
+/// The removal tools' descriptions and every CreateDragDescription parse completely.
+#[test]
+fn removal_descriptions_parse() {
+    use banished_formats::{
+        crc::type_id,
+        crs,
+        game::{create_drag_description, create_removal_description},
+    };
+    let Some(archive) = archive() else { return };
+    let mut drags = 0;
+    for name in archive.names() {
+        if !name.ends_with(".crs") {
+            continue;
+        }
+        let bytes = archive.read(name).unwrap();
+        if crs::header(&bytes).unwrap().type_id == type_id("CreateDragDescription") {
+            create_drag_description(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+            drags += 1;
+        }
+    }
+    assert!(drags > 0);
+    let read = |t: &str| {
+        create_removal_description(
+            &archive
+                .read_ref(&format!("Template/{t}.rsc:createremoval"))
+                .unwrap(),
+        )
+        .unwrap()
+    };
+    let tree = read("ClearTree");
+    assert!(tree.resources && !tree.roads && !tree.cancel);
+    assert_eq!(tree.filters, [r"Template\NaturalResourceTree.rsc:resource"]);
+    assert_eq!(
+        tree.template.as_deref(),
+        Some(r"Template\Clear.rsc:resource")
+    );
+    assert!(read("ClearResources").filters.is_empty());
+    assert!(read("ClearRoad").roads);
+    assert!(read("ClearBuildings").buildings);
+    assert!(read("ClearCancel").cancel);
+    assert!(read("ClearPriority").priority);
+    let clear =
+        create_drag_description(&archive.read_ref("Template/Clear.rsc:createdrag").unwrap())
+            .unwrap();
+    assert_eq!(clear.mask, 0x14);
+    assert!(!clear.override_occupant);
+}

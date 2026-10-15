@@ -74,6 +74,23 @@ impl CreateBar {
         valid: bool,
         rect: Option<[f32; 4]>,
     ) {
+        self.update_at(ui, size, valid, rect, false);
+    }
+
+    /// `FUN_140105130` for a drag (start and end cells given): centred on the rectangle of the
+    /// drag's corner cells (`FUN_140104140`) on both axes.
+    pub fn update_drag(&mut self, ui: &mut Ui, size: (i32, i32), rect: Option<[f32; 4]>) {
+        self.update_at(ui, Some(size), true, rect, true);
+    }
+
+    fn update_at(
+        &mut self,
+        ui: &mut Ui,
+        size: Option<(i32, i32)>,
+        valid: bool,
+        rect: Option<[f32; 4]>,
+        centre: bool,
+    ) {
         if let (Some((node, template)), Some((w, h))) = (&self.size, size) {
             with_param(ui, *node, template, &format!("{w}x{h}"));
         }
@@ -92,16 +109,17 @@ impl CreateBar {
         if let Some(icon) = self.icon {
             ui.node_mut(icon).color = if valid { 0xffff_ffff } else { 0xffff_0000 };
         }
-        let Some([x0, y0, x1, _]) = rect else {
+        let Some([x0, y0, x1, y1]) = rect else {
             ui.set_visible(self.root, false);
             return;
         };
         ui.set_visible(self.root, true);
         let r = ui.node(self.root).rect;
         let (w, h) = ((r[2] - r[0]) as f32, (r[3] - r[1]) as f32);
+        let y = if centre { (y0 + y1) * 0.5 } else { y0 };
         let target = (
             ((x0 + x1) * 0.5) as i32 as f32 - (w as i32 >> 1) as f32,
-            (y0 as i32 - (h as i32 >> 1)) as f32,
+            (y as i32 - (h as i32 >> 1)) as f32,
         );
         let p = match self.position {
             Some((px, py)) => (
