@@ -16,5 +16,6 @@ pub mod noise;
 pub mod random;
 pub mod scheduler;
 pub mod seeding;
+pub mod spawn;
 pub mod stock;
 pub mod terrain;

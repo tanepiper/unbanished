@@ -17,7 +17,7 @@ use banished_game::citizens::{Citizen, CitizenRules, Households};
 use banished_game::map::Map;
 use banished_game::random::Random;
 use banished_game::scheduler::EntityScheduler;
-use banished_game::seeding::{Cells, Placed, Seeder, Template};
+use banished_game::seeding::{Cells, Placed, ScheduledComponent, Seeder, Template};
 use banished_game::stock::{distribute, RawMaterial, Storage};
 use banished_game::terrain::HeightGrid;
 
@@ -59,6 +59,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         growth: None,
         growth_reference: None,
         spawn: Vec::new(),
+        updates: Vec::new(),
         size: None,
         storage: None,
         storage_location: false,
@@ -98,8 +99,12 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
             "growth" => {
                 t.growth = growth_description(&data).ok();
                 t.growth_reference = Some(normalise(d));
+                t.updates.push(ScheduledComponent::Growth);
             }
-            "spawn" => spawn = spawn_description(&data).unwrap_or_default(),
+            "spawn" => {
+                spawn = spawn_description(&data).unwrap_or_default();
+                t.updates.push(ScheduledComponent::Spawn);
+            }
             "storage" => {
                 t.storage = storage_description(&data)
                     .ok()
@@ -323,7 +328,7 @@ impl StartingTown {
         drop(seeder);
         let mut scheduler = EntityScheduler::default();
         for (id, p) in placed.iter().enumerate() {
-            scheduler.register(id, templates[p.template].bucket);
+            scheduler.register(id, p.bucket);
         }
         // `FUN_1400a62a0`: the starting households around the start cell centre.
         let (citizens, rules) = households(

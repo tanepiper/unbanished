@@ -17,6 +17,7 @@ use crate::growth::{adjust_map_byte, Growth};
 use crate::noise::PerlinNoise;
 use crate::random::Random;
 use crate::scheduler::{ticks, EntityScheduler};
+use crate::spawn::Spawn;
 use crate::terrain::{CellType, HeightGrid};
 use banished_formats::types::AnimationGroup;
 use std::sync::Arc;
@@ -38,6 +39,8 @@ pub struct Template {
     pub growth_reference: Option<String>,
     /// Spawn entries: (index into the template table, lo, hi).
     pub spawn: Vec<(usize, f32, f32)>,
+    /// Scheduled component callbacks, in the ComponentDescription's construction order.
+    pub updates: Vec<ScheduledComponent>,
     /// `CreatePlacedDescription +0x44/+0x48`: building footprint size.
     pub size: Option<(i32, i32)>,
     /// `StorageDescription`: accepted flags `+0x28`, capacity `+0x24`, capacity per footprint
@@ -47,11 +50,19 @@ pub struct Template {
     pub storage_location: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScheduledComponent {
+    Growth,
+    Spawn,
+}
+
 /// A placed entity.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Placed {
     /// Index into the template table.
     pub template: usize,
+    /// Entity +0x1f: actual registration bucket, which can differ from its own template.
+    pub bucket: usize,
     /// Map cell.
     pub cell: (i32, i32),
     /// Map position (cells from the terrain centre) and ground height.
@@ -60,9 +71,10 @@ pub struct Placed {
     pub yaw: f32,
     pub variant: usize,
     pub mesh: usize,
-    /// Growth value (`NaturalResourceComponent +0x28`); 0 without a growth component.
+    /// NaturalResourceComponent +0x28; its constructor FUN_140036eb0 defaults to 1.0.
     pub growth: f32,
     pub growth_state: Option<Growth>,
+    pub spawn_state: Option<Spawn>,
     pub alive: bool,
     /// NaturalResourceComponent flag 0x200000 (FUN_14012bc50).
     pub removal_requested: bool,
@@ -187,6 +199,7 @@ impl<'a> Seeder<'a> {
                 .map_or(0, |v| v.meshes.len().saturating_sub(1));
             self.placed.push(Placed {
                 template: t,
+                bucket: self.templates[t].bucket,
                 cell: (x, y),
                 position,
                 yaw: record.rotation.rem_euclid(360) as f32,
@@ -194,6 +207,7 @@ impl<'a> Seeder<'a> {
                 mesh,
                 growth: 0.0,
                 growth_state: None,
+                spawn_state: None,
                 alive: true,
                 removal_requested: false,
                 animation: None,
@@ -326,8 +340,12 @@ impl<'a> Seeder<'a> {
     fn spawn(&mut self, parent: usize) {
         let template = self.placed[parent].template;
         let growth = self.placed[parent].growth;
-        let (px, py) = self.placed[parent].cell;
-        for (child, lo, hi) in self.templates[template].spawn.clone() {
+        for (entry, (child, lo, hi)) in self.templates[template]
+            .spawn
+            .clone()
+            .into_iter()
+            .enumerate()
+        {
             if !(lo <= growth && growth <= hi) {
                 continue;
             }
@@ -337,33 +355,47 @@ impl<'a> Seeder<'a> {
                 .map_or(1.0, |g| g.max_base);
             let attempts = (growth / step) as i32 + 1;
             for _ in 0..attempts {
-                self.spawn_one(child, px, py);
+                self.spawn_child(parent, entry, true, false);
             }
         }
     }
 
-    /// `FUN_1400560e0(…, random_growth = true)`.
-    fn spawn_one(&mut self, child: usize, px: i32, py: i32) {
+    /// Port of FUN_1400560e0. Startup uses random_growth=true; scheduled spawning uses false.
+    /// The child is registered in the PARENT TEMPLATE's bucket (not its own template's bucket).
+    pub fn spawn_child(
+        &mut self,
+        parent: usize,
+        entry: usize,
+        random_growth: bool,
+        disabled: bool,
+    ) -> Option<usize> {
+        if disabled {
+            return None;
+        }
+        let parent_template = self.placed[parent].template;
+        let child = self.templates[parent_template].spawn[entry].0;
+        let (px, py) = self.placed[parent].cell;
         let Some(g) = self.templates[child].growth.clone() else {
-            return;
+            return None;
         };
         if self.rng.rand_float() > ONE / g.spawn_one_in as f32 {
-            return;
+            return None;
         }
         let x = px + self.rng.rand_tol(g.spawn_radius);
         let y = py + self.rng.rand_tol(g.spawn_radius);
         let n = self.n();
         if x < 0 || y < 0 || x >= n || y >= n || !self.spawn_spot_ok(x, y) {
-            return;
+            return None;
         }
         if !self.density_ok(child, x, y) {
-            return;
+            return None;
         }
         let (variant, mesh, max_growth) = self.construct(child);
         let (position, yaw) = self.position(child, n * y + x);
         let (state, growth, scale) = self.set_growth(child, max_growth, 0.0);
         let id = self.register(Placed {
             template: child,
+            bucket: self.templates[parent_template].bucket,
             cell: (x, y),
             position,
             yaw,
@@ -371,16 +403,27 @@ impl<'a> Seeder<'a> {
             mesh,
             growth,
             growth_state: Some(state),
+            spawn_state: self.spawn_state(child),
             alive: true,
             removal_requested: false,
             animation: None,
             scale,
         });
-        let fraction = self.rng.rand_float();
-        let (state, growth, scale) = self.set_growth(child, max_growth, fraction);
-        self.placed[id].growth = growth;
-        self.placed[id].scale = scale;
-        self.placed[id].growth_state = Some(state);
+        if random_growth {
+            let fraction = self.rng.rand_float();
+            let (state, growth, scale) = self.set_growth(child, max_growth, fraction);
+            self.placed[id].growth = growth;
+            self.placed[id].scale = scale;
+            self.placed[id].growth_state = Some(state);
+        }
+        Some(id)
+    }
+
+    fn spawn_state(&self, template: usize) -> Option<Spawn> {
+        self.templates[template]
+            .updates
+            .contains(&ScheduledComponent::Spawn)
+            .then(|| Spawn::new(self.templates[template].spawn.len()))
     }
 
     /// Port of FUN_140125070: reproduce using the parent's template and model variant. Unlike
@@ -412,6 +455,7 @@ impl<'a> Seeder<'a> {
         let mesh = self.rng.rand_below(meshes as u32) as usize;
         Some(self.register(Placed {
             template,
+            bucket: self.templates[template].bucket,
             cell: (x, y),
             position,
             yaw,
@@ -419,6 +463,7 @@ impl<'a> Seeder<'a> {
             mesh,
             growth,
             growth_state: Some(state),
+            spawn_state: self.spawn_state(template),
             alive: true,
             removal_requested: false,
             animation: None,
@@ -645,7 +690,7 @@ impl<'a> Seeder<'a> {
                     }
                     let (mut variant, mut mesh, max_growth) = self.construct(template);
                     let (position, yaw) = self.position(template, index);
-                    let (mut growth, mut scale, mut growth_state) = (0.0, [ONE; 4], None);
+                    let (mut growth, mut scale, mut growth_state) = (1.0, [ONE; 4], None);
                     if self.templates[template].growth.is_some() {
                         let fraction = self.rng.rand_float();
                         let (state, value, output) =
@@ -656,6 +701,7 @@ impl<'a> Seeder<'a> {
                     }
                     let id = self.register(Placed {
                         template,
+                        bucket: self.templates[template].bucket,
                         cell: (x, y),
                         position,
                         yaw,
@@ -663,6 +709,7 @@ impl<'a> Seeder<'a> {
                         mesh,
                         growth,
                         growth_state,
+                        spawn_state: self.spawn_state(template),
                         alive: true,
                         removal_requested: false,
                         animation: None,
@@ -752,6 +799,7 @@ mod tests {
             }),
             growth_reference: Some("test:growth".into()),
             spawn: Vec::new(),
+            updates: vec![ScheduledComponent::Growth],
             size: None,
             storage: None,
             storage_location: false,
@@ -761,6 +809,7 @@ mod tests {
     fn parent() -> Placed {
         Placed {
             template: 0,
+            bucket: 3,
             cell: (8, 8),
             position: [0.5, 0.5, 0.0],
             yaw: 0.0,
@@ -775,6 +824,7 @@ mod tests {
                 smoothing: false,
                 allow_negative: false,
             }),
+            spawn_state: None,
             alive: true,
             removal_requested: false,
             animation: None,
