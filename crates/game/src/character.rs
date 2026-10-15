@@ -51,6 +51,8 @@ pub enum Component {
     Build,
     /// `DAT_1401cf5f0`: DestroyComponent message 0 adds one unit of deconstruction work.
     Destroy,
+    /// `DAT_1401cc1e0`: FireComponent message 0, a bucket of water (`FUN_1400499f0`).
+    Fire,
     /// The job manager: message 0 is CompleteTask's start (`FUN_1400fdc30`), 1 its abort
     /// (`FUN_1400fdcd0`); `a` is the work id, `b` the task parameter.
     Jobs,

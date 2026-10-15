@@ -618,6 +618,9 @@ impl GameplayLoop {
             // The crop fields read the calendar (`Game +0x128`).
             town.construction.calendar = self.calendar.seconds();
             town.construction.year = self.calendar.year;
+            // Fire spreads less in rain (environment `+0x10`).
+            town.construction.precipitation =
+                self.environment.as_ref().is_some_and(|e| e.state == 0);
             // Player commands and placed sites take effect between iterations.
             town.apply_commands(&grid, &mut self.rng);
             let changed = town.iterate(&grid, &mut self.rng, dt, temperature);
@@ -976,6 +979,9 @@ impl GameLoop for GameplayLoop {
                     view.models = Some(town.models(ctx.archive));
                 }
                 self.town = town;
+                if let Some(town) = &mut self.town {
+                    town.construction.game_flags = if self.params.disasters { 0 } else { 0xf0 };
+                }
                 self.view = Some(view);
             }
             Err(e) => log::error!("world generation failed: {e}"),

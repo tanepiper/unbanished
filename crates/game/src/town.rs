@@ -110,6 +110,12 @@ pub struct Sim<'s, 't> {
     pub site_events: &'s mut Vec<(i32, i32, usize)>,
     pub storage_changes: &'s mut Vec<(usize, bool)>,
     pub rebuilds: &'s mut Vec<crate::destroy::Rebuild>,
+    /// The town's water sources (wells and shore points).
+    pub water: &'s mut crate::fire::Water,
+    /// `Game +0xd0`: the debug flags (all of `0xf0` with disasters off).
+    pub game_flags: u32,
+    /// The sky's state is precipitation (environment `+0x10` = 0).
+    pub precipitation: bool,
     /// The scheduled update's elapsed time (ticks) for the site callbacks.
     pub site_dt: i64,
     pub cemeteries: &'s mut Vec<usize>,
@@ -225,6 +231,11 @@ impl Sim<'_, '_> {
 
     pub(crate) fn reachable(&self, a: i32, b: i32) -> bool {
         self.town().reachable(WALKABLE, a, b)
+    }
+
+    /// `Map::Reachable` (`FUN_1400a55c0`) with another mask.
+    pub(crate) fn reachable_by(&self, mask: u32, a: i32, b: i32) -> bool {
+        self.town().reachable(mask, a, b)
     }
 
     /// The workforce with the workers and the workplace searches over the town; the workers'
@@ -353,7 +364,7 @@ impl Sim<'_, '_> {
 
     /// The entity, then its MultiObject parts: whose InteractComponents hold its points (the
     /// children `FUN_140128540` and `FUN_1401282f0` count on).
-    fn interact_entities(&self, entity: usize) -> Vec<usize> {
+    pub(crate) fn interact_entities(&self, entity: usize) -> Vec<usize> {
         let mut out = vec![entity];
         if let Some(site) = self.sites.get(&entity) {
             out.extend(site.parts.iter().copied());
@@ -684,7 +695,14 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_1400fc3c0`: may this citizen take work this far away?
-    fn patience(&mut self, work: &mut Work, c: usize, a: i32, b: i32, time: i64) -> bool {
+    pub(crate) fn patience(
+        &mut self,
+        work: &mut Work,
+        c: usize,
+        a: i32,
+        b: i32,
+        time: i64,
+    ) -> bool {
         work.patience = work
             .patience
             .wrapping_add(time.wrapping_sub(work.patience_base));
@@ -1353,6 +1371,14 @@ impl Callbacks for Sim<'_, '_> {
                 self.destroy_exit6(e);
                 true
             }
+            Callback::WellEnter2 => {
+                self.well_join(e, true);
+                false
+            }
+            Callback::WellEnter3 => {
+                self.well_join(e, false);
+                false
+            }
             Callback::AttendanceEnter2 => {
                 self.attendance_enter(jobs, e);
                 false
@@ -1469,9 +1495,15 @@ impl WorkHost for Sim<'_, '_> {
     fn cell(&self, c: usize) -> i32 {
         self.citizen_cell(c)
     }
-    fn has_emergency(&self, _: usize) -> bool {
-        // Not ported: emergencies (fires).
-        false
+    fn has_emergency(&self, c: usize) -> bool {
+        let s = &self.states[c];
+        crate::fire::has_emergency(
+            self.cells,
+            self.placed,
+            s.home,
+            s.workplace,
+            self.characters[c].position,
+        )
     }
     fn works_anywhere(&self, p: usize) -> bool {
         self.professions.works_anywhere(p)
@@ -1515,7 +1547,8 @@ impl WorkHost for Sim<'_, '_> {
             | WorkKind::Hunt(h)
             | WorkKind::TendArea(h)
             | WorkKind::Pasture(h)
-            | WorkKind::ClearStorage(h) => h.workers.iter().copied(),
+            | WorkKind::ClearStorage(h)
+            | WorkKind::Fire(h) => h.workers.iter().copied(),
             // `FUN_1400f4c90`: the worker no longer holds the task.
             WorkKind::Location(l) => {
                 if let Some(c) = l.worker {
@@ -1573,7 +1606,8 @@ impl WorkHost for Sim<'_, '_> {
             | WorkKind::Hunt(h)
             | WorkKind::TendArea(h)
             | WorkKind::Pasture(h)
-            | WorkKind::ClearStorage(h) => {
+            | WorkKind::ClearStorage(h)
+            | WorkKind::Fire(h) => {
                 for c in &gone {
                     h.workers.remove(c);
                 }
@@ -1607,6 +1641,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Produce(_) => self.produce_try(work, c, time),
             WorkKind::Location(_) => self.location_try(work, c),
             WorkKind::ClearStorage(_) => self.clear_storage_try(work, c, time),
+            WorkKind::Fire(_) => self.fire_try(work, c, time),
             WorkKind::Market(_) => self.market_try(work, c),
             WorkKind::Fishing(_) => self.fishing_try(work, c),
             WorkKind::PlantArea(_) => self.plant_try(work, c),
@@ -1715,7 +1750,9 @@ impl WorkHost for Sim<'_, '_> {
             | WorkKind::Hunt(h)
             | WorkKind::TendArea(h)
             | WorkKind::Pasture(h)
-            | WorkKind::ClearStorage(h) => {
+            | WorkKind::ClearStorage(h)
+            // `FUN_1400eead0`.
+            | WorkKind::Fire(h) => {
                 h.workers.remove(&c);
             }
             // `FUN_1400f5430`.
@@ -1761,8 +1798,8 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::PickFruit(_) => Self::pick_done(work, param, true),
             WorkKind::Location(l) => l.worker = None,
             WorkKind::Pasture(_) => self.pasture_fail(work, c, param),
-            // `FUN_1400f3850` / `FUN_1400f0360` / `FUN_1400ec0f0`.
-            WorkKind::ClearStorage(h) => {
+            // `FUN_1400f3850` / `FUN_1400f0360` / `FUN_1400ec0f0` / `FUN_1400eeac0`.
+            WorkKind::ClearStorage(h) | WorkKind::Fire(h) => {
                 h.workers.remove(&c);
             }
             WorkKind::Herbalist(h)
@@ -1817,7 +1854,9 @@ impl WorkHost for Sim<'_, '_> {
                 | WorkKind::Hunt(h)
                 | WorkKind::TendArea(h)
                 | WorkKind::Pasture(h)
-                | WorkKind::ClearStorage(h) => h.workers.first().copied(),
+                | WorkKind::ClearStorage(h)
+                // `FUN_1400eee70`.
+                | WorkKind::Fire(h) => h.workers.first().copied(),
                 // `FUN_1400f7170`: every vendor's stack is cleared.
                 WorkKind::Market(m) => m.plans.keys().next().copied(),
                 WorkKind::Produce(_) | WorkKind::Test(_) => None,
@@ -1848,7 +1887,8 @@ impl WorkHost for Sim<'_, '_> {
                 | WorkKind::Hunt(h)
                 | WorkKind::TendArea(h)
                 | WorkKind::Pasture(h)
-                | WorkKind::ClearStorage(h) => {
+                | WorkKind::ClearStorage(h)
+                | WorkKind::Fire(h) => {
                     h.workers.remove(&c);
                 }
                 WorkKind::Fishing(fw) => {

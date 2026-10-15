@@ -26,8 +26,8 @@ Deviation: 30, Not ported: 54, Not traced: 4.
 
 - [Deviation] [apps/game/src/gameplay.rs:32](../apps/game/src/gameplay.rs#L32): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
 - [Deviation] [apps/game/src/gameplay.rs:278](../apps/game/src/gameplay.rs#L278): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
-- [Not ported] [apps/game/src/gameplay.rs:651](../apps/game/src/gameplay.rs#L651): Not ported: the AutoSlow option (default on) slows the game; nothing reads `slow_request` yet.
-- [Not ported] [apps/game/src/gameplay.rs:843](../apps/game/src/gameplay.rs#L843): The precipitation emitters follow the environment's effects (`FUN_1400999b0`); with the game option ShowWeather (`+0x16`) off the effects and their emitters are removed. Not ported: ShowWeather's other effect, the weather lighting blend in `FUN_140098f90`.
+- [Not ported] [apps/game/src/gameplay.rs:654](../apps/game/src/gameplay.rs#L654): Not ported: the AutoSlow option (default on) slows the game; nothing reads `slow_request` yet.
+- [Not ported] [apps/game/src/gameplay.rs:846](../apps/game/src/gameplay.rs#L846): The precipitation emitters follow the environment's effects (`FUN_1400999b0`); with the game option ShowWeather (`+0x16`) off the effects and their emitters are removed. Not ported: ShowWeather's other effect, the weather lighting blend in `FUN_140098f90`.
 
 ## `apps/game/src/main.rs`
 
@@ -75,9 +75,9 @@ Deviation: 30, Not ported: 54, Not traced: 4.
 
 ## `apps/game/src/start.rs`
 
-- [Not ported] [apps/game/src/start.rs:1122](../apps/game/src/start.rs#L1122): StatusIconComponent billboards (`FUN_1401310a0` anchors): each citizen with status bits, above its model (position + model box height). Building status bits are not ported.
-- [Not ported] [apps/game/src/start.rs:1260](../apps/game/src/start.rs#L1260): A dragged area (CreateDrag: fields, orchards, pastures) over `rect` (`x, y, w, h`): the entity, its zone over every cell, and its site. The drag tool itself is not ported yet; tests place areas directly.
-- [Not ported] [apps/game/src/start.rs:1309](../apps/game/src/start.rs#L1309): The fenced tool (FencedTool, vtable `0x140166a10`) dragged from cell `a` to cell `b` with the shelter turned `rotation` quarter turns: slot `+0x70` (`FUN_1400e0960`) checks the area, slot `+0x68` (`FUN_1400e02d0`) places the entity over it with its shelter, corners and fence runs (its MultiObjectComponent's parts). The drag itself is not ported; tests place pastures directly. Returns the entity.
+- [Not ported] [apps/game/src/start.rs:1126](../apps/game/src/start.rs#L1126): StatusIconComponent billboards (`FUN_1401310a0` anchors): each citizen with status bits, above its model (position + model box height). Building status bits are not ported.
+- [Not ported] [apps/game/src/start.rs:1264](../apps/game/src/start.rs#L1264): A dragged area (CreateDrag: fields, orchards, pastures) over `rect` (`x, y, w, h`): the entity, its zone over every cell, and its site. The drag tool itself is not ported yet; tests place areas directly.
+- [Not ported] [apps/game/src/start.rs:1313](../apps/game/src/start.rs#L1313): The fenced tool (FencedTool, vtable `0x140166a10`) dragged from cell `a` to cell `b` with the shelter turned `rotation` quarter turns: slot `+0x70` (`FUN_1400e0960`) checks the area, slot `+0x68` (`FUN_1400e02d0`) places the entity over it with its shelter, corners and fence runs (its MultiObjectComponent's parts). The drag itself is not ported; tests place pastures directly. Returns the entity.
 
 ## `apps/game/src/utility.rs`
 
@@ -86,9 +86,9 @@ Deviation: 30, Not ported: 54, Not traced: 4.
 ## `crates/game/src/agents.rs`
 
 - [Deviation] [crates/game/src/agents.rs:1](../crates/game/src/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance (`AnimationManager::Update`), every character runs its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run the AI with zero time (`FUN_140114810`), then the AI updates. Deviations: the AI runs every iteration instead of on its bucket's quota, and after the placed entities' bucket pass instead of interleaved with it.
-- [Not ported] [crates/game/src/agents.rs:75](../crates/game/src/agents.rs#L75): Not ported: tool use during jobs and the citizen clothing-wear countdown.
-- [Not ported] [crates/game/src/agents.rs:912](../crates/game/src/agents.rs#L912): `FUN_140119170`: the dead citizen's components let go of the town (a removed entity's CharacterComponent abandons its actions, CitizenComponent leaves its home, family, workplace and registry; a laborer takes over its profession). Not ported: the carried goods (StorageComponent removal) are lost.
-- [Not ported] [crates/game/src/agents.rs:1490](../crates/game/src/agents.rs#L1490): Not ported: drawing the StatusIconComponent's billboard (its mask is live).
+- [Not ported] [crates/game/src/agents.rs:77](../crates/game/src/agents.rs#L77): Not ported: tool use during jobs and the citizen clothing-wear countdown.
+- [Not ported] [crates/game/src/agents.rs:918](../crates/game/src/agents.rs#L918): `FUN_140119170`: the dead citizen's components let go of the town (a removed entity's CharacterComponent abandons its actions, CitizenComponent leaves its home, family, workplace and registry; a laborer takes over its profession). Not ported: the carried goods (StorageComponent removal) are lost.
+- [Not ported] [crates/game/src/agents.rs:1510](../crates/game/src/agents.rs#L1510): Not ported: drawing the StatusIconComponent's billboard (its mask is live).
 
 ## `crates/game/src/animation.rs`
 
@@ -96,17 +96,16 @@ Deviation: 30, Not ported: 54, Not traced: 4.
 
 ## `crates/game/src/blight.rs`
 
-- [Not ported] [crates/game/src/blight.rs:90](../crates/game/src/blight.rs#L90): `FUN_140048d00`: a built field with something growing falls sick (event 12 at severity 3, with the toolbar name). Not ported: the DiseaseComponent's particles.
-- [Not ported] [crates/game/src/blight.rs:172](../crates/game/src/blight.rs#L172): `FUN_140048f70`: in its months, a check every `check` × 300 s: odds of one in `12 / check × odds`, or `odds_same` when a cell last grew what grew here. Not ported: the debug flag that stops it (`Game +0xd0` bit 5).
+- [Not ported] [crates/game/src/blight.rs:92](../crates/game/src/blight.rs#L92): `FUN_140048d00`: a built field with something growing falls sick (event 12 at severity 3, with the toolbar name). Not ported: the DiseaseComponent's particles.
 
 ## `crates/game/src/character.rs`
 
-- [Not ported] [crates/game/src/character.rs:124](../crates/game/src/character.rs#L124): `Citizen::InjuryCheck` (`FUN_14011bb20` → `FUN_1400ae760`): already hurt, or, at a job whose profession has accidents, `RandFloat() < time since the last check / (+0x54 × 12 × 300 s × +0x58)` (the time restarts at every check). Not ported: the debug flag that stops it (`Game +0xd0` bit 8).
-- [Not traced] [crates/game/src/character.rs:215](../crates/game/src/character.rs#L215): `+0x28`, cleared when a waypoint is faced (consumer not traced).
-- [Not ported] [crates/game/src/character.rs:533](../crates/game/src/character.rs#L533): `ShowTool` (vtable `0x14015ead0`, start `FUN_140043070`): attach tool mesh `n`. Not ported: drawing the tool on the citizen's `tool` node.
-- [Not ported] [crates/game/src/character.rs:679](../crates/game/src/character.rs#L679): `FUN_1400cbb20`: the cell must be free (`FUN_1400a1fd0`: not cell types 0 or 1; the per-cell byte `+0x2a` and the map's set at `+0xe8` are not ported) and without flags. Otherwise the action fails.
-- [Not ported] [crates/game/src/character.rs:753](../crates/game/src/character.rs#L753): Material `usize::MAX`: every carried material (constructor argument null); storage `usize::MAX`: no target (only the redirect search, not ported).
-- [Not ported] [crates/game/src/character.rs:796](../crates/game/src/character.rs#L796): Not ported: redirecting to another storage (`FUN_140092a60` put, MoveTo) and dropping a loose pile (`FUN_1400ccd90`); the drop-off fails instead.
+- [Not ported] [crates/game/src/character.rs:126](../crates/game/src/character.rs#L126): `Citizen::InjuryCheck` (`FUN_14011bb20` → `FUN_1400ae760`): already hurt, or, at a job whose profession has accidents, `RandFloat() < time since the last check / (+0x54 × 12 × 300 s × +0x58)` (the time restarts at every check). Not ported: the debug flag that stops it (`Game +0xd0` bit 8).
+- [Not traced] [crates/game/src/character.rs:217](../crates/game/src/character.rs#L217): `+0x28`, cleared when a waypoint is faced (consumer not traced).
+- [Not ported] [crates/game/src/character.rs:535](../crates/game/src/character.rs#L535): `ShowTool` (vtable `0x14015ead0`, start `FUN_140043070`): attach tool mesh `n`. Not ported: drawing the tool on the citizen's `tool` node.
+- [Not ported] [crates/game/src/character.rs:681](../crates/game/src/character.rs#L681): `FUN_1400cbb20`: the cell must be free (`FUN_1400a1fd0`: not cell types 0 or 1; the per-cell byte `+0x2a` and the map's set at `+0xe8` are not ported) and without flags. Otherwise the action fails.
+- [Not ported] [crates/game/src/character.rs:755](../crates/game/src/character.rs#L755): Material `usize::MAX`: every carried material (constructor argument null); storage `usize::MAX`: no target (only the redirect search, not ported).
+- [Not ported] [crates/game/src/character.rs:798](../crates/game/src/character.rs#L798): Not ported: redirecting to another storage (`FUN_140092a60` put, MoveTo) and dropping a loose pile (`FUN_1400ccd90`); the drop-off fails instead.
 
 ## `crates/game/src/destroy.rs`
 
@@ -121,6 +120,11 @@ Deviation: 30, Not ported: 54, Not traced: 4.
 ## `crates/game/src/farm.rs`
 
 - [Not ported] [crates/game/src/farm.rs:373](../crates/game/src/farm.rs#L373): Not ported: a terminal transition reached by tending (the bucket pass handles the next one).
+
+## `crates/game/src/fire.rs`
+
+- [Not ported] [crates/game/src/fire.rs:224](../crates/game/src/fire.rs#L224): `FireComponent::Ignite` (`FUN_140049f70`): a building neither damaged nor being torn down is damaged for half the burn; it burns, gets its FireWork (prioritised), marks the emergency around it and, as the first fire, posts event 31. Not ported: the particles, the fire sound, AutoSlow (settings `+0x17`).
+- [Not ported] [crates/game/src/fire.rs:276](../crates/game/src/fire.rs#L276): `FireComponent::PutOut` (`FUN_140049e20`): it is rubble now; its work and emergency go. Not ported: the particles and the fire sound.
 
 ## `crates/game/src/fishing.rs`
 
@@ -196,17 +200,16 @@ Deviation: 30, Not ported: 54, Not traced: 4.
 
 ## `crates/game/src/town.rs`
 
-- [Not ported] [crates/game/src/town.rs:543](../crates/game/src/town.rs#L543): `FUN_1400c4c60` with its flags: `partial` (`param_11`, the pickup may take less), `complete_on_pickup` (`param_12`, the CompleteTask follows the pickup rather than the delivery). Not ported: `param_13` (a Citizen message) and `param_14` (tool use, faster walk), which no ported caller sets.
-- [Not ported] [crates/game/src/town.rs:717](../crates/game/src/town.rs#L717): `FUN_14011d910` for a footprint whose description clears resources and piles: every cell's object `+0x08` is empty (`FUN_1400a2f90`). Not ported: the `+0x29` empty-cell test (`FUN_1400a2d30`) and the reference-filtered test (`FUN_1400a2e00`).
-- [Deviation] [crates/game/src/town.rs:936](../crates/game/src/town.rs#L936): Deviation: every site's scheduled update runs each iteration (bucket 3's quota of five visits each entity every iteration while it holds at most five).
-- [Not ported] [crates/game/src/town.rs:954](../crates/game/src/town.rs#L954): The entity manager's removal of a destroyed site entity (`FUN_1400c8370`, then each component's remove slot): its work goes (citizens doing it abort), the ZoneComponent frees its cells and the entity is gone. Not ported: WorkPlace and Residence removal (only removal markers are destroyed yet).
-- [Not ported] [crates/game/src/town.rs:1016](../crates/game/src/town.rs#L1016): `FUN_14011ce30`. Not ported: the instant clear (`FUN_14011d230`, description `+0x2d` or the game's instant flag); no shipped site sets it.
-- [Not ported] [crates/game/src/town.rs:1212](../crates/game/src/town.rs#L1212): Not ported: MultiObject stage counts and the ClearArea's terrain flattening (`FUN_14011d740` → `FUN_1400a35b0`).
-- [Not ported] [crates/game/src/town.rs:1261](../crates/game/src/town.rs#L1261): Not ported: the decal's alpha.
-- [Not ported] [crates/game/src/town.rs:1473](../crates/game/src/town.rs#L1473): Not ported: emergencies (fires).
-- [Not ported] [crates/game/src/town.rs:2232](../crates/game/src/town.rs#L2232): Not ported: the empty-cell phase (`+0x71`, roads and fields: `FUN_1400c54a0`).
-- [Not ported] [crates/game/src/town.rs:2396](../crates/game/src/town.rs#L2396): Not ported: the stock manager's production counter (`FUN_14008e3c0`). `FUN_140045170` once the pile's work is registered ([`Sim::activate_piles`]).
-- [Not ported] [crates/game/src/town.rs:2832](../crates/game/src/town.rs#L2832): The final drop-off with no target (its redirect search is not ported).
+- [Not ported] [crates/game/src/town.rs:554](../crates/game/src/town.rs#L554): `FUN_1400c4c60` with its flags: `partial` (`param_11`, the pickup may take less), `complete_on_pickup` (`param_12`, the CompleteTask follows the pickup rather than the delivery). Not ported: `param_13` (a Citizen message) and `param_14` (tool use, faster walk), which no ported caller sets.
+- [Not ported] [crates/game/src/town.rs:735](../crates/game/src/town.rs#L735): `FUN_14011d910` for a footprint whose description clears resources and piles: every cell's object `+0x08` is empty (`FUN_1400a2f90`). Not ported: the `+0x29` empty-cell test (`FUN_1400a2d30`) and the reference-filtered test (`FUN_1400a2e00`).
+- [Deviation] [crates/game/src/town.rs:954](../crates/game/src/town.rs#L954): Deviation: every site's scheduled update runs each iteration (bucket 3's quota of five visits each entity every iteration while it holds at most five).
+- [Not ported] [crates/game/src/town.rs:972](../crates/game/src/town.rs#L972): The entity manager's removal of a destroyed site entity (`FUN_1400c8370`, then each component's remove slot): its work goes (citizens doing it abort), the ZoneComponent frees its cells and the entity is gone. Not ported: WorkPlace and Residence removal (only removal markers are destroyed yet).
+- [Not ported] [crates/game/src/town.rs:1034](../crates/game/src/town.rs#L1034): `FUN_14011ce30`. Not ported: the instant clear (`FUN_14011d230`, description `+0x2d` or the game's instant flag); no shipped site sets it.
+- [Not ported] [crates/game/src/town.rs:1230](../crates/game/src/town.rs#L1230): Not ported: MultiObject stage counts and the ClearArea's terrain flattening (`FUN_14011d740` → `FUN_1400a35b0`).
+- [Not ported] [crates/game/src/town.rs:1279](../crates/game/src/town.rs#L1279): Not ported: the decal's alpha.
+- [Not ported] [crates/game/src/town.rs:2272](../crates/game/src/town.rs#L2272): Not ported: the empty-cell phase (`+0x71`, roads and fields: `FUN_1400c54a0`).
+- [Not ported] [crates/game/src/town.rs:2436](../crates/game/src/town.rs#L2436): Not ported: the stock manager's production counter (`FUN_14008e3c0`). `FUN_140045170` once the pile's work is registered ([`Sim::activate_piles`]).
+- [Not ported] [crates/game/src/town.rs:2872](../crates/game/src/town.rs#L2872): The final drop-off with no target (its redirect search is not ported).
 
 ## `crates/game/src/wildlife.rs`
 

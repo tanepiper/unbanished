@@ -828,6 +828,8 @@ impl StartingTown {
             .filter_map(|r| load_template(archive, r, &mut templates))
             .collect();
         let mut cells = Cells::new(map_size, map.types);
+        // The map's setup files the shore cells as water sources (`FUN_1400a43f0`).
+        let water = banished_game::fire::Water::new(&cells);
         let mut placed = Vec::new();
         let mut removed = Vec::new();
         let mut animation_events = Vec::new();
@@ -961,6 +963,7 @@ impl StartingTown {
                 work_cold: c.f(0x10c),
                 no_tool_factor: c.f(0x114),
                 education: c.i(0x118),
+                water_distance: c.i(0xf8),
                 health_max: c.f(0x70),
                 hunger_limit: c.f(0xd0),
                 cold_limit: c.f(0xf0),
@@ -1060,6 +1063,7 @@ impl StartingTown {
             construction: Construction {
                 professions: professions(archive),
                 known,
+                water,
                 ..Default::default()
             },
             names,
@@ -1936,6 +1940,10 @@ impl StartingTown {
                         t.material_templates.push(pile);
                     }
                 }
+                "well" => t.controllers.push(Controller::Well),
+                name if name.starts_with("fire") => {
+                    t.fire = banished_formats::game::fire_description(&data).ok();
+                }
                 "destroy" => {
                     t.controllers.push(Controller::Destroy);
                     let d = banished_formats::game::destroy_description(&data).ok()?;
@@ -2251,6 +2259,7 @@ impl StartingTown {
                 parts: Vec::new(),
                 graves: Vec::new(),
                 destroy: t.destroy.as_ref().map(banished_game::destroy::Destroy::new),
+                fire: t.fire.map(|_| banished_game::fire::Fire::default()),
                 home: None,
                 // DiseaseComponent's setup (`FUN_1400495b0`): on a pasture or not.
                 disease: t.disease.map(|_| banished_game::blight::Blight {

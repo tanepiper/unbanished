@@ -28,10 +28,10 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Healer, Disease (citizens) | Herbalist | registry and herb treatment |
 | Disease (blight) | fields, orchards, pastures | yes ([FARMING.md](FARMING.md#blight-cratesgamesrcblightrs)) |
 | **Cemetery**, **Tombstone** | Cemetery | yes ([CITIZEN-LIFE.md](CITIZEN-LIFE.md#burial-cratesgamesrccemeteryrs)) |
-| **Well**, **Fire** | Well; every building | missing |
+| **Well**, **Fire** | Well; every building | yes ([FIRE.md](FIRE.md); ignition, spread, buckets, wells, emergencies, rubble) |
 | **Market**, **MarketLocation** | Market | yes ([MARKETS.md](MARKETS.md)) |
 | **Trade**, **Boat** | TradingPost, TraderBoat | missing |
-| **Destroy** | every building | yes ([JOBS.md](JOBS.md#demolition-cratesgamesrcdestroyrs); demolition, refunds, cancel, rubble; damage waits for fire) |
+| **Destroy** | every building | yes ([JOBS.md](JOBS.md#demolition-cratesgamesrcdestroyrs); demolition, refunds, cancel, damage, rubble) |
 | **CropField** | fields | yes ([FARMING.md](FARMING.md)) |
 | **Orchard**, **Fruit** | orchards | yes ([FARMING.md](FARMING.md)) |
 | **Pasture**, **Livestock** | pastures, animals | yes ([FARMING.md](FARMING.md); breeding, culling, products, starting livestock) |
@@ -57,8 +57,8 @@ simulation. Parsing it or drawing its mesh is not enough.
 | PlantOrchard, fruit picking | yes | | CreateNaturalResource (planting) | yes |
 | | | | HuntAnimal, RemoveAnimal | yes |
 | AutoPickupWork (base of the gatherer, forester, hunter, harvest and pasture works), PastureWork, ClearStorage | yes | | | |
-| MarketWork | yes | | | |
-| TradeWork, FireWork | no | | | |
+| MarketWork, FireWork | yes | | | |
+| TradeWork | no | | | |
 
 ## Citizen activities (`FUN_1401146c0`)
 
@@ -89,8 +89,8 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Residence, upgrade, market, trade, field crop selection windows | no |
 | Town Info, Production/Population graphs | no |
 | Achievements, tutorial, scenarios | no |
-| Weather precipitation, smoke particles, decals, fire | no |
-| Disasters (fire, tornado, disease) and AutoSlow | no |
+| Weather precipitation, smoke particles, decals, fire particles | no |
+| Disasters (fire, tornado, disease) and AutoSlow | fire and blight (with the Disasters option); tornado and AutoSlow no |
 
 ## Plan
 

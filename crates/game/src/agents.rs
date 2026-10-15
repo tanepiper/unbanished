@@ -59,6 +59,8 @@ pub struct CitizenRulesAi {
     pub no_tool_factor: f32,
     /// `+0x118`: the education a citizen counts as educated with.
     pub education: i32,
+    /// `+0xf8`: how far a firefighter looks for water (`FUN_14008d6a0`).
+    pub water_distance: i32,
 }
 
 /// Citizen fields read/written by equipment activities and Citizen messages 1/6/7.
@@ -321,6 +323,9 @@ impl Agents {
                 storage_changes: &mut c.storage_changes,
                 rebuilds: &mut c.rebuilds,
                 site_dt: 0,
+                water: &mut c.water,
+                game_flags: c.game_flags,
+                precipitation: c.precipitation,
                 cemeteries: &mut c.cemeteries,
                 tombstones: &mut c.tombstones,
                 burials: &mut c.burials,
@@ -562,6 +567,7 @@ impl Agents {
             sim.age_piles(jobs, ticks(dt));
             sim.update_hunts(ticks(dt));
             sim.update_blight(ticks(dt));
+            sim.update_fires(jobs, ticks(dt));
             sim.place_burials();
             jobs.drain(&mut sim);
         }
@@ -1102,6 +1108,13 @@ impl Agents {
                         site.progress += 1;
                     }
                 }
+                Component::Fire => {
+                    if let Some(e) = m.entity {
+                        let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                        sim.fire_message(jobs, e, m.message);
+                        jobs.drain(&mut sim);
+                    }
+                }
                 Component::Destroy if m.message == 0 => {
                     // `FUN_140122fc0`: one unit of deconstruction.
                     if let Some(d) = m
@@ -1251,6 +1264,13 @@ impl Agents {
             hunger: self.states[i].hunger,
             cold: self.states[i].cold,
             sick: self.states[i].sick,
+            emergency: crate::fire::has_emergency(
+                env.cells,
+                env.placed,
+                self.states[i].home,
+                self.states[i].workplace,
+                self.characters[i].position,
+            ),
             ..Default::default()
         };
         let rules = self.rules;

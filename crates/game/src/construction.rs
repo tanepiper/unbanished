@@ -49,6 +49,8 @@ pub enum Controller {
     MarketLocation,
     /// DestroyComponent (`FUN_1401231d0` table): demolition, damage and rubble.
     Destroy,
+    /// WellComponent (`FUN_14005da70` table): a water source for firefighters.
+    Well,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -166,6 +168,9 @@ pub enum Callback {
     DestroyEnter6,
     DestroyUpdate6,
     DestroyExit6,
+    /// `FUN_14005d880` / `FUN_14005d840`: the well joins / leaves the town's water sources.
+    WellEnter2,
+    WellEnter3,
     /// Callbacks whose port is still missing (they pass the state on).
     Missing,
 }
@@ -315,6 +320,23 @@ const DESTROY: &[StateDef] = &[
         update: C::DestroyUpdate5,
         exit: C::None,
         transitions: &[(0, C::None), (2, C::None), (8, C::None), (7, C::None)],
+    },
+];
+
+const WELL: &[StateDef] = &[
+    StateDef {
+        id: 2,
+        enter: C::WellEnter2,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(3, C::None)],
+    },
+    StateDef {
+        id: 3,
+        enter: C::WellEnter3,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(6, C::None), (4, C::None), (5, C::None)],
     },
 ];
 
@@ -590,6 +612,7 @@ impl Controller {
             Controller::Cemetery => CEMETERY,
             Controller::MarketLocation => MARKET_LOCATION,
             Controller::Destroy => DESTROY,
+            Controller::Well => WELL,
         }
     }
 
@@ -828,6 +851,8 @@ pub struct SiteTemplate {
     pub icon_height: Option<f32>,
     /// DestroyDescription, resolved.
     pub destroy: Option<crate::destroy::DestroyTemplate>,
+    /// FireDescription (`Template\Common.rsc:fire*`).
+    pub fire: Option<banished_formats::game::FireDescription>,
     /// The pile template of each BuildDescription material (the refunds' piles).
     pub material_templates: Vec<Option<usize>>,
 }
@@ -945,6 +970,8 @@ pub struct Site {
     pub graves: Vec<i32>,
     /// DestroyComponent.
     pub destroy: Option<crate::destroy::Destroy>,
+    /// FireComponent.
+    pub fire: Option<crate::fire::Fire>,
     /// The ResidenceComponent while the residence is out of the town's (its states 3 to 7).
     pub home: Option<crate::life::Home>,
 }
@@ -1007,6 +1034,12 @@ pub struct Construction {
     /// Entities a DestroyComponent puts in a torn-down building's place (`FUN_1400c9d70`),
     /// created by the town after the update.
     pub rebuilds: Vec<crate::destroy::Rebuild>,
+    /// The town's water sources (built with the map, `FUN_1400a43f0`).
+    pub water: crate::fire::Water,
+    /// `Game +0xd0` (`FUN_14009d530`: `0xf0` with disasters off, else 0).
+    pub game_flags: u32,
+    /// The sky's state is precipitation, set before each iteration.
+    pub precipitation: bool,
     /// The town manager's known crops, orchard trees and livestock (`FUN_140096ef0`), as
     /// placed-object templates.
     pub known: Vec<usize>,

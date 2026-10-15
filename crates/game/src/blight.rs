@@ -15,6 +15,8 @@ use crate::wildlife::HUNTED;
 const PERIOD: f32 = 300.0;
 /// Event type 12: a field or pasture caught a disease.
 const CAUGHT: i32 = 0xc;
+/// `Game +0xd0` bit 5: blight is off.
+pub const NO_BLIGHT: u32 = 0x20;
 
 /// DiseaseComponent: `+0x28` towards the next check, `+0x30` time left (sick while above
 /// zero), `+0x38` towards the next death, `+0x40` towards the next spread, `+0x48` on a
@@ -171,8 +173,11 @@ impl Sim<'_, '_> {
 
     /// `FUN_140048f70`: in its months, a check every `check` × 300 s: odds of one in
     /// `12 / check × odds`, or `odds_same` when a cell last grew what grew here.
-    /// Not ported: the debug flag that stops it (`Game +0xd0` bit 5).
+    /// Off with `Game +0xd0` bit 5 (no disasters, or the debug flag).
     fn blight_chance(&mut self, e: usize, d: &DiseaseDescription, dt: i64) {
+        if self.game_flags & NO_BLIGHT != 0 {
+            return;
+        }
         let mut month = (self.calendar / 3600.0 * 12.0) as i32;
         if 11 < month {
             month = 0;

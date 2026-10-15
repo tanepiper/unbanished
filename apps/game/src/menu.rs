@@ -254,7 +254,13 @@ impl MenuLoop {
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(seed);
+        // `FUN_140075750`: disasters are on with the combo's first item.
+        let disasters = screen
+            .find(ctx.ui, d, "comboDisaster")
+            .map_or(0, |c| combo_index(ctx.ui, c))
+            == 0;
         let params = WorldParams {
+            disasters,
             town_name,
             terrain,
             climate,

@@ -21,6 +21,9 @@ pub struct WorldParams {
     /// 0 Small, 1 Medium, 2 Large.
     pub size: usize,
     pub seed: u32,
+    /// The Disasters combo's first item (on): `Game +0xd0` starts 0, else `0xf0`
+    /// (`FUN_14009d530`).
+    pub disasters: bool,
 }
 
 impl Default for WorldParams {
@@ -34,6 +37,7 @@ impl Default for WorldParams {
             start_condition_ref: String::new(),
             size: 0,
             seed: 290,
+            disasters: true,
         }
     }
 }
