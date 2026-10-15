@@ -16,6 +16,14 @@ grep -rn "FUN_1400be770\|Toolbar" docs/ | head      # address or name
 ls analysis/                                        # earlier one-off dumps (local only)
 ```
 
+## 0b. Triage with the function index
+
+`tools/triage/fnindex.py` (see `tools/triage/README.md`) answers the routine questions fast:
+`info ADDR` (callers, callees, types, strings, traced?), `frontier ADDR --depth 2` (untraced
+functions a feature still needs, largest first), `hot` (untraced functions most called from
+traced code), `find CitizenAIComponent`, `coverage`. Naming an address in docs or code marks it
+traced, so cite the functions you port.
+
 ## 1. Find an entry point
 
 Work outward from something concrete — a resource path, string, type name, or a known caller.

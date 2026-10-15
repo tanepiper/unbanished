@@ -66,3 +66,11 @@ differences rather than "looks right".
 State exactly what ran and what you looked at: test names and pass/skip counts, capture paths you
 opened, and anything that didn't match. Send key captures to the user with SendUserFile when they
 are following along.
+
+## Determinism and screenshot comparison
+
+- `tools/triage/determinism.sh [SECS] [SEED]`: two same-seed boot captures must be identical.
+  Run it after touching simulation, AI or anything that draws from the game stream.
+- `cargo run -q --release -p banished-app --example imgdiff -- A.png B.png [--out heat.png]
+  [--resize] [--ignore x,y,w,h] [--json]`: MAE/PSNR, mismatch share, bounding box and a 4×4 grid
+  of where frames differ; use it for before/after checks and against original-game screenshots.

@@ -69,3 +69,9 @@ else's work.
 
 One or two lines: commit hash, what landed, what's verified, and the next open item from the
 checklist.
+
+## Deviation ledger
+
+Mark every intentional difference from the original in a code comment ("Deviation: …",
+"not ported"), then run `python3 tools/triage/deviations.py` to refresh `docs/DEVIATIONS.md`
+and commit it with the change.
