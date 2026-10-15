@@ -139,9 +139,7 @@ impl Sim<'_, '_> {
 
     /// `FUN_1401350d0` on the pasture's workplace.
     fn set_pasture_workplace(&mut self, e: usize, on: bool) {
-        let mut workers = self.workers();
-        self.workforce.set_enabled(&mut workers, e, on);
-        self.set_workers(&workers);
+        self.enable_workplace(e, on);
     }
 
     /// The pasture's message 0 (`FUN_14012cbf0`): a rancher's visit.

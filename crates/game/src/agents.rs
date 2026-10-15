@@ -417,13 +417,31 @@ impl Agents {
                 sectors: sim.sectors,
                 ground: &ground,
             };
+            let characters = &*sim.characters;
+            let cell = |c: usize| town.cell_of(characters[c].position);
+            let professions = sim.professions;
+            let anywhere = |p: usize| professions.works_anywhere(p);
+            let sites = &*sim.sites;
+            let priority = |e: usize| {
+                sites
+                    .get(&e)
+                    .and_then(|s| s.work_priority)
+                    .unwrap_or(i32::MAX)
+            };
+            let mut search = crate::activities::TownSearch {
+                town: &town,
+                cell: &cell,
+                anywhere: &anywhere,
+                priority: &priority,
+                rng: &mut *sim.rng,
+            };
             sim.workforce.apply(
                 command,
                 &mut workers,
                 sim.professions,
                 sim.homes,
                 &mut geometry,
-                sim.rng,
+                &mut search,
             );
             sim.set_workers(&workers);
         }
@@ -808,7 +826,6 @@ impl Agents {
             states: &mut self.states,
             registry: &mut self.registry,
             homes: &mut c.homes,
-            residences: &c.workforce.residences,
             rules: &self.life,
             town: &town,
             layers: &env.cells.layers,
@@ -825,7 +842,9 @@ impl Agents {
             born,
             attendance: &mut c.attendance,
             attendance_list: &c.attendance_list,
-            workplaces: &c.workforce.workplaces,
+            workforce: &mut c.workforce,
+            professions: &c.professions,
+            sites: &c.sites,
             sectors: &mut self.sectors,
             terrain: env.terrain,
         };
@@ -872,7 +891,6 @@ impl Agents {
             states: &mut self.states,
             registry: &mut self.registry,
             homes: &mut k.homes,
-            residences: &k.workforce.residences,
             rules: &self.life,
             town: &town,
             layers: &env.cells.layers,
@@ -889,7 +907,9 @@ impl Agents {
             born: &mut born,
             attendance: &mut k.attendance,
             attendance_list: &k.attendance_list,
-            workplaces: &k.workforce.workplaces,
+            workforce: &mut k.workforce,
+            professions: &k.professions,
+            sites: &k.sites,
             sectors: &mut self.sectors,
             terrain: env.terrain,
         };

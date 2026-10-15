@@ -1655,12 +1655,13 @@ mod construction_tests {
             .iter()
             .position(|p| p.reference.to_ascii_lowercase().ends_with(":herdsman"))
             .expect("no herdsman profession");
-        town.construction
-            .commands
-            .push(banished_game::professions::Command::SetCount {
-                profession: builder,
-                count: 3,
-            });
+        // Herdsmen hired before the pasture can take them find it once it does
+        // (`FUN_140115490`).
+        for (profession, count) in [(builder, 3), (herdsman, 2)] {
+            town.construction
+                .commands
+                .push(banished_game::professions::Command::SetCount { profession, count });
+        }
         let mut warnings = banished_game::events::StockWarnings::default();
         warnings.limits = [100_000; 21];
         let dt = 1.0 / 30.0;
@@ -1694,14 +1695,6 @@ mod construction_tests {
                     .push(banished_game::professions::Command::SetCrop {
                         entity: id,
                         crop: Some(kind),
-                    });
-                // Herdsmen once the pasture takes them (the idle search for a workplace is
-                // not ported).
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::SetCount {
-                        profession: herdsman,
-                        count: 2,
                     });
             }
             let pasture = &town.wildlife.pastures[&id];

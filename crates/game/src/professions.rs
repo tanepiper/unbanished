@@ -13,6 +13,20 @@ use crate::life::Home;
 use crate::random::Random;
 use crate::stock::StorageSearchMap;
 
+/// What the workplace searches read (`FUN_140115490`, `FUN_140115940`, `FUN_140115eb0`).
+pub trait Search {
+    /// Citizen `c`'s map cell.
+    fn cell(&self, c: usize) -> i32;
+    /// Profession `+0x4c` ([`Professions::works_anywhere`]).
+    fn anywhere(&self, profession: usize) -> bool;
+    /// The workplace's work priority (`Jobs` entry `+0x24`, lower first).
+    fn priority(&self, workplace: usize) -> i32;
+    /// `FUN_14011ada0`: the workplace's entrance can be reached from `cell`.
+    fn reach(&mut self, cell: i32, workplace: usize) -> bool;
+    /// The game's random generator (the reachability test and the hiring draw from it).
+    fn rng(&mut self) -> &mut Random;
+}
+
 /// `Profession` (serializer `FUN_1400ae3e0`) fields the simulation reads.
 #[derive(Debug, Clone, Default)]
 pub struct Profession {
@@ -149,13 +163,18 @@ impl Workforce {
     /// `FUN_140134cb0`, then appending to the new one, `FUN_140134ef0`).
     /// Not ported: the workplaces' StatusIconComponent bits and entity flags 2/3.
     pub fn set_workplace(&mut self, workers: &mut [Worker], c: usize, wp: Option<usize>) {
-        if let Some(old) = workers[c].workplace {
+        self.move_worker(c, workers[c].workplace, wp);
+        workers[c].workplace = wp;
+    }
+
+    /// The workplaces' side of [`Workforce::set_workplace`]: `c` leaves `old` and joins `new`.
+    pub fn move_worker(&mut self, c: usize, old: Option<usize>, new: Option<usize>) {
+        if let Some(old) = old {
             if let Some(w) = self.workplaces.get_mut(&old) {
                 w.workers.retain(|&x| x != c);
             }
         }
-        workers[c].workplace = wp;
-        if let Some(new) = wp {
+        if let Some(new) = new {
             if let Some(w) = self.workplaces.get_mut(&new) {
                 w.workers.push(c);
             }
@@ -434,31 +453,127 @@ impl Workforce {
         }
     }
 
-    /// `FUN_140134fd0`: set the most workers, then let workers go until they fit.
-    /// Not ported: the evicted worker's search for another workplace (`FUN_140115490` /
-    /// `FUN_140115940`); the port leaves it without a workplace.
-    pub fn set_max_workers(&mut self, workers: &mut [Worker], entity: usize, max: i32) {
+    /// `FUN_140134fd0`: set the most workers, then the first workers move to another
+    /// workplace ([`Workforce::find_workplace`], or none) until they fit.
+    pub fn set_max_workers(
+        &mut self,
+        workers: &mut [Worker],
+        entity: usize,
+        max: i32,
+        search: &mut dyn Search,
+    ) {
         let Some(w) = self.workplaces.get_mut(&entity) else {
             return;
         };
         w.max_workers = max;
         while max < self.workplaces[&entity].workers.len() as i32 {
             let c = self.workplaces[&entity].workers[0];
-            self.set_workplace(workers, c, None);
+            let wp = self.find_workplace(c, workers[c].profession, search);
+            self.set_workplace(workers, c, wp);
         }
     }
 
-    /// `FUN_1401350d0`: accept workers or not; a disabled workplace lets every worker go.
-    /// Not ported: its status icons (bits 0..4), and the evicted workers' search for another
-    /// workplace (`FUN_140115490` / `FUN_140115940`), as in [`Workforce::set_max_workers`].
-    pub fn set_enabled(&mut self, workers: &mut [Worker], entity: usize, enabled: bool) {
+    /// `FUN_1401350d0`: accept workers or not; a disabled workplace's workers move to another
+    /// ([`Workforce::find_workplace`], or none).
+    /// Not ported: its status icons (bits 0..4).
+    pub fn set_enabled(
+        &mut self,
+        workers: &mut [Worker],
+        entity: usize,
+        enabled: bool,
+        search: &mut dyn Search,
+    ) {
         let Some(w) = self.workplaces.get_mut(&entity) else {
             return;
         };
         w.enabled = enabled;
         if !enabled {
-            self.clear_workers(workers, entity);
+            while let Some(&c) = self.workplaces.get(&entity).and_then(|w| w.workers.first()) {
+                let wp = self.find_workplace(c, workers[c].profession, search);
+                self.set_workplace(workers, c, wp);
+            }
         }
+    }
+
+    /// `FUN_140115450`: a workplace of citizen `c`'s profession, enabled, with room and
+    /// reachable: for a profession that works anywhere the one whose work comes first
+    /// (`FUN_140115940`, the candidates sorted by work priority with `FUN_140115800`), else
+    /// the one with the most room, the first of equals (`FUN_140115490`).
+    pub fn find_workplace(&self, c: usize, p: usize, search: &mut dyn Search) -> Option<usize> {
+        let list = self.registry.get(&p)?;
+        let anywhere = search.anywhere(p);
+        let cell = search.cell(c);
+        let mut best = None;
+        let mut most = 0;
+        let mut first = i32::MAX;
+        for &e in list {
+            let Some(w) = self.workplaces.get(&e) else {
+                continue;
+            };
+            let free = w.max() - w.workers.len() as i32;
+            if free <= 0 || !w.enabled || !search.reach(cell, e) {
+                continue;
+            }
+            if anywhere {
+                let priority = search.priority(e);
+                if best.is_none() || priority < first {
+                    first = priority;
+                    best = Some(e);
+                }
+            } else if most < free {
+                most = free;
+                best = Some(e);
+            }
+        }
+        best
+    }
+
+    /// `FUN_140115eb0`: should citizen `c` look again? A profession that works anywhere when
+    /// its workplace cannot be reached or another with room has work that comes first; the
+    /// others when the reachable workplaces' room differs by more than one.
+    pub fn should_move(
+        &self,
+        c: usize,
+        p: usize,
+        current: Option<usize>,
+        search: &mut dyn Search,
+    ) -> bool {
+        let list = self.registry.get(&p).cloned().unwrap_or_default();
+        let cell = search.cell(c);
+        if !search.anywhere(p) {
+            let (mut most, mut least) = (0, 0xffff);
+            for e in list {
+                let Some(w) = self.workplaces.get(&e) else {
+                    continue;
+                };
+                if !w.enabled || !search.reach(cell, e) {
+                    continue;
+                }
+                let free = w.max() - w.workers.len() as i32;
+                if most < free {
+                    most = free;
+                }
+                if free < least {
+                    least = free;
+                }
+            }
+            return 1 < most - least;
+        }
+        let Some(current) = current else {
+            return false;
+        };
+        let priority = search.priority(current);
+        if !search.reach(cell, current) {
+            return true;
+        }
+        list.into_iter().any(|e| {
+            e != current
+                && self
+                    .workplaces
+                    .get(&e)
+                    .is_some_and(|w| w.enabled && (w.workers.len() as i32) < w.max())
+                && search.priority(e) < priority
+        })
     }
 
     /// `FUN_140134330`: every worker leaves.
@@ -476,29 +591,45 @@ impl Workforce {
         professions: &Professions,
         homes: &BTreeMap<usize, Home>,
         map: &mut dyn StorageSearchMap,
-        rng: &mut Random,
+        search: &mut dyn Search,
     ) {
         match command {
-            Command::SetCount { profession, count } => {
-                self.set_count(workers, professions, profession, count, homes, map, rng)
-            }
+            Command::SetCount { profession, count } => self.set_count(
+                workers,
+                professions,
+                profession,
+                count,
+                homes,
+                map,
+                search.rng(),
+            ),
             Command::AddWorker { entity } => {
                 let Some(p) = self.workplaces.get(&entity).and_then(|w| w.profession) else {
                     return;
                 };
-                let wp = self.free_workplace(p, rng);
-                self.hire(workers, professions.laborer, p, wp, homes, map, rng);
+                let wp = self.free_workplace(p, search.rng());
+                self.hire(
+                    workers,
+                    professions.laborer,
+                    p,
+                    wp,
+                    homes,
+                    map,
+                    search.rng(),
+                );
             }
             Command::RemoveWorker { entity } => {
                 if let Some(p) = self.workplaces.get(&entity).and_then(|w| w.profession) {
                     self.fire(workers, professions.laborer, p);
                 }
             }
-            Command::SetEnabled { entity, enabled } => self.set_enabled(workers, entity, enabled),
+            Command::SetEnabled { entity, enabled } => {
+                self.set_enabled(workers, entity, enabled, search)
+            }
             Command::ChangeMaxWorkers { entity, delta } => {
                 if let Some(w) = self.workplaces.get(&entity) {
                     let max = w.max() + delta;
-                    self.set_max_workers(workers, entity, max);
+                    self.set_max_workers(workers, entity, max, search);
                 }
             }
             // Handled by the crop field, orchard and pasture (`crate::farm`, `crate::pasture`).
@@ -618,5 +749,85 @@ mod tests {
         assert_eq!(workers[1].profession, 0);
         assert_eq!(workers[1].workplace, None);
         assert!(force.workplaces[&10].workers.is_empty());
+    }
+
+    /// Every workplace reachable except entity 99; priorities by entity.
+    struct Open(Random);
+    impl Search for Open {
+        fn cell(&self, c: usize) -> i32 {
+            c as i32
+        }
+        fn anywhere(&self, profession: usize) -> bool {
+            profession == 1
+        }
+        fn priority(&self, workplace: usize) -> i32 {
+            [0, 30, 20, 10][workplace % 4]
+        }
+        fn reach(&mut self, _cell: i32, workplace: usize) -> bool {
+            workplace != 99
+        }
+        fn rng(&mut self) -> &mut Random {
+            &mut self.0
+        }
+    }
+
+    fn workforce(places: &[(usize, usize, i32, i32)]) -> Workforce {
+        let mut w = Workforce::default();
+        for &(e, p, max, workers) in places {
+            let mut wp = WorkPlace::new(Some(p), max);
+            wp.profession = Some(p);
+            wp.workers = (100..100 + workers as usize).collect();
+            w.workplaces.insert(e, wp);
+            w.register(e, p);
+        }
+        w
+    }
+
+    #[test]
+    fn workplace_searches() {
+        let mut search = Open(Random::new(1));
+        // Most room, the first of equals; full, disabled and unreachable ones are skipped.
+        let mut w = workforce(&[(1, 2, 4, 3), (2, 2, 4, 1), (3, 2, 5, 2), (99, 2, 9, 0)]);
+        assert_eq!(w.find_workplace(0, 2, &mut search), Some(2));
+        w.workplaces.get_mut(&2).unwrap().enabled = false;
+        assert_eq!(w.find_workplace(0, 2, &mut search), Some(3));
+        // Works anywhere: the best priority with room.
+        let w = workforce(&[(1, 1, 2, 0), (2, 1, 2, 0), (3, 1, 2, 2)]);
+        assert_eq!(w.find_workplace(0, 1, &mut search), Some(2));
+        // Balancing: move when the room differs by more than one.
+        let w = workforce(&[(1, 2, 4, 4), (2, 2, 4, 3)]);
+        assert!(!w.should_move(0, 2, Some(1), &mut search));
+        let w = workforce(&[(1, 2, 4, 4), (2, 2, 4, 2)]);
+        assert!(w.should_move(0, 2, Some(1), &mut search));
+        // Works anywhere: move to work that comes first, or off an unreachable workplace.
+        let w = workforce(&[(1, 1, 2, 1), (3, 1, 2, 0), (99, 1, 2, 1)]);
+        assert!(w.should_move(0, 1, Some(1), &mut search));
+        assert!(!w.should_move(0, 1, Some(3), &mut search));
+        assert!(w.should_move(0, 1, Some(99), &mut search));
+    }
+
+    #[test]
+    fn evicted_workers_move_on() {
+        let mut search = Open(Random::new(1));
+        let mut w = workforce(&[(1, 2, 4, 0), (2, 2, 4, 0)]);
+        let mut workers: Vec<Worker> = (0..3)
+            .map(|_| Worker {
+                adult: true,
+                profession: 2,
+                workplace: None,
+                home: None,
+            })
+            .collect();
+        for c in 0..3 {
+            w.set_workplace(&mut workers, c, Some(1));
+        }
+        w.set_max_workers(&mut workers, 1, 1, &mut search);
+        assert_eq!(w.workplaces[&1].workers, vec![2]);
+        assert_eq!(w.workplaces[&2].workers, vec![0, 1]);
+        w.set_max_workers(&mut workers, 1, 2, &mut search);
+        w.set_enabled(&mut workers, 2, false, &mut search);
+        assert_eq!(w.workplaces[&1].workers, vec![2, 0]);
+        assert!(w.workplaces[&2].workers.is_empty());
+        assert_eq!(workers[1].workplace, None, "no room left: no workplace");
     }
 }

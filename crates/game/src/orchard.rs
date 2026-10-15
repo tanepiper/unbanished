@@ -139,9 +139,7 @@ impl Sim<'_, '_> {
 
     /// State 2 enter (`FUN_140051e90`): the workplace is off.
     pub(crate) fn orchard_enter2(&mut self, e: usize) {
-        let mut workers = self.workers();
-        self.workforce.set_enabled(&mut workers, e, false);
-        self.set_workers(&workers);
+        self.enable_workplace(e, false);
     }
 
     /// State 2 update (`FUN_140051e20`) and message 3 (`FUN_140051db0`): switched on, plant.
@@ -155,9 +153,7 @@ impl Sim<'_, '_> {
     /// columns), the footprint lifted, then PlantOrchard.
     pub(crate) fn orchard_enter9(&mut self, jobs: &mut Jobs, e: usize) {
         let on = self.orchard(e).is_some_and(|o| o.enabled);
-        let mut workers = self.workers();
-        self.workforce.set_enabled(&mut workers, e, on);
-        self.set_workers(&workers);
+        self.enable_workplace(e, on);
         let d = self.orchard_desc(e);
         let (sx, sy) = (d.spacing.0.max(1), d.spacing.1.max(1));
         let n = self.size as i32;
@@ -508,9 +504,7 @@ impl Sim<'_, '_> {
                     }
                     None => return,
                 };
-                let mut workers = self.workers();
-                self.workforce.set_enabled(&mut workers, e, on);
-                self.set_workers(&workers);
+                self.enable_workplace(e, on);
             }
             3 if matches!(state, 9..=0xc) => self.orchard_clear_now(e),
             _ => {}

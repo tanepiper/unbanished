@@ -212,8 +212,6 @@ The other slots:
 
 Not ported:
 
-- The idle search for a workplace. Herdsmen hired before a pasture can take them stay
-  without one.
 - Status icons, the tracker and the production counter.
 - The pasture's DiseaseComponent (`Pasture_disease`), open with the crop fields' disease.
 - The debug fill `FUN_140060bf0`.

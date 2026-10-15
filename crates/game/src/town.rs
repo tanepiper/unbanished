@@ -212,6 +212,60 @@ impl Sim<'_, '_> {
         self.town().reachable(WALKABLE, a, b)
     }
 
+    /// The workforce with the workers and the workplace searches over the town; the workers'
+    /// professions and workplaces are written back afterwards.
+    pub(crate) fn with_search<R>(
+        &mut self,
+        f: impl FnOnce(
+            &mut crate::professions::Workforce,
+            &mut [crate::professions::Worker],
+            &mut dyn crate::professions::Search,
+        ) -> R,
+    ) -> R {
+        let mut workers = self.workers();
+        let town = TownView {
+            size: self.size,
+            types: &self.cells.types,
+            regions: self.regions,
+            occupants: &self.cells.occupants,
+            objects: &self.cells.objects,
+            entities: self.entities,
+            happiness: self.happiness,
+        };
+        let (size, characters) = (self.size as i32, &*self.characters);
+        let cell = |c: usize| {
+            let p = characters[c].position;
+            let half = (size >> 1) as f32;
+            let x = ((p[0] + half) as i32).clamp(0, size - 1);
+            let y = ((p[1] + half) as i32).clamp(0, size - 1);
+            size * y + x
+        };
+        let professions = self.professions;
+        let anywhere = |p: usize| professions.works_anywhere(p);
+        let sites = &*self.sites;
+        let priority = |e: usize| {
+            sites
+                .get(&e)
+                .and_then(|s| s.work_priority)
+                .unwrap_or(i32::MAX)
+        };
+        let mut search = crate::activities::TownSearch {
+            town: &town,
+            cell: &cell,
+            anywhere: &anywhere,
+            priority: &priority,
+            rng: &mut *self.rng,
+        };
+        let r = f(&mut *self.workforce, &mut workers, &mut search);
+        self.set_workers(&workers);
+        r
+    }
+
+    /// `FUN_1401350d0` on `e`'s workplace: its workers move on when it is switched off.
+    pub(crate) fn enable_workplace(&mut self, e: usize, on: bool) {
+        self.with_search(|w, workers, search| w.set_enabled(workers, e, on, search));
+    }
+
     /// `FUN_1400a4ce0(map, a, b, 1)`: −1 when not connected.
     fn rank_raw(&mut self, a: i32, b: i32) -> i32 {
         let reachable = self.reachable(a, b);
@@ -967,7 +1021,10 @@ impl Callbacks for Sim<'_, '_> {
                     w.profession = Some(builder);
                     self.workforce.register(e, builder);
                     let max = self.build_point_count(e) as i32;
-                    self.workforce.set_max_workers(&mut workers, e, max);
+                    // Nobody to move: the workers were let go above.
+                    self.set_workers(&workers);
+                    self.with_search(|w, ws, search| w.set_max_workers(ws, e, max, search));
+                    workers = self.workers();
                     // `FUN_1401350d0(1)`. Not ported: its status icons.
                     self.workforce.workplaces.get_mut(&e).unwrap().enabled = true;
                 }
@@ -1187,9 +1244,7 @@ impl Callbacks for Sim<'_, '_> {
                 if id >= 0 && jobs.works.contains_key(&id) {
                     self.remove_work(jobs, e);
                 }
-                let mut workers = self.workers();
-                self.workforce.set_enabled(&mut workers, e, false);
-                self.set_workers(&workers);
+                self.enable_workplace(e, false);
                 // Slot `+0xa0`.
                 self.fishing_unregister(e);
                 true

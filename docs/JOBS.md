@@ -143,8 +143,33 @@ assignment can draw from the game stream.
 **WorkPlaceUI** (`FUN_14008ccb0`, event `0x12`): `0x1450` = one more of the workplace's
 profession (`FUN_1400925d0` + `FUN_1400918a0`), `0x1451` = one fewer (`FUN_140096650`) — both
 town-wide, like the spinner; `0x1452/0x1453` most workers ±1 (`FUN_14008cae0` →
-`FUN_140134fd0`, which evicts workers beyond the new limit through `FUN_140115490` /
-`FUN_140115940`); `0x1454` goes to the next worker.
+`FUN_140134fd0`, which moves workers beyond the new limit through `FUN_140115450`, below);
+`0x1454` goes to the next worker.
+
+### Workplace searches
+
+The searches cover the workplaces registered for a citizen's profession (town manager
+`+0x100`). A workplace is a candidate when it is enabled, has room (`+0x60` workers below
+WorkComponent `+0x30`) and its entrance can be reached (`FUN_14011ada0`).
+`Workforce::find_workplace` / `should_move` port them.
+
+- **`FUN_140115450`** chooses a workplace in one of two ways:
+  - **Works anywhere** (profession `+0x4c`: laborers, builders): the candidate whose work comes
+    first. `FUN_140115940` sorts the candidates by work priority (`FUN_140115800`, Jobs entry
+    `+0x24`) and takes the first.
+  - **Otherwise** (`FUN_140115490`): the candidate with the most room, the first of equals.
+- **Idle adults** (`FUN_140118340`, adults without school and with an empty action stack,
+  before the home search):
+  - Without a workplace, they take the one `FUN_140115450` finds.
+  - With one, they search again when `FUN_140115eb0` says so, and move (to none if nothing is
+    found). For a profession that works anywhere: when the workplace cannot be reached, or
+    another enabled one with room has work that comes first. For the others: when the
+    reachable enabled workplaces' room differs by more than one (balancing).
+- **Evictions.** `FUN_1401350d0` (switched off) and `FUN_140134fd0` (fewer places) move the
+  first worker to `FUN_140115450`'s choice, or none, until they fit.
+
+Tests: `professions::tests::workplace_searches` and `evicted_workers_move_on`. In
+`herdsmen_keep_a_pasture`, herdsmen hired before the pasture can take them find it.
 
 ## The state machine
 
@@ -739,8 +764,7 @@ Deviations and gaps (all marked in code):
   ported; the stock's production counter (`FUN_14008e3c0`) is not updated.
 - Not ported: families (ResidenceComponent), the drop-off activity `FUN_14011b330`, DropOff
   redirect and pile dropping, emergencies, MultiObject stages, terrain flattening, decals,
-  building status icons, ShowTool meshes, the eviction searches `FUN_140115490/940`,
-  DestroyUI.
+  building status icons, ShowTool meshes, DestroyUI.
 - Site state machines run every iteration (scheduled quota not modelled); worker sets are
   ordered by citizen index instead of object address.
 

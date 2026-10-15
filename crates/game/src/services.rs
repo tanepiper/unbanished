@@ -47,9 +47,7 @@ impl Sim<'_, '_> {
     pub(crate) fn attendance_leave(&mut self, e: usize) {
         self.attendance_list.retain(|&x| x != e);
         self.evict(e);
-        let mut workers = self.workers();
-        self.workforce.set_enabled(&mut workers, e, false);
-        self.set_workers(&workers);
+        self.enable_workplace(e, false);
     }
 
     /// `FUN_1400448c0`: every attendee leaves (school, doctor or chapel).

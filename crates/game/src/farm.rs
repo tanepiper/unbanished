@@ -74,9 +74,7 @@ impl Sim<'_, '_> {
     }
 
     fn set_workplace_enabled(&mut self, e: usize, on: bool) {
-        let mut workers = self.workers();
-        self.workforce.set_enabled(&mut workers, e, on);
-        self.set_workers(&workers);
+        self.enable_workplace(e, on);
     }
 
     /// State 2 enter (`FUN_14011fdf0`): the workplace follows the toggle.

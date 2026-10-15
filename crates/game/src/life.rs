@@ -189,8 +189,6 @@ pub struct People<'a, 'b> {
     /// Town manager `+0xa0`: living citizens in activation order.
     pub registry: &'a mut Vec<usize>,
     pub homes: &'a mut BTreeMap<usize, Home>,
-    /// Town manager `+0x20`: residence entities in registration order.
-    pub residences: &'a [usize],
     pub rules: &'a LifeRules,
     pub town: &'a TownView<'b>,
     /// Map cells `+0x1c..+0x27` ([`crate::seeding::Cells::layers`]).
@@ -216,7 +214,11 @@ pub struct People<'a, 'b> {
     /// AttendanceComponents and their registry (town manager `+0x60`).
     pub attendance: &'a mut BTreeMap<usize, crate::construction::Attendance>,
     pub attendance_list: &'a [usize],
-    pub workplaces: &'a BTreeMap<usize, crate::professions::WorkPlace>,
+    /// The workplaces and residences (town manager `+0x20`, `+0x100`).
+    pub workforce: &'a mut crate::professions::Workforce,
+    pub professions: &'a crate::professions::Professions,
+    /// The sites (their works' priorities).
+    pub sites: &'a BTreeMap<usize, crate::construction::Site>,
     /// The path-rank cache.
     pub sectors: &'a mut crate::sectors::SectorGraph,
     pub terrain: &'a crate::terrain::HeightGrid<'b>,
@@ -249,6 +251,38 @@ impl People<'_, '_> {
             citizen: c,
             extra,
         });
+    }
+
+    /// `FUN_140118340`'s workplace search: without a workplace, or when `FUN_140115eb0` says
+    /// to look again, `FUN_140115450` chooses one (or none) and `FUN_1401173b0` moves there.
+    fn search_workplace(&mut self, c: usize) {
+        let town = self.town;
+        let citizens = &*self.citizens;
+        let cell = |i: usize| town.cell_of(citizens[i].position);
+        let professions = self.professions;
+        let anywhere = |p: usize| professions.works_anywhere(p);
+        let sites = self.sites;
+        let priority = |e: usize| {
+            sites
+                .get(&e)
+                .and_then(|s| s.work_priority)
+                .unwrap_or(i32::MAX)
+        };
+        let mut search = crate::activities::TownSearch {
+            town,
+            cell: &cell,
+            anywhere: &anywhere,
+            priority: &priority,
+            rng: &mut *self.rng,
+        };
+        let (p, current) = (self.states[c].profession, self.states[c].workplace);
+        if current.is_none() || self.workforce.should_move(c, p, current, &mut search) {
+            let wp = self.workforce.find_workplace(c, p, &mut search);
+            if wp != current {
+                self.workforce.move_worker(c, current, wp);
+                self.states[c].workplace = wp;
+            }
+        }
     }
 
     /// `FUN_14011ada0`: the home's entrance is reachable from the citizen's cell.
@@ -357,7 +391,12 @@ impl People<'_, '_> {
         if a.attendees.len() as i32 >= a.capacity {
             return false;
         }
-        if self.workplaces.get(&e).is_none_or(|w| w.workers.is_empty()) {
+        if self
+            .workforce
+            .workplaces
+            .get(&e)
+            .is_none_or(|w| w.workers.is_empty())
+        {
             return false;
         }
         let to = self.town.point_cell(e);
@@ -376,7 +415,7 @@ impl People<'_, '_> {
         for &e in self.attendance_list {
             // The workplace's description profession (`FUN_140116e00` compares `+0x48`).
             if Some(e) == exclude
-                || self.workplaces.get(&e).and_then(|w| w.profession) != Some(profession)
+                || self.workforce.workplaces.get(&e).and_then(|w| w.profession) != Some(profession)
                 || !self.accepts(e, c)
             {
                 continue;
@@ -648,9 +687,7 @@ impl People<'_, '_> {
             }
         }
         if !child && self.idle[c] {
-            // Not ported: an adult without a workplace searching for one (`FUN_140115490`,
-            // `FUN_140115940`) and the move to a nearer one (`FUN_140115eb0`); the workforce
-            // assigns workplaces when the player changes professions.
+            self.search_workplace(c);
             if self.states[c].home.is_none() || self.citizens[c].parent.is_some() {
                 if self.states[c].home.is_none() {
                     self.states[c].flags |= 0x20;
@@ -831,7 +868,7 @@ impl People<'_, '_> {
         }
         let cell = self.cell(c);
         let mut fallback = None;
-        for &e in self.residences {
+        for e in self.workforce.residences.clone() {
             let Some(home) = self.homes.get(&e) else {
                 continue;
             };

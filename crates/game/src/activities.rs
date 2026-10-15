@@ -197,6 +197,36 @@ impl TownView<'_> {
     }
 }
 
+/// The workplace searches' view of the town ([`crate::professions::Search`]).
+pub struct TownSearch<'a, 'b> {
+    pub town: &'a TownView<'b>,
+    /// A citizen's map cell.
+    pub cell: &'a dyn Fn(usize) -> i32,
+    /// A profession works anywhere.
+    pub anywhere: &'a dyn Fn(usize) -> bool,
+    /// A workplace's work priority.
+    pub priority: &'a dyn Fn(usize) -> i32,
+    pub rng: &'a mut Random,
+}
+
+impl crate::professions::Search for TownSearch<'_, '_> {
+    fn cell(&self, c: usize) -> i32 {
+        (self.cell)(c)
+    }
+    fn anywhere(&self, profession: usize) -> bool {
+        (self.anywhere)(profession)
+    }
+    fn priority(&self, workplace: usize) -> i32 {
+        (self.priority)(workplace)
+    }
+    fn reach(&mut self, cell: i32, workplace: usize) -> bool {
+        self.town.can_reach(cell, workplace, self.rng)
+    }
+    fn rng(&mut self) -> &mut Random {
+        self.rng
+    }
+}
+
 /// A loiter (`FUN_14010fa30` → `FUN_1400bfb80`): walk to `target`, idle for `duration`
 /// seconds, then notify `happiness` (when set).
 #[derive(Debug, Clone, PartialEq)]

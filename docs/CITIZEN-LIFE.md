@@ -154,6 +154,6 @@ iteration becomes a loitering target in the next one.
 
 ## Not ported yet
 
-The workplace searches
-(`FUN_140115490`, `FUN_140115940`, `FUN_140115eb0`), burial and cemeteries, accidents (`+0x1f8`), the residence's ClearStorage work, and the stock
-consumption counters.
+Burial and cemeteries, accidents (`+0x1f8`), the residence's ClearStorage work, and the stock
+consumption counters. (The workplace searches are described in
+[JOBS.md](JOBS.md#workplace-searches).)
