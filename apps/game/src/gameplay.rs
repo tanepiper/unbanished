@@ -52,6 +52,9 @@ pub struct GameplayLoop {
     selection: Selection,
     entities: EntityWindows,
     highlight: crate::highlight::Highlight,
+    /// The event log (`Game +0x138`) and the stock manager's warning state.
+    pub events: banished_game::events::EventLog,
+    stock_warnings: banished_game::events::StockWarnings,
 }
 
 impl GameplayLoop {
@@ -76,6 +79,8 @@ impl GameplayLoop {
             selection: Selection::default(),
             entities: EntityWindows::default(),
             highlight: Default::default(),
+            events: Default::default(),
+            stock_warnings: Default::default(),
         }
     }
 
@@ -104,6 +109,7 @@ impl GameplayLoop {
             ))
         });
         StatusValues {
+            events: Some(self.events.clone()),
             town_name: self.params.town_name.clone(),
             year: self.calendar.year,
             month: self.month(),
@@ -409,6 +415,19 @@ impl GameplayLoop {
         if let Some(env) = &mut self.environment {
             env.update(self.calendar.seconds(), &mut self.rng);
         }
+        // `FUN_140091780`: recompute stock (`FUN_14008f3a0`), then its warnings
+        // (`FUN_1400915d0`, posted through `FUN_14009aa50` at severity 3).
+        if let Some(town) = &self.town {
+            self.stock_warnings
+                .recompute(&town.storages, &town.materials);
+            let (month, year) = (self.month(), self.calendar.year as i32);
+            for kind in self.stock_warnings.check(ticks(dt)) {
+                // Not ported: the AutoSlow option (default on) slows the game; nothing reads
+                // `slow_request` yet.
+                self.events
+                    .add(kind, 3, -1, month, year, Default::default(), true);
+            }
+        }
         models_changed
     }
 
@@ -554,6 +573,9 @@ impl GameLoop for GameplayLoop {
             return Next::Stay;
         };
         let Some(action) = toolbar.click(ctx.ui, screen, id) else {
+            if self.utility.click(id) {
+                return Next::Stay;
+            }
             // The host dialog's close button (`Dialog/StandardDialog.rsc`).
             if ctx.ui.node(id).name == "buttonClose" {
                 self.utility.close_containing(ctx.ui, screen, id);

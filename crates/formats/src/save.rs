@@ -66,6 +66,25 @@ fn u32_at(b: &[u8], at: usize) -> Result<u32> {
         .ok_or(Error::Truncated { at, wanted: 4 })
 }
 
+/// One saved event-log entry (`Game +0x138`, 0x28 bytes in memory).
+#[derive(Debug, Clone, PartialEq)]
+pub struct SavedEvent {
+    pub color: u32,
+    pub text: String,
+    pub kind: i32,
+    pub severity: i32,
+    pub cell: i32,
+    pub category: i32,
+    pub icon: i32,
+}
+
+/// The event log block: six notify flags (`+0x10..+0x15`), then the entries.
+#[derive(Debug, Clone)]
+pub struct SavedEventLog {
+    pub notify: [bool; 6],
+    pub entries: Vec<SavedEvent>,
+}
+
 impl Save {
     pub fn parse(data: &[u8]) -> Result<Save> {
         let version = u16::from_le_bytes([data[0], data[1]]);
@@ -81,6 +100,24 @@ impl Save {
         Ok(Save {
             state: stream::decode(&data[off..off + size])?,
         })
+    }
+
+    /// Find the event-log block (version 1: six notify bytes, a count and entries of colour,
+    /// text, type, severity, cell, category, icon). Located by scanning for a block whose
+    /// contents parse as exactly that and fill the block; the game-state order before it is
+    /// not walked.
+    pub fn event_log(&self) -> Option<SavedEventLog> {
+        let d = &self.state;
+        let marker = 0xaaaa_aaaau32.to_le_bytes();
+        let mut at = 0;
+        while let Some(p) = d[at..].windows(4).position(|w| w == marker) {
+            let start = at + p;
+            at = start + 4;
+            if let Some(log) = parse_event_block(&d[start..]) {
+                return Some(log);
+            }
+        }
+        None
     }
 
     /// External reference table: (id, path) pairs.
@@ -216,4 +253,55 @@ impl Save {
 fn skip_rest(r: &mut Reader) {
     let rest = r.remaining();
     let _ = r.bytes(rest);
+}
+
+fn parse_event_block(b: &[u8]) -> Option<SavedEventLog> {
+    let u32_at = |o: usize| {
+        b.get(o..o + 4)
+            .map(|s| u32::from_le_bytes(s.try_into().unwrap()))
+    };
+    // `aaaaaaaa | size | body | bbbbbbbb`; the body starts with the version.
+    let size = u32_at(4)? as usize;
+    if size < 14 || u32_at(8 + size)? != 0xbbbb_bbbb || u32_at(8)? != 1 {
+        return None;
+    }
+    let body = &b[8..8 + size];
+    if body[4..10].iter().any(|&v| v > 1) {
+        return None;
+    }
+    let notify: [bool; 6] = std::array::from_fn(|i| body[4 + i] == 1);
+    let mut o = 10;
+    let rd = |o: &mut usize| -> Option<u32> {
+        let v = body.get(*o..*o + 4)?;
+        *o += 4;
+        Some(u32::from_le_bytes(v.try_into().unwrap()))
+    };
+    let count = rd(&mut o)? as usize;
+    if count > 100_000 {
+        return None;
+    }
+    let mut entries = Vec::with_capacity(count);
+    for _ in 0..count {
+        let color = rd(&mut o)?;
+        let len = rd(&mut o)?;
+        if len & 0x8000_0000 == 0 {
+            return None;
+        }
+        // The length counts the terminating NUL.
+        let n = (len & 0x7fff_ffff) as usize;
+        let text = body.get(o..o + n.checked_sub(1)?)?;
+        o += n;
+        let text = String::from_utf8_lossy(text).into_owned();
+        let mut i = || rd(&mut o).map(|v| v as i32);
+        entries.push(SavedEvent {
+            color,
+            text,
+            kind: i()?,
+            severity: i()?,
+            cell: i()?,
+            category: i()?,
+            icon: i()?,
+        });
+    }
+    (o == body.len()).then_some(SavedEventLog { notify, entries })
 }

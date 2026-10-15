@@ -102,3 +102,11 @@
 140131650	StatusIconDescription::Serialize	docs/STATUS-ICONS.md
 1401314c0	StatusIconComponent::Serialize	docs/STATUS-ICONS.md
 14009e030	GameOptions::Load	docs/STATUS-ICONS.md
+14009a2d0	EventLog::Add	docs/EVENT-LOG.md
+14009a5a0	EventLog::Category	docs/EVENT-LOG.md
+1400915d0	StockManager::CheckWarnings	docs/EVENT-LOG.md
+14008f3a0	StockManager::Recount	docs/EVENT-LOG.md
+140091780	StockManager::Update	docs/EVENT-LOG.md
+140068590	EventNotifyDialog	docs/EVENT-LOG.md
+140069580	EventPopupDialog	docs/EVENT-LOG.md
+140067cd0	EventLogUI::GoTo	docs/EVENT-LOG.md

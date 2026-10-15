@@ -12,6 +12,7 @@ pub mod calendar;
 pub mod character;
 pub mod citizens;
 pub mod environment;
+pub mod events;
 pub mod growth;
 pub mod map;
 pub mod math;

@@ -19,12 +19,112 @@ use crate::loops::Screen;
 pub mod controller {
     pub const STATUS_BAR: u32 = 0x509d_1aea;
     pub const PROFESSION: u32 = 0xc841_e4d4;
+    pub const EVENT_LOG: u32 = 0xb075_92fd;
+}
+
+/// `EventLogUI` (vtable `0x140161d20`): OnOpened `FUN_140067fa0`, refresh `FUN_140067da0`,
+/// events `FUN_140067f30`. Rows show the newest entries last; previous/next (ids 100/101) scroll
+/// one entry, bottom (102) returns to the newest. Read-only over the log.
+pub struct EventLogUi {
+    previous: Option<NodeId>,
+    next: Option<NodeId>,
+    bottom: Option<NodeId>,
+    /// Per display row: text (`@0` parameter) and go-to button.
+    rows: Vec<(Option<(NodeId, String)>, Option<NodeId>)>,
+    /// `+0x48`: entries scrolled back from the newest.
+    scroll: i32,
+}
+
+impl EventLogUi {
+    fn bind(ui: &Ui, root: NodeId) -> EventLogUi {
+        let mut rows = Vec::new();
+        if let Some(display) = ui.find(root, "display") {
+            if let Kind::Control(banished_ui::Control::Table { cells, rows: r, .. }) =
+                &ui.node(display).kind
+            {
+                for y in 0..r.len() {
+                    let cell = |x: usize| cells.iter().find(|c| c.0 == x && c.1 == y).map(|c| c.2);
+                    let button = cell(0);
+                    let text = cell(1).map(|t| (t, text_of(ui, t)));
+                    rows.push((text, button));
+                }
+            }
+        }
+        EventLogUi {
+            previous: ui.find(root, "buttonPrevious"),
+            next: ui.find(root, "buttonNext"),
+            bottom: ui.find(root, "buttonBottom"),
+            rows,
+            scroll: 0,
+        }
+    }
+
+    /// `FUN_140067f30`: returns whether the click was one of the scroll buttons.
+    fn click(&mut self, node: NodeId) -> bool {
+        if Some(node) == self.previous {
+            self.scroll += 1;
+        } else if Some(node) == self.next {
+            self.scroll -= 1;
+        } else if Some(node) == self.bottom {
+            self.scroll = 0;
+        } else {
+            return false;
+        }
+        if self.scroll < 0 {
+            self.scroll = 0;
+        }
+        true
+    }
+
+    /// `FUN_140067da0`.
+    fn update(&self, ui: &mut Ui, log: &banished_game::events::EventLog) {
+        let n = log.entries.len() as i64;
+        let rows = self.rows.len() as i64;
+        let base = (n - self.scroll as i64 - 1) - (rows - 1);
+        for (r, (text, button)) in self.rows.iter().enumerate() {
+            let idx = base + r as i64;
+            let entry = (idx >= 0).then(|| log.entries.get(idx as usize)).flatten();
+            if let Some((node, template)) = text {
+                let line = entry.map(|e| format_event(ui, e)).unwrap_or_default();
+                ui.set_text(*node, &template.replace("@0", &line));
+                if let Some(e) = entry {
+                    ui.node_mut(*node).color = e.color;
+                }
+            }
+            if let Some(b) = button {
+                // Not traced: the button state call's argument; shown when the row has an entry.
+                ui.set_visible(*b, entry.is_some());
+            }
+        }
+        for b in [self.bottom, self.next].into_iter().flatten() {
+            ui.node_mut(b).enabled = self.scroll > 0;
+        }
+    }
+}
+
+/// `FUN_14009a2d0`'s text: `FormatIndexed(events[type], season, year, @2, @3, @4)`.
+pub fn format_event(ui: &mut Ui, e: &banished_game::events::EventEntry) -> String {
+    let template = ui.res.string_at("Dialog/StringTable.rsc:events", e.kind);
+    let season = ui
+        .res
+        .string_at("Dialog/StringTable.rsc:seasons", e.month as i32);
+    let mut out = template;
+    for (i, v) in [season, e.year.to_string()]
+        .into_iter()
+        .chain(e.args.iter().cloned())
+        .enumerate()
+    {
+        out = out.replace(&format!("@{i}"), &v);
+    }
+    out
 }
 
 /// Game values shown by the Status Bar (`FUN_14007eda0` reads them from the town, calendar,
 /// environment and stock managers).
 #[derive(Debug, Clone, Default)]
 pub struct StatusValues {
+    /// The event log, for EventLogUI.
+    pub events: Option<banished_game::events::EventLog>,
     pub town_name: String,
     pub year: u32,
     /// 0..12.
@@ -300,6 +400,7 @@ struct Window {
     root: NodeId,
     status_bar: Option<StatusBar>,
     professions: Option<ProfessionUi>,
+    event_log: Option<EventLogUi>,
 }
 
 #[derive(Default)]
@@ -337,6 +438,7 @@ impl UtilityWindows {
         let root = screen.dialogs[dialog].root;
         let mut status_bar = None;
         let mut professions = None;
+        let mut event_log = None;
         for c in &desc.controllers {
             // `FUN_1401335d0`: instantiate the element into the named slot; a TabElement slot
             // would get a tab instead (no utility window uses one).
@@ -352,6 +454,7 @@ impl UtilityWindows {
                 0 => {}
                 controller::STATUS_BAR => status_bar = Some(StatusBar::bind(ui, root)),
                 controller::PROFESSION => professions = Some(ProfessionUi::bind(ui, root, archive)),
+                controller::EVENT_LOG => event_log = Some(EventLogUi::bind(ui, root)),
                 other => log::info!("{template}: controller {other:#010x} not implemented yet"),
             }
         }
@@ -377,6 +480,7 @@ impl UtilityWindows {
             root,
             status_bar,
             professions,
+            event_log,
         });
     }
 
@@ -394,9 +498,20 @@ impl UtilityWindows {
         true
     }
 
+    /// A click inside a utility window's controller (EventLogUI scroll buttons).
+    pub fn click(&mut self, node: NodeId) -> bool {
+        self.open
+            .iter_mut()
+            .filter_map(|w| w.event_log.as_mut())
+            .any(|e| e.click(node))
+    }
+
     /// `DialogInstance::OnUpdateLayout` for every open window's controllers.
     pub fn update(&self, ui: &mut Ui, values: &StatusValues) {
         for w in &self.open {
+            if let (Some(e), Some(log)) = (&w.event_log, &values.events) {
+                e.update(ui, log);
+            }
             if let Some(s) = &w.status_bar {
                 s.update(ui, values);
             }
