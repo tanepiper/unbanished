@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use banished_formats::skeleton::{bind_palette, local_bind, world_transforms, Transform};
+use banished_formats::skeleton::{bind_palette, world_transforms, Transform};
 use banished_formats::types::{AnimationClip, Bone, SKINNED_STRIDE, STATIC_STRIDE};
 use banished_gfx::material::{character_uv_transform, MaterialKind};
 use banished_gfx::{upload_image, upload_rgba};
@@ -443,8 +443,8 @@ impl Renderer {
     pub fn load_mesh(&self, assets: &Assets, name: &str) -> banished_formats::Result<GpuMesh> {
         let mesh = assets.mesh(name)?;
         let mut parts = Vec::new();
-        let locals: Vec<_> = mesh.bones.iter().map(local_bind).collect();
-        let world = world_transforms(&mesh.bones, &locals);
+        let world = banished_gfx::model::bind_world(&mesh);
+        let set = banished_gfx::model::material_set(&mesh, 0);
         // Parts are detail levels; the asset browser displays the most detailed one.
         for part in mesh.parts.iter().take(1) {
             for range in &part.ranges {
@@ -452,40 +452,29 @@ impl Renderer {
                 if range.index_count == 0 || index_data.is_empty() {
                     continue;
                 }
-                let instance_ref = mesh
-                    .material_instances
-                    .iter()
-                    .find_map(|set| set.get(range.material_index as usize).cloned().flatten());
-                let instance = instance_ref.as_deref().and_then(|r| {
+                // Shared with the game: material instance, shader kind, textures, rigid node.
+                let m = banished_gfx::model::range_material(&world, set, range, &mut |r| {
                     assets
                         .material_instance(r)
                         .map_err(|e| log::warn!("{r}: {e}"))
                         .ok()
                 });
-                let diffuse_ref = instance
-                    .as_ref()
-                    .and_then(|mi| mi.texture("diffuse").map(str::to_owned));
                 let (diffuse, _) = self
-                    .texture(assets, diffuse_ref.as_deref())
+                    .texture(assets, m.diffuse.as_deref())
                     .unwrap_or_else(|| (self.white.clone(), 1.0));
                 let ao = self
                     .texture(assets, part.ao_texture.as_deref())
                     .map_or_else(|| self.white.clone(), |t| t.0);
                 // Character materials select one outfit of the atlas (the first here), with the
                 // same rule the game uses (`banished_gfx::material`).
-                let kind =
-                    MaterialKind::of(instance.as_ref().and_then(|mi| mi.material.as_deref()));
-                let uv_transform: [f32; 4] = if kind == MaterialKind::Character {
+                let uv_transform: [f32; 4] = if m.kind == MaterialKind::Character {
                     character_uv_transform(0)
                 } else {
                     [1.0, 1.0, 0.0, 0.0]
                 };
                 // Rigid triangle lists use the node's world transform; weighted lists already
                 // apply world * inverse_bind through the skin palette in the vertex shader.
-                let rigid = world
-                    .get(range.bone as usize)
-                    .copied()
-                    .unwrap_or(Transform::IDENTITY);
+                let rigid = m.rigid;
                 let mut material_params = uv_transform.to_vec();
                 material_params.extend_from_slice(&rigid.to_matrix());
                 let params = self
@@ -554,8 +543,8 @@ impl Renderer {
                     index_range: range.start_index as u32
                         ..(range.start_index + range.index_count) as u32,
                     base_vertex: range.start_vertex,
-                    skinned: range.bone < 0,
-                    rigid_bone: usize::try_from(range.bone).ok(),
+                    skinned: m.skinned,
+                    rigid_bone: m.rigid_bone,
                     textures,
                     material_params: params,
                 });

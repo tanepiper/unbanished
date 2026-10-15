@@ -2,6 +2,7 @@
 //! model material classification.
 
 pub mod material;
+pub mod model;
 mod texture;
 mod ui;
 

@@ -11,9 +11,7 @@ use std::collections::HashMap;
 
 use banished_formats::menu_scene::MenuScene;
 use banished_formats::pkg::Archive;
-use banished_formats::skeleton::{
-    bind_palette, inverse_bind, local_bind, world_transforms, Transform,
-};
+use banished_formats::skeleton::{bind_palette, inverse_bind, world_transforms, Transform};
 use banished_formats::texture::decode_rgba;
 use banished_formats::types::{
     graphics_mesh, image_buffer, material_instance, Bone, ImageBuffer, STATIC_STRIDE,
@@ -141,13 +139,9 @@ fn load_group(
     let mesh = graphics_mesh(&archive.read_ref(&with_object(mesh_ref)).ok()?)
         .map_err(|e| log::warn!("{mesh_ref}: {e}"))
         .ok()?;
-    let locals: Vec<Transform> = mesh.bones.iter().map(local_bind).collect();
-    let world = world_transforms(&mesh.bones, &locals);
+    let world = banished_gfx::model::bind_world(&mesh);
     let part = mesh.parts.first()?;
-    let set = mesh
-        .material_instances
-        .get(material_set)
-        .or_else(|| mesh.material_instances.first());
+    let set = banished_gfx::model::material_set(&mesh, material_set);
     let mut cached = |r: Option<String>| -> Option<ImageBuffer> {
         let r = r?;
         textures
@@ -189,44 +183,21 @@ fn load_group(
         };
         let mut indices = indices.to_vec();
         indices.resize(indices.len().next_multiple_of(4), 0);
-        let instance = set
-            .and_then(|s| s.get(range.material_index as usize).cloned().flatten())
-            .and_then(|mi| material_instance(&archive.read_ref(&with_object(&mi)).ok()?).ok());
-        let diffuse_ref = instance
-            .as_ref()
-            .and_then(|mi| mi.texture("diffuse").map(str::to_owned));
-        let kind = MaterialKind::of(instance.as_ref().and_then(|mi| mi.material.as_deref()));
-        let snow_ref = instance
-            .as_ref()
-            .and_then(|mi| mi.texture("snow").map(str::to_owned));
+        let m = banished_gfx::model::range_material(&world, set, range, &mut |r| {
+            material_instance(&archive.read_ref(&with_object(r)).ok()?).ok()
+        });
         ranges.push(RangeData {
-            kind,
-            snow: cached(snow_ref),
+            kind: m.kind,
+            snow: cached(m.snow),
             vertices: vertices.to_vec(),
             indices,
             index_count: range.index_count as u32,
-            diffuse: cached(diffuse_ref),
+            diffuse: cached(m.diffuse),
             ao: ao.clone(),
-            rigid: if range.bone < 0 {
-                Transform::IDENTITY.to_matrix()
-            } else {
-                world
-                    .get(range.bone as usize)
-                    .copied()
-                    .unwrap_or(Transform::IDENTITY)
-                    .to_matrix()
-            },
+            rigid: m.rigid.to_matrix(),
         });
     }
-    let mut rigid_nodes = part
-        .ranges
-        .iter()
-        .filter(|r| r.index_count > 0)
-        .map(|r| r.bone);
-    let animation_bone = rigid_nodes
-        .next()
-        .filter(|&first| first >= 0 && rigid_nodes.all(|bone| bone == first))
-        .map(|bone| bone as usize);
+    let animation_bone = banished_gfx::model::animation_bone(part);
     Some(ModelAsset {
         ranges,
         bones: mesh.bones,
