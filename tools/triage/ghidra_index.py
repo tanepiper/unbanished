@@ -38,9 +38,9 @@ COMPONENT_SLOTS = {
     0x78: 'message',
 }
 # UI::DialogController slots, from the labelled controllers in names.tsv (Bind x7, Refresh x7,
-# HandleEvent x4, Close x1 at these offsets; docs/BUILDING-WINDOWS.md).
+# HandleEvent x4, Close x1, Serialize x1 at these offsets; docs/BUILDING-WINDOWS.md).
 DIALOG_SLOTS = {
-    0x18: 'serialize', 0x20: 'bind (dialog opened)', 0x30: 'close', 0x38: 'refresh',
+    0x20: 'bind (dialog opened)', 0x28: 'serialize (1 labelled)', 0x30: 'close', 0x38: 'refresh',
     0x48: 'handle event',
 }
 ACTION_SLOTS = {
