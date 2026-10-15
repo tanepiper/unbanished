@@ -212,3 +212,4 @@
 1400c5b60	Build::BuildSequence	docs/JOBS.md
 140092a60	Town::FindMaterialStorage	docs/JOBS.md
 1400a2830	Map::Zone	docs/JOBS.md
+1400b1980	MapComponent::Generate	docs/STARTING-AUDIO-EMITTERS.md

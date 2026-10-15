@@ -106,6 +106,10 @@ pub struct World {
     pub profile: TerrainGenerator,
     pub terrain: Terrain,
     pub environment: EnvironmentDescription,
+    /// MapComponent `+0x1e0`: the river centre lines in map coordinates. `FUN_1400b1980` fills
+    /// list `i` with the positions of generator path `i`'s 28-byte records, last to first
+    /// (verified against the saved paths of a generated map).
+    pub river_paths: Vec<Vec<[f32; 2]>>,
 }
 
 fn with_object(reference: &str) -> String {
@@ -155,6 +159,11 @@ impl World {
             params.seed,
             start.elapsed().as_secs_f32()
         );
+        let river_paths = g
+            .paths
+            .iter()
+            .map(|p| p.iter().rev().map(|q| q.pos).collect())
+            .collect();
         let terrain = Terrain::new(archive, &profile.materials[0], size, heights, surface)?;
         let environment =
             environment_description(&archive.read_ref("Environment/Environment.rsc:resource")?)?;
@@ -162,6 +171,7 @@ impl World {
             profile,
             terrain,
             environment,
+            river_paths,
         })
     }
 }

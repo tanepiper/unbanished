@@ -74,6 +74,8 @@ pub struct GameplayLoop {
     pause_menu: Option<crate::pause_menu::PauseMenu>,
     /// The EnvironmentDescription's weather list: (Weather description, ambient entity).
     weather: Vec<(Option<String>, Option<String>)>,
+    /// River centre lines (MapComponent `+0x1e0`).
+    river_paths: Vec<Vec<[f32; 2]>>,
 }
 
 impl GameplayLoop {
@@ -110,6 +112,7 @@ impl GameplayLoop {
             ambience_stale: false,
             pause_menu: None,
             weather: Vec::new(),
+            river_paths: Vec::new(),
         }
     }
 
@@ -559,6 +562,7 @@ impl GameplayLoop {
                         ctx.archive,
                         &self.params.start_condition_ref,
                         town,
+                        &self.river_paths,
                         temperature,
                     ));
                 }
@@ -638,6 +642,7 @@ impl GameLoop for GameplayLoop {
             Ok(world) => {
                 let lighting = Lighting::from_month(&world.environment.months[0]);
                 self.weather = world.environment.weather.clone();
+                self.river_paths = world.river_paths.clone();
                 self.environment_months = world.environment.months;
                 log::info!(
                     "{} terrain ready for {} ({}, {})",
@@ -1238,6 +1243,16 @@ mod tests {
             assert!(effects >= 1, "{effects}");
             let ambience = gameplay.ambience.as_ref().unwrap();
             assert!(ambience.region_count() > 0);
+            // Every generated map has a river (`FUN_1400d2560`): emitters every 8 units.
+            let length: f32 = gameplay
+                .river_paths
+                .iter()
+                .flat_map(|p| p.windows(2))
+                .map(|w| (glam::Vec2::from(w[1]) - glam::Vec2::from(w[0])).length())
+                .sum();
+            eprintln!("river length {length}, emitters {}", ambience.river_count());
+            assert!(ambience.river_count() > 0);
+            assert!(ambience.river_count() as f32 <= length / 8.0);
         });
     }
 

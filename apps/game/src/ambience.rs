@@ -15,8 +15,10 @@
 //!
 //! Deviations: the original registers these as entities in the entity manager (bucket 2 for
 //! the environment); the port keeps them as an audio-only layer and re-weighs a region when the
-//! map changes instead of on its scheduled visit. The river emitters (every `float_130` along
-//! the river paths) wait for the in-game water geometry (`Game +0x110`).
+//! map changes instead of on its scheduled visit.
+//!
+//! River emitters: one `Audio/Effects/RiverEffect.rsc:ambient` every `float_130` units along the
+//! river paths (MapComponent `+0x1e0`, see `World::river_paths`).
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -34,6 +36,7 @@ use crate::start::StartingTown;
 
 const ENVIRONMENT: &str = "Audio/Effects/Environment.rsc";
 const WIND: &str = "Audio/Effects/WindEffect.rsc";
+const RIVER: &str = "Audio/Effects/RiverEffect.rsc";
 
 /// An AmbientEmitterComponent slot (`+0x38`, 0x10 bytes): 3D handle, volume, effect.
 #[derive(Clone)]
@@ -155,6 +158,8 @@ pub struct Ambience {
     desc: Option<AmbientEnvironmentDescription>,
     regions: Vec<Region>,
     wind: Option<Emitter>,
+    /// `RiverEffect.rsc:ambient` emitters along the river paths.
+    rivers: Vec<Emitter>,
     /// The precipitation slots' ambient emitters (Rain: `RainEffect.rsc:ambient`).
     weather: Vec<Option<Emitter>>,
     /// Placed entities whose template has an `ambientemitter` component, by entity index:
@@ -208,15 +213,16 @@ impl Ambience {
         archive: &Archive,
         profile_ref: &str,
         town: &StartingTown,
+        rivers: &[Vec<[f32; 2]>],
         temperature: f32,
     ) -> Ambience {
         let profile = archive
             .read_ref(&profile_ref.replace('\\', "/"))
             .ok()
             .and_then(|b| map_generator(&b).ok());
-        let (step, wind_height) = profile
-            .as_ref()
-            .map_or((16, 30.0), |p| (p.int_150.max(1), p.float_170));
+        let (step, wind_height, river_spacing) = profile.as_ref().map_or((16, 30.0, 8.0), |p| {
+            (p.int_150.max(1), p.float_170, p.float_130)
+        });
         let desc = archive
             .read_ref(&format!("{ENVIRONMENT}:ambientenvironment"))
             .ok()
@@ -237,12 +243,34 @@ impl Ambience {
             desc,
             regions: Vec::new(),
             wind: None,
+            rivers: Vec::new(),
             weather: Vec::new(),
             entities: HashMap::new(),
             entity_templates: HashMap::new(),
             effects,
             fade_t: f32::NAN,
         };
+        // River emitters first: along each path, a RiverEffect emitter at the point where the
+        // walked length first exceeds the spacing, at height 0; the length then restarts.
+        if let Some(river) = load_emitter(audio, archive, RIVER) {
+            for path in rivers {
+                let mut walked = 0.0f32;
+                for w in path.windows(2) {
+                    let (a, b) = (glam::Vec2::from(w[0]), glam::Vec2::from(w[1]));
+                    walked += (b - a).length();
+                    if river_spacing < walked {
+                        let mut e = Emitter {
+                            position: Vec3::new(b.x, b.y, 0.0),
+                            slots: river.slots.clone(),
+                            autostart: river.autostart,
+                        };
+                        e.activate(audio);
+                        ambience.rivers.push(e);
+                        walked = 0.0;
+                    }
+                }
+            }
+        }
         let n = town.cells.size as i32;
         let slots = load_emitter(audio, archive, ENVIRONMENT).map_or_else(Vec::new, |e| e.slots);
         let half = (n >> 1) as f32 - 0.5;
@@ -417,6 +445,11 @@ impl Ambience {
     #[cfg(test)]
     pub fn weather_active(&self, slot: usize) -> bool {
         self.weather.get(slot).is_some_and(|w| w.is_some())
+    }
+
+    #[cfg(test)]
+    pub fn river_count(&self) -> usize {
+        self.rivers.len()
     }
 
     #[cfg(test)]

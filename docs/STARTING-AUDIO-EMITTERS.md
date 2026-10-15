@@ -8,15 +8,18 @@ object placement calls, not audible runtime playback; no audio was played or obs
 
 `FUN_1400a57c0` iterates the point sequences held at singleton `DAT_1401cbdd8 + 0x110`. It measures
 the distance between successive 2D points and accumulates that distance for each sequence. When the
-accumulated value reaches the profile's `+0x130` threshold, the function clones
+accumulated value exceeds the profile's `+0x130` threshold, the function clones
 `Audio/Effects/RiverEffect.rsc:ambient`, finds its emitter child, moves that emitter to the current
-path point, and registers the clone through the shared internal-object manager at
-`DAT_1401cbdd8 + 0xe8`. All three profiles set the threshold to `8.0`.
+path point `(x, y, 0)`, resets the accumulator to 0, and registers the clone through the shared
+internal-object manager at `DAT_1401cbdd8 + 0xe8`. All three profiles set the threshold to `8.0`.
 
-The resource name and point-sequence traversal support describing this as River-effect ambience
-placed along generated paths. The relationship between this singleton path collection and the
-terrain-generation River geometry should still be confirmed directly; the serialized coordinate
-scale is also not established here.
+`+0x110` is the MapComponent and `+0x1e0` (count `+0x1e8`) its river path lists. At the end of
+`FUN_1400b1980`, after `FUN_1400b0730` builds the water mesh, the list is resized to the
+generator's path count (`+0x20`) and list `i` receives the 2D position (first 8 bytes) of every
+28-byte record of generator path `i` (`+0x18`), last record first. The lists are saved with the
+MapComponent (`FUN_1400b59a0`). Regenerating the seeds of two saves with the port's generator
+gives exactly the saved lists, reversed, so the points are map coordinates (cells from the map
+centre, `±n`). The port places the emitters from `World::river_paths`.
 
 ## Terrain-region Environment ambience
 
@@ -54,4 +57,4 @@ intended design reason for the difficulty-dependent values.
 - Terrain-region position setup: `FUN_140044000`.
 - Emitter movement: `FUN_1400432c0` calls `Audio::Scene::MoveEmitter` when the position changes.
 - The emitter resource definitions and audio-engine playback/update behavior remain to be traced.
-- Confirm whether singleton `+0x110` stores exactly the paths used by River mesh generation.
+- Confirmed: `+0x110 → +0x1e0` holds the generator's River paths (see above).
