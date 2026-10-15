@@ -1,6 +1,7 @@
 // Terrain surface, rewritten from the disassembly of TerrainMaterial_vs / TerrainMaterial_ps
-// program 0 (D3D9; see docs/TERRAIN-DERIVED-GEOMETRY.md). World space is the terrain's own:
-// x/y in cells (map-centred), z = height (saved value / 256), z up.
+// program 2, the default shadow detail (D3D9; see docs/TERRAIN-DERIVED-GEOMETRY.md and
+// docs/SHADOWS.md). World space is the terrain's own: x/y in cells (map-centred),
+// z = height (saved value / 256), z up.
 
 // `Globals`, `g` and `reflect_clip` come from scene_gfx::GLOBALS_WGSL (prepended).
 @group(1) @binding(0) var grass: texture_2d<f32>;
@@ -27,6 +28,8 @@ struct VsOut {
     // x: rock V (height / 16), y: underwater factor.
     @location(3) t3: vec2<f32>,
     @location(4) world_z: f32,
+    // t4: sun shadow map coordinate (lc[10..13], programs 1-3).
+    @location(5) t4: vec3<f32>,
 };
 
 @vertex
@@ -40,6 +43,7 @@ fn vs_main(v: VsIn) -> VsOut {
     let p = vec3<f32>(f32(v.pos.x), f32(v.pos.y), f32(v.pos.z) * 0.00390625);
     o.clip = g.view_proj * vec4<f32>(p, 1.0);
     o.world_z = p.z;
+    o.t4 = shadow_coord(p);
     // The original uses clip-space z of a D3D projection; view depth (w) is its equivalent here.
     o.t1.z = (o.clip.w + g.fog.x) * g.fog.y;
     o.t0 = vec4<f32>(f32(v.pos.x) * 0.0625, f32(v.pos.y) * 0.0625,
@@ -68,7 +72,7 @@ fn fs_main(i: VsOut) -> @location(0) vec4<f32> {
     color = mix(color, base_snow.rgb, snow_amount);
     let under = clamp(i.t3.y, 0.0, 1.0);
     color = mix(color, vec3<f32>(0.0250000004, 0.123000003, 0.189999998), under);
-    let light = g.light_color.rgb * clamp(i.t1.x, 0.0, 1.0)
+    let light = g.light_color.rgb * sun_shadow(i.t4) * clamp(i.t1.x, 0.0, 1.0)
         + g.ambient_color.rgb * i.t1.y * tr.x;
     let lit = color * light;
     let fog = clamp(min(g.fog_color.w, i.t1.z), 0.0, 1.0);

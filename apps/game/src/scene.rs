@@ -79,6 +79,9 @@ impl SceneView {
             forward,
             up,
             time,
+            hfov: horizontal_fov(40.0, aspect),
+            vfov: 40.0,
+            near: 2.0,
         }
     }
 }
@@ -92,15 +95,7 @@ pub fn from_yaw_pitch(yaw: f32, pitch: f32) -> Vec3 {
 /// The game's projection (`FUN_14009db30`): `vfov` degrees vertically and `aspect × vfov`
 /// horizontally (each angle used directly, not through `tan`), up to 16:9.
 pub fn projection(vfov: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
-    const WIDE: f32 = 16.0 / 9.0;
-    let hfov = if aspect <= WIDE {
-        aspect * vfov
-    } else {
-        // Beyond 16:9 the original widens through tan/atan; inferred from the call shape.
-        2.0 * ((WIDE * vfov * 0.5).to_radians().tan() * aspect / WIDE)
-            .atan()
-            .to_degrees()
-    };
+    let hfov = horizontal_fov(vfov, aspect);
     let sx = 1.0 / (hfov * 0.5).to_radians().tan();
     let sy = 1.0 / (vfov * 0.5).to_radians().tan();
     // Right-handed view space, depth 0..1 (wgpu).
@@ -111,6 +106,19 @@ pub fn projection(vfov: f32, aspect: f32, near: f32, far: f32) -> Mat4 {
         Vec4::new(0.0, 0.0, a, -1.0),
         Vec4::new(0.0, 0.0, a * near, 0.0),
     )
+}
+
+/// `FUN_14009db30`'s horizontal field of view in degrees.
+pub fn horizontal_fov(vfov: f32, aspect: f32) -> f32 {
+    const WIDE: f32 = 16.0 / 9.0;
+    if aspect <= WIDE {
+        aspect * vfov
+    } else {
+        // Beyond 16:9 the original widens through tan/atan; inferred from the call shape.
+        2.0 * ((WIDE * vfov * 0.5).to_radians().tan() * aspect / WIDE)
+            .atan()
+            .to_degrees()
+    }
 }
 
 /// The main menu's camera (`FUN_14009dcd0`, `FUN_14009d8c0`): orbits `target` at `distance`,

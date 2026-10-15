@@ -29,13 +29,39 @@ struct Globals {
     camera_pos: vec4<f32>,
     // Planar reflection pass: x = 1 when active, y = water height (geometry below is clipped).
     clip: vec4<f32>,
+    // lc[10..13]: world -> sun shadow map (u, v, depth); see shadow.rs.
+    shadow: mat4x4<f32>,
+    // x = 1 / shadow map size (pc[0].x), y = 1 when the sun casts shadows.
+    shadow_params: vec4<f32>,
 };
 @group(0) @binding(0) var<uniform> g: Globals;
+@group(0) @binding(1) var shadow_map: texture_depth_2d;
+@group(0) @binding(2) var shadow_cmp: sampler_comparison;
 
 fn reflect_clip(world_z: f32) {
     if (g.clip.x > 0.5 && world_z < g.clip.y) {
         discard;
     }
+}
+
+fn shadow_coord(world: vec3<f32>) -> vec3<f32> {
+    return (g.shadow * vec4<f32>(world, 1.0)).xyz;
+}
+
+// The e_shadowMap term of the lit pixel shaders at the default shadow detail (Medium, program
+// 2): four hardware-compared taps at (±½, ±½) texels, averaged. It scales only the sun term.
+// The reference depth is clamped to 0..1 as for the original's D24 shadow map.
+fn sun_shadow(t: vec3<f32>) -> f32 {
+    if (g.shadow_params.y < 0.5) {
+        return 1.0;
+    }
+    let h = 0.5 * g.shadow_params.x;
+    let z = clamp(t.z, 0.0, 1.0);
+    let a = textureSampleCompareLevel(shadow_map, shadow_cmp, t.xy + vec2<f32>(h, h), z);
+    let b = textureSampleCompareLevel(shadow_map, shadow_cmp, t.xy + vec2<f32>(h, -h), z);
+    let c = textureSampleCompareLevel(shadow_map, shadow_cmp, t.xy + vec2<f32>(-h, h), z);
+    let d = textureSampleCompareLevel(shadow_map, shadow_cmp, t.xy + vec2<f32>(-h, -h), z);
+    return (a + b + c + d) * 0.25;
 }
 "#;
 
@@ -215,6 +241,8 @@ struct WaterOut {
     @location(2) screen: vec4<f32>,
     // x: -L.z, y: L.z/2 + 1.5, z: fog, w: alpha.
     @location(3) t3: vec4<f32>,
+    // Sun shadow map coordinate (t5).
+    @location(4) sh: vec3<f32>,
 };
 
 fn water_common(v: WaterIn) -> WaterOut {
@@ -227,6 +255,7 @@ fn water_common(v: WaterIn) -> WaterOut {
     o.screen = vec4<f32>(0.5 * clip.x + 0.5 * clip.w, -0.5 * clip.y + 0.5 * clip.w, clip.z, clip.w);
     o.t3 = vec4<f32>(-g.light_dir.z, 0.5 * g.light_dir.z + 1.5,
                      (clip.w + g.fog.x) * g.fog.y, v.normal.z);
+    o.sh = shadow_coord(world);
     return o;
 }
 
@@ -270,7 +299,9 @@ fn fs_water(i: WaterOut) -> @location(0) vec4<f32> {
     let f = dot(-v, nn);
     let reflected = spec * refl.w + refl.rgb;
     let f2 = f * f;
-    let colour = reflected * ((1.0 - f2) * 0.67) + (frame.rgb * (f2 * 0.67) + vec3<f32>(0.165, 0.1815, 0.165));
+    // Program 2 sums its four shadow taps against a quarter of program 0's constant.
+    let sun = vec3<f32>(0.165, 0.1815, 0.165) * sun_shadow(i.sh);
+    let colour = reflected * ((1.0 - f2) * 0.67) + (frame.rgb * (f2 * 0.67) + sun);
     let fog = min(g.fog_color.w, clamp(i.t3.z, 0.0, 1.0));
     let fogged = mix(colour, g.fog_color.rgb, fog);
     // The terrain wrote its underwater factor to alpha: shallow shores show the ground.
@@ -314,6 +345,8 @@ struct DecalOut {
     @location(2) t2: vec4<f32>,
     // Blend weights |n|^4.
     @location(3) t3: vec3<f32>,
+    // Sun shadow map coordinate.
+    @location(4) sh: vec3<f32>,
 };
 
 @vertex
@@ -330,11 +363,13 @@ fn vs_decal(v: DecalIn) -> DecalOut {
                      (f32(v.pos.z) * 0.00390625 + 0.75) * -0.666666687);
     let n2 = n * n;
     o.t3 = n2 * n2;
+    o.sh = shadow_coord(world);
     return o;
 }
 
-fn light(base: vec3<f32>, t1: vec4<f32>) -> vec3<f32> {
-    let l = g.ambient_color.rgb * t1.y + g.light_color.rgb * clamp(t1.x, 0.0, 1.0);
+fn light(base: vec3<f32>, t1: vec4<f32>, sh: vec3<f32>) -> vec3<f32> {
+    let l = g.ambient_color.rgb * t1.y
+        + g.light_color.rgb * sun_shadow(sh) * clamp(t1.x, 0.0, 1.0);
     let lit = base * l;
     let fog = min(g.fog_color.w, clamp(t1.z, 0.0, 1.0));
     return lit + fog * (g.fog_color.rgb - lit);
@@ -348,7 +383,7 @@ fn fs_tiled(i: DecalOut) -> @location(0) vec4<f32> {
     let base = textureSample(diffuse, samp, uv);
     let s = textureSample(snow_tex, samp, uv);
     let c = mix(base.rgb, s.rgb, base.w * g.user.x);
-    let lit = light(c, i.t1);
+    let lit = light(c, i.t1, i.sh);
     let under = clamp(i.t2.w, 0.0, 1.0);
     let m = textureSample(mask, samp, i.t0.zw * 0.000244140625);
     return vec4<f32>(lit * (1.0 - under), m.y * i.t1.w);
@@ -366,7 +401,7 @@ fn fs_blend(i: DecalOut) -> @location(0) vec4<f32> {
     let ground = px.rgb * i.t3.x + py.rgb * i.t3.y + pz.rgb * i.t3.z;
     let c0 = mix(ground, base.rgb, base.w);
     let c = mix(c0, s.rgb, i.t3.z * g.user.x);
-    return vec4<f32>(light(c, i.t1), pz.w);
+    return vec4<f32>(light(c, i.t1, i.sh), pz.w);
 }
 
 // TerrainDecalMaterial_ps.
@@ -374,7 +409,7 @@ fn fs_blend(i: DecalOut) -> @location(0) vec4<f32> {
 fn fs_plain(i: DecalOut) -> @location(0) vec4<f32> {
     let uv = i.t0.xy * 0.000244140625;
     let base = textureSample(diffuse, samp, uv);
-    let lit = light(base.rgb, i.t1);
+    let lit = light(base.rgb, i.t1, i.sh);
     let under = clamp(i.t2.w, 0.0, 1.0);
     return vec4<f32>(mix(lit, vec3<f32>(0.0250000004, 0.123000003, 0.189999998), under),
                      base.w * i.t1.w);

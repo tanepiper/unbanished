@@ -2,6 +2,7 @@
 //! one path. Colours are handled as raw (non-sRGB) values like the original D3D9 renderer.
 //!
 //! A 3D frame is drawn offscreen like the original pipeline:
+//! 0. the sun's shadow map: terrain and model depth from the sun camera (`shadow.rs`);
 //! 1. planar reflection (half size): sky, terrain and models mirrored about the water surface,
 //!    clipping what lies below it (`ReflectionImageBuffer`);
 //! 2. the scene: sky, terrain, models, decals;
@@ -39,6 +40,8 @@ struct Globals {
     camera_up: [f32; 4],
     camera_pos: [f32; 4],
     clip: [f32; 4],
+    shadow: [[f32; 4]; 4],
+    shadow_params: [f32; 4],
 }
 
 /// Lighting for one frame, in the units of `EnvironmentDescription`.
@@ -68,6 +71,11 @@ pub struct SceneFrame {
     pub forward: Vec3,
     pub up: Vec3,
     pub time: f32,
+    /// Horizontal and vertical field of view (degrees) and near distance of the projection,
+    /// for the sun camera fit.
+    pub hfov: f32,
+    pub vfov: f32,
+    pub near: f32,
 }
 
 /// Everything drawn in one frame: an optional 3D scene, then UI quads.
@@ -106,6 +114,10 @@ pub struct Renderer {
     size: (u32, u32),
     targets: Targets,
     terrain_pipeline: wgpu::RenderPipeline,
+    terrain_depth_pipeline: wgpu::RenderPipeline,
+    shadow: crate::shadow::ShadowMap,
+    shadow_globals: wgpu::Buffer,
+    shadow_bind: wgpu::BindGroup,
     blit_pipeline: wgpu::RenderPipeline,
     blit_layout: wgpu::BindGroupLayout,
     blit_sampler: wgpu::Sampler,
@@ -367,18 +379,23 @@ impl Renderer {
         });
         let format = surface.as_ref().map_or(CAPTURE_FORMAT, |(_, c)| c.format);
 
+        let [shadow_map_entry, shadow_sampler_entry] = crate::shadow::ShadowMap::layout_entries();
         let globals_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("globals"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
+                shadow_map_entry,
+                shadow_sampler_entry,
+            ],
         });
         let tex = |binding| wgpu::BindGroupLayoutEntry {
             binding,
@@ -462,6 +479,21 @@ impl Renderer {
             multiview_mask: None,
             cache: None,
         });
+        // TerrainMaterial_Depth_vs places vertices as Normal_vs does.
+        let terrain_depth_pipeline = crate::shadow::depth_pipeline(
+            &device,
+            "terrain depth",
+            &terrain_layout,
+            &terrain_shader,
+            "vs_main",
+            None,
+            &[Some(wgpu::VertexBufferLayout {
+                array_stride: 16,
+                step_mode: wgpu::VertexStepMode::Vertex,
+                attributes: &wgpu::vertex_attr_array![0 => Sint16x4, 1 => Sint16x2, 2 => Unorm8x4],
+            })],
+            crate::shadow::DepthState::BackFaces,
+        );
 
         let blit_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("blit"),
@@ -531,7 +563,8 @@ impl Renderer {
             ..Default::default()
         });
 
-        let globals_buffer = |label| {
+        let shadow = crate::shadow::ShadowMap::new(&device);
+        let globals_buffer = |label, shadow_view: &wgpu::TextureView| {
             let buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some(label),
                 size: std::mem::size_of::<Globals>() as u64,
@@ -541,15 +574,27 @@ impl Renderer {
             let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some(label),
                 layout: &globals_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: buffer.as_entire_binding(),
-                }],
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: buffer.as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::TextureView(shadow_view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 2,
+                        resource: wgpu::BindingResource::Sampler(&shadow.sampler),
+                    },
+                ],
             });
             (buffer, bind)
         };
-        let (globals, globals_bind) = globals_buffer("globals");
-        let (reflect_globals, reflect_bind) = globals_buffer("reflection globals");
+        let (globals, globals_bind) = globals_buffer("globals", &shadow.view);
+        let (reflect_globals, reflect_bind) = globals_buffer("reflection globals", &shadow.view);
+        // The shadow pass renders into the map, so its globals bind a stand-in.
+        let (shadow_globals, shadow_bind) = globals_buffer("shadow globals", &shadow.dummy);
         let models = crate::models::ModelRenderer::new(&device, &queue, &globals_layout);
         let extras = SceneExtrasRenderer::new(&device, &queue, &globals_layout);
         let highlight = crate::highlight::HighlightRenderer::new(&device);
@@ -574,6 +619,10 @@ impl Renderer {
             size: (width, height),
             targets,
             terrain_pipeline,
+            terrain_depth_pipeline,
+            shadow,
+            shadow_globals,
+            shadow_bind,
             blit_pipeline,
             blit_layout,
             blit_sampler,
@@ -791,7 +840,12 @@ impl Renderer {
             forward: Vec3::NEG_Z,
             up: Vec3::Y,
             time: 0.0,
+            hfov: 0.0,
+            vfov: 0.0,
+            near: 0.0,
         };
+        // The minimap scene has no sun light, so no shadow map.
+        self.shadow.lookup = None;
         self.extras.bind_targets(
             &self.device,
             &targets.frame_copy_view,
@@ -1070,8 +1124,17 @@ impl Renderer {
     }
 
     fn draw_terrain<'p>(&'p self, pass: &mut wgpu::RenderPass<'p>, globals: &'p wgpu::BindGroup) {
+        self.draw_terrain_with(pass, globals, &self.terrain_pipeline);
+    }
+
+    fn draw_terrain_with<'p>(
+        &'p self,
+        pass: &mut wgpu::RenderPass<'p>,
+        globals: &'p wgpu::BindGroup,
+        pipeline: &'p wgpu::RenderPipeline,
+    ) {
         let Some(t) = &self.terrain else { return };
-        pass.set_pipeline(&self.terrain_pipeline);
+        pass.set_pipeline(pipeline);
         pass.set_bind_group(0, globals, &[]);
         pass.set_bind_group(1, &t.bind_group, &[]);
         pass.set_index_buffer(t.indices.slice(..), wgpu::IndexFormat::Uint16);
@@ -1128,6 +1191,8 @@ impl Renderer {
         let mut encoder = self.device.create_command_encoder(&Default::default());
         if let Some(scene) = &scene {
             let water = self.extras.water_level();
+            let sun = self.sun_camera(scene);
+            self.shadow.lookup = Some(sun.lookup());
             self.write_globals(&self.globals, scene, None);
             if let Some(level) = water {
                 self.write_globals(&self.reflect_globals, scene, Some(level));
@@ -1141,6 +1206,13 @@ impl Renderer {
                 a: 0.0,
             };
             let t = &self.targets;
+            {
+                // `SunLight::DrawShadowMap`: every caster's depth pass (terrain tiles included;
+                // the sky's has no programs).
+                let mut pass = self.shadow.begin_pass(&mut encoder);
+                self.draw_terrain_with(&mut pass, &self.shadow_bind, &self.terrain_depth_pipeline);
+                self.models.draw_depth(&mut pass, &self.shadow_bind);
+            }
             if water.is_some() {
                 let mut pass = Self::scene_pass(
                     &mut encoder,
@@ -1231,6 +1303,32 @@ impl Renderer {
         self.queue.submit([encoder.finish()]);
     }
 
+    /// Fit the sun camera to this frame's camera (`SunLight::GetSunCamera`) and write the shadow
+    /// pass's globals: the sun's view-projection and axes (billboards face the sun there).
+    fn sun_camera(&self, scene: &SceneFrame) -> crate::shadow::SunCamera {
+        let camera = crate::shadow::MainCamera {
+            eye: scene.eye,
+            right: scene.right,
+            forward: scene.forward,
+            up: scene.up,
+            hfov: scene.hfov,
+            vfov: scene.vfov,
+            near: scene.near,
+        };
+        let sun = crate::shadow::sun_camera(&camera, scene.lighting.light_dir, self.shadow.size);
+        let frame = SceneFrame {
+            view_proj: sun.depth_view_proj(self.shadow.size),
+            eye: sun.position,
+            far: crate::shadow::SUN_FAR,
+            right: sun.right,
+            forward: sun.forward,
+            up: sun.up,
+            ..*scene
+        };
+        self.write_globals(&self.shadow_globals, &frame, None);
+        sun
+    }
+
     /// Write a pass's globals. With `reflect`, mirror the scene about that water height and clip
     /// what lies below it.
     fn write_globals(&self, buffer: &wgpu::Buffer, scene: &SceneFrame, reflect: Option<f32>) {
@@ -1257,6 +1355,17 @@ impl Renderer {
             camera_up: scene.up.extend(0.0).to_array(),
             camera_pos: scene.eye.extend(1.0).to_array(),
             clip,
+            shadow: self.shadow.lookup.unwrap_or(Mat4::ZERO).to_cols_array_2d(),
+            shadow_params: [
+                1.0 / self.shadow.size as f32,
+                if self.shadow.lookup.is_some() {
+                    1.0
+                } else {
+                    0.0
+                },
+                0.0,
+                0.0,
+            ],
         };
         self.queue
             .write_buffer(buffer, 0, bytemuck::bytes_of(&globals));

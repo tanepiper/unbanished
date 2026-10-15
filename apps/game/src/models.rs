@@ -372,6 +372,8 @@ struct VsOut {
     @location(2) light: vec4<f32>,
     // xy: snow UV (world / 16), z: world normal z, w: world z (reflection clip).
     @location(3) snow: vec4<f32>,
+    // Sun shadow map coordinate (lc[10..13]).
+    @location(4) sh: vec3<f32>,
 };
 
 fn finish(world: vec3<f32>, n: vec3<f32>, texcoord: vec4<i32>, leaf: f32) -> VsOut {
@@ -382,6 +384,7 @@ fn finish(world: vec3<f32>, n: vec3<f32>, texcoord: vec4<i32>, leaf: f32) -> VsO
     let d = dot(n, g.light_dir.xyz);
     out.light = vec4<f32>(-d, d * 0.5 + 1.5, (out.clip.w + g.fog.x) * g.fog.y, leaf);
     out.snow = vec4<f32>(world.xy * 0.0625, n.z, world.z);
+    out.sh = shadow_coord(world);
     return out;
 }
 
@@ -481,7 +484,8 @@ fn vs_billboard(v: VsIn) -> VsOut {
 }
 
 fn lit(base: vec3<f32>, ao: f32, in: VsOut) -> vec3<f32> {
-    let light = g.ambient_color.rgb * in.light.y * ao + g.light_color.rgb * clamp(in.light.x, 0.0, 1.0);
+    let light = g.ambient_color.rgb * in.light.y * ao
+        + g.light_color.rgb * sun_shadow(in.sh) * clamp(in.light.x, 0.0, 1.0);
     let c = base * light;
     let fog = min(g.fog_color.w, clamp(in.light.z, 0.0, 1.0));
     return c + fog * (g.fog_color.rgb - c);
@@ -553,6 +557,23 @@ fn fs_billboard(in: VsOut) -> @location(0) vec4<f32> {
     reflect_clip(in.snow.w);
     return vec4<f32>(c, 0.0);
 }
+
+// Shadow pass (`*_depth` passes). OpaqueMaterial_DepthAlpha_ps (AlphaTest and Foliage) cuts at
+// 0.25, half the colour pass's threshold.
+@fragment
+fn fs_depth_alpha(in: VsOut) {
+    if (textureSample(diffuse_tex, samp, in.uv).a < 0.25) {
+        discard;
+    }
+}
+
+// BillboardMaterial_Depth_ps: the colour pass's leaf thinning and 0.5 cut.
+@fragment
+fn fs_depth_billboard(in: VsOut) {
+    if (textureSample(diffuse_tex, samp, in.uv).a - in.light.w * g.user.z < 0.5) {
+        discard;
+    }
+}
 "#;
 
 struct GpuRange {
@@ -576,6 +597,9 @@ pub struct ModelRenderer {
     pipelines: [wgpu::RenderPipeline; 6],
     /// Skinned Opaque and Character pipelines.
     skinned_pipelines: [wgpu::RenderPipeline; 2],
+    /// The same, for the sun's shadow pass (`*_depth` material passes).
+    depth_pipelines: [wgpu::RenderPipeline; 6],
+    skinned_depth_pipelines: [wgpu::RenderPipeline; 2],
     skin_layout: wgpu::BindGroupLayout,
     layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
@@ -757,6 +781,85 @@ impl ModelRenderer {
             make_skinned("vs_skinned"),
             make_skinned("vs_skinned_character"),
         ];
+        // Shadow pass: the colour passes' vertex programs under the sun camera's globals; only
+        // the alpha-tested materials have a depth pixel shader.
+        let static_attributes = wgpu::vertex_attr_array![
+            0 => Sint16x4, 1 => Sint16x4, 2 => Unorm8x4, 3 => Sint16x2
+        ];
+        let instance_attributes = wgpu::vertex_attr_array![
+            5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32x4
+        ];
+        let instance = wgpu::VertexBufferLayout {
+            array_stride: 64,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &instance_attributes,
+        };
+        let static_buffers = [
+            Some(wgpu::VertexBufferLayout {
+                array_stride: STATIC_STRIDE as u64,
+                step_mode: wgpu::VertexStepMode::Vertex,
+                attributes: &static_attributes,
+            }),
+            Some(instance.clone()),
+        ];
+        let skinned_buffers = [
+            Some(wgpu::VertexBufferLayout {
+                array_stride: banished_formats::types::SKINNED_STRIDE as u64,
+                step_mode: wgpu::VertexStepMode::Vertex,
+                attributes: &skin_attributes,
+            }),
+            Some(instance),
+        ];
+        use crate::shadow::DepthState;
+        let depth = |vs: &str, fs, state| {
+            crate::shadow::depth_pipeline(
+                device,
+                vs,
+                &pipeline_layout,
+                &shader,
+                vs,
+                fs,
+                &static_buffers,
+                state,
+            )
+        };
+        // Same order as `KINDS`: Opaque and OpaqueSnow use Depth_ps (no alpha test).
+        let depth_pipelines = [
+            depth("vs_main", None, DepthState::BackFaces),
+            depth("vs_main", None, DepthState::BackFaces),
+            depth(
+                "vs_main",
+                Some("fs_depth_alpha"),
+                DepthState::FrontFacesBiased,
+            ),
+            depth(
+                "vs_foliage",
+                Some("fs_depth_alpha"),
+                DepthState::FrontFacesBiased,
+            ),
+            depth(
+                "vs_billboard",
+                Some("fs_depth_billboard"),
+                DepthState::TwoSided,
+            ),
+            depth("vs_character", None, DepthState::BackFaces),
+        ];
+        let skinned_depth = |vs: &str| {
+            crate::shadow::depth_pipeline(
+                device,
+                vs,
+                &skinned_layout,
+                &shader,
+                vs,
+                None,
+                &skinned_buffers,
+                DepthState::BackFaces,
+            )
+        };
+        let skinned_depth_pipelines = [
+            skinned_depth("vs_skinned"),
+            skinned_depth("vs_skinned_character"),
+        ];
         // Same order as `KINDS`.
         let pipelines = [
             make("vs_main", "fs_opaque"),
@@ -787,6 +890,8 @@ impl ModelRenderer {
         ModelRenderer {
             pipelines,
             skinned_pipelines,
+            depth_pipelines,
+            skinned_depth_pipelines,
             skin_layout,
             layout,
             sampler,
@@ -958,12 +1063,32 @@ impl ModelRenderer {
     }
 
     pub fn draw<'p>(&'p self, pass: &mut wgpu::RenderPass<'p>, globals: &'p wgpu::BindGroup) {
+        self.draw_with(pass, globals, &self.pipelines, &self.skinned_pipelines);
+    }
+
+    /// The models' depth into the sun's shadow map.
+    pub fn draw_depth<'p>(&'p self, pass: &mut wgpu::RenderPass<'p>, globals: &'p wgpu::BindGroup) {
+        self.draw_with(
+            pass,
+            globals,
+            &self.depth_pipelines,
+            &self.skinned_depth_pipelines,
+        );
+    }
+
+    fn draw_with<'p>(
+        &'p self,
+        pass: &mut wgpu::RenderPass<'p>,
+        globals: &'p wgpu::BindGroup,
+        pipelines: &'p [wgpu::RenderPipeline; 6],
+        skinned_pipelines: &'p [wgpu::RenderPipeline; 2],
+    ) {
         if self.groups.is_empty() {
             return;
         }
         pass.set_bind_group(0, globals, &[]);
         for (i, kind) in KINDS.into_iter().enumerate() {
-            pass.set_pipeline(&self.pipelines[i]);
+            pass.set_pipeline(&pipelines[i]);
             for g in &self.groups {
                 // Groups emptied by removal or a moved placement ghost keep their assets but
                 // have nothing to draw (and an empty instance buffer cannot be bound).
@@ -981,8 +1106,8 @@ impl ModelRenderer {
         }
         // Skinned ranges: one draw per instance with its palette (dynamic offset).
         for (pipeline, character) in [
-            (&self.skinned_pipelines[0], false),
-            (&self.skinned_pipelines[1], true),
+            (&skinned_pipelines[0], false),
+            (&skinned_pipelines[1], true),
         ] {
             pass.set_pipeline(pipeline);
             for g in &self.groups {

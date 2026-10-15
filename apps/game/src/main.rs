@@ -28,6 +28,7 @@ mod scene;
 mod scene_assets;
 mod scene_gfx;
 mod selection;
+mod shadow;
 mod start;
 mod status_icons;
 mod toolbar;

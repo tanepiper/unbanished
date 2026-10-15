@@ -21,14 +21,18 @@ compare `imgdiff ui/main-menu.png OUT --resize --blur 3 --threshold 32 --compose
   confirmed by eye.
 - **Matches:** menu scene content and placement, menu button column position and size (within a
   few pixels at 1384 width), menu scene camera within the sway range.
-- **Shadows (open):** the original casts shadows from trees, buildings, fences and rocks onto
-  the terrain; the port draws none. The menu scene's shadow pass is not ported.
+- **Shadows (ported, see [SHADOWS.md](SHADOWS.md)):** the original casts shadows from trees,
+  buildings, fences and rocks onto the terrain. The port now draws the sun's shadow map; its
+  orchard and building shadows fall in the same direction with the same softness. Captured at
+  3456×2168, MAE 22.3 → 19.8 and PSNR 16.9 → 17.8 dB. The ground stays as bright as the
+  original's: pasture red mean 0.42 in the port vs 0.40 in the original. The original's
+  depth pass culls opposite faces, so the terrain does not shadow itself.
 - **Frame and logo (open):** the original's torn-edge band spans about y 150–735 of 868; the
   port's spans about y 120–765. The logo sits lower in the original (top about y 75 vs 35) and
   the copyright/build line higher (about y 810 vs 855). The backdrop/logo layout of
   `Dialog/MainMenu.rsc` at this aspect ratio needs checking against the dialog's anchoring.
-- **Colour (open):** the original's scene is darker and less saturated (warmer greens, deeper
-  shadows); partly shadows, possibly fog/ambient values or a post-process.
+- **Colour (open):** the original's scene is darker and less saturated (warmer greens). With
+  shadows ported, the rest is still open: possibly fog/ambient values or a post-process.
 - **Camera timing:** the camera sways (`angle += dt·11.25`, yaw `base + 2·cos(angle)`), so the
   port's capture time must match the original's time in the menu for a pixel-level camera
   comparison; layout differences above are larger than the sway.
@@ -79,7 +83,9 @@ buttonOk@5.0`.
   LOD/billboard shading and fog.
 - **Trees (check):** the original's forests look denser and rounder from above; compare
   species/variant choice and density for this seed.
-- **Shadows (open):** as on the menu, none in the port.
+- **Shadows (ported):** tree, building and rock shadows now darken the forests as in the
+  original (compare.sh: MAE 17.1 → 15.7, PSNR 21.1 → 21.7 dB). Not yet matched: casters off
+  screen still cast, because the original culls them with the main camera's frustum.
 
 ## Capture pitfalls
 

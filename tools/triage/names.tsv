@@ -136,3 +136,5 @@
 140080c00	TitleDescToolTipUI::OnOpened	docs/TOOLTIPS.md
 14009f0f0	GameGlobal::KeyName	docs/TOOLTIPS.md
 14009e7c0	Game::RegisterInputs	docs/TOOLTIPS.md
+1801298a0	fmodf (CRT)	docs/SHADOWS.md
+18012a9a0	sqrtf (CRT)	docs/SHADOWS.md
