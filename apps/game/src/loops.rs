@@ -70,6 +70,11 @@ pub trait GameLoop {
         Next::Stay
     }
     fn screen(&self) -> Option<&Screen>;
+    /// A scripted capture command (`--event`); loops that do not take it return false.
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    fn script(&mut self, _command: &str) -> bool {
+        false
+    }
     fn view(&self) -> View<'_> {
         View::None
     }
@@ -83,6 +88,10 @@ pub struct Screen {
     pub dialogs: Vec<DialogInstance>,
     /// A dialog that takes all input while open (e.g. New Game over the main menu).
     modal: Option<usize>,
+    /// Draw-list position where this frame's added dialogs go. `UserInterface::AddDialog`
+    /// queues dialogs and `UserInterface::Update` appends the queue in reverse, so dialogs
+    /// added in the same frame draw in reverse order (the toolbar over the event ribbon).
+    batch: std::cell::Cell<usize>,
 }
 
 impl Screen {
@@ -98,6 +107,7 @@ impl Screen {
             dialog_host,
             dialogs: Vec::new(),
             modal: None,
+            batch: std::cell::Cell::new(0),
         }
     }
 
@@ -115,7 +125,9 @@ impl Screen {
             ui.node_mut(image).flags = flags::FILL_WIDTH | flags::FILL_HEIGHT;
             ui.node_mut(self.backdrop).children = vec![image];
         }
-        ui.add_child(self.dialog_host, d.root);
+        let host = &mut ui.node_mut(self.dialog_host).children;
+        let at = self.batch.get().min(host.len());
+        host.insert(at, d.root);
         self.dialogs.push(d);
         Some(self.dialogs.len() - 1)
     }
@@ -129,11 +141,20 @@ impl Screen {
         Some(index)
     }
 
+    /// Start a frame: dialogs added from now on go after every dialog already shown.
+    pub fn begin_frame(&self, ui: &Ui) {
+        self.batch.set(ui.node(self.dialog_host).children.len());
+    }
+
     pub fn remove_dialog(&mut self, ui: &mut Ui, index: usize) {
         let d = self.dialogs.remove(index);
-        ui.node_mut(self.dialog_host)
-            .children
-            .retain(|&c| c != d.root);
+        let host = &mut ui.node_mut(self.dialog_host).children;
+        if let Some(p) = host.iter().position(|&c| c == d.root) {
+            host.remove(p);
+            if p < self.batch.get() {
+                self.batch.set(self.batch.get() - 1);
+            }
+        }
         self.modal = match self.modal {
             Some(m) if m == index => None,
             Some(m) if m > index => Some(m - 1),
@@ -252,6 +273,11 @@ impl MainLoop {
         self.current.as_ref()
     }
 
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    pub fn current_mut(&mut self) -> &mut dyn GameLoop {
+        self.current.as_mut()
+    }
+
     fn apply(&mut self, next: Next) {
         match next {
             Next::Stay => {}
@@ -284,6 +310,15 @@ impl MainLoop {
                 self.fade.fade_in();
             }
             return;
+        }
+        // `UserInterface::Update`: queued dialogs join the draw list, then every dialog's
+        // layout is recomputed before the loop runs.
+        if let Some(screen) = self.current.screen() {
+            screen.begin_frame(ctx.ui);
+            if ctx.ui.screen[0] > 0 && ctx.ui.screen[1] > 0 {
+                let size = (ctx.ui.screen[0] as u32, ctx.ui.screen[1] as u32);
+                screen.layout(ctx.ui, size);
+            }
         }
         let next = self.current.update(ctx, dt);
         self.apply(next);

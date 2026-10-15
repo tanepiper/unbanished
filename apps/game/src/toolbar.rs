@@ -203,6 +203,14 @@ impl Toolbar {
         None
     }
 
+    /// The root toolbar's layout width (`GetRoot()->+0x60`), which the event ribbon offsets by.
+    pub fn width(&self, ui: &Ui) -> i32 {
+        self.root.as_ref().map_or(0, |l| {
+            let r = ui.node(l.root).rect;
+            r[2] - r[0]
+        })
+    }
+
     /// `FUN_1400be210`: show the current speed and pause state.
     pub fn refresh(&self, ui: &mut Ui, speed: u32, paused: bool) {
         for level in self.root.iter().chain(self.popup.iter()) {

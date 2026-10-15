@@ -33,10 +33,36 @@ pub struct EventLogUi {
     rows: Vec<(Option<(NodeId, String)>, Option<NodeId>)>,
     /// `+0x48`: entries scrolled back from the newest.
     scroll: i32,
+    /// `notifybuttons` children (ids `0x67 + i`): the log's notify flags.
+    checks: Vec<NodeId>,
+}
+
+/// What a click in a utility window asks of the game.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum UtilityClick {
+    /// Handled inside the window.
+    Handled,
+    /// `FUN_140067c80`: set notify flag `i`.
+    Notify(usize, bool),
+    /// `FUN_140067cd0`: move the camera to the cell.
+    GoTo(i32),
 }
 
 impl EventLogUi {
-    fn bind(ui: &Ui, root: NodeId) -> EventLogUi {
+    /// OnOpened `FUN_140067fa0`. The checkboxes take the log's notify flags.
+    fn bind(
+        ui: &mut Ui,
+        root: NodeId,
+        log: Option<&banished_game::events::EventLog>,
+    ) -> EventLogUi {
+        let checks: Vec<NodeId> = ui
+            .find(root, "notifybuttons")
+            .map(|n| ui.node(n).children.clone())
+            .unwrap_or_default();
+        for (i, &c) in checks.iter().enumerate() {
+            let on = log.map_or(i != 0, |l| l.notify[i]);
+            ui.set_checked(c, on);
+        }
         let mut rows = Vec::new();
         if let Some(display) = ui.find(root, "display") {
             if let Kind::Control(banished_ui::Control::Table { cells, rows: r, .. }) =
@@ -56,11 +82,40 @@ impl EventLogUi {
             bottom: ui.find(root, "buttonBottom"),
             rows,
             scroll: 0,
+            checks,
         }
     }
 
-    /// `FUN_140067f30`: returns whether the click was one of the scroll buttons.
-    fn click(&mut self, node: NodeId) -> bool {
+    /// `FUN_140067f30`.
+    fn click(
+        &mut self,
+        ui: &Ui,
+        node: NodeId,
+        log: &banished_game::events::EventLog,
+    ) -> Option<UtilityClick> {
+        if let Some(i) = self
+            .checks
+            .iter()
+            .position(|&c| c == node || ui.descendant(c, node))
+        {
+            return Some(UtilityClick::Notify(i, ui.checked(self.checks[i])));
+        }
+        if let Some(r) = self
+            .rows
+            .iter()
+            .position(|(_, b)| b.is_some_and(|b| b == node || ui.descendant(b, node)))
+        {
+            // Entry `n - scroll - rows + r`.
+            let idx =
+                log.entries.len() as i64 - self.scroll as i64 - self.rows.len() as i64 + r as i64;
+            let cell = (idx >= 0)
+                .then(|| log.entries.get(idx as usize))
+                .flatten()
+                .map_or(-1, |e| e.cell);
+            return (cell >= 0)
+                .then_some(UtilityClick::GoTo(cell))
+                .or(Some(UtilityClick::Handled));
+        }
         if Some(node) == self.previous {
             self.scroll += 1;
         } else if Some(node) == self.next {
@@ -68,12 +123,12 @@ impl EventLogUi {
         } else if Some(node) == self.bottom {
             self.scroll = 0;
         } else {
-            return false;
+            return None;
         }
         if self.scroll < 0 {
             self.scroll = 0;
         }
-        true
+        Some(UtilityClick::Handled)
     }
 
     /// `FUN_140067da0`.
@@ -192,7 +247,7 @@ const WEATHER_NAMES: [&str; 5] = [
     "imageSnow",
 ];
 
-fn text_of(ui: &Ui, id: NodeId) -> String {
+pub(crate) fn text_of(ui: &Ui, id: NodeId) -> String {
     match &ui.node(id).kind {
         Kind::Text(t) | Kind::Label { text: t, .. } => t.text.clone(),
         _ => String::new(),
@@ -200,7 +255,7 @@ fn text_of(ui: &Ui, id: NodeId) -> String {
 }
 
 /// `UI::TextElement::SetParameter` applied to the element's original text.
-fn set_parameters(ui: &mut Ui, (id, template): &(NodeId, String), values: &[String]) {
+pub(crate) fn set_parameters(ui: &mut Ui, (id, template): &(NodeId, String), values: &[String]) {
     let mut out = template.clone();
     for (i, v) in values.iter().enumerate() {
         out = out.replace(&format!("@{i}"), v);
@@ -420,7 +475,14 @@ fn description(archive: &Archive, template: &str) -> Option<UiDescription> {
 
 impl UtilityWindows {
     /// `FUN_140106f50`: open the template's window, or close it if it is open.
-    pub fn toggle(&mut self, ui: &mut Ui, screen: &mut Screen, archive: &Archive, template: &str) {
+    pub fn toggle(
+        &mut self,
+        ui: &mut Ui,
+        screen: &mut Screen,
+        archive: &Archive,
+        template: &str,
+        log: Option<&banished_game::events::EventLog>,
+    ) {
         if let Some(i) = self.open.iter().position(|w| w.template == template) {
             self.close(ui, screen, i);
             return;
@@ -454,7 +516,7 @@ impl UtilityWindows {
                 0 => {}
                 controller::STATUS_BAR => status_bar = Some(StatusBar::bind(ui, root)),
                 controller::PROFESSION => professions = Some(ProfessionUi::bind(ui, root, archive)),
-                controller::EVENT_LOG => event_log = Some(EventLogUi::bind(ui, root)),
+                controller::EVENT_LOG => event_log = Some(EventLogUi::bind(ui, root, log)),
                 other => log::info!("{template}: controller {other:#010x} not implemented yet"),
             }
         }
@@ -498,12 +560,17 @@ impl UtilityWindows {
         true
     }
 
-    /// A click inside a utility window's controller (EventLogUI scroll buttons).
-    pub fn click(&mut self, node: NodeId) -> bool {
+    /// A click inside a utility window's controller (EventLogUI).
+    pub fn click(
+        &mut self,
+        ui: &Ui,
+        node: NodeId,
+        log: &banished_game::events::EventLog,
+    ) -> Option<UtilityClick> {
         self.open
             .iter_mut()
             .filter_map(|w| w.event_log.as_mut())
-            .any(|e| e.click(node))
+            .find_map(|e| e.click(ui, node, log))
     }
 
     /// `DialogInstance::OnUpdateLayout` for every open window's controllers.

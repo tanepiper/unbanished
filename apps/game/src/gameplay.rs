@@ -19,7 +19,7 @@ use crate::scene::{Camera, SceneCamera, SceneView};
 use crate::selection::{Entity, Selection};
 use crate::start::StartingTown;
 use crate::toolbar::{Action, Toolbar};
-use crate::utility::{StatusValues, UtilityWindows};
+use crate::utility::{StatusValues, UtilityClick, UtilityWindows};
 use crate::world::{World, WorldParams};
 
 const MONTHS_PER_YEAR: usize = 12;
@@ -55,6 +55,8 @@ pub struct GameplayLoop {
     /// The event log (`Game +0x138`) and the stock manager's warning state.
     pub events: banished_game::events::EventLog,
     stock_warnings: banished_game::events::StockWarnings,
+    /// The event ribbon (`Dialog/EventNotify.rsc`) and its popups.
+    notify: Option<crate::event_notify::EventNotify>,
 }
 
 impl GameplayLoop {
@@ -81,6 +83,7 @@ impl GameplayLoop {
             highlight: Default::default(),
             events: Default::default(),
             stock_warnings: Default::default(),
+            notify: None,
         }
     }
 
@@ -90,6 +93,7 @@ impl GameplayLoop {
         let mut toolbar = Toolbar::load(archive);
         toolbar.install(ui, &mut screen);
         self.toolbar = Some(toolbar);
+        self.notify = crate::event_notify::EventNotify::open(ui, &mut screen, &self.events);
         self.screen = Some(screen);
         self.update_hud(ui);
     }
@@ -431,6 +435,19 @@ impl GameplayLoop {
         models_changed
     }
 
+    /// `FUN_140067cd0` / `FUN_140068f00`: centre the camera on a cell
+    /// (`x = cell % w - (w/2 - 0.5)`, likewise `y`; the original also takes the ground height).
+    fn go_to(&mut self, cell: i32) {
+        let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) else {
+            return;
+        };
+        let n = town.cells.size as i32;
+        let half = (n >> 1) as f32 - 0.5;
+        if let SceneCamera::Map(camera) = &mut view.camera {
+            camera.target = glam::Vec2::new((cell % n) as f32 - half, (cell / n) as f32 - half);
+        }
+    }
+
     fn return_to_menu() -> Next {
         Next::Switch(Box::new(DialogLoaderLoop::new(
             "Dialog/Loading.rsc:resource".into(),
@@ -530,6 +547,13 @@ impl GameLoop for GameplayLoop {
             }
         }
         self.utility.update(ctx.ui, &self.status_values());
+        if let (Some(notify), Some(screen)) = (self.notify.as_mut(), self.screen.as_mut()) {
+            let width = self.toolbar.as_ref().map_or(0, |t| t.width(ctx.ui));
+            if notify.update(ctx.ui, screen, &self.events, dt, width) {
+                // Not ported: `Audio::Scene::PlayEffect(WarningEffect)` needs an effect channel.
+                log::debug!("event alert sound (pending)");
+            }
+        }
         if let Some(town) = &self.town {
             self.entities.refresh(ctx.ui, ctx.archive, town);
         }
@@ -569,12 +593,29 @@ impl GameLoop for GameplayLoop {
         let (Event::Clicked(id) | Event::Changed(id)) = event else {
             return Next::Stay;
         };
+        if let (Some(notify), Some(screen)) = (self.notify.as_mut(), self.screen.as_mut()) {
+            if let Some(goto) = notify.click(ctx.ui, screen, &self.events, id) {
+                if let Some(cell) = goto {
+                    self.go_to(cell);
+                }
+                return Next::Stay;
+            }
+        }
         let (Some(screen), Some(toolbar)) = (self.screen.as_mut(), self.toolbar.as_mut()) else {
             return Next::Stay;
         };
         let Some(action) = toolbar.click(ctx.ui, screen, id) else {
-            if self.utility.click(id) {
-                return Next::Stay;
+            match self.utility.click(ctx.ui, id, &self.events) {
+                Some(UtilityClick::Notify(i, on)) => {
+                    self.events.notify[i] = on;
+                    return Next::Stay;
+                }
+                Some(UtilityClick::GoTo(cell)) => {
+                    self.go_to(cell);
+                    return Next::Stay;
+                }
+                Some(UtilityClick::Handled) => return Next::Stay,
+                None => {}
             }
             // The host dialog's close button (`Dialog/StandardDialog.rsc`).
             if ctx.ui.node(id).name == "buttonClose" {
@@ -594,7 +635,8 @@ impl GameLoop for GameplayLoop {
             Action::Slower => self.speed = self.speed.saturating_sub(1),
             Action::Faster => self.speed = (self.speed + 1).min((SPEED_LEVELS.len() - 1) as u8),
             Action::Utility(template) => {
-                self.utility.toggle(ctx.ui, screen, ctx.archive, &template);
+                self.utility
+                    .toggle(ctx.ui, screen, ctx.archive, &template, Some(&self.events));
             }
             // Toolbar kind 1 → FUN_140108030: start (or end) the build tool.
             Action::Build(Some(template)) => {
@@ -691,6 +733,22 @@ impl GameLoop for GameplayLoop {
 
     fn screen(&self) -> Option<&Screen> {
         self.screen.as_ref()
+    }
+
+    /// `event KIND [CELL]`: post an event at severity 3 (captures of the event UI).
+    fn script(&mut self, command: &str) -> bool {
+        let mut words = command.split_whitespace();
+        if words.next() != Some("event") {
+            return false;
+        }
+        let Some(kind) = words.next().and_then(|k| k.parse().ok()) else {
+            return false;
+        };
+        let cell = words.next().and_then(|c| c.parse().ok()).unwrap_or(-1);
+        let (month, year) = (self.month(), self.calendar.year as i32);
+        self.events
+            .add(kind, 3, cell, month, year, Default::default(), false);
+        true
     }
 
     fn view(&self) -> View<'_> {
@@ -848,6 +906,7 @@ mod tests {
                     gameplay.screen.as_mut().unwrap(),
                     ctx.archive,
                     "Template/StatusBar.rsc",
+                    None,
                 );
                 gameplay.update_hud(ctx.ui);
                 let screen = gameplay.screen.as_ref().unwrap();
@@ -870,6 +929,94 @@ mod tests {
             state,
             format!("{:?}", gameplay.town.as_ref().unwrap().agents.states)
         );
+    }
+
+    #[test]
+    fn event_ribbon_popup_and_goto() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        let rng = gameplay.rng.clone();
+        game.with_ctx(|_, ctx| {
+            let frame = |g: &mut GameplayLoop, ctx: &mut crate::loops::Ctx| {
+                let screen = g.screen.as_mut().unwrap();
+                screen.layout(ctx.ui, (1280, 800));
+                let width = g.toolbar.as_ref().unwrap().width(ctx.ui);
+                g.notify
+                    .as_mut()
+                    .unwrap()
+                    .update(ctx.ui, screen, &g.events, 0.1, width)
+            };
+            frame(&mut gameplay, ctx);
+            // Low food (no cell), a fire at a cell, and a type-26 event (popup, icon 12).
+            gameplay
+                .events
+                .add(22, 3, -1, 0, 1, Default::default(), false);
+            let n = gameplay.town.as_ref().unwrap().cells.size as i32;
+            gameplay
+                .events
+                .add(31, 3, 70 * n + 30, 0, 1, Default::default(), false);
+            gameplay
+                .events
+                .add(0x1a, 1, -1, 0, 1, Default::default(), false);
+            assert!(frame(&mut gameplay, ctx));
+            for _ in 0..40 {
+                frame(&mut gameplay, ctx);
+            }
+            let screen = gameplay.screen.as_ref().unwrap();
+            let root = screen
+                .dialogs
+                .iter()
+                .find(|d| ctx.ui.find(d.root, "ribbonNotify").is_some())
+                .unwrap()
+                .root;
+            let content = ctx.ui.find(root, "notifyContent").unwrap();
+            let groups = ctx.ui.node(content).children.clone();
+            assert_eq!(groups.len(), 6);
+            let visible = |ui: &banished_ui::Ui, n| ui.node(n).flags & 1 == 0;
+            let button: Vec<_> = groups
+                .iter()
+                .map(|&g| ctx.ui.find(g, "notifyButton").unwrap())
+                .collect();
+            let image: Vec<_> = groups
+                .iter()
+                .map(|&g| ctx.ui.find(g, "notifyImage").unwrap())
+                .collect();
+            assert!(visible(ctx.ui, image[0]) && !visible(ctx.ui, button[0]));
+            assert!(visible(ctx.ui, button[1]) && !visible(ctx.ui, image[1]));
+            assert_eq!(
+                ctx.ui.node(groups[0]).tooltip,
+                "The reserve of food is low!"
+            );
+            eprintln!(
+                "ribbon root {:?} margins {:?}",
+                ctx.ui.node(root).rect,
+                ctx.ui.node(root).margins
+            );
+            // The popup and its OK button.
+            let popup = screen
+                .dialogs
+                .iter()
+                .find(|d| ctx.ui.find(d.root, "imageIcon").is_some())
+                .map(|d| d.root)
+                .unwrap();
+            let ok = ctx.ui.find(popup, "buttonOk").unwrap();
+            let dialogs = screen.dialogs.len();
+            gameplay.event(ctx, Event::Clicked(ok));
+            assert_eq!(gameplay.screen.as_ref().unwrap().dialogs.len(), dialogs - 1);
+            // The fire's button moves the camera to its cell.
+            gameplay.event(ctx, Event::Clicked(button[1]));
+            let half = (n >> 1) as f32 - 0.5;
+            let Some(SceneView {
+                camera: SceneCamera::Map(c),
+                ..
+            }) = &gameplay.view
+            else {
+                panic!("no map camera");
+            };
+            assert_eq!(c.target, glam::Vec2::new(30.0 - half, 70.0 - half));
+        });
+        assert_eq!(rng, gameplay.rng);
     }
 
     #[test]

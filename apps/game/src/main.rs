@@ -672,6 +672,15 @@ mod native {
                 Some((name.to_string(), item.to_string(), at.parse().ok()?))
             })
             .collect();
+        // `--event KIND[:CELL]@SECONDS` posts an event (event ribbon and log captures).
+        let mut events: Vec<(String, f32)> = args
+            .windows(2)
+            .filter(|w| w[0] == "--event")
+            .filter_map(|w| {
+                let (ev, at) = w[1].rsplit_once('@')?;
+                Some((format!("event {}", ev.replace(':', " ")), at.parse().ok()?))
+            })
+            .collect();
         let dt = 1.0 / 30.0;
         let mut t = 0.0;
         while t < seconds {
@@ -683,6 +692,15 @@ mod native {
                 }
                 if !game.select_combo(name, item, size) {
                     log::warn!("--combo {name}={item}: not found at {t:.2} s");
+                }
+                false
+            });
+            events.retain(|(command, at)| {
+                if t < *at {
+                    return true;
+                }
+                if !game.main.current_mut().script(command) {
+                    log::warn!("--event {command}: not in a game at {t:.2} s");
                 }
                 false
             });

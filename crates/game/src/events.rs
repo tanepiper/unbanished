@@ -43,11 +43,25 @@ pub struct EventEntry {
     pub icon: i32,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct EventLog {
     pub entries: Vec<EventEntry>,
+    /// `+0x10..+0x15`: notify flags per group (old age, deaths, disasters, storage, town,
+    /// other), set by the Event Log's checkboxes. Default as in every inspected save:
+    /// old-age deaths off, the rest on.
+    pub notify: [bool; 6],
     /// Set when an event asks the game to slow down (option `AutoSlow`, types 11, 12, 30, 31).
     pub slow_request: bool,
+}
+
+impl Default for EventLog {
+    fn default() -> Self {
+        EventLog {
+            entries: Vec::new(),
+            notify: [false, true, true, true, true, true],
+            slow_request: false,
+        }
+    }
 }
 
 /// `FUN_14009a2d0`'s severity colours.

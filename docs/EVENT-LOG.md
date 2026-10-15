@@ -57,17 +57,72 @@ parse as exactly this and fill the block.
 the go-to button and column 1 the text. Buttons 100/101/102 scroll to the previous page, the
 next page and the end. Rows set their colour from the entry.
 
+## Event Log checkboxes and go-to
+
+OnOpened (`FUN_140067fa0`) gives the `notifybuttons` children ids `0x67 + i` and checks them
+from the log's flags. The children are, in order: old-age deaths, deaths, disasters, storage
+and town. A click (`FUN_140067c80`) copies the checkbox into flag `i`. Flag 5 ("other") has no
+checkbox. Every inspected save holds `0 1 1 1 1 1`, which the port uses as its default.
+Row buttons are `0x6c + r`. `FUN_140067cd0` takes entry `n - scroll - rows + r` and, when
+its cell is set, moves the camera target to the cell centre (`x = cell % w - (w/2 - 0.5)`,
+the same for `y`).
+
+## Notification ribbon (`Dialog/EventNotify.rsc:resource`)
+
+`FUN_14009d0d0` adds the toolbar, EventNotify and AutoSave dialogs in the same frame.
+`UserInterface::AddDialog` queues each dialog, and `UserInterface::Update` appends the queue
+to the draw list in reverse order. All three dialogs are on draw layer 0 (Dialog `+0x34`), so
+the toolbar draws over the ribbon. `Screen` mirrors this: dialogs added in one frame are
+inserted before one another. Update also lays out every dialog each frame, before the loop
+runs.
+
+- OnOpened `FUN_140069030` binds the six `notifyContent` slots (`notifyImage`,
+  `notifyButton` with id `0x5dc + i`) and stores the entry count as the last entry seen.
+- Update `FUN_140068590`:
+  - Notifications age by the frame time and go when under one tick.
+  - Each new entry adds a notification when its severity is above 0, its group's notify
+    flag is set and its category is set. Groups: type 2 → 0; 0, 1, 3–7 → 1;
+    11, 12, 30, 31 → 2; 17–24 → 3; 13, 14 → 4; else 5.
+  - A notification holds a 30 s lifetime, sprite `EventIcon{category}`, the severity colour,
+    and the text after "season year: ".
+  - An entry with an icon also opens an EventPopup.
+  - The oldest notifications go when there are more than the slots.
+  - When anything was added, `Audio/UI/WarningEffect.rsc` (global sound slot `0x13`) plays.
+  - The update then stores `count - 1`, so an entry added after the ribbon opens but before
+    its first update is never shown.
+- Refresh `FUN_140068a20`:
+  - The dialog root's right padding eases towards `toolbar width - own width + 44 + 40·(n-1)`
+    (0 with no notifications), at 0.8 old and 0.2 new. Here `+0x60` is
+    `Element::GetLayoutWidth` and `SetPadding` takes left, right, top, bottom. The ribbon
+    therefore slides out from behind the toolbar, one 40 px slot per notification.
+  - An entry with a cell shows the button, which moves the camera there (`FUN_140068f00`).
+    One without a cell shows the plain image.
+  - Each slot's tooltip is the notification text.
+- EventPopup (`FUN_140069580`): `imageIcon` shows `EventIcon{icon}`, `textEvent` the full
+  text, and `buttonOk` (id 200) closes the popup (`FUN_140069530`).
+
 ## Verification
 
 - `crates/game/tests/event_log_saves.rs` parses the logs of the local Steam saves
   (`save-game/`, never committed): 423 entries. Every colour, category and icon matches the
   port. For all 273 entries whose text takes no arguments (stock warnings, tornado, fire),
   the text is "season year: body" with a valid season and year ≥ 1. Two saves have empty logs.
+- `apps/game` test `event_ribbon_popup_and_goto` checks, with the shipped dialogs:
+  - slot images and buttons by cell;
+  - the tooltip text;
+  - the popup and its OK button;
+  - the camera go-to;
+  - an unchanged Random.
+- Capture: `BANISHED_SEED=1234 banished --boot-capture OUT 18 --press buttonNew@4.5
+  --press buttonOk@5.0 --event 22@12 --event 31:20000@12.5 --event 30@13` shows three
+  notifications sliding out left of the toolbar. `--event KIND[:CELL]@SECONDS` posts an event
+  at severity 3. Type 26 opens the "scenario completed" popup.
 - `tools/triage/determinism.sh 22 1234` stays identical. The log takes no Random.
 
 ## Pending
 
-- EventNotify / EventPopup dialogs (`0x140068590`, `0x140069580`) and the notify checkboxes.
-- Go-to buttons (`FUN_140067cd0`, camera to the entry's cell).
+- The alert sound: the audio Player has one music sink and no effect channel yet.
+- The camera go-to keeps the port's camera height (the original uses the ground point).
+- Not compared against an original screenshot of the ribbon yet.
 - Event sources other than stock warnings (births, deaths, coming of age, disasters) post
   as their systems are ported.
