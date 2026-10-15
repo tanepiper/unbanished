@@ -291,8 +291,16 @@ fn citizen_info(town: &StartingTown, i: usize) -> Option<crate::building_ui::Cit
     } else {
         i32::from(s.tool_status != rules.tool_grade) + 1
     };
-    // Not ported: activity 9 shows 16 ("picking up resources") when the job's workplace is not
-    // the citizen's work (`FUN_1400fef30`); there are no jobs yet.
+    // Activity 9 (working) shows 16 ("picking up resources") when the job's work
+    // (`FUN_1400fef30`, by id `+0x30`) is for another profession (slot `+0x50`).
+    let mut activity = ai.current as i32;
+    if activity == 9 && s.job >= 0 {
+        if let Some(work) = town.construction.jobs.works.get(&s.job) {
+            if work.profession != s.profession {
+                activity = 16;
+            }
+        }
+    }
     Some(crate::building_ui::CitizenInfo {
         name: c.name.clone(),
         male: c.male,
@@ -305,7 +313,7 @@ fn citizen_info(town: &StartingTown, i: usize) -> Option<crate::building_ui::Cit
         health_max: rules.health_max,
         happiness: s.happiness,
         happiness_max: rules.happiness,
-        activity: ai.current as i32,
+        activity,
         has_work: s.work.is_some() || c.school.is_some(),
     })
 }
