@@ -109,9 +109,41 @@ pub struct World<'a> {
     pub shown_tool: &'a mut i32,
     /// Per placed entity: its model is playing an animation (`MeshInstance::IsAnimating`).
     pub animating: &'a mut [bool],
+    /// Citizen `+0x1f8` and `+0x200`: an accident's profession and the time since the last
+    /// injury check.
+    pub accident: &'a mut Option<usize>,
+    pub accident_timer: &'a mut i64,
+    /// The current job's profession (`+0x30` → the work's slot `+0x50`) and its accident odds
+    /// (`+0x54`, `+0x58`).
+    pub accident_odds: Option<(usize, f32, f32)>,
 }
 
 impl World<'_> {
+    /// `Citizen::InjuryCheck` (`FUN_14011bb20` → `FUN_1400ae760`): already hurt, or, at a job
+    /// whose profession has accidents, `RandFloat() < time since the last check / (+0x54 × 12
+    /// × 300 s × +0x58)` (the time restarts at every check). Not ported: the debug flag that
+    /// stops it (`Game +0xd0` bit 8).
+    pub fn injury_check(&mut self) -> bool {
+        if self.accident.is_some() {
+            return true;
+        }
+        let Some((profession, years, odds)) = self.accident_odds else {
+            return false;
+        };
+        if odds <= 0.0 {
+            *self.accident_timer = 0;
+            return false;
+        }
+        let period = years * 12.0 * 300.0;
+        let since = crate::scheduler::seconds(*self.accident_timer);
+        *self.accident_timer = 0;
+        if self.rng.rand_float() < since / (period * odds) {
+            *self.accident = Some(profession);
+            return true;
+        }
+        false
+    }
+
     /// Cell under a map position (clamped, as every caller in the original does).
     pub fn cell(&self, p: [f32; 3]) -> i32 {
         let n = self.size as i32;
@@ -824,8 +856,12 @@ impl Action {
                 duration, elapsed, ..
             } => {
                 if *duration <= *elapsed {
-                    // `FUN_14011bb20` (injury check) can fail the work; not ported yet.
-                    return Status::Done;
+                    // `FUN_14011bb20`: an injury fails the work.
+                    return if world.injury_check() {
+                        Status::Failed
+                    } else {
+                        Status::Done
+                    };
                 }
                 *elapsed += dt;
                 Status::Running

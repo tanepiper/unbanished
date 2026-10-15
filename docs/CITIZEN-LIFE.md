@@ -178,7 +178,25 @@ iteration becomes a loitering target in the next one.
 
 Test: `placement_tool::construction_tests::the_dead_are_buried_in_the_cemetery`.
 
+## Accidents
+
+- **Injury check** (`Citizen::InjuryCheck`, `FUN_14011bb20`). It runs when a PerformWork step
+  ends (`FUN_1400ce890`).
+  - A citizen already hurt fails it.
+  - Otherwise, at a job (`+0x30`), its work's profession (slot `+0x50`) has accident odds
+    `+0x54` (years) and `+0x58` (`FUN_1400ae760`). With `+0x58` positive, the odds are
+    `RandFloat() < time since the last check (+0x200) / (+0x54 × 12 × 300 s × +0x58)`, and
+    the time restarts.
+  - An accident records the profession (`+0x1f8`) and fails the work.
+  - Shipped odds include laborers (50, 100), builders and foresters (5, 100), miners
+    (4, 30) and stonecutters (1, 30).
+- **The death** comes in the next citizen update (`FUN_140118340`), after the cold: code 7,
+  with the profession's death message (`+0x40` in its string table) as `@4`.
+
+Test: `placement_tool::construction_tests::a_builder_dies_in_an_accident`, with the builder's
+odds made near certain.
+
 ## Not ported yet
 
-Accidents (`+0x1f8`), the residence's ClearStorage work, and the stock consumption counters.
+The residence's ClearStorage work, and the stock consumption counters.
 (The workplace searches are described in [JOBS.md](JOBS.md#workplace-searches).)

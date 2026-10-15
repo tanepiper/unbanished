@@ -121,6 +121,10 @@ pub struct CitizenState {
     pub field_84: i32,
     /// `+0x220`: has had a school place.
     pub schooled: bool,
+    /// `+0x1f8`: the profession whose work it had an accident at (`FUN_14011bb20`).
+    pub accident: Option<usize>,
+    /// `+0x200`: time since the last injury check.
+    pub accident_timer: i64,
 }
 
 impl CitizenState {
@@ -492,6 +496,14 @@ impl Agents {
             let mut messages = Vec::new();
             {
                 let state = &mut self.states[i];
+                // The current job's work (`+0x30`) and its profession's accident odds.
+                let accident_odds = (0 <= state.job)
+                    .then(|| env.construction.jobs.works.get(&state.job))
+                    .flatten()
+                    .and_then(|w| {
+                        let p = env.construction.professions.list.get(w.profession)?;
+                        Some((w.profession, p.accident.0, p.accident.1))
+                    });
                 let mut world = World {
                     size: env.cells.size,
                     types: &env.cells.types,
@@ -509,6 +521,9 @@ impl Agents {
                     tool_uses: &mut state.tool_uses,
                     shown_tool: &mut state.shown_tool,
                     animating: &mut animating,
+                    accident: &mut state.accident,
+                    accident_timer: &mut state.accident_timer,
+                    accident_odds,
                 };
                 self.characters[i].update(&mut world, group, dt);
             }
@@ -607,6 +622,7 @@ impl Agents {
             let animal = wildlife.animals.get_mut(&a).unwrap();
             let mut messages = Vec::new();
             let (mut carried, mut tool_uses, mut shown_tool) = (Storage::default(), 0, -1);
+            let (mut accident, mut accident_timer) = (None, 0);
             let mut world = World {
                 size: cells.size,
                 types: &cells.types,
@@ -624,6 +640,9 @@ impl Agents {
                 tool_uses: &mut tool_uses,
                 shown_tool: &mut shown_tool,
                 animating: &mut animating,
+                accident: &mut accident,
+                accident_timer: &mut accident_timer,
+                accident_odds: None,
             };
             animal.character.animate(&group, dt);
             animal.character.update(&mut world, &group, dt);

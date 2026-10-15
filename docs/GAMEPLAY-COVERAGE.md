@@ -20,7 +20,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | ResourceProduce (ConsumeProduce) | CutterYard, Tailor, ToolMaker, Tavern | cutter yard verified; the rest share the code |
 | StatusIcon | citizens, buildings | citizen bits; building bits missing |
 | AmbientEmitter, AmbientEnvironment | most buildings | environment, wind, river, rain |
-| Citizen (`0x1401689a0`) | Citizen | needs, age, death, health, happiness, disease, homes, marriage, births ([CITIZEN-LIFE.md](CITIZEN-LIFE.md)); attendance searches, burial and accidents open |
+| Citizen (`0x1401689a0`) | Citizen | needs, age, death, health, happiness, disease, homes, marriage, births, burial, accidents ([CITIZEN-LIFE.md](CITIZEN-LIFE.md)); ClearStorage and consumption counters open |
 | Residence | WoodHouse, StoneHouse, Hostel | families, heating, moving in; ClearStorage work open |
 | **Immigration**, **Nomad** | TownHall, Nomad | missing |
 | Attendance | School, Chapel, Doctor | yes (staff by LocationWork, places, lessons, treatment) |

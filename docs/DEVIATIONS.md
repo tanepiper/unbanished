@@ -77,9 +77,9 @@ Deviation: 30, Not ported: 63, Not traced: 4.
 
 ## `apps/game/src/start.rs`
 
-- [Not ported] [apps/game/src/start.rs:1120](../apps/game/src/start.rs#L1120): StatusIconComponent billboards (`FUN_1401310a0` anchors): each citizen with status bits, above its model (position + model box height). Building status bits are not ported.
-- [Not ported] [apps/game/src/start.rs:1199](../apps/game/src/start.rs#L1199): A dragged area (CreateDrag: fields, orchards, pastures) over `rect` (`x, y, w, h`): the entity, its zone over every cell, and its site. The drag tool itself is not ported yet; tests place areas directly.
-- [Not ported] [apps/game/src/start.rs:1248](../apps/game/src/start.rs#L1248): The fenced tool (FencedTool, vtable `0x140166a10`) dragged from cell `a` to cell `b` with the shelter turned `rotation` quarter turns: slot `+0x70` (`FUN_1400e0960`) checks the area, slot `+0x68` (`FUN_1400e02d0`) places the entity over it with its shelter, corners and fence runs (its MultiObjectComponent's parts). The drag itself is not ported; tests place pastures directly. Returns the entity.
+- [Not ported] [apps/game/src/start.rs:1122](../apps/game/src/start.rs#L1122): StatusIconComponent billboards (`FUN_1401310a0` anchors): each citizen with status bits, above its model (position + model box height). Building status bits are not ported.
+- [Not ported] [apps/game/src/start.rs:1201](../apps/game/src/start.rs#L1201): A dragged area (CreateDrag: fields, orchards, pastures) over `rect` (`x, y, w, h`): the entity, its zone over every cell, and its site. The drag tool itself is not ported yet; tests place areas directly.
+- [Not ported] [apps/game/src/start.rs:1250](../apps/game/src/start.rs#L1250): The fenced tool (FencedTool, vtable `0x140166a10`) dragged from cell `a` to cell `b` with the shelter turned `rotation` quarter turns: slot `+0x70` (`FUN_1400e0960`) checks the area, slot `+0x68` (`FUN_1400e02d0`) places the entity over it with its shelter, corners and fence runs (its MultiObjectComponent's parts). The drag itself is not ported; tests place pastures directly. Returns the entity.
 
 ## `apps/game/src/utility.rs`
 
@@ -89,8 +89,8 @@ Deviation: 30, Not ported: 63, Not traced: 4.
 
 - [Deviation] [crates/game/src/agents.rs:1](../crates/game/src/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance (`AnimationManager::Update`), every character runs its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run the AI with zero time (`FUN_140114810`), then the AI updates. Deviations: the AI runs every iteration instead of on its bucket's quota, and after the placed entities' bucket pass instead of interleaved with it.
 - [Not ported] [crates/game/src/agents.rs:75](../crates/game/src/agents.rs#L75): Not ported: tool use during jobs and the citizen clothing-wear countdown.
-- [Not ported] [crates/game/src/agents.rs:864](../crates/game/src/agents.rs#L864): `FUN_140119170`: the dead citizen's components let go of the town (a removed entity's CharacterComponent abandons its actions, CitizenComponent leaves its home, family, workplace and registry; a laborer takes over its profession). Not ported: the carried goods (StorageComponent removal) are lost.
-- [Not ported] [crates/game/src/agents.rs:1432](../crates/game/src/agents.rs#L1432): Not ported: drawing the StatusIconComponent's billboard (its mask is live).
+- [Not ported] [crates/game/src/agents.rs:883](../crates/game/src/agents.rs#L883): `FUN_140119170`: the dead citizen's components let go of the town (a removed entity's CharacterComponent abandons its actions, CitizenComponent leaves its home, family, workplace and registry; a laborer takes over its profession). Not ported: the carried goods (StorageComponent removal) are lost.
+- [Not ported] [crates/game/src/agents.rs:1451](../crates/game/src/agents.rs#L1451): Not ported: drawing the StatusIconComponent's billboard (its mask is live).
 
 ## `crates/game/src/animation.rs`
 
@@ -103,12 +103,12 @@ Deviation: 30, Not ported: 63, Not traced: 4.
 
 ## `crates/game/src/character.rs`
 
-- [Not traced] [crates/game/src/character.rs:181](../crates/game/src/character.rs#L181): `+0x28`, cleared when a waypoint is faced (consumer not traced).
-- [Not ported] [crates/game/src/character.rs:499](../crates/game/src/character.rs#L499): `ShowTool` (vtable `0x14015ead0`, start `FUN_140043070`): attach tool mesh `n`. Not ported: drawing the tool on the citizen's `tool` node.
-- [Not ported] [crates/game/src/character.rs:645](../crates/game/src/character.rs#L645): `FUN_1400cbb20`: the cell must be free (`FUN_1400a1fd0`: not cell types 0 or 1; the per-cell byte `+0x2a` and the map's set at `+0xe8` are not ported) and without flags. Otherwise the action fails.
-- [Not ported] [crates/game/src/character.rs:719](../crates/game/src/character.rs#L719): Material `usize::MAX`: every carried material (constructor argument null); storage `usize::MAX`: no target (only the redirect search, not ported).
-- [Not ported] [crates/game/src/character.rs:762](../crates/game/src/character.rs#L762): Not ported: redirecting to another storage (`FUN_140092a60` put, MoveTo) and dropping a loose pile (`FUN_1400ccd90`); the drop-off fails instead.
-- [Not ported] [crates/game/src/character.rs:827](../crates/game/src/character.rs#L827): `FUN_14011bb20` (injury check) can fail the work; not ported yet.
+- [Not ported] [crates/game/src/character.rs:122](../crates/game/src/character.rs#L122): `Citizen::InjuryCheck` (`FUN_14011bb20` → `FUN_1400ae760`): already hurt, or, at a job whose profession has accidents, `RandFloat() < time since the last check / (+0x54 × 12 × 300 s × +0x58)` (the time restarts at every check). Not ported: the debug flag that stops it (`Game +0xd0` bit 8).
+- [Not traced] [crates/game/src/character.rs:213](../crates/game/src/character.rs#L213): `+0x28`, cleared when a waypoint is faced (consumer not traced).
+- [Not ported] [crates/game/src/character.rs:531](../crates/game/src/character.rs#L531): `ShowTool` (vtable `0x14015ead0`, start `FUN_140043070`): attach tool mesh `n`. Not ported: drawing the tool on the citizen's `tool` node.
+- [Not ported] [crates/game/src/character.rs:677](../crates/game/src/character.rs#L677): `FUN_1400cbb20`: the cell must be free (`FUN_1400a1fd0`: not cell types 0 or 1; the per-cell byte `+0x2a` and the map's set at `+0xe8` are not ported) and without flags. Otherwise the action fails.
+- [Not ported] [crates/game/src/character.rs:751](../crates/game/src/character.rs#L751): Material `usize::MAX`: every carried material (constructor argument null); storage `usize::MAX`: no target (only the redirect search, not ported).
+- [Not ported] [crates/game/src/character.rs:794](../crates/game/src/character.rs#L794): Not ported: redirecting to another storage (`FUN_140092a60` put, MoveTo) and dropping a loose pile (`FUN_1400ccd90`); the drop-off fails instead.
 
 ## `crates/game/src/environment.rs`
 
@@ -153,10 +153,10 @@ Deviation: 30, Not ported: 63, Not traced: 4.
 
 - [Deviation] [crates/game/src/life.rs:1](../crates/game/src/life.rs#L1): CitizenComponent (vtable `0x1401689a0`) and ResidenceComponent (vtable `0x14016a6a0`): needs, age, death, health, happiness, disease, homes, partners and births. See docs/CITIZEN-NEEDS-AND-HOUSEHOLDS.md and docs/CITIZEN-LIFE.md. The CitizenDescription (`D`, citizen `+0x288`) is kept as an offset table so the ported code reads the same fields as the original. Deviations: the entity references the original keeps (home, partner, guardian, dependents) are citizen and entity indices; the dependents' ring is a vector in ring order. Disease spread (`FUN_140117940`) visits the citizens within the radius in registration order where the original asks its spatial index.
 - [Not ported] [crates/game/src/life.rs:504](../crates/game/src/life.rs#L504): `FUN_14011c2a0`: queue the citizen's death (`reason`) and tell the family. Buried in a cemetery (`FUN_14008ec10` from the home's entrance, else where the citizen stands), the family's bit is `0x40`; otherwise `2` for old age, else `0x80`. Not ported: the debug flag that stops deaths (`Game +0xd0` bit 8).
-- [Not traced] [crates/game/src/life.rs:1045](../crates/game/src/life.rs#L1045): Not traced: what counts citizen `+0x84` up; it stays 0 (the half bonus).
-- [Not ported] [crates/game/src/life.rs:1144](../crates/game/src/life.rs#L1144): `FUN_14011c060`: catch disease `d` (not while immune, nor a doctor at work). Not ported: the doctor exception (profession `+0x4d` with a workplace) and the AutoSlow request of the outbreak event.
-- [Not ported] [crates/game/src/life.rs:1232](../crates/game/src/life.rs#L1232): Citizen message 2 (`FUN_14011a7b0`): eat from `storage` until no longer hungry: one unit of food (`FUN_140094410` category 0) per point of hunger, remembering each kind for variety. Not ported: the stock's consumption counter (`FUN_14008e460`).
-- [Not ported] [crates/game/src/life.rs:1267](../crates/game/src/life.rs#L1267): `FUN_14012ee40`: a residence's update. The fire burns down; with residents, while it is colder than the house's warmth, one unit of firewood keeps it burning for `+0x2c` seconds. The food and firewood status icons clear when there is some. Not ported: the ClearStorage work of an empty house that still holds goods, and the stock's consumption counter.
+- [Not traced] [crates/game/src/life.rs:1059](../crates/game/src/life.rs#L1059): Not traced: what counts citizen `+0x84` up; it stays 0 (the half bonus).
+- [Not ported] [crates/game/src/life.rs:1158](../crates/game/src/life.rs#L1158): `FUN_14011c060`: catch disease `d` (not while immune, nor a doctor at work). Not ported: the doctor exception (profession `+0x4d` with a workplace) and the AutoSlow request of the outbreak event.
+- [Not ported] [crates/game/src/life.rs:1246](../crates/game/src/life.rs#L1246): Citizen message 2 (`FUN_14011a7b0`): eat from `storage` until no longer hungry: one unit of food (`FUN_140094410` category 0) per point of hunger, remembering each kind for variety. Not ported: the stock's consumption counter (`FUN_14008e460`).
+- [Not ported] [crates/game/src/life.rs:1281](../crates/game/src/life.rs#L1281): `FUN_14012ee40`: a residence's update. The fire burns down; with residents, while it is colder than the house's warmth, one unit of firewood keeps it burning for `+0x2c` seconds. The food and firewood status icons clear when there is some. Not ported: the ClearStorage work of an empty house that still holds goods, and the stock's consumption counter.
 
 ## `crates/game/src/needs.rs`
 
@@ -185,8 +185,8 @@ Deviation: 30, Not ported: 63, Not traced: 4.
 
 ## `crates/game/src/professions.rs`
 
-- [Not ported] [crates/game/src/professions.rs:162](../crates/game/src/professions.rs#L162): `FUN_1401173b0`: move citizen `c` to workplace `wp` (removing it from its old one, `FUN_140134cb0`, then appending to the new one, `FUN_140134ef0`). Not ported: the workplaces' StatusIconComponent bits and entity flags 2/3.
-- [Not ported] [crates/game/src/professions.rs:476](../crates/game/src/professions.rs#L476): `FUN_1401350d0`: accept workers or not; a disabled workplace's workers move to another ([`Workforce::find_workplace`], or none). Not ported: its status icons (bits 0..4).
+- [Not ported] [crates/game/src/professions.rs:167](../crates/game/src/professions.rs#L167): `FUN_1401173b0`: move citizen `c` to workplace `wp` (removing it from its old one, `FUN_140134cb0`, then appending to the new one, `FUN_140134ef0`). Not ported: the workplaces' StatusIconComponent bits and entity flags 2/3.
+- [Not ported] [crates/game/src/professions.rs:481](../crates/game/src/professions.rs#L481): `FUN_1401350d0`: accept workers or not; a disabled workplace's workers move to another ([`Workforce::find_workplace`], or none). Not ported: its status icons (bits 0..4).
 
 ## `crates/game/src/spawn.rs`
 

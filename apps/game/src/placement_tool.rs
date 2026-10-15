@@ -2579,4 +2579,96 @@ mod construction_tests {
             "the spouse knows of the burial"
         );
     }
+
+    /// With accidents made near certain for builders, a builder's work step fails with an
+    /// injury and the builder dies of it (code 7, the profession's death message).
+    #[test]
+    fn a_builder_dies_in_an_accident() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let builder = town.construction.professions.builder;
+        let death = town.construction.professions.list[builder].death.clone();
+        assert!(!death.is_empty(), "the builder has no death message");
+        assert!(0.0 < town.construction.professions.list[builder].accident.1);
+        town.construction.professions.list[builder].accident = (1e-6, 1.0);
+        let mut tool = PlacementTool::start(
+            &archive,
+            &mut town,
+            r"Template\WoodHouse.rsc:resource",
+            &mut rng,
+        )
+        .unwrap();
+        let spot = tool
+            .find_clear_spot(&town, &terrain, town.start)
+            .expect("no spot");
+        tool.hover(&town, &terrain, Some(spot), 0);
+        tool.place(&archive, &mut town, 0).unwrap();
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 2,
+            });
+        let mut warnings = banished_game::events::StockWarnings::default();
+        let dt = 1.0 / 30.0;
+        let mut events = Vec::new();
+        for _ in 0..30 * 60 * 8 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            events.extend(std::mem::take(&mut town.agents.events));
+            if events
+                .iter()
+                .any(|e| e.kind == banished_game::life::reason::ACCIDENT)
+            {
+                break;
+            }
+        }
+        let e = events
+            .iter()
+            .find(|e| e.kind == banished_game::life::reason::ACCIDENT)
+            .expect("no accident");
+        assert_eq!(
+            e.extra.as_ref().map(|(_, k)| k.as_str()),
+            Some(death.as_str())
+        );
+        assert_eq!(
+            town.agents.states[e.citizen].accident,
+            Some(builder),
+            "the accident's profession"
+        );
+    }
 }

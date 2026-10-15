@@ -632,6 +632,7 @@ impl People<'_, '_> {
                 s.school_time += dt;
             }
             s.disease_clock += dt;
+            s.accident_timer += dt;
             if s.clothing_remaining < 0 {
                 s.clothing = 0;
                 s.clothing_remaining = 0;
@@ -663,6 +664,19 @@ impl People<'_, '_> {
             let rate = r.f(0xdc + 4 * s.clothing.clamp(0, 2) as u32);
             s.cold += secs * rate / MINUTE;
         }
+        // An accident at work (`+0x1f8`, `FUN_14011bb20`): code 7 with the profession's
+        // death message.
+        if let Some(p) = self.states[c].accident {
+            let extra = self
+                .professions
+                .list
+                .get(p)
+                .map(|p| (p.string_table.clone(), p.death.clone()));
+            if self.die(c, reason::ACCIDENT, extra) {
+                return;
+            }
+        }
+        let s = &mut self.states[c];
         if r.f(0xd0) <= s.hunger {
             s.hunger = r.f(0xd0);
             if self.idle[c] && self.die(c, reason::STARVED, None) {
