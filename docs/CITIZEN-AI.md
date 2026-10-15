@@ -1,0 +1,209 @@
+# Citizen AI, actions and movement
+
+How a citizen decides what to do, how that decision becomes a queue of actions, and how the
+character walks a path. Evidence: Ghidra 12.1.4 pseudocode and disassembly of the Steam x64
+executable and Runtime DLL (local dumps `analysis/citizen-ai-*.c`, `analysis/pathfind.c`,
+`analysis/astar.c`, not distributed). Ports: `crates/game/src/pathfind.rs`,
+`crates/game/src/character.rs`, `CharacterDescription` in `crates/formats/src/game.rs`.
+
+The citizen template (`Template/Citizen.rsc`) carries three cooperating components:
+
+| Component | Vtable | Role |
+|---|---|---|
+| `CitizenComponent` | `0x1401689a0` | Needs, age, household (see [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md)) |
+| `CitizenAIComponent` | `0x140168890` | Chooses the next activity |
+| `CharacterComponent` | `0x140168790` | Runs the action stack, turns and walks |
+
+## Update phases
+
+Per simulation iteration (`FUN_14009b850`): `Graphics::AnimationManager::Update` advances every
+animation, then the entity manager (`FUN_1400c9560`) runs:
+
+1. the bit-`0x04` set: CharacterComponent slot `+0x40` (`FUN_14010e990`) with the iteration delta:
+   run the action stack, turn, move by root motion, snap to the ground;
+2. the scheduled buckets (quotas 50/15/8/5/2): slot `+0x48` with each entity's elapsed time:
+   Citizen needs (`FUN_140118340`), CitizenAI (`FUN_1401148b0`) and Character
+   (`FUN_14010e950`, which only forwards to the running chain's slot `+0x30`).
+
+## Character movement (`FUN_14010e990`)
+
+`CharacterDescription` (`FUN_14010f2a0`; shipped citizen values in brackets):
+
+| Offset | Field | Citizen |
+|---|---|---|
+| `+0x20` | radius (default 0.25) | 0.25 |
+| `+0x24` | yaw offset added to the heading | 0 |
+| `+0x28` | fraction of the remaining turn kept per update | 0.96 |
+| `+0x2c` | animation blend time | 0.5 |
+| `+0x30` | speed scale while following another character | 0.75 |
+| `+0x34` | speed scale on cell types 1 and 9 | 1.2 |
+| `+0x38` | speed scale on cell type 0 | 1.4 |
+| `+0x3c`, `+0x40` | hold a fixed height | false, 0 |
+| `+0x44` | lowest height | -10 |
+
+Each update (angles in degrees):
+
+- **Turn.** `diff = target − current`, wrapped across ±180. Below 0.1° the heading snaps to the
+  target; otherwise `new = (current + diff)(1 − keep) + keep·current`, wrapped to ±180. The
+  model yaw is `heading + yaw offset`. Headings come from `Math::Vector3::Heading` =
+  `atan2(−x, y)` (0 faces +y).
+- **Move.** `distance = |RootAnimationOffset| × speed`, along the direction at `+0x2c`.
+  `RootAnimationOffset` is the root translation `sample_pose` already turns into a movement delta
+  (`frame root × elapsed × rate`); the citizen walk clip's root moves 0.06 per frame at 15 fps.
+- **Ground.** Cell type 11 puts the character at height 0; a fixed-height description uses its
+  height; otherwise `max(ground, lowest)` (`FUN_1400a48b0`, which casts against picking geometry
+  instead on cells whose byte `+0x2d` is set: bridges, not ported).
+
+`FUN_14010f6c0(anim, blend, scale)` plays a clip and sets `speed = model scale z × scale`.
+Replaying a looping clip that is already playing keeps its time (`AnimationState::PlayAnimation`).
+The original blends clips over the description's blend time using the group's blend matrix; the
+port switches immediately (deviation).
+
+Citizen clips (`Models/Citizen/CitizenAnims`): 0 Idle, 1 Walk, 2 WalkTool, 3 WalkLongTool,
+4 WalkInventory, 5 WalkBarrow, 6 BendDown, 7 StandUp, 8 GenericWork, 9 AxeWork, 10 PickAxeWork,
+11 ScytheWork, 12 HoeWork, 13 HammerWork, 14 FishingWork, 15 AnvilWork, 16 SawWork.
+
+## Actions and the action stack
+
+Actions are registered serializable types (base `Action`, vtable `0x140165eb0`): `MoveTo`,
+`PlayAnimation`, `PerformWork`, `SendComponentMessage`, `PickupRawMaterial`,
+`PickupStoredRawMaterial`, `DropOffRawMaterial`, `ConsumeRawMaterial`, `CreateRawMaterial`,
+`CompleteTask`, `CompleteRoad`, `CreateNaturalResource`, `RemoveNaturalResource`,
+`AnimateNaturalResource`, `HuntAnimal`, `RemoveAnimal`, `ShowTool`.
+
+Slots: `+0x18` serialize, `+0x20` start, `+0x28` update(dt), `+0x30` notify(dt), `+0x38` stop,
+`+0x40` abort. Results: 0 done, 1 running, 2 failed. The base update returns 0.
+
+The Character's stack (`+0x48`, top index `+0x60`) holds chains of actions:
+
+- **Run** (`FUN_1400ca120`): if the top chain has not started, start each action until one does
+  not return 1; then update each until one does not return 1. Done (0) stops the started
+  actions, pops the chain and continues with the next one in the same run; failed (2) aborts
+  everything (`FUN_1400ca8d0`), including the "on empty" chain; running stops the loop. When the
+  stack is empty the "on empty" chain (`+0x58`) starts once and is dropped (`FUN_1400ca080`).
+- **Push** (`FUN_1400ca9b0`): stop the current top's started actions, then push.
+- Builders clear the stack, set "on empty" to `SendComponentMessage(CitizenAI, 0)` and push in
+  reverse order of execution. CitizenAI's message slot (`FUN_140114810`) re-runs the Citizen and
+  AI updates with zero time, so a finished sequence is followed by an immediate new choice.
+
+| Action | Behaviour |
+|---|---|
+| `PlayAnimation` (`0x14015ea70`) | start: play the clip; update: `elapsed += dt`, running while `elapsed < duration` |
+| `PerformWork` (`0x1401662c0`) | start: play the clip with speed 0, face a yaw within ±180, optionally use up a tool (citizen `+0xac`); update: done once `elapsed ≥ duration`, unless `FUN_14011bb20` (injury check) fails it |
+| `SendComponentMessage` (`0x1401664e0`) | start: find the component by type id and call its slot `+0x78`; done, or failed if absent |
+| `MoveTo` (`0x140166260`) | below |
+
+### MoveTo (`FUN_1400ce640`, start `FUN_1400cdf80`, update `FUN_1400cda40`)
+
+Fields: target `+0x38`, allowed types `+0x5c` (usually `0xe1f`), walk/stand clips
+`+0x468/+0x46c` (1 and 0 for citizens), cost table `+0x470`, speed factor `+0x478`
+(`RandFloatTol × 0.1 + 1` from the game stream when constructed with −1), following flag
+`+0x474`, path index `+0x60`, count `+0x64`, path cells `+0x68` (256).
+
+- **Start:** done when within 0.05 of the target. Otherwise request a path (`FUN_1400ce0e0`);
+  when start and target share a cell the path is that cell (index 0) and the character walks
+  straight there.
+- **Update:** in the target's cell, walk straight to the target until within 0.05 (done). On a
+  path: set the speed for the current cell (following / roads 1, 9 / type 0 / 1.0) times the
+  factor; on entering the next waypoint advance and face the one after. At the end of a
+  truncated path stand and re-plan. A pending request is collected on the next update (the
+  original polls its worker thread's result slot); a failed request fails the action.
+- **Stop/abort:** play the stand clip.
+
+## Pathfinding
+
+`FUN_1400a3d90` builds a path manager at map `+0x68`. It runs on a worker thread and executes
+queued commands (`FUN_1400ab900`): 0 walk mask, 1 per-type cost, 2/3 cell type/blocked bit,
+4 options (diagonal, Manhattan, honour blocked), 5 find path into a result slot. The port solves
+synchronously.
+
+**Regions.** `FUN_1400a1950` labels connected walkable cells (types in `0xe1f`) in scan order
+from 1 with a FIFO scanline fill (`FUN_1400a1640`). A run is widened by one cell for the
+neighbouring rows when the widened cell is strictly inside the row, so diagonal contact
+connects regions except at the map edge.
+
+**Requests** (`FUN_1400a2480`): both end types join the mask; unless the mask contains water
+types (`0x1e0`) both ends must share a non-zero region. `0x180` in the mask becomes both bits.
+
+**Costs** (`FUN_1400a3a20`, per mover mode; types not listed keep their previous cost):
+
+| Mode | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | diagonal |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 (citizens) | 3 | 3 | 4 | 8 | 16 | 16 | 16 | 16 | 16 | 3 | 4 | yes |
+| 1 | 16 | 16 | 4 | 4 | 16 | 16 | 16 | 4 | 4 | 4 | 4 | yes |
+| 2 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | no |
+| 3 | 10 | 10 | 10 | 10 | 10 | 10 | 10 | 5 | 1 | 5 | 10 | yes |
+
+**A\*** (`FUN_14001d9a0`): step cost = type cost × 10 (straight) or 14 (diagonal). Neighbour
+order +x, −x, +y, −y, (+x,+y), (+x,−y), (−x,−y), (−x,+y); there is no corner-cutting test.
+Heuristic: diagonal search uses octile `10(dx+dy) − 6·min`; otherwise Manhattan ×10 or
+Chebyshev ×10. The open set is an AVL tree ordered by `f`, then by the **latest** insertion
+(`FUN_14001ddb0`), so ties expand last-in first. Closed nodes reopen when reached more cheaply.
+Paths include both ends and are capped at 16,384 cells.
+
+`FUN_1400a21c0`: of the 8 neighbours of a cell whose type is allowed, the nearest (squared cell
+distance) to another cell; the first found wins ties.
+
+## Choosing an activity (CitizenAIComponent)
+
+State: 16 cooldowns (`+0x40..+0xb8`, one per action), current action `+0x28`, queued action
+`+0x2c`, urgent-hunger/cold flags `+0x30/+0x31`, time since last loiter `+0xc0`, time carrying
+inventory `+0xc8` (reset while empty).
+
+**Update** (`FUN_1401148b0`): count cooldowns down; when hunger exceeds the urgent threshold
+(`D+0xcc`) and no urgent action is running or cooling down, eat from home if it has food, then
+choose with urgent candidates only; likewise for cold (`D+0xec`); re-choose when an emergency
+(`FUN_14011b0b0`, map cell byte `+0x22` at home, work or here) appears; when the character is
+idle choose normally.
+
+**Choose** (`FUN_140113060`): run a queued action if it succeeds; otherwise build candidates,
+then try each in order until one leaves the character with queued actions; record it as current.
+An action only runs when its cooldown has expired (`FUN_1401146c0`).
+
+**Candidates** (`FUN_140113170`; `D` = CitizenDescription, priorities in brackets):
+
+1. sick with a doctor assigned: only 5 [6];
+2. hunger > `D+0xcc`: 14 [7]; cold > `D+0xec`: 15 [7]; hunger > `D+0xc8`: 0 [6];
+   cold > `D+0xe8`: 1 [6];
+3. not sick: emergency → 2 [7]; no clothing (`+0x1e4 == 0`) → 3 [3]; health < `D+0x74` and not
+   flagged → 4 [3]; sick → 5 [6];
+4. urgent-only selection stops here (no shuffle);
+5. 12 [2] when unhappy for long enough (happiness < `D+0xb8` for 75 s, < `D+0xb4` for 300 s, or
+   1800 s since the last loiter), else 12 [0];
+6. children (age < `D+0x44`) or pupils: without school, 11 [0] (if healthy), 6 [4] without home
+   food, 7 [4] without home firewood; at school, 10 [2] (if healthy);
+7. adults: with a home, 6 [6 if hungry else 4] unless the spouse is already fetching food, and
+   7 [6 if cold else 4] likewise for firewood; then (if healthy) 8 [5] without a tool, 9 [2], and
+   13 [3 after 300 s carrying, else 1] when carrying inventory.
+
+The list is shuffled (`Rand(count)` per position, swapping) on the game stream and sorted by
+priority, highest first, with the CRT `qsort` (`FUN_140030770`: median of three, short sort
+below 9 elements), so equal priorities keep a shuffled order.
+
+| Action | Function | Meaning (inferred from data used) |
+|---|---|---|
+| 0 / 14 | `FUN_140112250` | eat (home food, then storage) |
+| 1 / 15 | `FUN_140112790` | get warm (home, then warm building) |
+| 2 | `FUN_140110810` → job manager `FUN_1400fca20` | emergency work |
+| 3 | `FUN_140111830` | fetch clothing (storage category 4), 75 s cooldown |
+| 4 | `FUN_140111d60` | fetch herbs |
+| 5 | `FUN_140112c60` | visit the doctor |
+| 6 / 7 | `FUN_140111160` / `FUN_1401108b0` | stock home with food / firewood |
+| 8 | `FUN_140111a50` | fetch a tool (storage category 2), 75 s cooldown |
+| 9 | `FUN_1401107a0` → job manager `FUN_1400fcd00` | work |
+| 10 | `FUN_140112a30` | attend school |
+| 11 | `FUN_14010f780` | children: walk near a parent |
+| 12 | `FUN_14010fa30` | loiter near a building, then idle 10 ± 5 s |
+| 13 | `FUN_14011b330` | drop off carried inventory |
+
+New citizens start without a tool (`+0xac = 0`) or clothing (`+0x1e4 = 0`), so an adult's first
+candidates are 8 [5], 3 [3], 9 [2] and 12 [0].
+
+## Status of the port
+
+Ported: regions, path manager costs and A*, request validation, character movement, the action
+stack, MoveTo, PlayAnimation, PerformWork and SendComponentMessage.
+
+Open: the AI update and candidate selection, each activity's builder and its storage, job and
+building queries (town manager `Game +0xf0`, job manager `Game +0x118`), the remaining actions,
+animation blending, bridge ground picking, and emulator verification of the A* tie-breaking.

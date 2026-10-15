@@ -6,6 +6,7 @@
 
 pub mod animation;
 pub mod calendar;
+pub mod character;
 pub mod citizens;
 pub mod environment;
 pub mod growth;
@@ -13,6 +14,7 @@ pub mod map;
 pub mod math;
 pub mod names;
 pub mod noise;
+pub mod pathfind;
 pub mod placement;
 pub mod random;
 pub mod scheduler;

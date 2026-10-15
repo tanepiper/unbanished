@@ -1042,6 +1042,74 @@ pub fn citizen_description(data: &[u8]) -> Result<CitizenDescription> {
     Ok(value)
 }
 
+/// `CharacterDescription` (serializer `FUN_14010f2a0`, defaults from constructor `FUN_14010f3e0`):
+/// how a walking entity moves (CharacterComponent update `FUN_14010e990`, MoveTo `FUN_1400cda40`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CharacterDescription {
+    /// `+0x20` (default 0.25).
+    pub radius: f32,
+    /// `+0x24`: added to the heading when the model is turned (default 0).
+    pub yaw_offset: f32,
+    /// `+0x28`: fraction of the remaining turn kept each update (default 0.85).
+    pub turn_keep: f32,
+    /// `+0x2c`: animation blend time passed to `PlayAnimation` (default 0.1).
+    pub blend: f32,
+    /// `+0x30`: speed scale while following another character (default 1).
+    pub follow_speed: f32,
+    /// `+0x34`: speed scale on cell types 1 and 9 (roads; default 1).
+    pub road_speed: f32,
+    /// `+0x38`: speed scale on cell type 0 (default 1).
+    pub type0_speed: f32,
+    /// `+0x3c` / `+0x40`: hold a fixed height instead of following the ground.
+    pub fixed_height: bool,
+    pub height: f32,
+    /// `+0x44`: lowest height the ground clamp allows (default -10).
+    pub min_height: f32,
+}
+
+impl Default for CharacterDescription {
+    fn default() -> Self {
+        CharacterDescription {
+            radius: 0.25,
+            yaw_offset: 0.0,
+            turn_keep: 0.85,
+            blend: 0.1,
+            follow_speed: 1.0,
+            road_speed: 1.0,
+            type0_speed: 1.0,
+            fixed_height: false,
+            height: 0.0,
+            min_height: -10.0,
+        }
+    }
+}
+
+pub fn character_description(data: &[u8]) -> Result<CharacterDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("CharacterDescription") {
+            return format_err(format!(
+                "expected CharacterDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(CharacterDescription {
+                radius: r.f32()?,
+                yaw_offset: r.f32()?,
+                turn_keep: r.f32()?,
+                blend: r.f32()?,
+                follow_speed: r.f32()?,
+                road_speed: r.f32()?,
+                type0_speed: r.f32()?,
+                fixed_height: r.bool()?,
+                height: r.f32()?,
+                min_height: r.f32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `BuildDescription` (serializer `FUN_14010e610`): what constructing a building costs.
 #[derive(Debug, Clone)]
 pub struct BuildDescription {

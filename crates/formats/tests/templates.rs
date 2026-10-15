@@ -206,3 +206,19 @@ fn professions_parse() {
     }
     println!("{list:?}");
 }
+
+#[test]
+fn character_descriptions_parse() {
+    let Some(archive) = archive() else { return };
+    let mut n = 0;
+    for name in entries(&archive, "_character.crs") {
+        let data = archive.read(name).unwrap();
+        let c = banished_formats::game::character_description(&data)
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        if name.contains("Citizen_") {
+            eprintln!("{name}: {c:?}");
+        }
+        n += 1;
+    }
+    assert!(n >= 6, "{n}");
+}
