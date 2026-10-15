@@ -66,6 +66,9 @@ pub enum WorkKind {
     PlantOrchard(crate::farm::AreaWork),
     /// Fruit picking (vtable `0x140167940`, constructor `FUN_1400f3530`).
     PickFruit(crate::farm::AreaWork),
+    /// PastureComponent's work (vtable `0x140167bc0`, constructor `FUN_1400f8250`): the
+    /// ranchers tending (`+0x48`), as the gatherer's.
+    Pasture(crate::herbalist::HerbalistWork),
     /// `FishingWork` (vtable `0x140167740`, constructor `FUN_1400eff90`).
     Fishing(crate::fishing::FishingWork),
     /// A test stand-in.
@@ -368,25 +371,24 @@ impl Jobs {
     }
 
     /// Slot `+0x20` of a work taken out of the table, answering [`NESTED`] by offering the
-    /// queued works (`FUN_1400fdaf0` without a second try) until one is taken: then 2, else 1.
-    /// The work is back in the table afterwards.
+    /// queued works (`FUN_1400fdaf0` without a second try) until one is taken: then 2, else the
+    /// rest of the try (which may offer again). The work is back in the table afterwards.
     fn try_one(&mut self, id: i32, mut work: Work, citizen: usize, host: &mut impl WorkHost) -> u8 {
-        let r = host.try_assign(&mut work, citizen, self.time);
+        let mut r = host.try_assign(&mut work, citizen, self.time);
         self.works.insert(id, work);
-        if r != NESTED {
-            return r;
-        }
-        let again = host.offers_again();
-        for other in host.take_offers() {
-            if self.offer_one(other, citizen, again, host) {
-                return 2;
+        while r == NESTED {
+            let again = host.offers_again();
+            for other in host.take_offers() {
+                if self.offer_one(other, citizen, again, host) {
+                    return 2;
+                }
             }
+            let Some(mut work) = self.works.remove(&id) else {
+                return 1;
+            };
+            r = host.resume(&mut work, citizen);
+            self.works.insert(id, work);
         }
-        let Some(mut work) = self.works.remove(&id) else {
-            return 1;
-        };
-        let r = host.resume(&mut work, citizen);
-        self.works.insert(id, work);
         r
     }
 

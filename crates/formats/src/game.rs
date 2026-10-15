@@ -1235,15 +1235,16 @@ pub struct AnimalDescription {
     pub materials: Vec<Option<String>>,
     /// `+0x20`: the side of the animal's home area in cells.
     pub area: i32,
-    /// `+0x24`.
-    pub value_24: i32,
+    /// `+0x24`: map cells a pasture gives each animal (`FUN_14012da40`).
+    pub space: i32,
     /// `+0x28`, `+0x2c`: the lifespan in years, base and tolerance.
     pub life: f32,
     pub life_range: f32,
     /// `+0x30`: the age at full size (years).
     pub adult: f32,
-    /// `+0x34`, `+0x38`.
-    pub value_34: f32,
+    /// `+0x34`: a breeding male's years between young (and as much again at random,
+    /// `FUN_14010b8f0`); `+0x38`.
+    pub breed: f32,
     pub value_38: f32,
     /// `+0x3c`: turn to a random heading when idling.
     pub turn: bool,
@@ -1267,11 +1268,11 @@ pub fn animal_description(data: &[u8]) -> Result<AnimalDescription> {
             Ok(AnimalDescription {
                 materials,
                 area: r.i32()?,
-                value_24: r.i32()?,
+                space: r.i32()?,
                 life: r.f32()?,
                 life_range: r.f32()?,
                 adult: r.f32()?,
-                value_34: r.f32()?,
+                breed: r.f32()?,
                 value_38: r.f32()?,
                 turn: r.bool()?,
                 idle: 4.0,
@@ -1341,6 +1342,92 @@ pub fn orchard_description(data: &[u8]) -> Result<((i32, i32), f32, i32)> {
             let tend = r.f32()?;
             let group = if version > 0 { r.i32()? } else { 0 };
             Ok((spacing, tend, group))
+        })
+    })?;
+    Ok(value)
+}
+
+/// `CreateFencedDescription` (serializer `FUN_140048250`): the fenced tool's (FencedTool,
+/// vtable `0x140166a10`) cell-type mask `+0x20`, its six part templates `+0x28..+0x50` (shelter,
+/// end, corner, straight, long straight, gate), the largest `+0x58`, `+0x5c` and smallest
+/// `+0x60`, `+0x64` size, the shelter centred on its side `+0x68`, and the template whose
+/// entities may stand in the way `+0x70`.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct CreateFencedDescription {
+    pub mask: u32,
+    pub parts: Vec<Option<String>>,
+    pub max: (i32, i32),
+    pub min: (i32, i32),
+    pub centered: bool,
+    pub clear: Option<String>,
+}
+
+pub fn create_fenced_description(data: &[u8]) -> Result<CreateFencedDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("CreateFencedDescription") {
+            return format_err(format!(
+                "expected CreateFencedDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let mask = r.u32()?;
+            let parts = (0..6).map(|_| r.external_ref()).collect::<Result<_>>()?;
+            Ok(CreateFencedDescription {
+                mask,
+                parts,
+                max: (r.i32()?, r.i32()?),
+                min: (r.i32()?, r.i32()?),
+                centered: r.bool()?,
+                clear: r.external_ref()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `PastureDescription` (serializer `FUN_14012d6f0`, versioned): from version 1 the stock slot
+/// of its products' limit `+0x20` (5 by the factory `FUN_140037100`).
+pub fn pasture_description(data: &[u8]) -> Result<i32> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("PastureDescription") {
+            return format_err(format!(
+                "expected PastureDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, version| if version > 0 { r.i32() } else { Ok(5) })
+    })?;
+    Ok(value)
+}
+
+/// `LivestockDescription` (serializer `FUN_140129430`, versioned): the raw material a pasture
+/// gathers from the animal `+0x20` (none for cattle), every `+0x2c` × 300 s, and from version 1
+/// the stock slot `+0x28`.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct LivestockDescription {
+    pub product: Option<String>,
+    pub interval: f32,
+    pub group: i32,
+}
+
+pub fn livestock_description(data: &[u8]) -> Result<LivestockDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("LivestockDescription") {
+            return format_err(format!(
+                "expected LivestockDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, version| {
+            let product = r.external_ref()?;
+            let interval = r.f32()?;
+            let group = if version > 0 { r.i32()? } else { 0 };
+            Ok(LivestockDescription {
+                product,
+                interval,
+                group,
+            })
         })
     })?;
     Ok(value)

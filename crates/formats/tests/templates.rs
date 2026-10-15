@@ -518,3 +518,45 @@ fn wildlife_descriptions_parse() {
     let hunt = hunt_description(&read("Template/HunterLodge.rsc:hunt")).unwrap();
     assert_eq!((hunt.time, hunt.group), (2.0, 5));
 }
+
+#[test]
+fn pasture_descriptions_parse() {
+    use banished_formats::game::{
+        animal_description, create_fenced_description, create_placed_description,
+        livestock_description, pasture_description,
+    };
+    let Some(archive) = archive() else { return };
+    let read = |r: &str| archive.read_ref(r).unwrap();
+    assert_eq!(
+        pasture_description(&read("Template/Pasture.rsc:pasture")).unwrap(),
+        5
+    );
+    let f = create_fenced_description(&read("Template/Pasture.rsc:createfenced")).unwrap();
+    assert_eq!(f.mask, 0x14);
+    assert_eq!(
+        f.parts[0].as_deref(),
+        Some(r"Template\AnimalShelter.rsc:resource")
+    );
+    assert_eq!(
+        f.parts[5].as_deref(),
+        Some(r"Template\WoodFenceGate.rsc:resource")
+    );
+    assert_eq!((f.max, f.min, f.centered), ((20, 20), (7, 7), false));
+    assert_eq!(f.clear.as_deref(), Some(r"Template\Clear.rsc:resource"));
+    let shelter = create_placed_description(&read("Template/AnimalShelter.rsc:createplaced"));
+    let shelter = shelter.unwrap();
+    assert!(shelter.width > 0 && shelter.height > 0);
+    let cow = livestock_description(&read("Template/LivestockCow.rsc:livestock")).unwrap();
+    assert_eq!((cow.product, cow.interval, cow.group), (None, 1.0, 5));
+    let sheep = livestock_description(&read("Template/LivestockSheep.rsc:livestock")).unwrap();
+    assert_eq!(
+        sheep.product.as_deref(),
+        Some(r"Template\RawMaterialWool.rsc:resource")
+    );
+    assert_eq!(sheep.interval, 3.0);
+    let a = animal_description(&read("Template/LivestockCow.rsc:animal")).unwrap();
+    assert_eq!(
+        (a.area, a.space, a.life, a.adult, a.breed),
+        (5, 20, 6.0, 0.8, 0.6)
+    );
+}

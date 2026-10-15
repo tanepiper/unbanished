@@ -36,6 +36,8 @@ pub enum Controller {
     CropField,
     /// OrchardComponent (`FUN_140052a40` table).
     Orchard,
+    /// PastureComponent (`FUN_14012d660` table).
+    Pasture,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -108,6 +110,10 @@ pub enum Callback {
     CropUpdate10,
     CropEnter11,
     CropUpdate11,
+    /// Pasture: `FUN_14012c590` / `FUN_14012bcb0` (state 2), `FUN_14012c310` (3).
+    PastureEnter2,
+    PastureUpdate2,
+    PastureEnter3,
     /// Orchard: `FUN_140051e90` / `FUN_140051e20` (2), `FUN_1400519d0` / `FUN_1400518f0` (9),
     /// `FUN_140051790` / `FUN_140051560` (10), `FUN_140051500` / `FUN_140051310` (exits of 10
     /// and 12), `FUN_140051440` / `FUN_140051370` (12), `FUN_140051160` / `FUN_140050fb0`
@@ -358,6 +364,23 @@ const ORCHARD: &[StateDef] = &[
     },
 ];
 
+const PASTURE: &[StateDef] = &[
+    StateDef {
+        id: 2,
+        enter: C::PastureEnter2,
+        update: C::PastureUpdate2,
+        exit: C::None,
+        transitions: &[(3, C::None)],
+    },
+    StateDef {
+        id: 3,
+        enter: C::PastureEnter3,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(6, C::None), (4, C::None), (5, C::None)],
+    },
+];
+
 const HAPPINESS: &[StateDef] = &[
     StateDef {
         id: 2,
@@ -428,6 +451,7 @@ impl Controller {
             Controller::Happiness => HAPPINESS,
             Controller::CropField => CROP_FIELD,
             Controller::Orchard => ORCHARD,
+            Controller::Pasture => PASTURE,
         }
     }
 
@@ -652,6 +676,8 @@ pub struct SiteTemplate {
     pub crop_field: Option<crate::farm::CropFieldTemplate>,
     /// OrchardDescription.
     pub orchard: Option<crate::orchard::OrchardTemplate>,
+    /// PastureDescription `+0x20`: the stock slot of its products' limit.
+    pub pasture: Option<i32>,
 }
 
 impl SiteTemplate {
@@ -758,6 +784,9 @@ pub struct Site {
     pub crop_field: Option<crate::farm::CropField>,
     /// OrchardComponent.
     pub orchard: Option<crate::orchard::Orchard>,
+    /// MultiObjectComponent `+0x48`: the entities placed with this one (a pasture's shelter
+    /// and fences), in order.
+    pub parts: Vec<usize>,
 }
 
 /// The job manager, professions, workforce and every construction site.

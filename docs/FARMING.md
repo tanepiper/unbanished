@@ -37,8 +37,8 @@ footprint, then go through 1 to 2.
   farming on. A new field has no crop (`FUN_140120330`).
 - **Known crops.** At map setup, `crop_picks` random crops and `tree_picks` random orchard
   trees from the profile join the town's known list (`FUN_140096ef0`). This happens after the
-  starting goods. Livestock picks draw too, but the starting livestock (`FUN_1400a5fe0`) is not
-  ported.
+  starting goods. Livestock picks draw too and bring their starting animals (see
+  [Pastures](#pastures-cratesgamesrcpasturers)).
 
 ### Works
 
@@ -100,3 +100,129 @@ An orchard is a dragged area with the components ClearArea, WorkPlace (farmer) a
 Verification: `placement_tool::construction_tests::arborists_plant_tend_and_pick_an_orchard`.
 A 7 × 7 orchard gets 12 trees, planted in about 74 s. Fast-forwarded to grown trees with ripe
 fruit in autumn, the fruit is picked and stored.
+
+## Pastures (`crates/game/src/pasture.rs`)
+
+A pasture is placed with the fenced tool, built, and given a kind of animal in its window. It
+then takes the town's waiting livestock of that kind, has young, and turns eggs and wool into
+piles at its shelter. Its herdsmen cull the oldest grown animal while the herd is over the
+window's limit, pick up the products, or walk the pasture; each visit lets an animal breed.
+The animals themselves are AnimalComponents in `crates/game/src/wildlife.rs`.
+
+### Placement: the fenced tool
+
+FencedTool (vtable `0x140166a10`) uses the template's CreateFencedDescription (`FUN_140048250`):
+a cell-type mask (`0x14`), six parts (AnimalShelter, end, corner, straight, long straight,
+gate), sizes 7–20 a side, a centred-shelter flag (off), and the Clear template.
+`StartingTown::place_fenced` ports it (the drag itself is not):
+
+- **Check** (slot `+0x70`, `FUN_1400e0960`): the size, then each cell's type, no occupant but
+  a Clear marker, no zone count, height within 100.
+- **Shelter** (`FUN_1400e1460`): in the corner the rotation faces (0, −90, 180, 90 degrees), its
+  size from its CreatePlacedDescription (turned a quarter for rotations 1 and 3); centred at
+  the middle of its corner cells, at the area's mean height (`FUN_140106c00`).
+- **Place** (slot `+0x68`, `FUN_1400e02d0`): the pasture over the area (turned with the
+  shelter), Clear markers in it removed (`FUN_140106da0`), then the parts in its
+  MultiObjectComponent (`+0x48`): the shelter, a corner at each corner the shelter leaves
+  free (`FUN_1400e1150`), and the four sides (`FUN_1400e0d90`). A side puts an end piece on
+  either side of the shelter, a single straight piece where a long one does not fit, else long
+  pieces. The second long piece is the gate (none on a side a centred shelter crosses). The
+  pasture is registered last. A 10 × 10 pasture has 19 parts: the shelter, 3 corners, 4 gates
+  and 7 long pieces, plus ends and singles.
+- **MultiObject** (`0x14016a120`): it passes entity events to its parts (`FUN_14012a960`), so
+  they stamp the map with the pasture (event 1, state 2 of the ClearArea controller). Its
+  removal destroys them (`FUN_14012ac90`). The parts' InteractComponents are children of the
+  pasture's (`FUN_140128540` / `FUN_1401282f0` count and index through them), so the
+  shelter's points are the pasture's build and create points.
+
+### PastureComponent (states `FUN_14012d660`)
+
+Fields: `+0x28` kind (animal template, none at setup), `+0x30` animals, `+0x40` the limit (the
+window's slider), `+0x44` products gathered. The PastureDescription's `+0x20` (stock slot,
+factory default 5) limits the products.
+
+- **State 2 enter** (`FUN_14012c590`): take waiting livestock, join the town's pastures
+  (`+0x90`), disable the workplace.
+- **State 2 update** (`FUN_14012bcb0`):
+  - Take waiting livestock of the kind, in the town list's order, until full (`FUN_14012c610`).
+  - Births (`FUN_14012c840`): each animal with young due has them while the pasture holds
+    fewer than its room plus three.
+  - The cells remember the kind (`FUN_1400a4c40`).
+  - Products: while more than a pile's worth (RawMaterialDescription `+0x40`) has gathered, a
+    pile's worth is taken. Below the stock limit it becomes a pile on the first shelter point
+    without one (anything else there is cleared), turned `RandTol(2) × 90`, registered at once
+    and handed to the AutoPickup. Otherwise it is lost.
+- **State 3 enter** (`FUN_14012c310`) and removal (`FUN_14012ccb0`): every animal goes back to
+  wait, last first, and the pasture leaves the town's list.
+- **Event 4** (`FUN_14012ca10`, sent when building ends, `FUN_14010cad0`): the shelter points'
+  cells become plain ground.
+- **Room** (`FUN_14012da40`): area over AnimalDescription `+0x24` (cells per animal: 20 for
+  cattle).
+- **Window** (PastureUI, `0x140165a20`):
+  - The kind list (`FUN_1400ba110`, `Command::SetCrop`) is only enabled while the pasture is
+    empty. Choosing the first kind switches the work on. The limit becomes the room.
+  - The slider (`FUN_1400ba2f0`, `Command::SetLimit`).
+  - Buttons (`FUN_14012cf30`, `Command::FieldAction`), each available per `FUN_14012d2a0`:
+    - 0 sends every animal to other pastures of the kind with room, the roomiest first;
+    - 1 sends half of them, rounded down;
+    - 2 switches the work on or off, making or removing it.
+- **Message 0** (`FUN_14012cbf0`, a herdsman's visit): a random animal is marked to breed.
+
+### Livestock
+
+- **LivestockDescription** (`FUN_140129430`): product (eggs, wool; none for cattle), every
+  `+0x2c` × 300 s, stock slot.
+- **LivestockComponent**: `+0x28` pasture, `+0x30` timer.
+  - Without a pasture it waits in the town's list (`+0x80`, activation `FUN_140129140`).
+  - Its update (`FUN_140129020`) adds one product to its pasture per interval.
+  - Joining a pasture (`FUN_140129190`) ends the wild flag and keeps it to the pasture's area
+    (`FUN_140129570`). Leaving one makes it wild again where it stands (`FUN_14010b3a0`).
+- **Breeding** (AnimalComponent's update `FUN_14010b8f0`): a male marked to breed and past its
+  grown age (`+0x30`) waits `(RandFloat × breed + breed)` years (`+0x34`, 0.6 for cattle).
+  Then young are due (`0x200000`).
+- **Young** (`FUN_14012db40`):
+  - Placed next to the parent, or anywhere in the pasture.
+  - Male with a chance equal to the herd's share of females (always the first).
+  - Turned `RandFloatTol × 180`, age 0 (any age under a year without a parent).
+- **Starting livestock** (`FUN_1400a5fe0`): for each livestock pick (Easy: one), eight
+  animals.
+  - Placed around the start point plus the profile's offset (`+0xec`, `+0xf0`), spread
+    `+0xf4`.
+  - Males and females in turn, from a random first; any age under a year.
+  - Wild, they wait for a pasture.
+
+### The herdsmen's work (vtable `0x140167bc0`)
+
+Slot `+0x20` (`FUN_1400f7840`), after the AutoPickup offers:
+
+1. Over the most workers, or with the stock at its limit, "not now".
+2. Over the limit: the oldest animal past its grown age that no one has taken
+   (`FUN_14012d820`) is culled with `FUN_1400c1370`. The herdsman walks next to it, works 4 s,
+   removes it, and leaves its raw materials (beef, leather) where it stood.
+3. Else the products' pickups at the shelter are offered (a second nested round of offers;
+   `Jobs::try_one` now loops while a resume answers `NESTED`).
+4. Else the herdsman walks to a random cell of the pasture and tends (`FUN_1400c0570`), sending
+   message 0.
+
+The other slots:
+
+- Complete (`FUN_1400f7820`) leaves the workers' set.
+- Fail (`FUN_1400f7790`) also frees a culled animal.
+- Cancel (`FUN_1400f8060`) and refresh (`FUN_1400f7560`) work as the gatherer's do.
+
+Not ported:
+
+- The idle search for a workplace. Herdsmen hired before a pasture can take them stay
+  without one.
+- Status icons, the tracker and the production counter.
+- The pasture's DiseaseComponent (`Pasture_disease`), open with the crop fields' disease.
+- The debug fill `FUN_140060bf0`.
+
+Verification:
+
+- `placement_tool::construction_tests::herdsmen_keep_a_pasture`: Easy start, 10 × 10 pasture.
+  It is built and takes 5 of the 8 starting cattle. A visit marks a breeder, young are born,
+  and with the limit at 2 the herdsman culls down to it, leaving meat.
+- `a_pasture_gathers_eggs`: hens in a pasture lay egg piles at the shelter, which are hauled
+  to storage.
+

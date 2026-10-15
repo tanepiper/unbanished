@@ -114,6 +114,8 @@ pub enum Command {
     SetCrop { entity: usize, crop: Option<usize> },
     /// The field's buttons (`FUN_140120190`): 0 plant now, 1 harvest now, 2 farming on/off.
     FieldAction { entity: usize, action: i32 },
+    /// PastureUI's slider (slot `+0x48`, `FUN_1400ba2f0`): the most animals the pasture keeps.
+    SetLimit { entity: usize, limit: i32 },
 }
 
 /// The town manager's workplace and residence registries and every WorkPlaceComponent.
@@ -499,8 +501,8 @@ impl Workforce {
                     self.set_max_workers(workers, entity, max);
                 }
             }
-            // Handled by the crop field (`crate::farm`).
-            Command::SetCrop { .. } | Command::FieldAction { .. } => {}
+            // Handled by the crop field, orchard and pasture (`crate::farm`, `crate::pasture`).
+            Command::SetCrop { .. } | Command::FieldAction { .. } | Command::SetLimit { .. } => {}
         }
     }
 }

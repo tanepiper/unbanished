@@ -311,6 +311,7 @@ impl Agents {
                 calendar: c.calendar,
                 year: c.year,
                 fruits: &mut c.fruits,
+                wildlife: &mut *env.wildlife,
                 keep_piles: &mut c.keep_piles,
                 site_list: &mut c.site_list,
                 events: Vec::new(),
@@ -323,6 +324,7 @@ impl Agents {
                 removed: Vec::new(),
                 animation_events: Vec::new(),
                 produce_resume: None,
+                pasture_stage: false,
             },
             &mut c.jobs,
         )
@@ -367,19 +369,33 @@ impl Agents {
         for command in commands {
             match command {
                 crate::professions::Command::SetCrop { entity, crop } => {
-                    if sim.sites.get(&entity).is_some_and(|s| s.orchard.is_some()) {
+                    if sim.wildlife.pastures.contains_key(&entity) {
+                        // The kind's list is only enabled while the pasture is empty
+                        // (`FUN_1400ba320`).
+                        if sim.wildlife.pastures[&entity].livestock.is_empty() {
+                            sim.set_pasture_kind(jobs, entity, crop);
+                        }
+                    } else if sim.sites.get(&entity).is_some_and(|s| s.orchard.is_some()) {
                         sim.set_orchard_tree(entity, crop);
                     } else {
                         sim.set_crop(entity, crop);
                     }
+                    jobs.drain(&mut sim);
                     continue;
                 }
                 crate::professions::Command::FieldAction { entity, action } => {
-                    if sim.sites.get(&entity).is_some_and(|s| s.orchard.is_some()) {
+                    if sim.wildlife.pastures.contains_key(&entity) {
+                        sim.pasture_action(jobs, entity, action);
+                    } else if sim.sites.get(&entity).is_some_and(|s| s.orchard.is_some()) {
                         sim.orchard_action(entity, action);
                     } else {
                         sim.field_action(entity, action);
                     }
+                    jobs.drain(&mut sim);
+                    continue;
+                }
+                crate::professions::Command::SetLimit { entity, limit } => {
+                    sim.set_pasture_limit(entity, limit);
                     continue;
                 }
                 _ => {}
@@ -1065,6 +1081,12 @@ impl Agents {
                     if let Some(a) = m.entity {
                         env.wildlife.kill(a);
                     }
+                }
+                Component::Pasture => {
+                    let Some(e) = m.entity else { continue };
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    sim.pasture_message(e, m.message);
+                    jobs.drain(&mut sim);
                 }
                 Component::Happiness => {
                     let Some(e) = m.entity else { continue };

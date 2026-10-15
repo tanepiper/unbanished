@@ -33,15 +33,15 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **Destroy** | every building | missing (demolition) |
 | **CropField** | fields | yes ([FARMING.md](FARMING.md); crop disease open) |
 | **Orchard**, **Fruit** | orchards | yes ([FARMING.md](FARMING.md)) |
-| **Pasture**, **Livestock** | pastures, animals | missing |
-| **Herd**, **Population**, **WildAnimal**, **Animal** | deer | yes (`wildlife.rs`; livestock breeding with pastures) |
+| **Pasture**, **Livestock** | pastures, animals | yes ([FARMING.md](FARMING.md); breeding, culling, products, starting livestock) |
+| **Herd**, **Population**, **WildAnimal**, **Animal** | deer, livestock | yes (`wildlife.rs`) |
 | ResourceProduce subtype **Herbalist** (gather) | gatherer's shelter, herbalist | yes (`herbalist.rs`) |
 | ResourceProduce subtype **Forester** | forester's lodge | yes (`forester.rs`; toggle buttons not wired) |
 | ResourceProduce subtype **Fishing** | fisherman's dock | yes (`fishing.rs`, map layer 8) |
 | ResourceProduce subtype **Hunt** | hunter's lodge | yes (`hunt.rs`, HuntAnimal, RemoveAnimal) |
 | **AutoPickup** | gatherers, hunters, foresters | yes |
 | **AbsorbResource**, **StorageDisplay** | fields, StorageYard | missing |
-| **MultiObject**, **Terraform**, **Floor** | bridges, tunnels, fences, dock | missing |
+| **MultiObject**, **Terraform**, **Floor** | bridges, tunnels, fences, dock | MultiObject for fenced pastures (parts, events, removal); Terraform, Floor missing |
 | **Decal**, **Particle** | roads, footprints, smoke | missing |
 | **Tracker**, **Value** | workplaces, livestock | missing (Town Info graphs, production counters) |
 | **Tornado** | Tornado | missing |
@@ -81,7 +81,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Roads (dirt, stone), Remove Roads | no |
 | Bridges, tunnels (drag placement, terraform) | no |
 | Fields, orchards, pastures, storage yard (drag areas) | placement only (CreateDrag parsed) |
-| Fences, cemetery (CreateFenced) | no |
+| Fences, cemetery (CreateFenced) | placement (`place_fenced`); the drag tool is not ported |
 | Demolition (Remove Buildings, DestroyUI) | no |
 | Residence, upgrade, market, trade, field crop selection windows | no |
 | Town Info, Production/Population graphs | no |

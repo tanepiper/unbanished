@@ -72,6 +72,8 @@ pub enum Component {
     /// OrchardComponent's message slot (`FUN_1400522f0`): 0 planted, 1 picked, 2 tended; `a`
     /// the tree slot.
     Orchard,
+    /// PastureComponent's message slot (`FUN_14012cbf0`): 0 a rancher's visit.
+    Pasture,
 }
 
 /// A message an action delivered (slot `+0x78` of the receiving component). The owner

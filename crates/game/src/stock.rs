@@ -17,6 +17,8 @@ pub struct RawMaterial {
     pub preferred: bool,
     /// `+0x4c`: a crop field leaves a pile on every this-many cells (`FUN_14011f7e0`).
     pub pile_spacing: i32,
+    /// `+0x40`: the size of a pasture's product pile (`FUN_14012bcb0`).
+    pub pile_amount: i32,
 }
 
 /// StorageComponent's 16-byte entry at `+0x28`: template, quantity, reserved quantity.

@@ -97,6 +97,8 @@ pub struct Sim<'s, 't> {
     pub calendar: f32,
     pub year: u32,
     pub fruits: &'s mut BTreeMap<usize, crate::orchard::Fruit>,
+    /// The animals (livestock and their pastures).
+    pub wildlife: &'s mut crate::wildlife::Wildlife,
     pub keep_piles: &'s mut BTreeMap<usize, bool>,
     pub site_list: &'s mut Vec<usize>,
     pub events: Vec<JobEvent>,
@@ -113,6 +115,8 @@ pub struct Sim<'s, 't> {
     pub offers_again: bool,
     /// A ConsumeProduce try waiting on its pile offers ([`WorkHost::resume`]).
     pub(crate) produce_resume: Option<crate::produce::ProduceResume>,
+    /// A pasture try waiting on its product pickups' offers ([`Sim::pasture_try`]).
+    pub(crate) pasture_stage: bool,
 }
 
 /// `FUN_14012e950`: a pile's work category mask from its material's flags.
@@ -238,16 +242,35 @@ impl Sim<'_, '_> {
         ]
     }
 
-    /// `FUN_1401282f0(interact, 1, i)`: build point `i` in the world.
+    /// The entity, then its MultiObject parts: whose InteractComponents hold its points (the
+    /// children `FUN_140128540` and `FUN_1401282f0` count on).
+    fn interact_entities(&self, entity: usize) -> Vec<usize> {
+        let mut out = vec![entity];
+        if let Some(site) = self.sites.get(&entity) {
+            out.extend(site.parts.iter().copied());
+        }
+        out
+    }
+
+    /// `FUN_1401282f0(interact, 1, i)`: build point `i` in the world (the entity's own, then
+    /// its parts').
     fn build_point(&self, entity: usize, i: usize) -> [f32; 3] {
-        let t = &self.templates[self.placed[entity].template];
-        self.world_point(entity, t.build_points.get(i).copied().unwrap_or_default())
+        let mut i = i;
+        for x in self.interact_entities(entity) {
+            let points = &self.templates[self.placed[x].template].build_points;
+            if i < points.len() {
+                return self.world_point(x, points[i]);
+            }
+            i -= points.len();
+        }
+        self.world_point(entity, [0.0; 3])
     }
 
     fn build_point_count(&self, entity: usize) -> usize {
-        self.templates[self.placed[entity].template]
-            .build_points
-            .len()
+        self.interact_entities(entity)
+            .iter()
+            .map(|&x| self.templates[self.placed[x].template].build_points.len())
+            .sum()
     }
 
     /// The point `FUN_1400c7e70` faces: the model's position, else the map-rectangle centre.
@@ -746,8 +769,17 @@ impl Sim<'_, '_> {
             return;
         }
         self.remove_work(jobs, e);
-        // The components' removal slots (`FUN_14004b380`).
+        // The components' removal slots (`FUN_14004b380`, `FUN_14012ccb0`).
         self.happiness_leave(e);
+        if self.wildlife.pastures.contains_key(&e) {
+            self.pasture_leave(e);
+            self.wildlife.pastures.remove(&e);
+        }
+        // MultiObjectComponent's (`FUN_14012ac90`): its parts go too, lifting their stamps.
+        for part in self.sites[&e].parts.clone() {
+            self.unstamp(part);
+            self.placed[part].alive = false;
+        }
         self.sites.remove(&e);
         self.site_list.retain(|&s| s != e);
         let n = self.size as i32;
@@ -903,9 +935,25 @@ impl Callbacks for Sim<'_, '_> {
                 true
             }
             Callback::ClearEnter2 => {
-                // Entity flag 1: the MapComponent stamps the footprint.
+                // Entity event 1: the MapComponent stamps the footprint; the MultiObject passes
+                // it on to the parts (`FUN_14012a960`).
                 self.stamp(e);
+                for part in self.sites[&e].parts.clone() {
+                    self.stamp(part);
+                }
                 true
+            }
+            Callback::PastureEnter2 => {
+                self.pasture_enter2(e);
+                false
+            }
+            Callback::PastureUpdate2 => {
+                self.pasture_update2(jobs, e);
+                true
+            }
+            Callback::PastureEnter3 => {
+                self.pasture_leave(e);
+                false
             }
             Callback::WorkPlaceEnter0 => {
                 let builder = self.professions.builder;
@@ -1037,6 +1085,10 @@ impl Callbacks for Sim<'_, '_> {
             }
             Callback::BuildExit8 => {
                 self.site_list.retain(|&s| s != e);
+                // Entity event 4 (`FUN_1400c8040`): the pasture's shelter points are cleared.
+                if self.wildlife.pastures.contains_key(&e) {
+                    self.pasture_built(e);
+                }
                 true
             }
             Callback::BuildFinish => {
@@ -1218,7 +1270,8 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Herbalist(h)
             | WorkKind::Forester(h)
             | WorkKind::Hunt(h)
-            | WorkKind::TendArea(h) => h.workers.iter().copied(),
+            | WorkKind::TendArea(h)
+            | WorkKind::Pasture(h) => h.workers.iter().copied(),
             // `FUN_1400f4c90`: the worker no longer holds the task.
             WorkKind::Location(l) => {
                 if let Some(c) = l.worker {
@@ -1259,7 +1312,8 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Herbalist(h)
             | WorkKind::Forester(h)
             | WorkKind::Hunt(h)
-            | WorkKind::TendArea(h) => {
+            | WorkKind::TendArea(h)
+            | WorkKind::Pasture(h) => {
                 for c in &gone {
                     h.workers.remove(c);
                 }
@@ -1319,7 +1373,11 @@ impl WorkHost for Sim<'_, '_> {
                 }
                 self.harvest_try(work, c)
             }
-            WorkKind::Herbalist(_) | WorkKind::Forester(_) | WorkKind::Hunt(_) => {
+            WorkKind::Herbalist(_)
+            | WorkKind::Forester(_)
+            | WorkKind::Hunt(_)
+            | WorkKind::Pasture(_) => {
+                self.pasture_stage = false;
                 let works: BTreeSet<i32> = self.piles.values().map(|p| p.work).collect();
                 if self.auto_pickup_offers(work.entity, |id| works.contains(&id)) {
                     return NESTED;
@@ -1346,6 +1404,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Hunt(_) => self.hunt_try(work, c),
             WorkKind::Harvest(_) => self.harvest_try(work, c),
             WorkKind::PickFruit(_) => self.pick_fruit_try(work, c),
+            WorkKind::Pasture(_) => self.pasture_try(work, c),
             _ => 1,
         }
     }
@@ -1387,11 +1446,12 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::PickFruit(_) => Self::pick_done(work, param, false),
             // `FUN_1400f4d20`: free for the next one; the work stays.
             WorkKind::Location(l) => l.worker = None,
-            // `FUN_1400f3860` / `FUN_1400f0370`.
+            // `FUN_1400f3860` / `FUN_1400f0370` / `FUN_1400f7820`.
             WorkKind::Herbalist(h)
             | WorkKind::Forester(h)
             | WorkKind::Hunt(h)
-            | WorkKind::TendArea(h) => {
+            | WorkKind::TendArea(h)
+            | WorkKind::Pasture(h) => {
                 h.workers.remove(&c);
             }
             WorkKind::Test(_) => {}
@@ -1432,6 +1492,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::PlantOrchard(_) => Self::plant_orchard_done(work, param),
             WorkKind::PickFruit(_) => Self::pick_done(work, param, true),
             WorkKind::Location(l) => l.worker = None,
+            WorkKind::Pasture(_) => self.pasture_fail(work, c, param),
             // `FUN_1400f3850` / `FUN_1400f0360`.
             WorkKind::Herbalist(h)
             | WorkKind::Forester(h)
@@ -1475,11 +1536,12 @@ impl WorkHost for Sim<'_, '_> {
                 | WorkKind::Harvest(_)
                 | WorkKind::PlantOrchard(_)
                 | WorkKind::PickFruit(_) => Self::area_workers(work).first().copied(),
-                // `FUN_1400f3fb0` / `FUN_1400f0d70`.
+                // `FUN_1400f3fb0` / `FUN_1400f0d70` / `FUN_1400f8060`.
                 WorkKind::Herbalist(h)
                 | WorkKind::Forester(h)
                 | WorkKind::Hunt(h)
-                | WorkKind::TendArea(h) => h.workers.first().copied(),
+                | WorkKind::TendArea(h)
+                | WorkKind::Pasture(h) => h.workers.first().copied(),
                 WorkKind::Produce(_) | WorkKind::Test(_) => None,
             };
             let Some(c) = next else { return };
@@ -1506,7 +1568,8 @@ impl WorkHost for Sim<'_, '_> {
                 WorkKind::Herbalist(h)
                 | WorkKind::Forester(h)
                 | WorkKind::Hunt(h)
-                | WorkKind::TendArea(h) => {
+                | WorkKind::TendArea(h)
+                | WorkKind::Pasture(h) => {
                     h.workers.remove(&c);
                 }
                 WorkKind::Fishing(fw) => {

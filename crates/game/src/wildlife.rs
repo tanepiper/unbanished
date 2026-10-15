@@ -8,6 +8,11 @@
 //! habitable cell of the block. A herd rests for a while, then moves to another habitable
 //! cell of its block, and regrows from time to time. Its animals wander within an area around
 //! their home, idle, grow up and die of old age.
+//!
+//! Livestock (LivestockComponent, vtable `0x140169fb0`) are animals too. Until a pasture of
+//! their kind takes them they roam like wild ones and wait in the town's list (`+0x80`); in a
+//! pasture they keep to its area, a breeding male has young, and products gather. See
+//! docs/FARMING.md "Pastures".
 
 use std::collections::BTreeMap;
 
@@ -27,6 +32,12 @@ use crate::terrain::{CellType, HeightGrid};
 pub const HUNTED: u32 = 0x100000;
 /// AnimalComponent `+0x20` flag: wild (`FUN_14010c8d0`).
 pub const WILD: u32 = 0x400000;
+/// AnimalComponent `+0x20` flag: young are due (`FUN_14010b8f0`); the pasture's update has
+/// them born (`FUN_14012c840`).
+pub const BIRTH: u32 = 0x200000;
+/// AnimalComponent `+0x20` flag: may breed (a rancher's visit marks a random animal of the
+/// pasture, `FUN_14012cbf0`).
+pub const BREEDER: u32 = 0x800000;
 /// The animal walk mask (`3999`).
 const ANIMAL_WALK: u32 = 0xf9f;
 /// `DAT_140178934`.
@@ -52,6 +63,34 @@ pub struct AnimalKind {
     /// The raw-material (pile) templates a hunted animal leaves.
     pub materials: Vec<usize>,
     pub character: CharacterDescription,
+}
+
+/// A livestock template's LivestockDescription, resolved: the product's pile template, every
+/// `interval` × 300 s, and the stock slot.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct LivestockKind {
+    pub product: Option<usize>,
+    pub interval: f32,
+    pub group: i32,
+}
+
+/// LivestockComponent: `+0x28` the pasture (entity), `+0x30` towards the next product.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Livestock {
+    pub pasture: Option<usize>,
+    pub timer: i64,
+}
+
+/// PastureComponent's livestock side: `+0x28` the kind (animal template), `+0x30` its animals
+/// in joining order, `+0x40` the most it keeps (the window's slider), `+0x44` products
+/// gathered; with the MapComponent's area (x, y, width, height).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Pasture {
+    pub kind: Option<usize>,
+    pub livestock: Vec<usize>,
+    pub limit: i32,
+    pub produced: i32,
+    pub area: [i16; 4],
 }
 
 /// PopulationComponent.
@@ -109,8 +148,10 @@ pub struct Animal {
     /// `+0x44`, `+0x48`: age and lifespan (years).
     pub age: f32,
     pub life: f32,
-    /// `+0x50`: livestock breeding clock (not used by wild animals).
+    /// `+0x50`: until a breeding male's young (livestock only).
     pub breed: i64,
+    /// LivestockComponent.
+    pub livestock: Option<Livestock>,
     /// The model variant and mesh.
     pub variant: usize,
     pub mesh: usize,
@@ -144,6 +185,13 @@ pub struct Wildlife {
     /// Entities queued for removal, in order.
     pub dying: Vec<usize>,
     kinds: BTreeMap<usize, Kind>,
+    /// LivestockDescriptions by animal template.
+    pub livestock_kinds: BTreeMap<usize, LivestockKind>,
+    /// The town's livestock without a pasture (`+0x80`), in order.
+    pub unassigned: Vec<usize>,
+    /// PastureComponents by entity, and the town's list of them (`+0x90`).
+    pub pastures: BTreeMap<usize, Pasture>,
+    pub pasture_list: Vec<usize>,
 }
 
 /// The town state wildlife reads and writes.
@@ -299,7 +347,34 @@ impl Wildlife {
         if let Some(h) = animal.herd.take() {
             self.herds[h].animals.retain(|&x| x != a);
         }
+        // LivestockComponent's removal slot (`FUN_1401290d0`).
+        if let Some(l) = animal.livestock {
+            match l.pasture {
+                None => self.unassigned.retain(|&x| x != a),
+                Some(p) => {
+                    if let Some(p) = self.pastures.get_mut(&p) {
+                        p.livestock.retain(|&x| x != a);
+                    }
+                }
+            }
+        }
         self.dying.push(a);
+    }
+
+    /// `FUN_14012da40`: the animals a pasture has room for, its area over the kind's space
+    /// per animal (none without a kind).
+    pub fn capacity(&self, p: usize) -> i32 {
+        let Some(pasture) = self.pastures.get(&p) else {
+            return 0;
+        };
+        let Some(kind) = pasture.kind else { return 0 };
+        let space = self.animal_kinds.get(&kind).map_or(0, |k| k.desc.space);
+        let area = pasture.area[2] as i32 * pasture.area[3] as i32;
+        // Deviation: a zero space would divide by zero in the original.
+        if space == 0 {
+            return 0;
+        }
+        area / space
     }
 
     /// The animation group of an animal.
@@ -328,6 +403,14 @@ impl Wild<'_, '_> {
     /// `FUN_1400c8bf0` + `FUN_1400c9d70` for an entity without a map footprint: a placed
     /// entry registered in its template's bucket.
     fn create(&mut self, template: usize, position: [f32; 3]) -> usize {
+        let id = self.place(template, position);
+        let handle = self.scheduler.register(id, self.templates[template].bucket);
+        debug_assert_eq!(handle, id);
+        id
+    }
+
+    /// The placed entry of [`Wild::create`] alone (its owner registers it in the buckets).
+    fn place(&mut self, template: usize, position: [f32; 3]) -> usize {
         let id = self.placed.len();
         let cell = self.cell_of(position);
         let n = self.n();
@@ -348,8 +431,6 @@ impl Wild<'_, '_> {
             animation: None,
             scale: [1.0; 4],
         });
-        let handle = self.scheduler.register(id, self.templates[template].bucket);
-        debug_assert_eq!(handle, id);
         id
     }
 
@@ -527,7 +608,14 @@ impl Wild<'_, '_> {
         yaw: f32,
         male: bool,
     ) -> Option<usize> {
-        let kind = self.wildlife.animal_kinds.get(&template)?.clone();
+        let variant = self.pick_variant(template)?;
+        self.insert_animal(template, variant, position, yaw, male)
+    }
+
+    /// `FUN_1400c8bf0`'s ModelComponent: the variant (random when the model says so) and its
+    /// mesh.
+    fn pick_variant(&mut self, template: usize) -> Option<(usize, usize)> {
+        self.wildlife.animal_kinds.get(&template)?;
         let t = &self.templates[template];
         let (mut variant, mut mesh) = (0usize, 0usize);
         if let Some(m) = &t.model {
@@ -536,6 +624,22 @@ impl Wild<'_, '_> {
                 variant = self.rng.rand_below(m.variants.len() as u32) as usize;
             }
             mesh = m.mesh.max(0) as usize;
+        }
+        Some((variant, mesh))
+    }
+
+    /// The animal of [`Wild::new_animal`] with its variant chosen (`FUN_14010c8d0`: placed,
+    /// turned, wild; a male takes the variant's second mesh).
+    fn insert_animal(
+        &mut self,
+        template: usize,
+        (variant, mut mesh): (usize, usize),
+        position: [f32; 3],
+        yaw: f32,
+        male: bool,
+    ) -> Option<usize> {
+        let kind = self.wildlife.animal_kinds.get(&template)?.clone();
+        if let Some(m) = &self.templates[template].model {
             if male && m.variants.get(variant).is_some_and(|v| v.meshes.len() > 1) {
                 mesh = 1;
             }
@@ -557,6 +661,11 @@ impl Wild<'_, '_> {
                 age: 0.0,
                 life: 0.0,
                 breed: 0,
+                livestock: self
+                    .wildlife
+                    .livestock_kinds
+                    .contains_key(&template)
+                    .then(Livestock::default),
                 variant,
                 mesh,
                 scale: 1.0,
@@ -581,9 +690,18 @@ impl Wild<'_, '_> {
     /// the activation (`FUN_14010c0f0`: home where it stands, its area around it, then the
     /// scheduled update with no time).
     fn register_animal(&mut self, a: usize) {
+        self.register_animal_in(a, true);
+    }
+
+    /// [`Wild::register_animal`]; without `buckets` the owner registers the entity.
+    fn register_animal_in(&mut self, a: usize, buckets: bool) {
         let template = self.wildlife.animals[&a].template;
         let position = self.wildlife.animals[&a].character.position;
-        let e = self.create(template, position);
+        let e = if buckets {
+            self.create(template, position)
+        } else {
+            self.place(template, position)
+        };
         debug_assert_eq!(e, a);
         self.wildlife.kinds.insert(a, Kind::Animal);
         let d = self.wildlife.animal_kinds[&template].desc.clone();
@@ -595,8 +713,14 @@ impl Wild<'_, '_> {
         if animal.flags & WILD != 0 {
             animal.home = cell;
             animal.area = area_around(n, cell, d.area);
+            self.update_animal(a, 0);
         }
-        self.update_animal(a, 0);
+        // LivestockComponent's activation (`FUN_140129140`): without a pasture it waits in the
+        // town's list.
+        let animal = &self.wildlife.animals[&a];
+        if animal.livestock.is_some_and(|l| l.pasture.is_none()) {
+            self.wildlife.unassigned.push(a);
+        }
     }
 
     /// `FUN_14010c7f0`: the model grows from a third to full size by the adult age.
@@ -615,7 +739,10 @@ impl Wild<'_, '_> {
         match self.wildlife.kinds.get(&e).copied() {
             Some(Kind::Population(p)) => self.update_population(p, elapsed),
             Some(Kind::Herd(h)) => self.update_herd(h, elapsed),
-            Some(Kind::Animal) => self.update_animal(e, elapsed),
+            Some(Kind::Animal) => {
+                self.update_animal(e, elapsed);
+                self.update_livestock(e, elapsed);
+            }
             None => {}
         }
     }
@@ -726,8 +853,23 @@ impl Wild<'_, '_> {
             self.kill(a);
             return;
         }
-        // Not ported: livestock breeding (`+0x40` with flag `0x800000` and without
-        // `0x200000`); wild animals never have it.
+        // A breeding male: once grown, young every `breed` years and up to as much again.
+        let animal = self.wildlife.animals.get_mut(&a).unwrap();
+        if animal.male && animal.flags & BIRTH == 0 && animal.flags & BREEDER != 0 {
+            if animal.breed != 0 || animal.age <= d.adult {
+                if 0 < animal.breed {
+                    animal.breed -= dt;
+                    if animal.breed <= 0 {
+                        // `FUN_14011de20(.., 0x200000, 0)`.
+                        animal.flags |= BIRTH;
+                        animal.breed = 0;
+                    }
+                }
+            } else {
+                let years = self.rng.rand_float() * d.breed + d.breed;
+                self.wildlife.animals.get_mut(&a).unwrap().breed = ticks(years * 3600.0);
+            }
+        }
         self.rescale(a);
         let n = self.n();
         let animal = self.wildlife.animals.get_mut(&a).unwrap();
@@ -862,6 +1004,281 @@ impl Wild<'_, '_> {
         let animal = self.wildlife.animals.get_mut(&a).unwrap();
         animal.home = new;
         animal.area = area_around(n, new, d.area);
+    }
+
+    /// LivestockComponent's scheduled update (`FUN_140129020`): in a pasture, an animal with a
+    /// product adds one to the pasture's count every `interval` × 300 s.
+    fn update_livestock(&mut self, a: usize, dt: i64) {
+        let Some(animal) = self.wildlife.animals.get(&a) else {
+            return;
+        };
+        let Some(Livestock {
+            pasture: Some(p),
+            timer,
+        }) = animal.livestock
+        else {
+            return;
+        };
+        let Some(kind) = self.wildlife.livestock_kinds.get(&animal.template) else {
+            return;
+        };
+        if kind.product.is_none() {
+            return;
+        }
+        let period = ticks(kind.interval * PERIOD);
+        let mut timer = timer + dt;
+        let mut products = 0;
+        // Deviation: a zero interval would never leave the loop in the original.
+        while 0 < period && period < timer {
+            products += 1;
+            timer -= period;
+        }
+        if let Some(l) = self
+            .wildlife
+            .animals
+            .get_mut(&a)
+            .unwrap()
+            .livestock
+            .as_mut()
+        {
+            l.timer = timer;
+        }
+        if let Some(pasture) = self.wildlife.pastures.get_mut(&p) {
+            pasture.produced += products;
+        }
+    }
+
+    /// `FUN_140129190`: the animal joins pasture `to` (or the town's list) and leaves its old
+    /// one; leaving a pasture it turns wild, joining one it keeps to its area.
+    pub fn assign(&mut self, a: usize, to: Option<usize>) {
+        let Some(l) = self.wildlife.animals.get(&a).and_then(|x| x.livestock) else {
+            return;
+        };
+        if l.pasture == to {
+            return;
+        }
+        match l.pasture {
+            None => self.wildlife.unassigned.retain(|&x| x != a),
+            Some(p) => {
+                if let Some(p) = self.wildlife.pastures.get_mut(&p) {
+                    p.livestock.retain(|&x| x != a);
+                }
+                self.turn_wild(a);
+            }
+        }
+        if let Some(l) = self
+            .wildlife
+            .animals
+            .get_mut(&a)
+            .and_then(|x| x.livestock.as_mut())
+        {
+            l.pasture = to;
+        }
+        match to {
+            Some(p) => {
+                if let Some(pasture) = self.wildlife.pastures.get_mut(&p) {
+                    pasture.livestock.push(a);
+                }
+                self.pen(a);
+            }
+            None => self.wildlife.unassigned.push(a),
+        }
+    }
+
+    /// `FUN_14010b3a0`: wild again, at home where it stands with an area around it, then the
+    /// scheduled update with no time.
+    fn turn_wild(&mut self, a: usize) {
+        let n = self.n();
+        let Some(animal) = self.wildlife.animals.get(&a) else {
+            return;
+        };
+        let cell = self.cell_of(animal.character.position);
+        let size = self.wildlife.animal_kinds[&animal.template].desc.area;
+        let animal = self.wildlife.animals.get_mut(&a).unwrap();
+        animal.flags |= WILD;
+        animal.home = cell;
+        animal.area = area_around(n, cell, size);
+        self.update_animal(a, 0);
+    }
+
+    /// `FUN_140129570`: no longer wild, the animal keeps to its pasture's area.
+    fn pen(&mut self, a: usize) {
+        let Some(p) = self
+            .wildlife
+            .animals
+            .get(&a)
+            .and_then(|x| x.livestock)
+            .and_then(|l| l.pasture)
+        else {
+            return;
+        };
+        let Some(area) = self.wildlife.pastures.get(&p).map(|x| x.area) else {
+            return;
+        };
+        let animal = self.wildlife.animals.get_mut(&a).unwrap();
+        animal.flags &= !WILD;
+        animal.area = area;
+    }
+
+    /// `FUN_14012c610`: a pasture with room takes the waiting livestock of its kind, in the
+    /// town list's order, until full.
+    pub fn fill(&mut self, p: usize) {
+        if self.wildlife.unassigned.is_empty() {
+            return;
+        }
+        let cap = self.wildlife.capacity(p);
+        let Some(pasture) = self.wildlife.pastures.get(&p) else {
+            return;
+        };
+        if cap <= pasture.livestock.len() as i32 {
+            return;
+        }
+        let kind = pasture.kind;
+        let waiting: Vec<usize> = self
+            .wildlife
+            .unassigned
+            .iter()
+            .copied()
+            .filter(|a| Some(self.wildlife.animals[a].template) == kind)
+            .collect();
+        for a in waiting {
+            self.assign(a, Some(p));
+            if cap <= self.wildlife.pastures[&p].livestock.len() as i32 {
+                break;
+            }
+        }
+    }
+
+    /// `FUN_14012c840`: each animal with young due has them, while the pasture holds fewer
+    /// than three over its room (the animals born join the end of the list and are seen too).
+    /// Born animals are registered by the caller.
+    pub fn births(&mut self, p: usize) -> Vec<usize> {
+        let cap = self.wildlife.capacity(p);
+        let mut born = Vec::new();
+        let mut i = 0;
+        while i < self
+            .wildlife
+            .pastures
+            .get(&p)
+            .map_or(0, |x| x.livestock.len())
+        {
+            let a = self.wildlife.pastures[&p].livestock[i];
+            let animal = self.wildlife.animals.get_mut(&a).unwrap();
+            if animal.flags & BIRTH != 0 {
+                animal.flags &= !BIRTH;
+                if (self.wildlife.pastures[&p].livestock.len() as i32) < cap + 3 {
+                    born.extend(self.give_birth(p, Some(a), false));
+                }
+            }
+            i += 1;
+        }
+        born
+    }
+
+    /// `FUN_14012db40`: a young animal of the pasture's kind next to its parent (or anywhere in
+    /// the pasture, any age under a year, without one); male more likely the more females there
+    /// are. With `buckets` it joins the entity manager's buckets here, else the caller's.
+    pub fn give_birth(&mut self, p: usize, parent: Option<usize>, buckets: bool) -> Option<usize> {
+        let pasture = self.wildlife.pastures.get(&p)?;
+        let kind = pasture.kind?;
+        let area = pasture.area;
+        let variant = self.pick_variant(kind)?;
+        let position = match parent.and_then(|a| self.wildlife.animals.get(&a)) {
+            Some(parent) => {
+                let q = parent.character.position;
+                let dy = self.rng.rand_float_tol();
+                let dx = self.rng.rand_float_tol();
+                [q[0] + dx, q[1] + dy, q[2]]
+            }
+            None => {
+                let n = self.n();
+                let rx = self.rng.rand_below(area[2] as u32) as i32;
+                let ry = self.rng.rand_below(area[3] as u32) as i32;
+                let dy = self.rng.rand_float_tol();
+                let dx = self.rng.rand_float_tol();
+                let cell = n * (area[1] as i32 + ry) + area[0] as i32 + rx;
+                let g = self.ground(cell);
+                [g[0] + dx, g[1] + dy, g[2]]
+            }
+        };
+        let herd = &self.wildlife.pastures[&p].livestock;
+        let females = herd
+            .iter()
+            .filter(|a| self.wildlife.animals.get(a).is_some_and(|x| !x.male))
+            .count();
+        let male = if herd.is_empty() {
+            true
+        } else {
+            let share = females as f32 / herd.len() as f32;
+            share > self.rng.rand_float()
+        };
+        let yaw = self.rng.rand_float_tol() * 180.0;
+        let a = self.insert_animal(kind, variant, position, yaw, male)?;
+        self.assign(a, Some(p));
+        let age = if parent.is_none() {
+            self.rng.rand_float()
+        } else {
+            0.0
+        };
+        self.wildlife.animals.get_mut(&a).unwrap().age = age;
+        self.rescale(a);
+        self.register_animal_in(a, buckets);
+        Some(a)
+    }
+
+    /// `FUN_1400a5fe0`: the starting livestock of a kind, `count` animals around `at` (`spread`
+    /// either way), males and females in turn from a random first; any age under a year. They
+    /// wait, wild, for a pasture.
+    pub fn start_livestock(&mut self, template: usize, count: i32, at: [f32; 3], spread: f32) {
+        let mut male = self.rng.rand_below(2) == 0;
+        for _ in 0..count {
+            let Some(variant) = self.pick_variant(template) else {
+                return;
+            };
+            let dy = self.rng.rand_float_tol();
+            let dx = self.rng.rand_float_tol();
+            let (x, y) = (at[0] + dx * spread, at[1] + dy * spread);
+            // The CharacterComponent stands on the ground (the original passes `at`'s height).
+            let mut normal = [0.0; 3];
+            let position = [x, y, self.terrain.ground(x, y, &mut normal)];
+            let yaw = self.rng.rand_float_tol() * 180.0;
+            let Some(a) = self.insert_animal(template, variant, position, yaw, male) else {
+                return;
+            };
+            male = !male;
+            self.wildlife.animals.get_mut(&a).unwrap().age = self.rng.rand_float();
+            self.rescale(a);
+            self.register_animal(a);
+        }
+    }
+
+    /// The pasture's message 0 (`FUN_14012cbf0`, a rancher's visit): a random animal of it may
+    /// breed.
+    pub fn mark_breeder(&mut self, p: usize) {
+        let Some(herd) = self.wildlife.pastures.get(&p).map(|x| x.livestock.clone()) else {
+            return;
+        };
+        if herd.is_empty() {
+            return;
+        }
+        let r = self.rng.rand_below(herd.len() as u32) as usize;
+        if let Some(animal) = self.wildlife.animals.get_mut(&herd[r]) {
+            animal.flags |= BREEDER;
+        }
+    }
+
+    /// `FUN_14012c310` (state 3) and the removal slot `FUN_14012ccb0`: every animal goes back
+    /// to the town's list, last first, and the pasture leaves the town's.
+    pub fn release(&mut self, p: usize) {
+        while let Some(a) = self
+            .wildlife
+            .pastures
+            .get(&p)
+            .and_then(|x| x.livestock.last().copied())
+        {
+            self.assign(a, None);
+        }
+        self.wildlife.pasture_list.retain(|&x| x != p);
     }
 
     /// The entity manager's removal of the queued animals (their components' removal slots).
