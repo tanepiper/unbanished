@@ -32,3 +32,25 @@ compare `imgdiff ui/main-menu.png OUT --resize --blur 3 --threshold 32 --compose
 - **Camera timing:** the camera sways (`angle += dt·11.25`, yaw `base + 2·cos(angle)`), so the
   port's capture time must match the original's time in the menu for a pixel-level camera
   comparison; layout differences above are larger than the sway.
+
+## New Game dialog (`ui/new-game`)
+
+Captured with the original at a lower PC resolution (UI larger in the 1384×868 frame). Defaults
+shown when the dialog opened: town name **Sevelockwell**, map seed **999518904**, terrain
+Mountains, size Small, climate Fair, disasters On, starting conditions Medium (the user had
+changed terrain/size before the capture). The description text under the combos is the Medium
+start condition's text.
+
+**Pending check — world generation for this seed:** the port's
+`banished --capture OUT --seed 999518904 --terrain Mountains --size 0 --view overview` shows a
+river entering at the north edge, a lake just south-west of the centre with the river leaving
+south, a second small lake to its east, and mountains on all sides. When the original game
+starts with these settings, its minimap/overview should show the same layout; record the result
+here.
+
+## Driving the original
+
+Mouse movement and hover reach the game through the Steam streaming client, but synthetic
+clicks and key presses from computer use are dropped (tried background clicks, held presses and
+foreground clicks with full-screen control). Real clicks from the user work. Until that changes,
+the user sets up a view and agents capture it in the background with `app_screenshot`.
