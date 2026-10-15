@@ -142,76 +142,141 @@ impl MenuCamera {
     }
 }
 
-/// Strategy camera over the terrain (z up), orbiting a ground target.
+/// The game camera (`Game +0xe0`, built by `FUN_14009da80(frustum, yaw 0, pitch -40,
+/// distance 25)` in `FUN_14009bfd0`, projected by `FUN_14009db30(40, 2, 512)`) and the part of
+/// the gameplay controller (`Game +0x120`) that drives it each frame (`FUN_140104390`).
+/// Angles are degrees in the original's convention: the camera faces
+/// `from_yaw_pitch(yaw, pitch)` (negative pitch looks down) from `target − facing × distance`.
+/// See docs/REFERENCE-OBSERVATIONS.md (start camera).
 #[derive(Clone, Copy)]
 pub struct Camera {
+    /// `+0x1c`: pivot on the ground plane (the original keeps its z at 0).
     pub target: Vec2,
+    /// `+0x28`, `+0x2c`, `+0x30`.
     pub yaw: f32,
     pub pitch: f32,
     pub distance: f32,
+    /// Controller `+0x3c`: zoom target (0 = take the camera's distance on the next update).
+    pub distance_target: f32,
+    /// Controller `+0x44`: pitch slider in 0..1 (PitchUp/PitchDown ±0.125; constructor
+    /// `FUN_140107a90` sets 0.75).
+    pub pitch_slider: f32,
+    /// Fixed views (map captures) skip the controller.
+    pub fixed: bool,
 }
 
+/// `DAT_1401788c4`, `DAT_140178918`: zoom range; `DAT_140178898`: distance per wheel step.
+const ZOOM_MIN: f32 = 20.0;
+const ZOOM_MAX: f32 = 130.0;
+const ZOOM_STEP: f32 = 5.0;
+
 impl Camera {
+    /// A whole-map view for captures (not an original camera).
     pub fn overview(terrain: &Terrain) -> Camera {
         Camera {
             target: Vec2::ZERO,
             yaw: 0.0,
-            pitch: 60f32.to_radians(),
+            pitch: -60.0,
             distance: terrain.size as f32 * 1.1,
+            distance_target: terrain.size as f32 * 1.1,
+            pitch_slider: 0.75,
+            fixed: true,
         }
     }
 
+    /// The camera a new game starts with.
     pub fn ground() -> Camera {
         Camera {
             target: Vec2::ZERO,
-            yaw: 0.5,
-            pitch: 40f32.to_radians(),
-            distance: 60.0,
+            yaw: 0.0,
+            pitch: -40.0,
+            distance: 25.0,
+            distance_target: 0.0,
+            pitch_slider: 0.75,
+            fixed: false,
         }
     }
 
-    pub fn focus(&self, terrain: &Terrain) -> Vec3 {
-        self.target
-            .extend(terrain.height_at(self.target.x, self.target.y).max(0.0))
+    pub fn focus(&self, _terrain: &Terrain) -> Vec3 {
+        self.target.extend(0.0)
     }
 
     pub fn eye(&self, terrain: &Terrain) -> Vec3 {
-        let (sy, cy) = self.yaw.sin_cos();
-        let (sp, cp) = self.pitch.sin_cos();
-        self.focus(terrain) + Vec3::new(-sy * cp, -cy * cp, sp) * self.distance
+        self.focus(terrain) - from_yaw_pitch(self.yaw, self.pitch) * self.distance
     }
 
     pub fn view_proj(&self, terrain: &Terrain, aspect: f32) -> Mat4 {
-        use glam::camera::rh::{proj::directx::perspective, view::look_at_mat4};
-        let proj = perspective(45f32.to_radians(), aspect, 0.5, self.distance * 4.0 + 100.0);
-        proj * look_at_mat4(self.eye(terrain), self.focus(terrain), Vec3::Z)
+        use glam::camera::rh::view::look_at_mat4;
+        projection(40.0, aspect, 2.0, 512.0)
+            * look_at_mat4(self.eye(terrain), self.focus(terrain), Vec3::Z)
     }
 
+    /// `FUN_140104390`'s zoom/pitch part, once per frame: the pitch target follows the zoom
+    /// (`f = (d − 20) / 110`, `pitch = (−65p − 85(1−p))·f + (−25p − 60(1−p))·(1−f)`), and the
+    /// camera eases 10% of the way to both. Then the pivot is clamped to
+    /// `± n/2 · clamp(1 − (distance − 100) / 150)`.
+    pub fn update(&mut self, terrain: &Terrain) {
+        if self.fixed {
+            return;
+        }
+        if self.distance_target == 0.0 {
+            self.distance_target = self.distance;
+        }
+        let p = self.pitch_slider;
+        let f = (self.distance_target - ZOOM_MIN) / 110.0;
+        let pitch_target =
+            (p * -65.0 - (1.0 - p) * 85.0) * f + (p * -25.0 - (1.0 - p) * 60.0) * (1.0 - f);
+        self.pitch = pitch_target * 0.1 + self.pitch * 0.9;
+        self.distance = self.distance * 0.9 + self.distance_target * 0.1;
+        self.clamp(terrain);
+    }
+
+    fn clamp(&mut self, terrain: &Terrain) {
+        let factor = (1.0 - (self.distance - 100.0) / 150.0).clamp(0.0, 1.0);
+        // Map cells `n` are half the terrain's cells.
+        let bound = (terrain.size / 2) as f32 * 0.5 * factor;
+        self.target = self.target.clamp(Vec2::splat(-bound), Vec2::splat(bound));
+    }
+
+    /// Ground-plane forward and right for the current yaw.
+    fn axes(&self) -> (Vec2, Vec2) {
+        let (s, c) = self.yaw.to_radians().sin_cos();
+        (Vec2::new(-s, c), Vec2::new(c, s))
+    }
+
+    /// Keyboard/edge movement. Deviation: the original moves `f·70 + (1−f)·12` cells per
+    /// second along its camera axes; the port keeps a per-event step.
     pub fn pan(&mut self, forward: f32, right: f32, terrain: &Terrain) {
-        let (sy, cy) = self.yaw.sin_cos();
+        let (fw, rt) = self.axes();
         let step = self.distance * 0.02;
-        self.target += Vec2::new(sy, cy) * forward * step + Vec2::new(cy, -sy) * right * step;
-        let half = terrain.size as f32 / 2.0;
-        self.target = self.target.clamp(Vec2::splat(-half), Vec2::splat(half));
+        self.target += fw * forward * step + rt * right * step;
+        self.clamp(terrain);
     }
 
     /// Pan opposite a screen-space drag, keeping the target in the camera's ground plane.
     pub fn pan_drag(&mut self, dx: f32, dy: f32, terrain: &Terrain) {
-        let (sy, cy) = self.yaw.sin_cos();
-        let right = Vec2::new(cy, -sy);
-        let forward = Vec2::new(sy, cy);
+        let (fw, rt) = self.axes();
         let scale = self.distance * 0.0015;
-        self.target += right * (-dx * scale) + forward * (dy * scale);
-        let half = terrain.size as f32 / 2.0;
-        self.target = self.target.clamp(Vec2::splat(-half), Vec2::splat(half));
+        self.target += rt * (-dx * scale) + fw * (dy * scale);
+        self.clamp(terrain);
     }
 
-    pub fn rotate(&mut self, dx: f32, dy: f32) {
-        self.yaw += dx * 0.005;
-        self.pitch = (self.pitch + dy * 0.005).clamp(10f32.to_radians(), 89f32.to_radians());
+    /// Rotate-button drag (`KeyMap` value 7 held): `yaw −= mouse Δx · 0.2`. The original has no
+    /// drag pitch; pitch follows the zoom and the PitchUp/PitchDown slider.
+    pub fn rotate(&mut self, dx: f32, _dy: f32) {
+        self.yaw -= dx * 0.2;
     }
 
+    /// Mouse wheel / ZoomIn / ZoomOut: the zoom target moves 5 (towards the ground for a positive
+    /// wheel) within 20..130.
     pub fn zoom(&mut self, steps: f32) {
-        self.distance = (self.distance * 0.9f32.powf(steps)).clamp(5.0, 2000.0);
+        if self.distance_target == 0.0 {
+            self.distance_target = self.distance;
+        }
+        // The original only looks at the wheel's sign: one step per update.
+        if steps != 0.0 {
+            self.distance_target =
+                (self.distance_target - steps.signum() * ZOOM_STEP).clamp(ZOOM_MIN, ZOOM_MAX);
+        }
     }
 }

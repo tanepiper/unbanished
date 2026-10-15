@@ -66,11 +66,28 @@ buttonOk@5.0`.
   edge and the barn door while others loiter, consistent with fetching tools and clothing
   first (activities 8 and 3). The port's citizens are clumped at the barn door 7 s in; compare
   the household spread (`MapGenerator +0x40`) and spawn positions at t = 0.
-- **Camera (open):** the original's start camera is higher and steeper (most of the start area
-  and the river in view); the port's starts lower and closer.
+- **Camera (fixed):** the port's camera now follows the original (`FUN_14009bfd0`
+  → `FUN_14009da80`: yaw 0, pitch −40, distance 25; controller `FUN_140104390` each frame:
+  zoom target ±5 per wheel step within 20–130, pitch target from zoom and the 0.75 pitch
+  slider, 10 % easing of both, pivot clamped to `± n/2 · clamp(1 − (d − 100)/150)`;
+  projection `FUN_14009db30(40, 2, 512)`). The reference frame was taken zoomed fully out;
+  the port zoomed out the same way (25 wheel steps) reproduces its framing: barn, hills,
+  citizens and lake overlap in a 50/50 blend, and the river is within a few pixels
+  (16:9 crop, MAE 16.7 vs 37 before).
+- **Forests and palette (open):** with the framing matched, the original's forests are darker
+  and denser (notably east of the river), and its colours are hazier; compare tree models,
+  LOD/billboard shading and fog.
 - **Trees (check):** the original's forests look denser and rounder from above; compare
   species/variant choice and density for this seed.
 - **Shadows (open):** as on the menu, none in the port.
+
+## Capture pitfalls
+
+- The PC's resolution sets the frame: at 16:9 inside the 16:10 stream window the reference has
+  black bars (45 px top and bottom at 1384×868). Crop it (`--crop-a 0,45,1384,778`) and capture
+  the port at 16:9 (`--capture-size 1384x778`).
+- Mask the original's open minimap and toolbar (`--ignore`) when they differ from the port.
+- Scripted wheel lists in zsh need `${=W}` (unquoted `$W` stays one argument).
 
 ## Driving the original
 
