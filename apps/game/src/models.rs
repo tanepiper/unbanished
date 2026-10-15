@@ -40,6 +40,8 @@ pub struct RangeData {
     pub ao: Option<ImageBuffer>,
     pub snow: Option<ImageBuffer>,
     pub rigid: [f32; 16],
+    /// `ModelSkinLayout` vertices blended by the instance's bone palette on the GPU.
+    pub skinned: bool,
 }
 
 /// A mesh (most detailed level) and the transforms of its instances.
@@ -47,8 +49,12 @@ pub struct ModelGroup {
     pub name: String,
     pub ranges: Vec<RangeData>,
     pub instances: Vec<[f32; 16]>,
+    /// One `MAX_BONES` palette per instance (skinned groups only).
+    pub skins: Vec<[f32; 16]>,
     bones: Vec<Bone>,
     animation_bone: Option<usize>,
+    /// The palette instances without their own pose use (the group pose or the bind pose).
+    default_palette: Vec<Transform>,
 }
 
 /// A placement plus its current animation pose. Rigid trees share mesh/texture assets while
@@ -62,14 +68,54 @@ struct ModelAsset {
     ranges: Vec<RangeData>,
     bones: Vec<Bone>,
     animation_bone: Option<usize>,
+    default_palette: Vec<Transform>,
+}
+
+impl ModelAsset {
+    fn into_group(self, name: String) -> ModelGroup {
+        ModelGroup {
+            name,
+            ranges: self.ranges,
+            instances: Vec::new(),
+            skins: Vec::new(),
+            bones: self.bones,
+            animation_bone: self.animation_bone,
+            default_palette: self.default_palette,
+        }
+    }
 }
 
 impl ModelGroup {
+    fn skinned(&self) -> bool {
+        self.ranges.iter().any(|r| r.skinned)
+    }
+
+    /// Set the instances: transforms, and for skinned meshes each instance's bone palette from
+    /// its own pose (`MeshInstance` nodes) or the group default.
+    fn set_instances(&mut self, instances: Vec<ModelInstance>) {
+        self.skins.clear();
+        if self.skinned() {
+            for instance in &instances {
+                let palette = match &instance.locals {
+                    Some(locals) if locals.len() == self.bones.len() => {
+                        banished_formats::skeleton::palette(&self.bones, &placed_pose(locals))
+                    }
+                    _ => self.default_palette.clone(),
+                };
+                self.skins
+                    .extend(banished_gfx::skin::palette_matrices(&palette));
+            }
+            self.instances = instances.into_iter().map(|i| i.matrix).collect();
+            return;
+        }
+        self.instances = self.matrices(instances);
+    }
+
     fn matrices(&self, instances: Vec<ModelInstance>) -> Vec<[f32; 16]> {
         instances
             .into_iter()
             .map(|instance| {
-                let Some(mut locals) = instance.locals else {
+                let Some(locals) = instance.locals else {
                     return instance.matrix;
                 };
                 let Some(bone) = self.animation_bone else {
@@ -80,10 +126,7 @@ impl ModelGroup {
                 }
                 // Runtime UpdateNodes (0x1800ff4b0) extracts root movement, then replaces the root
                 // pose with the placement transform. Tree root movement is zero in shipped clips.
-                if let Some(root) = locals.first_mut() {
-                    *root = Transform::IDENTITY;
-                }
-                let world = world_transforms(&self.bones, &locals);
+                let world = world_transforms(&self.bones, &placed_pose(&locals));
                 // The existing range uniform contains the bind node transform. Cancel that bind
                 // frame in the instance transform before applying this instance's animated node.
                 let correction = world[bone].mul(&inverse_bind(&self.bones[bone]));
@@ -93,6 +136,17 @@ impl ModelGroup {
             })
             .collect()
     }
+}
+
+/// The pose a placed mesh is drawn in. Runtime `MeshInstance::UpdateHierarchy` (0x1801021a0)
+/// writes node 0 from the instance transform and `GetBones` (0x180102900) multiplies by its
+/// inverse, so the root's sampled movement delta (`sample_pose`) is extracted, never drawn.
+fn placed_pose(locals: &[Transform]) -> Vec<Transform> {
+    let mut pose = locals.to_vec();
+    if let Some(root) = pose.first_mut() {
+        *root = Transform::IDENTITY;
+    }
+    pose
 }
 
 /// One mesh's instances: mesh reference, material set, instances, and the local pose skinned
@@ -151,9 +205,9 @@ fn load_group(
     };
     let ao = cached(part.ao_texture.clone());
     let mut ranges = Vec::new();
-    // Skinned ranges are posed once on the CPU: the given local pose (shared
+    // Instances without their own pose are skinned in the given group pose (shared
     // `Animation::GetPoseAtTime`), otherwise the bind pose.
-    let skin = match pose {
+    let default_palette = match pose {
         Some(locals) if locals.len() == mesh.bones.len() => {
             banished_formats::skeleton::palette(&mesh.bones, locals)
         }
@@ -172,15 +226,6 @@ fn load_group(
         else {
             continue;
         };
-        // Deviation: skinned ranges (citizens, animals) are skinned once on the CPU in their
-        // bind pose and drawn as static geometry until GPU skinning and animation are ported.
-        let skinned;
-        let vertices = if range.bone < 0 {
-            skinned = banished_formats::skeleton::skin_to_static(vertices, &skin);
-            &skinned[..]
-        } else {
-            vertices
-        };
         let mut indices = indices.to_vec();
         indices.resize(indices.len().next_multiple_of(4), 0);
         let m = banished_gfx::model::range_material(&world, set, range, &mut |r| {
@@ -195,6 +240,7 @@ fn load_group(
             diffuse: cached(m.diffuse),
             ao: ao.clone(),
             rigid: m.rigid.to_matrix(),
+            skinned: m.skinned,
         });
     }
     let animation_bone = banished_gfx::model::animation_bone(part);
@@ -202,6 +248,7 @@ fn load_group(
         ranges,
         bones: mesh.bones,
         animation_bone,
+        default_palette,
     })
 }
 
@@ -237,13 +284,18 @@ impl SceneModels {
             ) else {
                 continue;
             };
-            groups.push(ModelGroup {
-                name: mesh_ref.clone(),
-                ranges: asset.ranges,
-                instances: by_key.remove(&key).unwrap_or_default(),
-                bones: asset.bones,
-                animation_bone: asset.animation_bone,
-            });
+            let mut group = asset.into_group(mesh_ref.clone());
+            let instances = by_key.remove(&key).unwrap_or_default();
+            group.set_instances(
+                instances
+                    .into_iter()
+                    .map(|matrix| ModelInstance {
+                        matrix,
+                        locals: None,
+                    })
+                    .collect(),
+            );
+            groups.push(group);
         }
         SceneModels {
             groups,
@@ -259,14 +311,8 @@ impl SceneModels {
             .into_iter()
             .filter_map(|(mesh_ref, set, instances, pose)| {
                 let asset = load_group(archive, &mesh_ref, set, &mut textures, pose.as_deref())?;
-                let mut group = ModelGroup {
-                    name: mesh_ref,
-                    ranges: asset.ranges,
-                    instances: Vec::new(),
-                    bones: asset.bones,
-                    animation_bone: asset.animation_bone,
-                };
-                group.instances = group.matrices(instances);
+                let mut group = asset.into_group(mesh_ref);
+                group.set_instances(instances);
                 Some(group)
             })
             .collect();
@@ -281,22 +327,17 @@ impl SceneModels {
     pub fn update_instances(&mut self, archive: &Archive, instances: Vec<GroupInstances>) {
         for group in &mut self.groups {
             group.instances.clear();
+            group.skins.clear();
         }
         let mut textures = HashMap::new();
         for (name, set, instances, pose) in instances {
             if let Some(group) = self.groups.iter_mut().find(|g| g.name == name) {
-                group.instances = group.matrices(instances);
+                group.set_instances(instances);
             } else if let Some(asset) =
                 load_group(archive, &name, set, &mut textures, pose.as_deref())
             {
-                let mut group = ModelGroup {
-                    name,
-                    ranges: asset.ranges,
-                    instances: Vec::new(),
-                    bones: asset.bones,
-                    animation_bone: asset.animation_bone,
-                };
-                group.instances = group.matrices(instances);
+                let mut group = asset.into_group(name);
+                group.set_instances(instances);
                 self.groups.push(group);
             }
         }
@@ -362,6 +403,42 @@ fn vs_character(v: VsIn) -> VsOut {
     let n = normalize((model * vec4<f32>(v.normal.xyz * 2.0 - 1.0, 0.0)).xyz);
     var out = finish(p.xyz, n, v.texcoord, 0.0);
     out.uv.x = (f32(v.texcoord.x) * 0.001953125 + appearance) * 0.125;
+    return out;
+}
+
+struct SkinIn {
+    @location(0) position: vec4<i32>,
+    @location(1) texcoord: vec4<i32>,
+    @location(2) normal: vec4<f32>,
+    @location(3) weights: vec4<f32>,
+    @location(4) bones: vec4<u32>,
+    @location(5) m0: vec4<f32>,
+    @location(6) m1: vec4<f32>,
+    @location(7) m2: vec4<f32>,
+    @location(8) m3: vec4<f32>,
+};
+
+// NormalSkin_vs: blend four bones of the instance's palette, then the placement. The skinned
+// point takes w = 1 (`skin_point`) before the placement; otherwise weight sums below 1 would
+// scale each vertex's share of the world translation.
+fn skinned(v: SkinIn) -> VsOut {
+    let placement = mat4x4<f32>(v.m0, v.m1, v.m2, vec4<f32>(v.m3.xyz, 1.0));
+    let skin_m = skin_matrix(v.weights, v.bones);
+    let p = placement * skin_point(skin_m, vec3<f32>(v.position.xyz) / 512.0);
+    let n = normalize((placement * skin_m * vec4<f32>(v.normal.xyz * 2.0 - 1.0, 0.0)).xyz);
+    return finish(p.xyz, n, v.texcoord, 0.0);
+}
+
+@vertex
+fn vs_skinned(v: SkinIn) -> VsOut {
+    return skinned(v);
+}
+
+// NormalSkin_charactervs: as above, with the outfit column of the texture atlas.
+@vertex
+fn vs_skinned_character(v: SkinIn) -> VsOut {
+    var out = skinned(v);
+    out.uv.x = (f32(v.texcoord.x) * 0.001953125 + v.m3.w) * 0.125;
     return out;
 }
 
@@ -480,6 +557,7 @@ fn fs_billboard(in: VsOut) -> @location(0) vec4<f32> {
 
 struct GpuRange {
     kind: MaterialKind,
+    skinned: bool,
     vertices: wgpu::Buffer,
     indices: wgpu::Buffer,
     index_count: u32,
@@ -490,10 +568,15 @@ struct GpuGroup {
     ranges: Vec<GpuRange>,
     instances: wgpu::Buffer,
     count: u32,
+    /// Per-instance bone palettes and their dynamic-offset bind group (skinned groups).
+    skin: Option<(wgpu::Buffer, wgpu::BindGroup)>,
 }
 
 pub struct ModelRenderer {
     pipelines: [wgpu::RenderPipeline; 6],
+    /// Skinned Opaque and Character pipelines.
+    skinned_pipelines: [wgpu::RenderPipeline; 2],
+    skin_layout: wgpu::BindGroupLayout,
     layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
     white: wgpu::TextureView,
@@ -513,7 +596,12 @@ impl ModelRenderer {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("models"),
             source: wgpu::ShaderSource::Wgsl(
-                format!("{}{SHADER}", crate::scene_gfx::GLOBALS_WGSL).into(),
+                format!(
+                    "{}{}{SHADER}",
+                    crate::scene_gfx::GLOBALS_WGSL,
+                    banished_gfx::skin::SKIN_WGSL
+                )
+                .into(),
             ),
         });
         let tex = |binding| wgpu::BindGroupLayoutEntry {
@@ -608,6 +696,67 @@ impl ModelRenderer {
                 cache: None,
             })
         };
+        let skin_layout = banished_gfx::skin::skin_layout(device, true);
+        let skinned_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("skinned models"),
+            bind_group_layouts: &[Some(globals_layout), Some(&layout), Some(&skin_layout)],
+            immediate_size: 0,
+        });
+        let skin_attributes = banished_gfx::skin::skinned_attributes();
+        let make_skinned = |vs: &str| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(vs),
+                layout: Some(&skinned_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some(vs),
+                    compilation_options: Default::default(),
+                    buffers: &[
+                        Some(wgpu::VertexBufferLayout {
+                            array_stride: banished_formats::types::SKINNED_STRIDE as u64,
+                            step_mode: wgpu::VertexStepMode::Vertex,
+                            attributes: &skin_attributes,
+                        }),
+                        Some(wgpu::VertexBufferLayout {
+                            array_stride: 64,
+                            step_mode: wgpu::VertexStepMode::Instance,
+                            attributes: &wgpu::vertex_attr_array![
+                                5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32x4
+                            ],
+                        }),
+                    ],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some("fs_opaque"),
+                    compilation_options: Default::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format,
+                        blend: None,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    cull_mode: None,
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: depth,
+                    depth_write_enabled: Some(true),
+                    depth_compare: Some(wgpu::CompareFunction::Less),
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: Default::default(),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+        let skinned_pipelines = [
+            make_skinned("vs_skinned"),
+            make_skinned("vs_skinned_character"),
+        ];
         // Same order as `KINDS`.
         let pipelines = [
             make("vs_main", "fs_opaque"),
@@ -637,6 +786,8 @@ impl ModelRenderer {
         );
         ModelRenderer {
             pipelines,
+            skinned_pipelines,
+            skin_layout,
             layout,
             sampler,
             white,
@@ -727,6 +878,7 @@ impl ModelRenderer {
                         });
                         GpuRange {
                             kind: r.kind,
+                            skinned: r.skinned,
                             vertices: device.create_buffer_init(
                                 &wgpu::util::BufferInitDescriptor {
                                     label: Some(&g.name),
@@ -752,9 +904,19 @@ impl ModelRenderer {
                         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                     }),
                     count: g.instances.len() as u32,
+                    skin: self.skin_buffer(device, &g.skins),
                 }
             })
             .collect();
+    }
+
+    /// A buffer of per-instance palettes and its bind group (`None` without palettes).
+    fn skin_buffer(
+        &self,
+        device: &wgpu::Device,
+        skins: &[[f32; 16]],
+    ) -> Option<(wgpu::Buffer, wgpu::BindGroup)> {
+        skin_buffer(device, &self.skin_layout, skins)
     }
 
     /// Refresh the instance buffers only. New mesh groups still take the ordinary upload path.
@@ -780,6 +942,18 @@ impl ModelRenderer {
                 queue.write_buffer(&gpu.instances, 0, data);
             }
             gpu.count = group.instances.len() as u32;
+            let skins: &[u8] = bytemuck::cast_slice(&group.skins);
+            match &gpu.skin {
+                Some((buffer, _)) if skins.len() as u64 <= buffer.size() => {
+                    if !skins.is_empty() {
+                        queue.write_buffer(buffer, 0, skins);
+                    }
+                }
+                _ if !skins.is_empty() => {
+                    gpu.skin = skin_buffer(device, &self.skin_layout, &group.skins);
+                }
+                _ => {}
+            }
         }
     }
 
@@ -797,7 +971,7 @@ impl ModelRenderer {
                     continue;
                 }
                 pass.set_vertex_buffer(1, g.instances.slice(..));
-                for r in g.ranges.iter().filter(|r| r.kind == kind) {
+                for r in g.ranges.iter().filter(|r| r.kind == kind && !r.skinned) {
                     pass.set_bind_group(1, &r.bind, &[]);
                     pass.set_vertex_buffer(0, r.vertices.slice(..));
                     pass.set_index_buffer(r.indices.slice(..), wgpu::IndexFormat::Uint16);
@@ -805,5 +979,62 @@ impl ModelRenderer {
                 }
             }
         }
+        // Skinned ranges: one draw per instance with its palette (dynamic offset).
+        for (pipeline, character) in [
+            (&self.skinned_pipelines[0], false),
+            (&self.skinned_pipelines[1], true),
+        ] {
+            pass.set_pipeline(pipeline);
+            for g in &self.groups {
+                let Some((_, skin)) = &g.skin else { continue };
+                if g.count == 0 || g.instances.size() == 0 {
+                    continue;
+                }
+                pass.set_vertex_buffer(1, g.instances.slice(..));
+                for r in g
+                    .ranges
+                    .iter()
+                    .filter(|r| r.skinned && (r.kind == MaterialKind::Character) == character)
+                {
+                    pass.set_bind_group(1, &r.bind, &[]);
+                    pass.set_vertex_buffer(0, r.vertices.slice(..));
+                    pass.set_index_buffer(r.indices.slice(..), wgpu::IndexFormat::Uint16);
+                    for i in 0..g.count {
+                        let offset = (i as u64 * banished_gfx::skin::PALETTE_BYTES) as u32;
+                        pass.set_bind_group(2, skin, &[offset]);
+                        pass.draw_indexed(0..r.index_count, 0, i..i + 1);
+                    }
+                }
+            }
+        }
     }
+}
+
+/// A buffer of per-instance palettes and its bind group (`None` without palettes).
+fn skin_buffer(
+    device: &wgpu::Device,
+    layout: &wgpu::BindGroupLayout,
+    skins: &[[f32; 16]],
+) -> Option<(wgpu::Buffer, wgpu::BindGroup)> {
+    if skins.is_empty() {
+        return None;
+    }
+    let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("skin palettes"),
+        contents: bytemuck::cast_slice(skins),
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+    });
+    let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("skin palettes"),
+        layout,
+        entries: &[wgpu::BindGroupEntry {
+            binding: 0,
+            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                buffer: &buffer,
+                offset: 0,
+                size: wgpu::BufferSize::new(banished_gfx::skin::PALETTE_BYTES),
+            }),
+        }],
+    });
+    Some((buffer, bind))
 }

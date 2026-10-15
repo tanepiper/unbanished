@@ -21,11 +21,7 @@ struct MaterialParams {
 };
 @group(1) @binding(3) var<uniform> material: MaterialParams;
 
-const MAX_BONES: u32 = 32u;
-struct Skin {
-    bones: array<mat4x4<f32>, MAX_BONES>,
-};
-@group(2) @binding(0) var<uniform> skin: Skin;
+// The bone palette (`skin`, `skin_matrix`) comes from `banished_gfx::skin::SKIN_WGSL`.
 
 struct VsIn {
     @location(0) position: vec4<i32>,
@@ -66,9 +62,8 @@ struct SkinnedIn {
 
 @vertex
 fn vs_skinned(v: SkinnedIn) -> VsOut {
-    let m = skin.bones[v.bones.x] * v.weights.x + skin.bones[v.bones.y] * v.weights.y
-          + skin.bones[v.bones.z] * v.weights.z + skin.bones[v.bones.w] * v.weights.w;
-    let p = m * vec4<f32>(vec3<f32>(v.position.xyz) / 512.0, 1.0);
+    let m = skin_matrix(v.weights, v.bones);
+    let p = skin_point(m, vec3<f32>(v.position.xyz) / 512.0);
     let n = m * vec4<f32>(v.normal.xyz * 2.0 - 1.0, 0.0);
     return finish(p.xyz, n.xyz, v.texcoord);
 }

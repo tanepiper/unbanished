@@ -246,6 +246,11 @@ impl MenuLoop {
             .and_then(|e| edit_text(ctx.ui, e))
             .and_then(|t| t.trim().parse::<i64>().ok())
             .unwrap_or(0) as u32;
+        // Scripted runs: `BANISHED_SEED` fixes the world seed.
+        let seed = std::env::var("BANISHED_SEED")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(seed);
         let params = WorldParams {
             town_name,
             terrain,

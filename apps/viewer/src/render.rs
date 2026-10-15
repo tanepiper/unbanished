@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use banished_formats::skeleton::{bind_palette, world_transforms, Transform};
+use banished_formats::skeleton::{bind_palette, world_transforms};
 use banished_formats::types::{AnimationClip, Bone, SKINNED_STRIDE, STATIC_STRIDE};
 use banished_gfx::material::{character_uv_transform, MaterialKind};
 use banished_gfx::{upload_image, upload_rgba};
@@ -20,7 +20,7 @@ struct Globals {
     eye: [f32; 4],
 }
 
-const MAX_BONES: usize = 32;
+use banished_gfx::skin::MAX_BONES;
 
 struct GpuPart {
     vertices: wgpu::Buffer,
@@ -164,7 +164,14 @@ impl Renderer {
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("mesh"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("mesh.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(
+                format!(
+                    "{}{}",
+                    banished_gfx::skin::SKIN_WGSL,
+                    include_str!("mesh.wgsl")
+                )
+                .into(),
+            ),
         });
 
         let globals_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -213,19 +220,7 @@ impl Renderer {
                 },
             ],
         });
-        let skin_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("skin"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
+        let skin_layout = banished_gfx::skin::skin_layout(&device, false);
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("mesh"),
             bind_group_layouts: &[
@@ -253,21 +248,7 @@ impl Renderer {
                 shader_location: 2,
             },
         ];
-        let skinned_attributes = [
-            static_attributes[0],
-            static_attributes[1],
-            static_attributes[2],
-            wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Unorm8x4,
-                offset: 24,
-                shader_location: 3,
-            },
-            wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Uint8x4,
-                offset: 28,
-                shader_location: 4,
-            },
-        ];
+        let skinned_attributes = banished_gfx::skin::skinned_attributes();
         let pipeline = |stride: usize,
                         entry: &str,
                         attributes: &[wgpu::VertexAttribute],
@@ -550,15 +531,7 @@ impl Renderer {
                 });
             }
         }
-        let mut palette = bind_palette(&mesh.bones);
-        if palette.len() > MAX_BONES {
-            log::warn!(
-                "{name}: {} bones exceeds palette size {MAX_BONES}",
-                palette.len()
-            );
-        }
-        palette.resize(MAX_BONES, Transform::IDENTITY);
-        let matrices: Vec<[f32; 16]> = palette.iter().map(Transform::to_matrix).collect();
+        let matrices = banished_gfx::skin::palette_matrices(&bind_palette(&mesh.bones));
         let skin_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -612,8 +585,10 @@ impl Renderer {
                 );
             }
         }
-        let palette = banished_formats::skeleton::palette(&mesh.bones, &locals);
-        let matrices: Vec<[f32; 16]> = palette.iter().map(Transform::to_matrix).collect();
+        let matrices = banished_gfx::skin::palette_matrices(&banished_formats::skeleton::palette(
+            &mesh.bones,
+            &locals,
+        ));
         self.queue
             .write_buffer(&mesh.skin_buffer, 0, bytemuck::cast_slice(&matrices));
     }

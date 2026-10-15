@@ -389,7 +389,9 @@ The shipped citizen description gives adult age 2.0, starting ages 2.2–4.0 and
 the description's age units. A Medium start makes 5 couples and 0 to 25 children, for example
 10 / 0 / 5.
 
-The port is in `crates/game/src/citizens.rs`, and the Status Bar shows its population. ### Drawing citizens
+The port is in `crates/game/src/citizens.rs`, and the Status Bar shows its population.
+
+### Drawing citizens
 
 `Template/Citizen.rsc:model` uses variant 0 for men and 1 for women. Both are skinned meshes with
 `Material\OpaqueSkin\OpaqueCharacterMaterial`. That material's vertex shader
@@ -405,16 +407,51 @@ The port is in `crates/game/src/citizens.rs`, and the Status Bar shows its popul
 
 Without the outfit column the whole atlas is stretched across the body.
 
-The port skins each citizen mesh once on the CPU in the `Idle` pose (`CitizenAnims` clip 0,
-time 0). It uses the shared `banished_game::animation::sample_pose` and
-`banished_formats::skeleton::skin_to_static`. The outfit goes in the instance matrix's `[15]`,
-which the `Character` shader kind reads.
+#### Skinning
+
+The palette comes from the runtime's `MeshInstance` functions:
+
+- `MeshInstance::UpdateHierarchy` (`0x1801021a0`) writes node 0 from the instance transform
+  (`+0x84`) and composes the other nodes down the hierarchy.
+- `MeshInstance::GetBones` (`0x180102900`) interpolates each node's world transform. It
+  multiplies by the node's inverse bind (`Node +0x28`), then by the inverse of the instance
+  transform, and uploads the result through `Transform::AsMatrix`.
+
+So each bone is `node_world × inverse_bind` in mesh space, and the root's own sampled
+motion is extracted, never drawn. `skeleton::palette` matches this, applied to the pose from
+`sample_pose` with the root reset (`placed_pose` in `apps/game/src/models.rs`).
+
+The vertex shader (`NormalSkin_charactervs`, variant 0) works as follows:
+
+- **Indices:** it reads the four bone indices (`UBYTE4`) as `floor(v4) × 4`.
+- **Rotation:** it blends each bone's rotation rows `c41..c43` with the raw `UBYTE4N` weights,
+  without normalizing them.
+- **Translation:** it adds each bone's translation `c44`.
+- **Projection:** it projects the blended point with `w = 1`.
+- **Normals:** the normal uses the same blend. Lighting uses the bone in position `w`.
+
+The shipped weights sum to 253..255/255 (CitizenMaleMesh: 32, 177 and 178 vertices). A
+4×4 blend followed by the placement matrix would scale each vertex's share of the world
+translation by that sum, shearing citizens away from the map origin. The shared WGSL
+(`banished_gfx::skin::skin_point`) therefore takes the skinned point with `w = 1` before the
+placement, as the original does.
+
+The port skins citizens on the GPU:
+
+- **Palettes:** each instance has its own 32-bone palette (`PALETTE_BYTES` = 2048) in one
+  uniform buffer, selected with a dynamic offset per instance draw.
+- **Animation:** `StartingTown::animate_citizens` advances each citizen's `Idle` playback once
+  per simulation iteration (`AnimationState::Update`).
+- **Outfit:** the outfit goes in the instance matrix's `[15]`, which the character entry point
+  (`vs_skinned_character`) reads.
+
+The viewer uses the same `SKIN_WGSL`, attributes and palette code.
 
 The material classification and the atlas rule live in `banished_gfx::material`. The viewer uses
 them too (outfit 0), and also uses the same verified pose sampler for animation playback.
 
 Not ported yet:
 
-- per-citizen animation (walking, work clips) and GPU skinning;
+- walking and work clips (only `Idle` plays), clip blending (`AnimationGroup` blend matrix);
 - needs and AI;
 - homes (none are assigned at New Game unless Easy houses exist).

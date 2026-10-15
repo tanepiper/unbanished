@@ -246,6 +246,8 @@ impl GameplayLoop {
             };
             let temperature = self.environment.as_ref().map_or(0.0, |e| e.temperature);
             let changed = town.iterate(&grid, &mut self.rng, dt, temperature);
+            // AnimationManager::Update runs inside the same iteration (FUN_14009b850).
+            let changed = town.animate_citizens(dt) | changed;
             // Animation::ApplyEvents now emits the original event resources at their traced
             // intervals. The spatial AnimAudioEvent/SoundEffect controller is still unported.
             for (entity, reference) in town.animation_events.drain(..) {

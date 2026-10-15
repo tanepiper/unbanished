@@ -277,6 +277,23 @@ fn capture(out_dir: &std::path::Path, filters: &[String]) {
                 continue;
             }
         };
+        // `VIEWER_POSE=CLIP@SECONDS` poses animated meshes before capturing.
+        if let Some((clip, at)) = std::env::var("VIEWER_POSE").ok().and_then(|v| {
+            v.split_once('@')
+                .map(|(c, t)| (c.to_string(), t.parse().ok()))
+        }) {
+            let group = std::env::var("VIEWER_ANIMS").unwrap_or_default();
+            if let Some(c) = assets
+                .animations
+                .iter()
+                .filter(|(n, _)| n.contains(&group))
+                .flat_map(|(_, clips)| clips)
+                .find(|c| c.name == clip)
+            {
+                log::info!("posing {name} with {clip}");
+                renderer.set_animation_pose(&mesh, c, at.unwrap_or(0.0));
+            }
+        }
         let camera = tool::Camera {
             yaw: -0.8,
             pitch: 0.45,

@@ -200,30 +200,27 @@ fn starting_goods(
     (materials, storages)
 }
 
-/// The `Idle` pose (clip 0 of each variant's animation group) of every citizen mesh.
-fn idle_poses(
+/// Each citizen model variant's animation group.
+fn citizen_animations(
     archive: &Archive,
     model: &banished_formats::game::ModelDescription,
-) -> HashMap<String, Vec<banished_formats::skeleton::Transform>> {
-    let mut poses = HashMap::new();
-    for v in &model.variants {
-        let Some(group) = v
-            .animations
-            .as_deref()
-            .and_then(|r| read(archive, r))
-            .and_then(|d| banished_formats::types::animation_group(&d).ok())
-        else {
-            continue;
-        };
-        let Some(idle) = group.clips.iter().find(|c| c.name == "Idle") else {
-            continue;
-        };
-        let pose = banished_game::animation::sample_pose(idle, 0, 0);
-        for mesh in v.meshes.iter().flatten() {
-            poses.insert(mesh.clone(), pose.clone());
-        }
-    }
-    poses
+) -> Vec<Option<Arc<banished_formats::types::AnimationGroup>>> {
+    model
+        .variants
+        .iter()
+        .map(|v| {
+            v.animations
+                .as_deref()
+                .and_then(|r| read(archive, r))
+                .and_then(|d| banished_formats::types::animation_group(&d).ok())
+                .map(Arc::new)
+        })
+        .collect()
+}
+
+/// Index of a named clip.
+fn clip_index(group: &banished_formats::types::AnimationGroup, name: &str) -> Option<usize> {
+    group.clips.iter().position(|c| c.name == name)
 }
 
 /// `FUN_140002080`: the start cell's centre on the ground.
@@ -303,10 +300,11 @@ pub struct StartingTown {
     removed: Vec<usize>,
     pub animation_events: Vec<(usize, String)>,
     citizen_model: Option<banished_formats::game::ModelDescription>,
-    /// Local pose each citizen mesh is skinned in: the `Idle` clip at time 0
-    /// (`Models\Citizen\CitizenAnims.rsc`, sampled with the shared `GetPoseAtTime` port).
-    /// Deviation: one shared pose until citizens animate individually.
-    citizen_pose: HashMap<String, Vec<banished_formats::skeleton::Transform>>,
+    /// Each variant's animation group (`Models\Citizen\CitizenAnims.rsc`).
+    citizen_anims: Vec<Option<Arc<banished_formats::types::AnimationGroup>>>,
+    /// One unique animation state per citizen. Until the citizen AI is ported every citizen
+    /// plays `Idle` from time 0 (`AnimationState::PlayAnimation` start 0).
+    citizen_playback: Vec<banished_game::animation::Playback>,
     /// The placement tool's ghost (`PlacementTool +0x68`): mesh and transform.
     pub ghost: Option<(String, [f32; 16])>,
 }
@@ -378,6 +376,10 @@ impl StartingTown {
         );
         let citizen_model = read(archive, r"Template\Citizen.rsc:model")
             .and_then(|d| banished_formats::game::model_description(&d).ok());
+        let citizen_playback = citizens
+            .iter()
+            .map(|_| banished_game::animation::Playback::new(0, 0))
+            .collect();
         Some(StartingTown {
             start,
             citizens,
@@ -390,11 +392,12 @@ impl StartingTown {
             scheduler,
             removed,
             animation_events,
-            citizen_pose: citizen_model
+            citizen_anims: citizen_model
                 .as_ref()
-                .map(|m| idle_poses(archive, m))
+                .map(|m| citizen_animations(archive, m))
                 .unwrap_or_default(),
             citizen_model,
+            citizen_playback,
             ghost: None,
         })
     }
@@ -422,6 +425,24 @@ impl StartingTown {
             animation_events: &mut self.animation_events,
         }
         .iterate(&mut self.scheduler, dt, temperature, false)
+    }
+
+    /// `Graphics::AnimationManager::Update` for the citizens: advance each `Idle` state by one
+    /// simulation iteration. Returns whether any citizen is drawn animated.
+    pub fn animate_citizens(&mut self, dt: f32) -> bool {
+        let ticks = banished_game::scheduler::ticks(dt);
+        for (c, playback) in self.citizens.iter().zip(&mut self.citizen_playback) {
+            let variant = usize::from(!c.male);
+            let Some(group) = self.citizen_anims.get(variant).and_then(Option::as_ref) else {
+                continue;
+            };
+            let Some(idle) = clip_index(group, "Idle") else {
+                continue;
+            };
+            playback.clip = idle;
+            playback.update(&group.clips[idle], ticks);
+        }
+        !self.citizens.is_empty()
     }
 
     /// FUN_1400c98a0's post-iteration phase; also runs when the toolbar pauses simulation.
@@ -479,7 +500,7 @@ impl StartingTown {
         // Citizens: `Template/Citizen.rsc:model` variant 0 (men) or 1 (women); children use
         // the scale `DAT_140178818` (`FUN_14011a700`). Facing is not set at creation (yaw 0).
         if let Some(model) = &self.citizen_model {
-            for c in &self.citizens {
+            for (i, c) in self.citizens.iter().enumerate() {
                 let variant = if c.male { 0 } else { 1 };
                 let Some(Some(mesh)) = model.variants.get(variant).and_then(|v| v.meshes.first())
                 else {
@@ -494,10 +515,15 @@ impl StartingTown {
                 // instance's `w`, read by the character shader from the root translation.
                 let mut matrix = placement_matrix(c.position, [s, s, s], 0.0);
                 matrix[15] = c.appearance as f32;
-                groups.entry(mesh.clone()).or_default().push(ModelInstance {
-                    matrix,
-                    locals: None,
-                });
+                let locals = self
+                    .citizen_playback
+                    .get(i)
+                    .zip(self.citizen_anims.get(variant).and_then(Option::as_ref))
+                    .and_then(|(p, g)| g.clips.get(p.clip).map(|clip| p.pose(clip)));
+                groups
+                    .entry(mesh.clone())
+                    .or_default()
+                    .push(ModelInstance { matrix, locals });
             }
         }
         if let Some((mesh, matrix)) = &self.ghost {
@@ -506,13 +532,7 @@ impl StartingTown {
                 locals: None,
             });
         }
-        let mut list: Vec<_> = groups
-            .into_iter()
-            .map(|(m, i)| {
-                let pose = self.citizen_pose.get(&m).cloned();
-                (m, 0, i, pose)
-            })
-            .collect();
+        let mut list: Vec<_> = groups.into_iter().map(|(m, i)| (m, 0, i, None)).collect();
         list.sort_by(|a, b| a.0.cmp(&b.0));
         list
     }

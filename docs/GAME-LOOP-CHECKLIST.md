@@ -87,7 +87,10 @@ evidence; static traces are not claims of live-game behavior.
   node pose, and remove the entity/map stamp at the serialized completion tick; verify on GPU.
   See [GAME-LOOP-STEP-19.md](GAME-LOOP-STEP-19.md).
 - [ ] Port ongoing SpawnComponent cross-template spawning and spatial AnimAudioEvent/SoundEffect
-  dispatch. Shared/blended animation states and animated skin rendering also remain open.
+  dispatch. Shared/blended animation states also remain open.
+- [x] GPU-skin citizens with a per-instance bone palette (`MeshInstance::GetBones`), playing each
+  citizen's `Idle` clip; shared with the viewer (`banished_gfx::skin`). See
+  [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md#skinning).
 - [ ] Port weather effects (rain/snow geometry, ambient audio, timed spawn) and connect weather to
   citizens, production, events, and resource consumption.
 - [ ] Add save/load, autosave, and event notifications to the active gameplay loop.
