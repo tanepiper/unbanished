@@ -25,8 +25,10 @@ pub struct EntityData<'a> {
     pub materials: &'a [RawMaterial],
     /// StatusIconComponent `+0xf0`.
     pub status: u32,
-    /// WorkPlaceComponent `+0x48`: the workplace has a profession.
-    pub workplace_profession: bool,
+    /// The building's WorkPlaceComponent, when it has a profession (`+0x48`).
+    pub workplace: Option<WorkPlaceInfo>,
+    /// The building's Build and ClearArea components (a construction site).
+    pub build: Option<BuildInfo>,
     /// Host `pages` active page (StatusIconUI shows icons only on pages 2 and 3).
     pub active_page: usize,
     pub citizen: Option<CitizenInfo>,
@@ -249,18 +251,327 @@ impl StorageCapacityUi {
     }
 }
 
-/// `WorkPlaceUI` (vtable `0x140164450`): bind `FUN_14008ce10`, refresh `FUN_14008c550`,
-/// events `FUN_14008ccb0`. Without a profession (`WorkPlaceComponent +0x48`, e.g. storage
-/// barns and houses) the whole element is hidden.
+/// `WorkPlaceUI` (vtable `0x140164450`, constructor `FUN_14008d2c0`): bind `FUN_14008ce10`,
+/// refresh `FUN_14008c550`, events `FUN_14008ccb0`. Without a profession (`WorkPlaceComponent
+/// +0x48`, e.g. storage barns and houses) the whole element is hidden.
 pub struct WorkPlaceUi {
     element: NodeId,
+    /// `+0x30`, `+0x38` and their parameter templates.
+    count: Option<(NodeId, String)>,
+    max_count: Option<(NodeId, String)>,
+    /// `+0x40..+0x58`: element ids 0x1450..0x1453.
+    worker_up: Option<NodeId>,
+    worker_down: Option<NodeId>,
+    job_up: Option<NodeId>,
+    job_down: Option<NodeId>,
+    /// Element id 0x1454.
+    button: Option<NodeId>,
+    /// `+0x60`: the worker the workplace button last showed.
+    cursor: usize,
+}
+
+/// What WorkPlaceUI reads from the selected building.
+#[derive(Debug, Clone)]
+pub struct WorkPlaceInfo {
+    pub entity: usize,
+    /// The workplace profession's sprite (`Profession +0x28`, `+0x30`).
+    pub sprite: (Option<String>, String),
+    /// WorkPlaceComponent `+0x60`, WorkComponent `+0x30`.
+    pub workers: Vec<usize>,
+    pub max: i32,
+    /// Adults (not at school) holding the workplace's profession, and laborers.
+    pub holders: i32,
+    pub laborers: i32,
+    /// WorkDescription `+0x20`, `+0x28`, `+0x2c`.
+    pub adjustable: bool,
+    pub min_jobs: i32,
+    pub max_jobs: i32,
+    /// Builder workplace with a BuildComponent: InteractComponent build points (`FUN_140128540(1)`).
+    pub build_points: Option<i32>,
+}
+
+/// A WorkPlaceUI element event (`FUN_14008ccb0`, event 0x12).
+pub enum WorkPlaceClick {
+    Command(banished_game::professions::Command),
+    /// 0x1454 (`FUN_14008cba0` → `FUN_140108510`): pin the window, show and select the worker.
+    ShowWorker(usize),
 }
 
 impl WorkPlaceUi {
+    pub fn bind(ui: &mut Ui, element: NodeId) -> WorkPlaceUi {
+        let f = |n: &str| ui.find(element, n);
+        let param = |n: &str| f(n).map(|id| (id, text_of(ui, id)));
+        WorkPlaceUi {
+            element,
+            count: param("workPlaceCount"),
+            max_count: param("maxCount"),
+            worker_up: f("workerCountUp"),
+            worker_down: f("workerCountDown"),
+            job_up: f("jobCountUp"),
+            job_down: f("jobCountDown"),
+            button: f("workPlaceButton"),
+            cursor: 0,
+        }
+    }
+
     pub fn refresh(&self, ui: &mut Ui, data: &EntityData) {
-        ui.set_visible(self.element, data.workplace_profession);
-        // Not ported: worker counts and the +/- worker and job commands (0x1450..0x1454), which
-        // need workplace profession assignment in the simulation.
+        let Some(w) = &data.workplace else {
+            ui.set_visible(self.element, false);
+            return;
+        };
+        ui.set_visible(self.element, true);
+        let jobs = w.adjustable || w.build_points.is_some();
+        for b in [self.job_up, self.job_down].into_iter().flatten() {
+            ui.set_visible(b, jobs);
+        }
+        if let Some((id, template)) = &self.count {
+            let text = template
+                .replace("@0", &w.workers.len().to_string())
+                .replace("@1", &w.max.to_string());
+            ui.set_text(*id, &text);
+            if let Some(s) = ui.res.sprite(w.sprite.0.as_deref(), &w.sprite.1) {
+                if let Kind::Label { icon, .. } = &mut ui.node_mut(*id).kind {
+                    *icon = Some(s);
+                }
+            }
+        }
+        if let Some((id, template)) = &self.max_count {
+            ui.set_text(*id, &template.replace("@0", &w.holders.to_string()));
+        }
+        let enable = |ui: &mut Ui, b: Option<NodeId>, on: bool| {
+            if let Some(b) = b {
+                ui.node_mut(b).enabled = on;
+            }
+        };
+        enable(ui, self.worker_up, w.laborers > 0);
+        enable(ui, self.worker_down, w.holders > 0);
+        let (cap, floor) = match w.build_points {
+            Some(points) => (w.max_jobs.min(points), 1),
+            None => (w.max_jobs, w.min_jobs),
+        };
+        enable(ui, self.job_up, w.max < cap);
+        enable(ui, self.job_down, w.max > floor);
+    }
+
+    pub fn click(&mut self, id: NodeId, data: &EntityData) -> Option<WorkPlaceClick> {
+        use banished_game::professions::Command;
+        let w = data.workplace.as_ref()?;
+        let entity = w.entity;
+        let command = if Some(id) == self.worker_up {
+            Command::AddWorker { entity }
+        } else if Some(id) == self.worker_down {
+            Command::RemoveWorker { entity }
+        } else if Some(id) == self.job_up {
+            Command::ChangeMaxWorkers { entity, delta: 1 }
+        } else if Some(id) == self.job_down {
+            Command::ChangeMaxWorkers { entity, delta: -1 }
+        } else if Some(id) == self.button {
+            if w.workers.is_empty() {
+                return None;
+            }
+            self.cursor += 1;
+            if w.workers.len() <= self.cursor {
+                self.cursor = 0;
+            }
+            return Some(WorkPlaceClick::ShowWorker(w.workers[self.cursor]));
+        } else {
+            return None;
+        };
+        Some(WorkPlaceClick::Command(command))
+    }
+}
+
+/// `BuildUI`: bind `FUN_1400b7410`, refresh `FUN_1400b6f20`, events `FUN_1400b7370`. The
+/// `storageTable` row 0 counts the cleared objects; rows 1.. are the BuildDescription's
+/// materials, then the build work, then blanks.
+pub struct BuildUi {
+    /// `+0x48`: row 0's `textTotal`.
+    cleared: Option<(NodeId, String)>,
+    /// `+0x30/+0x38`: rows 1.. (`labelStorage`, `textTotal` and its template).
+    rows: Vec<(Option<NodeId>, Option<(NodeId, String)>)>,
+    /// `+0x40`, its content text template.
+    progress: Option<NodeId>,
+    progress_text: Option<(NodeId, String)>,
+    /// Element id 6000.
+    pause: Option<NodeId>,
+    /// The bind's entity-dependent half runs on the first refresh, which has the entity.
+    filled: bool,
+}
+
+/// What BuildUI reads from the selected building.
+#[derive(Debug, Clone)]
+pub struct BuildInfo {
+    pub entity: usize,
+    /// BuildComponent present: BuildDescription `+0x20` `(material, count × stages, delivered)`
+    /// where delivered is the site storage's count less its reserved count; `+0x30` work ×
+    /// stages and progress (`+0x48`).
+    pub build: Option<BuildProgress>,
+    /// ClearAreaComponent `+0x48` and `FUN_14011d800`.
+    pub clear_total: i32,
+    pub clear_remaining: i32,
+    /// WorkPlaceComponent `+0x50` when there is one.
+    pub enabled: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BuildProgress {
+    pub materials: Vec<(usize, i32, i32)>,
+    pub work: i32,
+    pub progress: i32,
+}
+
+impl BuildUi {
+    pub fn bind(ui: &mut Ui, element: NodeId) -> BuildUi {
+        let param =
+            |ui: &Ui, root: NodeId, n: &str| ui.find(root, n).map(|id| (id, text_of(ui, id)));
+        let table = ui.find(element, "storageTable");
+        let children = table.map(|t| ui.children(t)).unwrap_or_default();
+        let cleared = children.first().and_then(|&c| param(ui, c, "textTotal"));
+        let rows = children
+            .iter()
+            .skip(1)
+            .map(|&c| (ui.find(c, "labelStorage"), param(ui, c, "textTotal")))
+            .collect();
+        let progress = ui.find(element, "progress");
+        let progress_text = progress.and_then(|p| match &ui.node(p).kind {
+            Kind::Control(Control::Progress { content, .. }) => {
+                content.map(|c| (c, text_of(ui, c)))
+            }
+            _ => None,
+        });
+        BuildUi {
+            cleared,
+            rows,
+            progress,
+            progress_text,
+            pause: ui.find(element, "buttonPause"),
+            filled: false,
+        }
+    }
+
+    /// The entity half of `FUN_1400b7410`.
+    fn fill(&mut self, ui: &mut Ui, archive: &Archive, data: &EntityData, b: &BuildInfo) {
+        if let Some(p) = self.pause {
+            match b.enabled {
+                None => ui.node_mut(p).enabled = false,
+                Some(on) => ui.set_checked(p, !on),
+            }
+        }
+        if let Some((id, t)) = &self.cleared {
+            ui.set_text(
+                *id,
+                &t.replace("@0", "0")
+                    .replace("@1", &b.clear_total.to_string()),
+            );
+        }
+        let materials = b.build.as_ref().map_or(&[][..], |p| &p.materials[..]);
+        for (j, (label, total)) in self.rows.iter().enumerate() {
+            if let Some(&(m, required, _)) = materials.get(j) {
+                if let Some((id, t)) = total {
+                    ui.set_text(*id, &t.replace("@1", &required.to_string()));
+                }
+                let d = material_file(&data.materials[m].reference);
+                let d = archive
+                    .read_ref(&format!("{d}:rawmaterial"))
+                    .ok()
+                    .and_then(|b| raw_material_description(&b).ok());
+                if let (Some(l), Some(d)) = (*label, d) {
+                    if let Some(s) = ui.res.sprite(d.sprite_sheet.as_deref(), &d.name) {
+                        if let Kind::Label { icon, .. } = &mut ui.node_mut(l).kind {
+                            *icon = Some(s);
+                        }
+                    }
+                    let name = ui.res.string(d.string_table.as_deref(), &d.name);
+                    ui.set_text(l, &name);
+                    let table = ui.node(l).string_table.clone();
+                    ui.node_mut(l).tooltip = ui.res.string(table.as_deref(), "ResourceTip");
+                }
+            } else if let (Some(p), true) = (&b.build, j == materials.len()) {
+                if let Some((id, t)) = total {
+                    ui.set_text(*id, &t.replace("@1", &p.work.to_string()));
+                }
+            } else {
+                if let Some((id, _)) = total {
+                    ui.set_text(*id, "");
+                }
+                if let Some(l) = *label {
+                    ui.set_text(l, "");
+                    if let Kind::Label { icon, .. } = &mut ui.node_mut(l).kind {
+                        *icon = None;
+                    }
+                }
+            }
+        }
+        // The totals keep their `@0` for the refresh: store the half-filled templates.
+        for (_, total) in &mut self.rows {
+            if let Some((id, t)) = total {
+                *t = text_of(ui, *id);
+            }
+        }
+        if let Some((_, t)) = &mut self.cleared {
+            *t = t.replace("@1", &b.clear_total.to_string());
+        }
+    }
+
+    pub fn refresh(&mut self, ui: &mut Ui, archive: &Archive, data: &EntityData) {
+        let Some(b) = &data.build else { return };
+        if !self.filled {
+            self.filled = true;
+            self.fill(ui, archive, data, b);
+        }
+        if let Some(p) = &b.build {
+            if p.work <= p.progress {
+                return;
+            }
+        }
+        let removed = b.clear_total - b.clear_remaining;
+        if let Some((id, t)) = &self.cleared {
+            ui.set_text(*id, &t.replace("@0", &removed.to_string()));
+        }
+        let (total, done) = match &b.build {
+            None => (b.clear_total, removed),
+            Some(p) => {
+                let n = self.rows.len().min(p.materials.len());
+                let (mut delivered, mut required) = (0, 0);
+                for (j, &(_, need, have)) in p.materials.iter().take(n).enumerate() {
+                    if let Some((id, t)) = &self.rows[j].1 {
+                        ui.set_text(*id, &t.replace("@0", &have.to_string()));
+                    }
+                    delivered += have;
+                    required += need;
+                }
+                if let Some((_, Some((id, t)))) = self.rows.get(n) {
+                    ui.set_text(*id, &t.replace("@0", &p.progress.to_string()));
+                }
+                (
+                    p.work + b.clear_total + required,
+                    p.progress + delivered + removed,
+                )
+            }
+        };
+        let fill = if total as f32 != 0.0 {
+            done as f32 / total as f32
+        } else {
+            0.0
+        };
+        if let Some(p) = self.progress {
+            ui.set_value(p, fill);
+        }
+        if let Some((id, t)) = &self.progress_text {
+            let percent = (fill * 100.0 + 0.5) as i32;
+            ui.set_text(*id, &t.replace("@0", &percent.to_string()));
+        }
+    }
+
+    /// Element 6000: `SetEnabled(+0x50 == 0)`.
+    pub fn click(&self, id: NodeId, data: &EntityData) -> Option<WorkPlaceClick> {
+        use banished_game::professions::Command;
+        let b = data.build.as_ref()?;
+        let enabled = b.enabled?;
+        (Some(id) == self.pause).then_some(WorkPlaceClick::Command(Command::SetEnabled {
+            entity: b.entity,
+            enabled: !enabled,
+        }))
     }
 }
 
@@ -384,6 +695,7 @@ pub enum Controller {
     Storage(StorageUi),
     Capacity(StorageCapacityUi),
     WorkPlace(WorkPlaceUi),
+    Build(BuildUi),
     StatusIcon(StatusIconUi),
     /// Attached, refresh not ported (logged once with its id).
     #[allow(dead_code)]
@@ -403,12 +715,13 @@ impl Controller {
             CITIZEN_UI => Some(Controller::Citizen(CitizenUi::bind(ui, element, root))),
             STORAGE_UI => StorageUi::bind(ui, element, archive).map(Controller::Storage),
             STORAGE_CAPACITY_UI => StorageCapacityUi::bind(ui, element).map(Controller::Capacity),
-            WORKPLACE_UI => Some(Controller::WorkPlace(WorkPlaceUi { element })),
+            WORKPLACE_UI => Some(Controller::WorkPlace(WorkPlaceUi::bind(ui, element))),
+            BUILD_UI => Some(Controller::Build(BuildUi::bind(ui, element))),
+            // Not ported: DestroyUI (FUN_140066ab0/FUN_140066460) reads the StateMachine
+            // (`+0x50/+0x52`, 6/7 damaged or destroyed) and the DestroyComponent; there is no
+            // demolition yet.
+            DESTROY_UI => None,
             // Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
-            // Not ported: BuildUI (FUN_1400b7410/FUN_1400b6f20) and DestroyUI
-            // (FUN_140066ab0/FUN_140066460) read the StateMachine (`+0x50/+0x52`, 6/7 damaged or
-            // destroyed), Build and Destroy components, which arrive with construction.
-            BUILD_UI | DESTROY_UI => None,
             STATUS_ICON_UI => {
                 StatusIconUi::bind(ui, element, !has_config).map(Controller::StatusIcon)
             }
@@ -426,6 +739,7 @@ impl Controller {
             Controller::Storage(c) => c.refresh(ui, archive, data),
             Controller::Capacity(c) => c.refresh(ui, data),
             Controller::WorkPlace(c) => c.refresh(ui, data),
+            Controller::Build(c) => c.refresh(ui, archive, data),
             Controller::StatusIcon(c) => c.refresh(ui, data),
             Controller::Pending(_) => {}
         }

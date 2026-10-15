@@ -650,7 +650,8 @@ impl Callbacks for Sim<'_, '_> {
                     if w.profession == Some(builder) {
                         self.workforce.unregister(e, builder);
                         let desc = self.site_templates[template].profession;
-                        let max = self.site_templates[template].max_workers;
+                        let footprint = self.placed[e].footprint;
+                        let max = self.site_templates[template].default_max_workers(footprint);
                         if let Some(p) = desc {
                             jobs.change_profession(id, builder, p);
                         }
@@ -1095,7 +1096,7 @@ impl Sim<'_, '_> {
         if points <= b.workers.len() as i32 {
             return 1;
         }
-        if wp.workers.len() as i32 == wp.max_workers && !wp.workers.contains(&c) {
+        if wp.workers.len() as i32 == wp.max() && !wp.workers.contains(&c) {
             return 1;
         }
         let free = b.occupied.iter().filter(|&&o| !o).count();
@@ -1158,7 +1159,8 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_14011ce30`'s registration: count the footprint's objects into a category mask
-    /// (bit 0, plus logs/stone/iron from their raw materials) and register a ClearArea work.
+    /// (bit 0, plus logs/stone/iron from their raw materials), keep `+0x48` = `FUN_14011d800`
+    /// and register a ClearArea work.
     fn register_clear(&mut self, jobs: &mut Jobs, e: usize) {
         let site = &self.sites[&e];
         let Some(clear) = self.site_templates[site.template].clear.clone() else {
@@ -1182,6 +1184,10 @@ impl Sim<'_, '_> {
                 }
             }
         }
+        let total = self.clear_remaining(e);
+        if let Some(site) = self.sites.get_mut(&e) {
+            site.clear_total = total;
+        }
         let work = Work::new(
             e,
             self.rect_cell(e),
@@ -1195,6 +1201,11 @@ impl Sim<'_, '_> {
             }),
         );
         self.set_work(jobs, e, work, mask, clear.keep_priority);
+    }
+
+    /// `FUN_14011d800`: the footprint cells holding another object.
+    pub fn clear_remaining(&self, e: usize) -> i32 {
+        clear_remaining(&self.cells.objects, self.size as i32, &self.placed[e], e)
     }
 
     /// `FUN_1400eafe0`: drop resource claims whose citizen lost the task; a lost cell claim
@@ -1225,8 +1236,7 @@ impl Sim<'_, '_> {
     /// `FUN_1400eb3b0`: ClearArea's slot `+0x20`.
     fn clear_try(&mut self, work: &mut Work, c: usize, time: i64) -> u8 {
         let e = work.entity;
-        let site = &self.sites[&e];
-        let max = self.site_templates[site.template].max_workers.max(1);
+        let max = self.workforce.workplaces.get(&e).map_or(0, |w| w.max());
         let WorkKind::Clear(cl) = &work.kind else {
             return 0;
         };
@@ -1828,4 +1838,19 @@ impl Sim<'_, '_> {
         s.health_events |= 4;
         s.supply_activity = 0;
     }
+}
+
+/// `FUN_14011d800` over a cell → object grid of side `n`.
+pub fn clear_remaining(objects: &[Option<usize>], n: i32, placed: &Placed, e: usize) -> i32 {
+    let (x, y) = placed.cell;
+    let (w, h) = placed.footprint;
+    let mut count = 0;
+    for cy in y..y + h {
+        for cx in x..x + w {
+            if objects[(cy * n + cx) as usize].is_some_and(|o| o != e) {
+                count += 1;
+            }
+        }
+    }
+    count
 }

@@ -358,12 +358,36 @@ pub struct SiteTemplate {
     pub clear: Option<banished_formats::game::ClearAreaDescription>,
     /// WorkDescription `+0x24` (most workers once built).
     pub max_workers: i32,
+    /// WorkDescription `+0x34`/`+0x30`: scale `+0x24` by the footprint area over this many cells.
+    pub per_area: Option<i32>,
+    /// WorkDescription `+0x20`: the player may change the most workers, between `+0x28` and
+    /// `+0x2c` (WorkPlaceUI).
+    pub adjustable: bool,
+    pub min_jobs: i32,
+    pub max_jobs: i32,
     /// WorkPlaceDescription `+0x20`.
     pub profession: Option<usize>,
     /// StorageDescription: accepted flags, capacity, per footprint cell.
     pub storage: Option<(u32, i32, bool)>,
     /// ModelDescription meshes per variant (construction stages, the last finished).
     pub meshes: Vec<usize>,
+}
+
+impl SiteTemplate {
+    /// `FUN_140133a90` (WorkComponent::MaxWorkers) for a building of `footprint` cells.
+    pub fn default_max_workers(&self, footprint: (i32, i32)) -> i32 {
+        let Some(area) = self.per_area else {
+            return self.max_workers;
+        };
+        let n = self.max_workers;
+        // `DAT_14017884c` = 1.0.
+        let scaled = ((footprint.0 * footprint.1) as f32 / area as f32 * n as f32 + 1.0) as i32;
+        if scaled <= n {
+            scaled.max(1)
+        } else {
+            n
+        }
+    }
 }
 
 /// One building under construction (and, once built, its WorkComponent).
@@ -383,6 +407,8 @@ pub struct Site {
     pub storage: usize,
     /// State 2 reached.
     pub complete: bool,
+    /// ClearAreaComponent `+0x48`: objects on the footprint when clearing began.
+    pub clear_total: i32,
 }
 
 /// The job manager, professions, workforce and every construction site.

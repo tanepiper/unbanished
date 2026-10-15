@@ -146,6 +146,8 @@ pub struct Node {
     pub children: Vec<NodeId>,
     pub tooltip: String,
     pub tooltip_dialog: Option<String>,
+    /// Element `+0x48`: the string table the element's own strings come from.
+    pub string_table: Option<String>,
     /// Name of the element's key binding (`Element +0xc0` resolved through `keyNames`), for
     /// `HotKeyToolTipUI`.
     pub hotkey: Option<String>,
@@ -174,6 +176,7 @@ impl Node {
             children: Vec::new(),
             tooltip: String::new(),
             tooltip_dialog: None,
+            string_table: None,
             hotkey: None,
             title_desc: None,
             enabled: true,
@@ -429,6 +432,7 @@ impl Ui {
         node.children = children;
         node.tooltip = self.res.string(b.string_table.as_deref(), &b.tooltip);
         node.tooltip_dialog = b.tooltip_dialog.clone();
+        node.string_table = b.string_table.clone();
         node.border = child(self, &b.border);
 
         self.add(node)

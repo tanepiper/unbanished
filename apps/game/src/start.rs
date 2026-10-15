@@ -42,6 +42,7 @@ fn professions(archive: &Archive) -> Professions {
                 reference: r.clone(),
                 name: p.as_ref().map(|p| p.name.clone()).unwrap_or_default(),
                 string_table: p.as_ref().and_then(|p| p.string_table.clone()),
+                sprite_sheet: p.as_ref().and_then(|p| p.sprite_sheet.clone()),
                 works_anywhere: p.is_some_and(|p| p.flag_4c),
             }
         })
@@ -894,8 +895,13 @@ impl StartingTown {
                 }
                 "residence" => t.controllers.push(Controller::Residence),
                 "work" => {
-                    t.max_workers =
-                        banished_formats::game::work_description(&data).map_or(0, |w| w.max_workers)
+                    if let Ok(w) = banished_formats::game::work_description(&data) {
+                        t.max_workers = w.max_workers;
+                        t.per_area = w.per_area.then_some(w.area);
+                        t.adjustable = w.flag_20;
+                        t.min_jobs = w.value_28;
+                        t.max_jobs = w.value_2c;
+                    }
                 }
                 "storage" => {
                     t.storage = storage_description(&data)
@@ -936,10 +942,10 @@ impl StartingTown {
             None => Storage::default(),
         });
         if t.controllers.contains(&Controller::WorkPlace) {
-            self.construction
-                .workforce
-                .workplaces
-                .insert(entity, WorkPlace::new(t.profession, t.max_workers));
+            self.construction.workforce.workplaces.insert(
+                entity,
+                WorkPlace::new(t.profession, t.default_max_workers((w, h))),
+            );
         }
         let machine = banished_game::construction::Machine::new(t.controllers.clone());
         self.construction.sites.insert(
@@ -954,6 +960,7 @@ impl StartingTown {
                 work_priority: None,
                 storage,
                 complete: false,
+                clear_total: 0,
             },
         );
         self.construction.placed.push(entity);

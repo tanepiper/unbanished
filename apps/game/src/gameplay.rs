@@ -9,6 +9,7 @@ use banished_game::random::Random;
 use banished_game::scheduler::ticks;
 use banished_ui::{Event, Ui};
 
+use crate::building_ui::WorkPlaceClick;
 use crate::create_bar::CreateBar;
 use crate::entity_ui::EntityWindows;
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
@@ -878,6 +879,34 @@ impl GameLoop for GameplayLoop {
                 Some(UtilityClick::Handled) => return Next::Stay,
                 None => {}
             }
+            let clicked = self
+                .town
+                .as_ref()
+                .and_then(|town| self.entities.click(ctx.ui, town, id));
+            match clicked {
+                Some(WorkPlaceClick::Command(command)) => {
+                    if let Some(town) = &mut self.town {
+                        town.construction.commands.push(command);
+                    }
+                    return Next::Stay;
+                }
+                Some(WorkPlaceClick::ShowWorker(citizen)) => {
+                    // `FUN_140108510`: pin the asking window, centre the camera on the entity,
+                    // then select it (`FUN_140102880`).
+                    self.entities.pin_containing(ctx.ui, id);
+                    if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
+                        let entity = Entity::Citizen(citizen);
+                        if let SceneCamera::Map(camera) = &mut view.camera {
+                            camera.target = entity.position(town).truncate();
+                        }
+                        self.selection.selected = Some(entity);
+                        self.entities
+                            .select(ctx.ui, screen, ctx.archive, town, entity);
+                    }
+                    return Next::Stay;
+                }
+                None => {}
+            }
             // The host dialog's close button (`Dialog/StandardDialog.rsc`).
             if ctx.ui.node(id).name == "buttonClose" {
                 self.utility.close_containing(ctx.ui, screen, id);
@@ -1083,6 +1112,20 @@ impl GameLoop for GameplayLoop {
                     }
                 }
                 return placed.is_some();
+            }
+            // `select`: select the most recently placed entity (EditTool::Select).
+            Some("select") => {
+                let (Some(town), Some(screen)) = (self.town.as_ref(), self.screen.as_mut()) else {
+                    return false;
+                };
+                let Some(p) = town.placed.iter().rposition(|p| p.alive) else {
+                    return false;
+                };
+                let entity = Entity::Placed(p);
+                self.selection.selected = Some(entity);
+                self.entities
+                    .select(ctx.ui, screen, ctx.archive, town, entity);
+                return true;
             }
             // `profession INDEX COUNT`: the ProfessionUI spinner.
             Some("profession") => {

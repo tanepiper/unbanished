@@ -443,14 +443,14 @@ Deviations and gaps (all marked in code):
 - Not ported: families (ResidenceComponent), the drop-off activity `FUN_14011b330`, DropOff
   redirect and pile dropping, emergencies, MultiObject stages, terrain flattening, decals,
   building status icons, ShowTool meshes, the eviction searches `FUN_140115490/940`,
-  WorkPlaceUI buttons, BuildUI/DestroyUI.
+  DestroyUI.
 - Site state machines run every iteration (scheduled quota not modelled); worker sets are
   ordered by citizen index instead of object address.
 
 Next steps:
 
-2. WorkPlaceUI `+`/`−`/max (`Command::AddWorker/RemoveWorker/ChangeMaxWorkers` exist), BuildUI
-   (progress, priority `Jobs::prioritize`), CitizenUI profession from `CitizenState::profession`.
+2. Work priority (`Jobs::prioritize`, the ClearPriority tool), CitizenUI profession from
+   `CitizenState::profession`.
 3. Emulator check of the manager (`FUN_1400fdd70`, `FUN_1400fca20`, `FUN_1400fce80`) with fake
    works, like `tools/emu/storage.py`.
 4. Drop-off activity 13 and the redirect; families for the profession searches.

@@ -14,8 +14,8 @@ pub struct EntityWindow {
     /// The attached controllers, in UIDescription order.
     pub bound: Vec<Controller>,
     pub pages: Option<NodeId>,
-    /// The template's WorkPlaceDescription names a profession.
-    pub workplace_profession: bool,
+    /// UIDescription `+0x40`: the page of a finished entity.
+    pub page: i32,
     pub pinned: bool,
 }
 
@@ -69,12 +69,6 @@ impl EntityWindows {
             return;
         };
         let root = screen.dialogs[dialog].root;
-        // EntityUI refresh FUN_1400676e0 uses UIDescription +0x40 for completed entities.
-        if let Some(pages) = ui.find(root, "pages") {
-            if let Kind::Control(Control::Page { selected, .. }) = &mut ui.node_mut(pages).kind {
-                *selected = desc.flags.max(0) as usize;
-            }
-        }
         let mut controllers = Vec::new();
         let mut bound = Vec::new();
         for c in desc.controllers {
@@ -118,11 +112,6 @@ impl EntityWindows {
         if let Some(label) = ui.find(root, "labelTitle") {
             ui.set_text(label, &title);
         }
-        let workplace_profession = archive
-            .read_ref(&format!("{template}:workplace"))
-            .ok()
-            .and_then(|b| game::workplace_description(&b).ok())
-            .is_some_and(|w| w.profession.is_some());
         let pages = ui.find(root, "pages");
         self.open.push(EntityWindow {
             entity,
@@ -130,7 +119,7 @@ impl EntityWindows {
             controllers,
             bound,
             pages,
-            workplace_profession,
+            page: desc.flags,
             pinned: false,
         });
         self.refresh(ui, archive, town);
@@ -143,6 +132,17 @@ impl EntityWindows {
     /// Each controller's slot `+0x38` refresh with the entity's current data (read-only).
     pub fn refresh(&mut self, ui: &mut Ui, archive: &Archive, town: &StartingTown) {
         for w in &mut self.open {
+            if let Some(pages) = w.pages {
+                let active = match &ui.node(pages).kind {
+                    Kind::Control(Control::Page { selected, .. }) => *selected as i32,
+                    _ => 0,
+                };
+                let page = entity_page(town, w.entity, w.page, active);
+                if let Kind::Control(Control::Page { selected, .. }) = &mut ui.node_mut(pages).kind
+                {
+                    *selected = page.max(0) as usize;
+                }
+            }
             let active_page = w
                 .pages
                 .and_then(|p| match &ui.node(p).kind {
@@ -173,13 +173,55 @@ impl EntityWindows {
                 storage,
                 materials: &town.materials,
                 status,
-                workplace_profession: w.workplace_profession,
+                workplace: match w.entity {
+                    Entity::Placed(p) => workplace_info(town, p),
+                    Entity::Citizen(_) => None,
+                },
+                build: match w.entity {
+                    Entity::Placed(p) => build_info(town, p),
+                    Entity::Citizen(_) => None,
+                },
                 active_page,
                 citizen,
             };
             for c in &mut w.bound {
                 c.refresh(ui, archive, &data);
             }
+        }
+    }
+
+    /// Route an element event to the controllers of the window containing `node`
+    /// (`UI::DialogController` slot `+0x48`).
+    pub fn click(
+        &mut self,
+        ui: &Ui,
+        town: &StartingTown,
+        node: NodeId,
+    ) -> Option<crate::building_ui::WorkPlaceClick> {
+        let w = self.open.iter_mut().find(|w| ui.descendant(w.root, node))?;
+        let Entity::Placed(p) = w.entity else {
+            return None;
+        };
+        let data = EntityData {
+            storage: None,
+            materials: &town.materials,
+            status: 0,
+            workplace: workplace_info(town, p),
+            build: build_info(town, p),
+            active_page: 0,
+            citizen: None,
+        };
+        w.bound.iter_mut().find_map(|c| match c {
+            Controller::WorkPlace(c) => c.click(node, &data),
+            Controller::Build(c) => c.click(node, &data),
+            _ => None,
+        })
+    }
+
+    /// `FUN_140108510` pins the window that asked (EntityUI `+0x38 +0xd8`).
+    pub fn pin_containing(&mut self, ui: &Ui, node: NodeId) {
+        if let Some(w) = self.open.iter_mut().find(|w| ui.descendant(w.root, node)) {
+            w.pinned = true;
         }
     }
 
@@ -265,5 +307,123 @@ fn citizen_info(town: &StartingTown, i: usize) -> Option<crate::building_ui::Cit
         happiness_max: rules.happiness,
         activity: ai.current as i32,
         has_work: s.work.is_some() || c.school.is_some(),
+    })
+}
+
+/// What WorkPlaceUI (`FUN_14008c550`) reads for building `p`; `None` without a profession.
+fn workplace_info(town: &StartingTown, p: usize) -> Option<crate::building_ui::WorkPlaceInfo> {
+    let c = &town.construction;
+    let wp = c.workforce.workplaces.get(&p)?;
+    let profession = wp.profession?;
+    let desc = c.professions.list.get(profession)?;
+    let (mut holders, mut laborers) = (0, 0);
+    for (citizen, state) in town.citizens.iter().zip(&town.agents.states) {
+        if citizen.is_adult(&town.rules) && citizen.school.is_none() {
+            holders += i32::from(state.profession == profession);
+            laborers += i32::from(state.profession == c.professions.laborer);
+        }
+    }
+    let site = c.sites.get(&p);
+    let template = site.and_then(|s| c.templates.get(s.template));
+    // Every site keeps its BuildComponent until it is built, and is the builder's until then.
+    let build_points = (profession == c.professions.builder && site.is_some())
+        .then(|| town.templates[town.placed[p].template].build_points.len() as i32);
+    Some(crate::building_ui::WorkPlaceInfo {
+        entity: p,
+        sprite: (desc.sprite_sheet.clone(), desc.name.clone()),
+        workers: wp.workers.clone(),
+        max: wp.max(),
+        holders,
+        laborers,
+        adjustable: template.is_some_and(|t| t.adjustable),
+        min_jobs: template.map_or(0, |t| t.min_jobs),
+        max_jobs: template.map_or(0, |t| t.max_jobs),
+        build_points,
+    })
+}
+
+/// EntityUI refresh `FUN_1400676e0`: the host page for the entity's state. Page 2 while it
+/// is cleared or built, 3 in states 3..=7 (damaged or being destroyed), else the
+/// UIDescription's page (`+0x40`), keeping page 4 once the player opened it.
+/// Not ported: DestroyComponent (no demolition yet).
+fn entity_page(town: &StartingTown, entity: Entity, finished: i32, active: i32) -> i32 {
+    use banished_game::construction::Controller as C;
+    let Entity::Placed(p) = entity else {
+        return finished;
+    };
+    let c = &town.construction;
+    let Some(site) = c.sites.get(&p) else {
+        return finished;
+    };
+    let controllers = &c.templates[site.template].controllers;
+    let m = &site.machine;
+    let state = if m.pending < 0 { m.state } else { m.pending } as i32;
+    if !controllers.contains(&C::Build) {
+        return if !controllers.contains(&C::ClearArea) || state != 0 {
+            finished
+        } else {
+            2
+        };
+    }
+    if (3..8).contains(&state) {
+        return 3;
+    }
+    let t = &c.templates[site.template];
+    // `FUN_14010e860`: BuildDescription `+0x30` work × stages <= progress.
+    if t.work * site.stages > site.progress {
+        return 2;
+    }
+    if state != 0 {
+        if active == 4 {
+            4
+        } else {
+            finished
+        }
+    } else {
+        2
+    }
+}
+
+/// What BuildUI (`FUN_1400b6f20`) reads for building `p`; `None` unless it is a site.
+fn build_info(town: &StartingTown, p: usize) -> Option<crate::building_ui::BuildInfo> {
+    use banished_game::construction::Controller as C;
+    let c = &town.construction;
+    let site = c.sites.get(&p)?;
+    let t = &c.templates[site.template];
+    let storage = town.storages.get(site.storage);
+    let build = t.controllers.contains(&C::Build).then(|| {
+        let materials = t
+            .materials
+            .iter()
+            .map(|&(count, m)| {
+                // The first entry of that material.
+                let have = storage
+                    .and_then(|s| s.items.iter().find(|i| i.material == m))
+                    .map_or(0, |i| i.count - i.reserved);
+                (m, count * site.stages, have)
+            })
+            .collect();
+        crate::building_ui::BuildProgress {
+            materials,
+            work: t.work * site.stages,
+            progress: site.progress,
+        }
+    });
+    let has_clear = t.controllers.contains(&C::ClearArea);
+    Some(crate::building_ui::BuildInfo {
+        entity: p,
+        build,
+        clear_total: if has_clear { site.clear_total } else { 0 },
+        clear_remaining: if has_clear {
+            banished_game::town::clear_remaining(
+                &town.cells.objects,
+                town.cells.size as i32,
+                &town.placed[p],
+                p,
+            )
+        } else {
+            0
+        },
+        enabled: c.workforce.workplaces.get(&p).map(|w| w.enabled),
     })
 }

@@ -20,6 +20,8 @@ pub struct Profession {
     /// `+0x30`: name key (`ProfessionBuilder`), in the `+0x20` string table.
     pub name: String,
     pub string_table: Option<String>,
+    /// `+0x28`: the icon's sprite sheet (sprite `+0x30`).
+    pub sprite_sheet: Option<String>,
     /// `+0x4c`: works anywhere (laborers and builders): `Jobs::TryList` (`FUN_1400fce80`) offers
     /// it work outside its workplace, and the job status icon stays off without one.
     pub works_anywhere: bool,
@@ -53,18 +55,32 @@ pub struct WorkPlace {
     pub enabled: bool,
     /// `+0x58/+0x60`: citizen indices, in assignment order.
     pub workers: Vec<usize>,
-    /// WorkComponent `+0x30` (`FUN_140133a90`): most workers.
+    /// WorkComponent `+0x30`: most workers; 0 until first read, and every reader recomputes
+    /// it from the description while it is 0 (see [`WorkPlace::max`]).
     pub max_workers: i32,
+    /// `FUN_140133a90` (WorkComponent::MaxWorkers): WorkDescription `+0x24`, scaled by the
+    /// footprint area when `+0x34` is set.
+    pub default_max: i32,
 }
 
 impl WorkPlace {
-    pub fn new(description_profession: Option<usize>, max_workers: i32) -> WorkPlace {
+    pub fn new(description_profession: Option<usize>, default_max: i32) -> WorkPlace {
         WorkPlace {
             profession: None,
             description_profession,
             enabled: true,
             workers: Vec::new(),
-            max_workers,
+            max_workers: 0,
+            default_max,
+        }
+    }
+
+    /// WorkComponent `+0x30` as every reader sees it: `if +0x30 == 0 { +0x30 = MaxWorkers() }`.
+    pub fn max(&self) -> i32 {
+        if self.max_workers == 0 {
+            self.default_max
+        } else {
+            self.max_workers
         }
     }
 }
@@ -90,6 +106,8 @@ pub enum Command {
     RemoveWorker { entity: usize },
     /// WorkPlaceUI `0x1452/0x1453`: most workers ± 1 (`FUN_14008cae0` → `FUN_140134fd0`).
     ChangeMaxWorkers { entity: usize, delta: i32 },
+    /// BuildUI's pause button (element 6000, `FUN_1400b7370`): `FUN_1401350d0`.
+    SetEnabled { entity: usize, enabled: bool },
 }
 
 /// The town manager's workplace and residence registries and every WorkPlaceComponent.
@@ -160,7 +178,7 @@ impl Workforce {
         list.iter().copied().find(|e| {
             self.workplaces
                 .get(e)
-                .is_some_and(|w| (w.workers.len() as i32) < w.max_workers && w.enabled)
+                .is_some_and(|w| (w.workers.len() as i32) < w.max() && w.enabled)
         })
     }
 
@@ -330,7 +348,7 @@ impl Workforce {
             .flatten()
             .filter_map(|e| self.workplaces.get(e))
             .filter(|w| w.enabled)
-            .map(|w| w.max_workers)
+            .map(|w| w.max())
             .sum()
     }
 
@@ -362,9 +380,22 @@ impl Workforce {
             return;
         };
         w.max_workers = max;
-        while self.workplaces[&entity].max_workers < self.workplaces[&entity].workers.len() as i32 {
+        while max < self.workplaces[&entity].workers.len() as i32 {
             let c = self.workplaces[&entity].workers[0];
             self.set_workplace(workers, c, None);
+        }
+    }
+
+    /// `FUN_1401350d0`: accept workers or not; a disabled workplace lets every worker go.
+    /// Not ported: its status icons (bits 0..4), and the evicted workers' search for another
+    /// workplace (`FUN_140115490` / `FUN_140115940`), as in [`Workforce::set_max_workers`].
+    pub fn set_enabled(&mut self, workers: &mut [Worker], entity: usize, enabled: bool) {
+        let Some(w) = self.workplaces.get_mut(&entity) else {
+            return;
+        };
+        w.enabled = enabled;
+        if !enabled {
+            self.clear_workers(workers, entity);
         }
     }
 
@@ -400,9 +431,10 @@ impl Workforce {
                     self.fire(workers, professions.laborer, p);
                 }
             }
+            Command::SetEnabled { entity, enabled } => self.set_enabled(workers, entity, enabled),
             Command::ChangeMaxWorkers { entity, delta } => {
                 if let Some(w) = self.workplaces.get(&entity) {
-                    let max = w.max_workers + delta;
+                    let max = w.max() + delta;
                     self.set_max_workers(workers, entity, max);
                 }
             }
