@@ -1427,6 +1427,35 @@ pub fn disease_description(data: &[u8]) -> Result<DiseaseDescription> {
     Ok(value)
 }
 
+/// `MarketDescription` (serializer `FUN_14004f510`): vendors stop while the market is fuller
+/// than `+0x20`; `+0x28` the categories (raw-material flags) and each one's share of the
+/// market's room.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct MarketDescription {
+    pub threshold: f32,
+    pub quotas: Vec<(u32, f32)>,
+}
+
+pub fn market_description(data: &[u8]) -> Result<MarketDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("MarketDescription") {
+            return format_err(format!(
+                "expected MarketDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let threshold = r.f32()?;
+            let n = r.i32()?;
+            let quotas = (0..n.max(0))
+                .map(|_| Ok((r.u32()?, r.f32()?)))
+                .collect::<Result<_>>()?;
+            Ok(MarketDescription { threshold, quotas })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `CemeteryDescription` (serializer `FUN_140048160`): the tombstone template `+0x20`.
 pub fn cemetery_description(data: &[u8]) -> Result<Option<String>> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {

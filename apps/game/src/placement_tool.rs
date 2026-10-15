@@ -2771,4 +2771,99 @@ mod construction_tests {
         assert!(registered, "no ClearStorage work");
         assert!(cleared, "the food stayed in the house");
     }
+
+    /// A market is built and its vendors stock it from the town's storages by category; it
+    /// joins the town's markets with its radius.
+    #[test]
+    fn vendors_stock_a_market() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Easy.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool = PlacementTool::start(
+            &archive,
+            &mut town,
+            r"Template\Market.rsc:resource",
+            &mut rng,
+        )
+        .unwrap();
+        let spot = tool
+            .find_clear_spot(&town, &terrain, town.start)
+            .expect("no spot");
+        tool.hover(&town, &terrain, Some(spot), 0);
+        let id = tool.place(&archive, &mut town, 0).expect("not placed");
+        let builder = town.construction.professions.builder;
+        let vendor = town
+            .construction
+            .professions
+            .list
+            .iter()
+            .position(|p| p.reference.to_ascii_lowercase().ends_with(":vendor"))
+            .expect("no vendor profession");
+        for (profession, count) in [(builder, 4), (vendor, 2)] {
+            town.construction
+                .commands
+                .push(banished_game::professions::Command::SetCount { profession, count });
+        }
+        let mut warnings = banished_game::events::StockWarnings::default();
+        let dt = 1.0 / 30.0;
+        let (mut built_at, mut stocked_at) = (None, None);
+        for step in 0..30 * 60 * 20 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            let site = &town.construction.sites[&id];
+            if built_at.is_none() && site.complete {
+                built_at = Some(step);
+            }
+            let storage = site.storage;
+            if built_at.is_some() && town.storages[storage].items.iter().any(|i| i.count > 0) {
+                stocked_at = Some(step);
+                break;
+            }
+        }
+        let market = town.storage_sites.iter().find(|s| s.entity == id);
+        eprintln!(
+            "built {built_at:?}, stocked {stocked_at:?}, market {:?}, items {:?}",
+            market.map(|m| m.radius),
+            town.storages[town.construction.sites[&id].storage].items
+        );
+        assert!(built_at.is_some(), "the market was not built");
+        assert!(
+            market.is_some_and(|m| m.radius.is_some()),
+            "not a town market"
+        );
+        assert!(stocked_at.is_some(), "no goods reached the market");
+    }
 }

@@ -72,6 +72,8 @@ pub enum WorkKind {
     /// `ClearStorage` (vtable `0x1401675c0`, constructor `FUN_1400ec920`): an empty house's
     /// goods go to the town's storage; `+0x58` the haulers.
     ClearStorage(crate::herbalist::HerbalistWork),
+    /// MarketWork (vtable `0x140167b40`, made by MarketComponent's slot `+0x90`).
+    Market(crate::market::MarketWork),
     /// `FishingWork` (vtable `0x140167740`, constructor `FUN_1400eff90`).
     Fishing(crate::fishing::FishingWork),
     /// A test stand-in.

@@ -596,3 +596,15 @@ fn cemetery_descriptions_parse() {
         (60.0, 24.0)
     );
 }
+
+#[test]
+fn market_description_parses() {
+    use banished_formats::game::market_description;
+    let Some(archive) = archive() else { return };
+    let d = market_description(&archive.read_ref("Template/Market.rsc:market").unwrap()).unwrap();
+    assert!((d.threshold - 0.99).abs() < 1e-6);
+    assert_eq!(d.quotas.len(), 11);
+    assert_eq!(d.quotas[0].0, 1);
+    assert!((d.quotas[0].1 - 0.168).abs() < 1e-3);
+    assert_eq!(d.quotas[10].0, 0x10000);
+}

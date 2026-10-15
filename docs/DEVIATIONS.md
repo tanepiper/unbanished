@@ -170,8 +170,8 @@ Deviation: 30, Not ported: 54, Not traced: 4.
 
 - [Not ported] [crates/game/src/produce.rs:185](../crates/game/src/produce.rs#L185): Types 0 and 1 (`1 << t & 3`); not ported: roads (`+0x2a`, the pending set).
 - [Not ported] [crates/game/src/produce.rs:198](../crates/game/src/produce.rs#L198): `FUN_1400ecd10`: ConsumeProduce slot `+0x20`, with the status icons 2 (limited) and 3 (missing inputs). Not ported: a StorageLocationComponent's drop point (`FUN_140132aa0`, the tavern) for goods leaving the building.
-- [Not ported] [crates/game/src/produce.rs:483](../crates/game/src/produce.rs#L483): `FUN_1400c4440`: walk to the use point (with the work's tool), consume the inputs, work, then leave the output and report. Not ported: the message to the building's component of the description's type `+0x38` (the quarry's dig).
-- [Not ported] [crates/game/src/produce.rs:537](../crates/game/src/produce.rs#L537): CreateRawMaterial's start (`FUN_1400cc010`): the output's yield (`+0x40`, or `+0x44` for an educated worker) in piles of at most the worker's capacity, on the create point's cell or, once it holds something, the nearest free ground (`FUN_1400a1210`, mask 4), each turned `RandTol(2) × 90°`. Not ported: the workplace's TrackerComponent and the stock's production counter (`FUN_14008e3c0`), and AutoPickupComponent.
+- [Not ported] [crates/game/src/produce.rs:485](../crates/game/src/produce.rs#L485): `FUN_1400c4440`: walk to the use point (with the work's tool), consume the inputs, work, then leave the output and report. Not ported: the message to the building's component of the description's type `+0x38` (the quarry's dig).
+- [Not ported] [crates/game/src/produce.rs:539](../crates/game/src/produce.rs#L539): CreateRawMaterial's start (`FUN_1400cc010`): the output's yield (`+0x40`, or `+0x44` for an educated worker) in piles of at most the worker's capacity, on the create point's cell or, once it holds something, the nearest free ground (`FUN_1400a1210`, mask 4), each turned `RandTol(2) × 90°`. Not ported: the workplace's TrackerComponent and the stock's production counter (`FUN_14008e3c0`), and AutoPickupComponent.
 
 ## `crates/game/src/professions.rs`
 
@@ -192,18 +192,18 @@ Deviation: 30, Not ported: 54, Not traced: 4.
 
 ## `crates/game/src/town.rs`
 
-- [Not ported] [crates/game/src/town.rs:509](../crates/game/src/town.rs#L509): `FUN_1400c4c60` with its flags: `partial` (`param_11`, the pickup may take less), `complete_on_pickup` (`param_12`, the CompleteTask follows the pickup rather than the delivery). Not ported: `param_13` (a Citizen message) and `param_14` (tool use, faster walk), which no ported caller sets.
-- [Not ported] [crates/game/src/town.rs:607](../crates/game/src/town.rs#L607): A destroy work messages the DestroyComponent instead (not ported).
-- [Not ported] [crates/game/src/town.rs:659](../crates/game/src/town.rs#L659): `FUN_14011d910` for a footprint whose description clears resources and piles: every cell's object `+0x08` is empty (`FUN_1400a2f90`). Not ported: the `+0x29` empty-cell test (`FUN_1400a2d30`) and the reference-filtered test (`FUN_1400a2e00`).
-- [Deviation] [crates/game/src/town.rs:823](../crates/game/src/town.rs#L823): Deviation: every site's scheduled update runs each iteration (bucket 3's quota of five visits each entity every iteration while it holds at most five).
-- [Not ported] [crates/game/src/town.rs:841](../crates/game/src/town.rs#L841): The entity manager's removal of a destroyed site entity (`FUN_1400c8370`, then each component's remove slot): its work goes (citizens doing it abort), the ZoneComponent frees its cells and the entity is gone. Not ported: WorkPlace and Residence removal (only removal markers are destroyed yet).
-- [Not ported] [crates/game/src/town.rs:889](../crates/game/src/town.rs#L889): `FUN_14011ce30`. Not ported: the instant clear (`FUN_14011d230`, description `+0x2d` or the game's instant flag); no shipped site sets it.
-- [Not ported] [crates/game/src/town.rs:1111](../crates/game/src/town.rs#L1111): Not ported: MultiObject stage counts and the ClearArea's terrain flattening (`FUN_14011d740` → `FUN_1400a35b0`).
-- [Not ported] [crates/game/src/town.rs:1160](../crates/game/src/town.rs#L1160): Not ported: the decal's alpha.
-- [Not ported] [crates/game/src/town.rs:1335](../crates/game/src/town.rs#L1335): Not ported: emergencies (fires).
-- [Not ported] [crates/game/src/town.rs:2064](../crates/game/src/town.rs#L2064): Not ported: the empty-cell phase (`+0x71`, roads and fields: `FUN_1400c54a0`).
-- [Not ported] [crates/game/src/town.rs:2228](../crates/game/src/town.rs#L2228): Not ported: the stock manager's production counter (`FUN_14008e3c0`). `FUN_140045170` once the pile's work is registered ([`Sim::activate_piles`]).
-- [Not ported] [crates/game/src/town.rs:2664](../crates/game/src/town.rs#L2664): The final drop-off with no target (its redirect search is not ported).
+- [Not ported] [crates/game/src/town.rs:540](../crates/game/src/town.rs#L540): `FUN_1400c4c60` with its flags: `partial` (`param_11`, the pickup may take less), `complete_on_pickup` (`param_12`, the CompleteTask follows the pickup rather than the delivery). Not ported: `param_13` (a Citizen message) and `param_14` (tool use, faster walk), which no ported caller sets.
+- [Not ported] [crates/game/src/town.rs:657](../crates/game/src/town.rs#L657): A destroy work messages the DestroyComponent instead (not ported).
+- [Not ported] [crates/game/src/town.rs:709](../crates/game/src/town.rs#L709): `FUN_14011d910` for a footprint whose description clears resources and piles: every cell's object `+0x08` is empty (`FUN_1400a2f90`). Not ported: the `+0x29` empty-cell test (`FUN_1400a2d30`) and the reference-filtered test (`FUN_1400a2e00`).
+- [Deviation] [crates/game/src/town.rs:873](../crates/game/src/town.rs#L873): Deviation: every site's scheduled update runs each iteration (bucket 3's quota of five visits each entity every iteration while it holds at most five).
+- [Not ported] [crates/game/src/town.rs:891](../crates/game/src/town.rs#L891): The entity manager's removal of a destroyed site entity (`FUN_1400c8370`, then each component's remove slot): its work goes (citizens doing it abort), the ZoneComponent frees its cells and the entity is gone. Not ported: WorkPlace and Residence removal (only removal markers are destroyed yet).
+- [Not ported] [crates/game/src/town.rs:939](../crates/game/src/town.rs#L939): `FUN_14011ce30`. Not ported: the instant clear (`FUN_14011d230`, description `+0x2d` or the game's instant flag); no shipped site sets it.
+- [Not ported] [crates/game/src/town.rs:1170](../crates/game/src/town.rs#L1170): Not ported: MultiObject stage counts and the ClearArea's terrain flattening (`FUN_14011d740` → `FUN_1400a35b0`).
+- [Not ported] [crates/game/src/town.rs:1219](../crates/game/src/town.rs#L1219): Not ported: the decal's alpha.
+- [Not ported] [crates/game/src/town.rs:1394](../crates/game/src/town.rs#L1394): Not ported: emergencies (fires).
+- [Not ported] [crates/game/src/town.rs:2153](../crates/game/src/town.rs#L2153): Not ported: the empty-cell phase (`+0x71`, roads and fields: `FUN_1400c54a0`).
+- [Not ported] [crates/game/src/town.rs:2317](../crates/game/src/town.rs#L2317): Not ported: the stock manager's production counter (`FUN_14008e3c0`). `FUN_140045170` once the pile's work is registered ([`Sim::activate_piles`]).
+- [Not ported] [crates/game/src/town.rs:2753](../crates/game/src/town.rs#L2753): The final drop-off with no target (its redirect search is not ported).
 
 ## `crates/game/src/wildlife.rs`
 

@@ -290,6 +290,7 @@ impl Sim<'_, '_> {
                     param: slot as i32,
                     partial: false,
                     complete_on_pickup: true,
+                    ..Default::default()
                 },
             );
             return self.produce_taken(work, c, slot);
@@ -330,6 +331,7 @@ impl Sim<'_, '_> {
                         param: slot as i32,
                         partial: true,
                         complete_on_pickup: false,
+                        ..Default::default()
                     },
                 );
                 return self.produce_taken(work, c, slot);

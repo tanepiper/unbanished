@@ -1772,11 +1772,17 @@ impl StartingTown {
             if self.storage_sites.iter().any(|s| s.entity == e) {
                 continue;
             }
+            let t = &self.templates[self.placed[e].template];
             self.storage_sites.push(StorageSite {
                 entity: e,
                 storage: site.storage,
-                location_flags: self.templates[self.placed[e].template].storage_location_flags,
-                radius: None,
+                location_flags: t.storage_location_flags,
+                // A MarketLocationComponent's market (`+0x10`), searched within its radius.
+                radius: if t.market_location {
+                    t.market_radius
+                } else {
+                    None
+                },
             });
         }
     }
@@ -1897,6 +1903,13 @@ impl StartingTown {
                     }
                 }
                 "absorbresource" => t.controllers.push(Controller::AbsorbResource),
+                "marketlocation" => t.controllers.push(Controller::MarketLocation),
+                "market" => {
+                    if let Ok(d) = banished_formats::game::market_description(&data) {
+                        t.controllers.push(Controller::ResourceProduce);
+                        t.market = Some(d);
+                    }
+                }
                 "statusicon" => {
                     t.status_icon = banished_formats::game::status_icon_description(&data).ok();
                 }

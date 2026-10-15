@@ -45,6 +45,8 @@ pub enum Controller {
     StorageLocation,
     /// CemeteryComponent (`FUN_140048100` table).
     Cemetery,
+    /// MarketLocationComponent (`FUN_14004fa70` table): a town market.
+    MarketLocation,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -117,6 +119,9 @@ pub enum Callback {
     CropUpdate10,
     CropEnter11,
     CropUpdate11,
+    /// `FUN_14004f880` / `FUN_14004f840`: the market joins / leaves the town's (`+0x10`).
+    MarketEnter2,
+    MarketEnter3,
     /// `FUN_140047920` / `FUN_1400478e0`: the cemetery joins / leaves the town's.
     CemeteryEnter2,
     CemeteryEnter3,
@@ -379,6 +384,23 @@ const ORCHARD: &[StateDef] = &[
     },
 ];
 
+const MARKET_LOCATION: &[StateDef] = &[
+    StateDef {
+        id: 2,
+        enter: C::MarketEnter2,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(3, C::None)],
+    },
+    StateDef {
+        id: 3,
+        enter: C::MarketEnter3,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(6, C::None), (4, C::None), (5, C::None)],
+    },
+];
+
 const CEMETERY: &[StateDef] = &[
     StateDef {
         id: 2,
@@ -512,6 +534,7 @@ impl Controller {
             Controller::AbsorbResource => ABSORB_RESOURCE,
             Controller::StorageLocation => STORAGE_LOCATION,
             Controller::Cemetery => CEMETERY,
+            Controller::MarketLocation => MARKET_LOCATION,
         }
     }
 
@@ -742,6 +765,8 @@ pub struct SiteTemplate {
     pub disease: Option<banished_formats::game::DiseaseDescription>,
     /// CemeteryDescription's tombstone template and its TombstoneDescription.
     pub cemetery: Option<crate::cemetery::CemeteryTemplate>,
+    /// MarketDescription.
+    pub market: Option<banished_formats::game::MarketDescription>,
     /// StatusIconDescription (presentation), and the finished model's height its icons stand
     /// on (`ModelComponent +0x5c`).
     pub status_icon: Option<banished_formats::game::StatusIconDescription>,

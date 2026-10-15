@@ -29,7 +29,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Disease (blight) | fields, orchards, pastures | yes ([FARMING.md](FARMING.md#blight-cratesgamesrcblightrs)) |
 | **Cemetery**, **Tombstone** | Cemetery | yes ([CITIZEN-LIFE.md](CITIZEN-LIFE.md#burial-cratesgamesrccemeteryrs)) |
 | **Well**, **Fire** | Well; every building | missing |
-| **Market**, **MarketLocation** | Market | missing |
+| **Market**, **MarketLocation** | Market | yes ([MARKETS.md](MARKETS.md)) |
 | **Trade**, **Boat** | TradingPost, TraderBoat | missing |
 | **Destroy** | every building | missing (demolition) |
 | **CropField** | fields | yes ([FARMING.md](FARMING.md)) |
@@ -57,7 +57,8 @@ simulation. Parsing it or drawing its mesh is not enough.
 | PlantOrchard, fruit picking | yes | | CreateNaturalResource (planting) | yes |
 | | | | HuntAnimal, RemoveAnimal | yes |
 | AutoPickupWork (base of the gatherer, forester, hunter, harvest and pasture works), PastureWork, ClearStorage | yes | | | |
-| MarketWork, TradeWork, FireWork | no | | | |
+| MarketWork | yes | | | |
+| TradeWork, FireWork | no | | | |
 
 ## Citizen activities (`FUN_1401146c0`)
 

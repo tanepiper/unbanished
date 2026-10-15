@@ -26,6 +26,7 @@ pub mod hunt;
 pub mod jobs;
 pub mod life;
 pub mod map;
+pub mod market;
 pub mod math;
 pub mod names;
 pub mod needs;
