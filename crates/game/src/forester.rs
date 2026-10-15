@@ -145,7 +145,7 @@ impl Sim<'_, '_> {
                     continue;
                 }
                 let point = cell_ground(self.size, self.terrain, cell);
-                self.plant_sequence(c, work, desc.tree, point, cell);
+                self.plant_sequence(c, work, desc.tree, point, cell, None, None, 0);
                 return self.forester_took(work, c);
             }
             let Some(o) = object else { continue };
@@ -210,15 +210,20 @@ impl Sim<'_, '_> {
         2
     }
 
-    /// `FUN_1400c3bb0` as the forester calls it (no entity to message, complete parameter 0):
-    /// take the tool out, walk to the cell, work 2.1 s, plant, put the tool away, report.
-    fn plant_sequence(
+    /// `FUN_1400c3bb0`: take the tool out, walk to the cell, work 2.1 s, plant (the cell must
+    /// have `occupant`), put the tool away, send `message`, report `param`. The forester has no
+    /// occupant or message; an orchard has itself and its message 0.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn plant_sequence(
         &mut self,
         c: usize,
         work: &mut Work,
         tree: usize,
         point: [f32; 3],
         cell: i32,
+        occupant: Option<usize>,
+        message: Option<crate::character::Message>,
+        param: i32,
     ) {
         self.clear_citizen(c, Some(work));
         self.on_empty_think(c);
@@ -226,15 +231,18 @@ impl Sim<'_, '_> {
             c,
             Action::CompleteTask {
                 work: work.id,
-                param: 0,
+                param,
             },
         );
+        if let Some(m) = message {
+            self.push(c, Action::SendMessage(m));
+        }
         self.push(c, Action::ShowTool(-1));
         self.push(
             c,
             Action::CreateNaturalResource {
                 template: tree,
-                occupant: None,
+                occupant,
                 cell,
             },
         );

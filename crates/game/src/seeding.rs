@@ -37,6 +37,8 @@ pub struct Template {
     pub audio_events: Vec<(String, Option<String>, f32)>,
     pub natural: Option<NaturalResourceDescription>,
     pub growth: Option<GrowthDescription>,
+    /// FruitDescription (orchard trees).
+    pub fruit: Option<crate::orchard::FruitTemplate>,
     /// Cached external GrowthDescription identity, used by FUN_140126100's pointer comparison.
     pub growth_reference: Option<String>,
     /// Spawn entries: (index into the template table, lo, hi).
@@ -622,59 +624,77 @@ impl<'a> Seeder<'a> {
         let mut changed = self.animate(ticks(dt));
         for bucket in 0..5 {
             for (_, id, elapsed) in scheduler.visit_bucket(bucket) {
-                let p = &mut self.placed[id];
-                if !p.alive {
-                    continue;
-                }
-                let Some(state) = &mut p.growth_state else {
+                changed |= self.scheduled_growth(scheduler, id, elapsed, temperature, disabled);
+                // The entity's other scheduled components (FruitComponent after Growth,
+                // wildlife).
+                if self.placed[id].alive {
                     changed |= visit(self, scheduler, id, elapsed);
-                    continue;
-                };
-                let d = self.templates[p.template].growth.as_ref().unwrap();
-                let result = state.update(d, &mut p.growth, elapsed, temperature, disabled);
-                if !disabled {
-                    for _ in 0..result.spawn_attempts {
-                        if let Some(child) = self.periodic_spawn(id) {
-                            let handle = scheduler.register(
-                                child,
-                                self.templates[self.placed[child].template].bucket,
-                            );
-                            debug_assert_eq!(handle, child);
-                            changed = true;
-                        }
-                    }
-                }
-                if let Some(adjustment) = result.map_adjustment {
-                    let p = &self.placed[id];
-                    let i = (p.cell.1 * self.n() + p.cell.0) as usize;
-                    self.cells.growth_bytes[i] =
-                        adjust_map_byte(self.cells.growth_bytes[i], adjustment);
-                    self.cells.previous_template[i] = Some(p.template);
-                    if self.templates[p.template]
-                        .natural
-                        .as_ref()
-                        .is_some_and(|n| n.flag)
-                    {
-                        // FUN_14012bc50 -> FUN_14012b910 -> FUN_14012a5c0: use the selected
-                        // model variant's animation group, index 2, start time zero.
-                        let p = &mut self.placed[id];
-                        p.removal_requested = true;
-                        p.animation = self.templates[p.template]
-                            .animations
-                            .get(p.variant)
-                            .and_then(Option::as_ref)
-                            .and_then(|g| g.clips.get(2))
-                            .map(|_| Playback::new(2, 0));
-                    } else {
-                        self.remove(id);
-                        changed = true;
-                    }
                 }
             }
         }
         // FUN_1400c9560 drains removal requests only after all five buckets.
         for id in self.removed.drain(..) {
             scheduler.remove(id);
+        }
+        changed
+    }
+
+    /// GrowthComponent's scheduled update for one visited entity; true when the models changed.
+    fn scheduled_growth(
+        &mut self,
+        scheduler: &mut EntityScheduler<usize>,
+        id: usize,
+        elapsed: i64,
+        temperature: f32,
+        disabled: bool,
+    ) -> bool {
+        let mut changed = false;
+        {
+            let p = &mut self.placed[id];
+            if !p.alive {
+                return changed;
+            }
+            let Some(state) = &mut p.growth_state else {
+                return changed;
+            };
+            let d = self.templates[p.template].growth.as_ref().unwrap();
+            let result = state.update(d, &mut p.growth, elapsed, temperature, disabled);
+            if !disabled {
+                for _ in 0..result.spawn_attempts {
+                    if let Some(child) = self.periodic_spawn(id) {
+                        let handle = scheduler
+                            .register(child, self.templates[self.placed[child].template].bucket);
+                        debug_assert_eq!(handle, child);
+                        changed = true;
+                    }
+                }
+            }
+            if let Some(adjustment) = result.map_adjustment {
+                let p = &self.placed[id];
+                let i = (p.cell.1 * self.n() + p.cell.0) as usize;
+                self.cells.growth_bytes[i] =
+                    adjust_map_byte(self.cells.growth_bytes[i], adjustment);
+                self.cells.previous_template[i] = Some(p.template);
+                if self.templates[p.template]
+                    .natural
+                    .as_ref()
+                    .is_some_and(|n| n.flag)
+                {
+                    // FUN_14012bc50 -> FUN_14012b910 -> FUN_14012a5c0: use the selected
+                    // model variant's animation group, index 2, start time zero.
+                    let p = &mut self.placed[id];
+                    p.removal_requested = true;
+                    p.animation = self.templates[p.template]
+                        .animations
+                        .get(p.variant)
+                        .and_then(Option::as_ref)
+                        .and_then(|g| g.clips.get(2))
+                        .map(|_| Playback::new(2, 0));
+                } else {
+                    self.remove(id);
+                    changed = true;
+                }
+            }
         }
         changed
     }
@@ -897,6 +917,7 @@ mod tests {
                 random_variant: true,
             }),
             natural: None,
+            fruit: None,
             animations: Vec::new(),
             audio_events: Vec::new(),
             growth: Some(GrowthDescription {

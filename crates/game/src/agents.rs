@@ -309,6 +309,8 @@ impl Agents {
                 healers: &mut c.healers,
                 happiness: &mut c.happiness,
                 calendar: c.calendar,
+                year: c.year,
+                fruits: &mut c.fruits,
                 keep_piles: &mut c.keep_piles,
                 site_list: &mut c.site_list,
                 events: Vec::new(),
@@ -365,11 +367,19 @@ impl Agents {
         for command in commands {
             match command {
                 crate::professions::Command::SetCrop { entity, crop } => {
-                    sim.set_crop(entity, crop);
+                    if sim.sites.get(&entity).is_some_and(|s| s.orchard.is_some()) {
+                        sim.set_orchard_tree(entity, crop);
+                    } else {
+                        sim.set_crop(entity, crop);
+                    }
                     continue;
                 }
                 crate::professions::Command::FieldAction { entity, action } => {
-                    sim.field_action(entity, action);
+                    if sim.sites.get(&entity).is_some_and(|s| s.orchard.is_some()) {
+                        sim.orchard_action(entity, action);
+                    } else {
+                        sim.field_action(entity, action);
+                    }
                     continue;
                 }
                 _ => {}
@@ -1037,6 +1047,12 @@ impl Agents {
                         1 => sim.unclaim(e),
                         _ => sim.animate_resource(e, m.a.max(0) as usize),
                     }
+                    jobs.drain(&mut sim);
+                }
+                Component::Orchard => {
+                    let Some(e) = m.entity else { continue };
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    sim.orchard_message(e, m.message, m.a);
                     jobs.drain(&mut sim);
                 }
                 Component::CropField => {

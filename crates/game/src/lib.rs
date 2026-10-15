@@ -28,6 +28,7 @@ pub mod math;
 pub mod names;
 pub mod needs;
 pub mod noise;
+pub mod orchard;
 pub mod pathfind;
 pub mod picking;
 pub mod placement;

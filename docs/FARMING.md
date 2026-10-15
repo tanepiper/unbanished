@@ -59,3 +59,44 @@ Not ported:
 - crop disease (DiseaseComponent, `FUN_1400491a0`);
 - the field's status icons and tracker;
 - the drag tool's own placement rules.
+
+## Orchards (`crates/game/src/orchard.rs`)
+
+An orchard is a dragged area with the components ClearArea, WorkPlace (farmer) and Orchard.
+
+### OrchardComponent (states `FUN_140052a40`)
+
+| State | Enter | Scheduled update | Exit | Messages |
+|---|---|---|---|---|
+| 2 off | workplace off (`FUN_140051e90`) | switched on → 9 (`FUN_140051e20`) | | 3: → 9 |
+| 9 planting | tree slots, footprint lifted, PlantOrchard (`FUN_1400519d0`) | all standing → 10 (`FUN_1400518f0`) | | 5: clear (0x14) |
+| 10 tending | lost trees → 12, else TendArea (`FUN_140051790`) | harvest when due; lost trees → 12; tending only in months 1–8 (`FUN_140051560`) | the work goes | 4: harvest now, 5 |
+| 12 replanting | PlantOrchard (`FUN_140051440`) | harvest when due; none lost → 10 (`FUN_140051370`) | the work goes | 4, 5 |
+| 11 picking | the picking work; cells remember the tree (`FUN_140051160`, `FUN_1400a4c40`) | every standing tree picked → 10 (`FUN_140050fb0`) | | 5 |
+| 0x14 clearing | a ClearArea work (`0x401`) (`FUN_140050e40`) | cleared → 9 (`FUN_140050d90`) | the work goes | |
+
+- **Tree slots.** A slot sits every `OrchardDescription +0x24 / +0x28` cells (2 × 3). Each
+  holds its cell, its state (0 to plant, 1 standing, 2 lost), the tree, and a picked flag.
+- **Harvest due** (`FUN_140051ee0`). The orchard must be switched on and not yet harvested
+  this year. It is then due either when warm in months 7–11 with any fruit, or when the mean
+  ripeness is above 0.99 (`FUN_140051fa0`).
+- **Messages** (`FUN_1400522f0`):
+  - 0: a slot was planted. It stands if the tree has fruit; otherwise it is lost.
+  - 1: a tree was picked. Its fruit starts again.
+  - 2: a tending visit ripens the fruit by `ripening time × 300 s × OrchardDescription +0x2c`.
+- **FruitComponent** (`FUN_14004a740`). A tree's fruit ripens once the tree is grown, at
+  `1 / (months × 300)` per second scaled by `1 − ((t − best) / range)²`. Outside the range it
+  is 0, and −10 at or below 32 °F. A picked tree waits until months 7–11 are over. It runs
+  after the tree's growth in the bucket pass.
+- **Works:**
+  - PlantOrchard (`FUN_1400f9fc0`) plants the first empty, unclaimed slot through
+    `FUN_1400c3bb0`, with the orchard as occupant and its message 0.
+  - TendArea tends a random tree, sending message 2.
+  - Picking (`FUN_1400f2d90`) visits every standing tree (`FUN_1400c0c80`): walk, work 1 s,
+    leave fruit scaled by its ripeness on even-indexed trees only, then message 1.
+- **Controls.** The orchard's buttons (`FUN_140052500`) and tree list reuse
+  `Command::FieldAction` and `Command::SetCrop`.
+
+Verification: `placement_tool::construction_tests::arborists_plant_tend_and_pick_an_orchard`.
+A 7 × 7 orchard gets 12 trees, planted in about 74 s. Fast-forwarded to grown trees with ripe
+fruit in autumn, the fruit is picked and stored.

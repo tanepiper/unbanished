@@ -69,6 +69,9 @@ pub enum Component {
     /// CropFieldComponent's message slot (`FUN_140120020`): `message` 0 planted / 1 tended,
     /// `a` the cell index, `entity` the field.
     CropField,
+    /// OrchardComponent's message slot (`FUN_1400522f0`): 0 planted, 1 picked, 2 tended; `a`
+    /// the tree slot.
+    Orchard,
 }
 
 /// A message an action delivered (slot `+0x78` of the receiving component). The owner

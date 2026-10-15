@@ -218,6 +218,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         animations: Vec::new(),
         audio_events: Vec::new(),
         natural: None,
+        fruit: None,
         growth: None,
         growth_reference: None,
         spawn: Vec::new(),
@@ -238,6 +239,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         pile_yield: (0, 0),
     };
     let mut pile_ref = None;
+    let mut fruit_ref = None;
     let mut spawn = Vec::new();
     for d in desc.descriptions.iter().flatten() {
         let Some(data) = read(archive, d) else {
@@ -295,6 +297,19 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
             "rawmaterial" => {
                 if let Ok(d) = raw_material_description(&data) {
                     t.pile_yield = (d.value_40, d.value_44);
+                }
+            }
+            "fruit" => {
+                if let Ok((months, best, range, pile)) =
+                    banished_formats::game::fruit_description(&data)
+                {
+                    t.fruit = Some(banished_game::orchard::FruitTemplate {
+                        months,
+                        best,
+                        range,
+                        pile: None,
+                    });
+                    fruit_ref = pile;
                 }
             }
             "growth" => {
@@ -355,6 +370,12 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
     // `FUN_14012b5c0` clones the resource's raw-material template as a pile.
     if let Some(r) = pile_ref {
         table[index].pile = load_template(archive, &r, table);
+    }
+    if let Some(r) = fruit_ref {
+        let pile = load_template(archive, &r, table);
+        if let Some(f) = &mut table[index].fruit {
+            f.pile = pile;
+        }
     }
     for e in spawn {
         if let Some(child) = e
@@ -1039,6 +1060,8 @@ impl StartingTown {
             dt,
         );
         let wildlife = &mut self.wildlife;
+        let fruits = &mut self.construction.fruits;
+        let calendar = self.construction.calendar;
         let changed = Seeder {
             templates: &self.templates,
             terrain,
@@ -1054,6 +1077,20 @@ impl StartingTown {
             temperature,
             false,
             &mut |seeder, scheduler, id, elapsed| {
+                // FruitComponent (`FUN_14004a740`) after the tree's growth.
+                let p = &seeder.placed[id];
+                if let Some(f) = seeder.templates[p.template].fruit {
+                    let fruit = fruits.entry(id).or_default();
+                    banished_game::orchard::ripen(
+                        fruit,
+                        &f,
+                        p.growth,
+                        elapsed,
+                        calendar,
+                        temperature,
+                    );
+                    return false;
+                }
                 let mut wild = banished_game::wildlife::Wild {
                     wildlife: &mut *wildlife,
                     placed: seeder.placed,
@@ -1281,6 +1318,18 @@ impl StartingTown {
                         t.crop_field = Some(banished_game::farm::CropFieldTemplate { tend, group });
                     }
                 }
+                "orchard" => {
+                    if let Ok((spacing, tend, group)) =
+                        banished_formats::game::orchard_description(&data)
+                    {
+                        t.controllers.push(Controller::Orchard);
+                        t.orchard = Some(banished_game::orchard::OrchardTemplate {
+                            spacing,
+                            tend,
+                            group,
+                        });
+                    }
+                }
                 "hunt" => {
                     if let Ok(d) = banished_formats::game::hunt_description(&data) {
                         t.controllers.push(Controller::ResourceProduce);
@@ -1369,6 +1418,7 @@ impl StartingTown {
         if !has_build
             && !t.controllers.contains(&Controller::ClearResource)
             && !t.controllers.contains(&Controller::CropField)
+            && !t.controllers.contains(&Controller::Orchard)
         {
             return None;
         }
@@ -1446,6 +1496,9 @@ impl StartingTown {
                 crop_field: t
                     .crop_field
                     .map(|_| banished_game::farm::CropField::default()),
+                orchard: t
+                    .orchard
+                    .map(|_| banished_game::orchard::Orchard::default()),
                 fishing: t
                     .fishing
                     .as_ref()

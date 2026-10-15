@@ -567,7 +567,7 @@ impl Sim<'_, '_> {
 
     /// `FUN_1400c0570`: take the hoe, walk next to the cell, work 10 s facing it, tell the
     /// field, put the hoe away, report.
-    fn tend_sequence(
+    pub(crate) fn tend_sequence(
         &mut self,
         c: usize,
         work: &mut Work,

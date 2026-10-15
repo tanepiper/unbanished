@@ -1326,6 +1326,41 @@ pub fn crop_field_description(data: &[u8]) -> Result<(f32, i32)> {
     Ok(value)
 }
 
+/// `OrchardDescription` (serializer `FUN_140052c60`, versioned): tree spacing `+0x24`,
+/// `+0x28`, a tending visit's ripening `+0x2c` and, from version 1, the stock slot `+0x20`.
+pub fn orchard_description(data: &[u8]) -> Result<((i32, i32), f32, i32)> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("OrchardDescription") {
+            return format_err(format!(
+                "expected OrchardDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, version| {
+            let spacing = (r.i32()?, r.i32()?);
+            let tend = r.f32()?;
+            let group = if version > 0 { r.i32()? } else { 0 };
+            Ok((spacing, tend, group))
+        })
+    })?;
+    Ok(value)
+}
+
+/// `FruitDescription` (serializer `FUN_14004ab40`): ripening time `+0x20` (× 300 s), the best
+/// temperature `+0x24`, its range `+0x28`, the fruit's raw material `+0x30`.
+pub fn fruit_description(data: &[u8]) -> Result<(f32, f32, f32, Option<String>)> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("FruitDescription") {
+            return format_err(format!(
+                "expected FruitDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| Ok((r.f32()?, r.f32()?, r.f32()?, r.external_ref()?)))
+    })?;
+    Ok(value)
+}
+
 /// `AutoPickupDescription` (serializer `FUN_1400454c0`): `+0x20`, whether the workplace's
 /// workers pick up the piles they make first.
 pub fn auto_pickup_description(data: &[u8]) -> Result<bool> {

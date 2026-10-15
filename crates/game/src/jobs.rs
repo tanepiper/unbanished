@@ -61,6 +61,11 @@ pub enum WorkKind {
     TendArea(crate::herbalist::HerbalistWork),
     /// The harvest work (vtable `0x1401678c0`, constructor `FUN_1400f2990`).
     Harvest(crate::farm::AreaWork),
+    /// `PlantOrchard` (vtable `0x140167d30`, constructor `FUN_1400fa610`): `need` marks the
+    /// slots being planted.
+    PlantOrchard(crate::farm::AreaWork),
+    /// Fruit picking (vtable `0x140167940`, constructor `FUN_1400f3530`).
+    PickFruit(crate::farm::AreaWork),
     /// `FishingWork` (vtable `0x140167740`, constructor `FUN_1400eff90`).
     Fishing(crate::fishing::FishingWork),
     /// A test stand-in.

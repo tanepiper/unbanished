@@ -34,6 +34,8 @@ pub enum Controller {
     Happiness,
     /// CropFieldComponent (`FUN_140120620` table).
     CropField,
+    /// OrchardComponent (`FUN_140052a40` table).
+    Orchard,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -106,6 +108,24 @@ pub enum Callback {
     CropUpdate10,
     CropEnter11,
     CropUpdate11,
+    /// Orchard: `FUN_140051e90` / `FUN_140051e20` (2), `FUN_1400519d0` / `FUN_1400518f0` (9),
+    /// `FUN_140051790` / `FUN_140051560` (10), `FUN_140051500` / `FUN_140051310` (exits of 10
+    /// and 12), `FUN_140051440` / `FUN_140051370` (12), `FUN_140051160` / `FUN_140050fb0`
+    /// (11), `FUN_140050e40` / `FUN_140050d40` / `FUN_140050d90` (0x14).
+    OrchardEnter2,
+    OrchardUpdate2,
+    OrchardEnter9,
+    OrchardUpdate9,
+    OrchardEnter10,
+    OrchardUpdate10,
+    OrchardExitWork,
+    OrchardEnter12,
+    OrchardUpdate12,
+    OrchardEnter11,
+    OrchardUpdate11,
+    OrchardEnter14,
+    OrchardExit14,
+    OrchardUpdate14,
     /// Callbacks whose port is still missing (they pass the state on).
     Missing,
 }
@@ -283,6 +303,61 @@ const CROP_FIELD: &[StateDef] = &[
     },
 ];
 
+const ORCHARD: &[StateDef] = &[
+    StateDef {
+        id: 2,
+        enter: C::OrchardEnter2,
+        update: C::OrchardUpdate2,
+        exit: C::None,
+        transitions: &[(3, C::None), (9, C::None)],
+    },
+    StateDef {
+        id: 9,
+        enter: C::OrchardEnter9,
+        update: C::OrchardUpdate9,
+        exit: C::None,
+        transitions: &[(3, C::None), (0xa, C::None), (0x14, C::None)],
+    },
+    StateDef {
+        id: 0xa,
+        enter: C::OrchardEnter10,
+        update: C::OrchardUpdate10,
+        exit: C::OrchardExitWork,
+        transitions: &[
+            (3, C::None),
+            (0xc, C::None),
+            (0xb, C::None),
+            (0x14, C::None),
+        ],
+    },
+    StateDef {
+        id: 0xc,
+        enter: C::OrchardEnter12,
+        update: C::OrchardUpdate12,
+        exit: C::OrchardExitWork,
+        transitions: &[
+            (3, C::None),
+            (0xa, C::None),
+            (0xb, C::None),
+            (0x14, C::None),
+        ],
+    },
+    StateDef {
+        id: 0xb,
+        enter: C::OrchardEnter11,
+        update: C::OrchardUpdate11,
+        exit: C::None,
+        transitions: &[(3, C::None), (0xa, C::None), (0x14, C::None)],
+    },
+    StateDef {
+        id: 0x14,
+        enter: C::OrchardEnter14,
+        update: C::OrchardUpdate14,
+        exit: C::OrchardExit14,
+        transitions: &[(3, C::None), (9, C::None)],
+    },
+];
+
 const HAPPINESS: &[StateDef] = &[
     StateDef {
         id: 2,
@@ -352,6 +427,7 @@ impl Controller {
             Controller::Healer => HEALER,
             Controller::Happiness => HAPPINESS,
             Controller::CropField => CROP_FIELD,
+            Controller::Orchard => ORCHARD,
         }
     }
 
@@ -574,6 +650,8 @@ pub struct SiteTemplate {
     pub hunt: Option<banished_formats::game::HuntDescription>,
     /// CropFieldDescription.
     pub crop_field: Option<crate::farm::CropFieldTemplate>,
+    /// OrchardDescription.
+    pub orchard: Option<crate::orchard::OrchardTemplate>,
 }
 
 impl SiteTemplate {
@@ -678,6 +756,8 @@ pub struct Site {
     pub hunt_time: Option<i64>,
     /// CropFieldComponent.
     pub crop_field: Option<crate::farm::CropField>,
+    /// OrchardComponent.
+    pub orchard: Option<crate::orchard::Orchard>,
 }
 
 /// The job manager, professions, workforce and every construction site.
@@ -715,8 +795,12 @@ pub struct Construction {
     pub healers: Vec<usize>,
     /// The town manager's registered HappinessComponents (`+0x50`), by entity.
     pub happiness: Vec<usize>,
-    /// The calendar's seconds into the year (`Game +0x128 → +8`), set before each iteration.
+    /// The calendar's seconds into the year (`Game +0x128 → +8`) and its year (`+0`), set
+    /// before each iteration.
     pub calendar: f32,
+    pub year: u32,
+    /// FruitComponents of orchard trees, by entity.
+    pub fruits: BTreeMap<usize, crate::orchard::Fruit>,
     /// NaturalResourceComponent `+0x2d` set by a crop field: whether harvesting leaves a pile.
     pub keep_piles: BTreeMap<usize, bool>,
     /// The town manager's known crops, orchard trees and livestock (`FUN_140096ef0`), as

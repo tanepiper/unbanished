@@ -95,6 +95,8 @@ pub struct Sim<'s, 't> {
     pub happiness: &'s mut Vec<usize>,
     /// The calendar's seconds into the year.
     pub calendar: f32,
+    pub year: u32,
+    pub fruits: &'s mut BTreeMap<usize, crate::orchard::Fruit>,
     pub keep_piles: &'s mut BTreeMap<usize, bool>,
     pub site_list: &'s mut Vec<usize>,
     pub events: Vec<JobEvent>,
@@ -558,7 +560,7 @@ impl Sim<'_, '_> {
     /// `FUN_14011d910` for a footprint whose description clears resources and piles: every
     /// cell's object `+0x08` is empty (`FUN_1400a2f90`). Not ported: the `+0x29` empty-cell
     /// test (`FUN_1400a2d30`) and the reference-filtered test (`FUN_1400a2e00`).
-    fn is_clear(&self, entity: usize) -> bool {
+    pub(crate) fn is_clear(&self, entity: usize) -> bool {
         let p = &self.placed[entity];
         let n = self.size as i32;
         let (x, y) = p.cell;
@@ -802,6 +804,62 @@ impl Callbacks for Sim<'_, '_> {
                 if id >= 0 && jobs.works.contains_key(&id) {
                     self.remove_work(jobs, e);
                 }
+                true
+            }
+            Callback::OrchardEnter2 => {
+                self.orchard_enter2(e);
+                false
+            }
+            Callback::OrchardUpdate2 => {
+                self.orchard_update2(e);
+                true
+            }
+            Callback::OrchardEnter9 => {
+                self.orchard_enter9(jobs, e);
+                true
+            }
+            Callback::OrchardUpdate9 => {
+                self.orchard_update9(jobs, e);
+                true
+            }
+            Callback::OrchardEnter10 => {
+                self.orchard_enter10(jobs, e);
+                true
+            }
+            Callback::OrchardUpdate10 => {
+                self.orchard_update10(jobs, e);
+                true
+            }
+            Callback::OrchardExitWork => {
+                self.orchard_exit_work(jobs, e);
+                true
+            }
+            Callback::OrchardEnter12 => {
+                self.orchard_enter12(jobs, e);
+                true
+            }
+            Callback::OrchardUpdate12 => {
+                self.orchard_update12(e);
+                true
+            }
+            Callback::OrchardEnter11 => {
+                self.orchard_enter11(jobs, e);
+                true
+            }
+            Callback::OrchardUpdate11 => {
+                self.orchard_update11(jobs, e);
+                true
+            }
+            Callback::OrchardEnter14 => {
+                self.orchard_enter14(jobs, e);
+                true
+            }
+            Callback::OrchardExit14 => {
+                self.orchard_exit14(jobs, e);
+                true
+            }
+            Callback::OrchardUpdate14 => {
+                self.orchard_update14(e);
                 true
             }
             Callback::CropEnter2 => {
@@ -1152,7 +1210,10 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Pickup(_) => return self.pickup_refresh(work),
             WorkKind::Produce(_) => return self.produce_refresh(work),
             WorkKind::Fishing(_) => return self.fishing_refresh(work),
-            WorkKind::PlantArea(_) | WorkKind::Harvest(_) => return self.area_refresh(work),
+            WorkKind::PlantArea(_) | WorkKind::Harvest(_) | WorkKind::PickFruit(_) => {
+                return self.area_refresh(work)
+            }
+            WorkKind::PlantOrchard(_) => return self.plant_orchard_refresh(work),
             // `FUN_1400f3620` / `FUN_1400f0130`.
             WorkKind::Herbalist(h)
             | WorkKind::Forester(h)
@@ -1209,6 +1270,8 @@ impl WorkHost for Sim<'_, '_> {
             | WorkKind::Fishing(_)
             | WorkKind::PlantArea(_)
             | WorkKind::Harvest(_)
+            | WorkKind::PlantOrchard(_)
+            | WorkKind::PickFruit(_)
             | WorkKind::Location(_)
             | WorkKind::Test(_) => {}
         }
@@ -1230,7 +1293,25 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Location(_) => self.location_try(work, c),
             WorkKind::Fishing(_) => self.fishing_try(work, c),
             WorkKind::PlantArea(_) => self.plant_try(work, c),
-            WorkKind::TendArea(_) => self.tend_try(work, c),
+            WorkKind::PlantOrchard(_) => self.plant_orchard_try(work, c),
+            WorkKind::TendArea(_) => {
+                if self
+                    .sites
+                    .get(&work.entity)
+                    .is_some_and(|s| s.orchard.is_some())
+                {
+                    self.tend_orchard_try(work, c)
+                } else {
+                    self.tend_try(work, c)
+                }
+            }
+            WorkKind::PickFruit(_) => {
+                let works: BTreeSet<i32> = self.piles.values().map(|p| p.work).collect();
+                if self.auto_pickup_offers(work.entity, |id| works.contains(&id)) {
+                    return NESTED;
+                }
+                self.pick_fruit_try(work, c)
+            }
             WorkKind::Harvest(_) => {
                 let works: BTreeSet<i32> = self.piles.values().map(|p| p.work).collect();
                 if self.auto_pickup_offers(work.entity, |id| works.contains(&id)) {
@@ -1264,6 +1345,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Forester(_) => self.forester_try(work, c),
             WorkKind::Hunt(_) => self.hunt_try(work, c),
             WorkKind::Harvest(_) => self.harvest_try(work, c),
+            WorkKind::PickFruit(_) => self.pick_fruit_try(work, c),
             _ => 1,
         }
     }
@@ -1301,6 +1383,8 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Produce(_) => Self::produce_complete(work, param, false),
             WorkKind::Fishing(_) => Self::fishing_complete(work, param),
             WorkKind::PlantArea(_) | WorkKind::Harvest(_) => Self::area_complete(work, param),
+            WorkKind::PlantOrchard(_) => Self::plant_orchard_done(work, param),
+            WorkKind::PickFruit(_) => Self::pick_done(work, param, false),
             // `FUN_1400f4d20`: free for the next one; the work stays.
             WorkKind::Location(l) => l.worker = None,
             // `FUN_1400f3860` / `FUN_1400f0370`.
@@ -1345,6 +1429,8 @@ impl WorkHost for Sim<'_, '_> {
             // `FUN_1400ef350` calls the complete slot.
             WorkKind::Fishing(_) => Self::fishing_complete(work, param),
             WorkKind::PlantArea(_) | WorkKind::Harvest(_) => Self::area_fail(work, param),
+            WorkKind::PlantOrchard(_) => Self::plant_orchard_done(work, param),
+            WorkKind::PickFruit(_) => Self::pick_done(work, param, true),
             WorkKind::Location(l) => l.worker = None,
             // `FUN_1400f3850` / `FUN_1400f0360`.
             WorkKind::Herbalist(h)
@@ -1385,9 +1471,10 @@ impl WorkHost for Sim<'_, '_> {
                 // `FUN_1400efd00`: every worker's stack is cleared.
                 WorkKind::Fishing(fw) => fw.workers.iter().flatten().next().copied(),
                 // `FUN_1400f9930` / `FUN_1400f2740`.
-                WorkKind::PlantArea(_) | WorkKind::Harvest(_) => {
-                    Self::area_workers(work).first().copied()
-                }
+                WorkKind::PlantArea(_)
+                | WorkKind::Harvest(_)
+                | WorkKind::PlantOrchard(_)
+                | WorkKind::PickFruit(_) => Self::area_workers(work).first().copied(),
                 // `FUN_1400f3fb0` / `FUN_1400f0d70`.
                 WorkKind::Herbalist(h)
                 | WorkKind::Forester(h)
@@ -1427,7 +1514,10 @@ impl WorkHost for Sim<'_, '_> {
                         *w = None;
                     }
                 }
-                WorkKind::PlantArea(a) | WorkKind::Harvest(a) => {
+                WorkKind::PlantArea(a)
+                | WorkKind::Harvest(a)
+                | WorkKind::PlantOrchard(a)
+                | WorkKind::PickFruit(a) => {
                     let cells: Vec<i32> = a
                         .claims
                         .iter()
