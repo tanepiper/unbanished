@@ -314,6 +314,7 @@ impl Agents {
                 wildlife: &mut *env.wildlife,
                 keep_piles: &mut c.keep_piles,
                 site_events: &mut c.site_events,
+                storage_changes: &mut c.storage_changes,
                 site_list: &mut c.site_list,
                 events: Vec::new(),
                 piles: &mut c.piles,

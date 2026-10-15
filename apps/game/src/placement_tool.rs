@@ -2344,4 +2344,117 @@ mod construction_tests {
         assert!(spread_at.is_some(), "the blight did not spread");
         assert!(logged, "the event log was not told");
     }
+
+    /// A storage yard placed over trees: laborers fell them, the logs left on the yard go
+    /// straight into its storage, and once clear the yard joins the town's storages.
+    #[test]
+    fn a_storage_yard_absorbs_its_logs_and_joins_the_town() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let n = town.cells.size as i32;
+        // A 5 × 5 patch near the start with a few trees and no buildings.
+        let trees = |town: &StartingTown, x: i32, y: i32| {
+            let mut count = 0;
+            for cy in y..y + 5 {
+                for cx in x..x + 5 {
+                    if n <= cx || n <= cy {
+                        return None;
+                    }
+                    let i = (cy * n + cx) as usize;
+                    if town.cells.occupants[i].is_some() {
+                        return None;
+                    }
+                    match town.cells.objects[i] {
+                        None if town.cells.types[i] == banished_game::terrain::CellType::GROUND => {
+                        }
+                        Some(o)
+                            if town.templates[town.placed[o].template]
+                                .reference
+                                .contains("Tree") =>
+                        {
+                            count += 1
+                        }
+                        _ => return None,
+                    }
+                }
+            }
+            Some(count)
+        };
+        let (sx, sy) = town.start;
+        let rect = (6..80)
+            .flat_map(|r| (-r..=r).flat_map(move |d| [(d, -r), (d, r), (-r, d), (r, d)]))
+            .map(|(dx, dy)| (sx + dx, sy + dy))
+            .find(|&(x, y)| x > 0 && y > 0 && trees(&town, x, y).is_some_and(|t| 3 <= t))
+            .expect("no patch of trees");
+        let before = town.storage_sites.len();
+        let id = town
+            .place_area(
+                &archive,
+                r"Template\StorageYard.rsc:resource",
+                (rect.0, rect.1, 5, 5),
+                &terrain,
+            )
+            .expect("the yard was not placed");
+        let storage = town.construction.sites[&id].storage;
+        let mut warnings = banished_game::events::StockWarnings::default();
+        let dt = 1.0 / 30.0;
+        let (mut absorbed_at, mut joined_at) = (None, None);
+        for step in 0..30 * 60 * 15 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 60.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 60.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            if absorbed_at.is_none() && !town.storages[storage].items.is_empty() {
+                absorbed_at = Some(step);
+            }
+            if joined_at.is_none() && town.storage_sites.iter().any(|s| s.entity == id) {
+                joined_at = Some(step);
+            }
+            if absorbed_at.is_some() && joined_at.is_some() {
+                break;
+            }
+        }
+        eprintln!(
+            "absorbed {absorbed_at:?}, joined {joined_at:?}, state {}, items {:?}",
+            town.construction.sites[&id].machine.state, town.storages[storage].items
+        );
+        assert!(absorbed_at.is_some(), "no log went into the yard");
+        assert!(
+            joined_at.is_some(),
+            "the yard never joined the town's storages"
+        );
+        assert_eq!(town.storage_sites.len(), before + 1);
+    }
 }

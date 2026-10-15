@@ -38,6 +38,11 @@ pub enum Controller {
     Orchard,
     /// PastureComponent (`FUN_14012d660` table).
     Pasture,
+    /// AbsorbResourceComponent (`FUN_14002f5d0` table): a storage yard takes in the piles on
+    /// its footprint.
+    AbsorbResource,
+    /// StorageLocationComponent (`FUN_1401328e0` table): a town storage.
+    StorageLocation,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -110,6 +115,11 @@ pub enum Callback {
     CropUpdate10,
     CropEnter11,
     CropUpdate11,
+    /// `FUN_14010ae20`: AbsorbResource's state 0 update.
+    AbsorbUpdate0,
+    /// `FUN_140132700` / `FUN_1401326c0`: join / leave the town's storages.
+    StorageEnter2,
+    StorageEnter3,
     /// Pasture: `FUN_14012c590` / `FUN_14012bcb0` (state 2), `FUN_14012c310` (3).
     PastureEnter2,
     PastureUpdate2,
@@ -364,6 +374,31 @@ const ORCHARD: &[StateDef] = &[
     },
 ];
 
+const ABSORB_RESOURCE: &[StateDef] = &[StateDef {
+    id: 0,
+    enter: C::None,
+    update: C::AbsorbUpdate0,
+    exit: C::None,
+    transitions: &[],
+}];
+
+const STORAGE_LOCATION: &[StateDef] = &[
+    StateDef {
+        id: 2,
+        enter: C::StorageEnter2,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(3, C::None)],
+    },
+    StateDef {
+        id: 3,
+        enter: C::StorageEnter3,
+        update: C::None,
+        exit: C::None,
+        transitions: &[(6, C::None), (4, C::None), (5, C::None)],
+    },
+];
+
 const PASTURE: &[StateDef] = &[
     StateDef {
         id: 2,
@@ -452,6 +487,8 @@ impl Controller {
             Controller::CropField => CROP_FIELD,
             Controller::Orchard => ORCHARD,
             Controller::Pasture => PASTURE,
+            Controller::AbsorbResource => ABSORB_RESOURCE,
+            Controller::StorageLocation => STORAGE_LOCATION,
         }
     }
 
@@ -839,6 +876,9 @@ pub struct Construction {
     /// Event-log entries the sites posted (`FUN_14009a2d0`): type, severity, entity; the
     /// game formats them with the entity's toolbar name.
     pub site_events: Vec<(i32, i32, usize)>,
+    /// StorageLocationComponents joining (`true`) or leaving the town's storages (`+0x00`),
+    /// in order; the town applies them after the iteration's update.
+    pub storage_changes: Vec<(usize, bool)>,
     /// The town manager's known crops, orchard trees and livestock (`FUN_140096ef0`), as
     /// placed-object templates.
     pub known: Vec<usize>,

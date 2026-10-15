@@ -53,6 +53,8 @@ pub struct Template {
     /// Has a `StorageLocationDescription` (a town storage the starting goods go to).
     pub storage_location: bool,
     pub storage_location_flags: u32,
+    /// Has a StorageDisplayComponent (its stored goods are drawn on its cells).
+    pub storage_display: bool,
     pub market_radius: Option<i32>,
     pub market_location: bool,
     pub has_interact: bool,
@@ -947,6 +949,7 @@ mod tests {
             storage: None,
             storage_location: false,
             storage_location_flags: 0,
+            storage_display: false,
             market_radius: None,
             market_location: false,
             has_interact: false,

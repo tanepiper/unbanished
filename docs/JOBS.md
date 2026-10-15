@@ -422,6 +422,33 @@ For each carried material, it reuses a storage already chosen that takes it, or 
 stack ends with a DropOffRawMaterial without a target (its redirect search is not ported), and
 the citizen's job resets.
 
+## Storage sites (StorageLocation, AbsorbResource, StorageDisplay)
+
+- **StorageLocationComponent** (states `FUN_1401328e0`). State 2 enter (`FUN_140132700`)
+  appends the entity to the town's storages (`+0x00`); state 3 enter (`FUN_1401326c0`) removes
+  it. Both pass the chain on. Built barns and storage yards thus become town storages.
+  The port queues the change (`Construction::storage_changes`) and applies it after the
+  iteration's update. The starting town's storages are registered when it is created.
+- **Storage yards** have no BuildComponent. They are sites through their controllers:
+  AbsorbResource, ClearArea and StorageLocation. The initial state is 0 (AbsorbResource's slot
+  `+0x80`).
+- **AbsorbResourceComponent** (table `FUN_14002f5d0`). Its only state, 0, has an update
+  (`FUN_14010ae20`): every pile on the footprint, by rows, goes into the yard's storage when
+  it fits (`FUN_140132250` / `FUN_1401324d0`), and the pile entity is removed. Logs left by
+  clearing a yard placed over trees end up stored in it.
+- **StorageDisplayComponent** (activate `FUN_140057090`, update `FUN_140056d40` →
+  `FUN_140056c10`) is presentation:
+  - One mesh instance per footprint cell, by rows, on the cell's ground, turned 90 degrees
+    when row + column is even.
+  - Each stored item in order fills `size × count / capacity × cells` cells with its pile
+    model's last mesh. The next cell gets the mesh for the fraction left
+    (`meshes × fraction`, capped at the last); the rest stay empty.
+  - The port draws them in `StartingTown::model_instances` every frame rather than on the
+    component's schedule.
+
+Test: `a_storage_yard_absorbs_its_logs_and_joins_the_town`. A yard over trees is cleared, the
+logs are absorbed, and the yard joins the town's storages.
+
 ## Production (`ResourceProduceComponent`, `ConsumeProduce` work)
 
 The wood cutter, blacksmith, tailor, tavern, quarry and mine hold a ConsumeProduceComponent

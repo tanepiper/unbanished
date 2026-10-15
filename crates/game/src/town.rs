@@ -101,6 +101,7 @@ pub struct Sim<'s, 't> {
     pub wildlife: &'s mut crate::wildlife::Wildlife,
     pub keep_piles: &'s mut BTreeMap<usize, bool>,
     pub site_events: &'s mut Vec<(i32, i32, usize)>,
+    pub storage_changes: &'s mut Vec<(usize, bool)>,
     pub site_list: &'s mut Vec<usize>,
     pub events: Vec<JobEvent>,
     pub piles: &'s mut BTreeMap<usize, Pile>,
@@ -997,6 +998,18 @@ impl Callbacks for Sim<'_, '_> {
                     self.stamp(part);
                 }
                 true
+            }
+            Callback::AbsorbUpdate0 => {
+                self.absorb_piles(jobs, e);
+                true
+            }
+            Callback::StorageEnter2 => {
+                self.storage_changes.push((e, true));
+                false
+            }
+            Callback::StorageEnter3 => {
+                self.storage_changes.push((e, false));
+                false
             }
             Callback::PastureEnter2 => {
                 self.pasture_enter2(e);
@@ -2277,6 +2290,32 @@ impl Sim<'_, '_> {
             self.cells.types[i] = self.terrain.natural_cell_type(self.size, i);
         }
         *self.models_dirty = true;
+    }
+
+    /// `FUN_14010ae20`: every pile on the footprint (by rows) that the site's storage can take
+    /// goes into it.
+    pub(crate) fn absorb_piles(&mut self, jobs: &mut Jobs, e: usize) {
+        let Some(storage) = self.sites.get(&e).map(|s| s.storage) else {
+            return;
+        };
+        let n = self.size as i32;
+        let (x, y) = self.placed[e].cell;
+        let (w, h) = self.placed[e].footprint;
+        for cy in y..y + h {
+            for cx in x..x + w {
+                let Some(o) = self.cells.objects[(cy * n + cx) as usize] else {
+                    continue;
+                };
+                let Some(pile) = self.piles.get(&o) else {
+                    continue;
+                };
+                let (material, count) = (pile.material, pile.count);
+                if self.storages[storage].fits(self.materials, material, count) {
+                    self.storages[storage].add(material, count);
+                    self.destroy_pile(jobs, o);
+                }
+            }
+        }
     }
 
     /// PickupRawMaterial start (`FUN_1400ceda0`): the pile goes into the carried storage.

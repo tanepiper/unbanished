@@ -41,7 +41,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | ResourceProduce subtype **Fishing** | fisherman's dock | yes (`fishing.rs`, map layer 8) |
 | ResourceProduce subtype **Hunt** | hunter's lodge | yes (`hunt.rs`, HuntAnimal, RemoveAnimal) |
 | **AutoPickup** | gatherers, hunters, foresters | yes |
-| **AbsorbResource**, **StorageDisplay** | fields, StorageYard | missing |
+| **AbsorbResource**, **StorageDisplay**, **StorageLocation** | StorageYard, barns | yes ([JOBS.md](JOBS.md#storage-sites-storagelocation-absorbresource-storagedisplay)) |
 | **MultiObject**, **Terraform**, **Floor** | bridges, tunnels, fences, dock | MultiObject for fenced pastures (parts, events, removal); Terraform, Floor missing |
 | **Decal**, **Particle** | roads, footprints, smoke | missing |
 | **Tracker**, **Value** | workplaces, livestock | missing (Town Info graphs, production counters) |

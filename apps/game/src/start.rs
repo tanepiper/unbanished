@@ -3,7 +3,7 @@
 //! START-CONDITION-PROFILES.md. Starting households and scheduled natural resources are active;
 //! deer, crops, orchards and livestock come next.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use banished_formats::game::{
@@ -423,6 +423,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         storage: None,
         storage_location: false,
         storage_location_flags: 0,
+        storage_display: false,
         market_radius: None,
         market_location: false,
         has_interact: false,
@@ -528,6 +529,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
             }
             "radius" => t.market_radius = radius_description(&data).ok().map(|r| r.0),
             "marketlocation" => t.market_location = true,
+            "storagedisplay" => t.storage_display = true,
             "interact" => {
                 t.has_interact = true;
                 let list = banished_formats::game::interact_description(&data)
@@ -788,6 +790,8 @@ pub struct StartingTown {
     pub construction: Construction,
     /// `Game/Names/Male` and `Female` (`FUN_1400aa130`), for births.
     names: Option<(NameDatabase, NameDatabase)>,
+    /// Each StorageDisplay's cells on the ground, by rows (presentation only).
+    display_cells: BTreeMap<usize, Vec<[f32; 3]>>,
 }
 
 impl StartingTown {
@@ -1057,8 +1061,10 @@ impl StartingTown {
                 ..Default::default()
             },
             names,
+            display_cells: BTreeMap::new(),
         };
         town.resolve_piles(archive);
+        town.place_displays(terrain);
         // CitizenDescription `+0x20/+0x28/+0x30`: the teacher's, priest's and doctor's
         // professions.
         if let Some(d) = read(archive, &citizen_ref.replace(":resource", ":citizen"))
@@ -1598,6 +1604,7 @@ impl StartingTown {
         };
         self.agents
             .apply_commands(&self.citizens, &mut env, &groups);
+        self.apply_storage_changes();
     }
 
     /// The citizens' animation, characters and AI for one simulation iteration
@@ -1652,7 +1659,54 @@ impl StartingTown {
         for id in before..self.placed.len() {
             self.register_entity(id);
         }
+        self.apply_storage_changes();
+        self.place_displays(terrain);
         !self.citizens.is_empty()
+    }
+
+    /// The ground under each StorageDisplay's cells (`FUN_140057090`'s ground points), for
+    /// the entities that have none yet.
+    fn place_displays(&mut self, terrain: &HeightGrid) {
+        for (e, p) in self.placed.iter().enumerate() {
+            if !p.alive
+                || !self.templates[p.template].storage_display
+                || self.display_cells.contains_key(&e)
+            {
+                continue;
+            }
+            let n = self.cells.size as i32;
+            let (w, h) = p.footprint;
+            let cells = (0..w * h)
+                .map(|i| {
+                    let cell = (p.cell.1 + i / w) * n + p.cell.0 + i % w;
+                    cell_ground(self.cells.size, terrain, cell)
+                })
+                .collect();
+            self.display_cells.insert(e, cells);
+        }
+    }
+
+    /// StorageLocationComponent's state 2 and 3 enters (`FUN_140132700` / `FUN_1401326c0`):
+    /// a site's storage joins the town's (appended) or leaves it.
+    fn apply_storage_changes(&mut self) {
+        for (e, join) in std::mem::take(&mut self.construction.storage_changes) {
+            if !join {
+                self.storage_sites.retain(|s| s.entity != e);
+                continue;
+            }
+            let Some(site) = self.construction.sites.get(&e) else {
+                continue;
+            };
+            if self.storage_sites.iter().any(|s| s.entity == e) {
+                continue;
+            }
+            self.storage_sites.push(StorageSite {
+                entity: e,
+                storage: site.storage,
+                location_flags: self.templates[self.placed[e].template].storage_location_flags,
+                radius: None,
+            });
+        }
     }
 
     /// The registered town storages (`Game +0xf0 +0x00/+0x10`), the ones the stock counts.
@@ -1770,6 +1824,8 @@ impl StartingTown {
                         t.crop_field = Some(banished_game::farm::CropFieldTemplate { tend, group });
                     }
                 }
+                "absorbresource" => t.controllers.push(Controller::AbsorbResource),
+                "storagelocation" => t.controllers.push(Controller::StorageLocation),
                 "disease" => {
                     t.disease = banished_formats::game::disease_description(&data).ok();
                 }
@@ -1880,6 +1936,7 @@ impl StartingTown {
             && !t.controllers.contains(&Controller::ClearResource)
             && !t.controllers.contains(&Controller::CropField)
             && !t.controllers.contains(&Controller::Orchard)
+            && !t.controllers.contains(&Controller::StorageLocation)
         {
             return None;
         }
@@ -2016,6 +2073,80 @@ impl StartingTown {
         models.update_instances(archive, self.model_instances());
     }
 
+    /// StorageDisplayComponent (`FUN_140057090`, update `FUN_140056d40` / `FUN_140056c10`):
+    /// one mesh per footprint cell (by rows, turned 90 degrees on alternate cells). Each
+    /// stored item, in order, fills `size × count / capacity` of the cells with its pile
+    /// model's last mesh, and the next cell with the mesh for the fraction left; the rest are
+    /// empty.
+    fn storage_displays(&self, groups: &mut HashMap<String, Vec<ModelInstance>>) {
+        let storages = self
+            .storage_sites
+            .iter()
+            .map(|s| (s.entity, s.storage))
+            .chain(
+                self.construction
+                    .sites
+                    .values()
+                    .map(|s| (s.entity, s.storage)),
+            );
+        let mut seen = std::collections::BTreeSet::new();
+        for (e, storage) in storages {
+            let p = &self.placed[e];
+            if !p.alive || !self.templates[p.template].storage_display || !seen.insert(e) {
+                continue;
+            }
+            let Some(s) = self.storages.get(storage) else {
+                continue;
+            };
+            let (w, h) = p.footprint;
+            let cells = (w * h) as usize;
+            let mut meshes: Vec<Option<String>> = Vec::with_capacity(cells);
+            for item in &s.items {
+                if item.count == 0 || meshes.len() == cells {
+                    continue;
+                }
+                // The material's pile template's model, variant 0.
+                let list = self
+                    .templates
+                    .iter()
+                    .find(|t| t.pile_material == Some(item.material) && t.model.is_some())
+                    .and_then(|t| t.model.as_ref())
+                    .and_then(|m| m.variants.first())
+                    .map(|v| v.meshes.clone())
+                    .unwrap_or_default();
+                let size = self.materials[item.material].size;
+                let share = (size * item.count) as f32 / s.capacity.max(1) as f32 * cells as f32;
+                let full = share as i32;
+                let pick = |fraction: f32| {
+                    let n = list.len() as i32;
+                    let i = ((n as f32 * fraction) as i32).min(n - 1);
+                    list.get(i.max(0) as usize).cloned().flatten()
+                };
+                for _ in 0..full.max(0) {
+                    if meshes.len() < cells {
+                        meshes.push(pick(1.0));
+                    }
+                }
+                if meshes.len() < cells {
+                    meshes.push(pick(share - full as f32));
+                }
+            }
+            let Some(ground) = self.display_cells.get(&e) else {
+                continue;
+            };
+            for (i, mesh) in meshes.into_iter().enumerate() {
+                let Some(mesh) = mesh else { continue };
+                let (row, col) = (i as i32 / w, i as i32 % w);
+                let Some(&at) = ground.get(i) else { continue };
+                let yaw = if (row + col) & 1 != 0 { 0.0 } else { 90.0 };
+                groups.entry(mesh).or_default().push(ModelInstance {
+                    matrix: placement_matrix(at, [1.0; 3], yaw),
+                    locals: None,
+                });
+            }
+        }
+    }
+
     fn model_instances(&self) -> Vec<GroupInstances> {
         let mut groups: HashMap<String, Vec<ModelInstance>> = HashMap::new();
         for p in &self.placed {
@@ -2044,6 +2175,7 @@ impl StartingTown {
                 }),
             });
         }
+        self.storage_displays(&mut groups);
         // Citizens: `Template/Citizen.rsc:model` variant 0 (men) or 1 (women); children use
         // the scale `DAT_140178818` (`FUN_14011a700`).
         if let Some(model) = &self.citizen_model {
