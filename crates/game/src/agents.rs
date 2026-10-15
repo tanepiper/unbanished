@@ -54,6 +54,8 @@ pub struct CitizenRulesAi {
     pub work_cold: f32,
     /// CitizenDescription `+0x114`: work duration factor without a tool (`FUN_1400cebf0`).
     pub no_tool_factor: f32,
+    /// `+0x118`: the education a citizen counts as educated with.
+    pub education: i32,
 }
 
 /// Citizen fields read/written by equipment activities and Citizen messages 1/6/7.
@@ -217,6 +219,11 @@ impl Agents {
                 sites: &mut c.sites,
                 site_list: &mut c.site_list,
                 events: Vec::new(),
+                piles: &mut c.piles,
+                claimed: &mut c.claimed_resources,
+                new_piles: &mut c.new_piles,
+                models_dirty: &mut c.models_dirty,
+                offers: Vec::new(),
             },
             &mut c.jobs,
         )
@@ -320,6 +327,7 @@ impl Agents {
         }
         self.sectors.age_cache(ticks(dt));
         let entities = entity_views(env.placed, env.templates);
+        let mut animating = crate::town::animating(env.placed, env.templates);
         let adult = self.adults(citizens);
         for (ch, group) in self.characters.iter_mut().zip(groups) {
             if let Some(g) = group {
@@ -344,16 +352,19 @@ impl Agents {
                     carried: &mut state.carried,
                     tool_uses: &mut state.tool_uses,
                     shown_tool: &mut state.shown_tool,
+                    animating: &mut animating,
                 };
                 self.characters[i].update(&mut world, group, dt);
             }
             citizens[i].position = self.characters[i].position;
             self.deliver(i, messages, citizens, env, groups, &adult, &entities);
         }
-        // The sites' StateMachine updates (bit 4, then their bucket).
+        // The sites' StateMachine updates (bit 4, then their bucket); the piles' ages
+        // (RawMaterialComponent's scheduled update, run every iteration here).
         {
             let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
             sim.update_sites(jobs);
+            sim.age_piles(jobs, ticks(dt));
             jobs.drain(&mut sim);
         }
         for i in 0..self.ais.len() {
@@ -395,6 +406,35 @@ impl Agents {
                     } else {
                         jobs.fail(m.a, i, m.b, &mut sim);
                     }
+                    jobs.drain(&mut sim);
+                }
+                Component::NaturalResource => {
+                    let Some(e) = m.entity else { continue };
+                    let educated = citizens[i].education >= self.rules.education;
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    match m.message {
+                        0 => {
+                            // `FUN_1400fe220`: a work at the resource's cell lends its priority.
+                            let n = sim.size as i32;
+                            let (x, y) = sim.placed[e].cell;
+                            let cell = y * n + x;
+                            let priority = jobs
+                                .works
+                                .values()
+                                .find(|w| w.cell == cell)
+                                .map(|w| w.priority);
+                            sim.remove_resource(i, e, educated, priority);
+                            sim.activate_piles(jobs);
+                        }
+                        1 => sim.unclaim(e),
+                        _ => sim.animate_resource(e, m.a.max(0) as usize),
+                    }
+                    jobs.drain(&mut sim);
+                }
+                Component::Pile => {
+                    let Some(e) = m.entity else { continue };
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    sim.take_pile(jobs, i, e);
                     jobs.drain(&mut sim);
                 }
                 _ => {}
@@ -443,7 +483,13 @@ impl Agents {
             || busy,
             |ai, a, rng| {
                 std::mem::swap(env.rng, rng);
-                let done = if a == activity::WORK || a == activity::EMERGENCY {
+                let done = if a == activity::DROP_OFF {
+                    // `FUN_14011b330`.
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    sim.drop_off(i);
+                    jobs.drain(&mut sim);
+                    self.characters[i].stack.is_active()
+                } else if a == activity::WORK || a == activity::EMERGENCY {
                     let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
                     if a == activity::WORK {
                         jobs.assign_work(i, &mut sim);

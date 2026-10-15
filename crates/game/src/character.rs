@@ -52,6 +52,12 @@ pub enum Component {
     /// The job manager: message 0 is CompleteTask's start (`FUN_1400fdc30`), 1 its abort
     /// (`FUN_1400fdcd0`); `a` is the work id, `b` the task parameter.
     Jobs,
+    /// A NaturalResourceComponent: 0 remove (RemoveNaturalResource start, `a` its `+0x30`
+    /// flag), 1 release the removal claim (its abort), 2 play animation `a`
+    /// (AnimateNaturalResource start, `FUN_14012b910`).
+    NaturalResource,
+    /// A RawMaterialComponent pile: 0 picked up (PickupRawMaterial start).
+    Pile,
 }
 
 /// A message an action delivered (slot `+0x78` of the receiving component). The owner
@@ -81,6 +87,8 @@ pub struct World<'a> {
     pub tool_uses: &'a mut i32,
     /// The tool ShowTool attached (`-1` none, `-2` carried goods).
     pub shown_tool: &'a mut i32,
+    /// Per placed entity: its model is playing an animation (`MeshInstance::IsAnimating`).
+    pub animating: &'a mut [bool],
 }
 
 impl World<'_> {
@@ -477,6 +485,26 @@ pub enum Action {
         work: i32,
         param: i32,
     },
+    /// `AnimateNaturalResource` (vtable `0x140165f20`, constructor `FUN_1400caca0`): play the
+    /// resource's animation `anim` (start `FUN_1400caad0`); with `wait`, run until it ends
+    /// (update `FUN_1400caa80`).
+    AnimateResource {
+        entity: usize,
+        anim: usize,
+        wait: bool,
+    },
+    /// `RemoveNaturalResource` (vtable `0x140166470`, constructor `FUN_1400d02c0`, start
+    /// `FUN_1400cffe0`): remove the resource and leave its pile; abort (`FUN_1400cff70`)
+    /// releases the claim (flag `0x100000`).
+    RemoveResource {
+        entity: usize,
+        flag: bool,
+    },
+    /// `PickupRawMaterial` (vtable `0x140166330`, constructor `FUN_1400cf040`, start
+    /// `FUN_1400ceda0`): take the whole pile into the carried storage and destroy it.
+    PickupPile {
+        entity: usize,
+    },
     /// `DropOffRawMaterial` (vtable `0x1401661a0`, start `FUN_1400cc7d0`): move up to `count`
     /// carried units into `storage`.
     DropOff {
@@ -521,6 +549,43 @@ impl Action {
                 world.messages.push(*m);
                 Status::Done
             }
+            Action::AnimateResource { entity, anim, wait } => {
+                world.messages.push(Message {
+                    component: Component::NaturalResource,
+                    message: 2,
+                    entity: Some(*entity),
+                    a: *anim as i32,
+                    b: 0,
+                });
+                if let Some(a) = world.animating.get_mut(*entity) {
+                    *a = true;
+                }
+                if *wait {
+                    Status::Running
+                } else {
+                    Status::Done
+                }
+            }
+            Action::RemoveResource { entity, flag } => {
+                world.messages.push(Message {
+                    component: Component::NaturalResource,
+                    message: 0,
+                    entity: Some(*entity),
+                    a: *flag as i32,
+                    b: 0,
+                });
+                Status::Done
+            }
+            Action::PickupPile { entity } => {
+                world.messages.push(Message {
+                    component: Component::Pile,
+                    message: 0,
+                    entity: Some(*entity),
+                    a: 0,
+                    b: 0,
+                });
+                Status::Done
+            }
             Action::ShowTool(n) => {
                 // Above 10 (except −2) detaches (`FUN_14011cbb0`); otherwise attach (`FUN_14011c880`).
                 *world.shown_tool = if (*n as u32) > 10 && *n != -2 { -1 } else { *n };
@@ -543,6 +608,37 @@ impl Action {
                 material,
                 count,
             } => {
+                // Material `usize::MAX`: every carried material (constructor argument null);
+                // storage `usize::MAX`: no target (only the redirect search, not ported).
+                if *material == usize::MAX {
+                    if *storage == usize::MAX {
+                        return if world.carried.items.iter().all(|i| i.count == 0) {
+                            Status::Done
+                        } else {
+                            Status::Failed
+                        };
+                    }
+                    let items: Vec<(usize, i32)> = world
+                        .carried
+                        .items
+                        .iter()
+                        .filter(|i| i.count > 0)
+                        .map(|i| (i.material, i.count))
+                        .collect();
+                    let mut moved = false;
+                    for (m, n) in items {
+                        if world.storages[*storage].fits(world.materials, m, n) {
+                            world.storages[*storage].add(m, n);
+                            world.carried.remove(m, n);
+                            moved = true;
+                        }
+                    }
+                    return if moved {
+                        Status::Running
+                    } else {
+                        Status::Failed
+                    };
+                }
                 // `FUN_1400ccaf0`: as many as carried, up to the request, when they fit.
                 let carried = world.carried.available(*material);
                 let n = if *count >= 0 {
@@ -619,7 +715,15 @@ impl Action {
                 *elapsed += dt;
                 Status::Running
             }
+            Action::AnimateResource { entity, .. } => {
+                if world.animating.get(*entity).copied().unwrap_or(false) {
+                    Status::Running
+                } else {
+                    Status::Done
+                }
+            }
             // The base update returns 0.
+            Action::RemoveResource { .. } | Action::PickupPile { .. } => Status::Done,
             Action::SendMessage(_)
             | Action::ConsumeStoredRawMaterial { .. }
             | Action::PickupStoredRawMaterial { .. }
@@ -695,6 +799,16 @@ impl ActionStack {
                             b: param,
                         });
                     }
+                }
+                // `FUN_1400cff70`: the resource is free again.
+                if let Action::RemoveResource { entity, .. } = t.action {
+                    self.outbox.push(Message {
+                        component: Component::NaturalResource,
+                        message: 1,
+                        entity: Some(entity),
+                        a: 0,
+                        b: 0,
+                    });
                 }
                 t.action.abort(ch, group, storages);
             }

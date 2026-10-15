@@ -219,8 +219,16 @@ pub fn shuffle_and_sort(list: &mut [Candidate], rng: &mut Random) {
 /// first (comparator `b.priority - a.priority`). Median of three, short sort (selection of the
 /// maximum) for 8 or fewer elements, smaller partition first.
 pub fn crt_qsort(a: &mut [Candidate]) {
+    crt_qsort_by(a, |a: &Candidate, b: &Candidate| b.1 - a.1);
+}
+
+/// The MSVC CRT `qsort` (as `FUN_140030770` inlines it) with any comparator; the other inlined
+/// copies (`FUN_14002c9d0`, the library `qsort`) are the same algorithm.
+pub fn crt_qsort_by<T>(a: &mut [T], cmp: impl Fn(&T, &T) -> i32) {
     const CUTOFF: usize = 8;
-    let cmp = |a: &Candidate, b: &Candidate| b.1 - a.1;
+    if a.len() < 2 {
+        return;
+    }
     let mut stack: Vec<(usize, usize)> = Vec::new();
     let (mut lo, mut hi) = (0usize, a.len() - 1);
     loop {

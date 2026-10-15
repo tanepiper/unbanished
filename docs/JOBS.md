@@ -302,6 +302,101 @@ several use points); on a strict improvement the target point (`FUN_140132aa0` s
 `FUN_14004f710` for markets) must exist with its rank below the best, and the best becomes the
 entrance rank.
 
+## Clearing, piles and drop-off
+
+### ClearArea work (`FUN_1400ebe30`, vtable `0x140167540`)
+
+Registered by the ClearArea controller's state-0 enter (`FUN_14011ce30`) when the footprint
+holds objects. The mask is bit 0 plus `0x400` logs, `0x800` stone or `0x1000` iron for each
+resource's raw material. Fields: `+0x48` claimed resources, `+0x58` claimed cells, `+0x68`
+template filter, `+0x70..+0x72` resources, cells and piles flags (`ClearAreaDescription
++0x28..+0x2a`). The state-0 exit (`FUN_14011cd60`) removes it.
+
+TryAssign (`FUN_1400eb3b0`):
+
+- Gate: claimed resources + cells must be below the work's most workers, and the site's
+  WorkPlace must be enabled.
+- Ordering: the footprint's objects (`FUN_1400a50d0`, cells whose object `+0x08` is set) are
+  sorted by squared cell distance to the citizen (CRT qsort, `FUN_1400a2c90`).
+- **Resources:** for each unclaimed natural resource (passing the filter):
+  - it needs the nearest walkable neighbour toward the citizen (`FUN_1400a21c0`, mask
+    `0xe07`) and that neighbour must be reachable;
+  - the patience check runs next, and a failure returns 0;
+  - a resource another sequence holds (flag `0x100000`) is skipped;
+  - otherwise the removal sequence is pushed and the resource claimed → 2.
+- **Cells:** for roads and fields; not ported.
+- **Piles:** each pile's own Pickup work is offered through the manager (`FUN_1400fdaf0`); a
+  taken one → 2. The port answers `NESTED` and the manager offers them in order.
+- Nothing → 1.
+
+Slots: `+0x30`/`+0x38` free the citizen's claim; `+0x40` clears every claimer's stack. `+0x48`
+drops resource claims whose citizen lost the task, but returns at once if a cell claim was lost.
+
+Removal sequence (`FUN_1400c7380`), in execution order:
+
+1. ShowTool(tool `+0x80`).
+2. MoveTo next to the resource. Walk is 2 for tools 0, 1 and 4–7, 3 for tools 2–3, else 1.
+3. PerformWork with the tool: clip `tool + 9` (8 above 10), for `+0x68`.
+4. Only with the animation flag `+0x64`:
+   1. AnimateNaturalResource(0, wait) – the fall;
+   2. AnimateNaturalResource(1);
+   3. PerformWork for `+0x70`.
+5. RemoveNaturalResource.
+6. ShowTool(−1).
+7. CompleteTask.
+
+The resource gets flag `0x100000`, and aborting RemoveNaturalResource clears it.
+
+### RemoveNaturalResource (`FUN_1400cffe0` → `FUN_14012b5c0`)
+
+The resource is queued for removal. A pile is left unless the description names a related
+profession (`+0x78`), it is not the laborer, and the citizen does not have it.
+
+- Amount: `yield × min(growth, 1)`, where the yield comes from the pile template's
+  RawMaterialDescription: `+0x40`, or `+0x44` for an educated citizen.
+- The pile is a clone of the resource's raw-material template at the resource's cell, turned
+  `RandTol(2) × 90°` on the game Random. Its MapComponent stamps the cell (cell type 4).
+- It takes the priority of a work registered at that cell (`FUN_1400fe220`).
+
+### Piles (`RawMaterialComponent`, vtable `0x14016a5a0`)
+
+- `+0x28` holds the units and `+0x38` the age; the pile is destroyed after 3600 s
+  (`FUN_14012e600`).
+- Activation (`FUN_14012e6a0`) registers a `Pickup` work with mask `FUN_14012e950` (material
+  flag → category) and a kept priority.
+
+### Pickup work (`FUN_1400f83d0`, vtable `0x140167c30`)
+
+State `+0x48`: 0 free, 1 claimed by `+0x50`, 2 picked up.
+
+TryAssign:
+
+1. Without carrying room for the pile, the citizen runs the drop-off activity instead (→ 2).
+2. It needs a storage that takes the pile (`FUN_140092890`), a reachable neighbour, the
+   patience check and the storage found from the neighbour (`FUN_140092a60`, mode put).
+3. The list starts with this pile, plus every unclaimed pile in the 11×11 cells around it
+   (rows outer, columns inner) that the found storage takes and that has a reachable
+   neighbour. It is sorted by path rank from the citizen (CRT qsort `FUN_14002c9d0`).
+4. Every pile that still fits the carried room gets a pickup sequence (`FUN_1400c5fa0`; the
+   first clears the stack) and is claimed.
+
+Pickup sequence, in execution order: [ShowTool(−2) when already carrying] → MoveTo neighbour
+(walk 4 when carrying, else 1; mask adds the pile cell's type) → PerformWork clip 6, 0.75 s →
+CompleteTask → PickupRawMaterial (the whole pile into the carried storage; the pile is
+destroyed) → [ShowTool(−2) when not carrying] → PerformWork clip 7 → ShowTool(−1). When the
+stack empties, the AI's drop-off activity (13) carries the goods to storage.
+
+Slots: `+0x30` → state 2, `+0x38` → state 0, `+0x40` clears the claimer while claimed, `+0x48`
+frees a claimer that lost the task.
+
+### Drop-off activity (`FUN_14011b330`, AI action 13)
+
+For each carried material, it reuses a storage already chosen that takes it, or finds one
+(`FUN_140092a60` put, from the citizen's cell). Per storage (`FUN_1400c6540`): MoveTo (walk 4)
+→ PerformWork clip 6 → DropOffRawMaterial(all) → ShowTool(−2) → PerformWork clip 7. The
+stack ends with a DropOffRawMaterial without a target (its redirect search is not ported), and
+the citizen's job resets.
+
 ## Port status
 
 Ported (`crates/game`):
@@ -336,7 +431,15 @@ no works left. Determinism is unchanged without placements (no work → no draws
 
 Deviations and gaps (all marked in code):
 
-- Not ported: the ClearArea work (trees/rocks under a footprint): such a site waits in state 0.
+- ClearArea, RemoveNaturalResource / AnimateNaturalResource, piles, Pickup and the drop-off
+  activity are ported. Verified by `placement_tool::construction_tests::
+  wood_house_on_resources_gets_cleared_and_built`: the footprint's resource is felled, its
+  pile is hauled away and the house is built.
+- Deviations: a removed resource leaves on the next animation pass (the original at the end of
+  its iteration); piles age every iteration rather than on their bucket visit; a pile takes its
+  cell's work priority when it activates in the same delivery; the drop-off's final redirect
+  and pile dropping are not ported; the ClearArea empty-cell phase (roads, fields) is not
+  ported; the stock's production counter (`FUN_14008e3c0`) is not updated.
 - Not ported: families (ResidenceComponent), the drop-off activity `FUN_14011b330`, DropOff
   redirect and pile dropping, emergencies, MultiObject stages, terrain flattening, decals,
   building status icons, ShowTool meshes, the eviction searches `FUN_140115490/940`,
@@ -346,9 +449,6 @@ Deviations and gaps (all marked in code):
 
 Next steps:
 
-1. ClearArea work (`FUN_1400eb3b0`, refresh `FUN_1400eafe0`): natural-resource removal sequence
-   `FUN_1400c7380`, cell work `FUN_1400c54a0`, loose piles (RawMaterialComponent, `CreateRawMaterial`,
-   `PickupRawMaterial`) and their pickup works; category mask from the objects.
 2. WorkPlaceUI `+`/`−`/max (`Command::AddWorker/RemoveWorker/ChangeMaxWorkers` exist), BuildUI
    (progress, priority `Jobs::prioritize`), CitizenUI profession from `CitizenState::profession`.
 3. Emulator check of the manager (`FUN_1400fdd70`, `FUN_1400fca20`, `FUN_1400fce80`) with fake

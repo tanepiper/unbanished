@@ -10,9 +10,11 @@ use crate::activities::{EntityView, StorageGeometry, TownView};
 use crate::agents::{CitizenRulesAi, CitizenState};
 use crate::character::{Action, Character, Component, Message, MoveTo};
 use crate::construction::{
-    run, BuildWork, Callback, Callbacks, Gather, Machine, Site, SiteTemplate,
+    run, BuildWork, Callback, Callbacks, ClearWork, Gather, Machine, PickupWork, Pile, Site,
+    SiteTemplate,
 };
-use crate::jobs::{JobEvent, Jobs, Work, WorkHost, WorkKind};
+use crate::jobs::{JobEvent, Jobs, Work, WorkHost, WorkKind, NESTED};
+use crate::pathfind::nearest_neighbour;
 use crate::pathfind::WALKABLE;
 use crate::placement::{PlacementRules, Rect};
 use crate::professions::{Professions, Worker, Workforce};
@@ -29,7 +31,7 @@ pub const CONSTRUCTION_MASK: u32 = 0x2001;
 /// The world the citizens' update borrows (everything but the citizens themselves).
 pub struct Env<'a, 't> {
     pub cells: &'a mut Cells,
-    pub placed: &'a mut [Placed],
+    pub placed: &'a mut Vec<Placed>,
     pub templates: &'a [Template],
     pub terrain: &'a HeightGrid<'t>,
     pub materials: &'a [RawMaterial],
@@ -56,7 +58,7 @@ pub struct Sim<'s, 't> {
     pub regions: &'s [u16],
     pub sectors: &'s mut SectorGraph,
     pub terrain: &'s HeightGrid<'t>,
-    pub placed: &'s mut [Placed],
+    pub placed: &'s mut Vec<Placed>,
     pub templates: &'s [Template],
     pub entities: &'s [EntityView],
     pub storages: &'s mut [Storage],
@@ -71,6 +73,67 @@ pub struct Sim<'s, 't> {
     pub sites: &'s mut BTreeMap<usize, Site>,
     pub site_list: &'s mut Vec<usize>,
     pub events: Vec<JobEvent>,
+    pub piles: &'s mut BTreeMap<usize, Pile>,
+    pub claimed: &'s mut std::collections::BTreeSet<usize>,
+    pub new_piles: &'s mut Vec<usize>,
+    pub models_dirty: &'s mut bool,
+    /// Works a ClearArea try asked the manager to offer ([`WorkHost::take_offers`]).
+    pub offers: Vec<i32>,
+}
+
+/// `FUN_14012e950`: a pile's work category mask from its material's flags.
+pub fn pile_mask(flags: u32) -> u32 {
+    for (bit, mask) in [
+        (5, 2),
+        (6, 4),
+        (10, 0x10),
+        (12, 0x40),
+        (11, 0x20),
+        (13, 0x100),
+        (16, 0x200),
+        (9, 8),
+    ] {
+        if flags >> bit & 1 != 0 {
+            return mask;
+        }
+    }
+    if flags >> 14 & 1 != 0 {
+        0x80
+    } else {
+        1
+    }
+}
+
+/// `FUN_14011ce30`'s clearing mask bit for a resource's raw material: logs `0x400`, iron
+/// `0x1000`, stone `0x800`, else 1.
+fn clear_mask(flags: u32) -> u32 {
+    if flags >> 10 & 1 != 0 {
+        0x400
+    } else if flags >> 12 & 1 != 0 {
+        0x1000
+    } else if flags >> 11 & 1 != 0 {
+        0x800
+    } else {
+        1
+    }
+}
+
+/// `MapComponent::IsAnimating` per placed entity.
+pub fn animating(placed: &[Placed], templates: &[Template]) -> Vec<bool> {
+    placed
+        .iter()
+        .map(|p| {
+            p.alive
+                && p.animation.as_ref().is_some_and(|pb| {
+                    templates[p.template]
+                        .animations
+                        .get(p.variant)
+                        .and_then(Option::as_ref)
+                        .and_then(|g| g.clips.get(pb.clip))
+                        .is_some_and(|clip| pb.is_animating(clip))
+                })
+        })
+        .collect()
 }
 
 /// FUN_1400a48b0 without bridge picking.
@@ -527,9 +590,12 @@ impl Callbacks for Sim<'_, '_> {
         match f {
             Callback::None | Callback::Missing => false,
             Callback::ClearEnter0 => {
-                // Not ported: the ClearArea work (`FUN_1400ebe30`); an uncleared site waits.
+                // `FUN_14011ce30`. Not ported: the instant clear (`FUN_14011d230`, description
+                // `+0x2d` or the game's instant flag); no shipped site sets it.
                 if self.is_clear(e) {
                     self.machine(e).request(1);
+                } else {
+                    self.register_clear(jobs, e);
                 }
                 true
             }
@@ -539,7 +605,14 @@ impl Callbacks for Sim<'_, '_> {
                 }
                 false
             }
-            Callback::ClearExit0 | Callback::ClearExit15 => true,
+            Callback::ClearExit0 => {
+                // `FUN_14011cd60`: remove the ClearArea work.
+                if self.sites[&e].work_id >= 0 && jobs.works.contains_key(&self.sites[&e].work_id) {
+                    self.remove_work(jobs, e);
+                }
+                true
+            }
+            Callback::ClearExit15 => true,
             Callback::ClearEnter1 => {
                 self.machine(e).request(2);
                 true
@@ -735,6 +808,8 @@ impl WorkHost for Sim<'_, '_> {
         let gone: Vec<usize> = match &work.kind {
             WorkKind::Gather(g) => g.workers.iter().copied(),
             WorkKind::Build(b) => b.workers.iter().copied(),
+            WorkKind::Clear(_) => return self.clear_refresh(work),
+            WorkKind::Pickup(_) => return self.pickup_refresh(work),
             WorkKind::Test(_) => return,
         }
         .filter(|&c| self.characters[c].stack.holds_task(id).is_none())
@@ -761,7 +836,7 @@ impl WorkHost for Sim<'_, '_> {
                     *o = held.contains(&(k as i32));
                 }
             }
-            WorkKind::Test(_) => {}
+            WorkKind::Clear(_) | WorkKind::Pickup(_) | WorkKind::Test(_) => {}
         }
         if let WorkKind::Gather(_) = work.kind {
             self.cancel(work);
@@ -775,8 +850,14 @@ impl WorkHost for Sim<'_, '_> {
         match work.kind {
             WorkKind::Gather(_) => self.gather_try(work, c, time),
             WorkKind::Build(_) => self.build_try(work, c),
+            WorkKind::Clear(_) => self.clear_try(work, c, time),
+            WorkKind::Pickup(_) => self.pickup_try(work, c, time),
             WorkKind::Test(_) => 0,
         }
+    }
+
+    fn take_offers(&mut self) -> Vec<i32> {
+        std::mem::take(&mut self.offers)
     }
 
     fn complete(&mut self, work: &mut Work, c: usize, param: i32) -> bool {
@@ -795,6 +876,18 @@ impl WorkHost for Sim<'_, '_> {
                 b.workers.remove(&c);
                 if let Some(o) = b.occupied.get_mut(param as usize) {
                     *o = false;
+                }
+            }
+            // `FUN_1400eb300`: the resource (or cell) is done.
+            WorkKind::Clear(cl) => {
+                cl.resources.retain(|_, &mut w| w != c);
+                cl.cells.remove(&param);
+            }
+            // `FUN_1400f8390`.
+            WorkKind::Pickup(_) => {
+                if let Some(p) = self.piles.get_mut(&work.entity) {
+                    p.claimer = None;
+                    p.state = 2;
                 }
             }
             WorkKind::Test(_) => {}
@@ -816,6 +909,18 @@ impl WorkHost for Sim<'_, '_> {
                     *o = false;
                 }
             }
+            // `FUN_1400eb2d0` calls the complete slot.
+            WorkKind::Clear(cl) => {
+                cl.resources.retain(|_, &mut w| w != c);
+                cl.cells.remove(&param);
+            }
+            // `FUN_1400f8350`.
+            WorkKind::Pickup(_) => {
+                if let Some(p) = self.piles.get_mut(&work.entity) {
+                    p.claimer = None;
+                    p.state = 0;
+                }
+            }
             WorkKind::Test(_) => {}
         }
     }
@@ -827,6 +932,19 @@ impl WorkHost for Sim<'_, '_> {
             let next = match &work.kind {
                 WorkKind::Gather(g) => g.workers.first().copied(),
                 WorkKind::Build(b) => b.workers.first().copied(),
+                // `FUN_1400ebb20`: every claimer of a resource or cell.
+                WorkKind::Clear(cl) => cl
+                    .resources
+                    .values()
+                    .chain(cl.cells.values())
+                    .next()
+                    .copied(),
+                // `FUN_1400f8ec0`: the claimer, while claimed.
+                WorkKind::Pickup(_) => self
+                    .piles
+                    .get(&work.entity)
+                    .filter(|p| p.state == 1)
+                    .and_then(|p| p.claimer),
                 WorkKind::Test(_) => None,
             };
             let Some(c) = next else { return };
@@ -838,6 +956,16 @@ impl WorkHost for Sim<'_, '_> {
                 }
                 WorkKind::Build(b) => {
                     b.workers.remove(&c);
+                }
+                WorkKind::Clear(cl) => {
+                    cl.resources.retain(|_, &mut w| w != c);
+                    cl.cells.retain(|_, &mut w| w != c);
+                }
+                WorkKind::Pickup(_) => {
+                    if let Some(p) = self.piles.get_mut(&work.entity) {
+                        p.claimer = None;
+                        p.state = 0;
+                    }
                 }
                 WorkKind::Test(_) => {}
             }
@@ -1017,5 +1145,687 @@ impl Sim<'_, '_> {
             }
         }
         1
+    }
+}
+
+/// Clearing (`ClearArea`), loose piles (`RawMaterialComponent`, `Pickup`) and the drop-off
+/// activity.
+impl Sim<'_, '_> {
+    /// The entity on a cell as the job code reads it: occupant (`+0x00`), else object (`+0x08`).
+    fn entity_on(&self, cell: i32) -> Option<usize> {
+        let i = cell as usize;
+        self.cells.occupants[i].or(self.cells.objects[i])
+    }
+
+    /// `FUN_14011ce30`'s registration: count the footprint's objects into a category mask
+    /// (bit 0, plus logs/stone/iron from their raw materials) and register a ClearArea work.
+    fn register_clear(&mut self, jobs: &mut Jobs, e: usize) {
+        let site = &self.sites[&e];
+        let Some(clear) = self.site_templates[site.template].clear.clone() else {
+            return;
+        };
+        let n = self.size as i32;
+        let (x, y) = self.placed[e].cell;
+        let (w, h) = self.placed[e].footprint;
+        let mut mask = 1u32;
+        for cy in y..y + h {
+            for cx in x..x + w {
+                let Some(o) = self.cells.objects[(cy * n + cx) as usize] else {
+                    continue;
+                };
+                let t = &self.templates[self.placed[o].template];
+                if t.natural.is_none() {
+                    continue;
+                }
+                if let Some(m) = t.pile.and_then(|p| self.templates[p].pile_material) {
+                    mask |= clear_mask(self.materials[m].flags);
+                }
+            }
+        }
+        let work = Work::new(
+            e,
+            self.rect_cell(e),
+            self.professions.laborer,
+            WorkKind::Clear(ClearWork {
+                filter: clear.reference.clone(),
+                clear_resources: clear.clear_resources,
+                clear_cells: clear.clear_cells,
+                clear_piles: clear.clear_piles,
+                ..Default::default()
+            }),
+        );
+        self.set_work(jobs, e, work, mask, clear.keep_priority);
+    }
+
+    /// `FUN_1400eafe0`: drop resource claims whose citizen lost the task; a lost cell claim
+    /// returns before anything is dropped.
+    fn clear_refresh(&mut self, work: &mut Work) {
+        let id = work.id;
+        let WorkKind::Clear(cl) = &mut work.kind else {
+            return;
+        };
+        let lost: Vec<usize> = cl
+            .resources
+            .iter()
+            .filter(|(_, &c)| self.characters[c].stack.holds_task(id).is_none())
+            .map(|(&r, _)| r)
+            .collect();
+        if cl
+            .cells
+            .values()
+            .any(|&c| self.characters[c].stack.holds_task(id).is_none())
+        {
+            return;
+        }
+        for r in lost {
+            cl.resources.remove(&r);
+        }
+    }
+
+    /// `FUN_1400eb3b0`: ClearArea's slot `+0x20`.
+    fn clear_try(&mut self, work: &mut Work, c: usize, time: i64) -> u8 {
+        let e = work.entity;
+        let site = &self.sites[&e];
+        let max = self.site_templates[site.template].max_workers.max(1);
+        let WorkKind::Clear(cl) = &work.kind else {
+            return 0;
+        };
+        if max <= (cl.resources.len() + cl.cells.len()) as i32 {
+            return 1;
+        }
+        if self
+            .workforce
+            .workplaces
+            .get(&e)
+            .is_some_and(|w| !w.enabled)
+        {
+            return 1;
+        }
+        // `FUN_1400a50d0`: the footprint's objects, then `FUN_1400a2c90`: squared distance to
+        // the citizen, CRT qsort.
+        let n = self.size as i32;
+        let (x, y) = self.placed[e].cell;
+        let (w, h) = self.placed[e].footprint;
+        let from = self.citizen_cell(c);
+        let mut entries: Vec<(i32, i32, usize)> = Vec::new();
+        for cy in y..y + h {
+            for cx in x..x + w {
+                let cell = cy * n + cx;
+                if let Some(o) = self.cells.objects[cell as usize] {
+                    let (dy, dx) = (cell / n - from / n, cell % n - from % n);
+                    entries.push((cell, dy * dy + dx * dx, o));
+                }
+            }
+        }
+        crate::ai::crt_qsort_by(&mut entries, |a, b| a.1 - b.1);
+        let (resources, filter, clear_piles) =
+            (cl.clear_resources, cl.filter.clone(), cl.clear_piles);
+        if resources {
+            for &(cell, _, o) in &entries {
+                let WorkKind::Clear(cl) = &work.kind else {
+                    return 0;
+                };
+                if cl.resources.contains_key(&o) {
+                    continue;
+                }
+                let t = &self.templates[self.placed[o].template];
+                if let Some(f) = &filter {
+                    if !t.reference.eq_ignore_ascii_case(&f.replace('/', "\\")) {
+                        continue;
+                    }
+                }
+                if t.natural.is_none() {
+                    continue;
+                }
+                let Some(nb) = nearest_neighbour(self.size, &self.cells.types, cell, from, 0xe07)
+                else {
+                    continue;
+                };
+                if !self.reachable(nb, from) {
+                    continue;
+                }
+                if !self.patience(work, c, nb, from, time) {
+                    return 0;
+                }
+                if self.claimed.contains(&o) {
+                    continue;
+                }
+                let point = cell_ground(self.size, self.terrain, nb);
+                self.removal_sequence(c, work, o, point);
+                self.took_job(c, work);
+                if let WorkKind::Clear(cl) = &mut work.kind {
+                    cl.resources.insert(o, c);
+                }
+                return 2;
+            }
+        }
+        // Not ported: the empty-cell phase (`+0x71`, roads and fields: `FUN_1400c54a0`).
+        if clear_piles {
+            // The piles' own Pickup works (`FUN_1400fdaf0` without a second try), in order.
+            self.offers = entries
+                .iter()
+                .filter_map(|&(_, _, o)| self.piles.get(&o).map(|p| p.work))
+                .filter(|&id| id >= 0)
+                .collect();
+            if !self.offers.is_empty() {
+                return NESTED;
+            }
+        }
+        1
+    }
+
+    /// `FUN_1400c7380`: walk next to a natural resource, work it with its tool, let it fall
+    /// (resources with the animation flag), work it again, remove it and report.
+    fn removal_sequence(&mut self, c: usize, work: &mut Work, resource: usize, point: [f32; 3]) {
+        let t = &self.templates[self.placed[resource].template];
+        let Some(nr) = t.natural.clone() else {
+            return;
+        };
+        let facing = crate::character::work_facing(self.facing_centre(resource), point);
+        self.clear_citizen(c, Some(work));
+        self.on_empty_think(c);
+        let tool = nr.value as i32;
+        let clip = if (nr.value) < 11 { tool + 9 } else { 8 } as usize;
+        self.push(
+            c,
+            Action::CompleteTask {
+                work: work.id,
+                param: 0,
+            },
+        );
+        self.push(c, Action::ShowTool(-1));
+        self.push(
+            c,
+            Action::RemoveResource {
+                entity: resource,
+                flag: false,
+            },
+        );
+        if nr.flag {
+            self.push(c, self.perform(c, facing, clip, seconds(nr.time_b), false));
+            self.push(
+                c,
+                Action::AnimateResource {
+                    entity: resource,
+                    anim: 1,
+                    wait: false,
+                },
+            );
+            self.push(
+                c,
+                Action::AnimateResource {
+                    entity: resource,
+                    anim: 0,
+                    wait: true,
+                },
+            );
+        }
+        self.push(c, self.perform(c, facing, clip, seconds(nr.time_a), true));
+        let walk = match tool {
+            0 | 1 | 4..=7 => 2,
+            2 | 3 => 3,
+            _ => 1,
+        };
+        let m = MoveTo::new(point, walk, 0, WALKABLE, 0, -1.0, self.rng);
+        self.push(c, Action::move_to(m));
+        self.push(c, Action::ShowTool(tool));
+        self.claimed.insert(resource);
+    }
+
+    /// `FUN_1400cff70`: a removal sequence was aborted.
+    pub fn unclaim(&mut self, resource: usize) {
+        self.claimed.remove(&resource);
+    }
+
+    /// `FUN_14012b910`: a resource with the animation flag plays clip `anim`.
+    pub fn animate_resource(&mut self, resource: usize, anim: usize) {
+        let p = &mut self.placed[resource];
+        let t = &self.templates[p.template];
+        if t.natural.as_ref().is_some_and(|n| n.flag)
+            && t.animations
+                .get(p.variant)
+                .and_then(Option::as_ref)
+                .is_some_and(|g| g.clips.get(anim).is_some())
+        {
+            p.animation = Some(crate::animation::Playback::new(anim, 0));
+        }
+    }
+
+    /// RemoveNaturalResource start (`FUN_1400cffe0`) → `FUN_14012b5c0`: queue the resource for
+    /// removal; unless another profession should have harvested it, leave a pile of
+    /// `yield × min(growth, 1)` units (the educated yield for educated citizens), turned
+    /// `RandTol(2) × 90°`. `priority` is the priority of a work at the resource's cell
+    /// (`FUN_1400fe220`).
+    pub fn remove_resource(
+        &mut self,
+        c: usize,
+        resource: usize,
+        educated: bool,
+        priority: Option<i32>,
+    ) {
+        self.claimed.remove(&resource);
+        if !self.placed[resource].alive {
+            return;
+        }
+        let template = self.placed[resource].template;
+        let Some(nr) = self.templates[template].natural.clone() else {
+            return;
+        };
+        // `+0x2d`: kept unless a related profession other than the laborer harvests it.
+        let mut keep = true;
+        if let Some(r) = nr.related.as_deref() {
+            let r = r.replace('/', "\\");
+            let related = self
+                .professions
+                .list
+                .iter()
+                .position(|p| p.reference.eq_ignore_ascii_case(&r));
+            if let Some(p) = related {
+                if p != self.professions.laborer && self.states[c].profession != p {
+                    keep = false;
+                }
+            }
+        }
+        // `FUN_1400c8370`: the entity leaves at the end of the iteration (the port removes it
+        // on the next animation pass).
+        let growth = self.placed[resource].growth;
+        let cell = self.placed[resource].cell;
+        {
+            let p = &mut self.placed[resource];
+            p.animation = None;
+            p.removal_requested = true;
+        }
+        *self.models_dirty = true;
+        if !keep {
+            return;
+        }
+        let Some(pile_t) = self.templates[template].pile else {
+            return;
+        };
+        let pt = &self.templates[pile_t];
+        let base = if educated {
+            pt.pile_yield.1
+        } else {
+            pt.pile_yield.0
+        };
+        let amount = (base as f32 * growth.min(1.0)) as i32;
+        let Some(material) = pt.pile_material else {
+            return;
+        };
+        if amount <= 0 {
+            return;
+        }
+        let n = self.size as i32;
+        let index = cell.1 * n + cell.0;
+        let id = self.placed.len();
+        let mut yaw = (self.rng.rand_tol(2) as f32 * 90.0) as i32;
+        while yaw < 0 {
+            yaw += 360;
+        }
+        let (variant, mesh) = pt.model.as_ref().map_or((0, 0), |m| {
+            (m.variant.max(0) as usize, m.mesh.max(0) as usize)
+        });
+        self.placed.push(Placed {
+            template: pile_t,
+            bucket: pt.bucket,
+            cell,
+            footprint: (1, 1),
+            position: cell_ground(self.size, self.terrain, index),
+            yaw: yaw as f32,
+            variant,
+            mesh,
+            growth: 0.0,
+            growth_state: None,
+            spawn_state: None,
+            alive: true,
+            removal_requested: false,
+            animation: None,
+            scale: [1.0; 4],
+        });
+        // The pile's MapComponent stamps its cell on activation (`MapDescription +0x30`).
+        self.stamp(id);
+        self.piles.insert(
+            id,
+            Pile {
+                material,
+                count: amount,
+                age: 0,
+                work: -1,
+                mask: pile_mask(self.materials[material].flags),
+                priority,
+                state: 0,
+                claimer: None,
+            },
+        );
+        self.new_piles.push(id);
+    }
+
+    /// RawMaterialComponent activation (`FUN_14012e6a0`): register each new pile's Pickup work.
+    pub fn activate_piles(&mut self, jobs: &mut Jobs) {
+        for id in std::mem::take(self.new_piles) {
+            let Some(pile) = self.piles.get(&id) else {
+                continue;
+            };
+            let (mask, priority) = (pile.mask, pile.priority);
+            let cell = self.rect_cell(id);
+            let work = Work::new(
+                id,
+                cell,
+                self.professions.laborer,
+                WorkKind::Pickup(PickupWork),
+            );
+            let w = jobs.add(work, mask, priority);
+            self.piles.get_mut(&id).unwrap().work = w;
+        }
+    }
+
+    /// Destroy a pile (picked up or decayed): its entity, its cell and its work.
+    pub fn destroy_pile(&mut self, jobs: &mut Jobs, id: usize) {
+        let Some(pile) = self.piles.remove(&id) else {
+            return;
+        };
+        if pile.work >= 0 {
+            jobs.remove(pile.work, self);
+        }
+        let p = &mut self.placed[id];
+        p.alive = false;
+        let (x, y) = p.cell;
+        let i = (y as usize) * self.size + x as usize;
+        if self.cells.objects[i] == Some(id) {
+            self.cells.objects[i] = None;
+            self.cells.types[i] = self.terrain.natural_cell_type(self.size, i);
+        }
+        *self.models_dirty = true;
+    }
+
+    /// PickupRawMaterial start (`FUN_1400ceda0`): the pile goes into the carried storage.
+    pub fn take_pile(&mut self, jobs: &mut Jobs, c: usize, id: usize) {
+        let Some(pile) = self.piles.get(&id) else {
+            return;
+        };
+        let (material, count) = (pile.material, pile.count);
+        self.states[c].carried.add(material, count);
+        self.destroy_pile(jobs, id);
+    }
+
+    /// `FUN_14012e600`: piles older than an hour disappear.
+    pub fn age_piles(&mut self, jobs: &mut Jobs, dt: i64) {
+        let old: Vec<usize> = self
+            .piles
+            .iter_mut()
+            .filter_map(|(&id, p)| {
+                p.age += dt;
+                (p.age > ticks(3600.0)).then_some(id)
+            })
+            .collect();
+        for id in old {
+            self.destroy_pile(jobs, id);
+        }
+    }
+
+    /// `FUN_1400f82f0`: a claimer that lost the task frees the pile.
+    fn pickup_refresh(&mut self, work: &mut Work) {
+        let id = work.id;
+        if let Some(p) = self.piles.get_mut(&work.entity) {
+            if let Some(c) = p.claimer {
+                if self.characters[c].stack.holds_task(id).is_none() {
+                    p.claimer = None;
+                    p.state = 0;
+                }
+            }
+        }
+    }
+
+    /// `FUN_140092890`: does any registered storage take `count` of `material`?
+    fn any_storage_fits(&self, material: usize, count: i32) -> bool {
+        self.storage_sites.iter().any(|s| {
+            let st = &self.storages[s.storage];
+            st.accepts & self.materials[material].flags != 0
+                && st.fits(self.materials, material, count)
+        })
+    }
+
+    /// `FUN_1400f83d0`: Pickup's slot `+0x20`. Takes this pile and every unclaimed pile within
+    /// five cells that fits the same storage, nearest first, while they fit the carried
+    /// capacity.
+    fn pickup_try(&mut self, work: &mut Work, c: usize, time: i64) -> u8 {
+        let e = work.entity;
+        let Some(pile) = self.piles.get(&e).cloned() else {
+            return 1;
+        };
+        if pile.state != 0 {
+            return 1;
+        }
+        let size = |m: usize, s: &Self| s.materials[m].size;
+        let carried = &self.states[c].carried;
+        let mut free = carried.capacity - carried.used(self.materials);
+        if free < size(pile.material, self) * pile.count {
+            self.drop_off(c);
+            return 2;
+        }
+        let from = self.citizen_cell(c);
+        let cell = work.cell;
+        if !self.any_storage_fits(pile.material, pile.count) {
+            return 1;
+        }
+        let Some(nb) = nearest_neighbour(self.size, &self.cells.types, cell, from, 0xe07) else {
+            return 1;
+        };
+        if !self.reachable(nb, from) {
+            return 1;
+        }
+        if !self.patience(work, c, nb, from, time) {
+            return 0;
+        }
+        let found = self.find_storage(pile.material, pile.count, true, nb);
+        let Some(found) = found else {
+            return 1;
+        };
+        let first_rank = self.rank_or_distance(from, cell);
+        let mut list: Vec<(i32, i32, i32, i32, usize)> = vec![(cell, nb, first_rank, work.id, e)];
+        let n = self.size as i32;
+        let (px, py) = (cell % n, cell / n);
+        for dy in -5..=5 {
+            for dx in -5..=5 {
+                if dx == 0 && dy == 0 {
+                    continue;
+                }
+                let (x, y) = (px + dx, py + dy);
+                if x < 0 || y < 0 || x >= n || y >= n {
+                    continue;
+                }
+                let k = y * n + x;
+                let Some(o) = self.entity_on(k) else { continue };
+                let Some(other) = self.piles.get(&o).cloned() else {
+                    continue;
+                };
+                if !self.storages[found.storage].fits(self.materials, other.material, 1) {
+                    continue;
+                }
+                let Some(nb2) = nearest_neighbour(self.size, &self.cells.types, k, from, 0xe07)
+                else {
+                    continue;
+                };
+                if !self.reachable(nb2, from) {
+                    continue;
+                }
+                if other.work < 0 || other.state != 0 {
+                    continue;
+                }
+                let r = self.rank_or_distance(from, k);
+                let id = other.work;
+                list.push((k, nb2, r, id, o));
+            }
+        }
+        crate::ai::crt_qsort_by(&mut list, |a, b| a.2 - b.2);
+        let mut first = true;
+        for (k, nb2, _, id, o) in list {
+            let p = &self.piles[&o];
+            let w = size(p.material, self) * p.count;
+            if w > free {
+                continue;
+            }
+            free -= w;
+            let point = cell_ground(self.size, self.terrain, nb2);
+            self.pickup_sequence(
+                c,
+                if first { Some(&mut *work) } else { None },
+                id,
+                o,
+                point,
+                k,
+            );
+            first = false;
+            let p = self.piles.get_mut(&o).unwrap();
+            p.state = 1;
+            p.claimer = Some(c);
+        }
+        self.took_job(c, work);
+        if first {
+            1
+        } else {
+            2
+        }
+    }
+
+    /// `FUN_140092a60` from a cell (`put` finds a storage that takes the units).
+    fn find_storage(
+        &mut self,
+        material: usize,
+        count: i32,
+        put: bool,
+        cell: i32,
+    ) -> Option<crate::stock::StorageMatch> {
+        let town = TownView {
+            size: self.size,
+            types: &self.cells.types,
+            regions: self.regions,
+            occupants: &self.cells.occupants,
+            objects: &self.cells.objects,
+            entities: self.entities,
+            happiness: &[],
+        };
+        let (size, terrain) = (self.size, self.terrain);
+        let ground = move |cell: i32| cell_ground(size, terrain, cell);
+        let mut geometry = StorageGeometry {
+            town: &town,
+            sectors: self.sectors,
+            ground: &ground,
+        };
+        find_material_storage(
+            self.storage_sites,
+            self.storages,
+            self.materials,
+            material,
+            count,
+            put,
+            cell,
+            None,
+            &mut geometry,
+            self.rng,
+        )
+    }
+
+    /// `FUN_1400c5fa0`: walk next to a pile, pick it up and report. The first pile's sequence
+    /// clears the stack (`current` is the work being tried).
+    fn pickup_sequence(
+        &mut self,
+        c: usize,
+        current: Option<&mut Work>,
+        work: i32,
+        pile: usize,
+        point: [f32; 3],
+        pile_cell: i32,
+    ) {
+        if let Some(w) = current {
+            self.clear_citizen(c, Some(w));
+        }
+        let facing = crate::character::work_facing(self.facing_centre(pile), point);
+        let carrying = self.states[c].carried.used(self.materials) > 0;
+        self.push(c, Action::ShowTool(-1));
+        self.on_empty_think(c);
+        self.push(c, self.perform(c, facing, 7, 0.75, false));
+        if !carrying {
+            self.push(c, Action::ShowTool(-2));
+        }
+        self.push(c, Action::PickupPile { entity: pile });
+        self.push(c, Action::CompleteTask { work, param: 0 });
+        self.push(c, self.perform(c, facing, 6, 0.75, false));
+        let mask = WALKABLE | crate::pathfind::bit(self.cells.types[pile_cell as usize]);
+        let m = MoveTo::new(
+            point,
+            if carrying { 4 } else { 1 },
+            0,
+            mask,
+            0,
+            -1.0,
+            self.rng,
+        );
+        self.push(c, Action::move_to(m));
+        if carrying {
+            self.push(c, Action::ShowTool(-2));
+        }
+    }
+
+    /// `FUN_14011b330`: carry everything to storages that take it: one drop-off per storage
+    /// (nearest found per material, reusing a storage already chosen), then a final drop-off
+    /// of whatever is left.
+    pub fn drop_off(&mut self, c: usize) {
+        let from = self.citizen_cell(c);
+        let items: Vec<(usize, i32)> = self.states[c]
+            .carried
+            .items
+            .iter()
+            .filter(|i| i.count != 0)
+            .map(|i| (i.material, i.count))
+            .collect();
+        let mut chosen: Vec<(usize, [f32; 3], usize)> = Vec::new();
+        for (material, count) in items {
+            if chosen
+                .iter()
+                .any(|&(s, _, _)| self.storages[s].fits(self.materials, material, count))
+            {
+                continue;
+            }
+            if let Some(f) = self.find_storage(material, count, true, from) {
+                let entity = self.storage_sites[f.site].entity;
+                chosen.push((f.storage, f.target, entity));
+            }
+        }
+        if chosen.is_empty() {
+            return;
+        }
+        self.clear_citizen(c, None);
+        self.on_empty_think(c);
+        // The final drop-off with no target (its redirect search is not ported).
+        self.push(
+            c,
+            Action::DropOff {
+                storage: usize::MAX,
+                material: usize::MAX,
+                count: -1,
+            },
+        );
+        let mask = WALKABLE | crate::pathfind::bit(self.cells.types[from as usize]);
+        for (storage, target, entity) in chosen {
+            let facing = crate::character::work_facing(self.facing_centre(entity), target);
+            self.push(c, self.perform(c, facing, 7, 0.75, false));
+            self.push(c, Action::ShowTool(-2));
+            self.push(
+                c,
+                Action::DropOff {
+                    storage,
+                    material: usize::MAX,
+                    count: -1,
+                },
+            );
+            self.push(c, self.perform(c, facing, 6, 0.75, false));
+            let m = MoveTo::new(target, 4, 0, mask, 0, -1.0, self.rng);
+            self.push(c, Action::move_to(m));
+        }
+        let s = &mut self.states[c];
+        s.job = -1;
+        s.health_events |= 4;
+        s.supply_activity = 0;
     }
 }

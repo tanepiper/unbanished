@@ -159,6 +159,17 @@ impl PlacementTool {
         terrain: &HeightGrid,
         near: (i32, i32),
     ) -> Option<(i32, i32)> {
+        self.find_spot(town, terrain, near, false)
+    }
+
+    /// A valid spot whose footprint is clear, or (`resources`) holds natural resources.
+    pub fn find_spot(
+        &mut self,
+        town: &StartingTown,
+        terrain: &HeightGrid,
+        near: (i32, i32),
+        resources: bool,
+    ) -> Option<(i32, i32)> {
         let n = town.cells.size as i32;
         for r in 6i32..40 {
             for dy in -r..=r {
@@ -171,11 +182,11 @@ impl PlacementTool {
                     let Some(rect) = self.rect.filter(|_| self.valid) else {
                         continue;
                     };
-                    let clear = (rect.y0..=rect.y1).all(|y| {
-                        (rect.x0..=rect.x1)
-                            .all(|x| town.cells.objects[(y * n + x) as usize].is_none())
-                    });
-                    if clear {
+                    let objects = (rect.y0..=rect.y1)
+                        .flat_map(|y| (rect.x0..=rect.x1).map(move |x| (y * n + x) as usize))
+                        .filter(|&i| town.cells.objects[i].is_some())
+                        .count();
+                    if (objects == 0) != resources {
                         return Some(at);
                     }
                 }
@@ -371,5 +382,100 @@ mod construction_tests {
             .storages
             .iter()
             .all(|s| s.items.iter().all(|e| e.reserved == 0)));
+    }
+
+    /// A wood house placed over natural resources: laborers fell them (the site clears), the
+    /// piles they leave are hauled to storage, then the house is supplied and built.
+    #[test]
+    fn wood_house_on_resources_gets_cleared_and_built() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool = PlacementTool::start(
+            &archive,
+            &mut town,
+            r"Template\WoodHouse.rsc:resource",
+            &mut rng,
+        )
+        .unwrap();
+        let spot = tool
+            .find_spot(&town, &terrain, town.start, true)
+            .expect("no spot with resources");
+        tool.hover(&town, &terrain, Some(spot), 0);
+        let rect = tool.rect.unwrap();
+        let n = town.cells.size as i32;
+        let resources: Vec<usize> = (rect.y0..=rect.y1)
+            .flat_map(|y| (rect.x0..=rect.x1).map(move |x| (y * n + x) as usize))
+            .filter_map(|i| town.cells.objects[i])
+            .collect();
+        assert!(!resources.is_empty());
+        let id = tool.place(&archive, &mut town, 0).unwrap();
+        let builder = town.construction.professions.builder;
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 2,
+            });
+        let mut warnings = banished_game::events::StockWarnings::default();
+        let dt = 1.0 / 30.0;
+        let (mut cleared_at, mut done_at, mut most_piles) = (None, None, 0);
+        for step in 0..30 * 60 * 12 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            most_piles = most_piles.max(town.construction.piles.len());
+            if cleared_at.is_none() && resources.iter().all(|&r| !town.placed[r].alive) {
+                cleared_at = Some(step);
+            }
+            if town.construction.sites[&id].complete {
+                done_at = Some(step);
+                break;
+            }
+        }
+        eprintln!(
+            "resources {} cleared at {:?}, most piles {}, built at {:?}, piles left {}",
+            resources.len(),
+            cleared_at,
+            most_piles,
+            done_at,
+            town.construction.piles.len()
+        );
+        assert!(cleared_at.is_some(), "the footprint was not cleared");
+        assert!(most_piles > 0, "no piles were left");
+        assert!(done_at.is_some(), "the house was not built");
+        assert!(town.construction.claimed_resources.is_empty());
     }
 }

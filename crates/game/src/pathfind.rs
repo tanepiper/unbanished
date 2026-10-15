@@ -22,7 +22,7 @@ pub const WATER: u32 = 0x1e0;
 /// `FUN_14001d760`: longest path a search returns.
 pub const MAX_PATH: usize = 0x4000;
 
-fn bit(t: CellType) -> u32 {
+pub fn bit(t: CellType) -> u32 {
     1u32 << (t.0 & 0x1f)
 }
 

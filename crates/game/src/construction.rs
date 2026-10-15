@@ -400,7 +400,53 @@ pub struct Construction {
     pub placed: Vec<usize>,
     /// Player commands for the next iteration.
     pub commands: Vec<Command>,
+    /// Loose raw-material piles (RawMaterialComponent), by entity.
+    pub piles: BTreeMap<usize, Pile>,
+    /// NaturalResourceComponent flag `0x100000`: a removal sequence holds the resource.
+    pub claimed_resources: BTreeSet<usize>,
+    /// Piles created since the last iteration (registered with the entity manager and
+    /// activated after the citizens' update).
+    pub new_piles: Vec<usize>,
+    /// Entities were created or removed (the models need refreshing).
+    pub models_dirty: bool,
 }
+
+/// `RawMaterialComponent` (vtable `0x14016a5a0`, constructor `FUN_14012e8d0`): a loose pile.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Pile {
+    /// The raw material (RawMaterialDescription of the pile's template).
+    pub material: usize,
+    /// `+0x28`: units.
+    pub count: i32,
+    /// `+0x38`: age; after 3600 s the pile is destroyed (`FUN_14012e600`).
+    pub age: i64,
+    /// The Pickup work its WorkComponent registered (`FUN_14012e6a0`).
+    pub work: i32,
+    /// The work's category mask (`FUN_14012e950`).
+    pub mask: u32,
+    /// A priority to keep from the work at its cell (`FUN_1400fe220`), applied on activation.
+    pub priority: Option<i32>,
+    /// The Pickup work's `+0x48` (0 free, 1 claimed, 2 picked up) and `+0x50` (claimer). Kept
+    /// on the pile: one Pickup try claims several piles' works.
+    pub state: i32,
+    pub claimer: Option<usize>,
+}
+
+/// `ClearArea` state: `+0x48` claimed resources (entity → citizen), `+0x58` claimed cells,
+/// `+0x68` template filter, `+0x70..+0x72` resources / cells / piles.
+#[derive(Debug, Clone, Default)]
+pub struct ClearWork {
+    pub resources: BTreeMap<usize, usize>,
+    pub cells: BTreeMap<i32, usize>,
+    pub filter: Option<String>,
+    pub clear_resources: bool,
+    pub clear_cells: bool,
+    pub clear_piles: bool,
+}
+
+/// `Pickup` work: its state (`+0x48`, `+0x50`) lives on the [`Pile`] it belongs to.
+#[derive(Debug, Clone, Default)]
+pub struct PickupWork;
 
 /// `GatherRawMaterials` state (`+0x48` delivered per requirement, `+0x58` in transit, `+0x68`
 /// workers).

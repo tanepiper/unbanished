@@ -56,6 +56,12 @@ pub struct Template {
     pub has_interact: bool,
     /// InteractDescription "use" points in model space (its point list's category 0).
     pub use_points: Vec<[f32; 3]>,
+    /// A natural resource's pile template (NaturalResourceDescription `+0x20`).
+    pub pile: Option<usize>,
+    /// A pile template's raw material (its RawMaterialDescription) and yields `+0x40`,
+    /// `+0x44` (uneducated, educated).
+    pub pile_material: Option<usize>,
+    pub pile_yield: (i32, i32),
     /// InteractDescription "build" points in model space (category 1): where builders stand
     /// and materials are delivered.
     pub build_points: Vec<[f32; 3]>,
@@ -842,6 +848,9 @@ mod tests {
             market_location: false,
             has_interact: false,
             use_points: Vec::new(),
+            pile: None,
+            pile_material: None,
+            pile_yield: (0, 0),
             build_points: Vec::new(),
         }
     }

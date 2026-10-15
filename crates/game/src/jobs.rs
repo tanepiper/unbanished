@@ -37,6 +37,10 @@ pub enum WorkKind {
     Gather(crate::construction::Gather),
     /// `BuildStructure` (vtable `0x1401674c0`, constructor `FUN_1400eae90`).
     Build(crate::construction::BuildWork),
+    /// `ClearArea` (vtable `0x140167540`, constructor `FUN_1400ebe30`).
+    Clear(crate::construction::ClearWork),
+    /// `Pickup` (vtable `0x140167c30`, built by RawMaterialComponent activation `FUN_14012e6a0`).
+    Pickup(crate::construction::PickupWork),
     /// A test stand-in.
     Test(i32),
 }
@@ -118,7 +122,16 @@ pub trait WorkHost {
     /// Slot `+0x40`: clear every worker's action stack (their CompleteTask aborts call
     /// [`WorkHost::fail`] on this work, which the host handles directly).
     fn cancel(&mut self, work: &mut Work);
+    /// Works a slot `+0x20` asked the manager to offer in its place (`FUN_1400fdaf0` called
+    /// from inside a try, as ClearArea does with the piles in its footprint), in order. A try
+    /// answering [`NESTED`] has queued them.
+    fn take_offers(&mut self) -> Vec<i32> {
+        Vec::new()
+    }
 }
+
+/// A try's answer meaning "offer these other works for me" ([`WorkHost::take_offers`]).
+pub const NESTED: u8 = 3;
 
 /// A CompleteTask's report: `complete` (start) or failed (abort).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -318,6 +331,23 @@ impl Jobs {
         }
     }
 
+    /// Slot `+0x20` of a work taken out of the table, answering [`NESTED`] by offering the
+    /// queued works (`FUN_1400fdaf0` without a second try) until one is taken: then 2, else 1.
+    /// The work is back in the table afterwards.
+    fn try_one(&mut self, id: i32, mut work: Work, citizen: usize, host: &mut impl WorkHost) -> u8 {
+        let r = host.try_assign(&mut work, citizen, self.time);
+        self.works.insert(id, work);
+        if r != NESTED {
+            return r;
+        }
+        for other in host.take_offers() {
+            if self.offer_one(other, citizen, false, host) {
+                return 2;
+            }
+        }
+        1
+    }
+
     /// `FUN_1400fdaf0`: offer one work by id, with a second try when the first answers
     /// "not now" and `again` is set.
     pub fn offer_one(
@@ -333,21 +363,27 @@ impl Jobs {
         let mut taken = false;
         if work.failed_pass != self.pass {
             host.refresh(&mut work);
-            match host.try_assign(&mut work, citizen, self.time) {
+            match self.try_one(id, work, citizen, host) {
                 2 => taken = true,
                 1 => {
                     if again {
-                        host.refresh(&mut work);
-                        taken = host.try_assign_again(&mut work, citizen, self.time);
+                        if let Some(mut work) = self.works.remove(&id) {
+                            host.refresh(&mut work);
+                            taken = host.try_assign_again(&mut work, citizen, self.time);
+                            self.works.insert(id, work);
+                        }
                     }
                     if !taken {
-                        work.failed_pass = self.pass;
+                        if let Some(w) = self.works.get_mut(&id) {
+                            w.failed_pass = self.pass;
+                        }
                     }
                 }
                 _ => {}
             }
+        } else {
+            self.works.insert(id, work);
         }
-        self.works.insert(id, work);
         self.drain(host);
         taken
     }
@@ -475,13 +511,18 @@ impl Jobs {
             let mut taken = false;
             if work.failed_pass != self.pass {
                 host.refresh(&mut work);
-                match host.try_assign(&mut work, citizen, self.time) {
+                match self.try_one(id, work, citizen, host) {
                     2 => taken = true,
-                    1 => work.failed_pass = self.pass,
+                    1 => {
+                        if let Some(w) = self.works.get_mut(&id) {
+                            w.failed_pass = self.pass;
+                        }
+                    }
                     _ => {}
                 }
+            } else {
+                self.works.insert(id, work);
             }
-            self.works.insert(id, work);
             self.drain(host);
             if taken {
                 return true;

@@ -127,7 +127,11 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         has_interact: false,
         use_points: Vec::new(),
         build_points: Vec::new(),
+        pile: None,
+        pile_material: None,
+        pile_yield: (0, 0),
     };
+    let mut pile_ref = None;
     let mut spawn = Vec::new();
     for d in desc.descriptions.iter().flatten() {
         let Some(data) = read(archive, d) else {
@@ -178,7 +182,15 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                     }
                 }
             }
-            "naturalresource" => t.natural = natural_resource_description(&data).ok(),
+            "naturalresource" => {
+                t.natural = natural_resource_description(&data).ok();
+                pile_ref = t.natural.as_ref().and_then(|n| n.raw_material.clone());
+            }
+            "rawmaterial" => {
+                if let Ok(d) = raw_material_description(&data) {
+                    t.pile_yield = (d.value_40, d.value_44);
+                }
+            }
             "growth" => {
                 t.growth = growth_description(&data).ok();
                 t.growth_reference = Some(normalise(d));
@@ -227,6 +239,10 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
     }
     let index = table.len();
     table.push(t);
+    // `FUN_14012b5c0` clones the resource's raw-material template as a pile.
+    if let Some(r) = pile_ref {
+        table[index].pile = load_template(archive, &r, table);
+    }
     for e in spawn {
         if let Some(child) = e
             .template
@@ -534,6 +550,7 @@ impl StartingTown {
                 work_ok: c.i(0x108),
                 work_cold: c.f(0x10c),
                 no_tool_factor: c.f(0x114),
+                education: c.i(0x118),
                 health_max: c.f(0x70),
                 hunger_limit: c.f(0xd0),
                 cold_limit: c.f(0xf0),
@@ -581,7 +598,7 @@ impl StartingTown {
                 .and_then(|d| banished_formats::types::graphics_mesh(&d).ok())
                 .map_or(0.0, |m| m.bounds_max[2] - m.bounds_min[2])
         });
-        Some(StartingTown {
+        let mut town = StartingTown {
             citizen_icons,
             citizen_heights,
             archive_professions,
@@ -608,7 +625,9 @@ impl StartingTown {
                 professions: professions(archive),
                 ..Default::default()
             },
-        })
+        };
+        town.resolve_piles(archive);
+        Some(town)
     }
 
     /// `Game/Profession/Profession.rsc:<key>` (read on demand; presentation only).
@@ -690,7 +709,23 @@ impl StartingTown {
 
     /// Load (or find) a template for an entity created during play.
     pub fn load_template(&mut self, archive: &Archive, reference: &str) -> Option<usize> {
-        load_template(archive, reference, &mut self.templates)
+        let t = load_template(archive, reference, &mut self.templates);
+        self.resolve_piles(archive);
+        t
+    }
+
+    /// Pile templates' raw materials in the town's list (`FUN_140097330`, which the original
+    /// runs when a pile is set up; resolved here when its template loads).
+    fn resolve_piles(&mut self, archive: &Archive) {
+        for i in 0..self.templates.len() {
+            let t = &self.templates[i];
+            if t.pile_material.is_some() || t.pile_yield == (0, 0) {
+                continue;
+            }
+            let reference = t.reference.clone();
+            self.templates[i].pile_material =
+                material_index(archive, &mut self.materials, &reference);
+        }
     }
 
     /// FUN_1400c9560: run placed entities on their template's scheduled bucket.
@@ -752,6 +787,7 @@ impl StartingTown {
         temperature: f32,
         stock: [(i32, i32); 21],
     ) -> bool {
+        let before = self.placed.len();
         let groups: Vec<_> = self
             .citizens
             .iter()
@@ -776,6 +812,10 @@ impl StartingTown {
         };
         self.agents
             .update(&mut self.citizens, &mut env, &groups, dt);
+        // `FUN_1400c9d70`: piles left by cleared resources join the entity manager's buckets.
+        for id in before..self.placed.len() {
+            self.register_entity(id);
+        }
         !self.citizens.is_empty()
     }
 
