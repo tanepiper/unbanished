@@ -77,6 +77,7 @@ pub fn material_index(
         flags: d.flags,
         tool_uses: d.value_54,
         preferred: d.flag_58,
+        pile_spacing: d.value_4c,
     });
     Some(materials.len() - 1)
 }
@@ -395,6 +396,7 @@ fn starting_goods(
             flags: d.flags,
             tool_uses: d.value_54,
             preferred: d.flag_58,
+            pile_spacing: d.value_4c,
         });
     }
     let mut storages = Vec::new();
@@ -646,6 +648,38 @@ impl StartingTown {
         }
         let (materials, storages, storage_sites) =
             starting_goods(archive, &profile, &placed, &templates);
+        // `FUN_1400a87d0`'s end: random crops, orchard trees and livestock become known
+        // (`FUN_140096ef0`, once each).
+        let mut known = Vec::new();
+        for (list, picks) in [
+            (&profile.crops, profile.crop_picks),
+            (&profile.orchard_trees, profile.tree_picks),
+        ] {
+            for _ in 0..picks {
+                let r = rng.rand_below(list.len() as u32) as usize;
+                if let Some(t) = list
+                    .get(r)
+                    .and_then(|t| load_template(archive, t, &mut templates))
+                {
+                    if !known.contains(&t) {
+                        known.push(t);
+                    }
+                }
+            }
+        }
+        // Not ported: the starting livestock (`FUN_1400a5fe0`, Easy only).
+        for _ in 0..profile.livestock_picks {
+            let r = rng.rand_below(profile.livestock.len() as u32) as usize;
+            if let Some(t) = profile
+                .livestock
+                .get(r)
+                .and_then(|t| load_template(archive, t, &mut templates))
+            {
+                if !known.contains(&t) {
+                    known.push(t);
+                }
+            }
+        }
         log::info!(
             "start {:?}: {} natural resources placed",
             start,
@@ -780,6 +814,7 @@ impl StartingTown {
             ghost: None,
             construction: Construction {
                 professions: professions(archive),
+                known,
                 ..Default::default()
             },
             names,
@@ -914,6 +949,55 @@ impl StartingTown {
         self.cells.occupants[i] = Some(id);
         self.add_site(archive, id);
         id
+    }
+
+    /// A dragged area (CreateDrag: fields, orchards, pastures) over `rect` (`x, y, w, h`):
+    /// the entity, its zone over every cell, and its site. The drag tool itself is not ported
+    /// yet; tests place areas directly.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn place_area(
+        &mut self,
+        archive: &Archive,
+        reference: &str,
+        rect: (i32, i32, i32, i32),
+        terrain: &HeightGrid,
+    ) -> Option<usize> {
+        let template = self.load_template(archive, reference)?;
+        let (x, y, w, h) = rect;
+        let n = self.cells.size as i32;
+        let half = (n >> 1) as f32 - 0.5;
+        let (px, py) = (
+            x as f32 + (w - 1) as f32 / 2.0 - half,
+            y as f32 + (h - 1) as f32 / 2.0 - half,
+        );
+        let mut normal = [0.0; 3];
+        let z = terrain.ground(px, py, &mut normal);
+        let id = self.placed.len();
+        self.placed.push(Placed {
+            template,
+            bucket: self.templates[template].bucket,
+            cell: (x, y),
+            footprint: (w, h),
+            position: [px, py, z],
+            yaw: 0.0,
+            variant: 0,
+            mesh: usize::MAX,
+            growth: 0.0,
+            growth_state: None,
+            spawn_state: None,
+            alive: true,
+            removal_requested: false,
+            animation: None,
+            scale: [1.0; 4],
+        });
+        self.register_entity(id);
+        for cy in y..y + h {
+            for cx in x..x + w {
+                self.cells.occupants[(cy * n + cx) as usize] = Some(id);
+            }
+        }
+        self.add_site(archive, id);
+        Some(id)
     }
 
     /// Load (or find) a template for an entity created during play.
@@ -1190,6 +1274,13 @@ impl StartingTown {
                         t.happiness = Some(d);
                     }
                 }
+                "cropfield" => {
+                    if let Ok((tend, group)) = banished_formats::game::crop_field_description(&data)
+                    {
+                        t.controllers.push(Controller::CropField);
+                        t.crop_field = Some(banished_game::farm::CropFieldTemplate { tend, group });
+                    }
+                }
                 "hunt" => {
                     if let Ok(d) = banished_formats::game::hunt_description(&data) {
                         t.controllers.push(Controller::ResourceProduce);
@@ -1273,8 +1364,12 @@ impl StartingTown {
                 _ => {}
             }
         }
-        // Sites: buildings (BuildComponent) and removal markers (ClearResourceComponent).
-        if !has_build && !t.controllers.contains(&Controller::ClearResource) {
+        // Sites: buildings (BuildComponent), removal markers (ClearResourceComponent) and
+        // fields (CropFieldComponent).
+        if !has_build
+            && !t.controllers.contains(&Controller::ClearResource)
+            && !t.controllers.contains(&Controller::CropField)
+        {
             return None;
         }
         t.meshes = self.templates[template]
@@ -1348,6 +1443,9 @@ impl StartingTown {
                     .map(|_| banished_game::forester::Forester::default()),
                 happiness_registered: false,
                 hunt_time: t.hunt.map(|_| 0),
+                crop_field: t
+                    .crop_field
+                    .map(|_| banished_game::farm::CropField::default()),
                 fishing: t
                     .fishing
                     .as_ref()

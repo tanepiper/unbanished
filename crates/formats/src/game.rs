@@ -1307,6 +1307,25 @@ pub fn hunt_description(data: &[u8]) -> Result<HuntDescription> {
     Ok(value)
 }
 
+/// `CropFieldDescription` (serializer `FUN_140120740`, versioned): a tending visit's growth
+/// `+0x24` and, from version 1, the stock slot `+0x20`.
+pub fn crop_field_description(data: &[u8]) -> Result<(f32, i32)> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("CropFieldDescription") {
+            return format_err(format!(
+                "expected CropFieldDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, version| {
+            let tend = r.f32()?;
+            let group = if version > 0 { r.i32()? } else { 0 };
+            Ok((tend, group))
+        })
+    })?;
+    Ok(value)
+}
+
 /// `AutoPickupDescription` (serializer `FUN_1400454c0`): `+0x20`, whether the workplace's
 /// workers pick up the piles they make first.
 pub fn auto_pickup_description(data: &[u8]) -> Result<bool> {

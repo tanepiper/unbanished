@@ -14,6 +14,7 @@ pub mod citizens;
 pub mod construction;
 pub mod environment;
 pub mod events;
+pub mod farm;
 pub mod fishing;
 pub mod forester;
 pub mod growth;

@@ -55,6 +55,12 @@ pub enum WorkKind {
     /// HuntComponent's work (vtable `0x140167a40`, made by `FUN_140127b70`), with the
     /// gatherer's fields.
     Hunt(crate::herbalist::HerbalistWork),
+    /// `PlantArea` (vtable `0x140167cb0`, constructor `FUN_1400f9b70`).
+    PlantArea(crate::farm::AreaWork),
+    /// `TendArea` (vtable `0x140167db0`): the workers, as the gatherer's.
+    TendArea(crate::herbalist::HerbalistWork),
+    /// The harvest work (vtable `0x1401678c0`, constructor `FUN_1400f2990`).
+    Harvest(crate::farm::AreaWork),
     /// `FishingWork` (vtable `0x140167740`, constructor `FUN_1400eff90`).
     Fishing(crate::fishing::FishingWork),
     /// A test stand-in.

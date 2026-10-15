@@ -15,6 +15,8 @@ pub struct RawMaterial {
     pub tool_uses: i32,
     /// `+0x58`: FUN_140094410 prefers the last eligible entry with this set.
     pub preferred: bool,
+    /// `+0x4c`: a crop field leaves a pile on every this-many cells (`FUN_14011f7e0`).
+    pub pile_spacing: i32,
 }
 
 /// StorageComponent's 16-byte entry at `+0x28`: template, quantity, reserved quantity.

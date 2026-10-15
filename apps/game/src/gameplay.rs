@@ -615,6 +615,8 @@ impl GameplayLoop {
                 heights: &view.terrain.heights,
             };
             let temperature = self.environment.as_ref().map_or(0.0, |e| e.temperature);
+            // The crop fields read the calendar (`Game +0x128`).
+            town.construction.calendar = self.calendar.seconds();
             // Player commands and placed sites take effect between iterations.
             town.apply_commands(&grid, &mut self.rng);
             let changed = town.iterate(&grid, &mut self.rng, dt, temperature);

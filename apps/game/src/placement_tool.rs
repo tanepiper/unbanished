@@ -1193,7 +1193,7 @@ mod construction_tests {
         warnings.limits[5] = 100_000;
         let dt = 1.0 / 30.0;
         let (mut built_at, mut ready_at, mut taken_at) = (None, None, None);
-        for step in 0..30 * 60 * 30 {
+        for step in 0..30 * 60 * 60 {
             town.apply_commands(&terrain, &mut rng);
             town.iterate(&terrain, &mut rng, dt, 50.0);
             let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
@@ -1226,13 +1226,174 @@ mod construction_tests {
                 break;
             }
         }
+        let lodge = town.placed[id].position;
+        let near = town
+            .wildlife
+            .animals
+            .values()
+            .map(|a| {
+                let p = a.character.position;
+                (p[0] - lodge[0]).hypot(p[1] - lodge[1])
+            })
+            .fold(f32::MAX, f32::min);
         eprintln!(
-            "built {built_at:?}, ready {ready_at:?}, venison {taken_at:?}, {} deer",
+            "built {built_at:?}, ready {ready_at:?}, venison {taken_at:?}, {} deer, nearest {near}",
             town.wildlife.animals.len()
         );
         assert!(built_at.is_some(), "the lodge was not built");
         assert!(ready_at.is_some(), "no hunting time was gathered");
         assert!(taken_at.is_some(), "no deer was taken");
+        assert_reservations_held(&town);
+    }
+
+    /// A crop field near the start, given one of the town's known crops in spring: two
+    /// farmers plant every cell, tend the crop while it grows, harvest it and the crop is
+    /// stored.
+    #[test]
+    fn farmers_plant_tend_and_harvest_a_field() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let crop = town
+            .construction
+            .known
+            .iter()
+            .copied()
+            .find(|&t| {
+                town.templates[t].growth.is_some() && !town.templates[t].reference.contains("Tree")
+            })
+            .expect("no known crop");
+        // The nearest 6 × 6 square of empty ground to the start (rings outwards).
+        let n = town.cells.size as i32;
+        let empty = |town: &StartingTown, x: i32, y: i32| {
+            (y..y + 6).all(|cy| {
+                (x..x + 6).all(|cx| {
+                    let i = (cy * n + cx) as usize;
+                    cx < n
+                        && cy < n
+                        && town.cells.types[i] == banished_game::terrain::CellType::GROUND
+                        && town.cells.objects[i].is_none()
+                        && town.cells.occupants[i].is_none()
+                })
+            })
+        };
+        let (sx, sy) = town.start;
+        let rect = (8..60)
+            .flat_map(|r| (-r..=r).flat_map(move |d| [(d, -r), (d, r), (-r, d), (r, d)]))
+            .map(|(dx, dy)| (sx + dx, sy + dy))
+            .find(|&(x, y)| x > 0 && y > 0 && empty(&town, x, y))
+            .expect("no empty ground");
+        let id = town
+            .place_area(
+                &archive,
+                r"Template\CropField.rsc:resource",
+                (rect.0, rect.1, 6, 6),
+                &terrain,
+            )
+            .expect("the field was not placed");
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCrop {
+                entity: id,
+                crop: Some(crop),
+            });
+        let farmer = town
+            .construction
+            .professions
+            .list
+            .iter()
+            .position(|p| p.reference.to_ascii_lowercase().ends_with(":farmer"))
+            .expect("no farmer profession");
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: farmer,
+                count: 2,
+            });
+        let material = town.templates[crop]
+            .pile
+            .and_then(|p| town.templates[p].pile_material)
+            .expect("the crop leaves no raw material");
+        let mut warnings = banished_game::events::StockWarnings::default();
+        warnings.limits[5] = 100_000;
+        let dt = 1.0 / 30.0;
+        let mut seen = std::collections::BTreeSet::new();
+        let (mut planted_at, mut growing_at, mut harvest_at, mut stored_at) =
+            (None, None, None, None);
+        let mut calendar = banished_game::calendar::Calendar::default();
+        for step in 0..30 * 60 * 60 {
+            town.construction.calendar = calendar.seconds();
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 60.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 60.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            calendar.advance(banished_game::scheduler::ticks(dt));
+            let site = &town.construction.sites[&id];
+            let state = site.machine.state;
+            if planted_at.is_none() && state == 9 {
+                planted_at = Some(step);
+            }
+            if growing_at.is_none() && state == 0xa {
+                growing_at = Some(step);
+            }
+            if harvest_at.is_none() && state == 0xb {
+                harvest_at = Some(step);
+            }
+            let piles: Vec<usize> = town
+                .construction
+                .piles
+                .iter()
+                .filter(|(_, p)| p.material == material)
+                .map(|(&e, _)| e)
+                .collect();
+            seen.extend(piles.iter().copied());
+            if stored_at.is_none() && seen.iter().any(|e| !piles.contains(e)) {
+                stored_at = Some(step);
+                break;
+            }
+        }
+        let f = town.construction.sites[&id].crop_field.clone().unwrap();
+        eprintln!(
+            "planting {planted_at:?}, growing {growing_at:?}, harvest {harvest_at:?}, stored \
+             {stored_at:?}, {} cells, states {:?}",
+            f.cells.len(),
+            f.cells.iter().map(|c| c.state).collect::<Vec<_>>()
+        );
+        assert!(planted_at.is_some(), "the field never planted");
+        assert!(growing_at.is_some(), "the crop never grew");
+        assert!(harvest_at.is_some(), "the crop was never harvested");
+        assert!(stored_at.is_some(), "no crop was stored");
         assert_reservations_held(&town);
     }
 

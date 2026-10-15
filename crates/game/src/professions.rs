@@ -109,6 +109,11 @@ pub enum Command {
     ChangeMaxWorkers { entity: usize, delta: i32 },
     /// BuildUI's pause button (element 6000, `FUN_1400b7370`): `FUN_1401350d0`.
     SetEnabled { entity: usize, enabled: bool },
+    /// CropUI's crop list (slot `+0x58`, `FUN_1400b7df0`): the field's crop; choosing the
+    /// first one switches farming on.
+    SetCrop { entity: usize, crop: Option<usize> },
+    /// The field's buttons (`FUN_140120190`): 0 plant now, 1 harvest now, 2 farming on/off.
+    FieldAction { entity: usize, action: i32 },
 }
 
 /// The town manager's workplace and residence registries and every WorkPlaceComponent.
@@ -494,6 +499,8 @@ impl Workforce {
                     self.set_max_workers(workers, entity, max);
                 }
             }
+            // Handled by the crop field (`crate::farm`).
+            Command::SetCrop { .. } | Command::FieldAction { .. } => {}
         }
     }
 }

@@ -93,6 +93,9 @@ pub struct Sim<'s, 't> {
     pub attendance_list: &'s mut Vec<usize>,
     pub healers: &'s mut Vec<usize>,
     pub happiness: &'s mut Vec<usize>,
+    /// The calendar's seconds into the year.
+    pub calendar: f32,
+    pub keep_piles: &'s mut BTreeMap<usize, bool>,
     pub site_list: &'s mut Vec<usize>,
     pub events: Vec<JobEvent>,
     pub piles: &'s mut BTreeMap<usize, Pile>,
@@ -661,6 +664,48 @@ impl Sim<'_, '_> {
         crate::placement::stamp(self.cells, &rules, rect, degrees, entity);
     }
 
+    /// `FUN_140129c20` → `FUN_1400a33b0`: the MapComponent's footprint is lifted. Stamped
+    /// cells (`#`, `_`, or all with an empty footprint) get their natural type back (ground
+    /// where water lies under another occupant), and every cell's object is cleared.
+    pub(crate) fn unstamp(&mut self, entity: usize) {
+        let p = &self.placed[entity];
+        let Some(map) = &self.templates[p.template].map else {
+            return;
+        };
+        let n = self.size as i32;
+        let (x0, y0) = p.cell;
+        let (w, h) = p.footprint;
+        let fp = map.footprint.as_bytes();
+        let degrees = p.yaw as i32;
+        for y in y0..y0 + h {
+            for x in x0..x0 + w {
+                let i = (n * y + x) as usize;
+                let stamped = fp.is_empty() || {
+                    let c = fp
+                        .get(crate::placement::footprint_index(
+                            x - x0,
+                            y - y0,
+                            w,
+                            h,
+                            degrees,
+                        ))
+                        .copied()
+                        .unwrap_or(b'.');
+                    c == b'#' || c == b'_'
+                };
+                if stamped {
+                    let mut ty = self.terrain.natural_cell_type(self.size, i);
+                    let water = (1u32 << (ty.0 & 0x1f)) & 0x1e0 != 0;
+                    if water && self.cells.occupants[i].is_some_and(|o| o != entity) {
+                        ty = crate::terrain::CellType(2);
+                    }
+                    self.cells.types[i] = ty;
+                }
+                self.cells.objects[i] = None;
+            }
+        }
+    }
+
     /// Activate the sites placed since the last iteration (`FUN_1400c9d70` → activate).
     pub fn activate(&mut self, jobs: &mut Jobs, entity: usize) {
         run(self, jobs, entity, false, false);
@@ -751,7 +796,50 @@ impl Callbacks for Sim<'_, '_> {
                 }
                 true
             }
-            Callback::ClearExit15 => true,
+            // `FUN_14011cc40`: the ClearArea work goes.
+            Callback::ClearExit15 => {
+                let id = self.sites[&e].work_id;
+                if id >= 0 && jobs.works.contains_key(&id) {
+                    self.remove_work(jobs, e);
+                }
+                true
+            }
+            Callback::CropEnter2 => {
+                self.crop_enter2(e);
+                false
+            }
+            Callback::CropUpdate2 => {
+                self.crop_update2(e);
+                true
+            }
+            Callback::CropEnter9 => {
+                self.crop_enter9(jobs, e);
+                true
+            }
+            Callback::CropUpdate9 => {
+                self.crop_update9(jobs, e);
+                true
+            }
+            Callback::CropEnter10 => {
+                self.crop_enter10(jobs, e);
+                true
+            }
+            Callback::CropExit10 => {
+                self.crop_exit10(jobs, e);
+                true
+            }
+            Callback::CropUpdate10 => {
+                self.crop_update10(e);
+                true
+            }
+            Callback::CropEnter11 => {
+                self.crop_enter11(jobs, e);
+                true
+            }
+            Callback::CropUpdate11 => {
+                self.crop_update11(jobs, e);
+                true
+            }
             Callback::ClearEnter1 => {
                 self.machine(e).request(2);
                 true
@@ -1064,10 +1152,12 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Pickup(_) => return self.pickup_refresh(work),
             WorkKind::Produce(_) => return self.produce_refresh(work),
             WorkKind::Fishing(_) => return self.fishing_refresh(work),
+            WorkKind::PlantArea(_) | WorkKind::Harvest(_) => return self.area_refresh(work),
             // `FUN_1400f3620` / `FUN_1400f0130`.
-            WorkKind::Herbalist(h) | WorkKind::Forester(h) | WorkKind::Hunt(h) => {
-                h.workers.iter().copied()
-            }
+            WorkKind::Herbalist(h)
+            | WorkKind::Forester(h)
+            | WorkKind::Hunt(h)
+            | WorkKind::TendArea(h) => h.workers.iter().copied(),
             // `FUN_1400f4c90`: the worker no longer holds the task.
             WorkKind::Location(l) => {
                 if let Some(c) = l.worker {
@@ -1105,7 +1195,10 @@ impl WorkHost for Sim<'_, '_> {
                     *o = held.contains(&(k as i32));
                 }
             }
-            WorkKind::Herbalist(h) | WorkKind::Forester(h) | WorkKind::Hunt(h) => {
+            WorkKind::Herbalist(h)
+            | WorkKind::Forester(h)
+            | WorkKind::Hunt(h)
+            | WorkKind::TendArea(h) => {
                 for c in &gone {
                     h.workers.remove(c);
                 }
@@ -1114,6 +1207,8 @@ impl WorkHost for Sim<'_, '_> {
             | WorkKind::Pickup(_)
             | WorkKind::Produce(_)
             | WorkKind::Fishing(_)
+            | WorkKind::PlantArea(_)
+            | WorkKind::Harvest(_)
             | WorkKind::Location(_)
             | WorkKind::Test(_) => {}
         }
@@ -1134,6 +1229,15 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Produce(_) => self.produce_try(work, c, time),
             WorkKind::Location(_) => self.location_try(work, c),
             WorkKind::Fishing(_) => self.fishing_try(work, c),
+            WorkKind::PlantArea(_) => self.plant_try(work, c),
+            WorkKind::TendArea(_) => self.tend_try(work, c),
+            WorkKind::Harvest(_) => {
+                let works: BTreeSet<i32> = self.piles.values().map(|p| p.work).collect();
+                if self.auto_pickup_offers(work.entity, |id| works.contains(&id)) {
+                    return NESTED;
+                }
+                self.harvest_try(work, c)
+            }
             WorkKind::Herbalist(_) | WorkKind::Forester(_) | WorkKind::Hunt(_) => {
                 let works: BTreeSet<i32> = self.piles.values().map(|p| p.work).collect();
                 if self.auto_pickup_offers(work.entity, |id| works.contains(&id)) {
@@ -1159,6 +1263,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Herbalist(_) => self.herbalist_try(work, c),
             WorkKind::Forester(_) => self.forester_try(work, c),
             WorkKind::Hunt(_) => self.hunt_try(work, c),
+            WorkKind::Harvest(_) => self.harvest_try(work, c),
             _ => 1,
         }
     }
@@ -1195,10 +1300,14 @@ impl WorkHost for Sim<'_, '_> {
             }
             WorkKind::Produce(_) => Self::produce_complete(work, param, false),
             WorkKind::Fishing(_) => Self::fishing_complete(work, param),
+            WorkKind::PlantArea(_) | WorkKind::Harvest(_) => Self::area_complete(work, param),
             // `FUN_1400f4d20`: free for the next one; the work stays.
             WorkKind::Location(l) => l.worker = None,
             // `FUN_1400f3860` / `FUN_1400f0370`.
-            WorkKind::Herbalist(h) | WorkKind::Forester(h) | WorkKind::Hunt(h) => {
+            WorkKind::Herbalist(h)
+            | WorkKind::Forester(h)
+            | WorkKind::Hunt(h)
+            | WorkKind::TendArea(h) => {
                 h.workers.remove(&c);
             }
             WorkKind::Test(_) => {}
@@ -1235,9 +1344,13 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Produce(_) => Self::produce_complete(work, param, true),
             // `FUN_1400ef350` calls the complete slot.
             WorkKind::Fishing(_) => Self::fishing_complete(work, param),
+            WorkKind::PlantArea(_) | WorkKind::Harvest(_) => Self::area_fail(work, param),
             WorkKind::Location(l) => l.worker = None,
             // `FUN_1400f3850` / `FUN_1400f0360`.
-            WorkKind::Herbalist(h) | WorkKind::Forester(h) | WorkKind::Hunt(h) => {
+            WorkKind::Herbalist(h)
+            | WorkKind::Forester(h)
+            | WorkKind::Hunt(h)
+            | WorkKind::TendArea(h) => {
                 h.workers.remove(&c);
             }
             WorkKind::Test(_) => {}
@@ -1271,10 +1384,15 @@ impl WorkHost for Sim<'_, '_> {
                 WorkKind::Location(l) => l.worker,
                 // `FUN_1400efd00`: every worker's stack is cleared.
                 WorkKind::Fishing(fw) => fw.workers.iter().flatten().next().copied(),
-                // `FUN_1400f3fb0` / `FUN_1400f0d70`.
-                WorkKind::Herbalist(h) | WorkKind::Forester(h) | WorkKind::Hunt(h) => {
-                    h.workers.first().copied()
+                // `FUN_1400f9930` / `FUN_1400f2740`.
+                WorkKind::PlantArea(_) | WorkKind::Harvest(_) => {
+                    Self::area_workers(work).first().copied()
                 }
+                // `FUN_1400f3fb0` / `FUN_1400f0d70`.
+                WorkKind::Herbalist(h)
+                | WorkKind::Forester(h)
+                | WorkKind::Hunt(h)
+                | WorkKind::TendArea(h) => h.workers.first().copied(),
                 WorkKind::Produce(_) | WorkKind::Test(_) => None,
             };
             let Some(c) = next else { return };
@@ -1298,12 +1416,29 @@ impl WorkHost for Sim<'_, '_> {
                     }
                 }
                 WorkKind::Location(l) => l.worker = None,
-                WorkKind::Herbalist(h) | WorkKind::Forester(h) | WorkKind::Hunt(h) => {
+                WorkKind::Herbalist(h)
+                | WorkKind::Forester(h)
+                | WorkKind::Hunt(h)
+                | WorkKind::TendArea(h) => {
                     h.workers.remove(&c);
                 }
                 WorkKind::Fishing(fw) => {
                     for w in fw.workers.iter_mut().filter(|w| **w == Some(c)) {
                         *w = None;
+                    }
+                }
+                WorkKind::PlantArea(a) | WorkKind::Harvest(a) => {
+                    let cells: Vec<i32> = a
+                        .claims
+                        .iter()
+                        .filter(|(_, &w)| w == c)
+                        .map(|(&i, _)| i)
+                        .collect();
+                    for i in cells {
+                        a.claims.remove(&i);
+                        if let Some(n) = a.need.get_mut(i as usize) {
+                            *n = true;
+                        }
                     }
                 }
                 WorkKind::Produce(_) | WorkKind::Test(_) => {}
@@ -1779,8 +1914,9 @@ impl Sim<'_, '_> {
         let Some(nr) = self.templates[template].natural.clone() else {
             return;
         };
-        // `+0x2d`: kept unless a related profession other than the laborer harvests it.
-        let mut keep = true;
+        // `+0x2d`: as a crop field set it (else kept), and not kept when a related profession
+        // other than the laborer should harvest it.
+        let mut keep = self.keep_piles.remove(&resource).unwrap_or(true);
         if let Some(r) = nr.related.as_deref() {
             let r = r.replace('/', "\\");
             let related = self

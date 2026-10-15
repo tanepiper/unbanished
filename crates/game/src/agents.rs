@@ -308,6 +308,8 @@ impl Agents {
                 attendance_list: &mut c.attendance_list,
                 healers: &mut c.healers,
                 happiness: &mut c.happiness,
+                calendar: c.calendar,
+                keep_piles: &mut c.keep_piles,
                 site_list: &mut c.site_list,
                 events: Vec::new(),
                 piles: &mut c.piles,
@@ -361,6 +363,17 @@ impl Agents {
             jobs.drain(&mut sim);
         }
         for command in commands {
+            match command {
+                crate::professions::Command::SetCrop { entity, crop } => {
+                    sim.set_crop(entity, crop);
+                    continue;
+                }
+                crate::professions::Command::FieldAction { entity, action } => {
+                    sim.field_action(entity, action);
+                    continue;
+                }
+                _ => {}
+            }
             let mut workers = sim.workers();
             let town = TownView {
                 size: sim.size,
@@ -417,7 +430,7 @@ impl Agents {
             );
         }
         self.sectors.age_cache(ticks(dt));
-        let entities = entity_views(env.placed, env.templates, env.construction);
+        let mut entities = entity_views(env.placed, env.templates, env.construction);
         let mut animating = crate::town::animating(env.placed, env.templates);
         let adult = self.adults(citizens);
         for (ch, group) in self.characters.iter_mut().zip(groups) {
@@ -451,7 +464,7 @@ impl Agents {
                 self.characters[i].update(&mut world, group, dt);
             }
             citizens[i].position = self.characters[i].position;
-            self.deliver(i, messages, citizens, env, groups, &adult, &entities);
+            self.deliver(i, messages, citizens, env, groups, &adult, &mut entities);
         }
         // The sites' StateMachine updates (bit 4, then their bucket); the piles' ages
         // (RawMaterialComponent's scheduled update, run every iteration here).
@@ -482,6 +495,7 @@ impl Agents {
             }
             // CharacterComponent's scheduled update (`FUN_14010e950`): the running chain's
             // notify, a hunter's `HuntAnimal`.
+            refresh_views(&mut entities, env);
             self.hunt_notify(i, env, groups);
             // CitizenComponent before CitizenAIComponent (the template's component order); a
             // citizen queued for deletion stops there (entity flag `0x400`).
@@ -496,6 +510,7 @@ impl Agents {
             if self.dying.iter().any(|&(d, _)| d == i) {
                 continue;
             }
+            refresh_views(&mut entities, env);
             self.think(i, citizens, env, groups, &adult, &entities, ticks(dt));
         }
         // The entity manager deletes the queued entities (each component's remove slot);
@@ -919,9 +934,12 @@ impl Agents {
         env: &mut Env,
         groups: &[Option<&AnimationGroup>],
         adult: &[bool],
-        entities: &[EntityView],
+        entities: &mut Vec<EntityView>,
     ) {
         for m in messages {
+            // A message can create entities (piles) that a later one's AI reads.
+            refresh_views(entities, env);
+            let entities: &[EntityView] = entities;
             match m.component {
                 Component::Citizen => match m.message {
                     0 => {
@@ -1019,6 +1037,12 @@ impl Agents {
                         1 => sim.unclaim(e),
                         _ => sim.animate_resource(e, m.a.max(0) as usize),
                     }
+                    jobs.drain(&mut sim);
+                }
+                Component::CropField => {
+                    let Some(e) = m.entity else { continue };
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    sim.crop_message(e, m.message, m.a);
                     jobs.drain(&mut sim);
                 }
                 Component::Animal => {
@@ -1479,6 +1503,14 @@ fn run(
             ch.stack.is_active()
         }
         _ => false,
+    }
+}
+
+/// Entities placed during the update (piles, plantings) join the views; the original reads
+/// its entities live.
+fn refresh_views(entities: &mut Vec<EntityView>, env: &Env) {
+    if entities.len() != env.placed.len() {
+        *entities = entity_views(env.placed, env.templates, env.construction);
     }
 }
 

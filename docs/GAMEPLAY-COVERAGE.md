@@ -31,7 +31,8 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **Market**, **MarketLocation** | Market | missing |
 | **Trade**, **Boat** | TradingPost, TraderBoat | missing |
 | **Destroy** | every building | missing (demolition) |
-| **CropField**, **Orchard**, **Pasture**, **Livestock**, **Fruit** | fields, orchards, pastures, animals | missing |
+| **CropField** | fields | yes ([FARMING.md](FARMING.md); crop disease open) |
+| **Orchard**, **Pasture**, **Livestock**, **Fruit** | orchards, pastures, animals | missing |
 | **Herd**, **Population**, **WildAnimal**, **Animal** | deer | yes (`wildlife.rs`; livestock breeding with pastures) |
 | ResourceProduce subtype **Herbalist** (gather) | gatherer's shelter, herbalist | yes (`herbalist.rs`) |
 | ResourceProduce subtype **Forester** | forester's lodge | yes (`forester.rs`; toggle buttons not wired) |
@@ -50,7 +51,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 |---|---|---|---|---|
 | BuildStructure, GatherRawMaterials, ClearArea, Pickup, ConsumeProduce, LocationWork, FishingWork, gatherer, forester and hunter works | yes | | MoveTo, PlayAnimation, PerformWork, SendComponentMessage, CompleteTask, DropOffRawMaterial, PickupRawMaterial, PickupStoredRawMaterial, ShowTool, AnimateNaturalResource, RemoveNaturalResource, CreateRawMaterial | yes |
 | BuildRoad | no | | CompleteRoad | no |
-| PlantArea, TendArea (fields) | no | | ConsumeRawMaterial (`FUN_1400cb880`) | herbs (from what is carried); eating and warming use Citizen messages |
+| PlantArea, TendArea, harvest (fields) | yes | | ConsumeRawMaterial (`FUN_1400cb880`) | herbs (from what is carried); eating and warming use Citizen messages |
 | PlantOrchard | no | | CreateNaturalResource (planting) | yes (foresters) |
 | | | | HuntAnimal, RemoveAnimal | yes |
 | AutoPickupWork, ClearStorage, MarketWork, TradeWork, FireWork | no | | | |

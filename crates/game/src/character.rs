@@ -66,6 +66,9 @@ pub enum Component {
     CreateNaturalResource,
     /// RemoveAnimal's start (`FUN_1400cfcc0`): the animal `entity` is removed.
     Animal,
+    /// CropFieldComponent's message slot (`FUN_140120020`): `message` 0 planted / 1 tended,
+    /// `a` the cell index, `entity` the field.
+    CropField,
 }
 
 /// A message an action delivered (slot `+0x78` of the receiving component). The owner

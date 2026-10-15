@@ -32,6 +32,8 @@ pub enum Controller {
     Healer,
     /// HappinessComponent (`FUN_14004b570` table).
     Happiness,
+    /// CropFieldComponent (`FUN_140120620` table).
+    CropField,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -92,6 +94,18 @@ pub enum Callback {
     HappinessEnter,
     HappinessUpdate,
     HappinessLeave,
+    /// CropField: `FUN_14011fdf0` / `FUN_14011fd30` (state 2), `FUN_14011f7e0` /
+    /// `FUN_14011f6b0` (9), `FUN_14011f5d0` / `FUN_14011f440` / `FUN_14011f4a0` (10),
+    /// `FUN_14011f330` / `FUN_14011f250` (11).
+    CropEnter2,
+    CropUpdate2,
+    CropEnter9,
+    CropUpdate9,
+    CropEnter10,
+    CropExit10,
+    CropUpdate10,
+    CropEnter11,
+    CropUpdate11,
     /// Callbacks whose port is still missing (they pass the state on).
     Missing,
 }
@@ -114,10 +128,11 @@ const CLEAR: &[StateDef] = &[
         exit: C::ClearExit0,
         transitions: &[(1, C::None), (3, C::None)],
     },
+    // `FUN_14011ccb0` / `FUN_14011cca0` are thunks of state 0's enter and update.
     StateDef {
         id: 0x15,
-        enter: C::Missing,
-        update: C::Missing,
+        enter: C::ClearEnter0,
+        update: C::ClearUpdate0,
         exit: C::ClearExit15,
         transitions: &[(1, C::None), (3, C::None)],
     },
@@ -237,6 +252,37 @@ const HEALER: &[StateDef] = &[
     },
 ];
 
+const CROP_FIELD: &[StateDef] = &[
+    StateDef {
+        id: 2,
+        enter: C::CropEnter2,
+        update: C::CropUpdate2,
+        exit: C::None,
+        transitions: &[(3, C::None), (9, C::None)],
+    },
+    StateDef {
+        id: 9,
+        enter: C::CropEnter9,
+        update: C::CropUpdate9,
+        exit: C::None,
+        transitions: &[(3, C::None), (0xa, C::None)],
+    },
+    StateDef {
+        id: 0xa,
+        enter: C::CropEnter10,
+        update: C::CropUpdate10,
+        exit: C::CropExit10,
+        transitions: &[(3, C::None), (0x15, C::None), (0xb, C::None)],
+    },
+    StateDef {
+        id: 0xb,
+        enter: C::CropEnter11,
+        update: C::CropUpdate11,
+        exit: C::None,
+        transitions: &[(3, C::None), (0x15, C::None)],
+    },
+];
+
 const HAPPINESS: &[StateDef] = &[
     StateDef {
         id: 2,
@@ -305,6 +351,7 @@ impl Controller {
             Controller::Attendance => ATTENDANCE,
             Controller::Healer => HEALER,
             Controller::Happiness => HAPPINESS,
+            Controller::CropField => CROP_FIELD,
         }
     }
 
@@ -525,6 +572,8 @@ pub struct SiteTemplate {
     pub fishing: Option<crate::fishing::FishingTemplate>,
     /// HuntDescription.
     pub hunt: Option<banished_formats::game::HuntDescription>,
+    /// CropFieldDescription.
+    pub crop_field: Option<crate::farm::CropFieldTemplate>,
 }
 
 impl SiteTemplate {
@@ -627,6 +676,8 @@ pub struct Site {
     pub fishing: Option<crate::fishing::Fishing>,
     /// HuntComponent `+0x50`: the hunting time gathered.
     pub hunt_time: Option<i64>,
+    /// CropFieldComponent.
+    pub crop_field: Option<crate::farm::CropField>,
 }
 
 /// The job manager, professions, workforce and every construction site.
@@ -664,6 +715,13 @@ pub struct Construction {
     pub healers: Vec<usize>,
     /// The town manager's registered HappinessComponents (`+0x50`), by entity.
     pub happiness: Vec<usize>,
+    /// The calendar's seconds into the year (`Game +0x128 → +8`), set before each iteration.
+    pub calendar: f32,
+    /// NaturalResourceComponent `+0x2d` set by a crop field: whether harvesting leaves a pile.
+    pub keep_piles: BTreeMap<usize, bool>,
+    /// The town manager's known crops, orchard trees and livestock (`FUN_140096ef0`), as
+    /// placed-object templates.
+    pub known: Vec<usize>,
 }
 
 /// AttendanceComponent (vtable `0x14015ee00`): who attends a school, chapel or doctor.
