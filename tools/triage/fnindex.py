@@ -17,108 +17,15 @@ Options: --binary Application-steam-x64.exe (default) or Runtime-steam-x64.dll.
 import argparse
 import collections
 import os
-import re
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-HEADER = re.compile(r'^// ==== ([0-9a-f]+) (\S+)')
-CALL = re.compile(r'\bFUN_(14[0-9a-f]{7}|18[0-9a-f]{7})\b')
-DAT = re.compile(r'\bDAT_(14[0-9a-f]{7}|18[0-9a-f]{7})\b')
-STRING = re.compile(r'"((?:[^"\\]|\\.){3,80})"')
-TYPEINFO = re.compile(r'&DAT_([0-9a-f]+),"([A-Za-z_][A-Za-z0-9_]*)","([A-Za-z_][A-Za-z0-9_:]*)"')
-MENTION = re.compile(r'(?<![0-9a-fA-F])(?:0x|FUN_|DAT_)?(1[48][0-9a-f]{7})(?![0-9a-fA-F])')
-
-
-class Index:
-    def __init__(self, binary):
-        base = os.path.join(ROOT, 'analysis', 'export', binary)
-        self.size, self.name = {}, {}
-        with open(os.path.join(base, 'functions.tsv')) as f:
-            for line in f:
-                cols = line.rstrip('\n').split('\t')
-                if len(cols) >= 3:
-                    self.size[cols[0]] = int(cols[1] or 0)
-                    self.name[cols[0]] = cols[2]
-        self.callees = collections.defaultdict(set)
-        self.callers = collections.defaultdict(set)
-        self.strings = collections.defaultdict(set)
-        self.dats = collections.defaultdict(set)
-        self.types = {}
-        self.derived = set()
-        current = None
-        with open(os.path.join(base, 'decomp.c'), errors='replace') as f:
-            for line in f:
-                m = HEADER.match(line)
-                if m:
-                    current = m.group(1)
-                    if m.group(2) and not m.group(2).startswith('FUN_'):
-                        self.name.setdefault(current, m.group(2))
-                    continue
-                if current is None:
-                    continue
-                for t in TYPEINFO.finditer(line):
-                    self.types[t.group(1)] = t.group(2)
-                for c in CALL.findall(line):
-                    if c != current:
-                        self.callees[current].add(c)
-                        self.callers[c].add(current)
-                for d in DAT.findall(line):
-                    self.dats[current].add(d)
-                for s in STRING.findall(line):
-                    self.strings[current].add(s)
-                if 'IsDerivedFrom' in line:
-                    self.derived.add(current)
-        self.traced = self._mentions()
-
-    def _mentions(self):
-        """Addresses named anywhere in docs/, crates/, apps/ or tools/ (the project's own
-        record of what has been traced)."""
-        found = collections.defaultdict(set)
-        for top in ('docs', 'crates', 'apps', 'tools'):
-            for dirpath, _, files in os.walk(os.path.join(ROOT, top)):
-                if 'target' in dirpath or '__pycache__' in dirpath:
-                    continue
-                for fn in files:
-                    if not fn.endswith(('.md', '.rs', '.py', '.wgsl', '.tsv')):
-                        continue
-                    path = os.path.join(dirpath, fn)
-                    try:
-                        text = open(path, errors='replace').read()
-                    except OSError:
-                        continue
-                    rel = os.path.relpath(path, ROOT)
-                    for a in MENTION.findall(text):
-                        found[a].add(rel)
-        return found
-
-    def type_names(self, fn):
-        return sorted({self.types[d] for d in self.dats.get(fn, ()) if d in self.types})
-
-    def accessor(self, fn):
-        """Small functions that scan the owner's components for one type (`GetComponent<T>`)
-        or cast a description: name them after the type."""
-        types = self.type_names(fn)
-        if fn in self.derived and len(types) == 1 and self.size.get(fn, 0) <= 200:
-            return f'get<{types[0]}>'
-        return None
-
-    def label(self, fn):
-        n = self.name.get(fn, f'FUN_{fn}')
-        if self.accessor(fn):
-            n = f'{n} = {self.accessor(fn)}'
-
-        mark = 'traced' if fn in self.traced else 'untraced'
-        return f'{fn} {n} ({self.size.get(fn, 0)} bytes, {mark})'
-
-
-def norm(a):
-    a = a.lower().removeprefix('0x').removeprefix('fun_')
-    return a
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ghidra_index import Index, norm  # noqa: E402
 
 
 def cmd_info(ix, args):
     fn = norm(args.address)
-    print(ix.label(fn))
+    print(ix.describe(fn))
     if fn in ix.traced:
         print('  mentioned in:', ', '.join(sorted(ix.traced[fn])[:8]))
     types = ix.type_names(fn)
@@ -130,7 +37,7 @@ def cmd_info(ix, args):
         items = sorted(group.get(fn, ()))
         print(f'  {title} ({len(items)}):')
         for c in items[:40]:
-            print('    ', ix.label(c))
+            print('    ', ix.describe(c))
 
 
 def cmd_frontier(ix, args):
@@ -167,7 +74,7 @@ def cmd_find(ix, args):
     hits.sort(key=lambda f: (f in ix.traced, -ix.size.get(f, 0)))
     print(f'{len(hits)} functions use {term!r} (untraced first):')
     for fn in hits[:args.limit]:
-        print('  ', ix.label(fn))
+        print('  ', ix.describe(fn))
 
 
 def cmd_coverage(ix, args):

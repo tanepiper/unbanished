@@ -58,3 +58,12 @@ allocator. API: `malloc(size)`, `write(addr, bytes)`, `read(addr, n)`, `u32/i32/
   the whole thing rather than hand-porting blind, then port piecewise against stage dumps.
 - Record in the doc which generator script and which inputs proved parity, and the match rate
   if not 100% against real saves (e.g. "99.95% vs allportez.sav").
+
+## Random-draw parity (rng_trace + rngdiff)
+
+When a port consumes the game's `System::Random`, record the original's draws with
+`tools/emu/rng_trace.py` (`RngTrace(emu)` before `emu.call`) and the port's with
+`banished_game::random::trace::{start, take, write}`, then run
+`python3 tools/triage/rngdiff.py orig.rng port.rng`. It reports the first divergence with the
+original call site (function label + offset) next to the Rust file:line. See
+`tools/triage/README.md` and `crates/game/examples/rng_trace_names.rs`.

@@ -23,7 +23,9 @@ struct Image {
 fn load(path: &str) -> Image {
     let file = File::open(path).unwrap_or_else(|e| panic!("{path}: {e}"));
     let decoder = png::Decoder::new(std::io::BufReader::new(file));
-    let mut reader = decoder.read_info().unwrap_or_else(|e| panic!("{path}: {e}"));
+    let mut reader = decoder
+        .read_info()
+        .unwrap_or_else(|e| panic!("{path}: {e}"));
     let mut buf = vec![0; reader.output_buffer_size().expect("image too large")];
     let info = reader.next_frame(&mut buf).unwrap();
     let (w, h) = (info.width as usize, info.height as usize);
@@ -34,7 +36,11 @@ fn load(path: &str) -> Image {
         png::ColorType::Grayscale => 1,
         other => panic!("{path}: unsupported colour type {other:?}"),
     };
-    assert_eq!(info.bit_depth, png::BitDepth::Eight, "{path}: only 8-bit PNGs");
+    assert_eq!(
+        info.bit_depth,
+        png::BitDepth::Eight,
+        "{path}: only 8-bit PNGs"
+    );
     let mut rgba = Vec::with_capacity(w * h * 4);
     for px in buf[..w * h * channels].chunks_exact(channels) {
         match channels {
@@ -174,11 +180,20 @@ fn main() {
         println!("{w}x{h}  MAE {mae:.3}  PSNR {psnr:.2} dB  max delta {max_delta}");
         println!("{share:.3}% of pixels differ by more than {threshold}");
         if let Some(b) = bbox {
-            println!("differences inside x {} y {} w {} h {}", b[0], b[1], b[2], b[3]);
+            println!(
+                "differences inside x {} y {} w {} h {}",
+                b[0], b[1], b[2], b[3]
+            );
         }
         println!("mismatch % by quarter (rows top to bottom):");
         for row in &grid_pct {
-            println!("  {}", row.iter().map(|v| format!("{v:6.1}")).collect::<Vec<_>>().join(" "));
+            println!(
+                "  {}",
+                row.iter()
+                    .map(|v| format!("{v:6.1}"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            );
         }
     }
     if let Some(path) = out {
@@ -186,6 +201,10 @@ fn main() {
         let mut encoder = png::Encoder::new(file, w as u32, h as u32);
         encoder.set_color(png::ColorType::Rgba);
         encoder.set_depth(png::BitDepth::Eight);
-        encoder.write_header().unwrap().write_image_data(&heat).unwrap();
+        encoder
+            .write_header()
+            .unwrap()
+            .write_image_data(&heat)
+            .unwrap();
     }
 }

@@ -3,6 +3,72 @@
 //! Layout matches the engine object: a `u32` index followed by 624 state words; `Serialize` writes
 //! the index then the state, which is how saves store it.
 
+/// Opt-in log of draws for parity checks against the original (`tools/emu/rng_trace.py`,
+/// compared with `tools/triage/rngdiff.py`). Only outermost draws are recorded (`rand_float`
+/// calling `rand` logs once), with the Rust caller's location.
+pub mod trace {
+    use std::cell::{Cell, RefCell};
+    use std::panic::Location;
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct Draw {
+        /// `Rand`, `Rand(n)`, `Rand(lo,hi)`, `RandTol(t)`, `RandFloat`, `RandFloatTol`.
+        pub kind: String,
+        pub at: &'static Location<'static>,
+    }
+
+    thread_local! {
+        static LOG: RefCell<Option<Vec<Draw>>> = const { RefCell::new(None) };
+        static DEPTH: Cell<u32> = const { Cell::new(0) };
+    }
+
+    /// Start recording on this thread (clears any previous log).
+    pub fn start() {
+        LOG.with(|l| *l.borrow_mut() = Some(Vec::new()));
+    }
+
+    /// Stop recording and return the draws.
+    pub fn take() -> Vec<Draw> {
+        LOG.with(|l| l.borrow_mut().take()).unwrap_or_default()
+    }
+
+    /// Write draws as `kind<TAB>caller` lines (the format `rngdiff.py` reads).
+    pub fn write(path: &std::path::Path, draws: &[Draw]) -> std::io::Result<()> {
+        let text: String = draws
+            .iter()
+            .map(|d| format!("{}\t{}:{}\n", d.kind, d.at.file(), d.at.line()))
+            .collect();
+        std::fs::write(path, text)
+    }
+
+    pub(super) struct Guard;
+
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            DEPTH.with(|d| d.set(d.get() - 1));
+        }
+    }
+
+    /// Record one draw unless already inside another draw.
+    #[track_caller]
+    pub(super) fn enter(kind: impl FnOnce() -> String) -> Guard {
+        let at = Location::caller();
+        let outer = DEPTH.with(|d| {
+            let v = d.get();
+            d.set(v + 1);
+            v == 0
+        });
+        if outer {
+            LOG.with(|l| {
+                if let Some(log) = l.borrow_mut().as_mut() {
+                    log.push(Draw { kind: kind(), at });
+                }
+            });
+        }
+        Guard
+    }
+}
+
 const N: usize = 624;
 const M: usize = 397;
 
@@ -60,7 +126,9 @@ impl Random {
     }
 
     /// `Rand()` (0x1800ca800).
+    #[track_caller]
     pub fn rand(&mut self) -> u32 {
+        let _t = trace::enter(|| "Rand".into());
         if self.index == 0 {
             self.next_group();
         }
@@ -77,7 +145,9 @@ impl Random {
     }
 
     /// `Rand(unsigned int)` (0x1800ca8b0): `[0, n)`, or 0 when `n == 0` (consumes nothing then).
+    #[track_caller]
     pub fn rand_below(&mut self, n: u32) -> u32 {
+        let _t = trace::enter(|| format!("Rand({n})"));
         if n == 0 {
             return 0;
         }
@@ -85,24 +155,32 @@ impl Random {
     }
 
     /// `Rand(int, int)` (0x1800ca5e0): inclusive range.
+    #[track_caller]
     pub fn rand_range(&mut self, lo: i32, hi: i32) -> i32 {
+        let _t = trace::enter(|| format!("Rand({lo},{hi})"));
         let r = self.rand();
         lo.wrapping_add((r % ((hi.wrapping_sub(lo) as u32).wrapping_add(1))) as i32)
     }
 
     /// `RandTol(int)` (0x1800ca610): `[-t, t]`.
+    #[track_caller]
     pub fn rand_tol(&mut self, t: i32) -> i32 {
+        let _t = trace::enter(|| format!("RandTol({t})"));
         let r = self.rand();
         (r % ((t as u32).wrapping_mul(2).wrapping_add(1))) as i32 - t
     }
 
     /// `RandFloat()` (0x1800ca5b0): `[0, 1)` as `(float)u * 2^-32`.
+    #[track_caller]
     pub fn rand_float(&mut self) -> f32 {
+        let _t = trace::enter(|| "RandFloat".into());
         self.rand() as f32 * 2.328_306_4e-10
     }
 
     /// `RandFloatTol()` (0x1800ca870): `1 - (float)u * 2^-32 * 2`, in `(-1, 1]`.
+    #[track_caller]
     pub fn rand_float_tol(&mut self) -> f32 {
+        let _t = trace::enter(|| "RandFloatTol".into());
         1.0 - self.rand() as f32 * 2.328_306_4e-10 * 2.0
     }
 }
@@ -110,6 +188,22 @@ impl Random {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn trace_records_outermost_draws_only() {
+        let mut r = Random::new(1);
+        trace::start();
+        r.rand_float();
+        r.rand_below(7);
+        let log = trace::take();
+        assert_eq!(
+            log.iter().map(|d| d.kind.as_str()).collect::<Vec<_>>(),
+            ["RandFloat", "Rand(7)"]
+        );
+        assert!(log[0].at.file().ends_with("random.rs"));
+        r.rand();
+        assert!(trace::take().is_empty());
+    }
 
     #[test]
     fn matches_reference_mt19937() {
