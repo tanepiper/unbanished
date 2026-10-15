@@ -192,6 +192,9 @@ pub struct Wildlife {
     /// PastureComponents by entity, and the town's list of them (`+0x90`).
     pub pastures: BTreeMap<usize, Pasture>,
     pub pasture_list: Vec<usize>,
+    /// Nomads by entity, and their kinds by template.
+    pub nomads: BTreeMap<usize, crate::immigration::Nomad>,
+    pub nomad_kinds: BTreeMap<usize, crate::immigration::NomadKind>,
 }
 
 /// The town state wildlife reads and writes.

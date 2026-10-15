@@ -3137,7 +3137,7 @@ mod construction_tests {
                 rubble = true;
                 assert_eq!(town.cells.layer_totals[banished_game::fire::LAYER], 0);
                 town.construction.commands.push(
-                    banished_game::professions::Command::DestroyMessage {
+                    banished_game::professions::Command::StateMessage {
                         entity: id,
                         message: 0,
                     },
@@ -3154,6 +3154,138 @@ mod construction_tests {
         let new = rebuilt.expect("the rubble was not rebuilt");
         assert_eq!(town.placed[new].template, town.placed[id].template);
         eprintln!("states {states:?}, {buckets} buckets");
+    }
+
+    /// A town hall calls a band of nomads in spring; they walk in from a map edge and wait, and
+    /// taking them in makes them citizens (couples with their children) with the visitors'
+    /// disease risk.
+    #[test]
+    fn nomads_are_taken_in() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool = PlacementTool::start(
+            &archive,
+            &mut town,
+            r"Template\TownHall.rsc:resource",
+            &mut rng,
+        )
+        .unwrap();
+        let spot = tool
+            .find_clear_spot(&town, &terrain, town.start)
+            .expect("no spot");
+        tool.hover(&town, &terrain, Some(spot), 0);
+        let id = tool.place(&archive, &mut town, 0).unwrap();
+        // The market and trading post the town would need are not placed here.
+        let st = town.construction.sites[&id].template;
+        let d = town.construction.templates[st]
+            .immigration
+            .as_mut()
+            .expect("no immigration");
+        assert_eq!(d.required.len(), 2);
+        d.required.clear();
+        d.population = 1;
+        let builder = town.construction.professions.builder;
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 4,
+            });
+        let mut warnings = banished_game::events::StockWarnings::default();
+        let dt = 1.0 / 30.0;
+        let before = town.citizens.iter().filter(|c| c.alive).count();
+        let (mut called, mut band, mut asked, mut admitted) = (false, 0, false, false);
+        let mut supplied = false;
+        let mut states = Vec::new();
+        for _ in 0..30 * 60 * 40 {
+            // Spring (month 1).
+            town.construction.calendar = 3600.0 / 12.0 * 1.5;
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            let site = town.construction.sites.get_mut(&id).unwrap();
+            let state = site.machine.state;
+            if states.last() != Some(&state) {
+                states.push(state);
+            }
+            if state == 1 && !supplied {
+                // The starting stock is short of the hall's stone: it is delivered.
+                supplied = true;
+                let storage = site.storage;
+                for &(n, m) in &town.construction.templates[st].materials {
+                    town.storages[storage].add(m, n);
+                }
+            }
+            if state == 0xf && !called {
+                // The years between bands pass.
+                called = true;
+                site.immigration.as_mut().unwrap().timer = 0;
+            }
+            if state == 0x10 {
+                band = band.max(site.immigration.as_ref().unwrap().nomads.len());
+            }
+            if state == 0x11 && !asked {
+                asked = true;
+                town.construction.commands.push(
+                    banished_game::professions::Command::StateMessage {
+                        entity: id,
+                        message: 7,
+                    },
+                );
+            }
+            // Back to 2, which waits for the next band at once (0xf).
+            if asked && state != 0x11 {
+                admitted = true;
+                break;
+            }
+        }
+        assert!(called, "the town hall never waited for a band: {states:?}");
+        assert!(band >= 2, "no band came: {states:?}");
+        assert!(asked, "the band never arrived: {states:?}");
+        assert!(admitted, "the band was not taken in: {states:?}");
+        let after = town.citizens.iter().filter(|c| c.alive).count();
+        assert_eq!(after, before + band, "{before} + {band} citizens");
+        assert!(town.wildlife.nomads.is_empty());
+        assert!(town.construction.visitors.0 > 0.0);
+        let couples = town.citizens[before..]
+            .iter()
+            .filter(|c| c.spouse.is_some())
+            .count();
+        assert!(couples >= 2);
+        eprintln!("states {states:?}, band of {band}");
     }
 
     /// A market is built and its vendors stock it from the town's storages by category; it

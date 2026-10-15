@@ -326,6 +326,8 @@ impl Agents {
                 water: &mut c.water,
                 game_flags: c.game_flags,
                 precipitation: c.precipitation,
+                population: c.population,
+                visitors: &mut c.visitors,
                 cemeteries: &mut c.cemeteries,
                 tombstones: &mut c.tombstones,
                 burials: &mut c.burials,
@@ -359,9 +361,10 @@ impl Agents {
     /// original's UI events and placement land between iterations).
     pub fn apply_commands(
         &mut self,
-        citizens: &[Citizen],
+        citizens: &mut Vec<Citizen>,
         env: &mut Env,
         groups: &[Option<&AnimationGroup>],
+        newborn: &mut dyn FnMut(&mut Random, &Citizen, bool) -> Citizen,
     ) {
         self.sync_map(env.cells);
         let commands = std::mem::take(&mut env.construction.commands);
@@ -372,6 +375,8 @@ impl Agents {
         }
         let entities = entity_views(env.placed, env.templates, env.construction);
         let adult = self.adults(citizens);
+        // Bands taken in (ImmigrationUI `0x9858`), made citizens after the other commands.
+        let mut admissions = Vec::new();
         let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
         // Placing activates at once in the original (`FUN_1400c9d70`); a cancel comes after.
         for e in placed {
@@ -424,8 +429,15 @@ impl Agents {
                     jobs.drain(&mut sim);
                     continue;
                 }
-                crate::professions::Command::DestroyMessage { entity, message } => {
+                crate::professions::Command::StateMessage { entity, message } => {
+                    if message == 7 {
+                        if let Some(band) = sim.take_band(entity) {
+                            admissions.push((entity, band));
+                            continue;
+                        }
+                    }
                     sim.destroy_message(jobs, entity, message);
+                    sim.immigration_message(entity, message);
                     jobs.drain(&mut sim);
                     continue;
                 }
@@ -481,6 +493,105 @@ impl Agents {
             );
             sim.set_workers(&workers);
         }
+        for (entity, band) in admissions {
+            self.admit_band(citizens, env, groups, entity, &band, newborn);
+        }
+    }
+
+    /// `FUN_14004ddb0`: the band becomes citizens in fours where each nomad stands
+    /// (`FUN_140050b00` → `FUN_14011c550`, laborers): a man, a woman (married to him), then
+    /// a girl and a boy in her care. Adults are `+0x50 + RandFloat × (+0x54 − +0x50)` years old,
+    /// children `RandFloat × +0x50`. Then the nomads are gone and the town hall goes back to 2.
+    /// Deviation: a band taken in is made after the frame's other commands.
+    fn admit_band(
+        &mut self,
+        citizens: &mut Vec<Citizen>,
+        env: &mut Env,
+        groups: &[Option<&AnimationGroup>],
+        entity: usize,
+        band: &[(usize, [f32; 3])],
+        newborn: &mut dyn FnMut(&mut Random, &Citizen, bool) -> Citizen,
+    ) {
+        env.construction.nomads_admitted += band.len() as i32;
+        let laborer = env.construction.professions.laborer;
+        let r = self.life.clone();
+        let (lo, hi) = (r.f(0x50), r.f(0x54));
+        let mut make = |agents: &mut Self,
+                        citizens: &mut Vec<Citizen>,
+                        rng: &mut Random,
+                        position: [f32; 3],
+                        male: bool,
+                        guardian: Option<usize>| {
+            let child = guardian.is_some();
+            let age = if child {
+                rng.rand_float() * lo
+            } else {
+                rng.rand_float() * (hi - lo) + lo
+            };
+            let _flag = rng.rand_below(1);
+            let template = Citizen {
+                position,
+                ..citizens.first().cloned().unwrap_or_else(|| Citizen {
+                    name: String::new(),
+                    male,
+                    age: 0.0,
+                    lifespan: 0.0,
+                    appearance: 0,
+                    educated: false,
+                    education: 0,
+                    position,
+                    spouse: None,
+                    parent: None,
+                    school: None,
+                    alive: true,
+                })
+            };
+            let mut c = newborn(rng, &template, male);
+            c.position = position;
+            c.age = age;
+            c.alive = true;
+            let id = citizens.len();
+            citizens.push(c);
+            let mut state = CitizenState::newborn(&r);
+            state.profession = laborer;
+            state.carried = agents.carried.clone();
+            agents.states.push(state);
+            agents.registry.push(id);
+            let scale = if child { CHILD_SCALE } else { 1.0 };
+            agents
+                .characters
+                .push(Character::new(agents.desc, position, scale));
+            agents.ais.push(CitizenAi::default());
+            if let Some(g) = guardian {
+                agents.states[g].dependents.push(id);
+                citizens[id].parent = Some(g);
+            }
+            id
+        };
+        let mut k = 0;
+        while k < band.len() {
+            let man = make(self, citizens, env.rng, band[k].1, true, None);
+            if band.len() <= k + 1 {
+                break;
+            }
+            let woman = make(self, citizens, env.rng, band[k + 1].1, false, None);
+            citizens[man].spouse = Some(woman);
+            citizens[woman].spouse = Some(man);
+            if band.len() <= k + 2 {
+                break;
+            }
+            make(self, citizens, env.rng, band[k + 2].1, false, Some(woman));
+            if band.len() <= k + 3 {
+                break;
+            }
+            make(self, citizens, env.rng, band[k + 3].1, true, Some(woman));
+            k += 4;
+        }
+        let entities = entity_views(env.placed, env.templates, env.construction);
+        let adult = self.adults(citizens);
+        let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
+        sim.band_taken(entity);
+        jobs.drain(&mut sim);
     }
 
     /// One simulation iteration of every citizen. `groups[i]` is citizen `i`'s animation group
@@ -494,6 +605,17 @@ impl Agents {
         newborn: &mut dyn FnMut(&mut Random, &Citizen, bool) -> Citizen,
     ) {
         self.sync_map(env.cells);
+        // The town step (`FUN_140091780`): the population, and the visitors' disease risk
+        // running out.
+        {
+            let c = &mut *env.construction;
+            c.population = self.registry.len() as i32;
+            c.visitors.1 -= ticks(dt);
+            if c.visitors.1 < 0 {
+                c.visitors = (0.0, 0);
+            }
+            self.town_disease = c.visitors.0;
+        }
         // `FUN_140118340`'s job icon (bit 3): no workplace for a profession that needs one.
         let professions = env.construction.professions.clone();
         for state in &mut self.states {
@@ -563,6 +685,7 @@ impl Agents {
             let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
             sim.site_dt = ticks(dt);
             sim.update_sites(jobs);
+            sim.update_nomads(ticks(dt));
             sim.update_attendance();
             sim.age_piles(jobs, ticks(dt));
             sim.update_hunts(ticks(dt));
@@ -681,6 +804,41 @@ impl Agents {
             };
             animal.character.animate(&group, dt);
             animal.character.update(&mut world, &group, dt);
+        }
+        // The nomads' CharacterComponent.
+        let ids: Vec<usize> = wildlife.nomads.keys().copied().collect();
+        for id in ids {
+            let n = &wildlife.nomads[&id];
+            let Some(group) = wildlife.groups.get(&(n.template, n.variant)).cloned() else {
+                continue;
+            };
+            let nomad = wildlife.nomads.get_mut(&id).unwrap();
+            let mut messages = Vec::new();
+            let (mut carried, mut tool_uses, mut shown_tool) = (Storage::default(), 0, -1);
+            let (mut accident, mut accident_timer) = (None, 0);
+            let mut world = World {
+                size: cells.size,
+                types: &cells.types,
+                objects: &cells.objects,
+                occupants: &cells.occupants,
+                flags: &cells.flags,
+                regions: &self.regions,
+                terrain,
+                pathfinder: &mut self.pathfinder,
+                rng,
+                messages: &mut messages,
+                materials,
+                storages: &mut storages,
+                carried: &mut carried,
+                tool_uses: &mut tool_uses,
+                shown_tool: &mut shown_tool,
+                animating: &mut animating,
+                accident: &mut accident,
+                accident_timer: &mut accident_timer,
+                accident_odds: None,
+            };
+            nomad.character.animate(&group, dt);
+            nomad.character.update(&mut world, &group, dt);
         }
     }
 

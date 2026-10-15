@@ -1678,8 +1678,19 @@ impl StartingTown {
             stock: [(0, 0); 21],
             temperature: 0.0,
         };
+        let rules = self.rules;
+        let names = self.names.as_ref();
+        // Citizens made from nomads take a name, appearance and lifespan as newborns do.
+        let mut newborn = |rng: &mut Random, model: &Citizen, male: bool| match names {
+            Some((m, f)) => banished_game::citizens::newborn(rng, &rules, m, f, model, male),
+            None => Citizen {
+                male,
+                alive: true,
+                ..model.clone()
+            },
+        };
         self.agents
-            .apply_commands(&self.citizens, &mut env, &groups);
+            .apply_commands(&mut self.citizens, &mut env, &groups, &mut newborn);
         self.apply_storage_changes();
     }
 
@@ -1941,6 +1952,32 @@ impl StartingTown {
                     }
                 }
                 "well" => t.controllers.push(Controller::Well),
+                "immigration" => {
+                    if let Ok(d) = banished_formats::game::immigration_description(&data) {
+                        let nomad = d.nomad.as_deref().and_then(|r| self.load_nomad(archive, r));
+                        let required = d
+                            .required
+                            .iter()
+                            .flatten()
+                            .filter_map(|r| self.load_template(archive, r))
+                            .collect();
+                        if let Some(nomad) = nomad {
+                            t.immigration = Some(banished_game::immigration::ImmigrationTemplate {
+                                nomad,
+                                population: d.population,
+                                required,
+                                share: d.share,
+                                wait: d.wait,
+                                months: d.months,
+                                leave: 7,
+                                margin: 10,
+                                risk: d.risk,
+                                risk_months: d.risk_months,
+                            });
+                            t.controllers.push(Controller::Immigration);
+                        }
+                    }
+                }
                 name if name.starts_with("fire") => {
                     t.fire = banished_formats::game::fire_description(&data).ok();
                 }
@@ -2183,6 +2220,25 @@ impl StartingTown {
         self.add_site_from(st, entity);
     }
 
+    /// The nomad template (`Template\\Nomad.rsc`): its CharacterDescription and its model's
+    /// animation groups, for the nomads the town hall calls.
+    fn load_nomad(&mut self, archive: &Archive, reference: &str) -> Option<usize> {
+        let template = self.load_template(archive, reference)?;
+        let file = normalise(reference).replace(":resource", ":character");
+        let character = read(archive, &file)
+            .and_then(|d| banished_formats::game::character_description(&d).ok())?;
+        for (v, g) in self.templates[template].animations.iter().enumerate() {
+            if let Some(g) = g {
+                self.wildlife.groups.insert((template, v), g.clone());
+            }
+        }
+        self.wildlife.nomad_kinds.insert(
+            template,
+            banished_game::immigration::NomadKind { character },
+        );
+        Some(template)
+    }
+
     /// [`Self::add_site`] with its construction template loaded.
     fn add_site_from(&mut self, st: usize, entity: usize) {
         let t = &self.construction.templates[st];
@@ -2260,6 +2316,10 @@ impl StartingTown {
                 graves: Vec::new(),
                 destroy: t.destroy.as_ref().map(banished_game::destroy::Destroy::new),
                 fire: t.fire.map(|_| banished_game::fire::Fire::default()),
+                immigration: t
+                    .immigration
+                    .as_ref()
+                    .map(|_| banished_game::immigration::Immigration::default()),
                 home: None,
                 // DiseaseComponent's setup (`FUN_1400495b0`): on a pasture or not.
                 disease: t.disease.map(|_| banished_game::blight::Blight {
@@ -2464,6 +2524,34 @@ impl StartingTown {
             });
             groups.entry(mesh.clone()).or_default().push(ModelInstance {
                 matrix: placement_matrix(ch.position, [s, s, s], ch.yaw),
+                locals,
+            });
+        }
+        // Nomads: their template's model (men variant 0, women 1), placed by their
+        // CharacterComponent. Not ported: the nomads' material instances.
+        for nomad in self.wildlife.nomads.values() {
+            let Some(model) = &self.templates[nomad.template].model else {
+                continue;
+            };
+            let Some(Some(mesh)) = model
+                .variants
+                .get(nomad.variant)
+                .and_then(|v| v.meshes.first())
+            else {
+                continue;
+            };
+            let ch = &nomad.character;
+            let locals = self
+                .wildlife
+                .groups
+                .get(&(nomad.template, nomad.variant))
+                .and_then(|g| {
+                    g.clips
+                        .get(ch.animation.clip)
+                        .map(|clip| ch.animation.pose(clip))
+                });
+            groups.entry(mesh.clone()).or_default().push(ModelInstance {
+                matrix: placement_matrix(ch.position, [1.0; 3], ch.yaw),
                 locals,
             });
         }

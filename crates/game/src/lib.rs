@@ -25,6 +25,7 @@ pub mod growth;
 pub mod happiness;
 pub mod herbalist;
 pub mod hunt;
+pub mod immigration;
 pub mod jobs;
 pub mod life;
 pub mod map;

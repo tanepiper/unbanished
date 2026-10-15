@@ -22,7 +22,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | AmbientEmitter, AmbientEnvironment | most buildings | environment, wind, river, rain |
 | Citizen (`0x1401689a0`) | Citizen | needs, age, death, health, happiness, disease, homes, marriage, births, burial, accidents, ClearStorage ([CITIZEN-LIFE.md](CITIZEN-LIFE.md)); consumption counters open |
 | Residence | WoodHouse, StoneHouse, Hostel | families, heating, moving in, ClearStorage, moving out (state 3) |
-| **Immigration**, **Nomad** | TownHall, Nomad | missing |
+| **Immigration**, **Nomad** | TownHall, Nomad | yes ([IMMIGRATION.md](IMMIGRATION.md); bands, nomads, taking in, visitor risk; the town hall window not wired) |
 | Attendance | School, Chapel, Doctor | yes (staff by LocationWork, places, lessons, treatment) |
 | **Happiness** | Tavern, Well, Market, Cemetery, Chapel, TradingPost, Quarry, Mine | yes (`happiness.rs`; map layers, registry, visits, loitering pick) |
 | Healer, Disease (citizens) | Herbalist | registry and herb treatment |

@@ -1552,6 +1552,57 @@ pub fn fire_description(data: &[u8]) -> Result<FireDescription> {
     Ok(value)
 }
 
+/// `ImmigrationDescription` (serializer `FUN_14004f150`, constructor `FUN_14004f300`): `+0x20`
+/// the nomad template, `+0x28` the population needed, `+0x30` the templates the town must have,
+/// `+0x40`/`+0x44` the band's share of the population, `+0x48`/`+0x4c` the months between
+/// bands (base, random range), `+0x50`/`+0x54` the months a band may come in, `+0x60`/`+0x64`
+/// the visitors' disease risk and its months. `+0x58` (7) the leaving month and `+0x5c` (10)
+/// the edge margin are not serialized.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ImmigrationDescription {
+    pub nomad: Option<String>,
+    pub population: i32,
+    pub required: Vec<Option<String>>,
+    pub share: (f32, f32),
+    pub wait: (f32, f32),
+    pub months: (i32, i32),
+    pub risk: f32,
+    pub risk_months: i32,
+}
+
+pub fn immigration_description(data: &[u8]) -> Result<ImmigrationDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("ImmigrationDescription") {
+            return format_err(format!(
+                "expected ImmigrationDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let nomad = r.external_ref()?;
+            let population = r.i32()?;
+            let required = (0..r.count()?)
+                .map(|_| r.external_ref())
+                .collect::<Result<_>>()?;
+            let share = (r.f32()?, r.f32()?);
+            let wait = (r.f32()?, r.f32()?);
+            let months = (r.i32()?, r.i32()?);
+            let (risk, risk_months) = (r.f32()?, r.i32()?);
+            Ok(ImmigrationDescription {
+                nomad,
+                population,
+                required,
+                share,
+                wait,
+                months,
+                risk,
+                risk_months,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `TombstoneDescription` (serializer `FUN_140058380`): a grave lasts `(+0x20 + RandFloat ×
 /// +0x24)` × 300 s (`FUN_1400581c0`).
 pub fn tombstone_description(data: &[u8]) -> Result<(f32, f32)> {

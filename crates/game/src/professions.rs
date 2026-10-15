@@ -166,9 +166,11 @@ pub enum Command {
     Demolish { entity: usize },
     /// DestroyUI `0x1771` (`FUN_1401238d0`): the demolition is called off.
     CancelDemolition { entity: usize },
-    /// A DestroyComponent state message: Remove Cancel (0 while torn down), DestroyUI `0x1772`
-    /// (`FUN_140123940`, 0: rebuild the rubble) and `0x1773` (`FUN_1401239a0`, 1: clear it).
-    DestroyMessage { entity: usize, message: i32 },
+    /// A StateMachine message (slot `+0x10`): DestroyComponent's Remove Cancel (0 while torn
+    /// down), DestroyUI `0x1772` (`FUN_140123940`, 0: rebuild the rubble) and `0x1773`
+    /// (`FUN_1401239a0`, 1: clear it); ImmigrationUI `0x9858` (7: take the nomads in) and
+    /// `0x9859` (8: turn them away).
+    StateMessage { entity: usize, message: i32 },
 }
 
 /// The town manager's workplace and residence registries and every WorkPlaceComponent.
@@ -717,7 +719,7 @@ impl Workforce {
             | Command::SetLimit { .. }
             | Command::Demolish { .. }
             | Command::CancelDemolition { .. }
-            | Command::DestroyMessage { .. } => {}
+            | Command::StateMessage { .. } => {}
         }
     }
 }

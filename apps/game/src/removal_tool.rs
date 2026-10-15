@@ -376,7 +376,7 @@ impl RemovalTool {
                         // The state machine's message 0: the demolition is called off.
                         Self::command(
                             town,
-                            banished_game::professions::Command::DestroyMessage {
+                            banished_game::professions::Command::StateMessage {
                                 entity: e,
                                 message: 0,
                             },

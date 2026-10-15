@@ -51,6 +51,8 @@ pub enum Controller {
     Destroy,
     /// WellComponent (`FUN_14005da70` table): a water source for firefighters.
     Well,
+    /// ImmigrationComponent (`FUN_14004f020` table): the town hall's nomads.
+    Immigration,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -171,6 +173,18 @@ pub enum Callback {
     /// `FUN_14005d880` / `FUN_14005d840`: the well joins / leaves the town's water sources.
     WellEnter2,
     WellEnter3,
+    /// Immigration: `FUN_14004dbf0` / `FUN_14004db80` (2), `FUN_14004db00` / `FUN_14004da30`
+    /// (0xf), `FUN_14004d9f0` / `FUN_14004d9d0` (0x10), `FUN_14004d810` / `FUN_14004d760`
+    /// (0x11), `FUN_14004d660` (0x10 and 0x11 → 3).
+    ImmigrationEnter2,
+    ImmigrationUpdate2,
+    ImmigrationEnterF,
+    ImmigrationUpdateF,
+    ImmigrationEnter10,
+    ImmigrationUpdate10,
+    ImmigrationEnter11,
+    ImmigrationUpdate11,
+    ImmigrationLeave,
     /// Callbacks whose port is still missing (they pass the state on).
     Missing,
 }
@@ -337,6 +351,39 @@ const WELL: &[StateDef] = &[
         update: C::None,
         exit: C::None,
         transitions: &[(6, C::None), (4, C::None), (5, C::None)],
+    },
+];
+
+/// The state messages (6 in 0x10, 7 and 8 in 0x11) are
+/// [`crate::town::Sim::immigration_message`].
+const IMMIGRATION: &[StateDef] = &[
+    StateDef {
+        id: 2,
+        enter: C::ImmigrationEnter2,
+        update: C::ImmigrationUpdate2,
+        exit: C::None,
+        transitions: &[(3, C::None), (0xf, C::None)],
+    },
+    StateDef {
+        id: 0xf,
+        enter: C::ImmigrationEnterF,
+        update: C::ImmigrationUpdateF,
+        exit: C::None,
+        transitions: &[(3, C::None), (0x10, C::None), (2, C::None)],
+    },
+    StateDef {
+        id: 0x10,
+        enter: C::ImmigrationEnter10,
+        update: C::ImmigrationUpdate10,
+        exit: C::None,
+        transitions: &[(3, C::ImmigrationLeave), (0x11, C::None)],
+    },
+    StateDef {
+        id: 0x11,
+        enter: C::ImmigrationEnter11,
+        update: C::ImmigrationUpdate11,
+        exit: C::None,
+        transitions: &[(3, C::ImmigrationLeave), (2, C::None)],
     },
 ];
 
@@ -613,6 +660,7 @@ impl Controller {
             Controller::MarketLocation => MARKET_LOCATION,
             Controller::Destroy => DESTROY,
             Controller::Well => WELL,
+            Controller::Immigration => IMMIGRATION,
         }
     }
 
@@ -853,6 +901,8 @@ pub struct SiteTemplate {
     pub destroy: Option<crate::destroy::DestroyTemplate>,
     /// FireDescription (`Template\Common.rsc:fire*`).
     pub fire: Option<banished_formats::game::FireDescription>,
+    /// ImmigrationDescription, resolved.
+    pub immigration: Option<crate::immigration::ImmigrationTemplate>,
     /// The pile template of each BuildDescription material (the refunds' piles).
     pub material_templates: Vec<Option<usize>>,
 }
@@ -972,6 +1022,8 @@ pub struct Site {
     pub destroy: Option<crate::destroy::Destroy>,
     /// FireComponent.
     pub fire: Option<crate::fire::Fire>,
+    /// ImmigrationComponent.
+    pub immigration: Option<crate::immigration::Immigration>,
     /// The ResidenceComponent while the residence is out of the town's (its states 3 to 7).
     pub home: Option<crate::life::Home>,
 }
@@ -1040,6 +1092,12 @@ pub struct Construction {
     pub game_flags: u32,
     /// The sky's state is precipitation, set before each iteration.
     pub precipitation: bool,
+    /// Town manager `+0xa8`: the population, set before each update.
+    pub population: i32,
+    /// Town manager `+0x1a8` / `+0x1a0`: the visitors' disease risk and how long it lasts.
+    pub visitors: (f32, i64),
+    /// Town manager `+0x1b0`: nomads taken in.
+    pub nomads_admitted: i32,
     /// The town manager's known crops, orchard trees and livestock (`FUN_140096ef0`), as
     /// placed-object templates.
     pub known: Vec<usize>,

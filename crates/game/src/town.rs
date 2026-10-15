@@ -116,6 +116,10 @@ pub struct Sim<'s, 't> {
     pub game_flags: u32,
     /// The sky's state is precipitation (environment `+0x10` = 0).
     pub precipitation: bool,
+    /// Town manager `+0xa8`.
+    pub population: i32,
+    /// Town manager `+0x1a8` / `+0x1a0`.
+    pub visitors: &'s mut (f32, i64),
     /// The scheduled update's elapsed time (ticks) for the site callbacks.
     pub site_dt: i64,
     pub cemeteries: &'s mut Vec<usize>,
@@ -1369,6 +1373,42 @@ impl Callbacks for Sim<'_, '_> {
             }
             Callback::DestroyExit6 => {
                 self.destroy_exit6(e);
+                true
+            }
+            Callback::ImmigrationEnter2 => {
+                self.immigration_idle(e);
+                false
+            }
+            Callback::ImmigrationUpdate2 => {
+                self.immigration_idle(e);
+                true
+            }
+            Callback::ImmigrationEnterF => {
+                self.immigration_wait(e);
+                false
+            }
+            Callback::ImmigrationUpdateF => {
+                self.immigration_waiting(e, self.site_dt);
+                true
+            }
+            Callback::ImmigrationEnter10 => {
+                self.immigration_call(e, true);
+                true
+            }
+            Callback::ImmigrationUpdate10 => {
+                self.immigration_call(e, false);
+                true
+            }
+            Callback::ImmigrationEnter11 => {
+                self.band_arrived(e);
+                true
+            }
+            Callback::ImmigrationUpdate11 => {
+                self.band_waiting(e);
+                true
+            }
+            Callback::ImmigrationLeave => {
+                self.send_band_away(e);
                 true
             }
             Callback::WellEnter2 => {
