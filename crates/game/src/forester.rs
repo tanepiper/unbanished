@@ -73,7 +73,8 @@ impl Sim<'_, '_> {
         };
         let radius = t.radius.unwrap_or(0);
         let group = desc.group.clamp(0, 20) as usize;
-        // Not ported: building status icons (`FUN_1401318c0(icon, 2, limit <= count)`).
+        let (count, limit) = self.stock[group];
+        self.set_icon(e, crate::professions::icon::LIMIT, limit <= count);
         let WorkKind::Forester(h) = &work.kind else {
             return 0;
         };

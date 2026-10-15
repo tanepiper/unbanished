@@ -71,7 +71,7 @@ impl Sim<'_, '_> {
         let Some(d) = t.hunt else { return 0 };
         let radius = t.radius.unwrap_or(0);
         let (count, limit) = self.stock[d.group.clamp(0, 20) as usize];
-        // Not ported: building status icons (`FUN_1401318c0(icon, 2, limited)`).
+        self.set_icon(e, crate::professions::icon::LIMIT, limit <= count);
         if limit <= count {
             return 1;
         }

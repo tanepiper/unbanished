@@ -742,6 +742,10 @@ pub struct SiteTemplate {
     pub disease: Option<banished_formats::game::DiseaseDescription>,
     /// CemeteryDescription's tombstone template and its TombstoneDescription.
     pub cemetery: Option<crate::cemetery::CemeteryTemplate>,
+    /// StatusIconDescription (presentation), and the finished model's height its icons stand
+    /// on (`ModelComponent +0x5c`).
+    pub status_icon: Option<banished_formats::game::StatusIconDescription>,
+    pub icon_height: Option<f32>,
 }
 
 impl SiteTemplate {

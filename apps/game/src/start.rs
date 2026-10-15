@@ -1122,34 +1122,93 @@ impl StartingTown {
     /// StatusIconComponent billboards (`FUN_1401310a0` anchors): each citizen with status bits,
     /// above its model (position + model box height). Building status bits are not ported.
     pub fn status_icons(&self) -> Vec<crate::status_icons::StatusIcon> {
+        let mut icons = self.building_icons();
         let Some(d) = &self.citizen_icons else {
-            return Vec::new();
+            return icons;
         };
         let Some(sheet) = d.sheet.clone() else {
-            return Vec::new();
+            return icons;
         };
-        self.citizens
-            .iter()
-            .zip(&self.agents.states)
-            .zip(&self.agents.characters)
-            .filter(|((c, s), _)| c.alive && s.status != 0)
-            .map(|((c, s), ch)| crate::status_icons::StatusIcon {
-                anchor: glam::Vec3::from(ch.position)
-                    + glam::Vec3::Z * self.citizen_heights[usize::from(!c.male)],
-                mask: s.status,
-                sheet: sheet.clone(),
-                size: d.size,
-                screen_constant: d.screen_constant,
-            })
-            .collect()
+        icons.extend(
+            self.citizens
+                .iter()
+                .zip(&self.agents.states)
+                .zip(&self.agents.characters)
+                .filter(|((c, s), _)| c.alive && s.status != 0)
+                .map(|((c, s), ch)| crate::status_icons::StatusIcon {
+                    anchor: glam::Vec3::from(ch.position)
+                        + glam::Vec3::Z * self.citizen_heights[usize::from(!c.male)],
+                    mask: s.status,
+                    sheet: sheet.clone(),
+                    size: d.size,
+                    screen_constant: d.screen_constant,
+                }),
+        );
+        icons
     }
 
     /// The icon sheets `status_icons` refers to.
     pub fn icon_sheet_refs(&self) -> Vec<String> {
-        self.citizen_icons
+        let mut refs: Vec<String> = self
+            .citizen_icons
             .iter()
+            .chain(
+                self.construction
+                    .templates
+                    .iter()
+                    .filter_map(|t| t.status_icon.as_ref()),
+            )
             .filter_map(|d| d.sheet.clone())
-            .collect()
+            .collect();
+        refs.sort();
+        refs.dedup();
+        refs
+    }
+
+    /// The buildings' StatusIconComponents with bits set (`FUN_1401310a0`): above the model
+    /// (its position plus its height), or for a MultiObject (or without a model) the map
+    /// rectangle's centre cell on the ground plus 1.
+    fn building_icons(&self) -> Vec<crate::status_icons::StatusIcon> {
+        let mut out = Vec::new();
+        for (&e, site) in &self.construction.sites {
+            let t = &self.construction.templates[site.template];
+            let Some(d) = &t.status_icon else { continue };
+            let Some(sheet) = d.sheet.clone() else {
+                continue;
+            };
+            let mut mask = self
+                .construction
+                .workforce
+                .workplaces
+                .get(&e)
+                .map_or(0, |w| w.status);
+            if let Some(h) = self.construction.homes.get(&e) {
+                mask |= h.status;
+            }
+            if mask == 0 || !self.placed[e].alive {
+                continue;
+            }
+            let p = &self.placed[e];
+            let anchor = match t.icon_height.filter(|_| site.parts.is_empty()) {
+                Some(h) => glam::Vec3::from(p.position) + glam::Vec3::Z * h,
+                None => {
+                    let (x, y) = p.cell;
+                    let (w, h) = p.footprint;
+                    let n = self.cells.size as i32;
+                    let half = (n >> 1) as f32 - 0.5;
+                    let (cx, cy) = ((x + (w >> 1)) as f32 - half, (y + (h >> 1)) as f32 - half);
+                    glam::Vec3::new(cx, cy, p.position[2] + 1.0)
+                }
+            };
+            out.push(crate::status_icons::StatusIcon {
+                anchor,
+                mask,
+                sheet,
+                size: d.size,
+                screen_constant: d.screen_constant,
+            });
+        }
+        out
     }
 
     /// `FUN_1400c9d70`: register a new entity in its template's bucket.
@@ -1838,6 +1897,9 @@ impl StartingTown {
                     }
                 }
                 "absorbresource" => t.controllers.push(Controller::AbsorbResource),
+                "statusicon" => {
+                    t.status_icon = banished_formats::game::status_icon_description(&data).ok();
+                }
                 "cemetery" => {
                     let tombstone = banished_formats::game::cemetery_description(&data)
                         .ok()
@@ -1981,6 +2043,14 @@ impl StartingTown {
             .as_ref()
             .map(|m| m.variants.iter().map(|v| v.meshes.len()).collect())
             .unwrap_or_default();
+        // The finished mesh's height (the icons' anchor above the model).
+        t.icon_height = self.templates[template]
+            .model
+            .as_ref()
+            .and_then(|m| m.variants.first()?.meshes.last()?.clone())
+            .and_then(|r| read(archive, &normalise(&r)))
+            .and_then(|d| banished_formats::types::graphics_mesh(&d).ok())
+            .map(|m| m.bounds_max[2] - m.bounds_min[2]);
         self.construction.templates.push(t);
         Some(self.construction.templates.len() - 1)
     }

@@ -407,6 +407,11 @@ impl Agents {
                     sim.set_pasture_limit(entity, limit);
                     continue;
                 }
+                crate::professions::Command::SetEnabled { entity, enabled } => {
+                    sim.enable_workplace(entity, enabled);
+                    jobs.drain(&mut sim);
+                    continue;
+                }
                 _ => {}
             }
             let mut workers = sim.workers();

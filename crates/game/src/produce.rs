@@ -195,8 +195,8 @@ impl Sim<'_, '_> {
         None
     }
 
-    /// `FUN_1400ecd10`: ConsumeProduce slot `+0x20`. Not ported: the StatusIconComponent bits
-    /// 2 (limited) and 3 (missing inputs), and a StorageLocationComponent's drop point
+    /// `FUN_1400ecd10`: ConsumeProduce slot `+0x20`, with the status icons 2 (limited) and 3
+    /// (missing inputs). Not ported: a StorageLocationComponent's drop point
     /// (`FUN_140132aa0`, the tavern) for goods leaving the building.
     pub(crate) fn produce_try(&mut self, work: &mut Work, c: usize, _time: i64) -> u8 {
         let e = work.entity;
@@ -218,12 +218,14 @@ impl Sim<'_, '_> {
         } else {
             limited(&recipe, self)
         };
+        self.set_icon(e, crate::professions::icon::LIMIT, is_limited);
         // `FUN_14011e870`: an exhausted workplace switches itself off.
         let alive = t.lifetime < 0 || state.produced < t.lifetime;
         if is_limited || !alive {
             if !alive {
                 self.produce_disable(e);
             }
+            self.set_icon(e, crate::professions::icon::NO_WORK, false);
             return 1;
         }
         let WorkKind::Produce(pw) = &work.kind else {
@@ -410,6 +412,8 @@ impl Sim<'_, '_> {
         let Some((point, out_cell)) = resume.point else {
             return 1;
         };
+        // `WorkUnavailable` while inputs are missing.
+        self.set_icon(e, crate::professions::icon::NO_WORK, !resume.all_inputs);
         if !resume.all_inputs {
             return 1;
         }

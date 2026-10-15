@@ -152,7 +152,7 @@ impl Sim<'_, '_> {
         };
         let water = self.sites[&e].fishing.unwrap_or_default().water;
         let (count, limit) = self.stock[d.group.clamp(0, 20) as usize];
-        // Not ported: building status icons (`FUN_1401318c0(icon, 2, limited)`).
+        self.set_icon(e, crate::professions::icon::LIMIT, limit <= count);
         if limit <= count {
             return 1;
         }

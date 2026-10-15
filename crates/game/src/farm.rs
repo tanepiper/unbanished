@@ -598,7 +598,7 @@ impl Sim<'_, '_> {
             .crop_field
             .map_or(0, |d| d.group);
         let (count_s, limit) = self.stock[group.clamp(0, 20) as usize];
-        // Not ported: building status icons (`FUN_1401318c0(icon, 2, limited)`).
+        self.set_icon(e, crate::professions::icon::LIMIT, limit <= count_s);
         if limit <= count_s {
             return 1;
         }

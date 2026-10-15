@@ -268,7 +268,24 @@ impl Sim<'_, '_> {
 
     /// `FUN_1401350d0` on `e`'s workplace: its workers move on when it is switched off.
     pub(crate) fn enable_workplace(&mut self, e: usize, on: bool) {
-        self.with_search(|w, workers, search| w.set_enabled(workers, e, on, search));
+        // The state machine's pending state, else its state (`+0x52`, `+0x50`): 0, 1 or 8
+        // is being built.
+        let building = self.sites.get(&e).is_some_and(|s| {
+            let state = if s.machine.pending < 0 {
+                s.machine.state
+            } else {
+                s.machine.pending
+            } as u8;
+            state & 0xf6 == 0 && state != 9
+        });
+        self.with_search(|w, workers, search| w.set_enabled(workers, e, on, building, search));
+    }
+
+    /// `FUN_1401318c0` on `e`'s StatusIconComponent (its workplace's).
+    pub(crate) fn set_icon(&mut self, e: usize, bit: u8, on: bool) {
+        if let Some(w) = self.workforce.workplaces.get_mut(&e) {
+            w.set_icon(bit, on);
+        }
     }
 
     /// `FUN_1400a4ce0(map, a, b, 1)`: −1 when not connected.
@@ -682,12 +699,14 @@ impl Sim<'_, '_> {
         site.work_priority = Some(priority);
     }
 
-    /// `FUN_140134020`: keep the priority, remove the work.
+    /// `FUN_140134020`: keep the priority, remove the work; the limit and work icons go.
     pub(crate) fn remove_work(&mut self, jobs: &mut Jobs, entity: usize) {
         let id = self.sites[&entity].work_id;
         if let Some(w) = jobs.works.get(&id) {
             self.sites.get_mut(&entity).unwrap().work_priority = Some(w.priority);
             jobs.remove(id, self);
+            self.set_icon(entity, crate::professions::icon::LIMIT, false);
+            self.set_icon(entity, crate::professions::icon::NO_WORK, false);
         }
     }
 
@@ -1050,8 +1069,12 @@ impl Callbacks for Sim<'_, '_> {
                     self.set_workers(&workers);
                     self.with_search(|w, ws, search| w.set_max_workers(ws, e, max, search));
                     workers = self.workers();
-                    // `FUN_1401350d0(1)`. Not ported: its status icons.
-                    self.workforce.workplaces.get_mut(&e).unwrap().enabled = true;
+                    // `FUN_1401350d0(1)`: the builders' profession is not its own, so no
+                    // workers icon.
+                    let w = self.workforce.workplaces.get_mut(&e).unwrap();
+                    w.enabled = true;
+                    w.set_icon(crate::professions::icon::WORK_DISABLED, false);
+                    w.set_icon(crate::professions::icon::BUILD_PAUSED, false);
                 }
                 self.set_workers(&workers);
                 false
@@ -1167,6 +1190,8 @@ impl Callbacks for Sim<'_, '_> {
             }
             Callback::BuildExit8 => {
                 self.site_list.retain(|&s| s != e);
+                // `FUN_14010cad0`: the build is no longer paused.
+                self.set_icon(e, crate::professions::icon::BUILD_PAUSED, false);
                 // Entity event 4 (`FUN_1400c8040`): the pasture's shelter points are cleared.
                 if self.wildlife.pastures.contains_key(&e) {
                     self.pasture_built(e);
@@ -1196,8 +1221,8 @@ impl Callbacks for Sim<'_, '_> {
             }
             Callback::AttendanceExit2 => {
                 // `FUN_1401318c0(icon, 2, full)`.
-                let _full = self.attendance_full(e);
-                // Not ported: building status icons.
+                let full = self.attendance_full(e);
+                self.set_icon(e, crate::professions::icon::LIMIT, full);
                 false
             }
             Callback::AttendanceEnter3 => {

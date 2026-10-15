@@ -81,6 +81,27 @@ pub struct WorkPlace {
     /// `FUN_140133a90` (WorkComponent::MaxWorkers): WorkDescription `+0x24`, scaled by the
     /// footprint area when `+0x34` is set.
     pub default_max: i32,
+    /// The building's StatusIconComponent bits (`+0xf0`, [`icon`]).
+    pub status: u32,
+}
+
+/// The building status icons (`StatusIcons\BuildingIconSpriteSheet`): the bit of each.
+pub mod icon {
+    /// `BuildPaused`: switched off while being built.
+    pub const BUILD_PAUSED: u8 = 0;
+    /// `WorkDisabled`: switched off.
+    pub const WORK_DISABLED: u8 = 1;
+    /// `LimitProduction`: the stock is at its limit (or the building is full).
+    pub const LIMIT: u8 = 2;
+    /// `WorkUnavailable`: inputs are missing.
+    pub const NO_WORK: u8 = 3;
+    /// `WorkersUnavailable`: nobody works there.
+    pub const NO_WORKERS: u8 = 4;
+    /// `BuildDestroy`: marked to be torn down.
+    pub const DESTROY: u8 = 5;
+    /// A house without food, without firewood.
+    pub const NO_FOOD: u8 = 6;
+    pub const NO_FIREWOOD: u8 = 7;
 }
 
 impl WorkPlace {
@@ -92,7 +113,13 @@ impl WorkPlace {
             workers: Vec::new(),
             max_workers: 0,
             default_max,
+            status: 0,
         }
+    }
+
+    /// `FUN_1401318c0` on the building's StatusIconComponent.
+    pub fn set_icon(&mut self, bit: u8, on: bool) {
+        crate::status::set_icon(&mut self.status, bit, on, false);
     }
 
     /// WorkComponent `+0x30` as every reader sees it: `if +0x30 == 0 { +0x30 = MaxWorkers() }`.
@@ -172,15 +199,30 @@ impl Workforce {
         workers[c].workplace = wp;
     }
 
-    /// The workplaces' side of [`Workforce::set_workplace`]: `c` leaves `old` and joins `new`.
+    /// The workplaces' side of [`Workforce::set_workplace`]: `c` leaves `old`
+    /// (`FUN_140134cb0`: the last worker gone, the limit and work icons go, and an enabled
+    /// workplace of its own profession shows `WorkersUnavailable`) and joins `new`
+    /// (`FUN_140134ef0`: that icon goes).
+    /// Not ported: the entity events 2 and 3 (work sounds, smoke) and the destroy check.
     pub fn move_worker(&mut self, c: usize, old: Option<usize>, new: Option<usize>) {
         if let Some(old) = old {
             if let Some(w) = self.workplaces.get_mut(&old) {
                 w.workers.retain(|&x| x != c);
+                if w.workers.is_empty() {
+                    w.set_icon(icon::LIMIT, false);
+                    w.set_icon(icon::NO_WORK, false);
+                    if w.enabled
+                        && w.profession.is_some()
+                        && w.profession == w.description_profession
+                    {
+                        w.set_icon(icon::NO_WORKERS, true);
+                    }
+                }
             }
         }
         if let Some(new) = new {
             if let Some(w) = self.workplaces.get_mut(&new) {
+                w.set_icon(icon::NO_WORKERS, false);
                 w.workers.push(c);
             }
         }
@@ -479,19 +521,42 @@ impl Workforce {
     }
 
     /// `FUN_1401350d0`: accept workers or not; a disabled workplace's workers move to another
-    /// ([`Workforce::find_workplace`], or none).
-    /// Not ported: its status icons (bits 0..4).
+    /// ([`Workforce::find_workplace`], or none). Switched off it shows `BuildPaused` while
+    /// being `building` (states 0, 1, 8), else `WorkDisabled`, and neither on; switched off it
+    /// drops the limit, work and workers icons, on without workers of its own profession it
+    /// shows `WorkersUnavailable`.
     pub fn set_enabled(
         &mut self,
         workers: &mut [Worker],
         entity: usize,
         enabled: bool,
+        building: bool,
         search: &mut dyn Search,
     ) {
         let Some(w) = self.workplaces.get_mut(&entity) else {
             return;
         };
         w.enabled = enabled;
+        if !enabled {
+            let bit = if building {
+                icon::BUILD_PAUSED
+            } else {
+                icon::WORK_DISABLED
+            };
+            w.set_icon(bit, true);
+            for bit in [icon::LIMIT, icon::NO_WORK, icon::NO_WORKERS] {
+                w.set_icon(bit, false);
+            }
+        } else {
+            w.set_icon(icon::WORK_DISABLED, false);
+            w.set_icon(icon::BUILD_PAUSED, false);
+            if w.workers.is_empty()
+                && w.profession.is_some()
+                && w.profession == w.description_profession
+            {
+                w.set_icon(icon::NO_WORKERS, true);
+            }
+        }
         if !enabled {
             while let Some(&c) = self.workplaces.get(&entity).and_then(|w| w.workers.first()) {
                 let wp = self.find_workplace(c, workers[c].profession, search);
@@ -628,8 +693,10 @@ impl Workforce {
                     self.fire(workers, professions.laborer, p);
                 }
             }
+            // The simulation answers this one with the building's state
+            // ([`crate::town::Sim::enable_workplace`]).
             Command::SetEnabled { entity, enabled } => {
-                self.set_enabled(workers, entity, enabled, search)
+                self.set_enabled(workers, entity, enabled, false, search)
             }
             Command::ChangeMaxWorkers { entity, delta } => {
                 if let Some(w) = self.workplaces.get(&entity) {
@@ -832,9 +899,42 @@ mod tests {
         assert_eq!(w.workplaces[&1].workers, vec![2]);
         assert_eq!(w.workplaces[&2].workers, vec![0, 1]);
         w.set_max_workers(&mut workers, 1, 2, &mut search);
-        w.set_enabled(&mut workers, 2, false, &mut search);
+        w.set_enabled(&mut workers, 2, false, false, &mut search);
         assert_eq!(w.workplaces[&1].workers, vec![2, 0]);
         assert!(w.workplaces[&2].workers.is_empty());
         assert_eq!(workers[1].workplace, None, "no room left: no workplace");
+    }
+
+    #[test]
+    fn workplace_status_icons() {
+        let mut search = Open(Random::new(1));
+        let mut w = workforce(&[(1, 2, 2, 0)]);
+        let mut workers: Vec<Worker> = (0..2)
+            .map(|_| Worker {
+                adult: true,
+                profession: 2,
+                workplace: None,
+                home: None,
+            })
+            .collect();
+        let bit = |w: &Workforce, b: u8| w.workplaces[&1].status >> b & 1 != 0;
+        // Enabled without workers of its own profession: WorkersUnavailable.
+        w.set_enabled(&mut workers, 1, true, false, &mut search);
+        assert!(bit(&w, icon::NO_WORKERS));
+        w.set_workplace(&mut workers, 0, Some(1));
+        assert!(!bit(&w, icon::NO_WORKERS));
+        w.workplaces
+            .get_mut(&1)
+            .unwrap()
+            .set_icon(icon::LIMIT, true);
+        // The last worker leaving drops the limit icon and shows the workers icon again.
+        w.set_workplace(&mut workers, 0, None);
+        assert!(!bit(&w, icon::LIMIT) && bit(&w, icon::NO_WORKERS));
+        // Switched off: WorkDisabled (BuildPaused while being built), nothing else.
+        w.set_enabled(&mut workers, 1, false, false, &mut search);
+        assert_eq!(w.workplaces[&1].status, 1 << icon::WORK_DISABLED);
+        w.set_enabled(&mut workers, 1, true, false, &mut search);
+        w.set_enabled(&mut workers, 1, false, true, &mut search);
+        assert_eq!(w.workplaces[&1].status, 1 << icon::BUILD_PAUSED);
     }
 }

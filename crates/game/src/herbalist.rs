@@ -97,7 +97,7 @@ impl Sim<'_, '_> {
         // The production group's limit (also the status icon 2).
         let (count, limit) = self.stock[desc.group.clamp(0, 20) as usize];
         let limited = limit <= count;
-        // Not ported: building status icons (`FUN_1401318c0(icon, 2, limited)`).
+        self.set_icon(e, crate::professions::icon::LIMIT, limited);
         let WorkKind::Herbalist(h) = &work.kind else {
             return 0;
         };

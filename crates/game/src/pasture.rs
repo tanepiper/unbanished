@@ -310,7 +310,7 @@ impl Sim<'_, '_> {
             .and_then(|s| self.site_templates[s.template].pasture)
             .unwrap_or(5);
         let (count, limit) = self.stock[group.clamp(0, 20) as usize];
-        // Not ported: building status icons (`FUN_1401318c0(icon, 2, limited)`).
+        self.set_icon(e, crate::professions::icon::LIMIT, limit <= count);
         if limit <= count {
             return 1;
         }
