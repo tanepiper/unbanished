@@ -110,9 +110,23 @@ pub trait WorkHost {
     fn complete(&mut self, work: &mut Work, citizen: usize, param: i32) -> bool;
     /// Slot `+0x38`: a CompleteTask was aborted.
     fn fail(&mut self, work: &mut Work, citizen: usize, param: i32);
+    /// Job messages raised while the host ran a slot (aborted CompleteTasks of other works),
+    /// for the manager to deliver: `(work, citizen, param, completed)`.
+    fn take_events(&mut self) -> Vec<JobEvent> {
+        Vec::new()
+    }
     /// Slot `+0x40`: clear every worker's action stack (their CompleteTask aborts call
     /// [`WorkHost::fail`] on this work, which the host handles directly).
     fn cancel(&mut self, work: &mut Work);
+}
+
+/// A CompleteTask's report: `complete` (start) or failed (abort).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct JobEvent {
+    pub work: i32,
+    pub citizen: usize,
+    pub param: i32,
+    pub complete: bool,
 }
 
 /// The manager.
@@ -227,6 +241,24 @@ impl Jobs {
         }
         host.refresh(&mut work);
         host.cancel(&mut work);
+        self.drain(host);
+    }
+
+    /// Deliver the host's pending job events in order.
+    pub fn drain(&mut self, host: &mut impl WorkHost) {
+        loop {
+            let events = host.take_events();
+            if events.is_empty() {
+                return;
+            }
+            for e in events {
+                if e.complete {
+                    self.complete(e.work, e.citizen, e.param, host);
+                } else {
+                    self.fail(e.work, e.citizen, e.param, host);
+                }
+            }
+        }
     }
 
     /// `FUN_1400fefa0`: move a work to the front (`lowest priority − 1`).
@@ -271,6 +303,7 @@ impl Jobs {
         };
         let done = host.complete(&mut work, citizen, param);
         self.works.insert(id, work);
+        self.drain(host);
         if done {
             self.remove(id, host);
         }
@@ -281,6 +314,7 @@ impl Jobs {
         if let Some(mut work) = self.works.remove(&id) {
             host.fail(&mut work, citizen, param);
             self.works.insert(id, work);
+            self.drain(host);
         }
     }
 
@@ -314,6 +348,7 @@ impl Jobs {
             }
         }
         self.works.insert(id, work);
+        self.drain(host);
         taken
     }
 
@@ -447,6 +482,7 @@ impl Jobs {
                 }
             }
             self.works.insert(id, work);
+            self.drain(host);
             if taken {
                 return true;
             }

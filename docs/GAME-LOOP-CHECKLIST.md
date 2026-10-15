@@ -101,8 +101,10 @@ evidence; static traces are not claims of live-game behavior.
   [IN-GAME-TOOLBAR.md](IN-GAME-TOOLBAR.md) and [UTILITY-WINDOWS.md](UTILITY-WINDOWS.md).
 - [x] Building placement tool: ghost, rotation, variants, original validity and placement of
   construction sites. See [BUILD-TOOLS.md](BUILD-TOOLS.md).
-- [ ] Add drag/road/removal tools, construction progress, the remaining utility-window controllers (Event Log,
-  Professions, Map, …), and the original pause/options dialogs.
+- [x] Construction: job manager, professions (ProfessionUI spinners), sites gathering materials
+  and builders building, completion. See [JOBS.md](JOBS.md).
+- [ ] Add drag/road/removal tools, the ClearArea work, the remaining utility-window controllers,
+  and the original pause/options dialogs.
 - [x] Port the environment controller (temperature, weather state, level, snow/autumn/leaf values)
   and run it per simulation iteration after the calendar. See [ENVIRONMENT.md](ENVIRONMENT.md).
 - [x] Connect seeded natural resources to scheduled growth, periodic same-template spawning,

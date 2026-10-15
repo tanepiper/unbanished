@@ -155,15 +155,17 @@ rectangle's top edge. Its upper-left corner moves `0.25` of the way to the targe
   - footprint, rotation (R/T) and variant cycling (F);
   - the ghost (finished mesh) following the cursor;
   - original validity rules;
-  - left-click placement showing the first construction stage;
+  - left-click placement: the ZoneComponent reserves the footprint (occupants), the building
+    becomes a construction site (see [JOBS.md](JOBS.md)) and shows nothing until building
+    starts (mesh 0, then the stages);
   - the CreateBar (icon, title, requirements, size, status, validity tint, smoothed position).
 - **Deviations:**
   - Picking marches the camera ray against the exact ground query instead of the original
     triangle intersection.
-  - The footprint is stamped at placement, so sites cannot overlap.
-  - Trees and rocks under the footprint stay until clearing work exists.
+  - Trees and rocks under the footprint stay until the ClearArea work is ported; such a site
+    waits in its clearing state.
 - **Not done yet:**
   - the footprint decal and per-cell overlay;
   - message strings beyond the bar itself;
   - the drag, path, road, bridge and removal tools;
-  - construction progress (builders, materials, build stages).
+  - the ClearArea work, the decal outline and the terrain flattening (`FUN_1400a35b0`).

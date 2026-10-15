@@ -151,6 +151,39 @@ impl PlacementTool {
         );
     }
 
+    /// For scripts and tests: the first valid footprint without objects on a square spiral
+    /// from `near` (rings 6 to 40), left hovered.
+    pub fn find_clear_spot(
+        &mut self,
+        town: &StartingTown,
+        terrain: &HeightGrid,
+        near: (i32, i32),
+    ) -> Option<(i32, i32)> {
+        let n = town.cells.size as i32;
+        for r in 6i32..40 {
+            for dy in -r..=r {
+                for dx in -r..=r {
+                    if dx.abs() != r && dy.abs() != r {
+                        continue;
+                    }
+                    let at = (near.0 + dx, near.1 + dy);
+                    self.hover(town, terrain, Some(at), 0);
+                    let Some(rect) = self.rect.filter(|_| self.valid) else {
+                        continue;
+                    };
+                    let clear = (rect.y0..=rect.y1).all(|y| {
+                        (rect.x0..=rect.x1)
+                            .all(|x| town.cells.objects[(y * n + x) as usize].is_none())
+                    });
+                    if clear {
+                        return Some(at);
+                    }
+                }
+            }
+        }
+        None
+    }
+
     pub fn valid(&self) -> bool {
         self.valid
     }
@@ -189,10 +222,11 @@ impl PlacementTool {
         ))
     }
 
-    /// `FUN_140102b20`: create the building if the footprint is valid. The new entity has no
-    /// mesh until its build component activates (not instant: `FUN_14010cfb0` selects mesh 0,
-    /// the first construction stage). Returns the new entity.
-    pub fn place(&mut self, town: &mut StartingTown, rotation: i32) -> Option<usize> {
+    /// `FUN_140102b20`: create the building if the footprint is valid. It has no mesh until
+    /// its BuildComponent starts building (`FUN_14010cfb0` shows mesh 0, the first stage). Its
+    /// ZoneComponent reserves the footprint now (`FUN_1400a2830`); the map is stamped when the
+    /// building is finished. Returns the new entity.
+    pub fn place(&mut self, archive: &Archive, town: &mut StartingTown, rotation: i32) -> Option<usize> {
         let rect = self.rect.filter(|_| self.valid)?;
         let degrees = (rotation * ROTATION_STEP as i32).rem_euclid(360);
         let id = town.placed.len();
@@ -204,7 +238,7 @@ impl PlacementTool {
             position: self.position,
             yaw: degrees as f32,
             variant: self.variant,
-            mesh: 0,
+            mesh: usize::MAX,
             growth: 0.0,
             growth_state: None,
             spawn_state: None,
@@ -213,10 +247,122 @@ impl PlacementTool {
             animation: None,
             scale: [1.0; 4],
         });
-        // Deviation: the original stamps the footprint after the site is cleared (callback
-        // `FUN_14012aa30`); the port reserves it at placement so sites cannot overlap.
-        banished_game::placement::stamp(&mut town.cells, &self.rules, rect, degrees, id);
+        // `FUN_1400c9d70`: register with the entity manager's buckets.
+        town.register_entity(id);
+        banished_game::placement::zone(&mut town.cells, &self.rules, rect, degrees, id);
+        town.add_site(archive, id);
         self.next_variant();
         Some(id)
+    }
+}
+
+#[cfg(test)]
+mod construction_tests {
+    use super::*;
+    use banished_formats::pkg::Package;
+    use banished_game::stock::stock_table;
+
+    /// A wood house placed on clear ground near the start is supplied by laborers and built
+    /// by two builders: the town's logs and stone drop by 16 and 8, the final mesh shows and
+    /// the map is stamped.
+    #[test]
+    fn wood_house_gets_built() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                eprintln!("game data missing; skipping construction integration");
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool =
+            PlacementTool::start(&archive, &mut town, r"Template\WoodHouse.rsc:resource", &mut rng)
+                .unwrap();
+        let n = town.cells.size as i32;
+        let spot = tool.find_clear_spot(&town, &terrain, town.start);
+        let spot = spot.expect("no clear spot for a house");
+        tool.hover(&town, &terrain, Some(spot), 0);
+        let before = stock_table(&town.registered_storages(), &town.materials);
+        let id = tool.place(&archive, &mut town, 0).unwrap();
+        let builder = town.construction.professions.builder;
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 2,
+            });
+        let mut warnings = banished_game::events::StockWarnings::default();
+        let dt = 1.0 / 30.0;
+        let mut done_at = None;
+        for step in 0..30 * 60 * 8 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction.jobs.step(banished_game::scheduler::ticks(dt));
+            if step == 1 {
+                let (counts, capacity) = town.profession_counts();
+                assert_eq!(counts[builder], 2);
+                let points = town.templates[town.placed[id].template].build_points.len();
+                assert!(points > 0);
+                assert_eq!(capacity[builder], points as i32);
+            }
+            if town.construction.sites[&id].complete {
+                done_at = Some(step);
+                break;
+            }
+        }
+        let site = &town.construction.sites[&id];
+        eprintln!(
+            "state {} progress {} done at {:?}",
+            site.machine.state, site.progress, done_at
+        );
+        assert!(done_at.is_some(), "the house was not built");
+        let after = stock_table(&town.registered_storages(), &town.materials);
+        assert_eq!(before[0] - after[0], 16, "logs");
+        assert_eq!(before[1] - after[1], 8, "stone");
+        let p = &town.placed[id];
+        assert_eq!(p.mesh, 2);
+        let stamped = (p.cell.1..p.cell.1 + p.footprint.1)
+            .flat_map(|y| (p.cell.0..p.cell.0 + p.footprint.0).map(move |x| (y * n + x) as usize))
+            .filter(|&i| town.cells.objects[i] == Some(id))
+            .count();
+        assert!(stamped > 0, "footprint not stamped");
+        assert!(town.construction.jobs.is_empty());
+        // Builders keep their profession without a workplace once the site is done.
+        assert_eq!(town.profession_counts().0[builder], 2);
+        assert!(town
+            .agents
+            .states
+            .iter()
+            .all(|s| s.workplace.is_none()));
+        assert!(town
+            .storages
+            .iter()
+            .all(|s| s.items.iter().all(|e| e.reserved == 0)));
     }
 }

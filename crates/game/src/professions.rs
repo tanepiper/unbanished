@@ -17,8 +17,9 @@ use crate::stock::StorageSearchMap;
 pub struct Profession {
     /// `Game\Profession\Profession.rsc:<key>`.
     pub reference: String,
-    /// `+0x30`: name key (`ProfessionBuilder`).
+    /// `+0x30`: name key (`ProfessionBuilder`), in the `+0x20` string table.
     pub name: String,
+    pub string_table: Option<String>,
     /// `+0x4c`: works anywhere (laborers and builders): `Jobs::TryList` (`FUN_1400fce80`) offers
     /// it work outside its workplace, and the job status icon stays off without one.
     pub works_anywhere: bool,

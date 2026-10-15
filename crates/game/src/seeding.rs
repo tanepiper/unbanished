@@ -56,6 +56,9 @@ pub struct Template {
     pub has_interact: bool,
     /// InteractDescription "use" points in model space (its point list's category 0).
     pub use_points: Vec<[f32; 3]>,
+    /// InteractDescription "build" points in model space (category 1): where builders stand
+    /// and materials are delivered.
+    pub build_points: Vec<[f32; 3]>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -839,6 +842,7 @@ mod tests {
             market_location: false,
             has_interact: false,
             use_points: Vec::new(),
+            build_points: Vec::new(),
         }
     }
 

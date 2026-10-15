@@ -125,6 +125,9 @@ pub enum UtilityClick {
     Notify(usize, bool),
     /// `FUN_140067cd0`: move the camera to the cell.
     GoTo(i32),
+    /// ProfessionUI spinner `300 + i` (`FUN_14007c0e0` → `FUN_14007b890`): the player set
+    /// profession `i`'s count.
+    ProfessionCount(usize, i32),
 }
 
 impl EventLogUi {
@@ -288,6 +291,8 @@ pub struct StatusValues {
     /// Adults (not students) per profession, in `Game/Profession/Profession.rsc:professionList`
     /// order (laborer first): the counts `FUN_14007ba70` takes from citizen `+0x1f0`.
     pub professions: Vec<u32>,
+    /// Per profession, the places its enabled workplaces offer (`numberAvailable`).
+    pub profession_capacity: Vec<i32>,
 }
 
 /// `StatusBarUI` (vtable `0x140163c40`): bound in `FUN_14007f8a0`, refreshed by `FUN_14007eda0`.
@@ -444,6 +449,8 @@ impl StatusBar {
 struct ProfessionUi {
     /// Per profession: the spinner (`spinnerCount`, ids 300 + i) and its number edit.
     spinners: Vec<Option<NodeId>>,
+    /// Per profession: `numberAvailable`.
+    available: Vec<Option<NodeId>>,
 }
 
 /// Set a spinner's value and its number text.
@@ -472,8 +479,12 @@ impl ProfessionUi {
             .and_then(|d| external_list(&d).ok())
             .unwrap_or_default();
         let mut spinners = Vec::new();
+        let mut available = Vec::new();
         let Some(table) = ui.find(root, "professionTable") else {
-            return ProfessionUi { spinners };
+            return ProfessionUi {
+                spinners,
+                available,
+            };
         };
         // The table holds the row template; rows replace it (`TableElement::SetSize/SetChild`).
         ui.node_mut(table).children.clear();
@@ -484,10 +495,12 @@ impl ProfessionUi {
                 .and_then(|d| profession(&d).ok())
             else {
                 spinners.push(None);
+                available.push(None);
                 continue;
             };
             let Some(row) = ui.instantiate(Self::ROW) else {
                 spinners.push(None);
+                available.push(None);
                 continue;
             };
             ui.set_table_child(table, i, row);
@@ -512,8 +525,35 @@ impl ProfessionUi {
                 }
             }
             spinners.push(spinner);
+            available.push(if i == 0 {
+                None
+            } else {
+                ui.find(row, "numberAvailable")
+            });
         }
-        ProfessionUi { spinners }
+        ProfessionUi {
+            spinners,
+            available,
+        }
+    }
+
+    /// A spinner changed: its profession and value, clamped as `FUN_14007ba70` sets the
+    /// limits (0 to its count plus the laborers; the laborer spinner is fixed).
+    fn changed(&self, ui: &Ui, node: NodeId, values: &StatusValues) -> Option<(usize, i32)> {
+        let i = self
+            .spinners
+            .iter()
+            .position(|s| s.is_some_and(|s| s == node || ui.descendant(s, node)))?;
+        let s = self.spinners[i]?;
+        let value = match &ui.node(s).kind {
+            Kind::Control(banished_ui::Control::Spinner { value, .. }) => *value,
+            _ => return None,
+        };
+        let count = |p: usize| values.professions.get(p).copied().unwrap_or(0) as i32;
+        if i == 0 {
+            return Some((0, count(0)));
+        }
+        Some((i, value.clamp(0, count(i) + count(0))))
     }
 
     /// `FUN_14007ba70`: worker counts; the laborer spinner is fixed, the others may take up to
@@ -527,6 +567,10 @@ impl ProfessionUi {
                     s,
                     values.professions.get(i).copied().unwrap_or(0) as i32,
                 );
+            }
+            if let Some(n) = self.available.get(i).copied().flatten() {
+                let v = values.profession_capacity.get(i).copied().unwrap_or(0);
+                ui.set_text(n, &v.to_string());
             }
         }
     }
@@ -647,13 +691,22 @@ impl UtilityWindows {
         true
     }
 
-    /// A click inside a utility window's controller (EventLogUI).
+    /// A click inside a utility window's controller (EventLogUI, ProfessionUI).
     pub fn click(
         &mut self,
         ui: &Ui,
         node: NodeId,
         log: &banished_game::events::EventLog,
+        values: &StatusValues,
     ) -> Option<UtilityClick> {
+        if let Some((i, v)) = self
+            .open
+            .iter()
+            .filter_map(|w| w.professions.as_ref())
+            .find_map(|p| p.changed(ui, node, values))
+        {
+            return Some(UtilityClick::ProfessionCount(i, v));
+        }
         self.open
             .iter_mut()
             .filter_map(|w| w.event_log.as_mut())

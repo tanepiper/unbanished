@@ -12,6 +12,7 @@ use banished_formats::game::CharacterDescription;
 use banished_formats::types::AnimationGroup;
 
 use crate::activities::{loiter, EntityView, StorageGeometry, TownView};
+use crate::town::{Env, Sim};
 use crate::ai::{activity, CitizenAi, CitizenView, Thresholds};
 use crate::character::{Action, Character, Component, Message, MoveTo, World};
 use crate::citizens::Citizen;
@@ -44,6 +45,15 @@ pub struct CitizenRulesAi {
     pub profession_allows_idle: bool,
     /// CitizenDescription `+0x110`: the tool type CitizenUI calls "Iron" (others are "Steel").
     pub tool_grade: i32,
+    /// CitizenDescription `+0xfc`, `+0x100`, `+0x104`, `+0x108` (ints) and `+0x10c` (°F): the
+    /// work-distance patience of `FUN_1400fc3c0`.
+    pub work_near: i32,
+    pub work_far: i32,
+    pub work_minutes: i32,
+    pub work_ok: i32,
+    pub work_cold: f32,
+    /// CitizenDescription `+0x114`: work duration factor without a tool (`FUN_1400cebf0`).
+    pub no_tool_factor: f32,
 }
 
 /// Citizen fields read/written by equipment activities and Citizen messages 1/6/7.
@@ -69,6 +79,12 @@ pub struct CitizenState {
     pub job: i32,                // +0x30
     pub home: Option<usize>,     // +0x238
     pub carried: Storage,
+    /// `+0x1f0`: profession (index into the profession list).
+    pub profession: usize,
+    /// `+0x248`: workplace entity.
+    pub workplace: Option<usize>,
+    /// The tool ShowTool attached (−1 none, −2 carried goods).
+    pub shown_tool: i32,
 }
 
 impl CitizenState {
@@ -128,6 +144,7 @@ impl Agents {
                 .iter()
                 .map(|_| CitizenState {
                     job: -1,
+                    shown_tool: -1,
                     health: rules.health,
                     happiness: rules.happiness,
                     carried: carried.clone(),
@@ -162,26 +179,120 @@ impl Agents {
         self.regions = regions(cells.size, &cells.types);
     }
 
+    /// The work and construction context over these citizens and `env`.
+    fn sim<'s, 't>(
+        &'s mut self,
+        citizens: &[Citizen],
+        env: &'s mut Env<'_, 't>,
+        groups: &'s [Option<&'s AnimationGroup>],
+        adult: &'s [bool],
+        entities: &'s [EntityView],
+    ) -> (Sim<'s, 't>, &'s mut crate::jobs::Jobs) {
+        let _ = citizens;
+        let c = &mut *env.construction;
+        (
+            Sim {
+                characters: &mut self.characters,
+                states: &mut self.states,
+                groups,
+                adult,
+                rules: self.rules,
+                size: env.cells.size,
+                cells: &mut *env.cells,
+                regions: &self.regions,
+                sectors: &mut self.sectors,
+                terrain: env.terrain,
+                placed: &mut *env.placed,
+                templates: env.templates,
+                entities,
+                storages: &mut *env.storages,
+                storage_sites: env.sites,
+                materials: env.materials,
+                rng: &mut *env.rng,
+                stock: env.stock,
+                temperature: env.temperature,
+                professions: &c.professions,
+                workforce: &mut c.workforce,
+                site_templates: &c.templates,
+                sites: &mut c.sites,
+                site_list: &mut c.site_list,
+                events: Vec::new(),
+            },
+            &mut c.jobs,
+        )
+    }
+
+    /// Adults without a school: the citizens professions count.
+    fn adults(&self, citizens: &[Citizen]) -> Vec<bool> {
+        citizens
+            .iter()
+            .map(|c| c.age >= self.rules.thresholds.adult_age && c.school.is_none())
+            .collect()
+    }
+
+    /// Player commands and newly placed sites, applied before an iteration (where the
+    /// original's UI events and placement land between iterations).
+    pub fn apply_commands(
+        &mut self,
+        citizens: &[Citizen],
+        env: &mut Env,
+        groups: &[Option<&AnimationGroup>],
+    ) {
+        self.sync_map(env.cells);
+        let commands = std::mem::take(&mut env.construction.commands);
+        let placed = std::mem::take(&mut env.construction.placed);
+        if commands.is_empty() && placed.is_empty() {
+            return;
+        }
+        let entities = entity_views(env.placed, env.templates);
+        let adult = self.adults(citizens);
+        let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
+        for e in placed {
+            sim.activate(jobs, e);
+            jobs.drain(&mut sim);
+        }
+        for command in commands {
+            let mut workers = sim.workers();
+            let town = TownView {
+                size: sim.size,
+                types: &sim.cells.types,
+                regions: sim.regions,
+                occupants: &sim.cells.occupants,
+                objects: &sim.cells.objects,
+                entities: sim.entities,
+                happiness: &[],
+            };
+            let (size, terrain) = (sim.size, sim.terrain);
+            let ground = move |c: i32| cell_ground(size, terrain, c);
+            let mut geometry = StorageGeometry {
+                town: &town,
+                sectors: sim.sectors,
+                ground: &ground,
+            };
+            sim.workforce
+                .apply(command, &mut workers, sim.professions, &mut geometry, sim.rng);
+            sim.set_workers(&workers);
+        }
+    }
+
     /// One simulation iteration of every citizen. `groups[i]` is citizen `i`'s animation group.
-    #[allow(clippy::too_many_arguments)]
     pub fn update(
         &mut self,
         citizens: &mut [Citizen],
-        cells: &Cells,
-        placed: &[Placed],
-        templates: &[Template],
-        terrain: &HeightGrid,
+        env: &mut Env,
         groups: &[Option<&AnimationGroup>],
-        materials: &[RawMaterial],
-        storages: &mut [Storage],
-        sites: &[StorageSite],
-        rng: &mut Random,
         dt: f32,
     ) {
-        self.sync_map(cells);
+        self.sync_map(env.cells);
         // FUN_140118340's icon writes belong to simulation, never layout/hover/draw.
         // The surrounding needs/assignment updates remain unported; reflect their live fields.
+        let professions = env.construction.professions.clone();
         for state in &mut self.states {
+            let anywhere = if professions.list.is_empty() {
+                self.rules.profession_allows_idle
+            } else {
+                professions.works_anywhere(state.profession)
+            };
             for (bit, on) in [
                 (0, state.home.is_none()),
                 (
@@ -196,22 +307,15 @@ impl Agents {
                         > self.rules.thresholds.cold_urgent
                             + (self.rules.cold_limit - self.rules.thresholds.cold_urgent) * 0.25,
                 ),
-                (
-                    3,
-                    !self.rules.profession_allows_idle && state.work.is_none(),
-                ),
+                (3, !anywhere && state.workplace.is_none()),
                 (5, state.sick),
             ] {
                 crate::status::set_icon(&mut state.status, bit, on, false);
             }
         }
         self.sectors.age_cache(ticks(dt));
-        let mut stock = TownStock {
-            materials,
-            storages,
-            sites,
-        };
-        let entities = entity_views(placed, templates);
+        let entities = entity_views(env.placed, env.templates);
+        let adult = self.adults(citizens);
         for (ch, group) in self.characters.iter_mut().zip(groups) {
             if let Some(g) = group {
                 ch.animate(g, dt);
@@ -221,45 +325,76 @@ impl Agents {
             let Some(group) = groups[i] else { continue };
             let mut messages = Vec::new();
             {
+                let state = &mut self.states[i];
                 let mut world = World {
-                    size: cells.size,
-                    types: &cells.types,
+                    size: env.cells.size,
+                    types: &env.cells.types,
                     regions: &self.regions,
-                    terrain,
+                    terrain: env.terrain,
                     pathfinder: &mut self.pathfinder,
-                    rng,
+                    rng: env.rng,
                     messages: &mut messages,
-                    materials: stock.materials,
-                    storages: stock.storages,
-                    carried: &mut self.states[i].carried,
+                    materials: env.materials,
+                    storages: env.storages,
+                    carried: &mut state.carried,
+                    tool_uses: &mut state.tool_uses,
+                    shown_tool: &mut state.shown_tool,
                 };
                 self.characters[i].update(&mut world, group, dt);
             }
             citizens[i].position = self.characters[i].position;
-            for m in messages {
-                if m.component == Component::Citizen {
-                    self.states[i].message(m, self.rules);
-                }
-                if m.component == Component::CitizenAi && m.message == 0 {
-                    self.think(
-                        i, citizens, cells, &entities, terrain, group, &mut stock, rng, 0,
-                    );
-                }
-            }
+            self.deliver(i, messages, citizens, env, groups, &adult, &entities);
+        }
+        // The sites' StateMachine updates (bit 4, then their bucket).
+        {
+            let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
+            sim.update_sites(jobs);
+            jobs.drain(&mut sim);
         }
         for i in 0..self.ais.len() {
-            let Some(group) = groups[i] else { continue };
-            self.think(
-                i,
-                citizens,
-                cells,
-                &entities,
-                terrain,
-                group,
-                &mut stock,
-                rng,
-                ticks(dt),
-            );
+            if groups[i].is_none() {
+                continue;
+            }
+            self.think(i, citizens, env, groups, &adult, &entities, ticks(dt));
+        }
+    }
+
+    /// Deliver the messages citizen `i`'s actions sent, in order.
+    #[allow(clippy::too_many_arguments)]
+    fn deliver(
+        &mut self,
+        i: usize,
+        messages: Vec<Message>,
+        citizens: &[Citizen],
+        env: &mut Env,
+        groups: &[Option<&AnimationGroup>],
+        adult: &[bool],
+        entities: &[EntityView],
+    ) {
+        for m in messages {
+            match m.component {
+                Component::Citizen => self.states[i].message(m, self.rules),
+                Component::CitizenAi if m.message == 0 => {
+                    self.think(i, citizens, env, groups, adult, entities, 0);
+                }
+                Component::Build if m.message == 0 => {
+                    // `FUN_14010dbe0`: one unit of work.
+                    if let Some(site) = m.entity.and_then(|e| env.construction.sites.get_mut(&e))
+                    {
+                        site.progress += 1;
+                    }
+                }
+                Component::Jobs => {
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    if m.message == 0 {
+                        jobs.complete(m.a, i, m.b, &mut sim);
+                    } else {
+                        jobs.fail(m.a, i, m.b, &mut sim);
+                    }
+                    jobs.drain(&mut sim);
+                }
+                _ => {}
+            }
         }
     }
 
@@ -269,14 +404,13 @@ impl Agents {
         &mut self,
         i: usize,
         citizens: &[Citizen],
-        cells: &Cells,
+        env: &mut Env,
+        groups: &[Option<&AnimationGroup>],
+        adult: &[bool],
         entities: &[EntityView],
-        terrain: &HeightGrid,
-        group: &AnimationGroup,
-        stock: &mut TownStock,
-        rng: &mut Random,
         dt: i64,
     ) {
+        let Some(group) = groups[i] else { return };
         let c = &citizens[i];
         let view = CitizenView {
             age: c.age,
@@ -284,7 +418,7 @@ impl Agents {
             tool: self.states[i].tool_uses,
             clothing: self.states[i].clothing,
             home: self.states[i].home.is_some(),
-            carrying: self.states[i].carried.used(stock.materials),
+            carrying: self.states[i].carried.used(env.materials),
             health: self.states[i].health,
             happiness: self.states[i].happiness,
             hunger: self.states[i].hunger,
@@ -295,40 +429,64 @@ impl Agents {
         let rules = self.rules;
         let mut ai = std::mem::take(&mut self.ais[i]);
         let busy = self.characters[i].stack.is_active();
-        let size = cells.size;
-        let town = TownView {
-            size,
-            types: &cells.types,
-            regions: &self.regions,
-            occupants: &cells.occupants,
-            objects: &cells.objects,
-            entities,
-            happiness: &[],
-        };
-        let ch = &mut self.characters[i];
-        ai.update(
-            dt,
-            &view,
-            &rules.thresholds,
-            rng,
-            || busy,
-            |ai, a, rng| {
-                run(
+        // The AI draws from the same stream the activities do.
+        let mut rng = std::mem::replace(env.rng, Random::new(0));
+        ai.update(dt, &view, &rules.thresholds, &mut rng, || busy, |ai, a, rng| {
+            std::mem::swap(env.rng, rng);
+            let done = if a == activity::WORK || a == activity::EMERGENCY {
+                let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                if a == activity::WORK {
+                    jobs.assign_work(i, &mut sim);
+                } else {
+                    jobs.assign_emergency(i, &mut sim);
+                }
+                jobs.drain(&mut sim);
+                self.characters[i].stack.is_active()
+            } else {
+                let town = TownView {
+                    size: env.cells.size,
+                    types: &env.cells.types,
+                    regions: &self.regions,
+                    occupants: &env.cells.occupants,
+                    objects: &env.cells.objects,
+                    entities,
+                    happiness: &[],
+                };
+                let mut stock = TownStock {
+                    materials: env.materials,
+                    storages: env.storages,
+                    sites: env.sites,
+                };
+                let ch = &mut self.characters[i];
+                let done = run(
                     ai,
                     a,
                     ch,
                     &mut self.states[i],
                     &town,
                     &mut self.sectors,
-                    stock,
-                    terrain,
+                    &mut stock,
+                    env.terrain,
                     group,
                     rules,
-                    size,
-                    rng,
-                )
-            },
-        );
+                    env.cells.size,
+                    env.rng,
+                );
+                // Aborted CompleteTasks of the replaced sequence.
+                let outbox = std::mem::take(&mut ch.stack.outbox);
+                if !outbox.is_empty() {
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    for m in outbox {
+                        jobs.fail(m.a, i, m.b, &mut sim);
+                    }
+                    jobs.drain(&mut sim);
+                }
+                done
+            };
+            std::mem::swap(env.rng, rng);
+            done
+        });
+        *env.rng = rng;
         self.ais[i] = ai;
     }
 }

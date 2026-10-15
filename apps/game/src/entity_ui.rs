@@ -228,7 +228,7 @@ fn citizen_info(town: &StartingTown, i: usize) -> Option<crate::building_ui::Cit
     let rules = town.agents.rules();
     let child = c.age < town.rules.adult_age || c.school.is_some();
     // Inferred from the resource names: ProfessionList `+0x40` child, `+0x48` student; adults
-    // show their profession (`+0x1f0`), laborer until professions are assigned.
+    // show their profession (`+0x1f0`).
     let key = if !child {
         "laborer"
     } else if c.school.is_some() {
@@ -236,9 +236,14 @@ fn citizen_info(town: &StartingTown, i: usize) -> Option<crate::building_ui::Cit
     } else {
         "child"
     };
-    let profession = town
-        .profession(key)
+    let assigned = (!child)
+        .then(|| town.construction.professions.list.get(s.profession))
+        .flatten()
         .map(|p| (p.string_table.clone(), p.name.clone()));
+    let profession = assigned.or_else(|| {
+        town.profession(key)
+            .map(|p| (p.string_table.clone(), p.name.clone()))
+    });
     let tool = if s.tool_uses < 1 {
         0
     } else {

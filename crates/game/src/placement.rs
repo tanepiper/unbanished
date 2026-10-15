@@ -203,6 +203,32 @@ pub fn stamp(cells: &mut Cells, rules: &PlacementRules, rect: Rect, degrees: i32
     }
 }
 
+/// `FUN_1400a2830` (ZoneComponent activation, `FUN_1401356c0`): the entity becomes the
+/// occupant (`+0x00`) of every non-`.` footprint cell; `.` cells count one more zone at `+0x28`.
+/// Not ported: the path grid's blocked bit (citizens' mode 0 does not honour it).
+pub fn zone(cells: &mut Cells, rules: &PlacementRules, rect: Rect, degrees: i32, entity: usize) {
+    let n = cells.size as i32;
+    let (w, h) = (rect.width(), rect.height());
+    let fp = rules.footprint.as_bytes();
+    for y in rect.y0..=rect.y1 {
+        for x in rect.x0..=rect.x1 {
+            let i = (n * y + x) as usize;
+            let untouched = !fp.is_empty()
+                && fp
+                    .get(footprint_index(x - rect.x0, y - rect.y0, w, h, degrees))
+                    .copied()
+                    .unwrap_or(b'.')
+                    == b'.';
+            if untouched {
+                cells.occupants[i] = None;
+                cells.flags[i] = cells.flags[i].wrapping_add(1);
+            } else {
+                cells.occupants[i] = Some(entity);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

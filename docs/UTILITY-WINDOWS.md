@@ -133,7 +133,10 @@ identical across two seeded runs. Local visual capture:
 
 - Status Bar: live population, stock, status counts, health/happiness scales, town name, calendar,
   environment temperature and weather; packaged whole/half hearts and stars.
-- Professions: ordered packaged rows and live starting laborer counts; assignment commands remain.
+- Professions: ordered packaged rows, live counts per profession and workplace places
+  (`numberAvailable`); spinner changes (event `0x15`, ids `300 + i`, clamped to 0..count +
+  laborers) become `SetCount` commands applied before the next iteration (`FUN_14007b890`, see
+  [JOBS.md](JOBS.md)). Not ported: the goto buttons (`500 + i`).
 - Utility windows: open/close through UIDescription and StandardDialog; remembered positions.
 - Entity hosts: click picking, selection outline, localized titles, packaged tabs, pin/close;
   live building/citizen controller refresh is pending.

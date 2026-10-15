@@ -24,7 +24,61 @@ use banished_game::seeding::{Cells, Placed, ScheduledComponent, Seeder, Template
 use banished_game::stock::{distribute, RawMaterial, Storage, StorageSite};
 use banished_game::terrain::HeightGrid;
 
+use banished_game::construction::{Construction, Controller, Site, SiteTemplate};
+use banished_game::professions::{Profession, Professions, WorkPlace};
+
 use crate::models::{placement_matrix, GroupInstances, ModelInstance, SceneModels};
+
+/// `Profession.rsc:resource` (laborer `+0x30`, builder `+0x38`) and `:professionList`.
+fn professions(archive: &Archive) -> Professions {
+    let list = read(archive, "Game/Profession/Profession.rsc:professionList")
+        .and_then(|d| banished_formats::game::external_list(&d).ok())
+        .unwrap_or_default();
+    let list: Vec<Profession> = list
+        .iter()
+        .map(|r| {
+            let p = read(archive, r).and_then(|d| banished_formats::game::profession(&d).ok());
+            Profession {
+                reference: r.clone(),
+                name: p.as_ref().map(|p| p.name.clone()).unwrap_or_default(),
+                string_table: p.as_ref().and_then(|p| p.string_table.clone()),
+                works_anywhere: p.is_some_and(|p| p.flag_4c),
+            }
+        })
+        .collect();
+    let find = |key: &str| {
+        list.iter()
+            .position(|p| p.reference.ends_with(&format!(":{key}")))
+            .unwrap_or(0)
+    };
+    Professions {
+        laborer: find("laborer"),
+        builder: find("builder"),
+        list,
+    }
+}
+
+/// The raw material for `reference`, loading it into the town's list when new.
+pub fn material_index(
+    archive: &Archive,
+    materials: &mut Vec<RawMaterial>,
+    reference: &str,
+) -> Option<usize> {
+    let key = normalise(reference);
+    if let Some(i) = materials.iter().position(|m| m.reference == key) {
+        return Some(i);
+    }
+    let d = read(archive, &key.replace(":resource", ":rawmaterial"))
+        .and_then(|d| raw_material_description(&d).ok())?;
+    materials.push(RawMaterial {
+        reference: key,
+        size: d.size,
+        flags: d.flags,
+        tool_uses: d.value_54,
+        preferred: d.flag_58,
+    });
+    Some(materials.len() - 1)
+}
 
 /// `Template\X.rsc:resource` (profile lists omit the object name).
 /// `DAT_140178818`: children's model scale.
@@ -72,6 +126,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         market_location: false,
         has_interact: false,
         use_points: Vec::new(),
+        build_points: Vec::new(),
     };
     let mut spawn = Vec::new();
     for d in desc.descriptions.iter().flatten() {
@@ -146,18 +201,21 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
             "marketlocation" => t.market_location = true,
             "interact" => {
                 t.has_interact = true;
-                t.use_points = banished_formats::game::interact_description(&data)
+                let list = banished_formats::game::interact_description(&data)
                     .ok()
                     .and_then(|i| i.points)
                     .and_then(|r| read(archive, &normalise(&r)))
-                    .and_then(|d| banished_formats::game::point_list(&d).ok())
-                    .map(|l| {
-                        banished_formats::game::interaction_points(&l, 0)
+                    .and_then(|d| banished_formats::game::point_list(&d).ok());
+                let points = |category| {
+                    list.as_ref().map_or(Vec::new(), |l| {
+                        banished_formats::game::interaction_points(l, category)
                             .iter()
                             .map(|p| p.position)
                             .collect()
                     })
-                    .unwrap_or_default()
+                };
+                t.use_points = points(0);
+                t.build_points = points(1);
             }
             "createplaced" => {
                 t.size = create_placed_description(&data)
@@ -376,6 +434,8 @@ pub struct StartingTown {
     pub agents: Agents,
     /// The placement tool's ghost (`PlacementTool +0x68`): mesh and transform.
     pub ghost: Option<(String, [f32; 16])>,
+    /// The job manager, professions, workplaces and construction sites (docs/JOBS.md).
+    pub construction: Construction,
 }
 
 impl StartingTown {
@@ -468,6 +528,12 @@ impl StartingTown {
                 loiter_range: c.i(0xbc),
                 clothing_duration: c.f(0x130) * 300.0,
                 tool_grade: c.i(0x110),
+                work_near: c.i(0xfc),
+                work_far: c.i(0x100),
+                work_minutes: c.i(0x104),
+                work_ok: c.i(0x108),
+                work_cold: c.f(0x10c),
+                no_tool_factor: c.f(0x114),
                 health_max: c.f(0x70),
                 hunger_limit: c.f(0xd0),
                 cold_limit: c.f(0xf0),
@@ -538,6 +604,10 @@ impl StartingTown {
             citizen_model,
             agents,
             ghost: None,
+            construction: Construction {
+                professions: professions(archive),
+                ..Default::default()
+            },
         })
     }
 
@@ -612,6 +682,12 @@ impl StartingTown {
             .collect()
     }
 
+    /// `FUN_1400c9d70`: register a new entity in its template's bucket.
+    pub fn register_entity(&mut self, id: usize) {
+        let handle = self.scheduler.register(id, self.placed[id].bucket);
+        debug_assert_eq!(handle, id);
+    }
+
     /// Load (or find) a template for an entity created during play.
     pub fn load_template(&mut self, archive: &Archive, reference: &str) -> Option<usize> {
         load_template(archive, reference, &mut self.templates)
@@ -637,10 +713,9 @@ impl StartingTown {
         .iterate(&mut self.scheduler, dt, temperature, false)
     }
 
-    /// The citizens' animation, characters and AI for one simulation iteration
-    /// (`banished_game::agents`). Returns whether any citizen is drawn.
-    pub fn update_citizens(&mut self, terrain: &HeightGrid, rng: &mut Random, dt: f32) -> bool {
-        let groups: Vec<Option<&banished_formats::types::AnimationGroup>> = self
+    /// Player commands and newly placed sites (before an iteration).
+    pub fn apply_commands(&mut self, terrain: &HeightGrid, rng: &mut Random) {
+        let groups: Vec<_> = self
             .citizens
             .iter()
             .map(|c| {
@@ -649,20 +724,201 @@ impl StartingTown {
                     .and_then(Option::as_deref)
             })
             .collect();
-        self.agents.update(
-            &mut self.citizens,
-            &self.cells,
-            &self.placed,
-            &self.templates,
+        let mut env = banished_game::town::Env {
+            cells: &mut self.cells,
+            placed: &mut self.placed,
+            templates: &self.templates,
             terrain,
-            &groups,
-            &self.materials,
-            &mut self.storages,
-            &self.storage_sites,
+            materials: &self.materials,
+            storages: &mut self.storages,
+            sites: &self.storage_sites,
             rng,
-            dt,
-        );
+            construction: &mut self.construction,
+            stock: [(0, 0); 21],
+            temperature: 0.0,
+        };
+        self.agents
+            .apply_commands(&self.citizens, &mut env, &groups);
+    }
+
+    /// The citizens' animation, characters and AI for one simulation iteration
+    /// (`banished_game::agents`). `stock` is the stock manager's `(count, limit)` per slot.
+    /// Returns whether any citizen is drawn.
+    pub fn update_citizens(
+        &mut self,
+        terrain: &HeightGrid,
+        rng: &mut Random,
+        dt: f32,
+        temperature: f32,
+        stock: [(i32, i32); 21],
+    ) -> bool {
+        let groups: Vec<_> = self
+            .citizens
+            .iter()
+            .map(|c| {
+                self.citizen_anims
+                    .get(usize::from(!c.male))
+                    .and_then(Option::as_deref)
+            })
+            .collect();
+        let mut env = banished_game::town::Env {
+            cells: &mut self.cells,
+            placed: &mut self.placed,
+            templates: &self.templates,
+            terrain,
+            materials: &self.materials,
+            storages: &mut self.storages,
+            sites: &self.storage_sites,
+            rng,
+            construction: &mut self.construction,
+            stock,
+            temperature,
+        };
+        self.agents
+            .update(&mut self.citizens, &mut env, &groups, dt);
         !self.citizens.is_empty()
+    }
+
+    /// The registered town storages (`Game +0xf0 +0x00/+0x10`), the ones the stock counts.
+    pub fn registered_storages(&self) -> Vec<Storage> {
+        self.storage_sites
+            .iter()
+            .map(|s| self.storages[s.storage].clone())
+            .collect()
+    }
+
+    /// Adult counts per profession and each profession's workplace places (`FUN_14007ba70`).
+    pub fn profession_counts(&self) -> (Vec<i32>, Vec<i32>) {
+        let c = &self.construction;
+        let mut counts = vec![0; c.professions.list.len().max(1)];
+        for (citizen, state) in self.citizens.iter().zip(&self.agents.states) {
+            if citizen.is_adult(&self.rules) && citizen.school.is_none() {
+                if let Some(n) = counts.get_mut(state.profession) {
+                    *n += 1;
+                }
+            }
+        }
+        let capacity = (0..counts.len())
+            .map(|p| c.workforce.capacity(p))
+            .collect();
+        (counts, capacity)
+    }
+
+    /// The construction descriptions of a template (`None` without a BuildDescription).
+    pub fn site_template(&mut self, archive: &Archive, template: usize) -> Option<usize> {
+        let reference = self.templates[template].reference.clone();
+        if let Some(i) = self
+            .construction
+            .templates
+            .iter()
+            .position(|t| t.reference == reference)
+        {
+            return Some(i);
+        }
+        let desc = component_description(&read(archive, &reference)?).ok()?;
+        let mut t = SiteTemplate {
+            reference: reference.clone(),
+            ..Default::default()
+        };
+        let mut has_build = false;
+        for d in desc.descriptions.iter().flatten() {
+            let Some(data) = read(archive, d) else {
+                continue;
+            };
+            match d.rsplit(':').next().unwrap_or("") {
+                "cleararea" => {
+                    t.controllers.push(Controller::ClearArea);
+                    t.clear = banished_formats::game::clear_area_description(&data).ok();
+                }
+                "workplace" => {
+                    t.controllers.push(Controller::WorkPlace);
+                    t.profession = banished_formats::game::workplace_description(&data)
+                        .ok()
+                        .and_then(|w| w.profession)
+                        .and_then(|p| {
+                            let p = p.replace('/', "\\");
+                            self.construction
+                                .professions
+                                .list
+                                .iter()
+                                .position(|x| x.reference.eq_ignore_ascii_case(&p))
+                        });
+                }
+                "build" => {
+                    has_build = true;
+                    t.controllers.push(Controller::Build);
+                    let b = banished_formats::game::build_description(&data).ok()?;
+                    t.work = b.work;
+                    for (n, m) in b.materials {
+                        let m = m.and_then(|m| material_index(archive, &mut self.materials, &m))?;
+                        t.materials.push((n, m));
+                    }
+                }
+                "residence" => t.controllers.push(Controller::Residence),
+                "work" => {
+                    t.max_workers = banished_formats::game::work_description(&data)
+                        .map_or(0, |w| w.max_workers)
+                }
+                "storage" => {
+                    t.storage = storage_description(&data)
+                        .ok()
+                        .map(|d| (d.accepts, d.capacity, d.flag_20))
+                }
+                _ => {}
+            }
+        }
+        if !has_build {
+            return None;
+        }
+        t.meshes = self.templates[template]
+            .model
+            .as_ref()
+            .map(|m| m.variants.iter().map(|v| v.meshes.len()).collect())
+            .unwrap_or_default();
+        self.construction.templates.push(t);
+        Some(self.construction.templates.len() - 1)
+    }
+
+    /// A placed building with a BuildComponent becomes a construction site: its own
+    /// StorageComponent and WorkPlaceComponent; activated before the next iteration.
+    pub fn add_site(&mut self, archive: &Archive, entity: usize) {
+        let template = self.placed[entity].template;
+        let Some(st) = self.site_template(archive, template) else {
+            return;
+        };
+        let t = &self.construction.templates[st];
+        let (w, h) = self.placed[entity].footprint;
+        let storage = self.storages.len();
+        self.storages.push(match t.storage {
+            Some((accepts, capacity, per_cell)) => Storage {
+                capacity: capacity * if per_cell { w * h } else { 1 },
+                accepts,
+                items: Vec::new(),
+            },
+            None => Storage::default(),
+        });
+        if t.controllers.contains(&Controller::WorkPlace) {
+            self.construction
+                .workforce
+                .workplaces
+                .insert(entity, WorkPlace::new(t.profession, t.max_workers));
+        }
+        let machine = banished_game::construction::Machine::new(t.controllers.clone());
+        self.construction.sites.insert(
+            entity,
+            Site {
+                entity,
+                template: st,
+                machine,
+                progress: 0,
+                stages: 1,
+                work_id: -1,
+                work_priority: None,
+                storage,
+                complete: false,
+            },
+        );
+        self.construction.placed.push(entity);
     }
 
     /// FUN_1400c98a0's post-iteration phase; also runs when the toolbar pauses simulation.
@@ -822,7 +1078,7 @@ mod storage_fetch_tests {
             .filter(|c| c.is_adult(&town.rules))
             .count();
         for _ in 0..3600 {
-            town.update_citizens(&terrain, &mut rng, 1.0 / 30.0);
+            town.update_citizens(&terrain, &mut rng, 1.0 / 30.0, 0.0, [(1000, 0); 21]);
         }
         let final_stock = stock_table(&town.storages, &town.materials);
         assert_eq!(initial[4] - final_stock[4], adults as i32);
@@ -869,7 +1125,7 @@ mod storage_fetch_tests {
             };
             town.agents.ais[i] = Default::default();
         }
-        town.update_citizens(&terrain, &mut rng, 1.0 / 30.0);
+        town.update_citizens(&terrain, &mut rng, 1.0 / 30.0, 0.0, [(1000, 0); 21]);
         for (i, state) in town.agents.states.iter().enumerate() {
             assert_eq!(state.flags & 4, 4);
             assert_eq!(state.clothing_status, 0);

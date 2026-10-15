@@ -164,11 +164,17 @@ impl GameplayLoop {
                 .town
                 .as_ref()
                 .map_or(1.0, |t| t.agents.rules().happiness),
-            // Every adult starts as a laborer (`FUN_14011c550` with the manager's `+0x30`).
-            professions: vec![self.population().0],
+            // Adults per profession (`FUN_14007ba70`, citizen `+0x1f0`) and workplace places.
+            professions: self.town.as_ref().map_or(vec![self.population().0], |t| {
+                t.profession_counts().0.iter().map(|&n| n as u32).collect()
+            }),
+            profession_capacity: self
+                .town
+                .as_ref()
+                .map_or(Vec::new(), |t| t.profession_counts().1),
             // `FUN_14008f3a0`, recomputed from the town storages.
             stock: self.town.as_ref().map_or([0; 21], |t| {
-                banished_game::stock::stock_table(&t.storages, &t.materials)
+                banished_game::stock::stock_table(&t.registered_storages(), &t.materials)
             }),
             ..StatusValues::default()
         }
@@ -446,9 +452,18 @@ impl GameplayLoop {
                 heights: &view.terrain.heights,
             };
             let temperature = self.environment.as_ref().map_or(0.0, |e| e.temperature);
+            // Player commands and placed sites take effect between iterations.
+            town.apply_commands(&grid, &mut self.rng);
             let changed = town.iterate(&grid, &mut self.rng, dt, temperature);
             // AnimationManager::Update runs inside the same iteration (FUN_14009b850).
-            let changed = town.update_citizens(&grid, &mut self.rng, dt) | changed;
+            let stock = std::array::from_fn(|i| {
+                (
+                    self.stock_warnings.count[i],
+                    self.stock_warnings.limits[i],
+                )
+            });
+            let changed = town.update_citizens(&grid, &mut self.rng, dt, temperature, stock)
+                | changed;
             // AnimAudioEvents that passed their draw: `PlayEffect3D(effect, 4)` at the entity.
             for (entity, effect) in town.animation_events.drain(..) {
                 let p = town.placed[entity].position;
@@ -463,9 +478,11 @@ impl GameplayLoop {
         }
         // `FUN_140091780`: recompute stock (`FUN_14008f3a0`), then its warnings
         // (`FUN_1400915d0`, posted through `FUN_14009aa50` at severity 3).
-        if let Some(town) = &self.town {
+        if let Some(town) = &mut self.town {
             self.stock_warnings
-                .recompute(&town.storages, &town.materials);
+                .recompute(&town.registered_storages(), &town.materials);
+            // The job manager's pass and clock (`FUN_14009b850`, after the stock update).
+            town.construction.jobs.step(ticks(dt));
             let (month, year) = (self.month(), self.calendar.year as i32);
             for kind in self.stock_warnings.check(ticks(dt)) {
                 // Not ported: the AutoSlow option (default on) slows the game; nothing reads
@@ -839,11 +856,23 @@ impl GameLoop for GameplayLoop {
                 return Next::Stay;
             }
         }
+        let values = self.status_values();
         let (Some(screen), Some(toolbar)) = (self.screen.as_mut(), self.toolbar.as_mut()) else {
             return Next::Stay;
         };
         let Some(action) = toolbar.click(ctx.ui, screen, id) else {
-            match self.utility.click(ctx.ui, id, &self.events) {
+            match self.utility.click(ctx.ui, id, &self.events, &values) {
+                Some(UtilityClick::ProfessionCount(profession, count)) => {
+                    if let Some(town) = &mut self.town {
+                        town.construction
+                            .commands
+                            .push(banished_game::professions::Command::SetCount {
+                                profession,
+                                count,
+                            });
+                    }
+                    return Next::Stay;
+                }
                 Some(UtilityClick::Notify(i, on)) => {
                     self.events.notify[i] = on;
                     return Next::Stay;
@@ -949,7 +978,7 @@ impl GameLoop for GameplayLoop {
             RawInput::Click => {
                 if let (Some(tool), Some(town)) = (self.placement.as_mut(), self.town.as_mut()) {
                     // `FUN_1401055c0` / `FUN_140105610`: thunk on placement, error otherwise.
-                    let sound = match tool.place(town, self.rotation) {
+                    let sound = match tool.place(ctx.archive, town, self.rotation) {
                         Some(id) => {
                             log::info!("placed {} as entity {id}", tool.reference);
                             crate::sound::global::PLACEMENT_THUNK
@@ -1030,6 +1059,48 @@ impl GameLoop for GameplayLoop {
                     Some(&self.events),
                     map_size,
                 );
+                return true;
+            }
+            // `place TEMPLATE`: place a building on the first clear spot near the start.
+            Some("place") => {
+                let (Some(template), Some(town), Some(view)) =
+                    (words.next(), self.town.as_mut(), self.view.as_ref())
+                else {
+                    return false;
+                };
+                let grid = banished_game::terrain::HeightGrid {
+                    width: view.terrain.size + 1,
+                    heights: &view.terrain.heights,
+                };
+                let Some(mut tool) = PlacementTool::start(ctx.archive, town, template, &mut self.rng)
+                else {
+                    return false;
+                };
+                let near = town.start;
+                if tool.find_clear_spot(town, &grid, near).is_none() {
+                    return false;
+                }
+                let placed = tool.place(ctx.archive, town, 0);
+                log::info!("script placed {template} as {placed:?}");
+                if let Some(models) = self.view.as_mut().and_then(|v| v.models.as_mut()) {
+                    if let Some(town) = &self.town {
+                        town.refresh_models(ctx.archive, models);
+                    }
+                }
+                return placed.is_some();
+            }
+            // `profession INDEX COUNT`: the ProfessionUI spinner.
+            Some("profession") => {
+                let (Some(profession), Some(count), Some(town)) = (
+                    words.next().and_then(|w| w.parse().ok()),
+                    words.next().and_then(|w| w.parse().ok()),
+                    self.town.as_mut(),
+                ) else {
+                    return false;
+                };
+                town.construction
+                    .commands
+                    .push(banished_game::professions::Command::SetCount { profession, count });
                 return true;
             }
             _ => return false,

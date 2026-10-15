@@ -245,8 +245,9 @@ list, shuffle and sort (verified), choice and timers (`crates/game/src/ai.rs`).
 
 In the game (`crates/game/src/agents.rs`, driven from `StartingTown::update_citizens`) each
 citizen has a Character, CitizenAI, equipment state and carried StorageComponent ledger.
-Activity 12 (loiter, `crates/game/src/activities.rs`) and activities 3/8 (clothing/tool) are
-ported. The stock locations retain their placed-entity ids, packaged accepted masks and
+Activity 12 (loiter, `crates/game/src/activities.rs`), activities 3/8 (clothing/tool) and
+activities 2/9 (emergency work and work, through the job manager, `crates/game/src/jobs.rs`;
+see [JOBS.md](JOBS.md)) are ported. The stock locations retain their placed-entity ids, packaged accepted masks and
 world-space interaction points. New citizens fetch equipment and then loiter.
 
 ## Storage, loose piles and inventories

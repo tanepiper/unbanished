@@ -304,13 +304,53 @@ entrance rank.
 
 ## Port status
 
-- `jobs.rs`: the manager (ids, priorities, category/profession trees, pass/clock),
-  AssignWork, AssignEmergency, TryList, OfferInOrder, remove/complete/fail/prioritise/
-  change-profession, behind a `WorkHost` trait for the work slots. Unit tests.
+Ported (`crates/game`):
+
+- `jobs.rs`: the manager (ids, priorities, category/profession trees, pass/clock), AssignWork,
+  AssignEmergency, TryList, OfferInOrder, remove/complete/fail/prioritise/change-profession,
+  behind a `WorkHost` trait for the work slots. Unit tests.
 - `professions.rs`: profession manager, WorkPlace state, registry, `FUN_14007b890` /
-  `FUN_1400918a0` / `FUN_140096650` / `FUN_140134fd0`, UI commands. Families
-  (ResidenceComponent `+0x50`) are not ported, so family searches find nobody (their entrance
-  queries and shuffles still run).
-- Next: `construction.rs` (state machine, WorkPlace/ClearArea/Build controllers, Gather and
-  BuildStructure works, actions), wiring into the AI (activities 2 and 9), placement zones,
-  ProfessionUI/WorkPlaceUI commands, then the ClearArea work (natural resources and piles).
+  `FUN_1400918a0` / `FUN_140096650` / `FUN_140134fd0`, UI commands. Unit test.
+- `construction.rs`: the state-machine runner (`FUN_1400aeb30`) with the ClearArea, WorkPlace,
+  Build and Residence tables; site templates and sites. Unit test of a house's state order.
+- `town.rs`: `Sim`, the work host and the state callbacks — WorkPlace becoming a builder site
+  and back, ClearArea's clear test and the completion stamp, Build's gather/build/finish
+  states with mesh stages, Residence registration; GatherRawMaterials and BuildStructure
+  TryAssign/complete/fail/refresh/cancel; the haul and build sequences; the patience check.
+- Actions: CompleteTask (job messages, including aborts through `ActionStack::outbox`),
+  DropOffRawMaterial (no redirect), ShowTool (state only), PerformWork tool use.
+- `stock::find_material_storage` (`FUN_140092a60`), `placement::zone` (`FUN_1400a2830`).
+- AI activities 9 and 2 call the manager (`agents.rs`); job and BuildComponent messages are
+  delivered in order after each character update.
+
+App (`apps/game`): `PlacementTool::place` registers the entity, reserves the zone and makes a
+site (`StartingTown::add_site`); sites and commands are applied before the next iteration
+(`apply_commands`); the stock counts only registered storages; the manager steps after the
+stock update; ProfessionUI spinners send `SetCount`; `--script "place Template/X.rsc"` and
+`--script "profession I N"`.
+
+Verification: `placement_tool::construction_tests::wood_house_gets_built` (seed 1234, Medium):
+a wood house on clear ground near the start, two builders, is supplied and built in about
+110 simulated seconds; logs −16, stone −8, final mesh, footprint stamped, no reservations left,
+no works left. Determinism is unchanged without placements (no work → no draws).
+
+Deviations and gaps (all marked in code):
+
+- Not ported: the ClearArea work (trees/rocks under a footprint): such a site waits in state 0.
+- Not ported: families (ResidenceComponent), the drop-off activity `FUN_14011b330`, DropOff
+  redirect and pile dropping, emergencies, MultiObject stages, terrain flattening, decals,
+  building status icons, ShowTool meshes, the eviction searches `FUN_140115490/940`,
+  WorkPlaceUI buttons, BuildUI/DestroyUI.
+- Site state machines run every iteration (scheduled quota not modelled); worker sets are
+  ordered by citizen index instead of object address.
+
+Next steps:
+
+1. ClearArea work (`FUN_1400eb3b0`, refresh `FUN_1400eafe0`): natural-resource removal sequence
+   `FUN_1400c7380`, cell work `FUN_1400c54a0`, loose piles (RawMaterialComponent, `CreateRawMaterial`,
+   `PickupRawMaterial`) and their pickup works; category mask from the objects.
+2. WorkPlaceUI `+`/`−`/max (`Command::AddWorker/RemoveWorker/ChangeMaxWorkers` exist), BuildUI
+   (progress, priority `Jobs::prioritize`), CitizenUI profession from `CitizenState::profession`.
+3. Emulator check of the manager (`FUN_1400fdd70`, `FUN_1400fca20`, `FUN_1400fce80`) with fake
+   works, like `tools/emu/storage.py`.
+4. Drop-off activity 13 and the redirect; families for the profession searches.

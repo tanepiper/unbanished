@@ -231,6 +231,75 @@ pub fn find_storage(
     found
 }
 
+/// Port of FUN_140092a60: the storage nearest `cell` (entrance path rank) that holds
+/// `count` of `material` (`put` false) or can take them (`put` true). Ordinary storages, then
+/// markets; `exclude` is skipped. A StorageLocation must accept the material's flags. On a
+/// strict entrance-rank improvement the target point (slot scan, or a market use point) must
+/// exist with its own rank below the best, and the best becomes the entrance rank.
+#[allow(clippy::too_many_arguments)]
+pub fn find_material_storage(
+    sites: &[StorageSite],
+    storages: &[Storage],
+    materials: &[RawMaterial],
+    material: usize,
+    count: i32,
+    put: bool,
+    cell: i32,
+    exclude: Option<usize>,
+    map: &mut impl StorageSearchMap,
+    rng: &mut Random,
+) -> Option<StorageMatch> {
+    let mut best = i32::MAX;
+    let mut found = None;
+    for market in [false, true] {
+        for (site, s) in sites.iter().enumerate() {
+            if s.radius.is_some() != market || Some(s.entity) == exclude {
+                continue;
+            }
+            let inventory = &storages[s.storage];
+            if !market {
+                let flags = if s.location_flags == 0 {
+                    inventory.accepts
+                } else {
+                    s.location_flags
+                };
+                if materials[material].flags & flags == 0 {
+                    continue;
+                }
+            }
+            let ok = if put {
+                inventory.fits(materials, material, count)
+            } else {
+                inventory.available(material).wrapping_sub(count) >= 0
+            };
+            if !ok {
+                continue;
+            }
+            let entrance = map.entrance(s.entity, rng);
+            let rank = map.rank(entrance, cell);
+            if rank < best {
+                let point = if market {
+                    map.market_position(s.entity, cell, rng)
+                } else {
+                    map.storage_position(s.entity, cell)
+                };
+                if let Some((r, target)) = point {
+                    if r >= 0 && r < best {
+                        best = rank;
+                        found = Some(StorageMatch {
+                            site,
+                            storage: s.storage,
+                            material,
+                            target,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    found
+}
+
 /// Port of FUN_1400cb420 (ConsumeRawMaterial, vtable 0x140166050).
 /// Reserved requests bypass the availability check; mutations happen in list order.
 pub fn consume_stored(storage: &mut Storage, items: &[(usize, i32)], reserved: bool) -> bool {

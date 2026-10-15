@@ -32,3 +32,4 @@ pub mod spawn;
 pub mod status;
 pub mod stock;
 pub mod terrain;
+pub mod town;
