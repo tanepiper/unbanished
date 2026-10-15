@@ -12,6 +12,7 @@
 //! On the map: left/right drag to rotate, middle drag to pan, wheel to zoom, WASD/arrows to move,
 //! Escape for the main menu.
 
+mod building_ui;
 mod create_bar;
 mod entity_ui;
 mod gameplay;

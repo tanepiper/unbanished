@@ -1,4 +1,5 @@
 //! EntityUI hosts opened by EditTool::Select (FUN_140102880).
+use crate::building_ui::{Controller, EntityData};
 use crate::{loops::Screen, selection::Entity, start::StartingTown};
 use banished_formats::{
     game::{self, UiController},
@@ -10,6 +11,11 @@ pub struct EntityWindow {
     pub entity: Entity,
     pub root: NodeId,
     pub controllers: Vec<(UiController, NodeId)>,
+    /// The attached controllers, in UIDescription order.
+    pub bound: Vec<Controller>,
+    pub pages: Option<NodeId>,
+    /// The template's WorkPlaceDescription names a profession.
+    pub workplace_profession: bool,
     pub pinned: bool,
 }
 
@@ -70,6 +76,7 @@ impl EntityWindows {
             }
         }
         let mut controllers = Vec::new();
+        let mut bound = Vec::new();
         for c in desc.controllers {
             let Some(slot) = ui.find(root, &c.slot) else {
                 log::warn!("{template}: missing slot {}", c.slot);
@@ -88,10 +95,7 @@ impl EntityWindows {
                 ui.add_child(slot, element);
             }
             if c.type_id != 0 {
-                log::info!(
-                    "{template}: entity controller {:#010x} attached; refresh pending",
-                    c.type_id
-                );
+                bound.push(Controller::bind(ui, archive, c.type_id, element));
             }
             controllers.push((c, element));
         }
@@ -107,17 +111,64 @@ impl EntityWindows {
         if let Some(label) = ui.find(root, "labelTitle") {
             ui.set_text(label, &title);
         }
+        let workplace_profession = archive
+            .read_ref(&format!("{template}:workplace"))
+            .ok()
+            .and_then(|b| game::workplace_description(&b).ok())
+            .is_some_and(|w| w.profession.is_some());
+        let pages = ui.find(root, "pages");
         self.open.push(EntityWindow {
             entity,
             root,
             controllers,
+            bound,
+            pages,
+            workplace_profession,
             pinned: false,
         });
-        // Not ported: controller refresh/commands; building and citizen slices fill these hosts.
+        self.refresh(ui, archive, town);
         log::debug!(
             "entity host has {} controllers",
             self.open.last().unwrap().controllers.len()
         );
+    }
+
+    /// Each controller's slot `+0x38` refresh with the entity's current data (read-only).
+    pub fn refresh(&mut self, ui: &mut Ui, archive: &Archive, town: &StartingTown) {
+        for w in &mut self.open {
+            let active_page = w
+                .pages
+                .and_then(|p| match &ui.node(p).kind {
+                    Kind::Control(Control::Page { selected, .. }) => Some(*selected),
+                    _ => None,
+                })
+                .unwrap_or(0);
+            let (storage, status) = match w.entity {
+                Entity::Placed(p) => (
+                    town.storage_sites
+                        .iter()
+                        .find(|s| s.entity == p)
+                        .and_then(|s| town.storages.get(s.storage)),
+                    // Not ported: building StatusIconComponent bits.
+                    0,
+                ),
+                Entity::Citizen(i) => town
+                    .agents
+                    .states
+                    .get(i)
+                    .map_or((None, 0), |s| (Some(&s.carried), s.status)),
+            };
+            let data = EntityData {
+                storage,
+                materials: &town.materials,
+                status,
+                workplace_profession: w.workplace_profession,
+                active_page,
+            };
+            for c in &mut w.bound {
+                c.refresh(ui, archive, &data);
+            }
+        }
     }
 
     pub fn close_containing(

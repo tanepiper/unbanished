@@ -1064,6 +1064,32 @@ pub fn citizen_description(data: &[u8]) -> Result<CitizenDescription> {
     Ok(value)
 }
 
+/// `WorkPlaceDescription` (serializer `FUN_1401348f0`): the profession its workers take
+/// (`+0x20`; none for storage barns and houses) and a second reference (`+0x28`).
+#[derive(Debug, Clone, Default)]
+pub struct WorkPlaceDescription {
+    pub profession: Option<String>,
+    pub reference_28: Option<String>,
+}
+
+pub fn workplace_description(data: &[u8]) -> Result<WorkPlaceDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("WorkPlaceDescription") {
+            return format_err(format!(
+                "expected WorkPlaceDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(WorkPlaceDescription {
+                profession: r.external_ref()?,
+                reference_28: r.external_ref()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// A named point of a `Pathfinding::PointList` (position in model space, yaw in degrees).
 #[derive(Debug, Clone, PartialEq)]
 pub struct NamedPoint {

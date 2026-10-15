@@ -511,6 +511,9 @@ impl GameLoop for GameplayLoop {
             }
         }
         self.utility.update(ctx.ui, &self.status_values());
+        if let Some(town) = &self.town {
+            self.entities.refresh(ctx.ui, ctx.archive, town);
+        }
         self.position_entity_window(ctx);
         if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
             let grid = banished_game::terrain::HeightGrid {
