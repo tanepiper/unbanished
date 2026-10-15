@@ -72,6 +72,8 @@ pub struct GameplayLoop {
     ambience_stale: bool,
     /// The pause menu (`Dialog/Pause.rsc`); while open `UserInterface::PausesGame` holds.
     pause_menu: Option<crate::pause_menu::PauseMenu>,
+    /// The EnvironmentDescription's weather list: (Weather description, ambient entity).
+    weather: Vec<(Option<String>, Option<String>)>,
 }
 
 impl GameplayLoop {
@@ -107,6 +109,7 @@ impl GameplayLoop {
             ambience: None,
             ambience_stale: false,
             pause_menu: None,
+            weather: Vec::new(),
         }
     }
 
@@ -453,7 +456,7 @@ impl GameplayLoop {
         }
         self.calendar.advance(ticks(dt));
         if let Some(env) = &mut self.environment {
-            env.update(self.calendar.seconds(), &mut self.rng);
+            env.update(self.calendar.seconds(), dt, &mut self.rng);
         }
         // `FUN_140091780`: recompute stock (`FUN_14008f3a0`), then its warnings
         // (`FUN_1400915d0`, posted through `FUN_14009aa50` at severity 3).
@@ -562,9 +565,17 @@ impl GameplayLoop {
                 Some(a) => {
                     if std::mem::take(&mut self.ambience_stale) {
                         a.reweigh(town);
+                        a.sync_entities(ctx.audio, ctx.archive, town);
                     }
                     a.fade(ctx.audio, temperature);
                 }
+            }
+        }
+        // The precipitation emitters follow the environment's effects (`FUN_1400999b0`).
+        if let (Some(a), Some(env)) = (&mut self.ambience, &self.environment) {
+            for (slot, (_, ambient)) in self.weather.iter().enumerate().take(2) {
+                let intensity = env.effects[slot].map(|e| e.intensity);
+                a.weather(ctx.audio, ctx.archive, slot, ambient.as_deref(), intensity);
             }
         }
         for (at, effect) in std::mem::take(&mut self.pending_sounds) {
@@ -626,6 +637,7 @@ impl GameLoop for GameplayLoop {
         match World::generate(ctx.archive, &self.params) {
             Ok(world) => {
                 let lighting = Lighting::from_month(&world.environment.months[0]);
+                self.weather = world.environment.weather.clone();
                 self.environment_months = world.environment.months;
                 log::info!(
                     "{} terrain ready for {} ({}, {})",
@@ -670,7 +682,18 @@ impl GameLoop for GameplayLoop {
             .read_ref(&reference)
             .and_then(|d| climate_generator(&d))
         {
-            Ok(c) => self.environment = Some(Environment::new(Climate::from(&c))),
+            Ok(c) => {
+                let mut env = Environment::new(Climate::from(&c));
+                // The weather list's descriptions (`Weather +0x5c`: fade time).
+                for (slot, (weather, _)) in self.weather.iter().enumerate().take(2) {
+                    env.fade_times[slot] = weather
+                        .as_deref()
+                        .and_then(|r| ctx.archive.read_ref(&r.replace('\\', "/")).ok())
+                        .and_then(|d| banished_formats::weather::weather(&d).ok())
+                        .map(|w| w.fade_time);
+                }
+                self.environment = Some(env);
+            }
             Err(e) => log::error!("{reference}: {e}"),
         }
     }
@@ -1245,6 +1268,75 @@ mod tests {
             assert!(!ctx.audio.scene.is_paused(sound_type::MUSIC));
             gameplay.update(ctx, 1.0 / 30.0);
             assert!(gameplay.calendar.seconds() > seconds);
+        });
+    }
+
+    #[test]
+    fn rain_effect_drives_the_rain_emitter() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        assert_eq!(
+            gameplay.environment.as_ref().unwrap().fade_times[0],
+            Some(20.0)
+        );
+        game.with_ctx(|_, ctx| {
+            ctx.audio.set_master_volume(0.0);
+            gameplay.update(ctx, 1.0 / 30.0);
+            let (_, before) = ctx.audio.scene.active();
+            gameplay.environment.as_mut().unwrap().effects[0] =
+                Some(banished_game::environment::WeatherEffect {
+                    intensity: 0.5,
+                    direction: 1.0,
+                });
+            gameplay.update(ctx, 1.0 / 30.0);
+            assert!(gameplay.ambience.as_ref().unwrap().weather_active(0));
+            let (_, during) = ctx.audio.scene.active();
+            assert_eq!(during, before + 1);
+            gameplay.environment.as_mut().unwrap().effects[0] = None;
+            gameplay.update(ctx, 1.0 / 30.0);
+            assert!(!gameplay.ambience.as_ref().unwrap().weather_active(0));
+            assert_eq!(ctx.audio.scene.active().1, before);
+        });
+    }
+
+    #[test]
+    fn building_emitters_register_without_playing() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            ctx.audio.set_master_volume(0.0);
+            gameplay.update(ctx, 1.0 / 30.0);
+            let town = gameplay.town.as_ref().unwrap();
+            let building = town
+                .placed
+                .iter()
+                .position(|p| {
+                    p.alive
+                        && ctx
+                            .archive
+                            .read_ref(&format!(
+                                "{}:ambientemitter",
+                                town.templates[p.template]
+                                    .reference
+                                    .replace('\\', "/")
+                                    .split(':')
+                                    .next()
+                                    .unwrap()
+                            ))
+                            .is_ok()
+                })
+                .expect("a building with an ambient emitter");
+            let at = town.placed[building].position;
+            let ambience = gameplay.ambience.as_mut().unwrap();
+            assert!(ambience.entity_emitters() > 0);
+            // Autostart is off: nothing plays until building state starts a slot (fire).
+            let (_, before) = ctx.audio.scene.active();
+            ambience.start_entity_slot(ctx.audio, building, 0, glam::Vec3::from(at), None);
+            assert_eq!(ctx.audio.scene.active().1, before + 1);
+            ambience.stop_entity_slot(ctx.audio, building, 0);
+            assert_eq!(ctx.audio.scene.active().1, before);
         });
     }
 

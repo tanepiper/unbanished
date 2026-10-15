@@ -62,9 +62,20 @@ sequence; see [GAME-LOOP-STEP-19.md](GAME-LOOP-STEP-19.md).
      - one `RandFloat()` picks the state: the first `i` in 0..2 with
        `sample < bias + month[i]`, otherwise 3. The month is `slice / 4`;
      - state 0 raises the level and state 3 lowers it, clamped to 0..5.
-5. **Effects.** If weather effects are enabled (option byte `DAT_1401cbde0 + 0x16`) and the state
-   is 0, slot 0 (Rain, `Environment/Rain.rsc`, with ambient rain audio) is active above 34°F, and
-   slot 1 (Snow) at 34°F or below (`FUN_140099790`).
+5. **Effects.** If weather effects are enabled (option byte `DAT_1401cbde0 + 0x16`, on by
+   default) and the state is 0, slot 0 (Rain, `Environment/Rain.rsc`, with ambient rain audio)
+   is wanted above 34°F, and slot 1 (Snow) at 34°F or below (`FUN_140099790`, called for both
+   slots after the state draw):
+   - a wanted slot without a geometry gets one (`FUN_1400d93e0`, intensity `+0xc0` = 0,
+     direction `+0xc4` = +1) and sets the state to 0; with an ambient entity in the weather list
+     (Rain only) it also registers that entity's emitter at the origin at volume 0;
+   - an unwanted slot with a geometry gets direction −1 and **forces the state to 3**. So a
+     temperature crossing 34°F ends precipitation until the next slice's draw;
+   - at the start of each update (before step 1), every geometry's update (`FUN_1400d8330`)
+     moves its intensity by `dt / fade × direction` (fade = `Weather +0x5c`, 20 s for both),
+     clamped to 0..1, and the emitter's first slot volume follows. At 0 (or with the option
+     off) the geometry and its emitter entity are removed. The renderer's rain value is the
+     largest intensity (`FUN_1400988f0`).
 6. **Timed spawn.** An accumulator at `+0x70` adds the frame delta. When `T > 34`, the state is 0
    and game flag bit 7 is clear, `FUN_1400ae760` can spawn an entity from the environment template
    (`+0x108` timer settings). This is *inferred* to be the rain-time event (for example
@@ -93,8 +104,11 @@ The Status Bar ([UTILITY-WINDOWS.md](UTILITY-WINDOWS.md)) shows:
   deer, crops and livestock (see [RESOURCE-SEEDING.md](RESOURCE-SEEDING.md)). Citizens and other
   managers draw from it during play too. Until those are ported, the port's environment draws start
   at a different stream position than the original's.
+- **Ported:** the effect slots' intensity, direction and state forcing
+  (`Environment::effects`, `fade_times` from the `Weather` descriptions), the renderer's rain
+  value, and the rain ambient emitter (`apps/game/src/ambience.rs`).
 - **Not ported:**
-  - the rain and snow effect geometry and its intensity (`+0xc0`), so rain stays 0;
-  - the rain ambient emitter;
-  - the timed spawn (`FUN_1400ae760`);
+  - the precipitation particles themselves (`FUN_1400d9450` builds them with a private Random;
+    `FUN_1400d8330` moves them);
+  - the timed spawn (`FUN_1400ae760`, the Tornado template, drawing on the game Random);
   - save/load of the controller state (`FUN_140099160`).

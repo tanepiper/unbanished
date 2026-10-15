@@ -81,6 +81,9 @@ The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e
 | Placement | `FUN_1401050c0` move (new cell, every 0.05 s at most), `FUN_1401055c0` thunk, `FUN_140105610` error | `gameplay.rs` |
 | Event alert | `FUN_140068590`: `WarningEffect` when the ribbon gains a notification | `gameplay.rs` |
 | Animation sounds | `AnimAudioEvent` (`FUN_14008d310`): `RandFloat()` on the game Random against the probability, then `PlayEffect3D(effect, 4)` at the entity (tree falls, tools, animals) | the draw is in the simulation (`seeding.rs` `animate`); the sound plays on the next audio update |
+| Rain | `FUN_140099790` registers `RainEffect.rsc:ambient` (autostart) at the origin when the Rain effect starts; `FUN_1400999b0` sets its first slot's volume to the effect's intensity every iteration and removes it at 0. Snow has no ambient | `environment.rs` effects, `ambience.rs` `weather` |
+| Building emitters | Templates with an `ambientemitter` component (FireEffect in slot 0 of most buildings; CrowdEffect in slot 1 of WoodHouse, StoneHouse, Hostel; autostart off). Fire: `FUN_140049f70` starts the FireDescription `+0x2c` slot at the model position (with fire event 0x1f), `FUN_140049e20` removes it. Crowd: `FUN_14012fbe0` (first resident) and `FUN_14012ee40` (residence update while occupied) start slot 1 at volume 1; `FUN_14012fa20` (last resident leaves) removes it | `ambience.rs` `sync_entities` registers them; `start_entity_slot`/`stop_entity_slot` wait for fire and residences |
+| Tornado | `Template/Tornado.rsc:ambientemitter` (`TornadoEffect`, autostart): plays while a tornado entity exists. The tornado is spawned by the environment's timed spawn `FUN_1400ae760` | registered like the buildings once the tornado exists |
 | Map ambience | `FUN_1400a57c0`: an Environment emitter per 16-cell region (`FUN_140043c70`: heaviest terrain class, warm/cold effects cross-faded over 31–36 °F), the wind at height 30 (Medium), river emitters every 8 units of river path | `ambience.rs` (environment and wind) |
 
 ## Deviations
@@ -101,8 +104,9 @@ The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e
 
 - River ambience. It needs the in-game river geometry (`Game +0x110`, river path list
   `+0x1e0`); generated worlds draw no water yet.
-- Building emitters (fire, crowd: autostart off, driven by building state), rain and tornado
-  effects.
+- Starting building emitters: fires (`FUN_140049f70`) and residences (`FUN_14012fbe0`) are not
+  ported, so `start_entity_slot` has no caller yet. The tornado spawn (`FUN_1400ae760`) is not
+  ported.
 - The SaveLoad dialog's hover click (`FUN_1400bbc60`, `Play(4)` when the hovered save row
   changes): the dialog is not ported.
 - Pause menu buttons other than Resume, Menu and Quit (Load, Save, Options, Achievements, Mods,
@@ -122,6 +126,10 @@ The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e
   3D attenuation over emitters, pause and resume.
 - `crates/formats/tests/audio.rs`: every SoundEffect, MusicList, AnimAudioEvent and ambient
   description parses.
+- `banished-game` test `rain_fades_in_and_out`; `apps/game` tests
+  `rain_effect_drives_the_rain_emitter` (the emitter follows the effect and leaves with it) and
+  `building_emitters_register_without_playing` (registered silently; a started slot plays and
+  stops); `crates/formats` test `weather_descriptions_parse`.
 - `apps/game` test `pause_menu_pauses_sounds_and_the_simulation`: Escape opens the pause
   menu, which pauses types 2–4 (not UI) and leaves the calendar and the game Random untouched;
   Escape resumes.

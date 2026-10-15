@@ -7,6 +7,9 @@
 //!   where `t` is the temperature's place in the description's fade range;
 //! - one `Audio/Effects/WindEffect.rsc:ambient` at height `float_170`.
 //!
+//! Also the Rain effect's emitter (`FUN_140099790`) and the emitters of placed entities whose
+//! template has an `ambientemitter` component (fire, crowd, tornado).
+//!
 //! Emitters of the same SoundEffect share one 3D effect (`FindEffect3D`, `AddEmitter`), which
 //! plays at the loudest emitter in reach.
 //!
@@ -15,6 +18,7 @@
 //! map changes instead of on its scheduled visit. The river emitters (every `float_130` along
 //! the river paths) wait for the in-game water geometry (`Game +0x110`).
 
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use banished_audio::Effect;
@@ -42,6 +46,8 @@ struct Slot {
 struct Emitter {
     position: Vec3,
     slots: Vec<Slot>,
+    /// `AmbientEmitterDescription +0x20`: activation starts the slots.
+    autostart: bool,
 }
 
 impl Emitter {
@@ -62,10 +68,47 @@ impl Emitter {
             .add_emitter(handle, self.position, self.slots[i].volume);
     }
 
-    /// Activation (`FUN_140043770`): every slot.
+    /// Activation (`FUN_140043500`): with autostart, every slot (`FUN_140043770`).
     fn activate(&mut self, audio: &mut Audio) {
+        if !self.autostart {
+            return;
+        }
         for i in 0..self.slots.len() {
             self.start_slot(audio, i);
+        }
+    }
+
+    /// `FUN_1400432c0`: move every started slot's emitter.
+    fn move_to(&mut self, audio: &mut Audio, to: Vec3) {
+        if to == self.position {
+            return;
+        }
+        for s in &self.slots {
+            if s.handle != 0 {
+                audio.scene.move_emitter(s.handle, self.position, to);
+            }
+        }
+        self.position = to;
+    }
+
+    /// Removal (`FUN_1400436d0`, slot `+0x38`): leave every slot's 3D effect and stop the
+    /// effect when no emitter is left.
+    fn deactivate(&mut self, audio: &mut Audio) {
+        for slot in &mut self.slots {
+            if slot.handle != 0 {
+                audio.scene.remove_emitter(slot.handle, self.position);
+                if audio.scene.emitter_count(slot.handle) == 0 {
+                    audio.scene.stop_effect_3d(&mut audio.device, slot.handle);
+                }
+            }
+            slot.handle = 0;
+        }
+    }
+
+    /// `SetEmitterVolume` on slot `i` when its volume changes.
+    fn set_volume(&mut self, audio: &mut Audio, i: usize, volume: f32) {
+        if let Some(effect) = self.slots.get(i).map(|s| s.effect.clone()) {
+            self.set(audio, i, effect, volume);
         }
     }
 
@@ -112,29 +155,50 @@ pub struct Ambience {
     desc: Option<AmbientEnvironmentDescription>,
     regions: Vec<Region>,
     wind: Option<Emitter>,
+    /// The precipitation slots' ambient emitters (Rain: `RainEffect.rsc:ambient`).
+    weather: Vec<Option<Emitter>>,
+    /// Placed entities whose template has an `ambientemitter` component, by entity index:
+    /// (template index, emitter).
+    entities: HashMap<usize, (usize, Emitter)>,
+    /// Per template index: its file's AmbientEmitterDescription, if any.
+    entity_templates: HashMap<usize, Option<Emitter>>,
     /// Loaded effects per terrain class: (warm, cold).
     effects: Vec<(Option<Rc<Effect>>, Option<Rc<Effect>>)>,
     fade_t: f32,
 }
 
-fn load_emitter(audio: &mut Audio, archive: &Archive, file: &str) -> Vec<Slot> {
+/// The `{file}:ambientemitter` AmbientEmitterDescription as an unregistered emitter at the
+/// origin (the component's position `+0x28` starts at zero).
+fn load_emitter(audio: &mut Audio, archive: &Archive, file: &str) -> Option<Emitter> {
     let d = archive
         .read_ref(&format!("{file}:ambientemitter"))
         .ok()
-        .and_then(|b| ambient_emitter_description(&b).ok());
-    d.map(|d| {
-        d.effects
-            .iter()
-            .map(|e| Slot {
-                handle: 0,
-                volume: 1.0,
-                effect: e
-                    .as_deref()
-                    .and_then(|r| audio.effect(archive, &r.replace('\\', "/"))),
-            })
-            .collect()
+        .and_then(|b| ambient_emitter_description(&b).ok())?;
+    let slots = d
+        .effects
+        .iter()
+        .map(|e| Slot {
+            handle: 0,
+            volume: 1.0,
+            effect: e
+                .as_deref()
+                .and_then(|r| audio.effect(archive, &r.replace('\\', "/"))),
+        })
+        .collect();
+    Some(Emitter {
+        position: Vec3::ZERO,
+        slots,
+        autostart: d.autostart,
     })
-    .unwrap_or_default()
+}
+
+/// Unregistered emitter with no slots (a missing description).
+fn empty_emitter() -> Emitter {
+    Emitter {
+        position: Vec3::ZERO,
+        slots: Vec::new(),
+        autostart: false,
+    }
 }
 
 impl Ambience {
@@ -173,11 +237,14 @@ impl Ambience {
             desc,
             regions: Vec::new(),
             wind: None,
+            weather: Vec::new(),
+            entities: HashMap::new(),
+            entity_templates: HashMap::new(),
             effects,
             fade_t: f32::NAN,
         };
         let n = town.cells.size as i32;
-        let slots = load_emitter(audio, archive, ENVIRONMENT);
+        let slots = load_emitter(audio, archive, ENVIRONMENT).map_or_else(Vec::new, |e| e.slots);
         let half = (n >> 1) as f32 - 0.5;
         let mut y = 0;
         while y < n {
@@ -192,6 +259,7 @@ impl Ambience {
                     emitter: Emitter {
                         position,
                         slots: slots.clone(),
+                        autostart: true,
                     },
                 });
                 x += step;
@@ -203,13 +271,152 @@ impl Ambience {
         for r in &mut ambience.regions {
             r.emitter.activate(audio);
         }
-        let mut wind = Emitter {
-            position: Vec3::new(0.0, 0.0, wind_height),
-            slots: load_emitter(audio, archive, WIND),
-        };
+        let mut wind = load_emitter(audio, archive, WIND).unwrap_or_else(empty_emitter);
+        wind.position = Vec3::new(0.0, 0.0, wind_height);
         wind.activate(audio);
         ambience.wind = Some(wind);
+        ambience.sync_entities(audio, archive, town);
         ambience
+    }
+
+    /// A precipitation slot's ambient emitter, following the environment's effect
+    /// (`FUN_140099790`, `FUN_1400999b0`). `ambient` is the slot's ambient entity
+    /// (`EnvironmentDescription` weather list `+8`); `intensity` is the effect's `+0xc0` while
+    /// it exists.
+    ///
+    /// - When the effect starts, an entity with the ambient's AmbientEmitterComponent is
+    ///   created (`FUN_1400c8bf0`, `FUN_1400c9d70`; activation starts its slots), moved to the
+    ///   origin (`FUN_1400432c0`) and its first slot's volume set to 0.
+    /// - Every iteration the first slot's volume follows the intensity.
+    /// - When the effect ends the entity is removed, which stops its slots (`FUN_1400436d0`).
+    pub fn weather(
+        &mut self,
+        audio: &mut Audio,
+        archive: &Archive,
+        slot: usize,
+        ambient: Option<&str>,
+        intensity: Option<f32>,
+    ) {
+        if self.weather.len() <= slot {
+            self.weather.resize_with(slot + 1, || None);
+        }
+        let file = ambient
+            .map(|r| r.replace('\\', "/"))
+            .map(|r| match r.rsplit_once(':') {
+                Some((file, _)) => file.to_string(),
+                None => r,
+            });
+        match (intensity, file) {
+            (Some(volume), Some(file)) => {
+                let emitter = self.weather[slot].get_or_insert_with(|| {
+                    let mut e = load_emitter(audio, archive, &file).unwrap_or_else(empty_emitter);
+                    e.activate(audio);
+                    e.set_volume(audio, 0, 0.0);
+                    e
+                });
+                emitter.set_volume(audio, 0, volume);
+            }
+            _ => {
+                if let Some(mut e) = self.weather[slot].take() {
+                    e.deactivate(audio);
+                }
+            }
+        }
+    }
+
+    /// Register the emitters of placed entities whose template lists an `ambientemitter`
+    /// component (buildings: FireEffect in slot 0, CrowdEffect in slot 1 for houses; the
+    /// tornado), and remove those of dead entities. Activation (`FUN_140043500`) starts nothing
+    /// for them: only the Tornado's description has autostart. Their slots are started by
+    /// building state:
+    ///
+    /// - fire: `FUN_140049f70` (FireDescription `+0x2c` slot, at the model position) and
+    ///   `FUN_140049e20` (put out: the slot's emitter removed);
+    /// - crowd: `FUN_14012fbe0` (a residence's first resident) and `FUN_14012ee40` (residence
+    ///   update while occupied) start slot 1 at volume 1 at the model position;
+    ///   `FUN_14012fa20` (the last resident leaves) removes it.
+    ///
+    /// Residences and fires are not ported yet, so the port registers the emitters and
+    /// exposes [`Ambience::start_entity_slot`] / [`Ambience::stop_entity_slot`] for them.
+    pub fn sync_entities(&mut self, audio: &mut Audio, archive: &Archive, town: &StartingTown) {
+        for (i, p) in town.placed.iter().enumerate() {
+            let registered = self.entities.get(&i).map(|(t, _)| *t);
+            if registered.is_some() && (!p.alive || registered != Some(p.template)) {
+                if let Some((_, mut e)) = self.entities.remove(&i) {
+                    e.deactivate(audio);
+                }
+            }
+            if !p.alive || self.entities.contains_key(&i) {
+                continue;
+            }
+            let template = self.entity_templates.entry(p.template).or_insert_with(|| {
+                let reference = town.templates[p.template].reference.replace('\\', "/");
+                let file = reference.split(':').next().unwrap_or(&reference);
+                load_emitter(audio, archive, file)
+            });
+            if let Some(t) = template {
+                let mut e = Emitter {
+                    position: t.position,
+                    slots: t.slots.clone(),
+                    autostart: t.autostart,
+                };
+                e.activate(audio);
+                self.entities.insert(i, (p.template, e));
+            }
+        }
+    }
+
+    /// Start an entity emitter's slot at `position` (`FUN_1400432c0`, `FUN_1400435c0`), and set
+    /// its volume when given (the crowd sets 1).
+    #[allow(dead_code)] // Called by fire (FUN_140049f70) and residences once they are ported.
+    pub fn start_entity_slot(
+        &mut self,
+        audio: &mut Audio,
+        entity: usize,
+        slot: usize,
+        position: Vec3,
+        volume: Option<f32>,
+    ) {
+        let Some((_, e)) = self.entities.get_mut(&entity) else {
+            return;
+        };
+        if slot >= e.slots.len() {
+            return;
+        }
+        e.move_to(audio, position);
+        e.start_slot(audio, slot);
+        if let Some(v) = volume {
+            e.set_volume(audio, slot, v);
+        }
+    }
+
+    /// Remove an entity emitter's slot from its 3D effect, stopping the effect when no emitter
+    /// is left (`FUN_140049e20`, `FUN_14012fa20`).
+    #[allow(dead_code)] // Called by fire and residences once they are ported.
+    pub fn stop_entity_slot(&mut self, audio: &mut Audio, entity: usize, slot: usize) {
+        let Some((_, e)) = self.entities.get_mut(&entity) else {
+            return;
+        };
+        let Some(s) = e.slots.get_mut(slot) else {
+            return;
+        };
+        if s.handle != 0 {
+            audio.scene.remove_emitter(s.handle, e.position);
+            if audio.scene.emitter_count(s.handle) == 0 {
+                audio.scene.stop_effect_3d(&mut audio.device, s.handle);
+            }
+        }
+        s.handle = 0;
+    }
+
+    #[cfg(test)]
+    pub fn entity_emitters(&self) -> usize {
+        self.entities.len()
+    }
+
+    #[cfg(test)]
+    pub fn weather_active(&self, slot: usize) -> bool {
+        self.weather.get(slot).is_some_and(|w| w.is_some())
     }
 
     #[cfg(test)]

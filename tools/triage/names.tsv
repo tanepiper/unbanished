@@ -159,3 +159,13 @@
 1401071b0	GameController::OpenPauseMenu	docs/AUDIO.md
 1400b9c60	MainMenuDialog::ReturnToMenu	docs/AUDIO.md
 1400bbc60	SaveLoadDialog::SetHoverRow	docs/AUDIO.md
+140099790	Environment::SetWeatherEffect	docs/ENVIRONMENT.md
+1400d8330	WeatherGeometry::Update	docs/ENVIRONMENT.md
+1400d93e0	WeatherGeometry::WeatherGeometry	docs/ENVIRONMENT.md
+1400d9450	WeatherGeometry::Build	docs/ENVIRONMENT.md
+1400432c0	AmbientEmitterComponent::SetPosition	docs/AUDIO.md
+1400436d0	AmbientEmitterComponent::Remove	docs/AUDIO.md
+140049f70	FireComponent::Ignite	docs/AUDIO.md
+140049e20	FireComponent::PutOut	docs/AUDIO.md
+14012fbe0	ResidenceComponent::AddResident	docs/AUDIO.md
+14012fa20	ResidenceComponent::RemoveResident	docs/AUDIO.md

@@ -59,3 +59,21 @@ fn all_audio_resources_parse() {
     assert!(counts["SoundEffect"] > 30);
     assert_eq!(counts["MusicList"], 1);
 }
+
+/// The precipitation descriptions that drive the rain ambience (`Weather`, `FUN_1400d9160`).
+#[test]
+fn weather_descriptions_parse() {
+    let Some(archive) = archive() else { return };
+    let rain = banished_formats::weather::weather(
+        &archive.read_ref("Environment/Rain.rsc:resource").unwrap(),
+    )
+    .unwrap();
+    assert_eq!(rain.fade_time, 20.0);
+    assert_eq!(rain.count, 625);
+    let snow = banished_formats::weather::weather(
+        &archive.read_ref("Environment/Snow.rsc:resource").unwrap(),
+    )
+    .unwrap();
+    eprintln!("rain {rain:?}\nsnow {snow:?}");
+    assert!(snow.fade_time > 0.0);
+}
