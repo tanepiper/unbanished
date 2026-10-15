@@ -389,9 +389,32 @@ The shipped citizen description gives adult age 2.0, starting ages 2.2–4.0 and
 the description's age units. A Medium start makes 5 couples and 0 to 25 children, for example
 10 / 0 / 5.
 
-The port is in `crates/game/src/citizens.rs`, and the Status Bar shows its population. Not ported
-yet:
+The port is in `crates/game/src/citizens.rs`, and the Status Bar shows its population. ### Drawing citizens
 
-- the citizens' models and animation;
+`Template/Citizen.rsc:model` uses variant 0 for men and 1 for women. Both are skinned meshes with
+`Material\OpaqueSkin\OpaqueCharacterMaterial`. That material's vertex shader
+(`NormalSkin_charactervs`) has these properties:
+
+- **Skinning:** it skins with four weights, the bone palette at `c41` (four rows per bone).
+- **Atlas:** it samples the diffuse at `u = (u/512 + outfit) × 0.125`. The texture is an atlas of
+  8 outfits side by side.
+- **Outfit:** the outfit is citizen `+0x34` (`(Rand() + Rand()) & 7`).
+  `FUN_14011a5e0` and `FUN_14011a700` write it into the mesh instance's `w`, which reaches the
+  shader through the root transform's translation `w` (`c44.w`).
+- **Pixel stage:** this is the ordinary `Normal_ps`.
+
+Without the outfit column the whole atlas is stretched across the body.
+
+The port skins each citizen mesh once on the CPU in the `Idle` pose (`CitizenAnims` clip 0,
+time 0). It uses the shared `banished_game::animation::sample_pose` and
+`banished_formats::skeleton::skin_to_static`. The outfit goes in the instance matrix's `[15]`,
+which the `Character` shader kind reads.
+
+The material classification and the atlas rule live in `banished_gfx::material`. The viewer uses
+them too (outfit 0), and also uses the same verified pose sampler for animation playback.
+
+Not ported yet:
+
+- per-citizen animation (walking, work clips) and GPU skinning;
 - needs and AI;
 - homes (none are assigned at New Game unless Easy houses exist).

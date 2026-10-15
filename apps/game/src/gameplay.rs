@@ -9,9 +9,9 @@ use banished_game::random::Random;
 use banished_game::scheduler::ticks;
 use banished_ui::{Event, Ui};
 
+use crate::create_bar::CreateBar;
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
 use crate::menu::MenuLoop;
-use crate::create_bar::CreateBar;
 use crate::placement_tool::PlacementTool;
 use crate::render::Lighting;
 use crate::scene::{Camera, SceneCamera, SceneView};

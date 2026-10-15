@@ -21,7 +21,7 @@ use banished_game::seeding::{Cells, Placed, ScheduledComponent, Seeder, Template
 use banished_game::stock::{distribute, RawMaterial, Storage};
 use banished_game::terrain::HeightGrid;
 
-use crate::models::{placement_matrix, ModelInstance, SceneModels};
+use crate::models::{placement_matrix, GroupInstances, ModelInstance, SceneModels};
 
 /// `Template\X.rsc:resource` (profile lists omit the object name).
 /// `DAT_140178818`: children's model scale.
@@ -200,6 +200,32 @@ fn starting_goods(
     (materials, storages)
 }
 
+/// The `Idle` pose (clip 0 of each variant's animation group) of every citizen mesh.
+fn idle_poses(
+    archive: &Archive,
+    model: &banished_formats::game::ModelDescription,
+) -> HashMap<String, Vec<banished_formats::skeleton::Transform>> {
+    let mut poses = HashMap::new();
+    for v in &model.variants {
+        let Some(group) = v
+            .animations
+            .as_deref()
+            .and_then(|r| read(archive, r))
+            .and_then(|d| banished_formats::types::animation_group(&d).ok())
+        else {
+            continue;
+        };
+        let Some(idle) = group.clips.iter().find(|c| c.name == "Idle") else {
+            continue;
+        };
+        let pose = banished_game::animation::sample_pose(idle, 0, 0);
+        for mesh in v.meshes.iter().flatten() {
+            poses.insert(mesh.clone(), pose.clone());
+        }
+    }
+    poses
+}
+
 /// `FUN_140002080`: the start cell's centre on the ground.
 fn grid_start(map_size: usize, terrain: &HeightGrid, start: (i32, i32)) -> [f32; 3] {
     let n = map_size as i32;
@@ -277,6 +303,10 @@ pub struct StartingTown {
     removed: Vec<usize>,
     pub animation_events: Vec<(usize, String)>,
     citizen_model: Option<banished_formats::game::ModelDescription>,
+    /// Local pose each citizen mesh is skinned in: the `Idle` clip at time 0
+    /// (`Models\Citizen\CitizenAnims.rsc`, sampled with the shared `GetPoseAtTime` port).
+    /// Deviation: one shared pose until citizens animate individually.
+    citizen_pose: HashMap<String, Vec<banished_formats::skeleton::Transform>>,
     /// The placement tool's ghost (`PlacementTool +0x68`): mesh and transform.
     pub ghost: Option<(String, [f32; 16])>,
 }
@@ -346,6 +376,8 @@ impl StartingTown {
             start,
             placed.len()
         );
+        let citizen_model = read(archive, r"Template\Citizen.rsc:model")
+            .and_then(|d| banished_formats::game::model_description(&d).ok());
         Some(StartingTown {
             start,
             citizens,
@@ -358,8 +390,11 @@ impl StartingTown {
             scheduler,
             removed,
             animation_events,
-            citizen_model: read(archive, r"Template\Citizen.rsc:model")
-                .and_then(|d| banished_formats::game::model_description(&d).ok()),
+            citizen_pose: citizen_model
+                .as_ref()
+                .map(|m| idle_poses(archive, m))
+                .unwrap_or_default(),
+            citizen_model,
             ghost: None,
         })
     }
@@ -413,7 +448,7 @@ impl StartingTown {
         models.update_instances(archive, self.model_instances());
     }
 
-    fn model_instances(&self) -> Vec<(String, usize, Vec<ModelInstance>)> {
+    fn model_instances(&self) -> Vec<GroupInstances> {
         let mut groups: HashMap<String, Vec<ModelInstance>> = HashMap::new();
         for p in &self.placed {
             if !p.alive {
@@ -455,8 +490,12 @@ impl StartingTown {
                 } else {
                     CHILD_SCALE
                 };
+                // FUN_14011a5e0/FUN_14011a700 write the outfit (`+0x34`) into the mesh
+                // instance's `w`, read by the character shader from the root translation.
+                let mut matrix = placement_matrix(c.position, [s, s, s], 0.0);
+                matrix[15] = c.appearance as f32;
                 groups.entry(mesh.clone()).or_default().push(ModelInstance {
-                    matrix: placement_matrix(c.position, [s, s, s], 0.0),
+                    matrix,
                     locals: None,
                 });
             }
@@ -467,7 +506,13 @@ impl StartingTown {
                 locals: None,
             });
         }
-        let mut list: Vec<_> = groups.into_iter().map(|(m, i)| (m, 0, i)).collect();
+        let mut list: Vec<_> = groups
+            .into_iter()
+            .map(|(m, i)| {
+                let pose = self.citizen_pose.get(&m).cloned();
+                (m, 0, i, pose)
+            })
+            .collect();
         list.sort_by(|a, b| a.0.cmp(&b.0));
         list
     }

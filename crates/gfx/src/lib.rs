@@ -1,5 +1,7 @@
-//! Rendering shared by the Banished apps (viewer and game): texture upload and the UI renderer.
+//! Rendering shared by the Banished apps (viewer and game): texture upload, the UI renderer and
+//! model material classification.
 
+pub mod material;
 mod texture;
 mod ui;
 

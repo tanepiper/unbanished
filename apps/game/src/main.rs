@@ -12,12 +12,12 @@
 //! On the map: left/right drag to rotate, middle drag to pan, wheel to zoom, WASD/arrows to move,
 //! Escape for the main menu.
 
+mod create_bar;
 mod gameplay;
 mod global;
 mod loops;
 mod menu;
 mod models;
-mod create_bar;
 mod placement_tool;
 mod render;
 mod scene;
@@ -605,11 +605,27 @@ mod native {
                 ))
             })
             .collect();
+        // `--wheel STEPS@SECONDS` scrolls the camera.
+        let mut wheels: Vec<(f32, f32)> = args
+            .windows(2)
+            .filter(|w| w[0] == "--wheel")
+            .filter_map(|w| {
+                let (steps, at) = w[1].split_once('@')?;
+                Some((steps.parse().ok()?, at.parse().ok()?))
+            })
+            .collect();
         let dt = 1.0 / 30.0;
         let mut t = 0.0;
         while t < seconds {
             game.update(dt);
             t += dt;
+            wheels.retain(|&(steps, at)| {
+                if t < at {
+                    return true;
+                }
+                game.wheel(steps);
+                false
+            });
             pointer.retain(|&(click, x, y, at)| {
                 if t < at {
                     return true;

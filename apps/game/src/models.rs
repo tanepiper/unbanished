@@ -16,51 +16,21 @@ use banished_formats::skeleton::{
 };
 use banished_formats::texture::decode_rgba;
 use banished_formats::types::{
-    graphics_mesh, image_buffer, material_instance, Bone, ImageBuffer, SKINNED_STRIDE,
-    STATIC_STRIDE,
+    graphics_mesh, image_buffer, material_instance, Bone, ImageBuffer, STATIC_STRIDE,
 };
 use glam::{Mat4, Quat, Vec3};
 use wgpu::util::DeviceExt;
 
-/// Which of the ported model shaders a range uses, from its material's base material.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum MaterialKind {
-    /// `Material\Opaque`, `OpaqueInWater` (`OpaqueMaterial_ps`).
-    Opaque,
-    /// `Material\OpaqueSnow`: roofs collect snow where the diffuse alpha allows.
-    OpaqueSnow,
-    /// `Material\AlphaTest`: opaque with a 0.5 alpha cut.
-    AlphaTest,
-    /// `Material\Foliage`: pines sway with the wind and hold snow on upward faces.
-    Foliage,
-    /// `Material\Billboard`: leaf cards expanded towards the camera (`BillboardMaterial_vs/ps`).
-    Billboard,
-}
+pub use banished_gfx::material::MaterialKind;
 
-pub const KINDS: [MaterialKind; 5] = [
+pub const KINDS: [MaterialKind; 6] = [
     MaterialKind::Opaque,
     MaterialKind::OpaqueSnow,
     MaterialKind::AlphaTest,
     MaterialKind::Foliage,
     MaterialKind::Billboard,
+    MaterialKind::Character,
 ];
-
-impl MaterialKind {
-    fn of(base: Option<&str>) -> MaterialKind {
-        let base = base.unwrap_or_default().replace('/', "\\");
-        if base.contains("\\Billboard\\") {
-            MaterialKind::Billboard
-        } else if base.contains("\\Foliage\\") {
-            MaterialKind::Foliage
-        } else if base.contains("\\OpaqueSnow\\") {
-            MaterialKind::OpaqueSnow
-        } else if base.contains("\\AlphaTest\\") {
-            MaterialKind::AlphaTest
-        } else {
-            MaterialKind::Opaque
-        }
-    }
-}
 
 /// One draw range of a mesh with its material textures.
 pub struct RangeData {
@@ -127,6 +97,10 @@ impl ModelGroup {
     }
 }
 
+/// One mesh's instances: mesh reference, material set, instances, and the local pose skinned
+/// meshes are drawn in (`None` = bind pose).
+pub type GroupInstances = (String, usize, Vec<ModelInstance>, Option<Vec<Transform>>);
+
 pub struct SceneModels {
     pub groups: Vec<ModelGroup>,
     pub revision: u64,
@@ -157,58 +131,12 @@ pub fn placement_matrix(position: [f32; 3], scale: [f32; 3], yaw: f32) -> [f32; 
     .to_cols_array()
 }
 
-/// Skin 32-byte skinned vertices (`ModelSkinLayout`: i16×4 position /512, i16×4 texcoords,
-/// unorm8×4 normal, unorm8×4 weights, u8×4 bones) with a palette into the 24-byte static layout.
-fn skin_to_static(vertices: &[u8], palette: &[Transform]) -> Vec<u8> {
-    let mut out = Vec::with_capacity(vertices.len() / SKINNED_STRIDE * STATIC_STRIDE);
-    for v in vertices.chunks_exact(SKINNED_STRIDE) {
-        let i16_at = |o: usize| i16::from_le_bytes([v[o], v[o + 1]]) as f32;
-        let p = [i16_at(0) / 512.0, i16_at(2) / 512.0, i16_at(4) / 512.0];
-        let n = [
-            v[16] as f32 / 127.5 - 1.0,
-            v[17] as f32 / 127.5 - 1.0,
-            v[18] as f32 / 127.5 - 1.0,
-        ];
-        let (mut sp, mut sn) = ([0.0f32; 3], [0.0f32; 3]);
-        for k in 0..4 {
-            let w = v[24 + k] as f32 / 255.0;
-            if w == 0.0 {
-                continue;
-            }
-            let t = palette
-                .get(v[28 + k] as usize)
-                .copied()
-                .unwrap_or(Transform::IDENTITY);
-            let q = t.apply(p);
-            let r = t.apply([0.0; 3]);
-            let m = t.apply(n);
-            for a in 0..3 {
-                sp[a] += q[a] * w;
-                sn[a] += (m[a] - r[a]) * w;
-            }
-        }
-        let len = (sn[0] * sn[0] + sn[1] * sn[1] + sn[2] * sn[2])
-            .sqrt()
-            .max(1e-6);
-        for a in 0..3 {
-            out.extend_from_slice(&((sp[a] * 512.0).round() as i16).to_le_bytes());
-        }
-        out.extend_from_slice(&v[6..8]);
-        out.extend_from_slice(&v[8..16]);
-        for a in 0..3 {
-            out.push(((sn[a] / len * 0.5 + 0.5) * 255.0).round() as u8);
-        }
-        out.push(v[19]);
-        out.extend_from_slice(&[0; 4]);
-    }
-    out
-}
-
 fn load_group(
     archive: &Archive,
     mesh_ref: &str,
     material_set: usize,
     textures: &mut HashMap<String, Option<ImageBuffer>>,
+    pose: Option<&[Transform]>,
 ) -> Option<ModelAsset> {
     let mesh = graphics_mesh(&archive.read_ref(&with_object(mesh_ref)).ok()?)
         .map_err(|e| log::warn!("{mesh_ref}: {e}"))
@@ -229,7 +157,14 @@ fn load_group(
     };
     let ao = cached(part.ao_texture.clone());
     let mut ranges = Vec::new();
-    let skin = bind_palette(&mesh.bones);
+    // Skinned ranges are posed once on the CPU: the given local pose (shared
+    // `Animation::GetPoseAtTime`), otherwise the bind pose.
+    let skin = match pose {
+        Some(locals) if locals.len() == mesh.bones.len() => {
+            banished_formats::skeleton::palette(&mesh.bones, locals)
+        }
+        _ => bind_palette(&mesh.bones),
+    };
     for range in &part.ranges {
         if range.index_count == 0 {
             continue;
@@ -247,7 +182,7 @@ fn load_group(
         // bind pose and drawn as static geometry until GPU skinning and animation are ported.
         let skinned;
         let vertices = if range.bone < 0 {
-            skinned = skin_to_static(vertices, &skin);
+            skinned = banished_formats::skeleton::skin_to_static(vertices, &skin);
             &skinned[..]
         } else {
             vertices
@@ -322,8 +257,13 @@ impl SceneModels {
             let Some(Some(mesh_ref)) = scene.meshes.get(key.0 as usize) else {
                 continue;
             };
-            let Some(asset) = load_group(archive, mesh_ref, key.1.max(0) as usize, &mut textures)
-            else {
+            let Some(asset) = load_group(
+                archive,
+                mesh_ref,
+                key.1.max(0) as usize,
+                &mut textures,
+                None,
+            ) else {
                 continue;
             };
             groups.push(ModelGroup {
@@ -342,15 +282,12 @@ impl SceneModels {
 
     /// Build groups from `(mesh reference, material set, instance transforms)` — entities placed
     /// by the game (natural resources, buildings).
-    pub fn from_instances(
-        archive: &Archive,
-        instances: Vec<(String, usize, Vec<ModelInstance>)>,
-    ) -> SceneModels {
+    pub fn from_instances(archive: &Archive, instances: Vec<GroupInstances>) -> SceneModels {
         let mut textures = HashMap::new();
         let groups = instances
             .into_iter()
-            .filter_map(|(mesh_ref, set, instances)| {
-                let asset = load_group(archive, &mesh_ref, set, &mut textures)?;
+            .filter_map(|(mesh_ref, set, instances, pose)| {
+                let asset = load_group(archive, &mesh_ref, set, &mut textures, pose.as_deref())?;
                 let mut group = ModelGroup {
                     name: mesh_ref,
                     ranges: asset.ranges,
@@ -370,19 +307,17 @@ impl SceneModels {
 
     /// Growth/removal changes transforms without decoding meshes or textures again. Retain
     /// empty groups so later offspring can reuse their assets and group indices stay stable.
-    pub fn update_instances(
-        &mut self,
-        archive: &Archive,
-        instances: Vec<(String, usize, Vec<ModelInstance>)>,
-    ) {
+    pub fn update_instances(&mut self, archive: &Archive, instances: Vec<GroupInstances>) {
         for group in &mut self.groups {
             group.instances.clear();
         }
         let mut textures = HashMap::new();
-        for (name, set, instances) in instances {
+        for (name, set, instances, pose) in instances {
             if let Some(group) = self.groups.iter_mut().find(|g| g.name == name) {
                 group.instances = group.matrices(instances);
-            } else if let Some(asset) = load_group(archive, &name, set, &mut textures) {
+            } else if let Some(asset) =
+                load_group(archive, &name, set, &mut textures, pose.as_deref())
+            {
                 let mut group = ModelGroup {
                     name,
                     ranges: asset.ranges,
@@ -444,6 +379,19 @@ fn vs_main(v: VsIn) -> VsOut {
     let p = model * vec4<f32>(vec3<f32>(v.position.xyz) / 512.0, 1.0);
     let n = normalize((model * vec4<f32>(v.normal.xyz * 2.0 - 1.0, 0.0)).xyz);
     return finish(p.xyz, n, v.texcoord, 0.0);
+}
+
+// NormalSkin_charactervs: the instance's translation w carries the outfit (0..7) and selects one
+// eighth of the texture atlas horizontally.
+@vertex
+fn vs_character(v: VsIn) -> VsOut {
+    let appearance = v.m3.w;
+    let model = mat4x4<f32>(v.m0, v.m1, v.m2, vec4<f32>(v.m3.xyz, 1.0)) * rigid;
+    let p = model * vec4<f32>(vec3<f32>(v.position.xyz) / 512.0, 1.0);
+    let n = normalize((model * vec4<f32>(v.normal.xyz * 2.0 - 1.0, 0.0)).xyz);
+    var out = finish(p.xyz, n, v.texcoord, 0.0);
+    out.uv.x = (f32(v.texcoord.x) * 0.001953125 + appearance) * 0.125;
+    return out;
 }
 
 // FoliageMaterial_vs: sway by sin(world.xy + time) weighted by userData.
@@ -574,7 +522,7 @@ struct GpuGroup {
 }
 
 pub struct ModelRenderer {
-    pipelines: [wgpu::RenderPipeline; 5],
+    pipelines: [wgpu::RenderPipeline; 6],
     layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
     white: wgpu::TextureView,
@@ -696,6 +644,7 @@ impl ModelRenderer {
             make("vs_main", "fs_alpha"),
             make("vs_foliage", "fs_foliage"),
             make("vs_billboard", "fs_billboard"),
+            make("vs_character", "fs_opaque"),
         ];
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::Repeat,

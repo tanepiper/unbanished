@@ -49,7 +49,10 @@ impl CreateBar {
         let find = |ui: &Ui, n: &str| ui.find(root, n);
         let table = toolbar.string_table.as_deref();
         if let Some(icon) = find(ui, "imageIcon") {
-            if let Some(s) = ui.res.sprite(toolbar.sprite_sheet.as_deref(), &toolbar.sprite) {
+            if let Some(s) = ui
+                .res
+                .sprite(toolbar.sprite_sheet.as_deref(), &toolbar.sprite)
+            {
                 ui.set_images(icon, s);
             }
         }
@@ -70,8 +73,10 @@ impl CreateBar {
                 let template = text_of(ui, label);
                 if let Some(d) = material.as_deref().and_then(|m| {
                     let file = m.split(':').next()?.replace('\\', "/");
-                    raw_material_description(&archive.read_ref(&format!("{file}:rawmaterial")).ok()?)
-                        .ok()
+                    raw_material_description(
+                        &archive.read_ref(&format!("{file}:rawmaterial")).ok()?,
+                    )
+                    .ok()
                 }) {
                     if let Some(s) = ui.res.sprite(d.sprite_sheet.as_deref(), &d.name_small) {
                         if let Kind::Label { icon, .. } = &mut ui.node_mut(label).kind {
@@ -139,7 +144,10 @@ impl CreateBar {
         ui.set_visible(self.root, true);
         let r = ui.node(self.root).rect;
         let (w, h) = ((r[2] - r[0]) as f32, (r[3] - r[1]) as f32);
-        let target = (((x0 + x1) * 0.5) as i32 as f32 - (w as i32 >> 1) as f32, (y0 as i32 - (h as i32 >> 1)) as f32);
+        let target = (
+            ((x0 + x1) * 0.5) as i32 as f32 - (w as i32 >> 1) as f32,
+            (y0 as i32 - (h as i32 >> 1)) as f32,
+        );
         let p = match self.position {
             Some((px, py)) => (
                 target.0 * FOLLOW_NEW + px * FOLLOW_OLD,

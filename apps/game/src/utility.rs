@@ -207,7 +207,9 @@ struct ProfessionUi {
 /// Set a spinner's value and its number text.
 fn set_spinner(ui: &mut Ui, id: NodeId, value: i32) {
     let number = match &mut ui.node_mut(id).kind {
-        Kind::Control(banished_ui::Control::Spinner { parts, value: v, .. }) => {
+        Kind::Control(banished_ui::Control::Spinner {
+            parts, value: v, ..
+        }) => {
             *v = value;
             parts[0]
         }
@@ -278,7 +280,11 @@ impl ProfessionUi {
     fn update(&self, ui: &mut Ui, values: &StatusValues) {
         for (i, spinner) in self.spinners.iter().enumerate() {
             if let Some(s) = *spinner {
-                set_spinner(ui, s, values.professions.get(i).copied().unwrap_or(0) as i32);
+                set_spinner(
+                    ui,
+                    s,
+                    values.professions.get(i).copied().unwrap_or(0) as i32,
+                );
             }
         }
     }

@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use banished_formats::skeleton::{bind_palette, local_bind, world_transforms, Transform};
 use banished_formats::types::{AnimationClip, Bone, SKINNED_STRIDE, STATIC_STRIDE};
+use banished_gfx::material::{character_uv_transform, MaterialKind};
 use banished_gfx::{upload_image, upload_rgba};
 use glam::{Mat4, Vec3};
 use wgpu::util::DeviceExt;
@@ -464,19 +465,18 @@ impl Renderer {
                 let diffuse_ref = instance
                     .as_ref()
                     .and_then(|mi| mi.texture("diffuse").map(str::to_owned));
-                let (diffuse, aspect) = self
+                let (diffuse, _) = self
                     .texture(assets, diffuse_ref.as_deref())
                     .unwrap_or_else(|| (self.white.clone(), 1.0));
                 let ao = self
                     .texture(assets, part.ao_texture.as_deref())
                     .map_or_else(|| self.white.clone(), |t| t.0);
-                // Character materials index one square cell of a horizontal outfit atlas (variant 0 here).
-                let character = instance
-                    .as_ref()
-                    .and_then(|mi| mi.material.as_deref())
-                    .is_some_and(|m| m.contains("OpaqueCharacterMaterial"));
-                let uv_transform: [f32; 4] = if character {
-                    [aspect, 1.0, 0.0, 0.0]
+                // Character materials select one outfit of the atlas (the first here), with the
+                // same rule the game uses (`banished_gfx::material`).
+                let kind =
+                    MaterialKind::of(instance.as_ref().and_then(|mi| mi.material.as_deref()));
+                let uv_transform: [f32; 4] = if kind == MaterialKind::Character {
+                    character_uv_transform(0)
                 } else {
                     [1.0, 1.0, 0.0, 0.0]
                 };
@@ -604,53 +604,15 @@ impl Renderer {
         {
             return;
         }
-        let frame_position = (seconds.max(0.0) * clip.sample_rate).max(0.0);
-        let count = clip.frames.len();
-        let raw_frame = frame_position.floor() as usize;
-        let first = if raw_frame < count {
-            raw_frame
-        } else if clip.looping {
-            let loop_start = clip.loop_start.min(count - 1);
-            loop_start + raw_frame % (count - loop_start).max(1)
-        } else {
-            count - 1
-        };
-        let second = if first + 1 < count {
-            first + 1
-        } else if clip.looping {
-            clip.loop_start.min(count - 1)
-        } else {
-            first
-        };
-        let t = frame_position.fract();
-        let locals: Vec<_> = clip.frames[first]
-            .iter()
-            .zip(&clip.frames[second])
-            .map(|(a, b)| {
-                let mut qb = glam::Quat::from_xyzw(
-                    b.rotation[0],
-                    b.rotation[1],
-                    b.rotation[2],
-                    b.rotation[3],
-                );
-                let qa = glam::Quat::from_xyzw(
-                    a.rotation[0],
-                    a.rotation[1],
-                    a.rotation[2],
-                    a.rotation[3],
-                );
-                if qa.dot(qb) < 0.0 {
-                    qb = -qb;
-                }
-                let q = qa.lerp(qb, t).normalize();
-                Transform {
-                    rotation: q.to_array(),
-                    translation: std::array::from_fn(|i| {
-                        a.translation[i] + (b.translation[i] - a.translation[i]) * t
-                    }),
-                }
-            })
-            .collect();
+        // The original's Animation::GetPoseAtTime, shared with the game (`banished_game`).
+        let locals = banished_game::animation::sample_pose(
+            clip,
+            banished_game::scheduler::ticks(seconds.max(0.0)),
+            0,
+        );
+        if locals.len() != mesh.bones.len() {
+            return;
+        }
         let world = world_transforms(&mesh.bones, &locals);
         for part in &mesh.parts {
             if let Some(bone) = part.rigid_bone.and_then(|i| world.get(i)) {

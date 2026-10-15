@@ -12,8 +12,8 @@ use banished_formats::game::{
     build_description, create_placed_description, map_description, model_description,
     toolbar_description, BuildDescription, ModelDescription, ToolbarDescription,
 };
-use banished_formats::types::graphics_mesh;
 use banished_formats::pkg::Archive;
+use banished_formats::types::graphics_mesh;
 use banished_game::placement::{can_place, footprint, PlacementRules, Rect, ROTATION_STEP};
 use banished_game::random::Random;
 use banished_game::seeding::Placed;
@@ -60,8 +60,10 @@ impl PlacementTool {
         let model = model_description(&read(archive, &format!("{file}:model"))?).ok()?;
         let template = town.load_template(archive, reference)?;
         let variant = rng.rand_below(model.variants.len() as u32) as usize;
-        let toolbar = read(archive, &format!("{file}:toolbar")).and_then(|d| toolbar_description(&d).ok());
-        let build = read(archive, &format!("{file}:build")).and_then(|d| build_description(&d).ok());
+        let toolbar =
+            read(archive, &format!("{file}:toolbar")).and_then(|d| toolbar_description(&d).ok());
+        let build =
+            read(archive, &format!("{file}:build")).and_then(|d| build_description(&d).ok());
         let bounds = model
             .variants
             .iter()

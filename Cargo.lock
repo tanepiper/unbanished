@@ -280,6 +280,7 @@ version = "0.1.0"
 dependencies = [
  "banished-audio",
  "banished-formats",
+ "banished-game",
  "banished-gfx",
  "banished-ui",
  "banished-wma",
