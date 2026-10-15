@@ -113,6 +113,13 @@ impl Ui {
         if down {
             self.pressed = self.hot;
             self.focus = self.hot;
+            // `ButtonElement::Update` / `SliderElement::Update`: `Play(4)` on press.
+            if self
+                .hot
+                .is_some_and(|id| self.interactive(id) && self.nodes[id].enabled)
+            {
+                self.sounds.push(4);
+            }
             if let Some(id) = self.hot {
                 let rect = self.nodes[id].rect;
                 match &mut self.nodes[id].kind {
@@ -147,6 +154,10 @@ impl Ui {
         } else {
             if let Some(id) = self.pressed.filter(|p| Some(*p) == self.hot) {
                 event = self.activate(id).or(event);
+                // `Play(5)` with the click event (`0x12`).
+                if event.is_some() {
+                    self.sounds.push(5);
+                }
             }
             self.pressed = None;
         }

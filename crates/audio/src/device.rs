@@ -90,6 +90,14 @@ impl Channel {
     pub fn index(self) -> usize {
         self.index as usize
     }
+
+    #[cfg(test)]
+    pub(crate) fn test(n: u32) -> Channel {
+        Channel {
+            index: (n % 64) as u8,
+            generation: n,
+        }
+    }
 }
 
 /// Channel bookkeeping without any output: first-free allocation and generations.

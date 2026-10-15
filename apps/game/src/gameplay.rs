@@ -59,6 +59,17 @@ pub struct GameplayLoop {
     notify: Option<crate::event_notify::EventNotify>,
     /// Screen aspect of the last frame (MapUI's frustum outline).
     aspect: f32,
+    /// `Game +0x80`: the music player.
+    music: Option<crate::music::MusicPlayer>,
+    /// The ghost's last cell and the CreateBar's move-sound cooldown (`+0x48`, 0.05 s).
+    placement_cell: Option<(i32, i32)>,
+    move_cooldown: f32,
+    /// 3D effects started during the simulation iterations, played on the next audio update.
+    pending_sounds: Vec<(glam::Vec3, String)>,
+    /// Map ambience (`FUN_1400a57c0`): environment regions and wind.
+    ambience: Option<crate::ambience::Ambience>,
+    /// The map changed since the ambience last weighed it.
+    ambience_stale: bool,
 }
 
 impl GameplayLoop {
@@ -87,6 +98,12 @@ impl GameplayLoop {
             stock_warnings: Default::default(),
             notify: None,
             aspect: 1.6,
+            music: None,
+            placement_cell: None,
+            move_cooldown: 0.0,
+            pending_sounds: Vec::new(),
+            ambience: None,
+            ambience_stale: false,
         }
     }
 
@@ -345,6 +362,18 @@ impl GameplayLoop {
             heights: &view.terrain.heights,
         };
         tool.hover(town, &grid, cell, self.rotation);
+        // `FUN_1401050c0`: a new cell plays the move sound, at most every 0.05 s.
+        if cell.is_some() && cell != self.placement_cell {
+            self.placement_cell = cell;
+            if self.move_cooldown <= 0.0 {
+                ctx.audio.play(
+                    ctx.archive,
+                    crate::sound::global::PLACEMENT_MOVE,
+                    crate::sound::sound_type::UI,
+                );
+                self.move_cooldown = 0.05;
+            }
+        }
         let ghost = tool.ghost(self.rotation);
         if ghost != town.ghost {
             town.ghost = ghost;
@@ -411,12 +440,11 @@ impl GameplayLoop {
             let changed = town.iterate(&grid, &mut self.rng, dt, temperature);
             // AnimationManager::Update runs inside the same iteration (FUN_14009b850).
             let changed = town.update_citizens(&grid, &mut self.rng, dt) | changed;
-            // Animation::ApplyEvents now emits the original event resources at their traced
-            // intervals. The spatial AnimAudioEvent/SoundEffect controller is still unported.
-            for (entity, reference) in town.animation_events.drain(..) {
-                log::debug!(
-                    "animation event for entity {entity}: {reference} (spatial audio pending)"
-                );
+            // AnimAudioEvents that passed their draw: `PlayEffect3D(effect, 4)` at the entity.
+            for (entity, effect) in town.animation_events.drain(..) {
+                let p = town.placed[entity].position;
+                self.pending_sounds
+                    .push((glam::Vec3::new(p[0], p[1], p[2]), effect));
             }
             models_changed = changed;
         }
@@ -503,6 +531,62 @@ impl GameplayLoop {
             build.as_ref(),
         );
         ctx.ui.place_tooltip();
+    }
+
+    /// `FUN_14009b850`'s audio: the music player (`FUN_1400a95b0`), then
+    /// `Scene::Update(dt, dt × speed × 6, random, camera pivot, camera distance)`.
+    fn update_audio(&mut self, ctx: &mut Ctx, dt: f32) {
+        let v = self.status_values();
+        let people = v.adults + v.students + v.children;
+        let mood = crate::music::mood(v.health, v.health_max, v.happiness, v.happiness_max, people);
+        let month = self.month() as i32;
+        let music = self
+            .music
+            .get_or_insert_with(|| crate::music::MusicPlayer::load(ctx.archive));
+        music.update(ctx.audio, ctx.archive, month, mood);
+        let temperature = self.environment.as_ref().map_or(50.0, |e| e.temperature);
+        if let Some(town) = &self.town {
+            match &mut self.ambience {
+                None => {
+                    self.ambience = Some(crate::ambience::Ambience::create(
+                        ctx.audio,
+                        ctx.archive,
+                        &self.params.start_condition_ref,
+                        town,
+                        temperature,
+                    ));
+                }
+                Some(a) => {
+                    if std::mem::take(&mut self.ambience_stale) {
+                        a.reweigh(town);
+                    }
+                    a.fade(ctx.audio, temperature);
+                }
+            }
+        }
+        for (at, effect) in std::mem::take(&mut self.pending_sounds) {
+            ctx.audio.play_3d(
+                ctx.archive,
+                &effect.replace('\\', "/"),
+                crate::sound::sound_type::EFFECT,
+                at,
+            );
+        }
+        let Some(SceneView {
+            camera: SceneCamera::Map(camera),
+            ..
+        }) = &self.view
+        else {
+            return;
+        };
+        let listener = camera.target.extend(0.0);
+        let speed = if self.paused {
+            0.0
+        } else {
+            SPEED_LEVELS[self.speed as usize] as f32
+        };
+        ctx.audio
+            .update(dt, dt * speed * 6.0, listener, camera.distance);
     }
 
     fn map_click(&self, ctx: &mut Ctx) -> Option<glam::Vec2> {
@@ -613,6 +697,7 @@ impl GameLoop for GameplayLoop {
                 heights: &view.terrain.heights,
             };
             models_changed |= town.smooth(&grid, &mut self.rng);
+            self.ambience_stale |= models_changed;
             if models_changed {
                 if let Some(models) = &mut view.models {
                     town.refresh_models(ctx.archive, models);
@@ -623,9 +708,12 @@ impl GameLoop for GameplayLoop {
         if let (Some(notify), Some(screen)) = (self.notify.as_mut(), self.screen.as_mut()) {
             let width = self.toolbar.as_ref().map_or(0, |t| t.width(ctx.ui));
             if notify.update(ctx.ui, screen, &self.events, dt, width) {
-                // Not ported: `Audio::Scene::PlayEffect(WarningEffect)`; the SoundEffect resource
-                // and the audio Scene are not parsed yet (the Device has free channels).
-                log::debug!("event alert sound (pending)");
+                // `Scene::PlayEffect(WarningEffect, 1)`.
+                ctx.audio.play(
+                    ctx.archive,
+                    crate::sound::global::WARNING,
+                    crate::sound::sound_type::UI,
+                );
             }
         }
         if let Some(town) = &self.town {
@@ -655,6 +743,8 @@ impl GameLoop for GameplayLoop {
                 }
             }
         }
+        self.move_cooldown -= dt;
+        self.update_audio(ctx, dt);
         let month = self.month();
         let into_month = (self.calendar.seconds() - month as f32 * MONTH_SECONDS) / MONTH_SECONDS;
         if let (Some(view), Some(from)) = (self.view.as_mut(), self.environment_months.get(month)) {
@@ -779,10 +869,19 @@ impl GameLoop for GameplayLoop {
             }
             RawInput::Click => {
                 if let (Some(tool), Some(town)) = (self.placement.as_mut(), self.town.as_mut()) {
-                    match tool.place(town, self.rotation) {
-                        Some(id) => log::info!("placed {} as entity {id}", tool.reference),
-                        None => log::info!("{}: cannot build here", tool.reference),
-                    }
+                    // `FUN_1401055c0` / `FUN_140105610`: thunk on placement, error otherwise.
+                    let sound = match tool.place(town, self.rotation) {
+                        Some(id) => {
+                            log::info!("placed {} as entity {id}", tool.reference);
+                            crate::sound::global::PLACEMENT_THUNK
+                        }
+                        None => {
+                            log::info!("{}: cannot build here", tool.reference);
+                            crate::sound::global::PLACEMENT_ERROR
+                        }
+                    };
+                    ctx.audio
+                        .play(ctx.archive, sound, crate::sound::sound_type::UI);
                     self.refresh_placement(ctx);
                 } else if let Some(target) = self.map_click(ctx) {
                     // MapUI: move the camera (`FUN_14006d1b0`).
@@ -1044,6 +1143,27 @@ mod tests {
             state,
             format!("{:?}", gameplay.town.as_ref().unwrap().agents.states)
         );
+    }
+
+    #[test]
+    fn audio_plays_music_ambience_and_keeps_the_simulation_stream() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            ctx.audio.set_master_volume(0.0);
+            for _ in 0..3 {
+                gameplay.update(ctx, 1.0 / 30.0);
+            }
+            let (effects, effects3d) = ctx.audio.scene.active();
+            eprintln!("2D effects {effects}, 3D effects {effects3d}");
+            // Environment classes (warm and cold) and the wind share 3D effects.
+            assert!(effects3d >= 2, "{effects3d}");
+            // The music track and the audible ambience.
+            assert!(effects >= 1, "{effects}");
+            let ambience = gameplay.ambience.as_ref().unwrap();
+            assert!(ambience.region_count() > 0);
+        });
     }
 
     #[test]

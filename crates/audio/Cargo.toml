@@ -10,6 +10,7 @@ repository.workspace = true
 banished-formats = { path = "../formats" }
 banished-wma = { path = "../wma" }
 log = "0.4"
+glam = "0.34"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rodio = { version = "0.21.1", default-features = false, features = ["playback"] }

@@ -58,6 +58,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         map: None,
         model: None,
         animations: Vec::new(),
+        audio_events: Vec::new(),
         natural: None,
         growth: None,
         growth_reference: None,
@@ -101,6 +102,25 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                                 .clone()
                         })
                         .collect();
+                    // The AnimAudioEvents the clips reference.
+                    for group in t.animations.iter().flatten() {
+                        for clip in &group.clips {
+                            for event in &clip.events {
+                                let Some(r) = event.resource.as_deref() else {
+                                    continue;
+                                };
+                                if t.audio_events.iter().any(|(e, _, _)| e == r) {
+                                    continue;
+                                }
+                                if let Some(a) = read(archive, r).and_then(|b| {
+                                    banished_formats::audio::anim_audio_event(&b).ok()
+                                }) {
+                                    t.audio_events
+                                        .push((r.to_string(), a.effect, a.probability));
+                                }
+                            }
+                        }
+                    }
                 }
             }
             "naturalresource" => t.natural = natural_resource_description(&data).ok(),

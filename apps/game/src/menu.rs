@@ -4,7 +4,6 @@
 //! finds `Audio/Music/Menu.rsc`; Startup (`FUN_1400a0e00`) plays the music; the `MainMenuDialog`
 //! (`FUN_1400b91a0`) maps buttons to actions and adds `Dialog/BuildId.rsc`.
 
-use banished_audio::{PlayParams, Sound};
 use banished_ui::{Control, Event, Kind, NodeId, Ui};
 
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, Screen, View};
@@ -19,12 +18,11 @@ const NEW_GAME_DIALOG: &str = "Dialog/NewGame.rsc:resource";
 /// (1.0.7, compiled Sep 10 2017 → `yymmdd`).
 const VERSION: &str = "1.0.7";
 const BUILD_ID: &str = "170910";
-const MENU_MUSIC: &str = "Audio\\Music\\Menu.rsc:music";
+const MENU_MUSIC: &str = "Audio/Music/Menu.rsc:resource";
 /// `Game/MenuScene/Scene%i.rsc`, chosen with `Rand(10)`.
 pub const MENU_SCENES: u32 = 10;
 
 pub struct MenuLoop {
-    music: Option<Sound>,
     pub scene_index: u32,
     /// The 3D background (`Game/MenuScene/Scene%i.rsc`); `None` if it failed to load, in which
     /// case only the dialog's backdrop shows, as in the original.
@@ -53,7 +51,6 @@ const DEFAULT_SELECTION: [(&str, usize); 5] = [
 impl MenuLoop {
     pub fn new() -> MenuLoop {
         MenuLoop {
-            music: None,
             scene_index: 0,
             scene: None,
             screen: None,
@@ -407,9 +404,9 @@ impl GameLoop for MenuLoop {
             Ok(view) => self.scene = Some(view),
             Err(e) => log::error!("menu scene {}: {e}", self.scene_index),
         }
-        match Sound::load(ctx.archive, MENU_MUSIC) {
-            Ok(music) => self.music = Some(music),
-            Err(e) => log::error!("menu music: {e}"),
+        // `FUN_14009fe00`: the menu music SoundEffect, loaded with the scene.
+        if ctx.audio.effect(ctx.archive, MENU_MUSIC).is_none() {
+            log::error!("menu music: {MENU_MUSIC} did not load");
         }
     }
 
@@ -422,11 +419,9 @@ impl GameLoop for MenuLoop {
             }
         }
         self.screen = Some(screen);
-        if let Some(music) = &self.music {
-            if let Err(e) = ctx.audio.play(music, PlayParams::default()) {
-                log::warn!("menu music: {e}");
-            }
-        }
+        // `FUN_1400a0e00`: `Scene::PlayEffect(music, 2)`.
+        ctx.audio
+            .play(ctx.archive, MENU_MUSIC, crate::sound::sound_type::MUSIC);
     }
 
     /// `FUN_1400a0750`: `Audio::Scene::StopAll`.
@@ -434,7 +429,9 @@ impl GameLoop for MenuLoop {
         ctx.audio.stop_all();
     }
 
-    fn update(&mut self, _ctx: &mut Ctx, dt: f32) -> Next {
+    fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
+        // `FUN_1400a0bb0`: `Scene::Update(dt, 0, random, origin, 0)`.
+        ctx.audio.update(dt, 0.0, glam::Vec3::ZERO, 0.0);
         if let Some(SceneView {
             camera: SceneCamera::Menu(camera),
             ..

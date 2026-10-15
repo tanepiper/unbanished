@@ -12,6 +12,7 @@
 //! On the map: left/right drag to rotate, middle drag to pan, wheel to zoom, WASD/arrows to move,
 //! Escape for the main menu.
 
+mod ambience;
 mod building_ui;
 mod create_bar;
 mod entity_ui;
@@ -22,6 +23,7 @@ mod highlight;
 mod loops;
 mod menu;
 mod models;
+mod music;
 mod placement_tool;
 mod render;
 mod scene;
@@ -29,6 +31,7 @@ mod scene_assets;
 mod scene_gfx;
 mod selection;
 mod shadow;
+mod sound;
 mod start;
 mod status_icons;
 mod toolbar;
@@ -40,7 +43,6 @@ mod world;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use banished_audio::Device;
 use banished_formats::pkg::{Archive, Package};
 use banished_game::random::Random;
 use banished_ui::Ui;
@@ -70,7 +72,7 @@ const CLEAR: wgpu::Color = wgpu::Color {
 pub struct Game {
     archive: Rc<Archive>,
     ui: Ui,
-    audio: Device,
+    audio: sound::Audio,
     global: Option<global::GlobalData>,
     rng: Random,
     main: MainLoop,
@@ -125,7 +127,7 @@ impl Game {
         Ok(Game {
             ui: Ui::new(archive.clone()),
             archive,
-            audio: Device::default(),
+            audio: sound::Audio::default(),
             global: None,
             // `System::Random()` seeds from the clock.
             rng: Random::new(clock_seed()),
@@ -158,6 +160,14 @@ impl Game {
 
     fn deliver_events(&mut self) {
         self.with_ctx(|main, ctx| main.events(ctx));
+        self.ui_sounds();
+    }
+
+    /// `UserInterface::Play` requests from the UI (button down, click, drop).
+    fn ui_sounds(&mut self) {
+        for slot in std::mem::take(&mut self.ui.sounds) {
+            self.audio.play_ui(&self.archive, slot);
+        }
     }
 
     pub fn pointer_move(&mut self, x: i32, y: i32) {

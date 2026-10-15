@@ -8,7 +8,6 @@
 
 use std::rc::Rc;
 
-use banished_audio::Device;
 use banished_formats::pkg::Archive;
 use banished_formats::ui::flags;
 use banished_game::random::Random;
@@ -21,7 +20,7 @@ pub struct Ctx<'a> {
     pub archive: &'a Rc<Archive>,
     pub ui: &'a mut Ui,
     /// The shared 64-channel mixer (`Audio::Device`).
-    pub audio: &'a mut Device,
+    pub audio: &'a mut crate::sound::Audio,
     pub global: &'a mut Option<GlobalData>,
     /// The engine's default `System::Random()`, seeded from the clock.
     pub rng: &'a mut Random,
@@ -327,7 +326,7 @@ impl MainLoop {
         let next = self.current.update(ctx, dt);
         self.apply(next);
         // `Audio::Device::Update`: free the channels that finished.
-        ctx.audio.update();
+        ctx.audio.frame();
     }
 
     pub fn raw(&mut self, ctx: &mut Ctx, input: RawInput) {

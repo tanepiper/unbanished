@@ -33,12 +33,70 @@ does nothing.
 
 The master volume scales every channel. Captures set it to 0.
 
+## `Audio::Scene` (`crates/audio/src/scene.rs`)
+
+The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e1f10`, `PlayEffect`
+`0x1800e17b0`, `PlayEffect3D` `0x1800e1700`, `FindFree3DEffect`, `GetAttenuatedVolume`,
+`GetVolumeForPosition`, the emitter functions, `Pause`, `PauseEffect`, `StopAll`, `StopEffect`,
+`StopEffect3D` and `SoundEffect::Serialize`/`GetSoundBuffer`/`Compile`.
+
+- **SoundEffect** (`crates/formats/src/audio.rs`): radius `+0x20`, inner radius `+0x24`, a
+  timeline of sounds and the max length `+0x28` in microseconds. Each sound has a start time
+  and variants; each variant has a buffer, a pitch range in semitones and a volume. The max
+  length is 0 when a buffer loops. All 46 shipped effects parse.
+- **2D effects:** 256 slots (`0x70` bytes). Each update, every sound whose start falls in
+  `[previous elapsed, elapsed + dt)` starts once. Its variant is `Rand() % n`, its pitch is
+  `min + (max - min) · Rand() · 2^-32`, and its volume is
+  `variant × effect volume (set by 3D) × type volume`. Running sounds follow volume changes.
+  When every sound has ended (the Device's end callback), the effect frees itself and the 3D
+  effect it served.
+- **Sound types** (the `Configuration` volumes; type 0 never plays):
+
+  | Type | Sound | Default volume |
+  |---|---|---|
+  | 1 | UI | 100 |
+  | 2 | music | 50 |
+  | 3 | ambient | 100 |
+  | 4 | effects | 100 |
+
+  `Pause(type)` stops that type's channels. Started sounds do not restart.
+- **3D effects:** 4096 slots. The volume is the loudest emitter (or the effect's own position).
+  It is linear from 1 inside the inner radius to 0 at the radius, plus the listener's reach.
+  At 0 the 2D effect stops; above 0 it plays, starting at the 3D effect's elapsed time.
+  - A 3D effect ends after its max length.
+  - The same effect is not restarted within its radius for `max / 20` or the frame step.
+- **Handles:** a 2D handle is `i·2 | counter<<9`, a 3D handle `i·2 | 1 | counter<<13`.
+
+## Game sounds
+
+| Sound | Original | Port |
+|---|---|---|
+| Menu music `Audio/Music/Menu.rsc` | `FUN_1400a0e00` `PlayEffect(…, 2)`; menu `Scene::Update(dt, 0, …, origin, 0)` | `menu.rs` |
+| In-game music | `FUN_1400a95b0`: when the track has ended, a `Game/MusicTracks.rsc` track whose months hold the current month and whose mood range holds `(health/max + happiness/max)/2`; `Rand(n)`, the next one if it repeats the last | `music.rs` |
+| Scene update | `FUN_14009b850`: `Scene::Update(dt, dt × speed × 6, Random, camera pivot, eye–pivot distance)` | `gameplay.rs` `update_audio` |
+| UI clicks | `ButtonElement::Update`: `Play(4)` on press, `Play(5)` on click; slots set by `FUN_1400778f0` (2 BeginDrag, 3 EndDrag, 4 ButtonDown, 5 ButtonUp, 6 Alert) | `Ui::sounds` → `Audio::play_ui` |
+| Placement | `FUN_1401050c0` move (new cell, every 0.05 s at most), `FUN_1401055c0` thunk, `FUN_140105610` error | `gameplay.rs` |
+| Event alert | `FUN_140068590`: `WarningEffect` when the ribbon gains a notification | `gameplay.rs` |
+| Animation sounds | `AnimAudioEvent` (`FUN_14008d310`): `RandFloat()` on the game Random against the probability, then `PlayEffect3D(effect, 4)` at the entity (tree falls, tools, animals) | the draw is in the simulation (`seeding.rs` `animate`); the sound plays on the next audio update |
+| Map ambience | `FUN_1400a57c0`: an Environment emitter per 16-cell region (`FUN_140043c70`: heaviest terrain class, warm/cold effects cross-faded over 31–36 °F), the wind at height 30 (Medium), river emitters every 8 units of river path | `ambience.rs` (environment and wind) |
+
+## Deviations
+
+- **Separate Random for audio.** `Scene::Update` and the music player take the game's Random
+  (`Game +0xd8`). Their draws happen once per frame, depending on frame timing and on when
+  sounds end, so the original's simulation stream is not reproducible there anyway. The port
+  gives audio its own Random so the simulation stays deterministic. The `AnimAudioEvent`
+  probability draw happens inside the simulation, so it stays on the game Random.
+- **Ambience as an audio layer.** The original registers the ambient emitters as entities in
+  the entity manager (the environment in bucket 2). The port does not register them, and
+  re-weighs a region when the map changes rather than on its scheduled visit.
+
 ## Not ported
 
-- `Audio::Scene`, the layer above the Device. It covers `PlayEffect` and `PlayEffect3D` with
-  a `SoundType`, emitters, attenuation, per-type pause, and `StopAll`. The menu's `StopAll` is
-  `Device::stop_all` for now.
-- `SoundEffect` resources: variants, random pitch and volume.
+- River ambience. It needs the in-game river geometry (`Game +0x110`, river path list
+  `+0x1e0`); generated worlds draw no water yet.
+- Building emitters (fire, crowd: autostart off, driven by building state), rain and tornado
+  effects, and the pause of types 2–4 by pausing dialogs (`FUN_1400b9130`/`FUN_1400b91a0`).
 - Packet-granular start offsets (the port starts at the exact sample) and the `Stream` path.
   The port decodes streamed music whole.
 
@@ -50,4 +108,10 @@ The master volume scales every channel. Captures set it to 0.
   - offset wrapping and the semitone ratio;
   - the shared source looping, seeking and sharing one buffer.
 - The game's menu music and the viewer's preview both play through the same `Device`.
+- `crates/audio` scene tests: timeline windows and freeing, type volumes and silent type 0,
+  3D attenuation over emitters, pause and resume.
+- `crates/formats/tests/audio.rs`: every SoundEffect, MusicList, AnimAudioEvent and ambient
+  description parses.
+- `apps/game` test `audio_plays_music_ambience_and_keeps_the_simulation_stream`: a generated
+  start plays a music track and the ambience. `tools/triage/determinism.sh` stays identical.
 - Both apps build for native and WASM.

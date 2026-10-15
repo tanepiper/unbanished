@@ -33,6 +33,8 @@ pub struct Template {
     pub model: Option<ModelDescription>,
     /// ModelDescription variant animation groups, cached in the original ExternalFactory.
     pub animations: Vec<Option<Arc<AnimationGroup>>>,
+    /// The `AnimAudioEvent`s its clips fire: event resource, SoundEffect and probability.
+    pub audio_events: Vec<(String, Option<String>, f32)>,
     pub natural: Option<NaturalResourceDescription>,
     pub growth: Option<GrowthDescription>,
     /// Cached external GrowthDescription identity, used by FUN_140126100's pointer comparison.
@@ -139,7 +141,8 @@ pub struct Seeder<'a> {
     pub placed: &'a mut Vec<Placed>,
     /// Removal requests in callback order (FUN_1400c9560 drains this after all buckets).
     pub removed: &'a mut Vec<usize>,
-    /// Original animation callbacks: owning entity and external event resource reference.
+    /// `AnimAudioEvent`s that passed their probability (`FUN_14008d310`): owning entity and
+    /// the SoundEffect to play there.
     pub animation_events: &'a mut Vec<(usize, String)>,
 }
 
@@ -628,8 +631,21 @@ impl<'a> Seeder<'a> {
                 continue;
             }
             for event in playback.update(clip, dt) {
-                if let Some(reference) = &clip.events[event].resource {
-                    self.animation_events.push((id, reference.clone()));
+                let Some(reference) = &clip.events[event].resource else {
+                    continue;
+                };
+                // `AnimAudioEvent` slot +0x40 (`FUN_14008d310`): `RandFloat()` from the game
+                // stream against the probability, then `PlayEffect3D(effect, 4)` at the entity.
+                let audio = self.templates[p.template]
+                    .audio_events
+                    .iter()
+                    .find(|(r, _, _)| r == reference);
+                if let Some((_, effect, probability)) = audio {
+                    if self.rng.rand_float() <= *probability {
+                        if let Some(effect) = effect {
+                            self.animation_events.push((id, effect.clone()));
+                        }
+                    }
                 }
             }
             changed = true;
@@ -791,6 +807,7 @@ mod tests {
             }),
             natural: None,
             animations: Vec::new(),
+            audio_events: Vec::new(),
             growth: Some(GrowthDescription {
                 max_base: 4.0,
                 max_range: 1.0,

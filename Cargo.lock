@@ -229,6 +229,7 @@ version = "0.1.0"
 dependencies = [
  "banished-formats",
  "banished-wma",
+ "glam",
  "js-sys",
  "log",
  "rodio",

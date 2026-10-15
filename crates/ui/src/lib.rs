@@ -211,6 +211,9 @@ pub struct Ui {
     focus: Option<NodeId>,
     input_root: Option<NodeId>,
     tooltip_instance: Option<(NodeId, NodeId)>,
+    /// `UserInterface::Play` requests (sound slots: 4 button down, 5 button up/click, 3 drop),
+    /// drained by the application.
+    pub sounds: Vec<usize>,
     /// A tooltip dialog opened since the application last asked (`new_tooltip`), with its
     /// controller ids, for application-defined tooltip controllers.
     tooltip_opened: Option<(NodeId, NodeId, Vec<u32>)>,
@@ -243,6 +246,7 @@ impl Ui {
             input_root: None,
             tooltip_instance: None,
             tooltip_opened: None,
+            sounds: Vec::new(),
             pending: Vec::new(),
             stack: Vec::new(),
             overrides: Vec::new(),

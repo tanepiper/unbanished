@@ -3,6 +3,7 @@
 //! Format notes and the addresses they were recovered from are in `docs/FINDINGS.md`.
 //! Nothing here embeds game data; callers supply bytes from their own install.
 
+pub mod audio;
 pub mod crc;
 pub mod crs;
 pub mod error;
