@@ -990,6 +990,38 @@ impl Ui {
         self.nodes[id].kind = Kind::Control(c);
     }
 
+    /// The open dropdown lists under `root`, in tree order.
+    pub(crate) fn open_lists(&self, root: NodeId) -> Vec<NodeId> {
+        self.active_nodes(root)
+            .into_iter()
+            .filter_map(|id| match self.nodes[id].kind {
+                Kind::Control(Control::Combo {
+                    list, open: true, ..
+                }) => Some(list),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Open dropdown lists above everything else in the tree (the original's popup layer),
+    /// each on a solid backing.
+    pub(crate) fn draw_popups(&self, root: NodeId, out: &mut Vec<Quad>) {
+        let solid = self.res.sheets.iter().enumerate().find_map(|(sheet, s)| {
+            s.sheet.sprite("White").map(|sp| SpriteRef {
+                sheet,
+                width: sp.width,
+                height: sp.height,
+                uv: sp.uv,
+            })
+        });
+        for list in self.open_lists(root) {
+            if let Some(sp) = &solid {
+                Self::sprite_quad(out, sp, self.nodes[list].rect, 0xFF30281F, None);
+            }
+            self.draw_node(list, 0xFFFF_FFFF, None, out);
+        }
+    }
+
     pub(crate) fn draw_control(
         &self,
         id: NodeId,
@@ -1205,14 +1237,9 @@ impl Ui {
             Control::Document(d) => {
                 self.draw_document(d, [l, t], color, intersect(clip, rc), out);
             }
-            Control::Combo { button, list, open } => {
+            // The open list is a popup, drawn above the whole tree by `Ui::draw_popups`.
+            Control::Combo { button, .. } => {
                 self.draw_node(*button, color, clip, out);
-                if *open {
-                    if let Some(sp) = solid {
-                        Self::sprite_quad(out, &sp, self.nodes[*list].rect, 0xFF30281F, None);
-                    }
-                    self.draw_node(*list, color, None, out);
-                }
                 return;
             }
             _ => {}

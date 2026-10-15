@@ -426,6 +426,7 @@ fn hover_tooltip_adds_text_and_pressing_suppresses_it() {
     let Some(mut ui) = game_ui() else { return };
     let button = ui.instantiate(r"Dialog\Options.rsc:buttonSound").unwrap();
     ui.nodes[button].tooltip = "Adjust the volume of music and sound effects".into();
+    ui.nodes[button].tooltip_dialog = Some(r"Dialog\ToolTip.rsc:resource".into());
     ui.layout(button, [0, 0, 320, 80]);
     ui.pointer_move(-1, -1, button);
     let idle = ui.draw(button);
@@ -538,20 +539,18 @@ fn combo_keyboard_browsing_keeps_popup_open_until_confirmation() {
     );
 }
 
-/// An element with tooltip text and no tooltip dialog of its own shows the generic tooltip
-/// dialog (bordered panel), not bare text.
+/// `Element::IsToolTipValid`: tooltip text without a tooltip dialog shows nothing.
 #[test]
-fn plain_tooltips_use_the_generic_dialog() {
+fn tooltips_need_a_dialog() {
     let Some(mut ui) = game_ui() else { return };
     ui.screen = [1280, 800];
-    let d = ui
-        .instantiate_dialog(banished_ui::DEFAULT_TOOLTIP)
-        .expect("generic tooltip");
-    assert!(ui.find(d.root, "toolTipBorder").is_some());
-    let text = ui.find(d.root, "textToolTip").unwrap();
-    ui.set_parameters(text, &[(0, "Hello")]);
-    match &ui.nodes[text].kind {
-        Kind::Text(t) => assert!(t.text.contains("Hello"), "{}", t.text),
-        _ => panic!("textToolTip is not text"),
-    }
+    let button = ui.instantiate(r"Dialog\Options.rsc:buttonSound").unwrap();
+    ui.nodes[button].tooltip = "Text".into();
+    ui.nodes[button].tooltip_dialog = None;
+    ui.layout(button, [0, 0, 320, 80]);
+    ui.pointer_move(-1, -1, button);
+    let idle = ui.draw(button).len();
+    let [l, t, r, b] = ui.nodes[button].rect;
+    ui.pointer_move((l + r) / 2, (t + b) / 2, button);
+    assert_eq!(ui.draw(button).len(), idle);
 }

@@ -53,7 +53,13 @@ impl Ui {
     pub fn pointer_move(&mut self, x: i32, y: i32, root: NodeId) {
         self.input_root = Some(root);
         self.pointer = (x, y);
-        self.hot = self.hit(root, x, y, None);
+        // Open dropdown lists sit above the tree, so they take the pointer first.
+        let popup = self
+            .open_lists(root)
+            .into_iter()
+            .rev()
+            .find_map(|l| self.hit(l, x, y, None));
+        self.hot = popup.or_else(|| self.hit(root, x, y, None));
         if self.pointer_down {
             if let Some(id) = self.pressed {
                 self.drag_control(id, x, y);
@@ -395,7 +401,7 @@ impl Ui {
         false
     }
 
-    fn active_nodes(&self, root: NodeId) -> Vec<NodeId> {
+    pub(crate) fn active_nodes(&self, root: NodeId) -> Vec<NodeId> {
         fn visit(ui: &Ui, id: NodeId, out: &mut Vec<NodeId>) {
             let n = &ui.nodes[id];
             if !n.visible() || !n.enabled {
@@ -776,26 +782,42 @@ impl Ui {
             .filter(|t| !t.is_empty())
     }
 
+    /// The element whose tooltip shows: the topmost element under the pointer (an open
+    /// dropdown list first, else the last drawn) or the nearest of its ancestors with tooltip
+    /// text. Elements covered by a later dialog do not show theirs.
     fn tooltip_source(&self, root: NodeId) -> Option<NodeId> {
-        self.active_nodes(root).into_iter().rev().find(|&id| {
-            self.nodes[id].contains(self.pointer.0, self.pointer.1)
-                && !self.nodes[id].tooltip.is_empty()
-        })
+        let (x, y) = self.pointer;
+        let under = |id: NodeId| {
+            let n = &self.nodes[id];
+            n.contains(x, y) && n.rect[2] > n.rect[0] && n.rect[3] > n.rect[1]
+        };
+        let popup = self.open_lists(root).into_iter().rev().find(|&l| under(l));
+        let nodes: Vec<NodeId> = match popup {
+            Some(l) => self.active_nodes(l),
+            None => self.active_nodes(root),
+        };
+        let under: Vec<NodeId> = nodes.into_iter().filter(|&id| under(id)).collect();
+        let top = *under.last()?;
+        under
+            .into_iter()
+            .rev()
+            .find(|&id| !self.nodes[id].tooltip.is_empty() && self.descendant(id, top))
     }
 
     fn update_tooltip(&mut self, root: NodeId) {
         let Some(source) = self.tooltip_source(root) else {
             return;
         };
+        // `UserInterface::UpdateToolTip` (0x180123300): the open tooltip follows the pointer.
         if self.tooltip_instance.is_some_and(|(s, _)| s == source) {
+            self.place_tooltip();
             return;
         }
-        // Inferred: an element without its own tooltip dialog uses the generic one (a
-        // `toolTipBorder` panel around `textToolTip`).
-        let reference = self.nodes[source]
-            .tooltip_dialog
-            .clone()
-            .unwrap_or_else(|| DEFAULT_TOOLTIP.to_string());
+        // `Element::IsToolTipValid` (0x180036140): a tooltip needs the element's own tooltip
+        // dialog as well as its text.
+        let Some(reference) = self.nodes[source].tooltip_dialog.clone() else {
+            return;
+        };
         if let Some(dialog) = self.instantiate_dialog(&reference) {
             let text = self.nodes[source].tooltip.clone();
             for name in ["textToolTip", "text", "textDescription"] {
@@ -833,7 +855,7 @@ impl Ui {
         }
     }
 
-    /// Size and place the open tooltip dialog next to the pointer (again after the application
+    /// Size and place the open tooltip dialog on the pointer (again after the application
     /// filled it).
     pub fn place_tooltip(&mut self) {
         let Some((_, root)) = self.tooltip_instance else {
@@ -841,8 +863,9 @@ impl Ui {
         };
         self.compute_size(root);
         let [w, h] = self.nodes[root].size;
-        let x = (self.pointer.0 + 16).min(self.screen[0] - w).max(0);
-        let y = (self.pointer.1 + 20).min(self.screen[1] - h).max(0);
+        // `BeginToolTip` / `UpdateToolTip`: `SetUpperLeft(x, y − height, false)`, the tooltip
+        // standing on the pointer.
+        let (x, y) = (self.pointer.0, self.pointer.1 - h);
         self.layout_dialog(root, [x, y, x + w, y + h]);
     }
 
@@ -864,59 +887,22 @@ impl Ui {
         }
         self.set_text(id, &out);
     }
+    /// The open tooltip dialog, while its element is still the tooltip source under the
+    /// pointer within the input root (a modal dialog hides the tooltips of what it covers).
     pub(crate) fn draw_tooltip(&self, root: NodeId, out: &mut Vec<Quad>) {
         if self.pointer_down {
             return;
         }
-        if let Some((source, tip)) = self.tooltip_instance {
-            if self.tooltip_source(root) == Some(source) && tip < self.nodes.len() {
-                self.draw_node(tip, 0xFFFFFFFF, None, out);
-                return;
-            }
-        }
-        let node = self.active_nodes(root).into_iter().rev().find(|&id| {
-            self.nodes[id].contains(self.pointer.0, self.pointer.1)
-                && !self.nodes[id].tooltip.is_empty()
-        });
-        let Some(id) = node else {
+        let Some((source, tip)) = self.tooltip_instance else {
             return;
         };
-        let Some(font) = self.res.fonts.iter().position(|_| true) else {
-            return;
-        };
-        let layout = TextLayout::compute(&self.res, font, &self.nodes[id].tooltip, Some(320), 0);
-        let w = (layout.width + 16).min(self.screen[0]);
-        let h = (layout.height + 12).min(self.screen[1]);
-        let x = (self.pointer.0 + 16).min(self.screen[0] - w).max(0);
-        let y = (self.pointer.1 + 20).min(self.screen[1] - h).max(0);
-        if let Some((sheet, sp)) = self
-            .res
-            .sheets
-            .iter()
-            .enumerate()
-            .find_map(|(i, s)| s.sheet.sprite("White").map(|s| (i, s)))
-        {
-            let s = SpriteRef {
-                sheet,
-                width: sp.width,
-                height: sp.height,
-                uv: sp.uv,
-            };
-            Self::sprite_quad(out, &s, [x, y, x + w, y + h], 0xF030281F, None);
+        let input = self.input_root.unwrap_or(root);
+        if tip < self.nodes.len() && self.tooltip_source(input) == Some(source) {
+            self.draw_node(tip, 0xFFFFFFFF, None, out);
         }
-        let text = TextData {
-            font: Some(font),
-            text: String::new(),
-            max_width: 320,
-            justify: 0,
-            wrap: true,
-            shadow: false,
-            ellipsis_width: 0,
-            layout,
-        };
-        self.draw_text(&text, [x + 8, y + 6], 0xFFFFE8C0, None, out);
     }
 }
+
 fn contains(r: [i32; 4], x: i32, y: i32) -> bool {
     x >= r[0] && x < r[2] && y >= r[1] && y < r[3]
 }
@@ -937,9 +923,6 @@ pub(crate) fn event_node(e: Event) -> NodeId {
         | Event::Link(n, _) => n,
     }
 }
-
-/// The tooltip dialog of elements that name none.
-pub const DEFAULT_TOOLTIP: &str = "Dialog/ToolTip.rsc:resource";
 
 /// CRC32 type ids of the game's tooltip controllers handled by the UI itself.
 pub mod tooltip_controller {

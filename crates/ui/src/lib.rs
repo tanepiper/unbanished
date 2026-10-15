@@ -19,7 +19,7 @@ use banished_formats::ui::{flags, Element, ElementKind};
 
 pub use controls::{Control, EditData, SliderData};
 pub use dialog::{Binding, DialogInstance};
-pub use input::{tooltip_controller, Key, DEFAULT_TOOLTIP};
+pub use input::{tooltip_controller, Key};
 pub use resources::{FontId, LoadedFont, LoadedSheet, Resources, SheetId, SpriteRef};
 pub use text::TextLayout;
 
@@ -1066,6 +1066,7 @@ impl Ui {
     pub fn draw(&self, root: NodeId) -> Vec<Quad> {
         let mut out = Vec::new();
         self.draw_node(root, 0xFFFF_FFFF, None, &mut out);
+        self.draw_popups(root, &mut out);
         self.draw_tooltip(root, &mut out);
         out
     }
