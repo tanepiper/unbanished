@@ -382,3 +382,51 @@ fn consume_produce_descriptions_parse() {
         .1;
     assert_eq!((mine.cycles, mine.work_type, mine.lifetime), (60, 1, 2000));
 }
+
+#[test]
+fn herbalist_and_auto_pickup_descriptions_parse() {
+    use banished_formats::{
+        crc::type_id,
+        crs,
+        game::{auto_pickup_description, herbalist_description},
+    };
+    let Some(archive) = archive() else { return };
+    let mut counts = (0, 0);
+    for name in archive.names() {
+        if !name.ends_with(".crs") {
+            continue;
+        }
+        let bytes = archive.read(name).unwrap();
+        let h = crs::header(&bytes).unwrap();
+        if h.type_id == type_id("HerbalistDescription") {
+            let d = herbalist_description(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+            assert!(!d.resources.is_empty(), "{name}");
+            counts.0 += 1;
+        } else if h.type_id == type_id("AutoPickupDescription") {
+            auto_pickup_description(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+            counts.1 += 1;
+        }
+    }
+    assert!(counts.0 >= 2 && counts.1 >= 2, "{counts:?}");
+    let gatherer = herbalist_description(
+        &archive
+            .read_ref("Template/GathererShelter.rsc:herbalist")
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(gatherer.resources.len(), 4);
+    assert_eq!(gatherer.group, 5);
+    let herbalist = herbalist_description(
+        &archive
+            .read_ref("Template/Herbalist.rsc:herbalist")
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(herbalist.group, 6);
+    assert!(auto_pickup_description(
+        &archive
+            .read_ref("Template/GathererShelter.rsc:autopickup")
+            .unwrap()
+    )
+    .unwrap());
+}

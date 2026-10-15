@@ -314,6 +314,7 @@ impl Agents {
                 new_piles: &mut c.new_piles,
                 models_dirty: &mut c.models_dirty,
                 offers: Vec::new(),
+                offers_again: false,
                 produce_resume: None,
             },
             &mut c.jobs,
@@ -794,7 +795,7 @@ impl Agents {
                                 .values()
                                 .find(|w| w.cell == cell)
                                 .map(|w| w.priority);
-                            sim.remove_resource(i, e, educated, priority);
+                            sim.remove_resource(i, e, educated, priority, m.a != 0);
                             sim.activate_piles(jobs);
                         }
                         1 => sim.unclaim(e),

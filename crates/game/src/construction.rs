@@ -477,6 +477,12 @@ pub struct SiteTemplate {
     pub residence: Option<banished_formats::game::ResidenceDescription>,
     /// AttendanceDescription capacity.
     pub attendance: Option<i32>,
+    /// HerbalistDescription (gatherer, herbalist), resolved.
+    pub herbalist: Option<crate::herbalist::HerbalistTemplate>,
+    /// RadiusDescription `+0x28`.
+    pub radius: Option<i32>,
+    /// AutoPickupDescription `+0x20`.
+    pub auto_pickup: Option<bool>,
 }
 
 impl SiteTemplate {
@@ -567,8 +573,10 @@ pub struct Site {
     /// The entity was destroyed (`FUN_1400c8370`) during a state callback; the site goes
     /// once the machine has run.
     pub destroyed: bool,
-    /// ConsumeProduceComponent.
+    /// ConsumeProduceComponent (ResourceProduceComponent's `+0x48` for the others).
     pub produce: Option<ProduceState>,
+    /// AutoPickupComponent.
+    pub auto_pickup: Option<crate::herbalist::AutoPickup>,
 }
 
 /// The job manager, professions, workforce and every construction site.
@@ -632,6 +640,8 @@ pub struct Pile {
     pub mask: u32,
     /// A priority to keep from the work at its cell (`FUN_1400fe220`), applied on activation.
     pub priority: Option<i32>,
+    /// The workplace whose AutoPickup gets the Pickup work once registered.
+    pub auto_pickup: Option<usize>,
     /// The Pickup work's `+0x48` (0 free, 1 claimed, 2 picked up) and `+0x50` (claimer). Kept
     /// on the pile: one Pickup try claims several piles' works.
     pub state: i32,

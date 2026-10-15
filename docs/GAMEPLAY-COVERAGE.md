@@ -33,8 +33,10 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **Destroy** | every building | missing (demolition) |
 | **CropField**, **Orchard**, **Pasture**, **Livestock**, **Fruit** | fields, orchards, pastures, animals | missing |
 | **Herd**, **Population**, **WildAnimal**, **Animal** | deer | missing |
-| ResourceProduce subtypes **Hunt**, **Fishing**, **Forester**, **Herbalist** (gather), **Mine**, **Quarry** | lodges, dock, mine, quarry | missing (state machine shared) |
-| **AutoPickup**, **AbsorbResource**, **StorageDisplay** | gatherers, fields, StorageYard | missing |
+| ResourceProduce subtype **Herbalist** (gather) | gatherer's shelter, herbalist | yes (`herbalist.rs`) |
+| ResourceProduce subtypes **Hunt**, **Fishing**, **Forester** | lodges, dock | missing (state machine shared) |
+| **AutoPickup** | gatherers, hunters, foresters | yes |
+| **AbsorbResource**, **StorageDisplay** | fields, StorageYard | missing |
 | **MultiObject**, **Terraform**, **Floor** | bridges, tunnels, fences, dock | missing |
 | **Decal**, **Particle** | roads, footprints, smoke | missing |
 | **Tracker**, **Value** | workplaces, livestock | missing (Town Info graphs, production counters) |

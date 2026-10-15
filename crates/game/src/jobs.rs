@@ -46,6 +46,9 @@ pub enum WorkKind {
     Produce(crate::construction::ProduceWork),
     /// `LocationWork` (vtable `0x140167ab0`): staff stand at a school, chapel or doctor.
     Location(crate::services::LocationWork),
+    /// HerbalistComponent's work (vtable `0x1401679c0`, made by `FUN_14004bac0`): gatherers
+    /// and herbalists.
+    Herbalist(crate::herbalist::HerbalistWork),
     /// A test stand-in.
     Test(i32),
 }
@@ -132,6 +135,10 @@ pub trait WorkHost {
     /// answering [`NESTED`] has queued them.
     fn take_offers(&mut self) -> Vec<i32> {
         Vec::new()
+    }
+    /// The queued offers get a second try (`FUN_1400fdaf0(.., 1)`).
+    fn offers_again(&mut self) -> bool {
+        false
     }
     /// After a [`NESTED`] answer none of whose offers was taken: the rest of the try
     /// (ConsumeProduce goes on to work a cycle).
@@ -350,8 +357,9 @@ impl Jobs {
         if r != NESTED {
             return r;
         }
+        let again = host.offers_again();
         for other in host.take_offers() {
-            if self.offer_one(other, citizen, false, host) {
+            if self.offer_one(other, citizen, again, host) {
                 return 2;
             }
         }

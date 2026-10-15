@@ -996,6 +996,52 @@ pub fn attendance_description(data: &[u8]) -> Result<i32> {
     Ok(value)
 }
 
+/// `HerbalistDescription` (serializer `FUN_14004bc40`): the natural-resource templates a
+/// gatherer or herbalist harvests (`+0x20`, count `+0x28`) and the stock-manager production
+/// group its limit is checked against (`+0x30`: 5 food, 6 herbs).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HerbalistDescription {
+    pub resources: Vec<Option<String>>,
+    pub group: i32,
+}
+
+pub fn herbalist_description(data: &[u8]) -> Result<HerbalistDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("HerbalistDescription") {
+            return format_err(format!(
+                "expected HerbalistDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let n = r.i32()?;
+            let resources = (0..n.max(0))
+                .map(|_| r.external_ref())
+                .collect::<Result<Vec<_>>>()?;
+            Ok(HerbalistDescription {
+                resources,
+                group: r.i32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `AutoPickupDescription` (serializer `FUN_1400454c0`): `+0x20`, whether the workplace's
+/// workers pick up the piles they make first.
+pub fn auto_pickup_description(data: &[u8]) -> Result<bool> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("AutoPickupDescription") {
+            return format_err(format!(
+                "expected AutoPickupDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| r.bool())
+    })?;
+    Ok(value)
+}
+
 /// `ResidenceDescription` (serializer `FUN_14012f8a0`, version 2).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ResidenceDescription {

@@ -618,6 +618,135 @@ mod construction_tests {
         assert!(after[0] < logs_before.unwrap(), "no logs were used");
     }
 
+    /// A gatherer's shelter near the start gets two gatherers: they harvest grown wild food
+    /// within the radius, and the piles they leave are picked up (by them first, through the
+    /// AutoPickup) and stored.
+    #[test]
+    fn gatherers_harvest_wild_food() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool = PlacementTool::start(
+            &archive,
+            &mut town,
+            r"Template\GathererShelter.rsc:resource",
+            &mut rng,
+        )
+        .unwrap();
+        let spot = tool.find_clear_spot(&town, &terrain, town.start);
+        tool.hover(&town, &terrain, spot, 0);
+        let id = tool.place(&archive, &mut town, 0).unwrap();
+        let st = town.construction.sites[&id].template;
+        let kinds = town.construction.templates[st]
+            .herbalist
+            .clone()
+            .expect("no HerbalistDescription")
+            .resources;
+        let p = &town.construction.professions;
+        let builder = p.builder;
+        let gatherer = p
+            .list
+            .iter()
+            .position(|p| p.reference.to_ascii_lowercase().ends_with(":gatherer"))
+            .expect("no gatherer profession");
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 2,
+            });
+        let mut warnings = banished_game::events::StockWarnings::default();
+        warnings.limits[5] = 100_000;
+        let wild = |town: &StartingTown| {
+            town.placed
+                .iter()
+                .filter(|p| p.alive && !p.removal_requested && kinds.contains(&p.template))
+                .count()
+        };
+        let wild_before = wild(&town);
+        let dt = 1.0 / 30.0;
+        let (mut built_at, mut harvested_at, mut stored_at) = (None, None, None);
+        let mut seen = std::collections::BTreeSet::new();
+        let mut auto = 0;
+        for step in 0..30 * 60 * 12 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            if built_at.is_none() && town.construction.sites[&id].complete {
+                built_at = Some(step);
+                town.construction
+                    .commands
+                    .push(banished_game::professions::Command::SetCount {
+                        profession: gatherer,
+                        count: 2,
+                    });
+            }
+            let site = &town.construction.sites[&id];
+            if let Some(a) = &site.auto_pickup {
+                auto = auto.max(a.works.len());
+            }
+            let piles: Vec<usize> = town
+                .construction
+                .piles
+                .iter()
+                .filter(|(_, p)| p.auto_pickup == Some(id))
+                .map(|(&e, _)| e)
+                .collect();
+            if harvested_at.is_none() && !piles.is_empty() {
+                harvested_at = Some(step);
+            }
+            seen.extend(piles.iter().copied());
+            if seen.iter().any(|e| !piles.contains(e)) {
+                stored_at = Some(step);
+                break;
+            }
+        }
+        eprintln!(
+            "built {built_at:?}, harvested {harvested_at:?}, stored {stored_at:?}, wild {} -> {}, \
+             auto-pickup list up to {auto}",
+            wild_before,
+            wild(&town)
+        );
+        assert!(built_at.is_some(), "the shelter was not built");
+        assert!(harvested_at.is_some(), "nothing was gathered");
+        assert!(auto > 0, "the AutoPickup recorded no pile");
+        assert!(stored_at.is_some(), "no gathered pile was picked up");
+        assert!(wild(&town) < wild_before);
+        assert_reservations_held(&town);
+    }
+
     /// A seed-1234 Medium town with its terrain and stream, after `setup`.
     fn with_town(test: impl FnOnce(&Archive, &HeightGrid, &mut StartingTown, &mut Random)) {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

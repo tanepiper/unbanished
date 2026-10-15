@@ -465,6 +465,56 @@ ported: status icon bits 2/3, the production counter and tracker, AutoPickup, th
 message (the quarry), a StorageLocationComponent's drop point (the tavern), the production UI
 (ConsumeProduceUI recipe choice, work button, limit editing).
 
+## Gatherers (`HerbalistComponent`, its work, `AutoPickupComponent`)
+
+Port: `crates/game/src/herbalist.rs`. The gatherer's shelter and the herbalist share
+HerbalistComponent (vtable `0x14015f980`). It uses ResourceProduceComponent's state table
+(`FUN_140130700`), and its slot `+0x90` (`FUN_14004bac0`) makes the work (vtable
+`0x1401679c0`, no class name): a worker set `+0x48`, its size `+0x50`, and misses in a row
+`+0x58`.
+
+| Description | Fields |
+|---|---|
+| HerbalistDescription (`FUN_14004bc40`) | count, the natural-resource templates (`+0x20`), the stock slot `+0x30` (gatherer 5, food; herbalist 6, herbs) |
+| RadiusDescription | `+0x28` the radius (cells) |
+| AutoPickupDescription (`FUN_1400454c0`) | `+0x20` on |
+
+Try (`FUN_1400f3880`):
+
+1. **AutoPickup** (`FUN_1400e9280`). Each recorded Pickup work still registered is offered
+   with `Jobs::OfferOne(.., 1)` until one is taken (2). Works no longer registered leave the
+   list.
+2. **Limit.** The stock slot's limit is reached (also status icon 2), or the workers number
+   more than the most allowed: 1.
+3. **Search.** There are `(int)sqrt(r²π)` draws. Each draw is `RandTol(r)` twice, redrawn
+   until inside the disc and on a map row, around the work's cell. The column check in the
+   original can never fail. A candidate cell must:
+   - not be water (cell types 5–8);
+   - be within path rank `2r` of the entrance (`FUN_140008830`);
+   - hold a natural resource of a listed template, grown to 1, unclaimed;
+   - have a reachable `NearestAllowedNeighbour(.., 0xe07)` toward the citizen.
+
+   A hit starts the removal sequence (`FUN_1400c7380`) with the auto-pickup flag set. The
+   citizen gets the job flags, the misses reset, and the worker joins the set.
+4. **Otherwise**, with more misses than draws, the worker drops off what it carries (2), or
+   gets 0 when it carries nothing. Below that, it waits (`FUN_1400c7960`: PlayAnimation 0 for
+   0.25 s, then CompleteTask), joins the set and counts a miss.
+
+Complete (`FUN_1400f3860`) and fail (`FUN_1400f3850`) remove the worker. Refresh
+(`FUN_1400f3620`) drops workers that lost the task. Cancel (`FUN_1400f3fb0`) clears each
+worker's stack. The profession is the workplace's (`FUN_1400f4020`).
+
+`NaturalResourceComponent::Remove` with the flag (from `RemoveNaturalResource +0x30`) adds the
+new pile's Pickup work to the remover's workplace's AutoPickup (`FUN_140045170`). The port
+records the workplace on the pile and adds the work when the pile is activated.
+
+Not ported: the production counter `FUN_14008e3c0` and the status icon. A draw whose column
+leaves the map reads outside the cell array in the original; the port skips it.
+
+Verification: `placement_tool::construction_tests::gatherers_harvest_wild_food` (seed 1234,
+Medium). A gatherer's shelter is built near the start and two gatherers are assigned. They
+harvest wild food, and the AutoPickup records the pile, which is picked up.
+
 ## Removal tools (`RemovalTool : DragTool`, vtable `0x140168200`)
 
 The toolbar's Harvest Trees, Harvest Stone, Harvest Iron, Clear Resources, Remove Roads, Remove

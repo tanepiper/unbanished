@@ -2,7 +2,7 @@
 //! work slots ([`WorkHost`]) and the building state callbacks ([`Callbacks`]), over the
 //! citizens, the map, the storages and the construction state. See docs/JOBS.md.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use banished_formats::types::AnimationGroup;
 
@@ -98,6 +98,8 @@ pub struct Sim<'s, 't> {
     pub models_dirty: &'s mut bool,
     /// Works a ClearArea try asked the manager to offer ([`WorkHost::take_offers`]).
     pub offers: Vec<i32>,
+    /// The offers get a second try (`FUN_1400fdaf0(.., 1)`, the AutoPickup's).
+    pub offers_again: bool,
     /// A ConsumeProduce try waiting on its pile offers ([`WorkHost::resume`]).
     pub(crate) produce_resume: Option<crate::produce::ProduceResume>,
 }
@@ -939,8 +941,16 @@ impl Callbacks for Sim<'_, '_> {
                     self.machine(e).request(0xe);
                     return true;
                 }
-                // `FUN_140134130(work, 1, 0, …)`, then `FUN_1401350d0(1)`.
-                let work = self.produce_work(e);
+                // `FUN_140134130(work, 1, 0, …)` with slot `+0x90`'s work, then
+                // `FUN_1401350d0(1)`.
+                let herbalist = self.site_templates[self.sites[&e].template]
+                    .herbalist
+                    .is_some();
+                let work = if herbalist {
+                    self.herbalist_work(e)
+                } else {
+                    self.produce_work(e)
+                };
                 self.set_work(jobs, e, work, 1, false);
                 if let Some(w) = self.workforce.workplaces.get_mut(&e) {
                     w.enabled = true;
@@ -1015,6 +1025,8 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Clear(_) => return self.clear_refresh(work),
             WorkKind::Pickup(_) => return self.pickup_refresh(work),
             WorkKind::Produce(_) => return self.produce_refresh(work),
+            // `FUN_1400f3620`.
+            WorkKind::Herbalist(h) => h.workers.iter().copied(),
             // `FUN_1400f4c90`: the worker no longer holds the task.
             WorkKind::Location(l) => {
                 if let Some(c) = l.worker {
@@ -1052,6 +1064,11 @@ impl WorkHost for Sim<'_, '_> {
                     *o = held.contains(&(k as i32));
                 }
             }
+            WorkKind::Herbalist(h) => {
+                for c in &gone {
+                    h.workers.remove(c);
+                }
+            }
             WorkKind::Clear(_)
             | WorkKind::Pickup(_)
             | WorkKind::Produce(_)
@@ -1074,6 +1091,13 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Pickup(_) => self.pickup_try(work, c, time),
             WorkKind::Produce(_) => self.produce_try(work, c, time),
             WorkKind::Location(_) => self.location_try(work, c),
+            WorkKind::Herbalist(_) => {
+                let works: BTreeSet<i32> = self.piles.values().map(|p| p.work).collect();
+                if self.auto_pickup_offers(work.entity, |id| works.contains(&id)) {
+                    return NESTED;
+                }
+                self.herbalist_try(work, c)
+            }
             WorkKind::Test(_) => 0,
         }
     }
@@ -1082,9 +1106,14 @@ impl WorkHost for Sim<'_, '_> {
         std::mem::take(&mut self.offers)
     }
 
+    fn offers_again(&mut self) -> bool {
+        std::mem::take(&mut self.offers_again)
+    }
+
     fn resume(&mut self, work: &mut Work, c: usize) -> u8 {
         match work.kind {
             WorkKind::Produce(_) => self.produce_resume(work, c),
+            WorkKind::Herbalist(_) => self.herbalist_try(work, c),
             _ => 1,
         }
     }
@@ -1122,6 +1151,10 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Produce(_) => Self::produce_complete(work, param, false),
             // `FUN_1400f4d20`: free for the next one; the work stays.
             WorkKind::Location(l) => l.worker = None,
+            // `FUN_1400f3860`.
+            WorkKind::Herbalist(h) => {
+                h.workers.remove(&c);
+            }
             WorkKind::Test(_) => {}
         }
         false
@@ -1155,6 +1188,10 @@ impl WorkHost for Sim<'_, '_> {
             }
             WorkKind::Produce(_) => Self::produce_complete(work, param, true),
             WorkKind::Location(l) => l.worker = None,
+            // `FUN_1400f3850`.
+            WorkKind::Herbalist(h) => {
+                h.workers.remove(&c);
+            }
             WorkKind::Test(_) => {}
         }
     }
@@ -1184,6 +1221,8 @@ impl WorkHost for Sim<'_, '_> {
                     .and_then(|p| p.claimer),
                 // `FUN_1400f4fc0`: the worker's stack is cleared.
                 WorkKind::Location(l) => l.worker,
+                // `FUN_1400f3fb0`.
+                WorkKind::Herbalist(h) => h.workers.first().copied(),
                 WorkKind::Produce(_) | WorkKind::Test(_) => None,
             };
             let Some(c) = next else { return };
@@ -1207,6 +1246,9 @@ impl WorkHost for Sim<'_, '_> {
                     }
                 }
                 WorkKind::Location(l) => l.worker = None,
+                WorkKind::Herbalist(h) => {
+                    h.workers.remove(&c);
+                }
                 WorkKind::Produce(_) | WorkKind::Test(_) => {}
             }
         }
@@ -1552,7 +1594,7 @@ impl Sim<'_, '_> {
                     continue;
                 }
                 let point = cell_ground(self.size, self.terrain, nb);
-                self.removal_sequence(c, work, o, point);
+                self.removal_sequence(c, work, o, point, false);
                 self.took_job(c, work);
                 if let WorkKind::Clear(cl) = &mut work.kind {
                     cl.resources.insert(o, c);
@@ -1577,7 +1619,14 @@ impl Sim<'_, '_> {
 
     /// `FUN_1400c7380`: walk next to a natural resource, work it with its tool, let it fall
     /// (resources with the animation flag), work it again, remove it and report.
-    fn removal_sequence(&mut self, c: usize, work: &mut Work, resource: usize, point: [f32; 3]) {
+    pub(crate) fn removal_sequence(
+        &mut self,
+        c: usize,
+        work: &mut Work,
+        resource: usize,
+        point: [f32; 3],
+        auto_pickup: bool,
+    ) {
         let t = &self.templates[self.placed[resource].template];
         let Some(nr) = t.natural.clone() else {
             return;
@@ -1599,7 +1648,7 @@ impl Sim<'_, '_> {
             c,
             Action::RemoveResource {
                 entity: resource,
-                flag: false,
+                flag: auto_pickup,
             },
         );
         if nr.flag {
@@ -1663,6 +1712,7 @@ impl Sim<'_, '_> {
         resource: usize,
         educated: bool,
         priority: Option<i32>,
+        auto_pickup: bool,
     ) {
         self.claimed.remove(&resource);
         if !self.placed[resource].alive {
@@ -1714,7 +1764,14 @@ impl Sim<'_, '_> {
             return;
         }
         let yaw = self.rng.rand_tol(2) as f32 * 90.0;
-        self.spawn_pile(pile_t, cell, amount, yaw, priority);
+        let pile = self.spawn_pile(pile_t, cell, amount, yaw, priority);
+        // Not ported: the stock manager's production counter (`FUN_14008e3c0`).
+        // `FUN_140045170` once the pile's work is registered ([`Sim::activate_piles`]).
+        if auto_pickup {
+            if let (Some(wp), Some(p)) = (self.states[c].workplace, self.piles.get_mut(&pile)) {
+                p.auto_pickup = Some(wp);
+            }
+        }
     }
 
     /// A RawMaterialComponent pile entity (`FUN_1400c8bf0` of a pile template, `FUN_14012ec30`
@@ -1770,6 +1827,7 @@ impl Sim<'_, '_> {
                 work: -1,
                 mask: pile_mask(self.materials[material].flags),
                 priority,
+                auto_pickup: None,
                 state: 0,
                 claimer: None,
             },
@@ -1784,7 +1842,7 @@ impl Sim<'_, '_> {
             let Some(pile) = self.piles.get(&id) else {
                 continue;
             };
-            let (mask, priority) = (pile.mask, pile.priority);
+            let (mask, priority, auto_pickup) = (pile.mask, pile.priority, pile.auto_pickup);
             let cell = self.rect_cell(id);
             let work = Work::new(
                 id,
@@ -1794,6 +1852,9 @@ impl Sim<'_, '_> {
             );
             let w = jobs.add(work, mask, priority);
             self.piles.get_mut(&id).unwrap().work = w;
+            if let Some(wp) = auto_pickup {
+                self.auto_pickup_add(wp, w);
+            }
         }
     }
 

@@ -15,6 +15,7 @@ pub mod construction;
 pub mod environment;
 pub mod events;
 pub mod growth;
+pub mod herbalist;
 pub mod jobs;
 pub mod life;
 pub mod map;

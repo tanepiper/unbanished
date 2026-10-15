@@ -1003,6 +1003,28 @@ impl StartingTown {
                     t.residence = banished_formats::game::residence_description(&data).ok();
                 }
                 "clearresource" => t.controllers.push(Controller::ClearResource),
+                "herbalist" => {
+                    let Ok(d) = banished_formats::game::herbalist_description(&data) else {
+                        continue;
+                    };
+                    t.controllers.push(Controller::ResourceProduce);
+                    let mut resources = Vec::new();
+                    for r in d.resources.iter().flatten() {
+                        resources.push(self.load_template(archive, r)?);
+                    }
+                    t.herbalist = Some(banished_game::herbalist::HerbalistTemplate {
+                        resources,
+                        group: d.group,
+                    });
+                }
+                "radius" => {
+                    t.radius = banished_formats::game::radius_description(&data)
+                        .ok()
+                        .map(|(r, _)| r);
+                }
+                "autopickup" => {
+                    t.auto_pickup = banished_formats::game::auto_pickup_description(&data).ok();
+                }
                 "consumeproduce" => {
                     let Ok(d) = banished_formats::game::consume_produce_description(&data) else {
                         continue;
@@ -1115,6 +1137,17 @@ impl StartingTown {
                         selector: p.selector,
                         weights: vec![1.0; p.recipes.len()],
                         produced: 0,
+                    })
+                    .or_else(|| {
+                        t.herbalist
+                            .as_ref()
+                            .map(|_| banished_game::construction::ProduceState::default())
+                    }),
+                auto_pickup: t
+                    .auto_pickup
+                    .map(|enabled| banished_game::herbalist::AutoPickup {
+                        enabled,
+                        works: Vec::new(),
                     }),
             },
         );
