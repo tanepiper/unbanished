@@ -6,7 +6,8 @@ running game. It is done in stages:
 
 1. **Terrain, map cells and placed entities** (done).
 2. **Storage, buildings, construction and the job manager** (done).
-3. Citizens, their work, and the wildlife.
+3. Citizens (3a, done), their action stacks and work claims (3b), wildlife and livestock (3c),
+   and the producers' component state (3d).
 4. Jobs, trade, events and the rest of the managers.
 
 ## Starting a load
@@ -110,18 +111,79 @@ its saved state machine already holds its state.
 Citizens are not restored yet, so whatever refers to one is dropped: work claims and workers,
 a pile's claimer, a road's builder. The works stay registered and free.
 
-Test: `start::load::stage2_tests::vanilla_saves_restore_construction` (Save2 to Save5).
+Test: `start::load::stage2_tests::vanilla_saves_restore_construction`, run on Save2 to Save5
+and Save83 (a vanilla town in year 22 with 116 citizens). Trader boats have a state machine but
+are characters, not sites (stage 3c).
 - **Stock counts.** The stock counts the port recomputes from the restored storages
   (`stock_table`) equal the stock manager's saved counts in all 21 slots. For example, Save4
   holds 95 logs, 52 stone, 40 iron, 200 firewood, 30 tools, 1800 food and 10 clothes.
 - **Machines.** Every site's machine is consistent: its controller has the saved state at
-  the saved index.
+  the saved index. Save83's bridges showed the port lacked the MultiObject controller (see
+  [BRIDGES.md](BRIDGES.md)).
 - **Works.** Every registered site work and pile work belongs to its entity.
 - **Counts.** The work, planned-road and storage-registration counts match the save.
 
+## What stage 3a restores
+
+The code is in `apps/game/src/start/load/citizens.rs`. The citizens are restored in the town
+manager's registry order (`+0xa0`). Each CitizenComponent (`FUN_140119630`) fills the port's
+`Citizen` and `CitizenState` field for field, by offset:
+
+| Offsets | Fields |
+|---|---|
+| `+0x28` | name |
+| `+0x34` | appearance |
+| `+0x38`, `+0x3c`, `+0x40` | sex, age, lifespan |
+| `+0x44`, `+0x48` | hunger, cold |
+| `+0x4c` | reproduction |
+| `+0x50..+0x58` | health, health events and timer |
+| `+0x60..+0x78` | disease clock, disease, illness or immunity left, spread timer |
+| `+0x80..+0x90` | happiness, flags, happiness timer |
+| `+0x98` | foods eaten |
+| `+0x1f0` | profession |
+| `+0xa8`, `+0xac` | tool status and uses |
+| `+0x1e0..+0x1e8` | clothing |
+| `+0xb0` | supply activity |
+| `+0x30` | job |
+| `+0x238`, `+0x240` | home and family slot |
+| `+0x250` | spouse |
+| `+0x258` | guardian |
+| `+0x260..+0x270` | the dependents' ring |
+| `+0x248` | workplace |
+| `+0x1f8` | accident |
+| `+0x208..+0x220` | school, education, school time, schooled |
+| `+0x228`, `+0x230` | doctor, priest |
+
+- **Educated** is flag `0x400` (`FUN_140116c70`).
+- **The entity's other components:**
+  - ModelComponent: the body's position and yaw;
+  - CharacterComponent: walking direction, heading, speed and the `+0x28` flag;
+  - CitizenAIComponent: current and queued activity, cooldowns, urgent flags, loiter and
+    carrying times;
+  - StorageComponent: the goods carried;
+  - StatusIconComponent: the icons.
+- **Buildings:**
+  - homes' families and fuel (registered homes are the town's, others stay on the site);
+  - workplaces' workers;
+  - the attendance components' attendees and the town's attendance list.
+
+Every action stack starts empty: each citizen chooses a new activity on its first update,
+as one whose actions all finished would.
+
+The town manager's lists hold either entities (`+0x00..+0x30`) or a component of one (the
+sites, healers, cemeteries, happiness and attendance lists). Both resolve to the entity.
+
+Test: `start::load::stage3_tests::vanilla_saves_restore_citizens`. Every citizen is restored,
+and the relations are consistent:
+- a citizen with a family slot is in that home's family;
+- spouses point at each other;
+- dependents name their guardian;
+- workplaces and workers agree both ways.
+
 ## Not restored yet
 
-- Citizens, wild animals, herds and livestock (stage 3).
+- The citizens' action stacks and the works' claims and workers (stage 3b).
+- Wild animals, herds and livestock (stage 3c).
 - Producers' and services' component state: ConsumeProduce and ResourceProduce weights,
   crop fields, orchards, fishing, the attendance lists, homes. Also the work kinds those
   register (stage 3).
@@ -138,7 +200,8 @@ them, and a warning is logged on load):
 - their terrain (`Plains`) and start conditions (`RK*`) fall back to Valleys and Medium;
 - every entity whose template comes from a mod is skipped and counted in the load log.
 
-The vanilla saves `Save2` to `Save5` are the reference for loading.
+The vanilla saves `Save2` to `Save5` and `Save83` are the reference for loading. `Save 47`
+lists two mods; `Save200` and `Auto-1` are 2015 saves made with mods.
 
 `Save4` and `Save5` are the same town (Seminola) about 106 game seconds apart. Between them:
 - the roads under construction were finished;

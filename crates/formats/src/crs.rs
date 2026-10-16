@@ -21,6 +21,8 @@ pub struct Reader<'a> {
     end: usize,
     /// Set in reference mode (saves): external pointers are `u32` ids into this table.
     reference_ids: Option<std::sync::Arc<std::collections::BTreeMap<u32, String>>>,
+    /// A UTF-16 `System::String` was read (older builds write every string that way).
+    pub wide_seen: bool,
 }
 
 impl<'a> Reader<'a> {
@@ -30,6 +32,7 @@ impl<'a> Reader<'a> {
             pos: 0,
             end: data.len(),
             reference_ids: None,
+            wide_seen: false,
         }
     }
 
@@ -175,6 +178,7 @@ impl<'a> Reader<'a> {
                 Err(_) => b[..end].iter().map(|&c| c as char).collect(),
             })
         } else {
+            self.wide_seen = true;
             let b = self.bytes(n as usize * 2)?;
             let units: Vec<u16> = b
                 .chunks_exact(2)
@@ -307,6 +311,8 @@ pub struct Writer {
     pub data: Vec<u8>,
     /// Set in reference mode (saves): external pointers are written as ids from this table.
     reference_ids: Option<std::collections::BTreeMap<String, u32>>,
+    /// Write `System::String`s as UTF-16 (as older builds did) instead of 8-bit.
+    pub wide_strings: bool,
 }
 
 impl Writer {
@@ -352,8 +358,13 @@ impl Writer {
         self.i32(n as i32);
     }
 
-    /// `System::String` with the 8-bit flag; the length counts the NUL.
+    /// `System::String` with the 8-bit flag (or UTF-16 with [`Writer::wide_strings`]); the
+    /// length counts the NUL.
     pub fn string(&mut self, s: &str) {
+        if self.wide_strings {
+            self.wstring(s);
+            return;
+        }
         self.u32((s.len() as u32 + 1) | 0x8000_0000);
         self.bytes(s.as_bytes());
         self.u8(0);

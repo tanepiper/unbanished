@@ -55,6 +55,8 @@ pub enum Controller {
     Immigration,
     /// TradeComponent (`FUN_14005cfb0` table): the trading post's merchants.
     Trade,
+    /// MultiObjectComponent (table `FUN_14012b000`): a bridge's or a pasture's parts.
+    MultiObject,
 }
 
 /// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
@@ -196,6 +198,8 @@ pub enum Callback {
     TradeExit13,
     TradeUpdate13,
     TradeLeave,
+    /// `FUN_14012aa30`: activate the parts' MapComponents and floors.
+    MultiObjectEnter2,
     /// Callbacks whose port is still missing (they pass the state on).
     Missing,
 }
@@ -400,6 +404,15 @@ const IMMIGRATION: &[StateDef] = &[
 
 /// The state messages (9 and 0xb in 0x12, 0xa in 0x13) are
 /// [`crate::town::Sim::trade_message`].
+/// `FUN_14012b000` (`FUN_140036a50`, `FUN_140036b70`): state 2 only.
+const MULTI_OBJECT: &[StateDef] = &[StateDef {
+    id: 2,
+    enter: C::MultiObjectEnter2,
+    update: C::None,
+    exit: C::None,
+    transitions: &[(3, C::None)],
+}];
+
 const TRADE: &[StateDef] = &[
     StateDef {
         id: 2,
@@ -699,6 +712,7 @@ impl Controller {
             Controller::Well => WELL,
             Controller::Immigration => IMMIGRATION,
             Controller::Trade => TRADE,
+            Controller::MultiObject => MULTI_OBJECT,
         }
     }
 

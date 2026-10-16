@@ -24,6 +24,8 @@ pub struct SaveMetadata {
     /// From version 3: an unnamed value (2 in the samples), then the active mods.
     pub value: i32,
     pub mods: Vec<SavedMod>,
+    /// The strings were UTF-16 (2015 builds).
+    pub wide: bool,
 }
 
 /// A mod active when the game was saved: its name, its `.pkm` file and three values.
@@ -37,7 +39,7 @@ pub struct SavedMod {
 impl SaveMetadata {
     pub fn parse(data: &[u8]) -> Result<SaveMetadata> {
         let mut r = Reader::new(data);
-        r.block(|r, version| {
+        let mut meta = r.block(|r, version| {
             let name = r.string()?;
             let width = r.i32()?;
             let height = r.i32()?;
@@ -66,13 +68,17 @@ impl SaveMetadata {
                 image,
                 value,
                 mods,
+                wide: false,
             })
-        })
+        })?;
+        meta.wide = r.wide_seen;
+        Ok(meta)
     }
 
     /// The block at version 3.
     pub fn write(&self) -> Vec<u8> {
         let mut w = Writer::new();
+        w.wide_strings = self.wide;
         let at = w.begin_block(3);
         w.string(&self.name);
         w.i32(self.width);
@@ -429,14 +435,23 @@ fn parse_event_block(b: &[u8]) -> Option<SavedEventLog> {
     for _ in 0..count {
         let color = rd(&mut o)?;
         let len = rd(&mut o)?;
-        if len & 0x8000_0000 == 0 {
-            return None;
-        }
-        // The length counts the terminating NUL.
-        let n = (len & 0x7fff_ffff) as usize;
-        let text = body.get(o..o + n.checked_sub(1)?)?;
-        o += n;
-        let text = String::from_utf8_lossy(text).into_owned();
+        // The length counts the terminating NUL; without the 8-bit flag the text is UTF-16
+        // (2015 builds).
+        let text = if len & 0x8000_0000 != 0 {
+            let n = (len & 0x7fff_ffff) as usize;
+            let text = body.get(o..o + n.checked_sub(1)?)?;
+            o += n;
+            String::from_utf8_lossy(text).into_owned()
+        } else {
+            let n = len as usize;
+            let units: Vec<u16> = body
+                .get(o..o + 2 * n.checked_sub(1)?)?
+                .chunks_exact(2)
+                .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                .collect();
+            o += 2 * n;
+            String::from_utf16_lossy(&units)
+        };
         let mut i = || rd(&mut o).map(|v| v as i32);
         entries.push(SavedEvent {
             color,

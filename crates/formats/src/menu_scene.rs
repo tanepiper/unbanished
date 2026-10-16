@@ -30,6 +30,8 @@ pub struct Decal {
 /// The serialized terrain and water of a map (`MapComponent`).
 #[derive(Debug, Clone)]
 pub struct MapComponent {
+    /// The block's version (6 in current builds, 4 in 2015 saves).
+    pub version: u32,
     /// `+0xc0..+0xd4`: size (2n), n, tile cells (32), tile vertices (33), width (2n+1), 33².
     pub dims: [i32; 6],
     pub heights: Vec<i16>,
@@ -221,6 +223,7 @@ pub fn read_map_component(r: &mut Reader) -> Result<MapComponent> {
         };
         let decal_materials = if version > 5 { refs(r)? } else { Vec::new() };
         Ok(MapComponent {
+            version,
             dims,
             heights,
             terrain_material,
@@ -271,10 +274,13 @@ fn write_decals(w: &mut Writer, decals: &[Decal], version: u32) -> Result<()> {
     Ok(())
 }
 
-/// The writing side of [`read_map_component`], at version 6.
+/// The writing side of [`read_map_component`], at the version it was read at (3 or later).
 pub fn write_map_component(w: &mut Writer, map: &MapComponent) -> Result<()> {
-    const VERSION: u32 = 6;
-    w.block(VERSION, |w| {
+    let version = map.version;
+    if version < 3 {
+        return format_err("writing a MapComponent below version 3 is not supported");
+    }
+    w.block(version, |w| {
         map.dims.iter().for_each(|&d| w.i32(d));
         w.count(map.heights.len());
         map.heights.iter().for_each(|&h| w.i16(h));
@@ -295,12 +301,16 @@ pub fn write_map_component(w: &mut Writer, map: &MapComponent) -> Result<()> {
             w.count(path.len());
             path.iter().flatten().for_each(|&v| w.f32(v));
         }
-        write_decals(w, &map.decals, VERSION)?;
-        w.count(map.ints.len());
-        map.ints.iter().for_each(|&v| w.i32(v));
-        w.count(map.decal_materials.len());
-        for m in &map.decal_materials {
-            w.external_ref(m.as_deref())?;
+        write_decals(w, &map.decals, version)?;
+        if version > 3 {
+            w.count(map.ints.len());
+            map.ints.iter().for_each(|&v| w.i32(v));
+        }
+        if version > 5 {
+            w.count(map.decal_materials.len());
+            for m in &map.decal_materials {
+                w.external_ref(m.as_deref())?;
+            }
         }
         Ok(())
     })

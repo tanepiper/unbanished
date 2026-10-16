@@ -47,6 +47,16 @@ The parts' MapDescriptions (type 9, no footprint, not stamped on activation) sta
 cells when the bridge's ClearArea is done (entity event 1), so builders walk on it while it
 goes up; demolished, the parts lift their stamps and the river comes back.
 
+## MultiObjectComponent
+
+Its state table (`FUN_14012b000`, built through `FUN_140036a50` and `FUN_140036b70`) has state 2
+only, entered by `FUN_14012aa30`, with a transition to 3. Entering state 2, each part's
+MapComponent activates (`FUN_140129680`) and, for a part with a FloorComponent, its floor is added
+again (`FUN_140124860` takes a floor already added out first). It returns false, so the earlier
+controllers' state-2 entries still run. A bridge's controllers are ClearArea, Build, WorkPlace,
+MultiObject and Destroy, in that order. MultiObject is the last that holds state 2, so a built
+bridge's machine sits in MultiObject's table at index 0, as saves show.
+
 ## FloorComponent
 
 FloorDescription (serializer `FUN_140124b50`): `+0x20` a picking mesh, `+0x28` added on

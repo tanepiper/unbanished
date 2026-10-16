@@ -1620,6 +1620,18 @@ impl Callbacks for Sim<'_, '_> {
                 self.trade_leave(e);
                 true
             }
+            Callback::MultiObjectEnter2 => {
+                // `FUN_14012aa30`: each part's MapComponent activates (its minimap rectangle,
+                // drawn by the town from the placed parts) and its floor is added again
+                // (`FUN_140124860` takes a floor already added out first, so the counts stay).
+                let size = self.size;
+                for part in self.sites[&e].parts.clone() {
+                    if let Some(floor) = self.cells.floors.meshes.get(&part).cloned() {
+                        self.cells.floors.add(size, part, floor);
+                    }
+                }
+                false
+            }
             Callback::WellEnter2 => {
                 self.well_join(e, true);
                 false

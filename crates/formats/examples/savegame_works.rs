@@ -27,6 +27,9 @@ fn main() {
         }
     }
     println!("next id {:?}", g.managers.i32("jobs.next_id"));
+    if std::env::var("STACKS").is_ok() {
+        stacks(&g);
+    }
     // Each entity's WorkComponent `+0x28` and the works owned by it, where they differ.
     let mut owned: std::collections::BTreeMap<i32, Vec<(i32, &str)>> = Default::default();
     if let Some(Value::List(works)) = g.managers.at("jobs.works") {
@@ -61,5 +64,42 @@ fn main() {
                 );
             }
         }
+    }
+}
+
+/// Each character's saved stack: top index, the actions in the array, the "on empty" action.
+#[allow(dead_code)]
+fn stacks(g: &GameState) {
+    for o in g
+        .objects
+        .values()
+        .filter(|o| o.type_name == "CharacterComponent")
+    {
+        let names: Vec<String> = match o.fields.at("character.stack") {
+            Some(Value::List(items)) => items
+                .iter()
+                .map(|a| {
+                    a.ptr("action")
+                        .and_then(|a| g.objects.get(&a))
+                        .map_or("-".into(), |a| {
+                            let started = match a.fields.at("action.started") {
+                                Some(Value::Bool(true)) => "*",
+                                _ => "",
+                            };
+                            format!("{}{started}", a.type_name)
+                        })
+                })
+                .collect(),
+            _ => Vec::new(),
+        };
+        let on_empty = o
+            .fields
+            .ptr("character.on_empty")
+            .and_then(|a| g.objects.get(&a))
+            .map(|a| a.type_name);
+        println!(
+            "stack top {:?} {names:?} on_empty {on_empty:?}",
+            o.fields.i32("character.stack_top")
+        );
     }
 }

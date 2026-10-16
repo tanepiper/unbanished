@@ -2378,6 +2378,7 @@ impl StartingTown {
                 name if name.starts_with("fire") => {
                     t.fire = banished_formats::game::fire_description(&data).ok();
                 }
+                "multiobject" => t.controllers.push(Controller::MultiObject),
                 "destroy" => {
                     t.controllers.push(Controller::Destroy);
                     let d = banished_formats::game::destroy_description(&data).ok()?;

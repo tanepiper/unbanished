@@ -61,6 +61,19 @@ fn ids(f: &Fields, path: &str) -> Vec<u32> {
     }
 }
 
+/// A ComponentEntity, or a component's entity (`base.entity`), as a placed index.
+pub(super) fn entity_or_component(
+    saved: &SavedGame,
+    index: &BTreeMap<ObjId, usize>,
+    id: Option<ObjId>,
+) -> Option<usize> {
+    let id = id?;
+    index.get(&id).copied().or_else(|| {
+        let e = saved.object(id)?.fields.ptr("base.entity")?;
+        index.get(&e).copied()
+    })
+}
+
 impl StartingTown {
     pub(in crate::start) fn restore_construction(
         &mut self,
@@ -75,10 +88,11 @@ impl StartingTown {
 
         // The town manager's registries (`FUN_140094c30`).
         let town = &saved.state.town;
+        // The lists hold entities (`+0x00..+0x30`) or a component of one (the others).
         let entities = |name: &str| -> Vec<usize> {
             list(town, &format!("town.{name}"))
                 .iter()
-                .filter_map(|e| placed_of(e.ptr("entity")))
+                .filter_map(|e| entity_or_component(saved, index, e.ptr("entity")))
                 .collect()
         };
         // The storages (`+0x00`), then the markets (`+0x10`), join as their state 2 entry has
@@ -144,6 +158,10 @@ impl StartingTown {
             let Some(machine) = saved.component(entity, "StateMachineComponent") else {
                 continue;
             };
+            // Trader boats are characters, not sites (stage 3c).
+            if saved.component(entity, "BoatComponent").is_some() {
+                continue;
+            }
             self.add_site(archive, p);
             // Not activated again: the machine is restored below.
             self.construction.placed.retain(|&e| e != p);

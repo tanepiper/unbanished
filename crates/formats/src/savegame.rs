@@ -135,6 +135,8 @@ pub struct GameState {
     pub schedules: Vec<(i32, i32, i32, i64)>,
     /// The game loop serializer's version (3 in the samples).
     pub version: u32,
+    /// The strings were written as UTF-16 (2015 builds) rather than 8-bit.
+    pub wide_strings: bool,
     /// `InternalFactory::ResetPersistState`'s block, as written.
     pub persist_state: Vec<u8>,
     pub entity_manager_version: u32,
@@ -461,6 +463,7 @@ impl GameState {
             Ok(())
         })?;
         g.objects = d.objects;
+        g.wide_strings = d.r.wide_seen;
         Ok(g)
     }
 
@@ -472,6 +475,7 @@ impl GameState {
             objects: &self.objects,
             written: BTreeSet::new(),
         };
+        e.w.wide_strings = self.wide_strings;
         let at = e.w.begin_block(self.version);
         let refs = e.w.begin_block(0);
         e.w.count(self.references.len());

@@ -16,6 +16,7 @@ use banished_game::terrain::CellType;
 
 use super::{citizen_rules, load_template, read, StartingTown, TownParts};
 
+mod citizens;
 mod construction;
 use crate::saved::SavedGame;
 
@@ -164,12 +165,13 @@ impl StartingTown {
             templates.len()
         );
         let rules = citizen_rules(archive, &profile.citizen).unwrap_or(RULES);
+        let (citizens, order) = citizens::saved_citizens(saved, &rules);
         let mut town = Self::assemble(
             archive,
             &profile.citizen,
             TownParts {
                 start: (n as i32 / 2, n as i32 / 2),
-                citizens: Vec::new(),
+                citizens,
                 rules,
                 materials: Vec::new(),
                 storages: Vec::new(),
@@ -187,6 +189,7 @@ impl StartingTown {
             },
         );
         town.restore_construction(archive, saved, &index);
+        town.restore_citizens(archive, saved, &index, &order);
         Some(town)
     }
 }
@@ -250,7 +253,13 @@ mod tests {
             eprintln!("game data missing; skipping");
             return;
         };
-        for name in ["Save2.sav", "Save3.sav", "Save4.sav", "Save5.sav"] {
+        for name in [
+            "Save2.sav",
+            "Save3.sav",
+            "Save4.sav",
+            "Save5.sav",
+            "Save83.sav",
+        ] {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 eprintln!("{name} missing; skipping");
                 continue;
@@ -315,7 +324,13 @@ mod stage2_tests {
             eprintln!("game data missing; skipping");
             return;
         };
-        for name in ["Save2.sav", "Save3.sav", "Save4.sav", "Save5.sav"] {
+        for name in [
+            "Save2.sav",
+            "Save3.sav",
+            "Save4.sav",
+            "Save5.sav",
+            "Save83.sav",
+        ] {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
@@ -328,21 +343,48 @@ mod stage2_tests {
                 banished_game::stock::stock_table(&town.registered_storages(), &town.materials);
             assert_eq!(table, saved.stock_warnings().count, "{name}: stock");
 
-            let machines = saved
+            let machines: Vec<String> = saved
                 .entities()
-                .filter(|(_, e)| saved.component(e, "StateMachineComponent").is_some())
-                .count();
-            assert_eq!(c.sites.len(), machines, "{name}: sites");
+                // Trader boats are characters, not sites (stage 3c).
+                .filter(|(_, e)| {
+                    saved.component(e, "StateMachineComponent").is_some()
+                        && saved.component(e, "BoatComponent").is_none()
+                })
+                .map(|(_, e)| {
+                    saved
+                        .ext(&e.fields, "entity.template")
+                        .unwrap_or("?")
+                        .to_string()
+                })
+                .collect();
+            let mut missing = machines.clone();
+            for site in c.sites.values() {
+                let r = &town.templates[town.placed[site.entity].template].reference;
+                if let Some(i) = missing
+                    .iter()
+                    .position(|m| crate::start::normalise(m) == *r)
+                {
+                    missing.remove(i);
+                }
+            }
+            assert_eq!(
+                c.sites.len(),
+                machines.len(),
+                "{name}: sites; not restored: {missing:?}"
+            );
+            let mut bad = Vec::new();
             for (&e, site) in &c.sites {
                 let m = &site.machine;
-                if m.state >= 0 {
-                    assert_eq!(
-                        m.controllers[m.current].find(m.state),
-                        Some(m.index as usize),
-                        "{name}: site {e} state {} index {}",
+                if m.state >= 0 && m.controllers[m.current].find(m.state) != Some(m.index as usize)
+                {
+                    bad.push(format!(
+                        "{} state {} index {} controllers {:?} current {}",
+                        town.templates[town.placed[e].template].reference,
                         m.state,
-                        m.index
-                    );
+                        m.index,
+                        m.controllers,
+                        m.current
+                    ));
                 }
                 // WorkComponent `+0x28` keeps the id of a work the manager has since removed
                 // (a finished build); the port leaves it too and checks it is registered.
@@ -358,6 +400,9 @@ mod stage2_tests {
                     "{name}: site {e} queued for activation"
                 );
             }
+            bad.sort();
+            bad.dedup();
+            assert!(bad.is_empty(), "{name}: machines {bad:#?}");
             for (&e, pile) in &c.piles {
                 assert_eq!(
                     c.jobs.works.get(&pile.work).map(|w| w.entity),
@@ -365,8 +410,21 @@ mod stage2_tests {
                     "{name}: pile {e} work"
                 );
             }
+            // The kinds stage 2 restores (the others come with stage 3).
+            const KINDS: [&str; 6] = [
+                "BuildRoad",
+                "BuildStructure",
+                "ClearArea",
+                "GatherRawMaterials",
+                "Pickup",
+                "ConsumeProduce",
+            ];
             let saved_works = match saved.state.managers.at("jobs.works") {
-                Some(Value::List(w)) => w.len(),
+                Some(Value::List(w)) => w
+                    .iter()
+                    .filter_map(|w| saved.object(w.ptr("work")?))
+                    .filter(|o| KINDS.contains(&o.type_name))
+                    .count(),
                 _ => 0,
             };
             assert_eq!(c.jobs.works.len(), saved_works, "{name}: works");
@@ -395,6 +453,100 @@ mod stage2_tests {
                 c.piles.len(),
                 c.jobs.works.len(),
                 &table[..8]
+            );
+        }
+    }
+}
+
+/// Stage 3a against the vanilla saves: every citizen restored, and the town's relations agree
+/// with each other as the original keeps them.
+#[cfg(test)]
+mod stage3_tests {
+    use super::tests_support::*;
+
+    #[test]
+    fn vanilla_saves_restore_citizens() {
+        let Some(archive) = archive() else {
+            eprintln!("game data missing; skipping");
+            return;
+        };
+        for name in [
+            "Save2.sav",
+            "Save3.sav",
+            "Save4.sav",
+            "Save5.sav",
+            "Save83.sav",
+        ] {
+            let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
+                continue;
+            };
+            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
+            let n = saved
+                .state
+                .objects
+                .values()
+                .filter(|o| o.type_name == "CitizenComponent")
+                .count();
+            assert_eq!(town.citizens.len(), n, "{name}: citizens");
+            assert_eq!(town.agents.states.len(), n);
+            let c = &town.construction;
+            for (i, s) in town.agents.states.iter().enumerate() {
+                // A family slot's home lists the citizen in that family.
+                if let (Some(h), true) = (s.home, s.home_slot >= 0) {
+                    let home = c
+                        .homes
+                        .get(&h)
+                        .or_else(|| c.sites.get(&h).and_then(|x| x.home.as_ref()));
+                    let family = home.and_then(|h| h.families.get(s.home_slot as usize));
+                    assert!(
+                        family.is_some_and(|f| f.contains(&i)),
+                        "{name}: citizen {i} not in its home"
+                    );
+                }
+                if let Some(sp) = town.citizens[i].spouse {
+                    assert_eq!(town.citizens[sp].spouse, Some(i), "{name}: spouse of {i}");
+                }
+                for &d in &s.dependents {
+                    assert_eq!(
+                        town.citizens[d].parent,
+                        Some(i),
+                        "{name}: dependent {d} of {i}"
+                    );
+                }
+                if let Some(w) = s.workplace {
+                    if let Some(wp) = c.workforce.workplaces.get(&w) {
+                        assert!(
+                            wp.workers.contains(&i),
+                            "{name}: citizen {i} not among its workplace's workers"
+                        );
+                    }
+                }
+            }
+            for (&e, wp) in &c.workforce.workplaces {
+                for &w in &wp.workers {
+                    assert_eq!(
+                        town.agents.states[w].workplace,
+                        Some(e),
+                        "{name}: worker {w} of {e}"
+                    );
+                }
+            }
+            let housed = town
+                .agents
+                .states
+                .iter()
+                .filter(|s| s.home.is_some())
+                .count();
+            let working = town
+                .agents
+                .states
+                .iter()
+                .filter(|s| s.workplace.is_some())
+                .count();
+            eprintln!(
+                "{name}: {n} citizens, {housed} housed, {working} with a workplace, {} homes",
+                c.homes.len()
             );
         }
     }
