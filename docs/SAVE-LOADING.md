@@ -6,8 +6,8 @@ running game. It is done in stages:
 
 1. **Terrain, map cells and placed entities** (done).
 2. **Storage, buildings, construction and the job manager** (done).
-3. Citizens (3a, done), their action stacks and work claims (3b), wildlife and livestock (3c),
-   and the producers' component state (3d).
+3. Citizens (3a, done), their action stacks and work claims (3b, done), wildlife and
+   livestock (3c), and the producers' component state (3d).
 4. Jobs, trade, events and the rest of the managers.
 
 ## Starting a load
@@ -167,8 +167,7 @@ manager's registry order (`+0xa0`). Each CitizenComponent (`FUN_140119630`) fill
   - workplaces' workers;
   - the attendance components' attendees and the town's attendance list.
 
-Every action stack starts empty: each citizen chooses a new activity on its first update,
-as one whose actions all finished would.
+Action stacks and work claims are stage 3b, below.
 
 The town manager's lists hold either entities (`+0x00..+0x30`) or a component of one (the
 sites, healers, cemeteries, happiness and attendance lists). Both resolve to the entity.
@@ -180,9 +179,56 @@ and the relations are consistent:
 - dependents name their guardian;
 - workplaces and workers agree both ways.
 
+## What stage 3b restores
+
+**Action stacks** (`apps/game/src/start/load/actions.rs`). In the original, a CharacterComponent
+saves its stack array (`+0x48`, top `+0x60`) and its "on empty" action (`+0x58`). Each array
+entry is one action with its started flag (`+0x18`). An action linked to an entry (`+0x10`, a
+hunter's watch for example) is not saved. Each entry becomes a one-action chain of the port's
+`ActionStack` (`ActionStack::restored`).
+
+Every saved action maps onto a port action, field by field:
+
+| Saved action | Fields |
+|---|---|
+| MoveTo | way, next cell, target, flags, clips, cost mode, following, speed |
+| PerformWork, PlayAnimation | clip, duration, elapsed |
+| SendComponentMessage | target component from its type id |
+| ShowTool | the tool |
+| CompleteTask | work id `+0x30`, parameter `+0x34` |
+| CompleteRoad | cell, type `+0x24`, built byte `+0x28` |
+| ConsumeRawMaterial, PickupStoredRawMaterial, DropOffRawMaterial | storage and goods; for a drop-off, no storage leaves the goods on the ground and no material drops everything |
+| RemoveNaturalResource, AnimateNaturalResource, PickupRawMaterial | the resource or pile |
+| CreateRawMaterial | template, cell `+0x44`, batch `+0x40`, workplace, factor `+0x4c` |
+| CreateNaturalResource | template, cell, occupant |
+
+A stack holding an action the port cannot rebuild yet starts empty and is counted in the
+load log. HuntAnimal and RemoveAnimal wait for the animals (stage 3c).
+
+**Work claims.** The works now carry their citizens:
+- the gatherers', builders' and other workers' sets;
+- the clearing claims, both resources and cells;
+- a road's builder;
+- a pile's claimer;
+- the production and fishing use points;
+- the traders' and vendors' loads;
+- the planting and harvest claims.
+
+Every work kind in the samples is restored, among them forester, herbalist, hunting, pasture,
+tending, firefighting, fishing, school and chapel staff, trade, market, planting and harvest.
+The NaturalResource flag `0x100000` puts a resource back among the claimed ones.
+
+**Found on the way.** In the original, the fishing sequence also messages the FishingComponent,
+whose default handler does nothing. The port had left the action out, so its stacks differed
+from the original's. `Component::Fishing` now exists and the sequence pushes the message where
+the original does.
+
+Test: `start::load::stage3b_tests::vanilla_saves_restore_stacks_and_claims` (Save2 to Save5,
+Save83). Every stack is restored at its saved depth. Every citizen listed among a work's workers
+has that work as its job (Citizen `+0x30`). That relation spans two separately saved structures.
+
 ## Not restored yet
 
-- The citizens' action stacks and the works' claims and workers (stage 3b).
 - Wild animals, herds and livestock (stage 3c).
 - Producers' and services' component state: ConsumeProduce and ResourceProduce weights,
   crop fields, orchards, fishing, the attendance lists, homes. Also the work kinds those

@@ -251,8 +251,8 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_1400c3fb0`: take the rod, walk to the use point, fish 30 s facing out, leave the
-    /// catch on the create point, report, put the rod away. (Its message to the
-    /// FishingComponent reaches the default handler, which does nothing; not ported.)
+    /// catch on the create point, message the FishingComponent (its default handler does
+    /// nothing; saves show the action), report, put the rod away.
     #[allow(clippy::too_many_arguments)]
     fn fishing_sequence(
         &mut self,
@@ -274,6 +274,16 @@ impl Sim<'_, '_> {
                 work: work.id,
                 param,
             },
+        );
+        self.push(
+            c,
+            Action::SendMessage(crate::character::Message {
+                component: crate::character::Component::Fishing,
+                message: 0,
+                entity: Some(work.entity),
+                a: out_cell,
+                b: 0,
+            }),
         );
         let batch = self.states[c].carried.capacity;
         self.push(

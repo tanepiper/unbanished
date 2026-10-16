@@ -27,6 +27,11 @@ fn main() {
         }
     }
     println!("next id {:?}", g.managers.i32("jobs.next_id"));
+    if let Ok(t) = std::env::var("DUMP_TYPE") {
+        for o in g.objects.values().filter(|o| o.type_name == t) {
+            println!("{t} {:?}", o.fields.0.get(1));
+        }
+    }
     if std::env::var("STACKS").is_ok() {
         stacks(&g);
     }

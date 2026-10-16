@@ -16,6 +16,7 @@ use banished_game::terrain::CellType;
 
 use super::{citizen_rules, load_template, read, StartingTown, TownParts};
 
+mod actions;
 mod citizens;
 mod construction;
 use crate::saved::SavedGame;
@@ -190,6 +191,8 @@ impl StartingTown {
         );
         town.restore_construction(archive, saved, &index);
         town.restore_citizens(archive, saved, &index, &order);
+        town.restore_jobs(archive, saved, &index, &order);
+        town.restore_actions(archive, saved, &index, &order);
         Some(town)
     }
 }
@@ -410,21 +413,9 @@ mod stage2_tests {
                     "{name}: pile {e} work"
                 );
             }
-            // The kinds stage 2 restores (the others come with stage 3).
-            const KINDS: [&str; 6] = [
-                "BuildRoad",
-                "BuildStructure",
-                "ClearArea",
-                "GatherRawMaterials",
-                "Pickup",
-                "ConsumeProduce",
-            ];
+            // Every work in the save (all kinds are restored since stage 3b).
             let saved_works = match saved.state.managers.at("jobs.works") {
-                Some(Value::List(w)) => w
-                    .iter()
-                    .filter_map(|w| saved.object(w.ptr("work")?))
-                    .filter(|o| KINDS.contains(&o.type_name))
-                    .count(),
+                Some(Value::List(w)) => w.len(),
                 _ => 0,
             };
             assert_eq!(c.jobs.works.len(), saved_works, "{name}: works");
@@ -547,6 +538,87 @@ mod stage3_tests {
             eprintln!(
                 "{name}: {n} citizens, {housed} housed, {working} with a workplace, {} homes",
                 c.homes.len()
+            );
+        }
+    }
+}
+
+/// Stage 3b against the vanilla saves: every citizen's stack restored at its saved depth, and
+/// every work's workers hold that work as their job (Citizen `+0x30`).
+#[cfg(test)]
+mod stage3b_tests {
+    use super::tests_support::*;
+    use banished_game::jobs::WorkKind;
+
+    #[test]
+    fn vanilla_saves_restore_stacks_and_claims() {
+        let Some(archive) = archive() else {
+            eprintln!("game data missing; skipping");
+            return;
+        };
+        for name in [
+            "Save2.sav",
+            "Save3.sav",
+            "Save4.sav",
+            "Save5.sav",
+            "Save83.sav",
+        ] {
+            let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
+                continue;
+            };
+            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
+            // Saved depths in the citizens' order (`top + 1`).
+            let depths: Vec<usize> = match saved.state.town.at("town.citizens") {
+                Some(banished_formats::savegame::Value::List(cs)) => cs
+                    .iter()
+                    .map(|c| {
+                        let character = c
+                            .ptr("entity")
+                            .and_then(|c| saved.object(c))
+                            .and_then(|c| c.fields.ptr("base.entity"))
+                            .and_then(|e| saved.object(e))
+                            .and_then(|e| saved.component(e, "CharacterComponent"));
+                        character
+                            .and_then(|k| k.fields.i32("character.stack_top"))
+                            .map_or(0, |t| (t + 1).max(0) as usize)
+                    })
+                    .collect(),
+                _ => Vec::new(),
+            };
+            for (c, d) in depths.iter().enumerate() {
+                assert_eq!(
+                    town.agents.characters[c].stack.depth(),
+                    *d,
+                    "{name}: stack of {c}"
+                );
+            }
+            let mut held = 0;
+            for w in town.construction.jobs.works.values() {
+                let workers: Vec<usize> = match &w.kind {
+                    WorkKind::Gather(g) => g.workers.iter().copied().collect(),
+                    WorkKind::Build(b) => b.workers.iter().copied().collect(),
+                    WorkKind::Herbalist(h)
+                    | WorkKind::Forester(h)
+                    | WorkKind::Hunt(h)
+                    | WorkKind::TendArea(h)
+                    | WorkKind::Pasture(h)
+                    | WorkKind::ClearStorage(h)
+                    | WorkKind::Fire(h) => h.workers.iter().copied().collect(),
+                    _ => Vec::new(),
+                };
+                for c in workers {
+                    held += 1;
+                    assert_eq!(
+                        town.agents.states[c].job, w.id,
+                        "{name}: worker {c} of work {}",
+                        w.id
+                    );
+                }
+            }
+            eprintln!(
+                "{name}: {} stacks, {held} workers on their works",
+                depths.len()
             );
         }
     }

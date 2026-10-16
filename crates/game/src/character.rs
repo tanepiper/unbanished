@@ -86,6 +86,9 @@ pub enum Component {
     DropPile,
     /// QuarryComponent's message slot (`FUN_1400554e0`): the quarry `entity` digs deeper.
     Quarry,
+    /// FishingComponent: the fishing sequence's report (`a` the catch's cell). It reaches the
+    /// component's default message handler, which does nothing.
+    Fishing,
 }
 
 /// A message an action delivered (slot `+0x78` of the receiving component). The owner
@@ -411,6 +414,38 @@ impl MoveTo {
     }
 
     /// `FUN_1400ce0e0`: plan from `from` to the target.
+    /// A saved MoveTo (`FUN_1400ce390`): its way (`+0x64` cells at `+0x68`, `+0x60` the next
+    /// one) as it was. A path request in flight is not saved; one with no way restarts.
+    #[allow(clippy::too_many_arguments)]
+    pub fn restored(
+        target: [f32; 3],
+        walk: usize,
+        stand: usize,
+        flags: u32,
+        mode: u32,
+        speed: f32,
+        following: bool,
+        index: i32,
+        path: &[i32],
+    ) -> MoveTo {
+        let n = path.len().min(PATH_CELLS);
+        let mut cells = [0; PATH_CELLS];
+        cells[..n].copy_from_slice(&path[..n]);
+        MoveTo {
+            target,
+            flags,
+            walk,
+            stand,
+            mode,
+            speed,
+            following,
+            pending: None,
+            index,
+            count: n as i32,
+            path: cells,
+        }
+    }
+
     fn request(&mut self, from: [f32; 3], world: &mut World) {
         let a = world.cell(from);
         let b = world.cell(self.target);
@@ -1053,6 +1088,31 @@ pub struct ActionStack {
 }
 
 impl ActionStack {
+    /// A saved stack (`FUN_14010ef80`): its entries bottom to top, each one action and whether
+    /// it started (`+0x18`), and the "on empty" action. Actions linked to an entry
+    /// (`+0x10`) are not saved.
+    pub fn restored(entries: Vec<(Action, bool)>, on_empty: Option<Action>) -> ActionStack {
+        ActionStack {
+            chains: entries
+                .into_iter()
+                .map(|(action, started)| vec![Task { action, started }])
+                .collect(),
+            on_empty: on_empty
+                .into_iter()
+                .map(|action| Task {
+                    action,
+                    started: false,
+                })
+                .collect(),
+            outbox: Vec::new(),
+        }
+    }
+
+    /// How many entries the stack holds (`+0x60` + 1).
+    pub fn depth(&self) -> usize {
+        self.chains.len()
+    }
+
     /// `+0x60 >= 0`: something is queued (the AI's "is busy" test).
     pub fn is_active(&self) -> bool {
         !self.chains.is_empty()

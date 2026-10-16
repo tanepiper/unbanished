@@ -1522,6 +1522,8 @@ impl Agents {
                     );
                     jobs.drain(&mut sim);
                 }
+                // The default message handler: nothing.
+                Component::Fishing => {}
                 Component::Quarry => {
                     if let Some(e) = m.entity {
                         let (mut sim, _) = self.sim(citizens, env, groups, adult, entities);
