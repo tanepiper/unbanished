@@ -53,7 +53,14 @@ pub enum EntryKind {
 #[derive(Debug, Clone)]
 pub struct Header {
     pub version: u32,
+    /// `+0x68`: the platform mask, `+0x6c` the author's version number (a mod's).
+    pub platform: u32,
+    pub user_version: u32,
     pub priority: u32,
+    /// `+0x78/+0x7c/+0x80`: the icon (48×48 for mods), `0xAARRGGBB` texels.
+    pub icon: (u32, u32, Vec<u8>),
+    /// `+0x98`: the preview image's file (jpg or png), from version 2.
+    pub preview: Vec<u8>,
     pub can_override: bool,
     pub crc: u32,
     pub name: String,
@@ -91,7 +98,27 @@ impl<'a> Cursor<'a> {
     fn cstr(&mut self, n: usize) -> Result<String> {
         let b = self.take(n)?;
         let end = b.iter().position(|&c| c == 0).unwrap_or(b.len());
-        Ok(b[..end].iter().map(|&c| c as char).collect())
+        Ok(String::from_utf8(b[..end].to_vec())
+            .unwrap_or_else(|_| b[..end].iter().map(|&c| c as char).collect()))
+    }
+    /// `n` bytes of UTF-16 (packages before version 3), to the first NUL.
+    fn wstr(&mut self, n: usize) -> Result<String> {
+        let b = self.take(n)?;
+        let units: Vec<u16> = b
+            .chunks_exact(2)
+            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .take_while(|&u| u != 0)
+            .collect();
+        Ok(String::from_utf16_lossy(&units))
+    }
+    /// A length-prefixed string: UTF-8 bytes from version 3, UTF-16 before.
+    fn string(&mut self, version: u32) -> Result<String> {
+        let n = self.u32()? as usize;
+        if version < 3 {
+            self.wstr(n)
+        } else {
+            self.cstr(n)
+        }
     }
 }
 
@@ -116,32 +143,43 @@ impl Package {
         let toc = stream::decode(toc_bytes)?;
         let mut c = Cursor { d: &toc, p: 0 };
 
+        // `PackageFile::ReadPackfile` (Runtime `0x1800b6f10`): the preview from version 2,
+        // strings and names as UTF-8 from version 3 (UTF-16 before). Mods (`.pkm`) of every
+        // version use this layout.
         let count = c.u32()? as usize;
         let version = c.u32()?;
-        if version < 3 {
+        if version == 0 {
             return Err(Error::Unsupported(format!("package version {version}")));
         }
-        let _platform = c.u32()?;
-        let _user_version = c.u32()?;
+        let platform = c.u32()?;
+        let user_version = c.u32()?;
         let priority = c.u32()?;
         let _unknown = c.u32()?;
         let can_override = c.take(1)?[0] != 0;
         let crc = c.u32()?;
         let (w, h) = (c.u32()? as usize, c.u32()? as usize);
-        c.take(w * h * 4)?;
-        let preview = c.u32()? as usize;
-        c.take(preview)?;
+        let icon = c.take(w * h * 4)?.to_vec();
+        let preview = if version > 1 {
+            let n = c.u32()? as usize;
+            // Some third-party packers leave the length unset (`0xe1e1e1e1`) with no image
+            // after it: inferred, a length past the table is no preview.
+            if n > c.d.len() - c.p {
+                Vec::new()
+            } else {
+                c.take(n)?.to_vec()
+            }
+        } else {
+            Vec::new()
+        };
         let mut strings = [String::new(), String::new(), String::new()];
         for s in &mut strings {
-            let n = c.u32()? as usize;
-            *s = c.cstr(n)?;
+            *s = c.string(version)?;
         }
         let [name, author, description] = strings;
 
         let mut entries = Vec::with_capacity(count);
         for _ in 0..count {
-            let n = c.u32()? as usize;
-            let name = c.cstr(n)?;
+            let name = c.string(version)?;
             let offset = c.u32()? as usize;
             let size = c.u32()? as usize;
             if offset + size > data.len() {
@@ -154,7 +192,11 @@ impl Package {
         }
         let header = Header {
             version,
+            platform,
+            user_version,
             priority,
+            icon: (w as u32, h as u32, icon),
+            preview,
             can_override,
             crc,
             name,
@@ -205,6 +247,35 @@ impl Archive {
             }
         }
         self.packages.push(pkg);
+    }
+
+    /// `FileSystem::LoadPackages` (Runtime `0x1800ac3b0`) for a mod (`.pkm`), added after the
+    /// game's packages: the enabled mods go in from the last in the mod list to the first, and
+    /// a file replaces one already there only when that one's package allows it (`+0xac`). So
+    /// the first mod in the list wins, and nothing overrides `data1` or `patch1`.
+    pub fn add_mod(&mut self, pkg: Package) {
+        let pi = self.packages.len();
+        for (ei, e) in pkg.entries.iter().enumerate() {
+            if e.kind() == EntryKind::Index {
+                continue;
+            }
+            let key = e.key();
+            let replace = match self.index.get(&key) {
+                Some(&(p, _)) => self.packages[p].header.can_override,
+                None => true,
+            };
+            if replace {
+                self.index.insert(key, (pi, ei));
+            }
+        }
+        self.packages.push(pkg);
+    }
+
+    /// The package holding `name`'s current entry (its header names the mod).
+    pub fn package_of(&self, name: &str) -> Option<&Package> {
+        self.index
+            .get(&normalise(name))
+            .map(|&(p, _)| &self.packages[p])
     }
 
     pub fn len(&self) -> usize {

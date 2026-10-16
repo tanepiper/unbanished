@@ -2,6 +2,7 @@
 # Populate locally with tools/extract-assets.sh.
 /game-data/
 *.pkg
+*.pkm
 *.crs
 *.rsc
 *.str
