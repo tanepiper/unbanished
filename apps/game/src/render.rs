@@ -1090,7 +1090,9 @@ impl Renderer {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: self.format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
         let output_view = output.create_view(&Default::default());
@@ -1276,6 +1278,63 @@ impl Renderer {
         let view = texture.texture.create_view(&Default::default());
         self.draw(&view, frame);
         self.queue.present(texture);
+    }
+
+    /// The minimap's terrain image as the game reads it back (`FUN_1400aa610`): `n × n` texels,
+    /// top row first, each `0x00RRGGBB` (the D3D9 `A8R8G8B8` read, alpha cleared).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn read_minimap(&mut self) -> Option<(u32, Vec<u32>)> {
+        let texture = self.minimap.as_ref()?;
+        let n = texture.width();
+        let row = (n * 4).next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+        let readback = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("minimap readback"),
+            size: (row * n) as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        encoder.copy_texture_to_buffer(
+            texture.as_image_copy(),
+            wgpu::TexelCopyBufferInfo {
+                buffer: &readback,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(row),
+                    rows_per_image: Some(n),
+                },
+            },
+            wgpu::Extent3d {
+                width: n,
+                height: n,
+                depth_or_array_layers: 1,
+            },
+        );
+        self.queue.submit([encoder.finish()]);
+        readback
+            .slice(..)
+            .map_async(wgpu::MapMode::Read, |r| r.expect("map readback"));
+        self.device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .expect("poll");
+        let mapped = readback.slice(..).get_mapped_range().expect("mapped range");
+        let bgra = matches!(
+            self.format,
+            wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb
+        );
+        let mut out = Vec::with_capacity((n * n) as usize);
+        for y in 0..n {
+            let start = (y * row) as usize;
+            for px in mapped[start..start + (n * 4) as usize].chunks(4) {
+                let (r, g, b) = if bgra {
+                    (px[2], px[1], px[0])
+                } else {
+                    (px[0], px[1], px[2])
+                };
+                out.push((r as u32) << 16 | (g as u32) << 8 | b as u32);
+            }
+        }
+        Some((n, out))
     }
 
     #[cfg(not(target_arch = "wasm32"))]

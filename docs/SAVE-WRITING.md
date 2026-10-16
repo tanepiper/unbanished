@@ -149,20 +149,37 @@ an empty one:
 - **Audio scene:** 4096 empty sound slots.
 - **Metadata:** version 3, extension value 2, no mods.
 
-The town export then makes every entity, since there are no saved ids. `a_new_game_saves_and_reloads`
+The town export then makes every entity, since there are no saved ids. On top of that, a new game writes:
+- **Water** (`fire::Water`): the shore points (`+0x130`, `FUN_1400a43f0`), the wells (`+0xe0`) and the
+  8×8 block index (`+0x140`, which the original rebuilds when it is empty, `FUN_140094a50`).
+  The points match Save2's and Save3's lists exactly.
+- **The camera controller** (`FUN_140107df0`): the zoom target, pitch target and slider, `+0x34` = 1,
+  and five empty bookmarks.
+- **The environment's references:** `Environment.rsc`, then the climate.
+- **The map ambience** (`FUN_1400a57c0`): a `RiverEffect`/`WindEffect.rsc:ambient` entity for
+  each emitter (no bucket), and an `Environment.rsc:ambient` entity for each region (bucket 2),
+  with its cells and its two slots' effects and volumes. No sound handles (the audio scene is empty).
+- **The minimap** (`FUN_1400aacc0`): the terrain image the port draws (`FUN_1400aa610`, read back
+  at the save's frame, top row first, `0x00RRGGBB`) and the overlay (`0xAARRGGBB`). Against
+  Save2 and Save83 the port's terrain image has the same orientation, and differs by about 14 per
+  channel (the known minimap colour difference, docs/MAP-WINDOW.md).
+
+Every save also gets the following:
+- **Herds and populations** (`+0xb0`, `+0xc0`).
+- **Zones by template** (`+0x160`): each placed entity with a ZoneComponent, from its
+  activation, built or not. All five samples write back unchanged with the computed zones.
+- **Capability bits:** a created component gets its class's constructor bits (`create::initial_flags`:
+  the one value every saved component of the class has). Characters' models get `0x04`, a status
+  icon `0x04` while it shows, a particle `0x04` while a slot is on. Every entity's flags are
+  its components' low 16 bits together. This held for every component and entity in nine samples.
+  A growing tree's `0x10` is not set, as the start's seeded trees have it clear. `a_new_game_saves_and_reloads`
 generates the seed-1234 Medium start, runs it for ten seconds, saves it, then loads and saves again.
 It requires the same state both times. A real New Game, saved with the `save` command, loads back
 with the same town.
 
 ## Still to write
 
-- **New games:**
-  - the town lists: populations, herds, zones, wells, water sources, `values_140` and diseases;
-  - the tool manager's values;
-  - the environment's climate and month;
-  - the minimap images;
-  - the ambient sound emitters (`AmbientEmitterComponent`, `AmbientEnvironmentComponent`);
-  - a scenario's goal.
+- **New games:** a scenario's goal (`Game +0x150`); the rain emitter's entity while it rains.
 - **Loaded games:** the port does not read the achievement instances back, so a loaded game keeps
   the ones it was saved with.
 - The scheduler's bucket order and cursors: the port updates citizens in its own pass, so the

@@ -45,6 +45,68 @@ pub(crate) fn template_components(
         .collect()
 }
 
+/// A component's capability bits as its constructor sets them (`Component +0x20`, saved in its
+/// base; docs/ENTITY-COMPONENT-LIFECYCLE.md): `0x80` setup, `0x01` activation, `0x02` removal,
+/// `0x04` update, `0x08` timed update, `0x10` another pass, `0x40` drawn. Each value is the one
+/// every saved component of the class has (`ModelComponent`'s `0x83` is also its constructor's,
+/// `FUN_14012a1f0`); the bits a component changes as it runs are set by the writers. A
+/// MapComponent placed on the map has `0x100000`.
+pub(crate) fn initial_flags(component: &str) -> u32 {
+    match component {
+        "AmbientEmitterComponent"
+        | "DecalComponent"
+        | "FloorComponent"
+        | "ParticleComponent"
+        | "PickingComponent" => 0xc3,
+        "AmbientEnvironmentComponent"
+        | "FireComponent"
+        | "FruitComponent"
+        | "HuntComponent"
+        | "SpawnComponent" => 0x88,
+        "AnimalComponent" => 0x4000c9,
+        "AttendanceComponent" => 0x8a,
+        "BuildComponent" | "CemeteryComponent" | "ModelComponent" | "QuarryComponent"
+        | "TradeComponent" | "WorkComponent" | "ZoneComponent" => 0x83,
+        "CharacterComponent" => 0x8f,
+        "CitizenAIComponent" | "RawMaterialComponent" => 0x89,
+        "CitizenComponent"
+        | "GrowthComponent"
+        | "PopulationComponent"
+        | "StorageDisplayComponent" => 0xcb,
+        "DiseaseComponent" | "HerdComponent" | "LivestockComponent" | "PastureComponent" => 0x8b,
+        "HappinessComponent"
+        | "HealerComponent"
+        | "MarketLocationComponent"
+        | "MultiObjectComponent"
+        | "ResidenceComponent"
+        | "StorageLocationComponent"
+        | "WellComponent"
+        | "WildAnimalComponent"
+        | "WorkPlaceComponent" => 0x82,
+        "InteractComponent" | "StorageComponent" => 0x81,
+        "MapComponent" => 0x100083,
+        "StateMachineComponent" => 0xcd,
+        "StatusIconComponent" => 0xc2,
+        _ => 0x80,
+    }
+}
+
+/// An entity's capability bits (`Entity +0x40`): its components' low 16 bits together
+/// (`FUN_1400c8940`).
+pub(crate) fn entity_flags(g: &GameState, entity: ObjId) -> Option<u32> {
+    let o = g.objects.get(&entity)?;
+    let Some(Value::List(l)) = o.fields.at("entity.components") else {
+        return None;
+    };
+    let bits = l
+        .iter()
+        .filter_map(|c| c.ptr("component"))
+        .filter_map(|c| g.objects.get(&c)?.fields.i32("base.flags"))
+        .fold(0u32, |a, f| a | (f as u32 & 0xffff));
+    let old = o.fields.i32("entity.flags").unwrap_or(0) as u32;
+    Some(old & !0xffff | bits)
+}
+
 /// A new entity of `template`: its ComponentEntity and components, linked both ways. Returns
 /// the ComponentEntity's id.
 pub(crate) fn new_entity(
@@ -64,10 +126,24 @@ pub(crate) fn new_entity(
         let f = &mut g.objects.get_mut(&c).unwrap().fields;
         f.set("base.entity", Value::Ptr(Some(entity)));
         f.set_i32("base.description", description as i32);
+        f.set_i32("base.flags", initial_flags(name) as i32);
         components.push(c);
+    }
+    // A character's model animates (update bit `0x04`).
+    let character = components
+        .iter()
+        .any(|c| g.objects[c].type_name == "CharacterComponent");
+    if character {
+        for c in &components {
+            if g.objects[c].type_name == "ModelComponent" {
+                let f = &mut g.objects.get_mut(c).unwrap().fields;
+                f.set_i32("base.flags", 0x87);
+            }
+        }
     }
     let f = &mut g.objects.get_mut(&entity).unwrap().fields;
     f.set_i32("entity.template", template_id as i32);
+    f.set_i32("entity.flags", 0);
     f.set(
         "entity.components",
         Value::List(
@@ -79,6 +155,10 @@ pub(crate) fn new_entity(
                 .collect(),
         ),
     );
+    if let Some(bits) = entity_flags(g, entity) {
+        let f = &mut g.objects.get_mut(&entity).unwrap().fields;
+        f.set_i32("entity.flags", bits as i32);
+    }
     Some(entity)
 }
 

@@ -506,7 +506,8 @@ impl Game {
             let (w, h) = renderer.size();
             let rgba = renderer.capture(&frame);
             let image = crate::saved::preview(&rgba, w, h);
-            self.main.current_mut().save_preview(image);
+            let minimap = renderer.read_minimap();
+            self.main.current_mut().save_preview(image, minimap);
         }
         frame.ui = Some((&self.ui, &quads));
         if capture {

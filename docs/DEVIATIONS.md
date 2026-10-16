@@ -22,8 +22,8 @@ Deviation: 43, Not ported: 10, Not traced: 5.
 ## `apps/game/src/gameplay.rs`
 
 - [Deviation] [apps/game/src/gameplay.rs:32](../apps/game/src/gameplay.rs#L32): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
-- [Deviation] [apps/game/src/gameplay.rs:484](../apps/game/src/gameplay.rs#L484): The achievement instances with their goals' progress, for a new game. Deviation: a loaded game keeps the instances it was saved with (the port does not read them back).
-- [Deviation] [apps/game/src/gameplay.rs:741](../apps/game/src/gameplay.rs#L741): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
+- [Deviation] [apps/game/src/gameplay.rs:523](../apps/game/src/gameplay.rs#L523): The achievement instances with their goals' progress, for a new game. Deviation: a loaded game keeps the instances it was saved with (the port does not read them back).
+- [Deviation] [apps/game/src/gameplay.rs:781](../apps/game/src/gameplay.rs#L781): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
 
 ## `apps/game/src/gameplay/tutorial.rs`
 
@@ -33,7 +33,7 @@ Deviation: 43, Not ported: 10, Not traced: 5.
 
 - [Deviation] [apps/game/src/main.rs:107](../apps/game/src/main.rs#L107): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
 - [Deviation] [apps/game/src/main.rs:202](../apps/game/src/main.rs#L202): "Use Software Mouse" (`Input::Configuration +10`): the pointer is drawn by the game, at its image's own size, instead of by the system (`UserInterface::SetCursor` hands the cursor's sheet image and hotspot to the device). Not ported: the other cursors (Hand, Place, Move, …) the original switches between by `UserInterface::GetMouseCursorIndex`; only the arrow is drawn.
-- [Deviation] [apps/game/src/main.rs:702](../apps/game/src/main.rs#L702): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
+- [Deviation] [apps/game/src/main.rs:703](../apps/game/src/main.rs#L703): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
 
 ## `apps/game/src/menu.rs`
 

@@ -96,7 +96,9 @@ pub trait GameLoop {
         false
     }
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    fn save_preview(&mut self, _image: Vec<u8>) {}
+    /// The preview and the minimap's terrain image (size, texels) for a pending save.
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    fn save_preview(&mut self, _image: Vec<u8>, _minimap: Option<(u32, Vec<u32>)>) {}
 }
 
 /// A loop's UI: a full-screen group holding an optional backdrop and dialog instances.

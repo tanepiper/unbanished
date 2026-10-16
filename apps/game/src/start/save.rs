@@ -73,6 +73,37 @@ pub(crate) fn component(g: &GameState, entity: ObjId, type_name: &str) -> Option
 }
 
 /// The fields of an entity's component of one type, for writing.
+/// The capability bits that follow a component's state (update bit `0x04` while a status icon
+/// shows or a particle slot is on), then each entity's, its components' together. Every saved
+/// component and entity agrees with these.
+fn finish_flags(g: &mut GameState) {
+    for o in g.objects.values_mut() {
+        let on = match o.type_name {
+            "StatusIconComponent" => o.fields.i32("status.bits").map(|b| b != 0),
+            "ParticleComponent" => match o.fields.at("particle.slots") {
+                Some(Value::List(l)) => Some(
+                    l.iter()
+                        .any(|s| matches!(s.get("on"), Some(Value::Bool(true)))),
+                ),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let (Some(on), Some(f)) = (on, o.fields.i32("base.flags")) {
+            let f = if on { f | 0x04 } else { f & !0x04 };
+            o.fields.set_i32("base.flags", f);
+        }
+    }
+    let entities: Vec<ObjId> = g.entities.iter().flatten().copied().collect();
+    for e in entities {
+        if let Some(bits) = create::entity_flags(g, e) {
+            if let Some(o) = g.objects.get_mut(&e) {
+                o.fields.set_i32("entity.flags", bits as i32);
+            }
+        }
+    }
+}
+
 pub(crate) fn fields_mut<'a>(
     g: &'a mut GameState,
     entity: ObjId,
@@ -106,6 +137,103 @@ impl StartingTown {
         self.export_citizens(archive, g, &mut refs, &ids);
         self.export_wildlife(g, &mut refs, &ids);
         self.export_producers(g, &mut refs, &ids);
+        self.export_zones(g, &mut refs, &ids);
+        if self.save_ids.is_none() {
+            self.export_water(g, &ids);
+        }
+        finish_flags(g);
+    }
+
+    /// The town's zones by template (`+0x160`, `FUN_1400186e0`): every placed entity with a
+    /// ZoneComponent, registered when it activates (`FUN_1401356c0` → `FUN_14008e2f0`), built
+    /// or not. Keyed by the description's address in the original, so a saved game keeps its
+    /// keys' order (and its emptied keys) and new ones follow in placement order.
+    fn export_zones(&self, g: &mut GameState, refs: &mut Refs, ids: &Ids) {
+        use construction::{in_saved_order, like_saved, saved_order};
+        let mut keys: Vec<u32> = Vec::new();
+        let mut members: std::collections::BTreeMap<u32, Vec<Option<ObjId>>> = Default::default();
+        for (p, placed) in self.placed.iter().enumerate() {
+            let Some(id) = ids.entity(p).filter(|_| placed.alive) else {
+                continue;
+            };
+            if component(g, id, "ZoneComponent").is_none() {
+                continue;
+            }
+            let key = refs.id(g, &self.templates[placed.template].reference);
+            if !keys.contains(&key) {
+                keys.push(key);
+            }
+            members.entry(key).or_default().push(Some(id));
+        }
+        let saved = g.town.at("town.zones").cloned();
+        let order = saved_order(saved.as_ref(), "description");
+        for &k in &order {
+            if !keys.contains(&k) {
+                keys.push(k);
+            }
+        }
+        let old = |k: u32| match &saved {
+            Some(Value::List(l)) => l
+                .iter()
+                .find(|f| f.get("description") == Some(&Value::Ext(k)))
+                .and_then(|f| f.get("entities").cloned()),
+            _ => None,
+        };
+        let items: Vec<(u32, Fields)> = keys
+            .iter()
+            .map(|&k| {
+                let list = Value::List(
+                    members
+                        .remove(&k)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|e| Fields(vec![("entity", Value::Ptr(e))]))
+                        .collect(),
+                );
+                let entities = like_saved(old(k).as_ref(), list);
+                (
+                    k,
+                    Fields(vec![("description", Value::Ext(k)), ("entities", entities)]),
+                )
+            })
+            .collect();
+        g.town
+            .set("town.zones", Value::List(in_saved_order(&order, items)));
+    }
+
+    /// A new game's water (`fire::Water`): the shore points (`+0x130`, `FUN_1400a43f0`), the
+    /// wells' WellComponents (`+0xe0`) and the points and wells by 8 × 8 block (`+0x140`).
+    /// A loaded game keeps its saved lists (the port rebuilds the points from its cells).
+    fn export_water(&self, g: &mut GameState, ids: &Ids) {
+        let w = &self.construction.water;
+        let points = w
+            .points
+            .iter()
+            .map(|&(a, b)| Fields(vec![("a", Value::I32(a)), ("b", Value::I32(b))]))
+            .collect();
+        let wells = w
+            .wells
+            .iter()
+            .map(|e| {
+                let well = e
+                    .and_then(|e| ids.entity(e))
+                    .and_then(|id| component(g, id, "WellComponent"));
+                Fields(vec![("entity", Value::Ptr(well))])
+            })
+            .collect();
+        let blocks = w
+            .blocks
+            .iter()
+            .map(|b| {
+                Fields(vec![
+                    ("count", Value::I32(b.len() as i32)),
+                    ("values", Value::U32s(b.iter().map(|&v| v as u32).collect())),
+                ])
+            })
+            .collect();
+        g.town.set("town.water_sources", Value::List(points));
+        g.town.set("town.wells", Value::List(wells));
+        g.town.set("town.values_140", Value::List(blocks));
     }
 
     /// Stage 1: the placed entities' map, model, natural resource, growth and spawning, and

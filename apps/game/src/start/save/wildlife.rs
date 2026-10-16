@@ -94,7 +94,9 @@ impl StartingTown {
                 for (k, v) in ["x", "y", "w", "h"].iter().zip(animal.area) {
                     f.set_i32(&format!("animal.{k}"), v as i32);
                 }
-                f.set_i32("base.flags", animal.flags as i32);
+                // The animal's state bits over the component's capability bits.
+                let bits = f.i32("base.flags").unwrap_or(0) as u32 & 0xffff;
+                f.set_i32("base.flags", (animal.flags & !0xffff | bits) as i32);
             }
             if let Some(f) = fields_mut(g, e, "WildAnimalComponent") {
                 f.set("wild.herd", Value::Ptr(herd));
@@ -131,6 +133,24 @@ impl StartingTown {
             f.set_i32("pasture.value_40", pasture.limit);
             f.set_i32("pasture.value_44", pasture.produced);
         }
+        // The town's herds and populations (`+0xb0`, `+0xc0`).
+        let herds: Vec<Option<ObjId>> = w
+            .herds
+            .iter()
+            .map(|h| comp(g, h.entity, "HerdComponent"))
+            .collect();
+        let populations: Vec<Option<ObjId>> = w
+            .populations
+            .iter()
+            .map(|p| comp(g, p.entity, "PopulationComponent"))
+            .collect();
+        let herds = like_saved(g.town.at("town.herds"), ptr_list("entity", herds));
+        g.town.set("town.herds", herds);
+        let populations = like_saved(
+            g.town.at("town.populations"),
+            ptr_list("entity", populations),
+        );
+        g.town.set("town.populations", populations);
         let pastures: Vec<Option<ObjId>> = w
             .pasture_list
             .iter()

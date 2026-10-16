@@ -258,13 +258,17 @@ impl Camera {
         if self.distance_target == 0.0 {
             self.distance_target = self.distance;
         }
-        let p = self.pitch_slider;
-        let f = (self.distance_target - ZOOM_MIN) / 110.0;
-        let pitch_target =
-            (p * -65.0 - (1.0 - p) * 85.0) * f + (p * -25.0 - (1.0 - p) * 60.0) * (1.0 - f);
+        let pitch_target = self.pitch_target();
         self.pitch = pitch_target * 0.1 + self.pitch * 0.9;
         self.distance = self.distance * 0.9 + self.distance_target * 0.1;
         self.clamp(terrain);
+    }
+
+    /// The pitch the controller eases towards (`+0x40`) for its zoom target and slider.
+    pub fn pitch_target(&self) -> f32 {
+        let p = self.pitch_slider;
+        let f = (self.distance_target - ZOOM_MIN) / 110.0;
+        (p * -65.0 - (1.0 - p) * 85.0) * f + (p * -25.0 - (1.0 - p) * 60.0) * (1.0 - f)
     }
 
     fn clamp(&mut self, terrain: &Terrain) {

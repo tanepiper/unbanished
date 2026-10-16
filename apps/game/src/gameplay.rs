@@ -155,6 +155,9 @@ pub struct GameplayLoop {
     weather: Vec<(Option<String>, Option<String>)>,
     /// River centre lines (MapComponent `+0x1e0`).
     river_paths: Vec<Vec<[f32; 2]>>,
+    /// The minimap's terrain image read back for the pending save (size, texels).
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    save_minimap: Option<(u32, Vec<u32>)>,
     /// A new game's terrain block, kept for saving: the generated surface, rivers, lakes and
     /// materials (the heights are taken from the terrain when saving, as tunnels change them).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
@@ -211,12 +214,18 @@ impl GameplayLoop {
             None => {
                 let mut g = self.new_game_state()?;
                 self.save_achievements(&mut g);
+                self.save_minimap_images(&mut g);
                 g
             }
         };
         g.town_name = self.params.town_name.clone();
         if let Some(town) = &self.town {
             town.export_into(archive, &mut g);
+            // A new game's map ambience; a loaded one keeps its own entities.
+            if let (None, Some(a)) = (&self.saved, &self.ambience) {
+                let time = g.entity_time;
+                crate::start::save::new_game::ambience(archive, &mut g, &a.saved(), time);
+            }
         }
         g.random_index = self.rng.index();
         g.random_state = self.rng.state().to_vec();
@@ -228,8 +237,13 @@ impl GameplayLoop {
                 c.target[0] = camera.target.x;
                 c.target[1] = camera.target.y;
                 c.floats = [camera.yaw, camera.pitch, camera.distance];
-                // A new game's transform follows them; a loaded one keeps its own.
+                // A new game's transform follows them, and the controller's zoom and pitch
+                // targets and slider (`FUN_140107df0`); a loaded one keeps its own.
                 if self.saved.is_none() {
+                    let m = &mut g.managers;
+                    m.set_f32("tools.value_3c", camera.distance_target);
+                    m.set_f32("tools.value_40", camera.pitch_target());
+                    m.set_f32("tools.value_44", camera.pitch_slider);
                     *c = crate::start::save::new_game::camera(
                         camera.target.to_array(),
                         camera.yaw,
@@ -458,6 +472,31 @@ impl GameplayLoop {
         }
     }
 
+    /// A new game's minimap (`FUN_1400aacc0`): the terrain image read back when it was drawn
+    /// for the save (`FUN_1400aa610`) and the overlay of placed buildings (`FUN_1400aa200`, as
+    /// `0xAARRGGBB` texels).
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    fn save_minimap_images(&self, g: &mut banished_formats::savegame::GameState) {
+        use banished_formats::savegame::Value;
+        let Some((n, terrain)) = &self.save_minimap else {
+            return;
+        };
+        let overlay: Vec<u32> = self.town.as_ref().map_or_else(Vec::new, |t| {
+            t.minimap_overlay()
+                .chunks(4)
+                .map(|p| {
+                    (p[3] as u32) << 24 | (p[0] as u32) << 16 | (p[1] as u32) << 8 | p[2] as u32
+                })
+                .collect()
+        });
+        let m = &mut g.managers;
+        m.set_i32("minimap.count_28", overlay.len() as i32);
+        m.set("minimap.image_28", Value::U32s(overlay));
+        m.set_i32("minimap.count_18", terrain.len() as i32);
+        m.set("minimap.image_18", Value::U32s(terrain.clone()));
+        m.set_i32("minimap.size", *n as i32);
+    }
+
     /// A new game's state before the town and the loop are written into it
     /// (`crate::start::save::new_game`).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
@@ -581,6 +620,7 @@ impl GameplayLoop {
             weather: Vec::new(),
             river_paths: Vec::new(),
             new_map: None,
+            save_minimap: None,
             saved: None,
         }
     }
@@ -2783,9 +2823,10 @@ impl GameLoop for GameplayLoop {
             .is_some_and(|(_, _, i)| i.is_none())
     }
 
-    fn save_preview(&mut self, image: Vec<u8>) {
+    fn save_preview(&mut self, image: Vec<u8>, minimap: Option<(u32, Vec<u32>)>) {
         if let Some((_, _, slot)) = &mut self.pending_save {
             *slot = Some(image);
+            self.save_minimap = minimap;
         }
     }
 

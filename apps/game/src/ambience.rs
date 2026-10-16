@@ -146,6 +146,21 @@ impl Emitter {
     }
 }
 
+/// A region's AmbientEnvironmentComponent and emitter, for saving.
+pub struct RegionSave {
+    pub rect: (i32, i32, i32, i32),
+    pub position: [f32; 3],
+    /// The two slots' effects and volumes.
+    pub effects: [(Option<String>, f32); 2],
+}
+
+/// The map ambience's entities, for saving.
+pub struct AmbienceSave {
+    pub regions: Vec<RegionSave>,
+    pub wind: Option<[f32; 3]>,
+    pub rivers: Vec<[f32; 3]>,
+}
+
 struct Region {
     /// Cells `x..x+w`, `y..y+h` (`+0x28..+0x34`).
     rect: (i32, i32, i32, i32),
@@ -575,6 +590,35 @@ impl Ambience {
 
     /// The temperature cross-fade: `t = clamp((temperature - lo) / (hi - lo))`, warm at `t`,
     /// cold at `1 - t`.
+    /// What a new game's save records of the map ambience (`FUN_1400a57c0`'s entities): each
+    /// region's cells and centre with its warm and cold effects and their volumes, the wind's
+    /// position and the river emitters' positions.
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    pub fn saved(&self) -> AmbienceSave {
+        let terrains = self.desc.as_ref().map(|d| &d.terrains);
+        let regions = self
+            .regions
+            .iter()
+            .map(|r| {
+                let t = terrains.and_then(|t| t.get(r.class));
+                let volume = |i: usize| r.emitter.slots.get(i).map_or(0.0, |s| s.volume);
+                RegionSave {
+                    rect: r.rect,
+                    position: r.emitter.position.to_array(),
+                    effects: [
+                        (t.and_then(|t| t.warm.clone()), volume(0)),
+                        (t.and_then(|t| t.cold.clone()), volume(1)),
+                    ],
+                }
+            })
+            .collect();
+        AmbienceSave {
+            regions,
+            wind: self.wind.as_ref().map(|w| w.position.to_array()),
+            rivers: self.rivers.iter().map(|r| r.position.to_array()).collect(),
+        }
+    }
+
     pub fn fade(&mut self, audio: &mut Audio, temperature: f32) {
         let Some(desc) = &self.desc else { return };
         let (lo, hi) = desc.fade;

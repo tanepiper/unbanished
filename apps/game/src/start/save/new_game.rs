@@ -9,7 +9,7 @@
 //! Every entity is then created by [`StartingTown::export_into`] (no saved ids).
 
 use banished_formats::menu_scene::{MapComponent, SceneCamera};
-use banished_formats::savegame::{self, Fields, GameMapCell, GameState, Value};
+use banished_formats::savegame::{self, Fields, GameMapCell, GameState, ObjId, Value};
 use banished_formats::savegame_schema::{default_block, ACHIEVEMENTS, TOWN};
 
 use super::Refs;
@@ -102,6 +102,32 @@ pub fn state(n: NewGame) -> GameState {
     g.achievements = default_block(&[ACHIEVEMENTS], 0);
     g.town = default_block(&[TOWN], 0);
     g.managers = default_block(&savegame::managers(VERSION), 0);
+    // `FUN_140099160`: the environment description and the climate.
+    let environment = refs.id(&mut g, r"Environment\Environment.rsc:resource");
+    let climate = g.climate;
+    let m = &mut g.managers;
+    m.set("environment.climate", Value::Ext(environment));
+    m.set("environment.month", Value::Ext(climate));
+    // The camera controller (`FUN_140107df0`, constructor `FUN_140107a90`): `+0x34` 1, the
+    // pitch slider 0.75 and five bookmarks, none set; the targets are the camera's.
+    m.set_i32("tools.value_34", 1);
+    m.set_f32("tools.value_44", 0.75);
+    m.set(
+        "tools.points",
+        Value::List(
+            (0..5)
+                .map(|_| {
+                    Fields(vec![
+                        ("position", Value::F32s(vec![0.0; 3])),
+                        ("value_c", Value::F32(0.0)),
+                        ("value_10", Value::F32(0.0)),
+                        ("value_14", Value::F32(0.0)),
+                        ("flag_18", Value::Bool(false)),
+                    ])
+                })
+                .collect(),
+        ),
+    );
     let empty = |k: usize, f: &dyn Fn() -> Fields| Value::List((0..k).map(|_| f()).collect());
     g.managers.set(
         "environment.effects",
@@ -185,4 +211,88 @@ pub fn achievements(g: &mut GameState, list: &[AchievementSave]) {
     }
     g.achievements
         .set("achievements.instances", Value::List(instances));
+}
+
+/// The map ambience's entities (`FUN_1400a57c0`): a `RiverEffect.rsc:ambient` entity per river
+/// emitter and the `WindEffect.rsc:ambient` one (no bucket), and an
+/// `Environment.rsc:ambient` entity per region (bucket 2) with its cells and its two slots'
+/// effects and volumes. No sound plays in a new save's audio scene, so every slot's handle is 0.
+pub fn ambience(
+    archive: &banished_formats::pkg::Archive,
+    g: &mut GameState,
+    a: &crate::ambience::AmbienceSave,
+    time: i64,
+) {
+    use super::create::{add_entity, new_entity};
+    use super::fields_mut;
+    /// No bucket (the schedule's slot is −1).
+    const NO_BUCKET: usize = 6;
+    let mut refs = Refs::new(g);
+    let slot = |effect: Option<u32>, volume: f32| {
+        Fields(vec![
+            ("effect", Value::Ext(effect.unwrap_or(u32::MAX))),
+            ("handle", Value::U32(0)),
+            ("volume", Value::F32(volume)),
+        ])
+    };
+    // The emitter description's effects (`{file}:ambientemitter`).
+    let effects = |file: &str| -> Vec<String> {
+        archive
+            .read_ref(&format!("{file}:ambientemitter").replace('\\', "/"))
+            .ok()
+            .and_then(|b| banished_formats::audio::ambient_emitter_description(&b).ok())
+            .map_or_else(Vec::new, |d| d.effects.into_iter().flatten().collect())
+    };
+    let emitter = |g: &mut GameState,
+                   refs: &mut Refs,
+                   file: &str,
+                   position: [f32; 3],
+                   bucket: usize|
+     -> Option<ObjId> {
+        let id = new_entity(archive, g, refs, &format!("{file}:ambient"))?;
+        add_entity(g, id, bucket, if bucket < 5 { time } else { 0 });
+        if let Some(f) = fields_mut(g, id, "AmbientEmitterComponent") {
+            f.set("emitter.position", Value::F32s(position.to_vec()));
+        }
+        Some(id)
+    };
+    for (file, positions) in [
+        (r"Audio\Effects\RiverEffect.rsc", a.rivers.clone()),
+        (
+            r"Audio\Effects\WindEffect.rsc",
+            a.wind.into_iter().collect(),
+        ),
+    ] {
+        let slots: Vec<u32> = effects(file).iter().map(|e| refs.id(g, e)).collect();
+        for p in positions {
+            let Some(id) = emitter(g, &mut refs, file, p, NO_BUCKET) else {
+                continue;
+            };
+            let list = Value::List(slots.iter().map(|&e| slot(Some(e), 1.0)).collect());
+            if let Some(f) = fields_mut(g, id, "AmbientEmitterComponent") {
+                f.set("emitter.slots", list);
+            }
+        }
+    }
+    let file = r"Audio\Effects\Environment.rsc";
+    for r in &a.regions {
+        let Some(id) = emitter(g, &mut refs, file, r.position, 2) else {
+            continue;
+        };
+        let slots: Vec<Fields> = r
+            .effects
+            .iter()
+            .map(|(e, v)| slot(e.as_deref().map(|e| refs.id(g, e)), *v))
+            .collect();
+        if let Some(f) = fields_mut(g, id, "AmbientEmitterComponent") {
+            f.set("emitter.slots", Value::List(slots));
+        }
+        if let Some(f) = fields_mut(g, id, "AmbientEnvironmentComponent") {
+            f.set("environment.position", Value::F32s(r.position.to_vec()));
+            f.set_i32("environment.value_28", r.rect.0);
+            f.set_i32("environment.value_2c", r.rect.1);
+            f.set_i32("environment.value_30", r.rect.2);
+            f.set_i32("environment.value_34", r.rect.3);
+        }
+    }
 }
