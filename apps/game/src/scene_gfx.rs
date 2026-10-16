@@ -150,6 +150,26 @@ struct PipelineSpec<'a> {
     bias: wgpu::DepthBiasState,
 }
 
+/// The scene's sample count (antialiasing, `Video::Configuration +0x24`), set when the
+/// renderer starts: every pipeline drawing into the scene or the reflection is made with it.
+static SAMPLES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
+
+pub fn set_samples(n: u32) {
+    SAMPLES.store(n.max(1), std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn samples() -> u32 {
+    SAMPLES.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// The scene pipelines' multisample state.
+pub fn multisample() -> wgpu::MultisampleState {
+    wgpu::MultisampleState {
+        count: samples(),
+        ..Default::default()
+    }
+}
+
 fn pipeline(
     device: &wgpu::Device,
     shader: &wgpu::ShaderModule,
@@ -191,7 +211,7 @@ fn pipeline(
             stencil: Default::default(),
             bias: spec.bias,
         }),
-        multisample: Default::default(),
+        multisample: multisample(),
         multiview_mask: None,
         cache: None,
     })

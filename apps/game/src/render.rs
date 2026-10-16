@@ -103,6 +103,13 @@ struct Targets {
     reflection_depth: wgpu::TextureView,
     depth: wgpu::TextureView,
     blit_bind: wgpu::BindGroup,
+    /// With antialiasing (`Video::Configuration +0x24`), the multisampled colour the scene and
+    /// the reflection are drawn into, resolved into `scene` and `reflection`; `depth` and
+    /// `reflection_depth` are then multisampled too.
+    scene_draw: Option<wgpu::TextureView>,
+    reflection_draw: Option<wgpu::TextureView>,
+    /// The single-sampled depth of the screen and minimap passes (the blit and the UI).
+    screen_depth: wgpu::TextureView,
 }
 
 pub struct Renderer {
@@ -162,9 +169,20 @@ pub struct Renderer {
 fn texture(
     device: &wgpu::Device,
     label: &str,
+    size: (u32, u32),
+    format: wgpu::TextureFormat,
+    usage: wgpu::TextureUsages,
+) -> wgpu::Texture {
+    texture_samples(device, label, size, format, usage, 1)
+}
+
+fn texture_samples(
+    device: &wgpu::Device,
+    label: &str,
     (w, h): (u32, u32),
     format: wgpu::TextureFormat,
     usage: wgpu::TextureUsages,
+    samples: u32,
 ) -> wgpu::Texture {
     device.create_texture(&wgpu::TextureDescriptor {
         label: Some(label),
@@ -174,7 +192,7 @@ fn texture(
             depth_or_array_layers: 1,
         },
         mip_level_count: 1,
-        sample_count: 1,
+        sample_count: samples,
         dimension: wgpu::TextureDimension::D2,
         format,
         usage,
@@ -189,6 +207,7 @@ impl Targets {
         blit_layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler,
     ) -> Targets {
+        let samples = crate::scene_gfx::samples();
         use wgpu::TextureUsages as U;
         let scene = texture(
             device,
@@ -232,16 +251,45 @@ impl Targets {
             frame_copy_view: view(&frame_copy),
             frame_copy,
             reflection_view: view(&reflection),
-            reflection_depth: view(&texture(
+            reflection_depth: view(&texture_samples(
                 device,
                 "reflection depth",
                 half,
                 DEPTH_FORMAT,
                 U::RENDER_ATTACHMENT,
+                samples,
             )),
-            depth: view(&texture(
+            depth: view(&texture_samples(
                 device,
                 "depth",
+                size,
+                DEPTH_FORMAT,
+                U::RENDER_ATTACHMENT,
+                samples,
+            )),
+            scene_draw: (samples > 1).then(|| {
+                view(&texture_samples(
+                    device,
+                    "scene (multisampled)",
+                    size,
+                    SCENE_FORMAT,
+                    U::RENDER_ATTACHMENT,
+                    samples,
+                ))
+            }),
+            reflection_draw: (samples > 1).then(|| {
+                view(&texture_samples(
+                    device,
+                    "reflection (multisampled)",
+                    half,
+                    SCENE_FORMAT,
+                    U::RENDER_ATTACHMENT,
+                    samples,
+                ))
+            }),
+            screen_depth: view(&texture(
+                device,
+                "screen depth",
                 size,
                 DEPTH_FORMAT,
                 U::RENDER_ATTACHMENT,
@@ -251,6 +299,50 @@ impl Targets {
             blit_bind,
         }
     }
+
+    /// Where the scene is drawn: its multisampled colour, else `scene` itself.
+    fn scene_target(&self) -> &wgpu::TextureView {
+        self.scene_draw.as_ref().unwrap_or(&self.scene_view)
+    }
+
+    fn reflection_target(&self) -> &wgpu::TextureView {
+        self.reflection_draw
+            .as_ref()
+            .unwrap_or(&self.reflection_view)
+    }
+
+    /// Resolve the multisampled scene into `scene` (nothing without antialiasing).
+    fn resolve_scene(&self, encoder: &mut wgpu::CommandEncoder) {
+        if let Some(draw) = &self.scene_draw {
+            resolve(encoder, draw, &self.scene_view);
+        }
+    }
+
+    fn resolve_reflection(&self, encoder: &mut wgpu::CommandEncoder) {
+        if let Some(draw) = &self.reflection_draw {
+            resolve(encoder, draw, &self.reflection_view);
+        }
+    }
+}
+
+/// A pass that only resolves `draw` (multisampled) into `into`.
+fn resolve(encoder: &mut wgpu::CommandEncoder, draw: &wgpu::TextureView, into: &wgpu::TextureView) {
+    encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        label: Some("resolve"),
+        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+            view: draw,
+            depth_slice: None,
+            resolve_target: Some(into),
+            ops: wgpu::Operations {
+                load: wgpu::LoadOp::Load,
+                store: wgpu::StoreOp::Store,
+            },
+        })],
+        depth_stencil_attachment: None,
+        timestamp_writes: None,
+        occlusion_query_set: None,
+        multiview_mask: None,
+    });
 }
 
 fn color(argb: u32) -> Vec3 {
@@ -364,6 +456,8 @@ pub struct VideoSettings {
     /// "ReflectionDetail": 0 sky only, 1 terrain, 2 everything in the water reflection.
     pub reflection: i32,
     pub vsync: bool,
+    /// "Multisample": 0 none, n for n + 1 samples.
+    pub multisample: i32,
 }
 
 impl Default for VideoSettings {
@@ -382,6 +476,7 @@ impl From<&crate::settings::VideoConfig> for VideoSettings {
             shadow_detail: v.shader_detail,
             reflection: v.reflection_detail,
             vsync: v.vsync,
+            multisample: v.multisample,
         }
     }
 }
@@ -395,6 +490,7 @@ impl VideoSettings {
             || self.adapter != next.adapter
             || self.filter != next.filter
             || self.shadow_scalar != next.shadow_scalar
+            || self.multisample != next.multisample
     }
 }
 
@@ -534,6 +630,10 @@ impl Renderer {
         let info = adapter.get_info();
         let backend = format!("{:?} ({})", info.backend, info.name);
         log::info!("adapter: {backend}");
+        // Counts beyond WebGPU's guaranteed 1 and 4 need the adapter's own format features.
+        let specific = adapter
+            .features()
+            .contains(wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES);
         let display = crate::settings::DisplayInfo {
             interfaces: interfaces
                 .iter()
@@ -548,9 +648,20 @@ impl Renderer {
                         .collect(),
                 })
                 .collect(),
-            // Deviation: the port renders single-sampled, so the Options dialog offers only
-            // "None" for antialiasing.
-            multisample: vec![true],
+            // `IsMultisampleModeSupported`: entry `n` is `n + 1` samples, as the adapter takes
+            // them for the scene's colour and depth.
+            multisample: (1..=16u32)
+                .map(|n| {
+                    n == 1
+                        || (n == 4 || specific)
+                            && [SCENE_FORMAT, DEPTH_FORMAT].iter().all(|f| {
+                                adapter
+                                    .get_texture_format_features(*f)
+                                    .flags
+                                    .sample_count_supported(n)
+                            })
+                })
+                .collect(),
             max_anisotropy: if adapter
                 .get_downlevel_capabilities()
                 .flags
@@ -562,9 +673,22 @@ impl Renderer {
             },
             desktop: None,
         };
+        // The antialiasing chosen (`Video::Configuration +0x24`: n for n + 1 samples), when
+        // the adapter supports it; every scene pipeline below is made with it.
+        let samples = usize::try_from(video.multisample)
+            .ok()
+            .filter(|&n| display.multisample.get(n).copied().unwrap_or(false))
+            .map_or(1, |n| n as u32 + 1);
+        crate::scene_gfx::set_samples(samples);
+        log::info!("antialiasing: {samples} samples");
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: Some("game"),
+                required_features: if specific {
+                    wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
+                } else {
+                    wgpu::Features::empty()
+                },
                 required_limits: wgpu::Limits::downlevel_webgl2_defaults()
                     .using_resolution(adapter.limits()),
                 ..Default::default()
@@ -682,7 +806,7 @@ impl Renderer {
                 stencil: Default::default(),
                 bias: Default::default(),
             }),
-            multisample: Default::default(),
+            multisample: crate::scene_gfx::multisample(),
             multiview_mask: None,
             cache: None,
         });
@@ -1159,21 +1283,25 @@ impl Renderer {
             let _pass = Self::scene_pass(
                 &mut encoder,
                 "minimap reflection",
-                &targets.reflection_view,
+                targets.reflection_target(),
                 &targets.reflection_depth,
                 Some(wgpu::Color::BLACK),
             );
+        }
+        if water.is_some() {
+            targets.resolve_reflection(&mut encoder);
         }
         {
             let mut pass = Self::scene_pass(
                 &mut encoder,
                 "minimap",
-                &targets.scene_view,
+                targets.scene_target(),
                 &targets.depth,
                 Some(clear),
             );
             self.draw_terrain(&mut pass, &self.globals_bind);
         }
+        targets.resolve_scene(&mut encoder);
         if water.is_some() {
             encoder.copy_texture_to_texture(
                 targets.scene.as_image_copy(),
@@ -1184,14 +1312,17 @@ impl Renderer {
                     depth_or_array_layers: 1,
                 },
             );
-            let mut pass = Self::scene_pass(
-                &mut encoder,
-                "minimap water",
-                &targets.scene_view,
-                &targets.depth,
-                None,
-            );
-            self.extras.draw_water(&mut pass, &self.globals_bind);
+            {
+                let mut pass = Self::scene_pass(
+                    &mut encoder,
+                    "minimap water",
+                    targets.scene_target(),
+                    &targets.depth,
+                    None,
+                );
+                self.extras.draw_water(&mut pass, &self.globals_bind);
+            }
+            targets.resolve_scene(&mut encoder);
         }
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -1206,7 +1337,7 @@ impl Renderer {
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &targets.depth,
+                    view: &targets.screen_depth,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
                         store: wgpu::StoreOp::Discard,
@@ -1597,7 +1728,7 @@ impl Renderer {
                 let mut pass = Self::scene_pass(
                     &mut encoder,
                     "reflection",
-                    &t.reflection_view,
+                    t.reflection_target(),
                     &t.reflection_depth,
                     Some(clear),
                 );
@@ -1611,15 +1742,24 @@ impl Renderer {
                     self.models.draw(&mut pass, &self.reflect_bind);
                 }
             }
+            if water.is_some() {
+                t.resolve_reflection(&mut encoder);
+            }
             {
-                let mut pass =
-                    Self::scene_pass(&mut encoder, "scene", &t.scene_view, &t.depth, Some(clear));
+                let mut pass = Self::scene_pass(
+                    &mut encoder,
+                    "scene",
+                    t.scene_target(),
+                    &t.depth,
+                    Some(clear),
+                );
                 self.extras.draw_sky(&mut pass, &self.globals_bind);
                 self.draw_terrain(&mut pass, &self.globals_bind);
                 self.models.draw(&mut pass, &self.globals_bind);
                 self.extras.draw_decals(&mut pass, &self.globals_bind);
             }
             if water.is_some() {
+                t.resolve_scene(&mut encoder);
                 encoder.copy_texture_to_texture(
                     t.scene.as_image_copy(),
                     t.frame_copy.as_image_copy(),
@@ -1630,12 +1770,12 @@ impl Renderer {
                     },
                 );
                 let mut pass =
-                    Self::scene_pass(&mut encoder, "water", &t.scene_view, &t.depth, None);
+                    Self::scene_pass(&mut encoder, "water", t.scene_target(), &t.depth, None);
                 self.extras.draw_water(&mut pass, &self.globals_bind);
             }
             // Particles after the water, as transparent geometry, then the rain and snow.
             self.particles
-                .draw(&mut encoder, &t.scene_view, &t.depth, &self.globals_bind);
+                .draw(&mut encoder, t.scene_target(), &t.depth, &self.globals_bind);
             let textures = &self.weather_textures;
             self.weather.prepare(
                 &self.device,
@@ -1646,11 +1786,11 @@ impl Renderer {
                 |m| textures.get(m).cloned().flatten(),
             );
             self.weather
-                .draw(&mut encoder, &t.scene_view, &t.depth, &self.globals_bind);
+                .draw(&mut encoder, t.scene_target(), &t.depth, &self.globals_bind);
             self.highlight.draw(
                 &mut encoder,
                 &self.queue,
-                &t.scene_view,
+                t.scene_target(),
                 &t.depth,
                 scene,
                 self.size.0,
@@ -1663,7 +1803,7 @@ impl Renderer {
                 scene,
             );
             self.cell_overlay
-                .draw(&mut encoder, &t.scene_view, &t.depth);
+                .draw(&mut encoder, t.scene_target(), &t.depth);
             self.status_icons.prepare(
                 &self.device,
                 &self.queue,
@@ -1673,7 +1813,8 @@ impl Renderer {
                 self.icon_options,
             );
             self.status_icons
-                .draw(&mut encoder, &t.scene_view, &t.depth);
+                .draw(&mut encoder, t.scene_target(), &t.depth);
+            t.resolve_scene(&mut encoder);
         }
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -1688,7 +1829,7 @@ impl Renderer {
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.targets.depth,
+                    view: &self.targets.screen_depth,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
                         store: wgpu::StoreOp::Discard,

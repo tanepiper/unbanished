@@ -773,7 +773,7 @@ impl ModelRenderer {
                     stencil: Default::default(),
                     bias: Default::default(),
                 }),
-                multisample: Default::default(),
+                multisample: crate::scene_gfx::multisample(),
                 multiview_mask: None,
                 cache: None,
             })
@@ -830,7 +830,7 @@ impl ModelRenderer {
                     stencil: Default::default(),
                     bias: Default::default(),
                 }),
-                multisample: Default::default(),
+                multisample: crate::scene_gfx::multisample(),
                 multiview_mask: None,
                 cache: None,
             })
