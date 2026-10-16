@@ -1016,6 +1016,19 @@ pub struct ProduceWork {
     pub cycles: i32,
 }
 
+/// DecalComponent (0x38 bytes, vtable `0x140169400`; serialized `+0x30` alpha, `+0x28`
+/// material): setup (`FUN_140120ca0`) takes the description's alpha; entity event 1 (the
+/// ClearArea's state 2, `FUN_14011ccc0`) and the build's state 8 (`FUN_14010cfb0`) make it
+/// opaque; a collapse (`FUN_140122aa0`) switches to the DestroyDescription's `+0x2c` material.
+/// Each change re-adds the map decal (`FUN_140120c30`). See docs/DECALS.md.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Decal {
+    /// `+0x30` is 1.
+    pub opaque: bool,
+    /// `+0x28`: index into the description's materials.
+    pub material: i32,
+}
+
 /// One building under construction (and, once built, its WorkComponent).
 #[derive(Debug, Clone)]
 pub struct Site {
@@ -1158,6 +1171,9 @@ pub struct Construction {
     pub tornado_kills: Vec<usize>,
     /// TrackerComponents by entity, and the stock manager's made/used counters.
     pub trackers: BTreeMap<usize, crate::tracker::Tracker>,
+    /// DecalComponents that left their setup state, by entity (the others show at their
+    /// description's alpha with material 0).
+    pub decals: BTreeMap<usize, Decal>,
     pub counters: crate::tracker::StockCounters,
     pub terraforms: BTreeMap<usize, crate::terraform::TerraformState>,
     /// Built road cells Remove Roads marked, for the town to place their markers (cell,

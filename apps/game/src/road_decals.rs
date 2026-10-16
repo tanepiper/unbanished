@@ -15,6 +15,22 @@ use crate::scene_assets::DecalData;
 /// `+0x200`'s tile: cells per side.
 const TILE: i32 = 32;
 
+/// `FUN_1400b3650`: the atlas tile of a cell from which neighbours share its decal (left,
+/// right, up, down, then the corners up-left, up-right, down-left, down-right).
+pub(crate) fn tile_variant(n: [bool; 8]) -> u8 {
+    let [l, r, u, d, ul, ur, dl, dr] = n;
+    let corner = |c: bool, a: bool, b: bool| c && a && b;
+    let mask = l as usize
+        | (r as usize) << 1
+        | (u as usize) << 2
+        | (d as usize) << 3
+        | (corner(ul, l, u) as usize) << 4
+        | (corner(ur, r, u) as usize) << 5
+        | (corner(dl, l, d) as usize) << 6
+        | (corner(dr, r, d) as usize) << 7;
+    VARIANTS[mask]
+}
+
 /// `DAT_1401ca450`: the atlas tile by the neighbour mask (left 1, right 2, up 4, down 8, then
 /// the corners up-left 0x10, up-right 0x20, down-left 0x40, down-right 0x80, each only with both
 /// its edges); 255 where no mask leads.
@@ -37,7 +53,7 @@ const VARIANTS: [u8; 256] = [
 
 /// `DAT_1401ca2d0`: each atlas tile's `u0, v0, u1, v1` (an 8×6 grid of 512-unit cells, inset
 /// by 128).
-fn tile_uv(variant: u8) -> [i16; 4] {
+pub(crate) fn tile_uv(variant: u8) -> [i16; 4] {
     if variant == 46 {
         return [3200, 2688, 3200, 2688];
     }
@@ -61,23 +77,13 @@ pub fn materials(archive: &Archive) -> Vec<Option<String>> {
     ]
     .iter()
     .map(|r| {
-        use banished_formats::crs;
         let data = archive.read_ref(r).ok()?;
-        crs::parse(&data, |r: &mut crs::Reader, _| {
-            // DecalDescription: `+0x20` a float, then its materials.
-            r.block(|r, _| {
-                r.f32()?;
-                let m = if 0 < r.count()? {
-                    r.external_ref()?
-                } else {
-                    None
-                };
-                r.skip_rest();
-                Ok(m)
-            })
-        })
-        .ok()
-        .and_then(|(_, m)| m)
+        banished_formats::game::decal_description(&data)
+            .ok()?
+            .materials
+            .into_iter()
+            .next()
+            .flatten()
     })
     .collect()
 }
@@ -85,7 +91,7 @@ pub fn materials(archive: &Archive) -> Vec<Option<String>> {
 /// `FUN_1400b1f70`: a corner's 20-byte vertex (position, height, the built byte as alpha, the
 /// terrain's uv, the atlas uv filled in by the caller, the normal). The height grid is wider
 /// than the cells (`+0xc0` against `+0xc4`); `(gx, gy)` is the corner in it.
-fn vertex(grid: &HeightGrid, size: i32, gx: i32, gy: i32, built: u8) -> [u8; 20] {
+pub(crate) fn vertex(grid: &HeightGrid, size: i32, gx: i32, gy: i32, built: u8) -> [u8; 20] {
     let half = size >> 1;
     let hi = grid.width as i32 - 1;
     let z = grid.heights[gy.clamp(0, hi) as usize * grid.width + gx.clamp(0, hi) as usize];
@@ -144,17 +150,16 @@ pub fn build(
                     let built = cells.road_built[(y * n + x) as usize];
                     // Any road kind counts as a neighbour.
                     let at = |dx: i32, dy: i32| kind_at(x + dx, y + dy) != 0xff;
-                    let (l, r, u, d) = (at(-1, 0), at(1, 0), at(0, -1), at(0, 1));
-                    let corner = |c: bool, a: bool, b: bool| c && a && b;
-                    let mask = l as usize
-                        | (r as usize) << 1
-                        | (u as usize) << 2
-                        | (d as usize) << 3
-                        | (corner(at(-1, -1), l, u) as usize) << 4
-                        | (corner(at(1, -1), r, u) as usize) << 5
-                        | (corner(at(-1, 1), l, d) as usize) << 6
-                        | (corner(at(1, 1), r, d) as usize) << 7;
-                    let [u0, v0, u1, v1] = tile_uv(VARIANTS[mask]);
+                    let [u0, v0, u1, v1] = tile_uv(tile_variant([
+                        at(-1, 0),
+                        at(1, 0),
+                        at(0, -1),
+                        at(0, 1),
+                        at(-1, -1),
+                        at(1, -1),
+                        at(-1, 1),
+                        at(1, 1),
+                    ]));
                     let base = (vertices.len() / 20) as u16;
                     for (cx, cy, u, v) in [
                         (x, y, u0, v0),

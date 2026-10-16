@@ -744,7 +744,7 @@ Port: `apps/game/src/removal_tool.rs`, `selection_overlay.rs`; markers are sites
 `Controller::ClearResource`, destroyed through `Sim::destroy_entity` (work removed, occupant
 freed). Remove Buildings and cancelling a demolition become `Command::Demolish` and
 `Command::StateMessage { message: 0 }`, once per building; Remove Roads `Command::ClearRoad` (see
-[ROADS.md](ROADS.md)). Not ported: the marker's decal, the tutorial's fixed rectangle (settings `+0x80`), the bar's requirement
+[ROADS.md](ROADS.md)). Not ported: the tutorial's fixed rectangle (settings `+0x80`), the bar's requirement
 multiplier (`FUN_14005f060`).
 
 ## Demolition (`crates/game/src/destroy.rs`)
@@ -788,7 +788,7 @@ unbuilt site's materials only land on its `.` footprint cells.
 Port: `Controller::Destroy`; `Sim::{demolish, cancel_demolition, destroy_message, damage,
 to_rubble}`; replacements are `Construction::rebuilds`, placed by the town after the update
 (`StartingTown::apply_rebuilds`). The ResidenceComponent is kept on the site while out of the
-town's. Not ported: the damaged material, decal and picking (presentation), DestroyUI.
+town's. The decal switches to the damaged material ([DECALS.md](DECALS.md)). Not ported: the model's damaged material and picking.
 
 ## Port status
 

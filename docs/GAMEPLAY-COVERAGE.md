@@ -43,7 +43,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **AutoPickup** | gatherers, hunters, foresters | yes |
 | **AbsorbResource**, **StorageDisplay**, **StorageLocation** | StorageYard, barns | yes ([JOBS.md](JOBS.md#storage-sites-storagelocation-absorbresource-storagedisplay)) |
 | **MultiObject**, **Terraform**, **Floor** | bridges, tunnels, fences, dock | yes (fenced parts, bridge and tunnel pieces; [BRIDGES.md](BRIDGES.md), [TUNNELS.md](TUNNELS.md)) |
-| **Decal**, **Particle** | roads, footprints, smoke | missing |
+| **Decal**, **Particle** | roads, footprints, smoke | Decal yes ([DECALS.md](DECALS.md)); Particle missing |
 | **Tracker**, **Value** | workplaces, livestock | Tracker and the stock's made/used counters and history ([TOWN-INFO.md](TOWN-INFO.md)); Value in trade |
 | **Tornado** | Tornado | yes ([TORNADO.md](TORNADO.md); spawn, path, wrecking; its particles not drawn) |
 
@@ -80,7 +80,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Feature | Port |
 |---|---|
 | Building placement, removal of resources, ClearCancel | yes |
-| Roads (dirt, stone), Remove Roads | yes ([ROADS.md](ROADS.md)); road drawing (decals) no |
+| Roads (dirt, stone), Remove Roads | yes ([ROADS.md](ROADS.md), drawn as decals) |
 | Bridges (BridgeTool, floors) | yes ([BRIDGES.md](BRIDGES.md)) |
 | Tunnels (terraform) | yes ([TUNNELS.md](TUNNELS.md)) |
 | Fields, orchards, storage yard (DragPlacementTool) | yes (`removal_tool.rs` area mode: check `FUN_140100fb0`, apply `FUN_140100dd0`, overlay `FUN_140101310`) |
@@ -89,7 +89,8 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Building windows ([BUILDING-WINDOWS.md](BUILDING-WINDOWS.md)) | yes |
 | Town Info, Production/Population graphs | yes ([TOWN-INFO.md](TOWN-INFO.md), TownHallUI) |
 | Achievements, tutorial, scenarios | yes ([ACHIEVEMENTS.md](ACHIEVEMENTS.md), [TUTORIAL.md](TUTORIAL.md); the tutorials start new games until saves load) |
-| Weather precipitation, smoke particles, decals, fire particles | no |
+| Terrain decals (footprints, fields, yards, roads) | yes ([DECALS.md](DECALS.md)) |
+| Weather precipitation, smoke particles, fire particles | no |
 | Disasters (fire, tornado, disease) and AutoSlow | yes (fire, blight and tornadoes with the Disasters option; AutoSlow from their events) |
 
 ## Plan

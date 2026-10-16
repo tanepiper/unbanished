@@ -25,7 +25,7 @@ pub struct DestroyTemplate {
     pub replace: Option<usize>,
     /// `+0x28`: the ModelComponent's material set while damaged. Not ported (presentation).
     pub material: i32,
-    /// `+0x2c`: the decal while damaged. Not ported (presentation).
+    /// `+0x2c`: the decal's material while damaged.
     pub decal: i32,
     /// `+0x30`: the lowest construction mesh a collapse steps down to.
     pub min_mesh: i32,
@@ -467,7 +467,8 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_140122aa0`: one construction mesh down, not below the description's `+0x30`.
-    /// Not ported: entity event 0, the damaged material, picking and decal.
+    /// The decal switches to the damaged material. Not ported: entity event 0, the model's
+    /// damaged material and picking.
     fn collapse(&mut self, e: usize) {
         let Some(t) = self
             .sites
@@ -479,6 +480,11 @@ impl Sim<'_, '_> {
         let mesh = self.placed[e].mesh;
         let current = if mesh == usize::MAX { -1 } else { mesh as i32 };
         let next = (current - 1).max(0).max(t.min_mesh);
+        let d = self.decals.entry(e).or_default();
+        if d.material != t.decal {
+            d.material = t.decal;
+            *self.models_dirty = true;
+        }
         if next != current {
             self.placed[e].mesh = next as usize;
             *self.models_dirty = true;

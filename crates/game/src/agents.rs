@@ -337,6 +337,7 @@ impl Agents {
                 tornadoes: &mut c.tornadoes,
                 tornado_kills: &mut c.tornado_kills,
                 trackers: &mut c.trackers,
+                decals: &mut c.decals,
                 counters: &mut c.counters,
                 trade_goods: &c.trade_goods,
                 river: &c.river,

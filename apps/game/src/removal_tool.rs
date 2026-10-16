@@ -643,8 +643,8 @@ impl RemovalTool {
 
     /// `FUN_140108ab0` over the dragged rectangle: markers, roads (`FUN_1400a1bd0`), cancels,
     /// demolition (`FUN_140109b40` → `FUN_140123470`), priority. In the road mode
-    /// (`FUN_14010a200`), every cell of the road is planned (`FUN_1400a1e30`). Not ported: the
-    /// road decal registration (`FUN_1400b2260`) and mesh.
+    /// (`FUN_14010a200`), every cell of the road is planned (`FUN_1400a1e30`); the road decals
+    /// follow the road revision (`road_decals.rs`).
     pub fn apply(
         &mut self,
         archive: &Archive,

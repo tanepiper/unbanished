@@ -805,6 +805,54 @@ pub fn map_description(data: &[u8]) -> Result<MapDescription> {
     Ok(value)
 }
 
+/// `DecalDescription` (serializer `FUN_140120e50`): the terrain decal a DecalComponent puts
+/// over its entity's map rectangle (`Template\X.rsc:decal`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct DecalDescription {
+    /// `+0x20`: the alpha until the entity is built.
+    pub alpha: f32,
+    /// `+0x28`: materials; the component's `+0x28` picks one.
+    pub materials: Vec<Option<String>>,
+    /// `+0x48`: the texture's size in rectangle units.
+    pub scale: f32,
+    /// `+0x38`: a texture rectangle (`u0, v0, u1, v1`) per model variant.
+    pub rects: Vec<[f32; 4]>,
+    /// `+0x24`: tiled (the road atlas by the rectangle's edges) instead of one picture.
+    pub tiled: bool,
+    /// `+0x25`.
+    pub flag: bool,
+}
+
+pub fn decal_description(data: &[u8]) -> Result<DecalDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("DecalDescription") {
+            return format_err(format!(
+                "expected DecalDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let alpha = r.f32()?;
+            let materials = (0..r.count()?)
+                .map(|_| r.external_ref())
+                .collect::<Result<_>>()?;
+            let scale = r.f32()?;
+            let rects = (0..r.count()?)
+                .map(|_| r.f32s::<4>())
+                .collect::<Result<_>>()?;
+            Ok(DecalDescription {
+                alpha,
+                materials,
+                scale,
+                rects,
+                tiled: r.bool()?,
+                flag: r.bool()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `CreatePlacedDescription` (serializer `FUN_14011eda0`): how a building is placed; the start
 /// structures (`FUN_1400a7490`) take their size from it.
 #[derive(Debug, Clone)]

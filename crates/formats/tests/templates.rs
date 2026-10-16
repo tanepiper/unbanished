@@ -608,3 +608,25 @@ fn market_description_parses() {
     assert!((d.quotas[0].1 - 0.168).abs() < 1e-3);
     assert_eq!(d.quotas[10].0, 0x10000);
 }
+
+#[test]
+fn decal_descriptions_parse() {
+    use banished_formats::game::decal_description;
+    let Some(archive) = archive() else { return };
+    let names = entries(&archive, "_decal.crs");
+    assert_eq!(names.len(), 33);
+    for name in &names {
+        let d = decal_description(&archive.read(name).unwrap())
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        assert!(!d.materials.is_empty(), "{name}");
+        // A picture has a rectangle per model variant; a tiled decal has none.
+        assert_eq!(d.tiled, d.rects.is_empty(), "{name}");
+    }
+    let house =
+        decal_description(&archive.read_ref("Template/WoodHouse.rsc:decal").unwrap()).unwrap();
+    assert_eq!(
+        (house.alpha, house.scale, house.rects.len()),
+        (0.5, 2048.0, 6)
+    );
+    assert_eq!(house.rects[1], [256.0, 0.0, 512.0, 320.0]);
+}

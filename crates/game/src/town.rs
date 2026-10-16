@@ -126,6 +126,7 @@ pub struct Sim<'s, 't> {
     pub tornadoes: &'s mut BTreeMap<usize, crate::tornado::Tornado>,
     pub tornado_kills: &'s mut Vec<usize>,
     pub trackers: &'s mut BTreeMap<usize, crate::tracker::Tracker>,
+    pub decals: &'s mut BTreeMap<usize, crate::construction::Decal>,
     pub counters: &'s mut crate::tracker::StockCounters,
     /// Town manager `+0x30` and `+0x1ac`.
     pub trading_posts: &'s mut Vec<usize>,
@@ -898,6 +899,15 @@ impl Sim<'_, '_> {
         }
     }
 
+    /// DecalComponent event 1 (`FUN_140120c30`): alpha 1.
+    pub(crate) fn decal_opaque(&mut self, entity: usize) {
+        let d = self.decals.entry(entity).or_default();
+        if !d.opaque {
+            d.opaque = true;
+            *self.models_dirty = true;
+        }
+    }
+
     fn set_mesh(&mut self, entity: usize, mesh: i32) {
         self.placed[entity].mesh = if mesh < 0 { usize::MAX } else { mesh as usize };
     }
@@ -1083,6 +1093,7 @@ impl Sim<'_, '_> {
             }
         }
         self.sites.remove(&e);
+        self.decals.remove(&e);
         self.site_list.retain(|&s| s != e);
         let n = self.size as i32;
         let p = &mut self.placed[e];
@@ -1238,10 +1249,12 @@ impl Callbacks for Sim<'_, '_> {
             }
             Callback::ClearEnter2 => {
                 // Entity event 1: the MapComponent stamps the footprint; the MultiObject passes
-                // it on to the parts (`FUN_14012a960`).
+                // it on to the parts (`FUN_14012a960`); the decal turns opaque.
                 self.stamp(e);
+                self.decal_opaque(e);
                 for part in self.sites[&e].parts.clone() {
                     self.stamp(part);
+                    self.decal_opaque(part);
                 }
                 true
             }
@@ -1355,7 +1368,7 @@ impl Callbacks for Sim<'_, '_> {
                 true
             }
             Callback::BuildEnter8 => {
-                // Not ported: the decal's alpha.
+                self.decal_opaque(e);
                 self.set_mesh(e, 0);
                 let work = Work::new(
                     e,

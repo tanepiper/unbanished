@@ -84,9 +84,11 @@ pub struct GameplayLoop {
     next_scenario: Option<usize>,
     /// The Achievement or Goal dialog opened from the pause menu.
     menu_dialog: Option<MenuDialog>,
-    /// The road kinds' decal materials and the road revision the decals were built for.
+    /// The road kinds' decal materials, the templates' DecalDescriptions, and what the decals
+    /// were built for (road revision, terrain revision, the entities' signature).
     road_materials: Vec<Option<String>>,
-    road_revision: Option<u32>,
+    decal_descriptions: Vec<Option<std::sync::Arc<banished_formats::game::DecalDescription>>>,
+    decals_built: Option<(u32, u64, u64)>,
     decal_cache: crate::scene_assets::DecalCache,
     selection: Selection,
     entities: EntityWindows,
@@ -155,7 +157,8 @@ impl GameplayLoop {
             next_scenario: None,
             menu_dialog: None,
             road_materials: Vec::new(),
-            road_revision: None,
+            decal_descriptions: Vec::new(),
+            decals_built: None,
             decal_cache: Default::default(),
             selection: Selection::default(),
             entities: EntityWindows::default(),
@@ -818,29 +821,55 @@ impl GameplayLoop {
         models_changed
     }
 
-    /// `FUN_1400b4840` when a road changed: the roads' decals rebuilt for the view.
-    fn refresh_road_decals(&mut self, archive: &banished_formats::pkg::Archive) {
+    /// The map's decals when what they are built from changed: the entities' (`+0x1f0`,
+    /// `FUN_1400b2310`), then the roads' (`FUN_1400b4840`).
+    fn refresh_decals(&mut self, archive: &banished_formats::pkg::Archive) {
         let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) else {
             return;
         };
-        if self.road_revision == Some(town.cells.road_revision) {
+        // Templates are added as they are first placed.
+        let known = self.decal_descriptions.len();
+        if known < town.templates.len() {
+            self.decal_descriptions
+                .extend(crate::building_decals::descriptions(
+                    archive,
+                    &town.templates[known..],
+                ));
+        }
+        let decals = &town.construction.decals;
+        let key = (
+            town.cells.road_revision,
+            view.terrain.revision,
+            crate::building_decals::signature(&town.placed, &self.decal_descriptions, decals),
+        );
+        if self.decals_built == Some(key) {
             return;
         }
-        self.road_revision = Some(town.cells.road_revision);
+        self.decals_built = Some(key);
         let grid = banished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
         };
-        let decals = crate::road_decals::build(
+        let mut list = crate::building_decals::build(
+            archive,
+            &town.placed,
+            &self.decal_descriptions,
+            decals,
+            &grid,
+            town.cells.size,
+            &mut self.decal_cache,
+        );
+        let entities = list.len();
+        list.extend(crate::road_decals::build(
             archive,
             &town.cells,
             &grid,
             &self.road_materials,
             &mut self.decal_cache,
-        );
-        log::debug!("road decals rebuilt: {} decals", decals.len());
+        ));
+        log::debug!("decals rebuilt: {entities} entities, {} in all", list.len());
         if let Some(e) = &mut view.extras {
-            e.decals = decals;
+            e.decals = list;
             view.decals_revision += 1;
         }
     }
@@ -1223,6 +1252,7 @@ impl GameLoop for GameplayLoop {
                     decals: Vec::new(),
                 });
                 self.road_materials = crate::road_decals::materials(ctx.archive);
+                self.decal_descriptions.clear();
                 if let Some(town) = &town {
                     view.models = Some(town.models(ctx.archive));
                 }
@@ -1364,7 +1394,7 @@ impl GameLoop for GameplayLoop {
                 )));
             }
         }
-        self.refresh_road_decals(ctx.archive);
+        self.refresh_decals(ctx.archive);
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
         if let (Some(town), Some(view), false) = (&mut self.town, &mut self.view, pauses_game) {
             let grid = banished_game::terrain::HeightGrid {
@@ -1917,7 +1947,8 @@ impl GameLoop for GameplayLoop {
                     return false;
                 }
                 let placed = tool.place(ctx.archive, town, 0);
-                log::info!("script placed {template} as {placed:?}");
+                let cell = placed.map(|e| (town.placed[e].cell, town.start));
+                log::info!("script placed {template} as {placed:?} (cell, start: {cell:?})");
                 if let Some(models) = self.view.as_mut().and_then(|v| v.models.as_mut()) {
                     if let Some(town) = &self.town {
                         town.refresh_models(ctx.archive, models);
@@ -2625,6 +2656,12 @@ mod tests {
                 "{:?}",
                 gameplay.road_materials
             );
+            gameplay.update(ctx, 1.0 / 30.0);
+            let count = |g: &GameplayLoop| -> usize {
+                let e = g.view.as_ref().unwrap().extras.as_ref().unwrap();
+                e.decals.iter().map(|d| d.vertices.len() / 20).sum()
+            };
+            let before = count(&gameplay);
             let town = gameplay.town.as_mut().unwrap();
             let n = town.cells.size as i32;
             let (x, y) = (town.start.0 as i32, town.start.1 as i32 + 12);
@@ -2644,17 +2681,47 @@ mod tests {
                 .filter(|dx| town.cells.road_kind[(y * n + x + dx) as usize] == 1)
                 .count();
             assert!(0 < planned, "no road planned");
-            let decals = &gameplay
-                .view
-                .as_ref()
-                .unwrap()
-                .extras
-                .as_ref()
-                .unwrap()
-                .decals;
-            assert!(!decals.is_empty(), "no road decals");
-            let vertices: usize = decals.iter().map(|d| d.vertices.len() / 20).sum();
-            assert_eq!(vertices, planned * 4);
+            assert_eq!(count(&gameplay), before + planned * 4);
+        });
+    }
+
+    /// The starting buildings' footprints are drawn opaque (their ClearArea reached state 2),
+    /// a cell for each of their footprint's cells.
+    #[test]
+    fn starting_buildings_get_decals() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            gameplay.update(ctx, 1.0 / 30.0);
+            let town = gameplay.town.as_ref().unwrap();
+            let with: Vec<usize> = (0..town.placed.len())
+                .filter(|&i| {
+                    town.placed[i].alive
+                        && gameplay.decal_descriptions[town.placed[i].template].is_some()
+                })
+                .collect();
+            assert!(!with.is_empty());
+            for &i in &with {
+                let d = town
+                    .construction
+                    .decals
+                    .get(&i)
+                    .copied()
+                    .unwrap_or_default();
+                assert!(
+                    d.opaque,
+                    "{}",
+                    town.templates[town.placed[i].template].reference
+                );
+            }
+            let cells: usize = with
+                .iter()
+                .map(|&i| (town.placed[i].footprint.0 * town.placed[i].footprint.1) as usize)
+                .sum();
+            let e = gameplay.view.as_ref().unwrap().extras.as_ref().unwrap();
+            let vertices: usize = e.decals.iter().map(|d| d.vertices.len() / 20).sum();
+            assert!(cells * 4 <= vertices, "{cells} cells, {vertices} vertices");
         });
     }
 
