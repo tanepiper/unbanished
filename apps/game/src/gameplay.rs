@@ -953,7 +953,9 @@ impl GameplayLoop {
     /// and EntityUI's press (`FUN_140067430`). Returns whether the input was taken.
     fn drag_window(&mut self, ctx: &mut Ctx, input: &RawInput) -> bool {
         match *input {
-            RawInput::UiPress => {
+            // A title is not a control, so a press on it comes as a click on the map.
+            RawInput::UiPress | RawInput::Click => {
+                let on_map = matches!(input, RawInput::Click);
                 let (x, y) = self.cursor;
                 if let Some((template, root)) = self.utility.title_at(ctx.ui, x, y) {
                     // A utility window (ToolUI `+0x40` set at bind) follows at once.
@@ -965,10 +967,15 @@ impl GameplayLoop {
                         offset: (x - r[0], y - r[1]),
                         active: true,
                     });
-                    return false;
+                    return on_map;
                 }
                 let Some((i, title)) = self.entities.window_at(ctx.ui, x, y) else {
-                    return false;
+                    // Elsewhere on a utility window: the window keeps the click.
+                    let inside = self.utility.controllers().iter().any(|(root, _)| {
+                        let [x0, y0, x1, y1] = ctx.ui.node(*root).rect;
+                        x0 <= x && x < x1 && y0 <= y && y < y1
+                    });
+                    return on_map && inside;
                 };
                 let w = &self.entities.open[i];
                 let (root, entity, pinned) = (w.root, w.entity, w.pinned);
@@ -986,7 +993,7 @@ impl GameplayLoop {
                 if self.selection.selected != Some(entity) {
                     self.selection.selected = Some(entity);
                 }
-                false
+                on_map
             }
             RawInput::Cursor(x, y) => {
                 let Some(d) = &mut self.window_drag else {
