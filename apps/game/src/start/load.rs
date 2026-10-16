@@ -246,7 +246,7 @@ mod tests {
             eprintln!("game data missing; skipping");
             return;
         };
-        for name in ["Save2.sav", "Save3.sav"] {
+        for name in ["Save2.sav", "Save3.sav", "Save4.sav", "Save5.sav"] {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 eprintln!("{name} missing; skipping");
                 continue;

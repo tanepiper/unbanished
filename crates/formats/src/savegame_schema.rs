@@ -588,6 +588,14 @@ static SCHEMAS: &[(&str, &[Op])] = &[
         &[ACTION, Block("show", 0, &[Ptr("owner"), I32("tool")])],
     ),
     // `FUN_1400cb0b0`.
+    // `FUN_1400cad50`: the road cell, its kind and a value.
+    (
+        "CompleteRoad",
+        &[
+            ACTION,
+            Block("road", 0, &[I32("cell"), I8("kind"), I32("value_24")]),
+        ],
+    ),
     (
         "CompleteTask",
         &[

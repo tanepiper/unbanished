@@ -56,12 +56,12 @@ loading screen, to `GameplayLoop::from_save`.
   - the flag byte, road kind, road built and growth byte.
 
 Test: `start::load::tests::vanilla_saves_restore_their_placed_entities`, run on the vanilla
-`Save2` and `Save3`. It checks:
+`Save2` to `Save5`. It checks:
 - every entity with a footprint is placed at its saved cell;
 - every stamped cell points at an entity whose footprint covers it;
 - the growth and spawn state carried over.
 
-Both saves load and run for 120 simulated seconds without error.
+They load and run for 120 simulated seconds without error.
 
 ## Not restored yet
 
@@ -70,7 +70,8 @@ Both saves load and run for 120 simulated seconds without error.
 - The ambient sound emitters. The port rebuilds map ambience from the terrain, as a New Game does.
 - Floors (`+0x2d`, bridge decks).
 - The save's own scheduler order. Entities are registered in entity-manager order.
-- Roads. Neither vanilla sample has any, so the road bytes are restored but have not been checked.
+- Roads under construction. Save5's finished dirt road draws from the restored road bytes;
+  Save4's roads still being built (`BuildRoad` work, cells marked `0x80`) wait for stage 2.
 
 ## Mods
 
@@ -79,4 +80,12 @@ them, and a warning is logged on load):
 - their terrain (`Plains`) and start conditions (`RK*`) fall back to Valleys and Medium;
 - every entity whose template comes from a mod is skipped and counted in the load log.
 
-The vanilla saves `Save2` and `Save3` are the reference for loading.
+The vanilla saves `Save2` to `Save5` are the reference for loading.
+
+`Save4` and `Save5` are the same town (Seminola) about 106 game seconds apart. Between them:
+- the roads under construction were finished;
+- a WoodHouse was completed;
+- 17 clear jobs finished, and some trees, rocks and ore were harvested.
+
+`cargo run -p banished-formats --example savegame_diff -- save-game/Save4.sav save-game/Save5.sav`
+lists the differences.
