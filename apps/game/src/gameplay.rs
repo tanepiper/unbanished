@@ -1757,6 +1757,79 @@ mod tests {
         );
     }
 
+    /// DestroyUI on a storage barn: its buttons ask for the demolition to be called off,
+    /// rebuilt or cleared.
+    #[test]
+    fn destroy_window_buttons_send_commands() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        let town = gameplay.town.as_ref().unwrap();
+        let id = town
+            .storage_sites
+            .iter()
+            .map(|s| s.entity)
+            .find(|&i| {
+                town.templates[town.placed[i].template]
+                    .reference
+                    .contains("StorageBarn")
+            })
+            .unwrap();
+        game.with_ctx(|_, ctx| {
+            let town = gameplay.town.as_ref().unwrap();
+            gameplay.entities.select(
+                ctx.ui,
+                gameplay.screen.as_mut().unwrap(),
+                ctx.archive,
+                town,
+                Entity::Placed(id),
+            );
+            let window = &gameplay.entities.open[0];
+            assert!(window
+                .bound
+                .iter()
+                .any(|c| matches!(c, crate::building_ui::Controller::Destroy(_))));
+            let root = window.root;
+            let (reclaim, rebuild, destroy) = (
+                ctx.ui.find(root, "buttonReclaim").unwrap(),
+                ctx.ui.find(root, "buttonRebuild").unwrap(),
+                ctx.ui.find(root, "buttonDestroy").unwrap(),
+            );
+            use banished_game::professions::Command;
+            let click = |gameplay: &mut GameplayLoop, ui: &banished_ui::Ui, n| match gameplay
+                .entities
+                .click(ui, gameplay.town.as_ref().unwrap(), n)
+            {
+                Some(WorkPlaceClick::Command(c)) => Some(c),
+                _ => None,
+            };
+            assert_eq!(
+                click(&mut gameplay, ctx.ui, reclaim),
+                Some(Command::CancelDemolition { entity: id })
+            );
+            assert_eq!(
+                click(&mut gameplay, ctx.ui, rebuild),
+                Some(Command::StateMessage {
+                    entity: id,
+                    message: 0
+                })
+            );
+            assert_eq!(
+                click(&mut gameplay, ctx.ui, destroy),
+                Some(Command::StateMessage {
+                    entity: id,
+                    message: 1
+                })
+            );
+            // A building standing: no damage text, the reclaim button shows.
+            gameplay
+                .entities
+                .refresh(ctx.ui, ctx.archive, gameplay.town.as_ref().unwrap());
+            assert!(ctx.ui.node(reclaim).visible());
+            assert!(!ctx.ui.node(rebuild).visible());
+        });
+    }
+
     #[test]
     fn status_bar_layout_open_close_and_draw_leave_simulation_unchanged() {
         let Some((mut game, mut gameplay)) = generated() else {

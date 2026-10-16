@@ -32,6 +32,169 @@ pub struct EntityData<'a> {
     /// Host `pages` active page (StatusIconUI shows icons only on pages 2 and 3).
     pub active_page: usize,
     pub citizen: Option<CitizenInfo>,
+    /// The building's DestroyComponent.
+    pub destroy: Option<DestroyInfo>,
+}
+
+/// What DestroyUI reads (`FUN_140066460`): `FUN_140123b60` damaged, the StateMachine's
+/// pending else current state, `+0x50`, `+0x54/+0x58` the deconstruction, and whether `+0x60`
+/// is the building's own template (a rebuild) or another than the description's (an upgrade,
+/// `FUN_140123ad0`).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DestroyInfo {
+    pub entity: usize,
+    pub is_damaged: bool,
+    pub state: i8,
+    pub damaged: bool,
+    pub count: i32,
+    pub target: i32,
+    pub rebuild: bool,
+    pub upgrade: bool,
+}
+
+/// `DestroyUI` (vtable `0x140161c30`): bind `FUN_140066ab0`, refresh `FUN_140066460`, events
+/// `FUN_1400669e0`.
+pub struct DestroyUi {
+    /// `+0x30` `progressRemove`, `+0x38` `progressDestruct` (each with its text template).
+    remove: Option<(NodeId, Option<(NodeId, String)>)>,
+    destruct: Option<(NodeId, Option<(NodeId, String)>)>,
+    /// `+0x40..+0x58`: `textRemove`, `textUpgrade`, `textDamage`, `textFixing`.
+    text_remove: Option<NodeId>,
+    text_upgrade: Option<NodeId>,
+    text_damage: Option<NodeId>,
+    text_fixing: Option<NodeId>,
+    /// `+0x60` `buttonReclaim` (`0x1771`), `+0x68` `buttonDestroy` (`0x1773`), `+0x70`
+    /// `buttonRebuild` (`0x1772`).
+    reclaim: Option<NodeId>,
+    destroy: Option<NodeId>,
+    rebuild: Option<NodeId>,
+    filled: bool,
+}
+
+impl DestroyUi {
+    pub fn bind(ui: &mut Ui, element: NodeId) -> DestroyUi {
+        let progress = |ui: &Ui, n: &str| {
+            ui.find(element, n).map(|p| {
+                let content = match &ui.node(p).kind {
+                    Kind::Control(Control::Progress { content, .. }) => *content,
+                    _ => None,
+                };
+                (p, content.map(|c| (c, text_of(ui, c))))
+            })
+        };
+        DestroyUi {
+            remove: progress(ui, "progressRemove"),
+            destruct: progress(ui, "progressDestruct"),
+            text_remove: ui.find(element, "textRemove"),
+            text_upgrade: ui.find(element, "textUpgrade"),
+            text_damage: ui.find(element, "textDamage"),
+            text_fixing: ui.find(element, "textFixing"),
+            reclaim: ui.find(element, "buttonReclaim"),
+            destroy: ui.find(element, "buttonDestroy"),
+            rebuild: ui.find(element, "buttonRebuild"),
+            filled: false,
+        }
+    }
+
+    fn show(ui: &mut Ui, n: Option<NodeId>, visible: bool) {
+        if let Some(n) = n {
+            ui.set_visible(n, visible);
+        }
+    }
+
+    fn fill_progress(ui: &mut Ui, p: &Option<(NodeId, Option<(NodeId, String)>)>, fill: f32) {
+        if let Some((node, text)) = p {
+            ui.set_value(*node, fill);
+            if let Some((t, template)) = text {
+                let percent = (fill * 100.0 + 0.5) as i32;
+                ui.set_text(*t, &template.replace("@0", &percent.to_string()));
+            }
+        }
+    }
+
+    pub fn refresh(&mut self, ui: &mut Ui, data: &EntityData) {
+        let Some(d) = data.destroy else { return };
+        if !self.filled {
+            // The bind's entity half: damaged, no reclaiming.
+            self.filled = true;
+            if d.is_damaged || d.damaged {
+                Self::show(ui, self.reclaim, false);
+            }
+        }
+        if !d.is_damaged {
+            Self::show(ui, self.rebuild, false);
+            Self::show(ui, self.destroy, false);
+            Self::show(ui, self.text_damage, false);
+            Self::show(ui, self.reclaim, true);
+            if let Some(storage) = data.storage {
+                let fill = if storage.capacity < 1 {
+                    0.0
+                } else {
+                    storage.used(data.materials) as f32 / storage.capacity as f32
+                };
+                Self::fill_progress(ui, &self.remove, fill);
+            }
+            let fill = if d.target == 0 {
+                0.0
+            } else {
+                d.count as f32 / d.target as f32
+            };
+            Self::fill_progress(ui, &self.destruct, fill);
+            let deconstructing = fill != 0.0;
+            Self::show(ui, self.remove.as_ref().map(|p| p.0), !deconstructing);
+            Self::show(ui, self.destruct.as_ref().map(|p| p.0), deconstructing);
+            if d.rebuild {
+                Self::show(ui, self.text_fixing, true);
+                Self::show(ui, self.text_remove, false);
+                Self::show(ui, self.text_upgrade, false);
+            } else {
+                Self::show(ui, self.text_remove, !d.upgrade);
+                Self::show(ui, self.text_upgrade, d.upgrade);
+                Self::show(ui, self.text_fixing, false);
+            }
+            return;
+        }
+        // Damaged (6) or rubble (7): rebuild or clear it, not while it burns (6).
+        for b in [self.rebuild, self.destroy].into_iter().flatten() {
+            ui.node_mut(b).enabled = d.state != 6;
+        }
+        Self::show(ui, self.rebuild, true);
+        Self::show(ui, self.destroy, true);
+        Self::show(ui, self.text_damage, true);
+        for n in [
+            self.text_fixing,
+            self.text_remove,
+            self.text_upgrade,
+            self.reclaim,
+        ] {
+            Self::show(ui, n, false);
+        }
+        Self::show(ui, self.remove.as_ref().map(|p| p.0), false);
+        Self::show(ui, self.destruct.as_ref().map(|p| p.0), false);
+    }
+
+    /// `FUN_1400669e0`: `0x1771` `FUN_1401238d0` (keep it), `0x1772` `FUN_140123940` (state
+    /// message 0: rebuild), `0x1773` `FUN_1401239a0` (state message 1: clear it).
+    pub fn click(&self, node: NodeId, data: &EntityData) -> Option<WorkPlaceClick> {
+        let entity = data.destroy?.entity;
+        use banished_game::professions::Command;
+        if Some(node) == self.reclaim {
+            return Some(WorkPlaceClick::Command(Command::CancelDemolition {
+                entity,
+            }));
+        }
+        let message = if Some(node) == self.rebuild {
+            0
+        } else if Some(node) == self.destroy {
+            1
+        } else {
+            return None;
+        };
+        Some(WorkPlaceClick::Command(Command::StateMessage {
+            entity,
+            message,
+        }))
+    }
 }
 
 /// What CitizenUI's refresh (`FUN_140065440`) reads from the Citizen and CitizenAI components.
@@ -697,6 +860,7 @@ pub enum Controller {
     WorkPlace(WorkPlaceUi),
     Build(BuildUi),
     StatusIcon(StatusIconUi),
+    Destroy(DestroyUi),
     /// Attached, refresh not ported (logged once with its id).
     #[allow(dead_code)]
     Pending(u32),
@@ -717,10 +881,7 @@ impl Controller {
             STORAGE_CAPACITY_UI => StorageCapacityUi::bind(ui, element).map(Controller::Capacity),
             WORKPLACE_UI => Some(Controller::WorkPlace(WorkPlaceUi::bind(ui, element))),
             BUILD_UI => Some(Controller::Build(BuildUi::bind(ui, element))),
-            // Not ported: DestroyUI (FUN_140066ab0/FUN_140066460) reads the StateMachine
-            // (`+0x50/+0x52`, 6/7 damaged or destroyed) and the DestroyComponent; there is no
-            // demolition yet.
-            DESTROY_UI => None,
+            DESTROY_UI => Some(Controller::Destroy(DestroyUi::bind(ui, element))),
             // Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
             STATUS_ICON_UI => {
                 StatusIconUi::bind(ui, element, !has_config).map(Controller::StatusIcon)
@@ -741,6 +902,7 @@ impl Controller {
             Controller::WorkPlace(c) => c.refresh(ui, data),
             Controller::Build(c) => c.refresh(ui, archive, data),
             Controller::StatusIcon(c) => c.refresh(ui, data),
+            Controller::Destroy(c) => c.refresh(ui, data),
             Controller::Pending(_) => {}
         }
     }

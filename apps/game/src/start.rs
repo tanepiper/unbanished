@@ -926,6 +926,7 @@ impl StartingTown {
             animation_events: &mut animation_events,
         };
         seeder.place_structures(&structures, start.0, start.1);
+        let structure_count = seeder.placed.len();
         seeder.seed(&list, start.0, start.1, radius * radius);
         drop(seeder);
         let mut scheduler = EntityScheduler::default();
@@ -1154,6 +1155,7 @@ impl StartingTown {
             display_cells: BTreeMap::new(),
         };
         town.resolve_piles(archive);
+        town.build_structures(archive, structure_count);
         town.place_displays(terrain);
         // CitizenDescription `+0x20/+0x28/+0x30`: the teacher's, priest's and doctor's
         // professions.
@@ -1167,6 +1169,60 @@ impl StartingTown {
             });
         }
         Some(town)
+    }
+
+    /// The start structures (`FUN_1400a7490`) are built at once: the original creates them
+    /// with `Game +0xd0` bit 0 set, so their ClearArea clears at once (`FUN_14011d230`), the
+    /// BuildComponent skips gathering (`FUN_14010d760`) and finishes on entering its build
+    /// state (`FUN_14010cfb0`). Each becomes a site that enters state 2 on its activation, its
+    /// map stamped and its zone taken, keeping the storage its starting goods went to.
+    fn build_structures(&mut self, archive: &Archive, count: usize) {
+        for e in 0..count {
+            if !self.placed[e].alive {
+                continue;
+            }
+            let before = self.storages.len();
+            self.add_site(archive, e);
+            let Some(site) = self.construction.sites.get_mut(&e) else {
+                continue;
+            };
+            if let Some(s) = self.storage_sites.iter().find(|s| s.entity == e) {
+                if site.storage == before && self.storages.len() == before + 1 {
+                    self.storages.pop();
+                }
+                site.storage = s.storage;
+            }
+            let t = &self.construction.templates[site.template];
+            site.stages = 1;
+            site.progress = t.work;
+            site.complete = true;
+            // Activation runs the machine from state 2.
+            site.machine.pending = 2;
+            let map = self.templates[self.placed[e].template].map.clone();
+            let p = &self.placed[e];
+            let rect = banished_game::placement::Rect {
+                x0: p.cell.0,
+                y0: p.cell.1,
+                x1: p.cell.0 + p.footprint.0 - 1,
+                y1: p.cell.1 + p.footprint.1 - 1,
+            };
+            let degrees = p.yaw as i32;
+            if let Some(map) = map {
+                let rules = banished_game::placement::PlacementRules {
+                    mask: 0,
+                    masks: Vec::new(),
+                    mask_chars: String::new(),
+                    footprint: map.footprint.clone(),
+                    width: 0,
+                    height: 0,
+                    cell_type: map.cell_type as u8,
+                };
+                if !map.no_stamp {
+                    banished_game::placement::stamp(&mut self.cells, &rules, rect, degrees, e);
+                }
+                banished_game::placement::zone(&mut self.cells, &rules, rect, degrees, e);
+            }
+        }
     }
 
     /// `Game/Profession/Profession.rsc:<key>` (read on demand; presentation only).

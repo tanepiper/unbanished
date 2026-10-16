@@ -20,7 +20,7 @@ frame after the simulation; refresh reads only.
 | `0xdf3a1bb2` | StatusIconUI | `0x140163cd0` | `FUN_140080740` / `FUN_140080570` | done |
 | `0x03e455a9` | CitizenUI | `0x140161b30` | `FUN_140065b00` / `FUN_140065440` / `FUN_140065a50` | done (no events) |
 | `0x293e60a1` | BuildUI | `0x140165620` | `FUN_1400b7410` / `FUN_1400b6f20` / `FUN_1400b7370` | done |
-| `0x2e56a4c8` | DestroyUI | `0x140161c30` | `FUN_140066ab0` / `FUN_140066460` / `FUN_1400669e0` | pending |
+| `0x2e56a4c8` | DestroyUI | `0x140161c30` | `FUN_140066ab0` / `FUN_140066460` / `FUN_1400669e0` | done |
 | `0x1701e613` | ResidenceUI | | | pending |
 | `0x061d5f73` | UpgradeUI | | | pending |
 
@@ -34,6 +34,22 @@ Shipped hosts (all `Dialog\StandardDialog.rsc:entity`, page 1):
 - Citizen: CitizenUI on `Dialog\Citizen.rsc:citizen`, StorageUI (carried inventory),
   StatusIconUI on `Citizen.rsc:icons`, and the plain buttons `buttonProfession`, `buttonHome`,
   `buttonFollow` (element ids `0x227`, `0x226`, `0x228`).
+
+## DestroyUI
+
+- **Bind:** `progressRemove` (`+0x30`) and `progressDestruct` (`+0x38`), `textRemove`,
+  `textUpgrade`, `textDamage`, `textFixing` (`+0x40..+0x58`), `buttonReclaim` (`+0x60`, id
+  `0x1771`), `buttonDestroy` (`+0x68`, `0x1773`), `buttonRebuild` (`+0x70`, `0x1772`); the
+  reclaim button hides for a damaged building (`FUN_140123b60`) or DestroyComponent `+0x50`.
+- **Refresh**, not damaged: rebuild, destroy and the damage text hide, reclaim shows;
+  `progressRemove` is the storage's fill (`FUN_1401323e0 / +0x38`), `progressDestruct` the
+  deconstruction `+0x54 / +0x58`, each with `%i` of `fill × 100 + 0.5`; one of them shows (the
+  deconstruction once it has started). `textFixing` when `+0x60` is the building's own template,
+  else `textUpgrade` for another than the description's replacement (`FUN_140123ad0`), else
+  `textRemove`. Damaged or rubble: rebuild and destroy show, enabled unless the state (pending,
+  else current) is 6; the damage text shows; everything else hides.
+- **Events:** `0x1771` `FUN_1401238d0` (the demolition is called off), `0x1772`
+  `FUN_140123940` (state message 0: rebuild), `0x1773` `FUN_1401239a0` (message 1: clear).
 
 ## StorageUI
 

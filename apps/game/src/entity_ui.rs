@@ -183,6 +183,10 @@ impl EntityWindows {
                 },
                 active_page,
                 citizen,
+                destroy: match w.entity {
+                    Entity::Placed(p) => destroy_info(town, p),
+                    Entity::Citizen(_) => None,
+                },
             };
             for c in &mut w.bound {
                 c.refresh(ui, archive, &data);
@@ -210,10 +214,12 @@ impl EntityWindows {
             build: build_info(town, p),
             active_page: 0,
             citizen: None,
+            destroy: destroy_info(town, p),
         };
         w.bound.iter_mut().find_map(|c| match c {
             Controller::WorkPlace(c) => c.click(node, &data),
             Controller::Build(c) => c.click(node, &data),
+            Controller::Destroy(c) => c.click(node, &data),
             _ => None,
         })
     }
@@ -432,5 +438,30 @@ fn build_info(town: &StartingTown, p: usize) -> Option<crate::building_ui::Build
             0
         },
         enabled: c.workforce.workplaces.get(&p).map(|w| w.enabled),
+    })
+}
+
+/// DestroyUI's view of the building's DestroyComponent (`FUN_140066460`).
+fn destroy_info(town: &StartingTown, p: usize) -> Option<crate::building_ui::DestroyInfo> {
+    let site = town.construction.sites.get(&p)?;
+    let d = site.destroy.as_ref()?;
+    let state = if site.machine.pending < 0 {
+        site.machine.state
+    } else {
+        site.machine.pending
+    };
+    let own = town.placed[p].template;
+    let replace = town.construction.templates[site.template]
+        .destroy
+        .and_then(|t| t.replace);
+    Some(crate::building_ui::DestroyInfo {
+        entity: p,
+        is_damaged: matches!(state, 6 | 7),
+        state,
+        damaged: d.damaged,
+        count: d.count,
+        target: d.target,
+        rebuild: d.rebuild == Some(own),
+        upgrade: d.rebuild != Some(own) && d.rebuild != replace,
     })
 }

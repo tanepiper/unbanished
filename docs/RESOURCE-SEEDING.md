@@ -160,8 +160,9 @@ external). The barn is 8×5.
 
 Deviations and assumptions:
 
-- The structures' map rectangles, decals and building behaviour are not created yet. Only their
-  draws and models are.
+- The structures become built sites (`StartingTown::build_structures`): their maps are stamped
+  and zones taken at once, and their state machines enter state 2 on activation (the original
+  runs states 0, 1 and 8 instantly under the flag). Their decals are not drawn.
 - *Inferred:* the model transform's offset is the computed footprint centre. The decompiled call
   passes a stack vector the decompiler did not resolve.
 - The density check uses cached external growth-description identities in place of original

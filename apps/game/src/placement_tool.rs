@@ -1308,6 +1308,7 @@ mod construction_tests {
                         && town.cells.types[i] == banished_game::terrain::CellType::GROUND
                         && town.cells.objects[i].is_none()
                         && town.cells.occupants[i].is_none()
+                        && town.cells.flags[i] == 0
                 })
             })
         };
@@ -1456,6 +1457,7 @@ mod construction_tests {
                         && town.cells.types[i] == banished_game::terrain::CellType::GROUND
                         && town.cells.objects[i].is_none()
                         && town.cells.occupants[i].is_none()
+                        && town.cells.flags[i] == 0
                 })
             })
         };
@@ -1613,6 +1615,7 @@ mod construction_tests {
                         && town.cells.types[i] == banished_game::terrain::CellType::GROUND
                         && town.cells.objects[i].is_none()
                         && town.cells.occupants[i].is_none()
+                        && town.cells.flags[i] == 0
                 })
             })
         };
@@ -2084,6 +2087,7 @@ mod construction_tests {
                         && town.cells.types[i] == banished_game::terrain::CellType::GROUND
                         && town.cells.objects[i].is_none()
                         && town.cells.occupants[i].is_none()
+                        && town.cells.flags[i] == 0
                 })
             })
         };
@@ -2510,6 +2514,7 @@ mod construction_tests {
                         && town.cells.types[i] == banished_game::terrain::CellType::GROUND
                         && town.cells.objects[i].is_none()
                         && town.cells.occupants[i].is_none()
+                        && town.cells.flags[i] == 0
                 })
             })
         };
@@ -3393,7 +3398,8 @@ mod construction_tests {
             (false, false, false, 0, false);
         let mut boat = None;
         let mut states = Vec::new();
-        for _ in 0..30 * 60 * 40 {
+        let mut visits = 0;
+        for _ in 0..30 * 60 * 120 {
             town.apply_commands(&terrain, &mut rng);
             town.iterate(&terrain, &mut rng, dt, 50.0);
             let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
@@ -3420,6 +3426,12 @@ mod construction_tests {
                 let tr = site.trade.as_mut().expect("no trade state");
                 tr.timer = 0;
                 tr.mode = 1;
+                // The seed and livestock merchants bring only what is ordered: order the
+                // first good from them every time.
+                for o in tr.orders.iter_mut().skip(3) {
+                    o.goods = vec![0];
+                    o.state = 2;
+                }
                 if let (Some(f), Some(row)) =
                     (food, tr.automatic.iter_mut().find(|r| Some(r.0) == food))
                 {
@@ -3453,6 +3465,13 @@ mod construction_tests {
             if docked && state == 2 {
                 if let Some(b) = boat {
                     if !town.wildlife.boats.contains_key(&b) {
+                        // A seed or livestock merchant without an order brings nothing: the
+                        // next one.
+                        if offers == 0 && visits < 5 {
+                            visits += 1;
+                            (called, docked, boat) = (false, false, None);
+                            continue;
+                        }
                         left = true;
                         break;
                     }
@@ -3461,7 +3480,7 @@ mod construction_tests {
         }
         assert!(called, "the post was not built: {states:?}");
         assert!(boat.is_some(), "no boat came: {states:?}");
-        assert!(docked, "the boat never docked: {states:?}");
+        assert!(docked || visits > 0, "the boat never docked: {states:?}");
         assert!(offers > 0, "the merchant brought nothing");
         assert!(left, "the boat did not sail off: {states:?}");
         eprintln!("states {states:?}, {offers} offers");
@@ -4235,9 +4254,33 @@ mod construction_tests {
             &mut rng,
         )
         .unwrap();
-        let spot = tool
-            .find_clear_spot(&town, &terrain, town.start)
+        // Not west of the start: the river runs there.
+        let (sx, sy) = town.start;
+        let spot = (0..8)
+            .flat_map(|k| {
+                [
+                    (sx + 10 * k, sy),
+                    (sx + 10 * k, sy + 20),
+                    (sx + 10 * k, sy - 20),
+                ]
+            })
+            .filter_map(|near| tool.find_spot(&town, &terrain, near, true))
+            .find(|s| sx <= s.0)
             .expect("no spot");
+        // Its trees are taken away first (the test's shortcut for clearing).
+        tool.hover(&town, &terrain, Some(spot), 0);
+        let rect = tool.rect.unwrap();
+        let n = town.cells.size as i32;
+        for y in rect.y0..=rect.y1 {
+            for x in rect.x0..=rect.x1 {
+                if let Some(o) = town.cells.objects[(y * n + x) as usize] {
+                    if !town.construction.destroy.contains(&o) {
+                        town.construction.destroy.push(o);
+                    }
+                }
+            }
+        }
+        town.apply_commands(&terrain, &mut rng);
         tool.hover(&town, &terrain, Some(spot), 0);
         let id = tool.place(&archive, &mut town, 0).expect("not placed");
         let builder = town.construction.professions.builder;
