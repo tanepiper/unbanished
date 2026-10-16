@@ -94,6 +94,11 @@ What the identity check turned up:
 - Loading now also restores a boat's `flag_28` and a tracker's or orchard's year `−1`.
 - **The entity manager's clock** (the first value of its block, the scheduler's time), now also restored on load.
 
+`a_simulated_town_reloads_as_saved` loads Save83 and runs it for a minute, which changes about
+15,000 fields and makes about 200 objects. It then saves, loads the result and saves again, and
+requires the same state. The only difference allowed is the floor counts the original's load
+adds again. That makes a save written by the port a fixed point of load and save.
+
 ## Saving from the game
 
 `GameplayLoop::save_state` copies the loaded save, writes the town into it, then writes the
@@ -119,4 +124,3 @@ The preview image and name in the metadata are still the loaded save's.
   saved buckets (quotas `[50, 15, 8, 5, 2]` at `+0xa8`, cursors at `+0xbc`) keep the save's
   cursors.
 - Achievements, goals, nomads and tornadoes.
-- A round trip after simulating: load, run, save, load again and compare the port's state.

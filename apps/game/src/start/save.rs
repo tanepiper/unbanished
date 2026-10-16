@@ -277,6 +277,28 @@ mod tests {
         out
     }
 
+    /// A save's state as the original holds it after loading: one more floor under each active
+    /// FloorComponent (its load slot adds them again, `FUN_140124a10`).
+    fn floors_added(saved: &crate::saved::SavedGame) -> GameState {
+        let mut expected = saved.state.clone();
+        let n = expected.map.size;
+        for (_, e) in saved.entities() {
+            let active = saved
+                .component(e, "FloorComponent")
+                .is_some_and(|f| matches!(f.fields.at("floor.active"), Some(Value::Bool(true))));
+            let Some(map) = saved.component(e, "MapComponent").filter(|_| active) else {
+                continue;
+            };
+            let m = |k: &str| map.fields.i32(&format!("map.{k}")).unwrap_or(0);
+            for y in m("y")..m("y") + m("h") {
+                for x in m("x")..m("x") + m("w") {
+                    expected.map.cells[(y * n + x) as usize].bytes[5] += 1;
+                }
+            }
+        }
+        expected
+    }
+
     /// Loading a vanilla save and writing it straight back gives the same bytes: every field
     /// the load reads is written back by the same mapping.
     #[test]
@@ -302,22 +324,7 @@ mod tests {
             let ours = g.encode().unwrap();
             // What the original writes right after a load: the saved state with one more floor
             // under each active FloorComponent (its load slot adds them again, `FUN_140124a10`).
-            let mut expected = saved.state.clone();
-            let n = expected.map.size;
-            for (_, e) in saved.entities() {
-                let active = saved.component(e, "FloorComponent").is_some_and(|f| {
-                    matches!(f.fields.at("floor.active"), Some(Value::Bool(true)))
-                });
-                let Some(map) = saved.component(e, "MapComponent").filter(|_| active) else {
-                    continue;
-                };
-                let m = |k: &str| map.fields.i32(&format!("map.{k}")).unwrap_or(0);
-                for y in m("y")..m("y") + m("h") {
-                    for x in m("x")..m("x") + m("w") {
-                        expected.map.cells[(y * n + x) as usize].bytes[5] += 1;
-                    }
-                }
-            }
+            let expected = floors_added(&saved);
             let original = expected.encode().unwrap();
             if ours != original {
                 for line in diff(&g, &expected).iter().take(12) {
@@ -334,5 +341,70 @@ mod tests {
             assert_eq!(ours.len(), original.len(), "{name}");
             eprintln!("{name}: exported unchanged");
         }
+    }
+
+    /// A town run for a minute after loading, saved, and loaded again writes the same state:
+    /// everything the simulation changed is written in a form the load reads back.
+    #[test]
+    fn a_simulated_town_reloads_as_saved() {
+        let Some(archive) = archive() else {
+            eprintln!("game data missing; skipping");
+            return;
+        };
+        let Ok(bytes) = std::fs::read(root().join("save-game").join("Save83.sav")) else {
+            return;
+        };
+        let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+        let world = crate::world::World::from_save(&archive, &saved).unwrap();
+        let grid = banished_game::terrain::HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
+        let mut rng = banished_game::random::Random::new(83);
+        let dt = 1.0 / 30.0;
+        for _ in 0..30 * 60 {
+            town.apply_commands(&grid, &mut rng);
+            town.iterate(&grid, &mut rng, dt, 50.0);
+            let warnings = banished_game::events::StockWarnings::default();
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&grid, &mut rng, dt, 50.0, stock);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+        }
+        let mut first = saved.state.clone();
+        town.export_into(&archive, &mut first);
+        // The minute changed the town: positions, needs, stacks, works.
+        let changed = diff(&first, &floors_added(&saved));
+        eprintln!(
+            "{} fields changed by simulating; {} objects ({} saved)",
+            changed.len(),
+            first.objects.len(),
+            saved.state.objects.len()
+        );
+        assert!(changed.len() > 100, "the simulation changed little");
+        let written = first.encode().unwrap();
+        let reloaded = crate::saved::SavedGame {
+            state: GameState::decode(&written).unwrap(),
+            metadata: saved.metadata.clone(),
+        };
+        let again = crate::start::StartingTown::from_save(&archive, &reloaded).unwrap();
+        assert_eq!(
+            again.citizens.len(),
+            town.citizens.iter().filter(|c| c.alive).count()
+        );
+        assert_eq!(again.wildlife.animals.len(), town.wildlife.animals.len());
+        let mut second = reloaded.state.clone();
+        again.export_into(&archive, &mut second);
+        let lines = diff(&second, &floors_added(&reloaded));
+        for line in lines.iter().take(20) {
+            eprintln!("{line}");
+        }
+        assert!(
+            lines.is_empty(),
+            "{} differences after reloading",
+            lines.len()
+        );
     }
 }
