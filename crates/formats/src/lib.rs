@@ -13,6 +13,7 @@ pub mod menu_scene;
 pub mod names;
 pub mod picking;
 pub mod pkg;
+pub mod scenario;
 pub mod save;
 pub mod skeleton;
 pub mod stream;
