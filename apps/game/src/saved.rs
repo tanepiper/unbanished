@@ -61,6 +61,49 @@ impl SavedGame {
         }
     }
 
+    /// The stock manager's slots (`+0x170`) and capacity records (`+0x180`) as saved in the
+    /// town manager's block: counts, previous counts, limits, cooldowns.
+    pub fn stock_warnings(&self) -> banished_game::events::StockWarnings {
+        let mut w = banished_game::events::StockWarnings::default();
+        let town = &self.state.town;
+        if let Some(Value::List(slots)) = town.at("town.stock") {
+            for (i, s) in slots.iter().enumerate().take(w.count.len()) {
+                w.count[i] = s.i32("count").unwrap_or(0);
+                w.previous[i] = s.i32("previous").unwrap_or(0);
+                w.limits[i] = s.i32("limit").unwrap_or(w.limits[i]);
+                if let Some(Value::I64(t)) = s.get("cooldown") {
+                    w.cooldown[i] = *t;
+                }
+            }
+        }
+        if let Some(Value::List(records)) = town.at("town.capacity_records") {
+            for (r, s) in w.capacity.iter_mut().zip(records) {
+                let cooldown = match s.get("cooldown") {
+                    Some(Value::I64(t)) => *t,
+                    _ => 0,
+                };
+                *r = (
+                    s.i32("used").unwrap_or(0),
+                    s.i32("capacity").unwrap_or(0),
+                    cooldown,
+                );
+            }
+        }
+        w
+    }
+
+    /// The stock slots' used and made counters since the last statistics sample.
+    pub fn stock_counters(&self) -> banished_game::tracker::StockCounters {
+        let mut c = banished_game::tracker::StockCounters::default();
+        if let Some(Value::List(slots)) = self.state.town.at("town.stock") {
+            for (i, s) in slots.iter().enumerate().take(c.used.len()) {
+                c.used[i] = s.i32("used").unwrap_or(0);
+                c.made[i] = s.i32("made").unwrap_or(0);
+            }
+        }
+        c
+    }
+
     pub fn object(&self, id: ObjId) -> Option<&Object> {
         self.state.objects.get(&id)
     }

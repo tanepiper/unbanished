@@ -68,12 +68,12 @@ const WORK: Op = Block(
     &[
         Ptr("entity"),
         Ptr("component"),
-        I32("value_20"),
-        I32("value_28"),
-        If(VersionAtLeast(1), &[I32("value_24")]),
+        I32("id"),
+        I32("cell"),
+        If(VersionAtLeast(1), &[I32("priority")]),
         If(
             VersionAtLeast(3),
-            &[Time("time_30"), Time("time_38"), I32("value_40")],
+            &[Time("patience"), Time("patience_base"), I32("far_count")],
         ),
     ],
 );
@@ -326,10 +326,10 @@ static SCHEMAS: &[(&str, &[Op])] = &[
                 "work",
                 3,
                 &[
-                    I32("value_28"),
+                    I32("work_id"),
                     If(VersionBelow(3), &[I32("old")]),
-                    If(VersionAtLeast(1), &[I32("most")]),
-                    If(VersionAtLeast(2), &[I32("value_2c")]),
+                    If(VersionAtLeast(1), &[I32("most_workers")]),
+                    If(VersionAtLeast(2), &[I32("kept_priority")]),
                 ],
             ),
         ],
@@ -342,14 +342,14 @@ static SCHEMAS: &[(&str, &[Op])] = &[
             Block(
                 "machine",
                 0,
-                &[I8("state"), I8("previous"), I8("next"), I8("pending")],
+                &[I8("state"), I8("index"), I8("pending"), I8("transition")],
             ),
         ],
     ),
     // `FUN_14011d390`.
     (
         "ClearAreaComponent",
-        &[BASE, CONTROLLER, Block("clear", 0, &[I32("value_48")])],
+        &[BASE, CONTROLLER, Block("clear", 0, &[I32("total")])],
     ),
     // `FUN_140123020`.
     (
@@ -393,8 +393,8 @@ static SCHEMAS: &[(&str, &[Op])] = &[
                 1,
                 &[
                     List("items", &[I32("count"), I32("reserved"), Ext("material")]),
-                    I32("value_38"),
-                    U32("capacity"),
+                    I32("capacity"),
+                    U32("accepts"),
                 ],
             ),
         ],
@@ -983,13 +983,13 @@ static SCHEMAS: &[(&str, &[Op])] = &[
                 "road",
                 1,
                 &[
-                    U32("type_5c"),
-                    I32("value_58"),
-                    Ptr("citizen"),
-                    Ext("description"),
+                    U32("type"),
+                    I32("cell"),
+                    Ptr("builder"),
+                    Ext("material"),
                     If(
                         VersionAtLeast(1),
-                        &[I32("value_60"), I32("value_64"), I32("value_68")],
+                        &[I32("old_kind"), I32("old_built"), I32("old_type")],
                     ),
                 ],
             ),
@@ -1004,10 +1004,10 @@ static SCHEMAS: &[(&str, &[Op])] = &[
                 "build",
                 0,
                 &[
-                    Bool("flag_48"),
+                    Bool("destroy"),
                     CITIZENS,
-                    List("stages", &[Bool("done")]),
-                    I32("value_4c"),
+                    List("occupied", &[Bool("done")]),
+                    I32("cursor"),
                 ],
             ),
         ],
@@ -1022,11 +1022,11 @@ static SCHEMAS: &[(&str, &[Op])] = &[
                 1,
                 &[
                     List("assigned", &[Ptr("entity"), Ptr("citizen")]),
-                    Ext("description"),
-                    Bool("flag_70"),
+                    Ext("filter"),
+                    Bool("clear_resources"),
                     If(
                         VersionAtLeast(1),
-                        &[KEYED_CITIZENS, Bool("flag_71"), Bool("flag_72")],
+                        &[KEYED_CITIZENS, Bool("clear_cells"), Bool("clear_piles")],
                     ),
                 ],
             ),
@@ -1047,9 +1047,9 @@ static SCHEMAS: &[(&str, &[Op])] = &[
                 0,
                 &[
                     CITIZENS,
-                    List("values", &[I32("value")]),
-                    Bool("flag_48"),
-                    I32("value_4c"),
+                    List("points", &[I32("state")]),
+                    Bool("full"),
+                    I32("cycles"),
                     U32("type_50"),
                     I32("value_54"),
                 ],
@@ -1082,8 +1082,8 @@ static SCHEMAS: &[(&str, &[Op])] = &[
                 "gather",
                 0,
                 &[
-                    List("values_48", &[I32("value")]),
-                    List("values_58", &[I32("value")]),
+                    List("stored", &[I32("value")]),
+                    List("transit", &[I32("value")]),
                     CITIZENS,
                 ],
             ),
@@ -1127,8 +1127,8 @@ static SCHEMAS: &[(&str, &[Op])] = &[
                 "pickup",
                 2,
                 &[
-                    I32("value_48"),
-                    Ptr("citizen"),
+                    I32("state"),
+                    Ptr("claimer"),
                     If(VersionAtLeast(1), &[Ext("profession")]),
                 ],
             ),
@@ -1258,7 +1258,7 @@ static SCHEMAS: &[(&str, &[Op])] = &[
                 2,
                 &[
                     I32("count"),
-                    Time("time_38"),
+                    Time("age"),
                     If(VersionAtLeast(2), &[Ext("profession")]),
                 ],
             ),
@@ -1394,10 +1394,10 @@ pub const TOWN: Op = Block(
     "town",
     6,
     &[
-        ptr_list("entities_00"),
-        ptr_list("entities_10"),
-        ptr_list("entities_30"),
-        ptr_list("entities_20"),
+        ptr_list("storages"),
+        ptr_list("markets"),
+        ptr_list("trading_posts"),
+        ptr_list("residences"),
         ptr_list("healers"),
         ptr_list("citizens"),
         // `FUN_140018450`: profession → workplaces.
@@ -1410,14 +1410,14 @@ pub const TOWN: Op = Block(
         ptr_list("herds"),
         If(VersionAtLeast(1), &[ptr_list("diseases")]),
         ptr_list("populations"),
-        ptr_list("builds"),
-        I32("count_110"),
-        I32sBy("descriptions_110", "count_110"),
-        I32("count_120"),
-        I32sBy("descriptions_120", "count_120"),
-        Time("time_190"),
+        ptr_list("sites"),
+        I32("known_material_count"),
+        I32sBy("known_materials", "known_material_count"),
+        I32("known_count"),
+        I32sBy("known", "known_count"),
+        Time("commute_time"),
         Time("time_198"),
-        List("values_150", &[I32("count"), I32sBy("values", "count")]),
+        List("history", &[I32("count"), I32sBy("values", "count")]),
         If(
             VersionBelow(2),
             &[List("legacy_counts", &[Ext("description"), I32("count")])],
@@ -1425,13 +1425,10 @@ pub const TOWN: Op = Block(
         // `FUN_1400186e0`: description → entities.
         If(
             VersionAtLeast(2),
-            &[List(
-                "by_description",
-                &[Ext("description"), ptr_list("entities")],
-            )],
+            &[List("zones", &[Ext("description"), ptr_list("entities")])],
         ),
         ptr_list("wells"),
-        List("pairs_130", &[I32("a"), I32("b")]),
+        List("water_sources", &[I32("a"), I32("b")]),
         If(
             VersionAtLeast(5),
             &[List(
@@ -1454,61 +1451,62 @@ pub const TOWN: Op = Block(
             VersionAtLeast(4),
             &[
                 List(
-                    "statistics",
+                    "stock",
                     &[
-                        I32("value_0"),
-                        I32("value_4"),
-                        I32("value_8"),
-                        I32("value_c"),
-                        I32("value_10"),
-                        Time("time"),
+                        I32("count"),
+                        I32("previous"),
+                        I32("limit"),
+                        I32("used"),
+                        I32("made"),
+                        Time("cooldown"),
                     ],
                 ),
                 List(
-                    "records_180",
-                    &[I32("value_0"), I32("value_4"), Time("time")],
+                    "capacity_records",
+                    &[I32("used"), I32("capacity"), Time("cooldown")],
                 ),
             ],
         ),
-        F32("value_1a8"),
-        Time("time_1a0"),
-        If(VersionAtLeast(2), &[I32("value_1ac")]),
-        If(VersionAtLeast(3), &[I32("value_1b0")]),
+        F32("visitor_risk"),
+        Time("visitor_time"),
+        If(VersionAtLeast(2), &[I32("trade_value")]),
+        If(VersionAtLeast(3), &[I32("nomads_admitted")]),
     ],
 );
 
-/// The job manager (`FUN_1400fe710`, version 3), `Game +0x118`: the open work by priority
-/// (`FUN_14002d9c0`, 15 lists from version 3, 14 before), the work by profession
-/// (`FUN_14002df50`), then three counters.
+/// The job manager (`FUN_1400fe710`, version 3), `Game +0x118`: the id → work table (`+0x30`)
+/// and the 14 category sets (`+0x40..`, 13 before version 3) by `FUN_14002d9c0`, the work by
+/// profession (`+0x120`, `FUN_14002df50`), then the last id, the next priority and the pass
+/// (`+0x00..+0x08`). The priority index (`+0x10`) is rebuilt on load from each work's priority.
 pub const JOBS: Op = Block(
     "jobs",
     3,
     &[
-        List("priority_0", &[I32("key"), Ptr("work")]),
-        List("priority_1", &[I32("key"), Ptr("work")]),
-        List("priority_2", &[I32("key"), Ptr("work")]),
-        List("priority_3", &[I32("key"), Ptr("work")]),
-        List("priority_4", &[I32("key"), Ptr("work")]),
-        List("priority_5", &[I32("key"), Ptr("work")]),
-        List("priority_6", &[I32("key"), Ptr("work")]),
-        List("priority_7", &[I32("key"), Ptr("work")]),
-        List("priority_8", &[I32("key"), Ptr("work")]),
-        List("priority_9", &[I32("key"), Ptr("work")]),
-        List("priority_10", &[I32("key"), Ptr("work")]),
-        List("priority_11", &[I32("key"), Ptr("work")]),
-        List("priority_12", &[I32("key"), Ptr("work")]),
-        List("priority_13", &[I32("key"), Ptr("work")]),
+        List("works", &[I32("key"), Ptr("work")]),
+        List("category_1", &[I32("key"), Ptr("work")]),
+        List("category_2", &[I32("key"), Ptr("work")]),
+        List("category_3", &[I32("key"), Ptr("work")]),
+        List("category_4", &[I32("key"), Ptr("work")]),
+        List("category_5", &[I32("key"), Ptr("work")]),
+        List("category_6", &[I32("key"), Ptr("work")]),
+        List("category_7", &[I32("key"), Ptr("work")]),
+        List("category_8", &[I32("key"), Ptr("work")]),
+        List("category_9", &[I32("key"), Ptr("work")]),
+        List("category_10", &[I32("key"), Ptr("work")]),
+        List("category_11", &[I32("key"), Ptr("work")]),
+        List("category_12", &[I32("key"), Ptr("work")]),
+        List("category_13", &[I32("key"), Ptr("work")]),
         If(
             VersionAtLeast(3),
-            &[List("priority_14", &[I32("key"), Ptr("work")])],
+            &[List("category_14", &[I32("key"), Ptr("work")])],
         ),
         List(
             "by_profession",
             &[Ext("profession"), List("work", &[I32("key"), Ptr("work")])],
         ),
-        I32("value_0"),
-        I32("value_4"),
-        U32("value_8"),
+        I32("next_id"),
+        I32("next_priority"),
+        U32("pass"),
     ],
 );
 

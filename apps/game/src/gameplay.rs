@@ -176,6 +176,7 @@ impl GameplayLoop {
         if let Some(banished_formats::savegame::Value::I64(t)) = s.managers.at("calendar.time") {
             g.calendar.elapsed = *t;
         }
+        g.stock_warnings = saved.stock_warnings();
         g.saved = Some(std::sync::Arc::new(saved));
         g
     }

@@ -22,7 +22,7 @@ Deviation: 38, Not ported: 11, Not traced: 5.
 ## `apps/game/src/gameplay.rs`
 
 - [Deviation] [apps/game/src/gameplay.rs:32](../apps/game/src/gameplay.rs#L32): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
-- [Deviation] [apps/game/src/gameplay.rs:392](../apps/game/src/gameplay.rs#L392): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
+- [Deviation] [apps/game/src/gameplay.rs:393](../apps/game/src/gameplay.rs#L393): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
 
 ## `apps/game/src/gameplay/tutorial.rs`
 

@@ -289,6 +289,41 @@ impl Jobs {
         id
     }
 
+    /// A saved manager (`FUN_1400fe710`): its counters, then each work with the categories it
+    /// was filed under (1..14). The priority index is rebuilt from the works' own priorities,
+    /// as the load pass does; the clock (`+0x130`) is not saved and restarts at 0.
+    pub fn restore(
+        &mut self,
+        next_id: i32,
+        next_priority: i32,
+        pass: i32,
+        works: impl IntoIterator<Item = (Work, Vec<u32>)>,
+    ) {
+        *self = Jobs {
+            next_id,
+            next_priority,
+            pass,
+            ..Default::default()
+        };
+        for (work, categories) in works {
+            let id = work.id;
+            self.priorities.entry(work.priority).or_insert(id);
+            for c in categories {
+                if let Some(set) = (c as usize)
+                    .checked_sub(1)
+                    .and_then(|c| self.categories.get_mut(c))
+                {
+                    set.insert(id);
+                }
+            }
+            self.professions
+                .entry(work.profession)
+                .or_default()
+                .insert(id);
+            self.works.insert(id, work);
+        }
+    }
+
     /// `FUN_1400fe300`: unregister, refresh, cancel every worker, delete.
     pub fn remove(&mut self, id: i32, host: &mut impl WorkHost) {
         let Some(mut work) = self.works.remove(&id) else {

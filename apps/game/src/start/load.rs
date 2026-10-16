@@ -1,6 +1,7 @@
-//! A town restored from a save (stage 1 of docs/SAVE-LOADING.md): the gameplay map's cells and
-//! every placed entity (map footprint, model, natural resource growth and spawning). Citizens,
-//! storage, construction and jobs come in later stages.
+//! A town restored from a save (docs/SAVE-LOADING.md). Stage 1: the gameplay map's cells and
+//! every placed entity (map footprint, model, natural resource growth and spawning). Stage 2
+//! (`construction.rs` here): the buildings' state machines, storage, piles, the town's
+//! registries and the job manager's works. Citizens come in stage 3.
 
 use std::collections::BTreeMap;
 
@@ -14,6 +15,8 @@ use banished_game::spawn::Spawn;
 use banished_game::terrain::CellType;
 
 use super::{citizen_rules, load_template, read, StartingTown, TownParts};
+
+mod construction;
 use crate::saved::SavedGame;
 
 /// NaturalResourceComponent capability bits in the component flags (`Component +0x20`).
@@ -161,7 +164,7 @@ impl StartingTown {
             templates.len()
         );
         let rules = citizen_rules(archive, &profile.citizen).unwrap_or(RULES);
-        let town = Self::assemble(
+        let mut town = Self::assemble(
             archive,
             &profile.citizen,
             TownParts {
@@ -183,6 +186,7 @@ impl StartingTown {
                 water,
             },
         );
+        town.restore_construction(archive, saved, &index);
         Some(town)
     }
 }
@@ -294,5 +298,122 @@ mod tests {
                 town.placed.len()
             );
         }
+    }
+}
+
+/// Stage 2 against the vanilla saves: the restored storages give the stock manager's saved
+/// counts; each site's machine is consistent; every site's and pile's work is registered with
+/// its entity; planned roads and storage registrations match the saved lists.
+#[cfg(test)]
+mod stage2_tests {
+    use super::tests_support::*;
+    use banished_formats::savegame::Value;
+
+    #[test]
+    fn vanilla_saves_restore_construction() {
+        let Some(archive) = archive() else {
+            eprintln!("game data missing; skipping");
+            return;
+        };
+        for name in ["Save2.sav", "Save3.sav", "Save4.sav", "Save5.sav"] {
+            let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
+                continue;
+            };
+            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
+            let c = &town.construction;
+
+            // The stock manager's counts are recomputed from storages (`FUN_14008f3a0`).
+            let table =
+                banished_game::stock::stock_table(&town.registered_storages(), &town.materials);
+            assert_eq!(table, saved.stock_warnings().count, "{name}: stock");
+
+            let machines = saved
+                .entities()
+                .filter(|(_, e)| saved.component(e, "StateMachineComponent").is_some())
+                .count();
+            assert_eq!(c.sites.len(), machines, "{name}: sites");
+            for (&e, site) in &c.sites {
+                let m = &site.machine;
+                if m.state >= 0 {
+                    assert_eq!(
+                        m.controllers[m.current].find(m.state),
+                        Some(m.index as usize),
+                        "{name}: site {e} state {} index {}",
+                        m.state,
+                        m.index
+                    );
+                }
+                // WorkComponent `+0x28` keeps the id of a work the manager has since removed
+                // (a finished build); the port leaves it too and checks it is registered.
+                if let Some(w) = c.jobs.works.get(&site.work_id) {
+                    assert_eq!(
+                        w.entity, e,
+                        "{name}: site {e} ({}) work {}",
+                        town.templates[town.placed[e].template].reference, site.work_id
+                    );
+                }
+                assert!(
+                    !c.placed.contains(&e),
+                    "{name}: site {e} queued for activation"
+                );
+            }
+            for (&e, pile) in &c.piles {
+                assert_eq!(
+                    c.jobs.works.get(&pile.work).map(|w| w.entity),
+                    Some(e),
+                    "{name}: pile {e} work"
+                );
+            }
+            let saved_works = match saved.state.managers.at("jobs.works") {
+                Some(Value::List(w)) => w.len(),
+                _ => 0,
+            };
+            assert_eq!(c.jobs.works.len(), saved_works, "{name}: works");
+            let roads = c
+                .jobs
+                .works
+                .values()
+                .filter(|w| matches!(w.kind, banished_game::jobs::WorkKind::Road(_)))
+                .count();
+            assert_eq!(c.pending_roads.len(), roads, "{name}: planned roads");
+            let listed = ["town.storages", "town.markets"]
+                .iter()
+                .map(|l| match saved.state.town.at(l) {
+                    Some(Value::List(v)) => v.len(),
+                    _ => 0,
+                })
+                .sum::<usize>();
+            assert_eq!(
+                town.storage_sites.len(),
+                listed,
+                "{name}: storage registrations"
+            );
+            eprintln!(
+                "{name}: {} sites, {} piles, {} works ({roads} roads), stock {:?}",
+                c.sites.len(),
+                c.piles.len(),
+                c.jobs.works.len(),
+                &table[..8]
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod tests_support {
+    use banished_formats::pkg::{Archive, Package};
+
+    pub fn root() -> std::path::PathBuf {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    pub fn archive() -> Option<Archive> {
+        let dir = root().join("game-data/original/WinData");
+        let mut a = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            a.add(Package::parse(std::fs::read(dir.join(name)).ok()?).ok()?);
+        }
+        Some(a)
     }
 }
