@@ -87,8 +87,33 @@ pub fn generate_name(list: &[SaveInfo]) -> String {
 }
 
 /// `DateTime::AsString` (`0x1800c7d40`): the local date and time, `"%s %s"` of
-/// `GetDateFormatW(DATE_SHORTDATE)` and `GetTimeFormatW(TIME_NOSECONDS)`. Deviation: the
-/// user's locale formats are not read; the port writes the en-US defaults (`M/d/yyyy h:mm tt`).
+/// `GetDateFormatW(DATE_SHORTDATE)` and `GetTimeFormatW(TIME_NOSECONDS)`, in the user's
+/// locale. The browser formats them by its locale (`toLocaleDateString`, `toLocaleTimeString`
+/// without seconds). Deviation: native builds do not read the locale's formats; they write the
+/// en-US defaults (`M/d/yyyy h:mm tt`).
+#[cfg(target_arch = "wasm32")]
+pub fn date_string(date: u64) -> String {
+    use wasm_bindgen::JsValue;
+    let unix = (date / 10_000_000) as i64 - EPOCH_DIFFERENCE as i64;
+    let d = js_sys::Date::new(&JsValue::from_f64(unix as f64 * 1000.0));
+    // The page's language (`navigator.language`), else the browser's default.
+    let locale = js_sys::Reflect::get(&js_sys::global(), &"navigator".into())
+        .and_then(|n| js_sys::Reflect::get(&n, &"language".into()))
+        .ok()
+        .and_then(|l| l.as_string())
+        .unwrap_or_else(|| "en-US".into());
+    let time = js_sys::Object::new();
+    let _ = js_sys::Reflect::set(&time, &"hour".into(), &"numeric".into());
+    let _ = js_sys::Reflect::set(&time, &"minute".into(), &"2-digit".into());
+    format!(
+        "{} {}",
+        String::from(d.to_locale_date_string(&locale, &JsValue::UNDEFINED)),
+        String::from(d.to_locale_time_string_with_options(&locale, &time)),
+    )
+}
+
+/// See the browser's `date_string`.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn date_string(date: u64) -> String {
     let unix = (date / 10_000_000) as i64 - EPOCH_DIFFERENCE as i64;
     let Some((year, month, day, hour, minute)) = local_time(unix) else {
@@ -110,18 +135,6 @@ fn local_time(unix: i64) -> Option<(i32, i32, i32, i32, i32)> {
         z.day() as i32,
         z.hour() as i32,
         z.minute() as i32,
-    ))
-}
-
-#[cfg(target_arch = "wasm32")]
-fn local_time(unix: i64) -> Option<(i32, i32, i32, i32, i32)> {
-    let d = js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(unix as f64 * 1000.0));
-    Some((
-        d.get_full_year() as i32,
-        d.get_month() as i32 + 1,
-        d.get_date() as i32,
-        d.get_hours() as i32,
-        d.get_minutes() as i32,
     ))
 }
 

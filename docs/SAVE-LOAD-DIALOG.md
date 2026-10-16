@@ -78,10 +78,12 @@ are `DateTime::AsString` (`0x1800c7d40`): the local date and time joined with a 
 
 The Save dialog leaves the autosave out; the Load dialog lists it.
 
+The new-save slot shows the save sprite (`SaveLoad +0x60`, the global data's `+0xb8`):
+`Dialog\SpriteSheet.rsc` "SaveLoadEmpty", the icon template's own sprite, so the slot keeps it.
+
 ### Deviations
 
 - **Confirmations don't block.** The original's `ShowDialog` is a nested loop; the port leaves the action waiting for the answer.
-- **The new-save slot's icon.** It shows the template's empty icon, not the save sprite (`SaveLoad +0x60`).
 - **Mods.** The port has none, so every mod a save names is "missing". A mod's version is shown as a number.
 - **Corrupt label.** "Corrupt" comes from `globalNames`, the game's `+0xd8` table (`FUN_14009e670`).
-- **Date format.** Dates use the en-US formats, not the user's locale.
+- **Date format.** Native builds write the en-US formats, not the user's locale (the browser uses its locale).

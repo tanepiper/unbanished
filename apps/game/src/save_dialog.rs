@@ -31,9 +31,11 @@
 //!   Ok 1, Yes 2, No 3); `ShowDialog` returns the button and only Yes goes on.
 //!
 //! Deviations: the original runs `ShowDialog` as a nested loop; the port keeps the step waiting
-//! for the answer. The new-save slot shows the template's empty icon: the save sprite it shows
-//! in the original (`SaveLoad +0x60`, the game's `+0xb8`) is not ported. A mod's version is
-//! written as its number.
+//! for the answer. A mod's version is written as its number.
+//!
+//! The new-save slot shows the save sprite (`SaveLoad +0x60`, set from the global data's
+//! `+0xb8`: `Dialog\SpriteSheet.rsc` "SaveLoadEmpty", `FUN_1400a0e00`), which is the icon
+//! template's own sprite, so the slot keeps it.
 
 use banished_ui::{Control, Kind, NodeId, Ui};
 
@@ -353,7 +355,7 @@ impl SaveLoadDialog {
                 ui.node_mut(n).flags |= banished_formats::ui::flags::MOUSE;
             }
             match &info.file {
-                // The new-save slot keeps the template's icon.
+                // The new-save slot: the save sprite, the template's own ("SaveLoadEmpty").
                 None => {
                     if let Some(n) = corrupt {
                         ui.set_visible(n, false);
