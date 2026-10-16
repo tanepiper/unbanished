@@ -283,6 +283,9 @@ impl Decoder<'_> {
         self.defining.insert(index);
         let fields = self.ops(ops, 0).map_err(|e| match e {
             Error::Format(m) => Error::Format(format!("{m} [in {name} at {at:#x}]")),
+            Error::Truncated { at: t, wanted } => Error::Format(format!(
+                "truncated: wanted {wanted} bytes at {t:#x} [in {name} at {at:#x}]"
+            )),
             e => e,
         })?;
         self.defining.remove(&index);
@@ -334,9 +337,6 @@ impl Decoder<'_> {
     /// `FUN_1400a45d0` with the cells of `FUN_14001b570`.
     fn game_map(&mut self) -> Result<GameMap> {
         self.block(|d, version| {
-            if version < 3 {
-                return err(d.r.pos(), "map versions below 3 are not supported");
-            }
             let size = d.r.i32()?;
             let n = d.r.count()?;
             let mut cells = Vec::with_capacity(n);
@@ -345,6 +345,10 @@ impl Decoder<'_> {
                 let description = d.r.u32()?;
                 let flags = d.r.bytes(9)?.try_into().unwrap();
                 let value = d.r.u16()?;
+                // Before version 3, another u16 (`FUN_14001b570`), not kept.
+                if version < 3 {
+                    d.r.u16()?;
+                }
                 let bytes = d.r.bytes(6)?.try_into().unwrap();
                 cells.push(GameMapCell {
                     entities,

@@ -351,7 +351,7 @@ static SCHEMAS: &[(&str, &[Op])] = &[
                 3,
                 &[
                     I32("work_id"),
-                    If(VersionBelow(3), &[I32("old")]),
+                    If(VersionBelow(3), &[Bool("old")]),
                     If(VersionAtLeast(1), &[I32("most_workers")]),
                     If(VersionAtLeast(2), &[I32("kept_priority")]),
                 ],

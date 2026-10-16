@@ -2084,11 +2084,11 @@ impl GameLoop for GameplayLoop {
         self.refresh_tutorial_ui(ctx.ui);
         if let Some(i) = self.next_scenario.take() {
             if let Some((_, s)) = tutorial::scenarios(ctx.archive).into_iter().nth(i) {
-                let params = tutorial::scenario_params(ctx.ui, ctx.global.as_ref(), &s, i);
+                let game = tutorial::scenario_game(ctx.ui, ctx.archive, ctx.global.as_ref(), &s, i);
                 return Next::Switch(Box::new(DialogLoaderLoop::new(
                     format!("Dialog/Loading.rsc:gameLoad{}", ctx.rng.rand_below(12)),
                     0.5,
-                    Box::new(GameplayLoop::new(params)),
+                    Box::new(game),
                 )));
             }
         }
@@ -2878,7 +2878,9 @@ fn new_map(world: &World) -> banished_formats::menu_scene::MapComponent {
 }
 
 mod tutorial;
-pub use tutorial::{scenario_params, scenarios};
+#[cfg(test)]
+use tutorial::scenario_params;
+pub use tutorial::{scenario_game, scenarios};
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
@@ -3524,7 +3526,22 @@ mod tests {
                 .unwrap();
             let params = scenario_params(ctx.ui, ctx.global.as_ref(), &list[first].1, first);
             assert_eq!(params.seed, 120323451);
-            let mut g = GameplayLoop::new(params);
+            // It starts from `Save\TutorialGettingStarted.sav`, as the scenario's.
+            let mut g = scenario_game(
+                ctx.ui,
+                ctx.archive,
+                ctx.global.as_ref(),
+                &list[first].1,
+                first,
+            );
+            assert!(g.saved.is_some(), "the tutorial's save did not load");
+            // Every tutorial names a save, and each one reads.
+            for (i, (r, s)) in list.iter().enumerate() {
+                assert!(!s.save.is_empty(), "{r}");
+                let g = scenario_game(ctx.ui, ctx.archive, ctx.global.as_ref(), s, i);
+                assert!(g.saved.is_some(), "{r}: {}", s.save);
+            }
+            assert_eq!(g.params.scenario, Some(first));
             g.load(ctx);
             g.startup(ctx);
             gameplay = Some(g);

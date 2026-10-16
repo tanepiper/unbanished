@@ -26,7 +26,8 @@ impl Entry {
     pub fn kind(&self) -> EntryKind {
         if self.name.ends_with(".index") {
             EntryKind::Index
-        } else if self.name.ends_with(".str") {
+        } else if self.name.ends_with(".str") || self.name.ends_with(".sav") {
+            // Audio streams and the tutorials' saves (`Save\TutorialFood.sav`), stored as is.
             EntryKind::RawStream
         } else {
             EntryKind::Compressed

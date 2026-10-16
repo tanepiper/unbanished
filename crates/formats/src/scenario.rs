@@ -139,14 +139,15 @@ pub struct Scenario {
     /// `+0x60`, `+0x64`.
     pub i60: i32,
     pub i64: i32,
-    /// `+0x58`: a save to start from.
-    pub save: String,
+    /// `+0x58`: the town's name.
+    pub town_name: String,
     /// `+0x70`, `+0x78`, `+0x80`.
     pub r70: Option<String>,
     pub r78: Option<String>,
     pub r80: Option<String>,
-    /// `+0x88`.
-    pub s88: String,
+    /// `+0x88`: the save to start from (`Save\{name}.sav` in the data, the tutorials'),
+    /// empty for a new game (`FUN_14007d180`).
+    pub save: String,
     /// `+0x68`, `+0x69`.
     pub b68: bool,
     pub b69: bool,
@@ -163,11 +164,11 @@ pub fn scenario(data: &[u8]) -> Result<Scenario> {
                 achievement,
                 i60: r.i32()?,
                 i64: r.i32()?,
-                save: r.string()?,
+                town_name: r.string()?,
                 r70: r.external_ref()?,
                 r78: r.external_ref()?,
                 r80: r.external_ref()?,
-                s88: r.string()?,
+                save: r.string()?,
                 b68: r.bool()?,
                 b69: r.bool()?,
             })

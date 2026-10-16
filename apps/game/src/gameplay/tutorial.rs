@@ -1086,12 +1086,38 @@ impl GameplayLoop {
     }
 }
 
+/// `FUN_14007d180`: the game for scenario `index`. A scenario naming a save (`+0x88`, the
+/// tutorials') loads `Save\{name}.sav` from the data (`SaveLoad` operation 3) and starts it
+/// with the scenario (`FUN_1400b9ec0`); the others start a new game ([`scenario_params`]).
+///
+/// The loop's scenario (`+0x15c`) is the index given: `FUN_14009bfd0` keeps it over the save's
+/// when it is not −1.
+pub fn scenario_game(
+    ui: &mut Ui,
+    archive: &banished_formats::pkg::Archive,
+    global: Option<&crate::global::GlobalData>,
+    s: &scenario::Scenario,
+    index: usize,
+) -> GameplayLoop {
+    if !s.save.is_empty() {
+        let name = format!("Save\\{}.sav", s.save);
+        match archive
+            .read(&name)
+            .and_then(|b| crate::saved::SavedGame::parse(&b))
+        {
+            Ok(mut saved) => {
+                saved.state.scenario = index as i32;
+                return GameplayLoop::from_save(saved);
+            }
+            Err(e) => log::error!("{name}: {e}"),
+        }
+    }
+    GameplayLoop::new(scenario_params(ui, global, s, index))
+}
+
 /// `FUN_1400b9a10`'s new game for a scenario: its seed (`+0x60`), size (`+0x64`), town name
 /// (`+0x58`), disasters (`+0x68`), start condition (`+0x70`), terrain (`+0x78`) and climate
 /// (`+0x80`).
-///
-/// Deviation: a scenario with a save (`+0x88`, the tutorials') loads it in the original; the
-/// port starts the new game from the scenario's fields until saved games load.
 pub fn scenario_params(
     ui: &mut Ui,
     global: Option<&crate::global::GlobalData>,
@@ -1123,7 +1149,7 @@ pub fn scenario_params(
     });
     let defaults = crate::world::WorldParams::default();
     crate::world::WorldParams {
-        town_name: s.save.clone(),
+        town_name: s.town_name.clone(),
         terrain: stem(&s.r78),
         climate: climate.map_or_else(
             || stem(&s.r80),

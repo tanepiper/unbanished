@@ -588,18 +588,23 @@ impl GameLoop for MenuLoop {
                     }
                     self.scenarios = None;
                 }
-                // `FUN_14007d180` → `FUN_1400b9a10`: the scenario's new game.
+                // `FUN_14007d180`: the scenario's save or new game.
                 Some(ScenarioClick::Start(i)) => {
                     let list = crate::gameplay::scenarios(ctx.archive);
                     if let Some((_, s)) = list.get(i) {
-                        let params =
-                            crate::gameplay::scenario_params(ctx.ui, ctx.global.as_ref(), s, i);
+                        let game = crate::gameplay::scenario_game(
+                            ctx.ui,
+                            ctx.archive,
+                            ctx.global.as_ref(),
+                            s,
+                            i,
+                        );
                         let screen_ref =
                             format!("Dialog/Loading.rsc:gameLoad{}", ctx.rng.rand_below(12));
                         return Next::Switch(Box::new(DialogLoaderLoop::new(
                             screen_ref,
                             0.5,
-                            Box::new(crate::gameplay::GameplayLoop::new(params)),
+                            Box::new(game),
                         )));
                     }
                 }
