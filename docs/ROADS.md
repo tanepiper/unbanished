@@ -84,8 +84,9 @@ task's parameter the cell.
 
 ## Not ported
 
-The road decals and mesh (`FUN_1400b2260`, `FUN_1400b4840`), the terrain flattened under a road
-(`FUN_1400a35b0`), the tutorial's fixed drag (DragTool `+0x80`), and the CreateBar's road cost.
+The tutorial's fixed drag (DragTool `+0x80`) and the CreateBar's road cost. (The decals follow
+`road_revision`; a finished road flattens the terrain at its cell's four corners through
+`Construction::flatten_requests`, applied after the iteration.)
 
 ## The road decals (`FUN_1400b4840`)
 

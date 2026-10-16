@@ -188,4 +188,5 @@ rectangle's top edge. Its upper-left corner moves `0.25` of the way to the targe
   - the footprint decal and per-cell overlay;
   - message strings beyond the bar itself;
   - the drag, path, road, bridge and removal tools;
-  - the ClearArea work, the decal outline and the terrain flattening (`FUN_1400a35b0`).
+  - the decal outline. (The ClearArea work, the footprint decal and the terrain flattening,
+    `FUN_1400a35b0`, are ported: [JOBS.md](JOBS.md), [DECALS.md](DECALS.md).)

@@ -124,8 +124,8 @@ impl Sim<'_, '_> {
 
     /// CompleteRoad's start (`FUN_1400a1b10(cell, kind byte, type)`): to ground (type 2) the
     /// cell loses its road (`+0x28` one less, no kind); else it becomes the road type. Either
-    /// way it leaves the planned set. Not ported: the terrain flattened under it
-    /// (`FUN_1400a35b0`) and the road mesh (`FUN_1400b4840`).
+    /// way it leaves the planned set. A road flattens the terrain at its cell's corners
+    /// (`FUN_1400a35b0`); the road decals follow `road_revision` (`FUN_1400b4840`).
     pub fn complete_road(&mut self, cell: i32, built: u8, ty: u8) {
         let i = cell as usize;
         if ty == GROUND {
@@ -134,6 +134,9 @@ impl Sim<'_, '_> {
             self.cells.road_built[i] = 0;
         } else {
             self.cells.road_built[i] = built;
+            let n = self.size as i32;
+            let (x, y) = (cell % n, cell / n);
+            self.flatten_requests.push([x, y, x + 1, y + 1]);
         }
         self.set_cell_type(cell, ty);
         self.pending_roads.remove(&cell);

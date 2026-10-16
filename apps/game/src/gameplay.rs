@@ -753,9 +753,11 @@ impl GameplayLoop {
             }
             models_changed = changed;
         }
-        // The tunnels' terraforming, on the terrain the town reads (`FUN_140057c70`).
+        // The tunnels' terraforming and the flattening under stamped footprints and roads, on
+        // the terrain the town reads (`FUN_140057c70`, `FUN_1400a35b0`).
         if let (Some(town), Some(view)) = (&mut self.town, &mut self.view) {
-            if !town.construction.terraform_requests.is_empty() {
+            let c = &town.construction;
+            if !c.terraform_requests.is_empty() || !c.flatten_requests.is_empty() {
                 let width = view.terrain.width();
                 if town.apply_terraforms(&mut view.terrain.heights, width) {
                     view.terrain.reshaped();

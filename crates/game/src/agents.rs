@@ -74,7 +74,6 @@ pub struct CitizenState {
     pub work: Option<usize>,
     /// StatusIconComponent +0xf0 (Citizen +0x280 points to that component).
     pub status: u32,
-    // Not ported: tool use during jobs and the citizen clothing-wear countdown.
     pub tool_status: i32,        // +0xa8
     pub tool_uses: i32,          // +0xac
     pub clothing_status: i32,    // +0x1e0
@@ -334,6 +333,7 @@ impl Agents {
                 known: &mut c.known,
                 pending_roads: &mut c.pending_roads,
                 terraform_requests: &mut c.terraform_requests,
+                flatten_requests: &mut c.flatten_requests,
                 tornadoes: &mut c.tornadoes,
                 tornado_kills: &mut c.tornado_kills,
                 trackers: &mut c.trackers,

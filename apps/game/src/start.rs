@@ -1584,6 +1584,8 @@ impl StartingTown {
         self.add_site(archive, entity);
         if let Some(site) = self.construction.sites.get_mut(&entity) {
             site.parts = multi;
+            // MultiObjectComponent `+0x58`: the border's cells.
+            site.multi_stages = Some((x1 - x0 + 1 + y1 - y0 + 1) * 2 - 4);
         }
         Some(entity)
     }
@@ -2593,6 +2595,7 @@ impl StartingTown {
                         works: Vec::new(),
                     }),
                 parts: Vec::new(),
+                multi_stages: None,
                 graves: Vec::new(),
                 destroy: t.destroy.as_ref().map(banished_game::destroy::Destroy::new),
                 fire: t.fire.map(|_| banished_game::fire::Fire::default()),

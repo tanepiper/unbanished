@@ -286,6 +286,8 @@ impl StartingTown {
         self.add_site(archive, entity);
         if let Some(site) = self.construction.sites.get_mut(&entity) {
             site.parts = multi;
+            // MultiObjectComponent `+0x58`: the pieces' cells.
+            site.multi_stages = Some(list.iter().map(|p| p.max(&1)).sum());
         }
         log::info!(
             "bridge {length} cells from ({fx}, {fy}): {:?}",
@@ -327,6 +329,9 @@ impl StartingTown {
     pub fn apply_terraforms(&mut self, heights: &mut [i16], width: usize) -> bool {
         use banished_game::terraform::{harden, reshape, undo, Terraform};
         let mut changed = false;
+        for rect in std::mem::take(&mut self.construction.flatten_requests) {
+            changed |= banished_game::terraform::flatten(heights, width, self.cells.size, rect);
+        }
         for request in std::mem::take(&mut self.construction.terraform_requests) {
             match request {
                 Terraform::Dig(e) => {

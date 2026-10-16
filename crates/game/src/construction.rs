@@ -1070,6 +1070,9 @@ pub struct Site {
     /// MultiObjectComponent `+0x48`: the entities placed with this one (a pasture's shelter
     /// and fences), in order.
     pub parts: Vec<usize>,
+    /// MultiObjectComponent `+0x58`: the stages its construction counts (a bridge's cells,
+    /// a fenced area's border cells); `BuildComponent::EnterGather` takes it for `+0x4c`.
+    pub multi_stages: Option<i32>,
     /// DiseaseComponent.
     pub disease: Option<crate::blight::Blight>,
     /// CemeteryComponent `+0x48`: the grave cells (`FUN_140047b60`).
@@ -1165,6 +1168,9 @@ pub struct Construction {
     /// Tunnels to dig or fill back (TerraformComponent event 4 and removal), for the terrain's
     /// owner, and each terraformed entity's kept heights and cells.
     pub terraform_requests: Vec<crate::terraform::Terraform>,
+    /// `FUN_1400a35b0` requests: cell rectangles (`x0, y0, x1, y1`, inclusive) whose cells'
+    /// low corners go to height 0, applied to the terrain after the iteration.
+    pub flatten_requests: Vec<[i32; 4]>,
     /// The tornadoes (TornadoComponent by entity) and the citizens they killed this
     /// iteration (`FUN_14011c2a0` code 5, applied by the citizens' pass).
     pub tornadoes: BTreeMap<usize, crate::tornado::Tornado>,

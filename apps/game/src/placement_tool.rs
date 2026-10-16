@@ -3767,9 +3767,12 @@ mod construction_tests {
             }
             if state == 1 && !supplied {
                 supplied = true;
-                let (st, storage) = (site.template, site.storage);
+                // MultiObject `+0x58`: a bridge costs its cells' worth.
+                let (st, storage, stages) = (site.template, site.storage, site.stages);
+                assert_eq!(Some(stages), site.multi_stages);
+                assert!(1 < stages);
                 for &(k, m) in &town.construction.templates[st].materials.clone() {
-                    town.storages[storage].add(m, k);
+                    town.storages[storage].add(m, k * stages);
                 }
             }
             if state == 2 {

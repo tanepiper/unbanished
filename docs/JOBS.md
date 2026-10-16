@@ -833,9 +833,16 @@ Deviations and gaps (all marked in code):
   cell's work priority when it activates in the same delivery; the drop-off's final redirect
   and pile dropping are not ported; the ClearArea empty-cell phase (roads, fields) is not
   ported; the stock's production counter (`FUN_14008e3c0`) is not updated.
-- Not ported: families (ResidenceComponent), the drop-off activity `FUN_14011b330`, DropOff
-  redirect and pile dropping, emergencies, MultiObject stages, terrain flattening, decals,
-  building status icons, ShowTool meshes, DestroyUI.
+- Not ported: DropOff redirect and pile dropping, building status icons, ShowTool meshes.
+- **ClearArea stamp** (`FUN_14011d740`, from `FUN_14011ccf0` and `BuildComponent::EnterGather`):
+  with the description's `+0x2c`, `FUN_1400a35b0` sets the height of the low corner of every
+  cell from the map rectangle's corner to one past its far side to 0, so the footprint lies
+  flat; the terrain tiles and decals are rebuilt (entity event 5). The port queues the
+  rectangle (`Construction::flatten_requests`) and applies it to the terrain after the
+  iteration.
+- **MultiObject stages** (`+0x58`): a bridge counts its pieces' cells, a fenced area its border
+  cells (`2(w + h) − 4`); EnterGather takes it for the stages, multiplying the materials and
+  the work.
 - Site state machines run every iteration (scheduled quota not modelled); worker sets are
   ordered by citizen index instead of object address.
 

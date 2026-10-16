@@ -123,6 +123,7 @@ pub struct Sim<'s, 't> {
     /// Map `+0xe8`: planned road cells → BuildRoad works.
     pub pending_roads: &'s mut BTreeMap<i32, i32>,
     pub terraform_requests: &'s mut Vec<crate::terraform::Terraform>,
+    pub flatten_requests: &'s mut Vec<[i32; 4]>,
     pub tornadoes: &'s mut BTreeMap<usize, crate::tornado::Tornado>,
     pub tornado_kills: &'s mut Vec<usize>,
     pub trackers: &'s mut BTreeMap<usize, crate::tracker::Tracker>,
@@ -899,6 +900,26 @@ impl Sim<'_, '_> {
         }
     }
 
+    /// `ClearAreaComponent::Stamp` (`FUN_14011d740`): with the description's `+0x2c`, the
+    /// terrain under the map rectangle and one cell beyond is flattened (`FUN_1400a35b0`;
+    /// entity event 5 re-adds the decal, which follows the terrain here).
+    pub(crate) fn clear_area_stamp(&mut self, entity: usize) {
+        let Some(site) = self.sites.get(&entity) else {
+            return;
+        };
+        if !self.site_templates[site.template]
+            .clear
+            .as_ref()
+            .is_some_and(|c| c.stamp)
+        {
+            return;
+        }
+        let p = &self.placed[entity];
+        let (x, y) = p.cell;
+        let (w, h) = p.footprint;
+        self.flatten_requests.push([x, y, x + w, y + h]);
+    }
+
     /// DecalComponent event 1 (`FUN_140120c30`): alpha 1.
     pub(crate) fn decal_opaque(&mut self, entity: usize) {
         let d = self.decals.entry(entity).or_default();
@@ -1244,6 +1265,8 @@ impl Callbacks for Sim<'_, '_> {
                 true
             }
             Callback::ClearEnter1 => {
+                // `FUN_14011ccf0`: the ClearArea stamps the terrain, then on to 2.
+                self.clear_area_stamp(e);
                 self.machine(e).request(2);
                 true
             }
@@ -1318,9 +1341,11 @@ impl Callbacks for Sim<'_, '_> {
                 false
             }
             Callback::BuildEnter1 => {
-                self.sites.get_mut(&e).unwrap().stages = 1;
-                // Not ported: MultiObject stage counts and the ClearArea's terrain flattening
-                // (`FUN_14011d740` → `FUN_1400a35b0`).
+                // `BuildComponent::EnterGather`: the MultiObject's stage count, else 1; the
+                // ClearArea stamps the terrain.
+                let site = self.sites.get_mut(&e).unwrap();
+                site.stages = site.multi_stages.unwrap_or(1);
+                self.clear_area_stamp(e);
                 if !self.site_list.contains(&e) {
                     self.site_list.push(e);
                 }

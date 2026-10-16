@@ -140,3 +140,44 @@ pub fn undo(cells: &mut Cells, heights: &mut [i16], width: usize, state: &Terraf
     }
     !state.raised.is_empty()
 }
+
+/// `FUN_1400a35b0`: each cell of the inclusive rectangle `x0, y0, x1, y1` sets its low
+/// corner's height to 0 (the ground point of the cell's middle, in the height grid). `cells`
+/// is the map's cells per side; the height grid is `width − 1` cells, the map in its middle.
+pub fn flatten(heights: &mut [i16], width: usize, cells: usize, rect: [i32; 4]) -> bool {
+    let off = ((width as i32 - 1) - cells as i32) >> 1;
+    let [x0, y0, x1, y1] = rect;
+    let mut changed = false;
+    for y in y0..=y1 {
+        for x in x0..=x1 {
+            let (gx, gy) = (x + off, y + off);
+            if gx < 0 || gy < 0 || width as i32 <= gx || width as i32 <= gy {
+                continue;
+            }
+            let h = &mut heights[gy as usize * width + gx as usize];
+            changed |= *h != 0;
+            *h = 0;
+        }
+    }
+    changed
+}
+
+#[cfg(test)]
+mod tests {
+    use super::flatten;
+
+    #[test]
+    fn flattening_zeroes_the_cells_low_corners() {
+        // 4 map cells in a grid of 8 cells (9 points a side): the map starts at point 2.
+        let width = 9;
+        let mut heights = vec![100i16; width * width];
+        assert!(flatten(&mut heights, width, 4, [1, 1, 2, 2]));
+        for y in 0..width {
+            for x in 0..width {
+                let zero = (3..=4).contains(&x) && (3..=4).contains(&y);
+                assert_eq!(heights[y * width + x] == 0, zero, "({x}, {y})");
+            }
+        }
+        assert!(!flatten(&mut heights, width, 4, [1, 1, 2, 2]));
+    }
+}
