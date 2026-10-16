@@ -41,6 +41,8 @@ use crate::save_list::{self, SaveInfo};
 
 const DIALOG: &str = "Dialog/SaveLoad.rsc:resource";
 const CELL: &str = r"Dialog\SaveLoad.rsc:icon";
+/// The game's names table (`Game +0xd8`).
+pub const GLOBAL_NAMES: &str = "Dialog/StringTable.rsc:globalNames";
 /// `DAT_140178824`, `DAT_140178860`: an operation's shortest time.
 const LIST_TIME: f32 = 0.75;
 const SAVE_LOAD_TIME: f32 = 1.5;
@@ -161,6 +163,11 @@ impl SaveLoadDialog {
         d.listing = true;
         d.refresh(ui);
         Some(d)
+    }
+
+    /// Whether its save operation (4) runs: the autosave dialog shows its spinner too.
+    pub fn saving(&self) -> bool {
+        matches!(self.operation, Some((Operation::Save, _)))
     }
 
     fn start(&mut self, operation: Operation, time: f32) {
@@ -362,8 +369,8 @@ impl SaveLoadDialog {
                     let when = if readable {
                         save_list::date_string(info.date)
                     } else {
-                        let table = date.and_then(|n| ui.node(n).string_table.clone());
-                        ui.res.string(table.as_deref(), "Corrupt")
+                        // `FUN_14009e670`: the game's names table (`+0xd8`).
+                        ui.res.string(Some(GLOBAL_NAMES), "Corrupt")
                     };
                     param(ui, date, &when);
                     param(ui, name, &info.name.clone());

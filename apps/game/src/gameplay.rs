@@ -131,9 +131,13 @@ pub struct GameplayLoop {
     move_cooldown: f32,
     /// 3D effects started during the simulation iterations, played on the next audio update.
     pending_sounds: Vec<(glam::Vec3, String)>,
-    /// A save waiting for its preview: the path, then the image once drawn.
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    pending_save: Option<(std::path::PathBuf, Option<Vec<u8>>)>,
+    /// A save waiting for its preview: the path, the name (the town's when `None`), then the
+    /// image once drawn.
+    pending_save: Option<(std::path::PathBuf, Option<String>, Option<Vec<u8>>)>,
+    /// `Dialog/AutoSave.rsc`: the autosave timer and the saving spinner.
+    #[cfg(not(target_arch = "wasm32"))]
+    autosave: Option<crate::autosave::AutoSave>,
     /// The Save and Load dialog over the pause menu.
     #[cfg(not(target_arch = "wasm32"))]
     save_dialog: Option<crate::save_dialog::SaveLoadDialog>,
@@ -311,17 +315,18 @@ impl GameplayLoop {
     /// Runtime `0x1800c3d00`) names it after the town, as the Save dialog does (the string at
     /// `+0x28` of the object it is given; the town's name in every sample, inferred). It
     /// carries `preview` (see [`crate::saved::preview`]) and keeps the loaded save's other
-    /// values.
+    /// values. `name` replaces the town's (the autosave's `Autosave` string).
     pub fn save_file(
         &self,
         archive: &banished_formats::pkg::Archive,
         ui: &mut banished_ui::Ui,
+        name: Option<&str>,
         preview: Option<Vec<u8>>,
     ) -> Option<Vec<u8>> {
         let g = self.save_state(archive, ui)?;
         let state = g.encode().map_err(|e| log::error!("save: {e}")).ok()?;
         let mut metadata = self.saved.as_ref()?.metadata.clone();
-        metadata.name = self.params.town_name.clone();
+        metadata.name = name.unwrap_or(&self.params.town_name).to_string();
         if let Some(image) = preview {
             let (w, h) = crate::saved::PREVIEW_SIZE;
             metadata.width = w as i32;
@@ -334,10 +339,11 @@ impl GameplayLoop {
     /// Write a save whose preview has been drawn.
     #[cfg(not(target_arch = "wasm32"))]
     fn finish_save(&mut self, ctx: &mut Ctx) {
-        let Some((path, Some(image))) = self.pending_save.take_if(|(_, i)| i.is_some()) else {
+        let Some((path, name, Some(image))) = self.pending_save.take_if(|(_, _, i)| i.is_some())
+        else {
             return;
         };
-        let Some(bytes) = self.save_file(ctx.archive, ctx.ui, Some(image)) else {
+        let Some(bytes) = self.save_file(ctx.archive, ctx.ui, name.as_deref(), Some(image)) else {
             log::error!("save: only a game loaded from a save can be saved yet");
             return;
         };
@@ -348,6 +354,34 @@ impl GameplayLoop {
             Ok(()) => log::info!("saved {}", path.display()),
             Err(e) => log::error!("{}: {e}", path.display()),
         }
+    }
+
+    /// `Dialog/AutoSave.rsc`'s frame: at its interval, an autosave into `Auto.sav` named by the
+    /// game's `Autosave` string, unless a dialog pauses the game (the pause menu), the game is
+    /// a tutorial (flag bit 10) or a save runs (`FUN_14005e820`).
+    #[cfg(not(target_arch = "wasm32"))]
+    fn update_autosave(&mut self, ctx: &mut Ctx, dt: f32) {
+        let interval = ctx.settings.game.autosave_interval;
+        let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
+        let dialog_saving = self.save_dialog.as_ref().is_some_and(|d| d.saving());
+        let can_save = self.pause_menu.is_none()
+            && flags & 0x400 == 0
+            && self.pending_save.is_none()
+            && !dialog_saving;
+        let Some(a) = self.autosave.as_mut() else {
+            return;
+        };
+        if !a.update(ctx.ui, dt, interval, can_save, dialog_saving) {
+            return;
+        }
+        let Some(path) = crate::paths::save_file(crate::save_list::AUTO_SAVE) else {
+            return;
+        };
+        let name = ctx
+            .ui
+            .res
+            .string(Some(crate::save_dialog::GLOBAL_NAMES), "Autosave");
+        self.pending_save = Some((path, Some(name), None));
     }
 
     /// The Save and Load dialog's frame: a save it starts waits for the next frame's preview;
@@ -375,7 +409,7 @@ impl GameplayLoop {
                 None
             }
             Outcome::Save(path) => {
-                self.pending_save = Some((path, None));
+                self.pending_save = Some((path, None, None));
                 None
             }
             // `FUN_1400bce80` → `FUN_14009d480`: the game fades out for the loaded one.
@@ -445,6 +479,8 @@ impl GameplayLoop {
             pending_sounds: Vec::new(),
             pending_save: None,
             #[cfg(not(target_arch = "wasm32"))]
+            autosave: None,
+            #[cfg(not(target_arch = "wasm32"))]
             save_dialog: None,
             ambience: None,
             ambience_stale: false,
@@ -463,12 +499,17 @@ impl GameplayLoop {
         ui: &mut Ui,
         archive: &banished_formats::pkg::Archive,
         keymap: &crate::keymap::KeyMap,
+        #[cfg_attr(target_arch = "wasm32", allow(unused_variables))] autosave_interval: i32,
     ) {
         let mut screen = Screen::new(ui);
         let mut toolbar = Toolbar::load(archive);
         toolbar.install(ui, &mut screen, keymap);
         self.toolbar = Some(toolbar);
         self.notify = crate::event_notify::EventNotify::open(ui, &mut screen, &self.events);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.autosave = crate::autosave::AutoSave::open(ui, &mut screen, autosave_interval);
+        }
         self.screen = Some(screen);
         self.update_hud(ui);
     }
@@ -1791,7 +1832,12 @@ impl GameLoop for GameplayLoop {
     }
 
     fn startup(&mut self, ctx: &mut Ctx) {
-        self.build_hud(ctx.ui, ctx.archive, &ctx.settings.keymap);
+        self.build_hud(
+            ctx.ui,
+            ctx.archive,
+            &ctx.settings.keymap,
+            ctx.settings.game.autosave_interval,
+        );
         self.achievements = crate::achievements::load(ctx.archive);
         self.achievement_manager = crate::achievements::AchievementManager::new(
             &self.achievements,
@@ -1804,6 +1850,7 @@ impl GameLoop for GameplayLoop {
         #[cfg(not(target_arch = "wasm32"))]
         {
             self.finish_save(ctx);
+            self.update_autosave(ctx, dt);
             if let Some(next) = self.update_save_dialog(ctx, dt) {
                 return next;
             }
@@ -2500,7 +2547,7 @@ impl GameLoop for GameplayLoop {
                 let Some(path) = words.next() else {
                     return false;
                 };
-                self.pending_save = Some((path.into(), None));
+                self.pending_save = Some((path.into(), None, None));
                 return true;
             }
             // `pause`: open the pause menu (captures).
@@ -2636,11 +2683,13 @@ impl GameLoop for GameplayLoop {
     }
 
     fn wants_save_preview(&self) -> bool {
-        self.pending_save.as_ref().is_some_and(|(_, i)| i.is_none())
+        self.pending_save
+            .as_ref()
+            .is_some_and(|(_, _, i)| i.is_none())
     }
 
     fn save_preview(&mut self, image: Vec<u8>) {
-        if let Some((_, slot)) = &mut self.pending_save {
+        if let Some((_, _, slot)) = &mut self.pending_save {
             *slot = Some(image);
         }
     }

@@ -15,6 +15,7 @@
 mod achievement_ui;
 mod achievements;
 mod ambience;
+mod autosave;
 mod building_decals;
 mod building_ui;
 mod create_bar;

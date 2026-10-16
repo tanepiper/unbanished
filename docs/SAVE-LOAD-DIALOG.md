@@ -50,9 +50,24 @@ are `DateTime::AsString` (`0x1800c7d40`): the local date and time joined with a 
   The dialog closes when its time is up.
 - **A load** closes the dialog and switches to a loading screen, then to the loaded game.
 
+## Autosave (`Dialog/AutoSave.rsc`, vtable `0x140161250`)
+
+`apps/game/src/autosave.rs`. It is installed with the other in-game dialogs (`FUN_14009d0d0`).
+- **Timer** (`FUN_14005ea80`): timer 0 runs at the Options interval: 1, 5, 10, 15, 20, 30, 45 or 60
+  minutes, and is stopped at index 8. It restarts when you change the option.
+- **Firing:** `DialogInstance::Update` counts the timer down by frame time. When it reaches zero it
+  posts event `0x13` and starts again.
+- **Saving** (`FUN_14005e820`): the save runs unless the pause menu is open, the game is a tutorial (flag bit 10), or a save
+  is already running. It writes `Auto.sav` and names it with `globalNames:Autosave` ("Auto Save").
+  The operation takes at least 1 s.
+- **Spinner:** `savingImage` turns at 90° a second, and it and `animatedImage` show while any save runs.
+
+The Save dialog leaves the autosave out; the Load dialog lists it.
+
 ### Deviations
 
 - **Confirmations don't block.** The original's `ShowDialog` is a nested loop; the port leaves the action waiting for the answer.
 - **The new-save slot's icon.** It shows the template's empty icon, not the save sprite (`SaveLoad +0x60`).
 - **Mods.** The port has none, so every mod a save names is "missing". A mod's version is shown as a number.
+- **Corrupt label.** "Corrupt" comes from `globalNames`, the game's `+0xd8` table (`FUN_14009e670`).
 - **Date format.** Dates use the en-US formats, not the user's locale.
