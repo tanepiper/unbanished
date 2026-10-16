@@ -295,6 +295,21 @@ impl Lighting {
         }
     }
 
+    /// `FUN_140098f90` with ShowWeather: a weather effect's lighting record (Weather `+0x60`
+    /// ambient, `+0x64` sun, `+0x68` fog colours, `+0x6c..+0x74` fog start, end and most) pulls
+    /// the lighting towards it by the effect's intensity (`FUN_140099ec0` without the sun's
+    /// angles).
+    pub fn toward_weather(&mut self, w: &banished_formats::weather::Weather, amount: f32) {
+        let t = amount.clamp(0.0, 1.0);
+        let blend = |a: f32, b: f32| a + (b - a) * t;
+        self.ambient_color = self.ambient_color.lerp(color(w.colors[0]), t);
+        self.light_color = self.light_color.lerp(color(w.colors[1]), t);
+        self.fog_color = self.fog_color.lerp(color(w.colors[2]), t);
+        self.fog_start = blend(self.fog_start, w.floats_6c[0]);
+        self.fog_end = blend(self.fog_end, w.floats_6c[1]);
+        self.fog_max = blend(self.fog_max, w.floats_6c[2]);
+    }
+
     /// Apply the date-driven foliage controls computed by `FUN_1400988f0`.
     pub fn set_seasonal_foliage(&mut self, month_position: f32) {
         self.user.y = ((month_position - 6.0) / 1.5).clamp(0.0, 1.0);

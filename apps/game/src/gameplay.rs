@@ -1177,7 +1177,7 @@ impl GameplayLoop {
         }
         // The precipitation emitters follow the environment's effects (`FUN_1400999b0`); with
         // the game option ShowWeather (`+0x16`) off the effects and their emitters are removed.
-        // Not ported: ShowWeather's other effect, the weather lighting blend in `FUN_140098f90`.
+        // ShowWeather also gates the weather lighting blend (`FUN_140098f90`, in `update`).
         let show_weather = ctx.settings.game.show_weather;
         if let (Some(a), Some(env)) = (&mut self.ambience, &self.environment) {
             for (slot, (_, ambient)) in self.weather.iter().enumerate().take(2) {
@@ -1600,6 +1600,15 @@ impl GameLoop for GameplayLoop {
             // `FUN_140098f90`: blend this month's lighting towards the next.
             let to = &self.environment_months[(month + 1) % self.environment_months.len()];
             view.lighting = Lighting::between_months(from, to, into_month);
+            // With ShowWeather, each running effect pulls the lighting towards its own.
+            if let (true, Some(env)) = (ctx.settings.game.show_weather, &self.environment) {
+                for (slot, p) in self.precipitation.iter().enumerate() {
+                    let (Some(p), Some(Some(e))) = (p, env.effects.get(slot)) else {
+                        continue;
+                    };
+                    view.lighting.toward_weather(&p.desc, e.intensity);
+                }
+            }
             if let Some(env) = &self.environment {
                 let s = env.season;
                 view.lighting.user = glam::Vec4::new(s.snow, s.autumn, s.leaf_loss, s.rain);

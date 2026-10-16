@@ -124,4 +124,10 @@ The Status Bar ([UTILITY-WINDOWS.md](UTILITY-WINDOWS.md)) shows:
   - **Deviation.** The rain streak's sides are the cross of its velocity with the camera's
     forward axis. The original builds them from two camera planes through `Vector3::Cross`, but
     which planes those are is not traced.
+**Weather lighting** (`FUN_140098f90`, with ShowWeather). After the month blend, each running
+effect's Weather record pulls the lighting towards its own by the effect's intensity
+(`FUN_140099ec0` with the angles flag clear). The record holds `+0x60` ambient, `+0x64` sun and
+`+0x68` fog colours, and `+0x6c`, `+0x70`, `+0x74` fog start, end and most. The sun's angles
+`+0x78`, `+0x7c` are not blended. Port: `Lighting::toward_weather`.
+
 - **Not ported:** save/load of the controller state (`FUN_140099160`).

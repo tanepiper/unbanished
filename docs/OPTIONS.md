@@ -70,7 +70,7 @@ not bind.
 | ShowCelcius | The temperature readout converts to Celsius |
 | AutoPause | Losing focus opens the pause menu only when set |
 | EdgeScroll | Edge scrolling within 4/5 UI pixels of the edges (see [KEYMAP-AND-CAMERA-CONTROLS.md](KEYMAP-AND-CAMERA-CONTROLS.md)) |
-| ShowWeather | Off: the precipitation ambience is silenced, as the original removes the effects (`FUN_1400999b0`). The weather lighting blend (`FUN_140098f90`) and precipitation particles are not ported, so there is nothing else to switch |
+| ShowWeather | Off: the effects go (`FUN_1400999b0`), so the precipitation, its ambience and the weather lighting blend (`FUN_140098f90`) go with them |
 | AutoSlow | A fire, blight, tornado or shortage event (types 11, 12, 30, 31) sets the speed back to 1× (`Game +0x120 → +0x34`) |
 | AutosaveInterval | Stored only: saving is not ported |
 | Interface, Adapter | The wgpu backends that have adapters for the window (Vulkan, Metal, DirectX 12, OpenGL, WebGPU) and their adapters; a change rebuilds the renderer |

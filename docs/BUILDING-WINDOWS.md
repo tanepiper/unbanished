@@ -335,7 +335,7 @@ With one: page 3 in states 3..=7, page 2 while the build is unfinished (`FUN_140
 state 0, else `+0x40` (page 4 kept when active). The state is StateMachine `+0x52`, else
 `+0x50`.
 
-## DestroyUI (pending)
+## DestroyUI
 
 DestroyUI binds `progressRemove`, `progressDestruct`, `textRemove`, `textUpgrade`,
 `textDamage`, `textFixing`, `buttonReclaim`, `buttonDestroy`, `buttonRebuild`. Its refresh
