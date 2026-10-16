@@ -643,6 +643,14 @@ pub(crate) fn spinner_value(ui: &Ui, id: NodeId) -> Option<i32> {
     }
 }
 
+/// `StatusIconUIConfig` (one bool at `+0x20`, `_showOnMainPage`).
+fn status_icon_config(data: &[u8]) -> Option<bool> {
+    use banished_formats::crs;
+    crs::parse(data, |r: &mut crs::Reader, _| r.block(|r, _| r.bool()))
+        .ok()
+        .map(|(_, v)| v)
+}
+
 /// `ResourceLimitUIConfig` (one i32, the stock slot, at `+0x20`).
 fn resource_limit_config(data: &[u8]) -> Option<usize> {
     use banished_formats::crs;
@@ -1406,8 +1414,9 @@ impl BuildUi {
 
 /// `StatusIconUI` (vtable `0x140163cd0`): bind `FUN_140080740` caches the `icons` children;
 /// refresh `FUN_140080570` shows icon `i` when status bit `i` is set. Only a controller with a
-/// config (`+0x10`) whose `+0x20` flag is clear additionally requires the host page to be 2 or 3;
-/// the shipped entity hosts attach StatusIconUI without a config.
+/// config (`+0x10`) whose `+0x20` flag (`StatusIconUIConfig::_showOnMainPage`) is clear
+/// additionally requires the host page to be 2 or 3; the crop field's, orchard's and others'
+/// build-status icons have such a config (`CropField.rsc:titleBuildStatus`).
 pub struct StatusIconUi {
     icons: Vec<NodeId>,
     always: bool,
@@ -1560,7 +1569,6 @@ impl Controller {
         root: NodeId,
         config: Option<&str>,
     ) -> Controller {
-        let has_config = config.is_some();
         let bound = match type_id {
             CITIZEN_UI => Some(Controller::Citizen(CitizenUi::bind(ui, element, root))),
             STORAGE_UI => StorageUi::bind(ui, element, archive).map(Controller::Storage),
@@ -1603,9 +1611,16 @@ impl Controller {
                     ui, resource, element, root,
                 )))
             }
-            // Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
+            // Without a config, or with `_showOnMainPage`, the icons show on every page.
             STATUS_ICON_UI => {
-                StatusIconUi::bind(ui, element, !has_config).map(Controller::StatusIcon)
+                let always = config.is_none_or(|c| {
+                    archive
+                        .read_ref(&c.replace('\\', "/"))
+                        .ok()
+                        .and_then(|d| status_icon_config(&d))
+                        .unwrap_or(false)
+                });
+                StatusIconUi::bind(ui, element, always).map(Controller::StatusIcon)
             }
             RADIUS_UI => Some(Controller::Inert(type_id)),
             _ => None,
@@ -1657,6 +1672,24 @@ impl Controller {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The crop field's build-status icons keep to the status pages (`_showOnMainPage` false).
+    #[test]
+    fn status_icon_configs_read_their_flag() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(banished_formats::pkg::Package::parse(bytes).unwrap());
+        }
+        let d = archive
+            .read_ref("Template/CropField.rsc:titleBuildStatus")
+            .unwrap();
+        assert_eq!(status_icon_config(&d), Some(false));
+    }
 
     /// The shipped ResourceLimitUIConfigs name their stock slots (the cutter yard's firewood
     /// is slot 3).
