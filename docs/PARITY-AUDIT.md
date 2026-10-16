@@ -34,7 +34,7 @@ are listed separately at the end.
 
 | Feature | Original | Port |
 |---|---|---|
-| **Limits window** (toolbar Reports → Limits) | `UtilityLimits` uses `ResourceLimitUI` (`0xf77895ff`) for every limit row, including textile (1.0.5) and the mod flags (1.0.7) | The building windows have this controller, the utility windows do not: the rows open but do nothing |
+| **Limits window** (toolbar Reports → Limits) | `UtilityLimits` uses `ResourceLimitUI` (`0xf77895ff`) for every limit row, including textile (1.0.5) and the mod flags (1.0.7) | **Done.** The 11 rows show and set the stock manager's limits. RadiusUI (`0x00585b87`, six building windows) binds as the inert controller it is |
 | **Path tool** (Reports → Path) | `PathTool` (`FUN_1400e3b80` and its vtable `0x140166aa0`): a click picks the entity under the cursor; `FUN_1400e2be0` and `FUN_1400e2c40` (664 lines) show it | Missing: `UtilityPath` has no UIDescription, and the `CreatePath` tool is not handled |
 | **Follow** (citizen window's Follow button) | `Dialog/Follow.rsc` (`FUN_140065080`), the camera following the citizen | Missing |
 | **Citizen window buttons** | Bind `FUN_140065b00` finds `buttonProfession`, `buttonHome` and `buttonFollow`; events `FUN_140065a50` | Shown, no events |

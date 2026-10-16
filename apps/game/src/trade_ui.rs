@@ -421,7 +421,7 @@ impl TradeUi {
         for (m, row) in &self.storage_rows {
             set_number(ui, row.stored, available(*m));
             if let Some(s) = row.spinner {
-                let focused = ui.descendant(s, ui.focused().unwrap_or(s));
+                let focused = ui.focused().is_some_and(|f| ui.descendant(s, f));
                 if spinner_value(ui, s) != Some(keep(*m)) && !focused {
                     set_spinner(ui, s, keep(*m));
                 }
@@ -507,7 +507,7 @@ impl TradeUi {
                 }
             }
             if let Some(s) = row.spinner {
-                let focused = ui.descendant(s, ui.focused().unwrap_or(s));
+                let focused = ui.focused().is_some_and(|f| ui.descendant(s, f));
                 if spinner_value(ui, s) != Some(amount) && !focused {
                     set_spinner(ui, s, amount);
                 }

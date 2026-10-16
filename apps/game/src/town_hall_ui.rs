@@ -383,7 +383,7 @@ impl TownHallUi {
         for (i, row) in self.professions.iter().enumerate() {
             if let Some(s) = row.spinner {
                 let v = counts.get(i).copied().unwrap_or(0);
-                if !ui.descendant(s, ui.focused().unwrap_or(s)) {
+                if !ui.focused().is_some_and(|f| ui.descendant(s, f)) {
                     set_spinner(ui, s, v);
                 }
             }

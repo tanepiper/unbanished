@@ -33,6 +33,8 @@ pub const TRADE_UI: u32 = 0xc8b87610;
 pub const CROP_UI: u32 = 0x111542c0;
 pub const ORCHARD_UI: u32 = 0x33908208;
 pub const PASTURE_UI: u32 = 0xae1a9e32;
+/// `RadiusUI`: the base class's defaults (no bind, refresh or events).
+pub const RADIUS_UI: u32 = 0x00585b87;
 
 /// What a controller reads from the selected entity.
 pub struct EntityData<'a> {
@@ -649,9 +651,15 @@ impl ResourceLimitUi {
 
     /// `FUN_14007cda0`: the slot's limit, unless the player is typing in it.
     pub fn refresh(&mut self, ui: &mut Ui, data: &EntityData) {
+        self.refresh_limits(ui, &data.stock_limits);
+    }
+
+    /// [`Self::refresh`] from the stock manager's limits (a utility window has no entity).
+    pub fn refresh_limits(&self, ui: &mut Ui, limits: &[i32; 21]) {
         let Some(s) = self.spinner else { return };
-        let limit = data.stock_limits[self.slot];
-        if spinner_value(ui, s) != Some(limit) && !ui.descendant(s, ui.focused().unwrap_or(s)) {
+        let limit = limits[self.slot];
+        if spinner_value(ui, s) != Some(limit) && !ui.focused().is_some_and(|f| ui.descendant(s, f))
+        {
             set_spinner(ui, s, limit.clamp(0, 999_999));
         }
     }
@@ -1519,9 +1527,10 @@ pub enum Controller {
     TownHall(crate::town_hall_ui::TownHallUi),
     Trade(crate::trade_ui::TradeUi),
     SelectResource(crate::select_resource_ui::SelectResourceUi),
-    /// Attached, refresh not ported (logged once with its id).
+    /// `RadiusUI`, and any controller id the shipped data does not use (logged once with
+    /// its id): attached, nothing to refresh.
     #[allow(dead_code)]
-    Pending(u32),
+    Inert(u32),
 }
 
 impl Controller {
@@ -1580,11 +1589,12 @@ impl Controller {
             STATUS_ICON_UI => {
                 StatusIconUi::bind(ui, element, !has_config).map(Controller::StatusIcon)
             }
+            RADIUS_UI => Some(Controller::Inert(type_id)),
             _ => None,
         };
         bound.unwrap_or_else(|| {
-            log::info!("entity controller {type_id:#010x}: refresh not ported");
-            Controller::Pending(type_id)
+            log::warn!("entity controller {type_id:#010x}: unknown");
+            Controller::Inert(type_id)
         })
     }
 
@@ -1621,7 +1631,7 @@ impl Controller {
                     c.refresh(ui, archive, t, e);
                 }
             }
-            Controller::Pending(_) => {}
+            Controller::Inert(_) => {}
         }
     }
 }

@@ -22,6 +22,8 @@ pub mod controller {
     pub const EVENT_LOG: u32 = 0xb075_92fd;
     pub const MAP: u32 = 0x42c5_425e;
     pub const HELP: u32 = 0x2b7a_7bbc;
+    /// `TutorialUI` (`0x33161e00`): bound by the tutorial (`gameplay/tutorial.rs`).
+    pub const TUTORIAL: u32 = 0x3316_1e00;
 }
 
 /// `MapUI` (vtable `0x140162490`): OnOpened `FUN_14006d3e0` shows the minimap's two images
@@ -131,6 +133,8 @@ pub enum UtilityClick {
     ProfessionCount(usize, i32),
     /// ProfessionUI goto `500 + i` (`FUN_14007bf00`): the citizen to show.
     ShowCitizen(usize),
+    /// ResourceLimitUI (`FUN_14007ccb0`): the stock slot's limit.
+    StockLimit(usize, i32),
 }
 
 impl EventLogUi {
@@ -294,6 +298,8 @@ pub struct StatusValues {
     /// wood, stone, iron, firewood, tools, food, herbs, clothes, alcohol, coal, textile, then ten
     /// custom slots.
     pub stock: [i32; 21],
+    /// The stock manager's limit per slot (`+0x170` entry `+8`), for ResourceLimitUI.
+    pub stock_limits: [i32; 21],
     /// Adults (not students) per profession, in `Game/Profession/Profession.rsc:professionList`
     /// order (laborer first): the counts `FUN_14007ba70` takes from citizen `+0x1f0`.
     pub professions: Vec<u32>,
@@ -808,6 +814,8 @@ struct Window {
     event_log: Option<EventLogUi>,
     map: Option<MapUi>,
     help: Option<HelpUi>,
+    /// `ResourceLimitUI` rows (the Limits window).
+    limits: Vec<crate::building_ui::ResourceLimitUi>,
 }
 
 #[derive(Default)]
@@ -856,6 +864,7 @@ impl UtilityWindows {
         let mut event_log = None;
         let mut map = None;
         let mut help = None;
+        let mut limits = Vec::new();
         for c in &desc.controllers {
             // `FUN_1401335d0`: instantiate the element into the named slot; a TabElement slot
             // would get a tab instead (no utility window uses one).
@@ -868,12 +877,20 @@ impl UtilityWindows {
             };
             ui.add_child(slot, element);
             match c.type_id {
-                0 => {}
+                0 | controller::TUTORIAL => {}
                 controller::STATUS_BAR => status_bar = Some(StatusBar::bind(ui, root)),
                 controller::PROFESSION => professions = Some(ProfessionUi::bind(ui, root, archive)),
                 controller::EVENT_LOG => event_log = Some(EventLogUi::bind(ui, root, log)),
                 controller::MAP => map = Some(MapUi::bind(ui, root, map_size)),
                 controller::HELP => help = Some(HelpUi::bind(ui, root, archive)),
+                crate::building_ui::RESOURCE_LIMIT_UI => {
+                    limits.push(crate::building_ui::ResourceLimitUi::bind(
+                        ui,
+                        archive,
+                        element,
+                        c.config.as_deref(),
+                    ));
+                }
                 other => log::info!("{template}: controller {other:#010x} not implemented yet"),
             }
         }
@@ -902,6 +919,7 @@ impl UtilityWindows {
             event_log,
             map,
             help,
+            limits,
             ids: desc.controllers.iter().map(|c| c.type_id).collect(),
         });
     }
@@ -999,6 +1017,16 @@ impl UtilityWindows {
         {
             return Some(UtilityClick::ProfessionCount(i, v));
         }
+        if let Some(c) = self
+            .open
+            .iter()
+            .flat_map(|w| &w.limits)
+            .find_map(|l| l.click(ui, node))
+        {
+            if let crate::building_ui::WorkPlaceClick::StockLimit { slot, limit } = c {
+                return Some(UtilityClick::StockLimit(slot, limit));
+            }
+        }
         self.open
             .iter_mut()
             .filter_map(|w| w.event_log.as_mut())
@@ -1038,6 +1066,9 @@ impl UtilityWindows {
             }
             if let Some(h) = &w.help {
                 h.update(ui);
+            }
+            for l in &w.limits {
+                l.refresh_limits(ui, &values.stock_limits);
             }
         }
     }

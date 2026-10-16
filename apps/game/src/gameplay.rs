@@ -729,6 +729,7 @@ impl GameplayLoop {
                 .as_ref()
                 .map_or(Vec::new(), |t| t.profession_counts().1),
             // `FUN_14008f3a0`, recomputed from the town storages.
+            stock_limits: self.stock_warnings.limits,
             stock: self.town.as_ref().map_or([0; 21], |t| {
                 banished_game::stock::stock_table(&t.registered_storages(), &t.materials)
             }),
@@ -2396,6 +2397,10 @@ impl GameLoop for GameplayLoop {
                     self.events.notify[i] = on;
                     return Next::Stay;
                 }
+                Some(UtilityClick::StockLimit(slot, limit)) => {
+                    self.stock_warnings.limits[slot] = limit;
+                    return Next::Stay;
+                }
                 Some(UtilityClick::GoTo(cell)) => {
                     self.go_to(cell);
                     return Next::Stay;
@@ -3626,6 +3631,39 @@ mod tests {
             let food = toolbar.button(ctx.ui, "food").unwrap();
             assert!(ctx.ui.node(housing).usable());
             assert!(!ctx.ui.node(food).usable());
+        });
+    }
+
+    /// The Limits window (`UtilityLimits`): each ResourceLimitUI row shows its slot's limit,
+    /// and a changed spinner sets it (`FUN_14007ccb0`).
+    #[test]
+    fn the_limits_window_sets_the_stock_limits() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            assert!(gameplay.script(ctx, "open Template/UtilityLimits.rsc"));
+            gameplay.update(ctx, 1.0 / 30.0);
+            let root = gameplay.utility.controllers()[0].0;
+            let mut spinners = Vec::new();
+            let mut stack = vec![root];
+            while let Some(id) = stack.pop() {
+                if ctx.ui.node(id).name == "editLimit" {
+                    spinners.push(id);
+                }
+                stack.extend(ctx.ui.children(id));
+            }
+            assert_eq!(spinners.len(), 11);
+            let shown: Vec<_> = spinners
+                .iter()
+                .map(|&s| crate::building_ui::spinner_value(ctx.ui, s).unwrap())
+                .collect();
+            for v in &shown {
+                assert!(gameplay.stock_warnings.limits.contains(v), "{shown:?}");
+            }
+            crate::building_ui::set_spinner(ctx.ui, spinners[0], 345);
+            gameplay.event(ctx, Event::Changed(spinners[0]));
+            assert!(gameplay.stock_warnings.limits.contains(&345));
         });
     }
 
