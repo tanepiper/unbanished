@@ -48,6 +48,7 @@ mod scenario_ui;
 mod scene;
 mod scene_assets;
 mod scene_gfx;
+mod screenshot;
 mod select_resource_ui;
 mod selection;
 mod selection_overlay;
@@ -103,6 +104,8 @@ pub struct Game {
     main: MainLoop,
     /// A save's frame and minimap being read back (`SaveLoad::Draw`).
     save_capture: Option<render::PendingCapture>,
+    /// A screenshot being read back (`FUN_14009b270`).
+    screenshot: Option<render::PendingCapture>,
     /// `Application::IsPaused`: the window lost focus (`Application +0x11`, cleared on
     /// WM_KILLFOCUS, set on WM_SETFOCUS).
     app_paused: bool,
@@ -181,6 +184,7 @@ impl Game {
             rng: Random::new(clock_seed()),
             main: boot_chain(),
             save_capture: None,
+            screenshot: None,
             app_paused: false,
             settings,
             os_scale: 1.0,
@@ -526,7 +530,28 @@ impl Game {
                 self.main.current_mut().save_preview(image, minimap);
             }
         }
+        // `FUN_14009b4e0`: the screenshot without the UI after the scene, with it after the UI.
+        let shot = if self.screenshot.is_none() && frame.terrain.is_some() {
+            self.main.current_mut().take_screenshot()
+        } else {
+            None
+        };
+        if shot == Some(false) {
+            self.screenshot = Some(renderer.begin_capture(&frame));
+        }
         frame.ui = Some((&self.ui, &quads));
+        if shot == Some(true) {
+            self.screenshot = Some(renderer.begin_capture(&frame));
+        }
+        if let Some(pending) = &self.screenshot {
+            if let Some((rgba, _)) = renderer.poll_capture(pending) {
+                self.screenshot = None;
+                let (w, h) = renderer.size();
+                if rgba.len() == (w * h * 4) as usize {
+                    crate::screenshot::save(&rgba, w, h);
+                }
+            }
+        }
         if capture {
             #[cfg(not(target_arch = "wasm32"))]
             return Some(renderer.capture(&frame));
@@ -1146,12 +1171,15 @@ mod native {
             .collect();
         let dt = 1.0 / 30.0;
         let mut t = 0.0;
+        // Frames left to draw for a scripted screenshot's readback.
+        let mut shot_frames = 0;
         while t < seconds {
             game.update(dt);
             t += dt;
             // A save waits for a drawn frame's preview (headless, nothing else is drawn).
-            if game.main.current().wants_save_preview() {
+            if game.main.current().wants_save_preview() || shot_frames > 0 {
                 game.draw(&mut renderer, false);
+                shot_frames -= (shot_frames > 0) as i32;
             }
             combos.retain(|(name, item, at)| {
                 if t < *at {
@@ -1168,6 +1196,9 @@ mod native {
                 }
                 if !game.script(command) {
                     log::warn!("--event {command}: not in a game at {t:.2} s");
+                }
+                if command.starts_with("screenshot") {
+                    shot_frames = 5;
                 }
                 false
             });

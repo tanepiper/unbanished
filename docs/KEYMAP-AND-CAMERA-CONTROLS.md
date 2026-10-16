@@ -25,7 +25,7 @@ physical key names here.
 | `0x13`–`0x16` | `StructureLeft`, `StructureRight`, `StructureType`, `PathMethod` | keyboard | individually registered | no |
 | `0x17` | `TogglePause` | keyboard | `0x47` | pause toggle |
 | `0x18`–`0x20` | `Toolbar0`–`Toolbar8` | keyboard | `0x01`–`0x09` | no |
-| `0x21`–`0x22` | `ScreenshotNoUI`, `Screenshot` | keyboard | `0x4a`, `0x4b` | no |
+| `0x21`–`0x22` | `ScreenshotNoUI`, `Screenshot` | keyboard | `0x4a`, `0x4b` | `screenshot.rs` (`FUN_14009b270`) |
 | `0x23`–`0x2c` | `Tool0`–`Tool9` | keyboard | `0x0e`–`0x16`, `0x0d` | no |
 | `0x2d`–`0x31` | `Camera0`–`Camera4` | keyboard | `0x30`, `0x2e`, `0x19`, `0x2c`, `0x18` | camera presets |
 
@@ -58,7 +58,10 @@ The gameplay camera follows `FUN_140104390`:
 | Toolbar0–8, Tool0–9, Camera0–4 | the shown toolbar button holding that key (`FUN_1400bede0` hands them out by depth) |
 
 The mouse actions (`MouseLeft`, `MouseRight`, `MouseMiddle`) are listed and stored but the port
-still reads the mouse buttons directly; `PathMethod` and the screenshot keys are not ported.
+still reads the mouse buttons directly. `PathMethod` held turns the road tool's Manhattan
+heuristic off (`FUN_14010ab60`, RoadTool `+0x40`). The screenshot keys write
+`Screenshots\Screenshot%i.bmp` in the save directory, the frame without or with the UI
+(`FUN_14009b270`, drawn by `FUN_14009b4e0`).
 
 ## Evidence pointers
 

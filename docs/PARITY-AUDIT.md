@@ -39,8 +39,8 @@ are listed separately at the end.
 | **Follow** (citizen window's Follow button) | `Dialog/Follow.rsc` (`FUN_140065080`), the camera following the citizen | **Done** (`follow.rs`) |
 | **Citizen window buttons** | Bind `FUN_140065b00` finds `buttonProfession`, `buttonHome` and `buttonFollow`; events `FUN_140065a50` | **Done.** The Profession button was always disabled (an unset field); it now reads the workplace |
 | **Center button** of building windows | `StandardDialog.rsc:centerPin` `buttonCenter` (`FUN_140067a30`) | **Done** (`FUN_1400671d0`) |
-| **Screenshot keys** (actions 33, 34) | `FUN_14009b270`: a frame copy written to a numbered file (`%i.%s`), with or without the UI | Not read |
-| **Path Method key** (action 22) | Switches the road tool's path method | Not read |
+| **Screenshot keys** (actions 33, 34) | `FUN_14009b270`: a frame copy written to a numbered file (`%i.%s`), with or without the UI | **Done** (`screenshot.rs`; the browser downloads it) |
+| **Path Method key** (action 22) | Switches the road tool's path method | **Done** (held: no Manhattan heuristic) |
 | **Scheduling** | Each entity bucket is visited by its quota (`[50, 15, 8, 5, 2]`) | **Done.** Citizens are in bucket 1, the map ambience in bucket 2, and the sites' and citizens' scheduled components run on their visits with their elapsed time. Bucket order, cursors and visit times load and save. The systems still run one after another rather than interleaved per entity |
 | **Tutorials and scenarios with a save** | The scenario's `+0x88` save is loaded | **Done.** `Save\Tutorial*.sav` load from the data with the scenario's index (`scenario_game`) |
 | **Built wells after loading** | They are in the town's well list | **Done.** The saved wells, points and blocks are the water's (`restore_water`) |

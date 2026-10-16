@@ -84,6 +84,9 @@ pub struct RemovalTool {
     /// A RestrictPlayer setup's cells (game UI `+0x80`, corners `+0x98`/`+0x9c` as `(x0, y0,
     /// x1, y1)`): the drag must cover exactly them (a road must run between those corners).
     pub restrict: Option<[i32; 4]>,
+    /// RoadTool `+0x40` (`FUN_14010ab60`): the path's Manhattan heuristic, on while
+    /// PathMethod (action `0x16`) is not held.
+    pub manhattan: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -149,6 +152,7 @@ impl RemovalTool {
             fenced: None,
             rotation: 0,
             restrict: None,
+            manhattan: true,
         })
     }
 
@@ -194,6 +198,7 @@ impl RemovalTool {
             fenced: None,
             rotation: 0,
             restrict: None,
+            manhattan: true,
         })
     }
 
@@ -223,6 +228,7 @@ impl RemovalTool {
             fenced: None,
             rotation: 0,
             restrict: None,
+            manhattan: true,
         })
     }
 
@@ -251,6 +257,7 @@ impl RemovalTool {
             fenced: None,
             rotation: 0,
             restrict: None,
+            manhattan: true,
         };
         if let Some(data) = read(archive, &format!("{file}:createdrag")) {
             let drag = create_drag_description(&data)
@@ -383,7 +390,7 @@ impl RemovalTool {
             return None;
         }
         town.agents
-            .road_path(&town.cells, a, b, ROAD_MASK, true)
+            .road_path(&town.cells, a, b, ROAD_MASK, self.manhattan)
             .filter(|p| !p.is_empty())
     }
 

@@ -99,6 +99,11 @@ pub trait GameLoop {
     /// The preview and the minimap's terrain image (size, texels) for a pending save.
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     fn save_preview(&mut self, _image: Vec<u8>, _minimap: Option<(u32, Vec<u32>)>) {}
+    /// A screenshot asked for this frame (`FUN_14009b850`: `Game +0xc0` without the UI,
+    /// `+0xc1` with it): `Some(with_ui)`, then cleared.
+    fn take_screenshot(&mut self) -> Option<bool> {
+        None
+    }
 }
 
 /// A loop's UI: a full-screen group holding an optional backdrop and dialog instances.

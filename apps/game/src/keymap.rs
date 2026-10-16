@@ -26,7 +26,7 @@ pub struct Action {
 }
 
 /// The game's action ids (`FUN_14009e7c0`); the full table, including ids the port's input
-/// does not read yet (mouse buttons, PathMethod, screenshots).
+/// does not read yet (the mouse buttons).
 #[allow(dead_code)]
 pub mod id {
     pub const MOUSE_LEFT: usize = 5;

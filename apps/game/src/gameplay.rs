@@ -118,6 +118,8 @@ pub struct GameplayLoop {
     entities: EntityWindows,
     /// The Follow dialog (`Dialog/Follow.rsc`), opened from a citizen window.
     follow: Option<crate::follow::Follow>,
+    /// `+0xc0` / `+0xc1`: a screenshot asked for (`Some(with_ui)`).
+    screenshot: Option<bool>,
     highlight: crate::highlight::Highlight,
     /// The event log (`Game +0x138`) and the stock manager's warning state.
     pub events: banished_game::events::EventLog,
@@ -639,6 +641,7 @@ impl GameplayLoop {
             selection: Selection::default(),
             entities: EntityWindows::default(),
             follow: None,
+            screenshot: None,
             highlight: Default::default(),
             events: Default::default(),
             stock_warnings: Default::default(),
@@ -1235,6 +1238,7 @@ impl GameplayLoop {
         };
         tool.rotation = self.rotation;
         tool.restrict = self.restrict.as_ref().map(|r| r.rect);
+        tool.manhattan = !self.held[keys::PATH_METHOD];
         let sound = match input {
             DragInput::Press => tool.press(ctx.archive, town, &grid, cell),
             DragInput::Move => tool.motion(ctx.archive, town, &grid, cell),
@@ -2812,6 +2816,15 @@ impl GameLoop for GameplayLoop {
                 }
                 return Next::Stay;
             }
+            // `FUN_14009b850`: the screenshot actions.
+            RawInput::Action(keys::SCREENSHOT_NO_UI) => {
+                self.screenshot = Some(false);
+                return Next::Stay;
+            }
+            RawInput::Action(keys::SCREENSHOT) => {
+                self.screenshot = Some(true);
+                return Next::Stay;
+            }
             RawInput::Action(keys::TOGGLE_PAUSE) => {
                 self.paused = !self.paused;
                 self.update_hud(ctx.ui);
@@ -2959,6 +2972,11 @@ impl GameLoop for GameplayLoop {
                 return true;
             }
             // `tool TEMPLATE`: start a template's tool, as its toolbar button does.
+            // `screenshot [ui]`: the screenshot actions (`0x21`, `0x22` with `ui`).
+            Some("screenshot") => {
+                self.screenshot = Some(words.next() == Some("ui"));
+                return true;
+            }
             // `rotate`: StructureRight (T), one step clockwise.
             Some("rotate") => {
                 self.rotation = (self.rotation + 1) % 4;
@@ -3010,6 +3028,10 @@ impl GameLoop for GameplayLoop {
         self.events
             .add(kind, 3, cell, month, year, Default::default(), false);
         true
+    }
+
+    fn take_screenshot(&mut self) -> Option<bool> {
+        self.screenshot.take()
     }
 
     fn wants_save_preview(&self) -> bool {
