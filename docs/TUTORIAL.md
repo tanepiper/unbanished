@@ -105,6 +105,10 @@ The setup's dialog opens a frame after the tutorial's window, so it draws above 
 - The PlacementTool (`FUN_140102b20` placing, `FUN_1401033b0` hovering) is valid only on the
   rectangle `+0x98` (corner cells as `y·n + x`) to `+0x9c`, turned `+0xa0` degrees.
 - Selection (`FUN_140102500`) takes only entities of the template `+0x90` (none without one).
+- The drag tools (removal `FUN_140108ab0`, area `FUN_140100fb0`/`FUN_140100dd0`, fenced
+  `FUN_1400e0960`/`FUN_1400e02d0`, road `FUN_14010a4b0`/`FUN_14010a200`; not the bridge) take
+  only a drag over exactly that rectangle (a road between its corners): the CreateBar shows
+  message 3 and the apply fails otherwise (`RemovalTool::restrict`).
 
 ## The menus
 

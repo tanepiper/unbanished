@@ -33,6 +33,23 @@ pub struct CreateBar {
     name: String,
     /// Smoothed upper-left corner (`param_1 + 8`), negative until first placed.
     position: Option<(f32, f32)>,
+    /// The requirement labels, their text and the counts (BuildRequirementUI `+0x40`, `+0x50`)
+    /// and the multiplier shown (`+0x38`).
+    labels: Vec<(NodeId, String, i32)>,
+    count: i32,
+}
+
+/// What a DragTool's slot `+0x70` reports for the CreateBar (`FUN_140101b80`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DragInfo {
+    /// 0 `"WxH"`, 1 `"%i"` of the width, 2 no size (and the counts left as they are).
+    pub mode: u8,
+    pub width: i32,
+    pub height: i32,
+    /// The multiplier of the build requirements (cells of road, bridge or fence).
+    pub count: i32,
+    /// The ToolbarDescription message shown; 0 is valid (the icon white, else red).
+    pub message: usize,
 }
 
 impl CreateBar {
@@ -46,7 +63,7 @@ impl CreateBar {
     ) -> Option<CreateBar> {
         let dialog = screen.add_dialog(ui, "Dialog/CreateBar.rsc:resource")?;
         let root = screen.dialogs[dialog].root;
-        fill_requirements(ui, archive, root, toolbar, build);
+        let labels = fill_requirements(ui, archive, root, toolbar, build);
         let find = |ui: &Ui, n: &str| ui.find(root, n);
         let size = find(ui, "textSize").map(|n| (n, text_of(ui, n)));
         Some(CreateBar {
@@ -58,6 +75,8 @@ impl CreateBar {
             messages: toolbar.messages.clone(),
             name: toolbar.name_lower.clone(),
             position: None,
+            labels,
+            count: 1,
         })
     }
 
@@ -74,32 +93,47 @@ impl CreateBar {
         valid: bool,
         rect: Option<[f32; 4]>,
     ) {
-        self.update_at(ui, size, valid, rect, false);
+        let text = size.map(|(w, h)| format!("{w}x{h}"));
+        self.update_at(ui, text, None, usize::from(!valid), rect, false);
     }
 
-    /// `FUN_140105130` for a drag (start and end cells given): centred on the rectangle of the
-    /// drag's corner cells (`FUN_140104140`) on both axes.
-    pub fn update_drag(&mut self, ui: &mut Ui, size: (i32, i32), rect: Option<[f32; 4]>) {
-        self.update_at(ui, Some(size), true, rect, true);
+    /// `FUN_140105130` for a drag (start and end cells given): the size by the mode, the
+    /// requirements times the count (`FUN_14005f060`), the message, centred on the rectangle of
+    /// the drag's corner cells (`FUN_140104140`) on both axes.
+    pub fn update_drag(&mut self, ui: &mut Ui, info: DragInfo, rect: Option<[f32; 4]>) {
+        let (text, count) = match info.mode {
+            0 => (format!("{}x{}", info.width, info.height), Some(info.count)),
+            1 => (info.width.to_string(), Some(info.count)),
+            _ => (String::new(), None),
+        };
+        self.update_at(ui, Some(text), count, info.message, rect, true);
     }
 
     fn update_at(
         &mut self,
         ui: &mut Ui,
-        size: Option<(i32, i32)>,
-        valid: bool,
+        size: Option<String>,
+        count: Option<i32>,
+        message: usize,
         rect: Option<[f32; 4]>,
         centre: bool,
     ) {
-        if let (Some((node, template)), Some((w, h))) = (&self.size, size) {
-            with_param(ui, *node, template, &format!("{w}x{h}"));
+        let valid = message == 0;
+        if let (Some((node, template)), Some(text)) = (&self.size, size) {
+            if text.is_empty() {
+                ui.set_text(*node, "");
+            } else {
+                with_param(ui, *node, template, &text);
+            }
+        }
+        if let Some(count) = count.filter(|&c| c != self.count) {
+            self.count = count;
+            for (label, template, base) in &self.labels {
+                with_param(ui, *label, template, &(base * count).to_string());
+            }
         }
         if let Some(status) = self.status {
-            let key = self
-                .messages
-                .get(usize::from(!valid))
-                .cloned()
-                .unwrap_or_default();
+            let key = self.messages.get(message).cloned().unwrap_or_default();
             let table = self.string_table.as_deref();
             let text = ui.res.string(table, &key);
             let name = ui.res.string(table, &self.name);
@@ -146,7 +180,8 @@ pub fn fill_requirements(
     root: NodeId,
     toolbar: &ToolbarDescription,
     build: Option<&BuildDescription>,
-) {
+) -> Vec<(NodeId, String, i32)> {
+    let mut shown = Vec::new();
     let find = |ui: &Ui, n: &str| ui.find(root, n);
     let table = toolbar.string_table.as_deref();
     if let Some(icon) = find(ui, "imageIcon") {
@@ -185,6 +220,7 @@ pub fn fill_requirements(
             }
             with_param(ui, label, &template, &count.to_string());
             ui.set_visible(label, true);
+            shown.push((label, template, *count));
         }
         if build.multi {
             if let Some(multi) = find(ui, "labelBuildMulti") {
@@ -192,4 +228,5 @@ pub fn fill_requirements(
             }
         }
     }
+    shown
 }

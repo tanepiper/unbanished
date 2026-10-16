@@ -64,7 +64,6 @@ nearest hit wins when it is above the terrain.
   CreateRoad description but a CreateBridge one starts it.
 - Only the citizens' walking height uses the floors; other ground queries stay on the terrain.
 
-## Not ported
-
-The CreateBar's cost and size for a bridge drag, and the MultiObject build-stage counts of the
-pieces' models.
+- The CreateBar while dragging shows the span's length and the BuildDescription's
+  requirements times it (`FUN_1401001c0`; see [JOBS.md](JOBS.md)). The build stages are the
+  pieces' mesh counts (`Site.multi_stages`).

@@ -724,8 +724,23 @@ cancel, `+0x43` prioritise. Shipped: ClearTree/ClearStone/ClearIron filter
 **DragTool input** (`FUN_140101b80`, fields `+0x28` dragging, `+0x29` waiting, `+0x2c` start
 cell, `+0x30` end cell, `+0x34` last sounded cell): MouseLeft pressed on the map starts a drag
 and opens the CreateBar (`FUN_140104eb0`). While dragging the end cell follows the cursor
-(`FUN_140106740`; a new one plays the move sound), slot `+0x70` gives the size and the bar shows
-`WxH` and toolbar message 0, centred on the corner cells (`FUN_140105130`, `FUN_140104140`).
+(`FUN_140106740`; a new one plays the move sound). Slot `+0x70` gives `(message, mode, width,
+height, count)`. The bar (`FUN_140105130`, centred on the corner cells by `FUN_140104140`) then
+shows:
+- the size by the mode: 0 `WxH`, 1 `%i` of the width, 2 none;
+- unless mode 2, the template's build requirements times the count (`FUN_14005f060`);
+- the toolbar message, with the icon white for 0 and red otherwise.
+
+| Tool | Slot `+0x70` | Mode, count | Messages |
+|---|---|---|---|
+| RemovalTool | `FUN_1401093c0` | 0, 1 | 0; 3 off a RestrictPlayer rectangle ([TUTORIAL.md](TUTORIAL.md)) |
+| DragPlacementTool | `FUN_140100fb0` | 0, 1 | 1 too small, 2 too large, 3 a cell that will not take it |
+| FencedTool | `FUN_1400e0960` | 0, `2(W + H) − 4` | as DragPlacementTool |
+| RoadTool | `FUN_14010a4b0` | 1, the road's length; 2 without one | 1 no road, 3 off the fixed drag |
+| BridgeTool | `FUN_1401001c0` | 1, the span | 3 no bridge |
+
+Port: `RemovalTool::drag_info`, `CreateBar::update_drag`. The fenced check takes the cells'
+test (`fenced_cell_ok`) for the shelter's fit (`FUN_1400e1460`).
 With the button up: on the start cell the tool waits for a second click (`+0x29`); off the map
 it plays the error sound every frame until the cursor is back; otherwise slot `+0x68` applies,
 thunk (error when it returns false), the bar closes. Slot `+0x48` (`FUN_140101b10`) stops a

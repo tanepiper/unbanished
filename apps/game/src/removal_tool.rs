@@ -81,6 +81,9 @@ pub struct RemovalTool {
     )>,
     /// The RotationSetting (`+0x50 → +0x10`) the fenced tool turns its shelter by.
     pub rotation: i32,
+    /// A RestrictPlayer setup's cells (game UI `+0x80`, corners `+0x98`/`+0x9c` as `(x0, y0,
+    /// x1, y1)`): the drag must cover exactly them (a road must run between those corners).
+    pub restrict: Option<[i32; 4]>,
 }
 
 #[derive(Debug, Clone)]
@@ -145,6 +148,7 @@ impl RemovalTool {
             area: None,
             fenced: None,
             rotation: 0,
+            restrict: None,
         })
     }
 
@@ -189,6 +193,7 @@ impl RemovalTool {
             area: None,
             fenced: None,
             rotation: 0,
+            restrict: None,
         })
     }
 
@@ -217,6 +222,7 @@ impl RemovalTool {
             area: None,
             fenced: None,
             rotation: 0,
+            restrict: None,
         })
     }
 
@@ -244,6 +250,7 @@ impl RemovalTool {
             area: None,
             fenced: None,
             rotation: 0,
+            restrict: None,
         };
         if let Some(data) = read(archive, &format!("{file}:createdrag")) {
             let drag = create_drag_description(&data)
@@ -385,11 +392,119 @@ impl RemovalTool {
         (self.dragging && self.start >= 0 && self.end >= 0).then_some((self.start, self.end))
     }
 
-    /// Slot `+0x70` (`FUN_1401093c0`): the drag's width and height in cells.
-    pub fn drag_size(&self, n: i32) -> Option<(i32, i32)> {
+    /// Off a RestrictPlayer setup's cells (`FUN_1401093c0`, `FUN_140108ab0`, `FUN_140100fb0`,
+    /// `FUN_1400e0960`, `FUN_14010a4b0`, `FUN_14010a200`: message 3, the apply fails). Bridges
+    /// are not held to it.
+    fn off_restrict(&self, n: i32, a: i32, b: i32) -> bool {
+        let Some([x0, y0, x1, y1]) = self.restrict else {
+            return false;
+        };
+        if self.bridge.is_some() {
+            return false;
+        }
+        if self.road.is_some() {
+            let (c0, c1) = (y0 * n + x0, y1 * n + x1);
+            let (a, b) = (a.min(b), a.max(b));
+            return !((a == c0 && b == c1) || (a == c1 && b == c0));
+        }
+        let rect = (
+            (a % n).min(b % n),
+            (a / n).min(b / n),
+            (a % n).max(b % n),
+            (a / n).max(b / n),
+        );
+        rect != (x0, y0, x1, y1)
+    }
+
+    /// Slot `+0x70` for the CreateBar while dragging (`FUN_140101b80`):
+    /// - RemovalTool (`FUN_1401093c0`) and DragPlacementTool (`FUN_140100fb0`, its check): the
+    ///   rectangle `W×H`, the requirements once;
+    /// - FencedTool (`FUN_1400e0960`): the rectangle, the requirements once per fence cell
+    ///   (`2(W + H) − 4`); 1 too small, 2 too large, 3 a cell that will not take it;
+    /// - RoadTool (`FUN_14010a4b0`): the road's length, the requirements per cell; without a
+    ///   road no size and message 1;
+    /// - BridgeTool (`FUN_1401001c0`): the span's length, the requirements per cell; else 3.
+    pub fn drag_info(
+        &self,
+        town: &mut StartingTown,
+        terrain: &HeightGrid,
+    ) -> Option<crate::create_bar::DragInfo> {
+        use crate::create_bar::DragInfo;
         let (a, b) = self.drag_ends()?;
-        let (x0, y0, x1, y1) = self.rect(n, a, b);
-        Some((x1 - x0 + 1, y1 - y0 + 1))
+        let n = town.cells.size as i32;
+        let (x0, x1) = ((a % n).min(b % n), (a % n).max(b % n));
+        let (y0, y1) = ((a / n).min(b / n), (a / n).max(b / n));
+        let (w, h) = (x1 - x0 + 1, y1 - y0 + 1);
+        let restricted = self.off_restrict(n, a, b);
+        let rect = |count, message| DragInfo {
+            mode: 0,
+            width: w,
+            height: h,
+            count,
+            message,
+        };
+        let length = |length, message| DragInfo {
+            mode: 1,
+            width: length,
+            height: length,
+            count: length,
+            message,
+        };
+        if let Some(spec) = &self.bridge {
+            let end = town.bridge_end(a, b);
+            return Some(match town.bridge_check(spec, a, end) {
+                (true, span) => length(span, 0),
+                _ => length(0, 3),
+            });
+        }
+        if let Some(spec) = &self.area {
+            let message = Self::area_check(town, spec, terrain, a, b);
+            return Some(rect(
+                1,
+                if message == 0 && restricted {
+                    3
+                } else {
+                    message.into()
+                },
+            ));
+        }
+        if let Some((d, clear)) = &self.fenced {
+            let message = if w < d.min.0 || h < d.min.1 {
+                1
+            } else if d.max.0 < w || d.max.1 < h {
+                2
+            } else if restricted
+                || (y0..=y1)
+                    .any(|y| (x0..=x1).any(|x| !town.fenced_cell_ok(d, *clear, x, y, terrain)))
+            {
+                3
+            } else {
+                0
+            };
+            return Some(rect((w + h) * 2 - 4, message));
+        }
+        if self.road.is_some() {
+            if restricted {
+                return Some(DragInfo {
+                    mode: 2,
+                    width: 0,
+                    height: 0,
+                    count: 1,
+                    message: 3,
+                });
+            }
+            return Some(match self.road_cells(town, a, b) {
+                Some(path) => length(path.len() as i32, 0),
+                None => DragInfo {
+                    mode: 2,
+                    width: 0,
+                    height: 0,
+                    count: 1,
+                    message: 1,
+                },
+            });
+        }
+        Some(rect(1, if restricted { 3 } else { 0 }))
     }
 
     /// Apply a drag from cell `start` to cell `end` (scripted runs).
@@ -651,6 +766,9 @@ impl RemovalTool {
         town: &mut StartingTown,
         terrain: &HeightGrid,
     ) -> DragSound {
+        if self.off_restrict(town.cells.size as i32, self.start, self.end) {
+            return DragSound::Error;
+        }
         if let Some(spec) = &self.area {
             // `FUN_140100dd0`: the clear template's entities in the way go (`FUN_140106da0`);
             // the entity of the template over the rectangle, turned 90° unless wider than
@@ -876,6 +994,92 @@ mod tests {
 
     /// ClearTree over the trees near the start: one marker per tree cell, laborers fell them,
     /// every marker removes itself, and ClearCancel takes markers away again.
+    #[test]
+    fn drags_report_their_size_count_and_message() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let n = town.cells.size as i32;
+        let (x, y) = town.start;
+        let drag = |tool: &mut RemovalTool, a: i32, b: i32| {
+            tool.dragging = true;
+            tool.start = a;
+            tool.end = b;
+        };
+        let mut clear =
+            RemovalTool::start(&archive, &mut town, r"Template\ClearTree.rsc:resource").unwrap();
+        assert!(clear.drag_info(&mut town, &terrain).is_none());
+        drag(&mut clear, (y - 2) * n + x - 3, (y + 2) * n + x + 3);
+        let info = clear.drag_info(&mut town, &terrain).unwrap();
+        assert_eq!(
+            (info.mode, info.width, info.height, info.count),
+            (0, 7, 5, 1)
+        );
+        // A tutorial's RestrictPlayer cells: only that drag is valid; any other fails.
+        clear.restrict = Some([x - 3, y - 2, x + 3, y + 2]);
+        assert_eq!(clear.drag_info(&mut town, &terrain).unwrap().message, 0);
+        clear.restrict = Some([x - 3, y - 2, x + 3, y + 3]);
+        assert_eq!(clear.drag_info(&mut town, &terrain).unwrap().message, 3);
+        let before = town.placed.len();
+        assert_eq!(clear.apply(&archive, &mut town, &terrain), DragSound::Error);
+        assert_eq!(town.placed.len(), before);
+        clear.restrict = None;
+        // A road from a free cell 6 along: its length, the stone per cell.
+        let mut road =
+            RemovalTool::start(&archive, &mut town, r"Template\StoneRoad.rsc:resource").unwrap();
+        let free = (0..n * n)
+            .find(|&i| {
+                (0..7).all(|k| {
+                    let c = (i + k) as usize;
+                    (i + k) % n >= k
+                        && town.cells.types[c].0 == 2
+                        && town.cells.occupants[c].is_none()
+                        && town.cells.objects[c].is_none()
+                })
+            })
+            .unwrap();
+        drag(&mut road, free, free + 6);
+        let info = road.drag_info(&mut town, &terrain).unwrap();
+        assert_eq!(
+            (info.mode, info.width, info.count, info.message),
+            (1, 7, 7, 0)
+        );
+        // No road to the water: no size, message 1.
+        let water = (0..n * n)
+            .find(|&i| 1u32 << (town.cells.types[i as usize].0 & 0x1f) & ROAD_ENDS != 0)
+            .unwrap();
+        drag(&mut road, free, water);
+        let info = road.drag_info(&mut town, &terrain).unwrap();
+        assert_eq!((info.mode, info.message), (2, 1));
+    }
+
     #[test]
     fn clear_tree_marks_and_fells() {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

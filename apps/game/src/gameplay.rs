@@ -622,6 +622,7 @@ impl GameplayLoop {
             heights: &view.terrain.heights,
         };
         tool.rotation = self.rotation;
+        tool.restrict = self.restrict.as_ref().map(|r| r.rect);
         let sound = match input {
             DragInput::Press => tool.press(ctx.archive, town, &grid, cell),
             DragInput::Move => tool.motion(ctx.archive, town, &grid, cell),
@@ -642,11 +643,19 @@ impl GameplayLoop {
         // DragTool `+0x30`: the CreateBar is open while dragging (`FUN_140104eb0`), shows the
         // drag's size and the toolbar message 0 (`FUN_140105130`) and closes with the drag.
         let screen_size = ctx.ui.screen;
-        match (tool.drag_ends(), tool.drag_size(n)) {
-            (Some((a, b)), Some(size)) => {
+        match (tool.drag_ends(), tool.drag_info(town, &grid)) {
+            (Some((a, b)), Some(info)) => {
                 if self.create_bar.is_none() {
                     if let (Some(t), Some(screen)) = (tool.toolbar.as_ref(), self.screen.as_mut()) {
-                        self.create_bar = CreateBar::open(ctx.ui, screen, ctx.archive, t, None);
+                        // The bar lists the tool template's build requirements.
+                        let file = tool.reference.split(':').next().unwrap_or("");
+                        let build = ctx
+                            .archive
+                            .read_ref(&format!("{}:build", file.replace('\\', "/")))
+                            .ok()
+                            .and_then(|d| banished_formats::game::build_description(&d).ok());
+                        self.create_bar =
+                            CreateBar::open(ctx.ui, screen, ctx.archive, t, build.as_ref());
                     }
                 }
                 let aspect = screen_size[0].max(1) as f32 / screen_size[1].max(1) as f32;
@@ -674,7 +683,7 @@ impl GameplayLoop {
                     r = [r[0].min(sx), r[1].min(sy), r[2].max(sx), r[3].max(sy)];
                 }
                 if let Some(bar) = &mut self.create_bar {
-                    bar.update_drag(ctx.ui, size, visible.then_some(r));
+                    bar.update_drag(ctx.ui, info, visible.then_some(r));
                 }
             }
             _ => {

@@ -27,7 +27,7 @@ Deviation: 38, Not ported: 17, Not traced: 5.
 
 - [Deviation] [apps/game/src/gameplay.rs:32](../apps/game/src/gameplay.rs#L32): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
 - [Deviation] [apps/game/src/gameplay.rs:339](../apps/game/src/gameplay.rs#L339): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
-- [Not ported] [apps/game/src/gameplay.rs:1165](../apps/game/src/gameplay.rs#L1165): The precipitation emitters follow the environment's effects (`FUN_1400999b0`); with the game option ShowWeather (`+0x16`) off the effects and their emitters are removed. Not ported: ShowWeather's other effect, the weather lighting blend in `FUN_140098f90`.
+- [Not ported] [apps/game/src/gameplay.rs:1174](../apps/game/src/gameplay.rs#L1174): The precipitation emitters follow the environment's effects (`FUN_1400999b0`); with the game option ShowWeather (`+0x16`) off the effects and their emitters are removed. Not ported: ShowWeather's other effect, the weather lighting blend in `FUN_140098f90`.
 
 ## `apps/game/src/gameplay/tutorial.rs`
 

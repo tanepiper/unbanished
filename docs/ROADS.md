@@ -82,9 +82,12 @@ task's parameter the cell.
   commands run (a frame later than the original).
 - The zones' blocked bits are taken from the cells' occupants for the road's path.
 
-## Not ported
+## Notes
 
-The tutorial's fixed drag (DragTool `+0x80`) and the CreateBar's road cost. (The decals follow
+Under a tutorial's RestrictPlayer setup (game UI `+0x80`) a road must run between the setup's
+corner cells (`+0x98`, `+0x9c`, either way), or the check shows message 3 and the apply fails
+(`FUN_14010a4b0`, `FUN_14010a200`). The CreateBar while dragging shows the road's length and
+the stone per cell times it. (The decals follow
 `road_revision`; a finished road flattens the terrain at its cell's four corners through
 `Construction::flatten_requests`, applied after the iteration.)
 
