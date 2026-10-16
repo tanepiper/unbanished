@@ -469,6 +469,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         floor: None,
         terraform: None,
         tornado: None,
+        quarry: None,
         tracker: false,
         pile: None,
         pile_material: None,
@@ -638,6 +639,22 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                         floor_mask: d.floor_mask,
                         ceiling: mesh(&d.ceiling),
                         ceiling_mask: d.ceiling_mask,
+                    })
+            }
+            "quarry" => {
+                t.quarry = banished_formats::game::quarry_description(&data)
+                    .ok()
+                    .and_then(|d| {
+                        let mesh = d
+                            .mesh
+                            .as_deref()
+                            .and_then(|m| read(archive, &normalise(m)))
+                            .and_then(|d| banished_formats::picking::picking_mesh(&d).ok())?;
+                        Some(banished_game::quarry::QuarryTemplate {
+                            shallow: d.shallow,
+                            deep: d.deep,
+                            vertices: Arc::new(mesh.meshes.first()?.vertices.clone()),
+                        })
                     })
             }
             "createplaced" => {

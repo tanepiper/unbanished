@@ -33,10 +33,16 @@ pub struct TerraformState {
 }
 
 /// A request for the terrain owner: dig (event 4) or undo (removal) an entity's terraform.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Terraform {
     Dig(usize),
     Undo(usize),
+    /// A quarry's dig to `floor` (`crate::quarry`), claiming its steep cells with `claim`.
+    Quarry {
+        entity: usize,
+        floor: f32,
+        claim: bool,
+    },
 }
 
 /// `FUN_140178930`: heights are stored × 256.

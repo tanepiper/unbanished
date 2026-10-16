@@ -663,3 +663,27 @@ fn particles_parse() {
     );
     assert_eq!(smoke.colors, [0xc0c0_c0c0, 0xc0ff_ffff]);
 }
+
+#[test]
+fn quarry_description_parses() {
+    let Some(archive) = archive() else { return };
+    let q = banished_formats::game::quarry_description(
+        &archive.read_ref("Template/Quarry.rsc:quarry").unwrap(),
+    )
+    .unwrap();
+    let mesh = banished_formats::picking::picking_mesh(
+        &archive
+            .read_ref(&q.mesh.clone().unwrap().replace('\\', "/"))
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!((q.shallow, q.deep), (-1.4, -7.0));
+    assert!(100 < mesh.meshes[0].vertices.len());
+    let cp = banished_formats::game::consume_produce_description(
+        &archive
+            .read_ref("Template/Quarry.rsc:consumeproduce")
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(cp.lifetime, 2000);
+}

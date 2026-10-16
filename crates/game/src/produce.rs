@@ -512,8 +512,8 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_1400c4440`: walk to the use point (with the work's tool), consume the inputs,
-    /// work, then leave the output and report. Not ported: the message to the building's
-    /// component of the description's type `+0x38` (the quarry's dig).
+    /// work, then leave the output and report; a produced batch first sends the message to
+    /// the building's component of the description's type `+0x38` (the quarry's dig).
     fn produce_sequence(&mut self, c: usize, work: &mut Work, s: ProduceSequence) {
         self.clear_citizen(c, Some(work));
         self.on_empty_think(c);
@@ -537,6 +537,21 @@ impl Sim<'_, '_> {
                     factor: 1.0,
                 },
             );
+            if self.templates[self.placed[work.entity].template]
+                .quarry
+                .is_some()
+            {
+                self.push(
+                    c,
+                    Action::SendMessage(crate::character::Message {
+                        component: crate::character::Component::Quarry,
+                        message: 0,
+                        entity: Some(work.entity),
+                        a: 0,
+                        b: 0,
+                    }),
+                );
+            }
         }
         self.push(c, Action::ShowTool(-1));
         let anim = if s.work_type < 0xb {

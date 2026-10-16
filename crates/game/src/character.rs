@@ -84,6 +84,8 @@ pub enum Component {
     /// `FUN_1400ccd90`: a loose pile of `a` (material), `b` units, left on the ground near
     /// the citizen (the units already left its storage).
     DropPile,
+    /// QuarryComponent's message slot (`FUN_1400554e0`): the quarry `entity` digs deeper.
+    Quarry,
 }
 
 /// A message an action delivered (slot `+0x78` of the receiving component). The owner

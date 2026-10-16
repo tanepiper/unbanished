@@ -972,6 +972,35 @@ pub fn particle_description(data: &[u8]) -> Result<ParticleDescription> {
     Ok(value)
 }
 
+/// `QuarryDescription` (serializer `FUN_140055c80`): the pit the quarry digs, a picking mesh
+/// in model space (`+0x20`) whose vertices set the terrain, no lower than a floor that goes
+/// from `+0x28` (when built) to `+0x2c` (at the end of its production).
+#[derive(Debug, Clone, PartialEq)]
+pub struct QuarryDescription {
+    pub deep: f32,
+    pub shallow: f32,
+    pub mesh: Option<String>,
+}
+
+pub fn quarry_description(data: &[u8]) -> Result<QuarryDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("QuarryDescription") {
+            return format_err(format!(
+                "expected QuarryDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(QuarryDescription {
+                deep: r.f32()?,
+                shallow: r.f32()?,
+                mesh: r.external_ref()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `DecalDescription` (serializer `FUN_140120e50`): the terrain decal a DecalComponent puts
 /// over its entity's map rectangle (`Template\X.rsc:decal`).
 #[derive(Debug, Clone, PartialEq)]

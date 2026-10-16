@@ -44,6 +44,7 @@ pub mod picking;
 pub mod placement;
 pub mod produce;
 pub mod professions;
+pub mod quarry;
 pub mod random;
 pub mod road;
 pub mod scheduler;

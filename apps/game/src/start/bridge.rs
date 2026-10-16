@@ -334,6 +334,26 @@ impl StartingTown {
         }
         for request in std::mem::take(&mut self.construction.terraform_requests) {
             match request {
+                Terraform::Quarry {
+                    entity,
+                    floor,
+                    claim,
+                } => {
+                    let p = self.placed[entity].clone();
+                    let Some(q) = self.templates[p.template].quarry.clone() else {
+                        continue;
+                    };
+                    changed |= banished_game::quarry::dig(heights, width, &q, &p, floor);
+                    if claim {
+                        let grid = HeightGrid { width, heights };
+                        banished_game::quarry::claim_steep_cells(
+                            &mut self.cells,
+                            &grid,
+                            entity,
+                            &p,
+                        );
+                    }
+                }
                 Terraform::Dig(e) => {
                     let p = &self.placed[e];
                     let Some(t) = self.templates[p.template].terraform.clone() else {

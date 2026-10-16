@@ -90,6 +90,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Town Info, Production/Population graphs | yes ([TOWN-INFO.md](TOWN-INFO.md), TownHallUI) |
 | Achievements, tutorial, scenarios | yes ([ACHIEVEMENTS.md](ACHIEVEMENTS.md), [TUTORIAL.md](TUTORIAL.md); the tutorials start new games until saves load) |
 | Terrain decals (footprints, fields, yards, roads) | yes ([DECALS.md](DECALS.md)) |
+| Quarry pit dug as it is worked | yes ([QUARRY.md](QUARRY.md)) |
 | River and lake surfaces | yes ([TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md); the strip bit-exact) |
 | Smoke, fire and blight particles | yes ([PARTICLES.md](PARTICLES.md)) |
 | Weather precipitation, the tornado's funnel | no |

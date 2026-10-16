@@ -1503,6 +1503,12 @@ impl Agents {
                     );
                     jobs.drain(&mut sim);
                 }
+                Component::Quarry => {
+                    if let Some(e) = m.entity {
+                        let (mut sim, _) = self.sim(citizens, env, groups, adult, entities);
+                        sim.quarry_message(e);
+                    }
+                }
                 Component::DropPile => {
                     let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
                     sim.drop_loose_pile(i, m.a.max(0) as usize, m.b);

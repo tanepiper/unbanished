@@ -921,6 +921,31 @@ impl Sim<'_, '_> {
         self.flatten_requests.push([x, y, x + w, y + h]);
     }
 
+    /// QuarryComponent's message (`FUN_1400554e0`): the pit goes to the floor between the
+    /// description's shallow and deep by the share of the ConsumeProduce lifetime produced,
+    /// and the quarry claims its steep cells.
+    pub(crate) fn quarry_message(&mut self, e: usize) {
+        let Some(q) = &self.templates[self.placed[e].template].quarry else {
+            return;
+        };
+        let Some(site) = self.sites.get(&e) else {
+            return;
+        };
+        let produced = site.produce.as_ref().map_or(0, |p| p.produced);
+        let lifetime = self.site_templates[site.template]
+            .produce
+            .as_ref()
+            .map_or(1, |p| p.lifetime);
+        let t = produced as f32 / lifetime as f32;
+        let floor = (1.0 - t) * q.shallow + t * q.deep;
+        self.terraform_requests
+            .push(crate::terraform::Terraform::Quarry {
+                entity: e,
+                floor,
+                claim: true,
+            });
+    }
+
     /// DecalComponent event 1 (`FUN_140120c30`): alpha 1.
     pub(crate) fn decal_opaque(&mut self, entity: usize) {
         let d = self.decals.entry(entity).or_default();
@@ -1072,7 +1097,6 @@ impl Sim<'_, '_> {
     /// The entity manager's removal of a destroyed site entity (`FUN_1400c8370`, then each
     /// component's remove slot): its work goes (citizens doing it abort), the ZoneComponent
     /// frees its cells and the entity is gone.
-    /// Not ported: WorkPlace and Residence removal (only removal markers are destroyed yet).
     pub fn destroy_entity(&mut self, jobs: &mut Jobs, e: usize) {
         if !self.sites.contains_key(&e) {
             return;
@@ -1441,6 +1465,15 @@ impl Callbacks for Sim<'_, '_> {
                         self.terraform_requests
                             .push(crate::terraform::Terraform::Dig(x));
                     }
+                }
+                // A QuarryComponent digs its pit to the shallow floor (`FUN_140055a50`).
+                if let Some(q) = &self.templates[self.placed[e].template].quarry {
+                    self.terraform_requests
+                        .push(crate::terraform::Terraform::Quarry {
+                            entity: e,
+                            floor: q.shallow,
+                            claim: false,
+                        });
                 }
                 true
             }
