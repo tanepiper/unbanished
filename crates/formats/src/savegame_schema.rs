@@ -158,7 +158,7 @@ static SCHEMAS: &[(&str, &[Op])] = &[
                     I16("mesh"),
                     F32s("rotation", 4),
                     F32s("position", 3),
-                    F32("scale"),
+                    F32("yaw"),
                     MESH_INSTANCE,
                     Bool("picking"),
                 ],

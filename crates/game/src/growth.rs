@@ -147,7 +147,7 @@ impl Growth {
 }
 
 /// FUN_140126280 / FUN_140125370; width divisor DAT_1401787f4.
-fn scale(value: f32, tall: bool) -> [f32; 4] {
+pub fn scale(value: f32, tall: bool) -> [f32; 4] {
     if tall {
         let width = (value / 0.15).clamp(0.0, 1.0);
         [width, width, value, 1.0]

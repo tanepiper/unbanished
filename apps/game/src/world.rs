@@ -201,4 +201,49 @@ impl World {
             water,
         })
     }
+
+    /// A saved game's world: its stored terrain, surface, rivers and water instead of a
+    /// generated one (`FUN_1400b59a0` restores them; nothing is regenerated on load).
+    pub fn from_save(archive: &Archive, saved: &crate::saved::SavedGame) -> Result<World> {
+        let map = saved
+            .state
+            .terrain_map
+            .clone()
+            .ok_or_else(|| banished_formats::Error::Format("save has no terrain".into()))?;
+        let terrain_ref = saved.reference(saved.state.terrain).unwrap_or_default();
+        // A mod's terrain profile may be missing: the saved map carries its own materials, so
+        // the base Valleys profile stands in (the profile is only read for its materials).
+        let profile = match archive.read_ref(&with_object(terrain_ref)) {
+            Ok(data) => terrain_generator(&data)?,
+            Err(e) => {
+                log::warn!("{terrain_ref}: {e}; using Valleys");
+                terrain_generator(&archive.read_ref("Game/Terrain/Valleys.rsc:resource")?)?
+            }
+        };
+        let material = map
+            .terrain_material
+            .clone()
+            .unwrap_or_else(|| profile.materials[0].clone());
+        let terrain = Terrain::new(
+            archive,
+            &material,
+            map.dims[0] as usize,
+            map.heights,
+            map.surface,
+        )?;
+        let environment =
+            environment_description(&archive.read_ref("Environment/Environment.rsc:resource")?)?;
+        Ok(World {
+            profile,
+            terrain,
+            environment,
+            river_paths: map.river_paths,
+            water: banished_game::terrain::WaterMesh {
+                vertices: map.water_vertices,
+                indices: map.water_indices,
+                rivers: map.river_ranges,
+                lakes: map.lake_ranges,
+            },
+        })
+    }
 }

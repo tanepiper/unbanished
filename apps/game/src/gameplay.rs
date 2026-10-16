@@ -145,9 +145,41 @@ pub struct GameplayLoop {
     weather: Vec<(Option<String>, Option<String>)>,
     /// River centre lines (MapComponent `+0x1e0`).
     river_paths: Vec<Vec<[f32; 2]>>,
+    /// The save this game was loaded from (docs/SAVE-LOADING.md); `None` for a New Game.
+    saved: Option<std::sync::Arc<crate::saved::SavedGame>>,
 }
 
 impl GameplayLoop {
+    /// A game restored from a save: its settings, the game's Random and the calendar now;
+    /// the world and town when the loop loads.
+    pub fn from_save(saved: crate::saved::SavedGame) -> Self {
+        // Mods are not loaded by the port: a modded save keeps its vanilla content and loses
+        // what the mods added (their templates are skipped when the town is restored).
+        if !saved.metadata.mods.is_empty() {
+            let names: Vec<&str> = saved
+                .metadata
+                .mods
+                .iter()
+                .map(|m| m.name.as_str())
+                .collect();
+            log::warn!(
+                "{} was saved with mods, which are not loaded: {names:?}",
+                saved.metadata.name
+            );
+        }
+        let mut g = Self::new(saved.params());
+        let s = &saved.state;
+        if let Ok(state) = s.random_state.as_slice().try_into() {
+            g.rng = Random::from_parts(s.random_index, state);
+        }
+        g.calendar.year = s.managers.i32("calendar.value").unwrap_or(0).max(0) as u32;
+        if let Some(banished_formats::savegame::Value::I64(t)) = s.managers.at("calendar.time") {
+            g.calendar.elapsed = *t;
+        }
+        g.saved = Some(std::sync::Arc::new(saved));
+        g
+    }
+
     pub fn new(params: WorldParams) -> Self {
         Self {
             rng: Random::new(params.seed),
@@ -205,6 +237,7 @@ impl GameplayLoop {
             show_celsius: false,
             weather: Vec::new(),
             river_paths: Vec::new(),
+            saved: None,
         }
     }
 
@@ -1413,7 +1446,12 @@ impl GameLoop for GameplayLoop {
     }
 
     fn load(&mut self, ctx: &mut Ctx) {
-        match World::generate(ctx.archive, &self.params) {
+        let saved = self.saved.clone();
+        let world = match &saved {
+            Some(s) => World::from_save(ctx.archive, s),
+            None => World::generate(ctx.archive, &self.params),
+        };
+        match world {
             Ok(world) => {
                 let lighting = Lighting::from_month(&world.environment.months[0]);
                 self.weather = world.environment.weather.clone();
@@ -1445,19 +1483,30 @@ impl GameLoop for GameplayLoop {
                     width: world.terrain.size + 1,
                     heights: &world.terrain.heights,
                 };
-                let town = StartingTown::create(
-                    ctx.archive,
-                    &self.params.start_condition_ref,
-                    world.terrain.size / 2,
-                    &grid,
-                    &mut self.rng,
-                );
+                let town = match &saved {
+                    Some(s) => StartingTown::from_save(ctx.archive, s),
+                    None => StartingTown::create(
+                        ctx.archive,
+                        &self.params.start_condition_ref,
+                        world.terrain.size / 2,
+                        &grid,
+                        &mut self.rng,
+                    ),
+                };
                 // Inferred: the camera opens over the start point (not yet traced).
                 let mut camera = Camera::ground();
                 if let Some(town) = &town {
                     let c = (world.terrain.size / 4) as f32 - 0.5;
                     camera.target =
                         glam::Vec2::new(town.start.0 as f32 - c, town.start.1 as f32 - c);
+                }
+                // A save restores its camera (`FUN_14009dd90`: target `+0x1c`, then yaw,
+                // pitch and distance).
+                if let Some(c) = saved.as_ref().and_then(|s| s.state.camera) {
+                    camera.target = glam::Vec2::new(c.target[0], c.target[1]);
+                    camera.yaw = c.floats[0];
+                    camera.pitch = c.floats[1];
+                    camera.distance = c.floats[2];
                 }
                 // The rivers and lakes with the profile's River and Lake materials.
                 let w = &world.water;
@@ -1484,7 +1533,11 @@ impl GameLoop for GameplayLoop {
                 }
                 self.town = town;
                 if let Some(town) = &mut self.town {
-                    town.construction.game_flags = if self.params.disasters { 0 } else { 0xf0 };
+                    town.construction.game_flags = match &saved {
+                        Some(s) => s.state.flags,
+                        None if self.params.disasters => 0,
+                        None => 0xf0,
+                    };
                     // The trader boats' way (MapComponent `+0x1e0`'s first river).
                     town.construction.river = self.river_paths.first().cloned().unwrap_or_default();
                 }

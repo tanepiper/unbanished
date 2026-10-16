@@ -29,6 +29,7 @@ use banished_game::construction::{Construction, Controller, Site, SiteTemplate};
 use banished_game::professions::{Profession, Professions, WorkPlace};
 
 mod bridge;
+mod load;
 mod tornado;
 pub use bridge::BridgeSpec;
 
@@ -835,15 +836,11 @@ fn grid_start(map_size: usize, terrain: &HeightGrid, start: (i32, i32)) -> [f32;
     [x, y, terrain.ground(x, y, &mut normal)]
 }
 
-fn households(
-    archive: &Archive,
-    profile: &MapGenerator,
-    start: &[f32; 3],
-    rng: &mut Random,
-) -> (Vec<Citizen>, CitizenRules) {
-    let rules = read(
+/// The CitizenDescription's ages and education (`citizen` is the profile's citizen template).
+fn citizen_rules(archive: &Archive, citizen: &str) -> Option<CitizenRules> {
+    read(
         archive,
-        &normalise(&profile.citizen).replace(":resource", ":citizen"),
+        &normalise(citizen).replace(":resource", ":citizen"),
     )
     .and_then(|d| citizen_description(&d).ok())
     .map(|c| CitizenRules {
@@ -851,7 +848,16 @@ fn households(
         start_age: c.start_age(),
         lifespan: c.lifespan(),
         education: c.i(0x118),
-    });
+    })
+}
+
+fn households(
+    archive: &Archive,
+    profile: &MapGenerator,
+    start: &[f32; 3],
+    rng: &mut Random,
+) -> (Vec<Citizen>, CitizenRules) {
+    let rules = citizen_rules(archive, &profile.citizen);
     let names = |n: &str| {
         archive
             .read(&format!("Game/Names/{n}_resource.crs"))
@@ -888,6 +894,26 @@ fn households(
             .collect::<Vec<_>>()
     );
     (h.citizens, rules)
+}
+
+/// What [`StartingTown::assemble`] builds a town from.
+struct TownParts {
+    start: (i32, i32),
+    citizens: Vec<Citizen>,
+    rules: CitizenRules,
+    materials: Vec<RawMaterial>,
+    storages: Vec<Storage>,
+    storage_sites: Vec<StorageSite>,
+    templates: Vec<Template>,
+    placed: Vec<Placed>,
+    cells: Cells,
+    scheduler: EntityScheduler<usize>,
+    removed: Vec<usize>,
+    animation_events: Vec<(usize, String)>,
+    wildlife: banished_game::wildlife::Wildlife,
+    known: Vec<usize>,
+    known_materials: Vec<usize>,
+    water: banished_game::fire::Water,
 }
 
 pub struct StartingTown {
@@ -1073,9 +1099,57 @@ impl StartingTown {
             start,
             placed.len()
         );
+        let mut town = Self::assemble(
+            archive,
+            &profile.citizen,
+            TownParts {
+                start,
+                citizens,
+                rules,
+                materials,
+                storages,
+                storage_sites,
+                templates,
+                placed,
+                cells,
+                scheduler,
+                removed,
+                animation_events,
+                wildlife,
+                known,
+                known_materials,
+                water,
+            },
+        );
+        town.build_structures(archive, structure_count);
+        town.place_displays(terrain);
+        Some(town)
+    }
+
+    /// The setup New Game and loading share: the citizen description's rules, models and
+    /// tools, the professions, the name databases and the agents.
+    fn assemble(archive: &Archive, citizen: &str, parts: TownParts) -> StartingTown {
+        let TownParts {
+            start,
+            citizens,
+            rules,
+            materials,
+            storages,
+            storage_sites,
+            templates,
+            placed,
+            cells,
+            scheduler,
+            removed,
+            animation_events,
+            wildlife,
+            known,
+            known_materials,
+            water,
+        } = parts;
         let citizen_model = read(archive, r"Template\Citizen.rsc:model")
             .and_then(|d| banished_formats::game::model_description(&d).ok());
-        let citizen_ref = normalise(&profile.citizen);
+        let citizen_ref = normalise(citizen);
         let character = read(archive, &citizen_ref.replace(":resource", ":character"))
             .and_then(|d| banished_formats::game::character_description(&d).ok())
             .unwrap_or_default();
@@ -1223,8 +1297,6 @@ impl StartingTown {
             display_cells: BTreeMap::new(),
         };
         town.resolve_piles(archive);
-        town.build_structures(archive, structure_count);
-        town.place_displays(terrain);
         // CitizenDescription `+0x20/+0x28/+0x30`: the teacher's, priest's and doctor's
         // professions.
         if let Some(d) = read(archive, &citizen_ref.replace(":resource", ":citizen"))
@@ -1236,7 +1308,7 @@ impl StartingTown {
                 list.iter().position(|p| normalise(&p.reference) == r)
             });
         }
-        Some(town)
+        town
     }
 
     /// The start structures (`FUN_1400a7490`) are built at once: the original creates them

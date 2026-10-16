@@ -44,6 +44,8 @@ pub struct MenuLoop {
     achievements: Option<crate::achievement_ui::AchievementDialog>,
     /// The Scenario (id 9) or Tutorial (id 12) dialog.
     scenarios: Option<crate::scenario_ui::ScenarioDialog>,
+    /// A save to start once this frame's update runs (the `load` script command).
+    load: Option<crate::saved::SavedGame>,
 }
 
 /// Shared settings defaults (`FUN_140042850`) before `Game/Last*` persistence is applied:
@@ -71,6 +73,7 @@ impl MenuLoop {
             options: None,
             achievements: None,
             scenarios: None,
+            load: None,
         }
     }
 
@@ -472,7 +475,37 @@ impl GameLoop for MenuLoop {
         if let Some(options) = &mut self.options {
             options.update();
         }
+        if let Some(saved) = self.load.take() {
+            log::info!("loading {}", saved.metadata.name);
+            let screen_ref = format!("Dialog/Loading.rsc:gameLoad{}", ctx.rng.rand_below(12));
+            return Next::Switch(Box::new(DialogLoaderLoop::new(
+                screen_ref,
+                0.5,
+                Box::new(crate::gameplay::GameplayLoop::from_save(saved)),
+            )));
+        }
         Next::Stay
+    }
+
+    /// `load PATH`: start the save at `PATH` (captures; the Load dialog is not ported yet).
+    #[cfg(not(target_arch = "wasm32"))]
+    fn script(&mut self, _ctx: &mut Ctx, command: &str) -> bool {
+        let Some(path) = command.strip_prefix("load ") else {
+            return false;
+        };
+        match std::fs::read(path.trim())
+            .map_err(|e| banished_formats::Error::Format(e.to_string()))
+            .and_then(|b| crate::saved::SavedGame::parse(&b))
+        {
+            Ok(saved) => {
+                self.load = Some(saved);
+                true
+            }
+            Err(e) => {
+                log::error!("{path}: {e}");
+                false
+            }
+        }
     }
 
     fn raw(&mut self, ctx: &mut Ctx, input: RawInput) -> Next {

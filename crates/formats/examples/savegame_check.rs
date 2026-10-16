@@ -25,6 +25,29 @@ fn main() {
                 for o in g.objects.values() {
                     *kinds.entry(o.type_name).or_insert(0) += 1;
                 }
+                let mut roads = std::collections::BTreeMap::new();
+                for c in &g.map.cells {
+                    *roads.entry((c.bytes[2], c.bytes[3])).or_insert(0) += 1;
+                }
+                println!("road cells (kind, built): {roads:?}");
+                // `SAVE_DUMP_ENTITIES=n`: the first n entities with their components' fields.
+                let dump: usize = std::env::var("SAVE_DUMP_ENTITIES")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(0);
+                for e in g.entities.iter().flatten().take(dump) {
+                    let o = &g.objects[e];
+                    let template = o.fields.i32("entity.template").unwrap_or(-1) as u32;
+                    println!("entity {e} {:?}", g.references.get(&template));
+                    if let Some(banished_formats::savegame::Value::List(cs)) =
+                        o.fields.at("entity.components")
+                    {
+                        for c in cs.iter().filter_map(|c| c.ptr("component")) {
+                            let c = &g.objects[&c];
+                            println!("  {} {:?}", c.type_name, c.fields.0.get(1));
+                        }
+                    }
+                }
                 println!(
                     "{path}: ok, {} entities, {} objects, town {:?}: {kinds:?}",
                     g.entities.len(),
