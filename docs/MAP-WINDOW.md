@@ -52,6 +52,9 @@ The UI crate's `Lines` kind draws the segments as one-pixel sprite quads.
   - Camera: orthographic, ±n/2, near 0, far 512, at height 100, yaw 0, pitch -90.
   - Fog: 1000 to 1001, white. Light vectors `(0, 0, 1)`.
   - Output: an `n×n` render read back into `+0x18`.
+  - The renderer is a fresh `Graphics::Renderer` with no reflection pass. The port therefore
+    gives the water an opaque black reflection, so rivers and lakes show their beds darkened
+    (inferred from the reference's dark water). Before this the magenta clear showed through.
   - The port renders terrain, reflection and water with its own pipelines and blits into an
     `n×n` texture, `Texture::External(1)`. The overhead light is the port's best match for the
     two `(0, 0, 1)` context vectors; their exact meaning is not traced.

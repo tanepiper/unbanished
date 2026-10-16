@@ -1147,15 +1147,17 @@ impl Renderer {
             b: 1.0,
             a: 1.0,
         };
+        // The minimap's renderer is a fresh `Graphics::Renderer` (`FUN_1400aa610`) with no
+        // reflection pass, so the water reflects nothing: an opaque black reflection (inferred
+        // from the original's dark lakes and blue-grey rivers on the minimap).
         if water.is_some() {
-            let mut pass = Self::scene_pass(
+            let _pass = Self::scene_pass(
                 &mut encoder,
                 "minimap reflection",
                 &targets.reflection_view,
                 &targets.reflection_depth,
-                Some(clear),
+                Some(wgpu::Color::BLACK),
             );
-            self.draw_terrain(&mut pass, &self.reflect_bind);
         }
         {
             let mut pass = Self::scene_pass(
