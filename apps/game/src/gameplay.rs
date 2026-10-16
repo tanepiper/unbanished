@@ -134,12 +134,10 @@ pub struct GameplayLoop {
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     /// A save waiting for its preview: the path, the name (the town's when `None`), then the
     /// image once drawn.
-    pending_save: Option<(std::path::PathBuf, Option<String>, Option<Vec<u8>>)>,
+    pending_save: Option<(SaveTarget, Option<String>, Option<Vec<u8>>)>,
     /// `Dialog/AutoSave.rsc`: the autosave timer and the saving spinner.
-    #[cfg(not(target_arch = "wasm32"))]
     autosave: Option<crate::autosave::AutoSave>,
     /// The Save and Load dialog over the pause menu.
-    #[cfg(not(target_arch = "wasm32"))]
     save_dialog: Option<crate::save_dialog::SaveLoadDialog>,
     /// Map ambience (`FUN_1400a57c0`): environment regions and wind.
     ambience: Option<crate::ambience::Ambience>,
@@ -382,29 +380,29 @@ impl GameplayLoop {
     }
 
     /// Write a save whose preview has been drawn.
-    #[cfg(not(target_arch = "wasm32"))]
     fn finish_save(&mut self, ctx: &mut Ctx) {
         let Some((path, name, Some(image))) = self.pending_save.take_if(|(_, _, i)| i.is_some())
         else {
             return;
         };
         let Some(bytes) = self.save_file(ctx.archive, ctx.ui, name.as_deref(), Some(image)) else {
-            log::error!("save: only a game loaded from a save can be saved yet");
+            log::error!("save: the game state could not be written");
             return;
         };
-        if let Some(dir) = path.parent() {
-            let _ = std::fs::create_dir_all(dir);
-        }
-        match std::fs::write(&path, bytes) {
-            Ok(()) => log::info!("saved {}", path.display()),
-            Err(e) => log::error!("{}: {e}", path.display()),
+        let result = match &path {
+            SaveTarget::Store(name) => crate::save_store::write(name, &bytes),
+            #[cfg(not(target_arch = "wasm32"))]
+            SaveTarget::File(path) => std::fs::write(path, &bytes).map_err(|e| e.to_string()),
+        };
+        match result {
+            Ok(()) => log::info!("saved {path:?}"),
+            Err(e) => log::error!("save {path:?}: {e}"),
         }
     }
 
     /// `Dialog/AutoSave.rsc`'s frame: at its interval, an autosave into `Auto.sav` named by the
     /// game's `Autosave` string, unless a dialog pauses the game (the pause menu), the game is
     /// a tutorial (flag bit 10) or a save runs (`FUN_14005e820`).
-    #[cfg(not(target_arch = "wasm32"))]
     fn update_autosave(&mut self, ctx: &mut Ctx, dt: f32) {
         let interval = ctx.settings.game.autosave_interval;
         let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
@@ -419,9 +417,7 @@ impl GameplayLoop {
         if !a.update(ctx.ui, dt, interval, can_save, dialog_saving) {
             return;
         }
-        let Some(path) = crate::paths::save_file(crate::save_list::AUTO_SAVE) else {
-            return;
-        };
+        let path = SaveTarget::Store(crate::save_list::AUTO_SAVE.to_string());
         let name = ctx
             .ui
             .res
@@ -431,7 +427,6 @@ impl GameplayLoop {
 
     /// The Save and Load dialog's frame: a save it starts waits for the next frame's preview;
     /// a load it finishes starts that game.
-    #[cfg(not(target_arch = "wasm32"))]
     fn update_save_dialog(&mut self, ctx: &mut Ctx, dt: f32) -> Option<Next> {
         let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) else {
             return None;
@@ -440,7 +435,6 @@ impl GameplayLoop {
         self.save_outcome(ctx, outcome)
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     fn save_outcome(
         &mut self,
         ctx: &mut Ctx,
@@ -454,7 +448,7 @@ impl GameplayLoop {
                 None
             }
             Outcome::Save(path) => {
-                self.pending_save = Some((path, None, None));
+                self.pending_save = Some((SaveTarget::Store(path), None, None));
                 None
             }
             // `FUN_1400bce80` → `FUN_14009d480`: the game fades out for the loaded one.
@@ -608,9 +602,7 @@ impl GameplayLoop {
             move_cooldown: 0.0,
             pending_sounds: Vec::new(),
             pending_save: None,
-            #[cfg(not(target_arch = "wasm32"))]
             autosave: None,
-            #[cfg(not(target_arch = "wasm32"))]
             save_dialog: None,
             ambience: None,
             ambience_stale: false,
@@ -638,7 +630,6 @@ impl GameplayLoop {
         toolbar.install(ui, &mut screen, keymap);
         self.toolbar = Some(toolbar);
         self.notify = crate::event_notify::EventNotify::open(ui, &mut screen, &self.events);
-        #[cfg(not(target_arch = "wasm32"))]
         {
             self.autosave = crate::autosave::AutoSave::open(ui, &mut screen, autosave_interval);
         }
@@ -1982,7 +1973,6 @@ impl GameLoop for GameplayLoop {
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
-        #[cfg(not(target_arch = "wasm32"))]
         {
             self.finish_save(ctx);
             self.update_autosave(ctx, dt);
@@ -2204,7 +2194,6 @@ impl GameLoop for GameplayLoop {
     }
 
     fn event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
-        #[cfg(not(target_arch = "wasm32"))]
         if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
             if let Event::Clicked(id) = event {
                 let outcome = d.click(ctx.ui, screen, ctx.audio, ctx.archive, id);
@@ -2327,15 +2316,12 @@ impl GameLoop for GameplayLoop {
                     }
                 }
                 crate::pause_menu::PauseClick::Load | crate::pause_menu::PauseClick::Save => {
-                    #[cfg(not(target_arch = "wasm32"))]
                     if let Some(screen) = &mut self.screen {
                         let loading =
                             matches!(menu.click(ctx.ui, id), crate::pause_menu::PauseClick::Load);
                         self.save_dialog =
                             crate::save_dialog::SaveLoadDialog::open(ctx.ui, screen, loading, true);
                     }
-                    #[cfg(target_arch = "wasm32")]
-                    log::info!("pause menu: saving and loading are not in the browser yet");
                 }
                 crate::pause_menu::PauseClick::Other if menu.contains(ctx.ui, id) => {
                     log::info!(
@@ -2483,7 +2469,6 @@ impl GameLoop for GameplayLoop {
             _ => {}
         }
         // The Save and Load dialog: Escape is buttonCancel's action 8.
-        #[cfg(not(target_arch = "wasm32"))]
         if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
             if let RawInput::Escape = input {
                 let outcome = d.escape(ctx.ui, screen);
@@ -2682,7 +2667,7 @@ impl GameLoop for GameplayLoop {
                 let Some(path) = words.next() else {
                     return false;
                 };
-                self.pending_save = Some((path.into(), None, None));
+                self.pending_save = Some((SaveTarget::File(path.into()), None, None));
                 return true;
             }
             // `pause`: open the pause menu (captures).
@@ -2833,6 +2818,15 @@ impl GameLoop for GameplayLoop {
     fn view(&self) -> View<'_> {
         self.view.as_ref().map_or(View::None, View::World)
     }
+}
+
+/// Where a save goes: the save store under a name (the Save dialog, autosave), or a file
+/// (the `save PATH` script command).
+#[derive(Debug)]
+enum SaveTarget {
+    Store(String),
+    #[cfg(not(target_arch = "wasm32"))]
+    File(std::path::PathBuf),
 }
 
 /// A generated world's terrain block (`FUN_1400b59a0`, version 6): its size, heights,

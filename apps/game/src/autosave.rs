@@ -12,7 +12,6 @@
 //! - **Each frame** (`FUN_14005e9f0`, `FUN_14005e920`): `savingImage` turns 90° a second
 //!   (wrapped at 360) and it and `animatedImage` show while a save runs (`SaveLoad` operation
 //!   4, also one from the Save dialog).
-#![cfg(not(target_arch = "wasm32"))]
 
 use banished_ui::{NodeId, Ui};
 

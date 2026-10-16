@@ -25,6 +25,8 @@
 //!   runs, then for each mod the save names `modsMissing` (the port has no mods, so every one
 //!   is missing), and loads (operation 2, at least 1.5 s); Delete (`FUN_1400bb320`) asks
 //!   `confirmDelete` and deletes (operation 5).
+//! - The saves are read and written through [`crate::save_store`]: a load waits for the
+//!   file's bytes as well as its shortest time (in the browser the read is asynchronous).
 //! - The confirmations are message boxes (vtable `0x1401625c0`, `FUN_14006daa0`: Cancel 0,
 //!   Ok 1, Yes 2, No 3); `ShowDialog` returns the button and only Yes goes on.
 //!
@@ -32,7 +34,6 @@
 //! for the answer. The new-save slot shows the template's empty icon: the save sprite it shows
 //! in the original (`SaveLoad +0x60`, the game's `+0xb8`) is not ported. A mod's version is
 //! written as its number.
-#![cfg(not(target_arch = "wasm32"))]
 
 use banished_ui::{Control, Kind, NodeId, Ui};
 
@@ -85,6 +86,8 @@ pub struct SaveLoadDialog {
     /// `+0xb9`, `+0xba`, `+0xbb`, `+0xbc`: a save, load, list or delete was started.
     saved: bool,
     load: Option<crate::saved::SavedGame>,
+    /// The file being read for a load.
+    reading: Option<crate::save_store::Read>,
     listing: bool,
     deleting: bool,
     /// `+200`: the spinner's angle.
@@ -115,10 +118,10 @@ struct Elements {
 pub enum Outcome {
     Stay,
     Closed,
-    /// Write the game to `path` (operation 4 started); it is named after the town
+    /// Write the game as the save `name` (operation 4 started); it is named after the town
     /// (`SetSaveName` with the string at `+0x28` of the dialog's `+0xe8`, see
     /// `GameplayLoop::save_file`).
-    Save(std::path::PathBuf),
+    Save(String),
     /// Start this game (the load finished; the dialog has closed).
     Load(crate::saved::SavedGame),
 }
@@ -152,6 +155,7 @@ impl SaveLoadDialog {
             operation: None,
             saved: false,
             load: None,
+            reading: None,
             listing: false,
             deleting: false,
             angle: 0.0,
@@ -183,10 +187,24 @@ impl SaveLoadDialog {
 
     /// `FUN_1400bce80`, then the refresh `FUN_1400bbd50`.
     pub fn update(&mut self, ui: &mut Ui, screen: &mut Screen, dt: f32) -> Outcome {
+        if let Some(read) = &mut self.reading {
+            if let Some(result) = read.poll() {
+                self.reading = None;
+                match result
+                    .and_then(|b| crate::saved::SavedGame::parse(&b).map_err(|e| e.to_string()))
+                {
+                    Ok(saved) => self.load = Some(saved),
+                    Err(e) => {
+                        log::error!("load: {e}");
+                        self.operation = None;
+                    }
+                }
+            }
+        }
         if let Some((_, left)) = &mut self.operation {
             self.angle += dt * SPIN;
             *left -= dt;
-            if *left <= 0.0 {
+            if *left <= 0.0 && self.reading.is_none() {
                 self.operation = None;
             }
         }
@@ -500,12 +518,9 @@ impl SaveLoadDialog {
             .selected_file()
             .map(str::to_string)
             .unwrap_or_else(|| save_list::generate_name(&self.saves));
-        let Some(path) = crate::paths::save_file(&file) else {
-            return Outcome::Stay;
-        };
         self.saved = true;
         self.start(Operation::Save, SAVE_LOAD_TIME);
-        Outcome::Save(path)
+        Outcome::Save(file)
     }
 
     /// The mods from `next` on (`CheckMod`; every one is missing in the port), then operation 2.
@@ -527,28 +542,18 @@ impl SaveLoadDialog {
             );
             return Outcome::Stay;
         }
-        let Some(path) = info.file.as_deref().and_then(crate::paths::save_file) else {
+        let Some(file) = info.file.clone() else {
             return Outcome::Stay;
         };
-        match std::fs::read(&path)
-            .map_err(|e| banished_formats::Error::Format(e.to_string()))
-            .and_then(|b| crate::saved::SavedGame::parse(&b))
-        {
-            Ok(saved) => {
-                self.load = Some(saved);
-                self.start(Operation::Load, SAVE_LOAD_TIME);
-            }
-            Err(e) => log::error!("{}: {e}", path.display()),
-        }
+        self.reading = Some(crate::save_store::read(&file));
+        self.start(Operation::Load, SAVE_LOAD_TIME);
         Outcome::Stay
     }
 
     /// Operation 5.
     fn delete(&mut self) {
-        if let Some(path) = self.selected_file().and_then(crate::paths::save_file) {
-            if let Err(e) = std::fs::remove_file(&path) {
-                log::error!("{}: {e}", path.display());
-            }
+        if let Some(file) = self.selected_file() {
+            crate::save_store::delete(file);
         }
         self.deleting = true;
         self.start(Operation::Delete, 0.0);

@@ -1,6 +1,5 @@
 //! The saves on disk (`IO::Persistence`, Runtime) and the list the Save and Load dialogs show
-//! (`Save::SaveLoad::UpdateList` `0x1800c4710`). Native builds: the files are in
-//! [`crate::paths::save_dir`].
+//! (`Save::SaveLoad::UpdateList` `0x1800c4710`), from [`crate::save_store`].
 //!
 //! `UpdateList` asks `Persistence` for every `*.sav` file, makes one [`SaveInfo`] each and, for
 //! the Save dialog (operation argument −2), first a slot for a new save showing the save sprite
@@ -8,9 +7,9 @@
 //! writes). The files are sorted newest first (`qsort` with `0x1800c6620`: the 64-bit file time
 //! at `+0x30`, descending), then each one's metadata is read (`LoadMetaData`). A file that does
 //! not read keeps an empty name, status 0 and a black image of the save sprite's size.
-#![cfg(not(target_arch = "wasm32"))]
+use banished_formats::save::SavedMod;
 
-use banished_formats::save::{Save, SavedMod};
+use crate::save_store::{self, EPOCH_DIFFERENCE};
 
 /// `Save::SaveLoad::SaveInfo` (0x58 bytes).
 #[derive(Debug, Clone)]
@@ -35,14 +34,6 @@ pub struct SaveInfo {
 /// `SaveLoad::GetAutoSaveName`.
 pub const AUTO_SAVE: &str = "Auto";
 
-/// Seconds between the Unix and Windows file-time epochs (1970 and 1601).
-const EPOCH_DIFFERENCE: u64 = 11_644_473_600;
-
-fn file_time(t: std::time::SystemTime) -> u64 {
-    let d = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
-    (d.as_secs() + EPOCH_DIFFERENCE) * 10_000_000 + d.subsec_nanos() as u64 / 100
-}
-
 /// The saves for the Save dialog (`saving`, with the new-save slot and without the autosave)
 /// or the Load dialog.
 pub fn list(saving: bool) -> Vec<SaveInfo> {
@@ -57,26 +48,11 @@ pub fn list(saving: bool) -> Vec<SaveInfo> {
         status: 0,
         mods: Vec::new(),
     };
-    let mut files: Vec<(String, u64, std::path::PathBuf)> = crate::paths::save_dir()
-        .and_then(|d| std::fs::read_dir(d).ok())
+    let mut files: Vec<save_store::Entry> = save_store::list()
         .into_iter()
-        .flatten()
-        .filter_map(|e| {
-            let e = e.ok()?;
-            let path = e.path();
-            if !path
-                .extension()
-                .is_some_and(|x| x.eq_ignore_ascii_case("sav"))
-            {
-                return None;
-            }
-            let stem = path.file_stem()?.to_str()?.to_string();
-            let date = e.metadata().and_then(|m| m.modified()).map_or(0, file_time);
-            Some((stem, date, path))
-        })
-        .filter(|(stem, _, _)| !(saving && stem == AUTO_SAVE))
+        .filter(|e| !(saving && e.name == AUTO_SAVE))
         .collect();
-    files.sort_by(|a, b| b.1.cmp(&a.1));
+    files.sort_by(|a, b| b.date.cmp(&a.date));
     let mut out = Vec::new();
     if saving {
         out.push(SaveInfo {
@@ -84,25 +60,19 @@ pub fn list(saving: bool) -> Vec<SaveInfo> {
             ..blank(None, 0)
         });
     }
-    for (stem, date, path) in files {
-        let metadata = std::fs::read(&path)
-            .map_err(|e| banished_formats::Error::Format(e.to_string()))
-            .and_then(|b| Save::read_metadata(&b));
-        out.push(match metadata {
-            Ok(m) => SaveInfo {
-                file: Some(stem),
+    for e in files {
+        out.push(match e.metadata {
+            Some(m) => SaveInfo {
+                file: Some(e.name),
                 name: m.name,
-                date,
+                date: e.date,
                 width: m.width,
                 height: m.height,
                 image: m.image,
                 status: m.value,
                 mods: m.mods,
             },
-            Err(e) => {
-                log::warn!("{}: {e}", path.display());
-                blank(Some(stem), date)
-            }
+            None => blank(Some(e.name), e.date),
         });
     }
     out
@@ -121,22 +91,38 @@ pub fn generate_name(list: &[SaveInfo]) -> String {
 /// user's locale formats are not read; the port writes the en-US defaults (`M/d/yyyy h:mm tt`).
 pub fn date_string(date: u64) -> String {
     let unix = (date / 10_000_000) as i64 - EPOCH_DIFFERENCE as i64;
-    let Ok(t) = jiff::Timestamp::from_second(unix) else {
+    let Some((year, month, day, hour, minute)) = local_time(unix) else {
         return String::new();
     };
-    let z = t.to_zoned(jiff::tz::TimeZone::system());
-    let hour = z.hour();
     let h12 = if hour % 12 == 0 { 12 } else { hour % 12 };
     let ampm = if hour < 12 { "AM" } else { "PM" };
-    format!(
-        "{}/{}/{} {}:{:02} {}",
-        z.month(),
-        z.day(),
-        z.year(),
-        h12,
-        z.minute(),
-        ampm
-    )
+    format!("{month}/{day}/{year} {h12}:{minute:02} {ampm}")
+}
+
+/// Seconds since 1970 as the local year, month, day, hour and minute.
+#[cfg(not(target_arch = "wasm32"))]
+fn local_time(unix: i64) -> Option<(i32, i32, i32, i32, i32)> {
+    let t = jiff::Timestamp::from_second(unix).ok()?;
+    let z = t.to_zoned(jiff::tz::TimeZone::system());
+    Some((
+        z.year() as i32,
+        z.month() as i32,
+        z.day() as i32,
+        z.hour() as i32,
+        z.minute() as i32,
+    ))
+}
+
+#[cfg(target_arch = "wasm32")]
+fn local_time(unix: i64) -> Option<(i32, i32, i32, i32, i32)> {
+    let d = js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(unix as f64 * 1000.0));
+    Some((
+        d.get_full_year() as i32,
+        d.get_month() as i32 + 1,
+        d.get_date() as i32,
+        d.get_hours() as i32,
+        d.get_minutes() as i32,
+    ))
 }
 
 #[cfg(test)]
@@ -161,12 +147,5 @@ mod tests {
             "Save3"
         );
         assert_eq!(generate_name(&[info("Save1")]), "Save0");
-    }
-
-    /// 1 January 2000 00:00 UTC as a file time.
-    #[test]
-    fn file_times_count_from_1601() {
-        let t = std::time::UNIX_EPOCH + std::time::Duration::from_secs(946_684_800);
-        assert_eq!(file_time(t), 125_911_584_000_000_000);
     }
 }

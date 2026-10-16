@@ -1,5 +1,7 @@
 # Save and Load dialog, and where files live
 
+The dialog, autosave and saving work in both builds; only where the files go differs.
+
 The original executable's folders, which the port uses natively so it can replace the executable
 (`apps/game/src/paths.rs`):
 
@@ -9,7 +11,19 @@ The original executable's folders, which the port uses natively so it can replac
 | Saves | `FileSystem::GetSaveDirectory` (`0x1800adf20`): `SHGetFolderPathW(CSIDL_PERSONAL)` + `Banished\`, files `%sSave\%s.sav` | `Documents/Banished/Save/NAME.sav` (`%USERPROFILE%` or `$HOME`; a redirected Documents folder is not followed). `BANISHED_USER_DIR` names the `Banished` folder (tests) |
 | Settings | The registry, `Software\Shining Rock Software LLC\Banished` | Still the port's settings file (not yet the registry) |
 
-The browser build has no save files yet; its Load and Save buttons log that.
+In the browser the saves are kept in IndexedDB (`save_store.rs`, database `banished-wasm`):
+- **Stores:** `files` holds each whole `.sav` by name, and `meta` holds its write time and metadata block.
+- **Listing:** the metadata is mirrored into memory when the page starts, so the Save and Load
+  dialogs list saves synchronously, as the original's listing does.
+- **Writing:** a write or delete updates the mirror at once and the database in the background.
+- **Loading:** a read is a request the Load dialog polls. Its spinner runs until the bytes arrive and its
+  shortest time has passed.
+- **Preview and minimap:** the browser cannot wait on the GPU, so they are copied at the save's frame and handed to
+  the loop once mapped (`Renderer::begin_capture`, `poll_capture`), a frame or more later.
+  Native saves use the same path.
+
+Natively the store is the folder in the table above. The `save PATH` script command still writes a
+file directly (native only).
 
 ## The list (`Save::SaveLoad::UpdateList`, `0x1800c4710`)
 

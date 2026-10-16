@@ -41,6 +41,7 @@ mod render;
 mod road_decals;
 mod save_dialog;
 mod save_list;
+mod save_store;
 mod saved;
 mod scenario_ui;
 mod scene;
@@ -99,6 +100,8 @@ pub struct Game {
     global: Option<global::GlobalData>,
     rng: Random,
     main: MainLoop,
+    /// A save's frame and minimap being read back (`SaveLoad::Draw`).
+    save_capture: Option<render::PendingCapture>,
     /// `Application::IsPaused`: the window lost focus (`Application +0x11`, cleared on
     /// WM_KILLFOCUS, set on WM_SETFOCUS).
     app_paused: bool,
@@ -176,6 +179,7 @@ impl Game {
             // `System::Random()` seeds from the clock.
             rng: Random::new(clock_seed()),
             main: boot_chain(),
+            save_capture: None,
             app_paused: false,
             settings,
             os_scale: 1.0,
@@ -500,14 +504,26 @@ impl Game {
             clear,
             ui: None,
         };
-        // A save's preview: the scene alone, cropped and scaled (`SaveLoad::Draw`).
-        #[cfg(not(target_arch = "wasm32"))]
-        if frame.terrain.is_some() && self.main.current().wants_save_preview() {
-            let (w, h) = renderer.size();
-            let rgba = renderer.capture(&frame);
-            let image = crate::saved::preview(&rgba, w, h);
-            let minimap = renderer.read_minimap();
-            self.main.current_mut().save_preview(image, minimap);
+        // A save's preview: the scene alone, cropped and scaled, read back over the next frames
+        // with the minimap (`SaveLoad::Draw`).
+        if frame.terrain.is_some()
+            && self.save_capture.is_none()
+            && self.main.current().wants_save_preview()
+        {
+            self.save_capture = Some(renderer.begin_capture(&frame));
+        }
+        if let Some(pending) = &self.save_capture {
+            if let Some((rgba, minimap)) = renderer.poll_capture(pending) {
+                self.save_capture = None;
+                let (w, h) = renderer.size();
+                let image = if rgba.len() == (w * h * 4) as usize {
+                    crate::saved::preview(&rgba, w, h)
+                } else {
+                    let (pw, ph) = crate::saved::PREVIEW_SIZE;
+                    vec![0; (pw * ph * 4) as usize]
+                };
+                self.main.current_mut().save_preview(image, minimap);
+            }
         }
         frame.ui = Some((&self.ui, &quads));
         if capture {
@@ -1288,6 +1304,8 @@ fn main() {
     let proxy = event_loop.create_proxy();
     web::install_file_picker(proxy.clone());
     web::load_from_query(proxy.clone());
+    // The saves in browser storage (their metadata, for the Save and Load dialogs).
+    save_store::init();
     use winit::platform::web::EventLoopExtWebSys;
     event_loop.spawn_app(App::new(proxy));
 }
