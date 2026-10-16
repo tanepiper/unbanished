@@ -59,10 +59,13 @@ The UI crate's `Lines` kind draws the segments as one-pixel sprite quads.
     `n×n` texture, `Texture::External(1)`.
   - The two `(0, 0, 1)` context vectors are `Context::SetUserPosition((0, 0, 1, 0))`:
     `pc_userPosition`, so the minimap has no snow, no autumn colour and no rain.
-  - Its scene has no light object, so the lights are whatever the context holds: it runs before
-    the frame's `Renderer::Draw` (`FUN_14009b4e0`), and `Context::Reset` zeroes them. Which
-    draw set them is not traced; the port lights it from directly above with the scene's
-    colours, which matches the reference's flat, light terrain best.
+  - Its scene has no light object, so the light is whatever the shader constants hold. It runs
+    before the frame's `Renderer::Draw` (`FUN_14009b4e0`). Only `SunLight::Draw` and
+    `SpotLight::Draw` call `Context::SetLight` (`AmbientLight::Draw` is empty, and no light
+    resources ship), and `Context::Reset` clears only the light block at `+0x1dd8`, not the
+    constants `SetLight` copied to `+0x268`. So the minimap is lit by the previous 3D frame's
+    sun: the main menu scene's when a game starts from the menu, the old game's when loading
+    from inside one. The port keeps the last scene's sun direction, colour and ambient for it.
 - **Overlay (`FUN_1400aa200`).** A MapComponent whose description has `+0x32` set fills its
   map rectangle with the description colour (`+0x34`) when activated (`FUN_140129680`). Rows
   are flipped (`row = n - y - 1`) and the dirty flag is set; `FUN_1400aa5b0` uploads it.
@@ -84,6 +87,6 @@ The UI crate's `Lines` kind draws the segments as one-pixel sprite quads.
 
 ## Pending
 
-- Dragging on the overlay (kind 2 repeats while held) and the exact light set-up.
+- Dragging on the overlay (kind 2 repeats while held).
 - Which shipped MapDescriptions set the minimap flag. No start-town entity shows on the overlay
   yet.

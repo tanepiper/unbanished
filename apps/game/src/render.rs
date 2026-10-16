@@ -163,6 +163,9 @@ pub struct Renderer {
     /// The minimap image (rendered once per world) and the overlay revision uploaded.
     minimap: Option<wgpu::Texture>,
     minimap_overlay: u64,
+    /// The sun of the last scene drawn: `SunLight::Draw`'s `Context::SetLight` constants,
+    /// which `Context::Reset` leaves (it clears only the light block at `+0x1dd8`).
+    last_light: Option<Lighting>,
     pub backend: String,
 }
 
@@ -989,6 +992,7 @@ impl Renderer {
             decals_revision: 0,
             minimap: None,
             minimap_overlay: 0,
+            last_light: None,
             backend,
             display,
             video,
@@ -1190,10 +1194,11 @@ impl Renderer {
     /// first game draw: an orthographic camera over the map (±size/2, near 0, far 512) at
     /// height 100 looking straight down (pitch -90), fog pushed to 1000–1001, into a size×size
     /// image. `Context::SetUserPosition((0, 0, 1, 0))` sets `pc_userPosition`: no snow, no
-    /// autumn colour, full leaf loss, no rain. Its scene has no light, so the context keeps
-    /// the lights an earlier draw set (it runs before the frame's `Renderer::Draw` and
-    /// `Context::Reset` zeroes them, so not traced); the port lights it from directly above
-    /// with the scene's colours (inferred: the reference's flat, light terrain). The overlay
+    /// autumn colour, full leaf loss, no rain. Its scene has no light (only `SunLight::Draw`
+    /// and `SpotLight::Draw` call `Context::SetLight`; `AmbientLight::Draw` is empty), and it
+    /// runs before the frame's `Renderer::Draw`, so the light is the last scene's sun:
+    /// `Context::Reset` clears the light block but not the shader constants it was copied to
+    /// (`+0x268`). The overlay
     /// (`FUN_1400aa5b0`) is uploaded when it changes.
     pub fn update_minimap(&mut self, view: &crate::scene::SceneView) {
         let Some((revision, size, rgba)) = &view.minimap_overlay else {
@@ -1225,9 +1230,15 @@ impl Renderer {
         use glam::camera::rh::{proj::directx::orthographic, view::look_at_mat4};
         let view_proj = orthographic(-half, half, -half, half, 0.0, 512.0)
             * look_at_mat4(eye, Vec3::ZERO, Vec3::Y);
+        // The minimap's scene has no light: the sun, its colour and the ambient are those the
+        // last scene drawn set (the menu's, or the previous game's).
         let mut lighting = *lighting;
+        if let Some(last) = self.last_light {
+            lighting.light_dir = last.light_dir;
+            lighting.light_color = last.light_color;
+            lighting.ambient_color = last.ambient_color;
+        }
         lighting.user = Vec4::new(0.0, 0.0, 1.0, 0.0);
-        lighting.light_dir = Vec3::NEG_Z;
         lighting.fog_start = 1000.0;
         lighting.fog_end = 1001.0;
         lighting.fog_color = Vec3::ONE;
@@ -1713,6 +1724,7 @@ impl Renderer {
             if let Some(level) = water {
                 self.write_globals(&self.reflect_globals, scene, Some(level));
             }
+            self.last_light = Some(scene.lighting);
             self.extras.place_sky(&self.queue, scene.eye, scene.far);
             let fog = scene.lighting.fog_color;
             let clear = wgpu::Color {
