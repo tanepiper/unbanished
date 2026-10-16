@@ -1246,13 +1246,14 @@ pub fn warm_at(s: &mut CitizenState, home: Option<&Home>, temperature: f32) {
 }
 
 /// Citizen message 2 (`FUN_14011a7b0`): eat from `storage` until no longer hungry: one unit of
-/// food (`FUN_140094410` category 0) per point of hunger, remembering each kind for variety.
-/// Not ported: the stock's consumption counter (`FUN_14008e460`).
+/// food (`FUN_140094410` category 0) per point of hunger, remembering each kind for variety;
+/// each counts as used (`FUN_14008e460`, `+0xc`).
 pub fn eat(
     s: &mut CitizenState,
     storage: &mut Storage,
     materials: &[RawMaterial],
     rng: &mut Random,
+    counters: &mut crate::tracker::StockCounters,
 ) {
     while 0.0 < s.hunger {
         let Some(m) = storage.find_item(materials, 0, rng) else {
@@ -1264,6 +1265,9 @@ pub fn eat(
         }
         storage.remove(m, 1);
         let flags = materials[m].flags;
+        if let Some(slot) = crate::produce::production_group(flags) {
+            counters.used[slot] += 1;
+        }
         if s.health_events & 8 == 0 {
             s.health_events = s.health_events & 0xfffffe8f | 8;
         }

@@ -83,6 +83,8 @@ pub struct Template {
     pub terraform: Option<crate::terraform::TerraformTemplate>,
     /// TornadoDescription.
     pub tornado: Option<crate::tornado::TornadoTemplate>,
+    /// Has a TrackerComponent (workplaces whose production the window shows).
+    pub tracker: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -983,6 +985,7 @@ mod tests {
             floor: None,
             terraform: None,
             tornado: None,
+            tracker: false,
         }
     }
 

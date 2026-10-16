@@ -55,6 +55,7 @@ pub mod stock;
 pub mod terraform;
 pub mod terrain;
 pub mod tornado;
+pub mod tracker;
 pub mod town;
 pub mod trade;
 pub mod wildlife;

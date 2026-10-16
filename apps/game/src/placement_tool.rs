@@ -616,6 +616,13 @@ mod construction_tests {
         assert!(stored_at.is_some(), "no firewood pile was hauled away");
         let after = stock_table(&town.registered_storages(), &town.materials);
         assert!(after[0] < logs_before.unwrap(), "no logs were used");
+        // The yard's TrackerComponent counts the firewood it made this year.
+        let made = town.construction.trackers[&id]
+            .this_year
+            .iter()
+            .find(|e| Some(e.0) == firewood)
+            .map_or(0, |e| e.1);
+        assert!(0 < made, "the tracker counted no firewood");
     }
 
     /// A gatherer's shelter near the start gets two gatherers: they harvest grown wild food

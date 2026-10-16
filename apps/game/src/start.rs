@@ -469,6 +469,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         floor: None,
         terraform: None,
         tornado: None,
+        tracker: false,
         pile: None,
         pile_material: None,
         pile_yield: (0, 0),
@@ -609,10 +610,10 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                     .and_then(|d| banished_formats::picking::picking_mesh(&d).ok())
                     .map(|m| std::sync::Arc::new(floor_triangles(&m)))
             }
+            "tracker" => t.tracker = true,
             "tornado" => {
-                t.tornado = banished_formats::game::tornado_description(&data)
-                    .ok()
-                    .map(|(speed, min_distance, reach, interval, throw)| {
+                t.tornado = banished_formats::game::tornado_description(&data).ok().map(
+                    |(speed, min_distance, reach, interval, throw)| {
                         banished_game::tornado::TornadoTemplate {
                             speed,
                             min_distance,
@@ -620,7 +621,8 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                             reach,
                             throw,
                         }
-                    })
+                    },
+                )
             }
             "terraform" => {
                 let mesh = |m: &Option<String>| {
@@ -2450,6 +2452,9 @@ impl StartingTown {
 
     /// [`Self::add_site`] with its construction template loaded.
     fn add_site_from(&mut self, st: usize, entity: usize) {
+        if self.templates[self.placed[entity].template].tracker {
+            self.construction.trackers.entry(entity).or_default();
+        }
         let t = &self.construction.templates[st];
         let (w, h) = self.placed[entity].footprint;
         let storage = self.storages.len();

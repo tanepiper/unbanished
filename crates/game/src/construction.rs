@@ -1156,6 +1156,9 @@ pub struct Construction {
     /// iteration (`FUN_14011c2a0` code 5, applied by the citizens' pass).
     pub tornadoes: BTreeMap<usize, crate::tornado::Tornado>,
     pub tornado_kills: Vec<usize>,
+    /// TrackerComponents by entity, and the stock manager's made/used counters.
+    pub trackers: BTreeMap<usize, crate::tracker::Tracker>,
+    pub counters: crate::tracker::StockCounters,
     pub terraforms: BTreeMap<usize, crate::terraform::TerraformState>,
     /// Built road cells Remove Roads marked, for the town to place their markers (cell,
     /// marker template).

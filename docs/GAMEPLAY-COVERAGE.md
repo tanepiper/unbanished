@@ -44,7 +44,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **AbsorbResource**, **StorageDisplay**, **StorageLocation** | StorageYard, barns | yes ([JOBS.md](JOBS.md#storage-sites-storagelocation-absorbresource-storagedisplay)) |
 | **MultiObject**, **Terraform**, **Floor** | bridges, tunnels, fences, dock | yes (fenced parts, bridge and tunnel pieces; [BRIDGES.md](BRIDGES.md), [TUNNELS.md](TUNNELS.md)) |
 | **Decal**, **Particle** | roads, footprints, smoke | missing |
-| **Tracker**, **Value** | workplaces, livestock | missing (Town Info graphs, production counters) |
+| **Tracker**, **Value** | workplaces, livestock | Tracker and the stock's made/used counters and history ([TOWN-INFO.md](TOWN-INFO.md)); Value in trade |
 | **Tornado** | Tornado | yes ([TORNADO.md](TORNADO.md); spawn, path, wrecking; its particles not drawn) |
 
 ## Works and actions

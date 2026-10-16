@@ -111,8 +111,7 @@ impl Sim<'_, '_> {
     }
 
     /// Message 0 (`FUN_14004b0e0`), a citizen's visit: one unit of the first stored raw
-    /// material that matches and is not reserved is used up. Not ported: the stock manager's
-    /// consumption counter (`+0xc` of the material's slot).
+    /// material that matches and is not reserved is used up, and counted (`+0xc` of its slot).
     pub fn happiness_visit(&mut self, e: usize) {
         let Some(site) = self.sites.get(&e) else {
             return;
@@ -130,6 +129,7 @@ impl Sim<'_, '_> {
             .find(|i| d.mask & self.materials[i.material].flags != 0 && 0 < i.count - i.reserved);
         if let Some(m) = found.map(|i| i.material) {
             storage.remove(m, 1);
+            self.count_used(m, 1);
         }
     }
 }

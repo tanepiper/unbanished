@@ -334,6 +334,8 @@ impl Agents {
                 terraform_requests: &mut c.terraform_requests,
                 tornadoes: &mut c.tornadoes,
                 tornado_kills: &mut c.tornado_kills,
+                trackers: &mut c.trackers,
+                counters: &mut c.counters,
                 trade_goods: &c.trade_goods,
                 river: &c.river,
                 pathfinder: &mut self.pathfinder,
@@ -688,6 +690,7 @@ impl Agents {
         for i in 0..self.characters.len() {
             let Some(group) = groups[i] else { continue };
             let mut messages = Vec::new();
+            let mut used = Vec::new();
             {
                 let state = &mut self.states[i];
                 // The current job's work (`+0x30`) and its profession's accident odds.
@@ -711,6 +714,7 @@ impl Agents {
                     pathfinder: &mut self.pathfinder,
                     rng: env.rng,
                     messages: &mut messages,
+                    used: &mut used,
                     materials: env.materials,
                     storages: env.storages,
                     carried: &mut state.carried,
@@ -722,6 +726,11 @@ impl Agents {
                     accident_odds,
                 };
                 self.characters[i].update(&mut world, group, dt);
+            }
+            for (m, n) in used {
+                if let Some(slot) = crate::produce::production_group(env.materials[m].flags) {
+                    env.construction.counters.used[slot] += n;
+                }
             }
             citizens[i].position = self.characters[i].position;
             self.deliver(i, messages, citizens, env, groups, &adult, &mut entities);
@@ -853,6 +862,7 @@ impl Agents {
                 pathfinder: &mut self.pathfinder,
                 rng,
                 messages: &mut messages,
+                used: &mut Vec::new(),
                 materials,
                 storages: &mut storages,
                 carried: &mut carried,
@@ -890,6 +900,7 @@ impl Agents {
                 pathfinder: &mut self.pathfinder,
                 rng,
                 messages: &mut messages,
+                used: &mut Vec::new(),
                 materials,
                 storages: &mut storages,
                 carried: &mut carried,
@@ -927,6 +938,7 @@ impl Agents {
                 pathfinder: &mut self.pathfinder,
                 rng,
                 messages: &mut messages,
+                used: &mut Vec::new(),
                 materials,
                 storages: &mut storages,
                 carried: &mut carried,
@@ -1324,6 +1336,7 @@ impl Agents {
                                 &mut env.storages[st],
                                 env.materials,
                                 env.rng,
+                                &mut env.construction.counters,
                             );
                         }
                     }
@@ -1401,7 +1414,15 @@ impl Agents {
                     let educated = citizens[i].education >= self.rules.education;
                     let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
                     let factor = f32::from_bits(m.message as u32);
-                    sim.create_raw_material(jobs, i, m.a.max(0) as usize, m.b, educated, factor);
+                    sim.create_raw_material(
+                        jobs,
+                        i,
+                        m.a.max(0) as usize,
+                        m.b,
+                        educated,
+                        factor,
+                        m.entity,
+                    );
                     jobs.drain(&mut sim);
                 }
                 Component::CreateNaturalResource => {

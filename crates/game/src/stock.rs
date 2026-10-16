@@ -307,7 +307,7 @@ pub fn find_material_storage(
 /// Port of FUN_1400cb420 (ConsumeRawMaterial, vtable 0x140166050).
 /// Reserved requests bypass the availability check; mutations happen in list order.
 pub fn consume_stored(storage: &mut Storage, items: &[(usize, i32)], reserved: bool) -> bool {
-    // Not ported: manager +0x170 historical consumption counters (current stock uses the ledger).
+    // The stock manager's `+0xc` counts are kept by the caller (`character::World::used`).
     if items.is_empty() {
         return false;
     }

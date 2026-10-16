@@ -501,6 +501,8 @@ impl Sim<'_, '_> {
                     paid += v;
                     gone += 1;
                     *self.trade_value += v;
+                    // `FUN_14008e460`: each one traded away counts as used.
+                    self.count_used(item.material, 1);
                     self.storages[storage].items[k].count -= 1;
                     used -= self.materials[item.material].size;
                 }

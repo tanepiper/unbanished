@@ -539,8 +539,9 @@ impl Sim<'_, '_> {
     /// CreateRawMaterial's start (`FUN_1400cc010`): the output's yield (`+0x40`, or `+0x44`
     /// for an educated worker) in piles of at most the worker's capacity, on the create
     /// point's cell or, once it holds something, the nearest free ground (`FUN_1400a1210`,
-    /// mask 4), each turned `RandTol(2) × 90°`. Not ported: the workplace's TrackerComponent
-    /// and the stock's production counter (`FUN_14008e3c0`), and AutoPickupComponent.
+    /// mask 4), each turned `RandTol(2) × 90°`, each counted made for the workplace
+    /// (`FUN_14008e3c0`, `+0x51` always set). Not ported: AutoPickupComponent.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_raw_material(
         &mut self,
         jobs: &mut Jobs,
@@ -549,6 +550,7 @@ impl Sim<'_, '_> {
         cell: i32,
         educated: bool,
         factor: f32,
+        workplace: Option<usize>,
     ) {
         let (material, yields) = {
             let pt = &self.templates[template];
@@ -573,6 +575,7 @@ impl Sim<'_, '_> {
                 let size = self.size as i32;
                 let yaw = self.rng.rand_tol(2) as f32 * 90.0;
                 self.spawn_pile(template, (at % size, at / size), n, yaw, None);
+                self.count_made(workplace, true, material, n);
             }
             remaining -= n;
         }

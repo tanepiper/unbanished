@@ -125,6 +125,8 @@ pub struct Sim<'s, 't> {
     pub terraform_requests: &'s mut Vec<crate::terraform::Terraform>,
     pub tornadoes: &'s mut BTreeMap<usize, crate::tornado::Tornado>,
     pub tornado_kills: &'s mut Vec<usize>,
+    pub trackers: &'s mut BTreeMap<usize, crate::tracker::Tracker>,
+    pub counters: &'s mut crate::tracker::StockCounters,
     /// Town manager `+0x30` and `+0x1ac`.
     pub trading_posts: &'s mut Vec<usize>,
     pub trade_value: &'s mut i32,
@@ -906,8 +908,18 @@ impl Sim<'_, '_> {
             .unwrap_or(1) as i32
     }
 
-    /// `FUN_14010d4c0`: the building's own storage replaces the material store.
+    /// `FUN_14010d4c0`: the materials built in count as used (`+0xc`); the building's own
+    /// storage replaces the material store.
     fn finish_storage(&mut self, entity: usize) {
+        let site = &self.sites[&entity];
+        let items: Vec<(usize, i32)> = self.storages[site.storage]
+            .items
+            .iter()
+            .map(|i| (i.material, i.count))
+            .collect();
+        for (m, n) in items {
+            self.count_used(m, n);
+        }
         let site = &self.sites[&entity];
         let (w, h) = self.placed[entity].footprint;
         let s = &mut self.storages[site.storage];
@@ -2653,7 +2665,12 @@ impl Sim<'_, '_> {
         }
         let yaw = self.rng.rand_tol(2) as f32 * 90.0;
         let pile = self.spawn_pile(pile_t, cell, amount, yaw, priority);
-        // Not ported: the stock manager's production counter (`FUN_14008e3c0`).
+        // `FUN_14008e3c0`: made, for the citizen's workplace (`+0x248`) when the action's
+        // `+0x30` is set.
+        if let Some(m) = self.templates[pile_t].pile_material {
+            let workplace = self.states[c].workplace;
+            self.count_made(workplace, auto_pickup, m, amount);
+        }
         // `FUN_140045170` once the pile's work is registered ([`Sim::activate_piles`]).
         if auto_pickup {
             if let (Some(wp), Some(p)) = (self.states[c].workplace, self.piles.get_mut(&pile)) {

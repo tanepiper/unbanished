@@ -70,6 +70,8 @@ pub struct GameplayLoop {
     /// The event log (`Game +0x138`) and the stock manager's warning state.
     pub events: banished_game::events::EventLog,
     stock_warnings: banished_game::events::StockWarnings,
+    /// The Town Info graphs' history (StockManager `+0x150`, sampled every 75 s).
+    statistics: banished_game::tracker::Statistics,
     /// The event ribbon (`Dialog/EventNotify.rsc`) and its popups.
     notify: Option<crate::event_notify::EventNotify>,
     /// Screen aspect of the last frame (MapUI's frustum outline).
@@ -125,6 +127,7 @@ impl GameplayLoop {
             highlight: Default::default(),
             events: Default::default(),
             stock_warnings: Default::default(),
+            statistics: Default::default(),
             notify: None,
             aspect: 1.6,
             music: None,
@@ -678,6 +681,31 @@ impl GameplayLoop {
                 .recompute(&town.registered_storages(), &town.materials);
             // The job manager's pass and clock (`FUN_14009b850`, after the stock update).
             town.construction.jobs.step(ticks(dt));
+            // `FUN_14008fc00` every 75 s: the citizens and every stock slot.
+            let life = &town.agents.life;
+            let samples: Vec<banished_game::tracker::CitizenSample> = town
+                .citizens
+                .iter()
+                .zip(&town.agents.states)
+                .filter(|(c, _)| c.alive)
+                .map(|(c, s)| banished_game::tracker::CitizenSample {
+                    adult: life.adult_age() <= c.age,
+                    school: s.school.is_some(),
+                    health: s.health,
+                    happiness: s.happiness,
+                    educated: life.i(0x118) <= c.education,
+                    coat: s.clothing != 0,
+                })
+                .collect();
+            let (health_max, happiness_max) = (life.f(0x70), life.f(0xa4));
+            self.statistics.update(
+                ticks(dt),
+                &samples,
+                health_max,
+                happiness_max,
+                &self.stock_warnings.count,
+                &mut town.construction.counters,
+            );
             let (month, year) = (self.month(), self.calendar.year as i32);
             for kind in self.stock_warnings.check(ticks(dt)) {
                 // AutoSlow is applied once the frame's events are in (`slow_request`).

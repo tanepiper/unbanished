@@ -111,6 +111,8 @@ pub struct World<'a> {
     pub pathfinder: &'a mut Pathfinder,
     pub rng: &'a mut Random,
     pub messages: &'a mut Vec<Message>,
+    /// What ConsumeRawMaterial used up (material, amount), for the stock manager's count.
+    pub used: &'a mut Vec<(usize, i32)>,
     pub storages: &'a mut [Storage],
     pub materials: &'a [RawMaterial],
     pub carried: &'a mut Storage,
@@ -835,6 +837,8 @@ impl Action {
                     &mut world.storages[*storage]
                 };
                 if consume_stored(target, items, *reserved) {
+                    // `FUN_1400cb420`: each item's amount counts as used (`+0xc`).
+                    world.used.extend(items.iter().copied());
                     Status::Done
                 } else {
                     Status::Failed

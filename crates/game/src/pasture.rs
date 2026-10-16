@@ -87,7 +87,9 @@ impl Sim<'_, '_> {
                 }
                 let yaw = self.rng.rand_tol(2) as f32 * 90.0;
                 let pile = self.spawn_pile(product, (cell % n, cell / n), amount, yaw, None);
-                // Not ported: the tracker and the stock manager's production counter.
+                // The pasture's tracker and the stock manager's count (`FUN_140059930`,
+                // `FUN_14008e460`).
+                self.count_made(Some(e), true, material, amount);
                 let auto = self
                     .sites
                     .get(&e)
