@@ -374,14 +374,8 @@ impl People<'_, '_> {
 
     /// The path-rank distance (`FUN_140008830`).
     fn rank(&mut self, a: i32, b: i32) -> i32 {
-        let (size, terrain) = (self.town.size, self.terrain);
-        let ground = move |cell: i32| {
-            let n = size as i32;
-            let h = (n >> 1) as f32 - 0.5;
-            let (x, y) = ((cell % n) as f32 - h, (cell / n) as f32 - h);
-            let mut normal = [0.0; 3];
-            [x, y, terrain.ground(x, y, &mut normal)]
-        };
+        let (size, terrain, floors) = (self.town.size, self.terrain, self.town.floors);
+        let ground = move |cell: i32| crate::town::floor_ground(floors, size, terrain, cell);
         let mut g = crate::activities::StorageGeometry {
             town: self.town,
             sectors: self.sectors,

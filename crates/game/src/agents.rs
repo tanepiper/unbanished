@@ -555,11 +555,13 @@ impl Agents {
                 regions: sim.regions,
                 occupants: &sim.cells.occupants,
                 objects: &sim.cells.objects,
+                floors: &sim.cells.floors,
                 entities: sim.entities,
                 happiness: sim.happiness,
             };
             let (size, terrain) = (sim.size, sim.terrain);
-            let ground = move |c: i32| cell_ground(size, terrain, c);
+            let floors = &sim.cells.floors;
+            let ground = move |c: i32| crate::town::floor_ground(floors, size, terrain, c);
             let mut geometry = StorageGeometry {
                 town: &town,
                 sectors: sim.sectors,
@@ -776,11 +778,13 @@ impl Agents {
                     regions: &self.regions,
                     occupants: &env.cells.occupants,
                     objects: &env.cells.objects,
+                    floors: &env.cells.floors,
                     entities: &entities,
                     happiness: &env.construction.happiness,
                 };
                 let (size, terrain, sites, materials) =
                     (env.cells.size, env.terrain, env.sites, env.materials);
+                let floors = &env.cells.floors;
                 let sectors = &mut self.sectors;
                 let mut search = |storages: &[Storage],
                                   rng: &mut Random,
@@ -788,7 +792,8 @@ impl Agents {
                                   n: i32,
                                   cell: i32|
                  -> Option<(usize, [f32; 3])> {
-                    let ground = move |cell: i32| crate::town::cell_ground(size, terrain, cell);
+                    let ground =
+                        move |cell: i32| crate::town::floor_ground(floors, size, terrain, cell);
                     let mut geometry = crate::activities::StorageGeometry {
                         town: &town,
                         sectors: &mut *sectors,
@@ -1144,6 +1149,7 @@ impl Agents {
             regions: &self.regions,
             occupants: &env.cells.occupants,
             objects: &env.cells.objects,
+            floors: &env.cells.floors,
             entities: &[],
             happiness: &[],
         };
@@ -1166,7 +1172,7 @@ impl Agents {
         if self.states[i].tool_uses < 1 {
             duration = ticks(crate::scheduler::seconds(duration) * self.rules.no_tool_factor);
         }
-        let target = cell_ground(env.cells.size, env.terrain, nb);
+        let target = crate::town::floor_ground(&env.cells.floors, env.cells.size, env.terrain, nb);
         let walk = MoveTo::new(target, 1, 0, WALKABLE, 0, -1.0, env.rng);
         let ch = &mut self.characters[i];
         let mut stack = std::mem::take(&mut ch.stack);
@@ -1271,6 +1277,7 @@ impl Agents {
             regions: &self.regions,
             occupants: &env.cells.occupants,
             objects: &env.cells.objects,
+            floors: &env.cells.floors,
             entities,
             happiness: &happiness,
         };
@@ -1336,6 +1343,7 @@ impl Agents {
             regions: &self.regions,
             occupants: &env.cells.occupants,
             objects: &env.cells.objects,
+            floors: &env.cells.floors,
             entities,
             happiness: &happiness,
         };
@@ -1394,7 +1402,9 @@ impl Agents {
         if profession != laborer && !k.professions.list.is_empty() {
             let ground_size = env.cells.size;
             let terrain = env.terrain;
-            let ground = move |cell: i32| cell_ground(ground_size, terrain, cell);
+            let floors = &env.cells.floors;
+            let ground =
+                move |cell: i32| crate::town::floor_ground(floors, ground_size, terrain, cell);
             let mut geometry = StorageGeometry {
                 town: &town,
                 sectors: &mut self.sectors,
@@ -1714,6 +1724,7 @@ impl Agents {
                         regions: &self.regions,
                         occupants: &env.cells.occupants,
                         objects: &env.cells.objects,
+                        floors: &env.cells.floors,
                         entities,
                         happiness: &env.construction.happiness,
                     };
@@ -1750,6 +1761,7 @@ impl Agents {
                         regions: &self.regions,
                         occupants: &env.cells.occupants,
                         objects: &env.cells.objects,
+                        floors: &env.cells.floors,
                         entities,
                         happiness: &env.construction.happiness,
                     };
@@ -1831,6 +1843,7 @@ impl Agents {
                         regions: &self.regions,
                         occupants: &env.cells.occupants,
                         objects: &env.cells.objects,
+                        floors: &env.cells.floors,
                         entities,
                         happiness: &env.construction.happiness,
                     };
@@ -1904,7 +1917,7 @@ fn run(
             }
             let cell = town.cell_of(ch.position);
             let home = state.home.map_or(-1, |h| town.entrance(h, rng));
-            let ground = |c| cell_ground(size, terrain, c);
+            let ground = |c| crate::town::floor_ground(town.floors, size, terrain, c);
             let mut geometry = StorageGeometry {
                 town,
                 sectors,
@@ -1972,7 +1985,12 @@ fn run(
                 e.position
             } else {
                 e.rect.map_or(e.position, |(x, y, w, h)| {
-                    cell_ground(size, terrain, (y + (h >> 1)) * size as i32 + x + (w >> 1))
+                    crate::town::floor_ground(
+                        town.floors,
+                        size,
+                        terrain,
+                        (y + (h >> 1)) * size as i32 + x + (w >> 1),
+                    )
                 })
             };
             let facing = crate::character::work_facing(centre, found.target);
@@ -2001,14 +2019,14 @@ fn run(
 
         activity::IDLE => {
             let cell = town.cell_of(ch.position);
+            let floors = town.floors;
             let ground = |c: i32| {
                 let n = size as i32;
                 let h = (n >> 1) as f32 - 0.5;
                 let (x, y) = ((c % n) as f32 - h, (c / n) as f32 - h);
-                let mut normal = [0.0; 3];
-                [x, y, terrain.ground(x, y, &mut normal)]
+                [x, y, floors.ground(size, terrain, x, y)]
             };
-            let ground_cell = move |c: i32| cell_ground(size, terrain, c);
+            let ground_cell = move |c: i32| crate::town::floor_ground(floors, size, terrain, c);
             let mut geometry = StorageGeometry {
                 town,
                 sectors,
@@ -2145,13 +2163,4 @@ fn storage_of(env: &Env, entity: usize) -> Option<usize> {
                 .find(|s| s.entity == entity)
                 .map(|s| s.storage)
         })
-}
-
-/// FUN_1400a48b0 without bridge picking (same ground query as MoveTo).
-fn cell_ground(size: usize, terrain: &HeightGrid, cell: i32) -> [f32; 3] {
-    let n = size as i32;
-    let h = (n >> 1) as f32 - 0.5;
-    let (x, y) = ((cell % n) as f32 - h, (cell / n) as f32 - h);
-    let mut normal = [0.0; 3];
-    [x, y, terrain.ground(x, y, &mut normal)]
 }

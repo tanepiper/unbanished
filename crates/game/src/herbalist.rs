@@ -12,7 +12,7 @@ use std::collections::BTreeSet;
 
 use crate::jobs::{Work, WorkKind};
 use crate::pathfind::nearest_neighbour;
-use crate::town::{cell_ground, Sim};
+use crate::town::Sim;
 
 /// The work's state: `+0x48` the workers (a set; `+0x50` its size), `+0x58` misses in a row.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -163,7 +163,7 @@ impl Sim<'_, '_> {
             }
         }
         if let Some((o, nb)) = hit {
-            let point = cell_ground(self.size, self.terrain, nb);
+            let point = self.ground_at(nb);
             self.removal_sequence(c, work, o, point, true);
             self.took_job(c, work);
             if let WorkKind::Herbalist(h) = &mut work.kind {
@@ -201,6 +201,7 @@ impl Sim<'_, '_> {
             regions: self.regions,
             occupants: &self.cells.occupants,
             objects: &self.cells.objects,
+            floors: &self.cells.floors,
             entities: self.entities,
             happiness: self.happiness,
         };

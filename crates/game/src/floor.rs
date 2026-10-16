@@ -4,9 +4,10 @@
 //! (`FUN_140124770` → `FUN_1400a2070`) it takes both back. `FUN_1400a48b0` (the ground under a
 //! point) stands on the floor where a cell has one and the floor is above the terrain.
 //!
-//! Deviation: only the citizens' walking height (`character::World`) asks the floors; the
-//! other ground queries (`town::cell_ground` and friends: piles, work points) stay on the
-//! terrain, so goods dropped on a bridge lie on the river bed.
+//! The town's ground queries ask the floors as the original's (`town::floor_ground`, nearly
+//! every caller passing `param_4` 0): the citizens' walking height, piles, storage drop points,
+//! work points and needs. Deviation: wildlife, the tornado, boats' routes and the start's
+//! seeding stay on the terrain (no floor lies under them in practice).
 
 use std::collections::BTreeMap;
 
@@ -120,5 +121,39 @@ impl Floors {
             Some(d) if ground < RAY_TOP - d => RAY_TOP - d,
             _ => ground,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A deck 3 above flat terrain over one cell: that cell's ground is the deck, its
+    /// neighbour's the terrain, and a floor below the terrain is ignored.
+    #[test]
+    fn the_ground_stands_on_a_floor_above_the_terrain() {
+        let size = 8;
+        let heights = vec![0i16; (size + 1) * (size + 1)];
+        let terrain = HeightGrid {
+            width: size + 1,
+            heights: &heights,
+        };
+        let mut floors = Floors::new(size * size);
+        // Cell (4, 4) spans −0..1 around the map centre: x, y in [0, 1].
+        let deck = |z: f32| Floor {
+            rect: (4, 4, 1, 1),
+            triangles: vec![
+                [[0.0, 0.0, z], [1.0, 0.0, z], [1.0, 1.0, z]],
+                [[0.0, 0.0, z], [1.0, 1.0, z], [0.0, 1.0, z]],
+            ],
+        };
+        floors.add(size, 0, deck(3.0));
+        let on = crate::town::floor_ground(&floors, size, &terrain, 4 * 8 + 4);
+        let off = crate::town::floor_ground(&floors, size, &terrain, 4 * 8 + 3);
+        assert!((on[2] - 3.0).abs() < 1e-4, "{on:?}");
+        assert!(off[2].abs() < 1e-4, "{off:?}");
+        floors.add(size, 0, deck(-3.0));
+        let below = crate::town::floor_ground(&floors, size, &terrain, 4 * 8 + 4);
+        assert!(below[2].abs() < 1e-4, "{below:?}");
     }
 }

@@ -426,7 +426,7 @@ impl Wild<'_, '_> {
     }
 
     fn ground(&self, cell: i32) -> [f32; 3] {
-        crate::town::cell_ground(self.cells.size, self.terrain, cell)
+        crate::town::floor_ground(&self.cells.floors, self.cells.size, self.terrain, cell)
     }
 
     /// `FUN_1400c8bf0` + `FUN_1400c9d70` for an entity without a map footprint: a placed

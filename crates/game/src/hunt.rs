@@ -11,7 +11,7 @@ use crate::herbalist::HerbalistWork;
 use crate::jobs::{Work, WorkKind};
 use crate::pathfind::WALKABLE;
 use crate::scheduler::{seconds, ticks};
-use crate::town::{cell_ground, Sim};
+use crate::town::Sim;
 
 impl Sim<'_, '_> {
     /// Slot `+0x90` (`FUN_140127b70`).
@@ -105,7 +105,7 @@ impl Sim<'_, '_> {
             && self.geometry_rank(entrance, cell) <= radius * 2
             && self.cells.objects[cell as usize].is_none()
             && self.reachable(cell, from);
-        let point = walk.then(|| cell_ground(self.size, self.terrain, cell));
+        let point = walk.then(|| self.ground_at(cell));
         self.hunt_sequence(c, work, e, point);
         self.took_job(c, work);
         if let WorkKind::Hunt(h) = &mut work.kind {

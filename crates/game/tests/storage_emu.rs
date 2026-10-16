@@ -205,6 +205,7 @@ fn original_storage_geometry_and_random() {
             regions: &region,
             occupants: &empty,
             objects: &empty,
+            floors: &banished_game::floor::Floors::default(),
             entities: &entities,
             happiness: &[],
         };

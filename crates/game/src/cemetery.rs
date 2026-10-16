@@ -7,7 +7,7 @@
 
 use crate::scheduler::ticks;
 use crate::terrain::CellType;
-use crate::town::{cell_ground, Sim};
+use crate::town::Sim;
 
 /// `DAT_140178934`.
 const PERIOD: f32 = 300.0;
@@ -109,7 +109,7 @@ impl Sim<'_, '_> {
                 bucket: template.bucket,
                 cell: (cell % n, cell / n),
                 footprint: (1, 1),
-                position: cell_ground(self.size, self.terrain, cell),
+                position: self.ground_at(cell),
                 yaw: yaw as f32,
                 variant,
                 mesh,

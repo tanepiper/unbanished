@@ -12,7 +12,7 @@ use crate::jobs::{Work, WorkKind};
 use crate::pathfind::{nearest_neighbour, WALKABLE};
 use crate::scheduler::ticks;
 use crate::seeding::Seeder;
-use crate::town::{cell_ground, Sim};
+use crate::town::Sim;
 
 /// A resolved ForesterDescription.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -145,7 +145,7 @@ impl Sim<'_, '_> {
                 if !admits || !self.seeder().density_ok(desc.tree, x, y) {
                     continue;
                 }
-                let point = cell_ground(self.size, self.terrain, cell);
+                let point = self.ground_at(cell);
                 self.plant_sequence(c, work, desc.tree, point, cell, None, None, 0);
                 return self.forester_took(work, c);
             }
@@ -178,7 +178,7 @@ impl Sim<'_, '_> {
             if !self.reachable(nb, from) {
                 continue;
             }
-            let point = cell_ground(self.size, self.terrain, nb);
+            let point = self.ground_at(nb);
             self.removal_sequence(c, work, o, point, true);
             return self.forester_took(work, c);
         }

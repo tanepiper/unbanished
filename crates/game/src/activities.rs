@@ -123,6 +123,8 @@ pub struct TownView<'a> {
     /// `+0x00` occupant and `+0x08` object per cell.
     pub occupants: &'a [Option<usize>],
     pub objects: &'a [Option<usize>],
+    /// The bridges' floors (`+0x2d` and the floor scene), for the ground under a point.
+    pub floors: &'a crate::floor::Floors,
     pub entities: &'a [EntityView],
     /// The town manager's HappinessComponent registry (`Game +0xf0`, `+0x50`).
     pub happiness: &'a [usize],

@@ -10,7 +10,7 @@ use crate::farm::AreaWork;
 use crate::jobs::{Jobs, Work, WorkKind};
 use crate::pathfind::{nearest_neighbour, WALKABLE};
 use crate::scheduler::{seconds, ticks};
-use crate::town::{cell_ground, Sim};
+use crate::town::Sim;
 
 /// OrchardDescription (`FUN_140052c60`, versioned): tree spacing `+0x24` / `+0x28`, a tending
 /// visit's ripening `+0x2c` (share of the ripening time), the stock slot `+0x20` (version 1).
@@ -545,7 +545,7 @@ impl Sim<'_, '_> {
                 continue;
             }
             let Some(tree) = pa.crop else { return 1 };
-            let point = cell_ground(self.size, self.terrain, nb);
+            let point = self.ground_at(nb);
             let message = Message {
                 component: Component::Orchard,
                 message: 0,
@@ -628,8 +628,8 @@ impl Sim<'_, '_> {
         if !self.reachable(from, nb) {
             return 0;
         }
-        let at = cell_ground(self.size, self.terrain, cell);
-        let stand = cell_ground(self.size, self.terrain, nb);
+        let at = self.ground_at(cell);
+        let stand = self.ground_at(nb);
         let message = Message {
             component: Component::Orchard,
             message: 2,
@@ -697,7 +697,7 @@ impl Sim<'_, '_> {
                 .fruit
                 .unwrap_or_default();
             let amount = self.fruits.get(&tree).map_or(0.0, |f| f.ripeness);
-            let point = cell_ground(self.size, self.terrain, nb);
+            let point = self.ground_at(nb);
             self.pick_sequence(c, work, e, point, fd.pile, i % 2 == 0, amount, nb, i as i32);
             self.took_job(c, work);
             if let WorkKind::PickFruit(pf) = &mut work.kind {

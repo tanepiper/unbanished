@@ -10,7 +10,7 @@
 use std::collections::BTreeMap;
 
 use crate::jobs::{Work, WorkKind};
-use crate::town::{cell_ground, Haul, Sim};
+use crate::town::{Haul, Sim};
 
 /// MarketWork `+0x48`: each vendor's plan (material, count) on its way to the market; empty
 /// for a vendor carrying goods away.
@@ -286,7 +286,7 @@ impl Sim<'_, '_> {
         // The storage's drop point nearest the vendor (`FUN_140132aa0`).
         let source = self
             .storage_point(src_entity, here)
-            .unwrap_or_else(|| cell_ground(self.size, self.terrain, self.rect_cell(src_entity)));
+            .unwrap_or_else(|| self.ground_at(self.rect_cell(src_entity)));
         let mut plan = Vec::new();
         for (m, _, avail, i) in cands {
             let size = self.materials[m].size.max(1);

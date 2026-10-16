@@ -11,7 +11,7 @@ use crate::character::{Action, MoveTo};
 use crate::jobs::{Jobs, Work, WorkKind};
 use crate::pathfind::WALKABLE;
 use crate::terrain::CellType;
-use crate::town::{cell_ground, Sim};
+use crate::town::Sim;
 
 /// `0x2000`: BuildRoad's registration mask (category 13, construction).
 const MASK: u32 = 0x2000;
@@ -181,7 +181,7 @@ impl Sim<'_, '_> {
                 if !self.reachable(nb, here) {
                     return 1;
                 }
-                let point = cell_ground(self.size, self.terrain, nb);
+                let point = self.ground_at(nb);
                 self.removal_sequence(c, work, o, point, false);
                 self.took_job(c, work);
                 if let WorkKind::Road(r) = &mut work.kind {
@@ -191,7 +191,7 @@ impl Sim<'_, '_> {
             }
             return 1;
         }
-        let target = cell_ground(self.size, self.terrain, cell);
+        let target = self.ground_at(cell);
         match material {
             None => self.road_sequence(c, work, target, cell, ty, None, None),
             Some(m) => {

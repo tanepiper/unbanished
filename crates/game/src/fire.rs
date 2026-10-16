@@ -14,7 +14,7 @@ use crate::character::{work_facing, Action, Component, Message, MoveTo};
 use crate::jobs::{Jobs, Work, WorkKind};
 use crate::scheduler::{seconds, ticks};
 use crate::seeding::Cells;
-use crate::town::{cell_ground, Sim};
+use crate::town::Sim;
 
 /// `DAT_140178934`.
 const PERIOD: f32 = 300.0;
@@ -396,17 +396,14 @@ impl Sim<'_, '_> {
         let v = found?;
         if 0 <= v {
             let (a, w) = self.water.points[v as usize];
-            return Some((
-                cell_ground(self.size, self.terrain, a),
-                cell_ground(self.size, self.terrain, w),
-            ));
+            return Some((self.ground_at(a), self.ground_at(w)));
         }
         let well = self.water.wells[(-1 - v) as usize]?;
         let count = self.templates[self.placed[well].template].use_points.len();
         let k = self.rng.rand_below(count as u32) as usize;
         let point = self.use_point(well, k).0;
         let entrance = self.entrance_cell(well);
-        Some((point, cell_ground(self.size, self.terrain, entrance)))
+        Some((point, self.ground_at(entrance)))
     }
 
     /// `FUN_14008dc00`: the block's sources nearer than the best so far.

@@ -12,7 +12,7 @@ use banished_formats::game::CharacterDescription;
 use crate::character::{Action, Character, MoveTo};
 use crate::construction::Callbacks;
 use crate::scheduler::ticks;
-use crate::town::{cell_ground, Sim};
+use crate::town::Sim;
 
 /// `DAT_140178934`.
 const PERIOD: f32 = 300.0;
@@ -247,7 +247,7 @@ impl Sim<'_, '_> {
             let cell = self.edge(&d, x, y, target).unwrap_or(start);
             let k = self.rng.rand_below(points as u32) as usize;
             let dest = self.create_point(e, k);
-            let ground = cell_ground(self.size, self.terrain, cell);
+            let ground = self.ground_at(cell);
             if let Some(id) = self.add_nomad(d.nomad, e, ground, dest) {
                 if let Some(i) = self.immigration(e) {
                     i.nomads.push(id);
@@ -415,7 +415,7 @@ impl Sim<'_, '_> {
         let k = self.rng.rand_below(cells.len() as u32) as usize;
         let dy = self.rng.rand_float_tol() * 0.33;
         let dx = self.rng.rand_float_tol() * 0.33;
-        let g = cell_ground(self.size, self.terrain, cells[k]);
+        let g = self.ground_at(cells[k]);
         self.nomad_walk(id, [g[0] + dx, g[1] + dy, g[2]]);
     }
 

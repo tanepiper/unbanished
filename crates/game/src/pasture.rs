@@ -13,7 +13,7 @@ use crate::jobs::{Jobs, Work, WorkKind, NESTED};
 use crate::pathfind::{nearest_neighbour, WALKABLE};
 use crate::scheduler::EntityScheduler;
 use crate::terrain::CellType;
-use crate::town::{cell_ground, Sim};
+use crate::town::Sim;
 use crate::wildlife::{Wild, HUNTED};
 
 impl Sim<'_, '_> {
@@ -336,7 +336,7 @@ impl Sim<'_, '_> {
             if !self.reachable(nb, here) {
                 return 1;
             }
-            let point = cell_ground(self.size, self.terrain, nb);
+            let point = self.ground_at(nb);
             self.cull_sequence(c, work, a, point, at);
             self.took_job(c, work);
             return 2;
@@ -376,8 +376,8 @@ impl Sim<'_, '_> {
         if !self.reachable(here, nb) {
             return 0;
         }
-        let at = cell_ground(self.size, self.terrain, cell);
-        let stand = cell_ground(self.size, self.terrain, nb);
+        let at = self.ground_at(cell);
+        let stand = self.ground_at(nb);
         let message = Message {
             component: Component::Pasture,
             message: 0,

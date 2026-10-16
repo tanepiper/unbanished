@@ -227,7 +227,7 @@ pub fn animating(placed: &[Placed], templates: &[Template]) -> Vec<bool> {
         .collect()
 }
 
-/// FUN_1400a48b0 without bridge picking.
+/// `FUN_1400a48b0` at a cell's centre, on the terrain only (the floors skipped: `param_4` 1).
 pub fn cell_ground(size: usize, terrain: &HeightGrid, cell: i32) -> [f32; 3] {
     let n = size as i32;
     let h = (n >> 1) as f32 - 0.5;
@@ -236,7 +236,26 @@ pub fn cell_ground(size: usize, terrain: &HeightGrid, cell: i32) -> [f32; 3] {
     [x, y, terrain.ground(x, y, &mut normal)]
 }
 
+/// `FUN_1400a48b0` at a cell's centre (`param_4` 0, as nearly every caller passes): on a
+/// bridge's floor where one covers the cell above the terrain.
+pub fn floor_ground(
+    floors: &crate::floor::Floors,
+    size: usize,
+    terrain: &HeightGrid,
+    cell: i32,
+) -> [f32; 3] {
+    let n = size as i32;
+    let h = (n >> 1) as f32 - 0.5;
+    let (x, y) = ((cell % n) as f32 - h, (cell / n) as f32 - h);
+    [x, y, floors.ground(size, terrain, x, y)]
+}
+
 impl Sim<'_, '_> {
+    /// [`floor_ground`] on this map.
+    pub(crate) fn ground_at(&self, cell: i32) -> [f32; 3] {
+        floor_ground(&self.cells.floors, self.size, self.terrain, cell)
+    }
+
     pub(crate) fn cell_of(&self, p: [f32; 3]) -> i32 {
         let n = self.size as i32;
         let half = (n >> 1) as f32;
@@ -269,6 +288,7 @@ impl Sim<'_, '_> {
             regions: self.regions,
             occupants: &self.cells.occupants,
             objects: &self.cells.objects,
+            floors: &self.cells.floors,
             entities: self.entities,
             happiness: self.happiness,
         }
@@ -300,6 +320,7 @@ impl Sim<'_, '_> {
             regions: self.regions,
             occupants: &self.cells.occupants,
             objects: &self.cells.objects,
+            floors: &self.cells.floors,
             entities: self.entities,
             happiness: self.happiness,
         };
@@ -341,11 +362,13 @@ impl Sim<'_, '_> {
             regions: self.regions,
             occupants: &self.cells.occupants,
             objects: &self.cells.objects,
+            floors: &self.cells.floors,
             entities: self.entities,
             happiness: self.happiness,
         };
         let (size, terrain) = (self.size, self.terrain);
-        let ground = move |c: i32| cell_ground(size, terrain, c);
+        let floors = &self.cells.floors;
+        let ground = move |c: i32| crate::town::floor_ground(floors, size, terrain, c);
         let mut geometry = StorageGeometry {
             town: &town,
             sectors: self.sectors,
@@ -447,7 +470,7 @@ impl Sim<'_, '_> {
             let n = self.size as i32;
             let (x, y) = p.cell;
             let (w, h) = p.footprint;
-            cell_ground(self.size, self.terrain, (y + (h >> 1)) * n + x + (w >> 1))
+            self.ground_at((y + (h >> 1)) * n + x + (w >> 1))
         }
     }
 
@@ -2270,11 +2293,14 @@ impl Sim<'_, '_> {
                     regions: self.regions,
                     occupants: &self.cells.occupants,
                     objects: &self.cells.objects,
+                    floors: &self.cells.floors,
                     entities: self.entities,
                     happiness: self.happiness,
                 };
                 let (size, terrain) = (self.size, self.terrain);
-                let ground = move |cell: i32| cell_ground(size, terrain, cell);
+                let floors = &self.cells.floors;
+                let ground =
+                    move |cell: i32| crate::town::floor_ground(floors, size, terrain, cell);
                 let mut geometry = StorageGeometry {
                     town: &town,
                     sectors: self.sectors,
@@ -2596,7 +2622,7 @@ impl Sim<'_, '_> {
                 if self.claimed.contains(&o) {
                     continue;
                 }
-                let point = cell_ground(self.size, self.terrain, nb);
+                let point = self.ground_at(nb);
                 self.removal_sequence(c, work, o, point, false);
                 self.took_job(c, work);
                 if let WorkKind::Clear(cl) = &mut work.kind {
@@ -2618,7 +2644,7 @@ impl Sim<'_, '_> {
                 if cl.cells.contains_key(&cell) || !self.reachable(cell, from) {
                     continue;
                 }
-                let target = cell_ground(self.size, self.terrain, cell);
+                let target = self.ground_at(cell);
                 self.road_clear_sequence(c, work, target, cell);
                 self.took_job(c, work);
                 if let WorkKind::Clear(cl) = &mut work.kind {
@@ -2861,7 +2887,7 @@ impl Sim<'_, '_> {
             bucket: pt.bucket,
             cell,
             footprint: (1, 1),
-            position: cell_ground(self.size, self.terrain, index),
+            position: self.ground_at(index),
             yaw: yaw as f32,
             variant,
             mesh,
@@ -3091,7 +3117,7 @@ impl Sim<'_, '_> {
                 continue;
             }
             free -= w;
-            let point = cell_ground(self.size, self.terrain, nb2);
+            let point = self.ground_at(nb2);
             self.pickup_sequence(
                 c,
                 if first { Some(&mut *work) } else { None },
@@ -3127,11 +3153,13 @@ impl Sim<'_, '_> {
             regions: self.regions,
             occupants: &self.cells.occupants,
             objects: &self.cells.objects,
+            floors: &self.cells.floors,
             entities: self.entities,
             happiness: self.happiness,
         };
         let (size, terrain) = (self.size, self.terrain);
-        let ground = move |cell: i32| cell_ground(size, terrain, cell);
+        let floors = &self.cells.floors;
+        let ground = move |cell: i32| crate::town::floor_ground(floors, size, terrain, cell);
         let mut geometry = StorageGeometry {
             town: &town,
             sectors: self.sectors,
@@ -3166,11 +3194,13 @@ impl Sim<'_, '_> {
             regions: self.regions,
             occupants: &self.cells.occupants,
             objects: &self.cells.objects,
+            floors: &self.cells.floors,
             entities: self.entities,
             happiness: self.happiness,
         };
         let (size, terrain) = (self.size, self.terrain);
-        let ground = move |cell: i32| cell_ground(size, terrain, cell);
+        let floors = &self.cells.floors;
+        let ground = move |cell: i32| crate::town::floor_ground(floors, size, terrain, cell);
         let mut geometry = StorageGeometry {
             town: &town,
             sectors: self.sectors,

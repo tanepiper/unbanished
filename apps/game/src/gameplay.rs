@@ -811,23 +811,6 @@ impl GameplayLoop {
                     .flatten()
             })
             .map(Entity::Placed);
-        // Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain
-        // lookup from the same rectangles until registration supplies the original cell pointer.
-        let fallback = fallback.or_else(|| {
-            cell.and_then(|(x, y)| {
-                town.placed
-                    .iter()
-                    .position(|p| {
-                        p.alive
-                            && town.templates[p.template].storage.is_some()
-                            && x >= p.cell.0
-                            && y >= p.cell.1
-                            && x < p.cell.0 + p.footprint.0
-                            && y < p.cell.1 + p.footprint.1
-                    })
-                    .map(Entity::Placed)
-            })
-        });
         let picked = self.selection.cast(
             ctx.archive,
             town,
@@ -3644,6 +3627,38 @@ mod tests {
             assert!(ctx.ui.node(housing).usable());
             assert!(!ctx.ui.node(food).usable());
         });
+    }
+
+    /// The start structures stamp the map's object (`+8`, `FUN_1400a30f0`) on their
+    /// footprint, so picking finds the storage yard through its cells.
+    #[test]
+    fn start_structures_stamp_their_cells() {
+        let Some((_, gameplay)) = generated() else {
+            return;
+        };
+        let town = gameplay.town.as_ref().unwrap();
+        let n = town.cells.size;
+        let mut checked = 0;
+        for (e, p) in town.placed.iter().enumerate() {
+            if !p.alive || town.templates[p.template].storage.is_none() {
+                continue;
+            }
+            let cells: Vec<_> = (p.cell.1..p.cell.1 + p.footprint.1)
+                .flat_map(|y| (p.cell.0..p.cell.0 + p.footprint.0).map(move |x| (x, y)))
+                .collect();
+            let stamped = cells
+                .iter()
+                .filter(|&&(x, y)| town.cells.objects[y as usize * n + x as usize] == Some(e))
+                .count();
+            eprintln!(
+                "{} {stamped}/{}",
+                town.templates[p.template].reference,
+                cells.len()
+            );
+            assert!(stamped > 0, "{}", town.templates[p.template].reference);
+            checked += 1;
+        }
+        assert!(checked > 0);
     }
 
     /// Planned road cells get the roads' tiled decals (`FUN_1400b4840`): one per tile and

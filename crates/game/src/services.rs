@@ -169,6 +169,7 @@ impl Sim<'_, '_> {
                 regions: self.regions,
                 occupants: &self.cells.occupants,
                 objects: &self.cells.objects,
+                floors: &self.cells.floors,
                 entities: self.entities,
                 happiness: self.happiness,
             };
@@ -187,13 +188,15 @@ impl Sim<'_, '_> {
     /// The path-rank distance (`FUN_1400a4ce0`, else map width plus the straight distance).
     pub(crate) fn geometry_rank(&mut self, a: i32, b: i32) -> i32 {
         let (size, terrain) = (self.size, self.terrain);
-        let ground = move |c: i32| crate::town::cell_ground(size, terrain, c);
+        let floors = &self.cells.floors;
+        let ground = move |c: i32| crate::town::floor_ground(floors, size, terrain, c);
         let town = crate::activities::TownView {
             size: self.size,
             types: &self.cells.types,
             regions: self.regions,
             occupants: &self.cells.occupants,
             objects: &self.cells.objects,
+            floors: &self.cells.floors,
             entities: self.entities,
             happiness: self.happiness,
         };

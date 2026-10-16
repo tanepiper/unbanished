@@ -13,7 +13,7 @@ use crate::construction::Callbacks;
 use crate::jobs::{Work, WorkKind};
 use crate::pathfind::{nearest_neighbour, WALKABLE};
 use crate::scheduler::{seconds, ticks};
-use crate::town::{cell_ground, Sim};
+use crate::town::Sim;
 
 /// `DAT_1401788d4`: the warmth planting and the autumn harvest need (°F).
 const WARM: f32 = 33.0;
@@ -439,7 +439,7 @@ impl Sim<'_, '_> {
                 continue;
             }
             let crop = pa.crop;
-            let point = cell_ground(self.size, self.terrain, nb);
+            let point = self.ground_at(nb);
             let param = (if pair { j } else { count }) << 16 | i;
             let cells: Vec<(i32, i32)> = if pair {
                 vec![(cell_i, i), (cell_j, j)]
@@ -558,8 +558,8 @@ impl Sim<'_, '_> {
         if !self.reachable(from, nb) {
             return 0;
         }
-        let at = cell_ground(self.size, self.terrain, cell);
-        let stand = cell_ground(self.size, self.terrain, nb);
+        let at = self.ground_at(cell);
+        let stand = self.ground_at(nb);
         let message = Message {
             component: Component::CropField,
             message: 1,
@@ -668,7 +668,7 @@ impl Sim<'_, '_> {
                 pair = false;
             }
             let high = if pair { j } else { count };
-            let point = cell_ground(self.size, self.terrain, nb);
+            let point = self.ground_at(nb);
             let mut crops = vec![first];
             if pair {
                 crops.extend(second);

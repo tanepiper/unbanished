@@ -587,7 +587,7 @@ impl Sim<'_, '_> {
                     break;
                 }
                 let i = cell as usize;
-                let ground = crate::town::cell_ground(self.size, self.terrain, cell);
+                let ground = self.ground_at(cell);
                 if self.cells.occupants[i].is_none()
                     && self.cells.types[i].0 == 2
                     && 0.0 <= ground[2]

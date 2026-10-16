@@ -58,14 +58,6 @@ pub struct Who<'a> {
     pub group: &'a AnimationGroup,
 }
 
-fn ground(size: usize, terrain: &HeightGrid, cell: i32) -> [f32; 3] {
-    let n = size as i32;
-    let h = (n >> 1) as f32 - 0.5;
-    let (x, y) = ((cell % n) as f32 - h, (cell / n) as f32 - h);
-    let mut normal = [0.0; 3];
-    [x, y, terrain.ground(x, y, &mut normal)]
-}
-
 impl Needs<'_, '_> {
     /// `Interact::PointPosition(entity, 0)`: the first use point, else the rectangle centre.
     fn point(&self, entity: usize) -> [f32; 3] {
@@ -73,7 +65,12 @@ impl Needs<'_, '_> {
         if let Some(p) = e.use_points.first() {
             return *p;
         }
-        ground(self.size, self.terrain, self.town.point_cell(entity))
+        crate::town::floor_ground(
+            self.town.floors,
+            self.size,
+            self.terrain,
+            self.town.point_cell(entity),
+        )
     }
 
     /// `FUN_1400c7e70`'s source: the model position, else the rectangle centre.
@@ -82,7 +79,12 @@ impl Needs<'_, '_> {
         if e.has_model {
             e.position
         } else {
-            ground(self.size, self.terrain, self.town.point_cell(entity))
+            crate::town::floor_ground(
+                self.town.floors,
+                self.size,
+                self.terrain,
+                self.town.point_cell(entity),
+            )
         }
     }
 
@@ -117,7 +119,8 @@ impl Needs<'_, '_> {
     ) -> Option<(usize, [f32; 3])> {
         let home_cell = home.map_or(-1, |h| self.town.entrance(h, self.rng));
         let (size, terrain) = (self.size, self.terrain);
-        let ground = move |c: i32| ground(size, terrain, c);
+        let floors = self.town.floors;
+        let ground = move |c: i32| crate::town::floor_ground(floors, size, terrain, c);
         let mut geometry = StorageGeometry {
             town: self.town,
             sectors: self.sectors,
@@ -144,7 +147,8 @@ impl Needs<'_, '_> {
         let mut best = i32::MAX;
         let mut found = None;
         let (size, terrain) = (self.size, self.terrain);
-        let ground_at = move |c: i32| ground(size, terrain, c);
+        let floors = self.town.floors;
+        let ground_at = move |c: i32| crate::town::floor_ground(floors, size, terrain, c);
         if let Some(h) = home {
             let entrance = self.town.entrance(h, self.rng);
             if entrance >= 0 && self.town.reachable(WALKABLE, cell, entrance) {
@@ -288,7 +292,8 @@ impl Needs<'_, '_> {
         if self.life.f(0xec) < who.state.cold {
             // `FUN_140094140`: path rank to each registered residence's point 0.
             let (size, terrain) = (self.size, self.terrain);
-            let ground_at = move |c: i32| ground(size, terrain, c);
+            let floors = self.town.floors;
+            let ground_at = move |c: i32| crate::town::floor_ground(floors, size, terrain, c);
             let mut best = i32::MAX;
             let homes: Vec<usize> = self.homes.keys().copied().collect();
             for e in homes {
@@ -451,7 +456,8 @@ impl Needs<'_, '_> {
     /// The path-rank distance from `a` to `b`.
     fn rank(&mut self, a: i32, b: i32) -> i32 {
         let (size, terrain) = (self.size, self.terrain);
-        let ground_at = move |c: i32| ground(size, terrain, c);
+        let floors = self.town.floors;
+        let ground_at = move |c: i32| crate::town::floor_ground(floors, size, terrain, c);
         let mut g = StorageGeometry {
             town: self.town,
             sectors: self.sectors,
@@ -707,7 +713,7 @@ impl Needs<'_, '_> {
         else {
             return false;
         };
-        let target = ground(self.size, self.terrain, cell);
+        let target = crate::town::floor_ground(self.town.floors, self.size, self.terrain, cell);
         let idle = self.rng.rand_float() * 7.0 + 3.0;
         // `FUN_1400c7b90`.
         let mut stack = self.begin(who);
