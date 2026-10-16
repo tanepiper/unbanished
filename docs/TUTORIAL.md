@@ -77,3 +77,56 @@ toolbar item's key (`+0x30`), `TutorialImageInputKey` with a key-map action's (`
 `TutorialImageToolbarIcon` shows a toolbar item's icon.
 
 Formats: `crates/formats/src/scenario.rs` (every shipped part parses whole).
+
+## Paths
+
+The setups and goals name elements by path (`FUN_1400e6d40`, split at `:` by `FUN_1400e6160`):
+`ToolbarDialog:<item>` is the toolbar's button for `Game\Toolbar.rsc:<item>`;
+`DialogInstance:<controller>:<element>[:<template>]` the named element in an open window with a
+controller of that class (an entity's only when its template is `<template>`).
+
+Locking (`FUN_1400e7720`) sets element flag `0x1000000` on an element and everything in it;
+input passes a locked element by (the port: `flags::LOCKED`, `Node::usable`) but keeps its
+children, so an element unlocked inside a locked dialog works.
+
+## The highlight (`TutorialHighlightDialog`, `Dialog/TutorialHighlight.rsc`)
+
+Bind `FUN_1400e54f0` finds `glowGroup`, `glow` and `arrow`; each frame (`FUN_1400e54b0`) the glow
+is hidden and the arrow's box goes over the target's centre (centred, its foot there), bobbing
+by `sin(t·π)·8` pixels, turned by `-angle` about its centre (`SpriteContext::Flush`:
+`x·cos − y·sin`, `x·sin + y·cos`, `Math::Scalar::Sin` is `FUN_18012a620`). The target is the
+element at `+0x40`, or the `+0x70`th entity of the template `+0x58`, projected (`FUN_140105850`).
+The setup's dialog opens a frame after the tutorial's window, so it draws above it.
+
+## RestrictPlayer in the game
+
+- The tool manager (`Game +0x120`, `FUN_140107b70`) keeps the player's tool on the template
+  `+0x88`; a toolbar build button starts it instead (`FUN_140108030`); cancelling is ignored.
+- The PlacementTool (`FUN_140102b20` placing, `FUN_1401033b0` hovering) is valid only on the
+  rectangle `+0x98` (corner cells as `y·n + x`) to `+0x9c`, turned `+0xa0` degrees.
+- Selection (`FUN_140102500`) takes only entities of the template `+0x90` (none without one).
+
+## The menus
+
+The Tutorial and Scenario buttons open a `ScenarioDialog` (`FUN_14007db80` with `+0xb8` 1 for
+the tutorials, `Dialog\Tutorial.rsc`, and 0 for the others, `Dialog\Scenario.rsc`). It lists the
+scenarios whose `+0x69` matches (`Dialog\Scenario.rsc:groupAchievement` rows: `imageIcon`,
+`textTitle`, `textDescription`; flag `0x10000` makes a row take the mouse); a pressed row is
+chosen (`selectSave` shown), OK (`0x65`, enabled once one is chosen) starts it
+(`FUN_14007d180`), Cancel (100) closes it.
+
+The pause menu (`MainMenuDialog`, `FUN_1400b91a0`) shows Goal (10) with a scenario (`Game +0x15c`
+≥ 0) and Map (11) without one; game flag `0x400` (a tutorial's `0x5f0`) disables Save and Mod.
+`GoalDialog` (`Dialog\Goal.rsc`, `FUN_14006a170` / `FUN_140069fa0`) shows the goal's title and
+a `groupGoal` per goal (`textGoal`, `imageComplete` when met, `imageFail` when failed).
+
+When the game's goal is met or failed (`FUN_14009bd00`) it logs event `0x1a` or `0x1b` with its
+title, once.
+
+Port: `apps/game/src/gameplay/tutorial.rs` (the instance, setups, goals, images, highlight,
+scenario start), `scenario_ui.rs` (the dialog), `achievement_ui.rs` (`GoalDialog`).
+
+Deviations: the tutorials start a new game from the scenario's fields instead of loading their
+packaged saves until saved games load (a resumed tutorial's checkpoint is read then); a text
+whose key its table lacks shows nothing (the port tells a missing key by `Resources::string`
+returning it).

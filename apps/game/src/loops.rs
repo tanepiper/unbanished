@@ -258,6 +258,7 @@ pub fn fade_quad(level: f32, size: (u32, u32)) -> Option<Quad> {
         uv: [0.0, 0.0, 1.0, 1.0],
         color: [0, 0, 0, (level * 255.0) as u8],
         clip: None,
+        rotation: 0.0,
     })
 }
 

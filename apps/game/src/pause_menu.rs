@@ -12,8 +12,10 @@
 //! - The dialog's flags (`Dialog +0x40` = 0x13) have bit 0 set, so `UserInterface::PausesGame`
 //!   holds while it is open: `FUN_14009b850` skips the simulation and the controller.
 //!
-//! Options (4) opens `crate::options::OptionsDialog`. Not ported: Load (2), Save (3), Achievement (8), Mod (7) and Map (11) buttons;
-//! the Save/Mod disabling by game flag bit 10 and the Goal/Map choice by `+0x15c`.
+//! Options (4) opens `crate::options::OptionsDialog`, Achievement (8) the achievements and
+//! Goal (10) the game's goal. With a scenario (`Game +0x15c`) the Goal button shows and the Map
+//! button goes, else the reverse; game flag bit 10 (a tutorial) disables Save and Mod. Not
+//! ported: Load (2), Save (3), Mod (7) and Map (11).
 
 use banished_ui::{NodeId, Ui};
 
@@ -30,6 +32,8 @@ pub enum PauseClick {
     Quit,
     /// Options (id 4): `FUN_1400b8ee0` opens the Options dialog over the menu.
     Options,
+    Achievement,
+    Goal,
     /// A button whose action is not ported, or a click on the dialog's background.
     Other,
 }
@@ -40,9 +44,26 @@ pub struct PauseMenu {
 
 impl PauseMenu {
     /// `FUN_1401071b0` → `FUN_1400b91a0`.
-    pub fn open(ui: &mut Ui, screen: &mut Screen, audio: &mut Audio) -> Option<PauseMenu> {
+    pub fn open(
+        ui: &mut Ui,
+        screen: &mut Screen,
+        audio: &mut Audio,
+        scenario: bool,
+        game_flags: u32,
+    ) -> Option<PauseMenu> {
         let index = screen.add_modal(ui, DIALOG)?;
         let root = screen.dialogs[index].root;
+        let hide = if scenario { "buttonMap" } else { "buttonGoal" };
+        if let Some(b) = ui.find(root, hide) {
+            ui.set_visible(b, false);
+        }
+        if game_flags & 0x400 != 0 {
+            for b in ["buttonSave", "buttonMod"] {
+                if let Some(b) = ui.find(root, b) {
+                    ui.node_mut(b).enabled = false;
+                }
+            }
+        }
         for kind in [sound_type::EFFECT, sound_type::AMBIENT, sound_type::MUSIC] {
             audio.pause(kind, true);
         }
@@ -75,6 +96,10 @@ impl PauseMenu {
             PauseClick::Quit
         } else if is("buttonOptions") {
             PauseClick::Options
+        } else if is("buttonAchievement") {
+            PauseClick::Achievement
+        } else if is("buttonGoal") {
+            PauseClick::Goal
         } else {
             PauseClick::Other
         }

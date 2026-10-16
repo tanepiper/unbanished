@@ -42,6 +42,10 @@ pub mod flags {
     pub const SCREEN_WIDTH: u32 = 1 << 5;
     /// Halves the element's alpha (`Element::ComputeColor`).
     pub const DIM: u32 = 1 << 18;
+    /// Takes the mouse (`SetFlagsOnOff(0x10000)`): a click on it is an event of its own.
+    pub const MOUSE: u32 = 1 << 16;
+    /// Disabled by the tutorial (`FUN_1400e7720`; input passes it by, like a disabled one).
+    pub const LOCKED: u32 = 1 << 24;
 }
 
 /// `UI::ElementDescription` (0x180119390): shared by every element.

@@ -12,7 +12,7 @@ use banished_ui::{Kind, NodeId, Ui};
 use crate::achievements::Achievement;
 use crate::loops::Screen;
 
-const DIALOG: &str = "Dialog/Achievement.rsc";
+const DIALOG: &str = "Dialog/Achievement.rsc:resource";
 const ROW: &str = r"Dialog\Achievement.rsc:groupAchievement";
 
 struct Row {
@@ -128,4 +128,73 @@ pub fn awarded(list: &[Achievement], p: &crate::settings::Persistence) -> Vec<bo
             v
         })
         .collect()
+}
+
+/// `GoalDialog` (`Dialog/Goal.rsc`, the pause menu's id 10; vtable `0x140161ff0`: bind
+/// `FUN_14006a170`, refresh `FUN_140069fa0`, events `FUN_14006a120`): the game's goal
+/// (`Game +0x150`), its title in `textScenario` (hidden without one), a `groupGoal` per goal
+/// with its text and `imageComplete` shown when it is met, `imageFail` when it failed;
+/// `buttonOk` (100) closes it.
+pub struct GoalDialog {
+    pub root: NodeId,
+    ok: Option<NodeId>,
+    rows: Vec<(Option<NodeId>, Option<NodeId>)>,
+}
+
+impl GoalDialog {
+    pub fn open(
+        ui: &mut Ui,
+        screen: &mut Screen,
+        goal: Option<(&Achievement, &crate::achievements::AchievementInstance)>,
+    ) -> Option<Self> {
+        let index = screen.add_modal(ui, "Dialog/Goal.rsc:resource")?;
+        let root = screen.dialogs[index].root;
+        let ok = ui.find(root, "buttonOk");
+        let mut rows = Vec::new();
+        if let Some(t) = ui.find(root, "textScenario") {
+            match goal {
+                Some((a, _)) => {
+                    let title = ui.res.string(a.desc.strings.as_deref(), &a.desc.title);
+                    let template = crate::building_ui::text_of(ui, t);
+                    ui.set_text(t, &template.replace("@0", &title));
+                }
+                None => ui.set_visible(t, false),
+            }
+        }
+        if let (Some(table), Some((a, _))) = (ui.find(root, "tableGoal"), goal) {
+            for (i, g) in a.goals.iter().enumerate() {
+                let Some(cell) = ui.instantiate(r"Dialog\Goal.rsc:groupGoal") else {
+                    continue;
+                };
+                ui.set_table_child(table, i, cell);
+                if let Some(n) = ui.find(cell, "textGoal") {
+                    let text = ui.res.string(g.strings.as_deref(), &g.text);
+                    ui.set_text(n, &text);
+                }
+                rows.push((ui.find(cell, "imageComplete"), ui.find(cell, "imageFail")));
+            }
+        }
+        let d = GoalDialog { root, ok, rows };
+        if let Some((_, instance)) = goal {
+            d.refresh(ui, instance);
+        }
+        Some(d)
+    }
+
+    /// `FUN_140069fa0`.
+    pub fn refresh(&self, ui: &mut Ui, instance: &crate::achievements::AchievementInstance) {
+        for (i, (complete, fail)) in self.rows.iter().enumerate() {
+            let g = instance.goals.get(i).copied().unwrap_or_default();
+            if let Some(n) = complete {
+                ui.set_visible(*n, g.met);
+            }
+            if let Some(n) = fail {
+                ui.set_visible(*n, g.failed);
+            }
+        }
+    }
+
+    pub fn closes(&self, node: NodeId) -> bool {
+        self.ok == Some(node)
+    }
 }

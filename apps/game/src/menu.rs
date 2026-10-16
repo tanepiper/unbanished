@@ -42,6 +42,8 @@ pub struct MenuLoop {
     options: Option<crate::options::OptionsDialog>,
     /// The Achievements dialog (id 8) and the list it shows.
     achievements: Option<crate::achievement_ui::AchievementDialog>,
+    /// The Scenario (id 9) or Tutorial (id 12) dialog.
+    scenarios: Option<crate::scenario_ui::ScenarioDialog>,
 }
 
 /// Shared settings defaults (`FUN_140042850`) before `Game/Last*` persistence is applied:
@@ -68,6 +70,7 @@ impl MenuLoop {
             app_paused: false,
             options: None,
             achievements: None,
+            scenarios: None,
         }
     }
 
@@ -272,6 +275,7 @@ impl MenuLoop {
             start_condition_ref,
             size: size_index,
             seed,
+            scenario: None,
         };
         log::info!(
             "new game: {} / {} / {} terrain {} size {} seed {}",
@@ -506,6 +510,35 @@ impl GameLoop for MenuLoop {
         let Event::Clicked(id) = event else {
             return Next::Stay;
         };
+        if let Some(d) = &mut self.scenarios {
+            use crate::scenario_ui::ScenarioClick;
+            match d.click(ctx.ui, id) {
+                Some(ScenarioClick::Close) => {
+                    let root = d.root;
+                    if let Some(screen) = &mut self.screen {
+                        screen.remove_root(ctx.ui, root);
+                    }
+                    self.scenarios = None;
+                }
+                // `FUN_14007d180` → `FUN_1400b9a10`: the scenario's new game.
+                Some(ScenarioClick::Start(i)) => {
+                    let list = crate::gameplay::scenarios(ctx.archive);
+                    if let Some((_, s)) = list.get(i) {
+                        let params =
+                            crate::gameplay::scenario_params(ctx.ui, ctx.global.as_ref(), s, i);
+                        let screen_ref =
+                            format!("Dialog/Loading.rsc:gameLoad{}", ctx.rng.rand_below(12));
+                        return Next::Switch(Box::new(DialogLoaderLoop::new(
+                            screen_ref,
+                            0.5,
+                            Box::new(crate::gameplay::GameplayLoop::new(params)),
+                        )));
+                    }
+                }
+                _ => {}
+            }
+            return Next::Stay;
+        }
         if let Some(a) = &self.achievements {
             if a.closes(id) {
                 let root = a.root;
@@ -539,6 +572,22 @@ impl GameLoop for MenuLoop {
             }
         } else if self.is(ctx.ui, 0, "buttonQuit", id) {
             return Next::Quit;
+        } else if self.is(ctx.ui, 0, "buttonTutorial", id)
+            || self.is(ctx.ui, 0, "buttonScenario", id)
+        {
+            // `FUN_1400b9020` ids 12 and 9: the tutorials, or the other scenarios.
+            let tutorials = self.is(ctx.ui, 0, "buttonTutorial", id);
+            let reference = if tutorials {
+                "Dialog/Tutorial.rsc:resource"
+            } else {
+                "Dialog/Scenario.rsc:resource"
+            };
+            if let Some(screen) = &mut self.screen {
+                let list = crate::gameplay::scenarios(ctx.archive);
+                self.scenarios = crate::scenario_ui::ScenarioDialog::open(
+                    ctx.ui, screen, reference, tutorials, &list,
+                );
+            }
         } else if self.is(ctx.ui, 0, "buttonAchievement", id) {
             // `FUN_1400b9020` id 8: `Dialog/Achievement.rsc`.
             if let Some(screen) = &mut self.screen {

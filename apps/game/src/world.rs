@@ -24,6 +24,8 @@ pub struct WorldParams {
     /// The Disasters combo's first item (on): `Game +0xd0` starts 0, else `0xf0`
     /// (`FUN_14009d530`).
     pub disasters: bool,
+    /// The scenario played (an index into `Game\Scenario\ScenarioList.rsc`, `FUN_1400b9a10`).
+    pub scenario: Option<usize>,
 }
 
 impl Default for WorldParams {
@@ -38,6 +40,7 @@ impl Default for WorldParams {
             size: 0,
             seed: 290,
             disasters: true,
+            scenario: None,
         }
     }
 }

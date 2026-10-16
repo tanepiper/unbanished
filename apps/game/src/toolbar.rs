@@ -138,6 +138,36 @@ impl Toolbar {
         }
     }
 
+    /// A shown toolbar button by its item's name (`ToolbarDialog:<item>`).
+    pub fn button(&self, ui: &Ui, name: &str) -> Option<NodeId> {
+        [self.root.as_ref(), self.popup.as_ref()]
+            .into_iter()
+            .flatten()
+            .find_map(|l| ui.find(l.root, name))
+    }
+
+    fn entry(&self, reference: &str) -> Option<&Entry> {
+        let r = reference.replace('/', "\\");
+        self.entries
+            .iter()
+            .find(|e| e.reference.eq_ignore_ascii_case(&r))
+    }
+
+    /// TutorialImageToolbarIcon (`FUN_1400e5e10`): the item's icon, or its template's
+    /// (ToolbarDescription) when it places one.
+    pub fn entry_sprite(&self, reference: &str) -> Option<(Option<String>, String)> {
+        let e = self.entry(reference)?;
+        match (&e.item.template, &e.description) {
+            (Some(_), Some(d)) => Some((d.sprite_sheet.clone(), d.sprite.clone())),
+            _ => Some((e.item.sprite_sheet.clone(), e.item.sprite.clone())),
+        }
+    }
+
+    /// TutorialImageHotKey (`FUN_1400e58f0`): the item's key-map action (`+0x40`).
+    pub fn entry_action(&self, reference: &str) -> Option<u32> {
+        self.entry(reference).map(|e| e.item.value)
+    }
+
     /// Entries of one level in display order.
     fn children(&self, parent: Option<usize>) -> Vec<usize> {
         let parent_ref = parent.map(|p| self.entries[p].reference.as_str());

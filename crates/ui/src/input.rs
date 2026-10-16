@@ -122,7 +122,7 @@ impl Ui {
             // `ButtonElement::Update` / `SliderElement::Update`: `Play(4)` on press.
             if self
                 .hot
-                .is_some_and(|id| self.interactive(id) && self.nodes[id].enabled)
+                .is_some_and(|id| self.interactive(id) && self.nodes[id].usable())
             {
                 self.sounds.push(4);
             }
@@ -238,8 +238,11 @@ impl Ui {
     }
 
     fn activate(&mut self, id: NodeId) -> Option<Event> {
-        if !self.nodes[id].enabled || !self.nodes[id].visible() {
+        if !self.nodes[id].usable() || !self.nodes[id].visible() {
             return None;
+        }
+        if self.nodes[id].flags & banished_formats::ui::flags::MOUSE != 0 {
+            return Some(Event::Clicked(id));
         }
         match &mut self.nodes[id].kind {
             Kind::Button { .. } => Some(Event::Clicked(id)),
@@ -407,7 +410,10 @@ impl Ui {
             if !n.visible() || !n.enabled {
                 return;
             }
-            out.push(id);
+            // A locked element is passed by, its children kept.
+            if n.usable() {
+                out.push(id);
+            }
             let children = match &n.kind {
                 Kind::Control(c) => c.active_children(),
                 Kind::Button { .. } => Vec::new(),
@@ -422,6 +428,9 @@ impl Ui {
         out
     }
     fn interactive(&self, id: NodeId) -> bool {
+        if self.nodes[id].flags & banished_formats::ui::flags::MOUSE != 0 {
+            return true;
+        }
         match &self.nodes[id].kind {
             Kind::Button { .. } | Kind::List(_) => true,
             Kind::Control(
@@ -742,7 +751,7 @@ impl Ui {
         for id in 0..self.nodes.len() {
             let hot = self.hot == Some(id) || self.focus == Some(id);
             let pressed = self.pressed == Some(id) && self.pointer_down;
-            let enabled = self.nodes[id].enabled;
+            let enabled = self.nodes[id].usable();
             if let Kind::Button { state, .. } = &mut self.nodes[id].kind {
                 *state = if !enabled {
                     1

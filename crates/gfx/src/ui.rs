@@ -292,10 +292,15 @@ impl UiRenderer {
             let start = vertices.len() as u32;
             let [x0, y0, x1, y1] = q.rect;
             let [u0, v0, u1, v1] = q.uv;
-            let v = |x, y, u, v| Vertex {
-                pos: [x, y],
-                uv: [u, v],
-                color: q.color,
+            let (sin, cos) = q.rotation.to_radians().sin_cos();
+            let (cx, cy) = ((x0 + x1) * 0.5, (y0 + y1) * 0.5);
+            let v = |x: f32, y: f32, u, v| {
+                let (dx, dy) = (x - cx, y - cy);
+                Vertex {
+                    pos: [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos],
+                    uv: [u, v],
+                    color: q.color,
+                }
             };
             vertices.extend_from_slice(&[
                 v(x0, y0, u0, v0),

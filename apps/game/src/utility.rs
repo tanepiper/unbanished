@@ -798,6 +798,8 @@ impl HelpUi {
 struct Window {
     template: String,
     root: NodeId,
+    /// The UIDescription's controller type ids.
+    ids: Vec<u32>,
     status_bar: Option<StatusBar>,
     professions: Option<ProfessionUi>,
     event_log: Option<EventLogUi>,
@@ -897,7 +899,48 @@ impl UtilityWindows {
             event_log,
             map,
             help,
+            ids: desc.controllers.iter().map(|c| c.type_id).collect(),
         });
+    }
+
+    /// [`Self::toggle`] with the window's upper-left corner (`FUN_1401056c0`); its root.
+    pub fn open_at(
+        &mut self,
+        ui: &mut Ui,
+        screen: &mut Screen,
+        archive: &Archive,
+        template: &str,
+        at: (i32, i32),
+        map_size: u32,
+    ) -> Option<NodeId> {
+        if let Some(w) = self.open.iter().find(|w| w.template == template) {
+            return Some(w.root);
+        }
+        self.positions.insert(template.to_string(), at);
+        self.toggle(ui, screen, archive, template, None, map_size);
+        self.open
+            .iter()
+            .find(|w| w.template == template)
+            .map(|w| w.root)
+    }
+
+    /// The open windows' roots and controller type ids.
+    pub fn controllers(&self) -> Vec<(NodeId, Vec<u32>)> {
+        self.open.iter().map(|w| (w.root, w.ids.clone())).collect()
+    }
+
+    /// Close the windows with a controller of the type.
+    pub fn close_with(&mut self, ui: &mut Ui, screen: &mut Screen, id: u32) {
+        while let Some(i) = self.open.iter().position(|w| w.ids.contains(&id)) {
+            self.close(ui, screen, i);
+        }
+    }
+
+    /// Close the window whose root this is.
+    pub fn close_root(&mut self, ui: &mut Ui, screen: &mut Screen, root: NodeId) {
+        if let Some(i) = self.open.iter().position(|w| w.root == root) {
+            self.close(ui, screen, i);
+        }
     }
 
     fn close(&mut self, ui: &mut Ui, screen: &mut Screen, index: usize) {

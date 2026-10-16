@@ -43,6 +43,8 @@ pub struct Quad {
     pub color: [u8; 4],
     /// Scissor rectangle (x0, y0, x1, y1) in pixels.
     pub clip: Option<[i32; 4]>,
+    /// Degrees about the rectangle's centre, clockwise on screen (`ImageElement::SetRotation`).
+    pub rotation: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -154,6 +156,8 @@ pub struct Node {
     /// Title and description user data, for `TitleDescToolTipUI`.
     pub title_desc: Option<(String, String)>,
     pub enabled: bool,
+    /// An image's rotation in degrees (`ImageElement::SetRotation`).
+    pub rotation: f32,
     /// Content size from the last size pass.
     pub size: [i32; 2],
     /// Layout rectangle: left, top, right, bottom.
@@ -180,6 +184,7 @@ impl Node {
             hotkey: None,
             title_desc: None,
             enabled: true,
+            rotation: 0.0,
             size: [0; 2],
             rect: [0; 4],
         }
@@ -187,6 +192,11 @@ impl Node {
 
     pub fn visible(&self) -> bool {
         self.flags & flags::HIDDEN == 0
+    }
+
+    /// Enabled and not locked by the tutorial (`+0x34 & 0x1800000` clear).
+    pub fn usable(&self) -> bool {
+        self.enabled && self.flags & flags::LOCKED == 0
     }
 
     pub fn contains(&self, x: i32, y: i32) -> bool {
@@ -1090,6 +1100,7 @@ impl Ui {
             uv: s.uv,
             color: argb_to_rgba(color, 255),
             clip,
+            rotation: 0.0,
         });
     }
 
@@ -1133,6 +1144,7 @@ impl Ui {
                 uv: sp.uv,
                 color: argb_to_rgba(color, 255),
                 clip,
+                rotation: 0.0,
             });
         }
     }
@@ -1174,7 +1186,14 @@ impl Ui {
             }
             Kind::Image {
                 sprite: Some(s), ..
-            } => Self::sprite_quad(out, s, n.rect, color, clip),
+            } => {
+                Self::sprite_quad(out, s, n.rect, color, clip);
+                if n.rotation != 0.0 {
+                    if let Some(q) = out.last_mut() {
+                        q.rotation = n.rotation;
+                    }
+                }
+            }
             Kind::Lines {
                 sprite: Some(s),
                 lines,
@@ -1336,6 +1355,7 @@ impl Ui {
                     uv: [0.0, 0.0, 1.0, 1.0],
                     color: [255, 255, 255, 255],
                     clip,
+                    rotation: 0.0,
                 });
             }
             _ => {}

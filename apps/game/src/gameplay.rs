@@ -34,6 +34,12 @@ const SPEED_LEVELS: [u32; 4] = [1, 2, 5, 10];
 /// window pixels, which differ when the UI is scaled.
 const EDGE: i32 = 4;
 
+/// A dialog the pause menu opened.
+enum MenuDialog {
+    Achievements(crate::achievement_ui::AchievementDialog),
+    Goal(crate::achievement_ui::GoalDialog),
+}
+
 pub struct GameplayLoop {
     params: WorldParams,
     view: Option<SceneView>,
@@ -69,6 +75,15 @@ pub struct GameplayLoop {
     /// The achievement list and the manager checking it (`Achievement::AchievementManager`).
     achievements: Vec<crate::achievements::Achievement>,
     achievement_manager: crate::achievements::AchievementManager,
+    /// The tutorial running (`TutorialInstance`) and the RestrictPlayer setup in force (game UI
+    /// `+0x80`).
+    tutorial: Option<tutorial::Tutorial>,
+    restrict: Option<tutorial::Restrict>,
+    goal: Option<tutorial::GameGoal>,
+    /// A finished tutorial's next scenario, started after the frame.
+    next_scenario: Option<usize>,
+    /// The Achievement or Goal dialog opened from the pause menu.
+    menu_dialog: Option<MenuDialog>,
     selection: Selection,
     entities: EntityWindows,
     highlight: crate::highlight::Highlight,
@@ -130,6 +145,11 @@ impl GameplayLoop {
             trade_held: Vec::new(),
             achievements: Vec::new(),
             achievement_manager: Default::default(),
+            tutorial: None,
+            restrict: None,
+            goal: None,
+            next_scenario: None,
+            menu_dialog: None,
             selection: Selection::default(),
             entities: EntityWindows::default(),
             highlight: Default::default(),
@@ -325,6 +345,17 @@ impl GameplayLoop {
             ground.map_or(400., |g| g.0),
             fallback,
         );
+        // `FUN_140102500`: under a RestrictPlayer setup only its template is selected.
+        let picked = picked.filter(|e| {
+            self.restrict.as_ref().is_none_or(|r| {
+                !r.select.is_empty()
+                    && e.template(town)
+                        .split(':')
+                        .next()
+                        .unwrap_or("")
+                        .eq_ignore_ascii_case(r.select.split(':').next().unwrap_or(""))
+            })
+        });
         if let Some(entity) = picked {
             if self.selection.selected != Some(entity) {
                 self.selection.selected = Some(entity);
@@ -474,8 +505,53 @@ impl GameplayLoop {
             }
             Some(r)
         });
+        let allowed = Self::restrict_allows(self.restrict.as_ref(), tool, self.rotation);
         if let Some(bar) = &mut self.create_bar {
-            bar.update(ctx.ui, tool.size(), tool.valid(), rect);
+            bar.update(ctx.ui, tool.size(), tool.valid() && allowed, rect);
+        }
+    }
+
+    /// `FUN_140102b20` / `FUN_1401033b0`: a RestrictPlayer setup allows the placement only
+    /// on its cells and turned its way.
+    fn restrict_allows(
+        restrict: Option<&tutorial::Restrict>,
+        tool: &PlacementTool,
+        rotation: i32,
+    ) -> bool {
+        let Some(r) = restrict else { return true };
+        let Some(rect) = tool.rect() else {
+            return false;
+        };
+        rect.x0 == r.rect[0]
+            && rect.y0 == r.rect[1]
+            && rect.x1 == r.rect[2]
+            && rect.y1 == r.rect[3]
+            && rotation * 90 == r.rotation
+    }
+
+    /// `FUN_140107b70`: with a template to place, the player's tool is its.
+    fn force_restricted_tool(&mut self, ctx: &mut Ctx) {
+        let Some(place) = self
+            .restrict
+            .as_ref()
+            .filter(|r| !r.place.is_empty())
+            .map(|r| r.place.split(':').next().unwrap_or("").to_string())
+        else {
+            return;
+        };
+        let current = self
+            .placement
+            .as_ref()
+            .map(|t| t.reference.clone())
+            .or_else(|| self.removal.as_ref().map(|t| t.reference.clone()));
+        let same = current.as_deref().is_some_and(|c| {
+            c.split(':')
+                .next()
+                .unwrap_or("")
+                .eq_ignore_ascii_case(&place)
+        });
+        if !same {
+            self.start_tool(ctx, &format!("{place}:resource"));
         }
     }
 
@@ -1019,7 +1095,16 @@ impl GameplayLoop {
                 );
             }
             // Toolbar kind 1 → FUN_140108030: start (or end) the build tool.
-            Action::Build(Some(template)) => self.start_tool(ctx, &template),
+            // `FUN_140108030`: under a RestrictPlayer setup the tool is its template's.
+            Action::Build(Some(template)) => {
+                let template = match &self.restrict {
+                    Some(r) if !r.place.is_empty() => {
+                        format!("{}:resource", r.place.split(':').next().unwrap_or(""))
+                    }
+                    _ => template,
+                };
+                self.start_tool(ctx, &template)
+            }
             Action::Build(None) => self.end_placement(ctx),
             Action::Options => self.open_pause_menu(ctx),
             other => log::info!("toolbar action not implemented yet: {other:?}"),
@@ -1029,7 +1114,14 @@ impl GameplayLoop {
     /// `FUN_1401071b0`: open the pause menu (pauses effects, ambience and music).
     fn open_pause_menu(&mut self, ctx: &mut Ctx) {
         if let (None, Some(screen)) = (&self.pause_menu, self.screen.as_mut()) {
-            self.pause_menu = crate::pause_menu::PauseMenu::open(ctx.ui, screen, ctx.audio);
+            let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
+            self.pause_menu = crate::pause_menu::PauseMenu::open(
+                ctx.ui,
+                screen,
+                ctx.audio,
+                self.params.scenario.is_some(),
+                flags,
+            );
         }
     }
 
@@ -1135,6 +1227,7 @@ impl GameLoop for GameplayLoop {
             &self.achievements,
             &ctx.settings.persistence,
         );
+        self.start_scenario(ctx);
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
@@ -1215,7 +1308,20 @@ impl GameLoop for GameplayLoop {
             }
         }
         if !pauses_game {
+            self.update_goal(ctx, dt, ticks(dt * iterations as f32));
             self.update_achievements(ctx, ticks(dt * iterations as f32));
+            self.force_restricted_tool(ctx);
+        }
+        self.refresh_tutorial_ui(ctx.ui);
+        if let Some(i) = self.next_scenario.take() {
+            if let Some((_, s)) = tutorial::scenarios(ctx.archive).into_iter().nth(i) {
+                let params = tutorial::scenario_params(ctx.ui, ctx.global.as_ref(), &s, i);
+                return Next::Switch(Box::new(DialogLoaderLoop::new(
+                    format!("Dialog/Loading.rsc:gameLoad{}", ctx.rng.rand_below(12)),
+                    0.5,
+                    Box::new(GameplayLoop::new(params)),
+                )));
+            }
         }
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
         if let (Some(town), Some(view), false) = (&mut self.town, &mut self.view, pauses_game) {
@@ -1333,6 +1439,15 @@ impl GameLoop for GameplayLoop {
             }
             return Next::Stay;
         }
+        if let (Event::Clicked(id), Some(t)) = (event, self.tutorial.as_mut()) {
+            t.pressed.push(id);
+        }
+        // TutorialUI's quit (`FUN_1400e8bb0`): back to the main menu.
+        if let Event::Clicked(id) = event {
+            if self.tutorial_quit(id) {
+                return Self::return_to_menu();
+            }
+        }
         if self.utility.help_event(ctx.ui, event) {
             return Next::Stay;
         }
@@ -1353,6 +1468,18 @@ impl GameLoop for GameplayLoop {
         let (Event::Clicked(id) | Event::Changed(id)) = event else {
             return Next::Stay;
         };
+        // The Achievement and Goal dialogs over the pause menu (OK closes them).
+        if let Some(d) = &self.menu_dialog {
+            let root = match d {
+                MenuDialog::Achievements(a) => a.closes(id).then_some(a.root),
+                MenuDialog::Goal(g) => g.closes(id).then_some(g.root),
+            };
+            if let (Some(root), Some(screen)) = (root, self.screen.as_mut()) {
+                screen.remove_root(ctx.ui, root);
+                self.menu_dialog = None;
+            }
+            return Next::Stay;
+        }
         if let Some(menu) = &self.pause_menu {
             // `FUN_1400b9020`.
             match menu.click(ctx.ui, id) {
@@ -1365,6 +1492,27 @@ impl GameLoop for GameplayLoop {
                 crate::pause_menu::PauseClick::Options => {
                     if let Some(screen) = &mut self.screen {
                         self.options = crate::options::OptionsDialog::open(ctx, screen);
+                    }
+                }
+                crate::pause_menu::PauseClick::Achievement => {
+                    if let Some(screen) = &mut self.screen {
+                        let awarded = self.achievement_manager.awarded.clone();
+                        if let Some(d) = crate::achievement_ui::AchievementDialog::open(
+                            ctx.ui,
+                            screen,
+                            &self.achievements,
+                        ) {
+                            d.refresh(ctx.ui, &awarded);
+                            self.menu_dialog = Some(MenuDialog::Achievements(d));
+                        }
+                    }
+                }
+                crate::pause_menu::PauseClick::Goal => {
+                    if let Some(screen) = &mut self.screen {
+                        let goal = self.goal.as_ref().map(|g| (&g.achievement, &g.instance));
+                        self.menu_dialog =
+                            crate::achievement_ui::GoalDialog::open(ctx.ui, screen, goal)
+                                .map(MenuDialog::Goal);
                     }
                 }
                 crate::pause_menu::PauseClick::Other if menu.contains(ctx.ui, id) => {
@@ -1587,8 +1735,16 @@ impl GameLoop for GameplayLoop {
             }
             RawInput::Click => {
                 if let (Some(tool), Some(town)) = (self.placement.as_mut(), self.town.as_mut()) {
+                    // `FUN_140102b20`: under a RestrictPlayer setup, only on its cells, turned.
+                    let allowed =
+                        Self::restrict_allows(self.restrict.as_ref(), tool, self.rotation);
                     // `FUN_1401055c0` / `FUN_140105610`: thunk on placement, error otherwise.
-                    let sound = match tool.place(ctx.archive, town, self.rotation) {
+                    let placed = if allowed {
+                        tool.place(ctx.archive, town, self.rotation)
+                    } else {
+                        None
+                    };
+                    let sound = match placed {
                         Some(id) => {
                             log::info!("placed {} as entity {id}", tool.reference);
                             crate::sound::global::PLACEMENT_THUNK
@@ -1618,6 +1774,10 @@ impl GameLoop for GameplayLoop {
             }
             // DragTool `+0x48` (`FUN_140101b10`): Escape first stops a drag in progress.
             RawInput::Escape if self.removal.as_mut().is_some_and(|t| t.cancel()) => {
+                return Next::Stay;
+            }
+            // `FUN_140104bb0`: the tool stays while a RestrictPlayer setup holds.
+            RawInput::Escape if self.restrict.as_ref().is_some_and(|r| !r.place.is_empty()) => {
                 return Next::Stay;
             }
             RawInput::Escape if self.placement.is_some() || self.removal.is_some() => {
@@ -1800,6 +1960,9 @@ impl GameLoop for GameplayLoop {
         self.view.as_ref().map_or(View::None, View::World)
     }
 }
+
+mod tutorial;
+pub use tutorial::{scenario_params, scenarios};
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
@@ -2336,6 +2499,65 @@ mod tests {
                 .position(|g| format!("{:?}", g.kind).contains("TradingPost"))
                 .unwrap();
             assert_eq!(state("Isolationist", post), GoalState::Met);
+        });
+    }
+
+    /// The first tutorial from its scenario: the window opens with step 0's text, only the
+    /// tutorial's next button (and the options) usable; pressing next enters step 1.
+    #[test]
+    fn tutorial_starts_and_steps_on() {
+        let Some((mut game, _)) = generated() else {
+            return;
+        };
+        let mut gameplay = None;
+        game.with_ctx(|_, ctx| {
+            let list = scenarios(ctx.archive);
+            assert_eq!(list.len(), 4);
+            let first = list
+                .iter()
+                .position(|(r, _)| r.contains("GettingStarted"))
+                .unwrap();
+            let params = scenario_params(ctx.ui, ctx.global.as_ref(), &list[first].1, first);
+            assert_eq!(params.seed, 120323451);
+            let mut g = GameplayLoop::new(params);
+            g.load(ctx);
+            g.startup(ctx);
+            gameplay = Some(g);
+        });
+        let mut gameplay = gameplay.unwrap();
+        game.with_ctx(|_, ctx| {
+            gameplay.update(ctx, 1.0 / 30.0);
+            gameplay.update(ctx, 1.0 / 30.0);
+            let t = gameplay.tutorial.as_ref().expect("no tutorial");
+            assert_eq!(t.step, 0);
+            assert!(t.def.steps.len() > 50);
+            let ui = t.ui.clone().expect("no tutorial window");
+            let pre = ui.pre.unwrap();
+            let text = format!("{:?}", ctx.ui.node(pre).kind);
+            assert!(!text.contains("Step_Keys_0_Pre"), "untranslated: {text}");
+            let next = ui.next.unwrap();
+            assert!(ctx.ui.node(next).usable(), "next is locked");
+            let housing = gameplay
+                .toolbar
+                .as_ref()
+                .unwrap()
+                .button(ctx.ui, "housing")
+                .unwrap();
+            assert!(!ctx.ui.node(housing).usable(), "the toolbar is not locked");
+            gameplay.event(ctx, Event::Clicked(next));
+            gameplay.update(ctx, 1.0 / 30.0);
+            assert_eq!(gameplay.tutorial.as_ref().unwrap().step, 1);
+            // Through the keys to the first house: the housing button alone opens up.
+            for step in 2..=9 {
+                gameplay.event(ctx, Event::Clicked(next));
+                gameplay.update(ctx, 1.0 / 30.0);
+                assert_eq!(gameplay.tutorial.as_ref().unwrap().step, step);
+            }
+            let toolbar = gameplay.toolbar.as_ref().unwrap();
+            let housing = toolbar.button(ctx.ui, "housing").unwrap();
+            let food = toolbar.button(ctx.ui, "food").unwrap();
+            assert!(ctx.ui.node(housing).usable());
+            assert!(!ctx.ui.node(food).usable());
         });
     }
 

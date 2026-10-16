@@ -200,6 +200,11 @@ impl PlacementTool {
     }
 
     /// Footprint size in cells.
+    /// The cells the ghost covers.
+    pub fn rect(&self) -> Option<Rect> {
+        self.rect
+    }
+
     pub fn size(&self) -> Option<(i32, i32)> {
         self.rect.map(|r| (r.width(), r.height()))
     }

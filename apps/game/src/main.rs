@@ -32,6 +32,7 @@ mod pause_menu;
 mod placement_tool;
 mod removal_tool;
 mod render;
+mod scenario_ui;
 mod scene;
 mod scene_assets;
 mod scene_gfx;
@@ -219,6 +220,7 @@ impl Game {
             uv: sprite.uv,
             color: [255; 4],
             clip: None,
+            rotation: 0.0,
         })
     }
 
