@@ -115,6 +115,12 @@ impl StartingTown {
             else {
                 continue;
             };
+            // An entry stays when its last workplace leaves (`unregister` keeps it).
+            self.construction
+                .workforce
+                .registry
+                .entry(profession)
+                .or_default();
             for e in list(w, "entities")
                 .iter()
                 .filter_map(|e| placed_of(e.ptr("entity")))
@@ -321,13 +327,20 @@ impl StartingTown {
             }
         }
         let mut professions: BTreeMap<ObjId, usize> = BTreeMap::new();
+        let mut keys = Vec::new();
         for p in list(m, "jobs.by_profession") {
-            let Some(profession) = saved
-                .ext(p, "profession")
-                .and_then(|r| self.profession_index(r))
-            else {
-                continue;
+            // A null profession is a key of its own (`usize::MAX`).
+            let profession = match p.i32("profession") {
+                Some(-1) => usize::MAX,
+                _ => match saved
+                    .ext(p, "profession")
+                    .and_then(|r| self.profession_index(r))
+                {
+                    Some(p) => p,
+                    None => continue,
+                },
             };
+            keys.push(profession);
             for w in list(p, "work") {
                 if let Some(w) = w.ptr("work") {
                     professions.insert(w, profession);
@@ -560,6 +573,7 @@ impl StartingTown {
             int(m, "jobs.next_priority"),
             int(m, "jobs.pass"),
             works,
+            &keys,
         );
         // NaturalResourceComponent flag `0x100000`: a removal sequence holds the resource.
         for (id, entity) in saved.entities() {

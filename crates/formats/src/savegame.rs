@@ -68,6 +68,75 @@ impl Fields {
         None
     }
 
+    /// [`Fields::at`] for writing.
+    pub fn at_mut(&mut self, path: &str) -> Option<&mut Value> {
+        let (head, rest) = match path.split_once('.') {
+            Some((h, r)) => (h, Some(r)),
+            None => (path, None),
+        };
+        let v = self
+            .0
+            .iter_mut()
+            .find(|(n, _)| *n == head)
+            .map(|(_, v)| v)?;
+        match rest {
+            None => Some(v),
+            Some(rest) => match v {
+                Value::Block(_, f) => f.at_mut(rest),
+                _ => None,
+            },
+        }
+    }
+
+    /// Replace the value at `path`, keeping its kind (an `I32` stays an `I32`, a `Bool` that
+    /// holds a raw byte takes the new truth value as 0 or 1 only if it changed). Returns whether
+    /// the field exists.
+    pub fn set(&mut self, path: &str, value: Value) -> bool {
+        let Some(slot) = self.at_mut(path) else {
+            return false;
+        };
+        // A raw non-0/1 bool byte stays as written while its truth value is unchanged.
+        if let (Value::I8(b), Value::Bool(v)) = (&*slot, &value) {
+            if (*b != 0) == *v {
+                return true;
+            }
+        }
+        *slot = value;
+        true
+    }
+
+    pub fn set_i32(&mut self, path: &str, v: i32) -> bool {
+        match self.at_mut(path) {
+            Some(Value::I32(x)) => *x = v,
+            Some(Value::U32(x)) | Some(Value::Ext(x)) => *x = v as u32,
+            Some(Value::I16(x)) => *x = v as i16,
+            Some(Value::I8(x)) => *x = v as i8,
+            Some(Value::U16(x)) => *x = v as u16,
+            _ => return false,
+        }
+        true
+    }
+
+    pub fn set_f32(&mut self, path: &str, v: f32) -> bool {
+        match self.at_mut(path) {
+            Some(Value::F32(x)) => *x = v,
+            _ => return false,
+        }
+        true
+    }
+
+    pub fn set_time(&mut self, path: &str, v: i64) -> bool {
+        match self.at_mut(path) {
+            Some(Value::I64(x)) => *x = v,
+            _ => return false,
+        }
+        true
+    }
+
+    pub fn set_bool(&mut self, path: &str, v: bool) -> bool {
+        self.set(path, Value::Bool(v))
+    }
+
     pub fn i32(&self, path: &str) -> Option<i32> {
         match self.at(path)? {
             Value::I32(v) => Some(*v),
@@ -401,6 +470,25 @@ impl Decoder<'_> {
 }
 
 impl GameState {
+    /// A new object of type `name` with default fields ([`crate::savegame_schema::default_fields`])
+    /// and the next free factory index. The tag (`Internal +0x0c`, drawn on the factory's own
+    /// Random in the original) is the index here; returns its id.
+    pub fn new_object(&mut self, name: &'static str) -> Option<ObjId> {
+        let fields = crate::savegame_schema::default_fields(name)?;
+        let index = self.objects.keys().next_back().map_or(1, |&k| k + 1);
+        self.objects.insert(
+            index,
+            Object {
+                index,
+                tag: index as u32,
+                type_id: crate::crc::type_id(name),
+                type_name: name,
+                fields,
+            },
+        );
+        Some(index)
+    }
+
     /// Decode an expanded game-state stream (`crate::save::Save::state`).
     pub fn decode(state: &[u8]) -> Result<GameState> {
         let mut d = Decoder {

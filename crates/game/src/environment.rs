@@ -160,6 +160,16 @@ impl Environment {
         self.effects = effects;
     }
 
+    /// What [`Environment::restore`] takes, for saving: baseline and bias with their targets,
+    /// and the last slice.
+    pub fn saved(&self) -> ((f32, f32), (f32, f32), i32) {
+        (
+            (self.baseline, self.baseline_target),
+            (self.bias, self.bias_target),
+            self.slice,
+        )
+    }
+
     /// `FUN_140099430` then `FUN_140099300`: state 0, level 4, baseline from the climate.
     ///
     /// Deviation: the constructor seeds its first Perlin field from two clock-seeded `Random()`s;

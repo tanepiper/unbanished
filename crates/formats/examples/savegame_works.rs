@@ -27,6 +27,12 @@ fn main() {
         }
     }
     println!("next id {:?}", g.managers.i32("jobs.next_id"));
+    println!(
+        "bucket values {:?}, bucket sizes {:?}, entity time {}",
+        g.bucket_values,
+        g.buckets.iter().map(|b| b.len()).collect::<Vec<_>>(),
+        g.entity_time
+    );
     if let Ok(t) = std::env::var("DUMP_TYPE") {
         for o in g.objects.values().filter(|o| o.type_name == t) {
             println!("{t} {:?}", o.fields.0.get(1));
@@ -38,6 +44,11 @@ fn main() {
             *hist.entry(c.bytes[5]).or_insert(0) += 1;
         }
         println!("cell +0x2d values: {hist:?}");
+    }
+    if std::env::var("SCHEDULES").is_ok() {
+        for (k, (e, s)) in g.entities.iter().zip(&g.schedules).enumerate().take(400) {
+            println!("schedule {k}: {} {s:?}", template(*e));
+        }
     }
     if std::env::var("STACKS").is_ok() {
         stacks(&g);

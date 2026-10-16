@@ -1759,3 +1759,58 @@ pub fn schema_for(ty: u32) -> Option<(&'static str, &'static [Op])> {
         .get(&ty)
         .copied()
 }
+
+/// A new object's fields for type `name`: every step's default (zero, false, none, empty), in
+/// the schema's order, each block at its version. The writer fills them in.
+pub fn default_fields(name: &str) -> Option<crate::savegame::Fields> {
+    let (_, ops) = schema_for(type_id(name))?;
+    let mut out = crate::savegame::Fields::default();
+    defaults_into(ops, 0, &mut out);
+    Some(out)
+}
+
+fn defaults_into(ops: &[Op], version: u32, out: &mut crate::savegame::Fields) {
+    use crate::savegame::{Fields, Value};
+    for op in ops {
+        let (name, value) = match *op {
+            Bool(n) => (n, Value::Bool(false)),
+            I8(n) => (n, Value::I8(0)),
+            I16(n) => (n, Value::I16(0)),
+            U16(n) => (n, Value::U16(0)),
+            I32(n) => (n, Value::I32(0)),
+            U32(n) => (n, Value::U32(0)),
+            Time(n) => (n, Value::I64(0)),
+            F32(n) => (n, Value::F32(0.0)),
+            Times(n, k) => (n, Value::I64s(vec![0; k])),
+            F32s(n, k) => (n, Value::F32s(vec![0.0; k])),
+            U32s(n, k) => (n, Value::U32s(vec![0; k])),
+            I32sBy(n, _) => (n, Value::U32s(Vec::new())),
+            F32sBy(n, _) => (n, Value::F32s(Vec::new())),
+            Str(n) | WStr(n) => (n, Value::Str(String::new())),
+            Ext(n) => (n, Value::Ext(u32::MAX)),
+            Ptr(n) => (n, Value::Ptr(None)),
+            List(n, _) | Rest(n, _) => (n, Value::List(Vec::new())),
+            Block(n, v, inner) => {
+                let mut f = Fields::default();
+                defaults_into(inner, v, &mut f);
+                (n, Value::Block(v, f))
+            }
+            Sub(inner) => {
+                defaults_into(inner, version, out);
+                continue;
+            }
+            If(cond, inner) => {
+                let take = match cond {
+                    VersionAtLeast(v) => version >= v,
+                    VersionBelow(v) => version < v,
+                    Flag(_) => false,
+                };
+                if take {
+                    defaults_into(inner, version, out);
+                }
+                continue;
+            }
+        };
+        out.0.push((name, value));
+    }
+}

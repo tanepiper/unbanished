@@ -197,7 +197,13 @@ impl StartingTown {
                     .and_then(|m| m.fields.f32("model.yaw"))
                     .unwrap_or(m("rotation") as f32),
                 variant: model_i("variant"),
-                mesh: model_i("mesh"),
+                // −1, no mesh yet (a building before its first stage), is `usize::MAX` in the
+                // port (`Sim::set_mesh`).
+                mesh: match model.and_then(|m| m.fields.i32("model.mesh")) {
+                    Some(m) if m >= 0 => m as usize,
+                    Some(_) => usize::MAX,
+                    None => 0,
+                },
                 growth: natural
                     .and_then(|c| c.fields.f32("natural.value_28"))
                     .unwrap_or(1.0),
@@ -249,6 +255,17 @@ impl StartingTown {
         town.restore_producers(archive, saved, &index);
         town.restore_jobs(archive, saved, &index, &order);
         town.restore_actions(archive, saved, &index, &order);
+        let mut ids = super::SaveIds {
+            entities: vec![None; town.placed.len()],
+            citizens: vec![0; town.citizens.len()],
+        };
+        for (&id, &p) in &index {
+            ids.entities[p] = Some(id);
+        }
+        for (&id, &c) in &order {
+            ids.citizens[c] = id;
+        }
+        town.save_ids = Some(ids);
         Some(town)
     }
 }

@@ -290,7 +290,7 @@ impl Jobs {
     }
 
     /// A saved manager (`FUN_1400fe710`): its counters, then each work with the categories it
-    /// was filed under (1..14). The priority index is rebuilt from the works' own priorities,
+    /// was filed under (1..14), and the professions its profession map holds. The priority index is rebuilt from the works' own priorities,
     /// as the load pass does; the clock (`+0x130`) is not saved and restarts at 0.
     pub fn restore(
         &mut self,
@@ -298,6 +298,7 @@ impl Jobs {
         next_priority: i32,
         pass: i32,
         works: impl IntoIterator<Item = (Work, Vec<u32>)>,
+        professions: &[usize],
     ) {
         *self = Jobs {
             next_id,
@@ -305,6 +306,10 @@ impl Jobs {
             pass,
             ..Default::default()
         };
+        // The profession map keeps a profession whose works are all gone.
+        for &p in professions {
+            self.professions.entry(p).or_default();
+        }
         for (work, categories) in works {
             let id = work.id;
             self.priorities.entry(work.priority).or_insert(id);
@@ -322,6 +327,28 @@ impl Jobs {
                 .insert(id);
             self.works.insert(id, work);
         }
+    }
+
+    /// The counters a save holds (`+0x00`, `+0x04`).
+    pub fn counters(&self) -> (i32, i32) {
+        (self.next_id, self.next_priority)
+    }
+
+    /// The works filed under category `c` (1..14), in id order.
+    pub fn category(&self, c: u32) -> Vec<i32> {
+        (c as usize)
+            .checked_sub(1)
+            .and_then(|c| self.categories.get(c))
+            .map(|set| set.iter().copied().collect())
+            .unwrap_or_default()
+    }
+
+    /// The works by profession (`+0x120`), in profession then id order.
+    pub fn by_profession(&self) -> Vec<(usize, Vec<i32>)> {
+        self.professions
+            .iter()
+            .map(|(&p, ids)| (p, ids.iter().copied().collect()))
+            .collect()
     }
 
     /// `FUN_1400fe300`: unregister, refresh, cancel every worker, delete.

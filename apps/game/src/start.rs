@@ -30,6 +30,9 @@ use banished_game::professions::{Profession, Professions, WorkPlace};
 
 mod bridge;
 mod load;
+// The web build has no save path yet (no Save dialog, no file access).
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+mod save;
 mod tornado;
 pub use bridge::BridgeSpec;
 
@@ -959,6 +962,17 @@ pub struct StartingTown {
     names: Option<(NameDatabase, NameDatabase)>,
     /// Each StorageDisplay's cells on the ground, by rows (presentation only).
     display_cells: BTreeMap<usize, Vec<[f32; 3]>>,
+    /// For a town loaded from a save: the saved object each entity and citizen came from, so
+    /// saving writes the town back into them (docs/SAVE-WRITING.md).
+    pub save_ids: Option<SaveIds>,
+}
+
+/// The saved objects behind a loaded town: per placed entity its ComponentEntity, per citizen
+/// its CitizenComponent.
+#[derive(Debug, Clone, Default)]
+pub struct SaveIds {
+    pub entities: Vec<Option<banished_formats::savegame::ObjId>>,
+    pub citizens: Vec<banished_formats::savegame::ObjId>,
 }
 
 impl StartingTown {
@@ -1296,6 +1310,7 @@ impl StartingTown {
             },
             names,
             display_cells: BTreeMap::new(),
+            save_ids: None,
         };
         town.resolve_piles(archive);
         // CitizenDescription `+0x20/+0x28/+0x30`: the teacher's, priest's and doctor's

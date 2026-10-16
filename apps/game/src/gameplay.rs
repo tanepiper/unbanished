@@ -183,6 +183,130 @@ impl GameplayLoop {
         g
     }
 
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    /// The game state to save (docs/SAVE-WRITING.md): the loaded save's, with the town and
+    /// the loop's own state written back. `None` for a game not loaded from a save.
+    pub fn save_state(
+        &self,
+        ui: &mut banished_ui::Ui,
+    ) -> Option<banished_formats::savegame::GameState> {
+        use banished_formats::savegame::{Fields, Value};
+        let saved = self.saved.as_ref()?;
+        let mut g = saved.state.clone();
+        if let Some(town) = &self.town {
+            town.export_into(&mut g);
+        }
+        g.random_index = self.rng.index();
+        g.random_state = self.rng.state().to_vec();
+        g.managers
+            .set_i32("calendar.value", self.calendar.year as i32);
+        g.managers.set_time("calendar.time", self.calendar.elapsed);
+        if let (Some(view), Some(c)) = (&self.view, g.camera.as_mut()) {
+            if let SceneCamera::Map(camera) = &view.camera {
+                c.target[0] = camera.target.x;
+                c.target[1] = camera.target.y;
+                c.floats = [camera.yaw, camera.pitch, camera.distance];
+            }
+        }
+        if let Some(env) = &self.environment {
+            let m = &mut g.managers;
+            let ((baseline, baseline_target), (bias, bias_target), slice) = env.saved();
+            m.set_i32("environment.state", env.state);
+            m.set_i32("environment.level", env.level);
+            m.set_f32("environment.temperature", env.temperature);
+            let s = env.season;
+            m.set(
+                "environment.season",
+                Value::F32s(vec![s.snow, s.autumn, s.leaf_loss, s.rain]),
+            );
+            m.set_f32("environment.baseline", baseline);
+            m.set_f32("environment.baseline_target", baseline_target);
+            m.set_f32("environment.bias", bias);
+            m.set_f32("environment.bias_target", bias_target);
+            m.set_i32("environment.slice", slice);
+            if let Some(Value::List(effects)) = m.at_mut("environment.effects") {
+                for (item, e) in effects.iter_mut().zip(&env.effects) {
+                    *item = match e {
+                        Some(e) => Fields(vec![
+                            ("active", Value::Bool(true)),
+                            ("direction", Value::F32(e.direction)),
+                            ("intensity", Value::F32(e.intensity)),
+                        ]),
+                        None => Fields(vec![("active", Value::Bool(false))]),
+                    };
+                }
+            }
+        }
+        // The event log keeps each entry's text (`FUN_14009a790`).
+        let m = &mut g.managers;
+        for (k, n) in self.events.notify.iter().enumerate() {
+            m.set_bool(&format!("event_log.notify_{k}"), *n);
+        }
+        let entries: Vec<Fields> = self
+            .events
+            .entries
+            .iter()
+            .map(|e| {
+                Fields(vec![
+                    ("color", Value::U32(e.color)),
+                    ("text", Value::Str(crate::utility::format_event(ui, e))),
+                    ("kind", Value::I32(e.kind)),
+                    ("severity", Value::I32(e.severity)),
+                    ("cell", Value::I32(e.cell)),
+                    ("category", Value::I32(e.category)),
+                    ("icon", Value::I32(e.icon)),
+                ])
+            })
+            .collect();
+        m.set("event_log.entries", Value::List(entries));
+        let t = &mut g.town;
+        let history: Vec<Fields> = self
+            .statistics
+            .series
+            .iter()
+            .map(|v| {
+                Fields(vec![
+                    ("count", Value::I32(v.len() as i32)),
+                    ("values", Value::U32s(v.iter().map(|&x| x as u32).collect())),
+                ])
+            })
+            .collect();
+        if let Some(Value::List(old)) = t.at("town.history") {
+            if old.len() == history.len() {
+                t.set("town.history", Value::List(history));
+            }
+        }
+        t.set_time("town.time_198", self.statistics.timer);
+        if let Some(Value::List(slots)) = t.at_mut("town.stock") {
+            let w = &self.stock_warnings;
+            for (k, s) in slots.iter_mut().enumerate().take(w.count.len()) {
+                s.set_i32("count", w.count[k]);
+                s.set_i32("previous", w.previous[k]);
+                s.set_i32("limit", w.limits[k]);
+                s.set_time("cooldown", w.cooldown[k]);
+            }
+        }
+        if let Some(Value::List(records)) = t.at_mut("town.capacity_records") {
+            for (r, &(used, capacity, cooldown)) in
+                records.iter_mut().zip(&self.stock_warnings.capacity)
+            {
+                r.set_i32("used", used);
+                r.set_i32("capacity", capacity);
+                r.set_time("cooldown", cooldown);
+            }
+        }
+        Some(g)
+    }
+
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    /// The whole `.sav` file of [`GameplayLoop::save_state`], with the loaded save's metadata.
+    pub fn save_file(&self, ui: &mut banished_ui::Ui) -> Option<Vec<u8>> {
+        let g = self.save_state(ui)?;
+        let state = g.encode().map_err(|e| log::error!("save: {e}")).ok()?;
+        let saved = self.saved.as_ref()?;
+        Some(banished_formats::save::Save::write(&saved.metadata, &state))
+    }
+
     pub fn new(params: WorldParams) -> Self {
         Self {
             rng: Random::new(params.seed),
@@ -2241,6 +2365,27 @@ impl GameLoop for GameplayLoop {
         let mut words = command.split_whitespace();
         match words.next() {
             Some("event") => {}
+            // `save PATH`: write the game (one loaded from a save) to `PATH`.
+            #[cfg(not(target_arch = "wasm32"))]
+            Some("save") => {
+                let Some(path) = words.next() else {
+                    return false;
+                };
+                let Some(bytes) = self.save_file(ctx.ui) else {
+                    log::error!("save: only a game loaded from a save can be saved yet");
+                    return false;
+                };
+                return match std::fs::write(path, bytes) {
+                    Ok(()) => {
+                        log::info!("saved {path}");
+                        true
+                    }
+                    Err(e) => {
+                        log::error!("{path}: {e}");
+                        false
+                    }
+                };
+            }
             // `pause`: open the pause menu (captures).
             Some("pause") => {
                 self.open_pause_menu(ctx);

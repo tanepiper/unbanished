@@ -22,7 +22,7 @@ Deviation: 39, Not ported: 10, Not traced: 5.
 ## `apps/game/src/gameplay.rs`
 
 - [Deviation] [apps/game/src/gameplay.rs:32](../apps/game/src/gameplay.rs#L32): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
-- [Deviation] [apps/game/src/gameplay.rs:395](../apps/game/src/gameplay.rs#L395): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
+- [Deviation] [apps/game/src/gameplay.rs:517](../apps/game/src/gameplay.rs#L517): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
 
 ## `apps/game/src/gameplay/tutorial.rs`
 
@@ -105,7 +105,7 @@ Deviation: 39, Not ported: 10, Not traced: 5.
 ## `crates/game/src/environment.rs`
 
 - [Deviation] [crates/game/src/environment.rs:133](../crates/game/src/environment.rs#L133): The saved controller (`FUN_140099160`): state `+0x10`, level `+0x14`, temperature `+0x18`, the renderer values `+0x1c`, baseline `+0x2c`/`+0x30`, bias `+0x44`/`+0x48`, the last slice `+0x4c`, and each weather effect that exists (re-created on load, `FUN_140099790`, with its `+0xc4` direction and `+0xc0` intensity). Deviation: the temperature noise (`+0x34`) is not saved; after a load the original keeps its constructor's clock-seeded field until the next reseed (slice 0 or 24). The port keeps its constructor's fixed seed.
-- [Deviation] [crates/game/src/environment.rs:163](../crates/game/src/environment.rs#L163): `FUN_140099430` then `FUN_140099300`: state 0, level 4, baseline from the climate. Deviation: the constructor seeds its first Perlin field from two clock-seeded `Random()`s; the first update always reseeds it (slice 0), so a fixed seed is used here.
+- [Deviation] [crates/game/src/environment.rs:173](../crates/game/src/environment.rs#L173): `FUN_140099430` then `FUN_140099300`: state 0, level 4, baseline from the climate. Deviation: the constructor seeds its first Perlin field from two clock-seeded `Random()`s; the first update always reseeds it (slice 0), so a fixed seed is used here.
 
 ## `crates/game/src/fishing.rs`
 
