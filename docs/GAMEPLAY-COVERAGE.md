@@ -90,6 +90,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Town Info, Production/Population graphs | yes ([TOWN-INFO.md](TOWN-INFO.md), TownHallUI) |
 | Achievements, tutorial, scenarios | yes ([ACHIEVEMENTS.md](ACHIEVEMENTS.md), [TUTORIAL.md](TUTORIAL.md); the tutorials start new games until saves load) |
 | Terrain decals (footprints, fields, yards, roads) | yes ([DECALS.md](DECALS.md)) |
+| River and lake surfaces | yes ([TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md); the strip bit-exact) |
 | Weather precipitation, smoke particles, fire particles | no |
 | Disasters (fire, tornado, disease) and AutoSlow | yes (fire, blight and tornadoes with the Disasters option; AutoSlow from their events) |
 

@@ -7,11 +7,13 @@
 
 mod mesh;
 mod query;
+mod river;
 mod stages;
 mod surface;
 
 pub use mesh::{tile_indices, HeightGrid, TerrainMesh, TerrainVertex, TILE_CELLS, TILE_VERTS};
 pub use query::CellType;
+pub use river::{river_strip, water_mesh, WaterMesh};
 
 use crate::random::Random;
 

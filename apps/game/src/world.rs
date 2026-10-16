@@ -133,6 +133,8 @@ pub struct World {
     /// list `i` with the positions of generator path `i`'s 28-byte records, last to first
     /// (verified against the saved paths of a generated map).
     pub river_paths: Vec<Vec<[f32; 2]>>,
+    /// The rivers' and lakes' surface (`FUN_1400b0730`).
+    pub water: banished_game::terrain::WaterMesh,
 }
 
 fn with_object(reference: &str) -> String {
@@ -187,6 +189,7 @@ impl World {
             .iter()
             .map(|p| p.iter().rev().map(|q| q.pos).collect())
             .collect();
+        let water = banished_game::terrain::water_mesh(&g.paths, &g.lakes, &heights, size);
         let terrain = Terrain::new(archive, &profile.materials[0], size, heights, surface)?;
         let environment =
             environment_description(&archive.read_ref("Environment/Environment.rsc:resource")?)?;
@@ -195,6 +198,7 @@ impl World {
             terrain,
             environment,
             river_paths,
+            water,
         })
     }
 }

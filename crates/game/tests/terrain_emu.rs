@@ -256,3 +256,80 @@ fn valleys_small_seed_12345() {
 fn mountains_small_seed_290() {
     check("mountains-small-290", 290, MOUNTAINS_SMALL, stages());
 }
+
+/// `FUN_1400d4fd0` against `tools/emu/river_mesh.py`'s `rivers.bin`: every path's strip.
+#[test]
+fn river_strips_valleys_small_290() {
+    let Some(dir) = truth_dir("valleys-small-290") else {
+        return;
+    };
+    let Ok(bytes) = std::fs::read(dir.join("rivers.bin")) else {
+        return;
+    };
+    let mut g = Generator::new(SizeRecord::from_wire(VALLEYS_SMALL), 290);
+    g.stage1_noise();
+    g.stage2_records();
+    let mut at = 0;
+    let paths = read_i32(&bytes, &mut at) as usize;
+    assert_eq!(paths, g.paths.len());
+    for (p, path) in g.paths.iter().enumerate() {
+        let vc = read_i32(&bytes, &mut at) as usize;
+        let want_v: Vec<[u32; 4]> = (0..vc)
+            .map(|_| std::array::from_fn(|_| read_i32(&bytes, &mut at) as u32))
+            .collect();
+        let ic = read_i32(&bytes, &mut at) as usize;
+        let want_i: Vec<u16> = (0..ic)
+            .map(|k| u16::from_le_bytes([bytes[at + 2 * k], bytes[at + 2 * k + 1]]))
+            .collect();
+        at += 2 * ic;
+        let (got_v, got_i) = banished_game::terrain::river_strip(path);
+        let got_v: Vec<[u32; 4]> = got_v.iter().map(|v| v.map(f32::to_bits)).collect();
+        let first = got_v.iter().zip(&want_v).position(|(a, b)| a != b);
+        assert!(
+            got_v.len() == want_v.len() && first.is_none(),
+            "path {p}: {} vertices, want {}; first difference at {first:?}: got {:?} want {:?}",
+            got_v.len(),
+            want_v.len(),
+            first.map(|i| got_v[i].map(f32::from_bits)),
+            first.map(|i| want_v[i].map(f32::from_bits)),
+        );
+        assert_eq!(got_i, want_i, "path {p} indices");
+    }
+}
+
+/// `FUN_1400b0730`: the rivers' strips at `−192 − i`, then each lake's faded quads at
+/// `i − 191`, with ranges that cover the buffers in order.
+#[test]
+fn water_mesh_valleys_small_1() {
+    if truth_dir("valleys-small-1").is_none() {
+        return;
+    }
+    let mut g = Generator::new(SizeRecord::from_wire(VALLEYS_SMALL), 1);
+    g.run(|_, _| {});
+    let heights = g.heights();
+    let mesh = banished_game::terrain::water_mesh(&g.paths, &g.lakes, &heights, g.size as usize);
+    assert_eq!(mesh.rivers.len(), g.paths.len());
+    assert_eq!(mesh.lakes.len(), g.lakes.len());
+    let (mut index, mut vertex) = (0, 0);
+    for (k, r) in mesh.rivers.iter().chain(&mesh.lakes).enumerate() {
+        assert_eq!((r[0], r[1]), (index, vertex), "range {k}");
+        let z = if k < mesh.rivers.len() {
+            -192 - k as i16
+        } else {
+            (k - mesh.rivers.len()) as i16 - 191
+        };
+        for v in &mesh.vertices[r[1] as usize..(r[1] + r[2]) as usize] {
+            assert_eq!(i16::from_le_bytes([v[4], v[5]]), z);
+        }
+        for &i in &mesh.indices[r[0] as usize..(r[0] + r[3]) as usize] {
+            assert!((i as i32) < r[2]);
+        }
+        index += r[3];
+        vertex += r[2];
+    }
+    assert_eq!(index as usize, mesh.indices.len());
+    assert_eq!(vertex as usize, mesh.vertices.len());
+    // Seed 1 has two lakes.
+    assert_eq!(mesh.lakes.len(), 2);
+    assert!(mesh.lakes.iter().all(|l| 0 < l[3]), "{:?}", mesh.lakes);
+}

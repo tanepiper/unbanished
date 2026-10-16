@@ -126,8 +126,6 @@ bit-exactly (`crates/game`); see [TERRAIN-DERIVED-GEOMETRY.md](TERRAIN-DERIVED-G
 
 ## Remaining world-generation trace
 
-- Port the river strip builder `FUN_1400d4fd0` (ground truth: `tools/emu/river_mesh.py`) and the
-  lake surface builder in `FUN_1400b0730`.
 - The distinct River and
   Lake mesh production/draw path is recorded in [TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md),
   and the profile-driven rock/ore/tree seed pass in [START-CONDITION-PROFILES.md](START-CONDITION-PROFILES.md).

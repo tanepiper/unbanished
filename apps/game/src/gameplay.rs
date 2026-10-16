@@ -1244,11 +1244,22 @@ impl GameLoop for GameplayLoop {
                     camera.target =
                         glam::Vec2::new(town.start.0 as f32 - c, town.start.1 as f32 - c);
                 }
+                // The rivers and lakes with the profile's River and Lake materials.
+                let w = &world.water;
+                let water = crate::scene_assets::WaterData::from_mesh(
+                    ctx.archive,
+                    &world.profile.materials[1],
+                    &world.profile.materials[2],
+                    &w.vertices,
+                    &w.indices,
+                    w.rivers.clone(),
+                    w.lakes.clone(),
+                );
                 let mut view = SceneView::new(world.terrain, SceneCamera::Map(camera), lighting);
                 // `FUN_14009bfd0`: the sky (`Models/Sky/SkyMesh.rsc`); the roads' decals follow.
                 view.extras = Some(crate::scene_assets::SceneExtras {
                     sky: crate::scene_assets::SkyData::load(ctx.archive, "Models/Sky/SkyMesh.rsc"),
-                    water: None,
+                    water,
                     decals: Vec::new(),
                 });
                 self.road_materials = crate::road_decals::materials(ctx.archive);

@@ -87,32 +87,48 @@ pub struct WaterData {
 
 impl WaterData {
     pub fn load(archive: &Archive, map: &MapComponent) -> Option<WaterData> {
-        if map.water_vertices.is_empty() {
+        Self::from_mesh(
+            archive,
+            map.river_material.as_deref()?,
+            map.lake_material.as_deref()?,
+            &map.water_vertices,
+            &map.water_indices,
+            map.river_ranges.clone(),
+            map.lake_ranges.clone(),
+        )
+    }
+
+    /// A water mesh with its River and Lake materials (a generated map's, `FUN_1400b0730`).
+    pub fn from_mesh(
+        archive: &Archive,
+        river_material: &str,
+        lake_material: &str,
+        vertices: &[[u8; 16]],
+        indices: &[u16],
+        rivers: Vec<[i32; 4]>,
+        lakes: Vec<[i32; 4]>,
+    ) -> Option<WaterData> {
+        if vertices.is_empty() {
             return None;
         }
-        let river = material(archive, map.river_material.as_deref()?)?;
-        let lake = material(archive, map.lake_material.as_deref()?)?;
+        let river = material(archive, river_material)?;
+        let lake = material(archive, lake_material)?;
         let river_water = image(archive, slot(&river.1, "water").as_deref())?;
         let lake_water = image(archive, slot(&lake.1, "water").as_deref())?;
         let highlight = image(archive, slot(&river.1, "highlight").as_deref())?;
-        let n = map.water_vertices.len() as f32;
-        let level = map
-            .water_vertices
+        let n = vertices.len() as f32;
+        let level = vertices
             .iter()
             .map(|v| i16::from_le_bytes([v[4], v[5]]) as f32 / 256.0)
             .sum::<f32>()
             / n;
-        let mut indices: Vec<u8> = map
-            .water_indices
-            .iter()
-            .flat_map(|i| i.to_le_bytes())
-            .collect();
+        let mut indices: Vec<u8> = indices.iter().flat_map(|i| i.to_le_bytes()).collect();
         indices.resize(indices.len().next_multiple_of(4), 0);
         Some(WaterData {
-            vertices: map.water_vertices.iter().flatten().copied().collect(),
+            vertices: vertices.iter().flatten().copied().collect(),
             indices,
-            rivers: map.river_ranges.clone(),
-            lakes: map.lake_ranges.clone(),
+            rivers,
+            lakes,
             river_water,
             lake_water,
             highlight,
