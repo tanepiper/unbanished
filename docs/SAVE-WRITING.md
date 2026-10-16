@@ -129,7 +129,7 @@ decodes and loads back with every citizen, stack, animal and work.
     (`saved::preview`; the material's filter is assumed linear, without mipmaps).
   - The original's fourth byte is the frame's alpha, mostly 0 with small values its shaders
     leave; the port writes 0.
-  - The `save PATH` script command sets the save pending, the next draw hands the preview to
+  - The Save dialog (docs/SAVE-LOAD-DIALOG.md) and the `save PATH` script command set the save pending, the next draw hands the preview to
     the loop (`GameLoop::save_preview`), and the next update writes the file.
 - The extension value (2) and the mod list are the loaded save's.
 

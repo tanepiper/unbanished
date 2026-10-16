@@ -187,6 +187,24 @@ pub struct SavedEventLog {
 
 impl Save {
     pub fn parse(data: &[u8]) -> Result<Save> {
+        let (meta, state) = Save::payloads(data)?;
+        Ok(Save {
+            metadata: stream::decode(meta)?,
+            state: stream::decode(state)?,
+        })
+    }
+
+    /// Only the metadata, as the save list reads it (`Persistence::BeginGetSaveGameInfo`, then
+    /// `SaveLoad::LoadMetaData` `0x1800c43a0`): the game state is not expanded.
+    pub fn read_metadata(data: &[u8]) -> Result<SaveMetadata> {
+        SaveMetadata::parse(&stream::decode(Save::payloads(data)?.0)?)
+    }
+
+    /// The compressed metadata and game-state payloads, checked against the header.
+    fn payloads(data: &[u8]) -> Result<(&[u8], &[u8])> {
+        if data.len() < 2 {
+            return Err(Error::Truncated { at: 0, wanted: 2 });
+        }
         let version = u16::from_le_bytes([data[0], data[1]]);
         // Version 1: the first payload's offset and size at 0x08, the second's id, offset and
         // size at 0x10. Version 2: `u16 2, u16 count, 0x80808080, u32 check`, then `{id,
@@ -217,10 +235,7 @@ impl Save {
                 return format_err("save check value does not match");
             }
         }
-        Ok(Save {
-            metadata: stream::decode(meta)?,
-            state: stream::decode(state)?,
-        })
+        Ok((meta, state))
     }
 
     pub fn metadata(&self) -> Result<SaveMetadata> {

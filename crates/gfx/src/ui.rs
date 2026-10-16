@@ -236,10 +236,13 @@ impl UiRenderer {
             if self.textures.contains_key(&Texture::Sheet(i)) {
                 continue;
             }
-            let rgba = sheet.image.as_deref().and_then(|r| {
-                let img = types::image_buffer(&ui.res.archive.read_ref(r).ok()?).ok()?;
-                let data = decode_rgba(img.format, img.width, img.height, img.levels.first()?)?;
-                Some((img.width, img.height, data))
+            let made = sheet.pixels.as_deref().map(|(w, h, p)| (*w, *h, p.clone()));
+            let rgba = made.or_else(|| {
+                sheet.image.as_deref().and_then(|r| {
+                    let img = types::image_buffer(&ui.res.archive.read_ref(r).ok()?).ok()?;
+                    let data = decode_rgba(img.format, img.width, img.height, img.levels.first()?)?;
+                    Some((img.width, img.height, data))
+                })
             });
             let (w, h, data) = rgba.unwrap_or_else(|| {
                 log::warn!("sprite sheet {} has no readable image", sheet.reference);

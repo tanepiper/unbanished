@@ -212,6 +212,7 @@ mod tests {
             reference: "test".into(),
             image: None,
             shader: None,
+            pixels: None,
             sheet: SpriteSheet {
                 material_path: String::new(),
                 source_image: String::new(),

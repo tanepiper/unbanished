@@ -32,11 +32,14 @@ mod music;
 mod options;
 mod particle_gfx;
 mod particles;
+mod paths;
 mod pause_menu;
 mod placement_tool;
 mod removal_tool;
 mod render;
 mod road_decals;
+mod save_dialog;
+mod save_list;
 mod saved;
 mod scenario_ui;
 mod scene;
@@ -978,13 +981,7 @@ mod native {
     use super::*;
 
     pub fn data_dir(args: &[String]) -> std::path::PathBuf {
-        args.iter()
-            .find(|a| !a.starts_with("--") && std::path::Path::new(a).is_dir())
-            .map(Into::into)
-            .unwrap_or_else(|| {
-                std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                    .join("../../game-data/original/WinData")
-            })
+        crate::paths::data_dir(args)
     }
 
     pub fn read_packages(dir: &std::path::Path) -> Vec<(String, Vec<u8>)> {

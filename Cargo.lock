@@ -211,6 +211,7 @@ dependencies = [
  "console_log",
  "env_logger",
  "glam",
+ "jiff",
  "js-sys",
  "log",
  "png",
@@ -972,6 +973,7 @@ dependencies = [
  "portable-atomic",
  "portable-atomic-util",
  "serde_core",
+ "windows-link",
 ]
 
 [[package]]

@@ -40,6 +40,10 @@ cargo run -p banished-app --release
 cargo run -p banished-app --release -- --boot-capture menu.png 4.5
 cargo run -p banished-app --release -- --capture map.png --view overview
 
+# Drop-in use: put the built `banished` binary in the Banished install folder, beside
+# `WinData`, and it reads the game data there and the saves in Documents/Banished/Save, as the
+# original executable does (see docs/SAVE-LOAD-DIALOG.md).
+
 # Headless screenshot of the browser in a mode, e.g. the main menu dialog
 cargo run -p banished-viewer --release -- --screenshot menu.png dialogs MainMenu_resource
 

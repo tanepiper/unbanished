@@ -27,6 +27,9 @@ pub struct LoadedSheet {
     /// The material instance's base material (e.g. `Material\UI\Logo.rsc:resource`), which
     /// selects the shader. Most sheets use the plain UI material.
     pub shader: Option<String>,
+    /// An image made at run time (`width`, `height`, RGBA) instead of `image`: a save's
+    /// preview, which the Save and Load dialogs wrap in a sheet of their own.
+    pub pixels: Option<Rc<(u32, u32, Vec<u8>)>>,
 }
 
 pub struct LoadedFont {
@@ -100,11 +103,48 @@ impl Resources {
                         sheet,
                         image,
                         shader,
+                        pixels: None,
                     });
                     self.sheets.len() - 1
                 });
         self.sheet_ids.insert(reference.to_string(), id);
         id
+    }
+
+    /// A one-sprite sheet around an image made at run time (`UI::SpriteSheet` with
+    /// `AddSpriteInfo(0, 0, w, h)`, as `FUN_1400bc1b0` makes for a save's preview). `key` names
+    /// it: the same key gives the same sheet, its image as first made.
+    pub fn image_sheet(&mut self, key: &str, width: u32, height: u32, rgba: Vec<u8>) -> SpriteRef {
+        let reference = format!("image:{key}");
+        let sheet = match self.sheet_ids.get(&reference) {
+            Some(Some(id)) => *id,
+            _ => {
+                self.sheets.push(LoadedSheet {
+                    reference: reference.clone(),
+                    sheet: SpriteSheet {
+                        material_path: String::new(),
+                        source_image: String::new(),
+                        width: width as i32,
+                        height: height as i32,
+                        unknown_flag: false,
+                        sprites: Vec::new(),
+                        material: None,
+                    },
+                    image: None,
+                    shader: None,
+                    pixels: Some(Rc::new((width, height, rgba))),
+                });
+                let id = self.sheets.len() - 1;
+                self.sheet_ids.insert(reference, Some(id));
+                id
+            }
+        };
+        SpriteRef {
+            sheet,
+            width: width as i32,
+            height: height as i32,
+            uv: [0.0, 0.0, 1.0, 1.0],
+        }
     }
 
     pub fn sprite(&mut self, sheet_ref: Option<&str>, name: &str) -> Option<SpriteRef> {

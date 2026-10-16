@@ -1230,6 +1230,9 @@ impl Ui {
                 colors,
                 state,
             } => {
+                // A button made unusable shows its disabled state at once, not only after the
+                // pointer next moves (`ButtonElement` draws from its enabled flag).
+                let state = &if n.usable() { *state } else { 1 };
                 if let Some(s) = states[*state].or(states[0]) {
                     self.draw_node(s, color, clip, out);
                 }

@@ -133,7 +133,10 @@ pub struct GameplayLoop {
     pending_sounds: Vec<(glam::Vec3, String)>,
     /// A save waiting for its preview: the path, then the image once drawn.
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    pending_save: Option<(String, Option<Vec<u8>>)>,
+    pending_save: Option<(std::path::PathBuf, Option<Vec<u8>>)>,
+    /// The Save and Load dialog over the pause menu.
+    #[cfg(not(target_arch = "wasm32"))]
+    save_dialog: Option<crate::save_dialog::SaveLoadDialog>,
     /// Map ambience (`FUN_1400a57c0`): environment regions and wind.
     ambience: Option<crate::ambience::Ambience>,
     /// The map changed since the ambience last weighed it.
@@ -338,9 +341,55 @@ impl GameplayLoop {
             log::error!("save: only a game loaded from a save can be saved yet");
             return;
         };
+        if let Some(dir) = path.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
         match std::fs::write(&path, bytes) {
-            Ok(()) => log::info!("saved {path}"),
-            Err(e) => log::error!("{path}: {e}"),
+            Ok(()) => log::info!("saved {}", path.display()),
+            Err(e) => log::error!("{}: {e}", path.display()),
+        }
+    }
+
+    /// The Save and Load dialog's frame: a save it starts waits for the next frame's preview;
+    /// a load it finishes starts that game.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn update_save_dialog(&mut self, ctx: &mut Ctx, dt: f32) -> Option<Next> {
+        let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) else {
+            return None;
+        };
+        let outcome = d.update(ctx.ui, screen, dt);
+        self.save_outcome(ctx, outcome)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn save_outcome(
+        &mut self,
+        ctx: &mut Ctx,
+        outcome: crate::save_dialog::Outcome,
+    ) -> Option<Next> {
+        use crate::save_dialog::Outcome;
+        match outcome {
+            Outcome::Stay => None,
+            Outcome::Closed => {
+                self.save_dialog = None;
+                None
+            }
+            Outcome::Save(path) => {
+                self.pending_save = Some((path, None));
+                None
+            }
+            // `FUN_1400bce80` → `FUN_14009d480`: the game fades out for the loaded one.
+            Outcome::Load(saved) => {
+                self.save_dialog = None;
+                self.close_pause_menu(ctx);
+                log::info!("loading {}", saved.metadata.name);
+                let screen_ref = format!("Dialog/Loading.rsc:gameLoad{}", ctx.rng.rand_below(12));
+                Some(Next::Switch(Box::new(crate::loops::DialogLoaderLoop::new(
+                    screen_ref,
+                    0.5,
+                    Box::new(GameplayLoop::from_save(saved)),
+                ))))
+            }
         }
     }
 
@@ -395,6 +444,8 @@ impl GameplayLoop {
             move_cooldown: 0.0,
             pending_sounds: Vec::new(),
             pending_save: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            save_dialog: None,
             ambience: None,
             ambience_stale: false,
             pause_menu: None,
@@ -1751,7 +1802,12 @@ impl GameLoop for GameplayLoop {
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
         #[cfg(not(target_arch = "wasm32"))]
-        self.finish_save(ctx);
+        {
+            self.finish_save(ctx);
+            if let Some(next) = self.update_save_dialog(ctx, dt) {
+                return next;
+            }
+        }
         if ctx.ui.screen[0] > 0 && ctx.ui.screen[1] > 0 {
             self.aspect = ctx.ui.screen[0] as f32 / ctx.ui.screen[1] as f32;
         }
@@ -1966,6 +2022,16 @@ impl GameLoop for GameplayLoop {
     }
 
     fn event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
+            if let Event::Clicked(id) = event {
+                let outcome = d.click(ctx.ui, screen, ctx.audio, ctx.archive, id);
+                if let Some(next) = self.save_outcome(ctx, outcome) {
+                    return next;
+                }
+            }
+            return Next::Stay;
+        }
         if let (Some(options), Some(screen)) = (&mut self.options, &mut self.screen) {
             if options.event(ctx, screen, event) == crate::options::Outcome::Closed {
                 self.options = None;
@@ -2077,6 +2143,17 @@ impl GameLoop for GameplayLoop {
                         )
                         .map(MenuDialog::Map);
                     }
+                }
+                crate::pause_menu::PauseClick::Load | crate::pause_menu::PauseClick::Save => {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if let Some(screen) = &mut self.screen {
+                        let loading =
+                            matches!(menu.click(ctx.ui, id), crate::pause_menu::PauseClick::Load);
+                        self.save_dialog =
+                            crate::save_dialog::SaveLoadDialog::open(ctx.ui, screen, loading, true);
+                    }
+                    #[cfg(target_arch = "wasm32")]
+                    log::info!("pause menu: saving and loading are not in the browser yet");
                 }
                 crate::pause_menu::PauseClick::Other if menu.contains(ctx.ui, id) => {
                     log::info!(
@@ -2222,6 +2299,17 @@ impl GameLoop for GameplayLoop {
             RawInput::ActionReleased(id) if id < keys::COUNT => self.held[id] = false,
             RawInput::Cursor(..) => self.cursor_seen = true,
             _ => {}
+        }
+        // The Save and Load dialog: Escape is buttonCancel's action 8.
+        #[cfg(not(target_arch = "wasm32"))]
+        if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
+            if let RawInput::Escape = input {
+                let outcome = d.escape(ctx.ui, screen);
+                if let Some(next) = self.save_outcome(ctx, outcome) {
+                    return next;
+                }
+            }
+            return Next::Stay;
         }
         // While the pause menu is open the controller does not run; Escape is buttonResume's
         // action 8.
@@ -2412,7 +2500,7 @@ impl GameLoop for GameplayLoop {
                 let Some(path) = words.next() else {
                     return false;
                 };
-                self.pending_save = Some((path.to_string(), None));
+                self.pending_save = Some((path.into(), None));
                 return true;
             }
             // `pause`: open the pause menu (captures).

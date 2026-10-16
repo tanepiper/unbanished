@@ -44,8 +44,12 @@ pub struct MenuLoop {
     achievements: Option<crate::achievement_ui::AchievementDialog>,
     /// The Scenario (id 9) or Tutorial (id 12) dialog.
     scenarios: Option<crate::scenario_ui::ScenarioDialog>,
-    /// A save to start once this frame's update runs (the `load` script command).
+    /// A save to start once this frame's update runs (the Load dialog, the `load` script
+    /// command).
     load: Option<crate::saved::SavedGame>,
+    /// The Load dialog (`MainMenuDialog` id 2, `FUN_1400b8d80` with mode 1).
+    #[cfg(not(target_arch = "wasm32"))]
+    save_dialog: Option<crate::save_dialog::SaveLoadDialog>,
 }
 
 /// Shared settings defaults (`FUN_140042850`) before `Game/Last*` persistence is applied:
@@ -74,6 +78,8 @@ impl MenuLoop {
             achievements: None,
             scenarios: None,
             load: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            save_dialog: None,
         }
     }
 
@@ -129,6 +135,20 @@ impl MenuLoop {
         self.new_seed(ctx);
         self.new_town_name(ctx);
         self.refresh_description(ctx);
+    }
+
+    /// The Load dialog's answer: a finished load starts that game on the next update.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn save_outcome(&mut self, outcome: crate::save_dialog::Outcome) {
+        use crate::save_dialog::Outcome;
+        match outcome {
+            Outcome::Closed => self.save_dialog = None,
+            Outcome::Load(saved) => {
+                self.save_dialog = None;
+                self.load = Some(saved);
+            }
+            Outcome::Stay | Outcome::Save(_) => {}
+        }
     }
 
     fn new_town_name(&mut self, ctx: &mut Ctx) {
@@ -475,6 +495,11 @@ impl GameLoop for MenuLoop {
         if let Some(options) = &mut self.options {
             options.update();
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
+            let outcome = d.update(ctx.ui, screen, dt);
+            self.save_outcome(outcome);
+        }
         if let Some(saved) = self.load.take() {
             log::info!("loading {}", saved.metadata.name);
             let screen_ref = format!("Dialog/Loading.rsc:gameLoad{}", ctx.rng.rand_below(12));
@@ -509,6 +534,14 @@ impl GameLoop for MenuLoop {
     }
 
     fn raw(&mut self, ctx: &mut Ctx, input: RawInput) -> Next {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
+            if let RawInput::Escape = input {
+                let outcome = d.escape(ctx.ui, screen);
+                self.save_outcome(outcome);
+            }
+            return Next::Stay;
+        }
         if let (Some(options), Some(screen)) = (&mut self.options, &mut self.screen) {
             let outcome = match input {
                 RawInput::Released(binding) => {
@@ -530,6 +563,14 @@ impl GameLoop for MenuLoop {
     }
 
     fn event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
+            if let Event::Clicked(id) = event {
+                let outcome = d.click(ctx.ui, screen, ctx.audio, ctx.archive, id);
+                self.save_outcome(outcome);
+            }
+            return Next::Stay;
+        }
         if let (Some(options), Some(screen)) = (&mut self.options, &mut self.screen) {
             if options.event(ctx, screen, event) == crate::options::Outcome::Closed {
                 self.options = None;
@@ -603,6 +644,14 @@ impl GameLoop for MenuLoop {
             if let Some(screen) = &mut self.screen {
                 self.options = crate::options::OptionsDialog::open(ctx, screen);
             }
+        } else if self.is(ctx.ui, 0, "buttonLoad", id) {
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(screen) = &mut self.screen {
+                self.save_dialog =
+                    crate::save_dialog::SaveLoadDialog::open(ctx.ui, screen, true, false);
+            }
+            #[cfg(target_arch = "wasm32")]
+            log::info!("menu: loading is not in the browser yet");
         } else if self.is(ctx.ui, 0, "buttonQuit", id) {
             return Next::Quit;
         } else if self.is(ctx.ui, 0, "buttonTutorial", id)
