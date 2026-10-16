@@ -218,6 +218,9 @@ pub struct Workforce {
     pub registry: BTreeMap<usize, Vec<usize>>,
     /// `+0x20/+0x28`: residence entities (`FUN_14012f2b0` appends on completion).
     pub residences: Vec<usize>,
+    /// Workplaces being torn down (their state machine in 3 to 5, `FUN_140123be0`), kept by
+    /// the sites' update: the last worker leaving one shows no `WorkersUnavailable`.
+    pub demolishing: std::collections::BTreeSet<usize>,
 }
 
 impl Workforce {
@@ -238,7 +241,6 @@ impl Workforce {
 
     /// `FUN_1401173b0`: move citizen `c` to workplace `wp` (removing it from its old one,
     /// `FUN_140134cb0`, then appending to the new one, `FUN_140134ef0`).
-    /// Not ported: the workplaces' StatusIconComponent bits and entity flags 2/3.
     pub fn set_workplace(&mut self, workers: &mut [Worker], c: usize, wp: Option<usize>) {
         self.move_worker(c, workers[c].workplace, wp);
         workers[c].workplace = wp;
@@ -247,16 +249,19 @@ impl Workforce {
     /// The workplaces' side of [`Workforce::set_workplace`]: `c` leaves `old`
     /// (`FUN_140134cb0`: the last worker gone, the limit and work icons go, and an enabled
     /// workplace of its own profession shows `WorkersUnavailable`) and joins `new`
-    /// (`FUN_140134ef0`: that icon goes).
-    /// Not ported: the entity events 2 and 3 (work sounds, smoke) and the destroy check.
+    /// (`FUN_140134ef0`: that icon goes); not while it is being torn down (`FUN_140123be0`).
+    /// The entity events 2 and 3 (work sounds and smoke) are presentation, driven in the app
+    /// from the workers.
     pub fn move_worker(&mut self, c: usize, old: Option<usize>, new: Option<usize>) {
         if let Some(old) = old {
+            let demolishing = self.demolishing.contains(&old);
             if let Some(w) = self.workplaces.get_mut(&old) {
                 w.workers.retain(|&x| x != c);
                 if w.workers.is_empty() {
                     w.set_icon(icon::LIMIT, false);
                     w.set_icon(icon::NO_WORK, false);
                     if w.enabled
+                        && !demolishing
                         && w.profession.is_some()
                         && w.profession == w.description_profession
                     {

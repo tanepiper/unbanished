@@ -813,9 +813,22 @@ impl Sim<'_, '_> {
             .all(|&(n, m)| self.storages[site.storage].available(m) >= n * site.stages)
     }
 
+    /// [`crate::professions::Workforce::demolishing`] from the sites' state machines.
+    pub(crate) fn refresh_demolishing(&mut self) {
+        let ids: Vec<usize> = self.workforce.workplaces.keys().copied().collect();
+        for e in ids {
+            if self.sites.contains_key(&e) && self.is_demolishing(e) {
+                self.workforce.demolishing.insert(e);
+            } else {
+                self.workforce.demolishing.remove(&e);
+            }
+        }
+    }
+
     /// `FUN_1401349f0` (WorkPlaceComponent::BecomeSite): the workers leave and builders work
     /// here.
     pub(crate) fn become_site(&mut self, jobs: &mut Jobs, e: usize) {
+        self.refresh_demolishing();
         let builder = self.professions.builder;
         let mut workers = self.workers();
         self.workforce.clear_workers(&mut workers, e);
@@ -1073,6 +1086,7 @@ impl Sim<'_, '_> {
     /// The bit-4 and scheduled StateMachine updates of every site.
     pub fn update_sites(&mut self, jobs: &mut Jobs) {
         let ids: Vec<usize> = self.sites.keys().copied().collect();
+        self.refresh_demolishing();
         for e in &ids {
             run(self, jobs, *e, false, true);
         }
@@ -1357,6 +1371,7 @@ impl Callbacks for Sim<'_, '_> {
             }
             // `FUN_140134230`: every worker leaves and the workplace leaves its profession's.
             Callback::WorkPlaceEnter3 => {
+                self.refresh_demolishing();
                 let mut workers = self.workers();
                 self.workforce.clear_workers(&mut workers, e);
                 self.set_workers(&workers);

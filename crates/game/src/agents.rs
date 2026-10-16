@@ -1880,7 +1880,7 @@ fn run(
                     state.clothing_status = 0;
                 }
                 state.flags |= 4;
-                // Not ported: drawing the StatusIconComponent's billboard (its mask is live).
+                // The app draws the StatusIconComponent's billboard from the mask.
                 return false;
             };
             // FUN_1400c2540 / FUN_1400c2180: push in reverse execution order.

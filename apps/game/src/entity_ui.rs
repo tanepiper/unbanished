@@ -169,8 +169,13 @@ impl EntityWindows {
                         .iter()
                         .find(|s| s.entity == p)
                         .and_then(|s| town.storages.get(s.storage)),
-                    // Not ported: building StatusIconComponent bits.
-                    0,
+                    // The building's StatusIconComponent bits: its workplace's and home's.
+                    town.construction
+                        .workforce
+                        .workplaces
+                        .get(&p)
+                        .map_or(0, |w| w.status)
+                        | town.construction.homes.get(&p).map_or(0, |h| h.status),
                 ),
                 Entity::Citizen(i) => town
                     .agents

@@ -1286,8 +1286,9 @@ impl StartingTown {
         out
     }
 
-    /// StatusIconComponent billboards (`FUN_1401310a0` anchors): each citizen with status bits,
-    /// above its model (position + model box height). Building status bits are not ported.
+    /// StatusIconComponent billboards (`FUN_1401310a0` anchors): each building with status bits
+    /// ([`StartingTown::building_icons`]), and each citizen's above its model (position + model
+    /// box height).
     pub fn status_icons(&self) -> Vec<crate::status_icons::StatusIcon> {
         let mut icons = self.building_icons();
         let Some(d) = &self.citizen_icons else {
