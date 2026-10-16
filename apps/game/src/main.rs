@@ -21,6 +21,7 @@ mod building_ui;
 mod create_bar;
 mod entity_ui;
 mod event_notify;
+mod follow;
 mod gameplay;
 mod global;
 mod highlight;

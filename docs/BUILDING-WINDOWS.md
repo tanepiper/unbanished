@@ -18,7 +18,7 @@ frame after the simulation; refresh reads only.
 | `0x3061173b` | StorageCapacityUI | `0x140163d90` | `FUN_140080ad0` / `FUN_1400809a0` | done |
 | `0xbdb788dc` | WorkPlaceUI | `0x140164450` | `FUN_14008ce10` / `FUN_14008c550` / `FUN_14008ccb0` | done |
 | `0xdf3a1bb2` | StatusIconUI | `0x140163cd0` | `FUN_140080740` / `FUN_140080570` | done |
-| `0x03e455a9` | CitizenUI | `0x140161b30` | `FUN_140065b00` / `FUN_140065440` / `FUN_140065a50` | done (no events) |
+| `0x03e455a9` | CitizenUI | `0x140161b30` | `FUN_140065b00` / `FUN_140065440` / `FUN_140065a50` | done: Profession `0x227` (`FUN_140065330`: the school, else the workplace) and Home `0x226` (`FUN_140065270`) open that building (`FUN_140108510`), each enabled while there is one; Follow `0x228` opens `Dialog/Follow.rsc` (`follow.rs`) |
 | `0x293e60a1` | BuildUI | `0x140165620` | `FUN_1400b7410` / `FUN_1400b6f20` / `FUN_1400b7370` | done |
 | `0x2e56a4c8` | DestroyUI | `0x140161c30` | `FUN_140066ab0` / `FUN_140066460` / `FUN_1400669e0` | done |
 | `0xf77895ff` | ResourceLimitUI | | `FUN_14007ce40` / `FUN_14007cda0` / `FUN_14007ccb0` | done |
@@ -326,6 +326,13 @@ The child/student profession resources are matched by name (`Profession.rsc:chil
 
 ClearAreaComponent `+0x48` is written when clearing starts (`FUN_14011ce30`, after the
 footprint scan): `FUN_14011d800`'s count then.
+
+## EntityUI events (`FUN_1400679b0`, vtable `0x140161cc0` slot `+0x48`)
+
+Event `0x12`: id 1 closes (`FUN_140108030`); id `0x65` (`buttonCenter`, `FUN_1400671d0`) puts
+the camera on the entity: with a map rectangle, the middle of its corners `(x, y)` and
+`(x + w, y + h)` (cell positions without the half-cell offset, z 0), else its model's
+position; id `0x64` (`checkPin`, `FUN_140067010`) pins it.
 
 ## EntityUI page
 

@@ -862,6 +862,8 @@ pub struct CitizenInfo {
     pub activity: i32,
     /// Profession button enabled (`+0x248` work or `+0x208` school).
     pub has_work: bool,
+    /// Home button enabled (`+0x238`).
+    pub has_home: bool,
 }
 
 pub(crate) fn text_of(ui: &Ui, id: NodeId) -> String {
@@ -1437,6 +1439,7 @@ pub struct CitizenUi {
     stars: Option<NodeId>,
     /// Host buttons (element ids 0x227, 0x226, 0x228).
     button_profession: Option<NodeId>,
+    button_home: Option<NodeId>,
 }
 
 impl CitizenUi {
@@ -1458,6 +1461,7 @@ impl CitizenUi {
             hearts: f("groupHearts"),
             stars: f("groupStars"),
             button_profession: ui.find(root, "buttonProfession"),
+            button_home: ui.find(root, "buttonHome"),
         }
     }
 
@@ -1495,8 +1499,12 @@ impl CitizenUi {
         }
         crate::utility::StatusBar::set_meter(ui, self.hearts, c.health, c.health_max);
         crate::utility::StatusBar::set_meter(ui, self.stars, c.happiness, c.happiness_max);
+        // `FUN_140065440`: the buttons usable while there is a building to show.
         if let Some(b) = self.button_profession {
             ui.node_mut(b).enabled = c.has_work;
+        }
+        if let Some(b) = self.button_home {
+            ui.node_mut(b).enabled = c.has_home;
         }
         if let Some(n) = self.action {
             let t = ui

@@ -116,6 +116,8 @@ pub struct GameplayLoop {
     decal_cache: crate::scene_assets::DecalCache,
     selection: Selection,
     entities: EntityWindows,
+    /// The Follow dialog (`Dialog/Follow.rsc`), opened from a citizen window.
+    follow: Option<crate::follow::Follow>,
     highlight: crate::highlight::Highlight,
     /// The event log (`Game +0x138`) and the stock manager's warning state.
     pub events: banished_game::events::EventLog,
@@ -636,6 +638,7 @@ impl GameplayLoop {
             decal_cache: Default::default(),
             selection: Selection::default(),
             entities: EntityWindows::default(),
+            follow: None,
             highlight: Default::default(),
             events: Default::default(),
             stock_warnings: Default::default(),
@@ -1109,6 +1112,30 @@ impl GameplayLoop {
         let allowed = Self::restrict_allows(self.restrict.as_ref(), tool, self.rotation);
         if let Some(bar) = &mut self.create_bar {
             bar.update(ctx.ui, tool.size(), tool.valid() && allowed, rect);
+        }
+    }
+
+    /// `FUN_140069860`.
+    fn close_follow(&mut self, ctx: &mut Ctx) {
+        if let (Some(f), Some(screen)) = (self.follow.take(), self.screen.as_mut()) {
+            f.close(ctx.ui, screen);
+        }
+    }
+
+    /// The Follow dialog each frame (`FUN_140069bb0`, `FUN_1400698d0`): the camera on the
+    /// citizen and its texts; it closes with its citizen window (`FUN_140065a90`) or citizen.
+    fn update_follow(&mut self, ctx: &mut Ctx) {
+        let Some(f) = &self.follow else { return };
+        let target = self.town.as_ref().and_then(|t| f.target(t));
+        let (Some(target), true) = (target, self.entities.is_open(f.owner)) else {
+            self.close_follow(ctx);
+            return;
+        };
+        if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
+            if let SceneCamera::Map(camera) = &mut view.camera {
+                camera.target = target;
+            }
+            f.layout(ctx.ui, town);
         }
     }
 
@@ -2180,6 +2207,7 @@ impl GameLoop for GameplayLoop {
                 )));
             }
         }
+        self.update_follow(ctx);
         self.refresh_decals(ctx.archive);
         self.refresh_particles(ctx.archive, dt * iterations as f32);
         self.refresh_weather(ctx, dt * iterations as f32);
@@ -2441,6 +2469,11 @@ impl GameLoop for GameplayLoop {
             }
             return Next::Stay;
         }
+        // The Follow dialog's close button (`FUN_140069b90`, id 100).
+        if self.follow.as_ref().is_some_and(|f| f.is_close(id)) {
+            self.close_follow(ctx);
+            return Next::Stay;
+        }
         if let (Some(notify), Some(screen)) = (self.notify.as_mut(), self.screen.as_mut()) {
             if let Some(goto) = notify.click(ctx.ui, screen, &self.events, id) {
                 if let Some(cell) = goto {
@@ -2565,6 +2598,60 @@ impl GameLoop for GameplayLoop {
                 }
             } else if ctx.ui.node(id).name == "checkPin" {
                 self.entities.pin(ctx.ui, id);
+            } else if matches!(
+                ctx.ui.node(id).name.as_str(),
+                "buttonProfession" | "buttonHome"
+            ) {
+                // CitizenUI event `0x12`: ids `0x227` (`FUN_140065330`: the school, else the
+                // workplace) and `0x226` (`FUN_140065270`: the home) open that building through
+                // `FUN_140108510`: the asking window pinned, the camera on it, selected.
+                let profession = ctx.ui.node(id).name == "buttonProfession";
+                let target = match (self.entities.entity_containing(ctx.ui, id), &self.town) {
+                    (Some(Entity::Citizen(c)), Some(town)) => {
+                        let s = &town.agents.states[c];
+                        if profession {
+                            s.school.or(s.workplace)
+                        } else {
+                            s.home
+                        }
+                    }
+                    _ => None,
+                };
+                if let (Some(building), Some(town), Some(view)) =
+                    (target, self.town.as_ref(), self.view.as_mut())
+                {
+                    self.entities.pin_containing(ctx.ui, id);
+                    let entity = Entity::Placed(building);
+                    if let SceneCamera::Map(camera) = &mut view.camera {
+                        camera.target = entity.position(town).truncate();
+                    }
+                    self.selection.selected = Some(entity);
+                    self.entities
+                        .select(ctx.ui, screen, ctx.archive, town, entity);
+                }
+            } else if ctx.ui.node(id).name == "buttonFollow" {
+                // CitizenUI event `0x12` id `0x228` (`FUN_140065080`).
+                if let (Some(Entity::Citizen(c)), Some(owner), Some(town)) = (
+                    self.entities.entity_containing(ctx.ui, id),
+                    self.entities.root_containing(ctx.ui, id),
+                    self.town.as_ref(),
+                ) {
+                    if let Some(old) = self.follow.take() {
+                        old.close(ctx.ui, screen);
+                    }
+                    self.follow = crate::follow::Follow::open(ctx.ui, screen, town, c, owner);
+                }
+            } else if ctx.ui.node(id).name == "buttonCenter" {
+                // EntityUI event `0x12` id `0x65` (`FUN_1400671d0`).
+                if let (Some(entity), Some(town), Some(view)) = (
+                    self.entities.entity_containing(ctx.ui, id),
+                    self.town.as_ref(),
+                    self.view.as_mut(),
+                ) {
+                    if let SceneCamera::Map(camera) = &mut view.camera {
+                        camera.target = center_target(town, entity);
+                    }
+                }
             }
             return Next::Stay;
         };
@@ -2711,6 +2798,11 @@ impl GameLoop for GameplayLoop {
             }
             // `FUN_140104bb0`: the tool stays while a RestrictPlayer setup holds.
             RawInput::Escape if self.restrict.as_ref().is_some_and(|r| !r.place.is_empty()) => {
+                return Next::Stay;
+            }
+            // `FUN_140069bb0`: Escape closes the Follow dialog.
+            RawInput::Escape if self.follow.is_some() => {
+                self.close_follow(ctx);
                 return Next::Stay;
             }
             RawInput::Escape if self.placement.is_some() || self.removal.is_some() => {
@@ -2979,6 +3071,23 @@ mod tutorial;
 #[cfg(test)]
 use tutorial::scenario_params;
 pub use tutorial::{scenario_game, scenarios};
+
+/// `FUN_1400671d0`: where the Center button puts the camera. An entity with a map rectangle:
+/// the middle of its corners `(x, y)` and `(x + w, y + h)` (cell positions without the
+/// half-cell offset); one without (a citizen, an animal): its model's position.
+fn center_target(town: &StartingTown, entity: Entity) -> glam::Vec2 {
+    match entity {
+        Entity::Placed(i) if town.templates[town.placed[i].template].map.is_some() => {
+            let p = &town.placed[i];
+            let half = (town.cells.size >> 1) as f32;
+            glam::Vec2::new(
+                (p.cell.0 as f32 - half + (p.cell.0 + p.footprint.0) as f32 - half) * 0.5,
+                (p.cell.1 as f32 - half + (p.cell.1 + p.footprint.1) as f32 - half) * 0.5,
+            )
+        }
+        _ => entity.position(town).truncate(),
+    }
+}
 
 /// An achievement's instance as `new_game` writes it: per goal its reference, its instance
 /// class, its value (bit 0 met, bit 1 failed) and a TimeGoal's time.
@@ -3805,6 +3914,55 @@ mod tests {
             let with_site = count(&mut gameplay, ctx);
             assert!(gameplay.script(ctx, "select"));
             assert_eq!(count(&mut gameplay, ctx), with_site + 1);
+        });
+    }
+
+    /// A citizen window's Follow (`FUN_140065080`): the dialog opens with the citizen's name,
+    /// the camera stays on the citizen, and Escape closes it. Center, Home and Profession act
+    /// on the window's citizen.
+    #[test]
+    fn follow_keeps_the_camera_on_the_citizen() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            let entity = Entity::Citizen(0);
+            {
+                let (town, screen) = (
+                    gameplay.town.as_ref().unwrap(),
+                    gameplay.screen.as_mut().unwrap(),
+                );
+                gameplay
+                    .entities
+                    .select(ctx.ui, screen, ctx.archive, town, entity);
+            }
+            let root = gameplay.entities.open[0].root;
+            let follow = ctx.ui.find(root, "buttonFollow").expect("buttonFollow");
+            gameplay.event(ctx, Event::Clicked(follow));
+            assert!(gameplay.follow.is_some());
+            for _ in 0..30 {
+                gameplay.update(ctx, 1.0 / 30.0);
+            }
+            let at = gameplay.town.as_ref().unwrap().citizens[0].position;
+            let SceneCamera::Map(camera) = &gameplay.view.as_ref().unwrap().camera else {
+                panic!("no map camera");
+            };
+            assert!((camera.target - glam::Vec2::new(at[0], at[1])).length() < 1e-3);
+            let name = gameplay.town.as_ref().unwrap().citizens[0].name.clone();
+            let screen = gameplay.screen.as_ref().unwrap();
+            let shown = screen
+                .dialogs
+                .iter()
+                .rev()
+                .find_map(|d| ctx.ui.find(d.root, "textFollow"))
+                .map(|n| crate::utility::text_of(ctx.ui, n))
+                .unwrap_or_default();
+            assert!(shown.contains(&name), "{shown:?} {name:?}");
+            gameplay.raw(ctx, RawInput::Escape);
+            assert!(gameplay.follow.is_none());
+            // Center: the camera on the citizen's model.
+            let center = ctx.ui.find(root, "buttonCenter").expect("buttonCenter");
+            gameplay.event(ctx, Event::Clicked(center));
         });
     }
 

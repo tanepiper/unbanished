@@ -399,6 +399,27 @@ impl EntityWindows {
         })
     }
 
+    /// The root of the window containing `node`.
+    pub fn root_containing(&self, ui: &Ui, node: NodeId) -> Option<NodeId> {
+        self.open
+            .iter()
+            .find(|w| ui.descendant(w.root, node))
+            .map(|w| w.root)
+    }
+
+    /// Whether a window with this root is open.
+    pub fn is_open(&self, root: NodeId) -> bool {
+        self.open.iter().any(|w| w.root == root)
+    }
+
+    /// The entity of the window containing `node`.
+    pub fn entity_containing(&self, ui: &Ui, node: NodeId) -> Option<Entity> {
+        self.open
+            .iter()
+            .find(|w| ui.descendant(w.root, node))
+            .map(|w| w.entity)
+    }
+
     /// TownHallUI's combos (`FUN_140081650` event `0x14`) in the window containing `node`.
     pub fn town_hall_select(
         &mut self,
@@ -502,7 +523,10 @@ impl EntityWindows {
 }
 
 /// The values CitizenUI (`FUN_140065440`) shows for citizen `i`.
-fn citizen_info(town: &StartingTown, i: usize) -> Option<crate::building_ui::CitizenInfo> {
+pub(crate) fn citizen_info(
+    town: &StartingTown,
+    i: usize,
+) -> Option<crate::building_ui::CitizenInfo> {
     let c = town.citizens.get(i)?;
     let s = town.agents.states.get(i)?;
     let ai = town.agents.ais.get(i)?;
@@ -553,7 +577,8 @@ fn citizen_info(town: &StartingTown, i: usize) -> Option<crate::building_ui::Cit
         happiness: s.happiness,
         happiness_max: rules.happiness,
         activity,
-        has_work: s.work.is_some() || c.school.is_some(),
+        has_work: s.workplace.is_some() || s.school.is_some(),
+        has_home: s.home.is_some(),
     })
 }
 
