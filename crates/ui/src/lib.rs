@@ -156,6 +156,8 @@ pub struct Node {
     /// Title and description user data, for `TitleDescToolTipUI`.
     pub title_desc: Option<(String, String)>,
     pub enabled: bool,
+    /// Element `+0x3c`: the mouse cursor index over it (`Element::GetMouseCursorIndex`).
+    pub cursor: i32,
     /// An image's rotation in degrees (`ImageElement::SetRotation`).
     pub rotation: f32,
     /// Content size from the last size pass.
@@ -184,6 +186,7 @@ impl Node {
             hotkey: None,
             title_desc: None,
             enabled: true,
+            cursor: 0,
             rotation: 0.0,
             size: [0; 2],
             rect: [0; 4],
@@ -439,6 +442,7 @@ impl Ui {
         node.alignment = b.alignment;
         node.flags = b.flags;
         node.color = b.color;
+        node.cursor = b.cursor;
         node.children = children;
         node.tooltip = self.res.string(b.string_table.as_deref(), &b.tooltip);
         node.tooltip_dialog = b.tooltip_dialog.clone();

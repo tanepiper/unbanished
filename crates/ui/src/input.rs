@@ -25,10 +25,28 @@ impl Ui {
     pub fn focused(&self) -> Option<NodeId> {
         self.focus
     }
+    /// The pointer in UI units, as last moved.
+    pub fn pointer(&self) -> (i32, i32) {
+        self.pointer
+    }
     /// Whether the current pointer target is a control that consumes pointer input.
     pub fn pointer_over_interactive(&self) -> bool {
         self.hot.is_some_and(|id| self.interactive(id))
     }
+    /// `DialogInstance::GetMouseCursorIndex`: the cursor index of `id`, unless one of its
+    /// visible children holds `(x, y)`, then that child's, the last such child winning.
+    pub fn cursor_index(&self, id: NodeId, x: i32, y: i32) -> i32 {
+        let n = &self.nodes[id];
+        let mut cursor = n.cursor;
+        for &c in &n.children {
+            let child = &self.nodes[c];
+            if child.visible() && child.contains(x, y) {
+                cursor = self.cursor_index(c, x, y);
+            }
+        }
+        cursor
+    }
+
     /// Whether key input should be reserved for an active text edit control.
     pub fn text_edit_focused(&self) -> bool {
         self.focus

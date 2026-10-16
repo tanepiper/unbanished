@@ -118,9 +118,13 @@ pub struct Game {
     os_scale: f32,
     /// The pointer in window pixels, once it has moved.
     pointer: Option<(i32, i32)>,
-    /// The software pointer (`Cursor/Arrow.rsc:cursor`): its sheet and hotspot.
-    cursor: Option<(banished_ui::SpriteRef, [i32; 2])>,
+    /// The software pointers (`FUN_1400a0e00`'s table, `Global +0x28`): Arrow, Hand,
+    /// Hourglass, Move, Query and Place, each its sheet and hotspot once loaded.
+    cursors: Vec<Option<(banished_ui::SpriteRef, [i32; 2])>>,
 }
+
+/// `Cursor/{name}.rsc:cursor`, in cursor index order.
+const CURSORS: [&str; 6] = ["Arrow", "Hand", "Hourglass", "Move", "Query", "Place"];
 
 /// The startup chain built in `FUN_140042850`: a loader loop for "Game/Global" (`FUN_14009f280`),
 /// the Shining Rock splash (at least 2 s), the loading screen (at least 0.5 s), then the menu.
@@ -190,7 +194,7 @@ impl Game {
             settings,
             os_scale: 1.0,
             pointer: None,
-            cursor: None,
+            cursors: Vec::new(),
         })
         .map(|mut g: Game| {
             g.apply_settings();
@@ -211,29 +215,39 @@ impl Game {
 
     /// "Use Software Mouse" (`Input::Configuration +10`): the pointer is drawn by the game, at
     /// its image's own size, instead of by the system (`UserInterface::SetCursor` hands the
-    /// cursor's sheet image and hotspot to the device). Not ported: the other cursors (Hand,
-    /// Place, Move, …) the original switches between by `UserInterface::GetMouseCursorIndex`;
-    /// only the arrow is drawn.
+    /// cursor's sheet image and hotspot to the device).
     fn cursor_quad(&mut self) -> Option<banished_ui::Quad> {
         let (x, y) = self.pointer?;
-        if self.cursor.is_none() {
-            let data = self.archive.read_ref("Cursor/Arrow.rsc:cursor").ok()?;
-            let c = banished_formats::ui::cursor(&data).ok()?;
-            let sheet_ref = c.sprite_sheet?.replace('\\', "/");
-            let sheet = self.ui.res.sheet(&sheet_ref)?;
-            let loaded = &self.ui.res.sheets[sheet].sheet;
-            let sprite = banished_ui::SpriteRef {
-                sheet,
-                width: loaded.width,
-                height: loaded.height,
-                uv: loaded
-                    .sprites
-                    .first()
-                    .map_or([0.0, 0.0, 1.0, 1.0], |s| s.uv),
-            };
-            self.cursor = Some((sprite, c.hotspot));
+        if self.cursors.is_empty() {
+            self.cursors = CURSORS
+                .iter()
+                .map(|name| {
+                    let data = self
+                        .archive
+                        .read_ref(&format!("Cursor/{name}.rsc:cursor"))
+                        .ok()?;
+                    let c = banished_formats::ui::cursor(&data).ok()?;
+                    let sheet_ref = c.sprite_sheet?.replace('\\', "/");
+                    let sheet = self.ui.res.sheet(&sheet_ref)?;
+                    let loaded = &self.ui.res.sheets[sheet].sheet;
+                    let sprite = banished_ui::SpriteRef {
+                        sheet,
+                        width: loaded.width,
+                        height: loaded.height,
+                        uv: loaded
+                            .sprites
+                            .first()
+                            .map_or([0.0, 0.0, 1.0, 1.0], |s| s.uv),
+                    };
+                    Some((sprite, c.hotspot))
+                })
+                .collect();
         }
-        let (sprite, [hx, hy]) = self.cursor?;
+        // The loop's cursor this frame (`UserInterface::SetCursor`), the arrow if it is missing.
+        let index = self.main.current().cursor(&self.ui, self.ui.pointer());
+        let cursor = self.cursors.get(index).copied().flatten();
+        let cursor = cursor.or_else(|| self.cursors.first().copied().flatten());
+        let (sprite, [hx, hy]) = cursor?;
         let (x, y) = ((x - hx) as f32, (y - hy) as f32);
         Some(banished_ui::Quad {
             texture: banished_ui::Texture::Sheet(sprite.sheet),

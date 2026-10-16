@@ -3087,6 +3087,27 @@ impl GameLoop for GameplayLoop {
         true
     }
 
+    /// `FUN_14009b850`: the UI's cursor (`UserInterface::Update` → `GetMouseCursorIndex`)
+    /// while it holds the pointer (`+0xd9`) or pauses the game; otherwise the tool's (slot
+    /// `+0x60` through `FUN_140107b70`): EditTool 1 (Hand, `FUN_14010ad30`), PlacementTool and
+    /// every DragTool 5 (Place, `FUN_140103cd0`, `FUN_140101ea0`), PathTool 4 (Query,
+    /// `FUN_1400e3de0`).
+    fn cursor(&self, ui: &Ui, (x, y): (i32, i32)) -> usize {
+        if ui.pointer_over_interactive() || self.pause_menu.is_some() {
+            return self
+                .screen
+                .as_ref()
+                .map_or(0, |s| s.cursor_at(ui, x, y).max(0) as usize);
+        }
+        if self.placement.is_some() || self.removal.is_some() {
+            5
+        } else if self.path_tool.is_some() {
+            4
+        } else {
+            1
+        }
+    }
+
     fn take_screenshot(&mut self) -> Option<bool> {
         self.screenshot.take()
     }

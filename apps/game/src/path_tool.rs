@@ -1,5 +1,6 @@
 //! The Path tool (`PathTool`, vtable `0x140166aa0`), started by the toolbar's Path entry
-//! (`Template\UtilityPath.rsc`, its `CreatePathDescription`; tool kind 4, `FUN_1400e3de0`).
+//! (`Template\UtilityPath.rsc`, its `CreatePathDescription`; its cursor is 4, Query,
+//! `FUN_1400e3de0`).
 //!
 //! - **Input** (`+0x30`, `FUN_1400e3b80`): a left click picks what is under the cursor (the
 //!   map's object at the cell, else the picking scene's hit) and, when it is another entity,

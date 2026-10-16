@@ -99,6 +99,12 @@ pub trait GameLoop {
     /// The preview and the minimap's terrain image (size, texels) for a pending save.
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     fn save_preview(&mut self, _image: Vec<u8>, _minimap: Option<(u32, Vec<u32>)>) {}
+    /// The mouse cursor (`UserInterface::SetCursor`; an index into the game's cursors: 0
+    /// Arrow, 1 Hand, 2 Hourglass, 3 Move, 4 Query, 5 Place). The menus show the arrow
+    /// (`FUN_1400a0bb0`).
+    fn cursor(&self, _ui: &Ui, _at: (i32, i32)) -> usize {
+        0
+    }
     /// A screenshot asked for this frame (`FUN_14009b850`: `Game +0xc0` without the UI,
     /// `+0xc1` with it): `Some(with_ui)`, then cleared.
     fn take_screenshot(&mut self) -> Option<bool> {
@@ -191,6 +197,21 @@ impl Screen {
             }
         }
         self.modal.retain(|&r| r != d.root);
+    }
+
+    /// `UserInterface::GetMouseCursorIndex`: the cursor of the topmost dialog holding `(x, y)`
+    /// (`DialogInstance::GetMouseCursorIndex`), 0 over none.
+    pub fn cursor_at(&self, ui: &Ui, x: i32, y: i32) -> i32 {
+        ui.node(self.dialog_host)
+            .children
+            .iter()
+            .rev()
+            .map(|&r| ui.node(r))
+            .position(|n| n.visible() && n.contains(x, y))
+            .map_or(0, |i| {
+                let host = &ui.node(self.dialog_host).children;
+                ui.cursor_index(host[host.len() - 1 - i], x, y)
+            })
     }
 
     /// Remove the dialog whose root element is `root` (indices of later dialogs shift down).
@@ -413,6 +434,10 @@ impl GameLoop for LoaderLoop {
     fn name(&self) -> &'static str {
         self.name
     }
+    /// The hourglass while loading (`FUN_1400b9a10` and the other loaders set cursor 2).
+    fn cursor(&self, _ui: &Ui, _at: (i32, i32)) -> usize {
+        2
+    }
     fn startup(&mut self, _ctx: &mut Ctx) {}
     fn update(&mut self, ctx: &mut Ctx, _dt: f32) -> Next {
         if let Some(work) = self.work.take() {
@@ -487,6 +512,9 @@ fn loading_details(ui: &mut Ui) -> Vec<String> {
 impl GameLoop for DialogLoaderLoop {
     fn name(&self) -> &'static str {
         "DialogLoaderLoop"
+    }
+    fn cursor(&self, _ui: &Ui, _at: (i32, i32)) -> usize {
+        2
     }
     fn startup(&mut self, ctx: &mut Ctx) {
         log::info!("showing {}", self.dialog);

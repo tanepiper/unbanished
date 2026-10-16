@@ -58,7 +58,10 @@ pub struct ElementBase {
     pub flags: u32,
     /// ARGB, multiplied into everything the element draws.
     pub color: u32,
-    pub id: i32,
+    /// `+0x3c`: the mouse cursor shown over it (`Element::GetMouseCursorIndex`; an index into
+    /// the game's cursors: 0 Arrow, 1 Hand, 2 Hourglass, 3 Move, 4 Query, 5 Place). Only the
+    /// StandardDialog title bar sets one (3).
+    pub cursor: i32,
     pub border: Ref,
     pub tooltip_dialog: Ref,
     pub string_table: Ref,
@@ -73,14 +76,14 @@ impl ElementBase {
             let alignment = r.u32()?;
             let flags = r.u32()?;
             let color = r.u32()?;
-            let id = r.i32()?;
+            let cursor = r.i32()?;
             Ok(ElementBase {
                 margins,
                 min_size,
                 alignment,
                 flags,
                 color,
-                id,
+                cursor,
                 border: r.external_ref()?,
                 tooltip_dialog: r.external_ref()?,
                 string_table: r.external_ref()?,
