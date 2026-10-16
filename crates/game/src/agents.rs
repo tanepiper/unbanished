@@ -850,6 +850,7 @@ impl Agents {
                     env.materials,
                     env.temperature,
                     ticks(dt),
+                    &mut c.counters,
                 );
             }
         }

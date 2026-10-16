@@ -1295,14 +1295,15 @@ pub fn eat(
 /// `FUN_14012ee40`: a residence's update. The fire burns down; with residents, while it is
 /// colder than the house's warmth, one unit of firewood keeps it burning for `+0x2c` seconds.
 /// The food and firewood status icons clear when there is some.
-/// The ClearStorage work comes first ([`crate::town::Sim::residence_clear_storage`]).
-/// Not ported: the stock's consumption counter.
+/// The ClearStorage work comes first ([`crate::town::Sim::residence_clear_storage`]). The
+/// firewood burned counts as used in the stock manager (`FUN_14008e460`'s slot, `+0xc`).
 pub fn update_home(
     home: &mut Home,
     storages: &mut [Storage],
     materials: &[RawMaterial],
     temperature: f32,
     dt: i64,
+    counters: &mut crate::tracker::StockCounters,
 ) {
     home.fuel -= dt;
     let storage = &mut storages[home.storage];
@@ -1321,6 +1322,9 @@ pub fn update_home(
         if let Some(m) = fuel {
             home.fuel = ticks(home.desc.fuel_seconds);
             storage.remove(m, 1);
+            if let Some(slot) = crate::produce::production_group(materials[m].flags) {
+                counters.used[slot] += 1;
+            }
         }
     }
 }

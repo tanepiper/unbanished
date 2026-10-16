@@ -594,7 +594,7 @@ impl Sim<'_, '_> {
     /// for an educated worker) in piles of at most the worker's capacity, on the create
     /// point's cell or, once it holds something, the nearest free ground (`FUN_1400a1210`,
     /// mask 4), each turned `RandTol(2) × 90°`, each counted made for the workplace
-    /// (`FUN_14008e3c0`, `+0x51` always set). Not ported: AutoPickupComponent.
+    /// (`FUN_14008e3c0`, `+0x51` always set), the pile given to its AutoPickupComponent.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn create_raw_material(
         &mut self,
@@ -628,8 +628,17 @@ impl Sim<'_, '_> {
             if let Some(at) = target {
                 let size = self.size as i32;
                 let yaw = self.rng.rand_tol(2) as f32 * 90.0;
-                self.spawn_pile(template, (at % size, at / size), n, yaw, None);
+                let pile = self.spawn_pile(template, (at % size, at / size), n, yaw, None);
                 self.count_made(workplace, true, material, n);
+                // A workplace with an AutoPickupComponent (the hunter's lodge, orchards,
+                // pastures) takes the pile's work (`FUN_140045170`, once it is registered).
+                if let Some(wp) = workplace
+                    .filter(|wp| self.sites.get(wp).is_some_and(|s| s.auto_pickup.is_some()))
+                {
+                    if let Some(p) = self.piles.get_mut(&pile) {
+                        p.auto_pickup = Some(wp);
+                    }
+                }
             }
             remaining -= n;
         }

@@ -1702,6 +1702,7 @@ mod construction_tests {
             .first()
             .and_then(|&m| town.templates[m].pile_material);
         let mut culled = 0;
+        let mut herd = usize::MAX;
         for step in 0..30 * 60 * 40 {
             town.apply_commands(&terrain, &mut rng);
             town.iterate(&terrain, &mut rng, dt, 60.0);
@@ -1759,6 +1760,7 @@ mod construction_tests {
             if bred_at.is_some() && born_at.is_none() && young {
                 born_at = Some(step);
                 // The herd is to shrink to two: the herdsmen cull.
+                herd = town.wildlife.pastures[&id].livestock.len();
                 for a in town.wildlife.pastures[&id].livestock.clone() {
                     town.wildlife.animals.get_mut(&a).unwrap().age = 3.0;
                 }
@@ -1770,8 +1772,10 @@ mod construction_tests {
                     });
             }
             if born_at.is_some() {
+                // The herdsmen carry the meat away themselves (the pasture's AutoPickup), so
+                // the first cull is the check.
                 let left = town.wildlife.pastures[&id].livestock.len();
-                if left <= 2 && culled_at.is_none() {
+                if left < herd && culled_at.is_none() {
                     culled_at = Some(step);
                 }
                 culled = town
