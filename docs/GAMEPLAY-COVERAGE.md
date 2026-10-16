@@ -42,7 +42,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | ResourceProduce subtype **Hunt** | hunter's lodge | yes (`hunt.rs`, HuntAnimal, RemoveAnimal) |
 | **AutoPickup** | gatherers, hunters, foresters | yes |
 | **AbsorbResource**, **StorageDisplay**, **StorageLocation** | StorageYard, barns | yes ([JOBS.md](JOBS.md#storage-sites-storagelocation-absorbresource-storagedisplay)) |
-| **MultiObject**, **Terraform**, **Floor** | bridges, tunnels, fences, dock | MultiObject for fenced pastures (parts, events, removal); Terraform, Floor missing |
+| **MultiObject**, **Terraform**, **Floor** | bridges, tunnels, fences, dock | yes (fenced parts, bridge and tunnel pieces; [BRIDGES.md](BRIDGES.md), [TUNNELS.md](TUNNELS.md)) |
 | **Decal**, **Particle** | roads, footprints, smoke | missing |
 | **Tracker**, **Value** | workplaces, livestock | missing (Town Info graphs, production counters) |
 | **Tornado** | Tornado | missing |
@@ -83,8 +83,8 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Roads (dirt, stone), Remove Roads | yes ([ROADS.md](ROADS.md)); road drawing (decals) no |
 | Bridges (BridgeTool, floors) | yes ([BRIDGES.md](BRIDGES.md)) |
 | Tunnels (terraform) | yes ([TUNNELS.md](TUNNELS.md)) |
-| Fields, orchards, pastures, storage yard (drag areas) | placement only (CreateDrag parsed) |
-| Fences, cemetery (CreateFenced) | placement (`place_fenced`); the drag tool is not ported |
+| Fields, orchards, storage yard (DragPlacementTool) | yes (`removal_tool.rs` area mode: check `FUN_140100fb0`, apply `FUN_140100dd0`, overlay `FUN_140101310`) |
+| Pastures, cemetery (FencedTool) | yes (`place_fenced`, the drag in `removal_tool.rs`, the shelter turned by the rotation keys) |
 | Demolition (Remove Buildings, DestroyUI) | Remove Buildings and its cancel; DestroyUI's buttons not wired |
 | Residence, upgrade, market, trade, field crop selection windows | no |
 | Town Info, Production/Population graphs | no |

@@ -71,6 +71,23 @@ pub struct RemovalTool {
     road: Option<RoadSpec>,
     /// The bridge mode (BridgeTool `+0x38`): the CreateBridgeDescription and its parts.
     bridge: Option<crate::start::BridgeSpec>,
+    /// The area mode (DragPlacementTool `+0x38`, `+0x40`): the template, its
+    /// CreateDragDescription and the template whose entities may stand in the way.
+    area: Option<AreaSpec>,
+    /// The fenced mode (FencedTool): the CreateFencedDescription and its clear template.
+    fenced: Option<(
+        banished_formats::game::CreateFencedDescription,
+        Option<usize>,
+    )>,
+    /// The RotationSetting (`+0x50 → +0x10`) the fenced tool turns its shelter by.
+    pub rotation: i32,
+}
+
+#[derive(Debug, Clone)]
+struct AreaSpec {
+    template: usize,
+    drag: CreateDragDescription,
+    clear: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -125,6 +142,9 @@ impl RemovalTool {
             held: false,
             road: None,
             bridge: None,
+            area: None,
+            fenced: None,
+            rotation: 0,
         })
     }
 
@@ -166,13 +186,18 @@ impl RemovalTool {
                 material,
             }),
             bridge: None,
+            area: None,
+            fenced: None,
+            rotation: 0,
         })
     }
 
     /// BridgeTool's start (`FUN_140100c70`): the template's CreateBridgeDescription.
     fn start_bridge(archive: &Archive, town: &mut StartingTown, reference: &str) -> Option<Self> {
         let file = reference.split(':').next()?.replace('\\', "/");
-        let bridge = town.bridge_spec(archive, reference)?;
+        let Some(bridge) = town.bridge_spec(archive, reference) else {
+            return Self::start_area(archive, town, reference);
+        };
         let toolbar =
             read(archive, &format!("{file}:toolbar")).and_then(|d| toolbar_description(&d).ok());
         Some(RemovalTool {
@@ -189,7 +214,118 @@ impl RemovalTool {
             held: false,
             road: None,
             bridge: Some(bridge),
+            area: None,
+            fenced: None,
+            rotation: 0,
         })
+    }
+
+    /// DragPlacementTool's start (`FUN_1401018b0`): the template's CreateDragDescription and
+    /// MapDescription; or FencedTool's (`FUN_1400e2220`) for a CreateFencedDescription.
+    fn start_area(archive: &Archive, town: &mut StartingTown, reference: &str) -> Option<Self> {
+        let file = reference.split(':').next()?.replace('\\', "/");
+        let toolbar =
+            read(archive, &format!("{file}:toolbar")).and_then(|d| toolbar_description(&d).ok());
+        let template = town.load_template(archive, reference)?;
+        let mut tool = RemovalTool {
+            reference: reference.to_string(),
+            desc: CreateRemovalDescription::default(),
+            marker: None,
+            drag: None,
+            toolbar,
+            dragging: false,
+            waiting: false,
+            start: -1,
+            end: -1,
+            sounded: -1,
+            held: false,
+            road: None,
+            bridge: None,
+            area: None,
+            fenced: None,
+            rotation: 0,
+        };
+        if let Some(data) = read(archive, &format!("{file}:createdrag")) {
+            let drag = create_drag_description(&data)
+                .map_err(|e| log::warn!("{reference}: {e}"))
+                .ok()?;
+            let clear = drag
+                .reference
+                .as_deref()
+                .and_then(|c| town.load_template(archive, c));
+            tool.area = Some(AreaSpec {
+                template,
+                drag,
+                clear,
+            });
+            return Some(tool);
+        }
+        let d = banished_formats::game::create_fenced_description(&read(
+            archive,
+            &format!("{file}:createfenced"),
+        )?)
+        .map_err(|e| log::warn!("{reference}: {e}"))
+        .ok()?;
+        let clear = d
+            .clear
+            .as_deref()
+            .and_then(|c| town.load_template(archive, c));
+        tool.fenced = Some((d, clear));
+        Some(tool)
+    }
+
+    /// DragPlacementTool's check (slot `+0x70`, `FUN_140100fb0`) of the rectangle from `a` to
+    /// `b`: 1 smaller than `+0x30 × +0x34`, 2 larger than `+0x28 × +0x2c`, 3 a cell that does
+    /// not admit it (`FUN_1400a4aa0(mask +0x20, 0, 100, 0, +0x24, the clear template +0x38)`),
+    /// else 0.
+    fn area_check(
+        town: &StartingTown,
+        spec: &AreaSpec,
+        terrain: &HeightGrid,
+        a: i32,
+        b: i32,
+    ) -> u8 {
+        let n = town.cells.size as i32;
+        let (x0, x1) = ((a % n).min(b % n), (a % n).max(b % n));
+        let (y0, y1) = ((a / n).min(b / n), (a / n).max(b / n));
+        let (w, h) = (x1 - x0 + 1, y1 - y0 + 1);
+        let d = &spec.drag;
+        if w < d.value_30 || h < d.value_34 {
+            return 1;
+        }
+        if d.value_28 < w || d.value_2c < h {
+            return 2;
+        }
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                if !Self::area_cell(town, spec, terrain, x, y) {
+                    return 3;
+                }
+            }
+        }
+        0
+    }
+
+    fn area_cell(
+        town: &StartingTown,
+        spec: &AreaSpec,
+        terrain: &HeightGrid,
+        x: i32,
+        y: i32,
+    ) -> bool {
+        cell_admits(
+            &town.cells,
+            terrain,
+            x,
+            y,
+            spec.drag.mask,
+            0.0,
+            100.0,
+            0.0,
+            spec.drag.override_occupant,
+            false,
+            |o| Some(town.placed[o].template) == spec.clear,
+        )
     }
 
     /// `FUN_140100290`: the bridge's cells from the drag's start to its end on the same row or
@@ -515,6 +651,55 @@ impl RemovalTool {
         town: &mut StartingTown,
         terrain: &HeightGrid,
     ) -> DragSound {
+        if let Some(spec) = &self.area {
+            // `FUN_140100dd0`: the clear template's entities in the way go (`FUN_140106da0`);
+            // the entity of the template over the rectangle, turned 90° unless wider than
+            // long.
+            if Self::area_check(town, spec, terrain, self.start, self.end) != 0 {
+                return DragSound::Error;
+            }
+            let n = town.cells.size as i32;
+            let (a, b) = (self.start, self.end);
+            let (x0, x1) = ((a % n).min(b % n), (a % n).max(b % n));
+            let (y0, y1) = ((a / n).min(b / n), (a / n).max(b / n));
+            if let Some(c) = spec.clear {
+                for y in y0..=y1 {
+                    for x in x0..=x1 {
+                        if let Some(o) = town.cells.occupants[(y * n + x) as usize] {
+                            if town.placed[o].template == c
+                                && !town.construction.destroy.contains(&o)
+                            {
+                                town.construction.destroy.push(o);
+                            }
+                        }
+                    }
+                }
+            }
+            let (w, h) = (x1 - x0 + 1, y1 - y0 + 1);
+            let reference = town.templates[spec.template].reference.clone();
+            return match town.place_area(archive, &reference, (x0, y0, w, h), terrain) {
+                Some(e) => {
+                    town.placed[e].yaw = if h < w { 0.0 } else { 90.0 };
+                    DragSound::Thunk
+                }
+                None => DragSound::Error,
+            };
+        }
+        if self.fenced.is_some() {
+            let n = town.cells.size as i32;
+            let (a, b) = (self.start, self.end);
+            return match town.place_fenced(
+                archive,
+                &self.reference,
+                (a % n, a / n),
+                (b % n, b / n),
+                self.rotation,
+                terrain,
+            ) {
+                Some(_) => DragSound::Thunk,
+                None => DragSound::Error,
+            };
+        }
         if let Some(spec) = &self.bridge {
             return match town.place_bridge(archive, spec, self.start, self.end, terrain) {
                 Some(_) => DragSound::Thunk,
@@ -618,6 +803,42 @@ impl RemovalTool {
         }
         if let Some(spec) = &self.bridge {
             return Self::bridge_cells(town, spec, a, b);
+        }
+        if let Some(spec) = &self.area {
+            // `FUN_140101310`: each cell green unless the drag is too large or the cell does
+            // not admit it.
+            let n = town.cells.size as i32;
+            let b = if b < 0 { a } else { b };
+            let (x0, x1) = ((a % n).min(b % n), (a % n).max(b % n));
+            let (y0, y1) = ((a / n).min(b / n), (a / n).max(b / n));
+            let large = spec.drag.value_28 < x1 - x0 + 1 || spec.drag.value_2c < y1 - y0 + 1;
+            let mut out = Vec::new();
+            for y in y0..=y1 {
+                for x in x0..=x1 {
+                    out.push((x, y, !large && Self::area_cell(town, spec, terrain, x, y)));
+                }
+            }
+            return out;
+        }
+        if let Some((d, clear)) = &self.fenced {
+            // FencedTool's draw (`FUN_1400e1910`): the rectangle's cells, each by
+            // `FUN_1400e0960`'s test.
+            let n = town.cells.size as i32;
+            let b = if b < 0 { a } else { b };
+            let (x0, x1) = ((a % n).min(b % n), (a % n).max(b % n));
+            let (y0, y1) = ((a / n).min(b / n), (a / n).max(b / n));
+            let large = d.max.0 < x1 - x0 + 1 || d.max.1 < y1 - y0 + 1;
+            let mut out = Vec::new();
+            for y in y0..=y1 {
+                for x in x0..=x1 {
+                    out.push((
+                        x,
+                        y,
+                        !large && town.fenced_cell_ok(d, *clear, x, y, terrain),
+                    ));
+                }
+            }
+            return out;
         }
         if self.road.is_some() {
             // `FUN_14010a660`: the road's cells, or its ends marked invalid.

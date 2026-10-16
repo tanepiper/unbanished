@@ -3965,6 +3965,102 @@ mod construction_tests {
         assert!(town.construction.terraforms.is_empty());
     }
 
+    /// The drag tools for areas: a field, an orchard and a storage yard (DragPlacementTool)
+    /// and a pasture (FencedTool) dragged over empty ground; too small and too large drags
+    /// are refused.
+    #[test]
+    fn areas_and_pastures_are_dragged() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let n = town.cells.size as i32;
+        let empty = |town: &StartingTown, x: i32, y: i32, w: i32, h: i32| {
+            (y..y + h).all(|cy| {
+                (x..x + w).all(|cx| {
+                    let i = (cy * n + cx) as usize;
+                    cx < n
+                        && cy < n
+                        && town.cells.types[i] == banished_game::terrain::CellType::GROUND
+                        && town.cells.objects[i].is_none()
+                        && town.cells.occupants[i].is_none()
+                        && town.cells.flags[i] == 0
+                })
+            })
+        };
+        let (sx, sy) = town.start;
+        let spot = |town: &StartingTown, w: i32, h: i32| {
+            (8..80)
+                .flat_map(|r| (-r..=r).flat_map(move |d| [(d, -r), (d, r), (-r, d), (r, d)]))
+                .map(|(dx, dy)| (sx + dx, sy + dy))
+                .find(|&(x, y)| x > 0 && y > 0 && empty(town, x, y, w, h))
+                .expect("no empty ground")
+        };
+        for (reference, w, h) in [
+            (r"Template\CropField.rsc:resource", 6, 5),
+            (r"Template\Orchard.rsc:resource", 5, 5),
+            (r"Template\StorageYard.rsc:resource", 4, 6),
+            (r"Template\Pasture.rsc:resource", 8, 8),
+        ] {
+            let mut tool = crate::removal_tool::RemovalTool::start(&archive, &mut town, reference)
+                .unwrap_or_else(|| panic!("no drag tool for {reference}"));
+            let (x, y) = spot(&town, w, h);
+            let a = y * n + x;
+            // One cell is too small for every one of them.
+            assert_eq!(
+                tool.drag(&archive, &mut town, &terrain, a, a),
+                crate::removal_tool::DragSound::Error,
+                "{reference}"
+            );
+            let before = town.placed.len();
+            let b = (y + h - 1) * n + x + w - 1;
+            assert_eq!(
+                tool.drag(&archive, &mut town, &terrain, a, b),
+                crate::removal_tool::DragSound::Thunk,
+                "{reference}"
+            );
+            let id = (before..town.placed.len())
+                .find(|&e| town.construction.sites.contains_key(&e))
+                .unwrap_or_else(|| panic!("no site for {reference}"));
+            let p = &town.placed[id];
+            assert_eq!((p.cell, p.footprint), ((x, y), (w, h)), "{reference}");
+            if !reference.contains("Pasture") {
+                // Turned 90° unless wider than long.
+                assert_eq!(p.yaw, if h < w { 0.0 } else { 90.0 }, "{reference}");
+            }
+            assert!(tool
+                .cells(&mut town, &terrain, a)
+                .iter()
+                .all(|&(_, _, ok)| !ok));
+        }
+    }
+
     /// A market is built and its vendors stock it from the town's storages by category; it
     /// joins the town's markets with its radius.
     #[test]

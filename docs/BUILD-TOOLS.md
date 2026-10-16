@@ -17,14 +17,34 @@ description types, creates it through `Object::Factory`, and attaches the shared
 | Class | Base | Used for |
 |---|---|---|
 | `PlacementTool` | `Tool` | buildings with a `CreatePlacedDescription` |
-| `DragPlacementTool` | `DragTool` | areas such as yards and fields |
-| `FencedTool` | `DragTool` | fenced areas |
+| `DragPlacementTool` | `DragTool` | areas such as yards and fields (ported: [below](#dragplacementtool-vtable-0x140167fb0)) |
+| `FencedTool` | `DragTool` | fenced areas (ported: [FARMING.md](FARMING.md), `place_fenced`) |
 | `RoadTool`, `PathTool` | `DragTool`, `Tool` | roads |
-| `BridgeTool` | `DragTool` | bridges |
+| `BridgeTool` | `DragTool` | bridges and tunnels (ported: [BRIDGES.md](BRIDGES.md), [TUNNELS.md](TUNNELS.md)) |
 | `RemovalTool` | `DragTool` | clearing (ported: [JOBS.md](JOBS.md#removal-tools-removaltool--dragtool-vtable-0x140168200)) |
 | `EditTool` | `Tool` | editing |
 
 `RotationSetting` is a `ToolSetting`. Its `+0x10` holds 0..3 and is shared between placements.
+
+## DragPlacementTool (vtable `0x140167fb0`)
+
+Ported as the area mode of the drag host (`apps/game/src/removal_tool.rs`), for CropField,
+Orchard and StorageYard. Start (`FUN_1401018b0`) keeps the CreateDragDescription (`+0x38`:
+`+0x20` cell types, `+0x28 × +0x2c` the largest, `+0x30 × +0x34` the smallest drag, `+0x24`
+occupants ignored, `+0x38` the template whose entities may stand in the way) and the
+MapDescription (`+0x40`).
+
+- Check (slot `+0x70`, `FUN_140100fb0`): 1 too small, 2 too large, 3 a cell that does not
+  admit it (`FUN_1400a4aa0(+0x20, 0, 100, 0, +0x24, …, +0x38)`), else 0; the CreateBar gets
+  the width and height.
+- Apply (slot `+0x68`, `FUN_140100dd0`): with the check at 0, the clear template's entities in
+  the rectangle go (`FUN_140106da0`), the template's entity takes the rectangle, turned 90°
+  unless it is wider than long, and is registered (`FUN_1400c9d70`).
+- Draw (slot `+0x40`, `FUN_140101310`): every cell green, red when the drag is too large or
+  the cell does not admit it.
+
+FencedTool's input (slot `+0x30`, `FUN_1400e20b0`) adds the rotation keys (`0x13`, `0x14`) on
+the shared RotationSetting to DragTool's.
 
 ## PlacementTool (vtable `0x140168130`)
 

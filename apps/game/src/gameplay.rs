@@ -504,6 +504,7 @@ impl GameplayLoop {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
         };
+        tool.rotation = self.rotation;
         let sound = match input {
             DragInput::Press => tool.press(ctx.archive, town, &grid, cell),
             DragInput::Move => tool.motion(ctx.archive, town, &grid, cell),
@@ -1335,12 +1336,17 @@ impl GameLoop for GameplayLoop {
                 return Next::Stay;
             }
             // StructureLeft / StructureRight turn the RotationSetting through 0..3.
-            RawInput::Action(keys::STRUCTURE_LEFT) if self.placement.is_some() => {
+            // (FencedTool `FUN_1400e20b0` turns the same setting for its shelter.)
+            RawInput::Action(keys::STRUCTURE_LEFT)
+                if self.placement.is_some() || self.removal.is_some() =>
+            {
                 self.rotation = (self.rotation + 3) % 4;
                 self.refresh_placement(ctx);
                 return Next::Stay;
             }
-            RawInput::Action(keys::STRUCTURE_RIGHT) if self.placement.is_some() => {
+            RawInput::Action(keys::STRUCTURE_RIGHT)
+                if self.placement.is_some() || self.removal.is_some() =>
+            {
                 self.rotation = (self.rotation + 1) % 4;
                 self.refresh_placement(ctx);
                 return Next::Stay;

@@ -1328,10 +1328,9 @@ impl StartingTown {
         id
     }
 
-    /// A dragged area (CreateDrag: fields, orchards, pastures) over `rect` (`x, y, w, h`):
-    /// the entity, its zone over every cell, and its site. The drag tool itself is not ported
-    /// yet; tests place areas directly.
-    #[cfg_attr(not(test), allow(dead_code))]
+    /// A dragged area (CreateDrag: fields, orchards, the storage yard) over `rect` (`x, y, w,
+    /// h`): the entity, its zone over every cell, and its site (DragPlacementTool's apply,
+    /// `FUN_140100dd0`, through `removal_tool`; tests also place areas directly).
     pub fn place_area(
         &mut self,
         archive: &Archive,
@@ -1380,9 +1379,8 @@ impl StartingTown {
     /// The fenced tool (FencedTool, vtable `0x140166a10`) dragged from cell `a` to cell `b`
     /// with the shelter turned `rotation` quarter turns: slot `+0x70` (`FUN_1400e0960`) checks
     /// the area, slot `+0x68` (`FUN_1400e02d0`) places the entity over it with its shelter,
-    /// corners and fence runs (its MultiObjectComponent's parts). The drag itself is not
-    /// ported; tests place pastures directly. Returns the entity.
-    #[cfg_attr(not(test), allow(dead_code))]
+    /// corners and fence runs (its MultiObjectComponent's parts). The drag runs in
+    /// `removal_tool`'s fenced mode. Returns the entity.
     pub fn place_fenced(
         &mut self,
         archive: &Archive,
@@ -1422,23 +1420,7 @@ impl StartingTown {
         }
         for y in y0..=y1 {
             for x in x0..=x1 {
-                if x < 0 || n <= x || y < 0 || n <= y {
-                    return None;
-                }
-                let i = (y * n + x) as usize;
-                if !d.mask & (1 << (self.cells.types[i].0 & 0x1f)) != 0 {
-                    return None;
-                }
-                if let Some(o) = self.cells.occupants[i] {
-                    if clear.is_none() || Some(self.placed[o].template) != clear {
-                        return None;
-                    }
-                }
-                if self.cells.flags[i] != 0 {
-                    return None;
-                }
-                let z = cell_ground(self.cells.size, terrain, i as i32)[2];
-                if 100.0 < z.abs() {
+                if !self.fenced_cell_ok(&d, clear, x, y, terrain) {
                     return None;
                 }
             }
@@ -1528,6 +1510,36 @@ impl StartingTown {
             site.parts = multi;
         }
         Some(entity)
+    }
+
+    /// `FUN_1400e0960`'s test of one cell: on the map, of an allowed type, no occupant but the
+    /// clear template's, no zone, and not too high.
+    pub fn fenced_cell_ok(
+        &self,
+        d: &banished_formats::game::CreateFencedDescription,
+        clear: Option<usize>,
+        x: i32,
+        y: i32,
+        terrain: &HeightGrid,
+    ) -> bool {
+        let n = self.cells.size as i32;
+        if x < 0 || n <= x || y < 0 || n <= y {
+            return false;
+        }
+        let i = (y * n + x) as usize;
+        if !d.mask & (1 << (self.cells.types[i].0 & 0x1f)) != 0 {
+            return false;
+        }
+        if let Some(o) = self.cells.occupants[i] {
+            if clear.is_none() || Some(self.placed[o].template) != clear {
+                return false;
+            }
+        }
+        if self.cells.flags[i] != 0 {
+            return false;
+        }
+        let z = cell_ground(self.cells.size, terrain, i as i32)[2];
+        z.abs() <= 100.0
     }
 
     /// `FUN_1400e1150`: a part over `rect` (`x, y, w, h`) at the middle of its corner cells'
