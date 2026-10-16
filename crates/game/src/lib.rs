@@ -52,6 +52,7 @@ pub mod services;
 pub mod spawn;
 pub mod status;
 pub mod stock;
+pub mod terraform;
 pub mod terrain;
 pub mod town;
 pub mod trade;

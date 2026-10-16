@@ -638,6 +638,15 @@ impl GameplayLoop {
             }
             models_changed = changed;
         }
+        // The tunnels' terraforming, on the terrain the town reads (`FUN_140057c70`).
+        if let (Some(town), Some(view)) = (&mut self.town, &mut self.view) {
+            if !town.construction.terraform_requests.is_empty() {
+                let width = view.terrain.width();
+                if town.apply_terraforms(&mut view.terrain.heights, width) {
+                    view.terrain.reshaped();
+                }
+            }
+        }
         self.calendar.advance(ticks(dt));
         if let Some(env) = &mut self.environment {
             env.update(self.calendar.seconds(), dt, &mut self.rng);

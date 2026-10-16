@@ -1838,6 +1838,36 @@ pub fn floor_description(data: &[u8]) -> Result<FloorDescription> {
     Ok(value)
 }
 
+/// `TerraformDescription` (serializer `FUN_140058000`): a tunnel's `+0x20` floor and `+0x28`
+/// ceiling picking meshes, each with the cell types `+0x30`, `+0x34` its vertices may change.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TerraformDescription {
+    pub floor: Option<String>,
+    pub floor_mask: u32,
+    pub ceiling: Option<String>,
+    pub ceiling_mask: u32,
+}
+
+pub fn terraform_description(data: &[u8]) -> Result<TerraformDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("TerraformDescription") {
+            return format_err(format!(
+                "expected TerraformDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(TerraformDescription {
+                floor: r.external_ref()?,
+                floor_mask: r.u32()?,
+                ceiling: r.external_ref()?,
+                ceiling_mask: r.u32()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `TombstoneDescription` (serializer `FUN_140058380`): a grave lasts `(+0x20 + RandFloat ×
 /// +0x24)` × 300 s (`FUN_1400581c0`).
 pub fn tombstone_description(data: &[u8]) -> Result<(f32, f32)> {

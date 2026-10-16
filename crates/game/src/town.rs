@@ -122,6 +122,7 @@ pub struct Sim<'s, 't> {
     pub visitors: &'s mut (f32, i64),
     /// Map `+0xe8`: planned road cells → BuildRoad works.
     pub pending_roads: &'s mut BTreeMap<i32, i32>,
+    pub terraform_requests: &'s mut Vec<crate::terraform::Terraform>,
     /// Town manager `+0x30` and `+0x1ac`.
     pub trading_posts: &'s mut Vec<usize>,
     pub trade_value: &'s mut i32,
@@ -1055,6 +1056,14 @@ impl Sim<'_, '_> {
             self.cells.floors.remove(size, part);
             self.placed[part].alive = false;
         }
+        // TerraformComponent removal (`FUN_140057cb0`): the entity's, then its parts'.
+        let parts = self.sites[&e].parts.clone();
+        for x in std::iter::once(e).chain(parts) {
+            if self.templates[self.placed[x].template].terraform.is_some() {
+                self.terraform_requests
+                    .push(crate::terraform::Terraform::Undo(x));
+            }
+        }
         self.sites.remove(&e);
         self.site_list.retain(|&s| s != e);
         let n = self.size as i32;
@@ -1363,9 +1372,18 @@ impl Callbacks for Sim<'_, '_> {
                 self.site_list.retain(|&s| s != e);
                 // `FUN_14010cad0`: the build is no longer paused.
                 self.set_icon(e, crate::professions::icon::BUILD_PAUSED, false);
-                // Entity event 4 (`FUN_1400c8040`): the pasture's shelter points are cleared.
+                // Entity event 4 (`FUN_1400c8040`): the pasture's shelter points are cleared;
+                // a TerraformComponent digs, the entity's then its MultiObject parts'
+                // (`FUN_14012a960`).
                 if self.wildlife.pastures.contains_key(&e) {
                     self.pasture_built(e);
+                }
+                let parts = self.sites[&e].parts.clone();
+                for x in std::iter::once(e).chain(parts) {
+                    if self.templates[self.placed[x].template].terraform.is_some() {
+                        self.terraform_requests
+                            .push(crate::terraform::Terraform::Dig(x));
+                    }
                 }
                 true
             }

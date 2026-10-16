@@ -1149,6 +1149,10 @@ pub struct Construction {
     pub trade_value: i32,
     /// Map `+0xe8`: the cells with a planned road, and their BuildRoad works.
     pub pending_roads: BTreeMap<i32, i32>,
+    /// Tunnels to dig or fill back (TerraformComponent event 4 and removal), for the terrain's
+    /// owner, and each terraformed entity's kept heights and cells.
+    pub terraform_requests: Vec<crate::terraform::Terraform>,
+    pub terraforms: BTreeMap<usize, crate::terraform::TerraformState>,
     /// Built road cells Remove Roads marked, for the town to place their markers (cell,
     /// marker template).
     pub road_markers: Vec<(i32, usize)>,

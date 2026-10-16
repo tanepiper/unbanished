@@ -59,6 +59,8 @@ pub struct Terrain {
     /// `size²` texels of `[dirt, rock, light, snow]` bytes (BGRA8 in memory).
     pub surface: Vec<u8>,
     pub textures: TerrainTextures,
+    /// Bumped when the heights change in play (tunnels), for the renderer to re-upload.
+    pub revision: u64,
 }
 
 impl Terrain {
@@ -90,7 +92,21 @@ impl Terrain {
             mesh,
             surface,
             textures,
+            revision: 0,
         })
+    }
+
+    /// The heights changed (TerraformComponent): the mesh follows (`FUN_1400b0620` marks the
+    /// terrain's chunks for rebuilding).
+    pub fn reshaped(&mut self) {
+        self.mesh = TerrainMesh::build(
+            &HeightGrid {
+                width: self.width(),
+                heights: &self.heights,
+            },
+            self.size,
+        );
+        self.revision += 1;
     }
 
     pub fn width(&self) -> usize {

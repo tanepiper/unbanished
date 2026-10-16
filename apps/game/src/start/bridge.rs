@@ -320,6 +320,65 @@ impl StartingTown {
     }
 }
 
+impl StartingTown {
+    /// The queued TerraformComponent digs and removals (`FUN_140057c70`, `FUN_140057cb0`) on
+    /// the terrain's heights (`width` samples a side), in order. Returns whether any height
+    /// changed (the terrain mesh is to be rebuilt).
+    pub fn apply_terraforms(&mut self, heights: &mut [i16], width: usize) -> bool {
+        use banished_game::terraform::{harden, reshape, undo, Terraform};
+        let mut changed = false;
+        for request in std::mem::take(&mut self.construction.terraform_requests) {
+            match request {
+                Terraform::Dig(e) => {
+                    let p = &self.placed[e];
+                    let Some(t) = self.templates[p.template].terraform.clone() else {
+                        continue;
+                    };
+                    let (yaw, position) = (p.yaw, p.position);
+                    let rect = (p.cell.0, p.cell.1, p.footprint.0, p.footprint.1);
+                    let mut state = self.construction.terraforms.remove(&e).unwrap_or_default();
+                    if let Some(v) = &t.ceiling {
+                        changed |= reshape(
+                            &self.cells,
+                            &self.cells.floors,
+                            heights,
+                            width,
+                            v,
+                            t.ceiling_mask,
+                            yaw,
+                            position,
+                            true,
+                            &mut state.raised,
+                        );
+                    }
+                    if let Some(v) = &t.floor {
+                        changed |= reshape(
+                            &self.cells,
+                            &self.cells.floors,
+                            heights,
+                            width,
+                            v,
+                            t.floor_mask,
+                            yaw,
+                            position,
+                            false,
+                            &mut state.raised,
+                        );
+                    }
+                    harden(&mut self.cells, rect, &mut state.cells);
+                    self.construction.terraforms.insert(e, state);
+                }
+                Terraform::Undo(e) => {
+                    if let Some(state) = self.construction.terraforms.remove(&e) {
+                        changed |= undo(&mut self.cells, heights, width, &state);
+                    }
+                }
+            }
+        }
+        changed
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::pieces;

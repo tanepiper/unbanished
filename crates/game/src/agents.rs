@@ -331,6 +331,7 @@ impl Agents {
                 trading_posts: &mut c.trading_posts,
                 trade_value: &mut c.trade_value,
                 pending_roads: &mut c.pending_roads,
+                terraform_requests: &mut c.terraform_requests,
                 trade_goods: &c.trade_goods,
                 river: &c.river,
                 pathfinder: &mut self.pathfinder,

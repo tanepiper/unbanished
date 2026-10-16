@@ -79,6 +79,8 @@ pub struct Template {
     /// FloorDescription (bridge parts): its picking mesh's triangles in model space, added
     /// on activation (`+0x28`).
     pub floor: Option<std::sync::Arc<Vec<[[f32; 3]; 3]>>>,
+    /// TerraformDescription (tunnels).
+    pub terraform: Option<crate::terraform::TerraformTemplate>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -977,6 +979,7 @@ mod tests {
             create_points: Vec::new(),
             named_points: Vec::new(),
             floor: None,
+            terraform: None,
         }
     }
 

@@ -129,6 +129,8 @@ pub struct Renderer {
     terrain: Option<TerrainGpu>,
     /// `SceneView::id` of the uploaded scene.
     pub world_id: u64,
+    /// The terrain's height revision last uploaded.
+    terrain_revision: u64,
     /// What the Options dialog may choose from (display modes are added by the platform).
     pub display: crate::settings::DisplayInfo,
     pub video: VideoSettings,
@@ -776,6 +778,7 @@ impl Renderer {
             material_layout,
             terrain: None,
             world_id: 0,
+            terrain_revision: 0,
             models_revision: 0,
             ui,
             models,
@@ -928,6 +931,13 @@ impl Renderer {
                 self.icon_sheets.insert(k.clone(), v.clone());
             }
         }
+        if self.world_id == view.id && self.terrain_revision != view.terrain.revision {
+            if let Some(t) = &self.terrain {
+                self.queue
+                    .write_buffer(&t.vertices, 0, &view.terrain.mesh.vertex_bytes());
+            }
+        }
+        self.terrain_revision = view.terrain.revision;
         if self.world_id != view.id {
             self.set_terrain(&view.terrain);
             match &view.models {
@@ -1182,7 +1192,7 @@ impl Renderer {
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("terrain vertices"),
                     contents: &world.mesh.vertex_bytes(),
-                    usage: wgpu::BufferUsages::VERTEX,
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 }),
             indices: self
                 .device

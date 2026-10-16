@@ -466,6 +466,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         create_points: Vec::new(),
         named_points: Vec::new(),
         floor: None,
+        terraform: None,
         pile: None,
         pile_material: None,
         pile_yield: (0, 0),
@@ -605,6 +606,22 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                     .and_then(|m| read(archive, &normalise(&m)))
                     .and_then(|d| banished_formats::picking::picking_mesh(&d).ok())
                     .map(|m| std::sync::Arc::new(floor_triangles(&m)))
+            }
+            "terraform" => {
+                let mesh = |m: &Option<String>| {
+                    m.as_deref()
+                        .and_then(|m| read(archive, &normalise(m)))
+                        .and_then(|d| banished_formats::picking::picking_mesh(&d).ok())
+                        .and_then(|m| m.meshes.first().map(|s| Arc::new(s.vertices.clone())))
+                };
+                t.terraform = banished_formats::game::terraform_description(&data)
+                    .ok()
+                    .map(|d| banished_game::terraform::TerraformTemplate {
+                        floor: mesh(&d.floor),
+                        floor_mask: d.floor_mask,
+                        ceiling: mesh(&d.ceiling),
+                        ceiling_mask: d.ceiling_mask,
+                    })
             }
             "createplaced" => {
                 t.size = create_placed_description(&data)
