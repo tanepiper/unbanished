@@ -656,6 +656,8 @@ impl<'a> Seeder<'a> {
         for bucket in 0..5 {
             for (_, id, elapsed) in scheduler.visit_bucket(bucket) {
                 changed |= self.scheduled_growth(scheduler, id, elapsed, temperature, disabled);
+                // SpawnComponent (`FUN_140056430`) follows Growth in the template's list.
+                changed |= self.scheduled_spawn(scheduler, id, elapsed, disabled);
                 // The entity's other scheduled components (FruitComponent after Growth,
                 // wildlife).
                 if self.placed[id].alive {
@@ -666,6 +668,47 @@ impl<'a> Seeder<'a> {
         // FUN_1400c9560 drains removal requests only after all five buckets.
         for id in self.removed.drain(..) {
             scheduler.remove(id);
+        }
+        changed
+    }
+
+    /// SpawnComponent's scheduled update (`FUN_140056430`) for one visited entity: each entry
+    /// whose growth band holds the parent's growth runs its clock, and every child growth
+    /// period (`+0x28 × 300`) it tries a child (`FUN_1400560e0`, without random growth).
+    fn scheduled_spawn(
+        &mut self,
+        scheduler: &mut EntityScheduler<usize>,
+        id: usize,
+        elapsed: i64,
+        disabled: bool,
+    ) -> bool {
+        let p = &self.placed[id];
+        if !p.alive || p.spawn_state.is_none() {
+            return false;
+        }
+        let growth = p.growth;
+        let entries: Vec<(f32, f32, f32)> = self.templates[p.template]
+            .spawn
+            .iter()
+            .map(|&(child, lo, hi)| {
+                let period = self.templates[child].growth.as_ref().map_or(0.0, |g| g.f28);
+                (lo, hi, period)
+            })
+            .collect();
+        let attempts = self.placed[id]
+            .spawn_state
+            .as_mut()
+            .unwrap()
+            .update(growth, elapsed, &entries);
+        let mut changed = false;
+        for (entry, count) in attempts {
+            for _ in 0..count {
+                if let Some(child) = self.spawn_child(id, entry, false, disabled) {
+                    let handle = scheduler.register(child, self.placed[child].bucket);
+                    debug_assert_eq!(handle, child);
+                    changed = true;
+                }
+            }
         }
         changed
     }
@@ -1159,5 +1202,67 @@ mod tests {
         assert_eq!(world.cells.types[136], CellType::GROUND);
         assert_eq!(world.cells.previous_template[136], Some(0));
         assert!(!scheduler.visit_bucket(3).iter().any(|v| v.1 == 0));
+    }
+
+    /// A grown parent's SpawnComponent tries a child of another template every child growth
+    /// period (`+0x28 × 300`) while its growth is in the entry's band; never when disabled.
+    #[test]
+    fn spawn_component_seeds_other_templates_in_band() {
+        let mut tree = template();
+        tree.spawn = vec![(1, 0.5, 2.0)];
+        tree.updates = vec![ScheduledComponent::Growth, ScheduledComponent::Spawn];
+        tree.growth.as_mut().unwrap().spawn_one_in = 1_000_000;
+        let mut herb = template();
+        herb.growth.as_mut().unwrap().f28 = 0.01;
+        herb.growth.as_mut().unwrap().spawn_radius = 3;
+        let templates = [tree, herb];
+        let heights = vec![0i16; 33 * 33];
+        let terrain = HeightGrid {
+            width: 33,
+            heights: &heights,
+        };
+        for disabled in [false, true] {
+            let mut cells = Cells::new(16, vec![CellType::GROUND; 256]);
+            cells.types[136] = CellType(4);
+            cells.objects[136] = Some(0);
+            let mut p = parent();
+            p.spawn_state = Some(Spawn::new(1));
+            p.growth_state.as_mut().unwrap().maximum = 100.0;
+            let mut placed = vec![p];
+            let mut removed = Vec::new();
+            let mut animation_events = Vec::new();
+            let mut rng = Random::new(290);
+            let mut scheduler = EntityScheduler::default();
+            scheduler.register(0, 3);
+            let mut world = Seeder {
+                templates: &templates,
+                terrain: &terrain,
+                cells: &mut cells,
+                rng: &mut rng,
+                placed: &mut placed,
+                removed: &mut removed,
+                animation_events: &mut animation_events,
+            };
+            for _ in 0..10 {
+                world.iterate(&mut scheduler, 3.0, 60.0, disabled);
+            }
+            let herbs: Vec<&Placed> = world.placed.iter().filter(|p| p.template == 1).collect();
+            if disabled {
+                assert!(herbs.is_empty());
+            } else {
+                assert!(!herbs.is_empty());
+                assert!(herbs.iter().all(|h| h.bucket == 3
+                    && (h.cell.0 - 8).abs() <= 3
+                    && (h.cell.1 - 8).abs() <= 3));
+            }
+            // Out of band, the clock stands still.
+            world.placed[0].growth = 0.2;
+            let timer = world.placed[0].spawn_state.as_ref().unwrap().timers[0];
+            world.iterate(&mut scheduler, 3.0, 60.0, disabled);
+            assert_eq!(
+                world.placed[0].spawn_state.as_ref().unwrap().timers[0],
+                timer
+            );
+        }
     }
 }

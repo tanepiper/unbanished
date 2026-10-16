@@ -171,6 +171,14 @@ Deviations and assumptions:
 Seeded maxima, timers and cell state now survive into the scheduled growth loop, periodic
 same-template offspring and visual smoothing; see [GAME-LOOP-STEP-18.md](GAME-LOOP-STEP-18.md).
 
+**Ongoing spawning** (SpawnComponent's scheduled update, `FUN_140056430`;
+`Seeder::scheduled_spawn`). It runs on each bucket visit, after the GrowthComponent (the
+template's component order). Each entry whose `[lo, hi]` holds the parent's growth advances its
+own clock by the elapsed time; clocks outside their band stand still. Every child growth period
+(`child +0x28 × 300` seconds) it makes one `FUN_1400560e0` attempt without the random growth,
+and none while `Game +0xd0` bit 10 is set. The trees use this for herbs, onions, blueberries,
+mushrooms and roots. A child goes in the parent template's bucket.
+
 ## Open items
 
 - Verify the port entity for entity against a save made right after New Game.

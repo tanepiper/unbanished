@@ -114,8 +114,10 @@ evidence; static traces are not claims of live-game behavior.
 - [x] Play tree expiry animation index 2 from its packaged group, update each instance's rigid
   node pose, and remove the entity/map stamp at the serialized completion tick; verify on GPU.
   See [GAME-LOOP-STEP-19.md](GAME-LOOP-STEP-19.md).
-- [ ] Port ongoing SpawnComponent cross-template spawning and spatial AnimAudioEvent/SoundEffect
-  dispatch. Shared/blended animation states also remain open.
+- [x] Port ongoing SpawnComponent cross-template spawning (`Seeder::scheduled_spawn`; see
+  [RESOURCE-SEEDING.md](RESOURCE-SEEDING.md)).
+- [x] Spatial AnimAudioEvent/SoundEffect dispatch (see [AUDIO.md](AUDIO.md)).
+- [ ] Shared/blended animation states.
 - [x] GPU-skin citizens with a per-instance bone palette (`MeshInstance::GetBones`), playing each
   citizen's `Idle` clip; shared with the viewer (`banished_gfx::skin`). See
   [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md#skinning).

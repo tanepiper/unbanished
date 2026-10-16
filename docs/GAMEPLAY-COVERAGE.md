@@ -13,7 +13,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Component | Templates | Port |
 |---|---|---|
 | Map, Model, Picking, Highlight, UI, Interact, Zone | all buildings | yes |
-| NaturalResource, Growth, Spawn (same template), RawMaterial | resources, piles | yes (cross-template spawn open) |
+| NaturalResource, Growth, Spawn, RawMaterial | resources, piles | yes ([RESOURCE-SEEDING.md](RESOURCE-SEEDING.md); trees seed herbs, berries, mushrooms) |
 | Character, CitizenAI | Citizen | movement, actions, AI choice; activities 2, 3, 8, 9, 12 |
 | Storage, StorageLocation | storage buildings, citizens | ledgers, search, reservations |
 | Build, ClearArea, WorkPlace, StateMachine, Work | buildings | construction, professions |
@@ -37,7 +37,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **Pasture**, **Livestock** | pastures, animals | yes ([FARMING.md](FARMING.md); breeding, culling, products, starting livestock) |
 | **Herd**, **Population**, **WildAnimal**, **Animal** | deer, livestock | yes (`wildlife.rs`) |
 | ResourceProduce subtype **Herbalist** (gather) | gatherer's shelter, herbalist | yes (`herbalist.rs`) |
-| ResourceProduce subtype **Forester** | forester's lodge | yes (`forester.rs`; toggle buttons not wired) |
+| ResourceProduce subtype **Forester** | forester's lodge | yes (`forester.rs`; the lodge's plant and cut toggles) |
 | ResourceProduce subtype **Fishing** | fisherman's dock | yes (`fishing.rs`, map layer 8) |
 | ResourceProduce subtype **Hunt** | hunter's lodge | yes (`hunt.rs`, HuntAnimal, RemoveAnimal) |
 | **AutoPickup** | gatherers, hunters, foresters | yes |
