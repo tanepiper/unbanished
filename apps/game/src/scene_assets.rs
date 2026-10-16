@@ -137,6 +137,20 @@ impl WaterData {
     }
 }
 
+/// A particle material's diffuse texture and normal map.
+pub fn particle_textures(
+    archive: &Archive,
+    reference: &str,
+) -> (Option<ImageBuffer>, Option<ImageBuffer>) {
+    let Some((_, textures)) = material(archive, reference) else {
+        return (None, None);
+    };
+    (
+        image(archive, slot(&textures, "diffuse").as_deref()),
+        image(archive, slot(&textures, "normal").as_deref()),
+    )
+}
+
 /// A decal material's kind and textures, by material reference.
 pub type DecalCache = std::collections::HashMap<
     String,

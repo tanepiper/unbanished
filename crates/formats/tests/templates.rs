@@ -630,3 +630,36 @@ fn decal_descriptions_parse() {
     );
     assert_eq!(house.rects[1], [256.0, 0.0, 512.0, 320.0]);
 }
+
+#[test]
+fn particles_parse() {
+    use banished_formats::{crc::type_id, crs, game};
+    let Some(archive) = archive() else { return };
+    let mut counts = (0, 0);
+    for name in archive.names() {
+        if !name.ends_with(".crs") {
+            continue;
+        }
+        let bytes = archive.read(name).unwrap();
+        let h = crs::header(&bytes).unwrap();
+        if h.type_id == type_id("ParticleSystem") {
+            game::particle_system(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+            counts.0 += 1;
+        } else if h.type_id == type_id("ParticleDescription") {
+            game::particle_description(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
+            counts.1 += 1;
+        }
+    }
+    assert_eq!(counts, (6, 26));
+    let smoke = game::particle_system(
+        &archive
+            .read_ref("ParticleSystems/ChimneySmoke/ChimneySmoke.rsc:resource")
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        (smoke.rate, smoke.max_particles, smoke.life),
+        (5.0, 32, [4.5, 1.0])
+    );
+    assert_eq!(smoke.colors, [0xc0c0_c0c0, 0xc0ff_ffff]);
+}

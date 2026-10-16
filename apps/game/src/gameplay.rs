@@ -89,6 +89,8 @@ pub struct GameplayLoop {
     road_materials: Vec<Option<String>>,
     decal_descriptions: Vec<Option<std::sync::Arc<banished_formats::game::DecalDescription>>>,
     decals_built: Option<(u32, u64, u64)>,
+    /// The entities' particle systems (presentation; their own Random).
+    particles: crate::particles::Particles,
     decal_cache: crate::scene_assets::DecalCache,
     selection: Selection,
     entities: EntityWindows,
@@ -159,6 +161,7 @@ impl GameplayLoop {
             road_materials: Vec::new(),
             decal_descriptions: Vec::new(),
             decals_built: None,
+            particles: Default::default(),
             decal_cache: Default::default(),
             selection: Selection::default(),
             entities: EntityWindows::default(),
@@ -874,6 +877,29 @@ impl GameplayLoop {
         }
     }
 
+    /// The ParticleComponents' slots against the town, their systems run by the game time
+    /// (`FUN_140053490`, the manager's delta), and this frame's draws.
+    fn refresh_particles(&mut self, archive: &banished_formats::pkg::Archive, dt: f32) {
+        let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) else {
+            return;
+        };
+        let grid = banished_game::terrain::HeightGrid {
+            width: view.terrain.size + 1,
+            heights: &view.terrain.heights,
+        };
+        self.particles.drive(archive, town, &grid);
+        if 0.0 < dt {
+            self.particles.update(dt);
+        }
+        view.particles = self.particles.batches(archive);
+        for b in &view.particles {
+            if !view.particle_textures.contains_key(&b.material) {
+                let textures = crate::scene_assets::particle_textures(archive, &b.material);
+                view.particle_textures.insert(b.material.clone(), textures);
+            }
+        }
+    }
+
     /// `AchievementManager::Update(dt × iterations)` after the frame's iterations; one awarded
     /// is stored and logged (event `0x19`, `FUN_14009be30`, `@2` its title).
     fn update_achievements(&mut self, ctx: &mut Ctx, dt: i64) {
@@ -1406,6 +1432,7 @@ impl GameLoop for GameplayLoop {
             }
         }
         self.refresh_decals(ctx.archive);
+        self.refresh_particles(ctx.archive, dt * iterations as f32);
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
         if let (Some(town), Some(view), false) = (&mut self.town, &mut self.view, pauses_game) {
             let grid = banished_game::terrain::HeightGrid {
@@ -2693,6 +2720,63 @@ mod tests {
                 .count();
             assert!(0 < planned, "no road planned");
             assert_eq!(count(&gameplay), before + planned * 4);
+        });
+    }
+
+    /// A burning barn's FireDescription slot starts its fire particles; put out, they fade.
+    #[test]
+    fn burning_buildings_get_particles() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            gameplay.update(ctx, 1.0 / 30.0);
+            let town = gameplay.town.as_mut().unwrap();
+            let barn = town
+                .storage_sites
+                .iter()
+                .map(|s| s.entity)
+                .find(|&i| {
+                    town.templates[town.placed[i].template]
+                        .reference
+                        .contains("StorageBarn")
+                })
+                .unwrap();
+            let fire = |g: &GameplayLoop| {
+                g.view
+                    .as_ref()
+                    .unwrap()
+                    .particles
+                    .iter()
+                    .any(|b| b.material.contains("Fire"))
+            };
+            assert!(!fire(&gameplay));
+            let town = gameplay.town.as_mut().unwrap();
+            town.construction
+                .sites
+                .get_mut(&barn)
+                .unwrap()
+                .fire
+                .as_mut()
+                .unwrap()
+                .burn = 1_000_000_000;
+            for _ in 0..30 {
+                gameplay.update(ctx, 1.0 / 30.0);
+            }
+            assert!(fire(&gameplay));
+            let town = gameplay.town.as_mut().unwrap();
+            town.construction
+                .sites
+                .get_mut(&barn)
+                .unwrap()
+                .fire
+                .as_mut()
+                .unwrap()
+                .burn = 0;
+            for _ in 0..120 {
+                gameplay.update(ctx, 1.0 / 30.0);
+            }
+            assert!(!fire(&gameplay));
         });
     }
 

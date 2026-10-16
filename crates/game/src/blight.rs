@@ -90,7 +90,7 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_140048d00`: a built field with something growing falls sick (event 12 at severity
-    /// 3, with the toolbar name). Not ported: the DiseaseComponent's particles.
+    /// 3, with the toolbar name). Its particles follow `left` in the app (docs/PARTICLES.md).
     fn catch_blight(&mut self, e: usize) {
         if self.nothing_to_blight(e) {
             return;

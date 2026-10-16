@@ -29,6 +29,8 @@ mod menu;
 mod models;
 mod music;
 mod options;
+mod particle_gfx;
+mod particles;
 mod pause_menu;
 mod placement_tool;
 mod removal_tool;

@@ -43,7 +43,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **AutoPickup** | gatherers, hunters, foresters | yes |
 | **AbsorbResource**, **StorageDisplay**, **StorageLocation** | StorageYard, barns | yes ([JOBS.md](JOBS.md#storage-sites-storagelocation-absorbresource-storagedisplay)) |
 | **MultiObject**, **Terraform**, **Floor** | bridges, tunnels, fences, dock | yes (fenced parts, bridge and tunnel pieces; [BRIDGES.md](BRIDGES.md), [TUNNELS.md](TUNNELS.md)) |
-| **Decal**, **Particle** | roads, footprints, smoke | Decal yes ([DECALS.md](DECALS.md)); Particle missing |
+| **Decal**, **Particle** | roads, footprints, smoke | yes ([DECALS.md](DECALS.md), [PARTICLES.md](PARTICLES.md); the tornado's particle class open) |
 | **Tracker**, **Value** | workplaces, livestock | Tracker and the stock's made/used counters and history ([TOWN-INFO.md](TOWN-INFO.md)); Value in trade |
 | **Tornado** | Tornado | yes ([TORNADO.md](TORNADO.md); spawn, path, wrecking; its particles not drawn) |
 
@@ -91,7 +91,8 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Achievements, tutorial, scenarios | yes ([ACHIEVEMENTS.md](ACHIEVEMENTS.md), [TUTORIAL.md](TUTORIAL.md); the tutorials start new games until saves load) |
 | Terrain decals (footprints, fields, yards, roads) | yes ([DECALS.md](DECALS.md)) |
 | River and lake surfaces | yes ([TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md); the strip bit-exact) |
-| Weather precipitation, smoke particles, fire particles | no |
+| Smoke, fire and blight particles | yes ([PARTICLES.md](PARTICLES.md)) |
+| Weather precipitation, the tornado's funnel | no |
 | Disasters (fire, tornado, disease) and AutoSlow | yes (fire, blight and tornadoes with the Disasters option; AutoSlow from their events) |
 
 ## Plan

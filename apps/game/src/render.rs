@@ -141,6 +141,7 @@ pub struct Renderer {
     decals_revision: u64,
     highlight: crate::highlight::HighlightRenderer,
     status_icons: crate::status_icons::StatusIconRenderer,
+    particles: crate::particle_gfx::ParticleRenderer,
     cell_overlay: crate::selection_overlay::OverlayRenderer,
     pending_overlay: Vec<crate::selection_overlay::OverlayVertex>,
     overlay_texture: Option<crate::selection_overlay::OverlayTexture>,
@@ -744,6 +745,8 @@ impl Renderer {
         let extras = SceneExtrasRenderer::new(&device, &queue, &globals_layout);
         let highlight = crate::highlight::HighlightRenderer::new(&device);
         let status_icons = crate::status_icons::StatusIconRenderer::new(&device);
+        let particles =
+            crate::particle_gfx::ParticleRenderer::new(&device, &queue, &globals_layout);
         let cell_overlay = crate::selection_overlay::OverlayRenderer::new(&device);
         let mut ui = banished_gfx::UiRenderer::new(&device, format, DEPTH_FORMAT);
         let white = banished_gfx::upload_rgba_as(
@@ -785,6 +788,7 @@ impl Renderer {
             models,
             highlight,
             status_icons,
+            particles,
             cell_overlay,
             pending_overlay: Vec::new(),
             overlay_texture: None,
@@ -924,6 +928,10 @@ impl Renderer {
     pub fn set_scene(&mut self, view: &crate::scene::SceneView) {
         self.highlight.upload(&self.device, &view.highlight);
         self.pending_icons.clone_from(&view.status_icons);
+        self.particles
+            .prepare(&self.device, &self.queue, &view.particles, |m| {
+                view.particle_textures.get(m).cloned().unwrap_or_default()
+            });
         self.pending_overlay.clone_from(&view.cell_overlay);
         if self.overlay_texture.is_none() {
             self.overlay_texture.clone_from(&view.overlay_texture);
@@ -1434,6 +1442,9 @@ impl Renderer {
                     Self::scene_pass(&mut encoder, "water", &t.scene_view, &t.depth, None);
                 self.extras.draw_water(&mut pass, &self.globals_bind);
             }
+            // Particles after the water, as transparent geometry.
+            self.particles
+                .draw(&mut encoder, &t.scene_view, &t.depth, &self.globals_bind);
             self.highlight.draw(
                 &mut encoder,
                 &self.queue,
