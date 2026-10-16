@@ -669,6 +669,16 @@ impl SceneExtrasRenderer {
             .water
             .as_ref()
             .map(|w| self.upload_water(device, queue, w));
+        self.upload_decals(device, queue, &extras.decals);
+    }
+
+    /// The decals alone (the game's roads and footprints change as the town grows).
+    pub fn upload_decals(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        decals: &[DecalData],
+    ) {
         let mut views: std::collections::HashMap<usize, wgpu::TextureView> = Default::default();
         let white = self.white.clone();
         let mut view = |img: &Option<ImageBuffer>| -> wgpu::TextureView {
@@ -684,8 +694,7 @@ impl SceneExtrasRenderer {
                 .or_insert_with(|| linear_view(device, queue, img, &white))
                 .clone()
         };
-        self.decals = extras
-            .decals
+        self.decals = decals
             .iter()
             .map(|d: &DecalData| {
                 let (diffuse, mask, snow) = (view(&d.diffuse), view(&d.mask), view(&d.snow));

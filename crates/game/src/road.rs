@@ -82,6 +82,7 @@ impl Sim<'_, '_> {
         self.pending_roads.insert(cell, id);
         self.cells.road_kind[i] = kind;
         self.cells.road_built[i] = BUILDING;
+        self.cells.road_revision += 1;
     }
 
     /// `FUN_1400a1bd0`: a planned road's work goes and the cell gets back what it had (true);
@@ -96,6 +97,7 @@ impl Sim<'_, '_> {
             }
             jobs.remove(id, self);
         }
+        self.cells.road_revision += 1;
         if self.cells.road_kind[i] == NONE {
             self.set_cell_type(cell, GROUND);
             return false;
@@ -135,6 +137,7 @@ impl Sim<'_, '_> {
         }
         self.set_cell_type(cell, ty);
         self.pending_roads.remove(&cell);
+        self.cells.road_revision += 1;
         *self.models_dirty = true;
     }
 

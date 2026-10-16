@@ -84,6 +84,10 @@ pub struct GameplayLoop {
     next_scenario: Option<usize>,
     /// The Achievement or Goal dialog opened from the pause menu.
     menu_dialog: Option<MenuDialog>,
+    /// The road kinds' decal materials and the road revision the decals were built for.
+    road_materials: Vec<Option<String>>,
+    road_revision: Option<u32>,
+    decal_cache: crate::scene_assets::DecalCache,
     selection: Selection,
     entities: EntityWindows,
     highlight: crate::highlight::Highlight,
@@ -150,6 +154,9 @@ impl GameplayLoop {
             goal: None,
             next_scenario: None,
             menu_dialog: None,
+            road_materials: Vec::new(),
+            road_revision: None,
+            decal_cache: Default::default(),
             selection: Selection::default(),
             entities: EntityWindows::default(),
             highlight: Default::default(),
@@ -811,6 +818,33 @@ impl GameplayLoop {
         models_changed
     }
 
+    /// `FUN_1400b4840` when a road changed: the roads' decals rebuilt for the view.
+    fn refresh_road_decals(&mut self, archive: &banished_formats::pkg::Archive) {
+        let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) else {
+            return;
+        };
+        if self.road_revision == Some(town.cells.road_revision) {
+            return;
+        }
+        self.road_revision = Some(town.cells.road_revision);
+        let grid = banished_game::terrain::HeightGrid {
+            width: view.terrain.size + 1,
+            heights: &view.terrain.heights,
+        };
+        let decals = crate::road_decals::build(
+            archive,
+            &town.cells,
+            &grid,
+            &self.road_materials,
+            &mut self.decal_cache,
+        );
+        log::debug!("road decals rebuilt: {} decals", decals.len());
+        if let Some(e) = &mut view.extras {
+            e.decals = decals;
+            view.decals_revision += 1;
+        }
+    }
+
     /// `AchievementManager::Update(dt × iterations)` after the frame's iterations; one awarded
     /// is stored and logged (event `0x19`, `FUN_14009be30`, `@2` its title).
     fn update_achievements(&mut self, ctx: &mut Ctx, dt: i64) {
@@ -1182,6 +1216,13 @@ impl GameLoop for GameplayLoop {
                         glam::Vec2::new(town.start.0 as f32 - c, town.start.1 as f32 - c);
                 }
                 let mut view = SceneView::new(world.terrain, SceneCamera::Map(camera), lighting);
+                // `FUN_14009bfd0`: the sky (`Models/Sky/SkyMesh.rsc`); the roads' decals follow.
+                view.extras = Some(crate::scene_assets::SceneExtras {
+                    sky: crate::scene_assets::SkyData::load(ctx.archive, "Models/Sky/SkyMesh.rsc"),
+                    water: None,
+                    decals: Vec::new(),
+                });
+                self.road_materials = crate::road_decals::materials(ctx.archive);
                 if let Some(town) = &town {
                     view.models = Some(town.models(ctx.archive));
                 }
@@ -1323,6 +1364,7 @@ impl GameLoop for GameplayLoop {
                 )));
             }
         }
+        self.refresh_road_decals(ctx.archive);
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
         if let (Some(town), Some(view), false) = (&mut self.town, &mut self.view, pauses_game) {
             let grid = banished_game::terrain::HeightGrid {
@@ -1906,6 +1948,15 @@ impl GameLoop for GameplayLoop {
                 let a = clamp(y - r) * n + clamp(x - r);
                 let b = clamp(y + r) * n + clamp(x + r);
                 tool.drag(ctx.archive, town, &grid, a, b);
+                let roads: Vec<i32> = (0..town.cells.road_kind.len() as i32)
+                    .filter(|&i| town.cells.road_kind[i as usize] != 0xff)
+                    .collect();
+                log::info!(
+                    "script dragged {template} from {a} to {b} (start {:?}); {} road cells: {:?}",
+                    town.start,
+                    roads.len(),
+                    &roads[..roads.len().min(8)]
+                );
                 return true;
             }
             // `tool TEMPLATE`: start a template's tool, as its toolbar button does.
@@ -2558,6 +2609,52 @@ mod tests {
             let food = toolbar.button(ctx.ui, "food").unwrap();
             assert!(ctx.ui.node(housing).usable());
             assert!(!ctx.ui.node(food).usable());
+        });
+    }
+
+    /// Planned road cells get the roads' tiled decals (`FUN_1400b4840`): one per tile and
+    /// kind, four vertices a cell, the alpha the built byte.
+    #[test]
+    fn roads_get_decals() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            assert!(
+                gameplay.road_materials.iter().all(|m| m.is_some()),
+                "{:?}",
+                gameplay.road_materials
+            );
+            let town = gameplay.town.as_mut().unwrap();
+            let n = town.cells.size as i32;
+            let (x, y) = (town.start.0 as i32, town.start.1 as i32 + 12);
+            for dx in 0..6 {
+                town.construction
+                    .commands
+                    .push(banished_game::professions::Command::PlanRoad {
+                        cell: y * n + x + dx,
+                        kind: 1,
+                        ty: 3,
+                        material: None,
+                    });
+            }
+            gameplay.update(ctx, 1.0 / 30.0);
+            let town = gameplay.town.as_ref().unwrap();
+            let planned = (0..6)
+                .filter(|dx| town.cells.road_kind[(y * n + x + dx) as usize] == 1)
+                .count();
+            assert!(0 < planned, "no road planned");
+            let decals = &gameplay
+                .view
+                .as_ref()
+                .unwrap()
+                .extras
+                .as_ref()
+                .unwrap()
+                .decals;
+            assert!(!decals.is_empty(), "no road decals");
+            let vertices: usize = decals.iter().map(|d| d.vertices.len() / 20).sum();
+            assert_eq!(vertices, planned * 4);
         });
     }
 

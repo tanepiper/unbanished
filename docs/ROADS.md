@@ -86,3 +86,18 @@ task's parameter the cell.
 
 The road decals and mesh (`FUN_1400b2260`, `FUN_1400b4840`), the terrain flattened under a road
 (`FUN_1400a35b0`), the tutorial's fixed drag (DragTool `+0x80`), and the CreateBar's road cost.
+
+## The road decals (`FUN_1400b4840`)
+
+The map rebuilds its tiled decals when a road changes. Per 32-cell tile (`+0xc8`) and road kind
+(the map's `+0x210` materials: the road templates' DecalDescriptions, `StoneRoad` kind 0 and
+`DirtRoad` kind 1) every cell with that kind (`+0x2a`) gets a quad: its corners
+(`FUN_1400b1f70`) on the height grid (wider than the cells by `+0xc0 − +0xc4`), each with the
+height, the cell's built byte (`+0x2b`, `0x80` while being built) as alpha, the terrain's uv
+(`× 16384 / +0xc0`) and normal (`FUN_1400b3740`); its atlas tile (`FUN_1400b3650`,
+`DAT_1401ca450` by the mask of road neighbours: left, right, up, down, then each corner with both
+its edges; `DAT_1401ca2d0` the tiles' uv) in the second uv; the diagonal alternates with the
+cell's parity (`0 3 1 1 3 2`, odd `0 2 1 0 3 2`). The same pass counts each kind's built cells
+(`+0x220`, achievement statistic 23).
+
+Port: `apps/game/src/road_decals.rs`, rebuilt when `Cells::road_revision` changes.

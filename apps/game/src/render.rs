@@ -138,6 +138,7 @@ pub struct Renderer {
     ui: banished_gfx::UiRenderer,
     models: crate::models::ModelRenderer,
     extras: SceneExtrasRenderer,
+    decals_revision: u64,
     highlight: crate::highlight::HighlightRenderer,
     status_icons: crate::status_icons::StatusIconRenderer,
     cell_overlay: crate::selection_overlay::OverlayRenderer,
@@ -791,6 +792,7 @@ impl Renderer {
             icon_options: crate::status_icons::IconOptions::default(),
             icon_sheets: Default::default(),
             extras,
+            decals_revision: 0,
             minimap: None,
             minimap_overlay: 0,
             backend,
@@ -954,9 +956,18 @@ impl Renderer {
                 &self.targets.reflection_view,
             );
             self.world_id = view.id;
+            self.decals_revision = view.decals_revision;
             self.models_revision = view.models.as_ref().map_or(0, |m| m.revision);
             self.minimap = None;
             self.minimap_overlay = 0;
+        } else if self.decals_revision != view.decals_revision {
+            if let Some(e) = &view.extras {
+                self.extras
+                    .upload_decals(&self.device, &self.queue, &e.decals);
+            }
+            self.decals_revision = view.decals_revision;
+        }
+        if self.world_id != view.id {
         } else if let Some(models) = &view.models {
             if self.models_revision != models.revision {
                 self.models

@@ -12,6 +12,8 @@ pub struct SceneView {
     pub terrain: Terrain,
     pub models: Option<crate::models::SceneModels>,
     pub extras: Option<crate::scene_assets::SceneExtras>,
+    /// Bumped when `extras`' decals change after the upload (the game's roads).
+    pub decals_revision: u64,
     pub camera: SceneCamera,
     pub lighting: Lighting,
     pub highlight: crate::highlight::Geometry,
@@ -39,6 +41,7 @@ impl SceneView {
             terrain,
             models: None,
             extras: None,
+            decals_revision: 0,
             camera,
             lighting,
             highlight: Default::default(),

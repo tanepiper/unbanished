@@ -32,6 +32,7 @@ mod pause_menu;
 mod placement_tool;
 mod removal_tool;
 mod render;
+mod road_decals;
 mod scenario_ui;
 mod scene;
 mod scene_assets;

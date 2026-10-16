@@ -121,6 +121,17 @@ impl WaterData {
     }
 }
 
+/// A decal material's kind and textures, by material reference.
+pub type DecalCache = std::collections::HashMap<
+    String,
+    Option<(
+        DecalKind,
+        Option<ImageBuffer>,
+        Option<ImageBuffer>,
+        Option<ImageBuffer>,
+    )>,
+>;
+
 /// Which decal shader a decal's material uses.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DecalKind {
@@ -173,6 +184,36 @@ impl DecalData {
             return None;
         }
         let reference = d.material.clone()?;
+        Self::from_mesh(
+            archive,
+            &reference,
+            d.vertices.iter().flatten().copied().collect(),
+            &d.indices,
+            cache,
+        )
+    }
+
+    /// A decal of a material from its 20-byte vertices and indices.
+    #[allow(clippy::type_complexity)]
+    pub fn from_mesh(
+        archive: &Archive,
+        reference: &str,
+        vertices: Vec<u8>,
+        indices: &[u16],
+        cache: &mut std::collections::HashMap<
+            String,
+            Option<(
+                DecalKind,
+                Option<ImageBuffer>,
+                Option<ImageBuffer>,
+                Option<ImageBuffer>,
+            )>,
+        >,
+    ) -> Option<DecalData> {
+        if vertices.is_empty() || indices.is_empty() {
+            return None;
+        }
+        let reference = reference.to_string();
         let (kind, diffuse, mask, snow) = cache
             .entry(reference.clone())
             .or_insert_with(|| {
@@ -197,13 +238,14 @@ impl DecalData {
                 ))
             })
             .clone()?;
-        let mut indices: Vec<u8> = d.indices.iter().flat_map(|i| i.to_le_bytes()).collect();
+        let index_count = indices.len() as u32;
+        let mut indices: Vec<u8> = indices.iter().flat_map(|i| i.to_le_bytes()).collect();
         indices.resize(indices.len().next_multiple_of(4), 0);
         Some(DecalData {
             kind,
-            vertices: d.vertices.iter().flatten().copied().collect(),
+            vertices,
             indices,
-            index_count: d.indices.len() as u32,
+            index_count,
             diffuse,
             mask,
             snow,

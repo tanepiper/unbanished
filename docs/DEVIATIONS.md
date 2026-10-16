@@ -29,8 +29,8 @@ Deviation: 38, Not ported: 47, Not traced: 5.
 ## `apps/game/src/gameplay.rs`
 
 - [Deviation] [apps/game/src/gameplay.rs:32](../apps/game/src/gameplay.rs#L32): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
-- [Deviation] [apps/game/src/gameplay.rs:323](../apps/game/src/gameplay.rs#L323): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
-- [Not ported] [apps/game/src/gameplay.rs:1036](../apps/game/src/gameplay.rs#L1036): The precipitation emitters follow the environment's effects (`FUN_1400999b0`); with the game option ShowWeather (`+0x16`) off the effects and their emitters are removed. Not ported: ShowWeather's other effect, the weather lighting blend in `FUN_140098f90`.
+- [Deviation] [apps/game/src/gameplay.rs:330](../apps/game/src/gameplay.rs#L330): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
+- [Not ported] [apps/game/src/gameplay.rs:1070](../apps/game/src/gameplay.rs#L1070): The precipitation emitters follow the environment's effects (`FUN_1400999b0`); with the game option ShowWeather (`+0x16`) off the effects and their emitters are removed. Not ported: ShowWeather's other effect, the weather lighting blend in `FUN_140098f90`.
 
 ## `apps/game/src/gameplay/tutorial.rs`
 
@@ -38,9 +38,9 @@ Deviation: 38, Not ported: 47, Not traced: 5.
 
 ## `apps/game/src/main.rs`
 
-- [Deviation] [apps/game/src/main.rs:96](../apps/game/src/main.rs#L96): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
-- [Deviation] [apps/game/src/main.rs:191](../apps/game/src/main.rs#L191): "Use Software Mouse" (`Input::Configuration +10`): the pointer is drawn by the game, at its image's own size, instead of by the system (`UserInterface::SetCursor` hands the cursor's sheet image and hotspot to the device). Not ported: the other cursors (Hand, Place, Move, …) the original switches between by `UserInterface::GetMouseCursorIndex`; only the arrow is drawn.
-- [Deviation] [apps/game/src/main.rs:680](../apps/game/src/main.rs#L680): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
+- [Deviation] [apps/game/src/main.rs:97](../apps/game/src/main.rs#L97): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
+- [Deviation] [apps/game/src/main.rs:192](../apps/game/src/main.rs#L192): "Use Software Mouse" (`Input::Configuration +10`): the pointer is drawn by the game, at its image's own size, instead of by the system (`UserInterface::SetCursor` hands the cursor's sheet image and hotspot to the device). Not ported: the other cursors (Hand, Place, Move, …) the original switches between by `UserInterface::GetMouseCursorIndex`; only the arrow is drawn.
+- [Deviation] [apps/game/src/main.rs:681](../apps/game/src/main.rs#L681): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
 
 ## `apps/game/src/options.rs`
 
@@ -57,7 +57,7 @@ Deviation: 38, Not ported: 47, Not traced: 5.
 
 ## `apps/game/src/render.rs`
 
-- [Deviation] [apps/game/src/render.rs:487](../apps/game/src/render.rs#L487): Deviation: the port renders single-sampled, so the Options dialog offers only "None" for antialiasing.
+- [Deviation] [apps/game/src/render.rs:488](../apps/game/src/render.rs#L488): Deviation: the port renders single-sampled, so the Options dialog offers only "None" for antialiasing.
 
 ## `apps/game/src/select_resource_ui.rs`
 
@@ -205,7 +205,7 @@ Deviation: 38, Not ported: 47, Not traced: 5.
 
 ## `crates/game/src/road.rs`
 
-- [Not ported] [crates/game/src/road.rs:123](../crates/game/src/road.rs#L123): CompleteRoad's start (`FUN_1400a1b10(cell, kind byte, type)`): to ground (type 2) the cell loses its road (`+0x28` one less, no kind); else it becomes the road type. Either way it leaves the planned set. Not ported: the terrain flattened under it (`FUN_1400a35b0`) and the road mesh (`FUN_1400b4840`).
+- [Not ported] [crates/game/src/road.rs:125](../crates/game/src/road.rs#L125): CompleteRoad's start (`FUN_1400a1b10(cell, kind byte, type)`): to ground (type 2) the cell loses its road (`+0x28` one less, no kind); else it becomes the road type. Either way it leaves the planned set. Not ported: the terrain flattened under it (`FUN_1400a35b0`) and the road mesh (`FUN_1400b4840`).
 
 ## `crates/game/src/spawn.rs`
 

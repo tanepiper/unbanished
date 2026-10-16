@@ -146,6 +146,9 @@ pub struct Cells {
     pub road_kind: Vec<u8>,
     /// `+0x2b`: the road kind built (`0x80` while it is being built).
     pub road_built: Vec<u8>,
+    /// Bumped whenever a road is planned, taken back or finished (the road decals' rebuild,
+    /// `FUN_1400b4840`).
+    pub road_revision: u32,
     /// `+0x2d` and the map's floor scene: bridge decks (FloorComponent).
     pub floors: crate::floor::Floors,
 }
@@ -165,6 +168,7 @@ impl Cells {
             road_built: vec![0; types.len()],
             floors: crate::floor::Floors::new(types.len()),
             types,
+            road_revision: 0,
         }
     }
 
