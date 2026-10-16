@@ -73,7 +73,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | 10 | school | yes |
 | 11 | play (children) | yes |
 | 12 | idle / loiter | yes |
-| 13 | drop off what is carried | partly (no redirect) |
+| 13 | drop off what is carried | yes (redirect and loose piles) |
 
 ## Tools, UI and map features
 

@@ -81,6 +81,9 @@ pub enum Component {
     Orchard,
     /// PastureComponent's message slot (`FUN_14012cbf0`): 0 a rancher's visit.
     Pasture,
+    /// `FUN_1400ccd90`: a loose pile of `a` (material), `b` units, left on the ground near
+    /// the citizen (the units already left its storage).
+    DropPile,
 }
 
 /// A message an action delivered (slot `+0x78` of the receiving component). The owner
@@ -95,6 +98,12 @@ pub struct Message {
 }
 
 /// Map state the character and its actions read.
+/// `Town::FindMaterialStorage` (`FUN_140092a60`) for a redirected drop-off: the storages,
+/// the game's Random, the material, the count and the citizen's cell give a storage and the
+/// point to walk to.
+pub type StorageSearch<'a> =
+    dyn FnMut(&[Storage], &mut Random, usize, i32, i32) -> Option<(usize, [f32; 3])> + 'a;
+
 pub struct World<'a> {
     pub size: usize,
     pub types: &'a [CellType],
@@ -116,6 +125,10 @@ pub struct World<'a> {
     pub storages: &'a mut [Storage],
     pub materials: &'a [RawMaterial],
     pub carried: &'a mut Storage,
+    /// The drop-off redirect's storage search (citizens only).
+    pub storage_search: Option<&'a mut StorageSearch<'a>>,
+    /// Actions an action pushed from its start (`ActionStack::Push`), pushed once it returns.
+    pub pushes: Vec<Action>,
     /// Citizen `+0xac`: tool uses left (PerformWork with a tool spends one).
     pub tool_uses: &'a mut i32,
     /// The tool ShowTool attached (`-1` none, `-2` carried goods).
@@ -606,13 +619,76 @@ pub enum Action {
         occupant: Option<usize>,
         cell: i32,
     },
-    /// `DropOffRawMaterial` (vtable `0x1401661a0`, start `FUN_1400cc7d0`): move up to `count`
-    /// carried units into `storage`.
+    /// `DropOffRawMaterial` (vtable `0x1401661a0`, constructor `FUN_1400cd1a0`, start
+    /// `FUN_1400cc7d0`): move up to `count` carried units into `storage`; with `redirect`
+    /// (`+0x20`) a storage that cannot take them sends the citizen on to another, or the goods
+    /// are left on the ground.
     DropOff {
         storage: usize,
         material: usize,
         count: i32,
+        redirect: bool,
     },
+}
+
+/// `FUN_1400ccd90`: `n` units of `m` leave the citizen for a loose pile on the ground.
+fn drop_pile(world: &mut World, m: usize, n: i32) {
+    if n == 0 {
+        return;
+    }
+    world.messages.push(Message {
+        component: Component::DropPile,
+        message: 0,
+        entity: None,
+        a: m as i32,
+        b: n,
+    });
+    world.carried.remove(m, n);
+}
+
+/// `FUN_1400ccaf0`: as many as carried, up to `count`, into `target` when they fit; else with
+/// `redirect`, the nearest storage that takes them (the action now points there and a walk
+/// is pushed) or, with none, a loose pile. True when the goods were left on the ground.
+fn drop_off_one(
+    ch: &Character,
+    world: &mut World,
+    target: usize,
+    storage: &mut usize,
+    m: usize,
+    count: i32,
+    redirect: bool,
+) -> bool {
+    let carried = world.carried.available(m);
+    let n = if 0 <= count {
+        carried.min(count)
+    } else {
+        carried
+    };
+    if 0 < n && world.storages[target].fits(world.materials, m, n) {
+        world.storages[target].add(m, n);
+        world.carried.remove(m, n);
+        return false;
+    }
+    if !redirect {
+        return false;
+    }
+    let cell = world.cell(ch.position);
+    let found = match world.storage_search.as_mut() {
+        Some(search) => search(world.storages, world.rng, m, n, cell),
+        None => None,
+    };
+    match found {
+        Some((s, point)) => {
+            *storage = s;
+            let walk = MoveTo::new(point, 1, 0, crate::pathfind::WALKABLE, 0, -1.0, world.rng);
+            world.pushes.push(Action::move_to(walk));
+            false
+        }
+        None => {
+            drop_pile(world, m, n);
+            true
+        }
+    }
 }
 
 impl Action {
@@ -776,53 +852,53 @@ impl Action {
                 storage,
                 material,
                 count,
+                redirect,
             } => {
-                // Material `usize::MAX`: every carried material (constructor argument null);
-                // storage `usize::MAX`: no target (only the redirect search, not ported).
-                if *material == usize::MAX {
-                    if *storage == usize::MAX {
-                        return if world.carried.items.iter().all(|i| i.count == 0) {
-                            Status::Done
-                        } else {
-                            Status::Failed
-                        };
-                    }
+                // `FUN_1400cc7d0`. No storage: everything carried is left on the ground
+                // (`FUN_1400cca40`).
+                if *storage == usize::MAX {
                     let items: Vec<(usize, i32)> = world
                         .carried
                         .items
                         .iter()
-                        .filter(|i| i.count > 0)
+                        .filter(|i| 0 < i.count)
                         .map(|i| (i.material, i.count))
                         .collect();
-                    let mut moved = false;
                     for (m, n) in items {
-                        if world.storages[*storage].fits(world.materials, m, n) {
-                            world.storages[*storage].add(m, n);
-                            world.carried.remove(m, n);
-                            moved = true;
-                        }
+                        drop_pile(world, m, n);
                     }
-                    return if moved {
-                        Status::Running
-                    } else {
-                        Status::Failed
-                    };
-                }
-                // `FUN_1400ccaf0`: as many as carried, up to the request, when they fit.
-                let carried = world.carried.available(*material);
-                let n = if *count >= 0 {
-                    carried.min(*count)
-                } else {
-                    carried
-                };
-                if n > 0 && world.storages[*storage].fits(world.materials, *material, n) {
-                    world.storages[*storage].add(*material, n);
-                    world.carried.remove(*material, n);
                     return Status::Running;
                 }
-                // Not ported: redirecting to another storage (`FUN_140092a60` put, MoveTo) and
-                // dropping a loose pile (`FUN_1400ccd90`); the drop-off fails instead.
-                Status::Failed
+                // Every material tries the storage the action was made for; a redirect points
+                // the action at the storage found.
+                let target = *storage;
+                let one = |world: &mut World, m: usize, storage: &mut usize| -> bool {
+                    drop_off_one(ch, world, target, storage, m, *count, *redirect)
+                };
+                if *material != usize::MAX {
+                    let m = *material;
+                    return if one(world, m, storage) {
+                        Status::Failed
+                    } else {
+                        Status::Running
+                    };
+                }
+                let items: Vec<usize> = world
+                    .carried
+                    .items
+                    .iter()
+                    .filter(|i| 0 < i.count)
+                    .map(|i| i.material)
+                    .collect();
+                let mut dropped = false;
+                for m in items {
+                    dropped |= one(world, m, storage);
+                }
+                if dropped {
+                    Status::Failed
+                } else {
+                    Status::Running
+                }
             }
             Action::ConsumeStoredRawMaterial {
                 storage,
@@ -1094,10 +1170,21 @@ impl ActionStack {
                 for t in top.iter_mut() {
                     t.started = true;
                     status = t.action.start(ch, world, group);
-                    if status != Status::Running {
+                    if status != Status::Running || !world.pushes.is_empty() {
                         break;
                     }
                 }
+            }
+            // An action's start pushed a chain (`ActionStack::Push`): the top's started
+            // actions stop and the new chain runs first.
+            if !world.pushes.is_empty() {
+                for action in std::mem::take(&mut world.pushes) {
+                    self.push(ch, group, action);
+                }
+                if status == Status::Failed {
+                    self.clear(ch, group, world.storages);
+                }
+                continue;
             }
             let mut ran = false;
             if status == Status::Running {
@@ -1192,5 +1279,123 @@ mod inventory_action_tests {
         assert_eq!(storages[0].available(0), 3);
         assert_eq!(storages[0].entry(0).unwrap().reserved, 0);
         assert!(!stack.is_active());
+    }
+}
+
+#[cfg(test)]
+mod drop_off_tests {
+    use super::*;
+
+    /// A drop-off with `redirect` whose storage is full: with another storage found, the
+    /// action points there and a walk is pushed; with none, the goods are left as a pile
+    /// (`DropPile`) and the action fails. Without `redirect` nothing happens.
+    #[test]
+    fn a_full_storage_redirects_or_drops_a_pile() {
+        let n = 8;
+        let types = vec![CellType(2); n * n];
+        let none = vec![None; n * n];
+        let zeros = vec![0u8; n * n];
+        let roads = vec![0xffu8; n * n];
+        let floors = crate::floor::Floors::new(n * n);
+        let regions = vec![0u16; n * n];
+        let heights = vec![0i16; (2 * n + 1) * (2 * n + 1)];
+        let terrain = HeightGrid {
+            width: 2 * n + 1,
+            heights: &heights,
+        };
+        let materials = vec![RawMaterial {
+            size: 1,
+            ..Default::default()
+        }];
+        let group = AnimationGroup {
+            clips: vec![],
+            default_blend: 0.0,
+            blends: vec![],
+            blend_matrix: vec![],
+        };
+        for (found, redirect) in [(true, true), (false, true), (false, false)] {
+            let mut pathfinder = Pathfinder::new(n, &types);
+            let mut rng = Random::new(1);
+            let (mut messages, mut used) = (Vec::new(), Vec::new());
+            let full = Storage {
+                capacity: 0,
+                accepts: u32::MAX,
+                items: vec![],
+            };
+            let mut storages = vec![
+                full.clone(),
+                Storage {
+                    capacity: 10,
+                    ..full
+                },
+            ];
+            let mut carried = Storage {
+                capacity: 10,
+                accepts: u32::MAX,
+                items: vec![],
+            };
+            carried.add(0, 3);
+            let (mut tool_uses, mut shown, mut accident, mut timer) = (0, -1, None, 0);
+            let mut animating = vec![];
+            let mut search = |_: &[Storage], _: &mut Random, m: usize, count: i32, _: i32| {
+                assert_eq!((m, count), (0, 3));
+                found.then_some((1, [1.0, 1.0, 0.0]))
+            };
+            let mut world = World {
+                size: n,
+                types: &types,
+                objects: &none,
+                occupants: &none,
+                flags: &zeros,
+                roads: &roads,
+                floors: &floors,
+                regions: &regions,
+                terrain: &terrain,
+                pathfinder: &mut pathfinder,
+                rng: &mut rng,
+                messages: &mut messages,
+                used: &mut used,
+                storages: &mut storages,
+                materials: &materials,
+                carried: &mut carried,
+                storage_search: Some(&mut search),
+                pushes: Vec::new(),
+                tool_uses: &mut tool_uses,
+                shown_tool: &mut shown,
+                animating: &mut animating,
+                accident: &mut accident,
+                accident_timer: &mut timer,
+                accident_odds: None,
+            };
+            let mut ch = Character::new(CharacterDescription::default(), [0.0; 3], 1.0);
+            let mut action = Action::DropOff {
+                storage: 0,
+                material: usize::MAX,
+                count: -1,
+                redirect,
+            };
+            let status = action.start(&mut ch, &mut world, &group);
+            let pushed = world.pushes.len();
+            let Action::DropOff { storage, .. } = action else {
+                unreachable!()
+            };
+            match (found, redirect) {
+                (true, _) => {
+                    assert_eq!((status, storage, pushed), (Status::Running, 1, 1));
+                    assert_eq!(world.carried.available(0), 3);
+                }
+                (false, true) => {
+                    assert_eq!((status, storage, pushed), (Status::Failed, 0, 0));
+                    assert_eq!(world.carried.available(0), 0);
+                    assert_eq!(world.messages[0].component, Component::DropPile);
+                    assert_eq!((world.messages[0].a, world.messages[0].b), (0, 3));
+                }
+                (false, false) => {
+                    assert_eq!((status, pushed), (Status::Running, 0));
+                    assert_eq!(world.carried.available(0), 3);
+                    assert!(world.messages.is_empty());
+                }
+            }
+        }
     }
 }

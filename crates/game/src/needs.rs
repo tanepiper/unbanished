@@ -418,6 +418,8 @@ impl Needs<'_, '_> {
                 storage: home_storage,
                 material: usize::MAX,
                 count: -1,
+                // `FUN_1400c4c60`'s drop-off redirects.
+                redirect: true,
             },
         );
         stack.push(who.ch, who.group, perform(face_target, 6));

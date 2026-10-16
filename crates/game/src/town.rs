@@ -622,6 +622,7 @@ impl Sim<'_, '_> {
                 storage: site_storage,
                 material: if several { usize::MAX } else { material },
                 count: if several { -1 } else { amount },
+                redirect: true,
             },
         );
         self.push(c, self.perform(c, face_target, 6, 0.75, tool));
@@ -2721,6 +2722,33 @@ impl Sim<'_, '_> {
         }
     }
 
+    /// `FUN_1400ccd90`: `count` of `material` (already out of citizen `c`'s storage) as a
+    /// loose pile on the nearest flat free ground around the citizen, turned `RandTol(2) ×
+    /// 90°`; with no such cell within six, the goods are lost.
+    pub(crate) fn drop_loose_pile(&mut self, c: usize, material: usize, count: i32) {
+        let Some(at) = self.free_flat_cell(self.citizen_cell(c)) else {
+            return;
+        };
+        // The material's own template (a material is its pile's template).
+        let reference = &self.materials[material].reference;
+        let Some(template) = self
+            .templates
+            .iter()
+            .position(|t| &t.reference == reference && t.pile_material == Some(material))
+            .or_else(|| {
+                self.templates
+                    .iter()
+                    .position(|t| t.pile_material == Some(material))
+            })
+        else {
+            return;
+        };
+        let yaw = self.rng.rand_tol(2) as f32 * 90.0;
+        let n = self.size as i32;
+        self.spawn_pile(template, (at % n, at / n), count, yaw, None);
+        *self.models_dirty = true;
+    }
+
     /// A RawMaterialComponent pile entity (`FUN_1400c8bf0` of a pile template, `FUN_14012ec30`
     /// places it, turned `yaw`): stamped on its cell and activated with the next
     /// [`Sim::activate_piles`].
@@ -3150,13 +3178,15 @@ impl Sim<'_, '_> {
         }
         self.clear_citizen(c, None);
         self.on_empty_think(c);
-        // The final drop-off with no target (its redirect search is not ported).
+        // `Sequences::DropOffAt(.., redirect, first)`: the final drop-off has no storage, so
+        // whatever is left goes on the ground.
         self.push(
             c,
             Action::DropOff {
                 storage: usize::MAX,
                 material: usize::MAX,
                 count: -1,
+                redirect: true,
             },
         );
         let mask = WALKABLE | crate::pathfind::bit(self.cells.types[from as usize]);
@@ -3170,6 +3200,7 @@ impl Sim<'_, '_> {
                     storage,
                     material: usize::MAX,
                     count: -1,
+                    redirect: false,
                 },
             );
             self.push(c, self.perform(c, facing, 6, 0.75, false));

@@ -158,9 +158,35 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_1400a1210(map, cell, 1, owner, mask)`: the nearest cell, in rings of radius 0..=6
-    /// (rows, then columns), with no object, no occupant (or `owner`), not water or a road,
-    /// whose type is in `mask`.
+    /// (rows, then columns), with no object, no occupant (or `owner`), not water, no road
+    /// (built or planned), whose type is in `mask`.
     pub(crate) fn free_cell(&self, cell: i32, owner: Option<usize>, mask: u32) -> Option<i32> {
+        self.free_cell_where(cell, owner, |t, _| mask >> (t & 0x1f) & 1 != 0)
+    }
+
+    /// `FUN_1400a1210(map, cell, 0, none, _)` (a loose pile's cell, `FUN_1400ccd90`): as
+    /// [`Sim::free_cell`], on ground (type 2) with no occupant, no flags, and the terrain's
+    /// normal at the cell's middle within `0.97` of up.
+    pub(crate) fn free_flat_cell(&self, cell: i32) -> Option<i32> {
+        let n = self.size as i32;
+        self.free_cell_where(cell, None, |t, i| {
+            if t != 2 || self.cells.occupants[i].is_some() || self.cells.flags[i] != 0 {
+                return false;
+            }
+            let half = (n >> 1) as f32 - 0.5;
+            let (x, y) = ((i as i32 % n) as f32 - half, (i as i32 / n) as f32 - half);
+            let mut normal = [0.0; 3];
+            self.terrain.ground(x, y, &mut normal);
+            0.97 <= normal[2]
+        })
+    }
+
+    fn free_cell_where(
+        &self,
+        cell: i32,
+        owner: Option<usize>,
+        ok: impl Fn(u32, usize) -> bool,
+    ) -> Option<i32> {
         let n = self.size as i32;
         let (cx, cy) = (cell % n, cell / n);
         for r in 0..=6 {
@@ -182,11 +208,14 @@ impl Sim<'_, '_> {
                         }
                     }
                     let t = self.cells.types[i].0 as u32;
-                    // Types 0 and 1 (`1 << t & 3`); not ported: roads (`+0x2a`, the pending set).
-                    if 1u32 << (t & 0x1f) & 3 != 0 {
+                    // Types 0 and 1 (`1 << t & 3`), a road (`+0x2a`) or a planned one.
+                    if 1u32 << (t & 0x1f) & 3 != 0
+                        || self.cells.road_kind[i] != 0xff
+                        || self.pending_roads.contains_key(&(i as i32))
+                    {
                         continue;
                     }
-                    if mask >> (t & 0x1f) & 1 != 0 {
+                    if ok(t, i) {
                         return Some(y * n + x);
                     }
                 }

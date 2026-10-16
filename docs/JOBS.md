@@ -419,8 +419,27 @@ frees a claimer that lost the task.
 For each carried material, it reuses a storage already chosen that takes it, or finds one
 (`FUN_140092a60` put, from the citizen's cell). Per storage (`FUN_1400c6540`): MoveTo (walk 4)
 → PerformWork clip 6 → DropOffRawMaterial(all) → ShowTool(−2) → PerformWork clip 7. The
-stack ends with a DropOffRawMaterial without a target (its redirect search is not ported), and
-the citizen's job resets.
+stack ends with a DropOffRawMaterial without a target: whatever is still carried is left on the
+ground as loose piles (`FUN_1400cca40`), and the citizen's job resets.
+
+**DropOffRawMaterial** (constructor `FUN_1400cd1a0(citizen, storage, material, count,
+redirect)`, start `FUN_1400cc7d0`). Every material, or the one asked for, goes into the storage
+the action was made for: as many as carried, up to the count, when they fit (`FUN_1400ccaf0`).
+- When they do not fit, an action made with `redirect` (the haul `FUN_1400c4c60`) searches for
+  another storage from the citizen's cell (`FUN_140092a60`, put). If one is found, the action
+  points there, a MoveTo is pushed (walk 1, mask `0xe1f`, a random speed), and the action starts
+  again when the walk ends. If none is found, the goods are left as a loose pile and the action
+  fails.
+- A loose pile (`FUN_1400ccd90`) goes on the nearest cell within six of the citizen
+  (`FUN_1400a1210(.., 0, ..)`). The cell must be ground with no object, occupant, flags, road
+  or planned road, and have a terrain normal within 0.97 of up. The pile is the material's
+  template, turned `RandTol(2) × 90°`; the units leave the citizen even when no cell is found.
+- Without `redirect` (the drop-off activity's storages), goods that do not fit stay carried and
+  the action completes.
+
+The port pushes the walk after the start returns (`World::pushes`), which stops the chain as
+`ActionStack::Push` does. The pile is made when the citizen's messages are delivered
+(`Component::DropPile`), right after its update.
 
 ## Storage sites (StorageLocation, AbsorbResource, StorageDisplay)
 
@@ -806,7 +825,8 @@ Ported (`crates/game`):
   states with mesh stages, Residence registration; GatherRawMaterials and BuildStructure
   TryAssign/complete/fail/refresh/cancel; the haul and build sequences; the patience check.
 - Actions: CompleteTask (job messages, including aborts through `ActionStack::outbox`),
-  DropOffRawMaterial (no redirect), ShowTool (state only), PerformWork tool use.
+  DropOffRawMaterial (with its redirect and loose piles), ShowTool (state only), PerformWork tool
+  use.
 - `stock::find_material_storage` (`FUN_140092a60`), `placement::zone` (`FUN_1400a2830`).
 - AI activities 9 and 2 call the manager (`agents.rs`); job and BuildComponent messages are
   delivered in order after each character update.
@@ -830,10 +850,9 @@ Deviations and gaps (all marked in code):
   pile is hauled away and the house is built.
 - Deviations: a removed resource leaves on the next animation pass (the original at the end of
   its iteration); piles age every iteration rather than on their bucket visit; a pile takes its
-  cell's work priority when it activates in the same delivery; the drop-off's final redirect
-  and pile dropping are not ported; the ClearArea empty-cell phase (roads, fields) is not
-  ported; the stock's production counter (`FUN_14008e3c0`) is not updated.
-- Not ported: DropOff redirect and pile dropping, building status icons, ShowTool meshes.
+  cell's work priority when it activates in the same delivery; the ClearArea empty-cell phase
+  (roads, fields) is not ported; the stock's production counter (`FUN_14008e3c0`) is not updated.
+- Not ported: building status icons, ShowTool meshes.
 - **ClearArea stamp** (`FUN_14011d740`, from `FUN_14011ccf0` and `BuildComponent::EnterGather`):
   with the description's `+0x2c`, `FUN_1400a35b0` sets the height of the low corner of every
   cell from the map rectangle's corner to one past its far side to 0, so the footprint lies
@@ -854,4 +873,4 @@ Next steps:
    with ClearCancel, the other 8 felled by step 1225).
 3. Emulator check of the manager (`FUN_1400fdd70`, `FUN_1400fca20`, `FUN_1400fce80`) with fake
    works, like `tools/emu/storage.py`.
-4. Drop-off activity 13 and the redirect; families for the profession searches.
+4. Families for the profession searches.

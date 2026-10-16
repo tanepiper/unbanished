@@ -732,6 +732,45 @@ impl Agents {
                         let p = env.construction.professions.list.get(w.profession)?;
                         Some((w.profession, p.accident.0, p.accident.1))
                     });
+                // `Town::FindMaterialStorage` for a redirected drop-off.
+                let town = crate::activities::TownView {
+                    size: env.cells.size,
+                    types: &env.cells.types,
+                    regions: &self.regions,
+                    occupants: &env.cells.occupants,
+                    objects: &env.cells.objects,
+                    entities: &entities,
+                    happiness: &env.construction.happiness,
+                };
+                let (size, terrain, sites, materials) =
+                    (env.cells.size, env.terrain, env.sites, env.materials);
+                let sectors = &mut self.sectors;
+                let mut search = |storages: &[Storage],
+                                  rng: &mut Random,
+                                  m: usize,
+                                  n: i32,
+                                  cell: i32|
+                 -> Option<(usize, [f32; 3])> {
+                    let ground = move |cell: i32| crate::town::cell_ground(size, terrain, cell);
+                    let mut geometry = crate::activities::StorageGeometry {
+                        town: &town,
+                        sectors: &mut *sectors,
+                        ground: &ground,
+                    };
+                    crate::stock::find_material_storage(
+                        sites,
+                        storages,
+                        materials,
+                        m,
+                        n,
+                        true,
+                        cell,
+                        None,
+                        &mut geometry,
+                        rng,
+                    )
+                    .map(|f| (f.storage, f.target))
+                };
                 let mut world = World {
                     size: env.cells.size,
                     types: &env.cells.types,
@@ -748,6 +787,8 @@ impl Agents {
                     used: &mut used,
                     materials: env.materials,
                     storages: env.storages,
+                    storage_search: Some(&mut search),
+                    pushes: Vec::new(),
                     carried: &mut state.carried,
                     tool_uses: &mut state.tool_uses,
                     shown_tool: &mut state.shown_tool,
@@ -898,6 +939,8 @@ impl Agents {
                 storages: &mut storages,
                 carried: &mut carried,
                 tool_uses: &mut tool_uses,
+                storage_search: None,
+                pushes: Vec::new(),
                 shown_tool: &mut shown_tool,
                 animating: &mut animating,
                 accident: &mut accident,
@@ -936,6 +979,8 @@ impl Agents {
                 storages: &mut storages,
                 carried: &mut carried,
                 tool_uses: &mut tool_uses,
+                storage_search: None,
+                pushes: Vec::new(),
                 shown_tool: &mut shown_tool,
                 animating: &mut animating,
                 accident: &mut accident,
@@ -974,6 +1019,8 @@ impl Agents {
                 storages: &mut storages,
                 carried: &mut carried,
                 tool_uses: &mut tool_uses,
+                storage_search: None,
+                pushes: Vec::new(),
                 shown_tool: &mut shown_tool,
                 animating: &mut animating,
                 accident: &mut accident,
@@ -1454,6 +1501,11 @@ impl Agents {
                         factor,
                         m.entity,
                     );
+                    jobs.drain(&mut sim);
+                }
+                Component::DropPile => {
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    sim.drop_loose_pile(i, m.a.max(0) as usize, m.b);
                     jobs.drain(&mut sim);
                 }
                 Component::CreateNaturalResource => {
