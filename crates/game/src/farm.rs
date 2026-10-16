@@ -273,21 +273,8 @@ impl Sim<'_, '_> {
 
     /// `FUN_1401208e0`: the mean growth of the growing cells (at most 1 each) over all cells.
     fn crop_ripeness(&mut self, e: usize) -> f32 {
-        let (total, _, _) = self.crop_counts(e);
-        if total == 0 {
-            return 0.0;
-        }
-        let Some(field) = self.field(e) else {
-            return 0.0;
-        };
-        let sum: f32 = field
-            .cells
-            .iter()
-            .filter(|c| c.state == 1)
-            .filter_map(|c| c.entity)
-            .map(|o| self.placed[o].growth.min(1.0))
-            .sum();
-        sum / total as f32
+        self.crop_counts(e);
+        self.field(e).map_or(0.0, |f| ripeness(f, self.placed))
     }
 
     /// State 10 update (`FUN_14011f4a0`): everything lost → clear; with piles and switched
@@ -783,4 +770,19 @@ impl Sim<'_, '_> {
             _ => BTreeSet::new(),
         }
     }
+}
+
+/// [`Sim::crop_ripeness`] after the cells' refresh (`FUN_14011fef0`).
+pub fn ripeness(field: &CropField, placed: &[crate::seeding::Placed]) -> f32 {
+    if field.cells.is_empty() {
+        return 0.0;
+    }
+    let sum: f32 = field
+        .cells
+        .iter()
+        .filter(|c| c.state == 1)
+        .filter_map(|c| c.entity)
+        .map(|o| placed[o].growth.min(1.0))
+        .sum();
+    sum / field.cells.len() as f32
 }

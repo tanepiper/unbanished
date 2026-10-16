@@ -32,6 +32,9 @@ frame after the simulation; refresh reads only.
 | `0x1701e613` | ResidenceUI | | `FUN_1400bad20` / `FUN_1400ba6c0` | done |
 | `0xcd3b5953` | TownHallUI | | `FUN_1400864d0` / `FUN_140082a20`, `FUN_140083a20` / `FUN_140081650` | done (`town_hall_ui.rs`) |
 | `0xc8b87610` | TradeUI | `0x1401642a0` | `FUN_14008a2a0` / `FUN_140087620`, `FUN_140087c80` / `FUN_1400873f0` | done (`trade_ui.rs`) |
+| `0x111542c0` | CropUI | `0x140165680` | `FUN_1400b8020` / `FUN_1400b7f20` / `FUN_14007e250` → `FUN_1400b7df0` | done (`select_resource_ui.rs`) |
+| `0x33908208` | OrchardUI | `0x140163360` | `FUN_14007aa80` / `FUN_14007a980` / `FUN_14007e250` → `FUN_14007a850` | done (`select_resource_ui.rs`) |
+| `0xae1a9e32` | PastureUI | `0x140165a20` | `FUN_1400ba560` / `FUN_1400ba320` / `FUN_1400ba2f0` → `FUN_1400ba110` | done (`select_resource_ui.rs`) |
 | `0x061d5f73` | UpgradeUI | | `FUN_14008c260` / — / `FUN_14008c160` | done |
 | `0xff9794df` | ImmigrationUI | | `FUN_14006bc90` / `FUN_14006ba90` | done |
 
@@ -148,6 +151,28 @@ the exchange is in [TRADE.md](TRADE.md).
 Deviations: the inventory sort is stable (the original's quicksort may order ties
 otherwise). The spinners clamp at 9999 where the original sets no limit of its own. The
 window's remembered tab and sort (slot `+0x50`) are not ported.
+
+## CropUI, OrchardUI, PastureUI (SelectResourceUI)
+
+SelectResourceUI's bind (`FUN_14007e0b0`) finds the host's `selectResource` combo (id 500)
+and fills it (`FUN_14007dd00`): every known crop, tree or livestock (stock manager `+0x120`)
+whose SelectDescription `+0x40` is the class's kind (slot `+0x68`: CropUI 0, OrchardUI 1,
+PastureUI 2), by name, the current one (slot `+0x60`: CropField `+0x50`, Orchard `+0x60`,
+Pasture `+0x28`) selected. The per-frame slot `+0x40` (`FUN_14007e200`) refills it when the
+count changes; the refresh enables it with anything in it (`FUN_14007e180`). A choice (event
+`0x14`, `FUN_14007e250`) calls slot `+0x58` with the template: the crop (`FUN_1400b7df0`), tree
+(`FUN_14007a850`) or kind (`FUN_1400ba110`), the first one also switching the work on, the
+pasture's most becoming its room. The port sends `Command::SetCrop`.
+
+- CropUI, OrchardUI: `yield` shows the mean ripeness (`FUN_1401208e0`, `FUN_140051fa0`), its
+  text the percent rounded.
+- PastureUI: `slider` (id `0x1f5`) from 0 to the pasture's room (`FUN_14012da40`) at the most
+  it keeps (`FUN_1400ba470`), its text the animals and the most (`FUN_1400ba320`); the kind's
+  list is enabled only while the pasture is empty. Moved (event `0x17`, `FUN_1400ba2f0`):
+  `Command::SetLimit`.
+
+Deviations: the combo's items have no icons (the port's lists hold text); the crop field's
+ripeness is read without its cells' refresh (`FUN_14011fef0`), which the simulation runs.
 
 ## ResidenceUI
 

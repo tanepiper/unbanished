@@ -30,6 +30,9 @@ pub const IMMIGRATION_UI: u32 = 0xff9794df;
 pub const RESIDENCE_UI: u32 = 0x1701e613;
 pub const TOWN_HALL_UI: u32 = 0xcd3b5953;
 pub const TRADE_UI: u32 = 0xc8b87610;
+pub const CROP_UI: u32 = 0x111542c0;
+pub const ORCHARD_UI: u32 = 0x33908208;
+pub const PASTURE_UI: u32 = 0xae1a9e32;
 
 /// What a controller reads from the selected entity.
 pub struct EntityData<'a> {
@@ -1515,6 +1518,7 @@ pub enum Controller {
     Residence(ResidenceUi),
     TownHall(crate::town_hall_ui::TownHallUi),
     Trade(crate::trade_ui::TradeUi),
+    SelectResource(crate::select_resource_ui::SelectResourceUi),
     /// Attached, refresh not ported (logged once with its id).
     #[allow(dead_code)]
     Pending(u32),
@@ -1561,6 +1565,17 @@ impl Controller {
             TRADE_UI => Some(Controller::Trade(crate::trade_ui::TradeUi::bind(
                 ui, element,
             ))),
+            CROP_UI | ORCHARD_UI | PASTURE_UI => {
+                use crate::select_resource_ui::{Resource, SelectResourceUi};
+                let resource = match type_id {
+                    CROP_UI => Resource::Crop,
+                    ORCHARD_UI => Resource::Orchard,
+                    _ => Resource::Pasture,
+                };
+                Some(Controller::SelectResource(SelectResourceUi::bind(
+                    ui, resource, element, root,
+                )))
+            }
             // Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
             STATUS_ICON_UI => {
                 StatusIconUi::bind(ui, element, !has_config).map(Controller::StatusIcon)
@@ -1597,6 +1612,11 @@ impl Controller {
                 }
             }
             Controller::Trade(c) => {
+                if let (Some(t), Some(e)) = (data.town, data.entity) {
+                    c.refresh(ui, archive, t, e);
+                }
+            }
+            Controller::SelectResource(c) => {
                 if let (Some(t), Some(e)) = (data.town, data.entity) {
                     c.refresh(ui, archive, t, e);
                 }

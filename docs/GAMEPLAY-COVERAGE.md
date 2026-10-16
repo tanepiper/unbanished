@@ -86,7 +86,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Fields, orchards, storage yard (DragPlacementTool) | yes (`removal_tool.rs` area mode: check `FUN_140100fb0`, apply `FUN_140100dd0`, overlay `FUN_140101310`) |
 | Pastures, cemetery (FencedTool) | yes (`place_fenced`, the drag in `removal_tool.rs`, the shelter turned by the rotation keys) |
 | Demolition (Remove Buildings, DestroyUI) | yes (Remove Buildings and its cancel, DestroyUI's buttons) |
-| Building windows ([BUILDING-WINDOWS.md](BUILDING-WINDOWS.md)) | yes, but CropUI, OrchardUI and PastureUI |
+| Building windows ([BUILDING-WINDOWS.md](BUILDING-WINDOWS.md)) | yes |
 | Town Info, Production/Population graphs | yes ([TOWN-INFO.md](TOWN-INFO.md), TownHallUI) |
 | Achievements, tutorial, scenarios | no |
 | Weather precipitation, smoke particles, decals, fire particles | no |

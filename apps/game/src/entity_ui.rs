@@ -299,6 +299,7 @@ impl EntityWindows {
             Controller::Residence(c) => c.click(ui, node, &data),
             Controller::TownHall(c) => c.click(ui, town, node),
             Controller::Trade(c) => c.click(ui, node, p),
+            Controller::SelectResource(c) => c.click(ui, node, p),
             _ => None,
         })
     }
@@ -352,6 +353,7 @@ impl EntityWindows {
         w.bound.iter().find_map(|c| match c {
             Controller::ConsumeProduce(c) => c.select(node, index, &data),
             Controller::Trade(c) => c.select(node, index, p),
+            Controller::SelectResource(c) => c.select(node, index, p),
             _ => None,
         })
     }

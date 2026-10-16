@@ -2058,6 +2058,98 @@ mod tests {
         });
     }
 
+    /// CropUI on a placed field: its `selectResource` combo lists the known crops; choosing
+    /// one sends the field's crop.
+    #[test]
+    fn crop_window_lists_the_known_crops() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        let view = gameplay.view.as_ref().unwrap();
+        let heights = view.terrain.heights.clone();
+        let terrain = banished_game::terrain::HeightGrid {
+            width: view.terrain.size + 1,
+            heights: &heights,
+        };
+        let id = game.with_ctx(|_, ctx| {
+            let town = gameplay.town.as_mut().unwrap();
+            let n = town.cells.size as i32;
+            let empty = |town: &crate::start::StartingTown, x: i32, y: i32| {
+                (y..y + 6).all(|cy| {
+                    (x..x + 6).all(|cx| {
+                        let i = (cy * n + cx) as usize;
+                        cx < n
+                            && cy < n
+                            && town.cells.types[i] == banished_game::terrain::CellType::GROUND
+                            && town.cells.objects[i].is_none()
+                            && town.cells.occupants[i].is_none()
+                            && town.cells.flags[i] == 0
+                    })
+                })
+            };
+            let (sx, sy) = town.start;
+            let rect = (8..60)
+                .flat_map(|r| (-r..=r).flat_map(move |d| [(d, -r), (d, r), (-r, d), (r, d)]))
+                .map(|(dx, dy)| (sx + dx, sy + dy))
+                .find(|&(x, y)| x > 0 && y > 0 && empty(town, x, y))
+                .expect("no empty ground");
+            town.place_area(
+                ctx.archive,
+                r"Template\CropField.rsc:resource",
+                (rect.0, rect.1, 6, 6),
+                &terrain,
+            )
+            .expect("the field was not placed")
+        });
+        let town = gameplay.town.as_mut().unwrap();
+        let mut rng = banished_game::random::Random::new(7);
+        town.apply_commands(&terrain, &mut rng);
+        town.iterate(&terrain, &mut rng, 1.0 / 30.0, 50.0);
+        let crops: Vec<usize> = town
+            .construction
+            .known
+            .iter()
+            .copied()
+            .filter(|&t| {
+                town.templates[t].growth.is_some() && !town.templates[t].reference.contains("Tree")
+            })
+            .collect();
+        assert!(!crops.is_empty());
+        game.with_ctx(|_, ctx| {
+            let town = gameplay.town.as_ref().unwrap();
+            gameplay.entities.select(
+                ctx.ui,
+                gameplay.screen.as_mut().unwrap(),
+                ctx.archive,
+                town,
+                Entity::Placed(id),
+            );
+            let root = gameplay.entities.open[0].root;
+            let combo = ctx.ui.find(root, "selectResource").unwrap();
+            let list = match &ctx.ui.node(combo).kind {
+                banished_ui::Kind::Control(banished_ui::Control::Combo { list, .. }) => *list,
+                _ => panic!("selectResource is not a combo"),
+            };
+            let items = match &ctx.ui.node(list).kind {
+                banished_ui::Kind::List(l) => l.items.clone(),
+                _ => Vec::new(),
+            };
+            assert_eq!(items.len(), crops.len(), "{items:?}");
+            assert!(ctx.ui.node(combo).enabled);
+            let chosen = gameplay
+                .entities
+                .select_item(ctx.ui, town, combo, 0)
+                .expect("the choice sends nothing");
+            assert!(matches!(
+                chosen,
+                WorkPlaceClick::Command(banished_game::professions::Command::SetCrop {
+                    entity,
+                    crop: Some(c),
+                }) if entity == id && crops.contains(&c)
+            ));
+        });
+    }
+
     /// DestroyUI on a storage barn: its buttons ask for the demolition to be called off,
     /// rebuilt or cleared.
     #[test]

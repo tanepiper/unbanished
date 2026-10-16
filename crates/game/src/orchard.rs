@@ -229,21 +229,8 @@ impl Sim<'_, '_> {
 
     /// `FUN_140051fa0`: the mean ripeness of the standing trees (at most 1 each) over all.
     fn orchard_ripeness(&self, e: usize) -> f32 {
-        let Some(o) = self.orchard(e) else { return 0.0 };
-        if o.trees.is_empty() {
-            return 1.0;
-        }
-        let sum: f32 = o
-            .trees
-            .iter()
-            .filter(|t| t.state == 1 && t.entity.is_some())
-            .filter(|t| self.cells.objects[t.cell as usize] == t.entity)
-            .map(|t| {
-                let x = t.entity.unwrap();
-                self.fruits.get(&x).map_or(0.0, |f| f.ripeness.min(1.0))
-            })
-            .sum();
-        sum / o.trees.len() as f32
+        self.orchard(e)
+            .map_or(0.0, |o| ripeness(o, &self.cells.objects, self.fruits))
     }
 
     /// `FUN_140051ee0`: switched on and not yet harvested this year, harvest when warm in months
@@ -787,4 +774,26 @@ impl Sim<'_, '_> {
             }
         }
     }
+}
+
+/// [`Sim::orchard_ripeness`] of an orchard: with no trees, 1.
+pub fn ripeness(
+    o: &Orchard,
+    objects: &[Option<usize>],
+    fruits: &std::collections::BTreeMap<usize, Fruit>,
+) -> f32 {
+    if o.trees.is_empty() {
+        return 1.0;
+    }
+    let sum: f32 = o
+        .trees
+        .iter()
+        .filter(|t| t.state == 1 && t.entity.is_some())
+        .filter(|t| objects[t.cell as usize] == t.entity)
+        .map(|t| {
+            let x = t.entity.unwrap();
+            fruits.get(&x).map_or(0.0, |f| f.ripeness.min(1.0))
+        })
+        .sum();
+    sum / o.trees.len() as f32
 }

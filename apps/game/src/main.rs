@@ -33,6 +33,7 @@ mod render;
 mod scene;
 mod scene_assets;
 mod scene_gfx;
+mod select_resource_ui;
 mod selection;
 mod selection_overlay;
 mod settings;
