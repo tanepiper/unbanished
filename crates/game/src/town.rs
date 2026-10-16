@@ -762,9 +762,9 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// `FUN_14011d910` for a footprint whose description clears resources and piles: every
-    /// cell's object `+0x08` is empty (`FUN_1400a2f90`). Not ported: the `+0x29` empty-cell
-    /// test (`FUN_1400a2d30`) and the reference-filtered test (`FUN_1400a2e00`).
+    /// `FUN_14011d910`: the footprint is clear for its ClearAreaDescription: no road where
+    /// it clears cells (`FUN_1400a2d30`), then no natural resource of the filter's template
+    /// (`FUN_1400a2e00`) or, clearing resources and piles, no object at all (`FUN_1400a2f90`).
     pub(crate) fn is_clear(&self, entity: usize) -> bool {
         let p = &self.placed[entity];
         let n = self.size as i32;

@@ -85,6 +85,8 @@ pub struct Template {
     pub tornado: Option<crate::tornado::TornadoTemplate>,
     /// QuarryDescription.
     pub quarry: Option<crate::quarry::QuarryTemplate>,
+    /// Has a TradeComponent (the trading post).
+    pub trading_post: bool,
     /// Has a TrackerComponent (workplaces whose production the window shows).
     pub tracker: bool,
 }
@@ -992,6 +994,7 @@ mod tests {
             terraform: None,
             tornado: None,
             quarry: None,
+            trading_post: false,
             tracker: false,
         }
     }

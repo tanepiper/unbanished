@@ -1266,7 +1266,7 @@ impl Agents {
     /// `FUN_140119170`: the dead citizen's components let go of the town (a removed entity's
     /// CharacterComponent abandons its actions, CitizenComponent leaves its home, family,
     /// workplace and registry; a laborer takes over its profession).
-    /// Not ported: the carried goods (StorageComponent removal) are lost.
+    /// The carried goods go with it, as StorageComponent's removal slot is the default (no drop).
     #[allow(clippy::too_many_arguments)]
     fn remove(
         &mut self,

@@ -471,6 +471,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         terraform: None,
         tornado: None,
         quarry: None,
+        trading_post: false,
         tracker: false,
         pile: None,
         pile_material: None,
@@ -613,6 +614,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                     .map(|m| std::sync::Arc::new(floor_triangles(&m)))
             }
             "tracker" => t.tracker = true,
+            "trade" => t.trading_post = true,
             "tornado" => {
                 t.tornado = banished_formats::game::tornado_description(&data).ok().map(
                     |(speed, min_distance, reach, interval, throw)| {

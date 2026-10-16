@@ -890,9 +890,11 @@ impl Wild<'_, '_> {
         if animal.flags & HUNTED == 0 {
             if animal.flags & WILD != 0 {
                 let home = animal.home;
-                // A home taken by an object (other than a trading post's, not ported) or no
-                // longer ground: a new home and area.
-                let taken = home >= 0 && self.cells.objects[home as usize].is_some();
+                // A home under an occupant other than a trading post (`+0x00`, its
+                // TradeComponent) or no longer ground: a new home and area.
+                let taken = home >= 0
+                    && self.cells.occupants[home as usize]
+                        .is_some_and(|o| !self.templates[self.placed[o].template].trading_post);
                 if home < 0 || self.cells.types[home as usize] != CellType(2) || taken {
                     self.rehome(a, &d);
                 }

@@ -225,8 +225,7 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_1400ecd10`: ConsumeProduce slot `+0x20`, with the status icons 2 (limited) and 3
-    /// (missing inputs). Not ported: a StorageLocationComponent's drop point
-    /// (`FUN_140132aa0`, the tavern) for goods leaving the building.
+    /// (missing inputs).
     pub(crate) fn produce_try(&mut self, work: &mut Work, c: usize, _time: i64) -> u8 {
         let e = work.entity;
         let Some(t) = self.recipes(e).cloned() else {
@@ -302,7 +301,18 @@ impl Sim<'_, '_> {
             if !self.reachable(citizen_cell, work.cell) {
                 return 1;
             }
-            let (source, _) = self.use_point(e, 0);
+            // A workplace that is itself a storage location (the tavern) hands the goods out
+            // at its drop point nearest the storage found (`FUN_140132aa0`), the others at
+            // their first use point.
+            let source = if self.templates[self.placed[e].template].storage_location {
+                let toward = self.cell_of(found.target);
+                match self.storage_point(e, toward) {
+                    Some(p) => p,
+                    None => continue,
+                }
+            } else {
+                self.use_point(e, 0).0
+            };
             let target_entity = self.storage_sites[found.site].entity;
             self.haul(
                 c,

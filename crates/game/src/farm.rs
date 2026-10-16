@@ -356,10 +356,35 @@ impl Sim<'_, '_> {
                 let dt = ticks(g.f28 * 300.0 * tend);
                 let temperature = self.temperature;
                 let p = &mut self.placed[o];
-                if let Some(state) = &mut p.growth_state {
-                    // Not ported: a terminal transition reached by tending (the bucket pass
-                    // handles the next one).
-                    let _ = state.update(&g, &mut p.growth, dt, temperature, false);
+                let Some(state) = &mut p.growth_state else {
+                    return;
+                };
+                let result = state.update(&g, &mut p.growth, dt, temperature, false);
+                // A terminal transition reached by tending, as the scheduled update handles
+                // it (`FUN_140125940`): the map byte, then the crop falls or goes (on the next
+                // animation pass).
+                if let Some(adjustment) = result.map_adjustment {
+                    let n = self.size;
+                    let (x, y) = self.placed[o].cell;
+                    let i = y as usize * n + x as usize;
+                    self.cells.growth_bytes[i] =
+                        crate::growth::adjust_map_byte(self.cells.growth_bytes[i], adjustment);
+                    self.cells.previous_template[i] = Some(template);
+                    let falls = self.templates[template]
+                        .natural
+                        .as_ref()
+                        .is_some_and(|nr| nr.flag);
+                    let p = &mut self.placed[o];
+                    p.removal_requested = true;
+                    if falls {
+                        p.animation = self.templates[template]
+                            .animations
+                            .get(p.variant)
+                            .and_then(Option::as_ref)
+                            .and_then(|g| g.clips.get(2))
+                            .map(|_| crate::animation::Playback::new(2, 0));
+                    }
+                    *self.models_dirty = true;
                 }
             }
             _ => {}
