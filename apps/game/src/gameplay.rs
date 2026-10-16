@@ -1177,7 +1177,8 @@ impl GameLoop for GameplayLoop {
             }
         }
         if let Some(town) = &self.town {
-            self.entities.refresh(ctx.ui, ctx.archive, town);
+            self.entities
+                .refresh_with(ctx.ui, ctx.archive, town, &self.stock_warnings.limits);
         }
         self.position_entity_window(ctx);
         if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
@@ -1303,6 +1304,11 @@ impl GameLoop for GameplayLoop {
                     if let Some(town) = &mut self.town {
                         town.construction.commands.push(command);
                     }
+                    return Next::Stay;
+                }
+                // ResourceLimitUI (`FUN_14007ccb0`): the slot's limit.
+                Some(WorkPlaceClick::StockLimit { slot, limit }) => {
+                    self.stock_warnings.limits[slot] = limit;
                     return Next::Stay;
                 }
                 Some(WorkPlaceClick::ShowWorker(citizen)) => {

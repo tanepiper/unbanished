@@ -95,7 +95,7 @@ impl EntityWindows {
                     c.type_id,
                     element,
                     root,
-                    c.config.is_some(),
+                    c.config.as_deref(),
                 ));
             }
             controllers.push((c, element));
@@ -131,6 +131,17 @@ impl EntityWindows {
 
     /// Each controller's slot `+0x38` refresh with the entity's current data (read-only).
     pub fn refresh(&mut self, ui: &mut Ui, archive: &Archive, town: &StartingTown) {
+        self.refresh_with(ui, archive, town, &[0; 21]);
+    }
+
+    /// [`Self::refresh`] with the stock manager's limits (ResourceLimitUI).
+    pub fn refresh_with(
+        &mut self,
+        ui: &mut Ui,
+        archive: &Archive,
+        town: &StartingTown,
+        stock_limits: &[i32; 21],
+    ) {
         for w in &mut self.open {
             if let Some(pages) = w.pages {
                 let active = match &ui.node(pages).kind {
@@ -187,6 +198,18 @@ impl EntityWindows {
                     Entity::Placed(p) => destroy_info(town, p),
                     Entity::Citizen(_) => None,
                 },
+                stock_limits: *stock_limits,
+                control: None,
+            };
+            let entity = match w.entity {
+                Entity::Placed(p) => Some(p),
+                Entity::Citizen(_) => None,
+            };
+            let control =
+                |kind: u32, index: i32| entity.map_or(0, |e| control_state(town, e, kind, index));
+            let data = EntityData {
+                control: Some(&control),
+                ..data
             };
             for c in &mut w.bound {
                 c.refresh(ui, archive, &data);
@@ -215,11 +238,15 @@ impl EntityWindows {
             active_page: 0,
             citizen: None,
             destroy: destroy_info(town, p),
+            stock_limits: [0; 21],
+            control: None,
         };
         w.bound.iter_mut().find_map(|c| match c {
             Controller::WorkPlace(c) => c.click(node, &data),
             Controller::Build(c) => c.click(node, &data),
             Controller::Destroy(c) => c.click(node, &data),
+            Controller::ResourceLimit(c) => c.click(ui, node),
+            Controller::Control(c) => c.click(ui, node, Some(p)),
             _ => None,
         })
     }
@@ -464,4 +491,89 @@ fn destroy_info(town: &StartingTown, p: usize) -> Option<crate::building_ui::Des
         rebuild: d.rebuild == Some(own),
         upgrade: d.rebuild != Some(own) && d.rebuild != replace,
     })
+}
+
+/// Slot `+0x68` of the `kind` component of `e` for control `index`: bit 0 enabled, bit 1 on.
+fn control_state(town: &StartingTown, e: usize, kind: u32, index: i32) -> u8 {
+    use banished_game::control::kind as k;
+    let Some(site) = town.construction.sites.get(&e) else {
+        return 0;
+    };
+    let state = if site.machine.pending < 0 {
+        site.machine.state
+    } else {
+        site.machine.pending
+    };
+    let enabled = town
+        .construction
+        .workforce
+        .workplaces
+        .get(&e)
+        .is_some_and(|w| w.enabled);
+    let on = |b: bool| if b { 2 } else { 0 };
+    match kind {
+        // `FUN_140120270`: plant now in 2, harvest now in 10, farming; all need a crop.
+        k::CROP_FIELD => {
+            let Some(f) = &site.crop_field else { return 0 };
+            let crop = f.crop.is_some();
+            match index {
+                0 => u8::from(state == 2 && crop),
+                1 => u8::from(state == 0xa && crop),
+                2 => on(f.enabled) | u8::from(crop),
+                _ => 0,
+            }
+        }
+        // `FUN_1400525f0`: plant (no work and room, or no trees), harvest (in 10, not this
+        // year), tending, cut (standing trees, not in 0x14); all need a tree.
+        k::ORCHARD => {
+            let Some(o) = &site.orchard else { return 0 };
+            let tree = o.tree.is_some();
+            let standing = o.trees.iter().filter(|t| t.state == 1).count();
+            let has_work =
+                site.work_id >= 0 && town.construction.jobs.works.contains_key(&site.work_id);
+            match index {
+                0 => u8::from(
+                    ((!has_work && standing < o.trees.len()) || o.trees.is_empty()) && tree,
+                ),
+                1 => u8::from(state == 0xa && o.year != town.construction.year && tree),
+                2 => on(o.enabled) | u8::from(tree),
+                3 => u8::from(0 < standing && state != 0x14),
+                _ => 0,
+            }
+        }
+        // `FUN_14012d2a0`: room in the other pastures of the kind; the work toggle.
+        k::PASTURE => {
+            let w = &town.wildlife;
+            let Some(p) = w.pastures.get(&e) else {
+                return 0;
+            };
+            let mut free = 0;
+            for &o in &w.pasture_list {
+                if o != e && w.pastures.get(&o).is_some_and(|x| x.kind == p.kind) {
+                    free += w.capacity(o) - w.pastures[&o].livestock.len() as i32;
+                }
+            }
+            let has = u8::from(p.kind.is_some());
+            let count = p.livestock.len() as i32;
+            match index {
+                0 if 0 < count && count <= free => has,
+                1 if 9 < count && 4 < free => has,
+                2 => on(enabled) | has,
+                _ => 0,
+            }
+        }
+        // `FUN_14005caa0`, `FUN_140044870`: the workplace's switch.
+        k::TRADE | k::ATTENDANCE => on(enabled) | 1,
+        // `FUN_140124df0`: planting and cutting.
+        k::FORESTER => match (index, &site.forester) {
+            (1, Some(f)) => on(f.plant) | 1,
+            (2, Some(f)) => on(f.cut) | 1,
+            _ => 1,
+        },
+        // `FUN_1401309f0`: on unless idle (0xe); available in 0xd and 0xe unless switched off.
+        _ => {
+            let disabled = site.produce.as_ref().is_some_and(|p| p.disabled);
+            on(state != 0xe) | u8::from(!disabled && (state == 0xd || state == 0xe))
+        }
+    }
 }

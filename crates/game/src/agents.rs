@@ -487,6 +487,15 @@ impl Agents {
                     jobs.drain(&mut sim);
                     continue;
                 }
+                crate::professions::Command::Control {
+                    entity,
+                    kind,
+                    index,
+                } => {
+                    sim.control(jobs, entity, kind, index);
+                    jobs.drain(&mut sim);
+                    continue;
+                }
                 crate::professions::Command::CancelDemolition { entity } => {
                     sim.cancel_demolition(jobs, entity);
                     jobs.drain(&mut sim);

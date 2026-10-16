@@ -623,6 +623,18 @@ mod construction_tests {
             .find(|e| Some(e.0) == firewood)
             .map_or(0, |e| e.1);
         assert!(0 < made, "the tracker counted no firewood");
+        // The work button (ControlUI → `FUN_140130a70`): idle, then producing again.
+        for want in [0xe, 0xd] {
+            town.construction
+                .commands
+                .push(banished_game::professions::Command::Control {
+                    entity: id,
+                    kind: banished_game::control::kind::CONSUME_PRODUCE,
+                    index: 0,
+                });
+            town.apply_commands(&terrain, &mut rng);
+            assert_eq!(town.construction.sites[&id].machine.state, want);
+        }
     }
 
     /// A gatherer's shelter near the start gets two gatherers: they harvest grown wild food

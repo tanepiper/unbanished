@@ -15,6 +15,7 @@ pub mod cemetery;
 pub mod character;
 pub mod citizens;
 pub mod construction;
+pub mod control;
 pub mod destroy;
 pub mod environment;
 pub mod events;

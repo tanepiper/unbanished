@@ -18,6 +18,8 @@ pub const STATUS_ICON_UI: u32 = 0xdf3a1bb2;
 pub const CITIZEN_UI: u32 = 0x03e455a9;
 pub const BUILD_UI: u32 = 0x293e60a1;
 pub const DESTROY_UI: u32 = 0x2e56a4c8;
+pub const RESOURCE_LIMIT_UI: u32 = 0xf77895ff;
+pub const CONTROL_UI: u32 = 0xb998cb9f;
 
 /// What a controller reads from the selected entity.
 pub struct EntityData<'a> {
@@ -34,6 +36,140 @@ pub struct EntityData<'a> {
     pub citizen: Option<CitizenInfo>,
     /// The building's DestroyComponent.
     pub destroy: Option<DestroyInfo>,
+    /// The stock manager's limits by slot (`Game +0xf0 → +0x170`, `+0x8`).
+    pub stock_limits: [i32; 21],
+    /// The building's controls (slot `+0x68` of the component `kind`, control `index`).
+    pub control: Option<&'a dyn Fn(u32, i32) -> u8>,
+}
+
+/// `ControlUI` (type `0xb998cb9f`): bind `FUN_140060310`, refresh `FUN_1400601d0`, events
+/// `FUN_140060150`. The element is a check button (id 50000); ControlUIConfig `+0x20` is the
+/// control and `+0x24` the component's type id.
+pub struct ControlUi {
+    button: NodeId,
+    index: i32,
+    kind: u32,
+}
+
+/// `ControlUIConfig`: `+0x20` the control, `+0x24` the component's type id.
+fn control_config(data: &[u8]) -> Option<(i32, u32)> {
+    use banished_formats::crs;
+    crs::parse(data, |r: &mut crs::Reader, _| {
+        r.block(|r, _| Ok((r.i32()?, r.u32()?)))
+    })
+    .ok()
+    .map(|(_, v)| v)
+}
+
+impl ControlUi {
+    pub fn bind(archive: &Archive, element: NodeId, config: Option<&str>) -> Option<Self> {
+        let (index, kind) = config
+            .and_then(|c| archive.read_ref(&c.replace('\\', "/")).ok())
+            .and_then(|d| control_config(&d))?;
+        Some(ControlUi {
+            button: element,
+            index,
+            kind,
+        })
+    }
+
+    /// `FUN_1400601d0`: checked by bit 1, enabled by bit 0.
+    pub fn refresh(&mut self, ui: &mut Ui, data: &EntityData) {
+        let Some(control) = data.control else { return };
+        let bits = control(self.kind, self.index);
+        if ui.checked(self.button) != (bits & 2 != 0) {
+            ui.set_checked(self.button, bits & 2 != 0);
+        }
+        ui.node_mut(self.button).enabled = bits & 1 != 0;
+    }
+
+    /// `FUN_140060150` (id 50000): the component's slot `+0x70`.
+    pub fn click(&self, ui: &Ui, node: NodeId, entity: Option<usize>) -> Option<WorkPlaceClick> {
+        if node != self.button && !ui.descendant(self.button, node) {
+            return None;
+        }
+        Some(WorkPlaceClick::Command(
+            banished_game::professions::Command::Control {
+                entity: entity?,
+                kind: self.kind,
+                index: self.index,
+            },
+        ))
+    }
+}
+
+/// `ResourceLimitUI` (vtable of type `0xf77895ff`): bind `FUN_14007ce40`, refresh
+/// `FUN_14007cda0`, events `FUN_14007ccb0`. ResourceLimitUIConfig `+0x20` names the stock
+/// slot whose limit the `editLimit` spinner (id `0x3039`, 0 to 999999) shows and sets.
+pub struct ResourceLimitUi {
+    spinner: Option<NodeId>,
+    slot: usize,
+}
+
+/// A spinner's value and its number edit.
+fn set_spinner(ui: &mut Ui, id: NodeId, value: i32) {
+    let number = match &mut ui.node_mut(id).kind {
+        Kind::Control(Control::Spinner {
+            parts, value: v, ..
+        }) => {
+            *v = value;
+            parts[0]
+        }
+        _ => None,
+    };
+    if let Some(n) = number {
+        ui.set_text(n, &value.to_string());
+    }
+}
+
+fn spinner_value(ui: &Ui, id: NodeId) -> Option<i32> {
+    match &ui.node(id).kind {
+        Kind::Control(Control::Spinner { value, .. }) => Some(*value),
+        _ => None,
+    }
+}
+
+/// `ResourceLimitUIConfig` (one i32, the stock slot, at `+0x20`).
+fn resource_limit_config(data: &[u8]) -> Option<usize> {
+    use banished_formats::crs;
+    crs::parse(data, |r: &mut crs::Reader, _| r.block(|r, _| r.i32()))
+        .ok()
+        .map(|(_, v)| v.clamp(0, 20) as usize)
+}
+
+impl ResourceLimitUi {
+    pub fn bind(ui: &mut Ui, archive: &Archive, element: NodeId, config: Option<&str>) -> Self {
+        let slot = config
+            .and_then(|c| archive.read_ref(&c.replace('\\', "/")).ok())
+            .and_then(|d| resource_limit_config(&d))
+            .unwrap_or(0);
+        ResourceLimitUi {
+            spinner: ui.find(element, "editLimit"),
+            slot,
+        }
+    }
+
+    /// `FUN_14007cda0`: the slot's limit, unless the player is typing in it.
+    pub fn refresh(&mut self, ui: &mut Ui, data: &EntityData) {
+        let Some(s) = self.spinner else { return };
+        let limit = data.stock_limits[self.slot];
+        if spinner_value(ui, s) != Some(limit) && !ui.descendant(s, ui.focused().unwrap_or(s)) {
+            set_spinner(ui, s, limit.clamp(0, 999_999));
+        }
+    }
+
+    /// `FUN_14007ccb0` (event `0x15`, id `0x3039`): the slot's limit is the spinner's.
+    pub fn click(&self, ui: &Ui, node: NodeId) -> Option<WorkPlaceClick> {
+        let s = self.spinner?;
+        if node != s && !ui.descendant(s, node) {
+            return None;
+        }
+        let limit = spinner_value(ui, s)?.clamp(0, 999_999);
+        Some(WorkPlaceClick::StockLimit {
+            slot: self.slot,
+            limit,
+        })
+    }
 }
 
 /// What DestroyUI reads (`FUN_140066460`): `FUN_140123b60` damaged, the StateMachine's
@@ -458,6 +594,11 @@ pub enum WorkPlaceClick {
     Command(banished_game::professions::Command),
     /// 0x1454 (`FUN_14008cba0` → `FUN_140108510`): pin the window, show and select the worker.
     ShowWorker(usize),
+    /// ResourceLimitUI: the stock manager's limit for a slot.
+    StockLimit {
+        slot: usize,
+        limit: i32,
+    },
 }
 
 impl WorkPlaceUi {
@@ -861,6 +1002,8 @@ pub enum Controller {
     Build(BuildUi),
     StatusIcon(StatusIconUi),
     Destroy(DestroyUi),
+    ResourceLimit(ResourceLimitUi),
+    Control(ControlUi),
     /// Attached, refresh not ported (logged once with its id).
     #[allow(dead_code)]
     Pending(u32),
@@ -873,8 +1016,9 @@ impl Controller {
         type_id: u32,
         element: NodeId,
         root: NodeId,
-        has_config: bool,
+        config: Option<&str>,
     ) -> Controller {
+        let has_config = config.is_some();
         let bound = match type_id {
             CITIZEN_UI => Some(Controller::Citizen(CitizenUi::bind(ui, element, root))),
             STORAGE_UI => StorageUi::bind(ui, element, archive).map(Controller::Storage),
@@ -882,6 +1026,10 @@ impl Controller {
             WORKPLACE_UI => Some(Controller::WorkPlace(WorkPlaceUi::bind(ui, element))),
             BUILD_UI => Some(Controller::Build(BuildUi::bind(ui, element))),
             DESTROY_UI => Some(Controller::Destroy(DestroyUi::bind(ui, element))),
+            RESOURCE_LIMIT_UI => Some(Controller::ResourceLimit(ResourceLimitUi::bind(
+                ui, archive, element, config,
+            ))),
+            CONTROL_UI => ControlUi::bind(archive, element, config).map(Controller::Control),
             // Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
             STATUS_ICON_UI => {
                 StatusIconUi::bind(ui, element, !has_config).map(Controller::StatusIcon)
@@ -903,6 +1051,8 @@ impl Controller {
             Controller::Build(c) => c.refresh(ui, archive, data),
             Controller::StatusIcon(c) => c.refresh(ui, data),
             Controller::Destroy(c) => c.refresh(ui, data),
+            Controller::ResourceLimit(c) => c.refresh(ui, data),
+            Controller::Control(c) => c.refresh(ui, data),
             Controller::Pending(_) => {}
         }
     }
@@ -911,6 +1061,29 @@ impl Controller {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The shipped ResourceLimitUIConfigs name their stock slots (the cutter yard's firewood
+    /// is slot 3).
+    #[test]
+    fn resource_limit_configs_name_slots() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(banished_formats::pkg::Package::parse(bytes).unwrap());
+        }
+        let slot = |t: &str| {
+            archive
+                .read_ref(&format!("Template/{t}.rsc:resourceLimitConfig"))
+                .ok()
+                .and_then(|d| resource_limit_config(&d))
+        };
+        assert_eq!(slot("CutterYard"), Some(3));
+        assert!(slot("CropField").is_some());
+    }
 
     #[test]
     fn signed_byte_order() {

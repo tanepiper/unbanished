@@ -21,6 +21,8 @@ frame after the simulation; refresh reads only.
 | `0x03e455a9` | CitizenUI | `0x140161b30` | `FUN_140065b00` / `FUN_140065440` / `FUN_140065a50` | done (no events) |
 | `0x293e60a1` | BuildUI | `0x140165620` | `FUN_1400b7410` / `FUN_1400b6f20` / `FUN_1400b7370` | done |
 | `0x2e56a4c8` | DestroyUI | `0x140161c30` | `FUN_140066ab0` / `FUN_140066460` / `FUN_1400669e0` | done |
+| `0xf77895ff` | ResourceLimitUI | | `FUN_14007ce40` / `FUN_14007cda0` / `FUN_14007ccb0` | done |
+| `0xb998cb9f` | ControlUI | | `FUN_140060310` / `FUN_1400601d0` / `FUN_140060150` | done |
 | `0x1701e613` | ResidenceUI | | | pending |
 | `0x061d5f73` | UpgradeUI | | | pending |
 
@@ -34,6 +36,28 @@ Shipped hosts (all `Dialog\StandardDialog.rsc:entity`, page 1):
 - Citizen: CitizenUI on `Dialog\Citizen.rsc:citizen`, StorageUI (carried inventory),
   StatusIconUI on `Citizen.rsc:icons`, and the plain buttons `buttonProfession`, `buttonHome`,
   `buttonFollow` (element ids `0x227`, `0x226`, `0x228`).
+
+## ResourceLimitUI
+
+ResourceLimitUIConfig `+0x20` names a stock slot. The `editLimit` spinner (id `0x3039`,
+0..999999) shows the stock manager's limit for it (`Game +0xf0 → +0x170`, slot `+0x8`), not
+while the player types in it; a change (event `0x15`) sets the limit (gameplay's
+`StockWarnings::limits`, which the production limits read).
+
+## ControlUI
+
+The element is a check button (id 50000). ControlUIConfig `+0x20` is the control, `+0x24` a
+component's type id. Refresh: the component's slot `+0x68(control)` gives bit 0 enabled and
+bit 1 checked; a click calls its slot `+0x70(control)` (`Command::Control`, `control.rs`):
+
+| Component | `+0x68` / `+0x70` | Controls |
+|---|---|---|
+| ResourceProduce (consume-produce, fishing, hunting, gathering, market) | `FUN_1401309f0` / `FUN_140130a70` | 0: on unless idle (0xe), available in 0xd and 0xe unless switched off (`+0x48`); the machine's message 0 (`FUN_1401302c0` 0xd → 0xe, `FUN_140130180` 0xe → 0xd unless switched off) |
+| Forester | `FUN_140124df0` / `FUN_140124d60` | 1 plant, 2 cut; the first on or last off sends ResourceProduce's toggle |
+| CropField | `FUN_140120270` / `FUN_140120190` | 0 plant now (state 2), 1 harvest now (10), 2 farming; all need a crop |
+| Orchard | `FUN_1400525f0` / `FUN_140052500` | 0 plant, 1 harvest (10, not this year), 2 tending, 3 cut |
+| Pasture | `FUN_14012d2a0` / `FUN_14012cf30` | 0 send all away, 1 half, 2 work |
+| Trade, Attendance | `FUN_14005caa0`, `FUN_140044870` / `FUN_14005c960`, `FUN_1400447e0` | 0: the workplace's switch (attendance sends everyone away when off) |
 
 ## DestroyUI
 

@@ -181,6 +181,12 @@ pub enum Command {
     /// (`FUN_1401239a0`, 1: clear it); ImmigrationUI `0x9858` (7: take the nomads in) and
     /// `0x9859` (8: turn them away).
     StateMessage { entity: usize, message: i32 },
+    /// ControlUI (`FUN_140060150`): the `kind` component's control `index` (slot `+0x70`).
+    Control {
+        entity: usize,
+        kind: u32,
+        index: i32,
+    },
 }
 
 /// The town manager's workplace and residence registries and every WorkPlaceComponent.
@@ -731,7 +737,8 @@ impl Workforce {
             | Command::CancelDemolition { .. }
             | Command::StateMessage { .. }
             | Command::PlanRoad { .. }
-            | Command::ClearRoad { .. } => {}
+            | Command::ClearRoad { .. }
+            | Command::Control { .. } => {}
         }
     }
 }
