@@ -999,18 +999,20 @@ impl GameplayLoop {
             return;
         };
         let read = |r: &str| ctx.archive.read_ref(&r.replace('\\', "/")).ok();
-        let goals: Vec<scenario::Goal> = s
+        let (goal_references, goals): (Vec<String>, Vec<scenario::Goal>) = s
             .achievement
             .goals
             .iter()
             .flatten()
-            .filter_map(|g| scenario::goal(&read(g)?).ok())
-            .collect();
+            .filter_map(|g| Some((g.clone(), scenario::goal(&read(g)?).ok()?)))
+            .unzip();
         let tutorial = goals.iter().find_map(|g| match &g.kind {
             scenario::GoalKind::FinishTutorial(Some(t)) => Some(t.clone()),
             _ => None,
         });
         let achievement = crate::achievements::Achievement {
+            reference: String::new(),
+            goal_references,
             desc: s.achievement.clone(),
             goals,
         };

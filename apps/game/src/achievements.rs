@@ -21,6 +21,9 @@ use crate::start::StartingTown;
 /// An achievement and its goals.
 #[derive(Debug, Clone)]
 pub struct Achievement {
+    /// Its reference in the list, and its goals' (saving names them).
+    pub reference: String,
+    pub goal_references: Vec<String>,
     pub desc: scenario::Achievement,
     pub goals: Vec<scenario::Goal>,
 }
@@ -66,13 +69,18 @@ pub fn load(archive: &Archive) -> Vec<Achievement> {
     list.iter()
         .filter_map(|r| {
             let desc = scenario::achievement_description(&read(r)?).ok()?;
-            let goals = desc
+            let (goal_references, goals) = desc
                 .goals
                 .iter()
                 .flatten()
-                .filter_map(|g| scenario::goal(&read(g)?).ok())
-                .collect();
-            Some(Achievement { desc, goals })
+                .filter_map(|g| Some((g.clone(), scenario::goal(&read(g)?).ok()?)))
+                .unzip();
+            Some(Achievement {
+                reference: r.clone(),
+                goal_references,
+                desc,
+                goals,
+            })
         })
         .collect()
 }

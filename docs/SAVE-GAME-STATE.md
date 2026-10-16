@@ -59,14 +59,22 @@ cargo run -q --release -p banished-formats --example savegame_check -- save-game
    - Seed, then the size index.
    - Flags (`+0xd0`, from version 1) and the scenario (`+0x15c`, from version 3).
 4. **The game's Random.** An index, then 624 `u32`s.
+3b. The persist state before them is `InternalFactory::ResetPersistState` (`0x1800c26b0`): the
+   number of object slots. Loading sizes its index table from it, so it must exceed every object
+   index; the writer raises it when objects were added.
 5. **Town name**, then `bool` goal done, then the goal (an internal pointer).
-6. **Engine blocks**, kept as raw bytes (`GameState::achievements`, `animations` and
-   `audio_scene`):
-   - `AchievementManager::Persist`: a count, then achievement objects;
-   - `AnimationManager::Serialize`: a count, then playing animations;
-   - `Audio::Scene::Serialize`: a count, then sounds, then five floats.
+6. **Engine blocks**:
+   - `AchievementManager::Persist` (`0x18009f4a0`), decoded (`GameState::achievements`): a count,
+     then one `AchievementInstance` per achievement (`0x18009efa0`, block version 1: its achievement, then a
+     block with its goals). Each goal is a `GoalInstance` (`0x18009fe80`: goal, value with bit 0 met and
+     bit 1 failed), a `TimeGoalInstance` (`FUN_1400e0200`: then a `Time` block), or a
+     `FinishTutorialInstance` (`FUN_1400dd0c0`: then the tutorial's pointer). These objects share
+     the object factory's index space with the game's.
+   - `AnimationManager::Serialize` (`0x1800fea20`), raw: a count, then animated mesh slots.
+   - `Audio::Scene::Serialize` (`0x1800e28a0`), raw: the pool size (4096 in every save), then
+     every slot (`FUN_180053110`: position, a value, the effect, a time, a value, the volume and
+     a counted list of 16-byte points), then 5 bytes (`00 00 01 01 01` in every save).
 
-   These are cosmetic, or tracked apart from the town. They can be written back verbatim.
 7. **Camera** (`FUN_14009dd90`). A transform, a target `Vector3`, then three floats. Uses the same
    reader as the menu scenes.
 8. **Entity manager** (`FUN_1400c9970`):

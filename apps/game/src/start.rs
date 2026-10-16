@@ -32,7 +32,7 @@ mod bridge;
 mod load;
 // The web build has no save path yet (no Save dialog, no file access).
 #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-mod save;
+pub(crate) mod save;
 mod tornado;
 pub use bridge::BridgeSpec;
 

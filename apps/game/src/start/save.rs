@@ -11,6 +11,7 @@ mod actions;
 mod citizens;
 mod construction;
 mod create;
+pub(crate) mod new_game;
 mod producers;
 mod wildlife;
 
@@ -92,9 +93,9 @@ impl StartingTown {
     /// Write the town into `g`, the game state it was loaded from: objects for what is new,
     /// what is gone dropped, then every field.
     pub fn export_into(&self, archive: &banished_formats::pkg::Archive, g: &mut GameState) {
-        let Some(saved) = &self.save_ids else {
-            return;
-        };
+        // A new game has no saved objects: every entity is made.
+        let new_game = crate::start::SaveIds::default();
+        let saved = self.save_ids.as_ref().unwrap_or(&new_game);
         let mut refs = Refs::new(g);
         let mut ids = self.sync_entities(archive, g, &mut refs, saved);
         self.sync_citizens(archive, g, &mut refs, &mut ids);
@@ -394,6 +395,105 @@ mod tests {
             again.citizens.len(),
             town.citizens.iter().filter(|c| c.alive).count()
         );
+        assert_eq!(again.wildlife.animals.len(), town.wildlife.animals.len());
+        let mut second = reloaded.state.clone();
+        again.export_into(&archive, &mut second);
+        let lines = diff(&second, &floors_added(&reloaded));
+        for line in lines.iter().take(20) {
+            eprintln!("{line}");
+        }
+        assert!(
+            lines.is_empty(),
+            "{} differences after reloading",
+            lines.len()
+        );
+    }
+
+    /// A new game (seed 1234, Medium, run for ten seconds) written into an empty state loads
+    /// back and writes the same state again: every entity is made by the writers and reads
+    /// back as it was.
+    #[test]
+    fn a_new_game_saves_and_reloads() {
+        let Some(archive) = archive() else {
+            eprintln!("game data missing; skipping");
+            return;
+        };
+        let params = crate::world::WorldParams {
+            seed: 1234,
+            start_condition_ref: r"Game\StartCondition\Medium.rsc:resource".into(),
+            ..Default::default()
+        };
+        let world = crate::world::World::generate(&archive, &params).unwrap();
+        let grid = banished_game::terrain::HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = banished_game::random::Random::new(params.seed);
+        let mut town = crate::start::StartingTown::create(
+            &archive,
+            &params.start_condition_ref,
+            world.terrain.size / 2,
+            &grid,
+            &mut rng,
+        )
+        .unwrap();
+        let dt = 1.0 / 30.0;
+        for _ in 0..30 * 10 {
+            town.apply_commands(&grid, &mut rng);
+            town.iterate(&grid, &mut rng, dt, 50.0);
+            let warnings = banished_game::events::StockWarnings::default();
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&grid, &mut rng, dt, 50.0, stock);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+        }
+        let size = world.terrain.size as i32;
+        let map = banished_formats::menu_scene::MapComponent {
+            version: 6,
+            dims: [size, size / 2, 32, 33, size + 1, 33 * 33],
+            heights: world.terrain.heights.clone(),
+            terrain_material: Some(world.profile.materials[0].clone()),
+            surface: world.terrain.surface.clone(),
+            water_vertices: world.water.vertices.clone(),
+            water_indices: world.water.indices.clone(),
+            river_material: Some(world.profile.materials[1].clone()),
+            lake_material: Some(world.profile.materials[2].clone()),
+            river_ranges: world.water.rivers.clone(),
+            lake_ranges: world.water.lakes.clone(),
+            river_paths: world.river_paths.clone(),
+            decals: Vec::new(),
+            extra_decals: Vec::new(),
+            ints: Vec::new(),
+            decal_materials: Vec::new(),
+        };
+        let mut first = super::new_game::state(super::new_game::NewGame {
+            params: &params,
+            flags: 0,
+            map,
+            effects: 2,
+            history: 0,
+            stock: 0,
+            capacity: 0,
+        });
+        town.export_into(&archive, &mut first);
+        let written = first.encode().unwrap();
+        let reloaded = crate::saved::SavedGame {
+            state: GameState::decode(&written).unwrap(),
+            metadata: banished_formats::save::SaveMetadata {
+                name: String::new(),
+                width: 0,
+                height: 0,
+                image: Vec::new(),
+                value: 2,
+                mods: Vec::new(),
+                wide: false,
+            },
+        };
+        let again = crate::start::StartingTown::from_save(&archive, &reloaded).unwrap();
+        let alive = |t: &crate::start::StartingTown| t.placed.iter().filter(|p| p.alive).count();
+        assert_eq!(alive(&again), alive(&town));
+        assert_eq!(again.citizens.len(), town.citizens.len());
         assert_eq!(again.wildlife.animals.len(), town.wildlife.animals.len());
         let mut second = reloaded.state.clone();
         again.export_into(&archive, &mut second);

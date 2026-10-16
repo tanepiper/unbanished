@@ -133,9 +133,38 @@ decodes and loads back with every citizen, stack, animal and work.
     the loop (`GameLoop::save_preview`), and the next update writes the file.
 - The extension value (2) and the mod list are the loaded save's.
 
+## New games
+
+`start/save/new_game.rs`. A game started with New Game has no saved state, so saving starts from
+an empty one:
+- **Loop fields:** the New Game settings, as references.
+- **Entity manager:** empty, with five bucket lists, quotas `[50, 15, 8, 5, 2]` and cursors 0.
+- **Camera:** its transform (rotation and position) is computed from the target, yaw, pitch and distance.
+- **Terrain:** the generated map's block, at version 6.
+- **Map cells:** no description (`u32::MAX`).
+- **Town and managers:** at the schema's defaults. Lists the writers fill entry by entry (weather effects,
+  Town Info series, stock slots, capacity records) are sized to the port's state.
+- **Achievements:** an `AchievementInstance` for each achievement in the list, with each goal's progress.
+- **Animations:** an empty block.
+- **Audio scene:** 4096 empty sound slots.
+- **Metadata:** version 3, extension value 2, no mods.
+
+The town export then makes every entity, since there are no saved ids. `a_new_game_saves_and_reloads`
+generates the seed-1234 Medium start, runs it for ten seconds, saves it, then loads and saves again.
+It requires the same state both times. A real New Game, saved with the `save` command, loads back
+with the same town.
+
 ## Still to write
 
-- New games that were never loaded from a save.
+- **New games:**
+  - the town lists: populations, herds, zones, wells, water sources, `values_140` and diseases;
+  - the tool manager's values;
+  - the environment's climate and month;
+  - the minimap images;
+  - the ambient sound emitters (`AmbientEmitterComponent`, `AmbientEnvironmentComponent`);
+  - a scenario's goal.
+- **Loaded games:** the port does not read the achievement instances back, so a loaded game keeps
+  the ones it was saved with.
 - The scheduler's bucket order and cursors: the port updates citizens in its own pass, so the
   saved buckets (quotas `[50, 15, 8, 5, 2]` at `+0xa8`, cursors at `+0xbc`) keep the save's
   cursors.

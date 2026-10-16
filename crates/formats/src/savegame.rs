@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::crs::{Reader, Writer, BLOCK_END, BLOCK_START};
 use crate::error::{format_err, Error, Result};
-use crate::savegame_schema::{schema_for, Cond, Op, TOWN};
+use crate::savegame_schema::{schema_for, Cond, Op, ACHIEVEMENTS, TOWN};
 
 /// An object's factory index (`Internal +0x08`).
 pub type ObjId = i32;
@@ -209,8 +209,11 @@ pub struct GameState {
     /// `InternalFactory::ResetPersistState`'s block, as written.
     pub persist_state: Vec<u8>,
     pub entity_manager_version: u32,
-    /// Whole blocks (markers included) that are carried through undecoded.
-    pub achievements: Vec<u8>,
+    /// `AchievementManager::Persist`: the achievement instances.
+    pub achievements: Fields,
+    /// Whole blocks (markers included) that are carried through undecoded; empty ones (a new
+    /// game) are written as the engine's empty state ([`empty_animations`],
+    /// [`empty_audio_scene`]).
     pub animations: Vec<u8>,
     pub audio_scene: Vec<u8>,
     /// The game camera (`FUN_14009dd90`).
@@ -525,7 +528,7 @@ impl GameState {
             g.goal = d.ptr()?;
             // Kept as written: `AchievementManager::Persist`, `AnimationManager::Serialize` and
             // `Audio::Scene::Serialize` (engine side, not yet decoded).
-            g.achievements = d.raw_block()?;
+            d.ops_into(&[ACHIEVEMENTS], 0, &mut g.achievements)?;
             g.animations = d.raw_block()?;
             g.audio_scene = d.raw_block()?;
             g.camera = Some(crate::menu_scene::read_camera(&mut d.r)?);
@@ -573,7 +576,17 @@ impl GameState {
         }
         e.w.end_block(refs);
         e.w.set_reference_ids(&self.references);
-        e.w.bytes(&self.persist_state);
+        // `InternalFactory::ResetPersistState`: the number of object slots, which every index
+        // must be below (raised when objects were added).
+        let slots = self
+            .objects
+            .keys()
+            .max()
+            .map_or(0, |&m| m as u32 + 1)
+            .max(persist_slots(&self.persist_state));
+        let at_persist = e.w.begin_block(0);
+        e.w.u32(slots);
+        e.w.end_block(at_persist);
         e.w.u32(self.climate);
         e.w.u32(self.start_condition);
         e.w.u32(self.terrain);
@@ -590,9 +603,17 @@ impl GameState {
         e.w.string(&self.town_name);
         e.w.bool(self.goal_done);
         e.ptr(self.goal)?;
-        e.w.bytes(&self.achievements);
-        e.w.bytes(&self.animations);
-        e.w.bytes(&self.audio_scene);
+        e.ops(&[ACHIEVEMENTS], 0, &self.achievements)?;
+        if self.animations.is_empty() {
+            e.w.bytes(&empty_animations());
+        } else {
+            e.w.bytes(&self.animations);
+        }
+        if self.audio_scene.is_empty() {
+            e.w.bytes(&empty_audio_scene());
+        } else {
+            e.w.bytes(&self.audio_scene);
+        }
         let camera = self
             .camera
             .as_ref()
@@ -634,7 +655,47 @@ fn truthy(v: Option<&Value>) -> bool {
 }
 
 /// The blocks after the map; the event log from game-loop version 2.
-fn managers(version: u32) -> Vec<Op> {
+/// The object slot count in a `ResetPersistState` block (marker, size, version, count).
+fn persist_slots(block: &[u8]) -> u32 {
+    block
+        .get(12..16)
+        .map_or(0, |b| u32::from_le_bytes(b.try_into().unwrap()))
+}
+
+/// `Graphics::AnimationManager::Serialize` (Runtime `0x1800fea20`) with no animated
+/// instances: a count of 0.
+pub fn empty_animations() -> Vec<u8> {
+    let mut w = Writer::new();
+    let at = w.begin_block(0);
+    w.u32(0);
+    w.end_block(at);
+    w.data
+}
+
+/// `Audio::Scene::Serialize` (Runtime `0x1800e28a0`) with nothing playing: the 4096 sound
+/// slots (`FUN_180053110`: position, a value, the effect, a time, a value, the volume 1.0 and
+/// no points), then the five bytes at `+0x30`, as every sample has them.
+pub fn empty_audio_scene() -> Vec<u8> {
+    let mut w = Writer::new();
+    let at = w.begin_block(0);
+    w.u32(0x1000);
+    for _ in 0..0x1000 {
+        (0..3).for_each(|_| w.f32(0.0));
+        w.u32(0);
+        w.u32(u32::MAX);
+        w.i64(0);
+        w.u32(0);
+        w.f32(1.0);
+        w.u32(0);
+    }
+    w.bytes(&[0, 0, 1, 1, 1]);
+    w.end_block(at);
+    w.data
+}
+
+/// The blocks after the gameplay map (`jobs`, `tools`, `calendar`, `event_log`, `environment`,
+/// `minimap`) at serializer version `version`.
+pub fn managers(version: u32) -> Vec<Op> {
     use crate::savegame_schema::{CALENDAR, ENVIRONMENT, EVENT_LOG, JOBS, MINIMAP, TOOLS};
     let mut ops = vec![JOBS, TOOLS, CALENDAR];
     if version > 1 {

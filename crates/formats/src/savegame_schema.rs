@@ -119,7 +119,31 @@ const MESH_INSTANCE: Op = Sub(&[
     List("materials", &[Ext("material")]),
 ]);
 
+const GOAL_INSTANCE: Op = Block("goal", 0, &[Ext("goal"), I32("value")]);
+
 static SCHEMAS: &[(&str, &[Op])] = &[
+    // `Achievement::AchievementInstance::Persist` (Runtime `0x18009efa0`, version 1): its
+    // achievement, then its goal list's instances.
+    (
+        "AchievementInstance",
+        &[Block(
+            "instance",
+            1,
+            &[
+                Ext("achievement"),
+                Block("goals", 0, &[List("goals", &[Ptr("goal")])]),
+            ],
+        )],
+    ),
+    // `Achievement::GoalInstance::Persist` (`0x18009fe80`): its goal and its count (`+0x10`).
+    ("GoalInstance", &[GOAL_INSTANCE]),
+    // `FUN_1400e0200`: then its time (`+0x20`, `System::Time::Serialize`: a block).
+    (
+        "TimeGoalInstance",
+        &[GOAL_INSTANCE, Block("timer", 0, &[Time("time")])],
+    ),
+    // `FUN_1400dd0c0`: then its tutorial (`+0x20`).
+    ("FinishTutorialInstance", &[GOAL_INSTANCE, Ptr("tutorial")]),
     // `FUN_1400c8610`.
     (
         "ComponentEntity",
@@ -1507,6 +1531,10 @@ const fn ptr_list(name: &'static str) -> Op {
     List(name, &[Ptr("entity")])
 }
 
+/// `Achievement::AchievementManager::Persist` (Runtime `0x18009f4a0`): the game's achievement
+/// instances (`+0x88`).
+pub const ACHIEVEMENTS: Op = Block("achievements", 0, &[List("instances", &[Ptr("instance")])]);
+
 /// The town manager (`FUN_140094c30`, version 6), `Game +0xf0`: the registries of buildings
 /// and people by kind, the professions' workers, the stock targets and the statistics.
 pub const TOWN: Op = Block(
@@ -1767,6 +1795,14 @@ pub fn default_fields(name: &str) -> Option<crate::savegame::Fields> {
     let mut out = crate::savegame::Fields::default();
     defaults_into(ops, 0, &mut out);
     Some(out)
+}
+
+/// A block's fields at their defaults (the town, the managers), as [`default_fields`] makes
+/// an object's.
+pub fn default_block(ops: &[Op], version: u32) -> crate::savegame::Fields {
+    let mut out = crate::savegame::Fields::default();
+    defaults_into(ops, version, &mut out);
+    out
 }
 
 fn defaults_into(ops: &[Op], version: u32, out: &mut crate::savegame::Fields) {

@@ -155,6 +155,10 @@ pub struct GameplayLoop {
     weather: Vec<(Option<String>, Option<String>)>,
     /// River centre lines (MapComponent `+0x1e0`).
     river_paths: Vec<Vec<[f32; 2]>>,
+    /// A new game's terrain block, kept for saving: the generated surface, rivers, lakes and
+    /// materials (the heights are taken from the terrain when saving, as tunnels change them).
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    new_map: Option<banished_formats::menu_scene::MapComponent>,
     /// The save this game was loaded from (docs/SAVE-LOADING.md); `None` for a New Game.
     saved: Option<std::sync::Arc<crate::saved::SavedGame>>,
 }
@@ -202,8 +206,14 @@ impl GameplayLoop {
         ui: &mut banished_ui::Ui,
     ) -> Option<banished_formats::savegame::GameState> {
         use banished_formats::savegame::{Fields, Value};
-        let saved = self.saved.as_ref()?;
-        let mut g = saved.state.clone();
+        let mut g = match &self.saved {
+            Some(saved) => saved.state.clone(),
+            None => {
+                let mut g = self.new_game_state()?;
+                self.save_achievements(&mut g);
+                g
+            }
+        };
         g.town_name = self.params.town_name.clone();
         if let Some(town) = &self.town {
             town.export_into(archive, &mut g);
@@ -218,6 +228,15 @@ impl GameplayLoop {
                 c.target[0] = camera.target.x;
                 c.target[1] = camera.target.y;
                 c.floats = [camera.yaw, camera.pitch, camera.distance];
+                // A new game's transform follows them; a loaded one keeps its own.
+                if self.saved.is_none() {
+                    *c = crate::start::save::new_game::camera(
+                        camera.target.to_array(),
+                        camera.yaw,
+                        camera.pitch,
+                        camera.distance,
+                    );
+                }
             }
         }
         if let Some(env) = &self.environment {
@@ -325,7 +344,19 @@ impl GameplayLoop {
     ) -> Option<Vec<u8>> {
         let g = self.save_state(archive, ui)?;
         let state = g.encode().map_err(|e| log::error!("save: {e}")).ok()?;
-        let mut metadata = self.saved.as_ref()?.metadata.clone();
+        let mut metadata = match &self.saved {
+            Some(saved) => saved.metadata.clone(),
+            // `SaveMetaData`'s block at version 3: the extension value is 2 and no mods.
+            None => banished_formats::save::SaveMetadata {
+                name: String::new(),
+                width: 0,
+                height: 0,
+                image: Vec::new(),
+                value: 2,
+                mods: Vec::new(),
+                wide: false,
+            },
+        };
         metadata.name = name.unwrap_or(&self.params.town_name).to_string();
         if let Some(image) = preview {
             let (w, h) = crate::saved::PREVIEW_SIZE;
@@ -427,6 +458,66 @@ impl GameplayLoop {
         }
     }
 
+    /// A new game's state before the town and the loop are written into it
+    /// (`crate::start::save::new_game`).
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    fn new_game_state(&self) -> Option<banished_formats::savegame::GameState> {
+        let mut map = self.new_map.clone()?;
+        if let Some(view) = &self.view {
+            map.heights = view.terrain.heights.clone();
+            map.surface = view.terrain.surface.clone();
+        }
+        let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
+        Some(crate::start::save::new_game::state(
+            crate::start::save::new_game::NewGame {
+                params: &self.params,
+                flags,
+                map,
+                effects: self.environment.as_ref().map_or(0, |e| e.effects.len()),
+                history: self.statistics.series.len(),
+                stock: self.stock_warnings.count.len(),
+                capacity: self.stock_warnings.capacity.len(),
+            },
+        ))
+    }
+
+    /// The achievement instances with their goals' progress, for a new game. Deviation: a
+    /// loaded game keeps the instances it was saved with (the port does not read them back).
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    fn save_achievements(&self, g: &mut banished_formats::savegame::GameState) {
+        use crate::start::save::new_game::{achievements, AchievementSave};
+        use banished_formats::scenario::GoalKind;
+        let list: Vec<AchievementSave> = self
+            .achievements
+            .iter()
+            .enumerate()
+            .map(|(i, a)| {
+                let instance = self.achievement_manager.instances.get(i);
+                AchievementSave {
+                    reference: &a.reference,
+                    goals: a
+                        .goals
+                        .iter()
+                        .zip(&a.goal_references)
+                        .enumerate()
+                        .map(|(k, (goal, reference))| {
+                            let state = instance.and_then(|x| x.goals.get(k)).copied();
+                            let state = state.unwrap_or_default();
+                            let class = match goal.kind {
+                                GoalKind::Time { .. } => "TimeGoalInstance",
+                                GoalKind::FinishTutorial(_) => "FinishTutorialInstance",
+                                _ => "GoalInstance",
+                            };
+                            let value = state.met as i32 | (state.failed as i32) << 1;
+                            (reference.as_str(), class, value, state.time)
+                        })
+                        .collect(),
+                }
+            })
+            .collect();
+        achievements(g, &list);
+    }
+
     pub fn new(params: WorldParams) -> Self {
         Self {
             rng: Random::new(params.seed),
@@ -489,6 +580,7 @@ impl GameplayLoop {
             show_celsius: false,
             weather: Vec::new(),
             river_paths: Vec::new(),
+            new_map: None,
             saved: None,
         }
     }
@@ -1725,6 +1817,9 @@ impl GameLoop for GameplayLoop {
                     })
                     .collect();
                 self.river_paths = world.river_paths.clone();
+                if saved.is_none() {
+                    self.new_map = Some(new_map(&world));
+                }
                 self.environment_months = world.environment.months;
                 self.environment_template = world.environment.template.clone();
                 log::info!(
@@ -2696,6 +2791,34 @@ impl GameLoop for GameplayLoop {
 
     fn view(&self) -> View<'_> {
         self.view.as_ref().map_or(View::None, View::World)
+    }
+}
+
+/// A generated world's terrain block (`FUN_1400b59a0`, version 6): its size, heights,
+/// surface, the rivers' and lakes' mesh with the profile's River and Lake materials, and the
+/// river lines; no decals yet.
+fn new_map(world: &World) -> banished_formats::menu_scene::MapComponent {
+    let t = &world.terrain;
+    let size = t.size as i32;
+    let w = &world.water;
+    let material = |m: &str| Some(m.replace('/', "\\"));
+    banished_formats::menu_scene::MapComponent {
+        version: 6,
+        dims: [size, size / 2, 32, 33, size + 1, 33 * 33],
+        heights: t.heights.clone(),
+        terrain_material: material(&world.profile.materials[0]),
+        surface: t.surface.clone(),
+        water_vertices: w.vertices.clone(),
+        water_indices: w.indices.clone(),
+        river_material: material(&world.profile.materials[1]),
+        lake_material: material(&world.profile.materials[2]),
+        river_ranges: w.rivers.clone(),
+        lake_ranges: w.lakes.clone(),
+        river_paths: world.river_paths.clone(),
+        decals: Vec::new(),
+        extra_decals: Vec::new(),
+        ints: Vec::new(),
+        decal_materials: Vec::new(),
     }
 }
 
