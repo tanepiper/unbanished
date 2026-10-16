@@ -131,7 +131,7 @@ impl EntityWindows {
 
     /// Each controller's slot `+0x38` refresh with the entity's current data (read-only).
     pub fn refresh(&mut self, ui: &mut Ui, archive: &Archive, town: &StartingTown) {
-        self.refresh_with(ui, archive, town, &[0; 21]);
+        self.refresh_with(ui, archive, town, &[0; 21], "");
     }
 
     /// [`Self::refresh`] with the stock manager's limits (ResourceLimitUI).
@@ -141,6 +141,7 @@ impl EntityWindows {
         archive: &Archive,
         town: &StartingTown,
         stock_limits: &[i32; 21],
+        town_name: &str,
     ) {
         for w in &mut self.open {
             if let Some(pages) = w.pages {
@@ -220,6 +221,11 @@ impl EntityWindows {
                     Entity::Placed(p) => produce_info(town, p),
                     Entity::Citizen(_) => None,
                 },
+                immigration: match w.entity {
+                    Entity::Placed(p) => immigration_info(town, p),
+                    Entity::Citizen(_) => None,
+                },
+                town_name,
             };
             let entity = match w.entity {
                 Entity::Placed(p) => Some(p),
@@ -264,6 +270,8 @@ impl EntityWindows {
             attendance: None,
             cemetery: None,
             produce: produce_info(town, p),
+            immigration: None,
+            town_name: "",
         };
         w.bound.iter_mut().find_map(|c| match c {
             Controller::WorkPlace(c) => c.click(node, &data),
@@ -271,6 +279,8 @@ impl EntityWindows {
             Controller::Destroy(c) => c.click(node, &data),
             Controller::ResourceLimit(c) => c.click(ui, node),
             Controller::Control(c) => c.click(ui, node, Some(p)),
+            Controller::Upgrade(c) => c.click(ui, node, p),
+            Controller::Immigration(c) => c.click(node, p),
             _ => None,
         })
     }
@@ -302,6 +312,8 @@ impl EntityWindows {
             attendance: None,
             cemetery: None,
             produce: produce_info(town, p),
+            immigration: None,
+            town_name: "",
         };
         w.bound.iter().find_map(|c| match c {
             Controller::ConsumeProduce(c) => c.select(node, index, &data),
@@ -688,4 +700,13 @@ fn produce_info(town: &StartingTown, p: usize) -> Option<(usize, String, i32, i3
         state.produced,
         lifetime,
     ))
+}
+
+/// ImmigrationUI's view: nomads waiting (state 0x11) and how many came (`+0x60`).
+fn immigration_info(town: &StartingTown, p: usize) -> Option<(bool, i32)> {
+    let site = town.construction.sites.get(&p)?;
+    let im = site.immigration.as_ref()?;
+    let m = &site.machine;
+    let state = if m.pending < 0 { m.state } else { m.pending };
+    Some((state == 0x11, im.arrived))
 }

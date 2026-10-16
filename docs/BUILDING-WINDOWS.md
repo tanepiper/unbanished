@@ -30,7 +30,8 @@ frame after the simulation; refresh reads only.
 | `0x9c93d6c1` | ConsumeProduceUI | | `FUN_14005fd30` / `FUN_14005fb50` / `FUN_14005fc90` | done |
 | `0x00585b87` | RadiusUI | | defaults (no bind, refresh or events) | nothing to do |
 | `0x1701e613` | ResidenceUI | | | pending |
-| `0x061d5f73` | UpgradeUI | | | pending |
+| `0x061d5f73` | UpgradeUI | | `FUN_14008c260` / — / `FUN_14008c160` | done |
+| `0xff9794df` | ImmigrationUI | | `FUN_14006bc90` / `FUN_14006ba90` | done |
 
 Shipped hosts (all `Dialog\StandardDialog.rsc:entity`, page 1):
 
@@ -78,6 +79,20 @@ would draw one by the weights from the game's Random, so the port shows the firs
 one (event `0x14`) sets ConsumeProduceComponent `+0x50` (`Command::SetRecipe`).
 `progressRemaining` is `1 − made (+0x68) / lifetime (+0x48)`, text `%i` percent. Not ported:
 the items' sprites (the combo lists text).
+
+## UpgradeUI
+
+The element is a button (id 33000) whose first child shows the ToolbarDescription sprite of
+UpgradeUIConfig `+0x20`'s template (the wood house's: the stone house). A click makes that
+template the DestroyComponent's replacement (`+0x60`) and tears the building down
+(`FUN_140123470`): `Command::Upgrade`, the template loaded first.
+
+## ImmigrationUI
+
+`textNone`, `textNomad`, `buttonAllow` (id 39000, `0x9858`) and `buttonDeny` (`0x9859`).
+While the town hall's machine is in 0x11 (nomads waiting) the buttons work and `textNomad`
+shows with `@0` the nomads (ImmigrationComponent `+0x60`) and `@1` the town's name; else
+`textNone`. The buttons send state messages 7 (take them in) and 8 (turn them away).
 
 ## ControlUI
 

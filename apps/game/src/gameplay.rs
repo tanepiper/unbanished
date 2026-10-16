@@ -1177,8 +1177,13 @@ impl GameLoop for GameplayLoop {
             }
         }
         if let Some(town) = &self.town {
-            self.entities
-                .refresh_with(ctx.ui, ctx.archive, town, &self.stock_warnings.limits);
+            self.entities.refresh_with(
+                ctx.ui,
+                ctx.archive,
+                town,
+                &self.stock_warnings.limits,
+                &self.params.town_name,
+            );
         }
         self.position_entity_window(ctx);
         if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
@@ -1317,6 +1322,21 @@ impl GameLoop for GameplayLoop {
                 Some(WorkPlaceClick::Command(command)) => {
                     if let Some(town) = &mut self.town {
                         town.construction.commands.push(command);
+                    }
+                    return Next::Stay;
+                }
+                // UpgradeUI (`FUN_14008c160`): the template is loaded for the rebuild.
+                Some(WorkPlaceClick::Upgrade { entity, template }) => {
+                    if let Some(town) = &mut self.town {
+                        if let Some(t) = town.load_template(ctx.archive, &template) {
+                            town.site_template(ctx.archive, t);
+                            town.construction.commands.push(
+                                banished_game::professions::Command::Upgrade {
+                                    entity,
+                                    template: t,
+                                },
+                            );
+                        }
                     }
                     return Next::Stay;
                 }

@@ -25,6 +25,8 @@ pub const PAGE_TOGGLE_UI: u32 = 0xc93b6026;
 pub const ATTENDANCE_UI: u32 = 0x1aff79f6;
 pub const CEMETERY_UI: u32 = 0xa17245fb;
 pub const CONSUME_PRODUCE_UI: u32 = 0x9c93d6c1;
+pub const UPGRADE_UI: u32 = 0x061d5f73;
+pub const IMMIGRATION_UI: u32 = 0xff9794df;
 
 /// What a controller reads from the selected entity.
 pub struct EntityData<'a> {
@@ -55,6 +57,123 @@ pub struct EntityData<'a> {
     /// ConsumeProduceComponent: the entity, its template's reference, the selector (`+0x50`),
     /// productions made (`+0x68`) and the description's lifetime (`+0x48`).
     pub produce: Option<(usize, String, i32, i32, i32)>,
+    /// ImmigrationComponent: nomads waiting at the town hall (state 0x11) and how many
+    /// (`+0x60`); the town's name (`Game +0x28`).
+    pub immigration: Option<(bool, i32)>,
+    pub town_name: &'a str,
+}
+
+/// `UpgradeUI` (type `0x061d5f73`): bind `FUN_14008c260`, events `FUN_14008c160`. The element
+/// is a button (id 33000) showing the toolbar sprite of UpgradeUIConfig `+0x20`'s template; a
+/// click makes it the DestroyComponent's replacement (`+0x60`) and tears the building down
+/// (`FUN_140123470`).
+pub struct UpgradeUi {
+    button: NodeId,
+    template: Option<String>,
+}
+
+/// `UpgradeUIConfig`: `+0x20` the template to put in the building's place.
+fn upgrade_config(data: &[u8]) -> Option<String> {
+    use banished_formats::crs;
+    crs::parse(data, |r: &mut crs::Reader, _| {
+        r.block(|r, _| r.external_ref())
+    })
+    .ok()
+    .and_then(|(_, v)| v)
+}
+
+impl UpgradeUi {
+    pub fn bind(ui: &mut Ui, archive: &Archive, element: NodeId, config: Option<&str>) -> Self {
+        let template = config
+            .and_then(|c| archive.read_ref(&c.replace('\\', "/")).ok())
+            .and_then(|d| upgrade_config(&d));
+        // Its first child shows the template's ToolbarDescription sprite (`+0x20`, `+0x28`).
+        let toolbar = template.as_deref().and_then(|t| {
+            let file = material_file(t);
+            archive
+                .read_ref(&format!("{file}:toolbar"))
+                .ok()
+                .and_then(|b| banished_formats::game::toolbar_description(&b).ok())
+        });
+        if let (Some(&image), Some(t)) = (ui.children(element).first(), toolbar) {
+            if let Some(s) = ui.res.sprite(t.sprite_sheet.as_deref(), &t.sprite) {
+                if let Kind::Image { sprite, .. } = &mut ui.node_mut(image).kind {
+                    *sprite = Some(s);
+                }
+            }
+        }
+        UpgradeUi {
+            button: element,
+            template,
+        }
+    }
+
+    pub fn click(&self, ui: &Ui, node: NodeId, entity: usize) -> Option<WorkPlaceClick> {
+        if node != self.button && !ui.descendant(self.button, node) {
+            return None;
+        }
+        Some(WorkPlaceClick::Upgrade {
+            entity,
+            template: self.template.clone()?,
+        })
+    }
+}
+
+/// `ImmigrationUI` (type `0xff9794df`): bind `FUN_14006bc90`, refresh `FUN_14006ba90`.
+/// While nomads wait (state 0x11) `textNomad` shows how many (`@0`) and the town (`@1`) and
+/// `buttonAllow` (id 39000) and `buttonDeny` (`0x9859`) work; else `textNone`.
+pub struct ImmigrationUi {
+    none: Option<NodeId>,
+    nomad: Option<(NodeId, String)>,
+    allow: Option<NodeId>,
+    deny: Option<NodeId>,
+}
+
+impl ImmigrationUi {
+    pub fn bind(ui: &mut Ui, element: NodeId) -> ImmigrationUi {
+        ImmigrationUi {
+            none: ui.find(element, "textNone"),
+            nomad: ui.find(element, "textNomad").map(|n| (n, text_of(ui, n))),
+            allow: ui.find(element, "buttonAllow"),
+            deny: ui.find(element, "buttonDeny"),
+        }
+    }
+
+    pub fn refresh(&mut self, ui: &mut Ui, data: &EntityData) {
+        let Some((waiting, count)) = data.immigration else {
+            return;
+        };
+        for b in [self.allow, self.deny].into_iter().flatten() {
+            ui.node_mut(b).enabled = waiting;
+        }
+        if let Some((n, template)) = &self.nomad {
+            ui.set_visible(*n, waiting);
+            ui.set_text(
+                *n,
+                &template
+                    .replace("@0", &count.to_string())
+                    .replace("@1", data.town_name),
+            );
+        }
+        if let Some(n) = self.none {
+            ui.set_visible(n, !waiting);
+        }
+    }
+
+    /// `0x9858` (`FUN_14006b9e0`): state message 7, take them in; `0x9859` (`FUN_14006b930`):
+    /// message 8, turn them away.
+    pub fn click(&self, node: NodeId, entity: usize) -> Option<WorkPlaceClick> {
+        let message = if Some(node) == self.allow {
+            7
+        } else if Some(node) == self.deny {
+            8
+        } else {
+            return None;
+        };
+        Some(WorkPlaceClick::Command(
+            banished_game::professions::Command::StateMessage { entity, message },
+        ))
+    }
 }
 
 /// `ConsumeProduceUI` (type `0x9c93d6c1`): bind `FUN_14005fd30`, refresh `FUN_14005fb50`,
@@ -869,6 +988,11 @@ pub enum WorkPlaceClick {
         slot: usize,
         limit: i32,
     },
+    /// UpgradeUI: tear the building down for `template`.
+    Upgrade {
+        entity: usize,
+        template: String,
+    },
 }
 
 impl WorkPlaceUi {
@@ -1278,6 +1402,8 @@ pub enum Controller {
     PageToggle(PageToggleUi),
     Count(CountUi),
     ConsumeProduce(ConsumeProduceUi),
+    Upgrade(UpgradeUi),
+    Immigration(ImmigrationUi),
     /// Attached, refresh not ported (logged once with its id).
     #[allow(dead_code)]
     Pending(u32),
@@ -1313,6 +1439,10 @@ impl Controller {
             CONSUME_PRODUCE_UI => {
                 Some(Controller::ConsumeProduce(ConsumeProduceUi::bind(ui, root)))
             }
+            UPGRADE_UI => Some(Controller::Upgrade(UpgradeUi::bind(
+                ui, archive, element, config,
+            ))),
+            IMMIGRATION_UI => Some(Controller::Immigration(ImmigrationUi::bind(ui, element))),
             // Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
             STATUS_ICON_UI => {
                 StatusIconUi::bind(ui, element, !has_config).map(Controller::StatusIcon)
@@ -1340,6 +1470,8 @@ impl Controller {
             Controller::PageToggle(c) => c.refresh(ui),
             Controller::Count(c) => c.refresh(ui, data),
             Controller::ConsumeProduce(c) => c.refresh(ui, archive, data),
+            Controller::Upgrade(_) => {}
+            Controller::Immigration(c) => c.refresh(ui, data),
             Controller::Pending(_) => {}
         }
     }

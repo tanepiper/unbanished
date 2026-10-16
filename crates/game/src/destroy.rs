@@ -125,6 +125,16 @@ impl Sim<'_, '_> {
         run(self, jobs, e, false, false);
     }
 
+    /// UpgradeUI's button (`FUN_14008c160`): the replacement is `template`, and the building
+    /// is torn down (`FUN_140123470`).
+    pub fn upgrade(&mut self, jobs: &mut Jobs, e: usize, template: usize) {
+        let Some(d) = self.destroy_state(e) else {
+            return;
+        };
+        d.rebuild = Some(template);
+        self.demolish(jobs, e);
+    }
+
     /// `FUN_1401238d0`: DestroyUI's cancel (`0x1771`): message 0, and the replacement goes back
     /// to the description's (slot `+0x20`).
     pub fn cancel_demolition(&mut self, jobs: &mut Jobs, e: usize) {

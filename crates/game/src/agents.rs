@@ -502,6 +502,11 @@ impl Agents {
                     }
                     continue;
                 }
+                crate::professions::Command::Upgrade { entity, template } => {
+                    sim.upgrade(jobs, entity, template);
+                    jobs.drain(&mut sim);
+                    continue;
+                }
                 crate::professions::Command::CancelDemolition { entity } => {
                     sim.cancel_demolition(jobs, entity);
                     jobs.drain(&mut sim);

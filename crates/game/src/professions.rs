@@ -189,6 +189,9 @@ pub enum Command {
     },
     /// ConsumeProduceUI's product (`FUN_14005fc90`): ConsumeProduceComponent `+0x50`.
     SetRecipe { entity: usize, recipe: i32 },
+    /// UpgradeUI (`FUN_14008c160`): DestroyComponent `+0x60` = `template`, then
+    /// `FUN_140123470`.
+    Upgrade { entity: usize, template: usize },
 }
 
 /// The town manager's workplace and residence registries and every WorkPlaceComponent.
@@ -741,7 +744,8 @@ impl Workforce {
             | Command::PlanRoad { .. }
             | Command::ClearRoad { .. }
             | Command::Control { .. }
-            | Command::SetRecipe { .. } => {}
+            | Command::SetRecipe { .. }
+            | Command::Upgrade { .. } => {}
         }
     }
 }
