@@ -98,6 +98,19 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Commute optimisation (homes and jobs dealt again every 300 s) | yes ([COMMUTE.md](COMMUTE.md)) |
 | Disasters (fire, tornado, disease) and AutoSlow | yes (fire, blight and tornadoes with the Disasters option; AutoSlow from their events) |
 
+## Left for the save/load stage or out of scope (2026-10-16 sweep)
+
+A sweep over the game iteration (`FUN_14009b850`) found one unported system: the commute
+optimisation ([COMMUTE.md](COMMUTE.md)), now ported. It also checked its managers and every
+gameplay class's vtable slots for functions mentioned nowhere in the repo. What remains:
+
+- The pause menu's Load (2), Save (3) and Mod (7) buttons: the save/load stage, and Steam
+  Workshop mods (`Dialog\Mod.rsc`, ModBrowseUI), which a browser port does not host.
+- State only a save needs: the commute job (`Construction::commute`), the pinned entity
+  windows' positions (the tool manager's `+0x60` map) and the utility windows' corners (`+0x50`).
+- Debug switches: `Game +0xd0` bit 8 (no deaths, no accidents) and the debug UI.
+- The zone's path-grid blocked bit, which the citizens' mode-0 searches never read.
+
 ## Plan
 
 Each stage ends with tests (original-function cases where the existing emulator tools reach them,
