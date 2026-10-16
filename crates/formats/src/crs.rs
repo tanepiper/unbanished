@@ -19,6 +19,8 @@ pub struct Reader<'a> {
     data: &'a [u8],
     pos: usize,
     end: usize,
+    /// Set in reference mode (saves): external pointers are `u32` ids into this table.
+    reference_ids: Option<std::sync::Arc<std::collections::BTreeMap<u32, String>>>,
 }
 
 impl<'a> Reader<'a> {
@@ -27,7 +29,16 @@ impl<'a> Reader<'a> {
             data,
             pos: 0,
             end: data.len(),
+            reference_ids: None,
         }
+    }
+
+    /// Read external pointers as reference ids (`ExternalFactory` reference mode, used by saves).
+    pub fn set_reference_ids(
+        &mut self,
+        ids: std::sync::Arc<std::collections::BTreeMap<u32, String>>,
+    ) {
+        self.reference_ids = Some(ids);
     }
 
     pub fn pos(&self) -> usize {
@@ -36,6 +47,14 @@ impl<'a> Reader<'a> {
 
     pub fn remaining(&self) -> usize {
         self.end - self.pos
+    }
+
+    /// Bytes already read or ahead, by absolute position.
+    pub fn slice(&self, start: usize, end: usize) -> Result<&'a [u8]> {
+        self.data.get(start..end).ok_or(Error::Truncated {
+            at: start,
+            wanted: end.saturating_sub(start),
+        })
     }
 
     pub fn bytes(&mut self, n: usize) -> Result<&'a [u8]> {
@@ -72,6 +91,62 @@ impl<'a> Reader<'a> {
     pub fn i64(&mut self) -> Result<i64> {
         Ok(i64::from_le_bytes(self.arr()?))
     }
+    pub fn i16(&mut self) -> Result<i16> {
+        Ok(i16::from_le_bytes(self.bytes(2)?.try_into().unwrap()))
+    }
+
+    pub fn u16(&mut self) -> Result<u16> {
+        Ok(u16::from_le_bytes(self.bytes(2)?.try_into().unwrap()))
+    }
+
+    /// Narrow the readable range to end at `end` (inside the current one); returns the old
+    /// end for [`Reader::unlimit`].
+    pub fn limit(&mut self, end: usize) -> Result<usize> {
+        if end > self.end || end < self.pos {
+            return format_err(format!(
+                "limit {end:#x} outside {:#x}..{:#x}",
+                self.pos, self.end
+            ));
+        }
+        Ok(std::mem::replace(&mut self.end, end))
+    }
+
+    pub fn unlimit(&mut self, end: usize) {
+        self.end = end;
+    }
+
+    pub fn set_pos(&mut self, pos: usize) {
+        self.pos = pos;
+    }
+
+    /// The `u32` at an absolute offset.
+    pub fn u32_at(&self, at: usize) -> Option<u32> {
+        self.data
+            .get(at..at + 4)
+            .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
+    }
+
+    /// The next `u32` without consuming it (`None` at the end).
+    pub fn peek_u32(&self) -> Option<u32> {
+        self.data
+            .get(self.pos..self.pos + 4)
+            .filter(|_| self.pos + 4 <= self.end)
+            .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
+    }
+
+    /// `System::String::Serialize` (`0x1800cc1a0`): a `u32` count of UTF-16 units, the
+    /// terminating NUL included (0 for an empty string), then the units.
+    pub fn wstring(&mut self) -> Result<String> {
+        let n = self.u32()? as usize;
+        let b = self.bytes(n * 2)?;
+        let units: Vec<u16> = b
+            .chunks_exact(2)
+            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .collect();
+        let end = units.iter().position(|&c| c == 0).unwrap_or(units.len());
+        Ok(String::from_utf16_lossy(&units[..end]))
+    }
+
     pub fn f32(&mut self) -> Result<f32> {
         Ok(f32::from_le_bytes(self.arr()?))
     }
@@ -112,6 +187,17 @@ impl<'a> Reader<'a> {
 
     /// `ExternalPtr`: bool present, then a `Path\File.rsc:object` reference.
     pub fn external_ref(&mut self) -> Result<Option<String>> {
+        if let Some(ids) = self.reference_ids.clone() {
+            let at = self.pos;
+            let id = self.u32()?;
+            if id == u32::MAX {
+                return Ok(None);
+            }
+            return match ids.get(&id) {
+                Some(path) => Ok(Some(path.clone())),
+                None => format_err(format!("unknown reference id {id} at {at:#x}")),
+            };
+        }
         if self.bool()? {
             Ok(Some(self.string()?))
         } else {

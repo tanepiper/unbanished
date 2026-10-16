@@ -15,6 +15,8 @@ pub mod picking;
 pub mod pkg;
 pub mod scenario;
 pub mod save;
+pub mod savegame;
+pub mod savegame_schema;
 pub mod skeleton;
 pub mod stream;
 pub mod texture;

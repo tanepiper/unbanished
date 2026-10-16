@@ -245,6 +245,18 @@ fn read_map_decals(r: &mut Reader, map: &mut MapComponent) -> Result<()> {
     })
 }
 
+/// `FUN_14009dd90`: the camera block (also in saves).
+pub fn read_camera(r: &mut Reader) -> Result<SceneCamera> {
+    r.block(|r, _| {
+        Ok(SceneCamera {
+            rotation: f32s::<4>(r)?,
+            position: f32s::<3>(r)?,
+            target: f32s::<3>(r)?,
+            floats: f32s::<3>(r)?,
+        })
+    })
+}
+
 pub fn menu_scene(data: &[u8]) -> Result<MenuScene> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("MenuScene") {
@@ -256,14 +268,7 @@ pub fn menu_scene(data: &[u8]) -> Result<MenuScene> {
             if version > 0 {
                 read_map_decals(r, &mut map)?;
             }
-            let camera = r.block(|r, _| {
-                Ok(SceneCamera {
-                    rotation: f32s::<4>(r)?,
-                    position: f32s::<3>(r)?,
-                    target: f32s::<3>(r)?,
-                    floats: f32s::<3>(r)?,
-                })
-            })?;
+            let camera = read_camera(r)?;
             let placements = (0..r.count()?)
                 .map(|_| {
                     Ok(Placement {
