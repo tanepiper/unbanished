@@ -88,7 +88,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Demolition (Remove Buildings, DestroyUI) | yes (Remove Buildings and its cancel, DestroyUI's buttons) |
 | Building windows ([BUILDING-WINDOWS.md](BUILDING-WINDOWS.md)) | yes |
 | Town Info, Production/Population graphs | yes ([TOWN-INFO.md](TOWN-INFO.md), TownHallUI) |
-| Achievements, tutorial, scenarios | no |
+| Achievements, tutorial, scenarios | yes ([ACHIEVEMENTS.md](ACHIEVEMENTS.md), [TUTORIAL.md](TUTORIAL.md); the tutorials start new games until saves load) |
 | Weather precipitation, smoke particles, decals, fire particles | no |
 | Disasters (fire, tornado, disease) and AutoSlow | yes (fire, blight and tornadoes with the Disasters option; AutoSlow from their events) |
 
