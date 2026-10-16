@@ -85,7 +85,8 @@ See [MODS.md](MODS.md). Done:
   `CheckMod` flags.
 
 Left:
-- **Workshop:** the browse tab, uploads and update notices (`FUN_14006dee0`, `FUN_14006f100`,
+- **Workshop (Steam build only):** the port is the build without Steam (the kit's, as GOG's),
+  which hides the Browse tab. Not ported: the Steam build's browse tab, uploads and update notices (`FUN_14006dee0`, `FUN_14006f100`,
   `FUN_14006f790`, `FUN_1400740f0`, `FUN_1400745d0`, `FUN_140074b70`, `FUN_140071600`).
 - **1.0.7's mod resource flags:** the Status Bar, Limits and Town Hall rows exist, but are hidden
   without mods.

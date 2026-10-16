@@ -6,7 +6,10 @@
 //!   `3000 + i`, Top `4000 + i` and the details button `5000 + i`. The first line's Up and Top
 //!   and the last line's Down are disabled. Each line's icon is the mod's 48×48 image (a sheet
 //!   of its own over `Material/UI/UIMaterial.rsc`). The Browse tab gets the Workshop browser
-//!   (`Dialog/Mod.rsc:browser`).
+//!   (`Dialog/Mod.rsc:browser`). The build without Steam (the BanishedKit's
+//!   `Application-x64-profile.exe`, as the GOG release) then hides the Browse tab's button and
+//!   the Workshop progress (`buttonBrowse`, `groupProgress`, `SetFlagsOnOff(1, 0)` at
+//!   `0x14005395a`): mods are the packages in the pack directory only. The port is that build.
 //! - **Lines** (`FUN_140072560`, after every change): the name, author and description as the
 //!   texts' parameter, the version as `"%i (%s)"` of the mod's version and the game version it
 //!   was made with (`Configuration::GetVersionString(+0x18, true)`), the checkbox from
@@ -31,9 +34,8 @@
 //!   those is before it in the list, each ending `^n`. Both lists open `^jl^f0^c0^lb` and
 //!   close `^le`.
 //!
-//! Not ported: the Browse tab's Steam Workshop browser (`FUN_14006dee0`, `FUN_14006f100`)
-//! and Workshop uploads, so Create and Update stay hidden. Without the Workshop the browser's download progress and update
-//! notice stay hidden, as `FUN_14006f100` leaves them when nothing downloads.
+//! Not ported: the Steam build's Workshop browser (`FUN_14006dee0`, `FUN_14006f100`) and
+//! uploads, so Create and Update stay hidden.
 
 use banished_ui::{Kind, NodeId, Ui};
 
@@ -165,15 +167,8 @@ impl ModDialog {
             }
             lines.push(l);
         }
-        // `FUN_14006f100`: the progress and its text show while Workshop items download, the
-        // update text and its Reload button when an installed one changed
-        // (`AreExternalModsUpToDate`); neither happens without the Workshop.
-        for n in [
-            "progressUpdate",
-            "textUpdate",
-            "buttonUpdateReload",
-            "textUpdateAvailable",
-        ] {
+        // The build without Steam: no Browse tab and no Workshop progress.
+        for n in ["buttonBrowse", "groupProgress"] {
             if let Some(n) = ui.find(root, n) {
                 ui.set_visible(n, false);
             }

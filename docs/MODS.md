@@ -2,7 +2,7 @@
 
 Banished 1.0.7 loads mods made with the BanishedKit: `.pkm` packages in the pack directory
 (`WinData`), in the same container as the game's `.pkg` files. The port reads them, loads the
-enabled ones and has the original's Mods dialog. The Steam Workshop parts are not ported.
+enabled ones and has the original's Mods dialog as the build without Steam shows it.
 
 ## Packages
 
@@ -104,10 +104,11 @@ In 1.0.7, loading a save does not change which mods are enabled.
 ## Deviations and gaps
 
 - The details dialog shows a mod's path as `WinData\<file>.pkm`, not the full path.
-- Not ported: the Workshop.
-  - The Browse tab is empty.
-  - Create and Update stay hidden.
-  - The download progress and update notice stay hidden, as they do when nothing downloads.
+- The port follows the build without Steam, which the BanishedKit ships as
+  `Application-x64-profile.exe` (as the GOG release has no Steam). After opening the Mods dialog
+  it hides the Browse tab's button and the Workshop progress (`buttonBrowse`, `groupProgress`),
+  so mods are only the packages the player downloads into the pack directory. The Steam build's
+  Workshop browser and uploads are not ported; Create and Update stay hidden.
 - In the browser, mods are kept in IndexedDB (`banished-wasm`, store `mods`, keyed by file name
   without `.pkm`). They are added with the start panel's file picker or by dropping them on the
   page at any time; a dropped mod joins the list at once and loads after a reload. There is no
