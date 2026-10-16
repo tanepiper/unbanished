@@ -29,6 +29,11 @@ pub struct TradeTemplate {
     pub rows: Vec<TradeRow>,
     /// `+0x38`: the categories' flags.
     pub categories: Vec<u32>,
+    /// The categories' icon and name keys (the trade window's), in the description's sprite
+    /// sheet (`+0x20`) and string table (`+0x28`).
+    pub labels: Vec<(String, String)>,
+    pub sprites: Option<String>,
+    pub strings: Option<String>,
 }
 
 /// A good with a ValueDescription: its template, its raw material (none for seeds and
@@ -316,27 +321,8 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// `FUN_140059fd0`: the merchant's own goods, then every good whose raw material has a flag
-    /// it deals in (`+0x10`), in the factory's order.
     fn merchant_list(&self, m: &Merchant) -> Vec<usize> {
-        let mut list: Vec<usize> = m
-            .items
-            .iter()
-            .flatten()
-            .filter_map(|r| {
-                self.trade_goods
-                    .iter()
-                    .position(|g| self.templates[g.template].reference.eq_ignore_ascii_case(r))
-            })
-            .collect();
-        for (i, g) in self.trade_goods.iter().enumerate() {
-            if g.material
-                .is_some_and(|mat| self.materials[mat].flags & m.sells != 0)
-            {
-                list.push(i);
-            }
-        }
-        list
+        merchant_list(self.trade_goods, self.templates, self.materials, m)
     }
 
     /// `FUN_14005c960`: the TradeWork switched (slot `+0x70`, the post's work button): the
@@ -353,6 +339,83 @@ impl Sim<'_, '_> {
         }
         self.enable_workplace(e, on);
     }
+}
+
+/// `FUN_14005ae80`: what the merchant docked gives for one: with none, its value; else its
+/// value for what it buys (`+0x14`), three quarters for what it takes (`+0x18`), else
+/// nothing.
+pub fn sell_value(
+    goods: &[TradeGood],
+    materials: &[crate::stock::RawMaterial],
+    tr: &Trade,
+    d: Option<&TradeTemplate>,
+    material: usize,
+) -> i32 {
+    let Some(good) = goods.iter().find(|g| g.material == Some(material)) else {
+        return 0;
+    };
+    if tr.merchant < 0 {
+        return good.value.value;
+    }
+    let Some(m) = d.and_then(|d| d.merchants.get(tr.merchant as usize)) else {
+        return 0;
+    };
+    let flags = materials[material].flags;
+    if m.flags.0 & flags != 0 {
+        good.value.value
+    } else if m.flags.1 & flags != 0 {
+        (good.value.value as f32 * 0.75) as i32
+    } else {
+        0
+    }
+}
+
+/// `FUN_140059fd0`: the merchant's own goods, then every good whose raw material has a flag
+/// it deals in (`+0x10`), in the factory's order.
+pub fn merchant_list(
+    goods: &[TradeGood],
+    templates: &[crate::seeding::Template],
+    materials: &[crate::stock::RawMaterial],
+    m: &Merchant,
+) -> Vec<usize> {
+    let mut list: Vec<usize> = m
+        .items
+        .iter()
+        .flatten()
+        .filter_map(|r| {
+            goods
+                .iter()
+                .position(|g| templates[g.template].reference.eq_ignore_ascii_case(r))
+        })
+        .collect();
+    for (i, g) in goods.iter().enumerate() {
+        if g.material
+            .is_some_and(|mat| materials[mat].flags & m.sells != 0)
+        {
+            list.push(i);
+        }
+    }
+    list
+}
+
+/// What the trade window changes on the post's TradeComponent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TradeSetting {
+    /// Storage tab spinner `2000 + i` (`FUN_140086f80`): `+0x60`, what to keep at the post.
+    Keep { material: usize, amount: i32 },
+    /// Purchase tab up `5000 + i` / down `6000 + i` (`FUN_1400871d0`): two automatic trades
+    /// change places.
+    Swap(usize, usize),
+    /// Purchase tab spinner `7000 + i` (`FUN_140087120`): the automatic trade's amount.
+    Automatic { index: usize, amount: i32 },
+    /// `comboPurchase` (`0x4e22`, `FUN_140087090`): `+0x28`, when it trades by itself.
+    Mode(i32),
+    /// `comboOrder` (`0x4e23`, `FUN_140087350`): the docked merchant's order state.
+    OrderState(i32),
+    /// Order tab check `8000 + i` (`FUN_1400872a0`): a good ordered from the docked merchant.
+    Order { good: usize, on: bool },
+    /// `+0x71`: the window is open (`FUN_140087f40`) or closed (`FUN_140087ed0`).
+    Held(bool),
 }
 
 /// TradeWork (vtable `0x140167e30`, constructor `FUN_1400fc370`): `+0x48` each hauler and what
@@ -374,37 +437,21 @@ impl Sim<'_, '_> {
         self.set_work(jobs, e, work, 1, false);
     }
 
-    /// `FUN_14005ae80`: what the merchant docked gives for one: with none, its value; else its
-    /// value for what it buys (`+0x14`), three quarters for what it takes (`+0x18`), else
-    /// nothing.
+    /// [`sell_value`] at the post `e`.
     pub fn sell_value(&self, e: usize, material: usize) -> i32 {
-        let Some(good) = self
-            .trade_goods
-            .iter()
-            .find(|g| g.material == Some(material))
-        else {
+        let Some(site) = self.sites.get(&e) else {
             return 0;
         };
-        let Some(tr) = self.sites.get(&e).and_then(|s| s.trade.as_ref()) else {
+        let Some(tr) = site.trade.as_ref() else {
             return 0;
         };
-        if tr.merchant < 0 {
-            return good.value.value;
-        }
-        let Some(m) = self
-            .trade_desc(e)
-            .and_then(|d| d.merchants.get(tr.merchant as usize))
-        else {
-            return 0;
-        };
-        let flags = self.materials[material].flags;
-        if m.flags.0 & flags != 0 {
-            good.value.value
-        } else if m.flags.1 & flags != 0 {
-            (good.value.value as f32 * 0.75) as i32
-        } else {
-            0
-        }
+        sell_value(
+            self.trade_goods,
+            self.materials,
+            tr,
+            self.site_templates[site.template].trade.as_ref(),
+            material,
+        )
     }
 
     /// `FUN_14005adf0`: trading brings the visitors' disease risk (TradeDescription `+0x68`
@@ -516,7 +563,129 @@ impl Sim<'_, '_> {
         for (good, n) in bought {
             if let Some(m) = self.trade_goods[good].material {
                 self.storages[storage].add(m, n);
+                self.discover(m);
             }
+        }
+    }
+
+    /// `FUN_140097330`: the material joins the known list once.
+    pub(crate) fn discover(&mut self, material: usize) {
+        if !self.known_materials.contains(&material) {
+            self.known_materials.push(material);
+        }
+    }
+
+    /// TradeUI's trade button (`FUN_1400868f0`), while the merchant is docked: the visitors'
+    /// disease risk; what is sold leaves the post (used) and its value counts as traded away;
+    /// what is bought leaves the merchant's goods and arrives: raw materials in the post's
+    /// storage (known), seeds known, livestock known and at the post (`FUN_14005b640`).
+    pub fn exchange(&mut self, e: usize, sell: &[(usize, i32)], buy: &[(usize, i32)]) {
+        if self.trade(e).is_none_or(|t| t.merchant < 0) {
+            return;
+        }
+        self.trade_risk(e);
+        let storage = self.sites[&e].storage;
+        let mut value = 0;
+        for &(m, n) in sell {
+            if n == 0 {
+                continue;
+            }
+            value += self.sell_value(e, m) * n;
+            self.storages[storage].remove(m, n);
+            self.count_used(m, n);
+        }
+        *self.trade_value += value;
+        for &(good, n) in buy {
+            if n == 0 {
+                continue;
+            }
+            // `FUN_14005c400`: the offer shrinks, gone at none.
+            let tr = self.trade(e).unwrap();
+            if let Some(k) = tr.offers.iter().position(|o| o.good == good) {
+                tr.offers[k].amount -= n;
+                if tr.offers[k].amount == 0 {
+                    tr.offers.remove(k);
+                }
+            }
+            let template = self.trade_goods[good].template;
+            if let Some(m) = self.trade_goods[good].material {
+                self.storages[storage].add(m, n);
+                self.discover(m);
+            } else {
+                if !self.known.contains(&template) {
+                    self.known.push(template);
+                }
+                if self.wildlife.livestock_kinds.contains_key(&template) {
+                    self.trade_livestock(e, template, n);
+                }
+            }
+        }
+    }
+
+    /// `FUN_14005b640`'s area: the cells between the post's first two create points.
+    fn trade_livestock(&mut self, e: usize, template: usize, n: i32) {
+        let t = &self.templates[self.placed[e].template];
+        let local = |i: usize| t.create_points.get(i).copied().unwrap_or_default();
+        let (a, b) = (self.world_point(e, local(0)), self.world_point(e, local(1)));
+        let size = self.size as i32;
+        let half = (size >> 1) as f32;
+        let cell = |p: [f32; 3]| {
+            (
+                ((p[0] + half) as i32).clamp(0, size - 1),
+                ((p[1] + half) as i32).clamp(0, size - 1),
+            )
+        };
+        let (c0, c1) = (cell(a), cell(b));
+        let (x0, x1) = (c0.0.min(c1.0), c0.0.max(c1.0));
+        let (y0, y1) = (c0.1.min(c1.1), c0.1.max(c1.1));
+        let area = [
+            x0 as i16,
+            y0 as i16,
+            (x1 - x0 + 1) as i16,
+            (y1 - y0 + 1) as i16,
+        ];
+        self.with_wild(|w| w.trade_livestock(template, n, a, b, area));
+    }
+
+    /// TradeUI's settings (`FUN_140086f80`, `FUN_1400871d0`, `FUN_140087120`,
+    /// `FUN_140087090`, `FUN_140087350`, `FUN_1400872a0`): see [`TradeSetting`].
+    pub fn trade_setting(&mut self, e: usize, setting: TradeSetting) {
+        let Some(tr) = self.trade(e) else { return };
+        match setting {
+            TradeSetting::Keep { material, amount } => {
+                tr.keep.insert(material, amount);
+            }
+            TradeSetting::Swap(a, b) => {
+                let n = tr.automatic.len();
+                if a < n && b < n {
+                    tr.automatic.swap(a, b);
+                }
+            }
+            TradeSetting::Automatic { index, amount } => {
+                if let Some(x) = tr.automatic.get_mut(index) {
+                    x.2 = amount;
+                }
+            }
+            TradeSetting::Mode(mode) => tr.mode = mode,
+            TradeSetting::OrderState(state) => {
+                let m = tr.merchant;
+                if let Some(o) = usize::try_from(m).ok().and_then(|m| tr.orders.get_mut(m)) {
+                    o.state = state;
+                }
+            }
+            // `FUN_140059df0`: on adds the good (once), off takes it out.
+            TradeSetting::Order { good, on } => {
+                let m = tr.merchant;
+                if let Some(o) = usize::try_from(m).ok().and_then(|m| tr.orders.get_mut(m)) {
+                    let has = o.goods.contains(&good);
+                    if !on || has {
+                        o.goods.retain(|&g| g != good);
+                    } else {
+                        o.goods.push(good);
+                    }
+                }
+            }
+            TradeSetting::Held(held) => tr.held = held,
         }
     }
 

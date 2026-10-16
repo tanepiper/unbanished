@@ -1177,6 +1177,9 @@ pub struct Construction {
     /// The town manager's known crops, orchard trees and livestock (`FUN_140096ef0`), as
     /// placed-object templates.
     pub known: Vec<usize>,
+    /// The stock manager's known raw materials (`+0x110`, `FUN_140097330`): the start
+    /// profile's, then each as its first pile is set up or it is traded for.
+    pub known_materials: Vec<usize>,
 }
 
 /// AttendanceComponent (vtable `0x14015ee00`): who attends a school, chapel or doctor.

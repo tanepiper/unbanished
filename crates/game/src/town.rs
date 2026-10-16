@@ -130,6 +130,10 @@ pub struct Sim<'s, 't> {
     /// Town manager `+0x30` and `+0x1ac`.
     pub trading_posts: &'s mut Vec<usize>,
     pub trade_value: &'s mut i32,
+    /// Town manager `+0x110` (known raw materials, `FUN_140097330`) and `+0x120` (known crops,
+    /// orchard trees and livestock, `FUN_140096ef0`).
+    pub known_materials: &'s mut Vec<usize>,
+    pub known: &'s mut Vec<usize>,
     pub trade_goods: &'s [crate::trade::TradeGood],
     pub river: &'s [[f32; 2]],
     /// The path manager (the trader boats' water paths).
@@ -2748,6 +2752,8 @@ impl Sim<'_, '_> {
                 continue;
             };
             let (mask, priority, auto_pickup) = (pile.mask, pile.priority, pile.auto_pickup);
+            // RawMaterialComponent's setup (`FUN_14012e790`): its material becomes known.
+            self.discover(pile.material);
             let cell = self.rect_cell(id);
             let work = Work::new(
                 id,

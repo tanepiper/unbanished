@@ -330,6 +330,8 @@ impl Agents {
                 visitors: &mut c.visitors,
                 trading_posts: &mut c.trading_posts,
                 trade_value: &mut c.trade_value,
+                known_materials: &mut c.known_materials,
+                known: &mut c.known,
                 pending_roads: &mut c.pending_roads,
                 terraform_requests: &mut c.terraform_requests,
                 tornadoes: &mut c.tornadoes,
@@ -500,6 +502,14 @@ impl Agents {
                     if let Some(p) = sim.sites.get_mut(&entity).and_then(|s| s.produce.as_mut()) {
                         p.selector = recipe;
                     }
+                    continue;
+                }
+                crate::professions::Command::Exchange { entity, sell, buy } => {
+                    sim.exchange(entity, &sell, &buy);
+                    continue;
+                }
+                crate::professions::Command::Trade { entity, setting } => {
+                    sim.trade_setting(entity, setting);
                     continue;
                 }
                 crate::professions::Command::Upgrade { entity, template } => {

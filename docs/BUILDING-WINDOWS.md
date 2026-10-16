@@ -31,6 +31,7 @@ frame after the simulation; refresh reads only.
 | `0x00585b87` | RadiusUI | | defaults (no bind, refresh or events) | nothing to do |
 | `0x1701e613` | ResidenceUI | | `FUN_1400bad20` / `FUN_1400ba6c0` | done |
 | `0xcd3b5953` | TownHallUI | | `FUN_1400864d0` / `FUN_140082a20`, `FUN_140083a20` / `FUN_140081650` | done (`town_hall_ui.rs`) |
+| `0xc8b87610` | TradeUI | `0x1401642a0` | `FUN_14008a2a0` / `FUN_140087620`, `FUN_140087c80` / `FUN_1400873f0` | done (`trade_ui.rs`) |
 | `0x061d5f73` | UpgradeUI | | `FUN_14008c260` / — / `FUN_14008c160` | done |
 | `0xff9794df` | ImmigrationUI | | `FUN_14006bc90` / `FUN_14006ba90` | done |
 
@@ -109,6 +110,44 @@ The town hall's tabs (`Dialog\TownHall.rsc:tabs`, port `town_hall_ui.rs`):
   its SelectDescription's icon (`+0x20`, `+0x28`) and name (`+0x30`, `+0x38`).
 
 Not ported: the window's remembered tab and combos (slot `+0x50`).
+
+## TradeUI
+
+The trading post's tabs (`Dialog\Trade.rsc:trade`, port `trade_ui.rs`). Opening the window
+(slot `+0x28`, `FUN_140087f40`) holds the docked merchant (TradeComponent `+0x71`); closing it
+(`FUN_140087ed0`) lets the stay run out. The port sends both as `TradeSetting::Held` commands
+when a window with a TradeUI opens or closes.
+
+- **Inventory** (`tableStorage`, `FUN_140089b80`): a row per known raw material (stock manager
+  `+0x110`) with a ValueDescription: icon and name, the amount to keep at the post (spinner
+  `2000 + i`, `FUN_140086f80`: TradeComponent `+0x60`) and what the post holds (count less
+  reserved). `sortCombo` (199): by name, or by the amount to keep, most first, ties by name
+  (`FUN_140089900`).
+- **Trade**: `tableSell` (`FUN_140089140`): the known materials with an amount to keep, at the
+  docked merchant's value (`FUN_14005ae80`), grey when it is none; how many to sell (spinner
+  `3000 + i`, at most what the post holds while a merchant is docked and pays). `tableBuy`
+  (`FUN_1400885d0`): the merchant's goods, value and amount, how many to buy (`4000 + i`).
+  The totals (`FUN_140087df0`, `FUN_140087d20`). The notices (`FUN_140087620`):
+  `textNotEnough` (`@0` short) when the goods offered are worth less than those asked for,
+  `textNoStorage` when the post's storage cannot take what comes less what goes,
+  `textTooMuch` (`@0` over) when more is offered than needed. `buttonTrade` (20000) is
+  enabled with something to buy and neither of the first two; `buttonDismiss` (`0x4e21`,
+  message 10 to the post's machine) while the merchant is docked (state `0x13`). The tables
+  are rebuilt when the merchant's goods change (slot `+0x40`, `FUN_140087c80`).
+- **Purchase**: `comboPurchase` (`0x4e22`, `FUN_140087090`): when the post trades by itself
+  (TradeComponent `+0x28`); a row per category (TradeDescription `+0x38`: its icon and name,
+  `FUN_140087ff0`), up (`5000 + i`) and down (`6000 + i`) swap it with its neighbour
+  (`FUN_1400871d0`), and its amount (`7000 + i`, `FUN_140087120`).
+- **Order**: `comboOrder` (`0x4e23`, `FUN_140087350`): the docked merchant's order state;
+  `tableOrder`: a check per good it deals in (`FUN_140059fd0`), on adds the good to its order
+  and off takes it out (`8000 + i`, `FUN_1400872a0` → `FUN_140059df0`).
+
+The trade button sends `Command::Exchange` with the window's amounts, which go back to none;
+the exchange is in [TRADE.md](TRADE.md).
+
+Deviations: the inventory sort is stable (the original's quicksort may order ties
+otherwise). The spinners clamp at 9999 where the original sets no limit of its own. The
+window's remembered tab and sort (slot `+0x50`) are not ported.
 
 ## ResidenceUI
 

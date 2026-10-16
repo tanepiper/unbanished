@@ -29,6 +29,7 @@ pub const UPGRADE_UI: u32 = 0x061d5f73;
 pub const IMMIGRATION_UI: u32 = 0xff9794df;
 pub const RESIDENCE_UI: u32 = 0x1701e613;
 pub const TOWN_HALL_UI: u32 = 0xcd3b5953;
+pub const TRADE_UI: u32 = 0xc8b87610;
 
 /// What a controller reads from the selected entity.
 pub struct EntityData<'a> {
@@ -68,6 +69,8 @@ pub struct EntityData<'a> {
     /// The town and the stock manager's history (TownHallUI).
     pub town: Option<&'a crate::start::StartingTown>,
     pub town_ctx: Option<&'a crate::town_hall_ui::TownContext<'a>>,
+    /// The selected building (TradeUI).
+    pub entity: Option<usize>,
 }
 
 /// `ResidenceUI` (type `0x1701e613`): bind `FUN_1400bad20`, refresh `FUN_1400ba6c0`. Each cell
@@ -599,7 +602,7 @@ pub struct ResourceLimitUi {
 }
 
 /// A spinner's value and its number edit.
-fn set_spinner(ui: &mut Ui, id: NodeId, value: i32) {
+pub(crate) fn set_spinner(ui: &mut Ui, id: NodeId, value: i32) {
     let number = match &mut ui.node_mut(id).kind {
         Kind::Control(Control::Spinner {
             parts, value: v, ..
@@ -614,7 +617,7 @@ fn set_spinner(ui: &mut Ui, id: NodeId, value: i32) {
     }
 }
 
-fn spinner_value(ui: &Ui, id: NodeId) -> Option<i32> {
+pub(crate) fn spinner_value(ui: &Ui, id: NodeId) -> Option<i32> {
     match &ui.node(id).kind {
         Kind::Control(Control::Spinner { value, .. }) => Some(*value),
         _ => None,
@@ -850,7 +853,7 @@ pub struct CitizenInfo {
     pub has_work: bool,
 }
 
-fn text_of(ui: &Ui, id: NodeId) -> String {
+pub(crate) fn text_of(ui: &Ui, id: NodeId) -> String {
     match &ui.node(id).kind {
         Kind::Text(t) | Kind::Label { text: t, .. } => t.text.clone(),
         _ => String::new(),
@@ -858,7 +861,7 @@ fn text_of(ui: &Ui, id: NodeId) -> String {
 }
 
 /// `System::String::operator<` / `StrCompare`: byte comparison on signed `char`.
-fn str_less(a: &str, b: &str) -> bool {
+pub(crate) fn str_less(a: &str, b: &str) -> bool {
     let (a, b) = (a.as_bytes(), b.as_bytes());
     for i in 0.. {
         let (x, y) = (
@@ -1511,6 +1514,7 @@ pub enum Controller {
     Immigration(ImmigrationUi),
     Residence(ResidenceUi),
     TownHall(crate::town_hall_ui::TownHallUi),
+    Trade(crate::trade_ui::TradeUi),
     /// Attached, refresh not ported (logged once with its id).
     #[allow(dead_code)]
     Pending(u32),
@@ -1554,6 +1558,9 @@ impl Controller {
             TOWN_HALL_UI => Some(Controller::TownHall(crate::town_hall_ui::TownHallUi::bind(
                 ui, archive, element,
             ))),
+            TRADE_UI => Some(Controller::Trade(crate::trade_ui::TradeUi::bind(
+                ui, element,
+            ))),
             // Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
             STATUS_ICON_UI => {
                 StatusIconUi::bind(ui, element, !has_config).map(Controller::StatusIcon)
@@ -1587,6 +1594,11 @@ impl Controller {
             Controller::TownHall(c) => {
                 if let (Some(t), Some(x)) = (data.town, data.town_ctx) {
                     c.refresh(ui, archive, t, x);
+                }
+            }
+            Controller::Trade(c) => {
+                if let (Some(t), Some(e)) = (data.town, data.entity) {
+                    c.refresh(ui, archive, t, e);
                 }
             }
             Controller::Pending(_) => {}

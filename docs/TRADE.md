@@ -109,7 +109,27 @@ at the route point nearest the dock (two points back, `FUN_1400ac7e0`).
 | 3 | `FUN_140045820`: clip 3. `FUN_140045670`: back toward the point it heads for; within 3 → 4 | |
 | 4 | `FUN_140045630`: clip 1. `FUN_1400455a0`: sail on; at the route's end gone | |
 
+## The exchange
+
+The trade window's button (`FUN_1400868f0`, see [BUILDING-WINDOWS.md](BUILDING-WINDOWS.md)
+"TradeUI"), while a merchant is docked: the visitors' disease risk (`FUN_14005adf0`); each
+good sold leaves the post's storage (`FUN_140132620`) and counts as used (`FUN_14008e460`);
+the sold goods' value counts as traded away (stock manager `+0x1ac`). Each good bought leaves
+the merchant's goods (`FUN_14005c400`, the offer gone at none) and arrives by its
+description's components: a raw material goes into the post's storage (`FUN_1401324d0`) and
+becomes known (`FUN_140097330`); a seed (NaturalResourceDescription) becomes known
+(`FUN_140096ef0`); livestock becomes known and its animals appear at the post
+(`FUN_14005b640`): at random between the post's first two create points, males and females in
+turn from a random first (`Rand(2)`), turned at random (`RandFloatTol × 180`), not wild, kept
+to the cells between the points until a pasture takes them; each `RandFloat` × half its
+lifespan old, which is not yet set when this runs, so none.
+
+Automatic trading also makes what it buys known.
+
+The stock manager's known raw materials (`+0x110`): the start profile's, then each as a pile
+of it is set up (RawMaterialComponent slot `+0x20`, `FUN_14012e790`) or it is traded for. The
+trade window lists only these.
+
 ## Not ported
 
-The trade window (TradeUI: the exchange, orders, the keep amounts, the automatic amounts) and
-the seeds and livestock it delivers; the per-good trade statistics (`+0x170`).
+The per-good trade statistics (`+0x170`).

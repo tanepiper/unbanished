@@ -42,6 +42,7 @@ mod start;
 mod status_icons;
 mod toolbar;
 mod town_hall_ui;
+mod trade_ui;
 mod utility;
 #[cfg(target_arch = "wasm32")]
 mod web;

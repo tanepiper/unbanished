@@ -190,7 +190,7 @@ impl Cells {
 const HALF: f32 = 0.5;
 const ONE: f32 = 1.0;
 /// `DAT_140178920`: yaw range (degrees) of the jittered transform.
-const YAW_RANGE: f32 = 180.0;
+pub(crate) const YAW_RANGE: f32 = 180.0;
 /// `FUN_1400560e0` spot check: normal z and height tolerance (`DAT_140178840`, `DAT_140178948`).
 const SPAWN_NORMAL: f32 = 0.98;
 const SPAWN_HEIGHT_TOLERANCE: f32 = 1000.0;

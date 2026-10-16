@@ -1258,6 +1258,46 @@ impl Wild<'_, '_> {
         }
     }
 
+    /// `FUN_14005b640`: livestock bought at a trading post, `count` animals at random between
+    /// its first two create points (`a`, `b`), males and females in turn from a random first,
+    /// turned at random; not wild, they keep to the cells between the points (`area`) until
+    /// a pasture takes them. Each is `RandFloat` × half its lifespan old, which is still unset
+    /// here (`+0x48` before the setup), so none. The owner registers the entities.
+    pub fn trade_livestock(
+        &mut self,
+        template: usize,
+        count: i32,
+        a: [f32; 3],
+        b: [f32; 3],
+        area: [i16; 4],
+    ) {
+        let mut male = self.rng.rand_below(2) == 0;
+        for _ in 0..count {
+            let Some(variant) = self.pick_variant(template) else {
+                return;
+            };
+            let fy = self.rng.rand_float();
+            let fx = self.rng.rand_float();
+            let (x, y) = (a[0] + (b[0] - a[0]) * fx, a[1] + (b[1] - a[1]) * fy);
+            // The CharacterComponent stands on the ground (the original passes `a`'s height).
+            let mut normal = [0.0; 3];
+            let position = [x, y, self.terrain.ground(x, y, &mut normal)];
+            let yaw = self.rng.rand_float_tol() * crate::seeding::YAW_RANGE;
+            let Some(id) = self.insert_animal(template, variant, position, yaw, male) else {
+                return;
+            };
+            male = !male;
+            let animal = self.wildlife.animals.get_mut(&id).unwrap();
+            animal.flags &= !WILD;
+            animal.area = area;
+            let life = animal.life;
+            let f = self.rng.rand_float();
+            self.wildlife.animals.get_mut(&id).unwrap().age = f * life * 0.5;
+            self.rescale(id);
+            self.register_animal_in(id, false);
+        }
+    }
+
     /// The pasture's message 0 (`FUN_14012cbf0`, a rancher's visit): a random animal of it may
     /// breed.
     pub fn mark_breeder(&mut self, p: usize) {

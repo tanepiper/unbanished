@@ -233,6 +233,10 @@ impl EntityWindows {
                 },
                 town: Some(town),
                 town_ctx,
+                entity: match w.entity {
+                    Entity::Placed(p) => Some(p),
+                    Entity::Citizen(_) => None,
+                },
             };
             let entity = match w.entity {
                 Entity::Placed(p) => Some(p),
@@ -282,6 +286,7 @@ impl EntityWindows {
             residents: residents(town, p),
             town: Some(town),
             town_ctx: None,
+            entity: Some(p),
         };
         w.bound.iter_mut().find_map(|c| match c {
             Controller::WorkPlace(c) => c.click(node, &data),
@@ -293,8 +298,21 @@ impl EntityWindows {
             Controller::Immigration(c) => c.click(node, p),
             Controller::Residence(c) => c.click(ui, node, &data),
             Controller::TownHall(c) => c.click(ui, town, node),
+            Controller::Trade(c) => c.click(ui, node, p),
             _ => None,
         })
+    }
+
+    /// The buildings whose window has a TradeUI.
+    pub fn trade_windows(&self) -> Vec<usize> {
+        self.open
+            .iter()
+            .filter(|w| w.bound.iter().any(|c| matches!(c, Controller::Trade(_))))
+            .filter_map(|w| match w.entity {
+                Entity::Placed(p) => Some(p),
+                Entity::Citizen(_) => None,
+            })
+            .collect()
     }
 
     /// A combo's choice (event `0x14`) in the window containing `node`.
@@ -329,9 +347,11 @@ impl EntityWindows {
             residents: residents(town, p),
             town: Some(town),
             town_ctx: None,
+            entity: Some(p),
         };
         w.bound.iter().find_map(|c| match c {
             Controller::ConsumeProduce(c) => c.select(node, index, &data),
+            Controller::Trade(c) => c.select(node, index, p),
             _ => None,
         })
     }

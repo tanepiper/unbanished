@@ -143,7 +143,7 @@ pub struct Worker {
 }
 
 /// A player action on professions, applied by the simulation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
     /// ProfessionUI spinner `300 + profession` set to `count` (`FUN_14007b890`).
     SetCount { profession: usize, count: i32 },
@@ -192,6 +192,18 @@ pub enum Command {
     /// UpgradeUI (`FUN_14008c160`): DestroyComponent `+0x60` = `template`, then
     /// `FUN_140123470`.
     Upgrade { entity: usize, template: usize },
+    /// TradeUI's trade button (`FUN_1400868f0`): sell (material, count) and buy (trade good,
+    /// count).
+    Exchange {
+        entity: usize,
+        sell: Vec<(usize, i32)>,
+        buy: Vec<(usize, i32)>,
+    },
+    /// TradeUI's settings on the TradeComponent.
+    Trade {
+        entity: usize,
+        setting: crate::trade::TradeSetting,
+    },
 }
 
 /// The town manager's workplace and residence registries and every WorkPlaceComponent.
@@ -745,7 +757,9 @@ impl Workforce {
             | Command::ClearRoad { .. }
             | Command::Control { .. }
             | Command::SetRecipe { .. }
-            | Command::Upgrade { .. } => {}
+            | Command::Upgrade { .. }
+            | Command::Exchange { .. }
+            | Command::Trade { .. } => {}
         }
     }
 }

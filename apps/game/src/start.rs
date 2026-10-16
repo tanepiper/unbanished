@@ -958,6 +958,8 @@ impl StartingTown {
         }
         let (materials, storages, storage_sites) =
             starting_goods(archive, &profile, &placed, &templates);
+        // `FUN_140097330`: the profile's raw materials are the first known.
+        let known_materials: Vec<usize> = (0..materials.len()).collect();
         // `FUN_1400a87d0`'s end: random crops, orchard trees and livestock become known
         // (`FUN_140096ef0`, once each).
         let mut known = Vec::new();
@@ -1147,6 +1149,7 @@ impl StartingTown {
             construction: Construction {
                 professions: professions(archive),
                 known,
+                known_materials,
                 water,
                 names: names.clone().map(std::sync::Arc::new),
                 ..Default::default()
@@ -2159,6 +2162,13 @@ impl StartingTown {
                                 merchants: d.merchants.clone(),
                                 rows: d.rows.clone(),
                                 categories: d.categories.iter().map(|c| c.0).collect(),
+                                labels: d
+                                    .categories
+                                    .iter()
+                                    .map(|c| (c.1.clone(), c.2.clone()))
+                                    .collect(),
+                                sprites: d.sprites.clone(),
+                                strings: d.strings.clone(),
                             });
                             t.trade_risk = Some((d.value_68, d.value_6c));
                             t.controllers.push(Controller::Trade);

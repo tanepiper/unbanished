@@ -22,7 +22,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | AmbientEmitter, AmbientEnvironment | most buildings | environment, wind, river, rain |
 | Citizen (`0x1401689a0`) | Citizen | needs, age, death, health, happiness, disease, homes, marriage, births, burial, accidents, ClearStorage ([CITIZEN-LIFE.md](CITIZEN-LIFE.md)); consumption counters open |
 | Residence | WoodHouse, StoneHouse, Hostel | families, heating, moving in, ClearStorage, moving out (state 3) |
-| **Immigration**, **Nomad** | TownHall, Nomad | yes ([IMMIGRATION.md](IMMIGRATION.md); bands, nomads, taking in, visitor risk; the town hall window not wired) |
+| **Immigration**, **Nomad** | TownHall, Nomad | yes ([IMMIGRATION.md](IMMIGRATION.md); bands, nomads, taking in, visitor risk; the town hall window and ImmigrationUI) |
 | Attendance | School, Chapel, Doctor | yes (staff by LocationWork, places, lessons, treatment) |
 | **Happiness** | Tavern, Well, Market, Cemetery, Chapel, TradingPost, Quarry, Mine | yes (`happiness.rs`; map layers, registry, visits, loitering pick) |
 | Healer, Disease (citizens) | Herbalist | registry and herb treatment |
@@ -30,7 +30,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **Cemetery**, **Tombstone** | Cemetery | yes ([CITIZEN-LIFE.md](CITIZEN-LIFE.md#burial-cratesgamesrccemeteryrs)) |
 | **Well**, **Fire** | Well; every building | yes ([FIRE.md](FIRE.md); ignition, spread, buckets, wells, emergencies, rubble) |
 | **Market**, **MarketLocation** | Market | yes ([MARKETS.md](MARKETS.md)) |
-| **Trade**, **Boat** | TradingPost, TraderBoat | yes ([TRADE.md](TRADE.md); merchants, boat, offers, automatic trading, TradeWork; the trade window not wired) |
+| **Trade**, **Boat** | TradingPost, TraderBoat | yes ([TRADE.md](TRADE.md); merchants, boat, offers, automatic trading, TradeWork, the trade window and exchange) |
 | **Destroy** | every building | yes ([JOBS.md](JOBS.md#demolition-cratesgamesrcdestroyrs); demolition, refunds, cancel, damage, rubble) |
 | **CropField** | fields | yes ([FARMING.md](FARMING.md)) |
 | **Orchard**, **Fruit** | orchards | yes ([FARMING.md](FARMING.md)) |
@@ -85,9 +85,9 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Tunnels (terraform) | yes ([TUNNELS.md](TUNNELS.md)) |
 | Fields, orchards, storage yard (DragPlacementTool) | yes (`removal_tool.rs` area mode: check `FUN_140100fb0`, apply `FUN_140100dd0`, overlay `FUN_140101310`) |
 | Pastures, cemetery (FencedTool) | yes (`place_fenced`, the drag in `removal_tool.rs`, the shelter turned by the rotation keys) |
-| Demolition (Remove Buildings, DestroyUI) | Remove Buildings and its cancel; DestroyUI's buttons not wired |
-| Residence, upgrade, market, trade, field crop selection windows | no |
-| Town Info, Production/Population graphs | no |
+| Demolition (Remove Buildings, DestroyUI) | yes (Remove Buildings and its cancel, DestroyUI's buttons) |
+| Building windows ([BUILDING-WINDOWS.md](BUILDING-WINDOWS.md)) | yes, but CropUI, OrchardUI and PastureUI |
+| Town Info, Production/Population graphs | yes ([TOWN-INFO.md](TOWN-INFO.md), TownHallUI) |
 | Achievements, tutorial, scenarios | no |
 | Weather precipitation, smoke particles, decals, fire particles | no |
 | Disasters (fire, tornado, disease) and AutoSlow | yes (fire, blight and tornadoes with the Disasters option; AutoSlow from their events) |

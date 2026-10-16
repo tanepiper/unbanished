@@ -19,7 +19,7 @@ use crate::wildlife::{Wild, HUNTED};
 impl Sim<'_, '_> {
     /// The livestock's context. Animals born here join the entity manager's buckets with the
     /// iteration's other new entities.
-    fn with_wild<R>(&mut self, f: impl FnOnce(&mut Wild) -> R) -> R {
+    pub(crate) fn with_wild<R>(&mut self, f: impl FnOnce(&mut Wild) -> R) -> R {
         let mut scheduler = EntityScheduler::default();
         let mut wild = Wild {
             wildlife: &mut *self.wildlife,

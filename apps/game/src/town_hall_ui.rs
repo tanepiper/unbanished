@@ -46,7 +46,7 @@ fn set_number(ui: &mut Ui, n: Option<NodeId>, v: i32) {
     }
 }
 
-fn combo_index(ui: &Ui, combo: Option<NodeId>) -> usize {
+pub(crate) fn combo_index(ui: &Ui, combo: Option<NodeId>) -> usize {
     let Some(c) = combo else { return 0 };
     let list = match &ui.node(c).kind {
         Kind::Control(Control::Combo { list, .. }) => *list,
@@ -60,7 +60,7 @@ fn combo_index(ui: &Ui, combo: Option<NodeId>) -> usize {
 
 /// A table's cells, the first re-instantiated `count` times (`TableElement::SetSize` and a
 /// clone of cell 0 per cell).
-fn fill_table(ui: &mut Ui, table: NodeId, count: usize) -> Vec<NodeId> {
+pub(crate) fn fill_table(ui: &mut Ui, table: NodeId, count: usize) -> Vec<NodeId> {
     let template = match &ui.node(table).kind {
         Kind::Control(Control::Table { cells, .. }) => cells.first().map(|c| c.2),
         _ => None,
