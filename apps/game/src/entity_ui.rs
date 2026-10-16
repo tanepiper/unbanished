@@ -200,6 +200,26 @@ impl EntityWindows {
                 },
                 stock_limits: *stock_limits,
                 control: None,
+                tracker: match w.entity {
+                    Entity::Placed(p) => tracker_lists(town, p),
+                    Entity::Citizen(_) => None,
+                },
+                attendance: match w.entity {
+                    Entity::Placed(p) => town
+                        .construction
+                        .attendance
+                        .get(&p)
+                        .map(|a| (a.attendees.len() as i32, a.capacity)),
+                    Entity::Citizen(_) => None,
+                },
+                cemetery: match w.entity {
+                    Entity::Placed(p) => cemetery_counts(town, p),
+                    Entity::Citizen(_) => None,
+                },
+                produce: match w.entity {
+                    Entity::Placed(p) => produce_info(town, p),
+                    Entity::Citizen(_) => None,
+                },
             };
             let entity = match w.entity {
                 Entity::Placed(p) => Some(p),
@@ -240,6 +260,10 @@ impl EntityWindows {
             destroy: destroy_info(town, p),
             stock_limits: [0; 21],
             control: None,
+            tracker: None,
+            attendance: None,
+            cemetery: None,
+            produce: produce_info(town, p),
         };
         w.bound.iter_mut().find_map(|c| match c {
             Controller::WorkPlace(c) => c.click(node, &data),
@@ -248,6 +272,51 @@ impl EntityWindows {
             Controller::ResourceLimit(c) => c.click(ui, node),
             Controller::Control(c) => c.click(ui, node, Some(p)),
             _ => None,
+        })
+    }
+
+    /// A combo's choice (event `0x14`) in the window containing `node`.
+    pub fn select_item(
+        &mut self,
+        ui: &Ui,
+        town: &StartingTown,
+        node: NodeId,
+        index: usize,
+    ) -> Option<crate::building_ui::WorkPlaceClick> {
+        let w = self.open.iter_mut().find(|w| ui.descendant(w.root, node))?;
+        let Entity::Placed(p) = w.entity else {
+            return None;
+        };
+        let data = EntityData {
+            storage: None,
+            materials: &town.materials,
+            status: 0,
+            workplace: None,
+            build: None,
+            active_page: 0,
+            citizen: None,
+            destroy: None,
+            stock_limits: [0; 21],
+            control: None,
+            tracker: None,
+            attendance: None,
+            cemetery: None,
+            produce: produce_info(town, p),
+        };
+        w.bound.iter().find_map(|c| match c {
+            Controller::ConsumeProduce(c) => c.select(node, index, &data),
+            _ => None,
+        })
+    }
+
+    /// PageToggleUI's button (`FUN_14007abe0`) in the window containing `node`.
+    pub fn toggle_page(&mut self, ui: &mut Ui, node: NodeId) -> bool {
+        let Some(w) = self.open.iter_mut().find(|w| ui.descendant(w.root, node)) else {
+            return false;
+        };
+        w.bound.iter_mut().any(|c| match c {
+            Controller::PageToggle(c) => c.click(ui, node),
+            _ => false,
         })
     }
 
@@ -576,4 +645,47 @@ fn control_state(town: &StartingTown, e: usize, kind: u32, index: i32) -> u8 {
             on(state != 0xe) | u8::from(!disabled && (state == 0xd || state == 0xe))
         }
     }
+}
+
+/// ProductionUI's view of the TrackerComponent (`FUN_14007af20`): in a new year this year's
+/// list is last year's.
+fn tracker_lists(town: &StartingTown, p: usize) -> Option<[Vec<(usize, i32)>; 2]> {
+    let t = town.construction.trackers.get(&p)?;
+    if t.year != town.construction.year {
+        return Some([Vec::new(), t.this_year.clone()]);
+    }
+    Some([t.this_year.clone(), t.last_year.clone()])
+}
+
+/// CemeteryUI's counts: graves whose cell holds a tombstone (`FUN_140047730`), and graves.
+fn cemetery_counts(town: &StartingTown, p: usize) -> Option<(i32, i32)> {
+    if !town.construction.cemeteries.contains(&p) {
+        return None;
+    }
+    let graves = &town.construction.sites.get(&p)?.graves;
+    let used = graves
+        .iter()
+        .filter(|&&c| {
+            town.cells.objects[c as usize]
+                .is_some_and(|o| town.construction.tombstones.contains_key(&o))
+        })
+        .count();
+    Some((used as i32, graves.len() as i32))
+}
+
+/// ConsumeProduceUI's view: the template, the selector, productions made and the lifetime.
+fn produce_info(town: &StartingTown, p: usize) -> Option<(usize, String, i32, i32, i32)> {
+    let site = town.construction.sites.get(&p)?;
+    let state = site.produce.as_ref()?;
+    let lifetime = town.construction.templates[site.template]
+        .produce
+        .as_ref()
+        .map_or(-1, |t| t.lifetime);
+    Some((
+        p,
+        town.templates[town.placed[p].template].reference.clone(),
+        state.selector,
+        state.produced,
+        lifetime,
+    ))
 }

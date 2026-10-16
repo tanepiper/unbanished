@@ -187,6 +187,8 @@ pub enum Command {
         kind: u32,
         index: i32,
     },
+    /// ConsumeProduceUI's product (`FUN_14005fc90`): ConsumeProduceComponent `+0x50`.
+    SetRecipe { entity: usize, recipe: i32 },
 }
 
 /// The town manager's workplace and residence registries and every WorkPlaceComponent.
@@ -738,7 +740,8 @@ impl Workforce {
             | Command::StateMessage { .. }
             | Command::PlanRoad { .. }
             | Command::ClearRoad { .. }
-            | Command::Control { .. } => {}
+            | Command::Control { .. }
+            | Command::SetRecipe { .. } => {}
         }
     }
 }

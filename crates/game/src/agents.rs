@@ -496,6 +496,12 @@ impl Agents {
                     jobs.drain(&mut sim);
                     continue;
                 }
+                crate::professions::Command::SetRecipe { entity, recipe } => {
+                    if let Some(p) = sim.sites.get_mut(&entity).and_then(|s| s.produce.as_mut()) {
+                        p.selector = recipe;
+                    }
+                    continue;
+                }
                 crate::professions::Command::CancelDemolition { entity } => {
                     sim.cancel_demolition(jobs, entity);
                     jobs.drain(&mut sim);

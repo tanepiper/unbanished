@@ -20,6 +20,11 @@ pub const BUILD_UI: u32 = 0x293e60a1;
 pub const DESTROY_UI: u32 = 0x2e56a4c8;
 pub const RESOURCE_LIMIT_UI: u32 = 0xf77895ff;
 pub const CONTROL_UI: u32 = 0xb998cb9f;
+pub const PRODUCTION_UI: u32 = 0x3998642a;
+pub const PAGE_TOGGLE_UI: u32 = 0xc93b6026;
+pub const ATTENDANCE_UI: u32 = 0x1aff79f6;
+pub const CEMETERY_UI: u32 = 0xa17245fb;
+pub const CONSUME_PRODUCE_UI: u32 = 0x9c93d6c1;
 
 /// What a controller reads from the selected entity.
 pub struct EntityData<'a> {
@@ -40,6 +45,271 @@ pub struct EntityData<'a> {
     pub stock_limits: [i32; 21],
     /// The building's controls (slot `+0x68` of the component `kind`, control `index`).
     pub control: Option<&'a dyn Fn(u32, i32) -> u8>,
+    /// The TrackerComponent's this year's and last year's (material, amount), the year
+    /// already turned (`FUN_14007af20`).
+    pub tracker: Option<[Vec<(usize, i32)>; 2]>,
+    /// AttendanceComponent: attendees (`+0x30`) and places (description `+0x20`).
+    pub attendance: Option<(i32, i32)>,
+    /// CemeteryComponent: graves with a tombstone (`FUN_140047730`) and graves (`+0x50`).
+    pub cemetery: Option<(i32, i32)>,
+    /// ConsumeProduceComponent: the entity, its template's reference, the selector (`+0x50`),
+    /// productions made (`+0x68`) and the description's lifetime (`+0x48`).
+    pub produce: Option<(usize, String, i32, i32, i32)>,
+}
+
+/// `ConsumeProduceUI` (type `0x9c93d6c1`): bind `FUN_14005fd30`, refresh `FUN_14005fb50`,
+/// events `FUN_14005fc90`. `comboProduct` (id 22000) lists the recipes by their labels and
+/// shows the selected one; `progressRemaining` the share of the lifetime left.
+pub struct ConsumeProduceUi {
+    combo: Option<NodeId>,
+    remaining: Option<(NodeId, Option<(NodeId, String)>)>,
+    filled: bool,
+}
+
+impl ConsumeProduceUi {
+    pub fn bind(ui: &mut Ui, root: NodeId) -> ConsumeProduceUi {
+        let remaining = ui.find(root, "progressRemaining").map(|p| {
+            let content = match &ui.node(p).kind {
+                Kind::Control(Control::Progress { content, .. }) => *content,
+                _ => None,
+            };
+            (p, content.map(|c| (c, text_of(ui, c))))
+        });
+        ConsumeProduceUi {
+            combo: ui.find(root, "comboProduct"),
+            remaining,
+            filled: false,
+        }
+    }
+
+    pub fn refresh(&mut self, ui: &mut Ui, archive: &Archive, data: &EntityData) {
+        let Some((_, reference, selector, produced, lifetime)) = &data.produce else {
+            return;
+        };
+        if !self.filled {
+            // The bind's entity half: the recipes' labels, the current one (a negative
+            // selector shows the first: the port's windows draw nothing from the game's
+            // Random, where `FUN_14011e940` would pick one by the weights).
+            self.filled = true;
+            if let Some(c) = self.combo {
+                let file = material_file(reference);
+                if let Some(d) = archive
+                    .read_ref(&format!("{file}:consumeproduce"))
+                    .ok()
+                    .and_then(|b| banished_formats::game::consume_produce_description(&b).ok())
+                {
+                    let labels = d
+                        .recipes
+                        .iter()
+                        .map(|r| ui.res.string(d.string_table.as_deref(), &r.label))
+                        .collect();
+                    ui.set_choices(c, labels);
+                    crate::menu::select_combo(ui, c, (*selector).max(0) as usize);
+                }
+            }
+        }
+        if let Some((p, text)) = &self.remaining {
+            let fill = 1.0 - *produced as f32 / *lifetime as f32;
+            ui.set_value(*p, fill);
+            if let Some((t, template)) = text {
+                let percent = (fill * 100.0 + 0.5) as i32;
+                ui.set_text(*t, &template.replace("@0", &percent.to_string()));
+            }
+        }
+    }
+
+    /// `FUN_14005fc90` (event `0x14`, id 22000): the selector is the chosen recipe.
+    pub fn select(&self, node: NodeId, index: usize, data: &EntityData) -> Option<WorkPlaceClick> {
+        if Some(node) != self.combo {
+            return None;
+        }
+        let entity = data.produce.as_ref()?.0;
+        Some(WorkPlaceClick::Command(
+            banished_game::professions::Command::SetRecipe {
+                entity,
+                recipe: index as i32,
+            },
+        ))
+    }
+}
+
+/// A progress bar out of `max` with its text's `@0`, `@1` parameters: AttendanceUI
+/// (`FUN_14005e6a0`, `FUN_14005e5b0`: attendees of the places) and CemeteryUI
+/// (`FUN_14005f9f0`, `FUN_14005f8b0`: graves taken, of all).
+pub struct CountUi {
+    progress: Option<NodeId>,
+    text: Option<(NodeId, String)>,
+    cemetery: bool,
+}
+
+impl CountUi {
+    pub fn bind(ui: &mut Ui, element: NodeId, cemetery: bool) -> CountUi {
+        let mut stack = vec![element];
+        let mut progress = None;
+        while let Some(n) = stack.pop() {
+            if matches!(ui.node(n).kind, Kind::Control(Control::Progress { .. })) {
+                progress = Some(n);
+                break;
+            }
+            stack.extend(ui.children(n).into_iter().rev());
+        }
+        let text = progress.and_then(|p| match &ui.node(p).kind {
+            Kind::Control(Control::Progress { content, .. }) => {
+                content.map(|c| (c, text_of(ui, c)))
+            }
+            _ => None,
+        });
+        CountUi {
+            progress,
+            text,
+            cemetery,
+        }
+    }
+
+    pub fn refresh(&mut self, ui: &mut Ui, data: &EntityData) {
+        let counts = if self.cemetery {
+            data.cemetery
+        } else {
+            data.attendance
+        };
+        let Some((n, max)) = counts else { return };
+        if let Some(p) = self.progress {
+            ui.set_value(p, if 0 < max { n as f32 / max as f32 } else { 0.0 });
+        }
+        if let Some((t, template)) = &self.text {
+            let text = template
+                .replace("@0", &n.to_string())
+                .replace("@1", &max.to_string());
+            ui.set_text(*t, &text);
+        }
+    }
+}
+
+/// `ProductionUI` (type `0x3998642a`): bind `FUN_14007b270`, refresh `FUN_14007aef0` →
+/// `FUN_14007af20` for this year and last. The `production` (or `production3`,
+/// `production4`) element's two children are tables whose rows (from the second) hold a
+/// `labelStorage` and a `numberCount`.
+pub struct ProductionUi {
+    rows: [Vec<(Option<NodeId>, Option<NodeId>)>; 2],
+}
+
+impl ProductionUi {
+    pub fn bind(ui: &mut Ui, element: NodeId) -> ProductionUi {
+        let table = ["production", "production3", "production4"]
+            .iter()
+            .find_map(|n| ui.find(element, n));
+        let mut rows: [Vec<(Option<NodeId>, Option<NodeId>)>; 2] = [Vec::new(), Vec::new()];
+        if let Some(t) = table {
+            let years = ui.children(t);
+            for (k, &y) in years.iter().take(2).enumerate() {
+                for &row in ui.children(y).iter().skip(1) {
+                    rows[k].push((ui.find(row, "labelStorage"), ui.find(row, "numberCount")));
+                }
+            }
+        }
+        ProductionUi { rows }
+    }
+
+    /// `FUN_14007af20`: each listed material's sprite, name and amount; the rows past the
+    /// list hide.
+    pub fn refresh(&mut self, ui: &mut Ui, archive: &Archive, data: &EntityData) {
+        let Some(lists) = &data.tracker else { return };
+        for (rows, list) in self.rows.iter().zip(lists) {
+            for (i, &(label, number)) in rows.iter().enumerate() {
+                let Some(&(m, amount)) = list.get(i) else {
+                    for n in [label, number].into_iter().flatten() {
+                        ui.set_visible(n, false);
+                    }
+                    continue;
+                };
+                let d = archive
+                    .read_ref(&format!(
+                        "{}:rawmaterial",
+                        material_file(&data.materials[m].reference)
+                    ))
+                    .ok()
+                    .and_then(|b| raw_material_description(&b).ok());
+                if let (Some(l), Some(d)) = (label, d) {
+                    if let Some(s) = ui.res.sprite(d.sprite_sheet.as_deref(), &d.name) {
+                        if let Kind::Label { icon, .. } = &mut ui.node_mut(l).kind {
+                            *icon = Some(s);
+                        }
+                    }
+                    let name = ui.res.string(d.string_table.as_deref(), &d.name);
+                    ui.set_text(l, &name);
+                    ui.set_visible(l, true);
+                }
+                if let Some(n) = number {
+                    ui.set_text(n, &amount.to_string());
+                    ui.set_visible(n, true);
+                }
+            }
+        }
+    }
+}
+
+/// `PageToggleUI` (type `0xc93b6026`): bind `FUN_14007ad20`, refresh `FUN_14007ac50`, events
+/// `FUN_14007abe0`. Its check button (id 700) switches the host's `pages` between the
+/// working page (0) and the inventory (4), enabled while one of them shows.
+pub struct PageToggleUi {
+    button: Option<NodeId>,
+    pages: Option<NodeId>,
+}
+
+fn active_page(ui: &Ui, pages: NodeId) -> Option<usize> {
+    match &ui.node(pages).kind {
+        Kind::Control(Control::Page { selected, .. }) => Some(*selected),
+        _ => None,
+    }
+}
+
+fn set_page(ui: &mut Ui, pages: NodeId, page: usize) {
+    if let Kind::Control(Control::Page { selected, .. }) = &mut ui.node_mut(pages).kind {
+        *selected = page;
+    }
+}
+
+impl PageToggleUi {
+    pub fn bind(ui: &mut Ui, element: NodeId, root: NodeId) -> PageToggleUi {
+        let mut stack = vec![element];
+        let mut button = None;
+        while let Some(n) = stack.pop() {
+            if matches!(ui.node(n).kind, Kind::Control(Control::Check { .. })) {
+                button = Some(n);
+                break;
+            }
+            stack.extend(ui.children(n).into_iter().rev());
+        }
+        // `+0x40`, the page it keeps, starts at the working page.
+        let pages = ui.find(root, "pages");
+        if let Some(p) = pages {
+            if matches!(active_page(ui, p), Some(0) | Some(4)) {
+                set_page(ui, p, 0);
+            }
+        }
+        PageToggleUi { button, pages }
+    }
+
+    /// `FUN_14007ac50`: the button works on the working page and the inventory.
+    pub fn refresh(&mut self, ui: &mut Ui) {
+        let (Some(b), Some(p)) = (self.button, self.pages) else {
+            return;
+        };
+        ui.node_mut(b).enabled = matches!(active_page(ui, p), Some(0) | Some(4));
+    }
+
+    /// `FUN_14007abe0`: checked shows the inventory (4), else the working page.
+    pub fn click(&mut self, ui: &mut Ui, node: NodeId) -> bool {
+        let (Some(b), Some(p)) = (self.button, self.pages) else {
+            return false;
+        };
+        if node != b && !ui.descendant(b, node) {
+            return false;
+        }
+        let page = if ui.checked(b) { 4 } else { 0 };
+        set_page(ui, p, page);
+        true
+    }
 }
 
 /// `ControlUI` (type `0xb998cb9f`): bind `FUN_140060310`, refresh `FUN_1400601d0`, events
@@ -1004,6 +1274,10 @@ pub enum Controller {
     Destroy(DestroyUi),
     ResourceLimit(ResourceLimitUi),
     Control(ControlUi),
+    Production(ProductionUi),
+    PageToggle(PageToggleUi),
+    Count(CountUi),
+    ConsumeProduce(ConsumeProduceUi),
     /// Attached, refresh not ported (logged once with its id).
     #[allow(dead_code)]
     Pending(u32),
@@ -1030,6 +1304,15 @@ impl Controller {
                 ui, archive, element, config,
             ))),
             CONTROL_UI => ControlUi::bind(archive, element, config).map(Controller::Control),
+            PRODUCTION_UI => Some(Controller::Production(ProductionUi::bind(ui, element))),
+            PAGE_TOGGLE_UI => Some(Controller::PageToggle(PageToggleUi::bind(
+                ui, element, root,
+            ))),
+            ATTENDANCE_UI => Some(Controller::Count(CountUi::bind(ui, element, false))),
+            CEMETERY_UI => Some(Controller::Count(CountUi::bind(ui, element, true))),
+            CONSUME_PRODUCE_UI => {
+                Some(Controller::ConsumeProduce(ConsumeProduceUi::bind(ui, root)))
+            }
             // Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
             STATUS_ICON_UI => {
                 StatusIconUi::bind(ui, element, !has_config).map(Controller::StatusIcon)
@@ -1053,6 +1336,10 @@ impl Controller {
             Controller::Destroy(c) => c.refresh(ui, data),
             Controller::ResourceLimit(c) => c.refresh(ui, data),
             Controller::Control(c) => c.refresh(ui, data),
+            Controller::Production(c) => c.refresh(ui, archive, data),
+            Controller::PageToggle(c) => c.refresh(ui),
+            Controller::Count(c) => c.refresh(ui, data),
+            Controller::ConsumeProduce(c) => c.refresh(ui, archive, data),
             Controller::Pending(_) => {}
         }
     }

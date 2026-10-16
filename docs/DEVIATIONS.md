@@ -14,8 +14,8 @@ Deviation: 34, Not ported: 47, Not traced: 4.
 
 ## `apps/game/src/building_ui.rs`
 
-- [Not ported] [apps/game/src/building_ui.rs:1007](../apps/game/src/building_ui.rs#L1007): Attached, refresh not ported (logged once with its id).
-- [Not traced] [apps/game/src/building_ui.rs:1033](../apps/game/src/building_ui.rs#L1033): Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
+- [Not ported] [apps/game/src/building_ui.rs:1281](../apps/game/src/building_ui.rs#L1281): Attached, refresh not ported (logged once with its id).
+- [Not traced] [apps/game/src/building_ui.rs:1316](../apps/game/src/building_ui.rs#L1316): Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
 
 ## `apps/game/src/entity_ui.rs`
 
@@ -85,9 +85,9 @@ Deviation: 34, Not ported: 47, Not traced: 4.
 
 - [Deviation] [crates/game/src/agents.rs:1](../crates/game/src/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance (`AnimationManager::Update`), every character runs its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run the AI with zero time (`FUN_140114810`), then the AI updates. Deviations: the AI runs every iteration instead of on its bucket's quota, and after the placed entities' bucket pass instead of interleaved with it.
 - [Not ported] [crates/game/src/agents.rs:77](../crates/game/src/agents.rs#L77): Not ported: tool use during jobs and the citizen clothing-wear countdown.
-- [Deviation] [crates/game/src/agents.rs:557](../crates/game/src/agents.rs#L557): `FUN_14004ddb0`: the band becomes citizens in fours where each nomad stands (`FUN_140050b00` → `FUN_14011c550`, laborers): a man, a woman (married to him), then a girl and a boy in her care. Adults are `+0x50 + RandFloat × (+0x54 − +0x50)` years old, children `RandFloat × +0x50`. Then the nomads are gone and the town hall goes back to 2. Deviation: a band taken in is made after the frame's other commands.
-- [Not ported] [crates/game/src/agents.rs:1197](../crates/game/src/agents.rs#L1197): `FUN_140119170`: the dead citizen's components let go of the town (a removed entity's CharacterComponent abandons its actions, CitizenComponent leaves its home, family, workplace and registry; a laborer takes over its profession). Not ported: the carried goods (StorageComponent removal) are lost.
-- [Not ported] [crates/game/src/agents.rs:1803](../crates/game/src/agents.rs#L1803): Not ported: drawing the StatusIconComponent's billboard (its mask is live).
+- [Deviation] [crates/game/src/agents.rs:563](../crates/game/src/agents.rs#L563): `FUN_14004ddb0`: the band becomes citizens in fours where each nomad stands (`FUN_140050b00` → `FUN_14011c550`, laborers): a man, a woman (married to him), then a girl and a boy in her care. Adults are `+0x50 + RandFloat × (+0x54 − +0x50)` years old, children `RandFloat × +0x50`. Then the nomads are gone and the town hall goes back to 2. Deviation: a band taken in is made after the frame's other commands.
+- [Not ported] [crates/game/src/agents.rs:1203](../crates/game/src/agents.rs#L1203): `FUN_140119170`: the dead citizen's components let go of the town (a removed entity's CharacterComponent abandons its actions, CitizenComponent leaves its home, family, workplace and registry; a laborer takes over its profession). Not ported: the carried goods (StorageComponent removal) are lost.
+- [Not ported] [crates/game/src/agents.rs:1809](../crates/game/src/agents.rs#L1809): Not ported: drawing the StatusIconComponent's billboard (its mask is live).
 
 ## `crates/game/src/animation.rs`
 
@@ -183,8 +183,8 @@ Deviation: 34, Not ported: 47, Not traced: 4.
 
 ## `crates/game/src/professions.rs`
 
-- [Not ported] [crates/game/src/professions.rs:219](../crates/game/src/professions.rs#L219): `FUN_1401173b0`: move citizen `c` to workplace `wp` (removing it from its old one, `FUN_140134cb0`, then appending to the new one, `FUN_140134ef0`). Not ported: the workplaces' StatusIconComponent bits and entity flags 2/3.
-- [Not ported] [crates/game/src/professions.rs:227](../crates/game/src/professions.rs#L227): The workplaces' side of [`Workforce::set_workplace`]: `c` leaves `old` (`FUN_140134cb0`: the last worker gone, the limit and work icons go, and an enabled workplace of its own profession shows `WorkersUnavailable`) and joins `new` (`FUN_140134ef0`: that icon goes). Not ported: the entity events 2 and 3 (work sounds, smoke) and the destroy check.
+- [Not ported] [crates/game/src/professions.rs:221](../crates/game/src/professions.rs#L221): `FUN_1401173b0`: move citizen `c` to workplace `wp` (removing it from its old one, `FUN_140134cb0`, then appending to the new one, `FUN_140134ef0`). Not ported: the workplaces' StatusIconComponent bits and entity flags 2/3.
+- [Not ported] [crates/game/src/professions.rs:229](../crates/game/src/professions.rs#L229): The workplaces' side of [`Workforce::set_workplace`]: `c` leaves `old` (`FUN_140134cb0`: the last worker gone, the limit and work icons go, and an enabled workplace of its own profession shows `WorkersUnavailable`) and joins `new` (`FUN_140134ef0`: that icon goes). Not ported: the entity events 2 and 3 (work sounds, smoke) and the destroy check.
 
 ## `crates/game/src/road.rs`
 

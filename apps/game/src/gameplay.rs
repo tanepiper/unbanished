@@ -1235,6 +1235,17 @@ impl GameLoop for GameplayLoop {
             }
             return Next::Stay;
         }
+        // A combo in a building's window (event `0x14`).
+        if let Event::Selected(id, index) = event {
+            let chosen = self
+                .town
+                .as_ref()
+                .and_then(|town| self.entities.select_item(ctx.ui, town, id, index));
+            if let (Some(WorkPlaceClick::Command(c)), Some(town)) = (chosen, &mut self.town) {
+                town.construction.commands.push(c);
+            }
+            return Next::Stay;
+        }
         let (Event::Clicked(id) | Event::Changed(id)) = event else {
             return Next::Stay;
         };
@@ -1294,6 +1305,9 @@ impl GameLoop for GameplayLoop {
                 }
                 Some(UtilityClick::Handled) => return Next::Stay,
                 None => {}
+            }
+            if self.entities.toggle_page(ctx.ui, id) {
+                return Next::Stay;
             }
             let clicked = self
                 .town

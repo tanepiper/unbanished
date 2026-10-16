@@ -23,6 +23,12 @@ frame after the simulation; refresh reads only.
 | `0x2e56a4c8` | DestroyUI | `0x140161c30` | `FUN_140066ab0` / `FUN_140066460` / `FUN_1400669e0` | done |
 | `0xf77895ff` | ResourceLimitUI | | `FUN_14007ce40` / `FUN_14007cda0` / `FUN_14007ccb0` | done |
 | `0xb998cb9f` | ControlUI | | `FUN_140060310` / `FUN_1400601d0` / `FUN_140060150` | done |
+| `0x3998642a` | ProductionUI | | `FUN_14007b270` / `FUN_14007aef0` → `FUN_14007af20` | done |
+| `0xc93b6026` | PageToggleUI | | `FUN_14007ad20` / `FUN_14007ac50` / `FUN_14007abe0` | done |
+| `0x1aff79f6` | AttendanceUI | | `FUN_14005e6a0` / `FUN_14005e5b0` | done |
+| `0xa17245fb` | CemeteryUI | | `FUN_14005f9f0` / `FUN_14005f8b0` | done |
+| `0x9c93d6c1` | ConsumeProduceUI | | `FUN_14005fd30` / `FUN_14005fb50` / `FUN_14005fc90` | done |
+| `0x00585b87` | RadiusUI | | defaults (no bind, refresh or events) | nothing to do |
 | `0x1701e613` | ResidenceUI | | | pending |
 | `0x061d5f73` | UpgradeUI | | | pending |
 
@@ -43,6 +49,35 @@ ResourceLimitUIConfig `+0x20` names a stock slot. The `editLimit` spinner (id `0
 0..999999) shows the stock manager's limit for it (`Game +0xf0 → +0x170`, slot `+0x8`), not
 while the player types in it; a change (event `0x15`) sets the limit (gameplay's
 `StockWarnings::limits`, which the production limits read).
+
+## ProductionUI
+
+The `production` (else `production3`, `production4`) element's first two children are tables:
+this year's and last year's TrackerComponent lists ([TOWN-INFO.md](TOWN-INFO.md)). Each row
+from the second holds `labelStorage` (the raw material's sprite and name) and `numberCount`;
+rows past the list hide. Its refresh turns the tracker's year (`FUN_14007af20`); the port's
+window shows the turned lists without changing the tracker.
+
+## PageToggleUI
+
+Its first check button (id 700) switches the host's `pages` between the working page (0) and
+the inventory (4); bind shows the working page when one of the two shows; refresh enables the
+button on those two pages.
+
+## AttendanceUI, CemeteryUI
+
+The first progress bar: attendees out of the places (`+0x30` of AttendanceDescription
+`+0x20`), text `@0`; graves with a tombstone (`FUN_140047730`) out of the graves (`+0x50`),
+text `@0`, `@1`.
+
+## ConsumeProduceUI
+
+`comboProduct` (id 22000) lists the recipes' labels (ConsumeProduceDescription `+0x20` table,
+each recipe's `+0x20` key) and shows the selected one (`FUN_14011e940`; a negative selector
+would draw one by the weights from the game's Random, so the port shows the first); choosing
+one (event `0x14`) sets ConsumeProduceComponent `+0x50` (`Command::SetRecipe`).
+`progressRemaining` is `1 − made (+0x68) / lifetime (+0x48)`, text `%i` percent. Not ported:
+the items' sprites (the combo lists text).
 
 ## ControlUI
 
