@@ -6,7 +6,8 @@ it in one pass (`FUN_14009af60`). The port decodes every block of it in
 `crates/formats/src/savegame.rs`, with one schema per object type in
 `crates/formats/src/savegame_schema.rs`.
 
-All five sample saves decode completely, and each block is consumed exactly. Test:
+All five sample saves decode completely, and each block is consumed exactly. `GameState::encode`
+writes the state back, and the result matches the original bytes exactly. Test:
 `crates/formats/tests/savegame.rs` (local only, since `save-game/` is git-ignored). It also checks:
 - the decoded map cells, heights, seed and event log against the older scanning parsers in
   `save.rs`;
@@ -35,6 +36,9 @@ cargo run -q --release -p banished-formats --example savegame_check -- save-game
   The first time an index appears, the object's own serializer follows inline (vtable `+0x18`).
   Later appearances are references only. Objects therefore appear where they are first reached,
   and there is no separate object table.
+- **Bools.** One byte. Some bools in the samples are uninitialised memory (`0x48`, `0x80`). The
+  game reads them as true. The decoder keeps such a byte as `Value::I8`, and a decal keeps its
+  `flag_bytes`, so writing reproduces it.
 - **Time.** An `i64`.
 - **Vector3.** Three `f32`.
 - **Transform.** Four `f32` for rotation, then three for position.
@@ -104,7 +108,9 @@ cargo run -q --release -p banished-formats --example savegame_check -- save-game
 
 - **Ops.** A schema is a list of ops: plain fields, external and internal pointers, counted lists,
   arrays counted by an earlier field, nested blocks, version conditions (`If`), flag conditions
-  and `Rest`. The same list is meant to drive the writer.
+  and `Rest`. The same list drives the writer (`Encoder`). It walks each schema alongside the decoded
+  fields and writes each object inline the first time it is referenced, in the same order as the
+  decoder.
 - **Field names.** Each field is named after its in-memory offset (`value_4c`) where its meaning
   is not yet known.
 - **Shared preambles:**
@@ -128,5 +134,6 @@ cargo run -q --release -p banished-formats --example savegame_check -- save-game
   - `FUN_180053110` (audio-scene sounds).
 - **Old versions.** Older-version branches are in the schemas where they were simple, but only
   the samples' versions have been exercised. Map versions below 3 are rejected.
-- **Not yet built:** loading the decoded state into the port's simulation, writing it back, and
-  round-trip verification.
+- **The `.sav` container.** Not yet written. It needs the first payload's metadata block
+  (version 3, about 88 KB), an LZF compressor and the stream's block table.
+- **Loading.** The decoded state is not yet loaded into the port's simulation.

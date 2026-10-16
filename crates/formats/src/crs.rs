@@ -299,3 +299,117 @@ pub fn header(data: &[u8]) -> Result<Header> {
     })
     .map(|(h, ())| h)
 }
+
+/// The writing side of [`Reader`] (`IO::BinaryWriter`): little-endian values, 8-bit strings and
+/// blocks whose size is filled in when they close.
+#[derive(Default)]
+pub struct Writer {
+    pub data: Vec<u8>,
+    /// Set in reference mode (saves): external pointers are written as ids from this table.
+    reference_ids: Option<std::collections::BTreeMap<String, u32>>,
+}
+
+impl Writer {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Write external pointers as reference ids (the inverse of the reference table).
+    pub fn set_reference_ids(&mut self, ids: &std::collections::BTreeMap<u32, String>) {
+        self.reference_ids = Some(ids.iter().map(|(&id, p)| (p.clone(), id)).collect());
+    }
+
+    pub fn bytes(&mut self, b: &[u8]) {
+        self.data.extend_from_slice(b);
+    }
+    pub fn u8(&mut self, v: u8) {
+        self.data.push(v);
+    }
+    pub fn bool(&mut self, v: bool) {
+        self.data.push(v as u8);
+    }
+    pub fn i16(&mut self, v: i16) {
+        self.bytes(&v.to_le_bytes());
+    }
+    pub fn u16(&mut self, v: u16) {
+        self.bytes(&v.to_le_bytes());
+    }
+    pub fn u32(&mut self, v: u32) {
+        self.bytes(&v.to_le_bytes());
+    }
+    pub fn i32(&mut self, v: i32) {
+        self.bytes(&v.to_le_bytes());
+    }
+    pub fn i64(&mut self, v: i64) {
+        self.bytes(&v.to_le_bytes());
+    }
+    pub fn f32(&mut self, v: f32) {
+        self.bytes(&v.to_le_bytes());
+    }
+
+    /// A count as the reader's `count` takes it.
+    pub fn count(&mut self, n: usize) {
+        self.i32(n as i32);
+    }
+
+    /// `System::String` with the 8-bit flag; the length counts the NUL.
+    pub fn string(&mut self, s: &str) {
+        self.u32((s.len() as u32 + 1) | 0x8000_0000);
+        self.bytes(s.as_bytes());
+        self.u8(0);
+    }
+
+    /// A UTF-16 string: the unit count with its NUL, then the units.
+    pub fn wstring(&mut self, s: &str) {
+        let units: Vec<u16> = s.encode_utf16().chain([0]).collect();
+        self.u32(units.len() as u32);
+        for u in units {
+            self.u16(u);
+        }
+    }
+
+    /// `ExternalPtr`, in reference mode an id (`u32::MAX` for none), else a present flag and
+    /// the path.
+    pub fn external_ref(&mut self, path: Option<&str>) -> Result<()> {
+        if let Some(ids) = &self.reference_ids {
+            let id = match path {
+                None => u32::MAX,
+                Some(p) => *ids
+                    .get(p)
+                    .ok_or_else(|| Error::Format(format!("no reference id for {p}")))?,
+            };
+            self.u32(id);
+            return Ok(());
+        }
+        self.bool(path.is_some());
+        if let Some(p) = path {
+            self.string(p);
+        }
+        Ok(())
+    }
+
+    /// Open a block at `version`; returns where its size goes, for [`Writer::end_block`].
+    pub fn begin_block(&mut self, version: u32) -> usize {
+        self.u32(BLOCK_START);
+        let size_at = self.data.len();
+        self.u32(0);
+        self.u32(version);
+        size_at
+    }
+
+    /// Close the block opened at `size_at`. The size covers the payload and terminator, not
+    /// the version.
+    pub fn end_block(&mut self, size_at: usize) {
+        self.u32(BLOCK_END);
+        let size = (self.data.len() - size_at - 8) as u32;
+        self.data[size_at..size_at + 4].copy_from_slice(&size.to_le_bytes());
+    }
+
+    /// One block at `version`, its payload written by `f`.
+    pub fn block<T>(&mut self, version: u32, f: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
+        let at = self.begin_block(version);
+        let out = f(self)?;
+        self.end_block(at);
+        Ok(out)
+    }
+}

@@ -6,7 +6,7 @@
 //! `FUN_140020900` / `FUN_140020320`. Layout notes: docs/MENU-SCENE.md.
 
 use crate::crc::type_id;
-use crate::crs::{self, Reader};
+use crate::crs::{self, Reader, Writer};
 use crate::error::{format_err, Result};
 
 /// A tiled decal (roads, fields, building footprints) drawn over the terrain.
@@ -20,6 +20,8 @@ pub struct Decal {
     pub floats: [f32; 5],
     pub flag13: bool,
     pub flag_v2: bool,
+    /// The three flags' bytes as written (saves hold some uninitialised non-0/1 bytes).
+    pub flag_bytes: [u8; 3],
     /// 20-byte vertices: `i16 x4, i16 x4, u8 x4`.
     pub vertices: Vec<[u8; 20]>,
     pub indices: Vec<u16>,
@@ -131,10 +133,14 @@ fn decals(r: &mut Reader, version: u32) -> Result<Vec<Decal>> {
             let ints = [r.i32()?, r.i32()?, r.i32()?, r.i32()?, r.i32()?];
             let byte = r.u8()?;
             let int6 = r.i32()?;
-            let flag7 = r.bool()?;
+            let mut flag_bytes = [0; 3];
+            flag_bytes[0] = r.u8()?;
             let floats = f32s::<5>(r)?;
-            let flag13 = r.bool()?;
-            let flag_v2 = if version > 1 { r.bool()? } else { false };
+            flag_bytes[1] = r.u8()?;
+            if version > 1 {
+                flag_bytes[2] = r.u8()?;
+            }
+            let [flag7, flag13, flag_v2] = flag_bytes.map(|b| b != 0);
             let (vertices, indices) = if version > 0 {
                 let n = r.count()?;
                 let vertices = (0..n)
@@ -153,6 +159,7 @@ fn decals(r: &mut Reader, version: u32) -> Result<Vec<Decal>> {
                 floats,
                 flag13,
                 flag_v2,
+                flag_bytes,
                 vertices,
                 indices,
             })
@@ -230,6 +237,85 @@ pub fn read_map_component(r: &mut Reader) -> Result<MapComponent> {
             ints,
             decal_materials,
         })
+    })
+}
+
+fn write_decals(w: &mut Writer, decals: &[Decal], version: u32) -> Result<()> {
+    w.count(decals.len());
+    for d in decals {
+        // The bytes as read, unless the flags were changed since.
+        let flag = |k: usize, v: bool| {
+            if (d.flag_bytes[k] != 0) == v {
+                d.flag_bytes[k]
+            } else {
+                v as u8
+            }
+        };
+        w.external_ref(d.material.as_deref())?;
+        d.ints.iter().for_each(|&v| w.i32(v));
+        w.u8(d.byte);
+        w.i32(d.int6);
+        w.u8(flag(0, d.flag7));
+        d.floats.iter().for_each(|&v| w.f32(v));
+        w.u8(flag(1, d.flag13));
+        if version > 1 {
+            w.u8(flag(2, d.flag_v2));
+        }
+        if version > 0 {
+            w.count(d.vertices.len());
+            d.vertices.iter().for_each(|v| w.bytes(v));
+            w.count(d.indices.len());
+            d.indices.iter().for_each(|&i| w.u16(i));
+        }
+    }
+    Ok(())
+}
+
+/// The writing side of [`read_map_component`], at version 6.
+pub fn write_map_component(w: &mut Writer, map: &MapComponent) -> Result<()> {
+    const VERSION: u32 = 6;
+    w.block(VERSION, |w| {
+        map.dims.iter().for_each(|&d| w.i32(d));
+        w.count(map.heights.len());
+        map.heights.iter().for_each(|&h| w.i16(h));
+        w.external_ref(map.terrain_material.as_deref())?;
+        w.bytes(&map.surface);
+        w.count(map.water_vertices.len());
+        map.water_vertices.iter().for_each(|v| w.bytes(v));
+        w.count(map.water_indices.len());
+        map.water_indices.iter().for_each(|&i| w.u16(i));
+        w.external_ref(map.river_material.as_deref())?;
+        w.external_ref(map.lake_material.as_deref())?;
+        for ranges in [&map.river_ranges, &map.lake_ranges] {
+            w.count(ranges.len());
+            ranges.iter().flatten().for_each(|&v| w.i32(v));
+        }
+        w.count(map.river_paths.len());
+        for path in &map.river_paths {
+            w.count(path.len());
+            path.iter().flatten().for_each(|&v| w.f32(v));
+        }
+        write_decals(w, &map.decals, VERSION)?;
+        w.count(map.ints.len());
+        map.ints.iter().for_each(|&v| w.i32(v));
+        w.count(map.decal_materials.len());
+        for m in &map.decal_materials {
+            w.external_ref(m.as_deref())?;
+        }
+        Ok(())
+    })
+}
+
+/// The writing side of [`read_camera`].
+pub fn write_camera(w: &mut Writer, c: &SceneCamera) -> Result<()> {
+    w.block(0, |w| {
+        c.rotation
+            .iter()
+            .chain(&c.position)
+            .chain(&c.target)
+            .chain(&c.floats)
+            .for_each(|&v| w.f32(v));
+        Ok(())
     })
 }
 

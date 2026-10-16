@@ -9,6 +9,13 @@ fn main() {
         }
         match banished_formats::savegame::GameState::decode(&save.state) {
             Ok(g) => {
+                if let Ok(dir) = std::env::var("SAVE_STATE_DIR") {
+                    let name = std::path::Path::new(&path).file_stem().unwrap();
+                    let out = std::path::Path::new(&dir)
+                        .join(name)
+                        .with_extension("written");
+                    std::fs::write(out, g.encode().unwrap()).unwrap();
+                }
                 let mut kinds = std::collections::BTreeMap::new();
                 for o in g.objects.values() {
                     *kinds.entry(o.type_name).or_insert(0) += 1;

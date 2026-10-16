@@ -1,5 +1,6 @@
 //! Full decoding of real saves (`save-game/*.sav`, local only): every block is consumed exactly,
-//! and the result agrees with the older scanning parsers in `save.rs`.
+//! the result agrees with the older scanning parsers in `save.rs`, and encoding it gives the
+//! same bytes back.
 
 use banished_formats::save::Save;
 use banished_formats::savegame::{Fields, GameState, ObjId, Value};
@@ -43,6 +44,13 @@ fn saves_decode_fully() {
         let save = Save::parse(&std::fs::read(&path).unwrap()).unwrap();
         let g = GameState::decode(&save.state).unwrap_or_else(|e| panic!("{path:?}: {e}"));
         decoded += 1;
+
+        // Writing it back gives the same bytes.
+        let written = g.encode().unwrap_or_else(|e| panic!("{path:?}: {e}"));
+        if let Some(at) = written.iter().zip(&save.state).position(|(a, b)| a != b) {
+            panic!("{path:?}: written state differs at {at:#x}");
+        }
+        assert_eq!(written.len(), save.state.len(), "{path:?}");
 
         assert_eq!(g.seed, save.loop_header().unwrap().seed);
         assert_eq!(

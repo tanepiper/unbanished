@@ -12,9 +12,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::crs::{Reader, BLOCK_END, BLOCK_START};
-use crate::error::{Error, Result};
-use crate::savegame_schema::{schema_for, Cond, Op};
+use crate::crs::{Reader, Writer, BLOCK_END, BLOCK_START};
+use crate::error::{format_err, Error, Result};
+use crate::savegame_schema::{schema_for, Cond, Op, TOWN};
 
 /// An object's factory index (`Internal +0x08`).
 pub type ObjId = i32;
@@ -133,6 +133,11 @@ pub struct GameState {
     pub buckets: Vec<Vec<Option<ObjId>>>,
     pub bucket_values: [[i32; 5]; 2],
     pub schedules: Vec<(i32, i32, i32, i64)>,
+    /// The game loop serializer's version (3 in the samples).
+    pub version: u32,
+    /// `InternalFactory::ResetPersistState`'s block, as written.
+    pub persist_state: Vec<u8>,
+    pub entity_manager_version: u32,
     /// Whole blocks (markers included) that are carried through undecoded.
     pub achievements: Vec<u8>,
     pub animations: Vec<u8>,
@@ -310,7 +315,11 @@ impl Decoder<'_> {
     fn ops_into(&mut self, ops: &[Op], version: u32, out: &mut Fields) -> Result<()> {
         for op in ops {
             let (name, value) = match *op {
-                Op::Bool(n) => (n, Value::Bool(self.r.bool()?)),
+                // A byte other than 0 or 1 (an uninitialised bool) is kept as written.
+                Op::Bool(n) => match self.r.u8()? {
+                    b @ (0 | 1) => (n, Value::Bool(b == 1)),
+                    b => (n, Value::I8(b as i8)),
+                },
                 Op::I8(n) => (n, Value::I8(self.r.u8()? as i8)),
                 Op::I16(n) => (n, Value::I16(self.r.i16()?)),
                 Op::U16(n) => (n, Value::U16(self.r.u16()?)),
@@ -375,7 +384,7 @@ impl Decoder<'_> {
                     let take = match cond {
                         Cond::VersionAtLeast(v) => version >= v,
                         Cond::VersionBelow(v) => version < v,
-                        Cond::Flag(f) => matches!(out.get(f), Some(Value::Bool(true))),
+                        Cond::Flag(f) => truthy(out.get(f)),
                     };
                     if take {
                         self.ops_into(inner, version, out)?;
@@ -398,7 +407,8 @@ impl GameState {
             defining: BTreeSet::new(),
         };
         let mut g = GameState::default();
-        d.block(|d, _| {
+        d.block(|d, version| {
+            g.version = version;
             g.references = d.block(|d, _| {
                 let n = d.r.count()?;
                 (0..n)
@@ -406,15 +416,18 @@ impl GameState {
                     .collect::<Result<BTreeMap<_, _>>>()
             })?;
             d.r.set_reference_ids(std::sync::Arc::new(g.references.clone()));
-            // `InternalFactory::ResetPersistState`'s block.
-            d.skip_block()?;
+            g.persist_state = d.raw_block()?;
             g.climate = d.r.u32()?;
             g.start_condition = d.r.u32()?;
             g.terrain = d.r.u32()?;
             g.seed = d.r.u32()?;
             g.size = d.r.i32()?;
-            g.flags = d.r.u32()?;
-            g.scenario = d.r.i32()?;
+            if version > 0 {
+                g.flags = d.r.u32()?;
+            }
+            if version > 2 {
+                g.scenario = d.r.i32()?;
+            }
             g.random_index = d.r.u32()?;
             g.random_state = (0..0x270).map(|_| d.r.u32()).collect::<Result<_>>()?;
             g.town_name = d.r.string()?;
@@ -426,7 +439,8 @@ impl GameState {
             g.animations = d.raw_block()?;
             g.audio_scene = d.raw_block()?;
             g.camera = Some(crate::menu_scene::read_camera(&mut d.r)?);
-            d.block(|d, _| {
+            d.block(|d, version| {
+                g.entity_manager_version = version;
                 g.entity_time = d.r.i64()?;
                 g.entities = d.ptrs()?;
                 g.buckets = (0..5).map(|_| d.ptrs()).collect::<Result<_>>()?;
@@ -441,17 +455,238 @@ impl GameState {
                 Ok(())
             })?;
             g.terrain_map = Some(crate::menu_scene::read_map_component(&mut d.r)?);
-            d.ops_into(&[crate::savegame_schema::TOWN], 0, &mut g.town)?;
+            d.ops_into(&[TOWN], 0, &mut g.town)?;
             g.map = d.game_map()?;
-            use crate::savegame_schema::{CALENDAR, ENVIRONMENT, EVENT_LOG, JOBS, MINIMAP, TOOLS};
-            d.ops_into(
-                &[JOBS, TOOLS, CALENDAR, EVENT_LOG, ENVIRONMENT, MINIMAP],
-                0,
-                &mut g.managers,
-            )?;
+            d.ops_into(&managers(version), 0, &mut g.managers)?;
             Ok(())
         })?;
         g.objects = d.objects;
         Ok(g)
+    }
+
+    /// The writing side of [`GameState::decode`]: the same stream, with each object written
+    /// inline where it is first referenced, in the order the decoder met them.
+    pub fn encode(&self) -> Result<Vec<u8>> {
+        let mut e = Encoder {
+            w: Writer::new(),
+            objects: &self.objects,
+            written: BTreeSet::new(),
+        };
+        let at = e.w.begin_block(self.version);
+        let refs = e.w.begin_block(0);
+        e.w.count(self.references.len());
+        for (&id, path) in &self.references {
+            e.w.u32(id);
+            e.w.string(path);
+        }
+        e.w.end_block(refs);
+        e.w.set_reference_ids(&self.references);
+        e.w.bytes(&self.persist_state);
+        e.w.u32(self.climate);
+        e.w.u32(self.start_condition);
+        e.w.u32(self.terrain);
+        e.w.u32(self.seed);
+        e.w.i32(self.size);
+        if self.version > 0 {
+            e.w.u32(self.flags);
+        }
+        if self.version > 2 {
+            e.w.i32(self.scenario);
+        }
+        e.w.u32(self.random_index);
+        self.random_state.iter().for_each(|&v| e.w.u32(v));
+        e.w.string(&self.town_name);
+        e.w.bool(self.goal_done);
+        e.ptr(self.goal)?;
+        e.w.bytes(&self.achievements);
+        e.w.bytes(&self.animations);
+        e.w.bytes(&self.audio_scene);
+        let camera = self
+            .camera
+            .as_ref()
+            .ok_or_else(|| Error::Format("no camera".into()))?;
+        crate::menu_scene::write_camera(&mut e.w, camera)?;
+        let em = e.w.begin_block(self.entity_manager_version);
+        e.w.i64(self.entity_time);
+        e.ptrs(&self.entities)?;
+        for b in &self.buckets {
+            e.ptrs(b)?;
+        }
+        self.bucket_values
+            .iter()
+            .flatten()
+            .for_each(|&v| e.w.i32(v));
+        for &(a, b, c, t) in &self.schedules {
+            e.w.i32(a);
+            e.w.i32(b);
+            e.w.i32(c);
+            e.w.i64(t);
+        }
+        e.w.end_block(em);
+        let terrain = self
+            .terrain_map
+            .as_ref()
+            .ok_or_else(|| Error::Format("no terrain".into()))?;
+        crate::menu_scene::write_map_component(&mut e.w, terrain)?;
+        e.ops(&[TOWN], 0, &self.town)?;
+        e.game_map(&self.map)?;
+        e.ops(&managers(self.version), 0, &self.managers)?;
+        e.w.end_block(at);
+        Ok(e.w.data)
+    }
+}
+
+/// A `Bool` field as the game reads it: any non-zero byte is true.
+fn truthy(v: Option<&Value>) -> bool {
+    matches!(v, Some(Value::Bool(true))) || matches!(v, Some(Value::I8(b)) if *b != 0)
+}
+
+/// The blocks after the map; the event log from game-loop version 2.
+fn managers(version: u32) -> Vec<Op> {
+    use crate::savegame_schema::{CALENDAR, ENVIRONMENT, EVENT_LOG, JOBS, MINIMAP, TOOLS};
+    let mut ops = vec![JOBS, TOOLS, CALENDAR];
+    if version > 1 {
+        ops.push(EVENT_LOG);
+    }
+    ops.extend([ENVIRONMENT, MINIMAP]);
+    ops
+}
+
+struct Encoder<'a> {
+    w: Writer,
+    objects: &'a BTreeMap<ObjId, Object>,
+    written: BTreeSet<ObjId>,
+}
+
+impl Encoder<'_> {
+    fn ptr(&mut self, p: Option<ObjId>) -> Result<()> {
+        let Some(index) = p else {
+            self.w.bool(false);
+            return Ok(());
+        };
+        let o = self
+            .objects
+            .get(&index)
+            .ok_or_else(|| Error::Format(format!("object {index} is not defined")))?;
+        self.w.bool(true);
+        self.w.i32(index);
+        self.w.u32(o.tag);
+        self.w.u32(o.type_id);
+        if self.written.insert(index) {
+            let (_, ops) = schema_for(o.type_id)
+                .ok_or_else(|| Error::Unsupported(format!("object type {:#010x}", o.type_id)))?;
+            self.ops(ops, 0, &o.fields)?;
+        }
+        Ok(())
+    }
+
+    fn ptrs(&mut self, ptrs: &[Option<ObjId>]) -> Result<()> {
+        self.w.count(ptrs.len());
+        ptrs.iter().try_for_each(|&p| self.ptr(p))
+    }
+
+    fn game_map(&mut self, map: &GameMap) -> Result<()> {
+        let at = self.w.begin_block(4);
+        self.w.i32(map.size);
+        self.w.count(map.cells.len());
+        for c in &map.cells {
+            self.ptr(c.entities[0])?;
+            self.ptr(c.entities[1])?;
+            self.w.u32(c.description);
+            self.w.bytes(&c.flags);
+            self.w.u16(c.value);
+            self.w.bytes(&c.bytes);
+        }
+        map.trailer.iter().for_each(|&t| self.w.i16(t));
+        self.w.end_block(at);
+        Ok(())
+    }
+
+    fn ops(&mut self, ops: &[Op], version: u32, fields: &Fields) -> Result<()> {
+        let mut next = fields.0.iter();
+        self.ops_from(ops, version, fields, &mut next)?;
+        match next.next() {
+            None => Ok(()),
+            Some((n, _)) => format_err(format!("field {n} has no step to write it")),
+        }
+    }
+
+    /// Write `ops` from the fields `next` yields (`fields` is the whole set, for conditions).
+    fn ops_from<'f>(
+        &mut self,
+        ops: &[Op],
+        version: u32,
+        fields: &'f Fields,
+        next: &mut std::slice::Iter<'f, (&'static str, Value)>,
+    ) -> Result<()> {
+        for op in ops {
+            let name = match *op {
+                Op::Sub(inner) => {
+                    self.ops_from(inner, version, fields, next)?;
+                    continue;
+                }
+                Op::If(cond, inner) => {
+                    let take = match cond {
+                        Cond::VersionAtLeast(v) => version >= v,
+                        Cond::VersionBelow(v) => version < v,
+                        Cond::Flag(f) => truthy(fields.get(f)),
+                    };
+                    if take {
+                        self.ops_from(inner, version, fields, next)?;
+                    }
+                    continue;
+                }
+                Op::Bool(n) | Op::I8(n) | Op::I16(n) | Op::U16(n) | Op::I32(n) | Op::U32(n) => n,
+                Op::Time(n) | Op::F32(n) | Op::Times(n, _) | Op::F32s(n, _) | Op::U32s(n, _) => n,
+                Op::I32sBy(n, _) | Op::F32sBy(n, _) | Op::Str(n) | Op::WStr(n) | Op::Ext(n) => n,
+                Op::Ptr(n) | Op::List(n, _) | Op::Rest(n, _) | Op::Block(n, _, _) => n,
+            };
+            let Some((field, value)) = next.next() else {
+                return format_err(format!("missing field {name}"));
+            };
+            if *field != name {
+                return format_err(format!("expected field {name}, found {field}"));
+            }
+            let w = &mut self.w;
+            match (*op, value) {
+                (Op::Bool(_), Value::Bool(v)) => w.bool(*v),
+                (Op::Bool(_), Value::I8(v)) => w.u8(*v as u8),
+                (Op::I8(_), Value::I8(v)) => w.u8(*v as u8),
+                (Op::I16(_), Value::I16(v)) => w.i16(*v),
+                (Op::U16(_), Value::U16(v)) => w.u16(*v),
+                (Op::I32(_), Value::I32(v)) => w.i32(*v),
+                (Op::U32(_), Value::U32(v)) | (Op::Ext(_), Value::Ext(v)) => w.u32(*v),
+                (Op::Time(_), Value::I64(v)) => w.i64(*v),
+                (Op::F32(_), Value::F32(v)) => w.f32(*v),
+                (Op::Times(_, _), Value::I64s(v)) => v.iter().for_each(|&t| w.i64(t)),
+                (Op::F32s(_, _) | Op::F32sBy(_, _), Value::F32s(v)) => {
+                    v.iter().for_each(|&f| w.f32(f))
+                }
+                (Op::U32s(_, _) | Op::I32sBy(_, _), Value::U32s(v)) => {
+                    v.iter().for_each(|&u| w.u32(u))
+                }
+                (Op::Str(_), Value::Str(v)) => w.string(v),
+                (Op::WStr(_), Value::Str(v)) => w.wstring(v),
+                (Op::Ptr(_), Value::Ptr(p)) => self.ptr(*p)?,
+                (Op::List(_, item), Value::List(items)) => {
+                    w.count(items.len());
+                    for f in items {
+                        self.ops(item, version, f)?;
+                    }
+                }
+                (Op::Rest(_, item), Value::List(items)) => {
+                    for f in items {
+                        self.ops(item, version, f)?;
+                    }
+                }
+                (Op::Block(_, _, inner), Value::Block(v, f)) => {
+                    let at = w.begin_block(*v);
+                    self.ops(inner, *v, f)?;
+                    self.w.end_block(at);
+                }
+                (op, value) => return format_err(format!("{op:?} cannot write {value:?}")),
+            }
+        }
+        Ok(())
     }
 }
