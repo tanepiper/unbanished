@@ -469,6 +469,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         create_points: Vec::new(),
         named_points: Vec::new(),
         floor: None,
+        floor_on_activate: false,
         terraform: None,
         tornado: None,
         quarry: None,
@@ -606,9 +607,9 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                 });
             }
             "floor" => {
-                t.floor = banished_formats::game::floor_description(&data)
-                    .ok()
-                    .filter(|f| f.active)
+                let d = banished_formats::game::floor_description(&data).ok();
+                t.floor_on_activate = d.as_ref().is_some_and(|f| f.active);
+                t.floor = d
                     .and_then(|f| f.mesh)
                     .and_then(|m| read(archive, &normalise(&m)))
                     .and_then(|d| banished_formats::picking::picking_mesh(&d).ok())
@@ -2620,7 +2621,11 @@ impl StartingTown {
 
     /// The trader boat template (`Template\\TraderBoat.rsc`): its CharacterDescription and
     /// its model's animation group.
-    fn load_boat(&mut self, archive: &Archive, reference: &str) -> Option<usize> {
+    pub(in crate::start) fn load_boat(
+        &mut self,
+        archive: &Archive,
+        reference: &str,
+    ) -> Option<usize> {
         let template = self.load_template(archive, reference)?;
         let file = normalise(reference).replace(":resource", ":character");
         let character = read(archive, &file)
@@ -2636,7 +2641,7 @@ impl StartingTown {
 
     /// Every template with a ValueDescription, in `Game/GameResources.rsc`'s order (inferred
     /// for the original's factory order, `FUN_140059fd0`), its raw material registered.
-    fn load_trade_goods(&mut self, archive: &Archive) {
+    pub(in crate::start) fn load_trade_goods(&mut self, archive: &Archive) {
         if !self.construction.trade_goods.is_empty() {
             return;
         }

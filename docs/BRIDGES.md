@@ -52,7 +52,8 @@ goes up; demolished, the parts lift their stamps and the river comes back.
 Its state table (`FUN_14012b000`, built through `FUN_140036a50` and `FUN_140036b70`) has state 2
 only, entered by `FUN_14012aa30`, with a transition to 3. Entering state 2, each part's
 MapComponent activates (`FUN_140129680`) and, for a part with a FloorComponent, its floor is added
-again (`FUN_140124860` takes a floor already added out first). It returns false, so the earlier
+(`FUN_140124860` takes a floor already added out first). That is the only way a floor whose
+description does not add it on activation (`+0x28` false: docks, porches) ever gets added. It returns false, so the earlier
 controllers' state-2 entries still run. A bridge's controllers are ClearArea, Build, WorkPlace,
 MultiObject and Destroy, in that order. MultiObject is the last that holds state 2, so a built
 bridge's machine sits in MultiObject's table at index 0, as saves show.
@@ -60,7 +61,9 @@ bridge's machine sits in MultiObject's table at index 0, as saves show.
 ## FloorComponent
 
 FloorDescription (serializer `FUN_140124b50`): `+0x20` a picking mesh, `+0x28` added on
-activation (true for every piece). Activation (`FUN_140124810` → `FUN_140124860`): cell `+0x2d`
+activation (true for every bridge piece; false for docks and porches, which MultiObject's state
+2 adds). On load, slot `+0x58` (`FUN_140124a10`) adds an active floor again without taking
+it out first, so the saved counts grow by one with every load. Activation (`FUN_140124810` → `FUN_140124860`): cell `+0x2d`
 one more over the MapComponent's rectangle and the mesh joins the map's picking scene with the
 model's transform; removal (`FUN_140124770` → `FUN_1400a2070`) takes both back.
 

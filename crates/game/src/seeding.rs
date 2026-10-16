@@ -76,9 +76,12 @@ pub struct Template {
     /// The InteractDescription's other named points (name, position, yaw): the trading
     /// post's "boat".
     pub named_points: Vec<(String, [f32; 3], f32)>,
-    /// FloorDescription (bridge parts): its picking mesh's triangles in model space, added
-    /// on activation (`+0x28`).
+    /// FloorDescription: its picking mesh's triangles in model space (bridge pieces, docks,
+    /// porches).
     pub floor: Option<std::sync::Arc<Vec<[[f32; 3]; 3]>>>,
+    /// FloorDescription `+0x28`: the floor is added on activation (`FUN_140124810`, bridge
+    /// pieces); the others are added when their MultiObject is built (`FUN_14012aa30`).
+    pub floor_on_activate: bool,
     /// TerraformDescription (tunnels).
     pub terraform: Option<crate::terraform::TerraformTemplate>,
     /// TornadoDescription.
@@ -1034,6 +1037,7 @@ mod tests {
             create_points: Vec::new(),
             named_points: Vec::new(),
             floor: None,
+            floor_on_activate: false,
             terraform: None,
             tornado: None,
             quarry: None,

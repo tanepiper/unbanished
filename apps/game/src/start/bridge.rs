@@ -270,7 +270,11 @@ impl StartingTown {
             if let Some(t) = spec.parts.get(part_index(p)).copied().flatten() {
                 let degrees = yaw.rem_euclid(360);
                 let part = self.fence_part(t, (x, y, w, h), degrees, position);
-                self.add_floor(part);
+                // FloorComponent activation (`FUN_140124810`) adds it when its description
+                // says so (`+0x28`, every bridge piece).
+                if self.templates[self.placed[part].template].floor_on_activate {
+                    self.add_floor(part);
+                }
                 multi.push(part);
             }
             x += cells * along_x;
@@ -298,25 +302,12 @@ impl StartingTown {
 
     /// FloorComponent activation (`FUN_140124810` → `FUN_140124860`): the part's floor mesh,
     /// turned and placed as its model, over its MapComponent's cells.
-    fn add_floor(&mut self, part: usize) {
+    pub(in crate::start) fn add_floor(&mut self, part: usize) {
         let p = &self.placed[part];
         let Some(floor) = self.templates[p.template].floor.clone() else {
             return;
         };
-        let (s, c) = p.yaw.to_radians().sin_cos();
-        let at = p.position;
-        let place = |v: [f32; 3]| {
-            [
-                c * v[0] - s * v[1] + at[0],
-                s * v[0] + c * v[1] + at[1],
-                v[2] + at[2],
-            ]
-        };
-        let triangles = floor.iter().map(|t| t.map(place)).collect();
-        let f = banished_game::floor::Floor {
-            rect: (p.cell.0, p.cell.1, p.footprint.0, p.footprint.1),
-            triangles,
-        };
+        let f = banished_game::floor::Floor::placed(&floor, p);
         let size = self.cells.size;
         self.cells.floors.add(size, part, f);
     }

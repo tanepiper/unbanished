@@ -6,8 +6,8 @@ running game. It is done in stages:
 
 1. **Terrain, map cells and placed entities** (done).
 2. **Storage, buildings, construction and the job manager** (done).
-3. Citizens (3a, done), their action stacks and work claims (3b, done), wildlife, livestock
-   and trader boats (3c, done), and the producers' component state (3d).
+3. Citizens (3a), their action stacks and work claims (3b), wildlife, livestock and trader
+   boats (3c), and the buildings' own component state (3d): all done.
 4. Jobs, trade, events and the rest of the managers.
 
 ## Starting a load
@@ -263,11 +263,58 @@ Test: `start::load::stage3c_tests::vanilla_saves_restore_wildlife`. Every popula
 animal and boat is restored. Every herd's animals point back at it, and every pasture's
 livestock names the pasture. Save83 has 36 herds, 261 animals (36 in pastures) and 2 boats.
 
+## What stage 3d restores
+
+The code is in `apps/game/src/start/load/producers.rs`. Each building component's fields go onto
+the port's site fields, following the offsets in the port's doc comments:
+
+| Component | Fields |
+|---|---|
+| Production (ResourceProduce and ConsumeProduce) | disabled flag, selector, recipe weights, produced count |
+| Forester | plant and cut toggles |
+| Hunting | the hunting time |
+| Fishing | registered, water fraction |
+| CropField | on, piles, crop, cells (cell, state, crop, pile) |
+| Orchard | on, year, tree, slots |
+| FruitComponent | ripeness, picked |
+| AutoPickup | on, its Pickup works |
+| MultiObject | parts, stages |
+| Happiness | registered |
+| Cemetery | graves |
+| Disease | its four clocks, on a pasture, what last grew |
+| Destroy | count, target, refund, rebuild, damaged, time |
+| Fire | buckets, burn, spread |
+| Immigration | arrived, timer |
+| Trade | the merchant's goods, the merchant, goods to keep, orders by merchant, automatic trades, mode, clock, held, boat, working |
+
+- **Other components:** trackers, terraform points, tombstones, and the crops' keep-pile flag.
+- **Not restored yet:** nomads and tornadoes, which are logged.
+
+**Floors.** The map cells save their floor counts (`+0x2d`). On load, the original's
+FloorComponent slot `+0x58` (`FUN_140124a10`) adds every active floor again: one more on each
+of its cells, with nothing taken away first, because the mesh handle is not saved. So in the
+original the counts grow with every load: a Save83 bridge reads 2 in the earlier Save 47 and
+5 later. The load restores the saved counts and then re-adds the active floors in the same way.
+
+This also exposed a port gap. Floors whose FloorDescription does not add them on activation
+(`+0x28` false: docks, the school's and the trading post's) were never loaded. In the
+original, MultiObject's state 2 adds them when the building is built. The port now keeps every
+floor mesh, and its MultiObject state-2 entry adds the parts' floors (see
+[BRIDGES.md](BRIDGES.md)).
+
+Test: `start::load::stage3d_tests::vanilla_saves_restore_producers`.
+- **Floors.** The floor counts equal the saved ones, plus one under each active floor, on
+  every cell (490 floor cells in Save83).
+- **Crops and trees.** Growing crops point at live entities, and standing trees carry their
+  fruit.
+- **Trading posts.** The trading posts' goods resolve.
+
 ## Not restored yet
 
-- Producers' and services' component state: ConsumeProduce and ResourceProduce weights,
-  crop fields, orchards, fishing, the attendance lists, homes. Also the work kinds those
-  register (stage 3).
+- Nomads and tornadoes.
+- The engine-side blocks: achievements, animation states and the audio scene. The port
+  rebuilds its own animation and ambience.
+- The environment, weather and event log (stage 4).
 - The ambient sound emitters. The port rebuilds map ambience from the terrain, as a New Game does.
 - Floors (`+0x2d`, bridge decks).
 - The save's own scheduler order. Entities are registered in entity-manager order.

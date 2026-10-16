@@ -32,6 +32,13 @@ fn main() {
             println!("{t} {:?}", o.fields.0.get(1));
         }
     }
+    if std::env::var("FLOORS").is_ok() {
+        let mut hist = std::collections::BTreeMap::new();
+        for c in &g.map.cells {
+            *hist.entry(c.bytes[5]).or_insert(0) += 1;
+        }
+        println!("cell +0x2d values: {hist:?}");
+    }
     if std::env::var("STACKS").is_ok() {
         stacks(&g);
     }

@@ -31,6 +31,26 @@ pub struct Floor {
     pub triangles: Vec<[[f32; 3]; 3]>,
 }
 
+impl Floor {
+    /// A floor mesh (model space) turned and placed as the entity's model, over its
+    /// MapComponent's cells (`FUN_140124860`: the model transform and map rectangle).
+    pub fn placed(mesh: &[[[f32; 3]; 3]], p: &crate::seeding::Placed) -> Floor {
+        let (s, c) = p.yaw.to_radians().sin_cos();
+        let at = p.position;
+        let place = |v: [f32; 3]| {
+            [
+                c * v[0] - s * v[1] + at[0],
+                s * v[0] + c * v[1] + at[1],
+                v[2] + at[2],
+            ]
+        };
+        Floor {
+            rect: (p.cell.0, p.cell.1, p.footprint.0, p.footprint.1),
+            triangles: mesh.iter().map(|t| t.map(place)).collect(),
+        }
+    }
+}
+
 impl Floors {
     pub fn new(cells: usize) -> Floors {
         Floors {

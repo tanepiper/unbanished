@@ -1622,11 +1622,14 @@ impl Callbacks for Sim<'_, '_> {
             }
             Callback::MultiObjectEnter2 => {
                 // `FUN_14012aa30`: each part's MapComponent activates (its minimap rectangle,
-                // drawn by the town from the placed parts) and its floor is added again
-                // (`FUN_140124860` takes a floor already added out first, so the counts stay).
+                // drawn by the town from the placed parts) and its floor is added
+                // (`FUN_140124860`, which takes a floor already added out first): a bridge
+                // piece's again, a dock's or porch's for the first time.
                 let size = self.size;
                 for part in self.sites[&e].parts.clone() {
-                    if let Some(floor) = self.cells.floors.meshes.get(&part).cloned() {
+                    let p = &self.placed[part];
+                    if let Some(mesh) = self.templates[p.template].floor.clone() {
+                        let floor = crate::floor::Floor::placed(&mesh, p);
                         self.cells.floors.add(size, part, floor);
                     }
                 }
