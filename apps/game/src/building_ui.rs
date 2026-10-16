@@ -333,7 +333,21 @@ impl ConsumeProduceUi {
                         .iter()
                         .map(|r| ui.res.string(d.string_table.as_deref(), &r.label))
                         .collect();
-                    ui.set_choices(c, labels);
+                    // `FUN_14005fd30`: each item's sprite is its output's small one
+                    // (RawMaterialDescription sheet `+0x20`, sprite `+0x38`).
+                    let icons = d
+                        .recipes
+                        .iter()
+                        .map(|r| {
+                            let file = r.output.as_deref()?.split(':').next()?.replace('\\', "/");
+                            let m = banished_formats::game::raw_material_description(
+                                &archive.read_ref(&format!("{file}:rawmaterial")).ok()?,
+                            )
+                            .ok()?;
+                            ui.res.sprite(m.sprite_sheet.as_deref(), &m.name_small)
+                        })
+                        .collect();
+                    ui.set_choices_with_icons(c, labels, icons);
                     crate::menu::select_combo(ui, c, (*selector).max(0) as usize);
                 }
             }

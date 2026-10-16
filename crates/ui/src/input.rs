@@ -368,6 +368,13 @@ impl Ui {
                 };
                 if list != usize::MAX {
                     self.set_text(button, &text);
+                    let icon = match &self.nodes[list].kind {
+                        Kind::List(l) => l.icons.get(i).copied().flatten(),
+                        _ => None,
+                    };
+                    if let Some(icon) = icon {
+                        self.set_icon(button, icon);
+                    }
                 }
             }
             if let Some(routed) = routed {

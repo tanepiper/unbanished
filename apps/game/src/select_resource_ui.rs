@@ -55,17 +55,33 @@ pub struct SelectResourceUi {
 
 /// SelectDescription (`FUN_140055f90`): `+0x30`, `+0x38` the name's string table and key,
 /// `+0x40` the kind.
-fn select_description(data: &[u8]) -> Option<(Option<String>, String, i32)> {
+/// SelectDescription: its icon (sheet `+0x20`, sprite `+0x28`), its name (table `+0x30`,
+/// key `+0x38`) and kind (`+0x40`).
+struct Select {
+    sheet: Option<String>,
+    sprite: String,
+    table: Option<String>,
+    name: String,
+    kind: i32,
+}
+
+fn select_description(data: &[u8]) -> Option<Select> {
     use banished_formats::crs;
     crs::parse(data, |r: &mut crs::Reader, _| {
         r.block(|r, _| {
-            let _sheet = r.external_ref()?;
-            let _sprite = r.string()?;
+            let sheet = r.external_ref()?;
+            let sprite = r.string()?;
             let table = r.external_ref()?;
             let name = r.string()?;
             let kind = r.i32()?;
             r.skip_rest();
-            Ok((table, name, kind))
+            Ok(Select {
+                sheet,
+                sprite,
+                table,
+                name,
+                kind,
+            })
         })
     })
     .ok()
@@ -118,6 +134,7 @@ impl SelectResourceUi {
             self.filled = Some(known.clone());
             let mut items = Vec::new();
             let mut labels = Vec::new();
+            let mut icons = Vec::new();
             for &t in known {
                 let file = town.templates[t]
                     .reference
@@ -125,21 +142,22 @@ impl SelectResourceUi {
                     .next()
                     .unwrap_or("")
                     .replace('\\', "/");
-                let Some((table, name, kind)) = archive
+                let Some(d) = archive
                     .read_ref(&format!("{file}:select"))
                     .ok()
                     .and_then(|d| select_description(&d))
                 else {
                     continue;
                 };
-                if kind == self.resource.kind() {
+                if d.kind == self.resource.kind() {
                     items.push(t);
-                    labels.push(ui.res.string(table.as_deref(), &name));
+                    labels.push(ui.res.string(d.table.as_deref(), &d.name));
+                    icons.push(ui.res.sprite(d.sheet.as_deref(), &d.sprite));
                 }
             }
+            // `FUN_14007dd00`: `ComboElement::AddItem` with the icon and the name.
             if let Some(c) = self.combo {
-                // Deviation: the items have no icons (the port's lists hold text).
-                ui.set_choices(c, labels);
+                ui.set_choices_with_icons(c, labels, icons);
             }
             self.items = items;
             self.select_current(ui, town, e);

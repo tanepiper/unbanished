@@ -62,6 +62,8 @@ pub struct TextData {
 #[derive(Debug, Clone)]
 pub struct ListData {
     pub items: Vec<String>,
+    /// Each item's sprite (`ComboElement::AddItem`'s `Sprite`), drawn before its text.
+    pub icons: Vec<Option<SpriteRef>>,
     pub selected: Option<usize>,
     pub hovered: Option<usize>,
     /// First visible pixel row.
@@ -513,6 +515,43 @@ impl Ui {
         }
     }
 
+    /// `LabelElement::SetSprite` on a label, or on a combo's label (`ComboElement::UpdateText`
+    /// sets the chosen item's sprite when it has one).
+    pub fn set_icon(&mut self, id: NodeId, sprite: SpriteRef) {
+        let target = match &self.nodes[id].kind {
+            Kind::Control(Control::Combo { button, .. }) => *button,
+            _ => id,
+        };
+        let mut stack = vec![target];
+        while let Some(n) = stack.pop() {
+            if let Kind::Label { icon, .. } = &mut self.nodes[n].kind {
+                *icon = Some(sprite);
+                return;
+            }
+            stack.extend(self.nodes[n].children.iter().rev());
+        }
+    }
+
+    /// A combo's item `index`: the list's selection, the label's text and the item's sprite.
+    pub fn select_combo_item(&mut self, combo: NodeId, index: usize) {
+        let Kind::Control(Control::Combo { list, .. }) = self.nodes[combo].kind else {
+            return;
+        };
+        let (text, icon) = match &self.nodes[list].kind {
+            Kind::List(l) => (
+                l.items.get(index).cloned(),
+                l.icons.get(index).copied().flatten(),
+            ),
+            _ => (None, None),
+        };
+        let Some(text) = text else { return };
+        self.list_select(list, Some(index));
+        self.set_text(combo, &text);
+        if let Some(icon) = icon {
+            self.set_icon(combo, icon);
+        }
+    }
+
     pub fn set_visible(&mut self, id: NodeId, visible: bool) {
         let f = &mut self.nodes[id].flags;
         *f = if visible {
@@ -572,6 +611,7 @@ impl Ui {
             .sprite(Some(r"Dialog\SpriteSheet.rsc:resource"), "White");
         self.add(Node::new(Kind::List(ListData {
             items: Vec::new(),
+            icons: Vec::new(),
             selected: None,
             hovered: None,
             scroll: 0,
@@ -597,7 +637,18 @@ impl Ui {
     }
 
     pub fn set_list_items(&mut self, id: NodeId, items: Vec<String>) {
+        self.set_list_icons(id, items, Vec::new());
+    }
+
+    /// [`Self::set_list_items`] with each item's sprite.
+    pub fn set_list_icons(
+        &mut self,
+        id: NodeId,
+        items: Vec<String>,
+        icons: Vec<Option<SpriteRef>>,
+    ) {
         if let Kind::List(l) = &mut self.nodes[id].kind {
+            l.icons = icons;
             l.items = items;
             l.selected = None;
             l.hovered = None;
@@ -1337,8 +1388,18 @@ impl Ui {
                         ellipsis_width: 0,
                         layout,
                     };
+                    // Inferred: an item's sprite at the row's left, fitted to the row's
+                    // height, its text after it.
+                    let mut x = l + 6;
+                    if let Some(Some(s)) = list.icons.get(i) {
+                        let h = s.height.min(list.row_height).max(1);
+                        let w = (s.width * h / s.height.max(1)).max(1);
+                        let iy = y + (list.row_height - h) / 2;
+                        Self::sprite_quad(out, s, [x, iy, x + w, iy + h], color, list_clip);
+                        x += w + 4;
+                    }
                     let ty = y + (list.row_height - text.layout.height) / 2;
-                    self.draw_text(&text, [l + 6, ty], color, list_clip, out);
+                    self.draw_text(&text, [x, ty], color, list_clip, out);
                 }
                 // Scroll indicator.
                 let total = list.items.len() as i32 * list.row_height;

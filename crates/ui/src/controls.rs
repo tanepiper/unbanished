@@ -425,6 +425,7 @@ impl Ui {
                 let highlight = self.res.sprite(sprite_sheet.as_deref(), sprite);
                 let id = self.add(Node::new(Kind::List(ListData {
                     items: Vec::new(),
+                    icons: Vec::new(),
                     selected: None,
                     hovered: None,
                     scroll: 0,
@@ -538,8 +539,18 @@ impl Ui {
     }
 
     pub fn set_choices(&mut self, id: NodeId, choices: Vec<String>) {
+        self.set_choices_with_icons(id, choices, Vec::new());
+    }
+
+    /// `ComboElement::AddItem` for each item, its text and sprite.
+    pub fn set_choices_with_icons(
+        &mut self,
+        id: NodeId,
+        choices: Vec<String>,
+        icons: Vec<Option<SpriteRef>>,
+    ) {
         if let Kind::Control(Control::Combo { list, .. }) = self.nodes[id].kind {
-            self.set_list_items(list, choices);
+            self.set_list_icons(list, choices, icons);
         }
     }
     pub fn set_graph_series(&mut self, id: NodeId, series: Vec<Vec<f32>>) {

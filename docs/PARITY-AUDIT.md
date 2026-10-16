@@ -58,7 +58,7 @@ These change no game rules, but are visible:
 - **Shadows:** no culling of casters off screen.
 - **No antialiasing** (MSAA).
 - **Cursors:** done. The six cursors (Arrow, Hand, Hourglass, Move, Query, Place) follow the loop, the tool (slot `+0x60`) and the element under the pointer (`+0x3c`, the title bars' Move).
-- **Resource pick lists** have no icons.
+- **Resource pick lists:** done. The crop, tree, livestock and product combos show their items' icons (`ComboElement::AddItem`'s sprite), the chosen one's on the label.
 - **The new-save slot's sprite** is the template's empty icon.
 - **Dates** use en-US formats rather than the user's locale.
 

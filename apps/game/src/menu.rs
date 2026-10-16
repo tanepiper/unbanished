@@ -399,16 +399,7 @@ fn combo_index(ui: &Ui, combo: NodeId) -> usize {
 
 /// `ComboElement::SetCurrentItem`: select an item and show its text on the button.
 pub(crate) fn select_combo(ui: &mut Ui, combo: NodeId, index: usize) {
-    let Some(list) = combo_list(ui, combo) else {
-        return;
-    };
-    let text = match &ui.node(list).kind {
-        Kind::List(data) => data.items.get(index).cloned(),
-        _ => None,
-    };
-    let Some(text) = text else { return };
-    ui.list_select(list, Some(index));
-    ui.set_text(combo, &text);
+    ui.select_combo_item(combo, index);
 }
 
 fn edit_text(ui: &Ui, edit: NodeId) -> Option<String> {

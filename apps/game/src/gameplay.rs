@@ -4106,6 +4106,52 @@ mod tests {
         });
     }
 
+    /// A crop field's window lists the known crops with their icons (`FUN_14007dd00`), and the
+    /// combo's label shows the chosen one's.
+    #[test]
+    fn crop_choices_have_icons() {
+        let Some((mut game, _)) = generated() else {
+            return;
+        };
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let Ok(bytes) = std::fs::read(root.join("save-game/Save83.sav")) else {
+            return;
+        };
+        let mut gameplay = GameplayLoop::from_save(crate::saved::SavedGame::parse(&bytes).unwrap());
+        game.with_ctx(|_, ctx| {
+            gameplay.load(ctx);
+            gameplay.startup(ctx);
+            let field = {
+                let town = gameplay.town.as_ref().unwrap();
+                town.placed
+                    .iter()
+                    .position(|p| {
+                        p.alive && town.templates[p.template].reference.contains("CropField")
+                    })
+                    .expect("a crop field")
+            };
+            {
+                let (town, screen) = (
+                    gameplay.town.as_ref().unwrap(),
+                    gameplay.screen.as_mut().unwrap(),
+                );
+                gameplay
+                    .entities
+                    .select(ctx.ui, screen, ctx.archive, town, Entity::Placed(field));
+            }
+            gameplay.update(ctx, 1.0 / 30.0);
+            let w = gameplay.entities.open.last().unwrap().root;
+            let combo = ctx.ui.find(w, "selectResource").expect("selectResource");
+            let list = crate::menu::combo_list(ctx.ui, combo).unwrap();
+            let banished_ui::Kind::List(data) = &ctx.ui.node(list).kind else {
+                panic!("no list");
+            };
+            assert!(!data.items.is_empty());
+            assert_eq!(data.icons.len(), data.items.len());
+            assert!(data.icons.iter().all(Option::is_some), "{:?}", data.items);
+        });
+    }
+
     /// The Limits window (`UtilityLimits`): each ResourceLimitUI row shows its slot's limit,
     /// and a changed spinner sets it (`FUN_14007ccb0`).
     #[test]
