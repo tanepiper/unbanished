@@ -16,12 +16,17 @@ pub struct EntityWindow {
     pub pages: Option<NodeId>,
     /// UIDescription `+0x40`: the page of a finished entity.
     pub page: i32,
+    /// ToolUI `+0x40`: pinned (by `checkPin` or by dragging it), it stays where it is.
     pub pinned: bool,
+    /// Where a pinned window was dragged to (the tool manager's `+0x60` map, `FUN_140108300`).
+    pub at: Option<(i32, i32)>,
 }
 
 #[derive(Default)]
 pub struct EntityWindows {
-    // Not ported: offscreen host retirement, dragging and persisted pin settings.
+    /// The open hosts. An unpinned one closes when its entity leaves the screen
+    /// (`FUN_140102160`); dragging its title pins it (`ToolUI`). The pinned windows' positions
+    /// (the tool manager's `+0x60` map) go with the save.
     pub open: Vec<EntityWindow>,
 }
 
@@ -121,6 +126,7 @@ impl EntityWindows {
             pages,
             page: desc.flags,
             pinned: false,
+            at: None,
         });
         self.refresh(ui, archive, town);
         log::debug!(
@@ -415,6 +421,37 @@ impl EntityWindows {
             return false;
         };
         w.pinned = !w.pinned;
+        true
+    }
+
+    /// The window under `(x, y)` (topmost first), and whether the point is on its
+    /// `borderTitle`.
+    pub fn window_at(&self, ui: &Ui, x: i32, y: i32) -> Option<(usize, bool)> {
+        let inside = |n: NodeId| {
+            let [x0, y0, x1, y1] = ui.node(n).rect;
+            x0 <= x && x < x1 && y0 <= y && y < y1
+        };
+        (0..self.open.len()).rev().find_map(|i| {
+            let w = &self.open[i];
+            inside(w.root).then(|| {
+                let title = ui.find(w.root, "borderTitle").is_some_and(inside);
+                (i, title)
+            })
+        })
+    }
+
+    /// `FUN_140102160` when the selected entity is off the screen: its unpinned host closes.
+    /// Returns whether it did (the selection goes with it).
+    pub fn retire(&mut self, ui: &mut Ui, screen: &mut Screen, entity: Entity) -> bool {
+        let Some(i) = self
+            .open
+            .iter()
+            .position(|w| w.entity == entity && !w.pinned)
+        else {
+            return false;
+        };
+        let w = self.open.remove(i);
+        screen.remove_root(ui, w.root);
         true
     }
 

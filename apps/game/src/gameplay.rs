@@ -35,6 +35,20 @@ const SPEED_LEVELS: [u32; 4] = [1, 2, 5, 10];
 const EDGE: i32 = 4;
 
 /// A dialog the pause menu opened.
+/// A window being dragged by its `borderTitle` (ToolUI `FUN_140081100` / `FUN_140080e80`).
+struct WindowDrag {
+    root: banished_ui::NodeId,
+    /// A utility window's template (its corner is remembered), or an entity window.
+    template: Option<String>,
+    /// Where the button went down (`+0x50`), and the cursor's offset from the corner
+    /// (`+0x44`).
+    press: (i32, i32),
+    offset: (i32, i32),
+    /// `+0x41`: following the cursor. An unpinned entity window waits for 5 pixels of
+    /// movement (`+0x4d`), then pins itself.
+    active: bool,
+}
+
 enum MenuDialog {
     Achievements(crate::achievement_ui::AchievementDialog),
     Goal(crate::achievement_ui::GoalDialog),
@@ -85,6 +99,7 @@ pub struct GameplayLoop {
     next_scenario: Option<usize>,
     /// The Achievement or Goal dialog opened from the pause menu.
     menu_dialog: Option<MenuDialog>,
+    window_drag: Option<WindowDrag>,
     /// `Game\Names\Cities` for the Map dialog's New Name (loaded when first wanted).
     town_names: Option<banished_formats::names::NameDatabase>,
     /// The road kinds' decal materials, the templates' DecalDescriptions, and what the decals
@@ -163,6 +178,7 @@ impl GameplayLoop {
             goal: None,
             next_scenario: None,
             menu_dialog: None,
+            window_drag: None,
             town_names: None,
             road_materials: Vec::new(),
             decal_descriptions: Vec::new(),
@@ -401,21 +417,121 @@ impl GameplayLoop {
         };
         let screen = ctx.ui.screen;
         let vp = view.view_proj(screen[0] as f32 / screen[1] as f32);
+        // `FUN_140105850` → `FUN_140103e30`: the corners in front of the camera; the rectangle
+        // must touch the screen, and is clamped to it.
+        let (w, h) = (screen[0] as f32, screen[1] as f32);
         let mut r = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
+        let mut any = false;
         for x in [lo.x, hi.x] {
             for y in [lo.y, hi.y] {
                 for z in [lo.z, hi.z] {
                     let p = vp * glam::Vec4::new(x, y, z, 1.);
                     if p.w <= 0. {
-                        return;
+                        continue;
                     }
-                    let x = (p.x / p.w * 0.5 + 0.5) * screen[0] as f32;
-                    let y = (0.5 - p.y / p.w * 0.5) * screen[1] as f32;
+                    any = true;
+                    let x = (p.x / p.w * 0.5 + 0.5) * w;
+                    let y = (0.5 - p.y / p.w * 0.5) * h;
                     r = [r[0].min(x), r[1].min(y), r[2].max(x), r[3].max(y)];
                 }
             }
         }
+        if !any || w < r[0] || r[2] < 0.0 || h < r[1] || r[3] < 0.0 {
+            // `FUN_140102160`: off the screen, an unpinned host closes and the entity is
+            // deselected.
+            if let Some(screen) = self.screen.as_mut() {
+                if self.entities.retire(ctx.ui, screen, entity) {
+                    self.selection.selected = None;
+                }
+            }
+            return;
+        }
+        let r = [
+            r[0].clamp(0.0, w),
+            r[1].clamp(0.0, h),
+            r[2].clamp(0.0, w),
+            r[3].clamp(0.0, h),
+        ];
         self.entities.position(ctx.ui, entity, r);
+    }
+
+    /// The windows' title dragging (ToolUI `FUN_140081100`, `FUN_140080e80`, `FUN_140080e10`)
+    /// and EntityUI's press (`FUN_140067430`). Returns whether the input was taken.
+    fn drag_window(&mut self, ctx: &mut Ctx, input: &RawInput) -> bool {
+        match *input {
+            RawInput::UiPress => {
+                let (x, y) = self.cursor;
+                if let Some((template, root)) = self.utility.title_at(ctx.ui, x, y) {
+                    // A utility window (ToolUI `+0x40` set at bind) follows at once.
+                    let r = ctx.ui.node(root).rect;
+                    self.window_drag = Some(WindowDrag {
+                        root,
+                        template: Some(template),
+                        press: (x, y),
+                        offset: (x - r[0], y - r[1]),
+                        active: true,
+                    });
+                    return false;
+                }
+                let Some((i, title)) = self.entities.window_at(ctx.ui, x, y) else {
+                    return false;
+                };
+                let w = &self.entities.open[i];
+                let (root, entity, pinned) = (w.root, w.entity, w.pinned);
+                if title {
+                    let r = ctx.ui.node(root).rect;
+                    self.window_drag = Some(WindowDrag {
+                        root,
+                        template: None,
+                        press: (x, y),
+                        offset: (x - r[0], y - r[1]),
+                        active: pinned,
+                    });
+                }
+                // `FUN_140067430`: a press on a window selects its entity again.
+                if self.selection.selected != Some(entity) {
+                    self.selection.selected = Some(entity);
+                }
+                false
+            }
+            RawInput::Cursor(x, y) => {
+                let Some(d) = &mut self.window_drag else {
+                    return false;
+                };
+                if !d.active {
+                    if (x - d.press.0).abs() <= 5 && (y - d.press.1).abs() <= 5 {
+                        return false;
+                    }
+                    d.active = true;
+                    if let Some(w) = self.entities.open.iter_mut().find(|w| w.root == d.root) {
+                        w.pinned = true;
+                        // EntityUI's update: `checkPin` shows ToolUI `+0x40`.
+                        if let Some(pin) = ctx.ui.find(w.root, "checkPin") {
+                            ctx.ui.set_checked(pin, true);
+                        }
+                    }
+                }
+                let at = ((x - d.offset.0).max(0), (y - d.offset.1).max(0));
+                let node = ctx.ui.node_mut(d.root);
+                node.alignment = 0;
+                node.margins = [at.0, 0, at.1, 0];
+                match &d.template {
+                    Some(t) => self.utility.remember(t, at),
+                    None => {
+                        if let Some(w) = self.entities.open.iter_mut().find(|w| w.root == d.root) {
+                            w.at = Some(at);
+                        }
+                    }
+                }
+                self.cursor = (x, y);
+                d.active
+            }
+            RawInput::Release => {
+                self.window_drag = None;
+                false
+            }
+            _ => false,
+        }
     }
 
     /// `FUN_140106740`: the map cell under the cursor. The original casts the camera ray
@@ -1903,6 +2019,9 @@ impl GameLoop for GameplayLoop {
             }
             return Next::Stay;
         }
+        if self.drag_window(ctx, &input) {
+            return Next::Stay;
+        }
         match input {
             RawInput::Cursor(x, y) => {
                 self.cursor = (x, y);
@@ -2627,6 +2746,95 @@ mod tests {
 
     /// HelpUI: the topics by title, the chosen page's text, back and forward through the
     /// pages seen.
+    #[test]
+    fn windows_drag_by_their_title() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            let template = r"Template\UtilityHelp.rsc:resource";
+            gameplay.utility.toggle(
+                ctx.ui,
+                gameplay.screen.as_mut().unwrap(),
+                ctx.archive,
+                template,
+                None,
+                0,
+            );
+            gameplay
+                .screen
+                .as_mut()
+                .unwrap()
+                .layout(ctx.ui, (1280, 800));
+            let screen_root = gameplay.screen.as_ref().unwrap().root;
+            let title = ctx.ui.find(screen_root, "borderTitle").expect("no title");
+            let [tx, ty, ..] = ctx.ui.node(title).rect;
+            let (_, root) = gameplay
+                .utility
+                .title_at(ctx.ui, tx + 4, ty + 4)
+                .expect("no title to drag");
+            let [x0, y0, ..] = ctx.ui.node(root).rect;
+            let b = ctx.ui.find(root, "borderTitle").unwrap();
+            let [bx, by, ..] = ctx.ui.node(b).rect;
+            let press = (bx + 4, by + 4);
+            gameplay.raw(ctx, RawInput::Cursor(press.0, press.1));
+            gameplay.raw(ctx, RawInput::UiPress);
+            gameplay.raw(ctx, RawInput::Cursor(press.0 + 100, press.1 + 50));
+            gameplay.raw(ctx, RawInput::Release);
+            gameplay.raw(ctx, RawInput::Cursor(press.0 + 300, press.1 + 300));
+            let m = ctx.ui.node(root).margins;
+            assert_eq!((m[0], m[2]), (x0 + 100, y0 + 50));
+            // Reopened, it comes back where it was left.
+            for _ in 0..2 {
+                gameplay.utility.toggle(
+                    ctx.ui,
+                    gameplay.screen.as_mut().unwrap(),
+                    ctx.archive,
+                    template,
+                    None,
+                    0,
+                );
+            }
+            gameplay
+                .screen
+                .as_mut()
+                .unwrap()
+                .layout(ctx.ui, (1280, 800));
+            assert!(gameplay
+                .utility
+                .title_at(ctx.ui, press.0 + 100, press.1 + 50)
+                .is_some());
+            // An entity window pins itself once dragged more than 5 pixels.
+            let town = gameplay.town.as_ref().unwrap();
+            let barn = town.storage_sites[0].entity;
+            gameplay.entities.select(
+                ctx.ui,
+                gameplay.screen.as_mut().unwrap(),
+                ctx.archive,
+                town,
+                Entity::Placed(barn),
+            );
+            gameplay
+                .screen
+                .as_mut()
+                .unwrap()
+                .layout(ctx.ui, (1280, 800));
+            let root = gameplay.entities.open[0].root;
+            let b = ctx.ui.find(root, "borderTitle").expect("no entity title");
+            let [bx, by, ..] = ctx.ui.node(b).rect;
+            gameplay.raw(ctx, RawInput::Cursor(bx + 4, by + 4));
+            gameplay.raw(ctx, RawInput::UiPress);
+            gameplay.raw(ctx, RawInput::Cursor(bx + 7, by + 6));
+            assert!(!gameplay.entities.open[0].pinned);
+            gameplay.raw(ctx, RawInput::Cursor(bx + 24, by + 4));
+            gameplay.raw(ctx, RawInput::Release);
+            assert!(gameplay.entities.open[0].pinned);
+            assert!(gameplay.entities.open[0].at.is_some());
+            let pin = ctx.ui.find(root, "checkPin").unwrap();
+            assert!(ctx.ui.checked(pin));
+        });
+    }
+
     #[test]
     fn help_window_browses_the_pages() {
         let Some((mut game, mut gameplay)) = generated() else {

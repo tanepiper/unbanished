@@ -924,6 +924,21 @@ impl UtilityWindows {
             .map(|w| w.root)
     }
 
+    /// The open window under `(x, y)` by its `borderTitle` (topmost first): its template and
+    /// root.
+    pub fn title_at(&self, ui: &Ui, x: i32, y: i32) -> Option<(String, NodeId)> {
+        self.open.iter().rev().find_map(|w| {
+            let b = ui.find(w.root, "borderTitle")?;
+            let [x0, y0, x1, y1] = ui.node(b).rect;
+            (x0 <= x && x < x1 && y0 <= y && y < y1).then(|| (w.template.clone(), w.root))
+        })
+    }
+
+    /// Remember a window's upper-left corner (ToolUI `+0x50` map).
+    pub fn remember(&mut self, template: &str, at: (i32, i32)) {
+        self.positions.insert(template.to_string(), at);
+    }
+
     /// The open windows' roots and controller type ids.
     pub fn controllers(&self) -> Vec<(NodeId, Vec<u32>)> {
         self.open.iter().map(|w| (w.root, w.ids.clone())).collect()

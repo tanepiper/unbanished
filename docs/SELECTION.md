@@ -115,7 +115,13 @@ controllers, candidates and geometry use explicit Vec/resource order.
   equivalence at all shared-edge/tolerance cases is not established.
 - Start structures still do not stamp the simulation map. Selection derives a read-only fallback
   lookup from their storage footprints until normal registration supplies the cell pointer.
-- Offscreen host retirement, dragging and persisted pin settings remain pending. Storage/work/citizen data is intentionally left for C/D.
+- Hosts: an unpinned one follows its entity above its projected box (`FUN_140103e30`: the
+  corners in front of the camera, clamped to the screen). When none of the box is on the
+  screen, the host closes and the entity is deselected (`FUN_140102160`). EntityUI sets
+  ToolUI `+0x4c`: a press on `borderTitle` that moves more than 5 pixels pins the window
+  (`+0x40`, shown by `checkPin`) and it then follows the cursor (`FUN_140080e80`). A press
+  anywhere on a window selects its entity again (`FUN_140067430`). The pinned windows'
+  positions (the tool manager's `+0x60` map, `FUN_140108300`) are saved with the game. Storage/work/citizen data is intentionally left for C/D.
 
 Capture sequence after the standard seed-1234 New Game/zoom inputs:
 `--wheel -12@10 --click-at 450,230@10.5`, capture at 22 seconds. This selects the barn with its

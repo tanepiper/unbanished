@@ -41,6 +41,11 @@ The toolbar's kind-2 branch passes the item's template:
    `DialogInstance::SetUpperLeft` clamps the corner to the screen.
 4. `UserInterface::AddDialog`.
 
+Dragging (ToolUI `FUN_140081100`, `FUN_140080e80`, `FUN_140080e10`). A window with a
+`borderTitle` has ToolUI `+0x40` set, so a press on the title makes the window follow the
+cursor at once. Its corner is kept at 0 or more and written back to the `+0x50` entry, so it
+reopens where it was left (`gameplay::drag_window`).
+
 The toolbar is the only caller.
 
 Entity selection uses the sibling entry point `FUN_140102880` to construct the same description

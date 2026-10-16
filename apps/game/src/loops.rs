@@ -36,6 +36,8 @@ pub enum RawInput {
     Cursor(i32, i32),
     /// Left button pressed over the world (not captured by the UI): `MouseLeft` (action 5).
     Click,
+    /// Left button pressed over the UI (captured by it).
+    UiPress,
     /// Left button released (anywhere): `KeyMap::Released(MouseLeft)`.
     Release,
     /// A key-map action pressed on the keyboard (`crate::keymap::id`), other than Cancel, which

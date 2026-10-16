@@ -318,6 +318,8 @@ impl Game {
             self.deliver_events();
             if down && !captured {
                 self.raw(RawInput::Click);
+            } else if down {
+                self.raw(RawInput::UiPress);
             } else if !down {
                 self.raw(RawInput::Release);
             }
