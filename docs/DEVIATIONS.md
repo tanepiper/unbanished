@@ -26,8 +26,8 @@ Deviation: 38, Not ported: 17, Not traced: 5.
 ## `apps/game/src/gameplay.rs`
 
 - [Deviation] [apps/game/src/gameplay.rs:32](../apps/game/src/gameplay.rs#L32): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
-- [Deviation] [apps/game/src/gameplay.rs:339](../apps/game/src/gameplay.rs#L339): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
-- [Not ported] [apps/game/src/gameplay.rs:1174](../apps/game/src/gameplay.rs#L1174): The precipitation emitters follow the environment's effects (`FUN_1400999b0`); with the game option ShowWeather (`+0x16`) off the effects and their emitters are removed. Not ported: ShowWeather's other effect, the weather lighting blend in `FUN_140098f90`.
+- [Deviation] [apps/game/src/gameplay.rs:343](../apps/game/src/gameplay.rs#L343): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
+- [Not ported] [apps/game/src/gameplay.rs:1178](../apps/game/src/gameplay.rs#L1178): The precipitation emitters follow the environment's effects (`FUN_1400999b0`); with the game option ShowWeather (`+0x16`) off the effects and their emitters are removed. Not ported: ShowWeather's other effect, the weather lighting blend in `FUN_140098f90`.
 
 ## `apps/game/src/gameplay/tutorial.rs`
 
@@ -35,9 +35,9 @@ Deviation: 38, Not ported: 17, Not traced: 5.
 
 ## `apps/game/src/main.rs`
 
-- [Deviation] [apps/game/src/main.rs:101](../apps/game/src/main.rs#L101): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
-- [Deviation] [apps/game/src/main.rs:196](../apps/game/src/main.rs#L196): "Use Software Mouse" (`Input::Configuration +10`): the pointer is drawn by the game, at its image's own size, instead of by the system (`UserInterface::SetCursor` hands the cursor's sheet image and hotspot to the device). Not ported: the other cursors (Hand, Place, Move, …) the original switches between by `UserInterface::GetMouseCursorIndex`; only the arrow is drawn.
-- [Deviation] [apps/game/src/main.rs:685](../apps/game/src/main.rs#L685): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
+- [Deviation] [apps/game/src/main.rs:102](../apps/game/src/main.rs#L102): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
+- [Deviation] [apps/game/src/main.rs:197](../apps/game/src/main.rs#L197): "Use Software Mouse" (`Input::Configuration +10`): the pointer is drawn by the game, at its image's own size, instead of by the system (`UserInterface::SetCursor` hands the cursor's sheet image and hotspot to the device). Not ported: the other cursors (Hand, Place, Move, …) the original switches between by `UserInterface::GetMouseCursorIndex`; only the arrow is drawn.
+- [Deviation] [apps/game/src/main.rs:686](../apps/game/src/main.rs#L686): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
 
 ## `apps/game/src/options.rs`
 
@@ -45,8 +45,8 @@ Deviation: 38, Not ported: 17, Not traced: 5.
 
 ## `apps/game/src/pause_menu.rs`
 
-- [Not ported] [apps/game/src/pause_menu.rs:1](../apps/game/src/pause_menu.rs#L1): The in-game pause menu: `Dialog/Pause.rsc` as a `MainMenuDialog` bound to the game. - `FUN_1401071b0` opens it: toolbar Options (kind 3, fixed action 8 = Escape), or the controller `FUN_140107b70` when the application is paused (window unfocused) and the game option `+0x18` (default on) is set. - `FUN_1400b91a0` (`MainMenuDialog` open, slot `+0x20`): with a game (`+0xb8`) it pauses the game scene's effects, ambience and music (`Scene::Pause` types 4, 3, 2). `buttonResume` gets action 8, so Escape resumes. - `FUN_1400b9130` (close, slot `+0x28`): resumes types 4, 3, 2. - `FUN_1400b9020` (click, event 0x12): element id 1 Resume closes the dialog, 5 Menu returns to the main menu (`FUN_1400b9c60`), 6 Quit quits. - The dialog's flags (`Dialog +0x40` = 0x13) have bit 0 set, so `UserInterface::PausesGame` holds while it is open: `FUN_14009b850` skips the simulation and the controller. Options (4) opens `crate::options::OptionsDialog`, Achievement (8) the achievements and Goal (10) the game's goal. With a scenario (`Game +0x15c`) the Goal button shows and the Map button goes, else the reverse; game flag bit 10 (a tutorial) disables Save and Mod. Not ported: Load (2), Save (3), Mod (7) and Map (11).
-- [Not ported] [apps/game/src/pause_menu.rs:37](../apps/game/src/pause_menu.rs#L37): A button whose action is not ported, or a click on the dialog's background.
+- [Not ported] [apps/game/src/pause_menu.rs:1](../apps/game/src/pause_menu.rs#L1): The in-game pause menu: `Dialog/Pause.rsc` as a `MainMenuDialog` bound to the game. - `FUN_1401071b0` opens it: toolbar Options (kind 3, fixed action 8 = Escape), or the controller `FUN_140107b70` when the application is paused (window unfocused) and the game option `+0x18` (default on) is set. - `FUN_1400b91a0` (`MainMenuDialog` open, slot `+0x20`): with a game (`+0xb8`) it pauses the game scene's effects, ambience and music (`Scene::Pause` types 4, 3, 2). `buttonResume` gets action 8, so Escape resumes. - `FUN_1400b9130` (close, slot `+0x28`): resumes types 4, 3, 2. - `FUN_1400b9020` (click, event 0x12): element id 1 Resume closes the dialog, 5 Menu returns to the main menu (`FUN_1400b9c60`), 6 Quit quits. - The dialog's flags (`Dialog +0x40` = 0x13) have bit 0 set, so `UserInterface::PausesGame` holds while it is open: `FUN_14009b850` skips the simulation and the controller. Options (4) opens `crate::options::OptionsDialog`, Achievement (8) the achievements and Goal (10) the game's goal. With a scenario (`Game +0x15c`) the Goal button shows and the Map button goes, else the reverse; game flag bit 10 (a tutorial) disables Save and Mod. Map (11) opens `crate::map_params::MapParamsDialog`. Not ported: Load (2), Save (3) and Mod (7).
+- [Not ported] [apps/game/src/pause_menu.rs:39](../apps/game/src/pause_menu.rs#L39): A button whose action is not ported, or a click on the dialog's background.
 
 ## `apps/game/src/render.rs`
 

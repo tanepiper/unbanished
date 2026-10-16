@@ -121,6 +121,9 @@ chosen (`selectSave` shown), OK (`0x65`, enabled once one is chosen) starts it
 
 The pause menu (`MainMenuDialog`, `FUN_1400b91a0`) shows Goal (10) with a scenario (`Game +0x15c`
 ≥ 0) and Map (11) without one; game flag `0x400` (a tutorial's `0x5f0`) disables Save and Mod.
+Map opens `MapParamsDialog` (`Dialog\MapParams.rsc`, `FUN_1400b85f0`; `map_params.rs`): the
+town's name (editable; New Name draws one on the game's Random, OK renames the town), seed,
+terrain, size, climate, disasters and start condition.
 `GoalDialog` (`Dialog\Goal.rsc`, `FUN_14006a170` / `FUN_140069fa0`) shows the goal's title and
 a `groupGoal` per goal (`textGoal`, `imageComplete` when met, `imageFail` when failed).
 

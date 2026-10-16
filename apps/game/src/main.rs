@@ -25,6 +25,7 @@ mod global;
 mod highlight;
 mod keymap;
 mod loops;
+mod map_params;
 mod menu;
 mod models;
 mod music;

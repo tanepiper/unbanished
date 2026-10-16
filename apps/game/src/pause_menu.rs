@@ -14,8 +14,8 @@
 //!
 //! Options (4) opens `crate::options::OptionsDialog`, Achievement (8) the achievements and
 //! Goal (10) the game's goal. With a scenario (`Game +0x15c`) the Goal button shows and the Map
-//! button goes, else the reverse; game flag bit 10 (a tutorial) disables Save and Mod. Not
-//! ported: Load (2), Save (3), Mod (7) and Map (11).
+//! button goes, else the reverse; game flag bit 10 (a tutorial) disables Save and Mod. Map (11)
+//! opens `crate::map_params::MapParamsDialog`. Not ported: Load (2), Save (3) and Mod (7).
 
 use banished_ui::{NodeId, Ui};
 
@@ -34,6 +34,8 @@ pub enum PauseClick {
     Options,
     Achievement,
     Goal,
+    /// Map (id 11, `FUN_1400b85f0`).
+    Map,
     /// A button whose action is not ported, or a click on the dialog's background.
     Other,
 }
@@ -100,6 +102,8 @@ impl PauseMenu {
             PauseClick::Achievement
         } else if is("buttonGoal") {
             PauseClick::Goal
+        } else if is("buttonMap") {
+            PauseClick::Map
         } else {
             PauseClick::Other
         }

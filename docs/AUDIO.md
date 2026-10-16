@@ -102,13 +102,10 @@ The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e
 
 ## Not ported
 
-- Starting building emitters: fires (`FUN_140049f70`) and residences (`FUN_14012fbe0`) are not
-  ported, so `start_entity_slot` has no caller yet. The tornado ([TORNADO.md](TORNADO.md))
-  plays from its spawn and its emitter follows it (`Ambience::follow_tornadoes`).
 - The SaveLoad dialog's hover click (`FUN_1400bbc60`, `Play(4)` when the hovered save row
   changes): the dialog is not ported.
-- Pause menu buttons other than Resume, Menu and Quit (Load, Save, Options, Achievements, Mods,
-  Map), and the Save/Mod disabling by game flag bit 10.
+- The pause menu's Load, Save and Mod buttons (the other buttons and the Save/Mod disabling
+  by game flag bit 10 are in `pause_menu.rs`).
 - Packet-granular start offsets (the port starts at the exact sample) and the `Stream` path.
   The port decodes streamed music whole.
 

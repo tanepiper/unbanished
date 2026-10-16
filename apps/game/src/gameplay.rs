@@ -38,6 +38,7 @@ const EDGE: i32 = 4;
 enum MenuDialog {
     Achievements(crate::achievement_ui::AchievementDialog),
     Goal(crate::achievement_ui::GoalDialog),
+    Map(crate::map_params::MapParamsDialog),
 }
 
 pub struct GameplayLoop {
@@ -84,6 +85,8 @@ pub struct GameplayLoop {
     next_scenario: Option<usize>,
     /// The Achievement or Goal dialog opened from the pause menu.
     menu_dialog: Option<MenuDialog>,
+    /// `Game\Names\Cities` for the Map dialog's New Name (loaded when first wanted).
+    town_names: Option<banished_formats::names::NameDatabase>,
     /// The road kinds' decal materials, the templates' DecalDescriptions, and what the decals
     /// were built for (road revision, terrain revision, the entities' signature).
     road_materials: Vec<Option<String>>,
@@ -160,6 +163,7 @@ impl GameplayLoop {
             goal: None,
             next_scenario: None,
             menu_dialog: None,
+            town_names: None,
             road_materials: Vec::new(),
             decal_descriptions: Vec::new(),
             decals_built: None,
@@ -1645,6 +1649,16 @@ impl GameLoop for GameplayLoop {
             let root = match d {
                 MenuDialog::Achievements(a) => a.closes(id).then_some(a.root),
                 MenuDialog::Goal(g) => g.closes(id).then_some(g.root),
+                MenuDialog::Map(m) => {
+                    match m.click(ctx.ui, id, self.town_names.as_ref(), &mut self.rng) {
+                        crate::map_params::MapParamsClick::Rename(name) => {
+                            self.params.town_name = name;
+                            Some(m.root)
+                        }
+                        crate::map_params::MapParamsClick::Close => Some(m.root),
+                        crate::map_params::MapParamsClick::None => None,
+                    }
+                }
             };
             if let (Some(root), Some(screen)) = (root, self.screen.as_mut()) {
                 screen.remove_root(ctx.ui, root);
@@ -1685,6 +1699,26 @@ impl GameLoop for GameplayLoop {
                         self.menu_dialog =
                             crate::achievement_ui::GoalDialog::open(ctx.ui, screen, goal)
                                 .map(MenuDialog::Goal);
+                    }
+                }
+                crate::pause_menu::PauseClick::Map => {
+                    if self.town_names.is_none() {
+                        self.town_names = ctx
+                            .archive
+                            .read("Game/Names/Cities_resource.crs")
+                            .and_then(|b| banished_formats::names::NameDatabase::read(&b))
+                            .map_err(|e| log::error!("town names: {e}"))
+                            .ok();
+                    }
+                    let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
+                    if let Some(screen) = &mut self.screen {
+                        self.menu_dialog = crate::map_params::MapParamsDialog::open(
+                            ctx.ui,
+                            screen,
+                            &self.params,
+                            flags,
+                        )
+                        .map(MenuDialog::Map);
                     }
                 }
                 crate::pause_menu::PauseClick::Other if menu.contains(ctx.ui, id) => {
@@ -2011,6 +2045,11 @@ impl GameLoop for GameplayLoop {
         let mut words = command.split_whitespace();
         match words.next() {
             Some("event") => {}
+            // `pause`: open the pause menu (captures).
+            Some("pause") => {
+                self.open_pause_menu(ctx);
+                return self.pause_menu.is_some();
+            }
             Some("open") => {
                 let (Some(template), Some(screen)) = (words.next(), self.screen.as_mut()) else {
                     return false;
