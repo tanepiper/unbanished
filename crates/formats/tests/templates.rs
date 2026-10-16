@@ -710,3 +710,36 @@ fn only_the_doctor_is_immune_at_work() {
     assert_eq!(immune.len(), 1, "{immune:?}");
     assert!(immune[0].to_lowercase().contains("doctor"), "{immune:?}");
 }
+
+#[test]
+fn tornado_particles_parse() {
+    use banished_formats::game;
+    let Some(archive) = archive() else { return };
+    let t = game::tornado_particle(
+        &archive
+            .read_ref("ParticleSystems/Tornado/Tornado.rsc:resource")
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        (t.max_particles, t.radius, t.rise, t.wobble, t.spiral_turn),
+        (750, 20.0, 75.0, 26.0, 400.0)
+    );
+    assert_eq!(
+        (t.rate, t.life, t.size, t.size_scale),
+        (20.0, [30.0, 2.0], [2.5, 15.0], 30.0)
+    );
+    assert_eq!(t.colors, [0xffc0_c0c0, 0x8090_9090]);
+    assert_eq!(
+        (t.fade_in, t.fade_out, t.wobble_turn),
+        (50_000, 1_000_000, 30.0)
+    );
+    let slot =
+        &game::particle_description(&archive.read_ref("Template/Tornado.rsc:particle").unwrap())
+            .unwrap()
+            .slots[0];
+    assert_eq!(
+        (slot.fade, slot.prewarm, slot.flags[1]),
+        (10_000_000, 32_000_000, true)
+    );
+}

@@ -13,11 +13,15 @@
 //! model's root (the map rectangle's middle on the ground for slot flag 3), fading its alpha in
 //! over the slot's time; it fades out the same way (`FUN_1400539f0`, event 3) and goes when
 //! the alpha reaches 0 (`FUN_140053490`).
+//!
+//! The tornado's funnel is its own particle class (`Tornado`, update `FUN_1400d7940`): its
+//! particles are placed, not pushed, each on a spiral that widens and rises with its age about
+//! a centre that wobbles round the entity.
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use banished_formats::game::{ParticleDescription, ParticleSystem};
+use banished_formats::game::{ParticleDescription, ParticleSystem, TornadoParticle};
 use banished_formats::pkg::Archive;
 use banished_game::random::Random;
 use glam::Vec3;
@@ -40,11 +44,27 @@ struct Particle {
     growth: f32,
 }
 
+/// A particle resource: a `ParticleSystem` or the `Tornado` class.
+#[derive(Clone, Debug)]
+pub enum System {
+    Standard(ParticleSystem),
+    Tornado(TornadoParticle),
+}
+
+impl System {
+    fn material(&self) -> Option<&String> {
+        match self {
+            System::Standard(s) => s.material.as_ref(),
+            System::Tornado(t) => t.material.as_ref(),
+        }
+    }
+}
+
 /// A running system (`ParticleSystemInstance`): its particles and emission state, at a world
 /// position with no rotation.
 #[derive(Clone, Debug)]
 pub struct Instance {
-    pub system: Arc<ParticleSystem>,
+    pub system: Arc<System>,
     pub position: Vec3,
     /// The geometry's alpha (`+0x7c`), the component's fade.
     pub alpha: f32,
@@ -53,19 +73,25 @@ pub struct Instance {
     rate: f32,
     elapsed: f32,
     since_last: f32,
+    /// The Tornado instance's wobble angle (`+0xd8`, degrees).
+    turn: f32,
     particles: Vec<Particle>,
 }
 
 impl Instance {
-    pub fn new(system: Arc<ParticleSystem>, position: Vec3) -> Instance {
+    pub fn new(system: Arc<System>, position: Vec3) -> Instance {
         Instance {
-            rate: system.rate,
+            rate: match &*system {
+                System::Standard(s) => s.rate,
+                System::Tornado(t) => t.rate,
+            },
             system,
             position,
             alpha: 0.0,
             emitting: true,
             elapsed: 0.0,
             since_last: 0.0,
+            turn: 0.0,
             particles: Vec::new(),
         }
     }
@@ -75,8 +101,7 @@ impl Instance {
         self.particles.is_empty()
     }
 
-    fn spawn(&mut self, rng: &mut Random) {
-        let s = &*self.system;
+    fn spawn(&mut self, s: &ParticleSystem, rng: &mut Random) {
         let tol = |rng: &mut Random| rng.rand_float_tol();
         let life = tol(rng) * s.life[1] + s.life[0];
         // The spawn box: z, y, x drawn in that order.
@@ -123,9 +148,92 @@ impl Instance {
         });
     }
 
-    /// `ParticleSystemInstance::Update` by `dt` seconds.
+    /// One update by `dt` seconds.
     pub fn update(&mut self, dt: f32, rng: &mut Random) {
-        let s = self.system.clone();
+        match &*self.system.clone() {
+            System::Standard(s) => self.update_standard(s, dt, rng),
+            System::Tornado(t) => self.update_tornado(t, dt, rng),
+        }
+    }
+
+    /// `FUN_1400d7940`: emit at `+0x5c` a second, then place every particle by its age `t`
+    /// (of its life) on the funnel:
+    /// - the wobble `W = (cos((t − 0.2)·2π)/2 + 1/2)(t + 1/2) − 0.33` of `+0x50` about the
+    ///   instance's angle (which turns `+0x54`° a second);
+    /// - the spiral `R = |(t − 0.4)³|·3.7 + 0.05 + 4·max(t − 0.3, 0)²` of `+0x48` at the
+    ///   angle `+0x58·t/π` (radians);
+    /// - up `+0x4c·t` plus `|rotation|/40`;
+    ///
+    /// spinning 90° a second, sized `R·+0x70` within `+0x68`..`+0x6c`, coloured and faded
+    /// from the start colour to the end colour over its life.
+    fn update_tornado(&mut self, s: &TornadoParticle, dt: f32, rng: &mut Random) {
+        self.elapsed += dt;
+        self.since_last += dt;
+        let interval = 1.0 / s.rate;
+        let rgba = |c: u32| {
+            [
+                ((c >> 16) & 0xff) as f32 / 255.0,
+                ((c >> 8) & 0xff) as f32 / 255.0,
+                (c & 0xff) as f32 / 255.0,
+                (c >> 24) as f32 / 255.0,
+            ]
+        };
+        let (c0, c1) = (rgba(s.colors[0]), rgba(s.colors[1]));
+        while interval < self.since_last && self.particles.len() < s.max_particles as usize {
+            self.since_last -= interval;
+            let life = rng.rand_float_tol() * s.life[1] + s.life[0];
+            let rotation = rng.rand_float_tol() * 180.0;
+            self.particles.push(Particle {
+                life,
+                age: 0.0,
+                pos: Vec3::ZERO,
+                color: Vec3::new(c0[0], c0[1], c0[2]),
+                alpha: 0.0,
+                rotation,
+                size: s.size[0],
+                velocity: Vec3::ZERO,
+                spin: 0.0,
+                growth: 0.0,
+            });
+        }
+        self.turn += dt * s.wobble_turn;
+        let (wy, wx) = (self.turn * DEG).sin_cos();
+        let (fade_in, fade_out) = (s.fade_in as f32 * 1e-6, s.fade_out as f32 * 1e-6);
+        for p in self.particles.iter_mut().rev() {
+            p.age += dt;
+            let t = p.age / p.life;
+            let wobble = ((((t - 0.2) * std::f32::consts::PI * 2.0).cos() * 0.5 + 0.5) * (t + 0.5)
+                - 0.33)
+                * s.wobble;
+            let rise = (t - 0.3).max(0.0);
+            let r = ((t - 0.4) * (t - 0.4) * (t - 0.4)).abs() * 3.7 + 0.05 + rise * rise * 4.0;
+            let (sy, sx) = (s.spiral_turn * std::f32::consts::FRAC_1_PI * t).sin_cos();
+            p.pos = Vec3::new(
+                s.radius * sy * r + wy * wobble,
+                s.radius * sx * r + wx * wobble,
+                p.rotation.abs() / 40.0 + t * s.rise,
+            );
+            p.rotation += dt * 90.0;
+            if 180.0 < p.rotation {
+                p.rotation -= 360.0;
+            }
+            p.size = (r * s.size_scale).clamp(s.size[0], s.size[1]);
+            p.color = Vec3::new(
+                (c1[0] - c0[0]) * t + c0[0],
+                (c1[1] - c0[1]) * t + c0[1],
+                (c1[2] - c0[2]) * t + c0[2],
+            );
+            let mut fade = p.age / fade_in;
+            if 1.0 < fade {
+                fade = 1.0 - (fade_out - p.life + p.age) / fade_out;
+            }
+            p.alpha = fade.clamp(0.0, 1.0) * ((c1[3] - c0[3]) * t + c0[3]);
+        }
+        self.particles.retain(|p| p.age < p.life);
+    }
+
+    /// `ParticleSystemInstance::Update` by `dt` seconds.
+    fn update_standard(&mut self, s: &ParticleSystem, dt: f32, rng: &mut Random) {
         let dt2 = dt * dt;
         self.elapsed += dt;
         self.since_last += dt;
@@ -138,7 +246,7 @@ impl Instance {
             let interval = 1.0 / self.rate;
             while interval < self.since_last && self.particles.len() < s.max_particles as usize {
                 self.since_last -= interval;
-                self.spawn(rng);
+                self.spawn(s, rng);
             }
         }
         let rgba = |c: u32| {
@@ -233,7 +341,7 @@ pub enum Want {
 /// The entities' particle components and the loaded systems.
 #[derive(Default)]
 pub struct Particles {
-    systems: HashMap<String, Option<Arc<ParticleSystem>>>,
+    systems: HashMap<String, Option<Arc<System>>>,
     /// Material references by system, and whether they are flat.
     materials: HashMap<String, (String, bool)>,
     descriptions: HashMap<String, Option<Arc<ParticleDescription>>>,
@@ -245,14 +353,21 @@ pub struct Particles {
 }
 
 impl Particles {
-    pub fn system(&mut self, archive: &Archive, reference: &str) -> Option<Arc<ParticleSystem>> {
+    pub fn system(&mut self, archive: &Archive, reference: &str) -> Option<Arc<System>> {
         self.systems
             .entry(reference.to_string())
             .or_insert_with(|| {
                 let data = archive.read_ref(&reference.replace('\\', "/")).ok()?;
-                let s = banished_formats::game::particle_system(&data)
-                    .map_err(|e| log::warn!("{reference}: {e}"))
-                    .ok()?;
+                let s = match banished_formats::game::particle_system(&data) {
+                    Ok(s) => System::Standard(s),
+                    Err(e) => match banished_formats::game::tornado_particle(&data) {
+                        Ok(t) => System::Tornado(t),
+                        Err(_) => {
+                            log::warn!("{reference}: {e}");
+                            return None;
+                        }
+                    },
+                };
                 Some(Arc::new(s))
             })
             .clone()
@@ -277,8 +392,8 @@ impl Particles {
             .clone()
     }
 
-    fn material(&mut self, archive: &Archive, system: &ParticleSystem) -> Option<(String, bool)> {
-        let reference = system.material.clone()?;
+    fn material(&mut self, archive: &Archive, system: &System) -> Option<(String, bool)> {
+        let reference = system.material()?.clone();
         if let Some(m) = self.materials.get(&reference) {
             return Some(m.clone());
         }
@@ -300,7 +415,7 @@ impl Particles {
         &mut self,
         key: (usize, usize),
         want: Want,
-        system: Option<(Arc<ParticleSystem>, Vec3, f32, f32)>,
+        system: Option<(Arc<System>, Vec3, f32, f32)>,
     ) {
         let rng = self.rng.get_or_insert_with(|| Random::new(0x5eed));
         let running = self.slots.get(&key).map(|s| 0.0 <= s.fade_rate);
@@ -346,6 +461,11 @@ impl Particles {
         self.slots.retain(|&(e, _), _| alive(e));
     }
 
+    /// Slot `key`'s alpha (the geometry's `+0x7c`) while it runs.
+    pub fn alpha(&self, key: (usize, usize)) -> Option<f32> {
+        self.slots.get(&key).map(|s| s.instance.alpha)
+    }
+
     pub fn is_running(&self, key: (usize, usize)) -> bool {
         self.slots.contains_key(&key)
     }
@@ -374,7 +494,7 @@ impl Particles {
     /// This frame's draws, by material.
     pub fn batches(&mut self, archive: &Archive) -> Vec<ParticleBatch> {
         let mut out: Vec<ParticleBatch> = Vec::new();
-        let systems: Vec<Arc<ParticleSystem>> = self
+        let systems: Vec<Arc<System>> = self
             .slots
             .values()
             .map(|s| s.instance.system.clone())
@@ -492,8 +612,23 @@ impl Particles {
             let sick = site
                 .and_then(|s| s.disease.as_ref())
                 .is_some_and(|b| 0 < b.left);
+            // A tornado's system follows it (`FUN_140058630`) and fades out once it reaches
+            // the end of its line (`FUN_140054080(0)`).
+            let tornado = c.tornadoes.get(&e);
             for (k, slot) in desc.slots.iter().enumerate() {
-                let want = if slot.flags[1] {
+                let key = (e, k);
+                if let Some(t) = tornado {
+                    if let Some(s) = self.slots.get_mut(&key) {
+                        s.instance.position = Vec3::from(t.position);
+                    }
+                }
+                let want = if let Some(t) = tornado.filter(|_| k == 0) {
+                    if t.emitting {
+                        Want::On
+                    } else {
+                        Want::Off
+                    }
+                } else if slot.flags[1] {
                     Want::On
                 } else if slot.flags[2] {
                     if occupied {
@@ -512,7 +647,6 @@ impl Particles {
                 } else {
                     Want::Off
                 };
-                let key = (e, k);
                 if want == Want::Off || self.is_running(key) {
                     self.set(key, want, None);
                     continue;
@@ -542,7 +676,9 @@ impl Particles {
                         .flatten();
                     mesh.and_then(|m| self.node(archive, &m, &slot.node))
                 };
-                let position = if slot.flags[3] || template.model.is_none() {
+                let position = if let Some(t) = tornado {
+                    Vec3::from(t.position)
+                } else if slot.flags[3] || template.model.is_none() {
                     let n = town.cells.size as i32;
                     let (x, y) = p.cell;
                     let (w, h) = p.footprint;
@@ -612,7 +748,7 @@ mod tests {
     #[test]
     fn chimney_smoke_rises_grows_and_lives_out() {
         let mut rng = Random::new(1);
-        let mut i = Instance::new(Arc::new(smoke()), Vec3::ZERO);
+        let mut i = Instance::new(Arc::new(System::Standard(smoke())), Vec3::ZERO);
         i.alpha = 1.0;
         for _ in 0..90 {
             i.update(1.0 / 30.0, &mut rng);
@@ -634,9 +770,50 @@ mod tests {
     }
 
     #[test]
+    fn the_tornado_funnel_rises_and_widens() {
+        let t = TornadoParticle {
+            max_particles: 750,
+            material: None,
+            radius: 20.0,
+            rise: 75.0,
+            wobble: 26.0,
+            wobble_turn: 30.0,
+            spiral_turn: 400.0,
+            rate: 20.0,
+            life: [30.0, 2.0],
+            size: [2.5, 15.0],
+            size_scale: 30.0,
+            colors: [0xffc0_c0c0, 0x8090_9090],
+            fade_in: 50_000,
+            fade_out: 1_000_000,
+        };
+        let mut rng = Random::new(1);
+        let mut i = Instance::new(Arc::new(System::Tornado(t)), Vec3::ZERO);
+        // The slot's prewarm.
+        for _ in 0..32 * 30 {
+            i.update(1.0 / 30.0, &mut rng);
+        }
+        // Twenty a second living 28 to 32 s.
+        assert!(
+            (560..=640).contains(&i.particles.len()),
+            "{}",
+            i.particles.len()
+        );
+        let oldest = i.particles[0];
+        let newest = *i.particles.last().unwrap();
+        assert!(newest.pos.z < oldest.pos.z && oldest.pos.z < 80.0);
+        assert!(newest.size < oldest.size && oldest.size <= 15.0 && 2.5 <= newest.size);
+        assert!(oldest.alpha < newest.alpha);
+        assert!(i
+            .particles
+            .iter()
+            .all(|p| (-180.0..=180.0).contains(&p.rotation)));
+    }
+
+    #[test]
     fn slots_fade_in_and_out() {
         let mut p = Particles::default();
-        let sys = Some((Arc::new(smoke()), Vec3::ZERO, 1.0, 0.0));
+        let sys = Some((Arc::new(System::Standard(smoke())), Vec3::ZERO, 1.0, 0.0));
         p.set((1, 0), Want::On, sys.clone());
         p.update(0.5);
         assert!(p.is_running((1, 0)));

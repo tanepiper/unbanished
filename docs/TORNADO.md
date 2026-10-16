@@ -61,8 +61,9 @@ asks AutoSlow to slow the game.
 
 ## Port notes
 
-- The tornado's particles (the Tornado particle class, `FUN_1400d7940`, drawn on the runtime's
-  own Random) are not ported; the entity goes 32 s (their longest life) after it stops
-  forming them.
+- The tornado's particles (the Tornado particle class, `FUN_1400d7940`; see
+  [PARTICLES.md](PARTICLES.md)) are presentation only. The game side removes the entity once
+  the particle slot's fade (`+0x20`, 10 s) has passed after it stopped, which is when the
+  slot's alpha reaches 0 in the original.
 - Its victims among the citizens die in the citizens' pass of the same iteration.
-- The sound follows it; its volume does not follow the particle system's.
+- The sound follows it, and its volume follows the particle slot's alpha.

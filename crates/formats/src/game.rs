@@ -919,6 +919,70 @@ pub fn particle_system(data: &[u8]) -> Result<ParticleSystem> {
     Ok(value)
 }
 
+/// The Tornado particle class (`Graphics::Particle` subclass, serializer `FUN_1400d76e0`,
+/// update `FUN_1400d7940`): particles spiralling up a funnel. Colours are BGRA bytes, times
+/// `System::Time` microseconds. See docs/PARTICLES.md.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TornadoParticle {
+    /// Particle `+0x28`, `+0x30`: the most particles alive and the MaterialInstance.
+    pub max_particles: u32,
+    pub material: Option<String>,
+    /// `+0x48`: the spiral's radius scale; `+0x4c`: the rise over a life; `+0x50`: the
+    /// wobble's radius.
+    pub radius: f32,
+    pub rise: f32,
+    pub wobble: f32,
+    /// `+0x54`: the wobble's turn (degrees a second); `+0x58`: the spiral's turn over a life.
+    pub wobble_turn: f32,
+    pub spiral_turn: f32,
+    /// `+0x5c`: particles a second; `+0x60`, `+0x64`: life (seconds, base ± range).
+    pub rate: f32,
+    pub life: [f32; 2],
+    /// `+0x68`, `+0x6c`: the least and most size; `+0x70`: size per radius.
+    pub size: [f32; 2],
+    pub size_scale: f32,
+    /// `+0x74`, `+0x78`: the start and end colours.
+    pub colors: [u32; 2],
+    /// `+0x80`, `+0x88`: fade in and fade out.
+    pub fade_in: i64,
+    pub fade_out: i64,
+}
+
+pub fn tornado_particle(data: &[u8]) -> Result<TornadoParticle> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("Tornado") {
+            return format_err(format!("expected Tornado, found {:#010x}", h.type_id));
+        }
+        let (_, _, max_particles, material) =
+            r.block(|r, _| Ok((r.bool()?, r.u32()?, r.u32()?, r.external_ref()?)))?;
+        r.block(|r, _| {
+            let f = r.f32s::<9>()?;
+            let colors = [r.u32()?, r.u32()?];
+            let fade_in = r.i64()?;
+            let fade_out = r.i64()?;
+            let wobble_turn = r.f32()?;
+            let size_scale = r.f32()?;
+            Ok(TornadoParticle {
+                max_particles,
+                material: material.clone(),
+                radius: f[0],
+                rise: f[1],
+                wobble: f[2],
+                wobble_turn,
+                spiral_turn: f[3],
+                rate: f[4],
+                life: [f[5], f[6]],
+                size: [f[7], f[8]],
+                size_scale,
+                colors,
+                fade_in,
+                fade_out,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// One of a `ParticleDescription`'s systems (`0x28` bytes).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParticleSlot {

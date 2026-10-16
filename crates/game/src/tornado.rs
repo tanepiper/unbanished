@@ -30,6 +30,9 @@ pub struct TornadoTemplate {
     pub reach: i32,
     /// `+0x34`: how far from it a pass throws its point.
     pub throw: i32,
+    /// The ParticleDescription slot 0's fade (`+0x20`): once it stops forming particles
+    /// (`FUN_140054080(0)`), the slot's alpha falls to 0 over this and the system goes.
+    pub fade: i64,
 }
 
 /// The component's state (serializer `FUN_1400594e0`).
@@ -43,17 +46,13 @@ pub struct Tornado {
     pub timer: i64,
     /// `+0x58`: where it is.
     pub position: [f32; 3],
-    /// Its particle system still forms particles (`FUN_140054080(0)` stops it); the time
-    /// since it stopped.
+    /// Its particle slot is on (`FUN_140054080(0)` fades it out); the time since it stopped.
     pub emitting: bool,
     pub stopped: i64,
 }
 
 /// `PATH`: the line's points (`0x81`).
 const POINTS: usize = 129;
-/// The Tornado particles' longest life (`+0x60 + +0x64`, 30 ± 2 s): once it stops forming
-/// them, the last is gone after this.
-pub const FADE_SECONDS: f32 = 32.0;
 
 fn normalize(v: [f32; 3]) -> ([f32; 3], f32) {
     let l = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
@@ -189,10 +188,11 @@ impl Sim<'_, '_> {
                 continue;
             };
             let tornado = self.tornadoes.get_mut(&e).unwrap();
-            // Its particles are gone: the entity goes (`FUN_1400c8370`).
+            // Its particle system is gone (the slot faded out): the entity goes
+            // (`FUN_1400c8370`).
             if !tornado.emitting {
                 tornado.stopped += dt;
-                if ticks(FADE_SECONDS) <= tornado.stopped {
+                if ticks(t.fade as f32 * 1e-6) <= tornado.stopped {
                     self.tornadoes.remove(&e);
                     self.placed[e].alive = false;
                     *self.models_dirty = true;

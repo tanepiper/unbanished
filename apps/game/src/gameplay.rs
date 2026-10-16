@@ -1155,7 +1155,8 @@ impl GameplayLoop {
                         a.reweigh(town);
                         a.sync_entities(ctx.audio, ctx.archive, town);
                     }
-                    a.follow_tornadoes(ctx.audio, town);
+                    let particles = &self.particles;
+                    a.follow_tornadoes(ctx.audio, town, |e| particles.alpha((e, 0)));
                     a.drive_entities(ctx.audio, town);
                     a.fade(ctx.audio, temperature);
                 }

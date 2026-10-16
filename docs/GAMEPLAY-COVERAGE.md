@@ -43,9 +43,9 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **AutoPickup** | gatherers, hunters, foresters | yes |
 | **AbsorbResource**, **StorageDisplay**, **StorageLocation** | StorageYard, barns | yes ([JOBS.md](JOBS.md#storage-sites-storagelocation-absorbresource-storagedisplay)) |
 | **MultiObject**, **Terraform**, **Floor** | bridges, tunnels, fences, dock | yes (fenced parts, bridge and tunnel pieces; [BRIDGES.md](BRIDGES.md), [TUNNELS.md](TUNNELS.md)) |
-| **Decal**, **Particle** | roads, footprints, smoke | yes ([DECALS.md](DECALS.md), [PARTICLES.md](PARTICLES.md); the tornado's particle class open) |
+| **Decal**, **Particle** | roads, footprints, smoke | yes ([DECALS.md](DECALS.md), [PARTICLES.md](PARTICLES.md)) |
 | **Tracker**, **Value** | workplaces, livestock | Tracker and the stock's made/used counters and history ([TOWN-INFO.md](TOWN-INFO.md)); Value in trade |
-| **Tornado** | Tornado | yes ([TORNADO.md](TORNADO.md); spawn, path, wrecking; its particles not drawn) |
+| **Tornado** | Tornado | yes ([TORNADO.md](TORNADO.md); spawn, path, wrecking, its funnel) |
 
 ## Works and actions
 
@@ -94,7 +94,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | River and lake surfaces | yes ([TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md); the strip bit-exact) |
 | Smoke, fire and blight particles | yes ([PARTICLES.md](PARTICLES.md)) |
 | Weather precipitation (rain, snow) | yes ([ENVIRONMENT.md](ENVIRONMENT.md)) |
-| The tornado's funnel (its particle class) | no |
+| The tornado's funnel (its particle class) | yes ([PARTICLES.md](PARTICLES.md)) |
 | Disasters (fire, tornado, disease) and AutoSlow | yes (fire, blight and tornadoes with the Disasters option; AutoSlow from their events) |
 
 ## Plan

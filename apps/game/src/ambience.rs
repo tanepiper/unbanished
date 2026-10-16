@@ -393,12 +393,20 @@ impl Ambience {
         }
     }
 
-    /// The tornadoes' emitters follow them (`FUN_140058630` → `FUN_1400432c0`). Not ported:
-    /// their volume following the particle system's (`+0x7c`).
-    pub fn follow_tornadoes(&mut self, audio: &mut Audio, town: &StartingTown) {
+    /// The tornadoes' emitters follow them (`FUN_140058630` → `FUN_1400432c0`), the first
+    /// slot's volume following their particle system's alpha (`+0x7c`, `alpha`).
+    pub fn follow_tornadoes(
+        &mut self,
+        audio: &mut Audio,
+        town: &StartingTown,
+        alpha: impl Fn(usize) -> Option<f32>,
+    ) {
         for (&e, t) in &town.construction.tornadoes {
             if let Some((_, emitter)) = self.entities.get_mut(&e) {
                 emitter.move_to(audio, Vec3::from(t.position));
+                if let Some(a) = alpha(e) {
+                    emitter.set_volume(audio, 0, a);
+                }
             }
         }
     }

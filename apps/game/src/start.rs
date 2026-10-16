@@ -9,8 +9,8 @@ use std::sync::Arc;
 use banished_formats::game::{
     citizen_description, component_description, create_placed_description, growth_description,
     map_description, map_generator, model_description, natural_resource_description,
-    radius_description, raw_material_description, spawn_description, storage_description,
-    storage_location_description, MapGenerator,
+    particle_description, radius_description, raw_material_description, spawn_description,
+    storage_description, storage_location_description, MapGenerator,
 };
 use banished_formats::names::NameDatabase;
 use banished_formats::pkg::Archive;
@@ -624,6 +624,15 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                             interval,
                             reach,
                             throw,
+                            fade: desc
+                                .descriptions
+                                .iter()
+                                .flatten()
+                                .find(|d| d.ends_with(":particle"))
+                                .and_then(|d| read(archive, d))
+                                .and_then(|d| particle_description(&d).ok())
+                                .and_then(|p| p.slots.first().map(|s| s.fade))
+                                .unwrap_or(0),
                         }
                     },
                 )
