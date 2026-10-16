@@ -372,12 +372,20 @@ impl TownHallUi {
     fn professions(&mut self, ui: &mut Ui, town: &StartingTown) {
         let (counts, places) = town.profession_counts();
         let registry = &town.construction.workforce.registry;
+        let count = |p: usize| counts.get(p).copied().unwrap_or(0);
         for (i, row) in self.professions.iter().enumerate() {
             if let Some(s) = row.spinner {
-                let v = counts.get(i).copied().unwrap_or(0);
+                let v = count(i);
                 if !ui.focused().is_some_and(|f| ui.descendant(s, f)) {
                     set_spinner(ui, s, v);
                 }
+                // `NumberEditElement::SetMinMax`, as the Professions window.
+                let (lo, hi) = if i == 0 {
+                    (count(0), count(0))
+                } else {
+                    (0, count(i) + count(0))
+                };
+                ui.set_spinner_range(s, lo, hi);
             }
             set_number(ui, row.jobs, places.get(i).copied().unwrap_or(0));
             set_number(

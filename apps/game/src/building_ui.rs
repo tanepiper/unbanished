@@ -622,6 +622,11 @@ pub struct ResourceLimitUi {
 
 /// A spinner's value and its number edit.
 pub(crate) fn set_spinner(ui: &mut Ui, id: NodeId, value: i32) {
+    // `SpinnerElement::SetValue` → `NumberEditElement::SetValue`: clamped to the range.
+    let value = match ui.spinner_range(id) {
+        Some((lo, hi)) => value.clamp(lo, hi),
+        None => value,
+    };
     let number = match &mut ui.node_mut(id).kind {
         Kind::Control(Control::Spinner {
             parts, value: v, ..
@@ -665,10 +670,12 @@ impl ResourceLimitUi {
             .and_then(|c| archive.read_ref(&c.replace('\\', "/")).ok())
             .and_then(|d| resource_limit_config(&d))
             .unwrap_or(0);
-        ResourceLimitUi {
-            spinner: ui.find(element, "editLimit"),
-            slot,
+        // `FUN_14007ce40`: `SpinnerElement::SetMinMax(0, 999999)`.
+        let spinner = ui.find(element, "editLimit");
+        if let Some(s) = spinner {
+            ui.set_spinner_range(s, 0, 999_999);
         }
+        ResourceLimitUi { spinner, slot }
     }
 
     /// `FUN_14007cda0`: the slot's limit, unless the player is typing in it.

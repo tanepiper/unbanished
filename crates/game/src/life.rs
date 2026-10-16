@@ -1052,7 +1052,9 @@ impl People<'_, '_> {
             target += 1.0;
         }
         if f >> 0x11 & 1 != 0 {
-            // Not traced: what counts citizen `+0x84` up; it stays 0 (the half bonus).
+            // Citizen `+0x84` against `_workForHappiness` (`+0xb0`, 10): nothing in 1.0.7
+            // writes `+0x84` (no store in the Application but the zeroed component), so the
+            // original gives the half point every time, as here.
             target += if s.field_84 < r.i(0xb0) { 0.5 } else { 1.0 };
         }
         if f >> 0x10 & 1 != 0 {

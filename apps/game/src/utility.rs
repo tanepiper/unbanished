@@ -236,8 +236,9 @@ impl EventLogUi {
                 }
             }
             if let Some(b) = button {
-                // Not traced: the button state call's argument; shown when the row has an entry.
-                ui.set_visible(*b, entry.is_some());
+                // Element slot `+0x40` (enabled) with whether the entry has a cell
+                // (`+0x18 >= 0`); an empty row's button is disabled.
+                ui.node_mut(*b).enabled = entry.is_some_and(|e| e.cell >= 0);
             }
         }
         for b in [self.bottom, self.next].into_iter().flatten() {
@@ -626,13 +627,18 @@ impl ProfessionUi {
     /// their count plus the laborers. Workplace capacity (`numberAvailable`) is 0 until
     /// workplaces exist.
     fn update(&self, ui: &mut Ui, values: &StatusValues) {
+        let count = |p: usize| values.professions.get(p).copied().unwrap_or(0) as i32;
         for (i, spinner) in self.spinners.iter().enumerate() {
             if let Some(s) = *spinner {
-                set_spinner(
-                    ui,
-                    s,
-                    values.professions.get(i).copied().unwrap_or(0) as i32,
-                );
+                set_spinner(ui, s, count(i));
+                // `NumberEditElement::SetMinMax`: the laborers' fixed, the others' 0 to their
+                // count plus the laborers.
+                let (lo, hi) = if i == 0 {
+                    (count(0), count(0))
+                } else {
+                    (0, count(i) + count(0))
+                };
+                ui.set_spinner_range(s, lo, hi);
             }
             if let Some(n) = self.available.get(i).copied().flatten() {
                 let v = values.profession_capacity.get(i).copied().unwrap_or(0);

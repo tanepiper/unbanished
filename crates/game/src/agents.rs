@@ -123,7 +123,8 @@ pub struct CitizenState {
     pub spread: i64,
     /// `+0x60`: time since the last disease check.
     pub disease_clock: i64,
-    /// `+0x84`.
+    /// `+0x84`: the work count the happiness compares with `_workForHappiness`; never
+    /// written in 1.0.7, so 0.
     pub field_84: i32,
     /// `+0x220`: has had a school place.
     pub schooled: bool,

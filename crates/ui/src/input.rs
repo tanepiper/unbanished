@@ -295,6 +295,16 @@ impl Ui {
                 }
                 _ => None,
             };
+            // `NumberEditElement::SetValue` clamps to the edit's range (`SpinnerElement::SetMinMax`).
+            let spinner_range = match &self.nodes[parent].kind {
+                Kind::Control(Control::Spinner { parts, .. }) => parts[0]
+                    .and_then(|n| match &self.nodes[n].kind {
+                        Kind::Control(Control::Edit(e)) => e.range,
+                        _ => None,
+                    })
+                    .map(|r| (r[0].min(r[1]) as i32, r[0].max(r[1]) as i32)),
+                _ => None,
+            };
             let routed = match &mut self.nodes[parent].kind {
                 Kind::Control(Control::Tabs { tabs, selected, .. }) => {
                     if let Some(i) = tabs.iter().position(|&(a, _)| a == id) {
@@ -345,6 +355,9 @@ impl Ui {
                     if delta != 0 {
                         *value =
                             (spinner_current.unwrap_or(*value as f32) as i32).saturating_add(delta);
+                        if let Some((lo, hi)) = spinner_range {
+                            *value = (*value).clamp(lo, hi);
+                        }
                         selected_text = parts[0].map(|n| (n, usize::MAX, *value as usize));
                         Some(Event::Changed(parent))
                     } else if parts[0] == Some(id) {

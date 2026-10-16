@@ -27,7 +27,7 @@ use crate::building_ui::{set_spinner, spinner_value, text_of, WorkPlaceClick};
 use crate::start::StartingTown;
 use crate::town_hall_ui::{combo_index, fill_table};
 
-/// The spinners' most (not traced; the shipped spinners have no limit of their own).
+/// The amount-to-keep spinners' most (`FUN_140089b80`, `SetMinMax(0, 9999)`).
 const MOST: i32 = 9999;
 /// `FUN_140087620`'s grey for goods the merchant has no use for.
 const GREY: u32 = 0xff80_8080;
@@ -117,14 +117,18 @@ fn set_number(ui: &mut Ui, n: Option<NodeId>, v: i32) {
     }
 }
 
-/// `SpinnerElement::SetIncrement` by its most: 1 up to 20, 5 up to 50, else 20.
-fn set_step(ui: &mut Ui, spinner: NodeId, most: i32) {
+/// `SpinnerElement::SetMinMax(0, most)`, then `SetIncrement` by the most: 1 up to 20, 5 up
+/// to 50, 20 up to 100; above that the increment stays as it was.
+fn set_most(ui: &mut Ui, spinner: NodeId, most: i32) {
+    ui.set_spinner_range(spinner, 0, most);
     let s = if most < 0x15 {
         1
     } else if most < 0x33 {
         5
-    } else {
+    } else if most < 0x65 {
         20
+    } else {
+        return;
     };
     if let Kind::Control(Control::Spinner { step, .. }) = &mut ui.node_mut(spinner).kind {
         *step = s;
@@ -252,7 +256,8 @@ impl TradeUi {
                 set_label(ui, row.label, good_of(goods, m));
                 if let Some(s) = row.spinner {
                     set_spinner(ui, s, keep(m));
-                    set_step(ui, s, MOST);
+                    // `SetMinMax(0, 9999)` with no increment of its own.
+                    ui.set_spinner_range(s, 0, MOST);
                 }
                 (m, row)
             })
@@ -314,7 +319,7 @@ impl TradeUi {
                 set_number(ui, row.stored, o.amount);
                 if let Some(s) = row.spinner {
                     set_spinner(ui, s, 0);
-                    set_step(ui, s, o.amount);
+                    set_most(ui, s, o.amount);
                 }
                 (o.good, 0, row)
             })
@@ -439,7 +444,7 @@ impl TradeUi {
                 if spinner_value(ui, s) != Some(n) {
                     set_spinner(ui, s, n);
                 }
-                set_step(ui, s, most);
+                set_most(ui, s, most);
                 *amount = n;
                 ui.node_mut(s).enabled = docked && 0 < v;
             }

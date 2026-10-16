@@ -2552,12 +2552,6 @@ impl GameLoop for GameplayLoop {
                             crate::save_dialog::SaveLoadDialog::open(ctx.ui, screen, loading, true);
                     }
                 }
-                crate::pause_menu::PauseClick::Other if menu.contains(ctx.ui, id) => {
-                    log::info!(
-                        "pause menu: {} is not implemented yet",
-                        ctx.ui.node(id).name
-                    );
-                }
                 crate::pause_menu::PauseClick::Other => {}
             }
             return Next::Stay;

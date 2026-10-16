@@ -524,6 +524,43 @@ impl Ui {
         }
     }
 
+    /// `SpinnerElement::SetMinMax` (Runtime `0x1800da5b0`): the range of the spinner's number
+    /// edit, its current value clamped to it.
+    pub fn set_spinner_range(&mut self, id: NodeId, min: i32, max: i32) {
+        let edit = match &self.nodes[id].kind {
+            Kind::Control(Control::Spinner { parts, .. }) => parts[0],
+            _ => None,
+        };
+        let Some(edit) = edit else { return };
+        if let Kind::Control(Control::Edit(e)) = &mut self.nodes[edit].kind {
+            e.range = Some([min as f32, max as f32]);
+        }
+        let value = match &self.nodes[id].kind {
+            Kind::Control(Control::Spinner { value, .. }) => *value,
+            _ => return,
+        };
+        let clamped = value.clamp(min.min(max), min.max(max));
+        if clamped != value {
+            if let Kind::Control(Control::Spinner { value, .. }) = &mut self.nodes[id].kind {
+                *value = clamped;
+            }
+            self.set_text(edit, &clamped.to_string());
+        }
+    }
+
+    /// The range of a spinner's number edit (`+0xf8`, `+0xfc`).
+    pub fn spinner_range(&self, id: NodeId) -> Option<(i32, i32)> {
+        let Kind::Control(Control::Spinner { parts, .. }) = &self.nodes[id].kind else {
+            return None;
+        };
+        match &self.nodes[parts[0]?].kind {
+            Kind::Control(Control::Edit(e)) => e
+                .range
+                .map(|r| (r[0].min(r[1]) as i32, r[0].max(r[1]) as i32)),
+            _ => None,
+        }
+    }
+
     /// Whether a check control is checked.
     pub fn checked(&self, id: NodeId) -> bool {
         matches!(

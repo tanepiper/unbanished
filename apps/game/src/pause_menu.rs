@@ -43,7 +43,7 @@ pub enum PauseClick {
     Save,
     /// Mod (id 7, `FUN_1400b8370`).
     Mod,
-    /// A button whose action is not ported, or a click on the dialog's background.
+    /// A click on the dialog's background.
     Other,
 }
 
@@ -85,10 +85,6 @@ impl PauseMenu {
         for kind in [sound_type::EFFECT, sound_type::AMBIENT, sound_type::MUSIC] {
             audio.pause(kind, false);
         }
-    }
-
-    pub fn contains(&self, ui: &Ui, node: NodeId) -> bool {
-        ui.descendant(self.root, node)
     }
 
     /// `FUN_1400b9020`: the clicked button's element id.
