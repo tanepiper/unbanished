@@ -6,14 +6,15 @@
 
 use wgpu::util::DeviceExt;
 
-/// One cell of the overlay: map cell, strip frame (`+8`) and ARGB colour (`+0xc`); the
-/// rotation (`+0x10`) is always 0 for these tools.
+/// One cell of the overlay: map cell, strip frame (`+8`), ARGB colour (`+0xc`) and the
+/// frame's rotation in degrees (`+0x10`; the placement tool's arrows, 0 for the drag tools).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct OverlayCell {
     pub x: i32,
     pub y: i32,
     pub frame: i32,
     pub argb: u32,
+    pub rotation: i32,
 }
 
 impl OverlayCell {
@@ -24,6 +25,7 @@ impl OverlayCell {
             y,
             frame: if acts { 3 } else { 0 },
             argb: if acts { 0xffff_0000 } else { 0x8000_ff00 },
+            rotation: 0,
         }
     }
 }
@@ -67,10 +69,14 @@ pub fn load_texture(archive: &banished_formats::pkg::Archive) -> Option<OverlayT
 /// Deviation: the quads sit this far above the terrain surface instead of relying on the
 /// original material's depth state (not traced), so they do not fight the terrain's depth.
 const LIFT: f32 = 0.02;
+/// `DAT_1401787cc`: π / 180.
+const DEGREES: f32 = 0.017_453_292;
 
 /// `FUN_1400b65b0` and the cell loop of `FUN_140105d90`: two triangles per cell over the terrain
-/// vertices, split along the terrain's own diagonal (by `x + y` parity); `u` is the cell's x
-/// fraction scaled into the strip frame, `v` its y fraction.
+/// vertices, split along the terrain's own diagonal (by `x + y` parity). The cell's x and y
+/// fractions turn about the cell's centre by its rotation (`DAT_1401787cc` degrees to radians:
+/// `u' = (v − ½) sin + (u − ½) cos + ½`, `v' = (v − ½) cos − (u − ½) sin + ½`), and `u'` is
+/// scaled into the strip frame (`DAT_1401787ec`, ⅛).
 pub fn vertices(
     cells: &[OverlayCell],
     map_size: i32,
@@ -85,11 +91,14 @@ pub fn vertices(
     for c in cells {
         let corners = if (c.x + c.y) & 1 == 0 { &EVEN } else { &ODD };
         let [a, r, g, b] = c.argb.to_be_bytes();
+        let (sin, cos) = (c.rotation as f32 * DEGREES).sin_cos();
         for &(u, v) in corners {
             let (px, py) = (c.x as f32 + u - half, c.y as f32 + v - half);
+            let tu = (v - 0.5) * sin + (u - 0.5) * cos + 0.5;
+            let tv = (v - 0.5) * cos - (u - 0.5) * sin + 0.5;
             out.push(OverlayVertex {
                 position: [px, py, height(px, py) + LIFT],
-                uv: [(u + c.frame as f32) * 0.125, v],
+                uv: [(tu + c.frame as f32) * 0.125, tv],
                 color: [r, g, b, a],
             });
         }
@@ -353,5 +362,29 @@ mod tests {
         let g = vertices(&[OverlayCell::removal(2, 4, false)], 8, |_, _| 0.0);
         assert_eq!(g[1].position[..2], [-2.0, 1.0]);
         assert_eq!(g[0].color, [0, 0xff, 0, 0x80]);
+    }
+
+    /// A rotated cell turns its frame about the centre: at 90° the corner `(0, 0)` samples
+    /// the frame's `(0, 1)`, still inside frame 2.
+    #[test]
+    fn a_rotated_cell_turns_its_frame() {
+        let cell = OverlayCell {
+            x: 2,
+            y: 4,
+            frame: 2,
+            argb: 0xff00_ff00,
+            rotation: 90,
+        };
+        let v = vertices(&[cell], 8, |_, _| 0.0);
+        let close =
+            |a: [f32; 2], b: [f32; 2]| (a[0] - b[0]).abs() < 1e-5 && (a[1] - b[1]).abs() < 1e-5;
+        assert!(close(v[0].uv, [0.25, 1.0]), "{:?}", v[0].uv);
+        for x in &v {
+            assert!(
+                (0.25 - 1e-5..=0.375 + 1e-5).contains(&x.uv[0]),
+                "{:?}",
+                x.uv
+            );
+        }
     }
 }

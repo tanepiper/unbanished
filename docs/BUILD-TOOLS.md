@@ -95,7 +95,34 @@ The keys follow the engine's letter codes: A = `0x17` up to Z = `0x30`, so `0x28
 - **Message:** shows `ToolbarDescription.messages[valid ? 0 : 1]` (`CreateOk` / `CreateBlocked`)
   through `FUN_140105130`.
 
-Slot `+0x40` (`FUN_140103190`) draws the per-cell overlay (`FUN_140106850`).
+Slot `+0x40` (`FUN_140103190`) draws the per-cell overlay (`FUN_140106850`), then, while a
+tutorial's RestrictPlayer target is set (game UI `+0x80`: cells `+0x98`, `+0x9c`, degrees
+`+0xa0`), the same footprint there in yellow.
+
+### Overlay (`FUN_140106850` → `FUN_140105d90`)
+
+One entry per footprint cell: the cell, a frame of `Terrain\Selection.png` (an 8-frame strip),
+an ARGB colour and an angle.
+
+- **Colour:** `0xff00ff00` (green) when the cell admits the building (the validity test below),
+  `0xffff0000` (red) when not, `0xffffff00` (yellow) for the tutorial's target.
+- **Frame:** 0, except on a `.` footprint cell (the ground the entrance opens onto): frame 2,
+  the arrow, when CreatePlacedDescription `+0x40` is at least 0, else frame 1.
+- **Angle:** the rotation × 90 plus `+0x40` (the entrance's direction in the model).
+
+`FUN_140105d90` turns each cell's texture coordinates about the cell centre by the angle
+(`DAT_1401787cc`, degrees to radians; `sin` `0x140137160`, `cos` `0x140136560`):
+`u' = (v − ½) sin + (u − ½) cos + ½`, `v' = (v − ½) cos − (u − ½) sin + ½`, then
+`u'` goes into the frame (`(u' + frame) / 8`, `DAT_1401787ec`).
+
+### Work radius (`FUN_140055d90`)
+
+With a RadiusDescription (`Template\X.rsc:radius`: material `+0x20`, radius `+0x28`), hover
+adds a decal (`FUN_1400b6250`) on the square `centre ± r` about the footprint's centre cell,
+replacing it when the centre moves. It is opaque, unturned, the whole picture at scale 1, and
+in radius mode: `FUN_1400b2310` meshes only the cells whose squared distance from the centre
+lies between `(r − 2)²` and `(r + 2)²`, a ring. A building window with a RadiusUI shows the same
+ring about its building while open.
 
 ### Validity (`FUN_1400a2a50` → `FUN_1400a4aa0`)
 
@@ -184,8 +211,9 @@ rectangle's top edge. Its upper-left corner moves `0.25` of the way to the targe
     triangle intersection.
   - Trees and rocks under the footprint stay until the ClearArea work is ported; such a site
     waits in its clearing state.
+  - the per-cell overlay (validity colours, entrance arrows, the tutorial's yellow target)
+    and the work-radius ring.
 - **Not done yet:**
-  - the footprint decal and per-cell overlay;
   - message strings beyond the bar itself;
   - the drag, path, road, bridge and removal tools;
   - the decal outline. (The ClearArea work, the footprint decal and the terrain flattening,

@@ -106,7 +106,9 @@ pub struct GameplayLoop {
     /// were built for (road revision, terrain revision, the entities' signature).
     road_materials: Vec<Option<String>>,
     decal_descriptions: Vec<Option<std::sync::Arc<banished_formats::game::DecalDescription>>>,
-    decals_built: Option<(u32, u64, u64)>,
+    decals_built: Option<(u32, u64, u64, Vec<((i32, i32), i32)>)>,
+    /// Each template's RadiusDescription (`{file}:radius`): radius and material.
+    radius_descriptions: std::collections::HashMap<usize, Option<(i32, String)>>,
     /// The entities' particle systems (presentation; their own Random).
     particles: crate::particles::Particles,
     /// Each weather slot's rain or snow (`WeatherGeometry`).
@@ -628,6 +630,7 @@ impl GameplayLoop {
             road_materials: Vec::new(),
             decal_descriptions: Vec::new(),
             decals_built: None,
+            radius_descriptions: Default::default(),
             particles: Default::default(),
             precipitation: Vec::new(),
             decal_cache: Default::default(),
@@ -1052,6 +1055,29 @@ impl GameplayLoop {
                 self.move_cooldown = 0.05;
             }
         }
+        // `FUN_140103190`: the footprint's cells under the cursor, then (game UI `+0x80`) the
+        // tutorial's target in yellow, with the building's footprint and its rotation.
+        let degrees = self.rotation * banished_game::placement::ROTATION_STEP as i32;
+        let mut cells = tool.rect().map_or_else(Vec::new, |rect| {
+            tool.overlay(town, &grid, rect, degrees, false)
+        });
+        if let Some(r) = self.restrict.as_ref().filter(|r| !r.place.is_empty()) {
+            let rect = banished_game::placement::Rect {
+                x0: r.rect[0],
+                y0: r.rect[1],
+                x1: r.rect[2],
+                y1: r.rect[3],
+            };
+            cells.extend(tool.overlay(town, &grid, rect, r.rotation, true));
+        }
+        let n = town.cells.size as i32;
+        view.cell_overlay = crate::selection_overlay::vertices(&cells, n, |x, y| {
+            let mut normal = [0.0; 3];
+            grid.ground(x, y, &mut normal)
+        });
+        if view.overlay_texture.is_none() && !cells.is_empty() {
+            view.overlay_texture = crate::selection_overlay::load_texture(ctx.archive);
+        }
         let ghost = tool.ghost(self.rotation);
         if ghost != town.ghost {
             town.ghost = ghost;
@@ -1421,12 +1447,45 @@ impl GameplayLoop {
                 ));
         }
         let decals = &town.construction.decals;
+        // Work radii (`FUN_140055d90`): the placement ghost's, then each open window's with a
+        // RadiusUI about its building's centre (`FUN_14007cb20`).
+        let mut rings: Vec<((i32, i32), i32, String)> = self
+            .placement
+            .as_ref()
+            .and_then(|t| t.radius_decal())
+            .map(|(cell, r, m)| (cell, r, m.to_string()))
+            .into_iter()
+            .collect();
+        for e in self.entities.radius_windows() {
+            let Some(p) = town.placed.get(e).filter(|p| p.alive) else {
+                continue;
+            };
+            let template = p.template;
+            let radius = self.radius_descriptions.entry(template).or_insert_with(|| {
+                let file = town.templates[template]
+                    .reference
+                    .split(':')
+                    .next()?
+                    .replace('\\', "/");
+                let data = archive.read_ref(&format!("{file}:radius")).ok()?;
+                let (r, m) = banished_formats::game::radius_description(&data).ok()?;
+                Some((r, m?))
+            });
+            if let Some((r, m)) = radius {
+                let cell = (
+                    p.cell.0 + (p.footprint.0 >> 1),
+                    p.cell.1 + (p.footprint.1 >> 1),
+                );
+                rings.push((cell, *r, m.clone()));
+            }
+        }
         let key = (
             town.cells.road_revision,
             view.terrain.revision,
             crate::building_decals::signature(&town.placed, &self.decal_descriptions, decals),
+            rings.iter().map(|(c, r, _)| (*c, *r)).collect::<Vec<_>>(),
         );
-        if self.decals_built == Some(key) {
+        if self.decals_built.as_ref() == Some(&key) {
             return;
         }
         self.decals_built = Some(key);
@@ -1443,6 +1502,17 @@ impl GameplayLoop {
             town.cells.size,
             &mut self.decal_cache,
         );
+        for (cell, r, material) in &rings {
+            list.extend(crate::building_decals::radius(
+                archive,
+                *cell,
+                *r,
+                material,
+                &grid,
+                town.cells.size,
+                &mut self.decal_cache,
+            ));
+        }
         let entities = list.len();
         list.extend(crate::road_decals::build(
             archive,
@@ -2797,6 +2867,12 @@ impl GameLoop for GameplayLoop {
                 return true;
             }
             // `tool TEMPLATE`: start a template's tool, as its toolbar button does.
+            // `rotate`: StructureRight (T), one step clockwise.
+            Some("rotate") => {
+                self.rotation = (self.rotation + 1) % 4;
+                self.refresh_placement(ctx);
+                return true;
+            }
             Some("tool") => {
                 let Some(template) = words.next() else {
                     return false;
@@ -3631,6 +3707,104 @@ mod tests {
             let food = toolbar.button(ctx.ui, "food").unwrap();
             assert!(ctx.ui.node(housing).usable());
             assert!(!ctx.ui.node(food).usable());
+        });
+    }
+
+    /// The placement overlay (`FUN_140106850`): over the barn the footprint has red cells; on
+    /// clear ground every cell is green and the porch's `.` cells show the entrance arrow
+    /// (frame 2) turned with the building.
+    #[test]
+    fn the_placement_overlay_shows_validity_and_the_entrance() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            let town = gameplay.town.as_mut().unwrap();
+            let view = gameplay.view.as_ref().unwrap();
+            let grid = banished_game::terrain::HeightGrid {
+                width: view.terrain.size + 1,
+                heights: &view.terrain.heights,
+            };
+            let mut tool = PlacementTool::start(
+                ctx.archive,
+                town,
+                "Template\\WoodHouse.rsc:resource",
+                &mut gameplay.rng,
+            )
+            .unwrap();
+            let barn = town
+                .placed
+                .iter()
+                .find(|p| town.templates[p.template].reference.contains("StorageBarn"))
+                .unwrap()
+                .cell;
+            tool.hover(town, &grid, Some((barn.0 + 2, barn.1 + 2)), 0);
+            let over = tool.overlay(town, &grid, tool.rect().unwrap(), 0, false);
+            assert!(over.iter().any(|c| c.argb == 0xffff_0000));
+            let at = tool.find_clear_spot(town, &grid, town.start).unwrap();
+            let mut offsets = Vec::new();
+            for rotation in 0..4 {
+                tool.hover(town, &grid, Some(at), rotation);
+                let Some(rect) = tool.rect().filter(|_| tool.valid()) else {
+                    continue;
+                };
+                let over = tool.overlay(town, &grid, rect, rotation * 90, false);
+                assert!(over.iter().all(|c| c.argb == 0xff00_ff00));
+                let arrows: Vec<_> = over.iter().filter(|c| c.frame == 2).collect();
+                assert_eq!(arrows.len(), 4, "the porch");
+                // Every arrow turns with the building by the same entrance offset.
+                offsets.extend(arrows.iter().map(|c| c.rotation - rotation * 90));
+            }
+            assert!(offsets.len() >= 8, "{offsets:?}");
+            assert!(
+                offsets.iter().all(|&o| o == offsets[0] && o >= 0),
+                "{offsets:?}"
+            );
+            let restricted = tool.overlay(town, &grid, tool.rect().unwrap(), 0, true);
+            assert!(restricted.iter().all(|c| c.argb == 0xffff_ff00));
+        });
+    }
+
+    /// A forester's work radius: its ghost shows the ring (`FUN_1401033b0` →
+    /// `FUN_140055d90`), and so does its window while open (RadiusUI, `FUN_14007cb20`).
+    #[test]
+    fn work_radii_show_while_placing_and_selected() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            let count = |g: &mut GameplayLoop, ctx: &mut Ctx| {
+                g.refresh_decals(ctx.archive);
+                g.view
+                    .as_ref()
+                    .unwrap()
+                    .extras
+                    .as_ref()
+                    .unwrap()
+                    .decals
+                    .len()
+            };
+            let base = count(&mut gameplay, ctx);
+            assert!(gameplay.script(ctx, "tool Template/ForesterLodge.rsc"));
+            let start = gameplay.town.as_ref().unwrap().start;
+            {
+                let town = gameplay.town.as_ref().unwrap();
+                let view = gameplay.view.as_ref().unwrap();
+                let grid = banished_game::terrain::HeightGrid {
+                    width: view.terrain.size + 1,
+                    heights: &view.terrain.heights,
+                };
+                let tool = gameplay.placement.as_mut().unwrap();
+                tool.hover(town, &grid, Some(start), 0);
+                assert!(tool.radius_decal().is_some());
+            }
+            assert_eq!(count(&mut gameplay, ctx), base + 1);
+            gameplay.end_placement(ctx);
+            assert_eq!(count(&mut gameplay, ctx), base);
+            assert!(gameplay.script(ctx, "place Template/ForesterLodge.rsc"));
+            let with_site = count(&mut gameplay, ctx);
+            assert!(gameplay.script(ctx, "select"));
+            assert_eq!(count(&mut gameplay, ctx), with_site + 1);
         });
     }
 

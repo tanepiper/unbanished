@@ -138,39 +138,52 @@ pub fn can_place(
     degrees: i32,
     owner_ok: impl Fn(usize) -> bool,
 ) -> bool {
+    (rect.y0..=rect.y1).all(|y| {
+        (rect.x0..=rect.x1)
+            .all(|x| footprint_cell(cells, terrain, rules, rect, degrees, x, y, &owner_ok).0)
+    })
+}
+
+/// One cell of a footprint, as `FUN_1400a2a50` and the overlay (`FUN_140106850`) test it:
+/// whether it admits the building (`FUN_1400a4aa0` with the cell's mask: `+0x30`'s entry for
+/// the `+0x28` character, else `+0x20`) and whether its footprint character is `.` (untouched;
+/// its zone count `+0x28` is then not checked).
+#[allow(clippy::too_many_arguments)]
+pub fn footprint_cell(
+    cells: &Cells,
+    terrain: &HeightGrid,
+    rules: &PlacementRules,
+    rect: Rect,
+    degrees: i32,
+    x: i32,
+    y: i32,
+    owner_ok: impl Fn(usize) -> bool,
+) -> (bool, bool) {
     let (w, h) = (rect.width(), rect.height());
-    let fp = rules.footprint.as_bytes();
-    let chars = rules.mask_chars.as_bytes();
-    for y in rect.y0..=rect.y1 {
-        for x in rect.x0..=rect.x1 {
-            let k = footprint_index(x - rect.x0, y - rect.y0, w, h, degrees);
-            let untouched = fp.get(k) == Some(&b'.');
-            let mut mask = rules.mask;
-            if !rules.masks.is_empty() {
-                if let Some(&c) = chars.get(k) {
-                    if let Some(&m) = rules.masks.get((c as i32 - 0x30) as usize) {
-                        mask = m;
-                    }
-                }
-            }
-            if !cell_admits(
-                cells,
-                terrain,
-                x,
-                y,
-                mask,
-                0.0,
-                HEIGHT_TOLERANCE,
-                0.0,
-                false,
-                untouched,
-                &owner_ok,
-            ) {
-                return false;
+    let k = footprint_index(x - rect.x0, y - rect.y0, w, h, degrees);
+    let untouched = rules.footprint.as_bytes().get(k) == Some(&b'.');
+    let mut mask = rules.mask;
+    if !rules.masks.is_empty() {
+        if let Some(&c) = rules.mask_chars.as_bytes().get(k) {
+            if let Some(&m) = rules.masks.get((c as i32 - 0x30) as usize) {
+                mask = m;
             }
         }
     }
-    true
+    let admits = cell_admits(
+        cells,
+        terrain,
+        x,
+        y,
+        mask,
+        0.0,
+        HEIGHT_TOLERANCE,
+        0.0,
+        false,
+        untouched,
+        owner_ok,
+    );
+    (admits, untouched)
 }
 
 /// `FUN_1400a30f0`: stamp a footprint. `#` and an empty footprint set the building's type, `_`

@@ -48,6 +48,7 @@ are listed separately at the end.
 | **Floors** | Piles and work points on bridges stand on the floor | **Done.** Piles, drop points, work points and needs use `floor_ground` |
 | **Start structures** | Stamp map `+8` | **Done.** They are stamped as they are built (`build_structures`); picking reads the cells |
 | **Scenario goal and rain emitter in a new game's save** | Written | **Done** |
+| **Placement overlay** (user report) | `FUN_140106850`: green/red cells, the entrance arrows, the tutorial's yellow target; the work-radius ring (`FUN_140055d90`) | **Done** |
 | **Not ported, from DEVIATIONS.md** | — | Building-window refresh for controllers logged once, the injury check, entity event 0 and the picking mesh on demolition, the death and burial path, the path grid's blocked bit, `FUN_1400c4c60`'s `param_13` |
 
 ## Presentation differences

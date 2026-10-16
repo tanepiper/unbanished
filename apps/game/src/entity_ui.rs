@@ -81,7 +81,20 @@ impl EntityWindows {
                 log::warn!("{template}: missing slot {}", c.slot);
                 continue;
             };
+            // `FUN_1401335d0` attaches every controller (`DialogInstance::AddController`);
+            // one without an element (RadiusUI) works on the dialog itself.
             let Some(element) = c.element.as_deref().and_then(|r| ui.instantiate(r)) else {
+                if c.type_id != 0 {
+                    bound.push(Controller::bind(
+                        ui,
+                        archive,
+                        c.type_id,
+                        root,
+                        root,
+                        c.config.as_deref(),
+                    ));
+                    controllers.push((c, root));
+                }
                 continue;
             };
             if matches!(&ui.node(slot).kind, Kind::Control(Control::Tabs { .. })) {
@@ -313,6 +326,23 @@ impl EntityWindows {
             Controller::SelectResource(c) => c.click(ui, node, p),
             _ => None,
         })
+    }
+
+    /// The buildings whose window has a RadiusUI (`0x00585b87`): while open, its work radius
+    /// shows (`FUN_14007cb20`; closing removes it, `FUN_14007cad0`).
+    pub fn radius_windows(&self) -> Vec<usize> {
+        self.open
+            .iter()
+            .filter(|w| {
+                w.controllers
+                    .iter()
+                    .any(|(c, _)| c.type_id == crate::building_ui::RADIUS_UI)
+            })
+            .filter_map(|w| match w.entity {
+                Entity::Placed(p) => Some(p),
+                Entity::Citizen(_) => None,
+            })
+            .collect()
     }
 
     /// The buildings whose window has a TradeUI.

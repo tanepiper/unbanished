@@ -14,7 +14,9 @@ use banished_formats::game::{
 };
 use banished_formats::pkg::Archive;
 use banished_formats::types::graphics_mesh;
-use banished_game::placement::{can_place, footprint, PlacementRules, Rect, ROTATION_STEP};
+use banished_game::placement::{
+    can_place, footprint, footprint_cell, PlacementRules, Rect, ROTATION_STEP,
+};
 use banished_game::random::Random;
 use banished_game::seeding::Placed;
 use banished_game::terrain::HeightGrid;
@@ -31,6 +33,9 @@ pub struct PlacementTool {
     pub reference: String,
     template: usize,
     rules: PlacementRules,
+    /// CreatePlacedDescription `+0x40`: the entrance's direction in degrees from the
+    /// building's rotation, −1 for none (the overlay's arrows).
+    entrance: i32,
     model: ModelDescription,
     /// `+0x64`: ghost variant.
     variant: usize,
@@ -42,6 +47,8 @@ pub struct PlacementTool {
     pub build: Option<BuildDescription>,
     /// Bounds of each variant's ghost mesh (for the CreateBar position).
     bounds: Vec<Option<([f32; 3], [f32; 3])>>,
+    /// `+0x40`: the template's RadiusDescription (`{file}:radius`): its radius and material.
+    radius: Option<(i32, String)>,
 }
 
 impl PlacementTool {
@@ -86,6 +93,7 @@ impl PlacementTool {
                 height: placed.height,
                 cell_type: map.cell_type as u8,
             },
+            entrance: placed.value,
             model,
             variant,
             rect: None,
@@ -94,6 +102,9 @@ impl PlacementTool {
             toolbar,
             build,
             bounds,
+            radius: read(archive, &format!("{file}:radius"))
+                .and_then(|d| banished_formats::game::radius_description(&d).ok())
+                .and_then(|(r, m)| Some((r, m?))),
         })
     }
 
@@ -197,6 +208,65 @@ impl PlacementTool {
 
     pub fn valid(&self) -> bool {
         self.valid
+    }
+
+    /// `FUN_1401033b0` → `FUN_140055d90`: with a RadiusDescription, its ring about the
+    /// footprint's centre cell (`x0 + (x1 − x0) / 2`, likewise y): cell, radius, material.
+    pub fn radius_decal(&self) -> Option<((i32, i32), i32, &str)> {
+        let (r, material) = self.radius.as_ref()?;
+        let rect = self.rect?;
+        let cell = (
+            ((rect.x1 - rect.x0) >> 1) + rect.x0,
+            ((rect.y1 - rect.y0) >> 1) + rect.y0,
+        );
+        Some((cell, *r, material.as_str()))
+    }
+
+    /// `FUN_140103190` → `FUN_140106850`: the footprint's overlay. Each cell is green where it
+    /// admits the building and red where not (yellow for the tutorial's target, `restrict`);
+    /// a `.` cell (the ground the entrance opens onto) shows the arrow (frame 2) turned the
+    /// entrance's way, or frame 1 for a building without one.
+    pub fn overlay(
+        &self,
+        town: &StartingTown,
+        terrain: &HeightGrid,
+        rect: Rect,
+        degrees: i32,
+        restrict: bool,
+    ) -> Vec<crate::selection_overlay::OverlayCell> {
+        let mut out = Vec::new();
+        for y in rect.y0..=rect.y1 {
+            for x in rect.x0..=rect.x1 {
+                let (admits, untouched) = footprint_cell(
+                    &town.cells,
+                    terrain,
+                    &self.rules,
+                    rect,
+                    degrees,
+                    x,
+                    y,
+                    |_| false,
+                );
+                let argb = match (restrict, admits) {
+                    (true, _) => 0xffff_ff00,
+                    (false, true) => 0xff00_ff00,
+                    (false, false) => 0xffff_0000,
+                };
+                let frame = match (untouched, self.entrance >= 0) {
+                    (false, _) => 0,
+                    (true, true) => 2,
+                    (true, false) => 1,
+                };
+                out.push(crate::selection_overlay::OverlayCell {
+                    x,
+                    y,
+                    frame,
+                    argb,
+                    rotation: degrees + self.entrance,
+                });
+            }
+        }
+        out
     }
 
     /// Footprint size in cells.

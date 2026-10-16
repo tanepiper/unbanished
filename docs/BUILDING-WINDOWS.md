@@ -28,7 +28,7 @@ frame after the simulation; refresh reads only.
 | `0x1aff79f6` | AttendanceUI | | `FUN_14005e6a0` / `FUN_14005e5b0` | done |
 | `0xa17245fb` | CemeteryUI | | `FUN_14005f9f0` / `FUN_14005f8b0` | done |
 | `0x9c93d6c1` | ConsumeProduceUI | | `FUN_14005fd30` / `FUN_14005fb50` / `FUN_14005fc90` | done |
-| `0x00585b87` | RadiusUI | | defaults (no bind, refresh or events) | nothing to do |
+| `0x00585b87` | RadiusUI | `0x140163590` | opened `FUN_14007cb20` (the RadiusDescription's ring about the building, `FUN_140055d90`) / closed `FUN_14007cad0` (removed); no element | done (`entity_ui::radius_windows`, `building_decals::radius`) |
 | `0x1701e613` | ResidenceUI | | `FUN_1400bad20` / `FUN_1400ba6c0` | done |
 | `0xcd3b5953` | TownHallUI | | `FUN_1400864d0` / `FUN_140082a20`, `FUN_140083a20` / `FUN_140081650` | done (`town_hall_ui.rs`) |
 | `0xc8b87610` | TradeUI | `0x1401642a0` | `FUN_14008a2a0` / `FUN_140087620`, `FUN_140087c80` / `FUN_1400873f0` | done (`trade_ui.rs`) |

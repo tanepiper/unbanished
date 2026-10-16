@@ -21,7 +21,7 @@ Deviation: 41, Not ported: 8, Not traced: 5.
 ## `apps/game/src/gameplay.rs`
 
 - [Deviation] [apps/game/src/gameplay.rs:32](../apps/game/src/gameplay.rs#L32): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
-- [Deviation] [apps/game/src/gameplay.rs:533](../apps/game/src/gameplay.rs#L533): The achievement instances with their goals' progress, for a new game. Deviation: a loaded game keeps the instances it was saved with (the port does not read them back).
+- [Deviation] [apps/game/src/gameplay.rs:535](../apps/game/src/gameplay.rs#L535): The achievement instances with their goals' progress, for a new game. Deviation: a loaded game keeps the instances it was saved with (the port does not read them back).
 
 ## `apps/game/src/main.rs`
 
@@ -68,7 +68,7 @@ Deviation: 41, Not ported: 8, Not traced: 5.
 
 ## `apps/game/src/selection_overlay.rs`
 
-- [Deviation] [apps/game/src/selection_overlay.rs:67](../apps/game/src/selection_overlay.rs#L67): Deviation: the quads sit this far above the terrain surface instead of relying on the original material's depth state (not traced), so they do not fight the terrain's depth.
+- [Deviation] [apps/game/src/selection_overlay.rs:69](../apps/game/src/selection_overlay.rs#L69): Deviation: the quads sit this far above the terrain surface instead of relying on the original material's depth state (not traced), so they do not fight the terrain's depth.
 
 ## `apps/game/src/settings.rs`
 
@@ -155,7 +155,7 @@ Deviation: 41, Not ported: 8, Not traced: 5.
 
 ## `crates/game/src/placement.rs`
 
-- [Not ported] [crates/game/src/placement.rs:206](../crates/game/src/placement.rs#L206): `FUN_1400a2830` (ZoneComponent activation, `FUN_1401356c0`): the entity becomes the occupant (`+0x00`) of every non-`.` footprint cell; `.` cells count one more zone at `+0x28`. Not ported: the path grid's blocked bit (citizens' mode 0 does not honour it).
+- [Not ported] [crates/game/src/placement.rs:219](../crates/game/src/placement.rs#L219): `FUN_1400a2830` (ZoneComponent activation, `FUN_1401356c0`): the entity becomes the occupant (`+0x00`) of every non-`.` footprint cell; `.` cells count one more zone at `+0x28`. Not ported: the path grid's blocked bit (citizens' mode 0 does not honour it).
 
 ## `crates/game/src/spawn.rs`
 

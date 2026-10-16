@@ -55,6 +55,10 @@ struct Entry<'a> {
     alpha: u8,
     tiled: bool,
     material: &'a str,
+    /// `FUN_1400b2310`'s radius mode (`param_3`): only the cells whose squared distance from
+    /// the rectangle's centre (`(x0 + x1) >> 1`, `(y0 + y1) >> 1`) lies between the two
+    /// radii squared.
+    ring: Option<(i32, i32)>,
 }
 
 /// A 2D affine map in the engine's row-vector order (`Math::Transform2`): `p' = p·M + t`.
@@ -141,8 +145,15 @@ fn mesh(e: &Entry, grid: &HeightGrid, size: i32, off: i32) -> (Vec<u8>, Vec<u16>
     let (w, h) = ((e.x1 - e.x0 + 1) as f32, (e.y1 - e.y0 + 1) as f32);
     let mut vertices = Vec::new();
     let mut indices = Vec::new();
+    let (cx, cy) = ((e.x0 + e.x1) >> 1, (e.y0 + e.y1) >> 1);
     for y in e.y0..=e.y1 {
         for x in e.x0..=e.x1 {
+            if let Some((inner, outer)) = e.ring {
+                let d = (y - cy) * (y - cy) + (x - cx) * (x - cx);
+                if d < inner * inner || outer * outer < d {
+                    continue;
+                }
+            }
             let variant = if e.tiled {
                 let inside = |dx: i32, dy: i32| {
                     (e.x0..=e.x1).contains(&(x + dx)) && (e.y0..=e.y1).contains(&(y + dy))
@@ -231,6 +242,7 @@ pub fn build(
             alpha: (alpha * 255.0) as i64 as u8,
             tiled: d.tiled,
             material,
+            ring: None,
         };
         let (vertices, indices) = mesh(&e, grid, size, off);
         if let Some(d) = DecalData::from_mesh(archive, e.material, vertices, &indices, cache) {
@@ -238,6 +250,37 @@ pub fn build(
         }
     }
     out
+}
+
+/// `FUN_140055d90`: a RadiusDescription's ring of radius `r` about `cell` (the placement
+/// ghost's work area): the square `cell ± r`, opaque, unturned, the whole picture at scale 1,
+/// meshed only `r − 2` to `r + 2` cells from the centre, with the description's material.
+pub fn radius(
+    archive: &Archive,
+    cell: (i32, i32),
+    r: i32,
+    material: &str,
+    grid: &HeightGrid,
+    cells: usize,
+    cache: &mut DecalCache,
+) -> Option<DecalData> {
+    let size = grid.width as i32 - 1;
+    let off = (size - cells as i32) >> 1;
+    let e = Entry {
+        x0: cell.0 - r,
+        y0: cell.1 - r,
+        x1: cell.0 + r,
+        y1: cell.1 + r,
+        yaw: 0.0,
+        rect: [0.0, 0.0, 1.0, 1.0],
+        scale: 1.0,
+        alpha: 0xff,
+        tiled: false,
+        material,
+        ring: Some((r - 2, r + 2)),
+    };
+    let (vertices, indices) = mesh(&e, grid, size, off);
+    DecalData::from_mesh(archive, material, vertices, &indices, cache)
 }
 
 /// What the decals are built from, to rebuild them when it changes.
@@ -276,6 +319,7 @@ mod tests {
             alpha: 127,
             tiled: false,
             material: "",
+            ring: None,
         }
     }
 
@@ -342,6 +386,7 @@ mod scene_check {
                     alpha: d.byte,
                     tiled: d.flag7,
                     material: "",
+                    ring: None,
                 };
                 let (vertices, _) = mesh(&e, &grid, width as i32 - 1, 0);
                 // The decal uv may differ by one where the original's float rounding falls
