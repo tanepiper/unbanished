@@ -2888,6 +2888,21 @@ impl GameLoop for GameplayLoop {
                 }
                 return Next::Stay;
             }
+            // `FUN_140104bb0`: MouseRight (action 6) first lets the tool cancel what it is doing
+            // (DragTool `+0x48`, a drag in progress), else ends the tool; not while a
+            // RestrictPlayer setup holds it.
+            RawInput::Action(keys::MOUSE_RIGHT) => {
+                let restricted = self.restrict.as_ref().is_some_and(|r| !r.place.is_empty());
+                let tool =
+                    self.placement.is_some() || self.removal.is_some() || self.path_tool.is_some();
+                if tool && !restricted && !self.removal.as_mut().is_some_and(|t| t.cancel()) {
+                    self.end_placement(ctx);
+                    if let Some(toolbar) = &self.toolbar {
+                        toolbar.clear_build(ctx.ui);
+                    }
+                }
+                return Next::Stay;
+            }
             // DragTool `+0x48` (`FUN_140101b10`): Escape first stops a drag in progress.
             RawInput::Escape if self.removal.as_mut().is_some_and(|t| t.cancel()) => {
                 return Next::Stay;
@@ -2942,7 +2957,6 @@ impl GameLoop for GameplayLoop {
         }
         let Some(SceneView {
             camera: SceneCamera::Map(camera),
-            terrain,
             ..
         }) = &mut self.view
         else {
@@ -2950,7 +2964,6 @@ impl GameLoop for GameplayLoop {
         };
         match input {
             RawInput::Drag(dx, dy) => camera.rotate(dx, dy),
-            RawInput::PanDrag(dx, dy) => camera.pan_drag(dx, dy, terrain),
             RawInput::Wheel(steps) => camera.zoom(steps),
             RawInput::Action(keys::ZOOM_IN) => camera.zoom(1.0),
             RawInput::Action(keys::ZOOM_OUT) => camera.zoom(-1.0),

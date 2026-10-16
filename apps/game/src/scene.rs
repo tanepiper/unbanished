@@ -307,14 +307,6 @@ impl Camera {
         self.yaw += direction * 90.0 * dt;
     }
 
-    /// Pan opposite a screen-space drag, keeping the target in the camera's ground plane.
-    pub fn pan_drag(&mut self, dx: f32, dy: f32, terrain: &Terrain) {
-        let (fw, rt) = self.axes();
-        let scale = self.distance * 0.0015;
-        self.target += rt * (-dx * scale) + fw * (dy * scale);
-        self.clamp(terrain);
-    }
-
     /// Rotate-button drag (`KeyMap` value 7 held): `yaw −= mouse Δx · 0.2`. The original has no
     /// drag pitch; pitch follows the zoom and the PitchUp/PitchDown slider.
     pub fn rotate(&mut self, dx: f32, _dy: f32) {

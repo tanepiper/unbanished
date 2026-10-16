@@ -496,6 +496,18 @@ impl Game {
         }
     }
 
+    /// A mouse button other than the left pressed: its key-map actions.
+    pub fn pressed_mouse(&mut self, code: u8) {
+        let actions: Vec<usize> = self
+            .settings
+            .keymap
+            .actions_for((keymap::MOUSE, code))
+            .collect();
+        for id in actions {
+            self.raw(RawInput::Action(id));
+        }
+    }
+
     /// A key or mouse button released (`Input::Device::Released`), for the key-binding box.
     pub fn released(&mut self, binding: keymap::Binding) {
         self.raw(RawInput::Released(binding));
@@ -1123,14 +1135,18 @@ impl ApplicationHandler<UserEvent> for App {
                 self.cursor = (position.x, position.y);
                 if let Some(game) = &mut self.game {
                     game.pointer_move(position.x as i32, position.y as i32);
-                    match self.drag_button {
-                        Some(MouseButton::Left | MouseButton::Right) => {
-                            game.drag(dx as f32, dy as f32);
-                        }
-                        Some(MouseButton::Middle) => {
-                            game.raw(RawInput::PanDrag(dx as f32, dy as f32))
-                        }
-                        _ => {}
+                    // `FUN_140104390`: the camera turns by the mouse's Δx while the button bound
+                    // to `MouseMiddle` (action 7, the middle button by default) is held.
+                    let rotates = self
+                        .drag_button
+                        .and_then(keymap::mouse_code)
+                        .is_some_and(|c| {
+                            game.settings
+                                .keymap
+                                .is(keymap::id::MOUSE_MIDDLE, (keymap::MOUSE, c))
+                        });
+                    if rotates {
+                        game.drag(dx as f32, dy as f32);
                     }
                 }
             }
@@ -1158,14 +1174,22 @@ impl ApplicationHandler<UserEvent> for App {
                             self.drag_button = None;
                         }
                     }
-                    MouseButton::Right | MouseButton::Middle => {
+                    _ => {
                         if down {
                             self.drag_button = Some(button);
                         } else if self.drag_button == Some(button) {
                             self.drag_button = None;
                         }
                     }
-                    _ => {}
+                }
+                // The key map's actions for the button (`KeyMap::Pressed`), outside the UI:
+                // `MouseRight` (action 6) cancels the tool (`FUN_140104bb0`).
+                if let (true, false, Some(code)) = (
+                    down,
+                    button == MouseButton::Left,
+                    keymap::mouse_code(button),
+                ) {
+                    game.pressed_mouse(code);
                 }
                 // After the UI has seen the release, so a click on the binding box's buttons
                 // wins over binding the button.

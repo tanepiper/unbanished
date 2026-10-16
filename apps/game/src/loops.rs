@@ -52,7 +52,6 @@ pub enum RawInput {
     /// A key-map action's key released (`KeyMap::Released`).
     ActionReleased(usize),
     Drag(f32, f32),
-    PanDrag(f32, f32),
     Wheel(f32),
     Escape,
     /// A key or mouse button released, as an engine `(device, input)` (`Input::Device::Released`).

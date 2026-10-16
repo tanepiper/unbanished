@@ -25,8 +25,10 @@ pub struct Action {
     pub slots: [Option<Binding>; 2],
 }
 
-/// The game's action ids (`FUN_14009e7c0`); the full table, including ids the port's input
-/// does not read yet (the mouse buttons).
+/// The game's action ids (`FUN_14009e7c0`); the full table. The engine's mouse inputs 4, 5 and
+/// 6 are the left, right and middle buttons (`Device::PlatformGetMouseState`: `VK_LBUTTON`,
+/// `VK_RBUTTON`, `VK_MBUTTON`), so MouseMiddle (7, the camera's turning) is the middle button
+/// and MouseRight (6, cancelling the tool) the right one.
 #[allow(dead_code)]
 pub mod id {
     pub const MOUSE_LEFT: usize = 5;

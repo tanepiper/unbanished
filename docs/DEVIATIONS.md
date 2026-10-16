@@ -22,7 +22,7 @@ Deviation: 40, Not ported: 5, Not traced: 6.
 ## `apps/game/src/main.rs`
 
 - [Deviation] [apps/game/src/main.rs:132](../apps/game/src/main.rs#L132): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
-- [Deviation] [apps/game/src/main.rs:921](../apps/game/src/main.rs#L921): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
+- [Deviation] [apps/game/src/main.rs:933](../apps/game/src/main.rs#L933): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
 
 ## `apps/game/src/mod_ui.rs`
 

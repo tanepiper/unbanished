@@ -11,8 +11,9 @@ WASD/arrows from reaching the gameplay loop whenever the HUD was active.
 
 - UI reports whether the current hit target is an interactive control and whether a text edit has
   keyboard focus.
-- Left press over an interactive control is captured by the UI; left drag over empty map space and
-  right drag rotate the camera. Middle drag pans the map.
+- Left press over an interactive control is captured by the UI. Superseded (2026-10-16): the
+  original turns the camera only while the `MouseMiddle` button (the middle one) is held, the
+  right button cancels the tool and nothing pans by mouse; see KEYMAP-AND-CAMERA-CONTROLS.md.
 - Wheel events first offer scrolling to the UI, then zoom the camera when no scrollable control
   consumes them.
 - Escape and camera movement keys pass through when UI key handling does not consume them, while

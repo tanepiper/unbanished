@@ -51,14 +51,20 @@ The gameplay camera follows `FUN_140104390`:
 | Input | Effect |
 |---|---|
 | RotateLeft / RotateRight held | yaw −/+ 90° per second |
+| MouseMiddle held | yaw −= mouse Δx · 0.2 |
 | Forward / Back / Left / Right held, or the pointer within 4 pixels of the left/top edge or 5 of the right/bottom (game option EdgeScroll) | the pivot moves `f·70 + (1−f)·12` units per second along the camera's ground axes, `f = (zoom target − 20) / 110`; keys override the edges |
 | ZoomIn / ZoomOut pressed, mouse wheel | zoom target ∓5 within 20..130 |
 | PitchUp / PitchDown pressed | pitch slider ±0.125 within 0..1 |
 | TogglePause | pause toggle |
 | Toolbar0–8, Tool0–9, Camera0–4 | the shown toolbar button holding that key (`FUN_1400bede0` hands them out by depth) |
 
-The mouse actions (`MouseLeft`, `MouseRight`, `MouseMiddle`) are listed and stored but the port
-still reads the mouse buttons directly. `PathMethod` held turns the road tool's Manhattan
+The engine's mouse inputs 4, 5 and 6 are the left, right and middle buttons
+(`Device::PlatformGetMouseState`, Runtime `0x1800e4660`: `VK_LBUTTON`, `VK_RBUTTON`,
+`VK_MBUTTON`). While the button bound to `MouseMiddle` (action 7; the middle button) is held the
+camera turns, `yaw −= mouse Δx · 0.2` (`FUN_140104390`; no pitch, no pan by mouse). A press of
+`MouseRight` (action 6; the right button) lets the tool cancel what it is doing (a drag), else
+ends the tool (`FUN_140104bb0`). The left button never turns the camera. The port reads both
+through the key map, so rebinding them in Options moves them. `PathMethod` held turns the road tool's Manhattan
 heuristic off (`FUN_14010ab60`, RoadTool `+0x40`). The screenshot keys write
 `Screenshots\Screenshot%i.bmp` in the save directory, the frame without or with the UI
 (`FUN_14009b270`, drawn by `FUN_14009b4e0`).
