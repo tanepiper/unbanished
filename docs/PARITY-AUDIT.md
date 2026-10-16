@@ -49,7 +49,7 @@ are listed separately at the end.
 | **Start structures** | Stamp map `+8` | **Done.** They are stamped as they are built (`build_structures`); picking reads the cells |
 | **Scenario goal and rain emitter in a new game's save** | Written | **Done** |
 | **Placement overlay** (user report) | `FUN_140106850`: green/red cells, the entrance arrows, the tutorial's yellow target; the work-radius ring (`FUN_140055d90`) | **Done** |
-| **Not ported, from DEVIATIONS.md** | — | Building-window refresh for controllers logged once, the injury check, entity event 0 and the picking mesh on demolition, the death and burial path, the path grid's blocked bit, `FUN_1400c4c60`'s `param_13` |
+| **Not ported, from DEVIATIONS.md** | — | **Resolved or not reachable:** the building-window controllers are all bound (RadiusUI was the last); entity event 0 and the picking mesh after a collapse follow the current mesh; `FUN_1400c4c60`'s `param_13`/`param_14` are covered (`needs.rs`, `Haul::tool`); the path grid's blocked bit has no effect on mode-0 walks and the road search honours the zones. The injury and death switches are the debug flag `Game +0xd0` bit 8 (debug window only). The pause menu's Mod button waits for mods |
 
 ## Presentation differences
 

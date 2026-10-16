@@ -621,8 +621,9 @@ impl Sim<'_, '_> {
 
     /// `FUN_1400c4c60` with its flags: `partial` (`param_11`, the pickup may take less),
     /// `complete_on_pickup` (`param_12`, the CompleteTask follows the pickup rather than the
-    /// delivery). Not ported: `param_13` (a Citizen message) and `param_14` (tool use, faster
-    /// walk), which no ported caller sets.
+    /// delivery) and `tool` (`param_14`, tool use and the faster loaded walk). `param_13` (a
+    /// Citizen message first, `FUN_1400d06a0`) is set only by the home fetches
+    /// (`FUN_140111160`, `FUN_1401108b0`), which `crate::needs` builds with the message itself.
     pub(crate) fn haul(&mut self, c: usize, work: &mut Work, h: Haul) {
         let Haul {
             target_entity: site,

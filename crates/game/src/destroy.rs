@@ -483,8 +483,10 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_140122aa0`: one construction mesh down, not below the description's `+0x30`; the
-    /// model takes the damaged material set and the decal the damaged material. Not ported:
-    /// entity event 0 and the picking mesh.
+    /// model takes the damaged material set and the decal the damaged material. Its entity
+    /// event 0 reaches only the HighlightComponent (`FUN_14004ce00`, the outline of the new
+    /// mesh) and `FUN_14012e420` re-registers the picking mesh; the port's highlight and
+    /// picking read the entity's current mesh, so both follow.
     fn collapse(&mut self, e: usize) {
         let Some(t) = self
             .sites
