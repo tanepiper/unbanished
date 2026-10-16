@@ -17,10 +17,10 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Character, CitizenAI | Citizen | movement, actions, AI choice; activities 2, 3, 8, 9, 12 |
 | Storage, StorageLocation | storage buildings, citizens | ledgers, search, reservations |
 | Build, ClearArea, WorkPlace, StateMachine, Work | buildings | construction, professions |
-| ResourceProduce (ConsumeProduce) | CutterYard, Tailor, ToolMaker, Tavern | cutter yard verified; the rest share the code |
+| ResourceProduce (ConsumeProduce) | CutterYard, Tailor, ToolMaker, Tavern | yes (`cutter_yard_makes_firewood`, `workshops_make_their_goods`) |
 | StatusIcon | citizens, buildings | yes ([STATUS-ICONS.md](STATUS-ICONS.md); BuildDestroy with demolition) |
 | AmbientEmitter, AmbientEnvironment | most buildings | environment, wind, river, rain |
-| Citizen (`0x1401689a0`) | Citizen | needs, age, death, health, happiness, disease, homes, marriage, births, burial, accidents, ClearStorage ([CITIZEN-LIFE.md](CITIZEN-LIFE.md)); consumption counters open |
+| Citizen (`0x1401689a0`) | Citizen | needs, age, death, health, happiness, disease, homes, marriage, births, burial, accidents, ClearStorage ([CITIZEN-LIFE.md](CITIZEN-LIFE.md)); consumption counters ([TOWN-INFO.md](TOWN-INFO.md)) |
 | Residence | WoodHouse, StoneHouse, Hostel | families, heating, moving in, ClearStorage, moving out (state 3) |
 | **Immigration**, **Nomad** | TownHall, Nomad | yes ([IMMIGRATION.md](IMMIGRATION.md); bands, nomads, taking in, visitor risk; the town hall window and ImmigrationUI) |
 | Attendance | School, Chapel, Doctor | yes (staff by LocationWork, places, lessons, treatment) |

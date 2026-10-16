@@ -128,7 +128,7 @@ is `0x14015f6a0`.
 | States 2 and 0xd | Enter (`FUN_14004b350`) registers an active building. The scheduled update (`FUN_14004b300`) registers or unregisters it as its activity changes | yes |
 | State 3, removal | `FUN_14004b2a0`, `FUN_14004b380`: unregister | yes |
 | Register (`FUN_14004ae50` / `FUN_14004ae00`) | Join or leave the town manager's list (`+0x50`), and add ±1 on the kind's map layer (kinds above 4 use layer 5) within the radius around the map rectangle's centre (`FUN_14004ac60` → `FUN_1400a4e60`) | yes |
-| Visit (message 0, `FUN_14004b0e0`) | With stock needed, one unit of the first matching, unreserved raw material is used up, and the stock slot's consumption counter goes up | yes; the counter is not ported |
+| Visit (message 0, `FUN_14004b0e0`) | With stock needed, one unit of the first matching, unreserved raw material is used up, and the stock slot's consumption counter goes up | yes (`happiness.rs`, `count_used`) |
 | Loiter target (`FUN_14004b080`, `FUN_14008eea0`) | A registered building that is not kind 5. The pick is `Rand(count)` over those whose first use point is within path rank `2 · range` and reachable | yes |
 
 Happiness (`FUN_140117fb0`) reads the home entrance cell's layers. Layers 0–4 count one
@@ -211,7 +211,8 @@ work's set (`+0x58`); complete and fail (`FUN_1400ec100`, `FUN_1400ec0f0`) leave
 
 Test: `placement_tool::construction_tests::an_empty_house_is_cleared`.
 
-## Not ported yet
+## Related
 
-The stock consumption counters (with the trackers, Town Info).
-(The workplace searches are described in [JOBS.md](JOBS.md#workplace-searches).)
+The stock consumption counters (eating, ConsumeRawMaterial, building, visits, trading) are
+in [TOWN-INFO.md](TOWN-INFO.md#what-is-made-and-used). The workplace searches are described in
+[JOBS.md](JOBS.md#workplace-searches).

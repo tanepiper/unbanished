@@ -502,6 +502,110 @@ mod construction_tests {
         assert!(town.construction.claimed_resources.is_empty());
     }
 
+    /// The blacksmith, tailor and tavern share the cutter yard's ConsumeProduce code: with
+    /// every recipe's inputs in the town's storage, two workers fetch them and make the current
+    /// recipe's goods, which the building's tracker counts.
+    #[test]
+    fn workshops_make_their_goods() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        for template in [
+            r"Template\ToolMaker.rsc:resource",
+            r"Template\Tailor.rsc:resource",
+            r"Template\Tavern.rsc:resource",
+        ] {
+            let mut rng = Random::new(1234);
+            let mut town = StartingTown::create(
+                &archive,
+                "Game/StartCondition/Medium.rsc:resource",
+                world.terrain.size,
+                &terrain,
+                &mut rng,
+            )
+            .unwrap();
+            let mut tool = PlacementTool::start(&archive, &mut town, template, &mut rng).unwrap();
+            let spot = tool.find_clear_spot(&town, &terrain, town.start);
+            tool.hover(&town, &terrain, spot, 0);
+            let id = tool.place(&archive, &mut town, 0).unwrap();
+            let builder = town.construction.professions.builder;
+            town.construction
+                .commands
+                .push(banished_game::professions::Command::SetCount {
+                    profession: builder,
+                    count: 3,
+                });
+            let site_template = town.construction.sites[&id].template;
+            let recipes = town.construction.templates[site_template]
+                .produce
+                .clone()
+                .expect("no ConsumeProduceDescription");
+            let barn = town.storage_sites[0].storage;
+            for r in &recipes.recipes {
+                for &(m, need) in &r.inputs {
+                    town.storages[barn].add(m, 2 * need);
+                }
+            }
+            let outputs: Vec<usize> = recipes.recipes.iter().map(|r| r.output_material).collect();
+            let mut warnings = banished_game::events::StockWarnings::default();
+            let dt = 1.0 / 30.0;
+            let mut made = 0;
+            let mut built = false;
+            for _ in 0..30 * 60 * 15 {
+                town.apply_commands(&terrain, &mut rng);
+                town.iterate(&terrain, &mut rng, dt, 50.0);
+                let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+                town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+                warnings.recompute(&town.registered_storages(), &town.materials);
+                town.construction
+                    .jobs
+                    .step(banished_game::scheduler::ticks(dt));
+                if !built && town.construction.sites[&id].complete {
+                    built = true;
+                    let profession = town.construction.workforce.workplaces[&id]
+                        .description_profession
+                        .expect("no profession");
+                    town.construction.commands.push(
+                        banished_game::professions::Command::SetCount {
+                            profession,
+                            count: 2,
+                        },
+                    );
+                }
+                made = town.construction.trackers.get(&id).map_or(0, |t| {
+                    t.this_year
+                        .iter()
+                        .filter(|e| outputs.contains(&e.0))
+                        .map(|e| e.1)
+                        .sum()
+                });
+                if 0 < made {
+                    break;
+                }
+            }
+            assert!(built, "{template} was not built");
+            assert!(0 < made, "{template} made nothing");
+        }
+    }
+
     /// A wood cutter near the start is built, two woodcutters take the ConsumeProduce work:
     /// they fetch logs into the yard, work cycles and leave firewood piles that laborers haul to
     /// storage.
