@@ -38,6 +38,8 @@ pub struct GameplayLoop {
     params: WorldParams,
     view: Option<SceneView>,
     environment_months: Vec<EnvironmentMonth>,
+    /// EnvironmentDescription `+0x20`: what forms while it rains (`Template\Tornado.rsc`).
+    environment_template: Option<String>,
     screen: Option<Screen>,
     /// Calendar (`Game/Game +0x128`): year count and time into the year.
     calendar: Calendar,
@@ -102,6 +104,7 @@ impl GameplayLoop {
             params,
             view: None,
             environment_months: Vec::new(),
+            environment_template: None,
             screen: None,
             calendar: Calendar::default(),
             environment: None,
@@ -608,7 +611,7 @@ impl GameplayLoop {
     /// Port of FUN_14009b850: entity scheduler, integer calendar, then environment.
     /// Growth reads the prior environment temperature; weather draws follow entity callbacks.
     /// Returns whether spawning/removal changed the model instances.
-    fn iterate(&mut self, dt: f32) -> bool {
+    fn iterate(&mut self, archive: &banished_formats::pkg::Archive, dt: f32) -> bool {
         let mut models_changed = false;
         if let (Some(town), Some(view)) = (&mut self.town, &self.view) {
             let grid = banished_game::terrain::HeightGrid {
@@ -649,8 +652,24 @@ impl GameplayLoop {
             }
         }
         self.calendar.advance(ticks(dt));
+        let mut tornado = false;
         if let Some(env) = &mut self.environment {
-            env.update(self.calendar.seconds(), dt, &mut self.rng);
+            tornado = env.update(self.calendar.seconds(), dt, &mut self.rng);
+        }
+        // `FUN_1400999b0` step 6: the environment template's entity.
+        if tornado {
+            if let (Some(town), Some(view), Some(reference)) = (
+                &mut self.town,
+                &self.view,
+                self.environment_template.as_deref(),
+            ) {
+                let grid = banished_game::terrain::HeightGrid {
+                    width: view.terrain.size + 1,
+                    heights: &view.terrain.heights,
+                };
+                town.spawn_tornado(archive, reference, &grid, &mut self.rng);
+                models_changed = true;
+            }
         }
         // `FUN_140091780`: recompute stock (`FUN_14008f3a0`), then its warnings
         // (`FUN_1400915d0`, posted through `FUN_14009aa50` at severity 3).
@@ -849,6 +868,7 @@ impl GameplayLoop {
                         a.reweigh(town);
                         a.sync_entities(ctx.audio, ctx.archive, town);
                     }
+                    a.follow_tornadoes(ctx.audio, town);
                     a.fade(ctx.audio, temperature);
                 }
             }
@@ -957,6 +977,7 @@ impl GameLoop for GameplayLoop {
                 self.weather = world.environment.weather.clone();
                 self.river_paths = world.river_paths.clone();
                 self.environment_months = world.environment.months;
+                self.environment_template = world.environment.template.clone();
                 log::info!(
                     "{} terrain ready for {} ({}, {})",
                     world.profile.name,
@@ -1015,6 +1036,8 @@ impl GameLoop for GameplayLoop {
                         .and_then(|d| banished_formats::weather::weather(&d).ok())
                         .map(|w| w.fade_time);
                 }
+                // Disasters off stop tornadoes (`Game +0xd0` bit 7).
+                env.game_flags = if self.params.disasters { 0 } else { 0xf0 };
                 self.environment = Some(env);
             }
             Err(e) => log::error!("{reference}: {e}"),
@@ -1097,7 +1120,7 @@ impl GameLoop for GameplayLoop {
         let mut models_changed = false;
         if !self.paused && !pauses_game {
             for _ in 0..SPEED_LEVELS[self.speed as usize] {
-                models_changed |= self.iterate(dt);
+                models_changed |= self.iterate(ctx.archive, dt);
             }
         }
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.

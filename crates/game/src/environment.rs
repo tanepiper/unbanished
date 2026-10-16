@@ -57,6 +57,8 @@ pub struct Climate {
     pub months: [[f32; 4]; 12],
     /// `+0x104`: range of the annual weather-cutoff bias.
     pub bias_range: f32,
+    /// `+0x108`, `+0x10c`: a tornado's odds while it rains (years, odds; `FUN_1400ae760`).
+    pub tornado: (f32, f32),
 }
 
 impl From<&ClimateGenerator> for Climate {
@@ -68,6 +70,7 @@ impl From<&ClimateGenerator> for Climate {
             baseline_range: c.settings[3],
             months: c.monthly_thresholds,
             bias_range: c.trailing_settings[0],
+            tornado: (c.trailing_settings[1], c.trailing_settings[2]),
         }
     }
 }
@@ -110,6 +113,10 @@ pub struct Environment {
     /// `Weather +0x5c` of each slot's description: seconds to fade in or out. A slot without a
     /// loaded description never starts.
     pub fade_times: [Option<f32>; 2],
+    /// `+0x70`: the time since the last tornado check.
+    pub tornado_timer: i64,
+    /// `Game +0xd0`: bit 7 stops tornadoes (set with disasters off).
+    pub game_flags: u32,
 }
 
 /// `floor(elapsed / 3600 × 48)`, wrapped to 0 past 47.
@@ -141,6 +148,8 @@ impl Environment {
             slice: -1,
             effects: [None; 2],
             fade_times: [None; 2],
+            tornado_timer: 0,
+            game_flags: 0,
             climate,
         }
     }
@@ -148,7 +157,11 @@ impl Environment {
     /// `FUN_1400999b0`: one simulation iteration. `elapsed` is the calendar's time into the
     /// current year in seconds, already advanced for this iteration; `dt` is the iteration's
     /// step; `rng` is the game's shared random stream (`Game/Game +0xd8`).
-    pub fn update(&mut self, elapsed: f32, dt: f32, rng: &mut Random) {
+    ///
+    /// Returns whether a tornado forms (step 6): while it rains above 34°F with tornadoes on,
+    /// `FUN_1400ae760(+0x70, climate +0x108)`; the caller creates the environment template's
+    /// entity (`FUN_1400c8bf0`, `FUN_1400c9d70`).
+    pub fn update(&mut self, elapsed: f32, dt: f32, rng: &mut Random) -> bool {
         self.step_effects(dt);
         self.baseline = self.baseline_target * SMOOTH_NEW + self.baseline * SMOOTH_OLD;
         self.bias = self.bias_target * SMOOTH_NEW + self.bias * SMOOTH_OLD;
@@ -160,6 +173,20 @@ impl Environment {
             self.next_weather(slice, rng);
         }
         self.switch_effects();
+        self.tornado_timer += crate::scheduler::ticks(dt);
+        if RAIN_SNOW_THRESHOLD < self.temperature && self.state == 0 && self.game_flags & 0x80 == 0
+        {
+            let (years, odds) = self.climate.tornado;
+            if odds <= 0.0 {
+                self.tornado_timer = 0;
+                return false;
+            }
+            let period = years * 12.0 * 300.0;
+            let since = crate::scheduler::seconds(self.tornado_timer);
+            self.tornado_timer = 0;
+            return rng.rand_float() < since / (period * odds);
+        }
+        false
     }
 
     /// `FUN_1400999b0`'s first loop: each effect geometry's update (`FUN_1400d8330`) moves its
@@ -310,6 +337,7 @@ mod tests {
             baseline_range: 40.0,
             months: [[0.4, 0.5, 0.7, 1.0]; 12],
             bias_range: 0.4,
+            tornado: (0.0, 0.0),
         }
     }
 

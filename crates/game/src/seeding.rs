@@ -81,6 +81,8 @@ pub struct Template {
     pub floor: Option<std::sync::Arc<Vec<[[f32; 3]; 3]>>>,
     /// TerraformDescription (tunnels).
     pub terraform: Option<crate::terraform::TerraformTemplate>,
+    /// TornadoDescription.
+    pub tornado: Option<crate::tornado::TornadoTemplate>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -980,6 +982,7 @@ mod tests {
             named_points: Vec::new(),
             floor: None,
             terraform: None,
+            tornado: None,
         }
     }
 

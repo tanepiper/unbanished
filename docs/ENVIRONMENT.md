@@ -76,10 +76,9 @@ sequence; see [GAME-LOOP-STEP-19.md](GAME-LOOP-STEP-19.md).
      clamped to 0..1, and the emitter's first slot volume follows. At 0 (or with the option
      off) the geometry and its emitter entity are removed. The renderer's rain value is the
      largest intensity (`FUN_1400988f0`).
-6. **Timed spawn.** An accumulator at `+0x70` adds the frame delta. When `T > 34`, the state is 0
-   and game flag bit 7 is clear, `FUN_1400ae760` can spawn an entity from the environment template
-   (`+0x108` timer settings). This is *inferred* to be the rain-time event (for example
-   lightning). It has not been traced further.
+6. **Tornado.** An accumulator at `+0x70` adds the frame delta. When `T > 34`, the state is 0
+   and game flag bit 7 is clear, `FUN_1400ae760(+0x70, climate +0x108)` can spawn the
+   environment template's entity, the tornado ([TORNADO.md](TORNADO.md)).
 
 `RandFloatTol` returns a value in (−1, 1]. So the annual baseline lies within
 `climate[+0x34] ± climate[+0x40]`; Fair is 50 ± 40 °F. The bias lies within ±`climate[+0x104]`.
@@ -110,5 +109,4 @@ The Status Bar ([UTILITY-WINDOWS.md](UTILITY-WINDOWS.md)) shows:
 - **Not ported:**
   - the precipitation particles themselves (`FUN_1400d9450` builds them with a private Random;
     `FUN_1400d8330` moves them);
-  - the timed spawn (`FUN_1400ae760`, the Tornado template, drawing on the game Random);
   - save/load of the controller state (`FUN_140099160`).

@@ -83,7 +83,7 @@ The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e
 | Animation sounds | `AnimAudioEvent` (`FUN_14008d310`): `RandFloat()` on the game Random against the probability, then `PlayEffect3D(effect, 4)` at the entity (tree falls, tools, animals) | the draw is in the simulation (`seeding.rs` `animate`); the sound plays on the next audio update |
 | Rain | `FUN_140099790` registers `RainEffect.rsc:ambient` (autostart) at the origin when the Rain effect starts; `FUN_1400999b0` sets its first slot's volume to the effect's intensity every iteration and removes it at 0. Snow has no ambient | `environment.rs` effects, `ambience.rs` `weather` |
 | Building emitters | Templates with an `ambientemitter` component (FireEffect in slot 0 of most buildings; CrowdEffect in slot 1 of WoodHouse, StoneHouse, Hostel; autostart off). Fire: `FUN_140049f70` starts the FireDescription `+0x2c` slot at the model position (with fire event 0x1f), `FUN_140049e20` removes it. Crowd: `FUN_14012fbe0` (first resident) and `FUN_14012ee40` (residence update while occupied) start slot 1 at volume 1; `FUN_14012fa20` (last resident leaves) removes it | `ambience.rs` `sync_entities` registers them; `start_entity_slot`/`stop_entity_slot` wait for fire and residences |
-| Tornado | `Template/Tornado.rsc:ambientemitter` (`TornadoEffect`, autostart): plays while a tornado entity exists. The tornado is spawned by the environment's timed spawn `FUN_1400ae760` | registered like the buildings once the tornado exists |
+| Tornado | `Template/Tornado.rsc:ambientemitter` (`TornadoEffect`, autostart): plays while a tornado entity exists. The tornado is spawned by the environment (`FUN_1400999b0` → `FUN_1400ae760`) | registered like the buildings once the tornado exists; follows it |
 | Map ambience | `FUN_1400a57c0`: an Environment emitter per 16-cell region (`FUN_140043c70`: heaviest terrain class, warm/cold effects cross-faded over 31–36 °F), the wind at height 30 (Medium), river emitters every 8 units of river path (`Game +0x110 → +0x1e0`: the generator's paths, reversed, filled by `FUN_1400b1980`; see STARTING-AUDIO-EMITTERS.md) | `ambience.rs`; rivers from `World::river_paths` |
 
 ## Deviations
@@ -103,8 +103,8 @@ The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e
 ## Not ported
 
 - Starting building emitters: fires (`FUN_140049f70`) and residences (`FUN_14012fbe0`) are not
-  ported, so `start_entity_slot` has no caller yet. The tornado spawn (`FUN_1400ae760`) is not
-  ported.
+  ported, so `start_entity_slot` has no caller yet. The tornado ([TORNADO.md](TORNADO.md))
+  plays from its spawn and its emitter follows it (`Ambience::follow_tornadoes`).
 - The SaveLoad dialog's hover click (`FUN_1400bbc60`, `Play(4)` when the hovered save row
   changes): the dialog is not ported.
 - Pause menu buttons other than Resume, Menu and Quit (Load, Save, Options, Achievements, Mods,

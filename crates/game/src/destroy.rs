@@ -103,7 +103,7 @@ impl Sim<'_, '_> {
     }
 
     /// A BuildComponent (removal markers have none).
-    fn has_build(&self, e: usize) -> bool {
+    pub(crate) fn has_build(&self, e: usize) -> bool {
         let site = &self.sites[&e];
         self.site_templates[site.template]
             .controllers

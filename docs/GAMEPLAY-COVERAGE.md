@@ -45,7 +45,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | **MultiObject**, **Terraform**, **Floor** | bridges, tunnels, fences, dock | yes (fenced parts, bridge and tunnel pieces; [BRIDGES.md](BRIDGES.md), [TUNNELS.md](TUNNELS.md)) |
 | **Decal**, **Particle** | roads, footprints, smoke | missing |
 | **Tracker**, **Value** | workplaces, livestock | missing (Town Info graphs, production counters) |
-| **Tornado** | Tornado | missing |
+| **Tornado** | Tornado | yes ([TORNADO.md](TORNADO.md); spawn, path, wrecking; its particles not drawn) |
 
 ## Works and actions
 
@@ -90,7 +90,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Town Info, Production/Population graphs | no |
 | Achievements, tutorial, scenarios | no |
 | Weather precipitation, smoke particles, decals, fire particles | no |
-| Disasters (fire, tornado, disease) and AutoSlow | fire and blight (with the Disasters option); tornado and AutoSlow no |
+| Disasters (fire, tornado, disease) and AutoSlow | fire, blight and tornadoes (with the Disasters option); AutoSlow no |
 
 ## Plan
 

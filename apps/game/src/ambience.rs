@@ -394,6 +394,16 @@ impl Ambience {
         }
     }
 
+    /// The tornadoes' emitters follow them (`FUN_140058630` → `FUN_1400432c0`). Not ported:
+    /// their volume following the particle system's (`+0x7c`).
+    pub fn follow_tornadoes(&mut self, audio: &mut Audio, town: &StartingTown) {
+        for (&e, t) in &town.construction.tornadoes {
+            if let Some((_, emitter)) = self.entities.get_mut(&e) {
+                emitter.move_to(audio, Vec3::from(t.position));
+            }
+        }
+    }
+
     /// Start an entity emitter's slot at `position` (`FUN_1400432c0`, `FUN_1400435c0`), and set
     /// its volume when given (the crowd sets 1).
     #[allow(dead_code)] // Called by fire (FUN_140049f70) and residences once they are ported.

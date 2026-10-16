@@ -93,6 +93,8 @@ pub mod reason {
     pub const DISEASE: i32 = 3;
     /// A child whose single guardian died (`FUN_140119170`).
     pub const ORPHANED: i32 = 4;
+    /// Killed by a tornado (`FUN_140058d20`).
+    pub const TORNADO: i32 = 5;
     pub const CHILDBIRTH: i32 = 6;
     /// Citizen `+0x1f8`: an accident (fire, tornado) named by its description.
     pub const ACCIDENT: i32 = 7;

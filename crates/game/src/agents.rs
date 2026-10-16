@@ -332,6 +332,8 @@ impl Agents {
                 trade_value: &mut c.trade_value,
                 pending_roads: &mut c.pending_roads,
                 terraform_requests: &mut c.terraform_requests,
+                tornadoes: &mut c.tornadoes,
+                tornado_kills: &mut c.tornado_kills,
                 trade_goods: &c.trade_goods,
                 river: &c.river,
                 pathfinder: &mut self.pathfinder,
@@ -737,8 +739,19 @@ impl Agents {
             sim.update_hunts(ticks(dt));
             sim.update_blight(ticks(dt));
             sim.update_fires(jobs, ticks(dt));
+            sim.update_tornadoes(jobs, ticks(dt));
             sim.place_burials();
             jobs.drain(&mut sim);
+        }
+        // The tornadoes' victims (`FUN_14011c2a0(citizen, 5)` from `FUN_140058d20`).
+        for c in std::mem::take(&mut env.construction.tornado_kills) {
+            if !citizens[c].alive {
+                continue;
+            }
+            let mut born = Vec::new();
+            self.with_people(citizens, env, &entities, newborn, &mut born, |people| {
+                people.die(c, crate::life::reason::TORNADO, None);
+            });
         }
         // The residences' state-2 updates (`FUN_14012ee40`): the ClearStorage work, then the
         // fire.

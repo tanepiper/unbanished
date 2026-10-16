@@ -29,6 +29,7 @@ use banished_game::construction::{Construction, Controller, Site, SiteTemplate};
 use banished_game::professions::{Profession, Professions, WorkPlace};
 
 mod bridge;
+mod tornado;
 pub use bridge::BridgeSpec;
 
 use crate::models::{placement_matrix, GroupInstances, ModelInstance, SceneModels};
@@ -467,6 +468,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         named_points: Vec::new(),
         floor: None,
         terraform: None,
+        tornado: None,
         pile: None,
         pile_material: None,
         pile_yield: (0, 0),
@@ -606,6 +608,19 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                     .and_then(|m| read(archive, &normalise(&m)))
                     .and_then(|d| banished_formats::picking::picking_mesh(&d).ok())
                     .map(|m| std::sync::Arc::new(floor_triangles(&m)))
+            }
+            "tornado" => {
+                t.tornado = banished_formats::game::tornado_description(&data)
+                    .ok()
+                    .map(|(speed, min_distance, reach, interval, throw)| {
+                        banished_game::tornado::TornadoTemplate {
+                            speed,
+                            min_distance,
+                            interval,
+                            reach,
+                            throw,
+                        }
+                    })
             }
             "terraform" => {
                 let mesh = |m: &Option<String>| {

@@ -123,6 +123,8 @@ pub struct Sim<'s, 't> {
     /// Map `+0xe8`: planned road cells → BuildRoad works.
     pub pending_roads: &'s mut BTreeMap<i32, i32>,
     pub terraform_requests: &'s mut Vec<crate::terraform::Terraform>,
+    pub tornadoes: &'s mut BTreeMap<usize, crate::tornado::Tornado>,
+    pub tornado_kills: &'s mut Vec<usize>,
     /// Town manager `+0x30` and `+0x1ac`.
     pub trading_posts: &'s mut Vec<usize>,
     pub trade_value: &'s mut i32,

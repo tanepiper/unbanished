@@ -1868,6 +1868,29 @@ pub fn terraform_description(data: &[u8]) -> Result<TerraformDescription> {
     Ok(value)
 }
 
+/// `TornadoDescription` (serializer `FUN_1400596f0`): `+0x20` speed, `+0x24` the ends' least
+/// distance, `+0x30` the reach of a wrecking pass, `+0x28` the time between passes, `+0x34`
+/// how far a pass throws its point.
+pub fn tornado_description(data: &[u8]) -> Result<(f32, i32, i32, i64, i32)> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("TornadoDescription") {
+            return format_err(format!(
+                "expected TornadoDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let speed = r.f32()?;
+            let distance = r.i32()?;
+            let reach = r.i32()?;
+            let interval = r.i64()?;
+            let throw = r.i32()?;
+            Ok((speed, distance, reach, interval, throw))
+        })
+    })?;
+    Ok(value)
+}
+
 /// `TombstoneDescription` (serializer `FUN_140058380`): a grave lasts `(+0x20 + RandFloat ×
 /// +0x24)` × 300 s (`FUN_1400581c0`).
 pub fn tombstone_description(data: &[u8]) -> Result<(f32, f32)> {

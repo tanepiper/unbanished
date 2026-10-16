@@ -1152,6 +1152,10 @@ pub struct Construction {
     /// Tunnels to dig or fill back (TerraformComponent event 4 and removal), for the terrain's
     /// owner, and each terraformed entity's kept heights and cells.
     pub terraform_requests: Vec<crate::terraform::Terraform>,
+    /// The tornadoes (TornadoComponent by entity) and the citizens they killed this
+    /// iteration (`FUN_14011c2a0` code 5, applied by the citizens' pass).
+    pub tornadoes: BTreeMap<usize, crate::tornado::Tornado>,
+    pub tornado_kills: Vec<usize>,
     pub terraforms: BTreeMap<usize, crate::terraform::TerraformState>,
     /// Built road cells Remove Roads marked, for the town to place their markers (cell,
     /// marker template).
