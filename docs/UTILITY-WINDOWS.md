@@ -136,7 +136,18 @@ identical across two seeded runs. Local visual capture:
 - Professions: ordered packaged rows, live counts per profession and workplace places
   (`numberAvailable`); spinner changes (event `0x15`, ids `300 + i`, clamped to 0..count +
   laborers) become `SetCount` commands applied before the next iteration (`FUN_14007b890`, see
-  [JOBS.md](JOBS.md)). Not ported: the goto buttons (`500 + i`).
+  [JOBS.md](JOBS.md)). The goto buttons (`500 + i`, `FUN_14007bf00`): with any working adult
+  (grown, `+0x3c` ≥ the adult age, not at school `+0x208`), the next citizen after the last one
+  shown (`+0x70`) in the town's list with the profession (`+0x1f0`); after as many misses as
+  there are working adults, whoever was reached. The camera centres on it and it is selected
+  (`FUN_140108510`).
+- Help (`HelpUI`, vtable `0x140162070`: bind `FUN_14006ae60`, refresh `FUN_14006ab90`, events
+  `FUN_14006abf0`): `comboTopic` (`0xe74`) lists the pages of `Game\Help\HelpTopics.rsc`
+  (`Game +0xa0`, string tables of Topic, Title and Text) by title (`StringTable::GetText(1)`);
+  the chosen page's text (2) fills `documentHelp` (`0xe75`), scrolled to the top, and joins
+  the history after the current page (`FUN_14006a880`). A link opens the page whose topic (0)
+  it names (`FUN_14006aaa0`); back (`0xe76`) and forward (`0xe77`) walk the history, each page
+  keeping its scroll; they are enabled when there is somewhere to go.
 - Utility windows: open/close through UIDescription and StandardDialog; remembered positions.
 - Entity hosts: click picking, selection outline, localized titles, packaged tabs, pin/close;
   live building/citizen controller refresh is pending.

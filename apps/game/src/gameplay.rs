@@ -217,6 +217,17 @@ impl GameplayLoop {
                 banished_game::stock::stock_table(&t.registered_storages(), &t.materials)
             }),
             show_celsius: self.show_celsius,
+            citizens: self.town.as_ref().map_or(Vec::new(), |t| {
+                t.citizens
+                    .iter()
+                    .zip(&t.agents.states)
+                    .enumerate()
+                    .filter(|(_, (c, _))| c.alive)
+                    .map(|(i, (c, s))| {
+                        (i, s.profession, c.is_adult(&t.rules) && c.school.is_none())
+                    })
+                    .collect()
+            }),
             ..StatusValues::default()
         }
     }
@@ -1269,6 +1280,9 @@ impl GameLoop for GameplayLoop {
             }
             return Next::Stay;
         }
+        if self.utility.help_event(ctx.ui, event) {
+            return Next::Stay;
+        }
         // A combo in a building's window (event `0x14`).
         if let Event::Selected(id, index) = event {
             if self.entities.town_hall_select(ctx.ui, &self.statistics, id) {
@@ -1338,6 +1352,21 @@ impl GameLoop for GameplayLoop {
                 }
                 Some(UtilityClick::GoTo(cell)) => {
                     self.go_to(cell);
+                    return Next::Stay;
+                }
+                Some(UtilityClick::ShowCitizen(citizen)) => {
+                    // `FUN_140108510`: centre the camera on the citizen and select it.
+                    if let (Some(town), Some(view), Some(screen)) =
+                        (self.town.as_ref(), self.view.as_mut(), self.screen.as_mut())
+                    {
+                        let entity = Entity::Citizen(citizen);
+                        if let SceneCamera::Map(camera) = &mut view.camera {
+                            camera.target = entity.position(town).truncate();
+                        }
+                        self.selection.selected = Some(entity);
+                        self.entities
+                            .select(ctx.ui, screen, ctx.archive, town, entity);
+                    }
                     return Next::Stay;
                 }
                 Some(UtilityClick::Handled) => return Next::Stay,
@@ -2147,6 +2176,58 @@ mod tests {
                     crop: Some(c),
                 }) if entity == id && crops.contains(&c)
             ));
+        });
+    }
+
+    /// HelpUI: the topics by title, the chosen page's text, back and forward through the
+    /// pages seen.
+    #[test]
+    fn help_window_browses_the_pages() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            gameplay.utility.toggle(
+                ctx.ui,
+                gameplay.screen.as_mut().unwrap(),
+                ctx.archive,
+                r"Template\UtilityHelp.rsc:resource",
+                None,
+                0,
+            );
+            let root = gameplay.screen.as_ref().unwrap().root;
+            let combo = ctx.ui.find(root, "comboTopic").expect("no help window");
+            let doc = ctx.ui.find(root, "documentHelp").unwrap();
+            let list = match &ctx.ui.node(combo).kind {
+                banished_ui::Kind::Control(banished_ui::Control::Combo { list, .. }) => *list,
+                _ => panic!("comboTopic is not a combo"),
+            };
+            let items = match &ctx.ui.node(list).kind {
+                banished_ui::Kind::List(l) => l.items.clone(),
+                _ => Vec::new(),
+            };
+            assert_eq!(items.len(), 66);
+            assert_eq!(items[0], "Contents");
+            let text = |ui: &banished_ui::Ui| match &ui.node(doc).kind {
+                banished_ui::Kind::Control(banished_ui::Control::Document(_)) => {
+                    format!("{:?}", ui.node(doc).kind)
+                }
+                _ => String::new(),
+            };
+            assert!(text(ctx.ui).contains("Welcome to the world of Banished"));
+            let quarry = items.iter().position(|t| t == "Quarries").unwrap();
+            gameplay.event(ctx, Event::Selected(combo, quarry));
+            assert!(text(ctx.ui).contains("cut stone"));
+            gameplay.update_hud(ctx.ui);
+            let back = ctx.ui.find(root, "buttonBack").unwrap();
+            let forward = ctx.ui.find(root, "buttonForward").unwrap();
+            assert!(ctx.ui.node(back).enabled && !ctx.ui.node(forward).enabled);
+            gameplay.event(ctx, Event::Clicked(back));
+            assert!(text(ctx.ui).contains("Welcome to the world of Banished"));
+            gameplay.update_hud(ctx.ui);
+            assert!(!ctx.ui.node(back).enabled && ctx.ui.node(forward).enabled);
+            gameplay.event(ctx, Event::Clicked(forward));
+            assert!(text(ctx.ui).contains("cut stone"));
         });
     }
 

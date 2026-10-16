@@ -25,8 +25,8 @@ Deviation: 36, Not ported: 47, Not traced: 5.
 ## `apps/game/src/gameplay.rs`
 
 - [Deviation] [apps/game/src/gameplay.rs:32](../apps/game/src/gameplay.rs#L32): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
-- [Deviation] [apps/game/src/gameplay.rs:287](../apps/game/src/gameplay.rs#L287): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
-- [Not ported] [apps/game/src/gameplay.rs:906](../apps/game/src/gameplay.rs#L906): The precipitation emitters follow the environment's effects (`FUN_1400999b0`); with the game option ShowWeather (`+0x16`) off the effects and their emitters are removed. Not ported: ShowWeather's other effect, the weather lighting blend in `FUN_140098f90`.
+- [Deviation] [apps/game/src/gameplay.rs:298](../apps/game/src/gameplay.rs#L298): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
+- [Not ported] [apps/game/src/gameplay.rs:917](../apps/game/src/gameplay.rs#L917): The precipitation emitters follow the environment's effects (`FUN_1400999b0`); with the game option ShowWeather (`+0x16`) off the effects and their emitters are removed. Not ported: ShowWeather's other effect, the weather lighting blend in `FUN_140098f90`.
 
 ## `apps/game/src/main.rs`
 
@@ -88,7 +88,7 @@ Deviation: 36, Not ported: 47, Not traced: 5.
 
 ## `apps/game/src/utility.rs`
 
-- [Not traced] [apps/game/src/utility.rs:232](../apps/game/src/utility.rs#L232): Not traced: the button state call's argument; shown when the row has an entry.
+- [Not traced] [apps/game/src/utility.rs:235](../apps/game/src/utility.rs#L235): Not traced: the button state call's argument; shown when the row has an entry.
 
 ## `crates/game/src/agents.rs`
 

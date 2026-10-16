@@ -21,6 +21,7 @@ pub mod controller {
     pub const PROFESSION: u32 = 0xc841_e4d4;
     pub const EVENT_LOG: u32 = 0xb075_92fd;
     pub const MAP: u32 = 0x42c5_425e;
+    pub const HELP: u32 = 0x2b7a_7bbc;
 }
 
 /// `MapUI` (vtable `0x140162490`): OnOpened `FUN_14006d3e0` shows the minimap's two images
@@ -128,6 +129,8 @@ pub enum UtilityClick {
     /// ProfessionUI spinner `300 + i` (`FUN_14007c0e0` → `FUN_14007b890`): the player set
     /// profession `i`'s count.
     ProfessionCount(usize, i32),
+    /// ProfessionUI goto `500 + i` (`FUN_14007bf00`): the citizen to show.
+    ShowCitizen(usize),
 }
 
 impl EventLogUi {
@@ -291,6 +294,9 @@ pub struct StatusValues {
     /// Adults (not students) per profession, in `Game/Profession/Profession.rsc:professionList`
     /// order (laborer first): the counts `FUN_14007ba70` takes from citizen `+0x1f0`.
     pub professions: Vec<u32>,
+    /// The town's live citizens: (citizen, profession, grown and not at school), for
+    /// ProfessionUI's goto buttons.
+    pub citizens: Vec<(usize, usize, bool)>,
     /// Per profession, the places its enabled workplaces offer (`numberAvailable`).
     pub profession_capacity: Vec<i32>,
 }
@@ -451,6 +457,10 @@ struct ProfessionUi {
     spinners: Vec<Option<NodeId>>,
     /// Per profession: `numberAvailable`.
     available: Vec<Option<NodeId>>,
+    /// Per profession: `buttonGoto` (ids 500 + i).
+    gotos: Vec<Option<NodeId>>,
+    /// `+0x70`: the citizen the goto buttons showed last.
+    cursor: i32,
 }
 
 /// Set a spinner's value and its number text.
@@ -480,10 +490,13 @@ impl ProfessionUi {
             .unwrap_or_default();
         let mut spinners = Vec::new();
         let mut available = Vec::new();
+        let mut gotos = Vec::new();
         let Some(table) = ui.find(root, "professionTable") else {
             return ProfessionUi {
                 spinners,
                 available,
+                gotos: Vec::new(),
+                cursor: 0,
             };
         };
         // The table holds the row template; rows replace it (`TableElement::SetSize/SetChild`).
@@ -496,11 +509,13 @@ impl ProfessionUi {
             else {
                 spinners.push(None);
                 available.push(None);
+                gotos.push(None);
                 continue;
             };
             let Some(row) = ui.instantiate(Self::ROW) else {
                 spinners.push(None);
                 available.push(None);
+                gotos.push(None);
                 continue;
             };
             ui.set_table_child(table, i, row);
@@ -525,6 +540,11 @@ impl ProfessionUi {
                 }
             }
             spinners.push(spinner);
+            gotos.push(if i == 0 {
+                None
+            } else {
+                ui.find(row, "buttonGoto")
+            });
             available.push(if i == 0 {
                 None
             } else {
@@ -534,6 +554,47 @@ impl ProfessionUi {
         ProfessionUi {
             spinners,
             available,
+            gotos,
+            cursor: 0,
+        }
+    }
+
+    /// The goto button (`500 + i`) under `node`: its profession.
+    fn goto(&self, ui: &Ui, node: NodeId) -> Option<usize> {
+        self.gotos
+            .iter()
+            .position(|g| g.is_some_and(|g| g == node || ui.descendant(g, node)))
+    }
+
+    /// `FUN_14007bf00`: with any working adult (grown, not at school), the next citizen after
+    /// the last shown in the town's list with the profession; after as many misses as there
+    /// are working adults, the one reached. `citizens` are the town's (citizen, profession,
+    /// working adult).
+    fn next_worker(
+        &mut self,
+        profession: usize,
+        citizens: &[(usize, usize, bool)],
+    ) -> Option<usize> {
+        let adults = citizens.iter().filter(|c| c.2).count() as i32;
+        if adults == 0 {
+            return None;
+        }
+        let n = citizens.len() as i32;
+        self.cursor += 1;
+        if self.cursor < 0 {
+            self.cursor = 0;
+        }
+        let mut tries = 0;
+        loop {
+            if n <= self.cursor {
+                self.cursor = 0;
+            }
+            let c = citizens[self.cursor as usize];
+            if (c.1 == profession && c.2) || adults <= tries {
+                return Some(c.0);
+            }
+            self.cursor += 1;
+            tries += 1;
         }
     }
 
@@ -576,6 +637,164 @@ impl ProfessionUi {
     }
 }
 
+/// `HelpUI` (vtable `0x140162070`): bind `FUN_14006ae60`, refresh `FUN_14006ab90`, events
+/// `FUN_14006abf0`. `comboTopic` (id `0xe74`) lists the help pages (`Game +0xa0`,
+/// `Game\Help\HelpTopics.rsc`: string tables of Topic, Title and Text) by title; the chosen
+/// page's text fills `documentHelp` (`0xe75`, `FUN_14006a880`), scrolled to the top, and joins
+/// the history after the current page. A link opens the page whose topic it names
+/// (`FUN_14006aaa0`); back (`0xe76`) and forward (`0xe77`) walk the history, each page keeping
+/// where it was scrolled to; they are enabled when there is somewhere to go.
+pub struct HelpUi {
+    combo: Option<NodeId>,
+    document: Option<NodeId>,
+    container: Option<NodeId>,
+    back: Option<NodeId>,
+    forward: Option<NodeId>,
+    /// The pages' string tables.
+    pages: Vec<String>,
+    /// `+0x68`: (page, scroll) visited; `+0x64` the current one.
+    history: Vec<(usize, i32)>,
+    at: usize,
+}
+
+impl HelpUi {
+    fn bind(ui: &mut Ui, root: NodeId, archive: &Archive) -> HelpUi {
+        let pages: Vec<String> = archive
+            .read_ref("Game/Help/HelpTopics.rsc:resource")
+            .ok()
+            .and_then(|d| external_list(&d).ok())
+            .unwrap_or_default();
+        let document = ui.find(root, "documentHelp");
+        // The container that scrolls the document.
+        let container = (0..ui.nodes.len()).find(|&n| {
+            ui.descendant(root, n)
+                && matches!(&ui.node(n).kind, Kind::Control(banished_ui::Control::Container {
+                    content: Some(c), ..
+                }) if Some(*c) == document || document.is_some_and(|d| ui.descendant(*c, d)))
+        });
+        let combo = ui.find(root, "comboTopic");
+        if let Some(c) = combo {
+            let titles = pages
+                .iter()
+                .map(|t| ui.res.string(Some(&t.replace('\\', "/")), "Title"))
+                .collect();
+            ui.set_choices(c, titles);
+        }
+        let mut help = HelpUi {
+            combo,
+            document,
+            container,
+            back: ui.find(root, "buttonBack"),
+            forward: ui.find(root, "buttonForward"),
+            pages,
+            history: Vec::new(),
+            at: 0,
+        };
+        if let Some(c) = help.combo {
+            crate::menu::select_combo(ui, c, 0);
+        }
+        help.open(ui, 0);
+        help
+    }
+
+    fn scroll(&self, ui: &Ui) -> i32 {
+        match self.container.map(|c| &ui.node(c).kind) {
+            Some(Kind::Control(banished_ui::Control::Container { offset, .. })) => offset[1],
+            _ => 0,
+        }
+    }
+
+    fn set_scroll(&self, ui: &mut Ui, y: i32) {
+        if let Some(c) = self.container {
+            if let Kind::Control(banished_ui::Control::Container { offset, .. }) =
+                &mut ui.node_mut(c).kind
+            {
+                offset[1] = y;
+            }
+        }
+    }
+
+    fn show(&self, ui: &mut Ui, page: usize) {
+        let Some(table) = self.pages.get(page) else {
+            return;
+        };
+        let text = ui.res.string(Some(&table.replace('\\', "/")), "Text");
+        if let Some(d) = self.document {
+            ui.set_text(d, &text);
+        }
+    }
+
+    /// `FUN_14006a880`: the page, at the top, after the current one in the history.
+    fn open(&mut self, ui: &mut Ui, page: usize) {
+        self.show(ui, page);
+        let scroll = self.scroll(ui);
+        self.set_scroll(ui, 0);
+        self.history.truncate(self.at + 1);
+        self.history.push((page, scroll));
+        self.at = self.history.len() - 1;
+    }
+
+    /// `FUN_14006ab90`.
+    fn update(&self, ui: &mut Ui) {
+        if let Some(b) = self.back {
+            ui.node_mut(b).enabled = 0 < self.at;
+        }
+        if let Some(f) = self.forward {
+            ui.node_mut(f).enabled = self.at + 1 < self.history.len();
+        }
+    }
+
+    /// `FUN_14006abf0`: the topic's combo (event `0x14`), a link, back or forward.
+    fn event(&mut self, ui: &mut Ui, event: banished_ui::Event) -> bool {
+        use banished_ui::Event;
+        match event {
+            Event::Selected(n, i) if Some(n) == self.combo => {
+                self.open(ui, i);
+                true
+            }
+            Event::Link(n, i) if Some(n) == self.document => {
+                let Some(target) = ui.document_link(n, i).map(str::to_owned) else {
+                    return true;
+                };
+                let found = self
+                    .pages
+                    .iter()
+                    .position(|t| ui.res.string(Some(&t.replace('\\', "/")), "Topic") == target);
+                if let Some(page) = found {
+                    let scroll = self.scroll(ui);
+                    if let Some(h) = self.history.get_mut(self.at) {
+                        h.1 = scroll;
+                    }
+                    if let Some(c) = self.combo {
+                        crate::menu::select_combo(ui, c, page);
+                    }
+                    self.open(ui, page);
+                }
+                true
+            }
+            Event::Clicked(n) if Some(n) == self.back || Some(n) == self.forward => {
+                let forward = Some(n) == self.forward;
+                if (forward && self.at + 1 >= self.history.len()) || (!forward && self.at == 0) {
+                    return true;
+                }
+                let scroll = self.scroll(ui);
+                if let Some(h) = self.history.get_mut(self.at) {
+                    h.1 = scroll;
+                }
+                self.at = if forward { self.at + 1 } else { self.at - 1 };
+                let (page, scroll) = self.history[self.at];
+                self.show(ui, page);
+                self.set_scroll(ui, scroll);
+                if let Some(c) = self.combo {
+                    crate::menu::select_combo(ui, c, page);
+                }
+                true
+            }
+            _ => false,
+        }
+    }
+}
+
 struct Window {
     template: String,
     root: NodeId,
@@ -583,6 +802,7 @@ struct Window {
     professions: Option<ProfessionUi>,
     event_log: Option<EventLogUi>,
     map: Option<MapUi>,
+    help: Option<HelpUi>,
 }
 
 #[derive(Default)]
@@ -630,6 +850,7 @@ impl UtilityWindows {
         let mut professions = None;
         let mut event_log = None;
         let mut map = None;
+        let mut help = None;
         for c in &desc.controllers {
             // `FUN_1401335d0`: instantiate the element into the named slot; a TabElement slot
             // would get a tab instead (no utility window uses one).
@@ -647,6 +868,7 @@ impl UtilityWindows {
                 controller::PROFESSION => professions = Some(ProfessionUi::bind(ui, root, archive)),
                 controller::EVENT_LOG => event_log = Some(EventLogUi::bind(ui, root, log)),
                 controller::MAP => map = Some(MapUi::bind(ui, root, map_size)),
+                controller::HELP => help = Some(HelpUi::bind(ui, root, archive)),
                 other => log::info!("{template}: controller {other:#010x} not implemented yet"),
             }
         }
@@ -674,6 +896,7 @@ impl UtilityWindows {
             professions,
             event_log,
             map,
+            help,
         });
     }
 
@@ -699,6 +922,14 @@ impl UtilityWindows {
         log: &banished_game::events::EventLog,
         values: &StatusValues,
     ) -> Option<UtilityClick> {
+        for p in self.open.iter_mut().filter_map(|w| w.professions.as_mut()) {
+            if let Some(i) = p.goto(ui, node) {
+                return p
+                    .next_worker(i, &values.citizens)
+                    .map(UtilityClick::ShowCitizen)
+                    .or(Some(UtilityClick::Handled));
+            }
+        }
         if let Some((i, v)) = self
             .open
             .iter()
@@ -711,6 +942,14 @@ impl UtilityWindows {
             .iter_mut()
             .filter_map(|w| w.event_log.as_mut())
             .find_map(|e| e.click(ui, node, log))
+    }
+
+    /// An event for an open Help window (its combo, links and buttons).
+    pub fn help_event(&mut self, ui: &mut Ui, event: banished_ui::Event) -> bool {
+        self.open
+            .iter_mut()
+            .filter_map(|w| w.help.as_mut())
+            .any(|h| h.event(ui, event))
     }
 
     /// A click on an open Map window's overlay: the camera target.
@@ -736,6 +975,34 @@ impl UtilityWindows {
             if let Some(p) = &w.professions {
                 p.update(ui, values);
             }
+            if let Some(h) = &w.help {
+                h.update(ui);
+            }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The goto button cycles through the profession's working adults from after the last one
+    /// shown; with none of them, the citizen reached after as many misses as working adults.
+    #[test]
+    fn goto_cycles_through_a_professions_workers() {
+        let mut p = ProfessionUi {
+            spinners: Vec::new(),
+            available: Vec::new(),
+            gotos: Vec::new(),
+            cursor: 0,
+        };
+        // (citizen, profession, working adult): 10 and 13 are farmers (2), 12 a child farmer.
+        let town = [(10, 2, true), (11, 1, true), (12, 2, false), (13, 2, true)];
+        assert_eq!(p.next_worker(2, &town), Some(13));
+        assert_eq!(p.next_worker(2, &town), Some(10));
+        assert_eq!(p.next_worker(2, &town), Some(13));
+        // No hunters: after three misses (three working adults), whoever is reached.
+        assert_eq!(p.next_worker(5, &town), Some(13));
+        assert_eq!(p.next_worker(5, &[(1, 0, false)]), None);
     }
 }
