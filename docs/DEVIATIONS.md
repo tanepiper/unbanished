@@ -25,8 +25,8 @@ Deviation: 40, Not ported: 6, Not traced: 7.
 
 ## `apps/game/src/main.rs`
 
-- [Deviation] [apps/game/src/main.rs:128](../apps/game/src/main.rs#L128): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
-- [Deviation] [apps/game/src/main.rs:888](../apps/game/src/main.rs#L888): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
+- [Deviation] [apps/game/src/main.rs:132](../apps/game/src/main.rs#L132): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
+- [Deviation] [apps/game/src/main.rs:921](../apps/game/src/main.rs#L921): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
 
 ## `apps/game/src/mod_ui.rs`
 
@@ -62,7 +62,7 @@ Deviation: 40, Not ported: 6, Not traced: 7.
 
 ## `apps/game/src/save_store.rs`
 
-- [Deviation] [apps/game/src/save_store.rs:1](../apps/game/src/save_store.rs#L1): Where saves are kept (`IO::Persistence`'s files, Runtime). Native builds use the original's folder (`crate::paths::save_dir`, `NAME.sav`). In the browser the saves live in IndexedDB (database `banished-wasm`): store `files` holds each whole `.sav` by name, store `meta` its write time and metadata block, so listing reads no game state. The metadata is mirrored in memory when the page starts (`init`), so the list is at hand as the original's is after its listing operation; writes and deletes update the mirror at once and the database in the background; a load is a request polled each frame. Deviation: the browser keeps saves in its own storage, not in a folder.
+- [Deviation] [apps/game/src/save_store.rs:1](../apps/game/src/save_store.rs#L1): Where saves are kept (`IO::Persistence`'s files, Runtime). Native builds use the original's folder (`crate::paths::save_dir`, `NAME.sav`). In the browser the saves live in IndexedDB (database `banished-wasm`): store `files` holds each whole `.sav` by name, store `meta` its write time and metadata block, so listing reads no game state. The metadata is mirrored in memory when the page starts (`init`), so the list is at hand as the original's is after its listing operation; writes and deletes update the mirror at once and the database in the background; a load is a request polled each frame. Store `mods` holds the mods (`.pkm`) the player added, by file name without the extension (`stored_mods`, `store_mod`). Deviation: the browser keeps saves and mods in its own storage, not in folders.
 
 ## `apps/game/src/screenshot.rs`
 

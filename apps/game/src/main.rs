@@ -88,6 +88,10 @@ use render::{Frame, Renderer};
 pub enum UserEvent {
     Renderer(Box<Renderer>),
     Packages(Vec<(String, Vec<u8>)>),
+    /// Mods (`(file name without .pkm, bytes)`): those stored in the browser when the page
+    /// starts, then each one the player adds.
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+    Mods(Vec<(String, Vec<u8>)>),
 }
 
 const CLEAR: wgpu::Color = wgpu::Color {
@@ -563,6 +567,35 @@ impl Game {
     }
 
     /// Lay out the current loop's UI and build the frame.
+    /// Mods added while the game runs (dropped in the browser): the list is read again with
+    /// them, replacing any of the same name. They take effect after a reload (the Mods dialog
+    /// asks for one when an enabled mod changed).
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+    fn add_mods(&mut self, found: Vec<(String, Vec<u8>)>) {
+        if found.is_empty() {
+            return;
+        }
+        let names: Vec<String> = found.iter().map(|(n, _)| n.clone()).collect();
+        let mut all: Vec<(String, Vec<u8>)> = self
+            .mods
+            .mods
+            .iter()
+            .filter(|m| !names.contains(&m.file))
+            .map(|m| (m.file.clone(), m.bytes.as_ref().clone()))
+            .collect();
+        all.extend(found);
+        let before = self.mods.enabled_files();
+        let dirty = self.mods.dirty
+            || self
+                .mods
+                .mods
+                .iter()
+                .any(|m| m.enabled && names.contains(&m.file));
+        self.mods = mods::Modification::refresh(all, &self.settings.persistence);
+        self.mods.dirty = dirty || self.mods.enabled_files() != before;
+        log::info!("added {} mods", names.len());
+    }
+
     /// `FUN_140072110`'s reload: the mods as the list has them now. `SaveList`, then the
     /// packages close and load again (`SetupFileSystem`), the game's resources reload
     /// (`Game/Global`) and `next` starts behind the loading screen.
@@ -930,6 +963,11 @@ impl App {
         if self.renderer.is_none() {
             return;
         }
+        // In the browser the stored mods are read first.
+        #[cfg(target_arch = "wasm32")]
+        if self.pending_mods.is_none() {
+            return;
+        }
         let Some(packages) = self.pending_packages.take() else {
             return;
         };
@@ -1023,6 +1061,16 @@ impl ApplicationHandler<UserEvent> for App {
                 set_status(&format!("Reading {} package(s)…", packages.len()), false);
                 self.pending_packages = Some(packages);
             }
+            UserEvent::Mods(found) => match &mut self.game {
+                Some(game) => game.add_mods(found),
+                None => {
+                    let (list, _) = self.pending_mods.get_or_insert_with(Default::default);
+                    for (name, bytes) in found {
+                        list.retain(|(n, _)| n != &name);
+                        list.push((name, bytes));
+                    }
+                }
+            },
         }
         self.try_start();
         if let Some(w) = &self.window {
@@ -1487,6 +1535,8 @@ fn main() {
     web::load_from_query(proxy.clone());
     // The saves in browser storage (their metadata, for the Save and Load dialogs).
     save_store::init();
+    web::load_stored_mods(proxy.clone());
+    web::install_drop(proxy.clone());
     use winit::platform::web::EventLoopExtWebSys;
     event_loop.spawn_app(App::new(proxy));
 }

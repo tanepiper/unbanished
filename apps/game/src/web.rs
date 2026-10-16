@@ -1,5 +1,6 @@
 //! Browser glue: canvas, status panel, and loading the player's `.pkg` files (fetched from the dev
-//! server with `?data=` or chosen with the file picker).
+//! server with `?data=` or chosen with the file picker) and mods (`.pkm`, chosen with the picker
+//! or dropped on the page at any time, then kept in the browser's storage).
 use crate::UserEvent;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -73,7 +74,71 @@ pub fn load_from_query(proxy: EventLoopProxy<UserEvent>) {
     });
 }
 
-/// Reads `.pkg` files chosen in the `#packages` input and hands them to the app.
+/// The stored mods, once read (`UserEvent::Mods`, empty when there are none).
+pub fn load_stored_mods(proxy: EventLoopProxy<UserEvent>) {
+    crate::save_store::stored_mods(move |mods| {
+        if !mods.is_empty() {
+            log::info!("{} mods in browser storage", mods.len());
+        }
+        let _ = proxy.send_event(UserEvent::Mods(mods));
+    });
+}
+
+/// `name` without `.pkm` when it names a mod.
+fn mod_name(name: &str) -> Option<String> {
+    let lower = name.to_ascii_lowercase();
+    lower
+        .ends_with(".pkm")
+        .then(|| name[..name.len() - 4].to_string())
+}
+
+/// Read, store and hand over the mods among `files`.
+fn add_mods(files: Vec<web_sys::File>, proxy: EventLoopProxy<UserEvent>) {
+    let files: Vec<(String, web_sys::File)> = files
+        .into_iter()
+        .filter_map(|f| Some((mod_name(&f.name())?, f)))
+        .collect();
+    if files.is_empty() {
+        return;
+    }
+    wasm_bindgen_futures::spawn_local(async move {
+        let mut mods = Vec::new();
+        for (name, file) in files {
+            match wasm_bindgen_futures::JsFuture::from(file.array_buffer()).await {
+                Ok(buf) => {
+                    let bytes = js_sys::Uint8Array::new(&buf).to_vec();
+                    crate::save_store::store_mod(&name, &bytes);
+                    mods.push((name, bytes));
+                }
+                Err(e) => log::error!("{}: {e:?}", file.name()),
+            }
+        }
+        let _ = proxy.send_event(UserEvent::Mods(mods));
+    });
+}
+
+/// Mods dropped on the page join the list (the browser's way of copying them into `WinData`).
+pub fn install_drop(proxy: EventLoopProxy<UserEvent>) {
+    let window = web_sys::window().unwrap();
+    let over = Closure::<dyn FnMut(web_sys::DragEvent)>::new(|e: web_sys::DragEvent| {
+        e.prevent_default();
+    });
+    let drop = Closure::<dyn FnMut(web_sys::DragEvent)>::new(move |e: web_sys::DragEvent| {
+        e.prevent_default();
+        let Some(list) = e.data_transfer().and_then(|d| d.files()) else {
+            return;
+        };
+        let files = (0..list.length()).filter_map(|i| list.get(i)).collect();
+        add_mods(files, proxy.clone());
+    });
+    let _ = window.add_event_listener_with_callback("dragover", over.as_ref().unchecked_ref());
+    let _ = window.add_event_listener_with_callback("drop", drop.as_ref().unchecked_ref());
+    over.forget();
+    drop.forget();
+}
+
+/// Reads `.pkg` files chosen in the `#packages` input and hands them to the app; `.pkm` files
+/// chosen with them are mods.
 pub fn install_file_picker(proxy: EventLoopProxy<UserEvent>) {
     let input: web_sys::HtmlInputElement = document()
         .get_element_by_id("packages")
@@ -87,8 +152,10 @@ pub fn install_file_picker(proxy: EventLoopProxy<UserEvent>) {
         if files.length() == 0 {
             return;
         }
-        let files: Vec<web_sys::File> = (0..files.length())
-            .filter_map(|i| files.get(i))
+        let all: Vec<web_sys::File> = (0..files.length()).filter_map(|i| files.get(i)).collect();
+        add_mods(all.clone(), proxy.clone());
+        let files: Vec<web_sys::File> = all
+            .into_iter()
             .filter(|f| f.name().to_lowercase().ends_with(".pkg"))
             .collect();
         // Permit selecting the same files again after a read or parse error.

@@ -79,12 +79,13 @@ See [MODS.md](MODS.md). Done:
 - **Details:** `FUN_140070950`.
 - **Reload:** `Dialog/Reload.rsc`, `FUN_140072110`; over a game the game is saved to memory and
   loaded again.
+- **Browser:** mods are kept in the page's storage, chosen with the file picker or dropped on the
+  page.
 - **Saves:** the enabled mods are recorded (`SaveMetaData`), and loading asks about each one
   `CheckMod` flags.
 
 Left:
 - **Workshop:** the browse tab, uploads and update notices (`FUN_14006dee0`, `FUN_14006f100`,
   `FUN_14006f790`, `FUN_1400740f0`, `FUN_1400745d0`, `FUN_140074b70`, `FUN_140071600`).
-- **The browser's own mod storage.**
 - **1.0.7's mod resource flags:** the Status Bar, Limits and Town Hall rows exist, but are hidden
   without mods.

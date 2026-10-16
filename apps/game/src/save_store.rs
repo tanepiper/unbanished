@@ -7,7 +7,10 @@
 //! at hand as the original's is after its listing operation; writes and deletes update the
 //! mirror at once and the database in the background; a load is a request polled each frame.
 //!
-//! Deviation: the browser keeps saves in its own storage, not in a folder.
+//! Store `mods` holds the mods (`.pkm`) the player added, by file name without the extension
+//! (`stored_mods`, `store_mod`).
+//!
+//! Deviation: the browser keeps saves and mods in its own storage, not in folders.
 
 use banished_formats::save::SaveMetadata;
 
@@ -32,9 +35,9 @@ impl Read {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-pub use imp::init;
 pub use imp::{delete, list, read, write};
+#[cfg(target_arch = "wasm32")]
+pub use imp::{init, store_mod, stored_mods};
 
 #[cfg(not(target_arch = "wasm32"))]
 mod imp {
@@ -125,6 +128,9 @@ mod imp {
     const DATABASE: &str = "banished-wasm";
     const FILES: &str = "files";
     const META: &str = "meta";
+    const MODS: &str = "mods";
+    /// Version 2 added the mods store.
+    const VERSION: u32 = 2;
 
     thread_local! {
         static DB: RefCell<Option<IdbDatabase>> = const { RefCell::new(None) };
@@ -157,14 +163,14 @@ mod imp {
         let factory = web_sys::window()
             .and_then(|w| w.indexed_db().ok().flatten())
             .ok_or_else(|| JsValue::from_str("no IndexedDB"))?;
-        let open = factory.open_with_u32(DATABASE, 1)?;
+        let open = factory.open_with_u32(DATABASE, VERSION)?;
         let upgrade_req = open.clone();
         let upgrade = Closure::once(move |_: web_sys::Event| {
             if let Ok(db) = upgrade_req
                 .result()
                 .and_then(|r| r.dyn_into::<IdbDatabase>())
             {
-                for store in [FILES, META] {
+                for store in [FILES, META, MODS] {
                     if !db.object_store_names().contains(store) {
                         let _ = db.create_object_store(store);
                     }
@@ -221,6 +227,55 @@ mod imp {
             .await;
             if let Err(e) = result {
                 log::error!("save storage: {e:?}");
+            }
+        });
+    }
+
+    /// Every stored mod, `(file name without .pkm, bytes)` by name, handed to `then` (empty
+    /// when the storage cannot be read).
+    pub fn stored_mods(then: impl FnOnce(Vec<(String, Vec<u8>)>) + 'static) {
+        wasm_bindgen_futures::spawn_local(async move {
+            let result = async {
+                let db = db().await?;
+                let tx = db.transaction_with_str(MODS)?;
+                let store = tx.object_store(MODS)?;
+                let keys: js_sys::Array = done(&store.get_all_keys()?).await?.dyn_into()?;
+                let values: js_sys::Array = done(&store.get_all()?).await?.dyn_into()?;
+                let mods: Vec<(String, Vec<u8>)> = keys
+                    .iter()
+                    .zip(values.iter())
+                    .filter_map(|(k, v)| {
+                        Some((
+                            k.as_string()?,
+                            v.dyn_into::<js_sys::Uint8Array>().ok()?.to_vec(),
+                        ))
+                    })
+                    .collect();
+                Ok::<_, JsValue>(mods)
+            }
+            .await;
+            then(result.unwrap_or_else(|e| {
+                log::error!("mod storage: {e:?}");
+                Vec::new()
+            }));
+        });
+    }
+
+    /// Keep a mod (`name` without `.pkm`), replacing one of that name.
+    pub fn store_mod(name: &str, bytes: &[u8]) {
+        let (name, file) = (name.to_string(), js_sys::Uint8Array::from(bytes));
+        wasm_bindgen_futures::spawn_local(async move {
+            let result = async {
+                let db = db().await?;
+                let tx = db.transaction_with_str_and_mode(MODS, IdbTransactionMode::Readwrite)?;
+                let key = JsValue::from_str(&name);
+                done(&tx.object_store(MODS)?.put_with_key(&file, &key)?).await?;
+                Ok::<_, JsValue>(())
+            }
+            .await;
+            match result {
+                Ok(()) => log::info!("stored mod {name}"),
+                Err(e) => log::error!("storing mod {name}: {e:?}"),
             }
         });
     }

@@ -108,7 +108,10 @@ In 1.0.7, loading a save does not change which mods are enabled.
   - The Browse tab is empty.
   - Create and Update stay hidden.
   - The download progress and update notice stay hidden, as they do when nothing downloads.
-- In the browser the game currently has no way to add `.pkm` files.
+- In the browser, mods are kept in IndexedDB (`banished-wasm`, store `mods`, keyed by file name
+  without `.pkm`). They are added with the start panel's file picker or by dropping them on the
+  page at any time; a dropped mod joins the list at once and loads after a reload. There is no
+  way to remove one yet.
 
 Test mods (git-ignored, from banishedinfo.com) live in `game-data/mods/downloads`.
 `game-data/modtest/WinData` links them beside the game's packages for captures:
