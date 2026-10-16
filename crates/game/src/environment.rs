@@ -130,6 +130,36 @@ fn weather_slice(elapsed: f32) -> i32 {
 }
 
 impl Environment {
+    /// The saved controller (`FUN_140099160`): state `+0x10`, level `+0x14`, temperature
+    /// `+0x18`, the renderer values `+0x1c`, baseline `+0x2c`/`+0x30`, bias `+0x44`/`+0x48`, the
+    /// last slice `+0x4c`, and each weather effect that exists (re-created on load,
+    /// `FUN_140099790`, with its `+0xc4` direction and `+0xc0` intensity).
+    ///
+    /// Deviation: the temperature noise (`+0x34`) is not saved; after a load the original keeps
+    /// its constructor's clock-seeded field until the next reseed (slice 0 or 24). The port
+    /// keeps its constructor's fixed seed.
+    #[allow(clippy::too_many_arguments)]
+    pub fn restore(
+        &mut self,
+        state: i32,
+        level: i32,
+        temperature: f32,
+        season: SeasonValues,
+        baseline: (f32, f32),
+        bias: (f32, f32),
+        slice: i32,
+        effects: [Option<WeatherEffect>; 2],
+    ) {
+        self.state = state;
+        self.level = level;
+        self.temperature = temperature;
+        self.season = season;
+        (self.baseline, self.baseline_target) = baseline;
+        (self.bias, self.bias_target) = bias;
+        self.slice = slice;
+        self.effects = effects;
+    }
+
     /// `FUN_140099430` then `FUN_140099300`: state 0, level 4, baseline from the climate.
     ///
     /// Deviation: the constructor seeds its first Perlin field from two clock-seeded `Random()`s;

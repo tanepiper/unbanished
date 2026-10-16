@@ -177,6 +177,8 @@ impl GameplayLoop {
             g.calendar.elapsed = *t;
         }
         g.stock_warnings = saved.stock_warnings();
+        g.events = saved.event_log();
+        g.statistics = saved.statistics();
         g.saved = Some(std::sync::Arc::new(saved));
         g
     }
@@ -1565,6 +1567,10 @@ impl GameLoop for GameplayLoop {
                 }
                 // Disasters off stop tornadoes (`Game +0xd0` bit 7).
                 env.game_flags = if self.params.disasters { 0 } else { 0xf0 };
+                if let Some(saved) = &self.saved {
+                    env.game_flags = saved.state.flags;
+                    saved.restore_environment(&mut env);
+                }
                 self.environment = Some(env);
             }
             Err(e) => log::error!("{reference}: {e}"),

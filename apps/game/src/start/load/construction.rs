@@ -132,6 +132,16 @@ impl StartingTown {
             .collect();
 
         self.construction.counters = saved.stock_counters();
+        // Town manager values: the visitors' disease risk and how long it lasts (`+0x1a8`,
+        // `+0x1a0`), the value traded away (`+0x1ac`), the nomads taken in (`+0x1b0`) and the
+        // commute clock (`+0x190`).
+        self.construction.visitors = (
+            town.f32("town.visitor_risk").unwrap_or(0.0),
+            time(town, "town.visitor_time"),
+        );
+        self.construction.trade_value = int(town, "town.trade_value");
+        self.construction.nomads_admitted = int(town, "town.nomads_admitted");
+        self.construction.commute.timer = time(town, "town.commute_time");
     }
 
     /// `Game\Profession\Profession.rsc:key` → index in the profession list.

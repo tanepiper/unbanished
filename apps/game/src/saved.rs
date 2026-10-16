@@ -104,6 +104,93 @@ impl SavedGame {
         c
     }
 
+    /// The environment controller's saved state onto `env` (`FUN_140099160`).
+    pub fn restore_environment(&self, env: &mut banished_game::environment::Environment) {
+        let m = &self.state.managers;
+        let f = |k: &str| m.f32(&format!("environment.{k}")).unwrap_or(0.0);
+        let i = |k: &str| m.i32(&format!("environment.{k}")).unwrap_or(0);
+        let season = match m.at("environment.season") {
+            Some(Value::F32s(v)) if v.len() == 4 => banished_game::environment::SeasonValues {
+                snow: v[0],
+                autumn: v[1],
+                leaf_loss: v[2],
+                rain: v[3],
+            },
+            _ => Default::default(),
+        };
+        let mut effects = [None; 2];
+        if let Some(Value::List(items)) = m.at("environment.effects") {
+            for (slot, e) in effects.iter_mut().zip(items) {
+                if matches!(e.get("active"), Some(Value::Bool(true))) {
+                    *slot = Some(banished_game::environment::WeatherEffect {
+                        intensity: e.f32("intensity").unwrap_or(0.0),
+                        direction: e.f32("direction").unwrap_or(0.0),
+                    });
+                }
+            }
+        }
+        env.restore(
+            i("state"),
+            i("level"),
+            f("temperature"),
+            season,
+            (f("baseline"), f("baseline_target")),
+            (f("bias"), f("bias_target")),
+            i("slice"),
+            effects,
+        );
+    }
+
+    /// The event log (`FUN_14009a790`): the notify flags and every entry with its text.
+    pub fn event_log(&self) -> banished_game::events::EventLog {
+        let m = &self.state.managers;
+        let mut log = banished_game::events::EventLog::default();
+        for (k, n) in log.notify.iter_mut().enumerate() {
+            if let Some(Value::Bool(b)) = m.at(&format!("event_log.notify_{k}")) {
+                *n = *b;
+            }
+        }
+        if let Some(Value::List(entries)) = m.at("event_log.entries") {
+            log.entries = entries
+                .iter()
+                .map(|e| banished_game::events::EventEntry {
+                    kind: e.i32("kind").unwrap_or(0),
+                    severity: e.i32("severity").unwrap_or(0),
+                    color: e.i32("color").unwrap_or(0) as u32,
+                    month: 0,
+                    year: 0,
+                    args: Default::default(),
+                    cell: e.i32("cell").unwrap_or(-1),
+                    category: e.i32("category").unwrap_or(0),
+                    icon: e.i32("icon").unwrap_or(-1),
+                    text: match e.get("text") {
+                        Some(Value::Str(t)) => Some(t.clone()),
+                        _ => None,
+                    },
+                })
+                .collect();
+        }
+        log
+    }
+
+    /// The Town Info history (StockManager `+0x150`) and the time to the next sample
+    /// (`+0x198`).
+    pub fn statistics(&self) -> banished_game::tracker::Statistics {
+        let town = &self.state.town;
+        let mut s = banished_game::tracker::Statistics::default();
+        if let Some(Value::List(series)) = town.at("town.history") {
+            for (dst, src) in s.series.iter_mut().zip(series) {
+                if let Some(Value::U32s(v)) = src.get("values") {
+                    *dst = v.iter().map(|&x| x as i32).collect();
+                }
+            }
+        }
+        if let Some(Value::I64(t)) = town.at("town.time_198") {
+            s.timer = *t;
+        }
+        s
+    }
+
     pub fn object(&self, id: ObjId) -> Option<&Object> {
         self.state.objects.get(&id)
     }

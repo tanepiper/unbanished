@@ -244,6 +244,9 @@ impl EventLogUi {
 
 /// `FUN_14009a2d0`'s text: `FormatIndexed(events[type], season, year, @2, @3, @4)`.
 pub fn format_event(ui: &mut Ui, e: &banished_game::events::EventEntry) -> String {
+    if let Some(text) = &e.text {
+        return text.clone();
+    }
     let template = ui.res.string_at("Dialog/StringTable.rsc:events", e.kind);
     let season = ui
         .res

@@ -41,6 +41,9 @@ pub struct EventEntry {
     pub category: i32,
     /// Popup icon (12, 13 for types 0x1a-0x1d), -1 otherwise.
     pub icon: i32,
+    /// The text as formatted when the event was posted, for entries loaded from a save (the
+    /// original keeps only the text, `FUN_14009a790`); shown as is.
+    pub text: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -113,6 +116,7 @@ impl EventLog {
             _ => -1,
         };
         self.entries.push(EventEntry {
+            text: None,
             kind,
             severity,
             color: severity_color(severity),

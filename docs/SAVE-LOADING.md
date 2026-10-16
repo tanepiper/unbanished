@@ -8,7 +8,8 @@ running game. It is done in stages:
 2. **Storage, buildings, construction and the job manager** (done).
 3. Citizens (3a), their action stacks and work claims (3b), wildlife, livestock and trader
    boats (3c), and the buildings' own component state (3d): all done.
-4. Jobs, trade, events and the rest of the managers.
+4. **Environment, weather, the event log, the Town Info history and the town manager's other
+   values** (done).
 
 ## Starting a load
 
@@ -309,12 +310,41 @@ Test: `start::load::stage3d_tests::vanilla_saves_restore_producers`.
   fruit.
 - **Trading posts.** The trading posts' goods resolve.
 
+## What stage 4 restores
+
+- **Environment and weather** (`FUN_140099160`, `Environment::restore`):
+  - the weather state `+0x10` and precipitation level `+0x14`;
+  - the temperature `+0x18` and the renderer's season values `+0x1c..+0x28` (snow, autumn,
+    leaf loss, rain);
+  - the annual baseline and bias with their targets (`+0x2c`/`+0x30`, `+0x44`/`+0x48`);
+  - the last weather slice `+0x4c`;
+  - each rain or snow effect that exists, with its direction and intensity.
+
+  The temperature noise (`+0x34`) is not saved. After a load the original keeps its
+  constructor's clock-seeded field until the next reseed (slice 0 or 24), so the weather until
+  then cannot be reproduced even in the original. The port keeps its fixed seed (a deviation).
+  `Game +0xd0` (disasters) comes from the save.
+- **Event log** (`FUN_14009a790`): the six notify flags, and every entry with its colour,
+  type, severity, cell, category and icon. The original keeps only an entry's formatted text, so
+  `EventEntry::text` holds it and the log shows it as is.
+- **Town Info history** (StockManager `+0x150`) and the time to the next sample (`+0x198`).
+- **Town manager values:** the visitors' disease risk and how long it lasts (`+0x1a8`,
+  `+0x1a0`), the value traded away (`+0x1ac`), the nomads taken in (`+0x1b0`) and the commute
+  clock (`+0x190`).
+
+Test: `start::load::stage4_tests::vanilla_saves_restore_environment_and_logs`.
+- **Temperature and snow.** The restored temperature is the saved one, and the snow cover
+  agrees with it (`clamp(32 − temperature)`, `FUN_1400988f0`), which checks the field mapping.
+- **Event log.** Every entry is restored with its text (Save83 has 200).
+- **History.** The Town Info history is restored (1035 samples per series in Save83).
+
 ## Not restored yet
 
 - Nomads and tornadoes.
 - The engine-side blocks: achievements, animation states and the audio scene. The port
   rebuilds its own animation and ambience.
-- The environment, weather and event log (stage 4).
+- The achievement block (AchievementManager::Persist, engine side) and the scenario goal
+  object. No vanilla sample has a goal.
 - The ambient sound emitters. The port rebuilds map ambience from the terrain, as a New Game does.
 - Floors (`+0x2d`, bridge decks).
 - The save's own scheduler order. Entities are registered in entity-manager order.
