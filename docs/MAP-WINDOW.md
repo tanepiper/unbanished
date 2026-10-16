@@ -56,8 +56,13 @@ The UI crate's `Lines` kind draws the segments as one-pixel sprite quads.
     gives the water an opaque black reflection, so rivers and lakes show their beds darkened
     (inferred from the reference's dark water). Before this the magenta clear showed through.
   - The port renders terrain, reflection and water with its own pipelines and blits into an
-    `n×n` texture, `Texture::External(1)`. The overhead light is the port's best match for the
-    two `(0, 0, 1)` context vectors; their exact meaning is not traced.
+    `n×n` texture, `Texture::External(1)`.
+  - The two `(0, 0, 1)` context vectors are `Context::SetUserPosition((0, 0, 1, 0))`:
+    `pc_userPosition`, so the minimap has no snow, no autumn colour and no rain.
+  - Its scene has no light object, so the lights are whatever the context holds: it runs before
+    the frame's `Renderer::Draw` (`FUN_14009b4e0`), and `Context::Reset` zeroes them. Which
+    draw set them is not traced; the port lights it from directly above with the scene's
+    colours, which matches the reference's flat, light terrain best.
 - **Overlay (`FUN_1400aa200`).** A MapComponent whose description has `+0x32` set fills its
   map rectangle with the description colour (`+0x34`) when activated (`FUN_140129680`). Rows
   are flipped (`row = n - y - 1`) and the dirty flag is set; `FUN_1400aa5b0` uploads it.

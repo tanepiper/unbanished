@@ -1059,9 +1059,13 @@ impl Renderer {
 
     /// MapUI's images. `FUN_1400aa610` renders the terrain and water geometries once, on the
     /// first game draw: an orthographic camera over the map (±size/2, near 0, far 512) at
-    /// height 100 looking straight down (pitch -90), the light from directly above, fog pushed
-    /// to 1000–1001, into a size×size image. The overlay (`FUN_1400aa5b0`) is uploaded when it
-    /// changes.
+    /// height 100 looking straight down (pitch -90), fog pushed to 1000–1001, into a size×size
+    /// image. `Context::SetUserPosition((0, 0, 1, 0))` sets `pc_userPosition`: no snow, no
+    /// autumn colour, full leaf loss, no rain. Its scene has no light, so the context keeps
+    /// the lights an earlier draw set (it runs before the frame's `Renderer::Draw` and
+    /// `Context::Reset` zeroes them, so not traced); the port lights it from directly above
+    /// with the scene's colours (inferred: the reference's flat, light terrain). The overlay
+    /// (`FUN_1400aa5b0`) is uploaded when it changes.
     pub fn update_minimap(&mut self, view: &crate::scene::SceneView) {
         let Some((revision, size, rgba)) = &view.minimap_overlay else {
             return;
@@ -1093,6 +1097,7 @@ impl Renderer {
         let view_proj = orthographic(-half, half, -half, half, 0.0, 512.0)
             * look_at_mat4(eye, Vec3::ZERO, Vec3::Y);
         let mut lighting = *lighting;
+        lighting.user = Vec4::new(0.0, 0.0, 1.0, 0.0);
         lighting.light_dir = Vec3::NEG_Z;
         lighting.fog_start = 1000.0;
         lighting.fog_end = 1001.0;

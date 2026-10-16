@@ -54,8 +54,8 @@ are listed separately at the end.
 ## Presentation differences
 
 These change no game rules, but are visible:
-- **Minimap colours** (lighter and greener in the original).
-- **Shadows:** no culling of casters off screen.
+- **Minimap colours:** the user constants are now the original's (no snow or autumn); the light it is drawn with is not traced (docs/MAP-WINDOW.md).
+- **Shadows:** casters off screen are not culled. This costs time but changes no pixel.
 - **No antialiasing** (MSAA).
 - **Cursors:** done. The six cursors (Arrow, Hand, Hourglass, Move, Query, Place) follow the loop, the tool (slot `+0x60`) and the element under the pointer (`+0x3c`, the title bars' Move).
 - **Resource pick lists:** done. The crop, tree, livestock and product combos show their items' icons (`ComboElement::AddItem`'s sprite), the chosen one's on the label.
