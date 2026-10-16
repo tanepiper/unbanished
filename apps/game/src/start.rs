@@ -2686,7 +2686,7 @@ impl StartingTown {
     /// stored item, in order, fills `size × count / capacity` of the cells with its pile
     /// model's last mesh, and the next cell with the mesh for the fraction left; the rest are
     /// empty.
-    fn storage_displays(&self, groups: &mut HashMap<String, Vec<ModelInstance>>) {
+    fn storage_displays(&self, groups: &mut HashMap<(String, usize), Vec<ModelInstance>>) {
         let storages = self
             .storage_sites
             .iter()
@@ -2747,7 +2747,7 @@ impl StartingTown {
                 let (row, col) = (i as i32 / w, i as i32 % w);
                 let Some(&at) = ground.get(i) else { continue };
                 let yaw = if (row + col) & 1 != 0 { 0.0 } else { 90.0 };
-                groups.entry(mesh).or_default().push(ModelInstance {
+                groups.entry((mesh, 0)).or_default().push(ModelInstance {
                     matrix: placement_matrix(at, [1.0; 3], yaw),
                     locals: None,
                 });
@@ -2755,9 +2755,9 @@ impl StartingTown {
         }
     }
 
-    fn model_instances(&self) -> Vec<GroupInstances> {
-        let mut groups: HashMap<String, Vec<ModelInstance>> = HashMap::new();
-        for p in &self.placed {
+    pub(crate) fn model_instances(&self) -> Vec<GroupInstances> {
+        let mut groups: HashMap<(String, usize), Vec<ModelInstance>> = HashMap::new();
+        for (e, p) in self.placed.iter().enumerate() {
             if !p.alive {
                 continue;
             }
@@ -2771,17 +2771,32 @@ impl StartingTown {
             else {
                 continue;
             };
-            groups.entry(mesh.clone()).or_default().push(ModelInstance {
-                matrix: placement_matrix(p.position, [p.scale[0], p.scale[1], p.scale[2]], p.yaw),
-                locals: p.animation.as_ref().and_then(|playback| {
-                    self.templates[p.template]
-                        .animations
-                        .get(p.variant)
-                        .and_then(Option::as_ref)
-                        .and_then(|g| g.clips.get(playback.clip))
-                        .map(|clip| playback.pose(clip))
-                }),
-            });
+            // A damaged building's model shows the DestroyDescription's material set.
+            let set = self
+                .construction
+                .sites
+                .get(&e)
+                .filter(|s| s.destroy.as_ref().is_some_and(|d| d.damaged_look))
+                .and_then(|s| self.construction.templates[s.template].destroy)
+                .map_or(0, |t| t.material.max(0) as usize);
+            groups
+                .entry((mesh.clone(), set))
+                .or_default()
+                .push(ModelInstance {
+                    matrix: placement_matrix(
+                        p.position,
+                        [p.scale[0], p.scale[1], p.scale[2]],
+                        p.yaw,
+                    ),
+                    locals: p.animation.as_ref().and_then(|playback| {
+                        self.templates[p.template]
+                            .animations
+                            .get(p.variant)
+                            .and_then(Option::as_ref)
+                            .and_then(|g| g.clips.get(playback.clip))
+                            .map(|clip| playback.pose(clip))
+                    }),
+                });
         }
         self.storage_displays(&mut groups);
         // Citizens: `Template/Citizen.rsc:model` variant 0 (men) or 1 (women); children use
@@ -2812,7 +2827,7 @@ impl StartingTown {
                         g.clips.get(p.clip).map(|clip| p.pose(clip))
                     });
                 groups
-                    .entry(mesh.clone())
+                    .entry((mesh.clone(), 0))
                     .or_default()
                     .push(ModelInstance { matrix, locals });
             }
@@ -2837,10 +2852,13 @@ impl StartingTown {
                     .get(ch.animation.clip)
                     .map(|clip| ch.animation.pose(clip))
             });
-            groups.entry(mesh.clone()).or_default().push(ModelInstance {
-                matrix: placement_matrix(ch.position, [s, s, s], ch.yaw),
-                locals,
-            });
+            groups
+                .entry((mesh.clone(), 0))
+                .or_default()
+                .push(ModelInstance {
+                    matrix: placement_matrix(ch.position, [s, s, s], ch.yaw),
+                    locals,
+                });
         }
         // Nomads: their template's model (men variant 0, women 1), placed by their
         // CharacterComponent. Not ported: the nomads' material instances.
@@ -2865,19 +2883,28 @@ impl StartingTown {
                         .get(ch.animation.clip)
                         .map(|clip| ch.animation.pose(clip))
                 });
-            groups.entry(mesh.clone()).or_default().push(ModelInstance {
-                matrix: placement_matrix(ch.position, [1.0; 3], ch.yaw),
-                locals,
-            });
+            groups
+                .entry((mesh.clone(), 0))
+                .or_default()
+                .push(ModelInstance {
+                    matrix: placement_matrix(ch.position, [1.0; 3], ch.yaw),
+                    locals,
+                });
         }
         if let Some((mesh, matrix)) = &self.ghost {
-            groups.entry(mesh.clone()).or_default().push(ModelInstance {
-                matrix: *matrix,
-                locals: None,
-            });
+            groups
+                .entry((mesh.clone(), 0))
+                .or_default()
+                .push(ModelInstance {
+                    matrix: *matrix,
+                    locals: None,
+                });
         }
-        let mut list: Vec<_> = groups.into_iter().map(|(m, i)| (m, 0, i, None)).collect();
-        list.sort_by(|a, b| a.0.cmp(&b.0));
+        let mut list: Vec<_> = groups
+            .into_iter()
+            .map(|((m, set), i)| (m, set, i, None))
+            .collect();
+        list.sort_by(|a, b| (&a.0, a.1).cmp(&(&b.0, b.1)));
         list
     }
 }

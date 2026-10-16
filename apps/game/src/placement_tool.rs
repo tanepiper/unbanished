@@ -3226,6 +3226,7 @@ mod construction_tests {
         let dt = 1.0 / 30.0;
         let (mut lit, mut fought, mut buckets) = (false, false, 0);
         let (mut rubble, mut rebuilt) = (false, None);
+        let mut damaged_look = false;
         let mut states = Vec::new();
         for _ in 0..30 * 60 * 40 {
             town.apply_commands(&terrain, &mut rng);
@@ -3264,7 +3265,24 @@ mod construction_tests {
             if let Some(f) = &site.fire {
                 buckets = buckets.max(f.buckets);
             }
+            let looks_damaged = site.destroy.as_ref().is_some_and(|d| d.damaged_look);
             let w = site.work_id;
+            if !damaged_look && looks_damaged {
+                // The burning house's model takes the damaged material set (`+0x28`).
+                damaged_look = true;
+                let mesh = town.templates[town.placed[id].template]
+                    .model
+                    .as_ref()
+                    .and_then(|m| m.variants.get(town.placed[id].variant))
+                    .and_then(|v| v.meshes.get(town.placed[id].mesh))
+                    .cloned()
+                    .flatten()
+                    .unwrap();
+                assert!(town
+                    .model_instances()
+                    .iter()
+                    .any(|(m, set, i, _)| *m == mesh && *set == 1 && !i.is_empty()));
+            }
             if let Some(banished_game::jobs::WorkKind::Fire(fw)) =
                 town.construction.jobs.works.get(&w).map(|w| &w.kind)
             {
@@ -3282,6 +3300,7 @@ mod construction_tests {
             }
         }
         assert!(lit, "the house was not finished: {states:?}");
+        assert!(damaged_look, "the burning house kept its material");
         assert!(states.contains(&6), "it never burned: {states:?}");
         assert!(fought, "nobody fought the fire: {states:?}");
         assert!(

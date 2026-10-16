@@ -23,7 +23,7 @@ use crate::town::{Sim, CONSTRUCTION_MASK};
 pub struct DestroyTemplate {
     /// `+0x20`: what is left in the building's place (a placed-object template).
     pub replace: Option<usize>,
-    /// `+0x28`: the ModelComponent's material set while damaged. Not ported (presentation).
+    /// `+0x28`: the ModelComponent's material set once damaged (`FUN_14012a4f0`).
     pub material: i32,
     /// `+0x2c`: the decal's material while damaged.
     pub decal: i32,
@@ -42,6 +42,9 @@ pub struct Destroy {
     pub count: i32,
     pub target: i32,
     pub rebuild: Option<usize>,
+    /// The model shows the description's damaged material set (`+0x28`, set by the damage
+    /// with time left and by every collapse).
+    pub damaged_look: bool,
 }
 
 impl Destroy {
@@ -435,6 +438,9 @@ impl Sim<'_, '_> {
         self.storages[s].items.clear();
         if self.destroy_state(e).is_some_and(|d| d.time < 1) {
             self.collapse(e);
+        } else {
+            // `FUN_14012a4f0(model, +0x28)`.
+            self.damaged_look(e);
         }
     }
 
@@ -466,9 +472,19 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// `FUN_140122aa0`: one construction mesh down, not below the description's `+0x30`.
-    /// The decal switches to the damaged material. Not ported: entity event 0, the model's
-    /// damaged material and picking.
+    /// The model's damaged material set (`FUN_14012a4f0` with the description's `+0x28`).
+    fn damaged_look(&mut self, e: usize) {
+        if let Some(d) = self.destroy_state(e) {
+            if !d.damaged_look {
+                d.damaged_look = true;
+                *self.models_dirty = true;
+            }
+        }
+    }
+
+    /// `FUN_140122aa0`: one construction mesh down, not below the description's `+0x30`; the
+    /// model takes the damaged material set and the decal the damaged material. Not ported:
+    /// entity event 0 and the picking mesh.
     fn collapse(&mut self, e: usize) {
         let Some(t) = self
             .sites
@@ -480,6 +496,7 @@ impl Sim<'_, '_> {
         let mesh = self.placed[e].mesh;
         let current = if mesh == usize::MAX { -1 } else { mesh as i32 };
         let next = (current - 1).max(0).max(t.min_mesh);
+        self.damaged_look(e);
         let d = self.decals.entry(e).or_default();
         if d.material != t.decal {
             d.material = t.decal;

@@ -39,6 +39,8 @@ pub struct RangeData {
     pub diffuse: Option<ImageBuffer>,
     pub ao: Option<ImageBuffer>,
     pub snow: Option<ImageBuffer>,
+    /// The damaged materials' damage texture (blended into the diffuse).
+    pub damage: Option<ImageBuffer>,
     pub rigid: [f32; 16],
     /// `ModelSkinLayout` vertices blended by the instance's bone palette on the GPU.
     pub skinned: bool,
@@ -47,6 +49,8 @@ pub struct RangeData {
 /// A mesh (most detailed level) and the transforms of its instances.
 pub struct ModelGroup {
     pub name: String,
+    /// The mesh's material set (a damaged building's DestroyDescription `+0x28`).
+    pub set: usize,
     pub ranges: Vec<RangeData>,
     pub instances: Vec<[f32; 16]>,
     /// One `MAX_BONES` palette per instance (skinned groups only).
@@ -72,9 +76,10 @@ struct ModelAsset {
 }
 
 impl ModelAsset {
-    fn into_group(self, name: String) -> ModelGroup {
+    fn into_group(self, name: String, set: usize) -> ModelGroup {
         ModelGroup {
             name,
+            set,
             ranges: self.ranges,
             instances: Vec::new(),
             skins: Vec::new(),
@@ -234,6 +239,7 @@ fn load_group(
         ranges.push(RangeData {
             kind: m.kind,
             snow: cached(m.snow),
+            damage: cached(m.damage),
             vertices: vertices.to_vec(),
             indices,
             index_count: range.index_count as u32,
@@ -284,7 +290,7 @@ impl SceneModels {
             ) else {
                 continue;
             };
-            let mut group = asset.into_group(mesh_ref.clone());
+            let mut group = asset.into_group(mesh_ref.clone(), key.1.max(0) as usize);
             let instances = by_key.remove(&key).unwrap_or_default();
             group.set_instances(
                 instances
@@ -311,7 +317,7 @@ impl SceneModels {
             .into_iter()
             .filter_map(|(mesh_ref, set, instances, pose)| {
                 let asset = load_group(archive, &mesh_ref, set, &mut textures, pose.as_deref())?;
-                let mut group = asset.into_group(mesh_ref);
+                let mut group = asset.into_group(mesh_ref, set);
                 group.set_instances(instances);
                 Some(group)
             })
@@ -331,12 +337,16 @@ impl SceneModels {
         }
         let mut textures = HashMap::new();
         for (name, set, instances, pose) in instances {
-            if let Some(group) = self.groups.iter_mut().find(|g| g.name == name) {
+            if let Some(group) = self
+                .groups
+                .iter_mut()
+                .find(|g| g.name == name && g.set == set)
+            {
                 group.set_instances(instances);
             } else if let Some(asset) =
                 load_group(archive, &name, set, &mut textures, pose.as_deref())
             {
-                let mut group = asset.into_group(name);
+                let mut group = asset.into_group(name, set);
                 group.set_instances(instances);
                 self.groups.push(group);
             }
@@ -349,8 +359,30 @@ const SHADER: &str = r#"
 @group(1) @binding(0) var diffuse_tex: texture_2d<f32>;
 @group(1) @binding(1) var ao_tex: texture_2d<f32>;
 @group(1) @binding(2) var samp: sampler;
-@group(1) @binding(3) var<uniform> rigid: mat4x4<f32>;
+// The range's rigid node transform, and `damage.x` 1 for a damaged material.
+struct Range {
+    rigid: mat4x4<f32>,
+    damage: vec4<f32>,
+};
+@group(1) @binding(3) var<uniform> range: Range;
 @group(1) @binding(4) var snow_tex: texture_2d<f32>;
+@group(1) @binding(5) var damage_tex: texture_2d<f32>;
+
+// The damaged materials (`OpaqueSnowDamageMaterial_ps` and the others): the damage texture,
+// tiled 4× over the AO coordinates, replaces the diffuse by
+// `min(1 − (1 − (r² + g² + r·b))², 0.75)` (none below 0).
+fn damaged(base: vec3<f32>, uv_ao: vec2<f32>) -> vec3<f32> {
+    let d = textureSample(damage_tex, samp, uv_ao * 4.0).rgb;
+    if (range.damage.x < 0.5) {
+        return base;
+    }
+    let l = 1.0 - (base.r * base.r + base.g * base.g + base.r * base.b);
+    let w = min(1.0 - l * l, 0.75);
+    if (w < 0.0) {
+        return base;
+    }
+    return base + (d - base) * w;
+}
 
 struct VsIn {
     @location(0) position: vec4<i32>,
@@ -390,7 +422,7 @@ fn finish(world: vec3<f32>, n: vec3<f32>, texcoord: vec4<i32>, leaf: f32) -> VsO
 
 @vertex
 fn vs_main(v: VsIn) -> VsOut {
-    let model = mat4x4<f32>(v.m0, v.m1, v.m2, v.m3) * rigid;
+    let model = mat4x4<f32>(v.m0, v.m1, v.m2, v.m3) * range.rigid;
     let p = model * vec4<f32>(vec3<f32>(v.position.xyz) / 512.0, 1.0);
     let n = normalize((model * vec4<f32>(v.normal.xyz * 2.0 - 1.0, 0.0)).xyz);
     return finish(p.xyz, n, v.texcoord, 0.0);
@@ -401,7 +433,7 @@ fn vs_main(v: VsIn) -> VsOut {
 @vertex
 fn vs_character(v: VsIn) -> VsOut {
     let appearance = v.m3.w;
-    let model = mat4x4<f32>(v.m0, v.m1, v.m2, vec4<f32>(v.m3.xyz, 1.0)) * rigid;
+    let model = mat4x4<f32>(v.m0, v.m1, v.m2, vec4<f32>(v.m3.xyz, 1.0)) * range.rigid;
     let p = model * vec4<f32>(vec3<f32>(v.position.xyz) / 512.0, 1.0);
     let n = normalize((model * vec4<f32>(v.normal.xyz * 2.0 - 1.0, 0.0)).xyz);
     var out = finish(p.xyz, n, v.texcoord, 0.0);
@@ -448,7 +480,7 @@ fn vs_skinned_character(v: SkinIn) -> VsOut {
 // FoliageMaterial_vs: sway by sin(world.xy + time) weighted by userData.
 @vertex
 fn vs_foliage(v: VsIn) -> VsOut {
-    let model = mat4x4<f32>(v.m0, v.m1, v.m2, v.m3) * rigid;
+    let model = mat4x4<f32>(v.m0, v.m1, v.m2, v.m3) * range.rigid;
     var p = (model * vec4<f32>(vec3<f32>(v.position.xyz) / 512.0, 1.0)).xyz;
     let n = normalize((model * vec4<f32>(v.normal.xyz * 2.0 - 1.0, 0.0)).xyz);
     let wind = sin(p.xy + g.camera_forward.w) * vec2<f32>(v.user);
@@ -461,7 +493,7 @@ fn vs_foliage(v: VsIn) -> VsOut {
 // wind, and are lit with a rounded crown normal.
 @vertex
 fn vs_billboard(v: VsIn) -> VsOut {
-    let model = mat4x4<f32>(v.m0, v.m1, v.m2, v.m3) * rigid;
+    let model = mat4x4<f32>(v.m0, v.m1, v.m2, v.m3) * range.rigid;
     let local = vec3<f32>(v.position.xyz) / 512.0;
     var world = (model * vec4<f32>(local, 1.0)).xyz;
     let scale = vec3<f32>(length(v.m0.xyz), length(v.m1.xyz), length(v.m2.xyz));
@@ -496,7 +528,7 @@ fn lit(base: vec3<f32>, ao: f32, in: VsOut) -> vec3<f32> {
 fn fs_opaque(in: VsOut) -> @location(0) vec4<f32> {
     let base = textureSample(diffuse_tex, samp, in.uv);
     let ao = textureSample(ao_tex, samp, in.uv_ao).r;
-    let c = lit(base.rgb, ao, in);
+    let c = lit(damaged(base.rgb, in.uv_ao), ao, in);
     reflect_clip(in.snow.w);
     return vec4<f32>(c, base.a);
 }
@@ -508,7 +540,7 @@ fn fs_snow(in: VsOut) -> @location(0) vec4<f32> {
     let s = textureSample(snow_tex, samp, in.snow.xy);
     let ao = textureSample(ao_tex, samp, in.uv_ao).r;
     let m = base.a * in.snow.z * g.user.x * ao * ao;
-    let c = lit(mix(base.rgb, s.rgb, m), ao, in);
+    let c = lit(mix(damaged(base.rgb, in.uv_ao), s.rgb, m), ao, in);
     reflect_clip(in.snow.w);
     return vec4<f32>(c, 0.0);
 }
@@ -517,7 +549,7 @@ fn fs_snow(in: VsOut) -> @location(0) vec4<f32> {
 fn fs_alpha(in: VsOut) -> @location(0) vec4<f32> {
     let base = textureSample(diffuse_tex, samp, in.uv);
     let ao = textureSample(ao_tex, samp, in.uv_ao).r;
-    let c = lit(base.rgb, ao, in);
+    let c = lit(damaged(base.rgb, in.uv_ao), ao, in);
     if (base.a < 0.5) {
         discard;
     }
@@ -651,7 +683,7 @@ impl ModelRenderer {
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 3,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -660,6 +692,7 @@ impl ModelRenderer {
                     count: None,
                 },
                 tex(4),
+                tex(5),
             ],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -943,13 +976,20 @@ impl ModelRenderer {
                     .ranges
                     .iter()
                     .map(|r| {
+                        let mut uniform = [0.0f32; 20];
+                        uniform[..16].copy_from_slice(&r.rigid);
+                        uniform[16] = if r.damage.is_some() { 1.0 } else { 0.0 };
                         let rigid = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                             label: Some("rigid"),
-                            contents: bytemuck::cast_slice(&r.rigid),
+                            contents: bytemuck::cast_slice(&uniform),
                             usage: wgpu::BufferUsages::UNIFORM,
                         });
-                        let (diffuse, ao, snow) =
-                            (view_of(&r.diffuse), view_of(&r.ao), view_of(&r.snow));
+                        let (diffuse, ao, snow, damage) = (
+                            view_of(&r.diffuse),
+                            view_of(&r.ao),
+                            view_of(&r.snow),
+                            view_of(&r.damage),
+                        );
                         let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
                             label: Some(&g.name),
                             layout: &self.layout,
@@ -973,6 +1013,10 @@ impl ModelRenderer {
                                 wgpu::BindGroupEntry {
                                     binding: 4,
                                     resource: wgpu::BindingResource::TextureView(&snow),
+                                },
+                                wgpu::BindGroupEntry {
+                                    binding: 5,
+                                    resource: wgpu::BindingResource::TextureView(&damage),
                                 },
                             ],
                         });

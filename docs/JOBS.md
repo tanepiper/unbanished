@@ -822,7 +822,18 @@ unbuilt site's materials only land on its `.` footprint cells.
 Port: `Controller::Destroy`; `Sim::{demolish, cancel_demolition, destroy_message, damage,
 to_rubble}`; replacements are `Construction::rebuilds`, placed by the town after the update
 (`StartingTown::apply_rebuilds`). The ResidenceComponent is kept on the site while out of the
-town's. The decal switches to the damaged material ([DECALS.md](DECALS.md)). Not ported: the model's damaged material and picking.
+town's. The decal switches to the damaged material ([DECALS.md](DECALS.md)).
+
+**The damaged model.** The damage with time left (state 6 entry `FUN_1401229a0`) and every
+collapse (`FUN_140122aa0`) set the model's material set to DestroyDescription `+0x28`
+(`FUN_14012a4f0` → `GraphicsMesh::GetMaterialList`). For the buildings that is set 1, the
+meshes' `:damage` material instances (`OpaqueSnowDamageMaterial`, its alpha-test and in-water
+kinds), which add a `damage` texture. Their pixel shader blends the texture, tiled 4× over the
+AO coordinates, into the diffuse by `min(1 − (1 − (r² + g² + r·b))², 0.75)` (nothing below 0).
+
+- Port: `Destroy::damaged_look`; the town's model groups are keyed by mesh and material set;
+  `damaged()` in the model shader.
+- Not ported: the picking mesh's switch (`FUN_14012e420`).
 
 ## Port status
 

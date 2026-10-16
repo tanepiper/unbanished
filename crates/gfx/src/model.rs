@@ -13,6 +13,8 @@ pub struct RangeMaterial {
     pub kind: MaterialKind,
     pub diffuse: Option<String>,
     pub snow: Option<String>,
+    /// The damaged materials' `damage` texture (`OpaqueSnowDamageMaterial` and the like).
+    pub damage: Option<String>,
     /// Skinned ranges (`bone < 0`) go through the skin palette; rigid ones use `rigid`.
     pub skinned: bool,
     /// Rigid node index (`bone >= 0`).
@@ -51,6 +53,7 @@ pub fn range_material(
         kind: MaterialKind::of(instance.as_ref().and_then(|mi| mi.material.as_deref())),
         diffuse: texture("diffuse"),
         snow: texture("snow"),
+        damage: texture("damage"),
         skinned,
         rigid_bone,
         rigid: rigid_bone
