@@ -330,6 +330,7 @@ impl Agents {
                 visitors: &mut c.visitors,
                 trading_posts: &mut c.trading_posts,
                 trade_value: &mut c.trade_value,
+                pending_roads: &mut c.pending_roads,
                 trade_goods: &c.trade_goods,
                 river: &c.river,
                 pathfinder: &mut self.pathfinder,
@@ -352,6 +353,21 @@ impl Agents {
             },
             &mut c.jobs,
         )
+    }
+
+    /// `FUN_1400a22d0` for the road tool: a road's cells from `a` to `b` over `mask` (the
+    /// zones' cells blocked).
+    pub fn road_path(
+        &mut self,
+        cells: &Cells,
+        a: i32,
+        b: i32,
+        mask: u32,
+        manhattan: bool,
+    ) -> Option<Vec<i32>> {
+        self.sync_map(cells);
+        let blocked: Vec<bool> = cells.occupants.iter().map(Option::is_some).collect();
+        self.pathfinder.find_road(a, b, mask, manhattan, &blocked)
     }
 
     /// Adults without a school: the citizens professions count.
@@ -383,6 +399,7 @@ impl Agents {
         let adult = self.adults(citizens);
         // Bands taken in (ImmigrationUI `0x9858`), made citizens after the other commands.
         let mut admissions = Vec::new();
+        let mut road_markers = Vec::new();
         let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
         // Placing activates at once in the original (`FUN_1400c9d70`); a cancel comes after.
         for e in placed {
@@ -427,6 +444,23 @@ impl Agents {
                 }
                 crate::professions::Command::SetEnabled { entity, enabled } => {
                     sim.enable_workplace(entity, enabled);
+                    jobs.drain(&mut sim);
+                    continue;
+                }
+                crate::professions::Command::PlanRoad {
+                    cell,
+                    kind,
+                    ty,
+                    material,
+                } => {
+                    sim.plan_road(jobs, cell, kind, ty, material);
+                    jobs.drain(&mut sim);
+                    continue;
+                }
+                crate::professions::Command::ClearRoad { cell, marker } => {
+                    if sim.unplan_road(jobs, cell) {
+                        road_markers.push((cell, marker));
+                    }
                     jobs.drain(&mut sim);
                     continue;
                 }
@@ -503,6 +537,7 @@ impl Agents {
         for (entity, band) in admissions {
             self.admit_band(citizens, env, groups, entity, &band, newborn);
         }
+        env.construction.road_markers.extend(road_markers);
     }
 
     /// `FUN_14004ddb0`: the band becomes citizens in fours where each nomad stands
@@ -666,6 +701,7 @@ impl Agents {
                     objects: &env.cells.objects,
                     occupants: &env.cells.occupants,
                     flags: &env.cells.flags,
+                    roads: &env.cells.road_kind,
                     regions: &self.regions,
                     terrain: env.terrain,
                     pathfinder: &mut self.pathfinder,
@@ -795,6 +831,7 @@ impl Agents {
                 objects: &cells.objects,
                 occupants: &cells.occupants,
                 flags: &cells.flags,
+                roads: &cells.road_kind,
                 regions: &self.regions,
                 terrain,
                 pathfinder: &mut self.pathfinder,
@@ -830,6 +867,7 @@ impl Agents {
                 objects: &cells.objects,
                 occupants: &cells.occupants,
                 flags: &cells.flags,
+                roads: &cells.road_kind,
                 regions: &self.regions,
                 terrain,
                 pathfinder: &mut self.pathfinder,
@@ -865,6 +903,7 @@ impl Agents {
                 objects: &cells.objects,
                 occupants: &cells.occupants,
                 flags: &cells.flags,
+                roads: &cells.road_kind,
                 regions: &self.regions,
                 terrain,
                 pathfinder: &mut self.pathfinder,
@@ -1308,6 +1347,11 @@ impl Agents {
                     if let Some(site) = m.entity.and_then(|e| env.construction.sites.get_mut(&e)) {
                         site.progress += 1;
                     }
+                }
+                Component::Road => {
+                    let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
+                    sim.complete_road(m.a, m.message as u8, m.b as u8);
+                    jobs.drain(&mut sim);
                 }
                 Component::Fire => {
                     if let Some(e) = m.entity {

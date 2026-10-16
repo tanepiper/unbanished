@@ -52,7 +52,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Work | Port | | Action | Port |
 |---|---|---|---|---|
 | BuildStructure, GatherRawMaterials, ClearArea, Pickup, ConsumeProduce, LocationWork, FishingWork, gatherer, forester and hunter works | yes | | MoveTo, PlayAnimation, PerformWork, SendComponentMessage, CompleteTask, DropOffRawMaterial, PickupRawMaterial, PickupStoredRawMaterial, ShowTool, AnimateNaturalResource, RemoveNaturalResource, CreateRawMaterial | yes |
-| BuildRoad | no | | CompleteRoad | no |
+| BuildRoad | yes ([ROADS.md](ROADS.md)) | | CompleteRoad | yes |
 | PlantArea, TendArea, harvest (fields) | yes | | ConsumeRawMaterial (`FUN_1400cb880`) | herbs (from what is carried); eating and warming use Citizen messages |
 | PlantOrchard, fruit picking | yes | | CreateNaturalResource (planting) | yes |
 | | | | HuntAnimal, RemoveAnimal | yes |
@@ -80,7 +80,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Feature | Port |
 |---|---|
 | Building placement, removal of resources, ClearCancel | yes |
-| Roads (dirt, stone), Remove Roads | no |
+| Roads (dirt, stone), Remove Roads | yes ([ROADS.md](ROADS.md)); road drawing (decals) no |
 | Bridges, tunnels (drag placement, terraform) | no |
 | Fields, orchards, pastures, storage yard (drag areas) | placement only (CreateDrag parsed) |
 | Fences, cemetery (CreateFenced) | placement (`place_fenced`); the drag tool is not ported |

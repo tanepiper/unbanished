@@ -53,6 +53,9 @@ pub enum Component {
     Destroy,
     /// `DAT_1401cc1e0`: FireComponent message 0, a bucket of water (`FUN_1400499f0`).
     Fire,
+    /// CompleteRoad's start (`FUN_1400cad20` → `FUN_1400a1b10`): `a` the cell, `b` the cell
+    /// type, `message` the `+0x2b` byte.
+    Road,
     /// The job manager: message 0 is CompleteTask's start (`FUN_1400fdc30`), 1 its abort
     /// (`FUN_1400fdcd0`); `a` is the work id, `b` the task parameter.
     Jobs,
@@ -99,6 +102,8 @@ pub struct World<'a> {
     pub objects: &'a [Option<usize>],
     pub occupants: &'a [Option<usize>],
     pub flags: &'a [u8],
+    /// `+0x2a`: the road kind planned or built (`0xff` none).
+    pub roads: &'a [u8],
     pub regions: &'a [u16],
     pub terrain: &'a HeightGrid<'a>,
     pub pathfinder: &'a mut Pathfinder,
@@ -520,6 +525,13 @@ pub enum Action {
     },
     /// `SendComponentMessage` (vtable `0x1401664e0`): deliver a message on start.
     SendMessage(Message),
+    /// `CompleteRoad` (vtable `0x140165f80`, constructor `FUN_1400caea0`): the cell becomes
+    /// its road (or ground) on start.
+    CompleteRoad {
+        cell: i32,
+        ty: u8,
+        built: u8,
+    },
     /// FUN_1400cb880 / FUN_1400cb980: reserve at construction; consume on start.
     ConsumeStoredRawMaterial {
         storage: usize,
@@ -662,6 +674,16 @@ impl Action {
                 });
                 Status::Done
             }
+            Action::CompleteRoad { cell, ty, built } => {
+                world.messages.push(Message {
+                    component: Component::Road,
+                    message: *built as i32,
+                    entity: None,
+                    a: *cell,
+                    b: *ty as i32,
+                });
+                Status::Done
+            }
             Action::CreateRawMaterial {
                 template,
                 cell,
@@ -678,9 +700,9 @@ impl Action {
                 });
                 Status::Done
             }
-            // `FUN_1400cbb20`: the cell must be free (`FUN_1400a1fd0`: not cell types 0 or 1;
-            // the per-cell byte `+0x2a` and the map's set at `+0xe8` are not ported) and
-            // without flags. Otherwise the action fails.
+            // `FUN_1400cbb20`: the cell must be free (`FUN_1400a1fd0`: not cell types 0 or 1, no
+            // road kind `+0x2a`; a road plan always has one) and without flags. Otherwise the
+            // action fails.
             Action::CreateNaturalResource {
                 template,
                 occupant,
@@ -690,7 +712,7 @@ impl Action {
                 let free =
                     world.objects.get(i) == Some(&None) && world.occupants.get(i) == Some(occupant);
                 let ty = 1u32 << (world.types[i].0 & 0x1f);
-                if !free || ty & 3 != 0 || world.flags[i] != 0 {
+                if !free || ty & 3 != 0 || world.roads[i] != 0xff || world.flags[i] != 0 {
                     return Status::Failed;
                 }
                 world.messages.push(Message {
@@ -881,6 +903,7 @@ impl Action {
             Action::RemoveResource { .. }
             | Action::PickupPile { .. }
             | Action::CreateRawMaterial { .. }
+            | Action::CompleteRoad { .. }
             | Action::CreateNaturalResource { .. }
             | Action::RemoveAnimal { .. } => Status::Done,
             // `FUN_1400cd710`.

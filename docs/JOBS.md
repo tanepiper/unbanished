@@ -743,8 +743,8 @@ WorkComponent `+0x30` limit (8) comes from MaxWorkers since the marker has no Wo
 Port: `apps/game/src/removal_tool.rs`, `selection_overlay.rs`; markers are sites with
 `Controller::ClearResource`, destroyed through `Sim::destroy_entity` (work removed, occupant
 freed). Remove Buildings and cancelling a demolition become `Command::Demolish` and
-`Command::DestroyMessage { message: 0 }`, once per building. Not ported: roads (Remove Roads), the
-marker's decal, the tutorial's fixed rectangle (settings `+0x80`), the bar's requirement
+`Command::StateMessage { message: 0 }`, once per building; Remove Roads `Command::ClearRoad` (see
+[ROADS.md](ROADS.md)). Not ported: the marker's decal, the tutorial's fixed rectangle (settings `+0x80`), the bar's requirement
 multiplier (`FUN_14005f060`).
 
 ## Demolition (`crates/game/src/destroy.rs`)

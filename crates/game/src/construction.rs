@@ -1147,6 +1147,11 @@ pub struct Construction {
     pub trading_posts: Vec<usize>,
     /// Town manager `+0x1ac`: the value traded away.
     pub trade_value: i32,
+    /// Map `+0xe8`: the cells with a planned road, and their BuildRoad works.
+    pub pending_roads: BTreeMap<i32, i32>,
+    /// Built road cells Remove Roads marked, for the town to place their markers (cell,
+    /// marker template).
+    pub road_markers: Vec<(i32, usize)>,
     /// The goods with a ValueDescription, in the factory's order (`GameResources`).
     pub trade_goods: Vec<crate::trade::TradeGood>,
     /// MapComponent `+0x1e0`'s first river centre line, the trader boats' way.

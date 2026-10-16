@@ -43,6 +43,7 @@ pub mod placement;
 pub mod produce;
 pub mod professions;
 pub mod random;
+pub mod road;
 pub mod scheduler;
 pub mod sectors;
 pub mod seeding;

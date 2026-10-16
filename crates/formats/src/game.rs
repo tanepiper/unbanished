@@ -1740,6 +1740,32 @@ pub fn trade_description(data: &[u8]) -> Result<TradeDescription> {
     Ok(value)
 }
 
+/// `CreateRoadDescription` (serializer `FUN_14011f150`): `+0x20` the road kind (0 stone, 1 dirt;
+/// a lower kind replaces a higher), `+0x28` the raw material a cell takes (none for dirt).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CreateRoadDescription {
+    pub kind: u8,
+    pub material: Option<String>,
+}
+
+pub fn create_road_description(data: &[u8]) -> Result<CreateRoadDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("CreateRoadDescription") {
+            return format_err(format!(
+                "expected CreateRoadDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(CreateRoadDescription {
+                kind: r.u8()?,
+                material: r.external_ref()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `TombstoneDescription` (serializer `FUN_140058380`): a grave lasts `(+0x20 + RandFloat ×
 /// +0x24)` × 300 s (`FUN_1400581c0`).
 pub fn tombstone_description(data: &[u8]) -> Result<(f32, f32)> {

@@ -1701,6 +1701,51 @@ impl StartingTown {
         self.agents
             .apply_commands(&mut self.citizens, &mut env, &groups, &mut newborn);
         self.apply_storage_changes();
+        // Remove Roads' markers on built road cells (`FUN_140108ab0`).
+        for (cell, marker) in std::mem::take(&mut self.construction.road_markers) {
+            let n = self.cells.size as i32;
+            self.add_cached_marker(marker, (cell % n, cell / n), terrain);
+        }
+    }
+
+    /// [`Self::add_marker`] for a marker whose construction template is loaded.
+    fn add_cached_marker(&mut self, template: usize, cell: (i32, i32), terrain: &HeightGrid) {
+        let reference = self.templates[template].reference.clone();
+        let Some(st) = self
+            .construction
+            .templates
+            .iter()
+            .position(|t| t.reference == reference)
+        else {
+            return;
+        };
+        let n = self.cells.size as i32;
+        let half = (n >> 1) as f32 - 0.5;
+        let (px, py) = (cell.0 as f32 - half, cell.1 as f32 - half);
+        let mut normal = [0.0; 3];
+        let z = terrain.ground(px, py, &mut normal);
+        let id = self.placed.len();
+        self.placed.push(Placed {
+            template,
+            bucket: self.templates[template].bucket,
+            cell,
+            footprint: (1, 1),
+            position: [px, py, z],
+            yaw: 0.0,
+            variant: 0,
+            mesh: usize::MAX,
+            growth: 0.0,
+            growth_state: None,
+            spawn_state: None,
+            alive: true,
+            removal_requested: false,
+            animation: None,
+            scale: [1.0; 4],
+        });
+        self.register_entity(id);
+        let i = (cell.1 * n + cell.0) as usize;
+        self.cells.occupants[i] = Some(id);
+        self.add_site_from(st, id);
     }
 
     /// The citizens' animation, characters and AI for one simulation iteration

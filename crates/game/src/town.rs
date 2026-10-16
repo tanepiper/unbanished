@@ -120,6 +120,8 @@ pub struct Sim<'s, 't> {
     pub population: i32,
     /// Town manager `+0x1a8` / `+0x1a0`.
     pub visitors: &'s mut (f32, i64),
+    /// Map `+0xe8`: planned road cells → BuildRoad works.
+    pub pending_roads: &'s mut BTreeMap<i32, i32>,
     /// Town manager `+0x30` and `+0x1ac`.
     pub trading_posts: &'s mut Vec<usize>,
     pub trade_value: &'s mut i32,
@@ -756,8 +758,38 @@ impl Sim<'_, '_> {
         let n = self.size as i32;
         let (x, y) = p.cell;
         let (w, h) = p.footprint;
-        (y..y + h)
-            .all(|cy| (x..x + w).all(|cx| self.cells.objects[(cy * n + cx) as usize].is_none()))
+        let cells =
+            || (y..y + h).flat_map(move |cy| (x..x + w).map(move |cx| (cy * n + cx) as usize));
+        let desc = self
+            .sites
+            .get(&entity)
+            .and_then(|s| self.site_templates[s.template].clear.clone());
+        // `FUN_1400a2d30` (clearing cells): no road, planned road or road plan.
+        let roads_clear = !desc.as_ref().is_some_and(|d| d.clear_cells)
+            || cells().all(|i| {
+                let t = self.cells.types[i].0;
+                t != 0
+                    && t != 1
+                    && self.cells.road_kind[i] == crate::road::NONE
+                    && !self.pending_roads.contains_key(&(i as i32))
+            });
+        if !roads_clear {
+            return false;
+        }
+        match desc {
+            // `FUN_1400a2e00`: no natural resource (of the filter's template).
+            Some(d) if d.clear_resources && !d.clear_piles => cells().all(|i| {
+                self.cells.objects[i].is_none_or(|o| {
+                    let t = &self.templates[self.placed[o].template];
+                    t.natural.is_none()
+                        || d.reference.as_deref().is_some_and(|f| {
+                            !t.reference.eq_ignore_ascii_case(&f.replace('/', "\\"))
+                        })
+                })
+            }),
+            // `FUN_1400a2f90`: no object.
+            _ => cells().all(|i| self.cells.objects[i].is_none()),
+        }
     }
 
     /// `FUN_14010db00`: the site storage holds every requirement.
@@ -1627,6 +1659,17 @@ impl WorkHost for Sim<'_, '_> {
             | WorkKind::Pasture(h)
             | WorkKind::ClearStorage(h)
             | WorkKind::Fire(h) => h.workers.iter().copied(),
+            // `FUN_1400e9590`: the builder no longer on it.
+            WorkKind::Road(r) => {
+                if let Some(c) = r.builder {
+                    if self.characters[c].stack.holds_task(id).is_none() {
+                        if let WorkKind::Road(r) = &mut work.kind {
+                            r.builder = None;
+                        }
+                    }
+                }
+                return;
+            }
             // `FUN_1400fafb0`: the haulers no longer on it.
             WorkKind::Trade(t) => {
                 let gone: Vec<usize> = t
@@ -1716,6 +1759,7 @@ impl WorkHost for Sim<'_, '_> {
             | WorkKind::Location(_)
             | WorkKind::Market(_)
             | WorkKind::Trade(_)
+            | WorkKind::Road(_)
             | WorkKind::Test(_) => {}
         }
         if let WorkKind::Gather(_) = work.kind {
@@ -1737,6 +1781,7 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::ClearStorage(_) => self.clear_storage_try(work, c, time),
             WorkKind::Fire(_) => self.fire_try(work, c, time),
             WorkKind::Trade(_) => self.trade_try(work, c),
+            WorkKind::Road(_) => self.road_try(work, c, time),
             WorkKind::Market(_) => self.market_try(work, c),
             WorkKind::Fishing(_) => self.fishing_try(work, c),
             WorkKind::PlantArea(_) => self.plant_try(work, c),
@@ -1858,6 +1903,11 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Trade(t) => {
                 t.haulers.remove(&c);
             }
+            // `FUN_1400e9620`: parameter 1 (the cell built) ends the work.
+            WorkKind::Road(r) => {
+                r.builder = None;
+                return param == 1;
+            }
             WorkKind::Test(_) => {}
         }
         false
@@ -1915,6 +1965,8 @@ impl WorkHost for Sim<'_, '_> {
             WorkKind::Trade(t) => {
                 t.haulers.remove(&c);
             }
+            // `FUN_1400e95f0`.
+            WorkKind::Road(r) => r.builder = None,
             WorkKind::Test(_) => {}
         }
     }
@@ -1964,6 +2016,8 @@ impl WorkHost for Sim<'_, '_> {
                 WorkKind::Market(m) => m.plans.keys().next().copied(),
                 // `FUN_1400fc0b0`.
                 WorkKind::Trade(t) => t.haulers.keys().next().copied(),
+                // `FUN_1400e9de0`.
+                WorkKind::Road(r) => r.builder,
                 WorkKind::Produce(_) | WorkKind::Test(_) => None,
             };
             let Some(c) = next else { return };
@@ -2024,6 +2078,7 @@ impl WorkHost for Sim<'_, '_> {
                 WorkKind::Trade(t) => {
                     t.haulers.remove(&c);
                 }
+                WorkKind::Road(r) => r.builder = None,
                 WorkKind::Produce(_) | WorkKind::Test(_) => {}
             }
         }
@@ -2319,19 +2374,31 @@ impl Sim<'_, '_> {
         {
             return 1;
         }
-        // `FUN_1400a50d0`: the footprint's objects, then `FUN_1400a2c90`: squared distance to
-        // the citizen, CRT qsort.
+        // `FUN_1400a50d0`: the footprint's objects (and, clearing cells, its road cells with
+        // nothing on them), then `FUN_1400a2c90`: squared distance to the citizen, CRT qsort.
         let n = self.size as i32;
         let (x, y) = self.placed[e].cell;
         let (w, h) = self.placed[e].footprint;
         let from = self.citizen_cell(c);
-        let mut entries: Vec<(i32, i32, usize)> = Vec::new();
+        let clear_cells = cl.clear_cells;
+        let mut entries: Vec<(i32, i32, Option<usize>)> = Vec::new();
         for cy in y..y + h {
             for cx in x..x + w {
                 let cell = cy * n + cx;
-                if let Some(o) = self.cells.objects[cell as usize] {
-                    let (dy, dx) = (cell / n - from / n, cell % n - from % n);
-                    entries.push((cell, dy * dy + dx * dx, o));
+                let i = cell as usize;
+                let (dy, dx) = (cell / n - from / n, cell % n - from % n);
+                if let Some(o) = self.cells.objects[i] {
+                    entries.push((cell, dy * dy + dx * dx, Some(o)));
+                }
+                if clear_cells {
+                    let t = self.cells.types[i].0;
+                    let road = t == 0
+                        || t == 1
+                        || self.cells.road_kind[i] != crate::road::NONE
+                        || self.pending_roads.contains_key(&cell);
+                    if road {
+                        entries.push((cell, dy * dy + dx * dx, None));
+                    }
                 }
             }
         }
@@ -2340,6 +2407,7 @@ impl Sim<'_, '_> {
             (cl.clear_resources, cl.filter.clone(), cl.clear_piles);
         if resources {
             for &(cell, _, o) in &entries {
+                let Some(o) = o else { continue };
                 let WorkKind::Clear(cl) = &work.kind else {
                     return 0;
                 };
@@ -2377,12 +2445,33 @@ impl Sim<'_, '_> {
                 return 2;
             }
         }
-        // Not ported: the empty-cell phase (`+0x71`, roads and fields: `FUN_1400c54a0`).
+        // The road cells (`+0x71`): laid back to ground (`FUN_1400c54a0` with type 2, the
+        // task's parameter the cell).
+        if clear_cells {
+            for &(cell, _, o) in &entries {
+                if o.is_some() {
+                    continue;
+                }
+                let WorkKind::Clear(cl) = &work.kind else {
+                    return 0;
+                };
+                if cl.cells.contains_key(&cell) || !self.reachable(cell, from) {
+                    continue;
+                }
+                let target = cell_ground(self.size, self.terrain, cell);
+                self.road_clear_sequence(c, work, target, cell);
+                self.took_job(c, work);
+                if let WorkKind::Clear(cl) = &mut work.kind {
+                    cl.cells.insert(cell, c);
+                }
+                return 2;
+            }
+        }
         if clear_piles {
             // The piles' own Pickup works (`FUN_1400fdaf0` without a second try), in order.
             self.offers = entries
                 .iter()
-                .filter_map(|&(_, _, o)| self.piles.get(&o).map(|p| p.work))
+                .filter_map(|&(_, _, o)| o.and_then(|o| self.piles.get(&o)).map(|p| p.work))
                 .filter(|&id| id >= 0)
                 .collect();
             if !self.offers.is_empty() {

@@ -316,6 +316,47 @@ impl Pathfinder {
         false
     }
 
+    /// `FUN_1400a22d0`: a road's cells: every type costs 1, no diagonal steps (`FUN_1400abd80(0,
+    /// manhattan, 1)`), the blocked bit honoured, over `mask`. `blocked` stands for the zones'
+    /// bits (cells with an occupant).
+    pub fn find_road(
+        &mut self,
+        from: i32,
+        to: i32,
+        mask: u32,
+        manhattan: bool,
+        blocked: &[bool],
+    ) -> Option<Vec<i32>> {
+        let saved = (
+            self.costs,
+            self.diagonal,
+            self.manhattan,
+            self.check_blocked,
+            self.mask,
+        );
+        self.costs = [1; 32];
+        self.diagonal = false;
+        self.manhattan = manhattan;
+        self.check_blocked = true;
+        self.mask = mask;
+        let old: Vec<u8> = self.cells.clone();
+        for (c, &b) in self.cells.iter_mut().zip(blocked) {
+            if b {
+                *c |= 0x80;
+            }
+        }
+        let path = self.find(from, to);
+        self.cells = old;
+        (
+            self.costs,
+            self.diagonal,
+            self.manhattan,
+            self.check_blocked,
+            self.mask,
+        ) = saved;
+        path
+    }
+
     /// `FUN_14001d760`: the cells from `from` to `to` inclusive, or `None`.
     pub fn find(&mut self, from: i32, to: i32) -> Option<Vec<i32>> {
         self.search = self.search.wrapping_add(1);

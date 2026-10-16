@@ -77,6 +77,8 @@ pub enum WorkKind {
     Fire(crate::herbalist::HerbalistWork),
     /// `TradeWork` (vtable `0x140167e30`): haulers keeping the trading post's stock.
     Trade(crate::trade::TradeWork),
+    /// `BuildRoad` (vtable `0x140167430`): one cell of road.
+    Road(crate::road::RoadWork),
     /// MarketWork (vtable `0x140167b40`, made by MarketComponent's slot `+0x90`).
     Market(crate::market::MarketWork),
     /// `FishingWork` (vtable `0x140167740`, constructor `FUN_1400eff90`).

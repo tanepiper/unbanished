@@ -13,10 +13,14 @@
 //!
 //! The original runs the tool between simulation iterations; the port does too (markers are
 //! activated before the next iteration, like placed buildings).
+//!
+//! RoadTool (`RoadTool : DragTool`, vtable `0x140168290`, for a template with a
+//! `CreateRoadDescription`) shares the DragTool input and runs here as the road mode: start
+//! `FUN_14010abb0`, apply `FUN_14010a200`, check `FUN_14010a4b0` (see docs/ROADS.md).
 
 use banished_formats::game::{
-    create_drag_description, create_removal_description, toolbar_description,
-    CreateDragDescription, CreateRemovalDescription, ToolbarDescription,
+    create_drag_description, create_removal_description, create_road_description,
+    toolbar_description, CreateDragDescription, CreateRemovalDescription, ToolbarDescription,
 };
 use banished_formats::pkg::Archive;
 use banished_game::placement::cell_admits;
@@ -62,13 +66,31 @@ pub struct RemovalTool {
     sounded: i32,
     /// MouseLeft is held.
     held: bool,
+    /// The road mode (RoadTool `+0x38`): the CreateRoadDescription's kind and material, and
+    /// the cell type of the road template's MapDescription.
+    road: Option<RoadSpec>,
 }
+
+#[derive(Debug, Clone, Copy)]
+struct RoadSpec {
+    kind: u8,
+    ty: u8,
+    material: Option<usize>,
+}
+
+/// `0xa17`: the cell types a road crosses (0–2, 4, 9, 11); `0x5e0` the types its ends may not
+/// be (water, high and rough ground).
+const ROAD_MASK: u32 = 0xa17;
+const ROAD_ENDS: u32 = 0x5e0;
 
 impl RemovalTool {
     /// `FUN_14010a0a0` (and the constructor `FUN_14010a190`).
     pub fn start(archive: &Archive, town: &mut StartingTown, reference: &str) -> Option<Self> {
         let file = reference.split(':').next()?.replace('\\', "/");
-        let desc = create_removal_description(&read(archive, &format!("{file}:createremoval"))?)
+        let Some(data) = read(archive, &format!("{file}:createremoval")) else {
+            return Self::start_road(archive, town, reference);
+        };
+        let desc = create_removal_description(&data)
             .map_err(|e| log::warn!("{reference}: {e}"))
             .ok()?;
         let marker = desc
@@ -81,6 +103,12 @@ impl RemovalTool {
         });
         let toolbar =
             read(archive, &format!("{file}:toolbar")).and_then(|d| toolbar_description(&d).ok());
+        // Remove Roads' markers are placed by the town after the simulation decides them.
+        if desc.roads {
+            if let Some(t) = marker {
+                town.site_template(archive, t);
+            }
+        }
         Some(RemovalTool {
             reference: reference.to_string(),
             desc,
@@ -93,7 +121,68 @@ impl RemovalTool {
             end: -1,
             sounded: -1,
             held: false,
+            road: None,
         })
+    }
+
+    /// RoadTool's start (`FUN_14010abb0`): the template's CreateRoadDescription.
+    fn start_road(archive: &Archive, town: &mut StartingTown, reference: &str) -> Option<Self> {
+        let file = reference.split(':').next()?.replace('\\', "/");
+        let d = create_road_description(&read(archive, &format!("{file}:createroad"))?)
+            .map_err(|e| log::warn!("{reference}: {e}"))
+            .ok()?;
+        let template = town.load_template(archive, reference)?;
+        let ty = town.templates[template]
+            .map
+            .as_ref()
+            .map_or(0, |m| m.cell_type as u8);
+        let material = d
+            .material
+            .as_deref()
+            .and_then(|m| crate::start::material_index(archive, &mut town.materials, m));
+        let toolbar =
+            read(archive, &format!("{file}:toolbar")).and_then(|d| toolbar_description(&d).ok());
+        Some(RemovalTool {
+            reference: reference.to_string(),
+            desc: CreateRemovalDescription::default(),
+            marker: None,
+            drag: None,
+            toolbar,
+            dragging: false,
+            waiting: false,
+            start: -1,
+            end: -1,
+            sounded: -1,
+            held: false,
+            road: Some(RoadSpec {
+                kind: d.kind,
+                ty,
+                material,
+            }),
+        })
+    }
+
+    /// `FUN_14010a4b0` / the start of `FUN_14010a200`: a road's cells between the drag's ends
+    /// (sorted), the ends neither water, high nor rough ground nor occupied. The path manager
+    /// steps without diagonals, with the Manhattan heuristic unless key 0x16 is held
+    /// (`FUN_14010ab60`).
+    fn road_cells(&self, town: &mut StartingTown, a: i32, b: i32) -> Option<Vec<i32>> {
+        let (a, b) = if b < a { (b, a) } else { (a, b) };
+        if a < 0 {
+            return None;
+        }
+        let (ia, ib) = (a as usize, b as usize);
+        let ends =
+            (1u32 << (town.cells.types[ia].0 & 0x1f)) | (1u32 << (town.cells.types[ib].0 & 0x1f));
+        if ends & ROAD_ENDS != 0
+            || town.cells.occupants[ia].is_some()
+            || town.cells.occupants[ib].is_some()
+        {
+            return None;
+        }
+        town.agents
+            .road_path(&town.cells, a, b, ROAD_MASK, true)
+            .filter(|p| !p.is_empty())
     }
 
     /// The drag's start and end cells while dragging (for the CreateBar).
@@ -301,6 +390,18 @@ impl RemovalTool {
             || (Self::has_destroy(town, e) && matches!(Self::shown_state(town, e), 3..=5))
     }
 
+    /// Remove Roads (`+0x40`): a road cell (types 0, 1), a planned one or a road plan.
+    fn clears_road(&self, town: &StartingTown, i: usize) -> bool {
+        if !self.desc.roads {
+            return false;
+        }
+        let t = town.cells.types[i].0;
+        t == 0
+            || t == 1
+            || town.cells.road_kind[i] != banished_game::road::NONE
+            || town.construction.pending_roads.contains_key(&(i as i32))
+    }
+
     fn has_destroy(town: &StartingTown, e: usize) -> bool {
         town.construction
             .sites
@@ -345,15 +446,32 @@ impl RemovalTool {
             .then_some(site.work_id)
     }
 
-    /// `FUN_140108ab0` over the dragged rectangle: markers, cancels, demolition
-    /// (`FUN_140109b40` → `FUN_140123470`), priority. Not ported: ClearRoad (`FUN_1400a1bd0`,
-    /// roads).
+    /// `FUN_140108ab0` over the dragged rectangle: markers, roads (`FUN_1400a1bd0`), cancels,
+    /// demolition (`FUN_140109b40` → `FUN_140123470`), priority. In the road mode
+    /// (`FUN_14010a200`), every cell of the road is planned (`FUN_1400a1e30`). Not ported: the
+    /// road decal registration (`FUN_1400b2260`) and mesh.
     pub fn apply(
         &mut self,
         archive: &Archive,
         town: &mut StartingTown,
         terrain: &HeightGrid,
     ) -> DragSound {
+        if let Some(r) = self.road {
+            let Some(cells) = self.road_cells(town, self.start, self.end) else {
+                return DragSound::Error;
+            };
+            for cell in cells {
+                town.construction
+                    .commands
+                    .push(banished_game::professions::Command::PlanRoad {
+                        cell,
+                        kind: r.kind,
+                        ty: r.ty,
+                        material: r.material,
+                    });
+            }
+            return DragSound::Thunk;
+        }
         let n = town.cells.size as i32;
         let (x0, y0, x1, y1) = self.rect(n, self.start, self.end);
         let before = town.placed.len();
@@ -364,6 +482,17 @@ impl RemovalTool {
                 if self.marks(town, terrain, e, x, y) {
                     if let Some(t) = self.marker {
                         town.add_marker(archive, t, (x, y), terrain);
+                    }
+                }
+                if self.clears_road(town, i) {
+                    if let Some(marker) = self.marker {
+                        Self::command(
+                            town,
+                            banished_game::professions::Command::ClearRoad {
+                                cell: i as i32,
+                                marker,
+                            },
+                        );
                     }
                 }
                 if self.cancels(town, e) {
@@ -410,7 +539,7 @@ impl RemovalTool {
     /// `FUN_140109520`: the cells to draw, each with whether the drag would act on it.
     pub fn cells(
         &self,
-        town: &StartingTown,
+        town: &mut StartingTown,
         terrain: &HeightGrid,
         hover: i32,
     ) -> Vec<(i32, i32, bool)> {
@@ -422,6 +551,15 @@ impl RemovalTool {
         if a < 0 {
             return Vec::new();
         }
+        if self.road.is_some() {
+            // `FUN_14010a660`: the road's cells, or its ends marked invalid.
+            let n = town.cells.size as i32;
+            let b = if b < 0 { a } else { b };
+            return match self.road_cells(town, a, b) {
+                Some(path) => path.into_iter().map(|c| (c % n, c / n, true)).collect(),
+                None => vec![(a % n, a / n, false), (b % n, b / n, false)],
+            };
+        }
         let b = if b < 0 { a } else { b };
         let n = town.cells.size as i32;
         let (x0, y0, x1, y1) = self.rect(n, a, b);
@@ -430,6 +568,7 @@ impl RemovalTool {
             for x in x0..=x1 {
                 let e = Self::entity_at(town, (y * n + x) as usize);
                 let acts = self.marks(town, terrain, e, x, y)
+                    || self.clears_road(town, (y * n + x) as usize)
                     || self.cancels(town, e)
                     || self.demolishes(town, e)
                     || (self.desc.priority && Self::work_of(town, e).is_some());

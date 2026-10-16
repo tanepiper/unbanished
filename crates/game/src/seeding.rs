@@ -133,6 +133,10 @@ pub struct Cells {
     pub layers: Vec<[u8; 12]>,
     /// Map `+0x90`: registrations per layer.
     pub layer_totals: [i16; 12],
+    /// `+0x2a`: the road kind the cell has or will have (0 stone, 1 dirt; `0xff` none).
+    pub road_kind: Vec<u8>,
+    /// `+0x2b`: the road kind built (`0x80` while it is being built).
+    pub road_built: Vec<u8>,
 }
 
 impl Cells {
@@ -146,6 +150,8 @@ impl Cells {
             growth_bytes: vec![0; types.len()],
             layers: vec![[0; 12]; types.len()],
             layer_totals: [0; 12],
+            road_kind: vec![0xff; types.len()],
+            road_built: vec![0; types.len()],
             types,
         }
     }

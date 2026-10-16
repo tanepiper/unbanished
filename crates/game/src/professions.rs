@@ -166,6 +166,16 @@ pub enum Command {
     Demolish { entity: usize },
     /// DestroyUI `0x1771` (`FUN_1401238d0`): the demolition is called off.
     CancelDemolition { entity: usize },
+    /// RoadTool's apply (`FUN_14010a200` → `FUN_1400a1e30`): plan a road on a cell.
+    PlanRoad {
+        cell: i32,
+        kind: u8,
+        ty: u8,
+        material: Option<usize>,
+    },
+    /// Remove Roads (`FUN_140108ab0` → `FUN_1400a1bd0`): take a planned road back; a built one
+    /// gets a removal marker (`marker`, the tool's template).
+    ClearRoad { cell: i32, marker: usize },
     /// A StateMachine message (slot `+0x10`): DestroyComponent's Remove Cancel (0 while torn
     /// down), DestroyUI `0x1772` (`FUN_140123940`, 0: rebuild the rubble) and `0x1773`
     /// (`FUN_1401239a0`, 1: clear it); ImmigrationUI `0x9858` (7: take the nomads in) and
@@ -719,7 +729,9 @@ impl Workforce {
             | Command::SetLimit { .. }
             | Command::Demolish { .. }
             | Command::CancelDemolition { .. }
-            | Command::StateMessage { .. } => {}
+            | Command::StateMessage { .. }
+            | Command::PlanRoad { .. }
+            | Command::ClearRoad { .. } => {}
         }
     }
 }
