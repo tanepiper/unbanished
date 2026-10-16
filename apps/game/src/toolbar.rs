@@ -7,8 +7,10 @@
 //! the speed readout (10), a sub-menu toggle (0), a build toggle (1) or a plain button (others).
 //! Build and utility entries take their icon and name from the template's toolbar component.
 
+use banished_formats::crc::type_id;
 use banished_formats::game::{toolbar_description, toolbar_item, ToolbarDescription, ToolbarItem};
 use banished_formats::pkg::Archive;
+use banished_formats::registry::Registry;
 use banished_ui::{Kind, NodeId, Ui};
 
 use crate::keymap::KeyMap;
@@ -103,21 +105,12 @@ fn object_name(reference: &str) -> &str {
 }
 
 impl Toolbar {
-    /// Load every registered toolbar entry (`ExternalFactory::FindNext` over the `Toolbar` type).
-    pub fn load(archive: &Archive) -> Toolbar {
+    /// Load every registered toolbar entry (`ExternalFactory::FindNext` over the `Toolbar`
+    /// type): the loaded resources' (the game's and the enabled mods', `formats::registry`).
+    pub fn load(archive: &Archive, registry: &Registry) -> Toolbar {
         let mut entries = Vec::new();
-        for name in archive.names() {
-            let path = name.replace('\\', "/");
-            let Some(object) = path
-                .strip_prefix("Game/Toolbar_")
-                .and_then(|n| n.strip_suffix(".crs"))
-            else {
-                continue;
-            };
-            if object == "resource" {
-                continue;
-            }
-            let Ok(item) = archive.read(name).and_then(|d| toolbar_item(&d)) else {
+        for reference in registry.of_type(type_id("Toolbar")) {
+            let Ok(item) = archive.read_ref(reference).and_then(|d| toolbar_item(&d)) else {
                 continue;
             };
             let description = item.template.as_deref().and_then(|t| {
@@ -125,7 +118,7 @@ impl Toolbar {
                 toolbar_description(&archive.read_ref(&r).ok()?).ok()
             });
             entries.push(Entry {
-                reference: format!(r"Game\Toolbar.rsc:{object}"),
+                reference: reference.to_string(),
                 item,
                 description,
             });
@@ -175,7 +168,11 @@ impl Toolbar {
             .filter(|&i| {
                 let e = &self.entries[i].item;
                 e.visible
-                    && e.parent.as_deref().map(|p| p.replace('/', "\\")).as_deref() == parent_ref
+                    && match (e.parent.as_deref(), parent_ref) {
+                        (None, None) => true,
+                        (Some(p), Some(r)) => p.replace('/', "\\").eq_ignore_ascii_case(r),
+                        _ => false,
+                    }
             })
             .collect();
         list.sort_by_key(|&i| self.entries[i].item.order);
@@ -199,7 +196,9 @@ impl Toolbar {
             depth += 1;
             up = self.entries[p].item.parent.as_deref().and_then(|r| {
                 let r = r.replace('/', "\\");
-                self.entries.iter().position(|e| e.reference == r)
+                self.entries
+                    .iter()
+                    .position(|e| e.reference.eq_ignore_ascii_case(&r))
             });
         }
         let mut pool = key_pool(depth);

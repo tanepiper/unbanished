@@ -327,18 +327,43 @@ impl GraphicsMesh {
     pub const CLASS: &'static str = "GraphicsMesh";
 
     /// `Graphics::GraphicsMesh::Serialize` (0x180101c40) + `PlatformSerialize` (0x1800a5830).
+    /// Block version 0 (meshes from older toolkits, in mods) keeps each part's geometry with
+    /// the part (`FUN_1800a55c0`: the DX9 then the DX11 block); later versions keep all of it
+    /// in the two platform blocks at the end, the DX11 one led by an integer.
     pub fn read(r: &mut Reader) -> Result<Self> {
-        r.block(|r, version| {
-            if version == 0 {
-                return Err(Error::Unsupported("GraphicsMesh block version 0".into()));
+        /// One part's draw ranges and buffers (DX11).
+        fn geometry(r: &mut Reader, part: &mut MeshPart) -> Result<()> {
+            for _ in 0..r.count()? {
+                let v = [r.i32()?, r.i32()?, r.i32()?, r.i32()?, r.i32()?, r.i32()?];
+                part.ranges.push(DrawRange {
+                    start_vertex: v[0],
+                    vertex_count: v[1],
+                    start_index: v[2],
+                    index_count: v[3],
+                    material_index: v[4],
+                    bone: v[5],
+                });
             }
+            let mut buffer = || -> Result<Vec<u8>> {
+                r.u8()?;
+                let n = r.u32()? as usize;
+                Ok(r.bytes(n)?.to_vec())
+            };
+            part.static_indices = buffer()?;
+            part.static_vertices = buffer()?;
+            part.skinned_indices = buffer()?;
+            part.skinned_vertices = buffer()?;
+            r.i32()?;
+            Ok(())
+        }
+        r.block(|r, version| {
             let source = r.string()?;
             r.f32s::<6>()?; // unused bounds, always (1,1,1)/(-1,-1,-1)
             r.i32()?;
             r.f32s::<2>()?;
             let mut parts = Vec::new();
             for _ in 0..r.count()? {
-                parts.push(MeshPart {
+                let mut part = MeshPart {
                     lod_distance: r.f32()?,
                     name: r.string()?,
                     ao_texture: r.external_ref()?,
@@ -347,7 +372,12 @@ impl GraphicsMesh {
                     static_vertices: Vec::new(),
                     skinned_indices: Vec::new(),
                     skinned_vertices: Vec::new(),
-                });
+                };
+                if version == 0 {
+                    r.skip_block()?; // DX9 geometry
+                    r.block(|r, _| geometry(r, &mut part))?;
+                }
+                parts.push(part);
             }
             let mut material_instances = Vec::new();
             for _ in 0..r.count()? {
@@ -367,34 +397,16 @@ impl GraphicsMesh {
             }
             let bounds_min = r.f32s()?;
             let bounds_max = r.f32s()?;
-            r.skip_block()?; // DX9 geometry
-            r.block(|r, _| {
-                r.i32()?;
-                for part in &mut parts {
-                    for _ in 0..r.count()? {
-                        let v = [r.i32()?, r.i32()?, r.i32()?, r.i32()?, r.i32()?, r.i32()?];
-                        part.ranges.push(DrawRange {
-                            start_vertex: v[0],
-                            vertex_count: v[1],
-                            start_index: v[2],
-                            index_count: v[3],
-                            material_index: v[4],
-                            bone: v[5],
-                        });
-                    }
-                    let mut buffer = || -> Result<Vec<u8>> {
-                        r.u8()?;
-                        let n = r.u32()? as usize;
-                        Ok(r.bytes(n)?.to_vec())
-                    };
-                    part.static_indices = buffer()?;
-                    part.static_vertices = buffer()?;
-                    part.skinned_indices = buffer()?;
-                    part.skinned_vertices = buffer()?;
+            if version > 0 {
+                r.skip_block()?; // DX9 geometry
+                r.block(|r, _| {
                     r.i32()?;
-                }
-                Ok(())
-            })?;
+                    for part in &mut parts {
+                        geometry(r, part)?;
+                    }
+                    Ok(())
+                })?;
+            }
             Ok(GraphicsMesh {
                 source,
                 parts,

@@ -38,11 +38,10 @@ pub use bridge::BridgeSpec;
 
 use crate::models::{placement_matrix, GroupInstances, GroupMaterial, ModelInstance, SceneModels};
 
-/// `Profession.rsc:resource` (laborer `+0x30`, builder `+0x38`) and `:professionList`.
+/// `Profession.rsc:resource` (laborer `+0x30`, builder `+0x38`) and the loaded professions
+/// (`crate::mods::profession_list`).
 fn professions(archive: &Archive) -> Professions {
-    let list = read(archive, "Game/Profession/Profession.rsc:professionList")
-        .and_then(|d| banished_formats::game::external_list(&d).ok())
-        .unwrap_or_default();
+    let list = crate::mods::profession_list(archive);
     let list: Vec<Profession> = list
         .iter()
         .map(|r| {
@@ -1207,15 +1206,12 @@ impl StartingTown {
                 health_max: c.f(0x70),
                 hunger_limit: c.f(0xd0),
                 cold_limit: c.f(0xf0),
-                profession_allows_idle: read(
-                    archive,
-                    "Game/Profession/Profession.rsc:professionList",
-                )
-                .and_then(|d| banished_formats::game::external_list(&d).ok())
-                .and_then(|l| l.first().cloned())
-                .and_then(|r| read(archive, &r))
-                .and_then(|d| banished_formats::game::profession(&d).ok())
-                .is_some_and(|p| p.flag_4c),
+                profession_allows_idle: crate::mods::profession_list(archive)
+                    .first()
+                    .cloned()
+                    .and_then(|r| read(archive, &r))
+                    .and_then(|d| banished_formats::game::profession(&d).ok())
+                    .is_some_and(|p| p.flag_4c),
             })
             .unwrap_or_default();
         let carried = read(archive, &citizen_ref.replace(":resource", ":storage"))
@@ -2722,17 +2718,13 @@ impl StartingTown {
         Some(template)
     }
 
-    /// Every template with a ValueDescription, in `Game/GameResources.rsc`'s order (inferred
-    /// for the original's factory order, `FUN_140059fd0`), its raw material registered.
+    /// Every loaded template with a ValueDescription (`crate::mods::templates`, `FUN_140059fd0`),
+    /// its raw material registered.
     pub(in crate::start) fn load_trade_goods(&mut self, archive: &Archive) {
         if !self.construction.trade_goods.is_empty() {
             return;
         }
-        let Some(list) = read(archive, "Game/GameResources.rsc:resource")
-            .and_then(|d| banished_formats::game::external_list(&d).ok())
-        else {
-            return;
-        };
+        let list = crate::mods::templates(archive);
         for r in &list {
             let r = normalise(r);
             if !r.starts_with("Template") || !r.ends_with(":resource") {

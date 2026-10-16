@@ -16,7 +16,7 @@ Deviation: 39, Not ported: 6, Not traced: 6.
 
 ## `apps/game/src/building_ui.rs`
 
-- [Not traced] [apps/game/src/building_ui.rs:1610](../apps/game/src/building_ui.rs#L1610): Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
+- [Not traced] [apps/game/src/building_ui.rs:1606](../apps/game/src/building_ui.rs#L1606): Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
 
 ## `apps/game/src/gameplay.rs`
 
@@ -25,8 +25,8 @@ Deviation: 39, Not ported: 6, Not traced: 6.
 
 ## `apps/game/src/main.rs`
 
-- [Deviation] [apps/game/src/main.rs:115](../apps/game/src/main.rs#L115): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
-- [Deviation] [apps/game/src/main.rs:760](../apps/game/src/main.rs#L760): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
+- [Deviation] [apps/game/src/main.rs:127](../apps/game/src/main.rs#L127): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
+- [Deviation] [apps/game/src/main.rs:875](../apps/game/src/main.rs#L875): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
 
 ## `apps/game/src/options.rs`
 
@@ -43,7 +43,7 @@ Deviation: 39, Not ported: 6, Not traced: 6.
 
 ## `apps/game/src/render.rs`
 
-- [Not traced] [apps/game/src/render.rs:1184](../apps/game/src/render.rs#L1184): MapUI's images. `FUN_1400aa610` renders the terrain and water geometries once, on the first game draw: an orthographic camera over the map (±size/2, near 0, far 512) at height 100 looking straight down (pitch -90), fog pushed to 1000–1001, into a size×size image. `Context::SetUserPosition((0, 0, 1, 0))` sets `pc_userPosition`: no snow, no autumn colour, full leaf loss, no rain. Its scene has no light, so the context keeps the lights an earlier draw set (it runs before the frame's `Renderer::Draw` and `Context::Reset` zeroes them, so not traced); the port lights it from directly above with the scene's colours (inferred: the reference's flat, light terrain). The overlay (`FUN_1400aa5b0`) is uploaded when it changes.
+- [Not traced] [apps/game/src/render.rs:1189](../apps/game/src/render.rs#L1189): MapUI's images. `FUN_1400aa610` renders the terrain and water geometries once, on the first game draw: an orthographic camera over the map (±size/2, near 0, far 512) at height 100 looking straight down (pitch -90), fog pushed to 1000–1001, into a size×size image. `Context::SetUserPosition((0, 0, 1, 0))` sets `pc_userPosition`: no snow, no autumn colour, full leaf loss, no rain. Its scene has no light, so the context keeps the lights an earlier draw set (it runs before the frame's `Renderer::Draw` and `Context::Reset` zeroes them, so not traced); the port lights it from directly above with the scene's colours (inferred: the reference's flat, light terrain). The overlay (`FUN_1400aa5b0`) is uploaded when it changes.
 
 ## `apps/game/src/save_dialog.rs`
 

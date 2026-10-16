@@ -676,11 +676,12 @@ impl GameplayLoop {
         &mut self,
         ui: &mut Ui,
         archive: &banished_formats::pkg::Archive,
+        registry: &banished_formats::registry::Registry,
         keymap: &crate::keymap::KeyMap,
         #[cfg_attr(target_arch = "wasm32", allow(unused_variables))] autosave_interval: i32,
     ) {
         let mut screen = Screen::new(ui);
-        let mut toolbar = Toolbar::load(archive);
+        let mut toolbar = Toolbar::load(archive, registry);
         toolbar.install(ui, &mut screen, keymap);
         self.toolbar = Some(toolbar);
         self.notify = crate::event_notify::EventNotify::open(ui, &mut screen, &self.events);
@@ -2146,6 +2147,7 @@ impl GameLoop for GameplayLoop {
         self.build_hud(
             ctx.ui,
             ctx.archive,
+            ctx.registry,
             &ctx.settings.keymap,
             ctx.settings.game.autosave_interval,
         );

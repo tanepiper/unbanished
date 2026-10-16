@@ -129,11 +129,7 @@ impl TownHallUi {
         let f = |ui: &Ui, n: &str| ui.find(element, n);
         let param = |ui: &Ui, n: &str| f(ui, n).map(|id| (id, text_of(ui, id)));
         // Professions: a row per profession.
-        let list = archive
-            .read_ref("Game/Profession/Profession.rsc:professionList")
-            .ok()
-            .and_then(|d| banished_formats::game::external_list(&d).ok())
-            .unwrap_or_default();
+        let list = crate::mods::profession_list(archive);
         let mut professions = Vec::new();
         if let Some(table) = f(ui, "tableProfessions") {
             let rows = fill_table(ui, table, list.len());
@@ -194,11 +190,7 @@ impl TownHallUi {
         }
         // Inventory: a cell per raw material.
         let mut inventory = Vec::new();
-        let materials = archive
-            .names()
-            .into_iter()
-            .filter(|n| n.ends_with("_rawmaterial.crs"))
-            .count();
+        let materials = crate::mods::raw_material_count(archive);
         if let Some(table) = f(ui, "inventoryTable") {
             for cell in fill_table(ui, table, materials) {
                 inventory.push((ui.find(cell, "storageItem"), ui.find(cell, "storageCount")));

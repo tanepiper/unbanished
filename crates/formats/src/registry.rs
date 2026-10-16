@@ -73,10 +73,10 @@ fn is_reference(s: &str) -> bool {
 }
 
 /// The loaded resources: each `Path\File.rsc:object` (keyed lower-case path, original object)
-/// with its type id.
+/// with its type id and the reference as first written.
 #[derive(Debug, Default, Clone)]
 pub struct Registry {
-    pub loaded: BTreeMap<String, u32>,
+    pub loaded: BTreeMap<String, (u32, String)>,
 }
 
 impl Registry {
@@ -96,7 +96,12 @@ impl Registry {
             let Ok(header) = crate::crs::header(&data) else {
                 continue;
             };
-            loaded.insert(k, header.type_id);
+            let written = if r.contains(':') {
+                r.replace('/', "\\")
+            } else {
+                format!("{}:resource", r.replace('/', "\\"))
+            };
+            loaded.insert(k, (header.type_id, written));
             for child in references(&data).into_iter().rev() {
                 stack.push(child);
             }
@@ -107,9 +112,9 @@ impl Registry {
     /// `ExternalFactory::FindNext` over one type: the references of that type, sorted.
     pub fn of_type(&self, type_id: u32) -> Vec<&str> {
         self.loaded
-            .iter()
-            .filter(|(_, &t)| t == type_id)
-            .map(|(k, _)| k.as_str())
+            .values()
+            .filter(|(t, _)| *t == type_id)
+            .map(|(_, r)| r.as_str())
             .collect()
     }
 

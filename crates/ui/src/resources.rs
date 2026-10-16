@@ -46,7 +46,7 @@ pub struct Resources {
     pub sheets: Vec<LoadedSheet>,
     font_ids: HashMap<String, Option<FontId>>,
     pub fonts: Vec<LoadedFont>,
-    tables: HashMap<String, Rc<HashMap<String, String>>>,
+    tables: HashMap<String, Rc<Option<HashMap<String, String>>>>,
     /// The same tables in serialized order, for index lookups.
     ordered: HashMap<String, Rc<Vec<(String, String)>>>,
 }
@@ -217,17 +217,22 @@ impl Resources {
         let map = match self.tables.get(table) {
             Some(m) => m.clone(),
             None => {
-                let m: HashMap<String, String> = self
+                let m: Option<HashMap<String, String>> = self
                     .archive
                     .read_ref(table)
                     .and_then(|d| ui::string_table(&d))
                     .map(|v| v.into_iter().collect())
-                    .unwrap_or_default();
+                    .ok();
                 let m = Rc::new(m);
                 self.tables.insert(table.to_string(), m.clone());
                 m
             }
         };
-        map.get(key).cloned().unwrap_or_else(|| key.to_string())
+        // `StringTable::GetText(name)`: a name the table lacks is an empty string
+        // (`GetIndexFromName` −1); without a table (none loaded) the name is the text.
+        match map.as_ref() {
+            Some(m) => m.get(key).cloned().unwrap_or_default(),
+            None => key.to_string(),
+        }
     }
 }

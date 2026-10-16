@@ -230,6 +230,13 @@ impl UiRenderer {
         self.textures.insert(Texture::External(id), group);
     }
 
+    /// Forget the sprite sheets' textures (the UI's resources were made again, so its sheet
+    /// numbers name other sheets now).
+    pub fn clear_sheets(&mut self) {
+        self.textures.retain(|t, _| !matches!(t, Texture::Sheet(_)));
+        self.logo_sheets.clear();
+    }
+
     /// Upload any sprite-sheet images the UI references that are not on the GPU yet.
     fn ensure_sheets(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, ui: &Ui) {
         for (i, sheet) in ui.res.sheets.iter().enumerate() {

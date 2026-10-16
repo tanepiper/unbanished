@@ -934,11 +934,7 @@ impl StorageUi {
             _ => return None,
         };
         let reference = template.map(|t| ui.node(t).reference.clone())?;
-        let materials = archive
-            .names()
-            .into_iter()
-            .filter(|n| n.ends_with("_rawmaterial.crs"))
-            .count();
+        let materials = crate::mods::raw_material_count(archive);
         let rows = materials.div_ceil(columns).max(min_rows);
         if let Kind::Control(Control::Table { cells, rows: r, .. }) = &mut ui.node_mut(table).kind {
             cells.clear();

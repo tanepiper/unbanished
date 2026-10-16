@@ -271,6 +271,21 @@ impl Archive {
         self.packages.push(pkg);
     }
 
+    /// How many packages are loaded (the game's first, then the mods).
+    pub fn package_count(&self) -> usize {
+        self.packages.len()
+    }
+
+    /// Drop every package after the first `keep` (the mods), as `FileSystem::ClosePackages`
+    /// before the packages load again.
+    pub fn remove_after(&mut self, keep: usize) {
+        let packages: Vec<Package> = std::mem::take(&mut self.packages);
+        self.index.clear();
+        for p in packages.into_iter().take(keep) {
+            self.add(p);
+        }
+    }
+
     /// The package holding `name`'s current entry (its header names the mod).
     pub fn package_of(&self, name: &str) -> Option<&Package> {
         self.index

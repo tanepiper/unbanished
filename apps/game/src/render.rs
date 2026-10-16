@@ -1031,6 +1031,11 @@ impl Renderer {
         );
     }
 
+    /// The UI's resources were made again (mods reloaded): its sheets upload afresh.
+    pub fn reset_ui_sheets(&mut self) {
+        self.ui.clear_sheets();
+    }
+
     /// Seconds since the current loop started (animated UI materials).
     pub fn set_ui_time(&mut self, seconds: f32) {
         self.ui.set_time(seconds);

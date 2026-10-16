@@ -30,6 +30,7 @@ mod loops;
 mod map_params;
 mod menu;
 mod models;
+mod mods;
 mod music;
 mod options;
 mod particle_gfx;
@@ -98,6 +99,17 @@ const CLEAR: wgpu::Color = wgpu::Color {
 /// The running game: shared resources plus the loop chain.
 pub struct Game {
     archive: Rc<Archive>,
+    /// The game's own packages, before the mods (`Archive::remove_after`).
+    base_packages: usize,
+    /// The resources loaded at startup (`formats::registry`).
+    registry: Rc<banished_formats::registry::Registry>,
+    /// The mods (`IO::Modification`) and the folder they were found in.
+    mods: mods::Modification,
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    pack_dir: Option<std::path::PathBuf>,
+    /// A reload was asked for, and the UI's sheets to upload again after one.
+    reload_mods: bool,
+    ui_reset: bool,
     ui: Ui,
     audio: sound::Audio,
     global: Option<global::GlobalData>,
@@ -121,6 +133,25 @@ pub struct Game {
     /// The software pointers (`FUN_1400a0e00`'s table, `Global +0x28`): Arrow, Hand,
     /// Hourglass, Move, Query and Place, each its sheet and hotspot once loaded.
     cursors: Vec<Option<(banished_ui::SpriteRef, [i32; 2])>>,
+}
+
+/// `SetupFileSystem` and `LoadResources`: the enabled mods join the packages (from the last
+/// in the list to the first), then the game's resources and each mod's resource list load.
+fn load_mods(
+    archive: &mut Archive,
+    mods: &mods::Modification,
+) -> banished_formats::registry::Registry {
+    for m in mods.load_order() {
+        match Package::parse(m.bytes.as_ref().clone()) {
+            Ok(p) => {
+                log::info!("mod {} ({}.pkm): {} files", m.name, m.file, p.entries.len());
+                archive.add_mod(p);
+            }
+            Err(e) => log::warn!("{}.pkm: {e}", m.file),
+        }
+    }
+    let roots = banished_formats::registry::roots(&mods.enabled_files());
+    banished_formats::registry::Registry::build(archive, &roots)
 }
 
 /// `Cursor/{name}.rsc:cursor`, in cursor index order.
@@ -150,6 +181,24 @@ fn boot_chain() -> MainLoop {
     )))
 }
 
+/// After a mod reload: the game's resources again ("Game/Global"), the loading screen, then
+/// `next` (`FUN_1400b9c60` from the menu, `FUN_1400b9ec0` in a game).
+fn reload_chain(next: Box<dyn loops::GameLoop>) -> MainLoop {
+    let loading = Box::new(DialogLoaderLoop::new(
+        "Dialog/Loading.rsc:resource".into(),
+        0.5,
+        next,
+    ));
+    MainLoop::new(Box::new(LoaderLoop::new(
+        "Game/Global",
+        |ctx: &mut Ctx| match global::GlobalData::load(ctx.archive) {
+            Ok(g) => *ctx.global = Some(g),
+            Err(e) => log::error!("global game data: {e}"),
+        },
+        loading,
+    )))
+}
+
 fn clock_seed() -> u32 {
     // Scripted capture override: fix the separate engine/menu stream (town names, menu scene)
     // as well as the world seed. Normal System::Random() still seeds from the clock.
@@ -172,6 +221,17 @@ impl Game {
         packages: Vec<(String, Vec<u8>)>,
         settings: settings::Settings,
     ) -> Result<Game, String> {
+        Self::with_mods(packages, Vec::new(), None, settings)
+    }
+
+    /// The game with the mods found (`(file without .pkm, bytes)`) in `pack_dir`: the
+    /// enabled ones are loaded (`Modification::RefreshList`, `SetupFileSystem`).
+    pub fn with_mods(
+        packages: Vec<(String, Vec<u8>)>,
+        found: Vec<(String, Vec<u8>)>,
+        pack_dir: Option<std::path::PathBuf>,
+        settings: settings::Settings,
+    ) -> Result<Game, String> {
         let mut archive = Archive::default();
         for (name, bytes) in packages {
             archive.add(Package::parse(bytes).map_err(|e| format!("{name}: {e}"))?);
@@ -179,8 +239,18 @@ impl Game {
         if archive.is_empty() {
             return Err("no packages".into());
         }
+        let base_packages = archive.package_count();
+        let mods = mods::Modification::refresh(found, &settings.persistence);
+        let registry = Rc::new(load_mods(&mut archive, &mods));
+        mods::set_registry(registry.clone());
         let archive = Rc::new(archive);
         Ok(Game {
+            base_packages,
+            registry,
+            mods,
+            pack_dir,
+            reload_mods: false,
+            ui_reset: false,
             ui: Ui::new(archive.clone()),
             archive,
             audio: sound::Audio::default(),
@@ -292,12 +362,18 @@ impl Game {
             rng: &mut self.rng,
             app_paused: self.app_paused,
             settings: &mut self.settings,
+            registry: &self.registry,
+            mods: &mut self.mods,
+            reload_mods: &mut self.reload_mods,
         };
         f(&mut self.main, &mut ctx)
     }
 
     pub fn update(&mut self, dt: f32) {
         self.with_ctx(|main, ctx| main.update(ctx, dt));
+        if std::mem::take(&mut self.reload_mods) {
+            self.reload(Box::new(menu::MenuLoop::new()));
+        }
         // The Options dialog changes the volumes while its sliders move.
         self.apply_settings();
     }
@@ -477,7 +553,46 @@ impl Game {
     }
 
     /// Lay out the current loop's UI and build the frame.
+    /// `FUN_140072110`'s reload: the mods as the list has them now. `SaveList`, then the
+    /// packages close and load again (`SetupFileSystem`), the game's resources reload
+    /// (`Game/Global`) and `next` starts behind the loading screen.
+    fn reload(&mut self, next: Box<dyn loops::GameLoop>) {
+        self.mods.save_list(&mut self.settings.persistence);
+        self.settings.save();
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(dir) = &self.pack_dir {
+            self.mods = mods::Modification::refresh(mods::find(dir), &self.settings.persistence);
+        }
+        // Everything holding the packages lets go of them first.
+        self.main = MainLoop::new(Box::new(menu::MenuLoop::new()));
+        self.global = None;
+        let empty = Rc::new(Archive::default());
+        self.ui = Ui::new(empty.clone());
+        let held = std::mem::replace(&mut self.archive, empty);
+        let mut archive = match Rc::try_unwrap(held) {
+            Ok(a) => a,
+            Err(shared) => {
+                log::error!("the packages are still in use; the mods are not reloaded");
+                self.archive = shared;
+                self.ui = Ui::new(self.archive.clone());
+                return;
+            }
+        };
+        archive.remove_after(self.base_packages);
+        self.registry = Rc::new(load_mods(&mut archive, &self.mods));
+        mods::set_registry(self.registry.clone());
+        self.archive = Rc::new(archive);
+        self.ui = Ui::new(self.archive.clone());
+        self.cursors.clear();
+        self.ui_reset = true;
+        self.main = reload_chain(next);
+        log::info!("reloaded with {} mods", self.mods.enabled_files().len());
+    }
+
     pub fn draw(&mut self, renderer: &mut Renderer, capture: bool) -> Option<Vec<u8>> {
+        if std::mem::take(&mut self.ui_reset) {
+            renderer.reset_ui_sheets();
+        }
         let size = renderer.size();
         let logical = self.logical(size);
         if let Some(screen) = self.main.current().screen() {
@@ -645,6 +760,8 @@ struct App {
     window: Option<Arc<Window>>,
     renderer: Option<Renderer>,
     pending_packages: Option<Vec<(String, Vec<u8>)>>,
+    /// The mods found beside them (`*.pkm`) and that folder.
+    pending_mods: Option<(Vec<(String, Vec<u8>)>, Option<std::path::PathBuf>)>,
     game: Option<Game>,
     last_frame: Option<Instant>,
     cursor: (f64, f64),
@@ -663,6 +780,7 @@ impl App {
             window: None,
             renderer: None,
             pending_packages: None,
+            pending_mods: None,
             game: None,
             last_frame: None,
             cursor: (0.0, 0.0),
@@ -809,7 +927,8 @@ impl App {
             .settings
             .take()
             .unwrap_or_else(settings::Settings::load);
-        match Game::with_settings(packages, settings) {
+        let (found, pack_dir) = self.pending_mods.take().unwrap_or_default();
+        match Game::with_mods(packages, found, pack_dir, settings) {
             Ok(mut game) => {
                 if let Some(w) = &self.window {
                     game.set_os_scale(w.scale_factor() as f32);
@@ -1094,8 +1213,11 @@ mod native {
             settings.game = crate::settings::GameOptions::load(p);
             settings.keymap = crate::keymap::KeyMap::load(p);
         }
-        let mut game =
-            Game::with_settings(read_packages(&data_dir(args)), settings).expect("game data");
+        let mut game = {
+            let dir = data_dir(args);
+            let found = crate::mods::find(&dir);
+            Game::with_mods(read_packages(&dir), found, Some(dir), settings).expect("game data")
+        };
         game.audio.set_master_volume(0.0);
         // `--capture-size WxH` matches a reference frame's resolution (default 1280x800).
         let size = args
@@ -1338,6 +1460,8 @@ fn main() {
         .expect("event loop");
     let mut app = App::new(event_loop.create_proxy());
     app.pending_packages = Some(packages);
+    let dir = native::data_dir(&args);
+    app.pending_mods = Some((mods::find(&dir), Some(dir)));
     event_loop.run_app(&mut app).expect("run app");
 }
 

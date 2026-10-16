@@ -492,11 +492,7 @@ impl ProfessionUi {
     const ROW: &'static str = r"Dialog\Profession.rsc:professionRow";
 
     fn bind(ui: &mut Ui, root: NodeId, archive: &Archive) -> ProfessionUi {
-        let list = archive
-            .read_ref("Game/Profession/Profession.rsc:professionList")
-            .ok()
-            .and_then(|d| external_list(&d).ok())
-            .unwrap_or_default();
+        let list = crate::mods::profession_list(archive);
         let mut spinners = Vec::new();
         let mut available = Vec::new();
         let mut gotos = Vec::new();
