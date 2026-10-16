@@ -680,8 +680,7 @@ impl GameplayLoop {
             town.construction.jobs.step(ticks(dt));
             let (month, year) = (self.month(), self.calendar.year as i32);
             for kind in self.stock_warnings.check(ticks(dt)) {
-                // Not ported: the AutoSlow option (default on) slows the game; nothing reads
-                // `slow_request` yet.
+                // AutoSlow is applied once the frame's events are in (`slow_request`).
                 self.events
                     .add(kind, 3, -1, month, year, Default::default(), true);
             }
@@ -1178,6 +1177,12 @@ impl GameLoop for GameplayLoop {
         }
         self.log_life_events(ctx);
         self.log_site_events(ctx);
+        // AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage
+        // (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets
+        // the game speed (`Game +0x120 → +0x34`) back to 1.
+        if std::mem::take(&mut self.events.slow_request) && ctx.settings.game.auto_slow {
+            self.speed = 0;
+        }
         self.move_cooldown -= dt;
         self.update_audio(ctx, dt);
         let month = self.month();

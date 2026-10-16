@@ -90,7 +90,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Town Info, Production/Population graphs | no |
 | Achievements, tutorial, scenarios | no |
 | Weather precipitation, smoke particles, decals, fire particles | no |
-| Disasters (fire, tornado, disease) and AutoSlow | fire, blight and tornadoes (with the Disasters option); AutoSlow no |
+| Disasters (fire, tornado, disease) and AutoSlow | yes (fire, blight and tornadoes with the Disasters option; AutoSlow from their events) |
 
 ## Plan
 

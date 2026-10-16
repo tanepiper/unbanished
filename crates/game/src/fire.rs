@@ -224,7 +224,8 @@ impl Sim<'_, '_> {
     /// `FireComponent::Ignite` (`FUN_140049f70`): a building neither damaged nor being torn
     /// down is damaged for half the burn; it burns, gets its FireWork (prioritised), marks
     /// the emergency around it and, as the first fire, posts event 31.
-    /// Not ported: the particles, the fire sound, AutoSlow (settings `+0x17`).
+    /// Not ported: the particles, the fire sound. (AutoSlow, settings `+0x17`, comes from the
+    /// event: `EventLog::add`.)
     pub fn ignite(&mut self, jobs: &mut Jobs, e: usize) {
         if self.is_damaged(e) || self.is_demolishing(e) {
             return;

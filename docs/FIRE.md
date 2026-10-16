@@ -119,5 +119,6 @@ same bits (`FUN_140060620`).
 
 ## Not ported
 
-The fire particles and sound, the damaged model material and decal, AutoSlow, the event's
-formatted text beyond the toolbar name, and the tornado (the other caller of the damage).
+The fire particles and sound, the damaged model material and decal, and the event's formatted
+text beyond the toolbar name. (The tornado, the other caller of the damage, is in
+[TORNADO.md](TORNADO.md); AutoSlow comes from the event.)

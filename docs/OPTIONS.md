@@ -71,7 +71,8 @@ not bind.
 | AutoPause | Losing focus opens the pause menu only when set |
 | EdgeScroll | Edge scrolling within 4/5 UI pixels of the edges (see [KEYMAP-AND-CAMERA-CONTROLS.md](KEYMAP-AND-CAMERA-CONTROLS.md)) |
 | ShowWeather | Off: the precipitation ambience is silenced, as the original removes the effects (`FUN_1400999b0`). The weather lighting blend (`FUN_140098f90`) and precipitation particles are not ported, so there is nothing else to switch |
-| AutosaveInterval, AutoSlow | Stored only: saving and disasters are not ported |
+| AutoSlow | A fire, blight, tornado or shortage event (types 11, 12, 30, 31) sets the speed back to 1× (`Game +0x120 → +0x34`) |
+| AutosaveInterval | Stored only: saving is not ported |
 | Interface, Adapter | The wgpu backends that have adapters for the window (Vulkan, Metal, DirectX 12, OpenGL, WebGPU) and their adapters; a change rebuilds the renderer |
 | Width, Height, RefreshN/D, Fullscreen | Native: exclusive fullscreen when a monitor mode matches, otherwise borderless; windowed size from WindowWidth/WindowHeight. The browser lists only the canvas size and ignores Fullscreen |
 | VSync | Surface present mode `AutoVsync` / `AutoNoVsync` |
