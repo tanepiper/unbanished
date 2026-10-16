@@ -809,6 +809,23 @@ fn citizen_animations(
         .collect()
 }
 
+/// Each citizen variant's mesh nodes and the index of its `tool` node.
+fn citizen_tool_nodes(
+    archive: &Archive,
+    model: &banished_formats::game::ModelDescription,
+) -> Vec<Option<(Vec<banished_formats::types::Bone>, usize)>> {
+    model
+        .variants
+        .iter()
+        .map(|v| {
+            let mesh = v.meshes.first().cloned().flatten()?;
+            let m = banished_formats::types::graphics_mesh(&read(archive, &mesh)?).ok()?;
+            let tool = m.bones.iter().position(|b| b.name == "tool")?;
+            Some((m.bones, tool))
+        })
+        .collect()
+}
+
 /// `FUN_140002080`: the start cell's centre on the ground.
 fn grid_start(map_size: usize, terrain: &HeightGrid, start: (i32, i32)) -> [f32; 3] {
     let n = map_size as i32;
@@ -894,6 +911,13 @@ pub struct StartingTown {
     pub(crate) citizen_model: Option<banished_formats::game::ModelDescription>,
     /// The nomad templates' NomadDescription materials (men, women).
     nomad_materials: HashMap<usize, [Option<String>; 2]>,
+    /// ShowTool's meshes: CitizenDescription `+0x138` (`FUN_14011c880`), and each citizen
+    /// mesh's nodes with its `tool` node (`GraphicsMesh::GetNodeIndexFromName`).
+    tool_meshes: Vec<Option<String>>,
+    citizen_bones: Vec<Option<(Vec<banished_formats::types::Bone>, usize)>>,
+    /// Carried goods' meshes and scales by raw material (its template's first mesh,
+    /// RawMaterialDescription `+0x50`), filled when the models are built.
+    carry_models: std::cell::RefCell<HashMap<usize, Option<(String, f32)>>>,
     /// Each variant's animation group (`Models\Citizen\CitizenAnims.rsc`).
     pub(crate) citizen_anims: Vec<Option<Arc<banished_formats::types::AnimationGroup>>>,
     /// The citizens' CharacterComponent and CitizenAIComponent (docs/CITIZEN-AI.md).
@@ -1173,6 +1197,15 @@ impl StartingTown {
                 .as_ref()
                 .map(|m| citizen_animations(archive, m))
                 .unwrap_or_default(),
+            tool_meshes: read(archive, &citizen_ref.replace(":resource", ":citizen"))
+                .and_then(|d| citizen_description(&d).ok())
+                .map(|c| c.list)
+                .unwrap_or_default(),
+            citizen_bones: citizen_model
+                .as_ref()
+                .map(|m| citizen_tool_nodes(archive, m))
+                .unwrap_or_default(),
+            carry_models: Default::default(),
             citizen_model,
             nomad_materials: HashMap::new(),
             agents,
@@ -2682,11 +2715,33 @@ impl StartingTown {
 
     /// Model instances of every placed entity, grouped by mesh.
     pub fn models(&self, archive: &Archive) -> SceneModels {
+        self.cache_carry_models(archive);
         SceneModels::from_instances(archive, self.model_instances())
+    }
+
+    /// `FUN_14011c880` with −2: what a citizen carries shows as its most-held raw material's
+    /// template's first mesh (variant 0), scaled by its RawMaterialDescription `+0x50`.
+    fn cache_carry_models(&self, archive: &Archive) {
+        let mut cache = self.carry_models.borrow_mut();
+        for s in &self.agents.states {
+            for item in &s.carried.items {
+                cache.entry(item.material).or_insert_with(|| {
+                    let r = &self.materials.get(item.material)?.reference;
+                    let model = read(archive, &r.replace(":resource", ":model"))
+                        .and_then(|d| banished_formats::game::model_description(&d).ok())?;
+                    let mesh = model.variants.first()?.meshes.first().cloned().flatten()?;
+                    let scale = read(archive, &r.replace(":resource", ":rawmaterial"))
+                        .and_then(|d| raw_material_description(&d).ok())
+                        .map_or(1.0, |d| d.value_50);
+                    Some((mesh, scale))
+                });
+            }
+        }
     }
 
     /// Keep mesh/texture resources cached while GrowthComponent changes only instance scales.
     pub fn refresh_models(&self, archive: &Archive, models: &mut SceneModels) {
+        self.cache_carry_models(archive);
         models.update_instances(archive, self.model_instances());
     }
 
@@ -2838,6 +2893,55 @@ impl StartingTown {
                         let p = &ch.animation;
                         g.clips.get(p.clip).map(|clip| p.pose(clip))
                     });
+                // ShowTool (`FUN_14011c880`): the tool's mesh, or the carried goods', on the
+                // citizen mesh's `tool` node (`Geometry::Attach`), at its scale.
+                let shown = self.agents.states.get(i).map_or(-1, |s| s.shown_tool);
+                let attached = match shown {
+                    -2 => self.agents.states[i]
+                        .carried
+                        .items
+                        .iter()
+                        .fold(None::<&banished_game::stock::Item>, |best, it| match best {
+                            Some(b) if it.count <= b.count => Some(b),
+                            _ => Some(it),
+                        })
+                        .and_then(|it| self.carry_models.borrow().get(&it.material).cloned())
+                        .flatten(),
+                    n if (0..=10).contains(&n) => self
+                        .tool_meshes
+                        .get(n as usize)
+                        .cloned()
+                        .flatten()
+                        .map(|m| (m, 1.0)),
+                    _ => None,
+                };
+                if let (Some((tool, scale)), Some(Some((bones, node)))) =
+                    (attached, self.citizen_bones.get(variant))
+                {
+                    let mut pose: Vec<banished_formats::skeleton::Transform> = match &locals {
+                        Some(l) if l.len() == bones.len() => l.clone(),
+                        _ => bones
+                            .iter()
+                            .map(banished_formats::skeleton::local_bind)
+                            .collect(),
+                    };
+                    if let Some(root) = pose.first_mut() {
+                        *root = banished_formats::skeleton::Transform::IDENTITY;
+                    }
+                    let world = banished_formats::skeleton::world_transforms(bones, &pose);
+                    let mut placed = matrix;
+                    placed[15] = 1.0;
+                    let m = glam::Mat4::from_cols_array(&placed)
+                        * glam::Mat4::from_cols_array(&world[*node].to_matrix())
+                        * glam::Mat4::from_scale(glam::Vec3::splat(scale));
+                    groups
+                        .entry((tool, GroupMaterial::default()))
+                        .or_default()
+                        .push(ModelInstance {
+                            matrix: m.to_cols_array(),
+                            locals: None,
+                        });
+                }
                 groups
                     .entry((mesh.clone(), GroupMaterial::default()))
                     .or_default()
@@ -2934,6 +3038,78 @@ mod storage_fetch_tests {
     use super::*;
     use banished_formats::pkg::Package;
     use banished_game::{ai::activity, stock::stock_table};
+
+    /// ShowTool (`FUN_14011c880`): a citizen's tool is drawn on its mesh's `tool` node, carried
+    /// goods as their pile model; nothing with −1.
+    #[test]
+    fn shown_tools_hang_on_the_tool_node() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        assert_eq!(town.tool_meshes.len(), 11);
+        assert!(town.citizen_bones.iter().all(Option::is_some));
+        let tools = |town: &StartingTown, name: &str| -> Vec<[f32; 16]> {
+            town.model_instances()
+                .into_iter()
+                .filter(|(m, ..)| m.contains(name))
+                .flat_map(|(_, _, i, _)| i.into_iter().map(|i| i.matrix))
+                .collect()
+        };
+        assert!(tools(&town, "ToolAxe").is_empty());
+        town.agents.states[0].shown_tool = 0;
+        let axes = tools(&town, "ToolAxe");
+        assert_eq!(axes.len(), 1);
+        let at = town.citizens[0].position;
+        let d = (axes[0][12] - at[0]).hypot(axes[0][13] - at[1]);
+        assert!(
+            d < 1.0 && 0.2 < axes[0][14] - at[2],
+            "{:?} vs {at:?}",
+            &axes[0][12..15]
+        );
+        // Carried logs: the log pile's mesh.
+        let log = town
+            .materials
+            .iter()
+            .position(|m| m.reference.contains("Wood"))
+            .unwrap();
+        town.agents.states[0].carried.add(log, 3);
+        town.agents.states[0].shown_tool = -2;
+        town.cache_carry_models(&archive);
+        let carried: Vec<String> = town
+            .model_instances()
+            .into_iter()
+            .map(|(m, ..)| m)
+            .filter(|m| m.contains("RawMaterial") || m.contains("Wood") || m.contains("Log"))
+            .collect();
+        assert!(!carried.is_empty(), "nothing carried");
+    }
 
     #[test]
     fn new_citizens_equip_from_registered_storage_then_loiter() {

@@ -562,8 +562,9 @@ pub enum Action {
         items: Vec<(usize, i32)>,
         partial: bool,
     },
-    /// `ShowTool` (vtable `0x14015ead0`, start `FUN_140043070`): attach tool mesh `n`.
-    /// Not ported: drawing the tool on the citizen's `tool` node.
+    /// `ShowTool` (vtable `0x14015ead0`, start `FUN_140043070`): attach tool mesh `n` (0..10),
+    /// the carried goods (−2), or nothing (−1). The town draws it on the citizen's `tool` node
+    /// (`FUN_14011c880`, `StartingTown::model_instances`).
     ShowTool(i32),
     /// `CompleteTask` (vtable `0x140165fe0`, constructor `FUN_1400cb270`): tell the job manager
     /// the task is done (start `FUN_1400cb010`) or abandoned (abort `FUN_1400caf90`).

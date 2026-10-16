@@ -71,6 +71,17 @@ Actions are registered serializable types (base `Action`, vtable `0x140165eb0`):
 `CompleteTask`, `CompleteRoad`, `CreateNaturalResource`, `RemoveNaturalResource`,
 `AnimateNaturalResource`, `HuntAnimal`, `RemoveAnimal`, `ShowTool`.
 
+**ShowTool** (start `FUN_140043070`). `n` above 10 except −2 detaches the tool
+(`FUN_14011cbb0`); otherwise `FUN_14011c880` sets the citizen's tool mesh and attaches it to its
+mesh's `tool` node (`Geometry::Attach`, a child of `rightHand`):
+- `0..10`: CitizenDescription `+0x138` (axe, pick axe, scythe, hoe, hammer, fishing rod,
+  hammer, hand saw, bucket, empty and full barrow), at scale 1;
+- `−2`: what it carries. That is the item with the most units, shown as its template's
+  variant 0 mesh 0 at RawMaterialDescription `+0x50`.
+
+Nothing shows on an entity with flag bit 10. The port draws these as rigid groups placed by the
+node's animated world transform (`StartingTown::model_instances`).
+
 Slots: `+0x18` serialize, `+0x20` start, `+0x28` update(dt), `+0x30` notify(dt), `+0x38` stop,
 `+0x40` abort. Results: 0 done, 1 running, 2 failed. The base update returns 0.
 
