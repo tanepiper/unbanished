@@ -14,12 +14,18 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone, Default)]
 pub struct Persistence {
     values: BTreeMap<String, String>,
+    /// Read from the store, so writes go back to it; a store made in memory (captures, tests)
+    /// is never written.
+    stored: bool,
 }
 
 impl Persistence {
     /// `ReadSettings`: everything stored, or nothing on first run.
     pub fn read() -> Persistence {
-        let mut p = Persistence::default();
+        let mut p = Persistence {
+            stored: true,
+            ..Persistence::default()
+        };
         if let Some(text) = storage::read() {
             p.parse(&text);
         }
@@ -28,7 +34,9 @@ impl Persistence {
 
     /// `WriteSettings`.
     pub fn write(&self) {
-        storage::write(&self.serialize());
+        if self.stored {
+            storage::write(&self.serialize());
+        }
     }
 
     pub fn parse(&mut self, text: &str) {

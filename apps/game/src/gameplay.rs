@@ -147,6 +147,8 @@ pub struct GameplayLoop {
     autosave: Option<crate::autosave::AutoSave>,
     /// The Save and Load dialog over the pause menu.
     save_dialog: Option<crate::save_dialog::SaveLoadDialog>,
+    /// The Mods dialog over the pause menu (id 7).
+    mods_dialog: Option<crate::mod_ui::ModDialog>,
     /// Map ambience (`FUN_1400a57c0`): environment regions and wind.
     ambience: Option<crate::ambience::Ambience>,
     /// The map changed since the ambience last weighed it.
@@ -365,9 +367,8 @@ impl GameplayLoop {
         Some(g)
     }
 
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     /// The whole `.sav` file of [`GameplayLoop::save_state`]. Its metadata (`SaveMetaData`,
-    /// Runtime `0x1800c3d00`) names it after the town, as the Save dialog does (the string at
+    /// Runtime `0x1800c3d00`) records the enabled mods and names it after the town, as the Save dialog does (the string at
     /// `+0x28` of the object it is given; the town's name in every sample, inferred). It
     /// carries `preview` (see [`crate::saved::preview`]) and keeps the loaded save's other
     /// values. `name` replaces the town's (the autosave's `Autosave` string).
@@ -375,6 +376,7 @@ impl GameplayLoop {
         &self,
         archive: &banished_formats::pkg::Archive,
         ui: &mut banished_ui::Ui,
+        mods: &crate::mods::Modification,
         name: Option<&str>,
         preview: Option<Vec<u8>>,
     ) -> Option<Vec<u8>> {
@@ -394,6 +396,7 @@ impl GameplayLoop {
             },
         };
         metadata.name = name.unwrap_or(&self.params.town_name).to_string();
+        metadata.mods = mods.saved();
         if let Some(image) = preview {
             let (w, h) = crate::saved::PREVIEW_SIZE;
             metadata.width = w as i32;
@@ -409,7 +412,9 @@ impl GameplayLoop {
         else {
             return;
         };
-        let Some(bytes) = self.save_file(ctx.archive, ctx.ui, name.as_deref(), Some(image)) else {
+        let Some(bytes) =
+            self.save_file(ctx.archive, ctx.ui, ctx.mods, name.as_deref(), Some(image))
+        else {
             log::error!("save: the game state could not be written");
             return;
         };
@@ -658,6 +663,7 @@ impl GameplayLoop {
             pending_save: None,
             autosave: None,
             save_dialog: None,
+            mods_dialog: None,
             ambience: None,
             ambience_stale: false,
             pause_menu: None,
@@ -2385,9 +2391,28 @@ impl GameLoop for GameplayLoop {
     }
 
     fn event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
+        if let (Some(d), Some(screen)) = (self.mods_dialog.as_mut(), self.screen.as_mut()) {
+            if let Event::Clicked(id) | Event::Changed(id) = event {
+                use crate::mod_ui::Outcome;
+                match d.click(ctx.ui, screen, ctx.mods, &ctx.settings.persistence, id) {
+                    Outcome::Stay => {}
+                    Outcome::Closed => self.mods_dialog = None,
+                    Outcome::Reload => {
+                        // `FUN_140072110` over a game: saved to memory, then loaded again.
+                        self.mods_dialog = None;
+                        let saved = self.save_file(ctx.archive, ctx.ui, ctx.mods, None, None);
+                        *ctx.reload_mods = Some(match saved {
+                            Some(bytes) => crate::mods::Reload::Game(bytes),
+                            None => crate::mods::Reload::Menu,
+                        });
+                    }
+                }
+            }
+            return Next::Stay;
+        }
         if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
             if let Event::Clicked(id) = event {
-                let outcome = d.click(ctx.ui, screen, ctx.audio, ctx.archive, id);
+                let outcome = d.click(ctx.ui, screen, ctx.audio, ctx.archive, ctx.mods, id);
                 if let Some(next) = self.save_outcome(ctx, outcome) {
                     return next;
                 }
@@ -2504,6 +2529,12 @@ impl GameLoop for GameplayLoop {
                             flags,
                         )
                         .map(MenuDialog::Map);
+                    }
+                }
+                crate::pause_menu::PauseClick::Mod => {
+                    if let Some(screen) = &mut self.screen {
+                        self.mods_dialog =
+                            crate::mod_ui::ModDialog::open(ctx.ui, screen, ctx.mods, true);
                     }
                 }
                 crate::pause_menu::PauseClick::Load | crate::pause_menu::PauseClick::Save => {
@@ -2721,6 +2752,14 @@ impl GameLoop for GameplayLoop {
             RawInput::ActionReleased(id) if id < keys::COUNT => self.held[id] = false,
             RawInput::Cursor(..) => self.cursor_seen = true,
             _ => {}
+        }
+        // The Mods dialog: Escape is buttonCancel's action 8.
+        if let (Some(d), Some(screen)) = (self.mods_dialog.as_mut(), self.screen.as_mut()) {
+            if let RawInput::Escape = input {
+                d.cancel(ctx.ui, screen, ctx.mods, &ctx.settings.persistence);
+                self.mods_dialog = None;
+            }
+            return Next::Stay;
         }
         // The Save and Load dialog: Escape is buttonCancel's action 8.
         if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {

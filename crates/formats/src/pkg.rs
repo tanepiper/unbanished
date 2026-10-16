@@ -5,8 +5,8 @@
 //! ...file data      each entry a block stream, except `.index` stubs and raw `.str` audio
 //! u32 tocSize       at TOC offset, followed by the TOC as a block stream
 //! ```
-//! Decoded TOC: `u32 count, u32 version, u32 platform, u32 userVersion, u32 priority,
-//! u32 unknown, u8 canOverride, u32 crc, u32 iconW, u32 iconH, icon RGBA,
+//! Decoded TOC: `u32 count, u32 version, u32 gameVersion, u32 userVersion, u32 priority,
+//! u32 skip, u8 canOverride, u32 crc, u32 iconW, u32 iconH, icon RGBA,
 //! [v>1] u32 previewLen + bytes, [v>2] name/author/description (u32 len + bytes),
 //! count x { u32 nameLen, name, u32 offset, u32 size }`.
 
@@ -53,10 +53,14 @@ pub enum EntryKind {
 #[derive(Debug, Clone)]
 pub struct Header {
     pub version: u32,
-    /// `+0x68`: the platform mask, `+0x6c` the author's version number (a mod's).
-    pub platform: u32,
+    /// `+0x68`: the game version the package was made with (`0x010007ff` is 1.0.7; read with
+    /// `Configuration::GetVersionString`), `+0x6c` the author's version number (a mod's).
+    pub game_version: u32,
     pub user_version: u32,
     pub priority: u32,
+    /// `+0x74`: `Modification::RefreshList` leaves out a mod whose value is not 0 (0 in every
+    /// package seen; its meaning is not traced).
+    pub skip: u32,
     /// `+0x78/+0x7c/+0x80`: the icon (48×48 for mods), `0xAARRGGBB` texels.
     pub icon: (u32, u32, Vec<u8>),
     /// `+0x98`: the preview image's file (jpg or png), from version 2.
@@ -151,10 +155,10 @@ impl Package {
         if version == 0 {
             return Err(Error::Unsupported(format!("package version {version}")));
         }
-        let platform = c.u32()?;
+        let game_version = c.u32()?;
         let user_version = c.u32()?;
         let priority = c.u32()?;
-        let _unknown = c.u32()?;
+        let skip = c.u32()?;
         let can_override = c.take(1)?[0] != 0;
         let crc = c.u32()?;
         let (w, h) = (c.u32()? as usize, c.u32()? as usize);
@@ -192,9 +196,10 @@ impl Package {
         }
         let header = Header {
             version,
-            platform,
+            game_version,
             user_version,
             priority,
+            skip,
             icon: (w as u32, h as u32, icon),
             preview,
             can_override,

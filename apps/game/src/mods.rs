@@ -22,7 +22,6 @@ use banished_formats::registry::Registry;
 use crate::settings::Persistence;
 
 /// One mod (`Modification::Mod`, 0x80 bytes).
-#[allow(dead_code)] // the Mods dialog (next)
 #[derive(Clone)]
 pub struct Mod {
     /// The package's file name without `.pkm` (`GetPathFilename`).
@@ -30,15 +29,15 @@ pub struct Mod {
     pub name: String,
     pub author: String,
     pub description: String,
-    /// The package format and the author's version.
-    pub version: u32,
+    /// The game version it was made with (`+0x18`) and the author's version (`+0x1c`).
+    pub game_version: u32,
     pub user_version: u32,
     pub crc: u32,
-    /// The 48×48 icon (`0xAARRGGBB`) and the preview image file.
+    /// The 48×48 icon (`0xAARRGGBB`).
     pub icon: (u32, u32, Vec<u8>),
-    pub preview: Vec<u8>,
-    /// Its files, normalised (`+0x60`).
+    /// Its files, normalised (`+0x60`), and as the package names them, in that order.
     pub files: BTreeSet<String>,
+    pub names: Vec<String>,
     /// `+0x50` and `+0x20`.
     pub enabled: bool,
     pub index: i32,
@@ -48,12 +47,21 @@ pub struct Mod {
     pub bytes: std::rc::Rc<Vec<u8>>,
 }
 
+impl Mod {
+    /// `+0x58`: where it is, under the data directory (`WinData\<file>.pkm`). Deviation: the
+    /// original shows the full path.
+    pub fn path(&self) -> String {
+        format!("WinData\\{}.pkm", self.file)
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct Modification {
     pub mods: Vec<Mod>,
+    /// `+0`: the list changed (Enable, Swap) since the packages were set up.
+    pub dirty: bool,
 }
 
-#[allow(dead_code)] // the Mods dialog (next)
 impl Modification {
     /// `RefreshList` over the packages found: `(file name without .pkm, bytes)`.
     pub fn refresh(found: Vec<(String, Vec<u8>)>, settings: &Persistence) -> Modification {
@@ -67,6 +75,9 @@ impl Modification {
                 }
             };
             let h = &package.header;
+            if h.skip != 0 {
+                continue;
+            }
             let mut enabled = false;
             settings.get_bool("ModEnabled_", &file, &mut enabled);
             let mut index = i32::MAX / 2 + order as i32;
@@ -75,12 +86,18 @@ impl Modification {
                 name: h.name.clone(),
                 author: h.author.clone(),
                 description: h.description.clone(),
-                version: h.version,
+                game_version: h.game_version,
                 user_version: h.user_version,
                 crc: h.crc,
                 icon: h.icon.clone(),
-                preview: h.preview.clone(),
                 files: package.entries.iter().map(|e| normalise(&e.name)).collect(),
+                names: {
+                    let mut v: Vec<String> =
+                        package.entries.iter().map(|e| e.name.clone()).collect();
+                    v.sort_by_key(|n| normalise(n));
+                    v.dedup_by_key(|n| normalise(n));
+                    v
+                },
                 enabled,
                 index,
                 conflicts: Vec::new(),
@@ -88,11 +105,28 @@ impl Modification {
                 file,
             });
         }
-        mods.sort_by_key(|m| m.index);
-        let mut list = Modification { mods };
-        list.renumber();
-        list.find_conflicts();
+        let mut list = Modification { mods, dirty: false };
+        list.order();
         list
+    }
+
+    /// By the saved index, renumbered, with each mod's conflicts.
+    fn order(&mut self) {
+        self.mods.sort_by_key(|m| m.index);
+        self.renumber();
+        self.find_conflicts();
+    }
+
+    /// `RefreshList` over the packages already read: the settings' order and enabled mods
+    /// again (the Mods dialog's Cancel). The list stays dirty.
+    pub fn revert(&mut self, settings: &Persistence) {
+        for (order, m) in self.mods.iter_mut().enumerate() {
+            m.enabled = false;
+            settings.get_bool("ModEnabled_", &m.file, &mut m.enabled);
+            m.index = i32::MAX / 2 + order as i32;
+            settings.get_int("ModIndex_", &m.file, &mut m.index);
+        }
+        self.order();
     }
 
     fn renumber(&mut self) {
@@ -123,6 +157,7 @@ impl Modification {
 
     /// `Enable`.
     pub fn enable(&mut self, i: usize, on: bool) {
+        self.dirty = true;
         if let Some(m) = self.mods.get_mut(i) {
             m.enabled = on;
         }
@@ -130,16 +165,10 @@ impl Modification {
 
     /// `Swap`: two places in the list.
     pub fn swap(&mut self, a: usize, b: usize) {
-        if a < self.mods.len() && b < self.mods.len() {
+        if a != b && a < self.mods.len() && b < self.mods.len() {
+            self.dirty = true;
             self.mods.swap(a, b);
             self.renumber();
-        }
-    }
-
-    /// `DisableAll`.
-    pub fn disable_all(&mut self) {
-        for m in &mut self.mods {
-            m.enabled = false;
         }
     }
 
@@ -159,6 +188,47 @@ impl Modification {
         self.mods.iter().rev().filter(|m| m.enabled).collect()
     }
 
+    /// `SaveLoad::SaveMetaData`: each enabled mod as the save records it, its name, its file
+    /// under the data directory (`WinData\<file>.pkm`, inferred from `GetPackDirectory`) and
+    /// its crc (`+0x2c`), game version (`+0x18`) and author's version (`+0x1c`).
+    pub fn saved(&self) -> Vec<banished_formats::save::SavedMod> {
+        self.mods
+            .iter()
+            .filter(|m| m.enabled)
+            .map(|m| banished_formats::save::SavedMod {
+                name: m.name.clone(),
+                file: m.path(),
+                values: [m.crc, m.game_version, m.user_version],
+            })
+            .collect()
+    }
+
+    /// `SaveLoad::CheckMod` (Runtime `0x1800c3900`): 0 when the saved mod is installed as it
+    /// was, 1 when it is not installed (by its file, without case), 4 when its crc differs, 3
+    /// when the author's version differs and 2 when it was made before game version 1.0.4.
+    pub fn check(&self, saved: &banished_formats::save::SavedMod) -> u32 {
+        let stem = saved
+            .file
+            .rsplit(['\\', '/'])
+            .next()
+            .unwrap_or("")
+            .trim_end_matches(".pkm")
+            .trim_end_matches(".PKM");
+        let Some(m) = self.mods.iter().find(|m| m.file.eq_ignore_ascii_case(stem)) else {
+            return 1;
+        };
+        let [crc, game_version, user_version] = saved.values;
+        if m.crc != crc {
+            4
+        } else if m.user_version != user_version {
+            3
+        } else if game_version < 0x0100_0400 {
+            2
+        } else {
+            0
+        }
+    }
+
     /// The enabled mods' file names, in list order (their resource lists load in this order).
     pub fn enabled_files(&self) -> Vec<String> {
         self.mods
@@ -167,14 +237,14 @@ impl Modification {
             .map(|m| m.file.clone())
             .collect()
     }
+}
 
-    /// What the enabled set is, to tell when it changed.
-    pub fn signature(&self) -> Vec<(String, bool)> {
-        self.mods
-            .iter()
-            .map(|m| (m.file.clone(), m.enabled))
-            .collect()
-    }
+/// What a reload starts once the packages are set up again (`FUN_140072110`).
+pub enum Reload {
+    /// The main menu (`FUN_1400b9c60`).
+    Menu,
+    /// The game saved to memory just before (`Save::SavedState`, `FUN_1400b9ec0`).
+    Game(Vec<u8>),
 }
 
 thread_local! {

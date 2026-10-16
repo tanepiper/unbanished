@@ -49,7 +49,7 @@ are listed separately at the end.
 | **Start structures** | Stamp map `+8` | **Done.** They are stamped as they are built (`build_structures`); picking reads the cells |
 | **Scenario goal and rain emitter in a new game's save** | Written | **Done** |
 | **Placement overlay** (user report) | `FUN_140106850`: green/red cells, the entrance arrows, the tutorial's yellow target; the work-radius ring (`FUN_140055d90`) | **Done** |
-| **Not ported, from DEVIATIONS.md** | — | **Resolved or not reachable:** the building-window controllers are all bound (RadiusUI was the last); entity event 0 and the picking mesh after a collapse follow the current mesh; `FUN_1400c4c60`'s `param_13`/`param_14` are covered (`needs.rs`, `Haul::tool`); the path grid's blocked bit has no effect on mode-0 walks and the road search honours the zones. The injury and death switches are the debug flag `Game +0xd0` bit 8 (debug window only). The pause menu's Mod button waits for mods |
+| **Not ported, from DEVIATIONS.md** | — | **Resolved or not reachable:** the building-window controllers are all bound (RadiusUI was the last); entity event 0 and the picking mesh after a collapse follow the current mesh; `FUN_1400c4c60`'s `param_13`/`param_14` are covered (`needs.rs`, `Haul::tool`); the path grid's blocked bit has no effect on mode-0 walks and the road search honours the zones. The injury and death switches are the debug flag `Game +0xd0` bit 8 (debug window only). |
 
 ## Presentation differences
 
@@ -69,14 +69,22 @@ These change no game rules, but are visible:
 - **Deliberate platform choices:** the settings file instead of the registry; achievements in the
   settings instead of Steam; the browser's storage; wgpu back ends; audio having its own Random.
 
-## Mods (next phase)
+## Mods
 
-These are uncited, mod-only functions:
-- **Mod browser, details and upload:** `ModBrowseUI`, `ModDialog`, `ModDetailsDialog` and
-  `ModUploadDialog` (`FUN_14006dee0`, `FUN_14006f100`, `FUN_14006f790`, `FUN_140070950`,
-  `FUN_1400727f0`, `FUN_1400740f0`, `FUN_1400745d0`, `FUN_140074b70`).
-- **The reload dialog:** `Dialog/Reload.rsc`, `FUN_140072110`.
-- **Package lookup:** `IO::Modification` and `IO::PackageFile` (`FUN_140071600`, `FUN_140073880`).
-- **Save checks:** the mod checks on load (`CheckMod`).
+See [MODS.md](MODS.md). Done:
+- **Packages:** `.pkm` files in the pack directory (format versions 1 to 3), the list's settings
+  (`ModEnabled_`, `ModIndex_`), the override rule and the loaded resources each mod adds.
+- **Mods dialog:** `FUN_1400727f0`, `FUN_1400723e0`, `FUN_140072560`, `FUN_140071dc0`,
+  `FUN_140072090`. Opened from the main menu and the pause menu (id 7).
+- **Details:** `FUN_140070950`.
+- **Reload:** `Dialog/Reload.rsc`, `FUN_140072110`; over a game the game is saved to memory and
+  loaded again.
+- **Saves:** the enabled mods are recorded (`SaveMetaData`), and loading asks about each one
+  `CheckMod` flags.
+
+Left:
+- **Workshop:** the browse tab, uploads and update notices (`FUN_14006dee0`, `FUN_14006f100`,
+  `FUN_14006f790`, `FUN_1400740f0`, `FUN_1400745d0`, `FUN_140074b70`, `FUN_140071600`).
+- **The browser's own mod storage.**
 - **1.0.7's mod resource flags:** the Status Bar, Limits and Town Hall rows exist, but are hidden
   without mods.

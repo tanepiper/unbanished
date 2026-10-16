@@ -29,6 +29,7 @@ mod keymap;
 mod loops;
 mod map_params;
 mod menu;
+mod mod_ui;
 mod models;
 mod mods;
 mod music;
@@ -108,7 +109,7 @@ pub struct Game {
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pack_dir: Option<std::path::PathBuf>,
     /// A reload was asked for, and the UI's sheets to upload again after one.
-    reload_mods: bool,
+    reload_mods: Option<mods::Reload>,
     ui_reset: bool,
     ui: Ui,
     audio: sound::Audio,
@@ -139,8 +140,9 @@ pub struct Game {
 /// in the list to the first), then the game's resources and each mod's resource list load.
 fn load_mods(
     archive: &mut Archive,
-    mods: &mods::Modification,
+    mods: &mut mods::Modification,
 ) -> banished_formats::registry::Registry {
+    mods.dirty = false;
     for m in mods.load_order() {
         match Package::parse(m.bytes.as_ref().clone()) {
             Ok(p) => {
@@ -240,8 +242,8 @@ impl Game {
             return Err("no packages".into());
         }
         let base_packages = archive.package_count();
-        let mods = mods::Modification::refresh(found, &settings.persistence);
-        let registry = Rc::new(load_mods(&mut archive, &mods));
+        let mut mods = mods::Modification::refresh(found, &settings.persistence);
+        let registry = Rc::new(load_mods(&mut archive, &mut mods));
         mods::set_registry(registry.clone());
         let archive = Rc::new(archive);
         Ok(Game {
@@ -249,7 +251,7 @@ impl Game {
             registry,
             mods,
             pack_dir,
-            reload_mods: false,
+            reload_mods: None,
             ui_reset: false,
             ui: Ui::new(archive.clone()),
             archive,
@@ -371,8 +373,16 @@ impl Game {
 
     pub fn update(&mut self, dt: f32) {
         self.with_ctx(|main, ctx| main.update(ctx, dt));
-        if std::mem::take(&mut self.reload_mods) {
-            self.reload(Box::new(menu::MenuLoop::new()));
+        match self.reload_mods.take() {
+            Some(mods::Reload::Menu) => self.reload(Box::new(menu::MenuLoop::new())),
+            Some(mods::Reload::Game(bytes)) => match saved::SavedGame::parse(&bytes) {
+                Ok(saved) => self.reload(Box::new(gameplay::GameplayLoop::from_save(saved))),
+                Err(e) => {
+                    log::error!("reload: the game saved to memory does not read back: {e}");
+                    self.reload(Box::new(menu::MenuLoop::new()));
+                }
+            },
+            None => {}
         }
         // The Options dialog changes the volumes while its sliders move.
         self.apply_settings();
@@ -579,7 +589,7 @@ impl Game {
             }
         };
         archive.remove_after(self.base_packages);
-        self.registry = Rc::new(load_mods(&mut archive, &self.mods));
+        self.registry = Rc::new(load_mods(&mut archive, &mut self.mods));
         mods::set_registry(self.registry.clone());
         self.archive = Rc::new(archive);
         self.ui = Ui::new(self.archive.clone());

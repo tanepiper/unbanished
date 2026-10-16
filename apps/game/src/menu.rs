@@ -49,6 +49,8 @@ pub struct MenuLoop {
     load: Option<crate::saved::SavedGame>,
     /// The Load dialog (`MainMenuDialog` id 2, `FUN_1400b8d80` with mode 1).
     save_dialog: Option<crate::save_dialog::SaveLoadDialog>,
+    /// The Mods dialog (`MainMenuDialog` id 7, `FUN_1400b8370`).
+    mods_dialog: Option<crate::mod_ui::ModDialog>,
 }
 
 /// Shared settings defaults (`FUN_140042850`) before `Game/Last*` persistence is applied:
@@ -78,6 +80,7 @@ impl MenuLoop {
             scenarios: None,
             load: None,
             save_dialog: None,
+            mods_dialog: None,
         }
     }
 
@@ -521,6 +524,13 @@ impl GameLoop for MenuLoop {
     }
 
     fn raw(&mut self, ctx: &mut Ctx, input: RawInput) -> Next {
+        if let (Some(d), Some(screen)) = (self.mods_dialog.as_mut(), self.screen.as_mut()) {
+            if let RawInput::Escape = input {
+                d.cancel(ctx.ui, screen, ctx.mods, &ctx.settings.persistence);
+                self.mods_dialog = None;
+            }
+            return Next::Stay;
+        }
         if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
             if let RawInput::Escape = input {
                 let outcome = d.escape(ctx.ui, screen);
@@ -549,9 +559,23 @@ impl GameLoop for MenuLoop {
     }
 
     fn event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
+        if let (Some(d), Some(screen)) = (self.mods_dialog.as_mut(), self.screen.as_mut()) {
+            if let Event::Clicked(id) | Event::Changed(id) = event {
+                use crate::mod_ui::Outcome;
+                match d.click(ctx.ui, screen, ctx.mods, &ctx.settings.persistence, id) {
+                    Outcome::Stay => {}
+                    Outcome::Closed => self.mods_dialog = None,
+                    Outcome::Reload => {
+                        self.mods_dialog = None;
+                        *ctx.reload_mods = Some(crate::mods::Reload::Menu);
+                    }
+                }
+            }
+            return Next::Stay;
+        }
         if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
             if let Event::Clicked(id) = event {
-                let outcome = d.click(ctx.ui, screen, ctx.audio, ctx.archive, id);
+                let outcome = d.click(ctx.ui, screen, ctx.audio, ctx.archive, ctx.mods, id);
                 self.save_outcome(outcome);
             }
             return Next::Stay;
@@ -656,6 +680,10 @@ impl GameLoop for MenuLoop {
                 self.scenarios = crate::scenario_ui::ScenarioDialog::open(
                     ctx.ui, screen, reference, tutorials, &list,
                 );
+            }
+        } else if self.is(ctx.ui, 0, "buttonMod", id) {
+            if let Some(screen) = &mut self.screen {
+                self.mods_dialog = crate::mod_ui::ModDialog::open(ctx.ui, screen, ctx.mods, false);
             }
         } else if self.is(ctx.ui, 0, "buttonAchievement", id) {
             // `FUN_1400b9020` id 8: `Dialog/Achievement.rsc`.

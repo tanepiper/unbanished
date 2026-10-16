@@ -31,11 +31,9 @@ pub struct Ctx<'a> {
     /// The resources loaded at startup, for the game's enumerations by type.
     pub registry: &'a Rc<banished_formats::registry::Registry>,
     /// The mods (`IO::Modification`).
-    #[allow(dead_code)] // the Mods dialog (next)
     pub mods: &'a mut crate::mods::Modification,
     /// Set to reload the packages with the mods as they are now (`FUN_140072110`).
-    #[allow(dead_code)] // the Mods dialog (next)
-    pub reload_mods: &'a mut bool,
+    pub reload_mods: &'a mut Option<crate::mods::Reload>,
 }
 
 /// Input not consumed by the UI (camera control).

@@ -22,8 +22,9 @@
 //!   `FUN_1400bbc60`); Cancel closes; Save (`FUN_1400bb4a0`) asks `confirmSave` over an existing
 //!   file and saves (operation 4, at least 1.5 s) under the town's name, into a new
 //!   `Save%i` for the new-save slot; Load (`FUN_1400bb6b0`) asks `confirmLoad` while a game
-//!   runs, then for each mod the save names `modsMissing` (the port has no mods, so every one
-//!   is missing), and loads (operation 2, at least 1.5 s); Delete (`FUN_1400bb320`) asks
+//!   runs, then for each mod the save names that `SaveLoad::CheckMod` finds missing (1),
+//!   out of date (2), of another version (3) or changed (4) `modsMissing`, `modsOutOfDate`,
+//!   `modsVersion` or `modsChanged` with its name, file and `"%i (%s)"` version, and loads (operation 2, at least 1.5 s); Delete (`FUN_1400bb320`) asks
 //!   `confirmDelete` and deletes (operation 5).
 //! - The saves are read and written through [`crate::save_store`]: a load waits for the
 //!   file's bytes as well as its shortest time (in the browser the read is asynchronous).
@@ -31,7 +32,7 @@
 //!   Ok 1, Yes 2, No 3); `ShowDialog` returns the button and only Yes goes on.
 //!
 //! Deviations: the original runs `ShowDialog` as a nested loop; the port keeps the step waiting
-//! for the answer. A mod's version is written as its number.
+//! for the answer.
 //!
 //! The new-save slot shows the save sprite (`SaveLoad +0x60`, set from the global data's
 //! `+0xb8`: `Dialog\SpriteSheet.rsc` "SaveLoadEmpty", `FUN_1400a0e00`), which is the icon
@@ -411,6 +412,7 @@ impl SaveLoadDialog {
         screen: &mut Screen,
         audio: &mut crate::sound::Audio,
         archive: &banished_formats::pkg::Archive,
+        mods: &crate::mods::Modification,
         node: NodeId,
     ) -> Outcome {
         if let Some((confirm, root)) = self.confirm.take() {
@@ -430,7 +432,7 @@ impl SaveLoadDialog {
             }
             return match confirm {
                 Confirm::Save => self.save(),
-                Confirm::Load(next) => self.load(ui, screen, next),
+                Confirm::Load(next) => self.load(ui, screen, mods, next),
                 Confirm::Delete => {
                     self.delete();
                     Outcome::Stay
@@ -462,7 +464,7 @@ impl SaveLoadDialog {
             if self.in_game {
                 self.ask(ui, screen, "confirmLoad", Confirm::Load(0), &[]);
             } else {
-                return self.load(ui, screen, 0);
+                return self.load(ui, screen, mods, 0);
             }
         } else if is(self.el.delete) {
             self.ask(ui, screen, "confirmDelete", Confirm::Delete, &[]);
@@ -525,21 +527,46 @@ impl SaveLoadDialog {
         Outcome::Save(file)
     }
 
-    /// The mods from `next` on (`CheckMod`; every one is missing in the port), then operation 2.
-    fn load(&mut self, ui: &mut Ui, screen: &mut Screen, next: usize) -> Outcome {
+    /// The mods from `next` on (`CheckMod`), each that is not installed as it was saved asking
+    /// first, then operation 2.
+    fn load(
+        &mut self,
+        ui: &mut Ui,
+        screen: &mut Screen,
+        mods: &crate::mods::Modification,
+        next: usize,
+    ) -> Outcome {
         let Some(info) = usize::try_from(self.selected)
             .ok()
             .and_then(|i| self.saves.get(i))
         else {
             return Outcome::Stay;
         };
-        if let Some(m) = info.mods.get(next) {
-            let (name, file, version) = (m.name.clone(), m.file.clone(), m.values[2].to_string());
+        let found = info
+            .mods
+            .iter()
+            .enumerate()
+            .skip(next)
+            .find_map(|(i, m)| Some((i, m, mods.check(m))).filter(|c| c.2 != 0));
+        if let Some((i, m, check)) = found {
+            let dialog = match check {
+                2 => "modsOutOfDate",
+                3 => "modsVersion",
+                4 => "modsChanged",
+                _ => "modsMissing",
+            };
+            // `"%i (%s)"` of the author's version and the game version it was made with.
+            let version = format!(
+                "{} ({})",
+                m.values[2],
+                crate::mod_ui::version_string(m.values[1])
+            );
+            let (name, file) = (m.name.clone(), m.file.clone());
             self.ask(
                 ui,
                 screen,
-                "modsMissing",
-                Confirm::Load(next + 1),
+                dialog,
+                Confirm::Load(i + 1),
                 &[&name, &file, &version],
             );
             return Outcome::Stay;

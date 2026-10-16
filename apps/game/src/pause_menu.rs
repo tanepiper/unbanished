@@ -16,7 +16,8 @@
 //! Goal (10) the game's goal. With a scenario (`Game +0x15c`) the Goal button shows and the Map
 //! button goes, else the reverse; game flag bit 10 (a tutorial) disables Save and Mod. Map (11)
 //! opens `crate::map_params::MapParamsDialog`. Load (2, `FUN_1400b8d80` with mode 1) and Save
-//! (3, mode 0) open `crate::save_dialog::SaveLoadDialog`. Not ported: Mod (7).
+//! (3, mode 0) open `crate::save_dialog::SaveLoadDialog`; Mod (7) opens
+//! `crate::mod_ui::ModDialog`.
 
 use banished_ui::{NodeId, Ui};
 
@@ -40,6 +41,8 @@ pub enum PauseClick {
     /// Load (id 2) and Save (id 3): the Save and Load dialog.
     Load,
     Save,
+    /// Mod (id 7, `FUN_1400b8370`).
+    Mod,
     /// A button whose action is not ported, or a click on the dialog's background.
     Other,
 }
@@ -112,6 +115,8 @@ impl PauseMenu {
             PauseClick::Load
         } else if is("buttonSave") {
             PauseClick::Save
+        } else if is("buttonMod") {
+            PauseClick::Mod
         } else {
             PauseClick::Other
         }
