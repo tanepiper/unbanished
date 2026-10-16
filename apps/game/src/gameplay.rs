@@ -1120,6 +1120,7 @@ impl GameplayLoop {
                         a.sync_entities(ctx.audio, ctx.archive, town);
                     }
                     a.follow_tornadoes(ctx.audio, town);
+                    a.drive_entities(ctx.audio, town);
                     a.fade(ctx.audio, temperature);
                 }
             }
@@ -2725,7 +2726,8 @@ mod tests {
         });
     }
 
-    /// A burning barn's FireDescription slot starts its fire particles; put out, they fade.
+    /// A burning barn's FireDescription slots start its fire particles and its fire sound;
+    /// put out, they fade and stop.
     #[test]
     fn burning_buildings_get_particles() {
         let Some((mut game, mut gameplay)) = generated() else {
@@ -2766,6 +2768,9 @@ mod tests {
                 gameplay.update(ctx, 1.0 / 30.0);
             }
             assert!(fire(&gameplay));
+            // Its FireDescription's emitter slot plays at the building.
+            let (_, playing) = ctx.audio.scene.active();
+            assert!(0 < playing);
             let town = gameplay.town.as_mut().unwrap();
             town.construction
                 .sites
@@ -2779,6 +2784,7 @@ mod tests {
                 gameplay.update(ctx, 1.0 / 30.0);
             }
             assert!(!fire(&gameplay));
+            assert!(ctx.audio.scene.active().1 < playing);
         });
     }
 

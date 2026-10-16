@@ -224,8 +224,9 @@ impl Sim<'_, '_> {
     /// `FireComponent::Ignite` (`FUN_140049f70`): a building neither damaged nor being torn
     /// down is damaged for half the burn; it burns, gets its FireWork (prioritised), marks
     /// the emergency around it and, as the first fire, posts event 31.
-    /// The particles follow `burn` in the app (docs/PARTICLES.md). Not ported: the fire
-    /// sound. (AutoSlow, settings `+0x17`, comes from the event: `EventLog::add`.)
+    /// The particles and the fire sound follow `burn` in the app (docs/PARTICLES.md,
+    /// `Ambience::drive_entities`). (AutoSlow, settings `+0x17`, comes from the event:
+    /// `EventLog::add`.)
     pub fn ignite(&mut self, jobs: &mut Jobs, e: usize) {
         if self.is_damaged(e) || self.is_demolishing(e) {
             return;
@@ -275,7 +276,7 @@ impl Sim<'_, '_> {
     }
 
     /// `FireComponent::PutOut` (`FUN_140049e20`): it is rubble now; its work and emergency
-    /// go; the particles fade with `burn` at 0 (docs/PARTICLES.md). Not ported: the fire sound.
+    /// go; the particles fade and the fire sound stops with `burn` at 0 (in the app).
     pub fn put_out(&mut self, jobs: &mut Jobs, e: usize) {
         let Some(d) = self.fire_desc(e) else { return };
         if let Some(f) = self.fire(e) {
