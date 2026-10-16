@@ -160,6 +160,19 @@ impl Selection {
     ) -> Option<Entity> {
         let mut result = fallback;
         let mut nearest = maximum;
+        // A bridge piece's PickingComponent user data is the bridge (`FUN_1400ff1a0`, the only
+        // caller of Picking::Scene::SetMeshUserData; the pieces are the parts with a floor).
+        let parents: BTreeMap<usize, usize> = town
+            .construction
+            .sites
+            .iter()
+            .flat_map(|(&e, s)| s.parts.iter().map(move |&p| (p, e)))
+            .filter(|&(p, _)| town.templates[town.placed[p].template].floor.is_some())
+            .collect();
+        let owner = |e: Entity| match e {
+            Entity::Placed(i) => parents.get(&i).map_or(e, |&p| Entity::Placed(p)),
+            other => other,
+        };
         // Deviation: the spatial grid's linked candidate order is creation order here. Only
         // exactly coincident equal-distance hits can differ; the inclusive replacement is exact.
         let entities = town
@@ -188,7 +201,7 @@ impl Selection {
                         banished_game::picking::triangle(o, d, vertices, nearest)
                     {
                         nearest = distance;
-                        result = Some(entity);
+                        result = Some(owner(entity));
                     }
                 }
             }

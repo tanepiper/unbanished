@@ -81,7 +81,8 @@ simulation. Parsing it or drawing its mesh is not enough.
 |---|---|
 | Building placement, removal of resources, ClearCancel | yes |
 | Roads (dirt, stone), Remove Roads | yes ([ROADS.md](ROADS.md)); road drawing (decals) no |
-| Bridges, tunnels (drag placement, terraform) | no |
+| Bridges (BridgeTool, floors) | yes ([BRIDGES.md](BRIDGES.md)) |
+| Tunnels (terraform) | no |
 | Fields, orchards, pastures, storage yard (drag areas) | placement only (CreateDrag parsed) |
 | Fences, cemetery (CreateFenced) | placement (`place_fenced`); the drag tool is not ported |
 | Demolition (Remove Buildings, DestroyUI) | Remove Buildings and its cancel; DestroyUI's buttons not wired |

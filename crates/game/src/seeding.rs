@@ -76,6 +76,9 @@ pub struct Template {
     /// The InteractDescription's other named points (name, position, yaw): the trading
     /// post's "boat".
     pub named_points: Vec<(String, [f32; 3], f32)>,
+    /// FloorDescription (bridge parts): its picking mesh's triangles in model space, added
+    /// on activation (`+0x28`).
+    pub floor: Option<std::sync::Arc<Vec<[[f32; 3]; 3]>>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -137,6 +140,8 @@ pub struct Cells {
     pub road_kind: Vec<u8>,
     /// `+0x2b`: the road kind built (`0x80` while it is being built).
     pub road_built: Vec<u8>,
+    /// `+0x2d` and the map's floor scene: bridge decks (FloorComponent).
+    pub floors: crate::floor::Floors,
 }
 
 impl Cells {
@@ -152,6 +157,7 @@ impl Cells {
             layer_totals: [0; 12],
             road_kind: vec![0xff; types.len()],
             road_built: vec![0; types.len()],
+            floors: crate::floor::Floors::new(types.len()),
             types,
         }
     }
@@ -970,6 +976,7 @@ mod tests {
             use_yaws: Vec::new(),
             create_points: Vec::new(),
             named_points: Vec::new(),
+            floor: None,
         }
     }
 

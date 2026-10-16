@@ -1047,9 +1047,12 @@ impl Sim<'_, '_> {
             self.pasture_leave(e);
             self.wildlife.pastures.remove(&e);
         }
-        // MultiObjectComponent's (`FUN_14012ac90`): its parts go too, lifting their stamps.
+        // MultiObjectComponent's (`FUN_14012ac90`): its parts go too, lifting their stamps and
+        // their floors (`FUN_140124770`).
         for part in self.sites[&e].parts.clone() {
             self.unstamp(part);
+            let size = self.size;
+            self.cells.floors.remove(size, part);
             self.placed[part].alive = false;
         }
         self.sites.remove(&e);

@@ -1766,6 +1766,78 @@ pub fn create_road_description(data: &[u8]) -> Result<CreateRoadDescription> {
     Ok(value)
 }
 
+/// `CreateBridgeDescription` (serializer `FUN_14011eaa0`): the bridge tool's (BridgeTool, vtable
+/// `0x140167f20`) cell-type masks: `+0x20` the cells it spans (water), `+0x24` its banks, `+0x28`
+/// further cells drawn as valid, `+0x2c` at least one spanned cell of these, `+0x30` the cells
+/// beside it within `+0x34` (its half width); `+0x38` the part templates (start, 1, 2, 4 and 8
+/// cells long).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CreateBridgeDescription {
+    pub span: u32,
+    pub banks: u32,
+    pub shown: u32,
+    pub needs: u32,
+    pub sides: u32,
+    pub half_width: i32,
+    pub parts: Vec<Option<String>>,
+}
+
+pub fn create_bridge_description(data: &[u8]) -> Result<CreateBridgeDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("CreateBridgeDescription") {
+            return format_err(format!(
+                "expected CreateBridgeDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let span = r.u32()?;
+            let shown = r.u32()?;
+            let needs = r.u32()?;
+            let banks = r.u32()?;
+            let sides = r.u32()?;
+            let half_width = r.i32()?;
+            let parts = (0..5).map(|_| r.external_ref()).collect::<Result<_>>()?;
+            Ok(CreateBridgeDescription {
+                span,
+                banks,
+                shown,
+                needs,
+                sides,
+                half_width,
+                parts,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
+/// `FloorDescription` (serializer `FUN_140124b50`): `+0x20` the picking mesh walked on, `+0x28`
+/// added on activation.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FloorDescription {
+    pub mesh: Option<String>,
+    pub active: bool,
+}
+
+pub fn floor_description(data: &[u8]) -> Result<FloorDescription> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("FloorDescription") {
+            return format_err(format!(
+                "expected FloorDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            Ok(FloorDescription {
+                mesh: r.external_ref()?,
+                active: r.bool()?,
+            })
+        })
+    })?;
+    Ok(value)
+}
+
 /// `TombstoneDescription` (serializer `FUN_140058380`): a grave lasts `(+0x20 + RandFloat ×
 /// +0x24)` × 300 s (`FUN_1400581c0`).
 pub fn tombstone_description(data: &[u8]) -> Result<(f32, f32)> {

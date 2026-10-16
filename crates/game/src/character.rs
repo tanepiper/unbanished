@@ -104,6 +104,8 @@ pub struct World<'a> {
     pub flags: &'a [u8],
     /// `+0x2a`: the road kind planned or built (`0xff` none).
     pub roads: &'a [u8],
+    /// `+0x2d` and the floor scene: bridge decks walked on.
+    pub floors: &'a crate::floor::Floors,
     pub regions: &'a [u16],
     pub terrain: &'a HeightGrid<'a>,
     pub pathfinder: &'a mut Pathfinder,
@@ -162,18 +164,17 @@ impl World<'_> {
         n * y + x
     }
 
-    /// Centre of a cell on the ground (`FUN_1400a48b0` without bridge picking).
+    /// Centre of a cell on the ground (`FUN_1400a48b0`, on a bridge's floor).
     pub fn cell_centre(&self, cell: i32) -> [f32; 3] {
         let n = self.size as i32;
         let c = (n >> 1) as f32 - 0.5;
         let (x, y) = ((cell % n) as f32 - c, (cell / n) as f32 - c);
-        let mut normal = [0.0; 3];
-        [x, y, self.terrain.ground(x, y, &mut normal)]
+        [x, y, self.ground(x, y)]
     }
 
+    /// `FUN_1400a48b0`: the terrain, or a bridge's floor above it.
     fn ground(&self, x: f32, y: f32) -> f32 {
-        let mut normal = [0.0; 3];
-        self.terrain.ground(x, y, &mut normal)
+        self.floors.ground(self.size, self.terrain, x, y)
     }
 }
 

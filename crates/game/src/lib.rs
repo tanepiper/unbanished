@@ -21,6 +21,7 @@ pub mod events;
 pub mod farm;
 pub mod fire;
 pub mod fishing;
+pub mod floor;
 pub mod forester;
 pub mod growth;
 pub mod happiness;

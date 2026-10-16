@@ -3591,6 +3591,187 @@ mod construction_tests {
         assert_eq!(town.cells.types[(a + 3) as usize].0, 0);
     }
 
+    /// A wooden bridge dragged across the river nearest the start: its parts span the water,
+    /// builders put it up, its cells become bridge (type 9) with a deck above the water, and
+    /// pulling it down lifts both again.
+    #[test]
+    fn a_bridge_spans_the_river() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool = crate::removal_tool::RemovalTool::start(
+            &archive,
+            &mut town,
+            r"Template\WoodBridge.rsc:resource",
+        )
+        .expect("no bridge tool");
+        let spec = town
+            .bridge_spec(&archive, r"Template\WoodBridge.rsc:resource")
+            .unwrap();
+        assert_eq!(spec.parts.iter().flatten().count(), 5);
+        // The nearest crossing to the start, either way, at most 12 cells.
+        let n = town.cells.size as i32;
+        let (sx, sy) = town.start;
+        let mut found = None;
+        'find: for r in 1..n {
+            for dy in -r..=r {
+                for dx in -r..=r {
+                    if dx.abs() != r && dy.abs() != r {
+                        continue;
+                    }
+                    let (x, y) = (sx + dx, sy + dy);
+                    if !(0..n).contains(&x) || !(0..n).contains(&y) {
+                        continue;
+                    }
+                    for (ux, uy) in [(1, 0), (0, 1)] {
+                        for l in 3..14 {
+                            let (ex, ey) = (x + ux * l, y + uy * l);
+                            if n <= ex || n <= ey {
+                                break;
+                            }
+                            let (a, b) = (y * n + x, ey * n + ex);
+                            let (ok, span) = town.bridge_check(&spec, a, b);
+                            if ok && 3 <= span {
+                                found = Some((a, b, span));
+                                break 'find;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        let (a, b, span) = found.expect("no crossing");
+        let before = town.placed.len();
+        assert_eq!(
+            tool.drag(&archive, &mut town, &terrain, a, b),
+            crate::removal_tool::DragSound::Thunk
+        );
+        let id = (before..town.placed.len())
+            .find(|&e| town.construction.sites.contains_key(&e))
+            .expect("no bridge site");
+        let parts = town.construction.sites[&id].parts.clone();
+        let cells: i32 = parts
+            .iter()
+            .map(|&p| town.placed[p].footprint.0 * town.placed[p].footprint.1)
+            .sum();
+        assert!(
+            cells == span || (span == 3 && cells == 4),
+            "{cells} cells for {span}"
+        );
+        let deck: Vec<usize> = parts
+            .iter()
+            .flat_map(|&p| {
+                let q = &town.placed[p];
+                let (x, y) = q.cell;
+                (0..q.footprint.1).flat_map(move |j| {
+                    (0..q.footprint.0).map(move |i| ((y + j) * n + x + i) as usize)
+                })
+            })
+            .collect();
+        assert!(deck.iter().all(|&i| 0 < town.cells.floors.counts[i]));
+        let builder = town.construction.professions.builder;
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 4,
+            });
+        let mut warnings = banished_game::events::StockWarnings::default();
+        let dt = 1.0 / 30.0;
+        let mut supplied = false;
+        let mut states = Vec::new();
+        let mut built = false;
+        for _ in 0..30 * 60 * 20 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            let site = &town.construction.sites[&id];
+            let state = site.machine.state;
+            if states.last() != Some(&state) {
+                states.push(state);
+            }
+            if state == 1 && !supplied {
+                supplied = true;
+                let (st, storage) = (site.template, site.storage);
+                for &(k, m) in &town.construction.templates[st].materials.clone() {
+                    town.storages[storage].add(m, k);
+                }
+            }
+            if state == 2 {
+                built = true;
+                break;
+            }
+        }
+        assert!(built, "the bridge was not built: {states:?}");
+        assert!(
+            deck.iter().all(|&i| town.cells.types[i].0 == 9),
+            "not bridge cells"
+        );
+        // The deck stands above the river bed.
+        let half = (n >> 1) as f32 - 0.5;
+        let i = deck[deck.len() / 2] as i32;
+        let (x, y) = ((i % n) as f32 - half, (i / n) as f32 - half);
+        let mut normal = [0.0; 3];
+        let bed = terrain.ground(x, y, &mut normal);
+        let top = town.cells.floors.ground(town.cells.size, &terrain, x, y);
+        assert!(bed < top, "deck {top} not above the bed {bed}");
+        // Torn down, the water comes back.
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::Demolish { entity: id });
+        let mut gone = false;
+        for _ in 0..30 * 60 * 10 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            if !town.construction.sites.contains_key(&id) {
+                gone = true;
+                break;
+            }
+        }
+        assert!(gone, "the bridge was not torn down");
+        assert!(deck.iter().all(|&i| town.cells.floors.counts[i] == 0));
+        assert!(deck.iter().all(|&i| town.cells.types[i].blocks_movement()));
+        eprintln!("bridge of {span} over {:?}, states {states:?}", parts.len());
+    }
+
     /// A market is built and its vendors stock it from the town's storages by category; it
     /// joins the town's markets with its radius.
     #[test]

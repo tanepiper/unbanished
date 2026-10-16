@@ -28,6 +28,9 @@ use banished_game::town::cell_ground;
 use banished_game::construction::{Construction, Controller, Site, SiteTemplate};
 use banished_game::professions::{Profession, Professions, WorkPlace};
 
+mod bridge;
+pub use bridge::BridgeSpec;
+
 use crate::models::{placement_matrix, GroupInstances, ModelInstance, SceneModels};
 
 /// `Profession.rsc:resource` (laborer `+0x30`, builder `+0x38`) and `:professionList`.
@@ -399,6 +402,34 @@ fn wildlife_kinds(
     out
 }
 
+/// A floor's picking mesh in model space: each submesh through its bind hierarchy (Runtime
+/// AddMesh, `180127b70`).
+fn floor_triangles(mesh: &banished_formats::picking::PickingMesh) -> Vec<[[f32; 3]; 3]> {
+    use banished_formats::skeleton::Transform;
+    let root = Transform {
+        rotation: [0.0, 0.0, 0.0, 1.0],
+        translation: [0.0; 3],
+    };
+    let mut world: Vec<Transform> = Vec::with_capacity(mesh.meshes.len());
+    let mut out = Vec::new();
+    for (i, m) in mesh.meshes.iter().enumerate() {
+        let t = if i == 0 {
+            root
+        } else {
+            let [x, y, z, w] = m.rotation;
+            world.get(m.node as usize).unwrap_or(&root).mul(&Transform {
+                rotation: [-x, -y, -z, w],
+                translation: m.translation,
+            })
+        };
+        world.push(t);
+        for tri in &m.triangles {
+            out.push(tri.vertices.map(|v| t.apply(m.vertices[v as usize])));
+        }
+    }
+    out
+}
+
 /// Load a template and (recursively) the templates it spawns.
 fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) -> Option<usize> {
     let key = normalise(reference);
@@ -434,6 +465,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         use_yaws: Vec::new(),
         create_points: Vec::new(),
         named_points: Vec::new(),
+        floor: None,
         pile: None,
         pile_material: None,
         pile_yield: (0, 0),
@@ -564,6 +596,15 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                         .map(|p| (p.name.clone(), p.position, p.yaw))
                         .collect()
                 });
+            }
+            "floor" => {
+                t.floor = banished_formats::game::floor_description(&data)
+                    .ok()
+                    .filter(|f| f.active)
+                    .and_then(|f| f.mesh)
+                    .and_then(|m| read(archive, &normalise(&m)))
+                    .and_then(|d| banished_formats::picking::picking_mesh(&d).ok())
+                    .map(|m| std::sync::Arc::new(floor_triangles(&m)))
             }
             "createplaced" => {
                 t.size = create_placed_description(&data)

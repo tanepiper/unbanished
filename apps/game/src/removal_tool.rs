@@ -69,6 +69,8 @@ pub struct RemovalTool {
     /// The road mode (RoadTool `+0x38`): the CreateRoadDescription's kind and material, and
     /// the cell type of the road template's MapDescription.
     road: Option<RoadSpec>,
+    /// The bridge mode (BridgeTool `+0x38`): the CreateBridgeDescription and its parts.
+    bridge: Option<crate::start::BridgeSpec>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -122,13 +124,17 @@ impl RemovalTool {
             sounded: -1,
             held: false,
             road: None,
+            bridge: None,
         })
     }
 
     /// RoadTool's start (`FUN_14010abb0`): the template's CreateRoadDescription.
     fn start_road(archive: &Archive, town: &mut StartingTown, reference: &str) -> Option<Self> {
         let file = reference.split(':').next()?.replace('\\', "/");
-        let d = create_road_description(&read(archive, &format!("{file}:createroad"))?)
+        let Some(data) = read(archive, &format!("{file}:createroad")) else {
+            return Self::start_bridge(archive, town, reference);
+        };
+        let d = create_road_description(&data)
             .map_err(|e| log::warn!("{reference}: {e}"))
             .ok()?;
         let template = town.load_template(archive, reference)?;
@@ -159,7 +165,60 @@ impl RemovalTool {
                 ty,
                 material,
             }),
+            bridge: None,
         })
+    }
+
+    /// BridgeTool's start (`FUN_140100c70`): the template's CreateBridgeDescription.
+    fn start_bridge(archive: &Archive, town: &mut StartingTown, reference: &str) -> Option<Self> {
+        let file = reference.split(':').next()?.replace('\\', "/");
+        let bridge = town.bridge_spec(archive, reference)?;
+        let toolbar =
+            read(archive, &format!("{file}:toolbar")).and_then(|d| toolbar_description(&d).ok());
+        Some(RemovalTool {
+            reference: reference.to_string(),
+            desc: CreateRemovalDescription::default(),
+            marker: None,
+            drag: None,
+            toolbar,
+            dragging: false,
+            waiting: false,
+            start: -1,
+            end: -1,
+            sounded: -1,
+            held: false,
+            road: None,
+            bridge: Some(bridge),
+        })
+    }
+
+    /// `FUN_140100290`: the bridge's cells from the drag's start to its end on the same row or
+    /// column, valid (green) where the check holds and the cell is of a spanned or shown type
+    /// with no one on it, or, before the drag has length, a bank.
+    fn bridge_cells(
+        town: &StartingTown,
+        spec: &crate::start::BridgeSpec,
+        a: i32,
+        b: i32,
+    ) -> Vec<(i32, i32, bool)> {
+        let n = town.cells.size as i32;
+        let b = if b < 0 { a } else { town.bridge_end(a, b) };
+        let (ok, _) = town.bridge_check(spec, a, b);
+        let d = &spec.desc;
+        let (x0, x1) = ((a % n).min(b % n), (a % n).max(b % n));
+        let (y0, y1) = ((a / n).min(b / n), (a / n).max(b / n));
+        let mut out = Vec::new();
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                let i = (y * n + x) as usize;
+                let t = 1u32 << (town.cells.types[i].0 & 0x1f);
+                let valid =
+                    (ok && (d.span | d.shown) & t != 0 && town.cells.occupants[i].is_none())
+                        || (a == b && d.banks & t != 0);
+                out.push((x, y, valid));
+            }
+        }
+        out
     }
 
     /// `FUN_14010a4b0` / the start of `FUN_14010a200`: a road's cells between the drag's ends
@@ -456,6 +515,12 @@ impl RemovalTool {
         town: &mut StartingTown,
         terrain: &HeightGrid,
     ) -> DragSound {
+        if let Some(spec) = &self.bridge {
+            return match town.place_bridge(archive, spec, self.start, self.end, terrain) {
+                Some(_) => DragSound::Thunk,
+                None => DragSound::Error,
+            };
+        }
         if let Some(r) = self.road {
             let Some(cells) = self.road_cells(town, self.start, self.end) else {
                 return DragSound::Error;
@@ -550,6 +615,9 @@ impl RemovalTool {
         };
         if a < 0 {
             return Vec::new();
+        }
+        if let Some(spec) = &self.bridge {
+            return Self::bridge_cells(town, spec, a, b);
         }
         if self.road.is_some() {
             // `FUN_14010a660`: the road's cells, or its ends marked invalid.
