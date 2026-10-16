@@ -572,6 +572,91 @@ mod construction_tests {
         assert!(town.construction.claimed_resources.is_empty());
     }
 
+    /// A site whose clear-area description has the instant flag (`+0x2d`, set by mods) empties
+    /// its footprint when clearing starts (`FUN_14011d230`): the natural resources leave their
+    /// cells at once and are removed, and no clearing work is left.
+    #[test]
+    fn an_instant_clear_empties_the_footprint() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut tool = PlacementTool::start(
+            &archive,
+            &mut town,
+            r"Template\WoodHouse.rsc:resource",
+            &mut rng,
+        )
+        .unwrap();
+        let spot = tool
+            .find_spot(&town, &terrain, town.start, true)
+            .expect("no spot with resources");
+        tool.hover(&town, &terrain, Some(spot), 0);
+        let rect = tool.rect.unwrap();
+        let n = town.cells.size as i32;
+        let cells: Vec<usize> = (rect.y0..=rect.y1)
+            .flat_map(|y| (rect.x0..=rect.x1).map(move |x| (y * n + x) as usize))
+            .collect();
+        let resources: Vec<usize> = cells
+            .iter()
+            .filter_map(|&i| town.cells.objects[i])
+            .collect();
+        assert!(!resources.is_empty());
+        let id = tool.place(&archive, &mut town, 0).unwrap();
+        let template = town.construction.sites[&id].template;
+        town.construction.templates[template]
+            .clear
+            .as_mut()
+            .expect("the house clears its area")
+            .instant = true;
+        let dt = 1.0 / 30.0;
+        for _ in 0..30 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+        }
+        assert!(
+            resources.iter().all(|&r| !town.placed[r].alive),
+            "the resources are still standing"
+        );
+        assert!(cells
+            .iter()
+            .all(|&i| town.cells.objects[i].is_none_or(|o| o == id)));
+        assert!(town.construction.claimed_resources.is_empty());
+        assert!(
+            town.construction.sites[&id].machine.state != 0,
+            "still clearing"
+        );
+    }
+
     /// The blacksmith, tailor and tavern share the cutter yard's ConsumeProduce code: with
     /// every recipe's inputs in the town's storage, two workers fetch them and make the current
     /// recipe's goods, which the building's tracker counts.
@@ -4315,20 +4400,15 @@ mod construction_tests {
                 .step(banished_game::scheduler::ticks(dt));
             town.apply_terraforms(heights, width);
         };
-        let (mut supplied, mut built, mut states) = (false, false, Vec::new());
+        // The tunnel clears its cells at once (`+0x2d`), so its supply starts on the first
+        // tick: laborers bring all of its stone from the town's stock.
+        let (mut built, mut states) = (false, Vec::new());
         for _ in 0..30 * 60 * 20 {
             step(&mut town, &mut heights, &mut rng);
             let site = &town.construction.sites[&id];
             let state = site.machine.state;
             if states.last() != Some(&state) {
                 states.push(state);
-            }
-            if state == 1 && !supplied {
-                supplied = true;
-                let (st, storage) = (site.template, site.storage);
-                for &(k, m) in &town.construction.templates[st].materials.clone() {
-                    town.storages[storage].add(m, k);
-                }
             }
             if state == 2 {
                 built = true;

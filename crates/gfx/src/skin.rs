@@ -4,15 +4,16 @@
 
 use banished_formats::skeleton::Transform;
 
-/// Bones per palette (the largest shipped character skeleton has 22).
-pub const MAX_BONES: usize = 32;
+/// Bones per palette: the original's `tc_transform` is 208 constants from `c41`, four per bone
+/// (`NormalSkin_vs`), so 52; the largest shipped skeleton has 22, a mod's may have more.
+pub const MAX_BONES: usize = 52;
 /// Bytes of one palette (`MAX_BONES` column-major 4x4 matrices); a multiple of 256 so palettes
 /// can be addressed with dynamic uniform offsets.
 pub const PALETTE_BYTES: u64 = (MAX_BONES * 64) as u64;
 
 /// WGSL for the palette at `@group(2) @binding(0)` and the four-bone blend.
 pub const SKIN_WGSL: &str = r#"
-const MAX_BONES: u32 = 32u;
+const MAX_BONES: u32 = 52u;
 struct Skin {
     bones: array<mat4x4<f32>, MAX_BONES>,
 };

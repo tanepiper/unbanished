@@ -512,7 +512,7 @@ impl Sim<'_, '_> {
 
     /// `FUN_1400c8370` on an active entity: each component's deactivate slot runs now (the
     /// zone and the map stamp are lifted); the entity is removed after the machine has run.
-    fn deactivate(&mut self, jobs: &mut Jobs, e: usize) {
+    pub(crate) fn deactivate(&mut self, jobs: &mut Jobs, e: usize) {
         self.remove_work(jobs, e);
         let n = self.size as i32;
         let stamped = {

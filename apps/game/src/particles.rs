@@ -60,6 +60,52 @@ impl System {
     }
 }
 
+/// `Math::Transform::FromDirection` (Runtime `0x180022650`): the rotation whose +Y is `d`
+/// (`x, y, z, w`). The other axes come from an up of +Z (−Y when `d.z` is above 0.999, +Y
+/// when below −0.999): `x = |d × up|`, `z = |x × d|`, then `Quaternion(x, d, z)`
+/// (`0x180022450`).
+fn from_direction(d: Vec3) -> [f32; 4] {
+    let up = if 0.999 < d.z {
+        Vec3::new(0.0, -1.0, 0.0)
+    } else if d.z < -0.999 {
+        Vec3::new(0.0, 1.0, 0.0)
+    } else {
+        Vec3::new(0.0, 0.0, 1.0)
+    };
+    let unit = |v: Vec3| {
+        let len = v.length();
+        if len != 0.0 {
+            v * (1.0 / len)
+        } else {
+            v
+        }
+    };
+    let x = unit(d.cross(up));
+    let z = unit(x.cross(d));
+    let (a, b, c) = (x, d, z);
+    let part = |v: f32| v.max(0.0).sqrt() * 0.5;
+    [
+        part(1.0 + a.x - b.y - c.z).copysign(c.y - b.z),
+        part(1.0 - a.x + b.y - c.z).copysign(a.z - c.x),
+        part(1.0 - a.x - b.y + c.z).copysign(b.x - a.y),
+        part(1.0 + a.x + b.y + c.z),
+    ]
+}
+
+/// `q · v · q⁻¹` as the spawn writes it (`x, y, z, w`).
+fn rotate(q: [f32; 4], v: Vec3) -> Vec3 {
+    let [x, y, z, w] = q;
+    let t0 = w * v.x + z * v.y - y * v.z;
+    let t1 = -z * v.x + w * v.y + x * v.z;
+    let t2 = y * v.x - x * v.y + w * v.z;
+    let t3 = -x * v.x - y * v.y - z * v.z;
+    Vec3::new(
+        t0 * w - t3 * x - t2 * y + t1 * z,
+        t1 * w + t2 * x - t3 * y - t0 * z,
+        t2 * w - t1 * x + t0 * y - t3 * z,
+    )
+}
+
 /// A running system (`ParticleSystemInstance`): its particles and emission state, at a world
 /// position with no rotation.
 #[derive(Clone, Debug)]
@@ -132,8 +178,11 @@ impl Instance {
         let azimuth = tol(rng) * s.cone[0] * DEG;
         let (sa, ca) = azimuth.sin_cos();
         let (sb, cb) = elevation.sin_cos();
-        // Every shipped system emits along +Y, which `Transform::FromDirection` leaves as is.
-        let velocity = Vec3::new(-cb * sa * speed, cb * ca * speed, sb * speed);
+        // Turned to the emission direction (`Transform::FromDirection`; the instance has no
+        // rotation, so its direction is the system's). Every shipped system emits along +Y,
+        // which this leaves as is; a mod's may not.
+        let cone = Vec3::new(-cb * sa * speed, cb * ca * speed, sb * speed);
+        let velocity = rotate(from_direction(Vec3::from(s.direction)), cone);
         self.particles.push(Particle {
             life,
             age: 0.0,
@@ -709,6 +758,20 @@ impl Particles {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_emission_direction_turns_the_cone() {
+        use glam::Vec3;
+        let v = Vec3::new(0.3, 2.0, -0.4);
+        // +Y leaves the velocity as it is.
+        let same = super::rotate(super::from_direction(Vec3::Y), v);
+        assert!((same - v).length() < 1e-6);
+        // +Z turns the cone's axis (+Y) up.
+        let up = super::rotate(super::from_direction(Vec3::Z), Vec3::Y);
+        assert!((up - Vec3::Z).length() < 1e-6, "{up}");
+        let side = super::rotate(super::from_direction(Vec3::X), Vec3::Y);
+        assert!((side - Vec3::X).length() < 1e-6, "{side}");
+    }
+
     use super::*;
 
     fn smoke() -> ParticleSystem {

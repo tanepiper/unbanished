@@ -1224,8 +1224,16 @@ impl Callbacks for Sim<'_, '_> {
         match f {
             Callback::None | Callback::Missing => false,
             Callback::ClearEnter0 => {
-                // `FUN_14011ce30`. Not ported: the instant clear (`FUN_14011d230`, description
-                // `+0x2d` or the game's instant flag); no shipped site sets it.
+                // `FUN_14011ce30`: with the description's instant flag (`+0x2d`; or the debug
+                // flag `Game +0xd0` bit 0) the footprint is emptied at once (`FUN_14011d230`).
+                let instant = self
+                    .sites
+                    .get(&e)
+                    .and_then(|s| self.site_templates[s.template].clear.as_ref())
+                    .is_some_and(|d| d.instant);
+                if instant {
+                    self.clear_instantly(jobs, e);
+                }
                 if self.is_clear(e) {
                     self.machine(e).request(1);
                 } else {
@@ -2940,6 +2948,45 @@ impl Sim<'_, '_> {
             self.piles.get_mut(&id).unwrap().work = w;
             if let Some(wp) = auto_pickup {
                 self.auto_pickup_add(wp, w);
+            }
+        }
+    }
+
+    /// `FUN_14011d230`: every other entity on the footprint's cells that is not already going
+    /// goes now (`FUN_1400c8370`): its work and its stamp are lifted at once and it is removed
+    /// with the entities queued this iteration. A pile goes with its work.
+    fn clear_instantly(&mut self, jobs: &mut Jobs, e: usize) {
+        let n = self.size as i32;
+        let (x, y) = self.placed[e].cell;
+        let (w, h) = self.placed[e].footprint;
+        for cy in y..y + h {
+            for cx in x..x + w {
+                let Some(o) = self.cells.objects[(cy * n + cx) as usize] else {
+                    continue;
+                };
+                if o == e || !self.placed[o].alive || self.placed[o].removal_requested {
+                    continue;
+                }
+                if self.piles.contains_key(&o) {
+                    self.destroy_pile(jobs, o);
+                    continue;
+                }
+                if self.templates[self.placed[o].template].natural.is_some() {
+                    // The natural resource's removal (`FUN_140125a30` → `FUN_1400a33b0`) frees
+                    // its cell now; the growth map follows when the entity goes.
+                    let (ox, oy) = self.placed[o].cell;
+                    let i = (oy * n + ox) as usize;
+                    if self.cells.objects[i] == Some(o) {
+                        self.cells.objects[i] = None;
+                        self.cells.types[i] = self.terrain.natural_cell_type(self.size, i);
+                    }
+                } else {
+                    self.deactivate(jobs, o);
+                }
+                let p = &mut self.placed[o];
+                p.animation = None;
+                p.removal_requested = true;
+                *self.models_dirty = true;
             }
         }
     }
