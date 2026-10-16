@@ -47,6 +47,6 @@ StockManager::Update (`FUN_140091780`) counts `+0x198` down; below 1 it samples
 
 With no citizens, series 4 to 7 get 0. Then every slot's used and made restart.
 
-## Not ported
-
-The Town Info window that draws them; the 300 s timer next to it (`+0x190`, `+0x1b8`).
+The window that draws these is TownHallUI ([BUILDING-WINDOWS.md](BUILDING-WINDOWS.md)). The
+300 s clock beside the sampler (`+0x190`, `+0x1b8`) runs the commute optimisation
+([COMMUTE.md](COMMUTE.md)).

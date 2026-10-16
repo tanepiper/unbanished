@@ -1092,6 +1092,8 @@ pub struct Site {
 /// The job manager, professions, workforce and every construction site.
 #[derive(Debug, Clone, Default)]
 pub struct Construction {
+    /// The town's commute optimisation (StockManager `+0x190`, `+0x1b8`).
+    pub commute: crate::commute::Commute,
     pub jobs: Jobs,
     pub professions: Professions,
     pub workforce: Workforce,

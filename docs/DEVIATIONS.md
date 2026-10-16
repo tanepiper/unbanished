@@ -83,7 +83,7 @@ Deviation: 38, Not ported: 10, Not traced: 5.
 ## `crates/game/src/agents.rs`
 
 - [Deviation] [crates/game/src/agents.rs:1](../crates/game/src/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance (`AnimationManager::Update`), every character runs its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run the AI with zero time (`FUN_140114810`), then the AI updates. Deviations: the AI runs every iteration instead of on its bucket's quota, and after the placed entities' bucket pass instead of interleaved with it.
-- [Deviation] [crates/game/src/agents.rs:579](../crates/game/src/agents.rs#L579): `FUN_14004ddb0`: the band becomes citizens in fours where each nomad stands (`FUN_140050b00` → `FUN_14011c550`, laborers): a man, a woman (married to him), then a girl and a boy in her care. Adults are `+0x50 + RandFloat × (+0x54 − +0x50)` years old, children `RandFloat × +0x50`. Then the nomads are gone and the town hall goes back to 2. Deviation: a band taken in is made after the frame's other commands.
+- [Deviation] [crates/game/src/agents.rs:597](../crates/game/src/agents.rs#L597): `FUN_14004ddb0`: the band becomes citizens in fours where each nomad stands (`FUN_140050b00` → `FUN_14011c550`, laborers): a man, a woman (married to him), then a girl and a boy in her care. Adults are `+0x50 + RandFloat × (+0x54 − +0x50)` years old, children `RandFloat × +0x50`. Then the nomads are gone and the town hall goes back to 2. Deviation: a band taken in is made after the frame's other commands.
 
 ## `crates/game/src/animation.rs`
 
@@ -160,9 +160,9 @@ Deviation: 38, Not ported: 10, Not traced: 5.
 
 ## `crates/game/src/town.rs`
 
-- [Not ported] [crates/game/src/town.rs:583](../crates/game/src/town.rs#L583): `FUN_1400c4c60` with its flags: `partial` (`param_11`, the pickup may take less), `complete_on_pickup` (`param_12`, the CompleteTask follows the pickup rather than the delivery). Not ported: `param_13` (a Citizen message) and `param_14` (tool use, faster walk), which no ported caller sets.
-- [Deviation] [crates/game/src/town.rs:1093](../crates/game/src/town.rs#L1093): Deviation: every site's scheduled update runs each iteration (bucket 3's quota of five visits each entity every iteration while it holds at most five).
-- [Not ported] [crates/game/src/town.rs:1184](../crates/game/src/town.rs#L1184): `FUN_14011ce30`. Not ported: the instant clear (`FUN_14011d230`, description `+0x2d` or the game's instant flag); no shipped site sets it.
+- [Not ported] [crates/game/src/town.rs:596](../crates/game/src/town.rs#L596): `FUN_1400c4c60` with its flags: `partial` (`param_11`, the pickup may take less), `complete_on_pickup` (`param_12`, the CompleteTask follows the pickup rather than the delivery). Not ported: `param_13` (a Citizen message) and `param_14` (tool use, faster walk), which no ported caller sets.
+- [Deviation] [crates/game/src/town.rs:1106](../crates/game/src/town.rs#L1106): Deviation: every site's scheduled update runs each iteration (bucket 3's quota of five visits each entity every iteration while it holds at most five).
+- [Not ported] [crates/game/src/town.rs:1197](../crates/game/src/town.rs#L1197): `FUN_14011ce30`. Not ported: the instant clear (`FUN_14011d230`, description `+0x2d` or the game's instant flag); no shipped site sets it.
 
 ## `crates/game/src/trade.rs`
 

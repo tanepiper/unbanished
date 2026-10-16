@@ -95,6 +95,7 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Smoke, fire and blight particles | yes ([PARTICLES.md](PARTICLES.md)) |
 | Weather precipitation (rain, snow) | yes ([ENVIRONMENT.md](ENVIRONMENT.md)) |
 | The tornado's funnel (its particle class) | yes ([PARTICLES.md](PARTICLES.md)) |
+| Commute optimisation (homes and jobs dealt again every 300 s) | yes ([COMMUTE.md](COMMUTE.md)) |
 | Disasters (fire, tornado, disease) and AutoSlow | yes (fire, blight and tornadoes with the Disasters option; AutoSlow from their events) |
 
 ## Plan

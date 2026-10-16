@@ -387,6 +387,24 @@ impl Agents {
             .collect()
     }
 
+    /// StockManager::Update's commute optimisation (`FUN_140091780`, see
+    /// [`crate::commute`]) by `dt` ticks.
+    pub fn update_commute(
+        &mut self,
+        citizens: &[Citizen],
+        env: &mut Env,
+        groups: &[Option<&AnimationGroup>],
+        dt: i64,
+    ) {
+        self.sync_map(env.cells);
+        let mut job = std::mem::take(&mut env.construction.commute);
+        let entities = entity_views(env.placed, env.templates, env.construction);
+        let adult = self.adults(citizens);
+        let (mut sim, _) = self.sim(citizens, env, groups, &adult, &entities);
+        sim.update_commute(&mut job, citizens, dt);
+        env.construction.commute = job;
+    }
+
     /// Player commands and newly placed sites, applied before an iteration (where the
     /// original's UI events and placement land between iterations).
     pub fn apply_commands(

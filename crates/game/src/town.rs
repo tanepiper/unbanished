@@ -246,6 +246,19 @@ impl Sim<'_, '_> {
         self.cell_of(self.characters[c].position)
     }
 
+    /// `Interact::PointPosition(entity, 0)` as a cell.
+    pub(crate) fn point_cell(&self, entity: usize) -> i32 {
+        self.town().point_cell(entity)
+    }
+
+    /// `Map::PathRank` (`FUN_1400a4ce0`): mode 1 stores what it computes.
+    pub(crate) fn path_rank(&mut self, a: i32, b: i32, store: bool) -> i32 {
+        let reachable = self.reachable(a, b);
+        self.sectors.rebuild(&self.cells.types);
+        self.sectors
+            .distance(a, b, reachable, store, &self.cells.types)
+    }
+
     fn town(&self) -> TownView<'_> {
         TownView {
             size: self.size,

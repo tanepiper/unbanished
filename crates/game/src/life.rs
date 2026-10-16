@@ -176,7 +176,7 @@ pub fn stored(storage: &Storage, materials: &[RawMaterial], bit: u32) -> i32 {
 }
 
 /// `FUN_14012fbe0`'s sort (`FUN_14012f2f0`): citizens without a guardian first, then by sex.
-fn family_order(citizens: &[Citizen], a: usize, b: usize) -> std::cmp::Ordering {
+pub(crate) fn family_order(citizens: &[Citizen], a: usize, b: usize) -> std::cmp::Ordering {
     let key = |c: usize| {
         let c = &citizens[c];
         (c.parent.is_some() as u32) << 12 | (c.male as u32) << 8

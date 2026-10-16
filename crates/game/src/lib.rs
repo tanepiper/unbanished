@@ -14,6 +14,7 @@ pub mod calendar;
 pub mod cemetery;
 pub mod character;
 pub mod citizens;
+pub mod commute;
 pub mod construction;
 pub mod control;
 pub mod destroy;

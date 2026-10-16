@@ -921,6 +921,14 @@ impl GameplayLoop {
         if let Some(town) = &mut self.town {
             self.stock_warnings
                 .recompute(&town.registered_storages(), &town.materials);
+            // StockManager::Update's commute optimisation (every 300 s).
+            if let Some(view) = &self.view {
+                let grid = banished_game::terrain::HeightGrid {
+                    width: view.terrain.size + 1,
+                    heights: &view.terrain.heights,
+                };
+                town.update_commute(&grid, &mut self.rng, dt);
+            }
             // The job manager's pass and clock (`FUN_14009b850`, after the stock update).
             town.construction.jobs.step(ticks(dt));
             // `FUN_14008fc00` every 75 s: the citizens and every stock slot.

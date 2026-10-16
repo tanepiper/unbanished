@@ -606,6 +606,146 @@ mod construction_tests {
         }
     }
 
+    /// The commute optimisation (StockManager every 300 s): with a cutter yard worked and the
+    /// families housed, a run deals the jobs again: every profession keeps its count and every
+    /// workplace its workers, and the job ends idle with its clock wrapped.
+    #[test]
+    fn the_commute_run_keeps_the_professions() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(Package::parse(bytes).unwrap());
+        }
+        let world = crate::world::World::generate(
+            &archive,
+            &crate::world::WorldParams {
+                seed: 1234,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let terrain = HeightGrid {
+            width: world.terrain.width(),
+            heights: &world.terrain.heights,
+        };
+        let mut rng = Random::new(1234);
+        let mut town = StartingTown::create(
+            &archive,
+            "Game/StartCondition/Medium.rsc:resource",
+            world.terrain.size,
+            &terrain,
+            &mut rng,
+        )
+        .unwrap();
+        let mut ids = Vec::new();
+        for template in [
+            r"Template\CutterYard.rsc:resource",
+            r"Template\WoodHouse.rsc:resource",
+            r"Template\WoodHouse.rsc:resource",
+        ] {
+            let mut tool = PlacementTool::start(&archive, &mut town, template, &mut rng).unwrap();
+            let spot = tool.find_clear_spot(&town, &terrain, town.start);
+            tool.hover(&town, &terrain, spot, 0);
+            ids.push(tool.place(&archive, &mut town, 0).unwrap());
+        }
+        let p = &town.construction.professions;
+        let builder = p.builder;
+        let cutter = p
+            .list
+            .iter()
+            .position(|p| p.reference.to_ascii_lowercase().ends_with(":cutter"))
+            .unwrap();
+        town.construction
+            .commands
+            .push(banished_game::professions::Command::SetCount {
+                profession: builder,
+                count: 4,
+            });
+        let mut warnings = banished_game::events::StockWarnings::default();
+        let dt = 1.0 / 30.0;
+        let mut staffed = false;
+        for _ in 0..30 * 60 * 15 {
+            town.apply_commands(&terrain, &mut rng);
+            town.iterate(&terrain, &mut rng, dt, 50.0);
+            let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            warnings.recompute(&town.registered_storages(), &town.materials);
+            town.construction
+                .jobs
+                .step(banished_game::scheduler::ticks(dt));
+            if !staffed && town.construction.sites[&ids[0]].complete {
+                staffed = true;
+                town.construction
+                    .commands
+                    .push(banished_game::professions::Command::SetCount {
+                        profession: cutter,
+                        count: 2,
+                    });
+            }
+            if ids.iter().all(|e| town.construction.sites[e].complete)
+                && town
+                    .construction
+                    .workforce
+                    .workplaces
+                    .get(&ids[0])
+                    .is_some_and(|w| !w.workers.is_empty())
+            {
+                break;
+            }
+        }
+        assert!(ids.iter().all(|e| town.construction.sites[e].complete));
+        let counts = |town: &StartingTown| {
+            let mut m = std::collections::BTreeMap::new();
+            for (c, s) in town.citizens.iter().zip(&town.agents.states) {
+                if c.alive
+                    && c.age >= town.agents.rules().thresholds.adult_age
+                    && s.school.is_none()
+                {
+                    *m.entry(s.profession).or_insert(0) += 1;
+                }
+            }
+            m
+        };
+        let workers = |town: &StartingTown| -> Vec<(usize, usize)> {
+            town.construction
+                .workforce
+                .workplaces
+                .iter()
+                .map(|(&e, w)| (e, w.workers.len()))
+                .collect()
+        };
+        let (before, staff) = (counts(&town), workers(&town));
+        assert!(!town.construction.workforce.workplaces[&ids[0]]
+            .workers
+            .is_empty());
+        // 300 s, then the pairs seven an update.
+        let mut ran = false;
+        for _ in 0..30 * 330 {
+            town.update_commute(&terrain, &mut rng, dt);
+            let job = &town.construction.commute;
+            ran |= 0 <= job.index;
+            if ran && job.index < 0 {
+                break;
+            }
+        }
+        let job = &town.construction.commute;
+        assert!(ran && job.index < 0 && job.pairs.is_empty() && !job.ranks.is_empty());
+        assert!(job.timer <= banished_game::scheduler::ticks(300.0));
+        assert_eq!(counts(&town), before);
+        assert_eq!(workers(&town), staff);
+        for (c, s) in town.agents.states.iter().enumerate() {
+            if let Some(w) = s.workplace {
+                assert!(town.construction.workforce.workplaces[&w]
+                    .workers
+                    .contains(&c));
+            }
+        }
+    }
+
     /// A wood cutter near the start is built, two woodcutters take the ConsumeProduce work:
     /// they fetch logs into the yard, work cycles and leave firewood piles that laborers haul to
     /// storage.

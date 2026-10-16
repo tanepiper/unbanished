@@ -1922,6 +1922,40 @@ impl StartingTown {
         }
     }
 
+    /// StockManager::Update's commute optimisation (`banished_game::commute`) by `dt` seconds.
+    pub fn update_commute(&mut self, terrain: &HeightGrid, rng: &mut Random, dt: f32) {
+        let groups: Vec<_> = self
+            .citizens
+            .iter()
+            .map(|c| {
+                self.citizen_anims
+                    .get(usize::from(!c.male))
+                    .and_then(Option::as_deref)
+                    .filter(|_| c.alive)
+            })
+            .collect();
+        let mut env = banished_game::town::Env {
+            wildlife: &mut self.wildlife,
+            cells: &mut self.cells,
+            placed: &mut self.placed,
+            templates: &self.templates,
+            terrain,
+            materials: &self.materials,
+            storages: &mut self.storages,
+            sites: &self.storage_sites,
+            rng,
+            construction: &mut self.construction,
+            stock: [(0, 0); 21],
+            temperature: 0.0,
+        };
+        self.agents.update_commute(
+            &self.citizens,
+            &mut env,
+            &groups,
+            banished_game::scheduler::ticks(dt),
+        );
+    }
+
     /// [`Self::add_marker`] for a marker whose construction template is loaded.
     fn add_cached_marker(&mut self, template: usize, cell: (i32, i32), terrain: &HeightGrid) {
         let reference = self.templates[template].reference.clone();
