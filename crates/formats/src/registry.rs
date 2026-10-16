@@ -14,12 +14,15 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::pkg::{ref_to_entry, Archive};
 
-/// `Path\File.rsc:object` with the delimiters and case the package index uses.
+/// `Path\File.rsc:object` with backslashes and in lower case: the factory's map compares
+/// names with `_stricmp` (`ExternalFactory::FindNext`, Runtime `0x1800c1240`), so this is
+/// also its order.
 fn key(reference: &str) -> String {
-    let r = reference.replace('/', "\\");
-    match r.rsplit_once(':') {
-        Some((path, object)) => format!("{}:{}", path.to_ascii_lowercase(), object),
-        None => format!("{}:resource", r.to_ascii_lowercase()),
+    let r = reference.replace('/', "\\").to_ascii_lowercase();
+    if r.contains(':') {
+        r
+    } else {
+        format!("{r}:resource")
     }
 }
 
@@ -72,8 +75,8 @@ fn is_reference(s: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || " _-.\\/:()'&".contains(c))
 }
 
-/// The loaded resources: each `Path\File.rsc:object` (keyed lower-case path, original object)
-/// with its type id and the reference as first written.
+/// The loaded resources: each `Path\File.rsc:object` (keyed in lower case) with its type id
+/// and the reference as first written.
 #[derive(Debug, Default, Clone)]
 pub struct Registry {
     pub loaded: BTreeMap<String, (u32, String)>,
@@ -109,7 +112,8 @@ impl Registry {
         Registry { loaded }
     }
 
-    /// `ExternalFactory::FindNext` over one type: the references of that type, sorted.
+    /// `ExternalFactory::FindNext` over one type: the references of that type, in the
+    /// factory's order (by name, without case).
     pub fn of_type(&self, type_id: u32) -> Vec<&str> {
         self.loaded
             .values()
