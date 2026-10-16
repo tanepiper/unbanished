@@ -49,8 +49,8 @@ pub struct RangeData {
 /// A mesh (most detailed level) and the transforms of its instances.
 pub struct ModelGroup {
     pub name: String,
-    /// The mesh's material set (a damaged building's DestroyDescription `+0x28`).
-    pub set: usize,
+    /// The mesh's material set and material 0 override.
+    pub material: GroupMaterial,
     pub ranges: Vec<RangeData>,
     pub instances: Vec<[f32; 16]>,
     /// One `MAX_BONES` palette per instance (skinned groups only).
@@ -76,10 +76,10 @@ struct ModelAsset {
 }
 
 impl ModelAsset {
-    fn into_group(self, name: String, set: usize) -> ModelGroup {
+    fn into_group(self, name: String, material: GroupMaterial) -> ModelGroup {
         ModelGroup {
             name,
-            set,
+            material,
             ranges: self.ranges,
             instances: Vec::new(),
             skins: Vec::new(),
@@ -156,7 +156,21 @@ fn placed_pose(locals: &[Transform]) -> Vec<Transform> {
 
 /// One mesh's instances: mesh reference, material set, instances, and the local pose skinned
 /// meshes are drawn in (`None` = bind pose).
-pub type GroupInstances = (String, usize, Vec<ModelInstance>, Option<Vec<Transform>>);
+pub type GroupInstances = (
+    String,
+    GroupMaterial,
+    Vec<ModelInstance>,
+    Option<Vec<Transform>>,
+);
+
+/// What a group's mesh is drawn with: its material set (a damaged building's DestroyDescription
+/// `+0x28`) and, for nomads, a MaterialInstance in place of material 0
+/// (`MeshInstance::SetMaterialInstance(0, ..)`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct GroupMaterial {
+    pub set: usize,
+    pub first: Option<String>,
+}
 
 pub struct SceneModels {
     pub groups: Vec<ModelGroup>,
@@ -191,7 +205,7 @@ pub fn placement_matrix(position: [f32; 3], scale: [f32; 3], yaw: f32) -> [f32; 
 fn load_group(
     archive: &Archive,
     mesh_ref: &str,
-    material_set: usize,
+    material: &GroupMaterial,
     textures: &mut HashMap<String, Option<ImageBuffer>>,
     pose: Option<&[Transform]>,
 ) -> Option<ModelAsset> {
@@ -200,7 +214,14 @@ fn load_group(
         .ok()?;
     let world = banished_gfx::model::bind_world(&mesh);
     let part = mesh.parts.first()?;
-    let set = banished_gfx::model::material_set(&mesh, material_set);
+    let mut set: Option<Vec<Option<String>>> =
+        banished_gfx::model::material_set(&mesh, material.set).map(<[_]>::to_vec);
+    if let (Some(first), Some(list)) = (&material.first, set.as_mut()) {
+        if let Some(m) = list.first_mut() {
+            *m = Some(first.clone());
+        }
+    }
+    let set = set.as_deref();
     let mut cached = |r: Option<String>| -> Option<ImageBuffer> {
         let r = r?;
         textures
@@ -281,16 +302,14 @@ impl SceneModels {
             let Some(Some(mesh_ref)) = scene.meshes.get(key.0 as usize) else {
                 continue;
             };
-            let Some(asset) = load_group(
-                archive,
-                mesh_ref,
-                key.1.max(0) as usize,
-                &mut textures,
-                None,
-            ) else {
+            let material = GroupMaterial {
+                set: key.1.max(0) as usize,
+                first: None,
+            };
+            let Some(asset) = load_group(archive, mesh_ref, &material, &mut textures, None) else {
                 continue;
             };
-            let mut group = asset.into_group(mesh_ref.clone(), key.1.max(0) as usize);
+            let mut group = asset.into_group(mesh_ref.clone(), material);
             let instances = by_key.remove(&key).unwrap_or_default();
             group.set_instances(
                 instances
@@ -315,9 +334,15 @@ impl SceneModels {
         let mut textures = HashMap::new();
         let groups = instances
             .into_iter()
-            .filter_map(|(mesh_ref, set, instances, pose)| {
-                let asset = load_group(archive, &mesh_ref, set, &mut textures, pose.as_deref())?;
-                let mut group = asset.into_group(mesh_ref, set);
+            .filter_map(|(mesh_ref, material, instances, pose)| {
+                let asset = load_group(
+                    archive,
+                    &mesh_ref,
+                    &material,
+                    &mut textures,
+                    pose.as_deref(),
+                )?;
+                let mut group = asset.into_group(mesh_ref, material);
                 group.set_instances(instances);
                 Some(group)
             })
@@ -336,17 +361,17 @@ impl SceneModels {
             group.skins.clear();
         }
         let mut textures = HashMap::new();
-        for (name, set, instances, pose) in instances {
+        for (name, material, instances, pose) in instances {
             if let Some(group) = self
                 .groups
                 .iter_mut()
-                .find(|g| g.name == name && g.set == set)
+                .find(|g| g.name == name && g.material == material)
             {
                 group.set_instances(instances);
             } else if let Some(asset) =
-                load_group(archive, &name, set, &mut textures, pose.as_deref())
+                load_group(archive, &name, &material, &mut textures, pose.as_deref())
             {
-                let mut group = asset.into_group(name, set);
+                let mut group = asset.into_group(name, material);
                 group.set_instances(instances);
                 self.groups.push(group);
             }

@@ -32,7 +32,7 @@ mod bridge;
 mod tornado;
 pub use bridge::BridgeSpec;
 
-use crate::models::{placement_matrix, GroupInstances, ModelInstance, SceneModels};
+use crate::models::{placement_matrix, GroupInstances, GroupMaterial, ModelInstance, SceneModels};
 
 /// `Profession.rsc:resource` (laborer `+0x30`, builder `+0x38`) and `:professionList`.
 fn professions(archive: &Archive) -> Professions {
@@ -892,6 +892,8 @@ pub struct StartingTown {
     removed: Vec<usize>,
     pub animation_events: Vec<(usize, String)>,
     pub(crate) citizen_model: Option<banished_formats::game::ModelDescription>,
+    /// The nomad templates' NomadDescription materials (men, women).
+    nomad_materials: HashMap<usize, [Option<String>; 2]>,
     /// Each variant's animation group (`Models\Citizen\CitizenAnims.rsc`).
     pub(crate) citizen_anims: Vec<Option<Arc<banished_formats::types::AnimationGroup>>>,
     /// The citizens' CharacterComponent and CitizenAIComponent (docs/CITIZEN-AI.md).
@@ -1172,6 +1174,7 @@ impl StartingTown {
                 .map(|m| citizen_animations(archive, m))
                 .unwrap_or_default(),
             citizen_model,
+            nomad_materials: HashMap::new(),
             agents,
             wildlife,
             ghost: None,
@@ -2545,6 +2548,12 @@ impl StartingTown {
             template,
             banished_game::immigration::NomadKind { character },
         );
+        let file = normalise(reference).replace(":resource", ":nomad");
+        if let Some((_, materials)) =
+            read(archive, &file).and_then(|d| banished_formats::game::nomad_description(&d).ok())
+        {
+            self.nomad_materials.insert(template, materials);
+        }
         Some(template)
     }
 
@@ -2686,7 +2695,7 @@ impl StartingTown {
     /// stored item, in order, fills `size × count / capacity` of the cells with its pile
     /// model's last mesh, and the next cell with the mesh for the fraction left; the rest are
     /// empty.
-    fn storage_displays(&self, groups: &mut HashMap<(String, usize), Vec<ModelInstance>>) {
+    fn storage_displays(&self, groups: &mut HashMap<(String, GroupMaterial), Vec<ModelInstance>>) {
         let storages = self
             .storage_sites
             .iter()
@@ -2747,16 +2756,19 @@ impl StartingTown {
                 let (row, col) = (i as i32 / w, i as i32 % w);
                 let Some(&at) = ground.get(i) else { continue };
                 let yaw = if (row + col) & 1 != 0 { 0.0 } else { 90.0 };
-                groups.entry((mesh, 0)).or_default().push(ModelInstance {
-                    matrix: placement_matrix(at, [1.0; 3], yaw),
-                    locals: None,
-                });
+                groups
+                    .entry((mesh, GroupMaterial::default()))
+                    .or_default()
+                    .push(ModelInstance {
+                        matrix: placement_matrix(at, [1.0; 3], yaw),
+                        locals: None,
+                    });
             }
         }
     }
 
     pub(crate) fn model_instances(&self) -> Vec<GroupInstances> {
-        let mut groups: HashMap<(String, usize), Vec<ModelInstance>> = HashMap::new();
+        let mut groups: HashMap<(String, GroupMaterial), Vec<ModelInstance>> = HashMap::new();
         for (e, p) in self.placed.iter().enumerate() {
             if !p.alive {
                 continue;
@@ -2780,7 +2792,7 @@ impl StartingTown {
                 .and_then(|s| self.construction.templates[s.template].destroy)
                 .map_or(0, |t| t.material.max(0) as usize);
             groups
-                .entry((mesh.clone(), set))
+                .entry((mesh.clone(), GroupMaterial { set, first: None }))
                 .or_default()
                 .push(ModelInstance {
                     matrix: placement_matrix(
@@ -2827,7 +2839,7 @@ impl StartingTown {
                         g.clips.get(p.clip).map(|clip| p.pose(clip))
                     });
                 groups
-                    .entry((mesh.clone(), 0))
+                    .entry((mesh.clone(), GroupMaterial::default()))
                     .or_default()
                     .push(ModelInstance { matrix, locals });
             }
@@ -2853,15 +2865,16 @@ impl StartingTown {
                     .map(|clip| ch.animation.pose(clip))
             });
             groups
-                .entry((mesh.clone(), 0))
+                .entry((mesh.clone(), GroupMaterial::default()))
                 .or_default()
                 .push(ModelInstance {
                     matrix: placement_matrix(ch.position, [s, s, s], ch.yaw),
                     locals,
                 });
         }
-        // Nomads: their template's model (men variant 0, women 1), placed by their
-        // CharacterComponent. Not ported: the nomads' material instances.
+        // Nomads: their template's model (men variant 0, women 1) with the NomadDescription's
+        // material in place of material 0 (`FUN_140050990`), placed by their
+        // CharacterComponent.
         for nomad in self.wildlife.nomads.values() {
             let Some(model) = &self.templates[nomad.template].model else {
                 continue;
@@ -2883,8 +2896,15 @@ impl StartingTown {
                         .get(ch.animation.clip)
                         .map(|clip| ch.animation.pose(clip))
                 });
+            let material = GroupMaterial {
+                set: 0,
+                first: self
+                    .nomad_materials
+                    .get(&nomad.template)
+                    .and_then(|m| m.get(nomad.variant).cloned().flatten()),
+            };
             groups
-                .entry((mesh.clone(), 0))
+                .entry((mesh.clone(), material))
                 .or_default()
                 .push(ModelInstance {
                     matrix: placement_matrix(ch.position, [1.0; 3], ch.yaw),
@@ -2893,7 +2913,7 @@ impl StartingTown {
         }
         if let Some((mesh, matrix)) = &self.ghost {
             groups
-                .entry((mesh.clone(), 0))
+                .entry((mesh.clone(), GroupMaterial::default()))
                 .or_default()
                 .push(ModelInstance {
                     matrix: *matrix,
@@ -2902,9 +2922,9 @@ impl StartingTown {
         }
         let mut list: Vec<_> = groups
             .into_iter()
-            .map(|((m, set), i)| (m, set, i, None))
+            .map(|((m, material), i)| (m, material, i, None))
             .collect();
-        list.sort_by(|a, b| (&a.0, a.1).cmp(&(&b.0, b.1)));
+        list.sort_by(|a, b| (&a.0, &a.1).cmp(&(&b.0, &b.1)));
         list
     }
 }

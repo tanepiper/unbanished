@@ -55,7 +55,8 @@ pub struct Immigration {
 }
 
 /// NomadDescription (serializer `FUN_140050880`): `+0x20` the citizen template they become;
-/// `+0x28` / `+0x30` the men's and women's material (not ported); and the CharacterDescription.
+/// `+0x28` / `+0x30` the men's and women's material (presentation: `StartingTown::nomad_materials`);
+/// and the CharacterDescription.
 #[derive(Debug, Clone)]
 pub struct NomadKind {
     pub character: CharacterDescription,

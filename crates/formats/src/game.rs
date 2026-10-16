@@ -2176,6 +2176,27 @@ pub fn terraform_description(data: &[u8]) -> Result<TerraformDescription> {
     Ok(value)
 }
 
+/// `NomadDescription` (serializer `FUN_140050880`): `+0x20` the citizen template they become,
+/// `+0x28` / `+0x30` the men's and women's MaterialInstance (`FUN_140050990` puts it in their
+/// model's material 0).
+pub fn nomad_description(data: &[u8]) -> Result<(Option<String>, [Option<String>; 2])> {
+    let (_, value) = crs::parse(data, |r: &mut Reader, h| {
+        if h.type_id != type_id("NomadDescription") {
+            return format_err(format!(
+                "expected NomadDescription, found {:#010x}",
+                h.type_id
+            ));
+        }
+        r.block(|r, _| {
+            let citizen = r.external_ref()?;
+            let men = r.external_ref()?;
+            let women = r.external_ref()?;
+            Ok((citizen, [men, women]))
+        })
+    })?;
+    Ok(value)
+}
+
 /// `TornadoDescription` (serializer `FUN_1400596f0`): `+0x20` speed, `+0x24` the ends' least
 /// distance, `+0x30` the reach of a wrecking pass, `+0x28` the time between passes, `+0x34`
 /// how far a pass throws its point.

@@ -3281,7 +3281,7 @@ mod construction_tests {
                 assert!(town
                     .model_instances()
                     .iter()
-                    .any(|(m, set, i, _)| *m == mesh && *set == 1 && !i.is_empty()));
+                    .any(|(m, g, i, _)| *m == mesh && g.set == 1 && !i.is_empty()));
             }
             if let Some(banished_game::jobs::WorkKind::Fire(fw)) =
                 town.construction.jobs.works.get(&w).map(|w| &w.kind)
@@ -3415,6 +3415,17 @@ mod construction_tests {
             }
             if state == 0x11 && !asked {
                 asked = true;
+                // The waiting nomads wear the NomadDescription's materials.
+                let worn: Vec<String> = town
+                    .model_instances()
+                    .into_iter()
+                    .filter(|(_, _, i, _)| !i.is_empty())
+                    .filter_map(|(_, g, _, _)| g.first)
+                    .collect();
+                assert!(
+                    !worn.is_empty() && worn.iter().all(|m| m.contains("Nomad")),
+                    "{worn:?}"
+                );
                 town.construction.commands.push(
                     banished_game::professions::Command::StateMessage {
                         entity: id,

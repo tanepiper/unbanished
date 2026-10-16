@@ -73,4 +73,7 @@ gets message 0.
 - Nomads are kept with the wildlife (`Wildlife::nomads`) and moved with the animals; their
   StateMachine updates run after the sites'.
 - A band taken in becomes citizens after the frame's other commands.
-- Not ported: the nomads' material instances, ImmigrationUI and TownHallUI.
+- The nomads' model takes the NomadDescription's material in place of material 0
+  (`FUN_140050990`: `MaleNomad` or `FemaleNomad`, `OpaqueSkinMaterial` on its own texture
+  rather than the citizens' outfit atlas); `GroupMaterial::first`.
+- ImmigrationUI and TownHallUI are in [BUILDING-WINDOWS.md](BUILDING-WINDOWS.md).
