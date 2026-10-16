@@ -40,6 +40,9 @@ pub struct Profession {
     /// `+0x4c`: works anywhere (laborers and builders): `Jobs::TryList` (`FUN_1400fce80`) offers
     /// it work outside its workplace, and the job status icon stays off without one.
     pub works_anywhere: bool,
+    /// `+0x4d`: with a workplace, the citizen does not catch diseases (`FUN_14011c060`; the
+    /// doctor).
+    pub immune_at_work: bool,
     /// `+0x40`: the death-message key of an accident at its work.
     pub death: String,
     /// `+0x54`, `+0x58`: accident odds (`FUN_1400ae760`): on average one per `+0x54` years ×
@@ -806,6 +809,7 @@ mod tests {
                     death: String::new(),
                     accident: (0.0, 0.0),
                     works_anywhere: i < 2,
+                    immune_at_work: false,
                     ..Default::default()
                 })
                 .collect(),

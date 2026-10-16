@@ -1157,12 +1157,20 @@ impl People<'_, '_> {
         }
     }
 
-    /// `FUN_14011c060`: catch disease `d` (not while immune, nor a doctor at work).
-    /// Not ported: the doctor exception (profession `+0x4d` with a workplace) and the
-    /// AutoSlow request of the outbreak event.
+    /// `FUN_14011c060`: catch disease `d` (not while immune, nor at work in a profession
+    /// with `+0x4d`, the doctor). The outbreak event asks AutoSlow through the event log.
     fn infect(&mut self, c: usize, d: usize) {
         let s = &self.states[c];
         if s.disease.is_some() || 0 < s.immunity {
+            return;
+        }
+        let at_work = s.workplace.is_some()
+            && self
+                .professions
+                .list
+                .get(s.profession)
+                .is_some_and(|p| p.immune_at_work);
+        if at_work {
             return;
         }
         let first = !self

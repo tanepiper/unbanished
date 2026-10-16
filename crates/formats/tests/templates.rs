@@ -687,3 +687,26 @@ fn quarry_description_parses() {
     .unwrap();
     assert_eq!(cp.lifetime, 2000);
 }
+
+/// Profession `+0x4d` (no disease while at work) is the doctor's alone.
+#[test]
+fn only_the_doctor_is_immune_at_work() {
+    use banished_formats::game::{external_list, profession};
+    let Some(archive) = archive() else { return };
+    let list = external_list(
+        &archive
+            .read_ref("Game/Profession/Profession.rsc:professionList")
+            .unwrap(),
+    )
+    .unwrap();
+    let immune: Vec<String> = list
+        .iter()
+        .filter(|r| {
+            let d = archive.read_ref(&r.replace('\\', "/")).unwrap();
+            profession(&d).unwrap().flag_4d
+        })
+        .cloned()
+        .collect();
+    assert_eq!(immune.len(), 1, "{immune:?}");
+    assert!(immune[0].to_lowercase().contains("doctor"), "{immune:?}");
+}

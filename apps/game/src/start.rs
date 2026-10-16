@@ -49,6 +49,7 @@ fn professions(archive: &Archive) -> Professions {
                 string_table: p.as_ref().and_then(|p| p.string_table.clone()),
                 sprite_sheet: p.as_ref().and_then(|p| p.sprite_sheet.clone()),
                 works_anywhere: p.as_ref().is_some_and(|p| p.flag_4c),
+                immune_at_work: p.as_ref().is_some_and(|p| p.flag_4d),
                 death: p.as_ref().map(|p| p.death.clone()).unwrap_or_default(),
                 accident: p.as_ref().map_or((0.0, 0.0), |p| (p.value_54, p.value_58)),
             }
