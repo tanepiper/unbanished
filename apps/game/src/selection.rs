@@ -91,7 +91,8 @@ impl Entity {
 
 #[derive(Default)]
 pub struct Selection {
-    // Not ported: MultiObject child highlight propagation; current town entities are independent.
+    /// The selected entity; a MultiObject's parts are highlighted with it
+    /// (`Highlight::geometry`, `FUN_140101eb0`).
     pub selected: Option<Entity>,
     descriptions: BTreeMap<String, Option<picking::PickingDescription>>,
     meshes: BTreeMap<String, Option<Arc<PickingMesh>>>,

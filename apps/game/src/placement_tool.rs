@@ -2232,6 +2232,23 @@ mod construction_tests {
                 &terrain,
             )
             .expect("the pasture was not placed");
+        // Selecting the pasture lights up its fence and shelter too (`FUN_140101eb0`).
+        let mut highlight = crate::highlight::Highlight::default();
+        let parts = town.construction.sites[&id].parts.clone();
+        assert!(parts.len() > 1);
+        let one = highlight.geometry(
+            &archive,
+            &town,
+            &terrain,
+            Some(crate::selection::Entity::Placed(parts[0])),
+        );
+        let all = highlight.geometry(
+            &archive,
+            &town,
+            &terrain,
+            Some(crate::selection::Entity::Placed(id)),
+        );
+        assert!(!one.is_empty() && one.edge_count() < all.edge_count());
         let builder = town.construction.professions.builder;
         town.construction
             .commands

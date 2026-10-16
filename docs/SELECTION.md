@@ -49,7 +49,8 @@ and an array of 0x80-byte submeshes. Submesh serialization (`0x18007b6f0`) is:
 ## Highlight
 
 `FUN_140101eb0` selects a HighlightComponent by setting byte `+0x11c`; `FUN_140102010`
-clears it. `FUN_14004ce00` removes the preceding edge instance and registers the chosen
+clears it. An entity with a MultiObjectComponent selects each of its parts (`+0x48`) first, so
+a pasture's shelter and fence, or a bridge's pieces, light up with it. `FUN_14004ce00` removes the preceding edge instance and registers the chosen
 HighlightDescription variant/stage (`+0x20/+0x28`). Model-less entities use the footprint
 builder `FUN_14004c290`: ground-cell mask triangles and four perimeter runs. Each perimeter
 segment uses the four endpoint/corner vertices and six indices emitted by `FUN_14004bda0`.
@@ -114,9 +115,7 @@ controllers, candidates and geometry use explicit Vec/resource order.
   equivalence at all shared-edge/tolerance cases is not established.
 - Start structures still do not stamp the simulation map. Selection derives a read-only fallback
   lookup from their storage footprints until normal registration supplies the cell pointer.
-- MultiObject child highlight propagation, offscreen host retirement, dragging, persisted pin
-  settings and entity controller refresh/commands remain pending. Current starting-town entities
-  are independent. Storage/work/citizen data is intentionally left for C/D.
+- Offscreen host retirement, dragging and persisted pin settings remain pending. Storage/work/citizen data is intentionally left for C/D.
 
 Capture sequence after the standard seed-1234 New Game/zoom inputs:
 `--wheel -12@10 --click-at 450,230@10.5`, capture at 22 seconds. This selects the barn with its

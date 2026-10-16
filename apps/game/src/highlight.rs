@@ -29,6 +29,11 @@ impl Geometry {
     pub fn is_empty(&self) -> bool {
         self.mask.is_empty() || self.edges.is_empty()
     }
+
+    #[cfg(test)]
+    pub fn edge_count(&self) -> usize {
+        self.edges.len()
+    }
 }
 
 #[derive(Default)]
@@ -56,6 +61,33 @@ impl Highlight {
         let Some(entity) = entity else {
             return out;
         };
+        // `FUN_140101eb0`: a MultiObject's parts (`+0x48`) light up with it.
+        if let Entity::Placed(e) = entity {
+            let parts = town
+                .construction
+                .sites
+                .get(&e)
+                .map(|s| s.parts.clone())
+                .unwrap_or_default();
+            for p in parts {
+                if town.placed.get(p).is_some_and(|x| x.alive) {
+                    self.append(archive, town, grid, Entity::Placed(p), &mut out);
+                }
+            }
+        }
+        self.append(archive, town, grid, entity, &mut out);
+        out
+    }
+
+    /// One entity's highlight (`FUN_14004ce00`), added to `out`.
+    fn append(
+        &mut self,
+        archive: &Archive,
+        town: &StartingTown,
+        grid: &banished_game::terrain::HeightGrid<'_>,
+        entity: Entity,
+        out: &mut Geometry,
+    ) {
         let key = entity
             .template(town)
             .split(':')
@@ -73,7 +105,7 @@ impl Highlight {
             })
             .as_ref()
         else {
-            return out;
+            return;
         };
         let (variant, stage) = match entity {
             Entity::Placed(i) => (town.placed[i].variant, town.placed[i].mesh),
@@ -130,12 +162,12 @@ impl Highlight {
                     }
                 };
                 for cx in x..x + w {
-                    edge(&mut out, corner(cx, y), corner(cx + 1, y));
-                    edge(&mut out, corner(cx, y + h), corner(cx + 1, y + h));
+                    edge(out, corner(cx, y), corner(cx + 1, y));
+                    edge(out, corner(cx, y + h), corner(cx + 1, y + h));
                 }
                 for cy in y..y + h {
-                    edge(&mut out, corner(x, cy), corner(x, cy + 1));
-                    edge(&mut out, corner(x + w, cy), corner(x + w, cy + 1));
+                    edge(out, corner(x, cy), corner(x, cy + 1));
+                    edge(out, corner(x + w, cy), corner(x + w, cy + 1));
                 }
                 for cy in y..y + h {
                     for cx in x..x + w {
@@ -155,7 +187,7 @@ impl Highlight {
                     }
                 }
             }
-            return out;
+            return;
         };
         let Some(edge) = self
             .edges
@@ -168,10 +200,10 @@ impl Highlight {
             })
             .as_ref()
         else {
-            return out;
+            return;
         };
         let Some((model_ref, placement)) = entity.model(town) else {
-            return out;
+            return;
         };
         let Some(model) = self
             .models
@@ -184,7 +216,7 @@ impl Highlight {
             })
             .as_ref()
         else {
-            return out;
+            return;
         };
         let mut locals = match entity {
             Entity::Citizen(i) => town
@@ -276,7 +308,6 @@ impl Highlight {
                 }
             }
         }
-        out
     }
 }
 
