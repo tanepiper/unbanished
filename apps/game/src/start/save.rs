@@ -11,6 +11,8 @@ mod actions;
 mod citizens;
 mod construction;
 mod create;
+mod producers;
+mod wildlife;
 
 /// The saved object of each entity and citizen, extended with what was made since the load.
 pub(crate) struct Ids {
@@ -101,6 +103,8 @@ impl StartingTown {
         self.export_cells(g, &ids.entities);
         self.export_construction(g, &mut refs, &ids);
         self.export_citizens(archive, g, &mut refs, &ids);
+        self.export_wildlife(g, &mut refs, &ids);
+        self.export_producers(g, &mut refs, &ids);
     }
 
     /// Stage 1: the placed entities' map, model, natural resource, growth and spawning, and

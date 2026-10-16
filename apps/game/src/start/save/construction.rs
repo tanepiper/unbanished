@@ -12,7 +12,7 @@ use crate::start::StartingTown;
 /// The `Ext` ids of a saved map's keys, in the saved order. The original keys these maps by
 /// object address, which the save records but nothing derives; the writer keeps that order and
 /// puts new keys after it.
-fn saved_order(list: Option<&Value>, key: &str) -> Vec<u32> {
+pub(super) fn saved_order(list: Option<&Value>, key: &str) -> Vec<u32> {
     match list {
         Some(Value::List(items)) => items
             .iter()
@@ -26,7 +26,7 @@ fn saved_order(list: Option<&Value>, key: &str) -> Vec<u32> {
 }
 
 /// Sort `(ext id, item)` by the saved order, new ids last.
-fn in_saved_order(order: &[u32], mut items: Vec<(u32, Fields)>) -> Vec<Fields> {
+pub(super) fn in_saved_order(order: &[u32], mut items: Vec<(u32, Fields)>) -> Vec<Fields> {
     items.sort_by_key(|(id, _)| order.iter().position(|o| o == id).unwrap_or(usize::MAX));
     items.into_iter().map(|(_, f)| f).collect()
 }
@@ -57,6 +57,29 @@ fn work_type(kind: &WorkKind) -> &'static str {
         WorkKind::Fishing(_) => "FishingWork",
         WorkKind::Test(_) => "Work",
     }
+}
+
+/// A set written as a list of single pointers, in the order the save had its members (the
+/// original keeps these sets keyed by object address); new members after them.
+pub(super) fn like_saved(current: Option<&Value>, new: Value) -> Value {
+    let (Some(Value::List(old)), Value::List(mut items)) = (current, new.clone()) else {
+        return new;
+    };
+    // Only sets keyed by a pointer (an address in the original).
+    if !items
+        .first()
+        .and_then(|f| f.0.first())
+        .is_some_and(|(_, v)| matches!(v, Value::Ptr(_)))
+    {
+        return new;
+    }
+    let first = |f: &Fields| f.0.first().map(|(_, v)| v.clone());
+    let position = |f: &Fields| {
+        let v = first(f);
+        old.iter().position(|o| first(o) == v).unwrap_or(usize::MAX)
+    };
+    items.sort_by_key(position);
+    Value::List(items)
 }
 
 /// `Value::List` of single-field items.
@@ -254,6 +277,142 @@ impl StartingTown {
         }
     }
 
+    /// The fields of the work kinds beyond stage 2's (the inverse of `load::construction`'s
+    /// kinds), as `(path, value)` to set.
+    fn work_fields(
+        &self,
+        g: &mut GameState,
+        refs: &mut Refs,
+        ids: &Ids,
+        kind: &WorkKind,
+    ) -> Vec<(String, Value)> {
+        let citizen = |c: usize| ids.citizen(c);
+        let citizens = |block: &str, set: &mut dyn Iterator<Item = usize>| {
+            (
+                format!("{block}.citizens"),
+                ptr_items("citizen", set.map(citizen)),
+            )
+        };
+        let area = |block: &str, a: &banished_game::farm::AreaWork| {
+            vec![
+                (
+                    format!("{block}.keyed"),
+                    Value::List(
+                        a.claims
+                            .iter()
+                            .map(|(&k, &c)| {
+                                Fields(vec![
+                                    ("key", Value::I32(k)),
+                                    ("citizen", Value::Ptr(citizen(c))),
+                                ])
+                            })
+                            .collect(),
+                    ),
+                ),
+                (
+                    format!("{block}.cells"),
+                    Value::List(
+                        a.need
+                            .iter()
+                            .map(|&d| Fields(vec![("done", Value::Bool(d))]))
+                            .collect(),
+                    ),
+                ),
+            ]
+        };
+        let herb =
+            |block: &str, h: &banished_game::herbalist::HerbalistWork, misses: Option<&str>| {
+                let mut out = vec![citizens(block, &mut h.workers.iter().copied())];
+                if let Some(m) = misses {
+                    out.push((format!("{block}.{m}"), Value::I32(h.misses)));
+                }
+                out
+            };
+        match kind {
+            WorkKind::Forester(h) => herb("forester", h, Some("value_58")),
+            WorkKind::Herbalist(h) => herb("herbalist", h, Some("value_58")),
+            WorkKind::TendArea(h) => herb("tend", h, Some("value_58")),
+            WorkKind::Hunt(h) => herb("hunt", h, None),
+            WorkKind::Pasture(h) => herb("pasture", h, None),
+            WorkKind::ClearStorage(h) => herb("clear_storage", h, None),
+            WorkKind::Fire(h) => herb("fire", h, None),
+            WorkKind::Fishing(fw) => vec![
+                (
+                    "fishing.citizens".into(),
+                    ptr_items("citizen", fw.workers.iter().map(|w| w.and_then(citizen))),
+                ),
+                (
+                    "fishing.values".into(),
+                    Value::List(
+                        fw.points
+                            .iter()
+                            .map(|&v| Fields(vec![("value", Value::I32(v))]))
+                            .collect(),
+                    ),
+                ),
+                ("fishing.value_68".into(), Value::I32(fw.misses)),
+            ],
+            WorkKind::Location(l) => vec![(
+                "location.citizen".into(),
+                Value::Ptr(l.worker.and_then(citizen)),
+            )],
+            WorkKind::Trade(t) => {
+                let orders = t
+                    .haulers
+                    .iter()
+                    .map(|(&c, &(m, n))| {
+                        Fields(vec![
+                            ("citizen", Value::Ptr(citizen(c))),
+                            ("count", Value::I32(n)),
+                            (
+                                "description",
+                                Value::Ext(refs.id(g, &self.materials[m].reference)),
+                            ),
+                        ])
+                    })
+                    .collect();
+                vec![("trade.orders".into(), Value::List(orders))]
+            }
+            WorkKind::Market(mw) => {
+                let orders = mw
+                    .plans
+                    .iter()
+                    .map(|(&c, items)| {
+                        let items = items
+                            .iter()
+                            .map(|&(m, n)| {
+                                Fields(vec![
+                                    (
+                                        "description",
+                                        Value::Ext(refs.id(g, &self.materials[m].reference)),
+                                    ),
+                                    ("count", Value::I32(n)),
+                                ])
+                            })
+                            .collect();
+                        Fields(vec![
+                            ("citizen", Value::Ptr(citizen(c))),
+                            ("items", Value::List(items)),
+                        ])
+                    })
+                    .collect();
+                vec![("market.orders".into(), Value::List(orders))]
+            }
+            WorkKind::PlantArea(a) | WorkKind::PlantOrchard(a) => {
+                let mut out = area("plant", a);
+                if let Some(t) = a.crop {
+                    out.push((
+                        "plant.description".into(),
+                        Value::Ext(refs.id(g, &self.templates[t].reference)),
+                    ));
+                }
+                out
+            }
+            WorkKind::Harvest(a) | WorkKind::PickFruit(a) => area("harvest", a),
+            _ => Vec::new(),
+        }
+    }
+
     /// The job manager (`FUN_1400fe710`): each work's fields, then the id table, the category
     /// sets, the profession map and the counters.
     fn export_jobs(&self, g: &mut GameState, refs: &mut Refs, ids: &Ids) {
@@ -294,6 +453,8 @@ impl StartingTown {
                 WorkKind::Road(r) => r.material.map(|m| refs.id(g, &self.materials[m].reference)),
                 _ => None,
             };
+            // The other kinds' state, by their class block's fields.
+            let extra = self.work_fields(g, refs, ids, &w.kind);
             let Some(o) = g.objects.get_mut(&oid) else {
                 continue;
             };
@@ -309,7 +470,8 @@ impl StartingTown {
             }
             let set_citizens =
                 |f: &mut Fields, path: &str, set: &mut dyn Iterator<Item = usize>| {
-                    f.set(path, ptr_items("citizen", set.map(citizen)));
+                    let value = like_saved(f.at(path), ptr_items("citizen", set.map(citizen)));
+                    f.set(path, value);
                 };
             match &w.kind {
                 WorkKind::Road(r) => {
@@ -350,8 +512,8 @@ impl StartingTown {
                     set_citizens(f, "gather.citizens", &mut gw.workers.iter().copied());
                 }
                 WorkKind::Clear(cw) => {
-                    f.set(
-                        "clear.assigned",
+                    let assigned = like_saved(
+                        f.at("clear.assigned"),
                         Value::List(
                             cw.resources
                                 .iter()
@@ -364,6 +526,7 @@ impl StartingTown {
                                 .collect(),
                         ),
                     );
+                    f.set("clear.assigned", assigned);
                     f.set(
                         "clear.keyed",
                         Value::List(
@@ -405,7 +568,12 @@ impl StartingTown {
                         f.set("pickup.claimer", Value::Ptr(pile.claimer.and_then(citizen)));
                     }
                 }
-                _ => {}
+                _ => {
+                    for (path, value) in extra {
+                        let value = like_saved(f.at(&path), value);
+                        f.set(&path, value);
+                    }
+                }
             }
         }
         // The id table, the category sets and the profession map, from the port's indexes.

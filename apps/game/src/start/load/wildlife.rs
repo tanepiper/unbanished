@@ -278,6 +278,7 @@ impl StartingTown {
                 }
                 character.target_heading = k.fields.f32("character.target_heading").unwrap_or(0.0);
                 character.speed = k.fields.f32("character.speed").unwrap_or(0.0);
+                character.flag_28 = flag(&k.fields, "character.flag_28");
                 if let Ok(stack) = self.stack(archive, saved, index, k) {
                     character.stack = stack;
                 }

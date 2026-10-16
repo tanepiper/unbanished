@@ -100,7 +100,8 @@ impl StartingTown {
                     banished_game::tracker::Tracker {
                         this_year,
                         last_year,
-                        year: int(f, "tracker.year").max(0) as u32,
+                        // −1 (never) stays distinct from every year.
+                        year: int(f, "tracker.year") as u32,
                     },
                 );
             }
@@ -206,7 +207,7 @@ impl StartingTown {
             }
             if let (Some(o), Some(f)) = (site.orchard.as_mut(), component("OrchardComponent")) {
                 o.enabled = flag(f, "orchard.flag_48");
-                o.year = int(f, "orchard.value_4c").max(0) as u32;
+                o.year = int(f, "orchard.value_4c") as u32;
                 o.tree = tree;
                 o.trees = list(f, "orchard.trees")
                     .iter()

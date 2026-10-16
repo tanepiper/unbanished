@@ -72,6 +72,26 @@ What the identity check turned up:
   - **CompleteTask's `+0x28`** is an entity its maker passes on to the work's complete slot
     (`FUN_1400cb270`, `FUN_1400fdc30`). The port does not keep it, so a saved task keeps its
     own and a new one has none.
+- **Stage 3c** (`save/wildlife.rs`):
+  - populations (`FUN_140054e00`; cells written `[0], [2], [1]`, the herd list at `+0x50` left
+    as saved, empty in every sample), herds (`FUN_140127460`) and animals (AnimalComponent
+    `FUN_14010c310`, WildAnimalComponent, LivestockComponent);
+  - pastures, the town's pasture and unassigned livestock lists;
+  - trader boats (`FUN_140046f30`) and their state machine;
+  - each body's model, character and stack. An animal's model mesh `−1` stays `−1`; a boat's
+    model is not touched.
+  - Pointers go to the components the serializers check: a herd's animals are
+    WildAnimalComponents, an animal's herd a HerdComponent, a pasture's animals
+    LivestockComponents.
+- **Stage 3d** (`save/producers.rs`):
+  - fruit, trackers (year `−1` as saved), active floors, terraform points, tombstones and the
+    crops' pile flag;
+  - each building's own components: produce, forester, hunt, fishing, crop field and orchard
+    (a cell's crop entity and its NaturalResourceComponent; a tree's FruitComponent too),
+    auto pickup, multi-object parts, happiness, cemetery, disease, destroy, fire, immigration;
+  - the trading post (`FUN_14005c6b0`). Its kept goods are a map keyed by the material's
+    address, written in the saved order.
+- Loading now also restores a boat's `flag_28` and a tracker's or orchard's year `−1`.
 - **The entity manager's clock** (the first value of its block, the scheduler's time), now also restored on load.
 
 ## Saving from the game
@@ -93,15 +113,10 @@ The preview image and name in the metadata are still the loaded save's.
 
 ## Still to write
 
-- Citizens, their action stacks and the other work kinds' claims.
-- Wildlife and boats.
-- The buildings' component state.
-- The environment, event log and history, the stock slots, the Random, the calendar and the
-  camera.
-- **Entities and objects created or destroyed since the load.** A work made after the load is
-  written as a null entry in the job table for now.
-- **The entity manager's lists.** The entity list, the five bucket lists and the schedules come
-  from the save. The saved buckets also hold the citizens (bucket 1), which the port updates in
-  its own pass. The quotas are `[50, 15, 8, 5, 2]` (`+0xa8`), followed by each bucket's cursor
-  (`+0xbc`).
+- The preview image and the name in the metadata.
 - New games that were never loaded from a save.
+- The scheduler's bucket order and cursors: the port updates citizens in its own pass, so the
+  saved buckets (quotas `[50, 15, 8, 5, 2]` at `+0xa8`, cursors at `+0xbc`) keep the save's
+  cursors.
+- Achievements, goals, nomads and tornadoes.
+- A round trip after simulating: load, run, save, load again and compare the port's state.
