@@ -508,7 +508,7 @@ impl GameLoop for MenuLoop {
         Next::Stay
     }
 
-    /// `load PATH`: start the save at `PATH` (captures; the Load dialog is not ported yet).
+    /// `load PATH`: start the save at `PATH` (captures; players use the Load dialog).
     #[cfg(not(target_arch = "wasm32"))]
     fn script(&mut self, _ctx: &mut Ctx, command: &str) -> bool {
         let Some(path) = command.strip_prefix("load ") else {

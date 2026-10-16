@@ -16,8 +16,8 @@
 //! - Cancel (`FUN_140077d10`): re-read the input, key map, audio and game settings.
 //!
 //! Deviation: the Renderer combo lists wgpu backends (Vulkan, Metal, DirectX 12, OpenGL, WebGPU)
-//! where the original lists its DirectX 9 and 11 interfaces. Not ported: the autosave interval and
-//! auto slow-down are stored but have no effect, as saving and disasters are not ported.
+//! where the original lists its DirectX 9 and 11 interfaces. The autosave interval drives
+//! `crate::autosave` and auto slow-down the disaster slow-down.
 //! See docs/OPTIONS.md.
 
 use banished_ui::{Control, Event, Kind, NodeId, Ui};
