@@ -25,11 +25,23 @@ struct Entity<T> {
     live: bool,
 }
 
+/// Handles of entities registered with [`EntityScheduler::register_extra`] start here, so that
+/// a placed entity's handle stays its index. The game gives such entities values from here too:
+/// citizens `EXTRA + citizen`, and entities the town does not model (the map ambience, a
+/// saved game's entities of templates it skips) from [`FOREIGN`].
+pub const EXTRA: usize = 1 << 30;
+/// Values of scheduled entities with no behaviour in the port (visited for the cursors' sake).
+pub const FOREIGN: usize = EXTRA + (1 << 29);
+
 pub struct EntityScheduler<T> {
     pub time: i64,
     entities: Vec<Entity<T>>,
+    /// Entities outside the placed index space (handles from [`EXTRA`]).
+    extra: Vec<Entity<T>>,
     buckets: [Vec<usize>; 5],
     cursors: [usize; 5],
+    /// This iteration's visits, in order: the value and the time since its last visit.
+    visited: Vec<(T, i64)>,
 }
 
 impl<T: Copy> Default for EntityScheduler<T> {
@@ -37,8 +49,10 @@ impl<T: Copy> Default for EntityScheduler<T> {
         Self {
             time: 0,
             entities: Vec::new(),
+            extra: Vec::new(),
             buckets: std::array::from_fn(|_| Vec::new()),
             cursors: [0; 5],
+            visited: Vec::new(),
         }
     }
 }
@@ -69,6 +83,122 @@ impl<T: Copy> EntityScheduler<T> {
         id
     }
 
+    /// [`register`](Self::register) in the extra handle space (from [`EXTRA`]): the same
+    /// buckets, cursors and timing, without taking a placed entity's index.
+    pub fn register_extra(&mut self, value: T, bucket: usize) -> usize {
+        let id = EXTRA + self.extra.len();
+        let slot = if bucket < 5 {
+            let slot = self.buckets[bucket].len();
+            self.buckets[bucket].push(id);
+            slot
+        } else {
+            0
+        };
+        self.extra.push(Entity {
+            value,
+            bucket,
+            slot,
+            last_time: self.time,
+            live: true,
+        });
+        id
+    }
+
+    fn entity_mut(&mut self, id: usize) -> &mut Entity<T> {
+        if id >= EXTRA {
+            &mut self.extra[id - EXTRA]
+        } else {
+            &mut self.entities[id]
+        }
+    }
+
+    /// Whether `handle` was registered.
+    pub fn contains(&self, handle: usize) -> bool {
+        if handle >= EXTRA {
+            handle - EXTRA < self.extra.len()
+        } else {
+            handle < self.entities.len()
+        }
+    }
+
+    /// A bucket's handles in visiting order.
+    pub fn bucket(&self, bucket: usize) -> &[usize] {
+        &self.buckets[bucket]
+    }
+
+    /// A bucket's cursor (`+0xbc`), the slot its next visit starts at.
+    pub fn cursor(&self, bucket: usize) -> usize {
+        self.cursors[bucket]
+    }
+
+    /// An entity's bucket (6: none) and last visit time.
+    pub fn schedule(&self, handle: usize) -> (usize, i64) {
+        let e = if handle >= EXTRA {
+            &self.extra[handle - EXTRA]
+        } else {
+            &self.entities[handle]
+        };
+        (e.bucket, e.last_time)
+    }
+
+    /// A saved game's bucket lists, cursors and schedules: `order` lists each bucket's handles
+    /// in its saved order, `saved` each saved entity's bucket (6: none) and last visit time.
+    /// Registered entities the save does not know keep their bucket and follow its listed ones.
+    pub fn restore(
+        &mut self,
+        order: &[Vec<usize>; 5],
+        cursors: [usize; 5],
+        saved: &[(usize, usize, i64)],
+    ) {
+        let listed: std::collections::HashSet<usize> = order
+            .iter()
+            .flatten()
+            .copied()
+            .chain(saved.iter().map(|s| s.0))
+            .collect();
+        let mut lists: [Vec<usize>; 5] = std::array::from_fn(|b| {
+            order[b]
+                .iter()
+                .copied()
+                .filter(|&h| self.contains(h))
+                .collect()
+        });
+        for b in 0..5 {
+            for &h in &self.buckets[b] {
+                if !listed.contains(&h) {
+                    lists[b].push(h);
+                }
+            }
+        }
+        for (b, list) in lists.iter().enumerate() {
+            for (slot, &h) in list.iter().enumerate() {
+                let e = self.entity_mut(h);
+                e.bucket = b;
+                e.slot = slot;
+            }
+        }
+        self.buckets = lists;
+        self.cursors = cursors;
+        let in_lists: std::collections::HashSet<usize> =
+            self.buckets.iter().flatten().copied().collect();
+        for &(h, bucket, t) in saved {
+            if !self.contains(h) {
+                continue;
+            }
+            let e = self.entity_mut(h);
+            e.last_time = t;
+            if !in_lists.contains(&h) {
+                e.bucket = if bucket < 5 { 6 } else { bucket };
+            }
+        }
+    }
+
+    /// The values visited since the last call, each with the time since its previous visit,
+    /// in visiting order (the bucket pass's scheduled components run for these).
+    pub fn take_visits(&mut self) -> Vec<(T, i64)> {
+        std::mem::take(&mut self.visited)
+    }
+
     /// Port of FUN_1400c9560's clock advance. A caller visits each bucket, then drains removals.
     pub fn advance(&mut self, dt: f32) {
         self.time += ticks(dt);
@@ -89,13 +219,16 @@ impl<T: Copy> EntityScheduler<T> {
             0
         };
         let mut visits = Vec::with_capacity(QUOTAS[bucket].min(count));
+        let time = self.time;
         for _ in 0..QUOTAS[bucket].min(count) {
-            let id = list[cursor];
-            let entity = &mut self.entities[id];
-            let dt = self.time - entity.last_time;
+            let id = self.buckets[bucket][cursor];
+            let entity = self.entity_mut(id);
+            let dt = time - entity.last_time;
             if entity.live && dt > 0 {
-                visits.push((id, entity.value, dt));
-                entity.last_time = self.time;
+                entity.last_time = time;
+                let value = entity.value;
+                visits.push((id, value, dt));
+                self.visited.push((value, dt));
             }
             cursor = (cursor + 1) % count;
         }
@@ -106,7 +239,7 @@ impl<T: Copy> EntityScheduler<T> {
     /// Port of FUN_1400c8db0: swap-remove without adjusting the saved cursor. Call after all
     /// scheduled callbacks, matching FUN_1400c9560's deferred deletion phase.
     pub fn remove(&mut self, id: usize) {
-        let entity = &self.entities[id];
+        let entity = self.entity_mut(id);
         if !entity.live {
             return;
         }
@@ -114,10 +247,10 @@ impl<T: Copy> EntityScheduler<T> {
         if bucket < 5 {
             self.buckets[bucket].swap_remove(slot);
             if let Some(&moved) = self.buckets[bucket].get(slot) {
-                self.entities[moved].slot = slot;
+                self.entity_mut(moved).slot = slot;
             }
         }
-        self.entities[id].live = false;
+        self.entity_mut(id).live = false;
     }
 }
 

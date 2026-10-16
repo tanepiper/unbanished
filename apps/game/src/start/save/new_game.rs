@@ -217,12 +217,13 @@ pub fn achievements(g: &mut GameState, list: &[AchievementSave]) {
 /// emitter and the `WindEffect.rsc:ambient` one (no bucket), and an
 /// `Environment.rsc:ambient` entity per region (bucket 2) with its cells and its two slots'
 /// effects and volumes. No sound plays in a new save's audio scene, so every slot's handle is 0.
+/// Returns the region entities, in region order.
 pub fn ambience(
     archive: &banished_formats::pkg::Archive,
     g: &mut GameState,
     a: &crate::ambience::AmbienceSave,
     time: i64,
-) {
+) -> Vec<ObjId> {
     use super::create::{add_entity, new_entity};
     use super::fields_mut;
     /// No bucket (the schedule's slot is −1).
@@ -275,10 +276,12 @@ pub fn ambience(
         }
     }
     let file = r"Audio\Effects\Environment.rsc";
+    let mut regions = Vec::new();
     for r in &a.regions {
         let Some(id) = emitter(g, &mut refs, file, r.position, 2) else {
             continue;
         };
+        regions.push(id);
         let slots: Vec<Fields> = r
             .effects
             .iter()
@@ -295,4 +298,5 @@ pub fn ambience(
             f.set_i32("environment.value_34", r.rect.3);
         }
     }
+    regions
 }

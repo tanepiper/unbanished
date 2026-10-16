@@ -116,9 +116,11 @@ impl StartingTown {
                     animation: None,
                     scale: [1.0; 4],
                 });
-                if kind != "BoatComponent" {
-                    scheduler.register(p, bucket);
-                }
+                // Boats too (bucket 1 with the citizens), as a new game's are when placed; a
+                // placed entity's handle is its index.
+                let _ = kind;
+                let handle = scheduler.register(p, bucket);
+                debug_assert_eq!(handle, p);
                 index.insert(id, p);
                 continue;
             };
@@ -260,6 +262,7 @@ impl StartingTown {
         let mut ids = super::SaveIds {
             entities: vec![None; town.placed.len()],
             citizens: vec![0; town.citizens.len()],
+            foreign: Vec::new(),
         };
         for (&id, &p) in &index {
             ids.entities[p] = Some(id);
@@ -267,8 +270,70 @@ impl StartingTown {
         for (&id, &c) in &order {
             ids.citizens[c] = id;
         }
+        town.restore_schedule(saved, &mut ids);
         town.save_ids = Some(ids);
         Some(town)
+    }
+
+    /// The entity manager's buckets as saved (`FUN_1400c9970`): every saved entity gets a
+    /// handle (placed ones and citizens theirs, the rest a foreign entry in its saved bucket),
+    /// then each bucket takes its saved order, its cursor (`+0xbc`) and each entity its last
+    /// visit time.
+    fn restore_schedule(&mut self, saved: &SavedGame, ids: &mut super::SaveIds) {
+        let g = &saved.state;
+        let mut handle_of: std::collections::HashMap<ObjId, usize> = Default::default();
+        for (p, e) in ids.entities.iter().enumerate() {
+            if let (Some(e), true) = (e, self.scheduler.contains(p)) {
+                handle_of.insert(*e, p);
+            }
+        }
+        for (c, &citizen) in ids.citizens.iter().enumerate() {
+            let entity = g
+                .objects
+                .get(&citizen)
+                .and_then(|o| o.fields.ptr("base.entity"));
+            if let (Some(e), Some(Some(h))) = (entity, self.citizen_handles.get(c)) {
+                handle_of.insert(e, *h);
+            }
+        }
+        for (k, e) in g.entities.iter().enumerate() {
+            let Some(e) = e else { continue };
+            if handle_of.contains_key(e) {
+                continue;
+            }
+            let bucket = g.schedules.get(k).map_or(6, |s| s.2);
+            let bucket = if (0..5).contains(&bucket) {
+                bucket as usize
+            } else {
+                6
+            };
+            let h = self.register_foreign(bucket, ids.foreign.len());
+            ids.foreign.push((h, *e));
+            handle_of.insert(*e, h);
+        }
+        let order: [Vec<usize>; 5] = std::array::from_fn(|b| {
+            g.buckets.get(b).map_or_else(Vec::new, |l| {
+                l.iter()
+                    .flatten()
+                    .filter_map(|e| handle_of.get(e).copied())
+                    .collect()
+            })
+        });
+        let cursors = std::array::from_fn(|b| g.bucket_values[1][b].max(0) as usize);
+        let schedules: Vec<(usize, usize, i64)> = g
+            .entities
+            .iter()
+            .zip(&g.schedules)
+            .filter_map(|(e, s)| {
+                let bucket = if (0..5).contains(&s.2) {
+                    s.2 as usize
+                } else {
+                    6
+                };
+                Some((*handle_of.get(&(*e)?)?, bucket, s.3))
+            })
+            .collect();
+        self.scheduler.restore(&order, cursors, &schedules);
     }
 }
 

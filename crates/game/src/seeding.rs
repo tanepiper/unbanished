@@ -658,6 +658,10 @@ impl<'a> Seeder<'a> {
         let mut changed = self.animate(ticks(dt));
         for bucket in 0..5 {
             for (_, id, elapsed) in scheduler.visit_bucket(bucket) {
+                // The citizens (bucket 1) are visited for the agents (`take_visits`).
+                if id >= crate::scheduler::EXTRA {
+                    continue;
+                }
                 changed |= self.scheduled_growth(scheduler, id, elapsed, temperature, disabled);
                 // SpawnComponent (`FUN_140056430`) follows Growth in the template's list.
                 changed |= self.scheduled_spawn(scheduler, id, elapsed, disabled);

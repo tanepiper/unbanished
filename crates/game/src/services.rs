@@ -72,10 +72,10 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_140044cd0` (the attendance's scheduled update): nobody works there, everyone goes.
-    pub fn update_attendance(&mut self) {
-        let empty: Vec<usize> = self
-            .attendance
+    pub fn update_attendance(&mut self, visits: &[(usize, i64)]) {
+        let empty: Vec<usize> = visits
             .iter()
+            .filter_map(|&(e, _)| Some((e, self.attendance.get(&e)?)))
             .filter(|(e, a)| {
                 !a.attendees.is_empty()
                     && self
@@ -84,7 +84,7 @@ impl Sim<'_, '_> {
                         .get(e)
                         .is_none_or(|w| w.workers.is_empty())
             })
-            .map(|(&e, _)| e)
+            .map(|(e, _)| e)
             .collect();
         for e in empty {
             self.evict(e);

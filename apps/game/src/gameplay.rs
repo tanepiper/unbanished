@@ -218,11 +218,22 @@ impl GameplayLoop {
         };
         g.town_name = self.params.town_name.clone();
         if let Some(town) = &self.town {
-            town.export_into(archive, &mut g);
-            // A new game's map ambience; a loaded one keeps its own entities.
+            // A new game's map ambience (a loaded one keeps its own entities), made first so
+            // its regions take the scheduler entries the town keeps for them.
+            let mut foreign = Vec::new();
             if let (None, Some(a)) = (&self.saved, &self.ambience) {
-                let time = g.entity_time;
-                crate::start::save::new_game::ambience(archive, &mut g, &a.saved(), time);
+                let regions = crate::start::save::new_game::ambience(
+                    archive,
+                    &mut g,
+                    &a.saved(),
+                    town.entity_time(),
+                );
+                foreign = town.ambience_handles.iter().copied().zip(regions).collect();
+            }
+            if self.saved.is_some() {
+                town.export_into(archive, &mut g);
+            } else {
+                town.export_into_with(archive, &mut g, &foreign);
             }
         }
         g.random_index = self.rng.index();
@@ -1915,6 +1926,15 @@ impl GameLoop for GameplayLoop {
                     view.models = Some(town.models(ctx.archive));
                 }
                 self.town = town;
+                // A new game's ambience regions join the entity manager's bucket 2.
+                if let (None, Some(town)) = (&saved, &mut self.town) {
+                    let regions = crate::ambience::region_count(
+                        ctx.archive,
+                        &self.params.start_condition_ref,
+                        town.cells.size,
+                    );
+                    town.register_ambience(regions);
+                }
                 if let Some(town) = &mut self.town {
                     town.construction.game_flags = match &saved {
                         Some(s) => s.state.flags,

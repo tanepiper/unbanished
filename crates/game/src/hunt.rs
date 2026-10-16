@@ -32,14 +32,11 @@ impl Sim<'_, '_> {
 
     /// HuntComponent's scheduled update (`FUN_140127c10`): the hunting time grows by the
     /// elapsed time times the workers over the most allowed.
-    pub fn update_hunts(&mut self, dt: i64) {
-        let lodges: Vec<usize> = self
-            .sites
-            .iter()
-            .filter(|(_, s)| s.hunt_time.is_some())
-            .map(|(&e, _)| e)
-            .collect();
-        for e in lodges {
+    pub fn update_hunts(&mut self, visits: &[(usize, i64)]) {
+        for &(e, dt) in visits {
+            if !self.sites.get(&e).is_some_and(|s| s.hunt_time.is_some()) {
+                continue;
+            }
             let workers = self
                 .workforce
                 .workplaces

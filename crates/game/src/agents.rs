@@ -5,8 +5,13 @@
 //! its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run
 //! the AI with zero time (`FUN_140114810`), then the AI updates.
 //!
-//! Deviations: the AI runs every iteration instead of on its bucket's quota, and after the
-//! placed entities' bucket pass instead of interleaved with it.
+//! The citizens' scheduled components (CitizenComponent, CitizenAIComponent and the
+//! CharacterComponent's notify) run for the citizens bucket 1 visited this iteration, with the
+//! time since each one's last visit; so do the sites' StateMachines, fires, blight, hunts,
+//! attendance, residences and piles in bucket 3 (`FUN_1400c9560`, `town::Env::visits`).
+//!
+//! Deviation: these run after the bucket pass (system by system, each in visiting order)
+//! instead of interleaved with it entity by entity, so random draws can come in another order.
 
 use banished_formats::game::CharacterDescription;
 use banished_formats::types::AnimationGroup;
@@ -701,6 +706,20 @@ impl Agents {
         newborn: &mut dyn FnMut(&mut Random, &Citizen, bool) -> Citizen,
     ) {
         self.sync_map(env.cells);
+        // This iteration's bucket visits: placed entities, and the citizens (from `EXTRA`).
+        let (extra, foreign) = (crate::scheduler::EXTRA, crate::scheduler::FOREIGN);
+        let site_visits: Vec<(usize, i64)> = env
+            .visits
+            .iter()
+            .copied()
+            .filter(|&(v, _)| v < extra)
+            .collect();
+        let citizen_visits: Vec<(usize, i64)> = env
+            .visits
+            .iter()
+            .filter(|&&(v, _)| (extra..foreign).contains(&v))
+            .map(|&(v, e)| (v - extra, e))
+            .collect();
         // The town step (`FUN_140091780`): the population, and the visitors' disease risk
         // running out.
         {
@@ -829,15 +848,14 @@ impl Agents {
         // (RawMaterialComponent's scheduled update, run every iteration here).
         {
             let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
-            sim.site_dt = ticks(dt);
-            sim.update_sites(jobs);
+            sim.update_sites(jobs, ticks(dt), &site_visits);
             sim.update_nomads(ticks(dt));
             sim.update_boats();
-            sim.update_attendance();
-            sim.age_piles(jobs, ticks(dt));
-            sim.update_hunts(ticks(dt));
-            sim.update_blight(ticks(dt));
-            sim.update_fires(jobs, ticks(dt));
+            sim.update_attendance(&site_visits);
+            sim.age_piles(jobs, &site_visits);
+            sim.update_hunts(&site_visits);
+            sim.update_blight(&site_visits);
+            sim.update_fires(jobs, &site_visits);
             sim.update_tornadoes(jobs, ticks(dt));
             sim.place_burials();
             jobs.drain(&mut sim);
@@ -856,24 +874,32 @@ impl Agents {
         // fire.
         {
             let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
-            sim.residence_clear_storage(jobs);
+            sim.residence_clear_storage(jobs, &site_visits);
             jobs.drain(&mut sim);
         }
         {
             let c = &mut *env.construction;
-            for home in c.homes.values_mut() {
+            for &(e, elapsed) in &site_visits {
+                let Some(home) = c.homes.get_mut(&e) else {
+                    continue;
+                };
                 crate::life::update_home(
                     home,
                     env.storages,
                     env.materials,
                     env.temperature,
-                    ticks(dt),
+                    elapsed,
                     &mut c.counters,
                 );
             }
         }
-        for i in 0..self.ais.len() {
-            if groups.get(i).copied().flatten().is_none() || !citizens[i].alive {
+        // The citizens bucket 1 visited this iteration, in its order, each with the time since
+        // its last visit (`FUN_1400c9560`).
+        for &(i, elapsed) in &citizen_visits {
+            if i >= self.ais.len()
+                || groups.get(i).copied().flatten().is_none()
+                || !citizens[i].alive
+            {
                 continue;
             }
             // CharacterComponent's scheduled update (`FUN_14010e950`): the running chain's
@@ -882,7 +908,7 @@ impl Agents {
             self.hunt_notify(i, env, groups);
             // CitizenComponent before CitizenAIComponent (the template's component order); a
             // citizen queued for deletion stops there (entity flag `0x400`).
-            let born = self.live(i, citizens, env, &entities, ticks(dt), newborn);
+            let born = self.live(i, citizens, env, &entities, elapsed, newborn);
             for c in born {
                 let mut ch = Character::new(self.desc, citizens[c].position, CHILD_SCALE);
                 ch.yaw = self.characters[i].yaw;
@@ -894,7 +920,7 @@ impl Agents {
                 continue;
             }
             refresh_views(&mut entities, env);
-            self.think(i, citizens, env, groups, &adult, &entities, ticks(dt));
+            self.think(i, citizens, env, groups, &adult, &entities, elapsed);
         }
         // The entity manager deletes the queued entities (each component's remove slot);
         // removals can queue more (orphaned children).

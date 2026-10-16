@@ -124,6 +124,21 @@ impl StartingTown {
     /// Write the town into `g`, the game state it was loaded from: objects for what is new,
     /// what is gone dropped, then every field.
     pub fn export_into(&self, archive: &banished_formats::pkg::Archive, g: &mut GameState) {
+        let foreign = self
+            .save_ids
+            .as_ref()
+            .map_or_else(Vec::new, |s| s.foreign.clone());
+        self.export_into_with(archive, g, &foreign);
+    }
+
+    /// [`export_into`](Self::export_into), with the scheduler entities the town does not model
+    /// and the saved ComponentEntity of each (a new game's ambience regions).
+    pub fn export_into_with(
+        &self,
+        archive: &banished_formats::pkg::Archive,
+        g: &mut GameState,
+        foreign: &[(usize, ObjId)],
+    ) {
         // A new game has no saved objects: every entity is made.
         let new_game = crate::start::SaveIds::default();
         let saved = self.save_ids.as_ref().unwrap_or(&new_game);
@@ -141,7 +156,60 @@ impl StartingTown {
         if self.save_ids.is_none() {
             self.export_water(g, &ids);
         }
+        self.export_schedule(g, &ids, foreign);
         finish_flags(g);
+    }
+
+    /// The entity manager's buckets (`FUN_1400c9970`): each bucket's entities in the
+    /// scheduler's order, its cursor, and each entity's schedule (list index, bucket slot or
+    /// −1, bucket, last visit time).
+    fn export_schedule(&self, g: &mut GameState, ids: &Ids, foreign: &[(usize, ObjId)]) {
+        use std::collections::HashMap;
+        let mut obj_of: HashMap<usize, ObjId> = HashMap::new();
+        for p in 0..self.placed.len() {
+            if let (Some(e), true) = (ids.entity(p), self.scheduler.contains(p)) {
+                obj_of.insert(p, e);
+            }
+        }
+        for (c, h) in self.citizen_handles.iter().enumerate() {
+            let entity = ids
+                .citizen(c)
+                .and_then(|c| g.objects.get(&c))
+                .and_then(|o| o.fields.ptr("base.entity"));
+            if let (Some(h), Some(e)) = (h, entity) {
+                obj_of.insert(*h, e);
+            }
+        }
+        for &(h, e) in foreign {
+            obj_of.insert(h, e);
+        }
+        let mut slots: HashMap<ObjId, (usize, i32)> = HashMap::new();
+        g.buckets.resize(5, Vec::new());
+        for b in 0..5 {
+            let list: Vec<Option<ObjId>> = self
+                .scheduler
+                .bucket(b)
+                .iter()
+                .filter_map(|h| obj_of.get(h).map(|&e| Some(e)))
+                .collect();
+            for (i, e) in list.iter().enumerate() {
+                slots.insert(e.unwrap(), (b, i as i32));
+            }
+            g.buckets[b] = list;
+            g.bucket_values[1][b] = self.scheduler.cursor(b) as i32;
+        }
+        let handle_of: HashMap<ObjId, usize> = obj_of.iter().map(|(&h, &e)| (e, h)).collect();
+        let entities = g.entities.clone();
+        for (k, e) in entities.iter().enumerate() {
+            let Some(&h) = e.as_ref().and_then(|e| handle_of.get(e)) else {
+                continue;
+            };
+            let (bucket, time) = self.scheduler.schedule(h);
+            let (bucket, slot) = slots.get(&e.unwrap()).copied().unwrap_or((bucket, -1));
+            if let Some(s) = g.schedules.get_mut(k) {
+                *s = (k as i32, slot, bucket as i32, time);
+            }
+        }
     }
 
     /// The town's zones by template (`+0x160`, `FUN_1400186e0`): every placed entity with a

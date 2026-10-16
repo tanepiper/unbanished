@@ -936,6 +936,13 @@ pub struct StartingTown {
     pub placed: Vec<Placed>,
     pub cells: Cells,
     scheduler: EntityScheduler<usize>,
+    /// The last bucket pass's visits (`EntityScheduler::take_visits`), for the agents.
+    visits: Vec<(usize, i64)>,
+    /// Each citizen's entity in the scheduler (bucket 1, `FUN_1400c9d70`); `None` once dead.
+    pub(crate) citizen_handles: Vec<Option<usize>>,
+    /// The map ambience's region entities in the scheduler (bucket 2) for a new game, in
+    /// region order (a saved game's are among `SaveIds::foreign`).
+    pub(crate) ambience_handles: Vec<usize>,
     removed: Vec<usize>,
     pub animation_events: Vec<(usize, String)>,
     pub(crate) citizen_model: Option<banished_formats::game::ModelDescription>,
@@ -973,6 +980,9 @@ pub struct StartingTown {
 pub struct SaveIds {
     pub entities: Vec<Option<banished_formats::savegame::ObjId>>,
     pub citizens: Vec<banished_formats::savegame::ObjId>,
+    /// Saved entities the town does not model (the map ambience, skipped templates): their
+    /// scheduler handle and ComponentEntity.
+    pub foreign: Vec<(usize, banished_formats::savegame::ObjId)>,
 }
 
 impl StartingTown {
@@ -1280,6 +1290,9 @@ impl StartingTown {
             placed,
             cells,
             scheduler,
+            visits: Vec::new(),
+            citizen_handles: Vec::new(),
+            ambience_handles: Vec::new(),
             removed,
             animation_events,
             citizen_anims: citizen_model
@@ -1313,6 +1326,7 @@ impl StartingTown {
             save_ids: None,
         };
         town.resolve_piles(archive);
+        town.schedule_citizens();
         // CitizenDescription `+0x20/+0x28/+0x30`: the teacher's, priest's and doctor's
         // professions.
         if let Some(d) = read(archive, &citizen_ref.replace(":resource", ":citizen"))
@@ -1510,6 +1524,54 @@ impl StartingTown {
             });
         }
         out
+    }
+
+    /// The citizens' entities in the scheduler (the citizen template's bucket 1, `FUN_1400c9d70`):
+    /// the living ones not yet registered join, the dead leave (`FUN_1400c8db0`).
+    fn schedule_citizens(&mut self) {
+        /// `Template\Citizen.rsc`'s bucket.
+        const CITIZEN_BUCKET: usize = 1;
+        let extra = banished_game::scheduler::EXTRA;
+        self.citizen_handles.resize(self.citizens.len(), None);
+        for (c, citizen) in self.citizens.iter().enumerate() {
+            match (citizen.alive, self.citizen_handles[c]) {
+                (true, None) => {
+                    self.citizen_handles[c] =
+                        Some(self.scheduler.register_extra(extra + c, CITIZEN_BUCKET));
+                }
+                (false, Some(h)) => {
+                    self.scheduler.remove(h);
+                    self.citizen_handles[c] = None;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// The map ambience's region entities (`Environment.rsc:ambient`, bucket 2, `FUN_1400a57c0`)
+    /// of a new game: they take turns in their bucket with the populations. (Their river and
+    /// wind entities have no bucket.)
+    pub fn register_ambience(&mut self, regions: usize) {
+        /// `Audio\Effects\Environment.rsc:ambient`'s bucket.
+        const AMBIENCE_BUCKET: usize = 2;
+        if self.save_ids.is_some() || !self.ambience_handles.is_empty() {
+            return;
+        }
+        let foreign = banished_game::scheduler::FOREIGN;
+        self.ambience_handles = (0..regions)
+            .map(|r| self.scheduler.register_extra(foreign + r, AMBIENCE_BUCKET))
+            .collect();
+    }
+
+    /// The entity manager's clock.
+    pub fn entity_time(&self) -> i64 {
+        self.scheduler.time
+    }
+
+    /// A saved entity the town does not model, kept in its bucket (`FUN_1400c9d70`).
+    pub(crate) fn register_foreign(&mut self, bucket: usize, n: usize) -> usize {
+        self.scheduler
+            .register_extra(banished_game::scheduler::FOREIGN + n, bucket)
     }
 
     /// `FUN_1400c9d70`: register a new entity in its template's bucket.
@@ -1960,6 +2022,7 @@ impl StartingTown {
             scheduler: &mut self.scheduler,
         }
         .bury();
+        self.visits = self.scheduler.take_visits();
         changed | buried
     }
 
@@ -1988,6 +2051,7 @@ impl StartingTown {
             construction: &mut self.construction,
             stock: [(0, 0); 21],
             temperature: 0.0,
+            visits: &[],
         };
         let rules = self.rules;
         let names = self.names.as_ref();
@@ -2035,6 +2099,7 @@ impl StartingTown {
             construction: &mut self.construction,
             stock: [(0, 0); 21],
             temperature: 0.0,
+            visits: &[],
         };
         self.agents.update_commute(
             &self.citizens,
@@ -2119,6 +2184,7 @@ impl StartingTown {
             construction: &mut self.construction,
             stock,
             temperature,
+            visits: &self.visits,
         };
         let rules = self.rules;
         let names = self.names.as_ref();
@@ -2132,6 +2198,8 @@ impl StartingTown {
         };
         self.agents
             .update(&mut self.citizens, &mut env, &groups, dt, &mut newborn);
+        self.visits.clear();
+        self.schedule_citizens();
         // `FUN_1400c9d70`: piles left by cleared resources join the entity manager's buckets.
         for id in before..self.placed.len() {
             self.register_entity(id);
@@ -3291,7 +3359,9 @@ mod storage_fetch_tests {
             .iter()
             .filter(|c| c.is_adult(&town.rules))
             .count();
+        // Each iteration: the bucket pass (it visits the citizens), then the citizens.
         for _ in 0..3600 {
+            town.iterate(&terrain, &mut rng, 1.0 / 30.0, 0.0);
             town.update_citizens(&terrain, &mut rng, 1.0 / 30.0, 0.0, [(1000, 0); 21]);
         }
         let final_stock = stock_table(&town.storages, &town.materials);
@@ -3346,6 +3416,7 @@ mod storage_fetch_tests {
             };
             town.agents.ais[i] = Default::default();
         }
+        town.iterate(&terrain, &mut rng, 1.0 / 30.0, 0.0);
         town.update_citizens(&terrain, &mut rng, 1.0 / 30.0, 0.0, [(1000, 0); 21]);
         for (i, state) in town.agents.states.iter().enumerate() {
             assert_eq!(state.flags & 4, 4);

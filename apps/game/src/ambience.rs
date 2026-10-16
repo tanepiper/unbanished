@@ -221,6 +221,18 @@ fn empty_emitter() -> Emitter {
     }
 }
 
+/// How many environment regions `FUN_1400a57c0` makes on a map of `n` cells a side: squares
+/// of the start condition's `int_150` cells.
+pub fn region_count(archive: &Archive, profile_ref: &str, n: usize) -> usize {
+    let step = archive
+        .read_ref(&profile_ref.replace('\\', "/"))
+        .ok()
+        .and_then(|b| map_generator(&b).ok())
+        .map_or(16, |p| p.int_150.max(1) as usize);
+    let side = n.div_ceil(step);
+    side * side
+}
+
 impl Ambience {
     /// `FUN_1400a57c0`'s environment and wind emitters for the start condition's profile.
     pub fn create(

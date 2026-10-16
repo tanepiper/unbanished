@@ -41,7 +41,7 @@ are listed separately at the end.
 | **Center button** of building windows | `StandardDialog.rsc:centerPin` `buttonCenter` (`FUN_140067a30`) | Pin works, Center does nothing |
 | **Screenshot keys** (actions 33, 34) | `FUN_14009b270`: a frame copy written to a numbered file (`%i.%s`), with or without the UI | Not read |
 | **Path Method key** (action 22) | Switches the road tool's path method | Not read |
-| **Scheduling** | Each entity bucket is visited by its quota (`[50, 15, 8, 5, 2]`) | The citizens' AI and sites' scheduled updates run every iteration (`agents.rs`, `town.rs`). This changes timing |
+| **Scheduling** | Each entity bucket is visited by its quota (`[50, 15, 8, 5, 2]`) | **Done.** Citizens are in bucket 1, the map ambience in bucket 2, and the sites' and citizens' scheduled components run on their visits with their elapsed time. Bucket order, cursors and visit times load and save. The systems still run one after another rather than interleaved per entity |
 | **Tutorials and scenarios with a save** | The scenario's `+0x88` save is loaded | The port starts a new game from the scenario's fields (it can load saves now) |
 | **Built wells after loading** | They are in the town's well list | Not registered in the port's water (only wells built after the load) |
 | **Achievements after loading** | Instances restored | Not read back (a loaded game starts from no progress) |

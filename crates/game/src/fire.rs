@@ -176,14 +176,15 @@ impl Sim<'_, '_> {
     /// FireComponent's scheduled update (`FUN_140049910`) of every building that has one:
     /// not burning, the ignition odds (unless fires are off); burning, the spread and the
     /// burn running out.
-    pub fn update_fires(&mut self, jobs: &mut Jobs, dt: i64) {
-        let ids: Vec<usize> = self
-            .sites
-            .iter()
-            .filter(|(_, s)| s.fire.is_some() && !s.destroyed)
-            .map(|(&e, _)| e)
-            .collect();
-        for e in ids {
+    pub fn update_fires(&mut self, jobs: &mut Jobs, visits: &[(usize, i64)]) {
+        for &(e, dt) in visits {
+            if !self
+                .sites
+                .get(&e)
+                .is_some_and(|s| s.fire.is_some() && !s.destroyed)
+            {
+                continue;
+            }
             let Some(d) = self.fire_desc(e) else { continue };
             let off = self.game_flags & NO_FIRES != 0;
             let Some(f) = self.fire(e) else { continue };

@@ -67,6 +67,9 @@ pub struct Env<'a, 't> {
     pub stock: [(i32, i32); 21],
     /// The environment's temperature (`Game +0x130 → +0x18`).
     pub temperature: f32,
+    /// This iteration's bucket visits (`EntityScheduler::take_visits`): placed entities by
+    /// index, citizens from `scheduler::EXTRA`, each with the time since its last visit.
+    pub visits: &'a [(usize, i64)],
 }
 
 /// Everything a work slot or a state callback touches.
@@ -1096,20 +1099,23 @@ impl Sim<'_, '_> {
         run(self, jobs, entity, false, false);
     }
 
-    /// The bit-4 and scheduled StateMachine updates of every site.
-    pub fn update_sites(&mut self, jobs: &mut Jobs) {
+    /// The sites' StateMachine updates: every site's bit-4 update with the iteration's time
+    /// `dt`, then the scheduled update of each site its bucket visited this iteration
+    /// (`visits`, in visiting order) with the time since its last visit (`FUN_1400c9560`).
+    pub fn update_sites(&mut self, jobs: &mut Jobs, dt: i64, visits: &[(usize, i64)]) {
         let ids: Vec<usize> = self.sites.keys().copied().collect();
         self.refresh_demolishing();
+        self.site_dt = dt;
         for e in &ids {
             run(self, jobs, *e, false, true);
         }
-        // Deviation: every site's scheduled update runs each iteration (bucket 3's quota of
-        // five visits each entity every iteration while it holds at most five).
-        for e in ids {
-            if !self.sites.get(&e).is_some_and(|s| s.destroyed) {
+        for &(e, elapsed) in visits {
+            if self.sites.get(&e).is_some_and(|s| !s.destroyed) {
+                self.site_dt = elapsed;
                 run(self, jobs, e, true, true);
             }
         }
+        self.site_dt = dt;
         let destroyed: Vec<usize> = self
             .sites
             .iter()
@@ -2966,13 +2972,14 @@ impl Sim<'_, '_> {
         self.destroy_pile(jobs, id);
     }
 
-    /// `FUN_14012e600`: piles older than an hour disappear.
-    pub fn age_piles(&mut self, jobs: &mut Jobs, dt: i64) {
-        let old: Vec<usize> = self
-            .piles
-            .iter_mut()
-            .filter_map(|(&id, p)| {
-                p.age += dt;
+    /// `FUN_14012e600` (RawMaterialComponent's scheduled update, for the piles visited this
+    /// iteration): piles older than an hour disappear.
+    pub fn age_piles(&mut self, jobs: &mut Jobs, visits: &[(usize, i64)]) {
+        let old: Vec<usize> = visits
+            .iter()
+            .filter_map(|&(id, elapsed)| {
+                let p = self.piles.get_mut(&id)?;
+                p.age += elapsed;
                 (p.age > ticks(3600.0)).then_some(id)
             })
             .collect();
@@ -3308,9 +3315,11 @@ pub fn clear_remaining(objects: &[Option<usize>], n: i32, placed: &Placed, e: us
 impl Sim<'_, '_> {
     /// The residence update's work (`FUN_14012ee40`): a house nobody lives in that still
     /// holds goods gets a ClearStorage work (mask 1); an empty storage has it removed.
-    pub fn residence_clear_storage(&mut self, jobs: &mut Jobs) {
-        let homes: Vec<usize> = self.homes.keys().copied().collect();
-        for e in homes {
+    pub fn residence_clear_storage(&mut self, jobs: &mut Jobs, visits: &[(usize, i64)]) {
+        for &(e, _) in visits {
+            if !self.homes.contains_key(&e) {
+                continue;
+            }
             let Some(site) = self.sites.get(&e) else {
                 continue;
             };

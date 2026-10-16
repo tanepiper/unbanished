@@ -128,14 +128,11 @@ impl Sim<'_, '_> {
     }
 
     /// DiseaseComponent's scheduled update (`FUN_1400494f0`) of every site that has one.
-    pub fn update_blight(&mut self, dt: i64) {
-        let sick: Vec<usize> = self
-            .sites
-            .iter()
-            .filter(|(_, s)| s.disease.is_some())
-            .map(|(&e, _)| e)
-            .collect();
-        for e in sick {
+    pub fn update_blight(&mut self, visits: &[(usize, i64)]) {
+        for &(e, dt) in visits {
+            if !self.sites.get(&e).is_some_and(|s| s.disease.is_some()) {
+                continue;
+            }
             let Some(d) = self.blight_desc(e) else {
                 continue;
             };
