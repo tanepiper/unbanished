@@ -30,6 +30,7 @@ frame after the simulation; refresh reads only.
 | `0x9c93d6c1` | ConsumeProduceUI | | `FUN_14005fd30` / `FUN_14005fb50` / `FUN_14005fc90` | done |
 | `0x00585b87` | RadiusUI | | defaults (no bind, refresh or events) | nothing to do |
 | `0x1701e613` | ResidenceUI | | `FUN_1400bad20` / `FUN_1400ba6c0` | done |
+| `0xcd3b5953` | TownHallUI | | `FUN_1400864d0` / `FUN_140082a20`, `FUN_140083a20` / `FUN_140081650` | done (`town_hall_ui.rs`) |
 | `0x061d5f73` | UpgradeUI | | `FUN_14008c260` / — / `FUN_14008c160` | done |
 | `0xff9794df` | ImmigrationUI | | `FUN_14006bc90` / `FUN_14006ba90` | done |
 
@@ -79,6 +80,35 @@ would draw one by the weights from the game's Random, so the port shows the firs
 one (event `0x14`) sets ConsumeProduceComponent `+0x50` (`Command::SetRecipe`).
 `progressRemaining` is `1 − made (+0x68) / lifetime (+0x48)`, text `%i` percent. Not ported:
 the items' sprites (the combo lists text).
+
+## TownHallUI
+
+The town hall's tabs (`Dialog\TownHall.rsc:tabs`, port `town_hall_ui.rs`):
+
+- **Overview** (`FUN_140085cc0`, `FUN_140082500`): the year, the month (the text's string table
+  by index), homes, families (an adult alone, or a couple counted by its man), citizens, adults,
+  students, children, `@0`% clothed, `@0`% educated (of the adults), the average health and
+  happiness as hearts and stars (`FUN_14006b830`).
+- **Professions** (`FUN_140085630`, `FUN_1400833c0`): a row per profession (the table's first
+  cell cloned): its workers (spinner `0x1966 + i`, `FUN_1400831e0` sets the count), jobs and
+  workplaces, and a button (`0x1999 + i`, `FUN_140083170`) that shows the next workplace.
+- **Production** (`FUN_140085100`, `FUN_140082180`): per stock slot (its ResourceLimitUI in
+  the row's first cell) the count, this year's use and production (the samples from the year's
+  first, `FUN_1400963f0`, plus the unsampled `+0xc`/`+0x10`) and the previous `productionCombo`
+  years' (1, 2, 5, 10, 25, 50, 100).
+- **Inventory** (`FUN_140084b30`, `FUN_140082a60`, `FUN_140081cc0`): a cell per raw material
+  (`storageItem`, `storageCount`; ValueDescription icon and name), counting storage, trading
+  posts or homes (`inventoryCombo`), sorted by name or quantity (`sortCombo`).
+- **Graphs** (`FUN_140084570`, `FUN_140083a80`): `timeCombo` (1 year: every sample, 48
+  points; 2 years 96; 5: every second, 120; 10: every fourth, 120; 25, 50, 100: every 8th,
+  16th, 32nd, 150) and `graphCombo` (population: series 0–3; citizens: 4, 6, 5, 7; then one
+  stock slot's count in the order 5, 0, 1, 2, 3, 9, 4, 6, …); missing samples are zeros; the y
+  axis rounds the largest value (at least 5) up to 1, 10, 100 or 1000 and labels quarters; the
+  legend names each series (`graphKeys`). Redrawn when a sample comes in or a combo changes.
+- **Farming** (`FUN_1400840c0`, `FUN_1400816f0`): the known crops, trees and livestock, each
+  its SelectDescription's icon (`+0x20`, `+0x28`) and name (`+0x30`, `+0x38`).
+
+Not ported: the window's remembered tab and combos (slot `+0x50`).
 
 ## ResidenceUI
 

@@ -28,6 +28,7 @@ pub const CONSUME_PRODUCE_UI: u32 = 0x9c93d6c1;
 pub const UPGRADE_UI: u32 = 0x061d5f73;
 pub const IMMIGRATION_UI: u32 = 0xff9794df;
 pub const RESIDENCE_UI: u32 = 0x1701e613;
+pub const TOWN_HALL_UI: u32 = 0xcd3b5953;
 
 /// What a controller reads from the selected entity.
 pub struct EntityData<'a> {
@@ -64,6 +65,9 @@ pub struct EntityData<'a> {
     pub town_name: &'a str,
     /// ResidenceComponent: its residents, family by family (`+0x50`).
     pub residents: Option<Vec<(usize, CitizenInfo)>>,
+    /// The town and the stock manager's history (TownHallUI).
+    pub town: Option<&'a crate::start::StartingTown>,
+    pub town_ctx: Option<&'a crate::town_hall_ui::TownContext<'a>>,
 }
 
 /// `ResidenceUI` (type `0x1701e613`): bind `FUN_1400bad20`, refresh `FUN_1400ba6c0`. Each cell
@@ -1092,6 +1096,8 @@ pub enum WorkPlaceClick {
         entity: usize,
         template: String,
     },
+    /// TownHallUI's goto: show and select a workplace.
+    ShowBuilding(usize),
 }
 
 impl WorkPlaceUi {
@@ -1504,6 +1510,7 @@ pub enum Controller {
     Upgrade(UpgradeUi),
     Immigration(ImmigrationUi),
     Residence(ResidenceUi),
+    TownHall(crate::town_hall_ui::TownHallUi),
     /// Attached, refresh not ported (logged once with its id).
     #[allow(dead_code)]
     Pending(u32),
@@ -1544,6 +1551,9 @@ impl Controller {
             ))),
             IMMIGRATION_UI => Some(Controller::Immigration(ImmigrationUi::bind(ui, element))),
             RESIDENCE_UI => Some(Controller::Residence(ResidenceUi::bind(ui, element))),
+            TOWN_HALL_UI => Some(Controller::TownHall(crate::town_hall_ui::TownHallUi::bind(
+                ui, archive, element,
+            ))),
             // Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
             STATUS_ICON_UI => {
                 StatusIconUi::bind(ui, element, !has_config).map(Controller::StatusIcon)
@@ -1574,6 +1584,11 @@ impl Controller {
             Controller::Upgrade(_) => {}
             Controller::Immigration(c) => c.refresh(ui, data),
             Controller::Residence(c) => c.refresh(ui, data),
+            Controller::TownHall(c) => {
+                if let (Some(t), Some(x)) = (data.town, data.town_ctx) {
+                    c.refresh(ui, archive, t, x);
+                }
+            }
             Controller::Pending(_) => {}
         }
     }

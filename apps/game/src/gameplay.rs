@@ -1177,12 +1177,17 @@ impl GameLoop for GameplayLoop {
             }
         }
         if let Some(town) = &self.town {
+            let town_ctx = crate::town_hall_ui::TownContext {
+                stock_counts: &self.stock_warnings.count,
+                statistics: &self.statistics,
+            };
             self.entities.refresh_with(
                 ctx.ui,
                 ctx.archive,
                 town,
                 &self.stock_warnings.limits,
                 &self.params.town_name,
+                Some(&town_ctx),
             );
         }
         self.position_entity_window(ctx);
@@ -1242,6 +1247,9 @@ impl GameLoop for GameplayLoop {
         }
         // A combo in a building's window (event `0x14`).
         if let Event::Selected(id, index) = event {
+            if self.entities.town_hall_select(ctx.ui, &self.statistics, id) {
+                return Next::Stay;
+            }
             let chosen = self
                 .town
                 .as_ref()
@@ -1343,6 +1351,19 @@ impl GameLoop for GameplayLoop {
                 // ResourceLimitUI (`FUN_14007ccb0`): the slot's limit.
                 Some(WorkPlaceClick::StockLimit { slot, limit }) => {
                     self.stock_warnings.limits[slot] = limit;
+                    return Next::Stay;
+                }
+                Some(WorkPlaceClick::ShowBuilding(building)) => {
+                    self.entities.pin_containing(ctx.ui, id);
+                    if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
+                        let entity = Entity::Placed(building);
+                        if let SceneCamera::Map(camera) = &mut view.camera {
+                            camera.target = entity.position(town).truncate();
+                        }
+                        self.selection.selected = Some(entity);
+                        self.entities
+                            .select(ctx.ui, screen, ctx.archive, town, entity);
+                    }
                     return Next::Stay;
                 }
                 Some(WorkPlaceClick::ShowWorker(citizen)) => {
@@ -1795,6 +1816,42 @@ mod tests {
                 town.citizens, town.agents.states, town.storages
             )
         );
+    }
+
+    /// TownHallUI over the started town: the overview's counts, a row per stock slot and
+    /// a profession row each, and the graphs drawn from the statistics.
+    #[test]
+    fn town_hall_window_reads_the_town() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            for _ in 0..3 {
+                gameplay.iterate(ctx.archive, 1.0 / 30.0);
+            }
+            let root = ctx.ui.instantiate("Dialog\\TownHall.rsc:tabs").unwrap();
+            let mut th = crate::town_hall_ui::TownHallUi::bind(ctx.ui, ctx.archive, root);
+            let town = gameplay.town.as_ref().unwrap();
+            let x = crate::town_hall_ui::TownContext {
+                stock_counts: &gameplay.stock_warnings.count,
+                statistics: &gameplay.statistics,
+            };
+            th.refresh(ctx.ui, ctx.archive, town, &x);
+            let text = |name: &str| {
+                let n = ctx.ui.find(root, name).unwrap();
+                match &ctx.ui.node(n).kind {
+                    banished_ui::Kind::Control(banished_ui::Control::Edit(e)) => {
+                        e.text.text.clone()
+                    }
+                    banished_ui::Kind::Text(t) => t.text.clone(),
+                    _ => String::new(),
+                }
+            };
+            let alive = town.citizens.iter().filter(|c| c.alive).count();
+            assert_eq!(text("numberCitizens"), alive.to_string());
+            assert!(!gameplay.statistics.series[0].is_empty(), "no sample yet");
+            assert_eq!(gameplay.statistics.series[0][0], alive as i32);
+        });
     }
 
     /// DestroyUI on a storage barn: its buttons ask for the demolition to be called off,

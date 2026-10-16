@@ -14,13 +14,13 @@ Deviation: 34, Not ported: 47, Not traced: 4.
 
 ## `apps/game/src/building_ui.rs`
 
-- [Not ported] [apps/game/src/building_ui.rs:1507](../apps/game/src/building_ui.rs#L1507): Attached, refresh not ported (logged once with its id).
-- [Not traced] [apps/game/src/building_ui.rs:1547](../apps/game/src/building_ui.rs#L1547): Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
+- [Not ported] [apps/game/src/building_ui.rs:1514](../apps/game/src/building_ui.rs#L1514): Attached, refresh not ported (logged once with its id).
+- [Not traced] [apps/game/src/building_ui.rs:1557](../apps/game/src/building_ui.rs#L1557): Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
 
 ## `apps/game/src/entity_ui.rs`
 
 - [Not ported] [apps/game/src/entity_ui.rs:24](../apps/game/src/entity_ui.rs#L24): Not ported: offscreen host retirement, dragging and persisted pin settings.
-- [Not ported] [apps/game/src/entity_ui.rs:171](../apps/game/src/entity_ui.rs#L171): Not ported: building StatusIconComponent bits.
+- [Not ported] [apps/game/src/entity_ui.rs:172](../apps/game/src/entity_ui.rs#L172): Not ported: building StatusIconComponent bits.
 
 ## `apps/game/src/gameplay.rs`
 
@@ -30,9 +30,9 @@ Deviation: 34, Not ported: 47, Not traced: 4.
 
 ## `apps/game/src/main.rs`
 
-- [Deviation] [apps/game/src/main.rs:90](../apps/game/src/main.rs#L90): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
-- [Deviation] [apps/game/src/main.rs:185](../apps/game/src/main.rs#L185): "Use Software Mouse" (`Input::Configuration +10`): the pointer is drawn by the game, at its image's own size, instead of by the system (`UserInterface::SetCursor` hands the cursor's sheet image and hotspot to the device). Not ported: the other cursors (Hand, Place, Move, …) the original switches between by `UserInterface::GetMouseCursorIndex`; only the arrow is drawn.
-- [Deviation] [apps/game/src/main.rs:673](../apps/game/src/main.rs#L673): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
+- [Deviation] [apps/game/src/main.rs:91](../apps/game/src/main.rs#L91): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
+- [Deviation] [apps/game/src/main.rs:186](../apps/game/src/main.rs#L186): "Use Software Mouse" (`Input::Configuration +10`): the pointer is drawn by the game, at its image's own size, instead of by the system (`UserInterface::SetCursor` hands the cursor's sheet image and hotspot to the device). Not ported: the other cursors (Hand, Place, Move, …) the original switches between by `UserInterface::GetMouseCursorIndex`; only the arrow is drawn.
+- [Deviation] [apps/game/src/main.rs:674](../apps/game/src/main.rs#L674): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
 
 ## `apps/game/src/options.rs`
 

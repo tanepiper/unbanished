@@ -131,7 +131,7 @@ impl EntityWindows {
 
     /// Each controller's slot `+0x38` refresh with the entity's current data (read-only).
     pub fn refresh(&mut self, ui: &mut Ui, archive: &Archive, town: &StartingTown) {
-        self.refresh_with(ui, archive, town, &[0; 21], "");
+        self.refresh_with(ui, archive, town, &[0; 21], "", None);
     }
 
     /// [`Self::refresh`] with the stock manager's limits (ResourceLimitUI).
@@ -142,6 +142,7 @@ impl EntityWindows {
         town: &StartingTown,
         stock_limits: &[i32; 21],
         town_name: &str,
+        town_ctx: Option<&crate::town_hall_ui::TownContext>,
     ) {
         for w in &mut self.open {
             if let Some(pages) = w.pages {
@@ -230,6 +231,8 @@ impl EntityWindows {
                     Entity::Placed(p) => residents(town, p),
                     Entity::Citizen(_) => None,
                 },
+                town: Some(town),
+                town_ctx,
             };
             let entity = match w.entity {
                 Entity::Placed(p) => Some(p),
@@ -277,6 +280,8 @@ impl EntityWindows {
             immigration: None,
             town_name: "",
             residents: residents(town, p),
+            town: Some(town),
+            town_ctx: None,
         };
         w.bound.iter_mut().find_map(|c| match c {
             Controller::WorkPlace(c) => c.click(node, &data),
@@ -287,6 +292,7 @@ impl EntityWindows {
             Controller::Upgrade(c) => c.click(ui, node, p),
             Controller::Immigration(c) => c.click(node, p),
             Controller::Residence(c) => c.click(ui, node, &data),
+            Controller::TownHall(c) => c.click(ui, town, node),
             _ => None,
         })
     }
@@ -321,10 +327,28 @@ impl EntityWindows {
             immigration: None,
             town_name: "",
             residents: residents(town, p),
+            town: Some(town),
+            town_ctx: None,
         };
         w.bound.iter().find_map(|c| match c {
             Controller::ConsumeProduce(c) => c.select(node, index, &data),
             _ => None,
+        })
+    }
+
+    /// TownHallUI's combos (`FUN_140081650` event `0x14`) in the window containing `node`.
+    pub fn town_hall_select(
+        &mut self,
+        ui: &mut Ui,
+        statistics: &banished_game::tracker::Statistics,
+        node: NodeId,
+    ) -> bool {
+        let Some(w) = self.open.iter_mut().find(|w| ui.descendant(w.root, node)) else {
+            return false;
+        };
+        w.bound.iter_mut().any(|c| match c {
+            Controller::TownHall(c) => c.select(ui, statistics, node),
+            _ => false,
         })
     }
 
