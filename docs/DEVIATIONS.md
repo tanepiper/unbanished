@@ -27,7 +27,7 @@ Deviation: 44, Not ported: 10, Not traced: 5.
 
 ## `apps/game/src/gameplay/tutorial.rs`
 
-- [Deviation] [apps/game/src/gameplay/tutorial.rs:1078](../apps/game/src/gameplay/tutorial.rs#L1078): `FUN_1400b9a10`'s new game for a scenario: its seed (`+0x60`), size (`+0x64`), town name (`+0x58`), disasters (`+0x68`), start condition (`+0x70`), terrain (`+0x78`) and climate (`+0x80`). Deviation: a scenario with a save (`+0x88`, the tutorials') loads it in the original; the port starts the new game from the scenario's fields until saved games load.
+- [Deviation] [apps/game/src/gameplay/tutorial.rs:1089](../apps/game/src/gameplay/tutorial.rs#L1089): `FUN_1400b9a10`'s new game for a scenario: its seed (`+0x60`), size (`+0x64`), town name (`+0x58`), disasters (`+0x68`), start condition (`+0x70`), terrain (`+0x78`) and climate (`+0x80`). Deviation: a scenario with a save (`+0x88`, the tutorials') loads it in the original; the port starts the new game from the scenario's fields until saved games load.
 
 ## `apps/game/src/main.rs`
 

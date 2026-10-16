@@ -91,11 +91,23 @@ children, so an element unlocked inside a locked dialog works.
 
 ## The highlight (`TutorialHighlightDialog`, `Dialog/TutorialHighlight.rsc`)
 
-Bind `FUN_1400e54f0` finds `glowGroup`, `glow` and `arrow`; each frame (`FUN_1400e54b0`) the glow
-is hidden and the arrow's box goes over the target's centre (centred, its foot there), bobbing
-by `sin(t·π)·8` pixels, turned by `-angle` about its centre (`SpriteContext::Flush`:
-`x·cos − y·sin`, `x·sin + y·cos`, `Math::Scalar::Sin` is `FUN_18012a620`). The target is the
-element at `+0x40`, or the `+0x70`th entity of the template `+0x58`, projected (`FUN_140105850`).
+Bind `FUN_1400e54f0` finds `glowGroup`, `glow` and `arrow`. Each frame (`FUN_1400e54b0`) the glow
+is hidden, and the arrow is placed and turned by `-angle` about its centre (`SpriteContext::Flush`:
+`x·cos − y·sin`, `x·sin + y·cos`, `Math::Scalar::Sin` is `FUN_18012a620`). It bobs by
+`sin(t·π)·8` pixels. Placement depends on the target:
+- **An element** (`+0x40`, `FUN_1400e4f90`): the arrow's box is a square of the sprite's width,
+  set against a corner of the element's rectangle. The sprite points down and right at 0°, so
+  its tip lands on that corner. It bobs along the same diagonal:
+
+  | Angle | Box | Corner |
+  |---|---|---|
+  | 0 (and any other) | `(left − w, top − w)` | top left |
+  | 90 | `(left − w, bottom)` | bottom left |
+  | 180 | `(right, bottom)` | bottom right |
+  | 270 | `(right, top − w)` | top right |
+
+- **An entity** (the `+0x70`th entity of the template `+0x58`, projected by `FUN_140105850`;
+  `FUN_1400e5270`): the arrow is centred over the point with its foot there, and bobs up and down.
 The setup's dialog opens a frame after the tutorial's window, so it draws above it.
 
 ## RestrictPlayer in the game

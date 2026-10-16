@@ -653,8 +653,9 @@ impl GameplayLoop {
         }
     }
 
-    /// `FUN_1400e54b0`: the arrow over the target's centre, bobbing 8 pixels on a half
-    /// second's sine, turned by the angle.
+    /// `FUN_1400e54b0`: an element target (`FUN_1400e4f90`) gets the arrow at the corner its
+    /// angle names, an entity (`FUN_1400e5270`) the arrow over its projected point; it bobs
+    /// `sin(t·π)·8` pixels and is turned by `-angle` about its centre.
     fn place_highlight(&mut self, ui: &mut Ui, dt: f32) {
         let Some((root, arrow, target, angle, time)) = self
             .tutorial
@@ -668,36 +669,46 @@ impl GameplayLoop {
             return;
         };
         let Some(arrow) = arrow else { return };
-        let point = match target {
-            Target::Element(n) => {
-                let r = ui.node(n).rect;
-                Some(((r[0] + r[2]) as f32 * 0.5, (r[1] + r[3]) as f32 * 0.5))
-            }
-            Target::Entity(e) => self.screen_point(ui.screen, e),
-        };
-        let Some((cx, cy)) = point else {
-            ui.set_visible(arrow, false);
-            return;
-        };
-        ui.set_visible(arrow, true);
         let size = match &ui.node(arrow).kind {
             Kind::Image {
                 sprite: Some(s), ..
             } => [s.width, s.height],
             _ => [0, 0],
         };
-        // `FUN_1400e54b0`: the arrow over the target's centre (its box centred, its foot
-        // there), bobbing 8 pixels on a half second's sine, turned about its centre by
-        // `-angle` (`SpriteContext::Flush`: `x cos − y sin`, `x sin + y cos`).
         let bob = (time * std::f32::consts::PI).sin() * 8.0;
+        let (x, y) = match target {
+            // `FUN_1400e4f90`: the arrow's box (the sprite's width square) against a corner of
+            // the element's rectangle, the sprite's point (down and right at 0°) on it: 0°
+            // above and left of the top left, 90° below and left of the bottom left, 180°
+            // below and right of the bottom right, 270° above and right of the top right. It
+            // bobs along the same diagonal.
+            Target::Element(n) => {
+                let [l, t, r, b] = ui.node(n).rect;
+                let w = size[0];
+                let (x, y, sx, sy) = match angle {
+                    90 => (l - w, b, 1.0, -1.0),
+                    180 => (r, b, -1.0, -1.0),
+                    270 => (r, t - w, -1.0, 1.0),
+                    _ => (l - w, t - w, 1.0, 1.0),
+                };
+                (sx * bob + x as f32, sy * bob + y as f32)
+            }
+            // `FUN_1400e5270`: centred over the point, its foot there, bobbing up and down.
+            Target::Entity(e) => {
+                let Some((cx, cy)) = self.screen_point(ui.screen, e) else {
+                    ui.set_visible(arrow, false);
+                    return;
+                };
+                (
+                    (cx as i32 - (size[0] >> 1)) as f32,
+                    (cy as i32 - size[1]) as f32 + bob,
+                )
+            }
+        };
+        ui.set_visible(arrow, true);
         let node = ui.node_mut(root);
         node.alignment = 0;
-        node.margins = [
-            (cx as i32 - (size[0] >> 1)).max(0),
-            0,
-            ((cy as i32 - size[1]) as f32 + bob).max(0.0) as i32,
-            0,
-        ];
+        node.margins = [(x as i32).max(0), 0, (y as i32).max(0), 0];
         ui.node_mut(arrow).rotation = -(angle as f32);
     }
 
