@@ -188,13 +188,14 @@ impl GameplayLoop {
     /// the loop's own state written back. `None` for a game not loaded from a save.
     pub fn save_state(
         &self,
+        archive: &banished_formats::pkg::Archive,
         ui: &mut banished_ui::Ui,
     ) -> Option<banished_formats::savegame::GameState> {
         use banished_formats::savegame::{Fields, Value};
         let saved = self.saved.as_ref()?;
         let mut g = saved.state.clone();
         if let Some(town) = &self.town {
-            town.export_into(&mut g);
+            town.export_into(archive, &mut g);
         }
         g.random_index = self.rng.index();
         g.random_state = self.rng.state().to_vec();
@@ -300,8 +301,12 @@ impl GameplayLoop {
 
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     /// The whole `.sav` file of [`GameplayLoop::save_state`], with the loaded save's metadata.
-    pub fn save_file(&self, ui: &mut banished_ui::Ui) -> Option<Vec<u8>> {
-        let g = self.save_state(ui)?;
+    pub fn save_file(
+        &self,
+        archive: &banished_formats::pkg::Archive,
+        ui: &mut banished_ui::Ui,
+    ) -> Option<Vec<u8>> {
+        let g = self.save_state(archive, ui)?;
         let state = g.encode().map_err(|e| log::error!("save: {e}")).ok()?;
         let saved = self.saved.as_ref()?;
         Some(banished_formats::save::Save::write(&saved.metadata, &state))
@@ -2371,7 +2376,7 @@ impl GameLoop for GameplayLoop {
                 let Some(path) = words.next() else {
                     return false;
                 };
-                let Some(bytes) = self.save_file(ctx.ui) else {
+                let Some(bytes) = self.save_file(ctx.archive, ctx.ui) else {
                     log::error!("save: only a game loaded from a save can be saved yet");
                     return false;
                 };

@@ -45,6 +45,35 @@ What the identity check turned up:
 - **Key order.** These maps are keyed by object address in the original, so their order is only
   known from the save. The writer keeps the saved order and puts new keys after it.
 
+- **Objects made or gone since the load** (`save/create.rs`):
+  - **New entities.** A new entity gets its ComponentEntity and one component per description
+    of its template that makes one, in the template's order. The constructor (`FUN_1400c8bf0`)
+    asks each description's slot `+0x40` for the component class. A UIDescription makes one
+    only when its `+0x20` is above 0 (`FUN_14003a040`). Checked:
+    `create::tests::templates_predict_the_saved_components`, where every template's components
+    in Save5 and Save83 are predicted exactly, in order.
+  - **Registering them.** A new entity joins the entity list, its bucket and the schedules
+    (list index, bucket slot or −1, bucket, last update time).
+  - **Dead entities** leave the list and the bucket, the last entry of each moving into their
+    place as the original's lists do.
+  - **New works** get an object of their class.
+  - **New object indices** follow the highest one used. The tag (`Internal +0x0c`, drawn on the
+    factory's Random in the original) is the index.
+- **Stage 3a** (`save/citizens.rs`):
+  - births (the citizen template's entity, in bucket 1) and deaths;
+  - every CitizenComponent field by its offset;
+  - the dependents' ring (`+0x260` head, `+0x268` next, `+0x270` previous);
+  - the body's model, character, AI, carried goods and icons;
+  - the town's citizen list, the homes' families and fuel, the attendees.
+- **Stage 3b** (`save/actions.rs`):
+  - **Stacks.** Each character's stack is written to its saved length (unused slots null), with
+    its top and its "on empty" action. An entry whose saved action at the same place has the
+    same class keeps that object, so an untouched stack keeps its bits.
+  - **CompleteTask's `+0x28`** is an entity its maker passes on to the work's complete slot
+    (`FUN_1400cb270`, `FUN_1400fdc30`). The port does not keep it, so a saved task keeps its
+    own and a new one has none.
+- **The entity manager's clock** (the first value of its block, the scheduler's time), now also restored on load.
+
 ## Saving from the game
 
 `GameplayLoop::save_state` copies the loaded save, writes the town into it, then writes the

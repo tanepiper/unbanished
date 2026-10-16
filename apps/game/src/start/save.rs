@@ -7,7 +7,26 @@ use banished_formats::savegame::{Fields, GameState, ObjId, Value};
 
 use super::{normalise, StartingTown};
 
+mod actions;
+mod citizens;
 mod construction;
+mod create;
+
+/// The saved object of each entity and citizen, extended with what was made since the load.
+pub(crate) struct Ids {
+    pub entities: Vec<Option<ObjId>>,
+    pub citizens: Vec<Option<ObjId>>,
+}
+
+impl Ids {
+    pub fn entity(&self, p: usize) -> Option<ObjId> {
+        self.entities.get(p).copied().flatten()
+    }
+
+    pub fn citizen(&self, c: usize) -> Option<ObjId> {
+        self.citizens.get(c).copied().flatten()
+    }
+}
 
 /// The external reference table (`ExternalFactory::SerializeReferenceTable`) by path: a path
 /// the save does not have yet gets the next id.
@@ -68,15 +87,20 @@ fn f32s(f: &Fields, path: &str) -> Option<Vec<f32>> {
 }
 
 impl StartingTown {
-    /// Write the town into `g`, the game state it was loaded from.
-    pub fn export_into(&self, g: &mut GameState) {
-        let Some(ids) = &self.save_ids else {
+    /// Write the town into `g`, the game state it was loaded from: objects for what is new,
+    /// what is gone dropped, then every field.
+    pub fn export_into(&self, archive: &banished_formats::pkg::Archive, g: &mut GameState) {
+        let Some(saved) = &self.save_ids else {
             return;
         };
         let mut refs = Refs::new(g);
+        let mut ids = self.sync_entities(archive, g, &mut refs, saved);
+        self.sync_citizens(archive, g, &mut refs, &mut ids);
+        g.entity_time = self.scheduler.time;
         self.export_entities(g, &ids.entities);
         self.export_cells(g, &ids.entities);
-        self.export_construction(g, &mut refs, &ids.entities);
+        self.export_construction(g, &mut refs, &ids);
+        self.export_citizens(archive, g, &mut refs, &ids);
     }
 
     /// Stage 1: the placed entities' map, model, natural resource, growth and spawning, and
@@ -217,6 +241,12 @@ mod tests {
             }
         }
         let mut out = Vec::new();
+        if a.entity_time != b.entity_time {
+            out.push(format!(
+                "entity clock: ours {} saved {}",
+                a.entity_time, b.entity_time
+            ));
+        }
         walk("town", &a.town, &b.town, &mut out);
         walk("managers", &a.managers, &b.managers, &mut out);
         for (id, oa) in &a.objects {
@@ -264,7 +294,7 @@ mod tests {
             let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
             let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
             let mut g = saved.state.clone();
-            town.export_into(&mut g);
+            town.export_into(&archive, &mut g);
             let ours = g.encode().unwrap();
             // What the original writes right after a load: the saved state with one more floor
             // under each active FloorComponent (its load slot adds them again, `FUN_140124a10`).

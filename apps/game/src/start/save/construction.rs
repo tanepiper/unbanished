@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use banished_formats::savegame::{Fields, GameState, ObjId, Value};
 use banished_game::jobs::WorkKind;
 
-use super::{component, fields_mut, Refs};
+use super::{component, fields_mut, Ids, Refs};
 use crate::start::StartingTown;
 
 /// The `Ext` ids of a saved map's keys, in the saved order. The original keys these maps by
@@ -31,6 +31,34 @@ fn in_saved_order(order: &[u32], mut items: Vec<(u32, Fields)>) -> Vec<Fields> {
     items.into_iter().map(|(_, f)| f).collect()
 }
 
+/// The original's class for a work kind.
+fn work_type(kind: &WorkKind) -> &'static str {
+    match kind {
+        WorkKind::Gather(_) => "GatherRawMaterials",
+        WorkKind::Build(_) => "BuildStructure",
+        WorkKind::Clear(_) => "ClearArea",
+        WorkKind::Pickup(_) => "Pickup",
+        WorkKind::Produce(_) => "ConsumeProduce",
+        WorkKind::Location(_) => "LocationWork",
+        WorkKind::Herbalist(_) => "HerbalistWork",
+        WorkKind::Forester(_) => "ForesterWork",
+        WorkKind::Hunt(_) => "HuntWork",
+        WorkKind::PlantArea(_) => "PlantArea",
+        WorkKind::TendArea(_) => "TendArea",
+        WorkKind::Harvest(_) => "HarvestArea",
+        WorkKind::PlantOrchard(_) => "PlantOrchard",
+        WorkKind::PickFruit(_) => "HarvestOrchard",
+        WorkKind::Pasture(_) => "PastureWork",
+        WorkKind::ClearStorage(_) => "ClearStorage",
+        WorkKind::Fire(_) => "FireWork",
+        WorkKind::Trade(_) => "TradeWork",
+        WorkKind::Road(_) => "BuildRoad",
+        WorkKind::Market(_) => "MarketWork",
+        WorkKind::Fishing(_) => "FishingWork",
+        WorkKind::Test(_) => "Work",
+    }
+}
+
 /// `Value::List` of single-field items.
 fn ptr_items(name: &'static str, ids: impl IntoIterator<Item = Option<ObjId>>) -> Value {
     Value::List(
@@ -41,18 +69,9 @@ fn ptr_items(name: &'static str, ids: impl IntoIterator<Item = Option<ObjId>>) -
 }
 
 impl StartingTown {
-    pub(super) fn export_construction(
-        &self,
-        g: &mut GameState,
-        refs: &mut Refs,
-        entities: &[Option<ObjId>],
-    ) {
-        let entity = |p: usize| entities.get(p).copied().flatten();
-        let citizen = |c: usize| {
-            self.save_ids
-                .as_ref()
-                .and_then(|ids| ids.citizens.get(c).copied())
-        };
+    pub(super) fn export_construction(&self, g: &mut GameState, refs: &mut Refs, ids: &Ids) {
+        let entity = |p: usize| ids.entity(p);
+        let citizen = |c: usize| ids.citizen(c);
         let c = &self.construction;
         for (&e, site) in &c.sites {
             let Some(id) = entity(e) else { continue };
@@ -130,13 +149,13 @@ impl StartingTown {
                 f.set_i32("work.work_id", pile.work);
             }
         }
-        self.export_town(g, refs, entities);
-        self.export_jobs(g, refs, entities);
+        self.export_town(g, refs, ids);
+        self.export_jobs(g, refs, ids);
     }
 
     /// The town manager's registries and values (`FUN_140094c30`).
-    fn export_town(&self, g: &mut GameState, refs: &mut Refs, entities: &[Option<ObjId>]) {
-        let entity = |p: usize| entities.get(p).copied().flatten();
+    fn export_town(&self, g: &mut GameState, refs: &mut Refs, ids: &Ids) {
+        let entity = |p: usize| ids.entity(p);
         let c = &self.construction;
         // Lists of entities, and lists of a component of each entity.
         let as_entities = |list: &[usize]| list.iter().map(|&e| entity(e)).collect::<Vec<_>>();
@@ -237,13 +256,9 @@ impl StartingTown {
 
     /// The job manager (`FUN_1400fe710`): each work's fields, then the id table, the category
     /// sets, the profession map and the counters.
-    fn export_jobs(&self, g: &mut GameState, refs: &mut Refs, entities: &[Option<ObjId>]) {
-        let entity = |p: usize| entities.get(p).copied().flatten();
-        let citizen = |c: usize| {
-            self.save_ids
-                .as_ref()
-                .and_then(|ids| ids.citizens.get(c).copied())
-        };
+    fn export_jobs(&self, g: &mut GameState, refs: &mut Refs, ids: &Ids) {
+        let entity = |p: usize| ids.entity(p);
+        let citizen = |c: usize| ids.citizen(c);
         let jobs = &self.construction.jobs;
         // The work objects by id, as saved.
         let mut objects: BTreeMap<i32, ObjId> = BTreeMap::new();
@@ -253,6 +268,23 @@ impl StartingTown {
                     objects.insert(key, o);
                 }
             }
+        }
+        // Works made since the load get their object (the work's class by its kind).
+        for (&wid, w) in &jobs.works {
+            if objects.contains_key(&wid) {
+                continue;
+            }
+            let Some(oid) = g.new_object(work_type(&w.kind)) else {
+                continue;
+            };
+            if w.entity != usize::MAX {
+                let e = entity(w.entity);
+                let wc = e.and_then(|e| component(g, e, "WorkComponent"));
+                let f = &mut g.objects.get_mut(&oid).unwrap().fields;
+                f.set("work.entity", Value::Ptr(e));
+                f.set("work.component", Value::Ptr(wc));
+            }
+            objects.insert(wid, oid);
         }
         for (&wid, w) in &jobs.works {
             let Some(&oid) = objects.get(&wid) else {

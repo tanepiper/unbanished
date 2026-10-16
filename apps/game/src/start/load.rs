@@ -54,6 +54,8 @@ impl StartingTown {
         let mut templates = Vec::new();
         let mut placed = Vec::new();
         let mut scheduler = EntityScheduler::default();
+        // The entity manager's clock (`FUN_1400c9970`).
+        scheduler.time = g.entity_time;
         // The saved entity behind each placed one, and back.
         let mut index: BTreeMap<ObjId, usize> = BTreeMap::new();
         // What was not restored, by template (for the log).

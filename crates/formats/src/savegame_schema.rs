@@ -1814,3 +1814,8 @@ fn defaults_into(ops: &[Op], version: u32, out: &mut crate::savegame::Fields) {
         out.0.push((name, value));
     }
 }
+
+/// Every object type the schemas cover.
+pub fn type_names() -> impl Iterator<Item = &'static str> {
+    SCHEMAS.iter().map(|&(name, _)| name)
+}

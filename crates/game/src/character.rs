@@ -446,6 +446,15 @@ impl MoveTo {
         }
     }
 
+    /// What a save holds of the way: the next cell's index (`+0x60`) and the cells
+    /// (`+0x64` of them at `+0x68`).
+    pub fn saved_way(&self) -> (i32, &[i32]) {
+        (
+            self.index,
+            &self.path[..(self.count.max(0) as usize).min(PATH_CELLS)],
+        )
+    }
+
     fn request(&mut self, from: [f32; 3], world: &mut World) {
         let a = world.cell(from);
         let b = world.cell(self.target);
@@ -1106,6 +1115,18 @@ impl ActionStack {
                 .collect(),
             outbox: Vec::new(),
         }
+    }
+
+    /// What a save holds (`FUN_14010ef80`): each entry's first action with its started flag,
+    /// and the "on empty" chain's first action.
+    pub fn saved(&self) -> (Vec<(&Action, bool)>, Option<&Action>) {
+        (
+            self.chains
+                .iter()
+                .filter_map(|c| c.first().map(|t| (&t.action, t.started)))
+                .collect(),
+            self.on_empty.first().map(|t| &t.action),
+        )
     }
 
     /// How many entries the stack holds (`+0x60` + 1).
