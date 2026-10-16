@@ -28,6 +28,14 @@ pub fn crc32(bytes: impl IntoIterator<Item = u8>) -> u32 {
     })
 }
 
+/// The table loop alone, from `c` and without the final complement (the engine's
+/// `System::CRC` steps; [`crc32`] is `!crc32_raw(!0, ..)`).
+pub fn crc32_raw(c: u32, bytes: &[u8]) -> u32 {
+    bytes.iter().fold(c, |c, &b| {
+        TABLE[((c ^ b as u32) & 0xFF) as usize] ^ (c >> 8)
+    })
+}
+
 /// Resource type id: CRC-32 over the class name as UTF-16LE (`Object::Factory::Startup`).
 pub fn type_id(class_name: &str) -> u32 {
     crc32(class_name.encode_utf16().flat_map(u16::to_le_bytes))

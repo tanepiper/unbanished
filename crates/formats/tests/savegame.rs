@@ -1,6 +1,6 @@
 //! Full decoding of real saves (`save-game/*.sav`, local only): every block is consumed exactly,
 //! the result agrees with the older scanning parsers in `save.rs`, and encoding it gives the
-//! same bytes back.
+//! same bytes back; a whole `.sav` written from them reads back the same.
 
 use banished_formats::save::Save;
 use banished_formats::savegame::{Fields, GameState, ObjId, Value};
@@ -51,6 +51,15 @@ fn saves_decode_fully() {
             panic!("{path:?}: written state differs at {at:#x}");
         }
         assert_eq!(written.len(), save.state.len(), "{path:?}");
+
+        // The metadata writes back exactly, and a whole file written from both payloads reads
+        // back (its check value included) to the same streams.
+        let meta = save.metadata().unwrap();
+        assert_eq!(meta.width * meta.height * 4, meta.image.len() as i32);
+        assert_eq!(meta.write(), save.metadata, "{path:?}");
+        let file = Save::write(&meta, &written);
+        let again = Save::parse(&file).unwrap();
+        assert!(again.metadata == save.metadata && again.state == save.state);
 
         assert_eq!(g.seed, save.loop_header().unwrap().seed);
         assert_eq!(

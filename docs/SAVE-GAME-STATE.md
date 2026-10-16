@@ -134,6 +134,7 @@ cargo run -q --release -p banished-formats --example savegame_check -- save-game
   - `FUN_180053110` (audio-scene sounds).
 - **Old versions.** Older-version branches are in the schemas where they were simple, but only
   the samples' versions have been exercised. Map versions below 3 are rejected.
-- **The `.sav` container.** Not yet written. It needs the first payload's metadata block
-  (version 3, about 88 KB), an LZF compressor and the stream's block table.
+- **Real-game load.** `Save::write` builds the whole `.sav` file (see
+  [SAVE-FORMAT-AND-RESTORE.md](SAVE-FORMAT-AND-RESTORE.md)), but no written file has yet been
+  loaded by the real game.
 - **Loading.** The decoded state is not yet loaded into the port's simulation.

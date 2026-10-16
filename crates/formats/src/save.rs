@@ -1,13 +1,107 @@
 //! Banished save files (`.sav`): container, game-state stream, and the fields needed to check
 //! world generation. Layout notes are in docs/SAVE-FORMAT-AND-RESTORE.md.
 
-use crate::crs::Reader;
+use crate::crs::{Reader, Writer};
 use crate::error::{format_err, Error, Result};
 use crate::stream;
 
 pub struct Save {
+    /// Expanded metadata stream (the first payload; see [`SaveMetadata`]).
+    pub metadata: Vec<u8>,
     /// Expanded game-state stream (the second payload).
     pub state: Vec<u8>,
+}
+
+/// The first payload (`SaveLoad::SaveMetaData`, Runtime `0x1800c3d00`): what the load dialog
+/// shows. One block at version 3.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SaveMetadata {
+    pub name: String,
+    pub width: i32,
+    pub height: i32,
+    /// `width × height` 4-byte texels (blue, green, red, unused) of the preview.
+    pub image: Vec<u8>,
+    /// From version 3: an unnamed value (2 in the samples), then the active mods.
+    pub value: i32,
+    pub mods: Vec<SavedMod>,
+}
+
+/// A mod active when the game was saved: its name, its `.pkm` file and three values.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SavedMod {
+    pub name: String,
+    pub file: String,
+    pub values: [u32; 3],
+}
+
+impl SaveMetadata {
+    pub fn parse(data: &[u8]) -> Result<SaveMetadata> {
+        let mut r = Reader::new(data);
+        r.block(|r, version| {
+            let name = r.string()?;
+            let width = r.i32()?;
+            let height = r.i32()?;
+            let image = r
+                .bytes(width.max(0) as usize * height.max(0) as usize * 4)?
+                .to_vec();
+            let (value, mods) = if version > 2 {
+                let value = r.i32()?;
+                let mods = (0..r.count()?)
+                    .map(|_| {
+                        Ok(SavedMod {
+                            name: r.string()?,
+                            file: r.string()?,
+                            values: [r.u32()?, r.u32()?, r.u32()?],
+                        })
+                    })
+                    .collect::<Result<_>>()?;
+                (value, mods)
+            } else {
+                (0, Vec::new())
+            };
+            Ok(SaveMetadata {
+                name,
+                width,
+                height,
+                image,
+                value,
+                mods,
+            })
+        })
+    }
+
+    /// The block at version 3.
+    pub fn write(&self) -> Vec<u8> {
+        let mut w = Writer::new();
+        let at = w.begin_block(3);
+        w.string(&self.name);
+        w.i32(self.width);
+        w.i32(self.height);
+        w.bytes(&self.image);
+        w.i32(self.value);
+        w.count(self.mods.len());
+        for m in &self.mods {
+            w.string(&m.name);
+            w.string(&m.file);
+            m.values.iter().for_each(|&v| w.u32(v));
+        }
+        w.end_block(at);
+        w.data
+    }
+}
+
+/// The file header's check value (`IO::Persistence`'s writer, Runtime around `0x1800b9500`):
+/// CRC-32 steps from `0xffffffff` over the block table, complemented, then over each block in
+/// 32 KiB pieces, complemented after each piece.
+fn header_check(table: &[u8], blocks: &[&[u8]]) -> u32 {
+    let step = |c: u32, data: &[u8]| !crate::crc::crc32_raw(c, data);
+    let mut c = step(!0, table);
+    for b in blocks {
+        for piece in b.chunks(stream::BLOCK_SIZE) {
+            c = step(c, piece);
+        }
+    }
+    c
 }
 
 /// Fields the game loop writes right after the reference table and settings block
@@ -88,18 +182,69 @@ pub struct SavedEventLog {
 impl Save {
     pub fn parse(data: &[u8]) -> Result<Save> {
         let version = u16::from_le_bytes([data[0], data[1]]);
-        let (second_offset, second_size) = match version {
-            1 => (u32_at(data, 0x14)?, u32_at(data, 0x18)?),
-            2 => (u32_at(data, 0x1c)?, u32_at(data, 0x20)?),
+        // Version 1: the first payload's offset and size at 0x08, the second's id, offset and
+        // size at 0x10. Version 2: `u16 2, u16 count, 0x80808080, u32 check`, then `{id,
+        // offset, size}` per payload from 0x0c.
+        let (first, second) = match version {
+            1 => ((0x08, 0x0c), (0x14, 0x18)),
+            2 => ((0x10, 0x14), (0x1c, 0x20)),
             v => return Err(Error::Unsupported(format!("save container version {v}"))),
         };
-        let (off, size) = (second_offset as usize, second_size as usize);
-        if off + size != data.len() {
+        let payload = |(o, s): (usize, usize)| -> Result<&[u8]> {
+            let (off, size) = (u32_at(data, o)? as usize, u32_at(data, s)? as usize);
+            data.get(off..off + size).ok_or(Error::Truncated {
+                at: off,
+                wanted: size,
+            })
+        };
+        let (meta, state) = (payload(first)?, payload(second)?);
+        if state.as_ptr_range().end != data.as_ptr_range().end {
             return format_err("game-state payload does not end at EOF");
         }
+        if version == 2 && u32_at(data, 4)? == 0x8080_8080 {
+            let count = u16::from_le_bytes([data[2], data[3]]) as usize;
+            let table = data.get(12..12 + 12 * count).ok_or(Error::Truncated {
+                at: 12,
+                wanted: 12 * count,
+            })?;
+            if header_check(table, &[meta, state]) != u32_at(data, 8)? {
+                return format_err("save check value does not match");
+            }
+        }
         Ok(Save {
-            state: stream::decode(&data[off..off + size])?,
+            metadata: stream::decode(meta)?,
+            state: stream::decode(state)?,
         })
+    }
+
+    pub fn metadata(&self) -> Result<SaveMetadata> {
+        SaveMetadata::parse(&self.metadata)
+    }
+
+    /// A version 2 save file: the metadata as payload `0x24` and the game state as payload 1,
+    /// each compressed (`IO::CompressedStream`), behind the checked header.
+    pub fn write(metadata: &SaveMetadata, state: &[u8]) -> Vec<u8> {
+        let meta = stream::encode(&metadata.write());
+        let state = stream::encode(state);
+        const HEADER: usize = 12 + 2 * 12;
+        let mut table = Vec::new();
+        for (id, off, size) in [
+            (0, HEADER, meta.len()),
+            (1, HEADER + meta.len(), state.len()),
+        ] {
+            for v in [id as u32, off as u32, size as u32] {
+                table.extend_from_slice(&v.to_le_bytes());
+            }
+        }
+        let mut out = Vec::with_capacity(HEADER + meta.len() + state.len());
+        out.extend_from_slice(&2u16.to_le_bytes());
+        out.extend_from_slice(&2u16.to_le_bytes());
+        out.extend_from_slice(&0x8080_8080u32.to_le_bytes());
+        out.extend_from_slice(&header_check(&table, &[&meta, &state]).to_le_bytes());
+        out.extend_from_slice(&table);
+        out.extend_from_slice(&meta);
+        out.extend_from_slice(&state);
+        out
     }
 
     /// Find the event-log block (version 1: six notify bytes, a count and entries of colour,

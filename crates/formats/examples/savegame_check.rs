@@ -14,7 +14,12 @@ fn main() {
                     let out = std::path::Path::new(&dir)
                         .join(name)
                         .with_extension("written");
-                    std::fs::write(out, g.encode().unwrap()).unwrap();
+                    let state = g.encode().unwrap();
+                    let file =
+                        banished_formats::save::Save::write(&save.metadata().unwrap(), &state);
+                    println!("{path}: rewritten file {} bytes", file.len());
+                    std::fs::write(out.with_extension("sav"), file).unwrap();
+                    std::fs::write(out, state).unwrap();
                 }
                 let mut kinds = std::collections::BTreeMap::new();
                 for o in g.objects.values() {

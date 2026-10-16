@@ -25,14 +25,27 @@ two contiguous payloads, and their offsets and lengths reconcile exactly with th
 | `Auto.sav` | `0x24` / `0x120cd` | `1` / `0x120f1` / `0xe86d96` | second payload ends at EOF |
 | `allportez.sav` | `0x24` / `0x1473a` | `1` / `0x1475e` / `0xb876f1` | second payload ends at EOF |
 
-For version 2 files, the fixed first payload offset is `0x24`; the header at `0x10` stores the
-first block ID `0x24` and its length, then the second block ID (`1`), offset and length. The first
-payload length places the second payload exactly at the stored offset. The observed version 1 file
-stores its first payload offset and length at `0x08` and `0x0c`, then the second block ID, offset and
-length at `0x10`, `0x14` and `0x18`. Its first block ID is not explicit in this layout. Bytes 4–7
-are zero in the version 1 file and `80 80 80 80` in the version 2 files; version 2 also has a
-32-bit value at `0x08` and a zero word at `0x0c`, whose meanings remain unknown. The timestamp,
-flags, and full compatibility rules have not been established.
+A version 2 header is laid out as follows.
+
+| Offset | Field |
+|---|---|
+| `0x00` | `u16` 2, the format version |
+| `0x02` | `u16` 2, the payload count |
+| `0x04` | `0x80808080` |
+| `0x08` | `u32` check value |
+| `0x0c` | One `{u32 id, u32 offset, u32 size}` entry per payload: id 0 is the metadata at `0x24`, id 1 is the game state |
+
+The check value is computed in the Persistence file writer (Runtime, the function storing
+`0x80808080` at `+0x48`) from a CRC-32 state that starts at `0xffffffff`:
+1. Step it over the entry table, then complement it.
+2. Step it over each payload in 32 KiB pieces, complementing after every piece.
+
+The table step is the plain CRC loop (`crc::crc32_raw`). The value matches all five samples in
+`save-game/`. `Save::parse` verifies it, and `Save::write` produces it.
+
+The observed version 1 file stores its first payload offset and length at `0x08` and `0x0c`, then
+the second block ID, offset and length at `0x10`, `0x14` and `0x18`. Bytes 4–7 are zero in that
+file.
 
 Each file contains a metadata block beginning with `0xAAAAAAAA`. It starts at file offset `0x39`
 in `starter-save.sav` and `0x41` in the other three. The following little-endian 32-bit words are
@@ -48,9 +61,8 @@ standalone resource.
 `Save::SaveLoad::UpdateSave` (`Runtime` address `0x1800c52f0`) serializes metadata first through
 `SaveMetaData` (`0x1800c3d00`), then creates/uses the game `SavedState`, and submits two block
 descriptors to `IO::Persistence::BeginSave` (`0x1800ba270`). This establishes two logical save
-blocks. The observed file header contains a metadata block ID value `0x24` and a game-state ID value
-`1`; matching those on-disk fields to the descriptors is strongly indicated by the decompilation,
-but the enclosing header layout still needs to be decoded before treating the mapping as final.
+blocks. In the file header these are the entries with id 0 (the metadata) and id 1 (the game
+state); see the header table above.
 
 Both payloads use the engine's `IO::CompressedStream` table: `u32 block_count`, followed by entries
 `{u32 data_offset, u16 compressed_size, u16 raw_size}`, then LZF or stored block bytes. Offsets are
@@ -138,10 +150,11 @@ restore order still need to be mapped to game types.
 ## Open work
 
 - Determine how the version 1 header's implicit first block ID is selected.
-- Identify the timestamp and flags and establish version compatibility rules.
-- Trace game deserialization order and identify the nested object types and which world fields are
-  serialized versus rebuilt.
-- Check older/newer version behavior against a real game load before implementing a writer.
+- Check a written file against a real game load. The writer (`Save::write`, with the metadata
+  from `SaveMetadata` and the state from `GameState::encode`) has only been checked by reading
+  its output back. It compresses with its own LZF match choices, so its files differ in bytes
+  from the game's (about 2.5% larger) but expand to the same streams.
+- The game state itself is decoded in [SAVE-GAME-STATE.md](SAVE-GAME-STATE.md).
 
 Useful Runtime Ghidra locations: `Save::SaveLoad::UpdateSave` (`0x1800c52f0`),
 `Save::SaveLoad::UpdateLoad` (`0x1800c4f00`), `Save::SaveLoad::UpdateLoadFromFile`

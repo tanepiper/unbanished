@@ -54,3 +54,36 @@ pub fn decode(buf: &[u8]) -> Result<Vec<u8>> {
     }
     Ok(out)
 }
+
+/// The writing side of [`decode`]: `raw` in 32 KiB blocks, each LZF unless storing it is no
+/// larger. Offsets count from the start of the stream.
+pub fn encode(raw: &[u8]) -> Vec<u8> {
+    let blocks: Vec<(Vec<u8>, usize)> = raw
+        .chunks(BLOCK_SIZE)
+        .map(|b| {
+            let packed = lzf::compress(b);
+            if packed.len() < b.len() {
+                (packed, b.len())
+            } else {
+                (Vec::new(), b.len())
+            }
+        })
+        .collect();
+    let mut out = Vec::new();
+    out.extend_from_slice(&(blocks.len() as u32).to_le_bytes());
+    let mut offset = 4 + 8 * blocks.len();
+    for (packed, len) in &blocks {
+        out.extend_from_slice(&(offset as u32).to_le_bytes());
+        out.extend_from_slice(&(packed.len() as u16).to_le_bytes());
+        out.extend_from_slice(&(*len as u16).to_le_bytes());
+        offset += if packed.is_empty() {
+            *len
+        } else {
+            packed.len()
+        };
+    }
+    for (chunk, (packed, _)) in raw.chunks(BLOCK_SIZE).zip(&blocks) {
+        out.extend_from_slice(if packed.is_empty() { chunk } else { packed });
+    }
+    out
+}
