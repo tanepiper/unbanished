@@ -142,6 +142,10 @@ pub struct Renderer {
     highlight: crate::highlight::HighlightRenderer,
     status_icons: crate::status_icons::StatusIconRenderer,
     particles: crate::particle_gfx::ParticleRenderer,
+    weather: crate::particle_gfx::WeatherRenderer,
+    pending_weather: Vec<crate::weather::WeatherBatch>,
+    weather_textures:
+        std::collections::HashMap<String, Option<banished_formats::types::ImageBuffer>>,
     cell_overlay: crate::selection_overlay::OverlayRenderer,
     pending_overlay: Vec<crate::selection_overlay::OverlayVertex>,
     overlay_texture: Option<crate::selection_overlay::OverlayTexture>,
@@ -747,6 +751,7 @@ impl Renderer {
         let status_icons = crate::status_icons::StatusIconRenderer::new(&device);
         let particles =
             crate::particle_gfx::ParticleRenderer::new(&device, &queue, &globals_layout);
+        let weather = crate::particle_gfx::WeatherRenderer::new(&device, &queue, &globals_layout);
         let cell_overlay = crate::selection_overlay::OverlayRenderer::new(&device);
         let mut ui = banished_gfx::UiRenderer::new(&device, format, DEPTH_FORMAT);
         let white = banished_gfx::upload_rgba_as(
@@ -789,6 +794,9 @@ impl Renderer {
             highlight,
             status_icons,
             particles,
+            weather,
+            pending_weather: Vec::new(),
+            weather_textures: Default::default(),
             cell_overlay,
             pending_overlay: Vec::new(),
             overlay_texture: None,
@@ -932,6 +940,12 @@ impl Renderer {
             .prepare(&self.device, &self.queue, &view.particles, |m| {
                 view.particle_textures.get(m).cloned().unwrap_or_default()
             });
+        self.pending_weather.clone_from(&view.weather);
+        for (k, v) in &view.weather_textures {
+            if !self.weather_textures.contains_key(k) {
+                self.weather_textures.insert(k.clone(), v.clone());
+            }
+        }
         self.pending_overlay.clone_from(&view.cell_overlay);
         if self.overlay_texture.is_none() {
             self.overlay_texture.clone_from(&view.overlay_texture);
@@ -1442,8 +1456,19 @@ impl Renderer {
                     Self::scene_pass(&mut encoder, "water", &t.scene_view, &t.depth, None);
                 self.extras.draw_water(&mut pass, &self.globals_bind);
             }
-            // Particles after the water, as transparent geometry.
+            // Particles after the water, as transparent geometry, then the rain and snow.
             self.particles
+                .draw(&mut encoder, &t.scene_view, &t.depth, &self.globals_bind);
+            let textures = &self.weather_textures;
+            self.weather.prepare(
+                &self.device,
+                &self.queue,
+                &self.pending_weather,
+                scene.eye,
+                &scene.view_proj,
+                |m| textures.get(m).cloned().flatten(),
+            );
+            self.weather
                 .draw(&mut encoder, &t.scene_view, &t.depth, &self.globals_bind);
             self.highlight.draw(
                 &mut encoder,

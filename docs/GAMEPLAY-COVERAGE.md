@@ -93,7 +93,8 @@ simulation. Parsing it or drawing its mesh is not enough.
 | Quarry pit dug as it is worked | yes ([QUARRY.md](QUARRY.md)) |
 | River and lake surfaces | yes ([TERRAIN-WATER-GEOMETRY.md](TERRAIN-WATER-GEOMETRY.md); the strip bit-exact) |
 | Smoke, fire and blight particles | yes ([PARTICLES.md](PARTICLES.md)) |
-| Weather precipitation, the tornado's funnel | no |
+| Weather precipitation (rain, snow) | yes ([ENVIRONMENT.md](ENVIRONMENT.md)) |
+| The tornado's funnel (its particle class) | no |
 | Disasters (fire, tornado, disease) and AutoSlow | yes (fire, blight and tornadoes with the Disasters option; AutoSlow from their events) |
 
 ## Plan

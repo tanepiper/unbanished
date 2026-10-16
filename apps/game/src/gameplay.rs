@@ -91,6 +91,8 @@ pub struct GameplayLoop {
     decals_built: Option<(u32, u64, u64)>,
     /// The entities' particle systems (presentation; their own Random).
     particles: crate::particles::Particles,
+    /// Each weather slot's rain or snow (`WeatherGeometry`).
+    precipitation: Vec<Option<crate::weather::Precipitation>>,
     decal_cache: crate::scene_assets::DecalCache,
     selection: Selection,
     entities: EntityWindows,
@@ -162,6 +164,7 @@ impl GameplayLoop {
             decal_descriptions: Vec::new(),
             decals_built: None,
             particles: Default::default(),
+            precipitation: Vec::new(),
             decal_cache: Default::default(),
             selection: Selection::default(),
             entities: EntityWindows::default(),
@@ -902,6 +905,39 @@ impl GameplayLoop {
         }
     }
 
+    /// The rain and snow (`WeatherGeometry::Update` by the game time): each slot's particles at
+    /// its effect's intensity, none with ShowWeather off (`FUN_1400999b0`).
+    fn refresh_weather(&mut self, ctx: &mut Ctx, dt: f32) {
+        let show = ctx.settings.game.show_weather;
+        let (Some(view), Some(env)) = (self.view.as_mut(), self.environment.as_ref()) else {
+            return;
+        };
+        view.weather.clear();
+        for (slot, p) in self.precipitation.iter_mut().enumerate() {
+            let Some(p) = p else { continue };
+            let intensity = env
+                .effects
+                .get(slot)
+                .copied()
+                .flatten()
+                .filter(|_| show)
+                .map_or(0.0, |e| e.intensity);
+            if intensity <= 0.0 {
+                continue;
+            }
+            if 0.0 < dt {
+                p.update(dt);
+            }
+            if let Some(b) = p.batch(intensity) {
+                if !view.weather_textures.contains_key(&b.material) {
+                    let t = crate::scene_assets::particle_textures(ctx.archive, &b.material).0;
+                    view.weather_textures.insert(b.material.clone(), t);
+                }
+                view.weather.push(b);
+            }
+        }
+    }
+
     /// `AchievementManager::Update(dt × iterations)` after the frame's iterations; one awarded
     /// is stored and logged (event `0x19`, `FUN_14009be30`, `@2` its title).
     fn update_achievements(&mut self, ctx: &mut Ctx, dt: i64) {
@@ -1243,6 +1279,18 @@ impl GameLoop for GameplayLoop {
             Ok(world) => {
                 let lighting = Lighting::from_month(&world.environment.months[0]);
                 self.weather = world.environment.weather.clone();
+                // `FUN_1400d9450` builds each slot's particles from its Weather description.
+                self.precipitation = self
+                    .weather
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (w, _))| {
+                        let r = w.as_deref()?.replace('\\', "/");
+                        let data = ctx.archive.read_ref(&r).ok()?;
+                        let desc = banished_formats::weather::weather(&data).ok()?;
+                        Some(crate::weather::Precipitation::new(desc, 0x7ea7 + i as u32))
+                    })
+                    .collect();
                 self.river_paths = world.river_paths.clone();
                 self.environment_months = world.environment.months;
                 self.environment_template = world.environment.template.clone();
@@ -1436,6 +1484,7 @@ impl GameLoop for GameplayLoop {
         }
         self.refresh_decals(ctx.archive);
         self.refresh_particles(ctx.archive, dt * iterations as f32);
+        self.refresh_weather(ctx, dt * iterations as f32);
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
         if let (Some(town), Some(view), false) = (&mut self.town, &mut self.view, pauses_game) {
             let grid = banished_game::terrain::HeightGrid {

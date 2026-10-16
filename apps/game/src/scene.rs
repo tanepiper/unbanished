@@ -25,6 +25,10 @@ pub struct SceneView {
     /// The tools' cell overlay (`FUN_140105d90`) and its texture.
     pub cell_overlay: Vec<crate::selection_overlay::OverlayVertex>,
     pub overlay_texture: Option<crate::selection_overlay::OverlayTexture>,
+    /// This frame's rain and snow, and their materials' textures.
+    pub weather: Vec<crate::weather::WeatherBatch>,
+    pub weather_textures:
+        std::collections::HashMap<String, Option<banished_formats::types::ImageBuffer>>,
     /// This frame's particles and the textures (diffuse, normal map) of their materials.
     pub particles: Vec<crate::particles::ParticleBatch>,
     pub particle_textures: std::collections::HashMap<
@@ -61,6 +65,8 @@ impl SceneView {
             overlay_texture: None,
             particles: Vec::new(),
             particle_textures: Default::default(),
+            weather: Vec::new(),
+            weather_textures: Default::default(),
         }
     }
 

@@ -52,6 +52,7 @@ mod toolbar;
 mod town_hall_ui;
 mod trade_ui;
 mod utility;
+mod weather;
 #[cfg(target_arch = "wasm32")]
 mod web;
 mod world;

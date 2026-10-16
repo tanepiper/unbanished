@@ -106,7 +106,22 @@ The Status Bar ([UTILITY-WINDOWS.md](UTILITY-WINDOWS.md)) shows:
 - **Ported:** the effect slots' intensity, direction and state forcing
   (`Environment::effects`, `fade_times` from the `Weather` descriptions), the renderer's rain
   value, and the rain ambient emitter (`apps/game/src/ambience.rs`).
-- **Not ported:**
-  - the precipitation particles themselves (`FUN_1400d9450` builds them with a private Random;
-    `FUN_1400d8330` moves them);
-  - save/load of the controller state (`FUN_140099160`).
+- **Ported:** the precipitation (`apps/game/src/weather.rs`, `particle_gfx::WeatherRenderer`).
+  - **Build** (`WeatherGeometry::Build`, `FUN_1400d9450`). The geometry gets `+0x28` particles
+    from its own Random. Each starts in a cube of `+0x48`, drawn z, y, x × `RandFloatTol` × size
+    / 2. Its velocity is the normalized `+0x2c` × (`RandFloatTol × +0x3c + +0x38`). Its last
+    position is the start minus the velocity × 0.016.
+  - **Update** (`FUN_1400d8330`, by the game time). Each particle moves and is wrapped back
+    into the cube, its last position following. The intensity fades over `+0x5c` seconds; the
+    port takes it from the environment's effect, which fades the same way.
+  - **Draw** (`FUN_1400d85f0`). The cube is drawn once per tile of the 5 × 5 × 5 around the
+    camera that is in the view. Each particle is a quad `p + R − U`, `p + R + U`, `q − R + U`,
+    `q − R − U`, with uv `(0, 0)` to `(0, 1)` (indices `0, 1, 2, 0, 2, 3`):
+    - snow (`+0x40` off) takes the camera's right and up × `+0x44` / 2 at its position;
+    - rain takes a streak from its last position `q` to this one `p`, `+0x44` wide.
+  - **WeatherMaterial.** The alpha is `tex.a × intensity`, faded by the depth between
+    `+0x58`..`+0x54` and `+0x50`..`+0x4c` (rain 1–2 and 16–20, snow 2–5 and 25–30).
+  - **Deviation.** The rain streak's sides are the cross of its velocity with the camera's
+    forward axis. The original builds them from two camera planes through `Vector3::Cross`, but
+    which planes those are is not traced.
+- **Not ported:** save/load of the controller state (`FUN_140099160`).
