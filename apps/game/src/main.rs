@@ -491,11 +491,20 @@ impl Game {
             }
             View::None => (None, CLEAR),
         };
-        let frame = Frame {
+        let mut frame = Frame {
             terrain,
             clear,
-            ui: Some((&self.ui, &quads)),
+            ui: None,
         };
+        // A save's preview: the scene alone, cropped and scaled (`SaveLoad::Draw`).
+        #[cfg(not(target_arch = "wasm32"))]
+        if frame.terrain.is_some() && self.main.current().wants_save_preview() {
+            let (w, h) = renderer.size();
+            let rgba = renderer.capture(&frame);
+            let image = crate::saved::preview(&rgba, w, h);
+            self.main.current_mut().save_preview(image);
+        }
+        frame.ui = Some((&self.ui, &quads));
         if capture {
             #[cfg(not(target_arch = "wasm32"))]
             return Some(renderer.capture(&frame));
@@ -1124,6 +1133,10 @@ mod native {
         while t < seconds {
             game.update(dt);
             t += dt;
+            // A save waits for a drawn frame's preview (headless, nothing else is drawn).
+            if game.main.current().wants_save_preview() {
+                game.draw(&mut renderer, false);
+            }
             combos.retain(|(name, item, at)| {
                 if t < *at {
                     return true;

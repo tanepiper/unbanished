@@ -223,11 +223,71 @@ impl SavedGame {
     }
 }
 
+/// The preview a save carries: the size of the game's save sprite (every sample is 172×128).
+pub const PREVIEW_SIZE: (u32, u32) = (172, 128);
+
+/// The save's preview from a frame of the scene (`width × height` RGBA, no UI), as
+/// `SaveLoad::Draw` (Runtime `0x1800c5720`) makes it. It copies the frame, then draws the
+/// largest centred part with the sprite's aspect into a `PREVIEW_SIZE` buffer and reads it
+/// back as blue, green, red, alpha texels. The material's filter is assumed linear, without
+/// mipmaps. The original's alpha is the frame's own, mostly 0; the port writes 0.
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+pub fn preview(rgba: &[u8], width: u32, height: u32) -> Vec<u8> {
+    let (pw, ph) = PREVIEW_SIZE;
+    let aspect = pw as f32 / ph as f32;
+    let (w, h) = (width as f32, height as f32);
+    let (cw, ch) = if w / h <= aspect {
+        (width as i32, (w / aspect) as i32)
+    } else {
+        ((h * aspect) as i32, height as i32)
+    };
+    let x0 = (width as i32 - cw) / 2;
+    let y0 = (height as i32 - ch) / 2;
+    let texel = |x: i32, y: i32, c: usize| {
+        let x = x.clamp(0, width as i32 - 1) as usize;
+        let y = y.clamp(0, height as i32 - 1) as usize;
+        rgba[(y * width as usize + x) * 4 + c] as f32
+    };
+    let mut out = Vec::with_capacity((pw * ph * 4) as usize);
+    for j in 0..ph {
+        for i in 0..pw {
+            let u = x0 as f32 + (i as f32 + 0.5) * cw as f32 / pw as f32 - 0.5;
+            let v = y0 as f32 + (j as f32 + 0.5) * ch as f32 / ph as f32 - 0.5;
+            let (x, y) = (u.floor() as i32, v.floor() as i32);
+            let (fx, fy) = (u - x as f32, v - y as f32);
+            for c in [2, 1, 0] {
+                let top = texel(x, y, c) * (1.0 - fx) + texel(x + 1, y, c) * fx;
+                let bottom = texel(x, y + 1, c) * (1.0 - fx) + texel(x + 1, y + 1, c) * fx;
+                out.push((top * (1.0 - fy) + bottom * fy).round() as u8);
+            }
+            out.push(0);
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
     fn stems() {
         assert_eq!(super::stem(r"Game\Climate\Fair.rsc:resource"), "Fair");
         assert_eq!(super::stem("Game/Terrain/Valleys.rsc"), "Valleys");
+    }
+
+    /// A wide frame keeps its centred 172:128 part: the bars either side are left out.
+    #[test]
+    fn preview_crops_the_centre() {
+        let (w, h) = (344 * 2, 128 * 2);
+        let mut rgba = vec![0u8; (w * h * 4) as usize];
+        for y in 0..h {
+            for x in 0..w {
+                let p = ((y * w + x) * 4) as usize;
+                let inside = (172..516).contains(&x);
+                rgba[p..p + 4].copy_from_slice(&if inside { [10, 20, 30, 255] } else { [255; 4] });
+            }
+        }
+        let image = super::preview(&rgba, w, h);
+        assert_eq!(image.len(), 172 * 128 * 4);
+        assert!(image.chunks(4).all(|px| px == [30, 20, 10, 0]));
     }
 }

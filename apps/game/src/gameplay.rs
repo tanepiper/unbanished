@@ -131,6 +131,9 @@ pub struct GameplayLoop {
     move_cooldown: f32,
     /// 3D effects started during the simulation iterations, played on the next audio update.
     pending_sounds: Vec<(glam::Vec3, String)>,
+    /// A save waiting for its preview: the path, then the image once drawn.
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    pending_save: Option<(String, Option<Vec<u8>>)>,
     /// Map ambience (`FUN_1400a57c0`): environment regions and wind.
     ambience: Option<crate::ambience::Ambience>,
     /// The map changed since the ambience last weighed it.
@@ -194,6 +197,7 @@ impl GameplayLoop {
         use banished_formats::savegame::{Fields, Value};
         let saved = self.saved.as_ref()?;
         let mut g = saved.state.clone();
+        g.town_name = self.params.town_name.clone();
         if let Some(town) = &self.town {
             town.export_into(archive, &mut g);
         }
@@ -300,16 +304,44 @@ impl GameplayLoop {
     }
 
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    /// The whole `.sav` file of [`GameplayLoop::save_state`], with the loaded save's metadata.
+    /// The whole `.sav` file of [`GameplayLoop::save_state`]. Its metadata (`SaveMetaData`,
+    /// Runtime `0x1800c3d00`) names it after the town, as the Save dialog does (the string at
+    /// `+0x28` of the object it is given; the town's name in every sample, inferred). It
+    /// carries `preview` (see [`crate::saved::preview`]) and keeps the loaded save's other
+    /// values.
     pub fn save_file(
         &self,
         archive: &banished_formats::pkg::Archive,
         ui: &mut banished_ui::Ui,
+        preview: Option<Vec<u8>>,
     ) -> Option<Vec<u8>> {
         let g = self.save_state(archive, ui)?;
         let state = g.encode().map_err(|e| log::error!("save: {e}")).ok()?;
-        let saved = self.saved.as_ref()?;
-        Some(banished_formats::save::Save::write(&saved.metadata, &state))
+        let mut metadata = self.saved.as_ref()?.metadata.clone();
+        metadata.name = self.params.town_name.clone();
+        if let Some(image) = preview {
+            let (w, h) = crate::saved::PREVIEW_SIZE;
+            metadata.width = w as i32;
+            metadata.height = h as i32;
+            metadata.image = image;
+        }
+        Some(banished_formats::save::Save::write(&metadata, &state))
+    }
+
+    /// Write a save whose preview has been drawn.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn finish_save(&mut self, ctx: &mut Ctx) {
+        let Some((path, Some(image))) = self.pending_save.take_if(|(_, i)| i.is_some()) else {
+            return;
+        };
+        let Some(bytes) = self.save_file(ctx.archive, ctx.ui, Some(image)) else {
+            log::error!("save: only a game loaded from a save can be saved yet");
+            return;
+        };
+        match std::fs::write(&path, bytes) {
+            Ok(()) => log::info!("saved {path}"),
+            Err(e) => log::error!("{path}: {e}"),
+        }
     }
 
     pub fn new(params: WorldParams) -> Self {
@@ -362,6 +394,7 @@ impl GameplayLoop {
             placement_cell: None,
             move_cooldown: 0.0,
             pending_sounds: Vec::new(),
+            pending_save: None,
             ambience: None,
             ambience_stale: false,
             pause_menu: None,
@@ -1717,6 +1750,8 @@ impl GameLoop for GameplayLoop {
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
+        #[cfg(not(target_arch = "wasm32"))]
+        self.finish_save(ctx);
         if ctx.ui.screen[0] > 0 && ctx.ui.screen[1] > 0 {
             self.aspect = ctx.ui.screen[0] as f32 / ctx.ui.screen[1] as f32;
         }
@@ -2370,26 +2405,15 @@ impl GameLoop for GameplayLoop {
         let mut words = command.split_whitespace();
         match words.next() {
             Some("event") => {}
-            // `save PATH`: write the game (one loaded from a save) to `PATH`.
+            // `save PATH`: write the game (one loaded from a save) to `PATH` once the next frame
+            // has drawn its preview.
             #[cfg(not(target_arch = "wasm32"))]
             Some("save") => {
                 let Some(path) = words.next() else {
                     return false;
                 };
-                let Some(bytes) = self.save_file(ctx.archive, ctx.ui) else {
-                    log::error!("save: only a game loaded from a save can be saved yet");
-                    return false;
-                };
-                return match std::fs::write(path, bytes) {
-                    Ok(()) => {
-                        log::info!("saved {path}");
-                        true
-                    }
-                    Err(e) => {
-                        log::error!("{path}: {e}");
-                        false
-                    }
-                };
+                self.pending_save = Some((path.to_string(), None));
+                return true;
             }
             // `pause`: open the pause menu (captures).
             Some("pause") => {
@@ -2521,6 +2545,16 @@ impl GameLoop for GameplayLoop {
         self.events
             .add(kind, 3, cell, month, year, Default::default(), false);
         true
+    }
+
+    fn wants_save_preview(&self) -> bool {
+        self.pending_save.as_ref().is_some_and(|(_, i)| i.is_none())
+    }
+
+    fn save_preview(&mut self, image: Vec<u8>) {
+        if let Some((_, slot)) = &mut self.pending_save {
+            *slot = Some(image);
+        }
     }
 
     fn view(&self) -> View<'_> {

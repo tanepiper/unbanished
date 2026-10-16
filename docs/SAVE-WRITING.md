@@ -114,11 +114,27 @@ loop's own state:
 `save PATH` script command (native) writes it. Load Save83, run a few seconds, save, and the file
 decodes and loads back with every citizen, stack, animal and work.
 
-The preview image and name in the metadata are still the loaded save's.
+**Metadata** (`SaveMetaData`, Runtime `0x1800c3d00`):
+- **The name** is the town's (`GameState::town_name` is also written back, so a renamed town
+  saves under its new name). The Save dialog passes the string at `+0x28` of the object it is
+  given (`FUN_140011f90`), which is the town's name in every sample, so this is inferred.
+  Quick save names its save with the localized `Autosave` string instead (`FUN_14005e820`,
+  `FUN_14009f210`; "Auto Save" in the samples).
+- **The preview** is drawn as the original's (`SaveLoad::Draw`, `0x1800c5720`):
+  1. Starting a save (`SetSaveSprite`, `SetOperation`) waits for the next frame.
+  2. That frame copies the screen. It takes the largest centred part with the save sprite's
+     aspect and draws it into a buffer of the sprite's size (172×128 in every sample).
+  3. It reads the buffer back as blue, green, red, alpha, and `UpdateSave` then writes the file.
+  - The port renders the scene without UI, crops it and scales it bilinearly
+    (`saved::preview`; the material's filter is assumed linear, without mipmaps).
+  - The original's fourth byte is the frame's alpha, mostly 0 with small values its shaders
+    leave; the port writes 0.
+  - The `save PATH` script command sets the save pending, the next draw hands the preview to
+    the loop (`GameLoop::save_preview`), and the next update writes the file.
+- The extension value (2) and the mod list are the loaded save's.
 
 ## Still to write
 
-- The preview image and the name in the metadata.
 - New games that were never loaded from a save.
 - The scheduler's bucket order and cursors: the port updates citizens in its own pass, so the
   saved buckets (quotas `[50, 15, 8, 5, 2]` at `+0xa8`, cursors at `+0xbc`) keep the save's

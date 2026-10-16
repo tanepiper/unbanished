@@ -89,6 +89,14 @@ pub trait GameLoop {
     fn view(&self) -> View<'_> {
         View::None
     }
+    /// A save waiting for its preview (`SaveLoad` operation pending): the next draw renders
+    /// the scene without UI and hands it over (`SaveLoad::Draw`, Runtime `0x1800c5720`).
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    fn wants_save_preview(&self) -> bool {
+        false
+    }
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    fn save_preview(&mut self, _image: Vec<u8>) {}
 }
 
 /// A loop's UI: a full-screen group holding an optional backdrop and dialog instances.
