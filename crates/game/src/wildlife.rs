@@ -340,6 +340,29 @@ impl Population {
 }
 
 impl Wildlife {
+    /// A saved PopulationComponent (`FUN_140054e00`); returns its index.
+    pub fn restore_population(&mut self, p: Population) -> usize {
+        let index = self.populations.len();
+        self.kinds.insert(p.entity, Kind::Population(index));
+        self.populations.push(p);
+        index
+    }
+
+    /// A saved HerdComponent (`FUN_140127460`); returns its index.
+    pub fn restore_herd(&mut self, h: Herd) -> usize {
+        let index = self.herds.len();
+        self.kinds.insert(h.entity, Kind::Herd(index));
+        self.herds.push(h);
+        index
+    }
+
+    /// A saved animal (AnimalComponent `FUN_14010c310`, WildAnimalComponent, its character
+    /// and a LivestockComponent).
+    pub fn restore_animal(&mut self, entity: usize, a: Animal) {
+        self.kinds.insert(entity, Kind::Animal);
+        self.animals.insert(entity, a);
+    }
+
     /// `FUN_1400c8370` on an animal (RemoveAnimal's start, old age, a herd without habitat):
     /// queued for removal; it leaves its herd (WildAnimalComponent's removal slot).
     pub fn kill(&mut self, a: usize) {

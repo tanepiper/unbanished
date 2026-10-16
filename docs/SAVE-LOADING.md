@@ -6,8 +6,8 @@ running game. It is done in stages:
 
 1. **Terrain, map cells and placed entities** (done).
 2. **Storage, buildings, construction and the job manager** (done).
-3. Citizens (3a, done), their action stacks and work claims (3b, done), wildlife and
-   livestock (3c), and the producers' component state (3d).
+3. Citizens (3a, done), their action stacks and work claims (3b, done), wildlife, livestock
+   and trader boats (3c, done), and the producers' component state (3d).
 4. Jobs, trade, events and the rest of the managers.
 
 ## Starting a load
@@ -227,9 +227,44 @@ Test: `start::load::stage3b_tests::vanilla_saves_restore_stacks_and_claims` (Sav
 Save83). Every stack is restored at its saved depth. Every citizen listed among a work's workers
 has that work as its job (Citizen `+0x30`). That relation spans two separately saved structures.
 
+## What stage 3c restores
+
+The code is in `apps/game/src/start/load/wildlife.rs`.
+
+**Placing them.** Populations, herds, animals and trader boats have no map footprint. Stage 1
+places them as `Wild::place` does, at the cell under their position. Each goes into its saved
+bucket, except a boat, which the port updates outside the buckets.
+
+**Their kinds** are loaded from the templates as a New Game loads them: the populations' with
+their herds and animals (`wildlife_kinds`), the livestock (`livestock_kind`) and the boats
+(`load_boat`).
+
+**The fields:**
+
+| Component | Fields |
+|---|---|
+| PopulationComponent (`FUN_140054e00`) | cell width `+0x30`, herd blocks `+0x48`, each cell's capacity, count and next count (written in the order `[0], [2], [1]`), clock `+0x60`, cursor `+0x68` |
+| HerdComponent (`FUN_140127460`) | its population `+0x28` and block `+0x30`, its animals, moving `+0x48`, target `+0x4c`, rest `+0x50`, regrowth `+0x58` |
+| AnimalComponent (`FUN_14010c310`) | home `+0x28`, timer `+0x30`, area `+0x38..+0x3e`, male `+0x40`, age `+0x44`, lifespan `+0x48`, breeding `+0x50`, its flags (wild, hunted) |
+| WildAnimalComponent | its herd |
+| LivestockComponent | pasture, timer |
+| PastureComponent | the kind kept, its animals, the limit `+0x40`, the products gathered `+0x44` |
+| BoatComponent (`FUN_140046f30`) | trading post, dock and heading, target, route and index; its state from its state machine |
+
+- **Bodies.** An animal's and a boat's body comes from the ModelComponent and the
+  CharacterComponent, with its action stack, as a citizen's does. The animal's scale follows
+  its age (`FUN_14010c7f0`).
+- **Town lists.** The town's pasture list (`+0x90`) and livestock without a pasture (`+0x80`)
+  follow.
+- **Actions.** HuntAnimal (its lodge and done flag) and RemoveAnimal (its animal) now rebuild,
+  so hunters' stacks restore too.
+
+Test: `start::load::stage3c_tests::vanilla_saves_restore_wildlife`. Every population, herd,
+animal and boat is restored. Every herd's animals point back at it, and every pasture's
+livestock names the pasture. Save83 has 36 herds, 261 animals (36 in pastures) and 2 boats.
+
 ## Not restored yet
 
-- Wild animals, herds and livestock (stage 3c).
 - Producers' and services' component state: ConsumeProduce and ResourceProduce weights,
   crop fields, orchards, fishing, the attendance lists, homes. Also the work kinds those
   register (stage 3).

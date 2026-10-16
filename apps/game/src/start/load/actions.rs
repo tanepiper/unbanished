@@ -65,7 +65,8 @@ fn component(ty: u32) -> Option<Component> {
 }
 
 impl StartingTown {
-    /// Every citizen's stack, after its citizen, the sites and the works are restored.
+    /// Every citizen's stack, after its citizen, the sites, the works and the animals are
+    /// restored.
     pub(in crate::start) fn restore_actions(
         &mut self,
         archive: &Archive,
@@ -84,47 +85,51 @@ impl StartingTown {
             else {
                 continue;
             };
-            let f = &character.fields;
-            let top = int(f, "character.stack_top");
-            let mut entries = Vec::new();
-            let mut failed = None;
-            for slot in list(f, "character.stack")
-                .iter()
-                .take((top + 1).max(0) as usize)
-            {
-                let Some(a) = slot.ptr("action").and_then(|a| saved.object(a)) else {
-                    continue;
-                };
-                match self.action(archive, saved, index, a) {
-                    Some(action) => entries.push((action, flag(&a.fields, "action.started"))),
-                    None => {
-                        failed = Some(a.type_name.to_string());
-                        break;
-                    }
+            match self.stack(archive, saved, index, character) {
+                Ok(stack) => {
+                    restored += 1;
+                    self.agents.characters[c].stack = stack;
                 }
+                Err(kind) => *dropped.entry(kind).or_default() += 1,
             }
-            let on_empty = f.ptr("character.on_empty").and_then(|a| saved.object(a));
-            let on_empty = match on_empty {
-                Some(a) => match self.action(archive, saved, index, a) {
-                    Some(action) => Some(action),
-                    None => {
-                        failed.get_or_insert_with(|| a.type_name.to_string());
-                        None
-                    }
-                },
-                None => None,
-            };
-            if let Some(kind) = failed {
-                *dropped.entry(kind).or_default() += 1;
-                continue;
-            }
-            restored += 1;
-            self.agents.characters[c].stack = ActionStack::restored(entries, on_empty);
         }
         log::info!("restored {restored} action stacks");
         if !dropped.is_empty() {
             log::warn!("action stacks started empty, by the action not rebuilt: {dropped:?}");
         }
+    }
+
+    /// A CharacterComponent's stack, or the type of the first action the port cannot rebuild.
+    pub(in crate::start) fn stack(
+        &mut self,
+        archive: &Archive,
+        saved: &SavedGame,
+        index: &BTreeMap<ObjId, usize>,
+        character: &Object,
+    ) -> Result<ActionStack, String> {
+        let f = &character.fields;
+        let top = int(f, "character.stack_top");
+        let mut entries = Vec::new();
+        for slot in list(f, "character.stack")
+            .iter()
+            .take((top + 1).max(0) as usize)
+        {
+            let Some(a) = slot.ptr("action").and_then(|a| saved.object(a)) else {
+                continue;
+            };
+            let action = self
+                .action(archive, saved, index, a)
+                .ok_or_else(|| a.type_name.to_string())?;
+            entries.push((action, flag(&a.fields, "action.started")));
+        }
+        let on_empty = match f.ptr("character.on_empty").and_then(|a| saved.object(a)) {
+            Some(a) => Some(
+                self.action(archive, saved, index, a)
+                    .ok_or_else(|| a.type_name.to_string())?,
+            ),
+            None => None,
+        };
+        Ok(ActionStack::restored(entries, on_empty))
     }
 
     /// One saved action as the port's, or `None` when the port cannot rebuild it.
@@ -269,7 +274,18 @@ impl StartingTown {
                 occupant: placed("create_natural.occupant"),
                 cell: int(f, "create_natural.cell"),
             },
-            // HuntAnimal and RemoveAnimal need the animals (stage 3c).
+            // The lodge is the HuntComponent's entity.
+            "HuntAnimal" => Action::HuntAnimal {
+                lodge: f
+                    .ptr("hunt.lodge")
+                    .and_then(|h| saved.object(h))
+                    .and_then(|h| h.fields.ptr("base.entity"))
+                    .and_then(|e| index.get(&e).copied())?,
+                done: flag(f, "hunt.done"),
+            },
+            "RemoveAnimal" => Action::RemoveAnimal {
+                entity: placed("remove.entity")?,
+            },
             _ => return None,
         })
     }

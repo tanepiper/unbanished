@@ -173,5 +173,5 @@ Deviation: 38, Not ported: 10, Not traced: 5.
 
 ## `crates/game/src/wildlife.rs`
 
-- [Deviation] [crates/game/src/wildlife.rs:379](../crates/game/src/wildlife.rs#L379): Deviation: a zero space would divide by zero in the original.
-- [Deviation] [crates/game/src/wildlife.rs:1039](../crates/game/src/wildlife.rs#L1039): Deviation: a zero interval would never leave the loop in the original.
+- [Deviation] [crates/game/src/wildlife.rs:402](../crates/game/src/wildlife.rs#L402): Deviation: a zero space would divide by zero in the original.
+- [Deviation] [crates/game/src/wildlife.rs:1062](../crates/game/src/wildlife.rs#L1062): Deviation: a zero interval would never leave the loop in the original.

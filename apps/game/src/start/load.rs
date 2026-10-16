@@ -19,6 +19,7 @@ use super::{citizen_rules, load_template, read, StartingTown, TownParts};
 mod actions;
 mod citizens;
 mod construction;
+mod wildlife;
 use crate::saved::SavedGame;
 
 /// NaturalResourceComponent capability bits in the component flags (`Component +0x20`).
@@ -63,7 +64,59 @@ impl StartingTown {
                 continue;
             };
             let Some(map) = saved.component(entity, "MapComponent") else {
-                *skipped.entry(reference.to_string()).or_default() += 1;
+                // Wildlife and boats have no map footprint: a placed entry as `Wild::place`
+                // makes (the cell under them), registered in its bucket except a boat's.
+                let wild = [
+                    "PopulationComponent",
+                    "HerdComponent",
+                    "AnimalComponent",
+                    "BoatComponent",
+                ]
+                .iter()
+                .find(|c| saved.component(entity, c).is_some());
+                let Some(&kind) = wild else {
+                    *skipped.entry(reference.to_string()).or_default() += 1;
+                    continue;
+                };
+                let position = saved
+                    .component(entity, "ModelComponent")
+                    .and_then(|m| match m.fields.at("model.position") {
+                        Some(Value::F32s(v)) if v.len() == 3 => Some([v[0], v[1], v[2]]),
+                        _ => None,
+                    })
+                    .unwrap_or([0.0; 3]);
+                // `Wild::cell_of`.
+                let half = (n >> 1) as f32;
+                let cell = (
+                    ((position[0] + half) as i32).clamp(0, n as i32 - 1),
+                    ((position[1] + half) as i32).clamp(0, n as i32 - 1),
+                );
+                let bucket = g
+                    .schedules
+                    .get(k)
+                    .map_or(templates[template].bucket, |s| s.2 as usize);
+                let p = placed.len();
+                placed.push(Placed {
+                    template,
+                    bucket,
+                    cell,
+                    footprint: (1, 1),
+                    position,
+                    yaw: 0.0,
+                    variant: 0,
+                    mesh: usize::MAX,
+                    growth: 0.0,
+                    growth_state: None,
+                    spawn_state: None,
+                    alive: true,
+                    removal_requested: false,
+                    animation: None,
+                    scale: [1.0; 4],
+                });
+                if kind != "BoatComponent" {
+                    scheduler.register(p, bucket);
+                }
+                index.insert(id, p);
                 continue;
             };
             let m = |f: &str| map.fields.i32(&format!("map.{f}")).unwrap_or(0);
@@ -191,6 +244,7 @@ impl StartingTown {
         );
         town.restore_construction(archive, saved, &index);
         town.restore_citizens(archive, saved, &index, &order);
+        town.restore_wildlife(archive, saved, &index);
         town.restore_jobs(archive, saved, &index, &order);
         town.restore_actions(archive, saved, &index, &order);
         Some(town)
@@ -270,13 +324,27 @@ mod tests {
             let saved = SavedGame::parse(&bytes).unwrap();
             assert!(saved.metadata.mods.is_empty(), "{name} is not vanilla");
             let town = StartingTown::from_save(&archive, &saved).unwrap();
-            let mapped: Vec<_> = saved
+            // Entities with a footprint, then wildlife and boats (placed since stage 3c).
+            let placed: Vec<_> = saved
                 .entities()
-                .filter(|(_, e)| saved.component(e, "MapComponent").is_some())
+                .filter(|(_, e)| {
+                    [
+                        "MapComponent",
+                        "PopulationComponent",
+                        "HerdComponent",
+                        "AnimalComponent",
+                        "BoatComponent",
+                    ]
+                    .iter()
+                    .any(|c| saved.component(e, c).is_some())
+                })
                 .collect();
-            assert_eq!(town.placed.len(), mapped.len(), "{name}");
-            for (p, (_, e)) in town.placed.iter().zip(&mapped) {
-                let map = &saved.component(e, "MapComponent").unwrap().fields;
+            assert_eq!(town.placed.len(), placed.len(), "{name}");
+            for (p, (_, e)) in town.placed.iter().zip(&placed) {
+                let Some(map) = saved.component(e, "MapComponent") else {
+                    continue;
+                };
+                let map = &map.fields;
                 assert_eq!(
                     p.cell,
                     (map.i32("map.x").unwrap(), map.i32("map.y").unwrap())
@@ -619,6 +687,80 @@ mod stage3b_tests {
             eprintln!(
                 "{name}: {} stacks, {held} workers on their works",
                 depths.len()
+            );
+        }
+    }
+}
+
+/// Stage 3c against the vanilla saves: every population, herd, animal and boat restored; each
+/// herd's animals point back at it and each pasture's livestock names it.
+#[cfg(test)]
+mod stage3c_tests {
+    use super::tests_support::*;
+
+    #[test]
+    fn vanilla_saves_restore_wildlife() {
+        let Some(archive) = archive() else {
+            eprintln!("game data missing; skipping");
+            return;
+        };
+        for name in [
+            "Save2.sav",
+            "Save3.sav",
+            "Save4.sav",
+            "Save5.sav",
+            "Save83.sav",
+        ] {
+            let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
+                continue;
+            };
+            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
+            let count = |t: &str| {
+                saved
+                    .state
+                    .objects
+                    .values()
+                    .filter(|o| o.type_name == t)
+                    .count()
+            };
+            let w = &town.wildlife;
+            assert_eq!(
+                w.populations.len(),
+                count("PopulationComponent"),
+                "{name}: populations"
+            );
+            assert_eq!(w.herds.len(), count("HerdComponent"), "{name}: herds");
+            assert_eq!(w.animals.len(), count("AnimalComponent"), "{name}: animals");
+            assert_eq!(w.boats.len(), count("BoatComponent"), "{name}: boats");
+            for (h, herd) in w.herds.iter().enumerate() {
+                for a in &herd.animals {
+                    assert_eq!(
+                        w.animals.get(a).and_then(|a| a.herd),
+                        Some(h),
+                        "{name}: animal {a} of herd {h}"
+                    );
+                }
+            }
+            let mut kept = 0;
+            for (&p, pasture) in &w.pastures {
+                for a in &pasture.livestock {
+                    kept += 1;
+                    assert_eq!(
+                        w.animals
+                            .get(a)
+                            .and_then(|a| a.livestock)
+                            .and_then(|l| l.pasture),
+                        Some(p),
+                        "{name}: animal {a} of pasture {p}"
+                    );
+                }
+            }
+            eprintln!(
+                "{name}: {} herds, {} animals ({kept} in pastures), {} boats",
+                w.herds.len(),
+                w.animals.len(),
+                w.boats.len()
             );
         }
     }
