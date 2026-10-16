@@ -35,7 +35,7 @@ are listed separately at the end.
 | Feature | Original | Port |
 |---|---|---|
 | **Limits window** (toolbar Reports → Limits) | `UtilityLimits` uses `ResourceLimitUI` (`0xf77895ff`) for every limit row, including textile (1.0.5) and the mod flags (1.0.7) | **Done.** The 11 rows show and set the stock manager's limits. RadiusUI (`0x00585b87`, six building windows) binds as the inert controller it is |
-| **Path tool** (Reports → Path) | `PathTool` (`FUN_1400e3b80` and its vtable `0x140166aa0`): a click picks the entity under the cursor; `FUN_1400e2be0` and `FUN_1400e2c40` (664 lines) show it | Missing: `UtilityPath` has no UIDescription, and the `CreatePath` tool is not handled |
+| **Path tool** (Reports → Path) | `PathTool` (`FUN_1400e3b80` and its vtable `0x140166aa0`): a click picks the entity under the cursor; `FUN_1400e2be0` and `FUN_1400e2c40` (664 lines) show it | **Done** (`path_tool.rs`): the commutes home to workplace of a citizen, a workplace's workers or a house's families, as cells and steps |
 | **Follow** (citizen window's Follow button) | `Dialog/Follow.rsc` (`FUN_140065080`), the camera following the citizen | **Done** (`follow.rs`) |
 | **Citizen window buttons** | Bind `FUN_140065b00` finds `buttonProfession`, `buttonHome` and `buttonFollow`; events `FUN_140065a50` | **Done.** The Profession button was always disabled (an unset field); it now reads the workplace |
 | **Center button** of building windows | `StandardDialog.rsc:centerPin` `buttonCenter` (`FUN_140067a30`) | **Done** (`FUN_1400671d0`) |

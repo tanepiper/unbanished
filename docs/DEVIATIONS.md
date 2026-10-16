@@ -21,13 +21,13 @@ Deviation: 42, Not ported: 8, Not traced: 5.
 ## `apps/game/src/gameplay.rs`
 
 - [Deviation] [apps/game/src/gameplay.rs:32](../apps/game/src/gameplay.rs#L32): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
-- [Deviation] [apps/game/src/gameplay.rs:539](../apps/game/src/gameplay.rs#L539): The achievement instances with their goals' progress, for a new game. Deviation: a loaded game keeps the instances it was saved with (the port does not read them back).
+- [Deviation] [apps/game/src/gameplay.rs:541](../apps/game/src/gameplay.rs#L541): The achievement instances with their goals' progress, for a new game. Deviation: a loaded game keeps the instances it was saved with (the port does not read them back).
 
 ## `apps/game/src/main.rs`
 
-- [Deviation] [apps/game/src/main.rs:114](../apps/game/src/main.rs#L114): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
-- [Deviation] [apps/game/src/main.rs:211](../apps/game/src/main.rs#L211): "Use Software Mouse" (`Input::Configuration +10`): the pointer is drawn by the game, at its image's own size, instead of by the system (`UserInterface::SetCursor` hands the cursor's sheet image and hotspot to the device). Not ported: the other cursors (Hand, Place, Move, …) the original switches between by `UserInterface::GetMouseCursorIndex`; only the arrow is drawn.
-- [Deviation] [apps/game/src/main.rs:745](../apps/game/src/main.rs#L745): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
+- [Deviation] [apps/game/src/main.rs:115](../apps/game/src/main.rs#L115): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
+- [Deviation] [apps/game/src/main.rs:212](../apps/game/src/main.rs#L212): "Use Software Mouse" (`Input::Configuration +10`): the pointer is drawn by the game, at its image's own size, instead of by the system (`UserInterface::SetCursor` hands the cursor's sheet image and hotspot to the device). Not ported: the other cursors (Hand, Place, Move, …) the original switches between by `UserInterface::GetMouseCursorIndex`; only the arrow is drawn.
+- [Deviation] [apps/game/src/main.rs:746](../apps/game/src/main.rs#L746): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
 
 ## `apps/game/src/options.rs`
 
@@ -72,7 +72,7 @@ Deviation: 42, Not ported: 8, Not traced: 5.
 
 ## `apps/game/src/selection_overlay.rs`
 
-- [Deviation] [apps/game/src/selection_overlay.rs:69](../apps/game/src/selection_overlay.rs#L69): Deviation: the quads sit this far above the terrain surface instead of relying on the original material's depth state (not traced), so they do not fight the terrain's depth.
+- [Deviation] [apps/game/src/selection_overlay.rs:118](../apps/game/src/selection_overlay.rs#L118): Deviation: the quads sit this far above the terrain surface instead of relying on the original material's depth state (not traced), so they do not fight the terrain's depth.
 
 ## `apps/game/src/settings.rs`
 
@@ -98,7 +98,7 @@ Deviation: 42, Not ported: 8, Not traced: 5.
 ## `crates/game/src/agents.rs`
 
 - [Deviation] [crates/game/src/agents.rs:1](../crates/game/src/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance (`AnimationManager::Update`), every character runs its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run the AI with zero time (`FUN_140114810`), then the AI updates. The citizens' scheduled components (CitizenComponent, CitizenAIComponent and the CharacterComponent's notify) run for the citizens bucket 1 visited this iteration, with the time since each one's last visit; so do the sites' StateMachines, fires, blight, hunts, attendance, residences and piles in bucket 3 (`FUN_1400c9560`, `town::Env::visits`). Deviation: these run after the bucket pass (system by system, each in visiting order) instead of interleaved with it entity by entity, so random draws can come in another order.
-- [Deviation] [crates/game/src/agents.rs:604](../crates/game/src/agents.rs#L604): `FUN_14004ddb0`: the band becomes citizens in fours where each nomad stands (`FUN_140050b00` → `FUN_14011c550`, laborers): a man, a woman (married to him), then a girl and a boy in her care. Adults are `+0x50 + RandFloat × (+0x54 − +0x50)` years old, children `RandFloat × +0x50`. Then the nomads are gone and the town hall goes back to 2. Deviation: a band taken in is made after the frame's other commands.
+- [Deviation] [crates/game/src/agents.rs:615](../crates/game/src/agents.rs#L615): `FUN_14004ddb0`: the band becomes citizens in fours where each nomad stands (`FUN_140050b00` → `FUN_14011c550`, laborers): a man, a woman (married to him), then a girl and a boy in her care. Adults are `+0x50 + RandFloat × (+0x54 − +0x50)` years old, children `RandFloat × +0x50`. Then the nomads are gone and the town hall goes back to 2. Deviation: a band taken in is made after the frame's other commands.
 
 ## `crates/game/src/animation.rs`
 

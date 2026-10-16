@@ -357,6 +357,26 @@ impl Pathfinder {
         path
     }
 
+    /// Run `search` and put the costs, diagonal, heuristic, blocked check and mask back.
+    pub fn keeping_state<T>(&mut self, search: impl FnOnce(&mut Self) -> T) -> T {
+        let saved = (
+            self.costs,
+            self.diagonal,
+            self.manhattan,
+            self.check_blocked,
+            self.mask,
+        );
+        let out = search(self);
+        (
+            self.costs,
+            self.diagonal,
+            self.manhattan,
+            self.check_blocked,
+            self.mask,
+        ) = saved;
+        out
+    }
+
     /// `FUN_14001d760`: the cells from `from` to `to` inclusive, or `None`.
     pub fn find(&mut self, from: i32, to: i32) -> Option<Vec<i32>> {
         self.search = self.search.wrapping_add(1);

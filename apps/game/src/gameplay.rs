@@ -118,6 +118,8 @@ pub struct GameplayLoop {
     entities: EntityWindows,
     /// The Follow dialog (`Dialog/Follow.rsc`), opened from a citizen window.
     follow: Option<crate::follow::Follow>,
+    /// The Path tool (toolbar Path, `PathTool`).
+    path_tool: Option<crate::path_tool::PathTool>,
     /// `+0xc0` / `+0xc1`: a screenshot asked for (`Some(with_ui)`).
     screenshot: Option<bool>,
     highlight: crate::highlight::Highlight,
@@ -641,6 +643,7 @@ impl GameplayLoop {
             selection: Selection::default(),
             entities: EntityWindows::default(),
             follow: None,
+            path_tool: None,
             screenshot: None,
             highlight: Default::default(),
             events: Default::default(),
@@ -790,12 +793,38 @@ impl GameplayLoop {
     }
 
     fn select_at_cursor(&mut self, ctx: &mut Ctx) {
-        let Some((origin, direction)) = self.cursor_ray(ctx.ui.screen) else {
-            return;
-        };
+        let picked = self.entity_at_cursor(ctx);
         let Some(town) = self.town.as_ref() else {
             return;
         };
+        // `FUN_140102500`: under a RestrictPlayer setup only its template is selected.
+        let picked = picked.filter(|e| {
+            self.restrict.as_ref().is_none_or(|r| {
+                !r.select.is_empty()
+                    && e.template(town)
+                        .split(':')
+                        .next()
+                        .unwrap_or("")
+                        .eq_ignore_ascii_case(r.select.split(':').next().unwrap_or(""))
+            })
+        });
+        if let Some(entity) = picked {
+            if self.selection.selected != Some(entity) {
+                self.selection.selected = Some(entity);
+                log::info!("selected {entity:?}");
+                if let Some(screen) = self.screen.as_mut() {
+                    self.entities
+                        .select(ctx.ui, screen, ctx.archive, town, entity);
+                }
+            }
+        }
+    }
+
+    /// What is under the cursor: the map's object at the cell (`+8`, `FUN_1400a5750`), else
+    /// the picking scene's hit (`FUN_140102500`, `FUN_1400e3b80`).
+    fn entity_at_cursor(&mut self, ctx: &mut Ctx) -> Option<Entity> {
+        let (origin, direction) = self.cursor_ray(ctx.ui.screen)?;
+        let town = self.town.as_ref()?;
         let view = self.view.as_ref().unwrap();
         let grid = banished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
@@ -821,33 +850,43 @@ impl GameplayLoop {
                     .flatten()
             })
             .map(Entity::Placed);
-        let picked = self.selection.cast(
+        self.selection.cast(
             ctx.archive,
             town,
             origin,
             direction,
             ground.map_or(400., |g| g.0),
             fallback,
-        );
-        // `FUN_140102500`: under a RestrictPlayer setup only its template is selected.
-        let picked = picked.filter(|e| {
-            self.restrict.as_ref().is_none_or(|r| {
-                !r.select.is_empty()
-                    && e.template(town)
-                        .split(':')
-                        .next()
-                        .unwrap_or("")
-                        .eq_ignore_ascii_case(r.select.split(':').next().unwrap_or(""))
-            })
-        });
-        if let Some(entity) = picked {
-            if self.selection.selected != Some(entity) {
-                self.selection.selected = Some(entity);
-                log::info!("selected {entity:?}");
-                if let Some(screen) = self.screen.as_mut() {
-                    self.entities
-                        .select(ctx.ui, screen, ctx.archive, town, entity);
-                }
+        )
+    }
+
+    /// PathTool's input (`FUN_1400e3b80`): pick, highlight it (`FUN_1400e25c0`) and draw its
+    /// paths (`FUN_1400e2880`).
+    fn path_click(&mut self, ctx: &mut Ctx) {
+        let picked = self.entity_at_cursor(ctx);
+        let (Some(entity), Some(tool), Some(town)) =
+            (picked, self.path_tool.as_mut(), self.town.as_mut())
+        else {
+            return;
+        };
+        tool.pick(town, &mut self.rng, entity);
+        self.selection.selected = Some(entity);
+        let n = town.cells.size as i32;
+        let (lines, cells) = tool.overlay(n);
+        if let Some(view) = self.view.as_mut() {
+            let grid = banished_game::terrain::HeightGrid {
+                width: view.terrain.size + 1,
+                heights: &view.terrain.heights,
+            };
+            let height = |x: f32, y: f32| {
+                let mut normal = [0.0; 3];
+                grid.ground(x, y, &mut normal)
+            };
+            let mut vertices = crate::selection_overlay::line_vertices(&lines, n, height);
+            vertices.extend(crate::selection_overlay::vertices(&cells, n, height));
+            view.cell_overlay = vertices;
+            if view.overlay_texture.is_none() {
+                view.overlay_texture = crate::selection_overlay::load_texture(ctx.archive);
             }
         }
     }
@@ -1213,8 +1252,15 @@ impl GameplayLoop {
             self.create_bar =
                 bar.and_then(|(t, build)| CreateBar::open(ctx.ui, screen, ctx.archive, t, build));
         }
+        // `FUN_1400e2720`: the Path tool's highlight goes with it.
+        if self.path_tool.take().is_some_and(|t| t.entity.is_some()) {
+            self.selection.selected = None;
+        }
         if self.placement.is_none() && self.removal.is_none() {
-            log::info!("{template}: no tool for it yet (drag and path tools not ported)");
+            self.path_tool = crate::path_tool::PathTool::start(ctx.archive, template);
+        }
+        if self.placement.is_none() && self.removal.is_none() && self.path_tool.is_none() {
+            log::info!("{template}: no tool for it");
         }
         self.refresh_placement(ctx);
     }
@@ -1327,6 +1373,9 @@ impl GameplayLoop {
     fn end_placement(&mut self, ctx: &mut Ctx) {
         self.placement = None;
         self.removal = None;
+        if self.path_tool.take().is_some_and(|t| t.entity.is_some()) {
+            self.selection.selected = None;
+        }
         if let Some(view) = self.view.as_mut() {
             view.cell_overlay.clear();
         }
@@ -2790,6 +2839,8 @@ impl GameLoop for GameplayLoop {
                     {
                         c.target = target;
                     }
+                } else if self.path_tool.is_some() {
+                    self.path_click(ctx);
                 } else {
                     self.select_at_cursor(ctx);
                     self.position_entity_window(ctx);
@@ -2809,7 +2860,11 @@ impl GameLoop for GameplayLoop {
                 self.close_follow(ctx);
                 return Next::Stay;
             }
-            RawInput::Escape if self.placement.is_some() || self.removal.is_some() => {
+            RawInput::Escape
+                if self.placement.is_some()
+                    || self.removal.is_some()
+                    || self.path_tool.is_some() =>
+            {
                 self.end_placement(ctx);
                 if let Some(toolbar) = &self.toolbar {
                     toolbar.clear_build(ctx.ui);
@@ -2988,7 +3043,9 @@ impl GameLoop for GameplayLoop {
                     return false;
                 };
                 self.start_tool(ctx, template);
-                return self.placement.is_some() || self.removal.is_some();
+                return self.placement.is_some()
+                    || self.removal.is_some()
+                    || self.path_tool.is_some();
             }
             // `select`: select the most recently placed entity (EditTool::Select).
             Some("select") => {
@@ -3985,6 +4042,46 @@ mod tests {
             // Center: the camera on the citizen's model.
             let center = ctx.ui.find(root, "buttonCenter").expect("buttonCenter");
             gameplay.event(ctx, Event::Clicked(center));
+        });
+    }
+
+    /// The Path tool (`FUN_1400e2c40`): a worked building's workers' commutes, home to
+    /// workplace, drawn as cells and steps; Escape ends it.
+    #[test]
+    fn the_path_tool_shows_commutes() {
+        let Some((mut game, _)) = generated() else {
+            return;
+        };
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let Ok(bytes) = std::fs::read(root.join("save-game/Save83.sav")) else {
+            return;
+        };
+        let mut gameplay = GameplayLoop::from_save(crate::saved::SavedGame::parse(&bytes).unwrap());
+        game.with_ctx(|_, ctx| {
+            gameplay.load(ctx);
+            gameplay.startup(ctx);
+            gameplay.start_tool(ctx, "Template\\UtilityPath.rsc:resource");
+            assert!(gameplay.path_tool.is_some());
+            let town = gameplay.town.as_mut().unwrap();
+            let c = town
+                .agents
+                .states
+                .iter()
+                .position(|s| s.home.is_some() && s.workplace.is_some())
+                .expect("a commuter in Save83");
+            let workplace = town.agents.states[c].workplace.unwrap();
+            let tool = gameplay.path_tool.as_mut().unwrap();
+            tool.pick(town, &mut gameplay.rng, Entity::Citizen(c));
+            let (lines, cells) = tool.overlay(town.cells.size as i32);
+            assert!(cells.len() >= 2, "{}", cells.len());
+            assert!(!lines.is_empty());
+            assert!(cells.iter().all(|c| c.frame == 4 && c.argb == 0xfffc_cc4c));
+            // The workplace: every worker's commute, at least as many cells.
+            tool.pick(town, &mut gameplay.rng, Entity::Placed(workplace));
+            let (_, all) = tool.overlay(town.cells.size as i32);
+            assert!(all.len() >= cells.len());
+            gameplay.raw(ctx, RawInput::Escape);
+            assert!(gameplay.path_tool.is_none());
         });
     }
 

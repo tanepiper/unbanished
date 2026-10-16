@@ -30,6 +30,55 @@ impl OverlayCell {
     }
 }
 
+/// One line of the overlay (`FUN_140105d90`'s first list, 0x20 bytes): from cell `a` to cell
+/// `b` (`+0`, `+0x14`), strip frame (`+8`), ARGB colour (`+0xc`), rotation (`+0x10`, 0 here)
+/// and half its width (`+0x1c`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct OverlayLine {
+    pub a: (i32, i32),
+    pub b: (i32, i32),
+    pub frame: i32,
+    pub argb: u32,
+    pub width: f32,
+}
+
+/// The lines of `FUN_140105d90`, drawn before the cells: each a quad between the two cells'
+/// centres on the ground, `width` either side; the frame's u runs across it, v along it.
+pub fn line_vertices(
+    lines: &[OverlayLine],
+    map_size: i32,
+    height: impl Fn(f32, f32) -> f32,
+) -> Vec<OverlayVertex> {
+    let half = (map_size >> 1) as f32 - 0.5;
+    let mut out = Vec::with_capacity(lines.len() * 6);
+    for l in lines {
+        let point = |(x, y): (i32, i32)| {
+            let (px, py) = (x as f32 - half, y as f32 - half);
+            glam::Vec3::new(px, py, height(px, py) + LIFT)
+        };
+        let (p0, p1) = (point(l.a), point(l.b));
+        let d = (p1 - p0).normalize_or_zero();
+        let side = glam::Vec3::new(-d.y * l.width, d.x * l.width, 0.0);
+        let [a, r, g, b] = l.argb.to_be_bytes();
+        let corners = [
+            (p0 + side, (0.0, 0.0)),
+            (p1 - side, (1.0, 1.0)),
+            (p0 - side, (1.0, 0.0)),
+            (p0 + side, (0.0, 0.0)),
+            (p1 + side, (0.0, 1.0)),
+            (p1 - side, (1.0, 1.0)),
+        ];
+        for (p, (u, v)) in corners {
+            out.push(OverlayVertex {
+                position: p.to_array(),
+                uv: [(u + l.frame as f32) * 0.125, v],
+                color: [r, g, b, a],
+            });
+        }
+    }
+    out
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct OverlayVertex {

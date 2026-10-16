@@ -34,6 +34,7 @@ mod music;
 mod options;
 mod particle_gfx;
 mod particles;
+mod path_tool;
 mod paths;
 mod pause_menu;
 mod placement_tool;

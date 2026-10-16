@@ -383,6 +383,17 @@ impl Agents {
         self.pathfinder.find_road(a, b, mask, manhattan, &blocked)
     }
 
+    /// A citizen's walk from `a` to `b` as the path manager finds it (`FUN_1400a2480`, mask
+    /// `0xe1f`, mode 0), for the Path tool (`FUN_1400e2c40`); the finder's state is kept.
+    pub fn walk_path(&mut self, cells: &Cells, a: i32, b: i32) -> Option<Vec<i32>> {
+        self.sync_map(cells);
+        let regions = &self.regions;
+        self.pathfinder.keeping_state(|f| {
+            f.set_mode(0);
+            crate::pathfind::request(f, &cells.types, regions, crate::pathfind::WALKABLE, a, b)
+        })
+    }
+
     /// Adults without a school: the citizens professions count.
     fn adults(&self, citizens: &[Citizen]) -> Vec<bool> {
         citizens
