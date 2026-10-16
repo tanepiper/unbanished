@@ -27,6 +27,7 @@ pub const CEMETERY_UI: u32 = 0xa17245fb;
 pub const CONSUME_PRODUCE_UI: u32 = 0x9c93d6c1;
 pub const UPGRADE_UI: u32 = 0x061d5f73;
 pub const IMMIGRATION_UI: u32 = 0xff9794df;
+pub const RESIDENCE_UI: u32 = 0x1701e613;
 
 /// What a controller reads from the selected entity.
 pub struct EntityData<'a> {
@@ -61,6 +62,104 @@ pub struct EntityData<'a> {
     /// (`+0x60`); the town's name (`Game +0x28`).
     pub immigration: Option<(bool, i32)>,
     pub town_name: &'a str,
+    /// ResidenceComponent: its residents, family by family (`+0x50`).
+    pub residents: Option<Vec<(usize, CitizenInfo)>>,
+}
+
+/// `ResidenceUI` (type `0x1701e613`): bind `FUN_1400bad20`, refresh `FUN_1400ba6c0`. Each cell
+/// of `residenceTable` (else `residenceLongTable`) has `imageMale`, `imageFemale`,
+/// `textName`, `textAge`, `textProfession` and `buttonGoto` (id `300 + cell`).
+pub struct ResidenceUi {
+    rows: Vec<ResidentRow>,
+}
+
+struct ResidentRow {
+    male: Option<NodeId>,
+    female: Option<NodeId>,
+    name: Option<(NodeId, String)>,
+    age: Option<(NodeId, String)>,
+    profession: Option<(NodeId, String)>,
+    goto: Option<NodeId>,
+}
+
+impl ResidenceUi {
+    pub fn bind(ui: &mut Ui, element: NodeId) -> ResidenceUi {
+        let table = ui
+            .find(element, "residenceTable")
+            .or_else(|| ui.find(element, "residenceLongTable"));
+        let cells = table.map(|t| ui.children(t)).unwrap_or_default();
+        let rows = cells
+            .iter()
+            .map(|&c| {
+                let param = |ui: &Ui, n: &str| ui.find(c, n).map(|id| (id, text_of(ui, id)));
+                ResidentRow {
+                    male: ui.find(c, "imageMale"),
+                    female: ui.find(c, "imageFemale"),
+                    name: param(ui, "textName"),
+                    age: param(ui, "textAge"),
+                    profession: param(ui, "textProfession"),
+                    goto: ui.find(c, "buttonGoto"),
+                }
+            })
+            .collect();
+        ResidenceUi { rows }
+    }
+
+    /// `FUN_1400ba6c0`: a row per resident: the sex's image, `@0` name, `@0` age (× 5 years),
+    /// the profession (a child's or student's for those); the rest empty, their button off.
+    pub fn refresh(&mut self, ui: &mut Ui, data: &EntityData) {
+        let Some(residents) = &data.residents else {
+            return;
+        };
+        for (i, row) in self.rows.iter().enumerate() {
+            let resident = residents.get(i).map(|(_, c)| c);
+            if let Some(n) = row.male {
+                ui.set_visible(n, resident.is_some_and(|c| c.male));
+            }
+            if let Some(n) = row.female {
+                ui.set_visible(n, resident.is_some_and(|c| !c.male));
+            }
+            let fill = |ui: &mut Ui, p: &Option<(NodeId, String)>, v: &str| {
+                if let Some((n, t)) = p {
+                    ui.set_text(*n, &t.replace("@0", v));
+                }
+            };
+            match resident {
+                Some(c) => {
+                    fill(ui, &row.name, &c.name);
+                    fill(ui, &row.age, &((c.age * 5.0) as i32).to_string());
+                    if let Some((n, _)) = &row.profession {
+                        let text = c
+                            .profession
+                            .as_ref()
+                            .map(|(t, k)| ui.res.string(t.as_deref(), k))
+                            .unwrap_or_default();
+                        ui.set_text(*n, &text);
+                    }
+                }
+                None => {
+                    fill(ui, &row.name, "");
+                    fill(ui, &row.age, "");
+                    if let Some((n, t)) = &row.profession {
+                        ui.set_text(*n, t);
+                    }
+                }
+            }
+            if let Some(b) = row.goto {
+                ui.node_mut(b).enabled = resident.is_some();
+            }
+        }
+    }
+
+    /// `buttonGoto` (`300 + row`): show and select the resident.
+    pub fn click(&self, ui: &Ui, node: NodeId, data: &EntityData) -> Option<WorkPlaceClick> {
+        let i = self
+            .rows
+            .iter()
+            .position(|r| r.goto.is_some_and(|b| b == node || ui.descendant(b, node)))?;
+        let (c, _) = data.residents.as_ref()?.get(i)?;
+        Some(WorkPlaceClick::ShowWorker(*c))
+    }
 }
 
 /// `UpgradeUI` (type `0x061d5f73`): bind `FUN_14008c260`, events `FUN_14008c160`. The element
@@ -1404,6 +1503,7 @@ pub enum Controller {
     ConsumeProduce(ConsumeProduceUi),
     Upgrade(UpgradeUi),
     Immigration(ImmigrationUi),
+    Residence(ResidenceUi),
     /// Attached, refresh not ported (logged once with its id).
     #[allow(dead_code)]
     Pending(u32),
@@ -1443,6 +1543,7 @@ impl Controller {
                 ui, archive, element, config,
             ))),
             IMMIGRATION_UI => Some(Controller::Immigration(ImmigrationUi::bind(ui, element))),
+            RESIDENCE_UI => Some(Controller::Residence(ResidenceUi::bind(ui, element))),
             // Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
             STATUS_ICON_UI => {
                 StatusIconUi::bind(ui, element, !has_config).map(Controller::StatusIcon)
@@ -1472,6 +1573,7 @@ impl Controller {
             Controller::ConsumeProduce(c) => c.refresh(ui, archive, data),
             Controller::Upgrade(_) => {}
             Controller::Immigration(c) => c.refresh(ui, data),
+            Controller::Residence(c) => c.refresh(ui, data),
             Controller::Pending(_) => {}
         }
     }

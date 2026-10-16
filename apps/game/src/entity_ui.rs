@@ -226,6 +226,10 @@ impl EntityWindows {
                     Entity::Citizen(_) => None,
                 },
                 town_name,
+                residents: match w.entity {
+                    Entity::Placed(p) => residents(town, p),
+                    Entity::Citizen(_) => None,
+                },
             };
             let entity = match w.entity {
                 Entity::Placed(p) => Some(p),
@@ -272,6 +276,7 @@ impl EntityWindows {
             produce: produce_info(town, p),
             immigration: None,
             town_name: "",
+            residents: residents(town, p),
         };
         w.bound.iter_mut().find_map(|c| match c {
             Controller::WorkPlace(c) => c.click(node, &data),
@@ -281,6 +286,7 @@ impl EntityWindows {
             Controller::Control(c) => c.click(ui, node, Some(p)),
             Controller::Upgrade(c) => c.click(ui, node, p),
             Controller::Immigration(c) => c.click(node, p),
+            Controller::Residence(c) => c.click(ui, node, &data),
             _ => None,
         })
     }
@@ -314,6 +320,7 @@ impl EntityWindows {
             produce: produce_info(town, p),
             immigration: None,
             town_name: "",
+            residents: residents(town, p),
         };
         w.bound.iter().find_map(|c| match c {
             Controller::ConsumeProduce(c) => c.select(node, index, &data),
@@ -709,4 +716,19 @@ fn immigration_info(town: &StartingTown, p: usize) -> Option<(bool, i32)> {
     let m = &site.machine;
     let state = if m.pending < 0 { m.state } else { m.pending };
     Some((state == 0x11, im.arrived))
+}
+
+/// ResidenceUI's residents, family by family, each as CitizenUI reads it.
+fn residents(
+    town: &StartingTown,
+    p: usize,
+) -> Option<Vec<(usize, crate::building_ui::CitizenInfo)>> {
+    let home = town.construction.homes.get(&p)?;
+    Some(
+        home.families
+            .iter()
+            .flatten()
+            .filter_map(|&c| citizen_info(town, c).map(|info| (c, info)))
+            .collect(),
+    )
 }

@@ -29,7 +29,7 @@ frame after the simulation; refresh reads only.
 | `0xa17245fb` | CemeteryUI | | `FUN_14005f9f0` / `FUN_14005f8b0` | done |
 | `0x9c93d6c1` | ConsumeProduceUI | | `FUN_14005fd30` / `FUN_14005fb50` / `FUN_14005fc90` | done |
 | `0x00585b87` | RadiusUI | | defaults (no bind, refresh or events) | nothing to do |
-| `0x1701e613` | ResidenceUI | | | pending |
+| `0x1701e613` | ResidenceUI | | `FUN_1400bad20` / `FUN_1400ba6c0` | done |
 | `0x061d5f73` | UpgradeUI | | `FUN_14008c260` / — / `FUN_14008c160` | done |
 | `0xff9794df` | ImmigrationUI | | `FUN_14006bc90` / `FUN_14006ba90` | done |
 
@@ -79,6 +79,16 @@ would draw one by the weights from the game's Random, so the port shows the firs
 one (event `0x14`) sets ConsumeProduceComponent `+0x50` (`Command::SetRecipe`).
 `progressRemaining` is `1 − made (+0x68) / lifetime (+0x48)`, text `%i` percent. Not ported:
 the items' sprites (the combo lists text).
+
+## ResidenceUI
+
+Each cell of `residenceTable` (else `residenceLongTable`) has `imageMale`, `imageFemale`,
+`textName`, `textAge`, `textProfession` and `buttonGoto` (id `300 + cell`). Refresh walks the
+ResidenceComponent's families (`+0x50`) in order: per resident the sex's image, `@0` the name
+(`+0x28`) and `@0` the age (`+0x3c × 5`), the profession (ProfessionList `+0x40` child or
+`+0x48` student for those, else the citizen's `+0x1f0`), the button on; the cells after the
+last resident hide their images, clear their texts and turn the button off. The button shows
+and selects the resident (as WorkPlaceUI's worker button).
 
 ## UpgradeUI
 

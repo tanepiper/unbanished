@@ -14,8 +14,8 @@ Deviation: 34, Not ported: 47, Not traced: 4.
 
 ## `apps/game/src/building_ui.rs`
 
-- [Not ported] [apps/game/src/building_ui.rs:1407](../apps/game/src/building_ui.rs#L1407): Attached, refresh not ported (logged once with its id).
-- [Not traced] [apps/game/src/building_ui.rs:1446](../apps/game/src/building_ui.rs#L1446): Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
+- [Not ported] [apps/game/src/building_ui.rs:1507](../apps/game/src/building_ui.rs#L1507): Attached, refresh not ported (logged once with its id).
+- [Not traced] [apps/game/src/building_ui.rs:1547](../apps/game/src/building_ui.rs#L1547): Not traced: the config's `+0x20` flag (no shipped StatusIconUI has a config).
 
 ## `apps/game/src/entity_ui.rs`
 
