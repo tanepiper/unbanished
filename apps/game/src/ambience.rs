@@ -159,6 +159,9 @@ pub struct AmbienceSave {
     pub regions: Vec<RegionSave>,
     pub wind: Option<[f32; 3]>,
     pub rivers: Vec<[f32; 3]>,
+    /// The weather emitters while their effect lasts: the ambient file, the position and
+    /// the slots' volumes.
+    pub weather: Vec<(String, [f32; 3], Vec<f32>)>,
 }
 
 struct Region {
@@ -177,6 +180,8 @@ pub struct Ambience {
     rivers: Vec<Emitter>,
     /// The precipitation slots' ambient emitters (Rain: `RainEffect.rsc:ambient`).
     weather: Vec<Option<Emitter>>,
+    /// Each weather emitter's ambient file.
+    weather_files: Vec<Option<String>>,
     /// Placed entities whose template has an `ambientemitter` component, by entity index:
     /// (template index, emitter).
     entities: HashMap<usize, (usize, Emitter)>,
@@ -272,6 +277,7 @@ impl Ambience {
             wind: None,
             rivers: Vec::new(),
             weather: Vec::new(),
+            weather_files: Vec::new(),
             entities: HashMap::new(),
             entity_templates: HashMap::new(),
             effects,
@@ -354,6 +360,7 @@ impl Ambience {
     ) {
         if self.weather.len() <= slot {
             self.weather.resize_with(slot + 1, || None);
+            self.weather_files.resize(slot + 1, None);
         }
         let file = ambient
             .map(|r| r.replace('\\', "/"))
@@ -370,8 +377,10 @@ impl Ambience {
                     e
                 });
                 emitter.set_volume(audio, 0, volume);
+                self.weather_files[slot] = Some(file);
             }
             _ => {
+                self.weather_files[slot] = None;
                 if let Some(mut e) = self.weather[slot].take() {
                     e.deactivate(audio);
                 }
@@ -628,6 +637,16 @@ impl Ambience {
             regions,
             wind: self.wind.as_ref().map(|w| w.position.to_array()),
             rivers: self.rivers.iter().map(|r| r.position.to_array()).collect(),
+            weather: self
+                .weather
+                .iter()
+                .zip(&self.weather_files)
+                .filter_map(|(e, f)| {
+                    let (e, f) = (e.as_ref()?, f.as_ref()?);
+                    let volumes = e.slots.iter().map(|s| s.volume).collect();
+                    Some((f.replace('/', "\\"), e.position.to_array(), volumes))
+                })
+                .collect(),
         }
     }
 

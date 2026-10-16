@@ -180,37 +180,41 @@ pub struct AchievementSave<'a> {
 /// the list, in its order, each with its goals' instances (`GoalInstance`, `TimeGoalInstance`
 /// or `FinishTutorialInstance`, whose tutorial is none outside the tutorials).
 pub fn achievements(g: &mut GameState, list: &[AchievementSave]) {
+    let instances = list
+        .iter()
+        .filter_map(|a| instance(g, a))
+        .map(|id| Fields(vec![("instance", Value::Ptr(Some(id)))]))
+        .collect();
+    g.achievements
+        .set("achievements.instances", Value::List(instances));
+}
+
+/// A new `AchievementInstance` with its goals' instances.
+pub fn instance(g: &mut GameState, a: &AchievementSave) -> Option<ObjId> {
     let mut refs = Refs::new(g);
-    let mut instances = Vec::new();
-    for a in list {
-        let mut goals = Vec::new();
-        for &(reference, class, value, time) in &a.goals {
-            let goal_ref = refs.id(g, reference);
-            let Some(id) = g.new_object(class) else {
-                continue;
-            };
-            if let Some(o) = g.objects.get_mut(&id) {
-                o.fields.set("goal.goal", Value::Ext(goal_ref));
-                o.fields.set_i32("goal.value", value);
-                if class == "TimeGoalInstance" {
-                    o.fields.set_time("timer.time", time);
-                }
-            }
-            goals.push(Fields(vec![("goal", Value::Ptr(Some(id)))]));
-        }
-        let achievement = refs.id(g, a.reference);
-        let Some(id) = g.new_object("AchievementInstance") else {
+    let mut goals = Vec::new();
+    for &(reference, class, value, time) in &a.goals {
+        let goal_ref = refs.id(g, reference);
+        let Some(id) = g.new_object(class) else {
             continue;
         };
         if let Some(o) = g.objects.get_mut(&id) {
-            o.fields
-                .set("instance.achievement", Value::Ext(achievement));
-            o.fields.set("instance.goals.goals", Value::List(goals));
+            o.fields.set("goal.goal", Value::Ext(goal_ref));
+            o.fields.set_i32("goal.value", value);
+            if class == "TimeGoalInstance" {
+                o.fields.set_time("timer.time", time);
+            }
         }
-        instances.push(Fields(vec![("instance", Value::Ptr(Some(id)))]));
+        goals.push(Fields(vec![("goal", Value::Ptr(Some(id)))]));
     }
-    g.achievements
-        .set("achievements.instances", Value::List(instances));
+    let achievement = refs.id(g, a.reference);
+    let id = g.new_object("AchievementInstance")?;
+    if let Some(o) = g.objects.get_mut(&id) {
+        o.fields
+            .set("instance.achievement", Value::Ext(achievement));
+        o.fields.set("instance.goals.goals", Value::List(goals));
+    }
+    Some(id)
 }
 
 /// The map ambience's entities (`FUN_1400a57c0`): a `RiverEffect.rsc:ambient` entity per river
@@ -296,6 +300,22 @@ pub fn ambience(
             f.set_i32("environment.value_2c", r.rect.1);
             f.set_i32("environment.value_30", r.rect.2);
             f.set_i32("environment.value_34", r.rect.3);
+        }
+    }
+    // The weather's emitters while it rains (`FUN_140099790`: created when the effect starts,
+    // no bucket), the first slot's volume the effect's intensity.
+    for (file, position, volumes) in &a.weather {
+        let slots: Vec<u32> = effects(file).iter().map(|e| refs.id(g, e)).collect();
+        let Some(id) = emitter(g, &mut refs, file, *position, NO_BUCKET) else {
+            continue;
+        };
+        let list = slots
+            .iter()
+            .enumerate()
+            .map(|(i, &e)| slot(Some(e), volumes.get(i).copied().unwrap_or(1.0)))
+            .collect();
+        if let Some(f) = fields_mut(g, id, "AmbientEmitterComponent") {
+            f.set("emitter.slots", Value::List(list));
         }
     }
     regions

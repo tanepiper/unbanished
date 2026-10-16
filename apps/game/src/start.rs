@@ -29,7 +29,7 @@ use banished_game::construction::{Construction, Controller, Site, SiteTemplate};
 use banished_game::professions::{Profession, Professions, WorkPlace};
 
 mod bridge;
-mod load;
+pub(crate) mod load;
 // The web build has no save path yet (no Save dialog, no file access).
 #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 pub(crate) mod save;

@@ -145,6 +145,13 @@ an empty one:
 - **Town and managers:** at the schema's defaults. Lists the writers fill entry by entry (weather effects,
   Town Info series, stock slots, capacity records) are sized to the port's state.
 - **Achievements:** an `AchievementInstance` for each achievement in the list, with each goal's progress.
+  A loaded game reads its instances back (`AchievementManager::restore`, goals matched by reference)
+  and writes the progress into the same objects; the five samples write back unchanged.
+- **The game's goal** (`+0x150`, met flag `+0x158`): a scenario's `AchievementInstance`, the
+  scenario's reference as its achievement. A loaded game keeps its saved instance unless the
+  scenario was started from its save (`FUN_14009bfd0`: the loop's scenario is not −1).
+- **The rain emitter** (`FUN_140099790`): while a weather effect lasts, its ambient's entity (no
+  bucket), the first slot's volume the intensity.
 - **Animations:** an empty block.
 - **Audio scene:** 4096 empty sound slots.
 - **Metadata:** version 3, extension value 2, no mods.
@@ -179,10 +186,4 @@ with the same town.
 
 ## Still to write
 
-- **New games:** a scenario's goal (`Game +0x150`); the rain emitter's entity while it rains.
-- **Loaded games:** the port does not read the achievement instances back, so a loaded game keeps
-  the ones it was saved with.
-- The scheduler's bucket order and cursors: the port updates citizens in its own pass, so the
-  saved buckets (quotas `[50, 15, 8, 5, 2]` at `+0xa8`, cursors at `+0xbc`) keep the save's
-  cursors.
-- Achievements, goals, nomads and tornadoes.
+- Nomads and tornadoes.

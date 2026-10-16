@@ -101,7 +101,7 @@ impl Water {
     }
 
     /// `FUN_14008df50`.
-    fn add_entry(&mut self, x: i32, y: i32, v: i32) {
+    pub fn add_entry(&mut self, x: i32, y: i32, v: i32) {
         if let Some(k) = self.block(x, y) {
             self.blocks[k].push(v);
         }

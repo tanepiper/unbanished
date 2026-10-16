@@ -1002,11 +1002,15 @@ pub fn scenarios(archive: &Archive) -> Vec<(String, scenario::Scenario)> {
 
 impl GameplayLoop {
     /// The scenario's goal and, with a FinishTutorialGoal, its tutorial (`FUN_1400dcf60`).
+    ///
+    /// `FUN_14009bfd0`: a scenario's start (the loop given its index) makes a new goal
+    /// instance; a saved game loaded otherwise keeps its saved one (`Game +0x150`) and whether
+    /// it was met (`+0x158`).
     pub(super) fn start_scenario(&mut self, ctx: &mut Ctx) {
         let Some(i) = self.params.scenario else {
             return;
         };
-        let Some((_, s)) = scenarios(ctx.archive).into_iter().nth(i) else {
+        let Some((reference, s)) = scenarios(ctx.archive).into_iter().nth(i) else {
             return;
         };
         let read = |r: &str| ctx.archive.read_ref(&r.replace('\\', "/")).ok();
@@ -1022,15 +1026,29 @@ impl GameplayLoop {
             _ => None,
         });
         let achievement = crate::achievements::Achievement {
-            reference: String::new(),
+            reference,
             goal_references,
             desc: s.achievement.clone(),
             goals,
         };
+        let restored = match (&self.saved, self.scenario_start) {
+            (Some(saved), false) => saved.state.goal.map(|id| {
+                let instance = crate::achievements::saved_instance(saved, id, &achievement);
+                (instance, saved.state.goal_done)
+            }),
+            _ => None,
+        };
+        let (instance, done) = match restored {
+            Some((Some(instance), done)) => (instance, done),
+            _ => (
+                crate::achievements::AchievementInstance::new(&achievement),
+                false,
+            ),
+        };
         self.goal = Some(GameGoal {
-            instance: crate::achievements::AchievementInstance::new(&achievement),
+            instance,
             achievement,
-            done: false,
+            done,
         });
         if let Some(def) = tutorial.and_then(|t| load(ctx.archive, &t)) {
             // `Game +0xd0 |= 0x5f0`: no disasters, no saving.
@@ -1107,7 +1125,9 @@ pub fn scenario_game(
         {
             Ok(mut saved) => {
                 saved.state.scenario = index as i32;
-                return GameplayLoop::from_save(saved);
+                let mut g = GameplayLoop::from_save(saved);
+                g.scenario_start = true;
+                return g;
             }
             Err(e) => log::error!("{name}: {e}"),
         }

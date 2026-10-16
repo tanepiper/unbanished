@@ -94,6 +94,12 @@ fn same(a: &str, b: &str) -> bool {
     !b.is_empty() && file(a) == file(b)
 }
 
+/// Whether two references name the same object (the case and slashes aside).
+pub fn same_reference(a: &str, b: &str) -> bool {
+    let norm = |r: &str| r.replace('/', "\\").to_ascii_lowercase();
+    !b.is_empty() && norm(a) == norm(b)
+}
+
 /// The live entities of the template `r` (the stock manager's `+0x160` by template).
 fn entities<'a>(town: &'a StartingTown, r: &'a str) -> impl Iterator<Item = usize> + 'a {
     town.placed
@@ -532,6 +538,80 @@ impl AchievementInstance {
     }
 }
 
+/// A saved `AchievementInstance` (`0x18009efa0`) for `a`: each saved goal instance's value
+/// (`+0x10`) and a TimeGoalInstance's time, matched to `a`'s goals by reference (in order when
+/// a reference is not among them).
+pub fn saved_instance(
+    saved: &crate::saved::SavedGame,
+    id: banished_formats::savegame::ObjId,
+    a: &Achievement,
+) -> Option<AchievementInstance> {
+    use banished_formats::savegame::Value;
+    let o = saved.object(id)?;
+    let mut instance = AchievementInstance::new(a);
+    let Some(Value::List(goals)) = o.fields.at("instance.goals.goals") else {
+        return Some(instance);
+    };
+    for (k, g) in goals.iter().enumerate() {
+        let Some(goal) = g.ptr("goal").and_then(|g| saved.object(g)) else {
+            continue;
+        };
+        let reference = saved.ext(&goal.fields, "goal.goal").unwrap_or("");
+        let slot = a
+            .goal_references
+            .iter()
+            .position(|r| same_reference(r, reference))
+            .unwrap_or(k);
+        let Some(state) = instance.goals.get_mut(slot) else {
+            continue;
+        };
+        let value = goal.fields.i32("goal.value").unwrap_or(0);
+        state.met = value & 1 != 0;
+        state.failed = value & 2 != 0;
+        if let Some(Value::I64(t)) = goal.fields.at("timer.time") {
+            state.time = *t;
+        }
+    }
+    Some(instance)
+}
+
+/// Writes `x` back into the saved `AchievementInstance` `id` of a loaded game: each goal
+/// instance's value and a TimeGoalInstance's time, matched as [`saved_instance`] reads them.
+pub fn write_instance(
+    g: &mut banished_formats::savegame::GameState,
+    id: banished_formats::savegame::ObjId,
+    a: &Achievement,
+    x: &AchievementInstance,
+) {
+    use banished_formats::savegame::Value;
+    let goals: Vec<_> = match g
+        .objects
+        .get(&id)
+        .map(|o| o.fields.at("instance.goals.goals"))
+    {
+        Some(Some(Value::List(goals))) => goals.iter().map(|f| f.ptr("goal")).collect(),
+        _ => return,
+    };
+    for (k, goal) in goals.into_iter().enumerate() {
+        let Some(goal) = goal else { continue };
+        let reference = match g.objects.get(&goal).map(|o| o.fields.at("goal.goal")) {
+            Some(Some(Value::Ext(r))) => g.references.get(r).cloned().unwrap_or_default(),
+            _ => continue,
+        };
+        let slot = a
+            .goal_references
+            .iter()
+            .position(|r| same_reference(r, &reference))
+            .unwrap_or(k);
+        let (Some(state), Some(o)) = (x.goals.get(slot), g.objects.get_mut(&goal)) else {
+            continue;
+        };
+        o.fields
+            .set_i32("goal.value", state.met as i32 | (state.failed as i32) << 1);
+        o.fields.set_time("timer.time", state.time);
+    }
+}
+
 /// `AchievementManager`: `+0x78` awarded, `+0x88` the instances, `+0xa0` the time since each
 /// was last checked, `+0xb0` the next to check.
 #[derive(Debug, Clone, Default)]
@@ -557,6 +637,34 @@ impl AchievementManager {
             instances: list.iter().map(AchievementInstance::new).collect(),
             elapsed: vec![0; list.len()],
             cursor: 0,
+        }
+    }
+
+    /// `AchievementManager::Persist` on load: the saved instances replace the new ones, each
+    /// by its achievement's reference.
+    pub fn restore(&mut self, list: &[Achievement], saved: &crate::saved::SavedGame) {
+        use banished_formats::savegame::Value;
+        let Some(Value::List(items)) = saved.state.achievements.at("achievements.instances") else {
+            return;
+        };
+        for item in items {
+            let Some(id) = item.ptr("instance") else {
+                continue;
+            };
+            let Some(o) = saved.object(id) else { continue };
+            let reference = saved.ext(&o.fields, "instance.achievement").unwrap_or("");
+            let Some(i) = list
+                .iter()
+                .position(|a| same_reference(&a.reference, reference))
+            else {
+                continue;
+            };
+            if let (Some(slot), Some(x)) = (
+                self.instances.get_mut(i),
+                saved_instance(saved, id, &list[i]),
+            ) {
+                *slot = x;
+            }
         }
     }
 
@@ -603,5 +711,72 @@ impl AchievementManager {
         }
         self.cursor = (self.cursor + 1) % n;
         won
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use super::*;
+    use crate::start::load::tests_support::{archive, root};
+
+    /// The vanilla saves' achievement instances read back into the manager, and writing them
+    /// again leaves every goal instance as saved.
+    #[test]
+    fn saved_achievements_read_back() {
+        use banished_formats::savegame::Value;
+        let Some(archive) = archive() else {
+            return;
+        };
+        let list = load(&archive);
+        let mut met = 0;
+        for name in [
+            "Save2.sav",
+            "Save3.sav",
+            "Save4.sav",
+            "Save5.sav",
+            "Save83.sav",
+        ] {
+            let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
+                continue;
+            };
+            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let mut m = AchievementManager {
+                awarded: vec![false; list.len()],
+                instances: list.iter().map(AchievementInstance::new).collect(),
+                elapsed: vec![0; list.len()],
+                cursor: 0,
+            };
+            m.restore(&list, &saved);
+            met += m
+                .instances
+                .iter()
+                .flat_map(|x| &x.goals)
+                .filter(|g| g.met)
+                .count();
+            let mut g = saved.state.clone();
+            let Some(Value::List(items)) = saved.state.achievements.at("achievements.instances")
+            else {
+                panic!("{name}: no instances");
+            };
+            for item in items {
+                let id = item.ptr("instance").unwrap();
+                let r = saved
+                    .ext(&saved.object(id).unwrap().fields, "instance.achievement")
+                    .unwrap();
+                let i = list
+                    .iter()
+                    .position(|a| same_reference(&a.reference, r))
+                    .unwrap();
+                write_instance(&mut g, id, &list[i], &m.instances[i]);
+            }
+            for (id, o) in &saved.state.objects {
+                assert_eq!(
+                    format!("{:?}", o.fields),
+                    format!("{:?}", g.objects[id].fields),
+                    "{name}: object {id}"
+                );
+            }
+        }
+        eprintln!("{met} goals met in the saves");
     }
 }

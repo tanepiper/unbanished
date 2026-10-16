@@ -22,8 +22,8 @@ Deviation: 42, Not ported: 9, Not traced: 5.
 ## `apps/game/src/gameplay.rs`
 
 - [Deviation] [apps/game/src/gameplay.rs:32](../apps/game/src/gameplay.rs#L32): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
-- [Deviation] [apps/game/src/gameplay.rs:528](../apps/game/src/gameplay.rs#L528): The achievement instances with their goals' progress, for a new game. Deviation: a loaded game keeps the instances it was saved with (the port does not read them back).
-- [Deviation] [apps/game/src/gameplay.rs:783](../apps/game/src/gameplay.rs#L783): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
+- [Deviation] [apps/game/src/gameplay.rs:533](../apps/game/src/gameplay.rs#L533): The achievement instances with their goals' progress, for a new game. Deviation: a loaded game keeps the instances it was saved with (the port does not read them back).
+- [Deviation] [apps/game/src/gameplay.rs:814](../apps/game/src/gameplay.rs#L814): Deviation: start structures do not stamp Map +8 yet. Derive their UI-only terrain lookup from the same rectangles until registration supplies the original cell pointer.
 
 ## `apps/game/src/main.rs`
 

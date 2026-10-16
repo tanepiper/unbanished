@@ -259,6 +259,7 @@ impl StartingTown {
         town.restore_producers(archive, saved, &index);
         town.restore_jobs(archive, saved, &index, &order);
         town.restore_actions(archive, saved, &index, &order);
+        town.restore_water(saved, &index);
         let mut ids = super::SaveIds {
             entities: vec![None; town.placed.len()],
             citizens: vec![0; town.citizens.len()],
@@ -273,6 +274,58 @@ impl StartingTown {
         town.restore_schedule(saved, &mut ids);
         town.save_ids = Some(ids);
         Some(town)
+    }
+
+    /// The town's water sources as saved (`+0xe0`, `+0x130`, `+0x140`): the wells by their
+    /// WellComponents, filed in the slots they were saved in. A save before version 5 has no
+    /// blocks; the points and blocks are then the scan's, with the wells filed again.
+    fn restore_water(&mut self, saved: &SavedGame, index: &BTreeMap<ObjId, usize>) {
+        let t = &saved.state.town;
+        let water = &mut self.construction.water;
+        let wells: Vec<Option<usize>> = match t.at("town.wells") {
+            Some(Value::List(items)) => items
+                .iter()
+                .map(|w| {
+                    let entity = saved.object(w.ptr("entity")?)?.fields.ptr("base.entity")?;
+                    index.get(&entity).copied()
+                })
+                .collect(),
+            _ => Vec::new(),
+        };
+        let blocks = match t.at("town.values_140") {
+            Some(Value::List(items)) if items.len() == water.blocks.len() => Some(
+                items
+                    .iter()
+                    .map(|b| match b.get("values") {
+                        Some(Value::U32s(v)) => v.iter().map(|&v| v as i32).collect(),
+                        _ => Vec::new(),
+                    })
+                    .collect::<Vec<Vec<i32>>>(),
+            ),
+            _ => None,
+        };
+        let points = match t.at("town.water_sources") {
+            Some(Value::List(items)) => items
+                .iter()
+                .map(|p| (p.i32("a").unwrap_or(0), p.i32("b").unwrap_or(0)))
+                .collect(),
+            _ => Vec::new(),
+        };
+        match blocks {
+            Some(blocks) => {
+                water.points = points;
+                water.wells = wells;
+                water.blocks = blocks;
+            }
+            None => {
+                for (i, e) in wells.iter().enumerate() {
+                    let Some(e) = *e else { continue };
+                    let cell = self.placed[e].cell;
+                    water.add_entry(cell.0, cell.1, -1 - i as i32);
+                }
+                water.wells = wells;
+            }
+        }
     }
 
     /// The entity manager's buckets as saved (`FUN_1400c9970`): every saved entity gets a
@@ -388,6 +441,49 @@ mod tests {
             a.add(Package::parse(std::fs::read(dir.join(name)).ok()?).ok()?);
         }
         Some(a)
+    }
+
+    /// The saved wells are the town's again, each a placed well in its saved slot, and the
+    /// water's points and blocks are the saved ones.
+    #[test]
+    fn vanilla_saves_restore_their_wells() {
+        let Some(archive) = archive() else {
+            eprintln!("game data missing; skipping");
+            return;
+        };
+        let mut total = 0;
+        for name in [
+            "Save2.sav",
+            "Save3.sav",
+            "Save4.sav",
+            "Save5.sav",
+            "Save83.sav",
+        ] {
+            let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
+                continue;
+            };
+            let saved = SavedGame::parse(&bytes).unwrap();
+            let town = StartingTown::from_save(&archive, &saved).unwrap();
+            let w = &town.construction.water;
+            let Some(Value::List(wells)) = saved.state.town.at("town.wells") else {
+                panic!("{name}: no wells");
+            };
+            assert_eq!(w.wells.len(), wells.len(), "{name}");
+            for (slot, e) in w.wells.iter().enumerate() {
+                let Some(e) = *e else { continue };
+                total += 1;
+                let t = &town.templates[town.placed[e].template];
+                assert!(t.reference.contains("Well"), "{name}: {}", t.reference);
+                assert!(
+                    w.blocks.iter().flatten().any(|&v| v == -1 - slot as i32),
+                    "{name}: well {slot} is in no block"
+                );
+            }
+            if let Some(Value::List(points)) = saved.state.town.at("town.water_sources") {
+                assert_eq!(w.points.len(), points.len(), "{name}");
+            }
+        }
+        eprintln!("{total} wells restored");
     }
 
     /// The vanilla sample saves (no mods): every entity with a map footprint is placed where it

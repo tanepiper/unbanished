@@ -43,11 +43,11 @@ are listed separately at the end.
 | **Path Method key** (action 22) | Switches the road tool's path method | Not read |
 | **Scheduling** | Each entity bucket is visited by its quota (`[50, 15, 8, 5, 2]`) | **Done.** Citizens are in bucket 1, the map ambience in bucket 2, and the sites' and citizens' scheduled components run on their visits with their elapsed time. Bucket order, cursors and visit times load and save. The systems still run one after another rather than interleaved per entity |
 | **Tutorials and scenarios with a save** | The scenario's `+0x88` save is loaded | **Done.** `Save\Tutorial*.sav` load from the data with the scenario's index (`scenario_game`) |
-| **Built wells after loading** | They are in the town's well list | Not registered in the port's water (only wells built after the load) |
-| **Achievements after loading** | Instances restored | Not read back (a loaded game starts from no progress) |
+| **Built wells after loading** | They are in the town's well list | **Done.** The saved wells, points and blocks are the water's (`restore_water`) |
+| **Achievements after loading** | Instances restored | **Done.** Read back and written into the same objects; the game's goal is kept from the save |
 | **Floors** | Piles and work points on bridges stand on the floor | Only walking uses floors (`floor.rs`) |
 | **Start structures** | Stamp map `+8` | They do not (`gameplay.rs:772`) |
-| **Scenario goal and rain emitter in a new game's save** | Written | Not written (docs/SAVE-WRITING.md) |
+| **Scenario goal and rain emitter in a new game's save** | Written | **Done** |
 | **Not ported, from DEVIATIONS.md** | — | Building-window refresh for controllers logged once, the injury check, entity event 0 and the picking mesh on demolition, the death and burial path, the path grid's blocked bit, `FUN_1400c4c60`'s `param_13` |
 
 ## Presentation differences

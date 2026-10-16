@@ -162,6 +162,9 @@ pub struct GameplayLoop {
     new_map: Option<banished_formats::menu_scene::MapComponent>,
     /// The save this game was loaded from (docs/SAVE-LOADING.md); `None` for a New Game.
     saved: Option<std::sync::Arc<crate::saved::SavedGame>>,
+    /// The loop was given its scenario (`+0x15c` not −1, `FUN_14009d530`): a scenario's start,
+    /// with a new goal even from a save.
+    scenario_start: bool,
 }
 
 impl GameplayLoop {
@@ -183,6 +186,8 @@ impl GameplayLoop {
             );
         }
         let mut g = Self::new(saved.params());
+        // A save's scenario is its own (the Load dialog gives `FUN_1400b9ec0` −1).
+        g.scenario_start = false;
         let s = &saved.state;
         if let Ok(state) = s.random_state.as_slice().try_into() {
             g.rng = Random::from_parts(s.random_index, state);
@@ -211,11 +216,11 @@ impl GameplayLoop {
             Some(saved) => saved.state.clone(),
             None => {
                 let mut g = self.new_game_state()?;
-                self.save_achievements(&mut g);
                 self.save_minimap_images(&mut g);
                 g
             }
         };
+        self.save_achievements(&mut g);
         g.town_name = self.params.town_name.clone();
         if let Some(town) = &self.town {
             // A new game's map ambience (a loaded one keeps its own entities), made first so
@@ -528,42 +533,68 @@ impl GameplayLoop {
     /// The achievement instances with their goals' progress, for a new game. Deviation: a
     /// loaded game keeps the instances it was saved with (the port does not read them back).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    /// The achievement instances (`AchievementManager::Persist`) and the game's goal
+    /// (`+0x150`, its met flag `+0x158`). A loaded game's saved instances take the progress;
+    /// a new game's are made.
     fn save_achievements(&self, g: &mut banished_formats::savegame::GameState) {
-        use crate::start::save::new_game::{achievements, AchievementSave};
-        use banished_formats::scenario::GoalKind;
-        let list: Vec<AchievementSave> = self
-            .achievements
-            .iter()
-            .enumerate()
-            .map(|(i, a)| {
-                let instance = self.achievement_manager.instances.get(i);
-                AchievementSave {
-                    reference: &a.reference,
-                    goals: a
-                        .goals
-                        .iter()
-                        .zip(&a.goal_references)
-                        .enumerate()
-                        .map(|(k, (goal, reference))| {
-                            let state = instance.and_then(|x| x.goals.get(k)).copied();
-                            let state = state.unwrap_or_default();
-                            let class = match goal.kind {
-                                GoalKind::Time { .. } => "TimeGoalInstance",
-                                GoalKind::FinishTutorial(_) => "FinishTutorialInstance",
-                                _ => "GoalInstance",
-                            };
-                            let value = state.met as i32 | (state.failed as i32) << 1;
-                            (reference.as_str(), class, value, state.time)
-                        })
-                        .collect(),
+        use crate::achievements::write_instance;
+        use crate::start::save::new_game::{achievements, instance};
+        use banished_formats::savegame::Value;
+        if self.saved.is_some() {
+            let items: Vec<_> = match g.achievements.at("achievements.instances") {
+                Some(Value::List(items)) => {
+                    items.iter().filter_map(|f| f.ptr("instance")).collect()
                 }
-            })
-            .collect();
-        achievements(g, &list);
+                _ => Vec::new(),
+            };
+            for id in items {
+                let reference = match g
+                    .objects
+                    .get(&id)
+                    .map(|o| o.fields.at("instance.achievement"))
+                {
+                    Some(Some(Value::Ext(r))) => g.references.get(r).cloned().unwrap_or_default(),
+                    _ => continue,
+                };
+                let found = self
+                    .achievements
+                    .iter()
+                    .position(|a| crate::achievements::same_reference(&a.reference, &reference));
+                if let Some(i) = found {
+                    if let Some(x) = self.achievement_manager.instances.get(i) {
+                        write_instance(g, id, &self.achievements[i], x);
+                    }
+                }
+            }
+        } else {
+            let list: Vec<_> = self
+                .achievements
+                .iter()
+                .enumerate()
+                .map(|(i, a)| achievement_save(a, self.achievement_manager.instances.get(i)))
+                .collect();
+            achievements(g, &list);
+        }
+        let Some(goal) = &self.goal else {
+            return;
+        };
+        g.goal_done = goal.done;
+        match g.goal {
+            Some(id) if g.objects.contains_key(&id) => {
+                write_instance(g, id, &goal.achievement, &goal.instance);
+            }
+            _ => {
+                g.goal = instance(
+                    g,
+                    &achievement_save(&goal.achievement, Some(&goal.instance)),
+                )
+            }
+        }
     }
 
     pub fn new(params: WorldParams) -> Self {
         Self {
+            scenario_start: params.scenario.is_some(),
             rng: Random::new(params.seed),
             params,
             view: None,
@@ -1989,6 +2020,9 @@ impl GameLoop for GameplayLoop {
             &self.achievements,
             &ctx.settings.persistence,
         );
+        if let Some(saved) = &self.saved {
+            self.achievement_manager.restore(&self.achievements, saved);
+        }
         self.start_scenario(ctx);
     }
 
@@ -2881,6 +2915,35 @@ mod tutorial;
 #[cfg(test)]
 use tutorial::scenario_params;
 pub use tutorial::{scenario_game, scenarios};
+
+/// An achievement's instance as `new_game` writes it: per goal its reference, its instance
+/// class, its value (bit 0 met, bit 1 failed) and a TimeGoal's time.
+fn achievement_save<'a>(
+    a: &'a crate::achievements::Achievement,
+    instance: Option<&crate::achievements::AchievementInstance>,
+) -> crate::start::save::new_game::AchievementSave<'a> {
+    use banished_formats::scenario::GoalKind;
+    crate::start::save::new_game::AchievementSave {
+        reference: &a.reference,
+        goals: a
+            .goals
+            .iter()
+            .zip(&a.goal_references)
+            .enumerate()
+            .map(|(k, (goal, reference))| {
+                let state = instance.and_then(|x| x.goals.get(k)).copied();
+                let state = state.unwrap_or_default();
+                let class = match goal.kind {
+                    GoalKind::Time { .. } => "TimeGoalInstance",
+                    GoalKind::FinishTutorial(_) => "FinishTutorialInstance",
+                    _ => "GoalInstance",
+                };
+                let value = state.met as i32 | (state.failed as i32) << 1;
+                (reference.as_str(), class, value, state.time)
+            })
+            .collect(),
+    }
+}
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
@@ -3943,6 +4006,19 @@ mod tests {
                 .iter()
                 .any(|&h| ctx.audio.scene.emitter_count(h) > 0));
             let _ = before;
+            // A save made now has the rain emitter's entity, its first slot at the intensity.
+            let w = ambience.saved().weather;
+            assert_eq!(w.len(), 1);
+            assert!(w[0].0.contains("RainEffect"), "{}", w[0].0);
+            assert!((w[0].2[0] - 0.5).abs() < 0.01, "{:?}", w[0].2);
+            let g = gameplay.save_state(ctx.archive, ctx.ui).unwrap();
+            let rain = g.entities.iter().flatten().filter(|&&e| {
+                let o = &g.objects[&e];
+                matches!(o.fields.at("entity.template"),
+                    Some(banished_formats::savegame::Value::Ext(r))
+                        if g.references[r].contains("RainEffect"))
+            });
+            assert_eq!(rain.count(), 1);
             // Rain stops and cannot start again in this step (whatever the stream draws).
             let env = gameplay.environment.as_mut().unwrap();
             env.effects[0] = None;
