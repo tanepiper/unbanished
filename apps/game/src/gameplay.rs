@@ -66,6 +66,9 @@ pub struct GameplayLoop {
     held: [bool; keys::COUNT],
     /// The trading posts whose trade window is open (TradeComponent `+0x71`).
     trade_held: Vec<usize>,
+    /// The achievement list and the manager checking it (`Achievement::AchievementManager`).
+    achievements: Vec<crate::achievements::Achievement>,
+    achievement_manager: crate::achievements::AchievementManager,
     selection: Selection,
     entities: EntityWindows,
     highlight: crate::highlight::Highlight,
@@ -125,6 +128,8 @@ impl GameplayLoop {
             cursor_seen: false,
             held: [false; keys::COUNT],
             trade_held: Vec::new(),
+            achievements: Vec::new(),
+            achievement_manager: Default::default(),
             selection: Selection::default(),
             entities: EntityWindows::default(),
             highlight: Default::default(),
@@ -730,6 +735,44 @@ impl GameplayLoop {
         models_changed
     }
 
+    /// `AchievementManager::Update(dt × iterations)` after the frame's iterations; one awarded
+    /// is stored and logged (event `0x19`, `FUN_14009be30`, `@2` its title).
+    fn update_achievements(&mut self, ctx: &mut Ctx, dt: i64) {
+        let Some(town) = &self.town else { return };
+        // The TerrainGenerator's resource is named for the terrain.
+        let terrain = format!(r"Game\Terrain\{}.rsc", self.params.terrain);
+        let x = crate::achievements::GoalContext {
+            town,
+            statistics: &self.statistics,
+            year: self.calendar.year,
+            year_seconds: self.calendar.seconds(),
+            terrain: &terrain,
+            climate: &self.params.climate_ref,
+            size: self.params.size as i32,
+        };
+        let won = self
+            .achievement_manager
+            .update(&self.achievements, dt, &x, Some(ctx.archive));
+        if let Some(i) = won {
+            let a = &self.achievements[i].desc;
+            let title = ctx.ui.res.string(a.strings.as_deref(), &a.title);
+            ctx.settings
+                .persistence
+                .set_bool("Achievement", &a.title, true);
+            ctx.settings.persistence.write();
+            let (month, year) = (self.month(), self.calendar.year as i32);
+            self.events.add(
+                0x19,
+                4,
+                -1,
+                month,
+                year,
+                [title, String::new(), String::new()],
+                false,
+            );
+        }
+    }
+
     /// `FUN_140118fc0`: the citizens' births, deaths and coming of age posted to the event
     /// log with `@2` the citizen's name, `@3` its role (profession, child or student) and `@4`
     /// the disease's or accident's name.
@@ -1087,6 +1130,11 @@ impl GameLoop for GameplayLoop {
 
     fn startup(&mut self, ctx: &mut Ctx) {
         self.build_hud(ctx.ui, ctx.archive, &ctx.settings.keymap);
+        self.achievements = crate::achievements::load(ctx.archive);
+        self.achievement_manager = crate::achievements::AchievementManager::new(
+            &self.achievements,
+            &ctx.settings.persistence,
+        );
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
@@ -1159,10 +1207,15 @@ impl GameLoop for GameplayLoop {
             self.refresh_placement(ctx);
         }
         let mut models_changed = false;
+        let mut iterations = 0;
         if !self.paused && !pauses_game {
             for _ in 0..SPEED_LEVELS[self.speed as usize] {
                 models_changed |= self.iterate(ctx.archive, dt);
+                iterations += 1;
             }
+        }
+        if !pauses_game {
+            self.update_achievements(ctx, ticks(dt * iterations as f32));
         }
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
         if let (Some(town), Some(view), false) = (&mut self.town, &mut self.view, pauses_game) {
@@ -2228,6 +2281,61 @@ mod tests {
             assert!(!ctx.ui.node(back).enabled && ctx.ui.node(forward).enabled);
             gameplay.event(ctx, Event::Clicked(forward));
             assert!(text(ctx.ui).contains("cut stone"));
+        });
+    }
+
+    /// The achievement list's goals read the started town: it has a storage barn (Builder's
+    /// goal is met), not 300 people, and is not in the mountains.
+    #[test]
+    fn achievements_read_the_town() {
+        let Some((mut game, gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            let list = crate::achievements::load(ctx.archive);
+            assert_eq!(list.len(), 36);
+            let town = gameplay.town.as_ref().unwrap();
+            let terrain = format!(r"Game\Terrain\{}.rsc", gameplay.params.terrain);
+            let x = crate::achievements::GoalContext {
+                town,
+                statistics: &gameplay.statistics,
+                year: gameplay.calendar.year,
+                year_seconds: 0.0,
+                terrain: &terrain,
+                climate: &gameplay.params.climate_ref,
+                size: 0,
+            };
+            let state = |title: &str, n: usize| {
+                let a = list.iter().find(|a| a.desc.title == title).unwrap();
+                crate::achievements::check(&a.goals[n], &Default::default(), &x, Some(ctx.archive))
+            };
+            use crate::achievements::GoalState;
+            let builder = list.iter().find(|a| a.desc.title == "Builder").unwrap();
+            let barn = builder
+                .goals
+                .iter()
+                .position(|g| format!("{:?}", g.kind).contains("StorageBarn"))
+                .unwrap();
+            assert_eq!(state("Builder", barn), GoalState::Met);
+            assert_eq!(state("Settlement", 0), GoalState::NotMet);
+            let mountains = list.iter().find(|a| a.desc.title == "MountainMen").unwrap();
+            let map = mountains
+                .goals
+                .iter()
+                .position(|g| format!("{:?}", g.kind).contains("Mountains"))
+                .unwrap();
+            assert_eq!(state("MountainMen", map), GoalState::NotMet);
+            // Isolationist fails once there is a trading post; there is none.
+            let iso = list
+                .iter()
+                .find(|a| a.desc.title == "Isolationist")
+                .unwrap();
+            let post = iso
+                .goals
+                .iter()
+                .position(|g| format!("{:?}", g.kind).contains("TradingPost"))
+                .unwrap();
+            assert_eq!(state("Isolationist", post), GoalState::Met);
         });
     }
 

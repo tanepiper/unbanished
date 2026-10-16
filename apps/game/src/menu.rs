@@ -40,6 +40,8 @@ pub struct MenuLoop {
     app_paused: bool,
     /// The Options dialog while it is open (`MainMenuDialog` element id 4).
     options: Option<crate::options::OptionsDialog>,
+    /// The Achievements dialog (id 8) and the list it shows.
+    achievements: Option<crate::achievement_ui::AchievementDialog>,
 }
 
 /// Shared settings defaults (`FUN_140042850`) before `Game/Last*` persistence is applied:
@@ -65,6 +67,7 @@ impl MenuLoop {
             town_names: None,
             app_paused: false,
             options: None,
+            achievements: None,
         }
     }
 
@@ -503,6 +506,16 @@ impl GameLoop for MenuLoop {
         let Event::Clicked(id) = event else {
             return Next::Stay;
         };
+        if let Some(a) = &self.achievements {
+            if a.closes(id) {
+                let root = a.root;
+                if let Some(screen) = &mut self.screen {
+                    screen.remove_root(ctx.ui, root);
+                }
+                self.achievements = None;
+            }
+            return Next::Stay;
+        }
         if let Some(d) = self.new_game {
             // NewGame IDs (FUN_140075ba0): buttonNewName 0, buttonNewSeed 1, buttonOk 2 (starts
             // the game), buttonCancel 3 (closes). See docs/NEW-GAME-FLOW.md.
@@ -526,6 +539,17 @@ impl GameLoop for MenuLoop {
             }
         } else if self.is(ctx.ui, 0, "buttonQuit", id) {
             return Next::Quit;
+        } else if self.is(ctx.ui, 0, "buttonAchievement", id) {
+            // `FUN_1400b9020` id 8: `Dialog/Achievement.rsc`.
+            if let Some(screen) = &mut self.screen {
+                let list = crate::achievements::load(ctx.archive);
+                let awarded = crate::achievement_ui::awarded(&list, &ctx.settings.persistence);
+                self.achievements =
+                    crate::achievement_ui::AchievementDialog::open(ctx.ui, screen, &list);
+                if let Some(a) = &self.achievements {
+                    a.refresh(ctx.ui, &awarded);
+                }
+            }
         } else {
             log::info!("menu: {} is not implemented yet", ctx.ui.node(id).name);
         }
