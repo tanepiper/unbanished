@@ -1364,11 +1364,7 @@ impl GameplayLoop {
             DragInput::Move => tool.motion(ctx.archive, town, &grid, cell),
             DragInput::Release => tool.release(ctx.archive, town, &grid, cell),
         };
-        let cells: Vec<_> = tool
-            .cells(town, &grid, cell)
-            .into_iter()
-            .map(|(x, y, acts)| crate::selection_overlay::OverlayCell::removal(x, y, acts))
-            .collect();
+        let cells = tool.overlay(town, &grid, cell);
         view.cell_overlay = crate::selection_overlay::vertices(&cells, n, |x, y| {
             let mut normal = [0.0; 3];
             grid.ground(x, y, &mut normal)

@@ -375,7 +375,19 @@ impl RemovalTool {
     /// (sorted), the ends neither water, high nor rough ground nor occupied. The path manager
     /// steps without diagonals, with the Manhattan heuristic unless key 0x16 is held
     /// (`FUN_14010ab60`).
+    /// The check and the draw (`FUN_14010a4b0`, `FUN_14010a660`) let the path cross the ends'
+    /// own types too (`ends | 0xa17`); the apply (`FUN_14010a200`) only `0xa17`.
     fn road_cells(&self, town: &mut StartingTown, a: i32, b: i32) -> Option<Vec<i32>> {
+        self.road_path(town, a, b, true)
+    }
+
+    fn road_path(
+        &self,
+        town: &mut StartingTown,
+        a: i32,
+        b: i32,
+        with_ends: bool,
+    ) -> Option<Vec<i32>> {
         let (a, b) = if b < a { (b, a) } else { (a, b) };
         if a < 0 {
             return None;
@@ -389,8 +401,13 @@ impl RemovalTool {
         {
             return None;
         }
+        let mask = if with_ends {
+            ends | ROAD_MASK
+        } else {
+            ROAD_MASK
+        };
         town.agents
-            .road_path(&town.cells, a, b, ROAD_MASK, self.manhattan)
+            .road_path(&town.cells, a, b, mask, self.manhattan)
             .filter(|p| !p.is_empty())
     }
 
@@ -832,7 +849,7 @@ impl RemovalTool {
             };
         }
         if let Some(r) = self.road {
-            let Some(cells) = self.road_cells(town, self.start, self.end) else {
+            let Some(cells) = self.road_path(town, self.start, self.end, false) else {
                 return DragSound::Error;
             };
             for cell in cells {
@@ -911,6 +928,49 @@ impl RemovalTool {
         DragSound::Thunk
     }
 
+    /// The overlay of [`Self::cells`]: the removal tools mark the cells they act on red with
+    /// the cross (`FUN_140109520`); the building tools draw green where the cell takes them
+    /// and red where not, the road's cells with frame 1 (`FUN_14010a660`), the bridge's
+    /// spanned cells too (`FUN_140100290`), the areas' and fences' plain (`FUN_140101310`,
+    /// `FUN_1400e1910`).
+    pub fn overlay(
+        &self,
+        town: &mut StartingTown,
+        terrain: &HeightGrid,
+        hover: i32,
+    ) -> Vec<crate::selection_overlay::OverlayCell> {
+        use crate::selection_overlay::OverlayCell;
+        let n = town.cells.size as i32;
+        let cells = self.cells(town, terrain, hover);
+        let builds = self.road.is_some()
+            || self.bridge.is_some()
+            || self.area.is_some()
+            || self.fenced.is_some();
+        cells
+            .into_iter()
+            .map(|(x, y, ok)| {
+                if !builds {
+                    return OverlayCell::removal(x, y, ok);
+                }
+                let frame = if self.road.is_some() {
+                    1
+                } else if let Some(spec) = &self.bridge {
+                    let t = 1u32 << (town.cells.types[(y * n + x) as usize].0 & 0x1f);
+                    (spec.desc.span & t != 0) as i32
+                } else {
+                    0
+                };
+                OverlayCell {
+                    x,
+                    y,
+                    frame,
+                    argb: if ok { 0xff00_ff00 } else { 0xffff_0000 },
+                    rotation: 0,
+                }
+            })
+            .collect()
+    }
+
     /// `FUN_140109520`: the cells to draw, each with whether the drag would act on it.
     pub fn cells(
         &self,
@@ -969,8 +1029,32 @@ impl RemovalTool {
             // `FUN_14010a660`: the road's cells, or its ends marked invalid.
             let n = town.cells.size as i32;
             let b = if b < 0 { a } else { b };
-            return match self.road_cells(town, a, b) {
-                Some(path) => path.into_iter().map(|c| (c % n, c / n, true)).collect(),
+            // Without a road, the path over any land (`ends | 0xff7`) shows where it fails:
+            // each cell green where a road may cross it and no one is on it, else red.
+            let path = self.road_cells(town, a, b).or_else(|| {
+                let (ia, ib) = (a as usize, b as usize);
+                let ends = (1u32 << (town.cells.types[ia].0 & 0x1f))
+                    | (1u32 << (town.cells.types[ib].0 & 0x1f));
+                town.agents
+                    .road_path(
+                        &town.cells,
+                        a.min(b),
+                        a.max(b),
+                        ends | 0xff7,
+                        self.manhattan,
+                    )
+                    .filter(|p| !p.is_empty())
+            });
+            return match path {
+                Some(path) => path
+                    .into_iter()
+                    .map(|c| {
+                        let i = c as usize;
+                        let t = 1u32 << (town.cells.types[i].0 & 0x1f);
+                        let ok = t & ROAD_MASK != 0 && town.cells.occupants[i].is_none();
+                        (c % n, c / n, ok)
+                    })
+                    .collect(),
                 None => vec![(a % n, a / n, false), (b % n, b / n, false)],
             };
         }
@@ -1085,6 +1169,24 @@ mod tests {
         drag(&mut road, free, water);
         let info = road.drag_info(&mut town, &terrain).unwrap();
         assert_eq!((info.mode, info.message), (2, 1));
+        // Hovering a free cell before a drag (`FUN_14010a660`): that cell, green.
+        road.dragging = false;
+        let cells = road.cells(&mut town, &terrain, free);
+        assert_eq!(cells, vec![(free % n, free / n, true)], "hover");
+        // A drag along free cells: every cell green.
+        drag(&mut road, free, free + 6);
+        let cells = road.cells(&mut town, &terrain, free);
+        assert_eq!(cells.len(), 7);
+        assert!(cells.iter().all(|c| c.2), "{cells:?}");
+        // Drawn green with frame 1, not as a removal's red marks.
+        let overlay = road.overlay(&mut town, &terrain, free);
+        assert!(overlay
+            .iter()
+            .all(|c| c.argb == 0xff00_ff00 && c.frame == 1));
+        // To the water: the way there shown, red where a road cannot go.
+        drag(&mut road, free, water);
+        let overlay = road.overlay(&mut town, &terrain, free);
+        assert!(overlay.iter().any(|c| c.argb == 0xffff_0000));
     }
 
     #[test]
