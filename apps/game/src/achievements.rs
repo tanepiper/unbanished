@@ -407,6 +407,11 @@ fn sum(s: &Statistics, series: usize, from: i32, to: i32) -> i32 {
     v[from as usize..=to as usize].iter().sum()
 }
 
+/// `FUN_1400e0180`: the years (`× 3600` s) have passed, the time through `Time::AsSeconds`.
+pub fn time_goal_met(years: i32, time: i64) -> bool {
+    (years * 3600) as f32 <= banished_game::scheduler::seconds(time)
+}
+
 /// A goal's state (`Goal` slot `+0x40`; TimeGoalInstance `FUN_1400e0180`).
 pub fn check(
     goal: &scenario::Goal,
@@ -465,10 +470,7 @@ pub fn check(
             }
         }
         // `FUN_1400e0180`: the years have passed while the other goals held.
-        GoalKind::Time { years, .. } => {
-            // `Time::AsSeconds`: through f64, rounded to f32.
-            met((*years * 3600) as f32 <= banished_game::scheduler::seconds(instance.time))
-        }
+        GoalKind::Time { years, .. } => met(time_goal_met(*years, instance.time)),
         // `FUN_1400dd080`: the tutorial is done (its instance tracks it).
         GoalKind::FinishTutorial(_) => GoalState::NotMet,
     }
@@ -497,9 +499,29 @@ impl AchievementInstance {
         archive: Option<&Archive>,
         tutorial_done: impl Fn(usize) -> bool,
     ) {
+        let timed = |i: usize| matches!(a.goals[i].kind, GoalKind::Time { .. });
+        self.update_with(timed, dt, |i, g| match a.goals[i].kind {
+            GoalKind::FinishTutorial(_) => {
+                if tutorial_done(i) {
+                    GoalState::Met
+                } else {
+                    GoalState::NotMet
+                }
+            }
+            _ => check(&a.goals[i], g, x, archive),
+        });
+    }
+
+    /// `GoalList::Update` over goal states from `state` (`CheckGoalState`); `timed` tells the
+    /// TimeGoals.
+    pub fn update_with(
+        &mut self,
+        timed: impl Fn(usize) -> bool,
+        dt: i64,
+        mut state: impl FnMut(usize, &GoalInstance) -> GoalState,
+    ) {
         for i in 0..self.goals.len() {
-            let goal = &a.goals[i];
-            if let GoalKind::Time { .. } = goal.kind {
+            if timed(i) {
                 self.goals[i].time += dt;
                 let others = self.goals.iter().enumerate().all(|(j, g)| j == i || g.met);
                 if !others {
@@ -509,17 +531,7 @@ impl AchievementInstance {
             if self.goals[i].failed {
                 continue;
             }
-            let state = match goal.kind {
-                GoalKind::FinishTutorial(_) => {
-                    if tutorial_done(i) {
-                        GoalState::Met
-                    } else {
-                        GoalState::NotMet
-                    }
-                }
-                _ => check(goal, &self.goals[i], x, archive),
-            };
-            match state {
+            match state(i, &self.goals[i]) {
                 GoalState::Met => self.goals[i].met = true,
                 GoalState::NotMet => self.goals[i].met = false,
                 GoalState::Failed => self.goals[i].failed = true,
@@ -678,7 +690,19 @@ impl AchievementManager {
         x: &GoalContext,
         archive: Option<&Archive>,
     ) -> Option<usize> {
-        let n = list.len().min(self.instances.len());
+        self.update_with(list.len(), dt, |i, inst, elapsed| {
+            inst.update(&list[i], elapsed, x, archive, |_| false)
+        })
+    }
+
+    /// `Update` over `n` achievements, `visit` updating the one checked with its time.
+    pub fn update_with(
+        &mut self,
+        n: usize,
+        dt: i64,
+        mut visit: impl FnMut(usize, &mut AchievementInstance, i64),
+    ) -> Option<usize> {
+        let n = n.min(self.instances.len());
         if n == 0 {
             return None;
         }
@@ -702,7 +726,7 @@ impl AchievementManager {
         }
         let i = self.cursor;
         let elapsed = self.elapsed[i];
-        self.instances[i].update(&list[i], elapsed, x, archive, |_| false);
+        visit(i, &mut self.instances[i], elapsed);
         self.elapsed[i] = 0;
         let mut won = None;
         if self.instances[i].is_met() && !self.awarded[i] {
@@ -718,6 +742,106 @@ impl AchievementManager {
 mod tests {
     use super::*;
     use crate::start::load::tests_support::{archive, root};
+
+    /// The manager, goal lists and TimeGoals against the Runtime's over scripted goal states
+    /// (`tools/emu/achievements.py`; skipped without its output in game-data/derived/emu):
+    /// the same goals asked in the same order, and the same flags, times, elapsed times,
+    /// cursor and awards after every step.
+    #[test]
+    fn checks_match_the_runtime() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../game-data/derived/emu/achievements.tsv"
+        );
+        let Ok(text) = std::fs::read_to_string(path) else {
+            eprintln!("no emulator output; skipping");
+            return;
+        };
+        let mut lines = text.lines();
+        let (setup, awarded) = lines.next().unwrap().split_once('\t').unwrap();
+        let setup: Vec<Vec<Option<i32>>> = setup
+            .split('/')
+            .map(|a| {
+                a.split(',')
+                    .map(|g| g.strip_prefix('T').map(|y| y.parse().unwrap()))
+                    .collect()
+            })
+            .collect();
+        let mut m = AchievementManager {
+            awarded: awarded.chars().map(|c| c == '1').collect(),
+            instances: setup
+                .iter()
+                .map(|gs| AchievementInstance {
+                    goals: vec![GoalInstance::default(); gs.len()],
+                })
+                .collect(),
+            elapsed: vec![0; setup.len()],
+            cursor: 0,
+        };
+        let (mut steps, mut won) = (0, 0);
+        for line in lines {
+            let c: Vec<&str> = line.split('\t').collect();
+            let dt: i64 = c[0].parse().unwrap();
+            let mut script = c[1]
+                .split(';')
+                .filter(|s| !s.is_empty())
+                .map(|s| {
+                    let v: Vec<usize> = s.split(',').map(|x| x.parse().unwrap()).collect();
+                    (v[0], v[1], v[2])
+                })
+                .collect::<Vec<_>>()
+                .into_iter();
+            let setup = &setup;
+            let award = m.update_with(setup.len(), dt, |a, inst, elapsed| {
+                inst.update_with(
+                    |g| setup[a][g].is_some(),
+                    elapsed,
+                    |g, gi| match setup[a][g] {
+                        Some(years) => {
+                            if time_goal_met(years, gi.time) {
+                                GoalState::Met
+                            } else {
+                                GoalState::NotMet
+                            }
+                        }
+                        None => {
+                            let (sa, sg, v) = script.next().expect("asked more than the original");
+                            assert_eq!((sa, sg), (a, g), "{line}");
+                            [GoalState::NotMet, GoalState::Met, GoalState::Failed][v]
+                        }
+                    },
+                )
+            });
+            assert!(
+                script.next().is_none(),
+                "asked fewer than the original: {line}"
+            );
+            won += award.is_some() as usize;
+            let awarded: String = m
+                .awarded
+                .iter()
+                .map(|&b| if b { '1' } else { '0' })
+                .collect();
+            assert_eq!(awarded, c[2], "{line}");
+            let elapsed: Vec<String> = m.elapsed.iter().map(|e| e.to_string()).collect();
+            assert_eq!(elapsed.join(" "), c[3], "{line}");
+            assert_eq!(m.cursor.to_string(), c[4], "{line}");
+            let goals: Vec<String> = m
+                .instances
+                .iter()
+                .map(|i| {
+                    i.goals
+                        .iter()
+                        .map(|g| format!("{}:{}", g.met as u32 | (g.failed as u32) << 1, g.time))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                })
+                .collect();
+            assert_eq!(goals.join("/"), c[5], "{line}");
+            steps += 1;
+        }
+        assert!(steps > 0 && won > 0);
+    }
 
     /// The vanilla saves' achievement instances read back into the manager, and writing them
     /// again leaves every goal instance as saved.

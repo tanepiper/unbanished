@@ -162,7 +162,9 @@ These do, and each is now ported bit for bit:
   (`animation_emu.rs`), `Picking::Scene` (`picking_emu.rs`), the pathfinder (`astar_emu.rs`,
   `regions_emu.rs`), the characters' tree and its `Volume::Box` / `Rectangle` searches
   (`character_tree.rs`), a particle slot's fade (`particle_slot.rs`);
-- read and ported: `System::Time`, `Achievement::*` (the manager, goal lists and instances);
+- `System::Time` (`time_emu.rs`, 100,000 conversions each way) and `Achievement::*`, the
+  manager, goal lists, goal instances and TimeGoals over scripted goal states
+  (`checks_match_the_runtime`, 3,000 steps), also against the emulator;
 - presentation, input, files and engine plumbing only: `Graphics::*` (an `AnimationEvent` subclass
   carries a sound), `Video::*`, `UI::*`, `Audio::*`, `Input::*`, `IO::*`, `Engine::*`, `Save::*`,
   `Object::*`, `Volume::Frustum`, `Utility::ImageTools`, `Math::Transform3`, `Matrix`, `Vector4`.
