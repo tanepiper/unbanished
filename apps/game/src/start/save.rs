@@ -361,13 +361,12 @@ impl StartingTown {
                 } else {
                     // The model's rotation: `FromYawPitchOffset(yaw, 0)` (`(-0, -0, -sin, cos)` of
                     // the half angle), bit for bit (a template's default is the identity's +0).
-                    // A natural resource's saved rotation is kept unless its yaw changed: the
-                    // original turns those another way.
+                    // Natural resources too: every one in the vanilla saves holds this.
                     let q = banished_game::math::Transform::of_model(yaw, [0.0; 3]).q;
                     let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
                     let stored = f32s(m, "model.rotation").map(|v| bits(&v));
                     if m.f32("model.yaw").map(f32::to_bits) != Some(yaw.to_bits())
-                        || (!natural && stored != Some(bits(&q)))
+                        || stored != Some(bits(&q))
                     {
                         m.set_f32("model.yaw", yaw);
                         m.set("model.rotation", Value::F32s(q.to_vec()));
