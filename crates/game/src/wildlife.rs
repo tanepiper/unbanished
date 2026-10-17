@@ -1293,9 +1293,9 @@ impl Wild<'_, '_> {
             let dy = self.rng.rand_float_tol();
             let dx = self.rng.rand_float_tol();
             let (x, y) = (at[0] + dx * spread, at[1] + dy * spread);
-            // The CharacterComponent stands on the ground (the original passes `at`'s height).
-            let mut normal = [0.0; 3];
-            let position = [x, y, self.terrain.ground(x, y, &mut normal)];
+            // `at`'s height, as the original passes it: the CharacterComponent's first update
+            // stands it on the ground.
+            let position = [x, y, at[2]];
             let yaw = self.rng.rand_float_tol() * 180.0;
             let Some(a) = self.insert_animal(template, variant, position, yaw, male) else {
                 return;
@@ -1328,9 +1328,9 @@ impl Wild<'_, '_> {
             let fy = self.rng.rand_float();
             let fx = self.rng.rand_float();
             let (x, y) = (a[0] + (b[0] - a[0]) * fx, a[1] + (b[1] - a[1]) * fy);
-            // The CharacterComponent stands on the ground (the original passes `a`'s height).
-            let mut normal = [0.0; 3];
-            let position = [x, y, self.terrain.ground(x, y, &mut normal)];
+            // `a`'s height, as the original passes it: the CharacterComponent's first update
+            // stands it on the ground.
+            let position = [x, y, a[2]];
             let yaw = self.rng.rand_float_tol() * crate::seeding::YAW_RANGE;
             let Some(id) = self.insert_animal(template, variant, position, yaw, male) else {
                 return;

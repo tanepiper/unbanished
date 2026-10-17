@@ -9,7 +9,6 @@ use banished_formats::game::{create_bridge_description, CreateBridgeDescription}
 use banished_formats::pkg::Archive;
 use banished_game::seeding::Placed;
 use banished_game::terrain::HeightGrid;
-use banished_game::town::cell_ground;
 
 use super::{normalise, read, StartingTown};
 
@@ -221,10 +220,17 @@ impl StartingTown {
         let along_y = (fy != y1) as i32;
         let w = spec.desc.half_width;
         let size = self.cells.size;
-        let ground = |x: i32, y: i32| cell_ground(size, terrain, n * y + x);
+        // `FUN_1400a48b0(.., 0)`: another bridge's deck over the cell counts.
+        let ground = |floors: &banished_game::floor::Floors, x: i32, y: i32| {
+            banished_game::town::floor_ground(floors, size, terrain, n * y + x)
+        };
         let (g0, g1) = (
-            ground(fx, fy),
-            ground(fx + (length - 1) * along_x, fy + (length - 1) * along_y),
+            ground(&self.cells.floors, fx, fy),
+            ground(
+                &self.cells.floors,
+                fx + (length - 1) * along_x,
+                fy + (length - 1) * along_y,
+            ),
         );
         let rect = (
             fx - w * along_y,
@@ -265,7 +271,10 @@ impl StartingTown {
             } else if k == last {
                 yaw = if along_x == 0 { 90 } else { 0 };
             }
-            let (g0, g1) = (ground(x, y), ground(x + w - 1, y + h - 1));
+            let (g0, g1) = (
+                ground(&self.cells.floors, x, y),
+                ground(&self.cells.floors, x + w - 1, y + h - 1),
+            );
             let position = [(g0[0] + g1[0]) * 0.5, (g0[1] + g1[1]) * 0.5, 0.0];
             if let Some(t) = spec.parts.get(part_index(p)).copied().flatten() {
                 let degrees = yaw.rem_euclid(360);

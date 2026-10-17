@@ -4,10 +4,10 @@
 //! (`FUN_140124770` → `FUN_1400a2070`) it takes both back. `FUN_1400a48b0` (the ground under a
 //! point) stands on the floor where a cell has one and the floor is above the terrain.
 //!
-//! The town's ground queries ask the floors as the original's (`town::floor_ground`, nearly
-//! every caller passing `param_4` 0): the citizens' walking height, piles, storage drop points,
-//! work points and needs. Deviation: wildlife, the tornado, boats' routes and the start's
-//! seeding stay on the terrain (no floor lies under them in practice).
+//! The ground queries ask the floors as the original's do (`town::floor_ground`; every caller
+//! but two passes `param_4` 0): characters' walking height, piles, storage drop points, work
+//! points, needs, boats' routes, seeding, fences, bridges and the cell spot checks. Only the
+//! tornado (`FUN_140058630`) and the natural cell types (`FUN_1400a3790`) skip them, as here.
 
 use std::collections::BTreeMap;
 

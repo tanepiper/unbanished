@@ -6,7 +6,7 @@
 
 use crate::character::Character;
 use crate::pathfind::Pathfinder;
-use crate::town::{cell_ground, Sim};
+use crate::town::Sim;
 
 /// `DAT_140178880`, `DAT_14017889c`, `DAT_1401787ec`, `DAT_14017880c`, `DAT_1401787fc`.
 const NEAR: f32 = 3.0;
@@ -80,6 +80,7 @@ fn heading(v: [f32; 3]) -> f32 {
 pub fn route(
     size: usize,
     terrain: &crate::terrain::HeightGrid,
+    floors: &crate::floor::Floors,
     pathfinder: &mut Pathfinder,
     river: &[[f32; 2]],
     dock: [f32; 3],
@@ -126,7 +127,8 @@ pub fn route(
     let out = pathfinder.find(dock_cell, cell(exit)).unwrap_or_default();
     if !into.is_empty() && !out.is_empty() {
         for c in into.into_iter().chain(out) {
-            route.push(cell_ground(size, terrain, c));
+            // `FUN_1400a48b0(.., 0)`: a bridge's deck over the cell counts.
+            route.push(crate::town::floor_ground(floors, size, terrain, c));
         }
     }
     for p in &river[tail.min(river.len())..] {
@@ -189,6 +191,7 @@ impl Sim<'_, '_> {
         let (route, yaw) = route(
             self.size,
             self.terrain,
+            &self.cells.floors,
             self.pathfinder,
             self.river,
             dock,

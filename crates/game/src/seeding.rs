@@ -245,9 +245,13 @@ impl<'a> Seeder<'a> {
         ((index % n) as f32 - c, (index / n) as f32 - c)
     }
 
+    /// `FUN_1400a48b0(.., 0, normal)`: the ground, or a floor above it, and the normal's z.
     fn ground(&self, x: f32, y: f32) -> (f32, f32) {
         let mut normal = [0.0f32; 3];
-        let h = self.terrain.ground(x, y, &mut normal);
+        let h = self
+            .cells
+            .floors
+            .ground_normal(self.cells.size, &self.terrain, x, y, &mut normal);
         (h, normal[2])
     }
 

@@ -23,7 +23,6 @@ use banished_game::scheduler::EntityScheduler;
 use banished_game::seeding::{Cells, Placed, ScheduledComponent, Seeder, Template};
 use banished_game::stock::{distribute, RawMaterial, Storage, StorageSite};
 use banished_game::terrain::HeightGrid;
-use banished_game::town::cell_ground;
 
 use banished_game::construction::{Construction, Controller, Site, SiteTemplate};
 use banished_game::professions::{Profession, Professions, WorkPlace};
@@ -1716,7 +1715,12 @@ impl StartingTown {
             }
         }
         let (s, yaw, centre) = fenced_shelter(&d, size, (x0, y0, x1, y1), rotation, |x, y| {
-            cell_ground(self.cells.size, terrain, y * n + x)
+            banished_game::town::floor_ground(
+                &self.cells.floors,
+                self.cells.size,
+                terrain,
+                y * n + x,
+            )
         })?;
         let mut degrees = yaw as i32;
         while degrees < 0 {
@@ -1830,8 +1834,15 @@ impl StartingTown {
         if self.cells.flags[i] != 0 {
             return false;
         }
-        let z = cell_ground(self.cells.size, terrain, i as i32)[2];
-        z.abs() <= 100.0
+        // `FUN_1400a48b0(.., 0, normal)`: the ground or a floor, facing up, within 100.
+        let half = (n >> 1) as f32 - 0.5;
+        let (px, py) = (x as f32 - half, y as f32 - half);
+        let mut normal = [0.0; 3];
+        let z = self
+            .cells
+            .floors
+            .ground_normal(self.cells.size, terrain, px, py, &mut normal);
+        0.0 <= normal[2] && (z - 0.0).abs() <= 100.0
     }
 
     /// `FUN_1400e1150`: a part over `rect` (`x, y, w, h`) at the middle of its corner cells'
@@ -1846,8 +1857,18 @@ impl StartingTown {
         let t = template?;
         let n = self.cells.size as i32;
         let (x, y, w, h) = rect;
-        let g0 = cell_ground(self.cells.size, terrain, n * y + x);
-        let g1 = cell_ground(self.cells.size, terrain, n * (y + h - 1) + x + w - 1);
+        let g0 = banished_game::town::floor_ground(
+            &self.cells.floors,
+            self.cells.size,
+            terrain,
+            n * y + x,
+        );
+        let g1 = banished_game::town::floor_ground(
+            &self.cells.floors,
+            self.cells.size,
+            terrain,
+            n * (y + h - 1) + x + w - 1,
+        );
         let centre = [
             (g0[0] + g1[0]) * 0.5,
             (g0[1] + g1[1]) * 0.5,
@@ -2226,7 +2247,12 @@ impl StartingTown {
             let cells = (0..w * h)
                 .map(|i| {
                     let cell = (p.cell.1 + i / w) * n + p.cell.0 + i % w;
-                    cell_ground(self.cells.size, terrain, cell)
+                    banished_game::town::floor_ground(
+                        &self.cells.floors,
+                        self.cells.size,
+                        terrain,
+                        cell,
+                    )
                 })
                 .collect();
             self.display_cells.insert(e, cells);
