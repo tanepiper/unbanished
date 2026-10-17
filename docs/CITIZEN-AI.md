@@ -60,8 +60,10 @@ Clips blend as `AnimationState` does (`crate::animation::AnimationStack`): each 
 layer and the covered one fades over the group's blend time (`+0x48`, `[new][old]`, else the
 default `+0x30`; the description's `+0x2c` handed to `PlayAnimation` is not used). The pose
 starts from the oldest layer and mixes each newer one over it by the older layer's share left
-(`Quaternion::Lerp`, linear translation). Not ported: `AnimationManager`'s shared instances
-(instanced clips share 3, 4 or 8 clocks among the characters playing them).
+(`Quaternion::Lerp`, linear translation). Instanced clips (`+0x2c`; nearly every citizen and
+animal clip) follow `AnimationManager`'s shared instances (`crate::animation::shared`): a
+group's clip gets `+0x28` clocks (3, 4 or 8) staggered by `duration / count`, each character
+joining the one with the earliest clock, so characters walk and work in step groups.
 
 Citizen clips (`Models/Citizen/CitizenAnims`): 0 Idle, 1 Walk, 2 WalkTool, 3 WalkLongTool,
 4 WalkInventory, 5 WalkBarrow, 6 BendDown, 7 StandUp, 8 GenericWork, 9 AxeWork, 10 PickAxeWork,

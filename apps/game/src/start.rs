@@ -993,6 +993,8 @@ impl StartingTown {
         terrain: &HeightGrid,
         rng: &mut Random,
     ) -> Option<StartingTown> {
+        // A new game: no shared animation instances (`AnimationManager`).
+        banished_game::animation::shared::reset();
         let profile: MapGenerator = map_generator(&read(archive, profile_ref)?)
             .map_err(|e| log::warn!("{profile_ref}: {e}"))
             .ok()?;
@@ -1942,6 +1944,9 @@ impl StartingTown {
         dt: f32,
         temperature: f32,
     ) -> bool {
+        // `AnimationManager::Update` (`FUN_14009b850`): the shared animation instances, before
+        // any character.
+        banished_game::animation::shared::update(banished_game::scheduler::ticks(dt));
         // The wild animals' CharacterComponent (the bit-0x04 phase).
         self.agents.move_animals(
             &mut self.wildlife,

@@ -39,6 +39,7 @@ impl StartingTown {
     /// The town of a saved game. Entities without a map footprint (citizens, animals) are not
     /// restored yet.
     pub fn from_save(archive: &Archive, saved: &SavedGame) -> Option<StartingTown> {
+        banished_game::animation::shared::reset();
         let g = &saved.state;
         // A mod's start condition may be missing; only its citizen template is read here,
         // so the base Medium profile stands in.

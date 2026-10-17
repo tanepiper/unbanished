@@ -102,6 +102,11 @@ const CLEAR: wgpu::Color = wgpu::Color {
     a: 1.0,
 };
 
+/// `Engine::MainLoop`'s update step and the most time it catches up (`DAT_180164818`,
+/// `DAT_180164820`: 1/60 s and 1/15 s, as ticks).
+const FRAME_STEP: i64 = 16_666;
+const FRAME_MAX: i64 = 66_666;
+
 /// The running game: shared resources plus the loop chain.
 pub struct Game {
     archive: Rc<Archive>,
@@ -820,6 +825,8 @@ struct App {
     pending_mods: Option<(Vec<(String, Vec<u8>)>, Option<std::path::PathBuf>)>,
     game: Option<Game>,
     last_frame: Option<Instant>,
+    /// `Engine::MainLoop +0x38`: real time not yet stepped (ticks).
+    accumulated: i64,
     cursor: (f64, f64),
     drag_button: Option<MouseButton>,
     shift: bool,
@@ -839,6 +846,7 @@ impl App {
             pending_mods: None,
             game: None,
             last_frame: None,
+            accumulated: 0,
             cursor: (0.0, 0.0),
             drag_button: None,
             shift: false,
@@ -1115,12 +1123,26 @@ impl ApplicationHandler<UserEvent> for App {
                     }
                 }
                 let now = Instant::now();
-                let dt = self
-                    .last_frame
-                    .map_or(0.0, |t| (now - t).as_secs_f32())
-                    .min(0.1);
+                // `MainLoop::Run` updates once before its first frame.
+                if self.last_frame.is_none() {
+                    game.update(banished_game::scheduler::seconds(FRAME_STEP));
+                }
+                let elapsed = self.last_frame.map_or(0, |t| (now - t).as_micros() as i64);
                 self.last_frame = Some(now);
-                game.update(dt);
+                // `Engine::MainLoop::Frame` (Runtime `0x1800df940`): real time builds up and the
+                // loop updates in whole steps of 1/60 s; more than 1/15 s waiting is cut to one
+                // step (the constructor's `+0x48` and `+0x50`).
+                self.accumulated += elapsed;
+                if FRAME_MAX < self.accumulated {
+                    self.accumulated = FRAME_STEP;
+                }
+                while FRAME_STEP <= self.accumulated {
+                    game.update(banished_game::scheduler::seconds(FRAME_STEP));
+                    self.accumulated -= FRAME_STEP;
+                    if game.quit_requested() {
+                        break;
+                    }
+                }
                 if game.quit_requested() {
                     event_loop.exit();
                     return;
@@ -1394,7 +1416,10 @@ mod native {
         // Frames left to draw for a scripted screenshot's readback.
         let mut shot_frames = 0;
         while t < seconds {
-            game.update(dt);
+            // A 1/30 s frame is two of `MainLoop::Frame`'s 1/60 s steps.
+            let step = banished_game::scheduler::seconds(FRAME_STEP);
+            game.update(step);
+            game.update(step);
             t += dt;
             // A save waits for a drawn frame's preview (headless, nothing else is drawn).
             if game.main.current().wants_save_preview() || shot_frames > 0 {

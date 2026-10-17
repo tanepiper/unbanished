@@ -180,6 +180,8 @@ pub struct Layer {
     pub left: i64,
     /// `+0x30`: the layer has been updated once.
     pub started: bool,
+    /// `+0x0c`: the shared instance it follows (an instanced clip), see [`shared`].
+    pub instance: Option<i32>,
 }
 
 /// `Graphics::AnimationState` with its blend stack, newest layer first. Each play pushes a
@@ -211,6 +213,7 @@ impl AnimationStack {
                 blend: 0,
                 left: 0,
                 started: false,
+                instance: None,
             }],
             pose: Vec::new(),
         }
@@ -237,11 +240,19 @@ impl AnimationStack {
                 return;
             }
         }
+        // `MeshInstance::PlayAnimation` asks for a shared instance (`GetInstanceId`) when the
+        // clip is instanced.
+        let instance = group
+            .clips
+            .get(clip)
+            .filter(|c| c.instanced && c.instance_count > 0)
+            .map(|_| shared::instance_id(group, clip));
         let layer = Layer {
             playback: Playback::new(clip, start),
             blend: 0,
             left: 0,
             started: false,
+            instance,
         };
         if self.layers.is_empty() {
             self.layers.push(layer);
@@ -294,10 +305,15 @@ impl AnimationStack {
                 }
             }
         }
+        // `UpdateNodes`: an instanced layer takes its shared instance's pose
+        // (`AnimationManager::GetPose`), the others their own clocks'.
         let poses: Vec<Option<Vec<Transform>>> = self
             .layers
             .iter()
-            .map(|l| group.clips.get(l.playback.clip).map(|c| l.playback.pose(c)))
+            .map(|l| match l.instance {
+                Some(id) => shared::pose(id),
+                None => group.clips.get(l.playback.clip).map(|c| l.playback.pose(c)),
+            })
             .collect();
         let mut pose: Option<Vec<Transform>> = None;
         for i in (0..self.layers.len()).rev() {
@@ -326,6 +342,9 @@ impl AnimationStack {
             if l.blend > 0 {
                 l.left -= step;
                 if l.left < 1 {
+                    if let Some(id) = l.instance {
+                        shared::free(id);
+                    }
                     self.layers.remove(i);
                     continue;
                 }
@@ -345,5 +364,137 @@ impl AnimationStack {
             .clips
             .get(top.playback.clip)
             .map(|c| top.playback.pose(c))
+    }
+}
+
+/// `Graphics::AnimationManager` (Runtime): the shared instances of instanced clips. Each clip a
+/// character plays with its `+0x2c` flag set is followed through one of `+0x28` shared clocks
+/// (3, 4 or 8 for the citizens' and animals'), so the characters on one walk or work in step.
+///
+/// - `GetInstanceId` (`0x1800fe260`): the first request for a group's clip makes its instances,
+///   the `k`-th starting `k × duration / count` into the clip (and updated twice at no time);
+///   each request counts one more user and gets the instance whose clock is earliest.
+/// - `Update` (`0x1800fead0`): every instance advances, before the characters; its pose's
+///   root is the identity turned and its movement.
+/// - `FreeInstanceId` (`0x1800fe200`): the last user gone, the clip's instances go.
+///
+/// The original keeps one manager for the process; the port one per thread, reset with each
+/// town ([`shared::reset`]).
+pub mod shared {
+    use super::Playback;
+    use banished_formats::skeleton::Transform;
+    use banished_formats::types::{AnimationClip, AnimationGroup};
+    use std::cell::RefCell;
+
+    struct Entry {
+        group: usize,
+        clip: usize,
+        users: i32,
+        data: AnimationClip,
+        instances: Vec<(Playback, Vec<Transform>)>,
+    }
+
+    thread_local! {
+        static ENTRIES: RefCell<Vec<Option<Entry>>> = const { RefCell::new(Vec::new()) };
+    }
+
+    /// A new town: no shared instances.
+    pub fn reset() {
+        ENTRIES.with(|e| e.borrow_mut().clear());
+    }
+
+    /// `GetInstanceId`: `entry << 8 | instance`.
+    pub fn instance_id(group: &AnimationGroup, clip: usize) -> i32 {
+        let key = group as *const AnimationGroup as usize;
+        ENTRIES.with(|e| {
+            let mut entries = e.borrow_mut();
+            let found = entries
+                .iter()
+                .position(|x| x.as_ref().is_some_and(|x| x.group == key && x.clip == clip));
+            let index = match found {
+                Some(i) => i,
+                None => {
+                    let data = group.clips[clip].clone();
+                    let count = data.instance_count.max(1) as usize;
+                    let step = super::seconds(data.duration_ticks) * (1.0 / count as f32);
+                    let mut at = 0.0f32;
+                    let mut instances = Vec::with_capacity(count);
+                    for _ in 0..count {
+                        let mut p = Playback::new(clip, super::ticks(at));
+                        for _ in 0..2 {
+                            p.update(&data, 0);
+                        }
+                        let pose = p.pose(&data);
+                        instances.push((p, pose));
+                        at += step;
+                    }
+                    let entry = Entry {
+                        group: key,
+                        clip,
+                        users: 0,
+                        data,
+                        instances,
+                    };
+                    match entries.iter().position(Option::is_none) {
+                        Some(free) => {
+                            entries[free] = Some(entry);
+                            free
+                        }
+                        None => {
+                            entries.push(Some(entry));
+                            entries.len() - 1
+                        }
+                    }
+                }
+            };
+            let entry = entries[index].as_mut().unwrap();
+            entry.users += 1;
+            let mut best = (f32::MAX, 0usize);
+            for (k, (p, _)) in entry.instances.iter().enumerate() {
+                let t = super::seconds(p.elapsed);
+                if t < best.0 {
+                    best = (t, k);
+                }
+            }
+            ((index as i32) << 8) | best.1 as i32
+        })
+    }
+
+    /// `FreeInstanceId`.
+    pub fn free(id: i32) {
+        ENTRIES.with(|e| {
+            let mut entries = e.borrow_mut();
+            let i = (id >> 8 & 0xff) as usize;
+            if let Some(Some(entry)) = entries.get_mut(i) {
+                entry.users -= 1;
+                if entry.users == 0 {
+                    entries[i] = None;
+                }
+            }
+        });
+    }
+
+    /// `Update`: every instance by `dt`.
+    pub fn update(dt: i64) {
+        ENTRIES.with(|e| {
+            for entry in e.borrow_mut().iter_mut().flatten() {
+                for (p, pose) in &mut entry.instances {
+                    p.update(&entry.data, dt);
+                    *pose = p.pose(&entry.data);
+                }
+            }
+        });
+    }
+
+    /// `GetPose`.
+    pub fn pose(id: i32) -> Option<Vec<Transform>> {
+        ENTRIES.with(|e| {
+            let entries = e.borrow();
+            let entry = entries.get((id >> 8 & 0xff) as usize)?.as_ref()?;
+            entry
+                .instances
+                .get((id & 0xff) as usize)
+                .map(|(_, pose)| pose.clone())
+        })
     }
 }
