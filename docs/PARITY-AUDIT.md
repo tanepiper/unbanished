@@ -112,6 +112,18 @@ These do, and each is now ported bit for bit:
 - **Achievements** are not checked while user pack files (mods) are enabled
   (`AchievementManager::Update` tests `FileSystem +0x38`, `AreUserPackFilesEnabled`).
 
+**Every Application function that calls Runtime vector, quaternion, transform or scalar maths**
+(99 of them) is either cited by the port or read and found to need nothing:
+- model and geometry transforms set for drawing (`FUN_140003870`, `FUN_140058480`,
+  `FUN_1400a9170`, `FUN_1400e1fa0`, `FUN_140052ec0`; the model ones confirm pitch 0);
+- the river generator's rectangle helpers (`FUN_140023b30`, `FUN_140024ba0`; the river output
+  is checked against the emulator);
+- the camera's listener (`FUN_140107c90`), the Debug window (`FUN_140061200`);
+- `FUN_1400c7e10` has no callers;
+- `FUN_140045af0` is a no-op (a length measured from a point to itself, never below 0).
+`Transform2` is used only by the building decals (`FUN_1400b2310`), which are drawn only.
+`Dot`, `Length`, `Lerp` and `Cross` give the port's results in the port's order.
+
 Checked and already matching: `System::Time` conversions, `Random`, Perlin noise, the animation
 manager, path finding (solved synchronously instead of on threads), and the triangle test in
 picking.

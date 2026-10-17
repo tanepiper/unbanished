@@ -3,6 +3,10 @@
 //!
 //! The boat comes in along the map's first river from off the map, takes a water path past its
 //! trading post's "boat" point (where it docks), and leaves along the river's tail.
+//!
+//! `FUN_140045af0` (a state step of `FUN_140047200`) measures the route point against itself,
+//! a length of 0 that is never below 0, so its jump ahead (`FUN_1400ac590`) never happens and it
+//! always returns true; nothing to port.
 
 use crate::character::Character;
 use crate::pathfind::Pathfinder;
