@@ -61,6 +61,24 @@ The 354 larger ones:
 - **Teardown:** the game's destructor (`FUN_14009cc90`) and its parts.
 - **The rest** were already ported under the calling function's citation.
 
+**Re-read 2026-10-17 (229 uncited functions of 200 bytes or more, each classified by its body):**
+- 103 containers (array growth, tree insert, erase and rebalance, struct copies), 38 serialiser
+  field helpers, 14 UI, dialog and Steam Workshop helpers, 5 path-thread command queue entries
+  (`FUN_1400abf00`, `FUN_1400abff0`, `FUN_1400ac300`, `FUN_1400ac3d0`, `FUN_1400ac4b0`; the port
+  runs these commands directly), 3 string comparators of sorted lists.
+- 16 copies of two handler-registration templates (282 and 266 bytes).
+- The CRT `qsort` inlined into the market, workplace and AI sorts (`FUN_14002c3d0`,
+  `FUN_1400314f0`, `FUN_14002cce0`, `FUN_14002c6e0`), already checked through `crt_qsort`;
+  the CRT's `memset`, error path and maths internals.
+- The Debug window, the camera's `Transform3` maths, a particle description's field helper,
+  river and terrain-stage helpers (checked through their callers by the emulator tests).
+- `FUN_14010dbf0` gathers an entity's and its parts' interact and build components for
+  construction (the port's `interact_entities`).
+- Not reproducible: the entity manager's every-iteration update sets (`FUN_1400c8f80`,
+  `FUN_1400c90a0`, entity flags `0x10` and `0x04`) and a commute set (`FUN_140025d80`, an int
+  then the address) are trees ordered by memory address. The port uses creation order, which is
+  what allocation order normally gives, as for the follow tie-break.
+
 **Code outside Ghidra's functions:** 1,384 targets of read-only data pointers start no known
 function (19,774 bytes; the largest 147). Most are type-name and size getters. The event
 dispatchers among them hide their handlers from the call graph, and two handlers were found
