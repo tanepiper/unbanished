@@ -263,6 +263,27 @@ fn overflowing_container_scrolls_content_and_preserves_its_clip() {
         value > 0.0 && value < 1.0,
         "scrollbar tracks content offset"
     );
+    // `ContainerElement::Update`: a notch up queues 7 frames of a third of the view / 7.
+    let offset_of = |ui: &Ui| match ui.nodes[root].kind {
+        Kind::Control(Control::Container { offset, .. }) => offset[1],
+        _ => unreachable!(),
+    };
+    ui.pointer_move((view[0] + view[2]) / 2, (view[1] + view[3]) / 2, root);
+    assert!(ui.wheel(1));
+    for _ in 0..10 {
+        ui.update_containers();
+    }
+    let moved = 150 - offset_of(&ui);
+    let third = ((view[3] - view[1]) as f32 * 0.33) as i32;
+    assert!((moved - third).abs() <= 1, "{moved} vs {third}");
+    // `ScrollElement::Update`: a press on the track below the thumb pages down.
+    let before = ui.value(bar).unwrap();
+    let r = ui.nodes[bar].rect;
+    ui.pointer_move((r[0] + r[2]) / 2, r[3] - 1, root);
+    ui.pointer_button(true, root);
+    ui.pointer_button(false, root);
+    ui.layout_dialog(root, [0, 0, 800, 600]);
+    assert!(ui.value(bar).unwrap() > before);
 }
 
 #[test]
@@ -288,11 +309,13 @@ fn town_hall_table_positions_cells_and_graph_draws_finite_samples() {
     let graph = ui.instantiate(r"Dialog\TownHall.rsc:graphData").unwrap();
     ui.layout(graph, [0, 0, 640, 480]);
     let empty_count = ui.draw(graph).len();
-    ui.set_graph_series(
+    ui.set_graph(
         graph,
+        5.0,
+        12,
         vec![
-            vec![-2.0, 0.0, 3.0, f32::NAN, 1.0],
-            vec![2.0, 1.0, 0.0, 1.0],
+            (0xFFFF_FF00, vec![-2, 0, 3, 7, 1]),
+            (0xFF00_FF00, vec![2, 1, 0, 1]),
         ],
     );
     let data = ui.draw(graph);
@@ -302,7 +325,7 @@ fn town_hall_table_positions_cells_and_graph_draws_finite_samples() {
     );
     assert!(
         data.iter().all(|q| q.rect.iter().all(|v| v.is_finite())),
-        "NaN samples must never reach the renderer"
+        "samples must never reach the renderer as non-finite rectangles"
     );
 }
 

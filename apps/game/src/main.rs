@@ -9,8 +9,8 @@
 //!   `banished --capture OUT.png [--seed N --terrain Valleys|Mountains --size 0|1|2 --month M
 //!    --view overview|ground]` renders a generated map.
 //!
-//! On the map: left/right drag to rotate, middle drag to pan, wheel to zoom, WASD/arrows to move,
-//! Escape for the pause menu.
+//! On the map: middle drag to rotate, right click to cancel the tool, wheel to zoom,
+//! WASD/arrows to move, Escape for the pause menu.
 
 mod achievement_ui;
 mod achievements;

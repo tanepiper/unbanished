@@ -576,15 +576,19 @@ impl TownHallUi {
             return;
         }
         self.drawn = Some((samples, time, kind));
-        let (step, points) = [
-            (1, 48),
-            (1, 96),
-            (2, 120),
-            (4, 120),
-            (8, 150),
-            (16, 150),
-            (32, 150),
+        // Each range's sample step, point count and x divisions (`SetXDivisions`, `+0xe4`).
+        let (step, points, divisions) = [
+            (1, 48, 12),
+            (1, 96, 24),
+            (2, 120, 5),
+            (4, 120, 10),
+            (8, 150, 25),
+            (16, 150, 50),
+            (32, 150, 100),
         ][time];
+        // `AddGraph`'s colour for each of the (up to four) series, which its key's sprite
+        // takes too (`LabelElement::SetSpriteColor`).
+        const COLORS: [u32; 4] = [0xFFFF_FF00, 0xFF00_FF00, 0xFF80_80FF, 0xFFFF_0000];
         const SLOTS: [usize; 21] = [
             5, 0, 1, 2, 3, 9, 4, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
         ];
@@ -603,7 +607,7 @@ impl TownHallUi {
             let mut from = have - points * step;
             if have / step < points {
                 for _ in 0..points - have / step {
-                    line.push(0.0);
+                    line.push(0);
                 }
                 from = 0;
             }
@@ -611,10 +615,10 @@ impl TownHallUi {
             while i < have {
                 let v = data[i as usize];
                 top = top.max(v);
-                line.push(v as f32);
+                line.push(v);
                 i += step;
             }
-            lines.push(line);
+            lines.push((COLORS[lines.len()], line));
         }
         let top = top.max(5);
         let unit = if top < 10 {
@@ -627,11 +631,7 @@ impl TownHallUi {
             1000
         };
         let top = (top - 1 + unit) / unit * unit;
-        let scaled = lines
-            .into_iter()
-            .map(|l| l.into_iter().map(|v| v / top as f32).collect())
-            .collect();
-        ui.set_graph_series(g, scaled);
+        ui.set_graph(g, top as f32, divisions, lines);
         for (i, label) in self.y_labels.iter().enumerate() {
             let v = top as f32 * (4 - i) as f32 * 0.25;
             set_number(ui, *label, v as i32);
@@ -644,6 +644,7 @@ impl TownHallUi {
                         .res
                         .string_at("Dialog\\StringTable.rsc:graphKeys", s as i32);
                     ui.set_text(l, &text);
+                    ui.set_label_sprite_color(l, COLORS[i]);
                     ui.set_visible(l, true);
                 }
                 None => ui.set_visible(l, false),

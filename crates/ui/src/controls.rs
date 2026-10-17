@@ -89,6 +89,13 @@ pub enum Control {
         vertical: bool,
         value: f32,
         page: f32,
+        /// The bar's inset at both ends of the track (`+0x15c`, ScrollDescription `+0xbc`).
+        inset: i32,
+        /// The thumb's colour (`+0x154`).
+        thumb_color: u32,
+        /// A drag from the thumb (flag `0x200000`): the value and the pointer's coordinate
+        /// along the bar when it began (`+0x16c`).
+        drag: Option<(f32, i32)>,
     },
     Progress {
         sprites: Vec<Option<SpriteRef>>,
@@ -97,11 +104,18 @@ pub enum Control {
         content: Option<NodeId>,
     },
     Edit(EditData),
+    /// `GraphElement`: a frame, `y_divisions + 1` lines across (with ticks of `tick` px to
+    /// the left) and `x_divisions + 1` down (ticks below), then each graph's points from the
+    /// left edge to the right, `y_range` at the top.
     Graph {
         size: [i32; 2],
         sprite: Option<SpriteRef>,
-        color: u32,
-        series: Vec<Vec<f32>>,
+        tick: i32,
+        y_range: f32,
+        x_divisions: i32,
+        y_divisions: i32,
+        /// `AddGraph(color)` / `AddGraphPoint`.
+        series: Vec<(u32, Vec<i32>)>,
     },
     Table {
         cells: Vec<(usize, usize, NodeId)>,
@@ -129,6 +143,10 @@ pub enum Control {
         spacing: i32,
         offset: [i32; 2],
         view: [i32; 4],
+        /// `ContainerElement::Update`: the wheel's frames still to scroll (`+0xd0`, ±7 a
+        /// notch) and the vertical bar's value (`ScrollElement +0x160`, in pixels).
+        wheel: i32,
+        fine: f32,
     },
     Check {
         button: NodeId,
@@ -278,12 +296,16 @@ impl Ui {
                 sprite_sheet,
                 sprites: names,
                 vertical,
-                ..
+                unknown,
+                unknown_u32,
             } => Control::Scroll {
                 sprites: sprites(self, sprite_sheet, names),
                 vertical: *vertical,
                 value: 0.0,
                 page: 0.25,
+                inset: *unknown,
+                thumb_color: unknown_u32[0],
+                drag: None,
             },
             ElementKind::Progress {
                 color,
@@ -339,9 +361,17 @@ impl Ui {
                 sprite_sheet,
                 sprite,
             } => Control::Graph {
+                // `GraphDescription::CreateInstance`: size `+0xc0`, tick `+0xc8` (and an unused
+                // colour, `+0xcc`); `GraphElement::GraphElement`: range 1, 12 by 4 divisions.
                 size: [unknown[0], unknown[1]],
                 sprite: self.res.sprite(sprite_sheet.as_deref(), sprite),
-                color: *unknown_u32,
+                tick: {
+                    let _ = unknown_u32;
+                    unknown[2]
+                },
+                y_range: 1.0,
+                x_divisions: 12,
+                y_divisions: 4,
                 series: Vec::new(),
             },
             ElementKind::Table { unknown, cells } => {
@@ -408,6 +438,8 @@ impl Ui {
                 spacing: unknown[2],
                 offset: [0, 0],
                 view: [0; 4],
+                wheel: 0,
+                fine: 0.0,
             },
             ElementKind::Check { button, check } => Control::Check {
                 button: self.control_button(button),
@@ -637,9 +669,31 @@ impl Ui {
             self.set_list_icons(list, choices, icons);
         }
     }
-    pub fn set_graph_series(&mut self, id: NodeId, series: Vec<Vec<f32>>) {
-        if let Kind::Control(Control::Graph { series: s, .. }) = &mut self.nodes[id].kind {
+    /// `GraphElement::SetYRange`, `SetXDivisions`, `RemoveGraphs` then `AddGraph` and
+    /// `AddGraphPoint` for each (colour, points).
+    pub fn set_graph(
+        &mut self,
+        id: NodeId,
+        y_range: f32,
+        x_divisions: i32,
+        series: Vec<(u32, Vec<i32>)>,
+    ) {
+        if let Kind::Control(Control::Graph {
+            series: s,
+            y_range: y,
+            x_divisions: x,
+            ..
+        }) = &mut self.nodes[id].kind
+        {
             *s = series;
+            *y = y_range;
+            *x = x_divisions;
+        }
+    }
+    /// `LabelElement::SetSpriteColor`.
+    pub fn set_label_sprite_color(&mut self, id: NodeId, color: u32) {
+        if let Kind::Label { icon_color, .. } = &mut self.nodes[id].kind {
+            *icon_color = color;
         }
     }
     pub(crate) fn measure_control(&mut self, id: NodeId, mut c: Control) -> [i32; 2] {
@@ -1213,20 +1267,31 @@ impl Ui {
                     );
                 }
             }
+            // `ScrollElement::Draw`: the track over the whole bar, then the thumb in its own
+            // colour, hovered (sprites 6–8) while the pointer is on a bar that scrolls.
             Control::Scroll {
                 sprites,
                 vertical,
                 value,
                 page,
+                inset,
+                thumb_color,
+                ..
             } => {
                 strip(out, &sprites[..3], rc, color, clip, *vertical);
-                let thumb = scroll_thumb(rc, *vertical, *value, *page);
-                let start = if self.hot == Some(id) { 6 } else { 3 };
+                let thumb = scroll_thumb(rc, *vertical, *value, *page, *inset, sprites);
+                let start = if self.hot == Some(id) && *page < 1.0 {
+                    6
+                } else {
+                    3
+                };
+                let thumb_color = (thumb_color & 0x00FF_FFFF)
+                    | (((thumb_color >> 24) * (color >> 24) / 255) << 24);
                 strip(
                     out,
                     &sprites[start..start + 3],
                     thumb,
-                    color,
+                    thumb_color,
                     intersect(clip, rc),
                     *vertical,
                 );
@@ -1248,62 +1313,51 @@ impl Ui {
                     }
                 }
             }
+            // `GraphElement::Draw`, in `SpriteContext::AddLine`s of its sprite (none without).
             Control::Graph {
                 sprite,
+                tick,
+                y_range,
+                x_divisions,
+                y_divisions,
                 series,
-                color: line_color,
                 ..
             } => {
-                if let Some(sp) = sprite.or(solid) {
-                    let clip = intersect(clip, rc);
-                    for i in 0..5 {
-                        let y = t + (b - t - 1) * i / 4;
-                        Self::sprite_quad(
-                            out,
-                            &sp,
-                            [l, y, r, y + 1],
-                            modulate(color, 0x40505050),
-                            clip,
-                        );
+                let line = |out: &mut Vec<Quad>, x0: i32, y0: i32, x1: i32, y1: i32, c: u32| {
+                    if let Some(sp) = sprite {
+                        Self::line_quads(out, sp, [x0, y0, x1, y1], c, clip);
                     }
-                    let finite: Vec<_> = series
-                        .iter()
-                        .flatten()
-                        .filter(|x| x.is_finite())
-                        .copied()
-                        .collect();
-                    let min = finite.iter().copied().fold(0.0, f32::min);
-                    let max = finite.iter().copied().fold(1.0, f32::max);
-                    for (j, points) in series.iter().enumerate() {
-                        let tint = if *line_color == 0 {
-                            [0xFFF6CD51, 0xFF80C8FF, 0xFF80D080][j % 3]
-                        } else {
-                            *line_color
-                        };
-                        for (i, pair) in points.windows(2).enumerate() {
-                            if !pair[0].is_finite() || !pair[1].is_finite() {
-                                continue;
-                            }
-                            let x0 = l + (r - l - 1) * i as i32 / (points.len() - 1).max(1) as i32;
-                            let x1 =
-                                l + (r - l - 1) * (i + 1) as i32 / (points.len() - 1).max(1) as i32;
-                            let y0 =
-                                b - 1 - ((pair[0] - min) / (max - min) * (b - t - 1) as f32) as i32;
-                            let y1 =
-                                b - 1 - ((pair[1] - min) / (max - min) * (b - t - 1) as f32) as i32;
-                            let steps = (x1 - x0).abs().max((y1 - y0).abs()).max(1);
-                            for k in 0..=steps {
-                                let x = x0 + (x1 - x0) * k / steps;
-                                let y = y0 + (y1 - y0) * k / steps;
-                                Self::sprite_quad(
-                                    out,
-                                    &sp,
-                                    [x, y, x + 1, y + 1],
-                                    modulate(color, tint),
-                                    clip,
-                                );
-                            }
-                        }
+                };
+                line(out, l, t, l, b, color);
+                line(out, l, t, r, t, color);
+                line(out, l, b, r, b, color);
+                line(out, r, t, r, b, color);
+                if 0 <= *y_divisions {
+                    let mut y = t as f32;
+                    for _ in 0..=*y_divisions {
+                        let yi = (y + 0.5) as i32;
+                        line(out, l - tick, yi, r, yi, color);
+                        y += (b - t) as f32 / *y_divisions as f32;
+                    }
+                }
+                if 0 <= *x_divisions {
+                    let mut x = l as f32;
+                    for _ in 0..=*x_divisions {
+                        let xi = (x + 0.5) as i32;
+                        line(out, xi, b, xi, tick + b, color);
+                        x += (r - l) as f32 / *x_divisions as f32;
+                    }
+                }
+                let scale = (1.0 / *y_range) * (b - t) as f32;
+                for (c, points) in series {
+                    let n = points.len() as i32 - 1;
+                    let mut x = l as f32;
+                    for k in 0..n.max(0) as usize {
+                        let next = x + (r - l) as f32 / n as f32;
+                        let y0 = b - (points[k] as f32 * scale) as i32;
+                        let y1 = b - (points[k + 1] as f32 * scale) as i32;
+                        line(out, x as i32, y0, next as i32, y1, *c);
+                        x = next;
                     }
                 }
             }
@@ -1381,16 +1435,32 @@ fn bounds_size(rects: &[[i32; 4]]) -> [i32; 2] {
         rects.iter().map(|r| r[3]).max().unwrap_or(0),
     ]
 }
-pub(crate) fn scroll_thumb(rc: [i32; 4], vertical: bool, value: f32, page: f32) -> [i32; 4] {
+/// `ScrollElement::GetBarLayout`: the track is the bar less `inset` at each end; the thumb
+/// covers `page` of it, at least its three sprites' length, placed by `value` (0..1).
+pub(crate) fn scroll_thumb(
+    rc: [i32; 4],
+    vertical: bool,
+    value: f32,
+    page: f32,
+    inset: i32,
+    sprites: &[Option<SpriteRef>],
+) -> [i32; 4] {
     let axis = if vertical { 1 } else { 0 };
-    let length = (rc[axis + 2] - rc[axis]).max(0);
-    let size = ((length as f32 * page.clamp(0.0, 1.0)) as i32)
-        .max(12)
-        .min(length);
-    let start = rc[axis] + ((length - size) as f32 * value.clamp(0.0, 1.0)) as i32;
     let mut out = rc;
+    out[axis] += inset;
+    out[axis + 2] -= inset;
+    let length = out[axis + 2] - out[axis];
+    let least: i32 = sprites
+        .iter()
+        .skip(3)
+        .take(3)
+        .flatten()
+        .map(|s| if vertical { s.height } else { s.width })
+        .sum();
+    let size = (length as f32 * page.clamp(0.0, 1.0)).max(least as f32);
+    let start = out[axis] + ((length as f32 - size) * value.clamp(0.0, 1.0)) as i32;
     out[axis] = start;
-    out[axis + 2] = start + size;
+    out[axis + 2] = size as i32 + start;
     out
 }
 fn strip(

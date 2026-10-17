@@ -143,13 +143,14 @@ impl Ui {
         if down {
             self.pressed = self.hot;
             self.focus = self.hot;
-            // `ButtonElement::Update`: `Play(4)` on press (a list plays nothing; a slider, below).
+            // `ButtonElement::Update`: `Play(4)` on press (a list plays nothing; a slider or a
+            // scroll bar, below).
             if self.hot.is_some_and(|id| {
                 self.interactive(id)
                     && self.nodes[id].usable()
                     && !matches!(
                         self.nodes[id].kind,
-                        Kind::List(_) | Kind::Control(Control::Slider(_))
+                        Kind::List(_) | Kind::Control(Control::Slider(_) | Control::Scroll { .. })
                     )
             }) {
                 self.sounds.push(4);
@@ -180,6 +181,38 @@ impl Ui {
                         e.cursor = best;
                     }
                     Kind::Control(Control::Document(d)) => d.pressed_link = d.hovered_link,
+                    // `ScrollElement::Update`: on a bar that scrolls, a press on the thumb
+                    // starts a drag, one past it pages the view (`page / (1 - page)` of the
+                    // range) that way; either plays 4.
+                    Kind::Control(Control::Scroll {
+                        sprites,
+                        vertical,
+                        value,
+                        page,
+                        inset,
+                        drag,
+                        ..
+                    }) if *page < 1.0 => {
+                        let (x, y) = self.pointer;
+                        let thumb = scroll_thumb(rect, *vertical, *value, *page, *inset, sprites);
+                        let step = *page / (1.0 - *page);
+                        if thumb[0] <= x && x <= thumb[2] && thumb[1] <= y && y <= thumb[3] {
+                            *drag = Some((*value, if *vertical { y } else { x }));
+                            self.sounds.push(4);
+                        } else if (*vertical && thumb[3] < y) || thumb[2] < x {
+                            let v = *value + step;
+                            self.set_value(id, v);
+                            self.sounds.push(4);
+                            self.pending.push(Event::Changed(id));
+                            self.scroll_parent(id);
+                        } else if (*vertical && y < thumb[1]) || x < thumb[0] {
+                            let v = *value - step;
+                            self.set_value(id, v);
+                            self.sounds.push(4);
+                            self.pending.push(Event::Changed(id));
+                            self.scroll_parent(id);
+                        }
+                    }
                     // `SliderElement::Update`: a press on the knob starts a drag; one beside it
                     // on the slider moves the value a step towards the pointer (event `0x17`).
                     // Either plays 4.
@@ -204,23 +237,28 @@ impl Ui {
                 }
             }
         } else {
-            // `SliderElement::Update`: the drag ends; within 32 px of the slider it plays 5.
+            // `SliderElement::Update` / `ScrollElement::Update`: the drag ends; within 32 px it
+            // plays 5.
             if let Some(id) = self.pressed {
                 let rect = self.nodes[id].rect;
                 let (x, y) = self.pointer;
-                if let Kind::Control(Control::Slider(sl)) = &mut self.nodes[id].kind {
-                    if let Some((start, _)) = sl.drag.take() {
-                        let near = rect[0] - 32 <= x
-                            && x <= rect[2] + 32
-                            && rect[1] - 32 <= y
-                            && y <= rect[3] + 32;
-                        if near {
-                            self.sounds.push(5);
-                        } else {
-                            // Deviation: the original keeps the drag flag after a release far
-                            // away (until a release near it); the port ends the drag there.
-                            self.set_value(id, start);
-                        }
+                let drag = match &mut self.nodes[id].kind {
+                    Kind::Control(Control::Slider(sl)) => sl.drag.take(),
+                    Kind::Control(Control::Scroll { drag, .. }) => drag.take(),
+                    _ => None,
+                };
+                if let Some((start, _)) = drag {
+                    let near = rect[0] - 32 <= x
+                        && x <= rect[2] + 32
+                        && rect[1] - 32 <= y
+                        && y <= rect[3] + 32;
+                    if near {
+                        self.sounds.push(5);
+                    } else {
+                        // Deviation: the original keeps the drag flag after a release far
+                        // away (until a release near it); the port ends the drag there.
+                        self.set_value(id, start);
+                        self.scroll_parent(id);
                     }
                 }
             }
@@ -268,15 +306,30 @@ impl Ui {
                 }
                 next = s.dragged(rect, x);
             }
-            Kind::Control(Control::Scroll { vertical, page, .. }) => {
-                let axis = if *vertical { 1 } else { 0 };
-                let p = if *vertical { y } else { x };
-                let thumb = scroll_thumb(rect, *vertical, 0.0, *page);
-                let len = thumb[axis + 2] - thumb[axis];
-                next = Some(
-                    (p - rect[axis] - len / 2) as f32
-                        / (rect[axis + 2] - rect[axis] - len).max(1) as f32,
-                );
+            // `ScrollElement::Update`: a drag from the thumb moves the value by the pointer's
+            // travel over the bar's length less the thumb's share; more than 32 px away the
+            // value goes back.
+            Kind::Control(Control::Scroll {
+                vertical,
+                page,
+                drag,
+                ..
+            }) => {
+                let Some((start, from)) = *drag else {
+                    return;
+                };
+                let near = rect[0] - 32 <= x
+                    && x <= rect[2] + 32
+                    && rect[1] - 32 <= y
+                    && y <= rect[3] + 32;
+                if !near {
+                    next = Some(start);
+                } else {
+                    let axis = if *vertical { 1 } else { 0 };
+                    let p = if *vertical { y } else { x };
+                    let length = (rect[axis + 2] - rect[axis]) as f32;
+                    next = Some(start - (from - p) as f32 / (length - length * *page));
+                }
             }
             _ => {}
         }
@@ -456,25 +509,35 @@ impl Ui {
         event
     }
 
+    /// `ContainerElement::Update`: the wheel over a container queues 7 frames of scrolling
+    /// (up for a positive `delta`), which [`Ui::update_containers`] plays out.
     pub fn wheel(&mut self, delta: i32) -> bool {
+        if delta == 0 {
+            return false;
+        }
         let (x, y) = self.pointer;
-        // Pick the innermost visible container whose viewport contains the pointer.
+        // The innermost visible container under the pointer.
         let active = self
             .input_root
             .map(|r| self.active_nodes(r))
             .unwrap_or_default();
-        let mut candidates: Vec<_> = active
+        let hovered = active
             .into_iter()
             .filter_map(|id| {
                 let n = &self.nodes[id];
-                if let Kind::Control(Control::Container { view, .. }) = &n.kind {
-                    if contains(*view, x, y) {
-                        return Some((id, (view[2] - view[0]) * (view[3] - view[1])));
-                    }
-                }
-                None
+                matches!(n.kind, Kind::Control(Control::Container { .. }))
+                    .then_some(n.rect)
+                    .filter(|r| contains(*r, x, y))
+                    .map(|r| (id, (r[2] - r[0]) * (r[3] - r[1])))
             })
-            .collect();
+            .min_by_key(|c| c.1);
+        if let Some((id, _)) = hovered {
+            if let Kind::Control(Control::Container { wheel, .. }) = &mut self.nodes[id].kind {
+                *wheel += if 0 < delta { -7 } else { 7 };
+            }
+            return true;
+        }
+        // A list outside any container (the port's own popups) scrolls directly.
         if let Some(h) = self.hot {
             let height = self.nodes[h].rect[3] - self.nodes[h].rect[1];
             if let Kind::List(l) = &mut self.nodes[h].kind {
@@ -483,22 +546,52 @@ impl Ui {
                 return true;
             }
         }
-        candidates.sort_by_key(|c| c.1);
-        for (id, _) in candidates {
-            let Kind::Control(Control::Container { content, view, .. }) =
-                self.nodes[id].kind.clone()
+        false
+    }
+
+    /// `ContainerElement::Update`, each frame: one queued wheel frame moves the vertical bar a
+    /// seventh of a third of the view (`0.33 / 7`), within the content.
+    pub fn update_containers(&mut self) {
+        for id in 0..self.nodes.len() {
+            let Kind::Control(Control::Container {
+                content,
+                bars,
+                view,
+                wheel,
+                ..
+            }) = self.nodes[id].kind
             else {
                 continue;
             };
-            let max = content.map_or(0, |n| (self.nodes[n].size[1] - (view[3] - view[1])).max(0));
-            if max > 0 {
-                if let Kind::Control(Control::Container { offset, .. }) = &mut self.nodes[id].kind {
-                    offset[1] = (offset[1] - delta).clamp(0, max);
+            if wheel == 0 || bars[1].is_none() {
+                continue;
+            }
+            let height = (view[3] - view[1]) as f32;
+            let max = content.map_or(0.0, |n| self.nodes[n].size[1] as f32 - height);
+            if max <= 0.0 {
+                continue;
+            }
+            if let Kind::Control(Control::Container {
+                offset,
+                wheel,
+                fine,
+                ..
+            }) = &mut self.nodes[id].kind
+            {
+                if *fine as i32 != offset[1] {
+                    *fine = offset[1] as f32;
                 }
-                return true;
+                let mut step = (max / (max / height)) / 7.0 * 0.33;
+                if *wheel < 0 {
+                    step = -step;
+                    *wheel += 1;
+                } else {
+                    *wheel -= 1;
+                }
+                *fine = (*fine + step).clamp(0.0, max);
+                offset[1] = *fine as i32;
             }
         }
-        false
     }
 
     pub(crate) fn active_nodes(&self, root: NodeId) -> Vec<NodeId> {

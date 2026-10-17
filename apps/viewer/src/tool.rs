@@ -1135,6 +1135,7 @@ impl Tool {
                     self.dialog_animation_started.elapsed().as_secs_f32();
             }
             self.ui.update_animations(self.dialog_animation_elapsed);
+            self.ui.update_containers();
             self.refresh_dialog_animation_label();
         }
         if self.mode == Mode::Audio {

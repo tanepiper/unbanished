@@ -358,7 +358,7 @@ impl MainLoop {
         }
         self.fade.update(dt);
         self.elapsed += dt;
-        ctx.ui.update_animations(self.elapsed);
+        ctx.ui.update(dt);
         if self.pending.is_some() {
             if !self.fade.busy() {
                 self.current.shutdown(ctx);

@@ -97,6 +97,8 @@ pub enum Kind {
         size: [i32; 2],
         frames_per_second: i32,
         frame: usize,
+        /// Its own clock (`+0xf8`), from its creation, kept within one loop of the frames.
+        clock: f64,
     },
     Button {
         states: [Option<NodeId>; 4],
@@ -113,6 +115,8 @@ pub enum Kind {
         orientation: u32,
         min_text_width: i32,
         gap: i32,
+        /// The icon's colour (`+0x128`, `LabelElement::SetSpriteColor`), drawn as it is.
+        icon_color: u32,
     },
     /// Reserves space the application draws into (3D view, previews).
     Viewport,
@@ -409,6 +413,7 @@ impl Ui {
                     size: *size,
                     frames_per_second: *rate,
                     frame: 0,
+                    clock: 0.0,
                 }
             }
             ElementKind::Button(b) => {
@@ -433,6 +438,7 @@ impl Ui {
                 orientation: l.orientation,
                 min_text_width: l.min_text_width,
                 gap: l.gap,
+                icon_color: 0xFFFF_FFFF,
             },
             _ => Kind::Control(self.instantiate_control(&e.kind)),
         };
@@ -967,6 +973,37 @@ impl Ui {
     }
 
     /// Select each animated image's frame at the supplied elapsed time in seconds.
+    /// The game's UI step: each element's own update (`AnimatedImageElement::Update`, the
+    /// containers' wheel) by `dt` seconds.
+    pub fn update(&mut self, dt: f32) {
+        self.update_containers();
+        for node in &mut self.nodes {
+            if let Kind::AnimatedImage {
+                sprites,
+                frames_per_second,
+                frame,
+                clock,
+                ..
+            } = &mut node.kind
+            {
+                // `AnimatedImageElement::Update`: one loop lasts frames / rate seconds; past
+                // it the clock goes back by one loop, and the frame is its share of the loop.
+                if sprites.is_empty() || *frames_per_second <= 0 {
+                    continue;
+                }
+                *clock += dt as f64;
+                let length = sprites.len() as f32 / *frames_per_second as f32;
+                let mut t = *clock as f32;
+                if length <= t {
+                    t -= length;
+                    *clock = t as f64;
+                }
+                *frame = ((t / length * sprites.len() as f32) as usize).min(sprites.len() - 1);
+            }
+        }
+    }
+
+    /// The viewer's preview: every animation at `elapsed_seconds`.
     pub fn update_animations(&mut self, elapsed_seconds: f32) {
         for node in &mut self.nodes {
             if let Kind::AnimatedImage {
@@ -1139,6 +1176,33 @@ impl Ui {
         self.draw_popups(root, &mut out);
         self.draw_tooltip(root, &mut out);
         out
+    }
+
+    /// `SpriteContext::AddLine`: a one-pixel line from `(x0, y0)` towards `(x1, y1)`, its
+    /// last pixel left off as a Direct3D line list draws it.
+    pub(crate) fn line_quads(
+        out: &mut Vec<Quad>,
+        s: &SpriteRef,
+        [x0, y0, x1, y1]: [i32; 4],
+        color: u32,
+        clip: Option<[i32; 4]>,
+    ) {
+        if y0 == y1 || x0 == x1 {
+            let rect = [x0.min(x1), y0.min(y1), x0.max(x1), y0.max(y1)];
+            let rect = if y0 == y1 {
+                [rect[0], rect[1], rect[2], rect[1] + 1]
+            } else {
+                [rect[0], rect[1], rect[0] + 1, rect[3]]
+            };
+            Self::sprite_quad(out, s, rect, color, clip);
+            return;
+        }
+        let steps = (x1 - x0).abs().max((y1 - y0).abs());
+        for k in 0..steps {
+            let x = x0 + (x1 - x0) * k / steps;
+            let y = y0 + (y1 - y0) * k / steps;
+            Self::sprite_quad(out, s, [x, y, x + 1, y + 1], color, clip);
+        }
     }
 
     fn sprite_quad(
@@ -1317,6 +1381,7 @@ impl Ui {
                 text_alignment,
                 orientation,
                 gap,
+                icon_color,
                 ..
             } => {
                 let iw = if icon_size[0] > 0 {
@@ -1353,7 +1418,7 @@ impl Ui {
                         out,
                         s,
                         [icon_pos[0], icon_pos[1], icon_pos[0] + iw, icon_pos[1] + ih],
-                        color,
+                        *icon_color,
                         clip,
                     );
                 }
