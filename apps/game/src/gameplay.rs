@@ -811,10 +811,28 @@ impl GameplayLoop {
     }
 
     fn update_hud(&self, ui: &mut Ui) {
-        if let Some(toolbar) = &self.toolbar {
-            toolbar.refresh(ui, SPEED_LEVELS[self.speed as usize], self.paused);
-        }
+        self.refresh_toolbar(ui);
         self.utility.update(ui, &self.status_values());
+    }
+
+    /// `FUN_1400be210` with the town's sites by template (`FUN_1400be4a0`).
+    fn refresh_toolbar(&self, ui: &mut Ui) {
+        let Some(toolbar) = &self.toolbar else { return };
+        let count = |template: &str| -> i32 {
+            let Some(town) = &self.town else { return 0 };
+            let key = crate::start::normalise(template).to_ascii_lowercase();
+            town.construction
+                .sites
+                .iter()
+                .filter(|(&e, s)| {
+                    let p = &town.placed[e];
+                    !s.destroyed
+                        && p.alive
+                        && town.templates[p.template].reference.to_ascii_lowercase() == key
+                })
+                .count() as i32
+        };
+        toolbar.refresh(ui, SPEED_LEVELS[self.speed as usize], self.paused, &count);
     }
 
     fn population(&self) -> (u32, u32, u32) {
@@ -2237,6 +2255,8 @@ impl GameLoop for GameplayLoop {
             toolbar.set_keymap(ctx.ui, &ctx.settings.keymap);
             toolbar.relayout(ctx.ui);
         }
+        // FUN_1400be4a0 runs every update: the build limits follow the town.
+        self.refresh_toolbar(ctx.ui);
         // FUN_140107b70: while the application is paused (unfocused) the controller opens the
         // pause menu (game option `+0x18`, on by default) instead of running.
         if ctx.app_paused && ctx.settings.game.auto_pause && self.pause_menu.is_none() {

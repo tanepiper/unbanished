@@ -98,7 +98,7 @@ pub fn material_index(
 /// `DAT_140178818`: children's model scale.
 const CHILD_SCALE: f32 = 0.66;
 
-fn normalise(reference: &str) -> String {
+pub(crate) fn normalise(reference: &str) -> String {
     let r = reference.replace('/', "\\");
     if r.contains(':') {
         r

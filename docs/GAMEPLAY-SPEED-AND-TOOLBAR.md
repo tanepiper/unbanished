@@ -24,6 +24,14 @@ of the slow/fast and pause/play controls from the selected speed and pause byte,
 current speed to the speed text element as parameter zero. The exact rendered formatting literal
 is not resolved by this pseudocode export.
 
+`FUN_1400be4a0` runs every update and sets each build entry (type 1) usable only while the
+town has fewer sites of its template (the stock manager's count at `+0x160`: placed, not
+destroyed) than the template's ToolbarDescription `_maxInstances` (`+0x60`; below zero means no
+limit). The Town Hall's is 1, so its button greys out once one is placed. Town Info entries
+(type 4) are usable once the town has at least one of their template. A disabled entry ignores
+both clicks and its hotkey. The port does the same in `Toolbar::refresh`, called from
+`Gameplay::refresh_toolbar` on every update.
+
 ## Packaged controls
 
 The decoded records in `data0.pkg` associate the control kinds with these resources:

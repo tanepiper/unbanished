@@ -352,16 +352,26 @@ impl Toolbar {
         })
     }
 
-    /// `FUN_1400be210`: show the current speed and pause state.
-    pub fn refresh(&self, ui: &mut Ui, speed: u32, paused: bool) {
+    /// `FUN_1400be210`: show the current speed and pause state; `FUN_1400be4a0`: a build
+    /// entry is usable while the town has fewer of its template than the ToolbarDescription's
+    /// `_maxInstances` (`+0x60`; below 0, any number), a Town Info entry once it has one
+    /// (`count`: the template's placed sites, the stock manager's `+0x160`).
+    pub fn refresh(&self, ui: &mut Ui, speed: u32, paused: bool, count: &dyn Fn(&str) -> i32) {
         for level in self.root.iter().chain(self.popup.iter()) {
             if let Some(text) = level.speed_text.and_then(|n| Self::text_node(ui, n)) {
                 ui.set_text(text, &format!("{speed}x"));
             }
             for &(node, index) in &level.buttons {
-                let enabled = match self.entries[index].item.kind {
+                let entry = &self.entries[index];
+                let template = entry.item.template.as_deref();
+                let enabled = match entry.item.kind {
                     kind::PAUSE => !paused,
                     kind::PLAY => paused,
+                    kind::BUILD => match (&entry.description, template) {
+                        (Some(d), Some(t)) => d.value < 0 || count(t) < d.value,
+                        _ => true,
+                    },
+                    kind::TOWN_INFO => template.is_some_and(|t| 0 < count(t)),
                     _ => true,
                 };
                 ui.node_mut(node).enabled = enabled;

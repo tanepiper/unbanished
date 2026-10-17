@@ -536,7 +536,8 @@ impl GameplayLoop {
         }
     }
 
-    /// `FUN_1400e7ec0`: every dialog locked, then the listed elements unlocked.
+    /// `FUN_1400e7ec0`: every dialog locked (`FUN_1400e7800`, each root and its children),
+    /// then the listed elements unlocked.
     fn apply_locks(&mut self, ui: &mut Ui, s: &Setup) {
         let Setup::Dialog { enable, .. } = s else {
             return;

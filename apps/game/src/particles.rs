@@ -529,6 +529,7 @@ impl Particles {
                     s.instance.alpha = 1.0;
                     s.fade_rate = 0.0;
                 } else if s.instance.alpha < 0.0 {
+                    // `FUN_1400532f0`: the slot's scene object goes.
                     return false;
                 }
             }
@@ -692,6 +693,8 @@ impl Particles {
                         Want::Off
                     }
                 } else if sick {
+                    // The blight's end (`FUN_140048c80`) fades every slot of the component out
+                    // (`FUN_140054150`, `-1 / time` each); a field's only slot is this one.
                     Want::On
                 } else {
                     Want::Off

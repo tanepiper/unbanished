@@ -106,6 +106,9 @@ const CLEAR: wgpu::Color = wgpu::Color {
 /// `DAT_180164820`: 1/60 s and 1/15 s, as ticks).
 const FRAME_STEP: i64 = 16_666;
 const FRAME_MAX: i64 = 66_666;
+// Deviation: the original also draws between steps (`MainLoop::Frame`'s `+0x38 / +0x48`
+// handed to `Renderer::Draw`, models and poses blending their `InterpolatedState`); the port
+// draws the last step, which differs only on displays faster than 60 Hz.
 
 /// The running game: shared resources plus the loop chain.
 pub struct Game {
