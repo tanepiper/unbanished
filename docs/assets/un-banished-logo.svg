@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 220" width="760" height="220" role="img" aria-labelledby="t d">
+  <title id="t">Un-Banished</title>
+  <desc id="d">A small timber cabin and a young tree under a rising sun, beside the words Un-Banished.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a3a4a"/>
+      <stop offset="1" stop-color="#5b4a3a"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd98a"/>
+      <stop offset="1" stop-color="#e0902e"/>
+    </linearGradient>
+    <clipPath id="disc"><circle cx="110" cy="110" r="86"/></clipPath>
+  </defs>
+  <rect x="2" y="2" width="756" height="216" rx="22" fill="#15181c" stroke="#3a3328" stroke-width="2"/>
+  <!-- Emblem -->
+  <g clip-path="url(#disc)">
+    <rect x="20" y="20" width="180" height="180" fill="url(#sky)"/>
+    <circle cx="110" cy="132" r="40" fill="url(#sun)"/>
+    <g stroke="#ffd98a" stroke-width="3" stroke-linecap="round" opacity="0.55">
+      <line x1="110" y1="74" x2="110" y2="58"/>
+      <line x1="72" y1="92" x2="61" y2="81"/>
+      <line x1="148" y1="92" x2="159" y2="81"/>
+      <line x1="56" y1="124" x2="41" y2="122"/>
+      <line x1="164" y1="124" x2="179" y2="122"/>
+    </g>
+    <!-- Ground -->
+    <path d="M20 150 Q70 138 110 146 T200 142 V200 H20 Z" fill="#3d4a2c"/>
+    <path d="M20 166 Q80 156 120 164 T200 160 V200 H20 Z" fill="#2c3820"/>
+    <!-- Cabin -->
+    <g>
+      <rect x="62" y="122" width="54" height="34" fill="#7a5233"/>
+      <g stroke="#5a3a22" stroke-width="2">
+        <line x1="62" y1="131" x2="116" y2="131"/>
+        <line x1="62" y1="140" x2="116" y2="140"/>
+        <line x1="62" y1="149" x2="116" y2="149"/>
+      </g>
+      <path d="M56 124 L89 98 L122 124 Z" fill="#4a3322"/>
+      <path d="M56 124 L89 98 L122 124" fill="none" stroke="#c9a24a" stroke-width="2.5" stroke-linejoin="round"/>
+      <rect x="83" y="136" width="12" height="20" fill="#2a1d13"/>
+      <rect x="100" y="131" width="9" height="8" fill="#ffd98a"/>
+      <rect x="102" y="104" width="7" height="14" fill="#5a3a22"/>
+      <path d="M105 101 q-4 -8 2 -14 q6 -6 1 -14" fill="none" stroke="#cfc6b6" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+    </g>
+    <!-- Young tree -->
+    <g>
+      <rect x="146" y="128" width="5" height="26" fill="#5a3a22"/>
+      <path d="M148.5 96 L166 132 H131 Z" fill="#4f6b34"/>
+      <path d="M148.5 108 L170 142 H127 Z" fill="#435d2c"/>
+    </g>
+  </g>
+  <circle cx="110" cy="110" r="86" fill="none" stroke="#c9a24a" stroke-width="4"/>
+  <circle cx="110" cy="110" r="94" fill="none" stroke="#c9a24a" stroke-width="1.5" opacity="0.5"/>
+  <!-- Wordmark -->
+  <text x="226" y="112" font-family="Georgia, 'Times New Roman', serif" font-size="68" font-weight="700" fill="#e6e1d6" letter-spacing="2">Un-Banished</text>
+  <rect x="230" y="128" width="500" height="2" fill="#c9a24a" opacity="0.8"/>
+  <text x="230" y="160" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" fill="#b8b1a3">An open, cross-platform port of a classic city builder</text>
+  <text x="230" y="188" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#8a8476">Windows · macOS · Linux · your browser — bring your own copy of the game</text>
+</svg>

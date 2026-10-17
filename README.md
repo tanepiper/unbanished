@@ -1,106 +1,167 @@
-# banished-decompile
+<p align="center">
+  <img src="docs/assets/un-banished-logo.svg" alt="Un-Banished" width="760">
+</p>
 
-Research toward a cross-platform, browser-capable (WASM) reimplementation of the engine for
-[Banished](https://www.shiningrocksoftware.com/) by Shining Rock Software.
+<p align="center">
+  <strong>Play <em>Banished</em> natively on Windows, macOS and Linux — or right in your browser.</strong><br>
+  A from-scratch reimplementation in Rust, wgpu and WebAssembly that runs on the game data you already own.
+</p>
 
-This repository contains **no game code and no game assets**. It holds format documentation, tooling
-and, over time, an engine reimplementation. To use it you need your own copy of the game. The tools read
-the original data from your install into local, git-ignored folders.
+<p align="center">
+  <a href="docs/USER-GUIDE.md">User guide</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#controls">Controls</a> ·
+  <a href="#faq">FAQ</a> ·
+  <a href="AGENTS.md">Contributing</a> ·
+  <a href="docs/FINDINGS.md">Research notes</a>
+</p>
 
-## Layout
+---
 
-| Path | Contents | In git? |
-|---|---|---|
-| `docs/` | Reverse-engineering findings and format specs | yes |
-| `tools/` | Extractors, decoders, Ghidra scripts | yes |
-| `game-data/original/` | Copy of your game's binaries and `.pkg` files | **no** |
-| `game-data/extracted/` | Decompressed resources | **no** |
-| `game-data/derived/` | Exported PNGs, captures | **no** |
-| `analysis/` | Ghidra project and decompiled output | **no** |
+## What is Un-Banished?
 
-## Getting started
+[Banished](https://www.shiningrocksoftware.com/) is a city-building game by Shining Rock Software
+about a group of exiled travellers who start a new life in an unforgiving land. Version 1.0.7
+shipped as a 32/64-bit Windows program.
 
-Requirements: Python 3.10+ and Rust (stable, with `rustup target add wasm32-unknown-unknown` and
-`cargo install trunk` for the web build). For analysis you also need Ghidra 12.1.x and JDK 21
-(`brew install ghidra` on macOS).
+**Un-Banished** is a new engine that plays the same game everywhere. It reads the original game's
+data files and recreates the game's rules, menus, graphics and sound from careful study of
+how the original works, aiming for a **1:1 match**: the same maps from the same seed, the same
+citizens, the same timings and the same save files.
 
-```bash
-# 1. Copy and extract your game data (auto-detects Steam; or set BANISHED_DIR)
-tools/extract-assets.sh
+- 🖥️ **Native** on Windows, macOS (Apple Silicon and Intel) and Linux.
+- 🌐 **In the browser** via WebAssembly — your game files never leave your machine.
+- 💾 **Compatible saves**: the original's save format, so your existing towns load as they are.
+- 🧩 **Mods**: BanishedKit `.pkm` mods load through the original's Mods menu.
+- 🎓 Tutorials, scenarios and achievements, as in the original.
 
-# 2. Native asset browser: models, textures, audio, dialogs (reads game-data/original/WinData)
-cargo run -p banished-viewer --release
-
-# 3. Web version on http://127.0.0.1:8731/?data=/game-data/ (or pick your .pkg files in the page)
-tools/dev-web.sh --release
-
-# The game: boots like the original (splash, loading, main menu with music and 3D town),
-# New Game generates the map. Web: tools/dev-web.sh --app game --release (port 8733)
-cargo run -p banished-app --release
-cargo run -p banished-app --release -- --boot-capture menu.png 4.5
-cargo run -p banished-app --release -- --capture map.png --view overview
-
-# Drop-in use: put the built `banished` binary in the Banished install folder, beside
-# `WinData`, and it reads the game data there and the saves in Documents/Banished/Save, as the
-# original executable does (see docs/SAVE-LOAD-DIALOG.md).
-
-# Headless screenshot of the browser in a mode, e.g. the main menu dialog
-cargo run -p banished-viewer --release -- --screenshot menu.png dialogs MainMenu_resource
-
-# Tests (the game-data tests skip if game-data/ is missing)
-cargo test --release
-
-# Optional: regenerate the Ghidra analysis (about 20 minutes)
-tools/ghidra/export.sh
-```
-
-| Crate | Purpose |
-|---|---|
-| `crates/formats` | Dependency-free readers for `.pkg`, `.crs`, textures, meshes, skeletons, sounds, UI resources |
-| `crates/ui` | Reimplementation of the game's UI system: element tree, layout, fonts, drawing, input |
-| `crates/wma` | Pure-Rust WMA v2 decoder for the game's xWMA audio (native and WASM) |
-| `crates/game` | Game logic: verified RNG/terrain/name generation, households, storage/inventory search, citizen equipment fetching and loitering, climate, scheduled natural-resource growth and spawning |
-| `crates/gfx` | Shared wgpu pieces: UI renderer (incl. the splash Logo material), texture upload |
-| `crates/audio` | xWMA playback for native (rodio) and web (Web Audio) |
-| `apps/game` | `banished`: boot/menu flow, generated maps, live Status Bar, entity picking/gold outlines and packaged entity-window hosts |
-| `apps/viewer` | Asset browser built on `crates/ui`: native window, browser (WASM), `--screenshot`, `--capture` |
-| `apps/cli` | `banished-cli export-audio`: decode all sounds to MP3 via FFmpeg |
-
-Viewer keys: **1–4** switch modes; **Up/Down** browse assets. Model previews can play/pause clips,
-step to the next clip, and seek with **Left/Right**. The model preview has three exclusive render
-modes: “Textured” displays material maps, “Vertices” shows the mesh's indexed vertices as points,
-and “Wireframe” draws triangle edges. The sidebar
-groups assets by mode, then package folder type, folder category, and matching resources (for
-example, Models → Animals → Chicken → its mesh and material resources). **Tab/Shift-Tab** move UI focus,
-**Enter/Escape** activate OK/Cancel or close dropdowns, and arrow keys adjust focused sliders/lists.
-Edit boxes accept text and cursor keys. Dropdown choices and live game values are supplied by host
-controllers; the asset viewer previews templates without a running simulation.
+> [!IMPORTANT]
+> **Un-Banished contains no game content.** You need your own copy of Banished
+> ([Steam](https://store.steampowered.com/app/242920/Banished/) or GOG) — the engine reads the
+> `.pkg` files from its `WinData` folder.
 
 ## Status
 
-See [docs/FINDINGS.md](docs/FINDINGS.md) for the format/engine findings and milestone plan, and
-[docs/GAMEPLAY.md](docs/GAMEPLAY.md) for the evidence-backed gameplay and data-flow research log.
-The first menu-to-new-game trace is in [docs/NEW-GAME-FLOW.md](docs/NEW-GAME-FLOW.md), with the
-terrain and starting-condition handoff in [docs/WORLD-GENERATION.md](docs/WORLD-GENERATION.md).
+**Beta.** The whole game loop runs: new games and loading, the town and its citizens through the
+seasons, every building and tool, trade, disasters, the event log, options, mods, tutorials and
+achievements. Map generation and most game rules are verified bit-for-bit against the original.
+Work continues on the remaining fine details; see [docs/PARITY-AUDIT.md](docs/PARITY-AUDIT.md) for
+what has been checked and [docs/DEVIATIONS.md](docs/DEVIATIONS.md) for the known differences.
 
-- [x] M1: package (`.pkg`) reader and extractor
-- [x] M2: resource (`.crs`) deserializer (core graphics types; others as needed)
-- [x] M3: model viewer, native and browser (terrain moves to M5)
-- [x] M4: UI system and main menu (all decoded controls render; see FINDINGS for fidelity limits)
-- [ ] M5: map generation and terrain (in progress: generator, surface image and terrain mesh are
-      bit-exact with the original executable under emulation and match real saves; `banished`
-      renders generated maps with the ported terrain shader and monthly lighting; the app boots to the
-      main menu with music and the 3D menu scenes. Next: water, sky, decals, particles,
-      resource/tree placement, starting town)
-- [ ] M6: simulation components (calendar/climate and scheduled natural-resource growth/spawning
-      and packaged tree expiry animation are active; citizen movement, storage search and tool/clothing
-      fetching are active. Remaining citizen activities, production and spatial event
-      audio remain open; see [game loop step 19](docs/GAME-LOOP-STEP-19.md))
-- [ ] M7: save/load, audio in game, polish (audio decoding done; the Options dialog, stored
-      settings, key bindings and UI scaling are in, see [docs/OPTIONS.md](docs/OPTIONS.md))
+If you find something that behaves differently from the original, please open an issue — those
+reports are the most useful thing you can send.
+
+## Quick start
+
+There are no prebuilt downloads yet; build from source with the steps below (about five minutes
+on a recent machine).
+
+### 1. Install the tools
+
+- [Rust](https://rustup.rs/) (stable).
+- Python 3.10 or newer (for the data helper script).
+- For the browser version also: `rustup target add wasm32-unknown-unknown` and `cargo install trunk`.
+
+### 2. Get the code and your game data
+
+```bash
+git clone https://github.com/tanepiper/banished-decompile.git un-banished
+cd un-banished
+tools/extract-assets.sh          # finds your Steam install; or: BANISHED_DIR=/path/to/Banished tools/extract-assets.sh
+```
+
+The script copies your game's files into `game-data/`, which git ignores.
+
+### 3. Play
+
+**On your desktop:**
+
+```bash
+cargo run -p banished-app --release
+```
+
+**In your browser:**
+
+```bash
+tools/dev-web.sh --app game --release
+```
+
+Then open <http://127.0.0.1:8733/>. Pick `data0.pkg`, `data1.pkg`, `patch0.pkg` and `patch1.pkg`
+from Banished's `WinData` folder when the page asks; they are read in the page and never uploaded.
+
+**As a drop-in for the original:** copy the built `target/release/banished` (`banished.exe` on
+Windows) into your Banished folder next to `WinData`. It then reads the game data there and uses
+the same save folder as the original (`Documents/Banished/Save`).
+
+The [user guide](docs/USER-GUIDE.md) covers all of this in detail, plus saves, mods, settings and
+troubleshooting.
+
+## Controls
+
+The defaults are the original's, and can be changed under **Options → Input**.
+
+| Action | Keys / mouse |
+|---|---|
+| Move the camera | **W A S D**, or push the pointer to the screen edge |
+| Rotate | **Q** / **E**, or hold the **middle mouse button** and drag |
+| Zoom | **Mouse wheel**, or **Insert** / **Delete** |
+| Tilt | **Page Up** / **Page Down** |
+| Select, place, confirm | **Left click** |
+| Cancel a drag or put the tool away | **Right click** or **Esc** |
+| Pause / resume | **Space** |
+| Toolbar buttons | **F1 – F9** |
+| Tools in an open toolbar menu | **1 – 0** |
+| Camera presets | **Z X C V B** |
+| Screenshot (without / with the interface) | **Print Screen** / **Scroll Lock** |
+
+## FAQ
+
+**Is this legal? Is it a crack?** No. Un-Banished ships no game code, art, sound or text, and it
+cannot run without your own copy of the game. It is an independent, non-commercial
+interoperability project.
+
+**Can I use my existing saves?** Yes, on the desktop. It uses the original's save folder
+(`Documents/Banished/Save`), so your towns appear in the Load dialog. The browser version keeps its
+own saves inside the browser.
+
+**Do mods work?** BanishedKit mods (`.pkm`) work: put them in `WinData` (desktop) or select or drop
+them onto the page (browser), then enable them in the Mods menu.
+
+**Which browsers work?** It is tested in recent Chrome; Edge should behave the same. WebGPU is
+used where available, with WebGL 2 as a fallback, so other modern browsers may work too.
+
+**Does it run on a Steam Deck / Raspberry Pi / …?** Anything with a GPU that supports Vulkan,
+Metal, DirectX 12 or OpenGL ES 3 should work. Reports are welcome.
+
+## For developers
+
+The project is a Rust workspace:
+
+| Path | What it is |
+|---|---|
+| `apps/game` | The game itself (binary `banished`), native and web |
+| `apps/viewer` | An asset browser for models, textures, audio and dialogs |
+| `apps/cli` | Command-line helpers (e.g. audio export) |
+| `crates/game` | Game rules, checked against the original |
+| `crates/formats` | Readers for the game's `.pkg`, `.crs`, mesh, texture, sound and save formats |
+| `crates/ui`, `crates/gfx`, `crates/audio`, `crates/wma` | Interface, rendering, audio and the WMA decoder |
+| `docs/` | Everything learned about how the original works |
+| `tools/` | Data extraction, emulator checks, analysis scripts |
+
+```bash
+cargo test --release                 # tests that need game data skip when game-data/ is missing
+cargo run -p banished-viewer --release
+```
+
+Read **[AGENTS.md](AGENTS.md)** before contributing (by hand or with an AI agent): it has the
+project rules, the checks to run before a commit, and where to find things.
+[docs/FINDINGS.md](docs/FINDINGS.md) is the starting point for the research notes.
 
 ## Legal
 
-Banished is © Shining Rock Software, LLC. This project is an independent, non-commercial
-interoperability effort and is not affiliated with or endorsed by Shining Rock Software. Do not commit
-or distribute game files, extracted assets or decompiled code.
+Banished is © Shining Rock Software, LLC. Un-Banished is an independent, non-commercial
+interoperability project. It is **not affiliated with or endorsed by Shining Rock Software**.
+"Banished" is used only to say which game this engine plays.
+
+The Un-Banished source code is licensed under MIT or Apache-2.0, at your option. It includes no
+game files, extracted assets or decompiled code, and contributions must not add any.
