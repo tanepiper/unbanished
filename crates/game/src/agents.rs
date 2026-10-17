@@ -1036,7 +1036,10 @@ impl Agents {
     }
 
     /// The wild animals' CharacterComponent update (`FUN_14010e990`): animate, run the
-    /// actions, turn and move.
+    /// actions, turn and move. Deviation: the entity manager runs these every-iteration
+    /// updates (`FUN_1400c9560` → `FUN_1400c82b0`) in the order of a tree keyed by the entity's
+    /// address (manager `+0x68`, kept by `FUN_1400c90a0`); the port takes them in the order
+    /// they were made, which a growing heap usually gives too.
     pub fn move_animals(
         &mut self,
         wildlife: &mut crate::wildlife::Wildlife,
@@ -1892,6 +1895,7 @@ impl Agents {
                         storages: env.storages,
                         materials: env.materials,
                         homes: &mut env.construction.homes,
+                        residences: &env.construction.workforce.residences,
                         temperature: env.temperature,
                         life: &self.life,
                         carry: self.carry,

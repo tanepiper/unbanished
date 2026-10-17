@@ -32,6 +32,9 @@ pub struct Needs<'a, 'b> {
     pub storages: &'a mut [Storage],
     pub materials: &'a [RawMaterial],
     pub homes: &'a mut BTreeMap<usize, Home>,
+    /// The town's residences (`+0x20`), in the order they were completed: the searches over
+    /// residences (`FUN_140093840`, `FUN_140094140`) keep the first of equal ranks.
+    pub residences: &'a [usize],
     pub temperature: f32,
     pub life: &'a LifeRules,
     /// The laborer profession's carry `+0x50`.
@@ -192,9 +195,12 @@ impl Needs<'_, '_> {
             best = rank;
             found = Some((self.sites[m.site].entity, m.target));
         }
-        let residences: Vec<usize> = self.homes.keys().copied().collect();
+        let residences: Vec<usize> = self.residences.to_vec();
         for e in residences {
-            if self.homes[&e].occupants() > 0 {
+            let Some(home) = self.homes.get(&e) else {
+                continue;
+            };
+            if home.occupants() > 0 {
                 continue;
             }
             let p = self.point(e);
@@ -308,7 +314,12 @@ impl Needs<'_, '_> {
             let floors = self.town.floors;
             let ground_at = move |c: i32| crate::town::floor_ground(floors, size, terrain, c);
             let mut best = i32::MAX;
-            let homes: Vec<usize> = self.homes.keys().copied().collect();
+            let homes: Vec<usize> = self
+                .residences
+                .iter()
+                .copied()
+                .filter(|e| self.homes.contains_key(e))
+                .collect();
             for e in homes {
                 let p = self.point(e);
                 let to = self.town.cell_of(p);
