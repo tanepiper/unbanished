@@ -274,6 +274,89 @@ mod tests {
         assert_eq!(super::stem("Game/Terrain/Valleys.rsc"), "Valleys");
     }
 
+    /// The vanilla saves' models hold the rotation the port computes from their yaw: a
+    /// character's (`FUN_14010e990`, or its model's until its first update), a fenced area's
+    /// identity (`FUN_1400e02d0` never places it), any other model's `FromYawPitchOffset(yaw,
+    /// 0)`; and every map rotation but a natural resource's is the yaw's whole degrees wrapped
+    /// into 0..360. A save under 99% is not the original's (an older port's) and is skipped.
+    /// A few characters hold a rotation from a yaw since changed. Skipped without the
+    /// git-ignored `save-game/`.
+    #[test]
+    fn saved_rotations_follow_the_yaw() {
+        use banished_formats::savegame::Value;
+        use banished_game::math::Transform;
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../save-game");
+        let Ok(list) = std::fs::read_dir(&dir) else {
+            eprintln!("no saves; skipping");
+            return;
+        };
+        let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
+        for entry in list.flatten() {
+            let Ok(bytes) = std::fs::read(entry.path()) else {
+                continue;
+            };
+            let Ok(saved) = super::SavedGame::parse(&bytes) else {
+                continue;
+            };
+            let (mut ok, mut characters_off, mut off) = (0usize, 0usize, Vec::new());
+            for (_, e) in saved.entities() {
+                let r = saved.ext(&e.fields, "entity.template").unwrap_or("?");
+                let Some(m) = saved.component(e, "ModelComponent") else {
+                    continue;
+                };
+                let (Some(yaw), Some(Value::F32s(q))) =
+                    (m.fields.f32("model.yaw"), m.fields.at("model.rotation"))
+                else {
+                    continue;
+                };
+                let natural = saved.component(e, "NaturalResourceComponent").is_some();
+                let area =
+                    r.ends_with("Pasture.rsc:resource") || r.ends_with("Cemetery.rsc:resource");
+                let model = bits(&Transform::of_model(yaw, [0.0; 3]).q);
+                if saved.component(e, "CharacterComponent").is_some() {
+                    if bits(q) == bits(&Transform::character_rotation(yaw)) || bits(q) == model {
+                        ok += 1;
+                    } else {
+                        characters_off += 1;
+                    }
+                    continue;
+                }
+                let want = if area {
+                    vec![0, 0, 0, 1f32.to_bits()]
+                } else {
+                    model
+                };
+                let map_ok = saved.component(e, "MapComponent").is_none_or(|mp| {
+                    let rot = mp.fields.i32("map.rotation").unwrap_or(0);
+                    let mut w = if natural || area { 0 } else { yaw as i32 };
+                    while w < 0 {
+                        w += 360;
+                    }
+                    area || rot == w
+                });
+                if bits(q) == want && map_ok {
+                    ok += 1;
+                } else {
+                    off.push(format!("{r} yaw {yaw} q {:?}", bits(q)));
+                }
+            }
+            let total = ok + characters_off + off.len();
+            if (ok as f64) < 0.99 * total as f64 {
+                eprintln!(
+                    "{:?}: {ok} of {total}; not the original's, skipped",
+                    entry.file_name()
+                );
+                continue;
+            }
+            eprintln!(
+                "{:?}: {ok} of {total}, {characters_off} characters off",
+                entry.file_name()
+            );
+            assert!(off.is_empty(), "{:?}: {off:?}", entry.file_name());
+            assert!(characters_off * 100 <= total, "{:?}", entry.file_name());
+        }
+    }
+
     /// A wide frame keeps its centred 172:128 part: the bars either side are left out.
     #[test]
     fn preview_crops_the_centre() {

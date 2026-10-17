@@ -323,11 +323,22 @@ impl StartingTown {
                     s.2 = placed.bucket as i32;
                 }
             }
+            let natural = component(g, id, "NaturalResourceComponent").is_some();
+            let area = self.templates[placed.template].fenced_area;
             if let Some(m) = fields_mut(g, id, "MapComponent") {
                 m.set_i32("map.x", placed.cell.0);
                 m.set_i32("map.y", placed.cell.1);
                 m.set_i32("map.w", placed.footprint.0);
                 m.set_i32("map.h", placed.footprint.1);
+                // `+0x30`: the placing tool's whole degrees, wrapped into 0..360
+                // (`FUN_1400e02d0`, `FUN_140058480`); stamped natural resources keep 0.
+                if !natural {
+                    let mut degrees = placed.yaw as i32;
+                    while degrees < 0 {
+                        degrees += 360;
+                    }
+                    m.set_i32("map.rotation", degrees);
+                }
             }
             // Wildlife and boats keep their body in their character; their model is written
             // with them.
@@ -342,12 +353,25 @@ impl StartingTown {
                 if f32s(m, "model.position").as_deref() != Some(&placed.position[..]) {
                     m.set("model.position", Value::F32s(placed.position.to_vec()));
                 }
-                if m.f32("model.yaw") != Some(placed.yaw) {
-                    m.set_f32("model.yaw", placed.yaw);
+                // A fenced area's model is never placed: yaw 0, the identity.
+                let yaw = if area { 0.0 } else { placed.yaw };
+                if area {
+                    m.set("model.rotation", Value::F32s(vec![0.0, 0.0, 0.0, 1.0]));
+                    m.set_f32("model.yaw", 0.0);
+                } else {
                     // The model's rotation: `FromYawPitchOffset(yaw, 0)` (`(-0, -0, -sin, cos)` of
-                    // the half angle).
-                    let q = banished_game::math::Transform::of_model(placed.yaw, [0.0; 3]).q;
-                    m.set("model.rotation", Value::F32s(q.to_vec()));
+                    // the half angle), bit for bit (a template's default is the identity's +0).
+                    // A natural resource's saved rotation is kept unless its yaw changed: the
+                    // original turns those another way.
+                    let q = banished_game::math::Transform::of_model(yaw, [0.0; 3]).q;
+                    let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
+                    let stored = f32s(m, "model.rotation").map(|v| bits(&v));
+                    if m.f32("model.yaw").map(f32::to_bits) != Some(yaw.to_bits())
+                        || (!natural && stored != Some(bits(&q)))
+                    {
+                        m.set_f32("model.yaw", yaw);
+                        m.set("model.rotation", Value::F32s(q.to_vec()));
+                    }
                 }
                 m.set_i32("model.variant", placed.variant as i32);
                 // `usize::MAX`: no mesh (−1).

@@ -476,6 +476,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
         quarry: None,
         trading_post: false,
         tracker: false,
+        fenced_area: false,
         pile: None,
         pile_material: None,
         pile_yield: (0, 0),
@@ -617,6 +618,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                     .map(|m| std::sync::Arc::new(floor_triangles(&m)))
             }
             "tracker" => t.tracker = true,
+            "createfenced" => t.fenced_area = true,
             "trade" => t.trading_post = true,
             "tornado" => {
                 t.tornado = banished_formats::game::tornado_description(&data).ok().map(
@@ -1752,20 +1754,15 @@ impl StartingTown {
             degrees += 360;
         }
         // `FUN_1400c8bf0` of the tool's template, its MapComponent over the area.
-        let half = (n >> 1) as f32 - 0.5;
-        let (px, py) = (
-            x0 as f32 + (w - 1) as f32 / 2.0 - half,
-            y0 as f32 + (h - 1) as f32 / 2.0 - half,
-        );
-        let mut normal = [0.0; 3];
-        let z = terrain.ground(px, py, &mut normal);
         let entity = self.placed.len();
         self.placed.push(Placed {
             template,
             bucket: self.templates[template].bucket,
             cell: (x0, y0),
             footprint: (w, h),
-            position: [px, py, z],
+            // `FUN_1400e02d0` sets only the MapComponent (its rotation the tool's): the model
+            // stays at the origin, unturned (`Placed::model`).
+            position: [0.0; 3],
             yaw: degrees as f32,
             variant: 0,
             mesh: usize::MAX,

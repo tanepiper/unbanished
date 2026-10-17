@@ -109,6 +109,14 @@ impl Transform {
         }
     }
 
+    /// The rotation a CharacterComponent's update writes (`FUN_14010e990`): `(+0, +0,
+    /// −sinf(h), cosf(h))` with `h = (yaw × DEG_TO_RAD) × 0.5`, rounded in that order (a model's
+    /// `FromYawPitchOffset` halves first, and its zeros are negative).
+    pub fn character_rotation(yaw: f32) -> [f32; 4] {
+        let h = (yaw * DEG_TO_RAD) * 0.5;
+        [0.0, 0.0, -sinf(h), cosf(h)]
+    }
+
     /// A placed entity's model transform: its yaw, pitch 0, its position.
     pub fn of_model(yaw: f32, position: [f32; 3]) -> Transform {
         Transform::from_yaw_pitch_offset(yaw, 0.0, position)

@@ -181,7 +181,7 @@ impl StartingTown {
                 m.set("model.position", Value::F32s(ch.position.to_vec()));
                 if m.f32("model.yaw") != Some(ch.yaw) {
                     m.set_f32("model.yaw", ch.yaw);
-                    let q = banished_game::math::Transform::of_model(ch.yaw, [0.0; 3]).q;
+                    let q = banished_game::math::Transform::character_rotation(ch.yaw);
                     m.set("model.rotation", Value::F32s(q.to_vec()));
                 }
             }

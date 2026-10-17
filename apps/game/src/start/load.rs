@@ -198,9 +198,14 @@ impl StartingTown {
                 cell: (m("x"), m("y")),
                 footprint: (m("w"), m("h")),
                 position,
-                yaw: model
-                    .and_then(|m| m.fields.f32("model.yaw"))
-                    .unwrap_or(m("rotation") as f32),
+                // A fenced area's model stays unturned; its yaw is the map's rotation.
+                yaw: if templates[template].fenced_area {
+                    m("rotation") as f32
+                } else {
+                    model
+                        .and_then(|m| m.fields.f32("model.yaw"))
+                        .unwrap_or(m("rotation") as f32)
+                },
                 variant: model_i("variant"),
                 // −1, no mesh yet (a building before its first stage), is `usize::MAX` in the
                 // port (`Sim::set_mesh`).

@@ -2235,7 +2235,7 @@ pub fn entity_views(
                 let (w, h) = p.footprint;
                 (p.cell.0, p.cell.1, w, h)
             });
-            let model = crate::math::Transform::of_model(p.yaw, p.position);
+            let model = p.model(t);
             let use_points = t.use_points.iter().map(|&l| model.apply(l)).collect();
             EntityView {
                 alive: p.alive,

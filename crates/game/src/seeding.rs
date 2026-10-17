@@ -92,6 +92,10 @@ pub struct Template {
     pub trading_post: bool,
     /// Has a TrackerComponent (workplaces whose production the window shows).
     pub tracker: bool,
+    /// A fenced area's template (it has a `createfenced` component, FencedTool): its entity's
+    /// model is never placed (`FUN_1400e02d0` sets only the MapComponent), so it stays at the
+    /// origin with the identity rotation; `Placed::yaw` is its map rotation.
+    pub fenced_area: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,6 +131,21 @@ pub struct Placed {
     pub animation: Option<Playback>,
     /// Mesh instance scale (`MeshInstance +0x134`).
     pub scale: [f32; 4],
+}
+
+impl Placed {
+    /// The entity transform (`+0x148`): `FromYawPitchOffset(yaw, 0, position)`, or for a
+    /// fenced area, whose model is never placed, the identity at its position.
+    pub fn model(&self, t: &Template) -> crate::math::Transform {
+        if t.fenced_area {
+            crate::math::Transform {
+                q: [0.0, 0.0, 0.0, 1.0],
+                p: self.position,
+            }
+        } else {
+            crate::math::Transform::of_model(self.yaw, self.position)
+        }
+    }
 }
 
 /// The gameplay map cells seeding reads and writes (`Game +0xf8`, 48-byte cells).
@@ -1069,6 +1088,7 @@ mod tests {
             quarry: None,
             trading_post: false,
             tracker: false,
+            fenced_area: false,
         }
     }
 

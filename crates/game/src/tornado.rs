@@ -86,7 +86,7 @@ fn normalize(v: [f32; 3]) -> ([f32; 3], f32) {
 
 /// `FUN_1400592e0(path, a, b)`: the point midway between `a` and `b` moves off the line, to its
 /// left, by up to a quarter of their distance (`RandFloat`); then each half.
-fn displace(path: &mut [[f32; 3]], a: usize, b: usize, rng: &mut Random) {
+pub fn displace(path: &mut [[f32; 3]], a: usize, b: usize, rng: &mut Random) {
     let (p, q) = (path[a], path[b]);
     let (d, length) = normalize([q[0] - p[0], q[1] - p[1], q[2] - p[2]]);
     let mid = [

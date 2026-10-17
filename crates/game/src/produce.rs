@@ -93,7 +93,7 @@ impl Sim<'_, '_> {
         let t = &self.templates[p.template];
         let local = t.use_points.get(i).copied().unwrap_or_default();
         let yaw = t.use_yaws.get(i).copied().unwrap_or(0.0);
-        let model = crate::math::Transform::of_model(p.yaw, p.position);
+        let model = p.model(t);
         (model.apply(local), model.heading_of(yaw))
     }
 
