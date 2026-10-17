@@ -2233,14 +2233,25 @@ pub fn entity_views(
 ) -> Vec<EntityView> {
     let mut views: Vec<EntityView> = placed
         .iter()
-        .map(|p| {
+        .enumerate()
+        .map(|(e, p)| {
             let t = &templates[p.template];
             let rect = t.map.as_ref().map(|_| {
                 let (w, h) = p.footprint;
                 (p.cell.0, p.cell.1, w, h)
             });
-            let model = p.model(t);
-            let use_points = t.use_points.iter().map(|&l| model.apply(l)).collect();
+            // The entity's use points, then its MultiObject parts' (`FUN_140128540`,
+            // `FUN_1401282f0`), each turned by its own transform.
+            let parts = construction.sites.get(&e).map_or(&[][..], |s| &s.parts[..]);
+            let use_points = std::iter::once(e)
+                .chain(parts.iter().copied())
+                .filter_map(|x| placed.get(x))
+                .flat_map(|q| {
+                    let qt = &templates[q.template];
+                    let model = q.model(qt);
+                    qt.use_points.iter().map(move |&l| model.apply(l))
+                })
+                .collect();
             EntityView {
                 alive: p.alive,
                 rect: if p.alive { rect } else { None },
