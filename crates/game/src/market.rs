@@ -68,7 +68,7 @@ impl Sim<'_, '_> {
 
     /// A random use point of the market (`Rand` over its InteractComponent's points).
     fn market_point(&mut self, e: usize) -> [f32; 3] {
-        let count = self.templates[self.placed[e].template].use_points.len();
+        let count = self.use_point_count(e);
         let k = self.rng.rand_below(count as u32) as usize;
         self.use_point(e, k).0
     }

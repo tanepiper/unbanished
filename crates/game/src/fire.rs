@@ -399,7 +399,7 @@ impl Sim<'_, '_> {
             return Some((self.ground_at(a), self.ground_at(w)));
         }
         let well = self.water.wells[(-1 - v) as usize]?;
-        let count = self.templates[self.placed[well].template].use_points.len();
+        let count = self.use_point_count(well);
         let k = self.rng.rand_below(count as u32) as usize;
         let point = self.use_point(well, k).0;
         let entrance = self.entrance_cell(well);

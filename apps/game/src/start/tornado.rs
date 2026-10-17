@@ -26,7 +26,7 @@ impl StartingTown {
         let template = self.load_template(archive, reference)?;
         let t = self.templates[template].tornado?;
         let size = self.cells.size;
-        let tornado = Tornado::new(&t, size, terrain, rng);
+        let tornado = Tornado::new(&t, size, terrain, &self.cells.floors, rng);
         let n = size as i32;
         let half = (n >> 1) as f32;
         let p = tornado.position;

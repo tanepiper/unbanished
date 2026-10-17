@@ -3454,10 +3454,7 @@ impl Sim<'_, '_> {
                 return 1;
             }
             // The house has no StorageLocation: its first use point.
-            if self.templates[self.placed[e].template]
-                .use_points
-                .is_empty()
-            {
+            if self.use_point_count(e) == 0 {
                 return 1;
             }
             let (source, _) = self.use_point(e, 0);

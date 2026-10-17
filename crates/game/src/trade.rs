@@ -729,7 +729,7 @@ impl Sim<'_, '_> {
             }
         }
         let here = self.citizen_cell(c);
-        let points = self.templates[self.placed[e].template].use_points.len();
+        let points = self.use_point_count(e);
         for (m, n) in take {
             let size = self.materials[m].size.max(1);
             let carried = &self.states[c].carried;

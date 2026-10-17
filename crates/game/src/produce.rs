@@ -87,21 +87,46 @@ impl Sim<'_, '_> {
 
     /// `FUN_1401282f0(interact, 0, i)`: use point `i` in the world and its heading: the
     /// point's direction (`FromYawPitch(yaw, 0)` at load, `FUN_1401289d0`) turned by the
-    /// entity transform, then `Heading`.
+    /// entity transform, then `Heading`. The entity's own points come first, then its
+    /// MultiObject parts' in turn, each turned by its own transform; past them all, the
+    /// entity's origin.
     pub(crate) fn use_point(&self, e: usize, i: usize) -> ([f32; 3], f32) {
+        let mut i = i;
+        for x in self.interact_entities(e) {
+            let p = &self.placed[x];
+            let t = &self.templates[p.template];
+            if i < t.use_points.len() {
+                let yaw = t.use_yaws.get(i).copied().unwrap_or(0.0);
+                let model = p.model(t);
+                return (model.apply(t.use_points[i]), model.heading_of(yaw));
+            }
+            i -= t.use_points.len();
+        }
         let p = &self.placed[e];
-        let t = &self.templates[p.template];
-        let local = t.use_points.get(i).copied().unwrap_or_default();
-        let yaw = t.use_yaws.get(i).copied().unwrap_or(0.0);
-        let model = p.model(t);
-        (model.apply(local), model.heading_of(yaw))
+        let model = p.model(&self.templates[p.template]);
+        (model.apply([0.0; 3]), model.heading_of(0.0))
+    }
+
+    /// `FUN_140128540(interact, 0)`: the use points of the entity and its MultiObject parts.
+    pub(crate) fn use_point_count(&self, e: usize) -> usize {
+        self.interact_entities(e)
+            .iter()
+            .map(|&x| self.templates[self.placed[x].template].use_points.len())
+            .sum()
     }
 
     /// The cell of create point `i` (`FUN_1401282f0(interact, 2, i)`).
     pub(crate) fn create_cell(&self, e: usize, i: usize) -> i32 {
-        let t = &self.templates[self.placed[e].template];
-        let local = t.create_points.get(i).copied().unwrap_or_default();
-        self.cell_of(self.world_point(e, local))
+        // The entity's own create points, then its MultiObject parts' (`FUN_1401282f0`).
+        let mut i = i;
+        for x in self.interact_entities(e) {
+            let points = &self.templates[self.placed[x].template].create_points;
+            if i < points.len() {
+                return self.cell_of(self.world_point(x, points[i]));
+            }
+            i -= points.len();
+        }
+        self.cell_of(self.world_point(e, [0.0; 3]))
     }
 
     /// ConsumeProduceComponent slot `+0x90` (`FUN_14011e1d0`) and the work's constructor
@@ -145,7 +170,12 @@ impl Sim<'_, '_> {
     /// `FUN_140130460` (transition 2 → 0xd): every create point's cell becomes ground with no
     /// object, ready for output piles.
     pub(crate) fn produce_clear_points(&mut self, e: usize) {
-        let n = self.templates[self.placed[e].template].create_points.len();
+        // `FUN_140128540(.., 2)`: the entity's and its MultiObject parts' create points.
+        let n: usize = self
+            .interact_entities(e)
+            .iter()
+            .map(|&x| self.templates[self.placed[x].template].create_points.len())
+            .sum();
         for i in 0..n {
             let cell = self.create_cell(e, i) as usize;
             self.cells.set_type(cell, crate::terrain::CellType(2));
