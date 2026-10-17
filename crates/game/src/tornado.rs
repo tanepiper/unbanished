@@ -58,7 +58,7 @@ impl Tornado {
     /// The particle component's update for the slot (`FUN_140053490`), which runs before the
     /// tornado's (the template lists `particle` first): the alpha moves by
     /// `AsSeconds(dt) × rate`; above 1 it stays at 1 and stops, at 0 or below the slot goes.
-    fn step_slot(&mut self, dt: i64) {
+    pub fn step_slot(&mut self, dt: i64) {
         let Some((alpha, rate)) = &mut self.slot else {
             return;
         };
@@ -117,6 +117,7 @@ impl Tornado {
         t: &TornadoTemplate,
         size: usize,
         terrain: &HeightGrid,
+        floors: &crate::floor::Floors,
         rng: &mut Random,
     ) -> Tornado {
         let n = size as u32;
@@ -136,12 +137,9 @@ impl Tornado {
                 break;
             }
         }
-        let ground = |x: i32, y: i32| {
-            let half = (size as i32 >> 1) as f32 - 0.5;
-            let (px, py) = (x as f32 - half, y as f32 - half);
-            let mut normal = [0.0; 3];
-            [px, py, terrain.ground(px, py, &mut normal)]
-        };
+        // `FUN_1400a48b0(.., 0)` at the cells' centres: a floor counts.
+        let ground =
+            |x: i32, y: i32| crate::town::floor_ground(floors, size, terrain, y * size as i32 + x);
         let start = ground(x0, y0);
         let end = ground(x1, y1);
         let mut path = vec![[0.0; 3]; POINTS];

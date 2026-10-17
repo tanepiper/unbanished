@@ -76,9 +76,10 @@ impl Transform2 {
         }
     }
 
-    /// `Transform2(Scalar, Vector2)` / `FromYawOffset`: rows `(cos, sin)`, `(−sin, cos)`.
+    /// `Transform2(Scalar, Vector2)` / `FromYawOffset` (Runtime `0x18007e770`, `0x1800792c0`):
+    /// rows `(cos, sin)`, `(−sin, cos)` from the CRT's `sinf` and `cosf` of `degrees × D`.
     fn rotation(degrees: f32) -> Self {
-        let (s, c) = (degrees * 0.017453292).sin_cos();
+        let (s, c) = banished_game::math::sin_cos_deg(degrees);
         Transform2 {
             m: [c, s, -s, c],
             t: [0.0, 0.0],
@@ -305,6 +306,41 @@ pub fn signature(
 
 #[cfg(test)]
 mod tests {
+    /// `Transform2` against the Runtime's (`tools/emu/transform2.py`; skipped without its
+    /// output in game-data/derived/emu): rotation with offset, product and point, bit for bit.
+    #[test]
+    fn transform2_matches_the_runtime() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../game-data/derived/emu/transform2.tsv"
+        );
+        let Ok(text) = std::fs::read_to_string(path) else {
+            eprintln!("no emulator output; skipping");
+            return;
+        };
+        let fs = |s: &str| -> Vec<f32> {
+            s.split(' ')
+                .map(|b| f32::from_bits(u32::from_str_radix(b, 16).unwrap()))
+                .collect()
+        };
+        let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
+        let make = |yaw: f32, x: f32, y: f32| super::Transform2 {
+            t: [x, y],
+            ..super::Transform2::rotation(yaw)
+        };
+        let all = |t: &super::Transform2| [t.m[0], t.m[1], t.m[2], t.m[3], t.t[0], t.t[1]];
+        for line in text.lines() {
+            let c: Vec<Vec<f32>> = line.split('\t').map(fs).collect();
+            let i = &c[0];
+            let a = make(i[0], i[1], i[2]);
+            let b = make(i[3], i[4], i[5]);
+            assert_eq!(bits(&all(&a)), bits(&c[1]), "rotation {line}");
+            let ab = a.then(b);
+            assert_eq!(bits(&all(&ab)), bits(&c[2]), "product {line}");
+            assert_eq!(bits(&ab.apply([i[6], i[7]])), bits(&c[3]), "point {line}");
+        }
+    }
+
     use super::*;
 
     fn entry(yaw: f32) -> Entry<'static> {
