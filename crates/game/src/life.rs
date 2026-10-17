@@ -714,6 +714,10 @@ impl People<'_, '_> {
             crate::status::set_icon(&mut s.status, 0, s.home.is_none(), false);
             crate::status::set_icon(&mut s.status, 1, warn_hunger < s.hunger, false);
             crate::status::set_icon(&mut s.status, 2, warn_cold < s.cold, false);
+            // Icon 3: no workplace, for a profession that does not work anywhere
+            // (profession `+0x4c` clear, citizen `+0x248` unset).
+            let unplaced = !self.professions.works_anywhere(s.profession) && s.workplace.is_none();
+            crate::status::set_icon(&mut s.status, 3, unplaced, false);
             crate::status::set_icon(&mut s.status, 5, s.disease.is_some(), false);
             if warn_hunger < s.hunger {
                 s.health_events |= 1;
