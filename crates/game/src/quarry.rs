@@ -37,13 +37,12 @@ pub const QUARRY_CELL: CellType = CellType(5);
 /// cells per side.
 pub fn dig(heights: &mut [i16], width: usize, q: &QuarryTemplate, p: &Placed, floor: f32) -> bool {
     let half = ((width - 1) >> 1) as f32;
-    let (s, c) = p.yaw.to_radians().sin_cos();
+    let model = crate::math::Transform::of_model(p.yaw, p.position);
     let mut changed = false;
-    for v in q.vertices.iter() {
-        // The model's transform (rotation about z, then its position).
-        let x = v[0] * c - v[1] * s + p.position[0];
-        let y = v[0] * s + v[1] * c + p.position[1];
-        let z = (v[2] + p.position[2] + 0.0).max(floor);
+    for &v in q.vertices.iter() {
+        // The entity transform (`+0x148`) times the vertex.
+        let [x, y, z] = model.apply(v);
+        let z = (z + 0.0).max(floor);
         let (gx, gy) = ((x + 0.25 + half) as i32, (y + 0.25 + half) as i32);
         if gx < 0 || gy < 0 || width as i32 <= gx || width as i32 <= gy {
             continue;
@@ -69,8 +68,10 @@ pub fn claim_steep_cells(cells: &mut Cells, terrain: &HeightGrid, entity: usize,
             }
             let (cx, cy) = (x as f32 - half, y as f32 - half);
             for (dx, dy) in [(-0.25, -0.25), (-0.25, 0.25), (0.25, -0.25), (0.25, 0.25)] {
-                let mut normal = [0.0; 3];
-                terrain.ground(cx + dx, cy + dy, &mut normal);
+                // The cell centre's ground (`FUN_1400a48b0` keeps x and y) a quarter on, the
+                // terrain cell under it cast from 100 above, at most 200 (`FUN_1400afef0`);
+                // no hit leaves the normal zero, which claims the cell.
+                let normal = terrain.normal_below(cx + dx, cy + dy, 100.0, 200.0);
                 if normal[2] < 0.85 {
                     let i = (y * n + x) as usize;
                     cells.types[i] = QUARRY_CELL;

@@ -262,16 +262,22 @@ impl Agents {
         self.rules
     }
 
-    /// `FUN_1400a1950` when the map changed, and the path grid's type commands.
+    /// `FUN_1400a1950` when the map changed, and the path grid's type commands. A sector is
+    /// marked (`FUN_1400ae160`) only where a cell turned walkable or unwalkable (mask `0xe1f`
+    /// against `0x1e0`), as every type write in the original tests before marking: a rebuilt
+    /// sector hands its node ids out again in another order.
     fn sync_map(&mut self, cells: &Cells) {
         if self.region_types == cells.types {
             return;
         }
+        let walk = |t: CellType| (1u32 << (t.0 & 0x1f)) & WALKABLE != 0;
         for (i, (old, new)) in self.region_types.iter().zip(&cells.types).enumerate() {
             if old != new {
                 self.pathfinder.set_type(i, *new);
-                self.sectors
-                    .mark((i % cells.size) as i32, (i / cells.size) as i32);
+                if walk(*old) != walk(*new) {
+                    self.sectors
+                        .mark((i % cells.size) as i32, (i / cells.size) as i32);
+                }
             }
         }
         self.region_types = cells.types.clone();
@@ -2180,18 +2186,8 @@ pub fn entity_views(
                 let (w, h) = p.footprint;
                 (p.cell.0, p.cell.1, w, h)
             });
-            let (s, c) = p.yaw.to_radians().sin_cos();
-            let use_points = t
-                .use_points
-                .iter()
-                .map(|l| {
-                    [
-                        p.position[0] + c * l[0] - s * l[1],
-                        p.position[1] + s * l[0] + c * l[1],
-                        p.position[2] + l[2],
-                    ]
-                })
-                .collect();
+            let model = crate::math::Transform::of_model(p.yaw, p.position);
+            let use_points = t.use_points.iter().map(|&l| model.apply(l)).collect();
             EntityView {
                 alive: p.alive,
                 rect: if p.alive { rect } else { None },

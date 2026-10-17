@@ -78,6 +78,40 @@ the engine the port replaces (renderer, audio, file system, threads). One undefi
 a CRC over the entry table), delete and write. The port reads and writes saves itself and does
 not check that CRC, so a corrupted save loads where the original refuses it.
 
+## Engine maths the simulation depends on (2026-10-17)
+
+Replaced engine pieces were checked for whether the simulation's numbers depend on them.
+These do, and each is now ported bit for bit:
+- **CRT trigonometry** (`crates/game/src/crt.rs`): MSVC's `sinf` (`FUN_140137160`, Runtime
+  `0x18012a620`), `cosf`, `acosf` and the Runtime's table-driven `atan2f` (`0x180128f10`, a
+  table of `atan(k/256)` rounded down) are not correctly rounded. A correctly rounded `sin` gives
+  a different float for about 1 in 1000 inputs, and `acosf` for about 1 in 50. Ported in the
+  original's operation order and checked on 800,059 inputs (`tools/emu/crt_math.py`). `powf`,
+  `floorf` and `sqrtf` already matched.
+- **Normalize, FromYawPitch and Heading** (`math.rs`): `v * (1 / length)` with zero left as is;
+  `(−cos p · sin y, cos p · cos y, sin p)`; `atan2f(−x, y) · 57.29578`.
+- **Model transforms** (`math::Transform`; `FromYawPitchOffset` `0x18007e540`, `operator*`
+  `0x18001eae0`, `Quaternion::Rotate`, `Transform::Inverse` `0x18005e620`): every entity keeps a
+  quaternion and an offset (`+0x148`, `+0x158`). Model-space points go through the quaternion,
+  not a 2D rotation: use, build and create points, named points, the quarry pit and the
+  terraform meshes. Point headings are `Heading(Rotate(FromYawPitch(yaw, 0)))`, not the yaws
+  added and wrapped. Checked on 2,000 cases (`tools/emu/transform.py`); saves write the same
+  quaternion.
+- **Floor picking** (`Picking::Scene::AddMesh` / `Intersect`): the ray is taken into the
+  floor's model space (the inverse transform), the hit tested against model-space triangles,
+  and the hit normal turned back. Every shipped floor mesh is a single root submesh. The cell
+  spot checks (`FUN_1400a4aa0`, `FUN_1400a1210`) stand on floors, and their normals, as the
+  original's do.
+- **The characters' spatial tree** (`character_tree.rs`) for hunting, the tornado and
+  following, checked over 3,000 operations (`tools/emu/character_tree.py`).
+- **Path sectors** are marked for a rebuild only where a cell turns walkable or unwalkable. Every
+  type write in the original tests for this before marking, and a rebuilt sector hands out its
+  node ids in another order.
+
+Checked and already matching: `System::Time` conversions, `Random`, Perlin noise, the animation
+manager, path finding (solved synchronously instead of on threads), and the triangle test in
+picking.
+
 ## Gaps in shipped vanilla features
 
 | Feature | Original | Port |

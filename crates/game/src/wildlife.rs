@@ -1038,13 +1038,15 @@ impl Wild<'_, '_> {
         }
         animal.timer = ticks(secs);
         if turn {
+            // FUN_14010b720: (second draw, first draw, 0) normalized; the direction that
+            // normalized again, the heading of the first (`Vector3::Heading`).
             let y = self.rng.rand_float_tol();
             let x = self.rng.rand_float_tol();
-            let len = (x * x + y * y).sqrt().max(f32::EPSILON);
+            let v = crate::math::normalize3([x, y, 0.0]);
             let ch = &mut self.wildlife.animals.get_mut(&a).unwrap().character;
             ch.flag_28 = false;
-            ch.direction = [x / len, y / len, 0.0];
-            ch.target_heading = (y / len).atan2(x / len).to_degrees();
+            ch.direction = crate::math::normalize3(v);
+            ch.target_heading = crate::math::heading(v[0], v[1]);
         }
     }
 

@@ -286,7 +286,7 @@ pub fn river_strip(path: &[PathPoint]) -> (Vec<[f32; 4]>, Vec<u16>) {
         let left_turn = cross > 0.0;
         let sign = if left_turn { -1.0f32 } else { 1.0 };
         let cos = next.d[0] * s.d[0] + next.d[1] * s.d[1];
-        let arc = ((cos.acos() * 57.29578 / 90.0 * 20.0) as i32).max(1);
+        let arc = ((crate::crt::acosf(cos) * 57.29578 / 90.0 * 20.0) as i32).max(1);
         for k in 0..arc {
             let t = k as f32 / arc as f32;
             let u = 1.0 - t;

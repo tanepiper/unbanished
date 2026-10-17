@@ -2,7 +2,7 @@
 //! 3x3 smoothing and cosine interpolation, summed over octaves.
 //!
 //! Float operations follow the disassembly order exactly (single precision throughout); `cosf` is
-//! the CRT's double-precision implementation rounded to float.
+//! the Runtime's C runtime one ([`crate::crt::cosf`]).
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PerlinNoise {
@@ -17,7 +17,7 @@ pub struct PerlinNoise {
 const PI: f32 = std::f32::consts::PI;
 
 fn cosf(x: f32) -> f32 {
-    (x as f64).cos() as f32
+    crate::crt::cosf(x)
 }
 
 /// `powf` for the exponents the generator uses (small non-negative integers).

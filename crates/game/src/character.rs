@@ -203,34 +203,21 @@ impl World<'_> {
 
 /// `Math::Vector3::Heading`: `atan2(-x, y)` in degrees (0 faces +y).
 pub fn heading(dir: [f32; 2]) -> f32 {
-    (-dir[0]).atan2(dir[1]).to_degrees()
+    crate::math::heading(dir[0], dir[1])
 }
 
 /// FUN_1400c7e70: normalize the full 3D vector before taking its heading.
 pub fn work_facing(source: [f32; 3], target: [f32; 3]) -> f32 {
-    let mut d = [
+    let d = crate::math::normalize3([
         source[0] - target[0],
         source[1] - target[1],
         source[2] - target[2],
-    ];
-    let length = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
-    if length != 0.0 {
-        let inverse = 1.0 / length;
-        for v in &mut d {
-            *v *= inverse;
-        }
-    }
-    // Runtime Heading (18007d3d0) rounds the double-precision atan2 result to f32 first.
-    ((-(d[0] as f64)).atan2(d[1] as f64) as f32) * 57.29578
+    ]);
+    crate::math::heading(d[0], d[1])
 }
 
 fn normalize2(v: [f32; 2]) -> [f32; 2] {
-    let l = (v[0] * v[0] + v[1] * v[1]).sqrt();
-    if l > 0.0 {
-        [v[0] / l, v[1] / l]
-    } else {
-        v
-    }
+    crate::math::normalize2(v)
 }
 
 /// The character state the actions drive.
@@ -352,11 +339,12 @@ impl Character {
         self.position = p;
     }
 
-    /// `FUN_1400ce1f0` / MoveTo's final approach: face and walk toward a point.
+    /// `FUN_1400ce1f0` / MoveTo's final approach: face and walk toward a point. The
+    /// direction is the 2D unit vector normalized again in 3D; the heading is the first's.
     pub fn face(&mut self, target: [f32; 3]) {
         let d = normalize2([target[0] - self.position[0], target[1] - self.position[1]]);
         self.flag_28 = false;
-        self.direction = [d[0], d[1], 0.0];
+        self.direction = crate::math::normalize3([d[0], d[1], 0.0]);
         self.target_heading = heading(d);
     }
 }
@@ -761,9 +749,12 @@ impl Action {
                 ch.play(*anim, group, 0.0);
                 // `FUN_14010f530(FromYawPitch(facing))`.
                 if (-180.0..=180.0).contains(facing) {
-                    let (s, c) = facing.to_radians().sin_cos();
-                    ch.direction = [-s, c, 0.0];
-                    ch.target_heading = *facing;
+                    // FUN_14010f530: the direction (x, y, 0) normalized, the heading back
+                    // from the vector.
+                    let v = crate::math::from_yaw_pitch(*facing, 0.0);
+                    ch.flag_28 = false;
+                    ch.direction = crate::math::normalize3([v[0], v[1], 0.0]);
+                    ch.target_heading = crate::math::heading(v[0], v[1]);
                 }
                 // `+0x40`: spend one tool use (never below zero).
                 if *consume && *world.tool_uses > 0 {

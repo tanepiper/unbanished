@@ -17,8 +17,8 @@ use crate::terrain::HeightGrid;
 const RAY_TOP: f32 = 50.0;
 const RAY_LENGTH: f32 = 100.0;
 
-/// The map's floors: per cell how many floors cover it (`+0x2d`) and every floor's triangles
-/// in map space (the map's picking scene, map `+0x08`).
+/// The map's floors: per cell how many floors cover it (`+0x2d`) and every floor's mesh with
+/// its transform (the map's picking scene, map `+0x08`).
 #[derive(Debug, Clone, Default)]
 pub struct Floors {
     pub counts: Vec<u8>,
@@ -29,25 +29,21 @@ pub struct Floors {
 pub struct Floor {
     /// The MapComponent's rectangle (`x, y, w, h`) the floor counts on.
     pub rect: (i32, i32, i32, i32),
+    /// The entity transform (`+0x148`) AddMesh keeps for the mesh's root (every shipped floor
+    /// mesh is one root submesh).
+    pub transform: crate::math::Transform,
+    /// Model space: `Picking::Scene::Intersect` takes the ray into the mesh's space.
     pub triangles: Vec<[[f32; 3]; 3]>,
 }
 
 impl Floor {
-    /// A floor mesh (model space) turned and placed as the entity's model, over its
-    /// MapComponent's cells (`FUN_140124860`: the model transform and map rectangle).
+    /// A floor mesh placed as the entity's model, over its MapComponent's cells
+    /// (`FUN_140124860`: the model transform and map rectangle).
     pub fn placed(mesh: &[[[f32; 3]; 3]], p: &crate::seeding::Placed) -> Floor {
-        let (s, c) = p.yaw.to_radians().sin_cos();
-        let at = p.position;
-        let place = |v: [f32; 3]| {
-            [
-                c * v[0] - s * v[1] + at[0],
-                s * v[0] + c * v[1] + at[1],
-                v[2] + at[2],
-            ]
-        };
         Floor {
             rect: (p.cell.0, p.cell.1, p.footprint.0, p.footprint.1),
-            triangles: mesh.iter().map(|t| t.map(place)).collect(),
+            transform: crate::math::Transform::of_model(p.yaw, p.position),
+            triangles: mesh.to_vec(),
         }
     }
 }
@@ -90,8 +86,21 @@ impl Floors {
     /// `FUN_1400a48b0(point, skip floors = false)`: the terrain under `(x, y)`; on a cell with a
     /// floor, the nearest floor hit by a ray from 50 above, when it is above the terrain.
     pub fn ground(&self, size: usize, terrain: &HeightGrid, x: f32, y: f32) -> f32 {
-        let mut normal = [0.0; 3];
-        let ground = terrain.ground(x, y, &mut normal);
+        self.ground_normal(size, terrain, x, y, &mut [0.0; 3])
+    }
+
+    /// As [`Floors::ground`], with the normal there (`param_5`): the terrain's, or on a floor
+    /// the hit triangle's turned back into the map (`Intersect`'s last accepted hit).
+    pub fn ground_normal(
+        &self,
+        size: usize,
+        terrain: &HeightGrid,
+        x: f32,
+        y: f32,
+        normal: &mut [f32; 3],
+    ) -> f32 {
+        let mut terrain_normal = [0.0; 3];
+        let ground = terrain.ground(x, y, &mut terrain_normal);
         let n = size as i32;
         let half = (n >> 1) as f32;
         let cx = ((x + half) as i32).clamp(0, n - 1);
@@ -101,26 +110,35 @@ impl Floors {
             .get((cy * n + cx) as usize)
             .copied()
             .unwrap_or(0) as i8
-            <= 0
+            > 0
         {
-            return ground;
-        }
-        let origin = [x, y, RAY_TOP];
-        let direction = [0.0, 0.0, -1.0];
-        let mut nearest = RAY_LENGTH;
-        let mut hit = None;
-        for floor in self.meshes.values() {
-            for &t in &floor.triangles {
-                if let Some(d) = crate::picking::triangle(origin, direction, t, nearest) {
-                    nearest = d;
-                    hit = Some(d);
+            let origin = [x, y, RAY_TOP];
+            let direction = [0.0, 0.0, -1.0];
+            let mut nearest = RAY_LENGTH;
+            let mut hit = None;
+            for floor in self.meshes.values() {
+                // `Picking::Scene::Intersect`: the ray in the mesh's space
+                // (`Transform::Inverse`); the distance holds, the rotation keeping the
+                // direction's length.
+                let inverse = floor.transform.inverse();
+                let (o, dir) = (inverse.apply(origin), inverse.rotate(direction));
+                for &t in &floor.triangles {
+                    if let Some(d) = crate::picking::triangle(o, dir, t, nearest) {
+                        nearest = d;
+                        hit = Some((d, floor.transform.rotate(crate::picking::face_normal(t))));
+                    }
+                }
+            }
+            if let Some((d, n)) = hit {
+                let z = crate::picking::point(origin, direction, d)[2];
+                if ground < z {
+                    *normal = n;
+                    return z;
                 }
             }
         }
-        match hit {
-            Some(d) if ground < RAY_TOP - d => RAY_TOP - d,
-            _ => ground,
-        }
+        *normal = terrain_normal;
+        ground
     }
 }
 
@@ -142,6 +160,7 @@ mod tests {
         // Cell (4, 4) spans −0..1 around the map centre: x, y in [0, 1].
         let deck = |z: f32| Floor {
             rect: (4, 4, 1, 1),
+            transform: crate::math::Transform::of_model(0.0, [0.0; 3]),
             triangles: vec![
                 [[0.0, 0.0, z], [1.0, 0.0, z], [1.0, 1.0, z]],
                 [[0.0, 0.0, z], [1.0, 1.0, z], [0.0, 1.0, z]],

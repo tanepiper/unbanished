@@ -58,17 +58,14 @@ fn ahead(route: &[[f32; 3]], index: i32, p: [f32; 3], d: f32) -> Option<i32> {
     }
 }
 
+/// `Math::Vector3::Length`.
 fn length(v: [f32; 3]) -> f32 {
-    (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt()
+    crate::math::length3(v)
 }
 
+/// `Math::Vector3::Normalize`.
 fn normalize(v: [f32; 3]) -> [f32; 3] {
-    let l = length(v);
-    if l == 0.0 {
-        v
-    } else {
-        [v[0] / l, v[1] / l, v[2] / l]
-    }
+    crate::math::normalize3(v)
 }
 
 /// `Math::Vector3::Heading`.
@@ -154,8 +151,7 @@ pub fn route(
         let a = route[k];
         let b = route[k.saturating_sub(2)];
         let flow = normalize([a[0] - b[0], a[1] - b[1], 0.0]);
-        let rad = dock_yaw.to_radians();
-        let mut dir = [-rad.sin(), rad.cos(), 0.0];
+        let mut dir = crate::math::from_yaw_pitch(dock_yaw, 0.0);
         if flow[0] * dir[0] + flow[1] * dir[1] < 0.0 {
             dir = [-dir[0], -dir[1], 0.0];
         }
@@ -259,14 +255,9 @@ impl Sim<'_, '_> {
             .iter()
             .find(|(n, _, _)| n == name)
             .map(|(_, p, y)| (*p, *y))?;
-        let mut yaw = yaw + p.yaw;
-        while yaw > 180.0 {
-            yaw -= 360.0;
-        }
-        while yaw <= -180.0 {
-            yaw += 360.0;
-        }
-        Some((self.world_point(e, local), yaw))
+        // The point's `FromYawPitch(yaw, 0)` turned by the entity transform, then `Heading`.
+        let model = crate::math::Transform::of_model(p.yaw, p.position);
+        Some((model.apply(local), model.heading_of(yaw)))
     }
 
     /// `FUN_140046d30`: within three of the point it heads for, the next one six on (none at

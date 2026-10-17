@@ -73,14 +73,12 @@ pub fn reshape(
     ceiling: bool,
     raised: &mut Vec<[f32; 3]>,
 ) -> bool {
-    let (s, c) = yaw.to_radians().sin_cos();
+    let model = crate::math::Transform::of_model(yaw, position);
     let mut changed = false;
-    for v in vertices {
-        let q = [
-            c * v[0] - s * v[1] + position[0] + 0.25,
-            s * v[0] + c * v[1] + position[1] + 0.25,
-            v[2] + position[2],
-        ];
+    for &v in vertices {
+        // The entity transform (`+0x148`) times the vertex, a quarter cell on.
+        let t = model.apply(v);
+        let q = [t[0] + 0.25, t[1] + 0.25, t[2] + 0.0];
         let ground = {
             let grid = HeightGrid { width, heights };
             floors.ground(cells.size, &grid, q[0], q[1])

@@ -419,7 +419,10 @@ impl<'a> Seeder<'a> {
         }
         let (px, py) = self.cell_position(i);
         let mut normal = [0.0f32; 3];
-        let h = self.terrain.ground(px, py, &mut normal);
+        let h =
+            self.cells
+                .floors
+                .ground_normal(self.cells.size, &self.terrain, px, py, &mut normal);
         SPAWN_NORMAL <= normal[2] && (h - 0.0).abs() <= SPAWN_HEIGHT_TOLERANCE
     }
 

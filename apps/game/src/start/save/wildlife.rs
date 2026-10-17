@@ -206,11 +206,8 @@ impl StartingTown {
             m.set("model.position", Value::F32s(ch.position.to_vec()));
             if m.f32("model.yaw") != Some(ch.yaw) {
                 m.set_f32("model.yaw", ch.yaw);
-                let half = ch.yaw.to_radians() / 2.0;
-                m.set(
-                    "model.rotation",
-                    Value::F32s(vec![-0.0, -0.0, -half.sin(), half.cos()]),
-                );
+                let q = banished_game::math::Transform::of_model(ch.yaw, [0.0; 3]).q;
+                m.set("model.rotation", Value::F32s(q.to_vec()));
             }
             if mesh != usize::MAX {
                 m.set_i32("model.variant", variant as i32);

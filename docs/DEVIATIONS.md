@@ -83,8 +83,8 @@ Deviation: 41, Not ported: 4, Not traced: 1.
 ## `crates/game/src/agents.rs`
 
 - [Deviation] [crates/game/src/agents.rs:1](../crates/game/src/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance (`AnimationManager::Update`), every character runs its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run the AI with zero time (`FUN_140114810`), then the AI updates. The citizens' scheduled components (CitizenComponent, CitizenAIComponent and the CharacterComponent's notify) run for the citizens bucket 1 visited this iteration, with the time since each one's last visit; so do the sites' StateMachines, fires, blight, hunts, attendance, residences and piles in bucket 3 (`FUN_1400c9560`, `town::Env::visits`). Deviation: these run after the bucket pass (system by system, each in visiting order) instead of interleaved with it entity by entity, so random draws can come in another order.
-- [Deviation] [crates/game/src/agents.rs:616](../crates/game/src/agents.rs#L616): `FUN_14004ddb0`: the band becomes citizens in fours where each nomad stands (`FUN_140050b00` → `FUN_14011c550`, laborers): a man, a woman (married to him), then a girl and a boy in her care. Adults are `+0x50 + RandFloat × (+0x54 − +0x50)` years old, children `RandFloat × +0x50`. Then the nomads are gone and the town hall goes back to 2. Deviation: a band taken in is made after the frame's other commands.
-- [Deviation] [crates/game/src/agents.rs:772](../crates/game/src/agents.rs#L772): The citizens' CharacterComponents in the characters' tree: the dead leave it (`FUN_14010ee50`), the new join it (`FUN_14010ee90`), in index order. Deviation: the original puts a citizen in when its entity activates; the port at the next citizens' update, so one made in an iteration joins after that iteration's animals, boats and nomads.
+- [Deviation] [crates/game/src/agents.rs:622](../crates/game/src/agents.rs#L622): `FUN_14004ddb0`: the band becomes citizens in fours where each nomad stands (`FUN_140050b00` → `FUN_14011c550`, laborers): a man, a woman (married to him), then a girl and a boy in her care. Adults are `+0x50 + RandFloat × (+0x54 − +0x50)` years old, children `RandFloat × +0x50`. Then the nomads are gone and the town hall goes back to 2. Deviation: a band taken in is made after the frame's other commands.
+- [Deviation] [crates/game/src/agents.rs:778](../crates/game/src/agents.rs#L778): The citizens' CharacterComponents in the characters' tree: the dead leave it (`FUN_14010ee50`), the new join it (`FUN_14010ee90`), in index order. Deviation: the original puts a citizen in when its entity activates; the port at the next citizens' update, so one made in an iteration joins after that iteration's animals, boats and nomads.
 
 ## `crates/game/src/animation.rs`
 
@@ -139,7 +139,7 @@ Deviation: 41, Not ported: 4, Not traced: 1.
 
 ## `crates/game/src/placement.rs`
 
-- [Not ported] [crates/game/src/placement.rs:219](../crates/game/src/placement.rs#L219): `FUN_1400a2830` (ZoneComponent activation, `FUN_1401356c0`): the entity becomes the occupant (`+0x00`) of every non-`.` footprint cell; `.` cells count one more zone at `+0x28`. Not ported: the path grid's blocked bit (citizens' mode 0 does not honour it).
+- [Not ported] [crates/game/src/placement.rs:221](../crates/game/src/placement.rs#L221): `FUN_1400a2830` (ZoneComponent activation, `FUN_1401356c0`): the entity becomes the occupant (`+0x00`) of every non-`.` footprint cell; `.` cells count one more zone at `+0x28`. Not ported: the path grid's blocked bit (citizens' mode 0 does not honour it).
 
 ## `crates/game/src/spawn.rs`
 
@@ -160,7 +160,7 @@ Deviation: 41, Not ported: 4, Not traced: 1.
 ## `crates/game/src/wildlife.rs`
 
 - [Deviation] [crates/game/src/wildlife.rs:404](../crates/game/src/wildlife.rs#L404): Deviation: a zero space would divide by zero in the original.
-- [Deviation] [crates/game/src/wildlife.rs:1084](../crates/game/src/wildlife.rs#L1084): Deviation: a zero interval would never leave the loop in the original.
+- [Deviation] [crates/game/src/wildlife.rs:1086](../crates/game/src/wildlife.rs#L1086): Deviation: a zero interval would never leave the loop in the original.
 
 ## `crates/ui/src/input.rs`
 

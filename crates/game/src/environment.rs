@@ -290,7 +290,7 @@ impl Environment {
         let noise = self.noise.generate(elapsed / NOISE_PERIOD, 0.0);
         // `FUN_140137160`: sine of `((t − 300) / 3600) × 360 × π/180`.
         let phase = ((elapsed - MONTH_SECONDS) / YEAR_SECONDS) * 360.0 * 0.017_453_292;
-        let sine = (phase as f64).sin() as f32;
+        let sine = crate::crt::sinf(phase);
         let t = sine * self.climate.seasonal + self.baseline;
         self.temperature = noise * self.climate.noise + t;
     }

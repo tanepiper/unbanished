@@ -54,13 +54,9 @@ pub struct Tornado {
 /// `PATH`: the line's points (`0x81`).
 const POINTS: usize = 129;
 
+/// `Math::Vector3::Normalize` with the length.
 fn normalize(v: [f32; 3]) -> ([f32; 3], f32) {
-    let l = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
-    if l == 0.0 {
-        (v, 0.0)
-    } else {
-        ([v[0] / l, v[1] / l, v[2] / l], l)
-    }
+    crate::math::normalize3_len(v)
 }
 
 /// `FUN_1400592e0(path, a, b)`: the point midway between `a` and `b` moves off the line, to its
@@ -169,7 +165,7 @@ impl Tornado {
         let angle = rng.rand_float_tol() * 180.0 * 0.017_453_292;
         let r = rng.rand_float();
         let reach = t.throw as f32;
-        let (sin, cos) = ((angle as f64).sin() as f32, (angle as f64).cos() as f32);
+        let (sin, cos) = (crate::crt::sinf(angle), crate::crt::cosf(angle));
         let v = [sin * reach, cos * reach, reach * 0.0];
         [
             v[0] * r + self.position[0],

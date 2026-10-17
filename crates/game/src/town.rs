@@ -422,12 +422,7 @@ impl Sim<'_, '_> {
     /// An entity's model-space point in the world (`ModelComponent` transform).
     pub(crate) fn world_point(&self, entity: usize, local: [f32; 3]) -> [f32; 3] {
         let p = &self.placed[entity];
-        let (s, c) = p.yaw.to_radians().sin_cos();
-        [
-            p.position[0] + c * local[0] - s * local[1],
-            p.position[1] + s * local[0] + c * local[1],
-            p.position[2] + local[2],
-        ]
+        crate::math::Transform::of_model(p.yaw, p.position).apply(local)
     }
 
     /// The entity, then its MultiObject parts: whose InteractComponents hold its points (the

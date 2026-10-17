@@ -85,20 +85,16 @@ impl Sim<'_, '_> {
         0
     }
 
-    /// `FUN_1401282f0(interact, 0, i)`: use point `i` in the world and its heading (the
-    /// point's yaw turned with the building; inferred).
+    /// `FUN_1401282f0(interact, 0, i)`: use point `i` in the world and its heading: the
+    /// point's direction (`FromYawPitch(yaw, 0)` at load, `FUN_1401289d0`) turned by the
+    /// entity transform, then `Heading`.
     pub(crate) fn use_point(&self, e: usize, i: usize) -> ([f32; 3], f32) {
         let p = &self.placed[e];
         let t = &self.templates[p.template];
         let local = t.use_points.get(i).copied().unwrap_or_default();
-        let mut yaw = p.yaw + t.use_yaws.get(i).copied().unwrap_or(0.0);
-        while yaw > 180.0 {
-            yaw -= 360.0;
-        }
-        while yaw <= -180.0 {
-            yaw += 360.0;
-        }
-        (self.world_point(e, local), yaw)
+        let yaw = t.use_yaws.get(i).copied().unwrap_or(0.0);
+        let model = crate::math::Transform::of_model(p.yaw, p.position);
+        (model.apply(local), model.heading_of(yaw))
     }
 
     /// The cell of create point `i` (`FUN_1401282f0(interact, 2, i)`).
@@ -176,7 +172,9 @@ impl Sim<'_, '_> {
             let half = (n >> 1) as f32 - 0.5;
             let (x, y) = ((i as i32 % n) as f32 - half, (i as i32 / n) as f32 - half);
             let mut normal = [0.0; 3];
-            self.terrain.ground(x, y, &mut normal);
+            self.cells
+                .floors
+                .ground_normal(self.size, self.terrain, x, y, &mut normal);
             0.97 <= normal[2]
         })
     }

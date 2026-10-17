@@ -344,12 +344,10 @@ impl StartingTown {
                 }
                 if m.f32("model.yaw") != Some(placed.yaw) {
                     m.set_f32("model.yaw", placed.yaw);
-                    // The model's rotation about z (saves show (0, 0, -sin(yaw/2), cos(yaw/2))).
-                    let half = placed.yaw.to_radians() / 2.0;
-                    m.set(
-                        "model.rotation",
-                        Value::F32s(vec![-0.0, -0.0, -half.sin(), half.cos()]),
-                    );
+                    // The model's rotation: `FromYawPitchOffset(yaw, 0)` (`(-0, -0, -sin, cos)` of
+                    // the half angle).
+                    let q = banished_game::math::Transform::of_model(placed.yaw, [0.0; 3]).q;
+                    m.set("model.rotation", Value::F32s(q.to_vec()));
                 }
                 m.set_i32("model.variant", placed.variant as i32);
                 // `usize::MAX`: no mesh (−1).

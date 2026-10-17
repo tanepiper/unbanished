@@ -125,7 +125,9 @@ pub fn cell_admits(
     let half = (n >> 1) as f32 - 0.5;
     let (px, py) = ((i as i32 % n) as f32 - half, (i as i32 / n) as f32 - half);
     let mut normal = [0.0f32; 3];
-    let h = terrain.ground(px, py, &mut normal);
+    let h = cells
+        .floors
+        .ground_normal(cells.size, terrain, px, py, &mut normal);
     min_normal <= normal[2] && (h - reference).abs() <= tolerance
 }
 

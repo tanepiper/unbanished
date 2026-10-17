@@ -175,6 +175,22 @@ impl HeightGrid<'_> {
         (hit, t)
     }
 
+    /// `FUN_1400afef0` straight down from `(x, y, top)`, at most `length` (in the cell under
+    /// `x, y`): the hit triangle's normal, zero when nothing is hit.
+    pub fn normal_below(&self, x: f32, y: f32, top: f32, length: f32) -> [f32; 3] {
+        let half = ((self.width as i32 - 1) >> 1) as f32;
+        let mut normal = [0.0; 3];
+        self.raycast_cell(
+            (x + half) as i32,
+            (y + half) as i32,
+            [0.0, 0.0, -1.0],
+            [x, y, top],
+            length,
+            &mut normal,
+        );
+        normal
+    }
+
     /// `FUN_1400b6460`: ground height at a map position (0 when no triangle is hit). `normal`
     /// receives the hit triangle's normal and is left unchanged otherwise.
     pub fn ground(&self, x: f32, y: f32, normal: &mut [f32; 3]) -> f32 {
