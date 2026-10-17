@@ -155,6 +155,18 @@ These do, and each is now ported bit for bit:
 `Transform2` is used only by the building decals (`FUN_1400b2310`), which are drawn only.
 `Dot`, `Length`, `Lerp` and `Cross` give the port's results in the port's order.
 
+**Every Runtime class the Application calls**, by what the simulation needs of it:
+- checked against the emulator: the CRT maths, `Math::Transform`, `Quaternion`, `Vector2/3`
+  (`transform.rs`, `crt_math.rs`), `Math::Transform2` (decals, `transform2_matches_the_runtime`),
+  `System::Random`, `Utility::PerlinNoise`, `Graphics::AnimationManager` and the root motion
+  (`animation_emu.rs`), `Picking::Scene` (`picking_emu.rs`), the pathfinder (`astar_emu.rs`,
+  `regions_emu.rs`), the characters' tree and its `Volume::Box` / `Rectangle` searches
+  (`character_tree.rs`), a particle slot's fade (`particle_slot.rs`);
+- read and ported: `System::Time`, `Achievement::*` (the manager, goal lists and instances);
+- presentation, input, files and engine plumbing only: `Graphics::*` (an `AnimationEvent` subclass
+  carries a sound), `Video::*`, `UI::*`, `Audio::*`, `Input::*`, `IO::*`, `Engine::*`, `Save::*`,
+  `Object::*`, `Volume::Frustum`, `Utility::ImageTools`, `Math::Transform3`, `Matrix`, `Vector4`.
+
 Checked and already matching: `System::Time` conversions, `Random`, Perlin noise, the animation
 manager, path finding (solved synchronously instead of on threads), and the triangle test in
 picking.
