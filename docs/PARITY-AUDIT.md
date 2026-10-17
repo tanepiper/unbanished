@@ -196,6 +196,13 @@ picking.
   order of a tree keyed by entity address (`FUN_1400c90a0`), which a port cannot reproduce;
   creation order stands in (noted as a deviation).
 - **Floors in every ground query** but the tornado's own step and the natural cell types.
+- **The citizen's life, read line by line** against `FUN_140118340` (and its structure against
+  the assembly), with health `FUN_140117e60`, happiness `FUN_140117fb0`, disease
+  `FUN_140117ca0`, infection `FUN_14011c060`, recovery `FUN_140117880`, death `FUN_14011c2a0`,
+  the cemetery search `FUN_14008ec10` and the home search `FUN_140116340`. Fixed: status icon 3
+  (no workplace) was never set; a disease spreads to every healthy citizen about the sick one
+  (`FUN_140117940`), not to the first; a disease check with no odds still draws; entrances and
+  interaction points count MultiObject parts' points; fence parts stand at z 0.
 
 ## Gaps in shipped vanilla features
 
