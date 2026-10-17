@@ -977,6 +977,7 @@ impl Ui {
     /// containers' wheel) by `dt` seconds.
     pub fn update(&mut self, dt: f32) {
         self.update_containers();
+        self.update_caret(dt);
         for node in &mut self.nodes {
             if let Kind::AnimatedImage {
                 sprites,

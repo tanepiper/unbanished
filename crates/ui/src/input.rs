@@ -81,6 +81,16 @@ impl Ui {
         if self.pointer_down {
             if let Some(id) = self.pressed {
                 self.drag_control(id, x, y);
+                // `ButtonElement::Update`: leaving a pressed button lets it go; coming back
+                // before the release does not press it again.
+                let button = matches!(
+                    self.nodes[id].kind,
+                    Kind::Button { .. }
+                        | Kind::Control(Control::Check { .. } | Control::Combo { .. })
+                ) || self.nodes[id].flags & banished_formats::ui::flags::MOUSE != 0;
+                if button && self.hot != Some(id) {
+                    self.pressed = None;
+                }
             }
         }
         for n in &mut self.nodes {
@@ -142,6 +152,11 @@ impl Ui {
         let mut event = None;
         if down {
             self.pressed = self.hot;
+            if let Some(f) = self.focus.filter(|&f| Some(f) != self.hot) {
+                if matches!(self.nodes[f].kind, Kind::Control(Control::Edit(_))) {
+                    self.commit_edit(f);
+                }
+            }
             self.focus = self.hot;
             // `ButtonElement::Update`: `Play(4)` on press (a list plays nothing; a slider or a
             // scroll bar, below).
@@ -150,7 +165,10 @@ impl Ui {
                     && self.nodes[id].usable()
                     && !matches!(
                         self.nodes[id].kind,
-                        Kind::List(_) | Kind::Control(Control::Slider(_) | Control::Scroll { .. })
+                        Kind::List(_)
+                            | Kind::Control(
+                                Control::Slider(_) | Control::Scroll { .. } | Control::Edit(_)
+                            )
                     )
             }) {
                 self.sounds.push(4);
@@ -164,21 +182,23 @@ impl Ui {
                             event = Some(Event::Selected(id, row));
                         }
                     }
+                    // `EditElement::Update`: a press puts the cursor before the first
+                    // character whose right edge reaches the pointer (at the end past the
+                    // text, or left of it), and shows the caret.
                     Kind::Control(Control::Edit(e)) => {
-                        let target = self.pointer.0 - rect[0] - 3 + e.scroll;
-                        let mut best = 0;
-                        let mut distance = i32::MAX;
-                        for i in 0..=e.text.text.chars().count() {
-                            let prefix = e.text.text.chars().take(i).collect::<String>();
-                            let x = e.text.font.map_or(0, |f| {
-                                TextLayout::compute(&self.res, f, &prefix, None, 0).width
-                            });
-                            if (x - target).abs() < distance {
-                                distance = (x - target).abs();
-                                best = i;
-                            }
-                        }
-                        e.cursor = best;
+                        let target = self.pointer.0 - rect[0];
+                        let len = e.text.text.chars().count();
+                        e.cursor = (0..len)
+                            .find(|&i| {
+                                let prefix = e.text.text.chars().take(i + 1).collect::<String>();
+                                let x = e.text.font.map_or(0, |f| {
+                                    TextLayout::compute(&self.res, f, &prefix, None, 0).width
+                                });
+                                0 <= target && target <= x
+                            })
+                            .unwrap_or(len);
+                        e.caret = true;
+                        e.blink = 0.0;
                     }
                     Kind::Control(Control::Document(d)) => d.pressed_link = d.hovered_link,
                     // `ScrollElement::Update`: on a bar that scrolls, a press on the thumb
@@ -382,7 +402,6 @@ impl Ui {
                 *open = !*open;
                 Some(Event::Clicked(id))
             }
-            Kind::Control(Control::Edit(e)) if e.max_length > 0 => Some(Event::Submitted(id)),
             Kind::Control(Control::Document(d)) => d
                 .hovered_link
                 .filter(|&i| {
@@ -794,24 +813,9 @@ impl Ui {
                         e.text.text.replace_range(at..next, "");
                         changed = true;
                     }
-                    Key::Enter => {
-                        if let Some(range) = e.range {
-                            let value = e
-                                .text
-                                .text
-                                .parse::<f32>()
-                                .unwrap_or(0.0)
-                                .clamp(range[0].min(range[1]), range[0].max(range[1]))
-                                .trunc();
-                            e.text.text = crate::controls::format_number(value);
-                            e.cursor = e.text.text.chars().count();
-                        }
-                        self.pending.push(Event::Submitted(id));
-                        self.focus = None;
-                        return true;
-                    }
-                    Key::Escape => {
-                        self.focus = None;
+                    // `EditElement::Update`: Enter or Escape gives up the focus.
+                    Key::Enter | Key::Escape => {
+                        self.commit_edit(id);
                         return true;
                     }
                     Key::Character(_) | Key::Space => return false,
@@ -910,20 +914,19 @@ impl Ui {
             return false;
         }
         let mut changed = false;
-        for ch in text.chars().filter(|c| !c.is_control()) {
-            if e.text.text.chars().count() >= e.max_length {
-                break;
-            }
-            let mut candidate = e.text.text.clone();
-            let at = byte_index(&candidate, e.cursor);
-            candidate.insert(at, ch);
-            if e.numeric
-                && (!valid_number_prefix(&candidate)
-                    || (e.range.is_some() && candidate.contains(['.', 'e', 'E'])))
+        // `EditElement::SelectCharacter`: the keys of a US keyboard give printable ASCII but
+        // `:` and `;`; each goes in while the text is shorter than its most and the edit
+        // takes it.
+        for ch in text.chars() {
+            let typable = (' '..='~').contains(&ch) && ch != ':' && ch != ';';
+            if !typable
+                || e.text.text.chars().count() >= e.max_length
+                || (!e.allowed.is_empty() && !e.allowed.contains(ch))
             {
                 continue;
             }
-            e.text.text = candidate;
+            let at = byte_index(&e.text.text, e.cursor);
+            e.text.text.insert(at, ch);
             e.cursor += 1;
             changed = true;
         }
@@ -931,6 +934,36 @@ impl Ui {
             self.pending.push(Event::Changed(id));
         }
         true
+    }
+
+    /// `EditElement::Update` losing the focus (Enter, Escape or a press elsewhere): a
+    /// NumberEdit's text becomes its number within its range (`NumberEditElement::
+    /// FinalizeText`), and event `0x15` goes.
+    pub(crate) fn commit_edit(&mut self, id: NodeId) {
+        if let Kind::Control(Control::Edit(e)) = &mut self.nodes[id].kind {
+            if let Some(range) = e.range {
+                let value = to_integer(&e.text.text)
+                    .clamp(range[0].min(range[1]) as i32, range[0].max(range[1]) as i32);
+                e.text.text = value.to_string();
+                e.cursor = e.cursor.min(e.text.text.chars().count());
+            }
+            self.pending.push(Event::Submitted(id));
+        }
+        if self.focus == Some(id) {
+            self.focus = None;
+        }
+    }
+
+    /// The caret's blink: every half second while an edit has the focus.
+    pub(crate) fn update_caret(&mut self, dt: f32) {
+        let Some(id) = self.focus else { return };
+        if let Kind::Control(Control::Edit(e)) = &mut self.nodes[id].kind {
+            e.blink += dt;
+            if 0.5 < e.blink {
+                e.caret = !e.caret;
+                e.blink = 0.0;
+            }
+        }
     }
 
     fn update_states(&mut self, _root: NodeId) {
@@ -1104,11 +1137,20 @@ fn contains(r: [i32; 4], x: i32, y: i32) -> bool {
 fn byte_index(s: &str, cursor: usize) -> usize {
     s.char_indices().nth(cursor).map_or(s.len(), |p| p.0)
 }
-fn valid_number_prefix(s: &str) -> bool {
-    s.is_empty()
-        || matches!(s, "-" | "+" | "." | "-." | "+.")
-        || s.parse::<f32>().is_ok_and(|v| v.is_finite())
+/// `System::String::ToInteger`: an optional sign and the digits after it, 0 without.
+fn to_integer(s: &str) -> i32 {
+    let s = s.trim_start();
+    let (sign, digits) = match s.strip_prefix('-') {
+        Some(rest) => (-1i64, rest),
+        None => (1, s.strip_prefix('+').unwrap_or(s)),
+    };
+    let mut v: i64 = 0;
+    for c in digits.chars().take_while(|c| c.is_ascii_digit()) {
+        v = (v * 10 + c as i64 - '0' as i64).min(i32::MAX as i64 + 1);
+    }
+    (sign * v).clamp(i32::MIN as i64, i32::MAX as i64) as i32
 }
+
 pub(crate) fn event_node(e: Event) -> NodeId {
     match e {
         Event::Clicked(n)

@@ -72,7 +72,14 @@ pub struct EditData {
     pub max_length: usize,
     pub numeric: bool,
     pub range: Option<[f32; 2]>,
-    pub scroll: i32,
+    /// Drawn as `*`s (`+0xd4`, EditDescription `+0x7c`).
+    pub password: bool,
+    /// The characters it takes, any when empty (`+0xd8`; a NumberEdit's digits, and `-` when
+    /// it may go below zero).
+    pub allowed: String,
+    /// The caret's blink (`+0xe8`, flipping every half second, `+0xf0`).
+    pub caret: bool,
+    pub blink: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -322,7 +329,8 @@ impl Ui {
                 font,
                 text,
                 max_length,
-                ..
+                unknown_bool,
+                unknown_string,
             } => Control::Edit(EditData {
                 text: self.make_text(font.as_deref(), text.clone()),
                 cursor: text.chars().count(),
@@ -333,15 +341,29 @@ impl Ui {
                 },
                 numeric: false,
                 range: None,
-                scroll: 0,
+                password: *unknown_bool,
+                allowed: unknown_string.clone(),
+                caret: true,
+                blink: 0.0,
             }),
-            ElementKind::NumberEdit { font, unknown, .. } => Control::Edit(EditData {
+            ElementKind::NumberEdit {
+                font,
+                unknown,
+                unknown_bool,
+            } => Control::Edit(EditData {
                 text: self.make_text(font.as_deref(), unknown[0].to_string()),
                 cursor: 1,
                 max_length: unknown[3].max(1) as usize,
                 numeric: true,
                 range: Some([unknown[1] as f32, unknown[2] as f32]),
-                scroll: 0,
+                password: false,
+                allowed: if *unknown_bool {
+                    "0123456789-".into()
+                } else {
+                    "0123456789".into()
+                },
+                caret: true,
+                blink: 0.0,
             }),
             ElementKind::Number {
                 font,
@@ -353,7 +375,10 @@ impl Ui {
                 max_length: 0,
                 numeric: true,
                 range: None,
-                scroll: 0,
+                password: false,
+                allowed: String::new(),
+                caret: true,
+                blink: 0.0,
             }),
             ElementKind::Graph {
                 unknown,
@@ -1114,11 +1139,6 @@ impl Ui {
             }
             Control::Edit(e) => {
                 self.layout_text(&mut e.text);
-                let prefix = e.text.text.chars().take(e.cursor).collect::<String>();
-                let width = e.text.font.map_or(0, |f| {
-                    TextLayout::compute(&self.res, f, &prefix, None, 0).width
-                });
-                e.scroll = e.scroll.min(width).max(width - (r - l - 8).max(1));
             }
             Control::Document(d) => {
                 d.width = (r - l).max(1);
@@ -1296,21 +1316,30 @@ impl Ui {
                     *vertical,
                 );
             }
+            // `EditElement::Draw`: the text (as `*`s for a password) from the left edge, and
+            // while it has focus a blinking `|` one pixel before the cursor's character.
             Control::Edit(e) => {
                 let clip = intersect(clip, rc);
-                // Edit boxes inset their text 3px; display-only numbers (`NumberElement`) draw
-                // in their own rectangle.
-                let inset = if e.max_length > 0 { 3 } else { 0 };
-                self.draw_text(&e.text, [l + inset - e.scroll, t], color, clip, out);
-                if self.focus == Some(id) && e.max_length > 0 {
-                    if let Some(sp) = solid {
-                        let prefix = e.text.text.chars().take(e.cursor).collect::<String>();
-                        let x = l + 3 - e.scroll
-                            + e.text.font.map_or(0, |f| {
-                                TextLayout::compute(&self.res, f, &prefix, None, 0).width
-                            });
-                        Self::sprite_quad(out, &sp, [x, t, x + 1, b], color, clip);
-                    }
+                let with = |text: String| -> TextData {
+                    let mut t = e.text.clone();
+                    t.layout = e.text.font.map_or(TextLayout::default(), |f| {
+                        TextLayout::compute(&self.res, f, &text, None, 0)
+                    });
+                    t.text = text;
+                    t
+                };
+                let shown = if e.password {
+                    with("*".repeat(e.text.text.chars().count()))
+                } else {
+                    e.text.clone()
+                };
+                self.draw_text(&shown, [l, t], color, clip, out);
+                if self.focus == Some(id) && e.max_length > 0 && e.caret {
+                    let prefix = shown.text.chars().take(e.cursor).collect::<String>();
+                    let x = e.text.font.map_or(0, |f| {
+                        TextLayout::compute(&self.res, f, &prefix, None, 0).width
+                    });
+                    self.draw_text(&with("|".into()), [l + x - 1, t], color, clip, out);
                 }
             }
             // `GraphElement::Draw`, in `SpriteContext::AddLine`s of its sprite (none without).

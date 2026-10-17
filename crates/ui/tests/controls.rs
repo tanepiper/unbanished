@@ -402,7 +402,7 @@ fn combo_selects_pointer_choice_and_escape_closes_dropdown() {
 }
 
 #[test]
-fn tab_focus_and_unicode_cursor_editing_emit_changes() {
+fn tab_focus_and_ascii_cursor_editing_emit_changes() {
     let Some(mut ui) = game_ui() else { return };
     let root = ui.group();
     let edit = ui.instantiate(r"Dialog\NewGame.rsc:editName").unwrap();
@@ -410,14 +410,14 @@ fn tab_focus_and_unicode_cursor_editing_emit_changes() {
     ui.layout(root, [0, 0, 640, 100]);
     assert!(ui.key(root, Key::Tab));
     assert_eq!(ui.focused(), Some(edit));
-    assert!(ui.text_input("Aé🦀B"));
-    ui.key(root, Key::Left);
-    ui.key(root, Key::Backspace);
+    // `EditElement::SelectCharacter` types printable ASCII but `:` and `;`.
+    assert!(ui.text_input("Aé🦀:;xB"));
     let text = |ui: &Ui| match &ui.nodes[edit].kind {
         Kind::Control(Control::Edit(e)) => e.text.text.clone(),
         _ => unreachable!(),
     };
-    assert_eq!(text(&ui), "AéB");
+    assert_eq!(text(&ui), "AxB");
+    ui.key(root, Key::Left);
     ui.key(root, Key::Backspace);
     assert_eq!(text(&ui), "AB");
     ui.key(root, Key::Home);
@@ -428,8 +428,12 @@ fn tab_focus_and_unicode_cursor_editing_emit_changes() {
             .iter()
             .filter(|e| **e == Event::Changed(edit))
             .count()
-            >= 4
+            >= 3
     );
+    // Escape gives up the focus with event 0x15.
+    ui.key(root, Key::Escape);
+    assert_eq!(ui.focused(), None);
+    assert!(ui.drain_events().contains(&Event::Submitted(edit)));
 }
 
 #[test]
@@ -455,6 +459,12 @@ fn hidden_and_disabled_ancestors_block_pointer_and_shortcuts() {
     ui.set_visible(root, true);
     assert!(ui.key(root, Key::Character('s')));
     assert!(ui.drain_events().contains(&Event::Clicked(button)));
+    // `ButtonElement::Update`: leaving a pressed button lets it go.
+    ui.pointer_move((l + r) / 2, (t + b) / 2, root);
+    ui.pointer_button(true, root);
+    ui.pointer_move(r + 50, b + 50, root);
+    ui.pointer_move((l + r) / 2, (t + b) / 2, root);
+    assert_eq!(ui.pointer_button(false, root), None);
 }
 
 #[test]
