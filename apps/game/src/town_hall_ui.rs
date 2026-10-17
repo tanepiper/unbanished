@@ -534,10 +534,16 @@ impl TownHallUi {
             let name = ui.res.string(v.name.0.as_deref(), &v.name.1);
             rows.push((name, v.icon.clone(), count));
         }
+        // The CRT qsort: by quantity, most first, then name (`FUN_140015f10` with
+        // `FUN_140081af0`), or by name (`FUN_140015c10` with `FUN_140081be0`).
         if by_count {
-            rows.sort_by(|a, b| b.2.cmp(&a.2));
+            banished_game::ai::crt_qsort_less(&mut rows, |a, b| {
+                b.2 < a.2 || (a.2 == b.2 && crate::building_ui::str_less(&a.0, &b.0))
+            });
         } else {
-            rows.sort_by(|a, b| a.0.cmp(&b.0));
+            banished_game::ai::crt_qsort_less(&mut rows, |a, b| {
+                crate::building_ui::str_less(&a.0, &b.0)
+            });
         }
         for (i, (label, number)) in self.inventory.iter().enumerate() {
             match rows.get(i) {

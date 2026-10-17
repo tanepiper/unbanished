@@ -304,9 +304,11 @@ pub struct StatusValues {
     /// Adults (not students) per profession, in `Game/Profession/Profession.rsc:professionList`
     /// order (laborer first): the counts `FUN_14007ba70` takes from citizen `+0x1f0`.
     pub professions: Vec<u32>,
-    /// The town's live citizens: (citizen, profession, grown and not at school), for
-    /// ProfessionUI's goto buttons.
-    pub citizens: Vec<(usize, usize, bool)>,
+    /// The town's live citizens: (citizen, profession, grown and not at school, status icon
+    /// mask), for ProfessionUI's goto buttons and StatusBarUI's icons.
+    pub citizens: Vec<(usize, usize, bool, u32)>,
+    /// The game's flags (`Game +0xd0`; bit 10, a tutorial).
+    pub game_flags: u32,
     /// Per profession, the places its enabled workplaces offer (`numberAvailable`).
     pub profession_capacity: Vec<i32>,
 }
@@ -326,6 +328,8 @@ pub(crate) struct StatusBar {
     weather: [Option<NodeId>; 5],
     hearts: Option<NodeId>,
     stars: Option<NodeId>,
+    /// `+0x100`: the citizen the status icons last went to.
+    cursor: i32,
 }
 
 const STOCK_NAMES: [&str; 11] = [
@@ -373,7 +377,11 @@ impl StatusBar {
         let mut stock: Vec<_> = STOCK_NAMES.iter().map(|n| find(ui, n)).collect();
         stock.extend((0..10).map(|i| find(ui, &format!("numberCustom{i}"))));
         let status_images = STATUS_NAMES.map(|s| find(ui, &format!("imageStatus{s}")));
-        // `FUN_14007f8a0` gives the six status icons element ids 100..105 and clears flag 0x10000.
+        // `FUN_14007f8a0` gives the six status icons element ids 100..105 and turns on flag
+        // `0x10000` (`SetFlagsOnOff(0x10000, 0)`): each takes the mouse, a click its own event.
+        for n in status_images.into_iter().flatten() {
+            ui.node_mut(n).flags |= banished_formats::ui::flags::MOUSE;
+        }
         let status_numbers = STATUS_NAMES.map(|s| with_text(ui, &format!("numberStatus{s}")));
         StatusBar {
             title: with_text(ui, "labelTitleParam"),
@@ -387,6 +395,41 @@ impl StatusBar {
             weather: WEATHER_NAMES.map(|n| find(ui, n)),
             hearts: find(ui, "groupHearts"),
             stars: find(ui, "groupStars"),
+            cursor: -1,
+        }
+    }
+
+    /// A click on status icon `i` (element id `100 + i`; the handler at `0x14007f870` takes
+    /// click events on ids 100..106) goes to `FUN_14007f5f0`: unless the game is a tutorial
+    /// (flag bit 10), the citizens after the last one shown, round to the start, until one
+    /// whose StatusIconComponent mask (`+0xf0`) has bit `i`; that one is shown and selected
+    /// (`FUN_140108510`). The cursor keeps its place when none has it.
+    fn icon_click(&mut self, ui: &Ui, node: NodeId, values: &StatusValues) -> Option<usize> {
+        let i = self
+            .status_images
+            .iter()
+            .position(|n| n.is_some_and(|n| n == node || ui.descendant(n, node)))?;
+        if values.game_flags & 0x400 != 0 {
+            return None;
+        }
+        let citizens = &values.citizens;
+        let n = citizens.len() as i32;
+        if n == 0 {
+            return None;
+        }
+        let mask = 1u32 << i;
+        self.cursor += 1;
+        let mut tries = 0;
+        loop {
+            if n <= self.cursor {
+                self.cursor = 0;
+            }
+            let c = &citizens[self.cursor as usize];
+            if c.3 & mask != 0 || n <= tries {
+                return (c.3 & mask != 0).then_some(c.0);
+            }
+            self.cursor += 1;
+            tries += 1;
         }
     }
 
@@ -579,7 +622,7 @@ impl ProfessionUi {
     fn next_worker(
         &mut self,
         profession: usize,
-        citizens: &[(usize, usize, bool)],
+        citizens: &[(usize, usize, bool, u32)],
     ) -> Option<usize> {
         let adults = citizens.iter().filter(|c| c.2).count() as i32;
         if adults == 0 {
@@ -1003,6 +1046,11 @@ impl UtilityWindows {
         log: &banished_game::events::EventLog,
         values: &StatusValues,
     ) -> Option<UtilityClick> {
+        for s in self.open.iter_mut().filter_map(|w| w.status_bar.as_mut()) {
+            if let Some(c) = s.icon_click(ui, node, values) {
+                return Some(UtilityClick::ShowCitizen(c));
+            }
+        }
         for p in self.open.iter_mut().filter_map(|w| w.professions.as_mut()) {
             if let Some(i) = p.goto(ui, node) {
                 return p
@@ -1091,12 +1139,60 @@ mod tests {
             cursor: 0,
         };
         // (citizen, profession, working adult): 10 and 13 are farmers (2), 12 a child farmer.
-        let town = [(10, 2, true), (11, 1, true), (12, 2, false), (13, 2, true)];
+        let town = [
+            (10, 2, true, 0),
+            (11, 1, true, 0),
+            (12, 2, false, 0),
+            (13, 2, true, 0),
+        ];
         assert_eq!(p.next_worker(2, &town), Some(13));
         assert_eq!(p.next_worker(2, &town), Some(10));
         assert_eq!(p.next_worker(2, &town), Some(13));
         // No hunters: after three misses (three working adults), whoever is reached.
         assert_eq!(p.next_worker(5, &town), Some(13));
-        assert_eq!(p.next_worker(5, &[(1, 0, false)]), None);
+        assert_eq!(p.next_worker(5, &[(1, 0, false, 0)]), None);
+    }
+
+    /// StatusBarUI's icons (`FUN_14007f5f0`): a click on the home icon (bit 0) goes to the
+    /// next homeless citizen after the last one, round again; none in a tutorial.
+    #[test]
+    fn status_icons_cycle_through_their_citizens() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = banished_formats::pkg::Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(banished_formats::pkg::Package::parse(bytes).unwrap());
+        }
+        let mut ui = Ui::new(std::rc::Rc::new(archive));
+        // The template puts the icons (`groupEffects`) in the window's title.
+        let root = ui.group();
+        let content = ui.instantiate(r"Dialog\StatusBar.rsc:content").unwrap();
+        let effects = ui
+            .instantiate(r"Dialog\StatusBar.rsc:groupEffects")
+            .unwrap();
+        ui.add_child(root, content);
+        ui.add_child(root, effects);
+        let mut bar = StatusBar::bind(&mut ui, root);
+        let home = bar.status_images[0].unwrap();
+        assert!(ui.node(home).flags & banished_formats::ui::flags::MOUSE != 0);
+        let mut values = StatusValues {
+            citizens: vec![
+                (4, 0, true, 1),
+                (5, 0, true, 2),
+                (6, 0, true, 1),
+                (7, 0, true, 0),
+            ],
+            ..StatusValues::default()
+        };
+        assert_eq!(bar.icon_click(&ui, home, &values), Some(4));
+        assert_eq!(bar.icon_click(&ui, home, &values), Some(6));
+        assert_eq!(bar.icon_click(&ui, home, &values), Some(4));
+        let food = bar.status_images[1].unwrap();
+        assert_eq!(bar.icon_click(&ui, food, &values), Some(5));
+        values.game_flags = 0x400;
+        assert_eq!(bar.icon_click(&ui, home, &values), None);
     }
 }

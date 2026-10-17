@@ -625,7 +625,7 @@ impl Workforce {
         let cell = search.cell(c);
         let mut best = None;
         let mut most = 0;
-        let mut first = i32::MAX;
+        let mut candidates = Vec::new();
         for &e in list {
             let Some(w) = self.workplaces.get(&e) else {
                 continue;
@@ -635,15 +635,16 @@ impl Workforce {
                 continue;
             }
             if anywhere {
-                let priority = search.priority(e);
-                if best.is_none() || priority < first {
-                    first = priority;
-                    best = Some(e);
-                }
+                candidates.push((e, search.priority(e)));
             } else if most < free {
                 most = free;
                 best = Some(e);
             }
+        }
+        if anywhere {
+            // `FUN_140030c00`: the CRT qsort by work priority (`FUN_140115800`); the first.
+            crate::ai::crt_qsort_less(&mut candidates, |a, b| a.1 < b.1);
+            return candidates.first().map(|c| c.0);
         }
         best
     }

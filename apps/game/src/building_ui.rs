@@ -175,7 +175,9 @@ impl ResidenceUi {
         }
     }
 
-    /// `buttonGoto` (`300 + row`): show and select the resident.
+    /// `buttonGoto` (`300 + row`; the handler at `0x1400bacf0` → `FUN_1400bab70`): the
+    /// resident at that place counting family by family, shown and selected
+    /// (`FUN_140108510`).
     pub fn click(&self, ui: &Ui, node: NodeId, data: &EntityData) -> Option<WorkPlaceClick> {
         let i = self
             .rows

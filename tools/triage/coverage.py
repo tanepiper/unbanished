@@ -7,6 +7,13 @@ and ranks the ones that matter: uncited functions called by cited ones (a step l
 path that is otherwise ported), then uncited functions reachable only from uncited ones.
 
 Usage: python3 tools/triage/coverage.py [--binary Application|Runtime] [--min-size N] [--all]
+       [--undefined]
+
+`--undefined` also covers code Ghidra never made a function of: the targets of read-only data
+pointers into the code section that start no known function (event dispatchers reached only
+through vtables, such as StatusBarUI's at `0x14007f870`). Their sizes are shown, and every
+call or jump inside them to a function no file cites (needs `objdump` and the binary in
+game-data/original).
 
 Reads the local Ghidra export (analysis/export/<binary>/functions.tsv and decomp.c, git-ignored)
 and prints addresses, sizes and counts only.
@@ -81,6 +88,7 @@ def main():
     ap.add_argument("--binary", choices=BINARIES, default="Application")
     ap.add_argument("--min-size", type=int, default=120, help="skip smaller functions")
     ap.add_argument("--all", action="store_true", help="also list uncited, uncalled ones")
+    ap.add_argument("--undefined", action="store_true", help="scan code outside Ghidra's functions")
     args = ap.parse_args()
     binary = BINARIES[args.binary]
     addresses, names = cited()
@@ -123,6 +131,54 @@ def main():
         for a in sorted(rest, key=lambda a: -funcs[a][0]):
             size, name, _ = funcs[a]
             print(f"{a}\t{size}\t{name}")
+    if args.undefined:
+        undefined(binary, funcs, is_cited)
+
+
+def undefined(binary, funcs, is_cited):
+    """Pointers from the read-only data into code that is not a known function."""
+    import bisect
+    import struct
+    import subprocess
+    path = os.path.join(ROOT, "game-data", "original", binary)
+    img = open(path, "rb").read()
+    pe = struct.unpack_from("<I", img, 0x3C)[0]
+    nsec = struct.unpack_from("<H", img, pe + 6)[0]
+    opt = struct.unpack_from("<H", img, pe + 20)[0]
+    base = struct.unpack_from("<Q", img, pe + 24 + 24)[0]
+    secs = {}
+    for k in range(nsec):
+        o = pe + 24 + opt + 40 * k
+        name = img[o:o + 8].rstrip(b"\0").decode()
+        vsize, rva, rsize, raw = struct.unpack_from("<IIII", img, o + 8)
+        secs[name] = (rva, max(vsize, rsize), raw)
+    trva, tsize, traw = secs[".text"]
+    starts = sorted(int(a, 16) for a in funcs)
+    sizes = {int(a, 16): funcs[a][0] for a in funcs}
+    rrva, rsize, rraw = secs[".rdata"]
+    found = set()
+    for i in range(rraw, rraw + rsize - 8, 8):
+        v = struct.unpack_from("<Q", img, i)[0]
+        if trva <= v - base < trva + tsize and v not in sizes:
+            k = bisect.bisect_right(starts, v) - 1
+            if not (k >= 0 and v < starts[k] + sizes[starts[k]]):
+                found.add(v)
+    bounds = sorted(set(starts) | found)
+    print("# code outside Ghidra's functions, reached from data: address\tsize\tuncited targets")
+    for v in sorted(found):
+        j = bisect.bisect_right(bounds, v)
+        end = bounds[j] if j < len(bounds) else v + 16
+        o0, o1 = v - base - trva + traw, end - base - trva + traw
+        n = len(img[o0:o1].rstrip(b"\xcc"))
+        if n < 20:
+            continue
+        out = subprocess.run(
+            ["objdump", "-d", "--no-show-raw-insn", f"--start-address={hex(v)}",
+             f"--stop-address={hex(v + n)}", path], capture_output=True, text=True).stdout
+        targets = sorted({m.group(1) for m in re.finditer(r"(?:call|jmp)q?\s+0x([0-9a-f]{9})", out)
+                          if m.group(1) in funcs and not is_cited(m.group(1))})
+        if targets:
+            print(f"{v:x}\t{n}\t{','.join(targets)}")
 
 
 if __name__ == "__main__":

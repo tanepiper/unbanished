@@ -30,6 +30,54 @@ are listed separately at the end.
      hunters, orchards and pastures, and the livestock by-product limit are present.
    - Software cursors, the Status Bar and the Town Hall are present.
 
+## Function coverage (2026-10-17)
+
+`tools/triage/coverage.py` lists the original's functions that no file cites, and with
+`--undefined` the code Ghidra never made a function of.
+
+**Application:** 9,851 functions; 1,998 cited (plus those cited since).
+
+| Uncited | Functions | Bytes | Finding |
+|---|---:|---:|---|
+| Exception unwinders (`Unwind@`, `Catch@`) | 5,037 | 72,939 | Compiler cleanup, nothing to port |
+| C runtime and libraries (named, or past the game code) | 447 | 60,650 | Nothing to port |
+| Under 200 bytes | 1,995 | 167,099 | Getters, constructors, container helpers; the ones with game logic are cited under their callers |
+| 200 bytes or more | 354 | 142,649 | Read one by one; see below |
+
+The 354 larger ones:
+- **Container and tree templates (68), serialisers' field helpers (47), constructors (18), the C
+  runtime (10):** library code the port has its own of.
+- **The CRT `qsort` inlined as a template (26 copies).** It is not stable, so equal keys can come
+  out in another order than a stable sort's. The port has it as `ai::crt_qsort_by` /
+  `crt_qsort_less`, checked against the original (`tools/emu/candidate_sort.py`). Every place the
+  original sorts now uses it with the original's comparator: candidates, market, piles, the
+  workplace search (`FUN_140030c00`), toolbar order (`FUN_1400220f0`), professions list
+  (`FUN_14001f120`), the trade inventory (`FUN_140016ce0`, `FUN_140016fe0`) and the town hall
+  inventory (`FUN_140015c10`, `FUN_140015f10`; by quantity it breaks ties by name).
+- **Steam only (not this build):** the Workshop browser and upload (`FUN_14006dd70`,
+  `FUN_14006ffa0`, `FUN_140073880`, `FUN_1400745d0`, …).
+- **Developer windows:** Debug (`FUN_140061520` and its helpers), Noise (`FUN_140076990`,
+  `FUN_1400766a0`), Capture (`FUN_14007e870`, `FUN_14007eb10`).
+- **Teardown:** the game's destructor (`FUN_14009cc90`) and its parts.
+- **The rest** were already ported under the calling function's citation.
+
+**Code outside Ghidra's functions:** 1,384 targets of read-only data pointers start no known
+function (19,774 bytes; the largest 147). Most are type-name and size getters. The event
+dispatchers among them hide their handlers from the call graph, and two handlers were found
+this way:
+- **StatusBarUI's icons** (dispatcher `0x14007f870` → `FUN_14007f5f0`): a click on a status icon
+  goes to the next citizen with that problem. Now ported; the icons also take the mouse
+  (`SetFlagsOnOff(0x10000, 0)`), which the port had read as clearing it.
+- **ResidenceUI's goto buttons** (`0x1400bacf0` → `FUN_1400bab70`) and PastureUI's kind combo
+  (`0x1400ba2f0` → `FUN_14007dc80`): already ported, now cited.
+
+**Runtime:** 15,261 functions; the UI controls the game uses are ported from their `Update` and
+`Draw` (Slider, Scroll, Combo, Edit, Button, Graph, AnimatedImage, Container, Label). The rest is
+the engine the port replaces (renderer, audio, file system, threads). One undefined dispatcher
+(`0x1800b9ac0`) runs the save files' background jobs: list, load (`FUN_1800b8e10`, which checks
+a CRC over the entry table), delete and write. The port reads and writes saves itself and does
+not check that CRC, so a corrupted save loads where the original refuses it.
+
 ## Gaps in shipped vanilla features
 
 | Feature | Original | Port |

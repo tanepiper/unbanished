@@ -802,10 +802,16 @@ impl GameplayLoop {
                     .enumerate()
                     .filter(|(_, (c, _))| c.alive)
                     .map(|(i, (c, s))| {
-                        (i, s.profession, c.is_adult(&t.rules) && c.school.is_none())
+                        (
+                            i,
+                            s.profession,
+                            c.is_adult(&t.rules) && c.school.is_none(),
+                            s.status,
+                        )
                     })
                     .collect()
             }),
+            game_flags: self.town.as_ref().map_or(0, |t| t.construction.game_flags),
             ..StatusValues::default()
         }
     }

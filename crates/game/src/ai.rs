@@ -224,6 +224,22 @@ pub fn crt_qsort(a: &mut [Candidate]) {
 
 /// The MSVC CRT `qsort` (as `FUN_140030770` inlines it) with any comparator; the other inlined
 /// copies (`FUN_14002c9d0`, the library `qsort`) are the same algorithm.
+/// The templated copies with a `less` comparator (`FUN_140030c00`, `FUN_1400220f0`,
+/// `FUN_14001f120`, `FUN_140015c10`, `FUN_140015f10`, `FUN_140016ce0`, `FUN_140016fe0`): the
+/// same algorithm, `cmp(a, b) > 0` being `less(b, a)` and equality neither way.
+pub fn crt_qsort_less<T>(a: &mut [T], less: impl Fn(&T, &T) -> bool) {
+    crt_qsort_by(a, |x, y| {
+        if less(y, x) {
+            1
+        } else if less(x, y) {
+            -1
+        } else {
+            0
+        }
+    });
+}
+
+/// The same with a three-way comparator.
 pub fn crt_qsort_by<T>(a: &mut [T], cmp: impl Fn(&T, &T) -> i32) {
     const CUTOFF: usize = 8;
     if a.len() < 2 {

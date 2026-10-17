@@ -13,7 +13,8 @@
 //! CropUI and OrchardUI show the mean ripeness in `yield` (`FUN_1401208e0`, `FUN_140051fa0`);
 //! PastureUI's `slider` (id `0x1f5`) the most animals to keep, up to the pasture's room
 //! (`FUN_1400ba470`), its text the animals and the most (`FUN_1400ba320`); moved, the most
-//! (`FUN_1400ba2f0`, `Command::SetLimit`). The kind's list is enabled only while the pasture is
+//! (`FUN_1400ba2f0`; the kind combo's `0x14` on id 500 → `FUN_14007dc80`, the chosen kind;
+//! `Command::SetLimit`). The kind's list is enabled only while the pasture is
 //! empty.
 
 use banished_formats::pkg::Archive;

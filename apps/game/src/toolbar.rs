@@ -175,7 +175,10 @@ impl Toolbar {
                     }
             })
             .collect();
-        list.sort_by_key(|&i| self.entries[i].item.order);
+        // `FUN_1400220f0`: the CRT qsort by `order` (`+0x50`).
+        banished_game::ai::crt_qsort_less(&mut list, |&a, &b| {
+            self.entries[a].item.order < self.entries[b].item.order
+        });
         list
     }
 

@@ -321,7 +321,8 @@ pub fn profession_list(archive: &banished_formats::pkg::Archive) -> Vec<String> 
                     p.flag_4e.then_some((p.value_48, r))
                 })
                 .collect();
-            v.sort_by_key(|(order, _)| *order);
+            // `FUN_14001f120`: the CRT qsort by sort priority (`+0x48`).
+            banished_game::ai::crt_qsort_less(&mut v, |a, b| a.0 < b.0);
             v.into_iter().map(|(_, r)| r).collect()
         }
         None => archive

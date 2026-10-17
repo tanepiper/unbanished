@@ -253,23 +253,18 @@ impl TradeUi {
             })
             .collect();
         let by_keep = combo_index(ui, self.sort) == 1;
-        // Deviation: a stable sort (the original's quicksort may order ties otherwise).
-        list.sort_by(|a, b| {
-            let order = if by_keep {
-                keep(b.0).cmp(&keep(a.0))
-            } else {
-                std::cmp::Ordering::Equal
-            };
-            order.then_with(|| {
-                if crate::building_ui::str_less(&a.1, &b.1) {
-                    std::cmp::Ordering::Less
-                } else if crate::building_ui::str_less(&b.1, &a.1) {
-                    std::cmp::Ordering::Greater
-                } else {
-                    std::cmp::Ordering::Equal
-                }
-            })
-        });
+        // The CRT qsort: by name (`FUN_140016ce0` with `FUN_140089aa0`) or by the amount to
+        // keep, most first, then name (`FUN_140016fe0` with `FUN_140089900`).
+        let name_less =
+            |a: &(usize, String), b: &(usize, String)| crate::building_ui::str_less(&a.1, &b.1);
+        if by_keep {
+            banished_game::ai::crt_qsort_less(&mut list, |a, b| {
+                let (ka, kb) = (keep(a.0), keep(b.0));
+                kb < ka || (ka == kb && name_less(a, b))
+            });
+        } else {
+            banished_game::ai::crt_qsort_less(&mut list, name_less);
+        }
         let cells = self
             .storage
             .map(|t| fill_table(ui, t, list.len()))
