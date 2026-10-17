@@ -1748,8 +1748,12 @@ impl GameplayLoop {
     }
 
     /// `AchievementManager::Update(dt × iterations)` after the frame's iterations; one awarded
-    /// is stored and logged (event `0x19`, `FUN_14009be30`, `@2` its title).
+    /// is stored and logged (event `0x19`, `FUN_14009be30`, `@2` its title). Nothing is
+    /// checked, nor any time gathered, while user pack files are enabled (`FileSystem +0x38`).
     fn update_achievements(&mut self, ctx: &mut Ctx, dt: i64) {
+        if 0 < ctx.archive.user_packs {
+            return;
+        }
         let Some(town) = &self.town else { return };
         // The TerrainGenerator's resource is named for the terrain.
         let terrain = format!(r"Game\Terrain\{}.rsc", self.params.terrain);

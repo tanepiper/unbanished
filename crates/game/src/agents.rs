@@ -201,6 +201,8 @@ pub struct Agents {
     pathfinder: Pathfinder,
     regions: Vec<u16>,
     region_types: Vec<CellType>,
+    /// How far `Cells::sector_marks` has been taken in.
+    marks_seen: usize,
     rules: CitizenRulesAi,
 }
 
@@ -254,6 +256,7 @@ impl Agents {
             pathfinder: Pathfinder::new(cells.size, &cells.types),
             regions: regions(cells.size, &cells.types),
             region_types: cells.types.clone(),
+            marks_seen: cells.sector_marks.len(),
             rules,
         }
     }
@@ -262,22 +265,27 @@ impl Agents {
         self.rules
     }
 
-    /// `FUN_1400a1950` when the map changed, and the path grid's type commands. A sector is
-    /// marked (`FUN_1400ae160`) only where a cell turned walkable or unwalkable (mask `0xe1f`
-    /// against `0x1e0`), as every type write in the original tests before marking: a rebuilt
-    /// sector hands its node ids out again in another order.
+    /// The path sectors' marks in the order the cells flipped (`Cells::set_type`, made on the
+    /// spot by `FUN_1400ae160` in the original: a rebuilt sector hands its node ids out in
+    /// mark order); then `FUN_1400a1950` and the path grid's type commands where the map
+    /// changed.
     fn sync_map(&mut self, cells: &Cells) {
+        for &i in cells
+            .sector_marks
+            .get(self.marks_seen..)
+            .unwrap_or_default()
+        {
+            let i = i as usize;
+            self.sectors
+                .mark((i % cells.size) as i32, (i / cells.size) as i32);
+        }
+        self.marks_seen = cells.sector_marks.len();
         if self.region_types == cells.types {
             return;
         }
-        let walk = |t: CellType| (1u32 << (t.0 & 0x1f)) & WALKABLE != 0;
         for (i, (old, new)) in self.region_types.iter().zip(&cells.types).enumerate() {
             if old != new {
                 self.pathfinder.set_type(i, *new);
-                if walk(*old) != walk(*new) {
-                    self.sectors
-                        .mark((i % cells.size) as i32, (i / cells.size) as i32);
-                }
             }
         }
         self.region_types = cells.types.clone();

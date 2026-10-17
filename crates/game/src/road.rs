@@ -119,7 +119,7 @@ impl Sim<'_, '_> {
 
     /// `FUN_1400a47c0`: the cell's type (the path grid follows it).
     fn set_cell_type(&mut self, cell: i32, ty: u8) {
-        self.cells.types[cell as usize] = CellType(ty);
+        self.cells.set_type(cell as usize, CellType(ty));
     }
 
     /// CompleteRoad's start (`FUN_1400a1b10(cell, kind byte, type)`): to ground (type 2) the

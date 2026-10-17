@@ -74,7 +74,7 @@ pub fn claim_steep_cells(cells: &mut Cells, terrain: &HeightGrid, entity: usize,
                 let normal = terrain.normal_below(cx + dx, cy + dy, 100.0, 200.0);
                 if normal[2] < 0.85 {
                     let i = (y * n + x) as usize;
-                    cells.types[i] = QUARRY_CELL;
+                    cells.set_type(i, QUARRY_CELL);
                     cells.objects[i] = Some(entity);
                 }
             }

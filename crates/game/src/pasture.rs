@@ -82,7 +82,7 @@ impl Sim<'_, '_> {
                         continue;
                     }
                     // Anything else there goes (the cell becomes plain ground).
-                    self.cells.types[i] = CellType(2);
+                    self.cells.set_type(i, CellType(2));
                     self.cells.objects[i] = None;
                 }
                 let yaw = self.rng.rand_tol(2) as f32 * 90.0;
@@ -118,7 +118,7 @@ impl Sim<'_, '_> {
     pub(crate) fn pasture_built(&mut self, e: usize) {
         for cell in self.pasture_points(e) {
             let i = cell as usize;
-            self.cells.types[i] = CellType(2);
+            self.cells.set_type(i, CellType(2));
             self.cells.objects[i] = None;
         }
     }

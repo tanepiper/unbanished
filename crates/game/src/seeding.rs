@@ -158,6 +158,9 @@ pub struct Cells {
     pub road_revision: u32,
     /// `+0x2d` and the map's floor scene: bridge decks (FloorComponent).
     pub floors: crate::floor::Floors,
+    /// Cells that turned walkable or unwalkable, in the order they did: the path sectors'
+    /// marks (`FUN_1400ae160`), which every type write in the original makes on the spot.
+    pub sector_marks: Vec<u32>,
 }
 
 impl Cells {
@@ -176,7 +179,18 @@ impl Cells {
             floors: crate::floor::Floors::new(types.len()),
             types,
             road_revision: 0,
+            sector_marks: Vec::new(),
         }
+    }
+
+    /// A cell's type written (`+0x29`), marking its path sector where it turns walkable or
+    /// unwalkable (masks `0xe1f` and `0x1e0`, as each writer tests before `FUN_1400ae160`).
+    pub fn set_type(&mut self, i: usize, ty: CellType) {
+        let walk = |t: CellType| (1u32 << (t.0 & 0x1f)) & crate::pathfind::WALKABLE != 0;
+        if walk(self.types[i]) != walk(ty) {
+            self.sector_marks.push(i as u32);
+        }
+        self.types[i] = ty;
     }
 
     /// `FUN_1400a4e60`: add `delta` to `layer` on every cell within `radius` of `(cx, cy)`
@@ -368,7 +382,7 @@ impl<'a> Seeder<'a> {
                 if let Some(old) = self.cells.objects[i] {
                     self.remove(old);
                 }
-                self.cells.types[i] = CellType(map.cell_type as u8);
+                self.cells.set_type(i, CellType(map.cell_type as u8));
                 self.cells.objects[i] = Some(id);
             }
         }
@@ -625,7 +639,8 @@ impl<'a> Seeder<'a> {
             }
         }
         if self.cells.objects[i] == Some(id) {
-            self.cells.types[i] = self.terrain.natural_cell_type(self.cells.size, i);
+            let ty = self.terrain.natural_cell_type(self.cells.size, i);
+            self.cells.set_type(i, ty);
             self.cells.objects[i] = None;
         }
     }

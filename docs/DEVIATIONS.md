@@ -22,7 +22,7 @@ Deviation: 41, Not ported: 4, Not traced: 1.
 
 - [Deviation] [apps/game/src/main.rs:109](../apps/game/src/main.rs#L109): Deviation: the original also draws between steps (`MainLoop::Frame`'s `+0x38 / +0x48` handed to `Renderer::Draw`, models and poses blending their `InterpolatedState`); the port draws the last step, which differs only on displays faster than 60 Hz.
 - [Deviation] [apps/game/src/main.rs:141](../apps/game/src/main.rs#L141): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
-- [Deviation] [apps/game/src/main.rs:945](../apps/game/src/main.rs#L945): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
+- [Deviation] [apps/game/src/main.rs:946](../apps/game/src/main.rs#L946): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
 
 ## `apps/game/src/mod_ui.rs`
 
@@ -83,8 +83,8 @@ Deviation: 41, Not ported: 4, Not traced: 1.
 ## `crates/game/src/agents.rs`
 
 - [Deviation] [crates/game/src/agents.rs:1](../crates/game/src/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance (`AnimationManager::Update`), every character runs its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run the AI with zero time (`FUN_140114810`), then the AI updates. The citizens' scheduled components (CitizenComponent, CitizenAIComponent and the CharacterComponent's notify) run for the citizens bucket 1 visited this iteration, with the time since each one's last visit; so do the sites' StateMachines, fires, blight, hunts, attendance, residences and piles in bucket 3 (`FUN_1400c9560`, `town::Env::visits`). Deviation: these run after the bucket pass (system by system, each in visiting order) instead of interleaved with it entity by entity, so random draws can come in another order.
-- [Deviation] [crates/game/src/agents.rs:622](../crates/game/src/agents.rs#L622): `FUN_14004ddb0`: the band becomes citizens in fours where each nomad stands (`FUN_140050b00` → `FUN_14011c550`, laborers): a man, a woman (married to him), then a girl and a boy in her care. Adults are `+0x50 + RandFloat × (+0x54 − +0x50)` years old, children `RandFloat × +0x50`. Then the nomads are gone and the town hall goes back to 2. Deviation: a band taken in is made after the frame's other commands.
-- [Deviation] [crates/game/src/agents.rs:778](../crates/game/src/agents.rs#L778): The citizens' CharacterComponents in the characters' tree: the dead leave it (`FUN_14010ee50`), the new join it (`FUN_14010ee90`), in index order. Deviation: the original puts a citizen in when its entity activates; the port at the next citizens' update, so one made in an iteration joins after that iteration's animals, boats and nomads.
+- [Deviation] [crates/game/src/agents.rs:630](../crates/game/src/agents.rs#L630): `FUN_14004ddb0`: the band becomes citizens in fours where each nomad stands (`FUN_140050b00` → `FUN_14011c550`, laborers): a man, a woman (married to him), then a girl and a boy in her care. Adults are `+0x50 + RandFloat × (+0x54 − +0x50)` years old, children `RandFloat × +0x50`. Then the nomads are gone and the town hall goes back to 2. Deviation: a band taken in is made after the frame's other commands.
+- [Deviation] [crates/game/src/agents.rs:786](../crates/game/src/agents.rs#L786): The citizens' CharacterComponents in the characters' tree: the dead leave it (`FUN_14010ee50`), the new join it (`FUN_14010ee90`), in index order. Deviation: the original puts a citizen in when its entity activates; the port at the next citizens' update, so one made in an iteration joins after that iteration's animals, boats and nomads.
 
 ## `crates/game/src/animation.rs`
 

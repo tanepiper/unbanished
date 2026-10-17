@@ -1105,7 +1105,7 @@ impl Sim<'_, '_> {
                     if water && self.cells.occupants[i].is_some_and(|o| o != entity) {
                         ty = crate::terrain::CellType(2);
                     }
-                    self.cells.types[i] = ty;
+                    self.cells.set_type(i, ty);
                 }
                 self.cells.objects[i] = None;
             }
@@ -2973,7 +2973,8 @@ impl Sim<'_, '_> {
                     let i = (oy * n + ox) as usize;
                     if self.cells.objects[i] == Some(o) {
                         self.cells.objects[i] = None;
-                        self.cells.types[i] = self.terrain.natural_cell_type(self.size, i);
+                        self.cells
+                            .set_type(i, self.terrain.natural_cell_type(self.size, i));
                     }
                 } else {
                     self.deactivate(jobs, o);
@@ -3000,7 +3001,8 @@ impl Sim<'_, '_> {
         let i = (y as usize) * self.size + x as usize;
         if self.cells.objects[i] == Some(id) {
             self.cells.objects[i] = None;
-            self.cells.types[i] = self.terrain.natural_cell_type(self.size, i);
+            self.cells
+                .set_type(i, self.terrain.natural_cell_type(self.size, i));
         }
         *self.models_dirty = true;
     }

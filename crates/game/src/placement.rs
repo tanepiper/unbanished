@@ -211,7 +211,7 @@ pub fn stamp(cells: &mut Cells, rules: &PlacementRules, rect: Rect, degrees: i32
                 )
             };
             if set {
-                cells.types[i] = CellType(ty);
+                cells.set_type(i, CellType(ty));
             }
             cells.objects[i] = owned.then_some(entity);
         }

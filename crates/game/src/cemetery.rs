@@ -73,7 +73,7 @@ impl Sim<'_, '_> {
         for cell in self.sites[&e].graves.clone() {
             let i = cell as usize;
             if self.cells.objects[i].is_none_or(|o| !self.tombstones.contains_key(&o)) {
-                self.cells.types[i] = CellType(2);
+                self.cells.set_type(i, CellType(2));
                 self.cells.objects[i] = None;
             }
         }
@@ -92,7 +92,7 @@ impl Sim<'_, '_> {
                 continue;
             };
             let i = cell as usize;
-            self.cells.types[i] = CellType(2);
+            self.cells.set_type(i, CellType(2));
             self.cells.objects[i] = None;
             let n = self.size as i32;
             let template = &self.templates[t.tombstone];
@@ -151,7 +151,7 @@ pub fn tombstone_visit(
     let i = (p.cell.1 as usize) * cells.size + p.cell.0 as usize;
     if cells.objects[i] == Some(id) {
         cells.objects[i] = None;
-        cells.types[i] = CellType(2);
+        cells.set_type(i, CellType(2));
     }
     true
 }

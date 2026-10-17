@@ -233,6 +233,9 @@ impl Package {
 pub struct Archive {
     packages: Vec<Package>,
     index: std::collections::HashMap<String, (usize, usize)>,
+    /// `IO::FileSystem +0x38`: the user pack files (enabled mods) the packages were set up
+    /// with (`AddUserPackFile`, `AreUserPackFilesEnabled`).
+    pub user_packs: usize,
 }
 
 impl Archive {

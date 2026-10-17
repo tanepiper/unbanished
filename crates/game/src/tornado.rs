@@ -13,7 +13,7 @@
 
 use crate::jobs::Jobs;
 use crate::random::Random;
-use crate::scheduler::{seconds, ticks};
+use crate::scheduler::seconds;
 use crate::terrain::HeightGrid;
 use crate::town::Sim;
 
@@ -46,9 +46,34 @@ pub struct Tornado {
     pub timer: i64,
     /// `+0x58`: where it is.
     pub position: [f32; 3],
-    /// Its particle slot is on (`FUN_140054080(0)` fades it out); the time since it stopped.
+    /// Its particle slot is on (`FUN_140054080(0)` fades it out).
     pub emitting: bool,
-    pub stopped: i64,
+    /// The particle slot's alpha (system `+0x7c`) and its rate per second (slot `+0x10`):
+    /// `1 / fade` from the start (`FUN_140053fc0`), `−1 / fade` once it stops; `None` once the
+    /// slot is gone.
+    pub slot: Option<(f32, f32)>,
+}
+
+impl Tornado {
+    /// The particle component's update for the slot (`FUN_140053490`), which runs before the
+    /// tornado's (the template lists `particle` first): the alpha moves by
+    /// `AsSeconds(dt) × rate`; above 1 it stays at 1 and stops, at 0 or below the slot goes.
+    fn step_slot(&mut self, dt: i64) {
+        let Some((alpha, rate)) = &mut self.slot else {
+            return;
+        };
+        if *rate != 0.0 {
+            *alpha += seconds(dt) * *rate;
+            if 1.0 < *alpha {
+                *alpha = 1.0;
+                *rate = 0.0;
+                return;
+            }
+        }
+        if *alpha <= 0.0 {
+            self.slot = None;
+        }
+    }
 }
 
 /// `PATH`: the line's points (`0x81`).
@@ -130,7 +155,7 @@ impl Tornado {
             timer: 0,
             position: start,
             emitting: true,
-            stopped: 0,
+            slot: Some((0.0, 1.0 / seconds(t.fade))),
         }
     }
 
@@ -184,16 +209,14 @@ impl Sim<'_, '_> {
                 continue;
             };
             let tornado = self.tornadoes.get_mut(&e).unwrap();
+            tornado.step_slot(dt);
             // Its particle system is gone (the slot faded out): the entity goes
             // (`FUN_1400c8370`).
-            if !tornado.emitting {
-                tornado.stopped += dt;
-                if ticks(t.fade as f32 * 1e-6) <= tornado.stopped {
-                    self.tornadoes.remove(&e);
-                    self.placed[e].alive = false;
-                    *self.models_dirty = true;
-                    continue;
-                }
+            if tornado.slot.is_none() {
+                self.tornadoes.remove(&e);
+                self.placed[e].alive = false;
+                *self.models_dirty = true;
+                continue;
             }
             let going = tornado.follow();
             let (d, _) = normalize([
@@ -202,7 +225,11 @@ impl Sim<'_, '_> {
                 tornado.target[2] - tornado.position[2],
             ]);
             if !going {
+                // `FUN_140054080(0)`: the slot fades out at `−(1 / AsSeconds(fade))`.
                 tornado.emitting = false;
+                if let Some((_, rate)) = &mut tornado.slot {
+                    *rate = -(1.0 / seconds(t.fade));
+                }
             } else {
                 self.wreck(jobs, e, &t, dt);
             }

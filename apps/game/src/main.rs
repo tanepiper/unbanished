@@ -156,6 +156,7 @@ fn load_mods(
     mods: &mut mods::Modification,
 ) -> banished_formats::registry::Registry {
     mods.dirty = false;
+    archive.user_packs = mods.load_order().len();
     for m in mods.load_order() {
         match Package::parse(m.bytes.as_ref().clone()) {
             Ok(p) => {

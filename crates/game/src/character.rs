@@ -746,8 +746,9 @@ impl Action {
                 consume,
                 ..
             } => {
+                // Start (slot 4, `FUN_1400ce8f0`): the clip at speed 0 (`FUN_14010f6c0(anim,
+                // 1, 0)`), then `FUN_14010f530(FromYawPitch(facing))`.
                 ch.play(*anim, group, 0.0);
-                // `FUN_14010f530(FromYawPitch(facing))`.
                 if (-180.0..=180.0).contains(facing) {
                     // FUN_14010f530: the direction (x, y, 0) normalized, the heading back
                     // from the vector.

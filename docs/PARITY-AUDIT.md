@@ -95,8 +95,8 @@ These do, and each is now ported bit for bit:
   quaternion and an offset (`+0x148`, `+0x158`). Model-space points go through the quaternion,
   not a 2D rotation: use, build and create points, named points, the quarry pit and the
   terraform meshes. Point headings are `Heading(Rotate(FromYawPitch(yaw, 0)))`, not the yaws
-  added and wrapped. Checked on 2,000 cases (`tools/emu/transform.py`); saves write the same
-  quaternion.
+  added and wrapped. Checked on 50,000 cases with the inverse (`tools/emu/transform.py`);
+  saves write the same quaternion.
 - **Floor picking** (`Picking::Scene::AddMesh` / `Intersect`): the ray is taken into the
   floor's model space (the inverse transform), the hit tested against model-space triangles,
   and the hit normal turned back. Every shipped floor mesh is a single root submesh. The cell
@@ -104,9 +104,13 @@ These do, and each is now ported bit for bit:
   original's do.
 - **The characters' spatial tree** (`character_tree.rs`) for hunting, the tornado and
   following, checked over 3,000 operations (`tools/emu/character_tree.py`).
-- **Path sectors** are marked for a rebuild only where a cell turns walkable or unwalkable. Every
-  type write in the original tests for this before marking, and a rebuilt sector hands out its
-  node ids in another order.
+- **Path sectors** are marked for a rebuild only where a cell turns walkable or unwalkable, in the
+  order the cells changed (`Cells::set_type` logs them). Every type write in the original tests
+  for this and marks on the spot, and a rebuilt sector hands out its node ids in mark order.
+- **Float time sums:** the TimeGoal compares `Time::AsSeconds` (through f64), and the tornado's
+  particle slot alpha is stepped as a float sum, which decides the iteration its entity goes.
+- **Achievements** are not checked while user pack files (mods) are enabled
+  (`AchievementManager::Update` tests `FileSystem +0x38`, `AreUserPackFilesEnabled`).
 
 Checked and already matching: `System::Time` conversions, `Random`, Perlin noise, the animation
 manager, path finding (solved synchronously instead of on threads), and the triangle test in

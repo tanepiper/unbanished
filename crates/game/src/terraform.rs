@@ -123,7 +123,7 @@ pub fn harden(cells: &mut Cells, rect: (i32, i32, i32, i32), kept: &mut Vec<i32>
         for x in x0..x0 + w {
             let i = n * y + x;
             if cells.types[i as usize] == CellType::ROUGH {
-                cells.types[i as usize] = CellType::HIGH;
+                cells.set_type(i as usize, CellType::HIGH);
                 kept.push(i);
             }
         }
@@ -140,7 +140,7 @@ pub fn undo(cells: &mut Cells, heights: &mut [i16], width: usize, state: &Terraf
         }
     }
     for &i in &state.cells {
-        cells.types[i as usize] = CellType::ROUGH;
+        cells.set_type(i as usize, CellType::ROUGH);
     }
     !state.raised.is_empty()
 }

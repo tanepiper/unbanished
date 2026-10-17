@@ -13,7 +13,6 @@
 
 use banished_formats::pkg::Archive;
 use banished_formats::scenario::{self, GoalKind};
-use banished_game::scheduler::ticks;
 use banished_game::tracker::Statistics;
 
 use crate::start::StartingTown;
@@ -467,7 +466,8 @@ pub fn check(
         }
         // `FUN_1400e0180`: the years have passed while the other goals held.
         GoalKind::Time { years, .. } => {
-            met((*years * 3600) as f32 <= instance.time as f32 / ticks(1.0) as f32)
+            // `Time::AsSeconds`: through f64, rounded to f32.
+            met((*years * 3600) as f32 <= banished_game::scheduler::seconds(instance.time))
         }
         // `FUN_1400dd080`: the tutorial is done (its instance tracks it).
         GoalKind::FinishTutorial(_) => GoalState::NotMet,

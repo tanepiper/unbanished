@@ -1,12 +1,12 @@
 """Ground truth for the model transforms (crates/game/src/math.rs `Transform`): the Runtime's
 `Transform::FromYawPitchOffset` (`0x18007e540`), `Transform * Vector3` (`0x18001eae0`),
-`Vector3::FromYawPitch` (`0x180022990`), `Quaternion::Rotate` (`0x18001ea20`) and
-`Vector3::Heading` (`0x18007d3d0`).
+`Vector3::FromYawPitch` (`0x180022990`), `Quaternion::Rotate` (`0x18001ea20`),
+`Vector3::Heading` (`0x18007d3d0`) and `Transform::Inverse` (`0x18005e620`).
 
 Usage: .venv/bin/python tools/emu/transform.py OUT_DIR [COUNT]
 
 Writes `OUT_DIR/transform.tsv`, hex f32 bits: `yaw pitch ox oy oz vx vy vz lyaw` then the
-quaternion, the transformed point and the turned heading.
+quaternion, the transformed point, the turned heading and the inverse (quaternion, offset).
 """
 import os
 import random
@@ -49,11 +49,13 @@ def main(out_dir, count=50000):
         emu.call(0x180022990, buf + 0x70, buf + 0x30, buf + 0x34)              # dir at 0x70
         emu.call(0x18001ea20, buf + 0x40, buf + 0x80, buf + 0x70)              # rotated at 0x80
         hd = emu.call_f32(0x18007d3d0, buf + 0x80)
+        emu.call(0x18005e620, buf + 0x40, buf + 0xa0)                          # inverse at 0xa0
+        inv = struct.unpack('<7f', emu.read(buf + 0xa0, 28))
         q = struct.unpack('<4f', emu.read(buf + 0x40, 16))
         p = struct.unpack('<3f', emu.read(buf + 0x60, 12))
         ins = [yaw, pitch, *off, *v, lyaw]
         rows.append(' '.join(map(h, ins)) + '\t' + ' '.join(map(h, q)) + '\t'
-                    + ' '.join(map(h, p)) + '\t' + h(hd))
+                    + ' '.join(map(h, p)) + '\t' + h(hd) + '\t' + ' '.join(map(h, inv)))
     with open(os.path.join(out_dir, 'transform.tsv'), 'w') as f:
         f.write('\n'.join(rows) + '\n')
     print(f'wrote {len(rows)} transforms')

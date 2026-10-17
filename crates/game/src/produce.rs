@@ -148,7 +148,7 @@ impl Sim<'_, '_> {
         let n = self.templates[self.placed[e].template].create_points.len();
         for i in 0..n {
             let cell = self.create_cell(e, i) as usize;
-            self.cells.types[cell] = crate::terrain::CellType(2);
+            self.cells.set_type(cell, crate::terrain::CellType(2));
             self.cells.objects[cell] = None;
         }
     }
