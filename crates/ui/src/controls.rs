@@ -8,10 +8,60 @@ pub struct SliderData {
     pub sprites: Vec<Option<SpriteRef>>,
     pub range: [f32; 2],
     pub value: f32,
-    pub step: f32,
+    /// Steps across the range (`+0x120`, SliderDescription `+0xb0`): a click on the track
+    /// moves the value one of them.
+    pub steps: i32,
     pub inset: i32,
     pub track_y: i32,
     pub number: Option<NodeId>,
+    /// The pointer is over the knob (`+0x124`; it draws the fifth sprite).
+    pub over_knob: bool,
+    /// A drag from the knob (flag `0x200000`): the value and pointer x when it began (`+0x12c`).
+    pub drag: Option<(f32, i32)>,
+}
+
+impl SliderData {
+    /// One step of the range (a track click), a hundredth when the slider has none.
+    pub fn step(&self) -> f32 {
+        let range = self.range[1] - self.range[0];
+        if 0 < self.steps {
+            range / self.steps as f32
+        } else {
+            range.abs() / 100.0
+        }
+    }
+
+    /// The knob's width and the length it travels along `rect` (`SliderElement::Update` and
+    /// `Draw`: the width less twice the inset and twice half the knob's width).
+    fn travel(&self, rect: [i32; 4]) -> (i32, i32) {
+        let width = self.sprites.get(3).and_then(|s| *s).map_or(12, |s| s.width);
+        (width, rect[2] - (width / 2 + self.inset) * 2 - rect[0])
+    }
+
+    /// The knob's rectangle in `rect`: its sprite's size, from the inset at the minimum.
+    pub fn knob(&self, rect: [i32; 4]) -> [i32; 4] {
+        let (width, travel) = self.travel(rect);
+        let height = self
+            .sprites
+            .get(3)
+            .and_then(|s| *s)
+            .map_or(rect[3] - rect[1], |s| s.height);
+        let range = self.range[1] - self.range[0];
+        let offset = if range != 0.0 {
+            (travel as f32 * ((self.value - self.range[0]) / range)) as i32
+        } else {
+            0
+        };
+        let x = rect[0] + self.inset + offset;
+        [x, rect[1], x + width, rect[1] + height]
+    }
+
+    /// The value a drag from the knob gives with the pointer at `x`.
+    pub fn dragged(&self, rect: [i32; 4], x: i32) -> Option<f32> {
+        let (start, from) = self.drag?;
+        let (_, travel) = self.travel(rect);
+        Some(start - ((from - x) as f32 / travel as f32) * (self.range[1] - self.range[0]))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -217,14 +267,12 @@ impl Ui {
                 sprites: sprites(self, sprite_sheet, names),
                 range: *range,
                 value: range[0],
-                step: if *unknown_b0 > 0 {
-                    (range[1] - range[0]) / *unknown_b0 as f32
-                } else {
-                    0.0
-                },
-                inset: unknown[1].max(0),
+                steps: *unknown_b0,
+                inset: unknown[1],
                 track_y: unknown[0],
                 number: child(self, track),
+                over_knob: false,
+                drag: None,
             }),
             ElementKind::Scroll {
                 sprite_sheet,
@@ -491,7 +539,6 @@ impl Ui {
             slider.value = slider
                 .value
                 .clamp(range[0].min(range[1]), range[0].max(range[1]));
-            slider.step = (range[1] - range[0]).abs() / 100.0;
         }
     }
     /// `UI::TableElement::SetChild(child, index)`: put `child` in cell `index` (row-major).
@@ -1095,7 +1142,7 @@ impl Ui {
                 let track_sprites = &s.sprites[..3];
                 let knob_sprite = s
                     .sprites
-                    .get(if self.hot == Some(id) { 4 } else { 3 })
+                    .get(if s.over_knob { 4 } else { 3 })
                     .and_then(|s| *s);
                 if track_sprites.iter().any(Option::is_some) {
                     strip(
@@ -1115,8 +1162,7 @@ impl Ui {
                 }
                 let f = fraction(s.value, s.range);
                 if let Some(sp) = knob_sprite {
-                    let x =
-                        l + s.inset + ((r - l - 2 * s.inset - sp.width).max(0) as f32 * f) as i32;
+                    let x = s.knob([l, t, r, b])[0];
                     Self::sprite_quad(out, &sp, [x, t, x + sp.width, t + sp.height], color, clip);
                 } else if let Some(solid) = solid {
                     let track = [

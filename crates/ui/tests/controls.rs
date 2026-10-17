@@ -114,6 +114,51 @@ fn options_tabs_reveal_sound_controls_and_slider_accepts_input() {
     assert!(!ui.draw(root).is_empty());
 }
 
+/// `SliderElement::Update`: the track pages by a step, the knob drags, and a drag more than
+/// 32 px away puts the value back.
+#[test]
+fn slider_track_steps_and_knob_drags() {
+    let Some(mut ui) = game_ui() else { return };
+    let root = ui.instantiate(r"Dialog\Options.rsc:main").unwrap();
+    ui.layout_dialog(root, [0, 0, 1280, 720]);
+    let sound = ui.find(root, "buttonSound").unwrap();
+    click(&mut ui, root, sound);
+    ui.layout_dialog(root, [0, 0, 1280, 720]);
+    let music = ui.find(root, "sliderMusic").unwrap();
+    let slider = |ui: &Ui| match &ui.nodes[music].kind {
+        Kind::Control(Control::Slider(s)) => s.clone(),
+        _ => panic!("music slider"),
+    };
+    ui.set_value(music, slider(&ui).range[0]);
+    let rect = ui.nodes[music].rect;
+    let knob = slider(&ui).knob(rect);
+    // A press right of the knob: one step.
+    let (x, y) = (rect[2] - 2, (knob[1] + knob[3]) / 2);
+    ui.pointer_move(x, y, root);
+    ui.pointer_button(true, root);
+    ui.pointer_button(false, root);
+    let s = slider(&ui);
+    assert!(
+        (s.value - (s.range[0] + s.step())).abs() < 1e-4,
+        "{}",
+        s.value
+    );
+    // Drag the knob right by 20 px, then far away (back to the start), then release near.
+    let knob = s.knob(rect);
+    let (kx, ky) = ((knob[0] + knob[2]) / 2, (knob[1] + knob[3]) / 2);
+    ui.pointer_move(kx, ky, root);
+    ui.pointer_button(true, root);
+    ui.pointer_move(kx + 20, ky, root);
+    let dragged = slider(&ui).value;
+    assert!(dragged > s.value);
+    ui.pointer_move(kx + 20, ky + 200, root);
+    assert_eq!(slider(&ui).value, s.value);
+    ui.pointer_move(kx + 20, ky, root);
+    ui.pointer_button(false, root);
+    assert_eq!(slider(&ui).value, dragged);
+    assert!(slider(&ui).drag.is_none());
+}
+
 #[test]
 fn new_game_name_edit_enforces_length_and_edits_at_cursor() {
     let Some(mut ui) = game_ui() else { return };

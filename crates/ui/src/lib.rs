@@ -629,10 +629,12 @@ impl Ui {
             sprites: vec![None; 5],
             range,
             value: range[0],
-            step: (range[1] - range[0]).abs() / 100.0,
+            steps: 0,
             inset: 8,
             track_y: 0,
             number: None,
+            over_knob: false,
+            drag: None,
         }))))
     }
 

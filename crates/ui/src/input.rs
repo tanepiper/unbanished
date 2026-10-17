@@ -83,6 +83,12 @@ impl Ui {
                 self.drag_control(id, x, y);
             }
         }
+        for n in &mut self.nodes {
+            if let Kind::Control(Control::Slider(s)) = &mut n.kind {
+                let k = s.knob(n.rect);
+                s.over_knob = k[0] <= x && x <= k[2] && k[1] <= y && y <= k[3];
+            }
+        }
         self.update_states(root);
         for n in &mut self.nodes {
             if let Kind::List(l) = &mut n.kind {
@@ -137,11 +143,15 @@ impl Ui {
         if down {
             self.pressed = self.hot;
             self.focus = self.hot;
-            // `ButtonElement::Update` / `SliderElement::Update`: `Play(4)` on press.
-            if self
-                .hot
-                .is_some_and(|id| self.interactive(id) && self.nodes[id].usable())
-            {
+            // `ButtonElement::Update`: `Play(4)` on press (a list plays nothing; a slider, below).
+            if self.hot.is_some_and(|id| {
+                self.interactive(id)
+                    && self.nodes[id].usable()
+                    && !matches!(
+                        self.nodes[id].kind,
+                        Kind::List(_) | Kind::Control(Control::Slider(_))
+                    )
+            }) {
                 self.sounds.push(4);
             }
             if let Some(id) = self.hot {
@@ -170,12 +180,50 @@ impl Ui {
                         e.cursor = best;
                     }
                     Kind::Control(Control::Document(d)) => d.pressed_link = d.hovered_link,
+                    // `SliderElement::Update`: a press on the knob starts a drag; one beside it
+                    // on the slider moves the value a step towards the pointer (event `0x17`).
+                    // Either plays 4.
+                    Kind::Control(Control::Slider(sl)) => {
+                        let (x, y) = self.pointer;
+                        let knob = sl.knob(rect);
+                        if knob[0] <= x && x <= knob[2] && knob[1] <= y && y <= knob[3] {
+                            sl.drag = Some((sl.value, x));
+                            self.sounds.push(4);
+                        } else if knob[0] <= x && x <= knob[2] {
+                        } else {
+                            let step = if knob[2] < x { sl.step() } else { -sl.step() };
+                            let value = sl.value + step;
+                            self.set_value(id, value);
+                            self.sounds.push(4);
+                            event = Some(Event::Changed(id));
+                        }
+                    }
                     _ => {
                         self.drag_control(id, self.pointer.0, self.pointer.1);
                     }
                 }
             }
         } else {
+            // `SliderElement::Update`: the drag ends; within 32 px of the slider it plays 5.
+            if let Some(id) = self.pressed {
+                let rect = self.nodes[id].rect;
+                let (x, y) = self.pointer;
+                if let Kind::Control(Control::Slider(sl)) = &mut self.nodes[id].kind {
+                    if let Some((start, _)) = sl.drag.take() {
+                        let near = rect[0] - 32 <= x
+                            && x <= rect[2] + 32
+                            && rect[1] - 32 <= y
+                            && y <= rect[3] + 32;
+                        if near {
+                            self.sounds.push(5);
+                        } else {
+                            // Deviation: the original keeps the drag flag after a release far
+                            // away (until a release near it); the port ends the drag there.
+                            self.set_value(id, start);
+                        }
+                    }
+                }
+            }
             if let Some(id) = self.pressed.filter(|p| Some(*p) == self.hot) {
                 event = self.activate(id).or(event);
                 // `Play(5)` with the click event (`0x12`).
@@ -203,13 +251,22 @@ impl Ui {
         let rect = self.nodes[id].rect;
         let mut next = None;
         match &self.nodes[id].kind {
+            // `SliderElement::Update`: a drag from the knob follows the pointer while it stays
+            // within 32 px of the slider and puts the value back while it is further away
+            // (without an event).
             Kind::Control(Control::Slider(s)) => {
-                let knob = s.sprites.get(3).and_then(|s| *s).map_or(12, |s| s.width);
-                let f = ((x - rect[0] - s.inset - knob / 2) as f32
-                    / (rect[2] - rect[0] - 2 * s.inset - knob).max(1) as f32)
-                    .clamp(0.0, 1.0);
-                let raw = s.range[0] + (s.range[1] - s.range[0]) * f;
-                next = Some(raw);
+                let Some((start, _)) = s.drag else {
+                    return;
+                };
+                let near = rect[0] - 32 <= x
+                    && x <= rect[2] + 32
+                    && rect[1] - 32 <= y
+                    && y <= rect[3] + 32;
+                if !near {
+                    self.set_value(id, start);
+                    return;
+                }
+                next = s.dragged(rect, x);
             }
             Kind::Control(Control::Scroll { vertical, page, .. }) => {
                 let axis = if *vertical { 1 } else { 0 };
@@ -334,8 +391,10 @@ impl Ui {
                         Some(Event::Clicked(parent))
                     } else if let Event::Selected(n, i) = event {
                         if n == *list {
+                            // `ComboDialog::OnElementEvent`: the choice plays 5 and closes.
                             selected_text = Some((*button, *list, i));
                             *open = false;
+                            self.sounds.push(5);
                             Some(Event::Selected(parent, i))
                         } else {
                             None
@@ -671,11 +730,7 @@ impl Ui {
                 return true;
             }
             if let Kind::Control(Control::Slider(s)) = &self.nodes[id].kind {
-                let step = if s.step != 0.0 {
-                    s.step
-                } else {
-                    (s.range[1] - s.range[0]) / 100.0
-                };
+                let step = s.step();
                 let value = match key {
                     Key::Left | Key::Down => s.value - step,
                     Key::Right | Key::Up => s.value + step,

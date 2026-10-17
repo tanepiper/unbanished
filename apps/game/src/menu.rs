@@ -172,7 +172,8 @@ impl MenuLoop {
         ctx.ui.set_text(edit, &name);
     }
 
-    /// Event `0x14` on `comboCondition`: show the selected condition's description.
+    /// Event `0x14` on `comboCondition` (`FUN_140075670`): show the selected condition's
+    /// description.
     fn refresh_description(&mut self, ctx: &mut Ctx) {
         let (Some(screen), Some(d), Some(global)) =
             (&self.screen, self.new_game, ctx.global.as_ref())
@@ -638,7 +639,8 @@ impl GameLoop for MenuLoop {
             return Next::Stay;
         }
         if let Some(d) = self.new_game {
-            // NewGame IDs (FUN_140075ba0): buttonNewName 0, buttonNewSeed 1, buttonOk 2 (starts
+            // NewGame IDs (FUN_140075ba0), handled by FUN_1400755e0: buttonNewName 0
+            // (FUN_140075a80), buttonNewSeed 1 (FUN_140075a00), buttonOk 2 (FUN_140075750, starts
             // the game), buttonCancel 3 (closes). See docs/NEW-GAME-FLOW.md.
             if self.is(ctx.ui, d, "buttonNewSeed", id) {
                 self.new_seed(ctx);
