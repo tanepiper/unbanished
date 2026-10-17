@@ -97,11 +97,13 @@ a CRC over the entry table), delete and write. The port reads and writes saves i
 not check that CRC, so a corrupted save loads where the original refuses it.
 
 **Re-read (2026-10-17, later):** all 229 uncited Application functions of 200 bytes or more (every
-one is called from cited code). 131 were tagged by what they call (serialisation, UI, graphics,
-audio, threads, sorts, allocation); the other 98 were read by hand: red-black tree and array
+one is called from cited code), every one read by hand: red-black tree and array
 helpers, the type-registration stubs (`FUN_1400031f0` callers), inlined `qsort` copies, the CRT's
 `tanf`/`atanf`/error box, Debug and Steam windows, destructors and the finished building's mesh
-hand-off (`FUN_14010dbf0`). None holds a game rule the port lacks. One ordering detail: the
+hand-off (`FUN_14010dbf0`), templated array resizes and `ExternalPtr` array serialisers, the
+string sorts already ported as `crt_qsort_less`, dialog constructors and loaders, and the path
+finder's thread commands (`FUN_1400abf00`, `FUN_1400abff0`, `FUN_1400ac300`, `FUN_1400ac3d0`,
+`FUN_1400ac4b0`; the port solves paths synchronously). None holds a game rule the port lacks. One ordering detail: the
 entity manager keeps its post-iteration set (`+0x78`, entities with flag `0x10`,
 `FUN_1400c8f80`) in a tree keyed by object address, so `FUN_1400c98a0` visits it in memory
 order. That phase only smooths each natural resource's own growth scale (`FUN_140125370`), so its
