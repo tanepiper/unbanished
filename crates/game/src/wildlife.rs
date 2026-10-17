@@ -21,7 +21,7 @@ use banished_formats::game::{
 };
 use banished_formats::types::AnimationGroup;
 
-use crate::animation::Playback;
+use crate::animation::AnimationStack;
 use crate::character::{Action, Character, MoveTo};
 use crate::random::Random;
 use crate::scheduler::{seconds, ticks, EntityScheduler};
@@ -1003,16 +1003,17 @@ impl Wild<'_, '_> {
 
     /// `FUN_14010b720`: play clip `anim` for `seconds`; with `turn`, face a random way.
     fn idle(&mut self, a: usize, anim: usize, secs: f32, turn: bool) {
-        let looping = {
+        let group = {
             let animal = &self.wildlife.animals[&a];
             self.wildlife
-                .group(animal)
-                .and_then(|g| g.clips.get(anim))
-                .is_some_and(|c| c.looping)
+                .groups
+                .get(&(animal.template, animal.variant))
+                .cloned()
         };
         let animal = self.wildlife.animals.get_mut(&a).unwrap();
-        if !(animal.character.animation.clip == anim && looping) {
-            animal.character.animation = Playback::new(anim, 0);
+        match &group {
+            Some(g) => animal.character.animation.play(g, anim, 0),
+            None => animal.character.animation = AnimationStack::new(anim, 0),
         }
         animal.timer = ticks(secs);
         if turn {

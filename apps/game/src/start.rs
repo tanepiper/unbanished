@@ -3076,10 +3076,7 @@ impl StartingTown {
                 matrix[15] = c.appearance as f32;
                 let locals = ch
                     .zip(self.citizen_anims.get(variant).and_then(Option::as_ref))
-                    .and_then(|(ch, g)| {
-                        let p = &ch.animation;
-                        g.clips.get(p.clip).map(|clip| p.pose(clip))
-                    });
+                    .and_then(|(ch, g)| ch.animation.pose(g));
                 // ShowTool (`FUN_14011c880`): the tool's mesh, or the carried goods', on the
                 // citizen mesh's `tool` node (`Geometry::Attach`), at its scale.
                 let shown = self.agents.states.get(i).map_or(-1, |s| s.shown_tool);
@@ -3150,11 +3147,10 @@ impl StartingTown {
             };
             let ch = &animal.character;
             let s = animal.scale;
-            let locals = self.wildlife.group(animal).and_then(|g| {
-                g.clips
-                    .get(ch.animation.clip)
-                    .map(|clip| ch.animation.pose(clip))
-            });
+            let locals = self
+                .wildlife
+                .group(animal)
+                .and_then(|g| ch.animation.pose(g));
             groups
                 .entry((mesh.clone(), GroupMaterial::default()))
                 .or_default()
@@ -3182,11 +3178,7 @@ impl StartingTown {
                 .wildlife
                 .groups
                 .get(&(nomad.template, nomad.variant))
-                .and_then(|g| {
-                    g.clips
-                        .get(ch.animation.clip)
-                        .map(|clip| ch.animation.pose(clip))
-                });
+                .and_then(|g| ch.animation.pose(g));
             let material = GroupMaterial {
                 set: 0,
                 first: self

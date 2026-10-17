@@ -16,7 +16,7 @@
 use banished_formats::game::CharacterDescription;
 use banished_formats::types::AnimationGroup;
 
-use crate::animation::Playback;
+use crate::animation::AnimationStack;
 use crate::pathfind::{self, Pathfinder};
 use crate::random::Random;
 use crate::scheduler::{seconds, ticks};
@@ -246,8 +246,8 @@ pub struct Character {
     pub flag_28: bool,
     /// Model scale z (model `+0x13c`): `FUN_14010f6c0` multiplies it into the speed.
     pub scale: f32,
-    /// The model's animation state (one layer: the original blends between clips).
-    pub animation: Playback,
+    /// The model's animation state, its clips blending into each other.
+    pub animation: AnimationStack,
     pub stack: ActionStack,
 }
 
@@ -262,7 +262,7 @@ impl Character {
             target_heading: 0.0,
             flag_28: false,
             scale,
-            animation: Playback::new(0, 0),
+            animation: AnimationStack::new(0, 0),
             stack: ActionStack::default(),
         }
     }
@@ -270,10 +270,7 @@ impl Character {
     /// `FUN_14010f6c0`: play clip `anim` (a looping clip already playing keeps its time,
     /// `AnimationState::PlayAnimation`) and set the speed to `scale * speed`.
     pub fn play(&mut self, anim: usize, group: &AnimationGroup, speed: f32) {
-        let same = self.animation.clip == anim && group.clips.get(anim).is_some_and(|c| c.looping);
-        if !same {
-            self.animation = Playback::new(anim, 0);
-        }
+        self.animation.play(group, anim, 0);
         self.speed = self.scale * speed;
     }
 
@@ -291,17 +288,14 @@ impl Character {
 
     /// `Graphics::AnimationManager::Update`: advance the clip; the root delta moves the body.
     pub fn animate(&mut self, group: &AnimationGroup, dt: f32) {
-        if let Some(clip) = group.clips.get(self.animation.clip) {
-            self.animation.update(clip, ticks(dt));
-        }
+        self.animation.update(group, ticks(dt));
     }
 
     /// Root motion of the last animation step (`MeshInstance::RootAnimationOffset`).
     fn root_offset(&self, group: &AnimationGroup) -> f32 {
-        let Some(clip) = group.clips.get(self.animation.clip) else {
+        let Some(pose) = self.animation.pose(group) else {
             return 0.0;
         };
-        let pose = self.animation.pose(clip);
         pose.first().map_or(0.0, |root| {
             let t = root.translation;
             (t[0] * t[0] + t[1] * t[1] + t[2] * t[2]).sqrt()

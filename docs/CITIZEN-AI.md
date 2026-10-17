@@ -56,8 +56,12 @@ Each update (angles in degrees):
 
 `FUN_14010f6c0(anim, blend, scale)` plays a clip and sets `speed = model scale z × scale`.
 Replaying a looping clip that is already playing keeps its time (`AnimationState::PlayAnimation`).
-The original blends clips over the description's blend time using the group's blend matrix; the
-port switches immediately (deviation).
+Clips blend as `AnimationState` does (`crate::animation::AnimationStack`): each play pushes a
+layer and the covered one fades over the group's blend time (`+0x48`, `[new][old]`, else the
+default `+0x30`; the description's `+0x2c` handed to `PlayAnimation` is not used). The pose
+starts from the oldest layer and mixes each newer one over it by the older layer's share left
+(`Quaternion::Lerp`, linear translation). Not ported: `AnimationManager`'s shared instances
+(instanced clips share 3, 4 or 8 clocks among the characters playing them).
 
 Citizen clips (`Models/Citizen/CitizenAnims`): 0 Idle, 1 Walk, 2 WalkTool, 3 WalkLongTool,
 4 WalkInventory, 5 WalkBarrow, 6 BendDown, 7 StandUp, 8 GenericWork, 9 AxeWork, 10 PickAxeWork,

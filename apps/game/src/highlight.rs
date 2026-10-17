@@ -223,10 +223,7 @@ impl Highlight {
                 .citizen_anims
                 .get(variant)
                 .and_then(Option::as_ref)
-                .and_then(|g| {
-                    let p = &town.agents.characters[i].animation;
-                    g.clips.get(p.clip).map(|c| p.pose(c))
-                }),
+                .and_then(|g| town.agents.characters[i].animation.pose(g)),
             Entity::Placed(i) => town.placed[i].animation.as_ref().and_then(|p| {
                 town.templates[town.placed[i].template]
                     .animations

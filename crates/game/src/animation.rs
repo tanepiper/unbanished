@@ -169,3 +169,181 @@ pub fn sample_pose(clip: &AnimationClip, time: i64, delta: i64) -> Vec<Transform
     }
     pose
 }
+
+/// One layer of an [`AnimationStack`] (`AnimationState` entry, 0x38 bytes): its clip and clock,
+/// and while it fades out under a newer layer, the blend time (`+0x20`) and what is left of
+/// it (`+0x28`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Layer {
+    pub playback: Playback,
+    pub blend: i64,
+    pub left: i64,
+    /// `+0x30`: the layer has been updated once.
+    pub started: bool,
+}
+
+/// `Graphics::AnimationState` with its blend stack, newest layer first. Each play pushes a
+/// layer; the one it covers fades out over the group's blend time, and the pose mixes them.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct AnimationStack {
+    pub layers: Vec<Layer>,
+    /// The pose `UpdateNodes` published at the last update.
+    pose: Vec<Transform>,
+}
+
+/// `AnimationGroup` `+0x48`: the blend time from `old` to `new` (`[new][old]`, the group's
+/// clips square), else the default (`+0x30`).
+fn blend_seconds(group: &banished_formats::types::AnimationGroup, old: usize, new: usize) -> f32 {
+    let n = group.clips.len();
+    group
+        .blend_matrix
+        .get(n * new + old)
+        .copied()
+        .unwrap_or(group.default_blend)
+}
+
+impl AnimationStack {
+    /// One layer playing `clip` from `start`.
+    pub fn new(clip: usize, start: i64) -> Self {
+        Self {
+            layers: vec![Layer {
+                playback: Playback::new(clip, start),
+                blend: 0,
+                left: 0,
+                started: false,
+            }],
+            pose: Vec::new(),
+        }
+    }
+
+    /// The newest layer's clip.
+    pub fn clip(&self) -> Option<usize> {
+        self.layers.first().map(|l| l.playback.clip)
+    }
+
+    /// `AnimationState::PlayAnimation` (Runtime `0x1801007e0`). A looping clip already on top
+    /// keeps its time (speed back to 1). Otherwise the top layer starts fading over the blend
+    /// time from its clip to `clip` and the new layer goes on top; a top layer never updated
+    /// is replaced instead, the one below taking the blend.
+    pub fn play(
+        &mut self,
+        group: &banished_formats::types::AnimationGroup,
+        clip: usize,
+        start: i64,
+    ) {
+        if let Some(top) = self.layers.first_mut() {
+            if top.playback.clip == clip && group.clips.get(clip).is_some_and(|c| c.looping) {
+                top.playback.speed = 1.0;
+                return;
+            }
+        }
+        let layer = Layer {
+            playback: Playback::new(clip, start),
+            blend: 0,
+            left: 0,
+            started: false,
+        };
+        if self.layers.is_empty() {
+            self.layers.push(layer);
+            return;
+        }
+        if !self.layers[0].started && self.layers.len() != 1 {
+            let t = ticks(blend_seconds(group, self.layers[1].playback.clip, clip));
+            self.layers[1].blend = t;
+            self.layers[1].left = t;
+            self.layers[0] = layer;
+            return;
+        }
+        let t = ticks(blend_seconds(group, self.layers[0].playback.clip, clip));
+        self.layers[0].blend = t;
+        self.layers[0].left = t;
+        self.layers.insert(0, layer);
+    }
+
+    /// `AnimationState::Update` (`0x1801003b0`) with `UpdateNodes` (`0x1800ff4b0`): the pose at
+    /// the old clocks, the oldest layer's first and each newer one mixed over it by the older
+    /// layer's share left (`Quaternion::Lerp` and a linear translation); then every clock
+    /// advances (only the newest fires its events), and the fading layers count down, a
+    /// layer leaving once less than a tick is left. Returns the newest layer's events.
+    pub fn update(
+        &mut self,
+        group: &banished_formats::types::AnimationGroup,
+        dt: i64,
+    ) -> Vec<usize> {
+        let Some(top) = self.layers.first_mut() else {
+            return Vec::new();
+        };
+        top.started = true;
+        let weights: Vec<f32> = self
+            .layers
+            .iter()
+            .map(|l| {
+                if l.blend > 0 {
+                    seconds(l.left) / seconds(l.blend)
+                } else {
+                    0.0
+                }
+            })
+            .collect();
+        let mut events = Vec::new();
+        for (i, layer) in self.layers.iter_mut().enumerate() {
+            if let Some(clip) = group.clips.get(layer.playback.clip) {
+                let fired = layer.playback.update(clip, dt);
+                if i == 0 {
+                    events = fired;
+                }
+            }
+        }
+        let poses: Vec<Option<Vec<Transform>>> = self
+            .layers
+            .iter()
+            .map(|l| group.clips.get(l.playback.clip).map(|c| l.playback.pose(c)))
+            .collect();
+        let mut pose: Option<Vec<Transform>> = None;
+        for i in (0..self.layers.len()).rev() {
+            let Some(new) = &poses[i] else { continue };
+            pose = Some(match pose {
+                None => new.clone(),
+                Some(old) => {
+                    let w = weights.get(i + 1).copied().unwrap_or(0.0);
+                    new.iter()
+                        .zip(&old)
+                        .map(|(n, o)| Transform {
+                            rotation: quaternion_lerp(n.rotation, o.rotation, w),
+                            translation: std::array::from_fn(|k| {
+                                n.translation[k] + (o.translation[k] - n.translation[k]) * w
+                            }),
+                        })
+                        .collect()
+                }
+            });
+        }
+        self.pose = pose.unwrap_or_default();
+        let step = ticks(seconds(dt));
+        let mut i = 0;
+        while i < self.layers.len() {
+            let l = &mut self.layers[i];
+            if l.blend > 0 {
+                l.left -= step;
+                if l.left < 1 {
+                    self.layers.remove(i);
+                    continue;
+                }
+            }
+            i += 1;
+        }
+        events
+    }
+
+    /// The pose of the last update, or the newest layer's at its clock before any update.
+    pub fn pose(&self, group: &banished_formats::types::AnimationGroup) -> Option<Vec<Transform>> {
+        if !self.pose.is_empty() {
+            return Some(self.pose.clone());
+        }
+        let top = self.layers.first()?;
+        group
+            .clips
+            .get(top.playback.clip)
+            .map(|c| top.playback.pose(c))
+    }
+}
