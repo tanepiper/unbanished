@@ -139,10 +139,17 @@ impl Needs<'_, '_> {
         Some((self.sites[found.site].entity, found.target))
     }
 
-    /// `FUN_140093840`: for the urgently hungry, the nearest of the home, the town's storages
-    /// and the empty residences that hold food.
-    /// Deviation: the town's storages are ranked by `FUN_140093200` (with its market
-    /// precedence) rather than this function's own scan.
+    /// `FUN_140093840`: for the urgently hungry, the nearest of the home, the town's markets
+    /// and storages, and the empty residences that hold food, each taking a strictly better
+    /// rank in that order.
+    /// - The home: its entrance (`FUN_14008d480`, the ground at the cell's centre), when
+    ///   reachable, at its path rank (`FUN_140008830`), if it holds food (`FUN_140094410`).
+    /// - The markets, then the storages, as `FUN_140093200` weighs them but without its stop
+    ///   at a market covering the home.
+    /// - Each residence nobody lives in (`FUN_140017ac0`): its point 0, whose path rank
+    ///   (`FUN_1400a4ce0`, else the map width plus the straight distance) must beat the best;
+    ///   then the cells must be connected and the residence must hold food, and that rank is
+    ///   taken.
     fn urgent_search(&mut self, cell: i32, home: Option<usize>) -> Option<(usize, [f32; 3])> {
         let mut best = i32::MAX;
         let mut found = None;
@@ -152,50 +159,56 @@ impl Needs<'_, '_> {
         if let Some(h) = home {
             let entrance = self.town.entrance(h, self.rng);
             if entrance >= 0 && self.town.reachable(WALKABLE, cell, entrance) {
-                let rank = {
-                    let mut g = StorageGeometry {
-                        town: self.town,
-                        sectors: self.sectors,
-                        ground: &ground_at,
-                    };
-                    crate::stock::StorageSearchMap::rank(&mut g, entrance, cell)
-                };
-                if 0 < self.home_food(h) {
+                let rank = self.rank(entrance, cell);
+                let food = self
+                    .homes
+                    .get(&h)
+                    .and_then(|r| self.storages[r.storage].find_item(self.materials, 0, self.rng));
+                if food.is_some() {
                     best = rank;
-                    found = Some((h, self.point(h)));
+                    found = Some((h, ground_at(entrance)));
                 }
             }
         }
-        if let Some((e, target)) = self.search(0, cell, home) {
-            let to = self.town.cell_of(target);
-            let mut g = StorageGeometry {
+        let (rank, storage) = {
+            let mut geometry = StorageGeometry {
                 town: self.town,
                 sectors: self.sectors,
                 ground: &ground_at,
             };
-            let rank = crate::stock::StorageSearchMap::rank(&mut g, to, cell);
-            if rank < best {
-                best = rank;
-                found = Some((e, target));
-            }
+            crate::stock::scan_storages(
+                self.sites,
+                self.storages,
+                self.materials,
+                0,
+                cell,
+                None,
+                best,
+                &mut geometry,
+                self.rng,
+            )
+        };
+        if let Some(m) = storage {
+            best = rank;
+            found = Some((self.sites[m.site].entity, m.target));
         }
         let residences: Vec<usize> = self.homes.keys().copied().collect();
         for e in residences {
-            if self.homes[&e].occupants() > 0 || self.home_food(e) < 1 {
+            if self.homes[&e].occupants() > 0 {
                 continue;
             }
             let p = self.point(e);
             let to = self.town.cell_of(p);
-            if !self.town.reachable(WALKABLE, cell, to) {
+            let rank = self.rank(to, cell);
+            if best <= rank || !self.town.reachable(WALKABLE, cell, to) {
                 continue;
             }
-            let mut g = StorageGeometry {
-                town: self.town,
-                sectors: self.sectors,
-                ground: &ground_at,
-            };
-            let rank = crate::stock::StorageSearchMap::rank(&mut g, to, cell);
-            if rank >= 0 && rank < best {
+            let storage = self.homes[&e].storage;
+            if self.storages[storage]
+                .find_item(self.materials, 0, self.rng)
+                .is_some()
+                && rank >= 0
+            {
                 best = rank;
                 found = Some((e, p));
             }

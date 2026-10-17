@@ -543,8 +543,6 @@ impl GameplayLoop {
         ))
     }
 
-    /// The achievement instances with their goals' progress, for a new game. Deviation: a
-    /// loaded game keeps the instances it was saved with (the port does not read them back).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     /// The achievement instances (`AchievementManager::Persist`) and the game's goal
     /// (`+0x150`, its met flag `+0x158`). A loaded game's saved instances take the progress;

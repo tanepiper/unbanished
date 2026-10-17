@@ -240,7 +240,9 @@ pub struct Character {
     pub direction: [f32; 3],
     pub speed: f32,
     pub target_heading: f32,
-    /// `+0x28`, cleared when a waypoint is faced (consumer not traced).
+    /// `+0x28`: set with a heading of its own (`FUN_14010f5b0`), cleared when a waypoint is
+    /// faced; no byte read of it was found in the Application outside the saves, which keep
+    /// it.
     pub flag_28: bool,
     /// Model scale z (model `+0x13c`): `FUN_14010f6c0` multiplies it into the speed.
     pub scale: f32,

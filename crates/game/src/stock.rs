@@ -180,12 +180,42 @@ pub fn find_storage(
     map: &mut impl StorageSearchMap,
     rng: &mut Random,
 ) -> Option<StorageMatch> {
-    let mut best = i32::MAX;
+    let (_, found) = scan_storages(
+        sites,
+        storages,
+        materials,
+        category,
+        cell,
+        Some(home),
+        i32::MAX,
+        map,
+        rng,
+    );
+    found
+}
+
+/// The markets (radius list), then the storages, each taking a strictly better rank than
+/// `best`. With `home` (FUN_140093200) a market whose radius covers the home ends the search
+/// after the markets; without it (FUN_140093840's scan) every storage is weighed. Returns the
+/// best rank and its match.
+#[allow(clippy::too_many_arguments)]
+pub fn scan_storages(
+    sites: &[StorageSite],
+    storages: &[Storage],
+    materials: &[RawMaterial],
+    category: u32,
+    cell: i32,
+    home: Option<i32>,
+    best: i32,
+    map: &mut impl StorageSearchMap,
+    rng: &mut Random,
+) -> (i32, Option<StorageMatch>) {
+    let mut best = best;
     let mut found = None;
     let mut covered = false;
     for (site, s) in sites.iter().enumerate().filter(|(_, s)| s.radius.is_some()) {
         let entrance = map.entrance(s.entity, rng);
-        let in_radius = home >= 0 && map.rank(entrance, home) <= s.radius.unwrap();
+        let in_radius = home.is_some_and(|h| h >= 0 && map.rank(entrance, h) <= s.radius.unwrap());
         if map.rank(entrance, cell) < best {
             if let Some(material) = storages[s.storage].find_item(materials, category, rng) {
                 covered |= in_radius;
@@ -204,7 +234,7 @@ pub fn find_storage(
         }
     }
     if covered && found.is_some() {
-        return found;
+        return (best, found);
     }
     for (site, s) in sites.iter().enumerate().filter(|(_, s)| s.radius.is_none()) {
         let entrance = map.entrance(s.entity, rng);
@@ -232,7 +262,7 @@ pub fn find_storage(
             }
         }
     }
-    found
+    (best, found)
 }
 
 /// Port of FUN_140092a60: the storage nearest `cell` (entrance path rank) that holds
