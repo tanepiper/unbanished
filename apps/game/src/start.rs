@@ -1891,11 +1891,8 @@ impl StartingTown {
             terrain,
             n * (y + h - 1) + x + w - 1,
         );
-        let centre = [
-            (g0[0] + g1[0]) * 0.5,
-            (g0[1] + g1[1]) * 0.5,
-            (g0[2] + g1[2]) * 0.5,
-        ];
+        // The corners' midpoint; `FUN_1400e1150` then sets z to 0.
+        let centre = [(g0[0] + g1[0]) * 0.5, (g0[1] + g1[1]) * 0.5, 0.0];
         let mut degrees = degrees;
         while degrees < 0 {
             degrees += 360;
