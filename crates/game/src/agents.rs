@@ -454,8 +454,9 @@ impl Agents {
         }
         let entities = entity_views(env.placed, env.templates, env.construction);
         let adult = self.adults(citizens);
-        // Bands taken in (ImmigrationUI `0x9858`), made citizens after the other commands.
-        let mut admissions = Vec::new();
+        // A band taken in (ImmigrationUI `0x9858`) becomes citizens where its command stands;
+        // the commands after it run once it has.
+        let mut admission = None;
         let mut road_markers = Vec::new();
         let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
         // Placing activates at once in the original (`FUN_1400c9d70`); a cancel comes after.
@@ -467,7 +468,8 @@ impl Agents {
             sim.destroy_entity(jobs, e);
             jobs.drain(&mut sim);
         }
-        for command in commands {
+        let mut queue = commands.into_iter();
+        while let Some(command) = queue.next() {
             match command {
                 crate::professions::Command::SetCrop { entity, crop } => {
                     if sim.wildlife.pastures.contains_key(&entity) {
@@ -529,8 +531,8 @@ impl Agents {
                 crate::professions::Command::StateMessage { entity, message } => {
                     if message == 7 {
                         if let Some(band) = sim.take_band(entity) {
-                            admissions.push((entity, band));
-                            continue;
+                            admission = Some((entity, band));
+                            break;
                         }
                     }
                     sim.destroy_message(jobs, entity, message);
@@ -621,10 +623,16 @@ impl Agents {
             );
             sim.set_workers(&workers);
         }
-        for (entity, band) in admissions {
-            self.admit_band(citizens, env, groups, entity, &band, newborn);
-        }
+        let rest: Vec<_> = queue.collect();
         env.construction.road_markers.extend(road_markers);
+        if let Some((entity, band)) = admission {
+            self.admit_band(citizens, env, groups, entity, &band, newborn);
+            if !rest.is_empty() {
+                let later = std::mem::replace(&mut env.construction.commands, rest);
+                env.construction.commands.extend(later);
+                self.apply_commands(citizens, env, groups, newborn);
+            }
+        }
     }
 
     /// Citizen `i`'s place in the characters' tree, put in by whoever made it.
@@ -650,7 +658,7 @@ impl Agents {
     /// (`FUN_140050b00` → `FUN_14011c550`, laborers): a man, a woman (married to him), then
     /// a girl and a boy in her care. Adults are `+0x50 + RandFloat × (+0x54 − +0x50)` years old,
     /// children `RandFloat × +0x50`. Then the nomads are gone and the town hall goes back to 2.
-    /// Deviation: a band taken in is made after the frame's other commands.
+    /// It runs in its command's turn (`apply_commands`).
     fn admit_band(
         &mut self,
         citizens: &mut Vec<Citizen>,
