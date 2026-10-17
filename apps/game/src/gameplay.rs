@@ -1364,6 +1364,13 @@ impl GameplayLoop {
             DragInput::Move => tool.motion(ctx.archive, town, &grid, cell),
             DragInput::Release => tool.release(ctx.archive, town, &grid, cell),
         };
+        // The original's tools act inside the input handler: RoadTool's apply
+        // (`FUN_14010a200`) plans each cell (`FUN_1400a1e30`) and rebuilds the road decals
+        // (`FUN_1400b4840`) there and then, paused or not. The port queues the commands;
+        // applying them now is the order the next iteration would apply them in.
+        if sound.is_some() {
+            town.apply_commands(&grid, &mut self.rng);
+        }
         let cells = tool.overlay(town, &grid, cell);
         view.cell_overlay = crate::selection_overlay::vertices(&cells, n, |x, y| {
             let mut normal = [0.0; 3];
@@ -3058,6 +3065,11 @@ impl GameLoop for GameplayLoop {
                     return false;
                 };
                 self.pending_save = Some((SaveTarget::File(path.into()), None, None));
+                return true;
+            }
+            // `toggle_pause`: the TogglePause key (captures).
+            Some("toggle_pause") => {
+                self.paused = !self.paused;
                 return true;
             }
             // `pause`: open the pause menu (captures).

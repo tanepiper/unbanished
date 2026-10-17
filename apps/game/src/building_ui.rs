@@ -99,18 +99,30 @@ impl ResidenceUi {
         let table = ui
             .find(element, "residenceTable")
             .or_else(|| ui.find(element, "residenceLongTable"));
-        let cells = table.map(|t| ui.children(t)).unwrap_or_default();
-        let rows = cells
-            .iter()
-            .map(|&c| {
-                let param = |ui: &Ui, n: &str| ui.find(c, n).map(|id| (id, text_of(ui, id)));
+        // The table's cells, row by row (`Child(row × width + column)`): goto, name, gender,
+        // age and profession across each row.
+        let mut by_row: std::collections::BTreeMap<usize, Vec<NodeId>> = Default::default();
+        if let Some(t) = table {
+            if let banished_ui::Kind::Control(banished_ui::Control::Table { cells, .. }) =
+                &ui.node(t).kind
+            {
+                for &(_, y, n) in cells {
+                    by_row.entry(y).or_default().push(n);
+                }
+            }
+        }
+        let rows = by_row
+            .values()
+            .map(|cells| {
+                let find = |ui: &Ui, n: &str| cells.iter().find_map(|&c| ui.find(c, n));
+                let param = |ui: &Ui, n: &str| find(ui, n).map(|id| (id, text_of(ui, id)));
                 ResidentRow {
-                    male: ui.find(c, "imageMale"),
-                    female: ui.find(c, "imageFemale"),
+                    male: find(ui, "imageMale"),
+                    female: find(ui, "imageFemale"),
                     name: param(ui, "textName"),
                     age: param(ui, "textAge"),
                     profession: param(ui, "textProfession"),
-                    goto: ui.find(c, "buttonGoto"),
+                    goto: find(ui, "buttonGoto"),
                 }
             })
             .collect();
@@ -1716,6 +1728,35 @@ impl Controller {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// ResidenceUI's table is 5 cells by 8 rows (`FUN_1400bad20` reads child `row × 5 +
+    /// column`): every row gets its own goto, name, gender, age and profession.
+    #[test]
+    fn residence_rows_span_the_table_columns() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../game-data/original/WinData");
+        let mut archive = Archive::default();
+        for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
+            let Ok(bytes) = std::fs::read(dir.join(name)) else {
+                return;
+            };
+            archive.add(banished_formats::pkg::Package::parse(bytes).unwrap());
+        }
+        let mut ui = Ui::new(std::rc::Rc::new(archive));
+        let element = ui.instantiate(r"Dialog\Residence.rsc:residence").unwrap();
+        let r = ResidenceUi::bind(&mut ui, element);
+        assert_eq!(r.rows.len(), 8);
+        for row in &r.rows {
+            assert!(row.goto.is_some() && row.name.is_some() && row.age.is_some());
+            assert!(row.male.is_some() && row.female.is_some() && row.profession.is_some());
+        }
+        let names: std::collections::BTreeSet<_> = r
+            .rows
+            .iter()
+            .map(|row| row.name.as_ref().unwrap().0)
+            .collect();
+        assert_eq!(names.len(), 8);
+    }
 
     /// The crop field's build-status icons keep to the status pages (`_showOnMainPage` false).
     #[test]
