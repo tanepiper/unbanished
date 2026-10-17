@@ -128,6 +128,14 @@ impl CharacterTree {
     }
 
     /// `FUN_140018f70`: out of its node; the slot goes on the free list.
+    /// The slot holding `who`, if it is in the tree.
+    pub fn slot_of(&self, who: Who) -> Option<i32> {
+        self.slots
+            .iter()
+            .position(|s| s.who == Some(who))
+            .map(|i| i as i32)
+    }
+
     pub fn remove(&mut self, slot: i32) {
         if slot < 0
             || self

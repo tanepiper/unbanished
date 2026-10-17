@@ -1048,6 +1048,22 @@ impl StartingTown {
         );
         // `FUN_1400a5eb0`: the wildlife populations (deer) and their herds.
         let mut wildlife = banished_game::wildlife::Wildlife::default();
+        // The households' CharacterComponents activate as they are made, before any animal
+        // (`FUN_14010ee90`): first in the characters' tree.
+        let radius = read(
+            archive,
+            &normalise(&profile.citizen).replace(":resource", ":character"),
+        )
+        .and_then(|d| banished_formats::game::character_description(&d).ok())
+        .unwrap_or_default()
+        .radius;
+        for (i, c) in citizens.iter().enumerate() {
+            wildlife.tree.insert(
+                banished_game::character_tree::Who::Citizen(i),
+                c.position,
+                radius,
+            );
+        }
         let populations =
             wildlife_kinds(archive, &profile.populations, &mut templates, &mut wildlife);
         for t in populations {
@@ -1230,6 +1246,15 @@ impl StartingTown {
                 CHILD_SCALE
             }
         });
+        // The citizens already in the characters' tree keep their slots.
+        for i in 0..citizens.len() {
+            if let Some(s) = wildlife
+                .tree
+                .slot_of(banished_game::character_tree::Who::Citizen(i))
+            {
+                agents.set_tree_slot(i, s);
+            }
+        }
         if let Some(d) = read(archive, &citizen_ref.replace(":resource", ":citizen"))
             .and_then(|d| citizen_description(&d).ok())
         {

@@ -627,6 +627,25 @@ impl Agents {
         env.construction.road_markers.extend(road_markers);
     }
 
+    /// Citizen `i`'s place in the characters' tree, put in by whoever made it.
+    pub fn set_tree_slot(&mut self, i: usize, slot: i32) {
+        if let Some(ch) = self.characters.get_mut(i) {
+            ch.tree_slot = slot;
+        }
+    }
+
+    /// CharacterComponent activation (`FUN_14010ee90`): citizen `i` joins the characters' tree.
+    fn join_tree(&mut self, i: usize, env: &mut Env) {
+        let ch = &mut self.characters[i];
+        if ch.tree_slot < 0 {
+            ch.tree_slot = env.wildlife.tree.insert(
+                crate::character_tree::Who::Citizen(i),
+                ch.position,
+                ch.desc.radius,
+            );
+        }
+    }
+
     /// `FUN_14004ddb0`: the band becomes citizens in fours where each nomad stands
     /// (`FUN_140050b00` → `FUN_14011c550`, laborers): a man, a woman (married to him), then
     /// a girl and a boy in her care. Adults are `+0x50 + RandFloat × (+0x54 − +0x50)` years old,
@@ -697,6 +716,7 @@ impl Agents {
             }
             id
         };
+        let first = citizens.len();
         let mut k = 0;
         while k < band.len() {
             let man = make(self, citizens, env.rng, band[k].1, true, None);
@@ -715,6 +735,11 @@ impl Agents {
             }
             make(self, citizens, env.rng, band[k + 3].1, true, Some(woman));
             k += 4;
+        }
+        // Each new citizen's entity activates as it is made (`FUN_14010ee90`), before the
+        // nomads go.
+        for i in first..citizens.len() {
+            self.join_tree(i, env);
         }
         let entities = entity_views(env.placed, env.templates, env.construction);
         let adult = self.adults(citizens);
@@ -785,9 +810,8 @@ impl Agents {
         }
         // The citizens' CharacterComponents in the characters' tree: the dead leave it
         // (`FUN_14010ee50`), the new join it (`FUN_14010ee90`), in index order.
-        // Deviation: the original puts a citizen in when its entity activates; the port at the
-        // next citizens' update, so one made in an iteration joins after that iteration's
-        // animals, boats and nomads.
+        // Births, bands and deaths join and leave it on the spot (`join_tree`, `remove`); this
+        // catches the start's citizens and any made elsewhere.
         for i in 0..self.characters.len() {
             let alive = groups.get(i).copied().flatten().is_some()
                 && citizens.get(i).is_some_and(|c| c.alive);
@@ -980,6 +1004,8 @@ impl Agents {
                 self.characters.push(ch);
                 self.ais.push(CitizenAi::default());
                 self.states[c].carried = self.carried.clone();
+                // The child's entity activates as it is made (`FUN_14010ee90`).
+                self.join_tree(c, env);
             }
             if self.dying.iter().any(|&(d, _)| d == i) {
                 continue;
@@ -1407,6 +1433,13 @@ impl Agents {
         groups: &[Option<&AnimationGroup>],
         entities: &[EntityView],
     ) {
+        // CharacterComponent's removal slot (`FUN_14010ee50`): out of the characters' tree.
+        if let Some(ch) = self.characters.get_mut(c) {
+            if 0 <= ch.tree_slot {
+                env.wildlife.tree.remove(ch.tree_slot);
+                ch.tree_slot = -1;
+            }
+        }
         // Abandon the action stack: aborted CompleteTasks fail their works.
         {
             let adult = self.adults(citizens);
