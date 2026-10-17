@@ -1101,6 +1101,9 @@ pub struct Site {
     pub trade: Option<crate::trade::Trade>,
     /// The ResidenceComponent while the residence is out of the town's (its states 3 to 7).
     pub home: Option<crate::life::Home>,
+    /// UIComponent `+0x28` (`+0x30` bytes, the UIDescription's `+0x20`): the window's
+    /// remembered settings (`DialogInstance::SaveSettings`), empty until it is first closed.
+    pub ui_settings: Vec<u8>,
 }
 
 /// The job manager, professions, workforce and every construction site.

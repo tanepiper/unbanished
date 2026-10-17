@@ -63,6 +63,7 @@ mod status_icons;
 mod toolbar;
 mod town_hall_ui;
 mod trade_ui;
+mod ui_settings;
 mod utility;
 mod weather;
 #[cfg(target_arch = "wasm32")]

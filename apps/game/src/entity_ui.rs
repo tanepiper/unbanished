@@ -20,6 +20,33 @@ pub struct EntityWindow {
     pub pinned: bool,
     /// Where a pinned window was dragged to (the tool manager's `+0x60` map, `FUN_140108300`).
     pub at: Option<(i32, i32)>,
+    /// The bound controllers' type ids, and the size of the entity's settings buffer
+    /// (UIDescription `+0x20`; 0, none).
+    pub ids: Vec<u32>,
+    pub settings_size: usize,
+}
+
+impl EntityWindow {
+    /// `DialogInstance::SaveSettings` (`crate::ui_settings`): what the window keeps, if its
+    /// entity has a buffer.
+    fn settings(&self, ui: &Ui) -> Option<(usize, Vec<u8>)> {
+        let Entity::Placed(e) = self.entity else {
+            return None;
+        };
+        if self.settings_size == 0 {
+            return None;
+        }
+        let controllers: Vec<(u32, Vec<u8>)> = self
+            .ids
+            .iter()
+            .zip(&self.bound)
+            .map(|(&id, c)| (id, c.settings(ui)))
+            .collect();
+        Some((
+            e,
+            crate::ui_settings::write(self.settings_size, &controllers),
+        ))
+    }
 }
 
 #[derive(Default)]
@@ -28,6 +55,8 @@ pub struct EntityWindows {
     /// (`FUN_140102160`); dragging its title pins it (`ToolUI`). The pinned windows' positions
     /// (the tool manager's `+0x60` map) go with the save.
     pub open: Vec<EntityWindow>,
+    /// Settings written as windows closed (`OnClosed`), for their entities' UIComponents.
+    pub saved: Vec<(usize, Vec<u8>)>,
 }
 
 impl EntityWindows {
@@ -41,8 +70,10 @@ impl EntityWindows {
         entity: Entity,
     ) {
         let existing = self.open.iter().any(|w| w.entity == entity);
+        let saved = &mut self.saved;
         self.open.retain(|w| {
             if !w.pinned && w.entity != entity {
+                saved.extend(w.settings(ui));
                 screen.remove_root(ui, w.root);
                 false
             } else {
@@ -76,6 +107,7 @@ impl EntityWindows {
         let root = screen.dialogs[dialog].root;
         let mut controllers = Vec::new();
         let mut bound = Vec::new();
+        let mut ids = Vec::new();
         for c in desc.controllers {
             let Some(slot) = ui.find(root, &c.slot) else {
                 log::warn!("{template}: missing slot {}", c.slot);
@@ -85,6 +117,7 @@ impl EntityWindows {
             // one without an element (RadiusUI) works on the dialog itself.
             let Some(element) = c.element.as_deref().and_then(|r| ui.instantiate(r)) else {
                 if c.type_id != 0 {
+                    ids.push(c.type_id);
                     bound.push(Controller::bind(
                         ui,
                         archive,
@@ -107,6 +140,7 @@ impl EntityWindows {
                 ui.add_child(slot, element);
             }
             if c.type_id != 0 {
+                ids.push(c.type_id);
                 bound.push(Controller::bind(
                     ui,
                     archive,
@@ -131,6 +165,22 @@ impl EntityWindows {
             ui.set_text(label, &title);
         }
         let pages = ui.find(root, "pages");
+        // `OnOpened`: each saved controller's settings to the first of its type.
+        if let Entity::Placed(e) = entity {
+            let data = town
+                .construction
+                .sites
+                .get(&e)
+                .map(|s| s.ui_settings.as_slice());
+            if let Some(saved) = data.and_then(crate::ui_settings::read) {
+                for (id, settings) in saved {
+                    if let Some(i) = ids.iter().position(|&t| t == id) {
+                        bound[i].apply_settings(ui, settings);
+                    }
+                }
+            }
+        }
+        let settings_size = desc.value.max(0) as usize;
         self.open.push(EntityWindow {
             entity,
             root,
@@ -140,6 +190,8 @@ impl EntityWindows {
             page: desc.flags,
             pinned: false,
             at: None,
+            ids,
+            settings_size,
         });
         self.refresh(ui, archive, town);
         log::debug!(
@@ -462,8 +514,18 @@ impl EntityWindows {
     ) -> Option<Entity> {
         let i = self.open.iter().position(|w| ui.descendant(w.root, node))?;
         let w = self.open.remove(i);
+        self.saved.extend(w.settings(ui));
         screen.remove_root(ui, w.root);
         Some(w.entity)
+    }
+
+    /// `UserInterface::SaveAllSettings` (before a game is saved): every open window's
+    /// settings, then all those written since the last call.
+    pub fn take_settings(&mut self, ui: &Ui) -> Vec<(usize, Vec<u8>)> {
+        let open: Vec<(usize, Vec<u8>)> = self.open.iter().filter_map(|w| w.settings(ui)).collect();
+        let mut all = std::mem::take(&mut self.saved);
+        all.extend(open);
+        all
     }
 
     /// EntityUI/ToolUI pinning changes only presentation state (ToolUI +0x40).
@@ -491,6 +553,16 @@ impl EntityWindows {
         })
     }
 
+    /// `FUN_140108950`: the entity is gone; its window closes, pinned or not.
+    pub fn close_entity(&mut self, ui: &mut Ui, screen: &mut Screen, entity: Entity) -> bool {
+        let Some(i) = self.open.iter().position(|w| w.entity == entity) else {
+            return false;
+        };
+        let w = self.open.remove(i);
+        screen.remove_root(ui, w.root);
+        true
+    }
+
     /// `FUN_140102160` when the selected entity is off the screen: its unpinned host closes.
     /// Returns whether it did (the selection goes with it).
     pub fn retire(&mut self, ui: &mut Ui, screen: &mut Screen, entity: Entity) -> bool {
@@ -502,6 +574,7 @@ impl EntityWindows {
             return false;
         };
         let w = self.open.remove(i);
+        self.saved.extend(w.settings(ui));
         screen.remove_root(ui, w.root);
         true
     }

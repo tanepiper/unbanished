@@ -237,6 +237,17 @@ impl StartingTown {
             if let Some(t) = &site.trade {
                 self.export_trade(g, refs, ids, id, t);
             }
+            // UIComponent (`FUN_1401331d0`): the bytes as the window left them.
+            if !site.ui_settings.is_empty() {
+                if let Some(f) = fields_mut(g, id, "UIComponent") {
+                    let pages = site
+                        .ui_settings
+                        .iter()
+                        .map(|&b| Fields(vec![("page", Value::I8(b as i8))]))
+                        .collect();
+                    f.set("ui.pages", Value::List(pages));
+                }
+            }
         }
     }
 

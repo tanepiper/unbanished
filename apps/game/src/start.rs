@@ -2865,6 +2865,7 @@ impl StartingTown {
                     .as_ref()
                     .map(|_| banished_game::immigration::Immigration::default()),
                 home: None,
+                ui_settings: Vec::new(),
                 // DiseaseComponent's setup (`FUN_1400495b0`): on a pasture or not.
                 disease: t.disease.map(|_| banished_game::blight::Blight {
                     pasture: t.pasture.is_some(),

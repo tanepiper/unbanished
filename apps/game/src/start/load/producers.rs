@@ -167,6 +167,18 @@ impl StartingTown {
             let trade =
                 component("TradeComponent").map(|f| self.saved_trade(archive, saved, index, f));
             let site = self.construction.sites.get_mut(&entity).unwrap();
+            // UIComponent (`FUN_1401331d0`): the window's remembered settings.
+            if let Some(Value::List(pages)) =
+                component("UIComponent").and_then(|f| f.at("ui.pages"))
+            {
+                site.ui_settings = pages
+                    .iter()
+                    .filter_map(|p| match p.get("page") {
+                        Some(Value::I8(b)) => Some(*b as u8),
+                        _ => None,
+                    })
+                    .collect();
+            }
             if let (Some(p), Some(disabled)) = (site.produce.as_mut(), disabled) {
                 p.disabled = disabled;
             }

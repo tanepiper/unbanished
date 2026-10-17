@@ -90,6 +90,8 @@ struct ProfessionRow {
 }
 
 pub struct TownHallUi {
+    /// `+0x30`: the tabs.
+    tabs: Option<NodeId>,
     year: Option<NodeId>,
     month: Option<NodeId>,
     homes: Option<NodeId>,
@@ -125,6 +127,51 @@ pub struct TownHallUi {
 }
 
 impl TownHallUi {
+    /// `FUN_140086280` writing: the tab, then the period, inventory, sort, time and graph
+    /// combos (version 1).
+    pub fn settings(&self, ui: &Ui) -> Vec<u8> {
+        let c = |n: Option<NodeId>| combo_index(ui, n) as i32;
+        crate::ui_settings::ints(&[
+            crate::building_ui::tab_index(ui, self.tabs),
+            c(self.period),
+            c(self.inventory_type),
+            c(self.sort),
+            c(self.time),
+            c(self.series),
+        ])
+    }
+
+    /// `FUN_140086280` reading: version 0 has no sort.
+    pub fn apply_settings(&mut self, ui: &mut Ui, settings: &[u8]) {
+        let Some((version, v)) = crate::ui_settings::read_ints(settings) else {
+            return;
+        };
+        let v: Vec<i32> = if version > 0 {
+            v
+        } else {
+            let mut v = v;
+            if v.len() >= 3 {
+                v.insert(3, combo_index(ui, self.sort) as i32);
+            }
+            v
+        };
+        if v.len() < 6 {
+            return;
+        }
+        crate::building_ui::set_tab(ui, self.tabs, v[0]);
+        for (combo, i) in [
+            (self.period, v[1]),
+            (self.inventory_type, v[2]),
+            (self.sort, v[3]),
+            (self.time, v[4]),
+            (self.series, v[5]),
+        ] {
+            if let Some(c) = combo {
+                crate::menu::select_combo(ui, c, i.max(0) as usize);
+            }
+        }
+    }
+
     pub fn bind(ui: &mut Ui, archive: &Archive, element: NodeId) -> TownHallUi {
         let f = |ui: &Ui, n: &str| ui.find(element, n);
         let param = |ui: &Ui, n: &str| f(ui, n).map(|id| (id, text_of(ui, id)));
@@ -230,6 +277,7 @@ impl TownHallUi {
             .map(|t| ui.children(t))
             .unwrap_or_default();
         TownHallUi {
+            tabs: f(ui, "tabs"),
             year: f(ui, "numberYear"),
             month: f(ui, "textMonth"),
             homes: f(ui, "numberHomes"),

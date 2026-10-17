@@ -406,12 +406,56 @@ impl GameplayLoop {
         Some(banished_formats::save::Save::write(&metadata, &state))
     }
 
+    /// `FUN_140108950` for every entity that went this update (a citizen died, a building or
+    /// resource was removed): its window closes and, if it was the selection, it goes.
+    fn close_removed_windows(&mut self, ui: &mut banished_ui::Ui) {
+        let (Some(town), Some(screen)) = (self.town.as_ref(), self.screen.as_mut()) else {
+            return;
+        };
+        let gone: Vec<Entity> = self
+            .entities
+            .open
+            .iter()
+            .map(|w| w.entity)
+            .filter(|&e| match e {
+                Entity::Placed(p) => !town.placed.get(p).is_some_and(|p| p.alive),
+                Entity::Citizen(c) => !town.citizens.get(c).is_some_and(|c| c.alive),
+            })
+            .collect();
+        for e in gone {
+            self.entities.close_entity(ui, screen, e);
+            if self.selection.selected == Some(e) {
+                self.selection.selected = None;
+            }
+        }
+    }
+
+    /// The windows' remembered settings to their entities' UIComponents: those of windows
+    /// closed since (`OnClosed`), and with `all` every open window's as well
+    /// (`UserInterface::SaveAllSettings`, before a game is saved).
+    fn store_window_settings(&mut self, ui: &banished_ui::Ui, all: bool) {
+        let settings = if all {
+            self.entities.take_settings(ui)
+        } else {
+            std::mem::take(&mut self.entities.saved)
+        };
+        let Some(town) = self.town.as_mut() else {
+            return;
+        };
+        for (e, bytes) in settings {
+            if let Some(site) = town.construction.sites.get_mut(&e) {
+                site.ui_settings = bytes;
+            }
+        }
+    }
+
     /// Write a save whose preview has been drawn.
     fn finish_save(&mut self, ctx: &mut Ctx) {
         let Some((path, name, Some(image))) = self.pending_save.take_if(|(_, _, i)| i.is_some())
         else {
             return;
         };
+        self.store_window_settings(ctx.ui, true);
         let Some(bytes) =
             self.save_file(ctx.archive, ctx.ui, ctx.mods, name.as_deref(), Some(image))
         else {
@@ -2174,6 +2218,10 @@ impl GameLoop for GameplayLoop {
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
+        if !self.entities.saved.is_empty() {
+            self.store_window_settings(ctx.ui, false);
+        }
+        self.close_removed_windows(ctx.ui);
         {
             self.finish_save(ctx);
             self.update_autosave(ctx, dt);
@@ -2405,6 +2453,7 @@ impl GameLoop for GameplayLoop {
                     Outcome::Reload => {
                         // `FUN_140072110` over a game: saved to memory, then loaded again.
                         self.mods_dialog = None;
+                        self.store_window_settings(ctx.ui, true);
                         let saved = self.save_file(ctx.archive, ctx.ui, ctx.mods, None, None);
                         *ctx.reload_mods = Some(match saved {
                             Some(bytes) => crate::mods::Reload::Game(bytes),

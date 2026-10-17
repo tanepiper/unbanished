@@ -73,6 +73,8 @@ pub struct TradeUi {
     purchase_combo: Option<NodeId>,
     order_combo: Option<NodeId>,
     sort: Option<NodeId>,
+    /// `tradeTabs`.
+    tabs: Option<NodeId>,
     names: Vec<(NodeId, String)>,
     purchase: Vec<PurchaseRow>,
     orders: Vec<(NodeId, Option<NodeId>)>,
@@ -148,6 +150,29 @@ fn set_shown(ui: &mut Ui, n: Option<NodeId>, on: bool) {
 }
 
 impl TradeUi {
+    /// `FUN_14008bd90` writing: the sort, then the tab (version 1).
+    pub fn settings(&self, ui: &Ui) -> Vec<u8> {
+        crate::ui_settings::ints(&[
+            combo_index(ui, self.sort) as i32,
+            crate::building_ui::tab_index(ui, self.tabs),
+        ])
+    }
+
+    /// `FUN_14008bd90` reading: the tab and the sort; the list follows the sort
+    /// (`FUN_140089b80`, at the next refresh).
+    pub fn apply_settings(&mut self, ui: &mut Ui, settings: &[u8]) {
+        let Some((version, v)) = crate::ui_settings::read_ints(settings) else {
+            return;
+        };
+        if version < 1 || v.len() < 2 {
+            return;
+        }
+        crate::building_ui::set_tab(ui, self.tabs, v[1]);
+        if let Some(c) = self.sort {
+            crate::menu::select_combo(ui, c, v[0].max(0) as usize);
+        }
+    }
+
     pub fn bind(ui: &mut Ui, element: NodeId) -> TradeUi {
         let f = |n: &str| ui.find(element, n);
         let param = |n: &str| f(n).map(|id| (id, text_of(ui, id)));
@@ -201,6 +226,7 @@ impl TradeUi {
             purchase_combo: f("comboPurchase"),
             order_combo: f("comboOrder"),
             sort: f("sortCombo"),
+            tabs: f("tradeTabs"),
             names,
             purchase,
             orders,

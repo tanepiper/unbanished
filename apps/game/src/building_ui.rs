@@ -1567,7 +1567,44 @@ pub enum Controller {
     Inert(u32),
 }
 
+/// `UI::TabElement`'s active tab.
+pub(crate) fn tab_index(ui: &Ui, tabs: Option<NodeId>) -> i32 {
+    match tabs.map(|t| &ui.node(t).kind) {
+        Some(Kind::Control(Control::Tabs { selected, .. })) => *selected as i32,
+        _ => 0,
+    }
+}
+
+/// `UI::TabElement::SetActiveTab`.
+pub(crate) fn set_tab(ui: &mut Ui, tabs: Option<NodeId>, index: i32) {
+    let Some(t) = tabs else { return };
+    if let Kind::Control(Control::Tabs { selected, tabs, .. }) = &mut ui.node_mut(t).kind {
+        if (0..tabs.len() as i32).contains(&index) {
+            *selected = index as usize;
+        }
+    }
+}
+
 impl Controller {
+    /// Slot `+0x50` (`OnSerializeSettings`) writing: the controller's own settings block;
+    /// every controller but TradeUI and TownHallUI keeps nothing.
+    pub fn settings(&self, ui: &Ui) -> Vec<u8> {
+        match self {
+            Controller::Trade(c) => c.settings(ui),
+            Controller::TownHall(c) => c.settings(ui),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Slot `+0x50` reading.
+    pub fn apply_settings(&mut self, ui: &mut Ui, settings: &[u8]) {
+        match self {
+            Controller::Trade(c) => c.apply_settings(ui, settings),
+            Controller::TownHall(c) => c.apply_settings(ui, settings),
+            _ => {}
+        }
+    }
+
     pub fn bind(
         ui: &mut Ui,
         archive: &Archive,
