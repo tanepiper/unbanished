@@ -769,6 +769,32 @@ impl Agents {
                 ch.animate(g, dt);
             }
         }
+        // The citizens' CharacterComponents in the characters' tree: the dead leave it
+        // (`FUN_14010ee50`), the new join it (`FUN_14010ee90`), in index order.
+        // Deviation: the original puts a citizen in when its entity activates; the port at the
+        // next citizens' update, so one made in an iteration joins after that iteration's
+        // animals, boats and nomads.
+        for i in 0..self.characters.len() {
+            let alive = groups.get(i).copied().flatten().is_some()
+                && citizens.get(i).is_some_and(|c| c.alive);
+            let ch = &mut self.characters[i];
+            if !alive && 0 <= ch.tree_slot {
+                env.wildlife.tree.remove(ch.tree_slot);
+                ch.tree_slot = -1;
+            }
+        }
+        for i in 0..self.characters.len() {
+            let alive = groups.get(i).copied().flatten().is_some()
+                && citizens.get(i).is_some_and(|c| c.alive);
+            let ch = &mut self.characters[i];
+            if alive && ch.tree_slot < 0 {
+                ch.tree_slot = env.wildlife.tree.insert(
+                    crate::character_tree::Who::Citizen(i),
+                    ch.position,
+                    ch.desc.radius,
+                );
+            }
+        }
         for i in 0..self.characters.len() {
             let Some(group) = groups[i] else { continue };
             let mut messages = Vec::new();
@@ -852,6 +878,12 @@ impl Agents {
                     accident_odds,
                 };
                 self.characters[i].update(&mut world, group, dt);
+                // `FUN_14010e990` ends by placing it in the tree again (`FUN_140019070`).
+                let ch = &self.characters[i];
+                env.wildlife
+                    .tree
+                    .place(ch.tree_slot, ch.position, ch.desc.radius);
+                env.wildlife.tree.set_direction(ch.tree_slot, ch.direction);
             }
             for (m, n) in used {
                 if let Some(slot) = crate::produce::production_group(env.materials[m].flags) {
@@ -923,6 +955,8 @@ impl Agents {
             // notify, a hunter's `HuntAnimal`.
             refresh_views(&mut entities, env);
             self.hunt_notify(i, env, groups);
+            let following = env.wildlife.tree.follows(self.characters[i].tree_slot);
+            self.characters[i].stack.notify_moves(following);
             // CitizenComponent before CitizenAIComponent (the template's component order); a
             // citizen queued for deletion stops there (entity flag `0x400`).
             let born = self.live(i, citizens, env, &entities, elapsed, newborn);
@@ -1011,6 +1045,11 @@ impl Agents {
             };
             animal.character.animate(&group, dt);
             animal.character.update(&mut world, &group, dt);
+            let ch = &animal.character;
+            wildlife
+                .tree
+                .place(ch.tree_slot, ch.position, ch.desc.radius);
+            wildlife.tree.set_direction(ch.tree_slot, ch.direction);
         }
         // The trader boats' CharacterComponent.
         let ids: Vec<usize> = wildlife.boats.keys().copied().collect();
@@ -1051,6 +1090,11 @@ impl Agents {
             };
             boat.character.animate(&group, dt);
             boat.character.update(&mut world, &group, dt);
+            let ch = &boat.character;
+            wildlife
+                .tree
+                .place(ch.tree_slot, ch.position, ch.desc.radius);
+            wildlife.tree.set_direction(ch.tree_slot, ch.direction);
         }
         // The nomads' CharacterComponent.
         let ids: Vec<usize> = wildlife.nomads.keys().copied().collect();
@@ -1091,6 +1135,11 @@ impl Agents {
             };
             nomad.character.animate(&group, dt);
             nomad.character.update(&mut world, &group, dt);
+            let ch = &nomad.character;
+            wildlife
+                .tree
+                .place(ch.tree_slot, ch.position, ch.desc.radius);
+            wildlife.tree.set_direction(ch.tree_slot, ch.direction);
         }
     }
 
@@ -1119,20 +1168,24 @@ impl Agents {
             return;
         }
         let pos = self.characters[i].position;
-        let mut best = None;
-        let mut nearest = 8.0f32 * 8.0;
-        for (&a, animal) in &env.wildlife.animals {
-            if animal.dying {
-                continue;
-            }
-            let q = animal.character.position;
-            let (dx, dy, dz) = (q[0] - pos[0], q[1] - pos[1], q[2] - pos[2]);
-            let d2 = dx * dx + dy * dy + dz * dz;
-            if d2 < nearest {
-                nearest = d2;
-                best = Some(a);
-            }
-        }
+        // `FUN_140097730`: the nearest character with a WildAnimalComponent
+        // (`DAT_1401d0000`; livestock have none) within 8 of the hunter, the first of equals
+        // in the characters' tree's order, which finds nothing while the hunter stands more
+        // than 9 from height 0. Whether it is hunted already is asked after.
+        let animals = &env.wildlife.animals;
+        let best = env
+            .wildlife
+            .tree
+            .nearest(pos, 8.0, |who| match who {
+                crate::character_tree::Who::Animal(a) => {
+                    animals.get(&a).is_some_and(|x| x.livestock.is_none())
+                }
+                _ => false,
+            })
+            .and_then(|who| match who {
+                crate::character_tree::Who::Animal(a) => Some(a),
+                _ => None,
+            });
         let Some(a) = best else { return };
         let animal = &env.wildlife.animals[&a];
         if animal.flags & crate::wildlife::HUNTED != 0 {

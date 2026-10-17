@@ -261,6 +261,7 @@ impl StartingTown {
         town.restore_jobs(archive, saved, &index, &order);
         town.restore_actions(archive, saved, &index, &order);
         town.restore_water(saved, &index);
+        town.restore_character_tree(saved, &index, &order);
         let mut ids = super::SaveIds {
             entities: vec![None; town.placed.len()],
             citizens: vec![0; town.citizens.len()],
@@ -280,6 +281,57 @@ impl StartingTown {
     /// The town's water sources as saved (`+0xe0`, `+0x130`, `+0x140`): the wells by their
     /// WellComponents, filed in the slots they were saved in. A save before version 5 has no
     /// blocks; the points and blocks are then the scan's, with the wells filed again.
+    /// The characters' tree (`Game +0x88`) as the load fills it: each CharacterComponent
+    /// put in as it is read (`FUN_14010ef80` → `FUN_140018e00`), in the objects' order.
+    fn restore_character_tree(
+        &mut self,
+        saved: &SavedGame,
+        index: &BTreeMap<ObjId, usize>,
+        order: &BTreeMap<ObjId, usize>,
+    ) {
+        use banished_game::character_tree::Who;
+        let mut found: Vec<(ObjId, Who)> = Vec::new();
+        for (id, e) in saved.entities() {
+            let Some(k) = saved.component(e, "CharacterComponent") else {
+                continue;
+            };
+            let who = match index.get(&id).copied() {
+                Some(p) if self.wildlife.animals.contains_key(&p) => Who::Animal(p),
+                Some(p) if self.wildlife.boats.contains_key(&p) => Who::Boat(p),
+                Some(p) if self.wildlife.nomads.contains_key(&p) => Who::Nomad(p),
+                _ => match saved
+                    .component(e, "CitizenComponent")
+                    .and_then(|c| order.get(&c.index).copied())
+                {
+                    Some(c) => Who::Citizen(c),
+                    None => continue,
+                },
+            };
+            found.push((k.index, who));
+        }
+        found.sort_by_key(|f| f.0);
+        let w = &mut self.wildlife;
+        for (_, who) in found {
+            let ch = match who {
+                Who::Citizen(c) => self.agents.characters.get_mut(c),
+                Who::Animal(a) => w.animals.get_mut(&a).map(|x| &mut x.character),
+                Who::Boat(b) => w.boats.get_mut(&b).map(|x| &mut x.character),
+                Who::Nomad(n) => w.nomads.get_mut(&n).map(|x| &mut x.character),
+            };
+            let Some(ch) = ch else { continue };
+            if who_alive(who, &self.citizens) && ch.tree_slot < 0 {
+                ch.tree_slot = w.tree.insert(who, ch.position, ch.desc.radius);
+                w.tree.set_direction(ch.tree_slot, ch.direction);
+            }
+        }
+        fn who_alive(who: Who, citizens: &[banished_game::citizens::Citizen]) -> bool {
+            match who {
+                Who::Citizen(c) => citizens.get(c).is_some_and(|c| c.alive),
+                _ => true,
+            }
+        }
+    }
+
     fn restore_water(&mut self, saved: &SavedGame, index: &BTreeMap<ObjId, usize>) {
         let t = &saved.state.town;
         let water = &mut self.construction.water;

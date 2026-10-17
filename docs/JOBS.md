@@ -697,7 +697,8 @@ Port: `crates/game/src/hunt.rs`; the notify is in `crates/game/src/agents.rs`.
   that chain (`FUN_1400c1090`).
 - **HuntAnimal** (vtable `0x140166200`). It runs until done. Its notify (`FUN_1400cd2b0`)
   waits for the lodge's time to reach `+0x20 · 300` s (`FUN_140127f50`). It then takes the
-  nearest wild animal within 8 (`FUN_140097730`), if not already taken, provided it has a
+  nearest wild animal within 8 (`FUN_140097730`, the characters' tree; none while the hunter
+  stands above 9), if not already taken, provided it has a
   cell next to it that the hunter can reach.
 - **The attack** (`FUN_1400c1370`, pushed without clearing):
   1. Walk next to the animal.

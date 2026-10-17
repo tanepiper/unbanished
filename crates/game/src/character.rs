@@ -5,7 +5,10 @@
 //!   (`FUN_1400ca120`), then turn toward the target heading, move by the animation's root
 //!   motion times the speed, and drop onto the ground.
 //! - Slot `+0x48` (`FUN_14010e950`, bit `0x08` bucket phase): notify the running chain
-//!   (`FUN_1400ca450`, action slot `+0x30`). No shipped citizen action overrides it.
+//!   (`FUN_1400ca450`, action slot `+0x30`) on the started actions of the running chain.
+//!   MoveTo's (`FUN_1400cde40`) sets whether it walks behind another character, at the
+//!   description's follow speed ([`ActionStack::notify_moves`]); HuntAnimal's
+//!   (`FUN_1400cd2b0`) looks for prey.
 //!
 //! Actions (registered `Action` types, vtable slots `+0x20` start, `+0x28` update,
 //! `+0x38` stop, `+0x40` abort) return [`Status`]. The stack is an array of chains; the top
@@ -249,6 +252,8 @@ pub struct Character {
     /// The model's animation state, its clips blending into each other.
     pub animation: AnimationStack,
     pub stack: ActionStack,
+    /// `+0x40`: its slot in the characters' tree (`Game +0x88`), −1 while in none.
+    pub tree_slot: i32,
 }
 
 impl Character {
@@ -264,6 +269,7 @@ impl Character {
             scale,
             animation: AnimationStack::new(0, 0),
             stack: ActionStack::default(),
+            tree_slot: -1,
         }
     }
 
@@ -1211,10 +1217,24 @@ impl ActionStack {
         self.chains
             .last_mut()?
             .iter_mut()
+            .filter(|t| t.started)
             .find_map(|t| match &mut t.action {
                 Action::HuntAnimal { lodge, done } => Some((*lodge, done)),
                 _ => None,
             })
+    }
+
+    /// The scheduled notify (`FUN_14010e950` → `FUN_1400ca450`): the running chain's started
+    /// actions get slot `+0x30`; MoveTo's (`FUN_1400cde40`) sets whether it follows.
+    pub fn notify_moves(&mut self, following: bool) {
+        let Some(chain) = self.chains.last_mut() else {
+            return;
+        };
+        for t in chain.iter_mut().filter(|t| t.started) {
+            if let Action::MoveTo(m) = &mut t.action {
+                m.following = following;
+            }
+        }
     }
 
     pub fn set_on_empty(&mut self, actions: Vec<Action>) {

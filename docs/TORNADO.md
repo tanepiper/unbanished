@@ -47,7 +47,8 @@ asks AutoSlow to slow the game.
 
 - throws a point: `RandFloatTol × 180°` about the tornado, `RandFloat × +0x34` away (both on
   the game Random); the natural resource on that cell is hit;
-- every entity whose model stands within `+0x30` of the point is hit (`FUN_140097e60`);
+- every character (citizen, animal) within `+0x30` of the point is hit, in the characters' tree's
+  order (`FUN_140097e60`); none while the ground under the tornado is above 9 (docs/CITIZEN-AI.md);
 - every object of the cells within `+0x30` of the tornado is hit.
 
 **A hit** (`FUN_140058d20`):

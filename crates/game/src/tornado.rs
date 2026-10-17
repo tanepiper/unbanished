@@ -249,28 +249,22 @@ impl Sim<'_, '_> {
                 self.hit(jobs, Hit::Entity(o));
             }
         }
-        // The entities whose models stand within the reach of the point.
-        let reach = t.reach as f32;
-        let near = |p: [f32; 3]| {
-            let (dx, dy, dz) = (p[0] - point[0], p[1] - point[1], p[2] - point[2]);
-            dx * dx + dy * dy + dz * dz < reach * reach
-        };
-        let mut hits: Vec<Hit> = Vec::new();
-        for (i, p) in self.placed.iter().enumerate() {
-            if p.alive && i != e && !self.wildlife.animals.contains_key(&i) && near(p.position) {
-                hits.push(Hit::Entity(i));
-            }
-        }
-        for (&a, animal) in &self.wildlife.animals {
-            if !animal.dying && near(animal.character.position) {
-                hits.push(Hit::Entity(a));
-            }
-        }
-        for (c, ch) in self.characters.iter().enumerate() {
-            if self.groups.get(c).copied().flatten().is_some() && near(ch.position) {
-                hits.push(Hit::Citizen(c));
-            }
-        }
+        // `FUN_140097e60` (type 0): the characters within the reach of the point, in the
+        // characters' tree's order. Only characters: the buildings and resources are reached
+        // by the cells about the tornado below. The tree's z bounds leave out everyone while
+        // the point stands more than the reach + 1 from height 0. A nomad or a boat has none
+        // of what `FUN_140058d20` acts on.
+        let hits: Vec<Hit> = self
+            .wildlife
+            .tree
+            .within(point, t.reach as f32, |_| true)
+            .into_iter()
+            .filter_map(|who| match who {
+                crate::character_tree::Who::Citizen(c) => Some(Hit::Citizen(c)),
+                crate::character_tree::Who::Animal(a) => Some(Hit::Entity(a)),
+                _ => None,
+            })
+            .collect();
         for h in hits {
             self.hit(jobs, h);
         }

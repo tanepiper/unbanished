@@ -308,6 +308,11 @@ impl Sim<'_, '_> {
         });
         let mut character = Character::new(kind.character, spawn, 1.0);
         character.yaw = yaw;
+        character.tree_slot = self.wildlife.tree.insert(
+            crate::character_tree::Who::Nomad(id),
+            spawn,
+            kind.character.radius,
+        );
         self.wildlife.nomads.insert(
             id,
             Nomad {
@@ -348,7 +353,8 @@ impl Sim<'_, '_> {
     }
 
     fn remove_nomad(&mut self, id: usize) {
-        if self.wildlife.nomads.remove(&id).is_some() {
+        if let Some(nomad) = self.wildlife.nomads.remove(&id) {
+            self.wildlife.tree.remove(nomad.character.tree_slot);
             self.placed[id].alive = false;
             *self.models_dirty = true;
         }
@@ -360,6 +366,12 @@ impl Sim<'_, '_> {
     pub fn update_nomads(&mut self, dt: i64) {
         let ids: Vec<usize> = self.wildlife.nomads.keys().copied().collect();
         for id in ids {
+            // CharacterComponent's scheduled notify (`FUN_14010e950`): MoveTo's follow check
+            // (`FUN_1400cde40`).
+            if let Some(nomad) = self.wildlife.nomads.get_mut(&id) {
+                let following = self.wildlife.tree.follows(nomad.character.tree_slot);
+                nomad.character.stack.notify_moves(following);
+            }
             let Some(nomad) = self.wildlife.nomads.get(&id) else {
                 continue;
             };

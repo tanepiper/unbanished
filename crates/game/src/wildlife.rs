@@ -172,6 +172,8 @@ enum Kind {
 /// The wildlife of a town.
 #[derive(Default)]
 pub struct Wildlife {
+    /// The characters' spatial tree (`Game +0x88`): citizens, animals, boats and nomads.
+    pub tree: crate::character_tree::CharacterTree,
     pub populations: Vec<Population>,
     pub herds: Vec<Herd>,
     /// Animals by entity.
@@ -733,6 +735,19 @@ impl Wild<'_, '_> {
         };
         debug_assert_eq!(e, a);
         self.wildlife.kinds.insert(a, Kind::Animal);
+        // CharacterComponent's start (`FUN_14010ee90`): into the tree.
+        let ch = &self.wildlife.animals[&a].character;
+        let slot = self.wildlife.tree.insert(
+            crate::character_tree::Who::Animal(a),
+            ch.position,
+            ch.desc.radius,
+        );
+        self.wildlife
+            .animals
+            .get_mut(&a)
+            .unwrap()
+            .character
+            .tree_slot = slot;
         let d = self.wildlife.animal_kinds[&template].desc.clone();
         let life = self.rng.rand_float_tol() * d.life_range + d.life;
         let n = self.n();
@@ -769,6 +784,12 @@ impl Wild<'_, '_> {
             Some(Kind::Population(p)) => self.update_population(p, elapsed),
             Some(Kind::Herd(h)) => self.update_herd(h, elapsed),
             Some(Kind::Animal) => {
+                // CharacterComponent's scheduled notify (`FUN_14010e950`): MoveTo's follow
+                // check (`FUN_1400cde40`).
+                if let Some(animal) = self.wildlife.animals.get_mut(&e) {
+                    let following = self.wildlife.tree.follows(animal.character.tree_slot);
+                    animal.character.stack.notify_moves(following);
+                }
                 self.update_animal(e, elapsed);
                 self.update_livestock(e, elapsed);
             }
@@ -1359,6 +1380,8 @@ impl Wild<'_, '_> {
         let changed = !dying.is_empty();
         for a in dying {
             if let Some(animal) = self.wildlife.animals.remove(&a) {
+                // CharacterComponent's end (`FUN_14010ee50`): out of the tree.
+                self.wildlife.tree.remove(animal.character.tree_slot);
                 if let Some(h) = animal.herd {
                     self.wildlife.herds[h].animals.retain(|&x| x != a);
                 }

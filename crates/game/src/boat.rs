@@ -239,6 +239,11 @@ impl Sim<'_, '_> {
         let h = heading([boat.target[0] - start[0], boat.target[1] - start[1], 0.0]);
         boat.character.yaw = h + kind.character.yaw_offset;
         boat.character.target_heading = h;
+        boat.character.tree_slot = self.wildlife.tree.insert(
+            crate::character_tree::Who::Boat(id),
+            boat.character.position,
+            boat.character.desc.radius,
+        );
         self.wildlife.boats.insert(id, boat);
         self.boat_clip(id, 1);
         *self.models_dirty = true;
@@ -313,7 +318,8 @@ impl Sim<'_, '_> {
     }
 
     fn remove_boat(&mut self, id: usize) {
-        if self.wildlife.boats.remove(&id).is_some() {
+        if let Some(boat) = self.wildlife.boats.remove(&id) {
+            self.wildlife.tree.remove(boat.character.tree_slot);
             self.placed[id].alive = false;
             *self.models_dirty = true;
         }

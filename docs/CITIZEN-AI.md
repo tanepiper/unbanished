@@ -23,7 +23,8 @@ animation, then the entity manager (`FUN_1400c9560`) runs:
    run the action stack, turn, move by root motion, snap to the ground;
 2. the scheduled buckets (quotas 50/15/8/5/2): slot `+0x48` with each entity's elapsed time:
    Citizen needs (`FUN_140118340`), CitizenAI (`FUN_1401148b0`) and Character
-   (`FUN_14010e950`, which only forwards to the running chain's slot `+0x30`).
+   (`FUN_14010e950`, which only forwards to the running chain's slot `+0x30`: MoveTo's follow
+   check `FUN_1400cde40`, HuntAnimal's search `FUN_1400cd2b0`).
 
 ## Character movement (`FUN_14010e990`)
 
@@ -446,3 +447,25 @@ destruction of later storage buildings is not implemented. The happiness registr
 
 Open: remaining activity builders and their job/building queries, general pickup/delivery jobs,
 residence assignment, the remaining actions, animation blending and bridge ground picking.
+
+## The characters' tree (`Game +0x88`)
+
+Every CharacterComponent (citizens, animals, boats, nomads) is filed in a loose quadtree
+(`crates/game/src/character_tree.rs`, checked against the original by
+`tools/emu/character_tree.py`): put in at its start (`FUN_14010ee90`) or as a save is read
+(`FUN_14010ef80`, in object order), placed again at the end of every update (`FUN_14010e990` →
+`FUN_140019070`), taken out at its end (`FUN_14010ee50`). Three searches read it:
+
+- **Following** (MoveTo's notify `FUN_1400cde40`, on the character's scheduled visit): the
+  nearest other character within 0.5, if it came after this one and walks the same way (the
+  directions' dot product above 0), is followed. The walk then goes at the description's
+  `+0x30` (citizens 0.75).
+- **Hunting** (`FUN_1400cd2b0` → `FUN_140097730`): the nearest character within 8 with a
+  WildAnimalComponent (livestock have none); only then is it checked for being hunted already.
+- **Tornado victims** (`FUN_1400589a0` → `FUN_140097e60`): the characters within the reach of the
+  thrown point, in the tree's order.
+
+The tree's nodes span z −1 to 1 and the searches use a box of the radius on every axis, so
+nothing is found while the searching point stands more than the radius + 1 from height 0. A
+hunter on ground higher than 9 finds no prey, a tornado over ground higher than 9 kills no one,
+and nobody walking higher than 1.5 ever follows. About 45% of a generated map is that high.
