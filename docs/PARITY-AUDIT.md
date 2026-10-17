@@ -173,6 +173,30 @@ Checked and already matching: `System::Time` conversions, `Random`, Perlin noise
 manager, path finding (solved synchronously instead of on threads), and the triangle test in
 picking.
 
+## Sweeps against the binary and the saves (2026-10-17)
+
+- **Every named constant** the port cites (`DAT_…` next to a `const`, singly or in a list):
+  79 read from the binary, all equal (two are times kept in ticks).
+- **Each cited function's float constants:** the ones the original reads that the port's file
+  never uses were run down one by one. All were in helpers, UI or time values, except the
+  quarry claim's terrain ray, which is now ported.
+- **Random draws per function** (`Rand`, `RandFloat`, `RandTol`, `RandFloatTol` counted in
+  each original and its port): every difference is a branch or a helper. The tornado's line
+  (`FUN_1400592e0`) now has an emulator check (300 lines, exact).
+- **Every vanilla save's models** (`apps/game/src/saved.rs` test): characters hold
+  `FUN_14010e990`'s rotation (`(yaw × D) × 0.5`, positive zeros); placed models hold
+  `FromYawPitchOffset(yaw, 0)`, negative zeros at yaw 0; fenced areas (Pasture, Cemetery) keep
+  an unplaced model at the origin (`FUN_1400e02d0` sets only the map); and `map.rotation` is the
+  yaw's whole degrees, wrapped (0 for natural resources). The writer and loader now do the same.
+- **Interaction points across MultiObject parts:** use and create points, and their counts,
+  walk the entity and then its parts (`FUN_1401282f0`, `FUN_140128540`).
+- **Iteration order:** the town's registration lists are vectors with order-kept removal; the
+  port's matching lists keep the same order, and the residence searches now walk the
+  residences in completion order. The entity manager's every-iteration updates run in the
+  order of a tree keyed by entity address (`FUN_1400c90a0`), which a port cannot reproduce;
+  creation order stands in (noted as a deviation).
+- **Floors in every ground query** but the tornado's own step and the natural cell types.
+
 ## Gaps in shipped vanilla features
 
 | Feature | Original | Port |
