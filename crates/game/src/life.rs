@@ -229,6 +229,8 @@ pub struct People<'a, 'b> {
     /// The path-rank cache.
     pub sectors: &'a mut crate::sectors::SectorGraph,
     pub terrain: &'a crate::terrain::HeightGrid<'b>,
+    /// The characters' tree (`Game +0x88`): a disease spreads to the citizens about the sick.
+    pub tree: &'a crate::character_tree::CharacterTree,
 }
 
 impl People<'_, '_> {
@@ -1099,11 +1101,12 @@ impl People<'_, '_> {
                 let b = (r.f(0x88) - r.f(0x80)) * weak + r.f(0x80);
                 let a = (r.f(0x8c) - a) * self.town_disease + a;
                 let b = (r.f(0x90) - b) * self.town_disease + b;
+                // Odds of 0 or less clear the clock first; the draw is made either way.
+                if b <= 0.0 {
+                    s.disease_clock = 0;
+                }
                 let elapsed = s.disease_clock;
                 s.disease_clock = 0;
-                if b <= 0.0 {
-                    return true;
-                }
                 let span = a * 12.0 * MINUTE * b;
                 let x = self.rng.rand_float();
                 if x < seconds(elapsed) / span {
@@ -1194,7 +1197,9 @@ impl People<'_, '_> {
         self.join_service(c, service::DOCTOR, None);
     }
 
-    /// `FUN_140117940`: perhaps infect one healthy citizen within the disease's radius.
+    /// `FUN_140117940`: with the disease's odds, every other citizen within its radius of the
+    /// sick one (`FUN_140097e60` with the CitizenComponent type, in the characters' tree's
+    /// order) who is not sick catches it (`FUN_14011c060`, which turns away the immune).
     fn spread(&mut self, c: usize) {
         let Some(d) = self.states[c].disease else {
             return;
@@ -1207,18 +1212,21 @@ impl People<'_, '_> {
             return;
         }
         let p = self.citizens[c].position;
-        let r2 = disease.spread_radius * disease.spread_radius;
         let near: Vec<usize> = self
-            .registry
-            .iter()
-            .copied()
-            .filter(|&i| {
-                let q = self.citizens[i].position;
-                i != c && (q[0] - p[0]).powi(2) + (q[1] - p[1]).powi(2) <= r2
+            .tree
+            .within(p, disease.spread_radius, |w| {
+                matches!(w, crate::character_tree::Who::Citizen(_))
+            })
+            .into_iter()
+            .filter_map(|w| match w {
+                crate::character_tree::Who::Citizen(i) if i != c => Some(i),
+                _ => None,
             })
             .collect();
-        if let Some(&i) = near.iter().find(|&&i| self.states[i].disease.is_none()) {
-            self.infect(i, d);
+        for i in near {
+            if self.states.get(i).is_some_and(|s| s.disease.is_none()) {
+                self.infect(i, d);
+            }
         }
     }
 

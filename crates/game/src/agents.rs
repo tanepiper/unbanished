@@ -1427,6 +1427,7 @@ impl Agents {
             burials: &mut c.burials,
             sectors: &mut self.sectors,
             terrain: env.terrain,
+            tree: &env.wildlife.tree,
         };
         f(&mut people)
     }
@@ -1503,6 +1504,7 @@ impl Agents {
             burials: &mut k.burials,
             sectors: &mut self.sectors,
             terrain: env.terrain,
+            tree: &env.wildlife.tree,
         };
         let workplace = people.states[c].workplace;
         let profession = people.states[c].profession;

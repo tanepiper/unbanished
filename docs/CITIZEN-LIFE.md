@@ -72,7 +72,7 @@ and the citizen falls ill when it is below `elapsed / (a · 12 · 300 · b)`. On
 runs at a time (`FUN_14008e890`). The disease is picked by weight from
 `Game/Disease/Diseases.rsc` (`FUN_140117af0`), with event 0xb at severity 3. Illness lasts
 `(RandFloatTol · D[0x98] + D[0x94]) · 300` s. Every `spread_interval · 300` s a
-`spread_chance` draw may infect the first healthy citizen within `spread_radius`. At the end
+`spread_chance` draw infects every other healthy citizen within `spread_radius` (the characters' tree, `FUN_140097e60` with the CitizenComponent type, in its order; `FUN_140117940`). At the end
 the citizen dies when `RandFloat ≤ 1/recovery/(D[0x128] with a doctor)`, else recovers, immune
 for `D[0x9c] · 300` s.
 
