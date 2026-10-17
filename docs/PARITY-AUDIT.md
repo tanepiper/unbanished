@@ -78,6 +78,17 @@ the engine the port replaces (renderer, audio, file system, threads). One undefi
 a CRC over the entry table), delete and write. The port reads and writes saves itself and does
 not check that CRC, so a corrupted save loads where the original refuses it.
 
+**Re-read (2026-10-17, later):** all 229 uncited Application functions of 200 bytes or more (every
+one is called from cited code). 131 were tagged by what they call (serialisation, UI, graphics,
+audio, threads, sorts, allocation); the other 98 were read by hand: red-black tree and array
+helpers, the type-registration stubs (`FUN_1400031f0` callers), inlined `qsort` copies, the CRT's
+`tanf`/`atanf`/error box, Debug and Steam windows, destructors and the finished building's mesh
+hand-off (`FUN_14010dbf0`). None holds a game rule the port lacks. One ordering detail: the
+entity manager keeps its post-iteration set (`+0x78`, entities with flag `0x10`,
+`FUN_1400c8f80`) in a tree keyed by object address, so `FUN_1400c98a0` visits it in memory
+order. That phase only smooths each natural resource's own growth scale (`FUN_140125370`), so its
+order changes nothing.
+
 ## Engine maths the simulation depends on (2026-10-17)
 
 Replaced engine pieces were checked for whether the simulation's numbers depend on them.
