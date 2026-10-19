@@ -1,4 +1,4 @@
-//! Sets `UNBANISHED_BUILD`, the build id in the engine version `0.1.0-<build>` (see `version.rs`).
+//! Sets `UNBANISHED_BUILD`, the build id in the engine version `<version>-<build>` (see `version.rs`).
 //!
 //! The build id is chosen in this order:
 //! 1. `UNBANISHED_BUILD` from the environment, when it is set and not empty (CI and packagers);

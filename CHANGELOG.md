@@ -9,6 +9,13 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+Version 0.2.0 in development. The focus is performance and efficiency without changing the
+game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+
+### Changed
+
+- The engine version is now 0.2.0 (shown as `0.2.0-<build>` until the release).
+
 ## [0.1.0] - 2026-10-19
 
 The first release: the whole game runs, natively and in the browser, on the player's own copy

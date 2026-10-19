@@ -404,15 +404,16 @@ to the address). See [PERFORMANCE.md](PERFORMANCE.md).
 
 ## Version
 
-Un-Banished has its own version number, for example `0.1.0-1382712`. The first part is the
-release. The second part is the build: the first seven characters of the git commit the program
+Un-Banished has its own version number, for example `0.2.0-1382712`. The first part is the
+release: a released version, or the next release while it is in development (see
+[CHANGELOG.md](../CHANGELOG.md)). The second part is the build: the first seven characters of the git commit the program
 was built from. `-dirty` at the end means that the program was built with changes that were not
 committed. `unknown` means that the build could not be found, for example in a build from a
 source archive without git.
 
 You can see the version in these places:
 
-- `banished --version` shows it, for example `Un-Banished 0.1.0-1382712`.
+- `banished --version` shows it, for example `Un-Banished 0.2.0-1382712`.
 - The first line of the log, when the game starts.
 - In the browser: under the status line of the **Load your game data** panel, and in the
   browser's console.

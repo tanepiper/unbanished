@@ -116,10 +116,10 @@ The details that drift are the ones that bite:
 
 ## Versions
 
-The engine version is `0.1.0-<build>`. Do not confuse it with the Banished version: the main menu
+The engine version is `<version>-<build>`, for example `0.2.0-93be55d`. Do not confuse it with the Banished version: the main menu
 footer ("Version 1.0.7 - Build 170910") comes from the original's resources and must not change.
 
-- `0.1.0` is set once, as `version` in `[workspace.package]` in the root `Cargo.toml`. Every
+- The version is set once, as `version` in `[workspace.package]` in the root `Cargo.toml`. Every
   crate inherits it with `version.workspace = true`.
 - `apps/game/build.rs` sets the build id at compile time, for native and wasm32 builds:
   `UNBANISHED_BUILD` from the environment if it is set, else the short git hash (7 characters)
