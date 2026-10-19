@@ -218,8 +218,13 @@ impl StartingTown {
                 ty: int(f, "road.ty") as u8,
                 built: int(f, "road.built") as u8,
             },
+            // No entity: what the citizen carries (`usize::MAX`, `FUN_1400cb880` on its own
+            // StorageComponent), for example food eaten from its hands.
             "ConsumeRawMaterial" => Action::ConsumeStoredRawMaterial {
-                storage: storage(self, "consume.entity")?,
+                storage: match f.ptr("consume.entity") {
+                    None => usize::MAX,
+                    Some(_) => storage(self, "consume.entity")?,
+                },
                 items: items(self, "consume.items")?,
                 reserved: flag(f, "consume.flag_38"),
             },

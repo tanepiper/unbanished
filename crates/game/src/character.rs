@@ -371,6 +371,8 @@ pub struct MoveTo {
     index: i32,
     count: i32,
     path: [i32; PATH_CELLS],
+    /// Set by [`MoveTo::restored`]: the first update plays the walk clip again.
+    resume: bool,
 }
 
 impl MoveTo {
@@ -400,6 +402,7 @@ impl MoveTo {
             index: -1,
             count: 0,
             path: [0; PATH_CELLS],
+            resume: false,
         }
     }
 
@@ -433,6 +436,7 @@ impl MoveTo {
             index,
             count: n as i32,
             path: cells,
+            resume: true,
         }
     }
 
@@ -494,6 +498,15 @@ impl MoveTo {
 
     /// `FUN_1400cda40` (update).
     fn update(&mut self, ch: &mut Character, world: &mut World, group: &AnimationGroup) -> Status {
+        // Deviation: a walk restored from a save plays its walk clip again and faces its next
+        // cell on its first update. The original restores the clip with the animation block
+        // (`AnimationManager::Serialize`, `FUN_18005d130`), which the port does not decode
+        // yet; without a walking clip the body has no root motion, never reaches the next
+        // cell, and the citizen stands still for good.
+        if std::mem::take(&mut self.resume) && self.index >= 0 && self.index < self.count {
+            self.face_waypoint(ch, world);
+            ch.play(self.walk, group, 1.0);
+        }
         if self.index != -1 {
             let here = world.cell(ch.position);
             if world.cell(self.target) == here {
@@ -1489,5 +1502,100 @@ mod drop_off_tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod restored_move_tests {
+    use super::*;
+
+    /// A walk restored from a save mid-way (index 1 of 3 cells) plays its walk clip and faces
+    /// its next cell on the first update, once. Without the clip the body has no root motion
+    /// and would never reach the next cell.
+    #[test]
+    fn a_restored_walk_plays_its_clip_and_faces_the_next_cell_once() {
+        let n = 8;
+        let types = vec![CellType(2); n * n];
+        let none = vec![None; n * n];
+        let zeros = vec![0u8; n * n];
+        let roads = vec![0xffu8; n * n];
+        let floors = crate::floor::Floors::new(n * n);
+        let regions = vec![0u16; n * n];
+        let heights = vec![0i16; (2 * n + 1) * (2 * n + 1)];
+        let terrain = HeightGrid {
+            width: 2 * n + 1,
+            heights: &heights,
+        };
+        let group = AnimationGroup {
+            clips: vec![],
+            default_blend: 0.0,
+            blends: vec![],
+            blend_matrix: vec![],
+        };
+        let mut pathfinder = Pathfinder::new(n, &types);
+        let mut rng = Random::new(1);
+        let (mut messages, mut used) = (Vec::new(), Vec::new());
+        let mut storages = vec![];
+        let mut carried = Storage {
+            capacity: 0,
+            accepts: u32::MAX,
+            items: vec![],
+        };
+        let (mut tool_uses, mut shown, mut accident, mut timer) = (0, -1, None, 0);
+        let mut animating = vec![];
+        let mut world = World {
+            size: n,
+            types: &types,
+            objects: &none,
+            occupants: &none,
+            flags: &zeros,
+            roads: &roads,
+            floors: &floors,
+            regions: &regions,
+            terrain: &terrain,
+            pathfinder: &mut pathfinder,
+            rng: &mut rng,
+            messages: &mut messages,
+            used: &mut used,
+            storages: &mut storages,
+            materials: &[],
+            carried: &mut carried,
+            storage_search: None,
+            pushes: Vec::new(),
+            tool_uses: &mut tool_uses,
+            shown_tool: &mut shown,
+            animating: &mut animating,
+            accident: &mut accident,
+            accident_timer: &mut timer,
+            accident_odds: None,
+        };
+        let (here, next, end) = (2 * n as i32 + 2, 2 * n as i32 + 3, 2 * n as i32 + 4);
+        let (walk, stand) = (5, 6);
+        let mut ch = Character::new(
+            CharacterDescription::default(),
+            world.cell_centre(here),
+            1.0,
+        );
+        ch.direction = [0.0; 3];
+        ch.play(stand, &group, 1.0);
+        let mut m = MoveTo::restored(
+            world.cell_centre(end),
+            walk,
+            stand,
+            0,
+            0,
+            1.0,
+            false,
+            1,
+            &[here, next, end],
+        );
+        assert_eq!(m.update(&mut ch, &mut world, &group), Status::Running);
+        assert_eq!(ch.animation.clip(), Some(walk));
+        let to_next = world.cell_centre(next);
+        assert!(ch.direction[0] * (to_next[0] - ch.position[0]) > 0.0);
+        // Only the first update resumes: a clip played afterwards is left alone.
+        ch.play(stand, &group, 1.0);
+        m.update(&mut ch, &mut world, &group);
+        assert_eq!(ch.animation.clip(), Some(stand));
     }
 }

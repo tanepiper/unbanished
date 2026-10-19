@@ -198,13 +198,20 @@ Every saved action maps onto a port action, field by field:
 | ShowTool | the tool |
 | CompleteTask | work id `+0x30`, parameter `+0x34` |
 | CompleteRoad | cell, type `+0x24`, built byte `+0x28` |
-| ConsumeRawMaterial, PickupStoredRawMaterial, DropOffRawMaterial | storage and goods; for a drop-off, no storage leaves the goods on the ground and no material drops everything |
+| ConsumeRawMaterial, PickupStoredRawMaterial, DropOffRawMaterial | storage and goods; a consume without an entity uses what the citizen carries (`FUN_1400cb880` on its own storage); for a drop-off, no storage leaves the goods on the ground and no material drops everything |
 | RemoveNaturalResource, AnimateNaturalResource, PickupRawMaterial | the resource or pile |
 | CreateRawMaterial | template, cell `+0x44`, batch `+0x40`, workplace, factor `+0x4c` |
 | CreateNaturalResource | template, cell, occupant |
 
 A stack holding an action the port cannot rebuild yet starts empty and is counted in the
-load log. HuntAnimal and RemoveAnimal wait for the animals (stage 3c).
+load log.
+
+**Walks in progress.** The original restores each character's animation from the save's
+animation block (`AnimationManager::Serialize`, `FUN_18005d130`), which the port carries as raw
+bytes. A restored, started MoveTo therefore plays its walk clip again and faces its next cell on
+its first update (a deviation). Without it a walking citizen had no root motion and stood still
+for good: on one test save 12 of 17 citizens were frozen after loading, and a worker frozen this
+way never looked for work again (issue #4). HuntAnimal and RemoveAnimal wait for the animals (stage 3c).
 
 **Work claims.** The works now carry their citizens:
 - the gatherers', builders' and other workers' sets;
