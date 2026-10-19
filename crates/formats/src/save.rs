@@ -5,6 +5,7 @@ use crate::crs::{Reader, Writer};
 use crate::error::{format_err, Error, Result};
 use crate::stream;
 
+/// A save file: its two payloads, expanded. See the [module documentation](self).
 pub struct Save {
     /// Expanded metadata stream (the first payload; see [`SaveMetadata`]).
     pub metadata: Vec<u8>,
@@ -12,17 +13,23 @@ pub struct Save {
     pub state: Vec<u8>,
 }
 
-/// The first payload (`SaveLoad::SaveMetaData`, Runtime `0x1800c3d00`): what the load dialog
-/// shows. One block at version 3.
+/// The first payload (`SaveLoad::SaveMetaData`): what the load dialog shows. One block at version
+/// 3.
+///
+/// Original: Runtime `0x1800c3d00`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SaveMetadata {
+    /// The town's name, as the Load dialog shows it.
     pub name: String,
+    /// The preview picture's width in pixels.
     pub width: i32,
+    /// The preview picture's height in pixels.
     pub height: i32,
     /// `width × height` 4-byte texels (blue, green, red, unused) of the preview.
     pub image: Vec<u8>,
     /// From version 3: an unnamed value (2 in the samples), then the active mods.
     pub value: i32,
+    /// The mods that were on when the town was saved.
     pub mods: Vec<SavedMod>,
     /// The strings were UTF-16 (2015 builds).
     pub wide: bool,
@@ -31,12 +38,16 @@ pub struct SaveMetadata {
 /// A mod active when the game was saved: its name, its `.pkm` file and three values.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SavedMod {
+    /// The mod's name.
     pub name: String,
+    /// The mod's file name.
     pub file: String,
+    /// Three values saved with the mod (not identified yet).
     pub values: [u32; 3],
 }
 
 impl SaveMetadata {
+    /// Read a [`SaveMetadata`] from the bytes of its resource.
     pub fn parse(data: &[u8]) -> Result<SaveMetadata> {
         let mut r = Reader::new(data);
         let mut meta = r.block(|r, version| {
@@ -110,53 +121,75 @@ fn header_check(table: &[u8], blocks: &[&[u8]]) -> u32 {
     c
 }
 
-/// Fields the game loop writes right after the reference table and settings block
-/// (`FUN_14009af60`).
+/// Fields the game loop writes right after the reference table and settings block.
+///
+/// Original: `FUN_14009af60`.
 #[derive(Debug, Clone)]
 pub struct LoopHeader {
+    /// The climate profile's reference.
     pub climate: String,
+    /// The start condition's reference.
     pub start_condition: String,
+    /// The terrain profile's reference.
     pub terrain: String,
+    /// The map seed.
     pub seed: u32,
+    /// The map size: 0 small, 1 medium, 2 large.
     pub size_index: i32,
 }
 
-/// The map component's terrain grid (`FUN_1400b59a0`).
+/// The map component's terrain grid.
+///
+/// Original: `FUN_1400b59a0`.
 #[derive(Debug, Clone)]
 pub struct MapHeights {
     /// Samples per side (`2n + 1`).
     pub width: usize,
+    /// The heights, row by row: height × 256.
     pub heights: Vec<i16>,
 }
 
-/// One gameplay map cell as `FUN_14001b570` serializes it (in-memory record is 48 bytes).
+/// One cell of the gameplay map, as a save stores it (the cell is 48 bytes in memory).
+///
+/// Original: `FUN_14001b570`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MapCell {
-    /// Whether the two object pointers (`+0x00`, `+0x08`) are set.
+    // +0x00; +0x08
+    /// Whether the two object pointers are set.
     pub objects: [bool; 2],
-    /// External reference id at `+0x10` (`u32::MAX` when unset).
+    // +0x10
+    /// External reference id at (`u32::MAX` when unset).
     pub external: u32,
-    /// Bytes `+0x1c..+0x25`.
+    // +0x1c..+0x25
+    /// Bytes.
     pub flags: [u8; 9],
-    /// `+0x26`.
+    // +0x26
+    /// Not identified yet.
     pub value: u16,
-    /// Bytes `+0x28..+0x2d`; `[1]` (`+0x29`) is the cell type.
+    // +0x29; +0x28..+0x2d
+    /// Bytes; `[1]` is the cell type.
     pub bytes: [u8; 6],
 }
 
 impl MapCell {
+    /// The cell's type (see `banished_terrain::CellType`).
     pub fn cell_type(&self) -> u8 {
         self.bytes[1]
     }
 }
 
-/// The gameplay map (`FUN_1400a45d0`, serializer version 4): `size × size` cells covering the
-/// centre of the terrain (the terrain grid is twice as wide).
+/// The gameplay map (serializer version 4): `size × size` cells covering the centre of the terrain
+/// (the terrain grid is twice as wide).
+///
+/// Original: `FUN_1400a45d0`.
 #[derive(Debug, Clone)]
 pub struct MapCells {
+    /// The number of cells on each side.
     pub size: usize,
+    /// The cells, row by row.
     pub cells: Vec<MapCell>,
-    /// The nine shorts at map `+0x90`.
+    // +0x90
+    /// The nine values that end the map block.
     pub trailer: [i16; 9],
 }
 
@@ -166,26 +199,38 @@ fn u32_at(b: &[u8], at: usize) -> Result<u32> {
         .ok_or(Error::Truncated { at, wanted: 4 })
 }
 
-/// One saved event-log entry (`Game +0x138`, 0x28 bytes in memory).
+// Game +0x138
+/// One saved event-log entry (`Game`, 0x28 bytes in memory).
 #[derive(Debug, Clone, PartialEq)]
 pub struct SavedEvent {
+    /// The colour of the entry, `0xAARRGGBB`.
     pub color: u32,
+    /// The text.
     pub text: String,
+    /// The kind of event.
     pub kind: i32,
+    /// How serious the event is.
     pub severity: i32,
+    /// The map cell it happened at (-1 for none).
     pub cell: i32,
+    /// The category the log filters by.
     pub category: i32,
+    /// The icon.
     pub icon: i32,
 }
 
-/// The event log block: six notify flags (`+0x10..+0x15`), then the entries.
+// +0x10..+0x15
+/// The event log block: six notify flags, then the entries.
 #[derive(Debug, Clone)]
 pub struct SavedEventLog {
+    /// Which categories show a notification.
     pub notify: [bool; 6],
+    /// The entries, oldest first.
     pub entries: Vec<SavedEvent>,
 }
 
 impl Save {
+    /// Read a [`Save`] from the bytes of its resource.
     pub fn parse(data: &[u8]) -> Result<Save> {
         let (meta, state) = Save::payloads(data)?;
         Ok(Save {
@@ -194,8 +239,10 @@ impl Save {
         })
     }
 
-    /// Only the metadata, as the save list reads it (`Persistence::BeginGetSaveGameInfo`, then
-    /// `SaveLoad::LoadMetaData` `0x1800c43a0`): the game state is not expanded.
+    /// Only the metadata, as the save list reads it: the game state is not expanded.
+    ///
+    /// Original: `Persistence::BeginGetSaveGameInfo`, then `SaveLoad::LoadMetaData` (Runtime
+    /// `0x1800c43a0`).
     pub fn read_metadata(data: &[u8]) -> Result<SaveMetadata> {
         SaveMetadata::parse(&stream::decode(Save::payloads(data)?.0)?)
     }
@@ -238,6 +285,7 @@ impl Save {
         Ok((meta, state))
     }
 
+    /// The metadata: the town's name, the preview picture and the mods.
     pub fn metadata(&self) -> Result<SaveMetadata> {
         SaveMetadata::parse(&self.metadata)
     }
@@ -302,6 +350,7 @@ impl Save {
         })
     }
 
+    /// The game loop's header: the seed, the map size, and the terrain, climate and start condition.
     pub fn loop_header(&self) -> Result<LoopHeader> {
         let refs = self.references()?;
         let name = |id: u32| {

@@ -2,27 +2,49 @@
 
 use super::*;
 
-/// `FireDescription` (serializer `FUN_14004a560`; `Template\Common.rsc:fire*`): a fire burns
-/// `+0x24` × 300 + `+0x20` s; `+0x28` the ParticleDescription slot, `+0x2c` the ambient emitter;
-/// `+0x30` × 300 s between spread attempts (and `+0x30` × 300 / `+0x3c` s off per bucket of
-/// water), `+0x34` the odds it catches from a neighbour, `+0x38` the emergency radius, `+0x3c`
-/// the buckets that put it out, `+0x40` the most firefighters, `+0x44` / `+0x48` the years and
-/// odds of catching fire by itself (`FUN_1400ae760`).
+// Template\Common.rsc:fire*.
+/// A `FireDescription`: how a fire burns, spreads and is put out.
+///
+/// Original: `FUN_14004a560`; fires that start by themselves, `FUN_1400ae760`.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct FireDescription {
+    // +0x20
+    /// The burning time: `burn_months × 300 + burn` seconds.
     pub burn: f32,
+    // +0x24
+    /// The burning time in months of 300 seconds (see `burn`).
     pub burn_months: f32,
+    // +0x28
+    /// The particle slot of the flames.
     pub particle: i32,
+    // +0x2c
+    /// The ambient emitter slot of the sound.
     pub emitter: i32,
+    // +0x30
+    /// The time between attempts to spread, in months of 300 seconds. Each bucket of water
+    /// takes `interval × 300 / buckets` seconds off.
     pub interval: f32,
+    // +0x34
+    /// The odds that a neighbour catches fire.
     pub spread: f32,
+    // +0x38
+    /// The emergency radius, in cells: citizens in it come to put the fire out.
     pub radius: i32,
+    // +0x3c
+    /// The buckets of water that put the fire out.
     pub buckets: i32,
+    // +0x40
+    /// The most firefighters.
     pub workers: i32,
+    // +0x44
+    /// How often a building catches fire by itself, in years (with `odds`).
     pub years: f32,
+    // +0x48
+    /// The odds that a building catches fire by itself (with `years`).
     pub odds: f32,
 }
 
+/// Read a [`FireDescription`] from the bytes of its resource.
 pub fn fire_description(data: &[u8]) -> Result<FireDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("FireDescription") {
@@ -52,9 +74,11 @@ pub fn fire_description(data: &[u8]) -> Result<FireDescription> {
     Ok(value)
 }
 
-/// `TornadoDescription` (serializer `FUN_1400596f0`): `+0x20` speed, `+0x24` the ends' least
-/// distance, `+0x30` the reach of a wrecking pass, `+0x28` the time between passes, `+0x34`
-/// how far a pass throws its point.
+// +0x20; +0x24; +0x30; +0x28; +0x34
+/// `TornadoDescription`: speed, the ends' least distance, the reach of a wrecking pass, the time
+/// between passes, how far a pass throws its point.
+///
+/// Original: `FUN_1400596f0`.
 pub fn tornado_description(data: &[u8]) -> Result<(f32, i32, i32, i64, i32)> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("TornadoDescription") {

@@ -2,61 +2,83 @@
 
 use super::*;
 
-/// `Graphics::ParticleSystem` (Runtime `ParticleSystem::Serialize` `0x1800a5c70`, after the
-/// `Graphics::Particle` block `0x180106790`): an emitter of camera-facing quads. Times are
-/// `System::Time` microseconds. See docs/PARTICLES.md.
+/// A particle system: an emitter of quads that face the camera (smoke, fire, dust, snow). Times
+/// are in microseconds. See docs/PARTICLES.md.
+///
+/// Original: `Graphics::ParticleSystem::Serialize`, Runtime `0x1800a5c70`, after the
+/// `Graphics::Particle` block (Runtime `0x180106790`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParticleSystem {
-    /// Particle `+0x20`, `+0x24`: instanced, the shared instance count.
+    // +0x20; +0x24
+    /// Particle: instanced, the shared instance count.
     pub instanced: bool,
     pub instances: u32,
-    /// Particle `+0x28`: the most particles alive.
+    // +0x28
+    /// Particle: the most particles alive.
     pub max_particles: u32,
-    /// Particle `+0x30`: the MaterialInstance.
+    // +0x30
+    /// Particle: the MaterialInstance.
     pub material: Option<String>,
-    /// `+0x48`: particles per second; `+0x4c × +0x50`: its change per second squared.
+    // +0x48; +0x4c × +0x50
+    /// Particles per second; `×`: its change per second squared.
     pub rate: f32,
     pub rate_change: f32,
     pub rate_scale: f32,
-    /// `+0x58`: how long it emits (0 for ever).
+    // +0x58
+    /// How long it emits (0 for ever).
     pub duration: i64,
-    /// `+0x60`: the emission direction (model space).
+    // +0x60
+    /// The emission direction (model space).
     pub direction: [f32; 3],
-    /// `+0x78`, `+0x6c`: the spawn box: each axis `± axis × size / 2`.
+    // +0x78, +0x6c
+    /// The spawn box: each axis `± axis × size / 2`.
     pub spawn_size: f32,
     pub spawn_box: [f32; 3],
-    /// `+0x7c`, `+0x80`: the emission cone's angles (degrees).
+    // +0x7c, +0x80
+    /// The emission cone's angles (degrees).
     pub cone: [f32; 2],
-    /// `+0x84`, `+0x88`: speed (base, ± range).
+    // +0x84, +0x88
+    /// Speed (base, ± range).
     pub speed: [f32; 2],
-    /// `+0x8c`: force scale; `+0x90`: velocity kept per update.
+    // +0x8c; +0x90
+    /// Force scale;: velocity kept per update.
     pub force_scale: f32,
     pub damping: f32,
-    /// `+0x94`, `+0x98`: rotation (degrees, base ± range).
+    // +0x94, +0x98
+    /// Rotation (degrees, base ± range).
     pub rotation: [f32; 2],
-    /// `+0x9c`, `+0xa0`: spin (degrees/s, base ± range, either way).
+    // +0x9c, +0xa0
+    /// Spin (degrees/s, base ± range, either way).
     pub spin: [f32; 2],
-    /// `+0xa4`, `+0xa8`: spin change and kept part.
+    // +0xa4, +0xa8
+    /// Spin change and kept part.
     pub spin_change: f32,
     pub spin_damping: f32,
-    /// `+0xac`, `+0xb0`: life (seconds, base ± range).
+    // +0xac, +0xb0
+    /// Life (seconds, base ± range).
     pub life: [f32; 2],
-    /// `+0xb4`, `+0xb8`: the force (wind) and its scale.
+    // +0xb4, +0xb8
+    /// The force (wind) and its scale.
     pub force_amount: f32,
     pub force: [f32; 3],
-    /// `+0xc4`, `+0xc8`: size (base ± range); `+0xcc`, `+0xd0`: growth and its kept part.
+    // +0xc4, +0xc8; +0xcc; +0xd0
+    /// Size (base ± range);: growth and its kept part.
     pub size: [f32; 2],
     pub growth: f32,
     pub growth_damping: f32,
-    /// `+0xdc`, `+0xe0`: start and end colours (BGRA bytes).
+    // +0xdc, +0xe0
+    /// Start and end colours (BGRA bytes).
     pub colors: [u32; 2],
-    /// `+0xd4`, `+0xd8`: the part of life the colour moves over.
+    // +0xd4, +0xd8
+    /// The part of life the colour moves over.
     pub color_span: [f32; 2],
-    /// `+0xe8`, `+0xf0`: fade in and fade out.
+    // +0xe8, +0xf0
+    /// Fade in and fade out.
     pub fade_in: i64,
     pub fade_out: i64,
 }
 
+/// Read a [`ParticleSystem`] from the bytes of its resource.
 pub fn particle_system(data: &[u8]) -> Result<ParticleSystem> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("ParticleSystem") {
@@ -116,35 +138,43 @@ pub fn particle_system(data: &[u8]) -> Result<ParticleSystem> {
     Ok(value)
 }
 
-/// The Tornado particle class (`Graphics::Particle` subclass, serializer `FUN_1400d76e0`,
-/// update `FUN_1400d7940`): particles spiralling up a funnel. Colours are BGRA bytes, times
-/// `System::Time` microseconds. See docs/PARTICLES.md.
+/// The Tornado particle class (`Graphics::Particle` subclass): particles spiralling up a funnel.
+/// Colours are BGRA bytes, times `System::Time` microseconds. See docs/PARTICLES.md.
+///
+/// Original: `FUN_1400d76e0`, `FUN_1400d7940`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TornadoParticle {
-    /// Particle `+0x28`, `+0x30`: the most particles alive and the MaterialInstance.
+    // +0x28; +0x30
+    /// Particle: the most particles alive and the MaterialInstance.
     pub max_particles: u32,
     pub material: Option<String>,
-    /// `+0x48`: the spiral's radius scale; `+0x4c`: the rise over a life; `+0x50`: the
-    /// wobble's radius.
+    // +0x48; +0x4c; +0x50
+    /// The spiral's radius scale;: the rise over a life;: the wobble's radius.
     pub radius: f32,
     pub rise: f32,
     pub wobble: f32,
-    /// `+0x54`: the wobble's turn (degrees a second); `+0x58`: the spiral's turn over a life.
+    // +0x54; +0x58
+    /// The wobble's turn (degrees a second);: the spiral's turn over a life.
     pub wobble_turn: f32,
     pub spiral_turn: f32,
-    /// `+0x5c`: particles a second; `+0x60`, `+0x64`: life (seconds, base ± range).
+    // +0x5c; +0x60; +0x64
+    /// Particles a second;: life (seconds, base ± range).
     pub rate: f32,
     pub life: [f32; 2],
-    /// `+0x68`, `+0x6c`: the least and most size; `+0x70`: size per radius.
+    // +0x68, +0x6c; +0x70
+    /// The least and most size;: size per radius.
     pub size: [f32; 2],
     pub size_scale: f32,
-    /// `+0x74`, `+0x78`: the start and end colours.
+    // +0x74, +0x78
+    /// The start and end colours.
     pub colors: [u32; 2],
-    /// `+0x80`, `+0x88`: fade in and fade out.
+    // +0x80, +0x88
+    /// Fade in and fade out.
     pub fade_in: i64,
     pub fade_out: i64,
 }
 
+/// Read a [`TornadoParticle`] from the bytes of its resource.
 pub fn tornado_particle(data: &[u8]) -> Result<TornadoParticle> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("Tornado") {
@@ -183,27 +213,32 @@ pub fn tornado_particle(data: &[u8]) -> Result<TornadoParticle> {
 /// One of a `ParticleDescription`'s systems (`0x28` bytes).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParticleSlot {
-    /// `+0x00`: the ParticleSystem.
+    // +0x00
+    /// The ParticleSystem.
     pub system: Option<String>,
-    /// `+0x08`: the model node it sits on (empty: the model's root).
+    // +0x08
+    /// The model node it sits on (empty: the model's root).
     pub node: String,
-    /// `+0x10..+0x13`: `+0x11` starts on activation, `+0x12` follows entity events 2 (start)
-    /// and 3 (fade out).
+    // +0x10..+0x13; +0x11; +0x12
+    /// starts on activation, follows entity events 2 (start) and 3 (fade out).
     pub flags: [bool; 4],
-    /// `+0x20`: the alpha's fade in and out; `+0x18`: how long the system runs before it is
-    /// shown (`System::Time`).
+    // +0x20; +0x18
+    /// The alpha's fade in and out;: how long the system runs before it is shown (`System::Time`).
     pub fade: i64,
     pub prewarm: i64,
 }
 
-/// `ParticleDescription` (serializer `FUN_140053dc0`): the entity's particle systems, then
-/// `+0x20`.
+// +0x20
+/// `ParticleDescription`: the entity's particle systems, then.
+///
+/// Original: `FUN_140053dc0`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParticleDescription {
     pub slots: Vec<ParticleSlot>,
     pub extra: Option<String>,
 }
 
+/// Read a [`ParticleDescription`] from the bytes of its resource.
 pub fn particle_description(data: &[u8]) -> Result<ParticleDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("ParticleDescription") {

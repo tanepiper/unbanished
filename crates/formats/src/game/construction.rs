@@ -2,25 +2,34 @@
 
 use super::*;
 
-/// `CreatePlacedDescription` (serializer `FUN_14011eda0`): how a building is placed; the start
-/// structures (`FUN_1400a7490`) take their size from it.
+/// `CreatePlacedDescription`: how a building is placed; the start structures take their size from
+/// it.
+///
+/// Original: `FUN_14011eda0`, `FUN_1400a7490`.
 #[derive(Debug, Clone)]
 pub struct CreatePlacedDescription {
-    /// `+0x20`.
+    // +0x20
+    /// Not identified yet.
     pub flags: u32,
-    /// `+0x30`.
+    // +0x30
+    /// Not identified yet.
     pub values: Vec<u32>,
-    /// `+0x28`.
+    // +0x28
+    /// Not identified yet.
     pub name: String,
-    /// `+0x44`, `+0x48`: footprint width and height in cells.
+    // +0x44, +0x48
+    /// Footprint width and height in cells.
     pub width: i32,
     pub height: i32,
-    /// `+0x40`.
+    // +0x40
+    /// Not identified yet.
     pub value: i32,
-    /// `+0x50`.
+    // +0x50
+    /// Not identified yet.
     pub related: Option<String>,
 }
 
+/// Read a [`CreatePlacedDescription`] from the bytes of its resource.
 pub fn create_placed_description(data: &[u8]) -> Result<CreatePlacedDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("CreatePlacedDescription") {
@@ -46,11 +55,12 @@ pub fn create_placed_description(data: &[u8]) -> Result<CreatePlacedDescription>
     Ok(value)
 }
 
-/// `CreateFencedDescription` (serializer `FUN_140048250`): the fenced tool's (FencedTool,
-/// vtable `0x140166a10`) cell-type mask `+0x20`, its six part templates `+0x28..+0x50` (shelter,
-/// end, corner, straight, long straight, gate), the largest `+0x58`, `+0x5c` and smallest
-/// `+0x60`, `+0x64` size, the shelter centred on its side `+0x68`, and the template whose
-/// entities may stand in the way `+0x70`.
+// vtable 0x140166a10; +0x20; +0x28..+0x50; +0x58; +0x5c; +0x60; +0x64; +0x68; +0x70
+/// `CreateFencedDescription`: the fenced tool's (FencedTool) cell-type mask, its six part templates
+/// (shelter, end, corner, straight, long straight, gate), the largest, and smallest, size, the
+/// shelter centred on its side, and the template whose entities may stand in the way.
+///
+/// Original: `FUN_140048250`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CreateFencedDescription {
     pub mask: u32,
@@ -61,6 +71,7 @@ pub struct CreateFencedDescription {
     pub clear: Option<String>,
 }
 
+/// Read a [`CreateFencedDescription`] from the bytes of its resource.
 pub fn create_fenced_description(data: &[u8]) -> Result<CreateFencedDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("CreateFencedDescription") {
@@ -85,14 +96,18 @@ pub fn create_fenced_description(data: &[u8]) -> Result<CreateFencedDescription>
     Ok(value)
 }
 
-/// `CreateRoadDescription` (serializer `FUN_14011f150`): `+0x20` the road kind (0 stone, 1 dirt;
-/// a lower kind replaces a higher), `+0x28` the raw material a cell takes (none for dirt).
+// +0x20; +0x28
+/// `CreateRoadDescription`: the road kind (0 stone, 1 dirt; a lower kind replaces a higher), the
+/// raw material a cell takes (none for dirt).
+///
+/// Original: `FUN_14011f150`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CreateRoadDescription {
     pub kind: u8,
     pub material: Option<String>,
 }
 
+/// Read a [`CreateRoadDescription`] from the bytes of its resource.
 pub fn create_road_description(data: &[u8]) -> Result<CreateRoadDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("CreateRoadDescription") {
@@ -111,11 +126,12 @@ pub fn create_road_description(data: &[u8]) -> Result<CreateRoadDescription> {
     Ok(value)
 }
 
-/// `CreateBridgeDescription` (serializer `FUN_14011eaa0`): the bridge tool's (BridgeTool, vtable
-/// `0x140167f20`) cell-type masks: `+0x20` the cells it spans (water), `+0x24` its banks, `+0x28`
-/// further cells drawn as valid, `+0x2c` at least one spanned cell of these, `+0x30` the cells
-/// beside it within `+0x34` (its half width); `+0x38` the part templates (start, 1, 2, 4 and 8
-/// cells long).
+// vtable 0x140167f20; +0x20; +0x24; +0x28; +0x2c; +0x30; +0x34; +0x38
+/// `CreateBridgeDescription`: the bridge tool's (BridgeTool) cell-type masks: the cells it spans
+/// (water), its banks, further cells drawn as valid, at least one spanned cell of these, the cells
+/// beside it within (its half width); the part templates (start, 1, 2, 4 and 8 cells long).
+///
+/// Original: `FUN_14011eaa0`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CreateBridgeDescription {
     pub span: u32,
@@ -127,6 +143,7 @@ pub struct CreateBridgeDescription {
     pub parts: Vec<Option<String>>,
 }
 
+/// Read a [`CreateBridgeDescription`] from the bytes of its resource.
 pub fn create_bridge_description(data: &[u8]) -> Result<CreateBridgeDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("CreateBridgeDescription") {
@@ -157,14 +174,17 @@ pub fn create_bridge_description(data: &[u8]) -> Result<CreateBridgeDescription>
     Ok(value)
 }
 
-/// `FloorDescription` (serializer `FUN_140124b50`): `+0x20` the picking mesh walked on, `+0x28`
-/// added on activation.
+// +0x20; +0x28
+/// `FloorDescription`: the picking mesh walked on, added on activation.
+///
+/// Original: `FUN_140124b50`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FloorDescription {
     pub mesh: Option<String>,
     pub active: bool,
 }
 
+/// Read a [`FloorDescription`] from the bytes of its resource.
 pub fn floor_description(data: &[u8]) -> Result<FloorDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("FloorDescription") {
@@ -183,8 +203,11 @@ pub fn floor_description(data: &[u8]) -> Result<FloorDescription> {
     Ok(value)
 }
 
-/// `TerraformDescription` (serializer `FUN_140058000`): a tunnel's `+0x20` floor and `+0x28`
-/// ceiling picking meshes, each with the cell types `+0x30`, `+0x34` its vertices may change.
+// +0x20; +0x28; +0x30; +0x34
+/// `TerraformDescription`: a tunnel's floor and ceiling picking meshes, each with the cell types,
+/// its vertices may change.
+///
+/// Original: `FUN_140058000`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TerraformDescription {
     pub floor: Option<String>,
@@ -193,6 +216,7 @@ pub struct TerraformDescription {
     pub ceiling_mask: u32,
 }
 
+/// Read a [`TerraformDescription`] from the bytes of its resource.
 pub fn terraform_description(data: &[u8]) -> Result<TerraformDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("TerraformDescription") {
@@ -213,23 +237,30 @@ pub fn terraform_description(data: &[u8]) -> Result<TerraformDescription> {
     Ok(value)
 }
 
-/// `CreateRemovalDescription` (`Template\ClearX.rsc:createremoval`, serializer
-/// `FUN_14011ef90`): what a RemovalTool drag does to each cell (`FUN_140108ab0`).
+/// `CreateRemovalDescription` (`Template\ClearX.rsc:createremoval`): what a RemovalTool drag does
+/// to each cell.
+///
+/// Original: `FUN_14011ef90`, `FUN_140108ab0`.
 #[derive(Debug, Clone, Default)]
 pub struct CreateRemovalDescription {
-    /// `+0x20`: mark natural resources for removal.
+    // +0x20
+    /// Mark natural resources for removal.
     pub resources: bool,
-    /// `+0x28/+0x30`: the resource templates it marks (empty: every one).
+    // +0x28/+0x30
+    /// The resource templates it marks (empty: every one).
     pub filters: Vec<String>,
-    /// `+0x38`: the marker entity's template (`Template\Clear.rsc:resource`).
+    // +0x38
+    /// The marker entity's template (`Template\Clear.rsc:resource`).
     pub template: Option<String>,
-    /// `+0x40` roads, `+0x41` demolish buildings, `+0x42` cancel, `+0x43` prioritise.
+    // +0x40; +0x41; +0x42; +0x43
+    /// roads, demolish buildings, cancel, prioritise.
     pub roads: bool,
     pub buildings: bool,
     pub cancel: bool,
     pub priority: bool,
 }
 
+/// Read a [`CreateRemovalDescription`] from the bytes of its resource.
 pub fn create_removal_description(data: &[u8]) -> Result<CreateRemovalDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("CreateRemovalDescription") {
@@ -258,21 +289,29 @@ pub fn create_removal_description(data: &[u8]) -> Result<CreateRemovalDescriptio
     Ok(value)
 }
 
-/// `CreateDragDescription` (`Template\X.rsc:createdrag`, serializer `FUN_14011ec20`).
+/// `CreateDragDescription` (`Template\X.rsc:createdrag`).
+///
+/// Original: `FUN_14011ec20`.
 #[derive(Debug, Clone, Default)]
 pub struct CreateDragDescription {
-    /// `+0x20`: admitted cell types (`FUN_1400a4aa0`'s mask).
+    // +0x20
+    /// The cell types the drag may cover, as a mask of type bits.
+    ///
+    /// Original: read by `FUN_1400a4aa0`.
     pub mask: u32,
     pub value_28: i32,
     pub value_2c: i32,
     pub value_30: i32,
     pub value_34: i32,
-    /// `+0x24`: ignore cell occupants.
+    // +0x24
+    /// Ignore cell occupants.
     pub override_occupant: bool,
-    /// `+0x38`: an external reference.
+    // +0x38
+    /// An external reference.
     pub reference: Option<String>,
 }
 
+/// Read a [`CreateDragDescription`] from the bytes of its resource.
 pub fn create_drag_description(data: &[u8]) -> Result<CreateDragDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("CreateDragDescription") {
@@ -296,17 +335,23 @@ pub fn create_drag_description(data: &[u8]) -> Result<CreateDragDescription> {
     Ok(value)
 }
 
-/// `BuildDescription` (serializer `FUN_14010e610`): what constructing a building costs.
+/// `BuildDescription`: what constructing a building costs.
+///
+/// Original: `FUN_14010e610`.
 #[derive(Debug, Clone)]
 pub struct BuildDescription {
-    /// `+0x20`: `(count, raw material)` requirements.
+    // +0x20
+    /// `(count, raw material)` requirements.
     pub materials: Vec<(i32, Option<String>)>,
-    /// `+0x30`: construction work.
+    // +0x30
+    /// Construction work.
     pub work: i32,
-    /// `+0x34`: shows `labelBuildMulti` in the CreateBar (costs per area).
+    // +0x34
+    /// Shows `labelBuildMulti` in the CreateBar (costs per area).
     pub multi: bool,
 }
 
+/// Read a [`BuildDescription`] from the bytes of its resource.
 pub fn build_description(data: &[u8]) -> Result<BuildDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("BuildDescription") {
@@ -329,10 +374,12 @@ pub fn build_description(data: &[u8]) -> Result<BuildDescription> {
     Ok(value)
 }
 
-/// `DestroyDescription` (serializer `FUN_140123340`): `+0x20` the template left in the
-/// building's place once it is torn down (the quarry's and mine's hole; none for most), `+0x28`
-/// the ModelComponent's material set while damaged (`FUN_14012a4f0`), `+0x2c` the decal while
-/// damaged, `+0x30` the lowest construction mesh a collapse steps down to (`FUN_140122aa0`).
+// +0x20; +0x28; +0x2c; +0x30
+/// `DestroyDescription`: the template left in the building's place once it is torn down (the
+/// quarry's and mine's hole; none for most), the ModelComponent's material set while damaged, the
+/// decal while damaged, the lowest construction mesh a collapse steps down to.
+///
+/// Original: `FUN_140123340`, `FUN_14012a4f0`, `FUN_140122aa0`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DestroyDescription {
     pub replace: Option<String>,
@@ -341,6 +388,7 @@ pub struct DestroyDescription {
     pub min_mesh: i32,
 }
 
+/// Read a [`DestroyDescription`] from the bytes of its resource.
 pub fn destroy_description(data: &[u8]) -> Result<DestroyDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("DestroyDescription") {
@@ -361,24 +409,38 @@ pub fn destroy_description(data: &[u8]) -> Result<DestroyDescription> {
     Ok(value)
 }
 
-/// `ClearAreaDescription` (`Template\X.rsc:cleararea`, serializer `FUN_14011d5c0`).
+/// `ClearAreaDescription` (`Template\X.rsc:cleararea`).
+///
+/// Original: `FUN_14011d5c0`.
 #[derive(Debug, Clone, Default)]
 pub struct ClearAreaDescription {
-    /// `+0x20`: an external reference handed to the ClearArea work (`FUN_1400ebe30`).
+    // +0x20
+    /// An external reference handed to the ClearArea work.
+    ///
+    /// Original: `FUN_1400ebe30`.
     pub reference: Option<String>,
-    /// `+0x28..+0x2a`: the ClearArea work's flags (natural resources, empty cells, piles).
+    // +0x28..+0x2a
+    /// The ClearArea work's flags (natural resources, empty cells, piles).
     pub clear_resources: bool,
     pub clear_cells: bool,
     pub clear_piles: bool,
-    /// `+0x2b`: register the work keeping its priority.
+    // +0x2b
+    /// Register the work keeping its priority.
     pub keep_priority: bool,
-    /// `+0x2c`: stamp the footprint once cleared (`FUN_14011d740`).
+    // +0x2c
+    /// Stamp the footprint once cleared.
+    ///
+    /// Original: `FUN_14011d740`.
     pub stamp: bool,
-    /// `+0x2d`: remove everything in the footprint at once (`FUN_14011d230`).
+    // +0x2d
+    /// Remove everything in the footprint at once.
+    ///
+    /// Original: `FUN_14011d230`.
     pub instant: bool,
     pub value_30: i32,
 }
 
+/// Read a [`ClearAreaDescription`] from the bytes of its resource.
 pub fn clear_area_description(data: &[u8]) -> Result<ClearAreaDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("ClearAreaDescription") {

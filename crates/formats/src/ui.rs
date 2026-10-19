@@ -33,22 +33,31 @@ fn i32s<const N: usize>(r: &mut Reader) -> Result<[i32; N]> {
 /// Alignment within the space a parent offers: 0..8 = rows top/middle/bottom x columns left/centre/right.
 pub type Alignment = u32;
 
+/// The bits of an element's flags.
 pub mod flags {
+    /// The element is hidden.
     pub const HIDDEN: u32 = 1 << 0;
+    /// The element fills the width it is given.
     pub const FILL_WIDTH: u32 = 1 << 2;
+    /// The element fills the height it is given.
     pub const FILL_HEIGHT: u32 = 1 << 3;
     /// Height (0x10) / width (0x20) taken from the screen size times the UI scale.
     pub const SCREEN_HEIGHT: u32 = 1 << 4;
+    /// The width is the screen's width times the interface scale.
     pub const SCREEN_WIDTH: u32 = 1 << 5;
     /// Halves the element's alpha (`Element::ComputeColor`).
     pub const DIM: u32 = 1 << 18;
     /// Takes the mouse (`SetFlagsOnOff(0x10000)`): a click on it is an event of its own.
     pub const MOUSE: u32 = 1 << 16;
-    /// Disabled by the tutorial (`FUN_1400e7720`; input passes it by, like a disabled one).
+    /// Disabled by the tutorial (input passes it by, like a disabled one).
+    ///
+    /// Original: `FUN_1400e7720`.
     pub const LOCKED: u32 = 1 << 24;
 }
 
-/// `UI::ElementDescription` (0x180119390): shared by every element.
+/// Shared by every element.
+///
+/// Original: `UI::ElementDescription`, Runtime `0x180119390`.
 #[derive(Debug, Clone, Default)]
 pub struct ElementBase {
     /// left, right, top, bottom
@@ -58,9 +67,10 @@ pub struct ElementBase {
     pub flags: u32,
     /// ARGB, multiplied into everything the element draws.
     pub color: u32,
-    /// `+0x3c`: the mouse cursor shown over it (`Element::GetMouseCursorIndex`; an index into
-    /// the game's cursors: 0 Arrow, 1 Hand, 2 Hourglass, 3 Move, 4 Query, 5 Place). Only the
-    /// StandardDialog title bar sets one (3).
+    // +0x3c
+    /// The mouse cursor shown over it (`Element::GetMouseCursorIndex`; an index into the game's
+    /// cursors: 0 Arrow, 1 Hand, 2 Hourglass, 3 Move, 4 Query, 5 Place). Only the StandardDialog
+    /// title bar sets one (3).
     pub cursor: i32,
     pub border: Ref,
     pub tooltip_dialog: Ref,
@@ -93,6 +103,7 @@ impl ElementBase {
     }
 }
 
+/// A button's description.
 #[derive(Debug, Clone)]
 pub struct Button {
     /// enabled, disabled, highlight, pressed state elements
@@ -102,6 +113,7 @@ pub struct Button {
     pub colors: [u32; 4],
 }
 
+/// A text element's description.
 #[derive(Debug, Clone)]
 pub struct Text {
     pub font: Ref,
@@ -119,6 +131,7 @@ pub struct Text {
     pub ellipsis_width: i32,
 }
 
+/// A label's description: text with an optional icon.
 #[derive(Debug, Clone)]
 pub struct Label {
     pub text: Text,
@@ -132,6 +145,7 @@ pub struct Label {
     pub icon_size: [i32; 2],
 }
 
+/// What an element description is, with the fields of its class.
 #[derive(Debug, Clone)]
 pub enum ElementKind {
     Group {
@@ -267,7 +281,9 @@ pub enum ElementKind {
     DocumentText(DocumentText),
 }
 
-/// Rich text configuration (`DocumentTextDescription::Serialize`, 0x1800d2110).
+/// Rich text configuration (`DocumentTextDescription::Serialize`).
+///
+/// Original: Runtime `0x1800d2110`.
 #[derive(Debug, Clone)]
 pub struct DocumentText {
     pub string_table: Ref,
@@ -284,6 +300,7 @@ pub struct DocumentText {
     pub images: Ref,
 }
 
+/// A child of a layout element, with its anchors.
 #[derive(Debug, Clone)]
 pub struct LayoutItem {
     pub element: Ref,
@@ -293,6 +310,7 @@ pub struct LayoutItem {
     pub flag: bool,
 }
 
+/// A cell of a table element.
 #[derive(Debug, Clone)]
 pub struct TableCell {
     pub column: i32,
@@ -300,6 +318,7 @@ pub struct TableCell {
     pub element: Ref,
 }
 
+/// An element description: its class, the fields every element has, and its class's fields.
 #[derive(Debug, Clone)]
 pub struct Element {
     pub class: &'static str,
@@ -308,6 +327,7 @@ pub struct Element {
 }
 
 impl Element {
+    /// The references of its child elements.
     pub fn children(&self) -> &[Ref] {
         match &self.kind {
             ElementKind::Group { children }
@@ -606,6 +626,7 @@ fn read_element(class: &'static str, r: &mut Reader) -> Result<Element> {
     Ok(Element { class, base, kind })
 }
 
+/// The class names of every element description.
 pub const ELEMENT_CLASSES: &[&str] = &[
     "GroupDescription",
     "PageDescription",
@@ -651,12 +672,14 @@ pub fn element(data: &[u8]) -> Result<Element> {
     Ok(element)
 }
 
+/// Whether a type id is one of the element classes.
 pub fn is_element(type_id_value: u32) -> bool {
     ELEMENT_CLASSES.iter().any(|c| type_id(c) == type_id_value)
 }
 
 // ---------------------------------------------------------------- Dialog
 
+/// A controller attached to a dialog's element.
 #[derive(Debug, Clone)]
 pub struct DialogBinding {
     /// Application controller type ID (CRC32 of its class name).
@@ -669,7 +692,7 @@ pub struct DialogBinding {
     pub name: String,
 }
 
-/// `UI::Dialog` (0x180115950).
+/// Original: `UI::Dialog`, Runtime `0x180115950`.
 #[derive(Debug, Clone)]
 pub struct Dialog {
     pub unknown_40: u32,
@@ -685,6 +708,7 @@ pub struct Dialog {
     pub unknown_34: i32,
 }
 
+/// Read a [`Dialog`] from the bytes of its resource.
 pub fn dialog(data: &[u8]) -> Result<Dialog> {
     expect(data, "Dialog", |r| {
         r.block(|r, _| {
@@ -726,6 +750,7 @@ pub fn dialog(data: &[u8]) -> Result<Dialog> {
 
 // ---------------------------------------------------------------- SpriteSheet, Font, StringTable
 
+/// A sprite of a sprite sheet.
 #[derive(Debug, Clone)]
 pub struct Sprite {
     pub name: String,
@@ -739,7 +764,7 @@ pub struct Sprite {
     pub uv: [f32; 4],
 }
 
-/// `UI::SpriteSheet` (0x18011ffc0).
+/// Original: `UI::SpriteSheet`, Runtime `0x18011ffc0`.
 #[derive(Debug, Clone)]
 pub struct SpriteSheet {
     pub material_path: String,
@@ -753,11 +778,13 @@ pub struct SpriteSheet {
 }
 
 impl SpriteSheet {
+    /// A sprite by name.
     pub fn sprite(&self, name: &str) -> Option<&Sprite> {
         self.sprites.iter().find(|s| s.name == name)
     }
 }
 
+/// Read a [`SpriteSheet`] from the bytes of its resource.
 pub fn sprite_sheet(data: &[u8]) -> Result<SpriteSheet> {
     expect(data, "SpriteSheet", |r| {
         r.block(|r, _| {
@@ -798,14 +825,16 @@ pub fn sprite_sheet(data: &[u8]) -> Result<SpriteSheet> {
     })
 }
 
-/// `UI::Cursor` (`Serialize` 0x1800cf980, version 1): the sprite sheet whose image is the
-/// pointer, and its hotspot.
+/// A mouse pointer: the sprite sheet whose image is the pointer, and its hot spot.
+///
+/// Original: `UI::Cursor::Serialize`, Runtime `0x1800cf980` (version 1).
 #[derive(Debug, Clone)]
 pub struct Cursor {
     pub sprite_sheet: Ref,
     pub hotspot: [i32; 2],
 }
 
+/// Read a [`Cursor`] from the bytes of its resource.
 pub fn cursor(data: &[u8]) -> Result<Cursor> {
     expect(data, "Cursor", |r| {
         r.block(|r, _| {
@@ -817,7 +846,9 @@ pub fn cursor(data: &[u8]) -> Result<Cursor> {
     })
 }
 
-/// `UI::Font` (0x180119f60), block version 2.
+/// `UI::Font`, block version 2.
+///
+/// Original: Runtime `0x180119f60`.
 #[derive(Debug, Clone)]
 pub struct Font {
     pub name: String,
@@ -833,22 +864,27 @@ pub struct Font {
     /// Per glyph: (a, c, b, d): advance = a + b, with the previous glyph's c added;
     /// d raises the bottom of the sprite above the baseline.
     pub glyphs: Vec<[i32; 4]>,
-    /// Serialized descent, ellipsis advance, and space advance (Runtime Font +0x54/58/5c).
+    // +0x54
+    /// Serialized descent, ellipsis advance, and space advance (Runtime Font/58/5c).
     pub unknown: [i32; 3],
 }
 
 impl Font {
-    /// Baseline relative to a text element's top, as used by TextElement::Draw (0x180121b10).
+    /// Baseline relative to a text element's top, as used by TextElement::Draw.
+    ///
+    /// Original: Runtime `0x180121b10`.
     pub fn baseline_offset(&self) -> i32 {
         self.size - self.unknown[0]
     }
 
+    /// The glyph of a character.
     pub fn glyph_index(&self, ch: char) -> Option<usize> {
         let g = *self.char_map.get(ch as usize)?;
         (g >= 0 && g != 0xFFFF && (g as usize) < self.glyphs.len()).then_some(g as usize)
     }
 }
 
+/// Read a [`Font`] from the bytes of its resource.
 pub fn font(data: &[u8]) -> Result<Font> {
     expect(data, "Font", |r| {
         r.block(|r, version| {
@@ -883,7 +919,9 @@ pub fn font(data: &[u8]) -> Result<Font> {
     })
 }
 
-/// `UI::StringTable` (0x1801201d0): key -> display string.
+/// Key -> display string.
+///
+/// Original: `UI::StringTable`, Runtime `0x1801201d0`.
 pub fn string_table(data: &[u8]) -> Result<Vec<(String, String)>> {
     expect(data, "StringTable", |r| {
         r.block(|r, _| {

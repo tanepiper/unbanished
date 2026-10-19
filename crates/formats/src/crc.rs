@@ -22,6 +22,7 @@ const fn table() -> [u32; 256] {
 
 static TABLE: [u32; 256] = table();
 
+/// The CRC-32 (IEEE) of bytes.
 pub fn crc32(bytes: impl IntoIterator<Item = u8>) -> u32 {
     !bytes.into_iter().fold(!0u32, |c, b| {
         TABLE[((c ^ b as u32) & 0xFF) as usize] ^ (c >> 8)

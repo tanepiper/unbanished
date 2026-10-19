@@ -1,9 +1,11 @@
-//! Gameplay resources from the game executable's registrations.
+//! The gameplay resources: terrain and climate profiles, start conditions, the toolbar, entity
+//! templates and the descriptions of their components (buildings, citizens, animals, resources,
+//! fires and more).
 //!
-//! Each resource has a struct and a reader function (`toolbar_description`, …). They live in
-//! topic files and are re-exported here, so every path is `banished_formats::game::NAME`:
-//! [`world`], [`interface`], [`entities`], [`nature`], [`particles`], [`construction`],
-//! [`goods`], [`work`], [`people`] and [`disasters`].
+//! Each resource has a struct and a reader function, for example [`ToolbarDescription`] and
+//! [`toolbar_description`]. The source is split into topic files (world, interface, entities,
+//! nature, particles, construction, goods, work, people and disasters), and everything is
+//! re-exported here, so every path is `banished_formats::game::NAME`.
 
 mod construction;
 mod disasters;

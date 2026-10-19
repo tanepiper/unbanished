@@ -2,49 +2,68 @@
 
 use super::*;
 
-/// `NaturalResourceDescription` (serializer `FUN_14012b2e0`). Field offsets are in the runtime
-/// object; see docs/RESOURCE-SEEDING.md and GAME-LOOP-STEP-14.md.
+/// `NaturalResourceDescription`. Field offsets are in the runtime object; see
+/// docs/RESOURCE-SEEDING.md and GAME-LOOP-STEP-14.md.
+///
+/// Original: `FUN_14012b2e0`.
 #[derive(Debug, Clone)]
 pub struct NaturalResourceDescription {
-    /// `+0x20`: the raw material it yields.
+    // +0x20
+    /// The raw material it yields.
     pub raw_material: Option<String>,
-    /// `+0x28`, `+0x2c`: placement noise persistence and octaves.
+    // +0x28, +0x2c
+    /// Placement noise persistence and octaves.
     pub noise_persistence: f32,
     pub noise_octaves: f32,
-    /// `+0x30`: placement noise scale (sampled at `cell / scale`).
+    // +0x30
+    /// Placement noise scale (sampled at `cell / scale`).
     pub noise_scale: f32,
-    /// `+0x34`: minimum `noise · 0.5 + 0.5`.
+    // +0x34
+    /// Minimum `noise · 0.5 + 0.5`.
     pub noise_min: f32,
-    /// `+0x38`: `RandFloat()` must be at most this.
+    // +0x38
+    /// `RandFloat` must be at most this.
     pub chance: f32,
-    /// `+0x48`: choose the model variant by noise clusters.
+    // +0x48
+    /// Choose the model variant by noise clusters.
     pub cluster: bool,
-    /// `+0x4c`, `+0x50`: cluster noise persistence and octaves.
+    // +0x4c, +0x50
+    /// Cluster noise persistence and octaves.
     pub cluster_persistence: f32,
     pub cluster_octaves: f32,
-    /// `+0x54`, `+0x58`: cluster noise scale and threshold.
+    // +0x54, +0x58
+    /// Cluster noise scale and threshold.
     pub cluster_scale: f32,
     pub cluster_threshold: f32,
-    /// `+0x5c`: 1-in-N chance of a random variant instead.
+    // +0x5c
+    /// 1-in-N chance of a random variant instead.
     pub random_variant_one_in: i32,
-    /// `+0x3c`, `+0x40`: ground height range.
+    // +0x3c, +0x40
+    /// Ground height range.
     pub height_min: f32,
     pub height_max: f32,
-    /// `+0x44`: minimum ground normal z.
+    // +0x44
+    /// Minimum ground normal z.
     pub normal_min: f32,
-    /// `+0x64`: transition flag (GAME-LOOP-STEP-14).
+    // +0x64
+    /// Transition flag (GAME-LOOP-STEP-14).
     pub flag: bool,
-    /// `+0x68`, `+0x70`: `System::Time` values (microseconds).
+    // +0x68, +0x70
+    /// `System::Time` values (microseconds).
     pub time_a: i64,
     pub time_b: i64,
-    /// `+0x80`.
+    // +0x80
+    /// Not identified yet.
     pub value: u32,
-    /// `+0x78`.
+    // +0x78
+    /// Not identified yet.
     pub related: Option<String>,
-    /// `+0x60`: used by the positioning component.
+    // +0x60
+    /// Used by the positioning component.
     pub position_scale: f32,
 }
 
+/// Read a [`NaturalResourceDescription`] from the bytes of its resource.
 pub fn natural_resource_description(data: &[u8]) -> Result<NaturalResourceDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("NaturalResourceDescription") {
@@ -82,12 +101,16 @@ pub fn natural_resource_description(data: &[u8]) -> Result<NaturalResourceDescri
     Ok(value)
 }
 
-/// `GrowthDescription` (serializer `FUN_140125e50`). See GAME-LOOP-STEP-11/12 and
-/// RESOURCE-SEEDING.md for the consumers.
+/// `GrowthDescription`. See GAME-LOOP-STEP-11/12 and RESOURCE-SEEDING.md for the consumers.
+///
+/// Original: `FUN_140125e50`.
 #[derive(Debug, Clone)]
 pub struct GrowthDescription {
-    /// `+0x20` / `+0x24`: maximum growth `= RandFloatTol · range + base` when base > 0
-    /// (`FUN_140125bc0`); otherwise −1. Also the spawn step (`FUN_140056620`).
+    // +0x20 / +0x24
+    /// Maximum growth `= RandFloatTol · range + base` when base > 0; otherwise −1. Also the spawn
+    /// step.
+    ///
+    /// Original: `FUN_140125bc0`, `FUN_140056620`.
     pub max_base: f32,
     pub max_range: f32,
     pub f28: f32,
@@ -98,23 +121,33 @@ pub struct GrowthDescription {
     pub f3c: f32,
     pub f40: f32,
     pub b44: bool,
-    /// `+0x4c`: spawn radius in cells (`RandTol`).
+    // +0x4c
+    /// Spawn radius in cells (`RandTol`).
     pub spawn_radius: i32,
-    /// `+0x50`: growth timer scale (`RandFloat · value · 300` seconds).
+    // +0x50
+    /// Growth timer scale (`RandFloat · value · 300` seconds).
     pub timer_months: i32,
-    /// `+0x48`: spawn chance is `1 / value`.
+    // +0x48
+    /// Spawn chance is `1 / value`.
     pub spawn_one_in: i32,
-    /// `+0x54`.
+    // +0x54
+    /// Not identified yet.
     pub threshold: f32,
-    /// `+0x58`: maximum occupied neighbours (`FUN_140126100`).
+    // +0x58
+    /// Maximum occupied neighbours.
+    ///
+    /// Original: `FUN_140126100`.
     pub max_neighbours: i32,
-    /// `+0x5c`: maximum neighbours of the same growth type.
+    // +0x5c
+    /// Maximum neighbours of the same growth type.
     pub max_same: i32,
     pub f60: f32,
-    /// `+0x64`: scale shape: false = uniform growth, true = `(g/0.15, g/0.15, g, 1)` clamped.
+    // +0x64
+    /// Scale shape: false = uniform growth, true = `(g/0.15, g/0.15, g, 1)` clamped.
     pub tall: bool,
 }
 
+/// Read a [`GrowthDescription`] from the bytes of its resource.
 pub fn growth_description(data: &[u8]) -> Result<GrowthDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("GrowthDescription") {
@@ -157,7 +190,9 @@ pub struct SpawnEntry {
     pub hi: f32,
 }
 
-/// `SpawnDescription` (serializer `FUN_140056a10`).
+/// `SpawnDescription`.
+///
+/// Original: `FUN_140056a10`.
 pub fn spawn_description(data: &[u8]) -> Result<Vec<SpawnEntry>> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("SpawnDescription") {
@@ -181,23 +216,31 @@ pub fn spawn_description(data: &[u8]) -> Result<Vec<SpawnEntry>> {
     Ok(value)
 }
 
-/// `HerdDescription` (serializer `FUN_1401276b0`).
+/// `HerdDescription`.
+///
+/// Original: `FUN_1401276b0`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct HerdDescription {
-    /// `+0x20`: the animal template.
+    // +0x20
+    /// The animal template.
     pub animal: Option<String>,
-    /// `+0x28`, `+0x2c`: the most and fewest animals.
+    // +0x28, +0x2c
+    /// The most and fewest animals.
     pub max: i32,
     pub min: i32,
-    /// `+0x30`, `+0x34`: the rest between moves (× 300 s), base and random part.
+    // +0x30, +0x34
+    /// The rest between moves (× 300 s), base and random part.
     pub rest: f32,
     pub rest_range: f32,
-    /// `+0x38`: the side of the herd's area in cells.
+    // +0x38
+    /// The side of the herd's area in cells.
     pub area: i32,
-    /// `+0x3c`: the regrowth interval (× 300 s).
+    // +0x3c
+    /// The regrowth interval (× 300 s).
     pub regrowth: f32,
 }
 
+/// Read a [`HerdDescription`] from the bytes of its resource.
 pub fn herd_description(data: &[u8]) -> Result<HerdDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("HerdDescription") {
@@ -221,31 +264,45 @@ pub fn herd_description(data: &[u8]) -> Result<HerdDescription> {
     Ok(value)
 }
 
-/// `AnimalDescription` (serializer `FUN_14010c520`; `+0x40`, the idle time, is not stored and
-/// keeps the constructor's 4).
+// +0x40
+/// `AnimalDescription` (the idle time, is not stored and keeps the constructor's 4).
+///
+/// Original: `FUN_14010c520`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AnimalDescription {
-    /// `+0x48`: the raw materials a hunted animal leaves.
+    // +0x48
+    /// The raw materials a hunted animal leaves.
     pub materials: Vec<Option<String>>,
-    /// `+0x20`: the side of the animal's home area in cells.
+    // +0x20
+    /// The side of the animal's home area in cells.
     pub area: i32,
-    /// `+0x24`: map cells a pasture gives each animal (`FUN_14012da40`).
+    // +0x24
+    /// Map cells a pasture gives each animal.
+    ///
+    /// Original: `FUN_14012da40`.
     pub space: i32,
-    /// `+0x28`, `+0x2c`: the lifespan in years, base and tolerance.
+    // +0x28, +0x2c
+    /// The lifespan in years, base and tolerance.
     pub life: f32,
     pub life_range: f32,
-    /// `+0x30`: the age at full size (years).
+    // +0x30
+    /// The age at full size (years).
     pub adult: f32,
-    /// `+0x34`: a breeding male's years between young (and as much again at random,
-    /// `FUN_14010b8f0`); `+0x38`.
+    // +0x34; +0x38
+    /// A breeding male's years between young (and as much again at random);.
+    ///
+    /// Original: `FUN_14010b8f0`.
     pub breed: f32,
     pub value_38: f32,
-    /// `+0x3c`: turn to a random heading when idling.
+    // +0x3c
+    /// Turn to a random heading when idling.
     pub turn: bool,
-    /// `+0x40`.
+    // +0x40
+    /// Not identified yet.
     pub idle: f32,
 }
 
+/// Read a [`AnimalDescription`] from the bytes of its resource.
 pub fn animal_description(data: &[u8]) -> Result<AnimalDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("AnimalDescription") {
@@ -276,8 +333,11 @@ pub fn animal_description(data: &[u8]) -> Result<AnimalDescription> {
     Ok(value)
 }
 
-/// `FruitDescription` (serializer `FUN_14004ab40`): ripening time `+0x20` (× 300 s), the best
-/// temperature `+0x24`, its range `+0x28`, the fruit's raw material `+0x30`.
+// +0x20; +0x24; +0x28; +0x30
+/// `FruitDescription`: ripening time (× 300 s), the best temperature, its range, the fruit's raw
+/// material.
+///
+/// Original: `FUN_14004ab40`.
 pub fn fruit_description(data: &[u8]) -> Result<(f32, f32, f32, Option<String>)> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("FruitDescription") {

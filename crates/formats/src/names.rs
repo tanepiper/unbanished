@@ -10,6 +10,7 @@ use crate::crc::type_id;
 use crate::crs::{self, Reader};
 use crate::error::{format_err, Error, Result};
 
+/// One record of a name database: a four-character state and the letters that may follow it.
 #[derive(Debug, Clone, Copy)]
 pub struct NameTransition {
     /// Four ASCII bytes used as a transition lookup key; short personal-name prefixes are NUL padded.
@@ -20,6 +21,7 @@ pub struct NameTransition {
     pub next_characters: u32,
 }
 
+/// A name database (`Game/Names/*`): the records from which citizen and town names are made.
 #[derive(Debug, Clone)]
 pub struct NameDatabase {
     pub transitions: Vec<NameTransition>,
@@ -34,8 +36,10 @@ pub struct NameDatabase {
 }
 
 impl NameDatabase {
+    /// The resource class name.
     pub const CLASS: &'static str = "NameDatabase";
 
+    /// Read a [`Self`] from the bytes of its resource.
     pub fn read(data: &[u8]) -> Result<Self> {
         let (_, value) = crs::parse(data, |r: &mut Reader, header| {
             if header.type_id != type_id(Self::CLASS) {

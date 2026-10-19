@@ -10,8 +10,10 @@
 use crate::error::{format_err, Result};
 use crate::lzf;
 
+/// The largest expanded block, 32 KiB.
 pub const BLOCK_SIZE: usize = 0x8000;
 
+/// Expand a block stream.
 pub fn decode(buf: &[u8]) -> Result<Vec<u8>> {
     let rd = |at: usize, n: usize| -> Result<&[u8]> {
         buf.get(at..at + n)

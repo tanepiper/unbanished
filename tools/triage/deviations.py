@@ -34,7 +34,11 @@ def comment_blocks(lines):
         if s.startswith('//'):
             if start is None:
                 start = i
-            buf.append(s.lstrip('/!').strip())
+            text = s.lstrip('/!').strip()
+            # "Original: `FUN_...`" lines only cite the source (the doc-comment style in
+            # AGENTS.md); the word "original" in them is not a statement about a difference.
+            if not text.startswith('Original:'):
+                buf.append(text)
         else:
             if buf:
                 yield start, ' '.join(b for b in buf if b)

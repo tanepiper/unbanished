@@ -2,9 +2,10 @@
 
 use super::*;
 
-/// One toolbar entry (`Toolbar`, serializer `FUN_1400d74e0`): a button or a sub-menu of the
-/// in-game toolbar. `FUN_1400bede0` builds each toolbar level from the entries whose `parent`
-/// matches, ordered by `order`.
+/// One entry of the in-game toolbar: a button or a sub-menu. The game builds each level of the
+/// toolbar from the entries whose `parent` matches, in the order of `order`.
+///
+/// Original: `FUN_1400d74e0`; the toolbar is built by `FUN_1400bede0`.
 #[derive(Debug, Clone)]
 pub struct ToolbarItem {
     pub string_table: Option<String>,
@@ -13,24 +14,33 @@ pub struct ToolbarItem {
     pub tooltip: String,
     /// Icon sprite name in `sprite_sheet`.
     pub sprite: String,
-    /// Action kind (`+0x48`): 0 sub-menu, 1 build template, 6–10 time controls, …
+    // +0x48
+    /// Action kind: 0 sub-menu, 1 build template, 6–10 time controls, …
     pub kind: u32,
-    /// Parent toolbar (`+0x60`), `None` for the top level.
+    // +0x60
+    /// Parent toolbar, `None` for the top level.
     pub parent: Option<String>,
-    /// Template placed by this entry (`+0x58`), or the utility it opens.
+    // +0x58
+    /// Template placed by this entry, or the utility it opens.
     pub template: Option<String>,
-    /// `+0x40`.
+    // +0x40
+    /// Not identified yet.
     pub value: u32,
-    /// `+0x45`: listed in the toolbar.
+    // +0x45
+    /// Listed in the toolbar.
     pub visible: bool,
-    /// `+0x44`.
+    // +0x44
+    /// Not identified yet.
     pub enabled: bool,
-    /// `+0x4c`.
+    // +0x4c
+    /// Not identified yet.
     pub id: i32,
-    /// `+0x50`: sort key within its parent.
+    // +0x50
+    /// Sort key within its parent.
     pub order: i32,
 }
 
+/// Read a [`ToolbarItem`] from the bytes of its resource.
 pub fn toolbar_item(data: &[u8]) -> Result<ToolbarItem> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("Toolbar") {
@@ -56,8 +66,10 @@ pub fn toolbar_item(data: &[u8]) -> Result<ToolbarItem> {
     Ok(value)
 }
 
-/// A template's toolbar component (`ToolbarDescription`, serializer `FUN_140132f00`): the icon,
-/// name and tooltip shown for build and utility entries, and its placement messages.
+/// A template's toolbar component (`ToolbarDescription`): the icon, name and tooltip shown for
+/// build and utility entries, and its placement messages.
+///
+/// Original: `FUN_140132f00`.
 #[derive(Debug, Clone)]
 pub struct ToolbarDescription {
     pub sprite_sheet: Option<String>,
@@ -68,12 +80,15 @@ pub struct ToolbarDescription {
     pub tooltip: String,
     /// Message keys (`CreateOk`, `CreateBlocked`, …).
     pub messages: Vec<String>,
-    /// `+0x64`.
+    // +0x64
+    /// Not identified yet.
     pub category: i32,
-    /// `+0x60`.
+    // +0x60
+    /// Not identified yet.
     pub value: i32,
 }
 
+/// Read a [`ToolbarDescription`] from the bytes of its resource.
 pub fn toolbar_description(data: &[u8]) -> Result<ToolbarDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("ToolbarDescription") {
@@ -99,7 +114,9 @@ pub fn toolbar_description(data: &[u8]) -> Result<ToolbarDescription> {
     Ok(value)
 }
 
-/// One entry of a `UIDescription` controller table (`FUN_140133530`).
+/// One entry of a `UIDescription` controller table.
+///
+/// Original: `FUN_140133530`.
 #[derive(Debug, Clone)]
 pub struct UiController {
     /// CRC32 type id of the `UI::DialogController` to attach (0 = none, e.g. `StatusBarUI`
@@ -107,27 +124,34 @@ pub struct UiController {
     pub type_id: u32,
     /// The element to instantiate into the named slot.
     pub element: Option<String>,
-    /// Controller configuration (`+0x10`).
+    // +0x10
+    /// Controller configuration.
     pub config: Option<String>,
-    /// Tab label element (`+0x18`), used when the slot is a `TabElement`.
+    // +0x18
+    /// Tab label element, used when the slot is a `TabElement`.
     pub tab: Option<String>,
     /// Name of the slot element in the dialog (`userGroup0`, `userTitle0`).
     pub slot: String,
 }
 
-/// `UIDescription` (serializer `FUN_140133350`): a utility window built from a host dialog with
-/// content placed into its named slots, each with an optional controller.
+/// `UIDescription`: a utility window built from a host dialog with content placed into its named
+/// slots, each with an optional controller.
+///
+/// Original: `FUN_140133350`.
 #[derive(Debug, Clone)]
 pub struct UiDescription {
     /// Host dialog, e.g. `Dialog\StandardDialog.rsc:resource`.
     pub dialog: Option<String>,
-    /// `+0x40`.
+    // +0x40
+    /// Not identified yet.
     pub flags: i32,
     pub controllers: Vec<UiController>,
-    /// `+0x20`.
+    // +0x20
+    /// Not identified yet.
     pub value: i32,
 }
 
+/// Read a [`UiDescription`] from the bytes of its resource.
 pub fn ui_description(data: &[u8]) -> Result<UiDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("UIDescription") {
@@ -157,9 +181,11 @@ pub fn ui_description(data: &[u8]) -> Result<UiDescription> {
     Ok(value)
 }
 
-/// `StatusIconDescription` (serializer `FUN_140131650`, constructor `FUN_140039280`): the icon
-/// sprite sheet (`+0x20`), icon size (`+0x28`) and screen-constant flag (`+0x30`). The height
-/// offset `+0x2c` is not serialized and stays 1.0.
+// +0x20; +0x28; +0x30; +0x2c
+/// `StatusIconDescription`: the icon sprite sheet, icon size and screen-constant flag. The height
+/// offset is not serialized and stays 1.0.
+///
+/// Original: `FUN_140131650`, `FUN_140039280`.
 #[derive(Debug, Clone)]
 pub struct StatusIconDescription {
     pub sheet: Option<String>,
@@ -167,6 +193,7 @@ pub struct StatusIconDescription {
     pub screen_constant: bool,
 }
 
+/// Read a [`StatusIconDescription`] from the bytes of its resource.
 pub fn status_icon_description(data: &[u8]) -> Result<StatusIconDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("StatusIconDescription") {

@@ -24,18 +24,28 @@ pub struct EffectSound {
     pub variants: Vec<SoundVariant>,
 }
 
-/// `Audio::SoundEffect` (`Serialize` `0x1800e32f0`).
+/// A sound effect: a timeline of sounds, each with variants, a pitch range and a volume, and the
+/// radius within which it can be heard.
+///
+/// Original: `Audio::SoundEffect::Serialize`, Runtime `0x1800e32f0`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SoundEffect {
-    /// `+0x20`: audible distance (3D effects).
+    // +0x20
+    /// Audible distance (3D effects).
     pub radius: f32,
-    /// `+0x24`: full-volume distance.
+    // +0x24
+    /// Full-volume distance.
     pub inner_radius: f32,
     pub sounds: Vec<EffectSound>,
-    /// `+0x28`: microseconds; 0 when a buffer loops (`Compile` `0x1800e31f0`).
+    // +0x28
+    /// The effect's length in microseconds; 0 when a sound loops (the effect never ends). The
+    /// engine computes it when it compiles the effect.
+    ///
+    /// Original: `Audio::SoundEffect::Compile`, Runtime `0x1800e31f0`.
     pub max_length: i64,
 }
 
+/// Read a [`SoundEffect`] from the bytes of its resource.
 pub fn sound_effect(data: &[u8]) -> Result<SoundEffect> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("SoundEffect") {
@@ -72,14 +82,17 @@ pub fn sound_effect(data: &[u8]) -> Result<SoundEffect> {
     Ok(value)
 }
 
-/// One `MusicList` track (0x18 bytes): played when the month and the town's mood are in range
-/// (`FUN_1400a95b0`).
+/// One `MusicList` track (0x18 bytes): played when the month and the town's mood are in range.
+///
+/// Original: `FUN_1400a95b0`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MusicTrack {
     pub effect: Option<String>,
-    /// `+0x8`, `+0xc`: mood range (health and happiness fractions, averaged).
+    // +0x8, +0xc
+    /// Mood range (health and happiness fractions, averaged).
     pub mood: (f32, f32),
-    /// `+0x10`, `+0x14`: month range, inclusive.
+    // +0x10, +0x14
+    /// Month range, inclusive.
     pub months: (i32, i32),
 }
 
@@ -106,14 +119,17 @@ pub fn music_list(data: &[u8]) -> Result<Vec<MusicTrack>> {
     Ok(value)
 }
 
-/// `AnimAudioEvent`: an animation event that plays a 3D effect at the entity
-/// (`FUN_14008d310`, sound type 4) with probability `probability`.
+/// `AnimAudioEvent`: an animation event that plays a 3D effect at the entity (sound type 4) with
+/// probability `probability`.
+///
+/// Original: `FUN_14008d310`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AnimAudioEvent {
     pub effect: Option<String>,
     pub probability: f32,
 }
 
+/// Read a [`AnimAudioEvent`] from the bytes of its resource.
 pub fn anim_audio_event(data: &[u8]) -> Result<AnimAudioEvent> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("AnimAudioEvent") {
@@ -132,14 +148,18 @@ pub fn anim_audio_event(data: &[u8]) -> Result<AnimAudioEvent> {
     Ok(value)
 }
 
-/// `AmbientEmitterDescription` (`FUN_140043b10`): the effects an ambient emitter feeds, and
-/// whether activation starts them (`+0x20`).
+// +0x20
+/// `AmbientEmitterDescription`: the effects an ambient emitter feeds, and whether activation starts
+/// them.
+///
+/// Original: `FUN_140043b10`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AmbientEmitterDescription {
     pub effects: Vec<Option<String>>,
     pub autostart: bool,
 }
 
+/// Read a [`AmbientEmitterDescription`] from the bytes of its resource.
 pub fn ambient_emitter_description(data: &[u8]) -> Result<AmbientEmitterDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("AmbientEmitterDescription") {
@@ -174,14 +194,18 @@ pub struct AmbientTerrain {
     pub weight: i32,
 }
 
-/// `AmbientEnvironmentDescription` (`FUN_1400442b0`).
+/// `AmbientEnvironmentDescription`.
+///
+/// Original: `FUN_1400442b0`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AmbientEnvironmentDescription {
     pub terrains: Vec<AmbientTerrain>,
-    /// `+0x30`, `+0x34`: environment `+0x18` range of the cross-fade.
+    // +0x30, +0x34; +0x18
+    /// Environment range of the cross-fade.
     pub fade: (f32, f32),
 }
 
+/// Read a [`AmbientEnvironmentDescription`] from the bytes of its resource.
 pub fn ambient_environment_description(data: &[u8]) -> Result<AmbientEnvironmentDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("AmbientEnvironmentDescription") {

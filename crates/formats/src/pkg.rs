@@ -1,4 +1,6 @@
-//! `.pkg` packages (`IO::PackageFile::ReadPackfile`, Runtime 0x1800b6f10).
+//! Packages (`.pkg`, and mods as `.pkm`): the archives that hold the game's data.
+//!
+//! Original: `IO::PackageFile::ReadPackfile`, Runtime `0x1800b6f10`.
 //!
 //! ```text
 //! u32 header        bit31 = extended header, bits0..30 = TOC offset
@@ -13,11 +15,14 @@
 use crate::error::{format_err, Error, Result};
 use crate::stream;
 
+/// One entry of a package: its name, and where its bytes are.
 #[derive(Debug, Clone)]
 pub struct Entry {
     /// Original path with backslashes, e.g. `Models\Animals\Sheep\SheepMesh.rsc:resource`... as stored.
     pub name: String,
+    /// Where the entry's bytes start in the package.
     pub offset: usize,
+    /// The size of the stored bytes.
     pub size: usize,
 }
 
@@ -40,6 +45,7 @@ impl Entry {
     }
 }
 
+/// How an entry is stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntryKind {
     /// 64-byte build-path stub; not a resource.
@@ -50,34 +56,51 @@ pub enum EntryKind {
     Compressed,
 }
 
+/// The header of a package: versions, priority, and a mod's name, icon and description.
 #[derive(Debug, Clone)]
 pub struct Header {
+    /// The package format version.
     pub version: u32,
-    /// `+0x68`: the game version the package was made with (`0x010007ff` is 1.0.7; read with
-    /// `Configuration::GetVersionString`), `+0x6c` the author's version number (a mod's).
+    // +0x68; +0x6c
+    /// The game version the package was made with (`0x010007ff` is 1.0.7; read with
+    /// `Configuration::GetVersionString`), the author's version number (a mod's).
     pub game_version: u32,
+    /// The author's version number (a mod's).
     pub user_version: u32,
+    /// The priority: the entry of the package with the higher priority wins (10,000 for mods).
     pub priority: u32,
-    /// `+0x74`: `Modification::RefreshList` leaves out a mod whose value is not 0 (0 in every
-    /// package seen; its meaning is not traced).
+    // +0x74
+    /// `Modification::RefreshList` leaves out a mod whose value is not 0 (0 in every package seen;
+    /// its meaning is not traced).
     pub skip: u32,
-    /// `+0x78/+0x7c/+0x80`: the icon (48×48 for mods), `0xAARRGGBB` texels.
+    // +0x78/+0x7c/+0x80
+    /// The icon (48×48 for mods), `0xAARRGGBB` texels.
     pub icon: (u32, u32, Vec<u8>),
-    /// `+0x98`: the preview image's file (jpg or png), from version 2.
+    // +0x98
+    /// The preview image's file (jpg or png), from version 2.
     pub preview: Vec<u8>,
+    /// Whether a mod may replace this package's entries.
     pub can_override: bool,
+    /// A checksum of the package.
     pub crc: u32,
+    /// A mod's name.
     pub name: String,
+    /// A mod's author.
     pub author: String,
+    /// A mod's description.
     pub description: String,
 }
 
+/// One package: its header, its entries and its bytes.
 pub struct Package {
     data: Vec<u8>,
+    /// The header.
     pub header: Header,
+    /// The entries, in the order of the table of contents.
     pub entries: Vec<Entry>,
 }
 
+/// The normalised form of an entry name or a reference: forward slashes, lower case.
 pub fn normalise(name: &str) -> String {
     name.replace('\\', "/").to_ascii_lowercase()
 }
@@ -127,6 +150,7 @@ impl<'a> Cursor<'a> {
 }
 
 impl Package {
+    /// Read a package from its bytes.
     pub fn parse(data: Vec<u8>) -> Result<Package> {
         let head = Cursor { d: &data, p: 0 }.u32()?;
         if head >> 31 == 0 {
@@ -215,6 +239,7 @@ impl Package {
         })
     }
 
+    /// An entry's bytes as stored (still compressed for most entries).
     pub fn raw(&self, entry: &Entry) -> &[u8] {
         &self.data[entry.offset..entry.offset + entry.size]
     }
@@ -233,12 +258,15 @@ impl Package {
 pub struct Archive {
     packages: Vec<Package>,
     index: std::collections::HashMap<String, (usize, usize)>,
-    /// `IO::FileSystem +0x38`: the user pack files (enabled mods) the packages were set up
-    /// with (`AddUserPackFile`, `AreUserPackFilesEnabled`).
+    // IO::FileSystem +0x38
+    /// `IO::FileSystem`: the user pack files (enabled mods) the packages were set up with
+    /// (`AddUserPackFile`, `AreUserPackFilesEnabled`).
     pub user_packs: usize,
 }
 
 impl Archive {
+    /// Add one of the game's packages. An entry replaces one of the same name when its package's
+    /// priority is not lower.
     pub fn add(&mut self, pkg: Package) {
         let pi = self.packages.len();
         for (ei, e) in pkg.entries.iter().enumerate() {
@@ -257,10 +285,13 @@ impl Archive {
         self.packages.push(pkg);
     }
 
-    /// `FileSystem::LoadPackages` (Runtime `0x1800ac3b0`) for a mod (`.pkm`), added after the
-    /// game's packages: the enabled mods go in from the last in the mod list to the first, and
-    /// a file replaces one already there only when that one's package allows it (`+0xac`). So
-    /// the first mod in the list wins, and nothing overrides `data1` or `patch1`.
+    // +0xac
+    /// `FileSystem::LoadPackages` for a mod (`.pkm`), added after the game's packages: the enabled
+    /// mods go in from the last in the mod list to the first, and a file replaces one already there
+    /// only when that one's package allows it. So the first mod in the list wins, and nothing
+    /// overrides `data1` or `patch1`.
+    ///
+    /// Original: Runtime `0x1800ac3b0`.
     pub fn add_mod(&mut self, pkg: Package) {
         let pi = self.packages.len();
         for (ei, e) in pkg.entries.iter().enumerate() {
@@ -301,10 +332,12 @@ impl Archive {
             .map(|&(p, _)| &self.packages[p])
     }
 
+    /// The number of entries.
     pub fn len(&self) -> usize {
         self.index.len()
     }
 
+    /// Whether there are no entries.
     pub fn is_empty(&self) -> bool {
         self.index.is_empty()
     }
@@ -320,12 +353,14 @@ impl Archive {
         v
     }
 
+    /// An entry by name.
     pub fn get(&self, name: &str) -> Option<&Entry> {
         self.index
             .get(&normalise(name))
             .map(|&(p, e)| &self.packages[p].entries[e])
     }
 
+    /// An entry's bytes, expanded, by entry name (for example `Dialog\Toolbar_resource.crs`).
     pub fn read(&self, name: &str) -> Result<Vec<u8>> {
         let &(p, e) = self
             .index

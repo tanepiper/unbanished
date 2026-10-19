@@ -1,5 +1,6 @@
 use std::fmt;
 
+/// Why data could not be read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     /// Input ended before a read completed.
@@ -10,6 +11,7 @@ pub enum Error {
     Unsupported(String),
 }
 
+/// A result with this crate's [`Error`].
 pub type Result<T> = std::result::Result<T, Error>;
 
 impl fmt::Display for Error {

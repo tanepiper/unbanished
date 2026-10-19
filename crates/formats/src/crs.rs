@@ -6,15 +6,20 @@
 //!                    u32 depCount, depCount x { String, u64 FILETIME }, object... }
 //! String   = u32 n|0x80000000 then n bytes (8-bit, NUL included) | u32 n then n UTF-16 units
 //! ```
-//! Sources: `IO::BinaryWriter` ctor (0x1800a9980), `Object::External::Save` (0x1800be4a0),
-//! `System::String::Serialize` (0x1800cc1a0).
+//! Original: the constructor of `IO::BinaryWriter` (Runtime `0x1800a9980`),
+//! `Object::External::Save` (Runtime `0x1800be4a0`), `System::String::Serialize` (Runtime
+//! `0x1800cc1a0`).
 
 use crate::error::{format_err, Error, Result};
 
+/// The marker at the start of every block.
 pub const BLOCK_START: u32 = 0xAAAA_AAAA;
+/// The marker at the end of every block.
 pub const BLOCK_END: u32 = 0xBBBB_BBBB;
+/// The magic number at the start of a resource's payload.
 pub const MAGIC: u32 = 0x5412_A91F;
 
+/// A reader of a resource's fields, little-endian, that knows the block structure.
 pub struct Reader<'a> {
     data: &'a [u8],
     pos: usize,
@@ -26,6 +31,7 @@ pub struct Reader<'a> {
 }
 
 impl<'a> Reader<'a> {
+    /// A reader at the start of `data`.
     pub fn new(data: &'a [u8]) -> Self {
         Reader {
             data,
@@ -44,10 +50,12 @@ impl<'a> Reader<'a> {
         self.reference_ids = Some(ids);
     }
 
+    /// The current position, in bytes.
     pub fn pos(&self) -> usize {
         self.pos
     }
 
+    /// The number of bytes left before the end of the readable range.
     pub fn remaining(&self) -> usize {
         self.end - self.pos
     }
@@ -60,6 +68,7 @@ impl<'a> Reader<'a> {
         })
     }
 
+    /// The next `n` bytes.
     pub fn bytes(&mut self, n: usize) -> Result<&'a [u8]> {
         if n > self.end - self.pos {
             return Err(Error::Truncated {
@@ -76,28 +85,36 @@ impl<'a> Reader<'a> {
         Ok(self.bytes(N)?.try_into().unwrap())
     }
 
+    /// Read a `u8`.
     pub fn u8(&mut self) -> Result<u8> {
         Ok(self.arr::<1>()?[0])
     }
+    /// Read a `bool` (one byte, not zero is true).
     pub fn bool(&mut self) -> Result<bool> {
         Ok(self.u8()? != 0)
     }
+    /// Read a `u32`.
     pub fn u32(&mut self) -> Result<u32> {
         Ok(u32::from_le_bytes(self.arr()?))
     }
+    /// Read an `i32`.
     pub fn i32(&mut self) -> Result<i32> {
         Ok(i32::from_le_bytes(self.arr()?))
     }
+    /// Read a `u64`.
     pub fn u64(&mut self) -> Result<u64> {
         Ok(u64::from_le_bytes(self.arr()?))
     }
+    /// Read an `i64`.
     pub fn i64(&mut self) -> Result<i64> {
         Ok(i64::from_le_bytes(self.arr()?))
     }
+    /// Read an `i16`.
     pub fn i16(&mut self) -> Result<i16> {
         Ok(i16::from_le_bytes(self.bytes(2)?.try_into().unwrap()))
     }
 
+    /// Read a `u16`.
     pub fn u16(&mut self) -> Result<u16> {
         Ok(u16::from_le_bytes(self.bytes(2)?.try_into().unwrap()))
     }
@@ -114,10 +131,12 @@ impl<'a> Reader<'a> {
         Ok(std::mem::replace(&mut self.end, end))
     }
 
+    /// Restore the readable range that [`limit`](Self::limit) returned.
     pub fn unlimit(&mut self, end: usize) {
         self.end = end;
     }
 
+    /// Move to a position.
     pub fn set_pos(&mut self, pos: usize) {
         self.pos = pos;
     }
@@ -137,8 +156,10 @@ impl<'a> Reader<'a> {
             .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
     }
 
-    /// `System::String::Serialize` (`0x1800cc1a0`): a `u32` count of UTF-16 units, the
-    /// terminating NUL included (0 for an empty string), then the units.
+    /// A `u32` count of UTF-16 units, the terminating NUL included (0 for an empty string), then
+    /// the units.
+    ///
+    /// Original: `System::String::Serialize`, Runtime `0x1800cc1a0`.
     pub fn wstring(&mut self) -> Result<String> {
         let n = self.u32()? as usize;
         let b = self.bytes(n * 2)?;
@@ -150,9 +171,11 @@ impl<'a> Reader<'a> {
         Ok(String::from_utf16_lossy(&units[..end]))
     }
 
+    /// Read an `f32`.
     pub fn f32(&mut self) -> Result<f32> {
         Ok(f32::from_le_bytes(self.arr()?))
     }
+    /// Read `N` `f32` values.
     pub fn f32s<const N: usize>(&mut self) -> Result<[f32; N]> {
         let mut out = [0.0; N];
         for v in &mut out {
@@ -167,6 +190,8 @@ impl<'a> Reader<'a> {
         usize::try_from(n).map_err(|_| Error::Format(format!("negative count {n}")))
     }
 
+    /// Read a string: a length with bit 31 set for 8-bit text (else UTF-16), then the characters
+    /// with the terminating zero.
     pub fn string(&mut self) -> Result<String> {
         let n = self.u32()?;
         if n & 0x8000_0000 != 0 {
@@ -253,6 +278,7 @@ impl<'a> Reader<'a> {
     }
 }
 
+/// The header of a resource.
 #[derive(Debug, Clone)]
 pub struct Header {
     pub type_id: u32,
@@ -316,6 +342,7 @@ pub struct Writer {
 }
 
 impl Writer {
+    /// An empty writer.
     pub fn new() -> Self {
         Self::default()
     }
@@ -325,30 +352,39 @@ impl Writer {
         self.reference_ids = Some(ids.iter().map(|(&id, p)| (p.clone(), id)).collect());
     }
 
+    /// Write bytes as they are.
     pub fn bytes(&mut self, b: &[u8]) {
         self.data.extend_from_slice(b);
     }
+    /// Write a `u8`.
     pub fn u8(&mut self, v: u8) {
         self.data.push(v);
     }
+    /// Write a `bool` as one byte.
     pub fn bool(&mut self, v: bool) {
         self.data.push(v as u8);
     }
+    /// Write an `i16`.
     pub fn i16(&mut self, v: i16) {
         self.bytes(&v.to_le_bytes());
     }
+    /// Write a `u16`.
     pub fn u16(&mut self, v: u16) {
         self.bytes(&v.to_le_bytes());
     }
+    /// Write a `u32`.
     pub fn u32(&mut self, v: u32) {
         self.bytes(&v.to_le_bytes());
     }
+    /// Write an `i32`.
     pub fn i32(&mut self, v: i32) {
         self.bytes(&v.to_le_bytes());
     }
+    /// Write an `i64`.
     pub fn i64(&mut self, v: i64) {
         self.bytes(&v.to_le_bytes());
     }
+    /// Write an `f32`.
     pub fn f32(&mut self, v: f32) {
         self.bytes(&v.to_le_bytes());
     }

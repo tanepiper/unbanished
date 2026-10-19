@@ -1,12 +1,14 @@
 //! Picking geometry: Runtime serializers 1801251f0 / 18007b6f0 / 18007ae20.
 use crate::{crs, Result};
 
+/// A triangle of a picking mesh.
 #[derive(Debug, Clone)]
 pub struct Triangle {
     pub vertices: [u16; 3],
     pub normals: [u16; 3],
 }
 
+/// A part of a picking mesh.
 #[derive(Debug, Clone)]
 pub struct SubMesh {
     pub name: String,
@@ -22,6 +24,7 @@ pub struct SubMesh {
     pub edges: Vec<[u16; 2]>,
 }
 
+/// The simplified mesh the game tests the pointer against, to select an entity.
 #[derive(Debug, Clone)]
 pub struct PickingMesh {
     pub source: String,
@@ -38,6 +41,7 @@ fn shorts<const N: usize>(r: &mut crs::Reader<'_>) -> Result<[u16; N]> {
     Ok(out)
 }
 
+/// Read a [`PickingMesh`] from the bytes of its resource.
 pub fn picking_mesh(data: &[u8]) -> Result<PickingMesh> {
     crs::parse(data, |r, _| {
         r.block(|r, _| {
@@ -95,7 +99,10 @@ pub fn picking_mesh(data: &[u8]) -> Result<PickingMesh> {
     .map(|(_, v)| v)
 }
 
-/// PickingDescription serializer FUN_14012e1d0; outer variants and inner construction stages.
+/// A `PickingDescription`: the meshes that select an entity, for each model variant and each
+/// construction stage.
+///
+/// Original: `FUN_14012e1d0`.
 #[derive(Debug, Clone)]
 pub struct PickingDescription {
     pub meshes: Vec<Vec<Option<String>>>,
@@ -103,6 +110,7 @@ pub struct PickingDescription {
     pub flag_38: bool,
 }
 
+/// Read a [`PickingDescription`] from the bytes of its resource.
 pub fn picking_description(data: &[u8]) -> Result<PickingDescription> {
     crs::parse(data, |r, _| {
         r.block(|r, _| {
@@ -124,7 +132,10 @@ pub fn picking_description(data: &[u8]) -> Result<PickingDescription> {
     .map(|(_, v)| v)
 }
 
-/// HighlightDescription FUN_14004d330. Meshes follow model variant/stage order.
+/// A `HighlightDescription`: the meshes drawn to highlight an entity, in the order of the model's
+/// variants and stages.
+///
+/// Original: `FUN_14004d330`.
 #[derive(Debug, Clone)]
 pub struct HighlightDescription {
     pub meshes: Vec<Vec<Option<String>>>,
@@ -132,6 +143,7 @@ pub struct HighlightDescription {
     pub edge_material: Option<String>,
 }
 
+/// Read a [`HighlightDescription`] from the bytes of its resource.
 pub fn highlight_description(data: &[u8]) -> Result<HighlightDescription> {
     crs::parse(data, |r, _| {
         r.block(|r, _| {
@@ -165,6 +177,7 @@ pub struct EdgeMesh {
     pub bounds_max: [f32; 3],
 }
 
+/// Read a [`EdgeMesh`] from the bytes of its resource.
 pub fn edge_mesh(data: &[u8]) -> Result<EdgeMesh> {
     crs::parse(data, |r, _| {
         r.block(|r, _| {

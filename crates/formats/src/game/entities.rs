@@ -2,16 +2,21 @@
 
 use super::*;
 
-/// An entity template (`ComponentDescription`, serializer `FUN_14011dfc0`): the scheduling bucket
-/// and the ordered component descriptions (`model`, `naturalresource`, `growth`, …).
+/// An entity template (`ComponentDescription`): the scheduling bucket and the ordered component
+/// descriptions (`model`, `naturalresource`, `growth`, …).
+///
+/// Original: `FUN_14011dfc0`.
 #[derive(Debug, Clone)]
 pub struct ComponentDescription {
-    /// `+0x20`: manager bucket (default 6 = unscheduled).
+    // +0x20
+    /// Manager bucket (default 6 = unscheduled).
     pub bucket: u32,
-    /// `+0x28`: description references.
+    // +0x28
+    /// Description references.
     pub descriptions: Vec<Option<String>>,
 }
 
+/// Read a [`ComponentDescription`] from the bytes of its resource.
 pub fn component_description(data: &[u8]) -> Result<ComponentDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("ComponentDescription") {
@@ -41,20 +46,26 @@ pub struct ModelVariant {
     pub meshes: Vec<Option<String>>,
 }
 
-/// `ModelDescription` (serializer `FUN_14012a290`), read by the model component's setup
-/// `FUN_140129f90`.
+/// A `ModelDescription`: the meshes and materials an entity is drawn with.
+///
+/// Original: `FUN_14012a290`; the model component's set-up `FUN_140129f90` reads it.
 #[derive(Debug, Clone)]
 pub struct ModelDescription {
-    /// `+0x20` / `+0x28`, 0x18 bytes each.
+    // +0x20; +0x28
+    /// /, 0x18 bytes each.
     pub variants: Vec<ModelVariant>,
-    /// `+0x30`: variant used unless `random_variant`.
+    // +0x30
+    /// Variant used unless `random_variant`.
     pub variant: i32,
-    /// `+0x34`: mesh index within the variant (negative = no mesh).
+    // +0x34
+    /// Mesh index within the variant (negative = no mesh).
     pub mesh: i32,
-    /// `+0x38`: pick the variant with `Rand(variant count)`.
+    // +0x38
+    /// Pick the variant with `Rand(variant count)`.
     pub random_variant: bool,
 }
 
+/// Read a [`ModelDescription`] from the bytes of its resource.
 pub fn model_description(data: &[u8]) -> Result<ModelDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("ModelDescription") {
@@ -83,24 +94,33 @@ pub fn model_description(data: &[u8]) -> Result<ModelDescription> {
     Ok(value)
 }
 
-/// `DecalDescription` (serializer `FUN_140120e50`): the terrain decal a DecalComponent puts
-/// over its entity's map rectangle (`Template\X.rsc:decal`).
+/// `DecalDescription`: the terrain decal a DecalComponent puts over its entity's map rectangle
+/// (`Template\X.rsc:decal`).
+///
+/// Original: `FUN_140120e50`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DecalDescription {
-    /// `+0x20`: the alpha until the entity is built.
+    // +0x20
+    /// The alpha until the entity is built.
     pub alpha: f32,
-    /// `+0x28`: materials; the component's `+0x28` picks one.
+    // +0x28
+    /// Materials; the component's picks one.
     pub materials: Vec<Option<String>>,
-    /// `+0x48`: the texture's size in rectangle units.
+    // +0x48
+    /// The texture's size in rectangle units.
     pub scale: f32,
-    /// `+0x38`: a texture rectangle (`u0, v0, u1, v1`) per model variant.
+    // +0x38
+    /// A texture rectangle (`u0, v0, u1, v1`) per model variant.
     pub rects: Vec<[f32; 4]>,
-    /// `+0x24`: tiled (the road atlas by the rectangle's edges) instead of one picture.
+    // +0x24
+    /// Tiled (the road atlas by the rectangle's edges) instead of one picture.
     pub tiled: bool,
-    /// `+0x25`.
+    // +0x25
+    /// Not identified yet.
     pub flag: bool,
 }
 
+/// Read a [`DecalDescription`] from the bytes of its resource.
 pub fn decal_description(data: &[u8]) -> Result<DecalDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("DecalDescription") {
@@ -131,31 +151,43 @@ pub fn decal_description(data: &[u8]) -> Result<DecalDescription> {
     Ok(value)
 }
 
-/// `CharacterDescription` (serializer `FUN_14010f2a0`, defaults from constructor `FUN_14010f3e0`):
-/// how a walking entity moves (CharacterComponent update `FUN_14010e990`, MoveTo `FUN_1400cda40`).
+/// A `CharacterDescription`: how a walking entity moves (its speeds and turning).
+///
+/// Original: `FUN_14010f2a0`; the defaults come from `FUN_14010f3e0`, and the character update
+/// (`FUN_14010e990`) and `MoveTo` (`FUN_1400cda40`) read it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CharacterDescription {
-    /// `+0x20` (default 0.25).
+    // +0x20
+    /// (default 0.25).
     pub radius: f32,
-    /// `+0x24`: added to the heading when the model is turned (default 0).
+    // +0x24
+    /// Added to the heading when the model is turned (default 0).
     pub yaw_offset: f32,
-    /// `+0x28`: fraction of the remaining turn kept each update (default 0.85).
+    // +0x28
+    /// Fraction of the remaining turn kept each update (default 0.85).
     pub turn_keep: f32,
-    /// `+0x2c`: animation blend time passed to `PlayAnimation` (default 0.1).
+    // +0x2c
+    /// Animation blend time passed to `PlayAnimation` (default 0.1).
     pub blend: f32,
-    /// `+0x30`: speed scale while following another character (default 1).
+    // +0x30
+    /// Speed scale while following another character (default 1).
     pub follow_speed: f32,
-    /// `+0x34`: speed scale on cell types 1 and 9 (roads; default 1).
+    // +0x34
+    /// Speed scale on cell types 1 and 9 (roads; default 1).
     pub road_speed: f32,
-    /// `+0x38`: speed scale on cell type 0 (default 1).
+    // +0x38
+    /// Speed scale on cell type 0 (default 1).
     pub type0_speed: f32,
-    /// `+0x3c` / `+0x40`: hold a fixed height instead of following the ground.
+    // +0x3c / +0x40
+    /// Hold a fixed height instead of following the ground.
     pub fixed_height: bool,
     pub height: f32,
-    /// `+0x44`: lowest height the ground clamp allows (default -10).
+    // +0x44
+    /// Lowest height the ground clamp allows (default -10).
     pub min_height: f32,
 }
 
+/// Read a [`CharacterDescription`] from the bytes of its resource.
 pub fn character_description(data: &[u8]) -> Result<CharacterDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("CharacterDescription") {
@@ -190,8 +222,10 @@ pub struct NamedPoint {
     pub yaw: f32,
 }
 
-/// `Pathfinding::PointList` (Runtime serializer `0x180111f70`): mesh name, a second string,
-/// path points (`+0x40`) and named points (`+0x30`).
+// +0x40; +0x30
+/// Mesh name, a second string, path points and named points.
+///
+/// Original: `Pathfinding::PointList`, Runtime `0x180111f70`.
 #[derive(Debug, Clone)]
 pub struct PointList {
     pub mesh: String,
@@ -200,6 +234,7 @@ pub struct PointList {
     pub points: Vec<NamedPoint>,
 }
 
+/// Read a [`PointList`] from the bytes of its resource.
 pub fn point_list(data: &[u8]) -> Result<PointList> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("PointList") {
@@ -232,13 +267,17 @@ pub fn point_list(data: &[u8]) -> Result<PointList> {
     Ok(value)
 }
 
-/// `InteractDescription` (serializer `FUN_1401289d0`): the point list whose named points
-/// "use", "build" and "create" become the three interaction categories (`+0x28/+0x38/+0x48`).
+// +0x28/+0x38/+0x48
+/// `InteractDescription`: the point list whose named points "use", "build" and "create" become the
+/// three interaction categories.
+///
+/// Original: `FUN_1401289d0`.
 #[derive(Debug, Clone)]
 pub struct InteractDescription {
     pub points: Option<String>,
 }
 
+/// Read a [`InteractDescription`] from the bytes of its resource.
 pub fn interact_description(data: &[u8]) -> Result<InteractDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("InteractDescription") {

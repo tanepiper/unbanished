@@ -1,9 +1,11 @@
 //! `MenuScene` (`Game/MenuScene/Scene0..9.rsc`): the pre-built 3D scenes behind the main menu, and the
 //! MapComponent block they embed (the same serializer saves use).
 //!
-//! Serializers: MenuScene `FUN_1400a8b00` (version 2), MapComponent `FUN_1400b59a0` (version 6)
-//! and `FUN_1400b4670` (version 4), camera `FUN_14009dd90`, placements `FUN_14001c550`, decals
-//! `FUN_140020900` / `FUN_140020320`. Layout notes: docs/MENU-SCENE.md.
+//! The layout is described in docs/MENU-SCENE.md.
+//!
+//! Original: `FUN_1400a8b00` (the menu scene, version 2), `FUN_1400b59a0` (the map component,
+//! version 6) and `FUN_1400b4670` (version 4), `FUN_14009dd90` (the camera), `FUN_14001c550` (the
+//! placements), `FUN_140020900` and `FUN_140020320` (the decals).
 
 use crate::crc::type_id;
 use crate::crs::{self, Reader, Writer};
@@ -32,11 +34,14 @@ pub struct Decal {
 pub struct MapComponent {
     /// The block's version (6 in current builds, 4 in 2015 saves).
     pub version: u32,
-    /// `+0xc0..+0xd4`: size (2n), n, tile cells (32), tile vertices (33), width (2n+1), 33².
+    // +0xc0..+0xd4
+    /// Size (2n), n, tile cells (32), tile vertices (33), width (2n+1), 33².
     pub dims: [i32; 6],
     pub heights: Vec<i16>,
     pub terrain_material: Option<String>,
-    /// `size²` packed texels (see the terrain surface image, `FUN_1400d4910`).
+    /// `size²` packed texels (see the terrain surface image).
+    ///
+    /// Original: `FUN_1400d4910`.
     pub surface: Vec<u8>,
     /// River and lake mesh: 16-byte vertices (`i16 x, y, z, w; i16 u, v; u8 x4`).
     pub water_vertices: Vec<[u8; 16]>,
@@ -62,6 +67,7 @@ pub struct Placement {
     pub material: i16,
 }
 
+/// The camera of a menu scene (also saved in game saves).
 #[derive(Debug, Clone, Copy)]
 pub struct SceneCamera {
     /// Quaternion (x, y, z, w) then position.
@@ -71,6 +77,7 @@ pub struct SceneCamera {
     pub floats: [f32; 3],
 }
 
+/// A particle system placed in a menu scene.
 #[derive(Debug, Clone, Copy)]
 pub struct ParticlePlacement {
     pub position: [f32; 3],
@@ -78,6 +85,7 @@ pub struct ParticlePlacement {
     pub system: i32,
 }
 
+/// A main-menu scene: its map, its placed models and particles, and its camera.
 #[derive(Debug, Clone)]
 pub struct MenuScene {
     pub name: String,
@@ -169,7 +177,9 @@ fn decals(r: &mut Reader, version: u32) -> Result<Vec<Decal>> {
         .collect()
 }
 
-/// `FUN_1400b59a0`: the MapComponent block.
+/// The MapComponent block.
+///
+/// Original: `FUN_1400b59a0`.
 pub fn read_map_component(r: &mut Reader) -> Result<MapComponent> {
     r.block(|r, version| {
         let mut dims = [0; 6];
@@ -341,7 +351,9 @@ fn read_map_decals(r: &mut Reader, map: &mut MapComponent) -> Result<()> {
     })
 }
 
-/// `FUN_14009dd90`: the camera block (also in saves).
+/// The camera block (also in saves).
+///
+/// Original: `FUN_14009dd90`.
 pub fn read_camera(r: &mut Reader) -> Result<SceneCamera> {
     r.block(|r, _| {
         Ok(SceneCamera {
@@ -353,6 +365,7 @@ pub fn read_camera(r: &mut Reader) -> Result<SceneCamera> {
     })
 }
 
+/// Read a [`MenuScene`] from the bytes of its resource.
 pub fn menu_scene(data: &[u8]) -> Result<MenuScene> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("MenuScene") {

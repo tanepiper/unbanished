@@ -2,9 +2,12 @@
 
 use super::*;
 
-/// `QuarryDescription` (serializer `FUN_140055c80`): the pit the quarry digs, a picking mesh
-/// in model space (`+0x20`) whose vertices set the terrain, no lower than a floor that goes
-/// from `+0x28` (when built) to `+0x2c` (at the end of its production).
+// +0x20; +0x28; +0x2c
+/// `QuarryDescription`: the pit the quarry digs, a picking mesh in model space whose vertices set
+/// the terrain, no lower than a floor that goes from (when built) to (at the end of its
+/// production).
+///
+/// Original: `FUN_140055c80`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct QuarryDescription {
     pub deep: f32,
@@ -12,6 +15,7 @@ pub struct QuarryDescription {
     pub mesh: Option<String>,
 }
 
+/// Read a [`QuarryDescription`] from the bytes of its resource.
 pub fn quarry_description(data: &[u8]) -> Result<QuarryDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("QuarryDescription") {
@@ -31,15 +35,18 @@ pub fn quarry_description(data: &[u8]) -> Result<QuarryDescription> {
     Ok(value)
 }
 
-/// `HerbalistDescription` (serializer `FUN_14004bc40`): the natural-resource templates a
-/// gatherer or herbalist harvests (`+0x20`, count `+0x28`) and the stock-manager production
-/// group its limit is checked against (`+0x30`: 5 food, 6 herbs).
+// +0x20; +0x28; +0x30
+/// `HerbalistDescription`: the natural-resource templates a gatherer or herbalist harvests (count)
+/// and the stock-manager production group its limit is checked against (: 5 food, 6 herbs).
+///
+/// Original: `FUN_14004bc40`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HerbalistDescription {
     pub resources: Vec<Option<String>>,
     pub group: i32,
 }
 
+/// Read a [`HerbalistDescription`] from the bytes of its resource.
 pub fn herbalist_description(data: &[u8]) -> Result<HerbalistDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("HerbalistDescription") {
@@ -62,14 +69,18 @@ pub fn herbalist_description(data: &[u8]) -> Result<HerbalistDescription> {
     Ok(value)
 }
 
-/// `ForesterDescription` (serializer `FUN_140124f50`): the tree template it plants (`+0x20`)
-/// and, from version 1, the stock-manager slot of its limit (`+0x28`; logs, 0).
+// +0x20; +0x28
+/// `ForesterDescription`: the tree template it plants and, from version 1, the stock-manager slot
+/// of its limit (logs, 0).
+///
+/// Original: `FUN_140124f50`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForesterDescription {
     pub tree: Option<String>,
     pub group: i32,
 }
 
+/// Read a [`ForesterDescription`] from the bytes of its resource.
 pub fn forester_description(data: &[u8]) -> Result<ForesterDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("ForesterDescription") {
@@ -87,9 +98,11 @@ pub fn forester_description(data: &[u8]) -> Result<ForesterDescription> {
     Ok(value)
 }
 
-/// `FishingDescription` (serializer `FUN_140124640`): the catch's raw-material template
-/// (`+0x20`), the cell types counted as fishing water (`+0x2c`) and, from version 1, the
-/// stock-manager slot of its limit (`+0x28`).
+// +0x20; +0x2c; +0x28
+/// `FishingDescription`: the catch's raw-material template, the cell types counted as fishing water
+/// and, from version 1, the stock-manager slot of its limit.
+///
+/// Original: `FUN_140124640`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FishingDescription {
     pub output: Option<String>,
@@ -97,6 +110,7 @@ pub struct FishingDescription {
     pub group: i32,
 }
 
+/// Read a [`FishingDescription`] from the bytes of its resource.
 pub fn fishing_description(data: &[u8]) -> Result<FishingDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("FishingDescription") {
@@ -119,15 +133,18 @@ pub fn fishing_description(data: &[u8]) -> Result<FishingDescription> {
     Ok(value)
 }
 
-/// `HuntDescription` (serializer `FUN_140127e30`, versioned): the hunting time a kill needs
-/// (`+0x20`, × 300 s of a full lodge's work) and, from version 1, the stock slot of its limit
-/// (`+0x24`).
+// +0x20; +0x24
+/// `HuntDescription` (versioned): the hunting time a kill needs (× 300 s of a full lodge's work)
+/// and, from version 1, the stock slot of its limit.
+///
+/// Original: `FUN_140127e30`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct HuntDescription {
     pub time: f32,
     pub group: i32,
 }
 
+/// Read a [`HuntDescription`] from the bytes of its resource.
 pub fn hunt_description(data: &[u8]) -> Result<HuntDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("HuntDescription") {
@@ -145,8 +162,11 @@ pub fn hunt_description(data: &[u8]) -> Result<HuntDescription> {
     Ok(value)
 }
 
-/// `CropFieldDescription` (serializer `FUN_140120740`, versioned): a tending visit's growth
-/// `+0x24` and, from version 1, the stock slot `+0x20`.
+// +0x24; +0x20
+/// `CropFieldDescription` (versioned): a tending visit's growth and, from version 1, the stock
+/// slot.
+///
+/// Original: `FUN_140120740`.
 pub fn crop_field_description(data: &[u8]) -> Result<(f32, i32)> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("CropFieldDescription") {
@@ -164,8 +184,11 @@ pub fn crop_field_description(data: &[u8]) -> Result<(f32, i32)> {
     Ok(value)
 }
 
-/// `OrchardDescription` (serializer `FUN_140052c60`, versioned): tree spacing `+0x24`,
-/// `+0x28`, a tending visit's ripening `+0x2c` and, from version 1, the stock slot `+0x20`.
+// +0x24; +0x28; +0x2c; +0x20
+/// `OrchardDescription` (versioned): tree spacing, a tending visit's ripening and, from version 1,
+/// the stock slot.
+///
+/// Original: `FUN_140052c60`.
 pub fn orchard_description(data: &[u8]) -> Result<((i32, i32), f32, i32)> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("OrchardDescription") {
@@ -184,8 +207,11 @@ pub fn orchard_description(data: &[u8]) -> Result<((i32, i32), f32, i32)> {
     Ok(value)
 }
 
-/// `PastureDescription` (serializer `FUN_14012d6f0`, versioned): from version 1 the stock slot
-/// of its products' limit `+0x20` (5 by the factory `FUN_140037100`).
+// +0x20. The default limit of 5 comes from the factory FUN_140037100.
+/// A `PastureDescription`. From version 1, it has the stock slot of the limit of its products (5
+/// by default).
+///
+/// Original: `FUN_14012d6f0`.
 pub fn pasture_description(data: &[u8]) -> Result<i32> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("PastureDescription") {
@@ -199,9 +225,11 @@ pub fn pasture_description(data: &[u8]) -> Result<i32> {
     Ok(value)
 }
 
-/// `LivestockDescription` (serializer `FUN_140129430`, versioned): the raw material a pasture
-/// gathers from the animal `+0x20` (none for cattle), every `+0x2c` × 300 s, and from version 1
-/// the stock slot `+0x28`.
+// +0x20; +0x2c; +0x28
+/// `LivestockDescription` (versioned): the raw material a pasture gathers from the animal (none for
+/// cattle), every × 300 s, and from version 1 the stock slot.
+///
+/// Original: `FUN_140129430`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct LivestockDescription {
     pub product: Option<String>,
@@ -209,6 +237,7 @@ pub struct LivestockDescription {
     pub group: i32,
 }
 
+/// Read a [`LivestockDescription`] from the bytes of its resource.
 pub fn livestock_description(data: &[u8]) -> Result<LivestockDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("LivestockDescription") {
@@ -231,14 +260,18 @@ pub fn livestock_description(data: &[u8]) -> Result<LivestockDescription> {
     Ok(value)
 }
 
-/// `WorkPlaceDescription` (serializer `FUN_1401348f0`): the profession its workers take
-/// (`+0x20`; none for storage barns and houses) and a second reference (`+0x28`).
+// +0x20; +0x28
+/// `WorkPlaceDescription`: the profession its workers take (none for storage barns and houses) and
+/// a second reference.
+///
+/// Original: `FUN_1401348f0`.
 #[derive(Debug, Clone, Default)]
 pub struct WorkPlaceDescription {
     pub profession: Option<String>,
     pub reference_28: Option<String>,
 }
 
+/// Read a [`WorkPlaceDescription`] from the bytes of its resource.
 pub fn workplace_description(data: &[u8]) -> Result<WorkPlaceDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("WorkPlaceDescription") {
@@ -257,19 +290,26 @@ pub fn workplace_description(data: &[u8]) -> Result<WorkPlaceDescription> {
     Ok(value)
 }
 
-/// `WorkDescription` (`Template\X.rsc:work`, serializer `FUN_140133d80`).
+/// `WorkDescription` (`Template\X.rsc:work`).
+///
+/// Original: `FUN_140133d80`.
 #[derive(Debug, Clone, Default)]
 pub struct WorkDescription {
-    /// `+0x24`: most workers (`FUN_140133a90`).
+    // +0x24
+    /// Most workers.
+    ///
+    /// Original: `FUN_140133a90`.
     pub max_workers: i32,
     pub value_28: i32,
     pub value_2c: i32,
-    /// `+0x34`: scale the most workers by the footprint area over `+0x30` cells.
+    // +0x34; +0x30
+    /// Scale the most workers by the footprint area over cells.
     pub per_area: bool,
     pub area: i32,
     pub flag_20: bool,
 }
 
+/// Read a [`WorkDescription`] from the bytes of its resource.
 pub fn work_description(data: &[u8]) -> Result<WorkDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("WorkDescription") {
@@ -292,43 +332,59 @@ pub fn work_description(data: &[u8]) -> Result<WorkDescription> {
     Ok(value)
 }
 
-/// One production alternative of a [`ConsumeProduceDescription`] (`0x28`-byte record read by
-/// `FUN_140033050`).
+/// One production recipe of a [`ConsumeProduceDescription`]: what a workplace uses and what it
+/// makes.
+///
+/// Original: the 0x28-byte record read by `FUN_140033050`.
 #[derive(Debug, Clone, Default)]
 pub struct ProduceRecipe {
-    /// `+0x00/+0x08`: input raw-material templates and counts.
+    // +0x00/+0x08
+    /// Input raw-material templates and counts.
     pub inputs: Vec<(Option<String>, i32)>,
-    /// `+0x10`: the output raw-material template.
+    // +0x10
+    /// The output raw-material template.
     pub output: Option<String>,
-    /// `+0x18`: stock group (manager `+0x170` slot of the limit check).
+    // +0x18; +0x170
+    /// Stock group (manager slot of the limit check).
     pub group: i32,
-    /// `+0x20`: the UI label key.
+    // +0x20
+    /// The UI label key.
     pub label: String,
 }
 
-/// `ConsumeProduceDescription` (`Template\X.rsc:consumeproduce`, serializer `FUN_14011e5b0`).
+/// `ConsumeProduceDescription` (`Template\X.rsc:consumeproduce`).
+///
+/// Original: `FUN_14011e5b0`.
 #[derive(Debug, Clone, Default)]
 pub struct ConsumeProduceDescription {
-    /// `+0x20`: string table of the recipe labels.
+    // +0x20
+    /// String table of the recipe labels.
     pub string_table: Option<String>,
-    /// `+0x28/+0x30`.
+    // +0x28/+0x30
+    /// Not identified yet.
     pub recipes: Vec<ProduceRecipe>,
-    /// `+0x40`: work cycles per production.
+    // +0x40
+    /// Work cycles per production.
     pub cycles: i32,
-    /// `+0x50`: work type (tool mesh, PerformWork animation `type + 9` below 11, walk mode).
+    // +0x50
+    /// Work type (tool mesh, PerformWork animation `type + 9` below 11, walk mode).
     pub work_type: u32,
-    /// `+0x38` / `+0x3c`: a message (type, value) sent to the building's component of that type
-    /// after each production.
+    // +0x38 / +0x3c
+    /// A message (type, value) sent to the building's component of that type after each production.
     pub message_type: u32,
     pub message_value: i32,
-    /// `+0x44`: seconds per work cycle.
+    // +0x44
+    /// Seconds per work cycle.
     pub duration: f32,
-    /// `+0x48`: productions before the workplace is exhausted (−1: never).
+    // +0x48
+    /// Productions before the workplace is exhausted (−1: never).
     pub lifetime: i32,
-    /// `+0x4c`: initial recipe selector (−1: weighted random).
+    // +0x4c
+    /// Initial recipe selector (−1: weighted random).
     pub selector: i32,
 }
 
+/// Read a [`ConsumeProduceDescription`] from the bytes of its resource.
 pub fn consume_produce_description(data: &[u8]) -> Result<ConsumeProduceDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("ConsumeProduceDescription") {
@@ -369,15 +425,20 @@ pub fn consume_produce_description(data: &[u8]) -> Result<ConsumeProduceDescript
     Ok(value)
 }
 
-/// `Profession` (serializer `FUN_1400ae3e0`): a job citizens can be assigned to.
+/// `Profession`: a job citizens can be assigned to.
+///
+/// Original: `FUN_1400ae3e0`.
 #[derive(Debug, Clone)]
 pub struct Profession {
-    /// `+0x20`, `+0x28`.
+    // +0x20; +0x28
+    /// Not identified yet.
     pub string_table: Option<String>,
     pub sprite_sheet: Option<String>,
-    /// `+0x30`: name key, also the icon's sprite name (`ProfessionBuilder`).
+    // +0x30
+    /// Name key, also the icon's sprite name (`ProfessionBuilder`).
     pub name: String,
-    /// `+0x38`, `+0x40`: tooltip and death-message keys.
+    // +0x38, +0x40
+    /// Tooltip and death-message keys.
     pub tooltip: String,
     pub death: String,
     pub value_48: i32,
@@ -389,6 +450,7 @@ pub struct Profession {
     pub flag_4e: bool,
 }
 
+/// Read a [`Profession`] from the bytes of its resource.
 pub fn profession(data: &[u8]) -> Result<Profession> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("Profession") {
@@ -414,7 +476,10 @@ pub fn profession(data: &[u8]) -> Result<Profession> {
     Ok(value)
 }
 
-/// RadiusDescription (`FUN_140055e90`): radius `+0x28`, display reference `+0x20`.
+// +0x28; +0x20
+/// RadiusDescription: radius, display reference.
+///
+/// Original: `FUN_140055e90`.
 pub fn radius_description(data: &[u8]) -> Result<(i32, Option<String>)> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("RadiusDescription") {

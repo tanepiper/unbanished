@@ -1531,12 +1531,17 @@ const fn ptr_list(name: &'static str) -> Op {
     List(name, &[Ptr("entity")])
 }
 
-/// `Achievement::AchievementManager::Persist` (Runtime `0x18009f4a0`): the game's achievement
-/// instances (`+0x88`).
+// +0x88
+/// The game's achievement instances.
+///
+/// Original: `Achievement::AchievementManager::Persist`, Runtime `0x18009f4a0`.
 pub const ACHIEVEMENTS: Op = Block("achievements", 0, &[List("instances", &[Ptr("instance")])]);
 
-/// The town manager (`FUN_140094c30`, version 6), `Game +0xf0`: the registries of buildings
-/// and people by kind, the professions' workers, the stock targets and the statistics.
+// Game +0xf0
+/// The town manager (version 6), `Game`: the registries of buildings and people by kind, the
+/// professions' workers, the stock targets and the statistics.
+///
+/// Original: `FUN_140094c30`.
 pub const TOWN: Op = Block(
     "town",
     6,
@@ -1621,10 +1626,12 @@ pub const TOWN: Op = Block(
     ],
 );
 
-/// The job manager (`FUN_1400fe710`, version 3), `Game +0x118`: the id → work table (`+0x30`)
-/// and the 14 category sets (`+0x40..`, 13 before version 3) by `FUN_14002d9c0`, the work by
-/// profession (`+0x120`, `FUN_14002df50`), then the last id, the next priority and the pass
-/// (`+0x00..+0x08`). The priority index (`+0x10`) is rebuilt on load from each work's priority.
+// +0x30; +0x40..; +0x120; +0x00..+0x08; +0x10; Game +0x118
+/// The job manager (version 3): the table from id to work, the 14 category sets (13 before version
+/// 3), the work by profession, then the last id, the next priority and the pass. The priority
+/// index is rebuilt on load from each work's priority.
+///
+/// Original: `FUN_1400fe710`, `FUN_14002df50`; the category sets by `FUN_14002d9c0`.
 pub const JOBS: Op = Block(
     "jobs",
     3,
@@ -1657,7 +1664,9 @@ pub const JOBS: Op = Block(
     ],
 );
 
-/// The tool manager (`FUN_140107df0`, version 2).
+/// The tool manager (version 2).
+///
+/// Original: `FUN_140107df0`.
 pub const TOOLS: Op = Block(
     "tools",
     2,
@@ -1706,10 +1715,15 @@ pub const TOOLS: Op = Block(
     ],
 );
 
-/// The calendar block of `FUN_14009af60`.
+/// The calendar block of the game state: a value and the time.
+///
+/// Original: written by `FUN_14009af60`.
 pub const CALENDAR: Op = Block("calendar", 0, &[I32("value"), Time("time")]);
 
-/// The event log (`FUN_14009a790`, version 1), `Game +0x138`.
+// Game +0x138
+/// The event log (version 1), `Game`.
+///
+/// Original: `FUN_14009a790`.
 pub const EVENT_LOG: Op = Block(
     "event_log",
     1,
@@ -1735,8 +1749,10 @@ pub const EVENT_LOG: Op = Block(
     ],
 );
 
-/// The environment (`FUN_140099160`): climate and month descriptions, weather state, then one
-/// entry per weather effect of the climate (the count is not written).
+/// The environment: climate and month descriptions, weather state, then one entry per weather
+/// effect of the climate (the count is not written).
+///
+/// Original: `FUN_140099160`.
 pub const ENVIRONMENT: Op = Block(
     "environment",
     0,
@@ -1762,7 +1778,9 @@ pub const ENVIRONMENT: Op = Block(
     ],
 );
 
-/// The minimap (`FUN_1400aacc0`): the two images' texels, then the image size.
+/// The minimap: the two images' texels, then the image size.
+///
+/// Original: `FUN_1400aacc0`.
 pub const MINIMAP: Op = Block(
     "minimap",
     0,
@@ -1775,6 +1793,7 @@ pub const MINIMAP: Op = Block(
     ],
 );
 
+/// The class name and the schema of an object type, by type id.
 pub fn schema_for(ty: u32) -> Option<(&'static str, &'static [Op])> {
     static BY_ID: OnceLock<HashMap<u32, (&'static str, &'static [Op])>> = OnceLock::new();
     BY_ID

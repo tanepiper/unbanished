@@ -1,14 +1,17 @@
-//! The game-state stream of a save: the game loop's serializer (`FUN_14009af60`) over every
-//! manager and every object. See docs/SAVE-GAME-STATE.md.
+//! The game-state stream of a save: the game loop's serializer over every manager and every object.
+//! See docs/SAVE-GAME-STATE.md.
 //!
 //! Objects (`Object::Internal`) are written where they are first referenced
-//! (`InternalBasePtr::Serialize`, Runtime `0x1800c29f0`): a present byte, the object's factory
-//! index, its tag and its type id; the first time an index appears its serializer (vtable
-//! `+0x18`) follows inline (`InternalFactory::PersistObject`, `0x1800c2780`).
+//! (`InternalBasePtr::Serialize`): a present byte, the object's factory index, its tag and its type
+//! id; the first time an index appears its serializer follows inline
+//! (`InternalFactory::PersistObject`).
 //!
-//! Each type's serializer is described by a schema ([`crate::savegame_schema`]) of fields,
-//! blocks, lists and version conditions, read (and written) by one interpreter. Every block
-//! must be consumed exactly.
+//! Each type's serializer is described by a schema ([`crate::savegame_schema`]) of fields, blocks,
+//! lists and version conditions, read (and written) by one interpreter. Every block must be
+//! consumed exactly.
+//!
+//! Original: `FUN_14009af60`, Runtime `0x1800c29f0`, Runtime `0x1800c2780`.
+// vtable +0x18
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -16,7 +19,8 @@ use crate::crs::{Reader, Writer, BLOCK_END, BLOCK_START};
 use crate::error::{format_err, Error, Result};
 use crate::savegame_schema::{schema_for, Cond, Op, ACHIEVEMENTS, TOWN};
 
-/// An object's factory index (`Internal +0x08`).
+// Internal +0x08
+/// An object's factory index (`Internal`).
 pub type ObjId = i32;
 
 /// A decoded value.
@@ -47,6 +51,7 @@ pub enum Value {
 pub struct Fields(pub Vec<(&'static str, Value)>);
 
 impl Fields {
+    /// A field of this block by name.
     pub fn get(&self, name: &str) -> Option<&Value> {
         self.0.iter().find(|(n, _)| *n == name).map(|(_, v)| v)
     }
@@ -105,6 +110,7 @@ impl Fields {
         true
     }
 
+    /// Set an `i32` field inside nested blocks (`"block.field"`). Returns whether it exists.
     pub fn set_i32(&mut self, path: &str, v: i32) -> bool {
         match self.at_mut(path) {
             Some(Value::I32(x)) => *x = v,
@@ -117,6 +123,7 @@ impl Fields {
         true
     }
 
+    /// Set an `f32` field inside nested blocks. Returns whether it exists.
     pub fn set_f32(&mut self, path: &str, v: f32) -> bool {
         match self.at_mut(path) {
             Some(Value::F32(x)) => *x = v,
@@ -125,6 +132,7 @@ impl Fields {
         true
     }
 
+    /// Set a time field (microseconds) inside nested blocks. Returns whether it exists.
     pub fn set_time(&mut self, path: &str, v: i64) -> bool {
         match self.at_mut(path) {
             Some(Value::I64(x)) => *x = v,
@@ -133,10 +141,12 @@ impl Fields {
         true
     }
 
+    /// Set a `bool` field inside nested blocks. Returns whether it exists.
     pub fn set_bool(&mut self, path: &str, v: bool) -> bool {
         self.set(path, Value::Bool(v))
     }
 
+    /// An `i32` field inside nested blocks.
     pub fn i32(&self, path: &str) -> Option<i32> {
         match self.at(path)? {
             Value::I32(v) => Some(*v),
@@ -147,6 +157,7 @@ impl Fields {
         }
     }
 
+    /// An `f32` field inside nested blocks.
     pub fn f32(&self, path: &str) -> Option<f32> {
         match self.at(path)? {
             Value::F32(v) => Some(*v),
@@ -154,6 +165,7 @@ impl Fields {
         }
     }
 
+    /// An object pointer field inside nested blocks.
     pub fn ptr(&self, path: &str) -> Option<ObjId> {
         match self.at(path)? {
             Value::Ptr(p) => *p,
@@ -166,7 +178,8 @@ impl Fields {
 #[derive(Debug, Clone)]
 pub struct Object {
     pub index: ObjId,
-    /// `Internal +0x0c`, drawn on the factory's own Random.
+    // Internal +0x0c
+    /// `Internal`, drawn on the factory's own Random.
     pub tag: u32,
     pub type_id: u32,
     pub type_name: &'static str,
@@ -178,8 +191,8 @@ pub struct Object {
 pub struct GameState {
     /// The external reference table (`ExternalFactory::SerializeReferenceTable`).
     pub references: BTreeMap<u32, String>,
-    /// The loop's own fields (`Game +0x50`, `+0x40`, `+0x48`, `+0x30`, `+0x34`, `+0xd0`,
-    /// `+0x15c`).
+    // +0x40; +0x48; +0x30; +0x34; +0xd0; +0x15c; Game +0x50
+    /// The loop's own fields (`Game`).
     pub climate: u32,
     pub start_condition: u32,
     pub terrain: u32,
@@ -191,12 +204,15 @@ pub struct GameState {
     pub random_index: u32,
     pub random_state: Vec<u32>,
     pub town_name: String,
-    /// `+0x158`, `+0x150`: the goal's state.
+    // +0x158, +0x150
+    /// The goal's state.
     pub goal_done: bool,
     pub goal: Option<ObjId>,
-    /// The entity manager (`FUN_1400c9970`): its clock, the entities, the scheduler's five
-    /// bucket lists (`FUN_140022500`), its two five-int arrays (`+0xa8`, `+0xbc`) and each
-    /// entity's schedule (`+0x18`, `+0x1c` low 24 bits, `+0x1f`, the time `+0x20`).
+    // +0xa8; +0xbc; +0x18; +0x1f; +0x1c; +0x20
+    /// The entity manager: its clock, the entities, the scheduler's five bucket lists, its two
+    /// five-int arrays and each entity's schedule (low 24 bits, the time).
+    ///
+    /// Original: `FUN_1400c9970`, `FUN_140022500`.
     pub entity_time: i64,
     pub entities: Vec<Option<ObjId>>,
     pub buckets: Vec<Vec<Option<ObjId>>>,
@@ -216,13 +232,21 @@ pub struct GameState {
     /// [`empty_audio_scene`]).
     pub animations: Vec<u8>,
     pub audio_scene: Vec<u8>,
-    /// The game camera (`FUN_14009dd90`).
+    /// The game camera.
+    ///
+    /// Original: `FUN_14009dd90`.
     pub camera: Option<crate::menu_scene::SceneCamera>,
-    /// The terrain (`FUN_1400b59a0`).
+    /// The terrain.
+    ///
+    /// Original: `FUN_1400b59a0`.
     pub terrain_map: Option<crate::menu_scene::MapComponent>,
-    /// The town manager (`FUN_140094c30`).
+    /// The town manager.
+    ///
+    /// Original: `FUN_140094c30`.
     pub town: Fields,
-    /// The gameplay map (`FUN_1400a45d0`).
+    /// The gameplay map.
+    ///
+    /// Original: `FUN_1400a45d0`.
     pub map: GameMap,
     /// The blocks after the map: `jobs`, `tools`, `calendar`, `event_log`, `environment` and
     /// `minimap` (see `savegame_schema`).
@@ -230,22 +254,32 @@ pub struct GameState {
     pub objects: BTreeMap<ObjId, Object>,
 }
 
-/// One gameplay map cell as `FUN_14001b570` writes it (48 bytes in memory).
+/// One cell of the gameplay map, as the game state stores it (48 bytes in memory).
+///
+/// Original: `FUN_14001b570`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct GameMapCell {
-    /// `+0x00`, `+0x08`.
+    // +0x00; +0x08
+    /// Not identified yet.
     pub entities: [Option<ObjId>; 2],
-    /// The description at `+0x10` (reference id, `u32::MAX` when unset).
+    // +0x10
+    /// The description at (reference id, `u32::MAX` when unset).
     pub description: u32,
-    /// Bytes `+0x1c..+0x25`.
+    // +0x1c..+0x25
+    /// Bytes.
     pub flags: [u8; 9],
-    /// `+0x26`.
+    // +0x26
+    /// Not identified yet.
     pub value: u16,
-    /// Bytes `+0x28..+0x2d`; `[1]` (`+0x29`) is the cell type.
+    // +0x29; +0x28..+0x2d
+    /// Bytes; `[1]` is the cell type.
     pub bytes: [u8; 6],
 }
 
-/// The gameplay map (`FUN_1400a45d0`, version 4): `size × size` cells and nine shorts (`+0x90`).
+// +0x90
+/// The gameplay map (version 4): `size × size` cells and nine shorts.
+///
+/// Original: `FUN_1400a45d0`.
 #[derive(Debug, Clone, Default)]
 pub struct GameMap {
     pub size: i32,
@@ -477,9 +511,10 @@ impl Decoder<'_> {
 }
 
 impl GameState {
+    // Internal +0x0c
     /// A new object of type `name` with default fields ([`crate::savegame_schema::default_fields`])
-    /// and the next free factory index. The tag (`Internal +0x0c`, drawn on the factory's own
-    /// Random in the original) is the index here; returns its id.
+    /// and the next free factory index. The tag (`Internal`, drawn on the factory's own Random in
+    /// the original) is the index here; returns its id.
     pub fn new_object(&mut self, name: &'static str) -> Option<ObjId> {
         let fields = crate::savegame_schema::default_fields(name)?;
         let index = self.objects.keys().next_back().map_or(1, |&k| k + 1);
@@ -666,8 +701,9 @@ fn persist_slots(block: &[u8]) -> u32 {
         .map_or(0, |b| u32::from_le_bytes(b.try_into().unwrap()))
 }
 
-/// `Graphics::AnimationManager::Serialize` (Runtime `0x1800fea20`) with no animated
-/// instances: a count of 0.
+/// `Graphics::AnimationManager::Serialize` with no animated instances: a count of 0.
+///
+/// Original: Runtime `0x1800fea20`.
 pub fn empty_animations() -> Vec<u8> {
     let mut w = Writer::new();
     let at = w.begin_block(0);
@@ -676,9 +712,12 @@ pub fn empty_animations() -> Vec<u8> {
     w.data
 }
 
-/// `Audio::Scene::Serialize` (Runtime `0x1800e28a0`) with nothing playing: the 4096 sound
-/// slots (`FUN_180053110`: position, a value, the effect, a time, a value, the volume 1.0 and
-/// no points), then the five bytes at `+0x30`, as every sample has them.
+// Each slot is written by Runtime 0x180053110; the five bytes are the scene's +0x30.
+/// The sound scene's block with nothing playing, as a new save writes it: 4,096 empty sound slots
+/// (a position, a value, the effect, a time, a value, the volume 1.0 and no points), then the five
+/// bytes that every sample save has.
+///
+/// Original: `Audio::Scene::Serialize`, Runtime `0x1800e28a0`.
 pub fn empty_audio_scene() -> Vec<u8> {
     let mut w = Writer::new();
     let at = w.begin_block(0);

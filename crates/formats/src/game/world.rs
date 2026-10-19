@@ -2,7 +2,9 @@
 
 use super::*;
 
-/// `TerrainGenerator` (serializer `FUN_1400b6b60`): a New Game terrain profile.
+/// `TerrainGenerator`: a New Game terrain profile.
+///
+/// Original: `FUN_1400b6b60`.
 #[derive(Debug, Clone)]
 pub struct TerrainGenerator {
     pub string_table: Option<String>,
@@ -14,6 +16,7 @@ pub struct TerrainGenerator {
     pub sizes: Vec<[i32; 17]>,
 }
 
+/// Read a [`TerrainGenerator`] from the bytes of its resource.
 pub fn terrain_generator(data: &[u8]) -> Result<TerrainGenerator> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("TerrainGenerator") {
@@ -47,12 +50,13 @@ pub fn terrain_generator(data: &[u8]) -> Result<TerrainGenerator> {
     Ok(value)
 }
 
-/// One month of `EnvironmentDescription` lighting (32 bytes at `+0x38 + 0x20·month`).
+// +0x38 + 0x20·month. Interpolated by FUN_140098f90, applied by FUN_140098da0.
+/// One month of `EnvironmentDescription` lighting (32 bytes at `+ 0x20·month`).
 ///
-/// `FUN_140098f90` interpolates between the current and next month; `FUN_140098da0` then calls
+/// The game interpolates between the current and the next month, then calls
 /// `SetFog(fog_start, fog_end, fog_color with alpha fog_max)` and
-/// `SunLight::Set(FromYawPitch(sun_yaw, sun_pitch), sun_color, ambient_color)`.
-/// Colours are `0xAARRGGBB`.
+/// `SunLight::Set(FromYawPitch(sun_yaw, sun_pitch), sun_color, ambient_color)`. Colours are
+/// `0xAARRGGBB`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EnvironmentMonth {
     pub ambient_color: u32,
@@ -67,7 +71,9 @@ pub struct EnvironmentMonth {
     pub sun_pitch: f32,
 }
 
-/// `EnvironmentDescription` (serializer `FUN_140099510`): weather and monthly lighting.
+/// `EnvironmentDescription`: weather and monthly lighting.
+///
+/// Original: `FUN_140099510`.
 #[derive(Debug, Clone)]
 pub struct EnvironmentDescription {
     pub template: Option<String>,
@@ -76,6 +82,7 @@ pub struct EnvironmentDescription {
     pub months: Vec<EnvironmentMonth>,
 }
 
+/// Read a [`EnvironmentDescription`] from the bytes of its resource.
 pub fn environment_description(data: &[u8]) -> Result<EnvironmentDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("EnvironmentDescription") {
@@ -113,20 +120,26 @@ pub fn environment_description(data: &[u8]) -> Result<EnvironmentDescription> {
     Ok(value)
 }
 
-/// `ClimateGenerator` (`FUN_140098470`): monthly weather thresholds used by the environment loop.
+/// `ClimateGenerator`: monthly weather thresholds used by the environment loop.
+///
+/// Original: `FUN_140098470`.
 #[derive(Debug, Clone)]
 pub struct ClimateGenerator {
     pub string_table: Option<String>,
     pub name: String,
     pub enabled: bool,
-    /// Four serialized climate settings at in-memory offsets `+0x34..+0x40`.
+    // +0x34..+0x40
+    /// Four serialized climate settings at in-memory offsets.
     pub settings: [f32; 4],
-    /// Four floats per month at `+0x44`; the weather selector reads the first three as cutoffs.
+    // +0x44
+    /// Four floats per month at; the weather selector reads the first three as cutoffs.
     pub monthly_thresholds: [[f32; 4]; 12],
-    /// Three serialized climate settings at in-memory offsets `+0x104..+0x10c`.
+    // +0x104..+0x10c
+    /// Three serialized climate settings at in-memory offsets.
     pub trailing_settings: [f32; 3],
 }
 
+/// Read a [`ClimateGenerator`] from the bytes of its resource.
 pub fn climate_generator(data: &[u8]) -> Result<ClimateGenerator> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("ClimateGenerator") {
@@ -166,7 +179,10 @@ pub fn climate_generator(data: &[u8]) -> Result<ClimateGenerator> {
     Ok(value)
 }
 
-/// A structure placed relative to the start point (`FUN_14001c020` record, `FUN_1400a7490`).
+// A FUN_14001c020 record.
+/// A building placed relative to the start point of a new town.
+///
+/// Original: `FUN_1400a7490`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlacedStructure {
     pub template: String,
@@ -179,40 +195,57 @@ pub struct PlacedStructure {
     pub rotation: i32,
 }
 
-/// `MapGenerator` (serializer `FUN_1400a7e50`): a New Game starting-condition profile. Field names
-/// follow their confirmed consumers; offsets are the in-memory record's.
+/// `MapGenerator`: a New Game starting-condition profile. Field names follow their confirmed
+/// consumers; offsets are the in-memory record's.
+///
+/// Original: `FUN_1400a7e50`.
 #[derive(Debug, Clone)]
 pub struct MapGenerator {
     pub list: Option<String>,
     pub name: String,
     pub description: String,
     pub flag: bool,
-    /// `+0x3c`: radius of the clear-ground start area (`FUN_1400a7bf0`).
+    // +0x3c
+    /// Radius of the clear-ground start area.
+    ///
+    /// Original: `FUN_1400a7bf0`.
     pub start_radius: i32,
     pub value_40: f32,
     pub citizen: String,
-    /// `+0x60`: household groups `(flag, extra members up to)`.
+    // +0x60
+    /// Household groups `(flag, extra members up to)`.
     pub households: Vec<(bool, i32)>,
-    /// `+0x70`: templates seeded over the map (`FUN_1400a6780`): rock, ore, tree.
+    // +0x70
+    /// Templates seeded over the map: rock, ore, tree.
+    ///
+    /// Original: `FUN_1400a6780`.
     pub natural_resources: Vec<String>,
-    /// `+0x80`.
+    // +0x80
+    /// Not identified yet.
     pub structures: Vec<PlacedStructure>,
-    /// `+0x90`: population managers (deer).
+    // +0x90
+    /// Population managers (deer).
     pub populations: Vec<String>,
-    /// `+0xa0`: starting raw materials.
+    // +0xa0
+    /// Starting raw materials.
     pub raw_materials: Vec<String>,
-    /// `+0xb0`: crop templates; `crop_picks` are chosen at random.
+    // +0xb0
+    /// Crop templates; `crop_picks` are chosen at random.
     pub crops: Vec<String>,
-    /// `+0xc0`: orchard tree templates; `tree_picks` are chosen at random.
+    // +0xc0
+    /// Orchard tree templates; `tree_picks` are chosen at random.
     pub orchard_trees: Vec<String>,
-    /// `+0xd0`: livestock templates; `livestock_picks` are chosen at random.
+    // +0xd0
+    /// Livestock templates; `livestock_picks` are chosen at random.
     pub livestock: Vec<String>,
     pub crop_picks: i32,
     pub tree_picks: i32,
     pub livestock_picks: i32,
-    /// `+0xec..+0xf4`.
+    // +0xec..+0xf4
+    /// Not identified yet.
     pub livestock_floats: [f32; 3],
-    /// `+0xf8..+0x114`: `livestock_count` (`+0xf8`) then seven more integers.
+    // +0xf8; +0xf8..+0x114
+    /// `livestock_count` then seven more integers.
     pub ints: [i32; 8],
     pub string_118: String,
     pub string_138: String,
@@ -222,6 +255,7 @@ pub struct MapGenerator {
     pub float_170: f32,
 }
 
+/// Read a [`MapGenerator`] from the bytes of its resource.
 pub fn map_generator(data: &[u8]) -> Result<MapGenerator> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("MapGenerator") {
@@ -304,8 +338,10 @@ pub fn map_generator(data: &[u8]) -> Result<MapGenerator> {
     Ok(value)
 }
 
-/// `ExternalList`: an ordered list of resource references (e.g. `Game/Terrain/TerrainList.rsc`,
-/// the New Game selectors filled by `FUN_14009f280`).
+/// An `ExternalList`: an ordered list of resource references, for example
+/// `Game/Terrain/TerrainList.rsc`, which fills the terrain selector of the New Game dialog.
+///
+/// Original: the New Game lists are loaded by `FUN_14009f280`.
 pub fn external_list(data: &[u8]) -> Result<Vec<String>> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("ExternalList") {
@@ -320,8 +356,9 @@ pub fn external_list(data: &[u8]) -> Result<Vec<String>> {
     Ok(value)
 }
 
+// +0x38
 /// The leading fields of a `ClimateGenerator` (New Game climate profile): string table, name key
-/// and the "listed" flag at `+0x38`. The climate parameters that follow are not decoded yet.
+/// and the "listed" flag at. The climate parameters that follow are not decoded yet.
 #[derive(Debug, Clone)]
 pub struct ClimateHeader {
     pub string_table: Option<String>,
@@ -329,6 +366,7 @@ pub struct ClimateHeader {
     pub listed: bool,
 }
 
+/// Read a [`ClimateHeader`] from the bytes of its resource.
 pub fn climate_header(data: &[u8]) -> Result<ClimateHeader> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("ClimateGenerator") {
@@ -350,22 +388,30 @@ pub fn climate_header(data: &[u8]) -> Result<ClimateHeader> {
     Ok(value)
 }
 
-/// `MapDescription` (serializer `FUN_140129a30`): how an entity stamps the gameplay map.
+/// `MapDescription`: how an entity stamps the gameplay map.
+///
+/// Original: `FUN_140129a30`.
 #[derive(Debug, Clone)]
 pub struct MapDescription {
-    /// `+0x20`: cell type written under the footprint (4 for natural resources).
+    // +0x20
+    /// Cell type written under the footprint (4 for natural resources).
     pub cell_type: u32,
-    /// `+0x28`: footprint rows (`#` own type, `_` ground, `.` untouched); empty = whole area.
+    // +0x28
+    /// Footprint rows (`#` own type, `_` ground, `.` untouched); empty = whole area.
     pub footprint: String,
-    /// `+0x30`: stamp on activation.
+    // +0x30
+    /// Stamp on activation.
     pub stamp: bool,
-    /// `+0x31`: never stamp.
+    // +0x31
+    /// Never stamp.
     pub no_stamp: bool,
-    /// `+0x32`: draw on the minimap with `color`.
+    // +0x32
+    /// Draw on the minimap with `color`.
     pub minimap: bool,
     pub color: u32,
 }
 
+/// Read a [`MapDescription`] from the bytes of its resource.
 pub fn map_description(data: &[u8]) -> Result<MapDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("MapDescription") {

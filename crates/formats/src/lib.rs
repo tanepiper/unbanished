@@ -6,6 +6,7 @@
 pub mod audio;
 pub mod crc;
 pub mod crs;
+/// The error type of every reader.
 pub mod error;
 pub mod game;
 pub mod lzf;

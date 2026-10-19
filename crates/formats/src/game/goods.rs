@@ -2,31 +2,47 @@
 
 use super::*;
 
-/// `RawMaterialDescription` (serializer `FUN_14012e9f0`): a storable resource.
+/// `RawMaterialDescription`: a storable resource.
+///
+/// Original: `FUN_14012e9f0`.
 #[derive(Debug, Clone)]
 pub struct RawMaterialDescription {
     pub sprite_sheet: Option<String>,
     pub string_table: Option<String>,
-    /// `+0x30`, `+0x38`: name keys (`Log`, `LogSmall`).
+    // +0x30, +0x38
+    /// Name keys (`Log`, `LogSmall`).
     pub name: String,
     pub name_small: String,
-    /// `+0x40`, `+0x44`.
+    // +0x40; +0x44
+    /// Not identified yet.
     pub value_40: i32,
     pub value_44: i32,
-    /// `+0x48`: storage units per item (`FUN_140132250`).
+    // +0x48
+    /// Storage units per item.
+    ///
+    /// Original: `FUN_140132250`.
     pub size: i32,
-    /// `+0x4c`.
+    // +0x4c
+    /// Not identified yet.
     pub value_4c: i32,
-    /// `+0x5c`: category flags (`FUN_14008f3a0` maps them to the stock table).
+    // +0x5c
+    /// The category flags (food, fuel, clothing and so on), which the game maps to its stock
+    /// table.
+    ///
+    /// Original: mapped by `FUN_14008f3a0`.
     pub flags: u32,
-    /// `+0x50`.
+    // +0x50
+    /// Not identified yet.
     pub value_50: f32,
-    /// `+0x54`.
+    // +0x54
+    /// Not identified yet.
     pub value_54: i32,
-    /// `+0x58`.
+    // +0x58
+    /// Not identified yet.
     pub flag_58: bool,
 }
 
+/// Read a [`RawMaterialDescription`] from the bytes of its resource.
 pub fn raw_material_description(data: &[u8]) -> Result<RawMaterialDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("RawMaterialDescription") {
@@ -55,19 +71,25 @@ pub fn raw_material_description(data: &[u8]) -> Result<RawMaterialDescription> {
     Ok(value)
 }
 
-/// `StorageDescription` (serializer `FUN_140131e70`).
+/// `StorageDescription`.
+///
+/// Original: `FUN_140131e70`.
 #[derive(Debug, Clone)]
 pub struct StorageDescription {
-    /// `+0x28`: raw-material flags this storage accepts.
+    // +0x28
+    /// Raw-material flags this storage accepts.
     pub accepts: u32,
     pub flag_20: bool,
     pub flag_21: bool,
-    /// `+0x24`: capacity in storage units.
+    // +0x24
+    /// Capacity in storage units.
     pub capacity: i32,
-    /// `+0x30`: `(count, raw material)` entries.
+    // +0x30
+    /// `(count, raw material)` entries.
     pub items: Vec<(i32, Option<String>)>,
 }
 
+/// Read a [`StorageDescription`] from the bytes of its resource.
 pub fn storage_description(data: &[u8]) -> Result<StorageDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("StorageDescription") {
@@ -96,7 +118,10 @@ pub fn storage_description(data: &[u8]) -> Result<StorageDescription> {
     Ok(value)
 }
 
-/// StorageLocationDescription `+0x20` mask; serializer FUN_140132940 (version 2).
+// +0x20
+/// The mask of a `StorageLocationDescription`: the kinds of goods a storage place accepts.
+///
+/// Original: `FUN_140132940` (version 2).
 pub fn storage_location_description(data: &[u8]) -> Result<u32> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("StorageLocationDescription") {
@@ -107,8 +132,10 @@ pub fn storage_location_description(data: &[u8]) -> Result<u32> {
     Ok(value)
 }
 
-/// `AutoPickupDescription` (serializer `FUN_1400454c0`): `+0x20`, whether the workplace's
-/// workers pick up the piles they make first.
+// +0x20
+/// `AutoPickupDescription`:, whether the workplace's workers pick up the piles they make first.
+///
+/// Original: `FUN_1400454c0`.
 pub fn auto_pickup_description(data: &[u8]) -> Result<bool> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("AutoPickupDescription") {
@@ -122,19 +149,32 @@ pub fn auto_pickup_description(data: &[u8]) -> Result<bool> {
     Ok(value)
 }
 
-/// `ResidenceDescription` (serializer `FUN_14012f8a0`, version 2).
+/// `ResidenceDescription` (version 2).
+///
+/// Original: `FUN_14012f8a0`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ResidenceDescription {
-    /// `+0x20`: family slots (ResidenceComponent `+0x50`, count `+0x58`).
+    // +0x20; +0x50; +0x58
+    /// Family slots (ResidenceComponent, count).
     pub families: i32,
-    /// `+0x24`: residents per family before it counts as full (`FUN_14012f9c0`).
+    // +0x24
+    /// Residents per family before it counts as full.
+    ///
+    /// Original: `FUN_14012f9c0`.
     pub family_size: i32,
-    /// `+0x28`: at or above this temperature the home is warm without fuel (`FUN_140130100`).
+    // +0x28
+    /// At or above this temperature the home is warm without fuel.
+    ///
+    /// Original: `FUN_140130100`.
     pub warm_temperature: f32,
-    /// `+0x2c`: seconds one unit of firewood keeps the home warm (`FUN_14012ee40`).
+    // +0x2c
+    /// Seconds one unit of firewood keeps the home warm.
+    ///
+    /// Original: `FUN_14012ee40`.
     pub fuel_seconds: f32,
 }
 
+/// Read a [`ResidenceDescription`] from the bytes of its resource.
 pub fn residence_description(data: &[u8]) -> Result<ResidenceDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("ResidenceDescription") {
@@ -155,15 +195,18 @@ pub fn residence_description(data: &[u8]) -> Result<ResidenceDescription> {
     Ok(value)
 }
 
-/// `MarketDescription` (serializer `FUN_14004f510`): vendors stop while the market is fuller
-/// than `+0x20`; `+0x28` the categories (raw-material flags) and each one's share of the
-/// market's room.
+// +0x20; +0x28
+/// `MarketDescription`: vendors stop while the market is fuller than; the categories (raw-material
+/// flags) and each one's share of the market's room.
+///
+/// Original: `FUN_14004f510`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct MarketDescription {
     pub threshold: f32,
     pub quotas: Vec<(u32, f32)>,
 }
 
+/// Read a [`MarketDescription`] from the bytes of its resource.
 pub fn market_description(data: &[u8]) -> Result<MarketDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("MarketDescription") {
@@ -184,10 +227,12 @@ pub fn market_description(data: &[u8]) -> Result<MarketDescription> {
     Ok(value)
 }
 
-/// A TradeDescription merchant (`FUN_14005d510`, 0x48 bytes): its name (string table, key),
-/// `+0x20` the templates it always offers (seeds, livestock), `+0x30` (ints, unread), `+0x40`
-/// its lots before the town's divisor, `+0x10` the raw-material flags it sells, `+0x14` and
-/// `+0x18` more flag masks.
+// +0x20; +0x30; +0x40; +0x10; +0x14; +0x18
+/// A TradeDescription merchant (0x48 bytes): its name (string table, key), the templates it always
+/// offers (seeds, livestock), (ints, unread), its lots before the town's divisor, the raw-material
+/// flags it sells, and more flag masks.
+///
+/// Original: `FUN_14005d510`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Merchant {
     pub name: (Option<String>, String),
@@ -198,9 +243,11 @@ pub struct Merchant {
     pub flags: (u32, u32),
 }
 
-/// A TradeDescription row by population (`FUN_14005d480`, 0x14 bytes): towns below `+0`
-/// people see a merchant every `(+4 + RandFloatTol × +8)` × 300 s; `+0xc` and `+0x10` divide
-/// the merchant's lots and each lot's amount.
+// +0; +0xc; +0x10
+/// A TradeDescription row by population (0x14 bytes): towns below people see a merchant every `(+4
+/// + RandFloatTol × +8)` × 300 s; and divide the merchant's lots and each lot's amount.
+///
+/// Original: `FUN_14005d480`.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct TradeRow {
     pub population: i32,
@@ -210,22 +257,38 @@ pub struct TradeRow {
     pub amount_divisor: i32,
 }
 
-/// `TradeDescription` (serializer `FUN_14005d150`, constructor `FUN_14005d400`): `+0x30` the
-/// trader boat, `+0x48` the merchants, `+0x58` the rows by population, `+0x20/+0x28` the trade
-/// window's sprite sheet and strings, `+0x38` its categories (flags, two string keys),
-/// `+0x68` (0.33) and `+0x6c` (3).
+/// A `TradeDescription`: the trading post's boat, merchants and trade window.
+///
+/// Original: `FUN_14005d150`, `FUN_14005d400`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TradeDescription {
+    // +0x30
+    /// The trader boat template.
     pub boat: Option<String>,
+    // +0x48
+    /// The merchants that can come.
     pub merchants: Vec<Merchant>,
+    // +0x58
+    /// The rows of the trade table, by population.
     pub rows: Vec<TradeRow>,
+    // +0x20
+    /// The trade window's sprite sheet.
     pub sprites: Option<String>,
+    // +0x28
+    /// The trade window's string table.
     pub strings: Option<String>,
+    // +0x38
+    /// The trade window's categories: flags and two string keys each.
     pub categories: Vec<(u32, String, String)>,
+    // +0x68
+    /// Not identified yet (0.33 in the game data).
     pub value_68: f32,
+    // +0x6c
+    /// Not identified yet (3 in the game data).
     pub value_6c: i32,
 }
 
+/// Read a [`TradeDescription`] from the bytes of its resource.
 pub fn trade_description(data: &[u8]) -> Result<TradeDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("TradeDescription") {
@@ -287,19 +350,29 @@ pub fn trade_description(data: &[u8]) -> Result<TradeDescription> {
     Ok(value)
 }
 
-/// `ValueDescription` (serializer `FUN_14005d6c0`, constructor `FUN_14005d7e0`): `+0x20/+0x28`
-/// the icon (sprite sheet, name), `+0x30/+0x38` the name (string table, key), `+0x40` the
-/// value of one, `+0x44` a merchant's lot before the town's divisor (100), `+0x48` the
-/// smallest lot.
+/// A `ValueDescription`: what one unit of a good is worth in trade, and how it is shown.
+///
+/// Original: `FUN_14005d6c0`, `FUN_14005d7e0`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ValueDescription {
+    // +0x20/+0x28
+    /// The icon: sprite sheet and sprite name.
     pub icon: (Option<String>, String),
+    // +0x30/+0x38
+    /// The name: string table and key.
     pub name: (Option<String>, String),
+    // +0x40
+    /// The value of one unit.
     pub value: i32,
+    // +0x44
+    /// A merchant's lot, before the town's divisor (100).
     pub lot: i32,
+    // +0x48
+    /// The smallest lot.
     pub min_lot: i32,
 }
 
+/// Read a [`ValueDescription`] from the bytes of its resource.
 pub fn value_description(data: &[u8]) -> Result<ValueDescription> {
     let (_, value) = crs::parse(data, |r: &mut Reader, h| {
         if h.type_id != type_id("ValueDescription") {

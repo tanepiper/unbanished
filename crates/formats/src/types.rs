@@ -45,25 +45,38 @@ impl ImageFormat {
     }
 }
 
+/// A texture: its size, format and levels (mip maps, and the six faces of a cube map).
 #[derive(Debug, Clone)]
 pub struct ImageBuffer {
+    /// The width in pixels.
     pub width: u32,
+    /// The height in pixels.
     pub height: u32,
     /// 0 = 2D; otherwise a cube map (levels are 6 faces x mips).
     pub image_type: u32,
+    /// How the engine uses the texture.
     pub usage: u32,
+    /// The pixel format.
     pub format: ImageFormat,
+    /// Whether the engine makes the mip levels itself.
     pub generate_mips: bool,
+    /// The address (wrap) mode on each axis.
     pub address: [u32; 3],
+    /// The filter mode.
     pub filter: u32,
+    /// The original image file the texture was made from.
     pub source: String,
+    /// The data of each level: faces × mips, face by face.
     pub levels: Vec<Vec<u8>>,
 }
 
 impl ImageBuffer {
+    /// The resource class name.
     pub const CLASS: &'static str = "ImageBuffer";
 
-    /// `Video::ImageBuffer::Serialize` (0x1800f4f40) + `PlatformSerialize` (0x1800f5980).
+    /// `Video::ImageBuffer::Serialize` + `PlatformSerialize`.
+    ///
+    /// Original: Runtime `0x1800f4f40`, Runtime `0x1800f5980`.
     pub fn read(r: &mut Reader) -> Result<Self> {
         r.block(|r, _| {
             let width = r.u32()?;
@@ -97,6 +110,7 @@ impl ImageBuffer {
         })
     }
 
+    /// The number of faces: 6 for a cube map, else 1.
     pub fn faces(&self) -> usize {
         if self.image_type == 0 {
             1
@@ -105,6 +119,7 @@ impl ImageBuffer {
         }
     }
 
+    /// The number of mip levels of each face.
     pub fn mip_count(&self) -> usize {
         self.levels.len() / self.faces()
     }
@@ -112,28 +127,41 @@ impl ImageBuffer {
 
 // ---------------------------------------------------------------- GraphicsMesh
 
+/// A range of a mesh part that is drawn with one material.
 #[derive(Debug, Clone)]
 pub struct DrawRange {
     /// Base vertex added to each range-local u16 index.
     pub start_vertex: i32,
+    /// The number of vertices.
     pub vertex_count: i32,
+    /// The first index.
     pub start_index: i32,
+    /// The number of indices.
     pub index_count: i32,
+    /// The material of the range, an index into the mesh's material set.
     pub material_index: i32,
     /// Rigid node transform, or -1 for weighted skinning.
     pub bone: i32,
 }
 
+/// A part of a mesh, with its level of detail, its draw ranges and its buffers.
 #[derive(Debug, Clone)]
 pub struct MeshPart {
+    /// The distance up to which this level of detail is used.
     pub lod_distance: f32,
+    /// The part's name.
     pub name: String,
+    /// The ambient-occlusion texture.
     pub ao_texture: Option<String>,
+    /// The draw ranges.
     pub ranges: Vec<DrawRange>,
     /// Both streams can be present in one detail level (for example, the trader boat).
     pub static_indices: Vec<u8>,
+    /// The vertex buffer of the rigid geometry.
     pub static_vertices: Vec<u8>,
+    /// The index buffer of the skinned geometry.
     pub skinned_indices: Vec<u8>,
+    /// The vertex buffer of the skinned geometry.
     pub skinned_vertices: Vec<u8>,
 }
 
@@ -152,83 +180,128 @@ impl MeshPart {
     }
 }
 
+/// A bone of a skeleton.
 #[derive(Debug, Clone)]
 pub struct Bone {
+    /// The bone's name.
     pub name: String,
+    /// The parent bone's index (-1 for the root).
     pub parent: i32,
+    /// The rotation relative to the parent (a quaternion, stored conjugated).
     pub rotation: [f32; 4],
+    /// The translation relative to the parent.
     pub translation: [f32; 3],
+    /// The rotation of the inverse bind transform.
     pub inv_rotation: [f32; 4],
+    /// The translation of the inverse bind transform.
     pub inv_translation: [f32; 3],
 }
 
+/// A mesh: its parts, its material sets, its skeleton and its bounds.
 #[derive(Debug, Clone)]
 pub struct GraphicsMesh {
+    /// The original model file.
     pub source: String,
+    /// The parts.
     pub parts: Vec<MeshPart>,
     /// Material instance references, one list per material set.
     pub material_instances: Vec<Vec<Option<String>>>,
+    /// The skeleton's bones (empty for a rigid mesh).
     pub bones: Vec<Bone>,
+    /// The smallest corner of the bounding box.
     pub bounds_min: [f32; 3],
+    /// The largest corner of the bounding box.
     pub bounds_max: [f32; 3],
 }
 
+/// An animation clip: the bones' transforms for each frame, and its events.
 #[derive(Debug, Clone)]
 pub struct AnimationClip {
+    /// The clip's name, for example `Walk`.
     pub name: String,
+    /// The mesh it was made for.
     pub mesh_name: String,
+    /// The original animation file.
     pub source_name: String,
+    /// Whether the clip loops.
     pub looping: bool,
+    /// The frame rate.
     pub sample_rate: f32,
-    /// Animation +0x30/+0x34: source frame range for loop-point conversion.
+    // +0x30/+0x34
+    /// Animation: source frame range for loop-point conversion.
     pub start_frame: i32,
+    /// The last frame of the source range.
     pub end_frame: i32,
-    /// +0x38 / +0x48: declared rate and stored sample interval.
+    // +0x38 / +0x48
+    /// Declared rate and stored sample interval.
     pub declared_rate: f32,
+    /// The time between stored samples.
     pub sample_interval: f32,
-    /// +0x40: source frame at which a looping animation resumes.
+    // +0x40
+    /// Source frame at which a looping animation resumes.
     pub loop_start_frame: i32,
-    /// +0x28 / +0x2c: shared animation-instance configuration.
+    // +0x28 / +0x2c
+    /// Shared animation-instance configuration.
     pub instance_count: i32,
+    /// Whether all entities share one instance of the clip.
     pub instanced: bool,
+    /// The frame at which a looping clip starts again.
     pub loop_start: usize,
+    /// The number of bones in each frame.
     pub bone_count: usize,
     /// Frame-major quaternion (xyzw) + translation (xyz) samples.
     pub frames: Vec<Vec<crate::skeleton::Transform>>,
-    /// +0x58: serialized System::Time, in microsecond ticks (Timer::Startup 0x1800cd030).
+    // +0x58: a serialised System::Time (microseconds, Runtime Timer::Startup 0x1800cd030).
+    /// The clip's length, in microseconds.
     pub duration_ticks: i64,
+    /// The events of the clip.
     pub events: Vec<AnimationEvent>,
 }
 
+/// An event in a clip (for example a footstep sound), at a time.
 #[derive(Debug, Clone)]
 pub struct AnimationEvent {
+    /// The frame at which it happens.
     pub frame: i32,
+    /// The resource it plays (for example a sound effect).
     pub resource: Option<String>,
 }
 
+/// How the game blends from one clip to another.
 #[derive(Debug, Clone)]
 pub struct AnimationBlend {
+    /// The clip that ends.
     pub source: String,
+    /// The clip that begins.
     pub target: String,
+    /// The blend time.
     pub seconds: f32,
 }
 
+/// A group of animation clips for one skeleton.
 #[derive(Debug, Clone)]
 pub struct AnimationGroup {
+    /// The clips.
     pub clips: Vec<AnimationClip>,
-    /// +0x30: fallback blend time; +0x38/+0x40: named blend overrides.
+    // +0x30; +0x38/+0x40
+    /// The blend time between clips that have no blend of their own, in seconds.
     pub default_blend: f32,
+    /// The blends between named clips.
     pub blends: Vec<AnimationBlend>,
-    /// +0x48/+0x50: precompiled [new clip][previous clip] transition matrix.
+    // +0x48/+0x50
+    /// Precompiled [new clip][previous clip] transition matrix.
     pub blend_matrix: Vec<f32>,
 }
 
 impl AnimationGroup {
+    /// The resource class name.
     pub const CLASS: &'static str = "AnimationGroup";
 
-    /// `Graphics::AnimationGroup::Serialize` and `Graphics::Animation::Serialize` from the
-    /// Ghidra Runtime export (0x1800fdf30 / 0x1800fd910). Animation samples are 4 quaternion
-    /// floats and 3 translation floats; UpdateNodes interpolates adjacent samples per mesh node.
+    /// `Graphics::AnimationGroup::Serialize` and `Graphics::Animation::Serialize` from the Ghidra
+    /// Runtime export. Animation samples are 4 quaternion floats and 3 translation floats;
+    /// UpdateNodes interpolates adjacent samples per mesh node.
+    ///
+    /// Original: Runtime `0x1800fdf30`, Runtime `0x1800fd910`.
     pub fn read(r: &mut Reader) -> Result<Self> {
         r.block(|r, _| {
             let clip_count = r.count()?;
@@ -324,12 +397,16 @@ pub const SKINNED_STRIDE: usize = 32;
 pub const POSITION_SCALE: f32 = 1.0 / 512.0;
 
 impl GraphicsMesh {
+    /// The resource class name.
     pub const CLASS: &'static str = "GraphicsMesh";
 
-    /// `Graphics::GraphicsMesh::Serialize` (0x180101c40) + `PlatformSerialize` (0x1800a5830).
-    /// Block version 0 (meshes from older toolkits, in mods) keeps each part's geometry with
-    /// the part (`FUN_1800a55c0`: the DX9 then the DX11 block); later versions keep all of it
+    /// Read a mesh. Block version 0 (meshes from older toolkits, in mods) keeps each part's
+    /// geometry with the part (the DX9 block, then the DX11 block); later versions keep all of it
     /// in the two platform blocks at the end, the DX11 one led by an integer.
+    ///
+    /// Original: `Graphics::GraphicsMesh::Serialize` (Runtime `0x180101c40`) and
+    /// `PlatformSerialize` (Runtime `0x1800a5830`); the version 0 part geometry, Runtime
+    /// `0x1800a55c0`.
     pub fn read(r: &mut Reader) -> Result<Self> {
         /// One part's draw ranges and buffers (DX11).
         fn geometry(r: &mut Reader, part: &mut MeshPart) -> Result<()> {
@@ -421,17 +498,22 @@ impl GraphicsMesh {
 
 // ---------------------------------------------------------------- MaterialInstance
 
+/// A material instance: a base material, and its named textures and values.
 #[derive(Debug, Clone)]
 pub struct MaterialInstance {
+    /// The base material, which selects the shader.
     pub material: Option<String>,
+    /// The textures by slot name, for example `diffuse`.
     pub textures: Vec<(String, Option<String>)>,
+    /// The named values (four floats each).
     pub vectors: Vec<(String, [f32; 4])>,
 }
 
 impl MaterialInstance {
+    /// The resource class name.
     pub const CLASS: &'static str = "MaterialInstance";
 
-    /// `Graphics::MaterialInstance::Serialize` (0x180106300).
+    /// Original: `Graphics::MaterialInstance::Serialize`, Runtime `0x180106300`.
     pub fn read(r: &mut Reader) -> Result<Self> {
         r.block(|r, _| {
             let material = r.external_ref()?;
@@ -449,6 +531,7 @@ impl MaterialInstance {
         })
     }
 
+    /// The texture in a named slot, for example `diffuse`.
     pub fn texture(&self, slot: &str) -> Option<&str> {
         self.textures
             .iter()
@@ -459,28 +542,38 @@ impl MaterialInstance {
 
 // ---------------------------------------------------------------- VertexLayout
 
+/// One attribute of a vertex layout.
 #[derive(Debug, Clone)]
 pub struct VertexElement {
+    /// The semantic, for example `POSITION`.
     pub semantic: String,
+    /// The vertex stream.
     pub stream: i32,
+    /// The offset in the vertex, in bytes.
     pub offset: i32,
+    /// The usage.
     pub usage: i32,
+    /// The usage index.
     pub usage_index: i32,
     /// 0 float4, 1 float3, 2 float2, 3 float1, 4 sint16x4, 5 sint16x2,
     /// 6 bgra8unorm, 7 uint8x4, 8 unorm8x4 (VideoDX11 DXGI table).
     pub format: i32,
 }
 
+/// A vertex layout: its attributes, and the Direct3D 11 input signature.
 #[derive(Debug, Clone)]
 pub struct VertexLayout {
+    /// The attributes.
     pub elements: Vec<VertexElement>,
+    /// The Direct3D 11 input signature.
     pub dxbc_signature: Vec<u8>,
 }
 
 impl VertexLayout {
+    /// The resource class name.
     pub const CLASS: &'static str = "VertexLayout";
 
-    /// `Video::VertexLayout::Serialize` (0x1800f86c0).
+    /// Original: `Video::VertexLayout::Serialize`, Runtime `0x1800f86c0`.
     pub fn read(r: &mut Reader) -> Result<Self> {
         r.block(|r, _| {
             let elements = (0..r.count()?)
@@ -522,6 +615,7 @@ pub fn decode<T>(data: &[u8], class: &str, read: fn(&mut Reader) -> Result<T>) -
 
 macro_rules! decode_fn {
     ($name:ident, $ty:ty) => {
+        #[doc = concat!("Read a [`", stringify!($ty), "`] from the bytes of its resource.")]
         pub fn $name(data: &[u8]) -> Result<$ty> {
             decode(data, <$ty>::CLASS, <$ty>::read)
         }
@@ -539,23 +633,35 @@ decode_fn!(vertex_layout, VertexLayout);
 /// `WAVEFORMATEX` header carried by every sound. All shipped audio is xWMA (`tag == 0x161`).
 #[derive(Debug, Clone, Copy)]
 pub struct WaveFormat {
+    /// The format tag: `0x161`, WMA v2, for every sound of the game.
     pub tag: u16,
+    /// The number of channels.
     pub channels: u16,
+    /// The sample rate.
     pub sample_rate: u32,
+    /// The average data rate, in bytes per second.
     pub avg_bytes_per_sec: u32,
+    /// The packet size in bytes.
     pub block_align: u16,
+    /// The bits per sample.
     pub bits_per_sample: u16,
 }
 
+/// A sound: its format, its loop flag, its length, and its data in xWMA (or the entry of its
+/// stream).
 #[derive(Debug, Clone)]
 pub struct SoundBuffer {
+    /// Whether the sound loops.
     pub looping: bool,
     /// Streamed sounds keep their packets in a raw `.str` package entry named by `stream_entry`.
     pub streamed: bool,
     /// Original source file, e.g. `Audio\Animal\Chicken0.wav`.
     pub source: String,
+    /// The package entry of a streamed sound's packets.
     pub stream_entry: String,
+    /// The length in seconds.
     pub length_seconds: f32,
+    /// The format header.
     pub format: WaveFormat,
     /// Raw `WAVEFORMATEX(TENSIBLE)` bytes (40).
     pub format_bytes: Vec<u8>,
@@ -566,9 +672,12 @@ pub struct SoundBuffer {
 }
 
 impl SoundBuffer {
+    /// The resource class name.
     pub const CLASS: &'static str = "SoundBuffer";
 
-    /// `Audio::SoundBuffer::Serialize` (0x1800e2cd0) + `PlatformSerialize` (0x1800e2e10).
+    /// `Audio::SoundBuffer::Serialize` + `PlatformSerialize`.
+    ///
+    /// Original: Runtime `0x1800e2cd0`, Runtime `0x1800e2e10`.
     pub fn read(r: &mut Reader) -> Result<Self> {
         r.block(|r, _| {
             let looping = r.bool()?;

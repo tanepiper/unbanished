@@ -1,14 +1,16 @@
-//! The resources the game has loaded (`Object::ExternalFactory`'s objects), which it enumerates
-//! by type (`ExternalFactory::FindNext`): the toolbar entries, professions, raw materials and
+//! The resources the game has loaded (`Object::ExternalFactory`'s objects), which it enumerates by
+//! type (`ExternalFactory::FindNext`): the toolbar entries, professions, raw materials and
 //! component descriptions (templates).
 //!
-//! At startup `Engine::UpdateLoop::LoadResources` (Runtime `0x1800e0020`) loads
-//! `Game\GameResources.rsc` (the loop's name with `Resources.rsc`), then, for each enabled mod, the
-//! mod's `<file>Resources.rsc:resource` when the packages hold it. Loading a resource loads the
-//! resources it points at (`ExternalPtr`), so the loaded set is everything those roots reach.
+//! At startup `Engine::UpdateLoop::LoadResources` loads `Game\GameResources.rsc` (the loop's name
+//! with `Resources.rsc`), then, for each enabled mod, the mod's `<file>Resources.rsc:resource` when
+//! the packages hold it. Loading a resource loads the resources it points at (`ExternalPtr`), so
+//! the loaded set is everything those roots reach.
 //!
-//! The port finds a resource's pointers by their encoding rather than by each type's
-//! serializer: a present flag (1) then a string naming an `.rsc` object.
+//! The port finds a resource's pointers by their encoding rather than by each type's serializer: a
+//! present flag (1) then a string naming an `.rsc` object.
+//!
+//! Original: Runtime `0x1800e0020`.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -155,6 +157,7 @@ impl Registry {
             .collect()
     }
 
+    /// Whether a resource is loaded.
     pub fn contains(&self, reference: &str) -> bool {
         self.loaded.contains_key(&key(reference))
     }

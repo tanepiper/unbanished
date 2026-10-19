@@ -78,7 +78,7 @@ Deviation: 40, Not ported: 4, Not traced: 1.
 
 ## `crates/formats/src/pkg.rs`
 
-- [Not traced] [crates/formats/src/pkg.rs:61](../crates/formats/src/pkg.rs#L61): `+0x74`: `Modification::RefreshList` leaves out a mod whose value is not 0 (0 in every package seen; its meaning is not traced).
+- [Not traced] [crates/formats/src/pkg.rs:72](../crates/formats/src/pkg.rs#L72): +0x74 `Modification::RefreshList` leaves out a mod whose value is not 0 (0 in every package seen; its meaning is not traced).
 
 ## `crates/game/src/behaviour/agents.rs`
 
@@ -159,7 +159,7 @@ Deviation: 40, Not ported: 4, Not traced: 1.
 
 ## `crates/terrain/src/query.rs`
 
-- [Deviation] [crates/terrain/src/query.rs:79](../crates/terrain/src/query.rs#L79): Where a ray first hits the ground, no farther than `maximum`: the distance and the point. The game uses it to stop picking at the ground. Deviation: the port tests every cell in the rectangle the ray crosses, where the original walks the cells along the ray. Original: `FUN_1400afef0`; its walk along the ray is `FUN_1400afa00`.
+- [Deviation] [crates/terrain/src/query.rs:79](../crates/terrain/src/query.rs#L79): Where a ray first hits the ground, no farther than `maximum`: the distance and the point. The game uses it to stop picking at the ground. Deviation: the port tests every cell in the rectangle the ray crosses, where the original walks the cells along the ray.
 
 ## `crates/ui/src/input.rs`
 

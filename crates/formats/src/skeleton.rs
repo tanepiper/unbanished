@@ -10,6 +10,7 @@
 
 use crate::types::Bone;
 
+/// A bone transform: a rotation and a translation.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Transform {
     /// Unit quaternion (x, y, z, w), column-vector convention.
@@ -38,6 +39,7 @@ fn rotate(q: [f32; 4], v: [f32; 3]) -> [f32; 3] {
 }
 
 impl Transform {
+    /// The transform that changes nothing.
     pub const IDENTITY: Transform = Transform {
         rotation: [0.0, 0.0, 0.0, 1.0],
         translation: [0.0; 3],
@@ -56,6 +58,7 @@ impl Transform {
         }
     }
 
+    /// A point moved by the transform: rotated, then translated.
     pub fn apply(&self, v: [f32; 3]) -> [f32; 3] {
         let r = rotate(self.rotation, v);
         [
@@ -98,6 +101,7 @@ pub fn local_bind(bone: &Bone) -> Transform {
     }
 }
 
+/// The inverse of a bone's bind transform, for skinning.
 pub fn inverse_bind(bone: &Bone) -> Transform {
     Transform {
         rotation: conj(bone.inv_rotation),

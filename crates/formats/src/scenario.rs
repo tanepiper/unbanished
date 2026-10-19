@@ -1,13 +1,15 @@
 //! Achievements, scenarios and tutorials (`Game/Achievement`, `Game/Scenario`). See
 //! docs/ACHIEVEMENTS.md and docs/TUTORIAL.md.
 //!
-//! - `Achievement::Achievement` (Runtime `Serialize` `0x18009eb70`): its string table, title,
-//!   description, sprite sheet and sprite, and its goals.
-//! - `Achievement::Goal` (`0x18009fd30`): a string table and text; then each class's own
-//!   block: BuildingGoal (`FUN_1400dcb70`), PopulationGoal (`FUN_1400dcd40`), StatGoal
-//!   (`FUN_1400dfd80`), TimeGoal (`FUN_1400dfff0`), FinishTutorialGoal (`FUN_1400dcea0`).
-//! - `Scenario` (`FUN_1400ae840`): an achievement, then the game it starts.
-//! - `Tutorial` (`FUN_1400e3fa0`) and its steps, setups, goals and images.
+//! - `Achievement::Achievement`: its string table, title, description, sprite sheet and sprite,
+//!   and its goals.
+//! - A string table and text; then each class's own block: BuildingGoal, PopulationGoal, StatGoal,
+//!   TimeGoal, FinishTutorialGoal.
+//! - `Scenario`: an achievement, then the game it starts.
+//! - `Tutorial` and its steps, setups, goals and images.
+//!
+//! Original: `Achievement::Achievement::Serialize` (Runtime `0x18009eb70`), `Achievement::Goal`
+//! (Runtime `0x18009fd30`), `FUN_1400dcb70`, `FUN_1400dcd40`, `FUN_1400dfd80`, `FUN_1400dfff0`, `FUN_1400dcea0`, `FUN_1400ae840`, `FUN_1400e3fa0`.
 
 use crate::crc::type_id;
 use crate::crs::{self, Reader};
@@ -16,15 +18,19 @@ use crate::error::{format_err, Result};
 /// `Achievement::Achievement`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Achievement {
-    /// `+0x20`.
+    // +0x20
+    /// Not identified yet.
     pub strings: Option<String>,
-    /// `+0x28`, `+0x30`: the title's and description's keys.
+    // +0x28, +0x30
+    /// The title's and description's keys.
     pub title: String,
     pub description: String,
-    /// `+0x38`, `+0x40`.
+    // +0x38; +0x40
+    /// Not identified yet.
     pub sprites: Option<String>,
     pub sprite: String,
-    /// `+0x48`: the goals.
+    // +0x48
+    /// The goals.
     pub goals: Vec<Option<String>>,
 }
 
@@ -82,6 +88,7 @@ pub struct Goal {
     pub kind: GoalKind,
 }
 
+/// Read a [`Goal`] from the bytes of its resource.
 pub fn goal(data: &[u8]) -> Result<Goal> {
     let (_, v) = crs::parse(data, |r, h| {
         let (strings, text) = r.block(|r, _| Ok((r.external_ref()?, r.string()?)))?;
@@ -122,6 +129,7 @@ pub fn goal(data: &[u8]) -> Result<Goal> {
     Ok(v)
 }
 
+/// Read a [`Achievement`] from the bytes of its resource.
 pub fn achievement_description(data: &[u8]) -> Result<Achievement> {
     let (_, v) = crs::parse(data, |r, h| {
         if h.type_id != type_id("Achievement") {
@@ -136,23 +144,31 @@ pub fn achievement_description(data: &[u8]) -> Result<Achievement> {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Scenario {
     pub achievement: Achievement,
-    /// `+0x60`, `+0x64`.
+    // +0x60; +0x64
+    /// Not identified yet.
     pub i60: i32,
     pub i64: i32,
-    /// `+0x58`: the town's name.
+    // +0x58
+    /// The town's name.
     pub town_name: String,
-    /// `+0x70`, `+0x78`, `+0x80`.
+    // +0x70; +0x78; +0x80
+    /// Not identified yet.
     pub r70: Option<String>,
     pub r78: Option<String>,
     pub r80: Option<String>,
-    /// `+0x88`: the save to start from (`Save\{name}.sav` in the data, the tutorials'),
-    /// empty for a new game (`FUN_14007d180`).
+    // +0x88
+    /// The save to start from (`Save\{name}.sav` in the data, the tutorials'), empty for a new
+    /// game.
+    ///
+    /// Original: `FUN_14007d180`.
     pub save: String,
-    /// `+0x68`, `+0x69`.
+    // +0x68; +0x69
+    /// Not identified yet.
     pub b68: bool,
     pub b69: bool,
 }
 
+/// Read a [`Scenario`] from the bytes of its resource.
 pub fn scenario(data: &[u8]) -> Result<Scenario> {
     let (_, v) = crs::parse(data, |r, h| {
         if h.type_id != type_id("Scenario") {
@@ -181,8 +197,11 @@ fn refs(r: &mut Reader) -> Result<Vec<Option<String>>> {
     (0..r.count()?).map(|_| r.external_ref()).collect()
 }
 
-/// `Tutorial`: `+0x28` its steps, `+0x20` its window (a UIDescription template, opened at the
-/// right edge), `+0x38` the scenario to start when it is done (`FUN_1400e6240`; none below 0).
+// +0x28; +0x20; +0x38
+/// `Tutorial`: its steps, its window (a UIDescription template, opened at the right edge), the
+/// scenario to start when it is done (none below 0).
+///
+/// Original: `FUN_1400e6240`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Tutorial {
     pub steps: Vec<Option<String>>,
@@ -190,9 +209,11 @@ pub struct Tutorial {
     pub next: i32,
 }
 
-/// `TutorialStep`: `+0x20` a checkpoint (a loaded game resumes at the latest one,
-/// `FUN_1400e69f0`), `+0x28` the string table, `+0x30`, `+0x38` the texts before and after,
-/// `+0x40` images, `+0x50` setups, `+0x60` goals (`FUN_1400e7280`).
+// +0x20; +0x28; +0x30; +0x38; +0x40; +0x50; +0x60
+/// `TutorialStep`: a checkpoint (a loaded game resumes at the latest one), the string table, the
+/// texts before and after, images, setups, goals.
+///
+/// Original: `FUN_1400e69f0`, `FUN_1400e7280`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TutorialStep {
     pub checkpoint: bool,
@@ -204,6 +225,7 @@ pub struct TutorialStep {
     pub goals: Vec<Option<String>>,
 }
 
+/// One part of a tutorial: the tutorial itself, a step, or a set-up dialog.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TutorialPart {
     Tutorial(Tutorial),
@@ -255,6 +277,7 @@ pub enum TutorialPart {
     },
 }
 
+/// What a tutorial image adds: a key name, an input key, or a toolbar icon.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImageExtra {
     None,
@@ -263,6 +286,7 @@ pub enum ImageExtra {
     ToolbarIcon(String),
 }
 
+/// Read a [`TutorialPart`] from the bytes of its resource.
 pub fn tutorial_part(data: &[u8]) -> Result<TutorialPart> {
     let (_, v) = crs::parse(data, |r, h| {
         let t = h.type_id;

@@ -1,4 +1,6 @@
-//! LZF decompression (`System::Compression::Decompress`, Runtime 0x1800c6ed0).
+//! LZF decompression (`System::Compression::Decompress`).
+//!
+//! Original: Runtime `0x1800c6ed0`.
 
 use crate::error::{format_err, Result};
 
