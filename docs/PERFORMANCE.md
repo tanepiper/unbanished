@@ -31,6 +31,9 @@ BANISHED_PROFILE=1 target/release/banished --boot-capture /tmp/p.png 75 \
   `hitch: frame 333 took 48.9 ms (median 4.3): draw.update_instances 44.6, ...`.
 - **Summary:** every 600 frames, each phase's median, 95th percentile and worst time.
 
+`BANISHED_THREADS=1` makes loading use one thread (the default is one per core), to compare
+the parallel loading with the sequential one.
+
 The phases are `update`, `draw`, `sim.iterate`, `sim.town`, `sim.citizens`, `smooth`,
 `refresh_models`, `refresh_decals`, `refresh_particles`, `refresh_weather`, `audio`,
 `draw.set_scene`, `draw.update_instances` and `draw.upload_decals`. Add more with
@@ -109,8 +112,8 @@ was WMA decoding in `EffectCache::get`, not the emitters themselves:
 
 | Work in the first frame | Time | Now done in |
 |---|---|---|
-| Decoding the ambience's sounds (`Ambience::create`: terrain effects, river, environment, wind, and the buildings' `ambientemitter` slots) | about 165 ms | `ambience::preload`, from `GameplayLoop::load` |
-| Decoding the first music track (`MusicPlayer::update`) | about 250 ms | `MusicPlayer::preload`, from `GameplayLoop::load` |
+| Decoding the ambience's sounds (`Ambience::create`: terrain effects, river, environment, wind, and the buildings' `ambientemitter` slots) | about 165 ms | `ambience::preload_effects`, from `GameplayLoop::load` |
+| Decoding the first music track (`MusicPlayer::update`) | about 250 ms | `MusicPlayer::first_track`, from `GameplayLoop::load` |
 | Building the decals (`refresh_decals`) | 19 ms | `GameplayLoop::load` |
 | Uploading the decals (`draw.upload_decals`) | 38 ms | the world upload (`draw.set_scene`) of the frame that switches loops, while the screen is black |
 
@@ -119,25 +122,84 @@ only fill the effect cache: nothing plays, and the emitters and the music still 
 first gameplay frame, as before. The music preload predicts the track with a copy of the audio
 stream's Random (`Audio::peek_rand_below`) and the month and mood at load time; if the first
 frame's choice differs, that frame decodes its own choice, as before. The decals are rebuilt on
-the first frame only if the town changed since the load.
+the first frame only if the town changed since the load. Since item 4, the loading screen
+decodes all these sounds in one batch on several threads, while the decals are built.
 
 Result: no hitch on the first frames after the load (every frame under the 25 ms threshold).
 The loading frame takes about 330 ms longer, behind the loading dialog, and the switch frame
 (black) 26 ms longer. Captures are byte-identical before and after, and `determinism.sh 22 1234`
 gives identical frames.
 
-### 4. Use more than one core for loading (native)
+### 4. Use more than one core for loading (native) (done)
 
-Loading decodes textures (DXT to RGBA), WMA audio and meshes on one thread, and generates the
-terrain (3.5 s for a small map in the browser).
+Measured with samply (`--before` on the load window) and `BANISHED_PROFILE=hitches`, with the
+headless captures of `tools/triage/determinism.sh` (seed 1234) and `save-game/Save200.sav`
+(Driscola, a 15 MB save). Before the change, loading ran on one thread:
 
-- Decode textures and sounds in parallel (for example with `rayon`): each decode is a pure
-  function of its file, so the result is identical.
-- Terrain generation uses the game's `Random` in a fixed order, so only parts that do not draw
-  random numbers can run in parallel, and only if the result stays bit-identical.
-- Risk: low for decoding; high for anything that uses `Random`.
+| Where the time went | Share | What it is |
+|---|---|---|
+| Startup (`Registry::build`) | about 200 of 335 ms | reading and scanning every resource the game's root list reaches (LZF decompression) |
+| Menu load | about 165 of 275 ms | decoding the menu music (WMA) |
+| First menu frame (`draw.set_scene`) | about 70 of 112 ms | DXT to RGBA decoding of the scene's textures (`decode_rgba`) |
+| New Game load | 1 040 ms | `Generator::stage4_downhill` (terrain, uses `Random`, cannot be split) |
+| | about 200 ms | `Generator::surface_map` (terrain surface image) |
+| | about 335 ms | decoding the ambience's sounds and the first music track (item 3) |
+| Save load | about 600 ms | `StartingTown::from_save`, mostly `SavedGame::component` (one thread, see below) |
+| | about 335 ms | the same sound decoding |
+| | about 65 ms | meshes and their textures (`SceneModels::from_instances`) |
+
+`banished_formats::par` runs work that is a pure function of one item on several threads with
+`std::thread::scope` (no new dependency). Results come back in input order, so the output is
+the same as from one thread. Where it is used:
+
+- `Registry::build`: each wave of newly found resources is read and scanned in parallel; then
+  the original depth-first walk runs over the results. A test compares it with the walk that
+  reads one resource at a time (`the_registry_matches_a_walk_in_order`).
+- `decode_rgba`: levels of 512 × 512 texels or more decode in bands of 8 block rows. A test
+  compares the bands with one pass (`banded_decode_matches_one_pass`).
+- `EffectCache::prepare`: all the sound buffers of all the effects asked for decode in
+  parallel. One WMA stream cannot be split (the decoder carries the noise table index, the
+  previous exponents and the bit reservoir from frame to frame), so the long music tracks run
+  next to other work instead: the menu music decodes while the menu scene loads, and the
+  gameplay sounds decode while the decals are built (`par::join`).
+- `SceneModels::from_menu_scene` and `from_instances`: the meshes, then the textures not in the
+  cache, are read in parallel; then the groups take their textures from the cache in order.
+- `Generator::surface_map`: the two `Random` draws come first, as before; then every texel is
+  a function of the finished height grid, so the rows are computed in parallel. The emulator
+  test (`TERRAIN_STAGES=5 cargo test -p banished-game --test terrain_emu`) gives a bit-exact
+  surface image for all four emulated maps.
+
+Nothing that draws from `Random` or depends on the order of work runs in parallel: the terrain
+stages, seeding and the simulation are unchanged. `BANISHED_THREADS=1` runs everything on one
+thread and gives the same times as before the change.
+
+Results, median of five runs, milliseconds (the test machine has 14 cores: 10 performance, 4
+efficiency):
+
+| Step | Before | After |
+|---|---|---|
+| Start to the loader loop (packages, registry, renderer) | 335 | 146 |
+| Menu load (frame 71) | 276 | 172 |
+| First menu frame, texture uploads (frame 93) | 112 | 81 |
+| New Game, loading frame (`World::generate` and the town) | 1 853 | 1 497 |
+| Loading `Save200.sav`, loading frame | 1 067 | 790 |
+
+"Before" is commit 46f9a2d (item 3 included, which moved about 335 ms of sound decoding into
+these loading frames). The menu, New Game (seeds 1234 and 4321, 22 s) and save captures are
+byte-identical to it, and `determinism.sh 22 1234` gives identical frames.
+
+What is left:
+
+- `stage4_downhill` (about 1 s on a small map) moves one drop at a time and each drop reads
+  the heights the previous one wrote: it cannot run in parallel and stay 1:1.
+- `SavedGame::component` looks up an entity's components through its field list on every
+  call; caching the lookup would save most of 600 ms on a large save. That is single-thread
+  work, not parallelism.
+- The first menu frame after the menu load opens the audio output (rodio and CoreAudio,
+  about 85 ms, frame 94).
 - Browser: wasm threads need `SharedArrayBuffer`, which needs cross-origin isolation headers
-  (COOP/COEP). GitHub Pages cannot set headers; a service worker can add them. Measure first.
+  (COOP/COEP). GitHub Pages cannot set headers; a service worker can add them. The wasm32
+  build runs `par` in order on the calling thread.
 
 ### 5. Simulation on its own thread (only at high game speed)
 

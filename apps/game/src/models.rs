@@ -215,6 +215,85 @@ fn load_group(
     textures: &mut HashMap<String, ModelImage>,
     pose: Option<&[Transform]>,
 ) -> Option<ModelAsset> {
+    let pending = read_group(archive, mesh_ref, material, pose)?;
+    Some(pending.finish(&mut |r| cached(archive, textures, r)))
+}
+
+/// A texture from the scene's cache, read on first use.
+fn cached(
+    archive: &Archive,
+    textures: &mut HashMap<String, ModelImage>,
+    reference: Option<String>,
+) -> ModelImage {
+    let r = reference?;
+    textures
+        .entry(r.clone())
+        .or_insert_with(|| image(archive, Some(&r)).map(std::sync::Arc::new))
+        .clone()
+}
+
+/// [`load_group`] for many groups: the meshes, then the textures not in the cache yet, are
+/// read on several threads (native; each is a pure function of its resource), then the
+/// groups take their textures from the cache in order, so the result is the same.
+fn load_groups(
+    archive: &Archive,
+    groups: &[(&str, &GroupMaterial, Option<&[Transform]>)],
+    textures: &mut HashMap<String, ModelImage>,
+) -> Vec<Option<ModelAsset>> {
+    let pending = banished_formats::par::map(groups, |&(mesh_ref, material, pose)| {
+        read_group(archive, mesh_ref, material, pose)
+    });
+    let mut missing: Vec<String> = Vec::new();
+    for r in pending.iter().flatten().flat_map(PendingAsset::references) {
+        if !textures.contains_key(r) && !missing.iter().any(|m| m == r) {
+            missing.push(r.to_string());
+        }
+    }
+    let images = banished_formats::par::map(&missing, |r| {
+        image(archive, Some(r)).map(std::sync::Arc::new)
+    });
+    textures.extend(missing.into_iter().zip(images));
+    pending
+        .into_iter()
+        .map(|p| Some(p?.finish(&mut |r| cached(archive, textures, r))))
+        .collect()
+}
+
+/// A group's mesh and materials, read without the texture cache: the ranges' textures are
+/// still references (the AO texture, then each range's snow, damage and diffuse).
+struct PendingAsset {
+    asset: ModelAsset,
+    ao: Option<String>,
+    textures: Vec<[Option<String>; 3]>,
+}
+
+impl PendingAsset {
+    fn references(&self) -> impl Iterator<Item = &str> {
+        self.ao
+            .iter()
+            .chain(self.textures.iter().flatten().flatten())
+            .map(String::as_str)
+    }
+
+    /// Fill in the textures, in `load_group`'s order.
+    fn finish(mut self, cached: &mut impl FnMut(Option<String>) -> ModelImage) -> ModelAsset {
+        let ao = cached(self.ao);
+        for (range, [snow, damage, diffuse]) in self.asset.ranges.iter_mut().zip(self.textures) {
+            range.snow = cached(snow);
+            range.damage = cached(damage);
+            range.diffuse = cached(diffuse);
+            range.ao = ao.clone();
+        }
+        self.asset
+    }
+}
+
+fn read_group(
+    archive: &Archive,
+    mesh_ref: &str,
+    material: &GroupMaterial,
+    pose: Option<&[Transform]>,
+) -> Option<PendingAsset> {
     let mesh = graphics_mesh(&archive.read_ref(&with_object(mesh_ref)).ok()?)
         .map_err(|e| log::warn!("{mesh_ref}: {e}"))
         .ok()?;
@@ -228,15 +307,8 @@ fn load_group(
         }
     }
     let set = set.as_deref();
-    let mut cached = |r: Option<String>| -> ModelImage {
-        let r = r?;
-        textures
-            .entry(r.clone())
-            .or_insert_with(|| image(archive, Some(&r)).map(std::sync::Arc::new))
-            .clone()
-    };
-    let ao = cached(part.ao_texture.clone());
     let mut ranges = Vec::new();
+    let mut textures = Vec::new();
     // Instances without their own pose are skinned in the given group pose (shared
     // `Animation::GetPoseAtTime`), otherwise the bind pose.
     let default_palette = match pose {
@@ -265,23 +337,28 @@ fn load_group(
         });
         ranges.push(RangeData {
             kind: m.kind,
-            snow: cached(m.snow),
-            damage: cached(m.damage),
+            snow: None,
+            damage: None,
             vertices: vertices.to_vec(),
             indices,
             index_count: range.index_count as u32,
-            diffuse: cached(m.diffuse),
-            ao: ao.clone(),
+            diffuse: None,
+            ao: None,
             rigid: m.rigid.to_matrix(),
             skinned: m.skinned,
         });
+        textures.push([m.snow, m.damage, m.diffuse]);
     }
     let animation_bone = banished_gfx::model::animation_bone(part);
-    Some(ModelAsset {
-        ranges,
-        bones: mesh.bones,
-        animation_bone,
-        default_palette,
+    Some(PendingAsset {
+        ao: part.ao_texture.clone(),
+        asset: ModelAsset {
+            ranges,
+            bones: mesh.bones,
+            animation_bone,
+            default_palette,
+        },
+        textures,
     })
 }
 
@@ -303,16 +380,27 @@ impl SceneModels {
         let mut textures = HashMap::new();
         let mut keys: Vec<_> = by_key.keys().copied().collect();
         keys.sort();
+        let jobs: Vec<_> = keys
+            .into_iter()
+            .filter_map(|key| {
+                let Some(Some(mesh_ref)) = scene.meshes.get(key.0 as usize) else {
+                    return None;
+                };
+                let material = GroupMaterial {
+                    set: key.1.max(0) as usize,
+                    first: None,
+                };
+                Some((key, mesh_ref, material))
+            })
+            .collect();
+        let requests: Vec<_> = jobs
+            .iter()
+            .map(|(_, mesh_ref, material)| (mesh_ref.as_str(), material, None))
+            .collect();
+        let assets = load_groups(archive, &requests, &mut textures);
         let mut groups = Vec::new();
-        for key in keys {
-            let Some(Some(mesh_ref)) = scene.meshes.get(key.0 as usize) else {
-                continue;
-            };
-            let material = GroupMaterial {
-                set: key.1.max(0) as usize,
-                first: None,
-            };
-            let Some(asset) = load_group(archive, mesh_ref, &material, &mut textures, None) else {
+        for ((key, mesh_ref, material), asset) in jobs.into_iter().zip(assets) {
+            let Some(asset) = asset else {
                 continue;
             };
             let mut group = asset.into_group(mesh_ref.clone(), material);
@@ -339,16 +427,16 @@ impl SceneModels {
     /// by the game (natural resources, buildings).
     pub fn from_instances(archive: &Archive, instances: Vec<GroupInstances>) -> SceneModels {
         let mut textures = HashMap::new();
+        let requests: Vec<_> = instances
+            .iter()
+            .map(|(mesh_ref, material, _, pose)| (mesh_ref.as_str(), material, pose.as_deref()))
+            .collect();
+        let assets = load_groups(archive, &requests, &mut textures);
         let groups = instances
             .into_iter()
-            .filter_map(|(mesh_ref, material, instances, pose)| {
-                let asset = load_group(
-                    archive,
-                    &mesh_ref,
-                    &material,
-                    &mut textures,
-                    pose.as_deref(),
-                )?;
+            .zip(assets)
+            .filter_map(|((mesh_ref, material, instances, _), asset)| {
+                let asset = asset?;
                 let mut group = asset.into_group(mesh_ref, material);
                 group.set_instances(instances);
                 Some(group)

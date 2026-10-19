@@ -66,6 +66,16 @@ impl Audio {
         self.cache.get(archive, reference)
     }
 
+    /// The effects of `references` that are not in the cache yet.
+    pub fn missing_effects<'a>(&self, references: &[&'a str]) -> Vec<&'a str> {
+        self.cache.missing(references)
+    }
+
+    /// Put effects decoded elsewhere ([`banished_audio::EffectCache::prepare`]) in the cache.
+    pub fn add_prepared(&mut self, prepared: banished_audio::Prepared) {
+        self.cache.add(prepared);
+    }
+
     /// `Scene::PlayEffect`.
     pub fn play(&mut self, archive: &Archive, reference: &str, kind: u32) -> u32 {
         match self.effect(archive, reference) {

@@ -94,74 +94,82 @@ impl Generator {
             }
         }
 
+        // Each texel depends only on the finished cells (no Random), so the rows are computed
+        // on several threads (native); every row is written by one thread, in the same order of
+        // operations as one pass.
         let mut out = vec![0u32; (n * n) as usize];
-        for y in 0..n {
+        let mut rows: Vec<(i32, &mut [u32])> = out
+            .chunks_mut(n as usize)
+            .enumerate()
+            .map(|(y, row)| (y as i32, row))
+            .collect();
+        banished_formats::par::map_mut(&mut rows, |(y, row)| {
             for x in 0..n {
-                let c = &cells[(y * n + x) as usize];
-                let h = c.pos[2];
-                let up = c.normal[2];
-                let mut r = if LOW <= h {
-                    let v = noise.generate(x as f32 * NOISE_SCALE, y as f32 * NOISE_SCALE);
-                    let v = v * 0.5 + 0.5;
-                    byte(v * v * 255.0)
-                } else {
-                    0xff
-                };
-                let mut g = if FLAT > up && up > STEEP {
-                    byte((1.0 - (up - STEEP) / SLOPE_RANGE) * 255.0)
-                } else if STEEP >= up {
-                    0xff
-                } else {
-                    0
-                };
-                if h > R_HEIGHT {
-                    r = r.max(height_ramp(h, R_HEIGHT));
-                }
-                if h > G_HEIGHT {
-                    g = g.max(height_ramp(h, G_HEIGHT));
-                }
-                out[(y * n + x) as usize] = (g & 0xff) << 8 | (r & 0xff);
+                row[x as usize] = surface_texel(&cells, &noise, n, x, *y);
             }
-        }
-
-        for y in 0..n {
-            for x in 0..n {
-                let c = &cells[(y * n + x) as usize];
-                let mut occlusion = 0.0f32;
-                let mut count = 0.0f32;
-                let mut smooth = [0.0f32; 3];
-                // The original visits rows -10..=9 but columns -10..=10.
-                for dy in -10..10 {
-                    let ny = y + dy;
-                    if ny < 0 || ny >= n {
-                        continue;
-                    }
-                    for dx in -10..=10 {
-                        let nx = x + dx;
-                        if nx < 0 || nx >= n || dx * dx + dy * dy > 100 {
-                            continue;
-                        }
-                        let o = &cells[(ny * n + nx) as usize];
-                        let dir = normalize([
-                            o.pos[0] - c.pos[0],
-                            o.pos[1] - c.pos[1],
-                            o.pos[2] - c.pos[2],
-                        ]);
-                        let d = dot(c.normal, dir);
-                        occlusion += if d > 0.0 { d } else { 0.0 };
-                        count += 1.0;
-                        if dx.abs() <= 1 && dy.abs() <= 1 {
-                            for (s, n) in smooth.iter_mut().zip(o.normal) {
-                                *s += n;
-                            }
-                        }
-                    }
-                }
-                let smooth = normalize(smooth);
-                let b = byte((1.0 - occlusion / count) * smooth[2] * 255.0);
-                out[(y * n + x) as usize] |= b << 16;
-            }
-        }
+        });
         out
     }
+}
+
+/// One texel of `surface_map`: dirt from the noise below `LOW`, rock from the slope, both
+/// raised by height, then the light (occlusion over a radius of 10 cells times the smoothed
+/// normal's z).
+fn surface_texel(cells: &[Cell], noise: &PerlinNoise, n: i32, x: i32, y: i32) -> u32 {
+    let c = &cells[(y * n + x) as usize];
+    let h = c.pos[2];
+    let up = c.normal[2];
+    let mut r = if LOW <= h {
+        let v = noise.generate(x as f32 * NOISE_SCALE, y as f32 * NOISE_SCALE);
+        let v = v * 0.5 + 0.5;
+        byte(v * v * 255.0)
+    } else {
+        0xff
+    };
+    let mut g = if FLAT > up && up > STEEP {
+        byte((1.0 - (up - STEEP) / SLOPE_RANGE) * 255.0)
+    } else if STEEP >= up {
+        0xff
+    } else {
+        0
+    };
+    if h > R_HEIGHT {
+        r = r.max(height_ramp(h, R_HEIGHT));
+    }
+    if h > G_HEIGHT {
+        g = g.max(height_ramp(h, G_HEIGHT));
+    }
+    let mut occlusion = 0.0f32;
+    let mut count = 0.0f32;
+    let mut smooth = [0.0f32; 3];
+    // The original visits rows -10..=9 but columns -10..=10.
+    for dy in -10..10 {
+        let ny = y + dy;
+        if ny < 0 || ny >= n {
+            continue;
+        }
+        for dx in -10..=10 {
+            let nx = x + dx;
+            if nx < 0 || nx >= n || dx * dx + dy * dy > 100 {
+                continue;
+            }
+            let o = &cells[(ny * n + nx) as usize];
+            let dir = normalize([
+                o.pos[0] - c.pos[0],
+                o.pos[1] - c.pos[1],
+                o.pos[2] - c.pos[2],
+            ]);
+            let d = dot(c.normal, dir);
+            occlusion += if d > 0.0 { d } else { 0.0 };
+            count += 1.0;
+            if dx.abs() <= 1 && dy.abs() <= 1 {
+                for (s, n) in smooth.iter_mut().zip(o.normal) {
+                    *s += n;
+                }
+            }
+        }
+    }
+    let smooth = normalize(smooth);
+    let b = byte((1.0 - occlusion / count) * smooth[2] * 255.0);
+    ((g & 0xff) << 8 | (r & 0xff)) | b << 16
 }

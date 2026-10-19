@@ -71,22 +71,18 @@ impl MusicPlayer {
         }
     }
 
-    /// Decode, into the effect cache, the track [`MusicPlayer::update`] would start now,
-    /// without drawing from the audio stream or playing anything. Called while the loading
-    /// screen shows, so that the first gameplay frame does not decode the first track. If the
-    /// month or the mood changes before that frame, `update` still makes its own choice.
-    pub fn preload(&self, audio: &mut Audio, archive: &Archive, month: i32, mood: f32) {
+    /// The effect of the track [`MusicPlayer::update`] would start now, without drawing from
+    /// the audio stream or playing anything. The loading screen decodes it into the effect
+    /// cache, so that the first gameplay frame does not. If the month or the mood changes
+    /// before that frame, `update` still makes its own choice.
+    pub fn first_track(&self, audio: &Audio, month: i32, mood: f32) -> Option<String> {
         if audio.scene.is_effect_playing(self.handle) {
-            return;
+            return None;
         }
         let month = if month > 11 { 0 } else { month };
         let peek = |n| audio.peek_rand_below(n);
-        let Some(i) = choose(&self.tracks, month, mood, self.last.as_deref(), peek) else {
-            return;
-        };
-        if let Some(effect) = &self.tracks[i].effect {
-            audio.effect(archive, &effect.replace('\\', "/"));
-        }
+        let i = choose(&self.tracks, month, mood, self.last.as_deref(), peek)?;
+        Some(self.tracks[i].effect.as_ref()?.replace('\\', "/"))
     }
 
     /// `FUN_1400a95b0`. `month` is `(int)(seconds / 3600 × 12)`, 0 past 11.

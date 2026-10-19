@@ -434,11 +434,18 @@ impl GameLoop for MenuLoop {
         {
             self.scene_index = forced;
         }
-        match load_menu_scene(ctx, self.scene_index) {
+        // `FUN_14009fe00`: the menu music SoundEffect, loaded with the scene. It decodes on
+        // another thread while the scene loads (native); nothing plays until `startup`.
+        let archive: &banished_formats::pkg::Archive = ctx.archive;
+        let (music, scene) = banished_formats::par::join(
+            || banished_audio::EffectCache::prepare(archive, &[MENU_MUSIC]),
+            || load_menu_scene(ctx, self.scene_index),
+        );
+        match scene {
             Ok(view) => self.scene = Some(view),
             Err(e) => log::error!("menu scene {}: {e}", self.scene_index),
         }
-        // `FUN_14009fe00`: the menu music SoundEffect, loaded with the scene.
+        ctx.audio.add_prepared(music);
         if ctx.audio.effect(ctx.archive, MENU_MUSIC).is_none() {
             log::error!("menu music: {MENU_MUSIC} did not load");
         }

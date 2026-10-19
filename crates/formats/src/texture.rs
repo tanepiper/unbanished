@@ -65,44 +65,106 @@ pub fn decode_rgba(format: ImageFormat, width: u32, height: u32, data: &[u8]) ->
         }
         ImageFormat::Bc1 | ImageFormat::Bc3 => {
             let bc3 = format == ImageFormat::Bc3;
-            let size = if bc3 { 16 } else { 8 };
-            let (bw, bh) = (w.div_ceil(4), h.div_ceil(4));
-            for by in 0..bh {
-                for bx in 0..bw {
-                    let mut o = (by * bw + bx) * size;
-                    let blk = data.get(o..o + size)?;
-                    let alpha = bc3.then(|| {
-                        let bits = u64::from_le_bytes([
-                            blk[2], blk[3], blk[4], blk[5], blk[6], blk[7], 0, 0,
-                        ]);
-                        (bc3_alpha(blk[0], blk[1]), bits)
-                    });
-                    if bc3 {
-                        o += 8;
-                    }
-                    let c0 = u16::from_le_bytes([data[o], data[o + 1]]);
-                    let c1 = u16::from_le_bytes([data[o + 2], data[o + 3]]);
-                    let bits = u32::from_le_bytes(data[o + 4..o + 8].try_into().unwrap());
-                    let pal = bc1_palette(c0, c1, bc3);
-                    for py in 0..4 {
-                        for px in 0..4 {
-                            let (x, y) = (bx * 4 + px, by * 4 + py);
-                            if x >= w || y >= h {
-                                continue;
-                            }
-                            let k = py * 4 + px;
-                            let mut c = pal[((bits >> (2 * k)) & 3) as usize];
-                            if let Some((table, abits)) = alpha {
-                                c[3] = table[((abits >> (3 * k)) & 7) as usize];
-                            }
-                            let p = (y * w + x) * 4;
-                            out[p..p + 4].copy_from_slice(&c);
-                        }
-                    }
-                }
+            // Large levels decode in bands of block rows on several threads (native); every
+            // band writes only its own rows, so the result is the same as in one pass.
+            let rows_per_band = if w * h >= PARALLEL_TEXELS {
+                8
+            } else {
+                h.div_ceil(4)
+            };
+            let mut bands: Vec<(usize, &mut [u8])> = out
+                .chunks_mut(rows_per_band * 4 * w * 4)
+                .enumerate()
+                .map(|(i, band)| (i * rows_per_band, band))
+                .collect();
+            let decoded = crate::par::map_mut(&mut bands, |(by0, band)| {
+                decode_bc_rows(data, w, h, bc3, *by0, band)
+            });
+            if decoded.contains(&None) {
+                return None;
             }
         }
         ImageFormat::R32F | ImageFormat::R24G8 => return None,
     }
     Some(out)
+}
+
+/// Levels with at least this many texels decode on several threads.
+const PARALLEL_TEXELS: usize = 512 * 512;
+
+/// Decode the BC1/BC3 blocks of block rows `by0..` into `band`, the RGBA8 rows they cover;
+/// `None` when the data ends early.
+fn decode_bc_rows(
+    data: &[u8],
+    w: usize,
+    h: usize,
+    bc3: bool,
+    by0: usize,
+    band: &mut [u8],
+) -> Option<()> {
+    let size = if bc3 { 16 } else { 8 };
+    let bw = w.div_ceil(4);
+    let band_rows = band.len() / (w * 4);
+    for by in by0..by0 + band_rows.div_ceil(4) {
+        for bx in 0..bw {
+            let mut o = (by * bw + bx) * size;
+            let blk = data.get(o..o + size)?;
+            let alpha = bc3.then(|| {
+                let bits =
+                    u64::from_le_bytes([blk[2], blk[3], blk[4], blk[5], blk[6], blk[7], 0, 0]);
+                (bc3_alpha(blk[0], blk[1]), bits)
+            });
+            if bc3 {
+                o += 8;
+            }
+            let c0 = u16::from_le_bytes([data[o], data[o + 1]]);
+            let c1 = u16::from_le_bytes([data[o + 2], data[o + 3]]);
+            let bits = u32::from_le_bytes(data[o + 4..o + 8].try_into().unwrap());
+            let pal = bc1_palette(c0, c1, bc3);
+            for py in 0..4 {
+                for px in 0..4 {
+                    let (x, y) = (bx * 4 + px, by * 4 + py);
+                    if x >= w || y >= h {
+                        continue;
+                    }
+                    let k = py * 4 + px;
+                    let mut c = pal[((bits >> (2 * k)) & 3) as usize];
+                    if let Some((table, abits)) = alpha {
+                        c[3] = table[((abits >> (3 * k)) & 7) as usize];
+                    }
+                    let p = ((y - by0 * 4) * w + x) * 4;
+                    band[p..p + 4].copy_from_slice(&c);
+                }
+            }
+        }
+    }
+    Some(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Large levels decode in bands on several threads; the result must equal one pass over
+    /// the whole level, for sizes that do and do not fill whole blocks and bands.
+    #[test]
+    fn banded_decode_matches_one_pass() {
+        let mut seed = 0x1234_5678u32;
+        for (format, size) in [(ImageFormat::Bc1, 8), (ImageFormat::Bc3, 16)] {
+            for (w, h) in [(1024, 1024), (1022, 1030), (600, 514), (64, 64)] {
+                let blocks = (w as usize).div_ceil(4) * (h as usize).div_ceil(4);
+                let data: Vec<u8> = (0..blocks * size)
+                    .map(|_| {
+                        seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12_345);
+                        (seed >> 16) as u8
+                    })
+                    .collect();
+                let (wu, hu) = (w as usize, h as usize);
+                let mut whole = vec![0u8; wu * hu * 4];
+                decode_bc_rows(&data, wu, hu, format == ImageFormat::Bc3, 0, &mut whole).unwrap();
+                assert_eq!(decode_rgba(format, w, h, &data).unwrap(), whole, "{w}x{h}");
+                assert!(decode_rgba(format, w, h, &data[..data.len() - 1]).is_none());
+            }
+        }
+    }
 }

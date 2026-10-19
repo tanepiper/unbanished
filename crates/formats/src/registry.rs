@@ -67,6 +67,41 @@ pub fn references(data: &[u8]) -> Vec<String> {
     out
 }
 
+/// Each resource `roots` reach (by key), with its type id and pointers, or `None` when it
+/// cannot be read. Reading and scanning a resource depends only on its bytes, so each wave of
+/// newly found resources is read in parallel; [`Registry::build`] then walks them in the
+/// factory's order.
+type Parsed = BTreeMap<String, Option<(u32, Vec<String>)>>;
+
+fn parse_reachable(archive: &Archive, roots: &[String]) -> Parsed {
+    let mut parsed = Parsed::new();
+    let mut wave: Vec<String> = roots.iter().map(|r| key(r)).collect();
+    while !wave.is_empty() {
+        wave.sort_unstable();
+        wave.dedup();
+        let results = crate::par::map(&wave, |k| {
+            let data = archive.read(&ref_to_entry(k)).ok()?;
+            let header = crate::crs::header(&data).ok()?;
+            Some((header.type_id, references(&data)))
+        });
+        let mut next = Vec::new();
+        for (k, result) in wave.into_iter().zip(results) {
+            if let Some((_, children)) = &result {
+                next.extend(
+                    children
+                        .iter()
+                        .map(|c| key(c))
+                        .filter(|c| !parsed.contains_key(c)),
+                );
+            }
+            parsed.insert(k, result);
+        }
+        next.retain(|c| !parsed.contains_key(c));
+        wave = next;
+    }
+    parsed
+}
+
 fn is_reference(s: &str) -> bool {
     let path = s.split(':').next().unwrap_or("");
     path.len() > 4
@@ -85,6 +120,7 @@ pub struct Registry {
 impl Registry {
     /// Load `roots` and everything they reach.
     pub fn build(archive: &Archive, roots: &[String]) -> Registry {
+        let parsed = parse_reachable(archive, roots);
         let mut loaded = BTreeMap::new();
         let mut seen = BTreeSet::new();
         let mut stack: Vec<String> = roots.iter().rev().cloned().collect();
@@ -93,10 +129,7 @@ impl Registry {
             if !seen.insert(k.clone()) {
                 continue;
             }
-            let Ok(data) = archive.read(&ref_to_entry(&k)) else {
-                continue;
-            };
-            let Ok(header) = crate::crs::header(&data) else {
+            let Some(Some((type_id, children))) = parsed.get(&k) else {
                 continue;
             };
             let written = if r.contains(':') {
@@ -104,9 +137,9 @@ impl Registry {
             } else {
                 format!("{}:resource", r.replace('/', "\\"))
             };
-            loaded.insert(k, (header.type_id, written));
-            for child in references(&data).into_iter().rev() {
-                stack.push(child);
+            loaded.insert(k, (*type_id, written));
+            for child in children.iter().rev() {
+                stack.push(child.clone());
             }
         }
         Registry { loaded }

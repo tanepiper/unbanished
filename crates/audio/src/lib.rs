@@ -6,7 +6,7 @@ mod device;
 pub mod scene;
 
 pub use device::{pitch_ratio, Channel, Device, PlayParams, Slots, Sound, CHANNELS};
-pub use scene::{sound_type, Effect, EffectCache, Mixer, Scene, Volumes};
+pub use scene::{sound_type, Effect, EffectCache, Mixer, Prepared, Scene, Volumes};
 
 use banished_formats::pkg::Archive;
 use banished_formats::types::{self, SoundBuffer};

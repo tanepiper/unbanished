@@ -2572,20 +2572,32 @@ impl GameLoop for GameplayLoop {
                     // The trader boats' way (MapComponent `+0x1e0`'s first river).
                     town.construction.river = self.river_paths.first().cloned().unwrap_or_default();
                 }
-                // The ambience's sounds decode now, behind the loading screen; its emitters
-                // still start on the first gameplay frame (`update_audio`).
-                if let Some(town) = &self.town {
-                    crate::ambience::preload(ctx.audio, ctx.archive, town);
-                }
-                // So does the first music track.
+                // The ambience's sounds decode now, behind the loading screen, together with
+                // the first music track; the emitters and the music still start on the first
+                // gameplay frame (`update_audio`).
+                let mut effects = self
+                    .town
+                    .as_ref()
+                    .map(|town| crate::ambience::preload_effects(ctx.archive, town))
+                    .unwrap_or_default();
                 let (month, mood) = self.music_month_mood();
-                self.music
-                    .get_or_insert_with(|| crate::music::MusicPlayer::load(ctx.archive))
-                    .preload(ctx.audio, ctx.archive, month, mood);
+                effects.extend(
+                    self.music
+                        .get_or_insert_with(|| crate::music::MusicPlayer::load(ctx.archive))
+                        .first_track(ctx.audio, month, mood),
+                );
                 self.view = Some(view);
                 // The decals are built now too, so the renderer uploads them with the world;
-                // the first frame rebuilds them only if the town changed meanwhile.
-                self.refresh_decals(ctx.archive);
+                // the first frame rebuilds them only if the town changed meanwhile. The sounds
+                // decode on other threads meanwhile (native).
+                let archive: &banished_formats::pkg::Archive = ctx.archive;
+                let effects: Vec<&str> = effects.iter().map(String::as_str).collect();
+                let effects = ctx.audio.missing_effects(&effects);
+                let (sounds, ()) = banished_formats::par::join(
+                    || banished_audio::EffectCache::prepare(archive, &effects),
+                    || self.refresh_decals(archive),
+                );
+                ctx.audio.add_prepared(sounds);
             }
             Err(e) => log::error!("world generation failed: {e}"),
         }

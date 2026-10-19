@@ -11,6 +11,7 @@ pub mod game;
 pub mod lzf;
 pub mod menu_scene;
 pub mod names;
+pub mod par;
 pub mod picking;
 pub mod pkg;
 pub mod registry;

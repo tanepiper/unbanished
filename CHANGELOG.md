@@ -17,6 +17,10 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 - The engine version is now 0.2.0 (shown as `0.2.0-<build>` until the release).
 - No freeze when the town appears after loading: the ambient sounds, the first music track
   and the decals are now prepared behind the loading screen (about 0.5 s on a large town).
+- Faster loading on computers with more than one CPU core (native builds): resources, sounds,
+  textures, meshes and the terrain's surface image are decoded on all cores. Starting the game,
+  opening the main menu, starting a new game and loading a save take 20–55 % less time. The
+  browser build still loads on one thread.
 
 ## [0.1.0] - 2026-10-19
 

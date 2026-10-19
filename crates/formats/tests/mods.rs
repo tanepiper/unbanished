@@ -65,3 +65,47 @@ fn the_registry_holds_the_game_and_its_mods() {
     assert_eq!(modded.of_type(type_id("Profession")).len(), 23);
     assert_eq!(modded.of_type(type_id("RawMaterialDescription")).len(), 41);
 }
+
+/// `Registry::build` reads the resources in parallel; the result must equal the plain
+/// depth-first walk that reads one resource at a time.
+#[test]
+fn the_registry_matches_a_walk_in_order() {
+    use banished_formats::pkg::ref_to_entry;
+    use banished_formats::registry::references;
+    use std::collections::{BTreeMap, BTreeSet};
+    let Some(a) = base() else {
+        return;
+    };
+    let key = |r: &str| {
+        let r = r.replace('/', "\\").to_ascii_lowercase();
+        if r.contains(':') {
+            r
+        } else {
+            format!("{r}:resource")
+        }
+    };
+    let roots = roots(&[]);
+    let mut loaded = BTreeMap::new();
+    let mut seen = BTreeSet::new();
+    let mut stack: Vec<String> = roots.iter().rev().cloned().collect();
+    while let Some(r) = stack.pop() {
+        let k = key(&r);
+        if !seen.insert(k.clone()) {
+            continue;
+        }
+        let Ok(data) = a.read(&ref_to_entry(&k)) else {
+            continue;
+        };
+        let Ok(header) = banished_formats::crs::header(&data) else {
+            continue;
+        };
+        let written = if r.contains(':') {
+            r.replace('/', "\\")
+        } else {
+            format!("{}:resource", r.replace('/', "\\"))
+        };
+        loaded.insert(k, (header.type_id, written));
+        stack.extend(references(&data).into_iter().rev());
+    }
+    assert_eq!(Registry::build(&a, &roots).loaded, loaded);
+}
