@@ -1,7 +1,8 @@
-//! Readers for Shining Rock engine data (Banished).
-//!
-//! Format notes and the addresses they were recovered from are in `docs/FINDINGS.md`.
-//! Nothing here embeds game data; callers supply bytes from their own install.
+#![doc = include_str!("../README.md")]
+#![doc(
+    html_logo_url = "https://tanepiper.github.io/unbanished/assets/un-banished-icon.svg",
+    html_favicon_url = "https://tanepiper.github.io/unbanished/favicon.svg"
+)]
 
 pub mod audio;
 pub mod crc;
