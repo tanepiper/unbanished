@@ -33,7 +33,7 @@ output in `analysis/`. Never commit it.
   - The `_sat` modifier becomes `clamp(x, 0.0, 1.0)`.
 - World space is the terrain's: x and y in cells, centred on the map; z is up and equals the
   saved height divided by 256.
-- Put the shared `GLOBALS_WGSL` (in `scene_gfx.rs`) at the start, instead of declaring `Globals`
+- Put the shared `GLOBALS_WGSL` (in `apps/game/src/gfx/scene_gfx.rs`) at the start, instead of declaring `Globals`
   again. Call `reflect_clip(world_z)` for the reflection pass of the water.
 
 ## 3. Rules for WGSL and WebGL 2

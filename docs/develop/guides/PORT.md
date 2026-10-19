@@ -15,8 +15,9 @@ it.
 | Game rules, the simulation, generators | `crates/game` | No graphics, windows or sound; deterministic; unit and parity tests |
 | Reading resources and saves | `crates/formats` | No dependencies |
 | Interface elements, controls, layout, input | `crates/ui` | General code only; no rules of the game |
-| Engine loops, game controllers, dialog controllers, input routing | `apps/game/src/*.rs` | One module for each original controller (`toolbar.rs`, `status_bar.rs`, …) |
-| Rendering | `apps/game/src/gfx/render.rs`, `scene_gfx.rs`, `models.rs`, `*.wgsl` | Must also run on WebGL 2 ([Port a shader](SHADER.md)) |
+| Engine loops, game controllers, input routing | `apps/game/src/` (`loops.rs`, `menu.rs`, `gameplay/`) | Follow the original's controllers |
+| Dialog controllers (the game's windows) | `apps/game/src/ui/` | One module for each original controller (`toolbar.rs`, `town_hall_ui.rs`, …) |
+| Rendering | `apps/game/src/gfx/` (`render.rs`, `scene_gfx.rs`, `models.rs`, `*.wgsl`) | Must also run on WebGL 2 ([Port a shader](SHADER.md)) |
 
 ## Keep the original's shape
 
