@@ -32,7 +32,9 @@ identifiers as part of unrelated work.
    findings in prose, tables, addresses (`FUN_1400be770`), offsets (`+0x44`) and constants.
    The one exception is the handful of screenshots in `docs/assets/screenshots/` that show the
    game running for the README and setup guide: compressed WebP of Un-Banished's own frames,
-   made with `tools/screenshots.sh`. Add to them only when the docs need it.
+   made with `tools/screenshots.sh`. The same applies to the short WebM videos of Un-Banished's
+   own frames in `docs/assets/videos/`, made with `tools/videos.sh`. Add to either only when
+   the docs need it, and keep each file small.
 2. **Evidence before code.** Every ported behaviour cites the original function it came from in a
    doc comment (`/// Port of FUN_1400be680: …`). A guess is marked *inferred* or *assumed* in the
    comment and the docs. Check against the decompile or the emulator; don't invent behaviour.
@@ -105,6 +107,7 @@ files directly):
 | Port a material or shader to WGSL | `banished-shader` |
 | Prove a change works (tests, captures, web build) | `banished-verify` |
 | Document, commit and push safely | `banished-land` |
+| Record a video of the game or a model (headless frames to WebM) | `banished-video` |
 
 ### Exactness checklist
 
