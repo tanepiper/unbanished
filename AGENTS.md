@@ -132,6 +132,12 @@ footer ("Version 1.0.7 - Build 170910") comes from the original's resources and 
 - Bump the workspace version only for a release, in its own commit: the minor number for new
   features or parity work, the patch number for fixes only. Before 1.0 there are no
   compatibility promises. Ordinary commits do not change it; the build id identifies them.
+- [CHANGELOG.md](CHANGELOG.md) has an `Unreleased` section. Add a line there for each change a
+  player or contributor would notice.
+- **Releasing `X.Y.Z`:** rename `Unreleased` to `[X.Y.Z] - DATE` in the changelog and add a new
+  empty `Unreleased` section and compare links; commit; tag `vX.Y.Z` (annotated) and push the
+  tag; publish a GitHub release with that changelog section as its notes. Then, in a separate
+  commit, set the workspace version to the next development version (for example `0.2.0`).
 
 ## Before every commit
 
