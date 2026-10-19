@@ -1,19 +1,37 @@
-//! `System::Random` (Runtime-steam-x64.dll 0x1800ca560..0x1800ca8b0): MT19937.
+//! The game's random number generator: a Mersenne Twister (MT19937).
 //!
-//! Layout matches the engine object: a `u32` index followed by 624 state words; `Serialize` writes
-//! the index then the state, which is how saves store it.
+//! The whole simulation draws from one [`Random`], seeded with the map seed. A port must draw the
+//! same numbers in the same order as the original, so every call here matches one call of the
+//! engine's `System::Random`.
+//!
+//! The state is the same as the engine object's: a `u32` index and 624 state words. A save stores
+//! the index, then the words ([`Random::from_parts`] restores them).
+//!
+//! ```
+//! use banished_core::random::Random;
+//!
+//! let mut rng = Random::new(1234);
+//! let die = rng.rand_range(1, 6);
+//! assert!((1..=6).contains(&die));
+//! ```
+//!
+//! Original: `System::Random`, Runtime `0x1800ca560` to `0x1800ca8b0`.
 
-/// Opt-in log of draws for parity checks against the original (`tools/emu/rng_trace.py`,
-/// compared with `tools/triage/rngdiff.py`). Only outermost draws are recorded (`rand_float`
-/// calling `rand` logs once), with the Rust caller's location.
+/// An optional log of draws, to compare the port's draws with the original's.
+///
+/// The original's draws are recorded in the emulator (`tools/emu/rng_trace.py`), and
+/// `tools/triage/rngdiff.py` finds the first draw that differs. Only the outermost draw of a call
+/// is recorded (`rand_float` calling `rand` logs once), with the location of the Rust caller.
 pub mod trace {
     use std::cell::{Cell, RefCell};
     use std::panic::Location;
 
     #[derive(Debug, Clone, PartialEq, Eq)]
+    /// One recorded draw.
     pub struct Draw {
         /// `Rand`, `Rand(n)`, `Rand(lo,hi)`, `RandTol(t)`, `RandFloat`, `RandFloatTol`.
         pub kind: String,
+        /// The Rust code that made the draw.
         pub at: &'static Location<'static>,
     }
 
@@ -72,6 +90,7 @@ pub mod trace {
 const N: usize = 624;
 const M: usize = 397;
 
+/// The game's random number generator. See the [module documentation](self).
 #[derive(Clone, PartialEq, Eq)]
 pub struct Random {
     index: u32,
@@ -87,7 +106,9 @@ impl std::fmt::Debug for Random {
 }
 
 impl Random {
-    /// `Random::Random(unsigned int)` (0x1800ca740).
+    /// A generator seeded with `seed`, as the engine seeds one.
+    ///
+    /// Original: `Random::Random(unsigned int)`, Runtime `0x1800ca740`.
     pub fn new(seed: u32) -> Random {
         let mut state = [0u32; N];
         state[0] = seed;
@@ -100,15 +121,17 @@ impl Random {
         Random { index: 0, state }
     }
 
-    /// Restore from serialized form (index, then 624 words).
+    /// A generator restored from a save: its index, then its 624 state words.
     pub fn from_parts(index: u32, state: [u32; N]) -> Random {
         Random { index, state }
     }
 
+    /// The position of the next word in the state.
     pub fn index(&self) -> u32 {
         self.index
     }
 
+    /// The 624 state words.
     pub fn state(&self) -> &[u32; N] {
         &self.state
     }
@@ -125,7 +148,9 @@ impl Random {
         }
     }
 
-    /// `Rand()` (0x1800ca800).
+    /// The next number, any `u32`.
+    ///
+    /// Original: `Rand()`, Runtime `0x1800ca800`.
     #[track_caller]
     pub fn rand(&mut self) -> u32 {
         let _t = trace::enter(|| "Rand".into());
@@ -144,7 +169,9 @@ impl Random {
         y ^ (y >> 18)
     }
 
-    /// `Rand(unsigned int)` (0x1800ca8b0): `[0, n)`, or 0 when `n == 0` (consumes nothing then).
+    /// A number from 0 to `n - 1`. When `n` is 0, it returns 0 and draws nothing.
+    ///
+    /// Original: `Rand(unsigned int)`, Runtime `0x1800ca8b0`.
     #[track_caller]
     pub fn rand_below(&mut self, n: u32) -> u32 {
         let _t = trace::enter(|| format!("Rand({n})"));
@@ -154,7 +181,9 @@ impl Random {
         self.rand() % n
     }
 
-    /// `Rand(int, int)` (0x1800ca5e0): inclusive range.
+    /// A number from `lo` to `hi`, both included.
+    ///
+    /// Original: `Rand(int, int)`, Runtime `0x1800ca5e0`.
     #[track_caller]
     pub fn rand_range(&mut self, lo: i32, hi: i32) -> i32 {
         let _t = trace::enter(|| format!("Rand({lo},{hi})"));
@@ -162,7 +191,9 @@ impl Random {
         lo.wrapping_add((r % ((hi.wrapping_sub(lo) as u32).wrapping_add(1))) as i32)
     }
 
-    /// `RandTol(int)` (0x1800ca610): `[-t, t]`.
+    /// A number from `-t` to `t`, both included.
+    ///
+    /// Original: `RandTol(int)`, Runtime `0x1800ca610`.
     #[track_caller]
     pub fn rand_tol(&mut self, t: i32) -> i32 {
         let _t = trace::enter(|| format!("RandTol({t})"));
@@ -170,14 +201,18 @@ impl Random {
         (r % ((t as u32).wrapping_mul(2).wrapping_add(1))) as i32 - t
     }
 
-    /// `RandFloat()` (0x1800ca5b0): `[0, 1)` as `(float)u * 2^-32`.
+    /// A float from 0 to 1, 1 not included: `(float)u × 2⁻³²`.
+    ///
+    /// Original: `RandFloat()`, Runtime `0x1800ca5b0`.
     #[track_caller]
     pub fn rand_float(&mut self) -> f32 {
         let _t = trace::enter(|| "RandFloat".into());
         self.rand() as f32 * 2.328_306_4e-10
     }
 
-    /// `RandFloatTol()` (0x1800ca870): `1 - (float)u * 2^-32 * 2`, in `(-1, 1]`.
+    /// A float from -1 to 1, -1 not included: `1 − (float)u × 2⁻³² × 2`.
+    ///
+    /// Original: `RandFloatTol()`, Runtime `0x1800ca870`.
     #[track_caller]
     pub fn rand_float_tol(&mut self) -> f32 {
         let _t = trace::enter(|| "RandFloatTol".into());

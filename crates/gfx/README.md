@@ -85,7 +85,7 @@ often has no support for BC-compressed textures, and uploads the result as an sR
   `downlevel_webgl2_defaults` limits.
 - In WGSL, do every texture sample before any `discard`.
 
-[Port a shader](../../docs/develop/guides/SHADER.md) explains these rules.
+[Port a shader](https://tanepiper.github.io/unbanished/develop/guides/shader) explains these rules.
 
 ## The API
 

@@ -16,8 +16,8 @@ target/release/banished /path/to/Banished/WinData
 
 Without a path, the game looks for `WinData` next to the program, then for
 `game-data/original/WinData` in the project folder (made by `tools/extract-assets.sh`). The
-[setup guide](../../docs/USER-GUIDE.md) explains every step for Windows, macOS and Linux, and
-[Building](../../docs/develop/BUILDING.md) explains the browser build.
+[setup guide](https://tanepiper.github.io/unbanished/guide/) explains every step for Windows, macOS and Linux, and
+[Building](https://tanepiper.github.io/unbanished/develop/building) explains the browser build.
 
 ## Command-line options
 
@@ -33,13 +33,13 @@ Without a path, the game looks for `WinData` next to the program, then for
 | Variable | Effect |
 |---|---|
 | `BANISHED_USER_DIR` | The folder that holds `Save` and `Screenshots`. The default is `Documents/Banished`. |
-| `BANISHED_SETTINGS` | The settings file. The default is in the system's configuration folder (see [Saves and settings](../../docs/USER-GUIDE.md#settings)). |
+| `BANISHED_SETTINGS` | The settings file. The default is in the system's configuration folder (see [Saves and settings](https://tanepiper.github.io/unbanished/guide/saves)). |
 | `BANISHED_SEED` | Fixes the seed of new games and of the menu's own random numbers (for captures and tests) |
 | `BANISHED_MENU_SCENE` | Shows this main-menu scene (0 to 9) instead of a random one |
-| `BANISHED_PROFILE` | `1` logs slow frames and frame-time summaries; `hitches` logs slow frames only. See [Performance](../../docs/PERFORMANCE.md). |
+| `BANISHED_PROFILE` | `1` logs slow frames and frame-time summaries; `hitches` logs slow frames only. See [Performance](https://tanepiper.github.io/unbanished/develop/performance). |
 | `BANISHED_THREADS` | How many threads loading uses. The default is one for each CPU core; `1` loads on one thread. |
 | `RUST_LOG` | How much the log shows, for example `RUST_LOG=debug` |
-| `UNBANISHED_BUILD` | At build time: the build id in the version (see [Building](../../docs/develop/BUILDING.md#the-build-id)) |
+| `UNBANISHED_BUILD` | At build time: the build id in the version (see [Building](https://tanepiper.github.io/unbanished/develop/building#the-build-id)) |
 
 In the browser, `?data=URL` loads the game data from a folder on a server (for
 `tools/dev-web.sh`), and `?profile` turns on the frame profiler.
@@ -163,4 +163,4 @@ controller or dialog has its own module.
 | `src/platform/` | Desktop and browser differences, paths, the profiler |
 | `src/settings.rs`, `src/keymap.rs` | The settings file and the key bindings |
 
-[Port a behaviour](../../docs/develop/guides/PORT.md) explains the engine loops and the dialogs.
+[Port a behaviour](https://tanepiper.github.io/unbanished/develop/guides/port) explains the engine loops and the dialogs.

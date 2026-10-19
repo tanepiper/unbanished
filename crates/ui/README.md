@@ -124,5 +124,5 @@ The full API documentation is at
 
 ## Related documents
 
-- [The interface](../../docs/topics/INTERFACE.md)
-- [UI.md](../../docs/UI.md), [FONTS.md](../../docs/FONTS.md), [TOOLTIPS.md](../../docs/TOOLTIPS.md)
+- [The interface](https://tanepiper.github.io/unbanished/topics/interface)
+- [UI.md](https://github.com/tanepiper/unbanished/blob/main/docs/UI.md), [FONTS.md](https://github.com/tanepiper/unbanished/blob/main/docs/FONTS.md), [TOOLTIPS.md](https://github.com/tanepiper/unbanished/blob/main/docs/TOOLTIPS.md)

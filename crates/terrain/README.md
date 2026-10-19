@@ -5,14 +5,14 @@ queries and the cell types. The same seed and settings give the same map as the 
 bit. Every stage was checked against output recorded from the original functions in the emulator,
 and against the heights stored in real save files.
 
-| Part | What it does | Original |
-|---|---|---|
-| `Generator` | Makes the height grid from a seed and a size record, in five stages | `FUN_1400d4860` |
-| `Generator::surface_map` | The packed per-cell surface image (dirt, rock, light) that the terrain shader samples | `FUN_1400d4910` |
-| `TerrainMesh` | The mesh: 32 × 32-cell tiles, each with 33 × 33 vertices, sharing one index list | `FUN_1400b16b0` |
-| `HeightGrid` | Queries on the saved heights: ray casts, the ground height and normal, the natural cell type | `FUN_1400b6460`, `FUN_1400a3790` |
-| `CellType` | The type of a map cell: ground, rough, high, shallow or deep water | `FUN_1400a3790` |
-| `river_strip`, `water_mesh` | The triangle strip of a river, and the water surface | `FUN_1400d4fd0` |
+| Part | What it does |
+|---|---|
+| `Generator` | Makes the height grid from a seed and a size record, in five stages |
+| `Generator::surface_map` | The packed per-cell surface image (dirt, rock, light) that the terrain shader samples |
+| `TerrainMesh` | The mesh: 32 × 32-cell tiles, each with 33 × 33 vertices, sharing one index list |
+| `HeightGrid` | Queries on the saved heights: ray casts, the ground height and normal, the natural cell type |
+| `CellType` | The type of a map cell: ground, rough, high, shallow or deep water |
+| `river_strip`, `water_mesh` | The triangle strip of a river, and the water surface |
 
 ## Use it
 
@@ -111,7 +111,7 @@ The full API documentation is at
 
 ## Related documents
 
-- [Terrain generation](../../docs/topics/TERRAIN.md)
-- [WORLD-GENERATION.md](../../docs/WORLD-GENERATION.md), [TERRAIN-PROFILES.md](../../docs/TERRAIN-PROFILES.md),
-  [TERRAIN-DERIVED-GEOMETRY.md](../../docs/TERRAIN-DERIVED-GEOMETRY.md),
-  [TERRAIN-WATER-GEOMETRY.md](../../docs/TERRAIN-WATER-GEOMETRY.md)
+- [Terrain generation](https://tanepiper.github.io/unbanished/topics/terrain)
+- [WORLD-GENERATION.md](https://github.com/tanepiper/unbanished/blob/main/docs/WORLD-GENERATION.md), [TERRAIN-PROFILES.md](https://github.com/tanepiper/unbanished/blob/main/docs/TERRAIN-PROFILES.md),
+  [TERRAIN-DERIVED-GEOMETRY.md](https://github.com/tanepiper/unbanished/blob/main/docs/TERRAIN-DERIVED-GEOMETRY.md),
+  [TERRAIN-WATER-GEOMETRY.md](https://github.com/tanepiper/unbanished/blob/main/docs/TERRAIN-WATER-GEOMETRY.md)

@@ -1,16 +1,30 @@
-//! `Utility::PerlinNoise` (Runtime-steam-x64.dll 0x18010ad80..0x18010b520): hashed value noise with
-//! 3x3 smoothing and cosine interpolation, summed over octaves.
+//! The engine's Perlin noise, which the terrain generator uses.
 //!
-//! Float operations follow the disassembly order exactly (single precision throughout); `cosf` is
-//! the Runtime's C runtime one ([`crate::crt::cosf`]).
+//! It is value noise: a hash gives a value for each integer point, the values are smoothed over the
+//! 3 × 3 neighbours and joined with cosine interpolation, and several octaves are added. Every
+//! float operation is single precision and in the original's order, and `cosf` is the C runtime's
+//! ([`crate::crt::cosf`]), so the values match the original to the last bit.
+//!
+//! ```
+//! use banished_core::noise::PerlinNoise;
+//!
+//! let noise = PerlinNoise::new(0.5, 4.0, 17, 31);
+//! let value = noise.generate(12.5, 40.25);
+//! assert!(value.is_finite());
+//! ```
+//!
+//! Original: `Utility::PerlinNoise`, Runtime `0x18010ad80` to `0x18010b520`.
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// A noise field: its persistence, octaves and two seeds.
 pub struct PerlinNoise {
-    /// Amplitude multiplier per octave (`powf(persistence, octave)`).
+    /// How much each octave adds: octave `i` is scaled by `persistence` to the power `i`.
     pub persistence: f32,
-    /// Octave count; the loop runs while `(float)i < octaves`.
+    /// The number of octaves. The loop runs while `(float)i < octaves`.
     pub octaves: f32,
+    /// The first seed of the hash.
     pub seed_x: i32,
+    /// The second seed of the hash.
     pub seed_y: i32,
 }
 
@@ -26,7 +40,9 @@ fn powf(base: f32, exp: f32) -> f32 {
 }
 
 impl PerlinNoise {
-    /// `PerlinNoise(float, float, int, int)` (0x18010b500).
+    /// A noise field with these settings.
+    ///
+    /// Original: `PerlinNoise(float, float, int, int)`, Runtime `0x18010b500`.
     pub fn new(persistence: f32, octaves: f32, seed_x: i32, seed_y: i32) -> Self {
         PerlinNoise {
             persistence,
@@ -57,13 +73,17 @@ impl PerlinNoise {
         1.0 - m as f32 * 9.313_226e-10
     }
 
-    /// `Random(int, int)` (0x18010ad80).
+    /// The hashed value at an integer point, from -1 to 1.
+    ///
+    /// Original: `Random(int, int)`, Runtime `0x18010ad80`.
     pub fn random(&self, x: i32, y: i32) -> f32 {
         Self::value(self.hash(x, y))
     }
 
-    /// `SmoothNoise(int, int)` (0x18010ae50): corners/16 + edges/8 + centre/4, in the original's
-    /// summation order.
+    /// The value at an integer point, smoothed with its 8 neighbours: corners / 16 + edges / 8 +
+    /// centre / 4, added in the original's order.
+    ///
+    /// Original: `SmoothNoise(int, int)`, Runtime `0x18010ae50`.
     pub fn smooth_noise(&self, x: i32, y: i32) -> f32 {
         let c = self.hash(x, y);
         let v = |d: i32| Self::value(c.wrapping_add(d as u32));
@@ -72,7 +92,9 @@ impl PerlinNoise {
         corners * 0.0625 + sides * 0.125 + v(0) * 0.25
     }
 
-    /// `Generate(float, float)` (0x18010b240).
+    /// The noise at a point: every octave, interpolated and added.
+    ///
+    /// Original: `Generate(float, float)`, Runtime `0x18010b240`.
     pub fn generate(&self, x: f32, y: f32) -> f32 {
         let mut total = 0.0f32;
         let mut i = 0i32;

@@ -5,7 +5,7 @@ animations), textures, sounds and dialogs. It is drawn with the game's own inter
 (`banished-ui`), so it also tests that system. It runs on the desktop and in the browser.
 
 <p align="center">
-  <img src="../../docs/assets/screenshots/viewer-models.webp" alt="The viewer in Models mode, showing the Town Hall model" width="860">
+  <img src="https://tanepiper.github.io/unbanished/assets/screenshots/viewer-models.webp" alt="The viewer in Models mode, showing the Town Hall model" width="860">
 </p>
 
 ## Build and run
@@ -38,8 +38,8 @@ textures, 72 sounds and 55 dialogs).
 | **Dialogs** | A dialog of the game, drawn as the game draws it. Animated dialogs (such as the loading screen) can be played frame by frame. |
 
 <p align="center">
-  <img src="../../docs/assets/screenshots/viewer-dialogs.webp" alt="The viewer in Dialogs mode, showing the main menu dialog" width="420">
-  <img src="../../docs/assets/screenshots/viewer-audio.webp" alt="The viewer in Audio mode, with the audio player" width="420">
+  <img src="https://tanepiper.github.io/unbanished/assets/screenshots/viewer-dialogs.webp" alt="The viewer in Dialogs mode, showing the main menu dialog" width="420">
+  <img src="https://tanepiper.github.io/unbanished/assets/screenshots/viewer-audio.webp" alt="The viewer in Audio mode, with the audio player" width="420">
 </p>
 
 ## Controls
@@ -79,7 +79,7 @@ VIEWER_POSE=Walk@0.5 VIEWER_ANIMS=Chicken banished-viewer --capture chickens/ Ch
 ```
 
 A sequence of `--capture` runs at increasing times gives the frames of an animation. The
-chicken video on the [Playing](../../docs/guide/PLAYING.md) page was made this way.
+chicken video on the [Playing](https://tanepiper.github.io/unbanished/guide/playing) page was made this way.
 
 ## Source files
 

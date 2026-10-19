@@ -5,13 +5,13 @@ in the program itself, and plays them on a device with 64 channels, as the origi
 `Audio::Device` does. On the desktop it plays through [rodio](https://github.com/RustAudio/rodio);
 in the browser it plays through Web Audio. No converted sound files are needed.
 
-| Part | What it does | Original |
-|---|---|---|
-| `decode`, `load_sound` | Decode a `SoundBuffer` (and the `.str` stream of music) to float samples | — |
-| `Sound` | A decoded sound and its loop flag. The samples are shared between channels, not copied. | `Audio::SoundBuffer` |
-| `Device` | 64 channels. `play` takes the first free channel and returns none when all are busy. | `Audio::Device`, Runtime `0x1800e0ad0` |
-| `Scene` | The layer above the device that plays `SoundEffect`s: timelines, 3D positions, emitters, kinds of sound | `Audio::Scene` |
-| `EffectCache` | Loads and decodes the sound effects that a scene uses, on all CPU cores natively | — |
+| Part | What it does |
+|---|---|
+| `decode`, `load_sound` | Decode a `SoundBuffer` (and the `.str` stream of music) to float samples |
+| `Sound` | A decoded sound and its loop flag. The samples are shared between channels, not copied. |
+| `Device` | 64 channels. `play` takes the first free channel and returns none when all are busy. |
+| `Scene` | The layer above the device that plays `SoundEffect`s: timelines, 3D positions, emitters, kinds of sound |
+| `EffectCache` | Loads and decodes the sound effects that a scene uses, on all CPU cores natively |
 
 ## Use it
 
@@ -70,7 +70,7 @@ an effect is a timeline of sounds with random choices, volumes and pitches. `pla
 one for the interface, and `play_effect_3d` plays one at a position in the world. Emitters
 (`add_emitter`, `move_emitter`) are ambient sounds tied to a place, such as a river or a forest.
 `Scene::update` mixes them every frame, through any `Mixer` (the `Device` is one).
-See [AUDIO.md](../../docs/AUDIO.md) for the details.
+See [AUDIO.md](https://github.com/tanepiper/unbanished/blob/main/docs/AUDIO.md) for the details.
 
 ## Tests
 
@@ -87,6 +87,6 @@ The full API documentation is at
 
 ## Related documents
 
-- [Audio](../../docs/topics/AUDIO.md)
-- [AUDIO.md](../../docs/AUDIO.md)
-- [banished-wma](../wma/README.md)
+- [Audio](https://tanepiper.github.io/unbanished/topics/audio)
+- [AUDIO.md](https://github.com/tanepiper/unbanished/blob/main/docs/AUDIO.md)
+- [banished-wma](https://tanepiper.github.io/unbanished/reference/wma)

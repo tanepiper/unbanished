@@ -3,15 +3,15 @@
 The exact foundations that the rest of Un-Banished builds on. Each part is a port of an engine
 function of Banished 1.0.7, and gives the same bits as the original:
 
-| Module | What it contains | Original |
-|---|---|---|
-| `crt` | The C runtime's single-precision maths: `sinf`, `cosf`, `acosf`, `atan2f` | MSVC CRT, e.g. `sinf` at `FUN_140137160` |
-| `math` | Vector helpers, headings, and the engine's `Transform` (a quaternion and an offset) | `Math::Scalar`, `Math::Vector2/3` in the Runtime |
-| `random` | The game's random number generator, a Mersenne Twister (MT19937) | `System::Random`, Runtime `0x1800ca560` |
-| `noise` | The Perlin noise of the terrain generator | `Utility::PerlinNoise`, Runtime `0x18010ad80` |
-| `scheduler` | Game time (integer microseconds) and the entity manager's update buckets | `System::Time`, `FUN_1400c9460` |
-| `calendar` | The game's year counter | `FUN_14009b850` |
-| `picking` | Ray–triangle intersection for selecting objects | `Picking::Scene::Intersect`, Runtime `0x180126f50` |
+| Module | What it contains |
+|---|---|
+| `crt` | The C runtime's single-precision maths: `sinf`, `cosf`, `acosf`, `atan2f` |
+| `math` | Vector helpers, headings, and the engine's `Transform` (a quaternion and an offset) |
+| `random` | The game's random number generator, a Mersenne Twister (MT19937) |
+| `noise` | The Perlin noise of the terrain generator |
+| `scheduler` | Game time (integer microseconds) and the entity manager's update buckets |
+| `calendar` | The game's year counter |
+| `picking` | Ray–triangle intersection for selecting objects |
 
 The crate has no dependencies. It knows nothing about the game's rules or its data files.
 `banished-game` re-exports every module, so `banished_game::random` and `banished_core::random`
@@ -52,7 +52,7 @@ The generator's state is the same as the engine object: an index and 624 words. 
 it, and `Random::from_parts(index, state)` restores it.
 
 To check that a port draws numbers in the same order as the original, record the draws with
-`random::trace` (see [Emulate for exact numbers](../../docs/develop/guides/EMULATE.md)):
+`random::trace` (see [Emulate for exact numbers](https://tanepiper.github.io/unbanished/develop/guides/emulate)):
 
 ```rust
 use banished_core::random::{trace, Random};
@@ -133,5 +133,5 @@ cargo test --release -p banished-game --test crt_math
 
 ## Related documents
 
-- [Exact maths and random numbers](../../docs/topics/EXACT-MATHS.md)
-- [The emulator harness](../../docs/topics/EMULATOR.md)
+- [Exact maths and random numbers](https://tanepiper.github.io/unbanished/topics/exact-maths)
+- [The emulator harness](https://tanepiper.github.io/unbanished/topics/emulator)

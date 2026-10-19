@@ -187,7 +187,7 @@ The full API documentation is at
 
 ## Related documents
 
-- [Game data files](../../docs/topics/GAME-DATA.md)
-- [Save files](../../docs/topics/SAVES.md)
-- [Decode a format](../../docs/develop/guides/FORMAT.md)
-- [FINDINGS.md](../../docs/FINDINGS.md), sections 2 and 3: the container formats in detail
+- [Game data files](https://tanepiper.github.io/unbanished/topics/game-data)
+- [Save files](https://tanepiper.github.io/unbanished/topics/saves)
+- [Decode a format](https://tanepiper.github.io/unbanished/develop/guides/format)
+- [FINDINGS.md](https://github.com/tanepiper/unbanished/blob/main/docs/FINDINGS.md), sections 2 and 3: the container formats in detail

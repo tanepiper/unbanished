@@ -1,14 +1,22 @@
-//! Map pathfinding (see docs/CITIZEN-AI.md):
+//! Path finding over the map's cells: the walkable regions and the A* pathfinder.
 //!
-//! - connectivity regions `+0x26` (`FUN_1400a1950` / `FUN_1400a1640`);
-//! - the path manager at map `+0x68` (`FUN_1400abcc0`), whose worker thread executes queued
-//!   commands (`FUN_1400ab900`): 0 walk mask, 1 per-type cost, 4 search options, 5 find path;
-//! - the A* search (`FUN_14001d760` / `FUN_14001d9a0`);
-//! - request validation (`FUN_1400a2480`) and the per-mover cost tables (`FUN_1400a3a20`);
-//! - the nearest-allowed-neighbour helper (`FUN_1400a21c0`).
+//! - [`regions`] gives every walkable cell the number of its connected region. A request between
+//!   two regions fails at once, without a search.
+//! - [`Pathfinder`] is the A* search, with a cost for each cell type ([`mode_costs`]).
+//! - [`request`] checks a request as the original does, then searches.
+//! - [`nearest_neighbour`] finds the allowed cell next to a cell that is nearest to a target.
 //!
-//! The original solves on a thread and movers poll a result slot. The port solves when the
-//! request is made; `MoveTo` still reads the result on its next update.
+//! The original solves paths on a worker thread, and a walker polls for the result. The port
+//! solves a path when it is requested; the walker still reads the result on its next update, so
+//! the timing is the same.
+//!
+//! See [Citizens](https://tanepiper.github.io/unbanished/topics/citizens) for how citizens use it.
+
+// Original: regions FUN_1400a1950 / FUN_1400a1640 (map cell +0x26); the path manager at map
+// +0x68 (FUN_1400abcc0), whose worker thread runs queued commands (FUN_1400ab900: 0 walk mask,
+// 1 per-type cost, 4 search options, 5 find path); A* FUN_14001d760 / FUN_14001d9a0; request
+// validation FUN_1400a2480; per-mover cost tables FUN_1400a3a20; nearest neighbour FUN_1400a21c0.
+// See docs/CITIZEN-AI.md.
 
 use std::cmp::Reverse;
 use std::collections::{BTreeSet, VecDeque};
@@ -19,9 +27,12 @@ use banished_terrain::CellType;
 pub const WALKABLE: u32 = 0xe1f;
 /// Water and blocking types (5–8): requests touching them skip the region check.
 pub const WATER: u32 = 0x1e0;
-/// `FUN_14001d760`: longest path a search returns.
+/// Longest path a search returns.
+///
+/// Original: `FUN_14001d760`.
 pub const MAX_PATH: usize = 0x4000;
 
+/// The bit of a cell type in a type mask such as [`WALKABLE`].
 pub fn bit(t: CellType) -> u32 {
     1u32 << (t.0 & 0x1f)
 }
@@ -31,7 +42,9 @@ pub fn walkable(t: CellType) -> bool {
     bit(t) & WALKABLE != 0
 }
 
-/// `FUN_1400a1950`: label connected walkable cells in scan order, starting at 1 (0 = none).
+/// Label connected walkable cells in scan order, starting at 1 (0 = none).
+///
+/// Original: `FUN_1400a1950`.
 pub fn regions(size: usize, types: &[CellType]) -> Vec<u16> {
     let mut region = vec![0u16; types.len()];
     let mut id: u16 = 1;
@@ -88,8 +101,10 @@ fn fill(size: usize, types: &[CellType], region: &mut [u16], start: usize, id: u
     }
 }
 
-/// Per-type cost tables a mover selects (`FUN_1400a3a20`, MoveTo `+0x470`) and whether the
-/// search may step diagonally.
+// +0x470
+/// Per-type cost tables a mover selects (MoveTo) and whether the search may step diagonally.
+///
+/// Original: `FUN_1400a3a20`.
 pub fn mode_costs(mode: u32) -> Option<(&'static [(u8, i32)], bool)> {
     const CITIZEN: [(u8, i32); 11] = [
         (0, 3),
@@ -163,14 +178,18 @@ struct Node {
     key: (i32, i32),
 }
 
-/// The path manager's search state (`FUN_1400abcc0` and the grid at `+0x78`).
+// The path manager is at map +0x68, its grid at +0x78.
+/// The pathfinder: the map's cells, the cost of each cell type, and the state of the A* search.
+///
+/// Original: `FUN_1400abcc0` (the path manager).
 pub struct Pathfinder {
     size: i32,
     /// Path grid bytes: cell type `& 0x7f`, `0x80` blocked (commands 2 and 3).
     cells: Vec<u8>,
     /// `+0x50`: cost per type (command 1).
     costs: [i32; 32],
-    /// `+0xd0`: allowed types (command 0).
+    // +0xd0
+    /// Allowed types (command 0).
     pub mask: u32,
     /// `+0xd4..+0xd6` (command 4): diagonal steps, Manhattan heuristic, honour blocked bit.
     diagonal: bool,
@@ -183,7 +202,9 @@ pub struct Pathfinder {
 }
 
 impl Pathfinder {
-    /// `FUN_1400a3d90`: built from the map with diagonal steps on.
+    /// Built from the map with diagonal steps on.
+    ///
+    /// Original: `FUN_1400a3d90`.
     pub fn new(size: usize, types: &[CellType]) -> Pathfinder {
         Pathfinder {
             size: size as i32,
@@ -210,7 +231,9 @@ impl Pathfinder {
         self.cells[cell] = self.cells[cell] & 0x7f | if blocked { 0x80 } else { 0 };
     }
 
-    /// `FUN_1400a3a20`: select a mover's cost table and diagonal option.
+    /// Select a mover's cost table and diagonal option.
+    ///
+    /// Original: `FUN_1400a3a20`.
     pub fn set_mode(&mut self, mode: u32) {
         if let Some((costs, diagonal)) = mode_costs(mode) {
             for &(t, c) in costs {
@@ -321,9 +344,11 @@ impl Pathfinder {
         false
     }
 
-    /// `FUN_1400a22d0`: a road's cells: every type costs 1, no diagonal steps (`FUN_1400abd80(0,
-    /// manhattan, 1)`), the blocked bit honoured, over `mask`. `blocked` stands for the zones'
-    /// bits (cells with an occupant).
+    /// The cells of a road from one cell to another: every cell type costs 1, there are no
+    /// diagonal steps, and blocked cells and cells outside `mask` are avoided. `blocked` marks the
+    /// cells that have an occupant.
+    ///
+    /// Original: `FUN_1400a22d0`.
     pub fn find_road(
         &mut self,
         from: i32,
@@ -382,7 +407,9 @@ impl Pathfinder {
         out
     }
 
-    /// `FUN_14001d760`: the cells from `from` to `to` inclusive, or `None`.
+    /// The cells from `from` to `to` inclusive, or `None`.
+    ///
+    /// Original: `FUN_14001d760`.
     pub fn find(&mut self, from: i32, to: i32) -> Option<Vec<i32>> {
         self.search = self.search.wrapping_add(1);
         if !self.solve(from, to) {
@@ -400,8 +427,10 @@ impl Pathfinder {
     }
 }
 
-/// `FUN_1400a2480`: validate a request (both end types join the mask; without water types both
-/// ends must share a non-zero region), set the mask and search.
+/// Validate a request (both end types join the mask; without water types both ends must share a
+/// non-zero region), set the mask and search.
+///
+/// Original: `FUN_1400a2480`.
 pub fn request(
     finder: &mut Pathfinder,
     types: &[CellType],
@@ -425,8 +454,10 @@ pub fn request(
     finder.find(from, to)
 }
 
-/// `FUN_1400a21c0`: of the 8 cells around `cell` whose type is in `mask`, the one nearest
-/// (squared cell distance) to `toward`; the first found wins ties (x outer, y inner).
+/// Of the 8 cells around `cell` whose type is in `mask`, the one nearest (squared cell distance) to
+/// `toward`; the first found wins ties (x outer, y inner).
+///
+/// Original: `FUN_1400a21c0`.
 pub fn nearest_neighbour(
     size: usize,
     types: &[CellType],

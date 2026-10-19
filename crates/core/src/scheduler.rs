@@ -1,20 +1,50 @@
-//! Entity-manager buckets (`FUN_1400c9460`, `FUN_1400c9560`, `FUN_1400c9d70`).
-//! Stable Rust handles replace InternalBasePtr; bucket deletion still swaps with the last entry.
+//! Game time, and the entity manager's update buckets.
+//!
+//! **Time.** The engine counts time in integer microseconds (`System::Time`). [`ticks`] and
+//! [`seconds`] convert as the original does: through `f64`, truncating to time and rounding to
+//! `f32` seconds.
+//!
+//! **Buckets.** A town has tens of thousands of entities, so the game does not update all of them
+//! in every simulation iteration. [`EntityScheduler`] keeps them in five buckets, and each
+//! iteration visits at most [`QUOTAS`] entities of each bucket, starting where the last visit
+//! stopped. Each entity receives the time since its own last visit, so no time is lost.
+//!
+//! ```
+//! use banished_core::scheduler::{seconds, ticks};
+//!
+//! assert_eq!(ticks(1.5), 1_500_000);
+//! assert_eq!(seconds(ticks(1.5)), 1.5);
+//! ```
+//!
+//! The port's handles are stable indices instead of the engine's object pointers. Removing an
+//! entity still swaps it with the last one of its bucket, as the original does.
+//!
+//! Original: `FUN_1400c9460`, `FUN_1400c9560`, `FUN_1400c9d70`.
 
-/// Port of Runtime System::Timer::Startup (0x1800cd030): the performance counter is normalized
-/// to 1,000,000 ticks/second. System::Time converts through f64, truncating on construction
-/// (0x1800078c0) and rounding to f32 on AsSeconds (0x180007900).
+/// The length of one tick of game time, in seconds: the engine's timer counts 1,000,000 ticks per
+/// second.
+///
+/// Original: `System::Timer::Startup`, Runtime `0x1800cd030`.
 pub const SECONDS_PER_TICK: f64 = 1e-6;
 
+/// Seconds to game time: through `f64`, truncated.
+///
+/// Original: constructing a `System::Time`, Runtime `0x1800078c0`.
 pub fn ticks(seconds: f32) -> i64 {
     (seconds as f64 / SECONDS_PER_TICK) as i64
 }
 
+/// Game time to seconds: through `f64`, rounded to `f32`.
+///
+/// Original: `System::Time::AsSeconds`, Runtime `0x180007900`.
 pub fn seconds(time: i64) -> f32 {
     (time as f64 * SECONDS_PER_TICK) as f32
 }
 
-/// `FUN_1400c9460`: quotas at manager +0xa8..+0xb8, in bucket order 0..4.
+// The entity manager's +0xa8..+0xb8.
+/// How many entities of each bucket one iteration visits, for buckets 0 to 4.
+///
+/// Original: `FUN_1400c9460`.
 pub const QUOTAS: [usize; 5] = [50, 15, 8, 5, 2];
 
 struct Entity<T> {
@@ -33,7 +63,10 @@ pub const EXTRA: usize = 1 << 30;
 /// Values of scheduled entities with no behaviour in the port (visited for the cursors' sake).
 pub const FOREIGN: usize = EXTRA + (1 << 29);
 
+/// The entity manager's buckets: which entities are visited in each simulation iteration, and
+/// the time each one has had since its last visit. `T` is the caller's value for an entity.
 pub struct EntityScheduler<T> {
+    /// The current game time.
     pub time: i64,
     entities: Vec<Entity<T>>,
     /// Entities outside the placed index space (handles from [`EXTRA`]).
@@ -58,8 +91,10 @@ impl<T: Copy> Default for EntityScheduler<T> {
 }
 
 impl<T: Copy> EntityScheduler<T> {
-    /// Port of FUN_1400c9d70: append in registration order and set last-update time now.
-    /// Bucket 6 is deliberately absent from the scheduled arrays.
+    /// Register an entity in a bucket, at the end, with its last visit set to now. Returns its
+    /// handle. Bucket 6 means "not scheduled": the entity is registered but never visited.
+    ///
+    /// Original: `FUN_1400c9d70`.
     pub fn register(&mut self, value: T, bucket: usize) -> usize {
         assert!(
             bucket < 5 || bucket == 6,
@@ -126,7 +161,8 @@ impl<T: Copy> EntityScheduler<T> {
         &self.buckets[bucket]
     }
 
-    /// A bucket's cursor (`+0xbc`), the slot its next visit starts at.
+    // +0xbc
+    /// A bucket's cursor, the slot its next visit starts at.
     pub fn cursor(&self, bucket: usize) -> usize {
         self.cursors[bucket]
     }
@@ -199,14 +235,19 @@ impl<T: Copy> EntityScheduler<T> {
         std::mem::take(&mut self.visited)
     }
 
-    /// Port of FUN_1400c9560's clock advance. A caller visits each bucket, then drains removals.
+    /// Advance the clock by `dt` seconds. Then the caller visits each bucket, then removes the
+    /// entities that were deleted.
+    ///
+    /// Original: `FUN_1400c9560` (the clock).
     pub fn advance(&mut self, dt: f32) {
         self.time += ticks(dt);
     }
 
-    /// Port of FUN_1400c9560: wrap the cursor, visit at most a quota or one full revolution,
-    /// and give each entity the time since its own last visit. Snapshot this bucket's length,
-    /// so children registered during its callbacks wait until the next iteration.
+    /// Visit one bucket: from its cursor, at most its quota of entities or one full round. Each
+    /// visit gives the entity's handle, value and the time since its own last visit. Entities
+    /// registered during the visits wait until the next iteration.
+    ///
+    /// Original: `FUN_1400c9560`.
     pub fn visit_bucket(&mut self, bucket: usize) -> Vec<(usize, T, i64)> {
         let list = &self.buckets[bucket];
         let count = list.len();
@@ -236,8 +277,10 @@ impl<T: Copy> EntityScheduler<T> {
         visits
     }
 
-    /// Port of FUN_1400c8db0: swap-remove without adjusting the saved cursor. Call after all
-    /// scheduled callbacks, matching FUN_1400c9560's deferred deletion phase.
+    /// Remove an entity: it swaps places with the last entity of its bucket, and the cursor does
+    /// not move. Call it after all visits of the iteration, as the original deletes late.
+    ///
+    /// Original: `FUN_1400c8db0`.
     pub fn remove(&mut self, id: usize) {
         let entity = self.entity_mut(id);
         if !entity.live {

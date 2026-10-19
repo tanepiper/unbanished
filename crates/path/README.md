@@ -4,10 +4,10 @@ A port of Banished's path finding. It finds the cells a citizen or an animal wal
 "path rank" distance that the game uses to choose the nearest storage, job or resource. Both are
 tested against output recorded from the original functions in the emulator.
 
-| Module | What it contains | Original |
-|---|---|---|
-| `pathfind` | Walkable regions, the A* pathfinder over the cell grid, request checks, cost tables | `FUN_1400a1950`, `FUN_14001d760`, `FUN_1400a2480`, `FUN_1400a3a20` |
-| `sectors` | The sector graph: the map cut into 8 × 8-cell sectors, linked areas, and cached distances | `FUN_1400a4ce0` and its helpers |
+| Module | What it contains |
+|---|---|
+| `pathfind` | Walkable regions, the A* pathfinder over the cell grid, request checks, cost tables |
+| `sectors` | The sector graph: the map cut into 8 × 8-cell sectors, linked areas, and cached distances |
 
 `banished-game` re-exports both modules as `banished_game::pathfind` and
 `banished_game::sectors`.
@@ -84,5 +84,5 @@ The full API documentation is at
 
 ## Related documents
 
-- [Citizens](../../docs/topics/CITIZENS.md)
-- [CITIZEN-AI.md](../../docs/CITIZEN-AI.md): the decisions, the action queue and walking
+- [Citizens](https://tanepiper.github.io/unbanished/topics/citizens)
+- [CITIZEN-AI.md](https://github.com/tanepiper/unbanished/blob/main/docs/CITIZEN-AI.md): the decisions, the action queue and walking

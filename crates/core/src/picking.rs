@@ -1,7 +1,12 @@
-//! Picking::Scene::Intersect (Runtime 180126f50), triangle narrow phase.
+//! Picking: which triangle a ray hits, as the engine finds the object under the pointer.
+//!
+//! Original: `Picking::Scene::Intersect`, Runtime `0x180126f50` (the triangle test).
 
-/// Front faces only; inclusive edges, distance zero and the current maximum are accepted.
-/// Equality replaces the prior hit, following the original candidate/triangle traversal order.
+/// Test a ray against one triangle. Returns the distance along the ray when the ray hits the
+/// triangle no farther than `maximum`.
+///
+/// Only front faces count. A hit on an edge, at distance zero or exactly at the current maximum
+/// counts too, and an equal distance replaces the earlier hit, as in the original's order.
 pub fn triangle(
     origin: [f32; 3],
     direction: [f32; 3],
@@ -52,6 +57,7 @@ pub fn face_normal(vertices: [[f32; 3]; 3]) -> [f32; 3] {
     [inv * n[0], inv * n[1], inv * n[2]]
 }
 
+/// The point at distance `t` along a ray.
 pub fn point(origin: [f32; 3], direction: [f32; 3], t: f32) -> [f32; 3] {
     [
         t * direction[0] + origin[0],

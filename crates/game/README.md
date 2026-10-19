@@ -82,18 +82,18 @@ fn start_cell(generator: &Generator, radius: i32) -> (i32, i32) {
 }
 ```
 
-[banished-terrain](../terrain/README.md) shows how to make the `Generator`.
+[banished-terrain](https://tanepiper.github.io/unbanished/reference/terrain) shows how to make the `Generator`.
 
 ### More
 
 The rest of the crate is the simulation itself. The best way to learn it is to read the topic
 documents, then the module that ports the part you are interested in:
 
-- [Citizens](../../docs/topics/CITIZENS.md): decisions, actions and walking;
-- [JOBS.md](../../docs/JOBS.md): construction, work and professions;
-- [CITIZEN-LIFE.md](../../docs/CITIZEN-LIFE.md): ageing, households and needs;
-- [FARMING.md](../../docs/FARMING.md), [FIRE.md](../../docs/FIRE.md), [TRADE.md](../../docs/TRADE.md),
-  [WILDLIFE-POPULATION.md](../../docs/WILDLIFE-POPULATION.md) and the other notes in `docs/`.
+- [Citizens](https://tanepiper.github.io/unbanished/topics/citizens): decisions, actions and walking;
+- [JOBS.md](https://github.com/tanepiper/unbanished/blob/main/docs/JOBS.md): construction, work and professions;
+- [CITIZEN-LIFE.md](https://github.com/tanepiper/unbanished/blob/main/docs/CITIZEN-LIFE.md): ageing, households and needs;
+- [FARMING.md](https://github.com/tanepiper/unbanished/blob/main/docs/FARMING.md), [FIRE.md](https://github.com/tanepiper/unbanished/blob/main/docs/FIRE.md), [TRADE.md](https://github.com/tanepiper/unbanished/blob/main/docs/TRADE.md),
+  [WILDLIFE-POPULATION.md](https://github.com/tanepiper/unbanished/blob/main/docs/WILDLIFE-POPULATION.md) and the other notes in `docs/`.
 
 ## Tests
 
@@ -120,7 +120,7 @@ data is missing. For example:
 `examples/` has helpers for animation work: `clips` (the clips of an animation group),
 `pose_bones`, `pose_scan` and `skin_bounds`. `rng_trace_names` records the random draws of name
 generation, for comparison with the original (see
-[Emulate for exact numbers](../../docs/develop/guides/EMULATE.md#random-draw-parity)).
+[Emulate for exact numbers](https://tanepiper.github.io/unbanished/develop/guides/emulate#random-draw-parity)).
 
 ## The API
 

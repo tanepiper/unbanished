@@ -1,12 +1,31 @@
-//! The calendar at Game/Game +0x128 (constructor FUN_14009bfd0, update FUN_14009b850).
+//! The game's calendar: the year, and the time since the year began.
+//!
+//! A year is 3,600 seconds of game time, with twelve months of 300 seconds.
+//!
+//! ```
+//! use banished_core::calendar::Calendar;
+//! use banished_core::scheduler::ticks;
+//!
+//! let mut calendar = Calendar::default();
+//! calendar.advance(ticks(3600.0));
+//! assert_eq!(calendar.year, 2);
+//! ```
+//!
+//! Original: `FUN_14009bfd0` (set-up), `FUN_14009b850` (update).
+// The calendar object is at Game/Game +0x128.
 use crate::scheduler::{seconds, ticks};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// The year, and the game time since it began.
 pub struct Calendar {
+    /// The year, from 1.
     pub year: u32,
-    /// +0x08: integer System::Time, not a sum of f32 frame deltas.
+    // +0x08
+    /// The game time since the year began, in ticks. It is integer time, not a sum of rounded
+    /// float steps.
     pub elapsed: i64,
-    /// +0x10: Time(3600 seconds), DAT_14017895c.
+    // +0x10; DAT_14017895c
+    /// The length of a year: 3,600 seconds.
     pub year_ticks: i64,
 }
 
@@ -21,8 +40,10 @@ impl Default for Calendar {
 }
 
 impl Calendar {
-    /// Port of FUN_14009b850's inline calendar update. It subtracts one threshold per iteration,
-    /// preserving the original behavior even for an unusually large delta.
+    /// Add `delta` ticks. When a year is complete, the year goes up by one. Like the original, it
+    /// subtracts at most one year per call, even for a very large `delta`.
+    ///
+    /// Original: `FUN_14009b850` (inline calendar update).
     pub fn advance(&mut self, delta: i64) {
         self.elapsed += delta;
         if self.elapsed >= self.year_ticks {
@@ -31,6 +52,7 @@ impl Calendar {
         }
     }
 
+    /// The time since the year began, in seconds.
     pub fn seconds(&self) -> f32 {
         seconds(self.elapsed)
     }

@@ -1,10 +1,23 @@
-//! The MSVC C runtime's single-precision maths, as the game's code gets it: `sinf`
-//! (`FUN_140137160`; the Runtime's own copy at `0x18012a620` is the same), `cosf`
-//! (`FUN_140136560`, Runtime `0x1801295a0`), `acosf` (`FUN_140136090`) and the Runtime's
-//! `atan2f` (`0x180128f10`, behind `Vector3::Heading`). They are not correctly rounded, so the
-//! port follows them operation by operation (`tools/emu/crt_math.py` checks them against the
-//! original). `powf`, `floorf` and `sqrtf` give the correctly rounded result and need nothing
-//! of their own.
+//! The float functions of the Microsoft C runtime, as the game calls them: [`sinf`], [`cosf`],
+//! [`acosf`] and [`atan2f`].
+//!
+//! These functions are not correctly rounded, so their results can differ from Rust's `f32::sin`
+//! and its relatives in the last bit. That is enough to change the game's results. So this module
+//! ports the C runtime's own algorithms, operation by operation, and simulation code uses them.
+//! `tools/emu/crt_math.py` checks them against the original functions. `powf`, `floorf` and
+//! `sqrtf` are correctly rounded in both, so Rust's own functions give the same results.
+//!
+//! ```
+//! use banished_core::crt;
+//!
+//! let s = crt::sinf(0.5);
+//! let angle = crt::atan2f(1.0, 2.0);
+//! assert!(s > 0.47 && angle > 0.46);
+//! ```
+//!
+//! Original: `FUN_140137160` (`sinf`, the Runtime's copy at `0x18012a620` is the same),
+//! `FUN_140136560` (`cosf`, Runtime `0x1801295a0`), `FUN_140136090` (`acosf`), Runtime
+//! `0x180128f10` (`atan2f`, behind `Vector3::Heading`).
 
 const fn d(bits: u64) -> f64 {
     f64::from_bits(bits)
@@ -63,7 +76,9 @@ fn sin_poly(r: f64, x2: f64, s1: f64, s2: f64, s3: f64, s4: f64) -> f64 {
     p * (r * x2) + r
 }
 
-/// `sinf`.
+/// The sine of `x` (radians), as the C runtime's `sinf` computes it.
+///
+/// Original: `FUN_140137160`.
 pub fn sinf(x: f32) -> f32 {
     if x.to_bits() & 0x7f80_0000 == 0x7f80_0000 {
         return f32::NAN;
@@ -117,7 +132,9 @@ pub fn sinf(x: f32) -> f32 {
     out as f32
 }
 
-/// `cosf`.
+/// The cosine of `x` (radians), as the C runtime's `cosf` computes it.
+///
+/// Original: `FUN_140136560`.
 pub fn cosf(x: f32) -> f32 {
     if x.to_bits() & 0x7f80_0000 == 0x7f80_0000 {
         return f32::NAN;
@@ -162,7 +179,9 @@ pub fn cosf(x: f32) -> f32 {
     out as f32
 }
 
-/// `acosf` (`FUN_140136090`).
+/// The arc cosine of `x`, in radians, as the C runtime's `acosf` computes it.
+///
+/// Original: `FUN_140136090`.
 pub fn acosf(x: f32) -> f32 {
     const P0: f32 = -0.013381929136812687;
     const P1: f32 = 0.003961374517530203;
@@ -227,7 +246,10 @@ pub fn acosf(x: f32) -> f32 {
     }
 }
 
-/// `atan2f(y, x)` (Runtime `0x180128f10`).
+/// The angle of the point `(x, y)`, in radians from -π to π, as the C runtime's `atan2f`
+/// computes it.
+///
+/// Original: Runtime `0x180128f10`.
 pub fn atan2f(y: f32, x: f32) -> f32 {
     const SIGN: u64 = 0x8000_0000_0000_0000;
     const ABS: u64 = 0x7fff_ffff_ffff_ffff;

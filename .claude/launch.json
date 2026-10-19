@@ -25,6 +25,20 @@
       ],
       "port": 4173,
       "url": "http://localhost:4173"
+    },
+    {
+      "name": "api-docs",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8740",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "target/api/doc"
+      ],
+      "port": 8740
     }
   ]
 }

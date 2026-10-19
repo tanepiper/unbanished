@@ -1,14 +1,19 @@
-//! The map's coarse path graph and the path-rank distance every storage and job query uses
-//! (`FUN_1400a4ce0`). See docs/CITIZEN-AI.md.
+//! The sector graph, and the "path rank" distance that storage, job and resource searches use.
 //!
-//! The map is cut into 8 × 8-cell sectors (`FUN_1400adb40`, `n / 8` per side). Each sector's
-//! walkable cells split into connected areas (`FUN_1400ad3f0` / `FUN_1400acfa0`), each a node
-//! at the integer mean of its cells (`FUN_1400ace20`); every cell records its node (cell
-//! `+0x18`, `FUN_1400acb40`). Nodes link to the nodes of the cells just outside their sector
-//! border (`FUN_1400acc20`, `FUN_1400ac950`). Map changes mark sectors for rebuilding
-//! (`FUN_1400ae160`), done lazily before a search (`FUN_1400adf60`). Distances are A* over
-//! nodes with truncated Euclidean costs (`FUN_14001e630`), summed (`FUN_1400ae070`) and cached
-//! for 120 s (`FUN_1400ab000`, `FUN_1400ab1e0`).
+//! Running a full A* search for every candidate storage or job would be slow. So the game cuts
+//! the map into 8 × 8-cell sectors. The walkable cells of each sector split into connected
+//! areas, and each area becomes a node at the mean of its cells. Nodes link to the nodes just
+//! outside their sector. A distance is an A* search over the nodes, with Euclidean costs
+//! truncated to integers, and it is cached for 120 seconds of game time.
+//!
+//! When the map changes, [`SectorGraph::mark`] marks the sector, and the graph rebuilds the
+//! marked sectors before the next search.
+
+// Original: FUN_1400a4ce0 (path rank); sectors FUN_1400adb40, areas FUN_1400ad3f0 /
+// FUN_1400acfa0, nodes FUN_1400ace20, cell node (cell +0x18) FUN_1400acb40, links
+// FUN_1400acc20 / FUN_1400ac950, marking FUN_1400ae160, lazy rebuild FUN_1400adf60, node A*
+// FUN_14001e630, summed by FUN_1400ae070, cache FUN_1400ab000 / FUN_1400ab1e0.
+// See docs/CITIZEN-AI.md.
 
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -74,6 +79,9 @@ struct Cache {
     index: BTreeMap<(i32, i32), usize>,
 }
 
+/// The sector graph: the map cut into 8 × 8-cell sectors, the walkable areas of each sector as
+/// nodes, and links between neighbouring areas. It gives the "path rank" distance that storage,
+/// job and resource searches use, and caches it.
 pub struct SectorGraph {
     n: i32,
     w: i32,
@@ -83,7 +91,8 @@ pub struct SectorGraph {
     dirty_nodes: Vec<usize>,
     dirty_links: Vec<usize>,
     free: Vec<i32>,
-    /// Cell `+0x18`: node of each cell (-1 none).
+    // +0x18
+    /// Cell: node of each cell (-1 none).
     pub cell_node: Vec<i32>,
     search: Vec<Search>,
     search_id: i32,
@@ -93,7 +102,9 @@ pub struct SectorGraph {
 }
 
 impl SectorGraph {
-    /// `FUN_1400adb40` then `FUN_1400adf60`: every sector is built, then linked, in index order.
+    /// The graph of a map: every sector is built, then linked, in index order.
+    ///
+    /// Original: `FUN_1400adb40`, then `FUN_1400adf60`.
     pub fn new(size: usize, types: &[CellType]) -> SectorGraph {
         let n = size as i32;
         let (w, h) = (n / SECTOR, n / SECTOR);
@@ -136,7 +147,9 @@ impl SectorGraph {
         g
     }
 
-    /// `FUN_1400ae160`: a cell changed; rebuild its sector and relink the 3 × 3 around it.
+    /// A cell changed; rebuild its sector and relink the 3 × 3 around it.
+    ///
+    /// Original: `FUN_1400ae160`.
     pub fn mark(&mut self, x: i32, y: i32) {
         let s = ((y / SECTOR) * self.w + x / SECTOR) as usize;
         if self.sectors[s].node_dirty {
@@ -162,7 +175,9 @@ impl SectorGraph {
         }
     }
 
-    /// `FUN_1400adf60`.
+    /// Rebuild and relink the sectors that [`mark`](Self::mark) marked.
+    ///
+    /// Original: `FUN_1400adf60`.
     pub fn rebuild(&mut self, types: &[CellType]) {
         if self.dirty_nodes.is_empty() && self.dirty_links.is_empty() {
             return;
@@ -325,7 +340,9 @@ impl SectorGraph {
         }
     }
 
-    /// `FUN_1400a2570`: the node of `cell`, else the first node found on rings 1–3 around it.
+    /// The node of `cell`, else the first node found on rings 1–3 around it.
+    ///
+    /// Original: `FUN_1400a2570`.
     pub fn node_near(&self, cell: i32) -> i32 {
         let n = self.n;
         let id = self.cell_node[cell as usize];
@@ -441,8 +458,11 @@ impl SectorGraph {
             .sum()
     }
 
-    /// `FUN_1400a4ce0`: path rank from cell `a` to cell `b`, or -1 when unreachable.
-    /// `reachable` is `FUN_1400a55c0(map, 0xe1f, a, b)`; `store` caches a computed distance.
+    /// The path-rank distance from cell `a` to cell `b`, or -1 when `b` cannot be reached.
+    /// `reachable` is the caller's region test (both cells in the same walkable region); `store`
+    /// keeps a computed distance in the cache.
+    ///
+    /// Original: `FUN_1400a4ce0`.
     pub fn distance(
         &mut self,
         a: i32,
@@ -502,8 +522,10 @@ impl SectorGraph {
         self.cache.tail = (t + 1) % CACHE_SIZE;
     }
 
-    /// `FUN_1400ab1e0`, once per simulation iteration: age the cache, dropping entries older
-    /// than 120 s from the oldest end.
+    /// Age the cache by `dt` ticks, and drop the entries older than 120 seconds. The game calls it
+    /// once per simulation iteration.
+    ///
+    /// Original: `FUN_1400ab1e0`.
     pub fn age_cache(&mut self, dt: i64) {
         self.cache.time += dt;
         loop {
