@@ -9,8 +9,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
-Version 0.2.0 in development. The focus is performance and efficiency without changing the
-game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+Boomtown: large towns run about twice as fast and the GPU does half the work, with no change
+to the game's results; mods from Nexus Mods and a mod manager; a new loading screen in the
+browser; and a blog. The performance work is described in
+[docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ### Changed
 

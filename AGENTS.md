@@ -148,10 +148,15 @@ footer ("Version 1.0.7 - Build 170910") comes from the original's resources and 
   compatibility promises. Ordinary commits do not change it; the build id identifies them.
 - [CHANGELOG.md](CHANGELOG.md) has an `Unreleased` section. Add a line there for each change a
   player or contributor would notice.
-- **Releasing `X.Y.Z`:** rename `Unreleased` to `[X.Y.Z] - DATE` in the changelog and add a new
-  empty `Unreleased` section and compare links; commit; tag `vX.Y.Z` (annotated) and push the
-  tag; publish a GitHub release with that changelog section as its notes. Then, in a separate
-  commit, set the workspace version to the next development version (for example `0.2.0`).
+- **Releasing `X.Y.Z`:** run the Release workflow (`.github/workflows/release.yml`), only when
+  the user asks for the release: `gh workflow run release.yml -f version=X.Y.Z -f next=X.Y+1.0`
+  (add `-f dry_run=true` to check and see the notes without pushing anything). It runs the tests
+  and the browser build, renames `Unreleased` to `[X.Y.Z] - DATE` with its compare link, commits
+  and tags `vX.Y.Z` (annotated), sets the workspace version to the next version in a second
+  commit, pushes, publishes a GitHub release with the changelog section as its notes (and a link
+  to the version's blog post in `site/blog/`), and rebuilds the website. Before it, write the
+  Unreleased section's opening line and the blog post; `tools/release/release.py` holds the
+  steps, so you can try them on a scratch copy.
 
 ## Before every commit
 

@@ -1,0 +1,138 @@
+# Release a version of Un-Banished. Started by hand (Actions → Release → Run workflow, or
+# `gh workflow run release.yml -f version=0.2.0 -f next=0.3.0`). It checks the version, runs the
+# tests and the browser build, then:
+#   1. dates the changelog's Unreleased section as VERSION and commits "Release VERSION";
+#   2. tags that commit vVERSION (annotated);
+#   3. sets the workspace version to NEXT and commits "Start NEXT development";
+#   4. pushes both commits and the tag to main;
+#   5. publishes a GitHub release from the tag, with the changelog section as its notes and a link
+#      to the version's blog post (site/blog/*.md with `version: VERSION`), if there is one;
+#   6. starts the Site workflow, so the website shows the new changelog and version.
+# With dry_run, it does everything except push and publish, and shows the release notes in the
+# run's summary.
+# The steps that edit files are in tools/release/release.py; AGENTS.md ("Versions") has the rules.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (X.Y.Z); must be the version in Cargo.toml'
+        required: true
+      next:
+        description: 'Next development version (X.Y.Z)'
+        required: true
+      dry_run:
+        description: 'Dry run: check and prepare, but push and publish nothing'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Check the version and the changelog
+        run: python3 tools/release/release.py check "${{ inputs.version }}"
+
+      - name: Check the next version
+        run: |
+          [[ "${{ inputs.next }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "next: not X.Y.Z"; exit 1; }
+
+      - name: Install Rust with the WebAssembly target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache the Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: release
+
+      # The sound libraries' build scripts need the ALSA headers.
+      - name: Install the ALSA headers
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+
+      # Tests that need the original game data skip without it (game-data/ is never in the
+      # repository), so this checks everything that can be checked without it.
+      - name: Run the tests
+        run: cargo test --workspace --release --no-fail-fast
+
+      - name: Build the browser version
+        run: RUSTFLAGS="-D warnings" cargo build --release -p banished-app --target wasm32-unknown-unknown
+
+  release:
+    needs: check
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+      NEXT: ${{ inputs.next }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set the commit author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Date the changelog and commit the release
+        run: |
+          python3 tools/release/release.py check "$VERSION"
+          python3 tools/release/release.py changelog "$VERSION" "$(date -u +%F)"
+          python3 tools/release/release.py notes "$VERSION" > "$RUNNER_TEMP/notes.md"
+          python3 tools/release/release.py title "$VERSION" > "$RUNNER_TEMP/title.txt"
+          git add CHANGELOG.md
+          git commit -m "Release $VERSION" -m "The changelog's Unreleased section is now [$VERSION]."
+          git tag -a "v$VERSION" -m "$(cat "$RUNNER_TEMP/title.txt")"
+
+      - name: Start the next version
+        run: |
+          python3 tools/release/release.py bump "$NEXT"
+          git add Cargo.toml Cargo.lock CHANGELOG.md
+          git commit -m "Start $NEXT development" -m "The workspace version is now $NEXT (shown as $NEXT-<build> until its release)."
+
+      - name: Show the release
+        run: |
+          {
+            echo "## $(cat "$RUNNER_TEMP/title.txt")"
+            echo
+            cat "$RUNNER_TEMP/notes.md"
+            echo
+            echo "### Commits"
+            echo
+            git log --format='- %s' -2
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Push the commits and the tag
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git push origin HEAD:main
+          git push origin "v$VERSION"
+
+      - name: Publish the GitHub release
+        if: ${{ !inputs.dry_run }}
+        run: |
+          gh release create "v$VERSION" --verify-tag \
+            --title "$(cat "$RUNNER_TEMP/title.txt")" \
+            --notes-file "$RUNNER_TEMP/notes.md"
+
+      # Pushes made with the workflow's token start no other workflows, so start the site's.
+      - name: Rebuild the website
+        if: ${{ !inputs.dry_run }}
+        run: gh workflow run site.yml --ref main
