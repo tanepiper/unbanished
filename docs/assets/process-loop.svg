@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 300" width="860" height="300" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="t">The Un-Banished work loop</title>
+  <desc id="d">Seven steps in a loop: 1 read the data files, 2 decompile with Ghidra, 3 trace one function, 4 measure by running the original code, 5 rebuild in Rust, 6 check against the original, 7 write it down and commit. If the check fails, the work goes back to step 3.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#9c6a24"/>
+    </marker>
+    <style>
+      .box { fill: #1d1711; stroke: #d8a648; stroke-width: 1.5; }
+      .key { fill: #2a2016; stroke: #f4dc9a; stroke-width: 2; }
+      .n { fill: #f4dc9a; font-size: 13px; font-weight: 700; }
+      .l { fill: #e9dfc8; font-size: 14px; }
+      .s { fill: #b3a88f; font-size: 11.5px; }
+      .ln { stroke: #9c6a24; stroke-width: 2; fill: none; }
+      .back { fill: #b3a88f; font-size: 12px; font-style: italic; }
+    </style>
+  </defs>
+  <rect x="1" y="1" width="858" height="298" rx="14" fill="#14100c"/>
+
+  <!-- Row 1: steps 1 to 4, left to right -->
+  <g>
+    <rect class="box" x="24" y="34" width="182" height="74" rx="10"/>
+    <text class="n" x="40" y="60">1</text>
+    <text class="l" x="58" y="60">Read the data files</text>
+    <text class="s" x="40" y="86">Formats of the .pkg packages</text>
+
+    <rect class="box" x="234" y="34" width="182" height="74" rx="10"/>
+    <text class="n" x="250" y="60">2</text>
+    <text class="l" x="268" y="60">Decompile</text>
+    <text class="s" x="250" y="86">Ghidra: machine code to</text>
+    <text class="s" x="250" y="101">readable pseudocode</text>
+
+    <rect class="key" x="444" y="34" width="182" height="74" rx="10"/>
+    <text class="n" x="460" y="60">3</text>
+    <text class="l" x="478" y="60">Trace</text>
+    <text class="s" x="460" y="86">Understand one function and</text>
+    <text class="s" x="460" y="101">write it down in plain words</text>
+
+    <rect class="box" x="654" y="34" width="182" height="74" rx="10"/>
+    <text class="n" x="670" y="60">4</text>
+    <text class="l" x="688" y="60">Measure</text>
+    <text class="s" x="670" y="86">Run the original function</text>
+    <text class="s" x="670" y="101">in an emulator</text>
+  </g>
+  <path class="ln" d="M206 71 H230" marker-end="url(#a)"/>
+  <path class="ln" d="M416 71 H440" marker-end="url(#a)"/>
+  <path class="ln" d="M626 71 H650" marker-end="url(#a)"/>
+  <path class="ln" d="M745 108 V150 Q745 162 733 162 H706" marker-end="url(#a)"/>
+
+  <!-- Row 2: steps 5 to 7, right to left -->
+  <g>
+    <rect class="box" x="520" y="166" width="182" height="74" rx="10"/>
+    <text class="n" x="536" y="192">5</text>
+    <text class="l" x="554" y="192">Rebuild in Rust</text>
+    <text class="s" x="536" y="218">New code from the notes,</text>
+    <text class="s" x="536" y="233">citing the original function</text>
+
+    <rect class="box" x="310" y="166" width="182" height="74" rx="10"/>
+    <text class="n" x="326" y="192">6</text>
+    <text class="l" x="344" y="192">Check</text>
+    <text class="s" x="326" y="218">Tests against the emulator,</text>
+    <text class="s" x="326" y="233">saves and screenshots</text>
+
+    <rect class="box" x="100" y="166" width="182" height="74" rx="10"/>
+    <text class="n" x="116" y="192">7</text>
+    <text class="l" x="134" y="192">Write down, commit</text>
+    <text class="s" x="116" y="218">Documents, checklist,</text>
+    <text class="s" x="116" y="233">one commit per piece</text>
+  </g>
+  <path class="ln" d="M520 203 H496" marker-end="url(#a)"/>
+  <path class="ln" d="M310 203 H286" marker-end="url(#a)"/>
+  <!-- Failed check goes back to Trace -->
+  <path class="ln" d="M401 166 V138 Q401 126 413 126 H523 Q535 126 535 114 V112" stroke-dasharray="5 4" marker-end="url(#a)"/>
+  <text class="back" x="418" y="146">does not match: trace again</text>
+
+  <text class="s" x="24" y="280">Every part of the game went through this loop.</text>
+</svg>

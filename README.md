@@ -14,7 +14,9 @@
 </p>
 
 <p align="center">
-  <a href="docs/USER-GUIDE.md"><strong>Setup guide</strong></a> ·
+  <a href="https://tanepiper.github.io/unbanished/"><strong>Website</strong></a> ·
+  <a href="https://tanepiper.github.io/unbanished/play"><strong>Play in your browser</strong></a> ·
+  <a href="docs/USER-GUIDE.md">Setup guide</a> ·
   <a href="#get-started">Get started</a> ·
   <a href="#controls">Controls</a> ·
   <a href="#faq">FAQ</a> ·
@@ -111,7 +113,9 @@ You can also copy the built `banished` file (`banished.exe` on Windows) into you
 folder, next to `WinData`, and start it there. It then works like the original program and uses
 the same save folder.
 
-**To play in a browser**, read [Play in the browser](docs/USER-GUIDE.md#play-in-the-browser).
+**To play in a browser**, you do not need to build anything. Open the
+[Play page on the website](https://tanepiper.github.io/unbanished/play) and select your four game
+files.
 
 ## Controls
 

@@ -1,0 +1,14 @@
+{
+  "name": "unbanished-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare-docs": "node scripts/prepare.mjs",
+    "dev": "node scripts/prepare.mjs && vitepress dev",
+    "build": "node scripts/prepare.mjs && vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

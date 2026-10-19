@@ -120,16 +120,7 @@ The human did the things an agent cannot do alone:
 Every part of the game went through the same loop. The diagram shows it; the text below explains
 each step.
 
-```mermaid
-flowchart LR
-    A[1. Read the data files] --> B[2. Decompile with Ghidra]
-    B --> C[3. Trace: understand one function]
-    C --> D[4. Measure: run the original code]
-    D --> E[5. Rebuild in Rust]
-    E --> F[6. Check against the original]
-    F --> G[7. Write it down and commit]
-    F -- does not match --> C
-```
+<p align="center"><img src="assets/process-loop.svg" alt="The seven steps of the work loop, from reading the data files to committing, with a path back to tracing when a check fails" width="860"></p>
 
 ### 1. Read the data files
 

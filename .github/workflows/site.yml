@@ -1,0 +1,86 @@
+# Build the website (site/) with the browser version of the game, and publish it to GitHub Pages
+# at https://tanepiper.github.io/unbanished/.
+name: Site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'docs/USER-GUIDE.md'
+      - 'docs/PROCESS.md'
+      - 'docs/assets/**'
+      - 'README.md'
+      - 'apps/game/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer push replaces a queued one, but never cancels a running one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  SITE_BASE: /unbanished/
+  TRUNK_VERSION: v0.21.14
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust with the WebAssembly target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache the Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: web
+
+      - name: Install trunk
+        uses: jetli/trunk-action@v0.5.1
+        with:
+          version: ${{ env.TRUNK_VERSION }}
+
+      - name: Build the game for the browser
+        run: site/scripts/build-game.sh "$SITE_BASE"
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Build the site
+        working-directory: site
+        run: |
+          npm ci
+          npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/.vitepress/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

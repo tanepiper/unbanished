@@ -268,8 +268,14 @@ Click a building or a citizen to open its window. This is the Town Hall in a lar
 ## Play in the browser
 
 The browser version is the same game, built for WebAssembly. The page reads your game files on
-your computer and does not upload them. The browser version needs two more tools. Install them
-once:
+your computer and does not upload them.
+
+**The simple way:** open the [Play page](https://tanepiper.github.io/unbanished/play) on the
+website. You do not need to install anything. Press **Start the game**, then follow steps 2 and 3
+below.
+
+**To run the browser version yourself**, for example to test a change, you need two more tools.
+Install them once:
 
 ```bash
 rustup target add wasm32-unknown-unknown

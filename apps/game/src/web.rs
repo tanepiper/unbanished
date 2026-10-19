@@ -31,8 +31,17 @@ pub fn set_status(text: &str, loaded: bool) {
 }
 
 /// `?data=<base>`: dev-server base URL for the git-ignored `game-data/` folder.
+///
+/// Only honoured when the page itself is served from this machine (`tools/dev-web.sh`). On the
+/// published site the player must pick their own `.pkg` files, so a link cannot make the page
+/// load game data from another server.
 pub fn data_base() -> Option<String> {
-    let search = web_sys::window()?.location().search().ok()?;
+    let location = web_sys::window()?.location();
+    let host = location.hostname().ok()?;
+    if !matches!(host.as_str(), "localhost" | "127.0.0.1" | "[::1]" | "::1") {
+        return None;
+    }
+    let search = location.search().ok()?;
     web_sys::UrlSearchParams::new_with_str(&search)
         .ok()?
         .get("data")

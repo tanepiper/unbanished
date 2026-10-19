@@ -4,8 +4,27 @@
     {
       "name": "game-web",
       "runtimeExecutable": "tools/dev-web.sh",
-      "runtimeArgs": ["--app", "game", "--release"],
+      "runtimeArgs": [
+        "--app",
+        "game",
+        "--release"
+      ],
       "port": 8733
+    },
+    {
+      "name": "site",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "site",
+        "run",
+        "preview",
+        "--",
+        "--port",
+        "4173"
+      ],
+      "port": 4173,
+      "url": "http://localhost:4173"
     }
   ]
 }
