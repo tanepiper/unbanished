@@ -134,6 +134,16 @@ impl Default for KeyMap {
     }
 }
 
+/// The default keyboard code of a registered action, by its name (`RotateLeft`), for scripted
+/// captures.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn default_key(name: &str) -> Option<u8> {
+    REGISTERED
+        .iter()
+        .find(|(n, device, _, _)| *n == name && *device == KEYBOARD)
+        .map(|&(_, _, input, _)| input)
+}
+
 fn suffix(slot: usize) -> &'static str {
     if slot == 0 {
         ""

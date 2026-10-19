@@ -1341,6 +1341,21 @@ mod native {
                 Some((steps.parse().ok()?, at.parse().ok()?))
             })
             .collect();
+        // `--hold ACTION@START-END` holds the default key of a key-map action (`RotateLeft`,
+        // `Forward`, `PitchUp`, …) from START to END seconds: camera moves in captures.
+        let mut holds: Vec<(u8, f32, f32, bool)> = args
+            .windows(2)
+            .filter(|w| w[0] == "--hold")
+            .filter_map(|w| {
+                let (name, span) = w[1].split_once('@')?;
+                let (start, end) = span.split_once('-')?;
+                let code = keymap::default_key(name);
+                if code.is_none() {
+                    log::warn!("--hold {name}: no such keyboard action");
+                }
+                Some((code?, start.parse().ok()?, end.parse().ok()?, false))
+            })
+            .collect();
         // `--combo NAME=ITEM@SECONDS` selects a combo item by its text (New Game settings).
         let mut combos: Vec<(String, String, f32)> = args
             .windows(2)
@@ -1416,6 +1431,17 @@ mod native {
                 }
                 game.wheel(steps);
                 false
+            });
+            holds.retain_mut(|(code, start, end, down)| {
+                if !*down && t >= *start {
+                    game.key(None, None, Some(*code));
+                    *down = true;
+                }
+                if *down && t >= *end {
+                    game.released((keymap::KEYBOARD, *code));
+                    return false;
+                }
+                true
             });
             pointer.retain(|&(click, x, y, at)| {
                 if t < at {

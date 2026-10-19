@@ -3,6 +3,9 @@
 #
 #   tools/videos.sh SAVE.sav [NAME...]      # NAME: chicken-walk citizens-market zoom-into-town seasons
 #   tools/videos.sh SAVE.sav montage        # the home page's 39 s montage (five saves, see below)
+#   tools/videos.sh LARGE.sav big-town      # a large town at speed 10, the camera turning over it
+#   tools/videos.sh SAVE.sav orbit follow-citizen   # the camera circles the town; it follows a citizen
+#   tools/videos.sh RIVER.sav river fishing  # along a river from a bridge; fishers on their dock
 #
 # SAVE.sav is a town saved without mods; the town videos load it. They were first made from a
 # 116-citizen town in late summer. With another save, set CLICK=X,Y to a building in the town
@@ -48,19 +51,20 @@ frames() {
   done
 }
 
-# town SECONDS OUT [ARGS...]: load the save, centre the camera on the building at $click, zoom
-# in, and run until SECONDS with the extra arguments. The frames land in $work/user/Screenshots.
+# town SECONDS OUT [ARGS...]: load the save, centre the camera on the building at $click (none:
+# keep the saved view), zoom in, and run until SECONDS with the extra arguments. The frames land
+# in $work/user/Screenshots.
 town() {
   local seconds="$1" shot="$2"
   shift 2
   rm -rf "$work/user"
   mkdir -p "$work/user/Save"
-  local wheel=() i
+  local wheel=() centre=() i
   for ((i = 0; i < ${ZOOM:-28}; i++)); do wheel+=(--wheel "8@$(echo "16 + $i * ${ZSTEP:-0.2}" | bc)"); done
+  [[ $click == none ]] || centre=(--click-at "$click@14" --press buttonCenter@14.6 --press buttonClose@15.2)
   BANISHED_USER_DIR="$work/user" BANISHED_SETTINGS="$work/settings.txt" \
     "$game" --boot-capture "$shot" "$seconds" --capture-size 1280x720 \
-    --script "load $save@4.5" --click-at "$click@14" --press buttonCenter@14.6 \
-    --press buttonClose@15.2 "${wheel[@]}" "$@" >"$work/log.txt" 2>&1
+    --script "load $save@4.5" ${centre[@]+"${centre[@]}"} ${wheel[@]+"${wheel[@]}"} "$@" >"$work/log.txt" 2>&1
   if grep -q 'not found at' "$work/log.txt"; then
     cat "$work/log.txt" >&2
     exit 1
@@ -106,6 +110,44 @@ for name in "${names[@]}"; do
       frames 20 0.75 240
       ZOOM=16 town 200.5 "$work/last.png" --script "speed 10@15.5" "${shots[@]}"
       encode 0 240 "scale=768:432:flags=lanczos" 40 seasons
+      ;;
+    big-town)
+      # A large town (the 0.2.0 notes use a 1,024-citizen save) at speed 10, from the saved
+      # view: 8 s of frames from 17 s while the camera turns slowly to the left.
+      frames 17 "$(echo "scale=8; 1/30" | bc)" 240
+      click=none ZOOM=0 town 25.5 "$work/last.png" --script "speed 10@15.5" \
+        --hold RotateLeft@17-25.2 "${shots[@]}"
+      encode 0 240 "scale=854:480:flags=lanczos" 42 big-town
+      ;;
+    orbit)
+      # Centre on the building at $click, zoom in part way, then circle it for 10 s.
+      frames 21 "$(echo "scale=8; 1/30" | bc)" 300
+      ZOOM=20 town 31.5 "$work/last.png" --hold RotateRight@21-31.2 --hold PitchUp@21-21.6 "${shots[@]}"
+      encode 0 300 "scale=768:432:flags=lanczos" 47 orbit
+      ;;
+    follow-citizen)
+      # Select a citizen (CITIZEN, the n-th living one), press Follow, zoom in and watch them
+      # for 10 s. The citizen window closes; the screenshots have no interface.
+      frames 23 "$(echo "scale=8; 1/30" | bc)" 300
+      click=none ZOOM=30 town 33.5 "$work/last.png" --script "select citizen ${CITIZEN:-5}@14" \
+        --press buttonFollow@14.5 "${shots[@]}"
+      encode 0 300 "scale=854:480:flags=lanczos" 40 follow-citizen
+      ;;
+    river)
+      # Centre on a bridge (CLICK, default for the river town of the montage), lower the
+      # camera, and fly along the river for 10 s.
+      frames 21 "$(echo "scale=8; 1/30" | bc)" 210
+      click="${CLICK:-965,232}" ZOOM=18 town 28.5 "$work/last.png" --hold PitchUp@20-20.8 \
+        --hold Back@21-28.2 "${shots[@]}"
+      encode 0 210 "scale=768:432:flags=lanczos" 46 river
+      ;;
+    fishing)
+      # Centre on a fishing dock (CLICK), zoom in close and turn slowly around it for 10 s,
+      # at speed 3 so that the fishers come and go.
+      frames 23 "$(echo "scale=8; 1/30" | bc)" 300
+      click="${CLICK:-912,275}" ZOOM=34 town 33.5 "$work/last.png" --script "speed 3@15.5" \
+        --hold PitchUp@22-22.6 --hold RotateLeft@23-27 "${shots[@]}"
+      encode 0 300 "scale=768:432:flags=lanczos" 44 fishing
       ;;
     montage)
       # Seven shots, joined with 0.5 s cross-fades: name, save, building to centre on, wheel

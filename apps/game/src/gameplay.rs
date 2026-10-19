@@ -1247,10 +1247,40 @@ impl GameLoop for GameplayLoop {
                 let (Some(town), Some(screen)) = (self.town.as_ref(), self.screen.as_mut()) else {
                     return false;
                 };
-                let Some(p) = town.placed.iter().rposition(|p| p.alive) else {
-                    return false;
+                // `select citizen N`: the N-th living citizen; `select profession NAME N`: the
+                // N-th living citizen whose profession's name contains NAME (`fish`, `hunt`),
+                // for captures that follow one. Plain `select`: the last placed entity.
+                let kind = words.next();
+                let entity = if matches!(kind, Some("citizen" | "profession")) {
+                    let wanted: Option<Vec<usize>> = (kind == Some("profession")).then(|| {
+                        let name = words.next().unwrap_or("").to_lowercase();
+                        let list = &town.construction.professions.list;
+                        (0..list.len())
+                            .filter(|&p| list[p].name.to_lowercase().contains(&name))
+                            .collect()
+                    });
+                    let n = words.next().and_then(|w| w.parse().ok()).unwrap_or(0);
+                    let Some(c) = (0..town.citizens.len())
+                        .filter(|&i| town.citizens[i].alive)
+                        .filter(|&i| {
+                            wanted.as_ref().is_none_or(|w| {
+                                town.agents
+                                    .states
+                                    .get(i)
+                                    .is_some_and(|s| w.contains(&s.profession))
+                            })
+                        })
+                        .nth(n)
+                    else {
+                        return false;
+                    };
+                    Entity::Citizen(c)
+                } else {
+                    let Some(p) = town.placed.iter().rposition(|p| p.alive) else {
+                        return false;
+                    };
+                    Entity::Placed(p)
                 };
-                let entity = Entity::Placed(p);
                 self.selection.selected = Some(entity);
                 self.entities
                     .select(ctx.ui, screen, ctx.archive, town, entity);
