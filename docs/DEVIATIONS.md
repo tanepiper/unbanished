@@ -159,7 +159,7 @@ Deviation: 40, Not ported: 4, Not traced: 1.
 
 ## `crates/terrain/src/query.rs`
 
-- [Deviation] [crates/terrain/src/query.rs:78](../crates/terrain/src/query.rs#L78): Terrain ray narrow phase FUN_1400afef0, used to clip EditTool picking to the ground. Deviation: enumerate the ray's cell rectangle instead of FUN_1400afa00's DDA traversal.
+- [Deviation] [crates/terrain/src/query.rs:79](../crates/terrain/src/query.rs#L79): Where a ray first hits the ground, no farther than `maximum`: the distance and the point. The game uses it to stop picking at the ground. Deviation: the port tests every cell in the rectangle the ray crosses, where the original walks the cells along the ray. Original: `FUN_1400afef0`; its walk along the ray is `FUN_1400afa00`.
 
 ## `crates/ui/src/input.rs`
 

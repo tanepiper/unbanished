@@ -1,9 +1,10 @@
 //! Gameplay queries on the saved height grid: the vertical ray cast that gives the ground height
-//! and normal anywhere on the map (`FUN_1400b6460` → `FUN_1400afef0` → `FUN_1400afce0`), and the
-//! natural cell type derived from it (`FUN_1400a3790`).
+//! and normal anywhere on the map, and the natural cell type derived from it.
 //!
-//! Positions are map-centred: cell `(i, j)` covers `[i - size/2, i - size/2 + 1)` and likewise
-//! for `y`. Float operations follow the disassembly so results are bit-exact.
+//! Positions are map-centred: cell `(i, j)` covers `[i - size/2, i - size/2 + 1)` and likewise for
+//! `y`. Float operations follow the disassembly so results are bit-exact.
+//!
+//! Original: `FUN_1400b6460`, `FUN_1400afef0`, `FUN_1400afce0`, `FUN_1400a3790`.
 
 use super::mesh::HeightGrid;
 
@@ -75,8 +76,13 @@ fn ray_triangle(
 }
 
 impl HeightGrid<'_> {
-    /// Terrain ray narrow phase FUN_1400afef0, used to clip EditTool picking to the ground.
-    /// Deviation: enumerate the ray's cell rectangle instead of FUN_1400afa00's DDA traversal.
+    /// Where a ray first hits the ground, no farther than `maximum`: the distance and the point.
+    /// The game uses it to stop picking at the ground.
+    ///
+    /// Deviation: the port tests every cell in the rectangle the ray crosses, where the original
+    /// walks the cells along the ray.
+    ///
+    /// Original: `FUN_1400afef0`; its walk along the ray is `FUN_1400afa00`.
     pub fn intersect(&self, origin: Vec3, direction: Vec3, maximum: f32) -> Option<(f32, Vec3)> {
         let n = self.width as i32 - 1;
         let half = n >> 1;
@@ -175,8 +181,10 @@ impl HeightGrid<'_> {
         (hit, t)
     }
 
-    /// `FUN_1400afef0` straight down from `(x, y, top)`, at most `length` (in the cell under
-    /// `x, y`): the hit triangle's normal, zero when nothing is hit.
+    /// The normal of the ground under `(x, y)`: a ray straight down from height `top`, at most
+    /// `length` long. It is zero when the ray hits nothing.
+    ///
+    /// Original: `FUN_1400afef0`.
     pub fn normal_below(&self, x: f32, y: f32, top: f32, length: f32) -> [f32; 3] {
         let half = ((self.width as i32 - 1) >> 1) as f32;
         let mut normal = [0.0; 3];
@@ -191,8 +199,10 @@ impl HeightGrid<'_> {
         normal
     }
 
-    /// `FUN_1400b6460`: ground height at a map position (0 when no triangle is hit). `normal`
-    /// receives the hit triangle's normal and is left unchanged otherwise.
+    /// Ground height at a map position (0 when no triangle is hit). `normal` receives the hit
+    /// triangle's normal and is left unchanged otherwise.
+    ///
+    /// Original: `FUN_1400b6460`.
     pub fn ground(&self, x: f32, y: f32, normal: &mut [f32; 3]) -> f32 {
         let half = ((self.width as i32 - 1) >> 1) as f32;
         let ix = (x + half) as i32;
@@ -207,8 +217,10 @@ impl HeightGrid<'_> {
         }
     }
 
-    /// `FUN_1400a3790`: the natural type of gameplay map cell `index` (row-major over
-    /// `map_size²`). The gameplay map is `n × n` cells centred on the `2n`-cell terrain.
+    /// The natural type of gameplay map cell `index` (row-major over `map_size²`). The gameplay map
+    /// is `n × n` cells centred on the `2n`-cell terrain.
+    ///
+    /// Original: `FUN_1400a3790`.
     pub fn natural_cell_type(&self, map_size: usize, index: usize) -> CellType {
         let size = map_size as i32;
         let index = index as i32;
@@ -221,20 +233,29 @@ impl HeightGrid<'_> {
     }
 }
 
-/// Map cell types (byte `+0x29` of the 48-byte map cell). Types 5–8 block movement
-/// (mask `0x1e0`); the rest are passable (mask `0xe1f`). Names for unconfirmed values are left
-/// numeric.
+// Byte +0x29 of the 48-byte map cell.
+/// The type of a map cell. Types 5 to 8 block movement (the mask `0x1e0`); the others can be
+/// walked on (the mask `0xe1f`). Types whose meaning is not confirmed have no name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CellType(pub u8);
 
 impl CellType {
+    /// Flat ground where buildings can go.
     pub const GROUND: CellType = CellType(2);
+    /// High ground. It blocks movement.
     pub const HIGH: CellType = CellType(6);
+    /// Shallow water. It blocks movement.
     pub const SHALLOW_WATER: CellType = CellType(7);
+    /// Deep water. It blocks movement.
     pub const DEEP_WATER: CellType = CellType(8);
+    /// Rough ground: walkable, but not buildable.
     pub const ROUGH: CellType = CellType(10);
 
-    /// Thresholds from `FUN_1400a3790`.
+    /// The natural type of a cell from the ground height and the up component of its normal:
+    /// deep water below -1.4, shallow water below -0.25, ground from -0.25 to 0.75 when the
+    /// ground is flat (`up ≥ 0.9`), rough ground below 2.0, and high ground above.
+    ///
+    /// Original: `FUN_1400a3790`.
     pub fn classify(height: f32, up: f32) -> CellType {
         if height < -1.4 {
             return CellType::DEEP_WATER;
@@ -252,6 +273,7 @@ impl CellType {
         }
     }
 
+    /// Whether walkers cannot enter a cell of this type.
     pub fn blocks_movement(self) -> bool {
         (1u32 << self.0) & 0x1e0 != 0
     }

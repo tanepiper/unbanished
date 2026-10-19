@@ -16,8 +16,8 @@
 //! assert_eq!(seconds(ticks(1.5)), 1.5);
 //! ```
 //!
-//! The port's handles are stable indices instead of the engine's object pointers. Removing an
-//! entity still swaps it with the last one of its bucket, as the original does.
+//! The port's handles are stable indices; the engine uses object pointers. Removing an entity
+//! still swaps it with the last one of its bucket, as in the engine.
 //!
 //! Original: `FUN_1400c9460`, `FUN_1400c9560`, `FUN_1400c9d70`.
 

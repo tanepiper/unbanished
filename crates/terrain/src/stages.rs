@@ -50,7 +50,10 @@ fn powf(base: f32, exp: f32) -> f32 {
 }
 
 impl Generator {
-    /// Stage 1, `FUN_1400d3aa0`: two noise fields blended by a logistic falloff from the centre.
+    /// Stage 1: fill the grid from two noise fields, blended by a logistic falloff from the
+    /// centre.
+    ///
+    /// Original: `FUN_1400d3aa0`.
     pub fn stage1_noise(&mut self) {
         let w = self.width();
         self.grid = vec![0.0; w * w];
@@ -82,8 +85,9 @@ impl Generator {
         }
     }
 
-    /// Stage 2: `FUN_1400d2560` (first path), `FUN_1400d2620` (lake points), `FUN_1400d2430`
-    /// (branch paths).
+    /// Stage 2: make the first river path, the lake points, then the branch paths.
+    ///
+    /// Original: `FUN_1400d2560`, `FUN_1400d2620`, `FUN_1400d2430`.
     pub fn stage2_records(&mut self) {
         while self.paths.is_empty() {
             self.build_path(self.size + 1, self.size as f32, FIRST_PATH, -1);
@@ -244,7 +248,9 @@ impl Generator {
         }
     }
 
-    /// Stage 3: `FUN_1400d2930` (hill circles) then `FUN_1400d3de0` (rasterise records).
+    /// Stage 3: place the hill circles, then draw the paths, lakes and hills into the grid.
+    ///
+    /// Original: `FUN_1400d2930`, then `FUN_1400d3de0`.
     pub fn stage3_shape(&mut self) {
         self.place_hills();
         self.rasterise_records();
@@ -419,8 +425,11 @@ impl Generator {
         }
     }
 
-    /// Stage 4, `FUN_1400d1550`: `record[+0x24]` walks from random interior cells, each moving
-    /// to the lowest 3x3 neighbour and exchanging a fraction of the height difference.
+    // The number of walks is record[+0x24].
+    /// Stage 4: walks from random cells inside the map. Each step moves to the lowest of the 3 × 3
+    /// neighbours and moves a part of the height difference.
+    ///
+    /// Original: `FUN_1400d1550`.
     pub fn stage4_downhill(&mut self) {
         let w = self.size + 1;
         for _ in 0..self.record.at(0x24) {
@@ -455,8 +464,10 @@ impl Generator {
         }
     }
 
-    /// Stage 5: `FUN_1400d4120` (carve rivers and lakes again, no hill mask) then
-    /// `FUN_1400d1820` twice.
+    /// Stage 5: carve the rivers and lakes again (without the hill mask), then smooth the grid
+    /// twice.
+    ///
+    /// Original: `FUN_1400d4120`, then `FUN_1400d1820` twice.
     pub fn stage5_smooth(&mut self) {
         let n = self.grid.len();
         let (mut carve, mut raise) = (vec![1.0f32; n], vec![0.0f32; n]);

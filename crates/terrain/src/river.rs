@@ -1,22 +1,23 @@
-//! The river strip builder (`FUN_1400d4fd0`): a generated path record becomes the triangle strip
-//! the map draws with the River material. See docs/TERRAIN-WATER-GEOMETRY.md.
+//! The river strip builder: a generated path record becomes the triangle strip the map draws with
+//! the River material. See docs/TERRAIN-WATER-GEOMETRY.md.
 //!
-//! 1. The path's segments, each end moved by `(+0.5, −0.5)`, go in a spatial index (4-unit
-//!    cells). Each of them but the last puts bank points every quarter unit at the river's half
-//!    width (the first point's `params[3]` + 2) on both sides: left into bank A, right into bank
-//!    B, each kept only when no segment is nearer than the half width (`FUN_1400d0f00`). The
-//!    joint to the next segment adds an arc on its outer side, 20 steps per right angle.
+//! 1. The path's segments, each end moved by `(+0.5, −0.5)`, go in a spatial index (4-unit cells).
+//!    Each of them but the last puts bank points every quarter unit at the river's half width (the
+//!    first point's `params[3]` + 2) on both sides: left into bank A, right into bank B, each kept
+//!    only when no segment is nearer than the half width. The joint to the next segment adds an arc
+//!    on its outer side, 20 steps per right angle.
 //! 2. Each path point gets the average backward tangent of its two segments.
 //! 3. For each path point and four directions between its tangent and the next one, the nearest
-//!    bank point of either bank to the path point (`FUN_1400d12c0`, within twice the half
-//!    width) is taken. When both banks moved on and the line between them is square to the
-//!    direction, the bank stretches walked since the last row are resampled to the same count
-//!    (`FUN_1400d0c20`) and added as rows, with a `v` running along the river at 1/32 of the
-//!    midline's length (`FUN_1400d0830`).
+//!    bank point of either bank to the path point (within twice the half width) is taken. When both
+//!    banks moved on and the line between them is square to the direction, the bank stretches
+//!    walked since the last row are resampled to the same count and added as rows, with a `v`
+//!    running along the river at 1/32 of the midline's length.
 //! 4. Each pair of rows becomes four quads across, `u` 0 to 1 from bank A to bank B; equal
 //!    vertices are shared.
 //!
 //! The arithmetic follows the original's float order so the mesh matches it bit for bit.
+//!
+//! Original: `FUN_1400d4fd0`, `FUN_1400d0f00`, `FUN_1400d12c0`, `FUN_1400d0c20`, `FUN_1400d0830`.
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -231,7 +232,9 @@ impl Bank {
     }
 }
 
-/// `FUN_1400d4fd0`: the strip of one path: vertices `(x, y, u, v)` and triangle indices.
+/// The strip of one path: vertices `(x, y, u, v)` and triangle indices.
+///
+/// Original: `FUN_1400d4fd0`.
 pub fn river_strip(path: &[PathPoint]) -> (Vec<[f32; 4]>, Vec<u16>) {
     let n = path.len();
     if n < 2 {
@@ -424,16 +427,22 @@ pub fn river_strip(path: &[PathPoint]) -> (Vec<[f32; 4]>, Vec<u16>) {
     (vertices, indices)
 }
 
-/// The map's water mesh (`FUN_1400b0730`, MapComponent `+0x1a0` vertices, `+0x1b0` indices):
-/// the rivers' strips, then the lakes' surfaces. 16-byte vertices: `i16 x, y` (1/48 cell),
-/// `i16 z` (1/256), `0`, `i16 u, v`, normal bytes `0x7f, 0x7f` and an alpha byte, `0`.
+// MapComponent +0x1a0 (vertices), +0x1b0 (indices), +0x1c0 / +0x1d0 (the ranges).
+/// The map's water mesh: the strips of the rivers, then the surfaces of the lakes.
+///
+/// A vertex is 16 bytes: `i16 x, y` (1/48 cell), `i16 z` (1/256), `0`, `i16 u, v`, the normal
+/// bytes `0x7f, 0x7f`, an alpha byte, and `0`.
+///
+/// Original: `FUN_1400b0730`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct WaterMesh {
+    /// The vertices.
     pub vertices: Vec<[u8; 16]>,
+    /// The indices, each relative to the first vertex of its range.
     pub indices: Vec<u16>,
-    /// `+0x1c0` per path and `+0x1d0` per lake: first index, first vertex, vertex count,
-    /// index count (indices are local to the range's first vertex).
+    /// The range of each river: first index, first vertex, vertex count, index count.
     pub rivers: Vec<[i32; 4]>,
+    /// The range of each lake, in the same form as [`rivers`](Self::rivers).
     pub lakes: Vec<[i32; 4]>,
 }
 
@@ -448,8 +457,11 @@ fn water_vertex(x: i16, y: i16, z: i16, u: i16, v: i16, alpha: u8) -> [u8; 16] {
     out
 }
 
-/// `FUN_1400b0730`. `heights` is the map's `(size + 1)²` grid (`+0xd8`, width `+0xd0`), `size`
-/// its cells (`+0xc0`); paths and lakes are the generator's (`+0x18`, `+0x48`).
+// Reads MapComponent +0xc0, +0xd0, +0xd8 and the generator's +0x18 (paths), +0x48 (lakes).
+/// The water mesh of a generated map. `paths` and `lakes` are the generator's, `heights` is the
+/// map's `(size + 1)²` height grid, and `size` is its size in cells.
+///
+/// Original: `FUN_1400b0730`.
 pub fn water_mesh(
     paths: &[Vec<PathPoint>],
     lakes: &[[f32; 3]],

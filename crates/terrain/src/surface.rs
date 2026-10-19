@@ -1,18 +1,21 @@
-//! Packed per-cell surface data (`FUN_1400d4910`), uploaded as the terrain's `size × size`
-//! image (`FUN_1400b1c50`) and kept at MapComponent `+0x140`.
+//! Packed per-cell surface data, uploaded as the terrain's `size × size` image and kept at
+//! MapComponent.
 //!
 //! The image is BGRA8 (format 5), so in memory each texel is the bytes `[dirt, rock, light, snow]`
-//! and the terrain pixel shader (`TerrainMaterial_ps`, sampler `transitionMap`) reads them as
-//! `.z`, `.y`, `.x`, `.w`:
-//! - dirt (`.z`, lerps grass → dirt): 255 below height -0.5, otherwise squared Perlin noise;
+//! and the terrain pixel shader (`TerrainMaterial_ps`, sampler `transitionMap`) reads them as `.z`,
+//! `.y`, `.x`, `.w`:
+//! - Dirt (`.z`, lerps grass → dirt): 255 below height -0.5, otherwise squared Perlin noise;
 //!   raised towards 255 above height 8.
-//! - rock (`.y`, lerps → triplanar rock): from the cell normal's up component (0 when nearly
-//!   flat, 255 when steep); raised towards 255 above height 7.
-//! - light (`.x`, multiplies the ambient term): one minus the mean facing of a radius-10
+//! - Rock (`.y`, lerps → triplanar rock): from the cell normal's up component (0 when nearly flat,
+//!   255 when steep); raised towards 255 above height 7.
+//! - Light (`.x`, multiplies the ambient term): one minus the mean facing of a radius-10
 //!   neighbourhood, scaled by the smoothed normal's up component.
-//! - snow (`.w`): left 0 here.
+//! - Snow (`.w`): left 0 here.
 //!
 //! Float operations follow the disassembly order so results are bit-exact.
+//!
+//! Original: `FUN_1400d4910`, `FUN_1400b1c50`.
+// +0x140
 
 use super::Generator;
 use banished_core::noise::PerlinNoise;
@@ -77,8 +80,10 @@ impl Generator {
         normalize([-dx, -dy, NORMAL_Z])
     }
 
-    /// `FUN_1400d4910`: build the packed surface image (`dirt | rock << 8 | light << 16`). Consumes two random values, so it must
-    /// run after `run()` exactly as the game does.
+    /// Build the packed surface image (`dirt | rock << 8 | light << 16`). Consumes two random
+    /// values, so it must run after `run` exactly as the game does.
+    ///
+    /// Original: `FUN_1400d4910`.
     pub fn surface_map(&mut self) -> Vec<u32> {
         let seed_y = self.rng.rand_tol(0xffffff);
         let seed_x = self.rng.rand_tol(0xffffff);
