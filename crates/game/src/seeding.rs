@@ -148,11 +148,22 @@ impl Placed {
     }
 }
 
+/// Stamps for [`Cells::types_revision`], unique across every `Cells`.
+static TYPES_REVISION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+fn next_types_revision() -> u64 {
+    TYPES_REVISION.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
 /// The gameplay map cells seeding reads and writes (`Game +0xf8`, 48-byte cells).
 pub struct Cells {
     pub size: usize,
-    /// `+0x29`.
+    /// `+0x29`. Change it only with [`Cells::set_type`], which keeps
+    /// [`Cells::types_revision`] current.
     pub types: Vec<CellType>,
+    /// A new stamp whenever `types` may have changed (a new map, any `set_type`), so readers
+    /// such as the path regions can skip comparing the whole map when it has not.
+    pub types_revision: u64,
     /// `+0x08`: entity on the cell (index into the placed list).
     pub objects: Vec<Option<usize>>,
     /// +0x00: occupancy used by FUN_1400a4aa0; distinct from stamped objects at +0x08.
@@ -193,6 +204,7 @@ impl Cells {
     pub fn new(size: usize, types: Vec<CellType>) -> Cells {
         Cells {
             size,
+            types_revision: next_types_revision(),
             objects: vec![None; types.len()],
             occupants: vec![None; types.len()],
             flags: vec![0; types.len()],
@@ -217,6 +229,7 @@ impl Cells {
             self.sector_marks.push(i as u32);
         }
         self.types[i] = ty;
+        self.types_revision = next_types_revision();
     }
 
     /// `FUN_1400a4e60`: add `delta` to `layer` on every cell within `radius` of `(cx, cy)`

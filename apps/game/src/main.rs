@@ -1350,6 +1350,7 @@ mod native {
             size.1,
             render::VideoSettings::from(&game.settings.video),
         ));
+        renderer.blocking_readback = true;
         // The Options dialog lists the capture device with one mode, the capture size.
         game.settings.display = renderer.display.clone();
         for adapter in game

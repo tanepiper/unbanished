@@ -23,7 +23,15 @@ const RAY_LENGTH: f32 = 100.0;
 pub struct Floors {
     pub counts: Vec<u8>,
     pub meshes: BTreeMap<usize, Floor>,
+    /// Each floor's world-space footprint (`x0, y0, x1, y1`, widened by [`BOUNDS_MARGIN`]),
+    /// set by [`Floors::add`]. The downward ray can hit a floor only inside it, so the ground
+    /// query skips the others without changing its result. A floor without bounds is tested.
+    bounds: BTreeMap<usize, [f32; 4]>,
 }
+
+/// Slack around a floor's footprint, far above the float error of turning its triangles into
+/// world space.
+const BOUNDS_MARGIN: f32 = 0.05;
 
 #[derive(Debug, Clone, Default)]
 pub struct Floor {
@@ -53,6 +61,7 @@ impl Floors {
         Floors {
             counts: vec![0; cells],
             meshes: BTreeMap::new(),
+            bounds: BTreeMap::new(),
         }
     }
 
@@ -61,11 +70,25 @@ impl Floors {
     pub fn add(&mut self, size: usize, entity: usize, floor: Floor) {
         self.remove(size, entity);
         self.count(size, floor.rect, 1);
+        let mut b = [f32::MAX, f32::MAX, f32::MIN, f32::MIN];
+        for v in floor.triangles.iter().flatten() {
+            let w = floor.transform.apply(*v);
+            b = [
+                b[0].min(w[0]),
+                b[1].min(w[1]),
+                b[2].max(w[0]),
+                b[3].max(w[1]),
+            ];
+        }
+        let m = BOUNDS_MARGIN;
+        self.bounds
+            .insert(entity, [b[0] - m, b[1] - m, b[2] + m, b[3] + m]);
         self.meshes.insert(entity, floor);
     }
 
     /// `FUN_140124770` → `FUN_1400a2070`: the rectangle counts one less and the mesh leaves.
     pub fn remove(&mut self, size: usize, entity: usize) {
+        self.bounds.remove(&entity);
         if let Some(floor) = self.meshes.remove(&entity) {
             self.count(size, floor.rect, -1);
         }
@@ -116,7 +139,12 @@ impl Floors {
             let direction = [0.0, 0.0, -1.0];
             let mut nearest = RAY_LENGTH;
             let mut hit = None;
-            for floor in self.meshes.values() {
+            for (id, floor) in &self.meshes {
+                if let Some(b) = self.bounds.get(id) {
+                    if x < b[0] || y < b[1] || b[2] < x || b[3] < y {
+                        continue;
+                    }
+                }
                 // `Picking::Scene::Intersect`: the ray in the mesh's space
                 // (`Transform::Inverse`); the distance holds, the rotation keeping the
                 // direction's length.

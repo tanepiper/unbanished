@@ -3166,6 +3166,16 @@ impl GameLoop for GameplayLoop {
                 self.paused = !self.paused;
                 return true;
             }
+            // `speed N`: the game speed, one of the toolbar's levels (1, 2, 5, 10; captures and
+            // profiling).
+            Some("speed") => {
+                let level = words.next().and_then(|w| w.parse::<u32>().ok());
+                let Some(i) = SPEED_LEVELS.iter().position(|&l| Some(l) == level) else {
+                    return false;
+                };
+                self.speed = i as _;
+                return true;
+            }
             // `pause`: open the pause menu (captures).
             Some("pause") => {
                 self.open_pause_menu(ctx);

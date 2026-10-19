@@ -26,6 +26,11 @@ pub fn bit(t: CellType) -> u32 {
     1u32 << (t.0 & 0x1f)
 }
 
+/// Whether a walker may enter a cell of this type (the test [`regions`] labels by).
+pub fn walkable(t: CellType) -> bool {
+    bit(t) & WALKABLE != 0
+}
+
 /// `FUN_1400a1950`: label connected walkable cells in scan order, starting at 1 (0 = none).
 pub fn regions(size: usize, types: &[CellType]) -> Vec<u16> {
     let mut region = vec![0u16; types.len()];

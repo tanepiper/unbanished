@@ -3061,8 +3061,19 @@ impl StartingTown {
     }
 
     pub(crate) fn model_instances(&self) -> Vec<GroupInstances> {
-        let mut groups: HashMap<(String, GroupMaterial), Vec<ModelInstance>> = HashMap::new();
+        // Placed entities, grouped by mesh and material set in placement order. A large town
+        // has about 28,000 of them every frame, so each finds its group through a small table
+        // per template (variant, mesh, set) instead of hashing a copy of the mesh name, and
+        // the sites are walked alongside the entities instead of looked up one by one. The
+        // groups and their instance order are the same as grouping by name directly.
+        let mut placed_groups: Vec<((String, GroupMaterial), Vec<ModelInstance>)> = Vec::new();
+        let mut by_name: HashMap<(String, GroupMaterial), usize> = HashMap::new();
+        let mut by_template: Vec<Vec<((usize, usize, usize), usize)>> =
+            vec![Vec::new(); self.templates.len()];
+        let mut sites = self.construction.sites.iter().peekable();
         for (e, p) in self.placed.iter().enumerate() {
+            while sites.next_if(|(&k, _)| k < e).is_some() {}
+            let site = sites.next_if(|(&k, _)| k == e).map(|(_, s)| s);
             if !p.alive {
                 continue;
             }
@@ -3077,32 +3088,38 @@ impl StartingTown {
                 continue;
             };
             // A damaged building's model shows the DestroyDescription's material set.
-            let set = self
-                .construction
-                .sites
-                .get(&e)
+            let set = site
                 .filter(|s| s.destroy.as_ref().is_some_and(|d| d.damaged_look))
                 .and_then(|s| self.construction.templates[s.template].destroy)
                 .map_or(0, |t| t.material.max(0) as usize);
-            groups
-                .entry((mesh.clone(), GroupMaterial { set, first: None }))
-                .or_default()
-                .push(ModelInstance {
-                    matrix: placement_matrix(
-                        p.position,
-                        [p.scale[0], p.scale[1], p.scale[2]],
-                        p.yaw,
-                    ),
-                    locals: p.animation.as_ref().and_then(|playback| {
-                        self.templates[p.template]
-                            .animations
-                            .get(p.variant)
-                            .and_then(Option::as_ref)
-                            .and_then(|g| g.clips.get(playback.clip))
-                            .map(|clip| playback.pose(clip))
-                    }),
-                });
+            let key = (p.variant, p.mesh, set);
+            let slots = &mut by_template[p.template];
+            let group = match slots.iter().find(|(k, _)| *k == key) {
+                Some(&(_, g)) => g,
+                None => {
+                    let name = (mesh.clone(), GroupMaterial { set, first: None });
+                    let g = *by_name.entry(name.clone()).or_insert_with(|| {
+                        placed_groups.push((name, Vec::new()));
+                        placed_groups.len() - 1
+                    });
+                    slots.push((key, g));
+                    g
+                }
+            };
+            placed_groups[group].1.push(ModelInstance {
+                matrix: placement_matrix(p.position, [p.scale[0], p.scale[1], p.scale[2]], p.yaw),
+                locals: p.animation.as_ref().and_then(|playback| {
+                    self.templates[p.template]
+                        .animations
+                        .get(p.variant)
+                        .and_then(Option::as_ref)
+                        .and_then(|g| g.clips.get(playback.clip))
+                        .map(|clip| playback.pose(clip))
+                }),
+            });
         }
+        let mut groups: HashMap<(String, GroupMaterial), Vec<ModelInstance>> =
+            placed_groups.into_iter().collect();
         self.storage_displays(&mut groups);
         // Citizens: `Template/Citizen.rsc:model` variant 0 (men) or 1 (women); children use
         // the scale `DAT_140178818` (`FUN_14011a700`).

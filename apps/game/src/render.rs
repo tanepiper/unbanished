@@ -113,6 +113,11 @@ struct Targets {
 }
 
 pub struct Renderer {
+    /// Wait for the GPU when reading back a save's preview, so the save is written on the
+    /// frame it was asked for. Headless captures set it: without it the number of frames a
+    /// save waits depends on GPU timing, and anything that changes while the game waits (the
+    /// growth smoothing runs even when paused) makes two identical runs save different states.
+    pub blocking_readback: bool,
     device: wgpu::Device,
     queue: wgpu::Queue,
     surface: Option<(wgpu::Surface<'static>, wgpu::SurfaceConfiguration)>,
@@ -951,6 +956,7 @@ impl Renderer {
         ui.set_external(&device, crate::loops::WHITE, &white);
         let targets = Targets::new(&device, (width, height), &blit_layout, &blit_sampler);
         Renderer {
+            blocking_readback: false,
             device,
             queue,
             surface,
@@ -1572,6 +1578,13 @@ impl Renderer {
     /// The capture once both copies are mapped: the frame's `width × height` RGBA texels and
     /// the minimap (size, `0x00RRGGBB` texels top row first). An empty frame means it failed.
     pub fn poll_capture(&self, p: &PendingCapture) -> Option<(Vec<u8>, Option<(u32, Vec<u32>)>)> {
+        #[cfg(not(target_arch = "wasm32"))]
+        let _ = self.device.poll(if self.blocking_readback {
+            wgpu::PollType::wait_indefinitely()
+        } else {
+            wgpu::PollType::Poll
+        });
+        #[cfg(target_arch = "wasm32")]
         let _ = self.device.poll(wgpu::PollType::Poll);
         let frame = p.frame.take()?;
         let minimap = match &p.minimap {
