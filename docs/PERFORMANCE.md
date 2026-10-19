@@ -3,7 +3,7 @@
 This document covers how to measure Un-Banished's performance, what has been fixed, and where
 the port can still become cheaper in memory, CPU and GPU without changing what the player sees.
 Evidence is measured: frame-phase timings from the built-in profiler and sampling profiles
-from samply, on a Mac with an Apple M1, release builds. The rule from
+from samply, on a MacBook Pro with an Apple M3 and 96 GB of memory, release builds. The rule from
 [AGENTS.md](../AGENTS.md) applies: 1:1 behaviour stays; only the implementation gets cheaper.
 
 ## Tools

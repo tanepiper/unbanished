@@ -74,13 +74,13 @@ they do not establish subjective speaker sound quality or other-browser support.
 
 ## Recorded Firefox Nightly run (2026-10-19)
 
-Firefox Nightly 160 on macOS (Apple M1), driven by `tools/firefox-check.mjs` over WebDriver
+Firefox Nightly 160 on macOS (MacBook Pro, Apple M3, 96 GB), driven by `tools/firefox-check.mjs` over WebDriver
 BiDi with a throwaway profile, against `tools/dev-web.sh --app game --release`
 (`?data=/game-data/`). The script collects the console with stack traces and takes screenshots.
 
 - **WebGPU** (`BrowserWebGpu`): the splash, the main menu and a new game run with no console
   errors or warnings.
-- **WebGL 2** (`dom.webgpu.enabled` false; ANGLE on Metal): the game aborted with
+- **WebGL 2** (`dom.webgpu.enabled` false; ANGLE on Metal, which Firefox reports to pages as a generic "Apple M1"): the game aborted with
   `RuntimeError: unreachable executed` as the main menu scene appeared (issue #7). A build with
   function names (`data-wasm-opt="0" data-keep-debug="true"`) showed `rust_oom` inside
   `wgpu_hal::gles` staging buffers for `queue.write_texture`, called from the decal upload. Every
