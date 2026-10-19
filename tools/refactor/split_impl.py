@@ -40,17 +40,40 @@ def leading(s, start):
     return cut
 
 
+def item_end(s, i, kind):
+    """End of the item whose header ends at `i`: a `fn`, `struct` or `enum` ends at the brace
+    that closes its body (or a `;` for a unit or tuple struct); a `const`, `static` or `type`
+    ends at its `;`, skipping any braces in its value. Brackets, strings and chars are skipped."""
+    depth = 0
+    while i < len(s):
+        c = s[i]
+        if c == '"':
+            i += 1
+            while s[i] != '"':
+                i += 2 if s[i] == "\\" else 1
+        elif c in "([":
+            depth += 1
+        elif c in ")]":
+            depth -= 1
+        elif c == "{" and depth == 0:
+            end = block_end(s, i)
+            if kind in ("fn", "struct", "enum"):
+                return end
+            i = end
+            continue
+        elif c == ";" and depth == 0:
+            return i + 1
+        i += 1
+    raise SystemExit("item has no end")
+
+
 def find_item(s, pattern, what):
     m = re.search(pattern, s, re.M)
     if not m:
         raise SystemExit(f"not found: {what}")
     start = leading(s, m.start())
-    brace = s.index("{", m.end() - 1) if s[m.end() - 1] != ";" else None
-    if brace is None:
-        end = m.end()
-    else:
-        # A tuple struct or enum ends at `;`/`}`; fns and blocks at their closing brace.
-        end = block_end(s, brace)
+    kind = re.search(r"\b(fn|enum|struct|const|type|static)\b", m.group(0)).group(1)
+    end = item_end(s, m.end(), kind)
     if end < len(s) and s[end] == "\n":
         end += 1
     return start, end
