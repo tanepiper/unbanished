@@ -159,11 +159,15 @@ impl Renderer {
             // `SunLight::DrawShadowMap`: every caster's depth pass (terrain tiles included; the
             // sky's has no programs). It does nothing at shadow detail 0.
             if self.video.shadow_detail > 0 {
+                // `SunLight::AddDrawItems` (0x1801097e0) begins the sun's draw group with the
+                // sun as its cull camera but group 0's camera as its camera, so the detail
+                // levels are measured from the scene's eye (*inferred*: group 0 is the scene's).
                 self.models.cull(
                     &self.device,
                     &self.queue,
                     ModelPass::Shadow,
                     &sun.depth_view_proj(self.shadow.size),
+                    scene.eye,
                 );
                 self.cull_terrain(
                     ModelPass::Shadow,
@@ -180,11 +184,14 @@ impl Renderer {
                 self.models.draw_depth(&mut pass, &self.shadow_bind);
             }
             if let (Some(level), true) = (water, self.video.reflection >= 2) {
+                // `ReflectionImageBuffer::Render` (0x1800a7ad0) mirrors the camera's
+                // camera-to-world in the water plane, so its position is the mirrored eye.
                 self.models.cull(
                     &self.device,
                     &self.queue,
                     ModelPass::Reflection,
                     &reflected(&scene.view_proj, level),
+                    Vec3::new(scene.eye.x, scene.eye.y, 2.0 * level - scene.eye.z),
                 );
             }
             if let (Some(level), true) = (water, self.video.reflection >= 1) {
@@ -199,6 +206,7 @@ impl Renderer {
                 &self.queue,
                 ModelPass::Scene,
                 &scene.view_proj,
+                scene.eye,
             );
             self.cull_terrain(ModelPass::Scene, &scene.view_proj, None);
             let t = &self.targets;

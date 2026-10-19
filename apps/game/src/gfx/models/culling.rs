@@ -100,6 +100,61 @@ impl Bounds {
     }
 }
 
+/// The detail level an instance is drawn at from `eye`: the first whose distance is larger
+/// than the distance from the centre of the instance's world box to `eye`, else level 0.
+///
+/// `levels` holds each level's distance (`GraphicsMesh::GetDetailLevelDistance`, 0x180012f40,
+/// the part's `+0x10`), `lo`/`hi` the mesh's box and `m` the instance's matrix. The world box
+/// is the mesh box moved by the instance's rotation and position (`FUN_18001fd50`, called from
+/// `Geometry::Clean`, 0x1800a5370). Its scale is left out: the original's transform has none,
+/// and the port's scale is the visual (growth) scale (*inferred*; the six meshes with levels
+/// are rocks and ores, which are drawn at scale 1).
+///
+/// Original: `MeshInstance::AddDrawItems` (0x1801037b0)
+pub(super) fn detail_level(levels: &[f32], lo: Vec3, hi: Vec3, m: &[f32; 16], eye: Vec3) -> usize {
+    if levels.len() < 2 {
+        return 0;
+    }
+    let axis = |i: usize| {
+        let c = Vec3::new(m[i], m[i + 1], m[i + 2]);
+        let l = c.length();
+        if l > 0.0 {
+            c / l
+        } else {
+            c
+        }
+    };
+    let (ax, ay, az) = (axis(0), axis(4), axis(8));
+    let half = 0.5f32; // DAT_180164804
+                       // FUN_18001fd50: the box's centre and half size, then the moved centre and the half size
+                       // along each world axis, term for term.
+    let (ex, ey, ez) = (
+        (hi.x - lo.x) * half,
+        (hi.y - lo.y) * half,
+        (hi.z - lo.z) * half,
+    );
+    let (cx, cy, cz) = (
+        (hi.x + lo.x) * half,
+        (hi.y + lo.y) * half,
+        (hi.z + lo.z) * half,
+    );
+    let world = |i: usize| ay[i] * cy + ax[i] * cx + az[i] * cz + m[12 + i];
+    let reach = |i: usize| ax[i].abs() * ex + ay[i].abs() * ey + az[i].abs() * ez;
+    let (min, max): (Vec3, Vec3) = (
+        Vec3::from_array(std::array::from_fn(|i| world(i) - reach(i))),
+        Vec3::from_array(std::array::from_fn(|i| reach(i) + world(i))),
+    );
+    // Deviation: the original takes the union of the instance's current and previous world
+    // boxes (`+0x4c` and `+0x64`, the previous one copied in `Geometry::Clean`); the port has
+    // only the current one. They are the same for every mesh with more than one level (rocks
+    // and ores do not move).
+    let dx = eye.x - (min.x + max.x) * half;
+    let dy = eye.y - (min.y + max.y) * half;
+    let dz = eye.z - (min.z + max.z) * half;
+    let distance = dy * dy + dx * dx + dz * dz;
+    levels.iter().position(|&d| distance < d * d).unwrap_or(0)
+}
+
 /// A pass's view frustum as six planes facing inwards, from its view-projection (wgpu clip
 /// space: `-w ≤ x, y ≤ w`, `0 ≤ z ≤ w`).
 pub(crate) struct Frustum([Vec4; 6]);
@@ -186,6 +241,24 @@ mod tests {
         assert!(!f.sees_box(Vec3::new(-1.0, -1.0, 9.0), Vec3::new(1.0, 1.0, 11.0)));
         // A large box around the camera reaches into the view.
         assert!(f.sees_box(Vec3::splat(-50.0), Vec3::splat(50.0)));
+    }
+
+    #[test]
+    fn detail_level_is_the_first_reaching_past_the_eye() {
+        let levels = [60.0, 10_000.0];
+        let (lo, hi) = (Vec3::new(-1.0, -1.0, 0.0), Vec3::new(1.0, 1.0, 2.0));
+        let m = Mat4::from_scale_rotation_translation(
+            Vec3::splat(2.0),
+            glam::Quat::from_rotation_z(0.7),
+            Vec3::new(100.0, 0.0, 0.0),
+        )
+        .to_cols_array();
+        // The box centre is at (100, 0, 1) whatever the scale and heading.
+        let at = |x: f32| detail_level(&levels, lo, hi, &m, Vec3::new(x, 0.0, 1.0));
+        assert_eq!(at(41.0), 0);
+        assert_eq!(at(40.0), 1, "exactly at the distance is beyond it");
+        assert_eq!(at(-20_000.0), 0, "beyond every level");
+        assert_eq!(detail_level(&[10_000.0], lo, hi, &m, Vec3::splat(1e6)), 0);
     }
 
     #[test]

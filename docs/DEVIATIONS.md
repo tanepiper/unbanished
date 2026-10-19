@@ -22,9 +22,9 @@ Deviation: 41, Not ported: 4, Not traced: 1.
 
 - [Deviation] [apps/game/src/gameplay.rs:50](../apps/game/src/gameplay.rs#L50): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
 
-## `apps/game/src/gfx/models.rs`
+## `apps/game/src/gfx/models/culling.rs`
 
-- [Deviation] [apps/game/src/gfx/models.rs:330](../apps/game/src/gfx/models.rs#L330): Deviation: always the first detail level. `MeshInstance::AddDrawItems` (0x1801037b0) draws the first level whose distance (`GetDetailLevelDistance`) exceeds the distance from the instance's box centre to the draw group's camera, else level 0. Only six meshes have a second level (three rocks, three ores, switching at 50 to 70 units); every other mesh has one level up to 10,000.
+- [Deviation] [apps/game/src/gfx/models/culling.rs:147](../apps/game/src/gfx/models/culling.rs#L147): Deviation: the original takes the union of the instance's current and previous world boxes (`+0x4c` and `+0x64`, the previous one copied in `Geometry::Clean`); the port has only the current one. They are the same for every mesh with more than one level (rocks and ores do not move).
 
 ## `apps/game/src/gfx/screenshot.rs`
 

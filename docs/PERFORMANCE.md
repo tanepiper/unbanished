@@ -150,20 +150,42 @@ measurement; compare the columns, not the runs.)
 ### Levels of detail
 
 A `GraphicsMesh` can hold several detail levels (parts), each with the distance up to which it
-is used (`GraphicsMesh::GetDetailLevelDistance`, 0x180012f40: the part's `+0x10`). Observed in
-`MeshInstance::AddDrawItems` (0x1801037b0): for a mesh with more than one level, the engine takes
-the centre of the instance's box, measures its distance to the current draw group's camera, and
-draws the first level whose distance is larger; if none is, level 0.
+is used (`GraphicsMesh::GetDetailLevelDistance`, 0x180012f40: the part's `+0x10`). The port
+loads every level and picks one per instance and per pass, as `MeshInstance::AddDrawItems`
+(0x1801037b0) does (`detail_level` in `apps/game/src/gfx/models/culling.rs`, called from
+`ModelRenderer::cull`).
 
-In the shipped data only 6 of 271 meshes have a second level: `Rock01`–`Rock03` and
-`Ore01`–`Ore03`, which switch at 50 to 70 units to a version with 20 to 85 % fewer triangles.
-Every other mesh has one level, used up to 10,000 units. The port draws level 0 always (a
-deviation, marked in `gfx/models.rs`): distant rocks and ore have slightly more triangles than
-in the original. The cost is negligible; matching the original is a small visual fix.
+| Step | Observed in the original |
+|---|---|
+| Which meshes | Only a mesh with more than one part (`GraphicsMesh +0x58`); the others always draw part 0 |
+| The box | The union of the instance's current world box (`Geometry +0x4c`) and its previous one (`+0x64`, copied there by `Geometry::Clean`, 0x1800a5370). The current box is the mesh box (`GraphicsMesh +0x80`/`+0x8c`, the last fields `GraphicsMesh::Serialize` writes) moved by the instance's rotation and position (`FUN_18001fd50`) |
+| The point | The box centre, `(min + max) × 0.5` (`DAT_180164804` = 0.5) |
+| The camera | The current draw group's camera (`Renderer +0x10`, group stride 0x1f0, index `+0x34`), at group `+0x90`: the camera (group `+0x8`) at `+0x88`, the position in its camera-to-world (`Camera +0x64`, `GetCameraToWorld` 0x1800186f0). Not the cull camera (group `+0xe0`) |
+| The choice | The first part whose distance squared is larger than the squared distance (strictly); if none is, part 0 |
 
-Open: which camera the shadow pass measures from (*inferred*: the draw group's own camera, so
-the sun's, which would put rocks and ore at their low level in the shadow map), and what
-`GraphicsMesh::GetMaxDepthDistance` (0x180012f60, `+0x48`) is used for.
+The cameras of the three passes:
+
+- **Scene**: the camera's eye.
+- **Water reflection**: `ReflectionImageBuffer::Render` (0x1800a7ad0) multiplies the camera's
+  camera-to-world by the reflection in the water plane, so the distance is measured from the
+  mirrored eye (the eye with its height mirrored in the water level).
+- **Shadow map**: `SunLight::AddDrawItems` (0x1801097e0) begins the sun's draw group with the
+  sun camera only as its cull camera; its camera is group 0's. So the shadow map measures from
+  the scene's eye too, not from the sun (*inferred*: that group 0 is the scene's group). Rocks
+  and ore therefore cast the shadow of the level they are drawn at.
+
+In the shipped data only 6 of 271 meshes have a second level: `Models/Rocks/Rock01`–`03Mesh`
+and `Models/NaturalResource/Ore/Ore01`–`03Mesh`. Their first level is used up to 50 to 70
+units (Rock01 50, Ore02 65), then a `_lod` part with 20 to 85 % fewer triangles up to 10,000
+units. Every other mesh has one level, used up to 10,000. A frame changes only where one of
+these rocks or ores is further than its switch distance.
+
+Differences that cannot be seen: the port measures from the current box only (a
+"Deviation:" in `culling.rs`; rocks and ore never move, so both boxes are the same), and it
+leaves the instance's visual scale out of the box (*inferred*: the original's transform has no
+scale; rocks and ore are drawn at scale 1).
+
+Open: what `GraphicsMesh::GetMaxDepthDistance` (0x180012f60, `+0x48`) is used for.
 
 Also tried: rebuilding a model group's instances only when its placements change. On a
 running town almost every group changes every frame, because the growth smoothing changes the

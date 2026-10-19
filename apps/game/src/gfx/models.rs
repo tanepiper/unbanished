@@ -22,8 +22,8 @@ use wgpu::util::DeviceExt;
 pub use banished_gfx::material::MaterialKind;
 
 mod culling;
-use culling::Bounds;
 pub(crate) use culling::Frustum;
+use culling::{detail_level, Bounds};
 
 /// The passes models are drawn in, each with its own view and its own list of the instances it
 /// can see ([`ModelRenderer::cull`]).
@@ -47,6 +47,19 @@ enum Visible {
     Packed { offset: u64, count: u32 },
     /// A skinned group's visible instances (each is drawn on its own with its palette).
     Indices(Vec<u32>),
+    /// A mesh with several detail levels: what each level draws (`Packed` or `Indices`).
+    Levels(Vec<Visible>),
+}
+
+impl Visible {
+    /// What one detail level draws. A group not split by level draws only level 0 (also a
+    /// mesh with several levels before its first cull).
+    fn level(&self, level: usize) -> Option<&Visible> {
+        match self {
+            Visible::Levels(lists) => lists.get(level),
+            other => (level == 0).then_some(other),
+        }
+    }
 }
 
 pub const KINDS: [MaterialKind; 6] = [
@@ -75,14 +88,20 @@ pub struct RangeData {
     pub rigid: [f32; 16],
     /// `ModelSkinLayout` vertices blended by the instance's bone palette on the GPU.
     pub skinned: bool,
+    /// The detail level (mesh part) the range belongs to.
+    pub level: usize,
 }
 
-/// A mesh (most detailed level) and the transforms of its instances.
+/// A mesh (all its detail levels) and the transforms of its instances.
 pub struct ModelGroup {
     pub name: String,
     /// The mesh's material set and material 0 override.
     pub material: GroupMaterial,
     pub ranges: Vec<RangeData>,
+    /// The distance up to which each detail level is drawn (one per mesh part).
+    pub levels: Vec<f32>,
+    /// The mesh's bounding box (`GraphicsMesh +0x80` and `+0x8c`), smallest corner first.
+    pub bounds: ([f32; 3], [f32; 3]),
     pub instances: Vec<[f32; 16]>,
     /// One `MAX_BONES` palette per instance (skinned groups only).
     pub skins: Vec<[f32; 16]>,
@@ -102,6 +121,8 @@ pub struct ModelInstance {
 
 struct ModelAsset {
     ranges: Vec<RangeData>,
+    levels: Vec<f32>,
+    bounds: ([f32; 3], [f32; 3]),
     bones: Vec<Bone>,
     animation_bone: Option<usize>,
     default_palette: Vec<Transform>,
@@ -113,6 +134,8 @@ impl ModelAsset {
             name,
             material,
             ranges: self.ranges,
+            levels: self.levels,
+            bounds: self.bounds,
             instances: Vec::new(),
             skins: Vec::new(),
             bones: self.bones,
@@ -289,10 +312,10 @@ fn load_groups(
 }
 
 /// A group's mesh and materials, read without the texture cache: the ranges' textures are
-/// still references (the AO texture, then each range's snow, damage and diffuse).
+/// still references (each level's AO texture, then each range's snow, damage and diffuse).
 struct PendingAsset {
     asset: ModelAsset,
-    ao: Option<String>,
+    ao: Vec<Option<String>>,
     textures: Vec<[Option<String>; 3]>,
 }
 
@@ -300,18 +323,19 @@ impl PendingAsset {
     fn references(&self) -> impl Iterator<Item = &str> {
         self.ao
             .iter()
+            .flatten()
             .chain(self.textures.iter().flatten().flatten())
             .map(String::as_str)
     }
 
     /// Fill in the textures, in `load_group`'s order.
     fn finish(mut self, cached: &mut impl FnMut(Option<String>) -> ModelImage) -> ModelAsset {
-        let ao = cached(self.ao);
+        let ao: Vec<ModelImage> = self.ao.into_iter().map(&mut *cached).collect();
         for (range, [snow, damage, diffuse]) in self.asset.ranges.iter_mut().zip(self.textures) {
             range.snow = cached(snow);
             range.damage = cached(damage);
             range.diffuse = cached(diffuse);
-            range.ao = ao.clone();
+            range.ao = ao.get(range.level).cloned().flatten();
         }
         self.asset
     }
@@ -327,12 +351,10 @@ fn read_group(
         .map_err(|e| log::warn!("{mesh_ref}: {e}"))
         .ok()?;
     let world = banished_gfx::model::bind_world(&mesh);
-    // Deviation: always the first detail level. `MeshInstance::AddDrawItems` (0x1801037b0)
-    // draws the first level whose distance (`GetDetailLevelDistance`) exceeds the distance
-    // from the instance's box centre to the draw group's camera, else level 0. Only six meshes
-    // have a second level (three rocks, three ores, switching at 50 to 70 units); every other
-    // mesh has one level up to 10,000.
-    let part = mesh.parts.first()?;
+    // Every detail level (part) is loaded; `ModelRenderer::cull` picks one per instance and
+    // pass. Only six shipped meshes have a second level (three rocks and three ores, switching
+    // at 50 to 70 units); every other mesh has one level, up to 10,000.
+    let first_part = mesh.parts.first()?;
     let mut set: Option<Vec<Option<String>>> =
         banished_gfx::model::material_set(&mesh, material.set).map(<[_]>::to_vec);
     if let (Some(first), Some(list)) = (&material.first, set.as_mut()) {
@@ -351,43 +373,49 @@ fn read_group(
         }
         _ => bind_palette(&mesh.bones),
     };
-    for range in &part.ranges {
-        if range.index_count == 0 {
-            continue;
+    for (level, part) in mesh.parts.iter().enumerate() {
+        for range in &part.ranges {
+            if range.index_count == 0 {
+                continue;
+            }
+            let (index_data, vertex_data, stride) = part.geometry(range);
+            let first = range.start_index as usize * 2;
+            let end = (range.start_index + range.index_count) as usize * 2;
+            let v0 = range.start_vertex as usize * stride;
+            let v1 = v0 + range.vertex_count as usize * stride;
+            let (Some(indices), Some(vertices)) =
+                (index_data.get(first..end), vertex_data.get(v0..v1))
+            else {
+                continue;
+            };
+            let mut indices = indices.to_vec();
+            indices.resize(indices.len().next_multiple_of(4), 0);
+            let m = banished_gfx::model::range_material(&world, set, range, &mut |r| {
+                material_instance(&archive.read_ref(&with_object(r)).ok()?).ok()
+            });
+            ranges.push(RangeData {
+                kind: m.kind,
+                snow: None,
+                damage: None,
+                vertices: vertices.to_vec(),
+                indices,
+                index_count: range.index_count as u32,
+                diffuse: None,
+                ao: None,
+                rigid: m.rigid.to_matrix(),
+                skinned: m.skinned,
+                level,
+            });
+            textures.push([m.snow, m.damage, m.diffuse]);
         }
-        let (index_data, vertex_data, stride) = part.geometry(range);
-        let first = range.start_index as usize * 2;
-        let end = (range.start_index + range.index_count) as usize * 2;
-        let v0 = range.start_vertex as usize * stride;
-        let v1 = v0 + range.vertex_count as usize * stride;
-        let (Some(indices), Some(vertices)) = (index_data.get(first..end), vertex_data.get(v0..v1))
-        else {
-            continue;
-        };
-        let mut indices = indices.to_vec();
-        indices.resize(indices.len().next_multiple_of(4), 0);
-        let m = banished_gfx::model::range_material(&world, set, range, &mut |r| {
-            material_instance(&archive.read_ref(&with_object(r)).ok()?).ok()
-        });
-        ranges.push(RangeData {
-            kind: m.kind,
-            snow: None,
-            damage: None,
-            vertices: vertices.to_vec(),
-            indices,
-            index_count: range.index_count as u32,
-            diffuse: None,
-            ao: None,
-            rigid: m.rigid.to_matrix(),
-            skinned: m.skinned,
-        });
-        textures.push([m.snow, m.damage, m.diffuse]);
     }
-    let animation_bone = banished_gfx::model::animation_bone(part);
+    let animation_bone = banished_gfx::model::animation_bone(first_part);
     Some(PendingAsset {
-        ao: part.ao_texture.clone(),
+        ao: mesh.parts.iter().map(|p| p.ao_texture.clone()).collect(),
         asset: ModelAsset {
             ranges,
+            levels: mesh.parts.iter().map(|p| p.lod_distance).collect(),
+            bounds: (mesh.bounds_min, mesh.bounds_max),
             bones: mesh.bones,
             animation_bone,
             default_palette,
@@ -788,6 +816,7 @@ struct GpuRange {
     indices: wgpu::Buffer,
     index_count: u32,
     bind: wgpu::BindGroup,
+    level: usize,
 }
 
 struct GpuGroup {
@@ -803,6 +832,10 @@ struct GpuGroup {
     spheres: Vec<[f32; 4]>,
     /// What each [`ModelPass`] draws this frame.
     visible: [Visible; 3],
+    /// Each detail level's distance, and the mesh's box its instances' distances are measured
+    /// from ([`culling::detail_level`]).
+    levels: Vec<f32>,
+    mesh_box: (Vec3, Vec3),
 }
 
 impl GpuGroup {
@@ -1252,6 +1285,7 @@ impl ModelRenderer {
                     }),
                     index_count: r.index_count,
                     bind,
+                    level: r.level,
                 }
             })
             .collect();
@@ -1269,6 +1303,8 @@ impl ModelRenderer {
             matrices: Vec::new(),
             spheres: Vec::new(),
             visible: Default::default(),
+            levels: g.levels.clone(),
+            mesh_box: (Vec3::from_array(g.bounds.0), Vec3::from_array(g.bounds.1)),
         };
         gpu.set_matrices(&g.instances);
         gpu
@@ -1329,18 +1365,58 @@ impl ModelRenderer {
     }
 
     /// Decide what `pass` draws this frame: the instances whose spheres reach its view
-    /// (`view_proj`), in their order. Call it before each pass's draw.
+    /// (`view_proj`), in their order, and for a mesh with several detail levels the level of
+    /// each, measured from the pass's camera position `eye`. Call it before each pass's draw.
     pub fn cull(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         pass: ModelPass,
         view_proj: &Mat4,
+        eye: Vec3,
     ) {
         let frustum = Frustum::new(view_proj);
         let p = pass as usize;
         self.packed.clear();
         for g in &mut self.groups {
+            if g.levels.len() > 1 {
+                // `MeshInstance::AddDrawItems` (0x1801037b0) picks the level per instance and
+                // draw group; each level here gets its own list, in the instances' order.
+                let culled = g.bounds.is_some() && g.spheres.len() == g.count as usize;
+                let (lo, hi) = g.mesh_box;
+                let chosen: Vec<Option<usize>> = g
+                    .matrices
+                    .iter()
+                    .enumerate()
+                    .map(|(i, m)| {
+                        (!culled || frustum.sees(&g.spheres[i]))
+                            .then(|| detail_level(&g.levels, lo, hi, m, eye))
+                    })
+                    .collect();
+                let lists = (0..g.levels.len())
+                    .map(|level| {
+                        let at = |i: &usize| chosen[*i] == Some(level);
+                        if g.skinned {
+                            return Visible::Indices(
+                                (0..g.count).filter(|&i| at(&(i as usize))).collect(),
+                            );
+                        }
+                        let offset = (self.packed.len() * 64) as u64;
+                        let before = self.packed.len();
+                        self.packed.extend(
+                            (0..g.matrices.len())
+                                .filter(|i| at(i))
+                                .map(|i| g.matrices[i]),
+                        );
+                        Visible::Packed {
+                            offset,
+                            count: (self.packed.len() - before) as u32,
+                        }
+                    })
+                    .collect();
+                g.visible[p] = Visible::Levels(lists);
+                continue;
+            }
             if g.bounds.is_none() || g.spheres.len() != g.count as usize {
                 g.visible[p] = Visible::All;
                 continue;
@@ -1432,27 +1508,36 @@ impl ModelRenderer {
                 if g.count == 0 || g.instances.size() == 0 {
                     continue;
                 }
-                let count = match &g.visible[p] {
-                    Visible::Packed { offset, count } => {
-                        let (Some(buffer), true) = (&self.pass_buffers[p], *count > 0) else {
-                            continue;
-                        };
-                        pass.set_vertex_buffer(
-                            1,
-                            buffer.slice(*offset..*offset + *count as u64 * 64),
-                        );
-                        *count
+                for level in 0..g.levels.len().max(1) {
+                    let Some(visible) = g.visible[p].level(level) else {
+                        continue;
+                    };
+                    let count = match visible {
+                        Visible::Packed { offset, count } => {
+                            let (Some(buffer), true) = (&self.pass_buffers[p], *count > 0) else {
+                                continue;
+                            };
+                            pass.set_vertex_buffer(
+                                1,
+                                buffer.slice(*offset..*offset + *count as u64 * 64),
+                            );
+                            *count
+                        }
+                        _ => {
+                            pass.set_vertex_buffer(1, g.instances.slice(..));
+                            g.count
+                        }
+                    };
+                    for r in g
+                        .ranges
+                        .iter()
+                        .filter(|r| r.kind == kind && !r.skinned && r.level == level)
+                    {
+                        pass.set_bind_group(1, &r.bind, &[]);
+                        pass.set_vertex_buffer(0, r.vertices.slice(..));
+                        pass.set_index_buffer(r.indices.slice(..), wgpu::IndexFormat::Uint16);
+                        pass.draw_indexed(0..r.index_count, 0, 0..count);
                     }
-                    _ => {
-                        pass.set_vertex_buffer(1, g.instances.slice(..));
-                        g.count
-                    }
-                };
-                for r in g.ranges.iter().filter(|r| r.kind == kind && !r.skinned) {
-                    pass.set_bind_group(1, &r.bind, &[]);
-                    pass.set_vertex_buffer(0, r.vertices.slice(..));
-                    pass.set_index_buffer(r.indices.slice(..), wgpu::IndexFormat::Uint16);
-                    pass.draw_indexed(0..r.index_count, 0, 0..count);
                 }
             }
         }
@@ -1473,11 +1558,14 @@ impl ModelRenderer {
                     .iter()
                     .filter(|r| r.skinned && (r.kind == MaterialKind::Character) == character)
                 {
+                    let Some(visible) = g.visible[p].level(r.level) else {
+                        continue;
+                    };
                     pass.set_bind_group(1, &r.bind, &[]);
                     pass.set_vertex_buffer(0, r.vertices.slice(..));
                     pass.set_index_buffer(r.indices.slice(..), wgpu::IndexFormat::Uint16);
                     let all: Vec<u32>;
-                    let shown = match &g.visible[p] {
+                    let shown = match visible {
                         Visible::Indices(list) => list.as_slice(),
                         _ => {
                             all = (0..g.count).collect();
