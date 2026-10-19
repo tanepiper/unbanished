@@ -1,8 +1,8 @@
-//! A 1:1 reimplementation of Banished's game logic.
-//!
-//! Every routine here is ported from the shipped binaries (see `docs/`), keeping the original's
-//! arithmetic order and float precision so that results match the game bit for bit. Ported
-//! functions name their source address; tests compare against data from real save files.
+#![doc = include_str!("../README.md")]
+#![doc(
+    html_logo_url = "https://tanepiper.github.io/unbanished/assets/un-banished-icon.svg",
+    html_favicon_url = "https://tanepiper.github.io/unbanished/favicon.svg"
+)]
 
 /// The bit-exact foundations, from their own crate (`banished-core`).
 pub use banished_core::{calendar, crt, math, noise, picking, random, scheduler};

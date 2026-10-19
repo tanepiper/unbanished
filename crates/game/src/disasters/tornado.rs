@@ -1,15 +1,17 @@
-//! TornadoComponent (vtable `0x140160ba0`, TornadoDescription): the environment forms one while
-//! it rains (`Environment::update`); it crosses the map along a jagged line, flattening crops
-//! and trees, wrecking buildings and killing animals and citizens near it. See
-//! docs/TORNADO.md.
+//! Tornadoes: the environment forms one while it rains
+//! (`Environment::update`); it crosses the map along a jagged line, flattening crops and trees,
+//! wrecking buildings and killing animals and citizens near it. See docs/TORNADO.md.
 //!
-//! - Setup (slot `+0x20`, `FUN_140058f00`): two random cells at least `+0x24` apart (at most a
-//!   hundred tries), a 129-point line between them bent by midpoint displacement
-//!   (`FUN_1400592e0`), the event "a tornado has touched down" (type 30, severity 3).
-//! - Update (slot `+0x40`, `FUN_140058630`): when its particles are gone the entity goes;
-//!   else it follows the line (`FUN_1400ac6b0`: within 3 of its point, the next one 10 on),
-//!   wrecks what is near (`FUN_1400589a0`) or, at the end, stops forming particles, and moves
-//!   `+0x20` a second toward its point on the ground.
+//! - Setup: two random cells at least apart (at most a hundred tries), a 129-point line between
+//!   them bent by midpoint displacement, the event "a tornado has touched down" (type 30, severity
+//!   3).
+//! - Update: when its particles are gone the entity goes; else it follows the line (within 3
+//!   cells of its point, the next point is 10 further), wrecks what is near or, at the end, stops
+//!   forming particles, and moves a second toward its point on the ground.
+//!
+//! Original: `TornadoComponent`: `FUN_140058f00`, `FUN_1400592e0`, `FUN_140058630`,
+//! `FUN_1400589a0`; following the line, `FUN_1400ac6b0`.
+// vtable 0x140160ba0; slot +0x20; +0x24; slot +0x40; +0x20
 
 use crate::random::Random;
 use crate::scheduler::seconds;
@@ -17,47 +19,66 @@ use crate::terrain::HeightGrid;
 use crate::town::Sim;
 use crate::work::jobs::Jobs;
 
-/// TornadoDescription (serializer `FUN_1400596f0`).
+/// TornadoDescription.
+///
+/// Original: `FUN_1400596f0`.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct TornadoTemplate {
-    /// `+0x20`: cells a second.
+    // +0x20
+    /// Cells a second.
     pub speed: f32,
-    /// `+0x24`: the ends' least distance in cells.
+    // +0x24
+    /// The ends' least distance in cells.
     pub min_distance: i32,
-    /// `+0x28`: the time between wrecking passes.
+    // +0x28
+    /// The time between wrecking passes.
     pub interval: i64,
-    /// `+0x30`: the reach of a pass (cells, and the radius about the thrown point).
+    // +0x30
+    /// The reach of a pass (cells, and the radius about the thrown point).
     pub reach: i32,
-    /// `+0x34`: how far from it a pass throws its point.
+    // +0x34
+    /// How far from it a pass throws its point.
     pub throw: i32,
-    /// The ParticleDescription slot 0's fade (`+0x20`): once it stops forming particles
-    /// (`FUN_140054080(0)`), the slot's alpha falls to 0 over this and the system goes.
+    // +0x20
+    /// The fade of particle slot 0: once the tornado stops forming particles, the slot's alpha
+    /// falls to 0 over this time and the particle system goes.
     pub fade: i64,
 }
 
-/// The component's state (serializer `FUN_1400594e0`).
+/// The component's state.
+///
+/// Original: `FUN_1400594e0`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tornado {
-    /// `+0x30`: the point it heads for; `+0x40` the line; `+0x50` the point's index.
+    // +0x30; +0x40; +0x50
+    /// The point it heads for; the line; the point's index.
     pub target: [f32; 3],
     pub path: Vec<[f32; 3]>,
     pub index: i32,
-    /// `+0x28`: until the next wrecking pass.
+    // +0x28
+    /// Until the next wrecking pass.
     pub timer: i64,
-    /// `+0x58`: where it is.
+    // +0x58
+    /// Where it is.
     pub position: [f32; 3],
-    /// Its particle slot is on (`FUN_140054080(0)` fades it out).
+    /// Whether its particle slot is on.
+    ///
+    /// Original: `FUN_140054080(0)` fades it out.
     pub emitting: bool,
-    /// The particle slot's alpha (system `+0x7c`) and its rate per second (slot `+0x10`):
-    /// `1 / fade` from the start (`FUN_140053fc0`), `−1 / fade` once it stops; `None` once the
-    /// slot is gone.
+    // slot +0x10; +0x7c
+    /// The particle slot's alpha (system) and its rate per second: `1 / fade` from the start, `−1 /
+    /// fade` once it stops; `None` once the slot is gone.
+    ///
+    /// Original: `FUN_140053fc0`.
     pub slot: Option<(f32, f32)>,
 }
 
 impl Tornado {
-    /// The particle component's update for the slot (`FUN_140053490`), which runs before the
-    /// tornado's (the template lists `particle` first): the alpha moves by
-    /// `AsSeconds(dt) × rate`; above 1 it stays at 1 and stops, at 0 or below the slot goes.
+    /// The particle component's update for the slot, which runs before the tornado's (the template
+    /// lists `particle` first): the alpha moves by `AsSeconds(dt) × rate`; above 1 it stays at 1
+    /// and stops, at 0 or below the slot goes.
+    ///
+    /// Original: `FUN_140053490`.
     pub fn step_slot(&mut self, dt: i64) {
         let Some((alpha, rate)) = &mut self.slot else {
             return;
@@ -84,8 +105,11 @@ fn normalize(v: [f32; 3]) -> ([f32; 3], f32) {
     crate::math::normalize3_len(v)
 }
 
-/// `FUN_1400592e0(path, a, b)`: the point midway between `a` and `b` moves off the line, to its
-/// left, by up to a quarter of their distance (`RandFloat`); then each half.
+/// Bend a line by midpoint displacement: the point midway between `a` and `b` moves off the line,
+/// to its left, by a random amount up to a quarter of their distance; then each half is bent the
+/// same way.
+///
+/// Original: `FUN_1400592e0(path, a, b)`.
 pub fn displace(path: &mut [[f32; 3]], a: usize, b: usize, rng: &mut Random) {
     let (p, q) = (path[a], path[b]);
     let (d, length) = normalize([q[0] - p[0], q[1] - p[1], q[2] - p[2]]);
@@ -112,7 +136,9 @@ pub fn displace(path: &mut [[f32; 3]], a: usize, b: usize, rng: &mut Random) {
 }
 
 impl Tornado {
-    /// `FUN_140058f00` on a map `size` cells a side.
+    /// A new tornado on a map of `size` cells: its line across the map, and its event.
+    ///
+    /// Original: `FUN_140058f00`.
     pub fn new(
         t: &TornadoTemplate,
         size: usize,
@@ -157,8 +183,9 @@ impl Tornado {
         }
     }
 
-    /// `FUN_1400ac6b0(state, position, 10, 3)`: within 3 of its point, the next point at least
-    /// 10 on (`FUN_1400ac590`); false past the end.
+    /// Within 3 of its point, the next point at least 10 on; false past the end.
+    ///
+    /// Original: `FUN_1400ac6b0(state, position, 10, 3)`, `FUN_1400ac590`.
     pub fn follow(&mut self) -> bool {
         let p = [self.position[0], self.position[1], 0.0];
         let (dx, dy) = (self.target[0] - p[0], self.target[1] - p[1]);
@@ -182,8 +209,10 @@ impl Tornado {
         true
     }
 
-    /// The point a wrecking pass throws (`FUN_1400589a0`): `RandFloatTol × 180°` about it, up
-    /// to `+0x34` away (`RandFloat`).
+    // +0x34
+    /// The point a wrecking pass throws: `RandFloatTol × 180°` about it, up to away (`RandFloat`).
+    ///
+    /// Original: `FUN_1400589a0`.
     pub fn throw(&self, t: &TornadoTemplate, rng: &mut Random) -> [f32; 3] {
         let angle = rng.rand_float_tol() * 180.0 * 0.017_453_292;
         let r = rng.rand_float();
@@ -199,7 +228,9 @@ impl Tornado {
 }
 
 impl Sim<'_, '_> {
-    /// Every tornado's update (`FUN_140058630`) for `dt` ticks.
+    /// Every tornado's update for `dt` ticks.
+    ///
+    /// Original: `FUN_140058630`.
     pub fn update_tornadoes(&mut self, jobs: &mut Jobs, dt: i64) {
         let ids: Vec<usize> = self.tornadoes.keys().copied().collect();
         for e in ids {

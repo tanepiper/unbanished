@@ -1,12 +1,14 @@
-//! HerbalistComponent (vtable `0x14015f980`, the gatherer's shelter and the herbalist) and its
-//! work (vtable `0x1401679c0`, made by slot `+0x90` `FUN_14004bac0`), with the workplace's
-//! AutoPickupComponent. See docs/JOBS.md "Gatherers".
+//! The gatherer's shelter and the herbalist, their work, and the workplace's auto-pickup. See
+//! docs/JOBS.md, "Gatherers".
 //!
-//! A worker first takes one of the piles its own building made (AutoPickup). Otherwise, while
-//! the stock is under the production group's limit, it draws random cells within the
-//! building's radius until one holds an unclaimed, fully grown natural resource of a listed
-//! kind, and harvests it. The pile it leaves is recorded for the AutoPickup. Too many
-//! unlucky draws in a row and the worker drops off what it carries instead of waiting.
+//! A worker first takes one of the piles its own building made (AutoPickup). Otherwise, while the
+//! stock is under the production group's limit, it draws random cells within the building's radius
+//! until one holds an unclaimed, fully grown natural resource of a listed kind, and harvests it.
+//! The pile it leaves is recorded for the AutoPickup. Too many unlucky draws in a row and the
+//! worker drops off what it carries instead of waiting.
+//!
+//! Original: `HerbalistComponent`; its work is made by slot `FUN_14004bac0`.
+// vtable 0x14015f980; vtable 0x1401679c0; +0x90
 
 use std::collections::BTreeSet;
 
@@ -14,15 +16,17 @@ use crate::pathfind::nearest_neighbour;
 use crate::town::Sim;
 use crate::work::jobs::{Work, WorkKind};
 
-/// The work's state: `+0x48` the workers (a set; `+0x50` its size), `+0x58` misses in a row.
+// +0x48; +0x50; +0x58
+/// The work's state: the workers (a set; its size), misses in a row.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct HerbalistWork {
     pub workers: BTreeSet<usize>,
     pub misses: i32,
 }
 
-/// AutoPickupComponent (`+0x28` on, from AutoPickupDescription `+0x20`; `+0x30` the Pickup
-/// works of the piles the workplace's workers made).
+// +0x28; +0x20; +0x30
+/// AutoPickupComponent (on, from AutoPickupDescription; the Pickup works of the piles the
+/// workplace's workers made).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct AutoPickup {
     pub enabled: bool,
@@ -32,9 +36,11 @@ pub struct AutoPickup {
 /// A resolved HerbalistDescription.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct HerbalistTemplate {
-    /// `+0x20`: the natural-resource templates (indices into the placed-object templates).
+    // +0x20
+    /// The natural-resource templates (indices into the placed-object templates).
     pub resources: Vec<usize>,
-    /// `+0x30`: the stock-manager slot whose limit stops the work.
+    // +0x30
+    /// The stock-manager slot whose limit stops the work.
     pub group: i32,
 }
 

@@ -1,20 +1,18 @@
-//! CharacterComponent (vtable `0x140168790`, constructor `FUN_14010f1f0`) and the `Action` task
-//! stack it runs. See docs/CITIZEN-AI.md.
+//! CharacterComponent and the `Action` task stack it runs. See docs/CITIZEN-AI.md.
 //!
-//! - Slot `+0x40` (`FUN_14010e990`, bit `0x04` phase, every iteration): run the action stack
-//!   (`FUN_1400ca120`), then turn toward the target heading, move by the animation's root
-//!   motion times the speed, and drop onto the ground.
-//! - Slot `+0x48` (`FUN_14010e950`, bit `0x08` bucket phase): notify the running chain
-//!   (`FUN_1400ca450`, action slot `+0x30`) on the started actions of the running chain.
-//!   MoveTo's (`FUN_1400cde40`) sets whether it walks behind another character, at the
-//!   description's follow speed ([`ActionStack::notify_moves`]); HuntAnimal's
-//!   (`FUN_1400cd2b0`) looks for prey.
+//! - Slot (bit `0x04` phase, every iteration): run the action stack, then turn toward the target
+//!   heading, move by the animation's root motion times the speed, and drop onto the ground.
+//! - Slot (bit `0x08` bucket phase): notify the running chain (action slot) on the started actions
+//!   of the running chain. MoveTo's sets whether it walks behind another character, at the
+//!   description's follow speed ([`ActionStack::notify_moves`]); HuntAnimal's looks for prey.
 //!
-//! Actions (registered `Action` types, vtable slots `+0x20` start, `+0x28` update,
-//! `+0x38` stop, `+0x40` abort) return [`Status`]. The stack is an array of chains; the top
-//! chain is started once, then updated each run. `Done` pops it and continues with the next
-//! chain in the same run, `Failed` clears everything, and when the stack empties the
-//! "on empty" chain (`+0x58`) runs once (`FUN_1400ca080`).
+//! Actions (registered `Action` types, vtable slots start, stop, abort) return [`Status`]. The
+//! stack is an array of chains; the top chain is started once, then updated each run. `Done` pops
+//! it and continues with the next chain in the same run, `Failed` clears everything, and when the
+//! stack empties the "on empty" chain runs once.
+//!
+//! Original: `FUN_14010f1f0`, `FUN_14010e990`, `FUN_1400ca120`, `FUN_14010e950`, `FUN_1400ca450`, `FUN_1400cde40`, `FUN_1400cd2b0`, `FUN_1400ca080`.
+// vtable 0x140168790; +0x40; +0x48; +0x30; +0x28 update; +0x58; +0x20; +0x38
 
 use banished_formats::game::CharacterDescription;
 use banished_formats::types::AnimationGroup;
@@ -26,7 +24,8 @@ use crate::scheduler::{seconds, ticks};
 use crate::terrain::{CellType, HeightGrid};
 use crate::work::stock::{consume_stored, pickup_stored, RawMaterial, Storage};
 
-/// `DAT_1401787d4`: arrival distance.
+// DAT_1401787d4
+/// Arrival distance.
 pub const ARRIVE: f32 = 0.05;
 /// `DAT_1401787e4`: turns smaller than this snap to the target heading.
 const SNAP_DEGREES: f32 = 0.1;
@@ -35,6 +34,7 @@ const PATH_CELLS: usize = 0x100;
 /// Cell type whose surface is at height 0 (`FUN_14010e990`, type `0x0b`).
 const FLAT_TYPE: u8 = 11;
 
+/// The result of an action's step.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
     Done = 0,
@@ -42,8 +42,8 @@ pub enum Status {
     Failed = 2,
 }
 
-/// Which component a [`SendMessage`] targets (`DAT_1401cf0e8` CitizenAI, `DAT_1401cf158`
-/// Citizen).
+// DAT_1401cf0e8; DAT_1401cf158
+/// Which component a `SendMessage` targets (CitizenAI, Citizen).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Component {
     CitizenAi,
@@ -94,8 +94,9 @@ pub enum Component {
     Fishing,
 }
 
-/// A message an action delivered (slot `+0x78` of the receiving component). The owner
-/// dispatches these after the character update.
+// +0x78
+/// A message an action delivered (slot of the receiving component). The owner dispatches these
+/// after the character update.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Message {
     pub component: Component,
@@ -105,23 +106,28 @@ pub struct Message {
     pub b: i32,
 }
 
-/// Map state the character and its actions read.
-/// `Town::FindMaterialStorage` (`FUN_140092a60`) for a redirected drop-off: the storages,
-/// the game's Random, the material, the count and the citizen's cell give a storage and the
-/// point to walk to.
+/// Map state the character and its actions read. `Town::FindMaterialStorage` for a redirected
+/// drop-off: the storages, the game's Random, the material, the count and the citizen's cell give a
+/// storage and the point to walk to.
+///
+/// Original: `FUN_140092a60`.
 pub type StorageSearch<'a> =
     dyn FnMut(&[Storage], &mut Random, usize, i32, i32) -> Option<(usize, [f32; 3])> + 'a;
 
+/// What a character needs from the world to move: the map, the ground and the path finder.
 pub struct World<'a> {
     pub size: usize,
     pub types: &'a [CellType],
-    /// Map cells `+0x08` (stamped objects), `+0x00` (occupants) and `+0x28` (flags).
+    // +0x08; +0x00; +0x28
+    /// Map cells (stamped objects), (occupants) and (flags).
     pub objects: &'a [Option<usize>],
     pub occupants: &'a [Option<usize>],
     pub flags: &'a [u8],
-    /// `+0x2a`: the road kind planned or built (`0xff` none).
+    // +0x2a
+    /// The road kind planned or built (`0xff` none).
     pub roads: &'a [u8],
-    /// `+0x2d` and the floor scene: bridge decks walked on.
+    // +0x2d
+    /// and the floor scene: bridge decks walked on.
     pub floors: &'a crate::world::floor::Floors,
     pub regions: &'a [u16],
     pub terrain: &'a HeightGrid<'a>,
@@ -137,26 +143,29 @@ pub struct World<'a> {
     pub storage_search: Option<&'a mut StorageSearch<'a>>,
     /// Actions an action pushed from its start (`ActionStack::Push`), pushed once it returns.
     pub pushes: Vec<Action>,
-    /// Citizen `+0xac`: tool uses left (PerformWork with a tool spends one).
+    // +0xac
+    /// Citizen: tool uses left (PerformWork with a tool spends one).
     pub tool_uses: &'a mut i32,
     /// The tool ShowTool attached (`-1` none, `-2` carried goods).
     pub shown_tool: &'a mut i32,
     /// Per placed entity: its model is playing an animation (`MeshInstance::IsAnimating`).
     pub animating: &'a mut [bool],
-    /// Citizen `+0x1f8` and `+0x200`: an accident's profession and the time since the last
-    /// injury check.
+    // +0x1f8; +0x200
+    /// Citizen: an accident's profession and the time since the last injury check.
     pub accident: &'a mut Option<usize>,
     pub accident_timer: &'a mut i64,
-    /// The current job's profession (`+0x30` → the work's slot `+0x50`) and its accident odds
-    /// (`+0x54`, `+0x58`).
+    // +0x54; +0x58; +0x30; +0x50
+    /// The current job's profession (→ the work's slot) and its accident odds.
     pub accident_odds: Option<(usize, f32, f32)>,
 }
 
 impl World<'_> {
-    /// `Citizen::InjuryCheck` (`FUN_14011bb20` → `FUN_1400ae760`): already hurt, or, at a job
-    /// whose profession has accidents, `RandFloat() < time since the last check / (+0x54 × 12
-    /// × 300 s × +0x58)` (the time restarts at every check). Not ported: the debug flag that
-    /// stops it (`Game +0xd0` bit 8).
+    // RandFloat() < time since the last check / (+0x54 × 12 × 300 s × +0x58); Game +0xd0
+    /// Already hurt, or, at a job whose profession has accidents, `RandFloat < time since the last
+    /// check / (× 12 × 300 s ×)` (the time restarts at every check). Not ported: the debug flag
+    /// that stops it (`Game` bit 8).
+    ///
+    /// Original: `Citizen::InjuryCheck`, `FUN_14011bb20`, `FUN_1400ae760`.
     pub fn injury_check(&mut self) -> bool {
         if self.accident.is_some() {
             return true;
@@ -187,7 +196,9 @@ impl World<'_> {
         n * y + x
     }
 
-    /// Centre of a cell on the ground (`FUN_1400a48b0`, on a bridge's floor).
+    /// Centre of a cell on the ground (on a bridge's floor).
+    ///
+    /// Original: `FUN_1400a48b0`.
     pub fn cell_centre(&self, cell: i32) -> [f32; 3] {
         let n = self.size as i32;
         let c = (n >> 1) as f32 - 0.5;
@@ -206,7 +217,9 @@ pub fn heading(dir: [f32; 2]) -> f32 {
     crate::math::heading(dir[0], dir[1])
 }
 
-/// FUN_1400c7e70: normalize the full 3D vector before taking its heading.
+/// Normalize the full 3D vector before taking its heading.
+///
+/// Original: `FUN_1400c7e70`.
 pub fn work_facing(source: [f32; 3], target: [f32; 3]) -> f32 {
     let d = crate::math::normalize3([
         source[0] - target[0],
@@ -223,27 +236,34 @@ fn normalize2(v: [f32; 2]) -> [f32; 2] {
 /// The character state the actions drive.
 pub struct Character {
     pub desc: CharacterDescription,
-    /// Model transform `+0x158` and yaw `+0x168` (degrees, including the yaw offset).
+    // +0x158; +0x168
+    /// Model transform and yaw (degrees, including the yaw offset).
     pub position: [f32; 3],
     pub yaw: f32,
-    /// `+0x2c..+0x34`: walking direction; `+0x38` speed; `+0x3c` target heading.
+    // +0x2c..+0x34; +0x38; +0x3c
+    /// Walking direction; speed; target heading.
     pub direction: [f32; 3],
     pub speed: f32,
     pub target_heading: f32,
-    /// `+0x28`: set with a heading of its own (`FUN_14010f5b0`), cleared when a waypoint is
-    /// faced; no byte read of it was found in the Application outside the saves, which keep
-    /// it.
+    // +0x28
+    /// Set with a heading of its own, cleared when a waypoint is faced; no byte read of it was
+    /// found in the Application outside the saves, which keep it.
+    ///
+    /// Original: `FUN_14010f5b0`.
     pub flag_28: bool,
-    /// Model scale z (model `+0x13c`): `FUN_14010f6c0` multiplies it into the speed.
+    // +0x13c; FUN_14010f6c0 multiplies it into the speed.
+    /// The model's z scale, which scales the walking speed.
     pub scale: f32,
     /// The model's animation state, its clips blending into each other.
     pub animation: AnimationStack,
     pub stack: ActionStack,
-    /// `+0x40`: its slot in the characters' tree (`Game +0x88`), −1 while in none.
+    // +0x40; Game +0x88
+    /// Its slot in the characters' tree (`Game`), −1 while in none.
     pub tree_slot: i32,
 }
 
 impl Character {
+    /// A character at a position, with its description and its model's scale.
     pub fn new(desc: CharacterDescription, position: [f32; 3], scale: f32) -> Character {
         Character {
             desc,
@@ -260,16 +280,20 @@ impl Character {
         }
     }
 
-    /// `FUN_14010f6c0`: play clip `anim` (a looping clip already playing keeps its time,
+    /// Play clip `anim` (a looping clip already playing keeps its time,
     /// `AnimationState::PlayAnimation`) and set the speed to `scale * speed`.
+    ///
+    /// Original: `FUN_14010f6c0`.
     pub fn play(&mut self, anim: usize, group: &AnimationGroup, speed: f32) {
         self.animation.play(group, anim, 0);
         self.speed = self.scale * speed;
     }
 
-    /// `FUN_14010e990`: run the actions, turn and move. `dt` is the manager's iteration delta.
-    /// Call [`Character::animate`] first: `AnimationManager::Update` runs before the entity
-    /// manager in each iteration, and the move uses that step's root motion.
+    /// Run the actions, turn and move. `dt` is the manager's iteration delta. Call
+    /// [`Character::animate`] first: `AnimationManager::Update` runs before the entity manager in
+    /// each iteration, and the move uses that step's root motion.
+    ///
+    /// Original: `FUN_14010e990`.
     pub fn update(&mut self, world: &mut World, group: &AnimationGroup, dt: f32) {
         let mut stack = std::mem::take(&mut self.stack);
         stack.run(self, world, group, dt);
@@ -319,7 +343,9 @@ impl Character {
         self.yaw = new_heading + desc.yaw_offset;
     }
 
-    /// The movement half of `FUN_14010e990` (after the stack ran and the clip advanced).
+    /// The movement part of a character's update, after the actions ran and the clip advanced.
+    ///
+    /// Original: the second half of `FUN_14010e990`.
     pub fn walk(&mut self, world: &World, group: &AnimationGroup) {
         let distance = self.root_offset(group) * self.speed;
         let mut p = self.position;
@@ -339,8 +365,10 @@ impl Character {
         self.position = p;
     }
 
-    /// `FUN_1400ce1f0` / MoveTo's final approach: face and walk toward a point. The
-    /// direction is the 2D unit vector normalized again in 3D; the heading is the first's.
+    /// Face a point and walk toward it (the end of a `MoveTo`). The direction is the 2D unit
+    /// vector normalised again in 3D; the heading comes from the 2D vector.
+    ///
+    /// Original: `FUN_1400ce1f0`.
     pub fn face(&mut self, target: [f32; 3]) {
         let d = normalize2([target[0] - self.position[0], target[1] - self.position[1]]);
         self.flag_28 = false;
@@ -349,21 +377,32 @@ impl Character {
     }
 }
 
-/// `MoveTo` (vtable `0x140166260`, constructor `FUN_1400ce640`).
+// vtable 0x140166260
+/// `MoveTo`.
+///
+/// Original: `FUN_1400ce640`.
 #[derive(Debug, Clone)]
 pub struct MoveTo {
-    /// `+0x38`: destination.
+    // +0x38
+    /// Destination.
     pub target: [f32; 3],
-    /// `+0x5c`: allowed cell types.
+    // +0x5c
+    /// Allowed cell types.
     pub flags: u32,
-    /// `+0x468` / `+0x46c`: walk and stand clips.
+    // +0x468 / +0x46c
+    /// Walk and stand clips.
     pub walk: usize,
     pub stand: usize,
-    /// `+0x470`: pathfinder cost table.
+    // +0x470
+    /// Pathfinder cost table.
     pub mode: u32,
-    /// `+0x478`: speed factor (random 0.9–1.1 when constructed with a negative value).
+    // +0x478
+    /// Speed factor (random 0.9–1.1 when constructed with a negative value).
     pub speed: f32,
-    /// `+0x474`: walking behind another character (`FUN_1400cde40`).
+    // +0x474
+    /// Walking behind another character.
+    ///
+    /// Original: `FUN_1400cde40`.
     pub following: bool,
     /// Pending request result (`+0x20/+0x24`); available on the next update.
     pending: Option<Option<Vec<i32>>>,
@@ -376,7 +415,9 @@ pub struct MoveTo {
 }
 
 impl MoveTo {
-    /// `FUN_1400ce640`.
+    /// A `MoveTo` action.
+    ///
+    /// Original: `FUN_1400ce640`.
     pub fn new(
         target: [f32; 3],
         walk: usize,
@@ -406,9 +447,12 @@ impl MoveTo {
         }
     }
 
-    /// `FUN_1400ce0e0`: plan from `from` to the target.
-    /// A saved MoveTo (`FUN_1400ce390`): its way (`+0x64` cells at `+0x68`, `+0x60` the next
-    /// one) as it was. A path request in flight is not saved; one with no way restarts.
+    // +0x64; +0x68; +0x60
+    /// Plan from `from` to the target. A `MoveTo` from a save keeps its way (its cells and the next
+    /// one) as it was.
+    /// A path request in flight is not saved; one with no way restarts.
+    ///
+    /// Original: `FUN_1400ce390`, `FUN_1400ce0e0`.
     #[allow(clippy::too_many_arguments)]
     pub fn restored(
         target: [f32; 3],
@@ -440,8 +484,8 @@ impl MoveTo {
         }
     }
 
-    /// What a save holds of the way: the next cell's index (`+0x60`) and the cells
-    /// (`+0x64` of them at `+0x68`).
+    // +0x60; +0x64; +0x68
+    /// What a save holds of the way: the next cell's index and the cells.
     pub fn saved_way(&self) -> (i32, &[i32]) {
         (
             self.index,
@@ -742,6 +786,7 @@ fn drop_off_one(
 }
 
 impl Action {
+    /// A `MoveTo` action.
     pub fn move_to(m: MoveTo) -> Action {
         Action::MoveTo(Box::new(m))
     }
@@ -1092,21 +1137,25 @@ struct Task {
     started: bool,
 }
 
-/// The CharacterComponent's task stack (`+0x48`, top index `+0x60`) and its "on empty" chain
-/// (`+0x58`).
+// +0x48; +0x58; +0x60
+/// The CharacterComponent's task stack (top index) and its "on empty" chain.
 #[derive(Debug, Clone, Default)]
 pub struct ActionStack {
     chains: Vec<Vec<Task>>,
     on_empty: Vec<Task>,
-    /// Job-manager messages from aborted CompleteTasks (`FUN_1400caf90`), for the owner to
-    /// deliver right after the clear.
+    /// Job-manager messages from aborted CompleteTasks, for the owner to deliver right after the
+    /// clear.
+    ///
+    /// Original: `FUN_1400caf90`.
     pub outbox: Vec<Message>,
 }
 
 impl ActionStack {
-    /// A saved stack (`FUN_14010ef80`): its entries bottom to top, each one action and whether
-    /// it started (`+0x18`), and the "on empty" action. Actions linked to an entry
-    /// (`+0x10`) are not saved.
+    // +0x18; +0x10
+    /// A saved stack: its entries bottom to top, each one action and whether it started, and the
+    /// "on empty" action. Actions linked to an entry are not saved.
+    ///
+    /// Original: `FUN_14010ef80`.
     pub fn restored(entries: Vec<(Action, bool)>, on_empty: Option<Action>) -> ActionStack {
         ActionStack {
             chains: entries
@@ -1124,8 +1173,10 @@ impl ActionStack {
         }
     }
 
-    /// What a save holds (`FUN_14010ef80`): each entry's first action with its started flag,
-    /// and the "on empty" chain's first action.
+    /// What a save holds: each entry's first action with its started flag, and the "on empty"
+    /// chain's first action.
+    ///
+    /// Original: `FUN_14010ef80`.
     pub fn saved(&self) -> (Vec<(&Action, bool)>, Option<&Action>) {
         (
             self.chains
@@ -1136,18 +1187,22 @@ impl ActionStack {
         )
     }
 
-    /// How many entries the stack holds (`+0x60` + 1).
+    // +0x60 + 1
+    /// How many entries the stack holds.
     pub fn depth(&self) -> usize {
         self.chains.len()
     }
 
-    /// `+0x60 >= 0`: something is queued (the AI's "is busy" test).
+    // +0x60 >= 0
+    /// `>= 0`: something is queued (the AI's "is busy" test).
     pub fn is_active(&self) -> bool {
         !self.chains.is_empty()
     }
 
-    /// `FUN_1400ca8d0`: abort every chain (slot `+0x40` on all actions) and drop the
-    /// "on empty" chain.
+    // +0x40
+    /// Abort every chain (slot on all actions) and drop the "on empty" chain.
+    ///
+    /// Original: `FUN_1400ca8d0`.
     pub fn clear(&mut self, ch: &mut Character, group: &AnimationGroup, storages: &mut [Storage]) {
         for chain in &mut self.chains {
             for t in chain.iter_mut() {
@@ -1197,7 +1252,9 @@ impl ActionStack {
         out
     }
 
-    /// `FUN_1400fc5d0`: does a chain start with this work's CompleteTask?
+    /// Does a chain start with this work's CompleteTask?
+    ///
+    /// Original: `FUN_1400fc5d0`.
     pub fn holds_task(&self, work: i32) -> Option<i32> {
         self.chains
             .iter()
@@ -1207,7 +1264,8 @@ impl ActionStack {
             })
     }
 
-    /// Link `action` into the top chain (the original's `+0x10` of the top action).
+    // +0x10
+    /// Link `action` into the top chain (the original's of the top action).
     pub fn attach(&mut self, action: Action) {
         if let Some(top) = self.chains.last_mut() {
             top.push(Task {
@@ -1229,8 +1287,11 @@ impl ActionStack {
             })
     }
 
-    /// The scheduled notify (`FUN_14010e950` → `FUN_1400ca450`): the running chain's started
-    /// actions get slot `+0x30`; MoveTo's (`FUN_1400cde40`) sets whether it follows.
+    // +0x30
+    /// The scheduled notify: the running chain's started actions get slot; MoveTo's sets whether it
+    /// follows.
+    ///
+    /// Original: `FUN_14010e950`, `FUN_1400ca450`, `FUN_1400cde40`.
     pub fn notify_moves(&mut self, following: bool) {
         let Some(chain) = self.chains.last_mut() else {
             return;
@@ -1242,6 +1303,7 @@ impl ActionStack {
         }
     }
 
+    /// Set the actions to run when the stack is empty.
     pub fn set_on_empty(&mut self, actions: Vec<Action>) {
         self.on_empty = actions
             .into_iter()
@@ -1252,7 +1314,9 @@ impl ActionStack {
             .collect();
     }
 
-    /// `FUN_1400ca9b0`: stop the current top's started actions, then push a chain.
+    /// Stop the current top's started actions, then push a chain.
+    ///
+    /// Original: `FUN_1400ca9b0`.
     pub fn push(&mut self, ch: &mut Character, group: &AnimationGroup, action: Action) {
         if let Some(top) = self.chains.last_mut() {
             for t in top.iter_mut().filter(|t| t.started) {

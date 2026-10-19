@@ -1,5 +1,7 @@
-//! GrowthComponent's scheduled and visual phases (FUN_140125520 / FUN_140125370).
-//! Description field names remain numeric where the original names are unknown.
+//! GrowthComponent's scheduled and visual phases. Description field names remain numeric where the
+//! original names are unknown.
+//!
+//! Original: `FUN_140125520`, `FUN_140125370`.
 
 use crate::random::Random;
 use crate::scheduler::{seconds, ticks};
@@ -14,13 +16,17 @@ const EPSILON: f32 = 0.001;
 const OLD_WEIGHT: f32 = 0.99;
 const NEW_WEIGHT: f32 = 0.009_999_99;
 
+/// The growth state of a natural resource (a tree, a crop, a herb).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Growth {
-    /// GrowthComponent +0x4c (randomized in FUN_140125bc0).
+    // GrowthComponent +0x4c; drawn by FUN_140125bc0.
+    /// The growth at which the resource is fully grown (a random value).
     pub maximum: f32,
-    /// +0x40: System::Time, not an accumulated f32.
+    // +0x40
+    /// System::Time, not an accumulated f32.
     pub timer: i64,
-    /// +0x48: visible value, separate from NaturalResourceComponent +0x28.
+    // +0x48; +0x28
+    /// Visible value, separate from NaturalResourceComponent.
     pub smoothed: f32,
     pub scheduled: bool,
     pub smoothing: bool,
@@ -28,16 +34,21 @@ pub struct Growth {
     pub allow_negative: bool,
 }
 
+/// What one growth update changed.
 #[derive(Debug, Default)]
 pub struct GrowthTick {
     pub spawn_attempts: usize,
-    /// Argument to FUN_140125940 on a terminal transition; gameplay meaning is still unnamed.
+    /// A value passed on when the growth ends; its meaning is not identified yet.
+    ///
+    /// Original: the argument of `FUN_140125940`.
     pub map_adjustment: Option<f32>,
 }
 
 impl Growth {
-    /// Port of FUN_140126280: set growth, visible scale and randomized timer without adding
-    /// another maximum draw. Seeding already obtained that maximum from FUN_140125bc0.
+    /// Set the growth, the visible scale and the random timer, without another random draw for
+    /// the maximum (seeding has drawn it already).
+    ///
+    /// Original: `FUN_140126280`.
     pub fn initialise(
         d: &GrowthDescription,
         maximum: f32,
@@ -61,8 +72,11 @@ impl Growth {
         )
     }
 
-    /// Port of FUN_140125520, checked against its SSE disassembly. The seasonal input is
-    /// Environment +0x18 (temperature), not the renderer's autumn/leaf values.
+    // +0x18; checked against the SSE disassembly.
+    /// One scheduled update of a growing resource. The season comes from the environment's
+    /// temperature, not from the renderer's autumn and leaf values.
+    ///
+    /// Original: `FUN_140125520`.
     pub fn update(
         &mut self,
         d: &GrowthDescription,
@@ -123,8 +137,10 @@ impl Growth {
         result
     }
 
-    /// Port of FUN_140125370: one smoothing step per active rendered update, including pause.
-    /// Returns whether the instance scale changed.
+    /// One smoothing step per active rendered update, including pause. Returns whether the instance
+    /// scale changed.
+    ///
+    /// Original: `FUN_140125370`.
     pub fn smooth(&mut self, d: &GrowthDescription, value: f32, output: &mut [f32; 4]) -> bool {
         if !self.smoothing {
             return false;
@@ -146,7 +162,12 @@ impl Growth {
     }
 }
 
-/// FUN_140126280 / FUN_140125370; width divisor DAT_1401787f4.
+// DAT_1401787f4: the width divisor.
+/// The visible scale of a growing resource for its growth value: `[x, y, z, w]`. A `tall`
+/// resource reaches its full width at growth 0.15 and then only grows in height; others scale
+/// evenly.
+///
+/// Original: `FUN_140126280`, `FUN_140125370`.
 pub fn scale(value: f32, tall: bool) -> [f32; 4] {
     if tall {
         let width = (value / 0.15).clamp(0.0, 1.0);
@@ -156,7 +177,9 @@ pub fn scale(value: f32, tall: bool) -> [f32; 4] {
     }
 }
 
-/// Port of FUN_140125940: retain the squared byte-fraction arithmetic and integer truncation.
+/// Retain the squared byte-fraction arithmetic and integer truncation.
+///
+/// Original: `FUN_140125940`.
 pub fn adjust_map_byte(previous: u8, adjustment: f32) -> u8 {
     let fraction = previous as f32 / 255.0; // DAT_14017892c
     let next = if adjustment >= 0.0 {

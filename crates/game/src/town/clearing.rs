@@ -64,7 +64,9 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// `FUN_14011d800`: the footprint cells holding another object.
+    /// The footprint cells holding another object.
+    ///
+    /// Original: `FUN_14011d800`.
     pub fn clear_remaining(&self, e: usize) -> i32 {
         clear_remaining(&self.cells.objects, self.size as i32, &self.placed[e], e)
     }
@@ -284,12 +286,16 @@ impl Sim<'_, '_> {
         self.claimed.insert(resource);
     }
 
-    /// `FUN_1400cff70`: a removal sequence was aborted.
+    /// A removal sequence was aborted.
+    ///
+    /// Original: `FUN_1400cff70`.
     pub fn unclaim(&mut self, resource: usize) {
         self.claimed.remove(&resource);
     }
 
-    /// `FUN_14012b910`: a resource with the animation flag plays clip `anim`.
+    /// A resource with the animation flag plays clip `anim`.
+    ///
+    /// Original: `FUN_14012b910`.
     pub fn animate_resource(&mut self, resource: usize, anim: usize) {
         let p = &mut self.placed[resource];
         let t = &self.templates[p.template];
@@ -303,11 +309,12 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// RemoveNaturalResource start (`FUN_1400cffe0`) → `FUN_14012b5c0`: queue the resource for
-    /// removal; unless another profession should have harvested it, leave a pile of
-    /// `yield × min(growth, 1)` units (the educated yield for educated citizens), turned
-    /// `RandTol(2) × 90°`. `priority` is the priority of a work at the resource's cell
-    /// (`FUN_1400fe220`).
+    /// The start of `RemoveNaturalResource`: queue the resource for removal; unless
+    /// another profession should have harvested it, leave a pile of `yield × min(growth, 1)` units
+    /// (the educated yield for educated citizens), turned `RandTol(2) × 90°`. `priority` is the
+    /// priority of a work at the resource's cell.
+    ///
+    /// Original: `FUN_1400cffe0`, `FUN_1400fe220`, `FUN_14012b5c0`.
     pub fn remove_resource(
         &mut self,
         c: usize,

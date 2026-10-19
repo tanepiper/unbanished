@@ -1,11 +1,12 @@
-//! New Game resource seeding (`FUN_1400a87d0` → `FUN_1400a7490`, `FUN_1400a6780`): the start
-//! structures' draws and the procedural rock, ore and tree pass with spawned herbs, mushrooms and
-//! berries. See docs/RESOURCE-SEEDING.md.
+//! New Game resource seeding: the start structures' draws and the procedural rock, ore and tree
+//! pass with spawned herbs, mushrooms and berries. See docs/RESOURCE-SEEDING.md.
 //!
-//! The original builds full component entities here. This port keeps only what the pass reads
-//! and writes — the map cells it stamps, the growth and model choices and every draw from the
-//! game's shared random stream, in the original order. It also runs scheduled growth, periodic
-//! child placement and natural-resource removal; see docs/GAME-LOOP-STEP-18.md.
+//! The original builds full component entities here. This port keeps only what the pass reads and
+//! writes — the map cells it stamps, the growth and model choices and every draw from the game's
+//! shared random stream, in the original order. It also runs scheduled growth, periodic child
+//! placement and natural-resource removal; see docs/GAME-LOOP-STEP-18.md.
+//!
+//! Original: `FUN_1400a87d0`, `FUN_1400a7490`, `FUN_1400a6780`.
 
 use banished_formats::game::{
     GrowthDescription, MapDescription, ModelDescription, NaturalResourceDescription,
@@ -27,7 +28,8 @@ use std::sync::Arc;
 pub struct Template {
     /// `Template\X.rsc:resource`.
     pub reference: String,
-    /// ComponentDescription +0x20: scheduled bucket; 6 means unscheduled.
+    // +0x20
+    /// ComponentDescription: scheduled bucket; 6 means unscheduled.
     pub bucket: usize,
     pub map: Option<MapDescription>,
     pub model: Option<ModelDescription>,
@@ -39,16 +41,18 @@ pub struct Template {
     pub growth: Option<GrowthDescription>,
     /// FruitDescription (orchard trees).
     pub fruit: Option<crate::production::orchard::FruitTemplate>,
-    /// Cached external GrowthDescription identity, used by FUN_140126100's pointer comparison.
+    // Compared by pointer in FUN_140126100.
+    /// The reference of the growth description, to compare two resources' growth.
     pub growth_reference: Option<String>,
     /// Spawn entries: (index into the template table, lo, hi).
     pub spawn: Vec<(usize, f32, f32)>,
     /// Scheduled component callbacks, in the ComponentDescription's construction order.
     pub updates: Vec<ScheduledComponent>,
-    /// `CreatePlacedDescription +0x44/+0x48`: building footprint size.
+    // CreatePlacedDescription +0x44/+0x48
+    /// `CreatePlacedDescription`: building footprint size.
     pub size: Option<(i32, i32)>,
-    /// `StorageDescription`: accepted flags `+0x28`, capacity `+0x24`, capacity per footprint
-    /// cell `+0x20`.
+    // +0x28; +0x24; +0x20
+    /// `StorageDescription`: accepted flags, capacity, capacity per footprint cell.
     pub storage: Option<(u32, i32, bool)>,
     /// Has a `StorageLocationDescription` (a town storage the starting goods go to).
     pub storage_location: bool,
@@ -60,10 +64,12 @@ pub struct Template {
     pub has_interact: bool,
     /// InteractDescription "use" points in model space (its point list's category 0).
     pub use_points: Vec<[f32; 3]>,
-    /// A natural resource's pile template (NaturalResourceDescription `+0x20`).
+    // +0x20
+    /// A natural resource's pile template (NaturalResourceDescription).
     pub pile: Option<usize>,
-    /// A pile template's raw material (its RawMaterialDescription) and yields `+0x40`,
-    /// `+0x44` (uneducated, educated).
+    // +0x40; +0x44
+    /// A pile template's raw material (its RawMaterialDescription) and yields, (uneducated,
+    /// educated).
     pub pile_material: Option<usize>,
     pub pile_yield: (i32, i32),
     /// InteractDescription "build" points in model space (category 1): where builders stand
@@ -79,8 +85,11 @@ pub struct Template {
     /// FloorDescription: its picking mesh's triangles in model space (bridge pieces, docks,
     /// porches).
     pub floor: Option<std::sync::Arc<Vec<[[f32; 3]; 3]>>>,
-    /// FloorDescription `+0x28`: the floor is added on activation (`FUN_140124810`, bridge
-    /// pieces); the others are added when their MultiObject is built (`FUN_14012aa30`).
+    // +0x28
+    /// FloorDescription: the floor is added on activation (bridge pieces); the others are added
+    /// when their MultiObject is built.
+    ///
+    /// Original: `FUN_140124810`, `FUN_14012aa30`.
     pub floor_on_activate: bool,
     /// TerraformDescription (tunnels).
     pub terraform: Option<crate::world::terraform::TerraformTemplate>,
@@ -92,12 +101,14 @@ pub struct Template {
     pub trading_post: bool,
     /// Has a TrackerComponent (workplaces whose production the window shows).
     pub tracker: bool,
-    /// A fenced area's template (it has a `createfenced` component, FencedTool): its entity's
-    /// model is never placed (`FUN_1400e02d0` sets only the MapComponent), so it stays at the
-    /// origin with the identity rotation; `Placed::yaw` is its map rotation.
+    // FUN_1400e02d0 sets only the MapComponent.
+    /// Whether this is a fenced area's template (it has a `createfenced` component). Its model is
+    /// never placed, so it stays at the origin with no rotation; `Placed::yaw` is its rotation on
+    /// the map.
     pub fenced_area: bool,
 }
 
+/// The kinds of scheduled component the port runs for placed entities.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScheduledComponent {
     Growth,
@@ -109,11 +120,13 @@ pub enum ScheduledComponent {
 pub struct Placed {
     /// Index into the template table.
     pub template: usize,
-    /// Entity +0x1f: actual registration bucket, which can differ from its own template.
+    // +0x1f
+    /// Entity: actual registration bucket, which can differ from its own template.
     pub bucket: usize,
     /// Map cell.
     pub cell: (i32, i32),
-    /// MapComponent +0x2c/+0x2e, after rotation; profile yards have variable dimensions.
+    // +0x2c/+0x2e
+    /// MapComponent, after rotation; profile yards have variable dimensions.
     pub footprint: (i32, i32),
     /// Map position (cells from the terrain centre) and ground height.
     pub position: [f32; 3],
@@ -121,21 +134,26 @@ pub struct Placed {
     pub yaw: f32,
     pub variant: usize,
     pub mesh: usize,
-    /// NaturalResourceComponent +0x28; its constructor FUN_140036eb0 defaults to 1.0.
+    // NaturalResourceComponent +0x28; the constructor FUN_140036eb0 sets 1.0.
+    /// How grown the resource is (1.0 by default).
     pub growth: f32,
     pub growth_state: Option<Growth>,
     pub spawn_state: Option<Spawn>,
     pub alive: bool,
-    /// NaturalResourceComponent flag 0x200000 (FUN_14012bc50).
+    /// NaturalResourceComponent flag 0x200000.
+    ///
+    /// Original: `FUN_14012bc50`.
     pub removal_requested: bool,
     pub animation: Option<Playback>,
-    /// Mesh instance scale (`MeshInstance +0x134`).
+    // MeshInstance +0x134
+    /// Mesh instance scale (`MeshInstance`).
     pub scale: [f32; 4],
 }
 
 impl Placed {
-    /// The entity transform (`+0x148`): `FromYawPitchOffset(yaw, 0, position)`, or for a
-    /// fenced area, whose model is never placed, the identity at its position.
+    // +0x148
+    /// The entity transform: `FromYawPitchOffset(yaw, 0, position)`, or for a fenced area, whose
+    /// model is never placed, the identity at its position.
     pub fn model(&self, t: &Template) -> crate::math::Transform {
         if t.fenced_area {
             crate::math::Transform {
@@ -155,52 +173,71 @@ fn next_types_revision() -> u64 {
     TYPES_REVISION.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
-/// The gameplay map cells seeding reads and writes (`Game +0xf8`, 48-byte cells).
+// Game +0xf8
+/// The gameplay map cells seeding reads and writes (`Game`, 48-byte cells).
 pub struct Cells {
     pub size: usize,
-    /// `+0x29`. Change it only with [`Cells::set_type`], which keeps
-    /// [`Cells::types_revision`] current.
+    // +0x29
+    /// . Change it only with [`Cells::set_type`], which keeps [`Cells::types_revision`] current.
     pub types: Vec<CellType>,
     /// A new stamp whenever `types` may have changed (a new map, any `set_type`), so readers
     /// such as the path regions can skip comparing the whole map when it has not.
     pub types_revision: u64,
-    /// `+0x08`: entity on the cell (index into the placed list).
+    // +0x08
+    /// Entity on the cell (index into the placed list).
     pub objects: Vec<Option<usize>>,
-    /// +0x00: occupancy used by FUN_1400a4aa0; distinct from stamped objects at +0x08.
+    // +0x00; +0x08; used by FUN_1400a4aa0.
+    /// The entity occupying each cell, for placement checks (separate from the objects stamped
+    /// into the cell).
     pub occupants: Vec<Option<usize>>,
-    /// +0x28: placement admission flag, deliberately unnamed.
+    // +0x28
+    /// Placement admission flag, deliberately unnamed.
     pub flags: Vec<u8>,
-    /// +0x10: external ComponentDescription reference from a growth transition.
+    // +0x10
+    /// External ComponentDescription reference from a growth transition.
     pub previous_template: Vec<Option<usize>>,
-    /// +0x2c: growth-adjusted map byte (zero in FUN_14001b3f0's constructor).
+    // +0x2c; zero in FUN_14001b3f0's constructor.
+    /// A byte per cell that growth adjusts.
     pub growth_bytes: Vec<u8>,
-    /// `+0x1c..+0x27`: per-cell layer counters (`FUN_1400a4e60`): 0..=5 the
-    /// HappinessComponent kinds, 8 the fishing docks.
+    // +0x1c..+0x27
+    /// Per-cell layer counters: 0..=5 the HappinessComponent kinds, 8 the fishing docks.
+    ///
+    /// Original: `FUN_1400a4e60`.
     pub layers: Vec<[u8; 12]>,
-    /// Map `+0x90`: registrations per layer.
+    // +0x90
+    /// Map: registrations per layer.
     pub layer_totals: [i16; 12],
-    /// `+0x2a`: the road kind the cell has or will have (0 stone, 1 dirt; `0xff` none).
+    // +0x2a
+    /// The road kind the cell has or will have (0 stone, 1 dirt; `0xff` none).
     pub road_kind: Vec<u8>,
-    /// `+0x2b`: the road kind built (`0x80` while it is being built).
+    // +0x2b
+    /// The road kind built (`0x80` while it is being built).
     pub road_built: Vec<u8>,
-    /// Bumped whenever a road is planned, taken back or finished (the road decals' rebuild,
-    /// `FUN_1400b4840`).
+    /// Bumped whenever a road is planned, taken back or finished (the road decals' rebuild).
+    ///
+    /// Original: `FUN_1400b4840`.
     pub road_revision: u32,
-    /// `+0x2d` and the map's floor scene: bridge decks (FloorComponent).
+    // +0x2d
+    /// and the map's floor scene: bridge decks (FloorComponent).
     pub floors: crate::world::floor::Floors,
-    /// Cells that turned walkable or unwalkable, in the order they did: the path sectors'
-    /// marks (`FUN_1400ae160`), which every type write in the original makes on the spot.
+    /// Cells that turned walkable or unwalkable, in the order they did: the path sectors' marks,
+    /// which every type write in the original makes on the spot.
+    ///
+    /// Original: `FUN_1400ae160`.
     pub sector_marks: Vec<u32>,
 }
 
 impl Cells {
-    /// Port of FUN_1400a5750: the entity a cell answers for, the occupant (`+0x00`) if there is
-    /// one, else the object (`+0x08`). EditTool selection, the removal tool and the job code all
-    /// read cells this way.
+    // +0x00; +0x08
+    /// The entity a cell answers for, the occupant if there is one, else the object. EditTool
+    /// selection, the removal tool and the job code all read cells this way.
+    ///
+    /// Original: `FUN_1400a5750`.
     pub fn entity_at(&self, i: usize) -> Option<usize> {
         self.occupants[i].or(self.objects[i])
     }
 
+    /// The cells of a map of `size × size` cells with these natural types.
     pub fn new(size: usize, types: Vec<CellType>) -> Cells {
         Cells {
             size,
@@ -221,8 +258,9 @@ impl Cells {
         }
     }
 
-    /// A cell's type written (`+0x29`), marking its path sector where it turns walkable or
-    /// unwalkable (masks `0xe1f` and `0x1e0`, as each writer tests before `FUN_1400ae160`).
+    // +0x29; each writer tests the masks 0xe1f and 0x1e0 before FUN_1400ae160.
+    /// Write a cell's type. When the cell turns walkable or unwalkable, its path sector is marked
+    /// for rebuilding.
     pub fn set_type(&mut self, i: usize, ty: CellType) {
         let walk = |t: CellType| (1u32 << (t.0 & 0x1f)) & crate::pathfind::WALKABLE != 0;
         if walk(self.types[i]) != walk(ty) {
@@ -232,8 +270,10 @@ impl Cells {
         self.types_revision = next_types_revision();
     }
 
-    /// `FUN_1400a4e60`: add `delta` to `layer` on every cell within `radius` of `(cx, cy)`
-    /// (a byte, wrapping) and to the layer's total.
+    /// Add `delta` to `layer` on every cell within `radius` of `(cx, cy)` (a byte, wrapping) and to
+    /// the layer's total.
+    ///
+    /// Original: `FUN_1400a4e60`.
     pub fn add_layer(&mut self, layer: usize, cx: i32, cy: i32, radius: i32, delta: i32) {
         let n = self.size as i32;
         for y in cy - radius..=cy + radius {
@@ -259,16 +299,22 @@ pub(crate) const YAW_RANGE: f32 = 180.0;
 const SPAWN_NORMAL: f32 = 0.98;
 const SPAWN_HEIGHT_TOLERANCE: f32 = 1000.0;
 
+/// What the growth and spawn updates need: the cells, the templates, the random numbers, and the
+/// lists to fill.
 pub struct Seeder<'a> {
     pub templates: &'a [Template],
     pub terrain: &'a HeightGrid<'a>,
     pub cells: &'a mut Cells,
     pub rng: &'a mut Random,
     pub placed: &'a mut Vec<Placed>,
-    /// Removal requests in callback order (FUN_1400c9560 drains this after all buckets).
+    /// The entities to remove, in the order they asked. They are removed after all buckets.
+    ///
+    /// Original: drained by `FUN_1400c9560`.
     pub removed: &'a mut Vec<usize>,
-    /// `AnimAudioEvent`s that passed their probability (`FUN_14008d310`): owning entity and
-    /// the SoundEffect to play there.
+    /// `AnimAudioEvent`s that passed their probability: owning entity and the SoundEffect to play
+    /// there.
+    ///
+    /// Original: `FUN_14008d310`.
     pub animation_events: &'a mut Vec<(usize, String)>,
 }
 
@@ -294,11 +340,14 @@ impl<'a> Seeder<'a> {
         (h, normal[2])
     }
 
-    /// `FUN_1400a7490`: the profile's start structures, relative to the start cell.
+    // Game +0xd0 |= 1
+    /// The profile's start structures, relative to the start cell.
     ///
-    /// Each is built in "instant" mode (`Game +0xd0 |= 1`), so the build component
-    /// (`FUN_14010cfb0`) shows the last (finished) mesh. Component setup draws nothing from the
-    /// stream except the model's variant; buildings do not stamp the map on activation.
+    /// Each is built in "instant" mode (`Game |= 1`), so the build component shows the last
+    /// (finished) mesh. Component setup draws nothing from the stream except the model's variant;
+    /// buildings do not stamp the map on activation.
+    ///
+    /// Original: `FUN_1400a7490`, `FUN_14010cfb0`.
     pub fn place_structures(
         &mut self,
         structures: &[(PlacedStructure, Option<usize>)],
@@ -507,8 +556,10 @@ impl<'a> Seeder<'a> {
         }
     }
 
-    /// Port of FUN_1400560e0. Startup uses random_growth=true; scheduled spawning uses false.
-    /// The child is registered in the PARENT TEMPLATE's bucket (not its own template's bucket).
+    /// Startup uses random_growth=true; scheduled spawning uses false. The child is registered in
+    /// the PARENT TEMPLATE's bucket (not its own template's bucket).
+    ///
+    /// Original: `FUN_1400560e0`.
     pub fn spawn_child(
         &mut self,
         parent: usize,
@@ -567,9 +618,10 @@ impl<'a> Seeder<'a> {
         Some(id)
     }
 
-    /// CreateNaturalResource's start (`FUN_1400cbb20`) on a free cell: clone the template
-    /// (`FUN_1400c8bf0`), place it in the cell (`FUN_14012ba10`), growth 0 (`FUN_140126280`),
-    /// then a random model variant and mesh (`FUN_14012a8a0`), and register it.
+    /// CreateNaturalResource's start on a free cell: clone the template, place it in the cell,
+    /// growth 0, then a random model variant and mesh, and register it.
+    ///
+    /// Original: `FUN_1400cbb20`, `FUN_1400c8bf0`, `FUN_14012ba10`, `FUN_140126280`, `FUN_14012a8a0`.
     pub fn plant(&mut self, template: usize, cell: i32) -> usize {
         let (_, _, max_growth) = self.construct(template);
         let (position, yaw) = self.position(template, cell);
@@ -688,9 +740,12 @@ impl<'a> Seeder<'a> {
         }
     }
 
-    /// Port of FUN_1400c9560 → FUN_140125520 for the placed entities' GrowthComponents.
-    /// Other component callbacks are not installed yet. `disabled` is Game +0xd0 bit 10,
-    /// which suppresses spawning and maximum transitions, but not growth or freezing decay.
+    // +0xd0
+    /// One iteration of the placed entities' growth components. `disabled` is the game's bit 10,
+    /// which stops spawning and the change at full growth, but not growth or the decay in frost.
+    /// The callbacks of other components are not installed yet.
+    ///
+    /// Original: `FUN_1400c9560`, then `FUN_140125520`.
     pub fn iterate(
         &mut self,
         scheduler: &mut EntityScheduler<usize>,
@@ -841,7 +896,9 @@ impl<'a> Seeder<'a> {
         changed
     }
 
-    /// Port of FUN_1400c98a0 → FUN_140125370: a single post-iteration smoothing phase.
+    /// A single post-iteration smoothing phase.
+    ///
+    /// Original: `FUN_1400c98a0`, `FUN_140125370`.
     pub fn smooth(&mut self) -> bool {
         let mut changed = false;
         for p in self.placed.iter_mut() {
@@ -919,8 +976,10 @@ impl<'a> Seeder<'a> {
         PerlinNoise::new(persistence, octaves, b, a)
     }
 
-    /// `FUN_1400a6780`: seed every template of the profile's list over the map, away from the
-    /// start `(sx, sy)` by more than `sqrt(radius_sq)` cells.
+    /// Seed every template of the profile's list over the map, away from the start `(sx, sy)` by
+    /// more than `sqrt(radius_sq)` cells.
+    ///
+    /// Original: `FUN_1400a6780`.
     pub fn seed(&mut self, list: &[usize], sx: i32, sy: i32, radius_sq: i32) {
         // Three fields the pass builds and never reads.
         for _ in 0..3 {

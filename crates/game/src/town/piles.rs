@@ -92,7 +92,9 @@ impl Sim<'_, '_> {
         id
     }
 
-    /// RawMaterialComponent activation (`FUN_14012e6a0`): register each new pile's Pickup work.
+    /// RawMaterialComponent activation: register each new pile's Pickup work.
+    ///
+    /// Original: `FUN_14012e6a0`.
     pub fn activate_piles(&mut self, jobs: &mut Jobs) {
         for id in std::mem::take(self.new_piles) {
             let Some(pile) = self.piles.get(&id) else {
@@ -162,7 +164,9 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// PickupRawMaterial start (`FUN_1400ceda0`): the pile goes into the carried storage.
+    /// PickupRawMaterial start: the pile goes into the carried storage.
+    ///
+    /// Original: `FUN_1400ceda0`.
     pub fn take_pile(&mut self, jobs: &mut Jobs, c: usize, id: usize) {
         let Some(pile) = self.piles.get(&id) else {
             return;
@@ -172,8 +176,10 @@ impl Sim<'_, '_> {
         self.destroy_pile(jobs, id);
     }
 
-    /// `FUN_14012e600` (RawMaterialComponent's scheduled update, for the piles visited this
-    /// iteration): piles older than an hour disappear.
+    /// The scheduled update of the piles visited this iteration: piles older than an hour
+    /// disappear.
+    ///
+    /// Original: `FUN_14012e600`.
     pub fn age_piles(&mut self, jobs: &mut Jobs, visits: &[(usize, i64)]) {
         let old: Vec<usize> = visits
             .iter()

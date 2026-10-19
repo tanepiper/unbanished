@@ -1,5 +1,6 @@
-//! StorageComponent ledgers and town storage search (`Game +0xf0`).
-//! See docs/CITIZEN-AI.md and docs/RESOURCE-PRODUCTION-FLOW.md.
+//! StorageComponent ledgers and town storage search (`Game`). See docs/CITIZEN-AI.md and
+//! docs/RESOURCE-PRODUCTION-FLOW.md.
+// Game +0xf0
 
 use crate::random::Random;
 
@@ -7,21 +8,32 @@ use crate::random::Random;
 #[derive(Debug, Clone, Default)]
 pub struct RawMaterial {
     pub reference: String,
-    /// `+0x48`: weighted storage units per item.
+    // +0x48
+    /// Weighted storage units per item.
     pub size: i32,
-    /// `+0x5c`: category flags (distinct from the search's category index).
+    // +0x5c
+    /// Category flags (distinct from the search's category index).
     pub flags: u32,
-    /// `+0x54`, sent to Citizen message 1 by FUN_1400c2540.
+    // +0x54; sent to Citizen message 1 by FUN_1400c2540.
+    /// How many uses a tool has (for tools).
     pub tool_uses: i32,
-    /// `+0x58`: FUN_140094410 prefers the last eligible entry with this set.
+    // +0x58; FUN_140094410 prefers the last eligible entry with this set.
+    /// Whether a food search prefers this material.
     pub preferred: bool,
-    /// `+0x4c`: a crop field leaves a pile on every this-many cells (`FUN_14011f7e0`).
+    // +0x4c
+    /// A crop field leaves a pile on every this-many cells.
+    ///
+    /// Original: `FUN_14011f7e0`.
     pub pile_spacing: i32,
-    /// `+0x40`: the size of a pasture's product pile (`FUN_14012bcb0`).
+    // +0x40
+    /// The size of a pasture's product pile.
+    ///
+    /// Original: `FUN_14012bcb0`.
     pub pile_amount: i32,
 }
 
-/// StorageComponent's 16-byte entry at `+0x28`: template, quantity, reserved quantity.
+// +0x28
+/// StorageComponent's 16-byte entry at: template, quantity, reserved quantity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Item {
     pub material: usize,
@@ -29,23 +41,29 @@ pub struct Item {
     pub reserved: i32,
 }
 
+/// A storage: its capacity and the goods in it, with their reservations.
 #[derive(Debug, Clone, Default)]
 pub struct Storage {
-    /// Component `+0x38` and `+0x3c`.
+    // +0x38; +0x3c
+    /// Component.
     pub capacity: i32,
     pub accepts: u32,
     pub items: Vec<Item>,
 }
 
 impl Storage {
-    /// Port of FUN_1401323e0: weighted occupancy (includes reserved goods).
+    /// Weighted occupancy (includes reserved goods).
+    ///
+    /// Original: `FUN_1401323e0`.
     pub fn used(&self, materials: &[RawMaterial]) -> i32 {
         self.items.iter().fold(0i32, |n, e| {
             n.wrapping_add(materials[e.material].size.wrapping_mul(e.count))
         })
     }
 
-    /// Port of FUN_140132250 / FUN_140131a30.
+    /// Whether `count` units of a material fit in the storage.
+    ///
+    /// Original: `FUN_140132250`, `FUN_140131a30`.
     pub fn fits(&self, materials: &[RawMaterial], material: usize, count: i32) -> bool {
         self.accepts & materials[material].flags != 0
             && materials[material]
@@ -55,17 +73,22 @@ impl Storage {
                 <= self.capacity
     }
 
+    /// The entry of a material.
     pub fn entry(&self, material: usize) -> Option<&Item> {
         self.items.iter().find(|e| e.material == material)
     }
 
-    /// Port of FUN_14011bc90: quantity available for another task.
+    /// Quantity available for another task.
+    ///
+    /// Original: `FUN_14011bc90`.
     pub fn available(&self, material: usize) -> i32 {
         self.entry(material)
             .map_or(0, |e| e.count.wrapping_sub(e.reserved))
     }
 
-    /// Port of FUN_1401324d0: merge in place, otherwise append with no reservation.
+    /// Merge in place, otherwise append with no reservation.
+    ///
+    /// Original: `FUN_1401324d0`.
     pub fn add(&mut self, material: usize, count: i32) {
         if let Some(e) = self.items.iter_mut().find(|e| e.material == material) {
             e.count = e.count.wrapping_add(count);
@@ -78,7 +101,9 @@ impl Storage {
         }
     }
 
-    /// Port of FUN_140132620: subtract, erase exactly-zero entries preserving order; no clamp.
+    /// Subtract, erase exactly-zero entries preserving order; no clamp.
+    ///
+    /// Original: `FUN_140132620`.
     pub fn remove(&mut self, material: usize, count: i32) {
         if let Some(i) = self.items.iter().position(|e| e.material == material) {
             self.items[i].count = self.items[i].count.wrapping_sub(count);
@@ -88,22 +113,28 @@ impl Storage {
         }
     }
 
-    /// FUN_1400cb980 / FUN_1400cf700: reserve when building a task, not on arrival.
+    /// Reserve when building a task, not on arrival.
+    ///
+    /// Original: `FUN_1400cb980`, `FUN_1400cf700`.
     pub fn reserve(&mut self, material: usize, count: i32) {
         if let Some(e) = self.items.iter_mut().find(|e| e.material == material) {
             e.reserved = e.reserved.wrapping_add(count);
         }
     }
 
-    /// FUN_1400cb300 / FUN_1400cf140 (abort), also used before consuming/transferring.
+    /// Release a reservation, when a task is cancelled or before the goods are used or moved.
+    ///
+    /// Original: `FUN_1400cb300`, `FUN_1400cf140` (cancel).
     pub fn unreserve(&mut self, material: usize, count: i32) {
         if let Some(e) = self.items.iter_mut().find(|e| e.material == material) {
             e.reserved = e.reserved.wrapping_sub(count).max(0);
         }
     }
 
-    /// Port of FUN_140094410: search category 0 food, 1 fuel, 2 tool, 3 herb, 4 clothing.
-    /// Even a single eligible unpreferred material draws Rand(1).
+    /// Search category 0 food, 1 fuel, 2 tool, 3 herb, 4 clothing. Even a single eligible
+    /// unpreferred material draws Rand(1).
+    ///
+    /// Original: `FUN_140094410`.
     pub fn find_item(
         &self,
         materials: &[RawMaterial],
@@ -135,17 +166,21 @@ impl Storage {
     }
 }
 
-/// Registration in the manager's ordinary (`+0/+8`) or market (`+0x10/+0x18`) list.
+// +0x10/+0x18
+/// Registration in the manager's ordinary (`+0/+8`) or market list.
 #[derive(Debug, Clone)]
 pub struct StorageSite {
     pub entity: usize,
     pub storage: usize,
-    /// StorageLocationDescription `+0x20`; zero uses StorageComponent `+0x3c`.
+    // +0x20; +0x3c
+    /// StorageLocationDescription; zero uses StorageComponent.
     pub location_flags: u32,
-    /// RadiusDescription `+0x28`; Some marks a market-list entry.
+    // +0x28
+    /// RadiusDescription; Some marks a market-list entry.
     pub radius: Option<i32>,
 }
 
+/// The result of a storage search: the storage and what it offers.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StorageMatch {
     pub site: usize,
@@ -154,21 +189,29 @@ pub struct StorageMatch {
     pub target: [f32; 3],
 }
 
-/// Geometry dependencies of FUN_140093200, independently implemented/emulated.
+/// What the storage search needs from the map: distances, reach and the markets' areas.
+///
+/// Original: the map queries of `FUN_140093200`.
 pub trait StorageSearchMap {
+    /// The cell a citizen walks to at an entity.
     fn entrance(&mut self, entity: usize, rng: &mut Random) -> i32;
+    /// The path-rank distance between two cells.
     fn rank(&mut self, a: i32, b: i32) -> i32;
+    /// A market's position, if it can be reached.
     fn market_position(
         &mut self,
         entity: usize,
         from: i32,
         rng: &mut Random,
     ) -> Option<(i32, [f32; 3])>;
+    /// A storage's drop point, if it can be reached from `from`.
     fn storage_position(&mut self, entity: usize, from: i32) -> Option<(i32, [f32; 3])>;
 }
 
-/// Port of FUN_140093200: strict rank improvements, radius-list precedence, then storage.
-/// The covered-home flag is sticky after eligible material selection, even if its slot fails.
+/// Strict rank improvements, radius-list precedence, then storage. The covered-home flag is sticky
+/// after eligible material selection, even if its slot fails.
+///
+/// Original: `FUN_140093200`.
 #[allow(clippy::too_many_arguments)]
 pub fn find_storage(
     sites: &[StorageSite],
@@ -194,10 +237,11 @@ pub fn find_storage(
     found
 }
 
-/// The markets (radius list), then the storages, each taking a strictly better rank than
-/// `best`. With `home` (FUN_140093200) a market whose radius covers the home ends the search
-/// after the markets; without it (FUN_140093840's scan) every storage is weighed. Returns the
-/// best rank and its match.
+/// The markets (radius list), then the storages, each taking a strictly better rank than `best`.
+/// With `home`, a market whose radius covers the home ends the search after the markets; without
+/// it, every storage is weighed. Returns the best rank and its match.
+///
+/// Original: `FUN_140093200`; the scan without a home is `FUN_140093840`.
 #[allow(clippy::too_many_arguments)]
 pub fn scan_storages(
     sites: &[StorageSite],
@@ -265,11 +309,13 @@ pub fn scan_storages(
     (best, found)
 }
 
-/// Port of FUN_140092a60: the storage nearest `cell` (entrance path rank) that holds
-/// `count` of `material` (`put` false) or can take them (`put` true). Ordinary storages, then
-/// markets; `exclude` is skipped. A StorageLocation must accept the material's flags. On a
-/// strict entrance-rank improvement the target point (slot scan, or a market use point) must
-/// exist with its own rank below the best, and the best becomes the entrance rank.
+/// The storage nearest `cell` (entrance path rank) that holds `count` of `material` (`put` false)
+/// or can take them (`put` true). Ordinary storages, then markets; `exclude` is skipped. A
+/// StorageLocation must accept the material's flags. On a strict entrance-rank improvement the
+/// target point (slot scan, or a market use point) must exist with its own rank below the best, and
+/// the best becomes the entrance rank.
+///
+/// Original: `FUN_140092a60`.
 #[allow(clippy::too_many_arguments)]
 pub fn find_material_storage(
     sites: &[StorageSite],
@@ -334,8 +380,11 @@ pub fn find_material_storage(
     found
 }
 
-/// Port of FUN_1400cb420 (ConsumeRawMaterial, vtable 0x140166050).
-/// Reserved requests bypass the availability check; mutations happen in list order.
+// ConsumeRawMaterial: vtable 0x140166050.
+/// The `ConsumeRawMaterial` action: take goods out of a storage. Reserved requests skip the check
+/// that the goods are there; the changes happen in list order.
+///
+/// Original: `FUN_1400cb420`.
 pub fn consume_stored(storage: &mut Storage, items: &[(usize, i32)], reserved: bool) -> bool {
     // The stock manager's `+0xc` counts are kept by the caller (`character::World::used`).
     if items.is_empty() {
@@ -352,9 +401,12 @@ pub fn consume_stored(storage: &mut Storage, items: &[(usize, i32)], reserved: b
     true
 }
 
-/// Port of FUN_1400cf210 (PickupStoredRawMaterial, vtable 0x1401663a0).
-/// FUN_1400cf5a0 serializes citizen/source references, these material/count pairs, and partial.
-/// Nonpositive requests use the citizen ledger's remaining weighted capacity.
+// PickupStoredRawMaterial: vtable 0x1401663a0; FUN_1400cf5a0 serialises the citizen and source
+// references, these material and count pairs, and partial.
+/// The `PickupStoredRawMaterial` action: a citizen takes goods from a storage. A request of zero
+/// or less takes as much as the citizen can still carry (by weight).
+///
+/// Original: `FUN_1400cf210`.
 pub fn pickup_stored(
     source: &mut Storage,
     carried: &mut Storage,
@@ -384,9 +436,10 @@ pub fn pickup_stored(
     true
 }
 
-/// `FUN_140096b30`: hand out up to `cap` single units of the candidates matching `mask`,
-/// round-robin over the candidates and one unit per storage per pass, until the cap is reached
-/// or a pass adds nothing.
+/// Hand out up to `cap` single units of the candidates matching `mask`, round-robin over the
+/// candidates and one unit per storage per pass, until the cap is reached or a pass adds nothing.
+///
+/// Original: `FUN_140096b30`.
 pub fn distribute(
     storages: &mut [Storage],
     materials: &[RawMaterial],
@@ -421,12 +474,15 @@ pub fn distribute(
     }
 }
 
-/// The Status Bar stock slots (`Game +0xf0 → +0x170`, 0x20 bytes each): wood, stone, iron,
-/// firewood, tools, food, herbs, clothes, alcohol, coal, textile, custom 0..9.
+// Game +0xf0 → +0x170
+/// The Status Bar stock slots (`Game →`, 0x20 bytes each): wood, stone, iron, firewood, tools,
+/// food, herbs, clothes, alcohol, coal, textile, custom 0..9.
 pub const STOCK_SLOTS: usize = 21;
 
-/// `FUN_14008f3a0`: which slot a raw material counts towards, in the original's test order
-/// (food, then firewood, then single flag bits).
+/// Which slot a raw material counts towards, in the original's test order (food, then firewood,
+/// then single flag bits).
+///
+/// Original: `FUN_14008f3a0`.
 pub fn stock_slot(flags: u32) -> Option<usize> {
     if flags & 0x20 != 0 {
         return Some(5);

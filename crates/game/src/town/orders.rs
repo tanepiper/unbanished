@@ -3,6 +3,7 @@
 use super::*;
 
 impl Sim<'_, '_> {
+    /// Each citizen's worker state.
     pub fn workers(&self) -> Vec<Worker> {
         self.states
             .iter()
@@ -16,6 +17,7 @@ impl Sim<'_, '_> {
             .collect()
     }
 
+    /// Set each citizen's worker state.
     pub fn set_workers(&mut self, workers: &[Worker]) {
         for (s, w) in self.states.iter_mut().zip(workers) {
             s.profession = w.profession;

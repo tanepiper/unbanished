@@ -1,37 +1,46 @@
-//! FishingComponent (vtable `0x140169660`, the fisherman's dock) and `FishingWork` (vtable
-//! `0x140167740`, constructor `FUN_1400eff90`). See docs/JOBS.md "Fishermen".
+//! FishingComponent (the fisherman's dock) and `FishingWork`. See docs/JOBS.md "Fishermen".
 //!
-//! A registered dock counts on map layer 8 within its radius, so docks whose waters overlap
-//! share the fish. A worker takes a free use point and a free create point, draws up to ten
-//! cells within the radius for water of the description's kinds, and fishes from the use
-//! point for 30 s. The catch is the fish's yield times the dock's water share
-//! (`1 / docks there · water fraction`), left on the create point.
+//! A registered dock counts on map layer 8 within its radius, so docks whose waters overlap share
+//! the fish. A worker takes a free use point and a free create point, draws up to ten cells within
+//! the radius for water of the description's kinds, and fishes from the use point for 30 s. The
+//! catch is the fish's yield times the dock's water share (`1 / docks there · water fraction`),
+//! left on the create point.
+//!
+//! Original: `FUN_1400eff90`.
+// vtable 0x140169660; vtable 0x140167740
 
 use crate::behaviour::character::{Action, MoveTo};
 use crate::pathfind::WALKABLE;
 use crate::town::Sim;
 use crate::work::jobs::{Work, WorkKind};
 
-/// A resolved FishingDescription (`FUN_140124640`, versioned).
+/// A resolved FishingDescription (versioned).
+///
+/// Original: `FUN_140124640`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FishingTemplate {
-    /// `+0x20`: the catch's raw-material template (a pile template).
+    // +0x20
+    /// The catch's raw-material template (a pile template).
     pub output: usize,
-    /// `+0x2c`: cell types counted as fishing water.
+    // +0x2c
+    /// Cell types counted as fishing water.
     pub mask: u32,
-    /// `+0x28` (version 1): the stock-manager slot whose limit stops the work.
+    // +0x28
+    /// (version 1): the stock-manager slot whose limit stops the work.
     pub group: i32,
 }
 
-/// FishingComponent `+0x50` registered on the map, `+0x54` the water fraction.
+// +0x50; +0x54
+/// FishingComponent registered on the map, the water fraction.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Fishing {
     pub registered: bool,
     pub water: f32,
 }
 
-/// `FishingWork`: `+0x48` the worker at each use point, `+0x58` each create point's state (0
-/// free, 1 a catch is coming, 2 holds a catch), `+0x68` misses in a row.
+// +0x48; +0x58; +0x68
+/// `FishingWork`: the worker at each use point, each create point's state (0 free, 1 a catch is
+/// coming, 2 holds a catch), misses in a row.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FishingWork {
     pub workers: Vec<Option<usize>>,

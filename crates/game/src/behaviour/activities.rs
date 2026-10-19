@@ -1,6 +1,7 @@
-//! What each CitizenAI activity sets in motion (`FUN_1401146c0`'s targets). See
-//! docs/CITIZEN-AI.md. Only the parts of the town the activities query are modelled here, in
-//! [`TownView`].
+//! What each activity of the citizens' AI does. See docs/CITIZEN-AI.md. Only the parts of the town
+//! that the activities ask about are modelled here, in [`TownView`].
+//!
+//! Original: the activities run by `FUN_1401146c0`.
 
 use crate::pathfind::{WALKABLE, WATER};
 use crate::random::Random;
@@ -8,7 +9,8 @@ use crate::sectors::SectorGraph;
 use crate::terrain::CellType;
 use crate::work::stock::StorageSearchMap;
 
-/// `MapComponent +0x28..+0x2e`: an entity's map rectangle `(x, y, w, h)`.
+// MapComponent +0x28..+0x2e
+/// `MapComponent`: an entity's map rectangle `(x, y, w, h)`.
 pub type MapRect = (i32, i32, i32, i32);
 
 /// What activities need to know about one entity.
@@ -22,8 +24,9 @@ pub struct EntityView {
     pub has_interact: bool,
     pub position: [f32; 3],
     pub has_model: bool,
-    /// A HappinessComponent usable for loitering (`FUN_14004b080`: description type != 5 and
-    /// enabled): the description's loiter padding `+0x2c`.
+    // +0x2c; usable when FUN_14004b080 finds description type != 5 and enabled.
+    /// For a building where citizens may loiter (a happiness component): the description's loiter
+    /// padding.
     pub happiness: Option<i32>,
 }
 
@@ -120,17 +123,21 @@ pub struct TownView<'a> {
     pub size: usize,
     pub types: &'a [CellType],
     pub regions: &'a [u16],
-    /// `+0x00` occupant and `+0x08` object per cell.
+    // +0x00; +0x08
+    /// occupant and object per cell.
     pub occupants: &'a [Option<usize>],
     pub objects: &'a [Option<usize>],
-    /// The bridges' floors (`+0x2d` and the floor scene), for the ground under a point.
+    // +0x2d
+    /// The bridges' floors (and the floor scene), for the ground under a point.
     pub floors: &'a crate::world::floor::Floors,
     pub entities: &'a [EntityView],
-    /// The town manager's HappinessComponent registry (`Game +0xf0`, `+0x50`).
+    // +0x50; Game +0xf0
+    /// The town manager's HappinessComponent registry (`Game`).
     pub happiness: &'a [usize],
 }
 
 impl TownView<'_> {
+    /// The map cell that holds a position.
     pub fn cell_of(&self, p: [f32; 3]) -> i32 {
         let n = self.size as i32;
         let half = (n >> 1) as f32;
@@ -139,8 +146,9 @@ impl TownView<'_> {
         n * y + x
     }
 
-    /// `FUN_1400a55c0`: can a walker with `mask` get from `a` to `b` (water types skip the
-    /// region test)?
+    /// Can a walker with `mask` get from `a` to `b` (water types skip the region test)?
+    ///
+    /// Original: `FUN_1400a55c0`.
     pub fn reachable(&self, mask: u32, a: i32, b: i32) -> bool {
         let (ba, bb) = (
             1u32 << (self.types[a as usize].0 & 0x1f),
@@ -157,9 +165,11 @@ impl TownView<'_> {
         ra != 0 && rb != 0 && ra == rb
     }
 
-    /// `FUN_14008d480(entity, 0)`: the cell a citizen walks to. With use points, the first
-    /// (the original draws `Rand(count)` when there are several but always takes point 0);
-    /// otherwise the centre of the map rectangle.
+    /// The cell a citizen walks to at an entity: its first use point (the original draws
+    /// `Rand(count)` when there are several, but always takes point 0), else the centre of its map
+    /// rectangle.
+    ///
+    /// Original: `FUN_14008d480(entity, 0)`.
     pub fn entrance(&self, entity: usize, rng: &mut Random) -> i32 {
         let e = &self.entities[entity];
         if !e.use_points.is_empty() {
@@ -187,7 +197,9 @@ impl TownView<'_> {
         }
     }
 
-    /// `FUN_14011ada0`: is `entity` reachable from `cell`?
+    /// Is `entity` reachable from `cell`?
+    ///
+    /// Original: `FUN_14011ada0`.
     pub fn can_reach(&self, cell: i32, entity: usize, rng: &mut Random) -> bool {
         let e = self.entrance(entity, rng);
         e >= 0 && self.reachable(WALKABLE, cell, e)
@@ -229,8 +241,9 @@ impl crate::work::professions::Search for TownSearch<'_, '_> {
     }
 }
 
-/// A loiter (`FUN_14010fa30` → `FUN_1400bfb80`): walk to `target`, idle for `duration`
-/// seconds, then notify `happiness` (when set).
+/// A loiter: walk to `target`, idle for `duration` seconds, then notify `happiness` (when set).
+///
+/// Original: `FUN_14010fa30`, `FUN_1400bfb80`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Loiter {
     pub target: [f32; 3],
@@ -238,10 +251,12 @@ pub struct Loiter {
     pub happiness: Option<usize>,
 }
 
-/// `FUN_14010fa30` (activity 12): choose a spot near something to stand at. `cell` is the
-/// citizen's cell, `home` its home entity, `range` `CitizenDescription +0xbc`.
-/// `ground(cell)` returns a cell centre on the ground; `rank(a, b)` is `FUN_140008830`'s
-/// path-rank distance.
+// CitizenDescription +0xbc
+/// Activity 12: choose a spot near something to stand at. `cell` is the citizen's cell, `home` its
+/// home, `range` the citizen description's range. `ground(cell)` returns a cell's centre on the
+/// ground; `rank(a, b)` is the path-rank distance.
+///
+/// Original: `FUN_14010fa30`; the distance is `FUN_140008830`.
 pub fn loiter(
     town: &TownView,
     cell: i32,

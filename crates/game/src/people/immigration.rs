@@ -1,11 +1,13 @@
-//! Immigration: ImmigrationComponent (the town hall, vtable `0x14015fc50`, states
-//! `FUN_14004f020`) and the nomads it calls (NomadComponent, vtable `0x140160140`, states
-//! `FUN_1400507d0`). See docs/IMMIGRATION.md.
+//! Immigration: ImmigrationComponent (the town hall) and the nomads it calls (NomadComponent). See
+//! docs/IMMIGRATION.md.
 //!
-//! Once the town is big enough and has its market and trading post, the town hall now and then
-//! (in spring) calls a band of nomads from a map edge. They walk to it and wait; the player
-//! takes them in (they become citizens, in families of four, bringing a disease risk) or they
-//! leave, at the latest in the summer.
+//! Once the town is big enough and has its market and trading post, the town hall now and then (in
+//! spring) calls a band of nomads from a map edge. They walk to it and wait; the player takes them
+//! in (they become citizens, in families of four, bringing a disease risk) or they leave, at the
+//! latest in the summer.
+//!
+//! Original: `FUN_14004f020`, `FUN_1400507d0`.
+// vtable 0x14015fc50; vtable 0x140160140
 
 use banished_formats::game::CharacterDescription;
 
@@ -21,32 +23,43 @@ const ARRIVED: i32 = 0xe;
 /// `Map::Reachable` mask of the edge search.
 const MASK: u32 = 0xe07;
 
-/// A resolved ImmigrationDescription (serializer `FUN_14004f150`, constructor `FUN_14004f300`).
+/// A resolved ImmigrationDescription.
+///
+/// Original: `FUN_14004f150`, `FUN_14004f300`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ImmigrationTemplate {
-    /// `+0x20`: the nomad template.
+    // +0x20
+    /// The nomad template.
     pub nomad: usize,
-    /// `+0x28`: the population the town needs.
+    // +0x28
+    /// The population the town needs.
     pub population: i32,
-    /// `+0x30`: templates the town must have placed (Market, TradingPost).
+    // +0x30
+    /// Templates the town must have placed (Market, TradingPost).
     pub required: Vec<usize>,
-    /// `+0x40`, `+0x44`: the band's size as a share of the population.
+    // +0x40, +0x44
+    /// The band's size as a share of the population.
     pub share: (f32, f32),
-    /// `+0x48`, `+0x4c`: months until the next band (`+0x48 + RandFloat × +0x4c`).
+    // +0x48, +0x4c; +0x48 + RandFloat × +0x4c
+    /// Months until the next band (`+ RandFloat ×`).
     pub wait: (f32, f32),
-    /// `+0x50`, `+0x54`: the months a band may come in.
+    // +0x50, +0x54
+    /// The months a band may come in.
     pub months: (i32, i32),
-    /// `+0x58`: from this month waiting nomads leave (not serialized; 7).
+    // +0x58
+    /// From this month waiting nomads leave (not serialized; 7).
     pub leave: i32,
-    /// `+0x5c`: their map-edge margin (not serialized; 10).
+    // +0x5c
+    /// Their map-edge margin (not serialized; 10).
     pub margin: i32,
-    /// `+0x60`, `+0x64`: the visitors' disease risk and how many months it lasts.
+    // +0x60, +0x64
+    /// The visitors' disease risk and how many months it lasts.
     pub risk: f32,
     pub risk_months: i32,
 }
 
-/// ImmigrationComponent: `+0x48` until a band may come, `+0x50` the nomads arrived, `+0x58`
-/// the band.
+// +0x48; +0x50; +0x58
+/// ImmigrationComponent: until a band may come, the nomads arrived, the band.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Immigration {
     pub timer: i64,
@@ -54,17 +67,19 @@ pub struct Immigration {
     pub nomads: Vec<usize>,
 }
 
-/// NomadDescription (serializer `FUN_140050880`): `+0x20` the citizen template they become;
-/// `+0x28` / `+0x30` the men's and women's material (presentation: `StartingTown::nomad_materials`);
-/// and the CharacterDescription.
+// +0x20; +0x28; +0x30
+/// A nomad description: the citizen template nomads become, the men's and women's material
+/// (for presentation: `StartingTown::nomad_materials`), and the character description.
+///
+/// Original: `FUN_140050880`.
 #[derive(Debug, Clone)]
 pub struct NomadKind {
     pub character: CharacterDescription,
 }
 
-/// NomadComponent: its state (0 walking to the town hall, 1 waiting, 2 leaving), `+0x28` the
-/// town hall, `+0x30` where it came from, `+0x3c` where it waits, `+0x48` until it wanders,
-/// `+0x50` its model variant (0 men, 1 women).
+// +0x28; +0x30; +0x3c; +0x48; +0x50
+/// NomadComponent: its state (0 walking to the town hall, 1 waiting, 2 leaving), the town hall,
+/// where it came from, where it waits, until it wanders, its model variant (0 men, 1 women).
 pub struct Nomad {
     pub template: usize,
     pub character: Character,
@@ -360,9 +375,10 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// The nomads' StateMachine updates: 0 at the town hall, it tells it (message 6) and
-    /// waits (`FUN_140050320`); 1 waiting, it wanders now and then (`FUN_14004ff60`); 2 back
-    /// where it came from, it is gone (`FUN_14004fe90`).
+    /// The nomads' StateMachine updates: 0 at the town hall, it tells it (message 6) and waits; 1
+    /// waiting, it wanders now and then; 2 back where it came from, it is gone.
+    ///
+    /// Original: `FUN_140050320`, `FUN_14004ff60`, `FUN_14004fe90`.
     pub fn update_nomads(&mut self, dt: i64) {
         let ids: Vec<usize> = self.wildlife.nomads.keys().copied().collect();
         for id in ids {
@@ -481,9 +497,11 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// The ImmigrationComponent's state messages: 6 a nomad arrived (`FUN_14004d950`, in
-    /// 0x10); 8 turned away (`FUN_14004d680`, in 0x11). Message 7 (taking them in,
-    /// `FUN_14004d6f0`) needs the citizens: [`crate::behaviour::agents::Agents::admit_band`].
+    /// The ImmigrationComponent's state messages: 6 a nomad arrived (in 0x10); 8 turned away (in
+    /// 0x11). Message 7 (taking them in) needs the citizens:
+    /// `crate::behaviour::agents::Agents::admit_band`.
+    ///
+    /// Original: `FUN_14004d950`, `FUN_14004d680`, `FUN_14004d6f0`.
     pub fn immigration_message(&mut self, e: usize, msg: i32) {
         if self.immigration(e).is_none() || self.machine(e).index < 0 {
             return;
@@ -504,9 +522,12 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// `FUN_14004ddb0`'s town side: the visitors' disease risk (the larger of the town's and
-    /// `+0x60`, for the longer of the town's and `+0x64` months) and the band (each nomad and
-    /// where it stands) for the citizens to be made. `None` unless the band is waiting (0x11).
+    // +0x60; +0x64
+    /// The visitors' disease risk (the larger of the town's and, for the longer of the town's and
+    /// months) and the band (each nomad and where it stands) for the citizens to be made. `None`
+    /// unless the band is waiting (0x11).
+    ///
+    /// Original: `FUN_14004ddb0` (town side).
     pub fn take_band(&mut self, e: usize) -> Option<Vec<(usize, [f32; 3])>> {
         if self.machine(e).index < 0 || self.machine(e).state != 0x11 {
             return None;

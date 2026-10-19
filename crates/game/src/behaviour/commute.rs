@@ -1,18 +1,20 @@
-//! The town's commute optimisation, run from StockManager::Update (`FUN_140091780`) every
-//! 300 s of game time. See docs/COMMUTE.md.
+//! The town's commute optimisation, run from StockManager::Update every 300 s of game time. See
+//! docs/COMMUTE.md.
 //!
-//! - Start (`FUN_1400dc590`): one cell pair (residence entrance, workplace entrance) per
-//!   distinct pair of map regions, each region pair cached with rank 0.
-//! - Step (`FUN_1400dc3d0`, every update): up to seven pairs, last first, get their path rank
-//!   (`Map::PathRank` mode 0; 0 or 1 become the straight distance). With none left:
-//! - Homes (`FUN_1400db770`): families in single-family residences, the longest commute
-//!   first, move to the empty residence that shortens theirs most, goods and all.
-//! - Jobs (`FUN_1400d9880`): every working adult is let go, then each workplace takes back as
-//!   many as it had, the workplace whose nearest candidate is furthest (weighted by how much
-//!   of it is still to fill) choosing first; the rest get the professions left over.
+//! - Start: one cell pair (residence entrance, workplace entrance) per distinct pair of map
+//!   regions, each region pair cached with rank 0.
+//! - Step (every update): up to seven pairs, last first, get their path rank (`Map::PathRank` mode
+//!   0; 0 or 1 become the straight distance). With none left:
+//! - Homes: families in single-family residences, the longest commute first, move to the empty
+//!   residence that shortens theirs most, goods and all.
+//! - Jobs: every working adult is let go, then each workplace takes back as many as it had, the
+//!   workplace whose nearest candidate is furthest (weighted by how much of it is still to fill)
+//!   choosing first; the rest get the professions left over.
 //!
-//! Pointer orders in the original's trees (citizens, residences, professions) are taken as
-//! index order here.
+//! Pointer orders in the original's trees (citizens, residences, professions) are taken as index
+//! order here.
+//!
+//! Original: `FUN_140091780`, `FUN_1400dc590`, `FUN_1400dc3d0`, `FUN_1400db770`, `FUN_1400d9880`.
 
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
@@ -28,8 +30,9 @@ const FAR: i32 = 0x100_0000;
 /// The pairs ranked per update (`min(index, 6) + 1`).
 const STEP: i32 = 7;
 
-/// The optimisation's state: StockManager `+0x190` (the time since the last run) and the job
-/// object at `+0x1b8` (its pairs, the next pair's index and the region-pair ranks).
+// +0x190; +0x1b8
+/// The optimisation's state: StockManager (the time since the last run) and the job object at (its
+/// pairs, the next pair's index and the region-pair ranks).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Commute {
     pub timer: i64,

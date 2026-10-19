@@ -1,7 +1,9 @@
-//! The buildings' window buttons (ControlUI, `FUN_140060310`/`FUN_1400601d0`/`FUN_140060150`):
-//! a ControlUIConfig names a component (`+0x24`, its type id) and a control (`+0x20`); the
-//! button shows the component's slot `+0x68` (bit 0 enabled, bit 1 on) and a click calls its
-//! slot `+0x70`. See docs/BUILDING-WINDOWS.md.
+//! The buildings' window buttons (ControlUI): a ControlUIConfig names a component (its type id) and
+//! a control; the button shows the component's slot (bit 0 enabled, bit 1 on) and a click calls its
+//! slot. See docs/BUILDING-WINDOWS.md.
+//!
+//! Original: `FUN_140060310`, `FUN_1400601d0`, `FUN_140060150`.
+// +0x24; +0x20; +0x68; +0x70
 
 use crate::town::Sim;
 use crate::work::construction::{run, Callbacks};
@@ -9,22 +11,33 @@ use crate::work::jobs::Jobs;
 
 /// The components with controls, by type id (`CRC32` of the UTF-16 class name).
 pub mod kind {
+    /// A crop field.
     pub const CROP_FIELD: u32 = 0xa3cc_d302;
+    /// An orchard.
     pub const ORCHARD: u32 = 0xa981_9b71;
+    /// A pasture.
     pub const PASTURE: u32 = 0x66ae_21ad;
+    /// A trading post.
     pub const TRADE: u32 = 0x9292_c700;
+    /// A school, chapel or doctor.
     pub const ATTENDANCE: u32 = 0x5146_364d;
+    /// A forester's lodge.
     pub const FORESTER: u32 = 0xb18e_acda;
     /// ResourceProduceComponent and the classes that keep its slots.
     pub const CONSUME_PRODUCE: u32 = 0x1935_bdbb;
+    /// A fishing dock.
     pub const FISHING: u32 = 0x9d9a_f271;
+    /// A hunter's lodge.
     pub const HUNT: u32 = 0xacc2_7fa4;
+    /// A market.
     pub const MARKET: u32 = 0x4c8f_7637;
+    /// A gatherer's shelter or a herbalist.
     pub const HERBALIST: u32 = 0xca1a_33a3;
 }
 
 impl Sim<'_, '_> {
-    /// Slot `+0x70` of the `kind` component of `e`, control `index`.
+    // +0x70
+    /// Slot of the `kind` component of `e`, control `index`.
     pub fn control(&mut self, jobs: &mut Jobs, e: usize, kind: u32, index: i32) {
         match kind {
             kind::CROP_FIELD => self.field_action(e, index),

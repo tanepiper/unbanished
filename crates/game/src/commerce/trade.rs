@@ -1,9 +1,11 @@
-//! Trade: TradeComponent (the trading post, vtable `0x140160df0`, constructor `FUN_14005cd90`,
-//! states `FUN_14005cfb0`) and its merchants. See docs/TRADE.md.
+//! Trade: TradeComponent (the trading post) and its merchants. See docs/TRADE.md.
 //!
 //! Now and then (more often in bigger towns) a merchant's boat comes up the river; while it is
-//! docked the merchant's goods can be traded for the post's. A merchant brings what was
-//! ordered from it, else lots of the goods it deals in.
+//! docked the merchant's goods can be traded for the post's. A merchant brings what was ordered
+//! from it, else lots of the goods it deals in.
+//!
+//! Original: `FUN_14005cd90`, `FUN_14005cfb0`.
+// vtable 0x140160df0
 
 use banished_formats::game::{Merchant, TradeRow, ValueDescription};
 
@@ -23,14 +25,17 @@ const ARRIVED: i32 = 0xd;
 /// A resolved TradeDescription.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TradeTemplate {
-    /// `+0x30`: the boat template.
+    // +0x30
+    /// The boat template.
     pub boat: usize,
     pub merchants: Vec<Merchant>,
     pub rows: Vec<TradeRow>,
-    /// `+0x38`: the categories' flags.
+    // +0x38
+    /// The categories' flags.
     pub categories: Vec<u32>,
-    /// The categories' icon and name keys (the trade window's), in the description's sprite
-    /// sheet (`+0x20`) and string table (`+0x28`).
+    // +0x20; +0x28
+    /// The categories' icon and name keys (the trade window's), in the description's sprite sheet
+    /// and string table.
     pub labels: Vec<(String, String)>,
     pub sprites: Option<String>,
     pub strings: Option<String>,
@@ -45,8 +50,9 @@ pub struct TradeGood {
     pub value: ValueDescription,
 }
 
-/// A merchant's order (TradeComponent `+0x30`, 0x20 bytes): the merchant's name, the goods
-/// ordered and its state (0 none, 1 once, 2 every time).
+// +0x30
+/// A merchant's order (TradeComponent, 0x20 bytes): the merchant's name, the goods ordered and its
+/// state (0 none, 1 once, 2 every time).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Order {
     pub name: String,
@@ -54,7 +60,8 @@ pub struct Order {
     pub state: i32,
 }
 
-/// A good the merchant brought (`+0x50`, 0x10 bytes): the good, its value and how many.
+// +0x50
+/// A good the merchant brought (0x10 bytes): the good, its value and how many.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Offer {
     pub good: usize,
@@ -62,12 +69,11 @@ pub struct Offer {
     pub amount: i32,
 }
 
-/// TradeComponent: `+0x28` when it trades by itself (0 never, 1 when a merchant arrives, 2
-/// when it leaves), `+0x2c` the merchant docked (−1), `+0x30` the orders by merchant, `+0x40`
-/// the automatic trades by category (flags, index, amount), `+0x50` the merchant's goods,
-/// `+0x60` the goods to keep at the post by raw material, `+0x70` TradeWork on, `+0x71` held
-/// (the trade window is open), `+0x78` the time to the next merchant or until it leaves,
-/// `+0x80` the boat.
+// +0x28; +0x2c; +0x30; +0x40; +0x50; +0x60; +0x70; +0x71; +0x78; +0x80
+/// TradeComponent: when it trades by itself (0 never, 1 when a merchant arrives, 2 when it leaves),
+/// the merchant docked (−1), the orders by merchant, the automatic trades by category (flags,
+/// index, amount), the merchant's goods, the goods to keep at the post by raw material, TradeWork
+/// on, held (the trade window is open), the time to the next merchant or until it leaves, the boat.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Trade {
     pub mode: i32,
@@ -83,8 +89,10 @@ pub struct Trade {
 }
 
 impl Trade {
-    /// The activation (`FUN_14005cb80`): every merchant a name (`Rand(2)` picks the sex) and
-    /// no order; every category no automatic trade.
+    /// The activation: every merchant a name (`Rand(2)` picks the sex) and no order; every category
+    /// no automatic trade.
+    ///
+    /// Original: `FUN_14005cb80`.
     pub fn new(
         t: &TradeTemplate,
         rng: &mut crate::random::Random,
@@ -243,9 +251,10 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// The post's state messages: 9 in 0x12 (`FUN_14005b1b0`) the boat docked: event 13 at
-    /// severity 2, → 0x13; 0xb in 0x12 (`FUN_14005b320`) it went without docking: → 2; 0xa in
-    /// 0x13 (`FUN_14005bba0`) the merchant leaves now.
+    /// The post's state messages: 9 in 0x12 the boat docked: event 13 at severity 2, → 0x13; 0xb in
+    /// 0x12 it went without docking: → 2; 0xa in 0x13 the merchant leaves now.
+    ///
+    /// Original: `FUN_14005b1b0`, `FUN_14005b320`, `FUN_14005bba0`.
     pub fn trade_message(&mut self, e: usize, msg: i32) {
         if self.trade(e).is_none() || self.machine(e).index < 0 {
             return;
@@ -325,8 +334,11 @@ impl Sim<'_, '_> {
         merchant_list(self.trade_goods, self.templates, self.materials, m)
     }
 
-    /// `FUN_14005c960`: the TradeWork switched (slot `+0x70`, the post's work button): the
-    /// workplace on with the work, or off without it.
+    // slot +0x70
+    /// The TradeWork switched (the post's work button): the workplace on with the work, or off
+    /// without it.
+    ///
+    /// Original: `FUN_14005c960`.
     pub fn toggle_trade_work(&mut self, jobs: &mut crate::work::jobs::Jobs, e: usize) {
         let on = !self.workforce.workplaces.get(&e).is_some_and(|w| w.enabled);
         if let Some(tr) = self.trade(e) {
@@ -341,9 +353,11 @@ impl Sim<'_, '_> {
     }
 }
 
-/// `FUN_14005ae80`: what the merchant docked gives for one: with none, its value; else its
-/// value for what it buys (`+0x14`), three quarters for what it takes (`+0x18`), else
-/// nothing.
+// +0x14; +0x18
+/// What the merchant docked gives for one: with none, its value; else its value for what it buys,
+/// three quarters for what it takes, else nothing.
+///
+/// Original: `FUN_14005ae80`.
 pub fn sell_value(
     goods: &[TradeGood],
     materials: &[crate::work::stock::RawMaterial],
@@ -370,8 +384,11 @@ pub fn sell_value(
     }
 }
 
-/// `FUN_140059fd0`: the merchant's own goods, then every good whose raw material has a flag
-/// it deals in (`+0x10`), in the factory's order.
+// +0x10
+/// The merchant's own goods, then every good whose raw material has a flag it deals in, in the
+/// factory's order.
+///
+/// Original: `FUN_140059fd0`.
 pub fn merchant_list(
     goods: &[TradeGood],
     templates: &[crate::nature::seeding::Template],
@@ -418,8 +435,10 @@ pub enum TradeSetting {
     Held(bool),
 }
 
-/// TradeWork (vtable `0x140167e30`, constructor `FUN_1400fc370`): `+0x48` each hauler and what
-/// it carries to (more) or from (fewer) the post.
+// vtable 0x140167e30; +0x48
+/// TradeWork: each hauler and what it carries to (more) or from (fewer) the post.
+///
+/// Original: `FUN_1400fc370`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TradeWork {
     pub haulers: std::collections::BTreeMap<usize, (usize, i32)>,
@@ -575,10 +594,12 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// TradeUI's trade button (`FUN_1400868f0`), while the merchant is docked: the visitors'
-    /// disease risk; what is sold leaves the post (used) and its value counts as traded away;
-    /// what is bought leaves the merchant's goods and arrives: raw materials in the post's
-    /// storage (known), seeds known, livestock known and at the post (`FUN_14005b640`).
+    /// TradeUI's trade button, while the merchant is docked: the visitors' disease risk; what is
+    /// sold leaves the post (used) and its value counts as traded away; what is bought leaves the
+    /// merchant's goods and arrives: raw materials in the post's storage (known), seeds known,
+    /// livestock known and at the post.
+    ///
+    /// Original: `FUN_1400868f0`, `FUN_14005b640`.
     pub fn exchange(&mut self, e: usize, sell: &[(usize, i32)], buy: &[(usize, i32)]) {
         if self.trade(e).is_none_or(|t| t.merchant < 0) {
             return;
@@ -647,8 +668,9 @@ impl Sim<'_, '_> {
         self.with_wild(|w| w.trade_livestock(template, n, a, b, area));
     }
 
-    /// TradeUI's settings (`FUN_140086f80`, `FUN_1400871d0`, `FUN_140087120`,
-    /// `FUN_140087090`, `FUN_140087350`, `FUN_1400872a0`): see [`TradeSetting`].
+    /// TradeUI's settings: see [`TradeSetting`].
+    ///
+    /// Original: `FUN_140086f80`, `FUN_1400871d0`, `FUN_140087120`, `FUN_140087090`, `FUN_140087350`, `FUN_1400872a0`.
     pub fn trade_setting(&mut self, e: usize, setting: TradeSetting) {
         let Some(tr) = self.trade(e) else { return };
         match setting {

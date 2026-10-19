@@ -1,6 +1,7 @@
-//! The citizen activities that meet needs: eating (`FUN_140112250`, activities 0 and 14),
-//! warming up (`FUN_140112790`, 1 and 15) and stocking the home with food and firewood
-//! (`FUN_140111160` and `FUN_1401108b0`, 6 and 7). See docs/CITIZEN-LIFE.md.
+//! The citizen activities that meet needs: eating (activities 0 and 14), warming up (1 and 15) and
+//! stocking the home with food and firewood (6 and 7). See docs/CITIZEN-LIFE.md.
+//!
+//! Original: `FUN_140112250`, `FUN_140112790`, `FUN_140111160`, `FUN_1401108b0`.
 
 use std::collections::BTreeMap;
 
@@ -32,24 +33,31 @@ pub struct Needs<'a, 'b> {
     pub storages: &'a mut [Storage],
     pub materials: &'a [RawMaterial],
     pub homes: &'a mut BTreeMap<usize, Home>,
-    /// The town's residences (`+0x20`), in the order they were completed: the searches over
-    /// residences (`FUN_140093840`, `FUN_140094140`) keep the first of equal ranks.
+    // +0x20
+    /// The town's residences, in the order they were completed: the searches over residences keep
+    /// the first of equal ranks.
+    ///
+    /// Original: `FUN_140093840`, `FUN_140094140`.
     pub residences: &'a [usize],
     pub temperature: f32,
     pub life: &'a LifeRules,
-    /// The laborer profession's carry `+0x50`.
+    // +0x50
+    /// The laborer profession's carry.
     pub carry: i32,
     pub terrain: &'a HeightGrid<'b>,
     pub size: usize,
     pub rng: &'a mut Random,
-    /// The town manager's HealerComponents (`+0x70`) and every WorkPlaceComponent.
+    // +0x70
+    /// The town manager's HealerComponents and every WorkPlaceComponent.
     pub healers: &'a [usize],
     pub workplaces: &'a BTreeMap<usize, crate::work::professions::WorkPlace>,
     pub attendance: &'a mut BTreeMap<usize, crate::work::construction::Attendance>,
     /// Every citizen (play follows the guardian).
     pub citizens: &'a [crate::people::citizens::Citizen],
     /// Set when the school activity found no place to sit: the caller leaves the school and
-    /// looks for another (`FUN_14011af20(c, 1)`).
+    /// looks for another.
+    ///
+    /// Original: `FUN_14011af20(c, 1)`.
     pub reschool: bool,
 }
 
@@ -236,7 +244,9 @@ impl Needs<'_, '_> {
         stack
     }
 
-    /// `FUN_140112250` (activities 0 and 14).
+    /// Activities 0 and 14: eat, at home or from a storage.
+    ///
+    /// Original: `FUN_140112250`.
     pub fn eat(&mut self, who: &mut Who) -> bool {
         let cell = self.town.cell_of(who.ch.position);
         let home = who.state.home;
@@ -303,8 +313,10 @@ impl Needs<'_, '_> {
         true
     }
 
-    /// `FUN_140112790` (activities 1 and 15): the nearest warm residence when urgently cold,
-    /// else a warm home.
+    /// Activities 1 and 15: get warm, at the nearest warm residence when the citizen is very cold,
+    /// else at a warm home.
+    ///
+    /// Original: `FUN_140112790`.
     pub fn warm(&mut self, who: &mut Who) -> bool {
         let cell = self.town.cell_of(who.ch.position);
         let mut chosen = None;
@@ -372,10 +384,12 @@ impl Needs<'_, '_> {
         true
     }
 
-    /// `FUN_140111160` (`fuel` false, activity 6) and `FUN_1401108b0` (`fuel`, activity 7):
-    /// carry food or firewood home from the nearest storage. The caller first drops off
-    /// anything carried (and queues this activity again).
-    /// `reachable` is the caller's `FUN_14011ada0` result for the home.
+    /// Activities 6 (food) and 7 (firewood, when `fuel`): carry food or firewood home from the
+    /// nearest storage. The caller first drops off anything carried (and queues this activity
+    /// again). `reachable` is the caller's test that the home can be reached.
+    ///
+    /// Original: `FUN_140111160` (food), `FUN_1401108b0` (firewood); the reach test is
+    /// `FUN_14011ada0`.
     pub fn stock_home(&mut self, who: &mut Who, fuel: bool, reachable: bool) -> bool {
         let (slot, category, icon, supply) = if fuel { (7, 1, 7, 2) } else { (6, 0, 6, 1) };
         let cell = self.town.cell_of(who.ch.position);
@@ -567,7 +581,10 @@ impl Needs<'_, '_> {
         who.state.supply_activity = 0;
     }
 
-    /// `FUN_140112a30` (activity 10): sit a lesson at the school (`D[0x120]` s, message 4).
+    /// Activity 10: sit a lesson at the school (message 4; its length is a value of the citizen
+    /// description).
+    ///
+    /// Original: `FUN_140112a30`.
     pub fn school(&mut self, who: &mut Who) -> bool {
         let Some(school) = who.state.school else {
             return false;
@@ -585,9 +602,11 @@ impl Needs<'_, '_> {
         }
     }
 
-    /// `FUN_140112c60` (activity 5): with a doctor, be treated (`D[0x124]` s, message 5);
-    /// without one, or when the doctor cannot be reached, rest at a reachable home.
-    /// Like the original, it reports "not started" after a treatment visit.
+    /// Activity 5: with a doctor, be treated (message 5); without one, or when the doctor cannot
+    /// be reached, rest at a home that can be reached. Like the original, it reports "not
+    /// started" after a treatment visit.
+    ///
+    /// Original: `FUN_140112c60`.
     pub fn doctor(&mut self, who: &mut Who, me: usize) -> bool {
         let cell = self.town.cell_of(who.ch.position);
         let home = who
@@ -625,8 +644,10 @@ impl Needs<'_, '_> {
         }
     }
 
-    /// `FUN_140111d60` (activity 4): take a herb from the nearest storage to the nearest
-    /// staffed herbalist, be treated there (5 s, message 3). The caller drops off first.
+    /// Activity 4: take herbs from the nearest storage to the nearest herbalist with a worker, and
+    /// be treated there (5 seconds, message 3). The caller drops off what it carries first.
+    ///
+    /// Original: `FUN_140111d60`.
     pub fn herbs(&mut self, who: &mut Who) -> bool {
         who.ai.cooldowns[4] = ticks(75.0);
         let cell = self.town.cell_of(who.ch.position);
@@ -718,8 +739,10 @@ impl Needs<'_, '_> {
         true
     }
 
-    /// `FUN_14010f780` (activity 11): a child plays next to its guardian (or the guardian's
-    /// partner), then idles `RandFloat · 7 + 3` s.
+    /// Activity 11: a child plays next to its guardian (or the guardian's partner), then waits
+    /// `RandFloat · 7 + 3` seconds.
+    ///
+    /// Original: `FUN_14010f780`.
     pub fn play(&mut self, who: &mut Who, me: usize) -> bool {
         let Some(mut g) = self.citizens.get(me).and_then(|c| c.parent) else {
             return false;
@@ -769,8 +792,9 @@ fn citizen_message(message: i32, entity: usize) -> Action {
     })
 }
 
-/// `FUN_14011abb0`: the home holds food for every living family (`D[0xc4]` per member of
-/// this citizen's family).
+/// The home holds food for every living family (`D[0xc4]` per member of this citizen's family).
+///
+/// Original: `FUN_14011abb0`.
 pub fn home_has_food(
     home: &Home,
     slot: i32,
@@ -783,7 +807,9 @@ pub fn home_has_food(
         <= stored(&storages[home.storage], materials, 5)
 }
 
-/// `FUN_14011acc0`: `D[0xd4]` firewood per living family.
+/// `D[0xd4]` firewood per living family.
+///
+/// Original: `FUN_14011acc0`.
 pub fn home_has_fuel(
     home: &Home,
     storages: &[Storage],

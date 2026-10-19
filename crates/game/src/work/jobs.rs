@@ -1,23 +1,25 @@
-//! The job manager (`Game +0x118`, constructor `FUN_1400fe650`). See docs/JOBS.md.
+//! The job manager (`Game`). See docs/JOBS.md.
 //!
-//! Every `Work` gets a sequential id (`+0x00`, from 1) and a priority (`+0x04`, sequential
-//! unless the owner keeps one). The manager indexes works by id (`+0x30`), by priority
-//! (`+0x10`), by category (`+0x40 + (c − 1)·0x10`, categories 1..14 from the registration
-//! mask's bits) and by profession (`+0x120`, the work's slot `+0x50`). All of them are trees
-//! keyed by id, so iteration is in id order.
+//! Every `Work` gets a sequential id (from 1) and a priority (sequential unless the owner keeps
+//! one). The manager indexes works by id, by priority, by category (`+ (c − 1)·0x10`, categories
+//! 1..14 from the registration mask's bits) and by profession (the work's slot). All of them are
+//! trees keyed by id, so iteration is in id order.
 //!
 //! The AI's work (9) and emergency (2) activities ask the manager for a job:
 //!
-//! - [`Jobs::assign_work`] (`FUN_1400fcd00`): the citizen's own profession's works, then
-//!   [`Jobs::assign_emergency`], then the laborers' works;
-//! - [`Jobs::assign_emergency`] (`FUN_1400fca20`): category lists chosen from low stock
-//!   (`Rand(n)` on the game stream), each tried by distance;
-//! - `try_list` (`FUN_1400fce80`) sorts candidate works by priority (`FUN_1400fd4d0`) or path
-//!   rank (`FUN_1400fd160`), ties by id, and `offer` (`FUN_1400fd030`) offers them in order.
+//! - [`Jobs::assign_work`]: the citizen's own profession's works, then [`Jobs::assign_emergency`],
+//!   then the laborers' works;
+//! - [`Jobs::assign_emergency`]: category lists chosen from low stock (`Rand(n)` on the game
+//!   stream), each tried by distance;
+//! - `try_list` sorts candidate works by priority or path rank, ties by id, and `offer` offers them
+//!   in order.
 //!
-//! A work's virtual slots are supplied by a [`WorkHost`]: `+0x20` try to assign (0 no,
-//! 1 not now, 2 taken), `+0x28` a second try, `+0x30` a task completed, `+0x38` a task failed,
-//! `+0x40` cancel every worker, `+0x48` refresh.
+//! A work's virtual slots are supplied by a [`WorkHost`]: try to assign (0 no, 1 not now, 2 taken),
+//! a second try, a task completed, a task failed, cancel every worker, refresh.
+//!
+//! Original: `FUN_1400fe650`, `FUN_1400fcd00`, `FUN_1400fca20`, `FUN_1400fce80`, `FUN_1400fd4d0`, `FUN_1400fd160`, `FUN_1400fd030`.
+// Game +0x118; +0x00; +0x04; +0x30; +0x10; +0x120; +0x40 + (c − 1)·0x10; +0x50; +0x20; +0x28;
+// +0x38; +0x40; +0x48
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -87,29 +89,42 @@ pub enum WorkKind {
     Test(i32),
 }
 
-/// `Work` (vtable `0x140167e30`, constructor `FUN_1400fc7b0`).
+// vtable 0x140167e30
+/// `Work`.
+///
+/// Original: `FUN_1400fc7b0`.
 #[derive(Debug, Clone)]
 pub struct Work {
-    /// `+0x10`: the owning entity.
+    // +0x10
+    /// The owning entity.
     pub entity: usize,
-    /// `+0x20` id and `+0x24` priority.
+    // +0x20; +0x24
+    /// id and priority.
     pub id: i32,
     pub priority: i32,
-    /// `+0x28`: the owner's map-rectangle centre cell.
+    // +0x28
+    /// The owner's map-rectangle centre cell.
     pub cell: i32,
-    /// `+0x2c`: the manager pass in which it last answered "not now".
+    // +0x2c
+    /// The manager pass in which it last answered "not now".
     pub failed_pass: i32,
-    /// `+0x30`, `+0x38`, `+0x40`: the distance-patience clock of `FUN_1400fc3c0`.
+    // +0x30, +0x38, +0x40
+    /// The clock of the distance patience: how long a far work waits before a citizen takes it.
+    ///
+    /// Original: used by `FUN_1400fc3c0`.
     pub patience: i64,
     pub patience_base: i64,
     pub far_count: i32,
-    /// Slot `+0x50`: the profession whose citizens do this work.
+    // +0x50
+    /// The profession whose citizens do this work.
     pub profession: usize,
     pub kind: WorkKind,
 }
 
 impl Work {
-    /// `FUN_1400fc7b0`: `cell` is `(y + h/2)·n + x + w/2` of the owner's map rectangle.
+    /// `cell` is `(y + h/2)·n + x + w/2` of the owner's map rectangle.
+    ///
+    /// Original: `FUN_1400fc7b0`.
     pub fn new(entity: usize, cell: i32, profession: usize, kind: WorkKind) -> Work {
         Work {
             entity,
@@ -130,8 +145,11 @@ impl Work {
 pub trait WorkHost {
     /// Citizen `+0x1f0`, `+0x248`, the character's cell, and `FUN_14011b0b0`.
     fn profession(&self, citizen: usize) -> usize;
+    /// The citizen's workplace.
     fn workplace(&self, citizen: usize) -> Option<usize>;
+    /// The citizen's map cell.
     fn cell(&self, citizen: usize) -> i32;
+    /// Whether there is an emergency near the citizen.
     fn has_emergency(&self, citizen: usize) -> bool;
     /// Profession `+0x4c`.
     fn works_anywhere(&self, profession: usize) -> bool;
@@ -141,7 +159,9 @@ pub trait WorkHost {
     fn stock(&self, slot: usize) -> (i32, i32);
     /// The laborer and builder professions (`Game +0xb0 → +0x30/+0x38`).
     fn laborer(&self) -> usize;
+    /// The builder profession.
     fn builder(&self) -> usize;
+    /// The game's random numbers.
     fn rng(&mut self) -> &mut Random;
 
     /// Slot `+0x48`: refresh (drop workers that no longer hold this work's task).
@@ -199,17 +219,22 @@ pub struct Jobs {
     /// `+0x00`: last id (wraps from `0x7ffffffe` to 0); `+0x04`: next sequential priority.
     next_id: i32,
     next_priority: i32,
-    /// `+0x08`: pass counter (one per simulation iteration, `FUN_14009b850`).
+    // +0x08
+    /// Pass counter (one per simulation iteration).
+    ///
+    /// Original: `FUN_14009b850`.
     pub pass: i32,
     /// `+0x10`: priority → id.
     priorities: BTreeMap<i32, i32>,
-    /// `+0x30`: id → work.
+    // +0x30
+    /// Id → work.
     pub works: BTreeMap<i32, Work>,
     /// `+0x40..`: category 1..14 → ids.
     categories: [BTreeSet<i32>; CATEGORIES],
     /// `+0x120`: profession → ids.
     professions: BTreeMap<usize, BTreeSet<i32>>,
-    /// `+0x130`: manager clock (ticks), advanced with the pass.
+    // +0x130
+    /// Manager clock (ticks), advanced with the pass.
     pub time: i64,
 }
 
@@ -242,18 +267,23 @@ const EMERGENCY_LISTS: [(usize, &[u32]); 9] = [
 ];
 
 impl Jobs {
-    /// `FUN_1400fe650` + the per-iteration step in `FUN_14009b850`.
+    /// One simulation iteration of the job manager.
+    ///
+    /// Original: `FUN_1400fe650`, and the step in `FUN_14009b850`.
     pub fn step(&mut self, dt: i64) {
         self.pass = self.pass.wrapping_add(1);
         self.time = self.time.wrapping_add(dt);
     }
 
+    /// Whether there is no work.
     pub fn is_empty(&self) -> bool {
         self.works.is_empty()
     }
 
-    /// `FUN_1400fdd70(work, mask, keep, priority)`: register a work. `keep` uses `priority`
-    /// (moved down past any taken value) instead of the next sequential one. Returns the id.
+    /// Register a work. With `keep`, the work gets that priority (moved down past any value already
+    /// taken), else the next one in sequence. Returns the work's id.
+    ///
+    /// Original: `FUN_1400fdd70(work, mask, keep, priority)`.
     pub fn add(&mut self, mut work: Work, mask: u32, keep: Option<i32>) -> i32 {
         self.next_id = self.next_id.wrapping_add(1);
         let id = self.next_id;
@@ -289,9 +319,12 @@ impl Jobs {
         id
     }
 
-    /// A saved manager (`FUN_1400fe710`): its counters, then each work with the categories it
-    /// was filed under (1..14), and the professions its profession map holds. The priority index is rebuilt from the works' own priorities,
-    /// as the load pass does; the clock (`+0x130`) is not saved and restarts at 0.
+    // +0x130
+    /// A saved manager: its counters, then each work with the categories it was filed under
+    /// (1..14), and the professions its profession map holds. The priority index is rebuilt from
+    /// the works' own priorities, as the load pass does; the clock is not saved and restarts at 0.
+    ///
+    /// Original: `FUN_1400fe710`.
     pub fn restore(
         &mut self,
         next_id: i32,
@@ -329,7 +362,8 @@ impl Jobs {
         }
     }
 
-    /// The counters a save holds (`+0x00`, `+0x04`).
+    // +0x00; +0x04
+    /// The counters a save holds.
     pub fn counters(&self) -> (i32, i32) {
         (self.next_id, self.next_priority)
     }
@@ -343,7 +377,8 @@ impl Jobs {
             .unwrap_or_default()
     }
 
-    /// The works by profession (`+0x120`), in profession then id order.
+    // +0x120
+    /// The works by profession, in profession then id order.
     pub fn by_profession(&self) -> Vec<(usize, Vec<i32>)> {
         self.professions
             .iter()
@@ -351,7 +386,9 @@ impl Jobs {
             .collect()
     }
 
-    /// `FUN_1400fe300`: unregister, refresh, cancel every worker, delete.
+    /// Unregister, refresh, cancel every worker, delete.
+    ///
+    /// Original: `FUN_1400fe300`.
     pub fn remove(&mut self, id: i32, host: &mut impl WorkHost) {
         let Some(mut work) = self.works.remove(&id) else {
             return;
@@ -387,7 +424,9 @@ impl Jobs {
         }
     }
 
-    /// `FUN_1400fefa0`: move a work to the front (`lowest priority − 1`).
+    /// Move a work to the front (`lowest priority − 1`).
+    ///
+    /// Original: `FUN_1400fefa0`.
     pub fn prioritize(&mut self, id: i32) {
         let Some(work) = self.works.get(&id) else {
             return;
@@ -405,7 +444,9 @@ impl Jobs {
         self.priorities.entry(top).or_insert(id);
     }
 
-    /// `FUN_1400fd8d0`: move a work from one profession's list to another's.
+    /// Move a work from one profession's list to another's.
+    ///
+    /// Original: `FUN_1400fd8d0`.
     pub fn change_profession(&mut self, id: i32, from: usize, to: usize) {
         if !self.works.contains_key(&id) {
             return;
@@ -421,8 +462,10 @@ impl Jobs {
         self.works.get_mut(&id).unwrap().profession = to;
     }
 
-    /// `FUN_1400fdc30` (CompleteTask start): a task finished; remove the work when the slot
-    /// says it is done.
+    /// A task finished (the start of `CompleteTask`): remove the work when its slot says it is
+    /// done.
+    ///
+    /// Original: `FUN_1400fdc30`.
     pub fn complete(&mut self, id: i32, citizen: usize, param: i32, host: &mut impl WorkHost) {
         let Some(mut work) = self.works.remove(&id) else {
             return;
@@ -435,7 +478,9 @@ impl Jobs {
         }
     }
 
-    /// `FUN_1400fdcd0` (CompleteTask abort).
+    /// A task failed (`CompleteTask` cancelled).
+    ///
+    /// Original: `FUN_1400fdcd0`.
     pub fn fail(&mut self, id: i32, citizen: usize, param: i32, host: &mut impl WorkHost) {
         if let Some(mut work) = self.works.remove(&id) {
             host.fail(&mut work, citizen, param);
@@ -466,8 +511,9 @@ impl Jobs {
         r
     }
 
-    /// `FUN_1400fdaf0`: offer one work by id, with a second try when the first answers
-    /// "not now" and `again` is set.
+    /// Offer one work by id, with a second try when the first answers "not now" and `again` is set.
+    ///
+    /// Original: `FUN_1400fdaf0`.
     pub fn offer_one(
         &mut self,
         id: i32,
@@ -506,7 +552,9 @@ impl Jobs {
         taken
     }
 
-    /// `FUN_1400fcd00`.
+    /// Give a citizen work: activity 9.
+    ///
+    /// Original: `FUN_1400fcd00`.
     pub fn assign_work(&mut self, citizen: usize, host: &mut impl WorkHost) {
         if self.works.is_empty() {
             return;
@@ -527,7 +575,10 @@ impl Jobs {
         }
     }
 
-    /// `FUN_1400fca20`.
+    /// Give a citizen emergency work (activity 2), for example fighting a fire. Returns whether
+    /// there was some.
+    ///
+    /// Original: `FUN_1400fca20`.
     pub fn assign_emergency(&mut self, citizen: usize, host: &mut impl WorkHost) -> bool {
         let mut lists: Vec<&[u32]> = Vec::new();
         let emergency = host.has_emergency(citizen);

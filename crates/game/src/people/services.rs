@@ -1,6 +1,7 @@
 //! Services: AttendanceComponent (schools, the chapel, the doctor), HealerComponent (the
-//! herbalist), and `LocationWork` (vtable `0x140167ab0`), the work that keeps their staff at
-//! the building. See docs/CITIZEN-LIFE.md.
+//! herbalist), and `LocationWork`, the work that keeps their staff at the building. See
+//! docs/CITIZEN-LIFE.md.
+// vtable 0x140167ab0
 
 use crate::behaviour::character::{Action, MoveTo};
 use crate::pathfind::WALKABLE;
@@ -13,7 +14,8 @@ use crate::work::stock::StorageSearchMap;
 /// `LocationWork`: one staff member at a time stands at the building.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct LocationWork {
-    /// `+0x48`.
+    // +0x48
+    /// Not identified yet.
     pub worker: Option<usize>,
 }
 
@@ -71,7 +73,10 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// `FUN_140044cd0` (the attendance's scheduled update): nobody works there, everyone goes.
+    /// The scheduled update of a school, chapel or doctor: when nobody works there, everyone
+    /// leaves.
+    ///
+    /// Original: `FUN_140044cd0`.
     pub fn update_attendance(&mut self, visits: &[(usize, i64)]) {
         let empty: Vec<usize> = visits
             .iter()

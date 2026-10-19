@@ -1,24 +1,25 @@
-//! The characters' spatial tree (`Game +0x88`): a loose quadtree of the CharacterComponents,
-//! which the tornado's victims (`FUN_140097e60`) and the hunters' prey (`FUN_140097730`) are
-//! searched in.
+//! The characters' spatial tree: a loose quadtree of the CharacterComponents, which the
+//! tornado's victims and the hunters' prey are searched in.
 //!
-//! - **Built** by `FUN_140018cc0` (`FUN_140097d50`): a world of 2048 units centred on the map
-//!   (offset 1024, 1024), 8 levels, node `base[level] + Morton(x, y)` with the bases 0, 1, 5,
-//!   0x15, … 0x1555 (0x5555 nodes). Each node keeps a circular list of its slots (`+0x30` the
-//!   head) and the count of slots in it and below (`+0x50`, carried up `parent = (i − 1) >> 2`).
-//! - **Insert** (`FUN_140018e00`, CharacterComponent start `FUN_14010ee90` and its load
-//!   `FUN_14010ef80`): the last freed slot (`+0x20`), else a new one; then placed.
-//! - **Remove** (`FUN_140018f70`, the component's end `FUN_14010ee50`): unlinked, the slot freed.
-//! - **Place** (`FUN_140019070`, every CharacterComponent update `FUN_14010e990`): the level from
-//!   the character's square (its position ± the description's radius `+0x20`), the cell its
-//!   centre falls in at that level; a slot that changes node goes to the end of the new node's
-//!   list (`FUN_140019710`, `FUN_140019650`).
-//! - **Search** (`FUN_1400197e0`, `FUN_140019290`): a stack from the root; a node with nothing
-//!   in or below it, or whose loose box (its square doubled, z from −1 to 1) misses the query's
-//!   box (the point ± the radius on every axis), is dropped; otherwise its slots are visited
-//!   from the head and it is replaced by its four children (pushed 1 to 4, so the fourth comes
-//!   off first). The z bounds mean nothing is found while the point stands more than the radius
-//!   + 1 from height 0.
+//! - **Built**: a world of 2048 units centred on the map (offset 1024, 1024), 8
+//!   levels, node `base[level] + Morton(x, y)` with the bases 0, 1, 5, 0x15, … 0x1555 (0x5555
+//!   nodes). Each node keeps a circular list of its slots (the head) and the count of slots in it
+//!   and below (carried up `parent = (i − 1) >> 2`).
+//! - **Insert** (when a character starts or is loaded): the last freed slot, else a new one; then
+//!   placed.
+//! - **Remove** (when a character ends): unlinked, the slot freed.
+//! - **Place** (at every character update): the level from the character's
+//!   square (its position ± the description's radius), the cell its centre falls in at that level;
+//!   a slot that changes node goes to the end of the new node's list.
+//! - **Search**: a stack from the root; a node with nothing in or below it, or whose loose box (its
+//!   square doubled, z from −1 to 1) misses the query's box (the point ± the radius on every axis),
+//!   is dropped; otherwise its slots are visited from the head and it is replaced by its four
+//!   children (pushed 1 to 4, so the fourth comes off first). The z bounds mean nothing is found
+//!   while the point stands more than the radius + 1 from height 0.
+//!
+//! Original: built by `FUN_140018cc0`; insert `FUN_14010ee90` (start) and `FUN_14010ef80` (load);
+//! remove `FUN_14010ee50`; place `FUN_14010e990`; and `FUN_140097e60`, `FUN_140097730`, `FUN_140097d50`, `FUN_140018e00`, `FUN_140018f70`, `FUN_140019070`, `FUN_140019710`, `FUN_140019650`, `FUN_1400197e0`, `FUN_140019290`.
+// Game +0x88; +0x30; +0x50; +0x20
 
 /// `DAT_140178958`: the world's side.
 const WORLD: f32 = 2048.0;
@@ -51,6 +52,7 @@ struct Slot {
     serial: u64,
 }
 
+/// The characters' spatial tree. See the [module documentation](self).
 #[derive(Debug, Clone)]
 pub struct CharacterTree {
     slots: Vec<Slot>,
@@ -101,7 +103,9 @@ fn node_of(position: [f32; 3], radius: f32) -> i32 {
 }
 
 impl CharacterTree {
-    /// `FUN_140018e00`: a slot for `who`, placed at once. Returns the slot.
+    /// A slot for `who`, placed at once. Returns the slot.
+    ///
+    /// Original: `FUN_140018e00`.
     pub fn insert(&mut self, who: Who, position: [f32; 3], radius: f32) -> i32 {
         self.serials += 1;
         let blank = Slot {
@@ -127,8 +131,10 @@ impl CharacterTree {
         slot
     }
 
-    /// `FUN_140018f70`: out of its node; the slot goes on the free list.
-    /// The slot holding `who`, if it is in the tree.
+    /// Out of its node; the slot goes on the free list. The slot holding `who`, if it is in the
+    /// tree.
+    ///
+    /// Original: `FUN_140018f70`.
     pub fn slot_of(&self, who: Who) -> Option<i32> {
         self.slots
             .iter()
@@ -136,6 +142,7 @@ impl CharacterTree {
             .map(|i| i as i32)
     }
 
+    /// Remove a character's slot.
     pub fn remove(&mut self, slot: i32) {
         if slot < 0
             || self
@@ -155,8 +162,9 @@ impl CharacterTree {
         self.free.push(slot);
     }
 
-    /// `FUN_140019070`: where the character stands now; a new node puts it at the end of
-    /// that node's list.
+    /// Where the character stands now; a new node puts it at the end of that node's list.
+    ///
+    /// Original: `FUN_140019070`.
     pub fn place(&mut self, slot: i32, position: [f32; 3], radius: f32) {
         if slot < 0
             || self
@@ -177,7 +185,8 @@ impl CharacterTree {
         }
     }
 
-    /// The walking direction the follow check reads (the component's `+0x2c`).
+    // +0x2c
+    /// The walking direction the follow check reads (the component's).
     pub fn set_direction(&mut self, slot: i32, direction: [f32; 3]) {
         if let Some(s) = usize::try_from(slot)
             .ok()
@@ -187,10 +196,12 @@ impl CharacterTree {
         }
     }
 
-    /// MoveTo's notify (`FUN_1400cde40`, its slot `+0x30`): the nearest other character
-    /// within 0.5 (`FUN_140097730`), if it came after this one (the original compares the
-    /// components' addresses; the port, the order they were put in the tree) and walks the
-    /// same way (the directions' dot product above 0), is followed.
+    // its slot +0x30
+    /// MoveTo's notify: the nearest other character within 0.5, if it came after this one (the
+    /// original compares the components' addresses; the port, the order they were put in the tree)
+    /// and walks the same way (the directions' dot product above 0), is followed.
+    ///
+    /// Original: `FUN_1400cde40`, `FUN_140097730`.
     pub fn follows(&self, slot: i32) -> bool {
         let Some(me) = usize::try_from(slot).ok().and_then(|i| self.slots.get(i)) else {
             return false;
@@ -264,8 +275,10 @@ impl CharacterTree {
         }
     }
 
-    /// The search (`FUN_1400197e0`, `FUN_140019290`): every slot of the nodes whose loose box
-    /// meets `point ± radius`, in the original's order, with where it stands.
+    /// The search: every slot of the nodes whose loose box meets `point ± radius`, in the
+    /// original's order, with where it stands.
+    ///
+    /// Original: `FUN_1400197e0`, `FUN_140019290`.
     pub fn visit(&self, point: [f32; 3], radius: f32, mut each: impl FnMut(Who, [f32; 3])) {
         self.visit_slots(point, radius, |s| {
             if let Some(who) = s.who {
@@ -320,8 +333,10 @@ impl CharacterTree {
         }
     }
 
-    /// `FUN_140097e60`: the characters standing within `radius` of `point` (squared distance
-    /// below `radius²`), in the tree's order.
+    /// The characters standing within `radius` of `point` (squared distance below `radius²`), in
+    /// the tree's order.
+    ///
+    /// Original: `FUN_140097e60`.
     pub fn within(&self, point: [f32; 3], radius: f32, filter: impl Fn(Who) -> bool) -> Vec<Who> {
         let mut out = Vec::new();
         let r2 = radius * radius;
@@ -333,8 +348,10 @@ impl CharacterTree {
         out
     }
 
-    /// `FUN_140097730`: the nearest character within `radius` of `point` that `filter` takes;
-    /// the first of equals in the tree's order.
+    /// The nearest character within `radius` of `point` that `filter` takes; the first of equals in
+    /// the tree's order.
+    ///
+    /// Original: `FUN_140097730`.
     pub fn nearest(
         &self,
         point: [f32; 3],

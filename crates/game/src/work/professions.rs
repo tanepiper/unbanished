@@ -1,11 +1,13 @@
-//! Professions (`Game +0xb0`), workplaces (WorkPlaceComponent, the town manager's workplace
-//! registry `Game +0xf0 → +0x100`) and who takes a job when the player changes a profession's
-//! count. See docs/JOBS.md.
+//! Professions (`Game`), workplaces (WorkPlaceComponent, the town manager's workplace registry
+//! `Game →`) and who takes a job when the player changes a profession's count. See docs/JOBS.md.
 //!
-//! The ProfessionUI spinners (`FUN_14007b890`) and the WorkPlaceUI buttons (`FUN_14008ccb0`)
-//! call the town manager directly in the original, between simulation iterations; the port
-//! queues them as [`Command`]s that the simulation applies before its next iteration, which is
-//! the same point in the game's Random stream.
+//! The ProfessionUI spinners and the WorkPlaceUI buttons call the town manager directly in the
+//! original, between simulation iterations; the port queues them as [`Command`]s that the
+//! simulation applies before its next iteration, which is the same point in the game's Random
+//! stream.
+//!
+//! Original: `FUN_14007b890`, `FUN_14008ccb0`.
+// Game +0xb0; Game +0xf0 → +0x100
 
 use std::collections::BTreeMap;
 
@@ -13,7 +15,9 @@ use crate::people::life::Home;
 use crate::random::Random;
 use crate::work::stock::StorageSearchMap;
 
-/// What the workplace searches read (`FUN_140115490`, `FUN_140115940`, `FUN_140115eb0`).
+/// What the workplace searches read.
+///
+/// Original: `FUN_140115490`, `FUN_140115940`, `FUN_140115eb0`.
 pub trait Search {
     /// Citizen `c`'s map cell.
     fn cell(&self, c: usize) -> i32;
@@ -27,32 +31,47 @@ pub trait Search {
     fn rng(&mut self) -> &mut Random;
 }
 
-/// `Profession` (serializer `FUN_1400ae3e0`) fields the simulation reads.
+/// `Profession` fields the simulation reads.
+///
+/// Original: `FUN_1400ae3e0`.
 #[derive(Debug, Clone, Default)]
 pub struct Profession {
     /// `Game\Profession\Profession.rsc:<key>`.
     pub reference: String,
-    /// `+0x30`: name key (`ProfessionBuilder`), in the `+0x20` string table.
+    // +0x30; +0x20
+    /// Name key (`ProfessionBuilder`), in the string table.
     pub name: String,
     pub string_table: Option<String>,
-    /// `+0x28`: the icon's sprite sheet (sprite `+0x30`).
+    // +0x28; +0x30
+    /// The icon's sprite sheet (sprite).
     pub sprite_sheet: Option<String>,
-    /// `+0x4c`: works anywhere (laborers and builders): `Jobs::TryList` (`FUN_1400fce80`) offers
-    /// it work outside its workplace, and the job status icon stays off without one.
+    // +0x4c
+    /// Works anywhere (laborers and builders): `Jobs::TryList` offers it work outside its
+    /// workplace, and the job status icon stays off without one.
+    ///
+    /// Original: `FUN_1400fce80`.
     pub works_anywhere: bool,
-    /// `+0x4d`: with a workplace, the citizen does not catch diseases (`FUN_14011c060`; the
-    /// doctor).
+    // +0x4d
+    /// With a workplace, the citizen does not catch diseases (the doctor).
+    ///
+    /// Original: `FUN_14011c060`.
     pub immune_at_work: bool,
-    /// `+0x40`: the death-message key of an accident at its work.
+    // +0x40
+    /// The death-message key of an accident at its work.
     pub death: String,
-    /// `+0x54`, `+0x58`: accident odds (`FUN_1400ae760`): on average one per `+0x54` years ×
-    /// `+0x58` of time between checks; none when `+0x58` is not positive.
+    // +0x54, +0x58; +0x54; +0x58
+    /// Accident odds: on average one per years × of time between checks; none when is not positive.
+    ///
+    /// Original: `FUN_1400ae760`.
     pub accident: (f32, f32),
 }
 
-/// The profession manager (`Game +0xb0`, `Profession.rsc:resource`, serializer
-/// `FUN_1400ae300`): the list (`+0x20/+0x28`, `Profession.rsc:professionList`) and the
-/// laborer (`+0x30`) and builder (`+0x38`) entries; `+0x40`/`+0x48` are child and student.
+// +0x20/+0x28; +0x30; +0x38; Game +0xb0; +0x40; +0x48
+/// The profession manager (`Profession.rsc:resource`): the list of professions
+/// (`Profession.rsc:professionList`), the laborer and builder entries, and the child and student
+/// entries.
+///
+/// Original: `FUN_1400ae300`.
 #[derive(Debug, Clone, Default)]
 pub struct Professions {
     pub list: Vec<Profession>,
@@ -61,30 +80,42 @@ pub struct Professions {
 }
 
 impl Professions {
+    /// Whether a profession works anywhere (its description says so), not at one workplace.
     pub fn works_anywhere(&self, p: usize) -> bool {
         self.list.get(p).is_some_and(|p| p.works_anywhere)
     }
 }
 
-/// WorkPlaceComponent (vtable `0x14016b160`, constructor `FUN_1401347b0`) plus the entity's
-/// WorkComponent most-workers value (`+0x30`).
+// vtable 0x14016b160; +0x30
+/// WorkPlaceComponent plus the entity's WorkComponent most-workers value.
+///
+/// Original: `FUN_1401347b0`.
 #[derive(Debug, Clone)]
 pub struct WorkPlace {
-    /// `+0x48`: the profession its workers take (builder while under construction).
+    // +0x48
+    /// The profession its workers take (builder while under construction).
     pub profession: Option<usize>,
-    /// WorkPlaceDescription `+0x20`: the profession once built (none for houses and barns).
+    // +0x20
+    /// WorkPlaceDescription: the profession once built (none for houses and barns).
     pub description_profession: Option<usize>,
-    /// `+0x50`: accepting workers (the constructor sets it).
+    // +0x50
+    /// Accepting workers (the constructor sets it).
     pub enabled: bool,
-    /// `+0x58/+0x60`: citizen indices, in assignment order.
+    // +0x58/+0x60
+    /// Citizen indices, in assignment order.
     pub workers: Vec<usize>,
-    /// WorkComponent `+0x30`: most workers; 0 until first read, and every reader recomputes
-    /// it from the description while it is 0 (see [`WorkPlace::max`]).
+    // +0x30
+    /// WorkComponent: most workers; 0 until first read, and every reader recomputes it from the
+    /// description while it is 0 (see [`WorkPlace::max`]).
     pub max_workers: i32,
-    /// `FUN_140133a90` (WorkComponent::MaxWorkers): WorkDescription `+0x24`, scaled by the
-    /// footprint area when `+0x34` is set.
+    // WorkDescription +0x24, scaled when +0x34 is set.
+    /// The default number of workers, from the work description; scaled by the footprint's area
+    /// when the description says so.
+    ///
+    /// Original: `WorkComponent::MaxWorkers`, `FUN_140133a90`.
     pub default_max: i32,
-    /// The building's StatusIconComponent bits (`+0xf0`, [`icon`]).
+    // +0xf0
+    /// The building's StatusIconComponent bits ([`icon`]).
     pub status: u32,
 }
 
@@ -104,10 +135,12 @@ pub mod icon {
     pub const DESTROY: u8 = 5;
     /// A house without food, without firewood.
     pub const NO_FOOD: u8 = 6;
+    /// The icon for no firewood.
     pub const NO_FIREWOOD: u8 = 7;
 }
 
 impl WorkPlace {
+    /// A workplace with its profession and its default number of workers.
     pub fn new(description_profession: Option<usize>, default_max: i32) -> WorkPlace {
         WorkPlace {
             profession: None,
@@ -120,12 +153,15 @@ impl WorkPlace {
         }
     }
 
-    /// `FUN_1401318c0` on the building's StatusIconComponent.
+    /// Show or hide a status icon of the building.
+    ///
+    /// Original: `FUN_1401318c0` on the building's status icon component.
     pub fn set_icon(&mut self, bit: u8, on: bool) {
         crate::people::status::set_icon(&mut self.status, bit, on, false);
     }
 
-    /// WorkComponent `+0x30` as every reader sees it: `if +0x30 == 0 { +0x30 = MaxWorkers() }`.
+    // +0x30; if +0x30 == 0 { +0x30 = MaxWorkers() }
+    /// WorkComponent as every reader sees it: `if == 0 { = MaxWorkers }`.
     pub fn max(&self) -> i32 {
         if self.max_workers == 0 {
             self.default_max
@@ -135,10 +171,12 @@ impl WorkPlace {
     }
 }
 
-/// The citizen fields assignment reads and writes (Citizen `+0x1f0`, `+0x248`, `+0x238`).
+// +0x248; +0x238; +0x1f0
+/// The citizen fields assignment reads and writes (Citizen).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Worker {
-    /// `desc+0x44 <= age` and no school (`+0x208`): the citizens every search counts.
+    // +0x208; desc+0x44 <= age
+    /// `desc <= age` and no school: the citizens every search counts.
     pub adult: bool,
     pub profession: usize,
     pub workplace: Option<usize>,
@@ -214,17 +252,25 @@ pub enum Command {
 pub struct Workforce {
     /// Entity → WorkPlaceComponent.
     pub workplaces: BTreeMap<usize, WorkPlace>,
-    /// `+0x100`: profession → workplace entities, in registration order (`FUN_14008ea70`).
+    // +0x100
+    /// Profession → workplace entities, in registration order.
+    ///
+    /// Original: `FUN_14008ea70`.
     pub registry: BTreeMap<usize, Vec<usize>>,
-    /// `+0x20/+0x28`: residence entities (`FUN_14012f2b0` appends on completion).
+    // +0x20/+0x28; FUN_14012f2b0 appends a residence when it is built.
+    /// The residences, in the order they were built.
     pub residences: Vec<usize>,
-    /// Workplaces being torn down (their state machine in 3 to 5, `FUN_140123be0`), kept by
-    /// the sites' update: the last worker leaving one shows no `WorkersUnavailable`.
+    /// Workplaces being torn down (their state machine in 3 to 5), kept by the sites' update: the
+    /// last worker leaving one shows no `WorkersUnavailable`.
+    ///
+    /// Original: `FUN_140123be0`.
     pub demolishing: std::collections::BTreeSet<usize>,
 }
 
 impl Workforce {
-    /// `FUN_14008ea70`: register `entity` under `profession` once.
+    /// Register `entity` under `profession` once.
+    ///
+    /// Original: `FUN_14008ea70`.
     pub fn register(&mut self, entity: usize, profession: usize) {
         let list = self.registry.entry(profession).or_default();
         if !list.contains(&entity) {
@@ -232,26 +278,31 @@ impl Workforce {
         }
     }
 
-    /// `FUN_140002cc0` on the registry list: remove every occurrence, keeping order.
+    /// Remove a workplace from a profession's list (every occurrence), keeping the order.
+    ///
+    /// Original: `FUN_140002cc0`.
     pub fn unregister(&mut self, entity: usize, profession: usize) {
         if let Some(list) = self.registry.get_mut(&profession) {
             list.retain(|&e| e != entity);
         }
     }
 
-    /// `FUN_1401173b0`: move citizen `c` to workplace `wp` (removing it from its old one,
-    /// `FUN_140134cb0`, then appending to the new one, `FUN_140134ef0`).
+    /// Move citizen `c` to workplace `wp` (removing it from its old one, then appending to the new
+    /// one).
+    ///
+    /// Original: `FUN_140134cb0`, `FUN_140134ef0`, `FUN_1401173b0`.
     pub fn set_workplace(&mut self, workers: &mut [Worker], c: usize, wp: Option<usize>) {
         self.move_worker(c, workers[c].workplace, wp);
         workers[c].workplace = wp;
     }
 
-    /// The workplaces' side of [`Workforce::set_workplace`]: `c` leaves `old`
-    /// (`FUN_140134cb0`: the last worker gone, the limit and work icons go, and an enabled
-    /// workplace of its own profession shows `WorkersUnavailable`) and joins `new`
-    /// (`FUN_140134ef0`: that icon goes); not while it is being torn down (`FUN_140123be0`).
-    /// The entity events 2 and 3 (work sounds and smoke) are presentation, driven in the app
-    /// from the workers.
+    /// The workplaces' side of [`Workforce::set_workplace`]: `c` leaves `old` and joins `new`
+    /// (not while it is being torn down). When the last worker leaves, the limit and work icons go,
+    /// and an enabled workplace of its own profession shows `WorkersUnavailable`; joining removes
+    /// that icon. The entity events 2 and 3 (work sounds and smoke) are only for presentation; the
+    /// app drives them from the workers.
+    ///
+    /// Original: `FUN_140123be0`; leaving `FUN_140134cb0`, joining `FUN_140134ef0`.
     pub fn move_worker(&mut self, c: usize, old: Option<usize>, new: Option<usize>) {
         if let Some(old) = old {
             let demolishing = self.demolishing.contains(&old);
@@ -295,7 +346,9 @@ impl Workforce {
         }
     }
 
-    /// `FUN_1400925d0`: shuffle, then the first enabled workplace with a free place.
+    /// Shuffle, then the first enabled workplace with a free place.
+    ///
+    /// Original: `FUN_1400925d0`.
     pub fn free_workplace(&mut self, profession: usize, rng: &mut Random) -> Option<usize> {
         self.shuffle_workplaces(profession, rng);
         let list = self.registry.get(&profession)?;
@@ -306,11 +359,12 @@ impl Workforce {
         })
     }
 
-    /// `FUN_1400918a0` (and the loop body of `FUN_14007b890`): make one laborer take
-    /// `profession` at `wp`. Searches, in order: a laborer sharing a home with someone of that
-    /// profession (`FUN_1400920c0`), the homed laborer nearest the workplace (`FUN_140091ef0`),
-    /// the household with the most laborers (`FUN_140091ac0`), then the first laborer
-    /// (`FUN_140091980`).
+    /// Make one laborer take `profession` at `wp`. It looks, in this order, for: a laborer who
+    /// shares a home with someone of that profession, the laborer with a home nearest the
+    /// workplace, the household with the most laborers, then the first laborer.
+    ///
+    /// Original: `FUN_1400918a0` (and the loop body of `FUN_14007b890`); the searches
+    /// `FUN_1400920c0`, `FUN_140091ef0`, `FUN_140091ac0`, `FUN_140091980`.
     #[allow(clippy::too_many_arguments)]
     pub fn hire(
         &mut self,
@@ -461,9 +515,10 @@ impl Workforce {
         Some(m)
     }
 
-    /// `FUN_140096650`: one citizen of `profession` becomes a laborer: the first without a
-    /// workplace, else the first worker of the workplace with the most workers, else the
-    /// first of that profession.
+    /// One citizen of `profession` becomes a laborer: the first without a workplace, else the first
+    /// worker of the workplace with the most workers, else the first of that profession.
+    ///
+    /// Original: `FUN_140096650`.
     pub fn fire(
         &mut self,
         workers: &mut [Worker],
@@ -498,7 +553,9 @@ impl Workforce {
         Some(c)
     }
 
-    /// `FUN_14007ba70`'s counts: adults per profession.
+    /// Adults per profession.
+    ///
+    /// Original: `FUN_14007ba70` (counts).
     pub fn counts(&self, workers: &[Worker], professions: usize) -> Vec<i32> {
         let mut out = vec![0; professions];
         for w in workers.iter().filter(|w| w.adult) {
@@ -509,7 +566,9 @@ impl Workforce {
         out
     }
 
-    /// `FUN_14007ba70`'s "of N": the most workers of every enabled workplace of a profession.
+    /// The most workers of every enabled workplace of a profession.
+    ///
+    /// Original: `FUN_14007ba70` ("of N").
     pub fn capacity(&self, profession: usize) -> i32 {
         self.registry
             .get(&profession)
@@ -521,7 +580,9 @@ impl Workforce {
             .sum()
     }
 
-    /// `FUN_14007b890`: move the profession's count toward `count`, one citizen at a time.
+    /// Move the profession's count toward `count`, one citizen at a time.
+    ///
+    /// Original: `FUN_14007b890`.
     pub fn set_count(
         &mut self,
         workers: &mut [Worker],
@@ -550,8 +611,10 @@ impl Workforce {
         }
     }
 
-    /// `FUN_140134fd0`: set the most workers, then the first workers move to another
-    /// workplace ([`Workforce::find_workplace`], or none) until they fit.
+    /// Set the most workers, then the first workers move to another workplace
+    /// ([`Workforce::find_workplace`], or none) until they fit.
+    ///
+    /// Original: `FUN_140134fd0`.
     pub fn set_max_workers(
         &mut self,
         workers: &mut [Worker],
@@ -570,11 +633,13 @@ impl Workforce {
         }
     }
 
-    /// `FUN_1401350d0`: accept workers or not; a disabled workplace's workers move to another
-    /// ([`Workforce::find_workplace`], or none). Switched off it shows `BuildPaused` while
-    /// being `building` (states 0, 1, 8), else `WorkDisabled`, and neither on; switched off it
-    /// drops the limit, work and workers icons, on without workers of its own profession it
-    /// shows `WorkersUnavailable`.
+    /// Accept workers or not; a disabled workplace's workers move to another
+    /// ([`Workforce::find_workplace`], or none). Switched off it shows `BuildPaused` while being
+    /// `building` (states 0, 1, 8), else `WorkDisabled`, and neither on; switched off it drops the
+    /// limit, work and workers icons, on without workers of its own profession it shows
+    /// `WorkersUnavailable`.
+    ///
+    /// Original: `FUN_1401350d0`.
     pub fn set_enabled(
         &mut self,
         workers: &mut [Worker],
@@ -615,10 +680,12 @@ impl Workforce {
         }
     }
 
-    /// `FUN_140115450`: a workplace of citizen `c`'s profession, enabled, with room and
-    /// reachable: for a profession that works anywhere the one whose work comes first
-    /// (`FUN_140115940`, the candidates sorted by work priority with `FUN_140115800`), else
-    /// the one with the most room, the first of equals (`FUN_140115490`).
+    /// A workplace of citizen `c`'s profession, enabled, with room and reachable: for a profession
+    /// that works anywhere, the one whose work comes first (by work priority), else the one with
+    /// the most room, the first of equals.
+    ///
+    /// Original: `FUN_140115940`, `FUN_140115490`, `FUN_140115450`; the priority sort is
+    /// `FUN_140115800`.
     pub fn find_workplace(&self, c: usize, p: usize, search: &mut dyn Search) -> Option<usize> {
         let list = self.registry.get(&p)?;
         let anywhere = search.anywhere(p);
@@ -649,9 +716,11 @@ impl Workforce {
         best
     }
 
-    /// `FUN_140115eb0`: should citizen `c` look again? A profession that works anywhere when
-    /// its workplace cannot be reached or another with room has work that comes first; the
-    /// others when the reachable workplaces' room differs by more than one.
+    /// Should citizen `c` look again? A profession that works anywhere when its workplace cannot be
+    /// reached or another with room has work that comes first; the others when the reachable
+    /// workplaces' room differs by more than one.
+    ///
+    /// Original: `FUN_140115eb0`.
     pub fn should_move(
         &self,
         c: usize,
@@ -697,7 +766,9 @@ impl Workforce {
         })
     }
 
-    /// `FUN_140134330`: every worker leaves.
+    /// Every worker leaves.
+    ///
+    /// Original: `FUN_140134330`.
     pub fn clear_workers(&mut self, workers: &mut [Worker], entity: usize) {
         while let Some(&c) = self.workplaces.get(&entity).and_then(|w| w.workers.first()) {
             self.set_workplace(workers, c, None);
@@ -773,8 +844,9 @@ impl Workforce {
     }
 }
 
-/// `FUN_14008e940` / `FUN_14008eb70`: for each position `i`, swap with `Rand(n)` (no draws
-/// below two entries).
+/// For each position `i`, swap with `Rand(n)` (no draws below two entries).
+///
+/// Original: `FUN_14008e940`, `FUN_14008eb70`.
 pub fn shuffle<T>(list: &mut [T], rng: &mut Random) {
     let n = list.len();
     if n < 2 {

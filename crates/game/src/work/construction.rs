@@ -1,10 +1,12 @@
 //! Construction sites: the building state machine (StateMachineComponent with the ClearArea,
-//! WorkPlace, Build and Residence controllers) and the construction works
-//! (`GatherRawMaterials`, `BuildStructure`). See docs/JOBS.md.
+//! WorkPlace, Build and Residence controllers) and the construction works (`GatherRawMaterials`,
+//! `BuildStructure`). See docs/JOBS.md.
 //!
-//! A placed building's controllers are linked in component order; a state is handled by the
-//! last controller that defines it, and a callback returning false passes it to the previous
-//! one (`FUN_1400aeb30`). The callbacks themselves live on [`crate::town::Sim`].
+//! A placed building's controllers are linked in component order; a state is handled by the last
+//! controller that defines it, and a callback returning false passes it to the previous one. The
+//! callbacks themselves live on [`crate::town::Sim`].
+//!
+//! Original: `FUN_1400aeb30`.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -59,8 +61,8 @@ pub enum Controller {
     MultiObject,
 }
 
-/// A state callback (`DAT_1401dbca0` records: enter `+8`, scheduled update `+0x18`, exit
-/// `+0x20`, transition functions).
+// exit +0x20; DAT_1401dbca0; +8; +0x18
+/// A state callback (records: enter, scheduled update, transition functions).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Callback {
     None,
@@ -204,6 +206,7 @@ pub enum Callback {
     Missing,
 }
 
+/// One state of a building's state machine: its callbacks and its transitions.
 pub struct StateDef {
     pub id: i8,
     pub enter: Callback,
@@ -690,6 +693,7 @@ const RESOURCE_PRODUCE: &[StateDef] = &[
 ];
 
 impl Controller {
+    /// The states of a controller.
     pub fn table(self) -> &'static [StateDef] {
         match self {
             Controller::ClearArea => CLEAR,
@@ -716,8 +720,10 @@ impl Controller {
         }
     }
 
-    /// Slot `+0x80`: the initial state the first controller gives (ClearArea `0`,
-    /// `FUN_140003730`; Build `1`, `FUN_14002fc50`).
+    // +0x80
+    /// The initial state the first controller gives (ClearArea `0`, Build `1`).
+    ///
+    /// Original: `FUN_140003730`, `FUN_14002fc50`.
     pub fn initial(self) -> i8 {
         match self {
             Controller::Build => 1,
@@ -731,8 +737,9 @@ impl Controller {
     }
 }
 
-/// The runner's fields (`StateMachineComponent +0x48`): the current interface `+0`, state
-/// `+8`, its index `+9`, pending state `+10`, pending transition `+0xb`.
+// StateMachineComponent +0x48; +0; +8; +9; +10; +0xb
+/// The runner's fields (`StateMachineComponent`): the current interface, state, its index, pending
+/// state, pending transition.
 #[derive(Debug, Clone, Default)]
 pub struct Machine {
     pub controllers: Vec<Controller>,
@@ -744,7 +751,9 @@ pub struct Machine {
 }
 
 impl Machine {
-    /// `FUN_140130f00` + setup `FUN_140130b70`: pending = the first controller's initial state.
+    /// Pending = the first controller's initial state.
+    ///
+    /// Original: `FUN_140130f00`, `FUN_140130b70`.
     pub fn new(controllers: Vec<Controller>) -> Machine {
         let pending = controllers.first().map_or(-1, |c| c.initial());
         Machine {
@@ -767,7 +776,9 @@ impl Machine {
         }
     }
 
-    /// `FUN_1400aef90`: look `msg` up in the current state's transitions.
+    /// Look `msg` up in the current state's transitions.
+    ///
+    /// Original: `FUN_1400aef90`.
     pub fn request(&mut self, msg: i8) {
         if self.index < 0 {
             return;
@@ -782,11 +793,16 @@ impl Machine {
 
 /// What a callback needs to run, borrowed from the town (see [`crate::town::Sim`]).
 pub trait Callbacks {
+    /// Run a callback. Returns false to pass the state on to the previous controller.
     fn call(&mut self, jobs: &mut Jobs, site: usize, f: Callback) -> bool;
+    /// A site's state machine.
     fn machine(&mut self, site: usize) -> &mut Machine;
 }
 
-/// `FUN_1400aeb30(machine, time, scheduled, update)`.
+/// Run a building's state machine for one visit: handle the pending state change, then the
+/// scheduled or per-iteration update of the current state.
+///
+/// Original: `FUN_1400aeb30(machine, time, scheduled, update)`.
 pub fn run(host: &mut impl Callbacks, jobs: &mut Jobs, site: usize, scheduled: bool, update: bool) {
     let mut update = update;
     loop {
@@ -893,21 +909,26 @@ pub struct SiteTemplate {
     pub reference: String,
     /// The controllers in component order.
     pub controllers: Vec<Controller>,
-    /// BuildDescription `+0x20`: `(count, raw material)`; `+0x30` work.
+    // +0x20; +0x30
+    /// BuildDescription: `(count, raw material)`; work.
     pub materials: Vec<(i32, usize)>,
     pub work: i32,
-    /// ClearAreaDescription: present, `+0x2c` flatten/stamp flag.
+    // +0x2c
+    /// ClearAreaDescription: present, flatten/stamp flag.
     pub clear: Option<banished_formats::game::ClearAreaDescription>,
-    /// WorkDescription `+0x24` (most workers once built).
+    // +0x24
+    /// WorkDescription (most workers once built).
     pub max_workers: i32,
-    /// WorkDescription `+0x34`/`+0x30`: scale `+0x24` by the footprint area over this many cells.
+    // +0x34; +0x30; +0x24
+    /// WorkDescription /: scale by the footprint area over this many cells.
     pub per_area: Option<i32>,
-    /// WorkDescription `+0x20`: the player may change the most workers, between `+0x28` and
-    /// `+0x2c` (WorkPlaceUI).
+    // +0x20; +0x28; +0x2c
+    /// WorkDescription: the player may change the most workers, between and (WorkPlaceUI).
     pub adjustable: bool,
     pub min_jobs: i32,
     pub max_jobs: i32,
-    /// WorkPlaceDescription `+0x20`.
+    // +0x20
+    /// WorkPlaceDescription.
     pub profession: Option<usize>,
     /// ConsumeProduceDescription, resolved.
     pub produce: Option<ProduceTemplate>,
@@ -921,9 +942,11 @@ pub struct SiteTemplate {
     pub attendance: Option<i32>,
     /// HerbalistDescription (gatherer, herbalist), resolved.
     pub herbalist: Option<crate::production::herbalist::HerbalistTemplate>,
-    /// RadiusDescription `+0x28`.
+    // +0x28
+    /// RadiusDescription.
     pub radius: Option<i32>,
-    /// AutoPickupDescription `+0x20`.
+    // +0x20
+    /// AutoPickupDescription.
     pub auto_pickup: Option<bool>,
     /// ForesterDescription, resolved.
     pub forester: Option<crate::production::forester::ForesterTemplate>,
@@ -937,7 +960,8 @@ pub struct SiteTemplate {
     pub crop_field: Option<crate::production::farm::CropFieldTemplate>,
     /// OrchardDescription.
     pub orchard: Option<crate::production::orchard::OrchardTemplate>,
-    /// PastureDescription `+0x20`: the stock slot of its products' limit.
+    // +0x20
+    /// PastureDescription: the stock slot of its products' limit.
     pub pasture: Option<i32>,
     /// DiseaseDescription (fields, orchards, pastures).
     pub disease: Option<banished_formats::game::DiseaseDescription>,
@@ -945,8 +969,9 @@ pub struct SiteTemplate {
     pub cemetery: Option<crate::people::cemetery::CemeteryTemplate>,
     /// MarketDescription.
     pub market: Option<banished_formats::game::MarketDescription>,
-    /// StatusIconDescription (presentation), and the finished model's height its icons stand
-    /// on (`ModelComponent +0x5c`).
+    // ModelComponent +0x5c
+    /// StatusIconDescription (presentation), and the finished model's height its icons stand on
+    /// (`ModelComponent`).
     pub status_icon: Option<banished_formats::game::StatusIconDescription>,
     pub icon_height: Option<f32>,
     /// DestroyDescription, resolved.
@@ -957,15 +982,17 @@ pub struct SiteTemplate {
     pub immigration: Option<crate::people::immigration::ImmigrationTemplate>,
     /// TradeDescription, resolved.
     pub trade: Option<crate::commerce::trade::TradeTemplate>,
-    /// TradeDescription `+0x68` / `+0x6c`: the visitors' disease risk trading brings, and its
-    /// months.
+    // +0x68; +0x6c
+    /// TradeDescription /: the visitors' disease risk trading brings, and its months.
     pub trade_risk: Option<(f32, i32)>,
     /// The pile template of each BuildDescription material (the refunds' piles).
     pub material_templates: Vec<Option<usize>>,
 }
 
 impl SiteTemplate {
-    /// `FUN_140133a90` (WorkComponent::MaxWorkers) for a building of `footprint` cells.
+    /// The default number of workers of a building of `footprint` cells.
+    ///
+    /// Original: `WorkComponent::MaxWorkers`, `FUN_140133a90`.
     pub fn default_max_workers(&self, footprint: (i32, i32)) -> i32 {
         let Some(area) = self.per_area else {
             return self.max_workers;
@@ -985,17 +1012,23 @@ impl SiteTemplate {
 #[derive(Debug, Clone, Default)]
 pub struct ProduceTemplate {
     pub recipes: Vec<Recipe>,
-    /// `+0x40`: work cycles per production.
+    // +0x40
+    /// Work cycles per production.
     pub cycles: i32,
-    /// `+0x50`: work type (tool mesh, animation, walk).
+    // +0x50
+    /// Work type (tool mesh, animation, walk).
     pub work_type: u32,
-    /// `+0x38/+0x3c`: a message to the building's component of that type after a production.
+    // +0x38/+0x3c
+    /// A message to the building's component of that type after a production.
     pub message: (u32, i32),
-    /// `+0x44`: seconds per cycle.
+    // +0x44
+    /// Seconds per cycle.
     pub duration: f32,
-    /// `+0x48`: productions before exhaustion (−1 never).
+    // +0x48
+    /// Productions before exhaustion (−1 never).
     pub lifetime: i32,
-    /// `+0x4c`: initial selector.
+    // +0x4c
+    /// Initial selector.
     pub selector: i32,
 }
 
@@ -1009,8 +1042,8 @@ pub struct Recipe {
     pub group: i32,
 }
 
-/// ConsumeProduceComponent state (`+0x48` switched off, `+0x50` selector, `+0x58` weights,
-/// `+0x68` productions so far).
+// +0x48; +0x50; +0x58; +0x68
+/// ConsumeProduceComponent state (switched off, selector, weights, productions so far).
 #[derive(Debug, Clone, Default)]
 pub struct ProduceState {
     pub disabled: bool,
@@ -1019,9 +1052,10 @@ pub struct ProduceState {
     pub produced: i32,
 }
 
-/// `ConsumeProduce` work state: `+0x58` the worker at each use point, `+0x68` each output
-/// point's state (0 free, 1 a production is under way, 2 holds output), `+0x48` every output
-/// point was taken, `+0x4c` work cycles towards the next production.
+// +0x58; +0x68; +0x48; +0x4c
+/// `ConsumeProduce` work state: the worker at each use point, each output point's state (0 free, 1
+/// a production is under way, 2 holds output), every output point was taken, work cycles towards
+/// the next production.
 #[derive(Debug, Clone, Default)]
 pub struct ProduceWork {
     pub workers: Vec<Option<usize>>,
@@ -1030,16 +1064,20 @@ pub struct ProduceWork {
     pub cycles: i32,
 }
 
-/// DecalComponent (0x38 bytes, vtable `0x140169400`; serialized `+0x30` alpha, `+0x28`
-/// material): setup (`FUN_140120ca0`) takes the description's alpha; entity event 1 (the
-/// ClearArea's state 2, `FUN_14011ccc0`) and the build's state 8 (`FUN_14010cfb0`) make it
-/// opaque; a collapse (`FUN_140122aa0`) switches to the DestroyDescription's `+0x2c` material.
-/// Each change re-adds the map decal (`FUN_140120c30`). See docs/DECALS.md.
+// vtable 0x140169400; +0x30; +0x28; +0x2c
+/// DecalComponent (0x38 bytes, serialized alpha, material): setup takes the description's alpha;
+/// entity event 1 (the ClearArea's state 2) and the build's state 8 make it opaque; a collapse
+/// switches to the DestroyDescription's material. Each change re-adds the map decal. See
+/// docs/DECALS.md.
+///
+/// Original: `FUN_140120ca0`, `FUN_14011ccc0`, `FUN_14010cfb0`, `FUN_140122aa0`, `FUN_140120c30`.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Decal {
-    /// `+0x30` is 1.
+    // +0x30
+    /// is 1.
     pub opaque: bool,
-    /// `+0x28`: index into the description's materials.
+    // +0x28
+    /// Index into the description's materials.
     pub material: i32,
 }
 
@@ -1050,46 +1088,58 @@ pub struct Site {
     /// Index into [`Construction::templates`].
     pub template: usize,
     pub machine: Machine,
-    /// BuildComponent `+0x48` progress, `+0x4c` stages.
+    // +0x48; +0x4c
+    /// BuildComponent progress, stages.
     pub progress: i32,
     pub stages: i32,
-    /// WorkComponent `+0x28` registered work id (−1) and `+0x2c` kept priority.
+    // +0x28; +0x2c
+    /// WorkComponent registered work id (−1) and kept priority.
     pub work_id: i32,
     pub work_priority: Option<i32>,
     /// The building's StorageComponent (index into the town's storages).
     pub storage: usize,
     /// State 2 reached.
     pub complete: bool,
-    /// ClearAreaComponent `+0x48`: objects on the footprint when clearing began.
+    // +0x48
+    /// ClearAreaComponent: objects on the footprint when clearing began.
     pub clear_total: i32,
-    /// The entity was destroyed (`FUN_1400c8370`) during a state callback; the site goes
-    /// once the machine has run.
+    /// The entity was destroyed during a state callback; the site goes once the machine has run.
+    ///
+    /// Original: `FUN_1400c8370`.
     pub destroyed: bool,
-    /// ConsumeProduceComponent (ResourceProduceComponent's `+0x48` for the others).
+    // +0x48
+    /// ConsumeProduceComponent (ResourceProduceComponent's for the others).
     pub produce: Option<ProduceState>,
     /// AutoPickupComponent.
     pub auto_pickup: Option<crate::production::herbalist::AutoPickup>,
     /// ForesterComponent's toggles.
     pub forester: Option<crate::production::forester::Forester>,
-    /// HappinessComponent `+0x28`: registered.
+    // +0x28
+    /// HappinessComponent: registered.
     pub happiness_registered: bool,
     /// FishingComponent.
     pub fishing: Option<crate::production::fishing::Fishing>,
-    /// HuntComponent `+0x50`: the hunting time gathered.
+    // +0x50
+    /// HuntComponent: the hunting time gathered.
     pub hunt_time: Option<i64>,
     /// CropFieldComponent.
     pub crop_field: Option<crate::production::farm::CropField>,
     /// OrchardComponent.
     pub orchard: Option<crate::production::orchard::Orchard>,
-    /// MultiObjectComponent `+0x48`: the entities placed with this one (a pasture's shelter
-    /// and fences), in order.
+    // +0x48
+    /// MultiObjectComponent: the entities placed with this one (a pasture's shelter and fences), in
+    /// order.
     pub parts: Vec<usize>,
-    /// MultiObjectComponent `+0x58`: the stages its construction counts (a bridge's cells,
-    /// a fenced area's border cells); `BuildComponent::EnterGather` takes it for `+0x4c`.
+    // +0x58; +0x4c
+    /// MultiObjectComponent: the stages its construction counts (a bridge's cells, a fenced area's
+    /// border cells); `BuildComponent::EnterGather` takes it for.
     pub multi_stages: Option<i32>,
     /// DiseaseComponent.
     pub disease: Option<crate::disasters::blight::Blight>,
-    /// CemeteryComponent `+0x48`: the grave cells (`FUN_140047b60`).
+    // +0x48
+    /// CemeteryComponent: the grave cells.
+    ///
+    /// Original: `FUN_140047b60`.
     pub graves: Vec<i32>,
     /// DestroyComponent.
     pub destroy: Option<crate::work::destroy::Destroy>,
@@ -1101,15 +1151,17 @@ pub struct Site {
     pub trade: Option<crate::commerce::trade::Trade>,
     /// The ResidenceComponent while the residence is out of the town's (its states 3 to 7).
     pub home: Option<crate::people::life::Home>,
-    /// UIComponent `+0x28` (`+0x30` bytes, the UIDescription's `+0x20`): the window's
-    /// remembered settings (`DialogInstance::SaveSettings`), empty until it is first closed.
+    // +0x28; +0x30; +0x20
+    /// UIComponent (bytes, the UIDescription's): the window's remembered settings
+    /// (`DialogInstance::SaveSettings`), empty until it is first closed.
     pub ui_settings: Vec<u8>,
 }
 
 /// The job manager, professions, workforce and every construction site.
 #[derive(Debug, Clone, Default)]
 pub struct Construction {
-    /// The town's commute optimisation (StockManager `+0x190`, `+0x1b8`).
+    // +0x1b8; +0x190
+    /// The town's commute optimisation (StockManager).
     pub commute: crate::behaviour::commute::Commute,
     pub jobs: Jobs,
     pub professions: Professions,
@@ -1117,7 +1169,8 @@ pub struct Construction {
     pub templates: Vec<SiteTemplate>,
     /// Entity → site.
     pub sites: BTreeMap<usize, Site>,
-    /// `Game +0xf0 → +0xd0`: sites in their gathering and building states.
+    // Game +0xf0 → +0xd0
+    /// `Game →`: sites in their gathering and building states.
     pub site_list: Vec<usize>,
     /// Sites placed since the last iteration (activated before the next one).
     pub placed: Vec<usize>,
@@ -1136,62 +1189,84 @@ pub struct Construction {
     pub destroy: Vec<usize>,
     /// Finished residences' ResidenceComponents, by entity.
     pub homes: BTreeMap<usize, crate::people::life::Home>,
-    /// AttendanceComponents, by entity, and the town manager's registry (`+0x60`).
+    // +0x60
+    /// AttendanceComponents, by entity, and the town manager's registry.
     pub attendance: BTreeMap<usize, Attendance>,
     pub attendance_list: Vec<usize>,
-    /// The town manager's HealerComponents (`+0x70`).
+    // +0x70
+    /// The town manager's HealerComponents.
     pub healers: Vec<usize>,
-    /// The town manager's registered HappinessComponents (`+0x50`), by entity.
+    // +0x50
+    /// The town manager's registered HappinessComponents, by entity.
     pub happiness: Vec<usize>,
-    /// The calendar's seconds into the year (`Game +0x128 → +8`) and its year (`+0`), set
-    /// before each iteration.
+    // Game +0x128 → +8; +0
+    /// The calendar's seconds into the year (`Game → +8`) and its year , set before each iteration.
     pub calendar: f32,
     pub year: u32,
     /// FruitComponents of orchard trees, by entity.
     pub fruits: BTreeMap<usize, crate::production::orchard::Fruit>,
-    /// NaturalResourceComponent `+0x2d` set by a crop field: whether harvesting leaves a pile.
+    // +0x2d
+    /// NaturalResourceComponent set by a crop field: whether harvesting leaves a pile.
     pub keep_piles: BTreeMap<usize, bool>,
-    /// Event-log entries the sites posted (`FUN_14009a2d0`): type, severity, entity; the
-    /// game formats them with the entity's toolbar name.
+    /// Event-log entries the sites posted: type, severity, entity; the game formats them with the
+    /// entity's toolbar name.
+    ///
+    /// Original: `FUN_14009a2d0`.
     pub site_events: Vec<(i32, i32, usize)>,
-    /// StorageLocationComponents joining (`true`) or leaving the town's storages (`+0x00`),
-    /// in order; the town applies them after the iteration's update.
+    // +0x00
+    /// StorageLocationComponents joining (`true`) or leaving the town's storages, in order; the
+    /// town applies them after the iteration's update.
     pub storage_changes: Vec<(usize, bool)>,
-    /// The town's cemeteries (`+0x40`), in order.
+    // +0x40
+    /// The town's cemeteries, in order.
     pub cemeteries: Vec<usize>,
-    /// TombstoneComponents and the time each has left (`+0x28`).
+    // +0x28
+    /// TombstoneComponents and the time each has left.
     pub tombstones: BTreeMap<usize, i64>,
     /// Burials decided at a death (cemetery, grave cell), placed after the citizens' update.
     pub burials: Vec<(usize, i32)>,
-    /// Entities a DestroyComponent puts in a torn-down building's place (`FUN_1400c9d70`),
-    /// created by the town after the update.
+    /// Entities a DestroyComponent puts in a torn-down building's place, created by the town after
+    /// the update.
+    ///
+    /// Original: `FUN_1400c9d70`.
     pub rebuilds: Vec<crate::work::destroy::Rebuild>,
-    /// The town's water sources (built with the map, `FUN_1400a43f0`).
+    /// The town's water sources (built with the map).
+    ///
+    /// Original: `FUN_1400a43f0`.
     pub water: crate::disasters::fire::Water,
-    /// `Game +0xd0` (`FUN_14009d530`: `0xf0` with disasters off, else 0).
+    // Game +0xd0; FUN_14009d530 sets 0xf0 with disasters off, else 0.
+    /// The game's flags (for example, disasters off).
     pub game_flags: u32,
     /// The sky's state is precipitation, set before each iteration.
     pub precipitation: bool,
-    /// Town manager `+0xa8`: the population, set before each update.
+    // +0xa8
+    /// Town manager: the population, set before each update.
     pub population: i32,
-    /// Town manager `+0x1a8` / `+0x1a0`: the visitors' disease risk and how long it lasts.
+    // +0x1a8; +0x1a0
+    /// Town manager /: the visitors' disease risk and how long it lasts.
     pub visitors: (f32, i64),
-    /// Town manager `+0x1b0`: nomads taken in.
+    // +0x1b0
+    /// Town manager: nomads taken in.
     pub nomads_admitted: i32,
-    /// Town manager `+0x30`: the trading posts.
+    // +0x30
+    /// Town manager: the trading posts.
     pub trading_posts: Vec<usize>,
-    /// Town manager `+0x1ac`: the value traded away.
+    // +0x1ac
+    /// Town manager: the value traded away.
     pub trade_value: i32,
-    /// Map `+0xe8`: the cells with a planned road, and their BuildRoad works.
+    // +0xe8
+    /// Map: the cells with a planned road, and their BuildRoad works.
     pub pending_roads: BTreeMap<i32, i32>,
     /// Tunnels to dig or fill back (TerraformComponent event 4 and removal), for the terrain's
     /// owner, and each terraformed entity's kept heights and cells.
     pub terraform_requests: Vec<crate::world::terraform::Terraform>,
-    /// `FUN_1400a35b0` requests: cell rectangles (`x0, y0, x1, y1`, inclusive) whose cells'
-    /// low corners go to height 0, applied to the terrain after the iteration.
+    /// Requests to flatten the ground: cell rectangles (`x0, y0, x1, y1`, inclusive) whose
+    /// cells' low corners go to height 0. They are applied to the terrain after the iteration.
+    ///
+    /// Original: `FUN_1400a35b0`.
     pub flatten_requests: Vec<[i32; 4]>,
-    /// The tornadoes (TornadoComponent by entity) and the citizens they killed this
-    /// iteration (`FUN_14011c2a0` code 5, applied by the citizens' pass).
+    /// The tornadoes by entity, and the citizens they killed this iteration (death code 5; the
+    /// citizens' pass applies it).
     pub tornadoes: BTreeMap<usize, crate::disasters::tornado::Tornado>,
     pub tornado_kills: Vec<usize>,
     /// TrackerComponents by entity, and the stock manager's made/used counters.
@@ -1206,7 +1281,8 @@ pub struct Construction {
     pub road_markers: Vec<(i32, usize)>,
     /// The goods with a ValueDescription, in the factory's order (`GameResources`).
     pub trade_goods: Vec<crate::commerce::trade::TradeGood>,
-    /// MapComponent `+0x1e0`'s first river centre line, the trader boats' way.
+    // +0x1e0
+    /// MapComponent 's first river centre line, the trader boats' way.
     pub river: Vec<[f32; 2]>,
     /// `Game/Names/Male` and `Female`, for the merchants' names.
     pub names: Option<
@@ -1215,50 +1291,72 @@ pub struct Construction {
             banished_formats::names::NameDatabase,
         )>,
     >,
-    /// The town manager's known crops, orchard trees and livestock (`FUN_140096ef0`), as
-    /// placed-object templates.
+    /// The town manager's known crops, orchard trees and livestock, as placed-object templates.
+    ///
+    /// Original: `FUN_140096ef0`.
     pub known: Vec<usize>,
-    /// The stock manager's known raw materials (`+0x110`, `FUN_140097330`): the start
-    /// profile's, then each as its first pile is set up or it is traded for.
+    // +0x110
+    /// The stock manager's known raw materials: the start profile's, then each as its first pile is
+    /// set up or it is traded for.
+    ///
+    /// Original: `FUN_140097330`.
     pub known_materials: Vec<usize>,
 }
 
-/// AttendanceComponent (vtable `0x14015ee00`): who attends a school, chapel or doctor.
+// vtable 0x14015ee00
+/// AttendanceComponent: who attends a school, chapel or doctor.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Attendance {
-    /// AttendanceDescription `+0x20`.
+    // +0x20
+    /// AttendanceDescription.
     pub capacity: i32,
-    /// `+0x28`: attendees in arrival order.
+    // +0x28
+    /// Attendees in arrival order.
     pub attendees: Vec<usize>,
     /// The workplace's profession (teacher, priest, doctor).
     pub profession: Option<usize>,
 }
 
-/// `RawMaterialComponent` (vtable `0x14016a5a0`, constructor `FUN_14012e8d0`): a loose pile.
+// vtable 0x14016a5a0
+/// `RawMaterialComponent`: a loose pile.
+///
+/// Original: `FUN_14012e8d0`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Pile {
     /// The raw material (RawMaterialDescription of the pile's template).
     pub material: usize,
-    /// `+0x28`: units.
+    // +0x28
+    /// Units.
     pub count: i32,
-    /// `+0x38`: age; after 3600 s the pile is destroyed (`FUN_14012e600`).
+    // +0x38
+    /// Age; after 3600 s the pile is destroyed.
+    ///
+    /// Original: `FUN_14012e600`.
     pub age: i64,
-    /// The Pickup work its WorkComponent registered (`FUN_14012e6a0`).
+    /// The Pickup work its WorkComponent registered.
+    ///
+    /// Original: `FUN_14012e6a0`.
     pub work: i32,
-    /// The work's category mask (`FUN_14012e950`).
+    /// The work's category mask.
+    ///
+    /// Original: `FUN_14012e950`.
     pub mask: u32,
-    /// A priority to keep from the work at its cell (`FUN_1400fe220`), applied on activation.
+    /// A priority to keep from the work at its cell, applied on activation.
+    ///
+    /// Original: `FUN_1400fe220`.
     pub priority: Option<i32>,
     /// The workplace whose AutoPickup gets the Pickup work once registered.
     pub auto_pickup: Option<usize>,
-    /// The Pickup work's `+0x48` (0 free, 1 claimed, 2 picked up) and `+0x50` (claimer). Kept
-    /// on the pile: one Pickup try claims several piles' works.
+    // +0x48; +0x50
+    /// The Pickup work's (0 free, 1 claimed, 2 picked up) and (claimer). Kept on the pile: one
+    /// Pickup try claims several piles' works.
     pub state: i32,
     pub claimer: Option<usize>,
 }
 
-/// `ClearArea` state: `+0x48` claimed resources (entity → citizen), `+0x58` claimed cells,
-/// `+0x68` template filter, `+0x70..+0x72` resources / cells / piles.
+// +0x48; +0x58; +0x68; +0x70..+0x72
+/// `ClearArea` state: claimed resources (entity → citizen), claimed cells, template filter,
+/// resources / cells / piles.
 #[derive(Debug, Clone, Default)]
 pub struct ClearWork {
     pub resources: BTreeMap<usize, usize>,
@@ -1269,12 +1367,13 @@ pub struct ClearWork {
     pub clear_piles: bool,
 }
 
-/// `Pickup` work: its state (`+0x48`, `+0x50`) lives on the [`Pile`] it belongs to.
+// +0x48; +0x50
+/// `Pickup` work: its state lives on the [`Pile`] it belongs to.
 #[derive(Debug, Clone, Default)]
 pub struct PickupWork;
 
-/// `GatherRawMaterials` state (`+0x48` delivered per requirement, `+0x58` in transit, `+0x68`
-/// workers).
+// +0x48; +0x58; +0x68
+/// `GatherRawMaterials` state (delivered per requirement, in transit, workers).
 #[derive(Debug, Clone, Default)]
 pub struct Gather {
     pub stored: Vec<i32>,
@@ -1282,8 +1381,8 @@ pub struct Gather {
     pub workers: BTreeSet<usize>,
 }
 
-/// `BuildStructure` state (`+0x48` destroy flag, `+0x4c` point cursor, `+0x50` occupied build
-/// points, `+0x60` workers).
+// +0x48; +0x4c; +0x50; +0x60
+/// `BuildStructure` state (destroy flag, point cursor, occupied build points, workers).
 #[derive(Debug, Clone, Default)]
 pub struct BuildWork {
     pub destroy: bool,

@@ -1,6 +1,9 @@
-//! Name generation from a `NameDatabase` (`Game/Names/*.ndb`), ported from the disassembly of
-//! `FUN_1400a9d50` (one candidate), `FUN_1400aa000` (retry while the candidate is a shipped
-//! name), `FUN_1400aa130` (citizens) and `FUN_14009ef90` (towns). See docs/TOWN-NAME-DATABASE.md.
+//! Names for citizens and towns, made from the name databases (`Game/Names/*`). See
+//! docs/TOWN-NAME-DATABASE.md.
+//!
+//! Original: `FUN_1400a9d50` (one candidate), `FUN_1400aa000` (try again
+//! while the candidate is a name the game ships), `FUN_1400aa130` (citizens), `FUN_14009ef90`
+//! (towns).
 
 use banished_formats::names::NameDatabase;
 
@@ -39,7 +42,9 @@ fn find(db: &NameDatabase, k: u32) -> Option<usize> {
     }
 }
 
-/// `FUN_1400a9d50`: compose one candidate of roughly `min..max` letters.
+/// Compose one candidate of roughly `min..max` letters.
+///
+/// Original: `FUN_1400a9d50`.
 pub fn candidate(db: &NameDatabase, rng: &mut Random, min: i32, max: i32) -> String {
     let mut out = [0u8; 0x100];
     let start = rng.rand_below(db.starting_transitions.len() as u32) as usize;
@@ -107,8 +112,10 @@ pub fn candidate(db: &NameDatabase, rng: &mut Random, min: i32, max: i32) -> Str
     finish(&out)
 }
 
-/// `FUN_1400aa000`: up to 50 candidates, keeping the first of at least `min` letters that is not
-/// a shipped name (or the last one tried).
+/// Up to 50 candidates, keeping the first of at least `min` letters that is not a shipped name (or
+/// the last one tried).
+///
+/// Original: `FUN_1400aa000`.
 pub fn generate(db: &NameDatabase, rng: &mut Random, min: i32, max: i32) -> String {
     let mut name = String::new();
     for _ in 0..50 {
@@ -140,12 +147,16 @@ fn is_shipped(db: &NameDatabase, name: &str) -> bool {
     }
 }
 
-/// `FUN_1400aa130`: a citizen's first name, 3 to 10 letters.
+/// A citizen's first name, 3 to 10 letters.
+///
+/// Original: `FUN_1400aa130`.
 pub fn citizen_name(db: &NameDatabase, rng: &mut Random) -> String {
     generate(db, rng, 3, 10)
 }
 
-/// `FUN_14009ef90`: a town name of at least five letters; `…vill` becomes `…ville`.
+/// A town name of at least five letters; `…vill` becomes `…ville`.
+///
+/// Original: `FUN_14009ef90`.
 pub fn town_name(db: &NameDatabase, rng: &mut Random, max: i32) -> String {
     let mut name = generate(db, rng, 5, max);
     if name.len() > 4 && name.ends_with("vill") {

@@ -1,5 +1,5 @@
-//! The town event log (`Game +0x138`) and the stock warnings that post to it. See
-//! docs/EVENT-LOG.md.
+//! The town event log (`Game`) and the stock warnings that post to it. See docs/EVENT-LOG.md.
+// Game +0x138
 
 use crate::work::stock::{stock_table, RawMaterial, Storage, STOCK_SLOTS};
 
@@ -8,16 +8,27 @@ const WARNING_COOLDOWN: i64 = 120_000_000;
 
 /// Event types: entry `type` of `Dialog/StringTable.rsc:events`.
 pub mod kind {
+    /// A citizen starved.
     pub const STARVED: i32 = 0;
+    /// A citizen froze.
     pub const FROZE: i32 = 1;
+    /// A citizen died of old age.
     pub const OLD_AGE: i32 = 2;
+    /// A child was born.
     pub const BORN: i32 = 8;
+    /// A child became an adult.
     pub const ADULT: i32 = 9;
+    /// A child became a student.
     pub const STUDENT: i32 = 10;
+    /// The town is low on logs.
     pub const LOW_LOGS: i32 = 17;
+    /// The storage for goods is nearly full.
     pub const NEAR_CAPACITY_GOODS: i32 = 23;
+    /// The storage for raw materials is nearly full.
     pub const NEAR_CAPACITY_RAW: i32 = 24;
+    /// A tornado touched down.
     pub const TORNADO: i32 = 30;
+    /// A fire started.
     pub const FIRE: i32 = 31;
 }
 
@@ -28,30 +39,39 @@ pub mod kind {
 pub struct EventEntry {
     pub kind: i32,
     pub severity: i32,
-    /// ARGB from the severity (`FUN_14009a2d0`).
+    /// ARGB from the severity.
+    ///
+    /// Original: `FUN_14009a2d0`.
     pub color: u32,
     /// `@0` month (index into `:seasons`), `@1` year.
     pub month: usize,
     pub year: i32,
     /// `@2`, `@3`, `@4`.
     pub args: [String; 3],
-    /// `FUN_14009a500`: the entity's map-rectangle centre cell, or -1.
+    /// The entity's map-rectangle centre cell, or -1.
+    ///
+    /// Original: `FUN_14009a500`.
     pub cell: i32,
-    /// `FUN_14009a5a0`: notification category.
+    /// Notification category.
+    ///
+    /// Original: `FUN_14009a5a0`.
     pub category: i32,
     /// Popup icon (12, 13 for types 0x1a-0x1d), -1 otherwise.
     pub icon: i32,
     /// The text as formatted when the event was posted, for entries loaded from a save (the
-    /// original keeps only the text, `FUN_14009a790`); shown as is.
+    /// original keeps only the text); shown as is.
+    ///
+    /// Original: `FUN_14009a790`.
     pub text: Option<String>,
 }
 
+/// The event log: its entries and which categories notify the player.
 #[derive(Debug, Clone)]
 pub struct EventLog {
     pub entries: Vec<EventEntry>,
-    /// `+0x10..+0x15`: notify flags per group (old age, deaths, disasters, storage, town,
-    /// other), set by the Event Log's checkboxes. Default as in every inspected save:
-    /// old-age deaths off, the rest on.
+    // +0x10..+0x15
+    /// Notify flags per group (old age, deaths, disasters, storage, town, other), set by the Event
+    /// Log's checkboxes. Default as in every inspected save: old-age deaths off, the rest on.
     pub notify: [bool; 6],
     /// Set when an event asks the game to slow down (option `AutoSlow`, types 11, 12, 30, 31).
     pub slow_request: bool,
@@ -67,7 +87,9 @@ impl Default for EventLog {
     }
 }
 
-/// `FUN_14009a2d0`'s severity colours.
+/// The colour of an event's severity, `0xAARRGGBB`.
+///
+/// Original: the colours of `FUN_14009a2d0`.
 pub fn severity_color(severity: i32) -> u32 {
     match severity {
         1 => 0xffff_ff00,
@@ -78,7 +100,9 @@ pub fn severity_color(severity: i32) -> u32 {
     }
 }
 
-/// `FUN_14009a5a0`.
+/// The category of an event type, which the log filters by.
+///
+/// Original: `FUN_14009a5a0`.
 pub fn category(kind: i32) -> i32 {
     match kind {
         0..=7 => 0,
@@ -98,7 +122,9 @@ pub fn category(kind: i32) -> i32 {
 }
 
 impl EventLog {
-    /// `FUN_14009a2d0(log, type, severity, entity, @2, @3, @4)`.
+    /// Add an event to the log.
+    ///
+    /// Original: `FUN_14009a2d0(log, type, severity, entity, @2, @3, @4)`.
     #[allow(clippy::too_many_arguments)]
     pub fn add(
         &mut self,
@@ -133,17 +159,24 @@ impl EventLog {
     }
 }
 
-/// The stock manager's warning state (`Game +0xf0`: slots `+0x170`, capacity records `+0x180`).
+// Game +0xf0; +0x170; +0x180
+/// The stock manager's warning state (`Game`: slots, capacity records).
 #[derive(Debug, Clone)]
 pub struct StockWarnings {
-    /// Slot `+0x0` count and `+0x4` previous count (`FUN_14008f3a0`).
+    // +0x0; +0x4
+    /// Slot count and previous count.
+    ///
+    /// Original: `FUN_14008f3a0`.
     pub count: [i32; STOCK_SLOTS],
     pub previous: [i32; STOCK_SLOTS],
-    /// Slot `+0x8`: production limit (`FUN_140095f00` defaults; the Town Hall changes them).
+    // +0x8; the defaults come from FUN_140095f00.
+    /// The production limit of each stock slot (the Town Hall changes them).
     pub limits: [i32; STOCK_SLOTS],
-    /// Slot `+0x18`: warning cooldown.
+    // +0x18
+    /// Warning cooldown.
     pub cooldown: [i64; STOCK_SLOTS],
-    /// `+0x180` records: produced goods and logs/stone/iron, `(used, capacity, cooldown)`.
+    // +0x180
+    /// records: produced goods and logs/stone/iron, `(used, capacity, cooldown)`.
     pub capacity: [(i32, i32, i64); 2],
 }
 
@@ -165,7 +198,9 @@ impl Default for StockWarnings {
 const RAW_FLAGS: u32 = 0x1c40;
 
 impl StockWarnings {
-    /// `FUN_14008f3a0`: shift counts to `previous`, recount, and total used/capacity by kind.
+    /// Shift counts to `previous`, recount, and total used/capacity by kind.
+    ///
+    /// Original: `FUN_14008f3a0`.
     pub fn recompute(&mut self, storages: &[Storage], materials: &[RawMaterial]) {
         self.previous = self.count;
         self.count = stock_table(storages, materials);
@@ -197,9 +232,11 @@ impl StockWarnings {
         }
     }
 
-    /// `FUN_1400915d0`: low reserve (types 17..22) when a slot falls below 5% of its limit,
-    /// near capacity (23 goods, 24 logs/stone/iron) above 95%, each at most every 120 s.
-    /// Returns the event types to post at severity 3.
+    /// Low reserve (types 17..22) when a slot falls below 5% of its limit, near capacity (23 goods,
+    /// 24 logs/stone/iron) above 95%, each at most every 120 s. Returns the event types to post at
+    /// severity 3.
+    ///
+    /// Original: `FUN_1400915d0`.
     pub fn check(&mut self, dt: i64) -> Vec<i32> {
         let mut out = Vec::new();
         for i in 0..STOCK_SLOTS {

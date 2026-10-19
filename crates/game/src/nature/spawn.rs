@@ -1,23 +1,33 @@
-//! SpawnComponent's independent per-band clocks (FUN_140056430).
+//! SpawnComponent's independent per-band clocks.
+//!
+//! Original: `FUN_140056430`.
 use crate::scheduler::ticks;
 
+/// The spawn state of a resource that makes new resources around it (for example a tree that
+/// seeds saplings).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Spawn {
-    /// Component +0x28/+0x30: one System::Time per SpawnDescription entry, in resource order.
+    // +0x28/+0x30
+    /// Component: one System::Time per SpawnDescription entry, in resource order.
     pub timers: Vec<i64>,
 }
 
 impl Spawn {
-    /// FUN_1400567f0 -> FUN_140001bb0: newly allocated entry clocks start at zero, without RNG.
+    /// Newly allocated entry clocks start at zero, without RNG.
+    ///
+    /// Original: `FUN_1400567f0`, `FUN_140001bb0`.
     pub fn new(count: usize) -> Self {
         Self {
             timers: vec![0; count],
         }
     }
 
-    /// Port of FUN_140056430. Entries contain inclusive growth bounds and the CHILD
-    /// GrowthDescription +0x28 duration. Out-of-band clocks retain their previous value.
-    /// Unlike GrowthComponent's periodic timer, this consumes intervals at equality.
+    // +0x28
+    /// Entries contain inclusive growth bounds and the CHILD GrowthDescription duration.
+    /// Out-of-band clocks retain their previous value. Unlike GrowthComponent's periodic timer,
+    /// this consumes intervals at equality.
+    ///
+    /// Original: `FUN_140056430`.
     pub fn update(
         &mut self,
         growth: f32,

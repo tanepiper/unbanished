@@ -1,19 +1,23 @@
-//! Markets: MarketComponent (a ResourceProduceComponent, vtable `0x14015fd60`, work from slot
-//! `+0x90` `FUN_14004f3a0`), its work MarketWork (vtable `0x140167b40`), and
-//! MarketLocationComponent (states `FUN_14004fa70`). See docs/MARKETS.md.
+//! Markets: the market building, its vendors' work, and the market's locations. See
+//! docs/MARKETS.md.
 //!
-//! Vendors keep the market stocked by category, each up to its share of the market's room.
-//! A category stocked beyond twice its share is carried away first. Otherwise a vendor picks
-//! the town storage most worth the trip (the goods most wanted, by distance), and brings what
-//! it can carry of the categories still under twice their share.
+//! Vendors keep the market stocked by category, each up to its share of the market's room. A
+//! category stocked beyond twice its share is carried away first. Otherwise a vendor picks the town
+//! storage most worth the trip (the goods most wanted, by distance), and brings what it can carry
+//! of the categories still under twice their share.
+//!
+//! Original: `MarketComponent` (a `ResourceProduceComponent`; its work from slot `FUN_14004f3a0`),
+//! `MarketWork`, `MarketLocationComponent`; `FUN_14004fa70`.
+// vtable 0x14015fd60; vtable 0x140167b40; +0x90
 
 use std::collections::BTreeMap;
 
 use crate::town::{Haul, Sim};
 use crate::work::jobs::{Work, WorkKind};
 
-/// MarketWork `+0x48`: each vendor's plan (material, count) on its way to the market; empty
-/// for a vendor carrying goods away.
+// +0x48
+/// MarketWork: each vendor's plan (material, count) on its way to the market; empty for a vendor
+/// carrying goods away.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct MarketWork {
     pub plans: BTreeMap<usize, Vec<(usize, i32)>>,

@@ -1,6 +1,8 @@
-//! Starting households (`FUN_1400a62a0` → `FUN_1400a6510` → `FUN_14011c550`): every profile row
-//! is a couple plus up to `extra` children, created on the game's shared random stream. See
-//! docs/CITIZEN-NEEDS-AND-HOUSEHOLDS.md and START-CONDITION-PROFILES.md.
+//! Starting households: every profile row is a couple plus up to `extra` children, created on the
+//! game's shared random stream. See docs/CITIZEN-NEEDS-AND-HOUSEHOLDS.md and
+//! START-CONDITION-PROFILES.md.
+//!
+//! Original: `FUN_1400a62a0`, `FUN_1400a6510`, `FUN_14011c550`.
 
 use banished_formats::names::NameDatabase;
 
@@ -10,56 +12,76 @@ use crate::random::Random;
 /// The `CitizenDescription` values household creation reads.
 #[derive(Debug, Clone, Copy)]
 pub struct CitizenRules {
-    /// `+0x44`.
+    // +0x44
+    /// Not identified yet.
     pub adult_age: f32,
-    /// `+0x50`, `+0x54`: starting adults' ages are `[min, max / 2)`.
+    // +0x50, +0x54
+    /// Starting adults' ages are `[min, max / 2)`.
     pub start_age: (f32, f32),
-    /// `+0x38`, `+0x3c`: lifespan base and range.
+    // +0x38, +0x3c
+    /// Lifespan base and range.
     pub lifespan: (f32, f32),
-    /// `+0x118`: education granted to educated starting adults.
+    // +0x118
+    /// Education granted to educated starting adults.
     pub education: i32,
 }
 
+/// A citizen: name, sex, age, education, appearance and family.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Citizen {
-    /// `+0x28`.
+    // +0x28
+    /// Not identified yet.
     pub name: String,
-    /// `+0x38`: 1 = male.
+    // +0x38
+    /// 1 = male.
     pub male: bool,
-    /// `+0x3c`, in the description's age units.
+    // +0x3c
+    /// , in the description's age units.
     pub age: f32,
-    /// `+0x40`.
+    // +0x40
+    /// Not identified yet.
     pub lifespan: f32,
-    /// `+0x34`: appearance variation `(Rand + Rand) & 7`, passed to the shader as instance `w`.
+    // +0x34
+    /// Appearance variation `(Rand + Rand) & 7`, passed to the shader as instance `w`.
     pub appearance: u32,
-    /// `+0x220` / `+0x210`.
+    // +0x220; +0x210
+    /// /.
     pub educated: bool,
     pub education: i32,
     /// Map position (cells from the terrain centre) and height.
     pub position: [f32; 3],
-    /// `+0x250`: spouse (index into the citizen list).
+    // +0x250
+    /// Spouse (index into the citizen list).
     pub spouse: Option<usize>,
-    /// Household parent the child was added to (`FUN_14011bd70`).
+    /// Household parent the child was added to.
+    ///
+    /// Original: `FUN_14011bd70`.
     pub parent: Option<usize>,
-    /// `+0x208`: school (none at New Game).
+    // +0x208
+    /// School (none at New Game).
     pub school: Option<usize>,
     /// False once the entity is deleted (the port keeps its index).
     pub alive: bool,
 }
 
 impl Citizen {
+    /// Whether the citizen is an adult.
     pub fn is_adult(&self, rules: &CitizenRules) -> bool {
         self.age >= rules.adult_age
     }
 }
 
+/// The starting households of a new town, as the start condition makes them.
 pub struct Households<'a> {
     pub rules: CitizenRules,
     pub male_names: &'a NameDatabase,
     pub female_names: &'a NameDatabase,
-    /// `MapGenerator +0x40`: spread of citizens around the start point.
+    // MapGenerator +0x40
+    /// `MapGenerator`: spread of citizens around the start point.
     pub spread: f32,
-    /// Start cell centre on the ground (`FUN_140002080`).
+    /// Start cell centre on the ground.
+    ///
+    /// Original: `FUN_140002080`.
     pub start: [f32; 3],
     pub citizens: Vec<Citizen>,
 }
@@ -109,8 +131,10 @@ impl Households<'_> {
         self.citizens.len() - 1
     }
 
-    /// `FUN_1400a62a0`: one couple per row, then `Rand(extra + 1)` children whose sex alternates
-    /// across all households, starting female.
+    /// One couple per row, then `Rand(extra + 1)` children whose sex alternates across all
+    /// households, starting female.
+    ///
+    /// Original: `FUN_1400a62a0`.
     pub fn create_all(&mut self, rng: &mut Random, rows: &[(bool, i32)]) {
         let (lo, hi) = self.rules.start_age;
         let mut female_child = true;
@@ -132,9 +156,10 @@ impl Households<'_> {
     }
 }
 
-/// `FUN_14011c550` for a child born to `mother` (`FUN_140117060`): its sex, a name from
-/// that sex's database, the appearance, no education and a lifespan. Position, age and family
-/// are set by the caller.
+/// A child born to `mother`: its sex, a name from that sex's database, the
+/// appearance, no education and a lifespan. Position, age and family are set by the caller.
+///
+/// Original: `FUN_14011c550`, called from `FUN_140117060`.
 pub fn newborn(
     rng: &mut Random,
     rules: &CitizenRules,
@@ -164,7 +189,9 @@ pub fn newborn(
     }
 }
 
-/// Status Bar population (`FUN_14007eda0`): adults, students, children.
+/// Status Bar population: adults, students, children.
+///
+/// Original: `FUN_14007eda0`.
 pub fn population(citizens: &[Citizen], rules: &CitizenRules) -> (u32, u32, u32) {
     let (mut adults, mut students, mut children) = (0, 0, 0);
     for c in citizens.iter().filter(|c| c.alive) {

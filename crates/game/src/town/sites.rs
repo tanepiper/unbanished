@@ -331,15 +331,19 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// Activate the sites placed since the last iteration (`FUN_1400c9d70` → activate).
+    /// Activate a site placed since the last iteration.
+    ///
+    /// Original: `FUN_1400c9d70`, then the activation.
     pub fn activate(&mut self, jobs: &mut Jobs, entity: usize) {
         self.trade_activate(entity);
         run(self, jobs, entity, false, false);
     }
 
-    /// The sites' StateMachine updates: every site's bit-4 update with the iteration's time
-    /// `dt`, then the scheduled update of each site its bucket visited this iteration
-    /// (`visits`, in visiting order) with the time since its last visit (`FUN_1400c9560`).
+    /// The sites' StateMachine updates: every site's bit-4 update with the iteration's time `dt`,
+    /// then the scheduled update of each site its bucket visited this iteration (`visits`, in
+    /// visiting order) with the time since its last visit.
+    ///
+    /// Original: `FUN_1400c9560`.
     pub fn update_sites(&mut self, jobs: &mut Jobs, dt: i64, visits: &[(usize, i64)]) {
         let ids: Vec<usize> = self.sites.keys().copied().collect();
         self.refresh_demolishing();
@@ -365,9 +369,11 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// The entity manager's removal of a destroyed site entity (`FUN_1400c8370`, then each
-    /// component's remove slot): its work goes (citizens doing it abort), the ZoneComponent
-    /// frees its cells and the entity is gone.
+    /// The entity manager's removal of a destroyed site entity (then each component's remove slot):
+    /// its work goes (citizens doing it abort), the ZoneComponent frees its cells and the entity is
+    /// gone.
+    ///
+    /// Original: `FUN_1400c8370`.
     pub fn destroy_entity(&mut self, jobs: &mut Jobs, e: usize) {
         if !self.sites.contains_key(&e) {
             return;

@@ -1,10 +1,12 @@
-//! Crop fields: CropFieldComponent (vtable `0x1401692f0`, states `FUN_140120620`), and the
-//! works `PlantArea` (`0x140167cb0`), `TendArea` (`0x140167db0`) and the harvest work
-//! (`0x1401678c0`). See docs/FARMING.md.
+//! Crop fields: CropFieldComponent, and the works `PlantArea`, `TendArea` and the harvest work. See
+//! docs/FARMING.md.
 //!
-//! A field waits for spring (state 2), plants its crop on every cell (9), tends it while it
-//! grows (10) and harvests it when ripe or in autumn (11). The ClearArea controller's state
-//! 0x15 then clears what is left before the field waits again.
+//! A field waits for spring (state 2), plants its crop on every cell (9), tends it while it grows
+//! (10) and harvests it when ripe or in autumn (11). The ClearArea controller's state 0x15 then
+//! clears what is left before the field waits again.
+//!
+//! Original: `FUN_140120620`, `0x140167cb0`, `0x140167db0`, `0x1401678c0`.
+// vtable 0x1401692f0
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -18,41 +20,54 @@ use crate::work::jobs::{Work, WorkKind};
 /// `DAT_1401788d4`: the warmth planting and the autumn harvest need (°F).
 const WARM: f32 = 33.0;
 
-/// One cell of a field (`+0x58`, 0x20 bytes).
+// +0x58
+/// One cell of a field (0x20 bytes).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct CropCell {
-    /// `+0x00`: the map cell.
+    // +0x00
+    /// The map cell.
     pub cell: i32,
-    /// `+0x04`: 0 to plant, 1 growing, 2 done (harvested or lost).
+    // +0x04
+    /// 0 to plant, 1 growing, 2 done (harvested or lost).
     pub state: i32,
-    /// `+0x08`: the crop entity.
+    // +0x08
+    /// The crop entity.
     pub entity: Option<usize>,
-    /// `+0x18`: harvesting this cell leaves a pile.
+    // +0x18
+    /// Harvesting this cell leaves a pile.
     pub pile: bool,
 }
 
-/// CropFieldComponent `+0x48..+0x60`.
+// +0x48..+0x60
+/// CropFieldComponent.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CropField {
-    /// `+0x48`: farming on (the field's toggle).
+    // +0x48
+    /// Farming on (the field's toggle).
     pub enabled: bool,
-    /// `+0x49`: the crop leaves piles (its natural resource names a raw material).
+    // +0x49
+    /// The crop leaves piles (its natural resource names a raw material).
     pub piles: bool,
-    /// `+0x50`: the crop (natural-resource template), chosen in the field's window.
+    // +0x50
+    /// The crop (natural-resource template), chosen in the field's window.
     pub crop: Option<usize>,
     pub cells: Vec<CropCell>,
 }
 
-/// CropFieldDescription (`FUN_140120740`, versioned): `+0x24` a tending visit's growth (as a
-/// share of the crop's growing time) and, from version 1, `+0x20` the stock slot.
+// +0x24; +0x20
+/// CropFieldDescription (versioned): a tending visit's growth (as a share of the crop's growing
+/// time) and, from version 1, the stock slot.
+///
+/// Original: `FUN_140120740`.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct CropFieldTemplate {
     pub tend: f32,
     pub group: i32,
 }
 
-/// PlantArea and the harvest work: `+0x48` the cells claimed (index → worker), `+0x58`
-/// the cells still to do, `+0x68` (PlantArea) the crop.
+// +0x48; +0x58; +0x68
+/// PlantArea and the harvest work: the cells claimed (index → worker), the cells still to do,
+/// (PlantArea) the crop.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct AreaWork {
     pub claims: BTreeMap<i32, usize>,
@@ -94,14 +109,19 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// `FUN_14011fc80` (also the field's message 3 in state 2): plant now.
+    /// Plant now (also the field's message 3 in state 2).
+    ///
+    /// Original: `FUN_14011fc80`.
     pub fn crop_plant_now(&mut self, e: usize) {
         let on = self.field(e).is_some_and(|f| f.enabled);
         self.set_workplace_enabled(e, on);
         self.machine(e).request(9);
     }
 
-    /// CropUI slot `+0x58` (`FUN_1400b7df0`).
+    // +0x58
+    /// CropUI slot.
+    ///
+    /// Original: `FUN_1400b7df0`.
     pub fn set_crop(&mut self, e: usize, crop: Option<usize>) {
         let Some(old) = self.field(e).map(|f| f.crop) else {
             return;
@@ -114,9 +134,11 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// CropFieldComponent slot `+0x70` (`FUN_140120190`): 0 sends the machine message 3
-    /// (handled in state 2: plant now), 1 message 4 (state 10: harvest now), 2 switches
-    /// farming on or off.
+    // +0x70
+    /// CropFieldComponent slot: 0 sends the machine message 3 (handled in state 2: plant now), 1
+    /// message 4 (state 10: harvest now), 2 switches farming on or off.
+    ///
+    /// Original: `FUN_140120190`.
     pub fn field_action(&mut self, e: usize, action: i32) {
         let Some(m) = self.sites.get(&e).map(|s| &s.machine) else {
             return;
@@ -139,7 +161,9 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// The field's message 4 in state 10 (`FUN_14011f3d0`): harvest now.
+    /// The field's message 4 in state 10: harvest now.
+    ///
+    /// Original: `FUN_14011f3d0`.
     pub fn crop_harvest_now(&mut self, e: usize) {
         self.machine(e).request(0xb);
     }
@@ -322,9 +346,12 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// CropFieldComponent's message slot (`FUN_140120020`). Message 0: cell `index` was
-    /// planted (its crop keeps the cell's pile flag, NaturalResource `+0x2d`); message 1: a
-    /// tending visit advances the cell's crop by `growing time × 300 s × tend`.
+    // +0x2d
+    /// CropFieldComponent's message slot. Message 0: cell `index` was planted (its crop keeps the
+    /// cell's pile flag, NaturalResource); message 1: a tending visit advances the cell's crop by
+    /// `growing time × 300 s × tend`.
+    ///
+    /// Original: `FUN_140120020`.
     pub fn crop_message(&mut self, e: usize, message: i32, index: i32) {
         let Some(field) = self.field(e) else { return };
         let Some(&c) = field.cells.get(index as usize) else {
@@ -799,7 +826,9 @@ impl Sim<'_, '_> {
     }
 }
 
-/// [`Sim::crop_ripeness`] after the cells' refresh (`FUN_14011fef0`).
+/// `Sim::crop_ripeness` after the cells' refresh.
+///
+/// Original: `FUN_14011fef0`.
 pub fn ripeness(field: &CropField, placed: &[crate::nature::seeding::Placed]) -> f32 {
     if field.cells.is_empty() {
         return 0.0;

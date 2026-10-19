@@ -1,13 +1,17 @@
-//! FloorComponent (vtable `0x140169810`'s description, FloorDescription): a bridge part's deck.
-//! Activated (`FUN_140124810` → `FUN_140124860`) it counts one more on every cell of its
-//! MapComponent (cell `+0x2d`) and adds its picking mesh to the map's floor scene; removed
-//! (`FUN_140124770` → `FUN_1400a2070`) it takes both back. `FUN_1400a48b0` (the ground under a
-//! point) stands on the floor where a cell has one and the floor is above the terrain.
+//! Floors: the deck of a bridge part. When it is activated, it counts one more floor on every cell
+//! under it and adds its picking mesh to the map's floor scene; when it is removed, it takes both
+//! back. The ground under a point is on the floor where a cell has one and the floor is above the
+//! terrain.
 //!
-//! The ground queries ask the floors as the original's do (`town::floor_ground`; every caller
-//! but two passes `param_4` 0): characters' walking height, piles, storage drop points, work
-//! points, needs, boats' routes, seeding, fences, bridges and the cell spot checks. Only the
-//! tornado (`FUN_140058630`) and the natural cell types (`FUN_1400a3790`) skip them, as here.
+//! The ground queries ask the floors as the original's do ([`crate::town::floor_ground`]): the
+//! characters' walking height, piles, storage drop points, work points, needs, boats' routes,
+//! seeding, fences, bridges and the cell checks. Only the tornado and the natural cell types skip
+//! them, as here.
+//!
+//! Original: `FloorComponent` (vtable `0x140169810`): `FUN_140124810`, `FUN_140124860`,
+//! `FUN_140124770`, `FUN_1400a2070`; the ground under a point `FUN_1400a48b0`; the callers that
+//! skip floors `FUN_140058630`, `FUN_1400a3790`.
+// +0x2d
 
 use std::collections::BTreeMap;
 
@@ -17,8 +21,9 @@ use crate::terrain::HeightGrid;
 const RAY_TOP: f32 = 50.0;
 const RAY_LENGTH: f32 = 100.0;
 
-/// The map's floors: per cell how many floors cover it (`+0x2d`) and every floor's mesh with
-/// its transform (the map's picking scene, map `+0x08`).
+// +0x2d; +0x08
+/// The map's floors: per cell how many floors cover it and every floor's mesh with its transform
+/// (the map's picking scene, map).
 #[derive(Debug, Clone, Default)]
 pub struct Floors {
     pub counts: Vec<u8>,
@@ -33,20 +38,23 @@ pub struct Floors {
 /// world space.
 const BOUNDS_MARGIN: f32 = 0.05;
 
+/// A bridge's floor: its triangles and the cells it covers.
 #[derive(Debug, Clone, Default)]
 pub struct Floor {
     /// The MapComponent's rectangle (`x, y, w, h`) the floor counts on.
     pub rect: (i32, i32, i32, i32),
-    /// The entity transform (`+0x148`) AddMesh keeps for the mesh's root (every shipped floor
-    /// mesh is one root submesh).
+    // +0x148
+    /// The entity transform AddMesh keeps for the mesh's root (every shipped floor mesh is one root
+    /// submesh).
     pub transform: crate::math::Transform,
     /// Model space: `Picking::Scene::Intersect` takes the ray into the mesh's space.
     pub triangles: Vec<[[f32; 3]; 3]>,
 }
 
 impl Floor {
-    /// A floor mesh placed as the entity's model, over its MapComponent's cells
-    /// (`FUN_140124860`: the model transform and map rectangle).
+    /// A floor mesh placed as the entity's model (its transform), over the entity's map cells.
+    ///
+    /// Original: `FUN_140124860`.
     pub fn placed(mesh: &[[[f32; 3]; 3]], p: &crate::nature::seeding::Placed) -> Floor {
         Floor {
             rect: (p.cell.0, p.cell.1, p.footprint.0, p.footprint.1),
@@ -57,6 +65,7 @@ impl Floor {
 }
 
 impl Floors {
+    /// No floors, for a map of `cells` cells.
     pub fn new(cells: usize) -> Floors {
         Floors {
             counts: vec![0; cells],
@@ -65,8 +74,10 @@ impl Floors {
         }
     }
 
-    /// `FUN_140124860`: a floor that was added goes first; every cell of the rectangle counts
-    /// one more and the mesh joins the scene.
+    /// A floor that was added goes first; every cell of the rectangle counts one more and the mesh
+    /// joins the scene.
+    ///
+    /// Original: `FUN_140124860`.
     pub fn add(&mut self, size: usize, entity: usize, floor: Floor) {
         self.remove(size, entity);
         self.count(size, floor.rect, 1);
@@ -86,7 +97,9 @@ impl Floors {
         self.meshes.insert(entity, floor);
     }
 
-    /// `FUN_140124770` → `FUN_1400a2070`: the rectangle counts one less and the mesh leaves.
+    /// The rectangle counts one less and the mesh leaves.
+    ///
+    /// Original: `FUN_140124770`, `FUN_1400a2070`.
     pub fn remove(&mut self, size: usize, entity: usize) {
         self.bounds.remove(&entity);
         if let Some(floor) = self.meshes.remove(&entity) {
@@ -106,8 +119,10 @@ impl Floors {
         }
     }
 
-    /// `FUN_1400a48b0(point, skip floors = false)`: the terrain under `(x, y)`; on a cell with a
-    /// floor, the nearest floor hit by a ray from 50 above, when it is above the terrain.
+    /// The ground under `(x, y)`: the terrain, or, on a cell with a floor, the nearest floor that
+    /// a ray from 50 above hits, when it is above the terrain.
+    ///
+    /// Original: `FUN_1400a48b0(point, skip floors = false)`.
     pub fn ground(&self, size: usize, terrain: &HeightGrid, x: f32, y: f32) -> f32 {
         self.ground_normal(size, terrain, x, y, &mut [0.0; 3])
     }

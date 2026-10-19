@@ -1,11 +1,15 @@
-//! What the town makes and uses: the stock manager's per-slot counters (`Game +0xf0 → +0x170`,
-//! `+0xc` used and `+0x10` made since the last sample) and the workplaces' TrackerComponents
-//! (`FUN_140059930`: what each made this year and last). See docs/TOWN-INFO.md.
+//! What the town makes and uses: the stock manager's counters for each slot (used and made since
+//! the last sample) and each workplace's tracker (what it made this year and last). See
+//! docs/TOWN-INFO.md.
+//!
+//! Original: the trackers, `FUN_140059930`.
+// Game +0xf0 → +0x170; +0xc; +0x10
 
 use crate::town::Sim;
 
-/// A TrackerComponent: `+0x28` this year's (material, amount), `+0x38` last year's, `+0x48`
-/// the year of `+0x28`.
+// +0x28; +0x38; +0x48
+/// A workplace's tracker: what it made this year (material and amount), what it made last year,
+/// and the year these belong to.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Tracker {
     pub this_year: Vec<(usize, i32)>,
@@ -14,8 +18,10 @@ pub struct Tracker {
 }
 
 impl Tracker {
-    /// `FUN_140059930`: in a new year this year's list becomes last year's; then the
-    /// material's amount grows, or it joins the list.
+    /// In a new year this year's list becomes last year's; then the material's amount grows, or it
+    /// joins the list.
+    ///
+    /// Original: `FUN_140059930`.
     pub fn add(&mut self, year: u32, material: usize, amount: i32) {
         if year != self.year {
             self.last_year = std::mem::take(&mut self.this_year);
@@ -29,7 +35,8 @@ impl Tracker {
     }
 }
 
-/// The stock manager's slot counters since the last sample (`+0xc`, `+0x10` of each slot).
+// +0xc; +0x10
+/// The stock manager's slot counters since the last sample (of each slot).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StockCounters {
     pub used: [i32; 21],
@@ -75,14 +82,18 @@ impl Sim<'_, '_> {
     }
 }
 
-/// The series the stock manager samples (`+0x150`): 8 of the citizens, then per stock slot its
-/// count, used and made.
+// +0x150
+/// The series the stock manager samples: 8 of the citizens, then per stock slot its count, used and
+/// made.
 pub const SERIES: usize = 8 + 3 * 21;
-/// `FUN_140091780`: a sample every 75 s.
+/// A sample every 75 s.
+///
+/// Original: `FUN_140091780`.
 pub const SAMPLE_SECONDS: f32 = 75.0;
 
-/// What a sample reads of each citizen (`+0x3c` age against `+0x44`, `+0x208` school, `+0x50`
-/// health, `+0x80` happiness, `+0x210` education against `+0x118`, `+0x1e4` coat).
+// +0x3c; +0x44; +0x208; +0x50; +0x80; +0x210; +0x118; +0x1e4
+/// What a sample reads of each citizen (age against, school, health, happiness, education against,
+/// coat).
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct CitizenSample {
     pub adult: bool,
@@ -93,8 +104,8 @@ pub struct CitizenSample {
     pub coat: bool,
 }
 
-/// The Town Info graphs' history (StockManager `+0x150`) and the time to the next sample
-/// (`+0x198`).
+// +0x198; +0x150
+/// The Town Info graphs' history (StockManager) and the time to the next sample.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Statistics {
     pub series: Vec<Vec<i32>>,
@@ -120,8 +131,9 @@ fn truncate(v: f32) -> i32 {
 }
 
 impl Statistics {
-    /// `FUN_140091780`'s sampling: the timer counts down `dt`; below 1 a sample is taken
-    /// (`FUN_14008fc00`) and the next is 75 s off.
+    /// The timer counts down `dt`; below 1 a sample is taken and the next is 75 s off.
+    ///
+    /// Original: `FUN_14008fc00`, `FUN_140091780` (sampling).
     pub fn update(
         &mut self,
         dt: i64,
@@ -140,9 +152,11 @@ impl Statistics {
         true
     }
 
-    /// `FUN_14008fc00`: the population (all, adults, students, children), the average health
-    /// and happiness and the share educated (of the adults) and with coats, in percent; each
-    /// stock slot's count, used and made; then the used and made counts restart.
+    /// The population (all, adults, students, children), the average health and happiness and the
+    /// share educated (of the adults) and with coats, in percent; each stock slot's count, used and
+    /// made; then the used and made counts restart.
+    ///
+    /// Original: `FUN_14008fc00`.
     pub fn sample(
         &mut self,
         citizens: &[CitizenSample],

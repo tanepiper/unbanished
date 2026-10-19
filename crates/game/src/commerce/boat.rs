@@ -1,12 +1,15 @@
-//! The trader boat: BoatComponent (vtable `0x14015f060`, constructor `FUN_140047160`, states
-//! `FUN_140047200`). See docs/TRADE.md "The boat".
+//! The trader boat. See docs/TRADE.md, "The boat".
 //!
 //! The boat comes in along the map's first river from off the map, takes a water path past its
 //! trading post's "boat" point (where it docks), and leaves along the river's tail.
 //!
-//! `FUN_140045af0` (a state step of `FUN_140047200`) measures the route point against itself,
-//! a length of 0 that is never below 0, so its jump ahead (`FUN_1400ac590`) never happens and it
-//! always returns true; nothing to port.
+//! One state step of the original measures the route point against itself: a length of 0 that is
+//! never below 0, so its jump ahead never happens and it always returns true. There is nothing to
+//! port for it.
+//!
+//! Original: `BoatComponent`: `FUN_140047160`, `FUN_140047200`, `FUN_1400ac590`; the step that
+//! does nothing is `FUN_140045af0`.
+// vtable 0x14015f060
 
 use crate::behaviour::character::Character;
 use crate::pathfind::Pathfinder;
@@ -22,6 +25,7 @@ const DOCKED: f32 = 0.2;
 const APPROACH: f32 = 64.0;
 /// The trading post's state messages: 9 the boat docked, 0xb it went before docking.
 pub const DOCKED_MESSAGE: i32 = 9;
+/// The message a boat sends when it has left the map.
 pub const GONE_MESSAGE: i32 = 0xb;
 
 /// The boat's character kind (TraderBoat's CharacterDescription).
@@ -30,9 +34,10 @@ pub struct BoatKind {
     pub character: banished_formats::game::CharacterDescription,
 }
 
-/// BoatComponent: its state (0 sailing in, 1 approaching, 2 docked, 3 casting off, 4 sailing
-/// out), `+0x28` the trading post, `+0x40` / `+0x4c` the dock and its heading, `+0x50` the
-/// point it heads for, `+0x60` its route, `+0x70` the route index.
+// +0x28; +0x40; +0x4c; +0x50; +0x60; +0x70
+/// A trader boat: its state (0 sailing in, 1 approaching, 2 docked, 3 casting off, 4 sailing out),
+/// its trading post, the dock and its heading, the point it heads for, its route, and its place on
+/// the route.
 pub struct Boat {
     pub template: usize,
     pub character: Character,
@@ -77,10 +82,12 @@ fn heading(v: [f32; 3]) -> f32 {
     crate::behaviour::character::heading([v[0], v[1]])
 }
 
-/// `FUN_140046040`'s route: the river's points before it enters the map, a water path (mode 3,
-/// types 7..9) from where it enters to the dock and on to where it leaves, then the river's
-/// points after the first one off the map again. Also the dock heading, turned with the river's
-/// flow at the route point nearest the dock.
+/// The river's points before it enters the map, a water path (mode 3, types 7..9) from where it
+/// enters to the dock and on to where it leaves, then the river's points after the first one off
+/// the map again. Also the dock heading, turned with the river's flow at the route point nearest
+/// the dock.
+///
+/// Original: `FUN_140046040` (route).
 pub fn route(
     size: usize,
     terrain: &crate::terrain::HeightGrid,
@@ -323,10 +330,11 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// The boats' StateMachine updates: 0 (`FUN_140045bb0`) sailing in, gone at the route's
-    /// end (the post hears it, message 0xb), approaching within eight of the dock; 1
-    /// (`FUN_140045950`) slowing to the dock, docked within 0.2; 3 (`FUN_140045670`) heading
-    /// back to the route, sailing out within three; 4 (`FUN_1400455a0`) gone at the route's end.
+    /// The boats' StateMachine updates: 0 sailing in, gone at the route's end (the post hears it,
+    /// message 0xb), approaching within eight of the dock; 1 slowing to the dock, docked within
+    /// 0.2; 3 heading back to the route, sailing out within three; 4 gone at the route's end.
+    ///
+    /// Original: `FUN_140045bb0`, `FUN_140045950`, `FUN_140045670`, `FUN_1400455a0`.
     pub fn update_boats(&mut self) {
         let ids: Vec<usize> = self.wildlife.boats.keys().copied().collect();
         for id in ids {

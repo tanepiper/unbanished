@@ -1,14 +1,18 @@
-//! CitizenComponent (vtable `0x1401689a0`) and ResidenceComponent (vtable `0x14016a6a0`):
-//! needs, age, death, health, happiness, disease, homes, partners and births. See
+//! The lives of citizens and their homes: needs, age, death, health, happiness, disease, homes,
+//! partners and births. See [Citizens](https://tanepiper.github.io/unbanished/topics/citizens),
 //! docs/CITIZEN-NEEDS-AND-HOUSEHOLDS.md and docs/CITIZEN-LIFE.md.
 //!
-//! The CitizenDescription (`D`, citizen `+0x288`) is kept as an offset table so the ported code
-//! reads the same fields as the original.
+//! The citizen description is kept as a table by offset, so the port reads the same values as
+//! the original.
 //!
 //! Deviations: the entity references the original keeps (home, partner, guardian, dependents)
 //! are citizen and entity indices; the dependents' ring is a vector in ring order. Disease
-//! spread (`FUN_140117940`) visits the citizens within the radius in registration order where
-//! the original asks its spatial index.
+//! spread visits the citizens within the radius in registration order where the original asks
+//! its spatial index.
+//!
+//! Original: `CitizenComponent` (vtable `0x1401689a0`), `ResidenceComponent` (vtable
+//! `0x14016a6a0`); disease spread `FUN_140117940`.
+// The CitizenDescription is at citizen +0x288.
 
 use std::collections::BTreeMap;
 
@@ -32,19 +36,25 @@ const HOUR: f32 = 3600.0;
 pub struct LifeRules {
     fields: BTreeMap<u32, f32>,
     ints: BTreeMap<u32, i32>,
-    /// `D+0x20`, `D+0x28`, `D+0x30`: the teacher's, priest's and doctor's professions (the
-    /// workplaces whose attendance a citizen joins), as profession indices.
+    // D+0x20; D+0x28; D+0x30
+    /// `D`, `D`, `D`: the teacher's, priest's and doctor's professions (the workplaces whose
+    /// attendance a citizen joins), as profession indices.
     pub services: [Option<usize>; 3],
 }
 
-/// Which service an attendance search is for (`D+0x20/+0x28/+0x30`).
+// D+0x20/+0x28/+0x30
+/// Which service an attendance search is for (`D/`).
 pub mod service {
+    /// A school.
     pub const SCHOOL: usize = 0;
+    /// A chapel.
     pub const CHAPEL: usize = 1;
+    /// A doctor.
     pub const DOCTOR: usize = 2;
 }
 
 impl LifeRules {
+    /// The rules from the citizen description.
     pub fn new(d: &CitizenDescription) -> LifeRules {
         let mut r = LifeRules::default();
         // Constructor values (`FUN_14011a340`) of the fields the resource does not store:
@@ -70,6 +80,7 @@ impl LifeRules {
         self.ints.get(&o).copied().unwrap_or(0)
     }
 
+    /// The age at which a child becomes an adult.
     pub fn adult_age(&self) -> f32 {
         self.f(0x44)
     }
@@ -85,28 +96,48 @@ impl LifeRules {
     }
 }
 
-/// Death and life-event codes (`FUN_14011c2a0` reasons; the event log's types).
+/// The causes of death and the life events, as the event log's types.
+///
+/// Original: the reasons of `FUN_14011c2a0`.
 pub mod reason {
+    /// Starved.
     pub const STARVED: i32 = 0;
+    /// Froze.
     pub const FROZE: i32 = 1;
+    /// Died of old age.
     pub const OLD_AGE: i32 = 2;
+    /// Died of disease.
     pub const DISEASE: i32 = 3;
-    /// A child whose single guardian died (`FUN_140119170`).
+    /// A child whose single guardian died.
+    ///
+    /// Original: `FUN_140119170`.
     pub const ORPHANED: i32 = 4;
-    /// Killed by a tornado (`FUN_140058d20`).
+    /// Killed by a tornado.
+    ///
+    /// Original: `FUN_140058d20`.
     pub const TORNADO: i32 = 5;
+    /// Died in childbirth.
     pub const CHILDBIRTH: i32 = 6;
-    /// Citizen `+0x1f8`: an accident (fire, tornado) named by its description.
+    // +0x1f8
+    /// Citizen: an accident (fire, tornado) named by its description.
     pub const ACCIDENT: i32 = 7;
+    /// Was born.
     pub const BORN: i32 = 8;
+    /// Became an adult.
     pub const ADULT: i32 = 9;
+    /// Became a student.
     pub const STUDENT: i32 = 10;
-    /// `FUN_140119170`: a laborer took the dead citizen's profession.
+    /// A laborer took the dead citizen's profession.
+    ///
+    /// Original: `FUN_140119170`.
     pub const REPLACED: i32 = 0xf;
+    /// No laborer took the dead citizen's profession.
     pub const NOT_REPLACED: i32 = 0x10;
 }
 
-/// An event the citizens' update asks the log for (`FUN_140118fc0`).
+/// An event the citizens' update asks the log for.
+///
+/// Original: `FUN_140118fc0`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LifeEvent {
     pub kind: i32,
@@ -122,15 +153,20 @@ pub struct Home {
     pub desc: ResidenceDescription,
     /// The site's StorageComponent.
     pub storage: usize,
-    /// `+0x50`: per family slot, its residents (sorted by `FUN_14012f2f0`).
+    // +0x50
+    /// The residents of each family slot, sorted as the original sorts them.
+    ///
+    /// Original: sorted by `FUN_14012f2f0`.
     pub families: Vec<Vec<usize>>,
-    /// `+0x48`: time the last firewood keeps burning.
+    // +0x48
+    /// Time the last firewood keeps burning.
     pub fuel: i64,
     /// The StatusIconComponent bits the residence sets: 6 no food, 7 no firewood.
     pub status: u32,
 }
 
 impl Home {
+    /// A home with its description and its storage.
     pub fn new(desc: ResidenceDescription, storage: usize) -> Home {
         Home {
             desc,
@@ -141,31 +177,42 @@ impl Home {
         }
     }
 
-    /// `FUN_14012f4c0`.
+    /// The number of residents.
+    ///
+    /// Original: `FUN_14012f4c0`.
     pub fn occupants(&self) -> usize {
         self.families.iter().map(Vec::len).sum()
     }
 
-    /// `FUN_14012f9c0`: family `slot` has at least `+0x24` residents.
+    // +0x24
+    /// Family `slot` has at least residents.
+    ///
+    /// Original: `FUN_14012f9c0`.
     pub fn full(&self, slot: usize) -> bool {
         self.families
             .get(slot)
             .is_some_and(|f| f.len() as i32 >= self.desc.family_size)
     }
 
-    /// `FUN_140130100`: warm enough outside, or the fire is burning.
+    /// Warm enough outside, or the fire is burning.
+    ///
+    /// Original: `FUN_140130100`.
     pub fn warm(&self, temperature: f32) -> bool {
         self.desc.warm_temperature <= temperature || self.fuel > 0
     }
 
-    /// Families with residents (`FUN_14011abb0` / `FUN_14011acc0` count them).
+    /// The number of families with residents.
+    ///
+    /// Original: counted by `FUN_14011abb0` and `FUN_14011acc0`.
     pub fn families_living(&self) -> i32 {
         self.families.iter().filter(|f| !f.is_empty()).count() as i32
     }
 }
 
-/// `FUN_14012fea0` (category bit 5, food) and `FUN_14012ffd0` (bit 6, firewood): unreserved
-/// units of that category in `storage`.
+/// The units of a category in `storage` that nobody has reserved: food (bit 5) or firewood
+/// (bit 6).
+///
+/// Original: `FUN_14012fea0` (food), `FUN_14012ffd0` (firewood).
 pub fn stored(storage: &Storage, materials: &[RawMaterial], bit: u32) -> i32 {
     storage
         .items
@@ -188,40 +235,50 @@ pub(crate) fn family_order(citizens: &[Citizen], a: usize, b: usize) -> std::cmp
 pub struct People<'a, 'b> {
     pub citizens: &'a mut Vec<Citizen>,
     pub states: &'a mut Vec<CitizenState>,
-    /// Town manager `+0xa0`: living citizens in activation order.
+    // +0xa0
+    /// Town manager: living citizens in activation order.
     pub registry: &'a mut Vec<usize>,
     pub homes: &'a mut BTreeMap<usize, Home>,
     pub rules: &'a LifeRules,
     pub town: &'a TownView<'b>,
-    /// Map cells `+0x1c..+0x27` ([`crate::nature::seeding::Cells::layers`]).
+    // +0x1c..+0x27
+    /// Map cells ([`crate::nature::seeding::Cells::layers`]).
     pub layers: &'a [[u8; 12]],
     pub rng: &'a mut Random,
     pub temperature: f32,
     pub diseases: &'a [Disease],
-    /// Town manager `+0x1a8`: extra disease risk brought by visitors (0 until they are ported).
+    // +0x1a8
+    /// Town manager: extra disease risk brought by visitors (0 until they are ported).
     pub town_disease: f32,
     pub storages: &'a mut [Storage],
     pub materials: &'a [RawMaterial],
     /// The character's action stack is empty (`stack_top + 1 < 1`).
     pub idle: &'a [bool],
     pub events: &'a mut Vec<LifeEvent>,
-    /// Citizens whose entity was queued for deletion (`FUN_1400c8370`), with the reason.
+    /// Citizens whose entity was queued for deletion, with the reason.
+    ///
+    /// Original: `FUN_1400c8370`.
     pub dying: &'a mut Vec<(usize, i32)>,
-    /// `FUN_140117060`'s `FUN_14011c550` for a child of `mother` (name, sex, appearance and
-    /// lifespan draws); pushed onto `citizens` by the caller of this closure.
+    /// Makes a child of `mother`: name, sex, appearance and lifespan, with their random draws.
+    /// The caller of this closure adds it to `citizens`.
+    ///
+    /// Original: `FUN_14011c550`, called from `FUN_140117060`.
     pub newborn: &'a mut dyn FnMut(&mut Random, &Citizen, bool) -> Citizen,
     // (the flag is the child's sex, `true` male)
     /// Children born this update (new citizen indices).
     pub born: &'a mut Vec<usize>,
-    /// AttendanceComponents and their registry (town manager `+0x60`).
+    // +0x60
+    /// AttendanceComponents and their registry (town manager).
     pub attendance: &'a mut BTreeMap<usize, crate::work::construction::Attendance>,
     pub attendance_list: &'a [usize],
-    /// The workplaces and residences (town manager `+0x20`, `+0x100`).
+    // +0x100; +0x20
+    /// The workplaces and residences (town manager).
     pub workforce: &'a mut crate::work::professions::Workforce,
     pub professions: &'a crate::work::professions::Professions,
     /// The sites (their works' priorities, a cemetery's graves).
     pub sites: &'a BTreeMap<usize, crate::work::construction::Site>,
-    /// The town's cemeteries (`+0x40`) and the tombstones standing.
+    // +0x40
+    /// The town's cemeteries and the tombstones standing.
     pub cemeteries: &'a [usize],
     pub tombstones: &'a BTreeMap<usize, i64>,
     /// Burials decided this update (cemetery, grave cell); the tombstones follow.
@@ -229,7 +286,8 @@ pub struct People<'a, 'b> {
     /// The path-rank cache.
     pub sectors: &'a mut crate::sectors::SectorGraph,
     pub terrain: &'a crate::terrain::HeightGrid<'b>,
-    /// The characters' tree (`Game +0x88`): a disease spreads to the citizens about the sick.
+    // Game +0x88
+    /// The characters' tree (`Game`): a disease spreads to the citizens about the sick.
     pub tree: &'a crate::behaviour::character_tree::CharacterTree,
 }
 
@@ -294,13 +352,17 @@ impl People<'_, '_> {
         }
     }
 
-    /// `FUN_14011ada0`: the home's entrance is reachable from the citizen's cell.
+    /// The home's entrance is reachable from the citizen's cell.
+    ///
+    /// Original: `FUN_14011ada0`.
     pub fn reaches(&mut self, c: usize, entity: usize) -> bool {
         let cell = self.cell(c);
         self.town.can_reach(cell, entity, self.rng)
     }
 
-    /// `FUN_14011b8a0`: move citizen `c` (and its dependents) to `home` family `slot`.
+    /// Move citizen `c` (and its dependents) to `home` family `slot`.
+    ///
+    /// Original: `FUN_14011b8a0`.
     pub fn set_home(&mut self, c: usize, home: Option<usize>, slot: i32) {
         let s = &self.states[c];
         if s.home == home && s.home_slot == slot {
@@ -346,7 +408,9 @@ impl People<'_, '_> {
         }
     }
 
-    /// `FUN_140117470`: make `guardian` the guardian of `c`.
+    /// Make `guardian` the guardian of `c`.
+    ///
+    /// Original: `FUN_140117470`.
     pub fn set_guardian(&mut self, c: usize, guardian: Option<usize>) {
         if self.citizens[c].parent == guardian {
             return;
@@ -437,8 +501,10 @@ impl People<'_, '_> {
         found
     }
 
-    /// `FUN_140116d10`, `FUN_140116bc0`, `FUN_140116a60`: join the nearest school, chapel or
-    /// doctor; the school also sets `+0x220`.
+    // +0x220
+    /// Join the nearest school, chapel or doctor; the school also sets.
+    ///
+    /// Original: `FUN_140116d10`, `FUN_140116bc0`, `FUN_140116a60`.
     pub fn join_service(&mut self, c: usize, service: usize, exclude: Option<usize>) -> bool {
         let Some(e) = self.find_service(c, service, exclude) else {
             return false;
@@ -458,8 +524,9 @@ impl People<'_, '_> {
         true
     }
 
-    /// `FUN_14011af20` / `FUN_140116b20` / `FUN_14011ae80`: leave; the school can be swapped
-    /// for another at once (`again`).
+    /// Leave; the school can be swapped for another at once (`again`).
+    ///
+    /// Original: `FUN_14011af20`, `FUN_140116b20`, `FUN_14011ae80`.
     pub fn leave_service(&mut self, c: usize, service: usize, again: bool) {
         let slot = match service {
             service::SCHOOL => self.states[c].school.take(),
@@ -475,8 +542,10 @@ impl People<'_, '_> {
         }
     }
 
-    /// Citizen message 4 (`FUN_140116c70`): a lesson; at `D[0x118]` lessons, or after
-    /// `D[0x11c]` hours at school, educated (flag `0x400`), out of school and an adult (9).
+    /// Citizen message 4: a lesson; at `D[0x118]` lessons, or after `D[0x11c]` hours at school,
+    /// educated (flag `0x400`), out of school and an adult (9).
+    ///
+    /// Original: `FUN_140116c70`.
     pub fn lesson(&mut self, c: usize) {
         let r = self.rules;
         let s = &mut self.states[c];
@@ -491,18 +560,22 @@ impl People<'_, '_> {
         self.report(c, reason::ADULT, 0, None);
     }
 
-    /// Citizen message 5 (`FUN_140116a10`): the doctor shortens the illness by `D[0x12c]`
-    /// minutes.
+    /// Citizen message 5: the doctor shortens the illness by `D[0x12c]` minutes.
+    ///
+    /// Original: `FUN_140116a10`.
     pub fn treated(&mut self, c: usize) {
         if self.states[c].disease.is_some() {
             self.states[c].disease_left -= ticks(self.rules.f(0x12c) * MINUTE);
         }
     }
 
-    /// `FUN_14011c2a0`: queue the citizen's death (`reason`) and tell the family. Buried in a
-    /// cemetery (`FUN_14008ec10` from the home's entrance, else where the citizen stands), the
-    /// family's bit is `0x40`; otherwise `2` for old age, else `0x80`.
-    /// Not ported: the debug flag that stops deaths (`Game +0xd0` bit 8).
+    // Game +0xd0
+    /// Queue the citizen's death (`reason`) and tell the family. When the citizen is buried in a
+    /// cemetery (found from the home's entrance, else from where the citizen stands), the
+    /// family's bit is `0x40`; otherwise it is `2` for old age, else `0x80`. Not ported: the debug
+    /// flag that stops deaths (`Game` bit 8).
+    ///
+    /// Original: `FUN_14011c2a0`; the cemetery search is `FUN_14008ec10`.
     pub fn die(&mut self, c: usize, reason: i32, extra: Option<(Option<String>, String)>) -> bool {
         if self.dying(c) {
             return true;
@@ -577,9 +650,11 @@ impl People<'_, '_> {
         })
     }
 
-    /// The family part of `FUN_140119170` (CitizenComponent removal): leave school, the
-    /// doctor, the chapel, the home and the guardian; a widow(er) takes the dependents, else
-    /// children die (orphaned) and older dependents leave; the partner is single again.
+    /// The family part of a citizen's removal: the citizen leaves school, the doctor, the chapel,
+    /// the home and the guardian. A widow or widower takes the dependents; otherwise children die
+    /// (orphaned) and older dependents leave. The partner is single again.
+    ///
+    /// Original: `FUN_140119170` (the removal of a `CitizenComponent`).
     pub fn bury(&mut self, c: usize) {
         self.leave_service(c, service::SCHOOL, false);
         self.leave_service(c, service::DOCTOR, false);
@@ -613,7 +688,9 @@ impl People<'_, '_> {
         self.registry.retain(|&x| x != c);
     }
 
-    /// `FUN_140118340`: one scheduled update of citizen `c` over `dt`.
+    /// One scheduled update of citizen `c` over `dt`.
+    ///
+    /// Original: `FUN_140118340`.
     pub fn update(&mut self, c: usize, dt: i64) {
         let r = self.rules;
         let secs = seconds(dt);
@@ -1254,16 +1331,20 @@ impl People<'_, '_> {
     }
 }
 
-/// Citizen message 0 (`FUN_1401176b0`): warm up at `home` if it is warm.
+/// Citizen message 0: warm up at `home` if it is warm.
+///
+/// Original: `FUN_1401176b0`.
 pub fn warm_at(s: &mut CitizenState, home: Option<&Home>, temperature: f32) {
     if home.is_some_and(|h| h.warm(temperature)) {
         s.cold = 0.0;
     }
 }
 
-/// Citizen message 2 (`FUN_14011a7b0`): eat from `storage` until no longer hungry: one unit of
-/// food (`FUN_140094410` category 0) per point of hunger, remembering each kind for variety;
-/// each counts as used (`FUN_14008e460`, `+0xc`).
+// +0xc
+/// Citizen message 2: eat from `storage` until the citizen is no longer hungry: one unit of food
+/// per point of hunger. Each kind of food is remembered (for variety) and counts as used.
+///
+/// Original: `FUN_14011a7b0`, `FUN_14008e460`.
 pub fn eat(
     s: &mut CitizenState,
     storage: &mut Storage,
@@ -1300,11 +1381,14 @@ pub fn eat(
     }
 }
 
-/// `FUN_14012ee40`: a residence's update. The fire burns down; with residents, while it is
-/// colder than the house's warmth, one unit of firewood keeps it burning for `+0x2c` seconds.
-/// The food and firewood status icons clear when there is some.
-/// The ClearStorage work comes first ([`crate::town::Sim::residence_clear_storage`]). The
-/// firewood burned counts as used in the stock manager (`FUN_14008e460`'s slot, `+0xc`).
+// +0xc; +0x2c
+/// A residence's update. The fire burns down; with residents, while it is colder than the house's
+/// warmth, one unit of firewood keeps it burning for seconds. The food and firewood status icons
+/// clear when there is some. The ClearStorage work comes first
+/// ([`crate::town::Sim::residence_clear_storage`]). The firewood burned counts as used in the stock
+/// manager.
+///
+/// Original: `FUN_14012ee40`.
 pub fn update_home(
     home: &mut Home,
     storages: &mut [Storage],

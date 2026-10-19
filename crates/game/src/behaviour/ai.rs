@@ -1,26 +1,46 @@
-//! CitizenAIComponent (vtable `0x140168890`, constructor `FUN_140115040`): choosing what a
-//! citizen does next. See docs/CITIZEN-AI.md.
+//! CitizenAIComponent: choosing what a citizen does next. See docs/CITIZEN-AI.md.
+//!
+//! Original: `FUN_140115040`.
+// vtable 0x140168890
 
 use crate::random::Random;
 use crate::scheduler::{seconds, ticks};
 
-/// Activities (`FUN_1401146c0`).
+/// Activities.
+///
+/// Original: `FUN_1401146c0`.
 pub mod activity {
+    /// Eat.
     pub const EAT: u32 = 0;
+    /// Get warm.
     pub const WARM: u32 = 1;
+    /// Emergency work, for example fighting a fire.
     pub const EMERGENCY: u32 = 2;
+    /// Fetch clothing.
     pub const CLOTHING: u32 = 3;
+    /// Fetch herbs.
     pub const HERBS: u32 = 4;
+    /// Visit the doctor.
     pub const DOCTOR: u32 = 5;
+    /// Stock the home with food.
     pub const HOME_FOOD: u32 = 6;
+    /// Stock the home with firewood.
     pub const HOME_FUEL: u32 = 7;
+    /// Fetch a tool.
     pub const TOOL: u32 = 8;
+    /// Work.
     pub const WORK: u32 = 9;
+    /// Go to school.
     pub const SCHOOL: u32 = 10;
+    /// A child plays near its guardian.
     pub const PLAY: u32 = 11;
+    /// Loiter near a building, then wait.
     pub const IDLE: u32 = 12;
+    /// Drop off what the citizen carries.
     pub const DROP_OFF: u32 = 13;
+    /// Eat, when very hungry.
     pub const EAT_URGENT: u32 = 14;
+    /// Get warm, when very cold.
     pub const WARM_URGENT: u32 = 15;
 }
 use activity::*;
@@ -35,29 +55,40 @@ const CARRY_LONG: f32 = 300.0;
 /// The citizen values candidate building reads (`D` = CitizenDescription).
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CitizenView {
-    /// `+0x68` disease, `+0x228` doctor assigned.
+    // +0x68; +0x228
+    /// disease, doctor assigned.
     pub sick: bool,
     pub doctor: bool,
-    /// `+0x44` hunger, `+0x48` cold, `+0x50` health, `+0x54` bit 9, `+0x80` happiness.
+    // +0x44; +0x48; +0x50; +0x54; +0x80
+    /// hunger, cold, health, bit 9, happiness.
     pub hunger: f32,
     pub cold: f32,
     pub health: f32,
     pub health_flag: bool,
     pub happiness: f32,
-    /// `+0x3c` age; `+0x208` school; `+0x238` home; `+0x1e4` clothing; `+0xac` tool uses.
+    // +0x3c; +0x208; +0x238; +0x1e4; +0xac
+    /// age; school; home; clothing; tool uses.
     pub age: f32,
     pub school: bool,
     pub home: bool,
     pub clothing: i32,
     pub tool: i32,
-    /// `FUN_14011b0b0`: map byte `+0x22` set at home, work or here.
+    // +0x22
+    /// Map byte set at home, work or here.
+    ///
+    /// Original: `FUN_14011b0b0`.
     pub emergency: bool,
-    /// `FUN_14011abb0` / `FUN_14011acc0`: home has food / firewood.
+    /// Home has food / firewood.
+    ///
+    /// Original: `FUN_14011abb0`, `FUN_14011acc0`.
     pub home_food: bool,
     pub home_fuel: bool,
-    /// Spouse's (`+0x250`) supply errand, citizen `+0xb0`: 1 food, 2 firewood.
+    // +0x250; +0xb0
+    /// Spouse's supply errand, citizen: 1 food, 2 firewood.
     pub spouse_activity: Option<u32>,
-    /// `FUN_14011b2b0`: carried inventory count.
+    /// Carried inventory count.
+    ///
+    /// Original: `FUN_14011b2b0`.
     pub carrying: i32,
 }
 
@@ -77,18 +108,25 @@ pub struct Thresholds {
 /// One candidate (12-byte entries: activity, priority, unused).
 pub type Candidate = (u32, i32);
 
+/// A citizen's AI: the cooldown of each activity, the current and queued activity, and the urgent
+/// flags.
 #[derive(Debug, Clone)]
 pub struct CitizenAi {
-    /// `+0x28` current, `+0x2c` queued (-1).
+    // +0x28; +0x2c
+    /// current, queued (-1).
     pub current: u32,
     pub queued: Option<u32>,
-    /// `+0x30` / `+0x31`: urgently eating / warming.
+    // +0x30 / +0x31
+    /// Urgently eating / warming.
     pub eating: bool,
     pub warming: bool,
-    /// `+0x40..+0xb8`: per-activity cooldowns (ticks).
+    // +0x40..+0xb8
+    /// Per-activity cooldowns (ticks).
     pub cooldowns: [i64; 16],
-    /// `+0xc0`: time since the last loiter; `+0xc8`: time carrying inventory.
+    // +0xc0; +0xc8
+    /// The time since the citizen last loitered.
     pub since_loiter: i64,
+    /// How long the citizen has carried goods (reset while it carries nothing).
     pub carrying_time: i64,
 }
 
@@ -106,8 +144,10 @@ impl Default for CitizenAi {
     }
 }
 
-/// `FUN_140113170`: candidate activities in push order, and whether the list is shuffled and
-/// sorted (the doctor-only and urgent-only lists return before that).
+/// Candidate activities in push order, and whether the list is shuffled and sorted (the doctor-only
+/// and urgent-only lists return before that).
+///
+/// Original: `FUN_140113170`.
 pub fn candidates(
     ai: &CitizenAi,
     c: &CitizenView,
@@ -201,7 +241,9 @@ fn candidate_list(
     (out, false)
 }
 
-/// `FUN_140113170`'s tail: swap each position with `Rand(count)`, then sort.
+/// Swap each position with `Rand(count)`, then sort.
+///
+/// Original: `FUN_140113170` (tail).
 pub fn shuffle_and_sort(list: &mut [Candidate], rng: &mut Random) {
     let n = list.len() as u32;
     for i in 0..list.len() {
@@ -215,18 +257,20 @@ pub fn shuffle_and_sort(list: &mut [Candidate], rng: &mut Random) {
     }
 }
 
-/// `FUN_140030770`: the MSVC CRT `qsort` inlined for candidates, ordering by priority, highest
-/// first (comparator `b.priority - a.priority`). Median of three, short sort (selection of the
-/// maximum) for 8 or fewer elements, smaller partition first.
+/// The MSVC CRT `qsort` inlined for candidates, ordering by priority, highest first (comparator
+/// `b.priority - a.priority`). Median of three, short sort (selection of the maximum) for 8 or
+/// fewer elements, smaller partition first.
+///
+/// Original: `FUN_140030770`.
 pub fn crt_qsort(a: &mut [Candidate]) {
     crt_qsort_by(a, |a: &Candidate, b: &Candidate| b.1 - a.1);
 }
 
-/// The MSVC CRT `qsort` (as `FUN_140030770` inlines it) with any comparator; the other inlined
-/// copies (`FUN_14002c9d0`, the library `qsort`) are the same algorithm.
-/// The templated copies with a `less` comparator (`FUN_140030c00`, `FUN_1400220f0`,
-/// `FUN_14001f120`, `FUN_140015c10`, `FUN_140015f10`, `FUN_140016ce0`, `FUN_140016fe0`): the
-/// same algorithm, `cmp(a, b) > 0` being `less(b, a)` and equality neither way.
+/// The Microsoft C runtime's `qsort` with a `less` comparator, as the game's templated copies use
+/// it: the same algorithm as [`crt_qsort_by`], with `cmp(a, b) > 0` being `less(b, a)` and
+/// equality neither way.
+///
+/// Original: `FUN_14002c9d0`, `FUN_140030c00`, `FUN_1400220f0`, `FUN_14001f120`, `FUN_140015c10`, `FUN_140015f10`, `FUN_140016ce0`, `FUN_140016fe0`.
 pub fn crt_qsort_less<T>(a: &mut [T], less: impl Fn(&T, &T) -> bool) {
     crt_qsort_by(a, |x, y| {
         if less(y, x) {
@@ -352,7 +396,9 @@ pub fn crt_qsort_by<T>(a: &mut [T], cmp: impl Fn(&T, &T) -> i32) {
 }
 
 impl CitizenAi {
-    /// `FUN_1401148b0`'s timers: count cooldowns down, advance the loiter and carry clocks.
+    /// Count cooldowns down, advance the loiter and carry clocks.
+    ///
+    /// Original: `FUN_1401148b0` (timers).
     pub fn tick(&mut self, dt: i64, carrying: i32) {
         for c in &mut self.cooldowns {
             *c = (*c - dt).max(0);
@@ -364,10 +410,12 @@ impl CitizenAi {
         }
     }
 
-    /// `FUN_1401148b0`: the scheduled update. `busy()` is the character's "has actions" test
-    /// (`+0x60 >= 0`); `run` dispatches an activity (see [`CitizenAi::choose`]). Eating from a
-    /// stocked home before an urgent choice (`FUN_14011a7b0`) and the per-profession inventory
-    /// size and model refresh (`FUN_140114c70`, `FUN_140114d60`) are the caller's.
+    // +0x60 >= 0
+    /// The scheduled update. `busy` is the character's "has actions" test; `run` dispatches an
+    /// activity (see [`CitizenAi::choose`]). Eating from a stocked home before an urgent choice and
+    /// the per-profession inventory size and model refresh are the caller's.
+    ///
+    /// Original: `FUN_14011a7b0`, `FUN_140114c70`, `FUN_140114d60`, `FUN_1401148b0`.
     pub fn update(
         &mut self,
         dt: i64,
@@ -416,9 +464,10 @@ impl CitizenAi {
         self.choose(view, d, false, rng, &mut run);
     }
 
-    /// `FUN_140113060`: run the queued activity, or try candidates in order until `run`
-    /// leaves the character busy. `run(activity)` is the dispatcher (`FUN_1401146c0`) and
-    /// returns whether the character now has actions queued.
+    /// Run the queued activity, or try candidates in order until `run` leaves the character busy.
+    /// `run(activity)` is the dispatcher and returns whether the character now has actions queued.
+    ///
+    /// Original: `FUN_1401146c0`, `FUN_140113060`.
     pub fn choose(
         &mut self,
         view: &CitizenView,

@@ -1,11 +1,13 @@
-//! Pastures: PastureComponent (vtable `0x14016a360`, states `FUN_14012d660`) and its work
-//! (vtable `0x140167bc0`, constructor `FUN_1400f8250`). The animals themselves (livestock,
-//! breeding, products) live in [`crate::nature::wildlife`]. See docs/FARMING.md "Pastures".
+//! Pastures: PastureComponent and its work. The animals themselves (livestock, breeding, products)
+//! live in [`crate::nature::wildlife`]. See docs/FARMING.md "Pastures".
 //!
-//! A built pasture takes waiting livestock of its kind until full, has the young its breeding
-//! males sire born, and turns what its animals give (eggs, wool) into piles at the shelter.
-//! Its ranchers cull the oldest grown animal while it holds more than the player allows, pick
-//! up the products, or walk the pasture, and each visit lets a random animal breed.
+//! A built pasture takes waiting livestock of its kind until full, has the young its breeding males
+//! sire born, and turns what its animals give (eggs, wool) into piles at the shelter. Its ranchers
+//! cull the oldest grown animal while it holds more than the player allows, pick up the products,
+//! or walk the pasture, and each visit lets a random animal breed.
+//!
+//! Original: `FUN_14012d660`, `FUN_1400f8250`.
+// vtable 0x14016a360; vtable 0x140167bc0
 
 use crate::behaviour::character::{Action, Component, Message, MoveTo};
 use crate::nature::wildlife::{Wild, HUNTED};
@@ -144,15 +146,20 @@ impl Sim<'_, '_> {
         self.enable_workplace(e, on);
     }
 
-    /// The pasture's message 0 (`FUN_14012cbf0`): a rancher's visit.
+    /// The pasture's message 0: a rancher's visit.
+    ///
+    /// Original: `FUN_14012cbf0`.
     pub fn pasture_message(&mut self, e: usize, message: i32) {
         if message == 0 {
             self.with_wild(|w| w.mark_breeder(e));
         }
     }
 
-    /// PastureUI slot `+0x58` (`FUN_1400ba110`): the kind of animal; choosing the first one
-    /// switches the work on. The most it keeps becomes its room.
+    // +0x58
+    /// PastureUI slot: the kind of animal; choosing the first one switches the work on. The most it
+    /// keeps becomes its room.
+    ///
+    /// Original: `FUN_1400ba110`.
     pub fn set_pasture_kind(&mut self, jobs: &mut Jobs, e: usize, kind: Option<usize>) {
         let Some(old) = self.wildlife.pastures.get(&e).map(|p| p.kind) else {
             return;
@@ -166,16 +173,22 @@ impl Sim<'_, '_> {
         self.wildlife.pastures.get_mut(&e).unwrap().limit = cap;
     }
 
-    /// PastureUI slot `+0x48` (`FUN_1400ba2f0`): the slider sets the most animals kept.
+    // +0x48
+    /// PastureUI slot: the slider sets the most animals kept.
+    ///
+    /// Original: `FUN_1400ba2f0`.
     pub fn set_pasture_limit(&mut self, e: usize, limit: i32) {
         if let Some(p) = self.wildlife.pastures.get_mut(&e) {
             p.limit = limit;
         }
     }
 
-    /// Slot `+0x68` (`FUN_14012d2a0`): whether the window's button `query` is available. 0
-    /// (send every animal away) needs room for all of them in other pastures of the kind, 1
-    /// (send half) ten animals and room for five; 2 is the work toggle's state (bit 2 on).
+    // +0x68
+    /// Whether the window's button `query` is available. 0 (send every animal away) needs room for
+    /// all of them in other pastures of the kind, 1 (send half) ten animals and room for five; 2 is
+    /// the work toggle's state (bit 2 on).
+    ///
+    /// Original: `FUN_14012d2a0`.
     pub fn pasture_query(&self, e: usize, query: i32) -> u8 {
         let Some(p) = self.wildlife.pastures.get(&e) else {
             return 0;
@@ -210,8 +223,11 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// Slot `+0x70` (`FUN_14012cf30`): 2 switches the work on or off; 0 sends every animal
-    /// (1 half of them, rounded down) to other pastures of the kind, the roomiest first.
+    // +0x70
+    /// 2 switches the work on or off; 0 sends every animal (1 half of them, rounded down) to other
+    /// pastures of the kind, the roomiest first.
+    ///
+    /// Original: `FUN_14012cf30`.
     pub fn pasture_action(&mut self, jobs: &mut Jobs, e: usize, action: i32) {
         if self.pasture_query(e, action) & 1 == 0 {
             return;

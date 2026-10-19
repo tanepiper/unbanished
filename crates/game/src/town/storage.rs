@@ -250,9 +250,10 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// `FUN_14011b330`: carry everything to storages that take it: one drop-off per storage
-    /// (nearest found per material, reusing a storage already chosen), then a final drop-off
-    /// of whatever is left.
+    /// Carry everything to storages that take it: one drop-off per storage (nearest found per
+    /// material, reusing a storage already chosen), then a final drop-off of whatever is left.
+    ///
+    /// Original: `FUN_14011b330`.
     pub fn drop_off(&mut self, c: usize) {
         let from = self.citizen_cell(c);
         let items: Vec<(usize, i32)> = self.states[c]
@@ -318,8 +319,10 @@ impl Sim<'_, '_> {
 }
 
 impl Sim<'_, '_> {
-    /// The residence update's work (`FUN_14012ee40`): a house nobody lives in that still
-    /// holds goods gets a ClearStorage work (mask 1); an empty storage has it removed.
+    /// The residence update's work: a house nobody lives in that still holds goods gets a
+    /// ClearStorage work (mask 1); an empty storage has it removed.
+    ///
+    /// Original: `FUN_14012ee40`.
     pub fn residence_clear_storage(&mut self, jobs: &mut Jobs, visits: &[(usize, i64)]) {
         for &(e, _) in visits {
             if !self.homes.contains_key(&e) {

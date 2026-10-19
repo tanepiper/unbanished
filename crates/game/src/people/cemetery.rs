@@ -1,9 +1,12 @@
-//! Cemeteries and burial: CemeteryComponent (vtable `0x14015f1c0`, states `FUN_140048100`) and
-//! TombstoneComponent (`0x140160aa0`). See docs/CITIZEN-LIFE.md "Burial".
+//! Cemeteries and burial: CemeteryComponent and TombstoneComponent. See docs/CITIZEN-LIFE.md
+//! "Burial".
 //!
-//! A cemetery lays out its graves on every other row inside its fence, clear of the gate. A
-//! citizen who dies is buried in the nearest reachable cemetery with a free grave, which gets
-//! a tombstone for five to seven years.
+//! A cemetery lays out its graves on every other row inside its fence, clear of the gate. A citizen
+//! who dies is buried in the nearest reachable cemetery with a free grave, which gets a tombstone
+//! for five to seven years.
+//!
+//! Original: `FUN_140048100`, `0x140160aa0`.
+// vtable 0x14015f1c0
 
 use crate::scheduler::ticks;
 use crate::terrain::CellType;
@@ -12,8 +15,9 @@ use crate::town::Sim;
 /// `DAT_140178934`.
 const PERIOD: f32 = 300.0;
 
-/// CemeteryDescription `+0x20` (the tombstone template) with its TombstoneDescription: a
-/// grave lasts `(life + RandFloat × range)` × 300 s.
+// +0x20
+/// CemeteryDescription (the tombstone template) with its TombstoneDescription: a grave lasts `(life
+/// + RandFloat × range)` × 300 s.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CemeteryTemplate {
     pub tombstone: usize,
@@ -79,9 +83,10 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// The burials decided this update (`FUN_1400473f0`): the grave becomes plain ground and
-    /// gets a tombstone turned as the cemetery, which lasts its TombstoneDescription's time
-    /// (setup `FUN_1400581c0`) and stamps its cell.
+    /// The burials decided this update: the grave becomes plain ground and gets a tombstone turned
+    /// as the cemetery, which lasts its tombstone description's time and stamps its cell.
+    ///
+    /// Original: `FUN_1400473f0`; the tombstone's set-up `FUN_1400581c0`.
     pub fn place_burials(&mut self) {
         for (cemetery, cell) in std::mem::take(self.burials) {
             let Some(t) = self
@@ -129,8 +134,10 @@ impl Sim<'_, '_> {
     }
 }
 
-/// TombstoneComponent's scheduled update (`FUN_140058130`): the time left runs down; at
-/// none the tombstone goes (its cell is plain ground again). Returns whether it went.
+/// TombstoneComponent's scheduled update: the time left runs down; at none the tombstone goes (its
+/// cell is plain ground again). Returns whether it went.
+///
+/// Original: `FUN_140058130`.
 pub fn tombstone_visit(
     tombstones: &mut std::collections::BTreeMap<usize, i64>,
     cells: &mut crate::nature::seeding::Cells,

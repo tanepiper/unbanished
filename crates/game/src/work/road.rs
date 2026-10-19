@@ -1,11 +1,13 @@
-//! Roads: planning a road's cells (`FUN_1400a1e30`), BuildRoad (vtable `0x140167430`,
-//! constructor `FUN_1400ea020`), CompleteRoad (vtable `0x140165f80`, start `FUN_1400cad20` →
-//! `FUN_1400a1b10`) and taking a planned road back (`FUN_1400a1bd0`). See docs/ROADS.md.
+//! Roads: planning a road's cells, BuildRoad, CompleteRoad and taking a planned road back. See
+//! docs/ROADS.md.
 //!
-//! A planned cell gets its road kind at once (`+0x2a`) and a BuildRoad work (a builder's, mask
-//! `0x2000`); the builder clears what lies on it, brings a stone for a stone road, works it
-//! four seconds and the cell becomes road. Clearing a road (a building's ClearArea or Remove
-//! Roads' marker) lays it back to ground the same way.
+//! A planned cell gets its road kind at once and a BuildRoad work (a builder's, mask `0x2000`); the
+//! builder clears what lies on it, brings a stone for a stone road, works it four seconds and the
+//! cell becomes road. Clearing a road (a building's ClearArea or Remove Roads' marker) lays it back
+//! to ground the same way.
+//!
+//! Original: `FUN_1400a1e30`, `FUN_1400ea020`, `FUN_1400cad20`, `FUN_1400a1b10`, `FUN_1400a1bd0`.
+// vtable 0x140167430; vtable 0x140165f80; +0x2a
 
 use crate::behaviour::character::{Action, MoveTo};
 use crate::pathfind::WALKABLE;
@@ -15,15 +17,17 @@ use crate::work::jobs::{Jobs, Work, WorkKind};
 
 /// `0x2000`: BuildRoad's registration mask (category 13, construction).
 const MASK: u32 = 0x2000;
-/// No road (`+0x2a`), and `+0x2b` while a road is being built / once it is.
+// +0x2a; +0x2b
+/// No road, and while a road is being built / once it is.
 pub const NONE: u8 = 0xff;
+/// The bit of a road kind that says the road is being built.
 pub const BUILDING: u8 = 0x80;
 /// The cell type a cleared road goes back to.
 pub const GROUND: u8 = 2;
 
-/// BuildRoad's state: `+0x48` its builder, `+0x50` the material a cell takes (stone roads),
-/// `+0x58` the cell, `+0x5c` the cell type it becomes, `+0x60..+0x68` the cell's road kind,
-/// `+0x2b` byte and type before (restored when the plan is taken back).
+// +0x48; +0x50; +0x58; +0x5c; +0x60..+0x68; +0x2b
+/// BuildRoad's state: its builder, the material a cell takes (stone roads), the cell, the cell type
+/// it becomes, the cell's road kind, byte and type before (restored when the plan is taken back).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RoadWork {
     pub builder: Option<usize>,
@@ -36,10 +40,12 @@ pub struct RoadWork {
 }
 
 impl Sim<'_, '_> {
-    /// `FUN_1400a1e30(cell, kind, type, material)`: a better road (a lower kind) than the
-    /// cell's is planned: a plan already there is taken back; a cell that is neither road
-    /// (types 0, 1) nor planned counts one more on `+0x28`; a BuildRoad work is registered and
-    /// the cell keeps the new kind (`+0x2b` building).
+    // +0x28; +0x2b
+    /// Plan a better road (a lower kind) than the cell has: a plan already there is taken back; a
+    /// cell that is neither road (types 0, 1) nor planned counts one more; a `BuildRoad` work is
+    /// registered, and the cell keeps the new kind while it is built.
+    ///
+    /// Original: `FUN_1400a1e30(cell, kind, type, material)`.
     pub fn plan_road(
         &mut self,
         jobs: &mut Jobs,
@@ -85,9 +91,10 @@ impl Sim<'_, '_> {
         self.cells.road_revision += 1;
     }
 
-    /// `FUN_1400a1bd0`: a planned road's work goes and the cell gets back what it had (true);
-    /// a cell without a road kind becomes ground at once (false); a road built stays (true,
-    /// for the caller to clear).
+    /// A planned road's work goes and the cell gets back what it had (true); a cell without a road
+    /// kind becomes ground at once (false); a road built stays (true, for the caller to clear).
+    ///
+    /// Original: `FUN_1400a1bd0`.
     pub fn unplan_road(&mut self, jobs: &mut Jobs, cell: i32) -> bool {
         let i = cell as usize;
         let mut restored = None;
@@ -122,10 +129,13 @@ impl Sim<'_, '_> {
         self.cells.set_type(cell as usize, CellType(ty));
     }
 
-    /// CompleteRoad's start (`FUN_1400a1b10(cell, kind byte, type)`): to ground (type 2) the
-    /// cell loses its road (`+0x28` one less, no kind); else it becomes the road type. Either
-    /// way it leaves the planned set. A road flattens the terrain at its cell's corners
-    /// (`FUN_1400a35b0`); the road decals follow `road_revision` (`FUN_1400b4840`).
+    // +0x28
+    /// The start of `CompleteRoad`: to ground (type 2) the cell
+    /// loses its road (one less, no kind); else it becomes the road type. Either way it leaves the
+    /// planned set. A road flattens the terrain at its cell's corners; the road decals follow
+    /// `road_revision`.
+    ///
+    /// Original: `FUN_1400a1b10(cell, kind byte, type)`; `FUN_1400a35b0`, `FUN_1400b4840`.
     pub fn complete_road(&mut self, cell: i32, built: u8, ty: u8) {
         let i = cell as usize;
         if ty == GROUND {

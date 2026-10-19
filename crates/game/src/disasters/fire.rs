@@ -1,12 +1,13 @@
-//! Fire: FireComponent (vtable `0x14015f480`, factory `FUN_1400055e0`), its work FireWork
-//! (vtable `0x1401676c0`), WellComponent (vtable `0x140160fb0`, states `FUN_14005da70`) and the
-//! town's water sources (`Game +0xf0`: `+0x130` shore points, `+0xe0` wells, `+0x140` per 8 × 8
-//! block). See docs/FIRE.md.
+//! Fire: FireComponent, its work FireWork, WellComponent and the town's water sources (`Game`:
+//! shore points, wells, per 8 × 8 block). See docs/FIRE.md.
 //!
-//! A building catches fire now and then (or from a burning neighbour), is damaged for half the
-//! burn (DestroyComponent), and marks the cells around it as an emergency: citizens there drop
-//! what they do and carry buckets from the nearest water to it. Enough buckets, or the burn
-//! running out, put it out; it is left as rubble.
+//! A building catches fire now and then (or from a burning neighbour), is damaged for half the burn
+//! (DestroyComponent), and marks the cells around it as an emergency: citizens there drop what they
+//! do and carry buckets from the nearest water to it. Enough buckets, or the burn running out, put
+//! it out; it is left as rubble.
+//!
+//! Original: `FUN_1400055e0`, `FUN_14005da70`.
+// vtable 0x14015f480; vtable 0x1401676c0; vtable 0x140160fb0; Game +0xf0; +0x130; +0xe0; +0x140
 
 use banished_formats::game::FireDescription;
 
@@ -18,13 +19,15 @@ use crate::work::jobs::{Jobs, Work, WorkKind};
 
 /// `DAT_140178934`.
 const PERIOD: f32 = 300.0;
-/// The map layer counting fires over each cell (`+0x22`; total `Map +0x9c`).
+// +0x22; Map +0x9c
+/// The map layer counting fires over each cell (total `Map`).
 pub const LAYER: usize = 6;
 /// FireWork's registration mask (category 14, emergencies).
 const MASK: u32 = 0x4000;
 /// Event type 31: a building caught fire.
 const CAUGHT: i32 = 0x1f;
-/// `Game +0xd0` bit 6: fires are off (no disasters).
+// Game +0xd0
+/// `Game` bit 6: fires are off (no disasters).
 pub const NO_FIRES: u32 = 0x40;
 /// `Map::Reachable` mask of the water search.
 const WATER_MASK: u32 = 0xe07;
@@ -32,9 +35,9 @@ const WATER_MASK: u32 = 0xe07;
 const THROW: f32 = 0.75;
 const RUN: f32 = 3.5;
 
-/// FireComponent: `+0x28` buckets thrown, `+0x2c` buckets at the last spread, `+0x30` burn
-/// left (burning while above zero), `+0x38` towards the next spread, `+0x40` towards the next
-/// ignition check.
+// +0x28; +0x2c; +0x30; +0x38; +0x40
+/// FireComponent: buckets thrown, buckets at the last spread, burn left (burning while above zero),
+/// towards the next spread, towards the next ignition check.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Fire {
     pub buckets: i32,
@@ -47,19 +50,24 @@ pub struct Fire {
 /// The town's water sources.
 #[derive(Debug, Clone, Default)]
 pub struct Water {
-    /// `+0x130`: (shore cell, water cell) pairs.
+    // +0x130
+    /// (shore cell, water cell) pairs.
     pub points: Vec<(i32, i32)>,
-    /// `+0xe0`: WellComponents (a removed well leaves its slot empty).
+    // +0xe0
+    /// WellComponents (a removed well leaves its slot empty).
     pub wells: Vec<Option<usize>>,
-    /// `+0x140`: per 8 × 8 block, the point indices (wells as `-1 - i`).
+    // +0x140
+    /// Per 8 × 8 block, the point indices (wells as `-1 - i`).
     pub blocks: Vec<Vec<i32>>,
     /// Cells per map side.
     pub size: i32,
 }
 
 impl Water {
-    /// `FUN_1400a43f0`'s scan: every ground cell (type 2) next to river or lake water (types 7,
-    /// 8) is a point, with the first such neighbour by rows (`FUN_14008e050`).
+    /// Every ground cell (type 2) next to river or lake water (types 7, 8) is a point, with the
+    /// first such neighbour by rows.
+    ///
+    /// Original: `FUN_14008e050`, `FUN_1400a43f0` (scan).
     pub fn new(cells: &Cells) -> Water {
         let n = cells.size as i32;
         let b = (n >> 3).max(0) as usize;
@@ -100,7 +108,9 @@ impl Water {
         (0 <= bx && bx < b && 0 <= by && by < b).then_some((b * by + bx) as usize)
     }
 
-    /// `FUN_14008df50`.
+    /// Add a value to the map layer at a cell.
+    ///
+    /// Original: `FUN_14008df50`.
     pub fn add_entry(&mut self, x: i32, y: i32, v: i32) {
         if let Some(k) = self.block(x, y) {
             self.blocks[k].push(v);
@@ -114,7 +124,9 @@ impl Water {
         }
     }
 
-    /// `FUN_140097180`: the first empty slot, else a new one, filed under the well's map cell.
+    /// The first empty slot, else a new one, filed under the well's map cell.
+    ///
+    /// Original: `FUN_140097180`.
     pub fn add_well(&mut self, e: usize, cell: (i32, i32)) {
         let i = match self.wells.iter().position(Option::is_none) {
             Some(i) => {
@@ -129,7 +141,9 @@ impl Water {
         self.add_entry(cell.0, cell.1, -1 - i as i32);
     }
 
-    /// `FUN_140097070`.
+    /// Remove a well from the fire-fighting layer.
+    ///
+    /// Original: `FUN_140097070`.
     pub fn remove_well(&mut self, e: usize, cell: (i32, i32)) {
         if let Some(i) = self.wells.iter().position(|&w| w == Some(e)) {
             self.remove_entry(cell.0, cell.1, -1 - i as i32);
@@ -138,8 +152,10 @@ impl Water {
     }
 }
 
-/// `Citizen::HasEmergency` (`FUN_14011b0b0`): a fire's layer over the home's or the
-/// workplace's map-rectangle centre, or the citizen's own cell.
+/// A fire's layer over the home's or the workplace's map-rectangle centre, or the citizen's own
+/// cell.
+///
+/// Original: `Citizen::HasEmergency`, `FUN_14011b0b0`.
 pub fn has_emergency(
     cells: &Cells,
     placed: &[crate::nature::seeding::Placed],
@@ -173,9 +189,10 @@ impl Sim<'_, '_> {
         self.sites.get_mut(&e)?.fire.as_mut()
     }
 
-    /// FireComponent's scheduled update (`FUN_140049910`) of every building that has one:
-    /// not burning, the ignition odds (unless fires are off); burning, the spread and the
-    /// burn running out.
+    /// FireComponent's scheduled update of every building that has one: not burning, the ignition
+    /// odds (unless fires are off); burning, the spread and the burn running out.
+    ///
+    /// Original: `FUN_140049910`.
     pub fn update_fires(&mut self, jobs: &mut Jobs, visits: &[(usize, i64)]) {
         for &(e, dt) in visits {
             if !self
@@ -222,12 +239,13 @@ impl Sim<'_, '_> {
         self.rng.rand_float() < elapsed / (span * odds)
     }
 
-    /// `FireComponent::Ignite` (`FUN_140049f70`): a building neither damaged nor being torn
-    /// down is damaged for half the burn; it burns, gets its FireWork (prioritised), marks
-    /// the emergency around it and, as the first fire, posts event 31.
-    /// The particles and the fire sound follow `burn` in the app (docs/PARTICLES.md,
-    /// `Ambience::drive_entities`). (AutoSlow, settings `+0x17`, comes from the event:
-    /// `EventLog::add`.)
+    // +0x17
+    /// A building neither damaged nor being torn down is damaged for half the burn; it burns, gets
+    /// its FireWork (prioritised), marks the emergency around it and, as the first fire, posts
+    /// event 31. The particles and the fire sound follow `burn` in the app (docs/PARTICLES.md,
+    /// `Ambience::drive_entities`). (AutoSlow, settings, comes from the event: `EventLog::add`.)
+    ///
+    /// Original: `FireComponent::Ignite`, `FUN_140049f70`.
     pub fn ignite(&mut self, jobs: &mut Jobs, e: usize) {
         if self.is_damaged(e) || self.is_demolishing(e) {
             return;
@@ -276,8 +294,10 @@ impl Sim<'_, '_> {
         self.cells.layer_totals[LAYER] += delta as i16;
     }
 
-    /// `FireComponent::PutOut` (`FUN_140049e20`): it is rubble now; its work and emergency
-    /// go; the particles fade and the fire sound stops with `burn` at 0 (in the app).
+    /// It is rubble now; its work and emergency go; the particles fade and the fire sound stops
+    /// with `burn` at 0 (in the app).
+    ///
+    /// Original: `FireComponent::PutOut`, `FUN_140049e20`.
     pub fn put_out(&mut self, jobs: &mut Jobs, e: usize) {
         let Some(d) = self.fire_desc(e) else { return };
         if let Some(f) = self.fire(e) {
@@ -289,7 +309,9 @@ impl Sim<'_, '_> {
         self.mark_emergency(e, &d, -1);
     }
 
-    /// FireComponent's message slot (`FUN_1400499f0`): message 0, a bucket of water.
+    /// FireComponent's message slot: message 0, a bucket of water.
+    ///
+    /// Original: `FUN_1400499f0`.
     pub fn fire_message(&mut self, jobs: &mut Jobs, e: usize, msg: i32) {
         if msg != 0 {
             return;

@@ -1,17 +1,18 @@
-//! QuarryComponent (vtable `0x1401605b0`): the quarry's pit deepens as it is worked. See
-//! docs/QUARRY.md.
+//! Quarries and mines: the pit deepens as it is worked. See docs/QUARRY.md.
 //!
-//! - Entity event 4 (the build's end, `FUN_14010cad0`; slot `+0x60`, `FUN_140055a50`): the
-//!   pit is dug to the description's shallow floor.
-//! - Its message (slot `+0x78`, `FUN_1400554e0`), which each produced batch sends from the
-//!   ConsumeProduce sequence (`FUN_1400c4440`, the description's component type `+0x38`): the
-//!   pit is dug to `lerp(shallow, deep, produced / lifetime)`, then every cell of the map
-//!   rectangle whose terrain is steep at any of four points (normal `z < 0.85`) becomes the
-//!   quarry's (type 5, object the quarry).
+//! - Entity event 4 (the build's end): the pit is dug to the description's shallow floor.
+//! - Its message, which each produced batch sends from the ConsumeProduce sequence (the
+//!   description's component type): the pit is dug to `lerp(shallow, deep, produced / lifetime)`,
+//!   then every cell of the map rectangle whose terrain is steep at any of four points (normal `z <
+//!   0.85`) becomes the quarry's (type 5, object the quarry).
 //!
-//! `FUN_140055320` digs: every vertex of the pit's picking mesh, placed by the model's
-//! transform, sets the height under it to the vertex's height, no lower than the floor.
-//! The DecalComponent is re-added around each dig (the port's decals follow the terrain).
+//! A dig: every vertex of the pit's picking mesh, placed by the model's transform,
+//! sets the height under it to the vertex's height, no lower than the floor. The DecalComponent is
+//! re-added around each dig (the port's decals follow the terrain).
+//!
+//! Original: `QuarryComponent`: `FUN_14010cad0`, `FUN_140055a50`, `FUN_1400554e0`, `FUN_1400c4440`;
+//! the dig is `FUN_140055320`.
+// vtable 0x1401605b0; slot +0x60; slot +0x78; +0x38
 
 use std::sync::Arc;
 
@@ -21,10 +22,12 @@ use crate::terrain::{CellType, HeightGrid};
 /// A resolved `QuarryDescription`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct QuarryTemplate {
-    /// `+0x28`, `+0x2c`: the floor when built and at the end of production.
+    // +0x28, +0x2c
+    /// The floor when built and at the end of production.
     pub shallow: f32,
     pub deep: f32,
-    /// `+0x20`: the pit's picking mesh vertices (model space).
+    // +0x20
+    /// The pit's picking mesh vertices (model space).
     pub vertices: Arc<Vec<[f32; 3]>>,
 }
 
@@ -33,8 +36,9 @@ const HEIGHT_SCALE: f32 = 256.0;
 /// The cell type a steep quarry cell becomes.
 pub const QUARRY_CELL: CellType = CellType(5);
 
-/// `FUN_140055320`: the pit under the quarry `p`, no lower than `floor`. `size` is the map's
-/// cells per side.
+/// The pit under the quarry `p`, no lower than `floor`. `size` is the map's cells per side.
+///
+/// Original: `FUN_140055320`.
 pub fn dig(heights: &mut [i16], width: usize, q: &QuarryTemplate, p: &Placed, floor: f32) -> bool {
     let half = ((width - 1) >> 1) as f32;
     let model = crate::math::Transform::of_model(p.yaw, p.position);
@@ -55,7 +59,9 @@ pub fn dig(heights: &mut [i16], width: usize, q: &QuarryTemplate, p: &Placed, fl
     changed
 }
 
-/// The message's second half (`FUN_1400554e0`): the quarry's steep cells become its own.
+/// The message's second half: the quarry's steep cells become its own.
+///
+/// Original: `FUN_1400554e0`.
 pub fn claim_steep_cells(cells: &mut Cells, terrain: &HeightGrid, entity: usize, p: &Placed) {
     let n = cells.size as i32;
     let half = (n >> 1) as f32 - 0.5;

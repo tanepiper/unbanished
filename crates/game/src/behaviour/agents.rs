@@ -1,20 +1,22 @@
 //! The citizens' CharacterComponent and CitizenAIComponent run together each simulation
 //! iteration. See docs/CITIZEN-AI.md.
 //!
-//! Order per iteration: animations advance (`AnimationManager::Update`), every character runs
-//! its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run
-//! the AI with zero time (`FUN_140114810`), then the AI updates.
+//! Order per iteration: animations advance, every character runs its actions and moves, "sequence
+//! finished" messages run the AI again with zero time, then the AI updates.
 //!
 //! The citizens' scheduled components (CitizenComponent, CitizenAIComponent and the
 //! CharacterComponent's notify) run for the citizens bucket 1 visited this iteration, with the
-//! time since each one's last visit; so do the sites' StateMachines, fires, blight, hunts,
-//! attendance, residences and piles in bucket 3 (`FUN_1400c9560`, `town::Env::visits`).
+//! time since each one's last visit; so do the sites' state machines, fires, blight, hunts,
+//! attendance, residences and piles in bucket 3 (`town::Env::visits`).
 //!
 //! Deviation: these run after the bucket pass (system by system, each in visiting order)
 //! instead of interleaved with it entity by entity, so random draws can come in another order.
 //!
-//! This file holds the agents' state and setup; the rest is split by topic: [`update`] (the
-//! iteration), [`thinking`] (the AI), [`lives`], [`commands`], [`paths`] and [`views`].
+//! This file holds the agents' state and set-up; the rest is split by topic: `update` (the
+//! iteration), `thinking` (the AI), `lives`, `commands`, `paths` and `views`.
+//!
+//! Original: `AnimationManager::Update`; the entity manager's bit-`0x04` components;
+//! `FUN_140114810` (sequence finished); `FUN_1400c9560` (the buckets).
 
 mod commands;
 mod lives;
@@ -51,32 +53,47 @@ const FETCH_COOLDOWN: f32 = 75.0;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CitizenRulesAi {
     pub thresholds: Thresholds,
-    /// `+0x6c` starting health, `+0xa4` starting happiness.
+    // +0x6c; +0xa4
+    /// starting health, starting happiness.
     pub health: f32,
     pub happiness: f32,
-    /// `+0xbc`: loiter search range.
+    // +0xbc
+    /// Loiter search range.
     pub loiter_range: i32,
-    /// CitizenDescription +0x130 multiplied by 300 (FUN_140117730).
+    // +0x130
+    /// CitizenDescription multiplied by 300.
+    ///
+    /// Original: `FUN_140117730`.
     pub clothing_duration: f32,
     pub health_max: f32,
-    /// FUN_140118340: midpoint for food, quarter-point for cold status warnings.
+    /// Midpoint for food, quarter-point for cold status warnings.
+    ///
+    /// Original: `FUN_140118340`.
     pub hunger_limit: f32,
     pub cold_limit: f32,
     pub profession_allows_idle: bool,
-    /// CitizenDescription `+0x110`: the tool type CitizenUI calls "Iron" (others are "Steel").
+    // +0x110
+    /// CitizenDescription: the tool type CitizenUI calls "Iron" (others are "Steel").
     pub tool_grade: i32,
-    /// CitizenDescription `+0xfc`, `+0x100`, `+0x104`, `+0x108` (ints) and `+0x10c` (°F): the
-    /// work-distance patience of `FUN_1400fc3c0`.
+    // CitizenDescription +0xfc, +0x100, +0x104 (ints) and +0x108, +0x10c (°F); used by FUN_1400fc3c0.
+    /// The citizen description's values for how long a citizen waits before it takes far work.
     pub work_near: i32,
     pub work_far: i32,
     pub work_minutes: i32,
     pub work_ok: i32,
     pub work_cold: f32,
-    /// CitizenDescription `+0x114`: work duration factor without a tool (`FUN_1400cebf0`).
+    // +0x114
+    /// CitizenDescription: work duration factor without a tool.
+    ///
+    /// Original: `FUN_1400cebf0`.
     pub no_tool_factor: f32,
-    /// `+0x118`: the education a citizen counts as educated with.
+    // +0x118
+    /// The education a citizen counts as educated with.
     pub education: i32,
-    /// `+0xf8`: how far a firefighter looks for water (`FUN_14008d6a0`).
+    // +0xf8
+    /// How far a firefighter looks for water.
+    ///
+    /// Original: `FUN_14008d6a0`.
     pub water_distance: i32,
 }
 
@@ -89,7 +106,8 @@ pub struct CitizenState {
     pub cold: f32,
     pub sick: bool,
     pub work: Option<usize>,
-    /// StatusIconComponent +0xf0 (Citizen +0x280 points to that component).
+    // +0xf0; +0x280
+    /// StatusIconComponent (Citizen points to that component).
     pub status: u32,
     pub tool_status: i32,        // +0xa8
     pub tool_uses: i32,          // +0xac
@@ -102,52 +120,74 @@ pub struct CitizenState {
     pub job: i32,                // +0x30
     pub home: Option<usize>,     // +0x238
     pub carried: Storage,
-    /// `+0x1f0`: profession (index into the profession list).
+    // +0x1f0
+    /// Profession (index into the profession list).
     pub profession: usize,
-    /// `+0x248`: workplace entity.
+    // +0x248
+    /// Workplace entity.
     pub workplace: Option<usize>,
     /// The tool ShowTool attached (−1 none, −2 carried goods).
     pub shown_tool: i32,
-    /// `+0x240`: family slot in the home's ResidenceComponent (−1 none).
+    // +0x240
+    /// Family slot in the home's ResidenceComponent (−1 none).
     pub home_slot: i32,
-    /// `+0x4c`: pregnancy (positive, counting down) or the wait after a birth (negative).
+    // +0x4c
+    /// Pregnancy (positive, counting down) or the wait after a birth (negative).
     pub reproduction: f32,
-    /// `+0x58`, `+0x90`: time towards the next health and happiness step.
+    // +0x58, +0x90
+    /// Time towards the next health and happiness step.
     pub health_timer: i64,
     pub happiness_timer: i64,
-    /// `+0x98`: every kind of food eaten.
+    // +0x98
+    /// Every kind of food eaten.
     pub foods: Vec<usize>,
-    /// `+0x260` ring: children and other dependents, in ring order.
+    // +0x260
+    /// ring: children and other dependents, in ring order.
     pub dependents: Vec<usize>,
-    /// `+0x218`: time attending school.
+    // +0x218
+    /// Time attending school.
     pub school_time: i64,
-    /// `+0x208`: the school's AttendanceComponent entity (`Citizen::school` mirrors it).
+    // +0x208
+    /// The school's AttendanceComponent entity (`Citizen::school` mirrors it).
     pub school: Option<usize>,
-    /// `+0x228`, `+0x230`: the doctor's and the chapel's AttendanceComponent entity.
+    // +0x228, +0x230
+    /// The doctor's and the chapel's AttendanceComponent entity.
     pub doctor: Option<usize>,
     pub priest: Option<usize>,
-    /// `+0x68`: the disease (index into the disease list).
+    // +0x68
+    /// The disease (index into the disease list).
     pub disease: Option<usize>,
-    /// `+0x70`: illness left while sick, immunity left after.
+    // +0x70
+    /// Illness left while sick, immunity left after.
     pub disease_left: i64,
     pub immunity: i64,
-    /// `+0x78`: time to the next spread attempt.
+    // +0x78
+    /// Time to the next spread attempt.
     pub spread: i64,
-    /// `+0x60`: time since the last disease check.
+    // +0x60
+    /// Time since the last disease check.
     pub disease_clock: i64,
-    /// `+0x84`: the work count the happiness compares with `_workForHappiness`; never
-    /// written in 1.0.7, so 0.
+    // +0x84
+    /// The work count the happiness compares with `_workForHappiness`; never written in 1.0.7, so
+    /// 0.
     pub field_84: i32,
-    /// `+0x220`: has had a school place.
+    // +0x220
+    /// Has had a school place.
     pub schooled: bool,
-    /// `+0x1f8`: the profession whose work it had an accident at (`FUN_14011bb20`).
+    // +0x1f8
+    /// The profession whose work it had an accident at.
+    ///
+    /// Original: `FUN_14011bb20`.
     pub accident: Option<usize>,
-    /// `+0x200`: time since the last injury check.
+    // +0x200
+    /// Time since the last injury check.
     pub accident_timer: i64,
 }
 
 impl CitizenState {
-    /// A new citizen (`FUN_140119c40` and setup `FUN_140119520`).
+    /// The state of a new citizen.
+    ///
+    /// Original: `FUN_140119c40`, set-up `FUN_140119520`.
     pub fn newborn(rules: &crate::people::life::LifeRules) -> CitizenState {
         CitizenState {
             job: -1,
@@ -161,7 +201,9 @@ impl CitizenState {
 }
 
 impl CitizenState {
-    /// Port of FUN_140117730 / FUN_1401152b0 (equipment message branches).
+    /// Handle a message about equipment (a tool or clothing given, worn out or used).
+    ///
+    /// Original: the equipment branches of `FUN_140117730` and `FUN_1401152b0`.
     pub fn message(&mut self, m: Message, rules: CitizenRulesAi) {
         match m.message {
             1 => {
@@ -187,19 +229,23 @@ struct TownStock<'a> {
     sites: &'a [StorageSite],
 }
 
+/// The citizens' agents: each citizen's AI and character, and the state the iteration needs.
 pub struct Agents {
     pub characters: Vec<Character>,
     pub ais: Vec<CitizenAi>,
     pub states: Vec<CitizenState>,
     /// The CitizenDescription for the CitizenComponent's update.
     pub life: crate::people::life::LifeRules,
-    /// Town manager `+0xa0`: living citizens in activation order.
+    // +0xa0
+    /// Town manager: living citizens in activation order.
     pub registry: Vec<usize>,
     /// Log entries the citizens asked for since the caller last took them.
     pub events: Vec<crate::people::life::LifeEvent>,
-    /// `Game/Disease/Diseases.rsc` (`GameGlobal +0xa8`).
+    // GameGlobal +0xa8
+    /// `Game/Disease/Diseases.rsc` (`GameGlobal`).
     pub diseases: Vec<banished_formats::game::Disease>,
-    /// Town manager `+0x1a8`.
+    // +0x1a8
+    /// Town manager.
     pub town_disease: f32,
     /// The character description new citizens get.
     desc: CharacterDescription,
@@ -207,7 +253,8 @@ pub struct Agents {
     carried: Storage,
     /// Citizens queued for deletion this iteration (`FUN_14011c2a0`), with the reason.
     dying: Vec<(usize, i32)>,
-    /// The laborer profession's `+0x50` (what home stocking carries at least).
+    // +0x50
+    /// The laborer profession's (what home stocking carries at least).
     pub carry: i32,
     sectors: SectorGraph,
     pathfinder: Pathfinder,
@@ -221,6 +268,7 @@ pub struct Agents {
 }
 
 impl Agents {
+    /// New agents with no citizens.
     pub fn new(
         citizens: &[Citizen],
         cells: &Cells,
@@ -276,6 +324,7 @@ impl Agents {
         }
     }
 
+    /// The AI's rules, from the citizen description.
     pub fn rules(&self) -> CitizenRulesAi {
         self.rules
     }

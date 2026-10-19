@@ -1,17 +1,19 @@
-//! Demolition, damage and rubble: DestroyComponent (vtable `0x140169500`, factory
-//! `FUN_140034520`, states `FUN_1401231d0`). See docs/JOBS.md "Demolition".
+//! Demolition, damage and rubble: DestroyComponent. See docs/JOBS.md "Demolition".
 //!
 //! - 3: the work and status icons go; a damaged building goes on to 6, else to 4 with the
 //!   BuildDestroy icon;
-//! - 4: the building becomes a site again; a finished one with goods has them carried out
-//!   first (ClearStorage), then 5;
-//! - 5: builders take a started building down (a BuildStructure work with the destroy flag,
-//!   half its construction work); then it is gone, leaving part of its materials in piles,
-//!   or what replaces it;
+//! - 4: the building becomes a site again; a finished one with goods has them carried out first
+//!   (ClearStorage), then 5;
+//! - 5: builders take a started building down (a BuildStructure work with the destroy flag, half
+//!   its construction work); then it is gone, leaving part of its materials in piles, or what
+//!   replaces it;
 //! - 6: damaged (burning): the goods are lost; it collapses when its time runs out;
 //! - 7: rubble, to rebuild (message 0) or clear (message 1).
 //!
 //! Message 0 in 4 and 5 cancels the demolition.
+//!
+//! Original: `FUN_140034520`, `FUN_1401231d0`.
+// vtable 0x140169500
 
 use crate::town::{Sim, CONSTRUCTION_MASK};
 use crate::work::construction::{run, BuildWork, Callbacks, Controller};
@@ -21,19 +23,26 @@ use crate::work::professions::icon;
 /// A resolved [`banished_formats::game::DestroyDescription`].
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct DestroyTemplate {
-    /// `+0x20`: what is left in the building's place (a placed-object template).
+    // +0x20
+    /// What is left in the building's place (a placed-object template).
     pub replace: Option<usize>,
-    /// `+0x28`: the ModelComponent's material set once damaged (`FUN_14012a4f0`).
+    // +0x28
+    /// The ModelComponent's material set once damaged.
+    ///
+    /// Original: `FUN_14012a4f0`.
     pub material: i32,
-    /// `+0x2c`: the decal's material while damaged.
+    // +0x2c
+    /// The decal's material while damaged.
     pub decal: i32,
-    /// `+0x30`: the lowest construction mesh a collapse steps down to.
+    // +0x30
+    /// The lowest construction mesh a collapse steps down to.
     pub min_mesh: i32,
 }
 
-/// DestroyComponent (0x68 bytes): `+0x48` the damage time left, `+0x50` damaged, `+0x51` its
-/// materials come back, `+0x54` deconstruction work done, `+0x58` the work it needs, `+0x60`
-/// what to put in its place (setup `FUN_140122fd0`: the description's `+0x20`).
+// +0x48; +0x50; +0x51; +0x54; +0x58; +0x60; +0x20
+// 0x68 bytes; set up by FUN_140122fd0 from the description.
+/// The demolition state of a building: the damage time left, whether it is damaged, whether its
+/// materials come back, the demolition work done and needed, and what to put in its place.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Destroy {
     pub time: i64,
@@ -42,12 +51,14 @@ pub struct Destroy {
     pub count: i32,
     pub target: i32,
     pub rebuild: Option<usize>,
-    /// The model shows the description's damaged material set (`+0x28`, set by the damage
-    /// with time left and by every collapse).
+    // +0x28
+    /// The model shows the description's damaged material set (set by the damage with time left and
+    /// by every collapse).
     pub damaged_look: bool,
 }
 
 impl Destroy {
+    /// The demolition state of a new building.
     pub fn new(t: &DestroyTemplate) -> Destroy {
         Destroy {
             rebuild: t.replace,
@@ -56,8 +67,10 @@ impl Destroy {
     }
 }
 
-/// An entity put in a torn-down building's place: its template over the same map rectangle,
-/// turned as it was, with its model's position and variant (`FUN_1401215f0`).
+/// An entity put in a torn-down building's place: its template over the same map rectangle, turned
+/// as it was, with its model's position and variant.
+///
+/// Original: `FUN_1401215f0`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rebuild {
     pub template: usize,
@@ -88,12 +101,16 @@ impl Sim<'_, '_> {
         })
     }
 
-    /// `FUN_140123b60`: damaged (6) or rubble (7).
+    /// Damaged (6) or rubble (7).
+    ///
+    /// Original: `FUN_140123b60`.
     pub fn is_damaged(&self, e: usize) -> bool {
         matches!(self.shown_state(e), 6 | 7)
     }
 
-    /// `FUN_140123be0`: being torn down (3 to 5).
+    /// Being torn down (3 to 5).
+    ///
+    /// Original: `FUN_140123be0`.
     pub fn is_demolishing(&self, e: usize) -> bool {
         matches!(self.shown_state(e), 3..=5)
     }
@@ -113,8 +130,10 @@ impl Sim<'_, '_> {
             .contains(&Controller::Build)
     }
 
-    /// `FUN_140123470`: Remove Buildings and the demolish button. Damaged or rubble: clear it
-    /// (message 1); else the machine runs what is pending, then goes to 3.
+    /// Remove Buildings and the demolish button. Damaged or rubble: clear it (message 1); else the
+    /// machine runs what is pending, then goes to 3.
+    ///
+    /// Original: `FUN_140123470`.
     pub fn demolish(&mut self, jobs: &mut Jobs, e: usize) {
         if self.destroy_state(e).is_none() {
             return;
@@ -128,8 +147,9 @@ impl Sim<'_, '_> {
         run(self, jobs, e, false, false);
     }
 
-    /// UpgradeUI's button (`FUN_14008c160`): the replacement is `template`, and the building
-    /// is torn down (`FUN_140123470`).
+    /// UpgradeUI's button: the replacement is `template`, and the building is torn down.
+    ///
+    /// Original: `FUN_14008c160`, `FUN_140123470`.
     pub fn upgrade(&mut self, jobs: &mut Jobs, e: usize, template: usize) {
         let Some(d) = self.destroy_state(e) else {
             return;
@@ -138,8 +158,11 @@ impl Sim<'_, '_> {
         self.demolish(jobs, e);
     }
 
-    /// `FUN_1401238d0`: DestroyUI's cancel (`0x1771`): message 0, and the replacement goes back
-    /// to the description's (slot `+0x20`).
+    // slot +0x20
+    /// DestroyUI's cancel (`0x1771`): message 0, and the replacement goes back to the
+    /// description's.
+    ///
+    /// Original: `FUN_1401238d0`.
     pub fn cancel_demolition(&mut self, jobs: &mut Jobs, e: usize) {
         self.destroy_message(jobs, e, 0);
         let site = &self.sites[&e];
@@ -151,8 +174,10 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// `FUN_140123c80`: damage for `time` (fire, the tornado). A building not started yet
-    /// takes none; else it goes to 3 (then 6).
+    /// Damage for `time` (fire, the tornado). A building not started yet takes none; else it goes
+    /// to 3 (then 6).
+    ///
+    /// Original: `FUN_140123c80`.
     pub fn damage(&mut self, jobs: &mut Jobs, e: usize, time: i64) -> bool {
         if self.destroy_state(e).is_none() {
             return false;
@@ -171,7 +196,9 @@ impl Sim<'_, '_> {
         true
     }
 
-    /// `FUN_140123ee0`: straight to rubble.
+    /// Straight to rubble.
+    ///
+    /// Original: `FUN_140123ee0`.
     pub fn to_rubble(&mut self, jobs: &mut Jobs, e: usize) {
         if self.machine(e).index < 0 {
             run(self, jobs, e, false, false);
@@ -180,8 +207,8 @@ impl Sim<'_, '_> {
         run(self, jobs, e, false, false);
     }
 
-    /// The StateMachine's message slot (`+0x10`) for the Destroy states: the current state's
-    /// handler.
+    // +0x10
+    /// The StateMachine's message slot for the Destroy states: the current state's handler.
     pub fn destroy_message(&mut self, jobs: &mut Jobs, e: usize, msg: i32) {
         if self.destroy_state(e).is_none() || self.machine(e).index < 0 {
             return;

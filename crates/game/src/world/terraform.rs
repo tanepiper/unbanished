@@ -1,11 +1,14 @@
-//! TerraformComponent (vtable `0x1401609a0`, TerraformDescription): a tunnel reshapes the
-//! terrain when it is built. Entity event 4 (the build is done; a MultiObject passes it to its
-//! parts) runs slot `+0x60` (`FUN_140057c70`): the ceiling mesh's vertices raise the terrain
-//! where it is below them, keeping what was there (`FUN_1400574b0(1)`); the floor mesh's lower
-//! it where it is above them (`FUN_1400574b0(0)`); then rough cells (10) under the
-//! MapComponent become high ground (6) (`FUN_140057a80`). Removed (slot `+0x38`,
-//! `FUN_140057cb0`), the raised heights are put back and those cells become rough again; the
-//! dug floor stays. See docs/TUNNELS.md.
+//! Terraforming: a tunnel reshapes the terrain when it is built. See docs/TUNNELS.md.
+//!
+//! When the build is done (entity event 4; a multi-object passes it to its parts), the vertices
+//! of the ceiling mesh raise the terrain where it is below them, keeping what was there, and the
+//! vertices of the floor mesh lower it where it is above them. Then the rough cells (10) under
+//! the building become high ground (6). When the tunnel is removed, the raised heights are put
+//! back and those cells become rough again; the dug floor stays.
+//!
+//! Original: `TerraformComponent` (vtable `0x1401609a0`): `FUN_140057c70` (built, slot `+0x60`),
+//! `FUN_1400574b0` (ceiling and floor), `FUN_140057a80` (cell types), `FUN_140057cb0` (removed,
+//! slot `+0x38`).
 //!
 //! Deviation: the heights belong to the terrain outside the simulation, so the town queues the
 //! dig and the game applies it after the iteration (`StartingTown::apply_terraforms`), not
@@ -25,7 +28,8 @@ pub struct TerraformTemplate {
     pub ceiling_mask: u32,
 }
 
-/// The component's `+0x28` raised points (where the ground was) and `+0x38` cells turned high.
+// +0x28; +0x38
+/// The component's raised points (where the ground was) and cells turned high.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TerraformState {
     pub raised: Vec<[f32; 3]>,
@@ -56,10 +60,13 @@ fn cell_type(cells: &Cells, x: f32, y: f32) -> u8 {
     cells.types[(cy * n + cx) as usize].0
 }
 
-/// `FUN_1400574b0(ceiling)`: each vertex through the model's transform (yaw, position) and a
-/// quarter cell on; where the cells at it, one west, one south-west and (again) one west are
-/// all of the mask's types, and the vertex is above (ceiling) or below (floor) the ground, the
-/// height sample under it takes the vertex's height. A ceiling keeps the ground it raised.
+/// Move the ground to a mesh: each vertex goes through the model's transform (yaw, position) and
+/// a quarter cell further. Where the cells at it, one to the west, one to the south-west and
+/// (again) one to the west are all of the mask's types, and the vertex is above (`ceiling`) or
+/// below (floor) the ground, the height sample under it takes the vertex's height. A ceiling keeps
+/// the ground it raised.
+///
+/// Original: `FUN_1400574b0(ceiling)`.
 #[allow(clippy::too_many_arguments)]
 pub fn reshape(
     cells: &Cells,
@@ -115,7 +122,9 @@ pub fn reshape(
     changed
 }
 
-/// `FUN_140057a80`: rough cells (10) of the rectangle become high ground (6), kept.
+/// Rough cells (10) of the rectangle become high ground (6), kept.
+///
+/// Original: `FUN_140057a80`.
 pub fn harden(cells: &mut Cells, rect: (i32, i32, i32, i32), kept: &mut Vec<i32>) {
     let n = cells.size as i32;
     let (x0, y0, w, h) = rect;
@@ -130,7 +139,9 @@ pub fn harden(cells: &mut Cells, rect: (i32, i32, i32, i32), kept: &mut Vec<i32>
     }
 }
 
-/// `FUN_140057cb0`: the raised samples get their ground back and the kept cells become rough.
+/// The raised samples get their ground back and the kept cells become rough.
+///
+/// Original: `FUN_140057cb0`.
 pub fn undo(cells: &mut Cells, heights: &mut [i16], width: usize, state: &TerraformState) -> bool {
     let half = (width as i32 >> 1) as f32;
     for p in &state.raised {
@@ -145,9 +156,11 @@ pub fn undo(cells: &mut Cells, heights: &mut [i16], width: usize, state: &Terraf
     !state.raised.is_empty()
 }
 
-/// `FUN_1400a35b0`: each cell of the inclusive rectangle `x0, y0, x1, y1` sets its low
-/// corner's height to 0 (the ground point of the cell's middle, in the height grid). `cells`
-/// is the map's cells per side; the height grid is `width − 1` cells, the map in its middle.
+/// Each cell of the inclusive rectangle `x0, y0, x1, y1` sets its low corner's height to 0 (the
+/// ground point of the cell's middle, in the height grid). `cells` is the map's cells per side; the
+/// height grid is `width − 1` cells, the map in its middle.
+///
+/// Original: `FUN_1400a35b0`.
 pub fn flatten(heights: &mut [i16], width: usize, cells: usize, rect: [i32; 4]) -> bool {
     let off = ((width as i32 - 1) - cells as i32) >> 1;
     let [x0, y0, x1, y1] = rect;

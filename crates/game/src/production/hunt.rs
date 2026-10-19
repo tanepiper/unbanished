@@ -1,10 +1,13 @@
-//! HuntComponent (vtable `0x140169ba0`, the hunter's lodge) and its work (vtable
-//! `0x140167a40`, made by slot `+0x90` `FUN_140127b70`). See docs/JOBS.md "Hunters".
+//! The hunter's lodge and its work. See docs/JOBS.md, "Hunters".
 //!
-//! The lodge gathers hunting time while it is staffed (`FUN_140127c10`). A hunter walks to a
-//! random empty cell in the radius, or waits there, with a `HuntAnimal` watching. Once the
-//! lodge has gathered enough time, a hunter who comes within 8 of a wild animal goes to it and
-//! takes it (`FUN_1400cd2b0` → `FUN_1400c1370`): its meat and hide are left where it fell.
+//! The lodge gathers hunting time while it is staffed. A hunter walks to a random empty cell in the
+//! radius, or waits there, with a `HuntAnimal` watching. Once the lodge has gathered enough time, a
+//! hunter who comes within 8 of a wild animal goes to it and takes it: its meat and hide are left
+//! where it fell.
+//!
+//! Original: `HuntComponent`; `FUN_140127c10`, `FUN_1400cd2b0`, `FUN_1400c1370`; the work is made
+//! by slot `FUN_140127b70`.
+// vtable 0x140169ba0; vtable 0x140167a40; +0x90
 
 use crate::behaviour::character::{Action, MoveTo};
 use crate::pathfind::WALKABLE;
@@ -30,8 +33,10 @@ impl Sim<'_, '_> {
         )
     }
 
-    /// HuntComponent's scheduled update (`FUN_140127c10`): the hunting time grows by the
-    /// elapsed time times the workers over the most allowed.
+    /// HuntComponent's scheduled update: the hunting time grows by the elapsed time times the
+    /// workers over the most allowed.
+    ///
+    /// Original: `FUN_140127c10`.
     pub fn update_hunts(&mut self, visits: &[(usize, i64)]) {
         for &(e, dt) in visits {
             if !self.sites.get(&e).is_some_and(|s| s.hunt_time.is_some()) {

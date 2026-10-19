@@ -1,12 +1,15 @@
-//! Workplace production: ResourceProduceComponent's states (`FUN_140130700`) and the
-//! `ConsumeProduce` work (vtable `0x140167640`) of ConsumeProduceComponent: the wood cutter,
-//! blacksmith, tailor, tavern, quarry and mine. See docs/JOBS.md "Production".
+//! Workplace production: ResourceProduceComponent's states and the `ConsumeProduce` work of
+//! ConsumeProduceComponent: the wood cutter, blacksmith, tailor, tavern, quarry and mine. See
+//! docs/JOBS.md "Production".
 //!
-//! A worker of the workplace's profession takes the work at a free "use" point. In order it
-//! hauls goods the current recipe does not use out of the building, fetches missing inputs,
-//! hauls the workplace's own output piles away while its "create" points are full, and
-//! otherwise works one cycle at its use point. Every `cycles` completed cycles the next cycle
-//! also consumes the inputs and leaves the output as a pile on a free create point.
+//! A worker of the workplace's profession takes the work at a free "use" point. In order it hauls
+//! goods the current recipe does not use out of the building, fetches missing inputs, hauls the
+//! workplace's own output piles away while its "create" points are full, and otherwise works one
+//! cycle at its use point. Every `cycles` completed cycles the next cycle also consumes the inputs
+//! and leaves the output as a pile on a free create point.
+//!
+//! Original: `FUN_140130700`.
+// vtable 0x140167640
 
 use crate::behaviour::character::{Action, MoveTo};
 use crate::pathfind::WALKABLE;
@@ -14,7 +17,9 @@ use crate::town::{Haul, Sim};
 use crate::work::construction::{ProduceWork, Recipe};
 use crate::work::jobs::{Jobs, Work, WorkKind};
 
-/// `FUN_14008e460`: the stock-manager slot a raw material counts towards (production limits).
+/// The stock-manager slot a raw material counts towards (production limits).
+///
+/// Original: `FUN_14008e460`.
 pub fn production_group(flags: u32) -> Option<usize> {
     const ORDER: [(u32, usize); 21] = [
         (10, 0),

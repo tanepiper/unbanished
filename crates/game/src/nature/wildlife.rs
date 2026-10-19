@@ -1,18 +1,19 @@
-//! Wild animals: PopulationComponent (vtable `0x1401604b0`), HerdComponent (`0x140169ab0`),
-//! AnimalComponent (`0x140168530`) and WildAnimalComponent (`0x14016af20`). See
+//! Wild animals: PopulationComponent, HerdComponent, AnimalComponent and WildAnimalComponent. See
 //! docs/WILDLIFE-POPULATION.md.
 //!
-//! A population divides the map into cells of `cell` map cells. Each cell holds a
-//! capacity, set by its habitat, and a count that regrows and spreads every 300 s. The map is
-//! also divided into herd blocks. Each block starts one herd of `min..max` animals on a random
-//! habitable cell of the block. A herd rests for a while, then moves to another habitable
-//! cell of its block, and regrows from time to time. Its animals wander within an area around
-//! their home, idle, grow up and die of old age.
+//! A population divides the map into cells of `cell` map cells. Each cell holds a capacity, set by
+//! its habitat, and a count that regrows and spreads every 300 s. The map is also divided into herd
+//! blocks. Each block starts one herd of `min..max` animals on a random habitable cell of the
+//! block. A herd rests for a while, then moves to another habitable cell of its block, and regrows
+//! from time to time. Its animals wander within an area around their home, idle, grow up and die of
+//! old age.
 //!
-//! Livestock (LivestockComponent, vtable `0x140169fb0`) are animals too. Until a pasture of
-//! their kind takes them they roam like wild ones and wait in the town's list (`+0x80`); in a
-//! pasture they keep to its area, a breeding male has young, and products gather. See
-//! docs/FARMING.md "Pastures".
+//! Livestock (LivestockComponent) are animals too. Until a pasture of their kind takes them they
+//! roam like wild ones and wait in the town's list; in a pasture they keep to its area, a breeding
+//! male has young, and products gather. See docs/FARMING.md "Pastures".
+//!
+//! Original: `0x140169ab0`, `0x140168530`, `0x14016af20`.
+// vtable 0x1401604b0; vtable 0x140169fb0; +0x80
 
 use std::collections::BTreeMap;
 
@@ -28,15 +29,25 @@ use crate::random::Random;
 use crate::scheduler::{seconds, ticks, EntityScheduler};
 use crate::terrain::{CellType, HeightGrid};
 
-/// AnimalComponent `+0x20` flag: a hunter has it (`FUN_14010c730`).
+// +0x20
+/// AnimalComponent flag: a hunter has it.
+///
+/// Original: `FUN_14010c730`.
 pub const HUNTED: u32 = 0x100000;
-/// AnimalComponent `+0x20` flag: wild (`FUN_14010c8d0`).
+// +0x20
+/// AnimalComponent flag: wild.
+///
+/// Original: `FUN_14010c8d0`.
 pub const WILD: u32 = 0x400000;
-/// AnimalComponent `+0x20` flag: young are due (`FUN_14010b8f0`); the pasture's update has
-/// them born (`FUN_14012c840`).
+// +0x20
+/// AnimalComponent flag: young are due; the pasture's update has them born.
+///
+/// Original: `FUN_14010b8f0`, `FUN_14012c840`.
 pub const BIRTH: u32 = 0x200000;
-/// AnimalComponent `+0x20` flag: may breed (a rancher's visit marks a random animal of the
-/// pasture, `FUN_14012cbf0`).
+// +0x20
+/// AnimalComponent flag: may breed (a rancher's visit marks a random animal of the pasture).
+///
+/// Original: `FUN_14012cbf0`.
 pub const BREEDER: u32 = 0x800000;
 /// The animal walk mask (`3999`).
 const ANIMAL_WALK: u32 = 0xf9f;
@@ -51,12 +62,14 @@ pub struct PopulationKind {
     pub herd: Option<usize>,
 }
 
+/// The settings of a kind of herd.
 #[derive(Debug, Clone)]
 pub struct HerdKind {
     pub desc: HerdDescription,
     pub animal: usize,
 }
 
+/// The settings of a kind of animal.
 #[derive(Debug, Clone)]
 pub struct AnimalKind {
     pub desc: AnimalDescription,
@@ -74,16 +87,18 @@ pub struct LivestockKind {
     pub group: i32,
 }
 
-/// LivestockComponent: `+0x28` the pasture (entity), `+0x30` towards the next product.
+// +0x28; +0x30
+/// LivestockComponent: the pasture (entity), towards the next product.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Livestock {
     pub pasture: Option<usize>,
     pub timer: i64,
 }
 
-/// PastureComponent's livestock side: `+0x28` the kind (animal template), `+0x30` its animals
-/// in joining order, `+0x40` the most it keeps (the window's slider), `+0x44` products
-/// gathered; with the MapComponent's area (x, y, width, height).
+// +0x28; +0x30; +0x40; +0x44
+/// PastureComponent's livestock side: the kind (animal template), its animals in joining order, the
+/// most it keeps (the window's slider), products gathered; with the MapComponent's area (x, y,
+/// width, height).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Pasture {
     pub kind: Option<usize>,
@@ -98,15 +113,20 @@ pub struct Pasture {
 pub struct Population {
     pub entity: usize,
     pub template: usize,
-    /// `+0x30`: cells per row.
+    // +0x30
+    /// Cells per row.
     pub width: i32,
-    /// `+0x38`: capacity, count and next count per cell.
+    // +0x38
+    /// Capacity, count and next count per cell.
     pub cells: Vec<[i32; 3]>,
-    /// `+0x48`: herd blocks per row.
+    // +0x48
+    /// Herd blocks per row.
     pub herd_width: i32,
-    /// `+0x60`: towards the next 300 s step.
+    // +0x60
+    /// Towards the next 300 s step.
     pub clock: i64,
-    /// `+0x68`: the next cell to recount.
+    // +0x68
+    /// The next cell to recount.
     pub cursor: i32,
 }
 
@@ -115,17 +135,23 @@ pub struct Population {
 pub struct Herd {
     pub entity: usize,
     pub template: usize,
-    /// `+0x28`, `+0x30`: the population and the herd's block.
+    // +0x28, +0x30
+    /// The population and the herd's block.
     pub population: usize,
     pub index: i32,
-    /// `+0x38`: the animals (entities), in joining order.
+    // +0x38
+    /// The animals (entities), in joining order.
     pub animals: Vec<usize>,
-    /// `+0x48`: moving to the target (else resting).
+    // +0x48
+    /// Moving to the target (else resting).
     pub moving: bool,
-    /// `+0x4c`: the target map cell (−1 none).
+    // +0x4c
+    /// The target map cell (−1 none).
     pub target: i32,
-    /// `+0x50`: rest left; `+0x58`: towards the next regrowth.
+    // +0x50; +0x58
+    /// The rest time left.
     pub rest: i64,
+    /// The time towards the next regrowth.
     pub regrow: i64,
 }
 
@@ -133,31 +159,43 @@ pub struct Herd {
 pub struct Animal {
     pub template: usize,
     pub character: Character,
-    /// WildAnimalComponent `+0x28`: the herd (index into [`Wildlife::herds`]).
+    // +0x28
+    /// WildAnimalComponent: the herd (index into [`Wildlife::herds`]).
     pub herd: Option<usize>,
-    /// Component `+0x20` flags ([`HUNTED`], [`WILD`]).
+    // +0x20
+    /// Component flags ([`HUNTED`], [`WILD`]).
     pub flags: u32,
-    /// `+0x28`: the home cell.
+    // +0x28
+    /// The home cell.
     pub home: i32,
-    /// `+0x30`: until the next decision.
+    // +0x30
+    /// Until the next decision.
     pub timer: i64,
-    /// `+0x38..+0x3e`: the area it keeps to (x, y, width, height).
+    // +0x38..+0x3e
+    /// The area it keeps to (x, y, width, height).
     pub area: [i16; 4],
-    /// `+0x40`: male (the second mesh, antlers).
+    // +0x40
+    /// Male (the second mesh, antlers).
     pub male: bool,
-    /// `+0x44`, `+0x48`: age and lifespan (years).
+    // +0x44, +0x48
+    /// Age and lifespan (years).
     pub age: f32,
     pub life: f32,
-    /// `+0x50`: until a breeding male's young (livestock only).
+    // +0x50
+    /// Until a breeding male's young (livestock only).
     pub breed: i64,
     /// LivestockComponent.
     pub livestock: Option<Livestock>,
     /// The model variant and mesh.
     pub variant: usize,
     pub mesh: usize,
-    /// Model scale (`FUN_14010c7f0`).
+    /// Model scale.
+    ///
+    /// Original: `FUN_14010c7f0`.
     pub scale: f32,
-    /// Queued for removal (`FUN_1400c8370`, entity flag `0x400`).
+    /// Queued for removal (entity flag `0x400`).
+    ///
+    /// Original: `FUN_1400c8370`.
     pub dying: bool,
 }
 
@@ -172,7 +210,8 @@ enum Kind {
 /// The wildlife of a town.
 #[derive(Default)]
 pub struct Wildlife {
-    /// The characters' spatial tree (`Game +0x88`): citizens, animals, boats and nomads.
+    // Game +0x88
+    /// The characters' spatial tree (`Game`): citizens, animals, boats and nomads.
     pub tree: crate::behaviour::character_tree::CharacterTree,
     pub populations: Vec<Population>,
     pub herds: Vec<Herd>,
@@ -189,9 +228,11 @@ pub struct Wildlife {
     kinds: BTreeMap<usize, Kind>,
     /// LivestockDescriptions by animal template.
     pub livestock_kinds: BTreeMap<usize, LivestockKind>,
-    /// The town's livestock without a pasture (`+0x80`), in order.
+    // +0x80
+    /// The town's livestock without a pasture, in order.
     pub unassigned: Vec<usize>,
-    /// PastureComponents by entity, and the town's list of them (`+0x90`).
+    // +0x90
+    /// PastureComponents by entity, and the town's list of them.
     pub pastures: BTreeMap<usize, Pasture>,
     pub pasture_list: Vec<usize>,
     /// Nomads by entity, and their kinds by template.
@@ -342,7 +383,9 @@ impl Population {
 }
 
 impl Wildlife {
-    /// A saved PopulationComponent (`FUN_140054e00`); returns its index.
+    /// A saved PopulationComponent; returns its index.
+    ///
+    /// Original: `FUN_140054e00`.
     pub fn restore_population(&mut self, p: Population) -> usize {
         let index = self.populations.len();
         self.kinds.insert(p.entity, Kind::Population(index));
@@ -350,7 +393,9 @@ impl Wildlife {
         index
     }
 
-    /// A saved HerdComponent (`FUN_140127460`); returns its index.
+    /// A saved HerdComponent; returns its index.
+    ///
+    /// Original: `FUN_140127460`.
     pub fn restore_herd(&mut self, h: Herd) -> usize {
         let index = self.herds.len();
         self.kinds.insert(h.entity, Kind::Herd(index));
@@ -358,15 +403,19 @@ impl Wildlife {
         index
     }
 
-    /// A saved animal (AnimalComponent `FUN_14010c310`, WildAnimalComponent, its character
-    /// and a LivestockComponent).
+    /// Restore an animal from a save: its animal component, its wild animal component, its
+    /// character and its livestock component.
+    ///
+    /// Original: `FUN_14010c310` (the animal component).
     pub fn restore_animal(&mut self, entity: usize, a: Animal) {
         self.kinds.insert(entity, Kind::Animal);
         self.animals.insert(entity, a);
     }
 
-    /// `FUN_1400c8370` on an animal (RemoveAnimal's start, old age, a herd without habitat):
-    /// queued for removal; it leaves its herd (WildAnimalComponent's removal slot).
+    /// An animal dies (killed by a hunter, of old age, or in a herd without a habitat): it is
+    /// queued for removal and leaves its herd.
+    ///
+    /// Original: `FUN_1400c8370` on the animal.
     pub fn kill(&mut self, a: usize) {
         let Some(animal) = self.animals.get_mut(&a) else {
             return;
@@ -392,8 +441,10 @@ impl Wildlife {
         self.dying.push(a);
     }
 
-    /// `FUN_14012da40`: the animals a pasture has room for, its area over the kind's space
-    /// per animal (none without a kind).
+    /// The animals a pasture has room for, its area over the kind's space per animal (none without
+    /// a kind).
+    ///
+    /// Original: `FUN_14012da40`.
     pub fn capacity(&self, p: usize) -> i32 {
         let Some(pasture) = self.pastures.get(&p) else {
             return 0;
@@ -465,8 +516,9 @@ impl Wild<'_, '_> {
         id
     }
 
-    /// `FUN_1400a5eb0` for one MapGenerator population: the entity, then its setup
-    /// (`FUN_140054b80`) with its herds.
+    /// Start one population of a new town: its entity, then its herds.
+    ///
+    /// Original: `FUN_140054b80`, called by `FUN_1400a5eb0`.
     pub fn start_population(&mut self, template: usize) {
         let Some(kind) = self.wildlife.population_kinds.get(&template).cloned() else {
             return;
@@ -539,8 +591,10 @@ impl Wild<'_, '_> {
         [x0 as i16, y0 as i16, w as i16, h as i16]
     }
 
-    /// `FUN_140127810`: a new target in the herd's block; every animal keeps to the area
-    /// around it. Without habitat the herd's animals are removed.
+    /// A new target in the herd's block; every animal keeps to the area around it. Without habitat
+    /// the herd's animals are removed.
+    ///
+    /// Original: `FUN_140127810`.
     pub fn retarget(&mut self, h: usize) {
         let (p, index, template) = {
             let herd = &self.wildlife.herds[h];
@@ -889,7 +943,9 @@ impl Wild<'_, '_> {
         })
     }
 
-    /// `FUN_14010b8f0`: AnimalComponent's scheduled update.
+    /// AnimalComponent's scheduled update.
+    ///
+    /// Original: `FUN_14010b8f0`.
     pub fn update_animal(&mut self, a: usize, dt: i64) {
         let Some(animal) = self.wildlife.animals.get_mut(&a) else {
             return;
@@ -1010,7 +1066,9 @@ impl Wild<'_, '_> {
         ch.stack = stack;
     }
 
-    /// `FUN_14010c730`: a hunter has the animal: it stops what it does and stands.
+    /// A hunter has the animal: it stops what it does and stands.
+    ///
+    /// Original: `FUN_14010c730`.
     pub fn hunted(&mut self, a: usize) {
         let Some(animal) = self.wildlife.animals.get_mut(&a) else {
             return;
@@ -1103,8 +1161,10 @@ impl Wild<'_, '_> {
         }
     }
 
-    /// `FUN_140129190`: the animal joins pasture `to` (or the town's list) and leaves its old
-    /// one; leaving a pasture it turns wild, joining one it keeps to its area.
+    /// The animal joins pasture `to` (or the town's list) and leaves its old one; leaving a pasture
+    /// it turns wild, joining one it keeps to its area.
+    ///
+    /// Original: `FUN_140129190`.
     pub fn assign(&mut self, a: usize, to: Option<usize>) {
         let Some(l) = self.wildlife.animals.get(&a).and_then(|x| x.livestock) else {
             return;
@@ -1175,8 +1235,10 @@ impl Wild<'_, '_> {
         animal.area = area;
     }
 
-    /// `FUN_14012c610`: a pasture with room takes the waiting livestock of its kind, in the
-    /// town list's order, until full.
+    /// A pasture with room takes the waiting livestock of its kind, in the town list's order, until
+    /// full.
+    ///
+    /// Original: `FUN_14012c610`.
     pub fn fill(&mut self, p: usize) {
         if self.wildlife.unassigned.is_empty() {
             return;
@@ -1204,9 +1266,11 @@ impl Wild<'_, '_> {
         }
     }
 
-    /// `FUN_14012c840`: each animal with young due has them, while the pasture holds fewer
-    /// than three over its room (the animals born join the end of the list and are seen too).
-    /// Born animals are registered by the caller.
+    /// Each animal with young due has them, while the pasture holds fewer than three over its room
+    /// (the animals born join the end of the list and are seen too). Born animals are registered by
+    /// the caller.
+    ///
+    /// Original: `FUN_14012c840`.
     pub fn births(&mut self, p: usize) -> Vec<usize> {
         let cap = self.wildlife.capacity(p);
         let mut born = Vec::new();
@@ -1230,9 +1294,11 @@ impl Wild<'_, '_> {
         born
     }
 
-    /// `FUN_14012db40`: a young animal of the pasture's kind next to its parent (or anywhere in
-    /// the pasture, any age under a year, without one); male more likely the more females there
-    /// are. With `buckets` it joins the entity manager's buckets here, else the caller's.
+    /// A young animal of the pasture's kind next to its parent (or anywhere in the pasture, any age
+    /// under a year, without one); male more likely the more females there are. With `buckets` it
+    /// joins the entity manager's buckets here, else the caller's.
+    ///
+    /// Original: `FUN_14012db40`.
     pub fn give_birth(&mut self, p: usize, parent: Option<usize>, buckets: bool) -> Option<usize> {
         let pasture = self.wildlife.pastures.get(&p)?;
         let kind = pasture.kind?;
@@ -1281,9 +1347,11 @@ impl Wild<'_, '_> {
         Some(a)
     }
 
-    /// `FUN_1400a5fe0`: the starting livestock of a kind, `count` animals around `at` (`spread`
-    /// either way), males and females in turn from a random first; any age under a year. They
-    /// wait, wild, for a pasture.
+    /// The starting livestock of a kind, `count` animals around `at` (`spread` either way), males
+    /// and females in turn from a random first; any age under a year. They wait, wild, for a
+    /// pasture.
+    ///
+    /// Original: `FUN_1400a5fe0`.
     pub fn start_livestock(&mut self, template: usize, count: i32, at: [f32; 3], spread: f32) {
         let mut male = self.rng.rand_below(2) == 0;
         for _ in 0..count {
@@ -1307,11 +1375,14 @@ impl Wild<'_, '_> {
         }
     }
 
-    /// `FUN_14005b640`: livestock bought at a trading post, `count` animals at random between
-    /// its first two create points (`a`, `b`), males and females in turn from a random first,
-    /// turned at random; not wild, they keep to the cells between the points (`area`) until
-    /// a pasture takes them. Each is `RandFloat` × half its lifespan old, which is still unset
-    /// here (`+0x48` before the setup), so none. The owner registers the entities.
+    // +0x48
+    /// Livestock bought at a trading post, `count` animals at random between its first two create
+    /// points (`a`, `b`), males and females in turn from a random first, turned at random; not
+    /// wild, they keep to the cells between the points (`area`) until a pasture takes them. Each is
+    /// `RandFloat` × half its lifespan old, which is still unset here (before the setup), so none.
+    /// The owner registers the entities.
+    ///
+    /// Original: `FUN_14005b640`.
     pub fn trade_livestock(
         &mut self,
         template: usize,
@@ -1347,8 +1418,9 @@ impl Wild<'_, '_> {
         }
     }
 
-    /// The pasture's message 0 (`FUN_14012cbf0`, a rancher's visit): a random animal of it may
-    /// breed.
+    /// The pasture's message 0 (a rancher's visit): a random animal of it may breed.
+    ///
+    /// Original: `FUN_14012cbf0`.
     pub fn mark_breeder(&mut self, p: usize) {
         let Some(herd) = self.wildlife.pastures.get(&p).map(|x| x.livestock.clone()) else {
             return;
@@ -1362,8 +1434,10 @@ impl Wild<'_, '_> {
         }
     }
 
-    /// `FUN_14012c310` (state 3) and the removal slot `FUN_14012ccb0`: every animal goes back
-    /// to the town's list, last first, and the pasture leaves the town's.
+    /// A pasture is removed: every animal goes back to the town's list, last first, and the
+    /// pasture leaves the town's list.
+    ///
+    /// Original: `FUN_14012c310` (state 3) and `FUN_14012ccb0` (removal).
     pub fn release(&mut self, p: usize) {
         while let Some(a) = self
             .wildlife

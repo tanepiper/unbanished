@@ -3,8 +3,10 @@
 use super::*;
 
 impl Agents {
-    /// `FUN_1400a22d0` for the road tool: a road's cells from `a` to `b` over `mask` (the
-    /// zones' cells blocked).
+    /// The cells of a road from `a` to `b`, over `mask`, avoiding the cells of zones. The road
+    /// tool uses it.
+    ///
+    /// Original: `FUN_1400a22d0`.
     pub fn road_path(
         &mut self,
         cells: &Cells,
@@ -18,8 +20,10 @@ impl Agents {
         self.pathfinder.find_road(a, b, mask, manhattan, &blocked)
     }
 
-    /// A citizen's walk from `a` to `b` as the path manager finds it (`FUN_1400a2480`, mask
-    /// `0xe1f`, mode 0), for the Path tool (`FUN_1400e2c40`); the finder's state is kept.
+    /// A citizen's walk from `a` to `b` as the path manager finds it (mask `0xe1f`, mode 0), for
+    /// the Path tool; the finder's state is kept.
+    ///
+    /// Original: `FUN_1400a2480`, `FUN_1400e2c40`.
     pub fn walk_path(&mut self, cells: &Cells, a: i32, b: i32) -> Option<Vec<i32>> {
         self.sync_map(cells);
         let regions = &self.regions;
@@ -29,8 +33,10 @@ impl Agents {
         })
     }
 
-    /// StockManager::Update's commute optimisation (`FUN_140091780`, see
-    /// [`crate::behaviour::commute`]) by `dt` ticks.
+    /// StockManager::Update's commute optimisation (see [`crate::behaviour::commute`]) by `dt`
+    /// ticks.
+    ///
+    /// Original: `FUN_140091780`.
     pub fn update_commute(
         &mut self,
         citizens: &[Citizen],

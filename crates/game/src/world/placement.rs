@@ -1,13 +1,17 @@
-//! Building placement (`PlacementTool`, vtable `0x140168130`): the footprint under the cursor
-//! (`FUN_140102ed0`), whether it may be built (`FUN_1400a2a50` → `FUN_1400a4aa0`) and the map
-//! stamp of a footprint string (`FUN_1400a30f0`). See docs/BUILD-TOOLS.md.
+//! Building placement (`PlacementTool`): the footprint under the cursor, whether it may be built
+//! and the map stamp of a footprint string. See docs/BUILD-TOOLS.md.
+//!
+//! Original: `FUN_140102ed0`, `FUN_1400a2a50`, `FUN_1400a4aa0`, `FUN_1400a30f0`.
+// vtable 0x140168130
 
 use crate::nature::seeding::Cells;
 use crate::terrain::{CellType, HeightGrid};
 
-/// `DAT_140178904`: degrees per rotation step.
+// DAT_140178904
+/// Degrees per rotation step.
 pub const ROTATION_STEP: f32 = 90.0;
-/// `DAT_140178948`: height tolerance placement passes (effectively unlimited).
+// DAT_140178948
+/// Height tolerance placement passes (effectively unlimited).
 pub const HEIGHT_TOLERANCE: f32 = 1000.0;
 
 /// A cell rectangle, inclusive.
@@ -20,17 +24,21 @@ pub struct Rect {
 }
 
 impl Rect {
+    /// The width in cells.
     pub fn width(&self) -> i32 {
         self.x1 - self.x0 + 1
     }
+    /// The height in cells.
     pub fn height(&self) -> i32 {
         self.y1 - self.y0 + 1
     }
 }
 
-/// `FUN_140102ed0`: the footprint of a `width × height` building centred on `cell` (even sizes
-/// extend one more cell towards +x/+y), turned by `rotation` steps (1 and 3 swap the sides).
-/// `None` when it leaves the map (the left column must also be at least 1).
+/// The footprint of a `width × height` building centred on `cell` (even sizes extend one more cell
+/// towards +x/+y), turned by `rotation` steps (1 and 3 swap the sides). `None` when it leaves the
+/// map (the left column must also be at least 1).
+///
+/// Original: `FUN_140102ed0`.
 pub fn footprint(
     map_size: i32,
     cell: (i32, i32),
@@ -60,9 +68,10 @@ pub fn footprint(
     Some(Rect { x0, y0, x1, y1 })
 }
 
-/// Index into a footprint string (rows separated by one character, last row first) of cell
-/// `(i, j)` of a `w × h` rectangle placed with `degrees` rotation (`FUN_1400a2a50`,
-/// `FUN_1400a30f0`; `w`, `h` are the rotated sides).
+/// Index into a footprint string (rows separated by one character, last row first) of cell `(i, j)`
+/// of a `w × h` rectangle placed with `degrees` rotation (`w`, `h` are the rotated sides).
+///
+/// Original: `FUN_1400a2a50`, `FUN_1400a30f0`.
 pub fn footprint_index(i: i32, j: i32, w: i32, h: i32, degrees: i32) -> usize {
     (match degrees {
         90 => i * (h + 1) + j,
@@ -75,24 +84,31 @@ pub fn footprint_index(i: i32, j: i32, w: i32, h: i32, degrees: i32) -> usize {
 /// The `CreatePlacedDescription` and `MapDescription` values placement reads.
 #[derive(Debug, Clone)]
 pub struct PlacementRules {
-    /// `+0x20`: allowed cell types (bit per type) when no per-character table applies.
+    // +0x20
+    /// Allowed cell types (bit per type) when no per-character table applies.
     pub mask: u32,
-    /// `+0x30` / `+0x28`: per-character masks (`'0' + k` selects `masks[k]`) and the string
-    /// choosing them per cell.
+    // +0x30 / +0x28
+    /// Per-character masks (`'0' + k` selects `masks[k]`) and the string choosing them per cell.
     pub masks: Vec<u32>,
     pub mask_chars: String,
-    /// `MapDescription +0x28`: `#` own type, `_` ground, `.` untouched.
+    // MapDescription +0x28
+    /// `MapDescription`: `#` own type, `_` ground, `.` untouched.
     pub footprint: String,
-    /// `+0x44`, `+0x48`.
+    // +0x44; +0x48
+    /// Not identified yet.
     pub width: i32,
     pub height: i32,
-    /// `MapDescription +0x20`.
+    // MapDescription +0x20
+    /// `MapDescription`.
     pub cell_type: u8,
 }
 
-/// `FUN_1400a4aa0(map, x, y, mask, min_normal, tolerance, reference, override_occupant,
-/// override_flag, owner)`. `owner_ok(occupant)` stands for the occupant's template being the
-/// owner template (`+0x28 == owner`).
+// owner_ok(occupant) stands for the occupant's template (+0x28) being the owner template.
+/// Whether a cell admits a building: its type is in `mask`, the ground is flat enough and level
+/// enough, and its occupant (if any) may be replaced.
+///
+/// Original: `FUN_1400a4aa0(map, x, y, mask, min_normal, tolerance, reference, override_occupant,
+/// override_flag, owner)`.
 #[allow(clippy::too_many_arguments)]
 pub fn cell_admits(
     cells: &Cells,
@@ -131,7 +147,10 @@ pub fn cell_admits(
     min_normal <= normal[2] && (h - reference).abs() <= tolerance
 }
 
-/// `FUN_1400a2a50` as the placement tool calls it: every footprint cell admits the building.
+/// Whether a building can be placed: every cell of its footprint admits it. This is the test the
+/// placement tool makes.
+///
+/// Original: `FUN_1400a2a50`.
 pub fn can_place(
     cells: &Cells,
     terrain: &HeightGrid,
@@ -146,10 +165,13 @@ pub fn can_place(
     })
 }
 
-/// One cell of a footprint, as `FUN_1400a2a50` and the overlay (`FUN_140106850`) test it:
-/// whether it admits the building (`FUN_1400a4aa0` with the cell's mask: `+0x30`'s entry for
-/// the `+0x28` character, else `+0x20`) and whether its footprint character is `.` (untouched;
-/// its zone count `+0x28` is then not checked).
+// The mask is the rules' entry (+0x30) for the character, else +0x28 / +0x20.
+/// One cell of a footprint, as the placement test and the overlay test it: whether it admits the
+/// building (with the cell's mask), and whether its footprint character is `.` (the cell is not
+/// changed, and its zone count is not checked).
+///
+/// Original: `FUN_140106850`; the cell test is `FUN_1400a4aa0`, the placement test
+/// `FUN_1400a2a50`.
 #[allow(clippy::too_many_arguments)]
 pub fn footprint_cell(
     cells: &Cells,
@@ -188,8 +210,11 @@ pub fn footprint_cell(
     (admits, untouched)
 }
 
-/// `FUN_1400a30f0`: stamp a footprint. `#` and an empty footprint set the building's type, `_`
-/// sets ground (2); every cell except `.` records the entity at `+0x08`.
+// +0x08
+/// Stamp a footprint. `#` and an empty footprint set the building's type, `_` sets ground (2);
+/// every cell except `.` records the entity.
+///
+/// Original: `FUN_1400a30f0`.
 pub fn stamp(cells: &mut Cells, rules: &PlacementRules, rect: Rect, degrees: i32, entity: usize) {
     let n = cells.size as i32;
     let (w, h) = (rect.width(), rect.height());
@@ -218,9 +243,12 @@ pub fn stamp(cells: &mut Cells, rules: &PlacementRules, rect: Rect, degrees: i32
     }
 }
 
-/// `FUN_1400a2830` (ZoneComponent activation, `FUN_1401356c0`): the entity becomes the
-/// occupant (`+0x00`) of every non-`.` footprint cell; `.` cells count one more zone at `+0x28`.
-/// Not ported: the path grid's blocked bit (citizens' mode 0 does not honour it).
+// The occupant is cell +0x00, the zone count +0x28.
+/// Activate a zone: the entity becomes the occupant of every footprint cell that is not `.`, and
+/// each `.` cell counts one more zone. Not ported: the path grid's blocked bit (citizens' mode 0
+/// does not honour it).
+///
+/// Original: `FUN_1401356c0`; the zone component's activation `FUN_1400a2830`.
 pub fn zone(cells: &mut Cells, rules: &PlacementRules, rect: Rect, degrees: i32, entity: usize) {
     let n = cells.size as i32;
     let (w, h) = (rect.width(), rect.height());

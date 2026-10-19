@@ -3,14 +3,14 @@
 //! citizens, the map, the storages and the construction state. See docs/JOBS.md.
 //!
 //! This file holds the context's state and a few free helpers; its methods are split by topic:
-//! - [`geometry`]: cells, ground heights, reachability and work points;
-//! - [`orders`]: a building's workers and the actions given to citizens;
-//! - [`sites`]: building sites and buildings, marking them on the map, destroying them;
-//! - [`building`]: carrying materials to a site and building it;
-//! - [`clearing`]: clearing an area before building;
-//! - [`piles`]: loose piles of goods on the ground;
-//! - [`storage`]: picking up goods, finding a storage, dropping off, emptying a storage;
-//! - [`callbacks`] and [`work_host`]: the two trait implementations.
+//! - `geometry`: cells, ground heights, reachability and work points;
+//! - `orders`: a building's workers and the actions given to citizens;
+//! - `sites`: building sites and buildings, marking them on the map, destroying them;
+//! - `building`: carrying materials to a site and building it;
+//! - `clearing`: clearing an area before building;
+//! - `piles`: loose piles of goods on the ground;
+//! - `storage`: picking up goods, finding a storage, dropping off, emptying a storage;
+//! - `callbacks` and `work_host`: the two trait implementations.
 
 mod building;
 mod callbacks;
@@ -65,8 +65,10 @@ pub(crate) struct Haul {
     /// `param_14`: the hauler uses a tool (its work steps spend one, its loaded walk is
     /// clip 5).
     pub tool: bool,
-    /// Several materials at once (`material` null, `FUN_1400cf700` adds each to the pickup):
-    /// the delivery drops everything carried.
+    /// Several materials at once (when `material` is null): the delivery drops everything
+    /// carried.
+    ///
+    /// Original: `FUN_1400cf700` adds each one to the pickup.
     pub items: Vec<(usize, i32)>,
 }
 
@@ -85,7 +87,8 @@ pub struct Env<'a, 't> {
     pub construction: &'a mut crate::work::construction::Construction,
     /// The stock manager's `(count, limit)` per slot from the last recount.
     pub stock: [(i32, i32); 21],
-    /// The environment's temperature (`Game +0x130 → +0x18`).
+    // Game +0x130 → +0x18
+    /// The environment's temperature (`Game →`).
     pub temperature: f32,
     /// This iteration's bucket visits (`EntityScheduler::take_visits`): placed entities by
     /// index, citizens from `scheduler::EXTRA`, each with the time since its last visit.
@@ -135,15 +138,20 @@ pub struct Sim<'s, 't> {
     pub rebuilds: &'s mut Vec<crate::work::destroy::Rebuild>,
     /// The town's water sources (wells and shore points).
     pub water: &'s mut crate::disasters::fire::Water,
-    /// `Game +0xd0`: the debug flags (all of `0xf0` with disasters off).
+    // Game +0xd0
+    /// `Game`: the debug flags (all of `0xf0` with disasters off).
     pub game_flags: u32,
-    /// The sky's state is precipitation (environment `+0x10` = 0).
+    // +0x10
+    /// The sky's state is precipitation (environment = 0).
     pub precipitation: bool,
-    /// Town manager `+0xa8`.
+    // +0xa8
+    /// Town manager.
     pub population: i32,
-    /// Town manager `+0x1a8` / `+0x1a0`.
+    // +0x1a8; +0x1a0
+    /// Town manager /.
     pub visitors: &'s mut (f32, i64),
-    /// Map `+0xe8`: planned road cells → BuildRoad works.
+    // +0xe8
+    /// Map: planned road cells → BuildRoad works.
     pub pending_roads: &'s mut BTreeMap<i32, i32>,
     pub terraform_requests: &'s mut Vec<crate::world::terraform::Terraform>,
     pub flatten_requests: &'s mut Vec<[i32; 4]>,
@@ -152,11 +160,14 @@ pub struct Sim<'s, 't> {
     pub trackers: &'s mut BTreeMap<usize, crate::work::tracker::Tracker>,
     pub decals: &'s mut BTreeMap<usize, crate::work::construction::Decal>,
     pub counters: &'s mut crate::work::tracker::StockCounters,
-    /// Town manager `+0x30` and `+0x1ac`.
+    // +0x30; +0x1ac
+    /// Town manager.
     pub trading_posts: &'s mut Vec<usize>,
     pub trade_value: &'s mut i32,
-    /// Town manager `+0x110` (known raw materials, `FUN_140097330`) and `+0x120` (known crops,
-    /// orchard trees and livestock, `FUN_140096ef0`).
+    // +0x110; +0x120
+    /// Town manager (known raw materials) and (known crops, orchard trees and livestock).
+    ///
+    /// Original: `FUN_140097330`, `FUN_140096ef0`.
     pub known_materials: &'s mut Vec<usize>,
     pub known: &'s mut Vec<usize>,
     pub trade_goods: &'s [crate::commerce::trade::TradeGood],
@@ -181,10 +192,12 @@ pub struct Sim<'s, 't> {
     pub models_dirty: &'s mut bool,
     /// Works a ClearArea try asked the manager to offer ([`WorkHost::take_offers`]).
     pub offers: Vec<i32>,
-    /// Scratch for [`Sim::seeder`] (planting removes nothing and plays no sounds).
+    /// Scratch for `Sim::seeder` (planting removes nothing and plays no sounds).
     pub removed: Vec<usize>,
     pub animation_events: Vec<(usize, String)>,
-    /// The offers get a second try (`FUN_1400fdaf0(.., 1)`, the AutoPickup's).
+    /// Whether the offers get a second try (as an auto-pickup's do).
+    ///
+    /// Original: `FUN_1400fdaf0(.., 1)`.
     pub offers_again: bool,
     /// A ConsumeProduce try waiting on its pile offers ([`WorkHost::resume`]).
     pub(crate) produce_resume: Option<crate::work::produce::ProduceResume>,
@@ -192,7 +205,9 @@ pub struct Sim<'s, 't> {
     pub(crate) pasture_stage: bool,
 }
 
-/// `FUN_14012e950`: a pile's work category mask from its material's flags.
+/// A pile's work category mask from its material's flags.
+///
+/// Original: `FUN_14012e950`.
 pub fn pile_mask(flags: u32) -> u32 {
     for (bit, mask) in [
         (5, 2),
@@ -247,7 +262,9 @@ pub fn animating(placed: &[Placed], templates: &[Template]) -> Vec<bool> {
         .collect()
 }
 
-/// `FUN_1400a48b0` at a cell's centre, on the terrain only (the floors skipped: `param_4` 1).
+/// The ground at a cell's centre, on the terrain only (bridge floors are skipped).
+///
+/// Original: `FUN_1400a48b0` with `param_4` 1.
 pub fn cell_ground(size: usize, terrain: &HeightGrid, cell: i32) -> [f32; 3] {
     let n = size as i32;
     let h = (n >> 1) as f32 - 0.5;
@@ -256,8 +273,10 @@ pub fn cell_ground(size: usize, terrain: &HeightGrid, cell: i32) -> [f32; 3] {
     [x, y, terrain.ground(x, y, &mut normal)]
 }
 
-/// `FUN_1400a48b0` at a cell's centre (`param_4` 0, as nearly every caller passes): on a
-/// bridge's floor where one covers the cell above the terrain.
+/// The ground at a cell's centre: on a bridge's floor where one covers the cell above the
+/// terrain, else on the terrain.
+///
+/// Original: `FUN_1400a48b0` with `param_4` 0, as nearly every caller passes.
 pub fn floor_ground(
     floors: &crate::world::floor::Floors,
     size: usize,
@@ -270,7 +289,10 @@ pub fn floor_ground(
     [x, y, floors.ground(size, terrain, x, y)]
 }
 
-/// `FUN_14011d800` over a cell → object grid of side `n`.
+/// The amount still to clear in an entity's area, over a grid of `n × n` cells that maps each
+/// cell to its object.
+///
+/// Original: `FUN_14011d800`.
 pub fn clear_remaining(objects: &[Option<usize>], n: i32, placed: &Placed, e: usize) -> i32 {
     let (x, y) = placed.cell;
     let (w, h) = placed.footprint;

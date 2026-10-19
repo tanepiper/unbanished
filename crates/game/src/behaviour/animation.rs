@@ -1,6 +1,9 @@
-//! Original animation sampling, unique playback clocks and event intervals. Runtime addresses:
-//! Animation::GetPoseAtTime 0x1800fd530, Quaternion::Lerp 0x18001dde0,
-//! AnimationState::Update 0x1801003b0 and Animation::ApplyEvents 0x1800fd230.
+//! Animation as the engine plays it: sampling a pose, the clock of each playing clip, and the
+//! events (such as sounds) a clip fires.
+//!
+//! Original: `Animation::GetPoseAtTime` (Runtime `0x1800fd530`), `Quaternion::Lerp` (Runtime
+//! `0x18001dde0`), `AnimationState::Update` (Runtime `0x1801003b0`), `Animation::ApplyEvents`
+//! (Runtime `0x1800fd230`).
 
 use crate::scheduler::{seconds, ticks};
 use banished_formats::skeleton::Transform;
@@ -19,8 +22,9 @@ pub struct Playback {
 }
 
 impl Playback {
-    /// Runtime AnimationState::PlayAnimation 0x1801007e0 initializes a unique state at its
-    /// supplied start time and speed 1. Tree removal (FUN_14012a5c0) supplies start time zero.
+    /// A clip that starts playing at `start`, at speed 1. Tree removal starts at time zero.
+    ///
+    /// Original: `FUN_14012a5c0`; `AnimationState::PlayAnimation`, Runtime `0x1801007e0`.
     pub fn new(clip: usize, start: i64) -> Self {
         Self {
             clip,
@@ -31,8 +35,10 @@ impl Playback {
         }
     }
 
-    /// Port of MeshInstance::IsAnimating 0x180102060. Completion uses serialized duration,
-    /// including its rounded tick value, rather than recomputing frames/rate.
+    /// Whether the clip is still playing. The end comes from the clip's stored duration (with its
+    /// rounded value), not from frames and rate.
+    ///
+    /// Original: `MeshInstance::IsAnimating`, Runtime `0x180102060`.
     pub fn is_animating(&self, clip: &AnimationClip) -> bool {
         clip.looping || self.elapsed < clip.duration_ticks
     }
@@ -87,6 +93,7 @@ impl Playback {
         events
     }
 
+    /// The pose of the clip at the current time.
     pub fn pose(&self, clip: &AnimationClip) -> Vec<Transform> {
         sample_pose(clip, self.sample_time, self.sample_delta)
     }
@@ -114,9 +121,11 @@ fn quaternion_lerp(a: [f32; 4], b: [f32; 4], fraction: f32) -> [f32; 4] {
     native(q.map(|v| v * inverse))
 }
 
-/// Port of Animation::GetPoseAtTime 0x1800fd530: adjacent sample indices, original loop
-/// arithmetic, normalized quaternion lerp and linear translation interpolation. The root
-/// rotation is reset and root translation becomes a movement delta, as in the original.
+/// The pose of a clip at a time: the two samples around it, interpolated (normalised quaternion
+/// lerp for rotations, linear for translations), with the original's loop arithmetic. The root's
+/// rotation is reset and its translation becomes a movement delta, as in the original.
+///
+/// Original: `Animation::GetPoseAtTime`, Runtime `0x1800fd530`.
 pub fn sample_pose(clip: &AnimationClip, time: i64, delta: i64) -> Vec<Transform> {
     let count = clip.frames.len();
     if count == 0 {
@@ -170,17 +179,19 @@ pub fn sample_pose(clip: &AnimationClip, time: i64, delta: i64) -> Vec<Transform
     pose
 }
 
-/// One layer of an [`AnimationStack`] (`AnimationState` entry, 0x38 bytes): its clip and clock,
-/// and while it fades out under a newer layer, the blend time (`+0x20`) and what is left of
-/// it (`+0x28`).
+// +0x20; +0x28
+/// One layer of an [`AnimationStack`] (`AnimationState` entry, 0x38 bytes): its clip and clock, and
+/// while it fades out under a newer layer, the blend time and what is left of it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Layer {
     pub playback: Playback,
     pub blend: i64,
     pub left: i64,
-    /// `+0x30`: the layer has been updated once.
+    // +0x30
+    /// The layer has been updated once.
     pub started: bool,
-    /// `+0x0c`: the shared instance it follows (an instanced clip), see [`shared`].
+    // +0x0c
+    /// The shared instance it follows (an instanced clip), see [`shared`].
     pub instance: Option<i32>,
 }
 
@@ -224,10 +235,12 @@ impl AnimationStack {
         self.layers.first().map(|l| l.playback.clip)
     }
 
-    /// `AnimationState::PlayAnimation` (Runtime `0x1801007e0`). A looping clip already on top
-    /// keeps its time (speed back to 1). Otherwise the top layer starts fading over the blend
-    /// time from its clip to `clip` and the new layer goes on top; a top layer never updated
-    /// is replaced instead, the one below taking the blend.
+    /// `AnimationState::PlayAnimation`. A looping clip already on top keeps its time (speed back to
+    /// 1). Otherwise the top layer starts fading over the blend time from its clip to `clip` and
+    /// the new layer goes on top; a top layer never updated is replaced instead, the one below
+    /// taking the blend.
+    ///
+    /// Original: Runtime `0x1801007e0`.
     pub fn play(
         &mut self,
         group: &banished_formats::types::AnimationGroup,
@@ -271,11 +284,13 @@ impl AnimationStack {
         self.layers.insert(0, layer);
     }
 
-    /// `AnimationState::Update` (`0x1801003b0`) with `UpdateNodes` (`0x1800ff4b0`): the pose at
-    /// the old clocks, the oldest layer's first and each newer one mixed over it by the older
-    /// layer's share left (`Quaternion::Lerp` and a linear translation); then every clock
-    /// advances (only the newest fires its events), and the fading layers count down, a
-    /// layer leaving once less than a tick is left. Returns the newest layer's events.
+    /// `AnimationState::Update` with `UpdateNodes`: the pose at the old clocks, the oldest layer's
+    /// first and each newer one mixed over it by the older layer's share left (`Quaternion::Lerp`
+    /// and a linear translation); then every clock advances (only the newest fires its events), and
+    /// the fading layers count down, a layer leaving once less than a tick is left. Returns the
+    /// newest layer's events.
+    ///
+    /// Original: Runtime `0x1801003b0`, Runtime `0x1800ff4b0`.
     pub fn update(
         &mut self,
         group: &banished_formats::types::AnimationGroup,
@@ -367,19 +382,22 @@ impl AnimationStack {
     }
 }
 
+// +0x2c; +0x28
 /// `Graphics::AnimationManager` (Runtime): the shared instances of instanced clips. Each clip a
-/// character plays with its `+0x2c` flag set is followed through one of `+0x28` shared clocks
-/// (3, 4 or 8 for the citizens' and animals'), so the characters on one walk or work in step.
+/// character plays with its flag set is followed through one of shared clocks (3, 4 or 8 for the
+/// citizens' and animals'), so the characters on one walk or work in step.
 ///
-/// - `GetInstanceId` (`0x1800fe260`): the first request for a group's clip makes its instances,
-///   the `k`-th starting `k × duration / count` into the clip (and updated twice at no time);
-///   each request counts one more user and gets the instance whose clock is earliest.
-/// - `Update` (`0x1800fead0`): every instance advances, before the characters; its pose's
-///   root is the identity turned and its movement.
-/// - `FreeInstanceId` (`0x1800fe200`): the last user gone, the clip's instances go.
+/// - `GetInstanceId`: the first request for a group's clip makes its instances, the `k`-th starting
+///   `k × duration / count` into the clip (and updated twice at no time); each request counts one
+///   more user and gets the instance whose clock is earliest.
+/// - `Update`: every instance advances, before the characters; its pose's root is the identity
+///   turned and its movement.
+/// - `FreeInstanceId`: the last user gone, the clip's instances go.
 ///
-/// The original keeps one manager for the process; the port one per thread, reset with each
-/// town ([`shared::reset`]).
+/// The original keeps one manager for the process; the port one per thread, reset with each town
+/// ([`shared::reset`]).
+///
+/// Original: Runtime `0x1800fe260`, Runtime `0x1800fead0`, Runtime `0x1800fe200`.
 pub mod shared {
     use super::Playback;
     use banished_formats::skeleton::Transform;

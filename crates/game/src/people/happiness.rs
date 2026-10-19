@@ -1,11 +1,13 @@
-//! HappinessComponent (controller interface vtable `0x14015f6a0`, table `FUN_14004b570`):
-//! wells, markets, the tavern, chapel, cemetery, doctor and trading post make the homes
-//! around them happier; mines and the quarry make them less happy. See
-//! docs/CITIZEN-LIFE.md "Happiness buildings".
+//! Happiness buildings: wells, markets, the tavern,
+//! chapel, cemetery, doctor and trading post make the homes around them happier; mines and the
+//! quarry make them less happy. See docs/CITIZEN-LIFE.md "Happiness buildings".
 //!
-//! While active, a building is registered with the town manager (`Game +0xf0 → +0x50`) and
-//! counts on its kind's map layer within its radius. A citizen's happiness reads the layers
-//! at its home's entrance; loitering citizens pick a registered building nearby.
+//! While active, a building is registered with the town manager and counts on its kind's
+//! map layer within its radius. A citizen's happiness reads the layers at its home's entrance;
+//! loitering citizens pick a registered building nearby.
+//!
+//! Original: `HappinessComponent` (controller interface vtable `0x14015f6a0`), `FUN_14004b570`.
+// Game +0xf0 → +0x50
 
 use crate::town::Sim;
 
@@ -110,8 +112,11 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// Message 0 (`FUN_14004b0e0`), a citizen's visit: one unit of the first stored raw
-    /// material that matches and is not reserved is used up, and counted (`+0xc` of its slot).
+    // +0xc of its slot
+    /// Message 0, a citizen's visit: one unit of the first stored raw material that matches and is
+    /// not reserved is used up, and counted.
+    ///
+    /// Original: `FUN_14004b0e0`.
     pub fn happiness_visit(&mut self, e: usize) {
         let Some(site) = self.sites.get(&e) else {
             return;

@@ -1,15 +1,18 @@
-//! The environment controller (`Game/Game +0x130`): temperature, weather state and the renderer's
-//! seasonal inputs. See docs/GAME-LOOP-STEP-04.md, GAME-LOOP-STEP-05.md and ENVIRONMENT.md.
+//! The environment: the temperature, the weather, and the seasonal values the renderer uses. It is
+//! advanced once per simulation iteration, after the calendar. See docs/ENVIRONMENT.md,
+//! docs/GAME-LOOP-STEP-04.md and docs/GAME-LOOP-STEP-05.md.
 //!
-//! Constructed by `FUN_140099430`, bound to the climate by `FUN_140099300` and advanced once per
-//! simulation iteration by `FUN_1400999b0`, after the calendar.
+//! Original: `FUN_140099430` (set-up), `FUN_140099300` (bound to the climate), `FUN_1400999b0`
+//! (the update).
+// Game/Game +0x130
 
 use banished_formats::game::ClimateGenerator;
 
 use crate::noise::PerlinNoise;
 use crate::random::Random;
 
-/// `DAT_14017895c`: seconds in a game year.
+// DAT_14017895c
+/// Seconds in a game year.
 pub const YEAR_SECONDS: f32 = 3600.0;
 /// `DAT_1401788e4`: weather slices per year.
 const SLICES: f32 = 48.0;
@@ -25,39 +28,56 @@ const TWELFTH: f32 = 0.083_333_336;
 const NOISE_PERIOD: f32 = 180.0;
 /// `DAT_140178934`: seconds per month (also the sine phase offset).
 const MONTH_SECONDS: f32 = 300.0;
-/// `DAT_1401788d8`: Rain above this temperature, Snow at or below.
+// DAT_1401788d8
+/// Rain above this temperature, Snow at or below.
 pub const RAIN_SNOW_THRESHOLD: f32 = 34.0;
-/// `DAT_1401788d0`: freezing point (°F).
+// DAT_1401788d0
+/// Freezing point (°F).
 pub const FREEZING: f32 = 32.0;
 /// Game option `DAT_1401cbde0 + 0x16` (weather effects), on by default (`FUN_140042850`).
 const WEATHER_EFFECTS: bool = true;
 
-/// A precipitation effect slot (`+0x50`: the `FUN_1400d93e0` geometry; `+0x60`: its ambient
-/// emitter entity). Slot 0 is Rain, slot 1 Snow (the EnvironmentDescription's weather list).
+// +0x50; +0x60
+// The geometry is made by FUN_1400d93e0.
+/// A weather effect slot: its particle geometry and its ambient sound. Slot 0 is rain, slot 1 is
+/// snow (the order of the environment's weather list).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WeatherEffect {
-    /// `geometry +0xc0`: 0..1, also the ambient emitter's volume.
+    // geometry +0xc0
+    /// `geometry`: 0..1, also the ambient emitter's volume.
     pub intensity: f32,
-    /// `geometry +0xc4`: +1 fading in, −1 fading out.
+    // geometry +0xc4
+    /// `geometry`: +1 fading in, −1 fading out.
     pub direction: f32,
 }
 
-/// The climate fields the controller reads (`ClimateGenerator`, `FUN_140098470`).
+/// The climate fields the controller reads (`ClimateGenerator`).
+///
+/// Original: `FUN_140098470`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Climate {
-    /// `+0x34`: baseline temperature.
+    // +0x34
+    /// Baseline temperature.
     pub baseline: f32,
-    /// `+0x38`: amplitude of the yearly sine.
+    // +0x38
+    /// Amplitude of the yearly sine.
     pub seasonal: f32,
-    /// `+0x3c`: amplitude of the Perlin noise.
+    // +0x3c
+    /// Amplitude of the Perlin noise.
     pub noise: f32,
-    /// `+0x40`: range of the annual random baseline offset.
+    // +0x40
+    /// Range of the annual random baseline offset.
     pub baseline_range: f32,
-    /// `+0x44`: four floats per month; the first three are cumulative weather-state cutoffs.
+    // +0x44
+    /// Four floats per month; the first three are cumulative weather-state cutoffs.
     pub months: [[f32; 4]; 12],
-    /// `+0x104`: range of the annual weather-cutoff bias.
+    // +0x104
+    /// Range of the annual weather-cutoff bias.
     pub bias_range: f32,
-    /// `+0x108`, `+0x10c`: a tornado's odds while it rains (years, odds; `FUN_1400ae760`).
+    // +0x108, +0x10c
+    /// A tornado's odds while it rains (years, odds).
+    ///
+    /// Original: `FUN_1400ae760`.
     pub tornado: (f32, f32),
 }
 
@@ -75,27 +95,39 @@ impl From<&ClimateGenerator> for Climate {
     }
 }
 
-/// The renderer inputs `FUN_1400988f0` derives each update (`pc_userPosition`).
+/// The values the renderer receives from the environment each update (the shaders'
+/// `pc_userPosition`).
+///
+/// Original: `FUN_1400988f0`.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct SeasonValues {
-    /// `+0x1c`: snow cover, `clamp(32 − temperature, 0, 1)`.
+    // +0x1c
+    /// Snow cover, `clamp(32 − temperature, 0, 1)`.
     pub snow: f32,
-    /// `+0x20`: autumn tint.
+    // +0x20
+    /// Autumn tint.
     pub autumn: f32,
-    /// `+0x24`: leaf loss.
+    // +0x24
+    /// Leaf loss.
     pub leaf_loss: f32,
-    /// `+0x28`: rain, the strongest active weather effect's intensity (`geometry +0xc0`).
+    // +0x28; geometry +0xc0
+    /// Rain, the strongest active weather effect's intensity (`geometry`).
     pub rain: f32,
 }
 
+/// The environment: temperature, weather and the renderer's seasonal values. See the [module
+/// documentation](self).
 #[derive(Debug, Clone)]
 pub struct Environment {
     pub climate: Climate,
-    /// `+0x10`: 0 precipitation, 1 cloudy, 2 partly sunny, 3 sunny.
+    // +0x10
+    /// 0 precipitation, 1 cloudy, 2 partly sunny, 3 sunny.
     pub state: i32,
-    /// `+0x14`: precipitation level 0..5 (starts at 4).
+    // +0x14
+    /// Precipitation level 0..5 (starts at 4).
     pub level: i32,
-    /// `+0x18`: °F.
+    // +0x18
+    /// °F.
     pub temperature: f32,
     pub season: SeasonValues,
     /// `+0x2c` / `+0x30`: smoothed and target annual baseline.
@@ -110,12 +142,15 @@ pub struct Environment {
     slice: i32,
     /// The Rain and Snow effects while they exist.
     pub effects: [Option<WeatherEffect>; 2],
-    /// `Weather +0x5c` of each slot's description: seconds to fade in or out. A slot without a
-    /// loaded description never starts.
+    // Weather +0x5c
+    /// `Weather` of each slot's description: seconds to fade in or out. A slot without a loaded
+    /// description never starts.
     pub fade_times: [Option<f32>; 2],
-    /// `+0x70`: the time since the last tornado check.
+    // +0x70
+    /// The time since the last tornado check.
     pub tornado_timer: i64,
-    /// `Game +0xd0`: bit 7 stops tornadoes (set with disasters off).
+    // Game +0xd0
+    /// `Game`: bit 7 stops tornadoes (set with disasters off).
     pub game_flags: u32,
 }
 
@@ -130,10 +165,14 @@ fn weather_slice(elapsed: f32) -> i32 {
 }
 
 impl Environment {
-    /// The saved controller (`FUN_140099160`): state `+0x10`, level `+0x14`, temperature
-    /// `+0x18`, the renderer values `+0x1c`, baseline `+0x2c`/`+0x30`, bias `+0x44`/`+0x48`, the
-    /// last slice `+0x4c`, and each weather effect that exists (re-created on load,
-    /// `FUN_140099790`, with its `+0xc4` direction and `+0xc0` intensity).
+    // State +0x10, level +0x14, temperature +0x18, renderer values +0x1c, baseline +0x2c/+0x30,
+    // bias +0x44/+0x48, last slice +0x4c; each effect re-created by FUN_140099790 with its +0xc4
+    // direction and +0xc0 intensity.
+    /// The environment as a save stores it: the state, the level, the temperature, the renderer's
+    /// values, the baseline, the bias, the last slice, and each weather effect that exists (made
+    /// again on load with its direction and intensity).
+    ///
+    /// Original: `FUN_140099160`.
     ///
     /// Deviation: the temperature noise (`+0x34`) is not saved; after a load the original keeps
     /// its constructor's clock-seeded field until the next reseed (slice 0 or 24). The port
@@ -170,7 +209,9 @@ impl Environment {
         )
     }
 
-    /// `FUN_140099430` then `FUN_140099300`: state 0, level 4, baseline from the climate.
+    /// A new environment for a climate: state 0, level 4, and the climate's baseline.
+    ///
+    /// Original: `FUN_140099430`, then `FUN_140099300`.
     ///
     /// Deviation: the constructor seeds its first Perlin field from two clock-seeded `Random()`s;
     /// the first update always reseeds it (slice 0), so a fixed seed is used here.
@@ -194,13 +235,15 @@ impl Environment {
         }
     }
 
-    /// `FUN_1400999b0`: one simulation iteration. `elapsed` is the calendar's time into the
-    /// current year in seconds, already advanced for this iteration; `dt` is the iteration's
-    /// step; `rng` is the game's shared random stream (`Game/Game +0xd8`).
+    // Game/Game +0xd8; +0x70; FUN_1400ae760 (climate +0x108)
+    /// One simulation iteration. `elapsed` is the calendar's time into the current year in seconds,
+    /// already advanced for this iteration; `dt` is the iteration's step; `rng` is the game's
+    /// shared random stream (`Game/Game`).
     ///
-    /// Returns whether a tornado forms (step 6): while it rains above 34°F with tornadoes on,
-    /// `FUN_1400ae760(+0x70, climate +0x108)`; the caller creates the environment template's
-    /// entity (`FUN_1400c8bf0`, `FUN_1400c9d70`).
+    /// Returns whether a tornado forms (step 6): this can happen while it rains above 34 °F with
+    /// tornadoes on. The caller then creates the environment template's entity.
+    ///
+    /// Original: `FUN_1400999b0`, `FUN_1400c8bf0`, `FUN_1400c9d70`.
     pub fn update(&mut self, elapsed: f32, dt: f32, rng: &mut Random) -> bool {
         self.step_effects(dt);
         self.baseline = self.baseline_target * SMOOTH_NEW + self.baseline * SMOOTH_OLD;
@@ -272,8 +315,10 @@ impl Environment {
         }
     }
 
-    /// Which weather effect slot is active (`FUN_1400999b0` → `FUN_140099790`): only in state 0
-    /// with weather enabled; slot 0 Rain above 34°, slot 1 Snow at or below.
+    /// Which weather effect slot is active: only in state 0 with weather enabled; slot 0 Rain above
+    /// 34°, slot 1 Snow at or below.
+    ///
+    /// Original: `FUN_1400999b0`, `FUN_140099790`.
     pub fn active_effect(&self, weather_enabled: bool) -> Option<usize> {
         if !weather_enabled || self.state != 0 {
             return None;

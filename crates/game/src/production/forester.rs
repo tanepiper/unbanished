@@ -1,10 +1,10 @@
-//! ForesterComponent (vtable `0x140169890`, the forester's lodge) and its work (vtable
-//! `0x1401677c0`, made by slot `+0x90` `FUN_140124c50`). See docs/JOBS.md "Foresters".
+//! The forester's lodge and its work. See docs/JOBS.md, "Foresters".
 //!
-//! Like the gatherer, a worker first takes the building's own piles (AutoPickup), then draws
-//! random cells within the radius. An empty cell in the entrance's region plants a sapling
-//! (while planting is on); a grown, unclaimed natural resource whose raw material is neither
-//! food nor herbs is cut (while cutting is on and the logs are under their limit).
+//! Like the gatherer, a worker first takes the building's own piles (AutoPickup), then draws random
+//! cells within the radius. An empty cell in the entrance's region plants a sapling (while planting
+//! is on); a grown, unclaimed natural resource whose raw material is neither food nor herbs is cut
+//! (while cutting is on and the logs are under their limit).
+// vtable 0x140169890; vtable 0x1401677c0; +0x90
 
 use crate::behaviour::character::{Action, MoveTo};
 use crate::nature::seeding::Seeder;
@@ -17,13 +17,16 @@ use crate::work::jobs::{Work, WorkKind};
 /// A resolved ForesterDescription.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ForesterTemplate {
-    /// `+0x20`: the tree it plants (index into the placed-object templates).
+    // +0x20
+    /// The tree it plants (index into the placed-object templates).
     pub tree: usize,
-    /// `+0x28`: the stock-manager slot whose limit stops the cutting.
+    // +0x28
+    /// The stock-manager slot whose limit stops the cutting.
     pub group: i32,
 }
 
-/// ForesterComponent `+0x50` plant and `+0x51` cut (the lodge's two toggle buttons).
+// +0x50; +0x51
+/// ForesterComponent plant and cut (the lodge's two toggle buttons).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Forester {
     pub plant: bool,

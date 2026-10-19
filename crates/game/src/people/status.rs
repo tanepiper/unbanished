@@ -1,5 +1,8 @@
-//! Read-only StatusBarUI calculations (FUN_14007eda0 / FUN_14006b830).
+//! Read-only StatusBarUI calculations.
+//!
+//! Original: `FUN_14007eda0`, `FUN_14006b830`.
 
+/// What the status bar reads of one citizen.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CitizenValue {
     pub age: f32,
@@ -7,10 +10,12 @@ pub struct CitizenValue {
     pub school: bool,
     pub health: f32,
     pub happiness: f32,
-    /// StatusIconComponent +0xf0, not Citizen +0x88.
+    // +0xf0; +0x88
+    /// StatusIconComponent, not Citizen.
     pub status: u32,
 }
 
+/// The status bar's counts: adults, students, children and the other values.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct TownStatus {
     pub adults: u32,
@@ -21,7 +26,9 @@ pub struct TownStatus {
     pub happiness: f32,
 }
 
-/// Port of FUN_14007eda0's citizen loop. Preserve creation-list float summation order.
+/// Preserve creation-list float summation order.
+///
+/// Original: `FUN_14007eda0` (citizen loop).
 pub fn aggregate(citizens: impl IntoIterator<Item = CitizenValue>) -> TownStatus {
     let mut result = TownStatus::default();
     let mut count = 0;
@@ -47,8 +54,10 @@ pub fn aggregate(citizens: impl IntoIterator<Item = CitizenValue>) -> TownStatus
     result
 }
 
-/// Port of FUN_14006b830: each group has a `whole` and `half` image. Keep the container
-/// visible so all five resource-defined slots occupy their original geometry.
+/// Each group has a `whole` and `half` image. Keep the container visible so all five
+/// resource-defined slots occupy their original geometry.
+///
+/// Original: `FUN_14006b830`.
 pub fn meter(value: f32, maximum: f32, icons: usize) -> Vec<(bool, bool)> {
     let halves = ((value / maximum) * (icons as i32 * 2) as f32 + 0.5) as i32;
     (0..icons)
@@ -59,7 +68,9 @@ pub fn meter(value: f32, maximum: f32, icons: usize) -> Vec<(bool, bool)> {
         .collect()
 }
 
-/// Port of FUN_1401318c0's mask mutation. Deleting an icon is permitted on disabled owners.
+/// Deleting an icon is permitted on disabled owners.
+///
+/// Original: `FUN_1401318c0` (mask mutation).
 pub fn set_icon(mask: &mut u32, bit: u8, on: bool, owner_disabled: bool) {
     if !on {
         *mask &= !(1 << (bit & 31));

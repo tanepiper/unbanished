@@ -1,9 +1,9 @@
-//! Blight: DiseaseComponent (vtable `0x14015f3b0`) on crop fields, orchards and pastures. See
-//! docs/FARMING.md "Blight".
+//! Blight: DiseaseComponent on crop fields, orchards and pastures. See docs/FARMING.md "Blight".
 //!
-//! In its season a field may catch it, more likely when a cell grew the same thing last
-//! time. While sick it kills a crop, tree or animal now and then, and passes to fields nearby
-//! growing the same thing, until it runs its course or nothing is left.
+//! In its season a field may catch it, more likely when a cell grew the same thing last time. While
+//! sick it kills a crop, tree or animal now and then, and passes to fields nearby growing the same
+//! thing, until it runs its course or nothing is left.
+// vtable 0x14015f3b0
 
 use banished_formats::game::DiseaseDescription;
 
@@ -15,12 +15,14 @@ use crate::town::Sim;
 const PERIOD: f32 = 300.0;
 /// Event type 12: a field or pasture caught a disease.
 const CAUGHT: i32 = 0xc;
-/// `Game +0xd0` bit 5: blight is off.
+// Game +0xd0
+/// `Game` bit 5: blight is off.
 pub const NO_BLIGHT: u32 = 0x20;
 
-/// DiseaseComponent: `+0x28` towards the next check, `+0x30` time left (sick while above
-/// zero), `+0x38` towards the next death, `+0x40` towards the next spread, `+0x48` on a
-/// pasture (setup `FUN_1400495b0`), `+0x50` what grew when it last ended.
+// +0x28; +0x30; +0x38; +0x40; +0x48; +0x50; set up by FUN_1400495b0.
+/// The blight of a field, orchard or pasture: the time to the next check, the time left (sick while
+/// it is above zero), the time to the next death and to the next spread, whether it is on a
+/// pasture, and what grew when it last ended.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Blight {
     pub check: i64,
@@ -127,7 +129,9 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// DiseaseComponent's scheduled update (`FUN_1400494f0`) of every site that has one.
+    /// DiseaseComponent's scheduled update of every site that has one.
+    ///
+    /// Original: `FUN_1400494f0`.
     pub fn update_blight(&mut self, visits: &[(usize, i64)]) {
         for &(e, dt) in visits {
             if !self.sites.get(&e).is_some_and(|s| s.disease.is_some()) {
