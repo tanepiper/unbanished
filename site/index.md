@@ -30,8 +30,8 @@ features:
     details: Un-Banished reads and writes the original save format, in the original save folder. Your old towns appear in the Load dialog.
   - title: Mods work
     details: Mods made with the BanishedKit load through the Mods menu, with the same order and conflict rules as the original.
-  - title: Nothing taken
-    details: All code is new. No code, art, sound or text from the original is included. You bring your own copy of the game.
+  - title: No original content
+    details: All code is new. No code, art, sound or text from the original is included. A copy of Banished is required.
   - title: Free and open
     details: The source code is on GitHub under the MIT or Apache-2.0 licence. Every finding about the original is written down.
 ---
@@ -40,7 +40,7 @@ features:
 
 <div class="ub-section">
 
-## A town in the forest
+## Screenshots
 
 <Gallery />
 
@@ -50,22 +50,21 @@ features:
 
 <div class="ub-section">
 
-## Why this exists
+## About the project
 
-Banished came out in February 2014. One person, Luke Hodorowicz of Shining Rock Software, made all
-of it: the engine, the art, the sound and the design. It is a quiet game. You do not fight
-anyone. You help a small group of exiles to survive. You plant fields, you cut wood, you build
-houses, and you store food for the winter.
+Banished is a city-building game by Shining Rock Software, released in February 2014. It runs
+only on Windows. Its last version is 1.0.7.
 
-The game still has many players. But it runs only on Windows, and computers change. Un-Banished
-is our thank-you to the game. We studied how every part of it works, and we built it again, so
-that it can run on more computers for many more years.
+Un-Banished is a reimplementation of the game's engine in Rust. It reads the data files of an
+installed copy of Banished and runs the game on Windows, macOS, Linux and in web browsers. The
+goal is identical behaviour: the same maps, rules, numbers, timings and save files. Where
+Un-Banished behaves differently from the original, this is treated as a bug.
 
-We did not change the game, and we did not try to improve it. The goal is the same game, exactly.
+Un-Banished contains no code, art, sound or text from the original game. A copy of Banished is
+required, from [Steam](https://store.steampowered.com/app/242920/Banished/) or
+[GOG](https://www.gog.com/en/game/banished).
 
-<p class="ub-sign">If you love Banished, please buy it. Un-Banished needs your copy, and the person who made it deserves your support.</p>
-
-[Read the full story](/about/) · [Buy Banished on Steam](https://store.steampowered.com/app/242920/Banished/)
+[More about the project](/about/)
 
 </div>
 

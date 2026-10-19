@@ -100,12 +100,6 @@
   max-width: 760px;
   margin: 0 0 14px;
 }
-.ub-section .ub-sign {
-  font-family: var(--vp-font-family-heading);
-  font-style: italic;
-  font-size: 20px;
-  color: var(--vp-c-brand-1);
-}
 .ub-divider {
   height: 1px;
   margin: 48px auto 0;

@@ -40,7 +40,7 @@ export default defineConfig({
       {
         text: 'About',
         items: [
-          { text: 'Why this exists', link: '/about/' },
+          { text: 'About the project', link: '/about/' },
           { text: 'Status', link: '/about/status' },
           { text: 'Questions and answers', link: '/about/faq' },
           { text: 'Licence and legal', link: '/about/licence' },
@@ -59,7 +59,7 @@ export default defineConfig({
       {
         text: 'About',
         items: [
-          { text: 'Why this exists', link: '/about/' },
+          { text: 'About the project', link: '/about/' },
           { text: 'How it was made', link: '/about/how-it-was-made' },
           { text: 'Status', link: '/about/status' },
           { text: 'Questions and answers', link: '/about/faq' },

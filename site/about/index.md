@@ -1,52 +1,59 @@
 ---
-title: Why this exists
-description: Why we rebuilt Banished, and what we promise about it.
+title: About the project
+description: What Banished and Un-Banished are, the project's goals, and what it includes.
 ---
 
-# Why this exists
+# About the project
 
-## A small, quiet game
+## Banished
 
-Banished came out on 18 February 2014. One person, Luke Hodorowicz, made it under the name Shining
-Rock Software. He wrote the engine, made the art and the sound, and designed the game. It took him
-several years.
+Banished is a city-building game by Shining Rock Software, a one-person studio (Luke Hodorowicz).
+It was released on 18 February 2014, for Windows only. The last version is 1.0.7.
 
-In Banished, a group of exiled travellers arrive in an empty valley. They have a few tools, some
-food and some clothes. You do not control them directly. You decide what to build and which jobs
-to give, and they live their lives: they work, they form families, they have children, and they grow old.
+In the game, the player directs a group of exiled travellers who build a town. The player does not
+control the citizens directly. The player chooses buildings and jobs, and the citizens work, form
+families, have children, grow old and die. The main challenges are food, firewood, clothing and
+tools through the winters, and events such as fires, disease and tornadoes.
 
-Nothing in the game is fast, and nothing forgives a mistake. A bad winter can empty a town. A
-fire can destroy a year of work. Because of this, a town that survives feels like it was earned.
-Many players have spent hundreds of hours in these valleys.
+## Un-Banished
 
-## Why rebuild it
+Un-Banished is a reimplementation of the Banished engine, written in Rust with wgpu. It reads the
+data files (`.pkg`) of an installed copy of Banished and runs the game:
 
-The last version of Banished is 1.0.7. It runs only on Windows, and it was built for the
-computers of its time. Programs like this slowly stop working when the systems around them
-change.
+- natively on Windows, macOS (Apple Silicon and Intel) and Linux;
+- in web browsers, through WebAssembly, with WebGPU or WebGL 2.
 
-We wanted Banished to stay playable for a long time, on any computer. The only way to do this
-without the source code is to understand the program completely, and then build it again. So we
-did that. [How it was made](/about/how-it-was-made) explains the work step by step.
+The source code of Banished is not available. The behaviour of the original was worked out from
+the program files. [How it was made](/about/how-it-was-made) describes the method.
 
-## What we promise
+## Goals
 
-- **The same game.** We do not change the rules, the balance or the look. When Un-Banished
-  behaves differently from the original, we treat it as a bug. The few intentional differences are
-  listed in [DEVIATIONS.md](https://github.com/tanepiper/unbanished/blob/main/docs/DEVIATIONS.md).
-- **Nothing taken.** Un-Banished contains no code, art, sound or text from the original. It cannot
-  run without your own copy of the game.
-- **Everything written down.** Every finding about how the original works is in the
-  [repository](https://github.com/tanepiper/unbanished/tree/main/docs), in plain words.
-- **Free for everyone.** The code is open source, under the MIT or Apache-2.0 licence.
+- **Identical behaviour.** The same seed gives the same map. Rules, numbers, timings and the
+  interface match version 1.0.7. A difference from the original is treated as a bug. The few
+  intentional differences are listed in
+  [DEVIATIONS.md](https://github.com/tanepiper/unbanished/blob/main/docs/DEVIATIONS.md).
+- **Compatible files.** Saves from the original load in Un-Banished. Mods made
+  with the BanishedKit (`.pkm`) work.
+- **Documented findings.** Every finding about how the original works is written down in the
+  [repository](https://github.com/tanepiper/unbanished/tree/main/docs).
 
-## Thank you
+Changes to the game's design or balance are not a goal of the project.
 
-Thank you to Luke Hodorowicz for making Banished, and to everyone who still plays it, makes mods
-for it, and writes guides about it.
+## What is included
 
-If you do not own Banished yet, please [buy it on Steam](https://store.steampowered.com/app/242920/Banished/)
-or on [GOG](https://www.gog.com/en/game/banished). Un-Banished needs your copy, and the person who
-made the game deserves your support.
+| Included | Not included |
+|---|---|
+| New source code (Rust, WGSL shaders) | Code from the original game |
+| Documents that describe the original's behaviour | Decompiled code or disassembly |
+| A few screenshots of Un-Banished running | Art, sound, text or data files from the game |
 
-*Un-Banished is not affiliated with or endorsed by Shining Rock Software.*
+A copy of Banished is required, from
+[Steam](https://store.steampowered.com/app/242920/Banished/) or
+[GOG](https://www.gog.com/en/game/banished).
+
+## Licence
+
+The source code is licensed under MIT or Apache-2.0, at your option. See
+[Licence and legal](/about/licence).
+
+Un-Banished is not affiliated with or endorsed by Shining Rock Software.
