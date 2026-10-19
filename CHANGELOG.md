@@ -21,6 +21,24 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
   textures, meshes and the terrain's surface image are decoded on all cores. Starting the game,
   opening the main menu, starting a new game and loading a save take 20–55 % less time. The
   browser build still loads on one thread.
+- Large towns run about twice as fast. On a town of 1,024 citizens and 28,000 objects at speed
+  10, a frame took 94 ms and now takes 43 ms; the simulation part fell from 78 to 29 ms. The
+  game's results are unchanged: saves and frames are identical to before.
+
+### Added
+
+- `tools/compat/`: build any version in a clean checkout, play a fixed set of scenarios (a new
+  game, small, medium and large towns, and continuing another version's saves), and check that
+  two versions produce identical saves and frames. See
+  [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+- A `speed N` command for headless captures, and the `savegame_same` and
+  `savegame_fields_diff` tools for comparing saves.
+
+### Fixed
+
+- Headless captures could save on a different frame from run to run, because they waited a
+  varying number of frames for the save's preview image. They now wait for it, so two runs save
+  the same state.
 
 ## [0.1.0] - 2026-10-19
 

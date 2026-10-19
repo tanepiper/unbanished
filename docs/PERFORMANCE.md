@@ -77,6 +77,32 @@ All measured on the player save from issue #5 (Herstower, 17 citizens), 70 s aft
 Frame time overall: median 4.3 → 3.7 ms, 95th percentile 14.7 → 5.4 ms, worst steady-state
 frame 56 → 6.1 ms. `determinism.sh` gives identical frames before and after.
 
+## Large towns (2026-10-19)
+
+Measured on `save-game/Auto-1.sav` (Driscola: 1,024 citizens, 28,000 placed entities, made in
+the original game in 2015) at speed 10. A capture frame is two 1/60 s updates.
+
+| Change | Cause | Fix |
+|---|---|---|
+| `entity_views` (38 % of time) | A view of all 28,000 entities, about twice per iteration, ran an iterator chain even for entities with no use points, and looked each entity's site up in a tree | Skip the chain for those entities; walk the sites alongside the entities |
+| `sync_map` (16 %) | Compared the whole 512 × 512 type map about six times per iteration, and refilled the path regions after any type change | A revision stamp on the types (`Cells::types_revision`) skips the comparison; the region fill runs only when walkability changed |
+| `Floors::ground_normal` (11 %) | Tested every bridge floor for every character on a bridge cell | Skip floors whose footprint misses the downward ray |
+| `refresh_models` (7 ms per update) | Hashed a copied mesh name for every entity every frame | Find each entity's group through a small table per template |
+
+| | Before | After |
+|---|---|---|
+| Frame, median | 94.3 ms | 43.0 ms |
+| `sim.iterate` | 78 ms | 29 ms |
+| `sim.citizens` | 50 ms | 21 ms |
+| `refresh_models` | 7.2 ms | 4.3 ms |
+
+Every change was checked with `tools/compat/compare.sh` and `tools/triage/same-run.sh`: the same
+save, played 40 s at speed 10, gives identical game state (33 MB) and frames before and after.
+[COMPATIBILITY.md](COMPATIBILITY.md) describes the method.
+
+Still the largest costs per update on this town: `refresh_models` (4.3 ms), `audio` (3.4 ms),
+`refresh_particles` (2.7 ms), and in the simulation the characters' movement and path finding.
+
 ## Opportunities
 
 Ranked by expected gain against risk to 1:1 behaviour. "Measured" figures come from the samply
