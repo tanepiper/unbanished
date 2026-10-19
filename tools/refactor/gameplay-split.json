@@ -1,0 +1,21 @@
+{
+  "file": "apps/game/src/gameplay.rs",
+  "type": "GameplayLoop",
+  "modules": {
+    "saving": {"doc": "Saving a running game: its state and file, the save dialog, autosave, the minimap images and the achievements stored with it.",
+      "methods": ["save_state", "save_file", "finish_save", "update_autosave", "update_save_dialog", "save_outcome", "save_minimap_images", "new_game_state", "save_achievements"],
+      "items": ["SaveTarget", "achievement_save"]},
+    "hud": {"doc": "The HUD: the toolbar, the status values it shows, and the tooltip.",
+      "methods": ["build_hud", "status_values", "update_hud", "refresh_toolbar", "population", "fill_tooltip"]},
+    "input": {"doc": "Player input on the map and the windows: picking under the cursor, selection clicks, window dragging, map clicks, key actions and UI events.",
+      "methods": ["cursor_ray", "select_at_cursor", "entity_at_cursor", "path_click", "position_entity_window", "drag_window", "cursor_cell", "map_click", "run_action"],
+      "items": ["DragInput"],
+      "impls": ["impl GameplayLoop {\n    /// The UI events of `GameLoop::event`"]},
+    "tools": {"doc": "The active tool: placement, following a citizen, a scenario's restricted tools, and removal.",
+      "methods": ["refresh_placement", "close_follow", "update_follow", "restrict_allows", "force_restricted_tool", "start_tool", "removal_input", "end_placement"]},
+    "simulation": {"doc": "One simulation iteration and what follows it: commands, the town's update, decals, particles, weather, achievements and the event log.",
+      "methods": ["month", "apply_commands", "iterate", "refresh_decals", "refresh_particles", "refresh_weather", "update_achievements", "log_life_events", "log_site_events"]},
+    "audio": {"doc": "The game's music and the scene's sound each frame.",
+      "methods": ["music_month_mood", "update_audio"]}
+  }
+}
