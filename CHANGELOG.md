@@ -42,6 +42,11 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 - Documentation: the website has new Guide, Develop, Topics and Reference sections. There is a
   README for every app and crate, with tested examples; guides to tracing, emulating, porting and
   verifying; pages on how the game's parts work; and the Rust API documentation at `/api/`.
+- The Rust API documentation is written for readers: plain English, every public item
+  documented except some struct fields, each crate's README as its first page (its examples run
+  as doc tests), and the website's colours. Each ported item still names its original function
+  in one last line; offsets and other evidence are in ordinary comments
+  (`tools/triage/doc_comments.py` checks this).
 - Short videos of the game, recorded headlessly with `tools/videos.sh` (see
   [docs/develop/VIDEOS.md](docs/develop/VIDEOS.md)), and more screenshots of the game and the
   viewer.
