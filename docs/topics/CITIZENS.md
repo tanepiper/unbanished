@@ -6,7 +6,7 @@ that decision is made, and how it becomes walking and working. The code is in
 `crates/game/src/behaviour/` and `crates/game/src/people/`, and path finding in
 [banished-path](../../crates/path/README.md).
 
-<video src="../assets/videos/citizens-market.webm" autoplay loop muted playsinline width="720"></video>
+<video src="../assets/videos/citizens-market.webm" poster="../assets/videos/citizens-market-poster.webp" autoplay loop muted playsinline width="720"></video>
 
 ## Three components
 

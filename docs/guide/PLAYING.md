@@ -4,7 +4,7 @@ This page shows Un-Banished running, and explains the first steps in a new town.
 plays like Banished 1.0.7, so guides and advice for the original game also apply. The game's own
 **Tutorials** (in the main menu) teach the basics step by step.
 
-<video src="../assets/videos/zoom-into-town.webm" autoplay loop muted playsinline width="720"></video>
+<video src="../assets/videos/zoom-into-town.webm" poster="../assets/videos/zoom-into-town-poster.webp" autoplay loop muted playsinline width="720"></video>
 
 ## Start a new game
 
@@ -59,7 +59,7 @@ citizens do each job.
 Citizens walk between their homes, their work places, the storage and the market. They carry
 what they make to storage, and they take food, firewood and clothing home.
 
-<video src="../assets/videos/citizens-market.webm" autoplay loop muted playsinline width="720"></video>
+<video src="../assets/videos/citizens-market.webm" poster="../assets/videos/citizens-market-poster.webp" autoplay loop muted playsinline width="720"></video>
 
 Close up, at twice the normal speed: a farmer harvesting a field and carrying the crop away, a
 labourer walking past the log and stone stockpile, and a vendor bringing goods to the market
@@ -89,7 +89,7 @@ The year has twelve months: three each of spring, summer, autumn and winter. Cro
 spring to autumn and must be harvested before the frost. Snow covers the town in winter. This
 video shows a town from autumn to the start of spring, at the highest game speed:
 
-<video src="../assets/videos/seasons.webm" autoplay loop muted playsinline width="720"></video>
+<video src="../assets/videos/seasons.webm" poster="../assets/videos/seasons-poster.webp" autoplay loop muted playsinline width="720"></video>
 
 ## Animals
 

@@ -13,7 +13,7 @@ The method needs no special video code. It uses two features that already exist:
 So a video is a headless run with one `screenshot` command for each frame. FFmpeg then joins the
 frames into a WebM file.
 
-<video src="../assets/videos/citizens-market.webm" autoplay loop muted playsinline width="720"></video>
+<video src="../assets/videos/citizens-market.webm" poster="../assets/videos/citizens-market-poster.webp" autoplay loop muted playsinline width="720"></video>
 
 ## Make the documentation's videos again
 
@@ -47,21 +47,24 @@ GAME=path/to/banished VIEWER=path/to/banished-viewer tools/videos.sh SAVE.sav   
 | `labourer.webm` | A labourer walking past the log and stone stockpile | `--camera-follow "profession labor 1@5"` at speed 2 |
 | `vendor.webm` | A vendor bringing goods to the market stalls | `--camera-follow "profession vendor 0@5"` at speed 2 |
 
-The cinematic and people videos each have a poster, `NAME-poster.webp`: one frame of the video,
-which a page shows until the video plays (`<video poster=…>`).
-| `montage.webm` | The home page's video, 39 s: the camera descends over a river town, citizens at a market, farmers in autumn fields, a young town, a winter town, a year of seasons, and the camera rises again | Six 5.5 s shots and a 9 s time-lapse from five saves, joined with 0.5 s cross-fades |
+Each video has a poster, `NAME-poster.webp`: one frame of the video, which a page shows until
+the video plays (`<video poster=…>`).
+| `montage.webm` | The home page's video, about 65 s: a flight down a river into a town, the trader's boat, a fisher, the market, a farmer, a vendor and a labourer close up, an autumn town, a young town, a winter town, a year of seasons, and the camera rises away | Twelve shots from five saves, joined with 0.6 s transitions of eleven kinds (`xfade`: fade through black, slides, wipes, a circle, a radial sweep, a blur, fade through white) |
 
 The montage is made only when you ask for it (`tools/videos.sh save-game/Save83.sav montage`),
-because it loads five saves from the same folder. Its shots are listed in the script, in
-`MONTAGE`: for each one the save, the building the camera centres on, the zoom, the time span and
-any pointer moves. A pointer moved to the edge of the screen (`--move 0,360@T`) scrolls the
+because it loads five saves from the same folder and takes several minutes. Its shots are in the
+script's `montage` part: most reuse the runs of the other videos (`run_flight`, `run_boat`,
+`run_farmer`, …) and keep a part of their frames with `clip`; the others give the save, the
+building the camera centres on, the zoom and any pointer moves. `joins` lists the transition
+between each pair of shots. A pointer moved to the edge of the screen (`--move 0,360@T`) scrolls the
 camera, as in the game, and a `--move` back to the middle stops it. It also needs `cwebp` for the
 poster image.
 
 The script needs your game data in `game-data/`, a save of a town without mods, FFmpeg with
-VP9 (libvpx) and `bc`. The town videos centre the camera on a building in the middle of the town
-by clicking it. With a different save, set `CLICK=X,Y` to a building there (pixels in a
-1280 × 720 frame).
+VP9 (libvpx), `bc` and `cwebp`. Every town video is drawn at 1920 × 1080 with the highest video
+settings and scaled down, and has a poster, `NAME-poster.webp`. The town videos centre the camera
+on a building in the middle of the town by clicking it. With a different save, set `CLICK=X,Y`
+to a building there (pixels in a 1280 × 720 frame; the script scales them to the capture size).
 
 The runs are deterministic. The same program, save and arguments give the same frames, so a
 video made again is identical frame by frame. This also means that two builds of the game can be

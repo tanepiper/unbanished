@@ -57,9 +57,13 @@ with FFmpeg. No Rust change is needed. The person-readable guide is `docs/develo
      helper: speed 2, rig `3.5,2.6,0.8,3,1.2`) in `tools/videos.sh` are the examples; each writes
      a `NAME-poster.webp` too (`poster FRAME NAME`). This camera does not
      depend on drawn frames, so the "draw every frame" rule below does not apply to it.
-   - **Quality:** cinematic videos use `--capture-size 1920x1080` and the `HQ` settings in
-     `tools/videos.sh` (`--setting VideoMultisample=3`, `VideoTextureFilter=16`,
-     `VideoShadowScalar=0`, `VideoShaderDetail=3`, `VideoReflectionDetail=2`), scaled down to
+   - **Quality:** every town video in `tools/videos.sh` uses `--capture-size 1920x1080` and the
+     `HQ` settings (`town()` adds them, and scales `CLICK`, `--move` and `--click-at` from
+     1280x720 positions with `px`; crops are relative, `$middle`/`$top`). Each video gets a
+     `NAME-poster.webp` (`poster FRAME NAME`). The montage reuses the `run_*` functions and keeps
+     parts with `clip NAME START COUNT`, joined by `xfade` transitions listed in `joins`. The
+     settings are `--setting VideoMultisample=3`, `VideoTextureFilter=16`,
+     `VideoShadowScalar=0`, `VideoShaderDetail=3`, `VideoReflectionDetail=2`; frames are scaled to
      768x432 with lanczos. Pass the settings as separate arguments (zsh does not split `$HQ`;
      the log line `antialiasing: 4 samples` confirms them). `FILTER=sepia|grey|psychedelic`
      colours the encode.
