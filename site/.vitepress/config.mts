@@ -27,6 +27,32 @@ function engineVersion(): string {
   return `${version}-${build}`
 }
 
+const helpGroup = {
+  text: 'Help',
+  items: [
+    { text: 'Contributing', link: '/develop/contributing' },
+    { text: 'Report a problem', link: `${github}/issues/new/choose` },
+  ],
+}
+
+const guideSidebar = [
+  {
+    text: 'Play',
+    items: [
+      { text: 'Play in your browser', link: '/play' },
+      { text: 'Setup guide', link: '/guide/' },
+      { text: 'Playing the game', link: '/guide/playing' },
+      { text: 'Controls', link: '/guide/controls' },
+      { text: 'Saves and settings', link: '/guide/saves' },
+      { text: 'Mods', link: '/guide/mods' },
+      { text: 'The browser version', link: '/guide/browser' },
+      { text: 'Command line and version', link: '/guide/command-line' },
+      { text: 'Troubleshooting', link: '/guide/troubleshooting' },
+    ],
+  },
+  helpGroup,
+]
+
 export default defineConfig({
   base,
   lang: 'en-GB',
@@ -36,6 +62,22 @@ export default defineConfig({
   cleanUrls: true,
   appearance: 'dark',
   lastUpdated: false,
+  // The Rust API documentation (/api/) is built by scripts/build-api.sh, outside VitePress.
+  ignoreDeadLinks: [/^\/api\//],
+  markdown: {
+    config(md) {
+      // The API pages are plain rustdoc HTML, not VitePress pages: load them normally.
+      const linkOpen = md.renderer.rules.link_open
+      md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+        const href = tokens[idx].attrGet('href')
+        if (href?.startsWith('/api/')) {
+          tokens[idx].attrSet('href', base + href.slice(1))
+          tokens[idx].attrSet('target', '_self')
+        }
+        return linkOpen ? linkOpen(tokens, idx, options, env, self) : self.renderToken(tokens, idx, options)
+      }
+    },
+  },
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}favicon.svg` }],
     ['meta', { name: 'theme-color', content: '#17120d' }],
@@ -57,45 +99,113 @@ export default defineConfig({
     siteTitle: 'Un-Banished',
     nav: [
       { text: 'Play', link: '/play' },
-      { text: 'Setup guide', link: '/guide/' },
-      { text: 'How it was made', link: '/about/how-it-was-made' },
-      {
-        text: 'About',
-        items: [
-          { text: 'About the project', link: '/about/' },
-          { text: 'Status', link: '/about/status' },
-          { text: 'Questions and answers', link: '/about/faq' },
-          { text: 'Licence and legal', link: '/about/licence' },
-          { text: 'Contribute', link: '/contribute' },
-        ],
-      },
-    ],
-    sidebar: [
-      {
-        text: 'Play',
-        items: [
-          { text: 'Play in your browser', link: '/play' },
-          { text: 'Setup guide', link: '/guide/' },
-        ],
-      },
+      { text: 'Guide', link: '/guide/', activeMatch: '^/guide/' },
+      { text: 'Develop', link: '/develop/', activeMatch: '^/develop/' },
+      { text: 'Topics', link: '/topics/', activeMatch: '^/topics/' },
+      { text: 'Reference', link: '/reference/', activeMatch: '^/reference/' },
       {
         text: 'About',
         items: [
           { text: 'About the project', link: '/about/' },
           { text: 'How it was made', link: '/about/how-it-was-made' },
           { text: 'Status', link: '/about/status' },
+          { text: 'Changelog', link: '/changelog' },
           { text: 'Questions and answers', link: '/about/faq' },
           { text: 'Licence and legal', link: '/about/licence' },
         ],
       },
-      {
-        text: 'Help',
-        items: [
-          { text: 'Contribute', link: '/contribute' },
-          { text: 'Report a problem', link: `${github}/issues/new/choose` },
-        ],
-      },
     ],
+    sidebar: {
+      '/guide/': guideSidebar,
+      '/play': guideSidebar,
+      '/develop/': [
+        {
+          text: 'Develop',
+          items: [
+            { text: 'Start here', link: '/develop/' },
+            { text: 'Building', link: '/develop/building' },
+            { text: 'Testing', link: '/develop/testing' },
+            { text: 'Compatibility between versions', link: '/develop/compatibility' },
+            { text: 'Performance and profiling', link: '/develop/performance' },
+            { text: 'API documentation', link: '/develop/api' },
+            { text: 'Contributing', link: '/develop/contributing' },
+          ],
+        },
+        {
+          text: 'Development guides',
+          items: [
+            { text: 'The work loop', link: '/develop/guides/' },
+            { text: '1. Trace', link: '/develop/guides/trace' },
+            { text: '2. Emulate', link: '/develop/guides/emulate' },
+            { text: '3. Decode a format', link: '/develop/guides/format' },
+            { text: '4. Port', link: '/develop/guides/port' },
+            { text: '5. Port a shader', link: '/develop/guides/shader' },
+            { text: '6. Verify', link: '/develop/guides/verify' },
+            { text: '7. Document and land', link: '/develop/guides/land' },
+          ],
+        },
+        helpGroup,
+      ],
+      '/topics/': [
+        {
+          text: 'How it works',
+          items: [
+            { text: 'Overview', link: '/topics/' },
+            { text: 'Game data files', link: '/topics/game-data' },
+            { text: 'Exact maths and random numbers', link: '/topics/exact-maths' },
+            { text: 'Terrain generation', link: '/topics/terrain' },
+            { text: 'The game loop', link: '/topics/game-loop' },
+            { text: 'Citizens', link: '/topics/citizens' },
+            { text: 'Save files', link: '/topics/saves' },
+            { text: 'The interface', link: '/topics/interface' },
+            { text: 'Audio', link: '/topics/audio' },
+            { text: 'The emulator harness', link: '/topics/emulator' },
+          ],
+        },
+        helpGroup,
+      ],
+      '/reference/': [
+        {
+          text: 'Apps',
+          items: [
+            { text: 'All apps and crates', link: '/reference/' },
+            { text: 'banished (the game)', link: '/reference/game' },
+            { text: 'banished-viewer', link: '/reference/viewer' },
+            { text: 'banished-cli', link: '/reference/cli' },
+          ],
+        },
+        {
+          text: 'Libraries',
+          items: [
+            { text: 'banished-core', link: '/reference/core' },
+            { text: 'banished-terrain', link: '/reference/terrain' },
+            { text: 'banished-path', link: '/reference/path' },
+            { text: 'banished-game', link: '/reference/game-rules' },
+            { text: 'banished-formats', link: '/reference/formats' },
+            { text: 'banished-ui', link: '/reference/ui' },
+            { text: 'banished-gfx', link: '/reference/gfx' },
+            { text: 'banished-audio', link: '/reference/audio' },
+            { text: 'banished-wma', link: '/reference/wma' },
+            { text: 'API documentation', link: '/develop/api' },
+          ],
+        },
+        helpGroup,
+      ],
+      '/': [
+        {
+          text: 'About',
+          items: [
+            { text: 'About the project', link: '/about/' },
+            { text: 'How it was made', link: '/about/how-it-was-made' },
+            { text: 'Status', link: '/about/status' },
+            { text: 'Changelog', link: '/changelog' },
+            { text: 'Questions and answers', link: '/about/faq' },
+            { text: 'Licence and legal', link: '/about/licence' },
+          ],
+        },
+        helpGroup,
+      ],
+    },
     socialLinks: [{ icon: 'github', link: github }],
     search: { provider: 'local' },
     outline: { level: [2, 3], label: 'On this page' },

@@ -1,5 +1,5 @@
-# Build the website (site/) with the browser version of the game, and publish it to GitHub Pages
-# at https://tanepiper.github.io/unbanished/.
+# Build the website (site/) with the browser version of the game and the Rust API documentation,
+# and publish it to GitHub Pages at https://tanepiper.github.io/unbanished/.
 name: Site
 
 on:
@@ -7,11 +7,11 @@ on:
     branches: [main]
     paths:
       - 'site/**'
-      - 'docs/USER-GUIDE.md'
-      - 'docs/PROCESS.md'
-      - 'docs/assets/**'
+      - 'docs/**'
       - 'README.md'
-      - 'apps/game/**'
+      - 'CHANGELOG.md'
+      - 'AGENTS.md'
+      - 'apps/**'
       - 'crates/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -59,6 +59,13 @@ jobs:
 
       - name: Build the game for the browser
         run: site/scripts/build-game.sh "$SITE_BASE"
+
+      # cargo doc runs the build scripts of the sound libraries, which need the ALSA headers.
+      - name: Install the ALSA headers
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+
+      - name: Build the Rust API documentation
+        run: site/scripts/build-api.sh
 
       - name: Install Node.js
         uses: actions/setup-node@v4

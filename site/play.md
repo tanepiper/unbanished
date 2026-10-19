@@ -21,7 +21,7 @@ This is the full game, built for WebAssembly. It is the same code as the desktop
 3. Click the game once. Then the game receives your keyboard input, and it can play sound.
 
 To find the `WinData` folder, or to get the game files on a Mac or a Linux PC, read
-[Find your game data](/guide/#4-find-your-game-data) and
+[Find your game data](/guide/#_4-find-your-game-data) and
 [Getting the game files](/guide/#getting-the-game-files) in the setup guide.
 
 ## Good to know
@@ -32,8 +32,8 @@ To find the `WinData` folder, or to get the game files on a Mac or a Linux PC, r
   at any time. Then turn them on in the **Mods** menu.
 - **Screenshots** (Print Screen or Scroll Lock) are downloaded by the browser.
 - **Full screen** gives the game the most room. Press Esc to leave full screen.
-- If the game does not start, read [Troubleshooting](/guide/#troubleshooting), or
+- If the game does not start, read [Troubleshooting](/guide/troubleshooting), or
   [report the problem](https://github.com/tanepiper/unbanished/issues/new/choose).
 
 The controls are the same as in the original game. They are listed in
-[Controls](/guide/#controls).
+[Controls](/guide/controls).
