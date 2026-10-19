@@ -48,7 +48,7 @@ objects that matter to them, and the map keeps a counter that goes up when somet
   ]"
 />
 
-The video at the top of this page is Driscola at speed 10, recorded by Un-Banished itself.
+The video at the top of this page is Driscola at speed 10.
 
 ## The GPU does half the work
 
@@ -137,13 +137,23 @@ oars.
 
 ## People at work, up close
 
-The game's own camera stays high above the town, as in the original. For this release we built
-a second camera, only for recording videos. It can fly along any path, or ride behind a citizen,
-a boat or an animal and look where they are going. When a roof or a tree comes between the
-camera and the citizen, the camera moves closer or rises, so the view stays clear.
+Every video in this post was recorded by Un-Banished itself, without a window: the game runs, a
+script moves the camera, and each frame is saved and joined into a video. The game's own camera
+stays high above the town, as in the original, so for this release we gave the recordings a
+camera of their own. It can fly along any path, or ride behind a citizen, a boat or an animal
+and look where they are going. When a roof or a tree comes between the camera and its subject,
+it moves closer or rises, so the view stays clear.
 
-So here, for the first time, are the people of a Banished town at work, close enough to see
-what they carry.
+<Shot
+  src="/assets/videos/river-flight.webm"
+  poster="/assets/videos/river-flight-poster.webp"
+  alt="The camera flies low down a river and into a town"
+  caption="A flight down the river and into the town."
+/>
+
+With it, for the first time, you can see the people of a Banished town at work, close enough to
+see what they carry. Anyone can make videos like these with `tools/videos.sh`;
+[Recording videos](/develop/videos) explains how.
 
 <div class="ub-shots">
 <Shot
@@ -195,48 +205,6 @@ Now this happens behind the loading screen.
 Loading itself is also faster on computers with more than one processor core. The game's
 pictures, sounds and models are now decoded on all the cores at the same time. Starting the game
 and loading a save take 20 to 55 % less time. (The browser version still loads on one core.)
-
-## The camera learns new tricks
-
-All the videos in this post were recorded by Un-Banished itself, without a window. The game
-runs, a script moves the camera, and every frame is saved and joined into a video. For this
-release, the recording tool learned to hold down camera keys, to follow a citizen with the game
-camera, and to use the new cinematic camera. Anyone can make these videos with
-`tools/videos.sh`; [Recording videos](/develop/videos) explains how.
-
-<Shot
-  src="/assets/videos/river-flight.webm"
-  poster="/assets/videos/river-flight-poster.webp"
-  alt="The camera flies low down a river and into a town"
-  caption="A flight down the river and into the town, on the cinematic camera's path."
-/>
-
-<div class="ub-shots">
-<Shot
-  src="/assets/videos/follow-citizen.webm"
-  poster="/assets/videos/follow-citizen-poster.webp"
-  alt="The camera follows one citizen as they walk between houses"
-  caption="Following one citizen through the town."
-/>
-<Shot
-  src="/assets/videos/river.webm"
-  poster="/assets/videos/river-poster.webp"
-  alt="The camera flies low along a river past a bridge and forest"
-  caption="Along the river from the bridge."
-/>
-<Shot
-  src="/assets/videos/fishing.webm"
-  poster="/assets/videos/fishing-poster.webp"
-  alt="The camera turns slowly around a fishing dock on a river"
-  caption="A fishing dock, close up."
-/>
-<Shot
-  src="/assets/videos/seasons.webm"
-  poster="/assets/videos/seasons-poster.webp"
-  alt="A town changes from autumn to winter to spring"
-  caption="A year at speed 10."
-/>
-</div>
 
 ## Under the floorboards
 
