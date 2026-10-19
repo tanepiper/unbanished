@@ -20,7 +20,7 @@ Deviation: 40, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/gameplay.rs`
 
-- [Deviation] [apps/game/src/gameplay.rs:32](../apps/game/src/gameplay.rs#L32): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
+- [Deviation] [apps/game/src/gameplay.rs:50](../apps/game/src/gameplay.rs#L50): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
 
 ## `apps/game/src/gfx/screenshot.rs`
 
@@ -82,8 +82,11 @@ Deviation: 40, Not ported: 4, Not traced: 1.
 
 ## `crates/game/src/behaviour/agents.rs`
 
-- [Deviation] [crates/game/src/behaviour/agents.rs:1](../crates/game/src/behaviour/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance (`AnimationManager::Update`), every character runs its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run the AI with zero time (`FUN_140114810`), then the AI updates. The citizens' scheduled components (CitizenComponent, CitizenAIComponent and the CharacterComponent's notify) run for the citizens bucket 1 visited this iteration, with the time since each one's last visit; so do the sites' StateMachines, fires, blight, hunts, attendance, residences and piles in bucket 3 (`FUN_1400c9560`, `town::Env::visits`). Deviation: these run after the bucket pass (system by system, each in visiting order) instead of interleaved with it entity by entity, so random draws can come in another order.
-- [Deviation] [crates/game/src/behaviour/agents.rs:1055](../crates/game/src/behaviour/agents.rs#L1055): The wild animals' CharacterComponent update (`FUN_14010e990`): animate, run the actions, turn and move. Deviation: the entity manager runs these every-iteration updates (`FUN_1400c9560` → `FUN_1400c82b0`) in the order of a tree keyed by the entity's address (manager `+0x68`, kept by `FUN_1400c90a0`); the port takes them in the order they were made, which a growing heap usually gives too.
+- [Deviation] [crates/game/src/behaviour/agents.rs:1](../crates/game/src/behaviour/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance (`AnimationManager::Update`), every character runs its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run the AI with zero time (`FUN_140114810`), then the AI updates. The citizens' scheduled components (CitizenComponent, CitizenAIComponent and the CharacterComponent's notify) run for the citizens bucket 1 visited this iteration, with the time since each one's last visit; so do the sites' StateMachines, fires, blight, hunts, attendance, residences and piles in bucket 3 (`FUN_1400c9560`, `town::Env::visits`). Deviation: these run after the bucket pass (system by system, each in visiting order) instead of interleaved with it entity by entity, so random draws can come in another order. This file holds the agents' state and setup; the rest is split by topic: [`update`] (the iteration), [`thinking`] (the AI), [`lives`], [`commands`], [`paths`] and [`views`].
+
+## `crates/game/src/behaviour/agents/update.rs`
+
+- [Deviation] [crates/game/src/behaviour/agents/update.rs:285](../crates/game/src/behaviour/agents/update.rs#L285): The wild animals' CharacterComponent update (`FUN_14010e990`): animate, run the actions, turn and move. Deviation: the entity manager runs these every-iteration updates (`FUN_1400c9560` → `FUN_1400c82b0`) in the order of a tree keyed by the entity's address (manager `+0x68`, kept by `FUN_1400c90a0`); the port takes them in the order they were made, which a growing heap usually gives too.
 
 ## `crates/game/src/behaviour/animation.rs`
 

@@ -1,0 +1,15 @@
+{"file": "crates/game/src/behaviour/agents.rs", "type": "Agents",
+ "modules": {
+  "views": {"doc": "What the agents see of the town: the map sync, entity views and storages.",
+   "methods": ["sync_map"], "items": ["refresh_views", "entity_views", "storage_of"]},
+  "paths": {"doc": "Paths for citizens: road and walking paths and the commute.",
+   "methods": ["road_path", "walk_path", "update_commute"]},
+  "commands": {"doc": "Commands from the town: new citizens, tree slots and newcomers arriving.",
+   "methods": ["apply_commands", "set_tree_slot", "join_tree", "admit_band"]},
+  "update": {"doc": "The agents' iteration: characters, animals and hunt messages.",
+   "methods": ["update", "move_animals", "hunt_notify"]},
+  "lives": {"doc": "Citizens' lives: ageing, births and deaths, and removing a citizen.",
+   "methods": ["live", "with_people", "remove"]},
+  "thinking": {"doc": "The citizens' AI: delivering messages, thinking and running the AI update.",
+   "methods": ["deliver", "think"], "items": ["run"]}
+ }}
