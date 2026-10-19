@@ -96,6 +96,11 @@ pub trait GameLoop {
     fn view(&self) -> View<'_> {
         View::None
     }
+    /// The town being played, for captures' cinematic camera ([`crate::view::cinematic`]).
+    #[cfg(not(target_arch = "wasm32"))]
+    fn town(&self) -> Option<&crate::start::StartingTown> {
+        None
+    }
     /// A save waiting for its preview (`SaveLoad` operation pending): the next draw renders
     /// the scene without UI and hands it over (`SaveLoad::Draw`, Runtime `0x1800c5720`).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]

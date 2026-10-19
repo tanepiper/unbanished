@@ -73,6 +73,26 @@ more than once.
 If `--press` names an element that does not exist at that time, the log says
 `--press NAME: not found at T s`.
 
+### The cinematic camera
+
+For videos, a capture can draw the town from a camera of its own instead of the game's. It
+changes only the picture: the game camera, the simulation and saves are as without it. Culling,
+shadows, the sky and the weather follow the cinematic camera. Positions are in map cells from the
+middle of the map, with `z` up; heading 0 faces `+y`.
+
+| Option | What it does |
+|---|---|
+| `--camera EX,EY,EZ>TX,TY,TZ@T` | A keyframe: at `T` seconds the camera is at `EX,EY,EZ` and looks at `TX,TY,TZ`. Give several: the camera moves on a smooth curve through them, starts and stops gently, and stays at the last one. Before the first keyframe the game camera draws. |
+| `--camera-follow SUBJECT@START[-END]` | Ride with a subject from `START` (to `END`) seconds: `citizen N`, `profession NAME N` (`fish`, `hunt`), `boat N` (a trader boat) or `animal [NAME] N` (`deer`). The camera waits for the subject to appear (a boat that has not arrived yet) and stays where it was when the subject leaves the map. A follow comes before the keyframes. |
+| `--camera-rig BACK,UP[,SIDE[,AHEAD[,LOOK_UP]]]` | Where a following camera sits, in the subject's own frame: `BACK` behind it, `UP` above its feet, `SIDE` to its right, looking at the point `AHEAD` in front of it and `LOOK_UP` high. The default `4,2.6,0.8,8,1` is over a citizen's right shoulder. |
+| `--camera-fov DEGREES` | The vertical field of view. The game's is 40. |
+| `--camera-smooth SECONDS` | How slowly a following camera turns with its subject (default 0.6; it moves with the subject four times faster). |
+| `--camera-clear 0` | Turn off the rise over obstacles. By default a following camera looks at the buildings, trees and bridges around the subject, and rises (up to 8) when one would come between them. |
+
+Run with `RUST_LOG=info,banished::view::cinematic=debug` to log the followed subject's position
+and heading at each step. It helps to place keyframes: a trader boat's positions trace the
+river.
+
 ### Script commands
 
 | Command | Where | What it does |

@@ -106,6 +106,9 @@ pub struct Game {
     /// The software pointers (`FUN_1400a0e00`'s table, `Global +0x28`): Arrow, Hand,
     /// Hourglass, Move, Query and Place, each its sheet and hotspot once loaded.
     cursors: Vec<Option<(banished_ui::SpriteRef, [i32; 2])>>,
+    /// A capture's cinematic camera this frame: eye, target and vertical field of view
+    /// ([`view::cinematic`]). Deviation: not in the original; drawing only, set by captures.
+    cinematic: Option<(glam::Vec3, glam::Vec3, f32)>,
 }
 
 /// `SetupFileSystem` and `LoadResources`: the enabled mods join the packages (from the last
@@ -234,6 +237,7 @@ impl Game {
             rng: Random::new(clock_seed()),
             main: boot_chain(),
             save_capture: None,
+            cinematic: None,
             screenshot: None,
             app_paused: false,
             settings,
@@ -629,8 +633,14 @@ impl Game {
                 renderer.set_scene(view);
                 renderer.update_minimap(view);
                 let fog = view.lighting.fog_color;
+                let aspect = renderer.aspect();
                 (
-                    Some(view.frame(renderer.aspect(), self.main.elapsed)),
+                    Some(match self.cinematic {
+                        Some((eye, target, fov)) => {
+                            view.frame_from(eye, target, fov, aspect, self.main.elapsed)
+                        }
+                        None => view.frame(aspect, self.main.elapsed),
+                    }),
                     // Until the sky mesh is drawn, clear to the fog colour.
                     wgpu::Color {
                         r: fog.x as f64,
@@ -1380,6 +1390,8 @@ mod native {
                 Some((cmd, at.parse().ok()?))
             })
             .collect();
+        // `--camera`, `--camera-follow` and their settings: the cinematic camera (drawing only).
+        let mut cinematic = crate::view::cinematic::Cinematic::from_args(args);
         let dt = 1.0 / 30.0;
         let mut t = 0.0;
         // Frames left to draw for a scripted screenshot's readback.
@@ -1393,6 +1405,9 @@ mod native {
                 game.update(step);
             }
             t += dt;
+            if let Some(c) = cinematic.as_mut() {
+                game.cinematic = c.step(t, dt, game.main.current(), &game.archive);
+            }
             // A save waits for a drawn frame's preview (headless, nothing else is drawn). With
             // the profiler on, every frame is drawn, as in the windowed game.
             if game.main.current().wants_save_preview()

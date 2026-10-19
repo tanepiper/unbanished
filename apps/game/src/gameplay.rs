@@ -1353,6 +1353,11 @@ impl GameLoop for GameplayLoop {
     fn view(&self) -> View<'_> {
         self.view.as_ref().map_or(View::None, View::World)
     }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn town(&self) -> Option<&StartingTown> {
+        self.town.as_ref()
+    }
 }
 
 /// A generated world's terrain block (`FUN_1400b59a0`, version 6): its size, heights,

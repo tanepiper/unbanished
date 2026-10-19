@@ -43,6 +43,23 @@ with FFmpeg. No Rust change is needed. The person-readable guide is `docs/develo
      `--press buttonFollow@T+0.5`.
    - `tools/videos.sh` modes are worked examples: `orbit`, `big-town`, `river`, `fishing`
      (held keys), `follow-citizen`, `montage` (edge scrolling, seven shots joined with xfade).
+   - **Cinematic camera** (drawing only; the game camera, simulation and saves are unchanged):
+     `--camera "EX,EY,EZ>TX,TY,TZ@T"` keyframes (several: a smooth curve, eased at the ends;
+     map cells from the map's middle, z up, water at 0); `--camera-follow "SUBJECT@START[-END]"`
+     with `citizen N`, `profession fish N`, `boat N`, `animal deer N`; `--camera-rig
+     BACK,UP,SIDE,AHEAD,LOOK_UP` (default `4,2.6,0.8,8,1`, over a citizen's shoulder),
+     `--camera-fov 50`, `--camera-smooth 0.6`. A follow rises over buildings, trees and bridges
+     between camera and subject (`--camera-clear 0` turns it off). Find coordinates with
+     `RUST_LOG=info,banished::view::cinematic=debug` and a follow: it logs the subject's position
+     each step (a boat's track is the river). Modes `boat-shoulder`, `fisher-closeup`,
+     `river-flight` in `tools/videos.sh` are the examples (for `Save 47`). This camera does not
+     depend on drawn frames, so the "draw every frame" rule below does not apply to it.
+   - **Quality:** cinematic videos use `--capture-size 1920x1080` and the `HQ` settings in
+     `tools/videos.sh` (`--setting VideoMultisample=3`, `VideoTextureFilter=16`,
+     `VideoShadowScalar=0`, `VideoShaderDetail=3`, `VideoReflectionDetail=2`), scaled down to
+     768x432 with lanczos. Pass the settings as separate arguments (zsh does not split `$HQ`;
+     the log line `antialiasing: 4 samples` confirms them). `FILTER=sepia|grey|psychedelic`
+     colours the encode.
    - `--script "speed 10@T"` for time-lapses; `--script "open Template/UtilityMap.rsc@T"` for
      windows; `BANISHED_SEED=N` with `--press buttonNew@4.5 --press buttonOk@5.0` for a new
      game.

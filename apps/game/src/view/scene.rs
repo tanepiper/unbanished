@@ -109,6 +109,41 @@ impl SceneView {
             near: 2.0,
         }
     }
+
+    /// This frame seen from another camera: `eye` looking at `target` with a vertical field of
+    /// view of `vfov` degrees. The game's own camera is left as it is; culling, shadows, the sky
+    /// and the weather follow the frame's camera. Used by captures' cinematic camera
+    /// ([`crate::view::cinematic`]).
+    /// Deviation: not in the original; captures only (`--camera`, `--camera-follow`).
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    pub fn frame_from(
+        &self,
+        eye: Vec3,
+        target: Vec3,
+        vfov: f32,
+        aspect: f32,
+        time: f32,
+    ) -> crate::gfx::render::SceneFrame {
+        use glam::camera::rh::view::look_at_mat4;
+        // Closer than the game's near plane of 2, for close-ups of citizens.
+        const CLOSE: f32 = 0.5;
+        let forward = (target - eye).normalize_or(Vec3::Y);
+        let right = forward.cross(Vec3::Z).normalize_or(Vec3::X);
+        let up = right.cross(forward);
+        crate::gfx::render::SceneFrame {
+            view_proj: projection(vfov, aspect, CLOSE, 512.0) * look_at_mat4(eye, target, Vec3::Z),
+            lighting: self.lighting,
+            eye,
+            far: 512.0,
+            right,
+            forward,
+            up,
+            time,
+            hfov: horizontal_fov(vfov, aspect),
+            vfov,
+            near: CLOSE,
+        }
+    }
 }
 
 /// `Math::Vector3::FromYawPitch` (degrees): the direction a camera with this yaw and pitch faces.

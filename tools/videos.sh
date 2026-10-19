@@ -6,6 +6,9 @@
 #   tools/videos.sh LARGE.sav big-town      # a large town at speed 10, the camera turning over it
 #   tools/videos.sh SAVE.sav orbit follow-citizen   # the camera circles the town; it follows a citizen
 #   tools/videos.sh RIVER.sav river fishing  # along a river from a bridge; fishers on their dock
+#   tools/videos.sh "save-game/Save 47.sav" boat-shoulder fisher-closeup river-flight
+#                                           # the cinematic camera (--camera, --camera-follow)
+#   FILTER=sepia tools/videos.sh SAVE.sav orbit     # also: grey, psychedelic (adds -FILTER to the name)
 #
 # SAVE.sav is a town saved without mods; the town videos load it. They were first made from a
 # 116-citizen town in late summer. With another save, set CLICK=X,Y to a building in the town
@@ -16,6 +19,11 @@
 # Screenshots/Screenshot<N>.bmp in the scratch user folder, and FFmpeg joins them. The chicken is
 # posed by the viewer (VIEWER_POSE), one frame per run. Needs game-data/ (tools/extract-assets.sh),
 # ffmpeg with libvpx, bc, and cwebp for the montage's poster. The player's own saves and settings are never touched.
+#
+# The cinematic videos (boat-shoulder, fisher-closeup, river-flight) use the cinematic camera,
+# which changes only what is drawn, and the highest video settings (HQ below), drawn at
+# 1920x1080 and scaled down. Their keyframes and times are for `Save 47` (a river town whose
+# trader boat is on its way in when the save loads); with another save, change them.
 #
 # The montage is made only when asked for. It loads five saves from the folder of SAVE.sav (the
 # names and the buildings it clicks are in MONTAGE below): a river town, a 116-citizen town, a
@@ -39,6 +47,19 @@ fi
 game="${GAME:-$repo/target/release/banished}"
 viewer="${VIEWER:-$repo/target/release/banished-viewer}"
 click="${CLICK:-1060,470}"
+capture=1280x720
+# The highest video settings: 4x antialiasing, 16x anisotropic filtering, 2048 shadow maps, high
+# shadows, reflections of everything.
+HQ=(--setting VideoMultisample=3 --setting VideoTextureFilter=16 --setting VideoShadowScalar=0
+  --setting VideoShaderDetail=3 --setting VideoReflectionDetail=2)
+# FILTER=sepia|grey|psychedelic: a colour filter for every video made (FFmpeg, after the game).
+case "${FILTER:-}" in
+  "") look="" ;;
+  sepia) look=",colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131" ;;
+  grey) look=",hue=s=0" ;;
+  psychedelic) look=",hue=h=t*180:s=3,eq=contrast=1.25:saturation=1.5" ;;
+  *) echo "unknown FILTER: $FILTER (sepia, grey or psychedelic)" >&2; exit 2 ;;
+esac
 
 # frames FIRST STEP COUNT: set `shots` to `screenshot` commands at FIRST, FIRST+STEP, …
 # (seconds). Each time is moved half a frame (1/60 s) later, so that no two commands fall on the
@@ -63,7 +84,7 @@ town() {
   for ((i = 0; i < ${ZOOM:-28}; i++)); do wheel+=(--wheel "8@$(echo "16 + $i * ${ZSTEP:-0.2}" | bc)"); done
   [[ $click == none ]] || centre=(--click-at "$click@14" --press buttonCenter@14.6 --press buttonClose@15.2)
   BANISHED_USER_DIR="$work/user" BANISHED_SETTINGS="$work/settings.txt" \
-    "$game" --boot-capture "$shot" "$seconds" --capture-size 1280x720 \
+    "$game" --boot-capture "$shot" "$seconds" --capture-size "$capture" \
     --script "load $save@4.5" ${centre[@]+"${centre[@]}"} ${wheel[@]+"${wheel[@]}"} "$@" >"$work/log.txt" 2>&1
   if grep -q 'not found at' "$work/log.txt"; then
     cat "$work/log.txt" >&2
@@ -74,8 +95,8 @@ town() {
 # encode START COUNT FILTER CRF OUT: frames START.. of the last town run, as VP9 WebM.
 encode() {
   ffmpeg -loglevel error -y -framerate 30 -start_number "$1" \
-    -i "$work/user/Screenshots/Screenshot%d.bmp" -frames:v "$2" -vf "$3,format=yuv420p" \
-    -c:v libvpx-vp9 -b:v 0 -crf "$4" -row-mt 1 -an "$out/$5.webm"
+    -i "$work/user/Screenshots/Screenshot%d.bmp" -frames:v "$2" -vf "$3$look,format=yuv420p" \
+    -c:v libvpx-vp9 -b:v 0 -crf "$4" -row-mt 1 -an "$out/$5${FILTER:+-$FILTER}.webm"
 }
 
 for name in "${names[@]}"; do
@@ -148,6 +169,34 @@ for name in "${names[@]}"; do
       click="${CLICK:-912,275}" ZOOM=34 town 33.5 "$work/last.png" --script "speed 3@15.5" \
         --hold PitchUp@22-22.6 --hold RotateLeft@23-27 "${shots[@]}"
       encode 0 300 "scale=768:432:flags=lanczos" 44 fishing
+      ;;
+    boat-shoulder)
+      # Over the trader's shoulder as the boat rows down the river, under a bridge and up to the
+      # trading post (10 s from 19.5 s). The camera rides 6 behind and 3.4 above the boat,
+      # looks 30 ahead, and rises over the bridges on its own.
+      frames 19.5 "$(echo "scale=8; 1/30" | bc)" 300
+      click=none ZOOM=0 capture=1920x1080 town 29.9 "$work/last.png" "${HQ[@]}" \
+        --camera-follow "boat 0@5" --camera-rig 6,3.4,0,30,-1 --camera-fov 50 "${shots[@]}"
+      encode 0 300 "scale=768:432:flags=lanczos" 40 boat-shoulder
+      ;;
+    fisher-closeup)
+      # A fisher at the end of the dock, close up: the camera circles from behind them to
+      # their face in 10 s (three keyframes round the fisher at 54.55, 21.6).
+      frames 30 "$(echo "scale=8; 1/30" | bc)" 300
+      click=none ZOOM=0 capture=1920x1080 town 40.4 "$work/last.png" "${HQ[@]}" \
+        --camera "57.1,18.5,2.1>54.55,21.6,0.7@30" --camera "58.5,21.9,1.9>54.55,21.6,0.7@35" \
+        --camera "56.5,25.1,2.0>54.55,21.6,0.7@40" "${shots[@]}"
+      encode 0 300 "scale=768:432:flags=lanczos" 41 fisher-closeup
+      ;;
+    river-flight)
+      # A sweeping flight down the river into the town, past the bridges and the trading post,
+      # then up over the town: six keyframes in 10 s (the river's line is the boat's route).
+      frames 20 "$(echo "scale=8; 1/30" | bc)" 300
+      click=none ZOOM=0 capture=1920x1080 town 30.4 "$work/last.png" "${HQ[@]}" \
+        --camera "-75,74,24>-15,70,0@20" --camera "-30,80,20>25,52,0@22" \
+        --camera "10,66,17>62,20,0@24" --camera "48,38,17>82,-4,0@26" \
+        --camera "74,18,22>80,-40,0@28" --camera "105,-20,45>70,-20,0@30" "${shots[@]}"
+      encode 0 300 "scale=768:432:flags=lanczos" 44 river-flight
       ;;
     montage)
       # Seven shots, joined with 0.5 s cross-fades: name, save, building to centre on, wheel

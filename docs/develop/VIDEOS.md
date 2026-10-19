@@ -23,6 +23,8 @@ tools/videos.sh save-game/Save83.sav seasons            # one of them
 tools/videos.sh LARGE.sav big-town                      # a large town (the 0.2.0 notes use 1,024 citizens)
 tools/videos.sh save-game/Save83.sav orbit follow-citizen
 tools/videos.sh RIVER.sav river fishing                 # a town with a bridge and a fishing dock
+tools/videos.sh "save-game/Save 47.sav" boat-shoulder fisher-closeup river-flight   # the cinematic camera
+FILTER=sepia tools/videos.sh SAVE.sav orbit             # with a colour filter: sepia, grey or psychedelic
 GAME=path/to/banished VIEWER=path/to/banished-viewer tools/videos.sh SAVE.sav   # without building
 ```
 
@@ -37,6 +39,9 @@ GAME=path/to/banished VIEWER=path/to/banished-viewer tools/videos.sh SAVE.sav   
 | `follow-citizen.webm` | The camera follows one citizen at the closest zoom | `select citizen N`, then `--press buttonFollow` (`CITIZEN=N` chooses who) |
 | `river.webm` | Along a river from a bridge | Centred on a bridge, then `--hold Back` for 7 s |
 | `fishing.webm` | Fishers on their dock, at speed 3 | Centred on a fishing dock, close zoom, `--hold RotateLeft` for 4 s |
+| `boat-shoulder.webm` | Over the trader's shoulder as the boat rows down the river, under a bridge and up to the trading post | `--camera-follow "boat 0@5"` with `--camera-rig 6,3.4,0,30,-1` |
+| `fisher-closeup.webm` | A fisher with a rod at the end of the dock; the camera circles from behind them to their face | Three `--camera` keyframes round the fisher |
+| `river-flight.webm` | A flight down the river into the town, past the bridges and the trading post, then up over the town | Six `--camera` keyframes in 10 s, along the boat's route |
 | `montage.webm` | The home page's video, 39 s: the camera descends over a river town, citizens at a market, farmers in autumn fields, a young town, a winter town, a year of seasons, and the camera rises again | Six 5.5 s shots and a 9 s time-lapse from five saves, joined with 0.5 s cross-fades |
 
 The montage is made only when you ask for it (`tools/videos.sh save-game/Save83.sav montage`),
@@ -98,6 +103,67 @@ The actions for `--hold` are the names of the key map: `RotateLeft`, `RotateRigh
 (about half a second) lowers the camera towards the horizon, which suits views along a river or
 a street. Edge scrolling and the movement keys (`Forward`, `Back`, `Left`, `Right`) travel faster when the
 camera is further away, so zoom in for a slow, steady movement.
+
+### The cinematic camera
+
+The game's own camera can only do what a player can do. For close-ups and flights, a capture can
+draw the town from a camera of its own. It changes only the picture: the game camera, the
+simulation and the save are the same as without it, and the shadows, the sky, the weather and the
+choice of what to draw follow the new camera. The options are listed in the
+[game's README](../../apps/game/README.md#the-cinematic-camera).
+
+**A path of keyframes.** Each `--camera` gives where the camera is, what it looks at, and when:
+
+```bash
+banished --boot-capture /tmp/video/last.png 30.4 --capture-size 1920x1080 \
+  --script "load save-game/Save 47.sav@4.5" \
+  --camera "-75,74,24>-15,70,0@20" --camera "-30,80,20>25,52,0@22" \
+  --camera "10,66,17>62,20,0@24" --camera "105,-20,45>70,-20,0@30" "${shots[@]}"
+```
+
+The camera moves on a smooth curve through the points. It starts and stops gently, and does not
+slow down at the keyframes between. Positions are in map cells from the middle of the map, `z`
+up; the ground is near 0 and water is at 0.
+
+**Riding with a subject.** `--camera-follow` puts the camera behind and above a citizen, a trader
+boat or an animal, looking where it goes:
+
+```bash
+  --camera-follow "boat 0@5" --camera-rig 6,3.4,0,30,-1 --camera-fov 50
+  --camera-follow "profession hunt 0@20-35"      # the first hunter, from 20 to 35 seconds
+  --camera-follow "animal deer 2@10"
+```
+
+`--camera-rig BACK,UP,SIDE,AHEAD,LOOK_UP` sets the place in the subject's own frame. The camera
+turns smoothly with its subject (`--camera-smooth`), so a citizen's quick turns do not shake the
+picture. It also looks at the buildings, trees and bridges near the subject, and rises a little
+before one would come between them. Each object counts as its box, so a camera that must look
+through a tree's crown keeps its place.
+
+To place keyframes, log a subject's positions: run with
+`RUST_LOG=info,banished::view::cinematic=debug` and `--camera-follow`. A trader boat's positions
+trace the river; a citizen's lead to their workplace.
+
+Unlike the game camera, the cinematic camera does not depend on which frames are drawn: it moves
+with the capture's time. A video can start at any frame.
+
+### Quality and filters
+
+The cinematic videos use the best picture the game can draw, and are drawn larger than the video
+and scaled down. In `tools/videos.sh` this is the `HQ` list:
+
+```bash
+--capture-size 1920x1080 --setting VideoMultisample=3 --setting VideoTextureFilter=16 \
+  --setting VideoShadowScalar=0 --setting VideoShaderDetail=3 --setting VideoReflectionDetail=2
+```
+
+That is 4× antialiasing, 16× anisotropic filtering, 2048 × 2048 shadow maps, high shadow quality
+and reflections of everything. A 1920 × 1080 frame takes about three times as long as a
+1280 × 720 one, and each BMP is 6 MB, so 300 frames need about 2 GB of scratch space.
+
+`FILTER` changes the colours of every video that `tools/videos.sh` makes, in FFmpeg after the
+game: `sepia`, `grey` or `psychedelic` (the hues turn through the colour wheel). The file name
+gets `-FILTER` at the end, for example `orbit-sepia.webm`.
 
 ### 3. Queue one screenshot for each frame
 
