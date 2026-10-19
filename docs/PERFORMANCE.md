@@ -100,14 +100,31 @@ Most fields do not change between updates.
 - Risk: medium. The AI reads these views, so the update order must stay exactly as now.
   `determinism.sh` and the emulator tests must pass.
 
-### 3. Move loading work off the first frame (measured: about 0.4 s once)
+### 3. Move loading work off the first frame (done: 490 ms → under 25 ms)
 
-The first frame after a load spends 384 ms creating the ambient sound emitters
-(`Ambience::create`, sound decoding) and 34 ms uploading decals. The player sees a freeze as the
-town appears.
+Measured on `save-game/Save83.sav` (Fort Ponchartrain, 13 677 placed entities) with
+`BANISHED_PROFILE=1` and samply. The first gameplay frame took 490 ms: `audio` 417 ms,
+`draw.upload_decals` 38 ms, `refresh_decals` 19 ms. samply showed that almost all of `audio`
+was WMA decoding in `EffectCache::get`, not the emitters themselves:
 
-- Do this work behind the loading screen, or spread it over the first frames.
-- Risk: low, if the emitters start at the same game time as now.
+| Work in the first frame | Time | Now done in |
+|---|---|---|
+| Decoding the ambience's sounds (`Ambience::create`: terrain effects, river, environment, wind, and the buildings' `ambientemitter` slots) | about 165 ms | `ambience::preload`, from `GameplayLoop::load` |
+| Decoding the first music track (`MusicPlayer::update`) | about 250 ms | `MusicPlayer::preload`, from `GameplayLoop::load` |
+| Building the decals (`refresh_decals`) | 19 ms | `GameplayLoop::load` |
+| Uploading the decals (`draw.upload_decals`) | 38 ms | the world upload (`draw.set_scene`) of the frame that switches loops, while the screen is black |
+
+`GameplayLoop::load` runs while the loading dialog shows (`DialogLoaderLoop`). The preloads
+only fill the effect cache: nothing plays, and the emitters and the music still start on the
+first gameplay frame, as before. The music preload predicts the track with a copy of the audio
+stream's Random (`Audio::peek_rand_below`) and the month and mood at load time; if the first
+frame's choice differs, that frame decodes its own choice, as before. The decals are rebuilt on
+the first frame only if the town changed since the load.
+
+Result: no hitch on the first frames after the load (every frame under the 25 ms threshold).
+The loading frame takes about 330 ms longer, behind the loading dialog, and the switch frame
+(black) 26 ms longer. Captures are byte-identical before and after, and `determinism.sh 22 1234`
+gives identical frames.
 
 ### 4. Use more than one core for loading (native)
 

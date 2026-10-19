@@ -238,6 +238,34 @@ pub fn region_count(archive: &Archive, profile_ref: &str, n: usize) -> usize {
     side * side
 }
 
+/// Decode, into the effect cache, every sound [`Ambience::create`] gives its emitters: the
+/// environment's terrain effects, the river, environment and wind emitters, and the
+/// `ambientemitter` of each living placed entity's template. Called while the loading screen
+/// shows, so the first gameplay frame does not decode them. Nothing is played or started here:
+/// `create` still starts every emitter at the same moment, with the same shared effects.
+pub fn preload(audio: &mut Audio, archive: &Archive, town: &StartingTown) {
+    let desc = archive
+        .read_ref(&format!("{ENVIRONMENT}:ambientenvironment"))
+        .ok()
+        .and_then(|b| ambient_environment_description(&b).ok());
+    for t in desc.iter().flat_map(|d| &d.terrains) {
+        for r in [&t.warm, &t.cold].into_iter().flatten() {
+            audio.effect(archive, &r.replace('\\', "/"));
+        }
+    }
+    for file in [RIVER, ENVIRONMENT, WIND] {
+        load_emitter(audio, archive, file);
+    }
+    let mut seen = std::collections::HashSet::new();
+    for p in town.placed.iter().filter(|p| p.alive) {
+        if seen.insert(p.template) {
+            let reference = town.templates[p.template].reference.replace('\\', "/");
+            let file = reference.split(':').next().unwrap_or(&reference);
+            load_emitter(audio, archive, file);
+        }
+    }
+}
+
 impl Ambience {
     /// `FUN_1400a57c0`'s environment and wind emitters for the start condition's profile.
     pub fn create(

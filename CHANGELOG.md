@@ -15,6 +15,8 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 ### Changed
 
 - The engine version is now 0.2.0 (shown as `0.2.0-<build>` until the release).
+- No freeze when the town appears after loading: the ambient sounds, the first music track
+  and the decals are now prepared behind the loading screen (about 0.5 s on a large town).
 
 ## [0.1.0] - 2026-10-19
 

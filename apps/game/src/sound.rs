@@ -122,6 +122,11 @@ impl Audio {
     pub fn rand_below(&mut self, n: u32) -> u32 {
         self.rng.rand_below(n)
     }
+
+    /// The number [`Audio::rand_below`] would give next, without drawing it.
+    pub fn peek_rand_below(&self, n: u32) -> u32 {
+        self.rng.clone().rand_below(n)
+    }
 }
 
 /// The `AnimAudioEvent`s the clips of `groups` reference: (event resource, SoundEffect,

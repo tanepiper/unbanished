@@ -1956,13 +1956,18 @@ impl GameplayLoop {
         ctx.ui.place_tooltip();
     }
 
-    /// `FUN_14009b850`'s audio: the music player (`FUN_1400a95b0`), then
-    /// `Scene::Update(dt, dt × speed × 6, random, camera pivot, camera distance)`.
-    fn update_audio(&mut self, ctx: &mut Ctx, dt: f32) {
+    /// The music player's month and town mood (`FUN_1400a95b0`).
+    fn music_month_mood(&self) -> (i32, f32) {
         let v = self.status_values();
         let people = v.adults + v.students + v.children;
         let mood = crate::music::mood(v.health, v.health_max, v.happiness, v.happiness_max, people);
-        let month = self.month() as i32;
+        (self.month() as i32, mood)
+    }
+
+    /// `FUN_14009b850`'s audio: the music player (`FUN_1400a95b0`), then
+    /// `Scene::Update(dt, dt × speed × 6, random, camera pivot, camera distance)`.
+    fn update_audio(&mut self, ctx: &mut Ctx, dt: f32) {
+        let (month, mood) = self.music_month_mood();
         let music = self
             .music
             .get_or_insert_with(|| crate::music::MusicPlayer::load(ctx.archive));
@@ -2567,7 +2572,20 @@ impl GameLoop for GameplayLoop {
                     // The trader boats' way (MapComponent `+0x1e0`'s first river).
                     town.construction.river = self.river_paths.first().cloned().unwrap_or_default();
                 }
+                // The ambience's sounds decode now, behind the loading screen; its emitters
+                // still start on the first gameplay frame (`update_audio`).
+                if let Some(town) = &self.town {
+                    crate::ambience::preload(ctx.audio, ctx.archive, town);
+                }
+                // So does the first music track.
+                let (month, mood) = self.music_month_mood();
+                self.music
+                    .get_or_insert_with(|| crate::music::MusicPlayer::load(ctx.archive))
+                    .preload(ctx.audio, ctx.archive, month, mood);
                 self.view = Some(view);
+                // The decals are built now too, so the renderer uploads them with the world;
+                // the first frame rebuilds them only if the town changed meanwhile.
+                self.refresh_decals(ctx.archive);
             }
             Err(e) => log::error!("world generation failed: {e}"),
         }
