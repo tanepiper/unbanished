@@ -9,6 +9,12 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+### Added
+
+- The home page montage has titles: it opens on "Un-Banished", names each shot, and ends on a
+  card. `tools/videos.sh` adds titles with FFmpeg's `drawtext` when the installed FFmpeg has it
+  (see Titles in [docs/develop/VIDEOS.md](docs/develop/VIDEOS.md)).
+
 ## [0.2.0] - 2026-10-19
 
 Boomtown: large towns run about twice as fast and the GPU does half the work, with no change
