@@ -94,8 +94,8 @@ Deviation: 40, Not ported: 4, Not traced: 1.
 
 ## `crates/game/src/behaviour/character.rs`
 
-- [Not ported] [crates/game/src/behaviour/character.rs:163](../crates/game/src/behaviour/character.rs#L163): RandFloat() < time since the last check / (+0x54 × 12 × 300 s × +0x58); Game +0xd0 Already hurt, or, at a job whose profession has accidents, `RandFloat < time since the last check / (× 12 × 300 s ×)` (the time restarts at every check). Not ported: the debug flag that stops it (`Game` bit 8).
-- [Deviation] [crates/game/src/behaviour/character.rs:545](../crates/game/src/behaviour/character.rs#L545): Deviation: a walk restored from a save plays its walk clip again and faces its next cell on its first update. The original restores the clip with the animation block (`AnimationManager::Serialize`, `FUN_18005d130`), which the port does not decode yet; without a walking clip the body has no root motion, never reaches the next cell, and the citizen stands still for good.
+- [Not ported] [crates/game/src/behaviour/character.rs:165](../crates/game/src/behaviour/character.rs#L165): RandFloat() < time since the last check / (+0x54 × 12 × 300 s × +0x58); Game +0xd0 Already hurt, or, at a job whose profession has accidents, `RandFloat < time since the last check / (× 12 × 300 s ×)` (the time restarts at every check). Not ported: the debug flag that stops it (`Game` bit 8).
+- [Deviation] [crates/game/src/behaviour/character.rs:547](../crates/game/src/behaviour/character.rs#L547): Deviation: a walk restored from a save plays its walk clip again and faces its next cell on its first update. The original restores the clip with the animation block (`AnimationManager::Serialize`, `FUN_18005d130`), which the port does not decode yet; without a walking clip the body has no root motion, never reaches the next cell, and the citizen stands still for good.
 
 ## `crates/game/src/behaviour/character_tree.rs`
 
