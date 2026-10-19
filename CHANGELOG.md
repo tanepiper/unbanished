@@ -27,7 +27,8 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 - The code is reorganised into smaller parts, with no change to the game. The bit-exact
   foundations, the terrain and path finding are now their own crates (`banished-core`,
   `banished-terrain`, `banished-path`); `banished-game` and the game app group their modules
-  into folders by topic; the largest files (`gameplay.rs`, `town.rs`, `start.rs`) are split by
+  into folders by topic; the largest files (`gameplay.rs`, `town.rs`, `start.rs`, `agents.rs`,
+  `render.rs`, `building_ui.rs` and the resource readers in `banished-formats`) are split by
   topic, and large test modules live in their own files.
 
 ### Added
