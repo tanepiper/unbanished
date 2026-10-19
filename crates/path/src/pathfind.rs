@@ -348,7 +348,7 @@ impl Pathfinder {
     /// diagonal steps, and blocked cells and cells outside `mask` are avoided. `blocked` marks the
     /// cells that have an occupant.
     ///
-    /// Original: `FUN_1400a22d0`.
+    /// Original: `FUN_1400a22d0`; its search options `FUN_1400abd80(0, manhattan, 1)`.
     pub fn find_road(
         &mut self,
         from: i32,

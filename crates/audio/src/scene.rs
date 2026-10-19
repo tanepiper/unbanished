@@ -76,7 +76,8 @@ impl Mixer for crate::Device {
 
 /// The volume of each kind of sound, from 0 to 100, as in the Audio options.
 ///
-/// Original: `Audio::Configuration`, Runtime `0x1800e0700`.
+/// Original: `Audio::Configuration`; its constructor `Configuration::Configuration`, Runtime
+/// `0x1800e0700`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Volumes {
     /// Interface sounds.
