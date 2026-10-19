@@ -1,7 +1,7 @@
 //! `ai::crt_qsort` against the original candidate sort (`tools/emu/candidate_sort.py`; skipped
 //! without its output in game-data/derived/emu).
 
-use banished_game::ai::{crt_qsort, Candidate};
+use banished_game::behaviour::ai::{crt_qsort, Candidate};
 
 fn parse(s: &str) -> Vec<Candidate> {
     s.split(',')

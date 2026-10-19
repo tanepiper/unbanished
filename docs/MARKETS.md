@@ -1,6 +1,6 @@
 # Markets
 
-Port: `crates/game/src/market.rs`. Evidence: Ghidra pseudocode and disassembly of the Steam x64
+Port: `crates/game/src/commerce/market.rs`. Evidence: Ghidra pseudocode and disassembly of the Steam x64
 executable (`FUN_1400f5450` and its helpers), the shipped `Template/Market.rsc`.
 
 ## Components

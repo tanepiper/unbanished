@@ -57,5 +57,5 @@ banished_game::random::trace::write(Path::new("port.rng"), &draws)?;
 ```
 
 `python3 tools/triage/rngdiff.py orig.rng port.rng` prints the first divergence with the call
-sites on both sides (`FUN_1400a9d50+0x216 | crates/game/src/names.rs:79`).
+sites on both sides (`FUN_1400a9d50+0x216 | crates/game/src/people/names.rs:79`).
 `crates/game/examples/rng_trace_names.rs` is a worked example (identical 53 draws).

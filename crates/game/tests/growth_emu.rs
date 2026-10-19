@@ -1,6 +1,6 @@
 //! Original-binary parity (tools/emu/growth.py); local ground truth is never committed.
 use banished_formats::game::GrowthDescription;
-use banished_game::growth::Growth;
+use banished_game::nature::growth::Growth;
 use banished_game::random::Random;
 use banished_game::scheduler::{ticks, EntityScheduler};
 use std::path::PathBuf;
@@ -67,9 +67,9 @@ fn scheduled_growth_and_smoothing_match_original_bits() {
         let result = state.update(&d, &mut value, ticks(float(5)), float(2), int(9) != 0);
         let mut output = [0.0; 4];
         state.smooth(&d, value, &mut output);
-        let byte = result
-            .map_adjustment
-            .map_or(128, |a| banished_game::growth::adjust_map_byte(128, a));
+        let byte = result.map_adjustment.map_or(128, |a| {
+            banished_game::nature::growth::adjust_map_byte(128, a)
+        });
         let mut got = vec![
             value.to_bits() as i64,
             state.timer,

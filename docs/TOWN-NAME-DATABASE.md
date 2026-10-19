@@ -37,7 +37,7 @@ order. The game currently reads the city resource through the package archive wh
 
 ## Generator (ported, bit-exact)
 
-`crates/game/src/names.rs` ports the generator from the disassembly.
+`crates/game/src/people/names.rs` ports the generator from the disassembly.
 
 - **`FUN_1400a9d50`** (one candidate):
   1. Draw a start record with `Rand(start count)`. Copy its 4-byte prefix and uppercase the first

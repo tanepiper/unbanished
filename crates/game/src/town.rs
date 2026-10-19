@@ -6,24 +6,24 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use banished_formats::types::AnimationGroup;
 
-use crate::activities::{EntityView, StorageGeometry, TownView};
-use crate::agents::{CitizenRulesAi, CitizenState};
-use crate::character::{Action, Character, Component, Message, MoveTo};
-use crate::construction::{
-    run, BuildWork, Callback, Callbacks, ClearWork, Gather, Machine, PickupWork, Pile, Site,
-    SiteTemplate,
-};
-use crate::jobs::{JobEvent, Jobs, Work, WorkHost, WorkKind, NESTED};
+use crate::behaviour::activities::{EntityView, StorageGeometry, TownView};
+use crate::behaviour::agents::{CitizenRulesAi, CitizenState};
+use crate::behaviour::character::{Action, Character, Component, Message, MoveTo};
+use crate::nature::seeding::{Cells, Placed, Template};
 use crate::pathfind::nearest_neighbour;
 use crate::pathfind::WALKABLE;
-use crate::placement::{PlacementRules, Rect};
-use crate::professions::{Professions, Worker, Workforce};
 use crate::random::Random;
 use crate::scheduler::{seconds, ticks};
 use crate::sectors::SectorGraph;
-use crate::seeding::{Cells, Placed, Template};
-use crate::stock::{find_material_storage, RawMaterial, Storage, StorageSite};
 use crate::terrain::HeightGrid;
+use crate::work::construction::{
+    run, BuildWork, Callback, Callbacks, ClearWork, Gather, Machine, PickupWork, Pile, Site,
+    SiteTemplate,
+};
+use crate::work::jobs::{JobEvent, Jobs, Work, WorkHost, WorkKind, NESTED};
+use crate::work::professions::{Professions, Worker, Workforce};
+use crate::work::stock::{find_material_storage, RawMaterial, Storage, StorageSite};
+use crate::world::placement::{PlacementRules, Rect};
 
 /// `0x2001`: the construction works' registration mask (category 13).
 pub const CONSTRUCTION_MASK: u32 = 0x2001;
@@ -53,7 +53,7 @@ pub(crate) struct Haul {
 /// The world the citizens' update borrows (everything but the citizens themselves).
 pub struct Env<'a, 't> {
     /// Wild animals (hunting).
-    pub wildlife: &'a mut crate::wildlife::Wildlife,
+    pub wildlife: &'a mut crate::nature::wildlife::Wildlife,
     pub cells: &'a mut Cells,
     pub placed: &'a mut Vec<Placed>,
     pub templates: &'a [Template],
@@ -62,7 +62,7 @@ pub struct Env<'a, 't> {
     pub storages: &'a mut [Storage],
     pub sites: &'a [StorageSite],
     pub rng: &'a mut Random,
-    pub construction: &'a mut crate::construction::Construction,
+    pub construction: &'a mut crate::work::construction::Construction,
     /// The stock manager's `(count, limit)` per slot from the last recount.
     pub stock: [(i32, i32); 21],
     /// The environment's temperature (`Game +0x130 → +0x18`).
@@ -98,23 +98,23 @@ pub struct Sim<'s, 't> {
     pub workforce: &'s mut Workforce,
     pub site_templates: &'s [SiteTemplate],
     pub sites: &'s mut BTreeMap<usize, Site>,
-    pub homes: &'s mut BTreeMap<usize, crate::life::Home>,
-    pub attendance: &'s mut BTreeMap<usize, crate::construction::Attendance>,
+    pub homes: &'s mut BTreeMap<usize, crate::people::life::Home>,
+    pub attendance: &'s mut BTreeMap<usize, crate::work::construction::Attendance>,
     pub attendance_list: &'s mut Vec<usize>,
     pub healers: &'s mut Vec<usize>,
     pub happiness: &'s mut Vec<usize>,
     /// The calendar's seconds into the year.
     pub calendar: f32,
     pub year: u32,
-    pub fruits: &'s mut BTreeMap<usize, crate::orchard::Fruit>,
+    pub fruits: &'s mut BTreeMap<usize, crate::production::orchard::Fruit>,
     /// The animals (livestock and their pastures).
-    pub wildlife: &'s mut crate::wildlife::Wildlife,
+    pub wildlife: &'s mut crate::nature::wildlife::Wildlife,
     pub keep_piles: &'s mut BTreeMap<usize, bool>,
     pub site_events: &'s mut Vec<(i32, i32, usize)>,
     pub storage_changes: &'s mut Vec<(usize, bool)>,
-    pub rebuilds: &'s mut Vec<crate::destroy::Rebuild>,
+    pub rebuilds: &'s mut Vec<crate::work::destroy::Rebuild>,
     /// The town's water sources (wells and shore points).
-    pub water: &'s mut crate::fire::Water,
+    pub water: &'s mut crate::disasters::fire::Water,
     /// `Game +0xd0`: the debug flags (all of `0xf0` with disasters off).
     pub game_flags: u32,
     /// The sky's state is precipitation (environment `+0x10` = 0).
@@ -125,13 +125,13 @@ pub struct Sim<'s, 't> {
     pub visitors: &'s mut (f32, i64),
     /// Map `+0xe8`: planned road cells → BuildRoad works.
     pub pending_roads: &'s mut BTreeMap<i32, i32>,
-    pub terraform_requests: &'s mut Vec<crate::terraform::Terraform>,
+    pub terraform_requests: &'s mut Vec<crate::world::terraform::Terraform>,
     pub flatten_requests: &'s mut Vec<[i32; 4]>,
-    pub tornadoes: &'s mut BTreeMap<usize, crate::tornado::Tornado>,
+    pub tornadoes: &'s mut BTreeMap<usize, crate::disasters::tornado::Tornado>,
     pub tornado_kills: &'s mut Vec<usize>,
-    pub trackers: &'s mut BTreeMap<usize, crate::tracker::Tracker>,
-    pub decals: &'s mut BTreeMap<usize, crate::construction::Decal>,
-    pub counters: &'s mut crate::tracker::StockCounters,
+    pub trackers: &'s mut BTreeMap<usize, crate::work::tracker::Tracker>,
+    pub decals: &'s mut BTreeMap<usize, crate::work::construction::Decal>,
+    pub counters: &'s mut crate::work::tracker::StockCounters,
     /// Town manager `+0x30` and `+0x1ac`.
     pub trading_posts: &'s mut Vec<usize>,
     pub trade_value: &'s mut i32,
@@ -139,7 +139,7 @@ pub struct Sim<'s, 't> {
     /// orchard trees and livestock, `FUN_140096ef0`).
     pub known_materials: &'s mut Vec<usize>,
     pub known: &'s mut Vec<usize>,
-    pub trade_goods: &'s [crate::trade::TradeGood],
+    pub trade_goods: &'s [crate::commerce::trade::TradeGood],
     pub river: &'s [[f32; 2]],
     /// The path manager (the trader boats' water paths).
     pub pathfinder: &'s mut crate::pathfind::Pathfinder,
@@ -167,7 +167,7 @@ pub struct Sim<'s, 't> {
     /// The offers get a second try (`FUN_1400fdaf0(.., 1)`, the AutoPickup's).
     pub offers_again: bool,
     /// A ConsumeProduce try waiting on its pile offers ([`WorkHost::resume`]).
-    pub(crate) produce_resume: Option<crate::produce::ProduceResume>,
+    pub(crate) produce_resume: Option<crate::work::produce::ProduceResume>,
     /// A pasture try waiting on its product pickups' offers ([`Sim::pasture_try`]).
     pub(crate) pasture_stage: bool,
 }
@@ -239,7 +239,7 @@ pub fn cell_ground(size: usize, terrain: &HeightGrid, cell: i32) -> [f32; 3] {
 /// `FUN_1400a48b0` at a cell's centre (`param_4` 0, as nearly every caller passes): on a
 /// bridge's floor where one covers the cell above the terrain.
 pub fn floor_ground(
-    floors: &crate::floor::Floors,
+    floors: &crate::world::floor::Floors,
     size: usize,
     terrain: &HeightGrid,
     cell: i32,
@@ -308,9 +308,9 @@ impl Sim<'_, '_> {
     pub(crate) fn with_search<R>(
         &mut self,
         f: impl FnOnce(
-            &mut crate::professions::Workforce,
-            &mut [crate::professions::Worker],
-            &mut dyn crate::professions::Search,
+            &mut crate::work::professions::Workforce,
+            &mut [crate::work::professions::Worker],
+            &mut dyn crate::work::professions::Search,
         ) -> R,
     ) -> R {
         let mut workers = self.workers();
@@ -341,7 +341,7 @@ impl Sim<'_, '_> {
                 .and_then(|s| s.work_priority)
                 .unwrap_or(i32::MAX)
         };
-        let mut search = crate::activities::TownSearch {
+        let mut search = crate::behaviour::activities::TownSearch {
             town: &town,
             cell: &cell,
             anywhere: &anywhere,
@@ -374,7 +374,7 @@ impl Sim<'_, '_> {
             sectors: self.sectors,
             ground: &ground,
         };
-        crate::stock::StorageSearchMap::storage_position(&mut geometry, entity, from)
+        crate::work::stock::StorageSearchMap::storage_position(&mut geometry, entity, from)
             .map(|(_, p)| p)
     }
 
@@ -618,7 +618,7 @@ impl Sim<'_, '_> {
     /// `complete_on_pickup` (`param_12`, the CompleteTask follows the pickup rather than the
     /// delivery) and `tool` (`param_14`, tool use and the faster loaded walk). `param_13` (a
     /// Citizen message first, `FUN_1400d06a0`) is set only by the home fetches
-    /// (`FUN_140111160`, `FUN_1401108b0`), which `crate::needs` builds with the message itself.
+    /// (`FUN_140111160`, `FUN_1401108b0`), which `crate::people::needs` builds with the message itself.
     pub(crate) fn haul(&mut self, c: usize, work: &mut Work, h: Haul) {
         let Haul {
             target_entity: site,
@@ -637,8 +637,10 @@ impl Sim<'_, '_> {
         } = h;
         self.clear_citizen(c, Some(work));
         self.on_empty_think(c);
-        let face_target = crate::character::work_facing(self.facing_centre(site), target);
-        let face_source = crate::character::work_facing(self.facing_centre(source_entity), source);
+        let face_target =
+            crate::behaviour::character::work_facing(self.facing_centre(site), target);
+        let face_source =
+            crate::behaviour::character::work_facing(self.facing_centre(source_entity), source);
         self.push(c, self.perform(c, face_target, 7, 0.75, tool));
         self.push(c, Action::ShowTool(-1));
         if !complete_on_pickup {
@@ -722,7 +724,7 @@ impl Sim<'_, '_> {
         point: [f32; 3],
         index: i32,
     ) {
-        let facing = crate::character::work_facing(self.facing_centre(site), point);
+        let facing = crate::behaviour::character::work_facing(self.facing_centre(site), point);
         self.clear_citizen(c, Some(work));
         self.on_empty_think(c);
         let r = self.rng.rand_below(2);
@@ -817,7 +819,7 @@ impl Sim<'_, '_> {
                 let t = self.cells.types[i].0;
                 t != 0
                     && t != 1
-                    && self.cells.road_kind[i] == crate::road::NONE
+                    && self.cells.road_kind[i] == crate::work::road::NONE
                     && !self.pending_roads.contains_key(&(i as i32))
             });
         if !roads_clear {
@@ -848,7 +850,7 @@ impl Sim<'_, '_> {
             .all(|&(n, m)| self.storages[site.storage].available(m) >= n * site.stages)
     }
 
-    /// [`crate::professions::Workforce::demolishing`] from the sites' state machines.
+    /// [`crate::work::professions::Workforce::demolishing`] from the sites' state machines.
     pub(crate) fn refresh_demolishing(&mut self) {
         let ids: Vec<usize> = self.workforce.workplaces.keys().copied().collect();
         for e in ids {
@@ -883,8 +885,8 @@ impl Sim<'_, '_> {
             // workers icon.
             let w = self.workforce.workplaces.get_mut(&e).unwrap();
             w.enabled = true;
-            w.set_icon(crate::professions::icon::WORK_DISABLED, false);
-            w.set_icon(crate::professions::icon::BUILD_PAUSED, false);
+            w.set_icon(crate::work::professions::icon::WORK_DISABLED, false);
+            w.set_icon(crate::work::professions::icon::BUILD_PAUSED, false);
         }
         self.set_workers(&workers);
     }
@@ -944,8 +946,8 @@ impl Sim<'_, '_> {
         if let Some(w) = jobs.works.get(&id) {
             self.sites.get_mut(&entity).unwrap().work_priority = Some(w.priority);
             jobs.remove(id, self);
-            self.set_icon(entity, crate::professions::icon::LIMIT, false);
-            self.set_icon(entity, crate::professions::icon::NO_WORK, false);
+            self.set_icon(entity, crate::work::professions::icon::LIMIT, false);
+            self.set_icon(entity, crate::work::professions::icon::NO_WORK, false);
         }
     }
 
@@ -987,7 +989,7 @@ impl Sim<'_, '_> {
         let t = produced as f32 / lifetime as f32;
         let floor = (1.0 - t) * q.shallow + t * q.deep;
         self.terraform_requests
-            .push(crate::terraform::Terraform::Quarry {
+            .push(crate::world::terraform::Terraform::Quarry {
                 entity: e,
                 floor,
                 claim: true,
@@ -1067,7 +1069,7 @@ impl Sim<'_, '_> {
             y1: p.cell.1 + p.footprint.1 - 1,
         };
         let degrees = p.yaw as i32;
-        crate::placement::stamp(self.cells, &rules, rect, degrees, entity);
+        crate::world::placement::stamp(self.cells, &rules, rect, degrees, entity);
     }
 
     /// `FUN_140129c20` → `FUN_1400a33b0`: the MapComponent's footprint is lifted. Stamped
@@ -1088,7 +1090,7 @@ impl Sim<'_, '_> {
                 let i = (n * y + x) as usize;
                 let stamped = fp.is_empty() || {
                     let c = fp
-                        .get(crate::placement::footprint_index(
+                        .get(crate::world::placement::footprint_index(
                             x - x0,
                             y - y0,
                             w,
@@ -1187,7 +1189,7 @@ impl Sim<'_, '_> {
         for x in std::iter::once(e).chain(parts) {
             if self.templates[self.placed[x].template].terraform.is_some() {
                 self.terraform_requests
-                    .push(crate::terraform::Terraform::Undo(x));
+                    .push(crate::world::terraform::Terraform::Undo(x));
             }
         }
         self.sites.remove(&e);
@@ -1513,7 +1515,7 @@ impl Callbacks for Sim<'_, '_> {
             Callback::BuildExit8 => {
                 self.site_list.retain(|&s| s != e);
                 // `FUN_14010cad0`: the build is no longer paused.
-                self.set_icon(e, crate::professions::icon::BUILD_PAUSED, false);
+                self.set_icon(e, crate::work::professions::icon::BUILD_PAUSED, false);
                 // Entity event 4 (`FUN_1400c8040`): the pasture's shelter points are cleared;
                 // a TerraformComponent digs, the entity's then its MultiObject parts'
                 // (`FUN_14012a960`).
@@ -1524,13 +1526,13 @@ impl Callbacks for Sim<'_, '_> {
                 for x in std::iter::once(e).chain(parts) {
                     if self.templates[self.placed[x].template].terraform.is_some() {
                         self.terraform_requests
-                            .push(crate::terraform::Terraform::Dig(x));
+                            .push(crate::world::terraform::Terraform::Dig(x));
                     }
                 }
                 // A QuarryComponent digs its pit to the shallow floor (`FUN_140055a50`).
                 if let Some(q) = &self.templates[self.placed[e].template].quarry {
                     self.terraform_requests
-                        .push(crate::terraform::Terraform::Quarry {
+                        .push(crate::world::terraform::Terraform::Quarry {
                             entity: e,
                             floor: q.shallow,
                             claim: false,
@@ -1551,7 +1553,8 @@ impl Callbacks for Sim<'_, '_> {
                 let kept = site.home.take();
                 let storage = site.storage;
                 if let Some(desc) = self.site_templates[site.template].residence {
-                    let home = kept.unwrap_or_else(|| crate::life::Home::new(desc, storage));
+                    let home =
+                        kept.unwrap_or_else(|| crate::people::life::Home::new(desc, storage));
                     self.homes.entry(e).or_insert(home);
                 }
                 false
@@ -1662,7 +1665,7 @@ impl Callbacks for Sim<'_, '_> {
                 for part in self.sites[&e].parts.clone() {
                     let p = &self.placed[part];
                     if let Some(mesh) = self.templates[p.template].floor.clone() {
-                        let floor = crate::floor::Floor::placed(&mesh, p);
+                        let floor = crate::world::floor::Floor::placed(&mesh, p);
                         self.cells.floors.add(size, part, floor);
                     }
                 }
@@ -1683,7 +1686,7 @@ impl Callbacks for Sim<'_, '_> {
             Callback::AttendanceExit2 => {
                 // `FUN_1401318c0(icon, 2, full)`.
                 let full = self.attendance_full(e);
-                self.set_icon(e, crate::professions::icon::LIMIT, full);
+                self.set_icon(e, crate::work::professions::icon::LIMIT, full);
                 false
             }
             Callback::AttendanceEnter3 => {
@@ -1794,7 +1797,7 @@ impl WorkHost for Sim<'_, '_> {
     }
     fn has_emergency(&self, c: usize) -> bool {
         let s = &self.states[c];
-        crate::fire::has_emergency(
+        crate::disasters::fire::has_emergency(
             self.cells,
             self.placed,
             s.home,
@@ -2583,7 +2586,7 @@ impl Sim<'_, '_> {
                     let t = self.cells.types[i].0;
                     let road = t == 0
                         || t == 1
-                        || self.cells.road_kind[i] != crate::road::NONE
+                        || self.cells.road_kind[i] != crate::work::road::NONE
                         || self.pending_roads.contains_key(&cell);
                     if road {
                         entries.push((cell, dy * dy + dx * dx, None));
@@ -2591,7 +2594,7 @@ impl Sim<'_, '_> {
                 }
             }
         }
-        crate::ai::crt_qsort_by(&mut entries, |a, b| a.1 - b.1);
+        crate::behaviour::ai::crt_qsort_by(&mut entries, |a, b| a.1 - b.1);
         let (resources, filter, clear_piles) =
             (cl.clear_resources, cl.filter.clone(), cl.clear_piles);
         if resources {
@@ -2684,7 +2687,7 @@ impl Sim<'_, '_> {
         let Some(nr) = t.natural.clone() else {
             return;
         };
-        let facing = crate::character::work_facing(self.facing_centre(resource), point);
+        let facing = crate::behaviour::character::work_facing(self.facing_centre(resource), point);
         self.clear_citizen(c, Some(work));
         self.on_empty_think(c);
         let tool = nr.value as i32;
@@ -2750,7 +2753,7 @@ impl Sim<'_, '_> {
                 .and_then(Option::as_ref)
                 .is_some_and(|g| g.clips.get(anim).is_some())
         {
-            p.animation = Some(crate::animation::Playback::new(anim, 0));
+            p.animation = Some(crate::behaviour::animation::Playback::new(anim, 0));
         }
     }
 
@@ -3152,7 +3155,7 @@ impl Sim<'_, '_> {
                 list.push((k, nb2, r, id, o));
             }
         }
-        crate::ai::crt_qsort_by(&mut list, |a, b| a.2 - b.2);
+        crate::behaviour::ai::crt_qsort_by(&mut list, |a, b| a.2 - b.2);
         let mut first = true;
         for (k, nb2, _, id, o) in list {
             let p = &self.piles[&o];
@@ -3190,7 +3193,7 @@ impl Sim<'_, '_> {
         count: i32,
         put: bool,
         cell: i32,
-    ) -> Option<crate::stock::StorageMatch> {
+    ) -> Option<crate::work::stock::StorageMatch> {
         let town = TownView {
             size: self.size,
             types: &self.cells.types,
@@ -3231,7 +3234,7 @@ impl Sim<'_, '_> {
         put: bool,
         cell: i32,
         exclude: usize,
-    ) -> Option<crate::stock::StorageMatch> {
+    ) -> Option<crate::work::stock::StorageMatch> {
         let town = TownView {
             size: self.size,
             types: &self.cells.types,
@@ -3278,7 +3281,7 @@ impl Sim<'_, '_> {
         if let Some(w) = current {
             self.clear_citizen(c, Some(w));
         }
-        let facing = crate::character::work_facing(self.facing_centre(pile), point);
+        let facing = crate::behaviour::character::work_facing(self.facing_centre(pile), point);
         let carrying = self.states[c].carried.used(self.materials) > 0;
         self.push(c, Action::ShowTool(-1));
         self.on_empty_think(c);
@@ -3348,7 +3351,8 @@ impl Sim<'_, '_> {
         );
         let mask = WALKABLE | crate::pathfind::bit(self.cells.types[from as usize]);
         for (storage, target, entity) in chosen {
-            let facing = crate::character::work_facing(self.facing_centre(entity), target);
+            let facing =
+                crate::behaviour::character::work_facing(self.facing_centre(entity), target);
             self.push(c, self.perform(c, facing, 7, 0.75, false));
             self.push(c, Action::ShowTool(-2));
             self.push(
@@ -3406,7 +3410,7 @@ impl Sim<'_, '_> {
                     e,
                     self.rect_cell(e),
                     self.professions.laborer,
-                    WorkKind::ClearStorage(crate::herbalist::HerbalistWork::default()),
+                    WorkKind::ClearStorage(crate::production::herbalist::HerbalistWork::default()),
                 );
                 self.set_work(jobs, e, work, 1, false);
             } else if registered && used == 0 {

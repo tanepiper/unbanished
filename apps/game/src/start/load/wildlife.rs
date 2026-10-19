@@ -11,8 +11,8 @@ use std::collections::BTreeMap;
 
 use banished_formats::pkg::Archive;
 use banished_formats::savegame::{Fields, ObjId, Value};
-use banished_game::character::Character;
-use banished_game::wildlife::{Animal, Herd, Livestock, Population};
+use banished_game::behaviour::character::Character;
+use banished_game::nature::wildlife::{Animal, Herd, Livestock, Population};
 
 use super::super::{livestock_kind, normalise, wildlife_kinds, StartingTown};
 use super::construction::entity_or_component;
@@ -288,7 +288,7 @@ impl StartingTown {
                 .map_or(0, |m| int(&m.fields, "machine.state") as i8);
             self.wildlife.boats.insert(
                 entity,
-                banished_game::boat::Boat {
+                banished_game::commerce::boat::Boat {
                     template,
                     character,
                     state,

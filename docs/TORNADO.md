@@ -1,6 +1,6 @@
 # Tornado
 
-Port: `crates/game/src/tornado.rs` (TornadoComponent), `Environment::update` (the spawn),
+Port: `crates/game/src/disasters/tornado.rs` (TornadoComponent), `Environment::update` (the spawn),
 `apps/game/src/start/tornado.rs` (the entity). Test: `a_tornado_crosses_the_town`
 (`apps/game/src/placement_tool.rs`).
 

@@ -13,7 +13,7 @@
 
 use banished_formats::pkg::Archive;
 use banished_formats::scenario::{self, GoalKind};
-use banished_game::tracker::Statistics;
+use banished_game::work::tracker::Statistics;
 
 use crate::start::StartingTown;
 
@@ -195,7 +195,8 @@ fn stat(
             .enumerate()
             .filter(|(_, (c, _))| c.alive)
     };
-    let working = |c: &banished_game::citizens::Citizen| c.is_adult(rules) && c.school.is_none();
+    let working =
+        |c: &banished_game::people::citizens::Citizen| c.is_adult(rules) && c.school.is_none();
     let material = || town.materials.iter().position(|m| same(&m.reference, r));
     match kind {
         // `FUN_1400df8e0`: educated working adults.

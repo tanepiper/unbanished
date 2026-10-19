@@ -168,7 +168,7 @@ impl MenuLoop {
             banished_ui::Kind::Control(banished_ui::Control::Edit(e)) => e.max_length as i32,
             _ => 30,
         };
-        let name = banished_game::names::town_name(db, ctx.rng, max_length / 3 * 2);
+        let name = banished_game::people::names::town_name(db, ctx.rng, max_length / 3 * 2);
         ctx.ui.set_text(edit, &name);
     }
 

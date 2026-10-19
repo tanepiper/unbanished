@@ -198,7 +198,7 @@ impl StartingTown {
         refs: &mut Refs,
         ids: &Ids,
         e: ObjId,
-        ch: &banished_game::character::Character,
+        ch: &banished_game::behaviour::character::Character,
         variant: usize,
         mesh: usize,
     ) {

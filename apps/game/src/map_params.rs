@@ -122,7 +122,7 @@ impl MapParamsDialog {
                     Kind::Control(Control::Edit(d)) => d.max_length as i32,
                     _ => 30,
                 };
-                let name = banished_game::names::town_name(db, rng, max_length / 3 * 2);
+                let name = banished_game::people::names::town_name(db, rng, max_length / 3 * 2);
                 ui.set_text(e, &name);
                 self.update(ui);
             }

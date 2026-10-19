@@ -2,7 +2,7 @@
 
 Every 300 s of game time the town rearranges where people live and work, so that families
 live near their jobs and jobs go to the people living nearest. It runs from StockManager::Update
-(`FUN_140091780`). Port: `crates/game/src/commute.rs`, called from the gameplay iteration right
+(`FUN_140091780`). Port: `crates/game/src/behaviour/commute.rs`, called from the gameplay iteration right
 after the stock recount. Test: `the_commute_run_keeps_the_professions`.
 
 ## Clock and job

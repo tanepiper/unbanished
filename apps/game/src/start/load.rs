@@ -8,10 +8,10 @@ use std::collections::BTreeMap;
 use banished_formats::game::map_generator;
 use banished_formats::pkg::Archive;
 use banished_formats::savegame::{ObjId, Value};
-use banished_game::growth::Growth;
+use banished_game::nature::growth::Growth;
+use banished_game::nature::seeding::{Cells, Placed};
+use banished_game::nature::spawn::Spawn;
 use banished_game::scheduler::EntityScheduler;
-use banished_game::seeding::{Cells, Placed};
-use banished_game::spawn::Spawn;
 use banished_game::terrain::CellType;
 
 use super::{citizen_rules, load_template, read, StartingTown, TownParts};
@@ -28,18 +28,19 @@ const ALLOW_NEGATIVE: u32 = 0x10_0000;
 const REMOVAL_REQUESTED: u32 = 0x20_0000;
 
 /// Fallback when the save's citizen description is missing (as `households` uses).
-const RULES: banished_game::citizens::CitizenRules = banished_game::citizens::CitizenRules {
-    adult_age: 2.0,
-    start_age: (2.2, 8.0),
-    lifespan: (15.0, 3.0),
-    education: 0,
-};
+const RULES: banished_game::people::citizens::CitizenRules =
+    banished_game::people::citizens::CitizenRules {
+        adult_age: 2.0,
+        start_age: (2.2, 8.0),
+        lifespan: (15.0, 3.0),
+        education: 0,
+    };
 
 impl StartingTown {
     /// The town of a saved game. Entities without a map footprint (citizens, animals) are not
     /// restored yet.
     pub fn from_save(archive: &Archive, saved: &SavedGame) -> Option<StartingTown> {
-        banished_game::animation::shared::reset();
+        banished_game::behaviour::animation::shared::reset();
         let g = &saved.state;
         // A mod's start condition may be missing; only its citizen template is read here,
         // so the base Medium profile stands in.
@@ -145,7 +146,7 @@ impl StartingTown {
             let growth_state = growth_component.and_then(|c| {
                 let smoothed = c.fields.f32("growth.growth")?;
                 if let Some(d) = &templates[template].growth {
-                    scale = banished_game::growth::scale(smoothed, d.tall);
+                    scale = banished_game::nature::growth::scale(smoothed, d.tall);
                 }
                 Some(Growth {
                     maximum: c.fields.f32("growth.maximum")?,
@@ -228,7 +229,7 @@ impl StartingTown {
             index.insert(id, p);
         }
         let cells = restore_cells(archive, saved, n, &index, &mut templates);
-        let water = banished_game::fire::Water::new(&cells);
+        let water = banished_game::disasters::fire::Water::new(&cells);
         log::info!(
             "loaded {}: {} placed entities, {} templates; not restored yet: {skipped:?}",
             g.town_name,
@@ -294,7 +295,7 @@ impl StartingTown {
         index: &BTreeMap<ObjId, usize>,
         order: &BTreeMap<ObjId, usize>,
     ) {
-        use banished_game::character_tree::Who;
+        use banished_game::behaviour::character_tree::Who;
         let mut found: Vec<(ObjId, Who)> = Vec::new();
         for (id, e) in saved.entities() {
             let Some(k) = saved.component(e, "CharacterComponent") else {
@@ -329,7 +330,7 @@ impl StartingTown {
                 w.tree.set_direction(ch.tree_slot, ch.direction);
             }
         }
-        fn who_alive(who: Who, citizens: &[banished_game::citizens::Citizen]) -> bool {
+        fn who_alive(who: Who, citizens: &[banished_game::people::citizens::Citizen]) -> bool {
             match who {
                 Who::Citizen(c) => citizens.get(c).is_some_and(|c| c.alive),
                 _ => true,
@@ -449,13 +450,13 @@ impl StartingTown {
 }
 
 /// The gameplay map's cells as `FUN_14001b570` wrote them (the 48-byte cell layout is in
-/// `banished_game::seeding::Cells`).
+/// `banished_game::nature::seeding::Cells`).
 fn restore_cells(
     archive: &Archive,
     saved: &SavedGame,
     n: usize,
     index: &BTreeMap<ObjId, usize>,
-    templates: &mut Vec<banished_game::seeding::Template>,
+    templates: &mut Vec<banished_game::nature::seeding::Template>,
 ) -> Cells {
     let map = &saved.state.map;
     let types = map.cells.iter().map(|c| CellType(c.bytes[1])).collect();
@@ -653,8 +654,10 @@ mod stage2_tests {
             let c = &town.construction;
 
             // The stock manager's counts are recomputed from storages (`FUN_14008f3a0`).
-            let table =
-                banished_game::stock::stock_table(&town.registered_storages(), &town.materials);
+            let table = banished_game::work::stock::stock_table(
+                &town.registered_storages(),
+                &town.materials,
+            );
             assert_eq!(table, saved.stock_warnings().count, "{name}: stock");
 
             let machines: Vec<String> = saved
@@ -734,7 +737,7 @@ mod stage2_tests {
                 .jobs
                 .works
                 .values()
-                .filter(|w| matches!(w.kind, banished_game::jobs::WorkKind::Road(_)))
+                .filter(|w| matches!(w.kind, banished_game::work::jobs::WorkKind::Road(_)))
                 .count();
             assert_eq!(c.pending_roads.len(), roads, "{name}: planned roads");
             let listed = ["town.storages", "town.markets"]
@@ -859,7 +862,7 @@ mod stage3_tests {
 #[cfg(test)]
 mod stage3b_tests {
     use super::tests_support::*;
-    use banished_game::jobs::WorkKind;
+    use banished_game::work::jobs::WorkKind;
 
     #[test]
     fn vanilla_saves_restore_stacks_and_claims() {
@@ -1159,8 +1162,8 @@ mod stage4_tests {
             let generator =
                 banished_formats::game::climate_generator(&archive.read_ref(&climate).unwrap())
                     .unwrap();
-            let mut env = banished_game::environment::Environment::new(
-                banished_game::environment::Climate::from(&generator),
+            let mut env = banished_game::nature::environment::Environment::new(
+                banished_game::nature::environment::Climate::from(&generator),
             );
             saved.restore_environment(&mut env);
             let m = &saved.state.managers;

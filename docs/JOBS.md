@@ -3,8 +3,8 @@
 How a placed building becomes a construction site, how citizens are given work, and how the
 player assigns professions. Evidence: Ghidra pseudocode and disassembly of the Steam x64
 executable (`tools/triage/decomp.py`, `types.py`); inferences are marked. Ports:
-`crates/game/src/jobs.rs` (job manager), `crates/game/src/professions.rs` (professions,
-workplaces, assignment), `crates/game/src/construction.rs` (state machine, construction works).
+`crates/game/src/work/jobs.rs` (job manager), `crates/game/src/work/professions.rs` (professions,
+workplaces, assignment), `crates/game/src/work/construction.rs` (state machine, construction works).
 
 Status: see [Port status](#port-status) at the end.
 
@@ -528,7 +528,7 @@ turned `RandTol(2) × 90°`; then the stock's production counter and the workpla
 (`FUN_14008e3c0`) and AutoPickupComponent. The piles' Pickup works let laborers carry them to
 storage. `FUN_14008e460` maps a raw material's flags to the manager slot.
 
-Port: `crates/game/src/produce.rs`; `jobs::WorkHost::resume` continues a try after its pile
+Port: `crates/game/src/work/produce.rs`; `jobs::WorkHost::resume` continues a try after its pile
 offers (the original offers inline). Verified by `placement_tool::construction_tests::
 cutter_yard_makes_firewood` (seed 1234, Medium, firewood limit raised): built at step 6978, the
 cutter fetches logs, the first firewood pile appears at 8730 and is hauled away at 9432. Not
@@ -538,7 +538,7 @@ message (the quarry), a StorageLocationComponent's drop point (the tavern), the 
 
 ## Gatherers (`HerbalistComponent`, its work, `AutoPickupComponent`)
 
-Port: `crates/game/src/herbalist.rs`. The gatherer's shelter and the herbalist share
+Port: `crates/game/src/production/herbalist.rs`. The gatherer's shelter and the herbalist share
 HerbalistComponent (vtable `0x14015f980`). It uses ResourceProduceComponent's state table
 (`FUN_140130700`), and its slot `+0x90` (`FUN_14004bac0`) makes the work (vtable
 `0x1401679c0`, no class name): a worker set `+0x48`, its size `+0x50`, and misses in a row
@@ -588,7 +588,7 @@ harvest wild food, and the AutoPickup records the pile, which is picked up.
 
 ## Foresters (`ForesterComponent`, its work)
 
-Port: `crates/game/src/forester.rs`.
+Port: `crates/game/src/production/forester.rs`.
 
 - **Component.** ForesterComponent (vtable `0x140169890`) uses the ResourceProduce states.
   - ForesterDescription (`FUN_140124f50`, versioned): the tree template `+0x20`, then, from
@@ -635,7 +635,7 @@ plant a sapling, cut a tree, and the logs are picked up.
 
 ## Fishermen (`FishingComponent`, `FishingWork`)
 
-Port: `crates/game/src/fishing.rs`.
+Port: `crates/game/src/production/fishing.rs`.
 
 - **Description.** FishingDescription (`FUN_140124640`, versioned): the catch's template
   `+0x20`, the water cell types `+0x2c` (0x180: shallow and deep), and from version 1 the
@@ -680,7 +680,7 @@ land fish.
 
 ## Hunters (`HuntComponent`, its work, `HuntAnimal`)
 
-Port: `crates/game/src/hunt.rs`; the notify is in `crates/game/src/agents.rs`.
+Port: `crates/game/src/production/hunt.rs`; the notify is in `crates/game/src/behaviour/agents.rs`.
 
 - **HuntDescription** (`FUN_140127e30`, versioned). The hunting time `+0x20` (2, × 300 s),
   then from version 1 the stock slot `+0x24` (food).
@@ -782,7 +782,7 @@ freed). Remove Buildings and cancelling a demolition become `Command::Demolish` 
 [ROADS.md](ROADS.md)). Not ported: the tutorial's fixed rectangle (settings `+0x80`), the bar's requirement
 multiplier (`FUN_14005f060`).
 
-## Demolition (`crates/game/src/destroy.rs`)
+## Demolition (`crates/game/src/work/destroy.rs`)
 
 DestroyComponent (vtable `0x140169500`, 0x68 bytes; serializer `FUN_140123020`) keeps `+0x48`
 the damage time left, `+0x50` damaged, `+0x51` its materials come back, `+0x54` deconstruction

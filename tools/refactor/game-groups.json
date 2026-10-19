@@ -1,0 +1,10 @@
+{
+  "people": {"doc": "The citizens themselves: ages and lives, households and names, needs, health and happiness, services they use, status icons, immigration and burial.", "modules": ["citizens", "life", "needs", "happiness", "services", "status", "immigration", "names", "cemetery"]},
+  "behaviour": {"doc": "How characters act: the citizen AI and its activities, the agents that run citizens and animals, characters and their action stacks, animation and commuting.", "modules": ["agents", "ai", "activities", "character", "character_tree", "animation", "commute"]},
+  "work": {"doc": "The work economy: jobs and professions, construction and demolition, production recipes, stock and storage, building controls, trackers and roads.", "modules": ["jobs", "professions", "construction", "destroy", "produce", "stock", "control", "tracker", "road"]},
+  "production": {"doc": "Workplaces that gather or grow resources: quarries and mines, foresters, herbalists, hunters, fishing docks, crop fields, orchards and pastures.", "modules": ["quarry", "forester", "herbalist", "hunt", "fishing", "farm", "orchard", "pasture"]},
+  "commerce": {"doc": "Trade: markets, the trading post and the trader boats.", "modules": ["market", "trade", "boat"]},
+  "nature": {"doc": "The natural world: resource seeding and spawning, growth, wildlife and the climate.", "modules": ["seeding", "spawn", "growth", "wildlife", "environment"]},
+  "world": {"doc": "The map: its cells, floors (bridges), building placement and terraforming.", "modules": ["map", "floor", "placement", "terraform"]},
+  "disasters": {"doc": "Disasters: fire, crop blight and tornadoes.", "modules": ["fire", "blight", "tornado"]}
+}

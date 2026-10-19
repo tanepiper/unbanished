@@ -111,7 +111,7 @@ Static x64 evidence, supplemented by original-function emulation:
   `FUN_14006b830` truncates `(value/scale)*(slotCount*2)+0.5`. For odd boundaries 1,3,5,…,
   whole is visible below the truncated result, half is visible at equality. Containers retain
   their resource geometry; hiding entire containers incorrectly changes the layout.
-- Status snapshots live in `crates/game/src/status.rs`; citizen health/happiness are live state
+- Status snapshots live in `crates/game/src/people/status.rs`; citizen health/happiness are live state
   fields initialized from `FUN_140119520`. UI open/close/layout/hover/draw accept no mutable
   simulation state or game Random. Utility positions use BTreeMap, open windows retain Vec order.
 

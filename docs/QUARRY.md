@@ -2,7 +2,7 @@
 
 The quarry's pit deepens as the quarry is worked.
 
-Port: `crates/game/src/quarry.rs`. The terrain change is applied with the other terraform
+Port: `crates/game/src/production/quarry.rs`. The terrain change is applied with the other terraform
 requests after the iteration (`StartingTown::apply_terraforms`).
 
 ## QuarryDescription (`Template\Quarry.rsc:quarry`, serializer `FUN_140055c80`)

@@ -1,6 +1,6 @@
 //! Pose/clock/event parity against the shipped Runtime functions (tools/emu/animation.py).
 use banished_formats::types::{animation_group, AnimationGroup};
-use banished_game::animation::{sample_pose, Playback};
+use banished_game::behaviour::animation::{sample_pose, Playback};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 

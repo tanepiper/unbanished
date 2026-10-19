@@ -45,7 +45,7 @@ These change the alpha or material:
 - **Damaged material on collapse.** A collapse (`FUN_140122aa0`) switches to the DestroyDescription's `+0x2c` material.
 - **Quarry re-adds.** The quarry re-adds its decal around its terrain dig (`FUN_140055320`).
 
-Port: `banished_game::construction::Decal` (`Construction::decals`, by entity) holds the
+Port: `banished_game::work::construction::Decal` (`Construction::decals`, by entity) holds the
 opaque flag and the material.
 
 ## Meshing (`FUN_1400b2310`)

@@ -18,7 +18,7 @@
 //! empty.
 
 use banished_formats::pkg::Archive;
-use banished_game::professions::Command;
+use banished_game::work::professions::Command;
 use banished_ui::{Control, Kind, NodeId, Ui};
 
 use crate::building_ui::{text_of, WorkPlaceClick};
@@ -175,11 +175,11 @@ impl SelectResourceUi {
         if let Some((p, text)) = &self.progress {
             let site = town.construction.sites.get(&e);
             let fill = match self.resource {
-                Resource::Crop => site
-                    .and_then(|s| s.crop_field.as_ref())
-                    .map_or(0.0, |f| banished_game::farm::ripeness(f, &town.placed)),
+                Resource::Crop => site.and_then(|s| s.crop_field.as_ref()).map_or(0.0, |f| {
+                    banished_game::production::farm::ripeness(f, &town.placed)
+                }),
                 _ => site.and_then(|s| s.orchard.as_ref()).map_or(0.0, |o| {
-                    banished_game::orchard::ripeness(
+                    banished_game::production::orchard::ripeness(
                         o,
                         &town.cells.objects,
                         &town.construction.fruits,

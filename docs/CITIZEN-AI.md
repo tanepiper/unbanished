@@ -4,7 +4,7 @@ How a citizen decides what to do, how that decision becomes a queue of actions, 
 character walks a path. Evidence: Ghidra 12.1.4 pseudocode and disassembly of the Steam x64
 executable and Runtime DLL (local dumps `analysis/citizen-ai-*.c`, `analysis/pathfind.c`,
 `analysis/astar.c`, not distributed). Ports: `crates/path/src/pathfind.rs`,
-`crates/game/src/character.rs`, `CharacterDescription` in `crates/formats/src/game.rs`.
+`crates/game/src/behaviour/character.rs`, `CharacterDescription` in `crates/formats/src/game.rs`.
 
 The citizen template (`Template/Citizen.rsc`) carries three cooperating components:
 
@@ -57,12 +57,12 @@ Each update (angles in degrees):
 
 `FUN_14010f6c0(anim, blend, scale)` plays a clip and sets `speed = model scale z × scale`.
 Replaying a looping clip that is already playing keeps its time (`AnimationState::PlayAnimation`).
-Clips blend as `AnimationState` does (`crate::animation::AnimationStack`): each play pushes a
+Clips blend as `AnimationState` does (`crate::behaviour::animation::AnimationStack`): each play pushes a
 layer and the covered one fades over the group's blend time (`+0x48`, `[new][old]`, else the
 default `+0x30`; the description's `+0x2c` handed to `PlayAnimation` is not used). The pose
 starts from the oldest layer and mixes each newer one over it by the older layer's share left
 (`Quaternion::Lerp`, linear translation). Instanced clips (`+0x2c`; nearly every citizen and
-animal clip) follow `AnimationManager`'s shared instances (`crate::animation::shared`): a
+animal clip) follow `AnimationManager`'s shared instances (`crate::behaviour::animation::shared`): a
 group's clip gets `+0x28` clocks (3, 4 or 8) staggered by `duration / count`, each character
 joining the one with the earliest clock, so characters walk and work in step groups.
 
@@ -259,12 +259,12 @@ Emulating the original functions (`tools/emu/`, compared by tests in `crates/gam
 
 Ported: regions, path manager costs and A* (verified), request validation, character movement,
 the action stack, MoveTo, PlayAnimation, PerformWork, SendComponentMessage, the AI's candidate
-list, shuffle and sort (verified), choice and timers (`crates/game/src/ai.rs`).
+list, shuffle and sort (verified), choice and timers (`crates/game/src/behaviour/ai.rs`).
 
-In the game (`crates/game/src/agents.rs`, driven from `StartingTown::update_citizens`) each
+In the game (`crates/game/src/behaviour/agents.rs`, driven from `StartingTown::update_citizens`) each
 citizen has a Character, CitizenAI, equipment state and carried StorageComponent ledger.
-Activity 12 (loiter, `crates/game/src/activities.rs`), activities 3/8 (clothing/tool) and
-activities 2/9 (emergency work and work, through the job manager, `crates/game/src/jobs.rs`;
+Activity 12 (loiter, `crates/game/src/behaviour/activities.rs`), activities 3/8 (clothing/tool) and
+activities 2/9 (emergency work and work, through the job manager, `crates/game/src/work/jobs.rs`;
 see [JOBS.md](JOBS.md)) are ported. The stock locations retain their placed-entity ids, packaged accepted masks and
 world-space interaction points. New citizens fetch equipment and then loiter.
 
@@ -451,7 +451,7 @@ residence assignment, the remaining actions, animation blending and bridge groun
 ## The characters' tree (`Game +0x88`)
 
 Every CharacterComponent (citizens, animals, boats, nomads) is filed in a loose quadtree
-(`crates/game/src/character_tree.rs`, checked against the original by
+(`crates/game/src/behaviour/character_tree.rs`, checked against the original by
 `tools/emu/character_tree.py`): put in at its start (`FUN_14010ee90`) or as a save is read
 (`FUN_14010ef80`, in object order), placed again at the end of every update (`FUN_14010e990` →
 `FUN_140019070`), taken out at its end (`FUN_14010ee50`). Three searches read it:

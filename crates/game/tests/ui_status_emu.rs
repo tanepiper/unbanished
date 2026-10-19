@@ -1,5 +1,5 @@
 //! Original StatusBarUI aggregation, half-icon meter and StatusIcon mask writes.
-use banished_game::status::{aggregate, meter, set_icon, CitizenValue};
+use banished_game::people::status::{aggregate, meter, set_icon, CitizenValue};
 
 fn fixture(name: &str) -> Option<String> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

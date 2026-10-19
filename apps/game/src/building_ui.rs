@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use banished_formats::game::{raw_material_description, RawMaterialDescription};
 use banished_formats::pkg::Archive;
-use banished_game::stock::{RawMaterial, Storage};
+use banished_game::work::stock::{RawMaterial, Storage};
 use banished_ui::{Control, Kind, NodeId, Ui};
 
 /// CRC32 (UTF-16LE) of the controller class names.
@@ -296,7 +296,7 @@ impl ImmigrationUi {
             return None;
         };
         Some(WorkPlaceClick::Command(
-            banished_game::professions::Command::StateMessage { entity, message },
+            banished_game::work::professions::Command::StateMessage { entity, message },
         ))
     }
 }
@@ -383,7 +383,7 @@ impl ConsumeProduceUi {
         }
         let entity = data.produce.as_ref()?.0;
         Some(WorkPlaceClick::Command(
-            banished_game::professions::Command::SetRecipe {
+            banished_game::work::professions::Command::SetRecipe {
                 entity,
                 recipe: index as i32,
             },
@@ -617,7 +617,7 @@ impl ControlUi {
             return None;
         }
         Some(WorkPlaceClick::Command(
-            banished_game::professions::Command::Control {
+            banished_game::work::professions::Command::Control {
                 entity: entity?,
                 kind: self.kind,
                 index: self.index,
@@ -862,7 +862,7 @@ impl DestroyUi {
     /// message 0: rebuild), `0x1773` `FUN_1401239a0` (state message 1: clear it).
     pub fn click(&self, node: NodeId, data: &EntityData) -> Option<WorkPlaceClick> {
         let entity = data.destroy?.entity;
-        use banished_game::professions::Command;
+        use banished_game::work::professions::Command;
         if Some(node) == self.reclaim {
             return Some(WorkPlaceClick::Command(Command::CancelDemolition {
                 entity,
@@ -1138,7 +1138,7 @@ pub struct WorkPlaceInfo {
 
 /// A WorkPlaceUI element event (`FUN_14008ccb0`, event 0x12).
 pub enum WorkPlaceClick {
-    Command(banished_game::professions::Command),
+    Command(banished_game::work::professions::Command),
     /// 0x1454 (`FUN_14008cba0` → `FUN_140108510`): pin the window, show and select the worker.
     ShowWorker(usize),
     /// ResourceLimitUI: the stock manager's limit for a slot.
@@ -1212,7 +1212,7 @@ impl WorkPlaceUi {
     }
 
     pub fn click(&mut self, id: NodeId, data: &EntityData) -> Option<WorkPlaceClick> {
-        use banished_game::professions::Command;
+        use banished_game::work::professions::Command;
         let w = data.workplace.as_ref()?;
         let entity = w.entity;
         let command = if Some(id) == self.worker_up {
@@ -1423,7 +1423,7 @@ impl BuildUi {
 
     /// Element 6000: `SetEnabled(+0x50 == 0)`.
     pub fn click(&self, id: NodeId, data: &EntityData) -> Option<WorkPlaceClick> {
-        use banished_game::professions::Command;
+        use banished_game::work::professions::Command;
         let b = data.build.as_ref()?;
         let enabled = b.enabled?;
         (Some(id) == self.pause).then_some(WorkPlaceClick::Command(Command::SetEnabled {

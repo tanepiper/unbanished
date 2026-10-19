@@ -5,7 +5,7 @@
 
 use banished_formats::crc::type_id;
 use banished_formats::savegame::{Fields, GameState, ObjId, Value};
-use banished_game::character::{Action, ActionStack, Component};
+use banished_game::behaviour::character::{Action, ActionStack, Component};
 
 use super::{component, Ids, Refs};
 use crate::start::StartingTown;

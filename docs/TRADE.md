@@ -1,7 +1,7 @@
 # Trade: the trading post, merchants and the trader boat
 
-Port: `crates/game/src/trade.rs` (TradeComponent, offers, automatic trading, TradeWork) and
-`crates/game/src/boat.rs` (BoatComponent). Test: `a_merchant_comes_by_boat`
+Port: `crates/game/src/commerce/trade.rs` (TradeComponent, offers, automatic trading, TradeWork) and
+`crates/game/src/commerce/boat.rs` (BoatComponent). Test: `a_merchant_comes_by_boat`
 (`apps/game/src/placement_tool.rs`).
 
 ## TradeDescription

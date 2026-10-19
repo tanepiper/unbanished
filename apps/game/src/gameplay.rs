@@ -4,7 +4,7 @@
 use banished_formats::game::climate_generator;
 use banished_formats::game::EnvironmentMonth;
 use banished_game::calendar::Calendar;
-use banished_game::environment::{Climate, Environment, YEAR_SECONDS};
+use banished_game::nature::environment::{Climate, Environment, YEAR_SECONDS};
 use banished_game::random::Random;
 use banished_game::scheduler::ticks;
 use banished_ui::{Event, Ui};
@@ -127,7 +127,7 @@ pub struct GameplayLoop {
     pub events: banished_game::events::EventLog,
     stock_warnings: banished_game::events::StockWarnings,
     /// The Town Info graphs' history (StockManager `+0x150`, sampled every 75 s).
-    statistics: banished_game::tracker::Statistics,
+    statistics: banished_game::work::tracker::Statistics,
     /// The event ribbon (`Dialog/EventNotify.rsc`) and its popups.
     notify: Option<crate::event_notify::EventNotify>,
     /// Screen aspect of the last frame (MapUI's frustum outline).
@@ -743,12 +743,12 @@ impl GameplayLoop {
     /// The values the Status Bar's FUN_14007eda0 reads from the starting town and environment.
     fn status_values(&self) -> StatusValues {
         let summary = self.town.as_ref().map_or_else(Default::default, |t| {
-            banished_game::status::aggregate(
+            banished_game::people::status::aggregate(
                 t.citizens
                     .iter()
                     .zip(&t.agents.states)
                     .filter(|(c, _)| c.alive)
-                    .map(|(c, s)| banished_game::status::CitizenValue {
+                    .map(|(c, s)| banished_game::people::status::CitizenValue {
                         age: c.age,
                         adult_age: t.rules.adult_age,
                         school: c.school.is_some(),
@@ -792,7 +792,7 @@ impl GameplayLoop {
             // `FUN_14008f3a0`, recomputed from the town storages.
             stock_limits: self.stock_warnings.limits,
             stock: self.town.as_ref().map_or([0; 21], |t| {
-                banished_game::stock::stock_table(&t.registered_storages(), &t.materials)
+                banished_game::work::stock::stock_table(&t.registered_storages(), &t.materials)
             }),
             show_celsius: self.show_celsius,
             citizens: self.town.as_ref().map_or(Vec::new(), |t| {
@@ -843,7 +843,7 @@ impl GameplayLoop {
 
     fn population(&self) -> (u32, u32, u32) {
         self.town.as_ref().map_or((0, 0, 0), |t| {
-            banished_game::citizens::population(&t.citizens, &t.rules)
+            banished_game::people::citizens::population(&t.citizens, &t.rules)
         })
     }
 
@@ -1182,12 +1182,12 @@ impl GameplayLoop {
         }
         // `FUN_140103190`: the footprint's cells under the cursor, then (game UI `+0x80`) the
         // tutorial's target in yellow, with the building's footprint and its rotation.
-        let degrees = self.rotation * banished_game::placement::ROTATION_STEP as i32;
+        let degrees = self.rotation * banished_game::world::placement::ROTATION_STEP as i32;
         let mut cells = tool.rect().map_or_else(Vec::new, |rect| {
             tool.overlay(town, &grid, rect, degrees, false)
         });
         if let Some(r) = self.restrict.as_ref().filter(|r| !r.place.is_empty()) {
-            let rect = banished_game::placement::Rect {
+            let rect = banished_game::world::placement::Rect {
                 x0: r.rect[0],
                 y0: r.rect[1],
                 x1: r.rect[2],
@@ -1578,12 +1578,12 @@ impl GameplayLoop {
             town.construction.jobs.step(ticks(dt));
             // `FUN_14008fc00` every 75 s: the citizens and every stock slot.
             let life = &town.agents.life;
-            let samples: Vec<banished_game::tracker::CitizenSample> = town
+            let samples: Vec<banished_game::work::tracker::CitizenSample> = town
                 .citizens
                 .iter()
                 .zip(&town.agents.states)
                 .filter(|(c, _)| c.alive)
-                .map(|(c, s)| banished_game::tracker::CitizenSample {
+                .map(|(c, s)| banished_game::work::tracker::CitizenSample {
                     adult: life.adult_age() <= c.age,
                     school: s.school.is_some(),
                     health: s.health,
@@ -2289,7 +2289,10 @@ impl GameplayLoop {
                 Some(UtilityClick::ProfessionCount(profession, count)) => {
                     if let Some(town) = &mut self.town {
                         town.construction.commands.push(
-                            banished_game::professions::Command::SetCount { profession, count },
+                            banished_game::work::professions::Command::SetCount {
+                                profession,
+                                count,
+                            },
                         );
                     }
                     return Next::Stay;
@@ -2344,7 +2347,7 @@ impl GameplayLoop {
                         if let Some(t) = town.load_template(ctx.archive, &template) {
                             town.site_template(ctx.archive, t);
                             town.construction.commands.push(
-                                banished_game::professions::Command::Upgrade {
+                                banished_game::work::professions::Command::Upgrade {
                                     entity,
                                     template: t,
                                 },
@@ -2818,7 +2821,7 @@ impl GameLoop for GameplayLoop {
         let open = self.entities.trade_windows();
         if open != self.trade_held {
             if let Some(town) = &mut self.town {
-                use banished_game::{professions::Command, trade::TradeSetting};
+                use banished_game::{commerce::trade::TradeSetting, work::professions::Command};
                 for &e in self.trade_held.iter().filter(|e| !open.contains(e)) {
                     town.construction.commands.push(Command::Trade {
                         entity: e,
@@ -3304,9 +3307,9 @@ impl GameLoop for GameplayLoop {
                 ) else {
                     return false;
                 };
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::SetCount { profession, count });
+                town.construction.commands.push(
+                    banished_game::work::professions::Command::SetCount { profession, count },
+                );
                 return true;
             }
             _ => return false,
@@ -3696,12 +3699,12 @@ mod tests {
         tr.timer = i64::MAX / 2;
         tr.keep.insert(logs, 30);
         tr.offers = vec![
-            banished_game::trade::Offer {
+            banished_game::commerce::trade::Offer {
                 good: food,
                 value: 2,
                 amount: 10,
             },
-            banished_game::trade::Offer {
+            banished_game::commerce::trade::Offer {
                 good: livestock,
                 value: 1,
                 amount: 2,
@@ -3726,7 +3729,7 @@ mod tests {
                 })
                 .collect();
             assert_eq!(spinners.len(), 3, "one sell row and two buy rows");
-            let value = banished_game::trade::sell_value(
+            let value = banished_game::commerce::trade::sell_value(
                 &town.construction.trade_goods,
                 &town.materials,
                 town.construction.sites[&id].trade.as_ref().unwrap(),
@@ -3750,7 +3753,7 @@ mod tests {
             };
             assert_eq!(
                 c,
-                banished_game::professions::Command::Exchange {
+                banished_game::work::professions::Command::Exchange {
                     entity: id,
                     sell: vec![(logs, sell)],
                     buy: vec![(food, 4), (livestock, 2)],
@@ -3775,7 +3778,7 @@ mod tests {
             assert_eq!(town.wildlife.unassigned.len(), unassigned + 2);
             let a = *town.wildlife.unassigned.last().unwrap();
             assert_eq!(
-                town.wildlife.animals[&a].flags & banished_game::wildlife::WILD,
+                town.wildlife.animals[&a].flags & banished_game::nature::wildlife::WILD,
                 0
             );
             // The window's amounts go back to none.
@@ -3875,7 +3878,7 @@ mod tests {
                 .expect("the choice sends nothing");
             assert!(matches!(
                 chosen,
-                WorkPlaceClick::Command(banished_game::professions::Command::SetCrop {
+                WorkPlaceClick::Command(banished_game::work::professions::Command::SetCrop {
                     entity,
                     crop: Some(c),
                 }) if entity == id && crops.contains(&c)
@@ -4526,14 +4529,14 @@ mod tests {
             let n = town.cells.size as i32;
             let (x, y) = (town.start.0 as i32, town.start.1 as i32 + 12);
             for dx in 0..6 {
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::PlanRoad {
+                town.construction.commands.push(
+                    banished_game::work::professions::Command::PlanRoad {
                         cell: y * n + x + dx,
                         kind: 1,
                         ty: 3,
                         material: None,
-                    });
+                    },
+                );
             }
             gameplay.update(ctx, 1.0 / 30.0);
             let town = gameplay.town.as_ref().unwrap();
@@ -4685,7 +4688,7 @@ mod tests {
                 ctx.ui.find(root, "buttonRebuild").unwrap(),
                 ctx.ui.find(root, "buttonDestroy").unwrap(),
             );
-            use banished_game::professions::Command;
+            use banished_game::work::professions::Command;
             let click = |gameplay: &mut GameplayLoop, ui: &banished_ui::Ui, n| match gameplay
                 .entities
                 .click(ui, gameplay.town.as_ref().unwrap(), n)
@@ -4849,7 +4852,7 @@ mod tests {
             gameplay.update(ctx, 1.0 / 30.0);
             let (_, before) = ctx.audio.scene.active();
             gameplay.environment.as_mut().unwrap().effects[0] =
-                Some(banished_game::environment::WeatherEffect {
+                Some(banished_game::nature::environment::WeatherEffect {
                     intensity: 0.5,
                     direction: 1.0,
                 });

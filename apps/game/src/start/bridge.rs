@@ -7,7 +7,7 @@
 
 use banished_formats::game::{create_bridge_description, CreateBridgeDescription};
 use banished_formats::pkg::Archive;
-use banished_game::seeding::Placed;
+use banished_game::nature::seeding::Placed;
 use banished_game::terrain::HeightGrid;
 
 use super::{normalise, read, StartingTown};
@@ -221,7 +221,7 @@ impl StartingTown {
         let w = spec.desc.half_width;
         let size = self.cells.size;
         // `FUN_1400a48b0(.., 0)`: another bridge's deck over the cell counts.
-        let ground = |floors: &banished_game::floor::Floors, x: i32, y: i32| {
+        let ground = |floors: &banished_game::world::floor::Floors, x: i32, y: i32| {
             banished_game::town::floor_ground(floors, size, terrain, n * y + x)
         };
         let (g0, g1) = (
@@ -316,7 +316,7 @@ impl StartingTown {
         let Some(floor) = self.templates[p.template].floor.clone() else {
             return;
         };
-        let f = banished_game::floor::Floor::placed(&floor, p);
+        let f = banished_game::world::floor::Floor::placed(&floor, p);
         let size = self.cells.size;
         self.cells.floors.add(size, part, f);
     }
@@ -327,10 +327,11 @@ impl StartingTown {
     /// the terrain's heights (`width` samples a side), in order. Returns whether any height
     /// changed (the terrain mesh is to be rebuilt).
     pub fn apply_terraforms(&mut self, heights: &mut [i16], width: usize) -> bool {
-        use banished_game::terraform::{harden, reshape, undo, Terraform};
+        use banished_game::world::terraform::{harden, reshape, undo, Terraform};
         let mut changed = false;
         for rect in std::mem::take(&mut self.construction.flatten_requests) {
-            changed |= banished_game::terraform::flatten(heights, width, self.cells.size, rect);
+            changed |=
+                banished_game::world::terraform::flatten(heights, width, self.cells.size, rect);
         }
         for request in std::mem::take(&mut self.construction.terraform_requests) {
             match request {
@@ -343,10 +344,11 @@ impl StartingTown {
                     let Some(q) = self.templates[p.template].quarry.clone() else {
                         continue;
                     };
-                    changed |= banished_game::quarry::dig(heights, width, &q, &p, floor);
+                    changed |=
+                        banished_game::production::quarry::dig(heights, width, &q, &p, floor);
                     if claim {
                         let grid = HeightGrid { width, heights };
-                        banished_game::quarry::claim_steep_cells(
+                        banished_game::production::quarry::claim_steep_cells(
                             &mut self.cells,
                             &grid,
                             entity,

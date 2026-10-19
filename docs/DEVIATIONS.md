@@ -80,79 +80,79 @@ Deviation: 40, Not ported: 4, Not traced: 1.
 
 - [Not traced] [crates/formats/src/pkg.rs:61](../crates/formats/src/pkg.rs#L61): `+0x74`: `Modification::RefreshList` leaves out a mod whose value is not 0 (0 in every package seen; its meaning is not traced).
 
-## `crates/game/src/agents.rs`
+## `crates/game/src/behaviour/agents.rs`
 
-- [Deviation] [crates/game/src/agents.rs:1](../crates/game/src/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance (`AnimationManager::Update`), every character runs its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run the AI with zero time (`FUN_140114810`), then the AI updates. The citizens' scheduled components (CitizenComponent, CitizenAIComponent and the CharacterComponent's notify) run for the citizens bucket 1 visited this iteration, with the time since each one's last visit; so do the sites' StateMachines, fires, blight, hunts, attendance, residences and piles in bucket 3 (`FUN_1400c9560`, `town::Env::visits`). Deviation: these run after the bucket pass (system by system, each in visiting order) instead of interleaved with it entity by entity, so random draws can come in another order.
-- [Deviation] [crates/game/src/agents.rs:1055](../crates/game/src/agents.rs#L1055): The wild animals' CharacterComponent update (`FUN_14010e990`): animate, run the actions, turn and move. Deviation: the entity manager runs these every-iteration updates (`FUN_1400c9560` → `FUN_1400c82b0`) in the order of a tree keyed by the entity's address (manager `+0x68`, kept by `FUN_1400c90a0`); the port takes them in the order they were made, which a growing heap usually gives too.
+- [Deviation] [crates/game/src/behaviour/agents.rs:1](../crates/game/src/behaviour/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance (`AnimationManager::Update`), every character runs its actions and moves (entity manager bit-`0x04` set), "sequence finished" messages re-run the AI with zero time (`FUN_140114810`), then the AI updates. The citizens' scheduled components (CitizenComponent, CitizenAIComponent and the CharacterComponent's notify) run for the citizens bucket 1 visited this iteration, with the time since each one's last visit; so do the sites' StateMachines, fires, blight, hunts, attendance, residences and piles in bucket 3 (`FUN_1400c9560`, `town::Env::visits`). Deviation: these run after the bucket pass (system by system, each in visiting order) instead of interleaved with it entity by entity, so random draws can come in another order.
+- [Deviation] [crates/game/src/behaviour/agents.rs:1055](../crates/game/src/behaviour/agents.rs#L1055): The wild animals' CharacterComponent update (`FUN_14010e990`): animate, run the actions, turn and move. Deviation: the entity manager runs these every-iteration updates (`FUN_1400c9560` → `FUN_1400c82b0`) in the order of a tree keyed by the entity's address (manager `+0x68`, kept by `FUN_1400c90a0`); the port takes them in the order they were made, which a growing heap usually gives too.
 
-## `crates/game/src/animation.rs`
+## `crates/game/src/behaviour/animation.rs`
 
-- [Deviation] [crates/game/src/animation.rs:134](../crates/game/src/animation.rs#L134): Deviation: malformed negative times and empty loop spans must not index outside resources.
+- [Deviation] [crates/game/src/behaviour/animation.rs:134](../crates/game/src/behaviour/animation.rs#L134): Deviation: malformed negative times and empty loop spans must not index outside resources.
 
-## `crates/game/src/character.rs`
+## `crates/game/src/behaviour/character.rs`
 
-- [Not ported] [crates/game/src/character.rs:156](../crates/game/src/character.rs#L156): `Citizen::InjuryCheck` (`FUN_14011bb20` → `FUN_1400ae760`): already hurt, or, at a job whose profession has accidents, `RandFloat() < time since the last check / (+0x54 × 12 × 300 s × +0x58)` (the time restarts at every check). Not ported: the debug flag that stops it (`Game +0xd0` bit 8).
-- [Deviation] [crates/game/src/character.rs:501](../crates/game/src/character.rs#L501): Deviation: a walk restored from a save plays its walk clip again and faces its next cell on its first update. The original restores the clip with the animation block (`AnimationManager::Serialize`, `FUN_18005d130`), which the port does not decode yet; without a walking clip the body has no root motion, never reaches the next cell, and the citizen stands still for good.
+- [Not ported] [crates/game/src/behaviour/character.rs:156](../crates/game/src/behaviour/character.rs#L156): `Citizen::InjuryCheck` (`FUN_14011bb20` → `FUN_1400ae760`): already hurt, or, at a job whose profession has accidents, `RandFloat() < time since the last check / (+0x54 × 12 × 300 s × +0x58)` (the time restarts at every check). Not ported: the debug flag that stops it (`Game +0xd0` bit 8).
+- [Deviation] [crates/game/src/behaviour/character.rs:501](../crates/game/src/behaviour/character.rs#L501): Deviation: a walk restored from a save plays its walk clip again and faces its next cell on its first update. The original restores the clip with the animation block (`AnimationManager::Serialize`, `FUN_18005d130`), which the port does not decode yet; without a walking clip the body has no root motion, never reaches the next cell, and the citizen stands still for good.
 
-## `crates/game/src/character_tree.rs`
+## `crates/game/src/behaviour/character_tree.rs`
 
-- [Deviation] [crates/game/src/character_tree.rs:214](../crates/game/src/character_tree.rs#L214): Deviation: the original follows a character whose component sits at a higher address; the port takes the one put in the tree later.
+- [Deviation] [crates/game/src/behaviour/character_tree.rs:214](../crates/game/src/behaviour/character_tree.rs#L214): Deviation: the original follows a character whose component sits at a higher address; the port takes the one put in the tree later.
 
-## `crates/game/src/environment.rs`
+## `crates/game/src/commerce/trade.rs`
 
-- [Deviation] [crates/game/src/environment.rs:133](../crates/game/src/environment.rs#L133): The saved controller (`FUN_140099160`): state `+0x10`, level `+0x14`, temperature `+0x18`, the renderer values `+0x1c`, baseline `+0x2c`/`+0x30`, bias `+0x44`/`+0x48`, the last slice `+0x4c`, and each weather effect that exists (re-created on load, `FUN_140099790`, with its `+0xc4` direction and `+0xc0` intensity). Deviation: the temperature noise (`+0x34`) is not saved; after a load the original keeps its constructor's clock-seeded field until the next reseed (slice 0 or 24). The port keeps its constructor's fixed seed.
-- [Deviation] [crates/game/src/environment.rs:173](../crates/game/src/environment.rs#L173): `FUN_140099430` then `FUN_140099300`: state 0, level 4, baseline from the climate. Deviation: the constructor seeds its first Perlin field from two clock-seeded `Random()`s; the first update always reseeds it (slice 0), so a fixed seed is used here.
+- [Deviation] [crates/game/src/commerce/trade.rs:298](../crates/game/src/commerce/trade.rs#L298): Deviation: a merchant with nothing to sell brings nothing (the original reads an empty list).
 
-## `crates/game/src/fishing.rs`
+## `crates/game/src/nature/environment.rs`
 
-- [Deviation] [crates/game/src/fishing.rs:212](../crates/game/src/fishing.rs#L212): Deviation: a column off the map's edge reads outside the cell array in the original; no catch here.
+- [Deviation] [crates/game/src/nature/environment.rs:133](../crates/game/src/nature/environment.rs#L133): The saved controller (`FUN_140099160`): state `+0x10`, level `+0x14`, temperature `+0x18`, the renderer values `+0x1c`, baseline `+0x2c`/`+0x30`, bias `+0x44`/`+0x48`, the last slice `+0x4c`, and each weather effect that exists (re-created on load, `FUN_140099790`, with its `+0xc4` direction and `+0xc0` intensity). Deviation: the temperature noise (`+0x34`) is not saved; after a load the original keeps its constructor's clock-seeded field until the next reseed (slice 0 or 24). The port keeps its constructor's fixed seed.
+- [Deviation] [crates/game/src/nature/environment.rs:173](../crates/game/src/nature/environment.rs#L173): `FUN_140099430` then `FUN_140099300`: state 0, level 4, baseline from the climate. Deviation: the constructor seeds its first Perlin field from two clock-seeded `Random()`s; the first update always reseeds it (slice 0), so a fixed seed is used here.
 
-## `crates/game/src/forester.rs`
+## `crates/game/src/nature/growth.rs`
 
-- [Deviation] [crates/game/src/forester.rs:107](../crates/game/src/forester.rs#L107): Deviation: cells off the map's edge (and an entrance off the map) read outside the cell array in the original; no candidate here.
+- [Deviation] [crates/game/src/nature/growth.rs:105](../crates/game/src/nature/growth.rs#L105): Deviation: malformed zero/negative intervals must not hang the browser.
 
-## `crates/game/src/growth.rs`
+## `crates/game/src/nature/spawn.rs`
 
-- [Deviation] [crates/game/src/growth.rs:105](../crates/game/src/growth.rs#L105): Deviation: malformed zero/negative intervals must not hang the browser.
+- [Deviation] [crates/game/src/nature/spawn.rs:37](../crates/game/src/nature/spawn.rs#L37): Deviation: invalid zero/negative resource periods must not hang the browser.
 
-## `crates/game/src/herbalist.rs`
+## `crates/game/src/nature/wildlife.rs`
 
-- [Deviation] [crates/game/src/herbalist.rs:131](../crates/game/src/herbalist.rs#L131): Deviation: a column off the map's edge reads past the cell array in the original; such a cell is no candidate here.
+- [Deviation] [crates/game/src/nature/wildlife.rs:404](../crates/game/src/nature/wildlife.rs#L404): Deviation: a zero space would divide by zero in the original.
+- [Deviation] [crates/game/src/nature/wildlife.rs:1086](../crates/game/src/nature/wildlife.rs#L1086): Deviation: a zero interval would never leave the loop in the original.
 
-## `crates/game/src/hunt.rs`
+## `crates/game/src/people/life.rs`
 
-- [Deviation] [crates/game/src/hunt.rs:46](../crates/game/src/hunt.rs#L46): Deviation: no workers allowed would divide by zero in the original.
-- [Deviation] [crates/game/src/hunt.rs:100](../crates/game/src/hunt.rs#L100): Deviation: a column off the map's edge reads outside the cell array; no walk.
+- [Deviation] [crates/game/src/people/life.rs:1](../crates/game/src/people/life.rs#L1): CitizenComponent (vtable `0x1401689a0`) and ResidenceComponent (vtable `0x14016a6a0`): needs, age, death, health, happiness, disease, homes, partners and births. See docs/CITIZEN-NEEDS-AND-HOUSEHOLDS.md and docs/CITIZEN-LIFE.md. The CitizenDescription (`D`, citizen `+0x288`) is kept as an offset table so the ported code reads the same fields as the original. Deviations: the entity references the original keeps (home, partner, guardian, dependents) are citizen and entity indices; the dependents' ring is a vector in ring order. Disease spread (`FUN_140117940`) visits the citizens within the radius in registration order where the original asks its spatial index.
+- [Not ported] [crates/game/src/people/life.rs:502](../crates/game/src/people/life.rs#L502): `FUN_14011c2a0`: queue the citizen's death (`reason`) and tell the family. Buried in a cemetery (`FUN_14008ec10` from the home's entrance, else where the citizen stands), the family's bit is `0x40`; otherwise `2` for old age, else `0x80`. Not ported: the debug flag that stops deaths (`Game +0xd0` bit 8).
 
-## `crates/game/src/life.rs`
+## `crates/game/src/production/fishing.rs`
 
-- [Deviation] [crates/game/src/life.rs:1](../crates/game/src/life.rs#L1): CitizenComponent (vtable `0x1401689a0`) and ResidenceComponent (vtable `0x14016a6a0`): needs, age, death, health, happiness, disease, homes, partners and births. See docs/CITIZEN-NEEDS-AND-HOUSEHOLDS.md and docs/CITIZEN-LIFE.md. The CitizenDescription (`D`, citizen `+0x288`) is kept as an offset table so the ported code reads the same fields as the original. Deviations: the entity references the original keeps (home, partner, guardian, dependents) are citizen and entity indices; the dependents' ring is a vector in ring order. Disease spread (`FUN_140117940`) visits the citizens within the radius in registration order where the original asks its spatial index.
-- [Not ported] [crates/game/src/life.rs:502](../crates/game/src/life.rs#L502): `FUN_14011c2a0`: queue the citizen's death (`reason`) and tell the family. Buried in a cemetery (`FUN_14008ec10` from the home's entrance, else where the citizen stands), the family's bit is `0x40`; otherwise `2` for old age, else `0x80`. Not ported: the debug flag that stops deaths (`Game +0xd0` bit 8).
+- [Deviation] [crates/game/src/production/fishing.rs:212](../crates/game/src/production/fishing.rs#L212): Deviation: a column off the map's edge reads outside the cell array in the original; no catch here.
 
-## `crates/game/src/pasture.rs`
+## `crates/game/src/production/forester.rs`
 
-- [Deviation] [crates/game/src/pasture.rs:72](../crates/game/src/pasture.rs#L72): Deviation: a zero pile size would never leave the loop in the original.
+- [Deviation] [crates/game/src/production/forester.rs:107](../crates/game/src/production/forester.rs#L107): Deviation: cells off the map's edge (and an entrance off the map) read outside the cell array in the original; no candidate here.
 
-## `crates/game/src/placement.rs`
+## `crates/game/src/production/herbalist.rs`
 
-- [Not ported] [crates/game/src/placement.rs:221](../crates/game/src/placement.rs#L221): `FUN_1400a2830` (ZoneComponent activation, `FUN_1401356c0`): the entity becomes the occupant (`+0x00`) of every non-`.` footprint cell; `.` cells count one more zone at `+0x28`. Not ported: the path grid's blocked bit (citizens' mode 0 does not honour it).
+- [Deviation] [crates/game/src/production/herbalist.rs:131](../crates/game/src/production/herbalist.rs#L131): Deviation: a column off the map's edge reads past the cell array in the original; such a cell is no candidate here.
 
-## `crates/game/src/spawn.rs`
+## `crates/game/src/production/hunt.rs`
 
-- [Deviation] [crates/game/src/spawn.rs:37](../crates/game/src/spawn.rs#L37): Deviation: invalid zero/negative resource periods must not hang the browser.
+- [Deviation] [crates/game/src/production/hunt.rs:46](../crates/game/src/production/hunt.rs#L46): Deviation: no workers allowed would divide by zero in the original.
+- [Deviation] [crates/game/src/production/hunt.rs:100](../crates/game/src/production/hunt.rs#L100): Deviation: a column off the map's edge reads outside the cell array; no walk.
 
-## `crates/game/src/terraform.rs`
+## `crates/game/src/production/pasture.rs`
 
-- [Deviation] [crates/game/src/terraform.rs:1](../crates/game/src/terraform.rs#L1): TerraformComponent (vtable `0x1401609a0`, TerraformDescription): a tunnel reshapes the terrain when it is built. Entity event 4 (the build is done; a MultiObject passes it to its parts) runs slot `+0x60` (`FUN_140057c70`): the ceiling mesh's vertices raise the terrain where it is below them, keeping what was there (`FUN_1400574b0(1)`); the floor mesh's lower it where it is above them (`FUN_1400574b0(0)`); then rough cells (10) under the MapComponent become high ground (6) (`FUN_140057a80`). Removed (slot `+0x38`, `FUN_140057cb0`), the raised heights are put back and those cells become rough again; the dug floor stays. See docs/TUNNELS.md. Deviation: the heights belong to the terrain outside the simulation, so the town queues the dig and the game applies it after the iteration (`StartingTown::apply_terraforms`), not during it.
+- [Deviation] [crates/game/src/production/pasture.rs:72](../crates/game/src/production/pasture.rs#L72): Deviation: a zero pile size would never leave the loop in the original.
 
-## `crates/game/src/trade.rs`
+## `crates/game/src/world/placement.rs`
 
-- [Deviation] [crates/game/src/trade.rs:298](../crates/game/src/trade.rs#L298): Deviation: a merchant with nothing to sell brings nothing (the original reads an empty list).
+- [Not ported] [crates/game/src/world/placement.rs:221](../crates/game/src/world/placement.rs#L221): `FUN_1400a2830` (ZoneComponent activation, `FUN_1401356c0`): the entity becomes the occupant (`+0x00`) of every non-`.` footprint cell; `.` cells count one more zone at `+0x28`. Not ported: the path grid's blocked bit (citizens' mode 0 does not honour it).
 
-## `crates/game/src/wildlife.rs`
+## `crates/game/src/world/terraform.rs`
 
-- [Deviation] [crates/game/src/wildlife.rs:404](../crates/game/src/wildlife.rs#L404): Deviation: a zero space would divide by zero in the original.
-- [Deviation] [crates/game/src/wildlife.rs:1086](../crates/game/src/wildlife.rs#L1086): Deviation: a zero interval would never leave the loop in the original.
+- [Deviation] [crates/game/src/world/terraform.rs:1](../crates/game/src/world/terraform.rs#L1): TerraformComponent (vtable `0x1401609a0`, TerraformDescription): a tunnel reshapes the terrain when it is built. Entity event 4 (the build is done; a MultiObject passes it to its parts) runs slot `+0x60` (`FUN_140057c70`): the ceiling mesh's vertices raise the terrain where it is below them, keeping what was there (`FUN_1400574b0(1)`); the floor mesh's lower it where it is above them (`FUN_1400574b0(0)`); then rough cells (10) under the MapComponent become high ground (6) (`FUN_140057a80`). Removed (slot `+0x38`, `FUN_140057cb0`), the raised heights are put back and those cells become rough again; the dug floor stays. See docs/TUNNELS.md. Deviation: the heights belong to the terrain outside the simulation, so the town queues the dig and the game applies it after the iteration (`StartingTown::apply_terraforms`), not during it.
 
 ## `crates/terrain/src/query.rs`
 

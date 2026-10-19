@@ -1,7 +1,7 @@
 //! Port-side random-draw trace of three male citizen names from seed 7, for comparison with
 //! the original under tools/emu/rng_trace.py (see tools/triage/README.md). Analysis helper.
 use banished_formats::names::NameDatabase;
-use banished_game::names::generate;
+use banished_game::people::names::generate;
 use banished_game::random::{trace, Random};
 
 fn main() {

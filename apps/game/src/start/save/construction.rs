@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use banished_formats::savegame::{Fields, GameState, ObjId, Value};
-use banished_game::jobs::WorkKind;
+use banished_game::work::jobs::WorkKind;
 
 use super::{component, fields_mut, Ids, Refs};
 use crate::start::StartingTown;
@@ -293,7 +293,7 @@ impl StartingTown {
                 ptr_items("citizen", set.map(citizen)),
             )
         };
-        let area = |block: &str, a: &banished_game::farm::AreaWork| {
+        let area = |block: &str, a: &banished_game::production::farm::AreaWork| {
             vec![
                 (
                     format!("{block}.keyed"),
@@ -320,14 +320,15 @@ impl StartingTown {
                 ),
             ]
         };
-        let herb =
-            |block: &str, h: &banished_game::herbalist::HerbalistWork, misses: Option<&str>| {
-                let mut out = vec![citizens(block, &mut h.workers.iter().copied())];
-                if let Some(m) = misses {
-                    out.push((format!("{block}.{m}"), Value::I32(h.misses)));
-                }
-                out
-            };
+        let herb = |block: &str,
+                    h: &banished_game::production::herbalist::HerbalistWork,
+                    misses: Option<&str>| {
+            let mut out = vec![citizens(block, &mut h.workers.iter().copied())];
+            if let Some(m) = misses {
+                out.push((format!("{block}.{m}"), Value::I32(h.misses)));
+            }
+            out
+        };
         match kind {
             WorkKind::Forester(h) => herb("forester", h, Some("value_58")),
             WorkKind::Herbalist(h) => herb("herbalist", h, Some("value_58")),

@@ -93,8 +93,8 @@ impl SavedGame {
     }
 
     /// The stock slots' used and made counters since the last statistics sample.
-    pub fn stock_counters(&self) -> banished_game::tracker::StockCounters {
-        let mut c = banished_game::tracker::StockCounters::default();
+    pub fn stock_counters(&self) -> banished_game::work::tracker::StockCounters {
+        let mut c = banished_game::work::tracker::StockCounters::default();
         if let Some(Value::List(slots)) = self.state.town.at("town.stock") {
             for (i, s) in slots.iter().enumerate().take(c.used.len()) {
                 c.used[i] = s.i32("used").unwrap_or(0);
@@ -105,24 +105,26 @@ impl SavedGame {
     }
 
     /// The environment controller's saved state onto `env` (`FUN_140099160`).
-    pub fn restore_environment(&self, env: &mut banished_game::environment::Environment) {
+    pub fn restore_environment(&self, env: &mut banished_game::nature::environment::Environment) {
         let m = &self.state.managers;
         let f = |k: &str| m.f32(&format!("environment.{k}")).unwrap_or(0.0);
         let i = |k: &str| m.i32(&format!("environment.{k}")).unwrap_or(0);
         let season = match m.at("environment.season") {
-            Some(Value::F32s(v)) if v.len() == 4 => banished_game::environment::SeasonValues {
-                snow: v[0],
-                autumn: v[1],
-                leaf_loss: v[2],
-                rain: v[3],
-            },
+            Some(Value::F32s(v)) if v.len() == 4 => {
+                banished_game::nature::environment::SeasonValues {
+                    snow: v[0],
+                    autumn: v[1],
+                    leaf_loss: v[2],
+                    rain: v[3],
+                }
+            }
             _ => Default::default(),
         };
         let mut effects = [None; 2];
         if let Some(Value::List(items)) = m.at("environment.effects") {
             for (slot, e) in effects.iter_mut().zip(items) {
                 if matches!(e.get("active"), Some(Value::Bool(true))) {
-                    *slot = Some(banished_game::environment::WeatherEffect {
+                    *slot = Some(banished_game::nature::environment::WeatherEffect {
                         intensity: e.f32("intensity").unwrap_or(0.0),
                         direction: e.f32("direction").unwrap_or(0.0),
                     });
@@ -175,9 +177,9 @@ impl SavedGame {
 
     /// The Town Info history (StockManager `+0x150`) and the time to the next sample
     /// (`+0x198`).
-    pub fn statistics(&self) -> banished_game::tracker::Statistics {
+    pub fn statistics(&self) -> banished_game::work::tracker::Statistics {
         let town = &self.state.town;
-        let mut s = banished_game::tracker::Statistics::default();
+        let mut s = banished_game::work::tracker::Statistics::default();
         if let Some(Value::List(series)) = town.at("town.history") {
             for (dst, src) in s.series.iter_mut().zip(series) {
                 if let Some(Value::U32s(v)) = src.get("values") {

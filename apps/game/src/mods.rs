@@ -322,7 +322,7 @@ pub fn profession_list(archive: &banished_formats::pkg::Archive) -> Vec<String> 
                 })
                 .collect();
             // `FUN_14001f120`: the CRT qsort by sort priority (`+0x48`).
-            banished_game::ai::crt_qsort_less(&mut v, |a, b| a.0 < b.0);
+            banished_game::behaviour::ai::crt_qsort_less(&mut v, |a, b| a.0 < b.0);
             v.into_iter().map(|(_, r)| r).collect()
         }
         None => archive

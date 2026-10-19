@@ -14,18 +14,18 @@ use banished_formats::game::{
 };
 use banished_formats::names::NameDatabase;
 use banished_formats::pkg::Archive;
-use banished_game::agents::{Agents, CitizenRulesAi};
-use banished_game::ai::Thresholds;
-use banished_game::citizens::{Citizen, CitizenRules, Households};
-use banished_game::map::Map;
+use banished_game::behaviour::agents::{Agents, CitizenRulesAi};
+use banished_game::behaviour::ai::Thresholds;
+use banished_game::nature::seeding::{Cells, Placed, ScheduledComponent, Seeder, Template};
+use banished_game::people::citizens::{Citizen, CitizenRules, Households};
 use banished_game::random::Random;
 use banished_game::scheduler::EntityScheduler;
-use banished_game::seeding::{Cells, Placed, ScheduledComponent, Seeder, Template};
-use banished_game::stock::{distribute, RawMaterial, Storage, StorageSite};
 use banished_game::terrain::HeightGrid;
+use banished_game::work::stock::{distribute, RawMaterial, Storage, StorageSite};
+use banished_game::world::map::Map;
 
-use banished_game::construction::{Construction, Controller, Site, SiteTemplate};
-use banished_game::professions::{Profession, Professions, WorkPlace};
+use banished_game::work::construction::{Construction, Controller, Site, SiteTemplate};
+use banished_game::work::professions::{Profession, Professions, WorkPlace};
 
 mod bridge;
 pub(crate) mod load;
@@ -276,7 +276,7 @@ fn animal_kind(
     reference: &str,
     template: usize,
     templates: &mut Vec<Template>,
-    wildlife: &mut banished_game::wildlife::Wildlife,
+    wildlife: &mut banished_game::nature::wildlife::Wildlife,
 ) {
     let refs = description_refs(archive, reference);
     let find = |k: &str| {
@@ -302,7 +302,7 @@ fn animal_kind(
     }
     wildlife.animal_kinds.insert(
         template,
-        banished_game::wildlife::AnimalKind {
+        banished_game::nature::wildlife::AnimalKind {
             desc: ad,
             materials,
             character: cd,
@@ -316,7 +316,7 @@ fn livestock_kind(
     archive: &Archive,
     reference: &str,
     templates: &mut Vec<Template>,
-    wildlife: &mut banished_game::wildlife::Wildlife,
+    wildlife: &mut banished_game::nature::wildlife::Wildlife,
 ) -> Option<usize> {
     let t = load_template(archive, reference, templates)?;
     if wildlife.livestock_kinds.contains_key(&t) {
@@ -335,7 +335,7 @@ fn livestock_kind(
         .and_then(|p| load_template(archive, p, templates));
     wildlife.livestock_kinds.insert(
         t,
-        banished_game::wildlife::LivestockKind {
+        banished_game::nature::wildlife::LivestockKind {
             product,
             interval: d.interval,
             group: d.group,
@@ -350,9 +350,9 @@ fn wildlife_kinds(
     archive: &Archive,
     populations: &[String],
     templates: &mut Vec<Template>,
-    wildlife: &mut banished_game::wildlife::Wildlife,
+    wildlife: &mut banished_game::nature::wildlife::Wildlife,
 ) -> Vec<usize> {
-    use banished_game::wildlife::{HerdKind, PopulationKind};
+    use banished_game::nature::wildlife::{HerdKind, PopulationKind};
     let find = |refs: &[(String, String)], k: &str| {
         refs.iter()
             .find(|(key, _)| key == k)
@@ -546,7 +546,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                 if let Ok((months, best, range, pile)) =
                     banished_formats::game::fruit_description(&data)
                 {
-                    t.fruit = Some(banished_game::orchard::FruitTemplate {
+                    t.fruit = Some(banished_game::production::orchard::FruitTemplate {
                         months,
                         best,
                         range,
@@ -623,7 +623,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
             "tornado" => {
                 t.tornado = banished_formats::game::tornado_description(&data).ok().map(
                     |(speed, min_distance, reach, interval, throw)| {
-                        banished_game::tornado::TornadoTemplate {
+                        banished_game::disasters::tornado::TornadoTemplate {
                             speed,
                             min_distance,
                             interval,
@@ -651,7 +651,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                 };
                 t.terraform = banished_formats::game::terraform_description(&data)
                     .ok()
-                    .map(|d| banished_game::terraform::TerraformTemplate {
+                    .map(|d| banished_game::world::terraform::TerraformTemplate {
                         floor: mesh(&d.floor),
                         floor_mask: d.floor_mask,
                         ceiling: mesh(&d.ceiling),
@@ -667,7 +667,7 @@ fn load_template(archive: &Archive, reference: &str, table: &mut Vec<Template>) 
                             .as_deref()
                             .and_then(|m| read(archive, &normalise(m)))
                             .and_then(|d| banished_formats::picking::picking_mesh(&d).ok())?;
-                        Some(banished_game::quarry::QuarryTemplate {
+                        Some(banished_game::production::quarry::QuarryTemplate {
                             shallow: d.shallow,
                             deep: d.deep,
                             vertices: Arc::new(mesh.meshes.first()?.vertices.clone()),
@@ -914,10 +914,10 @@ struct TownParts {
     scheduler: EntityScheduler<usize>,
     removed: Vec<usize>,
     animation_events: Vec<(usize, String)>,
-    wildlife: banished_game::wildlife::Wildlife,
+    wildlife: banished_game::nature::wildlife::Wildlife,
     known: Vec<usize>,
     known_materials: Vec<usize>,
-    water: banished_game::fire::Water,
+    water: banished_game::disasters::fire::Water,
 }
 
 pub struct StartingTown {
@@ -960,7 +960,7 @@ pub struct StartingTown {
     /// The citizens' CharacterComponent and CitizenAIComponent (docs/CITIZEN-AI.md).
     pub agents: Agents,
     /// Wild animals, their herds and populations (docs/WILDLIFE-POPULATION.md).
-    pub wildlife: banished_game::wildlife::Wildlife,
+    pub wildlife: banished_game::nature::wildlife::Wildlife,
     /// The placement tool's ghost (`PlacementTool +0x68`): mesh and transform.
     pub ghost: Option<(String, [f32; 16])>,
     /// The job manager, professions, workplaces and construction sites (docs/JOBS.md).
@@ -995,7 +995,7 @@ impl StartingTown {
         rng: &mut Random,
     ) -> Option<StartingTown> {
         // A new game: no shared animation instances (`AnimationManager`).
-        banished_game::animation::shared::reset();
+        banished_game::behaviour::animation::shared::reset();
         let profile: MapGenerator = map_generator(&read(archive, profile_ref)?)
             .map_err(|e| log::warn!("{profile_ref}: {e}"))
             .ok()?;
@@ -1020,7 +1020,7 @@ impl StartingTown {
             .collect();
         let mut cells = Cells::new(map_size, map.types);
         // The map's setup files the shore cells as water sources (`FUN_1400a43f0`).
-        let water = banished_game::fire::Water::new(&cells);
+        let water = banished_game::disasters::fire::Water::new(&cells);
         let mut placed = Vec::new();
         let mut removed = Vec::new();
         let mut animation_events = Vec::new();
@@ -1049,7 +1049,7 @@ impl StartingTown {
             rng,
         );
         // `FUN_1400a5eb0`: the wildlife populations (deer) and their herds.
-        let mut wildlife = banished_game::wildlife::Wildlife::default();
+        let mut wildlife = banished_game::nature::wildlife::Wildlife::default();
         // The households' CharacterComponents activate as they are made, before any animal
         // (`FUN_14010ee90`): first in the characters' tree.
         let radius = read(
@@ -1061,7 +1061,7 @@ impl StartingTown {
         .radius;
         for (i, c) in citizens.iter().enumerate() {
             wildlife.tree.insert(
-                banished_game::character_tree::Who::Citizen(i),
+                banished_game::behaviour::character_tree::Who::Citizen(i),
                 c.position,
                 radius,
             );
@@ -1069,7 +1069,7 @@ impl StartingTown {
         let populations =
             wildlife_kinds(archive, &profile.populations, &mut templates, &mut wildlife);
         for t in populations {
-            banished_game::wildlife::Wild {
+            banished_game::nature::wildlife::Wild {
                 wildlife: &mut wildlife,
                 placed: &mut placed,
                 templates: &templates,
@@ -1117,7 +1117,7 @@ impl StartingTown {
                 .get(r)
                 .and_then(|t| livestock_kind(archive, t, &mut templates, &mut wildlife))
             {
-                banished_game::wildlife::Wild {
+                banished_game::nature::wildlife::Wild {
                     wildlife: &mut wildlife,
                     placed: &mut placed,
                     templates: &templates,
@@ -1252,7 +1252,7 @@ impl StartingTown {
         for i in 0..citizens.len() {
             if let Some(s) = wildlife
                 .tree
-                .slot_of(banished_game::character_tree::Who::Citizen(i))
+                .slot_of(banished_game::behaviour::character_tree::Who::Citizen(i))
             {
                 agents.set_tree_slot(i, s);
             }
@@ -1260,7 +1260,7 @@ impl StartingTown {
         if let Some(d) = read(archive, &citizen_ref.replace(":resource", ":citizen"))
             .and_then(|d| citizen_description(&d).ok())
         {
-            agents.life = banished_game::life::LifeRules::new(&d);
+            agents.life = banished_game::people::life::LifeRules::new(&d);
         }
         agents.diseases = read(archive, "Game/Disease/Diseases.rsc:resource")
             .and_then(|d| banished_formats::game::external_list(&d).ok())
@@ -1394,7 +1394,7 @@ impl StartingTown {
             site.machine.pending = 2;
             let map = self.templates[self.placed[e].template].map.clone();
             let p = &self.placed[e];
-            let rect = banished_game::placement::Rect {
+            let rect = banished_game::world::placement::Rect {
                 x0: p.cell.0,
                 y0: p.cell.1,
                 x1: p.cell.0 + p.footprint.0 - 1,
@@ -1402,7 +1402,7 @@ impl StartingTown {
             };
             let degrees = p.yaw as i32;
             if let Some(map) = map {
-                let rules = banished_game::placement::PlacementRules {
+                let rules = banished_game::world::placement::PlacementRules {
                     mask: 0,
                     masks: Vec::new(),
                     mask_chars: String::new(),
@@ -1412,9 +1412,15 @@ impl StartingTown {
                     cell_type: map.cell_type as u8,
                 };
                 if !map.no_stamp {
-                    banished_game::placement::stamp(&mut self.cells, &rules, rect, degrees, e);
+                    banished_game::world::placement::stamp(
+                        &mut self.cells,
+                        &rules,
+                        rect,
+                        degrees,
+                        e,
+                    );
                 }
-                banished_game::placement::zone(&mut self.cells, &rules, rect, degrees, e);
+                banished_game::world::placement::zone(&mut self.cells, &rules, rect, degrees, e);
             }
         }
     }
@@ -1941,9 +1947,9 @@ impl StartingTown {
         &mut self,
         terrain: &HeightGrid,
         rng: &mut Random,
-        f: impl FnOnce(&mut banished_game::wildlife::Wild) -> R,
+        f: impl FnOnce(&mut banished_game::nature::wildlife::Wild) -> R,
     ) -> R {
-        let mut wild = banished_game::wildlife::Wild {
+        let mut wild = banished_game::nature::wildlife::Wild {
             wildlife: &mut self.wildlife,
             placed: &mut self.placed,
             templates: &self.templates,
@@ -1986,7 +1992,7 @@ impl StartingTown {
     ) -> bool {
         // `AnimationManager::Update` (`FUN_14009b850`): the shared animation instances, before
         // any character.
-        banished_game::animation::shared::update(banished_game::scheduler::ticks(dt));
+        banished_game::behaviour::animation::shared::update(banished_game::scheduler::ticks(dt));
         // The wild animals' CharacterComponent (the bit-0x04 phase).
         self.agents.move_animals(
             &mut self.wildlife,
@@ -2017,7 +2023,7 @@ impl StartingTown {
             &mut |seeder, scheduler, id, elapsed| {
                 // TombstoneComponent (`FUN_140058130`).
                 if tombstones.contains_key(&id) {
-                    return banished_game::cemetery::tombstone_visit(
+                    return banished_game::people::cemetery::tombstone_visit(
                         tombstones,
                         seeder.cells,
                         seeder.placed,
@@ -2029,7 +2035,7 @@ impl StartingTown {
                 let p = &seeder.placed[id];
                 if let Some(f) = seeder.templates[p.template].fruit {
                     let fruit = fruits.entry(id).or_default();
-                    banished_game::orchard::ripen(
+                    banished_game::production::orchard::ripen(
                         fruit,
                         &f,
                         p.growth,
@@ -2039,7 +2045,7 @@ impl StartingTown {
                     );
                     return false;
                 }
-                let mut wild = banished_game::wildlife::Wild {
+                let mut wild = banished_game::nature::wildlife::Wild {
                     wildlife: &mut *wildlife,
                     placed: seeder.placed,
                     templates: seeder.templates,
@@ -2053,7 +2059,7 @@ impl StartingTown {
             },
         );
         // The entity manager deletes the queued animals.
-        let buried = banished_game::wildlife::Wild {
+        let buried = banished_game::nature::wildlife::Wild {
             wildlife: &mut self.wildlife,
             placed: &mut self.placed,
             templates: &self.templates,
@@ -2098,7 +2104,9 @@ impl StartingTown {
         let names = self.names.as_ref();
         // Citizens made from nomads take a name, appearance and lifespan as newborns do.
         let mut newborn = |rng: &mut Random, model: &Citizen, male: bool| match names {
-            Some((m, f)) => banished_game::citizens::newborn(rng, &rules, m, f, model, male),
+            Some((m, f)) => {
+                banished_game::people::citizens::newborn(rng, &rules, m, f, model, male)
+            }
             None => Citizen {
                 male,
                 alive: true,
@@ -2115,7 +2123,7 @@ impl StartingTown {
         }
     }
 
-    /// StockManager::Update's commute optimisation (`banished_game::commute`) by `dt` seconds.
+    /// StockManager::Update's commute optimisation (`banished_game::behaviour::commute`) by `dt` seconds.
     pub fn update_commute(&mut self, terrain: &HeightGrid, rng: &mut Random, dt: f32) {
         let groups: Vec<_> = self
             .citizens
@@ -2191,7 +2199,7 @@ impl StartingTown {
     }
 
     /// The citizens' animation, characters and AI for one simulation iteration
-    /// (`banished_game::agents`). `stock` is the stock manager's `(count, limit)` per slot.
+    /// (`banished_game::behaviour::agents`). `stock` is the stock manager's `(count, limit)` per slot.
     /// Returns whether any citizen is drawn.
     pub fn update_citizens(
         &mut self,
@@ -2230,7 +2238,9 @@ impl StartingTown {
         let rules = self.rules;
         let names = self.names.as_ref();
         let mut newborn = |rng: &mut Random, mother: &Citizen, male: bool| match names {
-            Some((m, f)) => banished_game::citizens::newborn(rng, &rules, m, f, mother, male),
+            Some((m, f)) => {
+                banished_game::people::citizens::newborn(rng, &rules, m, f, mother, male)
+            }
             None => Citizen {
                 male,
                 alive: true,
@@ -2313,7 +2323,7 @@ impl StartingTown {
                 scale: [1.0; 4],
             });
             self.register_entity(id);
-            let rules = banished_game::placement::PlacementRules {
+            let rules = banished_game::world::placement::PlacementRules {
                 mask: 0,
                 masks: Vec::new(),
                 mask_chars: String::new(),
@@ -2322,14 +2332,14 @@ impl StartingTown {
                 height: 0,
                 cell_type,
             };
-            let rect = banished_game::placement::Rect {
+            let rect = banished_game::world::placement::Rect {
                 x0: r.cell.0,
                 y0: r.cell.1,
                 x1: r.cell.0 + r.footprint.0 - 1,
                 y1: r.cell.1 + r.footprint.1 - 1,
             };
             let degrees = r.yaw as i32;
-            banished_game::placement::zone(&mut self.cells, &rules, rect, degrees, id);
+            banished_game::world::placement::zone(&mut self.cells, &rules, rect, degrees, id);
             if let Some(st) = self
                 .construction
                 .templates
@@ -2343,7 +2353,13 @@ impl StartingTown {
                     self.placed[id].mesh = mesh;
                 }
                 if stamps {
-                    banished_game::placement::stamp(&mut self.cells, &rules, rect, degrees, id);
+                    banished_game::world::placement::stamp(
+                        &mut self.cells,
+                        &rules,
+                        rect,
+                        degrees,
+                        id,
+                    );
                 }
             }
             self.construction.models_dirty = true;
@@ -2461,7 +2477,7 @@ impl StartingTown {
                         let boat = d.boat.as_deref().and_then(|r| self.load_boat(archive, r));
                         if let Some(boat) = boat {
                             self.load_trade_goods(archive);
-                            t.trade = Some(banished_game::trade::TradeTemplate {
+                            t.trade = Some(banished_game::commerce::trade::TradeTemplate {
                                 boat,
                                 merchants: d.merchants.clone(),
                                 rows: d.rows.clone(),
@@ -2489,18 +2505,19 @@ impl StartingTown {
                             .filter_map(|r| self.load_template(archive, r))
                             .collect();
                         if let Some(nomad) = nomad {
-                            t.immigration = Some(banished_game::immigration::ImmigrationTemplate {
-                                nomad,
-                                population: d.population,
-                                required,
-                                share: d.share,
-                                wait: d.wait,
-                                months: d.months,
-                                leave: 7,
-                                margin: 10,
-                                risk: d.risk,
-                                risk_months: d.risk_months,
-                            });
+                            t.immigration =
+                                Some(banished_game::people::immigration::ImmigrationTemplate {
+                                    nomad,
+                                    population: d.population,
+                                    required,
+                                    share: d.share,
+                                    wait: d.wait,
+                                    months: d.months,
+                                    leave: 7,
+                                    margin: 10,
+                                    risk: d.risk,
+                                    risk_months: d.risk_months,
+                                });
                             t.controllers.push(Controller::Immigration);
                         }
                     }
@@ -2523,7 +2540,7 @@ impl StartingTown {
                             self.site_template(archive, r);
                         }
                     }
-                    t.destroy = Some(banished_game::destroy::DestroyTemplate {
+                    t.destroy = Some(banished_game::work::destroy::DestroyTemplate {
                         replace,
                         material: d.material,
                         decal: d.decal,
@@ -2549,7 +2566,7 @@ impl StartingTown {
                     for r in d.resources.iter().flatten() {
                         resources.push(self.load_template(archive, r)?);
                     }
-                    t.herbalist = Some(banished_game::herbalist::HerbalistTemplate {
+                    t.herbalist = Some(banished_game::production::herbalist::HerbalistTemplate {
                         resources,
                         group: d.group,
                     });
@@ -2569,7 +2586,10 @@ impl StartingTown {
                     if let Ok((tend, group)) = banished_formats::game::crop_field_description(&data)
                     {
                         t.controllers.push(Controller::CropField);
-                        t.crop_field = Some(banished_game::farm::CropFieldTemplate { tend, group });
+                        t.crop_field = Some(banished_game::production::farm::CropFieldTemplate {
+                            tend,
+                            group,
+                        });
                     }
                 }
                 "absorbresource" => t.controllers.push(Controller::AbsorbResource),
@@ -2598,7 +2618,7 @@ impl StartingTown {
                             Some((stone, life))
                         });
                     if let Some((stone, (life, range))) = tombstone {
-                        t.cemetery = Some(banished_game::cemetery::CemeteryTemplate {
+                        t.cemetery = Some(banished_game::people::cemetery::CemeteryTemplate {
                             tombstone: stone,
                             life,
                             range,
@@ -2621,7 +2641,7 @@ impl StartingTown {
                         banished_formats::game::orchard_description(&data)
                     {
                         t.controllers.push(Controller::Orchard);
-                        t.orchard = Some(banished_game::orchard::OrchardTemplate {
+                        t.orchard = Some(banished_game::production::orchard::OrchardTemplate {
                             spacing,
                             tend,
                             group,
@@ -2640,7 +2660,7 @@ impl StartingTown {
                     };
                     t.controllers.push(Controller::ResourceProduce);
                     let output = self.load_template(archive, d.output.as_deref()?)?;
-                    t.fishing = Some(banished_game::fishing::FishingTemplate {
+                    t.fishing = Some(banished_game::production::fishing::FishingTemplate {
                         output,
                         mask: d.mask,
                         group: d.group,
@@ -2652,7 +2672,7 @@ impl StartingTown {
                     };
                     t.controllers.push(Controller::ResourceProduce);
                     let tree = self.load_template(archive, d.tree.as_deref()?)?;
-                    t.forester = Some(banished_game::forester::ForesterTemplate {
+                    t.forester = Some(banished_game::production::forester::ForesterTemplate {
                         tree,
                         group: d.group,
                     });
@@ -2677,14 +2697,14 @@ impl StartingTown {
                         let out = r.output.as_deref()?;
                         let output = self.load_template(archive, out)?;
                         let output_material = self.templates[output].pile_material?;
-                        recipes.push(banished_game::construction::Recipe {
+                        recipes.push(banished_game::work::construction::Recipe {
                             inputs,
                             output,
                             output_material,
                             group: r.group,
                         });
                     }
-                    t.produce = Some(banished_game::construction::ProduceTemplate {
+                    t.produce = Some(banished_game::work::construction::ProduceTemplate {
                         recipes,
                         cycles: d.cycles,
                         work_type: d.work_type,
@@ -2762,9 +2782,10 @@ impl StartingTown {
         if let Some(Some(g)) = self.templates[template].animations.first() {
             self.wildlife.groups.insert((template, 0), g.clone());
         }
-        self.wildlife
-            .boat_kinds
-            .insert(template, banished_game::boat::BoatKind { character });
+        self.wildlife.boat_kinds.insert(
+            template,
+            banished_game::commerce::boat::BoatKind { character },
+        );
         Some(template)
     }
 
@@ -2794,7 +2815,7 @@ impl StartingTown {
                 .flatten();
             self.construction
                 .trade_goods
-                .push(banished_game::trade::TradeGood {
+                .push(banished_game::commerce::trade::TradeGood {
                     template,
                     material,
                     value,
@@ -2816,7 +2837,7 @@ impl StartingTown {
         }
         self.wildlife.nomad_kinds.insert(
             template,
-            banished_game::immigration::NomadKind { character },
+            banished_game::people::immigration::NomadKind { character },
         );
         let file = normalise(reference).replace(":resource", ":nomad");
         if let Some((_, materials)) =
@@ -2849,7 +2870,7 @@ impl StartingTown {
                 WorkPlace::new(t.profession, t.default_max_workers((w, h))),
             );
         }
-        let machine = banished_game::construction::Machine::new(t.controllers.clone());
+        let machine = banished_game::work::construction::Machine::new(t.controllers.clone());
         self.construction.sites.insert(
             entity,
             Site {
@@ -2868,7 +2889,7 @@ impl StartingTown {
                 produce: t
                     .produce
                     .as_ref()
-                    .map(|p| banished_game::construction::ProduceState {
+                    .map(|p| banished_game::work::construction::ProduceState {
                         disabled: false,
                         selector: p.selector,
                         weights: vec![1.0; p.recipes.len()],
@@ -2879,45 +2900,50 @@ impl StartingTown {
                             || t.forester.is_some()
                             || t.fishing.is_some()
                             || t.hunt.is_some())
-                        .then(banished_game::construction::ProduceState::default)
+                        .then(banished_game::work::construction::ProduceState::default)
                     }),
                 forester: t
                     .forester
                     .as_ref()
-                    .map(|_| banished_game::forester::Forester::default()),
+                    .map(|_| banished_game::production::forester::Forester::default()),
                 happiness_registered: false,
                 hunt_time: t.hunt.map(|_| 0),
                 crop_field: t
                     .crop_field
-                    .map(|_| banished_game::farm::CropField::default()),
+                    .map(|_| banished_game::production::farm::CropField::default()),
                 orchard: t
                     .orchard
-                    .map(|_| banished_game::orchard::Orchard::default()),
+                    .map(|_| banished_game::production::orchard::Orchard::default()),
                 fishing: t
                     .fishing
                     .as_ref()
-                    .map(|_| banished_game::fishing::Fishing::default()),
-                auto_pickup: t
-                    .auto_pickup
-                    .map(|enabled| banished_game::herbalist::AutoPickup {
+                    .map(|_| banished_game::production::fishing::Fishing::default()),
+                auto_pickup: t.auto_pickup.map(|enabled| {
+                    banished_game::production::herbalist::AutoPickup {
                         enabled,
                         works: Vec::new(),
-                    }),
+                    }
+                }),
                 parts: Vec::new(),
                 multi_stages: None,
                 graves: Vec::new(),
-                destroy: t.destroy.as_ref().map(banished_game::destroy::Destroy::new),
-                fire: t.fire.map(|_| banished_game::fire::Fire::default()),
+                destroy: t
+                    .destroy
+                    .as_ref()
+                    .map(banished_game::work::destroy::Destroy::new),
+                fire: t
+                    .fire
+                    .map(|_| banished_game::disasters::fire::Fire::default()),
                 // TradeComponent's activation names the merchants (`Sim::activate`).
                 trade: None,
                 immigration: t
                     .immigration
                     .as_ref()
-                    .map(|_| banished_game::immigration::Immigration::default()),
+                    .map(|_| banished_game::people::immigration::Immigration::default()),
                 home: None,
                 ui_settings: Vec::new(),
                 // DiseaseComponent's setup (`FUN_1400495b0`): on a pasture or not.
-                disease: t.disease.map(|_| banished_game::blight::Blight {
+                disease: t.disease.map(|_| banished_game::disasters::blight::Blight {
                     pasture: t.pasture.is_some(),
                     ..Default::default()
                 }),
@@ -2928,7 +2954,7 @@ impl StartingTown {
             let (x, y) = self.placed[entity].cell;
             self.wildlife.pastures.insert(
                 entity,
-                banished_game::wildlife::Pasture {
+                banished_game::nature::wildlife::Pasture {
                     area: [x as i16, y as i16, w as i16, h as i16],
                     ..Default::default()
                 },
@@ -3153,10 +3179,13 @@ impl StartingTown {
                         .carried
                         .items
                         .iter()
-                        .fold(None::<&banished_game::stock::Item>, |best, it| match best {
-                            Some(b) if it.count <= b.count => Some(b),
-                            _ => Some(it),
-                        })
+                        .fold(
+                            None::<&banished_game::work::stock::Item>,
+                            |best, it| match best {
+                                Some(b) if it.count <= b.count => Some(b),
+                                _ => Some(it),
+                            },
+                        )
                         .and_then(|it| self.carry_models.borrow().get(&it.material).cloned())
                         .flatten(),
                     n if (0..=10).contains(&n) => self
@@ -3284,7 +3313,7 @@ impl StartingTown {
 mod storage_fetch_tests {
     use super::*;
     use banished_formats::pkg::Package;
-    use banished_game::{ai::activity, stock::stock_table};
+    use banished_game::{behaviour::ai::activity, work::stock::stock_table};
 
     /// ShowTool (`FUN_14011c880`): a citizen's tool is drawn on its mesh's `tool` node, carried
     /// goods as their pile model; nothing with −1.
@@ -3460,7 +3489,7 @@ mod storage_fetch_tests {
             let mut stack = std::mem::take(&mut ch.stack);
             stack.clear(ch, group, &mut town.storages);
             ch.stack = stack;
-            town.agents.states[i] = banished_game::agents::CitizenState {
+            town.agents.states[i] = banished_game::behaviour::agents::CitizenState {
                 tool_status: 9,
                 clothing_status: 9,
                 job: 42,

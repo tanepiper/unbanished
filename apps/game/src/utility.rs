@@ -491,7 +491,7 @@ impl StatusBar {
     pub(crate) fn set_meter(ui: &mut Ui, group: Option<NodeId>, value: f32, maximum: f32) {
         let Some(group) = group else { return };
         let icons = ui.node(group).children.clone();
-        let values = banished_game::status::meter(value, maximum, icons.len());
+        let values = banished_game::people::status::meter(value, maximum, icons.len());
         for (icon, (whole, half)) in icons.into_iter().zip(values) {
             if let Some(n) = ui.find(icon, "whole") {
                 ui.set_visible(n, whole);

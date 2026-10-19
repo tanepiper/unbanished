@@ -3,7 +3,7 @@
 This note follows `FUN_1400a87d0` (the New Game start-condition setup) through the start-point search
 and the procedural rock/ore/tree pass `FUN_1400a6780`, down to every random number consumed. The
 evidence is Ghidra pseudocode checked against disassembly. The start point is ported and
-bit-exact under emulation (`crates/game/src/map.rs`, `tools/emu/start_point.py`). The seeding pass
+bit-exact under emulation (`crates/game/src/world/map.rs`, `tools/emu/start_point.py`). The seeding pass
 below is a specification that has **not yet been verified**: it creates entities through the
 component system, which the emulator cannot run. Verifying it needs a save made right after
 starting a new game with the current build. Profile data is in
@@ -147,7 +147,7 @@ The new descriptions parse completely across the shipped data
 
 ## Port
 
-`crates/game/src/seeding.rs` ports the structure draws and the full pass, including spawning.
+`crates/game/src/nature/seeding.rs` ports the structure draws and the full pass, including spawning.
 `apps/game/src/start.rs` runs it at New Game on the game stream `Random(seed)` before the
 environment draws, then draws the placed models.
 

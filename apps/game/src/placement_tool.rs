@@ -14,12 +14,12 @@ use banished_formats::game::{
 };
 use banished_formats::pkg::Archive;
 use banished_formats::types::graphics_mesh;
-use banished_game::placement::{
+use banished_game::nature::seeding::Placed;
+use banished_game::random::Random;
+use banished_game::terrain::HeightGrid;
+use banished_game::world::placement::{
     can_place, footprint, footprint_cell, PlacementRules, Rect, ROTATION_STEP,
 };
-use banished_game::random::Random;
-use banished_game::seeding::Placed;
-use banished_game::terrain::HeightGrid;
 
 use crate::models::placement_matrix;
 use crate::start::StartingTown;
@@ -340,7 +340,7 @@ impl PlacementTool {
         });
         // `FUN_1400c9d70`: register with the entity manager's buckets.
         town.register_entity(id);
-        banished_game::placement::zone(&mut town.cells, &self.rules, rect, degrees, id);
+        banished_game::world::placement::zone(&mut town.cells, &self.rules, rect, degrees, id);
         town.add_site(archive, id);
         self.next_variant();
         Some(id)
@@ -351,7 +351,7 @@ impl PlacementTool {
 mod construction_tests {
     use super::*;
     use banished_formats::pkg::Package;
-    use banished_game::stock::stock_table;
+    use banished_game::work::stock::stock_table;
 
     /// A wood house placed on clear ground near the start is supplied by laborers and built
     /// by two builders: the town's logs and stone drop by 16 and 8, the final mesh shows and
@@ -405,7 +405,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
@@ -533,7 +533,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
@@ -704,7 +704,7 @@ mod construction_tests {
             let builder = town.construction.professions.builder;
             town.construction
                 .commands
-                .push(banished_game::professions::Command::SetCount {
+                .push(banished_game::work::professions::Command::SetCount {
                     profession: builder,
                     count: 3,
                 });
@@ -739,7 +739,7 @@ mod construction_tests {
                         .description_profession
                         .expect("no profession");
                     town.construction.commands.push(
-                        banished_game::professions::Command::SetCount {
+                        banished_game::work::professions::Command::SetCount {
                             profession,
                             count: 2,
                         },
@@ -816,7 +816,7 @@ mod construction_tests {
             .unwrap();
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 4,
             });
@@ -834,12 +834,12 @@ mod construction_tests {
                 .step(banished_game::scheduler::ticks(dt));
             if !staffed && town.construction.sites[&ids[0]].complete {
                 staffed = true;
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::SetCount {
+                town.construction.commands.push(
+                    banished_game::work::professions::Command::SetCount {
                         profession: cutter,
                         count: 2,
-                    });
+                    },
+                );
             }
             if ids.iter().all(|e| town.construction.sites[e].complete)
                 && town
@@ -955,7 +955,7 @@ mod construction_tests {
             .expect("no cutter profession");
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
@@ -984,12 +984,12 @@ mod construction_tests {
                 built_at = Some(step);
                 let stocked = stock_table(&town.registered_storages(), &town.materials);
                 logs_before = Some(stocked[0]);
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::SetCount {
+                town.construction.commands.push(
+                    banished_game::work::professions::Command::SetCount {
                         profession: cutter,
                         count: 2,
-                    });
+                    },
+                );
             }
             let piles: Vec<usize> = town
                 .construction
@@ -1031,9 +1031,9 @@ mod construction_tests {
         for want in [0xe, 0xd] {
             town.construction
                 .commands
-                .push(banished_game::professions::Command::Control {
+                .push(banished_game::work::professions::Command::Control {
                     entity: id,
-                    kind: banished_game::control::kind::CONSUME_PRODUCE,
+                    kind: banished_game::work::control::kind::CONSUME_PRODUCE,
                     index: 0,
                 });
             town.apply_commands(&terrain, &mut rng);
@@ -1101,7 +1101,7 @@ mod construction_tests {
             .expect("no gatherer profession");
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
@@ -1129,12 +1129,12 @@ mod construction_tests {
                 .step(banished_game::scheduler::ticks(dt));
             if built_at.is_none() && town.construction.sites[&id].complete {
                 built_at = Some(step);
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::SetCount {
+                town.construction.commands.push(
+                    banished_game::work::professions::Command::SetCount {
                         profession: gatherer,
                         count: 2,
-                    });
+                    },
+                );
             }
             let site = &town.construction.sites[&id];
             if let Some(a) = &site.auto_pickup {
@@ -1229,7 +1229,7 @@ mod construction_tests {
             .expect("no forester profession");
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
@@ -1257,12 +1257,12 @@ mod construction_tests {
             if built_at.is_none() && town.construction.sites[&id].complete {
                 built_at = Some(step);
                 base = saplings(&town);
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::SetCount {
+                town.construction.commands.push(
+                    banished_game::work::professions::Command::SetCount {
                         profession: forester,
                         count: 2,
-                    });
+                    },
+                );
             }
             if built_at.is_some() && planted_at.is_none() && saplings(&town) > base {
                 planted_at = Some(step);
@@ -1340,7 +1340,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
@@ -1372,8 +1372,11 @@ mod construction_tests {
         assert_eq!(town.cells.layer_totals[0], 1);
         let far = centre + radius + 1;
         assert_eq!(town.cells.layers[far as usize][0], 0);
-        let views =
-            banished_game::agents::entity_views(&town.placed, &town.templates, &town.construction);
+        let views = banished_game::behaviour::agents::entity_views(
+            &town.placed,
+            &town.templates,
+            &town.construction,
+        );
         assert_eq!(views[id].happiness, Some(2));
     }
 
@@ -1431,7 +1434,7 @@ mod construction_tests {
             .expect("no fisherman profession");
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
@@ -1455,12 +1458,12 @@ mod construction_tests {
                 .step(banished_game::scheduler::ticks(dt));
             if built_at.is_none() && town.construction.sites[&id].complete {
                 built_at = Some(step);
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::SetCount {
+                town.construction.commands.push(
+                    banished_game::work::professions::Command::SetCount {
                         profession: fisherman,
                         count: 2,
-                    });
+                    },
+                );
             }
             if town.construction.piles.values().any(|p| p.material == fish) {
                 landed_at = Some(step);
@@ -1471,7 +1474,10 @@ mod construction_tests {
         eprintln!("built {built_at:?}, landed {landed_at:?}, dock {f:?}");
         assert!(built_at.is_some(), "the dock was not built");
         assert!(f.registered && f.water > 0.0, "{f:?}");
-        assert_eq!(town.cells.layer_totals[banished_game::fishing::LAYER], 1);
+        assert_eq!(
+            town.cells.layer_totals[banished_game::production::fishing::LAYER],
+            1
+        );
         assert!(landed_at.is_some(), "no fish was landed");
         assert_reservations_held(&town);
     }
@@ -1603,7 +1609,7 @@ mod construction_tests {
             .expect("no hunter profession");
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
@@ -1627,12 +1633,12 @@ mod construction_tests {
                 .step(banished_game::scheduler::ticks(dt));
             if built_at.is_none() && town.construction.sites[&id].complete {
                 built_at = Some(step);
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::SetCount {
+                town.construction.commands.push(
+                    banished_game::work::professions::Command::SetCount {
                         profession: hunter,
                         count: 2,
-                    });
+                    },
+                );
             }
             // The hunting time grows while staffed (it drops to 0 when a deer is taken).
             let time = town.construction.sites[&id].hunt_time.unwrap_or(0);
@@ -1744,7 +1750,7 @@ mod construction_tests {
             .expect("the field was not placed");
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCrop {
+            .push(banished_game::work::professions::Command::SetCrop {
                 entity: id,
                 crop: Some(crop),
             });
@@ -1757,7 +1763,7 @@ mod construction_tests {
             .expect("no farmer profession");
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: farmer,
                 count: 2,
             });
@@ -1893,7 +1899,7 @@ mod construction_tests {
             .expect("the orchard was not placed");
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCrop {
+            .push(banished_game::work::professions::Command::SetCrop {
                 entity: id,
                 crop: Some(tree),
             });
@@ -1906,7 +1912,7 @@ mod construction_tests {
             .expect("no farmer profession");
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: arborist,
                 count: 2,
             });
@@ -2086,7 +2092,7 @@ mod construction_tests {
         for (profession, count) in [(builder, 3), (herdsman, 2)] {
             town.construction
                 .commands
-                .push(banished_game::professions::Command::SetCount { profession, count });
+                .push(banished_game::work::professions::Command::SetCount { profession, count });
         }
         let mut warnings = banished_game::events::StockWarnings::default();
         warnings.limits = [100_000; 21];
@@ -2117,12 +2123,12 @@ mod construction_tests {
             }
             if built_at.is_some() && !chose {
                 chose = true;
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::SetCrop {
+                town.construction.commands.push(
+                    banished_game::work::professions::Command::SetCrop {
                         entity: id,
                         crop: Some(kind),
-                    });
+                    },
+                );
             }
             let pasture = &town.wildlife.pastures[&id];
             let cap = town.wildlife.capacity(id);
@@ -2132,7 +2138,7 @@ mod construction_tests {
             if penned_at.is_some() && bred_at.is_none() {
                 let breeder = pasture.livestock.iter().copied().find(|a| {
                     let x = &town.wildlife.animals[a];
-                    x.flags & banished_game::wildlife::BREEDER != 0
+                    x.flags & banished_game::nature::wildlife::BREEDER != 0
                 });
                 if let Some(a) = breeder {
                     bred_at = Some(step);
@@ -2146,7 +2152,7 @@ mod construction_tests {
                     let m = males.first().copied().unwrap_or(a);
                     let x = town.wildlife.animals.get_mut(&m).unwrap();
                     x.male = true;
-                    x.flags |= banished_game::wildlife::BREEDER;
+                    x.flags |= banished_game::nature::wildlife::BREEDER;
                     x.age = 2.0;
                     x.breed = 1;
                 }
@@ -2163,12 +2169,12 @@ mod construction_tests {
                 for a in town.wildlife.pastures[&id].livestock.clone() {
                     town.wildlife.animals.get_mut(&a).unwrap().age = 3.0;
                 }
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::SetLimit {
+                town.construction.commands.push(
+                    banished_game::work::professions::Command::SetLimit {
                         entity: id,
                         limit: 2,
-                    });
+                    },
+                );
             }
             if born_at.is_some() {
                 // The herdsmen carry the meat away themselves (the pasture's AutoPickup), so
@@ -2207,7 +2213,7 @@ mod construction_tests {
         assert!(0 < culled || beef.is_none(), "a culled animal left nothing");
         for &a in &town.wildlife.pastures[&id].livestock {
             let x = &town.wildlife.animals[&a];
-            assert_eq!(x.flags & banished_game::wildlife::WILD, 0);
+            assert_eq!(x.flags & banished_game::nature::wildlife::WILD, 0);
             assert_eq!(x.area, town.wildlife.pastures[&id].area);
         }
     }
@@ -2275,7 +2281,7 @@ mod construction_tests {
             let builder = town.construction.professions.builder;
             town.construction
                 .commands
-                .push(banished_game::professions::Command::SetCount {
+                .push(banished_game::work::professions::Command::SetCount {
                     profession: builder,
                     count: 2,
                 });
@@ -2301,8 +2307,11 @@ mod construction_tests {
                 }
                 let home = &town.construction.homes[&id];
                 if moved_in.is_some()
-                    && banished_game::life::stored(&town.storages[home.storage], &town.materials, 5)
-                        > 0
+                    && banished_game::people::life::stored(
+                        &town.storages[home.storage],
+                        &town.materials,
+                        5,
+                    ) > 0
                     && town.agents.states.iter().any(|s| !s.foods.is_empty())
                 {
                     break;
@@ -2315,8 +2324,11 @@ mod construction_tests {
             for &c in family {
                 assert_eq!(town.agents.states[c].home, Some(id));
             }
-            let food =
-                banished_game::life::stored(&town.storages[home.storage], &town.materials, 5);
+            let food = banished_game::people::life::stored(
+                &town.storages[home.storage],
+                &town.materials,
+                5,
+            );
             eprintln!("food at home: {food}");
             assert!(food > 0, "nobody carried food home");
             assert!(
@@ -2381,7 +2393,7 @@ mod construction_tests {
             assert_eq!(town.agents.registry.len(), n - dead);
             assert!(events
                 .iter()
-                .any(|e| e.kind == banished_game::life::reason::STARVED));
+                .any(|e| e.kind == banished_game::people::life::reason::STARVED));
             for (i, c) in town.citizens.iter().enumerate().filter(|(_, c)| !c.alive) {
                 assert!(c.spouse.is_none());
                 assert!(!town.agents.characters[i].stack.is_active());
@@ -2402,7 +2414,7 @@ mod construction_tests {
             let builder = town.construction.professions.builder;
             town.construction
                 .commands
-                .push(banished_game::professions::Command::SetCount {
+                .push(banished_game::work::professions::Command::SetCount {
                     profession: builder,
                     count: 3,
                 });
@@ -2419,7 +2431,7 @@ mod construction_tests {
             let teacher = town.agents.life.services[0].expect("no teacher profession");
             town.construction
                 .commands
-                .push(banished_game::professions::Command::AddWorker { entity: id });
+                .push(banished_game::work::professions::Command::AddWorker { entity: id });
             for _ in 0..60 {
                 step(town, terrain, rng, 50.0);
             }
@@ -2547,7 +2559,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 3,
             });
@@ -2568,12 +2580,12 @@ mod construction_tests {
             let state = town.construction.sites[&id].machine.state;
             if built_at.is_none() && state == 2 {
                 built_at = Some(step);
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::SetCrop {
+                town.construction.commands.push(
+                    banished_game::work::professions::Command::SetCrop {
                         entity: id,
                         crop: Some(chicken),
-                    });
+                    },
+                );
                 let herdsman = town
                     .construction
                     .professions
@@ -2581,12 +2593,12 @@ mod construction_tests {
                     .iter()
                     .position(|p| p.reference.to_ascii_lowercase().ends_with(":herdsman"))
                     .expect("no herdsman profession");
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::SetCount {
+                town.construction.commands.push(
+                    banished_game::work::professions::Command::SetCount {
                         profession: herdsman,
                         count: 1,
-                    });
+                    },
+                );
             }
             let pasture = &town.wildlife.pastures[&id];
             if pasture.kind == Some(chicken) && pasture.livestock.is_empty() {
@@ -2709,7 +2721,7 @@ mod construction_tests {
                 .expect("the field was not placed");
             town.construction
                 .commands
-                .push(banished_game::professions::Command::SetCrop {
+                .push(banished_game::work::professions::Command::SetCrop {
                     entity: id,
                     crop: Some(crop),
                 });
@@ -2724,7 +2736,7 @@ mod construction_tests {
             .expect("no farmer profession");
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: farmer,
                 count: 8,
             });
@@ -2974,7 +2986,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 4,
             });
@@ -3082,7 +3094,7 @@ mod construction_tests {
         tool.place(&archive, &mut town, 0).unwrap();
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
@@ -3101,14 +3113,14 @@ mod construction_tests {
             events.extend(std::mem::take(&mut town.agents.events));
             if events
                 .iter()
-                .any(|e| e.kind == banished_game::life::reason::ACCIDENT)
+                .any(|e| e.kind == banished_game::people::life::reason::ACCIDENT)
             {
                 break;
             }
         }
         let e = events
             .iter()
-            .find(|e| e.kind == banished_game::life::reason::ACCIDENT)
+            .find(|e| e.kind == banished_game::people::life::reason::ACCIDENT)
             .expect("no accident");
         assert_eq!(
             e.extra.as_ref().map(|(_, k)| k.as_str()),
@@ -3170,13 +3182,13 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
         // Food the house can hold.
         let food = (0..town.materials.len())
-            .find(|&m| banished_game::stock::stock_slot(town.materials[m].flags) == Some(5))
+            .find(|&m| banished_game::work::stock::stock_slot(town.materials[m].flags) == Some(5))
             .expect("no food material");
         let mut warnings = banished_game::events::StockWarnings::default();
         let dt = 1.0 / 30.0;
@@ -3208,7 +3220,7 @@ mod construction_tests {
                 let w = town.construction.sites[&id].work_id;
                 registered = matches!(
                     town.construction.jobs.works.get(&w).map(|w| &w.kind),
-                    Some(banished_game::jobs::WorkKind::ClearStorage(_))
+                    Some(banished_game::work::jobs::WorkKind::ClearStorage(_))
                 );
             }
             if stocked && town.storages[storage].items.iter().all(|i| i.count == 0) {
@@ -3271,7 +3283,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
@@ -3307,7 +3319,7 @@ mod construction_tests {
                 states.push(state);
             }
             let w = site.work_id;
-            if let Some(banished_game::jobs::WorkKind::Build(b)) =
+            if let Some(banished_game::work::jobs::WorkKind::Build(b)) =
                 town.construction.jobs.works.get(&w).map(|w| &w.kind)
             {
                 deconstructed |= b.destroy && !b.workers.is_empty();
@@ -3417,7 +3429,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
@@ -3530,7 +3542,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
@@ -3595,16 +3607,19 @@ mod construction_tests {
                     .iter()
                     .any(|(m, g, i, _)| *m == mesh && g.set == 1 && !i.is_empty()));
             }
-            if let Some(banished_game::jobs::WorkKind::Fire(fw)) =
+            if let Some(banished_game::work::jobs::WorkKind::Fire(fw)) =
                 town.construction.jobs.works.get(&w).map(|w| &w.kind)
             {
                 fought |= !fw.workers.is_empty();
             }
             if lit && !rubble && state == 7 {
                 rubble = true;
-                assert_eq!(town.cells.layer_totals[banished_game::fire::LAYER], 0);
+                assert_eq!(
+                    town.cells.layer_totals[banished_game::disasters::fire::LAYER],
+                    0
+                );
                 town.construction.commands.push(
-                    banished_game::professions::Command::StateMessage {
+                    banished_game::work::professions::Command::StateMessage {
                         entity: id,
                         message: 0,
                     },
@@ -3683,7 +3698,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 4,
             });
@@ -3739,7 +3754,7 @@ mod construction_tests {
                     "{worn:?}"
                 );
                 town.construction.commands.push(
-                    banished_game::professions::Command::StateMessage {
+                    banished_game::work::professions::Command::StateMessage {
                         entity: id,
                         message: 7,
                     },
@@ -3850,7 +3865,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 4,
             });
@@ -4013,7 +4028,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 4,
             });
@@ -4192,7 +4207,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 4,
             });
@@ -4246,7 +4261,7 @@ mod construction_tests {
         // Torn down, the water comes back.
         town.construction
             .commands
-            .push(banished_game::professions::Command::Demolish { entity: id });
+            .push(banished_game::work::professions::Command::Demolish { entity: id });
         let mut gone = false;
         for _ in 0..30 * 60 * 10 {
             town.apply_commands(&terrain, &mut rng);
@@ -4376,7 +4391,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 4,
             });
@@ -4442,7 +4457,7 @@ mod construction_tests {
         // Torn down, the ceiling's fill goes again.
         town.construction
             .commands
-            .push(banished_game::professions::Command::Demolish { entity: id });
+            .push(banished_game::work::professions::Command::Demolish { entity: id });
         let mut gone = false;
         for _ in 0..30 * 60 * 10 {
             step(&mut town, &mut heights, &mut rng);
@@ -4602,7 +4617,7 @@ mod construction_tests {
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
             });
@@ -4730,14 +4745,14 @@ mod construction_tests {
         town.site_template(&archive, stone);
         town.construction
             .commands
-            .push(banished_game::professions::Command::Upgrade {
+            .push(banished_game::work::professions::Command::Upgrade {
                 entity: house,
                 template: stone,
             });
         let builder = town.construction.professions.builder;
         town.construction
             .commands
-            .push(banished_game::professions::Command::SetCount {
+            .push(banished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 4,
             });
@@ -4852,7 +4867,7 @@ mod construction_tests {
         for (profession, count) in [(builder, 4), (vendor, 2)] {
             town.construction
                 .commands
-                .push(banished_game::professions::Command::SetCount { profession, count });
+                .push(banished_game::work::professions::Command::SetCount { profession, count });
         }
         let mut warnings = banished_game::events::StockWarnings::default();
         let dt = 1.0 / 30.0;

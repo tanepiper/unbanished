@@ -16,7 +16,7 @@
 //! - Farming (`FUN_1400840c0` / `FUN_1400816f0`): the known crops, trees and livestock.
 
 use banished_formats::pkg::Archive;
-use banished_game::tracker::Statistics;
+use banished_game::work::tracker::Statistics;
 use banished_ui::{Control, Kind, NodeId, Ui};
 
 use crate::building_ui::WorkPlaceClick;
@@ -537,11 +537,11 @@ impl TownHallUi {
         // The CRT qsort: by quantity, most first, then name (`FUN_140015f10` with
         // `FUN_140081af0`), or by name (`FUN_140015c10` with `FUN_140081be0`).
         if by_count {
-            banished_game::ai::crt_qsort_less(&mut rows, |a, b| {
+            banished_game::behaviour::ai::crt_qsort_less(&mut rows, |a, b| {
                 b.2 < a.2 || (a.2 == b.2 && crate::building_ui::str_less(&a.0, &b.0))
             });
         } else {
-            banished_game::ai::crt_qsort_less(&mut rows, |a, b| {
+            banished_game::behaviour::ai::crt_qsort_less(&mut rows, |a, b| {
                 crate::building_ui::str_less(&a.0, &b.0)
             });
         }
@@ -710,7 +710,7 @@ impl TownHallUi {
                     return None;
                 }
                 return Some(WorkPlaceClick::Command(
-                    banished_game::professions::Command::SetCount {
+                    banished_game::work::professions::Command::SetCount {
                         profession: i,
                         count: v.clamp(0, count + free),
                     },

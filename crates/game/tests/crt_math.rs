@@ -31,7 +31,11 @@ fn matches_the_original() {
         };
         let same = got.to_bits() == want.to_bits() || (got.is_nan() && want.is_nan());
         if !same && wrong.len() < 10 {
-            wrong.push(format!("{name}({args}) = {got:?} ({:08x}), want {want:?} ({:08x})", got.to_bits(), want.to_bits()));
+            wrong.push(format!(
+                "{name}({args}) = {got:?} ({:08x}), want {want:?} ({:08x})",
+                got.to_bits(),
+                want.to_bits()
+            ));
         }
         *checked.entry(name).or_default() += 1;
     }

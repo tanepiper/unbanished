@@ -2,7 +2,7 @@
 //! skipped without its output in game-data/derived/emu): the same inserts, moves and removes
 //! give the same slots, and every search the same characters in the same order.
 
-use banished_game::character_tree::{CharacterTree, Who};
+use banished_game::behaviour::character_tree::{CharacterTree, Who};
 use std::collections::HashMap;
 
 #[test]

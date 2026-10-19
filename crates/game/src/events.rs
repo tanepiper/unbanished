@@ -1,7 +1,7 @@
 //! The town event log (`Game +0x138`) and the stock warnings that post to it. See
 //! docs/EVENT-LOG.md.
 
-use crate::stock::{stock_table, RawMaterial, Storage, STOCK_SLOTS};
+use crate::work::stock::{stock_table, RawMaterial, Storage, STOCK_SLOTS};
 
 /// `DAT_140178910`: a warning waits 120 s before it can repeat.
 const WARNING_COOLDOWN: i64 = 120_000_000;

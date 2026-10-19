@@ -5,7 +5,7 @@ This note describes the environment controller as ported. It was built from the 
 re-read against Ghidra 12.1.4 pseudocode of the Steam x64 build (1.0.7), with constants read
 directly from the executable with `tools/ghidra/readdata.py`.
 
-- **Port:** `crates/game/src/environment.rs`, with unit tests.
+- **Port:** `crates/game/src/nature/environment.rs`, with unit tests.
 - **Driver:** the gameplay loop (`apps/game/src/gameplay.rs`).
 
 No live game was observed. The values have not been compared with a running original.

@@ -79,9 +79,12 @@ impl PathTool {
                 }
             }
         }
-        let views =
-            banished_game::agents::entity_views(&town.placed, &town.templates, &town.construction);
-        let view = banished_game::activities::TownView {
+        let views = banished_game::behaviour::agents::entity_views(
+            &town.placed,
+            &town.templates,
+            &town.construction,
+        );
+        let view = banished_game::behaviour::activities::TownView {
             size: town.cells.size,
             types: &town.cells.types,
             regions: &[],

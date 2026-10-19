@@ -3,10 +3,10 @@
 //! setup (`FUN_140058f00`). See docs/TORNADO.md.
 
 use banished_formats::pkg::Archive;
+use banished_game::disasters::tornado::Tornado;
+use banished_game::nature::seeding::Placed;
 use banished_game::random::Random;
-use banished_game::seeding::Placed;
 use banished_game::terrain::HeightGrid;
-use banished_game::tornado::Tornado;
 
 use super::StartingTown;
 

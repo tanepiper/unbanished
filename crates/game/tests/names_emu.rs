@@ -2,7 +2,7 @@
 //! (`tools/emu/names.py`). Skipped without game-data/.
 
 use banished_formats::names::NameDatabase;
-use banished_game::names::generate;
+use banished_game::people::names::generate;
 use banished_game::random::Random;
 use std::path::PathBuf;
 

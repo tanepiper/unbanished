@@ -567,7 +567,7 @@ impl Renderer {
             return;
         }
         // The original's Animation::GetPoseAtTime, shared with the game (`banished_game`).
-        let locals = banished_game::animation::sample_pose(
+        let locals = banished_game::behaviour::animation::sample_pose(
             clip,
             banished_game::scheduler::ticks(seconds.max(0.0)),
             0,

@@ -46,7 +46,7 @@ size, spawn rate, distance, or inventory quantities.
 - How Deer death or hunting updates Venison and Leather yields.
 - Whether every profile uses identical wildlife initialization after registration.
 
-## Port (`crates/game/src/wildlife.rs`)
+## Port (`crates/game/src/nature/wildlife.rs`)
 
 The population, herd and animal components are ported. Their scheduled updates run in the
 entity scheduler's bucket pass (`Seeder::iterate_with`). The animals' CharacterComponent

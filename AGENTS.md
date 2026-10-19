@@ -72,7 +72,7 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 | `apps/cli` | Command-line helpers |
 | `crates/core` | Bit-exact foundations: CRT maths (`crt`), `Random`, Perlin `noise`, `math` (`Transform`), game time (`scheduler`), `calendar`; `picking`; re-exported by `banished-game` |
 | `crates/terrain`, `crates/path` | The terrain generator, mesh and ground queries; the pathfinder, walkable regions and sector graph; re-exported by `banished-game` as `terrain`, `pathfind`, `sectors` |
-| `crates/game` | Bit-exact game rules: terrain, RNG, citizens, jobs, wildlife, path finding, CRT maths, … |
+| `crates/game` | Bit-exact game rules, by folder: `people/` (citizens, lives, needs), `behaviour/` (agents, AI, characters, animation), `work/` (jobs, construction, production, stock), `production/` (farms, orchards, quarries, hunting…), `commerce/` (markets, trade), `nature/` (seeding, growth, wildlife, climate), `world/` (map, floors, placement), `disasters/`, plus `town.rs` (the simulation) and `events.rs` |
 | `crates/formats` | Dependency-free readers: `.pkg`, `.crs`, UI dialogs, gameplay resources, saves |
 | `crates/ui` | The game's UI system (element tree, layout, fonts, controls, input) |
 | `crates/gfx`, `crates/audio`, `crates/wma` | wgpu helpers, xWMA playback, WMA v2 decoder |

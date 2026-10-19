@@ -1,6 +1,6 @@
 # Town statistics and production tracking
 
-Port: `crates/game/src/tracker.rs` (TrackerComponent, the stock manager's counters and its
+Port: `crates/game/src/work/tracker.rs` (TrackerComponent, the stock manager's counters and its
 history), sampled from `apps/game/src/gameplay.rs`. Tests: `tracker::tests`,
 `cutter_yard_makes_firewood`.
 

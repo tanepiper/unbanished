@@ -1,6 +1,6 @@
 # Fire, firefighting and wells
 
-Port: `crates/game/src/fire.rs` (with the damage and rubble in `destroy.rs`, see
+Port: `crates/game/src/disasters/fire.rs` (with the damage and rubble in `destroy.rs`, see
 [JOBS.md](JOBS.md#demolition-cratesgamesrcdestroyrs)). Test: `a_house_burns_and_is_rebuilt`
 (`apps/game/src/placement_tool.rs`).
 

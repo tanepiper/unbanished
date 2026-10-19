@@ -11,8 +11,8 @@ use std::collections::BTreeMap;
 
 use banished_formats::pkg::Archive;
 use banished_formats::savegame::{Fields, ObjId, Object, Value};
-use banished_game::citizens::{Citizen, CitizenRules};
-use banished_game::stock::{Item, Storage};
+use banished_game::people::citizens::{Citizen, CitizenRules};
+use banished_game::work::stock::{Item, Storage};
 
 use super::super::{material_index, normalise, StartingTown};
 use crate::saved::SavedGame;
@@ -305,7 +305,7 @@ impl StartingTown {
                 let registered = self.construction.workforce.residences.contains(&e);
                 if let Some(site) = self.construction.sites.get_mut(&e) {
                     if let Some(desc) = self.construction.templates[site.template].residence {
-                        let mut home = banished_game::life::Home::new(desc, site.storage);
+                        let mut home = banished_game::people::life::Home::new(desc, site.storage);
                         if !families.is_empty() {
                             home.families = families;
                         }
@@ -346,7 +346,7 @@ impl StartingTown {
                     .and_then(|w| w.profession);
                 self.construction.attendance.insert(
                     e,
-                    banished_game::construction::Attendance {
+                    banished_game::work::construction::Attendance {
                         capacity,
                         attendees,
                         profession,

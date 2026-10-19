@@ -40,7 +40,7 @@ all growth fixtures have been corrected and regenerated at that original frequen
 The seasonal multiplier is a parabola around description `+0x30`, divided by `+0x34`. Outside
 the window it is zero, except at temperature <= 32 where it is **-10** (`DAT_14017898c`). Growth
 adds elapsed seconds times `1 / (description[+0x28] * 300)` times that multiplier, preserving
-the original SSE multiply/add order in `crates/game/src/growth.rs`.
+the original SSE multiply/add order in `crates/game/src/nature/growth.rs`.
 
 Interval and maximum tests are strict. Growth must exceed `+0x54` before accumulating the timer;
 each spawn interval is consumed only when timer seconds exceed `+0x50 * 300`. Subtraction uses

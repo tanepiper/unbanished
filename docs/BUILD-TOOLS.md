@@ -4,7 +4,7 @@ This note covers how the original places a building from the toolbar. The eviden
 pseudocode of the Steam x64 build (1.0.7), constants from the executable, and decoded template
 resources. The port is:
 
-- `crates/game/src/placement.rs` for the rules;
+- `crates/game/src/world/placement.rs` for the rules;
 - `apps/game/src/placement_tool.rs` for the tool;
 - `apps/game/src/gameplay.rs` for the input wiring.
 

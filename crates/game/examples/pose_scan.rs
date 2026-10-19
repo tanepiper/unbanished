@@ -1,7 +1,7 @@
 //! Scan a clip's sampled poses for discontinuities (analysis helper).
 //! `cargo run -p banished-game --example pose_scan -- WinData Models/Citizen/CitizenAnims.rsc:resource Idle`
 use banished_formats::pkg::{Archive, Package};
-use banished_game::animation::sample_pose;
+use banished_game::behaviour::animation::sample_pose;
 use banished_game::scheduler::ticks;
 
 fn main() {

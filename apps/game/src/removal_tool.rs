@@ -23,8 +23,8 @@ use banished_formats::game::{
     toolbar_description, CreateDragDescription, CreateRemovalDescription, ToolbarDescription,
 };
 use banished_formats::pkg::Archive;
-use banished_game::placement::cell_admits;
 use banished_game::terrain::HeightGrid;
+use banished_game::world::placement::cell_admits;
 
 use crate::start::StartingTown;
 
@@ -730,7 +730,7 @@ impl RemovalTool {
         let t = town.cells.types[i].0;
         t == 0
             || t == 1
-            || town.cells.road_kind[i] != banished_game::road::NONE
+            || town.cells.road_kind[i] != banished_game::work::road::NONE
             || town.construction.pending_roads.contains_key(&(i as i32))
     }
 
@@ -762,7 +762,7 @@ impl RemovalTool {
             && !matches!(Self::shown_state(town, e), 3..=5)
     }
 
-    fn command(town: &mut StartingTown, command: banished_game::professions::Command) {
+    fn command(town: &mut StartingTown, command: banished_game::work::professions::Command) {
         if !town.construction.commands.contains(&command) {
             town.construction.commands.push(command);
         }
@@ -851,14 +851,14 @@ impl RemovalTool {
                 return DragSound::Error;
             };
             for cell in cells {
-                town.construction
-                    .commands
-                    .push(banished_game::professions::Command::PlanRoad {
+                town.construction.commands.push(
+                    banished_game::work::professions::Command::PlanRoad {
                         cell,
                         kind: r.kind,
                         ty: r.ty,
                         material: r.material,
-                    });
+                    },
+                );
             }
             return DragSound::Thunk;
         }
@@ -878,7 +878,7 @@ impl RemovalTool {
                     if let Some(marker) = self.marker {
                         Self::command(
                             town,
-                            banished_game::professions::Command::ClearRoad {
+                            banished_game::work::professions::Command::ClearRoad {
                                 cell: i as i32,
                                 marker,
                             },
@@ -895,7 +895,7 @@ impl RemovalTool {
                         // The state machine's message 0: the demolition is called off.
                         Self::command(
                             town,
-                            banished_game::professions::Command::StateMessage {
+                            banished_game::work::professions::Command::StateMessage {
                                 entity: e,
                                 message: 0,
                             },
@@ -906,7 +906,7 @@ impl RemovalTool {
                     let entity = e.unwrap();
                     Self::command(
                         town,
-                        banished_game::professions::Command::Demolish { entity },
+                        banished_game::work::professions::Command::Demolish { entity },
                     );
                 }
                 if self.desc.priority {

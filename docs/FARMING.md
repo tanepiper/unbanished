@@ -1,6 +1,6 @@
 # Farming
 
-## Crop fields (`crates/game/src/farm.rs`)
+## Crop fields (`crates/game/src/production/farm.rs`)
 
 A crop field is a dragged area (`StartingTown::place_area`, the end of the CreateDrag tool).
 Its components run in this order: ClearArea, WorkPlace (farmer), CropField. It is a site like
@@ -60,7 +60,7 @@ Not ported:
 - the field's status icons and tracker;
 - the drag tool's own placement rules.
 
-## Orchards (`crates/game/src/orchard.rs`)
+## Orchards (`crates/game/src/production/orchard.rs`)
 
 An orchard is a dragged area with the components ClearArea, WorkPlace (farmer) and Orchard.
 
@@ -101,13 +101,13 @@ Verification: `placement_tool::construction_tests::arborists_plant_tend_and_pick
 A 7 × 7 orchard gets 12 trees, planted in about 74 s. Fast-forwarded to grown trees with ripe
 fruit in autumn, the fruit is picked and stored.
 
-## Pastures (`crates/game/src/pasture.rs`)
+## Pastures (`crates/game/src/production/pasture.rs`)
 
 A pasture is placed with the fenced tool, built, and given a kind of animal in its window. It
 then takes the town's waiting livestock of that kind, has young, and turns eggs and wool into
 piles at its shelter. Its herdsmen cull the oldest grown animal while the herd is over the
 window's limit, pick up the products, or walk the pasture; each visit lets an animal breed.
-The animals themselves are AnimalComponents in `crates/game/src/wildlife.rs`.
+The animals themselves are AnimalComponents in `crates/game/src/nature/wildlife.rs`.
 
 ### Placement: the fenced tool
 
@@ -223,7 +223,7 @@ Verification:
 - `a_pasture_gathers_eggs`: hens in a pasture lay egg piles at the shelter, which are hauled
   to storage.
 
-## Blight (`crates/game/src/blight.rs`)
+## Blight (`crates/game/src/disasters/blight.rs`)
 
 Fields, orchards and pastures carry a DiseaseComponent (vtable `0x14015f3b0`). Fields and
 pastures share its DiseaseDescription (`FUN_1400497a0`) layout:

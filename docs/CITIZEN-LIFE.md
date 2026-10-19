@@ -1,7 +1,7 @@
 # Citizen life
 
-Ports: `crates/game/src/life.rs` (CitizenComponent update, ResidenceComponent),
-`crates/game/src/needs.rs` (eating, warming, stocking the home), `crates/game/src/agents.rs`
+Ports: `crates/game/src/people/life.rs` (CitizenComponent update, ResidenceComponent),
+`crates/game/src/people/needs.rs` (eating, warming, stocking the home), `crates/game/src/behaviour/agents.rs`
 (order, births, removal). The research these build on is in
 [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md).
 
@@ -97,7 +97,7 @@ firewood relights it for `fuel_seconds`. Food and firewood clear the status icon
 The AI's inputs: home food is `families × members × D[0xc4]` (`FUN_14011abb0`), home firewood
 `families × D[0xd4]` (`FUN_14011acc0`), and the partner's errand stops both going.
 
-## Services (`crates/game/src/services.rs`)
+## Services (`crates/game/src/people/services.rs`)
 
 | Piece | Original | Port |
 |---|---|---|
@@ -116,7 +116,7 @@ doctor. Herbs (4) take a herb from the nearest storage to the nearest staffed he
 treated there for 5 s (message 3). Play (11) walks next to the guardian's partner (the
 original's `Rand(1)` is always 0), or the guardian, and idles `RandFloat · 7 + 3` s.
 
-## Happiness buildings (`crates/game/src/happiness.rs`)
+## Happiness buildings (`crates/game/src/people/happiness.rs`)
 
 HappinessComponent is a controller. Its table is `FUN_14004b570`, and its interface vtable
 is `0x14015f6a0`.
@@ -152,7 +152,7 @@ iteration becomes a loitering target in the next one.
 - `a_well_registers_its_happiness`: a new well registers, marks layer 0 within its radius
   and becomes a loitering target.
 
-## Burial (`crates/game/src/cemetery.rs`)
+## Burial (`crates/game/src/people/cemetery.rs`)
 
 - **Cemeteries.** A cemetery is placed with the fenced tool (its first part is the gate) and
   built. Its CemeteryComponent (states `FUN_140048100`):

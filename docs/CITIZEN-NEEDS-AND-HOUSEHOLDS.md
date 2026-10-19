@@ -389,7 +389,7 @@ The shipped citizen description gives adult age 2.0, starting ages 2.2–4.0 and
 the description's age units. A Medium start makes 5 couples and 0 to 25 children, for example
 10 / 0 / 5.
 
-The port is in `crates/game/src/citizens.rs`, and the Status Bar shows its population.
+The port is in `crates/game/src/people/citizens.rs`, and the Status Bar shows its population.
 
 ### Drawing citizens
 

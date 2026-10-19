@@ -1,7 +1,7 @@
 # Immigration and nomads
 
-Port: `crates/game/src/immigration.rs`; the citizens are made in `Agents::admit_band`
-(`crates/game/src/agents.rs`). Test: `nomads_are_taken_in` (`apps/game/src/placement_tool.rs`).
+Port: `crates/game/src/people/immigration.rs`; the citizens are made in `Agents::admit_band`
+(`crates/game/src/behaviour/agents.rs`). Test: `nomads_are_taken_in` (`apps/game/src/placement_tool.rs`).
 
 ## ImmigrationDescription
 

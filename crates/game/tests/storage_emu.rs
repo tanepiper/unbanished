@@ -1,6 +1,6 @@
 //! Original search control flow and Random consumption; geometry is injected in both runs.
 use banished_game::random::Random;
-use banished_game::stock::{
+use banished_game::work::stock::{
     find_storage, Item, RawMaterial, Storage, StorageSearchMap, StorageSite,
 };
 
@@ -22,7 +22,7 @@ fn original_storage_work_facing() {
     for row in data.lines() {
         let p: Vec<_> = row.split('\t').collect();
         assert_eq!(
-            banished_game::character::work_facing(point(p[0]), point(p[1])).to_bits(),
+            banished_game::behaviour::character::work_facing(point(p[0]), point(p[1])).to_bits(),
             p[2].parse::<u32>().unwrap(),
             "facing case {count}"
         );
@@ -150,7 +150,7 @@ fn original_storage_search_and_random() {
 #[test]
 fn original_storage_geometry_and_random() {
     use banished_game::{
-        activities::{EntityView, StorageGeometry, TownView},
+        behaviour::activities::{EntityView, StorageGeometry, TownView},
         pathfind::regions,
         sectors::SectorGraph,
         terrain::CellType,
@@ -205,7 +205,7 @@ fn original_storage_geometry_and_random() {
             regions: &region,
             occupants: &empty,
             objects: &empty,
-            floors: &banished_game::floor::Floors::default(),
+            floors: &banished_game::world::floor::Floors::default(),
             entities: &entities,
             happiness: &[],
         };
@@ -254,7 +254,7 @@ fn original_storage_geometry_and_random() {
 
 #[test]
 fn original_storage_ledger_actions() {
-    use banished_game::stock::{consume_stored, pickup_stored};
+    use banished_game::work::stock::{consume_stored, pickup_stored};
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../game-data/derived/emu/storage/ledger.tsv");
     let Ok(data) = std::fs::read_to_string(path) else {

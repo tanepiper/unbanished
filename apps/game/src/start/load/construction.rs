@@ -13,12 +13,12 @@ use std::collections::BTreeMap;
 
 use banished_formats::pkg::Archive;
 use banished_formats::savegame::{Fields, ObjId, Value};
-use banished_game::construction::{
+use banished_game::work::construction::{
     BuildWork, ClearWork, Decal, Gather, PickupWork, Pile, ProduceWork,
 };
-use banished_game::jobs::{Work, WorkKind};
-use banished_game::road::RoadWork;
-use banished_game::stock::Item;
+use banished_game::work::jobs::{Work, WorkKind};
+use banished_game::work::road::RoadWork;
+use banished_game::work::stock::Item;
 
 use super::super::{load_template, material_index, normalise, StartingTown};
 use crate::saved::SavedGame;
@@ -386,11 +386,12 @@ impl StartingTown {
                     .collect()
             };
             // `HerbalistWork`-shaped state: the workers and the misses in a row (`+0x58`).
-            let workers = |misses: Option<&str>| banished_game::herbalist::HerbalistWork {
-                workers: citizens(&format!("{block}.citizens")),
-                misses: misses.map_or(0, |m| int(f, &format!("{block}.{m}"))),
-            };
-            let area = |crop: Option<usize>| banished_game::farm::AreaWork {
+            let workers =
+                |misses: Option<&str>| banished_game::production::herbalist::HerbalistWork {
+                    workers: citizens(&format!("{block}.citizens")),
+                    misses: misses.map_or(0, |m| int(f, &format!("{block}.{m}"))),
+                };
+            let area = |crop: Option<usize>| banished_game::production::farm::AreaWork {
                 claims: list(f, &format!("{block}.keyed"))
                     .iter()
                     .filter_map(|k| Some((int(k, "key"), citizen(k.ptr("citizen"))?)))
@@ -486,21 +487,25 @@ impl StartingTown {
                 "TendArea" => WorkKind::TendArea(workers(Some("value_58"))),
                 "ClearStorage" => WorkKind::ClearStorage(workers(None)),
                 "FireWork" => WorkKind::Fire(workers(None)),
-                "FishingWork" => WorkKind::Fishing(banished_game::fishing::FishingWork {
-                    workers: list(f, "fishing.citizens")
-                        .iter()
-                        .map(|c| citizen(c.ptr("citizen")))
-                        .collect(),
-                    points: list(f, "fishing.values")
-                        .iter()
-                        .map(|v| int(v, "value"))
-                        .collect(),
-                    misses: int(f, "fishing.value_68"),
-                }),
-                "LocationWork" => WorkKind::Location(banished_game::services::LocationWork {
-                    worker: citizen(f.ptr("location.citizen")),
-                }),
-                "TradeWork" => WorkKind::Trade(banished_game::trade::TradeWork {
+                "FishingWork" => {
+                    WorkKind::Fishing(banished_game::production::fishing::FishingWork {
+                        workers: list(f, "fishing.citizens")
+                            .iter()
+                            .map(|c| citizen(c.ptr("citizen")))
+                            .collect(),
+                        points: list(f, "fishing.values")
+                            .iter()
+                            .map(|v| int(v, "value"))
+                            .collect(),
+                        misses: int(f, "fishing.value_68"),
+                    })
+                }
+                "LocationWork" => {
+                    WorkKind::Location(banished_game::people::services::LocationWork {
+                        worker: citizen(f.ptr("location.citizen")),
+                    })
+                }
+                "TradeWork" => WorkKind::Trade(banished_game::commerce::trade::TradeWork {
                     haulers: list(f, "trade.orders")
                         .iter()
                         .filter_map(|o| {
@@ -514,7 +519,7 @@ impl StartingTown {
                         })
                         .collect(),
                 }),
-                "MarketWork" => WorkKind::Market(banished_game::market::MarketWork {
+                "MarketWork" => WorkKind::Market(banished_game::commerce::market::MarketWork {
                     plans: list(f, "market.orders")
                         .iter()
                         .filter_map(|o| {

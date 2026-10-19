@@ -9,7 +9,7 @@
 //! - tiled (fields, yards, pastures): the atlas tile follows which neighbours are inside the
 //!   rectangle, and the decal uv is the cell position, turned.
 //!
-//! The alpha is the description's until the entity is built (`banished_game::construction::
+//! The alpha is the description's until the entity is built (`banished_game::work::construction::
 //! Decal`), the material the component's.
 
 use std::collections::BTreeMap;
@@ -17,9 +17,9 @@ use std::sync::Arc;
 
 use banished_formats::game::DecalDescription;
 use banished_formats::pkg::Archive;
-use banished_game::construction::Decal;
-use banished_game::seeding::{Placed, Template};
+use banished_game::nature::seeding::{Placed, Template};
 use banished_game::terrain::HeightGrid;
+use banished_game::work::construction::Decal;
 
 use crate::road_decals::{tile_uv, tile_variant, vertex};
 use crate::scene_assets::{DecalCache, DecalData};

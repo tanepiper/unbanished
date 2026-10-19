@@ -258,7 +258,7 @@ impl StartingTown {
         refs: &mut Refs,
         ids: &Ids,
         id: i32,
-        t: &banished_game::trade::Trade,
+        t: &banished_game::commerce::trade::Trade,
     ) {
         let good = |g: &mut GameState, refs: &mut Refs, k: usize| {
             let r = &self.templates[self.construction.trade_goods[k].template].reference;

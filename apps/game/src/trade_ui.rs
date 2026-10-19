@@ -19,8 +19,8 @@
 //! The amounts to sell and buy are the window's own (`+0x30`, `+0x40`) until traded.
 
 use banished_formats::pkg::Archive;
-use banished_game::professions::Command;
-use banished_game::trade::{TradeGood, TradeSetting};
+use banished_game::commerce::trade::{TradeGood, TradeSetting};
+use banished_game::work::professions::Command;
 use banished_ui::{Control, Kind, NodeId, Ui};
 
 use crate::building_ui::{set_spinner, spinner_value, text_of, WorkPlaceClick};
@@ -258,12 +258,12 @@ impl TradeUi {
         let name_less =
             |a: &(usize, String), b: &(usize, String)| crate::building_ui::str_less(&a.1, &b.1);
         if by_keep {
-            banished_game::ai::crt_qsort_less(&mut list, |a, b| {
+            banished_game::behaviour::ai::crt_qsort_less(&mut list, |a, b| {
                 let (ka, kb) = (keep(a.0), keep(b.0));
                 kb < ka || (ka == kb && name_less(a, b))
             });
         } else {
-            banished_game::ai::crt_qsort_less(&mut list, name_less);
+            banished_game::behaviour::ai::crt_qsort_less(&mut list, name_less);
         }
         let cells = self
             .storage
@@ -361,7 +361,7 @@ impl TradeUi {
             }
         }
         self.order_goods = merchant.map_or(Vec::new(), |(_, desc)| {
-            banished_game::trade::merchant_list(
+            banished_game::commerce::trade::merchant_list(
                 &c.trade_goods,
                 &town.templates,
                 &town.materials,
@@ -453,8 +453,9 @@ impl TradeUi {
                 }
             }
         }
-        let value =
-            |m: usize| banished_game::trade::sell_value(&c.trade_goods, &town.materials, tr, d, m);
+        let value = |m: usize| {
+            banished_game::commerce::trade::sell_value(&c.trade_goods, &town.materials, tr, d, m)
+        };
         let mut sell_total = 0;
         let mut sold_size = 0;
         for (m, amount, row) in &mut self.sell_rows {

@@ -1,7 +1,7 @@
 //! Print skeleton world positions for a clip at several times (analysis helper).
 use banished_formats::pkg::{Archive, Package};
 use banished_formats::skeleton::{local_bind, world_transforms};
-use banished_game::animation::sample_pose;
+use banished_game::behaviour::animation::sample_pose;
 use banished_game::scheduler::ticks;
 
 fn main() {

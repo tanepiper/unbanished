@@ -7,7 +7,7 @@
 //! kind 0, and `Template\DirtRoad.rsc`, kind 1), the map's `+0x210` list.
 
 use banished_formats::pkg::Archive;
-use banished_game::seeding::Cells;
+use banished_game::nature::seeding::Cells;
 use banished_game::terrain::HeightGrid;
 
 use crate::scene_assets::DecalData;

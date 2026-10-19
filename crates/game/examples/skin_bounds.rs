@@ -1,6 +1,6 @@
 //! Bounds of a skinned mesh in the bind pose and a clip pose (analysis helper).
 use banished_formats::pkg::{Archive, Package};
-use banished_game::animation::sample_pose;
+use banished_game::behaviour::animation::sample_pose;
 
 fn bounds(v: &[u8]) -> ([f32; 3], [f32; 3]) {
     let mut lo = [f32::MAX; 3];

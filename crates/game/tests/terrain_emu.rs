@@ -2,8 +2,8 @@
 //! Produce it with `tools/emu/terrain_stages.py game-data/derived/emu/valleys-small-290 290 ...`;
 //! the test is skipped when that git-ignored folder is absent.
 
-use banished_game::map::Map;
 use banished_game::terrain::{Generator, HeightGrid, SizeRecord, TerrainMesh};
+use banished_game::world::map::Map;
 use std::path::{Path, PathBuf};
 
 fn truth_dir(name: &str) -> Option<PathBuf> {
