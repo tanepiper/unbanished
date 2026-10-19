@@ -105,6 +105,25 @@ The details that drift are the ones that bite:
 - Where possible, add an emulator check (`tools/emu/*.py` writing to
   `game-data/derived/emu/`, a test in `crates/game/tests/` that skips without it).
 
+## Versions
+
+The engine version is `0.1.0-<build>`. Do not confuse it with the Banished version: the main menu
+footer ("Version 1.0.7 - Build 170910") comes from the original's resources and must not change.
+
+- `0.1.0` is set once, as `version` in `[workspace.package]` in the root `Cargo.toml`. Every
+  crate inherits it with `version.workspace = true`.
+- `apps/game/build.rs` sets the build id at compile time, for native and wasm32 builds:
+  `UNBANISHED_BUILD` from the environment if it is set, else the short git hash (7 characters)
+  with `-dirty` for uncommitted changes to tracked files, else `GITHUB_SHA`, else `unknown`.
+  `.github/workflows/site.yml` sets `UNBANISHED_BUILD`. The site footer uses the same rule
+  (`site/.vitepress/config.mts`).
+- It appears in `banished --version`, the first log line, the browser's loading panel and the
+  site footer (`apps/game/src/version.rs`). Do not add it to the original's menus unless the
+  change is marked as a Deviation.
+- Bump the workspace version only for a release, in its own commit: the minor number for new
+  features or parity work, the patch number for fixes only. Before 1.0 there are no
+  compatibility promises. Ordinary commits do not change it; the build id identifies them.
+
 ## Before every commit
 
 ```bash

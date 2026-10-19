@@ -38,6 +38,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The build id in the engine version (0.1.0-<build>), for the game and the site footer.
+      - name: Set the build id
+        run: echo "UNBANISHED_BUILD=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
       - name: Install Rust with the WebAssembly target
         uses: dtolnay/rust-toolchain@stable
         with:

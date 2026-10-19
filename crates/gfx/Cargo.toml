@@ -1,6 +1,6 @@
 [package]
 name = "banished-gfx"
-version = "0.1.0"
+version.workspace = true
 description = "Shared wgpu rendering for the Banished apps: UI quads and texture upload"
 edition.workspace = true
 license.workspace = true

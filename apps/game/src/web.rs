@@ -30,6 +30,13 @@ pub fn set_status(text: &str, loaded: bool) {
     }
 }
 
+/// Show the engine version (`version::NAME_VERSION`) under the status line of the loading panel.
+pub fn show_version(text: &str) {
+    if let Some(el) = document().get_element_by_id("version") {
+        el.set_text_content(Some(text));
+    }
+}
+
 /// `?data=<base>`: dev-server base URL for the git-ignored `game-data/` folder.
 ///
 /// Only honoured when the page itself is served from this machine (`tools/dev-web.sh`). On the

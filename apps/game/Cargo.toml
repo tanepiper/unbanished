@@ -1,6 +1,6 @@
 [package]
 name = "banished-app"
-version = "0.1.0"
+version.workspace = true
 description = "The Banished reimplementation: world generation and rendering on wgpu (native and web)"
 edition.workspace = true
 license.workspace = true

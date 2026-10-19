@@ -1,6 +1,6 @@
 [package]
 name = "banished-cli"
-version = "0.1.0"
+version.workspace = true
 description = "Command-line tools for working with Banished game data"
 edition.workspace = true
 license.workspace = true

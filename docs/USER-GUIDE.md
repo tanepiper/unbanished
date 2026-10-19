@@ -389,6 +389,7 @@ documents:
 | Command | Effect |
 |---|---|
 | `banished PATH` | play, reading the game data from this `WinData` folder |
+| `banished --version` | show the Un-Banished version (see [Version](#version)) and stop |
 | `banished --boot-capture FILE.png SECONDS` | start the game, run it for `SECONDS` and save that frame |
 | `banished --capture FILE.png [options]` | generate a map and save a picture of it |
 
@@ -398,6 +399,25 @@ original name, such as `VideoReflectionDetail=2`). Captures do not use your save
 
 Environment variables: `BANISHED_USER_DIR` (the folder that holds `Save`), `BANISHED_SETTINGS`
 (the settings file), `RUST_LOG` (how much detail the log shows, for example `RUST_LOG=debug`).
+
+## Version
+
+Un-Banished has its own version number, for example `0.1.0-1382712`. The first part is the
+release. The second part is the build: the first seven characters of the git commit the program
+was built from. `-dirty` at the end means that the program was built with changes that were not
+committed. `unknown` means that the build could not be found, for example in a build from a
+source archive without git.
+
+You can see the version in these places:
+
+- `banished --version` shows it, for example `Un-Banished 0.1.0-1382712`.
+- The first line of the log, when the game starts.
+- In the browser: under the status line of the **Load your game data** panel, and in the
+  browser's console.
+- On the website, at the bottom of the pages.
+
+The main menu shows "Version 1.0.7 - Build 170910". That is the version of Banished, from the
+game data. It does not change. Give both versions when you report a problem.
 
 ## Troubleshooting
 

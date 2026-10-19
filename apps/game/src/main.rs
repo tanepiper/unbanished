@@ -65,6 +65,7 @@ mod town_hall_ui;
 mod trade_ui;
 mod ui_settings;
 mod utility;
+mod version;
 mod weather;
 #[cfg(target_arch = "wasm32")]
 mod web;
@@ -1550,6 +1551,11 @@ mod native {
 fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if matches!(args.first().map(String::as_str), Some("--version" | "-V")) {
+        println!("{}", version::NAME_VERSION);
+        return;
+    }
+    log::info!("{}", version::NAME_VERSION);
     match args.first().map(String::as_str) {
         Some("--boot-capture") => {
             let out = args.get(1).expect("--boot-capture OUT.png SECONDS");
@@ -1581,6 +1587,8 @@ fn main() {
 fn main() {
     console_error_panic_hook::set_once();
     let _ = console_log::init_with_level(log::Level::Info);
+    log::info!("{}", version::NAME_VERSION);
+    web::show_version(version::NAME_VERSION);
     let event_loop = EventLoop::<UserEvent>::with_user_event()
         .build()
         .expect("event loop");

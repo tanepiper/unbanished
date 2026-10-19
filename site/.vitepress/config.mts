@@ -1,9 +1,31 @@
+import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vitepress'
 
 // The site is served from GitHub Pages at https://tanepiper.github.io/unbanished/.
 // SITE_BASE=/ builds it for the root of a domain instead.
 const base = process.env.SITE_BASE ?? '/unbanished/'
 const github = 'https://github.com/tanepiper/unbanished'
+
+// The engine version, chosen the same way as apps/game/build.rs: the workspace version from
+// Cargo.toml, then UNBANISHED_BUILD, the short git commit hash (with -dirty), GITHUB_SHA or
+// "unknown".
+function engineVersion(): string {
+  const cargo = readFileSync(new URL('../../Cargo.toml', import.meta.url), 'utf8')
+  const version = /\[workspace\.package\][^[]*?\nversion = "([^"]+)"/.exec(cargo)?.[1] ?? '0.0.0'
+  const git = (...args: string[]) =>
+    execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  let build = process.env.UNBANISHED_BUILD?.trim()
+  if (!build) {
+    try {
+      build = git('rev-parse', '--short=7', 'HEAD')
+      if (git('status', '--porcelain', '--untracked-files=no')) build += '-dirty'
+    } catch {
+      build = process.env.GITHUB_SHA?.slice(0, 7) || 'unknown'
+    }
+  }
+  return `${version}-${build}`
+}
 
 export default defineConfig({
   base,
@@ -79,7 +101,7 @@ export default defineConfig({
     outline: { level: [2, 3], label: 'On this page' },
     footer: {
       message:
-        'Un-Banished is free software under the MIT or Apache-2.0 licence. It is not affiliated with or endorsed by Shining Rock Software.',
+        `Un-Banished ${engineVersion()} is free software under the MIT or Apache-2.0 licence. It is not affiliated with or endorsed by Shining Rock Software.`,
       copyright: 'Banished is © Shining Rock Software, LLC. Screenshots show the original game’s art.',
     },
   },
