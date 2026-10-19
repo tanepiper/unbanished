@@ -3,7 +3,7 @@
 The gameplay map (the object at game-data context `+0xf8`) is a grid of 48-byte cells that
 records what each square of the playable area is. This note covers its size, the natural cell
 types derived from the terrain, the ground query they use, and the save-file layout. Ports live in
-`crates/game/src/terrain/query.rs`; save reading is `Save::map_cells` in `crates/formats`.
+`crates/terrain/src/query.rs`; save reading is `Save::map_cells` in `crates/formats`.
 
 Evidence: Ghidra 12.1.4 pseudocode and disassembly of the Steam x64 executable, emulation of the
 original functions (`tools/emu/terrain_query.py`, bit-exact against the Rust port for every cell

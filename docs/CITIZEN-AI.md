@@ -3,7 +3,7 @@
 How a citizen decides what to do, how that decision becomes a queue of actions, and how the
 character walks a path. Evidence: Ghidra 12.1.4 pseudocode and disassembly of the Steam x64
 executable and Runtime DLL (local dumps `analysis/citizen-ai-*.c`, `analysis/pathfind.c`,
-`analysis/astar.c`, not distributed). Ports: `crates/game/src/pathfind.rs`,
+`analysis/astar.c`, not distributed). Ports: `crates/path/src/pathfind.rs`,
 `crates/game/src/character.rs`, `CharacterDescription` in `crates/formats/src/game.rs`.
 
 The citizen template (`Template/Citizen.rsc`) carries three cooperating components:
@@ -165,7 +165,7 @@ distance) to another cell; the first found wins ties.
 ## Path-rank distance (coarse sector graph)
 
 Storage, job and building searches rank candidates with `FUN_1400a4ce0(map, a, b, store)`, not
-with full A*. Port: `crates/game/src/sectors.rs`.
+with full A*. Port: `crates/path/src/sectors.rs`.
 
 - **Sectors** (`FUN_1400adb40`): `n/8 × n/8` sectors of 8 × 8 cells. Each sector's walkable
   cells are split into areas with an 8-connected FIFO scanline fill, rows outer

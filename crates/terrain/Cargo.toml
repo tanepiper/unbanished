@@ -1,0 +1,11 @@
+[package]
+name = "banished-terrain"
+version.workspace = true
+description = "Bit-exact port of Banished's terrain generator, terrain mesh, ground queries and cell types"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+banished-core = { path = "../core" }
+banished-formats = { path = "../formats" }

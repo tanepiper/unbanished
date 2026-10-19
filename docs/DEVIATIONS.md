@@ -145,10 +145,6 @@ Deviation: 40, Not ported: 4, Not traced: 1.
 
 - [Deviation] [crates/game/src/terraform.rs:1](../crates/game/src/terraform.rs#L1): TerraformComponent (vtable `0x1401609a0`, TerraformDescription): a tunnel reshapes the terrain when it is built. Entity event 4 (the build is done; a MultiObject passes it to its parts) runs slot `+0x60` (`FUN_140057c70`): the ceiling mesh's vertices raise the terrain where it is below them, keeping what was there (`FUN_1400574b0(1)`); the floor mesh's lower it where it is above them (`FUN_1400574b0(0)`); then rough cells (10) under the MapComponent become high ground (6) (`FUN_140057a80`). Removed (slot `+0x38`, `FUN_140057cb0`), the raised heights are put back and those cells become rough again; the dug floor stays. See docs/TUNNELS.md. Deviation: the heights belong to the terrain outside the simulation, so the town queues the dig and the game applies it after the iteration (`StartingTown::apply_terraforms`), not during it.
 
-## `crates/game/src/terrain/query.rs`
-
-- [Deviation] [crates/game/src/terrain/query.rs:78](../crates/game/src/terrain/query.rs#L78): Terrain ray narrow phase FUN_1400afef0, used to clip EditTool picking to the ground. Deviation: enumerate the ray's cell rectangle instead of FUN_1400afa00's DDA traversal.
-
 ## `crates/game/src/trade.rs`
 
 - [Deviation] [crates/game/src/trade.rs:298](../crates/game/src/trade.rs#L298): Deviation: a merchant with nothing to sell brings nothing (the original reads an empty list).
@@ -157,6 +153,10 @@ Deviation: 40, Not ported: 4, Not traced: 1.
 
 - [Deviation] [crates/game/src/wildlife.rs:404](../crates/game/src/wildlife.rs#L404): Deviation: a zero space would divide by zero in the original.
 - [Deviation] [crates/game/src/wildlife.rs:1086](../crates/game/src/wildlife.rs#L1086): Deviation: a zero interval would never leave the loop in the original.
+
+## `crates/terrain/src/query.rs`
+
+- [Deviation] [crates/terrain/src/query.rs:78](../crates/terrain/src/query.rs#L78): Terrain ray narrow phase FUN_1400afef0, used to clip EditTool picking to the ground. Deviation: enumerate the ray's cell rectangle instead of FUN_1400afa00's DDA traversal.
 
 ## `crates/ui/src/input.rs`
 

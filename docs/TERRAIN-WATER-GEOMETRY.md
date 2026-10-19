@@ -51,7 +51,7 @@ shoreline rules, or the in-game visual appearance of generated surfaces.
 
 ## Ported: the strip and lake builders
 
-Both builders are now ported, in `crates/game/src/terrain/river.rs`, and the gameplay view draws
+Both builders are now ported, in `crates/terrain/src/river.rs`, and the gameplay view draws
 their output with the profile's River and Lake materials (`World::water`).
 
 ### River strip (`FUN_1400d4fd0`)

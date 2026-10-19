@@ -5,7 +5,10 @@
 //! functions name their source address; tests compare against data from real save files.
 
 /// The bit-exact foundations, from their own crate (`banished-core`).
-pub use banished_core::{calendar, crt, math, noise, random, scheduler};
+pub use banished_core::{calendar, crt, math, noise, picking, random, scheduler};
+/// Path finding (`banished-path`) and the terrain (`banished-terrain`), from their own crates.
+pub use banished_path::{pathfind, sectors};
+pub use banished_terrain as terrain;
 
 pub mod activities;
 pub mod agents;
@@ -41,21 +44,17 @@ pub mod names;
 pub mod needs;
 pub mod orchard;
 pub mod pasture;
-pub mod pathfind;
-pub mod picking;
 pub mod placement;
 pub mod produce;
 pub mod professions;
 pub mod quarry;
 pub mod road;
-pub mod sectors;
 pub mod seeding;
 pub mod services;
 pub mod spawn;
 pub mod status;
 pub mod stock;
 pub mod terraform;
-pub mod terrain;
 pub mod tornado;
 pub mod town;
 pub mod tracker;

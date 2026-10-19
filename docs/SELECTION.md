@@ -4,7 +4,7 @@ Slice B, Steam x64 1.0.7. Evidence: Application/Runtime/VideoDX11 decompilation 
 disassembly, decoded resources, original-function emulation and remake captures. No matching
 original-game screenshot was supplied, so visual parity with the original is unverified.
 The port uses `apps/game/src/{selection,entity_ui,highlight}.rs` and
-`crates/game/src/picking.rs`. Building/citizen controller values and commands belong to the
+`crates/core/src/picking.rs`. Building/citizen controller values and commands belong to the
 subsequent slices; this slice opens their packaged hosts and logs the attached controller ids.
 
 ## Input and ranking

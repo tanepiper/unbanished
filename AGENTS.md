@@ -70,7 +70,8 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 | `apps/game` | The game (binary `banished`): `loops.rs` engine loops, `menu.rs`, `gameplay.rs`, `render.rs`, `start/` (new game, load, save), the UI windows, `*.wgsl` |
 | `apps/viewer` | Asset browser (models, textures, audio, dialogs) |
 | `apps/cli` | Command-line helpers |
-| `crates/core` | Bit-exact foundations: CRT maths (`crt`), `Random`, Perlin `noise`, `math` (`Transform`), game time (`scheduler`), `calendar`; re-exported by `banished-game` |
+| `crates/core` | Bit-exact foundations: CRT maths (`crt`), `Random`, Perlin `noise`, `math` (`Transform`), game time (`scheduler`), `calendar`; `picking`; re-exported by `banished-game` |
+| `crates/terrain`, `crates/path` | The terrain generator, mesh and ground queries; the pathfinder, walkable regions and sector graph; re-exported by `banished-game` as `terrain`, `pathfind`, `sectors` |
 | `crates/game` | Bit-exact game rules: terrain, RNG, citizens, jobs, wildlife, path finding, CRT maths, … |
 | `crates/formats` | Dependency-free readers: `.pkg`, `.crs`, UI dialogs, gameplay resources, saves |
 | `crates/ui` | The game's UI system (element tree, layout, fonts, controls, input) |

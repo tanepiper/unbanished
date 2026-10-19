@@ -8,4 +8,6 @@ repository.workspace = true
 
 [dependencies]
 banished-core = { path = "../core" }
+banished-path = { path = "../path" }
+banished-terrain = { path = "../terrain" }
 banished-formats = { path = "../formats" }

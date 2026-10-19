@@ -8,12 +8,12 @@
 //! - the nearest-allowed-neighbour helper (`FUN_1400a21c0`).
 //!
 //! The original solves on a thread and movers poll a result slot. The port solves when the
-//! request is made; [`MoveTo`](crate::actions) still reads the result on its next update.
+//! request is made; `MoveTo` still reads the result on its next update.
 
 use std::cmp::Reverse;
 use std::collections::{BTreeSet, VecDeque};
 
-use crate::terrain::CellType;
+use banished_terrain::CellType;
 
 /// Cell types a walker may enter (0–4, 9–11).
 pub const WALKABLE: u32 = 0xe1f;

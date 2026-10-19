@@ -20,7 +20,7 @@ builder, `FUN_1400b1d50`, reads the signed 16-bit grid sample for each vertex an
 
 ### Tile vertex format (verified)
 
-`FUN_1400b1d50` writes 16-byte vertices; the Rust port (`crates/game/src/terrain/mesh.rs`) is
+`FUN_1400b1d50` writes 16-byte vertices; the Rust port (`crates/terrain/src/mesh.rs`) is
 bit-exact against the emulated original for every tile of a 512-cell map
 (`tools/emu/terrain_mesh.py`).
 
@@ -39,7 +39,7 @@ shared index list emits per cell `a, c, b, b, c, c+1` when `(x + y)` is even and
 
 ### Surface image `FUN_1400d4910` (verified)
 
-The port in `crates/game/src/terrain/surface.rs` is bit-exact against the emulated original on
+The port in `crates/terrain/src/surface.rs` is bit-exact against the emulated original on
 four 512-cell maps. It consumes two `RandTol(0xffffff)` values after generation to seed a
 `PerlinNoise(0.25, 4, second, first)`. Per cell, with `h` the float height and `up` the z of
 `normalize(-(h[x+1]-h[x-1]), -(h[y+1]-h[y-1]), 2)` (`FUN_1400d4620`):

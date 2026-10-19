@@ -14,7 +14,7 @@ use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::pathfind::WALKABLE;
-use crate::terrain::CellType;
+use banished_terrain::CellType;
 
 const SECTOR: i32 = 8;
 /// `DAT_140178910`: cached distances live 120 s.

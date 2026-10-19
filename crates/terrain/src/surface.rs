@@ -15,7 +15,7 @@
 //! Float operations follow the disassembly order so results are bit-exact.
 
 use super::Generator;
-use crate::noise::PerlinNoise;
+use banished_core::noise::PerlinNoise;
 
 const NOISE_SCALE: f32 = 0.25;
 const NOISE_OCTAVES: f32 = 4.0;

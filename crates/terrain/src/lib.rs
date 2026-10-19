@@ -15,7 +15,7 @@ pub use mesh::{tile_indices, HeightGrid, TerrainMesh, TerrainVertex, TILE_CELLS,
 pub use query::CellType;
 pub use river::{river_strip, water_mesh, WaterMesh};
 
-use crate::random::Random;
+use banished_core::random::Random;
 
 /// A `TerrainGenerator` size record (0x44 bytes) in struct order. The `.crs` wire order differs:
 /// fields `+0x00..+0x20`, then `+0x28..+0x40`, then `+0x24` (`FUN_1400211d0`).

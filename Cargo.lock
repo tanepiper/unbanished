@@ -261,6 +261,8 @@ version = "0.2.0"
 dependencies = [
  "banished-core",
  "banished-formats",
+ "banished-path",
+ "banished-terrain",
 ]
 
 [[package]]
@@ -272,6 +274,22 @@ dependencies = [
  "bytemuck",
  "log",
  "wgpu",
+]
+
+[[package]]
+name = "banished-path"
+version = "0.2.0"
+dependencies = [
+ "banished-core",
+ "banished-terrain",
+]
+
+[[package]]
+name = "banished-terrain"
+version = "0.2.0"
+dependencies = [
+ "banished-core",
+ "banished-formats",
 ]
 
 [[package]]
