@@ -183,6 +183,13 @@ pub struct Cells {
 }
 
 impl Cells {
+    /// Port of FUN_1400a5750: the entity a cell answers for, the occupant (`+0x00`) if there is
+    /// one, else the object (`+0x08`). EditTool selection, the removal tool and the job code all
+    /// read cells this way.
+    pub fn entity_at(&self, i: usize) -> Option<usize> {
+        self.occupants[i].or(self.objects[i])
+    }
+
     pub fn new(size: usize, types: Vec<CellType>) -> Cells {
         Cells {
             size,
@@ -1013,6 +1020,21 @@ mod tests {
     use super::*;
     use crate::scheduler::ticks;
     use banished_formats::game::ModelVariant;
+
+    /// FUN_1400a5750: the occupant answers for the cell before the object. An orchard is the
+    /// occupant of the cells its trees are the objects of; a construction site is an occupant
+    /// with no object until its clearing is done.
+    #[test]
+    fn cell_entity_is_the_occupant_then_the_object() {
+        let mut cells = Cells::new(2, vec![CellType(0); 4]);
+        assert_eq!(cells.entity_at(0), None);
+        cells.objects[0] = Some(7);
+        assert_eq!(cells.entity_at(0), Some(7));
+        cells.occupants[0] = Some(3);
+        assert_eq!(cells.entity_at(0), Some(3));
+        cells.occupants[1] = Some(3);
+        assert_eq!(cells.entity_at(1), Some(3));
+    }
 
     fn template() -> Template {
         Template {

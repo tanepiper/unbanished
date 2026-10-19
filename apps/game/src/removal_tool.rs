@@ -664,9 +664,7 @@ impl RemovalTool {
 
     /// The entity a cell answers for: the occupant (`+0x00`), else the object (`+0x08`).
     fn entity_at(town: &StartingTown, i: usize) -> Option<usize> {
-        town.cells.occupants[i]
-            .or(town.cells.objects[i])
-            .filter(|&e| town.placed[e].alive)
+        town.cells.entity_at(i).filter(|&e| town.placed[e].alive)
     }
 
     /// `FUN_140109d70`: mark this natural resource for removal.

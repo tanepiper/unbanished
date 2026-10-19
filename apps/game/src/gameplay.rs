@@ -884,7 +884,7 @@ impl GameplayLoop {
         if let Some(entity) = picked {
             if self.selection.selected != Some(entity) {
                 self.selection.selected = Some(entity);
-                log::info!("selected {entity:?}");
+                log::info!("selected {entity:?} {}", entity.template(town));
                 if let Some(screen) = self.screen.as_mut() {
                     self.entities
                         .select(ctx.ui, screen, ctx.archive, town, entity);
@@ -893,8 +893,11 @@ impl GameplayLoop {
         }
     }
 
-    /// What is under the cursor: the map's object at the cell (`+8`, `FUN_1400a5750`), else
-    /// the picking scene's hit (`FUN_140102500`, `FUN_1400e3b80`).
+    /// What is under the cursor: the map cell's entity, else the picking scene's hit
+    /// (`FUN_140102500`, `FUN_1400e3b80`). The cell's entity is `FUN_1400a5750`: the occupant
+    /// (`+0x00`) first, then the object (`+0x08`). A construction site is only an occupant
+    /// until its clearing is done (no model stage, so no picking mesh), and an orchard or a
+    /// field stays the occupant of the cells its trees and crops are the objects of.
     fn entity_at_cursor(&mut self, ctx: &mut Ctx) -> Option<Entity> {
         let (origin, direction) = self.cursor_ray(ctx.ui.screen)?;
         let town = self.town.as_ref()?;
@@ -917,10 +920,7 @@ impl GameplayLoop {
         let fallback = cell
             .and_then(|(x, y)| {
                 town.cells
-                    .objects
-                    .get(y as usize * town.cells.size + x as usize)
-                    .copied()
-                    .flatten()
+                    .entity_at(y as usize * town.cells.size + x as usize)
             })
             .map(Entity::Placed);
         self.selection.cast(

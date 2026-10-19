@@ -2456,8 +2456,7 @@ impl Sim<'_, '_> {
 impl Sim<'_, '_> {
     /// The entity on a cell as the job code reads it: occupant (`+0x00`), else object (`+0x08`).
     fn entity_on(&self, cell: i32) -> Option<usize> {
-        let i = cell as usize;
-        self.cells.occupants[i].or(self.cells.objects[i])
+        self.cells.entity_at(cell as usize)
     }
 
     /// `FUN_14011ce30`'s registration: count the footprint's objects into a category mask

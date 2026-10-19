@@ -19,7 +19,13 @@ subsequent slices; this slice opens their packaged hosts and logs the attached c
 | `FUN_140102880` | Change selection, reuse/open the entity's UIDescription dialog |
 
 The click begins with a 400-unit maximum. Terrain intersection supplies both a map-cell entity
-and a distance. A picking mesh hit within that distance replaces the terrain entity. There is
+and a distance. The map-cell entity is `FUN_1400a5750`: the cell's occupant (`+0x00`) when it
+has one, else its object (`+0x08`). This order matters for entities without a picking mesh. A
+construction site has no model stage until building begins and is only the occupant of its
+footprint until clearing ends (`FUN_1400a2830`; the object is stamped later, `FUN_1400a30f0`). An
+orchard, crop field or storage yard ships no picking mesh and stays the occupant of the cells
+whose objects are its trees or crops, which ship none either. Both are therefore selected
+through the occupant (observed; reproduced and fixed in the port, issues #1 and #2). A picking mesh hit within that distance replaces the terrain entity. There is
 no hard-coded citizen/building/resource class priority in this path. Empty terrain retains the
 current selection. Picking uses strict positive determinant (backfaces rejected), inclusive
 barycentric edges and inclusive distance limits. A hit at the current best distance replaces
