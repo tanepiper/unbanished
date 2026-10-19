@@ -30,17 +30,20 @@ pub const KINDS: [MaterialKind; 6] = [
     MaterialKind::Character,
 ];
 
+/// A decoded texture, shared by every range that uses it (one copy in memory, one upload).
+pub type ModelImage = Option<std::sync::Arc<ImageBuffer>>;
+
 /// One draw range of a mesh with its material textures.
 pub struct RangeData {
     pub kind: MaterialKind,
     pub vertices: Vec<u8>,
     pub indices: Vec<u8>,
     pub index_count: u32,
-    pub diffuse: Option<ImageBuffer>,
-    pub ao: Option<ImageBuffer>,
-    pub snow: Option<ImageBuffer>,
+    pub diffuse: ModelImage,
+    pub ao: ModelImage,
+    pub snow: ModelImage,
     /// The damaged materials' damage texture (blended into the diffuse).
-    pub damage: Option<ImageBuffer>,
+    pub damage: ModelImage,
     pub rigid: [f32; 16],
     /// `ModelSkinLayout` vertices blended by the instance's bone palette on the GPU.
     pub skinned: bool,
@@ -175,6 +178,9 @@ pub struct GroupMaterial {
 pub struct SceneModels {
     pub groups: Vec<ModelGroup>,
     pub revision: u64,
+    /// Decoded textures by reference, kept for the scene's life so groups added later share
+    /// them too. Each range held its own copy before: 101 copies for 64 textures on one save.
+    textures: HashMap<String, ModelImage>,
 }
 
 fn with_object(reference: &str) -> String {
@@ -206,7 +212,7 @@ fn load_group(
     archive: &Archive,
     mesh_ref: &str,
     material: &GroupMaterial,
-    textures: &mut HashMap<String, Option<ImageBuffer>>,
+    textures: &mut HashMap<String, ModelImage>,
     pose: Option<&[Transform]>,
 ) -> Option<ModelAsset> {
     let mesh = graphics_mesh(&archive.read_ref(&with_object(mesh_ref)).ok()?)
@@ -222,11 +228,11 @@ fn load_group(
         }
     }
     let set = set.as_deref();
-    let mut cached = |r: Option<String>| -> Option<ImageBuffer> {
+    let mut cached = |r: Option<String>| -> ModelImage {
         let r = r?;
         textures
             .entry(r.clone())
-            .or_insert_with(|| image(archive, Some(&r)))
+            .or_insert_with(|| image(archive, Some(&r)).map(std::sync::Arc::new))
             .clone()
     };
     let ao = cached(part.ao_texture.clone());
@@ -325,6 +331,7 @@ impl SceneModels {
         SceneModels {
             groups,
             revision: 0,
+            textures,
         }
     }
 
@@ -350,6 +357,7 @@ impl SceneModels {
         SceneModels {
             groups,
             revision: 0,
+            textures,
         }
     }
 
@@ -360,7 +368,6 @@ impl SceneModels {
             group.instances.clear();
             group.skins.clear();
         }
-        let mut textures = HashMap::new();
         for (name, material, instances, pose) in instances {
             if let Some(group) = self
                 .groups
@@ -368,9 +375,13 @@ impl SceneModels {
                 .find(|g| g.name == name && g.material == material)
             {
                 group.set_instances(instances);
-            } else if let Some(asset) =
-                load_group(archive, &name, &material, &mut textures, pose.as_deref())
-            {
+            } else if let Some(asset) = load_group(
+                archive,
+                &name,
+                &material,
+                &mut self.textures,
+                pose.as_deref(),
+            ) {
                 let mut group = asset.into_group(name, material);
                 group.set_instances(instances);
                 self.groups.push(group);
@@ -662,6 +673,9 @@ pub struct ModelRenderer {
     sampler: wgpu::Sampler,
     white: wgpu::TextureView,
     groups: Vec<GpuGroup>,
+    /// Uploaded textures by their image data's address. The scene's groups keep their images
+    /// until the next full upload, which clears this.
+    views: HashMap<usize, wgpu::TextureView>,
 }
 
 impl ModelRenderer {
@@ -950,21 +964,39 @@ impl ModelRenderer {
             sampler,
             white,
             groups: Vec::new(),
+            views: HashMap::new(),
         }
     }
 
     pub fn clear(&mut self) {
         self.groups.clear();
+        self.views.clear();
     }
 
+    /// Upload every group of a scene (a new world).
     pub fn upload(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, models: &SceneModels) {
-        let mut views: HashMap<usize, wgpu::TextureView> = HashMap::new();
-        let mut view_of = |img: &Option<ImageBuffer>| -> wgpu::TextureView {
+        self.clear();
+        for g in &models.groups {
+            let gpu = self.upload_group(device, queue, g);
+            self.groups.push(gpu);
+        }
+    }
+
+    /// One group's ranges, textures (each image uploaded once) and instances.
+    fn upload_group(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        g: &ModelGroup,
+    ) -> GpuGroup {
+        let white = self.white.clone();
+        let views = &mut self.views;
+        let mut view_of = |img: &ModelImage| -> wgpu::TextureView {
             let Some(img) = img else {
-                return self.white.clone();
+                return white.clone();
             };
-            // Images are shared between ranges; key by their data address.
-            let key = img.levels.first().map_or(0, |l| l.as_ptr() as usize);
+            // Images are shared between ranges (`ModelImage`); key by the shared allocation.
+            let key = std::sync::Arc::as_ptr(img) as usize;
             views
                 .entry(key)
                 .or_insert_with(|| {
@@ -979,7 +1011,7 @@ impl ModelRenderer {
                         })
                         .collect();
                     if mips.is_empty() {
-                        return self.white.clone();
+                        return white.clone();
                     }
                     banished_gfx::upload_rgba_as(
                         device,
@@ -993,90 +1025,82 @@ impl ModelRenderer {
                 })
                 .clone()
         };
-        self.groups = models
-            .groups
+        let ranges = g
+            .ranges
             .iter()
-            .map(|g| {
-                let ranges = g
-                    .ranges
-                    .iter()
-                    .map(|r| {
-                        let mut uniform = [0.0f32; 20];
-                        uniform[..16].copy_from_slice(&r.rigid);
-                        uniform[16] = if r.damage.is_some() { 1.0 } else { 0.0 };
-                        let rigid = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("rigid"),
-                            contents: bytemuck::cast_slice(&uniform),
-                            usage: wgpu::BufferUsages::UNIFORM,
-                        });
-                        let (diffuse, ao, snow, damage) = (
-                            view_of(&r.diffuse),
-                            view_of(&r.ao),
-                            view_of(&r.snow),
-                            view_of(&r.damage),
-                        );
-                        let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                            label: Some(&g.name),
-                            layout: &self.layout,
-                            entries: &[
-                                wgpu::BindGroupEntry {
-                                    binding: 0,
-                                    resource: wgpu::BindingResource::TextureView(&diffuse),
-                                },
-                                wgpu::BindGroupEntry {
-                                    binding: 1,
-                                    resource: wgpu::BindingResource::TextureView(&ao),
-                                },
-                                wgpu::BindGroupEntry {
-                                    binding: 2,
-                                    resource: wgpu::BindingResource::Sampler(&self.sampler),
-                                },
-                                wgpu::BindGroupEntry {
-                                    binding: 3,
-                                    resource: rigid.as_entire_binding(),
-                                },
-                                wgpu::BindGroupEntry {
-                                    binding: 4,
-                                    resource: wgpu::BindingResource::TextureView(&snow),
-                                },
-                                wgpu::BindGroupEntry {
-                                    binding: 5,
-                                    resource: wgpu::BindingResource::TextureView(&damage),
-                                },
-                            ],
-                        });
-                        GpuRange {
-                            kind: r.kind,
-                            skinned: r.skinned,
-                            vertices: device.create_buffer_init(
-                                &wgpu::util::BufferInitDescriptor {
-                                    label: Some(&g.name),
-                                    contents: &r.vertices,
-                                    usage: wgpu::BufferUsages::VERTEX,
-                                },
-                            ),
-                            indices: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                                label: Some(&g.name),
-                                contents: &r.indices,
-                                usage: wgpu::BufferUsages::INDEX,
-                            }),
-                            index_count: r.index_count,
-                            bind,
-                        }
-                    })
-                    .collect();
-                GpuGroup {
-                    ranges,
-                    instances: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some("instances"),
-                        contents: bytemuck::cast_slice(&g.instances),
-                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            .map(|r| {
+                let mut uniform = [0.0f32; 20];
+                uniform[..16].copy_from_slice(&r.rigid);
+                uniform[16] = if r.damage.is_some() { 1.0 } else { 0.0 };
+                let rigid = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("rigid"),
+                    contents: bytemuck::cast_slice(&uniform),
+                    usage: wgpu::BufferUsages::UNIFORM,
+                });
+                let (diffuse, ao, snow, damage) = (
+                    view_of(&r.diffuse),
+                    view_of(&r.ao),
+                    view_of(&r.snow),
+                    view_of(&r.damage),
+                );
+                let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some(&g.name),
+                    layout: &self.layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(&diffuse),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::TextureView(&ao),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: wgpu::BindingResource::Sampler(&self.sampler),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 3,
+                            resource: rigid.as_entire_binding(),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 4,
+                            resource: wgpu::BindingResource::TextureView(&snow),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 5,
+                            resource: wgpu::BindingResource::TextureView(&damage),
+                        },
+                    ],
+                });
+                GpuRange {
+                    kind: r.kind,
+                    skinned: r.skinned,
+                    vertices: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some(&g.name),
+                        contents: &r.vertices,
+                        usage: wgpu::BufferUsages::VERTEX,
                     }),
-                    count: g.instances.len() as u32,
-                    skin: self.skin_buffer(device, &g.skins),
+                    indices: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some(&g.name),
+                        contents: &r.indices,
+                        usage: wgpu::BufferUsages::INDEX,
+                    }),
+                    index_count: r.index_count,
+                    bind,
                 }
             })
             .collect();
+        GpuGroup {
+            ranges,
+            instances: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("instances"),
+                contents: bytemuck::cast_slice(&g.instances),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            }),
+            count: g.instances.len() as u32,
+            skin: self.skin_buffer(device, &g.skins),
+        }
     }
 
     /// A buffer of per-instance palettes and its bind group (`None` without palettes).
@@ -1088,16 +1112,22 @@ impl ModelRenderer {
         skin_buffer(device, &self.skin_layout, skins)
     }
 
-    /// Refresh the instance buffers only. New mesh groups still take the ordinary upload path.
+    /// Refresh the instance buffers. Groups are only ever added to a scene, so new ones are
+    /// uploaded on their own; re-uploading every group and texture took about 50 ms, a visible
+    /// hitch each time a new kind of model appeared (issue #5).
     pub fn update_instances(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         models: &SceneModels,
     ) {
-        if self.groups.len() != models.groups.len() {
+        if self.groups.len() > models.groups.len() {
             self.upload(device, queue, models);
             return;
+        }
+        for g in &models.groups[self.groups.len()..] {
+            let gpu = self.upload_group(device, queue, g);
+            self.groups.push(gpu);
         }
         for (gpu, group) in self.groups.iter_mut().zip(&models.groups) {
             let data = bytemuck::cast_slice(&group.instances);

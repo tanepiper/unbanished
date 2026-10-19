@@ -1125,6 +1125,7 @@ impl Renderer {
 
     /// Upload a scene's terrain, models, sky, water and decals if it is not the one on the GPU.
     pub fn set_scene(&mut self, view: &crate::scene::SceneView) {
+        let _p = crate::perf::scope("draw.set_scene");
         self.highlight.upload(&self.device, &view.highlight);
         self.pending_icons.clone_from(&view.status_icons);
         self.particles
@@ -1175,6 +1176,7 @@ impl Renderer {
             self.minimap_overlay = 0;
         } else if self.decals_revision != view.decals_revision {
             if let Some(e) = &view.extras {
+                let _p = crate::perf::scope("draw.upload_decals");
                 self.extras
                     .upload_decals(&self.device, &self.queue, &e.decals);
             }
@@ -1183,6 +1185,7 @@ impl Renderer {
         if self.world_id != view.id {
         } else if let Some(models) = &view.models {
             if self.models_revision != models.revision {
+                let _p = crate::perf::scope("draw.update_instances");
                 self.models
                     .update_instances(&self.device, &self.queue, models);
                 self.models_revision = models.revision;

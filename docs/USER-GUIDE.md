@@ -398,7 +398,9 @@ Options for the captures: `--seed N`, `--terrain NAME`, `--size 0|1|2`, `--month
 original name, such as `VideoReflectionDetail=2`). Captures do not use your saved settings.
 
 Environment variables: `BANISHED_USER_DIR` (the folder that holds `Save`), `BANISHED_SETTINGS`
-(the settings file), `RUST_LOG` (how much detail the log shows, for example `RUST_LOG=debug`).
+(the settings file), `RUST_LOG` (how much detail the log shows, for example `RUST_LOG=debug`),
+`BANISHED_PROFILE=1` (logs slow frames and frame-time summaries; in the browser, add `?profile`
+to the address). See [PERFORMANCE.md](PERFORMANCE.md).
 
 ## Version
 

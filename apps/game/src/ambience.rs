@@ -572,6 +572,23 @@ impl Ambience {
     pub fn reweigh(&mut self, town: &StartingTown) {
         let Some(desc) = &self.desc else { return };
         let n = town.cells.size as i32;
+        // Whether a template's reference matches each terrain's entity, worked out once per
+        // template rather than per cell (string copies per cell made this a top frame cost).
+        let same = |want: &str, have: &str| {
+            let norm = |c: u8| {
+                if c == b'/' {
+                    b'\\'
+                } else {
+                    c.to_ascii_lowercase()
+                }
+            };
+            want.len() == have.len()
+                && want
+                    .bytes()
+                    .zip(have.bytes())
+                    .all(|(x, y)| norm(x) == norm(y))
+        };
+        let mut matches: Vec<Option<Vec<bool>>> = vec![None; town.templates.len()];
         for r in &mut self.regions {
             let mut weights = vec![0i32; desc.terrains.len()];
             let (x0, y0, w, h) = r.rect;
@@ -580,19 +597,27 @@ impl Ambience {
                     let i = (y * n + x) as usize;
                     let kind = town.cells.types[i].0 as u32;
                     let entity = town.cells.occupants[i].or(town.cells.objects[i]);
-                    let template =
-                        entity.map(|e| &town.templates[town.placed[e].template].reference);
+                    let row = match entity {
+                        Some(e) => {
+                            let t = town.placed[e].template;
+                            if matches[t].is_none() {
+                                let have = &town.templates[t].reference;
+                                matches[t] = Some(
+                                    desc.terrains
+                                        .iter()
+                                        .map(|d| d.entity.as_deref().is_none_or(|w| same(w, have)))
+                                        .collect(),
+                                );
+                            }
+                            matches[t].as_ref()
+                        }
+                        None => None,
+                    };
                     for (k, t) in desc.terrains.iter().enumerate() {
                         if t.cell_mask & (1 << (kind & 31)) == 0 {
                             continue;
                         }
-                        let matches = match (&t.entity, template) {
-                            (None, _) | (_, None) => true,
-                            (Some(want), Some(have)) => want
-                                .replace('/', "\\")
-                                .eq_ignore_ascii_case(&have.replace('/', "\\")),
-                        };
-                        if matches {
+                        if row.as_ref().is_none_or(|m| m[k]) {
                             weights[k] += t.weight;
                             break;
                         }

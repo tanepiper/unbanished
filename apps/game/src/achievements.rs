@@ -84,19 +84,28 @@ pub fn load(archive: &Archive) -> Vec<Achievement> {
         .collect()
 }
 
-/// The file part of a reference (`Template\X.rsc:resource` → `template\x.rsc`).
-fn file(r: &str) -> String {
-    r.split(':').next().unwrap_or("").to_ascii_lowercase()
+/// The file part of a reference (`Template\X.rsc:resource` → `Template\X.rsc`).
+fn file(r: &str) -> &str {
+    r.split(':').next().unwrap_or("")
 }
 
+/// Whether two references name the same file, ignoring ASCII case. Compares in place: this
+/// runs for every entity and goal each frame, and lowercased copies were a large share of the
+/// frame time.
 fn same(a: &str, b: &str) -> bool {
-    !b.is_empty() && file(a) == file(b)
+    !b.is_empty() && file(a).eq_ignore_ascii_case(file(b))
 }
 
-/// Whether two references name the same object (the case and slashes aside).
+/// Whether two references name the same object (the case and slashes aside), without copying.
 pub fn same_reference(a: &str, b: &str) -> bool {
-    let norm = |r: &str| r.replace('/', "\\").to_ascii_lowercase();
-    !b.is_empty() && norm(a) == norm(b)
+    let norm = |c: u8| {
+        if c == b'/' {
+            b'\\'
+        } else {
+            c.to_ascii_lowercase()
+        }
+    };
+    !b.is_empty() && a.len() == b.len() && a.bytes().zip(b.bytes()).all(|(x, y)| norm(x) == norm(y))
 }
 
 /// The live entities of the template `r` (the stock manager's `+0x160` by template).

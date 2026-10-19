@@ -20,9 +20,9 @@ Deviation: 40, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/main.rs`
 
-- [Deviation] [apps/game/src/main.rs:110](../apps/game/src/main.rs#L110): Deviation: the original also draws between steps (`MainLoop::Frame`'s `+0x38 / +0x48` handed to `Renderer::Draw`, models and poses blending their `InterpolatedState`); the port draws the last step, which differs only on displays faster than 60 Hz.
-- [Deviation] [apps/game/src/main.rs:142](../apps/game/src/main.rs#L142): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
-- [Deviation] [apps/game/src/main.rs:947](../apps/game/src/main.rs#L947): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
+- [Deviation] [apps/game/src/main.rs:111](../apps/game/src/main.rs#L111): Deviation: the original also draws between steps (`MainLoop::Frame`'s `+0x38 / +0x48` handed to `Renderer::Draw`, models and poses blending their `InterpolatedState`); the port draws the last step, which differs only on displays faster than 60 Hz.
+- [Deviation] [apps/game/src/main.rs:143](../apps/game/src/main.rs#L143): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
+- [Deviation] [apps/game/src/main.rs:948](../apps/game/src/main.rs#L948): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
 
 ## `apps/game/src/mod_ui.rs`
 

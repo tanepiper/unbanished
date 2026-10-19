@@ -1510,13 +1510,18 @@ impl GameplayLoop {
                 heights: &view.terrain.heights,
             };
             let temperature = self.environment.as_ref().map_or(0.0, |e| e.temperature);
-            let changed = town.iterate(&grid, &mut self.rng, dt, temperature);
+            let changed = {
+                let _p = crate::perf::scope("sim.town");
+                town.iterate(&grid, &mut self.rng, dt, temperature)
+            };
             // AnimationManager::Update runs inside the same iteration (FUN_14009b850).
             let stock = std::array::from_fn(|i| {
                 (self.stock_warnings.count[i], self.stock_warnings.limits[i])
             });
-            let changed =
-                town.update_citizens(&grid, &mut self.rng, dt, temperature, stock) | changed;
+            let changed = {
+                let _p = crate::perf::scope("sim.citizens");
+                town.update_citizens(&grid, &mut self.rng, dt, temperature, stock)
+            } | changed;
             // AnimAudioEvents that passed their draw: `PlayEffect3D(effect, 4)` at the entity.
             for (entity, effect) in town.animation_events.drain(..) {
                 let p = town.placed[entity].position;
@@ -2700,6 +2705,7 @@ impl GameLoop for GameplayLoop {
         let mut iterations = 0;
         if !self.paused && !pauses_game {
             for _ in 0..SPEED_LEVELS[self.speed as usize] {
+                let _p = crate::perf::scope("sim.iterate");
                 models_changed |= self.iterate(ctx.archive, dt);
                 iterations += 1;
             }
@@ -2721,19 +2727,32 @@ impl GameLoop for GameplayLoop {
             }
         }
         self.update_follow(ctx);
-        self.refresh_decals(ctx.archive);
-        self.refresh_particles(ctx.archive, dt * iterations as f32);
-        self.refresh_weather(ctx, dt * iterations as f32);
+        {
+            let _p = crate::perf::scope("refresh_decals");
+            self.refresh_decals(ctx.archive);
+        }
+        {
+            let _p = crate::perf::scope("refresh_particles");
+            self.refresh_particles(ctx.archive, dt * iterations as f32);
+        }
+        {
+            let _p = crate::perf::scope("refresh_weather");
+            self.refresh_weather(ctx, dt * iterations as f32);
+        }
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
         if let (Some(town), Some(view), false) = (&mut self.town, &mut self.view, pauses_game) {
             let grid = banished_game::terrain::HeightGrid {
                 width: view.terrain.size + 1,
                 heights: &view.terrain.heights,
             };
-            models_changed |= town.smooth(&grid, &mut self.rng);
+            {
+                let _p = crate::perf::scope("smooth");
+                models_changed |= town.smooth(&grid, &mut self.rng);
+            }
             self.ambience_stale |= models_changed;
             if models_changed {
                 if let Some(models) = &mut view.models {
+                    let _p = crate::perf::scope("refresh_models");
                     town.refresh_models(ctx.archive, models);
                 }
             }
@@ -2818,7 +2837,10 @@ impl GameLoop for GameplayLoop {
             self.speed = 0;
         }
         self.move_cooldown -= dt;
-        self.update_audio(ctx, dt);
+        {
+            let _p = crate::perf::scope("audio");
+            self.update_audio(ctx, dt);
+        }
         let month = self.month();
         let into_month = (self.calendar.seconds() - month as f32 * MONTH_SECONDS) / MONTH_SECONDS;
         if let (Some(view), Some(from)) = (self.view.as_mut(), self.environment_months.get(month)) {

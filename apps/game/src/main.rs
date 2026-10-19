@@ -39,6 +39,7 @@ mod particles;
 mod path_tool;
 mod paths;
 mod pause_menu;
+mod perf;
 mod placement_tool;
 mod removal_tool;
 mod render;
@@ -1127,6 +1128,7 @@ impl ApplicationHandler<UserEvent> for App {
                         renderer.resize(size.width, size.height);
                     }
                 }
+                perf::frame_begin();
                 let now = Instant::now();
                 // `MainLoop::Run` updates once before its first frame.
                 if self.last_frame.is_none() {
@@ -1142,6 +1144,7 @@ impl ApplicationHandler<UserEvent> for App {
                     self.accumulated = FRAME_STEP;
                 }
                 while FRAME_STEP <= self.accumulated {
+                    let _p = perf::scope("update");
                     game.update(banished_game::scheduler::seconds(FRAME_STEP));
                     self.accumulated -= FRAME_STEP;
                     if game.quit_requested() {
@@ -1152,10 +1155,14 @@ impl ApplicationHandler<UserEvent> for App {
                     event_loop.exit();
                     return;
                 }
-                game.draw(renderer, false);
+                {
+                    let _p = perf::scope("draw");
+                    game.draw(renderer, false);
+                }
                 if game.settings.revision != self.applied {
                     self.apply_settings();
                 }
+                perf::frame_end();
             }
             WindowEvent::ModifiersChanged(m) => self.shift = m.state().shift_key(),
             WindowEvent::CursorMoved { position, .. } => {
@@ -1423,14 +1430,20 @@ mod native {
         while t < seconds {
             // A 1/30 s frame is two of `MainLoop::Frame`'s 1/60 s steps.
             let step = banished_game::scheduler::seconds(FRAME_STEP);
-            game.update(step);
-            game.update(step);
+            perf::frame_begin();
+            for _ in 0..2 {
+                let _p = perf::scope("update");
+                game.update(step);
+            }
             t += dt;
-            // A save waits for a drawn frame's preview (headless, nothing else is drawn).
-            if game.main.current().wants_save_preview() || shot_frames > 0 {
+            // A save waits for a drawn frame's preview (headless, nothing else is drawn). With
+            // the profiler on, every frame is drawn, as in the windowed game.
+            if game.main.current().wants_save_preview() || shot_frames > 0 || perf::enabled() {
+                let _p = perf::scope("draw");
                 game.draw(&mut renderer, false);
                 shot_frames -= (shot_frames > 0) as i32;
             }
+            perf::frame_end();
             combos.retain(|(name, item, at)| {
                 if t < *at {
                     return true;
