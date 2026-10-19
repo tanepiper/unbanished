@@ -98,7 +98,7 @@ program's machine code into readable pseudocode. An AI agent read it, wrote down
 does, and ran the original functions in an emulator to get exact numbers. Then it wrote new code
 in Rust from those notes, and tested the new code against the original.
 
-<img src="/assets/process-loop.svg" alt="The seven steps of the work loop, from reading the data files to committing, with a path back to tracing when a check fails" style="width: 100%; max-width: 860px; margin: 24px 0;" />
+<WorkLoop />
 
 [Read how each step works](/about/how-it-was-made)
 

@@ -1,77 +1,92 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 300" width="860" height="300" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 352" width="1024" height="352" role="img" aria-labelledby="t d" font-family="'Inter', system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
   <title id="t">The Un-Banished work loop</title>
-  <desc id="d">Seven steps in a loop: 1 read the data files, 2 decompile with Ghidra, 3 trace one function, 4 measure by running the original code, 5 rebuild in Rust, 6 check against the original, 7 write it down and commit. If the check fails, the work goes back to step 3.</desc>
+  <desc id="d">Seven steps in a loop: 1 read the data files, 2 decompile with Ghidra, 3 trace one function, 4 measure by running the original function in an emulator, 5 rebuild in Rust, 6 check against the original, 7 write it down and commit. If the check fails, the work goes back to step 3.</desc>
   <defs>
-    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0 0 L10 5 L0 10 Z" fill="#9c6a24"/>
+    <marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#b5852f"/>
     </marker>
     <style>
-      .box { fill: #1d1711; stroke: #d8a648; stroke-width: 1.5; }
+      .box { fill: #1d1711; stroke: #b5852f; stroke-width: 1.5; }
       .key { fill: #2a2016; stroke: #f4dc9a; stroke-width: 2; }
       .n { fill: #f4dc9a; font-size: 13px; font-weight: 700; }
-      .l { fill: #e9dfc8; font-size: 14px; }
-      .s { fill: #b3a88f; font-size: 11.5px; }
-      .ln { stroke: #9c6a24; stroke-width: 2; fill: none; }
-      .back { fill: #b3a88f; font-size: 12px; font-style: italic; }
+      .l { fill: #efe6d2; font-size: 15px; font-weight: 600; }
+      .s { fill: #b3a88f; font-size: 12px; }
+      .ln { stroke: #b5852f; stroke-width: 2; fill: none; }
+      .back { fill: #c9bfa6; font-size: 12px; font-style: italic; }
+      .ic { fill: none; stroke: #d8a648; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
     </style>
+    <symbol id="i-read" viewBox="0 0 24 24"><path d="M3 7.5 12 3.5l9 4v9l-9 4-9-4z"/><path d="M3 7.5l9 4 9-4M12 11.5v9"/><path d="M7.5 5.5l9 4"/></symbol>
+    <symbol id="i-decompile" viewBox="0 0 24 24"><path d="M8 6 3 12l5 6M16 6l5 6-5 6M14 4l-4 16"/></symbol>
+    <symbol id="i-trace" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21M7.5 9h6M7.5 12h4"/></symbol>
+    <symbol id="i-measure" viewBox="0 0 24 24"><path d="M3.5 17a8.5 8.5 0 1 1 17 0"/><path d="M12 17l4.5-6"/><circle cx="12" cy="17" r="1.4"/><path d="M6 12.5l1.2.8M12 8.5V10M18 12.5l-1.2.8"/></symbol>
+    <symbol id="i-rebuild" viewBox="0 0 24 24"><path d="M14.5 5.5a4.5 4.5 0 0 0-5.6 5.9L3.5 16.8a1.8 1.8 0 0 0 2.6 2.6l5.4-5.4a4.5 4.5 0 0 0 5.9-5.6l-2.7 2.7-2.4-.4-.4-2.4z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.8-3.4 8-8 9-4.6-1-8-4.2-8-9V6z"/><path d="M8.5 12.2l2.4 2.4 4.6-5"/></symbol>
+    <symbol id="i-commit" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M3 12h5.8M15.2 12H21"/><path d="M6 4.5h12M6 19.5h8"/></symbol>
   </defs>
-  <rect x="1" y="1" width="858" height="298" rx="14" fill="#14100c"/>
-
-  <!-- Row 1: steps 1 to 4, left to right -->
+  <rect x="1" y="1" width="1022" height="350" rx="14" fill="#14100c"/>
   <g>
-    <rect class="box" x="24" y="34" width="182" height="74" rx="10"/>
-    <text class="n" x="40" y="60">1</text>
-    <text class="l" x="58" y="60">Read the data files</text>
-    <text class="s" x="40" y="86">Formats of the .pkg packages</text>
-
-    <rect class="box" x="234" y="34" width="182" height="74" rx="10"/>
-    <text class="n" x="250" y="60">2</text>
-    <text class="l" x="268" y="60">Decompile</text>
-    <text class="s" x="250" y="86">Ghidra: machine code to</text>
-    <text class="s" x="250" y="101">readable pseudocode</text>
-
-    <rect class="key" x="444" y="34" width="182" height="74" rx="10"/>
-    <text class="n" x="460" y="60">3</text>
-    <text class="l" x="478" y="60">Trace</text>
-    <text class="s" x="460" y="86">Understand one function and</text>
-    <text class="s" x="460" y="101">write it down in plain words</text>
-
-    <rect class="box" x="654" y="34" width="182" height="74" rx="10"/>
-    <text class="n" x="670" y="60">4</text>
-    <text class="l" x="688" y="60">Measure</text>
-    <text class="s" x="670" y="86">Run the original function</text>
-    <text class="s" x="670" y="101">in an emulator</text>
+    <rect class="box" x="26" y="40" width="222" height="96" rx="10"/>
+    <use href="#i-read" class="ic" x="40" y="53" width="24" height="24"/>
+    <text class="n" x="74" y="70">1</text>
+    <text class="l" x="90" y="70">Read the data files</text>
+    <text class="s" x="42" y="100">The .pkg packages</text>
+    <text class="s" x="42" y="117">and their formats</text>
   </g>
-  <path class="ln" d="M206 71 H230" marker-end="url(#a)"/>
-  <path class="ln" d="M416 71 H440" marker-end="url(#a)"/>
-  <path class="ln" d="M626 71 H650" marker-end="url(#a)"/>
-  <path class="ln" d="M745 108 V150 Q745 162 733 162 H706" marker-end="url(#a)"/>
-
-  <!-- Row 2: steps 5 to 7, right to left -->
   <g>
-    <rect class="box" x="520" y="166" width="182" height="74" rx="10"/>
-    <text class="n" x="536" y="192">5</text>
-    <text class="l" x="554" y="192">Rebuild in Rust</text>
-    <text class="s" x="536" y="218">New code from the notes,</text>
-    <text class="s" x="536" y="233">citing the original function</text>
-
-    <rect class="box" x="310" y="166" width="182" height="74" rx="10"/>
-    <text class="n" x="326" y="192">6</text>
-    <text class="l" x="344" y="192">Check</text>
-    <text class="s" x="326" y="218">Tests against the emulator,</text>
-    <text class="s" x="326" y="233">saves and screenshots</text>
-
-    <rect class="box" x="100" y="166" width="182" height="74" rx="10"/>
-    <text class="n" x="116" y="192">7</text>
-    <text class="l" x="134" y="192">Write down, commit</text>
-    <text class="s" x="116" y="218">Documents, checklist,</text>
-    <text class="s" x="116" y="233">one commit per piece</text>
+    <rect class="box" x="276" y="40" width="222" height="96" rx="10"/>
+    <use href="#i-decompile" class="ic" x="290" y="53" width="24" height="24"/>
+    <text class="n" x="324" y="70">2</text>
+    <text class="l" x="340" y="70">Decompile</text>
+    <text class="s" x="292" y="100">Ghidra turns machine</text>
+    <text class="s" x="292" y="117">code into pseudocode</text>
   </g>
-  <path class="ln" d="M520 203 H496" marker-end="url(#a)"/>
-  <path class="ln" d="M310 203 H286" marker-end="url(#a)"/>
-  <!-- Failed check goes back to Trace -->
-  <path class="ln" d="M401 166 V138 Q401 126 413 126 H523 Q535 126 535 114 V112" stroke-dasharray="5 4" marker-end="url(#a)"/>
-  <text class="back" x="418" y="146">does not match: trace again</text>
-
-  <text class="s" x="24" y="280">Every part of the game went through this loop.</text>
+  <g>
+    <rect class="key" x="526" y="40" width="222" height="96" rx="10"/>
+    <use href="#i-trace" class="ic" x="540" y="53" width="24" height="24"/>
+    <text class="n" x="574" y="70">3</text>
+    <text class="l" x="590" y="70">Trace</text>
+    <text class="s" x="542" y="100">Understand one function;</text>
+    <text class="s" x="542" y="117">write it in plain words</text>
+  </g>
+  <g>
+    <rect class="box" x="776" y="40" width="222" height="96" rx="10"/>
+    <use href="#i-measure" class="ic" x="790" y="53" width="24" height="24"/>
+    <text class="n" x="824" y="70">4</text>
+    <text class="l" x="840" y="70">Measure</text>
+    <text class="s" x="792" y="100">Run the original function</text>
+    <text class="s" x="792" y="117">in an emulator</text>
+  </g>
+  <g>
+    <rect class="box" x="776" y="192" width="222" height="96" rx="10"/>
+    <use href="#i-rebuild" class="ic" x="790" y="205" width="24" height="24"/>
+    <text class="n" x="824" y="222">5</text>
+    <text class="l" x="840" y="222">Rebuild in Rust</text>
+    <text class="s" x="792" y="252">New code from the notes,</text>
+    <text class="s" x="792" y="269">citing the original</text>
+  </g>
+  <g>
+    <rect class="box" x="526" y="192" width="222" height="96" rx="10"/>
+    <use href="#i-check" class="ic" x="540" y="205" width="24" height="24"/>
+    <text class="n" x="574" y="222">6</text>
+    <text class="l" x="590" y="222">Check</text>
+    <text class="s" x="542" y="252">Tests against the emulator,</text>
+    <text class="s" x="542" y="269">saves and screenshots</text>
+  </g>
+  <g>
+    <rect class="box" x="276" y="192" width="222" height="96" rx="10"/>
+    <use href="#i-commit" class="ic" x="290" y="205" width="24" height="24"/>
+    <text class="n" x="324" y="222">7</text>
+    <text class="l" x="340" y="222">Write down, commit</text>
+    <text class="s" x="292" y="252">Documents and checklist,</text>
+    <text class="s" x="292" y="269">one commit per piece</text>
+  </g>
+  <path class="ln" d="M250 88.0 H272" marker-end="url(#a)"/>
+  <path class="ln" d="M500 88.0 H522" marker-end="url(#a)"/>
+  <path class="ln" d="M750 88.0 H772" marker-end="url(#a)"/>
+  <path class="ln" d="M887.0 138 V188" marker-end="url(#a)"/>
+  <path class="ln" d="M774 240.0 H752" marker-end="url(#a)"/>
+  <path class="ln" d="M524 240.0 H502" marker-end="url(#a)"/>
+  <path class="ln" d="M637.0 190 V140" stroke-dasharray="5 4" marker-end="url(#a)"/>
+  <text class="back" x="625.0" y="168.0" text-anchor="end">does not match: trace again</text>
+  <text class="s" x="26" y="328">Every part of the game went through this loop.</text>
 </svg>

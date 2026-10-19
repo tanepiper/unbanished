@@ -120,7 +120,7 @@ The human did the things an agent cannot do alone:
 Every part of the game went through the same loop. The diagram shows it; the text below explains
 each step.
 
-<p align="center"><img src="assets/process-loop.svg" alt="The seven steps of the work loop, from reading the data files to committing, with a path back to tracing when a check fails" width="860"></p>
+<p align="center"><img src="assets/process-loop.svg" alt="The seven steps of the work loop, from reading the data files to committing, with a path back to tracing when a check fails" width="1024"></p>
 
 ### 1. Read the data files
 

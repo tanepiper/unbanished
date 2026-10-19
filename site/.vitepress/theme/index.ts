@@ -4,6 +4,7 @@ import { h } from 'vue'
 import PlayGame from './components/PlayGame.vue'
 import Gallery from './components/Gallery.vue'
 import HeroVideo from './components/HeroVideo.vue'
+import WorkLoop from './components/WorkLoop.vue'
 import './custom.css'
 
 export default {
@@ -13,5 +14,6 @@ export default {
   enhanceApp({ app }) {
     app.component('PlayGame', PlayGame)
     app.component('Gallery', Gallery)
+    app.component('WorkLoop', WorkLoop)
   },
 } satisfies Theme

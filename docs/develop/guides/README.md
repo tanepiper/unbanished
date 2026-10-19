@@ -5,7 +5,7 @@ Un-Banished. Every ported part of the game went through the same steps. The guid
 step, the tools for it, and the mistakes that are easy to make.
 
 <p align="center">
-  <img src="../../assets/process-loop.svg" alt="The steps of the work loop, from reading the data files to committing, with a path back to tracing when a check fails" width="860">
+  <img src="../../assets/process-loop.svg" alt="The steps of the work loop, from reading the data files to committing, with a path back to tracing when a check fails" width="1024">
 </p>
 
 ## The steps
