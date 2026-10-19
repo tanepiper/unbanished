@@ -24,7 +24,7 @@ The modules are grouped by domain. Each folder's `mod.rs` says what it holds.
 | `nature` | Resource seeding and spawning, growth, wildlife, and the environment (temperature and weather) |
 | `world` | The gameplay map and its cells, bridges, building placement, terraforming |
 | `disasters` | Fire, crop blight, tornadoes |
-| `town.rs`, `town/` | The simulation context that jobs and construction run in (`Sim`), with its methods split by topic: buildings, construction sites, clearing, piles, storage, orders |
+| `town.rs`, `town/` | The simulation context that jobs and construction run in (`Sim`), with its methods split by topic: geometry, orders, construction sites, buildings, clearing, piles, storage, the state callbacks and the job manager's work slots |
 | `events.rs` | The event log and stock warnings |
 
 It also re-exports the crates it builds on, so that one dependency is enough:

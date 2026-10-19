@@ -150,10 +150,10 @@ controller or dialog has its own module.
 | `src/main.rs` | The program: windows, events, the headless captures |
 | `src/loops.rs` | The engine loops: `MainLoop`, the loaders, `Screen` with its dialogs |
 | `src/menu.rs` | The main menu and its dialogs |
-| `src/gameplay.rs`, `src/gameplay/` | The game loop, split by topic: `simulation`, `input`, `tools`, `hud`, `audio`, `saving`, `tutorial` |
+| `src/gameplay.rs`, `src/gameplay/` | The game loop (`GameplayLoop`), split by topic: `simulation`, `input`, `tools`, `hud`, `audio`, `saving`, `tutorial` |
 | `src/achievements.rs`, `src/achievements/` | Achievements and scenario goals |
 | `src/mods.rs` | Finding and loading BanishedKit mods |
-| `src/start.rs`, `src/start/` | Starting a new game, loading and saving |
+| `src/start.rs`, `src/start/` | Starting a new game (`templates`, `placing`, `citizens`, `animals`, `sites`, `models`, …), and loading (`load/`) and saving (`save/`) a game |
 | `src/saves/` | Saved games, the save store and the autosave |
 | `src/ui/` | The game's windows: buildings, citizens, the Town Hall, trade, options, mods |
 | `src/view/` | The world as drawn: the generated world, the scene, the camera |
