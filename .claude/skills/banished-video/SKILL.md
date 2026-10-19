@@ -34,7 +34,15 @@ with FFmpeg. No Rust change is needed. The person-readable guide is `docs/develo
    ```
    - The wheel zooms towards the **screen centre**, not the pointer. To move the camera, click a
      building (`--click-at X,Y@T`), press its window's `buttonCenter`, then `buttonClose`.
-     `buttonFollow` in a citizen's window follows that citizen.
+   - Camera moves: `--hold ACTION@START-END` holds a key-map action's key (`RotateLeft`,
+     `RotateRight`, `Forward`, `Back`, `Left`, `Right`, `ZoomIn`, `ZoomOut`, `PitchUp`,
+     `PitchDown`); a short `PitchUp` (~0.5 s) lowers the camera to the horizon. `--move 0,360@T`
+     (a screen edge) scrolls until a `--move` back to the middle. Edge scrolling and the movement
+     keys travel faster when zoomed out, so zoom in for slow moves.
+   - Follow a citizen: `--script "select citizen N@T"` (or `select profession fish N`), then
+     `--press buttonFollow@T+0.5`.
+   - `tools/videos.sh` modes are worked examples: `orbit`, `big-town`, `river`, `fishing`
+     (held keys), `follow-citizen`, `montage` (edge scrolling, seven shots joined with xfade).
    - `--script "speed 10@T"` for time-lapses; `--script "open Template/UtilityMap.rsc@T"` for
      windows; `BANISHED_SEED=N` with `--press buttonNew@4.5 --press buttonOk@5.0` for a new
      game.

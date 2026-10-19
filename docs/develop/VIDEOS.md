@@ -18,8 +18,11 @@ frames into a WebM file.
 ## Make the documentation's videos again
 
 ```bash
-tools/videos.sh save-game/Save83.sav                    # all of them
+tools/videos.sh save-game/Save83.sav                    # the first four (chicken, market, zoom, seasons)
 tools/videos.sh save-game/Save83.sav seasons            # one of them
+tools/videos.sh LARGE.sav big-town                      # a large town (the 0.2.0 notes use 1,024 citizens)
+tools/videos.sh save-game/Save83.sav orbit follow-citizen
+tools/videos.sh RIVER.sav river fishing                 # a town with a bridge and a fishing dock
 GAME=path/to/banished VIEWER=path/to/banished-viewer tools/videos.sh SAVE.sav   # without building
 ```
 
@@ -29,6 +32,11 @@ GAME=path/to/banished VIEWER=path/to/banished-viewer tools/videos.sh SAVE.sav   
 | `zoom-into-town.webm` | The camera zooms from above a town down to its market | Frames 1.5 to 10 s after the zoom starts |
 | `citizens-market.webm` | Citizens walk and trade at the market | 8 s at normal speed, the middle of the frame |
 | `seasons.webm` | Autumn, rain, snow and the start of spring | A time-lapse at speed 10: one frame every 0.75 s for 180 s |
+| `big-town.webm` | A large town at speed 10, the camera turning slowly over it | `tools/videos.sh LARGE.sav big-town`: the saved view, `--hold RotateLeft` for 8 s |
+| `orbit.webm` | The camera circles the middle of a town | `--hold RotateRight` for 10 s, after `--hold PitchUp` lowers the camera |
+| `follow-citizen.webm` | The camera follows one citizen at the closest zoom | `select citizen N`, then `--press buttonFollow` (`CITIZEN=N` chooses who) |
+| `river.webm` | Along a river from a bridge | Centred on a bridge, then `--hold Back` for 7 s |
+| `fishing.webm` | Fishers on their dock, at speed 3 | Centred on a fishing dock, close zoom, `--hold RotateLeft` for 4 s |
 | `montage.webm` | The home page's video, 39 s: the camera descends over a river town, citizens at a market, farmers in autumn fields, a young town, a winter town, a year of seasons, and the camera rises again | Six 5.5 s shots and a 9 s time-lapse from five saves, joined with 0.5 s cross-fades |
 
 The montage is made only when you ask for it (`tools/videos.sh save-game/Save83.sav montage`),
@@ -73,7 +81,25 @@ banished --boot-capture /tmp/video/shot.png 30 --capture-size 1280x720 \
 The [game's README](../../apps/game/README.md#headless-captures) lists every option and
 command.
 
-### 2. Queue one screenshot for each frame
+### 2. Move the camera
+
+There are four ways to move the camera in a headless run. They work as in the game, so the
+camera eases in and out in the same way.
+
+| Movement | Option | Example |
+|---|---|---|
+| Zoom | `--wheel STEPS@T`, one event for each step of the wheel | `--wheel 8@16 --wheel 8@16.2` |
+| Turn, tilt, travel, zoom | `--hold ACTION@START-END` holds the key of a key-map action | `--hold RotateLeft@17-25` turns the camera for 8 seconds |
+| Scroll | `--move X,Y@T` puts the pointer at the edge of the screen; a move back to the middle stops it | `--move 0,360@21 --move 640,360@22.5` scrolls left for 1.5 seconds |
+| Follow a citizen | `select citizen N` (or `select profession NAME N`), then **Follow** | `--script "select citizen 5@14" --press buttonFollow@14.5` |
+
+The actions for `--hold` are the names of the key map: `RotateLeft`, `RotateRight`, `Forward`,
+`Back`, `Left`, `Right`, `ZoomIn`, `ZoomOut`, `PitchUp` and `PitchDown`. A short `PitchUp`
+(about half a second) lowers the camera towards the horizon, which suits views along a river or
+a street. Edge scrolling and the movement keys (`Forward`, `Back`, `Left`, `Right`) travel faster when the
+camera is further away, so zoom in for a slow, steady movement.
+
+### 3. Queue one screenshot for each frame
 
 At 30 frames per second, frame `i` is at `start + i / 30` seconds. Put each command half a frame
 later, at `start + i / 30 + 1 / 60`. The capture adds 1/30 s for each frame, and a command
@@ -98,7 +124,7 @@ If nothing is drawn for some seconds, the camera jumps when drawing starts again
 slowly to its place. So start the screenshots at the first click or wheel event, and drop the
 early frames when you encode.
 
-### 3. Join the frames
+### 4. Join the frames
 
 ```bash
 ffmpeg -framerate 30 -start_number 0 -i /tmp/video/user/Screenshots/Screenshot%d.bmp \
@@ -112,7 +138,7 @@ ffmpeg -framerate 30 -start_number 0 -i /tmp/video/user/Screenshots/Screenshot%d
 - For the documentation, keep each video short (2 to 12 seconds) and small (under about 1 MB):
   384 to 960 pixels wide, with `-crf` from 34 to 42.
 
-### 4. Check it
+### 5. Check it
 
 Make a sheet of a few frames and look at it:
 

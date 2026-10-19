@@ -62,6 +62,7 @@ more than once.
 | `--click-at X,Y@T` | Move the pointer to `X,Y` (pixels) and click there |
 | `--move X,Y@T` | Move the pointer to `X,Y` without clicking |
 | `--wheel STEPS@T` | Turn the mouse wheel (zoom the camera) |
+| `--hold ACTION@START-END` | Hold the default key of a key-map action from `START` to `END` seconds, for example `RotateLeft`, `RotateRight`, `Forward`, `Back`, `Left`, `Right`, `ZoomIn`, `ZoomOut`, `PitchUp` or `PitchDown`: camera moves |
 | `--combo NAME=ITEM@T` | Choose the item with the text `ITEM` in the combo box `NAME` (New Game settings) |
 | `--script "COMMAND@T"` | Run a script command (see below) |
 | `--event KIND[:CELL]@T` | Post a game event, for captures of the event ribbon and the log |
@@ -88,6 +89,8 @@ If `--press` names an element that does not exist at that time, the log says
 | `remove TEMPLATE RADIUS` | game | Drag a removal tool over the square around the start |
 | `rotate` | game | Turn the building being placed by one step |
 | `select` | game | Select the building placed last |
+| `select citizen N` | game | Select the N-th living citizen, so that `--press buttonFollow` follows them |
+| `select profession NAME N` | game | Select the N-th living citizen whose profession's name contains `NAME`, for example `fish` or `hunt` |
 | `profession INDEX COUNT` | game | Set the number of workers of a profession |
 | `event KIND [CELL]` | game | Post a game event (the same as `--event`) |
 
