@@ -52,6 +52,7 @@ tools/triage/determinism.sh 22 1234
 cargo build --offline --release -p banished-app --target wasm32-unknown-unknown   # 0 warnings
 rustfmt --edition 2021 <the files you changed>
 python3 tools/triage/deviations.py                     # then stage docs/DEVIATIONS.md
+python3 tools/triage/doc_comments.py check            # no addresses in the rendered docs
 tools/compat/compare.sh HEAD <your build or commit>    # if the change can touch the simulation
 ```
 

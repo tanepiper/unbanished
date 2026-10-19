@@ -23,7 +23,7 @@ A large town's game state is about 25 to 33 MB when it is expanded.
 
 ## The game state
 
-The game loop writes the game state in one pass (`FUN_14009af60`). In order:
+The game loop writes the game state in one pass. In order:
 
 1. a table of references to resources (templates, profiles, materials), so that later parts can
    refer to them by a number;

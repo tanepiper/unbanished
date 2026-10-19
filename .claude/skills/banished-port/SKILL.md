@@ -21,8 +21,10 @@ Precondition: the behaviour is traced (`banished-trace`) and any resource it rea
 ## Mirror the original's shape
 
 - Name modules/structs after the original classes or resources (`ToolbarItem`, `GameplayLoop`), and
-  put the original address on each ported function:
-  `/// Port of FUN_1400be680 (speed step): speeds 1, 2, 5, 10.`
+  name the original on each ported item. Doc comments are what rustdoc shows: plain English, ending
+  with one line ``/// Original: `FUN_1400be680`.``; offsets, vtables and `DAT_` constants go in a
+  plain `//` comment above (`// Game +0x34`). Run `python3 tools/triage/doc_comments.py check`
+  before committing (style: docs/develop/API.md, "The doc-comment style").
 - Keep the original's data flow: if the original builds a dialog from `Dialog/X.rsc` and fills it
   from resources, do the same — **don't hand-build UI that the game ships as a resource**.
 - Keep constants with their source address; don't "tidy" magic numbers into different values.

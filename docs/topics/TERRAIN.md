@@ -23,7 +23,7 @@ in a fixed order.
 
 ## The five stages
 
-`FUN_1400d4860` runs five stages on a float height grid:
+The generator runs five stages on a float height grid:
 
 | Stage | What it does |
 |---|---|
@@ -38,18 +38,18 @@ that a save file stores.
 
 ## After the heights
 
-- **The surface image** (`FUN_1400d4910`): one 32-bit value per cell, which packs how much dirt,
+- **The surface image**: one 32-bit value per cell, which packs how much dirt,
   rock and light the terrain shader uses there. It draws two more random numbers for its own
   Perlin noise.
-- **The mesh** (`FUN_1400b16b0`): the terrain is cut into tiles of 32 × 32 cells. Each tile has
+- **The mesh**: the terrain is cut into tiles of 32 × 32 cells. Each tile has
   33 × 33 vertices, and the diagonal of each cell alternates by position, like a chequerboard.
 - **The water**: the river paths become a triangle strip drawn with the River material
-  (`FUN_1400d4fd0`), and the lake points become the lake surface.
-- **The cell types** (`FUN_1400a3790`): the game casts a ray down at the centre of each map cell
+  and the lake points become the lake surface.
+- **The cell types**: the game casts a ray down at the centre of each map cell
   and reads the ground height and slope. Deep water is below -1.4, shallow water below -0.25,
   buildable ground is between -0.25 and 0.75 on flat ground, rough ground is below 2.0, and high
   ground is the rest. Water and high ground block walking.
-- **The start point** (`FUN_1400a7bf0`): the game searches in rings outward from the centre for
+- **The start point**: the game searches in rings outward from the centre for
   the first place where all cells within the start radius are buildable ground.
 
 ## How it was proved

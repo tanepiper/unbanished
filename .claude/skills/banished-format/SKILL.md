@@ -33,9 +33,9 @@ Full details: `docs/FINDINGS.md` §2–3, `tools/crs/crs.py`.
    ```
    Every file must decode **and consume every byte** of each block. Leftover bytes = missed field.
 3. **Port to Rust** in `crates/formats/src/<area>.rs` (`game.rs` for gameplay resources, `ui.rs`
-   for UI): a plain `pub struct` with documented fields (offset in the runtime object + meaning)
-   and `pub fn name(data: &[u8]) -> Result<T>`. No external deps. Cite the serializer address in
-   the doc comment.
+   for UI): a plain `pub struct` with documented fields (the meaning in `///`, the offset in the
+   runtime object in a `//` comment above) and `pub fn name(data: &[u8]) -> Result<T>`. No
+   external deps. End the doc comment with ``Original: `FUN_…`.`` naming the serializer.
 4. **Corpus test** in `crates/formats/tests/<name>.rs` modelled on `toolbar.rs`: open the four
    packages from `../../game-data/original/WinData`, **return early with a message if missing**,
    select entries by normalised name, parse every one, assert a sane count (`names.len() > N`)

@@ -31,6 +31,13 @@ a capability or a command, update the README's status or the crate's README. If 
 notice the change, add a line to the `Unreleased` section of [CHANGELOG.md](../../../CHANGELOG.md).
 Changes to controls, file locations or options also go in the [user guide](../../USER-GUIDE.md).
 
+**Doc comments.** Check that the rendered API documentation shows no addresses or offsets (see
+[the doc-comment style](../API.md#the-doc-comment-style)):
+
+```bash
+python3 tools/triage/doc_comments.py check
+```
+
 **Deviations.** If you added a `Deviation:` or `not ported` comment, update the list:
 
 ```bash

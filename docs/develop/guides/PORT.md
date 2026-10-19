@@ -23,11 +23,18 @@ it.
 
 - **Use the original's names.** Name modules and types after the original classes and resources
   (`ToolbarItem`, `GameplayLoop`).
-- **Name the source.** Put the original address in the doc comment of each ported function:
+- **Name the source.** Write the doc comment in plain English for readers of the API
+  documentation, and end it with one line that names the original function. Offsets, vtables and
+  `DAT_` constants go in an ordinary `//` comment, where the tracing tools still find them:
   ```rust
-  /// Port of FUN_1400be680 (speed step): speeds 1, 2, 5, 10.
+  // The speed level is Game +0x34.
+  /// The next game speed: 1, 2, 5, then 10.
+  ///
+  /// Original: `FUN_1400be680`.
   fn next_speed(level: usize) -> usize { … }
   ```
+  [The doc-comment style](../API.md#the-doc-comment-style) explains the rule, and
+  `python3 tools/triage/doc_comments.py check` finds doc lines that break it.
 - **Keep the data flow.** If the original builds a dialog from `Dialog/X.rsc` and fills it from
   resources, do the same. Do not build an interface in code that the game ships as a resource.
 - **Keep the constants.** Write each constant with its source address. Do not round or "tidy"

@@ -35,8 +35,9 @@ The full rules are in [AGENTS.md](../../AGENTS.md). These are the most important
 1. **Never commit game material.** The game files, extracted resources, decompiled code and
    save files stay on your computer. Git ignores the folders that hold them (`game-data/`,
    `analysis/`, `save-game/`).
-2. **Evidence before code.** Each ported function cites the original function in a comment,
-   for example `/// Port of FUN_1400be680: …`. A guess is marked *inferred* or *assumed*.
+2. **Evidence before code.** Each ported item cites the original function it came from, in the
+   last line of its doc comment: ``Original: `FUN_1400be680` ``. A guess is marked *inferred*
+   or *assumed*. See [the doc-comment style](API.md#the-doc-comment-style).
 3. **Mark every intentional difference** with a comment that contains `Deviation:`. The list
    of differences, [DEVIATIONS.md](../DEVIATIONS.md), is generated from these comments.
 4. **Do not change the game's results** in an optimisation or a refactor. Saves, frames and

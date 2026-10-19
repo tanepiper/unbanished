@@ -25,7 +25,7 @@ game, and [MENU-SCENE.md](../MENU-SCENE.md) describes the menu loop.
 
 ## One frame of the game
 
-The game loop's update (`FUN_14009b850`) runs a number of *simulation iterations*, then the work
+The game loop's update runs a number of *simulation iterations*, then the work
 that happens once per frame. The order was confirmed by running the original function in the
 emulator:
 

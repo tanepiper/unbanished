@@ -16,9 +16,10 @@ behaviour, data formats, constants and UI match the original executable — not 
    git-ignored and must stay that way. Do not paste decompiled C, disassembly listings, shader
    bytecode, or resource dumps into tracked files. Docs describe findings in prose, tables and
    addresses (`FUN_1400be770`), never copied code.
-2. **Evidence before code.** Every ported behaviour cites the original function address it came from
-   in a doc comment (`/// Port of FUN_1400be680: …`). If a value or rule is a guess, say
-   `inferred`/`assumed` in the comment and the doc.
+2. **Evidence before code.** Every ported behaviour cites the original function it came from: the
+   doc comment is plain English and ends with ``Original: `FUN_1400be680`.``; offsets, vtables and
+   `DAT_` constants go in `//` comments (rustdoc does not show them). If a value or rule is a
+   guess, say `inferred`/`assumed` in the comment and the doc.
 3. **Other sessions edit this repo concurrently.** Stage only your own files/hunks; never
    `git add -A`, never revert changes you did not make. See `banished-land`.
 4. **Back up as you go.** Commit and push to `origin main` after each coherent piece of work.

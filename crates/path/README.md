@@ -39,7 +39,7 @@ fn walk(size: usize, types: &[CellType], from: i32, to: i32) -> Option<Vec<i32>>
 ```
 
 - `regions` gives every cell the number of its connected walkable area (0 for none). The original
-  keeps it in the map cell at `+0x26`.
+  keeps it in each map cell.
 - `Pathfinder::new` starts with diagonal steps on, as the original does. `set_mode` chooses a
   mover's cost table, `set_type` and `set_blocked` change one cell when the map changes.
 - `request` checks the request as the original does: if neither end is water, both ends must be
