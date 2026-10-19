@@ -18,8 +18,8 @@
   <a href="#get-started">Get started</a> 路
   <a href="#controls">Controls</a> 路
   <a href="#faq">FAQ</a> 路
-  <a href="AGENTS.md">Contributing</a> 路
-  <a href="docs/FINDINGS.md">Research notes</a>
+  <a href="docs/PROCESS.md">How it was made</a> 路
+  <a href="AGENTS.md">Contributing</a>
 </p>
 
 <p align="center">
@@ -133,10 +133,11 @@ The defaults match the original game, and you can change them under **Options 鈫
 and it can't run without your own copy of the game. It is an independent, non-commercial
 project.
 
-**How was it made without the source code?** By studying how the original program behaves:
-tracing what each function does, then running parts of it in an emulator to check exact numbers.
-The findings are written up in plain language in [docs/](docs/FINDINGS.md), and the Rust code is
-written fresh from those notes. No original code is copied into this repository.
+**How was it made without the source code?** Ghidra turned the game's machine code into
+readable pseudocode. An AI agent read it, wrote down what each part does, and ran the original
+functions in an emulator to get exact numbers. Then it wrote new Rust code from those notes and
+tested it against the original. No original code is copied into this repository.
+[How Un-Banished was made](docs/PROCESS.md) explains each step.
 
 **Can I use my existing saves?** Yes, on the desktop. Un-Banished uses the original's save
 folder (`Documents/Banished/Save`), so your towns show up in the Load dialog. The browser version
@@ -173,7 +174,9 @@ cargo run -p banished-viewer --release
 ```
 
 Read **[AGENTS.md](AGENTS.md)** before contributing, whether by hand or with an AI agent. It has the
-project rules, the checks to run before a commit, and where to find things. Issues and pull
+project rules, the checks to run before a commit, and where to find things. [docs/FINDINGS.md](docs/FINDINGS.md)
+is the starting point for the research notes, and [docs/PROCESS.md](docs/PROCESS.md) explains the
+method. Issues and pull
 requests use the templates in [.github/](.github/).
 
 ## Licence
