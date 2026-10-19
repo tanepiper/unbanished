@@ -155,9 +155,9 @@ controller or dialog has its own module.
 | `src/mods.rs` | Finding and loading BanishedKit mods |
 | `src/start.rs`, `src/start/` | Starting a new game (`templates`, `placing`, `citizens`, `animals`, `sites`, `models`, …), and loading (`load/`) and saving (`save/`) a game |
 | `src/saves/` | Saved games, the save store and the autosave |
-| `src/ui/` | The game's windows: buildings, citizens, the Town Hall, trade, options, mods |
+| `src/ui/` | The game's windows: buildings (`building_ui/`, by kind of building), citizens, the Town Hall, trade, options, mods |
 | `src/view/` | The world as drawn: the generated world, the scene, the camera |
-| `src/gfx/` | Rendering: the renderer, models, decals, particles, shadows, highlights, screenshots, `terrain.wgsl` |
+| `src/gfx/` | Rendering: the renderer (`render/`: frames, uploads, render targets, lighting, the minimap, captures), models, decals, particles, shadows, highlights, screenshots, `terrain.wgsl` |
 | `src/audio/` | Music, ambience and sound effects |
 | `src/tools/` | The placement, removal and path tools, selection, following a citizen |
 | `src/platform/` | Desktop and browser differences, paths, the profiler |

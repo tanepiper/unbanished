@@ -123,7 +123,7 @@ stream, object by object, with the schemas in `savegame_schema`.
 | `texture` | `decode_rgba`: BC1, BC3 and the other image formats, to RGBA8 |
 | `skeleton` | Bone maths for skinned meshes |
 | `ui` | Dialogs, element descriptions, fonts, sprite sheets, cursors, string tables |
-| `game` | Gameplay resources: terrain and climate generators, map and environment descriptions, toolbar items, templates and their component descriptions, particles, and more |
+| `game` | Gameplay resources: terrain and climate generators, map and environment descriptions, toolbar items, templates and their component descriptions, particles, and more (one source file per topic in `src/game/`) |
 | `audio` | Sound effects, music lists, ambient emitters and environments |
 | `weather` | Rain and snow descriptions |
 | `scenario` | Achievements, scenarios, goals and tutorials |
