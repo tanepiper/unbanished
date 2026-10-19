@@ -14,18 +14,27 @@ use crate::error::{format_err, Result};
 /// A tiled decal (roads, fields, building footprints) drawn over the terrain.
 #[derive(Debug, Clone)]
 pub struct Decal {
+    /// The material.
     pub material: Option<String>,
+    /// Not identified yet.
     pub ints: [i32; 5],
+    /// Not identified yet.
     pub byte: u8,
+    /// Not identified yet.
     pub int6: i32,
+    /// Not identified yet.
     pub flag7: bool,
+    /// Not identified yet.
     pub floats: [f32; 5],
+    /// Not identified yet.
     pub flag13: bool,
+    /// Not identified yet (from version 2).
     pub flag_v2: bool,
     /// The three flags' bytes as written (saves hold some uninitialised non-0/1 bytes).
     pub flag_bytes: [u8; 3],
     /// 20-byte vertices: `i16 x4, i16 x4, u8 x4`.
     pub vertices: Vec<[u8; 20]>,
+    /// The triangle indices.
     pub indices: Vec<u16>,
 }
 
@@ -37,7 +46,9 @@ pub struct MapComponent {
     // +0xc0..+0xd4
     /// Size (2n), n, tile cells (32), tile vertices (33), width (2n+1), 33².
     pub dims: [i32; 6],
+    /// The ground heights.
     pub heights: Vec<i16>,
+    /// The terrain material.
     pub terrain_material: Option<String>,
     /// `size²` packed texels (see the terrain surface image).
     ///
@@ -45,63 +56,91 @@ pub struct MapComponent {
     pub surface: Vec<u8>,
     /// River and lake mesh: 16-byte vertices (`i16 x, y, z, w; i16 u, v; u8 x4`).
     pub water_vertices: Vec<[u8; 16]>,
+    /// The water mesh's triangle indices.
     pub water_indices: Vec<u16>,
+    /// The river material.
     pub river_material: Option<String>,
+    /// The lake material.
     pub lake_material: Option<String>,
     /// Draw ranges `(first index, first vertex, vertex count, index count)` per river and lake.
     pub river_ranges: Vec<[i32; 4]>,
+    /// The draw ranges of each lake.
     pub lake_ranges: Vec<[i32; 4]>,
     /// River centre lines.
     pub river_paths: Vec<Vec<[f32; 2]>>,
+    /// The tiled decals.
     pub decals: Vec<Decal>,
+    /// The first decal list of the second decal block.
     pub extra_decals: Vec<Decal>,
+    /// Not identified yet (from version 4).
     pub ints: Vec<i32>,
+    /// The decal materials (from version 6).
     pub decal_materials: Vec<Option<String>>,
 }
 
 /// One placed mesh: position, rotation and scale, then mesh and material table indices.
 #[derive(Debug, Clone, Copy)]
 pub struct Placement {
+    /// The position, the scale (x, y, z each) and the yaw in degrees.
     pub floats: [f32; 7],
+    /// The mesh, an index into the scene's meshes.
     pub mesh: i16,
+    /// The material set.
     pub material: i16,
 }
 
 /// The camera of a menu scene (also saved in game saves).
 #[derive(Debug, Clone, Copy)]
 pub struct SceneCamera {
-    /// Quaternion (x, y, z, w) then position.
+    /// The rotation, a quaternion (x, y, z, w).
     pub rotation: [f32; 4],
+    /// The position.
     pub position: [f32; 3],
+    /// The point it looks at.
     pub target: [f32; 3],
+    /// The yaw and pitch in degrees, and the distance.
     pub floats: [f32; 3],
 }
 
 /// A particle system placed in a menu scene.
 #[derive(Debug, Clone, Copy)]
 pub struct ParticlePlacement {
+    /// The position.
     pub position: [f32; 3],
+    /// The yaw, in degrees.
     pub yaw: f32,
+    /// The particle system, an index into the scene's systems.
     pub system: i32,
 }
 
 /// A main-menu scene: its map, its placed models and particles, and its camera.
 #[derive(Debug, Clone)]
 pub struct MenuScene {
+    /// The source `.msc` path.
     pub name: String,
+    /// The map.
     pub map: MapComponent,
+    /// The camera.
     pub camera: SceneCamera,
+    /// The placed models.
     pub placements: Vec<Placement>,
+    /// The meshes.
     pub meshes: Vec<Option<String>>,
+    /// The sky mesh.
     pub sky: Option<String>,
+    /// The season values: snow, autumn colour, leaf loss and rain.
     pub vector: [f32; 4],
     /// Sun, ambient and fog colours (`0xAARRGGBB`), as in `EnvironmentMonth`.
     pub colors: [u32; 3],
     /// Fog start, fog end, fog maximum, sun yaw, sun pitch (inferred from the draw code).
     pub floats: [f32; 5],
+    /// The weather effect (from version 2).
     pub effect: Option<String>,
+    /// The weather effect's intensity.
     pub effect_value: f32,
+    /// The placed particle systems.
     pub particles: Vec<ParticlePlacement>,
+    /// The particle systems (chimney and iron smoke).
     pub particle_systems: Vec<Option<String>>,
 }
 

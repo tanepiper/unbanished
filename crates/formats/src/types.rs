@@ -9,12 +9,19 @@ use crate::error::{format_err, Error, Result};
 /// `Video::ImageBuffer::Format`, mapped to DXGI by the VideoDX11 texture-creation table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageFormat {
+    /// BC1 (DXT1) blocks.
     Bc1,
+    /// BC3 (DXT5) blocks.
     Bc3,
+    /// One byte of alpha per pixel.
     A8,
+    /// One byte of red per pixel.
     R8,
+    /// Four bytes per pixel: blue, green, red, alpha.
     Bgra8,
+    /// One 32-bit float per pixel.
     R32F,
+    /// 24-bit depth and 8-bit stencil per pixel (*inferred*).
     R24G8,
 }
 
@@ -404,9 +411,10 @@ impl GraphicsMesh {
     /// geometry with the part (the DX9 block, then the DX11 block); later versions keep all of it
     /// in the two platform blocks at the end, the DX11 one led by an integer.
     ///
-    /// Original: `Graphics::GraphicsMesh::Serialize` (Runtime `0x180101c40`) and
-    /// `PlatformSerialize` (Runtime `0x1800a5830`); the version 0 part geometry, Runtime
-    /// `0x1800a55c0`.
+    /// Original: `Graphics::GraphicsMesh::Serialize` and `PlatformSerialize`; the version 0 part
+    /// geometry, Runtime `0x1800a55c0`.
+    ///
+    /// Original: Runtime `0x180101c40`, Runtime `0x1800a5830`.
     pub fn read(r: &mut Reader) -> Result<Self> {
         /// One part's draw ranges and buffers (DX11).
         fn geometry(r: &mut Reader, part: &mut MeshPart) -> Result<()> {

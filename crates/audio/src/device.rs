@@ -9,7 +9,8 @@
 //! graph (a gain node per channel into a master gain) in the browser. The end callback becomes the
 //! list of channels `update` returns.
 //!
-//! Original: Runtime `0x1800e0ad0`, Runtime `0x1800e0ff0`, Runtime `0x1800e0d70`, Runtime `0x1800e0a50`.
+//! Original: Runtime `0x1800e0ad0`, Runtime `0x1800e0ff0`, Runtime `0x1800e0d70`, Runtime
+//! `0x1800e0a50`.
 
 use std::sync::Arc;
 use std::time::Duration;

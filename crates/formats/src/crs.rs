@@ -281,8 +281,11 @@ impl<'a> Reader<'a> {
 /// The header of a resource.
 #[derive(Debug, Clone)]
 pub struct Header {
+    /// The id of the object's type.
     pub type_id: u32,
+    /// The file version.
     pub file_version: u32,
+    /// The resources it depends on.
     pub dependencies: Vec<String>,
 }
 
@@ -334,6 +337,7 @@ pub fn header(data: &[u8]) -> Result<Header> {
 /// blocks whose size is filled in when they close.
 #[derive(Default)]
 pub struct Writer {
+    /// The bytes written.
     pub data: Vec<u8>,
     /// Set in reference mode (saves): external pointers are written as ids from this table.
     reference_ids: Option<std::collections::BTreeMap<String, u32>>,

@@ -116,6 +116,7 @@ fn is_reference(s: &str) -> bool {
 /// and the reference as first written.
 #[derive(Debug, Default, Clone)]
 pub struct Registry {
+    /// Each resource, by lower-case reference: its type id and the reference as first written.
     pub loaded: BTreeMap<String, (u32, String)>,
 }
 

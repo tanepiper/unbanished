@@ -24,6 +24,7 @@ pub struct NameTransition {
 /// A name database (`Game/Names/*`): the records from which citizen and town names are made.
 #[derive(Debug, Clone)]
 pub struct NameDatabase {
+    /// The transition records.
     pub transitions: Vec<NameTransition>,
     /// Indices into `transitions`, sampled by the game's generator.
     pub starting_transitions: Vec<u16>,

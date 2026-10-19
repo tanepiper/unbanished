@@ -8,8 +8,9 @@ use super::*;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Disease {
     // +0x20; +0x28
-    /// string table and key of the name.
+    /// The string table of the name.
     pub table: Option<String>,
+    /// The name's key.
     pub name: String,
     // +0x30
     /// Spread interval in 300 s units.
@@ -401,7 +402,9 @@ pub struct CitizenDescription {
 /// A value of the citizen description: a float or an integer.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Scalar {
+    /// A float.
     F32(f32),
+    /// An integer.
     I32(i32),
 }
 

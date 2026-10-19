@@ -1,3 +1,6 @@
+//! Prints the `ClimateGenerator` resources given on the command line:
+//! `climate_info <file.crs> [...]`.
+
 use std::{env, fs, process};
 
 use banished_formats::game::climate_generator;

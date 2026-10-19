@@ -134,7 +134,8 @@ pub enum Kind {
         frames_per_second: i32,
         /// The frame shown now.
         frame: usize,
-        /// Its own clock (`+0xf8`), from its creation, kept within one loop of the frames.
+        // +0xf8
+        /// Its own clock, from its creation, kept within one loop of the frames.
         clock: f64,
     },
     /// A button: one child element for each state, and its content.
@@ -166,7 +167,8 @@ pub enum Kind {
         min_text_width: i32,
         /// The space between the icon and the text, in pixels.
         gap: i32,
-        /// The icon's colour (`+0x128`, `LabelElement::SetSpriteColor`), drawn as it is.
+        // +0x128
+        /// The icon's colour (`LabelElement::SetSpriteColor`), drawn as it is.
         icon_color: u32,
     },
     /// Reserves space the application draws into (3D view, previews).

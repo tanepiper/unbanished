@@ -129,12 +129,15 @@ pub enum Control {
         value: f32,
         /// The share of the content that is visible, from 0 to 1.
         page: f32,
-        /// The bar's inset at both ends of the track (`+0x15c`, ScrollDescription `+0xbc`).
+        // +0x15c; +0xbc
+        /// The bar's inset at both ends of the track (ScrollDescription).
         inset: i32,
-        /// The thumb's colour (`+0x154`).
+        // +0x154
+        /// The thumb's colour.
         thumb_color: u32,
-        /// A drag from the thumb (flag `0x200000`): the value and the pointer's coordinate
-        /// along the bar when it began (`+0x16c`).
+        // +0x16c
+        /// A drag from the thumb (flag `0x200000`): the value and the pointer's coordinate along
+        /// the bar when it began.
         drag: Option<(f32, i32)>,
     },
     /// A progress bar.
@@ -218,8 +221,9 @@ pub enum Control {
         offset: [i32; 2],
         /// The visible part of the content: x0, y0, x1, y1.
         view: [i32; 4],
-        /// `ContainerElement::Update`: the wheel's frames still to scroll (`+0xd0`, ±7 a
-        /// notch) and the vertical bar's value (`ScrollElement +0x160`, in pixels).
+        // +0xd0; ScrollElement +0x160
+        /// `ContainerElement::Update`: the wheel's frames still to scroll (±7 a notch) and the
+        /// vertical bar's value (`ScrollElement`, in pixels).
         wheel: i32,
         /// The vertical bar's position, in pixels.
         fine: f32,

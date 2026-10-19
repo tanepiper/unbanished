@@ -4,7 +4,12 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     /// Input ended before a read completed.
-    Truncated { at: usize, wanted: usize },
+    Truncated {
+        /// Where the read started.
+        at: usize,
+        /// How many bytes it wanted.
+        wanted: usize,
+    },
     /// Structural check failed (bad marker, size mismatch, unread bytes...).
     Format(String),
     /// Data is valid but uses a variant this crate does not handle yet.

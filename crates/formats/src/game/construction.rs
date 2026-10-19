@@ -18,8 +18,9 @@ pub struct CreatePlacedDescription {
     /// Not identified yet.
     pub name: String,
     // +0x44, +0x48
-    /// Footprint width and height in cells.
+    /// The footprint's width in cells.
     pub width: i32,
+    /// The footprint's height in cells.
     pub height: i32,
     // +0x40
     /// Not identified yet.
@@ -63,11 +64,17 @@ pub fn create_placed_description(data: &[u8]) -> Result<CreatePlacedDescription>
 /// Original: `FUN_140048250`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CreateFencedDescription {
+    /// The cell types it may cover.
     pub mask: u32,
+    /// The part templates: shelter, end, corner, straight, long straight, gate.
     pub parts: Vec<Option<String>>,
+    /// The largest size.
     pub max: (i32, i32),
+    /// The smallest size.
     pub min: (i32, i32),
+    /// Whether the shelter is centred on its side.
     pub centered: bool,
+    /// The template whose entities may stand in the way.
     pub clear: Option<String>,
 }
 
@@ -103,7 +110,9 @@ pub fn create_fenced_description(data: &[u8]) -> Result<CreateFencedDescription>
 /// Original: `FUN_14011f150`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CreateRoadDescription {
+    /// The road kind: 0 stone, 1 dirt. A lower kind replaces a higher one.
     pub kind: u8,
+    /// The raw material a cell takes (none for dirt).
     pub material: Option<String>,
 }
 
@@ -134,12 +143,19 @@ pub fn create_road_description(data: &[u8]) -> Result<CreateRoadDescription> {
 /// Original: `FUN_14011eaa0`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CreateBridgeDescription {
+    /// The cell types it spans (water).
     pub span: u32,
+    /// The cell types of its banks.
     pub banks: u32,
+    /// Further cell types drawn as valid.
     pub shown: u32,
+    /// The cell types of which at least one spanned cell is needed.
     pub needs: u32,
+    /// The cell types allowed beside it.
     pub sides: u32,
+    /// Its half width, in cells.
     pub half_width: i32,
+    /// The part templates: the start, then 1, 2, 4 and 8 cells long.
     pub parts: Vec<Option<String>>,
 }
 
@@ -180,7 +196,9 @@ pub fn create_bridge_description(data: &[u8]) -> Result<CreateBridgeDescription>
 /// Original: `FUN_140124b50`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FloorDescription {
+    /// The picking mesh walked on.
     pub mesh: Option<String>,
+    /// Whether the floor is added on activation.
     pub active: bool,
 }
 
@@ -204,15 +222,19 @@ pub fn floor_description(data: &[u8]) -> Result<FloorDescription> {
 }
 
 // +0x20; +0x28; +0x30; +0x34
-/// `TerraformDescription`: a tunnel's floor and ceiling picking meshes, each with the cell types,
+/// `TerraformDescription`: a tunnel's floor and ceiling picking meshes, each with the cell types
 /// its vertices may change.
 ///
 /// Original: `FUN_140058000`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TerraformDescription {
+    /// The floor's picking mesh.
     pub floor: Option<String>,
+    /// The cell types the floor's vertices may change.
     pub floor_mask: u32,
+    /// The ceiling's picking mesh.
     pub ceiling: Option<String>,
+    /// The cell types the ceiling's vertices may change.
     pub ceiling_mask: u32,
 }
 
@@ -253,10 +275,13 @@ pub struct CreateRemovalDescription {
     /// The marker entity's template (`Template\Clear.rsc:resource`).
     pub template: Option<String>,
     // +0x40; +0x41; +0x42; +0x43
-    /// roads, demolish buildings, cancel, prioritise.
+    /// Remove roads.
     pub roads: bool,
+    /// Demolish buildings.
     pub buildings: bool,
+    /// Cancel.
     pub cancel: bool,
+    /// Prioritise.
     pub priority: bool,
 }
 
@@ -299,9 +324,13 @@ pub struct CreateDragDescription {
     ///
     /// Original: read by `FUN_1400a4aa0`.
     pub mask: u32,
+    /// Not identified yet.
     pub value_28: i32,
+    /// Not identified yet.
     pub value_2c: i32,
+    /// Not identified yet.
     pub value_30: i32,
+    /// Not identified yet.
     pub value_34: i32,
     // +0x24
     /// Ignore cell occupants.
@@ -382,9 +411,13 @@ pub fn build_description(data: &[u8]) -> Result<BuildDescription> {
 /// Original: `FUN_140123340`, `FUN_14012a4f0`, `FUN_140122aa0`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DestroyDescription {
+    /// The template left in the building's place once it is torn down (the quarry's and mine's hole; none for most).
     pub replace: Option<String>,
+    /// The ModelComponent's material set while damaged.
     pub material: i32,
+    /// The decal while damaged.
     pub decal: i32,
+    /// The lowest construction mesh a collapse steps down to.
     pub min_mesh: i32,
 }
 
@@ -420,9 +453,11 @@ pub struct ClearAreaDescription {
     /// Original: `FUN_1400ebe30`.
     pub reference: Option<String>,
     // +0x28..+0x2a
-    /// The ClearArea work's flags (natural resources, empty cells, piles).
+    /// The ClearArea work clears natural resources.
     pub clear_resources: bool,
+    /// The ClearArea work clears empty cells.
     pub clear_cells: bool,
+    /// The ClearArea work clears piles.
     pub clear_piles: bool,
     // +0x2b
     /// Register the work keeping its priority.
@@ -437,6 +472,7 @@ pub struct ClearAreaDescription {
     ///
     /// Original: `FUN_14011d230`.
     pub instant: bool,
+    /// Not identified yet.
     pub value_30: i32,
 }
 

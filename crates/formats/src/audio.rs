@@ -11,16 +11,21 @@ use crate::error::{format_err, Result};
 pub struct SoundVariant {
     /// `Audio\…\X.rsc:resource` SoundBuffer.
     pub buffer: Option<String>,
-    /// Semitones; `GetSoundBuffer` draws uniformly in `[pitch_min, pitch_max]`.
+    /// The lowest pitch, in semitones. `GetSoundBuffer` draws uniformly in
+    /// `[pitch_min, pitch_max]`.
     pub pitch_min: f32,
+    /// The highest pitch, in semitones.
     pub pitch_max: f32,
+    /// The volume.
     pub volume: f32,
 }
 
 /// A sound of the effect's timeline: starts `start` seconds after the effect.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EffectSound {
+    /// When it starts, in seconds after the effect.
     pub start: f32,
+    /// The variants.
     pub variants: Vec<SoundVariant>,
 }
 
@@ -36,6 +41,7 @@ pub struct SoundEffect {
     // +0x24
     /// Full-volume distance.
     pub inner_radius: f32,
+    /// The timeline's sounds.
     pub sounds: Vec<EffectSound>,
     // +0x28
     /// The effect's length in microseconds; 0 when a sound loops (the effect never ends). The
@@ -87,6 +93,7 @@ pub fn sound_effect(data: &[u8]) -> Result<SoundEffect> {
 /// Original: `FUN_1400a95b0`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MusicTrack {
+    /// The music's sound effect.
     pub effect: Option<String>,
     // +0x8, +0xc
     /// Mood range (health and happiness fractions, averaged).
@@ -125,7 +132,9 @@ pub fn music_list(data: &[u8]) -> Result<Vec<MusicTrack>> {
 /// Original: `FUN_14008d310`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AnimAudioEvent {
+    /// The effect.
     pub effect: Option<String>,
+    /// The probability that it plays.
     pub probability: f32,
 }
 
@@ -155,7 +164,9 @@ pub fn anim_audio_event(data: &[u8]) -> Result<AnimAudioEvent> {
 /// Original: `FUN_140043b10`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AmbientEmitterDescription {
+    /// The effects.
     pub effects: Vec<Option<String>>,
+    /// Whether activation starts them.
     pub autostart: bool,
 }
 
@@ -188,9 +199,11 @@ pub struct AmbientTerrain {
     pub cell_mask: u32,
     /// When set, only cells whose entity uses this template count.
     pub entity: Option<String>,
-    /// Played at `t` and `1 - t` of the temperature cross-fade.
+    /// The warm effect, played at `t` of the temperature cross-fade.
     pub warm: Option<String>,
+    /// The cold effect, played at `1 - t` of the temperature cross-fade.
     pub cold: Option<String>,
+    /// The weight it adds for each cell counted.
     pub weight: i32,
 }
 
@@ -199,6 +212,7 @@ pub struct AmbientTerrain {
 /// Original: `FUN_1400442b0`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AmbientEnvironmentDescription {
+    /// The terrain classes.
     pub terrains: Vec<AmbientTerrain>,
     // +0x30, +0x34; +0x18
     /// Environment range of the cross-fade.

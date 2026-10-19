@@ -1,15 +1,18 @@
 //! Achievements, scenarios and tutorials (`Game/Achievement`, `Game/Scenario`). See
 //! docs/ACHIEVEMENTS.md and docs/TUTORIAL.md.
 //!
-//! - `Achievement::Achievement`: its string table, title, description, sprite sheet and sprite,
-//!   and its goals.
+//! - `Achievement::Achievement`: its string table, title, description, sprite sheet and sprite, and
+//!   its goals.
 //! - A string table and text; then each class's own block: BuildingGoal, PopulationGoal, StatGoal,
 //!   TimeGoal, FinishTutorialGoal.
 //! - `Scenario`: an achievement, then the game it starts.
 //! - `Tutorial` and its steps, setups, goals and images.
 //!
-//! Original: `Achievement::Achievement::Serialize` (Runtime `0x18009eb70`), `Achievement::Goal`
-//! (Runtime `0x18009fd30`), `FUN_1400dcb70`, `FUN_1400dcd40`, `FUN_1400dfd80`, `FUN_1400dfff0`, `FUN_1400dcea0`, `FUN_1400ae840`, `FUN_1400e3fa0`.
+//! Original: `Achievement::Achievement::Serialize`, `Achievement::Goal`, `FUN_1400dcb70`,
+//! `FUN_1400dcd40`, `FUN_1400dfd80`, `FUN_1400dfff0`, `FUN_1400dcea0`, `FUN_1400ae840`,
+//! `FUN_1400e3fa0`.
+//!
+//! Original: Runtime `0x18009eb70`, Runtime `0x18009fd30`.
 
 use crate::crc::type_id;
 use crate::crs::{self, Reader};
@@ -19,15 +22,17 @@ use crate::error::{format_err, Result};
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Achievement {
     // +0x20
-    /// Not identified yet.
+    /// The string table.
     pub strings: Option<String>,
     // +0x28, +0x30
-    /// The title's and description's keys.
+    /// The title's key.
     pub title: String,
+    /// The description's key.
     pub description: String,
     // +0x38; +0x40
-    /// Not identified yet.
+    /// The sprite sheet.
     pub sprites: Option<String>,
+    /// The sprite.
     pub sprite: String,
     // +0x48
     /// The goals.
@@ -58,33 +63,60 @@ fn achievement(r: &mut Reader) -> Result<Achievement> {
 /// A Goal's own fields, by class.
 #[derive(Debug, Clone, PartialEq)]
 pub enum GoalKind {
-    /// `+0x30` all of them (else any), `+0x38` the buildings (ComponentDescriptions).
-    Building { all: bool, buildings: Vec<String> },
-    /// `+0x30` citizens.
+    // +0x30; +0x38
+    /// Some buildings exist.
+    Building {
+        /// Whether all of the buildings must exist (else any).
+        all: bool,
+        /// The buildings (ComponentDescriptions).
+        buildings: Vec<String>,
+    },
+    // +0x30
+    /// The population is at least this many citizens.
     Population(i32),
-    /// `+0x30..` three enums, an amount, a flag, two references, an enum and an amount.
+    // +0x30..
+    /// A statistic compared with an amount or with a second statistic.
     Stat {
+        /// The statistic.
         e30: i32,
+        /// The second statistic, for odd comparisons.
         e34: i32,
+        /// The comparison: 0/1 equal, 2/3 not, 4/5 less, 6/7 at most, 8/9 more, 10/11 at least.
         e38: i32,
+        /// The amount the statistic is compared with.
         amount: i32,
+        /// Whether the goal is met until the comparison holds, then fails.
         flag: bool,
+        /// The statistic's reference.
         r48: String,
+        /// The second statistic's reference.
         r60: String,
+        /// Raw-material flags, for the statistics that take them.
         e78: i32,
+        /// A number, for the statistics that take it.
         i7c: i32,
     },
-    /// `+0x30` years, `+0x34` (within that time, else after it).
-    Time { years: i32, within: bool },
-    /// `+0x30` the tutorial.
+    // +0x30; +0x34
+    /// A number of years passed.
+    Time {
+        /// The years.
+        years: i32,
+        /// Whether the goal must be met within that time (else after it).
+        within: bool,
+    },
+    // +0x30
+    /// The tutorial is done.
     FinishTutorial(Option<String>),
 }
 
 /// `Achievement::Goal`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Goal {
+    /// The string table.
     pub strings: Option<String>,
+    /// The text's key.
     pub text: String,
+    /// The class's own fields.
     pub kind: GoalKind,
 }
 
@@ -143,10 +175,12 @@ pub fn achievement_description(data: &[u8]) -> Result<Achievement> {
 /// `Scenario` (an Achievement).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Scenario {
+    /// The achievement.
     pub achievement: Achievement,
     // +0x60; +0x64
     /// Not identified yet.
     pub i60: i32,
+    /// Not identified yet.
     pub i64: i32,
     // +0x58
     /// The town's name.
@@ -154,7 +188,9 @@ pub struct Scenario {
     // +0x70; +0x78; +0x80
     /// Not identified yet.
     pub r70: Option<String>,
+    /// Not identified yet.
     pub r78: Option<String>,
+    /// Not identified yet.
     pub r80: Option<String>,
     // +0x88
     /// The save to start from (`Save\{name}.sav` in the data, the tutorials'), empty for a new
@@ -165,6 +201,7 @@ pub struct Scenario {
     // +0x68; +0x69
     /// Not identified yet.
     pub b68: bool,
+    /// Not identified yet.
     pub b69: bool,
 }
 
@@ -204,8 +241,11 @@ fn refs(r: &mut Reader) -> Result<Vec<Option<String>>> {
 /// Original: `FUN_1400e6240`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Tutorial {
+    /// The steps.
     pub steps: Vec<Option<String>>,
+    /// The window (a UIDescription template, opened at the right edge).
     pub window: Option<String>,
+    /// The scenario to start when it is done (none below 0).
     pub next: i32,
 }
 
@@ -216,63 +256,104 @@ pub struct Tutorial {
 /// Original: `FUN_1400e69f0`, `FUN_1400e7280`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TutorialStep {
+    /// Whether this is a checkpoint (a loaded game resumes at the latest one).
     pub checkpoint: bool,
+    /// The string table.
     pub strings: Option<String>,
+    /// The text before.
     pub pre: String,
+    /// The text after.
     pub post: String,
+    /// The images.
     pub images: Vec<Option<String>>,
+    /// The set-ups.
     pub setups: Vec<Option<String>>,
+    /// The goals.
     pub goals: Vec<Option<String>>,
 }
 
 /// One part of a tutorial: the tutorial itself, a step, or a set-up dialog.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TutorialPart {
+    /// The tutorial.
     Tutorial(Tutorial),
+    /// A step.
     Step(TutorialStep),
-    /// `+0x20`, `+0x30` string lists, `+0x40` a string, `+0x50` a reference, `+0x48`, a
-    /// ComponentDescription path `+0x58`, `+0x70`.
+    // +0x20; +0x30; +0x40; +0x50; +0x48; +0x58; +0x70
+    /// A set-up that limits the interface and points at an element.
     SetupDialog {
+        /// The elements left usable.
         a: Vec<String>,
+        /// More elements left usable.
         b: Vec<String>,
+        /// The element to point at.
         s40: String,
+        /// The highlight dialog.
         r50: Option<String>,
+        /// The angle of the pointer.
         i48: i32,
+        /// A ComponentDescription.
         component: String,
+        /// Not identified yet.
         i70: i32,
     },
+    /// Moves the camera to two cells.
     SetupCamera([i32; 4]),
+    /// Sets the game speed.
     SetupGameSpeed {
+        /// The speed.
         speed: i32,
+        /// Whether it unpauses the game.
         b24: bool,
     },
+    /// Limits what the player may place, and where.
     SetupRestrictPlayer {
+        /// A rectangle of cells, then one more value.
         values: [i32; 5],
+        /// The first template.
         s38: String,
+        /// The second template.
         s50: String,
     },
+    /// An element was pressed.
     GoalButton {
+        /// The element's path.
         s20: String,
+        /// Not identified yet.
         b28: bool,
     },
+    /// A count reached a number.
     GoalCount {
+        /// What is counted.
         e20: i32,
+        /// The number.
         i24: i32,
+        /// The template.
         s30: String,
+        /// Whether the count must be at least the number (else exactly).
         b28: bool,
+        /// The spinner's path, for kind 9.
         s48: String,
     },
+    /// A dialog is open.
     GoalDialog {
+        /// The dialog.
         s20: String,
+        /// The template of the entity it is open on.
         component: String,
     },
+    /// The game speed is this value.
     GoalGameSpeed(i32),
-    /// TutorialImage and its classes: `+0x28`, `+0x2c`, `+0x20` a reference, then the
-    /// class's own (a toolbar path, a key).
+    // +0x28; +0x2c; +0x20
+    /// A TutorialImage and its classes.
     Image {
+        /// The column.
         i28: i32,
+        /// The row.
         i2c: i32,
+        /// The element.
         r20: Option<String>,
+        /// What the class adds.
         extra: ImageExtra,
     },
 }
@@ -280,9 +361,13 @@ pub enum TutorialPart {
 /// What a tutorial image adds: a key name, an input key, or a toolbar icon.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImageExtra {
+    /// Nothing.
     None,
+    /// A toolbar item's key.
     HotKey(String),
+    /// A key-map action's key.
     InputKey(i32),
+    /// A toolbar item's icon.
     ToolbarIcon(String),
 }
 

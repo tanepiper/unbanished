@@ -26,21 +26,35 @@ pub type ObjId = i32;
 /// A decoded value.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
+    /// A bool.
     Bool(bool),
+    /// An `i8`.
     I8(i8),
+    /// An `i16`.
     I16(i16),
+    /// A `u16`.
     U16(u16),
+    /// An `i32`.
     I32(i32),
+    /// A `u32`.
     U32(u32),
+    /// An `i64`.
     I64(i64),
+    /// An `f32`.
     F32(f32),
+    /// A list of `f32`.
     F32s(Vec<f32>),
+    /// A list of `i64`.
     I64s(Vec<i64>),
+    /// A list of `u32`.
     U32s(Vec<u32>),
+    /// A string.
     Str(String),
     /// An external reference id (`u32::MAX` for none).
     Ext(u32),
+    /// An internal pointer to an object (none for null).
     Ptr(Option<ObjId>),
+    /// A list of records.
     List(Vec<Fields>),
     /// A nested block: its version and fields.
     Block(u32, Fields),
@@ -177,12 +191,16 @@ impl Fields {
 /// A decoded object.
 #[derive(Debug, Clone)]
 pub struct Object {
+    /// Its number in the stream.
     pub index: ObjId,
     // Internal +0x0c
     /// `Internal`, drawn on the factory's own Random.
     pub tag: u32,
+    /// The type's id.
     pub type_id: u32,
+    /// The type's name.
     pub type_name: &'static str,
+    /// The decoded fields.
     pub fields: Fields,
 }
 
@@ -192,31 +210,43 @@ pub struct GameState {
     /// The external reference table (`ExternalFactory::SerializeReferenceTable`).
     pub references: BTreeMap<u32, String>,
     // +0x40; +0x48; +0x30; +0x34; +0xd0; +0x15c; Game +0x50
-    /// The loop's own fields (`Game`).
+    /// The climate.
     pub climate: u32,
+    /// The start condition.
     pub start_condition: u32,
+    /// The terrain type.
     pub terrain: u32,
+    /// The map seed.
     pub seed: u32,
+    /// The map size.
     pub size: i32,
+    /// The game's flags.
     pub flags: u32,
+    /// The scenario.
     pub scenario: i32,
-    /// The game's Random (`System::Random::Serialize`): its index and 624 words.
+    /// The index of the game's Random (`System::Random::Serialize`).
     pub random_index: u32,
+    /// The 624 words of the game's Random.
     pub random_state: Vec<u32>,
+    /// The town's name.
     pub town_name: String,
     // +0x158, +0x150
     /// The goal's state.
     pub goal_done: bool,
+    /// The goal, if any.
     pub goal: Option<ObjId>,
     // +0xa8; +0xbc; +0x18; +0x1f; +0x1c; +0x20
-    /// The entity manager: its clock, the entities, the scheduler's five bucket lists, its two
-    /// five-int arrays and each entity's schedule (low 24 bits, the time).
+    /// The entity manager's clock.
     ///
     /// Original: `FUN_1400c9970`, `FUN_140022500`.
     pub entity_time: i64,
+    /// The entities.
     pub entities: Vec<Option<ObjId>>,
+    /// The scheduler's five bucket lists.
     pub buckets: Vec<Vec<Option<ObjId>>>,
+    /// The scheduler's two five-int arrays.
     pub bucket_values: [[i32; 5]; 2],
+    /// Each entity's schedule (the low 24 bits; the time).
     pub schedules: Vec<(i32, i32, i32, i64)>,
     /// The game loop serializer's version (3 in the samples).
     pub version: u32,
@@ -224,13 +254,14 @@ pub struct GameState {
     pub wide_strings: bool,
     /// `InternalFactory::ResetPersistState`'s block, as written.
     pub persist_state: Vec<u8>,
+    /// The entity manager block's version.
     pub entity_manager_version: u32,
     /// `AchievementManager::Persist`: the achievement instances.
     pub achievements: Fields,
-    /// Whole blocks (markers included) that are carried through undecoded; empty ones (a new
-    /// game) are written as the engine's empty state ([`empty_animations`],
-    /// [`empty_audio_scene`]).
+    /// The animations: a whole block (markers included) carried through undecoded. An empty one
+    /// (a new game) is written as the engine's empty state ([`empty_animations`]).
     pub animations: Vec<u8>,
+    /// The sound scene: a whole block carried through undecoded. An empty one is written as the engine's empty state ([`empty_audio_scene`]).
     pub audio_scene: Vec<u8>,
     /// The game camera.
     ///
@@ -251,6 +282,7 @@ pub struct GameState {
     /// The blocks after the map: `jobs`, `tools`, `calendar`, `event_log`, `environment` and
     /// `minimap` (see `savegame_schema`).
     pub managers: Fields,
+    /// Every object in the stream, by number.
     pub objects: BTreeMap<ObjId, Object>,
 }
 
@@ -277,13 +309,16 @@ pub struct GameMapCell {
 }
 
 // +0x90
-/// The gameplay map (version 4): `size × size` cells and nine shorts.
+/// The gameplay map (version 4).
 ///
 /// Original: `FUN_1400a45d0`.
 #[derive(Debug, Clone, Default)]
 pub struct GameMap {
+    /// The map's size in cells.
     pub size: i32,
+    /// The `size × size` cells.
     pub cells: Vec<GameMapCell>,
+    /// Nine shorts after the cells; not identified yet.
     pub trailer: [i16; 9],
 }
 

@@ -8,7 +8,9 @@ use super::*;
 /// Original: `FUN_1400d74e0`; the toolbar is built by `FUN_1400bede0`.
 #[derive(Debug, Clone)]
 pub struct ToolbarItem {
+    /// The string table.
     pub string_table: Option<String>,
+    /// The icon's sprite sheet.
     pub sprite_sheet: Option<String>,
     /// Tooltip string key.
     pub tooltip: String,
@@ -72,11 +74,17 @@ pub fn toolbar_item(data: &[u8]) -> Result<ToolbarItem> {
 /// Original: `FUN_140132f00`.
 #[derive(Debug, Clone)]
 pub struct ToolbarDescription {
+    /// The icon's sprite sheet.
     pub sprite_sheet: Option<String>,
+    /// The icon's sprite.
     pub sprite: String,
+    /// The string table.
     pub string_table: Option<String>,
+    /// The name's key.
     pub name: String,
+    /// The key of the name in lower case, shown in the create bar.
     pub name_lower: String,
+    /// The tooltip's key.
     pub tooltip: String,
     /// Message keys (`CreateOk`, `CreateBlocked`, …).
     pub messages: Vec<String>,
@@ -145,6 +153,7 @@ pub struct UiDescription {
     // +0x40
     /// Not identified yet.
     pub flags: i32,
+    /// The controllers.
     pub controllers: Vec<UiController>,
     // +0x20
     /// Not identified yet.
@@ -188,8 +197,11 @@ pub fn ui_description(data: &[u8]) -> Result<UiDescription> {
 /// Original: `FUN_140131650`, `FUN_140039280`.
 #[derive(Debug, Clone)]
 pub struct StatusIconDescription {
+    /// The icon sprite sheet.
     pub sheet: Option<String>,
+    /// The icon size.
     pub size: f32,
+    /// Whether the icon keeps its size on screen.
     pub screen_constant: bool,
 }
 

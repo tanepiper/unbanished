@@ -12,8 +12,9 @@ pub struct NaturalResourceDescription {
     /// The raw material it yields.
     pub raw_material: Option<String>,
     // +0x28, +0x2c
-    /// Placement noise persistence and octaves.
+    /// The placement noise's persistence.
     pub noise_persistence: f32,
+    /// The placement noise's octaves.
     pub noise_octaves: f32,
     // +0x30
     /// Placement noise scale (sampled at `cell / scale`).
@@ -28,19 +29,22 @@ pub struct NaturalResourceDescription {
     /// Choose the model variant by noise clusters.
     pub cluster: bool,
     // +0x4c, +0x50
-    /// Cluster noise persistence and octaves.
+    /// The cluster noise's persistence.
     pub cluster_persistence: f32,
+    /// The cluster noise's octaves.
     pub cluster_octaves: f32,
     // +0x54, +0x58
-    /// Cluster noise scale and threshold.
+    /// The cluster noise's scale.
     pub cluster_scale: f32,
+    /// The cluster noise's threshold.
     pub cluster_threshold: f32,
     // +0x5c
     /// 1-in-N chance of a random variant instead.
     pub random_variant_one_in: i32,
     // +0x3c, +0x40
-    /// Ground height range.
+    /// The lowest ground height.
     pub height_min: f32,
+    /// The highest ground height.
     pub height_max: f32,
     // +0x44
     /// Minimum ground normal z.
@@ -49,8 +53,9 @@ pub struct NaturalResourceDescription {
     /// Transition flag (GAME-LOOP-STEP-14).
     pub flag: bool,
     // +0x68, +0x70
-    /// `System::Time` values (microseconds).
+    /// A time in microseconds; not identified yet.
     pub time_a: i64,
+    /// A time in microseconds; not identified yet.
     pub time_b: i64,
     // +0x80
     /// Not identified yet.
@@ -112,14 +117,23 @@ pub struct GrowthDescription {
     ///
     /// Original: `FUN_140125bc0`, `FUN_140056620`.
     pub max_base: f32,
+    /// The random range of the maximum growth.
     pub max_range: f32,
+    /// The growing time, in months of 300 seconds.
     pub f28: f32,
+    /// Whether the temperature changes the growth rate.
     pub b2c: bool,
+    /// The best temperature.
     pub f30: f32,
+    /// The range of temperatures around the best one.
     pub f34: f32,
+    /// Not identified yet.
     pub b38: bool,
+    /// The map-byte factor when a resource of the same template is removed.
     pub f3c: f32,
+    /// The map-byte factor otherwise, and when growth ends.
     pub f40: f32,
+    /// Whether it spawns children from time to time.
     pub b44: bool,
     // +0x4c
     /// Spawn radius in cells (`RandTol`).
@@ -141,6 +155,7 @@ pub struct GrowthDescription {
     // +0x5c
     /// Maximum neighbours of the same growth type.
     pub max_same: i32,
+    /// The smallest visible scale.
     pub f60: f32,
     // +0x64
     /// Scale shape: false = uniform growth, true = `(g/0.15, g/0.15, g, 1)` clamped.
@@ -185,8 +200,11 @@ pub fn growth_description(data: &[u8]) -> Result<GrowthDescription> {
 /// One `SpawnDescription` entry: a template spawned while the parent's growth is in `[lo, hi]`.
 #[derive(Debug, Clone)]
 pub struct SpawnEntry {
+    /// The template spawned.
     pub template: Option<String>,
+    /// The lowest growth of the parent.
     pub lo: f32,
+    /// The highest growth of the parent.
     pub hi: f32,
 }
 
@@ -225,12 +243,14 @@ pub struct HerdDescription {
     /// The animal template.
     pub animal: Option<String>,
     // +0x28, +0x2c
-    /// The most and fewest animals.
+    /// The most animals.
     pub max: i32,
+    /// The fewest animals.
     pub min: i32,
     // +0x30, +0x34
-    /// The rest between moves (× 300 s), base and random part.
+    /// The rest between moves (× 300 s): the base.
     pub rest: f32,
+    /// The random part of the rest.
     pub rest_range: f32,
     // +0x38
     /// The side of the herd's area in cells.
@@ -282,23 +302,25 @@ pub struct AnimalDescription {
     /// Original: `FUN_14012da40`.
     pub space: i32,
     // +0x28, +0x2c
-    /// The lifespan in years, base and tolerance.
+    /// The lifespan in years: the base.
     pub life: f32,
+    /// The tolerance of the lifespan.
     pub life_range: f32,
     // +0x30
     /// The age at full size (years).
     pub adult: f32,
     // +0x34; +0x38
-    /// A breeding male's years between young (and as much again at random);.
+    /// A breeding male's years between young (and as much again at random).
     ///
     /// Original: `FUN_14010b8f0`.
     pub breed: f32,
+    /// Not identified yet.
     pub value_38: f32,
     // +0x3c
     /// Turn to a random heading when idling.
     pub turn: bool,
     // +0x40
-    /// Not identified yet.
+    /// The idle time in seconds (and as much again at random).
     pub idle: f32,
 }
 

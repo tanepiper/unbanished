@@ -1,35 +1,52 @@
-//! Picking geometry: Runtime serializers 1801251f0 / 18007b6f0 / 18007ae20.
+//! Picking geometry: the meshes that select and highlight entities.
+//!
+//! Original: Runtime `0x1801251f0`, `0x18007b6f0`, `0x18007ae20`.
 use crate::{crs, Result};
 
 /// A triangle of a picking mesh.
 #[derive(Debug, Clone)]
 pub struct Triangle {
+    /// The indices of its three vertices.
     pub vertices: [u16; 3],
+    /// The indices of its three normals.
     pub normals: [u16; 3],
 }
 
 /// A part of a picking mesh.
 #[derive(Debug, Clone)]
 pub struct SubMesh {
+    /// The name.
     pub name: String,
     /// Parent submesh index, used by Runtime AddMesh's bind hierarchy (root is -1).
     pub node: i32,
+    /// The rotation, a quaternion (x, y, z, w).
     pub rotation: [f32; 4],
+    /// The translation.
     pub translation: [f32; 3],
+    /// The lowest corner of its bounds.
     pub bounds_min: [f32; 3],
+    /// The highest corner of its bounds.
     pub bounds_max: [f32; 3],
+    /// The vertices.
     pub vertices: Vec<[f32; 3]>,
+    /// The normals.
     pub normals: Vec<[f32; 3]>,
+    /// The triangles.
     pub triangles: Vec<Triangle>,
+    /// The edges: pairs of vertex indices.
     pub edges: Vec<[u16; 2]>,
 }
 
 /// The simplified mesh the game tests the pointer against, to select an entity.
 #[derive(Debug, Clone)]
 pub struct PickingMesh {
+    /// The source file.
     pub source: String,
+    /// The name.
     pub name: String,
+    /// Whether it follows a skeleton (*inferred*).
     pub skinned: bool,
+    /// The parts.
     pub meshes: Vec<SubMesh>,
 }
 
@@ -105,8 +122,11 @@ pub fn picking_mesh(data: &[u8]) -> Result<PickingMesh> {
 /// Original: `FUN_14012e1d0`.
 #[derive(Debug, Clone)]
 pub struct PickingDescription {
+    /// The meshes, by model variant, then by construction stage.
     pub meshes: Vec<Vec<Option<String>>>,
+    /// The material.
     pub material: Option<String>,
+    /// Not identified yet.
     pub flag_38: bool,
 }
 
@@ -138,8 +158,11 @@ pub fn picking_description(data: &[u8]) -> Result<PickingDescription> {
 /// Original: `FUN_14004d330`.
 #[derive(Debug, Clone)]
 pub struct HighlightDescription {
+    /// The meshes, by model variant, then by stage.
     pub meshes: Vec<Vec<Option<String>>>,
+    /// The material of the mask.
     pub mask_material: Option<String>,
+    /// The material of the edges.
     pub edge_material: Option<String>,
 }
 
@@ -165,15 +188,23 @@ pub fn highlight_description(data: &[u8]) -> Result<HighlightDescription> {
     .map(|(_, v)| v)
 }
 
-/// Graphics::EdgeMesh::Serialize 1800a3120. Ranges share GraphicsMesh's six i32 fields.
+/// `Graphics::EdgeMesh`: the mask and edge meshes of a highlight. Its ranges have the same six
+/// integers as a GraphicsMesh's.
+///
+/// Original: `Graphics::EdgeMesh::Serialize`, Runtime `0x1800a3120`.
 #[derive(Debug, Clone)]
 pub struct EdgeMesh {
+    /// Five external references; not identified yet.
     pub references: [Option<String>; 5],
+    /// The draw ranges of the mask.
     pub ranges: Vec<[i32; 6]>,
+    /// The draw ranges of the edges.
     pub edge_ranges: Vec<[i32; 6]>,
     /// Mask indices/vertices (rigid, skinned), then edge indices/vertices (rigid, skinned).
     pub buffers: [Vec<u8>; 8],
+    /// The lowest corner of its bounds.
     pub bounds_min: [f32; 3],
+    /// The highest corner of its bounds.
     pub bounds_max: [f32; 3],
 }
 

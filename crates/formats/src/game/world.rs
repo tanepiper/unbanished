@@ -7,8 +7,11 @@ use super::*;
 /// Original: `FUN_1400b6b60`.
 #[derive(Debug, Clone)]
 pub struct TerrainGenerator {
+    /// The string table.
     pub string_table: Option<String>,
+    /// The name's key.
     pub name: String,
+    /// Whether it is listed in the New Game dialog (*inferred*, as in [`ClimateHeader`]).
     pub flag: bool,
     /// Terrain, river and lake material instances.
     pub materials: [String; 3],
@@ -59,11 +62,17 @@ pub fn terrain_generator(data: &[u8]) -> Result<TerrainGenerator> {
 /// `0xAARRGGBB`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EnvironmentMonth {
+    /// The ambient colour (`0xAARRGGBB`).
     pub ambient_color: u32,
+    /// The sun's colour (`0xAARRGGBB`).
     pub sun_color: u32,
+    /// The fog's colour (`0xAARRGGBB`).
     pub fog_color: u32,
+    /// Where the fog starts.
     pub fog_start: f32,
+    /// Where the fog ends.
     pub fog_end: f32,
+    /// The fog's highest density.
     pub fog_max: f32,
     /// Degrees.
     pub sun_yaw: f32,
@@ -76,9 +85,11 @@ pub struct EnvironmentMonth {
 /// Original: `FUN_140099510`.
 #[derive(Debug, Clone)]
 pub struct EnvironmentDescription {
+    /// The template.
     pub template: Option<String>,
     /// Weather effects: (environment resource, ambient audio).
     pub weather: Vec<(Option<String>, Option<String>)>,
+    /// The values of each month.
     pub months: Vec<EnvironmentMonth>,
 }
 
@@ -125,8 +136,11 @@ pub fn environment_description(data: &[u8]) -> Result<EnvironmentDescription> {
 /// Original: `FUN_140098470`.
 #[derive(Debug, Clone)]
 pub struct ClimateGenerator {
+    /// The string table.
     pub string_table: Option<String>,
+    /// The name's key.
     pub name: String,
+    /// Whether it is listed in the New Game dialog (*inferred*, as in [`ClimateHeader`]).
     pub enabled: bool,
     // +0x34..+0x40
     /// Four climate settings (not identified yet).
@@ -185,11 +199,15 @@ pub fn climate_generator(data: &[u8]) -> Result<ClimateGenerator> {
 /// Original: `FUN_1400a7490`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlacedStructure {
+    /// The template.
     pub template: String,
     /// Offset from the start point in cells.
     pub x: i32,
+    /// The offset from the start point in cells, along y.
     pub y: i32,
+    /// Not identified yet.
     pub a: i32,
+    /// Not identified yet.
     pub b: i32,
     /// Rotation in degrees.
     pub rotation: i32,
@@ -201,16 +219,22 @@ pub struct PlacedStructure {
 /// Original: `FUN_1400a7e50`.
 #[derive(Debug, Clone)]
 pub struct MapGenerator {
+    /// The string table (*inferred*, as in the other profiles).
     pub list: Option<String>,
+    /// The name's key.
     pub name: String,
+    /// The description's key.
     pub description: String,
+    /// Whether it is listed in the New Game dialog (*inferred*, as in [`ClimateHeader`]).
     pub flag: bool,
     // +0x3c
     /// Radius of the clear-ground start area.
     ///
     /// Original: `FUN_1400a7bf0`.
     pub start_radius: i32,
+    /// Not identified yet.
     pub value_40: f32,
+    /// The citizen template.
     pub citizen: String,
     // +0x60
     /// The household groups: a flag, and the most extra members (`(flag, extra members up to)`).
@@ -238,8 +262,11 @@ pub struct MapGenerator {
     // +0xd0
     /// Livestock templates; `livestock_picks` are chosen at random.
     pub livestock: Vec<String>,
+    /// How many crops are chosen.
     pub crop_picks: i32,
+    /// How many orchard trees are chosen.
     pub tree_picks: i32,
+    /// How many livestock kinds are chosen.
     pub livestock_picks: i32,
     // +0xec..+0xf4
     /// Not identified yet.
@@ -247,11 +274,17 @@ pub struct MapGenerator {
     // +0xf8; +0xf8..+0x114
     /// `livestock_count` then seven more integers.
     pub ints: [i32; 8],
+    /// Not identified yet.
     pub string_118: String,
+    /// Not identified yet.
     pub string_138: String,
+    /// Not identified yet.
     pub float_130: f32,
+    /// Not identified yet.
     pub int_150: i32,
+    /// Not identified yet.
     pub string_158: String,
+    /// Not identified yet.
     pub float_170: f32,
 }
 
@@ -362,8 +395,11 @@ pub fn external_list(data: &[u8]) -> Result<Vec<String>> {
 /// here.
 #[derive(Debug, Clone)]
 pub struct ClimateHeader {
+    /// The string table.
     pub string_table: Option<String>,
+    /// The name's key.
     pub name: String,
+    /// Whether it is listed in the New Game dialog.
     pub listed: bool,
 }
 
@@ -409,6 +445,7 @@ pub struct MapDescription {
     // +0x32
     /// Draw on the minimap with `color`.
     pub minimap: bool,
+    /// The minimap colour.
     pub color: u32,
 }
 

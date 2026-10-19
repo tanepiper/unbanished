@@ -15,6 +15,7 @@ use crate::types::Bone;
 pub struct Transform {
     /// Unit quaternion (x, y, z, w), column-vector convention.
     pub rotation: [f32; 4],
+    /// The translation.
     pub translation: [f32; 3],
 }
 

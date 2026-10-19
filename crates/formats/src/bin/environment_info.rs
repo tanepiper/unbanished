@@ -1,3 +1,6 @@
+//! Prints the `EnvironmentDescription` resources given on the command line:
+//! `environment_info <file.crs> [...]`.
+
 use std::{env, fs, process};
 
 use banished_formats::game::environment_description;

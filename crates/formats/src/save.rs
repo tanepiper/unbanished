@@ -241,8 +241,9 @@ impl Save {
 
     /// Only the metadata, as the save list reads it: the game state is not expanded.
     ///
-    /// Original: `Persistence::BeginGetSaveGameInfo`, then `SaveLoad::LoadMetaData` (Runtime
-    /// `0x1800c43a0`).
+    /// Original: `Persistence::BeginGetSaveGameInfo`, then `SaveLoad::LoadMetaData`.
+    ///
+    /// Original: Runtime `0x1800c43a0`.
     pub fn read_metadata(data: &[u8]) -> Result<SaveMetadata> {
         SaveMetadata::parse(&stream::decode(Save::payloads(data)?.0)?)
     }

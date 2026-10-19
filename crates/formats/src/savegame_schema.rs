@@ -10,7 +10,9 @@ use crate::crc::type_id;
 /// A version test against the enclosing block's version.
 #[derive(Debug, Clone, Copy)]
 pub enum Cond {
+    /// The block's version is at least this.
     VersionAtLeast(u32),
+    /// The block's version is below this.
     VersionBelow(u32),
     /// An earlier `Bool` of the same fields is true.
     Flag(&'static str),
@@ -19,18 +21,27 @@ pub enum Cond {
 /// One step of a serializer.
 #[derive(Debug, Clone, Copy)]
 pub enum Op {
+    /// A named bool.
     Bool(&'static str),
+    /// A named `i8`.
     I8(&'static str),
+    /// A named `i16`.
     I16(&'static str),
+    /// A named `u16`.
     U16(&'static str),
+    /// A named `i32`.
     I32(&'static str),
+    /// A named `u32`.
     U32(&'static str),
     /// `System::Time`: an `i64` of ticks.
     Time(&'static str),
+    /// A named `f32`.
     F32(&'static str),
     /// A fixed number of `System::Time`s.
     Times(&'static str, usize),
+    /// A fixed number of `f32`s.
     F32s(&'static str, usize),
+    /// A fixed number of `u32`s.
     U32s(&'static str, usize),
     /// `i32`s counted by an earlier field of the same fields.
     I32sBy(&'static str, &'static str),
@@ -52,6 +63,7 @@ pub enum Op {
     Block(&'static str, u32, &'static [Op]),
     /// Inline steps (shared fragments).
     Sub(&'static [Op]),
+    /// Steps read only when the condition holds.
     If(Cond, &'static [Op]),
 }
 

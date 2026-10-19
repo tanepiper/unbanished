@@ -42,7 +42,9 @@ pub fn component_description(data: &[u8]) -> Result<ComponentDescription> {
 /// One model variant: an animation set and its alternative meshes.
 #[derive(Debug, Clone)]
 pub struct ModelVariant {
+    /// The animation set.
     pub animations: Option<String>,
+    /// The alternative meshes.
     pub meshes: Vec<Option<String>>,
 }
 
@@ -52,7 +54,7 @@ pub struct ModelVariant {
 #[derive(Debug, Clone)]
 pub struct ModelDescription {
     // +0x20; +0x28
-    /// /, 0x18 bytes each.
+    /// The variants, 0x18 bytes each.
     pub variants: Vec<ModelVariant>,
     // +0x30
     /// Variant used unless `random_variant`.
@@ -153,8 +155,10 @@ pub fn decal_description(data: &[u8]) -> Result<DecalDescription> {
 
 /// A `CharacterDescription`: how a walking entity moves (its speeds and turning).
 ///
-/// Original: `FUN_14010f2a0`; the defaults come from `FUN_14010f3e0`, and the character update
-/// (`FUN_14010e990`) and `MoveTo` (`FUN_1400cda40`) read it.
+/// Original: `FUN_14010f2a0`; the defaults come from `FUN_14010f3e0`, and the character update and
+/// `MoveTo` read it.
+///
+/// Original: `FUN_14010e990`, `FUN_1400cda40`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CharacterDescription {
     // +0x20
@@ -181,6 +185,7 @@ pub struct CharacterDescription {
     // +0x3c / +0x40
     /// Hold a fixed height instead of following the ground.
     pub fixed_height: bool,
+    /// The fixed height.
     pub height: f32,
     // +0x44
     /// Lowest height the ground clamp allows (default -10).
@@ -217,20 +222,27 @@ pub fn character_description(data: &[u8]) -> Result<CharacterDescription> {
 /// A named point of a `Pathfinding::PointList` (position in model space, yaw in degrees).
 #[derive(Debug, Clone, PartialEq)]
 pub struct NamedPoint {
+    /// The name.
     pub name: String,
+    /// The position, in model space.
     pub position: [f32; 3],
+    /// The yaw, in degrees.
     pub yaw: f32,
 }
 
 // +0x40; +0x30
-/// Mesh name, a second string, path points and named points.
+/// `Pathfinding::PointList`: a mesh name, a second string, path points and named points.
 ///
 /// Original: `Pathfinding::PointList`, Runtime `0x180111f70`.
 #[derive(Debug, Clone)]
 pub struct PointList {
+    /// The mesh name.
     pub mesh: String,
+    /// A second string; not identified yet.
     pub source: String,
+    /// The path points.
     pub path_points: Vec<NamedPoint>,
+    /// The named points.
     pub points: Vec<NamedPoint>,
 }
 
@@ -274,6 +286,7 @@ pub fn point_list(data: &[u8]) -> Result<PointList> {
 /// Original: `FUN_1401289d0`.
 #[derive(Debug, Clone)]
 pub struct InteractDescription {
+    /// The point list.
     pub points: Option<String>,
 }
 

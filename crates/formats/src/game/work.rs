@@ -4,14 +4,17 @@ use super::*;
 
 // +0x20; +0x28; +0x2c
 /// `QuarryDescription`: the pit the quarry digs, a picking mesh in model space whose vertices set
-/// the terrain, no lower than a floor that goes from (when built) to (at the end of its
+/// the terrain, no lower than a floor that goes from `shallow` (when built) to `deep` (at the end of its
 /// production).
 ///
 /// Original: `FUN_140055c80`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct QuarryDescription {
+    /// The floor at the end of its production.
     pub deep: f32,
+    /// The floor when built.
     pub shallow: f32,
+    /// The picking mesh, in model space.
     pub mesh: Option<String>,
 }
 
@@ -37,12 +40,14 @@ pub fn quarry_description(data: &[u8]) -> Result<QuarryDescription> {
 
 // +0x20; +0x28; +0x30
 /// `HerbalistDescription`: the natural-resource templates a gatherer or herbalist harvests (count)
-/// and the stock-manager production group its limit is checked against (: 5 food, 6 herbs).
+/// and the stock-manager production group its limit is checked against (5 food, 6 herbs).
 ///
 /// Original: `FUN_14004bc40`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HerbalistDescription {
+    /// The natural-resource templates it harvests.
     pub resources: Vec<Option<String>>,
+    /// The stock-manager group its limit is checked against.
     pub group: i32,
 }
 
@@ -76,7 +81,9 @@ pub fn herbalist_description(data: &[u8]) -> Result<HerbalistDescription> {
 /// Original: `FUN_140124f50`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForesterDescription {
+    /// The tree template it plants.
     pub tree: Option<String>,
+    /// The stock-manager slot of its limit (version 1).
     pub group: i32,
 }
 
@@ -105,8 +112,11 @@ pub fn forester_description(data: &[u8]) -> Result<ForesterDescription> {
 /// Original: `FUN_140124640`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FishingDescription {
+    /// The catch's raw-material template.
     pub output: Option<String>,
+    /// The cell types counted as fishing water.
     pub mask: u32,
+    /// The stock-manager slot of its limit (version 1).
     pub group: i32,
 }
 
@@ -140,7 +150,9 @@ pub fn fishing_description(data: &[u8]) -> Result<FishingDescription> {
 /// Original: `FUN_140127e30`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct HuntDescription {
+    /// The hunting time a kill needs, in units of 300 seconds of a full lodge's work.
     pub time: f32,
+    /// The stock slot of its limit (version 1).
     pub group: i32,
 }
 
@@ -232,8 +244,11 @@ pub fn pasture_description(data: &[u8]) -> Result<i32> {
 /// Original: `FUN_140129430`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct LivestockDescription {
+    /// The raw material a pasture gathers from the animal (none for cattle).
     pub product: Option<String>,
+    /// The time between products, in units of 300 seconds.
     pub interval: f32,
+    /// The stock slot (version 1).
     pub group: i32,
 }
 
@@ -267,7 +282,9 @@ pub fn livestock_description(data: &[u8]) -> Result<LivestockDescription> {
 /// Original: `FUN_1401348f0`.
 #[derive(Debug, Clone, Default)]
 pub struct WorkPlaceDescription {
+    /// The profession its workers take (none for storage barns and houses).
     pub profession: Option<String>,
+    /// Not identified yet.
     pub reference_28: Option<String>,
 }
 
@@ -300,12 +317,16 @@ pub struct WorkDescription {
     ///
     /// Original: `FUN_140133a90`.
     pub max_workers: i32,
+    /// The fewest workers the player may set.
     pub value_28: i32,
+    /// The most workers the player may set.
     pub value_2c: i32,
     // +0x34; +0x30
-    /// Scale the most workers by the footprint area over cells.
+    /// Scale the most workers by the footprint's area over `area` cells.
     pub per_area: bool,
+    /// The area, in cells, that `per_area` divides by.
     pub area: i32,
+    /// Whether the player may change the most workers in the building's window.
     pub flag_20: bool,
 }
 
@@ -361,7 +382,7 @@ pub struct ConsumeProduceDescription {
     /// String table of the recipe labels.
     pub string_table: Option<String>,
     // +0x28/+0x30
-    /// Not identified yet.
+    /// The recipes.
     pub recipes: Vec<ProduceRecipe>,
     // +0x40
     /// Work cycles per production.
@@ -370,8 +391,10 @@ pub struct ConsumeProduceDescription {
     /// Work type (tool mesh, PerformWork animation `type + 9` below 11, walk mode).
     pub work_type: u32,
     // +0x38 / +0x3c
-    /// A message (type, value) sent to the building's component of that type after each production.
+    /// The type of a message sent to the building's component of that type after each
+    /// production.
     pub message_type: u32,
+    /// The value of that message.
     pub message_value: i32,
     // +0x44
     /// Seconds per work cycle.
@@ -431,22 +454,31 @@ pub fn consume_produce_description(data: &[u8]) -> Result<ConsumeProduceDescript
 #[derive(Debug, Clone)]
 pub struct Profession {
     // +0x20; +0x28
-    /// Not identified yet.
+    /// The string table.
     pub string_table: Option<String>,
+    /// The icon's sprite sheet.
     pub sprite_sheet: Option<String>,
     // +0x30
     /// Name key, also the icon's sprite name (`ProfessionBuilder`).
     pub name: String,
     // +0x38, +0x40
-    /// Tooltip and death-message keys.
+    /// The tooltip's key.
     pub tooltip: String,
+    /// The death-message key of an accident at its work.
     pub death: String,
+    /// The sort priority in the professions list.
     pub value_48: i32,
+    /// Works anywhere (laborers and builders).
     pub flag_4c: bool,
+    /// With a workplace, the citizen does not catch diseases (the doctor).
     pub flag_4d: bool,
+    /// The accident odds' years.
     pub value_54: f32,
+    /// The accident odds' factor.
     pub value_58: f32,
+    /// How much a worker carries (the laborer's is what home stocking carries at least).
     pub value_50: i32,
+    /// Whether it is in the professions list (*inferred*).
     pub flag_4e: bool,
 }
 

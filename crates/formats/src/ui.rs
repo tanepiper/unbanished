@@ -62,8 +62,11 @@ pub mod flags {
 pub struct ElementBase {
     /// left, right, top, bottom
     pub margins: [i32; 4],
+    /// The smallest size, in pixels.
     pub min_size: [i32; 2],
+    /// How the element sits in the space it is given.
     pub alignment: Alignment,
+    /// The element's flags ([`flags`]).
     pub flags: u32,
     /// ARGB, multiplied into everything the element draws.
     pub color: u32,
@@ -72,9 +75,13 @@ pub struct ElementBase {
     /// cursors: 0 Arrow, 1 Hand, 2 Hourglass, 3 Move, 4 Query, 5 Place). Only the StandardDialog
     /// title bar sets one (3).
     pub cursor: i32,
+    /// The element drawn behind it as a border.
     pub border: Ref,
+    /// The dialog shown as the tooltip, when the tooltip is a dialog.
     pub tooltip_dialog: Ref,
+    /// The string table the element's own strings come from.
     pub string_table: Ref,
+    /// The tooltip text, or its key in the string table.
     pub tooltip: String,
 }
 
@@ -108,6 +115,7 @@ impl ElementBase {
 pub struct Button {
     /// enabled, disabled, highlight, pressed state elements
     pub states: [Ref; 4],
+    /// The content: a label or an image.
     pub content: Ref,
     /// Content colours per state (ARGB), same order as `states`.
     pub colors: [u32; 4],
@@ -116,12 +124,15 @@ pub struct Button {
 /// A text element's description.
 #[derive(Debug, Clone)]
 pub struct Text {
+    /// The font.
     pub font: Ref,
+    /// The string table that `text` is a key of.
     pub string_table: Ref,
     /// String-table key, or literal text when no table is given.
     pub text: String,
     /// Draw a black shadow one pixel down and right (TextElement::Draw).
     pub shadow: bool,
+    /// Whether long lines wrap.
     pub wrap: bool,
     /// Width limit passed to `Font::ComputeStringLayout` (wrapping / ellipsis).
     pub max_width: i32,
@@ -134,150 +145,264 @@ pub struct Text {
 /// A label's description: text with an optional icon.
 #[derive(Debug, Clone)]
 pub struct Label {
+    /// The text.
     pub text: Text,
+    /// The icon's sprite sheet.
     pub sprite_sheet: Ref,
+    /// The icon's sprite name.
     pub sprite: String,
+    /// The alignment of the text.
     pub text_alignment: u32,
     /// > 1 stacks icon above text, otherwise icon left of text (`LabelElement::ComputeSize`).
     pub orientation: u32,
+    /// The smallest width of the text, in pixels.
     pub min_text_width: i32,
+    /// The space between the icon and the text, in pixels.
     pub gap: i32,
+    /// The icon's size, in pixels.
     pub icon_size: [i32; 2],
 }
 
 /// What an element description is, with the fields of its class.
 #[derive(Debug, Clone)]
 pub enum ElementKind {
+    /// Children laid out on top of each other, each by its alignment.
     Group {
+        /// The children.
         children: Vec<Ref>,
     },
+    /// Pages, of which one is shown.
     Page {
+        /// The pages.
         children: Vec<Ref>,
+        /// The page shown at first.
         page: i32,
     },
+    /// Radio buttons, of which one is selected.
     Radio {
+        /// The buttons.
         children: Vec<Ref>,
+        /// The button selected at first.
         selected: i32,
     },
+    /// Children in a row or a column.
     Ribbon {
+        /// A column when true, a row when false.
         vertical: bool,
+        /// Whether every cell has the size of the largest child.
         uniform: bool,
+        /// The space between the cells, in pixels.
         spacing: i32,
+        /// The children.
         children: Vec<Ref>,
     },
+    /// A frame drawn from nine sprites.
     Border {
+        /// The sprite sheet.
         sprite_sheet: Ref,
+        /// The nine sprites, row by row: corners, edges and centre.
         sprites: [String; 9],
     },
+    /// One sprite.
     Image {
+        /// The sprite sheet.
         sprite_sheet: Ref,
+        /// The sprite name.
         sprite: String,
+        /// The size, in pixels.
         size: [i32; 2],
     },
     /// The game's `FrustumOutlineDescription` (MapUI's camera outline): an image block whose
-    /// element draws lines instead of the sprite (`FUN_14006c7f0`).
+    /// element draws lines instead of the sprite.
+    ///
+    /// Original: `FUN_14006c7f0`.
     FrustumOutline {
+        /// The sprite sheet.
         sprite_sheet: Ref,
+        /// The sprite the lines are drawn with.
         sprite: String,
+        /// The size, in pixels.
         size: [i32; 2],
     },
+    /// A sequence of sprites played as an animation.
     AnimatedImage {
+        /// The sprite sheet.
         sprite_sheet: Ref,
+        /// The first frame's sprite.
         sprite: String,
+        /// The size, in pixels.
         size: [i32; 2],
+        /// The frames' sprite names.
         frames: Vec<String>,
+        /// The frame rate.
         rate: i32,
     },
+    /// A button.
     Button(Button),
+    /// A check box.
     Check {
+        /// The box.
         button: Button,
+        /// The tick, shown when checked.
         check: Ref,
     },
+    /// A combo box: a button that opens a list.
     Combo {
+        /// The button that shows the choice.
         button: Button,
+        /// The list's parts: the second is the text whose font the list uses, the third the
+        /// choices.
         refs: [Ref; 3],
     },
+    /// Text.
     Text(Text),
+    /// Text with an optional icon.
     Label(Label),
+    /// A window onto its content, cut at its edges.
     ClipRegion {
+        /// The window's size, in pixels.
         unknown: [i32; 2],
+        /// The content.
         content: Ref,
     },
+    /// A scrolling area.
     Container {
+        /// The size (two values) and the space between the content and the bars.
         unknown: [i32; 3],
+        /// The horizontal bar, the vertical bar and the content.
         refs: [Ref; 3],
+        /// Not identified yet.
         unknown_bools: [bool; 2],
     },
+    /// An edit box.
     Edit {
+        /// The font.
         font: Ref,
+        /// The text at first.
         text: String,
+        /// The most characters it takes (0: no limit).
         max_length: i32,
+        /// Whether the text is drawn as `*`s (a password).
         unknown_bool: bool,
+        /// The characters it takes, any when empty.
         unknown_string: String,
     },
+    /// A graph of values over time.
     Graph {
+        /// The size (two values) and the length of the ticks.
         unknown: [i32; 3],
+        /// Not identified yet.
         unknown_u32: u32,
+        /// The sprite sheet of the lines.
         sprite_sheet: Ref,
+        /// The sprite the lines are drawn with.
         sprite: String,
     },
+    /// Children placed by anchors relative to the element.
     Layout {
+        /// The children and their anchors.
         items: Vec<LayoutItem>,
     },
+    /// A list of rows.
     List {
+        /// The list's parts: the first is the text whose font the rows use.
         refs: [Ref; 2],
+        /// The sprite sheet of the highlight.
         sprite_sheet: Ref,
+        /// The highlight's sprite.
         sprite: String,
+        /// Not identified yet.
         unknown: [u32; 2],
     },
+    /// An edit box for a number.
     NumberEdit {
+        /// The font.
         font: Ref,
+        /// The value at first, the smallest and largest value, and the most digits.
         unknown: [i32; 4],
+        /// Whether the number may be below zero.
         unknown_bool: bool,
     },
+    /// A number shown as text.
     Number {
+        /// The font.
         font: Ref,
+        /// The colour, `0xAARRGGBB`.
         color: u32,
+        /// Not identified yet.
         unknown_int: i32,
+        /// The value at first.
         unknown_float: f32,
+        /// Not identified yet.
         unknown_bool: bool,
     },
+    /// A slider.
     Slider {
+        /// The number shown next to the slider.
         track: Ref,
+        /// The sprite sheet.
         sprite_sheet: Ref,
+        /// The sprites: the track's ends and middle, the knob, and the knob under the pointer.
         sprites: [String; 5],
+        /// The track's vertical position and the inset of the knob's travel.
         unknown: [i32; 2],
+        /// The smallest and the largest value.
         range: [f32; 2],
+        /// The steps across the range: a click on the track moves the value one step.
         unknown_b0: i32,
     },
+    /// A number with up and down arrows.
     Spinner {
+        /// The number and the two arrows.
         refs: [Ref; 3],
+        /// How much an arrow changes the number.
         unknown: i32,
     },
+    /// Tabs: a header for each tab, and the page of the selected one.
     Tab {
+        /// The elements drawn around the tabs.
         refs: [Ref; 3],
+        /// The sprite sheet.
         sprite_sheet: Ref,
+        /// The sprites of the tab headers.
         sprites: [String; 3],
+        /// The space between the headers, in pixels.
         unknown: i32,
+        /// Each tab: its header and its page.
         tabs: Vec<(Ref, Ref)>,
     },
+    /// A progress bar.
     Progress {
+        /// The background's colour, `0xAARRGGBB`.
         color: u32,
+        /// The sprite sheet.
         sprite_sheet: Ref,
+        /// The sprites of the fill and the background.
         sprites: [String; 6],
+        /// The element drawn on top (usually a label).
         unknown_ref: Ref,
     },
+    /// A scroll bar.
     Scroll {
+        /// The sprite sheet.
         sprite_sheet: Ref,
+        /// The sprites of the track, the thumb and the arrows.
         sprites: [String; 9],
+        /// A vertical bar when true.
         vertical: bool,
+        /// The thumb's inset at both ends of the track.
         unknown: i32,
+        /// The thumb's colour, and a value not identified yet.
         unknown_u32: [u32; 2],
     },
+    /// A table of cells in rows and columns.
     Table {
+        /// The number of columns, the number of rows, and the space between the cells.
         unknown: [i32; 3],
+        /// The cells.
         cells: Vec<TableCell>,
     },
+    /// A document with markup (the help pages and the tutorials).
     DocumentText(DocumentText),
 }
 
@@ -286,43 +411,66 @@ pub enum ElementKind {
 /// Original: Runtime `0x1800d2110`.
 #[derive(Debug, Clone)]
 pub struct DocumentText {
+    /// The string table that `text` is a key of.
     pub string_table: Ref,
+    /// The text with markup, or its key.
     pub text: String,
+    /// The sprite sheet of the bullets and the underline.
     pub sprite_sheet: Ref,
+    /// The bullets' sprite names.
     pub bullets: Vec<String>,
+    /// The underline's sprite name.
     pub underline_sprite: String,
+    /// The colours of links: normal, under the pointer, pressed.
     pub link_colors: [u32; 3],
+    /// The indent of list items, in pixels.
     pub indent: i32,
+    /// The width at which the text wraps, in pixels.
     pub width: i32,
+    /// The fonts the markup can select.
     pub fonts: Vec<Ref>,
+    /// The sprite sheets the markup can show images from.
     pub sheets: Vec<Ref>,
+    /// The colours the markup can select.
     pub colors: Vec<u32>,
+    /// The resource with the document's pictures.
     pub images: Ref,
 }
 
 /// A child of a layout element, with its anchors.
 #[derive(Debug, Clone)]
 pub struct LayoutItem {
+    /// The child.
     pub element: Ref,
+    /// The names of the anchors.
     pub strings: [String; 3],
+    /// Not identified yet.
     pub unknown_u32: [u32; 2],
+    /// The offsets from the anchors, in pixels.
     pub unknown_i32: [i32; 2],
+    /// Not identified yet.
     pub flag: bool,
 }
 
 /// A cell of a table element.
 #[derive(Debug, Clone)]
 pub struct TableCell {
+    /// The column.
     pub column: i32,
+    /// The row.
     pub row: i32,
+    /// The cell's element.
     pub element: Ref,
 }
 
 /// An element description: its class, the fields every element has, and its class's fields.
 #[derive(Debug, Clone)]
 pub struct Element {
+    /// The element's class name, for example `ButtonDescription`.
     pub class: &'static str,
+    /// The fields every element has.
     pub base: ElementBase,
+    /// The class and its own fields.
     pub kind: ElementKind,
 }
 
@@ -695,16 +843,25 @@ pub struct DialogBinding {
 /// Original: `UI::Dialog`, Runtime `0x180115950`.
 #[derive(Debug, Clone)]
 pub struct Dialog {
+    /// Not identified yet.
     pub unknown_40: u32,
+    /// The root element.
     pub root: Ref,
+    /// The sprite sheet of the background drawn behind the dialog.
     pub background_sheet: Ref,
+    /// The background's sprite name.
     pub background_sprite: String,
+    /// Not identified yet.
     pub unknown_30: u32,
+    /// Elements replaced by name: the replacement resource and the name of the element it replaces.
     pub named: Vec<(Ref, String)>,
+    /// The dialog's elements.
     pub children: Vec<Ref>,
+    /// The controllers attached to elements.
     pub bindings: Vec<DialogBinding>,
     /// Associated resources, including nested dialogs and string tables.
     pub dialogs: Vec<Ref>,
+    /// Not identified yet.
     pub unknown_34: i32,
 }
 
@@ -753,12 +910,17 @@ pub fn dialog(data: &[u8]) -> Result<Dialog> {
 /// A sprite of a sprite sheet.
 #[derive(Debug, Clone)]
 pub struct Sprite {
+    /// The sprite's name.
     pub name: String,
+    /// The image file it came from.
     pub source: String,
     /// Offset of the trimmed image inside the original source image.
     pub offset: [i32; 2],
+    /// The width in pixels.
     pub width: i32,
+    /// The height in pixels.
     pub height: i32,
+    /// Not identified yet.
     pub unknown: i32,
     /// u0, v0, u1, v1 in the sheet image.
     pub uv: [f32; 4],
@@ -767,11 +929,17 @@ pub struct Sprite {
 /// Original: `UI::SpriteSheet`, Runtime `0x18011ffc0`.
 #[derive(Debug, Clone)]
 pub struct SpriteSheet {
+    /// The material's path.
     pub material_path: String,
+    /// The image file of the sheet.
     pub source_image: String,
+    /// The sheet's width in pixels.
     pub width: i32,
+    /// The sheet's height in pixels.
     pub height: i32,
+    /// Not identified yet.
     pub unknown_flag: bool,
+    /// The sprites.
     pub sprites: Vec<Sprite>,
     /// Material instance whose `diffuse` texture is the sheet image.
     pub material: Ref,
@@ -830,7 +998,9 @@ pub fn sprite_sheet(data: &[u8]) -> Result<SpriteSheet> {
 /// Original: `UI::Cursor::Serialize`, Runtime `0x1800cf980` (version 1).
 #[derive(Debug, Clone)]
 pub struct Cursor {
+    /// The sprite sheet whose image is the pointer.
     pub sprite_sheet: Ref,
+    /// The point of the image that is the pointer's position, in pixels.
     pub hotspot: [i32; 2],
 }
 
@@ -851,13 +1021,19 @@ pub fn cursor(data: &[u8]) -> Result<Cursor> {
 /// Original: Runtime `0x180119f60`.
 #[derive(Debug, Clone)]
 pub struct Font {
+    /// The font's name.
     pub name: String,
+    /// The font's size, in pixels.
     pub size: i32,
+    /// The glyph sheet's width.
     pub sheet_width: i32,
+    /// The glyph sheet's height.
     pub sheet_height: i32,
+    /// The character set resource.
     pub character_set: Ref,
     /// Sprite sheet holding one sprite per glyph, in glyph order.
     pub sprite_sheet: Ref,
+    /// The material the glyphs are drawn with.
     pub material: Ref,
     /// Code point -> glyph index; negative or 0xffff means no glyph.
     pub char_map: Vec<i32>,

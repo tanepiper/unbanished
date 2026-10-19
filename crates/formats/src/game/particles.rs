@@ -2,16 +2,19 @@
 
 use super::*;
 
-/// A particle system: an emitter of quads that face the camera (smoke, fire, dust, snow). Times
-/// are in microseconds. See docs/PARTICLES.md.
+/// A particle system: an emitter of quads that face the camera (smoke, fire, dust, snow). Times are
+/// in microseconds. See docs/PARTICLES.md.
 ///
 /// Original: `Graphics::ParticleSystem::Serialize`, Runtime `0x1800a5c70`, after the
-/// `Graphics::Particle` block (Runtime `0x180106790`).
+/// `Graphics::Particle` block.
+///
+/// Original: Runtime `0x180106790`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParticleSystem {
     // +0x20; +0x24
-    /// Particle: instanced, the shared instance count.
+    /// Particle: whether it is instanced.
     pub instanced: bool,
+    /// Particle: the shared instance count.
     pub instances: u32,
     // +0x28
     /// Particle: the most particles alive.
@@ -20,9 +23,11 @@ pub struct ParticleSystem {
     /// Particle: the MaterialInstance.
     pub material: Option<String>,
     // +0x48; +0x4c × +0x50
-    /// Particles per second; `×`: its change per second squared.
+    /// Particles per second.
     pub rate: f32,
+    /// The change of the rate per second squared, multiplied by `rate_scale`.
     pub rate_change: f32,
+    /// The factor of `rate_change`.
     pub rate_scale: f32,
     // +0x58
     /// How long it emits (0 for ever).
@@ -31,8 +36,9 @@ pub struct ParticleSystem {
     /// The emission direction (model space).
     pub direction: [f32; 3],
     // +0x78, +0x6c
-    /// The spawn box: each axis `± axis × size / 2`.
+    /// The spawn box's size: each axis spans `± axis × size / 2`.
     pub spawn_size: f32,
+    /// The spawn box's axes.
     pub spawn_box: [f32; 3],
     // +0x7c, +0x80
     /// The emission cone's angles (degrees).
@@ -78,8 +84,9 @@ pub struct ParticleSystem {
     /// The part of life the colour moves over.
     pub color_span: [f32; 2],
     // +0xe8, +0xf0
-    /// Fade in and fade out.
+    /// How long it fades in.
     pub fade_in: i64,
+    /// How long it fades out.
     pub fade_out: i64,
 }
 
@@ -180,8 +187,9 @@ pub struct TornadoParticle {
     /// The start and end colours.
     pub colors: [u32; 2],
     // +0x80, +0x88
-    /// Fade in and fade out.
+    /// How long it fades in.
     pub fade_in: i64,
+    /// How long it fades out.
     pub fade_out: i64,
 }
 
@@ -242,12 +250,14 @@ pub struct ParticleSlot {
 }
 
 // +0x20
-/// `ParticleDescription`: the entity's particle systems, then.
+/// `ParticleDescription`: the entity's particle systems, then one more reference.
 ///
 /// Original: `FUN_140053dc0`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParticleDescription {
+    /// The particle systems.
     pub slots: Vec<ParticleSlot>,
+    /// One more reference; not identified yet.
     pub extra: Option<String>,
 }
 

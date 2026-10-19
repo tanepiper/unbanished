@@ -269,7 +269,28 @@ def rendered(lines, n) -> bool:
         t = line.strip()
         if not t or t.startswith("//") or t.startswith("#["):
             continue
-        return re.match(r"pub(?!\()\s", t) is not None or re.match(r"[a-z_][a-z0-9_]*\s*:", t) is not None and False
+        if re.match(r"pub(?!\()\s", t):
+            return True
+        # A variant of an enum, or a field of a variant: shown when the enum is public.
+        if re.match(r"[A-Za-z_]\w*\s*([:({,]|$)", t):
+            return in_public_enum(lines, n)
+        return False
+    return False
+
+
+def in_public_enum(lines, n) -> bool:
+    """Whether line n lies inside a `pub enum` block."""
+    depth = 0
+    for line in reversed(lines[:n]):
+        depth += line.count("}") - line.count("{")
+        if depth < 0:
+            t = line.strip()
+            if re.match(r"(pub\s+)?enum\b", t):
+                return t.startswith("pub ") and not t.startswith("pub(")
+            if re.match(r"[A-Z]\w*\s*\{", t):  # a struct variant: keep looking for its enum
+                depth = 0
+                continue
+            return False
     return False
 
 

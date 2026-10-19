@@ -7,15 +7,19 @@ use super::*;
 /// Original: `FUN_14012e9f0`.
 #[derive(Debug, Clone)]
 pub struct RawMaterialDescription {
+    /// The icon's sprite sheet.
     pub sprite_sheet: Option<String>,
+    /// The string table.
     pub string_table: Option<String>,
     // +0x30, +0x38
-    /// Name keys (`Log`, `LogSmall`).
+    /// The name's key (`Log`).
     pub name: String,
+    /// The short name's key (`LogSmall`).
     pub name_small: String,
     // +0x40; +0x44
     /// Not identified yet.
     pub value_40: i32,
+    /// Not identified yet.
     pub value_44: i32,
     // +0x48
     /// Storage units per item.
@@ -79,7 +83,9 @@ pub struct StorageDescription {
     // +0x28
     /// Raw-material flags this storage accepts.
     pub accepts: u32,
+    /// Whether the capacity is per footprint cell.
     pub flag_20: bool,
+    /// Not identified yet.
     pub flag_21: bool,
     // +0x24
     /// Capacity in storage units.
@@ -196,13 +202,15 @@ pub fn residence_description(data: &[u8]) -> Result<ResidenceDescription> {
 }
 
 // +0x20; +0x28
-/// `MarketDescription`: vendors stop while the market is fuller than; the categories (raw-material
+/// `MarketDescription`: vendors stop while the market is fuller than `threshold`; the categories (raw-material
 /// flags) and each one's share of the market's room.
 ///
 /// Original: `FUN_14004f510`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct MarketDescription {
+    /// How full the market may be before vendors stop.
     pub threshold: f32,
+    /// Each category's raw-material flags and share of the market's room.
     pub quotas: Vec<(u32, f32)>,
 }
 
@@ -229,31 +237,42 @@ pub fn market_description(data: &[u8]) -> Result<MarketDescription> {
 
 // +0x20; +0x30; +0x40; +0x10; +0x14; +0x18
 /// A TradeDescription merchant (0x48 bytes): its name (string table, key), the templates it always
-/// offers (seeds, livestock), (ints, unread), its lots before the town's divisor, the raw-material
+/// offers (seeds, livestock), integers the game does not read, its lots before the town's divisor, the raw-material
 /// flags it sells, and more flag masks.
 ///
 /// Original: `FUN_14005d510`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Merchant {
+    /// The name: string table and key.
     pub name: (Option<String>, String),
+    /// The templates it always offers (seeds, livestock).
     pub items: Vec<Option<String>>,
+    /// Integers the game does not read.
     pub values: Vec<i32>,
+    /// Its lots, before the town's divisor.
     pub lots: i32,
+    /// The raw-material flags it sells.
     pub sells: u32,
+    /// More flag masks; not identified yet.
     pub flags: (u32, u32),
 }
 
 // +0; +0xc; +0x10
-/// A TradeDescription row by population (0x14 bytes): towns below people see a merchant every `(+4
-/// + RandFloatTol × +8)` × 300 s; and divide the merchant's lots and each lot's amount.
+/// A TradeDescription row by population (0x14 bytes): towns below `population` people see a merchant
+/// every `(months + RandFloatTol × range)` × 300 s, and divide the merchant's lots and each lot's amount.
 ///
 /// Original: `FUN_14005d480`.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct TradeRow {
+    /// The population this row applies below.
     pub population: i32,
+    /// The base time between merchants, in units of 300 seconds.
     pub months: f32,
+    /// The random part of that time.
     pub range: f32,
+    /// What the merchant's lots are divided by.
     pub lot_divisor: i32,
+    /// What each lot's amount is divided by.
     pub amount_divisor: i32,
 }
 
