@@ -29,6 +29,14 @@ GAME=path/to/banished VIEWER=path/to/banished-viewer tools/videos.sh SAVE.sav   
 | `zoom-into-town.webm` | The camera zooms from above a town down to its market | Frames 1.5 to 10 s after the zoom starts |
 | `citizens-market.webm` | Citizens walk and trade at the market | 8 s at normal speed, the middle of the frame |
 | `seasons.webm` | Autumn, rain, snow and the start of spring | A time-lapse at speed 10: one frame every 0.75 s for 180 s |
+| `montage.webm` | The home page's video, 39 s: the camera descends over a river town, citizens at a market, farmers in autumn fields, a young town, a winter town, a year of seasons, and the camera rises again | Six 5.5 s shots and a 9 s time-lapse from five saves, joined with 0.5 s cross-fades |
+
+The montage is made only when you ask for it (`tools/videos.sh save-game/Save83.sav montage`),
+because it loads five saves from the same folder. Its shots are listed in the script, in
+`MONTAGE`: for each one the save, the building the camera centres on, the zoom, the time span and
+any pointer moves. A pointer moved to the edge of the screen (`--move 0,360@T`) scrolls the
+camera, as in the game, and a `--move` back to the middle stops it. It also needs `cwebp` for the
+poster image.
 
 The script needs your game data in `game-data/`, a save of a town without mods, FFmpeg with
 VP9 (libvpx) and `bc`. The town videos centre the camera on a building in the middle of the town

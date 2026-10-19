@@ -47,6 +47,9 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
   as doc tests), and the website's colours. Each ported item still names its original function
   in one last line; offsets and other evidence are in ordinary comments
   (`tools/triage/doc_comments.py` checks this).
+- The website's home page shows a 39-second montage of Un-Banished in motion in place of the
+  logo: camera moves over four towns, citizens at work, and a year of seasons. Un-Banished
+  recorded it itself (`tools/videos.sh SAVE.sav montage`).
 - Short videos of the game, recorded headlessly with `tools/videos.sh` (see
   [docs/develop/VIDEOS.md](docs/develop/VIDEOS.md)), and more screenshots of the game and the
   viewer.

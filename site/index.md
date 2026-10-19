@@ -7,9 +7,6 @@ hero:
   name: Un-Banished
   text: Banished, rebuilt from scratch
   tagline: A new engine for a classic city builder. It runs on Windows, macOS and Linux, and in your web browser. It uses the game files from your own copy of Banished.
-  image:
-    src: /assets/un-banished-icon.svg
-    alt: The Un-Banished emblem, a timber house under a low sun
   actions:
     - theme: brand
       text: Play in your browser
