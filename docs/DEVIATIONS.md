@@ -90,29 +90,29 @@ Deviation: 40, Not ported: 4, Not traced: 1.
 
 ## `crates/game/src/behaviour/animation.rs`
 
-- [Deviation] [crates/game/src/behaviour/animation.rs:143](../crates/game/src/behaviour/animation.rs#L143): Deviation: malformed negative times and empty loop spans must not index outside resources.
+- [Deviation] [crates/game/src/behaviour/animation.rs:149](../crates/game/src/behaviour/animation.rs#L149): Deviation: malformed negative times and empty loop spans must not index outside resources.
 
 ## `crates/game/src/behaviour/character.rs`
 
-- [Not ported] [crates/game/src/behaviour/character.rs:165](../crates/game/src/behaviour/character.rs#L165): RandFloat() < time since the last check / (+0x54 × 12 × 300 s × +0x58); Game +0xd0 Already hurt, or, at a job whose profession has accidents, `RandFloat < time since the last check / (× 12 × 300 s ×)` (the time restarts at every check). Not ported: the debug flag that stops it (`Game` bit 8).
-- [Deviation] [crates/game/src/behaviour/character.rs:547](../crates/game/src/behaviour/character.rs#L547): Deviation: a walk restored from a save plays its walk clip again and faces its next cell on its first update. The original restores the clip with the animation block (`AnimationManager::Serialize`, `FUN_18005d130`), which the port does not decode yet; without a walking clip the body has no root motion, never reaches the next cell, and the citizen stands still for good.
+- [Not ported] [crates/game/src/behaviour/character.rs:214](../crates/game/src/behaviour/character.rs#L214): RandFloat() < time since the last check / (+0x54 × 12 × 300 s × +0x58); Game +0xd0 Already hurt, or, at a job whose profession has accidents, `RandFloat < time since the last check / (× 12 × 300 s ×)` (the time restarts at every check). Not ported: the debug flag that stops it (`Game` bit 8).
+- [Deviation] [crates/game/src/behaviour/character.rs:602](../crates/game/src/behaviour/character.rs#L602): Deviation: a walk restored from a save plays its walk clip again and faces its next cell on its first update. The original restores the clip with the animation block (`AnimationManager::Serialize`, `FUN_18005d130`), which the port does not decode yet; without a walking clip the body has no root motion, never reaches the next cell, and the citizen stands still for good.
 
 ## `crates/game/src/behaviour/character_tree.rs`
 
-- [Deviation] [crates/game/src/behaviour/character_tree.rs:225](../crates/game/src/behaviour/character_tree.rs#L225): Deviation: the original follows a character whose component sits at a higher address; the port takes the one put in the tree later.
+- [Deviation] [crates/game/src/behaviour/character_tree.rs:229](../crates/game/src/behaviour/character_tree.rs#L229): Deviation: the original follows a character whose component sits at a higher address; the port takes the one put in the tree later.
 
 ## `crates/game/src/commerce/trade.rs`
 
-- [Deviation] [crates/game/src/commerce/trade.rs:307](../crates/game/src/commerce/trade.rs#L307): Deviation: a merchant with nothing to sell brings nothing (the original reads an empty list).
+- [Deviation] [crates/game/src/commerce/trade.rs:330](../crates/game/src/commerce/trade.rs#L330): Deviation: a merchant with nothing to sell brings nothing (the original reads an empty list).
 
 ## `crates/game/src/nature/environment.rs`
 
-- [Deviation] [crates/game/src/nature/environment.rs:168](../crates/game/src/nature/environment.rs#L168): State +0x10, level +0x14, temperature +0x18, renderer values +0x1c, baseline +0x2c/+0x30, bias +0x44/+0x48, last slice +0x4c; each effect re-created by FUN_140099790 with its +0xc4 direction and +0xc0 intensity. The environment as a save stores it: the state, the level, the temperature, the renderer's values, the baseline, the bias, the last slice, and each weather effect that exists (made again on load with its direction and intensity). Deviation: the temperature noise (`+0x34`) is not saved; after a load the original keeps its constructor's clock-seeded field until the next reseed (slice 0 or 24). The port keeps its constructor's fixed seed.
-- [Deviation] [crates/game/src/nature/environment.rs:212](../crates/game/src/nature/environment.rs#L212): A new environment for a climate: state 0, level 4, and the climate's baseline. Deviation: the constructor seeds its first Perlin field from two clock-seeded `Random()`s; the first update always reseeds it (slice 0), so a fixed seed is used here.
+- [Deviation] [crates/game/src/nature/environment.rs:170](../crates/game/src/nature/environment.rs#L170): State +0x10, level +0x14, temperature +0x18, renderer values +0x1c, baseline +0x2c/+0x30, bias +0x44/+0x48, last slice +0x4c; each effect re-created by FUN_140099790 with its +0xc4 direction and +0xc0 intensity. The environment as a save stores it: the state, the level, the temperature, the renderer's values, the baseline, the bias, the last slice, and each weather effect that exists (made again on load with its direction and intensity). Deviation: the temperature noise (`+0x34`) is not saved; after a load the original keeps its constructor's clock-seeded field until the next reseed (slice 0 or 24). The port keeps its constructor's fixed seed.
+- [Deviation] [crates/game/src/nature/environment.rs:214](../crates/game/src/nature/environment.rs#L214): A new environment for a climate: state 0, level 4, and the climate's baseline. Deviation: the constructor seeds its first Perlin field from two clock-seeded `Random()`s; the first update always reseeds it (slice 0), so a fixed seed is used here.
 
 ## `crates/game/src/nature/growth.rs`
 
-- [Deviation] [crates/game/src/nature/growth.rs:119](../crates/game/src/nature/growth.rs#L119): Deviation: malformed zero/negative intervals must not hang the browser.
+- [Deviation] [crates/game/src/nature/growth.rs:122](../crates/game/src/nature/growth.rs#L122): Deviation: malformed zero/negative intervals must not hang the browser.
 
 ## `crates/game/src/nature/spawn.rs`
 
@@ -120,25 +120,25 @@ Deviation: 40, Not ported: 4, Not traced: 1.
 
 ## `crates/game/src/nature/wildlife.rs`
 
-- [Deviation] [crates/game/src/nature/wildlife.rs:455](../crates/game/src/nature/wildlife.rs#L455): Deviation: a zero space would divide by zero in the original.
-- [Deviation] [crates/game/src/nature/wildlife.rs:1144](../crates/game/src/nature/wildlife.rs#L1144): Deviation: a zero interval would never leave the loop in the original.
+- [Deviation] [crates/game/src/nature/wildlife.rs:494](../crates/game/src/nature/wildlife.rs#L494): Deviation: a zero space would divide by zero in the original.
+- [Deviation] [crates/game/src/nature/wildlife.rs:1183](../crates/game/src/nature/wildlife.rs#L1183): Deviation: a zero interval would never leave the loop in the original.
 
 ## `crates/game/src/people/life.rs`
 
 - [Deviation] [crates/game/src/people/life.rs:1](../crates/game/src/people/life.rs#L1): The lives of citizens and their homes: needs, age, death, health, happiness, disease, homes, partners and births. See [Citizens](https://tanepiper.github.io/unbanished/topics/citizens), docs/CITIZEN-NEEDS-AND-HOUSEHOLDS.md and docs/CITIZEN-LIFE.md. The citizen description is kept as a table by offset, so the port reads the same values as the original. Deviations: the entity references the original keeps (home, partner, guardian, dependents) are citizen and entity indices; the dependents' ring is a vector in ring order. Disease spread visits the citizens within the radius in registration order where the original asks its spatial index. `0x14016a6a0`); disease spread `FUN_140117940`. The CitizenDescription is at citizen +0x288.
-- [Not ported] [crates/game/src/people/life.rs:572](../crates/game/src/people/life.rs#L572): Game +0xd0 Queue the citizen's death (`reason`) and tell the family. When the citizen is buried in a cemetery (found from the home's entrance, else from where the citizen stands), the family's bit is `0x40`; otherwise it is `2` for old age, else `0x80`. Not ported: the debug flag that stops deaths (`Game` bit 8).
+- [Not ported] [crates/game/src/people/life.rs:591](../crates/game/src/people/life.rs#L591): Game +0xd0 Queue the citizen's death (`reason`) and tell the family. When the citizen is buried in a cemetery (found from the home's entrance, else from where the citizen stands), the family's bit is `0x40`; otherwise it is `2` for old age, else `0x80`. Not ported: the debug flag that stops deaths (`Game` bit 8).
 
 ## `crates/game/src/production/fishing.rs`
 
-- [Deviation] [crates/game/src/production/fishing.rs:221](../crates/game/src/production/fishing.rs#L221): Deviation: a column off the map's edge reads outside the cell array in the original; no catch here.
+- [Deviation] [crates/game/src/production/fishing.rs:226](../crates/game/src/production/fishing.rs#L226): Deviation: a column off the map's edge reads outside the cell array in the original; no catch here.
 
 ## `crates/game/src/production/forester.rs`
 
-- [Deviation] [crates/game/src/production/forester.rs:110](../crates/game/src/production/forester.rs#L110): Deviation: cells off the map's edge (and an entrance off the map) read outside the cell array in the original; no candidate here.
+- [Deviation] [crates/game/src/production/forester.rs:112](../crates/game/src/production/forester.rs#L112): Deviation: cells off the map's edge (and an entrance off the map) read outside the cell array in the original; no candidate here.
 
 ## `crates/game/src/production/herbalist.rs`
 
-- [Deviation] [crates/game/src/production/herbalist.rs:137](../crates/game/src/production/herbalist.rs#L137): Deviation: a column off the map's edge reads past the cell array in the original; such a cell is no candidate here.
+- [Deviation] [crates/game/src/production/herbalist.rs:141](../crates/game/src/production/herbalist.rs#L141): Deviation: a column off the map's edge reads past the cell array in the original; such a cell is no candidate here.
 
 ## `crates/game/src/production/hunt.rs`
 
@@ -151,7 +151,7 @@ Deviation: 40, Not ported: 4, Not traced: 1.
 
 ## `crates/game/src/world/placement.rs`
 
-- [Not ported] [crates/game/src/world/placement.rs:246](../crates/game/src/world/placement.rs#L246): The occupant is cell +0x00, the zone count +0x28. Activate a zone: the entity becomes the occupant of every footprint cell that is not `.`, and each `.` cell counts one more zone. Not ported: the path grid's blocked bit (citizens' mode 0 does not honour it).
+- [Not ported] [crates/game/src/world/placement.rs:252](../crates/game/src/world/placement.rs#L252): The occupant is cell +0x00, the zone count +0x28. Activate a zone: the entity becomes the occupant of every footprint cell that is not `.`, and each `.` cell counts one more zone. Not ported: the path grid's blocked bit (citizens' mode 0 does not honour it).
 
 ## `crates/game/src/world/terraform.rs`
 

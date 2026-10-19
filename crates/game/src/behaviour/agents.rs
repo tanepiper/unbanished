@@ -52,35 +52,44 @@ const FETCH_COOLDOWN: f32 = 75.0;
 /// The CitizenDescription values the AI reads.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CitizenRulesAi {
+    /// The thresholds of the citizen's needs.
     pub thresholds: Thresholds,
     // +0x6c; +0xa4
-    /// starting health, starting happiness.
+    /// The starting health.
     pub health: f32,
+    /// The starting happiness.
     pub happiness: f32,
     // +0xbc
     /// Loiter search range.
     pub loiter_range: i32,
     // +0x130
-    /// CitizenDescription multiplied by 300.
+    /// How long clothing lasts, in seconds (the citizen description's value multiplied by 300).
     ///
     /// Original: `FUN_140117730`.
     pub clothing_duration: f32,
+    /// The highest health.
     pub health_max: f32,
     /// Midpoint for food, quarter-point for cold status warnings.
     ///
     /// Original: `FUN_140118340`.
     pub hunger_limit: f32,
+    /// The cold level of the cold warning.
     pub cold_limit: f32,
+    /// Whether a citizen without a workplace shows no job warning, when no professions are loaded.
     pub profession_allows_idle: bool,
     // +0x110
     /// CitizenDescription: the tool type CitizenUI calls "Iron" (others are "Steel").
     pub tool_grade: i32,
     // CitizenDescription +0xfc, +0x100, +0x104 (ints) and +0x108, +0x10c (°F); used by FUN_1400fc3c0.
-    /// The citizen description's values for how long a citizen waits before it takes far work.
+    /// The rank of work a citizen takes at once, before it has waited.
     pub work_near: i32,
+    /// The rank of work a citizen takes after it has waited the longest.
     pub work_far: i32,
+    /// The longest wait, in months (of 300 seconds).
     pub work_minutes: i32,
+    /// The rank of work a citizen always takes.
     pub work_ok: i32,
+    /// The temperature at or above which a citizen takes any work in range.
     pub work_cold: f32,
     // +0x114
     /// CitizenDescription: work duration factor without a tool.
@@ -100,25 +109,52 @@ pub struct CitizenRulesAi {
 /// Citizen fields read/written by equipment activities and Citizen messages 1/6/7.
 #[derive(Debug, Clone, Default)]
 pub struct CitizenState {
+    /// The health.
     pub health: f32,
+    /// The happiness.
     pub happiness: f32,
+    /// The hunger.
     pub hunger: f32,
+    /// The cold.
     pub cold: f32,
+    /// Whether the citizen is sick.
     pub sick: bool,
+    /// The work it is assigned, if any (*inferred*).
     pub work: Option<usize>,
     // +0xf0; +0x280
     /// StatusIconComponent (Citizen points to that component).
     pub status: u32,
-    pub tool_status: i32,        // +0xa8
-    pub tool_uses: i32,          // +0xac
-    pub clothing_status: i32,    // +0x1e0
-    pub clothing: i32,           // +0x1e4
-    pub clothing_remaining: i64, // +0x1e8
-    pub health_events: u32,      // +0x54
-    pub flags: u32,              // +0x88
-    pub supply_activity: i32,    // +0xb0
-    pub job: i32,                // +0x30
-    pub home: Option<usize>,     // +0x238
+    // +0xa8
+    /// The tool level shown in the citizen window.
+    pub tool_status: i32,
+    // +0xac
+    /// The uses left on its tool.
+    pub tool_uses: i32,
+    // +0x1e0
+    /// The clothing level shown in the citizen window.
+    pub clothing_status: i32,
+    // +0x1e4
+    /// The clothing level: 0 none, 1 or 2.
+    pub clothing: i32,
+    // +0x1e8
+    /// The time its clothing lasts.
+    pub clothing_remaining: i64,
+    // +0x54
+    /// Flags of health events.
+    pub health_events: u32,
+    // +0x88
+    /// Status flags.
+    pub flags: u32,
+    // +0xb0
+    /// The supply errand it runs for its home: 1 food, 2 firewood.
+    pub supply_activity: i32,
+    // +0x30
+    /// The id of the work it does (−1 none).
+    pub job: i32,
+    // +0x238
+    /// The home, if any.
+    pub home: Option<usize>,
+    /// What it carries.
     pub carried: Storage,
     // +0x1f0
     /// Profession (index into the profession list).
@@ -135,14 +171,15 @@ pub struct CitizenState {
     /// Pregnancy (positive, counting down) or the wait after a birth (negative).
     pub reproduction: f32,
     // +0x58, +0x90
-    /// Time towards the next health and happiness step.
+    /// Time towards the next health step.
     pub health_timer: i64,
+    /// Time towards the next happiness step.
     pub happiness_timer: i64,
     // +0x98
     /// Every kind of food eaten.
     pub foods: Vec<usize>,
     // +0x260
-    /// ring: children and other dependents, in ring order.
+    /// The children and other dependents, in ring order.
     pub dependents: Vec<usize>,
     // +0x218
     /// Time attending school.
@@ -151,15 +188,17 @@ pub struct CitizenState {
     /// The school's AttendanceComponent entity (`Citizen::school` mirrors it).
     pub school: Option<usize>,
     // +0x228, +0x230
-    /// The doctor's and the chapel's AttendanceComponent entity.
+    /// The doctor's AttendanceComponent entity.
     pub doctor: Option<usize>,
+    /// The chapel's AttendanceComponent entity.
     pub priest: Option<usize>,
     // +0x68
     /// The disease (index into the disease list).
     pub disease: Option<usize>,
     // +0x70
-    /// Illness left while sick, immunity left after.
+    /// The illness left while sick.
     pub disease_left: i64,
+    /// The immunity left after an illness.
     pub immunity: i64,
     // +0x78
     /// Time to the next spread attempt.
@@ -231,13 +270,16 @@ struct TownStock<'a> {
 
 /// The citizens' agents: each citizen's AI and character, and the state the iteration needs.
 pub struct Agents {
+    /// The citizens' characters.
     pub characters: Vec<Character>,
+    /// The citizens' AI.
     pub ais: Vec<CitizenAi>,
+    /// The citizens' states.
     pub states: Vec<CitizenState>,
     /// The CitizenDescription for the CitizenComponent's update.
     pub life: crate::people::life::LifeRules,
     // +0xa0
-    /// Town manager: living citizens in activation order.
+    /// The living citizens, in activation order.
     pub registry: Vec<usize>,
     /// Log entries the citizens asked for since the caller last took them.
     pub events: Vec<crate::people::life::LifeEvent>,
@@ -245,7 +287,7 @@ pub struct Agents {
     /// `Game/Disease/Diseases.rsc` (`GameGlobal`).
     pub diseases: Vec<banished_formats::game::Disease>,
     // +0x1a8
-    /// Town manager.
+    /// The town's disease level.
     pub town_disease: f32,
     /// The character description new citizens get.
     desc: CharacterDescription,
@@ -254,7 +296,7 @@ pub struct Agents {
     /// Citizens queued for deletion this iteration (`FUN_14011c2a0`), with the reason.
     dying: Vec<(usize, i32)>,
     // +0x50
-    /// The laborer profession's (what home stocking carries at least).
+    /// The laborer profession's carry amount (what home stocking carries at least).
     pub carry: i32,
     sectors: SectorGraph,
     pathfinder: Pathfinder,

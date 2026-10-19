@@ -22,9 +22,13 @@ use crate::terrain::{CellType, HeightGrid};
 /// The description's meshes as the first submesh's vertices (`PickingMesh::Vertices(0)`).
 #[derive(Debug, Clone, Default)]
 pub struct TerraformTemplate {
+    /// The floor mesh, if any.
     pub floor: Option<Arc<Vec<[f32; 3]>>>,
+    /// The cell types the floor mesh may lower.
     pub floor_mask: u32,
+    /// The ceiling mesh, if any.
     pub ceiling: Option<Arc<Vec<[f32; 3]>>>,
+    /// The cell types the ceiling mesh may raise.
     pub ceiling_mask: u32,
 }
 
@@ -32,19 +36,26 @@ pub struct TerraformTemplate {
 /// The component's raised points (where the ground was) and cells turned high.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TerraformState {
+    /// The raised points, with the ground height they had.
     pub raised: Vec<[f32; 3]>,
+    /// The cells turned high.
     pub cells: Vec<i32>,
 }
 
 /// A request for the terrain owner: dig (event 4) or undo (removal) an entity's terraform.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Terraform {
+    /// Dig the entity's terraform.
     Dig(usize),
+    /// Undo the entity's terraform.
     Undo(usize),
     /// A quarry's dig to `floor` (`crate::production::quarry`), claiming its steep cells with `claim`.
     Quarry {
+        /// The quarry.
         entity: usize,
+        /// The height to dig to.
         floor: f32,
+        /// Whether it claims its steep cells.
         claim: bool,
     },
 }

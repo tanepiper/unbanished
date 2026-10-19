@@ -23,8 +23,9 @@ use crate::terrain::{CellType, HeightGrid};
 #[derive(Debug, Clone, PartialEq)]
 pub struct QuarryTemplate {
     // +0x28, +0x2c
-    /// The floor when built and at the end of production.
+    /// The floor when built.
     pub shallow: f32,
+    /// The floor at the end of production.
     pub deep: f32,
     // +0x20
     /// The pit's picking mesh vertices (model space).

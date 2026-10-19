@@ -11,7 +11,8 @@
 //! it and continues with the next chain in the same run, `Failed` clears everything, and when the
 //! stack empties the "on empty" chain runs once.
 //!
-//! Original: `FUN_14010f1f0`, `FUN_14010e990`, `FUN_1400ca120`, `FUN_14010e950`, `FUN_1400ca450`, `FUN_1400cde40`, `FUN_1400cd2b0`, `FUN_1400ca080`.
+//! Original: `FUN_14010f1f0`, `FUN_14010e990`, `FUN_1400ca120`, `FUN_14010e950`, `FUN_1400ca450`,
+//! `FUN_1400cde40`, `FUN_1400cd2b0`, `FUN_1400ca080`.
 // vtable 0x140168790; +0x40; +0x48; +0x30; +0x28 update; +0x58; +0x20; +0x38
 
 use banished_formats::game::CharacterDescription;
@@ -37,8 +38,11 @@ const FLAT_TYPE: u8 = 11;
 /// The result of an action's step.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
+    /// The action finished.
     Done = 0,
+    /// The action goes on.
     Running = 1,
+    /// The action failed; the stack is abandoned.
     Failed = 2,
 }
 
@@ -46,48 +50,77 @@ pub enum Status {
 /// Which component a `SendMessage` targets (CitizenAI, Citizen).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Component {
+    /// The citizen's AI.
     CitizenAi,
+    /// The citizen component (needs, family).
     Citizen,
-    /// `DAT_1401cc2c0`.
+    // DAT_1401cc2c0
+    /// Not identified yet.
     Happiness,
-    /// `DAT_1401cf008`: BuildComponent message 0 adds one unit of construction work.
+    // DAT_1401cf008
+    /// BuildComponent message 0 adds one unit of construction work.
     Build,
-    /// `DAT_1401cf5f0`: DestroyComponent message 0 adds one unit of deconstruction work.
+    // DAT_1401cf5f0
+    /// DestroyComponent message 0 adds one unit of deconstruction work.
     Destroy,
-    /// `DAT_1401cc1e0`: FireComponent message 0, a bucket of water (`FUN_1400499f0`).
+    // DAT_1401cc1e0
+    /// FireComponent message 0, a bucket of water.
+    ///
+    /// Original: `FUN_1400499f0`.
     Fire,
-    /// CompleteRoad's start (`FUN_1400cad20` → `FUN_1400a1b10`): `a` the cell, `b` the cell
-    /// type, `message` the `+0x2b` byte.
+    // +0x2b
+    /// CompleteRoad's start: `a` the cell, `b` the cell type, `message` the byte.
+    ///
+    /// Original: `FUN_1400cad20`, `FUN_1400a1b10`.
     Road,
-    /// The job manager: message 0 is CompleteTask's start (`FUN_1400fdc30`), 1 its abort
-    /// (`FUN_1400fdcd0`); `a` is the work id, `b` the task parameter.
+    /// The job manager: message 0 is CompleteTask's start, 1 its abort; `a` is the work id, `b` the
+    /// task parameter.
+    ///
+    /// Original: `FUN_1400fdc30`, `FUN_1400fdcd0`.
     Jobs,
-    /// A NaturalResourceComponent: 0 remove (RemoveNaturalResource start, `a` its `+0x30`
-    /// flag), 1 release the removal claim (its abort), 2 play animation `a`
-    /// (AnimateNaturalResource start, `FUN_14012b910`).
+    // +0x30
+    /// A NaturalResourceComponent: 0 remove (RemoveNaturalResource start, `a` its flag), 1 release
+    /// the removal claim (its abort), 2 play animation `a` (AnimateNaturalResource start).
+    ///
+    /// Original: `FUN_14012b910`.
     NaturalResource,
     /// A RawMaterialComponent pile: 0 picked up (PickupRawMaterial start).
     Pile,
-    /// CreateRawMaterial's start (`FUN_1400cc010`): `a` the output template, `b` the cell,
-    /// `entity` the workplace, `message` the yield factor (`+0x4c`) as `f32` bits.
+    // +0x4c
+    /// CreateRawMaterial's start: `a` the output template, `b` the cell, `entity` the workplace,
+    /// `message` the yield factor as `f32` bits.
+    ///
+    /// Original: `FUN_1400cc010`.
     CreateRawMaterial,
-    /// CreateNaturalResource's start (`FUN_1400cbb20`) once the cell is free: `a` the
-    /// template, `b` the cell.
+    /// CreateNaturalResource's start once the cell is free: `a` the template, `b` the cell.
+    ///
+    /// Original: `FUN_1400cbb20`.
     CreateNaturalResource,
-    /// RemoveAnimal's start (`FUN_1400cfcc0`): the animal `entity` is removed.
+    /// RemoveAnimal's start: the animal `entity` is removed.
+    ///
+    /// Original: `FUN_1400cfcc0`.
     Animal,
-    /// CropFieldComponent's message slot (`FUN_140120020`): `message` 0 planted / 1 tended,
-    /// `a` the cell index, `entity` the field.
+    /// CropFieldComponent's message slot: `message` 0 planted / 1 tended, `a` the cell index,
+    /// `entity` the field.
+    ///
+    /// Original: `FUN_140120020`.
     CropField,
-    /// OrchardComponent's message slot (`FUN_1400522f0`): 0 planted, 1 picked, 2 tended; `a`
-    /// the tree slot.
+    /// OrchardComponent's message slot: 0 planted, 1 picked, 2 tended; `a` the tree slot.
+    ///
+    /// Original: `FUN_1400522f0`.
     Orchard,
-    /// PastureComponent's message slot (`FUN_14012cbf0`): 0 a rancher's visit.
+    /// PastureComponent's message slot: 0 a rancher's visit.
+    ///
+    /// Original: `FUN_14012cbf0`.
     Pasture,
-    /// `FUN_1400ccd90`: a loose pile of `a` (material), `b` units, left on the ground near
-    /// the citizen (the units already left its storage).
+    /// A loose pile of `a` (material), `b` units, left on the ground near the citizen (the units
+    /// already left its storage).
+    ///
+    /// Original: `FUN_1400ccd90`.
     DropPile,
-    /// QuarryComponent's message slot (`FUN_1400554e0`): the quarry `entity` digs deeper.
+    /// QuarryComponent's message slot: the quarry `entity` digs deeper.
+    ///
+    /// Original: `FUN_1400554e0`.
     Quarry,
     /// FishingComponent: the fishing sequence's report (`a` the catch's cell). It reaches the
     /// component's default message handler, which does nothing.
@@ -99,10 +132,15 @@ pub enum Component {
 /// after the character update.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Message {
+    /// The component that receives the message.
     pub component: Component,
+    /// The message's number.
     pub message: i32,
+    /// The entity it is for, if any.
     pub entity: Option<usize>,
+    /// The first argument.
     pub a: i32,
+    /// The second argument.
     pub b: i32,
 }
 
@@ -116,7 +154,9 @@ pub type StorageSearch<'a> =
 
 /// What a character needs from the world to move: the map, the ground and the path finder.
 pub struct World<'a> {
+    /// The map's size in cells.
     pub size: usize,
+    /// The type of each map cell.
     pub types: &'a [CellType],
     // +0x08; +0x00; +0x28
     /// The object stamped into each map cell.
@@ -129,17 +169,25 @@ pub struct World<'a> {
     /// The road kind planned or built (`0xff` none).
     pub roads: &'a [u8],
     // +0x2d
-    /// and the floor scene: bridge decks walked on.
+    /// The floors (bridge decks) that characters walk on.
     pub floors: &'a crate::world::floor::Floors,
+    /// The walkable region of each cell.
     pub regions: &'a [u16],
+    /// The ground's heights.
     pub terrain: &'a HeightGrid<'a>,
+    /// The pathfinder.
     pub pathfinder: &'a mut Pathfinder,
+    /// The game's random numbers.
     pub rng: &'a mut Random,
+    /// The messages that actions send, delivered after the update.
     pub messages: &'a mut Vec<Message>,
     /// What ConsumeRawMaterial used up (material, amount), for the stock manager's count.
     pub used: &'a mut Vec<(usize, i32)>,
+    /// The town's storages.
     pub storages: &'a mut [Storage],
+    /// The raw materials.
     pub materials: &'a [RawMaterial],
+    /// What the character carries.
     pub carried: &'a mut Storage,
     /// The drop-off redirect's storage search (citizens only).
     pub storage_search: Option<&'a mut StorageSearch<'a>>,
@@ -153,8 +201,9 @@ pub struct World<'a> {
     /// Per placed entity: its model is playing an animation (`MeshInstance::IsAnimating`).
     pub animating: &'a mut [bool],
     // +0x1f8; +0x200
-    /// Citizen: an accident's profession and the time since the last injury check.
+    /// A citizen's accident: the profession whose work it had the accident at.
     pub accident: &'a mut Option<usize>,
+    /// The time since the last check for an injury at work.
     pub accident_timer: &'a mut i64,
     // +0x54; +0x58; +0x30; +0x50
     /// The current job's profession (→ the work's slot) and its accident odds.
@@ -237,15 +286,19 @@ fn normalize2(v: [f32; 2]) -> [f32; 2] {
 
 /// The character state the actions drive.
 pub struct Character {
+    /// The character description: speeds and turning.
     pub desc: CharacterDescription,
     // +0x158; +0x168
-    /// Model transform and yaw (degrees, including the yaw offset).
+    /// The position of the model.
     pub position: [f32; 3],
+    /// The heading in degrees, including the model's yaw offset.
     pub yaw: f32,
     // +0x2c..+0x34; +0x38; +0x3c
-    /// Walking direction; speed; target heading.
+    /// The walking direction.
     pub direction: [f32; 3],
+    /// The walking speed.
     pub speed: f32,
+    /// The heading it turns towards.
     pub target_heading: f32,
     // +0x28
     /// Set with a heading of its own, cleared when a waypoint is faced; no byte read of it was
@@ -258,6 +311,7 @@ pub struct Character {
     pub scale: f32,
     /// The model's animation state, its clips blending into each other.
     pub animation: AnimationStack,
+    /// The actions it runs.
     pub stack: ActionStack,
     // +0x40; Game +0x88
     /// Its slot in the characters' tree (`Game`), −1 while in none.
@@ -394,6 +448,7 @@ pub struct MoveTo {
     // +0x468 / +0x46c
     /// Walk and stand clips.
     pub walk: usize,
+    /// The clip played while standing.
     pub stand: usize,
     // +0x470
     /// Pathfinder cost table.
@@ -617,112 +672,182 @@ impl MoveTo {
 /// One task.
 #[derive(Debug, Clone)]
 pub enum Action {
+    /// `MoveTo`: walk to a target.
     MoveTo(Box<MoveTo>),
-    /// `PlayAnimation` (vtable `0x14015ea70`): play `anim` for `duration`.
+    // vtable 0x14015ea70
+    /// `PlayAnimation`: play `anim` for `duration`.
     PlayAnimation {
+        /// The clip.
         anim: usize,
+        /// How long it plays, in microseconds.
         duration: i64,
+        /// The time played so far.
         elapsed: i64,
     },
-    /// `PerformWork` (vtable `0x1401662c0`): face `facing` (if within ±180), play `anim` for
-    /// `duration`.
+    // vtable 0x1401662c0
+    /// `PerformWork`: face `facing` (if within ±180), play `anim` for `duration`.
     PerformWork {
+        /// The heading to face, in degrees.
         facing: f32,
+        /// The work clip.
         anim: usize,
+        /// How long the work takes, in microseconds.
         duration: i64,
+        /// The time worked so far.
         elapsed: i64,
-        /// `+0x40`: decrement the citizen's `+0xac` counter on start.
+        // +0x40; +0xac
+        /// Decrement the citizen's counter on start.
         consume: bool,
     },
-    /// `SendComponentMessage` (vtable `0x1401664e0`): deliver a message on start.
+    // vtable 0x1401664e0
+    /// `SendComponentMessage`: deliver a message on start.
     SendMessage(Message),
-    /// `CompleteRoad` (vtable `0x140165f80`, constructor `FUN_1400caea0`): the cell becomes
-    /// its road (or ground) on start.
+    // vtable 0x140165f80
+    /// `CompleteRoad`: the cell becomes its road (or ground) on start.
+    ///
+    /// Original: `FUN_1400caea0`.
     CompleteRoad {
+        /// The cell.
         cell: i32,
+        /// The cell type it gets.
         ty: u8,
+        /// The road kind built there.
         built: u8,
     },
-    /// FUN_1400cb880 / FUN_1400cb980: reserve at construction; consume on start.
+    /// Reserve at construction; consume on start.
+    ///
+    /// Original: `FUN_1400cb880`, `FUN_1400cb980`.
     ConsumeStoredRawMaterial {
+        /// The storage.
         storage: usize,
+        /// What it uses: `(raw material, count)`.
         items: Vec<(usize, i32)>,
+        /// Whether the goods were reserved.
         reserved: bool,
     },
-    /// FUN_1400cf9f0 / FUN_1400cf700: reserve at construction; transfer on start.
+    /// Reserve at construction; transfer on start.
+    ///
+    /// Original: `FUN_1400cf9f0`, `FUN_1400cf700`.
     PickupStoredRawMaterial {
+        /// The storage.
         storage: usize,
+        /// What it takes: `(raw material, count)`.
         items: Vec<(usize, i32)>,
+        /// Whether it may take less than asked.
         partial: bool,
     },
-    /// `ShowTool` (vtable `0x14015ead0`, start `FUN_140043070`): attach tool mesh `n` (0..10),
-    /// the carried goods (−2), or nothing (−1). The town draws it on the citizen's `tool` node
-    /// (`FUN_14011c880`, `StartingTown::model_instances`).
+    // vtable 0x14015ead0
+    /// `ShowTool`: attach tool mesh `n` (0..10), the carried goods (−2), or nothing (−1). The town
+    /// draws it on the citizen's `tool` node (`StartingTown::model_instances`).
+    ///
+    /// Original: `FUN_140043070`, `FUN_14011c880`.
     ShowTool(i32),
-    /// `CompleteTask` (vtable `0x140165fe0`, constructor `FUN_1400cb270`): tell the job manager
-    /// the task is done (start `FUN_1400cb010`) or abandoned (abort `FUN_1400caf90`).
+    // vtable 0x140165fe0
+    /// `CompleteTask`: tell the job manager the task is done or abandoned.
+    ///
+    /// Original: `FUN_1400cb270`, `FUN_1400cb010`; abandoned `FUN_1400caf90`.
     CompleteTask {
+        /// The work's id.
         work: i32,
+        /// The task's parameter.
         param: i32,
     },
-    /// `AnimateNaturalResource` (vtable `0x140165f20`, constructor `FUN_1400caca0`): play the
-    /// resource's animation `anim` (start `FUN_1400caad0`); with `wait`, run until it ends
-    /// (update `FUN_1400caa80`).
+    // vtable 0x140165f20
+    /// `AnimateNaturalResource`: play the resource's animation `anim`; with `wait`, run until it
+    /// ends.
+    ///
+    /// Original: `FUN_1400caca0`, `FUN_1400caad0`, `FUN_1400caa80`.
     AnimateResource {
+        /// The resource.
         entity: usize,
+        /// The clip.
         anim: usize,
+        /// Whether the action waits until the clip ends.
         wait: bool,
     },
-    /// `RemoveNaturalResource` (vtable `0x140166470`, constructor `FUN_1400d02c0`, start
-    /// `FUN_1400cffe0`): remove the resource and leave its pile; abort (`FUN_1400cff70`)
-    /// releases the claim (flag `0x100000`).
+    // vtable 0x140166470
+    /// `RemoveNaturalResource`: remove the resource and leave its pile; abort releases the claim
+    /// (flag `0x100000`).
+    ///
+    /// Original: `FUN_1400d02c0`, `FUN_1400cffe0`, `FUN_1400cff70`.
     RemoveResource {
+        /// The resource.
         entity: usize,
+        /// The removal flag passed to the resource.
         flag: bool,
     },
-    /// `PickupRawMaterial` (vtable `0x140166330`, constructor `FUN_1400cf040`, start
-    /// `FUN_1400ceda0`): take the whole pile into the carried storage and destroy it.
+    // vtable 0x140166330
+    /// `PickupRawMaterial`: take the whole pile into the carried storage and destroy it.
+    ///
+    /// Original: `FUN_1400cf040`, `FUN_1400ceda0`.
     PickupPile {
+        /// The pile.
         entity: usize,
     },
-    /// `CreateRawMaterial` (vtable `0x140166130`, constructor `FUN_1400cc670`, start
-    /// `FUN_1400cc010`): leave the output as piles near `cell`, `batch` weight each (the
+    // vtable 0x140166130
+    /// `CreateRawMaterial`: leave the output as piles near `cell`, `batch` weight each (the
     /// worker's capacity).
+    ///
+    /// Original: `FUN_1400cc670`, `FUN_1400cc010`.
     CreateRawMaterial {
+        /// The template of the output piles.
         template: usize,
+        /// The cell they are left near.
         cell: i32,
+        /// The weight of each pile.
         batch: i32,
+        /// The workplace that made them.
         workplace: Option<usize>,
-        /// `+0x4c`: the yield is scaled by this (1 for production; a dock's share of the
-        /// fish).
+        // +0x4c
+        /// The yield is scaled by this (1 for production; a dock's share of the fish).
         factor: f32,
     },
-    /// `HuntAnimal` (vtable `0x140166200`, constructor `FUN_1400cd8d0`), attached to a hunter's
-    /// walk or wait: running until its notify (`FUN_1400cd2b0`, run by the citizens' update)
-    /// has started an attack.
+    // vtable 0x140166200
+    /// `HuntAnimal`, attached to a hunter's walk or wait: running until its notify (run by the
+    /// citizens' update) has started an attack.
+    ///
+    /// Original: `FUN_1400cd8d0`, `FUN_1400cd2b0`.
     HuntAnimal {
+        /// The hunter's lodge.
         lodge: usize,
+        /// Whether the attack has started.
         done: bool,
     },
-    /// `RemoveAnimal` (vtable `0x140166400`, start `FUN_1400cfcc0`).
+    // vtable 0x140166400
+    /// `RemoveAnimal`.
+    ///
+    /// Original: `FUN_1400cfcc0`.
     RemoveAnimal {
+        /// The animal.
         entity: usize,
     },
-    /// `CreateNaturalResource` (vtable `0x1401660c0`, constructor `FUN_1400cbef0`): plant
-    /// `template` on `cell`, which must hold no object and `occupant` as its occupant.
+    // vtable 0x1401660c0
+    /// `CreateNaturalResource`: plant `template` on `cell`, which must hold no object and
+    /// `occupant` as its occupant.
+    ///
+    /// Original: `FUN_1400cbef0`.
     CreateNaturalResource {
+        /// The resource's template.
         template: usize,
+        /// The cell's required occupant.
         occupant: Option<usize>,
+        /// The cell.
         cell: i32,
     },
-    /// `DropOffRawMaterial` (vtable `0x1401661a0`, constructor `FUN_1400cd1a0`, start
-    /// `FUN_1400cc7d0`): move up to `count` carried units into `storage`; with `redirect`
-    /// (`+0x20`) a storage that cannot take them sends the citizen on to another, or the goods
-    /// are left on the ground.
+    // vtable 0x1401661a0; +0x20
+    /// `DropOffRawMaterial`: move up to `count` carried units into `storage`; with `redirect` a
+    /// storage that cannot take them sends the citizen on to another, or the goods are left on the
+    /// ground.
+    ///
+    /// Original: `FUN_1400cd1a0`, `FUN_1400cc7d0`.
     DropOff {
+        /// The storage.
         storage: usize,
+        /// The raw material.
         material: usize,
+        /// The most units to move.
         count: i32,
+        /// Whether a storage that cannot take them sends the citizen on.
         redirect: bool,
     },
 }

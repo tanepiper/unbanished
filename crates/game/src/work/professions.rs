@@ -41,6 +41,7 @@ pub struct Profession {
     // +0x30; +0x20
     /// Name key (`ProfessionBuilder`), in the string table.
     pub name: String,
+    /// The string table of the name, if not the default one.
     pub string_table: Option<String>,
     // +0x28; +0x30
     /// The icon's sprite sheet (sprite).
@@ -60,7 +61,8 @@ pub struct Profession {
     /// The death-message key of an accident at its work.
     pub death: String,
     // +0x54, +0x58; +0x54; +0x58
-    /// Accident odds: on average one per years × of time between checks; none when is not positive.
+    /// The accident odds `(years, factor)`: on average one accident per `years × factor` years
+    /// at work; none when the factor is not positive.
     ///
     /// Original: `FUN_1400ae760`.
     pub accident: (f32, f32),
@@ -74,8 +76,11 @@ pub struct Profession {
 /// Original: `FUN_1400ae300`.
 #[derive(Debug, Clone, Default)]
 pub struct Professions {
+    /// Every profession.
     pub list: Vec<Profession>,
+    /// The laborer's index in `list`.
     pub laborer: usize,
+    /// The builder's index in `list`.
     pub builder: usize,
 }
 
@@ -178,71 +183,185 @@ pub struct Worker {
     // +0x208; desc+0x44 <= age
     /// `desc <= age` and no school: the citizens every search counts.
     pub adult: bool,
+    /// The profession.
     pub profession: usize,
+    /// The workplace, if any.
     pub workplace: Option<usize>,
+    /// The home, if any.
     pub home: Option<usize>,
 }
 
 /// A player action on professions, applied by the simulation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
-    /// ProfessionUI spinner `300 + profession` set to `count` (`FUN_14007b890`).
-    SetCount { profession: usize, count: i32 },
-    /// WorkPlaceUI `0x1450`: one more worker of the workplace's profession (`FUN_1400918a0`).
-    AddWorker { entity: usize },
-    /// WorkPlaceUI `0x1451`: one fewer (`FUN_140096650`).
-    RemoveWorker { entity: usize },
-    /// WorkPlaceUI `0x1452/0x1453`: most workers ± 1 (`FUN_14008cae0` → `FUN_140134fd0`).
-    ChangeMaxWorkers { entity: usize, delta: i32 },
-    /// BuildUI's pause button (element 6000, `FUN_1400b7370`): `FUN_1401350d0`.
-    SetEnabled { entity: usize, enabled: bool },
-    /// CropUI's crop list (slot `+0x58`, `FUN_1400b7df0`): the field's crop; choosing the
-    /// first one switches farming on.
-    SetCrop { entity: usize, crop: Option<usize> },
-    /// The field's buttons (`FUN_140120190`): 0 plant now, 1 harvest now, 2 farming on/off.
-    FieldAction { entity: usize, action: i32 },
-    /// PastureUI's slider (slot `+0x48`, `FUN_1400ba2f0`): the most animals the pasture keeps.
-    SetLimit { entity: usize, limit: i32 },
-    /// Remove Buildings (`FUN_140109b40`) and DestroyUI: `FUN_140123470`.
-    Demolish { entity: usize },
-    /// DestroyUI `0x1771` (`FUN_1401238d0`): the demolition is called off.
-    CancelDemolition { entity: usize },
-    /// RoadTool's apply (`FUN_14010a200` → `FUN_1400a1e30`): plan a road on a cell.
+    /// ProfessionUI spinner `300 + profession` set to `count`.
+    ///
+    /// Original: `FUN_14007b890`.
+    SetCount {
+        /// The profession.
+        profession: usize,
+        /// The number of workers wanted.
+        count: i32,
+    },
+    /// WorkPlaceUI `0x1450`: one more worker of the workplace's profession.
+    ///
+    /// Original: `FUN_1400918a0`.
+    AddWorker {
+        /// The workplace.
+        entity: usize,
+    },
+    /// WorkPlaceUI `0x1451`: one fewer.
+    ///
+    /// Original: `FUN_140096650`.
+    RemoveWorker {
+        /// The workplace.
+        entity: usize,
+    },
+    /// WorkPlaceUI `0x1452/0x1453`: most workers ± 1.
+    ///
+    /// Original: `FUN_14008cae0`, `FUN_140134fd0`.
+    ChangeMaxWorkers {
+        /// The workplace.
+        entity: usize,
+        /// The change: +1 or −1.
+        delta: i32,
+    },
+    /// The pause button of a building's window (element 6000).
+    ///
+    /// Original: `FUN_1400b7370`, `FUN_1401350d0`.
+    SetEnabled {
+        /// The building.
+        entity: usize,
+        /// Whether it works.
+        enabled: bool,
+    },
+    // slot +0x58
+    /// CropUI's crop list: the field's crop; choosing the first one switches farming on.
+    ///
+    /// Original: `FUN_1400b7df0`.
+    SetCrop {
+        /// The field.
+        entity: usize,
+        /// The crop, or none.
+        crop: Option<usize>,
+    },
+    /// The field's buttons: 0 plant now, 1 harvest now, 2 farming on/off.
+    ///
+    /// Original: `FUN_140120190`.
+    FieldAction {
+        /// The field.
+        entity: usize,
+        /// The button: 0, 1 or 2.
+        action: i32,
+    },
+    // slot +0x48
+    /// PastureUI's slider: the most animals the pasture keeps.
+    ///
+    /// Original: `FUN_1400ba2f0`.
+    SetLimit {
+        /// The pasture.
+        entity: usize,
+        /// The most animals.
+        limit: i32,
+    },
+    /// Demolish a building (the Remove Buildings tool, or the button in its window).
+    ///
+    /// Original: `FUN_140109b40`, `FUN_140123470`.
+    Demolish {
+        /// The building.
+        entity: usize,
+    },
+    /// DestroyUI `0x1771`: the demolition is called off.
+    ///
+    /// Original: `FUN_1401238d0`.
+    CancelDemolition {
+        /// The building.
+        entity: usize,
+    },
+    /// RoadTool's apply: plan a road on a cell.
+    ///
+    /// Original: `FUN_14010a200`, `FUN_1400a1e30`.
     PlanRoad {
+        /// The cell.
         cell: i32,
+        /// The road kind.
         kind: u8,
+        /// The cell type of the road.
         ty: u8,
+        /// The raw material it is built from, if any.
         material: Option<usize>,
     },
-    /// Remove Roads (`FUN_140108ab0` → `FUN_1400a1bd0`): take a planned road back; a built one
-    /// gets a removal marker (`marker`, the tool's template).
-    ClearRoad { cell: i32, marker: usize },
-    /// A StateMachine message (slot `+0x10`): DestroyComponent's Remove Cancel (0 while torn
-    /// down), DestroyUI `0x1772` (`FUN_140123940`, 0: rebuild the rubble) and `0x1773`
-    /// (`FUN_1401239a0`, 1: clear it); ImmigrationUI `0x9858` (7: take the nomads in) and
-    /// `0x9859` (8: turn them away).
-    StateMessage { entity: usize, message: i32 },
-    /// ControlUI (`FUN_140060150`): the `kind` component's control `index` (slot `+0x70`).
-    Control {
+    /// Remove Roads: take a planned road back; a built one gets a removal marker (`marker`, the
+    /// tool's template).
+    ///
+    /// Original: `FUN_140108ab0`, `FUN_1400a1bd0`.
+    ClearRoad {
+        /// The cell.
+        cell: i32,
+        /// The removal marker's template.
+        marker: usize,
+    },
+    // slot +0x10
+    /// A StateMachine message: DestroyComponent's Remove Cancel (0 while torn down), DestroyUI
+    /// `0x1772` (0: rebuild the rubble) and `0x1773` (1: clear it); ImmigrationUI `0x9858` (7: take
+    /// the nomads in) and `0x9859` (8: turn them away).
+    ///
+    /// Original: `FUN_140123940`, `FUN_1401239a0`.
+    StateMessage {
+        /// The entity.
         entity: usize,
+        /// The message.
+        message: i32,
+    },
+    // slot +0x70
+    /// ControlUI: the `kind` component's control `index`.
+    ///
+    /// Original: `FUN_140060150`.
+    Control {
+        /// The entity.
+        entity: usize,
+        /// The component kind.
         kind: u32,
+        /// The control's index.
         index: i32,
     },
-    /// ConsumeProduceUI's product (`FUN_14005fc90`): ConsumeProduceComponent `+0x50`.
-    SetRecipe { entity: usize, recipe: i32 },
-    /// UpgradeUI (`FUN_14008c160`): DestroyComponent `+0x60` = `template`, then
-    /// `FUN_140123470`.
-    Upgrade { entity: usize, template: usize },
-    /// TradeUI's trade button (`FUN_1400868f0`): sell (material, count) and buy (trade good,
-    /// count).
-    Exchange {
+    // +0x50
+    /// ConsumeProduceUI's product: ConsumeProduceComponent.
+    ///
+    /// Original: `FUN_14005fc90`.
+    SetRecipe {
+        /// The workplace.
         entity: usize,
+        /// The product.
+        recipe: i32,
+    },
+    // +0x60
+    /// Upgrade a building to `template` (the upgrade button): it is demolished, and the new
+    /// building takes its place.
+    ///
+    /// Original: `FUN_14008c160`, then `FUN_140123470`.
+    Upgrade {
+        /// The building.
+        entity: usize,
+        /// The template of the new building.
+        template: usize,
+    },
+    /// TradeUI's trade button: sell (material, count) and buy (trade good, count).
+    ///
+    /// Original: `FUN_1400868f0`.
+    Exchange {
+        /// The trading post.
+        entity: usize,
+        /// What the town sells: `(raw material, count)`.
         sell: Vec<(usize, i32)>,
+        /// What the town buys: `(trade good, count)`.
         buy: Vec<(usize, i32)>,
     },
     /// TradeUI's settings on the TradeComponent.
     Trade {
+        /// The trading post.
         entity: usize,
+        /// The setting.
         setting: crate::commerce::trade::TradeSetting,
     },
 }

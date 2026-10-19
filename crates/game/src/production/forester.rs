@@ -29,7 +29,9 @@ pub struct ForesterTemplate {
 /// ForesterComponent plant and cut (the lodge's two toggle buttons).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Forester {
+    /// Whether it plants trees.
     pub plant: bool,
+    /// Whether it cuts trees.
     pub cut: bool,
 }
 

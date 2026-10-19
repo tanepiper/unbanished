@@ -20,6 +20,7 @@ use crate::work::jobs::{Work, WorkKind};
 /// carrying goods away.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct MarketWork {
+    /// Each vendor's plan: `(raw material, count)`.
     pub plans: BTreeMap<usize, Vec<(usize, i32)>>,
 }
 

@@ -25,11 +25,17 @@ pub const NO_BLIGHT: u32 = 0x20;
 /// pasture, and what grew when it last ended.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Blight {
+    /// The time to the next check.
     pub check: i64,
+    /// The time left; sick while above zero.
     pub left: i64,
+    /// The time to the next death.
     pub kill: i64,
+    /// The time to the next spread.
     pub spread: i64,
+    /// Whether it is on a pasture.
     pub pasture: bool,
+    /// What grew when it last ended.
     pub last: Option<usize>,
 }
 

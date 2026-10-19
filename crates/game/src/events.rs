@@ -37,14 +37,17 @@ pub mod kind {
 /// shown, from the month and year the event happened in.
 #[derive(Debug, Clone, PartialEq)]
 pub struct EventEntry {
+    /// The event type.
     pub kind: i32,
+    /// How important the event is.
     pub severity: i32,
     /// ARGB from the severity.
     ///
     /// Original: `FUN_14009a2d0`.
     pub color: u32,
-    /// `@0` month (index into `:seasons`), `@1` year.
+    /// The month (`@0`, an index into `:seasons`).
     pub month: usize,
+    /// The year (`@1`).
     pub year: i32,
     /// `@2`, `@3`, `@4`.
     pub args: [String; 3],
@@ -68,6 +71,7 @@ pub struct EventEntry {
 /// The event log: its entries and which categories notify the player.
 #[derive(Debug, Clone)]
 pub struct EventLog {
+    /// The entries.
     pub entries: Vec<EventEntry>,
     // +0x10..+0x15
     /// Notify flags per group (old age, deaths, disasters, storage, town, other), set by the Event
@@ -164,10 +168,11 @@ impl EventLog {
 #[derive(Debug, Clone)]
 pub struct StockWarnings {
     // +0x0; +0x4
-    /// Slot count and previous count.
+    /// The count of each slot.
     ///
     /// Original: `FUN_14008f3a0`.
     pub count: [i32; STOCK_SLOTS],
+    /// The count of each slot at the last check.
     pub previous: [i32; STOCK_SLOTS],
     // +0x8; the defaults come from FUN_140095f00.
     /// The production limit of each stock slot (the Town Hall changes them).

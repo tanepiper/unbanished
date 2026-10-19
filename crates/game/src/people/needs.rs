@@ -27,11 +27,17 @@ const STOCK_NOTHING: f32 = 300.0;
 
 /// What the activities read and change besides the citizen.
 pub struct Needs<'a, 'b> {
+    /// A view of the town.
     pub town: &'a TownView<'b>,
+    /// The sector graph.
     pub sectors: &'a mut SectorGraph,
+    /// The storage sites.
     pub sites: &'a [StorageSite],
+    /// The town's storages.
     pub storages: &'a mut [Storage],
+    /// The raw materials.
     pub materials: &'a [RawMaterial],
+    /// The homes, by entity.
     pub homes: &'a mut BTreeMap<usize, Home>,
     // +0x20
     /// The town's residences, in the order they were completed: the searches over residences keep
@@ -39,18 +45,25 @@ pub struct Needs<'a, 'b> {
     ///
     /// Original: `FUN_140093840`, `FUN_140094140`.
     pub residences: &'a [usize],
+    /// The environment's temperature.
     pub temperature: f32,
+    /// The citizen description's rules.
     pub life: &'a LifeRules,
     // +0x50
     /// The laborer profession's carry.
     pub carry: i32,
+    /// The ground's heights.
     pub terrain: &'a HeightGrid<'b>,
+    /// The map's size in cells.
     pub size: usize,
+    /// The game's random numbers.
     pub rng: &'a mut Random,
     // +0x70
-    /// The town manager's HealerComponents and every WorkPlaceComponent.
+    /// The town's HealerComponents.
     pub healers: &'a [usize],
+    /// Every WorkPlaceComponent, by entity.
     pub workplaces: &'a BTreeMap<usize, crate::work::professions::WorkPlace>,
+    /// The AttendanceComponents, by entity.
     pub attendance: &'a mut BTreeMap<usize, crate::work::construction::Attendance>,
     /// Every citizen (play follows the guardian).
     pub citizens: &'a [crate::people::citizens::Citizen],
@@ -63,9 +76,13 @@ pub struct Needs<'a, 'b> {
 
 /// The citizen an activity runs for.
 pub struct Who<'a> {
+    /// The citizen's AI.
     pub ai: &'a mut CitizenAi,
+    /// The citizen's character.
     pub ch: &'a mut Character,
+    /// The citizen's state.
     pub state: &'a mut CitizenState,
+    /// The citizen's animation group.
     pub group: &'a AnimationGroup,
 }
 

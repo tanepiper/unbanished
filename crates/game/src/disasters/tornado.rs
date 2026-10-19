@@ -51,9 +51,11 @@ pub struct TornadoTemplate {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tornado {
     // +0x30; +0x40; +0x50
-    /// The point it heads for; the line; the point's index.
+    /// The point it heads for.
     pub target: [f32; 3],
+    /// The line it follows.
     pub path: Vec<[f32; 3]>,
+    /// The index of the point it heads for.
     pub index: i32,
     // +0x28
     /// Until the next wrecking pass.

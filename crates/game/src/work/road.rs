@@ -30,12 +30,19 @@ pub const GROUND: u8 = 2;
 /// it becomes, the cell's road kind, byte and type before (restored when the plan is taken back).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RoadWork {
+    /// The builder, if any.
     pub builder: Option<usize>,
+    /// The raw material the cell takes (stone roads).
     pub material: Option<usize>,
+    /// The cell.
     pub cell: i32,
+    /// The cell type it becomes.
     pub ty: u8,
+    /// The cell's road kind before.
     pub old_kind: u8,
+    /// The cell's built byte before.
     pub old_built: u8,
+    /// The cell's type before.
     pub old_type: u8,
 }
 

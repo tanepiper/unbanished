@@ -8,9 +8,10 @@
 //! seeding, fences, bridges and the cell checks. Only the tornado and the natural cell types skip
 //! them, as here.
 //!
-//! Original: `FloorComponent` (vtable `0x140169810`): `FUN_140124810`, `FUN_140124860`,
-//! `FUN_140124770`, `FUN_1400a2070`; the ground under a point `FUN_1400a48b0`; the callers that
-//! skip floors `FUN_140058630`, `FUN_1400a3790`.
+//! Original: `FloorComponent`: `FUN_140124810`, `FUN_140124860`, `FUN_140124770`, `FUN_1400a2070`;
+//! the ground under a point `FUN_1400a48b0`; the callers that skip floors `FUN_140058630`,
+//! `FUN_1400a3790`.
+// vtable 0x140169810
 // +0x2d
 
 use std::collections::BTreeMap;
@@ -26,7 +27,9 @@ const RAY_LENGTH: f32 = 100.0;
 /// (the map's picking scene, map).
 #[derive(Debug, Clone, Default)]
 pub struct Floors {
+    /// How many floors cover each cell.
     pub counts: Vec<u8>,
+    /// Every floor's mesh with its transform, by entity.
     pub meshes: BTreeMap<usize, Floor>,
     /// Each floor's world-space footprint (`x0, y0, x1, y1`, widened by [`BOUNDS_MARGIN`]),
     /// set by [`Floors::add`]. The downward ray can hit a floor only inside it, so the ground

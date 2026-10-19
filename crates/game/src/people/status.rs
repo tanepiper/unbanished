@@ -5,10 +5,15 @@
 /// What the status bar reads of one citizen.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CitizenValue {
+    /// The age.
     pub age: f32,
+    /// The age at which a citizen is an adult.
     pub adult_age: f32,
+    /// Whether it attends school.
     pub school: bool,
+    /// The health.
     pub health: f32,
+    /// The happiness.
     pub happiness: f32,
     // +0xf0; +0x88
     /// StatusIconComponent, not Citizen.
@@ -18,11 +23,17 @@ pub struct CitizenValue {
 /// The status bar's counts: adults, students, children and the other values.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct TownStatus {
+    /// The adults.
     pub adults: u32,
+    /// The students.
     pub students: u32,
+    /// The children.
     pub children: u32,
+    /// The citizens with each of the first six status icons.
     pub counts: [u32; 6],
+    /// The mean health.
     pub health: f32,
+    /// The mean happiness.
     pub happiness: f32,
 }
 

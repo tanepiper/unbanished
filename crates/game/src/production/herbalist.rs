@@ -20,7 +20,9 @@ use crate::work::jobs::{Work, WorkKind};
 /// The work's state: the workers (a set; its size), misses in a row.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct HerbalistWork {
+    /// The workers.
     pub workers: BTreeSet<usize>,
+    /// Misses in a row.
     pub misses: i32,
 }
 
@@ -29,7 +31,9 @@ pub struct HerbalistWork {
 /// workplace's workers made).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct AutoPickup {
+    /// Whether it is on.
     pub enabled: bool,
+    /// The pickup works of the piles the workplace's workers made.
     pub works: Vec<i32>,
 }
 

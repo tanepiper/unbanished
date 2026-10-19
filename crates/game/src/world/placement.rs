@@ -17,9 +17,13 @@ pub const HEIGHT_TOLERANCE: f32 = 1000.0;
 /// A cell rectangle, inclusive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rect {
+    /// The first column.
     pub x0: i32,
+    /// The first row.
     pub y0: i32,
+    /// The last column.
     pub x1: i32,
+    /// The last row.
     pub y1: i32,
 }
 
@@ -88,8 +92,9 @@ pub struct PlacementRules {
     /// Allowed cell types (bit per type) when no per-character table applies.
     pub mask: u32,
     // +0x30 / +0x28
-    /// Per-character masks (`'0' + k` selects `masks[k]`) and the string choosing them per cell.
+    /// Per-character masks: `'0' + k` selects `masks[k]`.
     pub masks: Vec<u32>,
+    /// The string that chooses a mask for each cell.
     pub mask_chars: String,
     // MapDescription +0x28
     /// `MapDescription`: `#` own type, `_` ground, `.` untouched.
@@ -97,6 +102,7 @@ pub struct PlacementRules {
     // +0x44; +0x48
     /// Not identified yet.
     pub width: i32,
+    /// Not identified yet.
     pub height: i32,
     // MapDescription +0x20
     /// `MapDescription`.

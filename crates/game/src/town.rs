@@ -76,19 +76,28 @@ pub(crate) struct Haul {
 pub struct Env<'a, 't> {
     /// Wild animals (hunting).
     pub wildlife: &'a mut crate::nature::wildlife::Wildlife,
+    /// The gameplay map.
     pub cells: &'a mut Cells,
+    /// The placed objects.
     pub placed: &'a mut Vec<Placed>,
+    /// The object templates.
     pub templates: &'a [Template],
+    /// The ground's heights.
     pub terrain: &'a HeightGrid<'t>,
+    /// The raw materials.
     pub materials: &'a [RawMaterial],
+    /// The town's storages.
     pub storages: &'a mut [Storage],
+    /// The storage sites.
     pub sites: &'a [StorageSite],
+    /// The game's random numbers.
     pub rng: &'a mut Random,
+    /// The construction manager.
     pub construction: &'a mut crate::work::construction::Construction,
     /// The stock manager's `(count, limit)` per slot from the last recount.
     pub stock: [(i32, i32); 21],
     // Game +0x130 → +0x18
-    /// The environment's temperature (`Game →`).
+    /// The environment's temperature.
     pub temperature: f32,
     /// This iteration's bucket visits (`EntityScheduler::take_visits`): placed entities by
     /// index, citizens from `scheduler::EXTRA`, each with the time since its last visit.
@@ -97,80 +106,125 @@ pub struct Env<'a, 't> {
 
 /// Everything a work slot or a state callback touches.
 pub struct Sim<'s, 't> {
+    /// The citizens' characters.
     pub characters: &'s mut [Character],
+    /// The citizens' states.
     pub states: &'s mut [CitizenState],
+    /// Each citizen's animation group.
     pub groups: &'s [Option<&'s AnimationGroup>],
     /// Adult and not at school (the citizens assignment counts).
     pub adult: &'s [bool],
+    /// The citizens' AI rules.
     pub rules: CitizenRulesAi,
+    /// The map's size in cells.
     pub size: usize,
+    /// The gameplay map.
     pub cells: &'s mut Cells,
+    /// The walkable region of each cell.
     pub regions: &'s [u16],
+    /// The sector graph.
     pub sectors: &'s mut SectorGraph,
+    /// The ground's heights.
     pub terrain: &'s HeightGrid<'t>,
+    /// The placed objects.
     pub placed: &'s mut Vec<Placed>,
+    /// The object templates.
     pub templates: &'s [Template],
+    /// A view of each entity.
     pub entities: &'s [EntityView],
+    /// The town's storages.
     pub storages: &'s mut [Storage],
+    /// The storage sites.
     pub storage_sites: &'s [StorageSite],
+    /// The raw materials.
     pub materials: &'s [RawMaterial],
+    /// The game's random numbers.
     pub rng: &'s mut Random,
+    /// The stock manager's `(count, limit)` per slot from the last recount.
     pub stock: [(i32, i32); 21],
+    /// The environment's temperature.
     pub temperature: f32,
+    /// The professions.
     pub professions: &'s Professions,
+    /// The workers assigned to each workplace.
     pub workforce: &'s mut Workforce,
+    /// The building templates.
     pub site_templates: &'s [SiteTemplate],
+    /// The buildings, by entity.
     pub sites: &'s mut BTreeMap<usize, Site>,
+    /// The homes, by entity.
     pub homes: &'s mut BTreeMap<usize, crate::people::life::Home>,
+    /// Who attends each service building, by entity.
     pub attendance: &'s mut BTreeMap<usize, crate::work::construction::Attendance>,
+    /// The service buildings that people attend.
     pub attendance_list: &'s mut Vec<usize>,
+    /// The herbalists and hospitals.
     pub healers: &'s mut Vec<usize>,
+    /// The buildings that raise happiness nearby.
     pub happiness: &'s mut Vec<usize>,
     /// The calendar's seconds into the year.
     pub calendar: f32,
+    /// The current year.
     pub year: u32,
+    /// The orchards' fruit, by entity.
     pub fruits: &'s mut BTreeMap<usize, crate::production::orchard::Fruit>,
     /// The animals (livestock and their pastures).
     pub wildlife: &'s mut crate::nature::wildlife::Wildlife,
+    /// Whether removing a resource leaves its piles behind, by resource.
     pub keep_piles: &'s mut BTreeMap<usize, bool>,
+    /// Building events for the event log: `(kind, argument, entity)`.
     pub site_events: &'s mut Vec<(i32, i32, usize)>,
+    /// Storages that opened or closed: `(entity, opened)`.
     pub storage_changes: &'s mut Vec<(usize, bool)>,
+    /// The buildings to build again after they were destroyed.
     pub rebuilds: &'s mut Vec<crate::work::destroy::Rebuild>,
     /// The town's water sources (wells and shore points).
     pub water: &'s mut crate::disasters::fire::Water,
     // Game +0xd0
-    /// `Game`: the debug flags (all of `0xf0` with disasters off).
+    /// The game's debug flags (all four disaster bits are set when disasters are off).
     pub game_flags: u32,
     // +0x10
     /// The sky's state is precipitation (environment = 0).
     pub precipitation: bool,
     // +0xa8
-    /// Town manager.
+    /// The town's population.
     pub population: i32,
     // +0x1a8; +0x1a0
-    /// Town manager /.
+    /// The visitors' timer and the time of the last visitor.
     pub visitors: &'s mut (f32, i64),
     // +0xe8
-    /// Map: planned road cells → BuildRoad works.
+    /// The planned road cells, each with its road-building work.
     pub pending_roads: &'s mut BTreeMap<i32, i32>,
+    /// The pending changes to the ground.
     pub terraform_requests: &'s mut Vec<crate::world::terraform::Terraform>,
+    /// The rectangles to flatten: `[x0, y0, x1, y1]`.
     pub flatten_requests: &'s mut Vec<[i32; 4]>,
+    /// The tornadoes, by entity.
     pub tornadoes: &'s mut BTreeMap<usize, crate::disasters::tornado::Tornado>,
+    /// The citizens a tornado killed.
     pub tornado_kills: &'s mut Vec<usize>,
+    /// The production trackers, by entity.
     pub trackers: &'s mut BTreeMap<usize, crate::work::tracker::Tracker>,
+    /// The ground decals of building sites, by entity.
     pub decals: &'s mut BTreeMap<usize, crate::work::construction::Decal>,
+    /// The counts of goods made and used.
     pub counters: &'s mut crate::work::tracker::StockCounters,
     // +0x30; +0x1ac
-    /// Town manager.
+    /// The town's trading posts.
     pub trading_posts: &'s mut Vec<usize>,
+    /// The total value traded.
     pub trade_value: &'s mut i32,
     // +0x110; +0x120
-    /// Town manager (known raw materials) and (known crops, orchard trees and livestock).
+    /// The raw materials the town knows; `known` holds the crops, orchard trees and livestock it
+    /// knows.
     ///
     /// Original: `FUN_140097330`, `FUN_140096ef0`.
     pub known_materials: &'s mut Vec<usize>,
+    /// The crops, orchard trees and livestock the town knows.
     pub known: &'s mut Vec<usize>,
+    /// The goods traders can bring.
     pub trade_goods: &'s [crate::commerce::trade::TradeGood],
+    /// The river's path.
     pub river: &'s [[f32; 2]],
     /// The path manager (the trader boats' water paths).
     pub pathfinder: &'s mut crate::pathfind::Pathfinder,
@@ -181,19 +235,29 @@ pub struct Sim<'s, 't> {
     )>,
     /// The scheduled update's elapsed time (ticks) for the site callbacks.
     pub site_dt: i64,
+    /// The cemeteries.
     pub cemeteries: &'s mut Vec<usize>,
+    /// The tombstones, with the time each one stays.
     pub tombstones: &'s mut BTreeMap<usize, i64>,
+    /// The burials waiting: `(cemetery, cell)`.
     pub burials: &'s mut Vec<(usize, i32)>,
+    /// The buildings that have a site record.
     pub site_list: &'s mut Vec<usize>,
+    /// The job events from this update.
     pub events: Vec<JobEvent>,
+    /// The piles, by entity.
     pub piles: &'s mut BTreeMap<usize, Pile>,
+    /// The resources a work has claimed.
     pub claimed: &'s mut std::collections::BTreeSet<usize>,
+    /// The piles made in this update.
     pub new_piles: &'s mut Vec<usize>,
+    /// Set when a model changed and must be drawn again.
     pub models_dirty: &'s mut bool,
     /// Works a ClearArea try asked the manager to offer ([`WorkHost::take_offers`]).
     pub offers: Vec<i32>,
     /// Scratch for `Sim::seeder` (planting removes nothing and plays no sounds).
     pub removed: Vec<usize>,
+    /// The animation events to play: `(entity, effect)`.
     pub animation_events: Vec<(usize, String)>,
     /// Whether the offers get a second try (as an auto-pickup's do).
     ///

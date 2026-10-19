@@ -15,14 +15,17 @@ use crate::work::construction::Callbacks;
 use crate::work::jobs::{Jobs, Work, WorkKind};
 
 // +0x24; +0x28; +0x2c; +0x20
-/// OrchardDescription (versioned): tree spacing /, a tending visit's ripening (share of the
+/// OrchardDescription (versioned): the tree spacing, a tending visit's ripening (share of the
 /// ripening time), the stock slot (version 1).
 ///
 /// Original: `FUN_140052c60`.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct OrchardTemplate {
+    /// The tree spacing.
     pub spacing: (i32, i32),
+    /// A tending visit's ripening, as a share of the ripening time.
     pub tend: f32,
+    /// The stock slot (version 1).
     pub group: i32,
 }
 
@@ -54,6 +57,7 @@ pub struct Orchard {
     // +0x4c
     /// The calendar year of the last harvest.
     pub year: u32,
+    /// The tree slots.
     pub trees: Vec<TreeSlot>,
     // +0x60
     /// The tree (natural-resource template), chosen in the orchard's window.
@@ -64,7 +68,9 @@ pub struct Orchard {
 /// FruitComponent ripeness (0–1) and picked this season.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Fruit {
+    /// The ripeness, from 0 to 1.
     pub ripeness: f32,
+    /// Whether it was picked this season.
     pub picked: bool,
 }
 
@@ -75,9 +81,13 @@ pub struct Fruit {
 /// Original: `FUN_14004ab40`.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct FruitTemplate {
+    /// The ripening time, in months of 300 seconds.
     pub months: f32,
+    /// The best temperature.
     pub best: f32,
+    /// The range of temperatures around the best one.
     pub range: f32,
+    /// The fruit's pile template.
     pub pile: Option<usize>,
 }
 

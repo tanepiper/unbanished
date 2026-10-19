@@ -31,13 +31,17 @@ const FAR: i32 = 0x100_0000;
 const STEP: i32 = 7;
 
 // +0x190; +0x1b8
-/// The optimisation's state: StockManager (the time since the last run) and the job object at (its
+/// The optimisation's state: StockManager (the time since the last run) and the job object (its
 /// pairs, the next pair's index and the region-pair ranks).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Commute {
+    /// The time since the last run.
     pub timer: i64,
+    /// The pairs of cells to rank: a workplace entrance and a home.
     pub pairs: Vec<(i32, i32)>,
+    /// The next pair to rank (−1 when done).
     pub index: i32,
+    /// The rank of each pair of regions.
     pub ranks: BTreeMap<(i32, i32), i32>,
 }
 

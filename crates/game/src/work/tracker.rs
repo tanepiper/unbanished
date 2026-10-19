@@ -12,8 +12,11 @@ use crate::town::Sim;
 /// and the year these belong to.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Tracker {
+    /// What it made this year: `(raw material, amount)`.
     pub this_year: Vec<(usize, i32)>,
+    /// What it made last year.
     pub last_year: Vec<(usize, i32)>,
+    /// The year these belong to.
     pub year: u32,
 }
 
@@ -39,7 +42,9 @@ impl Tracker {
 /// The stock manager's slot counters since the last sample (of each slot).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StockCounters {
+    /// The amount used, per slot.
     pub used: [i32; 21],
+    /// The amount made, per slot.
     pub made: [i32; 21],
 }
 
@@ -96,11 +101,17 @@ pub const SAMPLE_SECONDS: f32 = 75.0;
 /// coat).
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct CitizenSample {
+    /// Whether the citizen is an adult.
     pub adult: bool,
+    /// Whether it attends school.
     pub school: bool,
+    /// The health.
     pub health: f32,
+    /// The happiness.
     pub happiness: f32,
+    /// Whether it is educated.
     pub educated: bool,
+    /// Whether it has a coat.
     pub coat: bool,
 }
 
@@ -108,7 +119,9 @@ pub struct CitizenSample {
 /// The Town Info graphs' history (StockManager) and the time to the next sample.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Statistics {
+    /// The history of each graph.
     pub series: Vec<Vec<i32>>,
+    /// The time to the next sample.
     pub timer: i64,
 }
 

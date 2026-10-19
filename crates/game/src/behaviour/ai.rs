@@ -56,35 +56,45 @@ const CARRY_LONG: f32 = 300.0;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CitizenView {
     // +0x68; +0x228
-    /// disease, doctor assigned.
+    /// Whether it has a disease.
     pub sick: bool,
+    /// Whether a doctor is assigned.
     pub doctor: bool,
     // +0x44; +0x48; +0x50; +0x54; +0x80
-    /// hunger, cold, health, bit 9, happiness.
+    /// The hunger.
     pub hunger: f32,
+    /// The cold.
     pub cold: f32,
+    /// The health.
     pub health: f32,
+    /// Bit 9 of the health events: herbs are not wanted (*inferred*).
     pub health_flag: bool,
+    /// The happiness.
     pub happiness: f32,
     // +0x3c; +0x208; +0x238; +0x1e4; +0xac
-    /// age; school; home; clothing; tool uses.
+    /// The age.
     pub age: f32,
+    /// Whether it attends school.
     pub school: bool,
+    /// Whether it has a home.
     pub home: bool,
+    /// The clothing level.
     pub clothing: i32,
+    /// The uses left on its tool.
     pub tool: i32,
     // +0x22
     /// Map byte set at home, work or here.
     ///
     /// Original: `FUN_14011b0b0`.
     pub emergency: bool,
-    /// Home has food / firewood.
+    /// The home has food.
     ///
     /// Original: `FUN_14011abb0`, `FUN_14011acc0`.
     pub home_food: bool,
+    /// The home has firewood.
     pub home_fuel: bool,
     // +0x250; +0xb0
-    /// Spouse's supply errand, citizen: 1 food, 2 firewood.
+    /// The spouse's supply errand: 1 food, 2 firewood.
     pub spouse_activity: Option<u32>,
     /// Carried inventory count.
     ///
@@ -95,14 +105,30 @@ pub struct CitizenView {
 /// The CitizenDescription thresholds candidate building reads.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Thresholds {
-    pub adult_age: f32,     // +0x44
-    pub health_low: f32,    // +0x74
-    pub happy_low: f32,     // +0xb4
-    pub happy_unhappy: f32, // +0xb8
-    pub hungry: f32,        // +0xc8
-    pub hungry_urgent: f32, // +0xcc
-    pub cold: f32,          // +0xe8
-    pub cold_urgent: f32,   // +0xec
+    // +0x44
+    /// The age at which a citizen is an adult.
+    pub adult_age: f32,
+    // +0x74
+    /// The health below which a citizen looks for herbs.
+    pub health_low: f32,
+    // +0xb4
+    /// The happiness below which a citizen gets restless after `LOITER_SAD` seconds.
+    pub happy_low: f32,
+    // +0xb8
+    /// The happiness below which a citizen gets restless after `LOITER_UNHAPPY` seconds.
+    pub happy_unhappy: f32,
+    // +0xc8
+    /// The hunger above which a citizen eats.
+    pub hungry: f32,
+    // +0xcc
+    /// The hunger above which a citizen eats at once.
+    pub hungry_urgent: f32,
+    // +0xe8
+    /// The cold above which a citizen warms up.
+    pub cold: f32,
+    // +0xec
+    /// The cold above which a citizen warms up at once.
+    pub cold_urgent: f32,
 }
 
 /// One candidate (12-byte entries: activity, priority, unused).
@@ -113,12 +139,14 @@ pub type Candidate = (u32, i32);
 #[derive(Debug, Clone)]
 pub struct CitizenAi {
     // +0x28; +0x2c
-    /// current, queued (-1).
+    /// The current activity.
     pub current: u32,
+    /// The queued activity, if any.
     pub queued: Option<u32>,
     // +0x30 / +0x31
-    /// Urgently eating / warming.
+    /// Eating urgently.
     pub eating: bool,
+    /// Warming up urgently.
     pub warming: bool,
     // +0x40..+0xb8
     /// Per-activity cooldowns (ticks).
@@ -270,7 +298,8 @@ pub fn crt_qsort(a: &mut [Candidate]) {
 /// it: the same algorithm as [`crt_qsort_by`], with `cmp(a, b) > 0` being `less(b, a)` and
 /// equality neither way.
 ///
-/// Original: `FUN_14002c9d0`, `FUN_140030c00`, `FUN_1400220f0`, `FUN_14001f120`, `FUN_140015c10`, `FUN_140015f10`, `FUN_140016ce0`, `FUN_140016fe0`.
+/// Original: `FUN_14002c9d0`, `FUN_140030c00`, `FUN_1400220f0`, `FUN_14001f120`, `FUN_140015c10`,
+/// `FUN_140015f10`, `FUN_140016ce0`, `FUN_140016fe0`.
 pub fn crt_qsort_less<T>(a: &mut [T], less: impl Fn(&T, &T) -> bool) {
     crt_qsort_by(a, |x, y| {
         if less(y, x) {

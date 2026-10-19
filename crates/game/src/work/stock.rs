@@ -7,6 +7,7 @@ use crate::random::Random;
 /// RawMaterialDescription: a template shared by ledger entries, not a stored entity.
 #[derive(Debug, Clone, Default)]
 pub struct RawMaterial {
+    /// The resource reference.
     pub reference: String,
     // +0x48
     /// Weighted storage units per item.
@@ -33,11 +34,14 @@ pub struct RawMaterial {
 }
 
 // +0x28
-/// StorageComponent's 16-byte entry at: template, quantity, reserved quantity.
+/// A StorageComponent entry (16 bytes): the raw material, the count and the reserved count.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Item {
+    /// The raw material.
     pub material: usize,
+    /// How many are stored.
     pub count: i32,
+    /// How many are reserved.
     pub reserved: i32,
 }
 
@@ -45,9 +49,11 @@ pub struct Item {
 #[derive(Debug, Clone, Default)]
 pub struct Storage {
     // +0x38; +0x3c
-    /// Component.
+    /// The capacity.
     pub capacity: i32,
+    /// The flags of the goods it accepts.
     pub accepts: u32,
+    /// The goods in it.
     pub items: Vec<Item>,
 }
 
@@ -170,7 +176,9 @@ impl Storage {
 /// Registration in the manager's ordinary (`+0/+8`) or market list.
 #[derive(Debug, Clone)]
 pub struct StorageSite {
+    /// The entity.
     pub entity: usize,
+    /// Its storage.
     pub storage: usize,
     // +0x20; +0x3c
     /// StorageLocationDescription; zero uses StorageComponent.
@@ -183,9 +191,13 @@ pub struct StorageSite {
 /// The result of a storage search: the storage and what it offers.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StorageMatch {
+    /// The storage site.
     pub site: usize,
+    /// The storage.
     pub storage: usize,
+    /// The raw material it offers.
     pub material: usize,
+    /// The point to walk to.
     pub target: [f32; 3],
 }
 

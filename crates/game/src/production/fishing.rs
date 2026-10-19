@@ -34,7 +34,9 @@ pub struct FishingTemplate {
 /// FishingComponent registered on the map, the water fraction.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Fishing {
+    /// Whether it is registered on the map.
     pub registered: bool,
+    /// The share of water around it.
     pub water: f32,
 }
 
@@ -43,8 +45,11 @@ pub struct Fishing {
 /// coming, 2 holds a catch), misses in a row.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FishingWork {
+    /// The worker at each use point.
     pub workers: Vec<Option<usize>>,
+    /// Each create point's state: 0 free, 1 a catch is coming, 2 holds a catch.
     pub points: Vec<i32>,
+    /// Misses in a row.
     pub misses: i32,
 }
 

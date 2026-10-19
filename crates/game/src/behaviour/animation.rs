@@ -1,9 +1,11 @@
 //! Animation as the engine plays it: sampling a pose, the clock of each playing clip, and the
 //! events (such as sounds) a clip fires.
 //!
-//! Original: `Animation::GetPoseAtTime` (Runtime `0x1800fd530`), `Quaternion::Lerp` (Runtime
-//! `0x18001dde0`), `AnimationState::Update` (Runtime `0x1801003b0`), `Animation::ApplyEvents`
-//! (Runtime `0x1800fd230`).
+//! Original: `Animation::GetPoseAtTime`, `Quaternion::Lerp`, `AnimationState::Update`,
+//! `Animation::ApplyEvents`.
+//!
+//! Original: Runtime `0x1800fd530`, Runtime `0x18001dde0`, Runtime `0x1801003b0`, Runtime
+//! `0x1800fd230`.
 
 use crate::scheduler::{seconds, ticks};
 use banished_formats::skeleton::Transform;
@@ -13,11 +15,15 @@ use banished_formats::types::AnimationClip;
 /// Blended stacks and AnimationManager's shared instances require their separate lifecycle port.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Playback {
+    /// The clip.
     pub clip: usize,
+    /// The time played so far.
     pub elapsed: i64,
     /// UpdateNodes publishes the pose at the OLD clock, then Update advances elapsed.
     pub sample_time: i64,
+    /// The time step of the last sample.
     pub sample_delta: i64,
+    /// The playback speed.
     pub speed: f32,
 }
 
@@ -184,8 +190,11 @@ pub fn sample_pose(clip: &AnimationClip, time: i64, delta: i64) -> Vec<Transform
 /// while it fades out under a newer layer, the blend time and what is left of it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Layer {
+    /// The clip and its clock.
     pub playback: Playback,
+    /// The blend time.
     pub blend: i64,
+    /// The blend time left.
     pub left: i64,
     // +0x30
     /// The layer has been updated once.
@@ -199,6 +208,7 @@ pub struct Layer {
 /// layer; the one it covers fades out over the group's blend time, and the pose mixes them.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AnimationStack {
+    /// The layers, newest first.
     pub layers: Vec<Layer>,
     /// The pose `UpdateNodes` published at the last update.
     pose: Vec<Transform>,

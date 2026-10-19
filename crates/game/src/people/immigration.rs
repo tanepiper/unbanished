@@ -41,7 +41,7 @@ pub struct ImmigrationTemplate {
     /// The band's size as a share of the population.
     pub share: (f32, f32),
     // +0x48, +0x4c; +0x48 + RandFloat × +0x4c
-    /// Months until the next band (`+ RandFloat ×`).
+    /// Months until the next band: the first value plus a random share of the second.
     pub wait: (f32, f32),
     // +0x50, +0x54
     /// The months a band may come in.
@@ -53,8 +53,9 @@ pub struct ImmigrationTemplate {
     /// Their map-edge margin (not serialized; 10).
     pub margin: i32,
     // +0x60, +0x64
-    /// The visitors' disease risk and how many months it lasts.
+    /// The visitors' disease risk.
     pub risk: f32,
+    /// How many months the risk lasts.
     pub risk_months: i32,
 }
 
@@ -62,8 +63,11 @@ pub struct ImmigrationTemplate {
 /// ImmigrationComponent: until a band may come, the nomads arrived, the band.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Immigration {
+    /// The time until a band may come.
     pub timer: i64,
+    /// The nomads that arrived.
     pub arrived: i32,
+    /// The band.
     pub nomads: Vec<usize>,
 }
 
@@ -74,6 +78,7 @@ pub struct Immigration {
 /// Original: `FUN_140050880`.
 #[derive(Debug, Clone)]
 pub struct NomadKind {
+    /// The character description.
     pub character: CharacterDescription,
 }
 
@@ -81,13 +86,21 @@ pub struct NomadKind {
 /// NomadComponent: its state (0 walking to the town hall, 1 waiting, 2 leaving), the town hall,
 /// where it came from, where it waits, until it wanders, its model variant (0 men, 1 women).
 pub struct Nomad {
+    /// The template.
     pub template: usize,
+    /// The character.
     pub character: Character,
+    /// The state: 0 walking to the town hall, 1 waiting, 2 leaving.
     pub state: i8,
+    /// The town hall.
     pub town_hall: Option<usize>,
+    /// Where it came from.
     pub spawn: [f32; 3],
+    /// Where it waits.
     pub target: [f32; 3],
+    /// The time until it wanders.
     pub timer: i64,
+    /// The model variant: 0 men, 1 women.
     pub variant: usize,
 }
 

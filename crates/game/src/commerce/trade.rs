@@ -28,7 +28,9 @@ pub struct TradeTemplate {
     // +0x30
     /// The boat template.
     pub boat: usize,
+    /// The merchants.
     pub merchants: Vec<Merchant>,
+    /// The rows of the trade window.
     pub rows: Vec<TradeRow>,
     // +0x38
     /// The categories' flags.
@@ -37,7 +39,9 @@ pub struct TradeTemplate {
     /// The categories' icon and name keys (the trade window's), in the description's sprite sheet
     /// and string table.
     pub labels: Vec<(String, String)>,
+    /// The sprite sheet of the icons.
     pub sprites: Option<String>,
+    /// The string table of the names.
     pub strings: Option<String>,
 }
 
@@ -45,8 +49,11 @@ pub struct TradeTemplate {
 /// livestock) and value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TradeGood {
+    /// The template.
     pub template: usize,
+    /// The raw material; none for seeds and livestock.
     pub material: Option<usize>,
+    /// The value.
     pub value: ValueDescription,
 }
 
@@ -55,8 +62,11 @@ pub struct TradeGood {
 /// state (0 none, 1 once, 2 every time).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Order {
+    /// The merchant's name.
     pub name: String,
+    /// The goods ordered.
     pub goods: Vec<usize>,
+    /// The order's state: 0 none, 1 once, 2 every time.
     pub state: i32,
 }
 
@@ -64,8 +74,11 @@ pub struct Order {
 /// A good the merchant brought (0x10 bytes): the good, its value and how many.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Offer {
+    /// The good.
     pub good: usize,
+    /// Its value.
     pub value: i32,
+    /// How many.
     pub amount: i32,
 }
 
@@ -76,15 +89,25 @@ pub struct Offer {
 /// on, held (the trade window is open), the time to the next merchant or until it leaves, the boat.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Trade {
+    /// When it trades by itself: 0 never, 1 when a merchant arrives, 2 when it leaves.
     pub mode: i32,
+    /// The merchant docked (−1 none).
     pub merchant: i32,
+    /// The orders, by merchant.
     pub orders: Vec<Order>,
+    /// The automatic trades by category: `(flags, index, amount)`.
     pub automatic: Vec<(u32, i32, i32)>,
+    /// The merchant's goods.
     pub offers: Vec<Offer>,
+    /// The goods to keep at the post, by raw material.
     pub keep: std::collections::BTreeMap<usize, i32>,
+    /// Whether the post's hauling work is on.
     pub working: bool,
+    /// Whether the trade window is open.
     pub held: bool,
+    /// The time to the next merchant, or until it leaves.
     pub timer: i64,
+    /// The boat, if any.
     pub boat: Option<usize>,
 }
 
@@ -418,20 +441,51 @@ pub fn merchant_list(
 /// What the trade window changes on the post's TradeComponent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TradeSetting {
-    /// Storage tab spinner `2000 + i` (`FUN_140086f80`): `+0x60`, what to keep at the post.
-    Keep { material: usize, amount: i32 },
-    /// Purchase tab up `5000 + i` / down `6000 + i` (`FUN_1400871d0`): two automatic trades
-    /// change places.
+    // +0x60
+    /// Storage tab spinner `2000 + i`: what to keep at the post.
+    ///
+    /// Original: `FUN_140086f80`.
+    Keep {
+        /// The raw material.
+        material: usize,
+        /// The amount to keep.
+        amount: i32,
+    },
+    /// Purchase tab up `5000 + i` / down `6000 + i`: two automatic trades change places.
+    ///
+    /// Original: `FUN_1400871d0`.
     Swap(usize, usize),
-    /// Purchase tab spinner `7000 + i` (`FUN_140087120`): the automatic trade's amount.
-    Automatic { index: usize, amount: i32 },
-    /// `comboPurchase` (`0x4e22`, `FUN_140087090`): `+0x28`, when it trades by itself.
+    /// Purchase tab spinner `7000 + i`: the automatic trade's amount.
+    ///
+    /// Original: `FUN_140087120`.
+    Automatic {
+        /// The automatic trade.
+        index: usize,
+        /// The amount.
+        amount: i32,
+    },
+    // +0x28
+    /// `comboPurchase` (`0x4e22`): when it trades by itself.
+    ///
+    /// Original: `FUN_140087090`.
     Mode(i32),
-    /// `comboOrder` (`0x4e23`, `FUN_140087350`): the docked merchant's order state.
+    /// `comboOrder` (`0x4e23`): the docked merchant's order state.
+    ///
+    /// Original: `FUN_140087350`.
     OrderState(i32),
-    /// Order tab check `8000 + i` (`FUN_1400872a0`): a good ordered from the docked merchant.
-    Order { good: usize, on: bool },
-    /// `+0x71`: the window is open (`FUN_140087f40`) or closed (`FUN_140087ed0`).
+    /// Order tab check `8000 + i`: a good ordered from the docked merchant.
+    ///
+    /// Original: `FUN_1400872a0`.
+    Order {
+        /// The good.
+        good: usize,
+        /// Whether it is ordered.
+        on: bool,
+    },
+    // +0x71
+    /// The window is open or closed.
+    ///
+    /// Original: `FUN_140087f40`, `FUN_140087ed0`.
     Held(bool),
 }
 
@@ -441,6 +495,7 @@ pub enum TradeSetting {
 /// Original: `FUN_1400fc370`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TradeWork {
+    /// Each hauler and what it carries: `(raw material, count)`.
     pub haulers: std::collections::BTreeMap<usize, (usize, i32)>,
 }
 
@@ -670,7 +725,8 @@ impl Sim<'_, '_> {
 
     /// TradeUI's settings: see [`TradeSetting`].
     ///
-    /// Original: `FUN_140086f80`, `FUN_1400871d0`, `FUN_140087120`, `FUN_140087090`, `FUN_140087350`, `FUN_1400872a0`.
+    /// Original: `FUN_140086f80`, `FUN_1400871d0`, `FUN_140087120`, `FUN_140087090`,
+    /// `FUN_140087350`, `FUN_1400872a0`.
     pub fn trade_setting(&mut self, e: usize, setting: TradeSetting) {
         let Some(tr) = self.trade(e) else { return };
         match setting {

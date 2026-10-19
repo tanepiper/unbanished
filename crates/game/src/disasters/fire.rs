@@ -40,10 +40,15 @@ const RUN: f32 = 3.5;
 /// towards the next spread, towards the next ignition check.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Fire {
+    /// The buckets thrown.
     pub buckets: i32,
+    /// The buckets at the last spread.
     pub buckets_seen: i32,
+    /// The burn left; burning while above zero.
     pub burn: i64,
+    /// The time towards the next spread.
     pub spread: i64,
+    /// The time towards the next ignition check.
     pub timer: i64,
 }
 

@@ -45,8 +45,9 @@ pub struct Citizen {
     /// Appearance variation `(Rand + Rand) & 7`, passed to the shader as instance `w`.
     pub appearance: u32,
     // +0x220; +0x210
-    /// /.
+    /// Whether the citizen is educated.
     pub educated: bool,
+    /// The education.
     pub education: i32,
     /// Map position (cells from the terrain centre) and height.
     pub position: [f32; 3],
@@ -73,8 +74,11 @@ impl Citizen {
 
 /// The starting households of a new town, as the start condition makes them.
 pub struct Households<'a> {
+    /// The citizen rules.
     pub rules: CitizenRules,
+    /// The men's names.
     pub male_names: &'a NameDatabase,
+    /// The women's names.
     pub female_names: &'a NameDatabase,
     // MapGenerator +0x40
     /// `MapGenerator`: spread of citizens around the start point.
@@ -83,6 +87,7 @@ pub struct Households<'a> {
     ///
     /// Original: `FUN_140002080`.
     pub start: [f32; 3],
+    /// The citizens made.
     pub citizens: Vec<Citizen>,
 }
 

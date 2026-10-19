@@ -31,9 +31,13 @@ const NODES: usize = 0x5555;
 /// What a slot holds: the owner of the CharacterComponent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Who {
+    /// A citizen.
     Citizen(usize),
+    /// An animal.
     Animal(usize),
+    /// A trader boat.
     Boat(usize),
+    /// A nomad.
     Nomad(usize),
 }
 

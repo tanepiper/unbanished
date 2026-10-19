@@ -58,23 +58,29 @@ const PERIOD: f32 = 300.0;
 /// templates).
 #[derive(Debug, Clone)]
 pub struct PopulationKind {
+    /// The population description.
     pub desc: PopulationDescription,
+    /// The herd template it spawns, if any.
     pub herd: Option<usize>,
 }
 
 /// The settings of a kind of herd.
 #[derive(Debug, Clone)]
 pub struct HerdKind {
+    /// The herd description.
     pub desc: HerdDescription,
+    /// The animal template.
     pub animal: usize,
 }
 
 /// The settings of a kind of animal.
 #[derive(Debug, Clone)]
 pub struct AnimalKind {
+    /// The animal description.
     pub desc: AnimalDescription,
     /// The raw-material (pile) templates a hunted animal leaves.
     pub materials: Vec<usize>,
+    /// The character description: speeds and turning.
     pub character: CharacterDescription,
 }
 
@@ -82,8 +88,11 @@ pub struct AnimalKind {
 /// `interval` × 300 s, and the stock slot.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct LivestockKind {
+    /// The raw-material template it produces, if any.
     pub product: Option<usize>,
+    /// The time between products, in seconds.
     pub interval: f32,
+    /// The stock slot its product counts towards.
     pub group: i32,
 }
 
@@ -91,7 +100,9 @@ pub struct LivestockKind {
 /// LivestockComponent: the pasture (entity), towards the next product.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Livestock {
+    /// The pasture, if any.
     pub pasture: Option<usize>,
+    /// The time towards the next product.
     pub timer: i64,
 }
 
@@ -101,17 +112,24 @@ pub struct Livestock {
 /// width, height).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Pasture {
+    /// The animal template it keeps, if any.
     pub kind: Option<usize>,
+    /// Its animals.
     pub livestock: Vec<usize>,
+    /// The most animals it keeps.
     pub limit: i32,
+    /// The amount produced that is not yet in piles.
     pub produced: i32,
+    /// The area (x, y, width, height).
     pub area: [i16; 4],
 }
 
 /// PopulationComponent.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Population {
+    /// The entity.
     pub entity: usize,
+    /// The template.
     pub template: usize,
     // +0x30
     /// Cells per row.
@@ -133,11 +151,14 @@ pub struct Population {
 /// HerdComponent.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Herd {
+    /// The entity.
     pub entity: usize,
+    /// The template.
     pub template: usize,
     // +0x28, +0x30
-    /// The population and the herd's block.
+    /// The population.
     pub population: usize,
+    /// The herd's block in the population.
     pub index: i32,
     // +0x38
     /// The animals (entities), in joining order.
@@ -157,7 +178,9 @@ pub struct Herd {
 
 /// AnimalComponent and WildAnimalComponent, with the animal's CharacterComponent.
 pub struct Animal {
+    /// The template.
     pub template: usize,
+    /// The character: position and movement.
     pub character: Character,
     // +0x28
     /// WildAnimalComponent: the herd (index into [`Wildlife::herds`]).
@@ -178,16 +201,18 @@ pub struct Animal {
     /// Male (the second mesh, antlers).
     pub male: bool,
     // +0x44, +0x48
-    /// Age and lifespan (years).
+    /// The age in years.
     pub age: f32,
+    /// The lifespan in years.
     pub life: f32,
     // +0x50
     /// Until a breeding male's young (livestock only).
     pub breed: i64,
     /// LivestockComponent.
     pub livestock: Option<Livestock>,
-    /// The model variant and mesh.
+    /// The model variant.
     pub variant: usize,
+    /// The mesh.
     pub mesh: usize,
     /// Model scale.
     ///
@@ -213,13 +238,17 @@ pub struct Wildlife {
     // Game +0x88
     /// The characters' spatial tree (`Game`): citizens, animals, boats and nomads.
     pub tree: crate::behaviour::character_tree::CharacterTree,
+    /// The animal populations.
     pub populations: Vec<Population>,
+    /// The herds.
     pub herds: Vec<Herd>,
     /// Animals by entity.
     pub animals: BTreeMap<usize, Animal>,
     /// Templates by placed-object template index.
     pub population_kinds: BTreeMap<usize, PopulationKind>,
+    /// The herd templates, by placed-object template index.
     pub herd_kinds: BTreeMap<usize, HerdKind>,
+    /// The animal templates, by placed-object template index.
     pub animal_kinds: BTreeMap<usize, AnimalKind>,
     /// Animation groups by animal template and model variant.
     pub groups: BTreeMap<(usize, usize), std::sync::Arc<AnimationGroup>>,
@@ -232,25 +261,35 @@ pub struct Wildlife {
     /// The town's livestock without a pasture, in order.
     pub unassigned: Vec<usize>,
     // +0x90
-    /// PastureComponents by entity, and the town's list of them.
+    /// The pastures, by entity.
     pub pastures: BTreeMap<usize, Pasture>,
+    /// The town's list of pastures.
     pub pasture_list: Vec<usize>,
-    /// Nomads by entity, and their kinds by template.
+    /// The nomads, by entity.
     pub nomads: BTreeMap<usize, crate::people::immigration::Nomad>,
+    /// The nomad templates, by template.
     pub nomad_kinds: BTreeMap<usize, crate::people::immigration::NomadKind>,
-    /// Trader boats by entity, and their kinds by template.
+    /// The trader boats, by entity.
     pub boats: BTreeMap<usize, crate::commerce::boat::Boat>,
+    /// The boat templates, by template.
     pub boat_kinds: BTreeMap<usize, crate::commerce::boat::BoatKind>,
 }
 
 /// The town state wildlife reads and writes.
 pub struct Wild<'a, 't> {
+    /// The animals.
     pub wildlife: &'a mut Wildlife,
+    /// The placed objects.
     pub placed: &'a mut Vec<Placed>,
+    /// The object templates.
     pub templates: &'a [Template],
+    /// The gameplay map.
     pub cells: &'a Cells,
+    /// The ground's heights.
     pub terrain: &'a HeightGrid<'t>,
+    /// The game's random numbers.
     pub rng: &'a mut Random,
+    /// The entity scheduler.
     pub scheduler: &'a mut EntityScheduler<usize>,
 }
 

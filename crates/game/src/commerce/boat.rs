@@ -31,6 +31,7 @@ pub const GONE_MESSAGE: i32 = 0xb;
 /// The boat's character kind (TraderBoat's CharacterDescription).
 #[derive(Debug, Clone, Copy)]
 pub struct BoatKind {
+    /// The character description.
     pub character: banished_formats::game::CharacterDescription,
 }
 
@@ -39,14 +40,23 @@ pub struct BoatKind {
 /// its trading post, the dock and its heading, the point it heads for, its route, and its place on
 /// the route.
 pub struct Boat {
+    /// The template.
     pub template: usize,
+    /// The character.
     pub character: Character,
+    /// The state: 0 sailing in, 1 approaching, 2 docked, 3 casting off, 4 sailing out.
     pub state: i8,
+    /// The trading post.
     pub post: Option<usize>,
+    /// The dock.
     pub dock: [f32; 3],
+    /// The dock's heading, in degrees.
     pub dock_yaw: f32,
+    /// The point it heads for.
     pub target: [f32; 3],
+    /// The route.
     pub route: Vec<[f32; 3]>,
+    /// Its place on the route.
     pub index: i32,
 }
 

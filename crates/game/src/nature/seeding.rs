@@ -31,13 +31,17 @@ pub struct Template {
     // +0x20
     /// ComponentDescription: scheduled bucket; 6 means unscheduled.
     pub bucket: usize,
+    /// The MapDescription: the footprint on the map.
     pub map: Option<MapDescription>,
+    /// The ModelDescription: the model's variants.
     pub model: Option<ModelDescription>,
     /// ModelDescription variant animation groups, cached in the original ExternalFactory.
     pub animations: Vec<Option<Arc<AnimationGroup>>>,
     /// The `AnimAudioEvent`s its clips fire: event resource, SoundEffect and probability.
     pub audio_events: Vec<(String, Option<String>, f32)>,
+    /// The NaturalResourceDescription (trees, rocks, crops).
     pub natural: Option<NaturalResourceDescription>,
+    /// The GrowthDescription.
     pub growth: Option<GrowthDescription>,
     /// FruitDescription (orchard trees).
     pub fruit: Option<crate::production::orchard::FruitTemplate>,
@@ -56,11 +60,15 @@ pub struct Template {
     pub storage: Option<(u32, i32, bool)>,
     /// Has a `StorageLocationDescription` (a town storage the starting goods go to).
     pub storage_location: bool,
+    /// The `StorageLocationDescription`'s accepted flags.
     pub storage_location_flags: u32,
     /// Has a StorageDisplayComponent (its stored goods are drawn on its cells).
     pub storage_display: bool,
+    /// A market's radius.
     pub market_radius: Option<i32>,
+    /// Whether it is a market (a town storage with a radius).
     pub market_location: bool,
+    /// Whether it has an InteractDescription.
     pub has_interact: bool,
     /// InteractDescription "use" points in model space (its point list's category 0).
     pub use_points: Vec<[f32; 3]>,
@@ -68,16 +76,16 @@ pub struct Template {
     /// A natural resource's pile template (NaturalResourceDescription).
     pub pile: Option<usize>,
     // +0x40; +0x44
-    /// A pile template's raw material (its RawMaterialDescription) and yields, (uneducated,
-    /// educated).
+    /// A pile template's raw material (its RawMaterialDescription).
     pub pile_material: Option<usize>,
+    /// A pile template's yields: (uneducated, educated).
     pub pile_yield: (i32, i32),
     /// InteractDescription "build" points in model space (category 1): where builders stand
     /// and materials are delivered.
     pub build_points: Vec<[f32; 3]>,
-    /// The "use" points' yaws (degrees), and the "create" points (category 2) where a
-    /// workplace leaves its output.
+    /// The "use" points' yaws, in degrees.
     pub use_yaws: Vec<f32>,
+    /// The "create" points (category 2) where a workplace leaves its output.
     pub create_points: Vec<[f32; 3]>,
     /// The InteractDescription's other named points (name, position, yaw): the trading
     /// post's "boat".
@@ -111,7 +119,9 @@ pub struct Template {
 /// The kinds of scheduled component the port runs for placed entities.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScheduledComponent {
+    /// The growth update.
     Growth,
+    /// The spawn update.
     Spawn,
 }
 
@@ -130,20 +140,26 @@ pub struct Placed {
     pub footprint: (i32, i32),
     /// Map position (cells from the terrain centre) and ground height.
     pub position: [f32; 3],
-    /// Degrees.
+    /// The heading, in degrees.
     pub yaw: f32,
+    /// The model variant.
     pub variant: usize,
+    /// The mesh.
     pub mesh: usize,
     // NaturalResourceComponent +0x28; the constructor FUN_140036eb0 sets 1.0.
     /// How grown the resource is (1.0 by default).
     pub growth: f32,
+    /// The growth component, if any.
     pub growth_state: Option<Growth>,
+    /// The spawn component, if any.
     pub spawn_state: Option<Spawn>,
+    /// Whether it is still in the world.
     pub alive: bool,
     /// NaturalResourceComponent flag 0x200000.
     ///
     /// Original: `FUN_14012bc50`.
     pub removal_requested: bool,
+    /// The animation it plays, if any.
     pub animation: Option<Playback>,
     // MeshInstance +0x134
     /// Mesh instance scale (`MeshInstance`).
@@ -176,9 +192,10 @@ fn next_types_revision() -> u64 {
 // Game +0xf8
 /// The gameplay map cells seeding reads and writes (`Game`, 48-byte cells).
 pub struct Cells {
+    /// The map's size in cells.
     pub size: usize,
     // +0x29
-    /// . Change it only with [`Cells::set_type`], which keeps [`Cells::types_revision`] current.
+    /// The type of each cell. Change it only with [`Cells::set_type`], which keeps [`Cells::types_revision`] current.
     pub types: Vec<CellType>,
     /// A new stamp whenever `types` may have changed (a new map, any `set_type`), so readers
     /// such as the path regions can skip comparing the whole map when it has not.
@@ -218,7 +235,7 @@ pub struct Cells {
     /// Original: `FUN_1400b4840`.
     pub road_revision: u32,
     // +0x2d
-    /// and the map's floor scene: bridge decks (FloorComponent).
+    /// The floors (bridge decks) that characters walk on.
     pub floors: crate::world::floor::Floors,
     /// Cells that turned walkable or unwalkable, in the order they did: the path sectors' marks,
     /// which every type write in the original makes on the spot.
@@ -302,10 +319,15 @@ const SPAWN_HEIGHT_TOLERANCE: f32 = 1000.0;
 /// What the growth and spawn updates need: the cells, the templates, the random numbers, and the
 /// lists to fill.
 pub struct Seeder<'a> {
+    /// The object templates.
     pub templates: &'a [Template],
+    /// The ground's heights.
     pub terrain: &'a HeightGrid<'a>,
+    /// The gameplay map.
     pub cells: &'a mut Cells,
+    /// The game's random numbers.
     pub rng: &'a mut Random,
+    /// The placed objects.
     pub placed: &'a mut Vec<Placed>,
     /// The entities to remove, in the order they asked. They are removed after all buckets.
     ///
@@ -621,7 +643,8 @@ impl<'a> Seeder<'a> {
     /// CreateNaturalResource's start on a free cell: clone the template, place it in the cell,
     /// growth 0, then a random model variant and mesh, and register it.
     ///
-    /// Original: `FUN_1400cbb20`, `FUN_1400c8bf0`, `FUN_14012ba10`, `FUN_140126280`, `FUN_14012a8a0`.
+    /// Original: `FUN_1400cbb20`, `FUN_1400c8bf0`, `FUN_14012ba10`, `FUN_140126280`,
+    /// `FUN_14012a8a0`.
     pub fn plant(&mut self, template: usize, cell: i32) -> usize {
         let (_, _, max_growth) = self.construct(template);
         let (position, yaw) = self.position(template, cell);

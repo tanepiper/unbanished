@@ -20,8 +20,11 @@ const PERIOD: f32 = 300.0;
 /// + RandFloat × range)` × 300 s.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CemeteryTemplate {
+    /// The tombstone template.
     pub tombstone: usize,
+    /// How long a grave lasts, in months of 300 seconds.
     pub life: f32,
+    /// The random part of how long it lasts.
     pub range: f32,
 }
 

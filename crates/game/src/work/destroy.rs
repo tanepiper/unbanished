@@ -45,11 +45,17 @@ pub struct DestroyTemplate {
 /// materials come back, the demolition work done and needed, and what to put in its place.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Destroy {
+    /// The damage time left.
     pub time: i64,
+    /// Whether it is damaged.
     pub damaged: bool,
+    /// Whether its materials come back.
     pub refund: bool,
+    /// The demolition work done.
     pub count: i32,
+    /// The demolition work needed.
     pub target: i32,
+    /// The template to put in its place, if any.
     pub rebuild: Option<usize>,
     // +0x28
     /// The model shows the description's damaged material set (set by the damage with time left and
@@ -73,11 +79,17 @@ impl Destroy {
 /// Original: `FUN_1401215f0`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rebuild {
+    /// The template.
     pub template: usize,
+    /// The map cell.
     pub cell: (i32, i32),
+    /// The footprint.
     pub footprint: (i32, i32),
+    /// The heading, in degrees.
     pub yaw: f32,
+    /// The model's position.
     pub position: [f32; 3],
+    /// The model variant.
     pub variant: usize,
 }
 

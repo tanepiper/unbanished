@@ -140,8 +140,11 @@ pub mod reason {
 /// Original: `FUN_140118fc0`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LifeEvent {
+    /// The event type.
     pub kind: i32,
+    /// How important the event is.
     pub severity: i32,
+    /// The citizen.
     pub citizen: usize,
     /// `@4`: a disease's or accident's name (string-table key and table).
     pub extra: Option<(Option<String>, String)>,
@@ -150,6 +153,7 @@ pub struct LifeEvent {
 /// ResidenceComponent: the family slots and the fire.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Home {
+    /// The residence description.
     pub desc: ResidenceDescription,
     /// The site's StorageComponent.
     pub storage: usize,
@@ -233,27 +237,38 @@ pub(crate) fn family_order(citizens: &[Citizen], a: usize, b: usize) -> std::cmp
 
 /// Everything one citizen's update touches.
 pub struct People<'a, 'b> {
+    /// The citizens.
     pub citizens: &'a mut Vec<Citizen>,
+    /// The citizens' states.
     pub states: &'a mut Vec<CitizenState>,
     // +0xa0
-    /// Town manager: living citizens in activation order.
+    /// The living citizens, in activation order.
     pub registry: &'a mut Vec<usize>,
+    /// The homes, by entity.
     pub homes: &'a mut BTreeMap<usize, Home>,
+    /// The citizen description's rules.
     pub rules: &'a LifeRules,
+    /// A view of the town.
     pub town: &'a TownView<'b>,
     // +0x1c..+0x27
     /// Map cells ([`crate::nature::seeding::Cells::layers`]).
     pub layers: &'a [[u8; 12]],
+    /// The game's random numbers.
     pub rng: &'a mut Random,
+    /// The environment's temperature.
     pub temperature: f32,
+    /// The diseases.
     pub diseases: &'a [Disease],
     // +0x1a8
-    /// Town manager: extra disease risk brought by visitors (0 until they are ported).
+    /// The extra disease risk that visitors bring (0 until they are ported).
     pub town_disease: f32,
+    /// The town's storages.
     pub storages: &'a mut [Storage],
+    /// The raw materials.
     pub materials: &'a [RawMaterial],
     /// The character's action stack is empty (`stack_top + 1 < 1`).
     pub idle: &'a [bool],
+    /// The log events asked for.
     pub events: &'a mut Vec<LifeEvent>,
     /// Citizens whose entity was queued for deletion, with the reason.
     ///
@@ -268,23 +283,27 @@ pub struct People<'a, 'b> {
     /// Children born this update (new citizen indices).
     pub born: &'a mut Vec<usize>,
     // +0x60
-    /// AttendanceComponents and their registry (town manager).
+    /// The AttendanceComponents, by entity.
     pub attendance: &'a mut BTreeMap<usize, crate::work::construction::Attendance>,
+    /// The service buildings that people attend.
     pub attendance_list: &'a [usize],
     // +0x100; +0x20
-    /// The workplaces and residences (town manager).
+    /// The workplaces and residences.
     pub workforce: &'a mut crate::work::professions::Workforce,
+    /// The professions.
     pub professions: &'a crate::work::professions::Professions,
     /// The sites (their works' priorities, a cemetery's graves).
     pub sites: &'a BTreeMap<usize, crate::work::construction::Site>,
     // +0x40
-    /// The town's cemeteries and the tombstones standing.
+    /// The town's cemeteries.
     pub cemeteries: &'a [usize],
+    /// The tombstones standing, with the time each one stays.
     pub tombstones: &'a BTreeMap<usize, i64>,
     /// Burials decided this update (cemetery, grave cell); the tombstones follow.
     pub burials: &'a mut Vec<(usize, i32)>,
     /// The path-rank cache.
     pub sectors: &'a mut crate::sectors::SectorGraph,
+    /// The ground's heights.
     pub terrain: &'a crate::terrain::HeightGrid<'b>,
     // Game +0x88
     /// The characters' tree (`Game`): a disease spreads to the citizens about the sick.

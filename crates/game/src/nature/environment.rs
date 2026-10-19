@@ -119,6 +119,7 @@ pub struct SeasonValues {
 /// documentation](self).
 #[derive(Debug, Clone)]
 pub struct Environment {
+    /// The climate.
     pub climate: Climate,
     // +0x10
     /// 0 precipitation, 1 cloudy, 2 partly sunny, 3 sunny.
@@ -129,6 +130,7 @@ pub struct Environment {
     // +0x18
     /// °F.
     pub temperature: f32,
+    /// The renderer's seasonal values.
     pub season: SeasonValues,
     /// `+0x2c` / `+0x30`: smoothed and target annual baseline.
     baseline: f32,

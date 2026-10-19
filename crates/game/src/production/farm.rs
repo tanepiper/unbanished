@@ -51,6 +51,7 @@ pub struct CropField {
     // +0x50
     /// The crop (natural-resource template), chosen in the field's window.
     pub crop: Option<usize>,
+    /// The field's cells.
     pub cells: Vec<CropCell>,
 }
 
@@ -61,7 +62,9 @@ pub struct CropField {
 /// Original: `FUN_140120740`.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct CropFieldTemplate {
+    /// A tending visit's growth, as a share of the crop's growing time.
     pub tend: f32,
+    /// The stock slot (version 1).
     pub group: i32,
 }
 
@@ -70,8 +73,11 @@ pub struct CropFieldTemplate {
 /// the cells still to do, and, for planting, the crop.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct AreaWork {
+    /// The cells claimed: cell index → worker.
     pub claims: BTreeMap<i32, usize>,
+    /// The cells still to do.
     pub need: Vec<bool>,
+    /// The crop, for planting.
     pub crop: Option<usize>,
 }
 

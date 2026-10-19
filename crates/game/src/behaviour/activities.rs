@@ -16,13 +16,17 @@ pub type MapRect = (i32, i32, i32, i32);
 /// What activities need to know about one entity.
 #[derive(Debug, Clone, Default)]
 pub struct EntityView {
+    /// Whether it is still in the world.
     pub alive: bool,
     /// Has a MapComponent: its rectangle.
     pub rect: Option<MapRect>,
     /// InteractComponent "use" points in world space (category 0).
     pub use_points: Vec<[f32; 3]>,
+    /// Whether it has an InteractComponent.
     pub has_interact: bool,
+    /// The position.
     pub position: [f32; 3],
+    /// Whether it has a model.
     pub has_model: bool,
     // +0x2c; usable when FUN_14004b080 finds description type != 5 and enabled.
     /// For a building where citizens may loiter (a happiness component): the description's loiter
@@ -32,8 +36,11 @@ pub struct EntityView {
 
 /// The geometry called by the town's storage search. Uses the same sector cache as the AI.
 pub struct StorageGeometry<'a, 'b> {
+    /// A view of the town.
     pub town: &'a TownView<'b>,
+    /// The sector graph.
     pub sectors: &'a mut SectorGraph,
+    /// The ground point of a cell.
     pub ground: &'a dyn Fn(i32) -> [f32; 3],
 }
 
@@ -120,16 +127,21 @@ impl StorageSearchMap for StorageGeometry<'_, '_> {
 
 /// The map and entities activities read.
 pub struct TownView<'a> {
+    /// The map's size in cells.
     pub size: usize,
+    /// The type of each cell.
     pub types: &'a [CellType],
+    /// The walkable region of each cell.
     pub regions: &'a [u16],
     // +0x00; +0x08
-    /// occupant and object per cell.
+    /// The occupant of each cell.
     pub occupants: &'a [Option<usize>],
+    /// The object on each cell.
     pub objects: &'a [Option<usize>],
     // +0x2d
     /// The bridges' floors (and the floor scene), for the ground under a point.
     pub floors: &'a crate::world::floor::Floors,
+    /// A view of each entity.
     pub entities: &'a [EntityView],
     // +0x50; Game +0xf0
     /// The town manager's HappinessComponent registry (`Game`).
@@ -213,6 +225,7 @@ impl TownView<'_> {
 
 /// The workplace searches' view of the town ([`crate::work::professions::Search`]).
 pub struct TownSearch<'a, 'b> {
+    /// A view of the town.
     pub town: &'a TownView<'b>,
     /// A citizen's map cell.
     pub cell: &'a dyn Fn(usize) -> i32,
@@ -220,6 +233,7 @@ pub struct TownSearch<'a, 'b> {
     pub anywhere: &'a dyn Fn(usize) -> bool,
     /// A workplace's work priority.
     pub priority: &'a dyn Fn(usize) -> i32,
+    /// The game's random numbers.
     pub rng: &'a mut Random,
 }
 
@@ -246,8 +260,11 @@ impl crate::work::professions::Search for TownSearch<'_, '_> {
 /// Original: `FUN_14010fa30`, `FUN_1400bfb80`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Loiter {
+    /// Where to walk.
     pub target: [f32; 3],
+    /// How long to idle, in seconds.
     pub duration: f32,
+    /// The building to notify after, if any.
     pub happiness: Option<usize>,
 }
 

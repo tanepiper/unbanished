@@ -17,7 +17,8 @@
 //! A work's virtual slots are supplied by a [`WorkHost`]: try to assign (0 no, 1 not now, 2 taken),
 //! a second try, a task completed, a task failed, cancel every worker, refresh.
 //!
-//! Original: `FUN_1400fe650`, `FUN_1400fcd00`, `FUN_1400fca20`, `FUN_1400fce80`, `FUN_1400fd4d0`, `FUN_1400fd160`, `FUN_1400fd030`.
+//! Original: `FUN_1400fe650`, `FUN_1400fcd00`, `FUN_1400fca20`, `FUN_1400fce80`, `FUN_1400fd4d0`,
+//! `FUN_1400fd160`, `FUN_1400fd030`.
 // Game +0x118; +0x00; +0x04; +0x30; +0x10; +0x120; +0x40 + (c − 1)·0x10; +0x50; +0x20; +0x28;
 // +0x38; +0x40; +0x48
 
@@ -35,55 +36,100 @@ pub const EMERGENCY: u32 = 14;
 /// The kinds of work the port has, with their own state.
 #[derive(Debug, Clone)]
 pub enum WorkKind {
-    /// `GatherRawMaterials` (vtable `0x140167840`, constructor `FUN_1400f1be0`).
+    // vtable 0x140167840
+    /// `GatherRawMaterials`.
+    ///
+    /// Original: `FUN_1400f1be0`.
     Gather(crate::work::construction::Gather),
-    /// `BuildStructure` (vtable `0x1401674c0`, constructor `FUN_1400eae90`).
+    // vtable 0x1401674c0
+    /// `BuildStructure`.
+    ///
+    /// Original: `FUN_1400eae90`.
     Build(crate::work::construction::BuildWork),
-    /// `ClearArea` (vtable `0x140167540`, constructor `FUN_1400ebe30`).
+    // vtable 0x140167540
+    /// `ClearArea`.
+    ///
+    /// Original: `FUN_1400ebe30`.
     Clear(crate::work::construction::ClearWork),
-    /// `Pickup` (vtable `0x140167c30`, built by RawMaterialComponent activation `FUN_14012e6a0`).
+    // vtable 0x140167c30
+    /// `Pickup`: carry a pile to storage. A pile makes it when it is activated.
+    ///
+    /// Original: made by `FUN_14012e6a0`.
     Pickup(crate::work::construction::PickupWork),
-    /// `ConsumeProduce` (vtable `0x140167640`, constructor `FUN_1400ee6d0`, made by
-    /// ConsumeProduceComponent slot `+0x90` `FUN_14011e1d0`).
+    // vtable 0x140167640; +0x90
+    /// `ConsumeProduce`: a workplace's production.
+    ///
+    /// Original: `FUN_1400ee6d0`; made by slot `FUN_14011e1d0`.
     Produce(crate::work::construction::ProduceWork),
-    /// `LocationWork` (vtable `0x140167ab0`): staff stand at a school, chapel or doctor.
+    // vtable 0x140167ab0
+    /// `LocationWork`: staff stand at a school, chapel or doctor.
     Location(crate::people::services::LocationWork),
-    /// HerbalistComponent's work (vtable `0x1401679c0`, made by `FUN_14004bac0`): gatherers
-    /// and herbalists.
+    // vtable 0x1401679c0
+    /// The work of gatherers and herbalists.
+    ///
+    /// Original: made by `FUN_14004bac0`.
     Herbalist(crate::production::herbalist::HerbalistWork),
-    /// ForesterComponent's work (vtable `0x1401677c0`, made by `FUN_140124c50`), with the
-    /// same fields.
+    // vtable 0x1401677c0
+    /// A forester's work, with the same fields.
+    ///
+    /// Original: made by `FUN_140124c50`.
     Forester(crate::production::herbalist::HerbalistWork),
-    /// HuntComponent's work (vtable `0x140167a40`, made by `FUN_140127b70`), with the
-    /// gatherer's fields.
+    // vtable 0x140167a40
+    /// A hunter's work, with the gatherer's fields.
+    ///
+    /// Original: made by `FUN_140127b70`.
     Hunt(crate::production::herbalist::HerbalistWork),
-    /// `PlantArea` (vtable `0x140167cb0`, constructor `FUN_1400f9b70`).
+    // vtable 0x140167cb0
+    /// `PlantArea`.
+    ///
+    /// Original: `FUN_1400f9b70`.
     PlantArea(crate::production::farm::AreaWork),
-    /// `TendArea` (vtable `0x140167db0`): the workers, as the gatherer's.
+    // vtable 0x140167db0
+    /// `TendArea`: the workers, as the gatherer's.
     TendArea(crate::production::herbalist::HerbalistWork),
-    /// The harvest work (vtable `0x1401678c0`, constructor `FUN_1400f2990`).
+    // vtable 0x1401678c0
+    /// The harvest work.
+    ///
+    /// Original: `FUN_1400f2990`.
     Harvest(crate::production::farm::AreaWork),
-    /// `PlantOrchard` (vtable `0x140167d30`, constructor `FUN_1400fa610`): `need` marks the
-    /// slots being planted.
+    // vtable 0x140167d30
+    /// `PlantOrchard`: `need` marks the slots being planted.
+    ///
+    /// Original: `FUN_1400fa610`.
     PlantOrchard(crate::production::farm::AreaWork),
-    /// Fruit picking (vtable `0x140167940`, constructor `FUN_1400f3530`).
+    // vtable 0x140167940
+    /// Fruit picking.
+    ///
+    /// Original: `FUN_1400f3530`.
     PickFruit(crate::production::farm::AreaWork),
-    /// PastureComponent's work (vtable `0x140167bc0`, constructor `FUN_1400f8250`): the
-    /// ranchers tending (`+0x48`), as the gatherer's.
+    // vtable 0x140167bc0; +0x48
+    /// PastureComponent's work: the ranchers tending, as the gatherer's.
+    ///
+    /// Original: `FUN_1400f8250`.
     Pasture(crate::production::herbalist::HerbalistWork),
-    /// `ClearStorage` (vtable `0x1401675c0`, constructor `FUN_1400ec920`): an empty house's
-    /// goods go to the town's storage; `+0x58` the haulers.
+    // vtable 0x1401675c0; +0x58
+    /// `ClearStorage`: an empty house's goods go to the town's storage; the haulers.
+    ///
+    /// Original: `FUN_1400ec920`.
     ClearStorage(crate::production::herbalist::HerbalistWork),
-    /// `FireWork` (vtable `0x1401676c0`, constructor `FUN_1400ef0a0`): firefighters carrying
-    /// buckets to a burning building; `+0x50` the workers.
+    // vtable 0x1401676c0; +0x50
+    /// `FireWork`: firefighters carrying buckets to a burning building; the workers.
+    ///
+    /// Original: `FUN_1400ef0a0`.
     Fire(crate::production::herbalist::HerbalistWork),
-    /// `TradeWork` (vtable `0x140167e30`): haulers keeping the trading post's stock.
+    // vtable 0x140167e30
+    /// `TradeWork`: haulers keeping the trading post's stock.
     Trade(crate::commerce::trade::TradeWork),
-    /// `BuildRoad` (vtable `0x140167430`): one cell of road.
+    // vtable 0x140167430
+    /// `BuildRoad`: one cell of road.
     Road(crate::work::road::RoadWork),
-    /// MarketWork (vtable `0x140167b40`, made by MarketComponent's slot `+0x90`).
+    // vtable 0x140167b40; +0x90
+    /// MarketWork (made by MarketComponent's slot).
     Market(crate::commerce::market::MarketWork),
-    /// `FishingWork` (vtable `0x140167740`, constructor `FUN_1400eff90`).
+    // vtable 0x140167740
+    /// `FishingWork`.
+    ///
+    /// Original: `FUN_1400eff90`.
     Fishing(crate::production::fishing::FishingWork),
     /// A test stand-in.
     Test(i32),
@@ -99,8 +145,9 @@ pub struct Work {
     /// The owning entity.
     pub entity: usize,
     // +0x20; +0x24
-    /// id and priority.
+    /// The id.
     pub id: i32,
+    /// The priority.
     pub priority: i32,
     // +0x28
     /// The owner's map-rectangle centre cell.
@@ -113,11 +160,14 @@ pub struct Work {
     ///
     /// Original: used by `FUN_1400fc3c0`.
     pub patience: i64,
+    /// The clock when the patience was last brought up to date.
     pub patience_base: i64,
+    /// How many times a citizen found the work too far.
     pub far_count: i32,
     // +0x50
     /// The profession whose citizens do this work.
     pub profession: usize,
+    /// What kind of work it is.
     pub kind: WorkKind,
 }
 
@@ -207,9 +257,13 @@ pub const NESTED: u8 = 3;
 /// A CompleteTask's report: `complete` (start) or failed (abort).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct JobEvent {
+    /// The work.
     pub work: i32,
+    /// The citizen.
     pub citizen: usize,
+    /// The task's parameter.
     pub param: i32,
+    /// Whether the task completed (else it was aborted).
     pub complete: bool,
 }
 

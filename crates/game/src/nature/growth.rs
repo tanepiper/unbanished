@@ -28,7 +28,9 @@ pub struct Growth {
     // +0x48; +0x28
     /// Visible value, separate from NaturalResourceComponent.
     pub smoothed: f32,
+    /// Whether the scheduled update still runs (false once fully grown).
     pub scheduled: bool,
+    /// Whether the visible value still moves towards the growth.
     pub smoothing: bool,
     /// NaturalResourceComponent capability bit 0x100000; false on newly seeded resources.
     pub allow_negative: bool,
@@ -37,6 +39,7 @@ pub struct Growth {
 /// What one growth update changed.
 #[derive(Debug, Default)]
 pub struct GrowthTick {
+    /// How many times it tried to spawn.
     pub spawn_attempts: usize,
     /// A value passed on when the growth ends; its meaning is not identified yet.
     ///

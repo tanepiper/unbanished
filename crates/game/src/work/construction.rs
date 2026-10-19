@@ -16,48 +16,89 @@ use crate::work::professions::{Command, Professions, Workforce};
 /// The ControllerComponents the port has state tables for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Controller {
-    /// `FUN_14011d4e0`.
+    /// Clears the building's area before construction.
+    ///
+    /// Original: `FUN_14011d4e0`.
     ClearArea,
-    /// `FUN_140134870`.
+    /// The workplace: workers and the work while the building works.
+    ///
+    /// Original: `FUN_140134870`.
     WorkPlace,
-    /// `FUN_14010e560`.
+    /// Construction: materials, building work and the stages.
+    ///
+    /// Original: `FUN_14010e560`.
     Build,
-    /// `FUN_14012f820`.
+    /// A home.
+    ///
+    /// Original: `FUN_14012f820`.
     Residence,
-    /// ClearResourceComponent (`FUN_140032150` / `FUN_140032270` table): the removal marker.
+    /// ClearResourceComponent: the removal marker.
+    ///
+    /// Original: `FUN_140032150`, `FUN_140032270`.
     ClearResource,
-    /// ResourceProduceComponent (`FUN_140130700` table), here ConsumeProduceComponent.
+    /// ResourceProduceComponent, here ConsumeProduceComponent.
+    ///
+    /// Original: `FUN_140130700`.
     ResourceProduce,
-    /// AttendanceComponent (`FUN_140044f90` table): school, chapel, doctor.
+    /// AttendanceComponent: school, chapel, doctor.
+    ///
+    /// Original: `FUN_140044f90`.
     Attendance,
-    /// HealerComponent (`FUN_14004b980` table): the herbalist.
+    /// HealerComponent: the herbalist.
+    ///
+    /// Original: `FUN_14004b980`.
     Healer,
-    /// HappinessComponent (`FUN_14004b570` table).
+    /// HappinessComponent.
+    ///
+    /// Original: `FUN_14004b570`.
     Happiness,
-    /// CropFieldComponent (`FUN_140120620` table).
+    /// CropFieldComponent.
+    ///
+    /// Original: `FUN_140120620`.
     CropField,
-    /// OrchardComponent (`FUN_140052a40` table).
+    /// OrchardComponent.
+    ///
+    /// Original: `FUN_140052a40`.
     Orchard,
-    /// PastureComponent (`FUN_14012d660` table).
+    /// PastureComponent.
+    ///
+    /// Original: `FUN_14012d660`.
     Pasture,
-    /// AbsorbResourceComponent (`FUN_14002f5d0` table): a storage yard takes in the piles on
-    /// its footprint.
+    /// AbsorbResourceComponent: a storage yard takes in the piles on its footprint.
+    ///
+    /// Original: `FUN_14002f5d0`.
     AbsorbResource,
-    /// StorageLocationComponent (`FUN_1401328e0` table): a town storage.
+    /// StorageLocationComponent: a town storage.
+    ///
+    /// Original: `FUN_1401328e0`.
     StorageLocation,
-    /// CemeteryComponent (`FUN_140048100` table).
+    /// CemeteryComponent.
+    ///
+    /// Original: `FUN_140048100`.
     Cemetery,
-    /// MarketLocationComponent (`FUN_14004fa70` table): a town market.
+    /// MarketLocationComponent: a town market.
+    ///
+    /// Original: `FUN_14004fa70`.
     MarketLocation,
-    /// DestroyComponent (`FUN_1401231d0` table): demolition, damage and rubble.
+    /// DestroyComponent: demolition, damage and rubble.
+    ///
+    /// Original: `FUN_1401231d0`.
     Destroy,
-    /// WellComponent (`FUN_14005da70` table): a water source for firefighters.
+    /// WellComponent: a water source for firefighters.
+    ///
+    /// Original: `FUN_14005da70`.
     Well,
-    /// ImmigrationComponent (`FUN_14004f020` table): the town hall's nomads.
+    /// ImmigrationComponent: the town hall's nomads.
+    ///
+    /// Original: `FUN_14004f020`.
     Immigration,
-    /// TradeComponent (`FUN_14005cfb0` table): the trading post's merchants.
+    /// TradeComponent: the trading post's merchants.
+    ///
+    /// Original: `FUN_14005cfb0`.
     Trade,
-    /// MultiObjectComponent (table `FUN_14012b000`): a bridge's or a pasture's parts.
+    /// MultiObjectComponent: a bridge's or a pasture's parts.
+    ///
+    /// Original: `FUN_14012b000`.
     MultiObject,
 }
 
@@ -65,142 +106,270 @@ pub enum Controller {
 /// A state callback (records: enter, scheduled update, transition functions).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Callback {
+    /// No callback.
     None,
-    /// `FUN_14011ce30`, `FUN_14011cdc0`, `FUN_14011cd60`.
+    /// The clear-area controller: entering states 0 and 21.
+    ///
+    /// Original: `FUN_14011ce30`, `FUN_14011cdc0`, `FUN_14011cd60`.
     ClearEnter0,
+    /// The clear-area controller: the scheduled update of states 0 and 21.
     ClearUpdate0,
+    /// The clear-area controller: leaving state 0.
     ClearExit0,
-    /// `FUN_14011cc40` (state 0x15 exit).
+    /// The clear-area controller: leaving state 21.
+    ///
+    /// Original: `FUN_14011cc40` (state 0x15 exit).
     ClearExit15,
-    /// `FUN_14011ccf0`, `FUN_14011ccc0`.
+    /// The clear-area controller: entering state 1.
+    ///
+    /// Original: `FUN_14011ccf0`, `FUN_14011ccc0`.
     ClearEnter1,
+    /// The clear-area controller: entering state 2.
     ClearEnter2,
-    /// `FUN_140134310` → `FUN_1401349f0`; `FUN_1401342c0`; `FUN_140134230`.
+    /// The workplace controller: entering state 0.
+    ///
+    /// Original: `FUN_140134310` → `FUN_1401349f0`; `FUN_1401342c0`; `FUN_140134230`.
     WorkPlaceEnter0,
+    /// The workplace controller: entering state 2.
     WorkPlaceEnter2,
+    /// The workplace controller: entering state 3.
     WorkPlaceEnter3,
-    /// `FUN_14010d760`, `FUN_14010d6b0`.
+    /// The build controller: entering state 1.
+    ///
+    /// Original: `FUN_14010d760`, `FUN_14010d6b0`.
     BuildEnter1,
+    /// The build controller: the scheduled update of state 1.
     BuildUpdate1,
-    /// `FUN_14010cfb0`, `FUN_14010cbb0`, `FUN_14010cad0`.
+    /// The build controller: entering state 8.
+    ///
+    /// Original: `FUN_14010cfb0`, `FUN_14010cbb0`, `FUN_14010cad0`.
     BuildEnter8,
+    /// The build controller: the scheduled update of state 8.
     BuildUpdate8,
+    /// The build controller: leaving state 8.
     BuildExit8,
-    /// `FUN_14010cab0` → `FUN_14010d4c0` (transition 8 → 2).
+    /// The build controller: the transition from state 8 to 2, when construction ends.
+    ///
+    /// Original: `FUN_14010cab0` → `FUN_14010d4c0`.
     BuildFinish,
-    /// `FUN_14012f2b0`.
+    /// The residence: entering state 2.
+    ///
+    /// Original: `FUN_14012f2b0`.
     ResidenceEnter2,
-    /// `FUN_14011da30`: the marker destroys its entity once its cell is clear.
+    /// The marker destroys its entity once its cell is clear.
+    ///
+    /// Original: `FUN_14011da30`.
     ClearResourceEnter2,
-    /// `FUN_140130680`: built → producing (0xd), or idle (0xe) when switched off.
+    /// Built → producing (0xd), or idle (0xe) when switched off.
+    ///
+    /// Original: `FUN_140130680`.
     ProduceEnter2,
-    /// `FUN_140130460` (transition 2 → 0xd): the output points' cells become empty ground.
+    /// The transition from state 2 to 0xd: the cells of the output points become empty ground.
+    ///
+    /// Original: `FUN_140130460`.
     ProduceClearPoints,
-    /// `FUN_140130330`: register the production work and enable the workplace (0xe when
-    /// switched off).
+    /// Register the production work and enable the workplace (0xe when switched off).
+    ///
+    /// Original: `FUN_140130330`.
     ProduceEnterD,
-    /// `FUN_1401301f0`: remove the work and disable the workplace.
+    /// Remove the work and disable the workplace.
+    ///
+    /// Original: `FUN_1401301f0`.
     ProduceEnterE,
-    /// `FUN_140130660`: state 0xd's scheduled update → slot `+0xa8` (the dock's water).
+    // +0xa8
+    /// State 0xd's scheduled update → slot (the dock's water).
+    ///
+    /// Original: `FUN_140130660`.
     ProduceUpdateD,
-    /// `FUN_140130440`: transition 0xd → 3 → slot `+0xa0` (the dock leaves the map layer).
+    // +0xa0
+    /// Transition 0xd → 3 → slot (the dock leaves the map layer).
+    ///
+    /// Original: `FUN_140130440`.
     ProduceLeaveD,
-    /// `FUN_1400445f0`: register the attendance, its LocationWork, enable the workplace.
+    /// Register the attendance, its LocationWork, enable the workplace.
+    ///
+    /// Original: `FUN_1400445f0`.
     AttendanceEnter2,
-    /// `FUN_140044590`: status icon 2 when every attendance of the kind is full.
+    /// Status icon 2 when every attendance of the kind is full.
+    ///
+    /// Original: `FUN_140044590`.
     AttendanceExit2,
-    /// `FUN_140044530`: unregister, send the attendees away, disable the workplace.
+    /// Unregister, send the attendees away, disable the workplace.
+    ///
+    /// Original: `FUN_140044530`.
     AttendanceEnter3,
-    /// `FUN_14004b790` / `FUN_14004b750`: register / unregister the healer.
+    /// Register / unregister the healer.
+    ///
+    /// Original: `FUN_14004b790`, `FUN_14004b750`.
     HealerEnter2,
+    /// A healer: entering state 3.
     HealerEnter3,
-    /// `FUN_14004b350` (states 2 and 0xd enter), `FUN_14004b300` (their scheduled update),
-    /// `FUN_14004b2a0` (state 3 enter).
+    /// A happiness building: entering its active states.
+    ///
+    /// Original: `FUN_14004b350` (states 2 and 0xd enter), `FUN_14004b300` (their scheduled
+    /// update), `FUN_14004b2a0` (state 3 enter).
     HappinessEnter,
+    /// A happiness building: the scheduled update of its active states.
     HappinessUpdate,
+    /// A happiness building: leaving its active states.
     HappinessLeave,
-    /// CropField: `FUN_14011fdf0` / `FUN_14011fd30` (state 2), `FUN_14011f7e0` /
-    /// `FUN_14011f6b0` (9), `FUN_14011f5d0` / `FUN_14011f440` / `FUN_14011f4a0` (10),
-    /// `FUN_14011f330` / `FUN_14011f250` (11).
+    /// A crop field: entering state 2.
+    ///
+    /// Original: `FUN_14011fdf0` / `FUN_14011fd30` (state 2), `FUN_14011f7e0` / `FUN_14011f6b0`
+    /// (9), `FUN_14011f5d0` / `FUN_14011f440` / `FUN_14011f4a0` (10), `FUN_14011f330` /
+    /// `FUN_14011f250` (11).
     CropEnter2,
+    /// A crop field: the scheduled update of state 2.
     CropUpdate2,
+    /// A crop field: entering state 9.
     CropEnter9,
+    /// A crop field: the scheduled update of state 9.
     CropUpdate9,
+    /// A crop field: entering state 10.
     CropEnter10,
+    /// A crop field: leaving state 10.
     CropExit10,
+    /// A crop field: the scheduled update of state 10.
     CropUpdate10,
+    /// A crop field: entering state 11.
     CropEnter11,
+    /// A crop field: the scheduled update of state 11.
     CropUpdate11,
-    /// `FUN_14004f880` / `FUN_14004f840`: the market joins / leaves the town's (`+0x10`).
+    // +0x10
+    /// The market joins / leaves the town's.
+    ///
+    /// Original: `FUN_14004f880`, `FUN_14004f840`.
     MarketEnter2,
+    /// A market: entering state 3.
     MarketEnter3,
-    /// `FUN_140047920` / `FUN_1400478e0`: the cemetery joins / leaves the town's.
+    /// The cemetery joins / leaves the town's.
+    ///
+    /// Original: `FUN_140047920`, `FUN_1400478e0`.
     CemeteryEnter2,
+    /// A cemetery: entering state 3.
     CemeteryEnter3,
-    /// `FUN_14010ae20`: AbsorbResource's state 0 update.
+    /// AbsorbResource's state 0 update.
+    ///
+    /// Original: `FUN_14010ae20`.
     AbsorbUpdate0,
-    /// `FUN_140132700` / `FUN_1401326c0`: join / leave the town's storages.
+    /// Join / leave the town's storages.
+    ///
+    /// Original: `FUN_140132700`, `FUN_1401326c0`.
     StorageEnter2,
+    /// A storage: entering state 3.
     StorageEnter3,
-    /// Pasture: `FUN_14012c590` / `FUN_14012bcb0` (state 2), `FUN_14012c310` (3).
+    /// A pasture: entering state 2.
+    ///
+    /// Original: `FUN_14012c590` / `FUN_14012bcb0` (state 2), `FUN_14012c310` (3).
     PastureEnter2,
+    /// A pasture: the scheduled update of state 2.
     PastureUpdate2,
+    /// A pasture: entering state 3.
     PastureEnter3,
-    /// Orchard: `FUN_140051e90` / `FUN_140051e20` (2), `FUN_1400519d0` / `FUN_1400518f0` (9),
-    /// `FUN_140051790` / `FUN_140051560` (10), `FUN_140051500` / `FUN_140051310` (exits of 10
-    /// and 12), `FUN_140051440` / `FUN_140051370` (12), `FUN_140051160` / `FUN_140050fb0`
-    /// (11), `FUN_140050e40` / `FUN_140050d40` / `FUN_140050d90` (0x14).
+    /// An orchard: entering state 2.
+    ///
+    /// Original: `FUN_140051e90` / `FUN_140051e20` (2), `FUN_1400519d0` / `FUN_1400518f0` (9),
+    /// `FUN_140051790` / `FUN_140051560` (10), `FUN_140051500` / `FUN_140051310` (exits of 10 and
+    /// 12), `FUN_140051440` / `FUN_140051370` (12), `FUN_140051160` / `FUN_140050fb0` (11),
+    /// `FUN_140050e40` / `FUN_140050d40` / `FUN_140050d90` (0x14).
     OrchardEnter2,
+    /// An orchard: the scheduled update of state 2.
     OrchardUpdate2,
+    /// An orchard: entering state 9.
     OrchardEnter9,
+    /// An orchard: the scheduled update of state 9.
     OrchardUpdate9,
+    /// An orchard: entering state 10.
     OrchardEnter10,
+    /// An orchard: the scheduled update of state 10.
     OrchardUpdate10,
+    /// An orchard: leaving states 10 and 12, when the work ends.
     OrchardExitWork,
+    /// An orchard: entering state 12.
     OrchardEnter12,
+    /// An orchard: the scheduled update of state 12.
     OrchardUpdate12,
+    /// An orchard: entering state 11.
     OrchardEnter11,
+    /// An orchard: the scheduled update of state 11.
     OrchardUpdate11,
+    /// An orchard: entering state 20.
     OrchardEnter14,
+    /// An orchard: leaving state 20.
     OrchardExit14,
+    /// An orchard: the scheduled update of state 20.
     OrchardUpdate14,
-    /// `FUN_14012edf0`: the families move out and the residence leaves the town's.
+    /// The families move out and the residence leaves the town's.
+    ///
+    /// Original: `FUN_14012edf0`.
     ResidenceEnter3,
-    /// Destroy: `FUN_140122c80` (3), `FUN_1401224a0` / `FUN_140122390` (4), `FUN_140122140` /
+    /// Demolition: entering state 3.
+    ///
+    /// Original: `FUN_140122c80` (3), `FUN_1401224a0` / `FUN_140122390` (4), `FUN_140122140` /
     /// `FUN_1401215f0` (5), `FUN_1401229a0` / `FUN_140122960` / `FUN_1401228d0` (6).
     DestroyEnter3,
+    /// Demolition: entering state 4.
     DestroyEnter4,
+    /// Demolition: the scheduled update of state 4.
     DestroyUpdate4,
+    /// Demolition: entering state 5.
     DestroyEnter5,
+    /// Demolition: the scheduled update of state 5.
     DestroyUpdate5,
+    /// Demolition: entering state 6.
     DestroyEnter6,
+    /// Demolition: the scheduled update of state 6.
     DestroyUpdate6,
+    /// Demolition: leaving state 6.
     DestroyExit6,
-    /// `FUN_14005d880` / `FUN_14005d840`: the well joins / leaves the town's water sources.
+    /// The well joins / leaves the town's water sources.
+    ///
+    /// Original: `FUN_14005d880`, `FUN_14005d840`.
     WellEnter2,
+    /// The well leaves the town's water sources.
     WellEnter3,
-    /// Immigration: `FUN_14004dbf0` / `FUN_14004db80` (2), `FUN_14004db00` / `FUN_14004da30`
-    /// (0xf), `FUN_14004d9f0` / `FUN_14004d9d0` (0x10), `FUN_14004d810` / `FUN_14004d760`
-    /// (0x11), `FUN_14004d660` (0x10 and 0x11 → 3).
+    /// The town hall's immigration: entering state 2.
+    ///
+    /// Original: `FUN_14004dbf0` / `FUN_14004db80` (2), `FUN_14004db00` / `FUN_14004da30` (0xf),
+    /// `FUN_14004d9f0` / `FUN_14004d9d0` (0x10), `FUN_14004d810` / `FUN_14004d760` (0x11),
+    /// `FUN_14004d660` (0x10 and 0x11 → 3).
     ImmigrationEnter2,
+    /// The town hall's immigration: the scheduled update of state 2.
     ImmigrationUpdate2,
+    /// The town hall's immigration: entering state 15.
     ImmigrationEnterF,
+    /// The town hall's immigration: the scheduled update of state 15.
     ImmigrationUpdateF,
+    /// The town hall's immigration: entering state 16.
     ImmigrationEnter10,
+    /// The town hall's immigration: the scheduled update of state 16.
     ImmigrationUpdate10,
+    /// The town hall's immigration: entering state 17.
     ImmigrationEnter11,
+    /// The town hall's immigration: the scheduled update of state 17.
     ImmigrationUpdate11,
+    /// The town hall's immigration: leaving its active states.
     ImmigrationLeave,
-    /// Trade: `FUN_14005b530` / `FUN_14005b3c0` (2), `FUN_14005b3b0` (0x12), `FUN_14005b160` /
+    /// The trading post: entering state 2.
+    ///
+    /// Original: `FUN_14005b530` / `FUN_14005b3c0` (2), `FUN_14005b3b0` (0x12), `FUN_14005b160` /
     /// `FUN_14005b030` / `FUN_14005b0e0` (0x13), `FUN_14005bac0` (→ 3).
     TradeEnter2,
+    /// The trading post: the scheduled update of state 2.
     TradeUpdate2,
+    /// The trading post: entering state 18.
     TradeEnter12,
+    /// The trading post: entering state 19.
     TradeEnter13,
+    /// The trading post: leaving state 19.
     TradeExit13,
+    /// The trading post: the scheduled update of state 19.
     TradeUpdate13,
+    /// The trading post: leaving its active states.
     TradeLeave,
-    /// `FUN_14012aa30`: activate the parts' MapComponents and floors.
+    /// Activate the parts' MapComponents and floors.
+    ///
+    /// Original: `FUN_14012aa30`.
     MultiObjectEnter2,
     /// Callbacks whose port is still missing (they pass the state on).
     Missing,
@@ -208,10 +377,15 @@ pub enum Callback {
 
 /// One state of a building's state machine: its callbacks and its transitions.
 pub struct StateDef {
+    /// The state's number.
     pub id: i8,
+    /// The callback when the state is entered.
     pub enter: Callback,
+    /// The callback at each scheduled update.
     pub update: Callback,
+    /// The callback when the state is left.
     pub exit: Callback,
+    /// The callbacks of transitions: the target state and its callback.
     pub transitions: &'static [(i8, Callback)],
 }
 
@@ -742,11 +916,17 @@ impl Controller {
 /// state, pending transition.
 #[derive(Debug, Clone, Default)]
 pub struct Machine {
+    /// The building's controllers, in component order.
     pub controllers: Vec<Controller>,
+    /// The controller that handles the current state.
     pub current: usize,
+    /// The current state.
     pub state: i8,
+    /// The index of the current state in its controller's table.
     pub index: i8,
+    /// The state to enter next (-1: none).
     pub pending: i8,
+    /// The transition requested (-1: none).
     pub transition: i8,
 }
 
@@ -910,8 +1090,9 @@ pub struct SiteTemplate {
     /// The controllers in component order.
     pub controllers: Vec<Controller>,
     // +0x20; +0x30
-    /// BuildDescription: `(count, raw material)`; work.
+    /// The materials to build it: `(count, raw material)`.
     pub materials: Vec<(i32, usize)>,
+    /// The building work needed, in work units.
     pub work: i32,
     // +0x2c
     /// ClearAreaDescription: present, flatten/stamp flag.
@@ -920,12 +1101,15 @@ pub struct SiteTemplate {
     /// WorkDescription (most workers once built).
     pub max_workers: i32,
     // +0x34; +0x30; +0x24
-    /// WorkDescription /: scale by the footprint area over this many cells.
+    /// Scale the most workers by the footprint's area over this many cells (from the work
+    /// description).
     pub per_area: Option<i32>,
     // +0x20; +0x28; +0x2c
-    /// WorkDescription: the player may change the most workers, between and (WorkPlaceUI).
+    /// Whether the player may change the most workers in the building's window.
     pub adjustable: bool,
+    /// The fewest workers the player may set.
     pub min_jobs: i32,
+    /// The most workers the player may set.
     pub max_jobs: i32,
     // +0x20
     /// WorkPlaceDescription.
@@ -973,6 +1157,7 @@ pub struct SiteTemplate {
     /// StatusIconDescription (presentation), and the finished model's height its icons stand on
     /// (`ModelComponent`).
     pub status_icon: Option<banished_formats::game::StatusIconDescription>,
+    /// The height of the status icon above the building, if it has one.
     pub icon_height: Option<f32>,
     /// DestroyDescription, resolved.
     pub destroy: Option<crate::work::destroy::DestroyTemplate>,
@@ -1011,6 +1196,7 @@ impl SiteTemplate {
 /// A resolved [`banished_formats::game::ConsumeProduceDescription`].
 #[derive(Debug, Clone, Default)]
 pub struct ProduceTemplate {
+    /// The recipes.
     pub recipes: Vec<Recipe>,
     // +0x40
     /// Work cycles per production.
@@ -1036,9 +1222,13 @@ pub struct ProduceTemplate {
 /// raw material, and the stock group the limit check reads.
 #[derive(Debug, Clone, Default)]
 pub struct Recipe {
+    /// What it uses: `(raw material, count)`.
     pub inputs: Vec<(usize, i32)>,
+    /// The template of the output pile.
     pub output: usize,
+    /// The raw material of the output.
     pub output_material: usize,
+    /// The stock group whose limit is checked.
     pub group: i32,
 }
 
@@ -1046,9 +1236,13 @@ pub struct Recipe {
 /// ConsumeProduceComponent state (switched off, selector, weights, productions so far).
 #[derive(Debug, Clone, Default)]
 pub struct ProduceState {
+    /// Whether production is switched off.
     pub disabled: bool,
+    /// The recipe chosen in the window.
     pub selector: i32,
+    /// The weight of each recipe, for choosing what to make.
     pub weights: Vec<f32>,
+    /// The productions so far.
     pub produced: i32,
 }
 
@@ -1058,9 +1252,13 @@ pub struct ProduceState {
 /// the next production.
 #[derive(Debug, Clone, Default)]
 pub struct ProduceWork {
+    /// The worker at each use point.
     pub workers: Vec<Option<usize>>,
+    /// The state of each output point: 0 free, 1 a production is under way, 2 holds output.
     pub points: Vec<u8>,
+    /// Whether every output point was taken.
     pub full: bool,
+    /// The work cycles towards the next production.
     pub cycles: i32,
 }
 
@@ -1084,17 +1282,21 @@ pub struct Decal {
 /// One building under construction (and, once built, its WorkComponent).
 #[derive(Debug, Clone)]
 pub struct Site {
+    /// The building's entity.
     pub entity: usize,
     /// Index into [`Construction::templates`].
     pub template: usize,
+    /// The building's state machine.
     pub machine: Machine,
     // +0x48; +0x4c
     /// BuildComponent progress, stages.
     pub progress: i32,
+    /// The construction stages.
     pub stages: i32,
     // +0x28; +0x2c
     /// WorkComponent registered work id (−1) and kept priority.
     pub work_id: i32,
+    /// The priority to keep for its work, if any.
     pub work_priority: Option<i32>,
     /// The building's StorageComponent (index into the town's storages).
     pub storage: usize,
@@ -1163,9 +1365,13 @@ pub struct Construction {
     // +0x1b8; +0x190
     /// The town's commute optimisation (StockManager).
     pub commute: crate::behaviour::commute::Commute,
+    /// The job manager.
     pub jobs: Jobs,
+    /// The professions.
     pub professions: Professions,
+    /// The citizens' workplaces and professions.
     pub workforce: Workforce,
+    /// The building templates, as construction reads them.
     pub templates: Vec<SiteTemplate>,
     /// Entity → site.
     pub sites: BTreeMap<usize, Site>,
@@ -1192,6 +1398,7 @@ pub struct Construction {
     // +0x60
     /// AttendanceComponents, by entity, and the town manager's registry.
     pub attendance: BTreeMap<usize, Attendance>,
+    /// The town manager's list of schools, chapels and doctors.
     pub attendance_list: Vec<usize>,
     // +0x70
     /// The town manager's HealerComponents.
@@ -1269,13 +1476,16 @@ pub struct Construction {
     /// The tornadoes by entity, and the citizens they killed this iteration (death code 5; the
     /// citizens' pass applies it).
     pub tornadoes: BTreeMap<usize, crate::disasters::tornado::Tornado>,
+    /// The citizens killed by tornadoes this iteration.
     pub tornado_kills: Vec<usize>,
     /// TrackerComponents by entity, and the stock manager's made/used counters.
     pub trackers: BTreeMap<usize, crate::work::tracker::Tracker>,
     /// DecalComponents that left their setup state, by entity (the others show at their
     /// description's alpha with material 0).
     pub decals: BTreeMap<usize, Decal>,
+    /// What the town made and used since the last sample.
     pub counters: crate::work::tracker::StockCounters,
+    /// The terraforming state of tunnels, by entity.
     pub terraforms: BTreeMap<usize, crate::world::terraform::TerraformState>,
     /// Built road cells Remove Roads marked, for the town to place their markers (cell,
     /// marker template).
@@ -1352,6 +1562,7 @@ pub struct Pile {
     /// The Pickup work's (0 free, 1 claimed, 2 picked up) and (claimer). Kept on the pile: one
     /// Pickup try claims several piles' works.
     pub state: i32,
+    /// The citizen who claimed the pile, if any.
     pub claimer: Option<usize>,
 }
 
@@ -1360,11 +1571,17 @@ pub struct Pile {
 /// resources / cells / piles.
 #[derive(Debug, Clone, Default)]
 pub struct ClearWork {
+    /// The claimed resources: entity → citizen.
     pub resources: BTreeMap<usize, usize>,
+    /// The claimed cells: cell → citizen.
     pub cells: BTreeMap<i32, usize>,
+    /// Only resources of this template are cleared, when set.
     pub filter: Option<String>,
+    /// Whether natural resources are cleared.
     pub clear_resources: bool,
+    /// Whether cells are cleared.
     pub clear_cells: bool,
+    /// Whether piles are cleared.
     pub clear_piles: bool,
 }
 
@@ -1377,8 +1594,11 @@ pub struct PickupWork;
 /// `GatherRawMaterials` state (delivered per requirement, in transit, workers).
 #[derive(Debug, Clone, Default)]
 pub struct Gather {
+    /// The materials delivered, for each requirement.
     pub stored: Vec<i32>,
+    /// The materials on their way, for each requirement.
     pub transit: Vec<i32>,
+    /// The workers.
     pub workers: BTreeSet<usize>,
 }
 
@@ -1386,9 +1606,13 @@ pub struct Gather {
 /// `BuildStructure` state (destroy flag, point cursor, occupied build points, workers).
 #[derive(Debug, Clone, Default)]
 pub struct BuildWork {
+    /// Whether this is demolition instead of construction.
     pub destroy: bool,
+    /// The next build point to try.
     pub cursor: i32,
+    /// Which build points are taken.
     pub occupied: Vec<bool>,
+    /// The workers.
     pub workers: BTreeSet<usize>,
 }
 
