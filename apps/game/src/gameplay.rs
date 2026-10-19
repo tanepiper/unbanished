@@ -1479,25 +1479,37 @@ impl GameplayLoop {
             .min(MONTHS_PER_YEAR - 1)
     }
 
+    /// Applies the town's queued player commands and placed sites, with the calendar and
+    /// weather they read.
+    fn apply_commands(&mut self) {
+        let (Some(town), Some(view)) = (&mut self.town, &self.view) else {
+            return;
+        };
+        let grid = banished_game::terrain::HeightGrid {
+            width: view.terrain.size + 1,
+            heights: &view.terrain.heights,
+        };
+        // The crop fields read the calendar (`Game +0x128`).
+        town.construction.calendar = self.calendar.seconds();
+        town.construction.year = self.calendar.year;
+        // Fire spreads less in rain (environment `+0x10`).
+        town.construction.precipitation = self.environment.as_ref().is_some_and(|e| e.state == 0);
+        town.apply_commands(&grid, &mut self.rng);
+    }
+
     /// Port of FUN_14009b850: entity scheduler, integer calendar, then environment.
     /// Growth reads the prior environment temperature; weather draws follow entity callbacks.
     /// Returns whether spawning/removal changed the model instances.
     fn iterate(&mut self, archive: &banished_formats::pkg::Archive, dt: f32) -> bool {
         let mut models_changed = false;
+        // Player commands and placed sites take effect between iterations.
+        self.apply_commands();
         if let (Some(town), Some(view)) = (&mut self.town, &self.view) {
             let grid = banished_game::terrain::HeightGrid {
                 width: view.terrain.size + 1,
                 heights: &view.terrain.heights,
             };
             let temperature = self.environment.as_ref().map_or(0.0, |e| e.temperature);
-            // The crop fields read the calendar (`Game +0x128`).
-            town.construction.calendar = self.calendar.seconds();
-            town.construction.year = self.calendar.year;
-            // Fire spreads less in rain (environment `+0x10`).
-            town.construction.precipitation =
-                self.environment.as_ref().is_some_and(|e| e.state == 0);
-            // Player commands and placed sites take effect between iterations.
-            town.apply_commands(&grid, &mut self.rng);
             let changed = town.iterate(&grid, &mut self.rng, dt, temperature);
             // AnimationManager::Update runs inside the same iteration (FUN_14009b850).
             let stock = std::array::from_fn(|i| {
@@ -2083,6 +2095,360 @@ impl GameplayLoop {
     }
 }
 
+impl GameplayLoop {
+    /// The UI events of `GameLoop::event`, before the queued commands are applied.
+    fn window_event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
+        if let (Some(d), Some(screen)) = (self.mods_dialog.as_mut(), self.screen.as_mut()) {
+            if let Event::Clicked(id) | Event::Changed(id) = event {
+                use crate::mod_ui::Outcome;
+                match d.click(ctx.ui, screen, ctx.mods, &ctx.settings.persistence, id) {
+                    Outcome::Stay => {}
+                    Outcome::Closed => self.mods_dialog = None,
+                    Outcome::Reload => {
+                        // `FUN_140072110` over a game: saved to memory, then loaded again.
+                        self.mods_dialog = None;
+                        self.store_window_settings(ctx.ui, true);
+                        let saved = self.save_file(ctx.archive, ctx.ui, ctx.mods, None, None);
+                        *ctx.reload_mods = Some(match saved {
+                            Some(bytes) => crate::mods::Reload::Game(bytes),
+                            None => crate::mods::Reload::Menu,
+                        });
+                    }
+                }
+            }
+            return Next::Stay;
+        }
+        if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
+            if let Event::Clicked(id) = event {
+                let outcome = d.click(ctx.ui, screen, ctx.audio, ctx.archive, ctx.mods, id);
+                if let Some(next) = self.save_outcome(ctx, outcome) {
+                    return next;
+                }
+            }
+            return Next::Stay;
+        }
+        if let (Some(options), Some(screen)) = (&mut self.options, &mut self.screen) {
+            if options.event(ctx, screen, event) == crate::options::Outcome::Closed {
+                self.options = None;
+            }
+            return Next::Stay;
+        }
+        if let (Event::Clicked(id), Some(t)) = (event, self.tutorial.as_mut()) {
+            t.pressed.push(id);
+        }
+        // TutorialUI's quit (`FUN_1400e8bb0`): back to the main menu.
+        if let Event::Clicked(id) = event {
+            if self.tutorial_quit(id) {
+                return Self::return_to_menu();
+            }
+        }
+        if self.utility.help_event(ctx.ui, event) {
+            return Next::Stay;
+        }
+        // A combo in a building's window (event `0x14`).
+        if let Event::Selected(id, index) = event {
+            if self.entities.town_hall_select(ctx.ui, &self.statistics, id) {
+                return Next::Stay;
+            }
+            let chosen = self
+                .town
+                .as_ref()
+                .and_then(|town| self.entities.select_item(ctx.ui, town, id, index));
+            if let (Some(WorkPlaceClick::Command(c)), Some(town)) = (chosen, &mut self.town) {
+                town.construction.commands.push(c);
+            }
+            return Next::Stay;
+        }
+        let (Event::Clicked(id) | Event::Changed(id)) = event else {
+            return Next::Stay;
+        };
+        // The Achievement and Goal dialogs over the pause menu (OK closes them).
+        if let Some(d) = &self.menu_dialog {
+            let root = match d {
+                MenuDialog::Achievements(a) => a.closes(id).then_some(a.root),
+                MenuDialog::Goal(g) => g.closes(id).then_some(g.root),
+                MenuDialog::Map(m) => {
+                    match m.click(ctx.ui, id, self.town_names.as_ref(), &mut self.rng) {
+                        crate::map_params::MapParamsClick::Rename(name) => {
+                            self.params.town_name = name;
+                            Some(m.root)
+                        }
+                        crate::map_params::MapParamsClick::Close => Some(m.root),
+                        crate::map_params::MapParamsClick::None => None,
+                    }
+                }
+            };
+            if let (Some(root), Some(screen)) = (root, self.screen.as_mut()) {
+                screen.remove_root(ctx.ui, root);
+                self.menu_dialog = None;
+            }
+            return Next::Stay;
+        }
+        if let Some(menu) = &self.pause_menu {
+            // `FUN_1400b9020`.
+            match menu.click(ctx.ui, id) {
+                crate::pause_menu::PauseClick::Resume => self.close_pause_menu(ctx),
+                crate::pause_menu::PauseClick::Menu => {
+                    self.close_pause_menu(ctx);
+                    return Self::return_to_menu();
+                }
+                crate::pause_menu::PauseClick::Quit => return Next::Quit,
+                crate::pause_menu::PauseClick::Options => {
+                    if let Some(screen) = &mut self.screen {
+                        self.options = crate::options::OptionsDialog::open(ctx, screen);
+                    }
+                }
+                crate::pause_menu::PauseClick::Achievement => {
+                    if let Some(screen) = &mut self.screen {
+                        let awarded = self.achievement_manager.awarded.clone();
+                        if let Some(d) = crate::achievement_ui::AchievementDialog::open(
+                            ctx.ui,
+                            screen,
+                            &self.achievements,
+                        ) {
+                            d.refresh(ctx.ui, &awarded);
+                            self.menu_dialog = Some(MenuDialog::Achievements(d));
+                        }
+                    }
+                }
+                crate::pause_menu::PauseClick::Goal => {
+                    if let Some(screen) = &mut self.screen {
+                        let goal = self.goal.as_ref().map(|g| (&g.achievement, &g.instance));
+                        self.menu_dialog =
+                            crate::achievement_ui::GoalDialog::open(ctx.ui, screen, goal)
+                                .map(MenuDialog::Goal);
+                    }
+                }
+                crate::pause_menu::PauseClick::Map => {
+                    if self.town_names.is_none() {
+                        self.town_names = ctx
+                            .archive
+                            .read("Game/Names/Cities_resource.crs")
+                            .and_then(|b| banished_formats::names::NameDatabase::read(&b))
+                            .map_err(|e| log::error!("town names: {e}"))
+                            .ok();
+                    }
+                    let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
+                    if let Some(screen) = &mut self.screen {
+                        self.menu_dialog = crate::map_params::MapParamsDialog::open(
+                            ctx.ui,
+                            screen,
+                            &self.params,
+                            flags,
+                        )
+                        .map(MenuDialog::Map);
+                    }
+                }
+                crate::pause_menu::PauseClick::Mod => {
+                    if let Some(screen) = &mut self.screen {
+                        self.mods_dialog =
+                            crate::mod_ui::ModDialog::open(ctx.ui, screen, ctx.mods, true);
+                    }
+                }
+                crate::pause_menu::PauseClick::Load | crate::pause_menu::PauseClick::Save => {
+                    if let Some(screen) = &mut self.screen {
+                        let loading =
+                            matches!(menu.click(ctx.ui, id), crate::pause_menu::PauseClick::Load);
+                        self.save_dialog =
+                            crate::save_dialog::SaveLoadDialog::open(ctx.ui, screen, loading, true);
+                    }
+                }
+                crate::pause_menu::PauseClick::Other => {}
+            }
+            return Next::Stay;
+        }
+        // The Follow dialog's close button (`FUN_140069b90`, id 100).
+        if self.follow.as_ref().is_some_and(|f| f.is_close(id)) {
+            self.close_follow(ctx);
+            return Next::Stay;
+        }
+        if let (Some(notify), Some(screen)) = (self.notify.as_mut(), self.screen.as_mut()) {
+            if let Some(goto) = notify.click(ctx.ui, screen, &self.events, id) {
+                if let Some(cell) = goto {
+                    self.go_to(cell);
+                }
+                return Next::Stay;
+            }
+        }
+        let values = self.status_values();
+        let (Some(screen), Some(toolbar)) = (self.screen.as_mut(), self.toolbar.as_mut()) else {
+            return Next::Stay;
+        };
+        let Some(action) = toolbar.click(ctx.ui, screen, id) else {
+            match self.utility.click(ctx.ui, id, &self.events, &values) {
+                Some(UtilityClick::ProfessionCount(profession, count)) => {
+                    if let Some(town) = &mut self.town {
+                        town.construction.commands.push(
+                            banished_game::professions::Command::SetCount { profession, count },
+                        );
+                    }
+                    return Next::Stay;
+                }
+                Some(UtilityClick::Notify(i, on)) => {
+                    self.events.notify[i] = on;
+                    return Next::Stay;
+                }
+                Some(UtilityClick::StockLimit(slot, limit)) => {
+                    self.stock_warnings.limits[slot] = limit;
+                    return Next::Stay;
+                }
+                Some(UtilityClick::GoTo(cell)) => {
+                    self.go_to(cell);
+                    return Next::Stay;
+                }
+                Some(UtilityClick::ShowCitizen(citizen)) => {
+                    // `FUN_140108510`: centre the camera on the citizen and select it.
+                    if let (Some(town), Some(view), Some(screen)) =
+                        (self.town.as_ref(), self.view.as_mut(), self.screen.as_mut())
+                    {
+                        let entity = Entity::Citizen(citizen);
+                        if let SceneCamera::Map(camera) = &mut view.camera {
+                            camera.target = entity.position(town).truncate();
+                        }
+                        self.selection.selected = Some(entity);
+                        self.entities
+                            .select(ctx.ui, screen, ctx.archive, town, entity);
+                    }
+                    return Next::Stay;
+                }
+                Some(UtilityClick::Handled) => return Next::Stay,
+                None => {}
+            }
+            if self.entities.toggle_page(ctx.ui, id) {
+                return Next::Stay;
+            }
+            let clicked = self
+                .town
+                .as_ref()
+                .and_then(|town| self.entities.click(ctx.ui, town, id));
+            match clicked {
+                Some(WorkPlaceClick::Command(command)) => {
+                    if let Some(town) = &mut self.town {
+                        town.construction.commands.push(command);
+                    }
+                    return Next::Stay;
+                }
+                // UpgradeUI (`FUN_14008c160`): the template is loaded for the rebuild.
+                Some(WorkPlaceClick::Upgrade { entity, template }) => {
+                    if let Some(town) = &mut self.town {
+                        if let Some(t) = town.load_template(ctx.archive, &template) {
+                            town.site_template(ctx.archive, t);
+                            town.construction.commands.push(
+                                banished_game::professions::Command::Upgrade {
+                                    entity,
+                                    template: t,
+                                },
+                            );
+                        }
+                    }
+                    return Next::Stay;
+                }
+                // ResourceLimitUI (`FUN_14007ccb0`): the slot's limit.
+                Some(WorkPlaceClick::StockLimit { slot, limit }) => {
+                    self.stock_warnings.limits[slot] = limit;
+                    return Next::Stay;
+                }
+                Some(WorkPlaceClick::ShowBuilding(building)) => {
+                    self.entities.pin_containing(ctx.ui, id);
+                    if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
+                        let entity = Entity::Placed(building);
+                        if let SceneCamera::Map(camera) = &mut view.camera {
+                            camera.target = entity.position(town).truncate();
+                        }
+                        self.selection.selected = Some(entity);
+                        self.entities
+                            .select(ctx.ui, screen, ctx.archive, town, entity);
+                    }
+                    return Next::Stay;
+                }
+                Some(WorkPlaceClick::ShowWorker(citizen)) => {
+                    // `FUN_140108510`: pin the asking window, centre the camera on the entity,
+                    // then select it (`FUN_140102880`).
+                    self.entities.pin_containing(ctx.ui, id);
+                    if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
+                        let entity = Entity::Citizen(citizen);
+                        if let SceneCamera::Map(camera) = &mut view.camera {
+                            camera.target = entity.position(town).truncate();
+                        }
+                        self.selection.selected = Some(entity);
+                        self.entities
+                            .select(ctx.ui, screen, ctx.archive, town, entity);
+                    }
+                    return Next::Stay;
+                }
+                None => {}
+            }
+            // The host dialog's close button (`Dialog/StandardDialog.rsc`).
+            if ctx.ui.node(id).name == "buttonClose" {
+                self.utility.close_containing(ctx.ui, screen, id);
+                if self.entities.close_containing(ctx.ui, screen, id) == self.selection.selected {
+                    self.selection.selected = None;
+                }
+            } else if ctx.ui.node(id).name == "checkPin" {
+                self.entities.pin(ctx.ui, id);
+            } else if matches!(
+                ctx.ui.node(id).name.as_str(),
+                "buttonProfession" | "buttonHome"
+            ) {
+                // CitizenUI event `0x12`: ids `0x227` (`FUN_140065330`: the school, else the
+                // workplace) and `0x226` (`FUN_140065270`: the home) open that building through
+                // `FUN_140108510`: the asking window pinned, the camera on it, selected.
+                let profession = ctx.ui.node(id).name == "buttonProfession";
+                let target = match (self.entities.entity_containing(ctx.ui, id), &self.town) {
+                    (Some(Entity::Citizen(c)), Some(town)) => {
+                        let s = &town.agents.states[c];
+                        if profession {
+                            s.school.or(s.workplace)
+                        } else {
+                            s.home
+                        }
+                    }
+                    _ => None,
+                };
+                if let (Some(building), Some(town), Some(view)) =
+                    (target, self.town.as_ref(), self.view.as_mut())
+                {
+                    self.entities.pin_containing(ctx.ui, id);
+                    let entity = Entity::Placed(building);
+                    if let SceneCamera::Map(camera) = &mut view.camera {
+                        camera.target = entity.position(town).truncate();
+                    }
+                    self.selection.selected = Some(entity);
+                    self.entities
+                        .select(ctx.ui, screen, ctx.archive, town, entity);
+                }
+            } else if ctx.ui.node(id).name == "buttonFollow" {
+                // CitizenUI event `0x12` id `0x228` (`FUN_140065080`).
+                if let (Some(Entity::Citizen(c)), Some(owner), Some(town)) = (
+                    self.entities.entity_containing(ctx.ui, id),
+                    self.entities.root_containing(ctx.ui, id),
+                    self.town.as_ref(),
+                ) {
+                    if let Some(old) = self.follow.take() {
+                        old.close(ctx.ui, screen);
+                    }
+                    self.follow = crate::follow::Follow::open(ctx.ui, screen, town, c, owner);
+                }
+            } else if ctx.ui.node(id).name == "buttonCenter" {
+                // EntityUI event `0x12` id `0x65` (`FUN_1400671d0`).
+                if let (Some(entity), Some(town), Some(view)) = (
+                    self.entities.entity_containing(ctx.ui, id),
+                    self.town.as_ref(),
+                    self.view.as_mut(),
+                ) {
+                    if let SceneCamera::Map(camera) = &mut view.camera {
+                        camera.target = center_target(town, entity);
+                    }
+                }
+            }
+            return Next::Stay;
+        };
+        self.run_action(ctx, action);
+        self.update_hud(ctx.ui);
+        Next::Stay
+    }
+}
+
 impl GameLoop for GameplayLoop {
     fn name(&self) -> &'static str {
         "Game/Game"
@@ -2476,355 +2842,21 @@ impl GameLoop for GameplayLoop {
         Next::Stay
     }
 
+    /// The original's window handlers act inside the UI event, paused or not: WorkPlaceUI's
+    /// (`FUN_14008ccb0`) calls `FUN_1400925d0`/`FUN_1400918a0`, `FUN_140096650` and
+    /// `FUN_14008cae0` → `FUN_140134fd0` there and then, as BuildUI's pause (`FUN_1400b7370`)
+    /// and ProfessionUI's spinner (`FUN_14007b890`) do. The port queues the commands; applying
+    /// them after the event is the order the next iteration would apply them in.
     fn event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
-        if let (Some(d), Some(screen)) = (self.mods_dialog.as_mut(), self.screen.as_mut()) {
-            if let Event::Clicked(id) | Event::Changed(id) = event {
-                use crate::mod_ui::Outcome;
-                match d.click(ctx.ui, screen, ctx.mods, &ctx.settings.persistence, id) {
-                    Outcome::Stay => {}
-                    Outcome::Closed => self.mods_dialog = None,
-                    Outcome::Reload => {
-                        // `FUN_140072110` over a game: saved to memory, then loaded again.
-                        self.mods_dialog = None;
-                        self.store_window_settings(ctx.ui, true);
-                        let saved = self.save_file(ctx.archive, ctx.ui, ctx.mods, None, None);
-                        *ctx.reload_mods = Some(match saved {
-                            Some(bytes) => crate::mods::Reload::Game(bytes),
-                            None => crate::mods::Reload::Menu,
-                        });
-                    }
-                }
-            }
-            return Next::Stay;
+        let next = self.window_event(ctx, event);
+        if self
+            .town
+            .as_ref()
+            .is_some_and(|t| !t.construction.commands.is_empty())
+        {
+            self.apply_commands();
         }
-        if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
-            if let Event::Clicked(id) = event {
-                let outcome = d.click(ctx.ui, screen, ctx.audio, ctx.archive, ctx.mods, id);
-                if let Some(next) = self.save_outcome(ctx, outcome) {
-                    return next;
-                }
-            }
-            return Next::Stay;
-        }
-        if let (Some(options), Some(screen)) = (&mut self.options, &mut self.screen) {
-            if options.event(ctx, screen, event) == crate::options::Outcome::Closed {
-                self.options = None;
-            }
-            return Next::Stay;
-        }
-        if let (Event::Clicked(id), Some(t)) = (event, self.tutorial.as_mut()) {
-            t.pressed.push(id);
-        }
-        // TutorialUI's quit (`FUN_1400e8bb0`): back to the main menu.
-        if let Event::Clicked(id) = event {
-            if self.tutorial_quit(id) {
-                return Self::return_to_menu();
-            }
-        }
-        if self.utility.help_event(ctx.ui, event) {
-            return Next::Stay;
-        }
-        // A combo in a building's window (event `0x14`).
-        if let Event::Selected(id, index) = event {
-            if self.entities.town_hall_select(ctx.ui, &self.statistics, id) {
-                return Next::Stay;
-            }
-            let chosen = self
-                .town
-                .as_ref()
-                .and_then(|town| self.entities.select_item(ctx.ui, town, id, index));
-            if let (Some(WorkPlaceClick::Command(c)), Some(town)) = (chosen, &mut self.town) {
-                town.construction.commands.push(c);
-            }
-            return Next::Stay;
-        }
-        let (Event::Clicked(id) | Event::Changed(id)) = event else {
-            return Next::Stay;
-        };
-        // The Achievement and Goal dialogs over the pause menu (OK closes them).
-        if let Some(d) = &self.menu_dialog {
-            let root = match d {
-                MenuDialog::Achievements(a) => a.closes(id).then_some(a.root),
-                MenuDialog::Goal(g) => g.closes(id).then_some(g.root),
-                MenuDialog::Map(m) => {
-                    match m.click(ctx.ui, id, self.town_names.as_ref(), &mut self.rng) {
-                        crate::map_params::MapParamsClick::Rename(name) => {
-                            self.params.town_name = name;
-                            Some(m.root)
-                        }
-                        crate::map_params::MapParamsClick::Close => Some(m.root),
-                        crate::map_params::MapParamsClick::None => None,
-                    }
-                }
-            };
-            if let (Some(root), Some(screen)) = (root, self.screen.as_mut()) {
-                screen.remove_root(ctx.ui, root);
-                self.menu_dialog = None;
-            }
-            return Next::Stay;
-        }
-        if let Some(menu) = &self.pause_menu {
-            // `FUN_1400b9020`.
-            match menu.click(ctx.ui, id) {
-                crate::pause_menu::PauseClick::Resume => self.close_pause_menu(ctx),
-                crate::pause_menu::PauseClick::Menu => {
-                    self.close_pause_menu(ctx);
-                    return Self::return_to_menu();
-                }
-                crate::pause_menu::PauseClick::Quit => return Next::Quit,
-                crate::pause_menu::PauseClick::Options => {
-                    if let Some(screen) = &mut self.screen {
-                        self.options = crate::options::OptionsDialog::open(ctx, screen);
-                    }
-                }
-                crate::pause_menu::PauseClick::Achievement => {
-                    if let Some(screen) = &mut self.screen {
-                        let awarded = self.achievement_manager.awarded.clone();
-                        if let Some(d) = crate::achievement_ui::AchievementDialog::open(
-                            ctx.ui,
-                            screen,
-                            &self.achievements,
-                        ) {
-                            d.refresh(ctx.ui, &awarded);
-                            self.menu_dialog = Some(MenuDialog::Achievements(d));
-                        }
-                    }
-                }
-                crate::pause_menu::PauseClick::Goal => {
-                    if let Some(screen) = &mut self.screen {
-                        let goal = self.goal.as_ref().map(|g| (&g.achievement, &g.instance));
-                        self.menu_dialog =
-                            crate::achievement_ui::GoalDialog::open(ctx.ui, screen, goal)
-                                .map(MenuDialog::Goal);
-                    }
-                }
-                crate::pause_menu::PauseClick::Map => {
-                    if self.town_names.is_none() {
-                        self.town_names = ctx
-                            .archive
-                            .read("Game/Names/Cities_resource.crs")
-                            .and_then(|b| banished_formats::names::NameDatabase::read(&b))
-                            .map_err(|e| log::error!("town names: {e}"))
-                            .ok();
-                    }
-                    let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
-                    if let Some(screen) = &mut self.screen {
-                        self.menu_dialog = crate::map_params::MapParamsDialog::open(
-                            ctx.ui,
-                            screen,
-                            &self.params,
-                            flags,
-                        )
-                        .map(MenuDialog::Map);
-                    }
-                }
-                crate::pause_menu::PauseClick::Mod => {
-                    if let Some(screen) = &mut self.screen {
-                        self.mods_dialog =
-                            crate::mod_ui::ModDialog::open(ctx.ui, screen, ctx.mods, true);
-                    }
-                }
-                crate::pause_menu::PauseClick::Load | crate::pause_menu::PauseClick::Save => {
-                    if let Some(screen) = &mut self.screen {
-                        let loading =
-                            matches!(menu.click(ctx.ui, id), crate::pause_menu::PauseClick::Load);
-                        self.save_dialog =
-                            crate::save_dialog::SaveLoadDialog::open(ctx.ui, screen, loading, true);
-                    }
-                }
-                crate::pause_menu::PauseClick::Other => {}
-            }
-            return Next::Stay;
-        }
-        // The Follow dialog's close button (`FUN_140069b90`, id 100).
-        if self.follow.as_ref().is_some_and(|f| f.is_close(id)) {
-            self.close_follow(ctx);
-            return Next::Stay;
-        }
-        if let (Some(notify), Some(screen)) = (self.notify.as_mut(), self.screen.as_mut()) {
-            if let Some(goto) = notify.click(ctx.ui, screen, &self.events, id) {
-                if let Some(cell) = goto {
-                    self.go_to(cell);
-                }
-                return Next::Stay;
-            }
-        }
-        let values = self.status_values();
-        let (Some(screen), Some(toolbar)) = (self.screen.as_mut(), self.toolbar.as_mut()) else {
-            return Next::Stay;
-        };
-        let Some(action) = toolbar.click(ctx.ui, screen, id) else {
-            match self.utility.click(ctx.ui, id, &self.events, &values) {
-                Some(UtilityClick::ProfessionCount(profession, count)) => {
-                    if let Some(town) = &mut self.town {
-                        town.construction.commands.push(
-                            banished_game::professions::Command::SetCount { profession, count },
-                        );
-                    }
-                    return Next::Stay;
-                }
-                Some(UtilityClick::Notify(i, on)) => {
-                    self.events.notify[i] = on;
-                    return Next::Stay;
-                }
-                Some(UtilityClick::StockLimit(slot, limit)) => {
-                    self.stock_warnings.limits[slot] = limit;
-                    return Next::Stay;
-                }
-                Some(UtilityClick::GoTo(cell)) => {
-                    self.go_to(cell);
-                    return Next::Stay;
-                }
-                Some(UtilityClick::ShowCitizen(citizen)) => {
-                    // `FUN_140108510`: centre the camera on the citizen and select it.
-                    if let (Some(town), Some(view), Some(screen)) =
-                        (self.town.as_ref(), self.view.as_mut(), self.screen.as_mut())
-                    {
-                        let entity = Entity::Citizen(citizen);
-                        if let SceneCamera::Map(camera) = &mut view.camera {
-                            camera.target = entity.position(town).truncate();
-                        }
-                        self.selection.selected = Some(entity);
-                        self.entities
-                            .select(ctx.ui, screen, ctx.archive, town, entity);
-                    }
-                    return Next::Stay;
-                }
-                Some(UtilityClick::Handled) => return Next::Stay,
-                None => {}
-            }
-            if self.entities.toggle_page(ctx.ui, id) {
-                return Next::Stay;
-            }
-            let clicked = self
-                .town
-                .as_ref()
-                .and_then(|town| self.entities.click(ctx.ui, town, id));
-            match clicked {
-                Some(WorkPlaceClick::Command(command)) => {
-                    if let Some(town) = &mut self.town {
-                        town.construction.commands.push(command);
-                    }
-                    return Next::Stay;
-                }
-                // UpgradeUI (`FUN_14008c160`): the template is loaded for the rebuild.
-                Some(WorkPlaceClick::Upgrade { entity, template }) => {
-                    if let Some(town) = &mut self.town {
-                        if let Some(t) = town.load_template(ctx.archive, &template) {
-                            town.site_template(ctx.archive, t);
-                            town.construction.commands.push(
-                                banished_game::professions::Command::Upgrade {
-                                    entity,
-                                    template: t,
-                                },
-                            );
-                        }
-                    }
-                    return Next::Stay;
-                }
-                // ResourceLimitUI (`FUN_14007ccb0`): the slot's limit.
-                Some(WorkPlaceClick::StockLimit { slot, limit }) => {
-                    self.stock_warnings.limits[slot] = limit;
-                    return Next::Stay;
-                }
-                Some(WorkPlaceClick::ShowBuilding(building)) => {
-                    self.entities.pin_containing(ctx.ui, id);
-                    if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
-                        let entity = Entity::Placed(building);
-                        if let SceneCamera::Map(camera) = &mut view.camera {
-                            camera.target = entity.position(town).truncate();
-                        }
-                        self.selection.selected = Some(entity);
-                        self.entities
-                            .select(ctx.ui, screen, ctx.archive, town, entity);
-                    }
-                    return Next::Stay;
-                }
-                Some(WorkPlaceClick::ShowWorker(citizen)) => {
-                    // `FUN_140108510`: pin the asking window, centre the camera on the entity,
-                    // then select it (`FUN_140102880`).
-                    self.entities.pin_containing(ctx.ui, id);
-                    if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
-                        let entity = Entity::Citizen(citizen);
-                        if let SceneCamera::Map(camera) = &mut view.camera {
-                            camera.target = entity.position(town).truncate();
-                        }
-                        self.selection.selected = Some(entity);
-                        self.entities
-                            .select(ctx.ui, screen, ctx.archive, town, entity);
-                    }
-                    return Next::Stay;
-                }
-                None => {}
-            }
-            // The host dialog's close button (`Dialog/StandardDialog.rsc`).
-            if ctx.ui.node(id).name == "buttonClose" {
-                self.utility.close_containing(ctx.ui, screen, id);
-                if self.entities.close_containing(ctx.ui, screen, id) == self.selection.selected {
-                    self.selection.selected = None;
-                }
-            } else if ctx.ui.node(id).name == "checkPin" {
-                self.entities.pin(ctx.ui, id);
-            } else if matches!(
-                ctx.ui.node(id).name.as_str(),
-                "buttonProfession" | "buttonHome"
-            ) {
-                // CitizenUI event `0x12`: ids `0x227` (`FUN_140065330`: the school, else the
-                // workplace) and `0x226` (`FUN_140065270`: the home) open that building through
-                // `FUN_140108510`: the asking window pinned, the camera on it, selected.
-                let profession = ctx.ui.node(id).name == "buttonProfession";
-                let target = match (self.entities.entity_containing(ctx.ui, id), &self.town) {
-                    (Some(Entity::Citizen(c)), Some(town)) => {
-                        let s = &town.agents.states[c];
-                        if profession {
-                            s.school.or(s.workplace)
-                        } else {
-                            s.home
-                        }
-                    }
-                    _ => None,
-                };
-                if let (Some(building), Some(town), Some(view)) =
-                    (target, self.town.as_ref(), self.view.as_mut())
-                {
-                    self.entities.pin_containing(ctx.ui, id);
-                    let entity = Entity::Placed(building);
-                    if let SceneCamera::Map(camera) = &mut view.camera {
-                        camera.target = entity.position(town).truncate();
-                    }
-                    self.selection.selected = Some(entity);
-                    self.entities
-                        .select(ctx.ui, screen, ctx.archive, town, entity);
-                }
-            } else if ctx.ui.node(id).name == "buttonFollow" {
-                // CitizenUI event `0x12` id `0x228` (`FUN_140065080`).
-                if let (Some(Entity::Citizen(c)), Some(owner), Some(town)) = (
-                    self.entities.entity_containing(ctx.ui, id),
-                    self.entities.root_containing(ctx.ui, id),
-                    self.town.as_ref(),
-                ) {
-                    if let Some(old) = self.follow.take() {
-                        old.close(ctx.ui, screen);
-                    }
-                    self.follow = crate::follow::Follow::open(ctx.ui, screen, town, c, owner);
-                }
-            } else if ctx.ui.node(id).name == "buttonCenter" {
-                // EntityUI event `0x12` id `0x65` (`FUN_1400671d0`).
-                if let (Some(entity), Some(town), Some(view)) = (
-                    self.entities.entity_containing(ctx.ui, id),
-                    self.town.as_ref(),
-                    self.view.as_mut(),
-                ) {
-                    if let SceneCamera::Map(camera) = &mut view.camera {
-                        camera.target = center_target(town, entity);
-                    }
-                }
-            }
-            return Next::Stay;
-        };
-        self.run_action(ctx, action);
-        self.update_hud(ctx.ui);
-        Next::Stay
+        next
     }
 
     fn raw(&mut self, ctx: &mut Ctx, input: RawInput) -> Next {
@@ -4203,6 +4235,58 @@ mod tests {
             // Center: the camera on the citizen's model.
             let center = ctx.ui.find(root, "buttonCenter").expect("buttonCenter");
             gameplay.event(ctx, Event::Clicked(center));
+        });
+    }
+
+    /// Issue #3: WorkPlaceUI's buttons act inside the event (`FUN_14008ccb0`), so a change
+    /// made while paused shows in the window's next refresh without an iteration.
+    #[test]
+    fn window_commands_apply_while_paused() {
+        let Some((mut game, mut gameplay)) = generated() else {
+            return;
+        };
+        game.with_ctx(|_, ctx| {
+            let town = gameplay.town.as_mut().unwrap();
+            let view = gameplay.view.as_ref().unwrap();
+            let grid = banished_game::terrain::HeightGrid {
+                width: view.terrain.size + 1,
+                heights: &view.terrain.heights,
+            };
+            let mut tool = PlacementTool::start(
+                ctx.archive,
+                town,
+                "Template/ForesterLodge.rsc",
+                &mut gameplay.rng,
+            )
+            .unwrap();
+            let near = town.start;
+            tool.find_clear_spot(town, &grid, near).unwrap();
+            let id = tool.place(ctx.archive, town, 0).unwrap();
+            gameplay.update(ctx, 1.0 / 30.0);
+            gameplay.paused = true;
+            let (town, screen) = (
+                gameplay.town.as_ref().unwrap(),
+                gameplay.screen.as_mut().unwrap(),
+            );
+            gameplay
+                .entities
+                .select(ctx.ui, screen, ctx.archive, town, Entity::Placed(id));
+            gameplay.update(ctx, 1.0 / 30.0);
+            let root = gameplay.entities.open[0].root;
+            let count = ctx.ui.find(root, "workPlaceCount").expect("workPlaceCount");
+            let shown = crate::utility::text_of(ctx.ui, count);
+            let up = ctx.ui.find(root, "jobCountUp").unwrap();
+            let down = ctx.ui.find(root, "jobCountDown").unwrap();
+            let button = if ctx.ui.node(up).enabled { up } else { down };
+            assert!(ctx.ui.node(button).enabled, "neither job button is enabled");
+            let time = gameplay.calendar.elapsed;
+            gameplay.event(ctx, Event::Clicked(button));
+            let town = gameplay.town.as_ref().unwrap();
+            assert!(town.construction.commands.is_empty());
+            gameplay.update(ctx, 1.0 / 30.0);
+            assert_eq!(gameplay.calendar.elapsed, time, "the game ran while paused");
+            let now = crate::utility::text_of(ctx.ui, count);
+            assert_ne!(now, shown, "the window still shows the old most workers");
         });
     }
 

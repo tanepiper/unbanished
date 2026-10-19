@@ -126,7 +126,7 @@ Deviation: 39, Not ported: 4, Not traced: 1.
 ## `crates/game/src/life.rs`
 
 - [Deviation] [crates/game/src/life.rs:1](../crates/game/src/life.rs#L1): CitizenComponent (vtable `0x1401689a0`) and ResidenceComponent (vtable `0x14016a6a0`): needs, age, death, health, happiness, disease, homes, partners and births. See docs/CITIZEN-NEEDS-AND-HOUSEHOLDS.md and docs/CITIZEN-LIFE.md. The CitizenDescription (`D`, citizen `+0x288`) is kept as an offset table so the ported code reads the same fields as the original. Deviations: the entity references the original keeps (home, partner, guardian, dependents) are citizen and entity indices; the dependents' ring is a vector in ring order. Disease spread (`FUN_140117940`) visits the citizens within the radius in registration order where the original asks its spatial index.
-- [Not ported] [crates/game/src/life.rs:500](../crates/game/src/life.rs#L500): `FUN_14011c2a0`: queue the citizen's death (`reason`) and tell the family. Buried in a cemetery (`FUN_14008ec10` from the home's entrance, else where the citizen stands), the family's bit is `0x40`; otherwise `2` for old age, else `0x80`. Not ported: the debug flag that stops deaths (`Game +0xd0` bit 8).
+- [Not ported] [crates/game/src/life.rs:502](../crates/game/src/life.rs#L502): `FUN_14011c2a0`: queue the citizen's death (`reason`) and tell the family. Buried in a cemetery (`FUN_14008ec10` from the home's entrance, else where the citizen stands), the family's bit is `0x40`; otherwise `2` for old age, else `0x80`. Not ported: the debug flag that stops deaths (`Game +0xd0` bit 8).
 
 ## `crates/game/src/pasture.rs`
 

@@ -274,7 +274,9 @@ storage barns and houses have none, a school names `Profession.rsc:teacher`. The
 `(int)(w·h / +0x30 · +0x24 + 1.0)` clamped to `1..=+0x24`. Every reader of WorkComponent
 `+0x30` recomputes it while it is 0, so setting the most workers to 0 restores the default.
 The port: [`WorkPlace::max`](../crates/game/src/professions.rs), the commands in
-`professions::Command`, applied before the next iteration.
+`professions::Command`. The handler acts inside the UI event, paused or not, so the port
+applies a window's commands right after its event (`GameplayLoop::event`), in the order the next
+iteration would have.
 
 ## StatusIconUI
 
