@@ -1,24 +1,8 @@
-//! Optional Nexus Mods support for Un-Banished: search the Banished mods on
-//! [Nexus Mods](https://www.nexusmods.com/games/banished/mods), get a download link with the
-//! player's own API key, and install the `.pkm` packages a download contains.
-//!
-//! This is not part of the original game. Banished's Steam build browses and downloads mods
-//! from the Steam Workshop in the Mods dialog's Browse tab; Un-Banished offers the same tab,
-//! backed by Nexus Mods, only when the player has set an API key.
-//!
-//! The crate does no networking of its own unless the `native` feature is on. It builds each
-//! request as a [`Request`] (method, address, headers, body) and reads each answer from its
-//! bytes, so the game can send them with `fetch` in the browser and with [`native::send`]
-//! elsewhere.
-//!
-//! - [`api`]: the requests (search, files, the player's account, download links) and their
-//!   answers.
-//! - [`nxm`]: the `nxm://` links the website gives accounts without Premium.
-//! - [`install`]: the `.pkm` files in a downloaded archive.
-//!
-//! Nexus Mods' rules for applications apply: every request names the application
-//! ([`App`]), a personal API key is for testing and personal use, and a public build needs a
-//! registered application.
+#![doc = include_str!("../README.md")]
+#![doc(
+    html_logo_url = "https://tanepiper.github.io/unbanished/assets/un-banished-icon.svg",
+    html_favicon_url = "https://tanepiper.github.io/unbanished/favicon.svg"
+)]
 
 pub mod api;
 pub mod install;

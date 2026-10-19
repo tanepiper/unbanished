@@ -183,6 +183,7 @@ The project is a Rust workspace:
 | [`crates/game`](crates/game/README.md) | The game rules, checked against the original |
 | [`crates/formats`](crates/formats/README.md) | Readers for the game's `.pkg`, `.crs`, mesh, texture, sound and save formats |
 | [`crates/ui`](crates/ui/README.md), [`crates/gfx`](crates/gfx/README.md), [`crates/audio`](crates/audio/README.md), [`crates/wma`](crates/wma/README.md) | Interface, rendering, audio, and the WMA decoder |
+| [`crates/nexus`](crates/nexus/README.md) | Optional Nexus Mods support (not part of the original game) |
 | `docs/` | Everything we learned about how the original works, and the [developer documentation](docs/develop/README.md) |
 | `tools/` | Data extraction, emulator checks, analysis scripts, screenshots and videos |
 

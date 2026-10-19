@@ -26,7 +26,7 @@ const GUIDE = [
     sections: ['Controls'] },
   { path: '/guide/saves', title: 'Saves and settings', description: 'Where Un-Banished keeps saves and settings.',
     sections: ['Saves', 'Settings'] },
-  { path: '/guide/mods', title: 'Mods', description: 'Use BanishedKit mods.',
+  { path: '/guide/mods', title: 'Mods', description: 'Use BanishedKit mods, and get them from Nexus Mods if you like.',
     sections: ['Mods'] },
   { path: '/guide/command-line', title: 'Command line and version', description: 'Command-line options, environment variables and the version number.',
     sections: ['Command-line options', 'Version'] },
@@ -84,6 +84,7 @@ const PAGES = {
   'crates/gfx/README.md': { path: '/reference/gfx', description: 'banished-gfx: shared wgpu rendering.' },
   'crates/audio/README.md': { path: '/reference/audio', description: 'banished-audio: sound decoding and playback.' },
   'crates/wma/README.md': { path: '/reference/wma', description: 'banished-wma: a WMA v2 decoder.' },
+  'crates/nexus/README.md': { path: '/reference/nexus', description: 'banished-nexus: optional Nexus Mods support.' },
 }
 
 /** VitePress's anchor for a heading anchor in GitHub style (a leading digit gets `_`). */

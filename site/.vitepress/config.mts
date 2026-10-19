@@ -188,6 +188,7 @@ export default defineConfig({
             { text: 'banished-gfx', link: '/reference/gfx' },
             { text: 'banished-audio', link: '/reference/audio' },
             { text: 'banished-wma', link: '/reference/wma' },
+            { text: 'banished-nexus', link: '/reference/nexus' },
             { text: 'API documentation', link: '/develop/api' },
           ],
         },

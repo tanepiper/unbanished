@@ -452,7 +452,9 @@ Environment variables: `BANISHED_USER_DIR` (the folder that holds `Save`), `BANI
 (the settings file), `RUST_LOG` (how much detail the log shows, for example `RUST_LOG=debug`),
 `BANISHED_PROFILE=1` (logs slow frames and frame-time summaries; in the browser, add `?profile`
 to the address), `BANISHED_THREADS=N` (how many threads loading uses; the default is one per
-CPU core, and 1 loads everything on one thread). See [PERFORMANCE.md](PERFORMANCE.md).
+CPU core, and 1 loads everything on one thread), `BANISHED_NEXUS_API_KEY` (your Nexus Mods API
+key; see [Mods from Nexus Mods](#mods-from-nexus-mods-optional)). See
+[PERFORMANCE.md](PERFORMANCE.md).
 
 ## Version
 

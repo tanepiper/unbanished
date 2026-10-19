@@ -1,6 +1,7 @@
 # banished-cli
 
-Command-line tools for the game data of Banished. Today it has one command, `export-audio`.
+Command-line tools for the game data of Banished. It has two commands: `export-audio`, and
+`nexus` for mods from Nexus Mods.
 
 ## export-audio
 
@@ -40,3 +41,27 @@ not need the MP3 files: they decode the sounds themselves with `banished-wma`. T
 listening outside the game, and for comparison tests.
 
 Git ignores `game-data/`. Never commit the exported sounds.
+
+## nexus
+
+Search the Banished mods on [Nexus Mods](https://www.nexusmods.com/games/banished/mods) and
+install them into a `WinData` folder. This is not part of the original game, and it needs your
+own Nexus Mods API key for anything but searching (`BANISHED_NEXUS_API_KEY`, or `NexusApiKey=`
+in the game's settings file).
+
+```bash
+cargo run --release -p banished-cli -- nexus search terrain
+cargo run --release -p banished-cli -- nexus install 19 --to path/to/WinData
+```
+
+| Command | Effect |
+|---|---|
+| `nexus search TEXT [--sort downloads\|endorsements\|updated\|name] [--page N]` | List matching mods |
+| `nexus files MOD_ID` | List a mod's files; `*` marks the main file |
+| `nexus whoami` | Show the account the key belongs to, and whether it has Premium |
+| `nexus install MOD_ID [FILE_ID] [--to WINDATA]` | Download and install the mod's main file, or the file given (direct downloads need Premium) |
+| `nexus install 'nxm://…' [--to WINDATA]` | Install from a Mod Manager Download link on the website |
+
+`--to` defaults to `game-data/original/WinData`. The user guide's
+[Mods from Nexus Mods](../../docs/USER-GUIDE.md#mods-from-nexus-mods-optional) explains the key,
+Premium and `nxm://` links. The library is [banished-nexus](../../crates/nexus/README.md).

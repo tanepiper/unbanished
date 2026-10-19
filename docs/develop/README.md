@@ -58,6 +58,7 @@ The full rules are in [AGENTS.md](../../AGENTS.md). These are the most important
 | `crates/formats` | Readers for the game's files |
 | `crates/ui` | The game's interface system |
 | `crates/gfx`, `crates/audio`, `crates/wma` | Shared rendering, sound playback, the WMA decoder |
+| `crates/nexus` | Optional Nexus Mods support |
 | `tools/` | Data extraction, emulator checks, analysis and comparison scripts |
 | `docs/` | Research notes about the original game, and these pages |
 | `site/` | This website |

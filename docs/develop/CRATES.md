@@ -24,6 +24,7 @@ purpose, how to use it, and examples.
 | [`banished-gfx`](../../crates/gfx/README.md) | Rendering shared by the game and the viewer: texture upload, the interface renderer, materials, skinning | formats, ui, wgpu |
 | [`banished-audio`](../../crates/audio/README.md) | Sound decoding and playback: the 64-channel device and the sound scene | formats, wma |
 | [`banished-wma`](../../crates/wma/README.md) | A decoder for Windows Media Audio v2, the codec of the game's sounds | nothing |
+| [`banished-nexus`](../../crates/nexus/README.md) | Optional Nexus Mods support, not part of the original game: searching Banished mods, download links with the player's API key, and the `.pkm` packages in a download | nothing (zip, serde_json; ureq with the `native` feature) |
 
 `banished-game` re-exports `banished-core`, `banished-terrain` and `banished-path`. For
 example, `banished_game::random` is the same module as `banished_core::random`, and
@@ -33,14 +34,14 @@ example, `banished_game::random` is the same module as `banished_core::random`, 
 
 | Program | Uses |
 |---|---|
-| `banished` | game, formats, ui, gfx, audio |
+| `banished` | game, formats, ui, gfx, audio, nexus |
 | `banished-viewer` | game, formats, ui, gfx, audio, wma |
-| `banished-cli` | formats |
+| `banished-cli` | formats, nexus |
 
 The libraries form layers. A crate uses only crates in the layers below it:
 
-1. `banished-core`, `banished-formats`, `banished-wma`: no dependencies on other crates of the
-   workspace.
+1. `banished-core`, `banished-formats`, `banished-wma`, `banished-nexus`: no dependencies on
+   other crates of the workspace.
 2. `banished-terrain`, `banished-ui`, `banished-audio`.
 3. `banished-path`, `banished-gfx`.
 4. `banished-game`.
