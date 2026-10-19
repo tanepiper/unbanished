@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="t">
+  <title id="t">Un-Banished</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4dc9a"/>
+      <stop offset="1" stop-color="#d8a648"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="31" fill="#17120d"/>
+  <circle cx="32" cy="32" r="28" fill="#26323e" stroke="url(#g)" stroke-width="3.5"/>
+  <path d="M8 40 Q32 34 56 40 L56 46 Q32 58 8 46 Z" fill="#33442a"/>
+  <path d="M13 33 L30 15 L47 33 Z" fill="url(#g)"/>
+  <rect x="18" y="32" width="24" height="12" fill="#8a5a33"/>
+  <rect x="27" y="36" width="6" height="8" fill="#17120d"/>
+  <rect x="36" y="35" width="4" height="4" fill="#ffd27a"/>
+</svg>

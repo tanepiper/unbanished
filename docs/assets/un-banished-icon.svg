@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="t">
+  <title id="t">Un-Banished</title>
+  <g>
+    <defs>
+      <linearGradient id="isky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#1e2c3a"/>
+        <stop offset="0.55" stop-color="#4b3b33"/>
+        <stop offset="1" stop-color="#a8642a"/>
+      </linearGradient>
+      <radialGradient id="isun" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0" stop-color="#ffe7a6"/>
+        <stop offset="0.6" stop-color="#f3b356"/>
+        <stop offset="1" stop-color="#e08a32" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="iring" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#f4dc9a"/>
+        <stop offset="0.5" stop-color="#d8a648"/>
+        <stop offset="1" stop-color="#9c6a24"/>
+      </linearGradient>
+      <clipPath id="idisc"><circle cx="128" cy="128" r="108.36"/></clipPath>
+    </defs>
+    <circle cx="128" cy="128" r="123.48" fill="#17120d"/>
+    <g clip-path="url(#idisc)">
+      <rect x="2.00" y="2.00" width="252.00" height="252.00" fill="url(#isky)"/>
+      <circle cx="170.84" cy="135.56" r="57.96" fill="url(#isun)"/>
+      <circle cx="170.84" cy="135.56" r="25.20" fill="#ffd98a"/>
+      <path d="M2.00 153.20 C52.40 130.52 102.80 145.64 140.60 138.08 C178.40 130.52 216.20 135.56 254.00 128.00 L254.00 254.00 L2.00 254.00 Z" fill="#36452a"/>
+      <path d="M131.78 105.32 C120.44 90.20 143.12 80.12 130.52 65.00 C120.44 52.40 138.08 42.32 128.00 29.72" fill="none" stroke="#d9cfbd" stroke-width="4.41" stroke-linecap="round" opacity="0.55"/>
+      <path d="M194.78 170.84 L194.78 191.00 L202.34 191.00 L202.34 170.84 Z" fill="#3a2717"/>
+      <path d="M198.56 82.64 L226.28 138.08 L211.16 138.08 L233.84 170.84 L163.28 170.84 L185.96 138.08 L170.84 138.08 Z" fill="#22331c"/>
+      <path d="M173.36 120.44 L193.52 158.24 L183.44 158.24 L198.56 183.44 L148.16 183.44 L163.28 158.24 L153.20 158.24 Z" fill="#2b3f22"/>
+      <path d="M125.48 110.36 L125.48 133.04 L138.08 133.04 L138.08 125.48 Z" fill="#3a2717"/>
+      <path d="M62.48 150.68 L62.48 193.52 L145.64 193.52 L145.64 150.68 Z" fill="#6e4528"/>
+      <g stroke="#4a2e19" stroke-width="2.52">
+        <line x1="62.48" y1="164.54" x2="145.64" y2="164.54"/>
+        <line x1="62.48" y1="179.66" x2="145.64" y2="179.66"/>
+      </g>
+      <path d="M49.88 155.72 L104.06 90.20 L158.24 155.72 Z" fill="#3b2a1d"/>
+      <path d="M49.88 155.72 L104.06 90.20 L158.24 155.72" fill="none" stroke="url(#iring)" stroke-width="3.78" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="M90.20 193.52 L90.20 168.32 L105.32 168.32 L105.32 193.52 Z" fill="#241710"/>
+      <path d="M122.96 165.80 L122.96 178.40 L135.56 178.40 L135.56 165.80 Z" fill="#ffd27a"/>
+      <path d="M2.00 183.44 C65.00 170.84 128.00 191.00 178.40 183.44 C216.20 178.40 241.40 183.44 254.00 180.92 L254.00 254.00 L2.00 254.00 Z" fill="#2a3820"/>
+      <path d="M7.04 206.12 C77.60 198.56 165.80 211.16 248.96 201.08" fill="none" stroke="#1f2a17" stroke-width="2.77" stroke-linecap="round" opacity="0.8"/><path d="M9.56 217.46 C77.60 209.90 165.80 222.50 248.96 212.42" fill="none" stroke="#1f2a17" stroke-width="2.77" stroke-linecap="round" opacity="0.8"/><path d="M12.08 228.80 C77.60 221.24 165.80 233.84 248.96 223.76" fill="none" stroke="#1f2a17" stroke-width="2.77" stroke-linecap="round" opacity="0.8"/><path d="M14.60 240.14 C77.60 232.58 165.80 245.18 248.96 235.10" fill="none" stroke="#1f2a17" stroke-width="2.77" stroke-linecap="round" opacity="0.8"/>
+    </g>
+    <circle cx="128" cy="128" r="109.62" fill="none" stroke="url(#iring)" stroke-width="6.30"/>
+    <circle cx="128" cy="128" r="119.70" fill="none" stroke="url(#iring)" stroke-width="2.52" opacity="0.7"/>
+  </g>
+</svg>
