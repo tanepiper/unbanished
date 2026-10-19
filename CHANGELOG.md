@@ -72,6 +72,11 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
   and close-ups made by `tools/screenshots.sh --visual-change BASE NEW`. The tracing guide now
   explains how to follow a field to where it is written, and the building guide how to work in a
   git worktree.
+- A blog on the website with release notes told as stories, with pictures and videos:
+  "First Settlers" (0.1.0) and "Boomtown" (0.2.0).
+- Captures can hold camera keys (`--hold RotateLeft@START-END`) and follow a citizen
+  (`select citizen N`, `select profession NAME N`, then `--press buttonFollow`). New
+  `tools/videos.sh` modes: `big-town`, `orbit`, `follow-citizen`, `river` and `fishing`.
 - Short videos of the game, recorded headlessly with `tools/videos.sh` (see
   [docs/develop/VIDEOS.md](docs/develop/VIDEOS.md)), and more screenshots of the game and the
   viewer.

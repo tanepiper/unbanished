@@ -99,6 +99,7 @@ export default defineConfig({
     siteTitle: 'Un-Banished',
     nav: [
       { text: 'Play', link: '/play' },
+      { text: 'Blog', link: '/blog/', activeMatch: '^/blog/' },
       { text: 'Guide', link: '/guide/', activeMatch: '^/guide/' },
       { text: 'Develop', link: '/develop/', activeMatch: '^/develop/' },
       { text: 'Topics', link: '/topics/', activeMatch: '^/topics/' },
@@ -109,6 +110,7 @@ export default defineConfig({
           { text: 'About the project', link: '/about/' },
           { text: 'How it was made', link: '/about/how-it-was-made' },
           { text: 'Status', link: '/about/status' },
+          { text: 'Release notes', link: '/blog/' },
           { text: 'Changelog', link: '/changelog' },
           { text: 'Questions and answers', link: '/about/faq' },
           { text: 'Licence and legal', link: '/about/licence' },
@@ -203,6 +205,7 @@ export default defineConfig({
             { text: 'About the project', link: '/about/' },
             { text: 'How it was made', link: '/about/how-it-was-made' },
             { text: 'Status', link: '/about/status' },
+            { text: 'Release notes', link: '/blog/' },
             { text: 'Changelog', link: '/changelog' },
             { text: 'Questions and answers', link: '/about/faq' },
             { text: 'Licence and legal', link: '/about/licence' },
