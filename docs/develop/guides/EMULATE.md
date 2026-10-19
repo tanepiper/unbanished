@@ -93,7 +93,7 @@ in the same order and the same number as in the original, or every later number 
    python3 tools/triage/rngdiff.py orig.rng port.rng
    ```
    It prints the first draw that differs, with the original's function and offset next to the
-   Rust file and line, for example `FUN_1400a9d50+0x216 | crates/game/src/names.rs:79`.
+   Rust file and line, for example `FUN_1400a9d50+0x216 | crates/game/src/people/names.rs:79`.
 
 `crates/game/examples/rng_trace_names.rs` is a complete example. It traces the names of three
 citizens, and all 53 draws match.

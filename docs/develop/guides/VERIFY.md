@@ -32,9 +32,9 @@ BANISHED_MENU_SCENE=3 target/release/banished --boot-capture game-data/derived/c
 target/release/banished --boot-capture game-data/derived/captures/game.png 9 \
   --press buttonNew@4.5 --press buttonOk@5.0
 
-# A saved town, at speed 5, with the Town Hall window open
+# A saved town, at speed 5, with the Production Limits window open
 target/release/banished --boot-capture game-data/derived/captures/town.png 30 \
-  --script "load save-game/Save83.sav@4.5" --script "speed 5@12" --script "open TownHall@20"
+  --script "load save-game/Save83.sav@4.5" --script "speed 5@12" --script "open Template/UtilityLimits.rsc@20"
 
 # A generated map without starting the game
 target/release/banished --capture game-data/derived/captures/map.png --view overview \
@@ -49,6 +49,9 @@ game loop's fade.
 
 The [game's README](../../../apps/game/README.md#headless-captures) lists all the options and
 script commands.
+
+To check motion (an animation, citizens walking, the camera, the weather), record a short video
+in the same way: one `screenshot` command for each frame. See [Recording videos](../VIDEOS.md).
 
 ## Capture the viewer
 

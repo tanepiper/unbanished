@@ -16,7 +16,7 @@ it.
 | Reading resources and saves | `crates/formats` | No dependencies |
 | Interface elements, controls, layout, input | `crates/ui` | General code only; no rules of the game |
 | Engine loops, game controllers, dialog controllers, input routing | `apps/game/src/*.rs` | One module for each original controller (`toolbar.rs`, `status_bar.rs`, …) |
-| Rendering | `apps/game/src/render.rs`, `scene_gfx.rs`, `models.rs`, `*.wgsl` | Must also run on WebGL 2 ([Port a shader](SHADER.md)) |
+| Rendering | `apps/game/src/gfx/render.rs`, `scene_gfx.rs`, `models.rs`, `*.wgsl` | Must also run on WebGL 2 ([Port a shader](SHADER.md)) |
 
 ## Keep the original's shape
 
@@ -48,7 +48,7 @@ The details that drift are the ones that cause differences later:
   `scheduler::ticks`.
 - **Order of iteration.** The order in which objects are visited, the order of calls to the
   game's `Random`, and the instability of the C runtime's `qsort` can all be observed in the
-  results. `ai::crt_qsort_by` reproduces `qsort`.
+  results. `behaviour::ai::crt_qsort_by` reproduces `qsort`.
 - **No hidden non-determinism.** In `crates/game`, do not use the clock, do not let the order of
   a `HashMap` reach the output, and always use the ported `Random`.
 

@@ -58,6 +58,7 @@ JDK 21. Python emu deps live in `.venv` (`unicorn`, `pefile`).
 | Turn traced behaviour into Rust (logic, loops, UI dialogs, controllers) | `banished-port` |
 | Port a material/shader to WGSL | `banished-shader` |
 | Prove a change works (tests, headless captures, web build) | `banished-verify` |
+| Record a video of the game or a model (headless frames → WebM) | `banished-video` |
 | Write up findings, update the checklist, commit and push safely | `banished-land` |
 
 A typical feature runs: **trace → (emulate) → (format) → port → verify → land**. Do not skip
