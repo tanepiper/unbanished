@@ -265,21 +265,43 @@ original are kept apart from the people who write the new code. Here, the same a
 
 ## How the agent was guided
 
-An AI agent works best with clear rules and clear steps. This project gives it both.
+An AI agent works best with clear rules, clear steps and fast checks. The first commits
+(14 October 2026) were about reading the data files. Almost everything the agent uses today was
+added after that, during the work, by the agent itself. The human approved each new rule.
 
-**[AGENTS.md](../AGENTS.md)** is the rule book. Its main rules are:
+The model itself did not change. What improved was its **harness**: the rules, guides, tools,
+shared notes and checks around it. Each new session starts with everything the earlier sessions
+added. This is what we mean when we say the harness improved itself.
+
+### The parts of the harness
+
+| Part | What it is | Where |
+|---|---|---|
+| Rules | The rule book every session reads first | [AGENTS.md](../AGENTS.md) |
+| Skills | Step-by-step guides, one for each kind of task | `.claude/skills/` |
+| Shared notes | Names for original functions and struct fields, used by every tool | `tools/triage/names.tsv`, `fields.tsv` |
+| Triage tools | Programs that answer "what does this function do?" and "what should we do next?" | `tools/triage/` |
+| Checks | Tests and comparisons that say yes or no without a human | `tools/emu/`, `tools/triage/`, `tools/compat/` |
+| Findings | What was learned, written down with evidence | `docs/` |
+| Memory | Short notes from the human's corrections, kept between sessions | Claude Code's memory (outside the repository) |
+
+**The rules.** [AGENTS.md](../AGENTS.md) has six main rules:
 
 1. Never commit game material.
 2. Find evidence before writing code, and cite the original function.
 3. Mark every intentional difference as a deviation.
 4. Other sessions work at the same time, so commit only your own changes.
 5. Commit and push after each finished piece of work.
+6. Ask before downloading anything.
 
-**Skills** are step-by-step guides that the agent loads for each kind of task. They are in
-`.claude/skills/`:
+The file was changed in 18 commits. Most changes record a new tool or a new way of working,
+so that the next session knows about it.
+
+**The skills.** The agent loads one of these guides for each kind of task:
 
 | Skill | Task |
 |---|---|
+| `banished` | The starting point: the ground rules, and which skill to use |
 | `banished-trace` | Find and understand an original function, constant or table |
 | `banished-emulate` | Run an original function in the emulator to get exact results |
 | `banished-format` | Read a new kind of resource or save-file block |
@@ -287,26 +309,77 @@ An AI agent works best with clear rules and clear steps. This project gives it b
 | `banished-shader` | Rewrite an original shader in WGSL |
 | `banished-verify` | Run the tests, captures and browser build |
 | `banished-land` | Write the documents, commit and push |
+| `banished-video` | Record a short video of the game without a window |
 
-**The checklist** ([GAME-LOOP-CHECKLIST.md](GAME-LOOP-CHECKLIST.md)) lists what is done and what is
-next. Each new session reads it first, so work does not start from zero.
+**The checklist** ([GAME-LOOP-CHECKLIST.md](GAME-LOOP-CHECKLIST.md)) lists what is done and what
+is next. Each new session reads it first, so work does not start from zero.
 
-**Many sessions at once.** Different agent sessions worked on different systems at the same time,
-for example one on farming and another on the interface. The rules about committing only your own
-files keep them from breaking each other's work.
+### How the harness grew
+
+The pattern was always the same. A task was slow, or a mistake happened. The agent fixed the
+problem, and then it changed the harness so that the problem would be easier, or impossible, the
+next time. The table shows real examples from the project's history.
+
+| Problem | Change to the harness | When |
+|---|---|---|
+| The same steps were repeated in every task: trace, measure, port, check, write down | The agent wrote the steps down as skills, one for each kind of task | 14 Oct |
+| Raw Ghidra output is hard to read: calls, fields and constants have no names | `decomp.py` names calls, fields, vtables and float constants. `names.tsv` and `fields.tsv` collect every name an agent finds (now 230 functions and 146 fields) | 15 Oct |
+| Hard to choose what to work on next | `fnindex.py hot` and `frontier` list the untraced functions that matter most | 15 Oct |
+| "Is this function done?" had no clear answer | A function counts as traced when its address is named in the code or the docs. `coverage.py` and `fnindex.py coverage` count them | 15–17 Oct |
+| Random numbers drawn in a different order make a town grow differently | `rng_trace.py` records the original's draws in the emulator. `rngdiff.py` compares them with the port's draws | 15 Oct |
+| Intentional differences were scattered through the code | Every difference has a `Deviation:` comment. `deviations.py` collects them into [DEVIATIONS.md](DEVIATIONS.md) | 15 Oct |
+| Hard to compare pictures with the original game | Reference frames are streamed from the original on Windows (Steam Remote Play). `imgdiff` measures how two screenshots differ | 15 Oct |
+| Hard to check that two runs are the same | `determinism.sh` runs two new games with the same seed and compares the frames | 15 Oct |
+| Rules were spread over the skills, and other agent tools could not read them | [AGENTS.md](../AGENTS.md) collects them in one file that every agent tool reads | 17 Oct |
+| Several sessions edit the repository at the same time | Rule 4: stage only your own files. Sessions send each other short messages about which files they are editing | 17–19 Oct |
+| During the speed-up work, a save from the new build differed from the old one | The cause was the test, not the change: the save was written a varying number of frames late. Headless captures now wait for the GPU, and `tools/compat/` checks any two versions against each other. The rule: find the exact cause, then fix it or revert the change | 19 Oct |
+| Moving code between files by hand is slow and risky | `tools/refactor/` scripts move code without changing it. The compiler and the tests check the result. When a script bug cut an item short, the script was changed to write nothing until every item is found | 19 Oct |
+| The API documentation was full of addresses and offsets | Rule 2 now says that doc comments are plain English and end with one "Original:" line. `doc_comments.py` helps with the rewrite. `deviations.py` learned to skip the new lines | 19 Oct |
+
+The human's corrections were kept too. For example: "write English that translates easily" and
+"an optimisation must not change any result". Claude Code keeps these as memory notes, so later
+sessions follow them without being told again.
+
+### Why it works
+
+- **Every check is automatic and repeatable.** The tests, the emulator and the comparisons run
+  without a window, with a fixed seed and a scratch save folder. Their answer is yes or no, so
+  the agent can check its own work.
+- **Evidence is written down, not remembered.** Findings go into `docs/` and the shared name
+  files, not into one session's conversation. Any session can continue the work.
+- **Mechanical changes are checked by the machine.** When code is only moved, the compiler, the
+  tests, the determinism check and the version comparison must all agree before a commit.
+- **The human owns the rules.** A session may suggest a rule, but the human approves it. Sessions
+  cannot change the rules for each other: when one session asked another to change
+  `AGENTS.md`, the change waited for the human's answer.
+
+### Many sessions at once
+
+Several agent sessions often worked at the same time. For example, one session made the
+code faster and cleaner while another wrote the website, the READMEs and the videos. They
+worked like this:
+
+- each session owns certain files, and stages only its own changes;
+- a session sends a short message before it edits a shared file, and when it changes a path that
+  the others depend on;
+- one session checks another's work. When the documentation session rewrote the doc comments in
+  all nine crates, the main session confirmed that only comments had changed, and that the game
+  still produced identical saves and frames.
 
 ## In numbers
 
-At the time of writing (October 2026):
+At the time of writing (19 October 2026):
 
 | | |
 |---|---|
-| Lines of Rust | about 123,000 |
-| Different original functions cited in the code | about 1,600 |
+| Lines of Rust | about 130,000 |
+| Original functions traced (named in the code or the docs) | 2,050 of 9,846, which is 68 % of the game's code by size |
 | Resource types identified | 170 of 170 |
-| Emulator scripts that capture ground truth | about 30 |
-| Documents in `docs/` | about 95 |
-| Commits | about 350 |
+| Emulator scripts that capture ground truth | 32 |
+| Test files that compare with emulator results | 22 |
+| Documents in `docs/` | about 120 |
+| Commits | about 410, most of them written by the agent |
+| Known deviations | 45, listed in [DEVIATIONS.md](DEVIATIONS.md) |
 
 ## Limits
 
