@@ -1,6 +1,6 @@
 # Apps and crates
 
-The Un-Banished workspace has three programs and nine libraries. Each one has a README with its
+The Un-Banished workspace has four programs and eleven libraries. Each one has a README with its
 purpose, how to use it, and examples.
 
 ## Programs
@@ -9,7 +9,12 @@ purpose, how to use it, and examples.
 |---|---|---|
 | [`banished`](../../apps/game/README.md) | `banished-app` | The game, for the desktop and the browser. It also makes headless captures for tests. |
 | [`banished-viewer`](../../apps/viewer/README.md) | `banished-viewer` | Browses the game's models, animations, textures, sounds and dialogs. |
-| [`banished-cli`](../../apps/cli/README.md) | `banished-cli` | Command-line tools for the game data. Today it decodes every sound to MP3. |
+| [`banished-cli`](../../apps/cli/README.md) | `banished-cli` | Command-line tools for the game data: it decodes every sound to MP3, and searches and installs mods from Nexus Mods. |
+| [`banished-mods`](../../apps/modmanager/README.md) | `banished-modmanager` | The mod manager, a small desktop program: turn mods on and off, set their order, keep mod lists, install from Nexus Mods, and start the game. Not part of the original game. |
+
+<p align="center">
+  <img src="https://tanepiper.github.io/unbanished/assets/screenshots/mod-manager.webp" alt="The mod manager, banished-mods, with five mods, three of them on" width="720">
+</p>
 
 ## Libraries
 
@@ -24,6 +29,7 @@ purpose, how to use it, and examples.
 | [`banished-gfx`](../../crates/gfx/README.md) | Rendering shared by the game and the viewer: texture upload, the interface renderer, materials, skinning | formats, ui, wgpu |
 | [`banished-audio`](../../crates/audio/README.md) | Sound decoding and playback: the 64-channel device and the sound scene | formats, wma |
 | [`banished-wma`](../../crates/wma/README.md) | A decoder for Windows Media Audio v2, the codec of the game's sounds | nothing |
+| [`banished-mods`](../../crates/mods/README.md) | The mod list (`IO::Modification`) shared by the game and the mod manager: the `.pkm` packages, which are enabled, their order and conflicts, and the settings file | formats |
 | [`banished-nexus`](../../crates/nexus/README.md) | Optional Nexus Mods support, not part of the original game: searching Banished mods, download links with the player's API key, and the `.pkm` packages in a download | nothing (zip, serde_json; ureq with the `native` feature) |
 
 `banished-game` re-exports `banished-core`, `banished-terrain` and `banished-path`. For
@@ -34,15 +40,16 @@ example, `banished_game::random` is the same module as `banished_core::random`, 
 
 | Program | Uses |
 |---|---|
-| `banished` | game, formats, ui, gfx, audio, nexus |
+| `banished` | game, formats, ui, gfx, audio, mods, nexus |
 | `banished-viewer` | game, formats, ui, gfx, audio, wma |
 | `banished-cli` | formats, nexus |
+| `banished-mods` | mods, nexus |
 
 The libraries form layers. A crate uses only crates in the layers below it:
 
 1. `banished-core`, `banished-formats`, `banished-wma`, `banished-nexus`: no dependencies on
    other crates of the workspace.
-2. `banished-terrain`, `banished-ui`, `banished-audio`.
+2. `banished-terrain`, `banished-ui`, `banished-audio`, `banished-mods`.
 3. `banished-path`, `banished-gfx`.
 4. `banished-game`.
 

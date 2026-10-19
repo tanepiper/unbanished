@@ -3,6 +3,10 @@
 The Un-Banished mod manager (binary `banished-mods`): a small desktop program to choose mods
 before the game starts. It is not part of the original game.
 
+<p align="center">
+  <img src="https://tanepiper.github.io/unbanished/assets/screenshots/mod-manager.webp" alt="The mod manager with five mods, three of them on, and the details of the selected mod, Better Fields" width="860">
+</p>
+
 - Turn mods on and off, filter them, and change their order (drag, or ⤒ ↑ ↓). The first mod in
   the list wins when two mods change the same file; conflicts are marked.
 - See a mod's icon, description, conflicts and files.

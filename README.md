@@ -178,12 +178,13 @@ The project is a Rust workspace:
 | [`apps/game`](apps/game/README.md) | The game (binary `banished`), for desktop and browser |
 | [`apps/viewer`](apps/viewer/README.md) | A browser for the game's models, textures, sounds and dialogs |
 | [`apps/cli`](apps/cli/README.md) | Command-line helpers (for example, audio export) |
+| [`apps/modmanager`](apps/modmanager/README.md) | The mod manager (binary `banished-mods`) |
 | [`crates/core`](crates/core/README.md) | Exact maths, the game's random numbers, noise and game time |
 | [`crates/terrain`](crates/terrain/README.md), [`crates/path`](crates/path/README.md) | Map generation and path finding, checked against the original |
 | [`crates/game`](crates/game/README.md) | The game rules, checked against the original |
 | [`crates/formats`](crates/formats/README.md) | Readers for the game's `.pkg`, `.crs`, mesh, texture, sound and save formats |
 | [`crates/ui`](crates/ui/README.md), [`crates/gfx`](crates/gfx/README.md), [`crates/audio`](crates/audio/README.md), [`crates/wma`](crates/wma/README.md) | Interface, rendering, audio, and the WMA decoder |
-| [`crates/nexus`](crates/nexus/README.md) | Optional Nexus Mods support (not part of the original game) |
+| [`crates/mods`](crates/mods/README.md), [`crates/nexus`](crates/nexus/README.md) | The mod list shared by the game and the mod manager; optional Nexus Mods support (not part of the original game) |
 | `docs/` | Everything we learned about how the original works, and the [developer documentation](docs/develop/README.md) |
 | `tools/` | Data extraction, emulator checks, analysis scripts, screenshots and videos |
 

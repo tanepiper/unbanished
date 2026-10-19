@@ -75,6 +75,7 @@ const PAGES = {
   'apps/game/README.md': { path: '/reference/game', description: 'The game program, banished.' },
   'apps/viewer/README.md': { path: '/reference/viewer', description: 'The asset browser, banished-viewer.' },
   'apps/cli/README.md': { path: '/reference/cli', description: 'Command-line tools, banished-cli.' },
+  'apps/modmanager/README.md': { path: '/reference/modmanager', description: 'The mod manager, banished-mods.' },
   'crates/core/README.md': { path: '/reference/core', description: 'banished-core: exact maths, Random, noise, game time.' },
   'crates/terrain/README.md': { path: '/reference/terrain', description: 'banished-terrain: map generation and ground queries.' },
   'crates/path/README.md': { path: '/reference/path', description: 'banished-path: the A* pathfinder and the sector graph.' },
@@ -84,6 +85,7 @@ const PAGES = {
   'crates/gfx/README.md': { path: '/reference/gfx', description: 'banished-gfx: shared wgpu rendering.' },
   'crates/audio/README.md': { path: '/reference/audio', description: 'banished-audio: sound decoding and playback.' },
   'crates/wma/README.md': { path: '/reference/wma', description: 'banished-wma: a WMA v2 decoder.' },
+  'crates/mods/README.md': { path: '/reference/mods', description: 'banished-mods: the mod list shared by the game and the mod manager.' },
   'crates/nexus/README.md': { path: '/reference/nexus', description: 'banished-nexus: optional Nexus Mods support.' },
 }
 

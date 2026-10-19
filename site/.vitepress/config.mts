@@ -174,6 +174,7 @@ export default defineConfig({
             { text: 'banished (the game)', link: '/reference/game' },
             { text: 'banished-viewer', link: '/reference/viewer' },
             { text: 'banished-cli', link: '/reference/cli' },
+            { text: 'banished-mods (mod manager)', link: '/reference/modmanager' },
           ],
         },
         {
@@ -188,6 +189,7 @@ export default defineConfig({
             { text: 'banished-gfx', link: '/reference/gfx' },
             { text: 'banished-audio', link: '/reference/audio' },
             { text: 'banished-wma', link: '/reference/wma' },
+            { text: 'banished-mods', link: '/reference/mods' },
             { text: 'banished-nexus', link: '/reference/nexus' },
             { text: 'API documentation', link: '/develop/api' },
           ],

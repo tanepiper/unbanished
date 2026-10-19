@@ -68,6 +68,7 @@ Read its result: a sentence that listed fields by offset needs a person to rewri
 | `banished-gfx` | [banished_gfx](https://tanepiper.github.io/unbanished/api/banished_gfx/index.html) |
 | `banished-audio` | [banished_audio](https://tanepiper.github.io/unbanished/api/banished_audio/index.html) |
 | `banished-wma` | [banished_wma](https://tanepiper.github.io/unbanished/api/banished_wma/index.html) |
+| `banished-mods` | [banished_mods](https://tanepiper.github.io/unbanished/api/banished_mods/index.html) |
 | `banished-nexus` | [banished_nexus](https://tanepiper.github.io/unbanished/api/banished_nexus/index.html) |
 
 The apps (`banished`, `banished-viewer`, `banished-cli`) are programs, not libraries. Their

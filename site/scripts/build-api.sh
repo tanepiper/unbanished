@@ -11,7 +11,7 @@ set -euo pipefail
 site="$(cd "$(dirname "$0")/.." && pwd)"
 repo="$(cd "$site/.." && pwd)"
 crates=(banished-core banished-terrain banished-path banished-game banished-formats banished-ui
-  banished-gfx banished-audio banished-wma banished-nexus)
+  banished-gfx banished-audio banished-wma banished-mods banished-nexus)
 
 args=()
 for c in "${crates[@]}"; do args+=(-p "$c"); done
@@ -37,6 +37,7 @@ describe() {
     banished-gfx) echo "Rendering shared by the game and the viewer, with wgpu." ;;
     banished-audio) echo "Sound decoding and playback: the 64-channel device and the sound scene." ;;
     banished-wma) echo "A decoder for Windows Media Audio v2, the codec of the game's sounds." ;;
+    banished-mods) echo "The mod list shared by the game and the mod manager: packages, order and conflicts." ;;
     banished-nexus) echo "Optional Nexus Mods support: search Banished mods and install their packages." ;;
   esac
 }
