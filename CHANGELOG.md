@@ -47,6 +47,10 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
   as doc tests), and the website's colours. Each ported item still names its original function
   in one last line; offsets and other evidence are in ordinary comments
   (`tools/triage/doc_comments.py` checks this).
+- A new loading screen for the browser version: the Un-Banished logo over a scene from the
+  game, three short steps to load the game files (where to find `WinData`, a large Choose files
+  button, mods), a progress line, and links to the setup guide, problem reports and the source
+  code.
 - The website's home page shows a 39-second montage of Un-Banished in motion in place of the
   logo: camera moves over four towns, citizens at work, and a year of seasons. Un-Banished
   recorded it itself (`tools/videos.sh SAVE.sav montage`).
