@@ -31,8 +31,8 @@ identifiers as part of unrelated work.
    decompiled C, disassembly, shader bytecode or resource dumps into tracked files: describe
    findings in prose, tables, addresses (`FUN_1400be770`), offsets (`+0x44`) and constants.
    The one exception is the handful of screenshots in `docs/assets/screenshots/` that show the
-   game running for the README and setup guide: compressed WebP of Un-Banished's own frames,
-   made with `tools/screenshots.sh`. The same applies to the short WebM videos of Un-Banished's
+   game running for the README, the setup guide and the developer guides: compressed WebP of
+   Un-Banished's own frames, made with `tools/screenshots.sh`. The same applies to the short WebM videos of Un-Banished's
    own frames in `docs/assets/videos/`, made with `tools/videos.sh`. Add to either only when
    the docs need it, and keep each file small.
 2. **Evidence before code.** Every ported behaviour cites the original function it came from.

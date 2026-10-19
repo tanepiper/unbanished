@@ -66,7 +66,8 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
   recorded it itself (`tools/videos.sh SAVE.sav montage`).
 - Documentation for changes meant to change the picture: how to predict what will change and
   prove with `compare.sh`, `imgdiff` heat maps and close-ups that nothing else did
-  ([docs/develop/VISUAL-CHANGES.md](docs/develop/VISUAL-CHANGES.md)). The tracing guide now
+  ([docs/develop/VISUAL-CHANGES.md](docs/develop/VISUAL-CHANGES.md)), with example heat maps
+  and close-ups made by `tools/screenshots.sh --visual-change BASE NEW`. The tracing guide now
   explains how to follow a field to where it is written, and the building guide how to work in a
   git worktree.
 - Short videos of the game, recorded headlessly with `tools/videos.sh` (see

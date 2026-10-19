@@ -84,11 +84,29 @@ cargo run -q --release -p banished-app --example imgdiff -- \
 | `bbox` | The rectangle that holds every differing pixel. |
 | `grid_pct` | The share of differing pixels in each cell of a 4 by 4 grid. |
 
+The example pictures on this page come from the rock and ore change, on the `small-town`
+scenario. `tools/screenshots.sh --visual-change a94ca1d c128977` makes them again.
+
+<p align="center">
+  <img src="../assets/screenshots/visual-change/heat.webp" alt="Heat map of the small town, old build against new: the frame in grey, with red only on the rocks and the iron ore piles" width="720">
+</p>
+
+*The old build against the new. Red marks every changed pixel: only the grey rocks (top and
+right) and the iron ore piles (left of the houses). Buildings, trees, terrain, water and the
+interface did not change. `mismatch_pct` 0.275, `max_delta` 80, and the game state is
+identical.*
+
 Open the heat map and check every red area against your prediction. Each one must sit on an
 object you predicted. A red area anywhere else (a building, the terrain, the interface) is a bug
 or a missed prediction; find out which before you continue. Also make a heat map of `base-1`
 against `base-2`. It must have no red at all, and it shows the reader that the comparison is
 repeatable.
+
+<p align="center">
+  <img src="../assets/screenshots/visual-change/heat-base.webp" alt="Heat map of the old build against itself: the frame in grey with no red pixels" width="720">
+</p>
+
+*The old build against itself: no pixel differs (`max_delta` 0).*
 
 A difference can appear far from the object. A shadow or a reflection moves with what casts it.
 That is correct when the change affects the shadow or reflection pass, but say so in the report.
@@ -106,6 +124,19 @@ crop heat.png                 heat-crop.png
 magick before.png after.png heat-crop.png +append side-by-side.png
 ```
 
+<p align="center">
+  <img src="../assets/screenshots/visual-change/rocks.webp" alt="Rocks before, after and the changed pixels, enlarged" width="720">
+</p>
+
+*Rocks: before, after, and the changed pixels. Past their switch distance the rocks now use
+their simpler model, so their outlines and shading change a little.*
+
+<p align="center">
+  <img src="../assets/screenshots/visual-change/ore.webp" alt="Iron ore piles before, after and the changed pixels, enlarged" width="720">
+</p>
+
+*Iron ore: the same three pictures. Every red pixel sits on a piece of ore.*
+
 Pick the region from the heat map's `bbox` or `grid_pct`. Look at the before and after pictures
 yourself and describe what changed: "the rocks' outlines are simpler", not "it looks right".
 
@@ -119,9 +150,11 @@ A report on a visual change states:
 - that the base build matched itself;
 - the heat maps and close-ups you opened.
 
-Keep the frames, heat maps and crops out of the repository: they are drawn from the player's
-own game data. The only pictures in the repository are the screenshots and videos described in
-[AGENTS.md](../../AGENTS.md) (rule 1).
+Keep your working frames, heat maps and crops out of the repository. The only pictures in the
+repository are the screenshots and videos described in [AGENTS.md](../../AGENTS.md) (rule 1),
+made by `tools/screenshots.sh` and `tools/videos.sh`. When a document needs pictures of a
+visual change, add a mode to `tools/screenshots.sh` that makes them, as `--visual-change` does
+for this page.
 
 ## Common mistakes
 

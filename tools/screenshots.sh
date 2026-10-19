@@ -2,13 +2,58 @@
 # Regenerate the README / setup-guide screenshots in docs/assets/screenshots/.
 #
 #   tools/screenshots.sh SAVE.sav
+#   tools/screenshots.sh --visual-change BASE NEW [SCENARIO]
 #
 # SAVE.sav is a town saved without mods (the town shots load it). Needs game-data/ (see
 # tools/extract-assets.sh), a release build and `cwebp`. The captures use a scratch user folder
 # and settings file, so the player's own saves and settings are never touched.
+#
+# --visual-change makes the example pictures of docs/develop/VISUAL-CHANGES.md in
+# docs/assets/screenshots/visual-change/. BASE and NEW are git revisions (built with
+# tools/compat/build.sh) or game binaries. It plays SCENARIO (default small-town, see
+# tools/compat/scenarios.sh) twice with BASE and once with NEW, then writes the imgdiff heat
+# maps of BASE against itself and against NEW, and for each CROPS entry ("name:WxH+X+Y", default
+# the rocks and ore of the small town) the region before, after and in the heat map, side by
+# side and enlarged without smoothing. Needs ImageMagick (`magick`) as well.
 set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
+
+if [[ "${1:-}" == "--visual-change" ]]; then
+  binary() { if [[ -x "$1" && -f "$1" ]]; then echo "$1"; else "$repo/tools/compat/build.sh" "$1"; fi; }
+  base="$(binary "${2:?usage: tools/screenshots.sh --visual-change BASE NEW [SCENARIO]}")"
+  new="$(binary "${3:?usage: tools/screenshots.sh --visual-change BASE NEW [SCENARIO]}")"
+  scenario="${4:-small-town}"
+  crops="${CROPS:-rocks:240x160+960+250 ore:240x160+220+350}"
+  out="$repo/docs/assets/screenshots/visual-change"
+  work="$(mktemp -d)"
+  trap 'rm -rf "$work"' EXIT
+  mkdir -p "$out"
+  for run in base-1:"$base" base-2:"$base" new:"$new"; do
+    "$repo/tools/compat/scenarios.sh" "${run#*:}" "$work/${run%%:*}" "$scenario"
+  done
+  cargo build -q --release -p banished-app --example imgdiff --manifest-path "$repo/Cargo.toml"
+  imgdiff="$repo/target/release/examples/imgdiff"
+  a="$work/base-1/$scenario.png" b="$work/new/$scenario.png"
+  "$imgdiff" "$a" "$work/base-2/$scenario.png" --out "$work/heat-base.png" --json && echo
+  "$imgdiff" "$a" "$b" --out "$work/heat.png" --json && echo
+  for name in heat-base heat; do
+    cwebp -quiet -q 75 -resize 1000 0 "$work/$name.png" -o "$out/$name.webp"
+  done
+  for crop in $crops; do
+    name="${crop%%:*}" region="${crop#*:}"
+    parts=()
+    for img in "$a" "$b" "$work/heat.png"; do
+      part="$work/part-${#parts[@]}.png"
+      parts+=("$part")
+      magick "$img" -crop "$region" +repage -filter point -resize 200% "$part"
+    done
+    magick "${parts[@]}" -bordercolor white -border 4 +append "$work/$name.png"
+    cwebp -quiet -q 80 "$work/$name.png" -o "$out/$name.webp"
+  done
+  ls -la "$out"
+  exit 0
+fi
 save="${1:?usage: tools/screenshots.sh SAVE.sav}"
 out="$repo/docs/assets/screenshots"
 work="$(mktemp -d)"
