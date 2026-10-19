@@ -496,7 +496,7 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "banished-app"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "banished-audio",
  "banished-formats",
@@ -525,7 +525,7 @@ dependencies = [
 
 [[package]]
 name = "banished-audio"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "banished-formats",
  "banished-wma",
@@ -540,7 +540,7 @@ dependencies = [
 
 [[package]]
 name = "banished-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "banished-formats",
  "banished-nexus",
@@ -549,15 +549,15 @@ dependencies = [
 
 [[package]]
 name = "banished-core"
-version = "0.2.0"
+version = "0.3.0"
 
 [[package]]
 name = "banished-formats"
-version = "0.2.0"
+version = "0.3.0"
 
 [[package]]
 name = "banished-game"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "banished-core",
  "banished-formats",
@@ -567,7 +567,7 @@ dependencies = [
 
 [[package]]
 name = "banished-gfx"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "banished-formats",
  "banished-ui",
@@ -578,7 +578,7 @@ dependencies = [
 
 [[package]]
 name = "banished-modmanager"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "banished-mods",
  "banished-nexus",
@@ -588,7 +588,7 @@ dependencies = [
 
 [[package]]
 name = "banished-mods"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "banished-formats",
  "log",
@@ -596,7 +596,7 @@ dependencies = [
 
 [[package]]
 name = "banished-nexus"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "flate2",
  "serde_json",
@@ -606,7 +606,7 @@ dependencies = [
 
 [[package]]
 name = "banished-path"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "banished-core",
  "banished-terrain",
@@ -614,7 +614,7 @@ dependencies = [
 
 [[package]]
 name = "banished-terrain"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "banished-core",
  "banished-formats",
@@ -622,7 +622,7 @@ dependencies = [
 
 [[package]]
 name = "banished-ui"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "banished-formats",
  "log",
@@ -630,7 +630,7 @@ dependencies = [
 
 [[package]]
 name = "banished-viewer"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "banished-audio",
  "banished-formats",
@@ -657,7 +657,7 @@ dependencies = [
 
 [[package]]
 name = "banished-wma"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "banished-formats",
 ]

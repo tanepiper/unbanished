@@ -5,7 +5,7 @@ members = ["crates/core", "crates/terrain", "crates/path", "crates/formats", "cr
 [workspace.package]
 # The Un-Banished engine version (not the Banished game version, 1.0.7). Every crate inherits it;
 # apps/game/build.rs adds the build id. AGENTS.md says when to change it.
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/tanepiper/unbanished"
