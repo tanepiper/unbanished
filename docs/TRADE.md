@@ -109,6 +109,13 @@ at the route point nearest the dock (two points back, `FUN_1400ac7e0`).
 | 3 | `FUN_140045820`: clip 3. `FUN_140045670`: back toward the point it heads for; within 3 → 4 | |
 | 4 | `FUN_140045630`: clip 1. `FUN_1400455a0`: sail on; at the route's end gone | |
 
+The boat is drawn like a wild animal: its template's model (`BoatMesh`: the hull, the cargo, two
+oars and the merchant, see [BOAT.md](BOAT.md)) at its ModelComponent's position and heading,
+which its CharacterComponent moves, posed by the state's clip from the template's animation
+group. Saves keep `model.position` and `model.yaw` for it (observed). The boat's map entry has no
+mesh index, so the port takes the model's only mesh (`apps/game/src/start/models.rs`). Until
+October 2026 the port moved the boat but did not draw it.
+
 ## The exchange
 
 The trade window's button (`FUN_1400868f0`, see [BUILDING-WINDOWS.md](BUILDING-WINDOWS.md)

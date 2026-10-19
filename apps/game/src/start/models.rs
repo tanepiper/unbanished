@@ -299,6 +299,39 @@ impl StartingTown {
                     locals,
                 });
         }
+        // Trader boats: their template's model (the hull, oars and merchant), placed and posed by
+        // their CharacterComponent as the animals are (BoatComponent's entity keeps a
+        // ModelComponent, `model.position` / `model.yaw` in saves; docs/TRADE.md "The boat").
+        for (&entity, boat) in &self.wildlife.boats {
+            let Some(model) = &self.templates[boat.template].model else {
+                continue;
+            };
+            // The boat's placed entry keeps no mesh (`usize::MAX`): its model has one.
+            let (variant, mesh) = self
+                .placed
+                .get(entity)
+                .map_or((0, 0), |p| (p.variant, p.mesh));
+            let Some(Some(mesh)) = model
+                .variants
+                .get(variant)
+                .and_then(|v| v.meshes.get(mesh).or(v.meshes.first()))
+            else {
+                continue;
+            };
+            let ch = &boat.character;
+            let locals = self
+                .wildlife
+                .groups
+                .get(&(boat.template, variant))
+                .and_then(|g| ch.animation.pose(g));
+            groups
+                .entry((mesh.clone(), GroupMaterial::default()))
+                .or_default()
+                .push(ModelInstance {
+                    matrix: placement_matrix(ch.position, [1.0; 3], ch.yaw),
+                    locals,
+                });
+        }
         // Nomads: their template's model (men variant 0, women 1) with the NomadDescription's
         // material in place of material 0 (`FUN_140050990`), placed by their
         // CharacterComponent.
