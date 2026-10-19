@@ -65,9 +65,11 @@ browser; and a blog. The performance work is described in
   game, three short steps to load the game files (where to find `WinData`, a large Choose files
   button, mods), a progress line, and links to the setup guide, problem reports and the source
   code.
-- The website's home page shows a 39-second montage of Un-Banished in motion in place of the
-  logo: camera moves over four towns, citizens at work, and a year of seasons. Un-Banished
-  recorded it itself (`tools/videos.sh SAVE.sav montage`).
+- The website's home page shows a 64-second montage of Un-Banished in motion in place of the
+  logo: a flight down a river, the trader's boat, a fisher, the market, people at work close
+  up, towns in autumn and winter, and a year of seasons. Un-Banished recorded it itself
+  (`tools/videos.sh SAVE.sav montage`), and the site's other videos are recorded at
+  1920 × 1080 with the highest video settings.
 - Documentation for changes meant to change the picture: how to predict what will change and
   prove with `compare.sh`, `imgdiff` heat maps and close-ups that nothing else did
   ([docs/develop/VISUAL-CHANGES.md](docs/develop/VISUAL-CHANGES.md)), with example heat maps
