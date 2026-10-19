@@ -327,6 +327,11 @@ fn read_group(
         .map_err(|e| log::warn!("{mesh_ref}: {e}"))
         .ok()?;
     let world = banished_gfx::model::bind_world(&mesh);
+    // Deviation: always the first detail level. `MeshInstance::AddDrawItems` (0x1801037b0)
+    // draws the first level whose distance (`GetDetailLevelDistance`) exceeds the distance
+    // from the instance's box centre to the draw group's camera, else level 0. Only six meshes
+    // have a second level (three rocks, three ores, switching at 50 to 70 units); every other
+    // mesh has one level up to 10,000.
     let part = mesh.parts.first()?;
     let mut set: Option<Vec<Option<String>>> =
         banished_gfx::model::material_set(&mesh, material.set).map(<[_]>::to_vec);

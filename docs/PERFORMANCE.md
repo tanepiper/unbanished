@@ -147,6 +147,24 @@ frames that differ from run to run.
 The GPU time is now about half. (These runs were on a warmer machine than the 22.7 ms
 measurement; compare the columns, not the runs.)
 
+### Levels of detail
+
+A `GraphicsMesh` can hold several detail levels (parts), each with the distance up to which it
+is used (`GraphicsMesh::GetDetailLevelDistance`, 0x180012f40: the part's `+0x10`). Observed in
+`MeshInstance::AddDrawItems` (0x1801037b0): for a mesh with more than one level, the engine takes
+the centre of the instance's box, measures its distance to the current draw group's camera, and
+draws the first level whose distance is larger; if none is, level 0.
+
+In the shipped data only 6 of 271 meshes have a second level: `Rock01`–`Rock03` and
+`Ore01`–`Ore03`, which switch at 50 to 70 units to a version with 20 to 85 % fewer triangles.
+Every other mesh has one level, used up to 10,000 units. The port draws level 0 always (a
+deviation, marked in `gfx/models.rs`): distant rocks and ore have slightly more triangles than
+in the original. The cost is negligible; matching the original is a small visual fix.
+
+Open: which camera the shadow pass measures from (*inferred*: the draw group's own camera, so
+the sun's, which would put rocks and ore at their low level in the shadow map), and what
+`GraphicsMesh::GetMaxDepthDistance` (0x180012f60, `+0x48`) is used for.
+
 Also tried: rebuilding a model group's instances only when its placements change. On a
 running town almost every group changes every frame, because the growth smoothing changes the
 trees' scales, so the comparison cost more than it saved. It was not kept.
