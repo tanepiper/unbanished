@@ -1,18 +1,23 @@
-//! `Audio::Scene` (Runtime DLL): the layer above the `Device` that plays `SoundEffect`s.
+//! The sound scene: the layer above the [`Device`](crate::Device) that plays sound effects.
 //!
-//! - 256 effects (`0x70` bytes, `Scene +0x10`): each walks its effect's timeline and starts
-//!   every sound whose start time falls in the frame's window, on a random variant with a
-//!   random pitch, at `variant volume × effect volume × type volume`. When every sound has
-//!   ended the effect frees itself (and the 3D effect that started it).
-//! - 4096 3D effects (`0x40` bytes, `Scene +0x20`): a position or a list of emitters. Each
-//!   update takes the loudest emitter (linear fall-off from the effect's inner radius to its
-//!   radius plus the listener's reach), starts the 2D effect when audible, stops it when not,
+//! - **256 effects.** Each one walks its effect's timeline and starts every sound whose start time
+//!   falls in the frame, with a random variant and a random pitch, at the volume
+//!   `variant × effect × kind`. When all its sounds have ended, the effect frees itself (and the 3D
+//!   effect that started it).
+//! - **4,096 effects in the world.** Each has a position or a list of emitters. Every update takes
+//!   the loudest emitter (the volume falls in a straight line from the inner radius to the radius,
+//!   plus the listener's reach), starts the effect when it can be heard, stops it when it cannot,
 //!   and passes the volume on.
-//! - Sound types: 1 UI, 2 music, 3 ambient, 4 effects (type 0 never plays), each with a
-//!   `Configuration` volume (defaults 100, 50, 100, 100) and a pause flag (`Scene +0x30`).
+//! - **Kinds of sound:** 1 interface, 2 music, 3 ambient, 4 effects (kind 0 never plays). Each
+//!   kind has a volume (by default 100, 50, 100 and 100) and can be paused.
 //!
-//! Handles keep the original encoding: a 2D effect is `index·2 | counter<<9`, a 3D effect
-//! `index·2 | 1 | counter<<13`; a stale handle does nothing. See docs/AUDIO.md.
+//! Handles are encoded as in the original: an effect is `index·2 | counter<<9`, an effect in the
+//! world `index·2 | 1 | counter<<13`. A stale handle does nothing. See
+//! [Audio](https://tanepiper.github.io/unbanished/topics/audio).
+//!
+//! Original: `Audio::Scene` in the Runtime.
+// The effects are at Scene +0x10 (0x70 bytes each), the 3D effects at +0x20 (0x40 bytes), the
+// paused kinds at +0x30. See docs/AUDIO.md.
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -33,18 +38,27 @@ const UNIT: f32 = 2.328_306_4e-10;
 /// `DAT_180164870`: a 3D effect is not restarted within `max_length / 20` of itself.
 const RETRIGGER_DIVISOR: f32 = 20.0;
 
-/// `Audio::Scene::SoundType`.
+/// The kinds of sound. Each kind has its own volume in the options. Kind 0 never plays.
+///
+/// Original: `Audio::Scene::SoundType`.
 pub mod sound_type {
+    /// Interface sounds.
     pub const UI: u32 = 1;
+    /// Music.
     pub const MUSIC: u32 = 2;
+    /// Ambient sounds: weather, rivers, forests.
     pub const AMBIENT: u32 = 3;
+    /// Sound effects in the world.
     pub const EFFECT: u32 = 4;
 }
 
 /// What the scene needs from the channel pool (implemented by [`crate::Device`]).
 pub trait Mixer {
+    /// Start a sound on a free channel, or return `None` when no channel is free.
     fn play(&mut self, sound: &Sound, params: PlayParams) -> Option<Channel>;
+    /// Stop a channel.
     fn stop(&mut self, channel: Channel);
+    /// Change a channel's volume.
     fn set_volume(&mut self, channel: Channel, volume: f32);
 }
 
@@ -60,12 +74,18 @@ impl Mixer for crate::Device {
     }
 }
 
-/// `Audio::Configuration` volumes, 0–100 (`Configuration::Configuration` `0x1800e0700`).
+/// The volume of each kind of sound, from 0 to 100, as in the Audio options.
+///
+/// Original: `Audio::Configuration`, Runtime `0x1800e0700`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Volumes {
+    /// Interface sounds.
     pub ui: i32,
+    /// Music.
     pub music: i32,
+    /// Ambient sounds.
     pub ambient: i32,
+    /// Sound effects.
     pub effect: i32,
 }
 
@@ -95,8 +115,12 @@ impl Volumes {
 
 /// A SoundEffect with its decoded buffers (per sound, per variant).
 pub struct Effect {
+    /// The effect's resource reference.
     pub reference: String,
+    /// The effect: its timeline of sounds, variants, radius and length.
     pub desc: SoundEffect,
+    /// The decoded sounds, for each sound of the timeline and each variant (`None` when one could
+    /// not be decoded).
     pub buffers: Vec<Vec<Option<Sound>>>,
 }
 
@@ -114,6 +138,7 @@ pub struct EffectCache {
 }
 
 impl EffectCache {
+    /// An effect by its reference, loaded and decoded the first time it is asked for.
     pub fn get(
         &mut self,
         archive: &banished_formats::pkg::Archive,
@@ -258,6 +283,10 @@ struct Effect3D {
     emitters: Vec<(Vec3, f32)>,
 }
 
+/// The sound scene: up to 256 playing effects and 4,096 effects in the world, their emitters,
+/// and the volumes of the kinds of sound. [`Scene::update`] mixes them every frame.
+///
+/// Original: `Audio::Scene`.
 pub struct Scene {
     /// `+0x00`: the frame's simulation time step (µs), the minimum retrigger window.
     step: i64,
@@ -267,6 +296,7 @@ pub struct Scene {
     effects3d: Vec<Option<Effect3D>>,
     /// `+0x30`: paused sound types.
     paused: [bool; 5],
+    /// The volume of each kind of sound.
     pub volumes: Volumes,
 }
 
@@ -322,8 +352,10 @@ impl Scene {
             .filter(|e| (e.handle ^ handle) & 0xffff_e000 == 0)
     }
 
-    /// `PlayEffect` (`0x1800e17b0`): the first free slot, starting `start` µs into the
-    /// effect. Returns 0 when all 256 are busy.
+    /// `PlayEffect`: the first free slot, starting `start` µs into the effect. Returns 0 when all
+    /// 256 are busy.
+    ///
+    /// Original: Runtime `0x1800e17b0`.
     pub fn play_effect(&mut self, effect: &Rc<Effect>, kind: u32, start: i64) -> u32 {
         let Some(i) = self.effects.iter().position(Option::is_none) else {
             return 0;
@@ -344,8 +376,10 @@ impl Scene {
         handle
     }
 
-    /// `PlayEffect3D` (`0x1800e1700`) with `FindFree3DEffect`: refused when the same effect
-    /// already plays within its radius and started less than the retrigger window ago.
+    /// `PlayEffect3D` with `FindFree3DEffect`: refused when the same effect already plays within
+    /// its radius and started less than the retrigger window ago.
+    ///
+    /// Original: Runtime `0x1800e1700`.
     pub fn play_effect_3d(&mut self, effect: &Rc<Effect>, kind: u32, start: i64, at: Vec3) -> u32 {
         let mut window = self.step;
         if effect.max_length() != 0 {
@@ -525,9 +559,11 @@ impl Scene {
         }
     }
 
-    /// `Update(dt, step, random, listener, reach)` (`0x1800e1f10`). `dt` advances the
-    /// effects; `step` is the simulation step of the frame; `reach` extends every 3D effect's
-    /// radius (the camera's distance from its pivot).
+    /// `Update(dt, step, random, listener, reach)`. `dt` advances the effects; `step` is the
+    /// simulation step of the frame; `reach` extends every 3D effect's radius (the camera's
+    /// distance from its pivot).
+    ///
+    /// Original: Runtime `0x1800e1f10`.
     pub fn update(
         &mut self,
         mixer: &mut dyn Mixer,

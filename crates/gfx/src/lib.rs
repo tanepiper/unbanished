@@ -1,5 +1,8 @@
-//! Rendering shared by the Banished apps (viewer and game): texture upload, the UI renderer and
-//! model material classification.
+#![doc = include_str!("../README.md")]
+#![doc(
+    html_logo_url = "https://tanepiper.github.io/unbanished/assets/un-banished-icon.svg",
+    html_favicon_url = "https://tanepiper.github.io/unbanished/favicon.svg"
+)]
 
 pub mod material;
 pub mod model;

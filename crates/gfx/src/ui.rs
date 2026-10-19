@@ -57,6 +57,9 @@ fn fs_logo(in: VsOut) -> @location(0) vec4<f32> {
 }
 "#;
 
+/// Draws the quads of `banished-ui` with wgpu: one alpha-blended pipeline (and one for the logo
+/// material), in batches split by texture and clip rectangle. It uploads each sprite sheet the
+/// first time a quad uses it.
 pub struct UiRenderer {
     pipeline: wgpu::RenderPipeline,
     logo_pipeline: wgpu::RenderPipeline,
@@ -81,6 +84,7 @@ struct Batch {
 }
 
 impl UiRenderer {
+    /// A renderer for a colour target of `format` and a depth target of `depth`.
     pub fn new(
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
@@ -281,6 +285,8 @@ impl UiRenderer {
         self.time = seconds;
     }
 
+    /// Draw `quads` (from [`Ui::draw`](banished_ui::Ui::draw)) into `pass`, on a target of `size`
+    /// pixels.
     pub fn draw<'p>(
         &'p mut self,
         device: &wgpu::Device,

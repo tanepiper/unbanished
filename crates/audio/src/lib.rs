@@ -1,6 +1,8 @@
-//! Sound playback shared by the game and the viewer. Game audio is xWMA (WMA v2), decoded
-//! in-process by `banished-wma`, then mixed on a 64-channel [`Device`] (the original
-//! `Audio::Device`) with rodio natively or Web Audio in the browser. No exported files are needed.
+#![doc = include_str!("../README.md")]
+#![doc(
+    html_logo_url = "https://tanepiper.github.io/unbanished/assets/un-banished-icon.svg",
+    html_favicon_url = "https://tanepiper.github.io/unbanished/favicon.svg"
+)]
 
 mod device;
 pub mod scene;
@@ -11,11 +13,14 @@ pub use scene::{sound_type, Effect, EffectCache, Mixer, Prepared, Scene, Volumes
 use banished_formats::pkg::Archive;
 use banished_formats::types::{self, SoundBuffer};
 
+/// Decoded samples.
 #[derive(Clone)]
 pub struct Pcm {
+    /// The number of channels.
     pub channels: u16,
+    /// The sample rate, in samples per second.
     pub sample_rate: u32,
-    /// Interleaved samples in [-1, 1).
+    /// The samples, interleaved, from -1 to 1.
     pub samples: Vec<f32>,
 }
 

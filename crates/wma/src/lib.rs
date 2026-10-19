@@ -1,13 +1,8 @@
-//! Pure-Rust decoder for Windows Media Audio v2 (`WAVE_FORMAT_WMAUDIO2`, tag 0x161), the codec
-//! inside xWMA files. No dependencies and no `unsafe`, so it builds for `wasm32-unknown-unknown`.
-//!
-//! ```no_run
-//! # let packets: &[u8] = &[];
-//! let params = banished_wma::Params::xwma(2, 44_100, 6_000, 2_230);
-//! let pcm: Vec<i16> = banished_wma::decode(&params, packets).unwrap(); // interleaved
-//! ```
-//!
-//! For streaming, drive a [`Decoder`] one packet at a time and call [`Decoder::flush`] at the end.
+#![doc = include_str!("../README.md")]
+#![doc(
+    html_logo_url = "https://tanepiper.github.io/unbanished/assets/un-banished-icon.svg",
+    html_favicon_url = "https://tanepiper.github.io/unbanished/favicon.svg"
+)]
 
 mod bits;
 mod decoder;
@@ -29,8 +24,11 @@ pub const XWMA_FLAGS: u16 = 0x1f;
 pub struct Params {
     /// Format tag; must be [`WMAV2`].
     pub tag: u16,
+    /// The number of channels: 1 or 2.
     pub channels: u16,
+    /// The sample rate, in samples per second.
     pub sample_rate: u32,
+    /// The average data rate, in bytes per second.
     pub avg_bytes_per_sec: u32,
     /// Packet size in bytes.
     pub block_align: u16,
@@ -53,6 +51,7 @@ impl Params {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Why a stream could not be decoded.
 pub enum Error {
     /// A valid stream using a feature this decoder does not implement.
     Unsupported(&'static str),
@@ -71,6 +70,7 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+/// A result with this crate's [`Error`].
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Decode a whole stream of `block_align`-sized packets to interleaved 16-bit PCM.

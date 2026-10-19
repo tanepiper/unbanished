@@ -58,7 +58,7 @@ fn stream(params: &Params, packets: &[u8]) -> Result<Vec<i16>, banished_wma::Err
 `banished-formats` reads the sound resource. `banished-audio` does both steps in one call
 (`banished_audio::load_sound`).
 
-```rust
+```rust,ignore
 use banished_formats::pkg::Archive;
 use banished_formats::types::sound_buffer;
 use banished_wma::{decode, Params};

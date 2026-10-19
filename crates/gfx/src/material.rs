@@ -20,6 +20,7 @@ pub enum MaterialKind {
 }
 
 impl MaterialKind {
+    /// The kind of a range from the path of its material instance's base material.
     pub fn of(base: Option<&str>) -> MaterialKind {
         let base = base.unwrap_or_default().replace('/', "\\");
         if base.contains("OpaqueCharacterMaterial") {
@@ -41,9 +42,11 @@ impl MaterialKind {
 /// `NormalSkin_charactervs` (`c5.z = 0.125`): the character texture holds 8 outfits side by side.
 pub const CHARACTER_OUTFITS: f32 = 8.0;
 
-/// The character shader's diffuse U: `(u + outfit) / 8`, where `u` is the vertex texcoord
-/// (`/512`) and `outfit` (0..7, citizen `+0x34`) rides in the root transform's translation `w`
-/// (`c44.w`). As a scale/offset pair for `uv * xy + zw`.
+// The outfit is citizen +0x34; the shader reads it from c44.w.
+/// The texture transform of a citizen's outfit, as a scale and offset for `uv * xy + zw`. The
+/// character texture holds 8 outfits side by side, and the shader computes the diffuse U as
+/// `(u + outfit) / 8`, where `u` is the vertex texture coordinate (`/512`) and `outfit` is 0 to
+/// 7.
 pub fn character_uv_transform(outfit: u32) -> [f32; 4] {
     [
         1.0 / CHARACTER_OUTFITS,

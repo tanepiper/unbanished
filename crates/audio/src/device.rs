@@ -1,14 +1,15 @@
 //! A pool of concurrent voices, after the original `Audio::Device` (Runtime DLL): 64 channels
-//! (`0x28` bytes each, flag bit 0 = in use, bit 1 = ended). `Device::Play` (`0x1800e0ad0`)
-//! takes the first free channel and returns null when all are busy; `PlayPlatform`
-//! (`0x1800e0ff0`) starts one XAudio2 source voice at `offset % duration`, with the given
-//! volume and a frequency ratio of `1.05946314^pitch` (pitch in semitones), looping when the
-//! sound buffer's loop flag is set. `Device::Update` (`0x1800e0d70`) frees ended channels and
-//! calls their end callbacks; `Device::Stop` (`0x1800e0a50`) stops, frees and calls back.
+//! (`0x28` bytes each, flag bit 0 = in use, bit 1 = ended). `Device::Play` takes the first free
+//! channel and returns null when all are busy; `PlayPlatform` starts one XAudio2 source voice at
+//! `offset % duration`, with the given volume and a frequency ratio of `1.05946314^pitch` (pitch in
+//! semitones), looping when the sound buffer's loop flag is set. `Device::Update` frees ended
+//! channels and calls their end callbacks; `Device::Stop` stops, frees and calls back.
 //!
 //! The port plays every channel at once through rodio's mixer natively and through one Web Audio
-//! graph (a gain node per channel into a master gain) in the browser. The end callback becomes
-//! the list of channels `update` returns.
+//! graph (a gain node per channel into a master gain) in the browser. The end callback becomes the
+//! list of channels `update` returns.
+//!
+//! Original: Runtime `0x1800e0ad0`, Runtime `0x1800e0ff0`, Runtime `0x1800e0d70`, Runtime `0x1800e0a50`.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -21,7 +22,10 @@ pub const CHANNELS: usize = 64;
 /// `DAT_180164810`: one semitone (the twelfth root of two).
 const SEMITONE: f32 = 1.059_463_1;
 
-/// XAudio2 frequency ratio for a pitch in semitones (`FUN_180129df0(1.05946314, pitch)`).
+/// The playback speed for a pitch in semitones: one semitone is the twelfth root of two, as
+/// XAudio2's frequency ratio.
+///
+/// Original: `FUN_180129df0(1.05946314, pitch)`.
 pub fn pitch_ratio(semitones: f32) -> f32 {
     SEMITONE.powf(semitones)
 }
@@ -31,13 +35,15 @@ pub fn pitch_ratio(semitones: f32) -> f32 {
 #[derive(Clone)]
 pub struct Sound {
     pcm: Arc<Pcm>,
-    /// The buffer's loop flag (`SoundBuffer +0x20`).
+    // SoundBuffer +0x20
+    /// Whether the sound loops.
     pub looping: bool,
     #[cfg(target_arch = "wasm32")]
     web: std::rc::Rc<std::cell::RefCell<Option<web_sys::AudioBuffer>>>,
 }
 
 impl Sound {
+    /// A sound from decoded samples and its loop flag.
     pub fn new(pcm: Pcm, looping: bool) -> Sound {
         Sound {
             pcm: Arc::new(pcm),
@@ -56,14 +62,17 @@ impl Sound {
         Ok(Sound::new(pcm, looping))
     }
 
+    /// The decoded samples.
     pub fn pcm(&self) -> &Pcm {
         &self.pcm
     }
 
+    /// The length in frames (samples per channel).
     pub fn frames(&self) -> usize {
         self.pcm.samples.len() / self.pcm.channels.max(1) as usize
     }
 
+    /// The length.
     pub fn duration(&self) -> Duration {
         Duration::from_secs_f64(self.frames() as f64 / self.pcm.sample_rate.max(1) as f64)
     }
@@ -87,6 +96,7 @@ pub struct Channel {
 }
 
 impl Channel {
+    /// The channel's number, 0 to 63.
     pub fn index(self) -> usize {
         self.index as usize
     }
@@ -128,6 +138,7 @@ impl<T> Slots<T> {
         })
     }
 
+    /// The value of a channel, or `None` when the handle is stale.
     pub fn get(&self, c: Channel) -> Option<&T> {
         match self.slots.get(c.index())? {
             Some((g, v)) if *g == c.generation => Some(v),
@@ -135,6 +146,7 @@ impl<T> Slots<T> {
         }
     }
 
+    /// The value of a channel, to change it, or `None` when the handle is stale.
     pub fn get_mut(&mut self, c: Channel) -> Option<&mut T> {
         match self.slots.get_mut(c.index())? {
             Some((g, v)) if *g == c.generation => Some(v),
@@ -142,11 +154,13 @@ impl<T> Slots<T> {
         }
     }
 
+    /// Free a channel and return its value.
     pub fn remove(&mut self, c: Channel) -> Option<T> {
         self.get(c)?;
         self.slots[c.index()].take().map(|(_, v)| v)
     }
 
+    /// The channels in use, with their values.
     pub fn iter(&self) -> impl Iterator<Item = (Channel, &T)> {
         self.slots.iter().enumerate().filter_map(|(i, s)| {
             s.as_ref().map(|(g, v)| {
@@ -161,10 +175,12 @@ impl<T> Slots<T> {
         })
     }
 
+    /// The number of channels in use.
     pub fn len(&self) -> usize {
         self.slots.iter().filter(|s| s.is_some()).count()
     }
 
+    /// Whether no channel is in use.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -175,6 +191,7 @@ impl<T> Slots<T> {
 pub struct PlayParams {
     /// Start time, wrapped into the sound.
     pub offset: Duration,
+    /// The volume, from 0 to 1.
     pub volume: f32,
     /// Semitones.
     pub pitch: f32,
@@ -363,26 +380,31 @@ mod native {
                 .is_some_and(|v| !v.sink.empty() && !v.sink.is_paused())
         }
 
+        /// Whether the channel is allocated and has not finished, paused or not.
         pub fn is_active(&self, c: Channel) -> bool {
             self.voices.get(c).is_some_and(|v| !v.sink.empty())
         }
 
+        /// The number of channels in use.
         pub fn active(&self) -> usize {
             self.voices.len()
         }
 
+        /// Pause a channel. The other channels go on.
         pub fn pause(&mut self, c: Channel) {
             if let Some(v) = self.voices.get(c) {
                 v.sink.pause();
             }
         }
 
+        /// Resume a paused channel.
         pub fn resume(&mut self, c: Channel) {
             if let Some(v) = self.voices.get(c) {
                 v.sink.play();
             }
         }
 
+        /// Whether the channel is paused.
         pub fn is_paused(&self, c: Channel) -> bool {
             self.voices.get(c).is_some_and(|v| v.sink.is_paused())
         }
@@ -398,6 +420,7 @@ mod native {
                 .min(v.sound.duration())
         }
 
+        /// Move a channel to a position in its sound.
         pub fn seek(&mut self, c: Channel, position: Duration) -> Result<(), String> {
             if let Some(v) = self.voices.get(c) {
                 v.sink
@@ -416,12 +439,14 @@ mod native {
             }
         }
 
+        /// Change a channel's pitch, in semitones.
         pub fn set_pitch(&mut self, c: Channel, semitones: f32) {
             if let Some(v) = self.voices.get(c) {
                 v.sink.set_speed(pitch_ratio(semitones));
             }
         }
 
+        /// Change whether a channel loops.
         pub fn set_looping(&mut self, c: Channel, looping: bool) {
             if let Some(v) = self.voices.get(c) {
                 v.looping.store(looping, Ordering::Relaxed);
@@ -650,15 +675,18 @@ mod web {
                 .is_some_and(|v| !v.paused && !Self::ended(now, v))
         }
 
+        /// Whether the channel is allocated and has not finished, paused or not.
         pub fn is_active(&self, c: Channel) -> bool {
             let now = self.now();
             self.voices.get(c).is_some_and(|v| !Self::ended(now, v))
         }
 
+        /// The number of channels in use.
         pub fn active(&self) -> usize {
             self.voices.len()
         }
 
+        /// Pause a channel. The other channels go on.
         pub fn pause(&mut self, c: Channel) {
             let now = self.now();
             if let Some(v) = self.voices.get_mut(c) {
@@ -675,6 +703,7 @@ mod web {
             }
         }
 
+        /// Resume a paused channel.
         pub fn resume(&mut self, c: Channel) {
             let Some(ctx) = self.context.clone() else {
                 return;
@@ -689,6 +718,7 @@ mod web {
             }
         }
 
+        /// Whether the channel is paused.
         pub fn is_paused(&self, c: Channel) -> bool {
             self.voices.get(c).is_some_and(|v| v.paused)
         }
@@ -707,6 +737,7 @@ mod web {
             Duration::from_secs_f64(t.max(0.0))
         }
 
+        /// Move a channel to a position in its sound.
         pub fn seek(&mut self, c: Channel, position: Duration) -> Result<(), String> {
             let Some(ctx) = self.context.clone() else {
                 return Ok(());
@@ -730,6 +761,7 @@ mod web {
             }
         }
 
+        /// Change a channel's pitch, in semitones.
         pub fn set_pitch(&mut self, c: Channel, semitones: f32) {
             let now = self.now();
             if let Some(v) = self.voices.get_mut(c) {
@@ -743,6 +775,7 @@ mod web {
             }
         }
 
+        /// Change whether a channel loops.
         pub fn set_looping(&mut self, c: Channel, looping: bool) {
             if let Some(v) = self.voices.get_mut(c) {
                 v.looping = looping;

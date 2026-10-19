@@ -10,8 +10,11 @@ use crate::material::MaterialKind;
 /// Everything about one draw range except its geometry bytes.
 #[derive(Debug, Clone)]
 pub struct RangeMaterial {
+    /// The shader the range is drawn with.
     pub kind: MaterialKind,
+    /// The reference of the `diffuse` texture.
     pub diffuse: Option<String>,
+    /// The reference of the `snow` texture, for materials that hold snow.
     pub snow: Option<String>,
     /// The damaged materials' `damage` texture (`OpaqueSnowDamageMaterial` and the like).
     pub damage: Option<String>,

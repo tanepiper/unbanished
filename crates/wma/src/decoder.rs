@@ -39,6 +39,8 @@ struct Channel {
     frame_out: Vec<f32>,
 }
 
+/// A WMA v2 decoder for one stream. Give it the packets in order with
+/// [`decode_packet`](Self::decode_packet), then call [`flush`](Self::flush) once at the end.
 pub struct Decoder {
     channels: usize,
     sample_rate: u32,
@@ -78,6 +80,8 @@ pub struct Decoder {
 }
 
 impl Decoder {
+    /// A decoder for a stream with these parameters. It fails when the format tag is not WMA v2
+    /// or the parameters are not supported.
     pub fn new(p: &Params) -> Result<Self> {
         if p.tag != crate::WMAV2 {
             return Err(Error::Unsupported(
@@ -254,10 +258,12 @@ impl Decoder {
         })
     }
 
+    /// The number of channels.
     pub fn channels(&self) -> usize {
         self.channels
     }
 
+    /// The sample rate, in samples per second.
     pub fn sample_rate(&self) -> u32 {
         self.sample_rate
     }
