@@ -1,0 +1,19 @@
+{"file": "apps/game/src/gfx/render.rs", "type": "Renderer",
+ "modules": {
+  "targets": {"doc": "The offscreen render targets: creating them on resize and resolving antialiased passes.",
+   "impls": ["impl Targets {"]},
+  "lighting": {"doc": "The sun and ambient light by month, weather and season.",
+   "impls": ["impl Lighting {"]},
+  "video": {"doc": "Video settings: backends, present mode, and applying a changed configuration.",
+   "items": ["BACKENDS", "present_mode"], "methods": ["apply_video"],
+   "impls": ["impl Default for VideoSettings {", "impl From<&crate::settings::VideoConfig> for VideoSettings {", "impl VideoSettings {"]},
+  "capture": {"doc": "Reading frames back from the GPU: save previews, screenshots and headless captures.",
+   "methods": ["begin_readback", "map", "begin_capture", "poll_capture", "capture"],
+   "impls": ["impl Readback {"]},
+  "minimap": {"doc": "The minimap: updating and drawing it.",
+   "methods": ["update_minimap", "render_minimap"]},
+  "uploads": {"doc": "Uploading data to the GPU: UI sheets, images, the scene and the terrain.",
+   "methods": ["reset_ui_sheets", "set_ui_time", "upload", "upload_image", "set_scene", "set_terrain"]},
+  "frame": {"doc": "Drawing a frame: the passes, the terrain, the sun camera and the shared uniforms.",
+   "methods": ["render", "draw_terrain", "draw_terrain_with", "scene_pass", "draw", "sun_camera", "write_globals"]}
+ }}
