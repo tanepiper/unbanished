@@ -13,7 +13,9 @@
 //   node tools/firefox-check.mjs 9333 "http://127.0.0.1:8733/?data=/game-data/" OUT 80 \
 //     640,292@20 812,558@22          # New, then Ok: a new game
 // Click coordinates are for a 1280x800 page and are shifted for other sizes (dialogs are
-// centred). OUT gets console.txt, t5.png, t15.png, ... and final.png.
+// centred). OUT gets console.txt, t5.png, t15.png, ... and final.png. Every 10 s it also logs
+// the Web Audio state and output level (RMS) through an analyser on the destination; the
+// context stays suspended until the first click in the game (browser autoplay rules).
 import { writeFileSync, mkdirSync } from 'node:fs'
 
 const [port, url, out, secs, ...clicks] = process.argv.slice(2)
@@ -49,6 +51,31 @@ await send('session.subscribe', { events: ['log.entryAdded'] })
 const tree = await send('browsingContext.getTree', {})
 const ctx = tree.result.contexts[0].context
 await send('browsingContext.setViewport', { context: ctx, viewport: { width: 1280, height: 800 } })
+// Audio probe: every AudioNode connected to a context's destination is also fed to an analyser,
+// so `__audioProbe()` reports the context state and the output level.
+await send('script.addPreloadScript', {
+  functionDeclaration: `() => {
+    const probes = []
+    const connect = AudioNode.prototype.connect
+    AudioNode.prototype.connect = function (dest, ...rest) {
+      const r = connect.call(this, dest, ...rest)
+      if (dest instanceof AudioDestinationNode) {
+        const a = this.context.createAnalyser()
+        a.fftSize = 2048
+        connect.call(this, a)
+        probes.push(a)
+      }
+      return r
+    }
+    window.__audioProbe = () => probes.map((a) => {
+      const d = new Float32Array(a.fftSize)
+      a.getFloatTimeDomainData(d)
+      let s = 0
+      for (const v of d) s += v * v
+      return { state: a.context.state, time: +a.context.currentTime.toFixed(1), rms: +Math.sqrt(s / d.length).toFixed(5) }
+    })
+  }`,
+})
 await send('browsingContext.navigate', { context: ctx, url, wait: 'complete' })
 const start = Date.now()
 const shot = async (name) => {
@@ -73,7 +100,11 @@ while ((Date.now() - start) / 1000 < Number(secs)) {
       console.log(`clicked ${x},${y} at ${t.toFixed(1)}s`)
     }
   }
-  if (t >= next) { await shot(`t${Math.round(t)}`); next += 10 }
+  if (t >= next) {
+    await shot(`t${Math.round(t)}`)
+    console.log(`audio t=${Math.round(t)}`, await evaluate('JSON.stringify(window.__audioProbe ? __audioProbe() : null)'))
+    next += 10
+  }
   await new Promise((r) => setTimeout(r, 250))
 }
 await shot('final')
