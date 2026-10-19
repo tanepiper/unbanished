@@ -5,7 +5,7 @@ members = ["crates/formats", "crates/wma", "crates/ui", "crates/game", "crates/g
 [workspace.package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/tanepiper/banished-decompile"
+repository = "https://github.com/tanepiper/unbanished"
 
 [profile.dev.package."*"]
 opt-level = 2

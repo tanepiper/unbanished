@@ -22,6 +22,9 @@ identifiers as part of unrelated work.
    save files (`*.sav`, e.g. in `save-game/`) are git-ignored and stay that way. Never force-add past `.gitignore`. Never paste
    decompiled C, disassembly, shader bytecode or resource dumps into tracked files: describe
    findings in prose, tables, addresses (`FUN_1400be770`), offsets (`+0x44`) and constants.
+   The one exception is the handful of screenshots in `docs/assets/screenshots/` that show the
+   game running for the README and setup guide: compressed WebP of Un-Banished's own frames,
+   made with `tools/screenshots.sh`. Add to them only when the docs need it.
 2. **Evidence before code.** Every ported behaviour cites the original function it came from in a
    doc comment (`/// Port of FUN_1400be680: …`). A guess is marked *inferred* or *assumed* in the
    comment and the docs. Check against the decompile or the emulator; don't invent behaviour.

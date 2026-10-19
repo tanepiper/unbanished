@@ -3,102 +3,115 @@
 </p>
 
 <p align="center">
-  <strong>Play <em>Banished</em> natively on Windows, macOS and Linux — or right in your browser.</strong><br>
-  A from-scratch reimplementation in Rust, wgpu and WebAssembly that runs on the game data you already own.
+  <strong>Play <em>Banished</em> natively on Windows, macOS and Linux, or right in your browser.</strong><br>
+  A new engine, written from scratch in Rust, that runs the game data you already own.
 </p>
 
 <p align="center">
-  <a href="docs/USER-GUIDE.md">User guide</a> ·
-  <a href="#quick-start">Quick start</a> ·
+  <a href="#licence"><img alt="Licence: MIT or Apache-2.0" src="https://img.shields.io/badge/licence-MIT%20or%20Apache--2.0-blue"></a>
+  <img alt="Status: beta" src="https://img.shields.io/badge/status-beta-orange">
+  <img alt="Platforms" src="https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-lightgrey">
+</p>
+
+<p align="center">
+  <a href="docs/USER-GUIDE.md"><strong>Setup guide</strong></a> ·
+  <a href="#get-started">Get started</a> ·
   <a href="#controls">Controls</a> ·
   <a href="#faq">FAQ</a> ·
   <a href="AGENTS.md">Contributing</a> ·
   <a href="docs/FINDINGS.md">Research notes</a>
 </p>
 
----
+<p align="center">
+  <img src="docs/assets/screenshots/town-hall.webp" alt="A grown town in Un-Banished, with the Town Hall window open on its Inventory tab" width="900">
+</p>
 
 ## What is Un-Banished?
 
 [Banished](https://www.shiningrocksoftware.com/) is a city-building game by Shining Rock Software
-about a group of exiled travellers who start a new life in an unforgiving land. Version 1.0.7
-shipped as a 32/64-bit Windows program.
+about a group of exiled travellers who start a new life in an unforgiving land. It was released
+for Windows only, and its last version is 1.0.7.
 
-**Un-Banished** is a new engine that plays the same game everywhere. It reads the original game's
-data files and recreates the game's rules, menus, graphics and sound from careful study of
-how the original works, aiming for a **1:1 match**: the same maps from the same seed, the same
-citizens, the same timings and the same save files.
+**Un-Banished is a reimplementation of the game's engine.** Every line of it is new code. It
+contains none of the original's code, art, sound or text. Instead, it reads the data files from
+your own copy of Banished and recreates the rules, menus, graphics and sound around them. The
+target is a **1:1 match**: the same maps from the same seed, the same citizens, the same timings
+and the same save files.
 
 - 🖥️ **Native** on Windows, macOS (Apple Silicon and Intel) and Linux.
-- 🌐 **In the browser** via WebAssembly — your game files never leave your machine.
-- 💾 **Compatible saves**: the original's save format, so your existing towns load as they are.
-- 🧩 **Mods**: BanishedKit `.pkm` mods load through the original's Mods menu.
-- 🎓 Tutorials, scenarios and achievements, as in the original.
+- 🌐 **In the browser** through WebAssembly. Your game files are read inside the page and never uploaded.
+- 💾 **Your existing saves** load as they are: it uses the original's save format and folder.
+- 🧩 **Mods** made with the BanishedKit (`.pkm`) work through the Mods menu, as in the original.
+- 🎓 **Tutorials, scenarios and achievements**, as in the original.
 
 > [!IMPORTANT]
-> **Un-Banished contains no game content.** You need your own copy of Banished
-> ([Steam](https://store.steampowered.com/app/242920/Banished/) or GOG) — the engine reads the
-> `.pkg` files from its `WinData` folder.
+> **You need your own copy of Banished** from [Steam](https://store.steampowered.com/app/242920/Banished/)
+> or GOG. Un-Banished ships no game content and does nothing without it.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="docs/assets/screenshots/main-menu.webp" alt="The main menu over one of its 3D town scenes"></td>
+    <td><img src="docs/assets/screenshots/new-game.webp" alt="The first moments of a new game: the settlers by their first stockpile"></td>
+  </tr>
+  <tr>
+    <td align="center">The main menu</td>
+    <td align="center">A new town's first minute</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/assets/screenshots/town-overview.webp" alt="A town of houses, fields and an orchard cut into a forest"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">A town loaded from a save</td>
+  </tr>
+</table>
+
+<sub>All screenshots are from Un-Banished running on a player's own copy of the game. The art in them
+belongs to Shining Rock Software.</sub>
 
 ## Status
 
-**Beta.** The whole game loop runs: new games and loading, the town and its citizens through the
-seasons, every building and tool, trade, disasters, the event log, options, mods, tutorials and
-achievements. Map generation and most game rules are verified bit-for-bit against the original.
-Work continues on the remaining fine details; see [docs/PARITY-AUDIT.md](docs/PARITY-AUDIT.md) for
-what has been checked and [docs/DEVIATIONS.md](docs/DEVIATIONS.md) for the known differences.
+**Beta.** The whole game runs. You can start new games and load saves, and play your town and its
+citizens through the seasons with every building and tool. Trade, disasters, the event log,
+options, mods, tutorials and achievements all work. Map generation and most game rules are checked
+number for number against the original.
 
-If you find something that behaves differently from the original, please open an issue — those
-reports are the most useful thing you can send.
+There are still some rough edges, tracked in the
+[issues](https://github.com/tanepiper/unbanished/issues). [docs/DEVIATIONS.md](docs/DEVIATIONS.md)
+lists the known differences, and [docs/PARITY-AUDIT.md](docs/PARITY-AUDIT.md) shows what has been
+checked. If something plays differently from the original, please
+[report it](https://github.com/tanepiper/unbanished/issues/new/choose). Those reports help the
+most.
 
-## Quick start
+## Get started
 
-There are no prebuilt downloads yet; build from source with the steps below (about five minutes
-on a recent machine).
-
-### 1. Install the tools
-
-- [Rust](https://rustup.rs/) (stable).
-- Python 3.10 or newer (for the data helper script).
-- For the browser version also: `rustup target add wasm32-unknown-unknown` and `cargo install trunk`.
-
-### 2. Get the code and your game data
+There are no ready-made downloads yet, so you build it yourself. It's four commands and about
+five minutes. The **[setup guide](docs/USER-GUIDE.md)** walks through every step for Windows,
+macOS and Linux.
 
 ```bash
-git clone https://github.com/tanepiper/banished-decompile.git un-banished
-cd un-banished
-tools/extract-assets.sh          # finds your Steam install; or: BANISHED_DIR=/path/to/Banished tools/extract-assets.sh
+# 1. Get the code
+git clone https://github.com/tanepiper/unbanished.git
+cd unbanished
+
+# 2. Build it (needs Rust: https://rustup.rs)
+cargo build -p banished-app --release
+
+# 3. Play, pointing it at your game's WinData folder
+target/release/banished "/path/to/Banished/WinData"
 ```
 
-The script copies your game's files into `game-data/`, which git ignores.
+On Windows, step 3 is `target\release\banished.exe "C:\Program Files (x86)\Steam\steamapps\common\Banished\WinData"`.
 
-### 3. Play
+You can also copy the built `banished` (or `banished.exe`) into your Banished folder, next to
+`WinData`, and run it from there. It then works like the original program, saves included.
 
-**On your desktop:**
-
-```bash
-cargo run -p banished-app --release
-```
-
-**In your browser:**
-
-```bash
-tools/dev-web.sh --app game --release
-```
-
-Then open <http://127.0.0.1:8733/>. Pick `data0.pkg`, `data1.pkg`, `patch0.pkg` and `patch1.pkg`
-from Banished's `WinData` folder when the page asks; they are read in the page and never uploaded.
-
-**As a drop-in for the original:** copy the built `target/release/banished` (`banished.exe` on
-Windows) into your Banished folder next to `WinData`. It then reads the game data there and uses
-the same save folder as the original (`Documents/Banished/Save`).
-
-The [user guide](docs/USER-GUIDE.md) covers all of this in detail, plus saves, mods, settings and
-troubleshooting.
+**To play in the browser**, see [Play in the browser](docs/USER-GUIDE.md#play-in-the-browser).
 
 ## Controls
 
-The defaults are the original's, and can be changed under **Options → Input**.
+The defaults match the original game, and you can change them under **Options → Input**.
 
 | Action | Keys / mouse |
 |---|---|
@@ -116,22 +129,27 @@ The defaults are the original's, and can be changed under **Options → Input**.
 
 ## FAQ
 
-**Is this legal? Is it a crack?** No. Un-Banished ships no game code, art, sound or text, and it
-cannot run without your own copy of the game. It is an independent, non-commercial
-interoperability project.
+**Is this a crack or a pirated copy?** No. Un-Banished contains no game code, art, sound or text,
+and it can't run without your own copy of the game. It is an independent, non-commercial
+project.
 
-**Can I use my existing saves?** Yes, on the desktop. It uses the original's save folder
-(`Documents/Banished/Save`), so your towns appear in the Load dialog. The browser version keeps its
-own saves inside the browser.
+**How was it made without the source code?** By studying how the original program behaves:
+tracing what each function does, then running parts of it in an emulator to check exact numbers.
+The findings are written up in plain language in [docs/](docs/FINDINGS.md), and the Rust code is
+written fresh from those notes. No original code is copied into this repository.
 
-**Do mods work?** BanishedKit mods (`.pkm`) work: put them in `WinData` (desktop) or select or drop
-them onto the page (browser), then enable them in the Mods menu.
+**Can I use my existing saves?** Yes, on the desktop. Un-Banished uses the original's save
+folder (`Documents/Banished/Save`), so your towns show up in the Load dialog. The browser version
+keeps its own saves inside the browser.
 
-**Which browsers work?** It is tested in recent Chrome; Edge should behave the same. WebGPU is
-used where available, with WebGL 2 as a fallback, so other modern browsers may work too.
+**Do mods work?** Yes, BanishedKit mods (`.pkm`). On the desktop, put them in `WinData`. In the
+browser, select them or drop them onto the page. Then turn them on in the Mods menu.
 
-**Does it run on a Steam Deck / Raspberry Pi / …?** Anything with a GPU that supports Vulkan,
-Metal, DirectX 12 or OpenGL ES 3 should work. Reports are welcome.
+**Which browsers work?** It is tested in recent Chrome, and Edge should behave the same. It uses
+WebGPU where the browser has it, and WebGL 2 otherwise, so other modern browsers may work too.
+
+**Will it run on a Steam Deck, a Raspberry Pi, …?** Anything with a GPU that supports Vulkan,
+Metal, DirectX 12 or OpenGL ES 3 should work. Please report how it goes.
 
 ## For developers
 
@@ -149,19 +167,37 @@ The project is a Rust workspace:
 | `tools/` | Data extraction, emulator checks, analysis scripts |
 
 ```bash
+tools/extract-assets.sh              # copy your game data into game-data/ (git-ignored)
 cargo test --release                 # tests that need game data skip when game-data/ is missing
 cargo run -p banished-viewer --release
 ```
 
-Read **[AGENTS.md](AGENTS.md)** before contributing (by hand or with an AI agent): it has the
-project rules, the checks to run before a commit, and where to find things.
-[docs/FINDINGS.md](docs/FINDINGS.md) is the starting point for the research notes.
+Read **[AGENTS.md](AGENTS.md)** before contributing, whether by hand or with an AI agent. It has the
+project rules, the checks to run before a commit, and where to find things. Issues and pull
+requests use the templates in [.github/](.github/).
+
+## Licence
+
+Un-Banished's source code is licensed under either of
+
+- the [Apache License, Version 2.0](LICENSE-APACHE), or
+- the [MIT licence](LICENSE-MIT)
+
+at your option.
+
+Unless you explicitly state otherwise, any contribution you intentionally submit for inclusion in
+the work, as defined in the Apache-2.0 licence, is dual-licensed as above, without any additional
+terms or conditions.
+
+The licence covers this repository's own code and documentation only. It does not cover Banished
+or its data, which you need to supply yourself.
 
 ## Legal
 
-Banished is © Shining Rock Software, LLC. Un-Banished is an independent, non-commercial
-interoperability project. It is **not affiliated with or endorsed by Shining Rock Software**.
-"Banished" is used only to say which game this engine plays.
+Banished is © Shining Rock Software, LLC. Un-Banished is **not affiliated with or endorsed by
+Shining Rock Software**. The name "Banished" is used only to say which game this engine plays.
+The screenshots above show the original game's art, rendered by Un-Banished from a player's own
+copy.
 
-The Un-Banished source code is licensed under MIT or Apache-2.0, at your option. It includes no
-game files, extracted assets or decompiled code, and contributions must not add any.
+This repository contains no game files, extracted assets or decompiled code, and contributions
+must not add any.

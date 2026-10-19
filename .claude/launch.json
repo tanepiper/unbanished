@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "game-web",
+      "runtimeExecutable": "tools/dev-web.sh",
+      "runtimeArgs": ["--app", "game", "--release"],
+      "port": 8733
+    }
+  ]
+}

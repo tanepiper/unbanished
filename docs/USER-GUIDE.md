@@ -1,118 +1,221 @@
 <p align="center"><img src="assets/un-banished-logo.svg" alt="Un-Banished" width="560"></p>
 
-# Un-Banished user guide
+# Un-Banished setup guide
 
-This guide covers installing Un-Banished, pointing it at your game data, and where it keeps your
-saves, settings and mods. For what the project is, see the [README](../README.md).
+This guide takes you from nothing to playing in about ten minutes. It also covers where
+Un-Banished keeps your saves, settings and mods, and what to do when something goes wrong. For
+what the project is, see the [README](../README.md).
 
-- [What you need](#what-you-need)
-- [Build Un-Banished](#build-un-banished)
-- [Play on the desktop](#play-on-the-desktop)
+**Setup**
+
+1. [Check what you need](#1-check-what-you-need)
+2. [Install the build tools](#2-install-the-build-tools)
+3. [Download and build Un-Banished](#3-download-and-build-un-banished)
+4. [Find your game data](#4-find-your-game-data)
+5. [Play](#5-play)
+
+**Reference**
+
 - [Play in the browser](#play-in-the-browser)
-- [Controls](#controls)
-- [Saves](#saves)
-- [Settings](#settings)
-- [Mods](#mods)
+- [Controls](#controls) · [Saves](#saves) · [Settings](#settings) · [Mods](#mods)
 - [Command-line options](#command-line-options)
 - [Troubleshooting](#troubleshooting)
 - [Reporting a difference from the original](#reporting-a-difference-from-the-original)
 
-## What you need
+---
 
-1. **A copy of Banished** (1.0.7, from Steam or GOG). Un-Banished reads four files from the game's
-   `WinData` folder: `data0.pkg`, `data1.pkg`, `patch0.pkg` and `patch1.pkg`. It includes none of
-   the game's content itself.
+## 1. Check what you need
 
-   Where to find `WinData`:
+| You need | Why |
+|---|---|
+| **Banished 1.0.7** from Steam or GOG | Un-Banished reads the game's art, sound and data from your copy. It includes none of its own. |
+| **A graphics card from the last ten years** | Anything with Vulkan, Metal, DirectX 12 or OpenGL ES 3. |
+| **About 3 GB of free disk space** | For the build tools and the compiled game. |
 
-   | Install | Folder |
-   |---|---|
-   | Steam, Windows | `C:\Program Files (x86)\Steam\steamapps\common\Banished\WinData` |
-   | Steam, Linux | `~/.steam/steam/steamapps/common/Banished/WinData` |
-   | Steam, macOS | `~/Library/Application Support/Steam/steamapps/common/Banished/WinData` |
-   | Other | the game's install folder (the one with its `.exe` files), then `WinData` |
+Banished itself only runs on Windows, but you only need its data files, and they work on any
+system. On a Mac or Linux PC you can get them in either of these ways:
 
-   The game is Windows-only, but Steam on macOS and Linux can still download it: use Steam's
-   console (`steam://open/console`) and run `download_depot 242920 242921`, or install it on any
-   Windows machine and copy the `WinData` folder across.
+- **Steam console:** open `steam://open/console` in your browser (Steam opens its console), then
+  run `download_depot 242920 242921`. Steam prints the folder it downloaded to.
+- **Copy from a Windows PC:** install Banished there and copy its `WinData` folder across.
 
-2. **A graphics card** that supports Vulkan, Metal, DirectX 12 or OpenGL ES 3 — anything from the
-   last ten years.
+## 2. Install the build tools
 
-3. **To build it** (until prebuilt releases are published):
-   - [Rust](https://rustup.rs/), stable toolchain;
-   - Python 3.10 or newer;
-   - for the browser version: `rustup target add wasm32-unknown-unknown` and `cargo install trunk`.
+Un-Banished is written in [Rust](https://www.rust-lang.org/). There are no prebuilt downloads
+yet, so you install Rust once and it builds the game for you. Pick your system:
 
-## Build Un-Banished
+<details>
+<summary><strong>Windows</strong></summary>
+
+1. Download and run **rustup-init.exe** from <https://rustup.rs>.
+2. If it asks to install the *Visual Studio C++ build tools*, say yes and accept the defaults.
+   Rust needs them to build Windows programs.
+3. When it asks how to install Rust, press **Enter** to choose the default.
+4. Install **Git** from <https://git-scm.com/download/win> (the defaults are fine).
+5. Open a new **PowerShell** or **Terminal** window so it picks up the new tools.
+
+</details>
+
+<details>
+<summary><strong>macOS</strong></summary>
+
+1. Open **Terminal** (in Applications → Utilities).
+2. Install Apple's command-line tools, which include Git:
+   ```bash
+   xcode-select --install
+   ```
+3. Install Rust and accept the default option:
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+4. Close Terminal and open it again so it picks up the new tools.
+
+</details>
+
+<details>
+<summary><strong>Linux</strong></summary>
+
+1. Install a C compiler, Git and the ALSA sound headers. On Debian or Ubuntu:
+   ```bash
+   sudo apt install build-essential git pkg-config libasound2-dev
+   ```
+   On Fedora: `sudo dnf install gcc git pkgconf-pkg-config alsa-lib-devel`.
+   On Arch: `sudo pacman -S base-devel git alsa-lib`.
+2. Install Rust and accept the default option:
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+3. Open a new terminal so it picks up the new tools. Check that your graphics driver supports
+   Vulkan: `vulkaninfo --summary` should list your GPU.
+
+</details>
+
+To check it worked, run `cargo --version` in the new terminal. It should print a version number.
+
+## 3. Download and build Un-Banished
+
+In the terminal, run:
 
 ```bash
-git clone https://github.com/tanepiper/banished-decompile.git un-banished
-cd un-banished
+git clone https://github.com/tanepiper/unbanished.git
+cd unbanished
 cargo build -p banished-app --release
 ```
 
-The game is now at `target/release/banished` (`banished.exe` on Windows).
+The first build downloads its libraries and takes a few minutes. Later builds are much faster.
+When it finishes, the game is at:
 
-### Copy in your game data (optional)
+| System | File |
+|---|---|
+| Windows | `target\release\banished.exe` |
+| macOS, Linux | `target/release/banished` |
 
-When you run from the source folder, Un-Banished looks for the game data in `game-data/`. Fill it
-with:
+To update later, run `git pull` in the same folder, then the `cargo build` line again.
+
+## 4. Find your game data
+
+Un-Banished reads four files from your game's `WinData` folder: `data0.pkg`, `data1.pkg`,
+`patch0.pkg` and `patch1.pkg`. It only reads them and never changes them.
+
+| Where you got Banished | The `WinData` folder |
+|---|---|
+| Steam, Windows | `C:\Program Files (x86)\Steam\steamapps\common\Banished\WinData` |
+| Steam, macOS | `~/Library/Application Support/Steam/steamapps/common/Banished/WinData` |
+| Steam, Linux | `~/.steam/steam/steamapps/common/Banished/WinData` |
+| GOG or elsewhere | the folder with Banished's `.exe` files, then `WinData` inside it |
+
+> [!TIP]
+> In Steam you can right-click **Banished → Manage → Browse local files** to open the game's
+> folder.
+
+## 5. Play
+
+Choose whichever of these suits you.
+
+**A. Point it at the folder.** This works anywhere:
 
 ```bash
-tools/extract-assets.sh
+# Windows (PowerShell)
+target\release\banished.exe "C:\Program Files (x86)\Steam\steamapps\common\Banished\WinData"
+
+# macOS
+target/release/banished ~/Library/Application\ Support/Steam/steamapps/common/Banished/WinData
+
+# Linux
+target/release/banished ~/.steam/steam/steamapps/common/Banished/WinData
 ```
 
-It checks the usual Steam folders. If your copy is somewhere else, tell it where:
+**B. Put it next to the game.** Copy `banished.exe` (or `banished`) into your Banished folder,
+next to `WinData`. Run it from there, or make a desktop shortcut to it. It then behaves like the
+original program: it finds `WinData` beside it and shares the original's save folder.
+
+**C. Run it from the source folder.** This suits contributors. Copy your data in once, then play
+with `cargo run`:
 
 ```bash
-BANISHED_DIR="/path/to/Banished" tools/extract-assets.sh
+tools/extract-assets.sh          # finds the usual Steam folders
+cargo run -p banished-app --release
 ```
 
-`BANISHED_DIR` is the folder that *contains* `WinData`. The copy goes to `game-data/`, which git
-ignores, so it never ends up in a commit.
+If your copy is somewhere else, run `BANISHED_DIR="/path/to/Banished" tools/extract-assets.sh`.
+`BANISHED_DIR` is the folder that *contains* `WinData`. The script needs Python 3 and a `bash`
+shell (on Windows, use Git Bash). The copy goes into `game-data/`, which git ignores, so it never
+ends up in a commit.
 
-## Play on the desktop
+The game then starts like the original: the splash screen, the loading screen, then the main
+menu with its music and a 3D town scene. New Game, Load, Tutorials, Achievements, Mods and Options all
+work.
 
-There are three ways to point Un-Banished at your data, tried in this order:
+<p align="center">
+  <img src="assets/screenshots/main-menu.webp" alt="The Un-Banished main menu" width="720">
+</p>
 
-1. **A folder on the command line:**
-   ```bash
-   target/release/banished "/path/to/Banished/WinData"
-   ```
-2. **Next to the game.** Copy `banished` (or `banished.exe`) into your Banished folder, next to
-   `WinData`, and run it from there. It then behaves like the original executable: it reads
-   `WinData` beside it and uses the original's save folder.
-3. **From the source folder**, using the copy made by `tools/extract-assets.sh`:
-   ```bash
-   cargo run -p banished-app --release
-   ```
+Choose **New**, accept the defaults and press **OK**, and your settlers arrive by their first
+stockpile:
 
-The game starts as the original does: the splash screen, loading, then the main menu with its
-music and 3D town. From there, New Game, Load, Tutorials, Achievements, Mods and Options all work
-as in Banished.
+<p align="center">
+  <img src="assets/screenshots/new-game.webp" alt="The first minute of a new game" width="720">
+</p>
+
+Click any building or citizen to open its window. This is the Town Hall in a grown town:
+
+<p align="center">
+  <img src="assets/screenshots/town-hall.webp" alt="The Town Hall window in a grown town" width="720">
+</p>
+
+---
 
 ## Play in the browser
 
-The browser build is the same game compiled to WebAssembly.
+The browser version is the same game compiled to WebAssembly. Your game files are read inside
+the page and are never uploaded. It needs two extra tools, installed once:
+
+```bash
+rustup target add wasm32-unknown-unknown
+cargo install trunk
+```
+
+Then start the local server from the source folder:
 
 ```bash
 tools/dev-web.sh --app game --release
 ```
 
-Open <http://127.0.0.1:8733/>. A panel asks for your game data: select **all four** `.pkg` files
-from `WinData` at once (`data0.pkg`, `data1.pkg`, `patch0.pkg`, `patch1.pkg`). The page reads them
-locally; nothing is uploaded anywhere.
+1. Open <http://127.0.0.1:8733/> in Chrome or Edge.
+2. A **Load your game data** panel appears at the top left. Press **Choose files** and select
+   **all four** `.pkg` files from `WinData` together (`data0.pkg`, `data1.pkg`, `patch0.pkg`,
+   `patch1.pkg`). Hold Ctrl (Cmd on a Mac) to select several files.
+3. Click the game once so it receives keyboard input and can start its sound.
 
-If you ran `tools/extract-assets.sh`, you can skip the file picker:
-<http://127.0.0.1:8733/?data=/game-data/> loads the extracted copy through the local dev server.
+If you ran `tools/extract-assets.sh`, you can skip the file picker by opening
+<http://127.0.0.1:8733/?data=/game-data/>, which loads your extracted copy.
 
-**Browser notes**
-- Tested in recent Chrome. WebGPU is used where the browser has it, with WebGL 2 as a fallback.
-- Click the game once so it receives keyboard input.
-- Saves, settings and mods are kept in the browser's own storage for this page (see below).
+**Good to know**
+- It uses WebGPU where the browser has it, and WebGL 2 otherwise.
+- Saves, settings and mods are kept in the browser's storage for this page (see below).
   Clearing the site's data removes them.
-- `tools/dev-web.sh` is a local development server. Don't expose it to the internet.
+- `tools/dev-web.sh` is a server for your own machine only. Don't make it reachable from the
+  internet.
 
 ## Controls
 
@@ -226,11 +329,15 @@ the game once.
 ## Reporting a difference from the original
 
 Un-Banished aims to behave exactly like Banished 1.0.7. If something looks, sounds or plays
-differently, please open an issue with:
+differently, or doesn't work, please [open an issue](https://github.com/tanepiper/unbanished/issues/new/choose).
+The forms there ask for what's needed:
 
-- what you did, and what the original does instead;
-- your system (OS, desktop or browser, GPU);
-- if you can, the save file (`Documents/Banished/Save/*.sav`) and a screenshot from both games.
+- **Parity difference:** what the original does, what Un-Banished does, and how to see it.
+- **Bug report:** something broken or impossible to do.
+- **Performance problem:** stutters, slowdowns, long loads.
+
+Screenshots or a short video from both games help a lot. Please don't attach the game's own
+files (`.pkg`, `.exe`, extracted art or sound).
 
 Known, deliberate differences are listed in [DEVIATIONS.md](DEVIATIONS.md), and what has been
 verified is in [PARITY-AUDIT.md](PARITY-AUDIT.md).
