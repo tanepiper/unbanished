@@ -11,6 +11,14 @@ Rust + wgpu. It runs natively and in the browser (WASM) on the player's own game
 the behaviour, data formats, constants, timings and interface match the original executable,
 down to float rounding where the simulation depends on it. It is not "inspired by".
 
+1:1 applies to what the player can observe, not to how the port is built inside. Where it changes
+nothing observable (rules, numbers, Random order, saves, visuals), make the port efficient in
+memory, CPU and GPU: share assets instead of copying them per instance, upload each texture
+once, avoid rebuilding unchanged data every frame. The browser build runs in a 4 GB wasm heap, so
+waste shows up as crashes and stutter. Look for such waste while you work, measure it before and
+after, and fix it; `determinism.sh` and the emulator tests must still pass. A change like this is
+not a deviation.
+
 The code names keep the project's working name: crates `banished-*`, the binary `banished`, the
 settings folder `banished-wasm`. The product name is **Un-Banished**; don't rename code
 identifiers as part of unrelated work.

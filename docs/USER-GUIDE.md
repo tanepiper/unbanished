@@ -288,7 +288,7 @@ Then start the local server from the source folder:
 tools/dev-web.sh --app game --release
 ```
 
-1. Open <http://127.0.0.1:8733/> in Chrome or Edge.
+1. Open <http://127.0.0.1:8733/> in Chrome, Edge or Firefox.
 2. A **Load your game data** panel appears at the top left. Press **Choose files**. Select
    **all four** `.pkg` files from `WinData` at the same time: `data0.pkg`, `data1.pkg`,
    `patch0.pkg` and `patch1.pkg`. To select several files, hold Ctrl (Cmd on a Mac).

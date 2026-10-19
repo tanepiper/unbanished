@@ -220,11 +220,10 @@ fn pipeline(
 fn linear_view(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-    img: &Option<ImageBuffer>,
+    img: &ImageBuffer,
     fallback: &wgpu::TextureView,
 ) -> wgpu::TextureView {
-    img.as_ref()
-        .and_then(|i| banished_gfx::upload_image_linear(device, queue, "scene texture", i))
+    banished_gfx::upload_image_linear(device, queue, "scene texture", img)
         .unwrap_or_else(|| fallback.clone())
 }
 
@@ -701,16 +700,13 @@ impl SceneExtrasRenderer {
     ) {
         let mut views: std::collections::HashMap<usize, wgpu::TextureView> = Default::default();
         let white = self.white.clone();
-        let mut view = |img: &Option<ImageBuffer>| -> wgpu::TextureView {
-            let key = img
-                .as_ref()
-                .and_then(|i| i.levels.first())
-                .map_or(0, |l| l.as_ptr() as usize);
-            if key == 0 {
+        // One upload per shared texture (`DecalCache`), keyed by its allocation.
+        let mut view = |img: &crate::scene_assets::DecalImage| -> wgpu::TextureView {
+            let Some(img) = img else {
                 return white.clone();
-            }
+            };
             views
-                .entry(key)
+                .entry(std::sync::Arc::as_ptr(img) as usize)
                 .or_insert_with(|| linear_view(device, queue, img, &white))
                 .clone()
         };

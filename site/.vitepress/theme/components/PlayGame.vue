@@ -40,7 +40,7 @@ function fullscreen() {
         <ul>
           <li><strong>Your files stay on your computer.</strong> The page reads them in your browser. It does not upload them.</li>
           <li><strong>Your saves stay in this browser.</strong> If you clear this site's data, you delete them.</li>
-          <li>Use a desktop browser with a keyboard and a mouse. We test in Chrome. Edge should also work.</li>
+          <li>Use a desktop browser with a keyboard and a mouse. We test in Chrome and Firefox. Edge should also work.</li>
           <li>The game is about 8 MB. It downloads only when you press Start.</li>
         </ul>
         <p v-if="touchOnly" class="warn">

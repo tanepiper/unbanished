@@ -151,16 +151,29 @@ pub fn particle_textures(
     )
 }
 
-/// A decal material's kind and textures, by material reference.
-pub type DecalCache = std::collections::HashMap<
-    String,
-    Option<(
-        DecalKind,
-        Option<ImageBuffer>,
-        Option<ImageBuffer>,
-        Option<ImageBuffer>,
-    )>,
->;
+/// A decoded decal texture, shared by every decal that uses it.
+pub type DecalImage = Option<std::sync::Arc<ImageBuffer>>;
+
+/// Decal materials (kind and textures, by material reference) and their textures (by texture
+/// reference). Decals share one decoded copy of each texture, and the renderer uploads it once:
+/// a menu scene has about 230 decals over a few dozen textures, which decoded per decal came to
+/// over 1 GB (issue #7, out of memory in the WebGL build).
+#[derive(Default)]
+pub struct DecalCache {
+    materials:
+        std::collections::HashMap<String, Option<(DecalKind, DecalImage, DecalImage, DecalImage)>>,
+    images: std::collections::HashMap<String, DecalImage>,
+}
+
+impl DecalCache {
+    fn image(&mut self, archive: &Archive, reference: Option<&str>) -> DecalImage {
+        let r = reference?;
+        self.images
+            .entry(r.to_string())
+            .or_insert_with(|| image(archive, Some(r)).map(std::sync::Arc::new))
+            .clone()
+    }
+}
 
 /// Which decal shader a decal's material uses.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -179,16 +192,16 @@ pub struct DecalData {
     pub vertices: Vec<u8>,
     pub indices: Vec<u8>,
     pub index_count: u32,
-    pub diffuse: Option<ImageBuffer>,
+    pub diffuse: DecalImage,
     /// `tiles` (Tiled) or `blend` (Blend).
-    pub mask: Option<ImageBuffer>,
-    pub snow: Option<ImageBuffer>,
+    pub mask: DecalImage,
+    pub snow: DecalImage,
 }
 
 impl DecalData {
     /// Load every decal of a map, sharing textures between decals with the same material.
     pub fn load_all(archive: &Archive, map: &MapComponent) -> Vec<DecalData> {
-        let mut materials = std::collections::HashMap::new();
+        let mut materials = DecalCache::default();
         map.decals
             .iter()
             .chain(&map.extra_decals)
@@ -196,20 +209,7 @@ impl DecalData {
             .collect()
     }
 
-    #[allow(clippy::type_complexity)]
-    fn load(
-        archive: &Archive,
-        d: &Decal,
-        cache: &mut std::collections::HashMap<
-            String,
-            Option<(
-                DecalKind,
-                Option<ImageBuffer>,
-                Option<ImageBuffer>,
-                Option<ImageBuffer>,
-            )>,
-        >,
-    ) -> Option<DecalData> {
+    fn load(archive: &Archive, d: &Decal, cache: &mut DecalCache) -> Option<DecalData> {
         if d.vertices.is_empty() || d.indices.is_empty() {
             return None;
         }
@@ -224,29 +224,19 @@ impl DecalData {
     }
 
     /// A decal of a material from its 20-byte vertices and indices.
-    #[allow(clippy::type_complexity)]
     pub fn from_mesh(
         archive: &Archive,
         reference: &str,
         vertices: Vec<u8>,
         indices: &[u16],
-        cache: &mut std::collections::HashMap<
-            String,
-            Option<(
-                DecalKind,
-                Option<ImageBuffer>,
-                Option<ImageBuffer>,
-                Option<ImageBuffer>,
-            )>,
-        >,
+        cache: &mut DecalCache,
     ) -> Option<DecalData> {
         if vertices.is_empty() || indices.is_empty() {
             return None;
         }
         let reference = reference.to_string();
-        let (kind, diffuse, mask, snow) = cache
-            .entry(reference.clone())
-            .or_insert_with(|| {
+        if !cache.materials.contains_key(&reference) {
+            let entry = (|| {
                 let (base, textures) = material(archive, &reference)?;
                 let kind = if base.contains("TiledDecal") || base.contains("TiledSnowDecal") {
                     DecalKind::Tiled
@@ -262,12 +252,14 @@ impl DecalData {
                 };
                 Some((
                     kind,
-                    image(archive, slot(&textures, "diffuse").as_deref()),
-                    image(archive, slot(&textures, mask_slot).as_deref()),
-                    image(archive, slot(&textures, "snow").as_deref()),
+                    cache.image(archive, slot(&textures, "diffuse").as_deref()),
+                    cache.image(archive, slot(&textures, mask_slot).as_deref()),
+                    cache.image(archive, slot(&textures, "snow").as_deref()),
                 ))
-            })
-            .clone()?;
+            })();
+            cache.materials.insert(reference.clone(), entry);
+        }
+        let (kind, diffuse, mask, snow) = cache.materials[&reference].clone()?;
         let index_count = indices.len() as u32;
         let mut indices: Vec<u8> = indices.iter().flat_map(|i| i.to_le_bytes()).collect();
         indices.resize(indices.len().next_multiple_of(4), 0);
@@ -297,6 +289,46 @@ impl SceneExtras {
             sky: sky.and_then(|s| SkyData::load(archive, s)),
             water: WaterData::load(archive, map),
             decals: DecalData::load_all(archive, map),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every menu scene's decals share one decoded copy of each texture. Decoded per decal they
+    /// came to over 1 GB for a scene, which ran the WebGL build out of memory (issue #7).
+    #[test]
+    fn menu_scene_decals_share_their_textures() {
+        let Some(archive) = crate::start::load::tests_support::archive() else {
+            eprintln!("game data missing; skipping");
+            return;
+        };
+        for i in 0..10 {
+            let data = archive
+                .read_ref(&format!("Game/MenuScene/Scene{i}.rsc:resource"))
+                .unwrap();
+            let scene = banished_formats::menu_scene::menu_scene(&data).unwrap();
+            let decals = DecalData::load_all(&archive, &scene.map);
+            let mut seen = std::collections::HashSet::new();
+            let mut bytes = 0;
+            for img in decals
+                .iter()
+                .flat_map(|d| [&d.diffuse, &d.mask, &d.snow])
+                .flatten()
+            {
+                if seen.insert(std::sync::Arc::as_ptr(img)) {
+                    bytes += img.levels.iter().map(Vec::len).sum::<usize>();
+                }
+            }
+            assert!(
+                seen.len() <= 32 && bytes < 128 << 20,
+                "scene {i}: {} decals hold {} textures, {} bytes",
+                decals.len(),
+                seen.len(),
+                bytes
+            );
         }
     }
 }

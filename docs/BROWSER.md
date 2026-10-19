@@ -71,3 +71,25 @@ multiple-file change callback, package parsing and rendering were exercised.
 Canvas controls were driven through pointer events after a trusted key event
 established user activation. Signal checks establish Web Audio graph output;
 they do not establish subjective speaker sound quality or other-browser support.
+
+## Recorded Firefox Nightly run (2026-10-19)
+
+Firefox Nightly 160 on macOS (Apple M1), driven by `tools/firefox-check.mjs` over WebDriver
+BiDi with a throwaway profile, against `tools/dev-web.sh --app game --release`
+(`?data=/game-data/`). The script collects the console with stack traces and takes screenshots.
+
+- **WebGPU** (`BrowserWebGpu`): the splash, the main menu and a new game run with no console
+  errors or warnings.
+- **WebGL 2** (`dom.webgpu.enabled` false; ANGLE on Metal): the game aborted with
+  `RuntimeError: unreachable executed` as the main menu scene appeared (issue #7). A build with
+  function names (`data-wasm-opt="0" data-keep-debug="true"`) showed `rust_oom` inside
+  `wgpu_hal::gles` staging buffers for `queue.write_texture`, called from the decal upload. Every
+  decal held its own decoded copy of its textures: 229 decals, 331 copies, 1.14 GB. WebGL keeps
+  the upload staging in the wasm heap, so it ran out of memory; WebGPU stages outside it.
+  Decals now share one decoded copy per texture (`DecalCache`): 13 textures, 24 MB. After the
+  fix the same WebGL run reaches a new game and plays for over a minute with no errors.
+
+To get a readable stack from a wasm abort, build a copy that keeps function names, for example
+with a temporary copy of `apps/game/index.html` where the rust link has
+`data-wasm-opt="0" data-keep-debug="true"`, built with
+`trunk build COPY.html --release true --dist OUT`.

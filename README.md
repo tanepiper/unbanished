@@ -156,8 +156,9 @@ version keeps its own saves inside the browser.
 the `WinData` folder. In the browser, select them or drag them onto the page. Then turn them on
 in the Mods menu.
 
-**Which browsers work?** We test in recent versions of Chrome. Edge uses the same browser engine, so it should work the
-same way.
+**Which browsers work?** We test in recent versions of Chrome and in Firefox Nightly (160), with
+both WebGPU and WebGL 2. Edge uses the same browser engine as Chrome, so it should work the same
+way.
 Un-Banished uses WebGPU when the browser supports it, and WebGL 2 when it does not. Other modern
 browsers can also work.
 
