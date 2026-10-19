@@ -2,26 +2,44 @@ use crate::controls::{intersect, scroll_thumb};
 use crate::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// A key the interface reacts to.
 pub enum Key {
+    /// Tab: the next control.
     Tab,
+    /// Shift and Tab: the previous control.
     BackTab,
+    /// Enter.
     Enter,
+    /// Escape.
     Escape,
+    /// The space bar.
     Space,
+    /// The left arrow.
     Left,
+    /// The right arrow.
     Right,
+    /// The up arrow.
     Up,
+    /// The down arrow.
     Down,
+    /// Home.
     Home,
+    /// End.
     End,
+    /// Page Up.
     PageUp,
+    /// Page Down.
     PageDown,
+    /// Backspace.
     Backspace,
+    /// Delete.
     Delete,
+    /// A character key.
     Character(char),
 }
 
 impl Ui {
+    /// The element that has the keyboard focus.
     pub fn focused(&self) -> Option<NodeId> {
         self.focus
     }
@@ -52,12 +70,18 @@ impl Ui {
         self.focus
             .is_some_and(|id| matches!(&self.nodes[id].kind, Kind::Control(Control::Edit(_))))
     }
+    /// The events since the last call, in order. (A click is returned by
+    /// [`pointer_button`](Self::pointer_button) instead.)
     pub fn drain_events(&mut self) -> Vec<Event> {
         std::mem::take(&mut self.pending)
     }
+    /// Set the key that clicks an element: an upper-case character code, or 13 (Enter) or 27
+    /// (Escape).
     pub fn set_shortcut(&mut self, id: NodeId, key: u32) {
         self.nodes[id].shortcut = Some(key);
     }
+    /// Forget the pointer, the focus and the pending events, for example when the window loses the
+    /// focus.
     pub fn clear_input(&mut self) {
         self.focus = None;
         self.hot = None;
@@ -68,6 +92,7 @@ impl Ui {
         self.tooltip_instance = None;
     }
 
+    /// Move the pointer to `(x, y)` over the tree at `root`.
     pub fn pointer_move(&mut self, x: i32, y: i32, root: NodeId) {
         self.input_root = Some(root);
         self.pointer = (x, y);
@@ -124,6 +149,8 @@ impl Ui {
         self.update_tooltip(root);
     }
 
+    /// Press or release the pointer's button. Returns the click when a button is released over
+    /// the element it was pressed on.
     pub fn pointer_button(&mut self, down: bool, root: NodeId) -> Option<Event> {
         // A dropdown is modal with respect to pointer input; an outside click closes it.
         let open: Vec<_> = self
@@ -713,6 +740,7 @@ impl Ui {
         (self.interactive(id) && n.contains(x, y)).then_some(id)
     }
 
+    /// Press a key. Returns whether the interface used it.
     pub fn key(&mut self, root: NodeId, key: Key) -> bool {
         let active = self.active_nodes(root);
         if self.focus.is_some_and(|id| !active.contains(&id)) {
@@ -903,6 +931,7 @@ impl Ui {
         false
     }
 
+    /// Type text into the focused edit box. Returns whether it was used.
     pub fn text_input(&mut self, text: &str) -> bool {
         let Some(id) = self.focus else {
             return false;
@@ -1004,6 +1033,7 @@ impl Ui {
         }
     }
 
+    /// The tooltip text of the element under the pointer.
     pub fn hovered_tooltip(&self) -> Option<&str> {
         self.hot
             .map(|h| self.nodes[h].tooltip.as_str())
@@ -1161,9 +1191,13 @@ pub(crate) fn event_node(e: Event) -> NodeId {
     }
 }
 
-/// CRC32 type ids of the game's tooltip controllers handled by the UI itself.
+/// The type ids (CRC-32 of the class name) of the game's tooltip controllers that the interface
+/// handles itself.
 pub mod tooltip_controller {
+    /// `HotKeyToolTipUI`: a tooltip that shows the element's key.
     pub const HOT_KEY: u32 = 0x5dd8_3c93;
+    /// `TitleDescToolTipUI`: a tooltip with a title and a description.
     pub const TITLE_DESC: u32 = 0x33e6_1003;
+    /// The tooltip that lists what a building needs.
     pub const BUILD_REQUIREMENT: u32 = 0xc3fe_f549;
 }

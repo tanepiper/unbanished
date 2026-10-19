@@ -1,22 +1,36 @@
-//! Stateful controls. Sprite ordering and layout follow the Ghidra-exported UI methods;
-//! application-owned lists, graph samples and combo choices are supplied through setters.
+//! The controls with state: sliders, scroll bars, progress bars, edit boxes, graphs, tables, tabs,
+//! containers, check boxes, combo boxes, spinners, pages, radio groups and documents.
+//!
+//! The order of the sprites and the layout follow the engine's own element classes. The
+//! application supplies list rows, graph samples and combo choices through the setters on
+//! [`Ui`](crate::Ui).
 use crate::*;
 use banished_formats::ui::{self, ElementKind};
 
 #[derive(Debug, Clone)]
+/// The state of a slider.
 pub struct SliderData {
+    /// The sprites: the track's ends and middle, the knob, and the knob under the pointer.
     pub sprites: Vec<Option<SpriteRef>>,
+    /// The smallest and the largest value.
     pub range: [f32; 2],
+    /// The value.
     pub value: f32,
-    /// Steps across the range (`+0x120`, SliderDescription `+0xb0`): a click on the track
-    /// moves the value one of them.
+    // +0x120; +0xb0
+    /// Steps across the range (SliderDescription): a click on the track moves the value one of
+    /// them.
     pub steps: i32,
+    /// The space between the track's ends and the knob's travel, in pixels.
     pub inset: i32,
+    /// The track's vertical position in the element, in pixels.
     pub track_y: i32,
+    /// The number shown next to the slider, if it has one.
     pub number: Option<NodeId>,
-    /// The pointer is over the knob (`+0x124`; it draws the fifth sprite).
+    // +0x124
+    /// The pointer is over the knob (it draws the fifth sprite).
     pub over_knob: bool,
-    /// A drag from the knob (flag `0x200000`): the value and pointer x when it began (`+0x12c`).
+    // +0x12c
+    /// A drag from the knob (flag `0x200000`): the value and pointer x when it began.
     pub drag: Option<(f32, i32)>,
 }
 
@@ -65,36 +79,55 @@ impl SliderData {
 }
 
 #[derive(Debug, Clone)]
+/// The state of an edit box.
 pub struct EditData {
+    /// The text, and its layout.
     pub text: TextData,
     /// Cursor in Unicode scalar values, never byte offsets.
     pub cursor: usize,
+    /// The most characters it takes.
     pub max_length: usize,
+    /// Whether it takes a number.
     pub numeric: bool,
+    /// The smallest and the largest number, for a number box.
     pub range: Option<[f32; 2]>,
-    /// Drawn as `*`s (`+0xd4`, EditDescription `+0x7c`).
+    // +0xd4; +0x7c
+    /// Drawn as `*`s (EditDescription).
     pub password: bool,
-    /// The characters it takes, any when empty (`+0xd8`; a NumberEdit's digits, and `-` when
-    /// it may go below zero).
+    // +0xd8
+    /// The characters it takes, any when empty (a NumberEdit's digits, and `-` when it may go below
+    /// zero).
     pub allowed: String,
-    /// The caret's blink (`+0xe8`, flipping every half second, `+0xf0`).
+    // +0xe8; +0xf0
+    /// The caret's blink (flipping every half second).
     pub caret: bool,
+    /// The time since the caret last changed, in seconds.
     pub blink: f32,
 }
 
 #[derive(Debug, Clone)]
+/// A child of a layout element, with its anchors.
 pub struct LayoutChild {
+    /// The child.
     pub node: NodeId,
+    /// How it is placed: its anchors and offsets.
     pub spec: ui::LayoutItem,
 }
 
 #[derive(Debug, Clone)]
+/// A control and its state.
 pub enum Control {
+    /// A slider.
     Slider(SliderData),
+    /// A scroll bar.
     Scroll {
+        /// The sprites of the track and the thumb.
         sprites: Vec<Option<SpriteRef>>,
+        /// A vertical bar when true.
         vertical: bool,
+        /// The position, from 0 to 1.
         value: f32,
+        /// The share of the content that is visible, from 0 to 1.
         page: f32,
         /// The bar's inset at both ends of the track (`+0x15c`, ScrollDescription `+0xbc`).
         inset: i32,
@@ -104,80 +137,135 @@ pub enum Control {
         /// along the bar when it began (`+0x16c`).
         drag: Option<(f32, i32)>,
     },
+    /// A progress bar.
     Progress {
+        /// The sprites of the fill and the background.
         sprites: Vec<Option<SpriteRef>>,
+        /// The background's colour, `0xAARRGGBB`.
         background_color: u32,
+        /// The fill, from 0 to 1.
         value: f32,
+        /// The element drawn on top (usually a label).
         content: Option<NodeId>,
     },
+    /// An edit box.
     Edit(EditData),
     /// `GraphElement`: a frame, `y_divisions + 1` lines across (with ticks of `tick` px to
     /// the left) and `x_divisions + 1` down (ticks below), then each graph's points from the
     /// left edge to the right, `y_range` at the top.
     Graph {
+        /// The size in pixels.
         size: [i32; 2],
+        /// The sprite the lines are drawn with.
         sprite: Option<SpriteRef>,
+        /// The length of the ticks, in pixels.
         tick: i32,
+        /// The value at the top of the graph.
         y_range: f32,
+        /// The number of divisions across.
         x_divisions: i32,
+        /// The number of divisions down.
         y_divisions: i32,
         /// `AddGraph(color)` / `AddGraphPoint`.
         series: Vec<(u32, Vec<i32>)>,
     },
+    /// A table of cells in rows and columns.
     Table {
+        /// Each cell: its row, its column and its element.
         cells: Vec<(usize, usize, NodeId)>,
+        /// The width of each column after the last layout.
         columns: Vec<i32>,
+        /// The height of each row after the last layout.
         rows: Vec<i32>,
+        /// The space between the cells, in pixels.
         spacing: i32,
     },
+    /// Children placed by anchors relative to the element.
     Layout(Vec<LayoutChild>),
+    /// Tabs: a header for each tab, and the page of the selected one.
     Tabs {
+        /// The elements drawn around the tabs.
         decoration: [Option<NodeId>; 3],
+        /// Each tab: its header and its page.
         tabs: Vec<(NodeId, NodeId)>,
+        /// The selected tab.
         selected: usize,
+        /// The space between the headers, in pixels.
         gap: i32,
+        /// The headers' height, in pixels.
         header_height: i32,
     },
+    /// A window onto its content, cut at its edges.
     Clip {
+        /// The content.
         content: Option<NodeId>,
+        /// The window's size, in pixels.
         size: [i32; 2],
+        /// The content's offset, in pixels.
         offset: [i32; 2],
     },
+    /// A scrolling area: its content and its scroll bars.
     Container {
+        /// The content.
         content: Option<NodeId>,
+        /// The horizontal and the vertical scroll bar.
         bars: [Option<NodeId>; 2],
+        /// The size, in pixels.
         size: [i32; 2],
+        /// The space between the content and the bars, in pixels.
         spacing: i32,
+        /// How far the content is scrolled, in pixels.
         offset: [i32; 2],
+        /// The visible part of the content: x0, y0, x1, y1.
         view: [i32; 4],
         /// `ContainerElement::Update`: the wheel's frames still to scroll (`+0xd0`, ±7 a
         /// notch) and the vertical bar's value (`ScrollElement +0x160`, in pixels).
         wheel: i32,
+        /// The vertical bar's position, in pixels.
         fine: f32,
     },
+    /// A check box.
     Check {
+        /// The box.
         button: NodeId,
+        /// The tick, shown when checked.
         mark: Option<NodeId>,
+        /// Whether it is checked.
         checked: bool,
     },
+    /// A combo box: a button that opens a list.
     Combo {
+        /// The button that shows the choice.
         button: NodeId,
+        /// The list of choices.
         list: NodeId,
+        /// Whether the list is open.
         open: bool,
     },
+    /// A number with up and down arrows.
     Spinner {
+        /// The number and the two arrows.
         parts: [Option<NodeId>; 3],
+        /// The number.
         value: i32,
+        /// How much an arrow changes it.
         step: i32,
     },
+    /// Pages, of which one is shown.
     Page {
+        /// The pages.
         children: Vec<NodeId>,
+        /// The page shown.
         selected: usize,
     },
+    /// Radio buttons, of which one is selected.
     Radio {
+        /// The buttons.
         children: Vec<NodeId>,
+        /// The selected button.
         selected: usize,
     },
+    /// A document with markup: the help pages and the tutorials.
     Document(document::Document),
 }
 
@@ -550,6 +638,7 @@ impl Ui {
         }
     }
 
+    /// Set the value of a slider, scroll bar or progress bar.
     pub fn set_value(&mut self, id: NodeId, value: f32) {
         if !value.is_finite() {
             return;
@@ -580,6 +669,7 @@ impl Ui {
             self.set_text(n, &text);
         }
     }
+    /// The value of a slider, scroll bar or progress bar.
     pub fn value(&self, id: NodeId) -> Option<f32> {
         match &self.nodes[id].kind {
             Kind::Control(Control::Slider(s)) => Some(s.value),
@@ -590,6 +680,7 @@ impl Ui {
             _ => None,
         }
     }
+    /// Set the smallest and the largest value of a slider.
     pub fn set_slider_range(&mut self, id: NodeId, range: [f32; 2]) {
         if let Kind::Control(Control::Slider(slider)) = &mut self.nodes[id].kind {
             slider.range = range;
@@ -628,8 +719,9 @@ impl Ui {
         }
     }
 
-    /// `SpinnerElement::SetMinMax` (Runtime `0x1800da5b0`): the range of the spinner's number
-    /// edit, its current value clamped to it.
+    /// The range of the spinner's number edit, its current value clamped to it.
+    ///
+    /// Original: `SpinnerElement::SetMinMax`, Runtime `0x1800da5b0`.
     pub fn set_spinner_range(&mut self, id: NodeId, min: i32, max: i32) {
         let edit = match &self.nodes[id].kind {
             Kind::Control(Control::Spinner { parts, .. }) => parts[0],
@@ -652,7 +744,8 @@ impl Ui {
         }
     }
 
-    /// The range of a spinner's number edit (`+0xf8`, `+0xfc`).
+    // +0xf8; +0xfc
+    /// The range of a spinner's number edit.
     pub fn spinner_range(&self, id: NodeId) -> Option<(i32, i32)> {
         let Kind::Control(Control::Spinner { parts, .. }) = &self.nodes[id].kind else {
             return None;
@@ -673,12 +766,14 @@ impl Ui {
         )
     }
 
+    /// Check or clear a check box.
     pub fn set_checked(&mut self, id: NodeId, value: bool) {
         if let Kind::Control(Control::Check { checked, .. }) = &mut self.nodes[id].kind {
             *checked = value;
         }
     }
 
+    /// Set the choices of a combo box.
     pub fn set_choices(&mut self, id: NodeId, choices: Vec<String>) {
         self.set_choices_with_icons(id, choices, Vec::new());
     }

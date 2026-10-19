@@ -1,4 +1,5 @@
-//! Cached access to UI resources in the game archive.
+//! The interface's resources from the game's packages, each loaded once: sprite sheets, fonts,
+//! element descriptions and string tables.
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -9,18 +10,27 @@ use banished_formats::ui::{self, Element, Font, SpriteSheet};
 
 /// Index of a sprite sheet in [`Resources::sheets`].
 pub type SheetId = usize;
+/// The index of a font in [`Resources::fonts`].
 pub type FontId = usize;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// One sprite: its sheet, its size and its place on the sheet.
 pub struct SpriteRef {
+    /// The sheet.
     pub sheet: SheetId,
+    /// The width in pixels.
     pub width: i32,
+    /// The height in pixels.
     pub height: i32,
+    /// The texture coordinates on the sheet: u0, v0, u1, v1.
     pub uv: [f32; 4],
 }
 
+/// A loaded sprite sheet.
 pub struct LoadedSheet {
+    /// The sheet's resource reference.
     pub reference: String,
+    /// The sheet: its sprites by name.
     pub sheet: SpriteSheet,
     /// `ImageBuffer` reference holding the sheet image (the material's `diffuse` slot).
     pub image: Option<String>,
@@ -32,19 +42,26 @@ pub struct LoadedSheet {
     pub pixels: Option<Rc<(u32, u32, Vec<u8>)>>,
 }
 
+/// A loaded font.
 pub struct LoadedFont {
+    /// The font: its glyphs and metrics.
     pub font: Font,
+    /// The sprite sheet of its glyphs.
     pub sheet: Option<SheetId>,
     /// Pixels from the line top to the baseline.
     pub ascent: i32,
 }
 
+/// The resource cache.
 pub struct Resources {
+    /// The game's packages.
     pub archive: Rc<Archive>,
     elements: HashMap<String, Option<Rc<Element>>>,
     sheet_ids: HashMap<String, Option<SheetId>>,
+    /// The loaded sprite sheets.
     pub sheets: Vec<LoadedSheet>,
     font_ids: HashMap<String, Option<FontId>>,
+    /// The loaded fonts.
     pub fonts: Vec<LoadedFont>,
     tables: HashMap<String, Rc<Option<HashMap<String, String>>>>,
     /// The same tables in serialized order, for index lookups.
@@ -52,6 +69,7 @@ pub struct Resources {
 }
 
 impl Resources {
+    /// An empty cache over `archive`.
     pub fn new(archive: Rc<Archive>) -> Self {
         Resources {
             archive,
@@ -65,6 +83,7 @@ impl Resources {
         }
     }
 
+    /// An element description by reference.
     pub fn element(&mut self, reference: &str) -> Option<Rc<Element>> {
         if let Some(e) = self.elements.get(reference) {
             return e.clone();
@@ -80,6 +99,7 @@ impl Resources {
         e
     }
 
+    /// A sprite sheet by reference.
     pub fn sheet(&mut self, reference: &str) -> Option<SheetId> {
         if let Some(id) = self.sheet_ids.get(reference) {
             return *id;
@@ -111,9 +131,11 @@ impl Resources {
         id
     }
 
-    /// A one-sprite sheet around an image made at run time (`UI::SpriteSheet` with
-    /// `AddSpriteInfo(0, 0, w, h)`, as `FUN_1400bc1b0` makes for a save's preview). `key` names
-    /// it: the same key gives the same sheet, its image as first made.
+    /// A sheet with one sprite, around an image made at run time, for example a save's preview
+    /// picture. `key` names it: the same key gives the same sheet, with the image it was first
+    /// made with.
+    ///
+    /// Original: `FUN_1400bc1b0` (a `UI::SpriteSheet` with `AddSpriteInfo(0, 0, w, h)`).
     pub fn image_sheet(&mut self, key: &str, width: u32, height: u32, rgba: Vec<u8>) -> SpriteRef {
         let reference = format!("image:{key}");
         let sheet = match self.sheet_ids.get(&reference) {
@@ -147,6 +169,7 @@ impl Resources {
         }
     }
 
+    /// A sprite by its sheet's reference and its name.
     pub fn sprite(&mut self, sheet_ref: Option<&str>, name: &str) -> Option<SpriteRef> {
         if name.is_empty() {
             return None;
@@ -161,6 +184,7 @@ impl Resources {
         })
     }
 
+    /// A font by reference.
     pub fn font(&mut self, reference: &str) -> Option<FontId> {
         if let Some(id) = self.font_ids.get(reference) {
             return *id;

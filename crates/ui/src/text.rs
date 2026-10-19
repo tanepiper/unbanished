@@ -1,8 +1,11 @@
-//! Text layout following `UI::Font::ComputeStringLayout` / `ComputeLineLayout` (0x180119860/0x180119500).
+//! Text layout following `UI::Font::ComputeStringLayout` / `ComputeLineLayout`.
 //!
-//! Glyph metrics are `(a, c, b, d)`: the pen advances by `a` plus the previous glyph's `c`, the glyph
-//! is drawn there `b` pixels wide, and `d` raises it relative to the baseline. Lines advance by the
-//! font size; `\n` breaks lines and, when wrapping, lines break at the last space before the limit.
+//! Glyph metrics are `(a, c, b, d)`: the pen advances by `a` plus the previous glyph's `c`, the
+//! glyph is drawn there `b` pixels wide, and `d` raises it relative to the baseline. Lines advance
+//! by the font size; `\n` breaks lines and, when wrapping, lines break at the last space before the
+//! limit.
+//!
+//! Original: Runtime `0x180119860`, Runtime `0x180119500`.
 
 use crate::resources::{FontId, Resources};
 use banished_formats::ui::Sprite;
@@ -16,9 +19,13 @@ pub struct PlacedGlyph {
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
+/// Laid-out text: each glyph's place, and the size of the whole.
 pub struct TextLayout {
+    /// The glyphs, each with its position.
     pub glyphs: Vec<PlacedGlyph>,
+    /// The width in pixels.
     pub width: i32,
+    /// The height in pixels.
     pub height: i32,
     /// Distinct input characters absent from the font, rendered using the fallback policy.
     /// Kept even when the font has no replacement glyph, so missing text is diagnosable.

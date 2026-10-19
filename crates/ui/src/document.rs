@@ -1,5 +1,7 @@
-//! Caret-markup documents, traced from Ghidra's DocumentTextElement::GetNextItem
-//! (0x1800d07b0), LayoutRow (0x1800d0430), and Draw (0x1800d0010).
+//! Caret-markup documents, traced from Ghidra's DocumentTextElement::GetNextItem, LayoutRow, and
+//! Draw.
+//!
+//! Original: Runtime `0x1800d07b0`, Runtime `0x1800d0430`, Runtime `0x1800d0010`.
 use crate::controls::intersect;
 use crate::*;
 use banished_formats::ui;

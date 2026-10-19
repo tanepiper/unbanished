@@ -4,18 +4,28 @@ use crate::*;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
+/// A controller attached to an element of a dialog.
 pub struct Binding {
+    /// The controller's type id (CRC-32 of its class name).
     pub controller: u32,
+    /// The controller's configuration resource, if it has one.
     pub config: Option<String>,
+    /// The element it is attached to.
     pub element: NodeId,
+    /// The element's name.
     pub name: String,
 }
 
 #[derive(Debug, Clone)]
+/// A dialog made from its resource: the element tree and its controllers.
 pub struct DialogInstance {
+    /// The root element: lay it out and draw it.
     pub root: NodeId,
+    /// The controllers attached to its elements.
     pub bindings: Vec<Binding>,
+    /// The dialogs it was built from: the dialog and those it includes.
     pub dialogs: Vec<String>,
+    /// The background sprite drawn behind the dialog, if any.
     pub background: Option<SpriteRef>,
 }
 
@@ -33,6 +43,7 @@ impl DialogInstance {
 }
 
 impl Ui {
+    /// Build a dialog from its resource, for example `Dialog/MainMenu.rsc:resource`.
     pub fn instantiate_dialog(&mut self, reference: &str) -> Option<DialogInstance> {
         let d = banished_formats::ui::dialog(&self.res.archive.read_ref(reference).ok()?).ok()?;
         // Ghidra Dialog::CreateElement (0x180115760): match the requested path identifier
