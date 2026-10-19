@@ -24,6 +24,7 @@ tools/videos.sh LARGE.sav big-town                      # a large town (the 0.2.
 tools/videos.sh save-game/Save83.sav orbit follow-citizen
 tools/videos.sh RIVER.sav river fishing                 # a town with a bridge and a fishing dock
 tools/videos.sh "save-game/Save 47.sav" boat-shoulder fisher-closeup river-flight   # the cinematic camera
+tools/videos.sh save-game/Save83.sav farmer labourer vendor                        # people at work, close up
 FILTER=sepia tools/videos.sh SAVE.sav orbit             # with a colour filter: sepia, grey or psychedelic
 GAME=path/to/banished VIEWER=path/to/banished-viewer tools/videos.sh SAVE.sav   # without building
 ```
@@ -42,6 +43,12 @@ GAME=path/to/banished VIEWER=path/to/banished-viewer tools/videos.sh SAVE.sav   
 | `boat-shoulder.webm` | Over the trader's shoulder as the boat rows down the river, under a bridge and up to the trading post | `--camera-follow "boat 0@5"` with `--camera-rig 6,3.4,0,30,-1` |
 | `fisher-closeup.webm` | A fisher with a rod at the end of the dock; the camera circles from behind them to their face | Three `--camera` keyframes round the fisher |
 | `river-flight.webm` | A flight down the river into the town, past the bridges and the trading post, then up over the town | Six `--camera` keyframes in 10 s, along the boat's route |
+| `farmer.webm` | A farmer harvesting a field by the market, then carrying the crop | `--camera-follow "profession farm 0@5"` at speed 2, in `Save83` |
+| `labourer.webm` | A labourer walking past the log and stone stockpile | `--camera-follow "profession labor 1@5"` at speed 2 |
+| `vendor.webm` | A vendor bringing goods to the market stalls | `--camera-follow "profession vendor 0@5"` at speed 2 |
+
+The cinematic and people videos each have a poster, `NAME-poster.webp`: one frame of the video,
+which a page shows until the video plays (`<video poster=…>`).
 | `montage.webm` | The home page's video, 39 s: the camera descends over a river town, citizens at a market, farmers in autumn fields, a young town, a winter town, a year of seasons, and the camera rises again | Six 5.5 s shots and a 9 s time-lapse from five saves, joined with 0.5 s cross-fades |
 
 The montage is made only when you ask for it (`tools/videos.sh save-game/Save83.sav montage`),
@@ -136,9 +143,12 @@ boat or an animal, looking where it goes:
 
 `--camera-rig BACK,UP,SIDE,AHEAD,LOOK_UP` sets the place in the subject's own frame. The camera
 turns smoothly with its subject (`--camera-smooth`), so a citizen's quick turns do not shake the
-picture. It also looks at the buildings, trees and bridges near the subject, and rises a little
-before one would come between them. Each object counts as its box, so a camera that must look
-through a tree's crown keeps its place.
+picture. It also keeps the buildings, trees and bridges near the subject out of the way, now
+and a few steps ahead: if one would come between them, the camera first moves in closer to the
+subject, and if that is not enough it rises (up to 8). It tests the line of sight against each
+object's box, then against its picking mesh, the shape that mouse clicks hit, so it sees the
+open square of a market but the roof of the market's storehouse. A citizen under a tree's crown
+cannot be seen from anywhere near, so there the camera keeps its place.
 
 To place keyframes, log a subject's positions: run with
 `RUST_LOG=info,banished::view::cinematic=debug` and `--camera-follow`. A trader boat's positions

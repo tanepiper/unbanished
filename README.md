@@ -73,8 +73,11 @@ timings and the save files are the same.
 <sub>All screenshots show Un-Banished running with a player's own copy of the game. The art in
 the screenshots belongs to Shining Rock Software.</sub>
 
-Short videos of the game in motion (citizens at work, the seasons, an animation) are on the
-[Playing the game](docs/guide/PLAYING.md) page.
+Short videos of the game in motion are on the [Playing the game](docs/guide/PLAYING.md) page:
+citizens at work close up, a trader's boat on the river, the seasons and an animation.
+Un-Banished recorded them itself, without a window.
+
+[![A flight down a river into a town, from a video Un-Banished recorded](docs/assets/videos/river-flight-poster.webp)](docs/guide/PLAYING.md)
 
 ## Status
 

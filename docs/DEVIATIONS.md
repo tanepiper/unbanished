@@ -63,7 +63,7 @@ Deviation: 47, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/tools/selection.rs`
 
-- [Deviation] [apps/game/src/tools/selection.rs:177](../apps/game/src/tools/selection.rs#L177): Deviation: the spatial grid's linked candidate order is creation order here. Only exactly coincident equal-distance hits can differ; the inclusive replacement is exact.
+- [Deviation] [apps/game/src/tools/selection.rs:215](../apps/game/src/tools/selection.rs#L215): Deviation: the spatial grid's linked candidate order is creation order here. Only exactly coincident equal-distance hits can differ; the inclusive replacement is exact.
 
 ## `apps/game/src/ui/mod_browse.rs`
 

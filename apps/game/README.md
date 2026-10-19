@@ -87,7 +87,7 @@ middle of the map, with `z` up; heading 0 faces `+y`.
 | `--camera-rig BACK,UP[,SIDE[,AHEAD[,LOOK_UP]]]` | Where a following camera sits, in the subject's own frame: `BACK` behind it, `UP` above its feet, `SIDE` to its right, looking at the point `AHEAD` in front of it and `LOOK_UP` high. The default `4,2.6,0.8,8,1` is over a citizen's right shoulder. |
 | `--camera-fov DEGREES` | The vertical field of view. The game's is 40. |
 | `--camera-smooth SECONDS` | How slowly a following camera turns with its subject (default 0.6; it moves with the subject four times faster). |
-| `--camera-clear 0` | Turn off the rise over obstacles. By default a following camera looks at the buildings, trees and bridges around the subject, and rises (up to 8) when one would come between them. |
+| `--camera-clear 0` | Let a following camera go through things. By default it looks at the buildings, trees and bridges around the subject (their picking meshes), and when one would come between them it moves in closer, or rises up to 8. |
 
 Run with `RUST_LOG=info,banished::view::cinematic=debug` to log the followed subject's position
 and heading at each step. It helps to place keyframes: a trader boat's positions trace the

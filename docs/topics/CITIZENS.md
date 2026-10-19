@@ -63,6 +63,8 @@ steps, for example:
 drop it off. `ShowTool` puts the right tool in the citizen's hand: an axe, a pick, a scythe, a
 hoe, a hammer, a fishing rod, a saw, a bucket, a barrow, or the goods it carries.
 
+<video src="../assets/videos/fisher-closeup.webm" poster="../assets/videos/fisher-closeup-poster.webp" autoplay loop muted playsinline width="720"></video>
+
 ## Walking
 
 `MoveTo` asks the pathfinder for a path of cells. The pathfinder is an A* search over the map
@@ -73,6 +75,8 @@ are in the same connected *region*, so it does not search for a path that cannot
 
 The citizen then follows the path. Each iteration, it turns towards the next point, moves by the
 *root motion* of its walk animation, and is placed on the ground height.
+
+<video src="../assets/videos/labourer.webm" poster="../assets/videos/labourer-poster.webp" autoplay loop muted playsinline width="720"></video>
 
 To choose the **nearest** storage, job or resource, the game does not run a full search for
 every candidate. It uses a coarser *sector graph*: the map is cut into 8 × 8-cell sectors, each

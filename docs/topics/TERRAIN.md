@@ -45,6 +45,8 @@ that a save file stores.
   33 × 33 vertices, and the diagonal of each cell alternates by position, like a chequerboard.
 - **The water**: the river paths become a triangle strip drawn with the River material
   and the lake points become the lake surface.
+
+  <video src="../assets/videos/river-flight.webm" poster="../assets/videos/river-flight-poster.webp" autoplay loop muted playsinline width="720"></video>
 - **The cell types**: the game casts a ray down at the centre of each map cell
   and reads the ground height and slope. Deep water is below -1.4, shallow water below -0.25,
   buildable ground is between -0.25 and 0.75 on flat ground, rough ground is below 2.0, and high

@@ -48,11 +48,14 @@ with FFmpeg. No Rust change is needed. The person-readable guide is `docs/develo
      map cells from the map's middle, z up, water at 0); `--camera-follow "SUBJECT@START[-END]"`
      with `citizen N`, `profession fish N`, `boat N`, `animal deer N`; `--camera-rig
      BACK,UP,SIDE,AHEAD,LOOK_UP` (default `4,2.6,0.8,8,1`, over a citizen's shoulder),
-     `--camera-fov 50`, `--camera-smooth 0.6`. A follow rises over buildings, trees and bridges
-     between camera and subject (`--camera-clear 0` turns it off). Find coordinates with
+     `--camera-fov 50`, `--camera-smooth 0.6`. A follow keeps buildings, trees and bridges out
+     of the line of sight (picking meshes; it moves in closer, else rises up to 8;
+     `--camera-clear 0` turns it off). Find coordinates with
      `RUST_LOG=info,banished::view::cinematic=debug` and a follow: it logs the subject's position
      each step (a boat's track is the river). Modes `boat-shoulder`, `fisher-closeup`,
-     `river-flight` in `tools/videos.sh` are the examples (for `Save 47`). This camera does not
+     `river-flight` (for `Save 47`) and `farmer`, `labourer`, `vendor` (Save83, the `follow`
+     helper: speed 2, rig `3.5,2.6,0.8,3,1.2`) in `tools/videos.sh` are the examples; each writes
+     a `NAME-poster.webp` too (`poster FRAME NAME`). This camera does not
      depend on drawn frames, so the "draw every frame" rule below does not apply to it.
    - **Quality:** cinematic videos use `--capture-size 1920x1080` and the `HQ` settings in
      `tools/videos.sh` (`--setting VideoMultisample=3`, `VideoTextureFilter=16`,

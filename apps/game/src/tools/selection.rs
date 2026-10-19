@@ -149,6 +149,44 @@ impl Selection {
         world
     }
 
+    /// Whether the segment from `a` to `b` passes through a placed object's picking mesh, cast
+    /// from both ends (only front faces count, so an end inside the object still meets its
+    /// outside). None when the object has no picking mesh. For captures' cinematic camera
+    /// ([`crate::view::cinematic`]); not in the original.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn blocks(
+        &mut self,
+        archive: &Archive,
+        town: &StartingTown,
+        placed: usize,
+        a: Vec3,
+        b: Vec3,
+    ) -> Option<bool> {
+        let entity = Entity::Placed(placed);
+        let mesh = self.mesh(archive, town, entity)?;
+        let length = (b - a).length();
+        if length <= 0.0 {
+            return Some(false);
+        }
+        let world = Self::transforms(&mesh, entity.picking_transform(town));
+        for (m, t) in mesh.meshes.iter().zip(world) {
+            // Picking transforms are rigid: directions keep their length.
+            let inverse = Mat4::from_cols_array(&t.to_matrix()).inverse();
+            for (from, to) in [(a, b), (b, a)] {
+                let o = inverse.transform_point3(from).to_array();
+                let d = inverse.transform_vector3((to - from) / length).to_array();
+                let hit = m.triangles.iter().any(|tri| {
+                    let vertices = tri.vertices.map(|i| m.vertices[i as usize]);
+                    banished_game::picking::triangle(o, d, vertices, length).is_some()
+                });
+                if hit {
+                    return Some(true);
+                }
+            }
+        }
+        Some(false)
+    }
+
     /// FUN_140102500: terrain entity first, then any nearest mesh hit replaces it.
     pub fn cast(
         &mut self,

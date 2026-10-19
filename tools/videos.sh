@@ -8,6 +8,7 @@
 #   tools/videos.sh RIVER.sav river fishing  # along a river from a bridge; fishers on their dock
 #   tools/videos.sh "save-game/Save 47.sav" boat-shoulder fisher-closeup river-flight
 #                                           # the cinematic camera (--camera, --camera-follow)
+#   tools/videos.sh save-game/Save83.sav farmer labourer vendor   # people at work, close up
 #   FILTER=sepia tools/videos.sh SAVE.sav orbit     # also: grey, psychedelic (adds -FILTER to the name)
 #
 # SAVE.sav is a town saved without mods; the town videos load it. They were first made from a
@@ -90,6 +91,29 @@ town() {
     cat "$work/log.txt" >&2
     exit 1
   fi
+}
+
+# poster FRAME OUT: frame FRAME of the last town run as OUT-poster.webp (768x432), the picture a
+# page shows until its video plays.
+poster() {
+  ffmpeg -loglevel error -y -i "$work/user/Screenshots/Screenshot$1.bmp" \
+    -vf "scale=768:432:flags=lanczos$look" "$work/poster.png"
+  cwebp -quiet -q 75 "$work/poster.png" -o "$out/$2${FILTER:+-$FILTER}-poster.webp"
+}
+
+# follow NAME SUBJECT FIRST SECONDS CRF POSTER [ARGS...]: a close-up of SUBJECT (a
+# --camera-follow subject) at speed 2, from FIRST for SECONDS, drawn with the HQ settings; the
+# poster is the frame at POSTER seconds into the video.
+follow() {
+  local name="$1" subject="$2" first="$3" seconds="$4" crf="$5" at="$6"
+  shift 6
+  local count=$((seconds * 30))
+  frames "$first" "$(echo "scale=8; 1/30" | bc)" "$count"
+  click=none ZOOM=0 capture=1920x1080 town "$(echo "$first + $seconds + 0.4" | bc)" "$work/last.png" \
+    "${HQ[@]}" --script "speed 2@6" --camera-follow "$subject@5" --camera-rig 3.5,2.6,0.8,3,1.2 \
+    --camera-fov 45 "$@" "${shots[@]}"
+  encode 0 "$count" "scale=768:432:flags=lanczos" "$crf" "$name"
+  poster "$((at * 30))" "$name"
 }
 
 # encode START COUNT FILTER CRF OUT: frames START.. of the last town run, as VP9 WebM.
@@ -178,6 +202,7 @@ for name in "${names[@]}"; do
       click=none ZOOM=0 capture=1920x1080 town 29.9 "$work/last.png" "${HQ[@]}" \
         --camera-follow "boat 0@5" --camera-rig 6,3.4,0,30,-1 --camera-fov 50 "${shots[@]}"
       encode 0 300 "scale=768:432:flags=lanczos" 40 boat-shoulder
+      poster 150 boat-shoulder
       ;;
     fisher-closeup)
       # A fisher at the end of the dock, close up: the camera circles from behind them to
@@ -187,6 +212,7 @@ for name in "${names[@]}"; do
         --camera "57.1,18.5,2.1>54.55,21.6,0.7@30" --camera "58.5,21.9,1.9>54.55,21.6,0.7@35" \
         --camera "56.5,25.1,2.0>54.55,21.6,0.7@40" "${shots[@]}"
       encode 0 300 "scale=768:432:flags=lanczos" 41 fisher-closeup
+      poster 240 fisher-closeup
       ;;
     river-flight)
       # A sweeping flight down the river into the town, past the bridges and the trading post,
@@ -197,6 +223,20 @@ for name in "${names[@]}"; do
         --camera "10,66,17>62,20,0@24" --camera "48,38,17>82,-4,0@26" \
         --camera "74,18,22>80,-40,0@28" --camera "105,-20,45>70,-20,0@30" "${shots[@]}"
       encode 0 300 "scale=768:432:flags=lanczos" 44 river-flight
+      poster 150 river-flight
+      ;;
+    farmer)
+      # A farmer at speed 2 (Save83, late summer): harvesting the field by the market, then
+      # carrying the baskets, 8 s from 15 s.
+      follow farmer "profession farm 0" 15 8 40 2
+      ;;
+    labourer)
+      # A labourer at speed 2 walking past the log and stone stockpile, 8 s from 10 s.
+      follow labourer "profession labor 1" 10 8 40 3
+      ;;
+    vendor)
+      # A vendor at speed 2 at the market stalls, 8 s from 21 s.
+      follow vendor "profession vendor 0" 21 8 42 4
       ;;
     montage)
       # Seven shots, joined with 0.5 s cross-fades: name, save, building to centre on, wheel

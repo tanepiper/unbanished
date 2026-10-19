@@ -246,12 +246,15 @@ impl Rig {
     }
 }
 
-/// What stands near a followed subject, as boxes, so that the camera can rise over a roof, a
-/// tree or a bridge that would come between it and the subject.
-#[derive(Default, Debug, Clone)]
+/// What stands near a followed subject, so that the camera can keep a roof, a tree or a bridge
+/// from coming between it and the subject. Each object is first a box (its model's bounds), then,
+/// where the line of sight crosses the box, its picking mesh (the shape clicks hit).
+#[derive(Default)]
 pub struct Clearance {
     /// Each mesh's bounds (lowest and highest corner), read once.
     bounds: HashMap<String, Option<(Vec3, Vec3)>>,
+    /// The picking meshes, read once.
+    picking: crate::tools::selection::Selection,
 }
 
 /// How far around the subject objects are looked at, in map cells.
@@ -275,7 +278,7 @@ impl Clearance {
     /// in its object's own frame.
     fn boxes(&mut self, archive: &Archive, town: &StartingTown, centre: Vec3) -> Vec<Obstacle> {
         let mut out = Vec::new();
-        for p in town.placed.iter().filter(|p| p.alive) {
+        for (i, p) in town.placed.iter().enumerate().filter(|(_, p)| p.alive) {
             let at = Vec3::from(p.position);
             if (at.truncate() - centre.truncate()).length() > NEAR_OBJECTS {
                 continue;
@@ -289,6 +292,10 @@ impl Clearance {
             else {
                 continue;
             };
+            // Objects drawn at no size (not grown yet) have no box.
+            if p.scale[..3].iter().any(|&s| s.abs() < 1e-3) {
+                continue;
+            }
             let Some((lo, hi)) = self.mesh_bounds(archive, mesh) else {
                 continue;
             };
@@ -298,15 +305,44 @@ impl Clearance {
                 p.yaw,
             ))
             .inverse();
-            out.push(Obstacle { to_local, lo, hi });
+            out.push(Obstacle {
+                placed: i,
+                to_local,
+                lo,
+                hi,
+            });
         }
         out
+    }
+}
+
+impl Clearance {
+    /// Whether something stands between `subject` and `eye`: an object whose picking mesh the
+    /// line crosses, or, for one without a picking mesh, whose box blocks it ([`box_blocks`]).
+    fn blocked(
+        &mut self,
+        archive: &Archive,
+        town: &StartingTown,
+        boxes: &[Obstacle],
+        subject: Vec3,
+        eye: Vec3,
+    ) -> bool {
+        boxes.iter().any(|b| {
+            if !b.crosses(subject, eye) {
+                return false;
+            }
+            self.picking
+                .blocks(archive, town, b.placed, subject, eye)
+                .unwrap_or_else(|| box_blocks(b, subject, eye))
+        })
     }
 }
 
 /// An object's box: its mesh bounds, and the transform from the world into its frame.
 #[derive(Clone, Copy, Debug)]
 struct Obstacle {
+    /// The placed object.
+    placed: usize,
     to_local: Mat4,
     lo: Vec3,
     hi: Vec3,
@@ -315,6 +351,12 @@ struct Obstacle {
 impl Obstacle {
     fn holds(&self, p: Vec3) -> bool {
         inside(self.to_local.transform_point3(p), self.lo, self.hi)
+    }
+
+    /// Large enough to walk in (more than 10 × 10 cells).
+    fn open(&self) -> bool {
+        let size = self.hi - self.lo;
+        size.x * size.y > 100.0
     }
 
     fn crosses(&self, a: Vec3, b: Vec3) -> bool {
@@ -353,21 +395,22 @@ fn inside(p: Vec3, lo: Vec3, hi: Vec3) -> bool {
     p.cmpge(lo).all() && p.cmple(hi).all()
 }
 
-/// How far the eye must rise for nothing to stand between it and `subject`: the boxes that hold
-/// the subject only keep the eye out of them, the others must not cross the line of sight.
-/// None when no rise up to [`MOST_LIFT`] clears the view (a citizen under a tree's crown).
-fn lift(boxes: &[Obstacle], subject: Vec3, eye: Vec3) -> Option<f32> {
+/// Whether a box blocks the line of sight from `subject` to `eye`. A large box that holds the
+/// subject is open ground it walks in (a market): it does not count. A small one (a house the
+/// subject brushes past, a dock) only keeps the eye out of it.
+fn box_blocks(b: &Obstacle, subject: Vec3, eye: Vec3) -> bool {
+    match b.holds(subject) {
+        true => !b.open() && b.holds(eye),
+        false => b.crosses(subject, eye),
+    }
+}
+
+/// How far the eye must rise for nothing to stand between it and `subject`. None when no rise
+/// up to [`MOST_LIFT`] clears the view (a citizen under a tree's crown).
+fn lift(mut blocked: impl FnMut(Vec3, Vec3) -> bool, subject: Vec3, eye: Vec3) -> Option<f32> {
     let mut lift = 0.0;
     while lift <= MOST_LIFT {
-        let e = eye + Vec3::Z * lift;
-        let blocked = boxes.iter().any(|b| {
-            if b.holds(subject) {
-                b.holds(e)
-            } else {
-                b.crosses(subject, e)
-            }
-        });
-        if !blocked {
+        if !blocked(subject, eye + Vec3::Z * lift) {
             return Some(lift);
         }
         lift += LIFT_STEP;
@@ -387,6 +430,8 @@ pub struct Follow {
     smoothed: Option<(Vec3, f32)>,
     /// How far the camera has risen to keep the subject in view (smoothed).
     lift: f32,
+    /// The part of the way from the subject to the eye that the camera keeps (smoothed).
+    pull: f32,
 }
 
 impl Follow {
@@ -404,13 +449,13 @@ impl Follow {
             key: None,
             smoothed: None,
             lift: 0.0,
+            pull: 1.0,
         })
     }
 }
 
 /// The capture's cinematic camera: a path, followed subjects, the field of view, and how
 /// smoothly the camera follows.
-#[derive(Clone, Debug)]
 pub struct Cinematic {
     pub keys: Vec<Keyframe>,
     pub follows: Vec<Follow>,
@@ -484,8 +529,9 @@ impl Cinematic {
     /// looked for until it appears (a boat that has not arrived yet); the camera then stays
     /// where it was last when the subject leaves the map. A follow comes before the path.
     ///
-    /// A followed camera rises over what would hide the subject: it looks at the objects
-    /// around, now and a few steps ahead, and rises quickly and settles back slowly.
+    /// A followed camera keeps what would hide the subject out of the way: it looks at the
+    /// objects around, now and a few steps ahead, moves in closer to the subject (to 40% of the
+    /// way) or, if that does not clear the view, rises; quickly, and settles back slowly.
     pub fn step(
         &mut self,
         t: f32,
@@ -531,19 +577,41 @@ impl Cinematic {
             }
             if let Some((p, h)) = follow.smoothed {
                 let (eye, target) = rig.place(p, h);
-                let mut wanted = 0.0f32;
+                // The subject's chest, and the way from it to the eye.
+                let chest = p + Vec3::Z * 1.2;
+                let boom = eye - chest;
+                let (mut pull, mut rise) = (1.0f32, 0.0f32);
                 if let (true, Some(town)) = (self.clear, town) {
                     let boxes = self.clearance.boxes(archive, town, p);
-                    // The subject's chest, now and a little further on.
+                    let clearance = &mut self.clearance;
+                    let mut blocked =
+                        |a: Vec3, b: Vec3| clearance.blocked(archive, town, &boxes, a, b);
+                    // Now and a little further on: the camera moves in closer if that clears
+                    // the view, else rises.
                     let ahead = Vec3::new(-h.to_radians().sin(), h.to_radians().cos(), 0.0) * 3.0;
-                    let chest = p + Vec3::Z * 1.2;
                     for step in [Vec3::ZERO, ahead] {
-                        wanted = wanted.max(lift(&boxes, chest + step, eye + step).unwrap_or(0.0));
+                        let from = chest + step;
+                        let closer = (0..=12)
+                            .map(|i| 1.0 - i as f32 * 0.05)
+                            .find(|&f| !blocked(from, from + boom * f));
+                        match closer {
+                            Some(f) => pull = pull.min(f),
+                            None => {
+                                rise =
+                                    rise.max(lift(&mut blocked, from, from + boom).unwrap_or(0.0))
+                            }
+                        }
                     }
                 }
-                let rate = if wanted > follow.lift { 0.15 } else { 1.0 };
-                follow.lift += (wanted - follow.lift) * (1.0 - (-dt / rate).exp());
-                pose = Some((eye + Vec3::Z * follow.lift, target));
+                log::debug!("--camera-follow pull {pull} rise {rise} at {t:.2} s");
+                let ease = |now: &mut f32, wanted: f32, fast: bool| {
+                    let rate = if fast { 0.15 } else { 1.0 };
+                    *now += (wanted - *now) * (1.0 - (-dt / rate).exp());
+                };
+                let (pulling, rising) = (pull < follow.pull, rise > follow.lift);
+                ease(&mut follow.pull, pull, pulling);
+                ease(&mut follow.lift, rise, rising);
+                pose = Some((chest + boom * follow.pull + Vec3::Z * follow.lift, target));
                 break;
             }
         }
@@ -627,7 +695,11 @@ mod tests {
 
     #[test]
     fn the_camera_rises_over_what_hides_the_subject() {
+        fn boxes(all: &[Obstacle]) -> impl FnMut(Vec3, Vec3) -> bool + '_ {
+            move |a, e| all.iter().any(|b| box_blocks(b, a, e))
+        }
         let at = |lo: Vec3, hi: Vec3| Obstacle {
+            placed: 0,
             to_local: Mat4::IDENTITY,
             lo,
             hi,
@@ -638,21 +710,25 @@ mod tests {
         assert!(!roof.crosses(subject, Vec3::new(0.0, 8.0, 3.0)));
         // From 8 behind at 3 up, the line clears the roof's edge nearest the subject (y −2, z 3)
         // from z 9.
-        let l = lift(&[roof], subject, Vec3::new(0.0, -8.0, 3.0)).unwrap();
+        let l = lift(boxes(&[roof]), subject, Vec3::new(0.0, -8.0, 3.0)).unwrap();
         assert!((l - 6.0).abs() <= LIFT_STEP, "{l}");
         // Too high a wall to rise over: the camera stays.
         let wall = at(Vec3::new(-2.0, -6.0, 0.0), Vec3::new(2.0, -2.0, 30.0));
-        assert_eq!(lift(&[wall], subject, Vec3::new(0.0, -8.0, 3.0)), None);
-        // A box holding the subject (a dock, a bridge) only keeps the eye out of it.
-        let dock = at(Vec3::new(-10.0, -10.0, -1.0), Vec3::new(10.0, 10.0, 2.0));
-        assert_eq!(lift(&[dock], subject, Vec3::new(0.0, -8.0, 3.0)), Some(0.0));
         assert_eq!(
-            lift(&[dock], subject, Vec3::new(0.0, -8.0, 1.0)),
-            Some(1.0 + LIFT_STEP)
+            lift(boxes(&[wall]), subject, Vec3::new(0.0, -8.0, 3.0)),
+            None
         );
+        // A large box holding the subject (a market) is open ground; a small one (a house it
+        // brushes past) keeps the eye out.
+        let market = at(Vec3::new(-6.0, -6.0, 0.0), Vec3::new(6.0, 6.0, 7.0));
+        let eye = Vec3::new(0.0, -4.0, 3.0);
+        assert_eq!(lift(boxes(&[market]), subject, eye), Some(0.0));
+        let house = at(Vec3::new(-3.0, -5.0, 0.0), Vec3::new(3.0, 1.0, 4.0));
+        assert_eq!(lift(boxes(&[house]), subject, eye), Some(1.0 + LIFT_STEP));
         // A turned box is tested in its own frame: a long bridge at 45° misses a point its
         // axis-aligned bounds would hold.
         let bridge = Obstacle {
+            placed: 0,
             to_local: Mat4::from_rotation_z(-std::f32::consts::FRAC_PI_4),
             lo: Vec3::new(-10.0, -1.0, 0.0),
             hi: Vec3::new(10.0, 1.0, 2.0),
