@@ -1200,8 +1200,9 @@ pub struct Construction {
     /// The town manager's registered HappinessComponents, by entity.
     pub happiness: Vec<usize>,
     // Game +0x128 → +8; +0
-    /// The calendar's seconds into the year (`Game → +8`) and its year , set before each iteration.
+    /// The calendar's seconds into the year, set before each iteration.
     pub calendar: f32,
+    /// The calendar's year, set before each iteration.
     pub year: u32,
     /// FruitComponents of orchard trees, by entity.
     pub fruits: BTreeMap<usize, crate::production::orchard::Fruit>,

@@ -16,7 +16,9 @@ fnindex.py and coverage.py still find them, but rustdoc does not show them.
 - a leading "`FUN_...`:", "`+0x48`:", "`DAT_...`:" or "Port of FUN_...:" before the text.
 Everything it removes is kept: functions in the `Original:` line, the rest in a `//` line.
 Code blocks, tables and lines with "Deviation" or "not ported" are left as they are. `check`
-then lists what is left for a person to rewrite. Paths default to crates/ and apps/.
+then lists what is left for a person to rewrite. Both commands only touch what rustdoc renders
+(module docs and the docs of public items). Paths default to crates/ (the libraries, whose API
+documentation is published); tests, examples and binaries are skipped.
 """
 import re
 import sys
@@ -300,10 +302,16 @@ def check(paths, everything=False) -> int:
 
 
 def files(args):
-    roots = [Path(a) for a in args] or [ROOT / "crates", ROOT / "apps"]
+    roots = [Path(a) for a in args] or [ROOT / "crates"]
     for r in roots:
         r = r if r.is_absolute() else Path.cwd() / r
-        yield from ([r] if r.is_file() else sorted(r.rglob("*.rs")))
+        if r.is_file():
+            yield r
+            continue
+        for p in sorted(r.rglob("*.rs")):
+            # Tests, examples and binaries are not part of the API documentation.
+            if not {"tests", "examples", "bin", "target"} & set(p.relative_to(r).parts):
+                yield p
 
 
 if __name__ == "__main__":

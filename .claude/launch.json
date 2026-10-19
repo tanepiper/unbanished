@@ -36,7 +36,7 @@
         "--bind",
         "127.0.0.1",
         "--directory",
-        "target/api/doc"
+        "site/public/api"
       ],
       "port": 8740
     }

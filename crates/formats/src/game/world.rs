@@ -129,13 +129,13 @@ pub struct ClimateGenerator {
     pub name: String,
     pub enabled: bool,
     // +0x34..+0x40
-    /// Four serialized climate settings at in-memory offsets.
+    /// Four climate settings (not identified yet).
     pub settings: [f32; 4],
     // +0x44
-    /// Four floats per month at; the weather selector reads the first three as cutoffs.
+    /// Four values for each month; the weather selector reads the first three as limits.
     pub monthly_thresholds: [[f32; 4]; 12],
     // +0x104..+0x10c
-    /// Three serialized climate settings at in-memory offsets.
+    /// Three more climate settings (not identified yet).
     pub trailing_settings: [f32; 3],
 }
 
@@ -213,7 +213,7 @@ pub struct MapGenerator {
     pub value_40: f32,
     pub citizen: String,
     // +0x60
-    /// Household groups `(flag, extra members up to)`.
+    /// The household groups: a flag, and the most extra members (`(flag, extra members up to)`).
     pub households: Vec<(bool, i32)>,
     // +0x70
     /// Templates seeded over the map: rock, ore, tree.
@@ -357,8 +357,9 @@ pub fn external_list(data: &[u8]) -> Result<Vec<String>> {
 }
 
 // +0x38
-/// The leading fields of a `ClimateGenerator` (New Game climate profile): string table, name key
-/// and the "listed" flag at. The climate parameters that follow are not decoded yet.
+/// The first fields of a `ClimateGenerator` (a climate profile of the New Game dialog): the string
+/// table, the name key and the "listed" flag. The climate values that follow are not decoded
+/// here.
 #[derive(Debug, Clone)]
 pub struct ClimateHeader {
     pub string_table: Option<String>,

@@ -119,9 +119,11 @@ pub struct World<'a> {
     pub size: usize,
     pub types: &'a [CellType],
     // +0x08; +0x00; +0x28
-    /// Map cells (stamped objects), (occupants) and (flags).
+    /// The object stamped into each map cell.
     pub objects: &'a [Option<usize>],
+    /// The occupant of each map cell.
     pub occupants: &'a [Option<usize>],
+    /// The flags of each map cell.
     pub flags: &'a [u8],
     // +0x2a
     /// The road kind planned or built (`0xff` none).

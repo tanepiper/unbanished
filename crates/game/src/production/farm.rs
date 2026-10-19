@@ -66,8 +66,8 @@ pub struct CropFieldTemplate {
 }
 
 // +0x48; +0x58; +0x68
-/// PlantArea and the harvest work: the cells claimed (index → worker), the cells still to do,
-/// (PlantArea) the crop.
+/// The work of planting (`PlantArea`) or harvesting a field: the cells claimed (index → worker),
+/// the cells still to do, and, for planting, the crop.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct AreaWork {
     pub claims: BTreeMap<i32, usize>,

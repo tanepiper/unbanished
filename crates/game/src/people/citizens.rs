@@ -36,7 +36,7 @@ pub struct Citizen {
     /// 1 = male.
     pub male: bool,
     // +0x3c
-    /// , in the description's age units.
+    /// The citizen's age, in the description's age units.
     pub age: f32,
     // +0x40
     /// Not identified yet.

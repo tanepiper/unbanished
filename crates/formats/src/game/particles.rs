@@ -41,8 +41,9 @@ pub struct ParticleSystem {
     /// Speed (base, ± range).
     pub speed: [f32; 2],
     // +0x8c; +0x90
-    /// Force scale;: velocity kept per update.
+    /// How strongly the force acts.
     pub force_scale: f32,
+    /// The share of the velocity kept at each update.
     pub damping: f32,
     // +0x94, +0x98
     /// Rotation (degrees, base ± range).
@@ -51,20 +52,24 @@ pub struct ParticleSystem {
     /// Spin (degrees/s, base ± range, either way).
     pub spin: [f32; 2],
     // +0xa4, +0xa8
-    /// Spin change and kept part.
+    /// The change of the spin.
     pub spin_change: f32,
+    /// The share of the spin kept at each update.
     pub spin_damping: f32,
     // +0xac, +0xb0
     /// Life (seconds, base ± range).
     pub life: [f32; 2],
     // +0xb4, +0xb8
-    /// The force (wind) and its scale.
+    /// The strength of the force.
     pub force_amount: f32,
+    /// The force's direction (for example the wind).
     pub force: [f32; 3],
     // +0xc4, +0xc8; +0xcc; +0xd0
-    /// Size (base ± range);: growth and its kept part.
+    /// The size (base ± range).
     pub size: [f32; 2],
+    /// How fast the size grows.
     pub growth: f32,
+    /// The share of the growth kept at each update.
     pub growth_damping: f32,
     // +0xdc, +0xe0
     /// Start and end colours (BGRA bytes).
@@ -145,25 +150,31 @@ pub fn particle_system(data: &[u8]) -> Result<ParticleSystem> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TornadoParticle {
     // +0x28; +0x30
-    /// Particle: the most particles alive and the MaterialInstance.
+    /// The most particles alive at once.
     pub max_particles: u32,
+    /// The material the particles are drawn with.
     pub material: Option<String>,
     // +0x48; +0x4c; +0x50
-    /// The spiral's radius scale;: the rise over a life;: the wobble's radius.
+    /// The scale of the spiral's radius.
     pub radius: f32,
+    /// The rise over a particle's life.
     pub rise: f32,
+    /// The wobble's radius.
     pub wobble: f32,
     // +0x54; +0x58
-    /// The wobble's turn (degrees a second);: the spiral's turn over a life.
+    /// The wobble's turn, in degrees a second.
     pub wobble_turn: f32,
+    /// The spiral's turn over a particle's life.
     pub spiral_turn: f32,
     // +0x5c; +0x60; +0x64
-    /// Particles a second;: life (seconds, base ± range).
+    /// Particles made per second.
     pub rate: f32,
+    /// A particle's life in seconds (base ± range).
     pub life: [f32; 2],
     // +0x68, +0x6c; +0x70
-    /// The least and most size;: size per radius.
+    /// The smallest and largest size.
     pub size: [f32; 2],
+    /// The size per unit of radius.
     pub size_scale: f32,
     // +0x74, +0x78
     /// The start and end colours.
@@ -220,11 +231,13 @@ pub struct ParticleSlot {
     /// The model node it sits on (empty: the model's root).
     pub node: String,
     // +0x10..+0x13; +0x11; +0x12
-    /// starts on activation, follows entity events 2 (start) and 3 (fade out).
+    /// Flags: the system starts when the entity is activated, and follows entity events 2 (start)
+    /// and 3 (fade out).
     pub flags: [bool; 4],
     // +0x20; +0x18
-    /// The alpha's fade in and out;: how long the system runs before it is shown (`System::Time`).
+    /// How long the alpha fades in and out, in microseconds.
     pub fade: i64,
+    /// How long the system runs before it is shown, in microseconds.
     pub prewarm: i64,
 }
 
