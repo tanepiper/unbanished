@@ -103,6 +103,18 @@ Track field offsets per class as you go (`+0x44 enabled (u8)`, `+0xc0 hotkey`). 
 consumers. Element/UI ids, event codes (e.g. `0x12` click, `0x16` close), and enum values belong in
 the doc table.
 
+- **Who writes a field**: list the functions that assign it, then skip constructors and
+  `operator=`. Ghidra prints some offsets in decimal (`this + 100` = `+0x64`), so match both:
+  `awk -v pat='this \\+ (0x64|100)\\) = ' '/^\/\/ ==== /{f=$3" "$4} $0 ~ pat {print f}' $D/decomp.c | uniq`
+- **Nested offsets** (`array + i * 0x1f0 + 0x90`): find the getters that return sub-objects of
+  the same structure (`Renderer::GetCamera` → `group + 0x8`), subtract, and repeat inside the
+  sub-object (`Camera::GetCameraToWorld` → `+0x64`, so `+0x88` is the translation).
+- **Parser field = original field?** Compare the write order in the class's `Serialize` with the
+  read order in the `crates/formats` reader.
+- **Which argument is which**: a call's name does not say which object plays which role. Read
+  the arguments (`BeginDrawGroup(buffer, camera, cullCamera, …)`). Check every suspicion written
+  in a doc against the code before porting it; fix the doc when it was wrong.
+
 ## 5. Record
 
 Write findings straight into the relevant doc (see `banished-land`): function address → role,

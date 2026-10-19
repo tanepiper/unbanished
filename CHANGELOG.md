@@ -60,6 +60,11 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 - The website's home page shows a 39-second montage of Un-Banished in motion in place of the
   logo: camera moves over four towns, citizens at work, and a year of seasons. Un-Banished
   recorded it itself (`tools/videos.sh SAVE.sav montage`).
+- Documentation for changes meant to change the picture: how to predict what will change and
+  prove with `compare.sh`, `imgdiff` heat maps and close-ups that nothing else did
+  ([docs/develop/VISUAL-CHANGES.md](docs/develop/VISUAL-CHANGES.md)). The tracing guide now
+  explains how to follow a field to where it is written, and the building guide how to work in a
+  git worktree.
 - Short videos of the game, recorded headlessly with `tools/videos.sh` (see
   [docs/develop/VIDEOS.md](docs/develop/VIDEOS.md)), and more screenshots of the game and the
   viewer.

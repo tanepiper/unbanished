@@ -127,6 +127,7 @@ export default defineConfig({
             { text: 'Testing', link: '/develop/testing' },
             { text: 'Compatibility between versions', link: '/develop/compatibility' },
             { text: 'Performance and profiling', link: '/develop/performance' },
+            { text: 'Changing what is drawn', link: '/develop/visual-changes' },
             { text: 'Recording videos', link: '/develop/videos' },
             { text: 'API documentation', link: '/develop/api' },
             { text: 'Contributing', link: '/develop/contributing' },

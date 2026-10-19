@@ -22,6 +22,7 @@ function it came from.
 | Run the tests and the checks before a commit | [Testing](TESTING.md) |
 | Check that a change does not change the game's results | [Compatibility between versions](../COMPATIBILITY.md) |
 | Measure speed and memory | [Performance](../PERFORMANCE.md) |
+| Prove that a change to the picture changes only what it should | [Changing what is drawn](VISUAL-CHANGES.md) |
 | Record a video of the game without a window | [Recording videos](VIDEOS.md) |
 | Know the project rules | [Contributing (AGENTS.md)](../../AGENTS.md) |
 | Port a behaviour of the original game | [Development guides](guides/README.md) |

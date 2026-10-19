@@ -47,6 +47,7 @@ const PAGES = {
   'docs/COMPATIBILITY.md': { path: '/develop/compatibility', description: 'The tools that prove two versions play alike.' },
   'docs/PERFORMANCE.md': { path: '/develop/performance', description: 'How to measure and profile Un-Banished.' },
   'AGENTS.md': { path: '/develop/contributing', title: 'Contributing', description: 'The project rules for people and AI agents.' },
+  'docs/develop/VISUAL-CHANGES.md': { path: '/develop/visual-changes', description: 'Prove that a change to the picture changes only what it should.' },
   'docs/develop/VIDEOS.md': { path: '/develop/videos', description: 'Record videos of the game without a window.' },
   'docs/develop/API.md': { path: '/develop/api', description: 'The Rust API documentation of the libraries.' },
 

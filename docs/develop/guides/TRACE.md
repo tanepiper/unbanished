@@ -123,6 +123,51 @@ example `+0x44 enabled (u8)`. A class's `Serialize` function gives the clearest 
 of its fields. Read it first, then the functions that use the fields. Interface element ids,
 event codes (for example `0x12` for a click) and enum values belong in the document's tables.
 
+### Follow a field to where it is written
+
+A function often reads a field without saying what it holds. To find out, list the functions
+that write it:
+
+```bash
+D=analysis/export/Runtime-steam-x64.dll/decomp.c
+awk -v pat='this \\+ (0x4c|76)\\) = ' '/^\/\/ ==== /{f=$3" "$4} $0 ~ pat {print f}' $D | uniq
+```
+
+Each output line is a function's address and name. Constructors and `operator=` copy every
+field, so skip them; the other writers say what the field means. Ghidra writes some offsets in
+decimal (`this + 100` for `+0x64`), so search for both forms. Narrow the list to one class with
+`grep Graphics::Geometry`.
+
+For example, the instance boxes that `MeshInstance::AddDrawItems` (0x1801037b0) reads at `+0x4c`
+and `+0x64` are written by `Geometry::Clean` (0x1800a5370). It moves the current box to `+0x64`
+and computes a new one at `+0x4c`, so `+0x64` is the previous frame's box.
+
+### Name an offset in a nested structure
+
+An access such as `*(float *)(group_array + index * 0x1f0 + 0x90)` is a field of a field. Find
+the small getters that return part of the same structure. They are often exported with real
+names. `Renderer::GetCamera` (0x180018850) returns `group + 0x8`, and
+`Renderer::GetCullCamera` returns `group + 0xe0`. So `+0x90` is `+0x88` inside the camera.
+`Camera::GetCameraToWorld` (0x1800186f0) copies twelve floats from `+0x64`, so `+0x88` is the
+translation row: the camera's position. Write the chain down as a table; the next reader needs
+it too.
+
+### Check a parser field against the serializer
+
+A field that a resource reader already decodes may be the one a function reads. To be sure,
+compare the order of the writes in the class's `Serialize` with the order of the reads in the
+Rust reader. `GraphicsMesh::Serialize` (0x180101c40) writes the vectors at `+0x80` and `+0x8c`
+last, and the reader in `crates/formats` reads `bounds_min` and `bounds_max` last. So these are
+the same fields.
+
+### Check which argument is which
+
+A call's name does not say which object plays which part. Look at the arguments. For example,
+`Renderer::BeginDrawGroup` (0x180107860) takes a camera and a cull camera. The sun's draw group
+(`SunLight::AddDrawItems`, 0x1801097e0) passes the scene's camera as the camera and the sun's
+camera only as the cull camera. The earlier guess that the shadow pass measured detail levels
+from the sun was wrong. Test every guess against the arguments before you port it.
+
 ## Step 6: write it down
 
 Write what you found straight into the topic document in `docs/`. [Document and land](LAND.md)
@@ -136,3 +181,7 @@ into `docs/` or into the source code.
 - Many small functions are the same allocator or string code. Check whether a `FUN_` is a thunk
   to the Runtime in `functions.tsv` (`RUNTIME-STEAM-X64.DLL::…`).
 - For large or subtle numeric code, stop guessing and [emulate](EMULATE.md) it.
+- Ghidra prints some offsets in decimal: `this + 100` is `+0x64`. A search for only the hex
+  form misses those writes.
+- A suspicion written in a document ("probably the sun's camera") is not evidence. Check it in
+  the code before you port it, and change the document when it turns out wrong.

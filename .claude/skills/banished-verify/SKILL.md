@@ -75,6 +75,28 @@ are following along.
   [--resize] [--ignore x,y,w,h] [--json]`: MAE/PSNR, mismatch share, bounding box and a 4×4 grid
   of where frames differ; use it for before/after checks and against original-game screenshots.
 
+## A change meant to change the picture
+
+Follow `docs/develop/VISUAL-CHANGES.md`. In short:
+- Predict first which objects change and when (e.g. `mesh_info` for mesh parts and distances).
+- `cp target/release/banished` to a scratch path and compare that copy; later builds overwrite it.
+- `tools/compat/compare.sh HEAD <copy>` (run it alone, in the background; several minutes). Game
+  state must be identical everywhere; `base/base` must be identical; "NOT COMPATIBLE" from frames
+  alone is expected.
+- `imgdiff … --out heat.png --json` for each differing frame and for base-1 vs base-2; open each
+  heat map with Read and check every red area against the prediction.
+- Crop the same region from before, after and heat with
+  `magick IN -crop WxH+X+Y +repage -filter point -resize 300% OUT`, put them side by side with
+  `+append`, look, and describe the change concretely.
+- Frames come from the player's data: keep them out of the repository (share them with
+  SendUserFile or a private artifact).
+
+## Working in a git worktree
+
+A worktree has no `game-data/`, `save-game/` or `analysis/`. Symlink them from the main checkout
+and add `/game-data`, `/save-game`, `/analysis` to `$(git rev-parse --git-common-dir)/info/exclude`
+(a symlink is not matched by the `/game-data/` rule). See `docs/develop/BUILDING.md`.
+
 ## Against the original game (Steam Remote Play)
 
 When the original is streamed to this Mac, capture reference frames and compare: see

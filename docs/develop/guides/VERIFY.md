@@ -88,6 +88,9 @@ cargo run -q --release -p banished-app --example imgdiff -- before.png after.png
 and a 4 by 4 grid of differences. `--ignore x,y,w,h` masks a region such as the clock.
 `--resize` compares pictures of different sizes.
 
+When a change is meant to change the picture, prove that it changes nothing else: see
+[Changing what is drawn](../VISUAL-CHANGES.md).
+
 ## Compare with the original game
 
 When you have a screenshot of the original game at the same view, compare the layout, the

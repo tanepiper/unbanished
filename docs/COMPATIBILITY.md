@@ -68,6 +68,13 @@ save holds the same game state and every frame is the same.
   identical. The cause is not known yet. When a frame differs, run both builds again: a change
   is accepted when the new build's frames match one of the old build's versions.
 
+## Changes meant to change the picture
+
+A change that fixes the picture (to match the original game better) is allowed to change
+frames, never saves. `compare.sh` then reports "NOT COMPATIBLE" because of the frames.
+[Changing what is drawn](develop/VISUAL-CHANGES.md) explains how to show that every changed
+pixel is one the change was meant to change.
+
 ## The save-timing trap
 
 The first large-town comparison of the 0.2.0 performance work showed different saves: the
