@@ -1,0 +1,9 @@
+[package]
+name = "banished-core"
+version.workspace = true
+description = "Bit-exact foundations of the Banished reimplementation: the MSVC CRT maths, the game's Random, Perlin noise, transforms, game time and the calendar"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

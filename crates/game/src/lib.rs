@@ -4,13 +4,15 @@
 //! arithmetic order and float precision so that results match the game bit for bit. Ported
 //! functions name their source address; tests compare against data from real save files.
 
+/// The bit-exact foundations, from their own crate (`banished-core`).
+pub use banished_core::{calendar, crt, math, noise, random, scheduler};
+
 pub mod activities;
 pub mod agents;
 pub mod ai;
 pub mod animation;
 pub mod blight;
 pub mod boat;
-pub mod calendar;
 pub mod cemetery;
 pub mod character;
 pub mod character_tree;
@@ -18,7 +20,6 @@ pub mod citizens;
 pub mod commute;
 pub mod construction;
 pub mod control;
-pub mod crt;
 pub mod destroy;
 pub mod environment;
 pub mod events;
@@ -36,10 +37,8 @@ pub mod jobs;
 pub mod life;
 pub mod map;
 pub mod market;
-pub mod math;
 pub mod names;
 pub mod needs;
-pub mod noise;
 pub mod orchard;
 pub mod pasture;
 pub mod pathfind;
@@ -48,9 +47,7 @@ pub mod placement;
 pub mod produce;
 pub mod professions;
 pub mod quarry;
-pub mod random;
 pub mod road;
-pub mod scheduler;
 pub mod sectors;
 pub mod seeding;
 pub mod services;

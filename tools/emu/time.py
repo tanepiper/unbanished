@@ -1,4 +1,4 @@
-"""Ground truth for `System::Time` (crates/game/src/scheduler.rs `ticks`, `seconds`): the
+"""Ground truth for `System::Time` (crates/core/src/scheduler.rs `ticks`, `seconds`): the
 constructor from seconds (`0x1800078c0`) and `AsSeconds` (`0x180007900`).
 
 Usage: .venv/bin/python tools/emu/time.py OUT_DIR [COUNT]

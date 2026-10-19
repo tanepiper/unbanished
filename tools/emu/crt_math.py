@@ -1,4 +1,4 @@
-"""Ground truth for the C runtime maths the game's code calls (crates/game/src/crt.rs): `sinf`
+"""Ground truth for the C runtime maths the game's code calls (crates/core/src/crt.rs): `sinf`
 (`FUN_140137160`), `cosf` (`FUN_140136560`), `acosf` (`FUN_140136090`) and the Runtime's
 `atan2f` (`0x180128f10`).
 

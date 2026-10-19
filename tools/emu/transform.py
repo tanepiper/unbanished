@@ -1,4 +1,4 @@
-"""Ground truth for the model transforms (crates/game/src/math.rs `Transform`): the Runtime's
+"""Ground truth for the model transforms (crates/core/src/math.rs `Transform`): the Runtime's
 `Transform::FromYawPitchOffset` (`0x18007e540`), `Transform * Vector3` (`0x18001eae0`),
 `Vector3::FromYawPitch` (`0x180022990`), `Quaternion::Rotate` (`0x18001ea20`),
 `Vector3::Heading` (`0x18007d3d0`) and `Transform::Inverse` (`0x18005e620`).

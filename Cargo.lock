@@ -248,6 +248,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "banished-core"
+version = "0.2.0"
+
+[[package]]
 name = "banished-formats"
 version = "0.2.0"
 
@@ -255,6 +259,7 @@ version = "0.2.0"
 name = "banished-game"
 version = "0.2.0"
 dependencies = [
+ "banished-core",
  "banished-formats",
 ]
 

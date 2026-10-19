@@ -26,7 +26,7 @@ The bucket length is captured before callbacks. Children registered into that bu
 a later iteration; `FUN_1400c9d70` sets their last timestamp to the current manager time. Removal
 requests drain after all five buckets in request order. `FUN_1400c8db0` swaps the final entry into
 the deleted slot without adjusting the cursor. Bucket 6 remains unscheduled. These operations are
-ported in `crates/game/src/scheduler.rs`.
+ported in `crates/core/src/scheduler.rs`.
 
 Runtime Time construction (`0x1800078c0`) divides f32 seconds by f64 seconds-per-tick and truncates
 to integer ticks. AsSeconds (`0x180007900`) multiplies ticks by that f64 value, then converts to

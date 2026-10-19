@@ -113,7 +113,7 @@ order changes nothing.
 
 Replaced engine pieces were checked for whether the simulation's numbers depend on them.
 These do, and each is now ported bit for bit:
-- **CRT trigonometry** (`crates/game/src/crt.rs`): MSVC's `sinf` (`FUN_140137160`, Runtime
+- **CRT trigonometry** (`crates/core/src/crt.rs`): MSVC's `sinf` (`FUN_140137160`, Runtime
   `0x18012a620`), `cosf`, `acosf` and the Runtime's table-driven `atan2f` (`0x180128f10`, a
   table of `atan(k/256)` rounded down) are not correctly rounded. A correctly rounded `sin` gives
   a different float for about 1 in 1000 inputs, and `acosf` for about 1 in 50. Ported in the
