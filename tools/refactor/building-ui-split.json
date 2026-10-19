@@ -1,0 +1,101 @@
+{
+ "file": "apps/game/src/ui/building_ui.rs",
+ "type": "-",
+ "modules": {
+  "homes": {
+   "doc": "Houses: the residents table and the upgrade button.",
+   "items": [
+    "ResidenceUi",
+    "ResidentRow",
+    "UpgradeUi",
+    "upgrade_config"
+   ],
+   "impls": [
+    "impl ResidenceUi {",
+    "impl UpgradeUi {"
+   ]
+  },
+  "town": {
+   "doc": "Town-wide controls: immigration, the control buttons and resource limits.",
+   "items": [
+    "ImmigrationUi",
+    "ControlUi",
+    "control_config",
+    "ResourceLimitUi",
+    "set_spinner",
+    "spinner_value",
+    "status_icon_config",
+    "resource_limit_config"
+   ],
+   "impls": [
+    "impl ImmigrationUi {",
+    "impl ControlUi {",
+    "impl ResourceLimitUi {"
+   ]
+  },
+  "production": {
+   "doc": "Production: consumed and produced goods, counts and the production table.",
+   "items": [
+    "ConsumeProduceUi",
+    "CountUi",
+    "ProductionUi"
+   ],
+   "impls": [
+    "impl ConsumeProduceUi {",
+    "impl CountUi {",
+    "impl ProductionUi {"
+   ]
+  },
+  "construction": {
+   "doc": "Building and destroying: the construction and demolition progress.",
+   "items": [
+    "DestroyInfo",
+    "DestroyUi",
+    "BuildUi",
+    "BuildInfo",
+    "BuildProgress"
+   ],
+   "impls": [
+    "impl DestroyUi {",
+    "impl BuildUi {"
+   ]
+  },
+  "storage": {
+   "doc": "Storage: the goods a storage holds and its capacity.",
+   "items": [
+    "StorageUi",
+    "StorageCapacityUi",
+    "material_file"
+   ],
+   "impls": [
+    "impl StorageUi {",
+    "impl StorageCapacityUi {"
+   ]
+  },
+  "workplace": {
+   "doc": "Workplaces: the workers and the worker count buttons.",
+   "items": [
+    "WorkPlaceUi",
+    "WorkPlaceInfo",
+    "WorkPlaceClick"
+   ],
+   "impls": [
+    "impl WorkPlaceUi {"
+   ]
+  },
+  "citizens": {
+   "doc": "Citizens: the citizen window and status icons.",
+   "items": [
+    "CitizenInfo",
+    "text_of",
+    "str_less",
+    "CitizenUi",
+    "StatusIconUi"
+   ],
+   "impls": [
+    "impl CitizenUi {",
+    "impl StatusIconUi {"
+   ]
+  }
+ }
+}
