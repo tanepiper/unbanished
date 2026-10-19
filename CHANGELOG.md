@@ -9,6 +9,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-19
+
 Boomtown: large towns run about twice as fast and the GPU does half the work, with no change
 to the game's results; mods from Nexus Mods and a mod manager; a new loading screen in the
 browser; and a blog. The performance work is described in
@@ -145,5 +147,6 @@ of Banished 1.0.7.
   [docs/DEVIATIONS.md](docs/DEVIATIONS.md) and in the
   [issues](https://github.com/tanepiper/unbanished/issues).
 
-[Unreleased]: https://github.com/tanepiper/unbanished/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/tanepiper/unbanished/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/tanepiper/unbanished/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tanepiper/unbanished/releases/tag/v0.1.0
