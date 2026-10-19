@@ -76,12 +76,14 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 | `apps/game` | The game (binary `banished`), by folder: `ui/` (windows, toolbar, dialogs), `gfx/` (renderer, models, decals, shadows, `*.wgsl`), `tools/` (placement, removal, roads, selection), `audio/` (sound, music, ambience), `view/` (scene, world view, particles, weather), `saves/`, `platform/` (paths, browser glue, version, profiler); at the root `main.rs`, `loops.rs` (engine loops), `menu.rs`, `gameplay.rs` + `gameplay/` (the town's loop: simulation, input, tools, HUD, audio, saving), `start.rs` + `start/` (new game, templates, frame update, models, load, save) |
 | `apps/viewer` | Asset browser (models, textures, audio, dialogs) |
 | `apps/cli` | Command-line helpers |
+| `apps/modmanager` | The mod manager (binary `banished-mods`, egui): mods on and off, order, mod lists, Nexus Mods installs, Play |
 | `crates/core` | Bit-exact foundations: CRT maths (`crt`), `Random`, Perlin `noise`, `math` (`Transform`), game time (`scheduler`), `calendar`; `picking`; re-exported by `banished-game` |
 | `crates/terrain`, `crates/path` | The terrain generator, mesh and ground queries; the pathfinder, walkable regions and sector graph; re-exported by `banished-game` as `terrain`, `pathfind`, `sectors` |
 | `crates/game` | Bit-exact game rules, by folder: `people/` (citizens, lives, needs), `behaviour/` (agents, AI, characters, animation), `work/` (jobs, construction, production, stock), `production/` (farms, orchards, quarries, hunting…), `commerce/` (markets, trade), `nature/` (seeding, growth, wildlife, climate), `world/` (map, floors, placement), `disasters/`, plus `town.rs` + `town/` (the simulation context: sites, building, clearing, piles, storage, the job and building callbacks) and `events.rs` |
 | `crates/formats` | Dependency-free readers: `.pkg`, `.crs`, UI dialogs, gameplay resources, saves |
 | `crates/ui` | The game's UI system (element tree, layout, fonts, controls, input) |
 | `crates/gfx`, `crates/audio`, `crates/wma` | wgpu helpers, xWMA playback, WMA v2 decoder |
+| `crates/mods` | The mod list (`Modification`, `IO::Modification`) shared by the game and the mod manager, and a text store for the settings file |
 | `crates/nexus` | Optional Nexus Mods support (not in the original): search, download links with the player's API key, `.pkm` install from archives; native transport behind the `native` feature |
 | `tools/emu` | Unicorn harness `pe_emu.py` and ground-truth generators for the tests |
 | `tools/ghidra` | Headless export scripts, `readdata.py` (constants), `vtable.py` |

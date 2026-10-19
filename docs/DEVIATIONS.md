@@ -44,10 +44,6 @@ Deviation: 44, Not ported: 4, Not traced: 1.
 - [Deviation] [apps/game/src/main.rs:100](../apps/game/src/main.rs#L100): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
 - [Deviation] [apps/game/src/main.rs:889](../apps/game/src/main.rs#L889): Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
 
-## `apps/game/src/mods.rs`
-
-- [Deviation] [apps/game/src/mods.rs:51](../apps/game/src/mods.rs#L51): `+0x58`: where it is, under the data directory (`WinData\<file>.pkm`). Deviation: the original shows the full path.
-
 ## `apps/game/src/platform/nexus.rs`
 
 - [Deviation] [apps/game/src/platform/nexus.rs:1](../apps/game/src/platform/nexus.rs#L1): Nexus Mods for the Mods dialog's Browse tab: the API key, and the searches and installs run in the background (a thread natively, `fetch` in the browser), whose replies the dialog collects each frame with [`Nexus::poll`]. Deviation: the original's Browse tab is the Steam Workshop browser (`FUN_14006f790`, `FUN_14006dee0`); here it browses Nexus Mods, and only when the player has set an API key (`NexusApiKey` in the settings, or `BANISHED_NEXUS_API_KEY` natively).
@@ -62,7 +58,7 @@ Deviation: 44, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/settings.rs`
 
-- [Deviation] [apps/game/src/settings.rs:543](../apps/game/src/settings.rs#L543): Deviation: the original keeps these values in the registry; the port writes the same names to a settings file natively and to localStorage in the browser.
+- [Deviation] [apps/game/src/settings.rs:559](../apps/game/src/settings.rs#L559): Deviation: the original keeps these values in the registry; the port writes the same names to a settings file natively and to localStorage in the browser.
 
 ## `apps/game/src/tools/selection.rs`
 
@@ -169,6 +165,10 @@ Deviation: 44, Not ported: 4, Not traced: 1.
 ## `crates/game/src/world/terraform.rs`
 
 - [Deviation] [crates/game/src/world/terraform.rs:1](../crates/game/src/world/terraform.rs#L1): Terraforming: a tunnel reshapes the terrain when it is built. See docs/TUNNELS.md. When the build is done (entity event 4; a multi-object passes it to its parts), the vertices of the ceiling mesh raise the terrain where it is below them, keeping what was there, and the vertices of the floor mesh lower it where it is above them. Then the rough cells (10) under the building become high ground (6). When the tunnel is removed, the raised heights are put back and those cells become rough again; the dug floor stays. `FUN_1400574b0` (ceiling and floor), `FUN_140057a80` (cell types), `FUN_140057cb0` (removed, slot `+0x38`). Deviation: the heights belong to the terrain outside the simulation, so the town queues the dig and the game applies it after the iteration (`StartingTown::apply_terraforms`), not during it.
+
+## `crates/mods/src/lib.rs`
+
+- [Deviation] [crates/mods/src/lib.rs:64](../crates/mods/src/lib.rs#L64): `+0x58`: where it is, under the data directory (`WinData\<file>.pkm`). Deviation: the original shows the full path.
 
 ## `crates/terrain/src/query.rs`
 

@@ -19,6 +19,22 @@ pub struct Persistence {
     stored: bool,
 }
 
+/// The mod list (`banished_mods`) reads and writes the same values.
+impl banished_mods::Settings for Persistence {
+    fn get_bool(&self, section: &str, name: &str, value: &mut bool) {
+        Persistence::get_bool(self, section, name, value);
+    }
+    fn get_int(&self, section: &str, name: &str, value: &mut i32) {
+        Persistence::get_int(self, section, name, value);
+    }
+    fn set_bool(&mut self, section: &str, name: &str, value: bool) {
+        Persistence::set_bool(self, section, name, value);
+    }
+    fn set_int(&mut self, section: &str, name: &str, value: i32) {
+        Persistence::set_int(self, section, name, value);
+    }
+}
+
 impl Persistence {
     /// `ReadSettings`: everything stored, or nothing on first run.
     pub fn read() -> Persistence {

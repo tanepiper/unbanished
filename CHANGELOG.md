@@ -39,6 +39,8 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ### Added
 
+- A mod manager, `banished-mods`: turn mods on and off and set their order before the game
+  starts, keep named mod lists, install mods from Nexus Mods, and start the game.
 - Optional Nexus Mods support. With your own Nexus Mods API key, the Mods menu's Browse tab
   (the Steam version's Workshop browser) searches and installs Banished mods from Nexus Mods,
   and `banished-cli nexus` does the same from the command line. See "Mods from Nexus Mods" in

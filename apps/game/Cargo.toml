@@ -17,6 +17,7 @@ banished-ui = { path = "../../crates/ui" }
 banished-gfx = { path = "../../crates/gfx" }
 banished-audio = { path = "../../crates/audio" }
 banished-nexus = { path = "../../crates/nexus" }
+banished-mods = { path = "../../crates/mods" }
 wgpu = { version = "30", features = ["webgl"] }
 winit = "0.30"
 web-time = "1"

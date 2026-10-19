@@ -31,7 +31,7 @@ is clear.
 
 ## The list
 
-`IO::Modification` (`apps/game/src/mods.rs`):
+`IO::Modification` (`crates/mods`, shared by the game and the mod manager, `apps/modmanager`):
 
 | Function | Address | What it does |
 |---|---|---|

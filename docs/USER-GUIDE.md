@@ -380,6 +380,32 @@ Un-Banished loads mods made with the BanishedKit (`.pkm` files), as Banished 1.0
 As in the original, the Mods menu marks two mods as conflicting when they change the same files.
 Also as in the original, you cannot earn achievements while mods are turned on.
 
+### The mod manager
+
+`banished-mods` is a small desktop program, beside the game, to choose your mods before you
+play. It does what the Mods menu does, plus a few things the menu cannot:
+
+- turn mods on and off, all at once or one by one, and filter the list by name or author;
+- change the order: drag a mod, or use ⤒ (to the top), ↑ and ↓. The first mod in the list wins
+  when two mods change the same file, and the list marks such conflicts;
+- see a mod's details: its description, the mods it shares files with, and its files;
+- keep **mod lists**: save the mods that are on, and their order, under a name, and load the
+  list again later;
+- search and install mods from Nexus Mods (the same key as below; you can also paste the key
+  in the program, and it is saved in the settings file);
+- **Play**: save, then start Un-Banished with the same game data.
+
+Start it from the repository:
+
+```bash
+cargo run --release -p banished-modmanager -- path/to/WinData
+```
+
+Without a folder it uses `WinData` beside the program, then the folder you used last. **Save**
+writes the same settings the game's Mods menu writes, so the game uses them when it starts.
+Close the game before you change mods here: the game writes its settings file when it closes, and
+would undo the changes. Mod lists are text files in `Documents/Banished/ModLists`.
+
 ### Mods from Nexus Mods (optional)
 
 Banished's Steam version has a **Browse** tab in the Mods menu, for the Steam Workshop.
