@@ -2,7 +2,10 @@
 //!
 //! ```text
 //! banished-cli export-audio [WINDATA] [OUT]   decode every SoundBuffer to MP3 via FFmpeg
+//! banished-cli nexus …                         search and install mods from Nexus Mods
 //! ```
+
+mod nexus;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -134,8 +137,9 @@ fn main() {
             &arg(1, root.join("game-data/original/WinData")),
             &arg(2, root.join("game-data/derived/audio")),
         ),
+        Some("nexus") => nexus::run(args[1..].to_vec(), root.join("game-data/original/WinData")),
         _ => {
-            eprintln!("usage: banished-cli export-audio [WINDATA] [OUT]");
+            eprintln!("usage: banished-cli export-audio [WINDATA] [OUT]\n       banished-cli nexus (see banished-cli nexus help)");
             std::process::exit(2);
         }
     }

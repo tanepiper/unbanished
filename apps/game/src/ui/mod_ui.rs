@@ -42,6 +42,7 @@ use banished_ui::{Kind, NodeId, Ui};
 use crate::loops::Screen;
 use crate::mods::Modification;
 use crate::settings::Persistence;
+use crate::ui::mod_browse::Browse;
 
 const DIALOG: &str = "Dialog/Mod.rsc:resource";
 const LINE: &str = r"Dialog\Mod.rsc:modLine";
@@ -77,6 +78,8 @@ pub struct ModDialog {
     confirm: Option<NodeId>,
     /// The details dialog while it is open.
     details: Option<NodeId>,
+    /// The Browse tab, when a Nexus Mods API key is set.
+    browse: Option<Browse>,
 }
 
 /// What the dialog asks of its owner.
@@ -122,6 +125,8 @@ impl ModDialog {
         screen: &mut Screen,
         mods: &Modification,
         in_game: bool,
+        settings: &Persistence,
+        pack_dir: Option<std::path::PathBuf>,
     ) -> Option<ModDialog> {
         let index = screen.add_modal(ui, DIALOG)?;
         let root = screen.dialogs[index].root;
@@ -167,12 +172,9 @@ impl ModDialog {
             }
             lines.push(l);
         }
-        // The build without Steam: no Browse tab and no Workshop progress.
-        for n in ["buttonBrowse", "groupProgress"] {
-            if let Some(n) = ui.find(root, n) {
-                ui.set_visible(n, false);
-            }
-        }
+        // The build without Steam hides the Browse tab and the Workshop progress; with a Nexus
+        // Mods key the tab browses Nexus Mods instead (`mod_browse`).
+        let browse = Browse::open(ui, root, settings, pack_dir);
         let d = ModDialog {
             root,
             lines,
@@ -181,6 +183,7 @@ impl ModDialog {
             in_game,
             confirm: None,
             details: None,
+            browse,
         };
         d.refresh(ui, mods);
         Some(d)
@@ -225,7 +228,6 @@ impl ModDialog {
         settings: &Persistence,
         node: NodeId,
     ) -> Outcome {
-        let is = |n: Option<NodeId>| n.is_some_and(|b| ui.descendant(b, node));
         if let Some(root) = self.details {
             // `FUN_140070950`'s Ok (element 0).
             if ui
@@ -252,6 +254,18 @@ impl ModDialog {
             mods.revert(settings);
             return Outcome::Closed;
         }
+        if let Some(b) = &mut self.browse {
+            match b.click(ui, settings, mods, node) {
+                // `buttonUpdateReload`: reload with the new mods.
+                Some(true) => {
+                    screen.remove_root(ui, self.root);
+                    return Outcome::Reload;
+                }
+                Some(false) => return Outcome::Stay,
+                None => {}
+            }
+        }
+        let is = |n: Option<NodeId>| n.is_some_and(|b| ui.descendant(b, node));
         if is(self.cancel) {
             return self.cancel(ui, screen, mods, settings);
         }
@@ -297,6 +311,39 @@ impl ModDialog {
         }
         self.refresh(ui, mods);
         Outcome::Stay
+    }
+
+    /// A combo box's choice in the Browse tab.
+    pub fn selected(
+        &mut self,
+        ui: &mut Ui,
+        settings: &Persistence,
+        mods: &Modification,
+        node: NodeId,
+        index: usize,
+    ) {
+        if self.details.is_none() && self.confirm.is_none() {
+            if let Some(b) = &mut self.browse {
+                b.selected(ui, settings, mods, node, index);
+            }
+        }
+    }
+
+    /// Each frame: the Browse tab's background replies. A finished install joins the list
+    /// and is saved in the settings.
+    pub fn poll(
+        &mut self,
+        ui: &mut Ui,
+        settings: &mut crate::settings::Settings,
+        mods: &mut Modification,
+    ) {
+        if let Some(b) = &mut self.browse {
+            let before = mods.mods.len();
+            b.poll(ui, &mut settings.persistence, mods);
+            if mods.mods.len() != before {
+                settings.save();
+            }
+        }
     }
 
     /// Cancel (element 100, also Escape): `RefreshList`, then close.

@@ -380,6 +380,57 @@ Un-Banished loads mods made with the BanishedKit (`.pkm` files), as Banished 1.0
 As in the original, the Mods menu marks two mods as conflicting when they change the same files.
 Also as in the original, you cannot earn achievements while mods are turned on.
 
+### Mods from Nexus Mods (optional)
+
+Banished's Steam version has a **Browse** tab in the Mods menu, for the Steam Workshop.
+Un-Banished can show this tab for [Nexus Mods](https://www.nexusmods.com/games/banished/mods)
+instead. The tab is off until you give Un-Banished your own Nexus Mods API key.
+
+1. Sign in on nexusmods.com. Open your account settings, then **API Keys**, and copy your
+   personal API key. Treat it like a password: do not share it.
+2. Give the key to Un-Banished in one of these ways:
+   - add a line `NexusApiKey=YOUR_KEY` to the [settings file](#settings);
+   - or, on the desktop, set the environment variable `BANISHED_NEXUS_API_KEY`. It wins over
+     the settings file;
+   - or, in the browser, open the developer console on the game page and run
+     `localStorage.setItem('banished-wasm.settings', (localStorage.getItem('banished-wasm.settings') || '') + '\nNexusApiKey=YOUR_KEY')`,
+     then reload the page.
+3. Open **Mods** and choose **Browse Nexus Mods**. Search by name, or sort by **Most Popular**
+   (most downloads), **Most Recent** (recently updated) or **Subscribed** (the mods you
+   installed from Nexus Mods).
+4. Press **+** on a mod to install it:
+   - With a **Premium** account, Un-Banished downloads the mod's main file and installs it.
+   - Without Premium, Nexus Mods only allows downloads from its website. Un-Banished opens the
+     mod's files page. Press **Mod Manager Download** there and copy the `nxm://` link that
+     your browser offers to open. Paste the link into the search box in the Browse tab and
+     press the search button. Un-Banished installs that file.
+5. When the download is done, press the reload button that appears ("Mod updates are ready"),
+   or open the game again later. Then turn the new mod on in **Installed Mods**.
+
+Good to know:
+
+- Un-Banished installs the `.pkm` files from `.zip` downloads, and plain `.pkm` files. Some mods
+  come as `.7z` or `.rar` files. For those, download the file from the website, unpack it, and
+  put the `.pkm` file in `WinData` yourself.
+- The previews of the mods are not shown yet.
+- The key stays on your computer, in the settings file or in the browser. Un-Banished sends it
+  only to `api.nexusmods.com`, and only when you search, sign in or install.
+- Un-Banished is not yet a registered Nexus Mods application. Until it is, a personal key is
+  for your own use, as the Nexus Mods rules say.
+
+The same works from the command line, with the same key:
+
+```bash
+cargo run --release -p banished-cli -- nexus search terrain
+```
+
+```bash
+cargo run --release -p banished-cli -- nexus install 19 --to path/to/WinData
+```
+
+`nexus whoami` shows the account the key belongs to, `nexus files MOD_ID` lists a mod's files,
+and `nexus install 'nxm://…'` installs from a Mod Manager Download link.
+
 ## Command-line options
 
 To play, you need at most one argument: the `WinData` folder (`banished PATH`). The other

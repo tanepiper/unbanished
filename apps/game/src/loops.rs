@@ -34,6 +34,8 @@ pub struct Ctx<'a> {
     pub mods: &'a mut crate::mods::Modification,
     /// Set to reload the packages with the mods as they are now (`FUN_140072110`).
     pub reload_mods: &'a mut Option<crate::mods::Reload>,
+    /// The pack directory (`WinData`), where mods are installed natively.
+    pub pack_dir: Option<&'a std::path::Path>,
 }
 
 /// Input not consumed by the UI (camera control).

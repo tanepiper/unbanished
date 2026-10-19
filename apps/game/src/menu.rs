@@ -481,6 +481,9 @@ impl GameLoop for MenuLoop {
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
+        if let Some(d) = self.mods_dialog.as_mut() {
+            d.poll(ctx.ui, ctx.settings, ctx.mods);
+        }
         // `FUN_1400a0bb0`: the music pauses while the application is paused (unfocused), and
         // otherwise `Scene::Update(dt, 0, random, origin, 0)`.
         if ctx.app_paused != self.app_paused {
@@ -575,6 +578,9 @@ impl GameLoop for MenuLoop {
 
     fn event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
         if let (Some(d), Some(screen)) = (self.mods_dialog.as_mut(), self.screen.as_mut()) {
+            if let Event::Selected(id, index) = event {
+                d.selected(ctx.ui, &ctx.settings.persistence, ctx.mods, id, index);
+            }
             if let Event::Clicked(id) | Event::Changed(id) = event {
                 use crate::ui::mod_ui::Outcome;
                 match d.click(ctx.ui, screen, ctx.mods, &ctx.settings.persistence, id) {
@@ -699,8 +705,14 @@ impl GameLoop for MenuLoop {
             }
         } else if self.is(ctx.ui, 0, "buttonMod", id) {
             if let Some(screen) = &mut self.screen {
-                self.mods_dialog =
-                    crate::ui::mod_ui::ModDialog::open(ctx.ui, screen, ctx.mods, false);
+                self.mods_dialog = crate::ui::mod_ui::ModDialog::open(
+                    ctx.ui,
+                    screen,
+                    ctx.mods,
+                    false,
+                    &ctx.settings.persistence,
+                    ctx.pack_dir.map(std::path::Path::to_path_buf),
+                );
             }
         } else if self.is(ctx.ui, 0, "buttonAchievement", id) {
             // `FUN_1400b9020` id 8: `Dialog/Achievement.rsc`.

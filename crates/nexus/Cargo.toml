@@ -1,0 +1,19 @@
+[package]
+name = "banished-nexus"
+version.workspace = true
+description = "Optional Nexus Mods support for Un-Banished: search Banished mods, get download links with the player's API key, and install the .pkm packages they contain"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+# A blocking HTTP transport (ureq with rustls) for native builds. The browser build uses fetch.
+native = ["dep:ureq"]
+
+[dependencies]
+# The pure-Rust deflate backend for zip (on the web nothing else turns one on).
+flate2 = "1"
+serde_json = "1"
+ureq = { version = "3.4.2", optional = true }
+zip = { version = "9.0.5", default-features = false, features = ["deflate-flate2"] }

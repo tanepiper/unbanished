@@ -16,6 +16,7 @@ banished-game = { path = "../../crates/game" }
 banished-ui = { path = "../../crates/ui" }
 banished-gfx = { path = "../../crates/gfx" }
 banished-audio = { path = "../../crates/audio" }
+banished-nexus = { path = "../../crates/nexus" }
 wgpu = { version = "30", features = ["webgl"] }
 winit = "0.30"
 web-time = "1"
@@ -28,11 +29,12 @@ env_logger = "0.11"
 pollster = "1"
 png = "0.18"
 jiff = { version = "0.2", default-features = false, features = ["std", "tz-system"] }
+banished-nexus = { path = "../../crates/nexus", features = ["native"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.129"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
-web-sys = { version = "0.3", features = ["Document", "Window", "Location", "Element", "HtmlCanvasElement", "HtmlInputElement", "File", "FileList", "Blob", "Event", "EventTarget", "Response", "UrlSearchParams", "Storage", "IdbFactory", "IdbDatabase", "IdbObjectStore", "IdbOpenDbRequest", "IdbRequest", "IdbTransaction", "IdbTransactionMode", "DomStringList", "Event", "BlobPropertyBag", "Url", "HtmlAnchorElement", "DragEvent", "DataTransfer", "Performance"] }
+web-sys = { version = "0.3", features = ["Document", "Window", "Location", "Element", "HtmlCanvasElement", "HtmlInputElement", "File", "FileList", "Blob", "Event", "EventTarget", "Response", "UrlSearchParams", "Storage", "IdbFactory", "IdbDatabase", "IdbObjectStore", "IdbOpenDbRequest", "IdbRequest", "IdbTransaction", "IdbTransactionMode", "DomStringList", "Event", "BlobPropertyBag", "Url", "HtmlAnchorElement", "DragEvent", "DataTransfer", "Performance", "Headers", "Request", "RequestInit", "RequestMode"] }
 console_error_panic_hook = "0.1"
 console_log = "1"

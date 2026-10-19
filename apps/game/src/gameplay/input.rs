@@ -366,6 +366,9 @@ impl GameplayLoop {
     /// The UI events of `GameLoop::event`, before the queued commands are applied.
     pub(super) fn window_event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
         if let (Some(d), Some(screen)) = (self.mods_dialog.as_mut(), self.screen.as_mut()) {
+            if let Event::Selected(id, index) = event {
+                d.selected(ctx.ui, &ctx.settings.persistence, ctx.mods, id, index);
+            }
             if let Event::Clicked(id) | Event::Changed(id) = event {
                 use crate::ui::mod_ui::Outcome;
                 match d.click(ctx.ui, screen, ctx.mods, &ctx.settings.persistence, id) {
@@ -508,8 +511,14 @@ impl GameplayLoop {
                 }
                 crate::ui::pause_menu::PauseClick::Mod => {
                     if let Some(screen) = &mut self.screen {
-                        self.mods_dialog =
-                            crate::ui::mod_ui::ModDialog::open(ctx.ui, screen, ctx.mods, true);
+                        self.mods_dialog = crate::ui::mod_ui::ModDialog::open(
+                            ctx.ui,
+                            screen,
+                            ctx.mods,
+                            true,
+                            &ctx.settings.persistence,
+                            ctx.pack_dir.map(std::path::Path::to_path_buf),
+                        );
                     }
                 }
                 crate::ui::pause_menu::PauseClick::Load

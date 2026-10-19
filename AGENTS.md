@@ -82,6 +82,7 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 | `crates/formats` | Dependency-free readers: `.pkg`, `.crs`, UI dialogs, gameplay resources, saves |
 | `crates/ui` | The game's UI system (element tree, layout, fonts, controls, input) |
 | `crates/gfx`, `crates/audio`, `crates/wma` | wgpu helpers, xWMA playback, WMA v2 decoder |
+| `crates/nexus` | Optional Nexus Mods support (not in the original): search, download links with the player's API key, `.pkm` install from archives; native transport behind the `native` feature |
 | `tools/emu` | Unicorn harness `pe_emu.py` and ground-truth generators for the tests |
 | `tools/ghidra` | Headless export scripts, `readdata.py` (constants), `vtable.py` |
 | `tools/triage` | `deviations.py`, `coverage.py` (uncited functions), `determinism.sh` |

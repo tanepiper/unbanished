@@ -608,6 +608,9 @@ impl GameLoop for GameplayLoop {
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
+        if let Some(d) = self.mods_dialog.as_mut() {
+            d.poll(ctx.ui, ctx.settings, ctx.mods);
+        }
         if !self.entities.saved.is_empty() {
             self.store_window_settings(ctx.ui, false);
         }

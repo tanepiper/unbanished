@@ -68,6 +68,19 @@ impl Persistence {
         }
     }
 
+    /// A text value, or `None` when absent or empty.
+    pub fn get_text(&self, section: &str, name: &str) -> Option<String> {
+        self.values
+            .get(&Self::key(section, name))
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+    }
+
+    pub fn set_text(&mut self, section: &str, name: &str, value: &str) {
+        self.values
+            .insert(Self::key(section, name), value.to_string());
+    }
+
     /// `Persistence::Get(section, key, bool&)`: `"true"` is true, anything else false.
     pub fn get_bool(&self, section: &str, name: &str, value: &mut bool) {
         if let Some(v) = self.values.get(&Self::key(section, name)) {

@@ -39,6 +39,10 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ### Added
 
+- Optional Nexus Mods support. With your own Nexus Mods API key, the Mods menu's Browse tab
+  (the Steam version's Workshop browser) searches and installs Banished mods from Nexus Mods,
+  and `banished-cli nexus` does the same from the command line. See "Mods from Nexus Mods" in
+  the user guide.
 - `tools/compat/`: build any version in a clean checkout, play a fixed set of scenarios (a new
   game, small, medium and large towns, and continuing another version's saves), and check that
   two versions produce identical saves and frames. See

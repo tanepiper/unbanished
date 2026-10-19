@@ -5,6 +5,7 @@ pub mod building_ui;
 pub mod create_bar;
 pub mod entity_ui;
 pub mod event_notify;
+pub mod mod_browse;
 pub mod mod_ui;
 pub mod options;
 pub mod pause_menu;

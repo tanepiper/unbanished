@@ -119,6 +119,32 @@ impl Modification {
 
     /// `RefreshList` over the packages already read: the settings' order and enabled mods
     /// again (the Mods dialog's Cancel). The list stays dirty.
+    /// Mods added while the game runs (dropped in the browser, or installed from Nexus Mods):
+    /// the list is read again with them, replacing any of the same name. They take effect
+    /// after a reload; the list is marked changed when an enabled mod was replaced or the
+    /// enabled set changed.
+    pub fn add(&mut self, found: Vec<(String, Vec<u8>)>, settings: &Persistence) {
+        if found.is_empty() {
+            return;
+        }
+        let names: Vec<String> = found.iter().map(|(n, _)| n.clone()).collect();
+        let mut all: Vec<(String, Vec<u8>)> = self
+            .mods
+            .iter()
+            .filter(|m| !names.contains(&m.file))
+            .map(|m| (m.file.clone(), m.bytes.as_ref().clone()))
+            .collect();
+        all.extend(found);
+        let before = self.enabled_files();
+        let dirty = self.dirty
+            || self
+                .mods
+                .iter()
+                .any(|m| m.enabled && names.contains(&m.file));
+        *self = Modification::refresh(all, settings);
+        self.dirty = dirty || self.enabled_files() != before;
+    }
+
     pub fn revert(&mut self, settings: &Persistence) {
         for (order, m) in self.mods.iter_mut().enumerate() {
             m.enabled = false;

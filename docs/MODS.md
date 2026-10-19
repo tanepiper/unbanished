@@ -108,11 +108,41 @@ In 1.0.7, loading a save does not change which mods are enabled.
   `Application-x64-profile.exe` (as the GOG release has no Steam). After opening the Mods dialog
   it hides the Browse tab's button and the Workshop progress (`buttonBrowse`, `groupProgress`),
   so mods are only the packages the player downloads into the pack directory. The Steam build's
-  Workshop browser and uploads are not ported; Create and Update stay hidden.
+  Workshop uploads are not ported; Create and Update stay hidden. With a Nexus Mods API key the
+  Browse tab comes back, backed by Nexus Mods (see below).
 - In the browser, mods are kept in IndexedDB (`banished-wasm`, store `mods`, keyed by file name
   without `.pkm`). They are added with the start panel's file picker or by dropping them on the
   page at any time; a dropped mod joins the list at once and loads after a reload. There is no
   way to remove one yet.
+
+## The Browse tab and Nexus Mods
+
+Observed in the Steam build (static reading only; the Workshop was not run):
+
+| Function | What it does |
+|---|---|
+| `FUN_14006f790` | Fills `groupBrowse` with `Dialog/Mod.rsc:browser` and finds its elements: `buttonSearch`, `textSearch`, `comboSort`, `imageWorking`, `buttonPrevPage`, `buttonNextPage`, `comboPage`, `tableResult`, `textResultNone`, `textResultError`, and below the tabs `progressUpdate`, `textUpdate`, `buttonUpdateReload`, `textUpdateAvailable`. Sets their ids (20000 to 20006), selects the first sort entry, reads the table's column count (`+0xc4` into `+0xac`) and starts a Steam UGC query. |
+| `FUN_14006dee0` | Shows a page of results: the page list (`"%d"` for each page), then one `Dialog/Mod.rsc:searchResultGroup` per result in the table, row by row, with `imageModPreview`, `textModTitle` (parameter 0 is the title), `groupModPreview`, and Subscribe (id `19999 + i`) and Unsubscribe (`20999 + i`). |
+
+The sort list's entries come from the layout: Most Popular, Most Recent and Subscribed. The texts
+are "Updating mod @0...", "@0% complete" and "Mod updates are ready.", and the reload button's
+tooltip says new mods are used after a reload, or the next time a game or the menu loads.
+
+Deviation (`apps/game/src/ui/mod_browse.rs`, `apps/game/src/platform/nexus.rs`): with an API key
+(`NexusApiKey` in the settings, or `BANISHED_NEXUS_API_KEY` natively), the tab browses
+[Nexus Mods](https://www.nexusmods.com/games/banished/mods) through `crates/nexus`:
+
+- Searches use the public GraphQL API (no key); 50 results a page (*assumed* to match a Steam
+  UGC page). Most Popular sorts by downloads, Most Recent by update time, and Subscribed lists
+  the mods installed from Nexus Mods, recorded as `NexusMod_<file>=<mod id>` in the settings.
+- Subscribe gets the mod's newest main file. A Premium account gets a download link at once.
+  Other accounts get the mod's files page in the browser; the page's "Mod Manager Download"
+  gives an `nxm://` link, and a link pasted into `textSearch` installs that file.
+- Downloads show in `groupProgress`. The `.pkm` files of a `.zip` (or a bare `.pkm`) are written
+  to the pack directory natively and to IndexedDB in the browser, join the list
+  (`Modification::add`, as dropped mods do) and need a reload, through `buttonUpdateReload`.
+- The tab's label says "Browse Nexus Mods". Not ported: previews (`imageModPreview` is hidden),
+  Unsubscribe (hidden), and `.7z` and `.rar` archives (the player unpacks them).
 
 Test mods (git-ignored, from banishedinfo.com) live in `game-data/mods/downloads`.
 `game-data/modtest/WinData` links them beside the game's packages for captures:

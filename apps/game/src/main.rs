@@ -340,6 +340,7 @@ impl Game {
             registry: &self.registry,
             mods: &mut self.mods,
             reload_mods: &mut self.reload_mods,
+            pack_dir: self.pack_dir.as_deref(),
         };
         f(&mut self.main, &mut ctx)
     }
@@ -553,28 +554,11 @@ impl Game {
     /// asks for one when an enabled mod changed).
     #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
     fn add_mods(&mut self, found: Vec<(String, Vec<u8>)>) {
-        if found.is_empty() {
-            return;
+        let count = found.len();
+        if count > 0 {
+            self.mods.add(found, &self.settings.persistence);
+            log::info!("added {count} mods");
         }
-        let names: Vec<String> = found.iter().map(|(n, _)| n.clone()).collect();
-        let mut all: Vec<(String, Vec<u8>)> = self
-            .mods
-            .mods
-            .iter()
-            .filter(|m| !names.contains(&m.file))
-            .map(|m| (m.file.clone(), m.bytes.as_ref().clone()))
-            .collect();
-        all.extend(found);
-        let before = self.mods.enabled_files();
-        let dirty = self.mods.dirty
-            || self
-                .mods
-                .mods
-                .iter()
-                .any(|m| m.enabled && names.contains(&m.file));
-        self.mods = mods::Modification::refresh(all, &self.settings.persistence);
-        self.mods.dirty = dirty || self.mods.enabled_files() != before;
-        log::info!("added {} mods", names.len());
     }
 
     /// `FUN_140072110`'s reload: the mods as the list has them now. `SaveList`, then the
