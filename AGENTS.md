@@ -35,9 +35,13 @@ identifiers as part of unrelated work.
    made with `tools/screenshots.sh`. The same applies to the short WebM videos of Un-Banished's
    own frames in `docs/assets/videos/`, made with `tools/videos.sh`. Add to either only when
    the docs need it, and keep each file small.
-2. **Evidence before code.** Every ported behaviour cites the original function it came from in a
-   doc comment (`/// Port of FUN_1400be680: …`). A guess is marked *inferred* or *assumed* in the
-   comment and the docs. Check against the decompile or the emulator; don't invent behaviour.
+2. **Evidence before code.** Every ported behaviour cites the original function it came from.
+   A guess is marked *inferred* or *assumed* in the comment and the docs. Check against the
+   decompile or the emulator; don't invent behaviour. Doc comments (`///`, `//!`) are what
+   rustdoc shows, so write them in plain English and end each ported item's doc with one line
+   ``Original: `FUN_1400be680` ``. Offsets, vtable slots and `DAT_` constants go in ordinary
+   `//` comments next to the code, where `tools/triage` still finds them. "Deviation:" and
+   "not ported" comments keep their exact wording.
 3. **Mark every intentional difference** in a code comment containing "Deviation:" (or
    "not ported"), then regenerate the ledger with `python3 tools/triage/deviations.py` and commit
    `docs/DEVIATIONS.md` with the change.
