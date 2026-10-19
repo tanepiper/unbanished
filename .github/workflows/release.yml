@@ -1,7 +1,8 @@
 # Release a version of Un-Banished. Started by hand (Actions → Release → Run workflow, or
 # `gh workflow run release.yml -f version=0.2.0 -f next=0.3.0`). It checks the version, runs the
 # tests and the browser build, then:
-#   1. dates the changelog's Unreleased section as VERSION and commits "Release VERSION";
+#   1. renames the changelog's Unreleased section to [VERSION] - DATE (its notes unchanged), puts a
+#      new empty Unreleased section above it, and commits "Release VERSION";
 #   2. tags that commit vVERSION (annotated);
 #   3. sets the workspace version to NEXT and commits "Start NEXT development";
 #   4. pushes both commits and the tag to main;
@@ -104,7 +105,7 @@ jobs:
       - name: Start the next version
         run: |
           python3 tools/release/release.py bump "$NEXT"
-          git add Cargo.toml Cargo.lock CHANGELOG.md
+          git add Cargo.toml Cargo.lock
           git commit -m "Start $NEXT development" -m "The workspace version is now $NEXT (shown as $NEXT-<build> until its release)."
 
       - name: Show the release

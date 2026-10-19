@@ -5,7 +5,7 @@ Usage (from the repository root):
   python3 tools/release/release.py changelog VERSION DATE  # Unreleased -> [VERSION] - DATE
   python3 tools/release/release.py notes VERSION        # the release notes, to standard output
   python3 tools/release/release.py title VERSION        # "Un-Banished VERSION: NAME" if a blog post names it
-  python3 tools/release/release.py bump NEXT            # start NEXT: Cargo.toml, Cargo.lock, changelog
+  python3 tools/release/release.py bump NEXT            # start NEXT: Cargo.toml and Cargo.lock
 
 Each step only edits files; the workflow commits, tags and publishes. Run them locally on a
 scratch copy to see what a release will do (`--dry-run` prints instead of writing).
@@ -93,9 +93,8 @@ def changelog(version, date):
     text = changelog_path.read_text()
     if "## [Unreleased]" not in text:
         fail("no Unreleased section")
-    # The development note ("Version X in development.") does not belong in the release.
-    text = re.sub(r"(## \[Unreleased\]\n\n)Version [\d.]+ in development\.[^\n]*(\n[^\n#-][^\n]*)*\n\n",
-                  r"\1", text, count=1)
+    # The section keeps every note as written; only its heading changes, and a new empty
+    # Unreleased section goes above it.
     text = text.replace("## [Unreleased]", f"## [Unreleased]\n\n## [{version}] - {date}", 1)
     previous = re.search(r"^\[Unreleased\]: .*/compare/v([\d.]+)\.\.\.HEAD$", text, re.M)
     if not previous:
@@ -143,10 +142,6 @@ def bump(next_version):
             blocks[i] = block.replace(f'\nversion = "{old}"', f'\nversion = "{next_version}"', 1)
             changed += 1
     write(lock_path, "\n[[package]]\n".join(blocks))
-    text = changelog_path.read_text()
-    text = text.replace("## [Unreleased]\n",
-                        f"## [Unreleased]\n\nVersion {next_version} in development.\n", 1)
-    write(changelog_path, text)
     print(f"release: {old} -> {next_version} ({changed} workspace packages in Cargo.lock)", file=sys.stderr)
 
 
