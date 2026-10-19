@@ -49,16 +49,52 @@ GAME=path/to/banished VIEWER=path/to/banished-viewer tools/videos.sh SAVE.sav   
 
 Each video has a poster, `NAME-poster.webp`: one frame of the video, which a page shows until
 the video plays (`<video poster=…>`).
-| `montage.webm` | The home page's video, about 65 s: a flight down a river into a town, the trader's boat, a fisher, the market, a farmer, a vendor and a labourer close up, an autumn town, a young town, a winter town, a year of seasons, and the camera rises away | Twelve shots from five saves, joined with 0.6 s transitions of eleven kinds (`xfade`: fade through black, slides, wipes, a circle, a radial sweep, a blur, fade through white) |
+| `montage.webm` | The home page's video, about 64 s, with an opening title, a caption for each shot and a closing card: a flight down a river into a town, the trader's boat, a fisher, the market, a farmer, a vendor and a labourer close up, an autumn town, a young town, a winter town, a year of seasons, and the camera rises away | Twelve shots from five saves, joined with 0.6 s transitions of eleven kinds (`xfade`: fade through black, slides, wipes, a circle, a radial sweep, a blur, fade through white) |
 
 The montage is made only when you ask for it (`tools/videos.sh save-game/Save83.sav montage`),
 because it loads five saves from the same folder and takes several minutes. Its shots are in the
 script's `montage` part: most reuse the runs of the other videos (`run_flight`, `run_boat`,
 `run_farmer`, …) and keep a part of their frames with `clip`; the others give the save, the
 building the camera centres on, the zoom and any pointer moves. `joins` lists the transition
-between each pair of shots. A pointer moved to the edge of the screen (`--move 0,360@T`) scrolls the
-camera, as in the game, and a `--move` back to the middle stops it. It also needs `cwebp` for the
-poster image.
+between each pair of shots, and `captions` the caption of each shot. A pointer moved to the edge
+of the screen (`--move 0,360@T`) scrolls the camera, as in the game, and a `--move` back to the
+middle stops it.
+
+`MONTAGE_CLIPS=DIR` keeps the twelve shots in `DIR` as H.264 clips. When they are all there, the
+next montage uses them and draws nothing, so changing a title or a transition takes seconds
+instead of ten minutes:
+
+```bash
+MONTAGE_CLIPS=/tmp/montage-clips tools/videos.sh save-game/Save83.sav montage   # draws and keeps the shots
+MONTAGE_CLIPS=/tmp/montage-clips tools/videos.sh save-game/Save83.sav montage   # only joins and titles them
+```
+
+### Titles
+
+The montage's titles are drawn by FFmpeg's `drawtext` filter, after the game. It needs an FFmpeg
+built with FreeType. Homebrew's default `ffmpeg` has no `drawtext`; `ffmpeg-full` does, and
+installs beside it without replacing it:
+
+```bash
+brew install ffmpeg-full
+```
+
+`tools/videos.sh` uses, in this order: `FFMPEG` if you set it, Homebrew's `ffmpeg-full`, then the
+`ffmpeg` on your `PATH`. Without `drawtext` it makes the montage without titles and says so.
+`TITLES=0` leaves them out on purpose.
+
+| Title | Where | Font |
+|---|---|---|
+| "Un-Banished" and a line under it | the middle of the opening flight, 0.6 to 5.5 s | Georgia Bold 64, Georgia Italic 24 |
+| One caption for each shot ("The trader rows in", "Harvest", "Winter", …) | low on the left, on a dark band, from 0.8 s into the shot to its end | Georgia Italic 24 |
+| "Un-Banished" and "Recorded by the game itself, without a window" | the middle of the outro, its last 4.4 s | Georgia Bold 56, Georgia Italic 22 |
+
+Every title fades in and out over 0.6 s. The fonts are macOS system fonts; set `TITLE_FONT` and
+`CAPTION_FONT` to other font files, or the script asks fontconfig for a serif font. Each text is
+written to a file and read with `textfile`, so quotes and colons need no escaping. The `text`
+function in the script makes one title: text, font, size, position, start and end times.
+
+`cwebp` makes the poster images.
 
 The script needs your game data in `game-data/`, a save of a town without mods, FFmpeg with
 VP9 (libvpx), `bc` and `cwebp`. Every town video is drawn at 1920 × 1080 with the highest video

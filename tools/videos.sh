@@ -43,7 +43,10 @@ names=("$@")
 out="$repo/docs/assets/videos"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-mkdir -p "$out" "$work/clips"
+# MONTAGE_CLIPS=DIR keeps the montage's clips there, and reuses them when they are all there (to
+# change the titles or the joins without drawing the shots again).
+clips_dir="${MONTAGE_CLIPS:-$work/clips}"
+mkdir -p "$out" "$clips_dir"
 
 # GAME and VIEWER take binaries that are already built (for example from tools/compat/build.sh).
 if [[ -z "${GAME:-}" || -z "${VIEWER:-}" ]]; then
@@ -52,6 +55,31 @@ fi
 game="${GAME:-$repo/target/release/banished}"
 viewer="${VIEWER:-$repo/target/release/banished-viewer}"
 click="${CLICK:-1060,470}"
+# FFmpeg: FFMPEG if set, else Homebrew's ffmpeg-full (keg-only; it has drawtext for titles), else
+# the ffmpeg on the PATH.
+full="$(brew --prefix ffmpeg-full 2>/dev/null || true)"
+ffmpeg="${FFMPEG:-$([[ -x $full/bin/ffmpeg ]] && echo "$full/bin/ffmpeg" || echo ffmpeg)}"
+ffprobe="$(dirname "$(command -v "$ffmpeg")")/ffprobe"
+# The montage's titles (drawtext): TITLE_FONT and CAPTION_FONT are font files; by default Georgia
+# Bold and Georgia Italic (macOS), else fontconfig's serif. TITLES=0 leaves them out.
+font() {
+  if [[ -f $1 ]]; then echo "fontfile='$1'"; else echo "font='$2'"; fi
+}
+title_font="$(font "${TITLE_FONT:-/System/Library/Fonts/Supplemental/Georgia Bold.ttf}" "serif:style=Bold")"
+caption_font="$(font "${CAPTION_FONT:-/System/Library/Fonts/Supplemental/Georgia Italic.ttf}" "serif:style=Italic")"
+
+# fading FROM TO: an alpha expression that fades in over 0.6 s from FROM and out by TO (seconds).
+fading() {
+  echo "if(lt(t,$1),0,if(lt(t,$1+0.6),(t-$1)/0.6,if(lt(t,$2-0.6),1,if(lt(t,$2),($2-t)/0.6,0))))"
+}
+
+# text TEXT FONT SIZE X Y FROM TO [MORE]: a drawtext filter for TEXT (written to a file, so that
+# no character needs escaping), white with a soft shadow, shown from FROM to TO.
+text() {
+  local file="$work/text-$RANDOM$RANDOM.txt"
+  printf '%s' "$1" >"$file"
+  echo "drawtext=$2:textfile='$file':fontsize=$3:fontcolor=white:x=$4:y=$5:shadowcolor=black@0.75:shadowx=2:shadowy=2:alpha='$(fading "$6" "$7")'${8:+:$8}"
+}
 # The frames are drawn at this size; positions on the screen are given for 1280x720 and scaled.
 capture=1920x1080
 # The highest video settings: 4x antialiasing, 16x anisotropic filtering, 2048 shadow maps, high
@@ -120,7 +148,7 @@ town() {
 
 # encode START COUNT FILTER CRF OUT: frames START.. of the last town run, as VP9 WebM.
 encode() {
-  ffmpeg -loglevel error -y -framerate 30 -start_number "$1" \
+  "$ffmpeg" -loglevel error -y -framerate 30 -start_number "$1" \
     -i "$work/user/Screenshots/Screenshot%d.bmp" -frames:v "$2" -vf "$3$look,format=yuv420p" \
     -c:v libvpx-vp9 -b:v 0 -crf "$4" -row-mt 1 -an "$out/$5${FILTER:+-$FILTER}.webm"
 }
@@ -128,7 +156,7 @@ encode() {
 # poster FRAME OUT [CROP]: frame FRAME of the last town run as OUT-poster.webp (768x432), the
 # picture a page shows until its video plays.
 poster() {
-  ffmpeg -loglevel error -y -i "$work/user/Screenshots/Screenshot$1.bmp" \
+  "$ffmpeg" -loglevel error -y -i "$work/user/Screenshots/Screenshot$1.bmp" \
     -vf "${3:+$3,}scale=768:432:flags=lanczos$look" "$work/poster.png"
   cwebp -quiet -q 75 "$work/poster.png" -o "$out/$2${FILTER:+-$FILTER}-poster.webp"
 }
@@ -136,10 +164,10 @@ poster() {
 # clip NAME START COUNT [CROP]: frames START.. of the last town run as a montage clip (lossless
 # enough H.264 at 1280x720).
 clip() {
-  ffmpeg -loglevel error -y -framerate 30 -start_number "$2" \
+  "$ffmpeg" -loglevel error -y -framerate 30 -start_number "$2" \
     -i "$work/user/Screenshots/Screenshot%d.bmp" -frames:v "$3" \
     -vf "${4:+$4,}scale=1280:720:flags=lanczos,format=yuv420p" -c:v libx264 -crf 12 \
-    "$work/clips/$1.mp4"
+    "$clips_dir/$1.mp4"
 }
 
 # The runs. Each sets its save and camera, and leaves its frames for encode, poster or clip.
@@ -208,7 +236,7 @@ for name in "${names[@]}"; do
           "$viewer" --capture "$work/pose" 'Animals\Chicken\ChickenMesh' >/dev/null 2>&1
         mv "$work/pose/Models_Animals_Chicken_ChickenMesh_resource.png" "$work/chicken/$(printf %03d "$i").png"
       done
-      ffmpeg -loglevel error -y -framerate 30 -i "$work/chicken/%03d.png" \
+      "$ffmpeg" -loglevel error -y -framerate 30 -i "$work/chicken/%03d.png" \
         -vf "scale=384:384,format=yuv420p" -c:v libvpx-vp9 -b:v 0 -crf 34 -row-mt 1 -an \
         "$out/chicken-walk.webm"
       ;;
@@ -297,6 +325,10 @@ for name in "${names[@]}"; do
       # of its own (save, building to centre on, wheel steps, extra arguments).
       dir="$(dirname "$save")"
       s47="$dir/Save 47.sav" s83="$dir/Save83.sav"
+      clips=(flight boat fisher market farmer vendor labourer autumn workers winter seasons outro)
+      have=0
+      for c in "${clips[@]}"; do [[ -f $clips_dir/$c.mp4 ]] && have=$((have + 1)); done
+      if ((have < ${#clips[@]})); then
       save="$s47" run_flight && clip flight 0 270
       save="$s47" run_boat && clip boat 30 180
       save="$s47" run_fisher && clip fisher 60 150
@@ -320,24 +352,47 @@ for name in "${names[@]}"; do
       frames 14 "$step" 450
       save="$s47" click=600,270 town 29.3 "${out_wheel[@]}" --hold RotateLeft@23-29 "${shots[@]}"
       clip outro 270 180
-      clips=(flight boat fisher market farmer vendor labourer autumn workers winter seasons outro)
+      fi
+      # The caption of each shot (the first has the title, the last the closing card).
+      captions=("" "The trader rows in" "A fisher at the end of the dock" "Market day" "Harvest"
+        "At the vendor’s stall" "Logs for the stockpile" "Autumn" "A young town" "Winter"
+        "A year in nine seconds" "")
       joins=(fadeblack smoothleft circleopen dissolve slideleft wipeleft radial fade smoothup hblur fadewhite)
-      inputs=() graph="" prev=v0 offset=0 length=0
+      inputs=() graph="" prev=v0 offset=0 length=0 starts=(0)
       for i in "${!clips[@]}"; do
-        inputs+=(-i "$work/clips/${clips[$i]}.mp4")
+        inputs+=(-i "$clips_dir/${clips[$i]}.mp4")
         graph+="[$i:v]scale=854:480:flags=lanczos,fps=30,format=yuv420p,setpts=PTS-STARTPTS[v$i];"
       done
       for ((i = 1; i < ${#clips[@]}; i++)); do
-        length="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$work/clips/${clips[$((i - 1))]}.mp4")"
+        length="$("$ffprobe" -v error -show_entries format=duration -of csv=p=0 "$clips_dir/${clips[$((i - 1))]}.mp4")"
         offset=$(echo "$offset + $length - 0.6" | bc)
+        starts+=("$offset")
         graph+="[$prev][v$i]xfade=transition=${joins[$((i - 1))]}:duration=0.6:offset=$offset[x$i];"
         prev="x$i"
       done
-      graph+="[$prev]fade=t=in:d=0.8,fade=t=out:st=$(echo "$offset + 5.2" | bc):d=0.8$look[out]"
-      ffmpeg -loglevel error -y "${inputs[@]}" -filter_complex "$graph" -map "[out]" \
+      end="$(echo "$offset + 6" | bc)"
+      titles=""
+      filters="$("$ffmpeg" -hide_banner -filters 2>/dev/null || true)"
+      if [[ ${TITLES:-1} != 0 && $filters == *" drawtext "* ]]; then
+        # The opening title over the flight, a caption low on the left for each shot, and a
+        # closing card over the outro.
+        titles=",$(text "Un-Banished" "$title_font" 64 "(w-tw)/2" "h*0.36" 0.6 5.5)"
+        titles+=",$(text "Banished, rebuilt in Rust – native and in the browser" "$caption_font" 24 "(w-tw)/2" "h*0.36+82" 1.2 5.5)"
+        for i in "${!clips[@]}"; do
+          [[ -n ${captions[$i]} ]] || continue
+          titles+=",$(text "${captions[$i]}" "$caption_font" 24 36 "h-64" "$(echo "${starts[$i]} + 0.8" | bc)" \
+            "$(echo "${starts[$((i + 1))]} - 0.1" | bc)" "box=1:boxcolor=black@0.35:boxborderw=10")"
+        done
+        titles+=",$(text "Un-Banished" "$title_font" 56 "(w-tw)/2" "h*0.38" "$(echo "$end - 4.4" | bc)" "$end")"
+        titles+=",$(text "Recorded by the game itself, without a window" "$caption_font" 22 "(w-tw)/2" "h*0.38+74" "$(echo "$end - 3.8" | bc)" "$end")"
+      elif [[ ${TITLES:-1} != 0 ]]; then
+        echo "no drawtext in $ffmpeg: the montage has no titles (brew install ffmpeg-full)" >&2
+      fi
+      graph+="[$prev]fade=t=in:d=0.8,fade=t=out:st=$(echo "$end - 0.8" | bc):d=0.8$titles$look[out]"
+      "$ffmpeg" -loglevel error -y "${inputs[@]}" -filter_complex "$graph" -map "[out]" \
         -c:v libvpx-vp9 -b:v 0 -crf 50 -row-mt 1 -an "$out/montage${FILTER:+-$FILTER}.webm"
-      # The poster shown until the video loads: the frame at 5 s.
-      ffmpeg -loglevel error -y -ss 5 -i "$out/montage${FILTER:+-$FILTER}.webm" -frames:v 1 "$work/poster.png"
+      # The poster shown until the video loads: the frame at 3 s, under the title.
+      "$ffmpeg" -loglevel error -y -ss 3 -i "$out/montage${FILTER:+-$FILTER}.webm" -frames:v 1 "$work/poster.png"
       cwebp -quiet -q 70 "$work/poster.png" -o "$out/montage${FILTER:+-$FILTER}-poster.webp"
       ;;
     *)

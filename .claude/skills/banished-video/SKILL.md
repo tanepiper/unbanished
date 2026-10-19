@@ -67,6 +67,11 @@ with FFmpeg. No Rust change is needed. The person-readable guide is `docs/develo
      768x432 with lanczos. Pass the settings as separate arguments (zsh does not split `$HQ`;
      the log line `antialiasing: 4 samples` confirms them). `FILTER=sepia|grey|psychedelic`
      colours the encode.
+   - **Titles:** the montage has an opening title, a caption per shot (`captions`) and a closing
+     card, drawn with FFmpeg `drawtext` (the `text TEXT FONT SIZE X Y FROM TO` helper; Georgia).
+     Homebrew's default `ffmpeg` lacks drawtext; the script prefers `ffmpeg-full`
+     (`/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg`, installed) or `FFMPEG`. `TITLES=0` turns them
+     off. `MONTAGE_CLIPS=DIR` keeps the shots, so re-titling takes seconds, not 10 minutes.
    - `--script "speed 10@T"` for time-lapses; `--script "open Template/UtilityMap.rsc@T"` for
      windows; `BANISHED_SEED=N` with `--press buttonNew@4.5 --press buttonOk@5.0` for a new
      game.
