@@ -32,12 +32,79 @@ what the project is, see the [README](../README.md).
 | **A graphics card from the last ten years** | Anything with Vulkan, Metal, DirectX 12 or OpenGL ES 3. |
 | **About 3 GB of free disk space** | For the build tools and the compiled game. |
 
-Banished itself only runs on Windows, but you only need its data files, and they work on any
-system. On a Mac or Linux PC you can get them in either of these ways:
+### Getting the game files
 
-- **Steam console:** open `steam://open/console` in your browser (Steam opens its console), then
-  run `download_depot 242920 242921`. Steam prints the folder it downloaded to.
-- **Copy from a Windows PC:** install Banished there and copy its `WinData` folder across.
+Banished was only ever released for Windows, but Un-Banished only needs its data files, and
+those work on any system. **On Windows**, install the game from Steam or GOG as normal and skip to
+[step 2](#2-install-the-build-tools). **On a Mac or Linux PC**, the stores won't install a
+Windows-only game the usual way, so use one of the routes below.
+
+<details>
+<summary><strong>Steam: download the Windows files with <code>download_depot</code></strong></summary>
+
+Steam has a hidden console that can download any game you own for any platform. Banished's
+Steam app id is **242920**, and its Windows game files are in depot **242921**.
+
+1. Open Steam and sign in with the account that owns Banished.
+2. Open Steam's console. Either type `steam://open/console` into your web browser's address bar
+   and allow it to open Steam, or quit Steam and start it again with the `-console` option. A
+   **Console** tab appears in Steam (Library, Store, Community, …, Console).
+3. In the box at the bottom of the Console tab, type this and press Enter:
+   ```text
+   download_depot 242920 242921
+   ```
+4. Wait. There is no progress bar; the download takes a few minutes. When it finishes, the
+   console prints a line saying the depot download is complete, followed by the folder it
+   saved to.
+5. That folder contains `WinData`. It is usually:
+
+   | System | Folder |
+   |---|---|
+   | macOS | `~/Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS/steamapps/content/app_242920/depot_242921` |
+   | Linux | `~/.local/share/Steam/ubuntu12_32/steamapps/content/app_242920/depot_242921` (or under `~/.steam/steam/`) |
+
+   If yours differs, use the path the console printed. Copy the folder somewhere easier to
+   find if you like, such as `~/Games/Banished`. Steam doesn't manage it, so it won't be
+   updated or removed.
+
+`tools/extract-assets.sh` already looks in the macOS folder above.
+
+> [!TIP]
+> **On Linux you can also install it normally.** In Steam, open **Settings → Compatibility**,
+> turn on **Enable Steam Play for all other titles**, and install Banished from your library.
+> Steam installs the Windows version under `~/.steam/steam/steamapps/common/Banished`.
+
+</details>
+
+<details>
+<summary><strong>GOG: unpack the Windows installer</strong></summary>
+
+GOG sells Banished DRM-free, so you can download its installer and unpack the files without
+running it.
+
+1. Sign in at [gog.com](https://www.gog.com), open **Account → Games**, and click **Banished**.
+2. Under **Download offline backup game installers**, choose the **Windows** installer, in
+   English or your language. You get a file named like `setup_banished_1.0.7_….exe`. If GOG
+   splits it, also download the `.bin` parts and keep them in the same folder.
+3. Install **innoextract**, which unpacks GOG installers:
+   - macOS (with [Homebrew](https://brew.sh)): `brew install innoextract`
+   - Debian or Ubuntu: `sudo apt install innoextract`
+   - Fedora: `sudo dnf install innoextract` · Arch: `sudo pacman -S innoextract`
+4. Unpack it into a new folder:
+   ```bash
+   mkdir -p ~/Games/Banished
+   innoextract --gog --output-dir ~/Games/Banished ~/Downloads/setup_banished_*.exe
+   ```
+5. Look inside `~/Games/Banished` for the `WinData` folder (depending on the installer it may be
+   one level down, in a folder such as `app`). That is the folder to give Un-Banished.
+
+If you have **GOG Galaxy** on Windows, you can instead install Banished there and copy its
+`WinData` folder to your Mac or Linux PC.
+
+</details>
+
+**Any other way:** install Banished on a Windows PC and copy its `WinData` folder across on a USB
+stick or over the network. Only the four `.pkg` files are needed (about 165 MB).
 
 ## 2. Install the build tools
 
