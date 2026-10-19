@@ -13,7 +13,8 @@ the doc line, `use super::*;`, the listed items (top-level `fn`/`enum`/`struct`/
 their doc comments and attributes) and one `impl TYPE { ... }` holding the listed methods, and
 deletes them from the file, which gains `mod m;` and `use m::{items};`. Moved methods and items
 that were private become `pub(super)` so the parent and the other children can still use them.
-`impls` moves whole impl blocks, found by their first lines; a trait impl (`impl T for X`)
+Moved `pub` and `pub(crate)` items are re-exported with the same visibility, so their paths
+stay the same. `impls` moves whole impl blocks, found by their first lines; a trait impl (`impl T for X`)
 keeps its methods as they are. Code is moved, never changed: the
 compiler and the tests are the check.
 """
@@ -98,6 +99,7 @@ def main():
     ty = plan["type"]
     out_dir = path.parent if path.name in ("mod.rs", "lib.rs", "main.rs") else path.parent / path.stem
     decls = []
+    outputs = []  # written only once every method and item is found
     for name, spec in plan["modules"].items():
         methods, items = [], []
         for meth in spec.get("methods", []):
@@ -133,16 +135,24 @@ def main():
             body += "\n" + block.rstrip("\n") + "\n"
         target = out_dir / f"{name}.rs"
         print(f"{target}: {len(methods)} methods, {len(items)} items, {len(impls)} impl blocks")
-        if not dry:
-            out_dir.mkdir(parents=True, exist_ok=True)
-            target.write_text(body)
-        names = [re.search(r"(?:fn|enum|struct|const|type|static) (\w+)", i).group(1) for i in items]
-        decls.append((name, names))
+        outputs.append((target, body))
+        # Re-export each item with its own visibility, so its path from outside stays the same.
+        by_vis = {}
+        for i in items:
+            m = re.search(r"^(pub(?:\([a-z]+\))? )?(?:fn|enum|struct|const|type|static) (\w+)", i, re.M)
+            vis = (m.group(1) or "") if m.group(1) != "pub(super) " else ""
+            by_vis.setdefault(vis, []).append(m.group(2))
+        decls.append((name, by_vis))
     lines = "".join(f"mod {n};\n" for n, _ in decls)
-    lines += "".join(f"use {n}::{{{', '.join(sorted(ns))}}};\n" for n, ns in decls if ns)
+    lines += "".join(
+        f"{vis}use {n}::{{{', '.join(sorted(ns))}}};\n" for n, by_vis in decls for vis, ns in sorted(by_vis.items())
+    )
     s = re.sub(r"(\A(?://![^\n]*\n)*\n?)", lambda m: m.group(1) + lines + "\n", s, count=1)
     s = re.sub(r"\n{3,}", "\n\n", s)
     if not dry:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for target, body in outputs:
+            target.write_text(body)
         path.write_text(s)
 
 

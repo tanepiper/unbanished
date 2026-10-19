@@ -1,0 +1,202 @@
+{
+ "file": "crates/formats/src/game.rs",
+ "type": "-",
+ "modules": {
+  "world": {
+   "doc": "Map generation, terrain and climate: the New Game profiles and the map description.",
+   "items": [
+    "TerrainGenerator",
+    "terrain_generator",
+    "EnvironmentMonth",
+    "EnvironmentDescription",
+    "environment_description",
+    "ClimateGenerator",
+    "climate_generator",
+    "PlacedStructure",
+    "MapGenerator",
+    "map_generator",
+    "external_list",
+    "ClimateHeader",
+    "climate_header",
+    "MapDescription",
+    "map_description"
+   ]
+  },
+  "interface": {
+   "doc": "Interface resources: the toolbar, the UI controller and status icons.",
+   "items": [
+    "ToolbarItem",
+    "toolbar_item",
+    "ToolbarDescription",
+    "toolbar_description",
+    "UiController",
+    "UiDescription",
+    "ui_description",
+    "StatusIconDescription",
+    "status_icon_description"
+   ]
+  },
+  "entities": {
+   "doc": "What every entity is made of: components, models, decals, characters and interaction points.",
+   "items": [
+    "ComponentDescription",
+    "component_description",
+    "ModelVariant",
+    "ModelDescription",
+    "model_description",
+    "DecalDescription",
+    "decal_description",
+    "CharacterDescription",
+    "character_description",
+    "NamedPoint",
+    "PointList",
+    "point_list",
+    "InteractDescription",
+    "interact_description",
+    "interaction_points"
+   ],
+   "impls": [
+    "impl Default for CharacterDescription {"
+   ]
+  },
+  "nature": {
+   "doc": "Natural resources, growth, spawning, herds, animals and fruit.",
+   "items": [
+    "NaturalResourceDescription",
+    "natural_resource_description",
+    "GrowthDescription",
+    "growth_description",
+    "SpawnEntry",
+    "spawn_description",
+    "HerdDescription",
+    "herd_description",
+    "AnimalDescription",
+    "animal_description",
+    "fruit_description"
+   ]
+  },
+  "particles": {
+   "doc": "Particle systems, including the tornado's.",
+   "items": [
+    "ParticleSystem",
+    "particle_system",
+    "TornadoParticle",
+    "tornado_particle",
+    "ParticleSlot",
+    "ParticleDescription",
+    "particle_description"
+   ]
+  },
+  "construction": {
+   "doc": "Placing, building and removing things: placed and fenced structures, roads, bridges, floors, terraforming, building, destroying and clearing.",
+   "items": [
+    "CreatePlacedDescription",
+    "create_placed_description",
+    "CreateFencedDescription",
+    "create_fenced_description",
+    "CreateRoadDescription",
+    "create_road_description",
+    "CreateBridgeDescription",
+    "create_bridge_description",
+    "FloorDescription",
+    "floor_description",
+    "TerraformDescription",
+    "terraform_description",
+    "CreateRemovalDescription",
+    "create_removal_description",
+    "CreateDragDescription",
+    "create_drag_description",
+    "BuildDescription",
+    "build_description",
+    "DestroyDescription",
+    "destroy_description",
+    "ClearAreaDescription",
+    "clear_area_description"
+   ]
+  },
+  "goods": {
+   "doc": "Goods and where they go: raw materials, storage, residences, markets, trade and values.",
+   "items": [
+    "RawMaterialDescription",
+    "raw_material_description",
+    "StorageDescription",
+    "storage_description",
+    "storage_location_description",
+    "auto_pickup_description",
+    "ResidenceDescription",
+    "residence_description",
+    "MarketDescription",
+    "market_description",
+    "Merchant",
+    "TradeRow",
+    "TradeDescription",
+    "trade_description",
+    "ValueDescription",
+    "value_description"
+   ]
+  },
+  "work": {
+   "doc": "Workplaces and production: quarries, herbalists, foresters, fishing, hunting, fields, orchards, pastures, livestock, recipes and professions.",
+   "items": [
+    "QuarryDescription",
+    "quarry_description",
+    "HerbalistDescription",
+    "herbalist_description",
+    "ForesterDescription",
+    "forester_description",
+    "FishingDescription",
+    "fishing_description",
+    "HuntDescription",
+    "hunt_description",
+    "crop_field_description",
+    "orchard_description",
+    "pasture_description",
+    "LivestockDescription",
+    "livestock_description",
+    "WorkPlaceDescription",
+    "workplace_description",
+    "WorkDescription",
+    "work_description",
+    "ProduceRecipe",
+    "ConsumeProduceDescription",
+    "consume_produce_description",
+    "Profession",
+    "profession",
+    "radius_description"
+   ]
+  },
+  "people": {
+   "doc": "Citizens and their lives: citizens, diseases, happiness, population, immigration, nomads, cemeteries and tombstones.",
+   "items": [
+    "Disease",
+    "disease",
+    "attendance_description",
+    "HappinessDescription",
+    "happiness_description",
+    "PopulationDescription",
+    "population_description",
+    "DiseaseDescription",
+    "disease_description",
+    "cemetery_description",
+    "ImmigrationDescription",
+    "immigration_description",
+    "nomad_description",
+    "tombstone_description",
+    "CitizenDescription",
+    "Scalar",
+    "citizen_description"
+   ],
+   "impls": [
+    "impl CitizenDescription {"
+   ]
+  },
+  "disasters": {
+   "doc": "Fires and tornadoes.",
+   "items": [
+    "FireDescription",
+    "fire_description",
+    "tornado_description"
+   ]
+  }
+ }
+}
