@@ -1,0 +1,39 @@
+name: Feature or improvement
+description: Tooling, platform support, documentation, or an optional change that goes beyond the original game.
+title: "Feature: "
+labels: ["enhancement", "status: needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Un-Banished is a 1:1 reimplementation, so gameplay changes are out of scope by default.
+        Welcome here: tooling, the viewer, platform and browser support, accessibility,
+        documentation, and opt-in options that leave the original behaviour as the default.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What you would like to happen.
+    validations:
+      required: true
+  - type: dropdown
+    id: parity
+    attributes:
+      label: Does it change game behaviour?
+      description: Anything that does needs to be optional and is recorded as a deviation.
+      options:
+        - No (tooling, docs, platform, viewer)
+        - Yes, as an opt-in option
+        - Yes, by default
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

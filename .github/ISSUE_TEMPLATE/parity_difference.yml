@@ -1,0 +1,77 @@
+name: Parity difference
+description: Un-Banished works, but does something differently from the original Banished 1.0.7.
+title: "Parity: "
+labels: ["parity", "status: needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Un-Banished aims to match Banished 1.0.7 (Steam build 170910) exactly: rules, timings,
+        numbers and interface. These reports are the most useful thing you can send.
+
+        Before filing, check [docs/DEVIATIONS.md](https://github.com/tanepiper/unbanished/blob/main/docs/DEVIATIONS.md):
+        the difference may already be known and intentional.
+  - type: textarea
+    id: original
+    attributes:
+      label: What the original game does
+      description: As precisely as you can. Side-by-side screenshots or video of the original are ideal.
+    validations:
+      required: true
+  - type: textarea
+    id: remake
+    attributes:
+      label: What Un-Banished does
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to see it
+      description: Map seed, terrain and settings, or the steps from a new game.
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of difference
+      options:
+        - Rules or numbers (production, growth, prices, timings)
+        - Citizen or animal behaviour
+        - Interface (layout, text, controls, windows)
+        - Visuals (models, lighting, effects)
+        - Audio
+        - Map generation
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: confidence
+    attributes:
+      label: How sure are you of the original's behaviour?
+      options:
+        - Checked in the original just now
+        - From memory or long play
+        - From the wiki or a guide
+    validations:
+      required: true
+  - type: input
+    id: build
+    attributes:
+      label: Build and platform
+      placeholder: 0f2783d, macOS native
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots, video or other evidence
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: The difference is not already listed in docs/DEVIATIONS.md.
+          required: true
+        - label: I have not attached any original game files.
+          required: true

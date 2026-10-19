@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: User guide and troubleshooting
+    url: https://github.com/tanepiper/unbanished/blob/main/docs/USER-GUIDE.md
+    about: Setup, controls, file locations and common problems.
+  - name: Known differences from the original
+    url: https://github.com/tanepiper/unbanished/blob/main/docs/DEVIATIONS.md
+    about: Intentional and known deviations, before you file a parity report.
+  - name: Contributing (AGENTS.md)
+    url: https://github.com/tanepiper/unbanished/blob/main/AGENTS.md
+    about: Rules and workflow for code changes, for people and AI agents.

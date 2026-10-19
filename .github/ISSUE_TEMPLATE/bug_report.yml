@@ -1,0 +1,109 @@
+name: Bug report
+description: Something is broken, crashes, or cannot be done in Un-Banished.
+title: "Bug: "
+labels: ["bug", "status: needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing Un-Banished. If the game works but behaves *differently from the
+        original Banished 1.0.7*, use the **Parity difference** form instead.
+
+        **Never attach original game files** (`.exe`, `.dll`, `.pkg`, `.crs`, extracted
+        textures or models). Screenshots, videos and logs are welcome.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: One or two sentences.
+      placeholder: After placing a house, clicking its outline does not open the building window.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: From a new game or a named save, the shortest sequence that shows the problem.
+      placeholder: |
+        1. New game, Medium terrain, seed 1234
+        2. Place a Wooden House
+        3. Click the building outline before construction starts
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What should happen, and what the original game does if you know.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often?
+      options:
+        - Every time
+        - Often
+        - Sometimes
+        - Once
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Your best guess; maintainers will relabel.
+      options:
+        - Selection / clicking things
+        - Building and entity windows (UI)
+        - Toolbar, menus and utility windows
+        - Citizens, jobs and production
+        - Farming, orchards and livestock
+        - Construction and tools (place, roads, remove)
+        - Rendering and camera
+        - Audio
+        - Save / load
+        - Other / not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      multiple: true
+      options:
+        - Windows (native)
+        - macOS (native)
+        - Linux (native)
+        - Web browser
+    validations:
+      required: true
+  - type: input
+    id: build
+    attributes:
+      label: Build
+      description: The commit (`git rev-parse --short HEAD`) or the date of the web build. For the browser, name it too (e.g. Chrome 141).
+      placeholder: 0f2783d, release build, Chrome 141
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots, video or logs
+      description: Paste the terminal output (`RUST_LOG=debug` for more detail) or the browser console. Drag files in here.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the open issues and this is not a duplicate.
+          required: true
+        - label: I have not attached any original game files.
+          required: true

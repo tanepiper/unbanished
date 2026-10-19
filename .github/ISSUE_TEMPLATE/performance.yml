@@ -1,0 +1,62 @@
+name: Performance problem
+description: Stutters, low frame rate, long loads, high memory or CPU use.
+title: "Performance: "
+labels: ["performance", "status: needs triage"]
+body:
+  - type: textarea
+    id: symptom
+    attributes:
+      label: What do you see?
+      description: Steady low frame rate, a regular hitch, a slowdown that grows over time, a long load…
+      placeholder: The game freezes for about half a second every 5 seconds.
+    validations:
+      required: true
+  - type: textarea
+    id: when
+    attributes:
+      label: When does it happen?
+      description: Town size, game speed, year, map size, what the camera shows. Does it happen paused? On the main menu?
+    validations:
+      required: true
+  - type: input
+    id: numbers
+    attributes:
+      label: Numbers
+      description: Frame rate or frame time, hitch length and interval, if you measured them.
+      placeholder: 60 fps, 400 ms hitch every ~5 s, 1x speed, 40 citizens
+  - type: dropdown
+    id: build_profile
+    attributes:
+      label: Build profile
+      description: Debug builds are many times slower; please check with `--release` first.
+      options:
+        - Release (`--release`)
+        - Debug
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      multiple: true
+      options:
+        - Windows (native)
+        - macOS (native)
+        - Linux (native)
+        - Web browser
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware and build
+      description: CPU, GPU, OS, browser if any, and the commit.
+      placeholder: M2 Pro, macOS 26.1, 0f2783d
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Profile, log or video
+      description: A browser performance profile, an Instruments/`perf`/Superluminal capture, or terminal output.

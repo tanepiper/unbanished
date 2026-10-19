@@ -66,6 +66,7 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 | `tools/emu` | Unicorn harness `pe_emu.py` and ground-truth generators for the tests |
 | `tools/ghidra` | Headless export scripts, `readdata.py` (constants), `vtable.py` |
 | `tools/triage` | `deviations.py`, `coverage.py` (uncited functions), `determinism.sh` |
+| `tools/github`, `.github/` | `sync-labels.sh` (the label set), issue forms, PR template |
 | `docs/` | Findings. Start with `FINDINGS.md`, `GAME-LOOP-CHECKLIST.md`, `PARITY-AUDIT.md` |
 
 Before starting, read `docs/GAME-LOOP-CHECKLIST.md` and grep `docs/` for the addresses or
