@@ -149,7 +149,7 @@ function rewrite(md, from) {
         ? part
         : part
             .replace(/(\]\()([^)\s]+)(\))/g, (_, a, href, b) => a + target(href, from) + b)
-            .replace(/\b(src|href)="([^"]+)"/g, (_, attr, href) => `${attr}="${target(href, from)}"`),
+            .replace(/\b(src|href|poster)="([^"]+)"/g, (_, attr, href) => `${attr}="${target(href, from)}"`),
     )
     .join('')
 }

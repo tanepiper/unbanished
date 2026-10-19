@@ -121,6 +121,57 @@ See [Mods](/guide/mods) in the guide.
   caption="The mod manager: five mods, three on, and the details of the selected mod."
 />
 
+## The trader's boat comes home
+
+Merchants arrive by boat with goods, seeds and livestock to trade. In 0.1.0 they did arrive, and
+they did trade, but nobody could see them: the boat sailed up the river without being drawn.
+Now the boat is back on the water, with its hull, its cargo, its oars and the merchant at the
+oars.
+
+<Shot
+  src="/assets/videos/boat-shoulder.webm"
+  poster="/assets/videos/boat-shoulder-poster.webp"
+  alt="Over the merchant's shoulder, the trader's boat rows down the river, under a bridge, towards the trading post"
+  caption="Over the merchant's shoulder: down the river, under the bridge, to the trading post."
+/>
+
+## People at work, up close
+
+The game's own camera stays high above the town, as in the original. For this release we built
+a second camera, only for recording videos. It can fly along any path, or ride behind a citizen,
+a boat or an animal and look where they are going. When a roof or a tree comes between the
+camera and the citizen, the camera moves closer or rises, so the view stays clear.
+
+So here, for the first time, are the people of a Banished town at work, close enough to see
+what they carry.
+
+<div class="ub-shots">
+<Shot
+  src="/assets/videos/farmer.webm"
+  poster="/assets/videos/farmer-poster.webp"
+  alt="A farmer harvests a field next to the market and carries the crop away"
+  caption="A farmer brings in the harvest."
+/>
+<Shot
+  src="/assets/videos/labourer.webm"
+  poster="/assets/videos/labourer-poster.webp"
+  alt="A labourer walks past a stockpile of logs and stone"
+  caption="A labourer on the way past the stockpile."
+/>
+<Shot
+  src="/assets/videos/vendor.webm"
+  poster="/assets/videos/vendor-poster.webp"
+  alt="A vendor walks among the coloured market stalls"
+  caption="A vendor among the market stalls."
+/>
+<Shot
+  src="/assets/videos/fisher-closeup.webm"
+  poster="/assets/videos/fisher-closeup-poster.webp"
+  alt="The camera circles a fisher with a rod at the end of a dock"
+  caption="A fisher at the end of the dock."
+/>
+</div>
+
 ## A new front door for the browser
 
 The browser version now opens with its own loading screen. It explains, in three steps, where to
@@ -147,9 +198,18 @@ and loading a save take 20 to 55 % less time. (The browser version still loads o
 
 ## The camera learns new tricks
 
-All the videos in this post were recorded by Un-Banished itself, without a window. For this
-release, our recording tool learned to hold down camera keys, to turn and tilt the camera, and to
-follow a citizen.
+All the videos in this post were recorded by Un-Banished itself, without a window. The game
+runs, a script moves the camera, and every frame is saved and joined into a video. For this
+release, the recording tool learned to hold down camera keys, to follow a citizen with the game
+camera, and to use the new cinematic camera. Anyone can make these videos with
+`tools/videos.sh`; [Recording videos](/develop/videos) explains how.
+
+<Shot
+  src="/assets/videos/river-flight.webm"
+  poster="/assets/videos/river-flight-poster.webp"
+  alt="The camera flies low down a river and into a town"
+  caption="A flight down the river and into the town, on the cinematic camera's path."
+/>
 
 <div class="ub-shots">
 <Shot

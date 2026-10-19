@@ -76,6 +76,12 @@ browser; and a blog. The performance work is described in
   git worktree.
 - A blog on the website with release notes told as stories, with pictures and videos:
   "First Settlers" (0.1.0) and "Boomtown" (0.2.0).
+- A cinematic camera for headless captures, separate from the game camera: keyframed paths
+  (`--camera EYE>TARGET@T`) and a camera that rides with a citizen, a boat or an animal
+  (`--camera-follow`), keeping its view clear of roofs and trees. New videos of people at work,
+  the trader's boat and a river flight (`tools/videos.sh`: farmer, labourer, vendor,
+  fisher-closeup, boat-shoulder, river-flight). The game, the game camera and saves do not
+  change.
 - Captures can hold camera keys (`--hold RotateLeft@START-END`) and follow a citizen
   (`select citizen N`, `select profession NAME N`, then `--press buttonFollow`). New
   `tools/videos.sh` modes: `big-town`, `orbit`, `follow-citizen`, `river` and `fishing`.
@@ -85,6 +91,8 @@ browser; and a blog. The performance work is described in
 
 ### Fixed
 
+- Trader boats were not drawn: merchants arrived and traded, but their boat was invisible on
+  the river. The boat is now drawn with its hull, cargo, oars and merchant.
 - Headless captures could save on a different frame from run to run, because they waited a
   varying number of frames for the save's preview image. They now wait for it, so two runs save
   the same state.
