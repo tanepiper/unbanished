@@ -1,8 +1,8 @@
 # Building and citizen windows (entity controllers)
 
 Slices C and D: the `UI::DialogController` subclasses that UIDescription attaches to an entity
-host ([SELECTION.md](SELECTION.md)). Port: `apps/game/src/building_ui.rs`, bound in
-`apps/game/src/entity_ui.rs`. Evidence: Ghidra pseudocode of the Steam x64 executable and
+host ([SELECTION.md](SELECTION.md)). Port: `apps/game/src/ui/building_ui.rs`, bound in
+`apps/game/src/ui/entity_ui.rs`. Evidence: Ghidra pseudocode of the Steam x64 executable and
 Runtime DLL; `tools/triage/controller.py NAME` resolves a controller's factory and vtable.
 
 ## Controllers

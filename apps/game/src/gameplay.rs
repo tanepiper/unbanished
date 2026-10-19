@@ -9,21 +9,21 @@ use banished_game::random::Random;
 use banished_game::scheduler::ticks;
 use banished_ui::{Event, Ui};
 
-use crate::building_ui::WorkPlaceClick;
-use crate::create_bar::CreateBar;
-use crate::entity_ui::EntityWindows;
+use crate::gfx::render::Lighting;
 use crate::keymap::id as keys;
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
 use crate::menu::MenuLoop;
-use crate::placement_tool::PlacementTool;
-use crate::removal_tool::{DragSound, RemovalTool};
-use crate::render::Lighting;
-use crate::scene::{Camera, SceneCamera, SceneView};
-use crate::selection::{Entity, Selection};
 use crate::start::StartingTown;
-use crate::toolbar::{Action, Toolbar};
-use crate::utility::{StatusValues, UtilityClick, UtilityWindows};
-use crate::world::{World, WorldParams};
+use crate::tools::placement_tool::PlacementTool;
+use crate::tools::removal_tool::{DragSound, RemovalTool};
+use crate::tools::selection::{Entity, Selection};
+use crate::ui::building_ui::WorkPlaceClick;
+use crate::ui::create_bar::CreateBar;
+use crate::ui::entity_ui::EntityWindows;
+use crate::ui::toolbar::{Action, Toolbar};
+use crate::ui::utility::{StatusValues, UtilityClick, UtilityWindows};
+use crate::view::scene::{Camera, SceneCamera, SceneView};
+use crate::view::world::{World, WorldParams};
 
 const MONTHS_PER_YEAR: usize = 12;
 const MONTH_SECONDS: f32 = YEAR_SECONDS / MONTHS_PER_YEAR as f32;
@@ -50,9 +50,9 @@ struct WindowDrag {
 }
 
 enum MenuDialog {
-    Achievements(crate::achievement_ui::AchievementDialog),
-    Goal(crate::achievement_ui::GoalDialog),
-    Map(crate::map_params::MapParamsDialog),
+    Achievements(crate::ui::achievement_ui::AchievementDialog),
+    Goal(crate::ui::achievement_ui::GoalDialog),
+    Map(crate::view::map_params::MapParamsDialog),
 }
 
 pub struct GameplayLoop {
@@ -110,30 +110,30 @@ pub struct GameplayLoop {
     /// Each template's RadiusDescription (`{file}:radius`): radius and material.
     radius_descriptions: std::collections::HashMap<usize, Option<(i32, String)>>,
     /// The entities' particle systems (presentation; their own Random).
-    particles: crate::particles::Particles,
+    particles: crate::view::particles::Particles,
     /// Each weather slot's rain or snow (`WeatherGeometry`).
-    precipitation: Vec<Option<crate::weather::Precipitation>>,
-    decal_cache: crate::scene_assets::DecalCache,
+    precipitation: Vec<Option<crate::view::weather::Precipitation>>,
+    decal_cache: crate::view::scene_assets::DecalCache,
     selection: Selection,
     entities: EntityWindows,
     /// The Follow dialog (`Dialog/Follow.rsc`), opened from a citizen window.
-    follow: Option<crate::follow::Follow>,
+    follow: Option<crate::tools::follow::Follow>,
     /// The Path tool (toolbar Path, `PathTool`).
-    path_tool: Option<crate::path_tool::PathTool>,
+    path_tool: Option<crate::tools::path_tool::PathTool>,
     /// `+0xc0` / `+0xc1`: a screenshot asked for (`Some(with_ui)`).
     screenshot: Option<bool>,
-    highlight: crate::highlight::Highlight,
+    highlight: crate::gfx::highlight::Highlight,
     /// The event log (`Game +0x138`) and the stock manager's warning state.
     pub events: banished_game::events::EventLog,
     stock_warnings: banished_game::events::StockWarnings,
     /// The Town Info graphs' history (StockManager `+0x150`, sampled every 75 s).
     statistics: banished_game::work::tracker::Statistics,
     /// The event ribbon (`Dialog/EventNotify.rsc`) and its popups.
-    notify: Option<crate::event_notify::EventNotify>,
+    notify: Option<crate::ui::event_notify::EventNotify>,
     /// Screen aspect of the last frame (MapUI's frustum outline).
     aspect: f32,
     /// `Game +0x80`: the music player.
-    music: Option<crate::music::MusicPlayer>,
+    music: Option<crate::audio::music::MusicPlayer>,
     /// The ghost's last cell and the CreateBar's move-sound cooldown (`+0x48`, 0.05 s).
     placement_cell: Option<(i32, i32)>,
     move_cooldown: f32,
@@ -144,19 +144,19 @@ pub struct GameplayLoop {
     /// image once drawn.
     pending_save: Option<(SaveTarget, Option<String>, Option<Vec<u8>>)>,
     /// `Dialog/AutoSave.rsc`: the autosave timer and the saving spinner.
-    autosave: Option<crate::autosave::AutoSave>,
+    autosave: Option<crate::saves::autosave::AutoSave>,
     /// The Save and Load dialog over the pause menu.
-    save_dialog: Option<crate::save_dialog::SaveLoadDialog>,
+    save_dialog: Option<crate::ui::save_dialog::SaveLoadDialog>,
     /// The Mods dialog over the pause menu (id 7).
-    mods_dialog: Option<crate::mod_ui::ModDialog>,
+    mods_dialog: Option<crate::ui::mod_ui::ModDialog>,
     /// Map ambience (`FUN_1400a57c0`): environment regions and wind.
-    ambience: Option<crate::ambience::Ambience>,
+    ambience: Option<crate::audio::ambience::Ambience>,
     /// The map changed since the ambience last weighed it.
     ambience_stale: bool,
     /// The pause menu (`Dialog/Pause.rsc`); while open `UserInterface::PausesGame` holds.
-    pause_menu: Option<crate::pause_menu::PauseMenu>,
+    pause_menu: Option<crate::ui::pause_menu::PauseMenu>,
     /// The Options dialog opened from the pause menu (id 4).
-    options: Option<crate::options::OptionsDialog>,
+    options: Option<crate::ui::options::OptionsDialog>,
     /// Game option `ShowCelcius` (`DAT_1401cbde0 +0x15`).
     show_celsius: bool,
     /// The EnvironmentDescription's weather list: (Weather description, ambient entity).
@@ -171,7 +171,7 @@ pub struct GameplayLoop {
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     new_map: Option<banished_formats::menu_scene::MapComponent>,
     /// The save this game was loaded from (docs/SAVE-LOADING.md); `None` for a New Game.
-    saved: Option<std::sync::Arc<crate::saved::SavedGame>>,
+    saved: Option<std::sync::Arc<crate::saves::saved::SavedGame>>,
     /// The loop was given its scenario (`+0x15c` not −1, `FUN_14009d530`): a scenario's start,
     /// with a new goal even from a save.
     scenario_start: bool,
@@ -180,7 +180,7 @@ pub struct GameplayLoop {
 impl GameplayLoop {
     /// A game restored from a save: its settings, the game's Random and the calendar now;
     /// the world and town when the loop loads.
-    pub fn from_save(saved: crate::saved::SavedGame) -> Self {
+    pub fn from_save(saved: crate::saves::saved::SavedGame) -> Self {
         // Mods are not loaded by the port: a modded save keeps its vanilla content and loses
         // what the mods added (their templates are skipped when the town is restored).
         if !saved.metadata.mods.is_empty() {
@@ -318,7 +318,7 @@ impl GameplayLoop {
             .map(|e| {
                 Fields(vec![
                     ("color", Value::U32(e.color)),
-                    ("text", Value::Str(crate::utility::format_event(ui, e))),
+                    ("text", Value::Str(crate::ui::utility::format_event(ui, e))),
                     ("kind", Value::I32(e.kind)),
                     ("severity", Value::I32(e.severity)),
                     ("cell", Value::I32(e.cell)),
@@ -370,7 +370,7 @@ impl GameplayLoop {
     /// The whole `.sav` file of [`GameplayLoop::save_state`]. Its metadata (`SaveMetaData`,
     /// Runtime `0x1800c3d00`) records the enabled mods and names it after the town, as the Save dialog does (the string at
     /// `+0x28` of the object it is given; the town's name in every sample, inferred). It
-    /// carries `preview` (see [`crate::saved::preview`]) and keeps the loaded save's other
+    /// carries `preview` (see [`crate::saves::saved::preview`]) and keeps the loaded save's other
     /// values. `name` replaces the town's (the autosave's `Autosave` string).
     pub fn save_file(
         &self,
@@ -398,7 +398,7 @@ impl GameplayLoop {
         metadata.name = name.unwrap_or(&self.params.town_name).to_string();
         metadata.mods = mods.saved();
         if let Some(image) = preview {
-            let (w, h) = crate::saved::PREVIEW_SIZE;
+            let (w, h) = crate::saves::saved::PREVIEW_SIZE;
             metadata.width = w as i32;
             metadata.height = h as i32;
             metadata.image = image;
@@ -463,7 +463,7 @@ impl GameplayLoop {
             return;
         };
         let result = match &path {
-            SaveTarget::Store(name) => crate::save_store::write(name, &bytes),
+            SaveTarget::Store(name) => crate::saves::save_store::write(name, &bytes),
             #[cfg(not(target_arch = "wasm32"))]
             SaveTarget::File(path) => std::fs::write(path, &bytes).map_err(|e| e.to_string()),
         };
@@ -490,11 +490,11 @@ impl GameplayLoop {
         if !a.update(ctx.ui, dt, interval, can_save, dialog_saving) {
             return;
         }
-        let path = SaveTarget::Store(crate::save_list::AUTO_SAVE.to_string());
+        let path = SaveTarget::Store(crate::ui::save_list::AUTO_SAVE.to_string());
         let name = ctx
             .ui
             .res
-            .string(Some(crate::save_dialog::GLOBAL_NAMES), "Autosave");
+            .string(Some(crate::ui::save_dialog::GLOBAL_NAMES), "Autosave");
         self.pending_save = Some((path, Some(name), None));
     }
 
@@ -511,9 +511,9 @@ impl GameplayLoop {
     fn save_outcome(
         &mut self,
         ctx: &mut Ctx,
-        outcome: crate::save_dialog::Outcome,
+        outcome: crate::ui::save_dialog::Outcome,
     ) -> Option<Next> {
-        use crate::save_dialog::Outcome;
+        use crate::ui::save_dialog::Outcome;
         match outcome {
             Outcome::Stay => None,
             Outcome::Closed => {
@@ -732,9 +732,10 @@ impl GameplayLoop {
         let mut toolbar = Toolbar::load(archive, registry);
         toolbar.install(ui, &mut screen, keymap);
         self.toolbar = Some(toolbar);
-        self.notify = crate::event_notify::EventNotify::open(ui, &mut screen, &self.events);
+        self.notify = crate::ui::event_notify::EventNotify::open(ui, &mut screen, &self.events);
         {
-            self.autosave = crate::autosave::AutoSave::open(ui, &mut screen, autosave_interval);
+            self.autosave =
+                crate::saves::autosave::AutoSave::open(ui, &mut screen, autosave_interval);
         }
         self.screen = Some(screen);
         self.update_hud(ui);
@@ -955,11 +956,11 @@ impl GameplayLoop {
                 let mut normal = [0.0; 3];
                 grid.ground(x, y, &mut normal)
             };
-            let mut vertices = crate::selection_overlay::line_vertices(&lines, n, height);
-            vertices.extend(crate::selection_overlay::vertices(&cells, n, height));
+            let mut vertices = crate::gfx::selection_overlay::line_vertices(&lines, n, height);
+            vertices.extend(crate::gfx::selection_overlay::vertices(&cells, n, height));
             view.cell_overlay = vertices;
             if view.overlay_texture.is_none() {
-                view.overlay_texture = crate::selection_overlay::load_texture(ctx.archive);
+                view.overlay_texture = crate::gfx::selection_overlay::load_texture(ctx.archive);
             }
         }
     }
@@ -1174,8 +1175,8 @@ impl GameplayLoop {
             if self.move_cooldown <= 0.0 {
                 ctx.audio.play(
                     ctx.archive,
-                    crate::sound::global::PLACEMENT_MOVE,
-                    crate::sound::sound_type::UI,
+                    crate::audio::sound::global::PLACEMENT_MOVE,
+                    crate::audio::sound::sound_type::UI,
                 );
                 self.move_cooldown = 0.05;
             }
@@ -1196,12 +1197,12 @@ impl GameplayLoop {
             cells.extend(tool.overlay(town, &grid, rect, r.rotation, true));
         }
         let n = town.cells.size as i32;
-        view.cell_overlay = crate::selection_overlay::vertices(&cells, n, |x, y| {
+        view.cell_overlay = crate::gfx::selection_overlay::vertices(&cells, n, |x, y| {
             let mut normal = [0.0; 3];
             grid.ground(x, y, &mut normal)
         });
         if view.overlay_texture.is_none() && !cells.is_empty() {
-            view.overlay_texture = crate::selection_overlay::load_texture(ctx.archive);
+            view.overlay_texture = crate::gfx::selection_overlay::load_texture(ctx.archive);
         }
         let ghost = tool.ghost(self.rotation);
         if ghost != town.ghost {
@@ -1337,7 +1338,7 @@ impl GameplayLoop {
             self.selection.selected = None;
         }
         if self.placement.is_none() && self.removal.is_none() {
-            self.path_tool = crate::path_tool::PathTool::start(ctx.archive, template);
+            self.path_tool = crate::tools::path_tool::PathTool::start(ctx.archive, template);
         }
         if self.placement.is_none() && self.removal.is_none() && self.path_tool.is_none() {
             log::info!("{template}: no tool for it");
@@ -1378,12 +1379,12 @@ impl GameplayLoop {
             town.apply_commands(&grid, &mut self.rng);
         }
         let cells = tool.overlay(town, &grid, cell);
-        view.cell_overlay = crate::selection_overlay::vertices(&cells, n, |x, y| {
+        view.cell_overlay = crate::gfx::selection_overlay::vertices(&cells, n, |x, y| {
             let mut normal = [0.0; 3];
             grid.ground(x, y, &mut normal)
         });
         if view.overlay_texture.is_none() && !cells.is_empty() {
-            view.overlay_texture = crate::selection_overlay::load_texture(ctx.archive);
+            view.overlay_texture = crate::gfx::selection_overlay::load_texture(ctx.archive);
         }
         // DragTool `+0x30`: the CreateBar is open while dragging (`FUN_140104eb0`), shows the
         // drag's size and the toolbar message 0 (`FUN_140105130`) and closes with the drag.
@@ -1441,15 +1442,15 @@ impl GameplayLoop {
             Some(DragSound::Move) if self.move_cooldown > 0.0 => None,
             Some(DragSound::Move) => {
                 self.move_cooldown = 0.05;
-                Some(crate::sound::global::PLACEMENT_MOVE)
+                Some(crate::audio::sound::global::PLACEMENT_MOVE)
             }
-            Some(DragSound::Thunk) => Some(crate::sound::global::PLACEMENT_THUNK),
-            Some(DragSound::Error) => Some(crate::sound::global::PLACEMENT_ERROR),
+            Some(DragSound::Thunk) => Some(crate::audio::sound::global::PLACEMENT_THUNK),
+            Some(DragSound::Error) => Some(crate::audio::sound::global::PLACEMENT_ERROR),
             None => None,
         };
         if let Some(sound) = sound {
             ctx.audio
-                .play(ctx.archive, sound, crate::sound::sound_type::UI);
+                .play(ctx.archive, sound, crate::audio::sound::sound_type::UI);
         }
     }
 
@@ -1511,7 +1512,7 @@ impl GameplayLoop {
             };
             let temperature = self.environment.as_ref().map_or(0.0, |e| e.temperature);
             let changed = {
-                let _p = crate::perf::scope("sim.town");
+                let _p = crate::platform::perf::scope("sim.town");
                 town.iterate(&grid, &mut self.rng, dt, temperature)
             };
             // AnimationManager::Update runs inside the same iteration (FUN_14009b850).
@@ -1519,7 +1520,7 @@ impl GameplayLoop {
                 (self.stock_warnings.count[i], self.stock_warnings.limits[i])
             });
             let changed = {
-                let _p = crate::perf::scope("sim.citizens");
+                let _p = crate::platform::perf::scope("sim.citizens");
                 town.update_citizens(&grid, &mut self.rng, dt, temperature, stock)
             } | changed;
             // AnimAudioEvents that passed their draw: `PlayEffect3D(effect, 4)` at the entity.
@@ -1621,7 +1622,7 @@ impl GameplayLoop {
         let known = self.decal_descriptions.len();
         if known < town.templates.len() {
             self.decal_descriptions
-                .extend(crate::building_decals::descriptions(
+                .extend(crate::gfx::building_decals::descriptions(
                     archive,
                     &town.templates[known..],
                 ));
@@ -1662,7 +1663,7 @@ impl GameplayLoop {
         let key = (
             town.cells.road_revision,
             view.terrain.revision,
-            crate::building_decals::signature(&town.placed, &self.decal_descriptions, decals),
+            crate::gfx::building_decals::signature(&town.placed, &self.decal_descriptions, decals),
             rings.iter().map(|(c, r, _)| (*c, *r)).collect::<Vec<_>>(),
         );
         if self.decals_built.as_ref() == Some(&key) {
@@ -1673,7 +1674,7 @@ impl GameplayLoop {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
         };
-        let mut list = crate::building_decals::build(
+        let mut list = crate::gfx::building_decals::build(
             archive,
             &town.placed,
             &self.decal_descriptions,
@@ -1683,7 +1684,7 @@ impl GameplayLoop {
             &mut self.decal_cache,
         );
         for (cell, r, material) in &rings {
-            list.extend(crate::building_decals::radius(
+            list.extend(crate::gfx::building_decals::radius(
                 archive,
                 *cell,
                 *r,
@@ -1694,7 +1695,7 @@ impl GameplayLoop {
             ));
         }
         let entities = list.len();
-        list.extend(crate::road_decals::build(
+        list.extend(crate::gfx::road_decals::build(
             archive,
             &town.cells,
             &grid,
@@ -1725,7 +1726,7 @@ impl GameplayLoop {
         view.particles = self.particles.batches(archive);
         for b in &view.particles {
             if !view.particle_textures.contains_key(&b.material) {
-                let textures = crate::scene_assets::particle_textures(archive, &b.material);
+                let textures = crate::view::scene_assets::particle_textures(archive, &b.material);
                 view.particle_textures.insert(b.material.clone(), textures);
             }
         }
@@ -1756,7 +1757,8 @@ impl GameplayLoop {
             }
             if let Some(b) = p.batch(intensity) {
                 if !view.weather_textures.contains_key(&b.material) {
-                    let t = crate::scene_assets::particle_textures(ctx.archive, &b.material).0;
+                    let t =
+                        crate::view::scene_assets::particle_textures(ctx.archive, &b.material).0;
                     view.weather_textures.insert(b.material.clone(), t);
                 }
                 view.weather.push(b);
@@ -1946,7 +1948,7 @@ impl GameplayLoop {
             .read_ref(&format!("{file}:build"))
             .ok()
             .and_then(|d| banished_formats::game::build_description(&d).ok());
-        crate::create_bar::fill_requirements(
+        crate::ui::create_bar::fill_requirements(
             ctx.ui,
             ctx.archive,
             root,
@@ -1960,7 +1962,8 @@ impl GameplayLoop {
     fn music_month_mood(&self) -> (i32, f32) {
         let v = self.status_values();
         let people = v.adults + v.students + v.children;
-        let mood = crate::music::mood(v.health, v.health_max, v.happiness, v.happiness_max, people);
+        let mood =
+            crate::audio::music::mood(v.health, v.health_max, v.happiness, v.happiness_max, people);
         (self.month() as i32, mood)
     }
 
@@ -1970,13 +1973,13 @@ impl GameplayLoop {
         let (month, mood) = self.music_month_mood();
         let music = self
             .music
-            .get_or_insert_with(|| crate::music::MusicPlayer::load(ctx.archive));
+            .get_or_insert_with(|| crate::audio::music::MusicPlayer::load(ctx.archive));
         music.update(ctx.audio, ctx.archive, month, mood);
         let temperature = self.environment.as_ref().map_or(50.0, |e| e.temperature);
         if let Some(town) = &self.town {
             match &mut self.ambience {
                 None => {
-                    self.ambience = Some(crate::ambience::Ambience::create(
+                    self.ambience = Some(crate::audio::ambience::Ambience::create(
                         ctx.audio,
                         ctx.archive,
                         &self.params.start_condition_ref,
@@ -2013,7 +2016,7 @@ impl GameplayLoop {
             ctx.audio.play_3d(
                 ctx.archive,
                 &effect.replace('\\', "/"),
-                crate::sound::sound_type::EFFECT,
+                crate::audio::sound::sound_type::EFFECT,
                 at,
             );
         }
@@ -2079,7 +2082,7 @@ impl GameplayLoop {
     fn open_pause_menu(&mut self, ctx: &mut Ctx) {
         if let (None, Some(screen)) = (&self.pause_menu, self.screen.as_mut()) {
             let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
-            self.pause_menu = crate::pause_menu::PauseMenu::open(
+            self.pause_menu = crate::ui::pause_menu::PauseMenu::open(
                 ctx.ui,
                 screen,
                 ctx.audio,
@@ -2110,7 +2113,7 @@ impl GameplayLoop {
     fn window_event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
         if let (Some(d), Some(screen)) = (self.mods_dialog.as_mut(), self.screen.as_mut()) {
             if let Event::Clicked(id) | Event::Changed(id) = event {
-                use crate::mod_ui::Outcome;
+                use crate::ui::mod_ui::Outcome;
                 match d.click(ctx.ui, screen, ctx.mods, &ctx.settings.persistence, id) {
                     Outcome::Stay => {}
                     Outcome::Closed => self.mods_dialog = None,
@@ -2138,7 +2141,7 @@ impl GameplayLoop {
             return Next::Stay;
         }
         if let (Some(options), Some(screen)) = (&mut self.options, &mut self.screen) {
-            if options.event(ctx, screen, event) == crate::options::Outcome::Closed {
+            if options.event(ctx, screen, event) == crate::ui::options::Outcome::Closed {
                 self.options = None;
             }
             return Next::Stay;
@@ -2179,12 +2182,12 @@ impl GameplayLoop {
                 MenuDialog::Goal(g) => g.closes(id).then_some(g.root),
                 MenuDialog::Map(m) => {
                     match m.click(ctx.ui, id, self.town_names.as_ref(), &mut self.rng) {
-                        crate::map_params::MapParamsClick::Rename(name) => {
+                        crate::view::map_params::MapParamsClick::Rename(name) => {
                             self.params.town_name = name;
                             Some(m.root)
                         }
-                        crate::map_params::MapParamsClick::Close => Some(m.root),
-                        crate::map_params::MapParamsClick::None => None,
+                        crate::view::map_params::MapParamsClick::Close => Some(m.root),
+                        crate::view::map_params::MapParamsClick::None => None,
                     }
                 }
             };
@@ -2197,21 +2200,21 @@ impl GameplayLoop {
         if let Some(menu) = &self.pause_menu {
             // `FUN_1400b9020`.
             match menu.click(ctx.ui, id) {
-                crate::pause_menu::PauseClick::Resume => self.close_pause_menu(ctx),
-                crate::pause_menu::PauseClick::Menu => {
+                crate::ui::pause_menu::PauseClick::Resume => self.close_pause_menu(ctx),
+                crate::ui::pause_menu::PauseClick::Menu => {
                     self.close_pause_menu(ctx);
                     return Self::return_to_menu();
                 }
-                crate::pause_menu::PauseClick::Quit => return Next::Quit,
-                crate::pause_menu::PauseClick::Options => {
+                crate::ui::pause_menu::PauseClick::Quit => return Next::Quit,
+                crate::ui::pause_menu::PauseClick::Options => {
                     if let Some(screen) = &mut self.screen {
-                        self.options = crate::options::OptionsDialog::open(ctx, screen);
+                        self.options = crate::ui::options::OptionsDialog::open(ctx, screen);
                     }
                 }
-                crate::pause_menu::PauseClick::Achievement => {
+                crate::ui::pause_menu::PauseClick::Achievement => {
                     if let Some(screen) = &mut self.screen {
                         let awarded = self.achievement_manager.awarded.clone();
-                        if let Some(d) = crate::achievement_ui::AchievementDialog::open(
+                        if let Some(d) = crate::ui::achievement_ui::AchievementDialog::open(
                             ctx.ui,
                             screen,
                             &self.achievements,
@@ -2221,15 +2224,15 @@ impl GameplayLoop {
                         }
                     }
                 }
-                crate::pause_menu::PauseClick::Goal => {
+                crate::ui::pause_menu::PauseClick::Goal => {
                     if let Some(screen) = &mut self.screen {
                         let goal = self.goal.as_ref().map(|g| (&g.achievement, &g.instance));
                         self.menu_dialog =
-                            crate::achievement_ui::GoalDialog::open(ctx.ui, screen, goal)
+                            crate::ui::achievement_ui::GoalDialog::open(ctx.ui, screen, goal)
                                 .map(MenuDialog::Goal);
                     }
                 }
-                crate::pause_menu::PauseClick::Map => {
+                crate::ui::pause_menu::PauseClick::Map => {
                     if self.town_names.is_none() {
                         self.town_names = ctx
                             .archive
@@ -2240,7 +2243,7 @@ impl GameplayLoop {
                     }
                     let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
                     if let Some(screen) = &mut self.screen {
-                        self.menu_dialog = crate::map_params::MapParamsDialog::open(
+                        self.menu_dialog = crate::view::map_params::MapParamsDialog::open(
                             ctx.ui,
                             screen,
                             &self.params,
@@ -2249,21 +2252,25 @@ impl GameplayLoop {
                         .map(MenuDialog::Map);
                     }
                 }
-                crate::pause_menu::PauseClick::Mod => {
+                crate::ui::pause_menu::PauseClick::Mod => {
                     if let Some(screen) = &mut self.screen {
                         self.mods_dialog =
-                            crate::mod_ui::ModDialog::open(ctx.ui, screen, ctx.mods, true);
+                            crate::ui::mod_ui::ModDialog::open(ctx.ui, screen, ctx.mods, true);
                     }
                 }
-                crate::pause_menu::PauseClick::Load | crate::pause_menu::PauseClick::Save => {
+                crate::ui::pause_menu::PauseClick::Load
+                | crate::ui::pause_menu::PauseClick::Save => {
                     if let Some(screen) = &mut self.screen {
-                        let loading =
-                            matches!(menu.click(ctx.ui, id), crate::pause_menu::PauseClick::Load);
-                        self.save_dialog =
-                            crate::save_dialog::SaveLoadDialog::open(ctx.ui, screen, loading, true);
+                        let loading = matches!(
+                            menu.click(ctx.ui, id),
+                            crate::ui::pause_menu::PauseClick::Load
+                        );
+                        self.save_dialog = crate::ui::save_dialog::SaveLoadDialog::open(
+                            ctx.ui, screen, loading, true,
+                        );
                     }
                 }
-                crate::pause_menu::PauseClick::Other => {}
+                crate::ui::pause_menu::PauseClick::Other => {}
             }
             return Next::Stay;
         }
@@ -2440,7 +2447,8 @@ impl GameplayLoop {
                     if let Some(old) = self.follow.take() {
                         old.close(ctx.ui, screen);
                     }
-                    self.follow = crate::follow::Follow::open(ctx.ui, screen, town, c, owner);
+                    self.follow =
+                        crate::tools::follow::Follow::open(ctx.ui, screen, town, c, owner);
                 }
             } else if ctx.ui.node(id).name == "buttonCenter" {
                 // EntityUI event `0x12` id `0x65` (`FUN_1400671d0`).
@@ -2486,7 +2494,10 @@ impl GameLoop for GameplayLoop {
                         let r = w.as_deref()?.replace('\\', "/");
                         let data = ctx.archive.read_ref(&r).ok()?;
                         let desc = banished_formats::weather::weather(&data).ok()?;
-                        Some(crate::weather::Precipitation::new(desc, 0x7ea7 + i as u32))
+                        Some(crate::view::weather::Precipitation::new(
+                            desc,
+                            0x7ea7 + i as u32,
+                        ))
                     })
                     .collect();
                 self.river_paths = world.river_paths.clone();
@@ -2535,7 +2546,7 @@ impl GameLoop for GameplayLoop {
                 }
                 // The rivers and lakes with the profile's River and Lake materials.
                 let w = &world.water;
-                let water = crate::scene_assets::WaterData::from_mesh(
+                let water = crate::view::scene_assets::WaterData::from_mesh(
                     ctx.archive,
                     &world.profile.materials[1],
                     &world.profile.materials[2],
@@ -2546,12 +2557,15 @@ impl GameLoop for GameplayLoop {
                 );
                 let mut view = SceneView::new(world.terrain, SceneCamera::Map(camera), lighting);
                 // `FUN_14009bfd0`: the sky (`Models/Sky/SkyMesh.rsc`); the roads' decals follow.
-                view.extras = Some(crate::scene_assets::SceneExtras {
-                    sky: crate::scene_assets::SkyData::load(ctx.archive, "Models/Sky/SkyMesh.rsc"),
+                view.extras = Some(crate::view::scene_assets::SceneExtras {
+                    sky: crate::view::scene_assets::SkyData::load(
+                        ctx.archive,
+                        "Models/Sky/SkyMesh.rsc",
+                    ),
                     water,
                     decals: Vec::new(),
                 });
-                self.road_materials = crate::road_decals::materials(ctx.archive);
+                self.road_materials = crate::gfx::road_decals::materials(ctx.archive);
                 self.decal_descriptions.clear();
                 if let Some(town) = &town {
                     view.models = Some(town.models(ctx.archive));
@@ -2559,7 +2573,7 @@ impl GameLoop for GameplayLoop {
                 self.town = town;
                 // A new game's ambience regions join the entity manager's bucket 2.
                 if let (None, Some(town)) = (&saved, &mut self.town) {
-                    let regions = crate::ambience::region_count(
+                    let regions = crate::audio::ambience::region_count(
                         ctx.archive,
                         &self.params.start_condition_ref,
                         town.cells.size,
@@ -2581,12 +2595,12 @@ impl GameLoop for GameplayLoop {
                 let mut effects = self
                     .town
                     .as_ref()
-                    .map(|town| crate::ambience::preload_effects(ctx.archive, town))
+                    .map(|town| crate::audio::ambience::preload_effects(ctx.archive, town))
                     .unwrap_or_default();
                 let (month, mood) = self.music_month_mood();
                 effects.extend(
                     self.music
-                        .get_or_insert_with(|| crate::music::MusicPlayer::load(ctx.archive))
+                        .get_or_insert_with(|| crate::audio::music::MusicPlayer::load(ctx.archive))
                         .first_track(ctx.audio, month, mood),
                 );
                 self.view = Some(view);
@@ -2738,7 +2752,7 @@ impl GameLoop for GameplayLoop {
         let mut iterations = 0;
         if !self.paused && !pauses_game {
             for _ in 0..SPEED_LEVELS[self.speed as usize] {
-                let _p = crate::perf::scope("sim.iterate");
+                let _p = crate::platform::perf::scope("sim.iterate");
                 models_changed |= self.iterate(ctx.archive, dt);
                 iterations += 1;
             }
@@ -2761,15 +2775,15 @@ impl GameLoop for GameplayLoop {
         }
         self.update_follow(ctx);
         {
-            let _p = crate::perf::scope("refresh_decals");
+            let _p = crate::platform::perf::scope("refresh_decals");
             self.refresh_decals(ctx.archive);
         }
         {
-            let _p = crate::perf::scope("refresh_particles");
+            let _p = crate::platform::perf::scope("refresh_particles");
             self.refresh_particles(ctx.archive, dt * iterations as f32);
         }
         {
-            let _p = crate::perf::scope("refresh_weather");
+            let _p = crate::platform::perf::scope("refresh_weather");
             self.refresh_weather(ctx, dt * iterations as f32);
         }
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
@@ -2779,13 +2793,13 @@ impl GameLoop for GameplayLoop {
                 heights: &view.terrain.heights,
             };
             {
-                let _p = crate::perf::scope("smooth");
+                let _p = crate::platform::perf::scope("smooth");
                 models_changed |= town.smooth(&grid, &mut self.rng);
             }
             self.ambience_stale |= models_changed;
             if models_changed {
                 if let Some(models) = &mut view.models {
-                    let _p = crate::perf::scope("refresh_models");
+                    let _p = crate::platform::perf::scope("refresh_models");
                     town.refresh_models(ctx.archive, models);
                 }
             }
@@ -2797,13 +2811,13 @@ impl GameLoop for GameplayLoop {
                 // `Scene::PlayEffect(WarningEffect, 1)`.
                 ctx.audio.play(
                     ctx.archive,
-                    crate::sound::global::WARNING,
-                    crate::sound::sound_type::UI,
+                    crate::audio::sound::global::WARNING,
+                    crate::audio::sound::sound_type::UI,
                 );
             }
         }
         if let Some(town) = &self.town {
-            let town_ctx = crate::town_hall_ui::TownContext {
+            let town_ctx = crate::ui::town_hall_ui::TownContext {
                 stock_counts: &self.stock_warnings.count,
                 statistics: &self.statistics,
             };
@@ -2855,7 +2869,7 @@ impl GameLoop for GameplayLoop {
             }
             for r in town.icon_sheet_refs() {
                 if !view.icon_sheets.contains_key(&r) {
-                    if let Some(sheet) = crate::status_icons::load_sheet(ctx.archive, &r) {
+                    if let Some(sheet) = crate::gfx::status_icons::load_sheet(ctx.archive, &r) {
                         view.icon_sheets.insert(r, sheet);
                     }
                 }
@@ -2871,7 +2885,7 @@ impl GameLoop for GameplayLoop {
         }
         self.move_cooldown -= dt;
         {
-            let _p = crate::perf::scope("audio");
+            let _p = crate::platform::perf::scope("audio");
             self.update_audio(ctx, dt);
         }
         let month = self.month();
@@ -2945,16 +2959,16 @@ impl GameLoop for GameplayLoop {
             let outcome = match input {
                 RawInput::Released(binding) => {
                     options.released(ctx, screen, binding);
-                    crate::options::Outcome::Stay
+                    crate::ui::options::Outcome::Stay
                 }
                 RawInput::Escape => options.escape(ctx, screen),
                 RawInput::Cursor(x, y) => {
                     self.cursor = (x, y);
-                    crate::options::Outcome::Stay
+                    crate::ui::options::Outcome::Stay
                 }
-                _ => crate::options::Outcome::Stay,
+                _ => crate::ui::options::Outcome::Stay,
             };
-            if outcome == crate::options::Outcome::Closed {
+            if outcome == crate::ui::options::Outcome::Closed {
                 self.options = None;
             }
             return Next::Stay;
@@ -3029,15 +3043,15 @@ impl GameLoop for GameplayLoop {
                     let sound = match placed {
                         Some(id) => {
                             log::info!("placed {} as entity {id}", tool.reference);
-                            crate::sound::global::PLACEMENT_THUNK
+                            crate::audio::sound::global::PLACEMENT_THUNK
                         }
                         None => {
                             log::info!("{}: cannot build here", tool.reference);
-                            crate::sound::global::PLACEMENT_ERROR
+                            crate::audio::sound::global::PLACEMENT_ERROR
                         }
                     };
                     ctx.audio
-                        .play(ctx.archive, sound, crate::sound::sound_type::UI);
+                        .play(ctx.archive, sound, crate::audio::sound::sound_type::UI);
                     self.refresh_placement(ctx);
                 } else if let Some(target) = self.map_click(ctx) {
                     // MapUI: move the camera (`FUN_14006d1b0`).
@@ -3590,9 +3604,9 @@ mod tests {
                 gameplay.iterate(ctx.archive, 1.0 / 30.0);
             }
             let root = ctx.ui.instantiate("Dialog\\TownHall.rsc:tabs").unwrap();
-            let mut th = crate::town_hall_ui::TownHallUi::bind(ctx.ui, ctx.archive, root);
+            let mut th = crate::ui::town_hall_ui::TownHallUi::bind(ctx.ui, ctx.archive, root);
             let town = gameplay.town.as_ref().unwrap();
-            let x = crate::town_hall_ui::TownContext {
+            let x = crate::ui::town_hall_ui::TownContext {
                 stock_counts: &gameplay.stock_warnings.count,
                 statistics: &gameplay.statistics,
             };
@@ -3631,7 +3645,7 @@ mod tests {
         let id = game.with_ctx(|_, ctx| {
             let town = gameplay.town.as_mut().unwrap();
             let mut rng = banished_game::random::Random::new(7);
-            let mut tool = crate::placement_tool::PlacementTool::start(
+            let mut tool = crate::tools::placement_tool::PlacementTool::start(
                 ctx.archive,
                 town,
                 r"Template\TradingPost.rsc:resource",
@@ -3740,9 +3754,9 @@ mod tests {
             );
             // Sell enough logs to pay for 4 food and both animals.
             let sell = (4 * 2 + 2 + value - 1) / value;
-            crate::building_ui::set_spinner(ctx.ui, spinners[0], sell);
-            crate::building_ui::set_spinner(ctx.ui, spinners[1], 4);
-            crate::building_ui::set_spinner(ctx.ui, spinners[2], 2);
+            crate::ui::building_ui::set_spinner(ctx.ui, spinners[0], sell);
+            crate::ui::building_ui::set_spinner(ctx.ui, spinners[1], 4);
+            crate::ui::building_ui::set_spinner(ctx.ui, spinners[2], 2);
             gameplay.entities.refresh(ctx.ui, ctx.archive, town);
             let trade = ctx.ui.find(root, "buttonTrade").unwrap();
             assert!(value > 0);
@@ -3788,7 +3802,7 @@ mod tests {
                 .filter(|&n| {
                     ctx.ui.descendant(root, n) && ctx.ui.node(n).name == "spinnerItemCount"
                 })
-                .map(|n| crate::building_ui::spinner_value(ctx.ui, n))
+                .map(|n| crate::ui::building_ui::spinner_value(ctx.ui, n))
                 .collect();
             assert_eq!(left, vec![Some(0), Some(0)]);
         });
@@ -4292,7 +4306,7 @@ mod tests {
                 .iter()
                 .rev()
                 .find_map(|d| ctx.ui.find(d.root, "textFollow"))
-                .map(|n| crate::utility::text_of(ctx.ui, n))
+                .map(|n| crate::ui::utility::text_of(ctx.ui, n))
                 .unwrap_or_default();
             assert!(shown.contains(&name), "{shown:?} {name:?}");
             gameplay.raw(ctx, RawInput::Escape);
@@ -4339,7 +4353,7 @@ mod tests {
             gameplay.update(ctx, 1.0 / 30.0);
             let root = gameplay.entities.open[0].root;
             let count = ctx.ui.find(root, "workPlaceCount").expect("workPlaceCount");
-            let shown = crate::utility::text_of(ctx.ui, count);
+            let shown = crate::ui::utility::text_of(ctx.ui, count);
             let up = ctx.ui.find(root, "jobCountUp").unwrap();
             let down = ctx.ui.find(root, "jobCountDown").unwrap();
             let button = if ctx.ui.node(up).enabled { up } else { down };
@@ -4350,7 +4364,7 @@ mod tests {
             assert!(town.construction.commands.is_empty());
             gameplay.update(ctx, 1.0 / 30.0);
             assert_eq!(gameplay.calendar.elapsed, time, "the game ran while paused");
-            let now = crate::utility::text_of(ctx.ui, count);
+            let now = crate::ui::utility::text_of(ctx.ui, count);
             assert_ne!(now, shown, "the window still shows the old most workers");
         });
     }
@@ -4366,7 +4380,8 @@ mod tests {
         let Ok(bytes) = std::fs::read(root.join("save-game/Save83.sav")) else {
             return;
         };
-        let mut gameplay = GameplayLoop::from_save(crate::saved::SavedGame::parse(&bytes).unwrap());
+        let mut gameplay =
+            GameplayLoop::from_save(crate::saves::saved::SavedGame::parse(&bytes).unwrap());
         game.with_ctx(|_, ctx| {
             gameplay.load(ctx);
             gameplay.startup(ctx);
@@ -4406,7 +4421,8 @@ mod tests {
         let Ok(bytes) = std::fs::read(root.join("save-game/Save83.sav")) else {
             return;
         };
-        let mut gameplay = GameplayLoop::from_save(crate::saved::SavedGame::parse(&bytes).unwrap());
+        let mut gameplay =
+            GameplayLoop::from_save(crate::saves::saved::SavedGame::parse(&bytes).unwrap());
         game.with_ctx(|_, ctx| {
             gameplay.load(ctx);
             gameplay.startup(ctx);
@@ -4463,12 +4479,12 @@ mod tests {
             assert_eq!(spinners.len(), 11);
             let shown: Vec<_> = spinners
                 .iter()
-                .map(|&s| crate::building_ui::spinner_value(ctx.ui, s).unwrap())
+                .map(|&s| crate::ui::building_ui::spinner_value(ctx.ui, s).unwrap())
                 .collect();
             for v in &shown {
                 assert!(gameplay.stock_warnings.limits.contains(v), "{shown:?}");
             }
-            crate::building_ui::set_spinner(ctx.ui, spinners[0], 345);
+            crate::ui::building_ui::set_spinner(ctx.ui, spinners[0], 345);
             gameplay.event(ctx, Event::Changed(spinners[0]));
             assert!(gameplay.stock_warnings.limits.contains(&345));
         });
@@ -4681,7 +4697,7 @@ mod tests {
             assert!(window
                 .bound
                 .iter()
-                .any(|c| matches!(c, crate::building_ui::Controller::Destroy(_))));
+                .any(|c| matches!(c, crate::ui::building_ui::Controller::Destroy(_))));
             let root = window.root;
             let (reclaim, rebuild, destroy) = (
                 ctx.ui.find(root, "buttonReclaim").unwrap(),
@@ -4810,7 +4826,7 @@ mod tests {
 
     #[test]
     fn pause_menu_pauses_sounds_and_the_simulation() {
-        use crate::sound::sound_type;
+        use crate::audio::sound::sound_type;
         let Some((mut game, mut gameplay)) = generated() else {
             return;
         };
@@ -5066,7 +5082,7 @@ mod tests {
             .revision;
         assert!(revision > 0);
 
-        let mut renderer = pollster::block_on(crate::render::Renderer::headless(320, 200));
+        let mut renderer = pollster::block_on(crate::gfx::render::Renderer::headless(320, 200));
         renderer.set_scene(gameplay.view.as_ref().unwrap());
         gameplay.paused = true;
         game.with_ctx(|_, ctx| {
@@ -5083,7 +5099,7 @@ mod tests {
         let view = gameplay.view.as_ref().unwrap();
         assert!(view.models.as_ref().unwrap().revision > revision);
         renderer.set_scene(view); // exercises COPY_DST updates on an already uploaded scene
-        let rgba = renderer.capture(&crate::render::Frame {
+        let rgba = renderer.capture(&crate::gfx::render::Frame {
             terrain: Some(view.frame(renderer.aspect(), 5.0)),
             clear: crate::CLEAR,
             ui: None,
@@ -5166,15 +5182,15 @@ mod tests {
             .unwrap()
             .instances[0];
 
-        let mut renderer = pollster::block_on(crate::render::Renderer::headless(640, 400));
+        let mut renderer = pollster::block_on(crate::gfx::render::Renderer::headless(640, 400));
         fn capture(
             gameplay: &GameplayLoop,
-            renderer: &mut crate::render::Renderer,
+            renderer: &mut crate::gfx::render::Renderer,
             name: &str,
         ) -> Vec<u8> {
             let view = gameplay.view.as_ref().unwrap();
             renderer.set_scene(view);
-            let rgba = renderer.capture(&crate::render::Frame {
+            let rgba = renderer.capture(&crate::gfx::render::Frame {
                 terrain: Some(view.frame(renderer.aspect(), gameplay.calendar.seconds())),
                 clear: crate::CLEAR,
                 ui: None,

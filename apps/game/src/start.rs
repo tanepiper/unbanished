@@ -35,7 +35,9 @@ pub(crate) mod save;
 mod tornado;
 pub use bridge::BridgeSpec;
 
-use crate::models::{placement_matrix, GroupInstances, GroupMaterial, ModelInstance, SceneModels};
+use crate::gfx::models::{
+    placement_matrix, GroupInstances, GroupMaterial, ModelInstance, SceneModels,
+};
 
 /// `Profession.rsc:resource` (laborer `+0x30`, builder `+0x38`) and the loaded professions
 /// (`crate::mods::profession_list`).
@@ -1466,7 +1468,7 @@ impl StartingTown {
     /// StatusIconComponent billboards (`FUN_1401310a0` anchors): each building with status bits
     /// ([`StartingTown::building_icons`]), and each citizen's above its model (position + model
     /// box height).
-    pub fn status_icons(&self) -> Vec<crate::status_icons::StatusIcon> {
+    pub fn status_icons(&self) -> Vec<crate::gfx::status_icons::StatusIcon> {
         let mut icons = self.building_icons();
         let Some(d) = &self.citizen_icons else {
             return icons;
@@ -1480,7 +1482,7 @@ impl StartingTown {
                 .zip(&self.agents.states)
                 .zip(&self.agents.characters)
                 .filter(|((c, s), _)| c.alive && s.status != 0)
-                .map(|((c, s), ch)| crate::status_icons::StatusIcon {
+                .map(|((c, s), ch)| crate::gfx::status_icons::StatusIcon {
                     anchor: glam::Vec3::from(ch.position)
                         + glam::Vec3::Z * self.citizen_heights[usize::from(!c.male)],
                     mask: s.status,
@@ -1513,7 +1515,7 @@ impl StartingTown {
     /// The buildings' StatusIconComponents with bits set (`FUN_1401310a0`): above the model
     /// (its position plus its height), or for a MultiObject (or without a model) the map
     /// rectangle's centre cell on the ground plus 1.
-    fn building_icons(&self) -> Vec<crate::status_icons::StatusIcon> {
+    fn building_icons(&self) -> Vec<crate::gfx::status_icons::StatusIcon> {
         let mut out = Vec::new();
         for (&e, site) in &self.construction.sites {
             let t = &self.construction.templates[site.template];
@@ -1545,7 +1547,7 @@ impl StartingTown {
                     glam::Vec3::new(cx, cy, p.position[2] + 1.0)
                 }
             };
-            out.push(crate::status_icons::StatusIcon {
+            out.push(crate::gfx::status_icons::StatusIcon {
                 anchor,
                 mask,
                 sheet,
@@ -3328,9 +3330,9 @@ mod storage_fetch_tests {
             };
             archive.add(Package::parse(bytes).unwrap());
         }
-        let world = crate::world::World::generate(
+        let world = crate::view::world::World::generate(
             &archive,
-            &crate::world::WorldParams {
+            &crate::view::world::WorldParams {
                 seed: 1234,
                 ..Default::default()
             },
@@ -3399,9 +3401,9 @@ mod storage_fetch_tests {
             };
             archive.add(Package::parse(bytes).unwrap());
         }
-        let world = crate::world::World::generate(
+        let world = crate::view::world::World::generate(
             &archive,
-            &crate::world::WorldParams {
+            &crate::view::world::WorldParams {
                 seed: 1234,
                 ..Default::default()
             },

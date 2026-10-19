@@ -1,0 +1,9 @@
+{
+  "ui": {"doc": "The game's windows, bars and dialogs: building and citizen windows, the toolbar, utility windows, options, saving and loading, trade, achievements and scenarios.", "modules": ["achievement_ui", "building_ui", "create_bar", "entity_ui", "event_notify", "mod_ui", "options", "pause_menu", "save_dialog", "save_list", "scenario_ui", "select_resource_ui", "town_hall_ui", "trade_ui", "ui_settings", "utility", "toolbar"]},
+  "gfx": {"doc": "Drawing with wgpu: the renderer and its passes, models, terrain, decals, shadows, particles, highlights, status icons, overlays and screenshots.", "modules": ["render", "scene_gfx", "models", "shadow", "particle_gfx", "highlight", "status_icons", "selection_overlay", "building_decals", "road_decals", "screenshot"], "files": ["terrain.wgsl"]},
+  "tools": {"doc": "The player's tools: placing buildings and areas, removing, roads and paths, selecting, and following a citizen.", "modules": ["placement_tool", "removal_tool", "path_tool", "selection", "follow"]},
+  "audio": {"doc": "Sound in the game: effects, music and the ambience of the map.", "modules": ["sound", "music", "ambience"]},
+  "view": {"doc": "What the game shows of a town: the scene and its assets, the world view, particles, weather and the map parameters.", "modules": ["scene", "scene_assets", "world", "particles", "weather", "map_params"]},
+  "saves": {"doc": "Save games: reading and writing them, the browser's save store and autosave.", "modules": ["saved", "save_store", "autosave"]},
+  "platform": {"doc": "The platform around the game: file locations, the browser glue, the engine version and the frame profiler.", "modules": ["paths", "web", "version", "perf"]}
+}

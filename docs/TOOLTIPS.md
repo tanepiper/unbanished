@@ -9,8 +9,8 @@ Port files:
 
 - `crates/ui/src/input.rs`: `update_tooltip`, `place_tooltip`, `new_tooltip`,
   `set_parameters`.
-- `apps/game/src/toolbar.rs`: hotkeys.
-- `apps/game/src/create_bar.rs`: `fill_requirements`.
+- `apps/game/src/ui/toolbar.rs`: hotkeys.
+- `apps/game/src/ui/create_bar.rs`: `fill_requirements`.
 - `apps/game/src/gameplay.rs`: `fill_tooltip`.
 
 ## Tooltip dialogs

@@ -53,7 +53,7 @@ seen by `Engine::Loader::Load`), the list works on a copy and is not saved.
 
 ## The Mods dialog
 
-`Dialog/Mod.rsc` (`apps/game/src/mod_ui.rs`). It opens from the main menu or the pause menu's
+`Dialog/Mod.rsc` (`apps/game/src/ui/mod_ui.rs`). It opens from the main menu or the pause menu's
 Mod button (id 7, `FUN_1400b8370`).
 
 Element ids (`FUN_1400727f0`, `FUN_1400723e0`):

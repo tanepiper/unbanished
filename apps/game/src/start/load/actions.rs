@@ -15,7 +15,7 @@ use banished_formats::savegame::{Fields, ObjId, Object, Value};
 use banished_game::behaviour::character::{Action, ActionStack, Component, Message, MoveTo};
 
 use super::super::{load_template, material_index, normalise, StartingTown};
-use crate::saved::SavedGame;
+use crate::saves::saved::SavedGame;
 
 fn int(f: &Fields, path: &str) -> i32 {
     f.i32(path).unwrap_or(0)

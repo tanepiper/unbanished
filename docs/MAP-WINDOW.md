@@ -4,8 +4,8 @@ Slice G covers the Map utility window (`Template/UtilityMap.rsc`, host
 `Dialog/StandardDialog.rsc`, element `Dialog/Map.rsc:content`) and the minimap images it shows.
 Port files:
 
-- `apps/game/src/utility.rs`: `MapUi`.
-- `apps/game/src/render.rs`: `update_minimap` and `render_minimap`.
+- `apps/game/src/ui/utility.rs`: `MapUi`.
+- `apps/game/src/gfx/render.rs`: `update_minimap` and `render_minimap`.
 - `apps/game/src/start.rs`: `minimap_overlay`.
 - `crates/ui`: the `Lines` kind.
 - `crates/formats`: `FrustumOutline`.

@@ -419,7 +419,7 @@ The palette comes from the runtime's `MeshInstance` functions:
 
 So each bone is `node_world × inverse_bind` in mesh space, and the root's own sampled
 motion is extracted, never drawn. `skeleton::palette` matches this, applied to the pose from
-`sample_pose` with the root reset (`placed_pose` in `apps/game/src/models.rs`).
+`sample_pose` with the root reset (`placed_pose` in `apps/game/src/gfx/models.rs`).
 
 The vertex shader (`NormalSkin_charactervs`, variant 0) works as follows:
 

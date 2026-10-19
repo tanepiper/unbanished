@@ -16,7 +16,7 @@ use banished_game::nature::wildlife::{Animal, Herd, Livestock, Population};
 
 use super::super::{livestock_kind, normalise, wildlife_kinds, StartingTown};
 use super::construction::entity_or_component;
-use crate::saved::SavedGame;
+use crate::saves::saved::SavedGame;
 
 fn int(f: &Fields, path: &str) -> i32 {
     f.i32(path).unwrap_or(0)

@@ -564,7 +564,7 @@ impl AchievementInstance {
 /// (`+0x10`) and a TimeGoalInstance's time, matched to `a`'s goals by reference (in order when
 /// a reference is not among them).
 pub fn saved_instance(
-    saved: &crate::saved::SavedGame,
+    saved: &crate::saves::saved::SavedGame,
     id: banished_formats::savegame::ObjId,
     a: &Achievement,
 ) -> Option<AchievementInstance> {
@@ -664,7 +664,7 @@ impl AchievementManager {
 
     /// `AchievementManager::Persist` on load: the saved instances replace the new ones, each
     /// by its achievement's reference.
-    pub fn restore(&mut self, list: &[Achievement], saved: &crate::saved::SavedGame) {
+    pub fn restore(&mut self, list: &[Achievement], saved: &crate::saves::saved::SavedGame) {
         use banished_formats::savegame::Value;
         let Some(Value::List(items)) = saved.state.achievements.at("achievements.instances") else {
             return;
@@ -873,7 +873,7 @@ mod tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
             let mut m = AchievementManager {
                 awarded: vec![false; list.len()],
                 instances: list.iter().map(AchievementInstance::new).collect(),

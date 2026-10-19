@@ -177,7 +177,7 @@ mod tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
             let mut checked = std::collections::BTreeMap::new();
             let mut wrong = std::collections::BTreeMap::new();
             for (_, e) in saved.entities() {

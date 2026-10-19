@@ -20,7 +20,7 @@ pub struct Ctx<'a> {
     pub archive: &'a Rc<Archive>,
     pub ui: &'a mut Ui,
     /// The shared 64-channel mixer (`Audio::Device`).
-    pub audio: &'a mut crate::sound::Audio,
+    pub audio: &'a mut crate::audio::sound::Audio,
     pub global: &'a mut Option<GlobalData>,
     /// The engine's default `System::Random()`, seeded from the clock.
     pub rng: &'a mut Random,
@@ -68,7 +68,7 @@ pub enum Next {
 /// 3D content a loop wants drawn behind its UI.
 pub enum View<'a> {
     None,
-    World(&'a crate::scene::SceneView),
+    World(&'a crate::view::scene::SceneView),
 }
 
 pub trait GameLoop {

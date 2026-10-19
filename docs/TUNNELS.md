@@ -3,7 +3,7 @@
 Port: the bridge tool (`apps/game/src/start/bridge.rs`, see [BRIDGES.md](BRIDGES.md)) places
 them; `crates/game/src/world/terraform.rs` (TerraformComponent) and
 `StartingTown::apply_terraforms` reshape the terrain. Test: `a_tunnel_goes_through_a_hill`
-(`apps/game/src/placement_tool.rs`).
+(`apps/game/src/tools/placement_tool.rs`).
 
 ## The tool
 

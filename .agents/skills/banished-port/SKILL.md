@@ -16,7 +16,7 @@ Precondition: the behaviour is traced (`banished-trace`) and any resource it rea
 | Resource parsing | `crates/formats` | Dependency-free |
 | UI element tree, controls, layout, input, events | `crates/ui` | Generic engine UI — no Banished-specific game rules |
 | Engine loops, game controllers, dialog controllers, input routing | `apps/game/src/*.rs` | One module per original controller (`toolbar.rs`, `status_bar.rs`, …) |
-| Rendering | `apps/game/src/render.rs`, `scene_gfx.rs`, `models.rs`, `*.wgsl` | Must run on WebGL2 too (see `banished-shader`) |
+| Rendering | `apps/game/src/gfx/render.rs`, `scene_gfx.rs`, `models.rs`, `*.wgsl` | Must run on WebGL2 too (see `banished-shader`) |
 
 ## Mirror the original's shape
 

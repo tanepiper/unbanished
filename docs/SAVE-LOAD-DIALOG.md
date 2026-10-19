@@ -3,7 +3,7 @@
 The dialog, autosave and saving work in both builds; only where the files go differs.
 
 The original executable's folders, which the port uses natively so it can replace the executable
-(`apps/game/src/paths.rs`):
+(`apps/game/src/platform/paths.rs`):
 
 | What | Original | Port |
 |---|---|---|
@@ -27,7 +27,7 @@ file directly (native only).
 
 ## The list (`Save::SaveLoad::UpdateList`, `0x1800c4710`)
 
-`apps/game/src/save_list.rs`. Every `*.sav` file becomes a `SaveInfo` (0x58 bytes):
+`apps/game/src/ui/save_list.rs`. Every `*.sav` file becomes a `SaveInfo` (0x58 bytes):
 - `+0x10` is the name;
 - `+0x18` is the preview;
 - `+0x30` is the file time;
@@ -48,7 +48,7 @@ are `DateTime::AsString` (`0x1800c7d40`): the local date and time joined with a 
 
 ## The dialog (`Dialog/SaveLoad.rsc`, vtable `0x140165d10`)
 
-`apps/game/src/save_dialog.rs`. The module comment has the details:
+`apps/game/src/ui/save_dialog.rs`. The module comment has the details:
 - **Opening:** the pause menu's Load (id 2) and Save (id 3) open it (`FUN_1400b8d80`, mode 1 or 0), and so does
   the main menu's Load.
 - **Building the table** (`FUN_1400bc1b0`): it lays out `max(count, 6) + 2` cells, rounded down to threes, three per row.
@@ -66,7 +66,7 @@ are `DateTime::AsString` (`0x1800c7d40`): the local date and time joined with a 
 
 ## Autosave (`Dialog/AutoSave.rsc`, vtable `0x140161250`)
 
-`apps/game/src/autosave.rs`. It is installed with the other in-game dialogs (`FUN_14009d0d0`).
+`apps/game/src/saves/autosave.rs`. It is installed with the other in-game dialogs (`FUN_14009d0d0`).
 - **Timer** (`FUN_14005ea80`): timer 0 runs at the Options interval: 1, 5, 10, 15, 20, 30, 45 or 60
   minutes, and is stopped at index 8. It restarts when you change the option.
 - **Firing:** `DialogInstance::Update` counts the timer down by frame time. When it reaches zero it

@@ -2,7 +2,7 @@
 
 This note describes how the original builds and runs the bottom-right toolbar. The evidence is Ghidra
 pseudocode of the Steam x64 build (1.0.7) and the shipped `Game/Toolbar_*.crs` and
-`Dialog/Toolbar.rsc` resources. The port is `apps/game/src/toolbar.rs`, and the parsers are
+`Dialog/Toolbar.rsc` resources. The port is `apps/game/src/ui/toolbar.rs`, and the parsers are
 `banished_formats::game::{toolbar_item, toolbar_description}`. All entries parse in
 `crates/formats/tests/toolbar.rs`.
 

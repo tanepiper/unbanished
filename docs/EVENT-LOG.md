@@ -2,7 +2,7 @@
 
 Slice F: the town event log (`Game +0x138`), the stock-manager warnings that post to it, and
 the Event Log utility window. Port: `crates/game/src/events.rs`, `apps/game/src/gameplay.rs`
-(posting), `apps/game/src/utility.rs` (`EventLogUi`, `format_event`). Evidence: Ghidra
+(posting), `apps/game/src/ui/utility.rs` (`EventLogUi`, `format_event`). Evidence: Ghidra
 pseudocode of the Steam x64 executable and the event logs in five current Steam saves.
 
 ## Log (`Game +0x138`)

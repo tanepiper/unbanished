@@ -105,8 +105,8 @@ The Status Bar ([UTILITY-WINDOWS.md](UTILITY-WINDOWS.md)) shows:
   at a different stream position than the original's.
 - **Ported:** the effect slots' intensity, direction and state forcing
   (`Environment::effects`, `fade_times` from the `Weather` descriptions), the renderer's rain
-  value, and the rain ambient emitter (`apps/game/src/ambience.rs`).
-- **Ported:** the precipitation (`apps/game/src/weather.rs`, `particle_gfx::WeatherRenderer`).
+  value, and the rain ambient emitter (`apps/game/src/audio/ambience.rs`).
+- **Ported:** the precipitation (`apps/game/src/view/weather.rs`, `particle_gfx::WeatherRenderer`).
   - **Build** (`WeatherGeometry::Build`, `FUN_1400d9450`). The geometry gets `+0x28` particles
     from its own Random. Each starts in a cube of `+0x48`, drawn z, y, x × `RandFloatTol` × size
     / 2. Its velocity is the normalized `+0x2c` × (`RandFloatTol × +0x3c + +0x38`). Its last

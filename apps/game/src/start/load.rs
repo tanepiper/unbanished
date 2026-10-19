@@ -21,7 +21,7 @@ mod citizens;
 mod construction;
 mod producers;
 mod wildlife;
-use crate::saved::SavedGame;
+use crate::saves::saved::SavedGame;
 
 /// NaturalResourceComponent capability bits in the component flags (`Component +0x20`).
 const ALLOW_NEGATIVE: u32 = 0x10_0000;
@@ -649,7 +649,7 @@ mod stage2_tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
             let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
             let c = &town.construction;
 
@@ -785,7 +785,7 @@ mod stage3_tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
             let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
             let n = saved
                 .state
@@ -880,7 +880,7 @@ mod stage3b_tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
             let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
             // Saved depths in the citizens' order (`top + 1`).
             let depths: Vec<usize> = match saved.state.town.at("town.citizens") {
@@ -960,7 +960,7 @@ mod stage3c_tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
             let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
             let count = |t: &str| {
                 saved
@@ -1036,7 +1036,7 @@ mod stage3d_tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
             let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
             // FloorComponent slot `+0x58` (`FUN_140124a10`) on load: an active floor counts one
             // more on every cell under it (its mesh handle is not saved, so nothing is taken
@@ -1154,7 +1154,7 @@ mod stage4_tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
             let climate = saved
                 .reference(saved.state.climate)
                 .unwrap()

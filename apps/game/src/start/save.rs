@@ -497,7 +497,7 @@ mod tests {
 
     /// A save's state as the original holds it after loading: one more floor under each active
     /// FloorComponent (its load slot adds them again, `FUN_140124a10`).
-    fn floors_added(saved: &crate::saved::SavedGame) -> GameState {
+    fn floors_added(saved: &crate::saves::saved::SavedGame) -> GameState {
         let mut expected = saved.state.clone();
         let n = expected.map.size;
         for (_, e) in saved.entities() {
@@ -535,7 +535,7 @@ mod tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
             let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
             let mut g = saved.state.clone();
             town.export_into(&archive, &mut g);
@@ -572,8 +572,8 @@ mod tests {
         let Ok(bytes) = std::fs::read(root().join("save-game").join("Save83.sav")) else {
             return;
         };
-        let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
-        let world = crate::world::World::from_save(&archive, &saved).unwrap();
+        let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
+        let world = crate::view::world::World::from_save(&archive, &saved).unwrap();
         let grid = banished_game::terrain::HeightGrid {
             width: world.terrain.width(),
             heights: &world.terrain.heights,
@@ -603,7 +603,7 @@ mod tests {
         );
         assert!(changed.len() > 100, "the simulation changed little");
         let written = first.encode().unwrap();
-        let reloaded = crate::saved::SavedGame {
+        let reloaded = crate::saves::saved::SavedGame {
             state: GameState::decode(&written).unwrap(),
             metadata: saved.metadata.clone(),
         };
@@ -635,12 +635,12 @@ mod tests {
             eprintln!("game data missing; skipping");
             return;
         };
-        let params = crate::world::WorldParams {
+        let params = crate::view::world::WorldParams {
             seed: 1234,
             start_condition_ref: r"Game\StartCondition\Medium.rsc:resource".into(),
             ..Default::default()
         };
-        let world = crate::world::World::generate(&archive, &params).unwrap();
+        let world = crate::view::world::World::generate(&archive, &params).unwrap();
         let grid = banished_game::terrain::HeightGrid {
             width: world.terrain.width(),
             heights: &world.terrain.heights,
@@ -695,7 +695,7 @@ mod tests {
         });
         town.export_into(&archive, &mut first);
         let written = first.encode().unwrap();
-        let reloaded = crate::saved::SavedGame {
+        let reloaded = crate::saves::saved::SavedGame {
             state: GameState::decode(&written).unwrap(),
             metadata: banished_formats::save::SaveMetadata {
                 name: String::new(),

@@ -446,14 +446,15 @@ impl GameplayLoop {
             }
             ImageExtra::HotKey(r) => {
                 let action = self.toolbar.as_ref().and_then(|t| t.entry_action(r));
-                let name = action
-                    .and_then(|a| crate::toolbar::key_name(ctx.ui, &ctx.settings.keymap, a as i32));
+                let name = action.and_then(|a| {
+                    crate::ui::toolbar::key_name(ctx.ui, &ctx.settings.keymap, a as i32)
+                });
                 if let (Some(name), Some(text)) = (name, find_kind(ctx.ui, element, is_text)) {
                     ctx.ui.set_text(text, &name);
                 }
             }
             ImageExtra::InputKey(a) => {
-                let name = crate::toolbar::key_name(ctx.ui, &ctx.settings.keymap, *a);
+                let name = crate::ui::toolbar::key_name(ctx.ui, &ctx.settings.keymap, *a);
                 if let (Some(name), Some(text)) = (name, find_kind(ctx.ui, element, is_text)) {
                     ctx.ui.set_text(text, &name);
                 }
@@ -719,7 +720,7 @@ impl GameplayLoop {
         if screen[0] <= 0 || screen[1] <= 0 {
             return None;
         }
-        let pos = crate::selection::Entity::Placed(e).position(town);
+        let pos = crate::tools::selection::Entity::Placed(e).position(town);
         let vp = view.view_proj(screen[0] as f32 / screen[1] as f32);
         let p = vp * pos.extend(1.0);
         if p.w <= 0.0 {
@@ -870,7 +871,7 @@ impl GameplayLoop {
             // The spinner's value, unless it is being typed in.
             9 => self
                 .tutorial_element(ui, path)
-                .and_then(|n| crate::building_ui::spinner_value(ui, n))
+                .and_then(|n| crate::ui::building_ui::spinner_value(ui, n))
                 .unwrap_or(0),
             // The template's activated entities (state machine past 0).
             10 => town
@@ -1122,7 +1123,7 @@ pub fn scenario_game(
         let name = format!("Save\\{}.sav", s.save);
         match archive
             .read(&name)
-            .and_then(|b| crate::saved::SavedGame::parse(&b))
+            .and_then(|b| crate::saves::saved::SavedGame::parse(&b))
         {
             Ok(mut saved) => {
                 saved.state.scenario = index as i32;
@@ -1144,7 +1145,7 @@ pub fn scenario_params(
     global: Option<&crate::global::GlobalData>,
     s: &scenario::Scenario,
     index: usize,
-) -> crate::world::WorldParams {
+) -> crate::view::world::WorldParams {
     let stem = |r: &Option<String>| {
         let r = r.as_deref().unwrap_or("");
         let path = r.split(':').next().unwrap_or(r);
@@ -1168,8 +1169,8 @@ pub fn scenario_params(
             .iter()
             .find(|c| same(&c.reference, &s.r70))
     });
-    let defaults = crate::world::WorldParams::default();
-    crate::world::WorldParams {
+    let defaults = crate::view::world::WorldParams::default();
+    crate::view::world::WorldParams {
         town_name: s.town_name.clone(),
         terrain: stem(&s.r78),
         climate: climate.map_or_else(

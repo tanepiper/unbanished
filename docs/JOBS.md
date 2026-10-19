@@ -775,7 +775,7 @@ first gives state 0, so ClearArea registers a `ClearArea` work over the marker's
 (`FUN_14011da30`, table `FUN_140032150`/`FUN_140032270`) destroys the marker. ClearArea's
 WorkComponent `+0x30` limit (8) comes from MaxWorkers since the marker has no WorkPlace.
 
-Port: `apps/game/src/removal_tool.rs`, `selection_overlay.rs`; markers are sites with
+Port: `apps/game/src/tools/removal_tool.rs`, `selection_overlay.rs`; markers are sites with
 `Controller::ClearResource`, destroyed through `Sim::destroy_entity` (work removed, occupant
 freed). Remove Buildings and cancelling a demolition become `Command::Demolish` and
 `Command::StateMessage { message: 0 }`, once per building; Remove Roads `Command::ClearRoad` (see

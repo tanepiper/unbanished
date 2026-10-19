@@ -10,7 +10,7 @@ from samply, on a MacBook Pro with an Apple M3 and 96 GB of memory, release buil
 
 ### Frame profiler (`BANISHED_PROFILE`)
 
-`apps/game/src/perf.rs` times named phases of every frame. It is off by default and costs one
+`apps/game/src/platform/perf.rs` times named phases of every frame. It is off by default and costs one
 flag check per phase when off.
 
 ```bash

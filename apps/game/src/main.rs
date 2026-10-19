@@ -12,65 +12,22 @@
 //! On the map: middle drag to rotate, right click to cancel the tool, wheel to zoom,
 //! WASD/arrows to move, Escape for the pause menu.
 
-mod achievement_ui;
 mod achievements;
-mod ambience;
-mod autosave;
-mod building_decals;
-mod building_ui;
-mod create_bar;
-mod entity_ui;
-mod event_notify;
-mod follow;
+mod audio;
 mod gameplay;
+mod gfx;
 mod global;
-mod highlight;
 mod keymap;
 mod loops;
-mod map_params;
 mod menu;
-mod mod_ui;
-mod models;
 mod mods;
-mod music;
-mod options;
-mod particle_gfx;
-mod particles;
-mod path_tool;
-mod paths;
-mod pause_menu;
-mod perf;
-mod placement_tool;
-mod removal_tool;
-mod render;
-mod road_decals;
-mod save_dialog;
-mod save_list;
-mod save_store;
-mod saved;
-mod scenario_ui;
-mod scene;
-mod scene_assets;
-mod scene_gfx;
-mod screenshot;
-mod select_resource_ui;
-mod selection;
-mod selection_overlay;
+mod platform;
+mod saves;
 mod settings;
-mod shadow;
-mod sound;
 mod start;
-mod status_icons;
-mod toolbar;
-mod town_hall_ui;
-mod trade_ui;
-mod ui_settings;
-mod utility;
-mod version;
-mod weather;
-#[cfg(target_arch = "wasm32")]
-mod web;
-mod world;
+mod tools;
+mod ui;
+mod view;
 
 use std::rc::Rc;
 use std::sync::Arc;
@@ -85,8 +42,8 @@ use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key, NamedKey};
 use winit::window::{Window, WindowId};
 
+use gfx::render::{Frame, Renderer};
 use loops::{Ctx, DialogLoaderLoop, LoaderLoop, MainLoop, RawInput, View};
-use render::{Frame, Renderer};
 
 pub enum UserEvent {
     Renderer(Box<Renderer>),
@@ -127,14 +84,14 @@ pub struct Game {
     reload_mods: Option<mods::Reload>,
     ui_reset: bool,
     ui: Ui,
-    audio: sound::Audio,
+    audio: audio::sound::Audio,
     global: Option<global::GlobalData>,
     rng: Random,
     main: MainLoop,
     /// A save's frame and minimap being read back (`SaveLoad::Draw`).
-    save_capture: Option<render::PendingCapture>,
+    save_capture: Option<gfx::render::PendingCapture>,
     /// A screenshot being read back (`FUN_14009b270`).
-    screenshot: Option<render::PendingCapture>,
+    screenshot: Option<gfx::render::PendingCapture>,
     /// `Application::IsPaused`: the window lost focus (`Application +0x11`, cleared on
     /// WM_KILLFOCUS, set on WM_SETFOCUS).
     app_paused: bool,
@@ -271,7 +228,7 @@ impl Game {
             ui_reset: false,
             ui: Ui::new(archive.clone()),
             archive,
-            audio: sound::Audio::default(),
+            audio: audio::sound::Audio::default(),
             global: None,
             // `System::Random()` seeds from the clock.
             rng: Random::new(clock_seed()),
@@ -391,7 +348,7 @@ impl Game {
         self.with_ctx(|main, ctx| main.update(ctx, dt));
         match self.reload_mods.take() {
             Some(mods::Reload::Menu) => self.reload(Box::new(menu::MenuLoop::new())),
-            Some(mods::Reload::Game(bytes)) => match saved::SavedGame::parse(&bytes) {
+            Some(mods::Reload::Game(bytes)) => match saves::saved::SavedGame::parse(&bytes) {
                 Ok(saved) => self.reload(Box::new(gameplay::GameplayLoop::from_save(saved))),
                 Err(e) => {
                     log::error!("reload: the game saved to memory does not read back: {e}");
@@ -678,7 +635,7 @@ impl Game {
         }
         renderer.set_ui_time(self.main.elapsed);
         let g = &self.settings.game;
-        renderer.icon_options = status_icons::IconOptions {
+        renderer.icon_options = gfx::status_icons::IconOptions {
             opacity: g.status_icon_opacity,
             enabled: g.status_icon_enable,
             scale: g.status_icon_scale,
@@ -719,9 +676,9 @@ impl Game {
                 self.save_capture = None;
                 let (w, h) = renderer.size();
                 let image = if rgba.len() == (w * h * 4) as usize {
-                    crate::saved::preview(&rgba, w, h)
+                    crate::saves::saved::preview(&rgba, w, h)
                 } else {
-                    let (pw, ph) = crate::saved::PREVIEW_SIZE;
+                    let (pw, ph) = crate::saves::saved::PREVIEW_SIZE;
                     vec![0; (pw * ph * 4) as usize]
                 };
                 self.main.current_mut().save_preview(image, minimap);
@@ -745,7 +702,7 @@ impl Game {
                 self.screenshot = None;
                 let (w, h) = renderer.size();
                 if rgba.len() == (w * h * 4) as usize {
-                    crate::screenshot::save(&rgba, w, h);
+                    crate::gfx::screenshot::save(&rgba, w, h);
                 }
             }
         }
@@ -881,7 +838,7 @@ impl App {
         let (Some(window), Some(settings)) = (self.window.clone(), self.settings()) else {
             return;
         };
-        let video = render::VideoSettings::from(&settings.video);
+        let video = gfx::render::VideoSettings::from(&settings.video);
         let proxy = self.proxy.clone();
         let init = async move {
             let renderer = Renderer::new(window, video).await;
@@ -972,7 +929,7 @@ impl App {
         if let Err(e) = grab {
             log::warn!("mouse clipping: {e}");
         }
-        let next = render::VideoSettings::from(&video);
+        let next = gfx::render::VideoSettings::from(&video);
         let restart = self
             .renderer
             .as_ref()
@@ -1021,7 +978,7 @@ fn set_status(text: &str, loaded: bool) {
         log::info!("{text}");
     }
     #[cfg(target_arch = "wasm32")]
-    web::set_status(text, loaded);
+    platform::web::set_status(text, loaded);
     #[cfg(not(target_arch = "wasm32"))]
     let _ = loaded;
 }
@@ -1048,7 +1005,7 @@ impl ApplicationHandler<UserEvent> for App {
         #[cfg(target_arch = "wasm32")]
         {
             use winit::platform::web::WindowAttributesExtWebSys;
-            attrs = attrs.with_canvas(Some(web::canvas()));
+            attrs = attrs.with_canvas(Some(platform::web::canvas()));
         }
         let window = Arc::new(event_loop.create_window(attrs).expect("create window"));
         window.set_ime_allowed(true);
@@ -1128,7 +1085,7 @@ impl ApplicationHandler<UserEvent> for App {
                         renderer.resize(size.width, size.height);
                     }
                 }
-                perf::frame_begin();
+                platform::perf::frame_begin();
                 let now = Instant::now();
                 // `MainLoop::Run` updates once before its first frame.
                 if self.last_frame.is_none() {
@@ -1144,7 +1101,7 @@ impl ApplicationHandler<UserEvent> for App {
                     self.accumulated = FRAME_STEP;
                 }
                 while FRAME_STEP <= self.accumulated {
-                    let _p = perf::scope("update");
+                    let _p = platform::perf::scope("update");
                     game.update(banished_game::scheduler::seconds(FRAME_STEP));
                     self.accumulated -= FRAME_STEP;
                     if game.quit_requested() {
@@ -1156,13 +1113,13 @@ impl ApplicationHandler<UserEvent> for App {
                     return;
                 }
                 {
-                    let _p = perf::scope("draw");
+                    let _p = platform::perf::scope("draw");
                     game.draw(renderer, false);
                 }
                 if game.settings.revision != self.applied {
                     self.apply_settings();
                 }
-                perf::frame_end();
+                platform::perf::frame_end();
             }
             WindowEvent::ModifiersChanged(m) => self.shift = m.state().shift_key(),
             WindowEvent::CursorMoved { position, .. } => {
@@ -1276,7 +1233,7 @@ mod native {
     use super::*;
 
     pub fn data_dir(args: &[String]) -> std::path::PathBuf {
-        crate::paths::data_dir(args)
+        crate::platform::paths::data_dir(args)
     }
 
     pub fn read_packages(dir: &std::path::Path) -> Vec<(String, Vec<u8>)> {
@@ -1348,7 +1305,7 @@ mod native {
         let mut renderer = pollster::block_on(Renderer::headless_with(
             size.0,
             size.1,
-            render::VideoSettings::from(&game.settings.video),
+            gfx::render::VideoSettings::from(&game.settings.video),
         ));
         renderer.blocking_readback = true;
         // The Options dialog lists the capture device with one mode, the capture size.
@@ -1431,20 +1388,23 @@ mod native {
         while t < seconds {
             // A 1/30 s frame is two of `MainLoop::Frame`'s 1/60 s steps.
             let step = banished_game::scheduler::seconds(FRAME_STEP);
-            perf::frame_begin();
+            platform::perf::frame_begin();
             for _ in 0..2 {
-                let _p = perf::scope("update");
+                let _p = platform::perf::scope("update");
                 game.update(step);
             }
             t += dt;
             // A save waits for a drawn frame's preview (headless, nothing else is drawn). With
             // the profiler on, every frame is drawn, as in the windowed game.
-            if game.main.current().wants_save_preview() || shot_frames > 0 || perf::enabled() {
-                let _p = perf::scope("draw");
+            if game.main.current().wants_save_preview()
+                || shot_frames > 0
+                || platform::perf::enabled()
+            {
+                let _p = platform::perf::scope("draw");
                 game.draw(&mut renderer, false);
                 shot_frames -= (shot_frames > 0) as i32;
             }
-            perf::frame_end();
+            platform::perf::frame_end();
             combos.retain(|(name, item, at)| {
                 if t < *at {
                     return true;
@@ -1504,8 +1464,8 @@ mod native {
 
     /// The generated-map capture from M5 (`--capture`).
     pub fn map_capture(args: &[String], out: &str) {
-        use crate::scene::{Camera, SceneCamera, SceneView};
-        use crate::world::{World, WorldParams};
+        use crate::view::scene::{Camera, SceneCamera, SceneView};
+        use crate::view::world::{World, WorldParams};
         let mut params = WorldParams::default();
         let (mut month, mut overview) = (3usize, false);
         let value = |flag: &str| {
@@ -1534,7 +1494,7 @@ mod native {
             archive.add(Package::parse(bytes).expect("parse package"));
         }
         let world = World::generate(&archive, &params).expect("generate world");
-        let mut lighting = render::Lighting::from_month(&world.environment.months[month]);
+        let mut lighting = gfx::render::Lighting::from_month(&world.environment.months[month]);
         let camera = if overview {
             // Fog distances are tuned for the in-game camera; push them out for whole-map views.
             lighting.fog_start = 1e5;
@@ -1566,10 +1526,10 @@ fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let args: Vec<String> = std::env::args().skip(1).collect();
     if matches!(args.first().map(String::as_str), Some("--version" | "-V")) {
-        println!("{}", version::NAME_VERSION);
+        println!("{}", platform::version::NAME_VERSION);
         return;
     }
-    log::info!("{}", version::NAME_VERSION);
+    log::info!("{}", platform::version::NAME_VERSION);
     match args.first().map(String::as_str) {
         Some("--boot-capture") => {
             let out = args.get(1).expect("--boot-capture OUT.png SECONDS");
@@ -1601,18 +1561,18 @@ fn main() {
 fn main() {
     console_error_panic_hook::set_once();
     let _ = console_log::init_with_level(log::Level::Info);
-    log::info!("{}", version::NAME_VERSION);
-    web::show_version(version::NAME_VERSION);
+    log::info!("{}", platform::version::NAME_VERSION);
+    platform::web::show_version(platform::version::NAME_VERSION);
     let event_loop = EventLoop::<UserEvent>::with_user_event()
         .build()
         .expect("event loop");
     let proxy = event_loop.create_proxy();
-    web::install_file_picker(proxy.clone());
-    web::load_from_query(proxy.clone());
+    platform::web::install_file_picker(proxy.clone());
+    platform::web::load_from_query(proxy.clone());
     // The saves in browser storage (their metadata, for the Save and Load dialogs).
-    save_store::init();
-    web::load_stored_mods(proxy.clone());
-    web::install_drop(proxy.clone());
+    saves::save_store::init();
+    platform::web::load_stored_mods(proxy.clone());
+    platform::web::install_drop(proxy.clone());
     use winit::platform::web::EventLoopExtWebSys;
     event_loop.spawn_app(App::new(proxy));
 }

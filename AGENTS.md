@@ -67,7 +67,7 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 
 | Path | What |
 |---|---|
-| `apps/game` | The game (binary `banished`): `loops.rs` engine loops, `menu.rs`, `gameplay.rs`, `render.rs`, `start/` (new game, load, save), the UI windows, `*.wgsl` |
+| `apps/game` | The game (binary `banished`), by folder: `ui/` (windows, toolbar, dialogs), `gfx/` (renderer, models, decals, shadows, `*.wgsl`), `tools/` (placement, removal, roads, selection), `audio/` (sound, music, ambience), `view/` (scene, world view, particles, weather), `saves/`, `platform/` (paths, browser glue, version, profiler); at the root `main.rs`, `loops.rs` (engine loops), `menu.rs`, `gameplay.rs`, `start/` (new game, load, save) |
 | `apps/viewer` | Asset browser (models, textures, audio, dialogs) |
 | `apps/cli` | Command-line helpers |
 | `crates/core` | Bit-exact foundations: CRT maths (`crt`), `Random`, Perlin `noise`, `math` (`Transform`), game time (`scheduler`), `calendar`; `picking`; re-exported by `banished-game` |
@@ -130,7 +130,7 @@ footer ("Version 1.0.7 - Build 170910") comes from the original's resources and 
   `.github/workflows/site.yml` sets `UNBANISHED_BUILD`. The site footer uses the same rule
   (`site/.vitepress/config.mts`).
 - It appears in `banished --version`, the first log line, the browser's loading panel and the
-  site footer (`apps/game/src/version.rs`). Do not add it to the original's menus unless the
+  site footer (`apps/game/src/platform/version.rs`). Do not add it to the original's menus unless the
   change is marked as a Deviation.
 - Bump the workspace version only for a release, in its own commit: the minor number for new
   features or parity work, the patch number for fixes only. Before 1.0 there are no

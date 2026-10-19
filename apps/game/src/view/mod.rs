@@ -1,0 +1,8 @@
+//! What the game shows of a town: the scene and its assets, the world view, particles, weather and the map parameters.
+
+pub mod map_params;
+pub mod particles;
+pub mod scene;
+pub mod scene_assets;
+pub mod weather;
+pub mod world;

@@ -6,10 +6,10 @@
 
 use banished_ui::{Control, Event, Kind, NodeId, Ui};
 
+use crate::gfx::render::Lighting;
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
-use crate::render::Lighting;
-use crate::scene::{MenuCamera, SceneCamera, SceneView};
-use crate::world::{Terrain, WorldParams};
+use crate::view::scene::{MenuCamera, SceneCamera, SceneView};
+use crate::view::world::{Terrain, WorldParams};
 
 const MENU_DIALOG: &str = "Dialog/MainMenu.rsc:resource";
 const BUILD_ID_DIALOG: &str = "Dialog/BuildId.rsc:resource";
@@ -39,18 +39,18 @@ pub struct MenuLoop {
     /// `+0xb62`: `Application::IsPaused` of the last frame.
     app_paused: bool,
     /// The Options dialog while it is open (`MainMenuDialog` element id 4).
-    options: Option<crate::options::OptionsDialog>,
+    options: Option<crate::ui::options::OptionsDialog>,
     /// The Achievements dialog (id 8) and the list it shows.
-    achievements: Option<crate::achievement_ui::AchievementDialog>,
+    achievements: Option<crate::ui::achievement_ui::AchievementDialog>,
     /// The Scenario (id 9) or Tutorial (id 12) dialog.
-    scenarios: Option<crate::scenario_ui::ScenarioDialog>,
+    scenarios: Option<crate::ui::scenario_ui::ScenarioDialog>,
     /// A save to start once this frame's update runs (the Load dialog, the `load` script
     /// command).
-    load: Option<crate::saved::SavedGame>,
+    load: Option<crate::saves::saved::SavedGame>,
     /// The Load dialog (`MainMenuDialog` id 2, `FUN_1400b8d80` with mode 1).
-    save_dialog: Option<crate::save_dialog::SaveLoadDialog>,
+    save_dialog: Option<crate::ui::save_dialog::SaveLoadDialog>,
     /// The Mods dialog (`MainMenuDialog` id 7, `FUN_1400b8370`).
-    mods_dialog: Option<crate::mod_ui::ModDialog>,
+    mods_dialog: Option<crate::ui::mod_ui::ModDialog>,
 }
 
 /// Shared settings defaults (`FUN_140042850`) before `Game/Last*` persistence is applied:
@@ -139,8 +139,8 @@ impl MenuLoop {
     }
 
     /// The Load dialog's answer: a finished load starts that game on the next update.
-    fn save_outcome(&mut self, outcome: crate::save_dialog::Outcome) {
-        use crate::save_dialog::Outcome;
+    fn save_outcome(&mut self, outcome: crate::ui::save_dialog::Outcome) {
+        use crate::ui::save_dialog::Outcome;
         match outcome {
             Outcome::Closed => self.save_dialog = None,
             Outcome::Load(saved) => {
@@ -324,9 +324,12 @@ impl MenuLoop {
 fn load_menu_scene(ctx: &mut Ctx, index: u32) -> banished_formats::Result<SceneView> {
     let reference = format!("Game/MenuScene/Scene{index}.rsc:resource");
     let scene = banished_formats::menu_scene::menu_scene(&ctx.archive.read_ref(&reference)?)?;
-    let models = crate::models::SceneModels::from_menu_scene(ctx.archive, &scene);
-    let extras =
-        crate::scene_assets::SceneExtras::from_map(ctx.archive, &scene.map, scene.sky.as_deref());
+    let models = crate::gfx::models::SceneModels::from_menu_scene(ctx.archive, &scene);
+    let extras = crate::view::scene_assets::SceneExtras::from_map(
+        ctx.archive,
+        &scene.map,
+        scene.sky.as_deref(),
+    );
     let map = scene.map;
     let material = map
         .terrain_material
@@ -461,8 +464,11 @@ impl GameLoop for MenuLoop {
         }
         self.screen = Some(screen);
         // `FUN_1400a0e00`: `Scene::PlayEffect(music, 2)`.
-        ctx.audio
-            .play(ctx.archive, MENU_MUSIC, crate::sound::sound_type::MUSIC);
+        ctx.audio.play(
+            ctx.archive,
+            MENU_MUSIC,
+            crate::audio::sound::sound_type::MUSIC,
+        );
     }
 
     /// `FUN_1400a0750`: `Audio::Scene::StopAll`.
@@ -470,7 +476,8 @@ impl GameLoop for MenuLoop {
         ctx.audio.stop_all();
         // The menu has its own Scene in the original (`+0xb30`); the port shares one, so the
         // menu's pause does not outlive it.
-        ctx.audio.pause(crate::sound::sound_type::MUSIC, false);
+        ctx.audio
+            .pause(crate::audio::sound::sound_type::MUSIC, false);
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
@@ -479,7 +486,7 @@ impl GameLoop for MenuLoop {
         if ctx.app_paused != self.app_paused {
             self.app_paused = ctx.app_paused;
             ctx.audio
-                .pause(crate::sound::sound_type::MUSIC, ctx.app_paused);
+                .pause(crate::audio::sound::sound_type::MUSIC, ctx.app_paused);
         }
         if !ctx.app_paused {
             ctx.audio.update(dt, 0.0, glam::Vec3::ZERO, 0.0);
@@ -518,7 +525,7 @@ impl GameLoop for MenuLoop {
         };
         match std::fs::read(path.trim())
             .map_err(|e| banished_formats::Error::Format(e.to_string()))
-            .and_then(|b| crate::saved::SavedGame::parse(&b))
+            .and_then(|b| crate::saves::saved::SavedGame::parse(&b))
         {
             Ok(saved) => {
                 self.load = Some(saved);
@@ -550,12 +557,12 @@ impl GameLoop for MenuLoop {
             let outcome = match input {
                 RawInput::Released(binding) => {
                     options.released(ctx, screen, binding);
-                    crate::options::Outcome::Stay
+                    crate::ui::options::Outcome::Stay
                 }
                 RawInput::Escape => options.escape(ctx, screen),
-                _ => crate::options::Outcome::Stay,
+                _ => crate::ui::options::Outcome::Stay,
             };
-            if outcome == crate::options::Outcome::Closed {
+            if outcome == crate::ui::options::Outcome::Closed {
                 self.options = None;
             }
         }
@@ -569,7 +576,7 @@ impl GameLoop for MenuLoop {
     fn event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
         if let (Some(d), Some(screen)) = (self.mods_dialog.as_mut(), self.screen.as_mut()) {
             if let Event::Clicked(id) | Event::Changed(id) = event {
-                use crate::mod_ui::Outcome;
+                use crate::ui::mod_ui::Outcome;
                 match d.click(ctx.ui, screen, ctx.mods, &ctx.settings.persistence, id) {
                     Outcome::Stay => {}
                     Outcome::Closed => self.mods_dialog = None,
@@ -589,7 +596,7 @@ impl GameLoop for MenuLoop {
             return Next::Stay;
         }
         if let (Some(options), Some(screen)) = (&mut self.options, &mut self.screen) {
-            if options.event(ctx, screen, event) == crate::options::Outcome::Closed {
+            if options.event(ctx, screen, event) == crate::ui::options::Outcome::Closed {
                 self.options = None;
             }
             return Next::Stay;
@@ -602,7 +609,7 @@ impl GameLoop for MenuLoop {
             return Next::Stay;
         };
         if let Some(d) = &mut self.scenarios {
-            use crate::scenario_ui::ScenarioClick;
+            use crate::ui::scenario_ui::ScenarioClick;
             match d.click(ctx.ui, id) {
                 Some(ScenarioClick::Close) => {
                     let root = d.root;
@@ -665,12 +672,12 @@ impl GameLoop for MenuLoop {
         } else if self.is(ctx.ui, 0, "buttonOptions", id) {
             // `FUN_1400b9020` id 4 → `FUN_1400b8ee0`.
             if let Some(screen) = &mut self.screen {
-                self.options = crate::options::OptionsDialog::open(ctx, screen);
+                self.options = crate::ui::options::OptionsDialog::open(ctx, screen);
             }
         } else if self.is(ctx.ui, 0, "buttonLoad", id) {
             if let Some(screen) = &mut self.screen {
                 self.save_dialog =
-                    crate::save_dialog::SaveLoadDialog::open(ctx.ui, screen, true, false);
+                    crate::ui::save_dialog::SaveLoadDialog::open(ctx.ui, screen, true, false);
             }
         } else if self.is(ctx.ui, 0, "buttonQuit", id) {
             return Next::Quit;
@@ -686,21 +693,22 @@ impl GameLoop for MenuLoop {
             };
             if let Some(screen) = &mut self.screen {
                 let list = crate::gameplay::scenarios(ctx.archive);
-                self.scenarios = crate::scenario_ui::ScenarioDialog::open(
+                self.scenarios = crate::ui::scenario_ui::ScenarioDialog::open(
                     ctx.ui, screen, reference, tutorials, &list,
                 );
             }
         } else if self.is(ctx.ui, 0, "buttonMod", id) {
             if let Some(screen) = &mut self.screen {
-                self.mods_dialog = crate::mod_ui::ModDialog::open(ctx.ui, screen, ctx.mods, false);
+                self.mods_dialog =
+                    crate::ui::mod_ui::ModDialog::open(ctx.ui, screen, ctx.mods, false);
             }
         } else if self.is(ctx.ui, 0, "buttonAchievement", id) {
             // `FUN_1400b9020` id 8: `Dialog/Achievement.rsc`.
             if let Some(screen) = &mut self.screen {
                 let list = crate::achievements::load(ctx.archive);
-                let awarded = crate::achievement_ui::awarded(&list, &ctx.settings.persistence);
+                let awarded = crate::ui::achievement_ui::awarded(&list, &ctx.settings.persistence);
                 self.achievements =
-                    crate::achievement_ui::AchievementDialog::open(ctx.ui, screen, &list);
+                    crate::ui::achievement_ui::AchievementDialog::open(ctx.ui, screen, &list);
                 if let Some(a) = &self.achievements {
                     a.refresh(ctx.ui, &awarded);
                 }

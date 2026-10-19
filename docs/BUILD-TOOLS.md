@@ -5,7 +5,7 @@ pseudocode of the Steam x64 build (1.0.7), constants from the executable, and de
 resources. The port is:
 
 - `crates/game/src/world/placement.rs` for the rules;
-- `apps/game/src/placement_tool.rs` for the tool;
+- `apps/game/src/tools/placement_tool.rs` for the tool;
 - `apps/game/src/gameplay.rs` for the input wiring.
 
 ## Tool classes
@@ -28,7 +28,7 @@ description types, creates it through `Object::Factory`, and attaches the shared
 
 ## DragPlacementTool (vtable `0x140167fb0`)
 
-Ported as the area mode of the drag host (`apps/game/src/removal_tool.rs`), for CropField,
+Ported as the area mode of the drag host (`apps/game/src/tools/removal_tool.rs`), for CropField,
 Orchard and StorageYard. Start (`FUN_1401018b0`) keeps the CreateDragDescription (`+0x38`:
 `+0x20` cell types, `+0x28 × +0x2c` the largest, `+0x30 × +0x34` the smallest drag, `+0x24`
 occupants ignored, `+0x38` the template whose entities may stand in the way) and the

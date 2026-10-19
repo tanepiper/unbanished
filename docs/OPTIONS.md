@@ -2,7 +2,7 @@
 
 The Options dialog (`Dialog/Options.rsc`, controller vtable `0x1401632e0`) opens from the main
 menu and the pause menu (`MainMenuDialog` element id 4 → `FUN_1400b8ee0`). The port is
-`apps/game/src/options.rs`. Settings are in `settings.rs` and the key map in `keymap.rs`.
+`apps/game/src/ui/options.rs`. Settings are in `settings.rs` and the key map in `keymap.rs`.
 
 ## Stored settings
 

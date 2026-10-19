@@ -183,7 +183,7 @@ picking.
 - **Random draws per function** (`Rand`, `RandFloat`, `RandTol`, `RandFloatTol` counted in
   each original and its port): every difference is a branch or a helper. The tornado's line
   (`FUN_1400592e0`) now has an emulator check (300 lines, exact).
-- **Every vanilla save's models** (`apps/game/src/saved.rs` test): characters hold
+- **Every vanilla save's models** (`apps/game/src/saves/saved.rs` test): characters hold
   `FUN_14010e990`'s rotation (`(yaw × D) × 0.5`, positive zeros); placed models hold
   `FromYawPitchOffset(yaw, 0)`, negative zeros at yaw 0; fenced areas (Pasture, Cemetery) keep
   an unplaced model at the origin (`FUN_1400e02d0` sets only the map); and `map.rotation` is the

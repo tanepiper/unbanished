@@ -21,7 +21,7 @@ use banished_game::work::road::RoadWork;
 use banished_game::work::stock::Item;
 
 use super::super::{load_template, material_index, normalise, StartingTown};
-use crate::saved::SavedGame;
+use crate::saves::saved::SavedGame;
 
 /// WorkComponent `+0x2c` with no kept priority.
 const NO_PRIORITY: i32 = i32::MIN;

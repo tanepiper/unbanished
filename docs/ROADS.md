@@ -1,9 +1,9 @@
 # Roads
 
 Port: `crates/game/src/work/road.rs` (planning, BuildRoad, CompleteRoad, taking a plan back), the
-road mode of `apps/game/src/removal_tool.rs` (RoadTool and Remove Roads) and ClearArea's road
+road mode of `apps/game/src/tools/removal_tool.rs` (RoadTool and Remove Roads) and ClearArea's road
 cells (`Sim::clear_try`). Test: `roads_are_built_upgraded_and_removed`
-(`apps/game/src/placement_tool.rs`).
+(`apps/game/src/tools/placement_tool.rs`).
 
 ## Cells
 
@@ -104,4 +104,4 @@ its edges; `DAT_1401ca2d0` the tiles' uv) in the second uv; the diagonal alterna
 cell's parity (`0 3 1 1 3 2`, odd `0 2 1 0 3 2`). The same pass counts each kind's built cells
 (`+0x220`, achievement statistic 23).
 
-Port: `apps/game/src/road_decals.rs`, rebuilt when `Cells::road_revision` changes.
+Port: `apps/game/src/gfx/road_decals.rs`, rebuilt when `Cells::road_revision` changes.

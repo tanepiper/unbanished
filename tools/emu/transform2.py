@@ -1,4 +1,4 @@
-"""Ground truth for the decals' 2D transforms (apps/game/src/building_decals.rs `Transform2`):
+"""Ground truth for the decals' 2D transforms (apps/game/src/gfx/building_decals.rs `Transform2`):
 the Runtime's `Transform2(Scalar, Vector2)` (`0x18007e770`), `Transform2 * Transform2`
 (`0x180079120`) and `Transform2 * Vector2` (`0x18006d3b0`).
 

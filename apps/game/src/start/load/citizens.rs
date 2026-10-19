@@ -15,7 +15,7 @@ use banished_game::people::citizens::{Citizen, CitizenRules};
 use banished_game::work::stock::{Item, Storage};
 
 use super::super::{material_index, normalise, StartingTown};
-use crate::saved::SavedGame;
+use crate::saves::saved::SavedGame;
 
 /// Citizen flag `0x400`: educated (`FUN_140116c70`).
 const EDUCATED: u32 = 0x400;

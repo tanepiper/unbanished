@@ -2,7 +2,7 @@
 
 This note covers how the toolbar's "reports" entries open their windows and how the Status Bar
 fills its values. The evidence is Ghidra pseudocode of the Steam x64 build (1.0.7), the Runtime DLL
-and the shipped `Template/*_ui.crs` resources. The port is `apps/game/src/utility.rs`. The parser is
+and the shipped `Template/*_ui.crs` resources. The port is `apps/game/src/ui/utility.rs`. The parser is
 `banished_formats::game::ui_description`; all 39 shipped `UIDescription` resources parse
 (`crates/formats/tests/toolbar.rs`). Earlier traces are in
 [GAME-LOOP-STEP-07.md](GAME-LOOP-STEP-07.md) and [GAME-LOOP-STEP-10.md](GAME-LOOP-STEP-10.md).

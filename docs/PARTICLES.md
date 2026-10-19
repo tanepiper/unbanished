@@ -5,8 +5,8 @@ Particle systems are presentation only. They draw on the runtime's own Random
 they do not touch the simulation.
 
 Port:
-- `apps/game/src/particles.rs`: the systems and the ParticleComponents;
-- `apps/game/src/particle_gfx.rs`: drawing;
+- `apps/game/src/view/particles.rs`: the systems and the ParticleComponents;
+- `apps/game/src/gfx/particle_gfx.rs`: drawing;
 - `banished_formats::game::{particle_system, particle_description}`: parsing.
 
 ## ParticleSystem (`ParticleSystems\*\*.rsc`)

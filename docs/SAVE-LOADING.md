@@ -20,7 +20,7 @@ loop's `load PATH` script command (native only):
 cargo run -p banished-app --release -- --boot-capture out.png 20 --script "load save-game/Save3.sav@5"
 ```
 
-`MenuLoop` parses the file into a `SavedGame` (`apps/game/src/saved.rs`) and switches, through a
+`MenuLoop` parses the file into a `SavedGame` (`apps/game/src/saves/saved.rs`) and switches, through a
 loading screen, to `GameplayLoop::from_save`.
 
 ## What stage 1 restores

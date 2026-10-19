@@ -82,6 +82,6 @@ The menu scenes' serialized `+0x1f0` decals were meshed by the original. Rebuild
 one of them, 2,270 in all, from its own entry gives the same atlas uvs and decal uvs within
 one unit. The test is `building_decals::scene_check`.
 
-Port: `apps/game/src/building_decals.rs`.
+Port: `apps/game/src/gfx/building_decals.rs`.
 
 Not ported: the radius filter (`FUN_1400b2310`'s `param_3..5`), which no DecalComponent uses.

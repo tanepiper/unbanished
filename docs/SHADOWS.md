@@ -1,7 +1,7 @@
 # Sun shadows
 
 The original casts one orthographic shadow map from the sun each frame. The port follows it in
-`apps/game/src/shadow.rs` (CPU fit and GPU resources), the depth pipelines in `models.rs` and
+`apps/game/src/gfx/shadow.rs` (CPU fit and GPU resources), the depth pipelines in `models.rs` and
 `render.rs`, and the shared `sun_shadow()` lookup in `scene_gfx::GLOBALS_WGSL`.
 
 ## Map and settings

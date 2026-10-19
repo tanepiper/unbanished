@@ -2,7 +2,7 @@
 
 Slice E. `StatusIconComponent` (type `0x7f050e80`, constructor `FUN_140131590`, component vtable
 `0x14016aa50`) embeds a `Graphics::Geometry` at `+0x28` (vtable `0x1401654e0`) that the scene
-draws. Port: `apps/game/src/status_icons.rs`, fed by `StartingTown::status_icons`.
+draws. Port: `apps/game/src/gfx/status_icons.rs`, fed by `StartingTown::status_icons`.
 
 ## Description
 

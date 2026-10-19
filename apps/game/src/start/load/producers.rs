@@ -12,7 +12,7 @@ use banished_formats::savegame::{Fields, ObjId, Value};
 
 use super::super::{load_template, material_index, normalise, StartingTown};
 use super::construction::entity_or_component;
-use crate::saved::SavedGame;
+use crate::saves::saved::SavedGame;
 
 fn int(f: &Fields, path: &str) -> i32 {
     f.i32(path).unwrap_or(0)
