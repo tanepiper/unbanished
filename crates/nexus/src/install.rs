@@ -18,6 +18,7 @@ pub const MAX_PACKAGE: u64 = 1 << 30;
 pub struct Package {
     /// The file name, ending in `.pkm`, with any folders in the archive removed.
     pub name: String,
+    /// The package's bytes.
     pub data: Vec<u8>,
 }
 

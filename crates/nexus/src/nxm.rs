@@ -9,11 +9,15 @@ use crate::{Error, GAME_DOMAIN};
 pub struct NxmLink {
     /// The game's domain (`banished`).
     pub game: String,
+    /// The mod's id on Nexus Mods.
     pub mod_id: u32,
+    /// The file's id, as in the mod's file list.
     pub file_id: u32,
     /// The one-time key and its expiry time (Unix seconds), passed to the download link.
     pub key: String,
+    /// When the key stops working, in Unix seconds.
     pub expires: String,
+    /// The account the link was made for, when the link says.
     pub user_id: Option<String>,
 }
 

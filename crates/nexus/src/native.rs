@@ -103,11 +103,16 @@ pub fn install(dir: &Path, packages: &[Package]) -> Result<Vec<PathBuf>, Error> 
 /// What to install: a file of a mod (Premium), or the file an `nxm://` link names.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Source {
+    /// A file from a mod's file list (needs Premium).
     File {
+        /// The mod's id.
         mod_id: u32,
+        /// The file's id.
         file_id: u32,
+        /// The file's name on disk, which tells a bare `.pkm` from an archive.
         file_name: String,
     },
+    /// The file a "Mod Manager Download" link names.
     Link(crate::nxm::NxmLink),
 }
 

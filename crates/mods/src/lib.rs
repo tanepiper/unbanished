@@ -1,21 +1,27 @@
-//! The mod list Un-Banished shares between the game and the mod manager: the `.pkm` packages
-//! in the pack directory, which are enabled and in what order, and their conflicts. It is the
-//! port of `IO::Modification` (Runtime), moved out of the game so that both read and write the
-//! same settings in the same way.
+//! The mod list Un-Banished shares between the game and the mod manager: the `.pkm` packages in the
+//! pack directory, which are enabled and in what order, and their conflicts. It is the port of
+//! `IO::Modification` (Runtime), moved out of the game so that both read and write the same
+//! settings in the same way.
 //!
-//! - **The list** (`RefreshList`, `0x1800b0d40`): every `*.pkm` the pack directory holds
+//! - **The list** (`RefreshList`): every `*.pkm` the pack directory holds
 //!   (`FileSystem::FindFiles`), read with `PackageFile::ReadPackfile`: its name, author,
-//!   description, icon, preview and files. A mod is known by its file's name without the
-//!   extension; the settings keep whether it is enabled (`ModEnabled_<file>`) and its place in
-//!   the list (`ModIndex_<file>`). Each mod lists the others that hold one of its files (its
-//!   conflicts, `+0x70`).
-//! - **Saving** (`SaveList`, `0x1800b2e50`) writes both settings for every mod.
+//!   description, icon, preview and files. A mod is known by its file's name without the extension;
+//!   the settings keep whether it is enabled (`ModEnabled_<file>`) and its place in the list
+//!   (`ModIndex_<file>`). Each mod lists the others that hold one of its files (its conflicts).
+//! - **Saving** (`SaveList`) writes both settings for every mod.
 //!
 //! Inferred: the list is ordered by the saved index, a mod without one after the others in the
 //! directory's order.
 //!
 //! [`text`] is a settings store for the settings file, for tools that run without the game.
+//!
+//! Original: Runtime `0x1800b0d40`, Runtime `0x1800b2e50`.
+#![doc(
+    html_logo_url = "https://tanepiper.github.io/unbanished/assets/un-banished-icon.svg",
+    html_favicon_url = "https://tanepiper.github.io/unbanished/favicon.svg"
+)]
 
+// The conflicts list is at Mod +0x70.
 use std::collections::BTreeSet;
 
 use banished_formats::pkg::{normalise, Package};
@@ -30,7 +36,9 @@ pub trait Settings {
     fn get_bool(&self, section: &str, name: &str, value: &mut bool);
     /// Unchanged when absent or not a number.
     fn get_int(&self, section: &str, name: &str, value: &mut i32);
+    /// Store a bool as `true` or `false`.
     fn set_bool(&mut self, section: &str, name: &str, value: bool);
+    /// Store a number.
     fn set_int(&mut self, section: &str, name: &str, value: i32);
 }
 
@@ -39,22 +47,33 @@ pub trait Settings {
 pub struct Mod {
     /// The package's file name without `.pkm` (`GetPathFilename`).
     pub file: String,
+    /// The name the mod's author gave it.
     pub name: String,
+    /// The mod's author.
     pub author: String,
+    /// The mod's description.
     pub description: String,
-    /// The game version it was made with (`+0x18`) and the author's version (`+0x1c`).
+    // +0x18; +0x1c
+    /// The game version it was made with and the author's version.
     pub game_version: u32,
+    /// The author's own version number.
     pub user_version: u32,
+    /// The package's checksum, which saves record.
     pub crc: u32,
     /// The 48×48 icon (`0xAARRGGBB`).
     pub icon: (u32, u32, Vec<u8>),
-    /// Its files, normalised (`+0x60`), and as the package names them, in that order.
+    // +0x60
+    /// Its files, normalised, and as the package names them, in that order.
     pub files: BTreeSet<String>,
+    /// Its files as the package names them, sorted, for the details.
     pub names: Vec<String>,
-    /// `+0x50` and `+0x20`.
+    // +0x50; +0x20
+    /// Whether it is enabled.
     pub enabled: bool,
+    /// Its place in the list.
     pub index: i32,
-    /// The other mods sharing a file (`+0x70`), by file name.
+    // +0x70
+    /// The other mods sharing a file, by file name.
     pub conflicts: Vec<String>,
     /// The package's bytes.
     pub bytes: std::rc::Rc<Vec<u8>>,
@@ -68,8 +87,10 @@ impl Mod {
     }
 }
 
+/// The mod list: every package found, in list order.
 #[derive(Default, Clone)]
 pub struct Modification {
+    /// The mods, the first winning over the others when they share a file.
     pub mods: Vec<Mod>,
     /// `+0`: the list changed (Enable, Swap) since the packages were set up.
     pub dirty: bool,
@@ -227,9 +248,10 @@ impl Modification {
         self.mods.iter().rev().filter(|m| m.enabled).collect()
     }
 
-    /// `SaveLoad::SaveMetaData`: each enabled mod as the save records it, its name, its file
-    /// under the data directory (`WinData\<file>.pkm`, inferred from `GetPackDirectory`) and
-    /// its crc (`+0x2c`), game version (`+0x18`) and author's version (`+0x1c`).
+    // +0x2c; +0x18; +0x1c
+    /// `SaveLoad::SaveMetaData`: each enabled mod as the save records it, its name, its file under
+    /// the data directory (`WinData\<file>.pkm`, inferred from `GetPackDirectory`) and its crc,
+    /// game version and author's version.
     pub fn saved(&self) -> Vec<banished_formats::save::SavedMod> {
         self.mods
             .iter()
@@ -242,9 +264,11 @@ impl Modification {
             .collect()
     }
 
-    /// `SaveLoad::CheckMod` (Runtime `0x1800c3900`): 0 when the saved mod is installed as it
-    /// was, 1 when it is not installed (by its file, without case), 4 when its crc differs, 3
-    /// when the author's version differs and 2 when it was made before game version 1.0.4.
+    /// 0 when the saved mod is installed as it was, 1 when it is not installed (by its file,
+    /// without case), 4 when its crc differs, 3 when the author's version differs and 2 when it was
+    /// made before game version 1.0.4.
+    ///
+    /// Original: `SaveLoad::CheckMod`, Runtime `0x1800c3900`.
     pub fn check(&self, saved: &banished_formats::save::SavedMod) -> u32 {
         let stem = saved
             .file

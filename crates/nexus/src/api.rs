@@ -25,12 +25,17 @@ pub enum Sort {
 pub struct ModSummary {
     /// The mod's id on Nexus Mods (in its address, `/banished/mods/ID`).
     pub mod_id: u32,
+    /// The mod's title.
     pub name: String,
+    /// The author as the mod page names them.
     pub author: String,
     /// The short description.
     pub summary: String,
+    /// The version the author gave the mod.
     pub version: String,
+    /// How many times it was downloaded.
     pub downloads: u64,
+    /// How many players endorsed it.
     pub endorsements: u64,
     /// When it was last updated, as ISO 8601 (`2015-11-21T11:05:01Z`).
     pub updated: String,
@@ -58,6 +63,7 @@ pub fn files_page(mod_id: u32) -> String {
 /// A page of search results.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchPage {
+    /// The mods on this page, in the order asked for.
     pub mods: Vec<ModSummary>,
     /// The number of mods that match, over all pages.
     pub total: u32,
@@ -74,7 +80,9 @@ pub struct ModFile {
     pub file_name: String,
     /// `MAIN`, `UPDATE`, `OPTIONAL`, `MISCELLANEOUS`, `OLD_VERSION`, …
     pub category: String,
+    /// The download's size in bytes.
     pub size: u64,
+    /// The version the author gave the file.
     pub version: String,
 }
 
@@ -95,6 +103,7 @@ pub fn extension(name: &str) -> String {
 /// The player's account, as `users/validate` reports it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct User {
+    /// The account's name.
     pub name: String,
     /// Premium members get download links without visiting the website.
     pub premium: bool,

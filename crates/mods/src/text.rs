@@ -42,6 +42,7 @@ impl TextSettings {
             .filter(|v| !v.is_empty())
     }
 
+    /// Store a text value.
     pub fn set_text(&mut self, section: &str, name: &str, value: &str) {
         self.values
             .insert(format!("{section}{name}"), value.to_string());
