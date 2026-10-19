@@ -13,7 +13,8 @@ the doc line, `use super::*;`, the listed items (top-level `fn`/`enum`/`struct`/
 their doc comments and attributes) and one `impl TYPE { ... }` holding the listed methods, and
 deletes them from the file, which gains `mod m;` and `use m::{items};`. Moved methods and items
 that were private become `pub(super)` so the parent and the other children can still use them.
-`impls` moves whole impl blocks, found by their first lines. Code is moved, never changed: the
+`impls` moves whole impl blocks, found by their first lines; a trait impl (`impl T for X`)
+keeps its methods as they are. Code is moved, never changed: the
 compiler and the tests are the check.
 """
 import json
@@ -95,7 +96,11 @@ def main():
             end = block_end(s, s.index("{", i))
             if end < len(s) and s[end] == "\n":
                 end += 1
-            impls.append(re.sub(r"^    fn ", "    pub(super) fn ", s[start:end], flags=re.M))
+            block = s[start:end]
+            # A trait impl's methods take the trait's visibility; only inherent ones are published.
+            if not re.match(r"impl(<[^>]*>)? \S+ for ", head):
+                block = re.sub(r"^    fn ", "    pub(super) fn ", block, flags=re.M)
+            impls.append(block)
             s = s[:start] + s[end:]
         body = f"//! {spec['doc']}\n\nuse super::*;\n\n"
         body += "\n".join(i.rstrip("\n") + "\n" for i in items)

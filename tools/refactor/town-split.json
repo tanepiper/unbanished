@@ -1,0 +1,23 @@
+{"file": "crates/game/src/town.rs", "type": "Sim<'_, '_>",
+ "modules": {
+  "geometry": {"doc": "Where things are: cells, ground heights, reachability, path ranks and the points citizens work from.",
+   "methods": ["ground_at", "cell_of", "citizen_cell", "point_cell", "path_rank", "town", "reachable", "reachable_by", "with_search", "storage_point", "rank_raw", "rank_or_distance", "world_point", "interact_entities", "build_point", "build_point_count", "facing_centre", "rect_cell"]},
+  "orders": {"doc": "Giving citizens their orders: workers of a building, queued actions and the think hook.",
+   "methods": ["workers", "set_workers", "clear_citizen", "push", "on_empty_think", "perform", "took_job"]},
+  "building": {"doc": "Construction work: carrying materials to a site and building it (GatherRawMaterials, Build).",
+   "methods": ["haul_sequence", "haul", "build_sequence", "patience", "has_materials"],
+   "impls": ["impl Sim<'_, '_> {\n    /// `FUN_1400f1310`"]},
+  "sites": {"doc": "Building sites and buildings: becoming a site or a building, marking them on the map, and destroying them.",
+   "methods": ["enable_workplace", "set_icon", "is_clear", "refresh_demolishing", "become_site", "become_building", "set_work", "remove_work", "clear_area_stamp", "quarry_message", "decal_opaque", "set_mesh", "meshes", "finish_storage", "stamp", "unstamp", "activate", "update_sites", "destroy_entity"]},
+  "callbacks": {"doc": "The building state callbacks ([`Callbacks`]) that construction and destruction call.",
+   "impls": ["impl Callbacks for Sim<'_, '_> {"]},
+  "work_host": {"doc": "The job manager's work slots ([`WorkHost`]): offering, assigning, finishing and cancelling work.",
+   "impls": ["impl WorkHost for Sim<'_, '_> {"]},
+  "clearing": {"doc": "Clearing an area (`ClearArea`): removing trees, rocks and other resources before building.",
+   "methods": ["entity_on", "register_clear", "work_max", "clear_remaining", "clear_refresh", "clear_try", "removal_sequence", "unclaim", "animate_resource", "remove_resource", "clear_instantly"]},
+  "piles": {"doc": "Loose piles of goods on the ground (`RawMaterialComponent`): making, joining, taking and ageing them.",
+   "methods": ["drop_loose_pile", "spawn_pile", "activate_piles", "destroy_pile", "absorb_piles", "take_pile", "age_piles"]},
+  "storage": {"doc": "Taking goods to storage: picking up piles, finding a storage, dropping off, and emptying a storage (Pickup, ClearStorage).",
+   "methods": ["pickup_refresh", "any_storage_fits", "pickup_try", "find_storage", "find_storage_excluding", "pickup_sequence", "drop_off"],
+   "impls": ["impl Sim<'_, '_> {\n    /// The residence update's work"]}
+ }}
