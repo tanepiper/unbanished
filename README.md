@@ -73,6 +73,9 @@ timings and the save files are the same.
 <sub>All screenshots show Un-Banished running with a player's own copy of the game. The art in
 the screenshots belongs to Shining Rock Software.</sub>
 
+Short videos of the game in motion (citizens at work, the seasons, an animation) are on the
+[Playing the game](docs/guide/PLAYING.md) page.
+
 ## Status
 
 **Beta.** The whole game runs. You can start a new game or load a save. Your town and its
@@ -172,14 +175,16 @@ The project is a Rust workspace:
 
 | Path | What it contains |
 |---|---|
-| `apps/game` | The game (binary `banished`), for desktop and browser |
-| `apps/viewer` | A browser for the game's models, textures, sounds and dialogs |
-| `apps/cli` | Command-line helpers (for example, audio export) |
-| `crates/game` | The game rules, checked against the original |
-| `crates/formats` | Readers for the game's `.pkg`, `.crs`, mesh, texture, sound and save formats |
-| `crates/ui`, `crates/gfx`, `crates/audio`, `crates/wma` | Interface, rendering, audio, and the WMA decoder |
-| `docs/` | Everything we learned about how the original works |
-| `tools/` | Data extraction, emulator checks, analysis scripts, logo generator |
+| [`apps/game`](apps/game/README.md) | The game (binary `banished`), for desktop and browser |
+| [`apps/viewer`](apps/viewer/README.md) | A browser for the game's models, textures, sounds and dialogs |
+| [`apps/cli`](apps/cli/README.md) | Command-line helpers (for example, audio export) |
+| [`crates/core`](crates/core/README.md) | Exact maths, the game's random numbers, noise and game time |
+| [`crates/terrain`](crates/terrain/README.md), [`crates/path`](crates/path/README.md) | Map generation and path finding, checked against the original |
+| [`crates/game`](crates/game/README.md) | The game rules, checked against the original |
+| [`crates/formats`](crates/formats/README.md) | Readers for the game's `.pkg`, `.crs`, mesh, texture, sound and save formats |
+| [`crates/ui`](crates/ui/README.md), [`crates/gfx`](crates/gfx/README.md), [`crates/audio`](crates/audio/README.md), [`crates/wma`](crates/wma/README.md) | Interface, rendering, audio, and the WMA decoder |
+| `docs/` | Everything we learned about how the original works, and the [developer documentation](docs/develop/README.md) |
+| `tools/` | Data extraction, emulator checks, analysis scripts, screenshots and videos |
 
 ```bash
 tools/extract-assets.sh              # copy your game data into game-data/ (git ignores it)
@@ -189,6 +194,8 @@ cargo run -p banished-viewer --release
 
 Read **[AGENTS.md](AGENTS.md)** before you contribute, by hand or with an AI agent. It contains
 the project rules, the checks to run before each commit, and a map of the code.
+The [developer documentation](docs/develop/README.md) explains how to build, test and port, and
+[the topics](docs/topics/README.md) explain how the parts of the game work.
 [docs/FINDINGS.md](docs/FINDINGS.md) is the first of the research notes.
 [docs/PROCESS.md](docs/PROCESS.md) explains the method. Issues and pull requests use the
 templates in [.github/](.github/).

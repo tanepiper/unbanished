@@ -36,6 +36,10 @@ features:
     details: The source code is on GitHub under the MIT or Apache-2.0 licence. Every finding about the original is written down.
 ---
 
+<script setup>
+import { withBase } from 'vitepress'
+</script>
+
 <div class="ub-wide">
 
 <div class="ub-section">
@@ -43,6 +47,24 @@ features:
 ## Screenshots
 
 <Gallery />
+
+</div>
+
+<div class="ub-divider"></div>
+
+<div class="ub-section">
+
+## In motion
+
+Citizens at the market of a town of 116 people, and the same town from autumn to spring at the
+highest speed. Un-Banished recorded both videos itself, without a window.
+
+<div class="ub-videos">
+  <video :src="withBase('/assets/videos/citizens-market.webm')" autoplay loop muted playsinline></video>
+  <video :src="withBase('/assets/videos/seasons.webm')" autoplay loop muted playsinline></video>
+</div>
+
+[More pictures and videos](/guide/playing) · [How the videos are made](/develop/videos)
 
 </div>
 

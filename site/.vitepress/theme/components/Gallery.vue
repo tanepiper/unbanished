@@ -6,6 +6,8 @@ const shots = [
   { src: '/assets/screenshots/new-game.webp', alt: 'The settlers next to their first stockpile', caption: 'The first minute of a new town' },
   { src: '/assets/screenshots/town-overview.webp', alt: 'A town of houses, fields and an orchard in a forest', caption: 'A town loaded from a save' },
   { src: '/assets/screenshots/town-hall.webp', alt: 'The Town Hall window open on its Inventory tab', caption: 'The Town Hall window' },
+  { src: '/assets/screenshots/new-game-dialog.webp', alt: 'The New dialog with the settings of a new game', caption: 'The New dialog' },
+  { src: '/assets/screenshots/viewer-models.webp', alt: 'The viewer showing the Town Hall model', caption: 'The viewer: models' },
 ]
 </script>
 

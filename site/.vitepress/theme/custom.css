@@ -107,3 +107,17 @@
   background: linear-gradient(90deg, transparent, var(--ub-gold), transparent);
   opacity: 0.5;
 }
+
+/* Videos on the home page: two side by side, one above the other on narrow screens. */
+.ub-videos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin: 24px 0 16px;
+}
+.ub-videos video {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--vp-c-divider);
+}

@@ -33,6 +33,12 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
   [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 - A `speed N` command for headless captures, and the `savegame_same` and
   `savegame_fields_diff` tools for comparing saves.
+- Documentation: the website has new Guide, Develop, Topics and Reference sections. There is a
+  README for every app and crate, with tested examples; guides to tracing, emulating, porting and
+  verifying; pages on how the game's parts work; and the Rust API documentation at `/api/`.
+- Short videos of the game, recorded headlessly with `tools/videos.sh` (see
+  [docs/develop/VIDEOS.md](docs/develop/VIDEOS.md)), and more screenshots of the game and the
+  viewer.
 
 ### Fixed
 

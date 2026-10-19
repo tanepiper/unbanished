@@ -63,15 +63,16 @@ fn inspect(generator: &Generator) {
     let mut normal = [0.0; 3];
     let height = grid.ground(10.5, -3.25, &mut normal);
 
-    // The natural type of every cell, before anything is built.
-    let size = generator.size as usize;
-    let water = (0..size * size)
-        .filter(|&i| grid.natural_cell_type(size, i) == CellType::DEEP_WATER)
+    // The natural type of every cell of the gameplay map (n × n cells in the middle of the
+    // 2n-cell terrain), before anything is built.
+    let n = generator.record.half_size() as usize;
+    let water = (0..n * n)
+        .filter(|&i| grid.natural_cell_type(n, i) == CellType::DEEP_WATER)
         .count();
     println!("height {height}, {water} cells of deep water");
 
-    // The mesh that the renderer draws.
-    let mesh = TerrainMesh::build(&grid, size);
+    // The mesh that the renderer draws covers the whole terrain.
+    let mesh = TerrainMesh::build(&grid, generator.size as usize);
     println!("{} vertices", mesh.vertices.len());
 }
 ```
@@ -81,8 +82,10 @@ and high ground block movement.
 
 ## Coordinates
 
-- A map of size `2n` has `2n + 1` height samples on each side.
-- Map positions are in cells, centred on the map: x and y run from `-n` to `n`.
+- The terrain of size `2n` has `2n + 1` height samples on each side. `n` is the first value of
+  the size record (`SizeRecord::half_size`): 256, 384 or 512 cells for the small, medium and large maps.
+- The playable gameplay map is the central `n × n` cells. The outer ring is scenery.
+- Positions are in cells, relative to the centre of the terrain: x and y run from `-n` to `n`.
 - A saved height is the generator's float height × 256. In world space, z (up) is the saved
   height divided by 256.
 

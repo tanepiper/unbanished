@@ -76,7 +76,8 @@ use banished_game::world::map::Map;
 fn start_cell(generator: &Generator, radius: i32) -> (i32, i32) {
     let heights = generator.heights();
     let terrain = HeightGrid { width: generator.width(), heights: &heights };
-    let map = Map::new(generator.size as usize, &terrain);
+    // The gameplay map is the central n × n cells of the 2n-cell terrain.
+    let map = Map::new(generator.record.half_size() as usize, &terrain);
     map.find_start(radius)
 }
 ```
