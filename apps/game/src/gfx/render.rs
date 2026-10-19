@@ -104,6 +104,27 @@ struct TerrainGpu {
     index_count: u32,
     tiles: u32,
     bind_group: wgpu::BindGroup,
+    /// Each tile's box (lowest and highest corner), for skipping tiles a pass cannot see.
+    bounds: Vec<(Vec3, Vec3)>,
+    /// The tiles each [`ModelPass`](crate::gfx::models::ModelPass) draws this frame.
+    visible: [Vec<bool>; 3],
+}
+
+/// The box around each tile's vertices, in the terrain shader's world space (`x`, `y` in
+/// cells, the height / 256).
+fn tile_bounds(mesh: &banished_game::terrain::TerrainMesh) -> Vec<(Vec3, Vec3)> {
+    mesh.vertices
+        .chunks(TILE_VERTS * TILE_VERTS)
+        .map(|tile| {
+            tile.iter().fold(
+                (Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)),
+                |(lo, hi), v| {
+                    let p = Vec3::new(v.pos[0] as f32, v.pos[1] as f32, v.pos[2] as f32 / 256.0);
+                    (lo.min(p), hi.max(p))
+                },
+            )
+        })
+        .collect()
 }
 
 /// Offscreen render targets, recreated on resize.

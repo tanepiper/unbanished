@@ -36,7 +36,10 @@ the parallel loading with the sequential one.
 
 The phases are `update`, `draw`, `sim.iterate`, `sim.town`, `sim.citizens`, `smooth`,
 `refresh_models`, `refresh_decals`, `refresh_particles`, `refresh_weather`, `audio`,
-`draw.set_scene`, `draw.update_instances` and `draw.upload_decals`. Add more with
+`draw.set_scene`, `draw.update_instances`, `draw.upload_decals` and `draw.gpu`. `draw.gpu` is
+the time the GPU takes for the frame: while profiling (native only), the renderer waits for the
+GPU after each frame, and a headless capture draws each frame into a scratch target so that the
+GPU work happens as in a window. Add more with
 `let _p = crate::perf::scope("name");` at the start of a block.
 
 ### Sampling profiler (samply)
@@ -103,12 +106,57 @@ save, played 40 s at speed 10, gives identical game state (33 MB) and frames bef
 Still the largest costs per update on this town: `refresh_models` (4.3 ms), `audio` (3.4 ms),
 `refresh_particles` (2.7 ms), and in the simulation the characters' movement and path finding.
 
+## Drawing less (2026-10-19)
+
+Measured on the large town above with `BANISHED_PROFILE=1` and the new `draw.gpu` phase, at
+1280 × 800. The GPU took 22.7 ms per frame (median). Every model and every terrain tile was
+drawn in all three passes: the sun's shadow map, the water reflection and the scene. A frame
+with one part left out at a time showed where the time went:
+
+| Part | GPU time |
+|---|---|
+| The terrain in the water reflection | 8.5 ms |
+| The shadow pass (terrain and models) | 3.9 ms |
+| Decals | 2.8 ms |
+| Models in the scene | 2.4 ms |
+| The terrain in the scene | 2.3 ms |
+| Water | 1.2 ms |
+
+Changes (`gfx/models/culling.rs`, `gfx/render/frame.rs`):
+
+- **Models:** each group has a bounding sphere, made from its vertices and padded for what the
+  vertex shaders add (wind, leaf cards, skinned poses). Before each pass, the renderer tests every
+  instance's sphere against that pass's view and draws only the instances that can reach it, in
+  their original order. In the scene pass of this town, 2,684 of 25,788 models are drawn; in the
+  shadow pass 11,244; in the reflection (at ReflectionDetail 2) 1,500 to 3,400.
+- **Terrain:** each 32 × 32-cell tile has a box. A pass skips the tiles outside its view. The
+  reflection also skips tiles that lie wholly below the water, because its shader discards
+  everything below the water.
+
+An instance or tile is skipped only when none of its triangles can reach the pass's target, so
+the frames do not change. This was checked with `tools/compat/compare.sh` (all scenarios) and
+with a camera tour (pan and zoom, eight screenshots per town, with the default and the highest
+video settings) on the medium and large towns. See [the open question](#open-questions) on the
+frames that differ from run to run.
+
+| Same machine, alternate runs | Before | After |
+|---|---|---|
+| GPU time per frame (median) | 31.8 / 32.6 ms | 17.5 / 16.6 ms |
+| Frame at speed 10 (median) | 86.6 / 85.7 ms | 69.5 / 63.5 ms |
+
+The GPU time is now about half. (These runs were on a warmer machine than the 22.7 ms
+measurement; compare the columns, not the runs.)
+
+Also tried: rebuilding a model group's instances only when its placements change. On a
+running town almost every group changes every frame, because the growth smoothing changes the
+trees' scales, so the comparison cost more than it saved. It was not kept.
+
 ## Opportunities
 
 Ranked by expected gain against risk to 1:1 behaviour. "Measured" figures come from the samply
 profile of the same save after the fixes above (share of main-thread CPU after loading).
 
-### 1. Rebuild model instances only when something changed (measured: about 25 %)
+### 1. Rebuild model instances only when something changed (measured: about 25 %; see "Drawing less")
 
 `StartingTown::model_instances` (16 %) rebuilds every instance of every model each frame,
 grouping them in a `HashMap<(String, GroupMaterial), Vec<…>>` keyed by strings (SipHash shows
@@ -269,4 +317,6 @@ the decoded data made from them.
 - How large are the costs on a large town (300+ citizens)? The measurements above use a small
   town; costs that grow with entities (items 1 and 2) will matter more there.
 - What does the highest game speed cost per frame, and how much of it is the simulation?
+- The decals (2.8 ms of GPU time on the large town) and the shadow pass are the next largest
+  GPU costs. Can the decals be culled per pass in the same way?
 - How much GPU memory do the textures use after decoding, per platform?

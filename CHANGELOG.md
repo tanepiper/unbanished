@@ -24,6 +24,9 @@ game's behaviour; the plan is in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 - Large towns run about twice as fast. On a town of 1,024 citizens and 28,000 objects at speed
   10, a frame took 94 ms and now takes 43 ms; the simulation part fell from 78 to 29 ms. The
   game's results are unchanged: saves and frames are identical to before.
+- The GPU draws about half as much per frame on a large town. Models and terrain tiles that a
+  pass cannot see (the shadow map, the water reflection or the screen) are no longer drawn.
+  What is drawn is unchanged.
 - The code is reorganised into smaller parts, with no change to the game. The bit-exact
   foundations, the terrain and path finding are now their own crates (`banished-core`,
   `banished-terrain`, `banished-path`); `banished-game` and the game app group their modules

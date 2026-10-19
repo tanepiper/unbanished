@@ -108,9 +108,10 @@ impl Renderer {
             }
         }
         if self.world_id == view.id && self.terrain_revision != view.terrain.revision {
-            if let Some(t) = &self.terrain {
+            if let Some(t) = &mut self.terrain {
                 self.queue
                     .write_buffer(&t.vertices, 0, &view.terrain.mesh.vertex_bytes());
+                t.bounds = tile_bounds(&view.terrain.mesh);
             }
         }
         self.terrain_revision = view.terrain.revision;
@@ -225,6 +226,8 @@ impl Renderer {
             index_count: world.mesh.indices.len() as u32,
             tiles: (world.mesh.tiles_per_side * world.mesh.tiles_per_side) as u32,
             bind_group,
+            bounds: tile_bounds(&world.mesh),
+            visible: Default::default(),
         });
     }
 }

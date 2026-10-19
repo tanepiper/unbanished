@@ -62,6 +62,11 @@ save holds the same game state and every frame is the same.
   by Un-Banished is not verified yet.
 - Timings in the scenarios are capture time, which runs faster than real time; the results
   do not depend on the machine's speed.
+- **Frames can differ from run to run, even with the same build.** On the large town, and on
+  the medium town at the highest video settings, a few frames come out in one of two versions:
+  a few hundred pixels differ, mostly in the water's reflection of trees. The saves are always
+  identical. The cause is not known yet. When a frame differs, run both builds again: a change
+  is accepted when the new build's frames match one of the old build's versions.
 
 ## The save-timing trap
 

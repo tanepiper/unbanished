@@ -21,6 +21,34 @@ use wgpu::util::DeviceExt;
 
 pub use banished_gfx::material::MaterialKind;
 
+mod culling;
+use culling::Bounds;
+pub(crate) use culling::Frustum;
+
+/// The passes models are drawn in, each with its own view and its own list of the instances it
+/// can see ([`ModelRenderer::cull`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ModelPass {
+    /// The sun's shadow map.
+    Shadow = 0,
+    /// The planar water reflection.
+    Reflection = 1,
+    /// The scene.
+    Scene = 2,
+}
+
+/// The instances of a group one pass draws.
+#[derive(Clone, Debug, Default)]
+enum Visible {
+    /// All of them, from the group's own buffer.
+    #[default]
+    All,
+    /// A rigid group's visible instances, copied in order into the pass's buffer at `offset`.
+    Packed { offset: u64, count: u32 },
+    /// A skinned group's visible instances (each is drawn on its own with its palette).
+    Indices(Vec<u32>),
+}
+
 pub const KINDS: [MaterialKind; 6] = [
     MaterialKind::Opaque,
     MaterialKind::OpaqueSnow,
@@ -66,6 +94,7 @@ pub struct ModelGroup {
 
 /// A placement plus its current animation pose. Rigid trees share mesh/texture assets while
 /// each expiring instance has its own playback clock and node transform.
+#[derive(Clone)]
 pub struct ModelInstance {
     pub matrix: [f32; 16],
     pub locals: Option<Vec<Transform>>,
@@ -113,17 +142,17 @@ impl ModelGroup {
                 self.skins
                     .extend(banished_gfx::skin::palette_matrices(&palette));
             }
-            self.instances = instances.into_iter().map(|i| i.matrix).collect();
-            return;
+            self.instances = instances.iter().map(|i| i.matrix).collect();
+        } else {
+            self.instances = self.matrices(&instances);
         }
-        self.instances = self.matrices(instances);
     }
 
-    fn matrices(&self, instances: Vec<ModelInstance>) -> Vec<[f32; 16]> {
+    fn matrices(&self, instances: &[ModelInstance]) -> Vec<[f32; 16]> {
         instances
-            .into_iter()
+            .iter()
             .map(|instance| {
-                let Some(locals) = instance.locals else {
+                let Some(locals) = &instance.locals else {
                     return instance.matrix;
                 };
                 let Some(bone) = self.animation_bone else {
@@ -452,17 +481,32 @@ impl SceneModels {
     /// Growth/removal changes transforms without decoding meshes or textures again. Retain
     /// empty groups so later offspring can reuse their assets and group indices stay stable.
     pub fn update_instances(&mut self, archive: &Archive, instances: Vec<GroupInstances>) {
-        for group in &mut self.groups {
-            group.instances.clear();
-            group.skins.clear();
+        // Groups missing from the new list are emptied; groups whose placements are the same
+        // as last time keep their instances (`set_instances`).
+        let index: HashMap<(&str, &GroupMaterial), usize> = self
+            .groups
+            .iter()
+            .enumerate()
+            .map(|(i, g)| ((g.name.as_str(), &g.material), i))
+            .collect();
+        let mut listed = vec![false; self.groups.len()];
+        let mut found = Vec::with_capacity(instances.len());
+        for (name, material, _, _) in &instances {
+            let i = index.get(&(name.as_str(), material)).copied();
+            if let Some(i) = i {
+                listed[i] = true;
+            }
+            found.push(i);
         }
-        for (name, material, instances, pose) in instances {
-            if let Some(group) = self
-                .groups
-                .iter_mut()
-                .find(|g| g.name == name && g.material == material)
-            {
-                group.set_instances(instances);
+        drop(index);
+        for (group, listed) in self.groups.iter_mut().zip(listed) {
+            if !listed {
+                group.set_instances(Vec::new());
+            }
+        }
+        for ((name, material, instances, pose), found) in instances.into_iter().zip(found) {
+            if let Some(i) = found {
+                self.groups[i].set_instances(instances);
             } else if let Some(asset) = load_group(
                 archive,
                 &name,
@@ -747,6 +791,27 @@ struct GpuGroup {
     count: u32,
     /// Per-instance bone palettes and their dynamic-offset bind group (skinned groups).
     skin: Option<(wgpu::Buffer, wgpu::BindGroup)>,
+    skinned: bool,
+    /// The group's bounds, its instances' transforms and their world spheres (for culling).
+    bounds: Option<Bounds>,
+    matrices: Vec<[f32; 16]>,
+    spheres: Vec<[f32; 4]>,
+    /// What each [`ModelPass`] draws this frame.
+    visible: [Visible; 3],
+}
+
+impl GpuGroup {
+    /// Take a new set of instance transforms and their world spheres; every pass draws all of
+    /// them until it is culled again.
+    fn set_matrices(&mut self, matrices: &[[f32; 16]]) {
+        self.matrices.clear();
+        self.matrices.extend_from_slice(matrices);
+        self.spheres.clear();
+        if let Some(b) = &self.bounds {
+            self.spheres.extend(matrices.iter().map(|m| b.sphere(m)));
+        }
+        self.visible = Default::default();
+    }
 }
 
 pub struct ModelRenderer {
@@ -761,6 +826,10 @@ pub struct ModelRenderer {
     sampler: wgpu::Sampler,
     white: wgpu::TextureView,
     groups: Vec<GpuGroup>,
+    /// Each pass's visible rigid instances, packed group after group, and the scratch list
+    /// they are packed in.
+    pass_buffers: [Option<wgpu::Buffer>; 3],
+    packed: Vec<[f32; 16]>,
     /// Uploaded textures by their image data's address. The scene's groups keep their images
     /// until the next full upload, which clears this.
     views: HashMap<usize, wgpu::TextureView>,
@@ -1052,6 +1121,8 @@ impl ModelRenderer {
             sampler,
             white,
             groups: Vec::new(),
+            pass_buffers: [None, None, None],
+            packed: Vec::new(),
             views: HashMap::new(),
         }
     }
@@ -1179,7 +1250,7 @@ impl ModelRenderer {
                 }
             })
             .collect();
-        GpuGroup {
+        let mut gpu = GpuGroup {
             ranges,
             instances: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("instances"),
@@ -1188,7 +1259,14 @@ impl ModelRenderer {
             }),
             count: g.instances.len() as u32,
             skin: self.skin_buffer(device, &g.skins),
-        }
+            skinned: g.skinned(),
+            bounds: Bounds::of(&g.ranges),
+            matrices: Vec::new(),
+            spheres: Vec::new(),
+            visible: Default::default(),
+        };
+        gpu.set_matrices(&g.instances);
+        gpu
     }
 
     /// A buffer of per-instance palettes and its bind group (`None` without palettes).
@@ -1229,6 +1307,7 @@ impl ModelRenderer {
                 queue.write_buffer(&gpu.instances, 0, data);
             }
             gpu.count = group.instances.len() as u32;
+            gpu.set_matrices(&group.instances);
             let skins: &[u8] = bytemuck::cast_slice(&group.skins);
             match &gpu.skin {
                 Some((buffer, _)) if skins.len() as u64 <= buffer.size() => {
@@ -1244,8 +1323,76 @@ impl ModelRenderer {
         }
     }
 
-    pub fn draw<'p>(&'p self, pass: &mut wgpu::RenderPass<'p>, globals: &'p wgpu::BindGroup) {
-        self.draw_with(pass, globals, &self.pipelines, &self.skinned_pipelines);
+    /// Decide what `pass` draws this frame: the instances whose spheres reach its view
+    /// (`view_proj`), in their order. Call it before each pass's draw.
+    pub fn cull(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        pass: ModelPass,
+        view_proj: &Mat4,
+    ) {
+        let frustum = Frustum::new(view_proj);
+        let p = pass as usize;
+        self.packed.clear();
+        for g in &mut self.groups {
+            if g.bounds.is_none() || g.spheres.len() != g.count as usize {
+                g.visible[p] = Visible::All;
+                continue;
+            }
+            let seen = g.spheres.iter().filter(|s| frustum.sees(s)).count();
+            g.visible[p] = if seen == g.spheres.len() {
+                Visible::All
+            } else if g.skinned {
+                Visible::Indices(
+                    (0..g.count)
+                        .filter(|&i| frustum.sees(&g.spheres[i as usize]))
+                        .collect(),
+                )
+            } else {
+                let offset = (self.packed.len() * 64) as u64;
+                self.packed.extend(
+                    g.matrices
+                        .iter()
+                        .zip(&g.spheres)
+                        .filter(|(_, s)| frustum.sees(s))
+                        .map(|(m, _)| *m),
+                );
+                Visible::Packed {
+                    offset,
+                    count: seen as u32,
+                }
+            };
+        }
+        if self.packed.is_empty() {
+            return;
+        }
+        let data: &[u8] = bytemuck::cast_slice(&self.packed);
+        let buffer = &mut self.pass_buffers[p];
+        if buffer.as_ref().is_none_or(|b| b.size() < data.len() as u64) {
+            *buffer = Some(device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("visible instances"),
+                size: (data.len() as u64).next_power_of_two(),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            }));
+        }
+        queue.write_buffer(buffer.as_ref().unwrap(), 0, data);
+    }
+
+    pub fn draw<'p>(
+        &'p self,
+        pass: &mut wgpu::RenderPass<'p>,
+        globals: &'p wgpu::BindGroup,
+        which: ModelPass,
+    ) {
+        self.draw_with(
+            pass,
+            globals,
+            &self.pipelines,
+            &self.skinned_pipelines,
+            which,
+        );
     }
 
     /// The models' depth into the sun's shadow map.
@@ -1255,6 +1402,7 @@ impl ModelRenderer {
             globals,
             &self.depth_pipelines,
             &self.skinned_depth_pipelines,
+            ModelPass::Shadow,
         );
     }
 
@@ -1264,10 +1412,12 @@ impl ModelRenderer {
         globals: &'p wgpu::BindGroup,
         pipelines: &'p [wgpu::RenderPipeline; 6],
         skinned_pipelines: &'p [wgpu::RenderPipeline; 2],
+        which: ModelPass,
     ) {
         if self.groups.is_empty() {
             return;
         }
+        let p = which as usize;
         pass.set_bind_group(0, globals, &[]);
         for (i, kind) in KINDS.into_iter().enumerate() {
             pass.set_pipeline(&pipelines[i]);
@@ -1277,12 +1427,27 @@ impl ModelRenderer {
                 if g.count == 0 || g.instances.size() == 0 {
                     continue;
                 }
-                pass.set_vertex_buffer(1, g.instances.slice(..));
+                let count = match &g.visible[p] {
+                    Visible::Packed { offset, count } => {
+                        let (Some(buffer), true) = (&self.pass_buffers[p], *count > 0) else {
+                            continue;
+                        };
+                        pass.set_vertex_buffer(
+                            1,
+                            buffer.slice(*offset..*offset + *count as u64 * 64),
+                        );
+                        *count
+                    }
+                    _ => {
+                        pass.set_vertex_buffer(1, g.instances.slice(..));
+                        g.count
+                    }
+                };
                 for r in g.ranges.iter().filter(|r| r.kind == kind && !r.skinned) {
                     pass.set_bind_group(1, &r.bind, &[]);
                     pass.set_vertex_buffer(0, r.vertices.slice(..));
                     pass.set_index_buffer(r.indices.slice(..), wgpu::IndexFormat::Uint16);
-                    pass.draw_indexed(0..r.index_count, 0, 0..g.count);
+                    pass.draw_indexed(0..r.index_count, 0, 0..count);
                 }
             }
         }
@@ -1306,7 +1471,15 @@ impl ModelRenderer {
                     pass.set_bind_group(1, &r.bind, &[]);
                     pass.set_vertex_buffer(0, r.vertices.slice(..));
                     pass.set_index_buffer(r.indices.slice(..), wgpu::IndexFormat::Uint16);
-                    for i in 0..g.count {
+                    let all: Vec<u32>;
+                    let shown = match &g.visible[p] {
+                        Visible::Indices(list) => list.as_slice(),
+                        _ => {
+                            all = (0..g.count).collect();
+                            all.as_slice()
+                        }
+                    };
+                    for &i in shown {
                         let offset = (i as u64 * banished_gfx::skin::PALETTE_BYTES) as u32;
                         pass.set_bind_group(2, skin, &[offset]);
                         pass.draw_indexed(0..r.index_count, 0, i..i + 1);

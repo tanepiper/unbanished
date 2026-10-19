@@ -1,10 +1,31 @@
 //! Drawing a frame: the passes, the terrain, the sun camera and the shared uniforms.
 
 use super::*;
+use crate::gfx::models::ModelPass;
 
 impl Renderer {
     pub fn render(&mut self, frame: &Frame) {
         let Some((surface, config)) = &self.surface else {
+            // Headless and profiling (native): draw into a scratch target, so the frame's GPU
+            // work is done and timed (`draw.gpu`) as in the windowed game.
+            #[cfg(not(target_arch = "wasm32"))]
+            if crate::platform::perf::enabled() {
+                let target = self.device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("profile target"),
+                    size: wgpu::Extent3d {
+                        width: self.size.0,
+                        height: self.size.1,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: self.format,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    view_formats: &[],
+                });
+                self.draw(&target.create_view(&Default::default()), frame);
+            }
             return;
         };
         let texture = match surface.get_current_texture() {
@@ -30,8 +51,24 @@ impl Renderer {
         &'p self,
         pass: &mut wgpu::RenderPass<'p>,
         globals: &'p wgpu::BindGroup,
+        which: Option<ModelPass>,
     ) {
-        self.draw_terrain_with(pass, globals, &self.terrain_pipeline);
+        self.draw_terrain_with(pass, globals, &self.terrain_pipeline, which);
+    }
+
+    /// Decide which terrain tiles `which` draws: those whose box reaches its view
+    /// (`view_proj`). In the reflection, a tile wholly below the water (`below`) is skipped
+    /// too: the terrain shader discards everything below the water there (`reflect_clip`).
+    pub(super) fn cull_terrain(&mut self, which: ModelPass, view_proj: &Mat4, below: Option<f32>) {
+        let Some(t) = &mut self.terrain else { return };
+        let frustum = crate::gfx::models::Frustum::new(view_proj);
+        t.visible[which as usize] = t
+            .bounds
+            .iter()
+            .map(|&(lo, hi)| {
+                below.is_none_or(|level| hi.z >= level - 0.001) && frustum.sees_box(lo, hi)
+            })
+            .collect();
     }
 
     pub(super) fn draw_terrain_with<'p>(
@@ -39,8 +76,11 @@ impl Renderer {
         pass: &mut wgpu::RenderPass<'p>,
         globals: &'p wgpu::BindGroup,
         pipeline: &'p wgpu::RenderPipeline,
+        which: Option<ModelPass>,
     ) {
         let Some(t) = &self.terrain else { return };
+        // Without a pass (the minimap), every tile.
+        let visible = which.map_or(&[][..], |w| &t.visible[w as usize]);
         pass.set_pipeline(pipeline);
         pass.set_bind_group(0, globals, &[]);
         pass.set_bind_group(1, &t.bind_group, &[]);
@@ -49,6 +89,9 @@ impl Renderer {
         // Binding at an offset avoids base-vertex, which WebGL2 lacks.
         let tile_bytes = (TILE_VERTS * TILE_VERTS * 16) as u64;
         for tile in 0..t.tiles as u64 {
+            if visible.get(tile as usize) == Some(&false) {
+                continue;
+            }
             pass.set_vertex_buffer(
                 0,
                 t.vertices.slice(tile * tile_bytes..(tile + 1) * tile_bytes),
@@ -113,14 +156,52 @@ impl Renderer {
                 b: fog.z as f64,
                 a: 0.0,
             };
-            let t = &self.targets;
             // `SunLight::DrawShadowMap`: every caster's depth pass (terrain tiles included; the
             // sky's has no programs). It does nothing at shadow detail 0.
             if self.video.shadow_detail > 0 {
+                self.models.cull(
+                    &self.device,
+                    &self.queue,
+                    ModelPass::Shadow,
+                    &sun.depth_view_proj(self.shadow.size),
+                );
+                self.cull_terrain(
+                    ModelPass::Shadow,
+                    &sun.depth_view_proj(self.shadow.size),
+                    None,
+                );
                 let mut pass = self.shadow.begin_pass(&mut encoder);
-                self.draw_terrain_with(&mut pass, &self.shadow_bind, &self.terrain_depth_pipeline);
+                self.draw_terrain_with(
+                    &mut pass,
+                    &self.shadow_bind,
+                    &self.terrain_depth_pipeline,
+                    Some(ModelPass::Shadow),
+                );
                 self.models.draw_depth(&mut pass, &self.shadow_bind);
             }
+            if let (Some(level), true) = (water, self.video.reflection >= 2) {
+                self.models.cull(
+                    &self.device,
+                    &self.queue,
+                    ModelPass::Reflection,
+                    &reflected(&scene.view_proj, level),
+                );
+            }
+            if let (Some(level), true) = (water, self.video.reflection >= 1) {
+                self.cull_terrain(
+                    ModelPass::Reflection,
+                    &reflected(&scene.view_proj, level),
+                    Some(level),
+                );
+            }
+            self.models.cull(
+                &self.device,
+                &self.queue,
+                ModelPass::Scene,
+                &scene.view_proj,
+            );
+            self.cull_terrain(ModelPass::Scene, &scene.view_proj, None);
+            let t = &self.targets;
             if water.is_some() {
                 let mut pass = Self::scene_pass(
                     &mut encoder,
@@ -133,10 +214,11 @@ impl Renderer {
                 // ReflectionDetail: None, Terrain or Everything.
                 self.extras.draw_sky(&mut pass, &self.reflect_bind);
                 if self.video.reflection >= 1 {
-                    self.draw_terrain(&mut pass, &self.reflect_bind);
+                    self.draw_terrain(&mut pass, &self.reflect_bind, Some(ModelPass::Reflection));
                 }
                 if self.video.reflection >= 2 {
-                    self.models.draw(&mut pass, &self.reflect_bind);
+                    self.models
+                        .draw(&mut pass, &self.reflect_bind, ModelPass::Reflection);
                 }
             }
             if water.is_some() {
@@ -151,8 +233,9 @@ impl Renderer {
                     Some(clear),
                 );
                 self.extras.draw_sky(&mut pass, &self.globals_bind);
-                self.draw_terrain(&mut pass, &self.globals_bind);
-                self.models.draw(&mut pass, &self.globals_bind);
+                self.draw_terrain(&mut pass, &self.globals_bind, Some(ModelPass::Scene));
+                self.models
+                    .draw(&mut pass, &self.globals_bind, ModelPass::Scene);
                 self.extras.draw_decals(&mut pass, &self.globals_bind);
             }
             if water.is_some() {
@@ -248,6 +331,13 @@ impl Renderer {
             }
         }
         self.queue.submit([encoder.finish()]);
+        // While profiling (native), wait for the GPU so its time shows as a phase of its own.
+        // This changes timing only, never what is drawn.
+        #[cfg(not(target_arch = "wasm32"))]
+        if crate::platform::perf::enabled() {
+            let _p = crate::platform::perf::scope("draw.gpu");
+            let _ = self.device.poll(wgpu::PollType::wait_indefinitely());
+        }
     }
 
     /// Fit the sun camera to this frame's camera (`SunLight::GetSunCamera`) and write the shadow
@@ -287,12 +377,7 @@ impl Renderer {
     ) {
         let l = &scene.lighting;
         let (view_proj, clip) = match reflect {
-            Some(level) => (
-                scene.view_proj
-                    * Mat4::from_translation(Vec3::new(0.0, 0.0, 2.0 * level))
-                    * Mat4::from_scale(Vec3::new(1.0, 1.0, -1.0)),
-                [1.0, level, 0.0, 0.0],
-            ),
+            Some(level) => (reflected(&scene.view_proj, level), [1.0, level, 0.0, 0.0]),
             None => (scene.view_proj, [0.0; 4]),
         };
         let globals = Globals {
@@ -323,4 +408,11 @@ impl Renderer {
         self.queue
             .write_buffer(buffer, 0, bytemuck::bytes_of(&globals));
     }
+}
+
+/// A view-projection mirrored about the water surface at height `level` (the reflection pass).
+fn reflected(view_proj: &Mat4, level: f32) -> Mat4 {
+    *view_proj
+        * Mat4::from_translation(Vec3::new(0.0, 0.0, 2.0 * level))
+        * Mat4::from_scale(Vec3::new(1.0, 1.0, -1.0))
 }

@@ -128,7 +128,7 @@ impl Renderer {
                 &targets.depth,
                 Some(clear),
             );
-            self.draw_terrain(&mut pass, &self.globals_bind);
+            self.draw_terrain(&mut pass, &self.globals_bind, None);
         }
         targets.resolve_scene(&mut encoder);
         if water.is_some() {
