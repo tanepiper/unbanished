@@ -398,7 +398,10 @@ own copy of Banished, the same mods, and the same version of Un-Banished.
 Every player can build, give orders, change the speed and pause; all of it applies to everybody.
 The pause menu does not stop the others. If the games ever differ, everybody reloads the host's
 game and goes on. A line at the foot of the screen shows which player you are, and says when the
-game waits for another player. The game is not autosaved; the host can save it.
+game waits for another player; you can still move the camera and use the windows meanwhile. If a
+player leaves, the others play on without them. If the host leaves, the game goes on, but the
+games are no longer compared. AutoSlow is always on in a multiplayer game. The game is not
+autosaved; the host can save it.
 
 ## Mods
 

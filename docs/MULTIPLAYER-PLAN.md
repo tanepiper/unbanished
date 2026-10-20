@@ -273,9 +273,31 @@ save, and the guest changes the speed during the game. The host's checks every 6
 agreed (24 checks in 45 s). `tools/compat/lockstep.sh` and `network.sh` still pass on the new
 code, and the single-player game is unchanged (`compare.sh`).
 
-Open: while the game waits for another player's turn the whole update waits, so the view and
-the windows stop too (for a moment at the usual delay of 6 updates); a player who leaves is not
-handled yet; the room code cannot be copied from the window.
+**Waiting.** While the game waits for another player's turn, only the town waits: the camera,
+the windows and the players line go on. Such a held frame skips everything that changes the
+game (the update count, the iterations, the goal and achievements, and the smoothing pass that
+draws on the game's Random even at speed zero), because the number of held frames differs from
+one computer to the next. A command given while waiting goes into the next turn not yet sent
+(before, it went into a turn already sent and was lost). AutoSlow is always on in a multiplayer
+game (a Deviation), so the speed does not depend on each player's own setting. After half a
+second of waiting the line names the players waited for.
+
+**Leaving.** The relay passes on everything a player sent before the news that they left, and
+each computer gets its messages in order. So every computer holds the same turns from that
+player, and each takes them out of the game from the slot after their last turn, with no message
+of its own (`Lockstep::leave`). The host stops waiting for their digests, and the line says who
+has left. If the host leaves, the others play on without checks. Players who joined the lobby and
+left before the start are named in `Message::Start` (`absent`).
+
+Proof: `tools/compat/multiplayer.sh` has a second scenario, `leave`: the host and two guests, of
+whom one quits 30 s into the run. The host found the departure and the two who stayed agreed on
+all 19 checks after it. A manual run paused the guest process (SIGSTOP): the host logged that
+update 486 waited for player 2, and a camera turn held during the wait turned the view. Unit
+tests cover leaving (the slot, readiness, the host's checks) and a command given while waiting.
+
+Open: once, in about ten two-player runs, the host found the games different at the first check
+(update 60), resynced at 67, and they agreed after. Three repeats were clean; the cause is not
+known. A player cannot rejoin a running game. The room code cannot be copied from the window.
 
 ### 7. Later: separate towns
 

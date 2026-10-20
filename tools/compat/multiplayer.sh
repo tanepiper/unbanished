@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# The Multiplayer window from end to end (docs/MULTIPLAYER-PLAN.md, step 6): a relay and two
-# headless games kept to the clock (`--realtime`). The host opens the window, hosts a room, waits
-# for the guest, presses Start and picks its save; the guest types the room code and joins (again
-# while the room is not open yet). The guest changes the speed during the game, a shared command.
-# The host checks the players' digests every 60 updates; every check must agree, and there must
-# be enough of them.
+# The Multiplayer window from end to end (docs/MULTIPLAYER-PLAN.md, step 6): a relay and headless
+# games kept to the clock (`--realtime`). The host opens the window, hosts a room, waits for the
+# guests, presses Start and picks its save; each guest types the room code and joins (again while
+# the room is not open yet). A guest changes the speed during the game, a shared command. The host
+# checks the players' digests every 60 updates; every check must agree, and there must be enough
+# of them.
 #
-#   tools/compat/multiplayer.sh BINARY [RELAY_BINARY]     # default relay: target/release/banished-relay
+#   two:   the host and one guest.
+#   leave: the host and two guests; the second guest quits during the game. The host and the
+#          other guest go on without it and still agree.
+#
+#   tools/compat/multiplayer.sh BINARY [RELAY_BINARY] [SCENARIO...]   # default: both scenarios
 #
 # Exit 0 when the players agree. Results and frames stay in target/compat/multiplayer/<binary>.
 set -euo pipefail
@@ -14,41 +18,75 @@ repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
 bin="${1:?usage: tools/compat/multiplayer.sh BINARY [RELAY_BINARY]}"
 relay="${2:-target/release/banished-relay}"
-out="target/compat/multiplayer/$(basename "$bin")"
-rm -rf "$out" && mkdir -p "$out/host/Save" "$out/guest"
-cp save-game/Save83.sav "$out/host/Save/"
+scenarios=("${@:3}")
+((${#scenarios[@]})) || scenarios=(two leave)
+root="target/compat/multiplayer/$(basename "$bin")"
+rm -rf "$root" && mkdir -p "$root"
 limit=()
 if command -v gtimeout >/dev/null; then limit=(gtimeout 300); fi
 port=$((7900 + RANDOM % 100))
 address="ws://127.0.0.1:$port"
-"$relay" "127.0.0.1:$port" >"$out/relay.log" 2>&1 &
+"$relay" "127.0.0.1:$port" >"$root/relay.log" 2>&1 &
 relay_pid=$!
 trap 'kill $relay_pid 2>/dev/null || true' EXIT
 sleep 1
 capture=(--capture-size 960x540 --realtime)
-BANISHED_ROOM=TEST BANISHED_NET_CHECK=60 BANISHED_USER_DIR="$out/host" \
-  BANISHED_SETTINGS="$out/host.txt" ${limit[@]+"${limit[@]}"} "$bin" \
-  --boot-capture "$out/host.png" 45 "${capture[@]}" \
-  --press buttonMultiplayer@4.5 --text "numberSeed=$address@4.7" --press buttonOk@5 \
-  --press buttonOk@14 --press buttonLoad@17 >"$out/host.out" 2>"$out/host.log" &
-host=$!
-BANISHED_USER_DIR="$out/guest" BANISHED_SETTINGS="$out/guest.txt" ${limit[@]+"${limit[@]}"} "$bin" \
-  --boot-capture "$out/guest.png" 45 "${capture[@]}" \
-  --press buttonMultiplayer@6 --text "numberSeed=$address@6.2" --text editName=TEST@6.5 \
-  --press buttonOk@7 --press buttonOk@9 --press buttonOk@11 --script "speed 5@30" \
-  >"$out/guest.out" 2>"$out/guest.log" &
-guest=$!
-ok=1
-wait "$host" || ok=0
-wait "$guest" || ok=0
-agree="$(grep -c "the players agree" "$out/host.log" || true)"
-differ="$(grep -c "the players differ" "$out/host.log" || true)"
-started="$(grep -c "player 1 of 2 starts" "$out/guest.log" || true)"
-echo "  guest started: $started; checks agreed: $agree; differed: $differ"
-((started == 1 && agree >= 10 && differ == 0)) || ok=0
-if ((ok == 1)); then
+failed=0
+
+host() { # dir room seconds
+  BANISHED_ROOM="$2" BANISHED_NET_CHECK=60 BANISHED_USER_DIR="$1/host" \
+    BANISHED_SETTINGS="$1/host.txt" ${limit[@]+"${limit[@]}"} "$bin" \
+    --boot-capture "$1/host.png" "$3" "${capture[@]}" \
+    --press buttonMultiplayer@4.5 --text "numberSeed=$address@4.7" --press buttonOk@5 \
+    --press buttonOk@14 --press buttonLoad@17 >"$1/host.out" 2>"$1/host.log"
+}
+guest() { # dir name room seconds [option...]
+  local dir="$1" name="$2" room="$3" seconds="$4"
+  shift 4
+  BANISHED_USER_DIR="$dir/$name" BANISHED_SETTINGS="$dir/$name.txt" ${limit[@]+"${limit[@]}"} \
+    "$bin" --boot-capture "$dir/$name.png" "$seconds" "${capture[@]}" \
+    --press buttonMultiplayer@6 --text "numberSeed=$address@6.2" --text "editName=$room@6.5" \
+    --press buttonOk@7 --press buttonOk@9 --press buttonOk@11 "$@" \
+    >"$dir/$name.out" 2>"$dir/$name.log"
+}
+count() { grep -c "$1" "$2" || true; }
+
+run() { # two | leave
+  local name="$1" dir="$root/$1" room ok=1 pids=()
+  room="$(echo "$name" | tr '[:lower:]' '[:upper:]')"
+  mkdir -p "$dir/host/Save" "$dir/guest1" "$dir/guest2"
+  cp save-game/Save83.sav "$dir/host/Save/"
+  host "$dir" "$room" 50 &
+  pids+=($!)
+  guest "$dir" guest1 "$room" 50 --script "speed 5@30" &
+  pids+=($!)
+  if [[ $name == leave ]]; then
+    guest "$dir" guest2 "$room" 30 &
+    pids+=($!)
+  fi
+  for pid in "${pids[@]}"; do wait "$pid" || ok=0; done
+  local agree differ started summary
+  agree="$(count "the players agree" "$dir/host.log")"
+  differ="$(count "the players differ" "$dir/host.log")"
+  started="$(count " starts" "$dir/guest1.log")"
+  ((started == 1 && agree >= 10 && differ == 0)) || ok=0
+  summary="guest started: $started; checks agreed: $agree; differed: $differ"
+  if [[ $name == leave ]]; then
+    local left after
+    left="$(count "left; the game goes on" "$dir/host.log")"
+    # Checks after the departure: the two who stayed kept playing together.
+    after="$(sed -n '/left; the game goes on/,$p' "$dir/host.log" | grep -c "the players agree" || true)"
+    ((left == 1 && after >= 5)) || ok=0
+    summary+="; departures: $left; checks agreed after it: $after"
+  fi
+  echo "  $name: $summary: $([[ $ok == 1 ]] && echo identical || echo FAILED)"
+  [[ $ok == 1 ]] || failed=1
+}
+
+for s in "${scenarios[@]}"; do run "$s"; done
+if ((failed == 0)); then
   echo "multiplayer identical: $(basename "$bin")"
 else
-  echo "multiplayer FAILED: $(basename "$bin") (see $out)"
+  echo "multiplayer FAILED: $(basename "$bin") (see $root)"
   exit 1
 fi

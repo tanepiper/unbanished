@@ -268,10 +268,11 @@ impl MultiplayerDialog {
                     players,
                     delay,
                     check,
+                    absent,
                     bytes,
                 } = message
                 {
-                    match self.game(player, players, delay, check, &bytes) {
+                    match self.game(player, players, delay, check, &absent, &bytes) {
                         Ok(g) => outcome = Outcome::Start(Box::new(g)),
                         Err(e) => self.message = format!("The host's save: {e}"),
                     }
@@ -294,6 +295,8 @@ impl MultiplayerDialog {
         };
         // The relay numbers players as they come; the lockstep counts them from 0 without gaps.
         let count = players.iter().max().map_or(1, |&p| p + 1);
+        // Players who joined and left again before the start.
+        let absent: Vec<u8> = (0..count).filter(|p| !players.contains(p)).collect();
         let Some(link) = self.link.clone() else {
             return Outcome::Stay;
         };
@@ -302,13 +305,14 @@ impl MultiplayerDialog {
             players: count,
             delay: DELAY,
             check,
+            absent: absent.clone(),
             bytes,
         };
         link.borrow_mut().send(None, &start);
         let Message::Start { bytes, .. } = start else {
             unreachable!()
         };
-        match self.game(0, count, DELAY, check, &bytes) {
+        match self.game(0, count, DELAY, check, &absent, &bytes) {
             Ok(g) => {
                 self.close(ui, screen);
                 Outcome::Start(Box::new(g))
@@ -327,14 +331,15 @@ impl MultiplayerDialog {
         players: u8,
         delay: u64,
         check: u64,
+        absent: &[u8],
         bytes: &[u8],
     ) -> Result<GameplayLoop, String> {
         let saved = crate::saves::saved::SavedGame::parse(bytes).map_err(|e| e.to_string())?;
         let link = self.link.take().ok_or("no connection")?;
         let mut g = GameplayLoop::from_save(saved);
-        g.join_lockstep(player, players, delay);
+        g.start_lockstep(player, players, delay, absent);
         g.join_network(Box::new(Shared(link)), check);
-        log::info!("multiplayer: player {player} of {players} starts");
+        log::info!("multiplayer: player {} of {players} starts", player + 1);
         Ok(g)
     }
 

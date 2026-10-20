@@ -669,34 +669,39 @@ impl GameLoop for GameplayLoop {
                 return self.switch_reload(ctx, &bytes, update);
             }
         }
-        if self.lockstep.is_some() && !self.lockstep_slot(ctx) {
-            if online {
-                self.net_send();
-                self.refresh_players_line(ctx.ui, true);
-            }
+        // Held: the slot waits for another player's turn. The view and the windows go on, but
+        // nothing that changes the town runs, so every computer runs it the same number of times.
+        let held = self.lockstep.is_some() && !self.lockstep_slot(ctx);
+        if held && !online {
+            // A driven test game ([`network::NetPeer`]) only updates when its slot is ready.
             return Next::Stay;
         }
         if online {
             self.net_send();
-            self.refresh_players_line(ctx.ui, false);
-            match self.net_boundary(ctx, self.updates) {
-                Ok(Some((bytes, update))) => return self.switch_reload(ctx, &bytes, update),
-                Ok(None) => {}
-                Err(e) => log::error!("multiplayer: {e}"),
+            self.refresh_players_line(ctx.ui, held);
+            if !held {
+                match self.net_boundary(ctx, self.updates) {
+                    Ok(Some((bytes, update))) => return self.switch_reload(ctx, &bytes, update),
+                    Ok(None) => {}
+                    Err(e) => log::error!("multiplayer: {e}"),
+                }
             }
         }
         // A recording's digest of the state this update begins with, every few updates.
-        if self
-            .recorder
-            .as_ref()
-            .is_some_and(|r| r.every > 0 && self.updates % r.every == 0)
+        if !held
+            && self
+                .recorder
+                .as_ref()
+                .is_some_and(|r| r.every > 0 && self.updates % r.every == 0)
         {
             match self.digest(ctx, self.updates as u32) {
                 Ok(d) => self.recorder.as_mut().unwrap().digest(d),
                 Err(e) => log::warn!("recording: {e}"),
             }
         }
-        self.updates += 1;
+        if !held {
+            self.updates += 1;
+        }
         if let Some(d) = self.mods_dialog.as_mut() {
             d.poll(ctx.ui, ctx.settings, ctx.mods);
         }
@@ -797,14 +802,16 @@ impl GameLoop for GameplayLoop {
         }
         let mut models_changed = false;
         let mut iterations = 0;
-        if !self.paused && !pauses_game {
+        // The town moves only on an update every player runs.
+        let runs = !pauses_game && !held;
+        if !self.paused && runs {
             for _ in 0..SPEED_LEVELS[self.speed as usize] {
                 let _p = crate::platform::perf::scope("sim.iterate");
                 models_changed |= self.iterate(ctx.archive, dt);
                 iterations += 1;
             }
         }
-        if !pauses_game {
+        if runs {
             self.update_goal(ctx, dt, ticks(dt * iterations as f32));
             self.update_achievements(ctx, ticks(dt * iterations as f32));
             self.force_restricted_tool(ctx);
@@ -834,7 +841,7 @@ impl GameLoop for GameplayLoop {
             self.refresh_weather(ctx, dt * iterations as f32);
         }
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
-        if let (Some(town), Some(view), false) = (&mut self.town, &mut self.view, pauses_game) {
+        if let (Some(town), Some(view), true) = (&mut self.town, &mut self.view, runs) {
             let grid = banished_game::terrain::HeightGrid {
                 width: view.terrain.size + 1,
                 heights: &view.terrain.heights,
@@ -928,7 +935,10 @@ impl GameLoop for GameplayLoop {
         // AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage
         // (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets
         // the game speed (`Game +0x120 → +0x34`) back to 1.
-        if std::mem::take(&mut self.events.slow_request) && ctx.settings.game.auto_slow {
+        // Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on
+        // each player's own setting.
+        let auto_slow = ctx.settings.game.auto_slow || self.lockstep.is_some();
+        if std::mem::take(&mut self.events.slow_request) && auto_slow {
             self.speed = 0;
         }
         self.move_cooldown -= dt;

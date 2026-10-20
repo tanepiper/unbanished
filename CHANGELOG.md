@@ -48,6 +48,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
   or join one with its code. The host starts the game from one of its saves, and every player
   plays the same town; the speed and the pause are shared, and a line at the foot of the screen
   shows the players (step 6). The button is not in the original game.
+- Multiplayer: while the game waits for another player, the camera and the windows keep
+  working, and the line at the foot of the screen names the player it waits for. A player who
+  leaves no longer stops the game: the others play on without them. A command given while the
+  game waited was lost; it now goes into the next turn.
 
 ## [0.2.0] - 2026-10-19
 

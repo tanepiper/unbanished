@@ -24,6 +24,10 @@ pub trait Link {
     fn send(&mut self, to: Option<u8>, message: &Message);
     /// What arrived, with the player it came from.
     fn poll(&mut self) -> Vec<(u8, Message)>;
+    /// The players who left since the last call (after everything they sent was polled).
+    fn left(&mut self) -> Vec<u8> {
+        Vec::new()
+    }
 }
 
 /// A game's side of a multiplayer session: the link to the other players and the host's
@@ -44,6 +48,10 @@ pub struct NetState {
     /// other players' turns.
     line: Option<banished_ui::NodeId>,
     waiting: u32,
+    /// The line's text as last set.
+    shown: String,
+    /// Players who left, not yet taken out of the lockstep (a resync's save came first).
+    leaving: Vec<u8>,
 }
 
 impl NetState {
@@ -51,6 +59,7 @@ impl NetState {
     pub(super) fn forget_line(&mut self) {
         self.line = None;
         self.waiting = 0;
+        self.shown.clear();
     }
 
     /// The host's check of `update`, once every player's digest is in.
@@ -83,7 +92,20 @@ impl GameplayLoop {
             driven: false,
             line: None,
             waiting: 0,
+            shown: String::new(),
+            leaving: Vec::new(),
         });
+    }
+
+    /// Plays in lockstep as `player` of `players`; the `absent` players left before the
+    /// start.
+    pub fn start_lockstep(&mut self, player: u8, players: u8, delay: u64, absent: &[u8]) {
+        self.join_lockstep(player, players, delay);
+        if let Some(l) = &mut self.lockstep {
+            for &p in absent {
+                l.leave(p);
+            }
+        }
     }
 
     /// The session, if this is a multiplayer game.
@@ -100,6 +122,8 @@ impl GameplayLoop {
         };
         let mut arrived: std::collections::VecDeque<(u8, Message)> = net.inbox.drain(..).collect();
         arrived.extend(net.link.poll());
+        let left = net.link.left();
+        net.leaving.extend(left);
         let any = !arrived.is_empty();
         while let Some((_, message)) = arrived.pop_front() {
             match message {
@@ -119,6 +143,22 @@ impl GameplayLoop {
                     return (true, Some((bytes, update)));
                 }
                 Message::Start { .. } => log::warn!("a start in a game already started"),
+            }
+        }
+        // Who left, once every turn they sent is in.
+        let leaving = std::mem::take(&mut self.net.as_mut().unwrap().leaving);
+        for player in leaving {
+            let Some(l) = self.lockstep.as_mut() else {
+                continue;
+            };
+            let (from, checks) = l.leave(player);
+            log::info!(
+                "multiplayer: player {} left; the game goes on from slot {from}",
+                player + 1
+            );
+            let net = self.net.as_mut().unwrap();
+            for (update, agree) in checks {
+                net.checked(update, Some(agree));
             }
         }
         (any, None)
@@ -204,23 +244,49 @@ impl GameplayLoop {
         let (Some(net), Some(l)) = (self.net.as_mut(), self.lockstep.as_ref()) else {
             return;
         };
-        let before = net.waiting;
-        net.waiting = if waiting { before.saturating_add(1) } else { 0 };
-        // Waiting a moment (half a second) is normal; longer is shown.
-        let shown = |w: u32| w >= 30;
-        if before != 0 && shown(before) == shown(net.waiting) {
-            return;
-        }
+        net.waiting = if waiting {
+            net.waiting.saturating_add(1)
+        } else {
+            0
+        };
         let Some(line) = net.line else {
             return;
         };
-        let text = if shown(net.waiting) {
-            "Waiting for the other players...".to_string()
+        // Waiting a moment (half a second) is normal; longer is shown.
+        let mut text = if net.waiting >= 30 {
+            let missing: Vec<String> = l
+                .missing(self.updates)
+                .iter()
+                .map(|p| (p + 1).to_string())
+                .collect();
+            let who = if missing.len() == 1 {
+                "player"
+            } else {
+                "players"
+            };
+            format!("Waiting for {who} {}", missing.join(", "))
         } else {
-            let host = if l.player == 0 { " (the host)" } else { "" };
-            format!("You are player {} of {}{host}", l.player + 1, l.players)
+            let host = if l.player == 0 { ", the host" } else { "" };
+            format!("Player {} of {}{host}", l.player + 1, l.players)
         };
-        ui.set_text(line, &text);
+        let gone = l.departed();
+        if !gone.is_empty() {
+            let names: Vec<String> = gone.keys().map(|p| (p + 1).to_string()).collect();
+            text += &match names.len() {
+                1 => format!(". Player {} has left", names[0]),
+                _ => format!(". Players {} have left", names.join(", ")),
+            };
+            if gone.contains_key(&0) {
+                text += "; without the host the games are not compared";
+            }
+        }
+        if text.starts_with("Waiting") != net.shown.starts_with("Waiting") {
+            log::info!("multiplayer: update {}: {text}", self.updates);
+        }
+        if text != net.shown {
+            ui.set_text(line, &text);
+            net.shown = text;
+        }
     }
 
     /// The host found a desync it has not resynced yet.
@@ -277,6 +343,7 @@ impl NetPeer {
             players,
             delay,
             check: self.check,
+            absent: Vec::new(),
             bytes,
         };
         if let Some(link) = &mut self.link {
@@ -290,6 +357,7 @@ impl NetPeer {
             players,
             delay,
             check,
+            absent,
             bytes,
         } = start
         else {
@@ -297,7 +365,7 @@ impl NetPeer {
         };
         let saved = crate::saves::saved::SavedGame::parse(&bytes).map_err(|e| e.to_string())?;
         let mut g = GameplayLoop::from_save(saved);
-        g.join_lockstep(self.player, players, delay);
+        g.start_lockstep(self.player, players, delay, &absent);
         g.load(ctx);
         g.startup(ctx);
         g.autosave = None;
@@ -382,6 +450,8 @@ pub struct RelayLink {
     connection: banished_net::Connection,
     /// The relay's other news (who joined, errors), for the session to read.
     pub events: Vec<banished_net::FromRelay>,
+    /// Players who left, for [`Link::left`].
+    departed: Vec<u8>,
 }
 
 impl RelayLink {
@@ -389,6 +459,7 @@ impl RelayLink {
         RelayLink {
             connection,
             events: Vec::new(),
+            departed: Vec::new(),
         }
     }
 
@@ -418,10 +489,21 @@ impl Link for RelayLink {
                         Err(e) => log::warn!("player {from}: {e}"),
                     }
                 }
+                banished_net::FromRelay::PeerLeft { player } => {
+                    self.departed.push(player);
+                    self.events
+                        .push(banished_net::FromRelay::PeerLeft { player });
+                }
                 other => self.events.push(other),
             }
         }
         out
+    }
+
+    fn left(&mut self) -> Vec<u8> {
+        // In a game nobody else reads the news: it is dropped here.
+        self.events.clear();
+        std::mem::take(&mut self.departed)
     }
 }
 
@@ -435,6 +517,10 @@ impl<L: Link> Link for Shared<L> {
 
     fn poll(&mut self) -> Vec<(u8, Message)> {
         self.0.borrow_mut().poll()
+    }
+
+    fn left(&mut self) -> Vec<u8> {
+        self.0.borrow_mut().left()
     }
 }
 
