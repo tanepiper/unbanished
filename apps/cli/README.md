@@ -1,7 +1,7 @@
 # banished-cli
 
-Command-line tools for the game data of Banished. It has two commands: `export-audio`, and
-`nexus` for mods from Nexus Mods.
+Command-line tools for the game data of Banished. It has three commands: `export-audio`,
+`nexus` for mods from Nexus Mods, and `banishedinfo` for mods from banishedinfo.com.
 
 ## export-audio
 
@@ -65,3 +65,26 @@ cargo run --release -p banished-cli -- nexus install 19 --to path/to/WinData
 `--to` defaults to `game-data/original/WinData`. The user guide's
 [Mods from Nexus Mods](../../docs/USER-GUIDE.md#mods-from-nexus-mods-optional) explains the key,
 Premium and `nxm://` links. The library is [banished-nexus](../../crates/nexus/README.md).
+
+## banishedinfo
+
+List, search and install the Banished mods on
+[banishedinfo.com](https://banishedinfo.com/mods/browse). This is not part of the original game.
+No account is needed, and requests go to the site only when you run a command.
+
+```bash
+cargo run --release -p banished-cli -- banishedinfo list --sort downloads
+cargo run --release -p banished-cli -- banishedinfo install 34 --to path/to/WinData
+```
+
+| Command | Effect |
+|---|---|
+| `banishedinfo list [--sort featured\|downloads\|trending\|recent] [--section NAME] [--page N]` | List the site's mods, 20 to a page |
+| `banishedinfo search TEXT` | Search the mods |
+| `banishedinfo versions MOD_ID` | List a mod's versions, newest first |
+| `banishedinfo install MOD_ID [VERSION] [--to WINDATA]` | Download and install a version (the newest by default) |
+
+`MOD_ID` is the number in the mod's address. The sections are `audio`, `buildings`, `gameplay`,
+`maps`, `textures`, `translations` and `translated-mods`. `--to` defaults to
+`game-data/original/WinData`. The [Mods](../../docs/USER-GUIDE.md#mods) section of the user
+guide explains the rest, under "Mods from banishedinfo.com". The library is [banished-banishedinfo](../../crates/banishedinfo/README.md).

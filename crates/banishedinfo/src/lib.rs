@@ -12,6 +12,10 @@
 //! browser page cannot read it: the support is for native builds (`native`).
 //!
 //! This crate builds the addresses and reads the answers; [`native`] sends the requests.
+#![doc(
+    html_logo_url = "https://tanepiper.github.io/unbanished/assets/un-banished-icon.svg",
+    html_favicon_url = "https://tanepiper.github.io/unbanished/favicon.svg"
+)]
 
 use serde_json::Value;
 

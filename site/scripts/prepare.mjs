@@ -86,6 +86,7 @@ const PAGES = {
   'crates/audio/README.md': { path: '/reference/audio', description: 'banished-audio: sound decoding and playback.' },
   'crates/wma/README.md': { path: '/reference/wma', description: 'banished-wma: a WMA v2 decoder.' },
   'crates/mods/README.md': { path: '/reference/mods', description: 'banished-mods: the mod list shared by the game and the mod manager.' },
+  'crates/banishedinfo/README.md': { path: '/reference/banishedinfo', description: 'banished-banishedinfo: optional banishedinfo.com support.' },
   'crates/nexus/README.md': { path: '/reference/nexus', description: 'banished-nexus: optional Nexus Mods support.' },
 }
 

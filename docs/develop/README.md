@@ -59,7 +59,7 @@ The full rules are in [AGENTS.md](../../AGENTS.md). These are the most important
 | `crates/formats` | Readers for the game's files |
 | `crates/ui` | The game's interface system |
 | `crates/gfx`, `crates/audio`, `crates/wma` | Shared rendering, sound playback, the WMA decoder |
-| `crates/mods`, `crates/nexus` | The mod list shared by the game and the mod manager; optional Nexus Mods support |
+| `crates/mods`, `crates/nexus`, `crates/banishedinfo` | The mod list shared by the game and the mod manager; optional Nexus Mods and banishedinfo.com support |
 | `tools/` | Data extraction, emulator checks, analysis and comparison scripts |
 | `docs/` | Research notes about the original game, and these pages |
 | `site/` | This website |

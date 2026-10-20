@@ -193,6 +193,7 @@ export default defineConfig({
             { text: 'banished-wma', link: '/reference/wma' },
             { text: 'banished-mods', link: '/reference/mods' },
             { text: 'banished-nexus', link: '/reference/nexus' },
+            { text: 'banished-banishedinfo', link: '/reference/banishedinfo' },
             { text: 'API documentation', link: '/develop/api' },
           ],
         },

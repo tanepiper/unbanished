@@ -11,15 +11,17 @@ set -euo pipefail
 site="$(cd "$(dirname "$0")/.." && pwd)"
 repo="$(cd "$site/.." && pwd)"
 crates=(banished-core banished-terrain banished-path banished-game banished-formats banished-ui
-  banished-gfx banished-audio banished-wma banished-mods banished-nexus)
+  banished-gfx banished-audio banished-wma banished-mods banished-nexus
+  banished-banishedinfo)
 
 args=()
 for c in "${crates[@]}"; do args+=(-p "$c"); done
 export CARGO_TARGET_DIR="$repo/target/api"
 # The dark theme by default, with the website's colours (api-header.html).
 export RUSTDOCFLAGS="--default-theme=dark --html-in-header $site/scripts/api-header.html"
-# banished-nexus with `native`, so its native module (sending requests, the API key) is shown.
-cargo doc --manifest-path "$repo/Cargo.toml" --no-deps --lib "${args[@]}" --features banished-nexus/native
+# banished-nexus and banished-banishedinfo with `native`, so their native modules (sending requests,
+# installing) are shown.
+cargo doc --manifest-path "$repo/Cargo.toml" --no-deps --lib "${args[@]}" --features banished-nexus/native,banished-banishedinfo/native
 
 out="$site/public/api"
 rm -rf "$out"
@@ -38,6 +40,7 @@ describe() {
     banished-audio) echo "Sound decoding and playback: the 64-channel device and the sound scene." ;;
     banished-wma) echo "A decoder for Windows Media Audio v2, the codec of the game's sounds." ;;
     banished-mods) echo "The mod list shared by the game and the mod manager: packages, order and conflicts." ;;
+    banished-banishedinfo) echo "Optional banishedinfo.com support: list and search its Banished mods and install them." ;;
     banished-nexus) echo "Optional Nexus Mods support: search Banished mods and install their packages." ;;
   esac
 }

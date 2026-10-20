@@ -1,6 +1,6 @@
 # Apps and crates
 
-The Un-Banished workspace has four programs and eleven libraries. Each one has a README with its
+The Un-Banished workspace has four programs and twelve libraries. Each one has a README with its
 purpose, how to use it, and examples.
 
 ## Programs
@@ -30,6 +30,7 @@ purpose, how to use it, and examples.
 | [`banished-audio`](../../crates/audio/README.md) | Sound decoding and playback: the 64-channel device and the sound scene | formats, wma |
 | [`banished-wma`](../../crates/wma/README.md) | A decoder for Windows Media Audio v2, the codec of the game's sounds | nothing |
 | [`banished-mods`](../../crates/mods/README.md) | The mod list (`IO::Modification`) shared by the game and the mod manager: the `.pkm` packages, which are enabled, their order and conflicts, and the settings file | formats |
+| [`banished-banishedinfo`](../../crates/banishedinfo/README.md) | Optional [banishedinfo.com](https://banishedinfo.com/mods/browse) support, not part of the original game: listing and searching the site's mods, their versions, and installing them (desktop only) | nexus (its installer); ureq with the `native` feature |
 | [`banished-nexus`](../../crates/nexus/README.md) | Optional Nexus Mods support, not part of the original game: searching Banished mods, download links with the player's API key, and the `.pkm` packages in a download | nothing (zip, serde_json; ureq with the `native` feature) |
 
 `banished-game` re-exports `banished-core`, `banished-terrain` and `banished-path`. For
@@ -40,16 +41,16 @@ example, `banished_game::random` is the same module as `banished_core::random`, 
 
 | Program | Uses |
 |---|---|
-| `banished` | game, formats, ui, gfx, audio, mods, nexus |
+| `banished` | game, formats, ui, gfx, audio, mods, nexus, banishedinfo |
 | `banished-viewer` | game, formats, ui, gfx, audio, wma |
-| `banished-cli` | formats, nexus |
-| `banished-mods` | mods, nexus |
+| `banished-cli` | formats, nexus, banishedinfo |
+| `banished-mods` | mods, nexus, banishedinfo |
 
 The libraries form layers. A crate uses only crates in the layers below it:
 
 1. `banished-core`, `banished-formats`, `banished-wma`, `banished-nexus`: no dependencies on
    other crates of the workspace.
-2. `banished-terrain`, `banished-ui`, `banished-audio`, `banished-mods`.
+2. `banished-terrain`, `banished-ui`, `banished-audio`, `banished-mods`, `banished-banishedinfo`.
 3. `banished-path`, `banished-gfx`.
 4. `banished-game`.
 
