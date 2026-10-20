@@ -31,6 +31,7 @@ pollster = "1"
 png = "0.18"
 jiff = { version = "0.2", default-features = false, features = ["std", "tz-system"] }
 banished-nexus = { path = "../../crates/nexus", features = ["native"] }
+banished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.129"

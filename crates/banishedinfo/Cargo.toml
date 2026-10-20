@@ -1,0 +1,18 @@
+[package]
+name = "banished-banishedinfo"
+version.workspace = true
+description = "Optional banishedinfo.com support for Un-Banished: list and search the site's Banished mods and install the .pkm packages of a version"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+# Blocking HTTP (ureq) for native builds. The site sends no CORS headers, so browsers cannot use it.
+native = ["dep:ureq", "banished-nexus/native"]
+
+[dependencies]
+# For its installer (packages from .zip and .pkm downloads).
+banished-nexus = { path = "../nexus" }
+serde_json = "1"
+ureq = { version = "3.4.2", optional = true }

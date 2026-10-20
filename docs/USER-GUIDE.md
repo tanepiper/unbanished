@@ -457,6 +457,32 @@ cargo run --release -p banished-cli -- nexus install 19 --to path/to/WinData
 `nexus whoami` shows the account the key belongs to, `nexus files MOD_ID` lists a mod's files,
 and `nexus install 'nxm://…'` installs from a Mod Manager Download link.
 
+
+### Mods from banishedinfo.com (optional, desktop)
+
+[banishedinfo.com](https://banishedinfo.com/mods/browse) is a fan site with many Banished mods.
+It needs no account. Un-Banished can list, search and install its mods on the desktop. The
+browser version cannot, because the site does not allow other web pages to read it.
+
+- **Mod manager:** open the **banishedinfo.com** tab. Choose an order (Featured, Most
+  downloaded, Popular today, Newest) and a section, or search. **Install newest** installs the
+  newest version; **Versions…** lists the others.
+- **Game:** add the line `ModBrowseSource=banishedinfo` to the [settings file](#settings). The
+  Mods menu's Browse tab then shows banishedinfo.com instead of Nexus Mods. **Most Popular** is
+  the most downloaded, **Most Recent** the newest, and **+** installs the newest version.
+- **Command line:**
+
+```bash
+cargo run --release -p banished-cli -- banishedinfo list --sort downloads
+```
+
+```bash
+cargo run --release -p banished-cli -- banishedinfo install 34 --to path/to/WinData
+```
+
+Un-Banished reads the site only when you list, search or install, and it names itself in each
+request. As for Nexus Mods, it installs `.zip` and `.pkm` downloads; unpack `.7z` and `.rar`
+files yourself.
 ## Command-line options
 
 To play, you need at most one argument: the `WinData` folder (`banished PATH`). The other

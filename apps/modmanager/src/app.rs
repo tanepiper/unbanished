@@ -8,6 +8,7 @@ use banished_mods::text::{self, TextSettings};
 use banished_mods::Modification;
 use eframe::egui::{self, Color32, RichText};
 
+use crate::banishedinfo_tab::BanishedInfoTab;
 use crate::launch;
 use crate::lists;
 use crate::nexus_tab::NexusTab;
@@ -16,6 +17,7 @@ use crate::nexus_tab::NexusTab;
 enum Tab {
     Installed,
     Nexus,
+    BanishedInfo,
 }
 
 pub struct App {
@@ -32,6 +34,7 @@ pub struct App {
     list_name: String,
     lists: Vec<String>,
     nexus: NexusTab,
+    banishedinfo: BanishedInfoTab,
     /// Test captures: `BANISHED_MODS_SCREENSHOT=out.png` saves the window after a few seconds
     /// and quits (`BANISHED_MODS_TAB=nexus` and `BANISHED_MODS_SELECT=N` set up the view).
     capture: Option<(PathBuf, std::time::Instant, bool)>,
@@ -92,12 +95,15 @@ impl App {
             list_name: String::new(),
             lists: launch::lists_dir().map_or_else(Vec::new, |d| lists::names(&d)),
             nexus: NexusTab::new(),
+            banishedinfo: BanishedInfoTab::new(),
             capture: std::env::var_os("BANISHED_MODS_SCREENSHOT")
                 .map(|p| (PathBuf::from(p), std::time::Instant::now(), false)),
         };
         app.rescan();
-        if std::env::var("BANISHED_MODS_TAB").as_deref() == Ok("nexus") {
-            app.tab = Tab::Nexus;
+        match std::env::var("BANISHED_MODS_TAB").as_deref() {
+            Ok("nexus") => app.tab = Tab::Nexus,
+            Ok("banishedinfo") => app.tab = Tab::BanishedInfo,
+            _ => {}
         }
         app.selected = std::env::var("BANISHED_MODS_SELECT")
             .ok()
@@ -196,6 +202,7 @@ impl App {
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.tab, Tab::Installed, "Installed mods");
             ui.selectable_value(&mut self.tab, Tab::Nexus, "Nexus Mods");
+            ui.selectable_value(&mut self.tab, Tab::BanishedInfo, "banishedinfo.com");
         });
     }
 
@@ -519,11 +526,12 @@ impl eframe::App for App {
                     .show(ui, |ui| self.details(&ctx, ui));
                 egui::CentralPanel::default().show(ui, |ui| self.installed_tab(&ctx, ui));
             }
-            Tab::Nexus => {
+            Tab::Nexus | Tab::BanishedInfo => {
+                let dir = self.dir.clone();
                 let installed = egui::CentralPanel::default()
-                    .show(ui, |ui| {
-                        self.nexus
-                            .ui(&ctx, ui, &self.dir, self.settings_path.as_deref())
+                    .show(ui, |ui| match self.tab {
+                        Tab::Nexus => self.nexus.ui(&ctx, ui, &dir, self.settings_path.as_deref()),
+                        _ => self.banishedinfo.ui(&ctx, ui, &dir),
                     })
                     .inner;
                 if installed {

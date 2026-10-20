@@ -14,4 +14,5 @@ path = "src/main.rs"
 banished-mods = { path = "../../crates/mods" }
 banished-nexus = { path = "../../crates/nexus", features = ["native"] }
 png = "0.18"
+banished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"] }
 eframe = "0.37.0"

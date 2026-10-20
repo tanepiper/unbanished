@@ -13,4 +13,5 @@ path = "src/main.rs"
 [dependencies]
 banished-formats = { path = "../../crates/formats" }
 banished-nexus = { path = "../../crates/nexus", features = ["native"] }
+banished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"] }
 serde_json = "1"

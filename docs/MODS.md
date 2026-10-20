@@ -144,6 +144,16 @@ Deviation (`apps/game/src/ui/mod_browse.rs`, `apps/game/src/platform/nexus.rs`):
 - The tab's label says "Browse Nexus Mods". Not ported: previews (`imageModPreview` is hidden),
   Unsubscribe (hidden), and `.7z` and `.rar` archives (the player unpacks them).
 
+With `ModBrowseSource=banishedinfo` in the settings (native builds), the same tab shows
+[banishedinfo.com](https://banishedinfo.com/mods/browse) instead, through `crates/banishedinfo`
+(also a deviation). The site has no API: the client uses the JSON list its browse page loads
+(`/mods/ajax?action=mods&start&count&section&sort`), the results its search page carries
+(`var mods = […]`), and the version links of a mod's page (`/mods/download/<id>-<name>/<n>`, whose
+`/mods/file/…` redirects to the file). Most Popular is the most downloaded, Most Recent the newest,
+and Subscribed lists the mods installed from it (`BanishedInfoMod_<file>=<id>`). It sends no CORS
+headers, so the browser build cannot use it. Previews show when a thumbnail is a PNG; many are
+JPEG files named `.png` and are not shown yet.
+
 Test mods (git-ignored, from banishedinfo.com) live in `game-data/mods/downloads`.
 `game-data/modtest/WinData` links them beside the game's packages for captures:
 

@@ -15,7 +15,8 @@
 //! Nexus Mods). Subscribe installs the mod's main file with a Premium account; otherwise it
 //! opens the mod's files page, whose "Mod Manager Download" gives an `nxm://` link, and a link
 //! pasted into the search box installs that file. The tab's label reads "Browse Nexus Mods".
-//! Not ported: previews (the images are JPEG) and Unsubscribe, which stays hidden.
+//! Previews show for PNG thumbnails (banishedinfo.com, native builds); Nexus Mods' are JPEG and
+//! are not shown. Not ported: Unsubscribe, which stays hidden.
 
 use banished_nexus::api::{self, ModSummary, Sort};
 use banished_nexus::nxm::NxmLink;
@@ -34,6 +35,8 @@ type Param = Option<(NodeId, String)>;
 struct Result {
     summary: ModSummary,
     subscribe: Option<NodeId>,
+    /// The preview image (hidden until a preview arrives).
+    preview: Option<NodeId>,
 }
 
 /// The order the sort list's entries stand for.
@@ -115,21 +118,21 @@ impl Browse {
     ) -> Option<Browse> {
         let group = ui.find(root, "groupBrowse");
         let progress_group = ui.find(root, "groupProgress");
-        let key = nexus::key(settings);
-        let (Some(key), Some(group)) = (key, group) else {
+        let source = nexus::source(settings);
+        let (Some((site, key)), Some(group)) = (source, group) else {
             // The build without Steam: no Browse tab and no Workshop progress.
             show(ui, ui.find(root, "buttonBrowse"), false);
             show(ui, progress_group, false);
             return None;
         };
         if let Some(label) = ui.find(root, "labelBrowse") {
-            ui.set_text(label, "Browse Nexus Mods");
+            ui.set_text(label, site.label());
         }
         let browser = ui.instantiate(BROWSER)?;
         ui.add_child(group, browser);
         let f = |ui: &Ui, n: &str| ui.find(browser, n);
         let b = Browse {
-            nexus: Nexus::new(key, dir),
+            nexus: Nexus::new(site, key, dir),
             search: f(ui, "textSearch"),
             search_button: f(ui, "buttonSearch"),
             sort: f(ui, "comboSort"),
@@ -170,13 +173,18 @@ impl Browse {
     }
 
     /// The ids of the mods installed from Nexus Mods (`NexusMod_<file>` in the settings).
-    fn installed(settings: &Persistence, mods: Option<&crate::mods::Modification>) -> Vec<u32> {
+    fn installed(
+        &self,
+        settings: &Persistence,
+        mods: Option<&crate::mods::Modification>,
+    ) -> Vec<u32> {
+        let section = self.nexus.site().record_section();
         let mut ids: Vec<u32> = mods
             .into_iter()
             .flat_map(|m| m.mods.iter())
             .filter_map(|m| {
                 let mut id = 0;
-                settings.get_int(nexus::MOD_SECTION, &m.file, &mut id);
+                settings.get_int(section, &m.file, &mut id);
                 (id > 0).then_some(id as u32)
             })
             .collect();
@@ -205,7 +213,7 @@ impl Browse {
                 },
                 page: self.page,
             },
-            Order::Subscribed => Task::Installed(Self::installed(settings, mods)),
+            Order::Subscribed => Task::Installed(self.installed(settings, mods)),
         };
         if let Task::Installed(ids) = &task {
             if ids.is_empty() {
@@ -258,11 +266,19 @@ impl Browse {
                 ui.node_mut(t).tooltip = format!("{} (by {})\n{}", m.name, m.author, m.summary);
             }
             show(ui, ui.find(group, "buttonUnsubscribe"), false);
-            // Previews are not ported: hide the loading image that stands in for one.
-            show(ui, ui.find(group, "imageModPreview"), false);
+            // The loading image stands in for a preview until one arrives (PNG thumbnails only).
+            let preview = ui.find(group, "imageModPreview");
+            show(ui, preview, false);
+            if let Some(url) = m.thumbnail.as_ref().filter(|u| u.ends_with(".png")) {
+                self.nexus.start(Task::Preview {
+                    mod_id: m.mod_id,
+                    url: url.clone(),
+                });
+            }
             self.results.push(Result {
                 summary: m,
                 subscribe: ui.find(group, "buttonSubscribe"),
+                preview,
             });
         }
     }
@@ -415,7 +431,7 @@ impl Browse {
                 Reply::Installed(mod_id, found) => {
                     self.installing = None;
                     for (file, _) in &found {
-                        settings.set_int(nexus::MOD_SECTION, file, mod_id as i32);
+                        settings.set_int(self.nexus.site().record_section(), file, mod_id as i32);
                     }
                     log::info!(
                         "Nexus Mods: installed mod {mod_id}: {} package(s)",
@@ -425,6 +441,19 @@ impl Browse {
                     show(ui, self.ribbon_progress, false);
                     show(ui, self.ribbon_available, true);
                 }
+                Reply::Preview(mod_id, w, h, rgba) => {
+                    let key = format!("modpreview:{mod_id}");
+                    let sprite = ui.res.image_sheet(&key, w, h, rgba);
+                    for r in self.results.iter().filter(|r| r.summary.mod_id == mod_id) {
+                        if let Some(n) = r.preview {
+                            if let Kind::Image { sprite: s, .. } = &mut ui.node_mut(n).kind {
+                                *s = Some(sprite.clone());
+                            }
+                            ui.set_visible(n, true);
+                        }
+                    }
+                }
+                Reply::Failed(message) if message.is_empty() => {}
                 Reply::NeedsLink(mod_id) => {
                     self.installing = None;
                     self.premium = Some(false);

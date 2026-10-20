@@ -84,6 +84,7 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 | `crates/ui` | The game's UI system (element tree, layout, fonts, controls, input) |
 | `crates/gfx`, `crates/audio`, `crates/wma` | wgpu helpers, xWMA playback, WMA v2 decoder |
 | `crates/mods` | The mod list (`Modification`, `IO::Modification`) shared by the game and the mod manager, and a text store for the settings file |
+| `crates/banishedinfo` | Optional banishedinfo.com support (not in the original): its mod list, search and versions, and installs; native only (the site sends no CORS headers) |
 | `crates/nexus` | Optional Nexus Mods support (not in the original): search, download links with the player's API key, `.pkm` install from archives; native transport behind the `native` feature |
 | `tools/emu` | Unicorn harness `pe_emu.py` and ground-truth generators for the tests |
 | `tools/ghidra` | Headless export scripts, `readdata.py` (constants), `vtable.py` |

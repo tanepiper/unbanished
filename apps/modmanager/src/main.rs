@@ -1,6 +1,6 @@
 //! The Un-Banished mod manager (`banished-mods`): a small desktop tool to turn mods on and off
 //! and set their order before the game starts, keep named mod lists, install mods from Nexus
-//! Mods, and start the game.
+//! Mods and banishedinfo.com, and start the game.
 //!
 //! It is not part of the original game. It reads the `.pkm` packages in the pack directory
 //! (`WinData`) and writes the same settings the game's Mods dialog writes (`ModEnabled_<file>`,
@@ -11,6 +11,7 @@
 //! ```
 
 mod app;
+mod banishedinfo_tab;
 mod launch;
 mod lists;
 mod nexus_tab;

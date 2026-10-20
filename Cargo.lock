@@ -499,6 +499,7 @@ name = "banished-app"
 version = "0.3.0"
 dependencies = [
  "banished-audio",
+ "banished-banishedinfo",
  "banished-formats",
  "banished-game",
  "banished-gfx",
@@ -539,9 +540,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "banished-banishedinfo"
+version = "0.3.0"
+dependencies = [
+ "banished-nexus",
+ "serde_json",
+ "ureq",
+]
+
+[[package]]
 name = "banished-cli"
 version = "0.3.0"
 dependencies = [
+ "banished-banishedinfo",
  "banished-formats",
  "banished-nexus",
  "serde_json",
@@ -580,6 +591,7 @@ dependencies = [
 name = "banished-modmanager"
 version = "0.3.0"
 dependencies = [
+ "banished-banishedinfo",
  "banished-mods",
  "banished-nexus",
  "eframe",
