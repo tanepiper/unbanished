@@ -191,6 +191,48 @@ Also tried: rebuilding a model group's instances only when its placements change
 running town almost every group changes every frame, because the growth smoothing changes the
 trees' scales, so the comparison cost more than it saved. It was not kept.
 
+## Frame rate of a mid-sized town (2026-10-20)
+
+Goldfoothill is a vanilla player save (no mods): year 83, 565 citizens, 371 buildings (164
+wood houses, 62 storage barns, 24 fields, 23 iron mines), 433 animals. It is kept locally as
+`save-game/Goldfoothill.sav` (saves are never committed). The target is 60 frames a second.
+
+**Browser, measured.** The game loaded from the start page's Load dialog through the
+[probe](develop/PROBE.md), in a 1280×720 page; frames counted with `requestAnimationFrame` for
+20 s after 11 s of play. Apple M3, headless Chrome (WebGPU) and Firefox Nightly 160 (WebGL 2).
+
+| Game speed | Chrome fps | Chrome frames over 20 ms | Firefox fps |
+|---|---|---|---|
+| 1 | 59.9 | 3 of 1197 | 58.3 |
+| 5 | 54.5 | 111 of 1089 | 28.2 |
+| 10 | 28.1 | 485 of 562 | 23.3 |
+
+The main menu runs at a steady 60 in both.
+
+**Desktop, profiled.** Headless captures at 1920×1080 with `BANISHED_PROFILE=1`, 80 s, the
+second and third 600-frame summaries (after loading). The profiler waits for the GPU every
+frame, so its frame time is CPU and GPU added up; a window overlaps them. Per 1/60 s update
+(the profiler's per-frame sums halved, since a capture frame runs two updates):
+
+| Phase | Speed 1 | Speed 10 |
+|---|---|---|
+| `sim.iterate` (all of the simulation) | 1.0 ms | 8.3 ms |
+| of which `sim.citizens` | 0.6 ms | 5.2 ms |
+| `refresh_models` + `audio` + `refresh_particles` | 4.0 ms | 4.1 ms |
+| `draw` on the CPU (without the GPU) | 3.2 ms | 3.2 ms |
+| `draw.gpu` | 6.5 ms | 9.7 ms |
+| One update and one draw, GPU waited for | 15.0 ms (66 fps) | 25.7 ms (39 fps) |
+| The same with CPU and GPU overlapped (estimate) | about 117 fps | about 62 fps |
+
+Speed 5 lies between: 19.5 ms (51 fps) with the GPU waited for, about 83 fps overlapped. The
+highest video settings change little here (66 → 67 fps waited for).
+
+So the desktop holds 60 at speeds 1 and 5 with room to spare, and is near 60 at speed 10. The
+browser holds 60 only at speed 1. At speed 10 the simulation (most of it the citizens) takes
+half a 60 fps frame even natively; the browser runs it on one thread in WebAssembly, and drops
+to 28 fps in Chrome. The scene refresh (models, ambience, particles) costs 4 ms every update
+whatever the speed, and is the next largest CPU cost.
+
 ## Opportunities
 
 Ranked by expected gain against risk to 1:1 behaviour. "Measured" figures come from the samply
