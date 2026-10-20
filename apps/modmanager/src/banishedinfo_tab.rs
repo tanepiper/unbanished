@@ -281,7 +281,8 @@ impl BanishedInfoTab {
                         let thumb = m.thumbnail.as_deref().and_then(|u| self.thumbnail(ctx, u));
                         match thumb {
                             Some(t) => {
-                                ui.add(
+                                ui.add_sized(
+                                    [48.0, 48.0],
                                     egui::Image::new(&t).fit_to_exact_size(egui::vec2(48.0, 48.0)),
                                 );
                             }

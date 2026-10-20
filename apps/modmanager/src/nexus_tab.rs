@@ -18,6 +18,7 @@ enum Msg {
     Results(Result<api::SearchPage, Error>),
     Progress(f32),
     Installed(Result<Vec<std::path::PathBuf>, Error>, u32),
+    Thumbnail(String, Option<egui::ColorImage>),
 }
 
 pub struct NexusTab {
@@ -35,6 +36,7 @@ pub struct NexusTab {
     message: String,
     link: String,
     started: bool,
+    thumbnails: std::collections::HashMap<String, Option<egui::TextureHandle>>,
     send: mpsc::Sender<Msg>,
     receive: mpsc::Receiver<Msg>,
 }
@@ -61,6 +63,7 @@ impl NexusTab {
             message: String::new(),
             link: String::new(),
             started: false,
+            thumbnails: std::collections::HashMap::new(),
             send,
             receive,
         }
@@ -78,6 +81,28 @@ impl NexusTab {
             let _ = send.send(msg);
             ctx.request_repaint();
         });
+    }
+
+    /// A mod's thumbnail, loaded once (Nexus Mods serves them as WebP).
+    fn thumbnail(&mut self, ctx: &egui::Context, url: &str) -> Option<egui::TextureHandle> {
+        if let Some(t) = self.thumbnails.get(url) {
+            return t.clone();
+        }
+        self.thumbnails.insert(url.to_string(), None);
+        let url = url.to_string();
+        self.spawn(ctx, move |_| {
+            let image = native::download(&url, |_, _| {})
+                .ok()
+                .and_then(|b| banished_mods::preview::decode(&b))
+                .map(|i| {
+                    egui::ColorImage::from_rgba_unmultiplied(
+                        [i.width as usize, i.height as usize],
+                        &i.rgba,
+                    )
+                });
+            Msg::Thumbnail(url, image)
+        });
+        None
     }
 
     fn validate(&mut self, ctx: &egui::Context) {
@@ -203,6 +228,10 @@ impl NexusTab {
                     self.message = e.to_string();
                 }
                 Msg::Progress(p) => self.progress = p,
+                Msg::Thumbnail(url, image) => {
+                    let t = image.map(|i| ctx.load_texture(&url, i, egui::TextureOptions::LINEAR));
+                    self.thumbnails.insert(url, t);
+                }
                 Msg::Installed(result, mod_id) => {
                     let name = self.installing.take().unwrap_or_default();
                     match result {
@@ -368,8 +397,24 @@ impl NexusTab {
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
             .show(ui, |ui| {
-                for m in &self.results {
+                let results = self.results.clone();
+                for m in &results {
                     ui.horizontal(|ui| {
+                        let thumb = m.thumbnail.as_deref().and_then(|u| self.thumbnail(ctx, u));
+                        match thumb {
+                            Some(t) => {
+                                ui.add_sized(
+                                    [85.0, 48.0],
+                                    egui::Image::new(&t).fit_to_exact_size(egui::vec2(85.0, 48.0)),
+                                );
+                            }
+                            None => {
+                                ui.allocate_exact_size(
+                                    egui::vec2(85.0, 48.0),
+                                    egui::Sense::hover(),
+                                );
+                            }
+                        }
                         if ui
                             .add_enabled(
                                 self.installing.is_none() && self.key.is_some(),
