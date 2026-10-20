@@ -184,11 +184,11 @@ tools/refactor (split_impl.py, regroup.py) so code moves without being rewritten
   probe baselines and compare.sh unchanged (compare.sh takes the old binary path as BASE).
 
 **A. Core split (zero behaviour change).**
-1. Terrain heights out of the scene view: a core `Terrain` (heights, width) owned by the game
+1. **Done** (a1779d3). Terrain heights out of the scene view: a core `Terrain` (heights, width) owned by the game
    state; `SceneView` reads it and rebuilds its mesh on "reshaped". Touches
    gameplay/simulation.rs (`apply_commands`, `iterate`), view/scene.rs, tools that build a
    `HeightGrid`.
-2. Presentation out of the town: start/models.rs, start/icons.rs and `carry_models` to
+2. **Done** (7101c81; `view/town`, `start/save/view_state.rs`). Presentation out of the town: start/models.rs, start/icons.rs and `carry_models` to
    presentation; camera and ambience in saves (start/save/new_game.rs) come in as `ViewState`.
 3. Create `crates/sim`: move start/* (minus 2), saves/saved.rs, the core part of
    gameplay/commands.rs (`PlayerCommand` → `Command`, `execute`), gameplay/simulation.rs, the
