@@ -3,7 +3,7 @@ title: 'Neighbours: Un-Banished 0.3.0'
 name: Neighbours
 version: 0.3.0
 date: 2026-10-20
-cover: /assets/videos/multiplayer-poster.webp
+cover: /assets/videos/multiplayer-hero-poster.webp
 summary: Several players can now build one town together, on the desktop or in the browser. Plus mods from banishedinfo.com, a browser version you can install, and colour filters for your own films of your town.
 description: Un-Banished 0.3.0 adds multiplayer, mods from banishedinfo.com, a browser version that installs as an app, and colour filters for videos of your town.
 outline: [2, 2]
@@ -13,8 +13,8 @@ outline: [2, 2]
   name="Neighbours"
   version="0.3.0"
   date="2026-10-20"
-  video="/assets/videos/multiplayer.webm"
-  poster="/assets/videos/multiplayer-poster.webp"
+  video="/assets/videos/multiplayer-hero.webm"
+  poster="/assets/videos/multiplayer-hero-poster.webp"
   alt="Two games side by side, on two computers, show the same town as two players build in it"
 />
 
