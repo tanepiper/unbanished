@@ -52,6 +52,13 @@ pub enum UserEvent {
     /// starts, then each one the player adds.
     #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
     Mods(Vec<(String, Vec<u8>)>),
+    /// A save to run for `?digest=` (`gameplay::digest`), with its update count and interval.
+    #[cfg(target_arch = "wasm32")]
+    Digest {
+        save: Vec<u8>,
+        updates: u32,
+        every: u32,
+    },
 }
 
 const CLEAR: wgpu::Color = wgpu::Color {
@@ -780,6 +787,9 @@ struct App {
     pending_packages: Option<Vec<(String, Vec<u8>)>>,
     /// The mods found beside them (`*.pkm`) and that folder.
     pending_mods: Option<(Vec<(String, Vec<u8>)>, Option<std::path::PathBuf>)>,
+    /// `?digest=`: the save, updates and interval, waiting for the game to start.
+    #[cfg(target_arch = "wasm32")]
+    pending_digest: Option<(Vec<u8>, u32, u32)>,
     game: Option<Game>,
     last_frame: Option<Instant>,
     /// `Engine::MainLoop +0x38`: real time not yet stepped (ticks).
@@ -801,6 +811,8 @@ impl App {
             renderer: None,
             pending_packages: None,
             pending_mods: None,
+            #[cfg(target_arch = "wasm32")]
+            pending_digest: None,
             game: None,
             last_frame: None,
             accumulated: 0,
@@ -1039,6 +1051,12 @@ impl ApplicationHandler<UserEvent> for App {
                 set_status(&format!("Reading {} package(s)…", packages.len()), false);
                 self.pending_packages = Some(packages);
             }
+            #[cfg(target_arch = "wasm32")]
+            UserEvent::Digest {
+                save,
+                updates,
+                every,
+            } => self.pending_digest = Some((save, updates, every)),
             UserEvent::Mods(found) => match &mut self.game {
                 Some(game) => game.add_mods(found),
                 None => {
@@ -1051,6 +1069,15 @@ impl ApplicationHandler<UserEvent> for App {
             },
         }
         self.try_start();
+        #[cfg(target_arch = "wasm32")]
+        if let (Some(game), Some((save, updates, every))) = (&mut self.game, &self.pending_digest) {
+            let text = match gameplay::digest::run(game, save, *updates, *every) {
+                Ok(digests) => digests.iter().map(|d| format!("{d}\n")).collect(),
+                Err(e) => format!("digest: {e}"),
+            };
+            self.pending_digest = None;
+            platform::web::show_digest(&text);
+        }
         if let Some(w) = &self.window {
             w.request_redraw();
         }
@@ -1487,6 +1514,42 @@ mod native {
         write_png(out, size, &rgba);
     }
 
+    /// `--sim-digest SAVE [UPDATES] [EVERY]`: runs a save without a window at speed 10 and
+    /// prints a digest of the game state every EVERY updates (`gameplay::digest`), to compare
+    /// with the browser build's `?digest=`.
+    pub fn sim_digest(args: &[String]) {
+        let save = args.get(1).expect("--sim-digest SAVE [UPDATES] [EVERY]");
+        let updates = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(1200);
+        let every = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(60);
+        let bytes = std::fs::read(save).expect("read the save");
+        let dir = data_dir(args);
+        let found = crate::mods::find(&dir);
+        let mut game = Game::with_mods(
+            read_packages(&dir),
+            found,
+            Some(dir),
+            crate::settings::Settings::default(),
+        )
+        .expect("game data");
+        game.audio.set_master_volume(0.0);
+        let start = std::time::Instant::now();
+        match crate::gameplay::digest::run(&mut game, &bytes, updates, every) {
+            Ok(digests) => {
+                for d in digests {
+                    println!("{d}");
+                }
+                log::info!(
+                    "{updates} updates in {:.1} s",
+                    start.elapsed().as_secs_f32()
+                );
+            }
+            Err(e) => {
+                eprintln!("--sim-digest: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
+
     /// The generated-map capture from M5 (`--capture`).
     pub fn map_capture(args: &[String], out: &str) {
         use crate::view::scene::{Camera, SceneCamera, SceneView};
@@ -1561,6 +1624,7 @@ fn main() {
             let seconds = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(5.0);
             return native::boot_capture(&args, out, seconds);
         }
+        Some("--sim-digest") => return native::sim_digest(&args),
         Some("--capture") => {
             let out = args.get(1).expect("--capture OUT.png [OPTIONS]");
             return native::map_capture(&args, out);
@@ -1594,6 +1658,7 @@ fn main() {
     let proxy = event_loop.create_proxy();
     platform::web::install_file_picker(proxy.clone());
     platform::web::load_from_query(proxy.clone());
+    platform::web::load_digest_save(proxy.clone());
     // The saves in browser storage (their metadata, for the Save and Load dialogs).
     saves::save_store::init();
     platform::web::load_stored_mods(proxy.clone());

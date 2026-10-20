@@ -135,6 +135,15 @@ BANISHED_USER_DIR=/tmp/frames banished --boot-capture last.png 24 \
   --script "load save-game/Save83.sav@4.5" "${args[@]}"
 ```
 
+### `--sim-digest`
+
+`banished --sim-digest SAVE [UPDATES] [EVERY]` loads a save without a window, runs it at speed
+10 for `UPDATES` updates (default 1200, 200 s of game time) and prints a digest of the game state
+every `EVERY` updates (default 60): the time, the living citizens and the CRC-32 of everything
+the save would hold. The browser build does the same with
+`?data=/game-data/&digest=SAVE_URL&updates=N&every=M` on a local page. Equal digests mean the
+two simulations agree; see [docs/CROSS-PLATFORM.md](../../docs/CROSS-PLATFORM.md).
+
 ### `--capture`
 
 Generates a map and draws it, without the menus or the simulation.

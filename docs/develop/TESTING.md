@@ -14,6 +14,7 @@ compare two versions of the game.
 | Save tests | `crates/game/tests/saves.rs`, `crates/formats/tests/savegame.rs` | Real save files load, and what the port computes matches what the original saved |
 | Determinism | `tools/triage/determinism.sh` | Two runs with the same seed draw identical frames |
 | Version comparison | `tools/compat/compare.sh` | Two versions produce identical saves and frames |
+| Native and browser | `banished --sim-digest` and the web build's `?digest=` | The same save runs to the same game state natively and in the browser ([CROSS-PLATFORM.md](../CROSS-PLATFORM.md)) |
 
 ## Tests that need game data
 

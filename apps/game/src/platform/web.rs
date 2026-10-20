@@ -43,6 +43,11 @@ pub fn show_version(text: &str) {
 /// published site the player must pick their own `.pkg` files, so a link cannot make the page
 /// load game data from another server.
 pub fn data_base() -> Option<String> {
+    local_param("data")
+}
+
+/// A query parameter of a page served from this machine; none on any other host.
+fn local_param(name: &str) -> Option<String> {
     let location = web_sys::window()?.location();
     let host = location.hostname().ok()?;
     if !matches!(host.as_str(), "localhost" | "127.0.0.1" | "[::1]" | "::1") {
@@ -51,7 +56,60 @@ pub fn data_base() -> Option<String> {
     let search = location.search().ok()?;
     web_sys::UrlSearchParams::new_with_str(&search)
         .ok()?
-        .get("data")
+        .get(name)
+}
+
+/// `?digest=<save URL>&updates=N&every=M` (local pages only, as `?data=`): fetch a save to run
+/// without drawing, at speed 10, and show the simulation's digests (`gameplay::digest`), to
+/// compare with `banished --sim-digest` (docs/CROSS-PLATFORM.md).
+pub fn load_digest_save(proxy: EventLoopProxy<UserEvent>) {
+    let Some(url) = local_param("digest") else {
+        return;
+    };
+    let number = |name: &str, default: u32| {
+        local_param(name)
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(default)
+    };
+    let (updates, every) = (number("updates", 1200), number("every", 60));
+    wasm_bindgen_futures::spawn_local(async move {
+        let window = web_sys::window().unwrap();
+        let result = async {
+            let resp: web_sys::Response =
+                wasm_bindgen_futures::JsFuture::from(window.fetch_with_str(&url))
+                    .await?
+                    .dyn_into()?;
+            if !resp.ok() {
+                return Err(JsValue::from_str(&format!("HTTP {}", resp.status())));
+            }
+            let buf = wasm_bindgen_futures::JsFuture::from(resp.array_buffer()?).await?;
+            Ok::<_, JsValue>(js_sys::Uint8Array::new(&buf).to_vec())
+        }
+        .await;
+        match result {
+            Ok(save) => {
+                let _ = proxy.send_event(UserEvent::Digest {
+                    save,
+                    updates,
+                    every,
+                });
+            }
+            Err(e) => show_digest(&format!("{url}: {e:?}")),
+        }
+    });
+}
+
+/// The digests (or an error) in a `<pre id="digest">` at the end of the page, and the log.
+pub fn show_digest(text: &str) {
+    log::info!("digest:\n{text}");
+    let doc = document();
+    let pre = doc.get_element_by_id("digest").unwrap_or_else(|| {
+        let pre = doc.create_element("pre").unwrap();
+        pre.set_id("digest");
+        let _ = doc.body().unwrap().append_child(&pre);
+        pre
+    });
+    pre.set_text_content(Some(text));
 }
 
 pub fn load_from_query(proxy: EventLoopProxy<UserEvent>) {

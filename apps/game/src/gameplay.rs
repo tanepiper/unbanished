@@ -10,6 +10,7 @@
 //! - `tutorial`: tutorials and scenarios.
 
 mod audio;
+pub mod digest;
 mod hud;
 mod input;
 mod saving;

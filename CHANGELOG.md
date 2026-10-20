@@ -21,6 +21,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
 - The home page montage has titles: it opens on "Un-Banished", names each shot, and ends on a
   card. `tools/videos.sh` adds titles with FFmpeg's `drawtext` when the installed FFmpeg has it
   (see Titles in [docs/develop/VIDEOS.md](docs/develop/VIDEOS.md)).
+- `banished --sim-digest SAVE` and the browser build's `?digest=` run a save without a window
+  and print digests of the game state, to check that native and browser builds simulate
+  identically. They do, on the saves tried ([docs/CROSS-PLATFORM.md](docs/CROSS-PLATFORM.md)).
 
 ## [0.2.0] - 2026-10-19
 
