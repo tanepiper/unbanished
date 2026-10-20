@@ -1,0 +1,17 @@
+{
+  "file": "crates/ui/src/lib.rs",
+  "type": "Ui",
+  "modules": {
+    "instantiate": {"doc": "Making elements from the game's dialog resources: one node per element, with its text, sprites and children.",
+      "methods": ["instantiate", "instantiate_reference", "text_data", "instantiate_element"]},
+    "tree": {"doc": "Finding nodes in the tree, changing their text, icons and visibility, and building nodes in code (groups, ribbons, text, lists, sliders).",
+      "methods": ["find", "child_ids", "children", "set_text", "set_icon", "select_combo_item", "set_visible", "group", "ribbon", "text", "viewport", "picture", "list", "slider", "set_list_items", "set_list_icons", "list_select", "reveal_selection"]},
+    "layout": {"doc": "Layout: each element's size (`ComputeSize`), then its rectangle (`ComputeLayout`).",
+      "methods": ["padded_size", "begin_size_pass", "compute_size", "layout_text", "place", "place_filling", "layout", "layout_dialog", "compute_layout"]},
+    "animation": {"doc": "The interface's own clock: animated images, the containers' wheel and the edit caret.",
+      "methods": ["has_animations", "update", "update_animations", "animation_info", "set_animation_frame"]},
+    "draw": {"doc": "Drawing: the tree as a list of sprite quads, clipped and coloured.",
+      "methods": ["draw", "line_quads", "sprite_quad", "draw_text", "draw_node"],
+      "items": ["argb_to_rgba", "modulate"]}
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "file": "crates/game/src/work/construction.rs",
+  "type": "Controller",
+  "modules": {
+    "states": {"doc": "The controllers' state tables (`StateDef`): for each controller, its states in order, the callback each one runs, and where it goes next.",
+      "items": ["StateDef", "CLEAR", "WORKPLACE", "BUILD", "RESIDENCE", "DESTROY", "WELL", "IMMIGRATION", "MULTI_OBJECT", "TRADE", "ATTENDANCE", "HEALER", "CROP_FIELD", "ORCHARD", "MARKET_LOCATION", "CEMETERY", "ABSORB_RESOURCE", "STORAGE_LOCATION", "PASTURE", "HAPPINESS", "CLEAR_RESOURCE", "RESOURCE_PRODUCE"],
+      "impls": ["impl Controller {"]},
+    "machine": {"doc": "The state machine that runs a site's controllers: the current state of each, messages to them, and one step of the machine.",
+      "items": ["Machine", "run"], "impls": ["impl Machine {"]},
+    "site": {"doc": "What a building site holds: its template, production, workers, decals, piles and the work it offers, and the town's list of sites (`Construction`).",
+      "items": ["SiteTemplate", "ProduceTemplate", "Recipe", "ProduceState", "ProduceWork", "Decal", "Site", "Construction", "Attendance", "Pile", "ClearWork", "PickupWork", "Gather", "BuildWork"],
+      "impls": ["impl SiteTemplate {"]}
+  }
+}

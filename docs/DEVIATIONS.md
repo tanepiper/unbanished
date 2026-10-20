@@ -30,13 +30,16 @@ Deviation: 60, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/gameplay.rs`
 
-- [Deviation] [apps/game/src/gameplay.rs:57](../apps/game/src/gameplay.rs#L57): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
-- [Deviation] [apps/game/src/gameplay.rs:742](../apps/game/src/gameplay.rs#L742): `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller. Deviation: in a multiplayer game the pause menu does not hold the shared game.
-- [Deviation] [apps/game/src/gameplay.rs:936](../apps/game/src/gameplay.rs#L936): AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets the game speed (`Game +0x120 → +0x34`) back to 1. Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on each player's own setting.
+- [Deviation] [apps/game/src/gameplay.rs:61](../apps/game/src/gameplay.rs#L61): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
 
 ## `apps/game/src/gameplay/digest.rs`
 
 - [Deviation] [apps/game/src/gameplay/digest.rs:1](../apps/game/src/gameplay/digest.rs#L1): Digests of the simulation, to compare the same game on different platforms (native and the browser). A save is loaded without a window and run at the highest game speed, and every few updates the whole game state it would save is encoded and hashed. Two platforms that agree write the same digests; the first that differs gives the update to look at. See docs/CROSS-PLATFORM.md. Deviation: not in the original; a check run from the command line (`--sim-digest`) or the browser build (`?digest=`).
+
+## `apps/game/src/gameplay/frame.rs`
+
+- [Deviation] [apps/game/src/gameplay/frame.rs:89](../apps/game/src/gameplay/frame.rs#L89): `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller. Deviation: in a multiplayer game the pause menu does not hold the shared game.
+- [Deviation] [apps/game/src/gameplay/frame.rs:283](../apps/game/src/gameplay/frame.rs#L283): AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets the game speed (`Game +0x120 → +0x34`) back to 1. Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on each player's own setting.
 
 ## `apps/game/src/gameplay/lockstep.rs`
 
@@ -154,8 +157,11 @@ Deviation: 60, Not ported: 4, Not traced: 1.
 
 ## `crates/game/src/behaviour/character.rs`
 
-- [Not ported] [crates/game/src/behaviour/character.rs:214](../crates/game/src/behaviour/character.rs#L214): RandFloat() < time since the last check / (+0x54 × 12 × 300 s × +0x58); Game +0xd0 Already hurt, or, at a job whose profession has accidents, `RandFloat < time since the last check / (× 12 × 300 s ×)` (the time restarts at every check). Not ported: the debug flag that stops it (`Game` bit 8).
-- [Deviation] [crates/game/src/behaviour/character.rs:602](../crates/game/src/behaviour/character.rs#L602): Deviation: a walk restored from a save plays its walk clip again and faces its next cell on its first update. The original restores the clip with the animation block (`AnimationManager::Serialize`, `FUN_18005d130`), which the port does not decode yet; without a walking clip the body has no root motion, never reaches the next cell, and the citizen stands still for good.
+- [Not ported] [crates/game/src/behaviour/character.rs:222](../crates/game/src/behaviour/character.rs#L222): RandFloat() < time since the last check / (+0x54 × 12 × 300 s × +0x58); Game +0xd0 Already hurt, or, at a job whose profession has accidents, `RandFloat < time since the last check / (× 12 × 300 s ×)` (the time restarts at every check). Not ported: the debug flag that stops it (`Game` bit 8).
+
+## `crates/game/src/behaviour/character/movement.rs`
+
+- [Deviation] [crates/game/src/behaviour/character/movement.rs:182](../crates/game/src/behaviour/character/movement.rs#L182): Deviation: a walk restored from a save plays its walk clip again and faces its next cell on its first update. The original restores the clip with the animation block (`AnimationManager::Serialize`, `FUN_18005d130`), which the port does not decode yet; without a walking clip the body has no root motion, never reaches the next cell, and the citizen stands still for good.
 
 ## `crates/game/src/behaviour/character_tree.rs`
 

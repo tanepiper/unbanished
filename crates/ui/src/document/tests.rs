@@ -1,4 +1,5 @@
 use super::*;
+use crate::draw::argb_to_rgba;
 use banished_formats::pkg::Package;
 #[test]
 fn parses_native_caret_commands_and_unicode_without_losing_words() {

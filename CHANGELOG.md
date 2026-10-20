@@ -37,6 +37,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
 - The game's code is easier to find: `apps/game/src/main.rs` is split into `game.rs` (the
   `Game`), `app.rs` (the window) and `native.rs` (the commands without a window), and the
   browser page's style and scripts are in `apps/game/web/`. Nothing in the game changes.
+- More large files are split by topic, with no change to the game: the interface library
+  (`lib.rs` and `controls.rs`), the game loop (`gameplay.rs`: loading, one frame, raw input and
+  script commands), a character's actions (`character.rs`), the construction state machine
+  (`construction.rs`), the viewer (`tool.rs`) and the model renderer (`models.rs`, whose shader is
+  now `models/models.wgsl`).
 
 ### Fixed
 

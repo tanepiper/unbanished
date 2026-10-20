@@ -1,0 +1,16 @@
+{
+  "file": "apps/game/src/gfx/models.rs",
+  "type": "ModelRenderer",
+  "modules": {
+    "assets": {"doc": "Loading the models of a scene: each group's meshes, materials and images, shared through a cache, and the scene's instances.",
+      "items": ["with_object", "image", "load_group", "cached", "load_groups", "PendingAsset", "read_group"],
+      "impls": ["impl PendingAsset {", "impl SceneModels {"]},
+    "pipelines": {"doc": "The model renderer's pipelines, layouts and samplers, made once (`ModelRenderer::new`), and its shader (`models.wgsl`).",
+      "methods": ["new"], "items": ["SHADER"]},
+    "upload": {"doc": "Uploading model groups and their instances to the GPU, and keeping them up to date.",
+      "methods": ["clear", "upload", "upload_group", "update_instances"],
+      "items": ["GpuRange", "GpuGroup"], "impls": ["impl GpuGroup {"]},
+    "draw": {"doc": "Drawing the models: culling each pass's instances, then the opaque, alpha, foliage and depth draws.",
+      "methods": ["cull", "draw", "draw_depth", "draw_with"]}
+  }
+}

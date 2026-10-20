@@ -253,7 +253,7 @@ controller or dialog has its own module.
 | `src/probe.rs` | The [probe](../../docs/develop/PROBE.md): find and press interface elements and read the town, headless and in the browser (`window.unbanished`) |
 | `src/loops.rs` | The engine loops: `MainLoop`, the loaders, `Screen` with its dialogs |
 | `src/menu.rs` | The main menu and its dialogs |
-| `src/gameplay.rs`, `src/gameplay/` | The game loop (`GameplayLoop`), split by topic: `simulation`, `input`, `tools`, `hud`, `audio`, `saving`, `tutorial` |
+| `src/gameplay.rs`, `src/gameplay/` | The game loop (`GameplayLoop`), split by topic: `loading` (behind the loading screen), `frame` (one frame), `raw_input`, `input`, `script` (capture commands), `simulation`, `tools`, `hud`, `audio`, `saving`, `tutorial`, `probe` (world queries) |
 | `src/achievements.rs`, `src/achievements/` | Achievements and scenario goals |
 | `src/mods.rs` | Finding and loading BanishedKit mods |
 | `src/start.rs`, `src/start/` | Starting a new game (`templates`, `placing`, `citizens`, `animals`, `sites`, `models`, …), and loading (`load/`) and saving (`save/`) a game |

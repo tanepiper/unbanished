@@ -101,9 +101,14 @@ delivers an event to every controller on the element or on one of its parents.
 
 | File | What it contains |
 |---|---|
-| `src/lib.rs` | `Ui`, `Node`, `Kind`, `Quad`, `Event`; instantiation, layout, drawing |
+| `src/lib.rs` | `Ui`, `Node`, `Kind`, `Quad`, `Event` |
+| `src/instantiate.rs` | Making nodes from the game's dialog resources |
+| `src/tree.rs` | Finding nodes, changing their text and visibility, and nodes made in code |
+| `src/layout.rs` | Sizes and rectangles (`ComputeSize`, `ComputeLayout`) |
+| `src/animation.rs` | Animated images and the interface's clock |
+| `src/draw.rs` | Drawing the tree as sprite quads |
 | `src/dialog.rs` | `DialogInstance` and `Binding`: template substitution and controllers |
-| `src/controls.rs` | The stateful controls and their helpers |
+| `src/controls.rs`, `src/controls/` | The stateful controls: their types (`controls.rs`), how they are made (`setup`), their values (`values`), sizes and layout (`measure`), and drawing (`paint`) |
 | `src/input.rs` | The pointer, the keyboard, focus and tooltips |
 | `src/text.rs` | Text layout |
 | `src/document.rs` | Documents with markup |

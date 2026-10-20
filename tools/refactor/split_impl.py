@@ -91,6 +91,28 @@ def publish(text, indent):
     )
 
 
+def header_end(s):
+    """Where a file's header ends: after its `//!` doc lines and its inner attributes
+    (`#![...]`, which may span lines), and the blank line after them. New `mod` lines go here."""
+    i = 0
+    while True:
+        rest = s[i:]
+        if rest.startswith("//!"):
+            i = s.index("\n", i) + 1
+        elif rest.startswith("#!["):
+            depth, j = 0, i + 2
+            while True:
+                depth += {"[": 1, "]": -1}.get(s[j], 0)
+                j += 1
+                if depth == 0:
+                    break
+            i = s.index("\n", j) + 1
+        elif rest.startswith("\n") and i > 0:
+            i += 1
+        else:
+            return i
+
+
 def main():
     plan = json.loads(Path(sys.argv[1]).read_text())
     dry = "--dry-run" in sys.argv
@@ -147,7 +169,8 @@ def main():
     lines += "".join(
         f"{vis}use {n}::{{{', '.join(sorted(ns))}}};\n" for n, by_vis in decls for vis, ns in sorted(by_vis.items())
     )
-    s = re.sub(r"(\A(?://![^\n]*\n)*\n?)", lambda m: m.group(1) + lines + "\n", s, count=1)
+    at = header_end(s)
+    s = s[:at] + lines + "\n" + s[at:]
     s = re.sub(r"\n{3,}", "\n\n", s)
     if not dry:
         out_dir.mkdir(parents=True, exist_ok=True)

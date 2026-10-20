@@ -1,0 +1,12 @@
+{
+  "file": "crates/game/src/behaviour/character.rs",
+  "type": "Character",
+  "modules": {
+    "movement": {"doc": "Walking to a place (`MoveToAction`): asking for a path, following its cells and facing the next one.",
+      "items": ["MoveTo"], "impls": ["impl MoveTo {"]},
+    "actions": {"doc": "The character actions (`Action`): what each one does when it starts, each update, and when it stops or is aborted, and dropping off what a citizen carries.",
+      "items": ["Action", "drop_pile", "drop_off_one"], "impls": ["impl Action {"]},
+    "stack": {"doc": "The action stack: the actions a character carries out in turn, their reservations, and saving and restoring them.",
+      "items": ["Task", "ActionStack"], "impls": ["impl ActionStack {"]}
+  }
+}

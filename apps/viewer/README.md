@@ -86,7 +86,7 @@ chicken video on the [Playing](https://tanepiper.github.io/unbanished/guide/play
 | File | What it contains |
 |---|---|
 | `src/main.rs` | The window, the event loop, the headless commands, the browser's file chooser |
-| `src/tool.rs` | The browser's interface: modes, lists, filters, the camera |
+| `src/tool.rs`, `src/tool/` | The browser's interface: modes and the camera (`tool.rs`), the lists (`browse`), choosing an item (`select`), animations (`animation`), the layout (`screen`) and input (`input`) |
 | `src/assets.rs` | Reading the packages and listing the resources by kind |
 | `src/render.rs`, `src/mesh.wgsl` | Drawing meshes (with skinning) and the interface |
 | `src/model_player.rs`, `src/dialog_player.rs`, `src/audio_player.rs`, `src/player.rs` | The animation, dialog and audio panels |

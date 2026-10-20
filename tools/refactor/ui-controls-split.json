@@ -1,0 +1,16 @@
+{
+  "file": "crates/ui/src/controls.rs",
+  "type": "Ui",
+  "modules": {
+    "setup": {"doc": "Making controls from their resource descriptions (`instantiate_control`), and tabs added in code.",
+      "methods": ["add_tab", "make_text", "control_button", "instantiate_control"]},
+    "values": {"doc": "Reading and setting the controls' values: sliders, check boxes, spinners, combos, tables, graphs and images.",
+      "methods": ["set_value", "value", "set_slider_range", "set_table_child", "set_images", "set_spinner_range", "spinner_range", "checked", "set_checked", "set_choices", "set_choices_with_icons", "set_graph", "set_label_sprite_color"]},
+    "measure": {"doc": "The controls' sizes and the layout of what they hold (`ComputeSize` and `ComputeLayout` of each control class).",
+      "methods": ["measure_control", "relative_rects", "layout_control"],
+      "items": ["axis_size", "axis_offset", "bounds_size"]},
+    "paint": {"doc": "Drawing the controls, and the dropdown lists drawn above everything else.",
+      "methods": ["open_lists", "draw_popups", "draw_control"],
+      "items": ["scroll_thumb", "strip"]}
+  }
+}

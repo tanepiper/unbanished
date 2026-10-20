@@ -1,0 +1,16 @@
+{
+  "file": "apps/viewer/src/tool.rs",
+  "type": "Tool",
+  "modules": {
+    "browse": {"doc": "The asset lists: the items of each mode, their folders, categories and display names.",
+      "methods": ["items", "resource_dirs", "category_names", "subcategory_names", "filtered_items", "display_name", "display_resource_name"]},
+    "select": {"doc": "Choosing a mode and an item: loading the model, texture, sound or dialog into the preview, and stepping through the list.",
+      "methods": ["set_mode", "select", "select_matching", "step", "step_audio", "play_selected"]},
+    "animation": {"doc": "Playing a model's animations and a dialog's animated images: play, pause, step, seek and their labels.",
+      "methods": ["animation_duration", "refresh_animation_label", "animation_is_playing", "update_animation", "refresh_dialog_animation_label", "toggle_dialog_animation", "step_dialog_frame", "dialog_reference", "toggle_animation", "next_animation", "previous_animation", "seek_animation", "seek_animation_to"]},
+    "screen": {"doc": "The viewer's screen: its layout, the preview's viewport, and the frame handed to the renderer.",
+      "methods": ["layout", "suppress_overlapping_text", "viewport", "frame", "quads"]},
+    "input": {"doc": "Input: the interface's events, the pointer, the wheel and the keyboard.",
+      "methods": ["handle", "pointer_move", "pointer_button", "wheel", "dialog_event", "handle_pending", "key", "text_input"]}
+  }
+}
