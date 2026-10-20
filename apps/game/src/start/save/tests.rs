@@ -133,11 +133,8 @@ fn a_simulated_town_reloads_as_saved() {
         return;
     };
     let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
-    let world = crate::view::world::World::from_save(&archive, &saved).unwrap();
-    let grid = unbanished_game::terrain::HeightGrid {
-        width: world.terrain.width(),
-        heights: &world.terrain.heights,
-    };
+    let world = crate::start::map::Map::from_save(&archive, &saved).unwrap();
+    let grid = world.heights.grid();
     let mut town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
     let mut rng = unbanished_game::random::Random::new(83);
     let dt = 1.0 / 30.0;
@@ -195,21 +192,18 @@ fn a_new_game_saves_and_reloads() {
         eprintln!("game data missing; skipping");
         return;
     };
-    let params = crate::view::world::WorldParams {
+    let params = crate::start::world_params::WorldParams {
         seed: 1234,
         start_condition_ref: r"Game\StartCondition\Medium.rsc:resource".into(),
         ..Default::default()
     };
-    let world = crate::view::world::World::generate(&archive, &params).unwrap();
-    let grid = unbanished_game::terrain::HeightGrid {
-        width: world.terrain.width(),
-        heights: &world.terrain.heights,
-    };
+    let world = crate::start::map::Map::generate(&archive, &params).unwrap();
+    let grid = world.heights.grid();
     let mut rng = unbanished_game::random::Random::new(params.seed);
     let mut town = crate::start::StartingTown::create(
         &archive,
         &params.start_condition_ref,
-        world.terrain.size / 2,
+        world.heights.size / 2,
         &grid,
         &mut rng,
     )
@@ -225,13 +219,13 @@ fn a_new_game_saves_and_reloads() {
             .jobs
             .step(unbanished_game::scheduler::ticks(dt));
     }
-    let size = world.terrain.size as i32;
+    let size = world.heights.size as i32;
     let map = unbanished_formats::menu_scene::MapComponent {
         version: 6,
         dims: [size, size / 2, 32, 33, size + 1, 33 * 33],
-        heights: world.terrain.heights.clone(),
+        heights: world.heights.values.clone(),
         terrain_material: Some(world.profile.materials[0].clone()),
-        surface: world.terrain.surface.clone(),
+        surface: world.surface.clone(),
         water_vertices: world.water.vertices.clone(),
         water_indices: world.water.indices.clone(),
         river_material: Some(world.profile.materials[1].clone()),

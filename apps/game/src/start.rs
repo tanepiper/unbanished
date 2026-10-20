@@ -55,6 +55,7 @@ use unbanished_game::work::professions::{Profession, Professions, WorkPlace};
 
 mod bridge;
 pub(crate) mod load;
+pub(crate) mod map;
 // The web build has no save path yet (no Save dialog, no file access).
 #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 pub(crate) mod save;

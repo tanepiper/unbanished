@@ -1,13 +1,12 @@
-//! A generated map: the New Game terrain pipeline (`FUN_1400b5700` → `FUN_1400b1980`) run with the
-//! bit-exact ports in `unbanished-game`, plus the resources it is drawn with.
+//! A map (`start::map`) with the resources it is drawn with: the terrain mesh and textures.
 
-use unbanished_formats::game::{
-    environment_description, terrain_generator, EnvironmentDescription, TerrainGenerator,
-};
+use unbanished_formats::game::{EnvironmentDescription, TerrainGenerator};
 use unbanished_formats::pkg::Archive;
 use unbanished_formats::types::{image_buffer, material_instance, ImageBuffer};
 use unbanished_formats::Result;
-use unbanished_game::terrain::{Generator, HeightGrid, SizeRecord, TerrainMesh};
+use unbanished_game::terrain::{HeightGrid, TerrainMesh};
+
+use crate::start::map::{with_object, Map};
 
 pub use crate::start::world_params::WorldParams;
 
@@ -103,15 +102,6 @@ pub struct World {
     pub water: unbanished_game::terrain::WaterMesh,
 }
 
-fn with_object(reference: &str) -> String {
-    let path = reference.replace('\\', "/");
-    if path.contains(':') {
-        path
-    } else {
-        format!("{path}:resource")
-    }
-}
-
 fn texture(
     archive: &Archive,
     slots: &[(String, Option<String>)],
@@ -129,87 +119,29 @@ fn texture(
 
 impl World {
     pub fn generate(archive: &Archive, params: &WorldParams) -> Result<World> {
-        let profile = terrain_generator(
-            &archive.read_ref(&format!("Game/Terrain/{}.rsc:resource", params.terrain))?,
-        )?;
-        let wire = profile.sizes[params.size.min(profile.sizes.len() - 1)];
-        let start = web_time::Instant::now();
-        let mut g = Generator::new(SizeRecord::from_wire(wire), params.seed);
-        g.run(|_, _| {});
-        let heights = g.heights();
-        let surface = g
-            .surface_map()
-            .iter()
-            .flat_map(|t| t.to_le_bytes())
-            .collect();
-        let size = g.size as usize;
-        log::info!(
-            "generated {} {} seed {} ({size} cells) in {:.2}s",
-            profile.name,
-            params.size,
-            params.seed,
-            start.elapsed().as_secs_f32()
-        );
-        let river_paths = g
-            .paths
-            .iter()
-            .map(|p| p.iter().rev().map(|q| q.pos).collect())
-            .collect();
-        let water = unbanished_game::terrain::water_mesh(&g.paths, &g.lakes, &heights, size);
-        let terrain = Terrain::new(archive, &profile.materials[0], size, heights, surface)?;
-        let environment =
-            environment_description(&archive.read_ref("Environment/Environment.rsc:resource")?)?;
-        Ok(World {
-            profile,
-            terrain,
-            environment,
-            river_paths,
-            water,
-        })
+        World::from_map(archive, Map::generate(archive, params)?)
     }
 
-    /// A saved game's world: its stored terrain, surface, rivers and water instead of a
-    /// generated one (`FUN_1400b59a0` restores them; nothing is regenerated on load).
+    /// A saved game's world: its stored map with its drawing data.
     pub fn from_save(archive: &Archive, saved: &crate::saves::saved::SavedGame) -> Result<World> {
-        let map = saved
-            .state
-            .terrain_map
-            .clone()
-            .ok_or_else(|| unbanished_formats::Error::Format("save has no terrain".into()))?;
-        let terrain_ref = saved.reference(saved.state.terrain).unwrap_or_default();
-        // A mod's terrain profile may be missing: the saved map carries its own materials, so
-        // the base Valleys profile stands in (the profile is only read for its materials).
-        let profile = match archive.read_ref(&with_object(terrain_ref)) {
-            Ok(data) => terrain_generator(&data)?,
-            Err(e) => {
-                log::warn!("{terrain_ref}: {e}; using Valleys");
-                terrain_generator(&archive.read_ref("Game/Terrain/Valleys.rsc:resource")?)?
-            }
-        };
-        let material = map
-            .terrain_material
-            .clone()
-            .unwrap_or_else(|| profile.materials[0].clone());
+        World::from_map(archive, Map::from_save(archive, saved)?)
+    }
+
+    /// A map with its terrain mesh and textures.
+    pub fn from_map(archive: &Archive, map: Map) -> Result<World> {
         let terrain = Terrain::new(
             archive,
-            &material,
-            map.dims[0] as usize,
-            map.heights,
+            &map.material,
+            map.heights.size,
+            map.heights.values,
             map.surface,
         )?;
-        let environment =
-            environment_description(&archive.read_ref("Environment/Environment.rsc:resource")?)?;
         Ok(World {
-            profile,
+            profile: map.profile,
             terrain,
-            environment,
+            environment: map.environment,
             river_paths: map.river_paths,
-            water: unbanished_game::terrain::WaterMesh {
-                vertices: map.water_vertices,
-                indices: map.water_indices,
-                rivers: map.river_ranges,
-                lakes: map.lake_ranges,
-            },
+            water: map.water,
         })
     }
 }
