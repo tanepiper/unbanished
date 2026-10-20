@@ -10,6 +10,7 @@
 //! - `tutorial`: tutorials and scenarios.
 
 mod audio;
+pub(crate) mod commands;
 pub mod digest;
 mod hud;
 mod input;
@@ -17,6 +18,7 @@ mod saving;
 mod simulation;
 mod tools;
 
+use commands::{Outcome, PlayerCommand, Tool};
 use input::DragInput;
 use saving::SaveTarget;
 
@@ -34,7 +36,7 @@ use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View
 use crate::menu::MenuLoop;
 use crate::start::StartingTown;
 use crate::tools::placement_tool::PlacementTool;
-use crate::tools::removal_tool::{DragSound, RemovalTool};
+use crate::tools::removal_tool::{DragSound, DragStep, RemovalTool};
 use crate::tools::selection::{Entity, Selection};
 use crate::ui::building_ui::WorkPlaceClick;
 use crate::ui::create_bar::CreateBar;
@@ -779,19 +781,20 @@ impl GameLoop for GameplayLoop {
         // merchant while its window is open.
         let open = self.entities.trade_windows();
         if open != self.trade_held {
-            if let Some(town) = &mut self.town {
+            if self.town.is_some() {
                 use banished_game::{commerce::trade::TradeSetting, work::professions::Command};
-                for &e in self.trade_held.iter().filter(|e| !open.contains(e)) {
-                    town.construction.commands.push(Command::Trade {
-                        entity: e,
-                        setting: TradeSetting::Held(false),
-                    });
-                }
-                for &e in open.iter().filter(|e| !self.trade_held.contains(e)) {
-                    town.construction.commands.push(Command::Trade {
-                        entity: e,
-                        setting: TradeSetting::Held(true),
-                    });
+                let closed = self.trade_held.iter().filter(|e| !open.contains(e));
+                let opened = open.iter().filter(|e| !self.trade_held.contains(e));
+                let held: Vec<Command> = closed
+                    .map(|&entity| (entity, false))
+                    .chain(opened.map(|&entity| (entity, true)))
+                    .map(|(entity, on)| Command::Trade {
+                        entity,
+                        setting: TradeSetting::Held(on),
+                    })
+                    .collect();
+                for command in held {
+                    self.execute(ctx.archive, PlayerCommand::Town(command));
                 }
             }
             self.trade_held = open;
@@ -975,16 +978,25 @@ impl GameLoop for GameplayLoop {
                 return Next::Stay;
             }
             RawInput::Click => {
-                if let (Some(tool), Some(town)) = (self.placement.as_mut(), self.town.as_mut()) {
+                if let (Some(tool), Some(_)) = (self.placement.as_ref(), self.town.as_ref()) {
                     // `FUN_140102b20`: under a RestrictPlayer setup, only on its cells, turned.
                     let allowed =
                         Self::restrict_allows(self.restrict.as_ref(), tool, self.rotation);
                     // `FUN_1401055c0` / `FUN_140105610`: thunk on placement, error otherwise.
-                    let placed = if allowed {
-                        tool.place(ctx.archive, town, self.rotation)
-                    } else {
-                        None
+                    let placement = tool.placement(self.rotation).filter(|_| allowed);
+                    let placed = match placement {
+                        Some(p) => match self.execute(ctx.archive, PlayerCommand::Place(p)) {
+                            Outcome::Placed(id) => Some(id),
+                            _ => None,
+                        },
+                        None => None,
                     };
+                    let Some(tool) = self.placement.as_mut() else {
+                        return Next::Stay;
+                    };
+                    if placed.is_some() {
+                        tool.placed();
+                    }
                     let sound = match placed {
                         Some(id) => {
                             log::info!("placed {} as entity {id}", tool.reference);
@@ -1064,7 +1076,7 @@ impl GameLoop for GameplayLoop {
                 return Next::Stay;
             }
             RawInput::Action(keys::TOGGLE_PAUSE) => {
-                self.paused = !self.paused;
+                self.execute(ctx.archive, PlayerCommand::SetPaused(!self.paused));
                 self.update_hud(ctx.ui);
                 return Next::Stay;
             }
@@ -1131,7 +1143,7 @@ impl GameLoop for GameplayLoop {
             }
             // `toggle_pause`: the TogglePause key (captures).
             Some("toggle_pause") => {
-                self.paused = !self.paused;
+                self.execute(ctx.archive, PlayerCommand::SetPaused(!self.paused));
                 return true;
             }
             // `speed N`: the game speed, one of the toolbar's levels (1, 2, 5, 10; captures and
@@ -1141,7 +1153,7 @@ impl GameLoop for GameplayLoop {
                 let Some(i) = SPEED_LEVELS.iter().position(|&l| Some(l) == level) else {
                     return false;
                 };
-                self.speed = i as _;
+                self.execute(ctx.archive, PlayerCommand::SetSpeed(i as u8));
                 return true;
             }
             // `pause`: open the pause menu (captures).
@@ -1184,7 +1196,16 @@ impl GameLoop for GameplayLoop {
                 if tool.find_clear_spot(town, &grid, near).is_none() {
                     return false;
                 }
-                let placed = tool.place(ctx.archive, town, 0);
+                let placed = match tool.placement(0) {
+                    Some(p) => match self.execute(ctx.archive, PlayerCommand::Place(p)) {
+                        Outcome::Placed(id) => Some(id),
+                        _ => None,
+                    },
+                    None => None,
+                };
+                let Some(town) = self.town.as_ref() else {
+                    return false;
+                };
                 let cell = placed.map(|e| (town.placed[e].cell, town.start));
                 log::info!("script placed {template} as {placed:?} (cell, start: {cell:?})");
                 if let Some(models) = self.view.as_mut().and_then(|v| v.models.as_mut()) {
@@ -1196,27 +1217,29 @@ impl GameLoop for GameplayLoop {
             }
             // `remove TEMPLATE RADIUS`: drag a removal tool over the square around the start.
             Some("remove") => {
-                let (Some(template), Some(r), Some(town), Some(view)) = (
+                let (Some(template), Some(r), Some(town), Some(())) = (
                     words.next(),
                     words.next().and_then(|w| w.parse::<i32>().ok()),
                     self.town.as_mut(),
-                    self.view.as_ref(),
+                    self.view.is_some().then_some(()),
                 ) else {
                     return false;
                 };
-                let Some(mut tool) = RemovalTool::start(ctx.archive, town, template) else {
+                let Some(tool) = RemovalTool::start(ctx.archive, town, template) else {
                     return false;
-                };
-                let grid = banished_game::terrain::HeightGrid {
-                    width: view.terrain.size + 1,
-                    heights: &view.terrain.heights,
                 };
                 let n = town.cells.size as i32;
                 let (x, y) = (town.start.0 as i32, town.start.1 as i32);
                 let clamp = |v: i32| v.clamp(0, n - 1);
                 let a = clamp(y - r) * n + clamp(x - r);
                 let b = clamp(y + r) * n + clamp(x + r);
-                tool.drag(ctx.archive, town, &grid, a, b);
+                self.execute(
+                    ctx.archive,
+                    PlayerCommand::Drag(Box::new(tool.dragged(a, b))),
+                );
+                let Some(town) = self.town.as_ref() else {
+                    return false;
+                };
                 let roads: Vec<i32> = (0..town.cells.road_kind.len() as i32)
                     .filter(|&i| town.cells.road_kind[i as usize] != 0xff)
                     .collect();
@@ -1295,16 +1318,15 @@ impl GameLoop for GameplayLoop {
             }
             // `profession INDEX COUNT`: the ProfessionUI spinner.
             Some("profession") => {
-                let (Some(profession), Some(count), Some(town)) = (
+                let (Some(profession), Some(count), Some(_)) = (
                     words.next().and_then(|w| w.parse().ok()),
                     words.next().and_then(|w| w.parse().ok()),
-                    self.town.as_mut(),
+                    self.town.as_ref(),
                 ) else {
                     return false;
                 };
-                town.construction.commands.push(
-                    banished_game::work::professions::Command::SetCount { profession, count },
-                );
+                let set = banished_game::work::professions::Command::SetCount { profession, count };
+                self.execute(ctx.archive, PlayerCommand::Town(set));
                 return true;
             }
             _ => return false,

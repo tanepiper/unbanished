@@ -64,7 +64,28 @@ shared command, as speed does.
 
 ## The plan
 
-### 1. One command type, applied where it is now
+### 1. One command type, applied where it is now (done)
+
+Done in `apps/game/src/gameplay/commands.rs`: `PlayerCommand` and `GameplayLoop::execute`. Every
+player action of the inventory above goes through it: window and Professions commands (`Town`),
+`Upgrade`, `StartTool`, `Place` (a `Placement`: template, cells, position, angle, variant and
+rules), `Drag` (a copy of the drag tool as the drag ended; the tools now say when to apply instead
+of applying), `PathQuery`, `RandomTownName`, `RenameTown`, `SetSpeed` and `SetPaused`, the trade
+window's hold included. Each is executed at once where its code ran before. Not commands, because
+the game itself causes them and every computer would do the same: AutoSlow's speed change, a
+tutorial's setup, and the capture script commands `place` and `remove` (they use `Place` and
+`Drag` for the change itself).
+
+Proof of no change: `tools/compat/compare.sh` between the build before and after, on the five
+scenarios and their continuations: identical saves and frames. The new `actions` scenario drives
+the actions through the interface: worker buttons, a placement with rotation, a road drag,
+clearing trees, demolishing by drag, the Path tool, a random town name and a rename, speed, and
+pause by key. Upgrading a building and the trade window's hold are not in a scenario yet (Save83
+has no upgradeable building in view and no trader docked); their code moved without changes.
+Also: `determinism.sh 22 1234` identical; `--sim-digest` on
+Save83 identical to the digests made before; the workspace tests pass.
+
+The plan as written:
 
 Make every player action a value of one enum, `PlayerCommand`: the existing
 `professions::Command` variants, plus `Place { template, cell, rotation, variant }`,

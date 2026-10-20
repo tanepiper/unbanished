@@ -37,6 +37,14 @@ fn same_reference(a: &str, b: &str) -> bool {
         .eq_ignore_ascii_case(&b.replace('/', "\\"))
 }
 
+/// What a press, move or release asks for: a sound, or the drag applied
+/// ([`RemovalTool::apply`], through `PlayerCommand::Drag`), whose sound comes from that.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DragStep {
+    Sound(DragSound),
+    Apply,
+}
+
 /// What a press, move or release did (the caller plays the sound).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DragSound {
@@ -48,6 +56,7 @@ pub enum DragSound {
     Error,
 }
 
+#[derive(Clone)]
 pub struct RemovalTool {
     /// `Template\ClearX.rsc:resource`.
     pub reference: String,
@@ -531,7 +540,18 @@ impl RemovalTool {
         Some(rect(1, if restricted { 3 } else { 0 }))
     }
 
-    /// Apply a drag from cell `start` to cell `end` (scripted runs).
+    /// The tool as a drag from cell `start` to cell `end` would apply it (scripted runs hand
+    /// it to `PlayerCommand::Drag`).
+    pub fn dragged(&self, start: i32, end: i32) -> RemovalTool {
+        let mut tool = self.clone();
+        tool.start = start;
+        tool.end = end;
+        tool
+    }
+
+    /// Apply a drag from cell `start` to cell `end` (tests; the game goes through
+    /// `PlayerCommand::Drag`).
+    #[cfg(test)]
     pub fn drag(
         &mut self,
         archive: &Archive,
@@ -546,13 +566,7 @@ impl RemovalTool {
     }
 
     /// MouseLeft pressed with the cursor over `cell` (−1 off the map).
-    pub fn press(
-        &mut self,
-        archive: &Archive,
-        town: &mut StartingTown,
-        terrain: &HeightGrid,
-        cell: i32,
-    ) -> Option<DragSound> {
+    pub fn press(&mut self, cell: i32) -> Option<DragStep> {
         self.held = true;
         if !self.dragging {
             self.start = cell;
@@ -560,52 +574,40 @@ impl RemovalTool {
             if cell >= 0 {
                 self.dragging = true;
                 self.waiting = false;
-                return self.track(cell);
+                return self.track(cell).map(DragStep::Sound);
             }
             return None;
         }
         if self.waiting {
             // The second click applies.
-            let sound = if cell < 0 {
-                DragSound::Error
+            let step = if cell < 0 {
+                DragStep::Sound(DragSound::Error)
             } else {
                 self.end = cell;
-                self.apply(archive, town, terrain)
+                DragStep::Apply
             };
             self.dragging = false;
             self.waiting = false;
-            return Some(sound);
+            return Some(step);
         }
         None
     }
 
     /// The cursor moved over `cell`; while MouseLeft is up (released off the map) the drag
     /// completes as soon as the cursor is back on it.
-    pub fn motion(
-        &mut self,
-        archive: &Archive,
-        town: &mut StartingTown,
-        terrain: &HeightGrid,
-        cell: i32,
-    ) -> Option<DragSound> {
+    pub fn motion(&mut self, cell: i32) -> Option<DragStep> {
         if !self.dragging {
             return None;
         }
         let sound = if cell >= 0 { self.track(cell) } else { None };
         if !self.waiting && !self.held {
-            return self.finish(archive, town, terrain, cell).or(sound);
+            return self.finish(cell).or(sound.map(DragStep::Sound));
         }
-        sound
+        sound.map(DragStep::Sound)
     }
 
     /// MouseLeft released over `cell`.
-    pub fn release(
-        &mut self,
-        archive: &Archive,
-        town: &mut StartingTown,
-        terrain: &HeightGrid,
-        cell: i32,
-    ) -> Option<DragSound> {
+    pub fn release(&mut self, cell: i32) -> Option<DragStep> {
         self.held = false;
         if !self.dragging || self.waiting {
             return None;
@@ -613,7 +615,7 @@ impl RemovalTool {
         if cell >= 0 {
             self.track(cell);
         }
-        self.finish(archive, town, terrain, cell)
+        self.finish(cell)
     }
 
     /// `FUN_140101b10`: stop a drag in progress; false when there was none.
@@ -638,23 +640,16 @@ impl RemovalTool {
 
     /// The button is up while dragging: on the start cell wait for a click, off the map
     /// complain, else apply.
-    fn finish(
-        &mut self,
-        archive: &Archive,
-        town: &mut StartingTown,
-        terrain: &HeightGrid,
-        cell: i32,
-    ) -> Option<DragSound> {
+    fn finish(&mut self, cell: i32) -> Option<DragStep> {
         if self.start == self.end {
             self.waiting = true;
             return None;
         }
         if cell < 0 {
-            return Some(DragSound::Error);
+            return Some(DragStep::Sound(DragSound::Error));
         }
-        let sound = self.apply(archive, town, terrain);
         self.dragging = false;
-        Some(sound)
+        Some(DragStep::Apply)
     }
 
     fn rect(&self, n: i32, a: i32, b: i32) -> (i32, i32, i32, i32) {

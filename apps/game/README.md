@@ -61,6 +61,7 @@ more than once.
 | `--press NAME@T` | Click the interface element called `NAME` (the name in the dialog resource) |
 | `--click-at X,Y@T` | Move the pointer to `X,Y` (pixels) and click there |
 | `--move X,Y@T` | Move the pointer to `X,Y` without clicking |
+| `--mouse-down X,Y@T` / `--mouse-up X,Y@T` | Move the pointer there and press or release the left button: a drag, with `--move` between |
 | `--wheel STEPS@T` | Turn the mouse wheel (zoom the camera) |
 | `--hold ACTION@START-END` | Hold the default key of a key-map action from `START` to `END` seconds, for example `RotateLeft`, `RotateRight`, `Forward`, `Back`, `Left`, `Right`, `ZoomIn`, `ZoomOut`, `PitchUp` or `PitchDown`: camera moves |
 | `--combo NAME=ITEM@T` | Choose the item with the text `ITEM` in the combo box `NAME` (New Game settings) |

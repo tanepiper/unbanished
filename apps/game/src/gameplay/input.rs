@@ -101,12 +101,14 @@ impl GameplayLoop {
     /// paths (`FUN_1400e2880`).
     pub(super) fn path_click(&mut self, ctx: &mut Ctx) {
         let picked = self.entity_at_cursor(ctx);
-        let (Some(entity), Some(tool), Some(town)) =
-            (picked, self.path_tool.as_mut(), self.town.as_mut())
+        let (Some(entity), true, true) = (picked, self.path_tool.is_some(), self.town.is_some())
         else {
             return;
         };
-        tool.pick(town, &mut self.rng, entity);
+        self.execute(ctx.archive, PlayerCommand::PathQuery { entity });
+        let (Some(tool), Some(town)) = (self.path_tool.as_mut(), self.town.as_mut()) else {
+            return;
+        };
         self.selection.selected = Some(entity);
         let n = town.cells.size as i32;
         let (lines, cells) = tool.overlay(n);
@@ -326,10 +328,20 @@ impl GameplayLoop {
     pub(super) fn run_action(&mut self, ctx: &mut Ctx, action: Action) {
         match action {
             // `FUN_1400be770` kinds 6-9 write the simulation controller's pause flag and speed.
-            Action::Pause => self.paused = true,
-            Action::Play => self.paused = false,
-            Action::Slower => self.speed = self.speed.saturating_sub(1),
-            Action::Faster => self.speed = (self.speed + 1).min((SPEED_LEVELS.len() - 1) as u8),
+            Action::Pause => {
+                self.execute(ctx.archive, PlayerCommand::SetPaused(true));
+            }
+            Action::Play => {
+                self.execute(ctx.archive, PlayerCommand::SetPaused(false));
+            }
+            Action::Slower => {
+                let speed = self.speed.saturating_sub(1);
+                self.execute(ctx.archive, PlayerCommand::SetSpeed(speed));
+            }
+            Action::Faster => {
+                let speed = (self.speed + 1).min((SPEED_LEVELS.len() - 1) as u8);
+                self.execute(ctx.archive, PlayerCommand::SetSpeed(speed));
+            }
             Action::Utility(template) => {
                 let map_size = self.town.as_ref().map_or(0, |t| t.cells.size as u32);
                 let Some(screen) = self.screen.as_mut() else {
@@ -428,8 +440,8 @@ impl GameplayLoop {
                 .town
                 .as_ref()
                 .and_then(|town| self.entities.select_item(ctx.ui, town, id, index));
-            if let (Some(WorkPlaceClick::Command(c)), Some(town)) = (chosen, &mut self.town) {
-                town.construction.commands.push(c);
+            if let (Some(WorkPlaceClick::Command(c)), Some(_)) = (chosen, &self.town) {
+                self.execute(ctx.archive, PlayerCommand::Town(c));
             }
             return Next::Stay;
         }
@@ -441,16 +453,24 @@ impl GameplayLoop {
             let root = match d {
                 MenuDialog::Achievements(a) => a.closes(id).then_some(a.root),
                 MenuDialog::Goal(g) => g.closes(id).then_some(g.root),
-                MenuDialog::Map(m) => {
-                    match m.click(ctx.ui, id, self.town_names.as_ref(), &mut self.rng) {
-                        crate::view::map_params::MapParamsClick::Rename(name) => {
-                            self.params.town_name = name;
-                            Some(m.root)
-                        }
-                        crate::view::map_params::MapParamsClick::Close => Some(m.root),
-                        crate::view::map_params::MapParamsClick::None => None,
+                MenuDialog::Map(m) => match m.click(ctx.ui, id) {
+                    crate::view::map_params::MapParamsClick::Rename(name) => {
+                        let root = m.root;
+                        self.execute(ctx.archive, PlayerCommand::RenameTown { name });
+                        Some(root)
                     }
-                }
+                    crate::view::map_params::MapParamsClick::NewName(max_length) => {
+                        let random = PlayerCommand::RandomTownName { max_length };
+                        if let Outcome::Name(name) = self.execute(ctx.archive, random) {
+                            if let Some(MenuDialog::Map(m)) = &self.menu_dialog {
+                                m.set_name(ctx.ui, &name);
+                            }
+                        }
+                        None
+                    }
+                    crate::view::map_params::MapParamsClick::Close => Some(m.root),
+                    crate::view::map_params::MapParamsClick::None => None,
+                },
             };
             if let (Some(root), Some(screen)) = (root, self.screen.as_mut()) {
                 screen.remove_root(ctx.ui, root);
@@ -561,13 +581,12 @@ impl GameplayLoop {
         let Some(action) = toolbar.click(ctx.ui, screen, id) else {
             match self.utility.click(ctx.ui, id, &self.events, &values) {
                 Some(UtilityClick::ProfessionCount(profession, count)) => {
-                    if let Some(town) = &mut self.town {
-                        town.construction.commands.push(
-                            banished_game::work::professions::Command::SetCount {
-                                profession,
-                                count,
-                            },
-                        );
+                    if self.town.is_some() {
+                        let set = banished_game::work::professions::Command::SetCount {
+                            profession,
+                            count,
+                        };
+                        self.execute(ctx.archive, PlayerCommand::Town(set));
                     }
                     return Next::Stay;
                 }
@@ -610,24 +629,12 @@ impl GameplayLoop {
                 .and_then(|town| self.entities.click(ctx.ui, town, id));
             match clicked {
                 Some(WorkPlaceClick::Command(command)) => {
-                    if let Some(town) = &mut self.town {
-                        town.construction.commands.push(command);
-                    }
+                    self.execute(ctx.archive, PlayerCommand::Town(command));
                     return Next::Stay;
                 }
                 // UpgradeUI (`FUN_14008c160`): the template is loaded for the rebuild.
                 Some(WorkPlaceClick::Upgrade { entity, template }) => {
-                    if let Some(town) = &mut self.town {
-                        if let Some(t) = town.load_template(ctx.archive, &template) {
-                            town.site_template(ctx.archive, t);
-                            town.construction.commands.push(
-                                banished_game::work::professions::Command::Upgrade {
-                                    entity,
-                                    template: t,
-                                },
-                            );
-                        }
-                    }
+                    self.execute(ctx.archive, PlayerCommand::Upgrade { entity, template });
                     return Next::Stay;
                 }
                 // ResourceLimitUI (`FUN_14007ccb0`): the slot's limit.

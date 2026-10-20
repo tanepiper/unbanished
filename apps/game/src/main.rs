@@ -1447,15 +1447,21 @@ mod native {
             })
             .collect();
         // `--move X,Y@SECONDS` moves the cursor; `--click-at X,Y@SECONDS` also presses and
-        // releases the left button there.
-        let mut pointer: Vec<(bool, i32, i32, f32)> = args
+        // releases the left button there; `--mouse-down` and `--mouse-up` move there and press
+        // or release it, for drags (with `--move` between).
+        let mut pointer: Vec<(&str, i32, i32, f32)> = args
             .windows(2)
-            .filter(|w| w[0] == "--move" || w[0] == "--click-at")
+            .filter(|w| {
+                matches!(
+                    w[0].as_str(),
+                    "--move" | "--click-at" | "--mouse-down" | "--mouse-up"
+                )
+            })
             .filter_map(|w| {
                 let (xy, at) = w[1].split_once('@')?;
                 let (x, y) = xy.split_once(',')?;
                 Some((
-                    w[0] == "--click-at",
+                    w[0].as_str(),
                     x.parse().ok()?,
                     y.parse().ok()?,
                     at.parse().ok()?,
@@ -1578,7 +1584,7 @@ mod native {
                 }
                 true
             });
-            pointer.retain(|&(click, x, y, at)| {
+            pointer.retain(|&(kind, x, y, at)| {
                 if t < at {
                     return true;
                 }
@@ -1587,9 +1593,18 @@ mod native {
                     screen.layout(&mut game.ui, logical);
                 }
                 game.pointer_move(x, y);
-                if click {
-                    game.pointer_button(true);
-                    game.pointer_button(false);
+                match kind {
+                    "--click-at" => {
+                        game.pointer_button(true);
+                        game.pointer_button(false);
+                    }
+                    "--mouse-down" => {
+                        game.pointer_button(true);
+                    }
+                    "--mouse-up" => {
+                        game.pointer_button(false);
+                    }
+                    _ => {}
                 }
                 false
             });

@@ -12,8 +12,6 @@
 //!   `(max length / 3) × 2` characters on the game's Random (`Game +0xd8`, `FUN_14009ef90`); OK
 //!   (`FUN_14006bff0`) renames the town and closes; Cancel closes.
 
-use banished_formats::names::NameDatabase;
-use banished_game::random::Random;
 use banished_ui::{Control, Kind, NodeId, Ui};
 
 use crate::loops::Screen;
@@ -27,7 +25,10 @@ pub enum MapParamsClick {
     /// OK: the town's new name.
     Rename(String),
     Close,
-    /// Handled here (New Name), or not one of its buttons.
+    /// New Name (`FUN_14006c060`): a random name of at most this many characters is wanted
+    /// (`PlayerCommand::RandomTownName`); [`MapParamsDialog::set_name`] shows it.
+    NewName(i32),
+    /// Not one of its buttons.
     None,
 }
 
@@ -98,6 +99,14 @@ impl MapParamsDialog {
         Some(d)
     }
 
+    /// `FUN_14006c060`: the random name in the edit.
+    pub fn set_name(&self, ui: &mut Ui, name: &str) {
+        if let Some(e) = self.name {
+            ui.set_text(e, name);
+            self.update(ui);
+        }
+    }
+
     /// `FUN_14006c0f0`: OK only with a name.
     pub fn update(&self, ui: &mut Ui) {
         let named = self.name.is_some_and(|e| !edit_text(ui, e).is_empty());
@@ -107,26 +116,17 @@ impl MapParamsDialog {
     }
 
     /// `FUN_14006bf50`.
-    pub fn click(
-        &self,
-        ui: &mut Ui,
-        node: NodeId,
-        names: Option<&NameDatabase>,
-        rng: &mut Random,
-    ) -> MapParamsClick {
+    pub fn click(&self, ui: &mut Ui, node: NodeId) -> MapParamsClick {
         let is = |b: Option<NodeId>| b.is_some_and(|b| ui.descendant(b, node));
         if is(self.new_name) {
-            // `FUN_14006c060`.
-            if let (Some(e), Some(db)) = (self.name, names) {
-                let max_length = match &ui.node(e).kind {
+            // `FUN_14006c060`: the edit's length limit bounds the name.
+            match self.name {
+                Some(e) => MapParamsClick::NewName(match &ui.node(e).kind {
                     Kind::Control(Control::Edit(d)) => d.max_length as i32,
                     _ => 30,
-                };
-                let name = banished_game::people::names::town_name(db, rng, max_length / 3 * 2);
-                ui.set_text(e, &name);
-                self.update(ui);
+                }),
+                None => MapParamsClick::None,
             }
-            MapParamsClick::None
         } else if is(self.ok) {
             MapParamsClick::Rename(self.name.map(|e| edit_text(ui, e)).unwrap_or_default())
         } else if is(self.cancel) {

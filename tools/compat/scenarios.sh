@@ -14,6 +14,11 @@
 #   small-town    save-game/Save0.sav (29 citizens), 30 s at speed 1
 #   medium-town   save-game/Save83.sav (116 citizens), 30 s at speed 5
 #   large-town    save-game/Auto-1.sav (1,024 citizens), 40 s at speed 10
+#   actions       save-game/Save83.sav, 30 s at speed 5, with the player's actions through the
+#                 interface: worker buttons, placing a house (turned), a road drag, clearing
+#                 trees, demolishing by drag, the Path tool, a random town name and a rename,
+#                 pause and play. Positions are for Save83's saved view at 1280x800. It needs a
+#                 build with `--mouse-down` / `--mouse-up` (0.3.0 and later).
 #   continue:PATH a save made by another version (PATH), 25 s at speed 5 (backward compatibility)
 #
 # Needs game-data/ (tools/extract-assets.sh) and the saves in save-game/ (local, git-ignored).
@@ -27,7 +32,7 @@ shift 2
 mkdir -p "$out"
 out="$(cd "$out" && pwd)"
 scenarios=("$@")
-[[ ${#scenarios[@]} -eq 0 ]] && scenarios=(new-game small-town medium-town large-town)
+[[ ${#scenarios[@]} -eq 0 ]] && scenarios=(new-game small-town medium-town large-town actions)
 
 run() { # name seconds speed args...
   local name="$1" secs="$2" speed="$3"
@@ -58,6 +63,23 @@ for s in "${scenarios[@]}"; do
     small-town) run small-town 30 1 --script "load save-game/Save0.sav@4.5" ;;
     medium-town) run medium-town 30 5 --script "load save-game/Save83.sav@4.5" ;;
     large-town) run large-town 40 10 --script "load save-game/Auto-1.sav@4.5" ;;
+    actions)
+      run actions 30 5 --script "load save-game/Save83.sav@4.5" \
+        --click-at 845,390@10.5 --press workerCountUp@11.0 --press jobCountUp@11.3 \
+        --press workerCountDown@11.6 --press buttonClose@12.0 \
+        --script "tool Template/WoodHouse.rsc:resource@12.5" --hold StructureRight@12.6-12.7 \
+        --move 150,160@12.8 --click-at 150,160@13.0 \
+        --script "tool Template/DirtRoad.rsc:resource@13.5" --mouse-down 945,470@13.8 \
+        --move 980,470@14.0 --move 1010,470@14.1 --mouse-up 1010,470@14.4 \
+        --script "tool Template/ClearTree.rsc:resource@14.8" --mouse-down 300,150@15.0 \
+        --move 380,200@15.2 --mouse-up 420,230@15.4 \
+        --script "tool Template/ClearBuildings.rsc:resource@15.8" --mouse-down 280,430@16.0 \
+        --move 400,480@16.2 --mouse-up 470,530@16.4 \
+        --script "tool Template/UtilityPath.rsc@16.8" --click-at 760,610@17.1 --hold Cancel@17.5-17.6 \
+        --script "pause@18" --press buttonMap@18.4 --press buttonNewName@18.8 \
+        --press buttonNewName@19.1 --press buttonOk@19.4 --press buttonResume@19.8 \
+        --hold TogglePause@20-20.1 --hold TogglePause@20.5-20.6
+      ;;
     continue:*)
       path="$(cd "$(dirname "${s#continue:}")" && pwd)/$(basename "${s#continue:}")"
       name="continue-$(basename "$path" .sav)"

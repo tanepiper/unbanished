@@ -308,43 +308,87 @@ impl PlacementTool {
         ))
     }
 
-    /// `FUN_140102b20`: create the building if the footprint is valid. It has no mesh until
-    /// its BuildComponent starts building (`FUN_14010cfb0` shows mesh 0, the first stage). Its
-    /// ZoneComponent reserves the footprint now (`FUN_1400a2830`); the map is stamped when the
-    /// building is finished. Returns the new entity.
+    /// The building a click would create (`FUN_140102b20`): the tool's footprint and ghost if
+    /// they are valid, turned by `rotation`; none otherwise.
+    pub fn placement(&self, rotation: i32) -> Option<Placement> {
+        let rect = self.rect.filter(|_| self.valid)?;
+        Some(Placement {
+            template: self.template,
+            rect,
+            position: self.position,
+            degrees: (rotation * ROTATION_STEP as i32).rem_euclid(360),
+            variant: self.variant,
+            rules: self.rules.clone(),
+        })
+    }
+
+    /// `FUN_140102b20`: create the building if the footprint is valid ([`place`]), then the
+    /// ghost shows the next variant. Returns the new entity. (The game goes through
+    /// `PlayerCommand::Place`.)
+    #[cfg(test)]
     pub fn place(
         &mut self,
         archive: &Archive,
         town: &mut StartingTown,
         rotation: i32,
     ) -> Option<usize> {
-        let rect = self.rect.filter(|_| self.valid)?;
-        let degrees = (rotation * ROTATION_STEP as i32).rem_euclid(360);
-        let id = town.placed.len();
-        town.placed.push(Placed {
-            template: self.template,
-            bucket: town.templates[self.template].bucket,
-            cell: (rect.x0, rect.y0),
-            footprint: (rect.width(), rect.height()),
-            position: self.position,
-            yaw: degrees as f32,
-            variant: self.variant,
-            mesh: usize::MAX,
-            growth: 0.0,
-            growth_state: None,
-            spawn_state: None,
-            alive: true,
-            removal_requested: false,
-            animation: None,
-            scale: [1.0; 4],
-        });
-        // `FUN_1400c9d70`: register with the entity manager's buckets.
-        town.register_entity(id);
-        banished_game::world::placement::zone(&mut town.cells, &self.rules, rect, degrees, id);
-        town.add_site(archive, id);
-        self.next_variant();
+        let id = place(archive, town, &self.placement(rotation)?);
+        self.placed();
         Some(id)
     }
+
+    /// After a placement: the ghost shows the next variant.
+    pub fn placed(&mut self) {
+        self.next_variant();
+    }
+}
+
+/// A building to create: what a placement click hands over (`PlayerCommand::Place`).
+#[derive(Debug, Clone)]
+pub struct Placement {
+    /// The template.
+    pub template: usize,
+    /// The footprint's cells.
+    pub rect: Rect,
+    /// The model's position.
+    pub position: [f32; 3],
+    /// The rotation in degrees (0, 90, 180 or 270).
+    pub degrees: i32,
+    /// The model variant.
+    pub variant: usize,
+    /// The template's placement rules (the zone it reserves).
+    pub rules: PlacementRules,
+}
+
+/// `FUN_140102b20`: create the building. It has no mesh until its BuildComponent starts
+/// building (`FUN_14010cfb0` shows mesh 0, the first stage). Its ZoneComponent reserves the
+/// footprint now (`FUN_1400a2830`); the map is stamped when the building is finished. Returns
+/// the new entity.
+pub fn place(archive: &Archive, town: &mut StartingTown, p: &Placement) -> usize {
+    let rect = p.rect;
+    let id = town.placed.len();
+    town.placed.push(Placed {
+        template: p.template,
+        bucket: town.templates[p.template].bucket,
+        cell: (rect.x0, rect.y0),
+        footprint: (rect.width(), rect.height()),
+        position: p.position,
+        yaw: p.degrees as f32,
+        variant: p.variant,
+        mesh: usize::MAX,
+        growth: 0.0,
+        growth_state: None,
+        spawn_state: None,
+        alive: true,
+        removal_requested: false,
+        animation: None,
+        scale: [1.0; 4],
+    });
+    // `FUN_1400c9d70`: register with the entity manager's buckets.
+    town.register_entity(id);
+    banished_game::world::placement::zone(&mut town.cells, &p.rules, rect, p.degrees, id);
+    town.add_site(archive, id);
+    id
 }
 
 #[cfg(test)]

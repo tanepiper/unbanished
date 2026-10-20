@@ -160,15 +160,14 @@ impl GameplayLoop {
         // `FUN_140108030`: the tool class that handles one of the template's
         // descriptions (CreatePlacedDescription, CreateRemovalDescription, ...).
         self.removal = None;
-        self.placement = self
-            .town
-            .as_mut()
-            .and_then(|town| PlacementTool::start(ctx.archive, town, template, &mut self.rng));
-        if self.placement.is_none() {
-            self.removal = self
-                .town
-                .as_mut()
-                .and_then(|town| RemovalTool::start(ctx.archive, town, template));
+        self.placement = None;
+        let start = PlayerCommand::StartTool {
+            template: template.to_string(),
+        };
+        match self.execute(ctx.archive, start) {
+            Outcome::Tool(Some(Tool::Placement(t))) => self.placement = Some(t),
+            Outcome::Tool(Some(Tool::Removal(t))) => self.removal = Some(t),
+            _ => {}
         }
         // A DragTool opens its CreateBar only while dragging (`FUN_140104eb0`).
         let bar = self
@@ -199,6 +198,34 @@ impl GameplayLoop {
     /// (`FUN_140106740`, −1 off the map).
     pub(super) fn removal_input(&mut self, ctx: &mut Ctx, input: DragInput) {
         let cell = self.cursor_cell(ctx.ui.screen);
+        let (Some(tool), Some(town)) = (self.removal.as_mut(), self.town.as_ref()) else {
+            return;
+        };
+        if self.view.is_none() {
+            return;
+        }
+        let n = town.cells.size as i32;
+        let cell = cell.map_or(-1, |(x, y)| y * n + x);
+        tool.rotation = self.rotation;
+        tool.restrict = self.restrict.as_ref().map(|r| r.rect);
+        tool.manhattan = !self.held[keys::PATH_METHOD];
+        let step = match input {
+            DragInput::Press => tool.press(cell),
+            DragInput::Move => tool.motion(cell),
+            DragInput::Release => tool.release(cell),
+        };
+        // The drag applies inside the input handler, as the original's tools do.
+        let sound = match step {
+            Some(DragStep::Apply) => {
+                let drag = PlayerCommand::Drag(Box::new(tool.clone()));
+                match self.execute(ctx.archive, drag) {
+                    Outcome::Sound(s) => Some(s),
+                    _ => None,
+                }
+            }
+            Some(DragStep::Sound(s)) => Some(s),
+            None => None,
+        };
         let (Some(tool), Some(town), Some(view)) = (
             self.removal.as_mut(),
             self.town.as_mut(),
@@ -206,19 +233,9 @@ impl GameplayLoop {
         ) else {
             return;
         };
-        let n = town.cells.size as i32;
-        let cell = cell.map_or(-1, |(x, y)| y * n + x);
         let grid = banished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
-        };
-        tool.rotation = self.rotation;
-        tool.restrict = self.restrict.as_ref().map(|r| r.rect);
-        tool.manhattan = !self.held[keys::PATH_METHOD];
-        let sound = match input {
-            DragInput::Press => tool.press(ctx.archive, town, &grid, cell),
-            DragInput::Move => tool.motion(ctx.archive, town, &grid, cell),
-            DragInput::Release => tool.release(ctx.archive, town, &grid, cell),
         };
         // The original's tools act inside the input handler: RoadTool's apply
         // (`FUN_14010a200`) plans each cell (`FUN_1400a1e30`) and rebuilds the road decals

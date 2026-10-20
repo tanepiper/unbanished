@@ -48,6 +48,7 @@ tools/compat/compare.sh HEAD~1 HEAD new-game large-town  # a subset
 | `small-town` | `save-game/Save0.sav` (29 citizens), 30 s at speed 1 |
 | `medium-town` | `save-game/Save83.sav` (116 citizens), 30 s at speed 5 |
 | `large-town` | `save-game/Auto-1.sav` (1,024 citizens, 28,000 entities, made in the original in 2015), 40 s at speed 10 |
+| `actions` | `save-game/Save83.sav`, 30 s at speed 5, with a player's actions through the interface: worker buttons, placing a turned house, a road drag, clearing trees, demolishing by drag, the Path tool, a random town name and a rename, pause and play. It needs `--mouse-down` / `--mouse-up` (0.3.0 and later). |
 | `continue:PATH` | A save written by another version, 25 s at speed 5 (backward compatibility) |
 
 Each scenario pauses, saves and captures a frame at the end. A comparison passes only when every
@@ -85,3 +86,11 @@ runs even when paused (as in the original, `FUN_1400c98a0`), so every extra fram
 values. Headless captures now wait for the GPU readback (`Renderer::blocking_readback`), and a
 save lands on the frame it was asked for. Two runs of the same build agree, and so do the builds
 before and after the performance work.
+
+The large town's frame can still differ in a few pixels between two runs of the same build, with
+an identical game state. During the player-command change (0.3.0) the build before the change
+differed from itself once (a level difference of 1 of 255, in under 0.001% of the frame), and
+once the continuation of a large-town save differed by up to 6 between the builds; run again,
+both matched exactly. The cause is in the drawing, not the simulation, and is not found yet
+(open question). A frame-only difference in `large-town` should be repeated, and checked against
+the old build compared with itself, before it is blamed on a change.
