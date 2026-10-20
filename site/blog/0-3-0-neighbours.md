@@ -107,9 +107,9 @@ The browser version now behaves more like a real app:
 - **Sharper text** on 4K screens and tablets, where letters used to fall between pixels.
 
 <Shot
-  src="/assets/screenshots/browser-loading.webp"
-  alt="The browser version's loading screen with its three steps"
-  caption="The browser version's front door. It now installs as an app."
+  src="/assets/screenshots/browser-options-video.webp"
+  alt="The game's Video options in the browser, with Resolution set to 1280x720 and Refresh Rate to 60"
+  caption="In the browser, Resolution is the 3D world's share of the page, and Refresh Rate a frame-rate limit."
 />
 
 ## Films of your town

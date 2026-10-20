@@ -35,7 +35,7 @@ GAME=path/to/banished VIEWER=path/to/banished-viewer tools/videos.sh SAVE.sav   
 | `zoom-into-town.webm` | The camera zooms from above a town down to its market | Frames 1.5 to 10 s after the zoom starts |
 | `citizens-market.webm` | Citizens walk and trade at the market | 8 s at normal speed, the middle of the frame |
 | `seasons.webm` | Autumn, rain, snow and the start of spring | A time-lapse at speed 10: one frame every 0.75 s for 180 s |
-| `big-town.webm` | A large town at speed 10, the camera turning slowly over it | `tools/videos.sh LARGE.sav big-town`: the saved view, `--hold RotateLeft` for 8 s |
+| `big-town.webm` | A large town's church, graveyard and autumn wood, the camera circling them | `tools/videos.sh LARGE.sav big-town`: centred on `CLICK`, zoomed in part way, `--hold RotateRight` for 10 s |
 | `orbit.webm` | The camera circles the middle of a town | `--hold RotateRight` for 10 s, after `--hold PitchUp` lowers the camera |
 | `follow-citizen.webm` | The camera follows one citizen at the closest zoom | `select citizen N`, then `--press buttonFollow` (`CITIZEN=N` chooses who) |
 | `river.webm` | Along a river from a bridge | Centred on a bridge, then `--hold Back` for 7 s |

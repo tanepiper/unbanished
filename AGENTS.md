@@ -117,6 +117,7 @@ files directly):
 | Prove a change works (tests, captures, web build) | `banished-verify` |
 | Document, commit and push safely | `banished-land` |
 | Record a video of the game or a model (headless frames to WebM) | `banished-video` |
+| Write or edit a release post for the blog (one story per feature) | `banished-blog` |
 
 ### Exactness checklist
 
@@ -157,7 +158,7 @@ footer ("Version 1.0.7 - Build 170910") comes from the original's resources and 
   and tags `vX.Y.Z` (annotated), sets the workspace version to the next version in a second
   commit, pushes, publishes a GitHub release with the changelog section as its notes (and a link
   to the version's blog post in `site/blog/`), and rebuilds the website. Before it, write the
-  Unreleased section's opening line and the blog post; `tools/release/release.py` holds the
+  Unreleased section's opening line and the blog post (the `banished-blog` skill); `tools/release/release.py` holds the
   steps, so you can try them on a scratch copy.
 
 ## Before every commit

@@ -30,7 +30,12 @@ engine, on your computer or in your browser.
 Un-Banished is a new engine for Banished, written from scratch in Rust. It contains none of the
 original's code, art, sound or text. Instead, it reads the game files from your own copy of
 Banished, the same files that the original reads. So everything looks, sounds and plays as you
-remember it.
+remember it: the menus, the toolbar and every window are the original's, drawn by the new
+engine.
+
+It runs on Windows, macOS and Linux, and in a web browser. Open the [Play page](/play), choose
+the four game files from your copy of Banished, and play. The files stay in your browser, and so
+do your saves, settings and mods.
 
 <Shot
   src="/assets/screenshots/town-overview.webp"
@@ -38,7 +43,7 @@ remember it.
   caption="A town loaded from a save of the original game."
 />
 
-## Same seed, same valley
+## The whole game, to the last bit
 
 When you start a new game, Banished makes the valley from a random number, the seed. Un-Banished
 makes exactly the same valley from the same seed: the same hills, the same rivers, the same
@@ -58,12 +63,11 @@ in an emulator and comparing every value.
 />
 </div>
 
-## Every citizen, every chicken
-
-The citizens live their whole lives: they are born, grow up, start families, work, eat, get
-cold, get sick and grow old. They farm fields and orchards, herd animals, hunt, fish, gather, build roads
-and bridges, and trade with the merchants who come up the river. The animals are there too,
-every chicken with its walk.
+Then the citizens live their whole lives: they are born, grow up, start families, work, eat, get
+cold, get sick and grow old. They farm fields and orchards, herd animals, hunt, fish, gather,
+build roads and bridges, and trade with the merchants who come up the river. The animals are
+there too, every chicken with its walk. And the seasons turn as they did: the fields go golden,
+the snow comes, and the town waits for spring.
 
 <div class="ub-shots">
 <Shot
@@ -73,41 +77,24 @@ every chicken with its walk.
   caption="Market day."
 />
 <Shot
-  src="/assets/videos/chicken-walk.webm"
-  alt="A chicken walks on the spot"
-  caption="The chicken's walk, from the original's animation."
-/>
-</div>
-
-## A year in a few seconds
-
-The seasons turn as they did: the fields go golden, the snow comes, and the town waits for
-spring. Speed up the game, and the year flies past.
-
-<Shot
   src="/assets/videos/seasons.webm"
   poster="/assets/videos/seasons-poster.webp"
   alt="A town changes from autumn to winter to spring"
   caption="Autumn, winter and spring at speed 10."
 />
+</div>
 
 ## Your old towns still live here
 
 Un-Banished uses the original save format and the original save folder. A town that you saved
 in the original game years ago loads in Un-Banished, with its citizens, its stores and its
-history. The menus, the toolbar and every window are the original's, drawn by the new engine.
+history. Mods made with the BanishedKit (`.pkm` files) work too, through the Mods menu.
 
 <Shot
   src="/assets/screenshots/town-hall.webp"
   alt="The Town Hall window open on its Inventory tab"
   caption="The Town Hall, with the stock of a town from an old save."
 />
-
-## In your browser
-
-The same engine runs in a web browser, through WebAssembly. Open the
-[Play page](/play), choose the four game files from your copy of Banished, and play. The files
-stay in your browser. Saves, settings and mods are kept there too.
 
 ## Built from evidence
 
@@ -117,22 +104,20 @@ functions in an emulator to get exact results, and then wrote new code that give
 results. About 1,600 original functions are named in the code next to the new code that
 replaces them. The whole story is in [How it was made](/about/how-it-was-made).
 
-## Fixed before the release
-
-Players found the first problems quickly, and we fixed them before the release:
-
-- A construction site could not be selected, and an orchard could not be selected once its
-  trees had grown.
-- Changes in building windows did not show while the game was paused.
-- After loading a save, walking citizens stood still.
-- The browser version ran out of memory in Firefox.
-- The game paused for a moment every few seconds.
-
-## Known issues
+## What is next
 
 There are no ready-made downloads yet: you build Un-Banished from its source code (see the
 [setup guide](/guide/)). A few things still differ from the original; they are listed in the
 [issues](https://github.com/tanepiper/unbanished/issues).
+
+## Also in 0.1.0
+
+- **Tutorials, scenarios and achievements**, as in the original.
+- **Sound:** the music, the ambient sounds, sound effects from where they happen in the world,
+  and the sounds of the menus.
+- **Disasters:** fire, disease and tornadoes.
+- **Autosave**, on the original's timer.
+- **A website** with a setup guide, the story of how Un-Banished was made, and a Play page.
 
 ---
 

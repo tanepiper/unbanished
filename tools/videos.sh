@@ -3,7 +3,7 @@
 #
 #   tools/videos.sh SAVE.sav [NAME...]      # NAME: chicken-walk citizens-market zoom-into-town seasons
 #   tools/videos.sh save-game/Save83.sav montage   # the home page's 65 s montage (five saves, see below)
-#   tools/videos.sh LARGE.sav big-town      # a large town at speed 10, the camera turning over it
+#   tools/videos.sh LARGE.sav big-town      # a large town, the camera circling its church
 #   tools/videos.sh SAVE.sav orbit follow-citizen   # the camera circles the town; it follows a citizen
 #   tools/videos.sh RIVER.sav river fishing  # along a river from a bridge; fishers on their dock
 #   tools/videos.sh "save-game/Save 47.sav" boat-shoulder fisher-closeup river-flight
@@ -260,12 +260,14 @@ for name in "${names[@]}"; do
       poster 150 seasons
       ;;
     big-town)
-      # A large town (Save200) at speed 10, from the saved view: 8 s of frames from 17 s while
-      # the camera turns slowly to the left.
-      frames 17 "$step" 240
-      click=none ZOOM=0 town 25.5 --script "speed 10@15.5" --hold RotateLeft@17-25.2 "${shots[@]}"
-      encode 0 240 "scale=854:480:flags=lanczos" 42 big-town
-      poster 60 big-town
+      # A large town (Save200, Driscola) at normal speed, so that no smoke or weather drifts
+      # into view: centred on the church by the autumn woods (CLICK, in 1280x720 screen
+      # coordinates of the saved view), zoomed in part way, then circling it for 10 s. The
+      # middle of the frame leaves out the toolbar.
+      frames 21 "$step" 300
+      click="${CLICK:-1000,480}" ZOOM=14 town 31.5 --hold RotateRight@21-31.2 "${shots[@]}"
+      encode 0 300 "$middle,scale=1280:720:flags=lanczos" 52 big-town
+      poster 90 big-town "$middle"
       ;;
     orbit)
       # Centre on the building at $click, zoom in part way, then circle it for 10 s.
