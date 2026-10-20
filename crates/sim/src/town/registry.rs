@@ -3,9 +3,11 @@
 use super::*;
 
 impl StartingTown {
-    /// The map ambience's region entities (`Environment.rsc:ambient`, bucket 2, `FUN_1400a57c0`)
-    /// of a new game: they take turns in their bucket with the populations. (Their river and
-    /// wind entities have no bucket.)
+    /// The map ambience's region entities (`Environment.rsc:ambient`, bucket 2) of a new game: they
+    /// take turns in their bucket with the populations. (Their river and wind entities have no
+    /// bucket.)
+    ///
+    /// Original: `FUN_1400a57c0`.
     pub fn register_ambience(&mut self, regions: usize) {
         /// `Audio\Effects\Environment.rsc:ambient`'s bucket.
         const AMBIENCE_BUCKET: usize = 2;
@@ -23,21 +25,28 @@ impl StartingTown {
         self.scheduler.time
     }
 
-    /// A saved entity the town does not model, kept in its bucket (`FUN_1400c9d70`).
-    pub(crate) fn register_foreign(&mut self, bucket: usize, n: usize) -> usize {
+    /// A saved entity the town does not model, kept in its bucket.
+    ///
+    /// Original: `FUN_1400c9d70`.
+    pub fn register_foreign(&mut self, bucket: usize, n: usize) -> usize {
         self.scheduler
             .register_extra(unbanished_game::scheduler::FOREIGN + n, bucket)
     }
 
-    /// `FUN_1400c9d70`: register a new entity in its template's bucket.
+    /// Register a new entity in its template's bucket.
+    ///
+    /// Original: `FUN_1400c9d70`.
     pub fn register_entity(&mut self, id: usize) {
         let handle = self.scheduler.register(id, self.placed[id].bucket);
         debug_assert_eq!(handle, id);
     }
 
-    /// A removal marker (`FUN_1400c8bf0` of `CreateRemovalDescription +0x38`, its MapComponent
-    /// at `cell`, 1 × 1, then `FUN_1400c9d70`): registered, its ZoneComponent occupies the cell
-    /// and its StateMachine is activated before the next iteration.
+    // CreateRemovalDescription +0x38
+    /// A removal marker (made from `CreateRemovalDescription`, its MapComponent at `cell`,
+    /// 1 × 1): registered, its ZoneComponent occupies the cell and its StateMachine is activated
+    /// before the next iteration.
+    ///
+    /// Original: `FUN_1400c9d70`, `FUN_1400c8bf0`.
     pub fn add_marker(
         &mut self,
         archive: &Archive,

@@ -6,7 +6,7 @@ use unbanished_formats::savegame::{Fields, GameState, Value};
 
 use super::construction::{in_saved_order, like_saved, saved_order};
 use super::{component, fields_mut, Ids, Refs};
-use crate::start::StartingTown;
+use crate::town::StartingTown;
 
 impl StartingTown {
     pub(super) fn export_producers(&self, g: &mut GameState, refs: &mut Refs, ids: &Ids) {

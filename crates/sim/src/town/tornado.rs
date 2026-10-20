@@ -1,6 +1,8 @@
-//! The environment's tornado (`FUN_1400999b0` step 6 → `FUN_1400c8bf0` of the
-//! EnvironmentDescription's template, `FUN_1400c9d70`): the entity and its TornadoComponent's
-//! setup (`FUN_140058f00`). See docs/TORNADO.md.
+//! The environment's tornado (made in step 6 of the environment update from the
+//! EnvironmentDescription's template): the entity and its TornadoComponent's setup. See
+//! docs/TORNADO.md.
+//!
+//! Original: `FUN_1400c9d70`, `FUN_140058f00`, `FUN_1400999b0`, `FUN_1400c8bf0`.
 
 use unbanished_formats::pkg::Archive;
 use unbanished_game::disasters::tornado::Tornado;

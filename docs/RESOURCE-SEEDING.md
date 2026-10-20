@@ -148,7 +148,7 @@ The new descriptions parse completely across the shipped data
 ## Port
 
 `crates/game/src/nature/seeding.rs` ports the structure draws and the full pass, including spawning.
-`apps/game/src/start.rs` runs it at New Game on the game stream `Random(seed)` before the
+`crates/sim/src/town.rs` runs it at New Game on the game stream `Random(seed)` before the
 environment draws, then draws the placed models.
 
 Start structures are drawn at their footprint centre with the finished mesh. Creation runs with

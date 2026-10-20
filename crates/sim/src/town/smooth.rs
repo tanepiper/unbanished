@@ -3,7 +3,9 @@
 use super::*;
 
 impl StartingTown {
-    /// FUN_1400c98a0's post-iteration phase; also runs when the toolbar pauses simulation.
+    /// The phase after each iteration; also runs when the toolbar pauses the simulation.
+    ///
+    /// Original: `FUN_1400c98a0`.
     pub fn smooth(&mut self, terrain: &HeightGrid, rng: &mut Random) -> bool {
         Seeder {
             templates: &self.templates,

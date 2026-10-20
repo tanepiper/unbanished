@@ -20,7 +20,7 @@ loop's `load PATH` script command (native only):
 cargo run -p unbanished-app --release -- --boot-capture out.png 20 --script "load save-game/Save3.sav@5"
 ```
 
-`MenuLoop` parses the file into a `SavedGame` (`apps/game/src/saves/saved.rs`) and switches, through a
+`MenuLoop` parses the file into a `SavedGame` (`crates/sim/src/saved.rs`) and switches, through a
 loading screen, to `GameplayLoop::from_save`.
 
 ## What stage 1 restores
@@ -40,7 +40,7 @@ loading screen, to `GameplayLoop::from_save`.
   - the river and lake mesh.
 
   Nothing is regenerated. The terrain profile is read only for its materials.
-- **The town.** `StartingTown::from_save` (`apps/game/src/start/load.rs`) restores every entity
+- **The town.** `StartingTown::from_save` (`crates/sim/src/town/load.rs`) restores every entity
   that has a MapComponent:
   - its template;
   - its cell and footprint (the MapComponent's `x`, `y` is the footprint's corner);
@@ -67,7 +67,7 @@ They load and run for 120 simulated seconds without error.
 
 ## What stage 2 restores
 
-The code is in `apps/game/src/start/load/construction.rs`. Each building is created as a newly
+The code is in `crates/sim/src/town/load/construction.rs`. Each building is created as a newly
 placed one is (`add_site`: its storage, workplace and site) and then takes its saved fields:
 construct, then deserialize, as the original's load does. It is not queued for activation;
 its saved state machine already holds its state.
@@ -126,7 +126,7 @@ are characters, not sites (stage 3c).
 
 ## What stage 3a restores
 
-The code is in `apps/game/src/start/load/citizens.rs`. The citizens are restored in the town
+The code is in `crates/sim/src/town/load/citizens.rs`. The citizens are restored in the town
 manager's registry order (`+0xa0`). Each CitizenComponent (`FUN_140119630`) fills the port's
 `Citizen` and `CitizenState` field for field, by offset:
 
@@ -182,7 +182,7 @@ and the relations are consistent:
 
 ## What stage 3b restores
 
-**Action stacks** (`apps/game/src/start/load/actions.rs`). In the original, a CharacterComponent
+**Action stacks** (`crates/sim/src/town/load/actions.rs`). In the original, a CharacterComponent
 saves its stack array (`+0x48`, top `+0x60`) and its "on empty" action (`+0x58`). Each array
 entry is one action with its started flag (`+0x18`). An action linked to an entry (`+0x10`, a
 hunter's watch for example) is not saved. Each entry becomes a one-action chain of the port's
@@ -237,7 +237,7 @@ has that work as its job (Citizen `+0x30`). That relation spans two separately s
 
 ## What stage 3c restores
 
-The code is in `apps/game/src/start/load/wildlife.rs`.
+The code is in `crates/sim/src/town/load/wildlife.rs`.
 
 **Placing them.** Populations, herds, animals and trader boats have no map footprint. Stage 1
 places them as `Wild::place` does, at the cell under their position. Each goes into its saved
@@ -273,7 +273,7 @@ livestock names the pasture. Save83 has 36 herds, 261 animals (36 in pastures) a
 
 ## What stage 3d restores
 
-The code is in `apps/game/src/start/load/producers.rs`. Each building component's fields go onto
+The code is in `crates/sim/src/town/load/producers.rs`. Each building component's fields go onto
 the port's site fields, following the offsets in the port's doc comments:
 
 | Component | Fields |

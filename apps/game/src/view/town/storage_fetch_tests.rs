@@ -1,5 +1,8 @@
-use super::*;
+use crate::start::*;
+use unbanished_formats::pkg::Archive;
 use unbanished_formats::pkg::Package;
+use unbanished_game::random::Random;
+use unbanished_game::terrain::HeightGrid;
 use unbanished_game::{behaviour::ai::activity, work::stock::stock_table};
 
 /// ShowTool (`FUN_14011c880`): a citizen's tool is drawn on its mesh's `tool` node, carried

@@ -1,18 +1,22 @@
-//! New Game start-condition setup (`FUN_1400a87d0`): start point, profile structures and natural
-//! resource seeding, run on the game's shared random stream. See docs/RESOURCE-SEEDING.md and
+//! New Game start-condition setup: start point, profile structures and natural resource seeding,
+//! run on the game's shared random stream. See docs/RESOURCE-SEEDING.md and
 //! START-CONDITION-PROFILES.md. Starting households and scheduled natural resources are active;
 //! deer, crops, orchards and livestock come next.
 //!
 //! This file holds [`StartingTown`], creating and assembling it, and the small helpers other
 //! modules use (`read`, `normalise`, `material_index`). The rest is split by topic:
-//! - [`templates`], [`animals`], [`citizens`]: what the game data describes;
-//! - [`placing`]: placing structures and fenced areas on the map;
-//! - [`registry`]: registering entities, ambience and markers;
-//! - [`frame`]: the town's frame update;
-//! - [`sites`]: building sites;
-//! - [`models`]: the models to draw;
-//! - [`icons`]: interface data (minimap overlay, status and building icons);
-//! - `load`, `save`, `bridge`, `tornado`: loading and saving games, bridges, tornadoes.
+//! - `templates`, `animals`, `citizens`, `professions`: what the game data describes;
+//! - `placing`: placing structures and fenced areas on the map;
+//! - `registry`: registering entities, ambience and markers;
+//! - `frame`, `smooth`: the town's frame update and the phase after each iteration;
+//! - `sites`: building sites;
+//! - `minimap`: the minimap's overlay;
+//! - [`map`]: the generated or saved map, with no drawing data;
+//! - [`load`], [`save`], `bridge`, `tornado`: loading and saving games, bridges, tornadoes.
+//!
+//! The models and icons to draw are not here: the game app's `view::town` makes them.
+//!
+//! Original: `FUN_1400a87d0`.
 
 mod animals;
 mod citizens;
@@ -26,7 +30,7 @@ mod smooth;
 mod templates;
 use animals::{livestock_kind, wildlife_kinds};
 use citizens::{citizen_animations, citizen_rules, grid_start, households, starting_goods};
-pub(crate) use citizens::{citizen_tool_nodes, CHILD_SCALE};
+pub use citizens::{citizen_tool_nodes, CHILD_SCALE};
 use templates::{load_template, professions};
 
 use std::collections::{BTreeMap, HashMap};
@@ -54,13 +58,13 @@ use unbanished_game::work::construction::{Construction, Controller, Site, SiteTe
 use unbanished_game::work::professions::{Profession, Professions, WorkPlace};
 
 mod bridge;
-pub(crate) mod load;
-pub(crate) mod map;
+pub mod load;
+pub mod map;
 // The web build has no save path yet (no Save dialog, no file access).
 #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-pub(crate) mod save;
+pub mod save;
 mod tornado;
-pub(crate) mod world_params;
+pub mod world_params;
 pub use bridge::BridgeSpec;
 
 /// The raw material for `reference`, loading it into the town's list when new.
@@ -87,7 +91,7 @@ pub fn material_index(
     Some(materials.len() - 1)
 }
 
-pub(crate) fn normalise(reference: &str) -> String {
+pub fn normalise(reference: &str) -> String {
     let r = reference.replace('/', "\\");
     if r.contains(':') {
         r
@@ -96,7 +100,7 @@ pub(crate) fn normalise(reference: &str) -> String {
     }
 }
 
-pub(crate) fn read(archive: &Archive, reference: &str) -> Option<Vec<u8>> {
+pub fn read(archive: &Archive, reference: &str) -> Option<Vec<u8>> {
     archive.read_ref(&reference.replace('\\', "/")).ok()
 }
 
@@ -138,9 +142,9 @@ struct TownParts {
 pub struct StartingTown {
     /// The citizen template (`Template\\Citizen…:resource`), as the town was made with it; the
     /// view reads its models and icons from it.
-    pub(crate) citizen: String,
+    pub citizen: String,
     /// The laborer, child and student professions (`start/professions.rs`).
-    pub(crate) archive_professions: Vec<(String, unbanished_formats::game::Profession)>,
+    pub archive_professions: Vec<(String, unbanished_formats::game::Profession)>,
     pub start: (i32, i32),
     pub citizens: Vec<Citizen>,
     pub rules: CitizenRules,
@@ -150,33 +154,38 @@ pub struct StartingTown {
     pub templates: Vec<Template>,
     pub placed: Vec<Placed>,
     pub cells: Cells,
-    pub(crate) scheduler: EntityScheduler<usize>,
+    pub scheduler: EntityScheduler<usize>,
     /// The last bucket pass's visits (`EntityScheduler::take_visits`), for the agents.
-    pub(crate) visits: Vec<(usize, i64)>,
-    /// Each citizen's entity in the scheduler (bucket 1, `FUN_1400c9d70`); `None` once dead.
-    pub(crate) citizen_handles: Vec<Option<usize>>,
+    pub visits: Vec<(usize, i64)>,
+    /// Each citizen's entity in the scheduler (bucket 1); `None` once dead.
+    ///
+    /// Original: `FUN_1400c9d70`.
+    pub citizen_handles: Vec<Option<usize>>,
     /// The map ambience's region entities in the scheduler (bucket 2) for a new game, in
     /// region order (a saved game's are among `SaveIds::foreign`).
-    pub(crate) ambience_handles: Vec<usize>,
-    pub(crate) removed: Vec<usize>,
+    pub ambience_handles: Vec<usize>,
+    pub removed: Vec<usize>,
     pub animation_events: Vec<(usize, String)>,
-    pub(crate) citizen_model: Option<unbanished_formats::game::ModelDescription>,
+    pub citizen_model: Option<unbanished_formats::game::ModelDescription>,
     /// The nomad templates' NomadDescription materials (men, women).
-    pub(crate) nomad_materials: HashMap<usize, [Option<String>; 2]>,
+    pub nomad_materials: HashMap<usize, [Option<String>; 2]>,
     /// Each variant's animation group (`Models\Citizen\CitizenAnims.rsc`).
-    pub(crate) citizen_anims: Vec<Option<Arc<unbanished_formats::types::AnimationGroup>>>,
+    pub citizen_anims: Vec<Option<Arc<unbanished_formats::types::AnimationGroup>>>,
     /// The citizens' CharacterComponent and CitizenAIComponent (docs/CITIZEN-AI.md).
     pub agents: Agents,
     /// Wild animals, their herds and populations (docs/WILDLIFE-POPULATION.md).
     pub wildlife: unbanished_game::nature::wildlife::Wildlife,
-    /// The placement tool's ghost (`PlacementTool +0x68`): mesh and transform.
+    // PlacementTool +0x68
+    /// The placement tool's ghost (`PlacementTool`): mesh and transform.
     pub ghost: Option<(String, [f32; 16])>,
     /// The job manager, professions, workplaces and construction sites (docs/JOBS.md).
     pub construction: Construction,
-    /// `Game/Names/Male` and `Female` (`FUN_1400aa130`), for births.
-    pub(crate) names: Option<(NameDatabase, NameDatabase)>,
+    /// `Game/Names/Male` and `Female`, for births.
+    ///
+    /// Original: `FUN_1400aa130`.
+    pub names: Option<(NameDatabase, NameDatabase)>,
     /// Each StorageDisplay's cells on the ground, by rows (presentation only).
-    pub(crate) display_cells: BTreeMap<usize, Vec<[f32; 3]>>,
+    pub display_cells: BTreeMap<usize, Vec<[f32; 3]>>,
     /// For a town loaded from a save: the saved object each entity and citizen came from, so
     /// saving writes the town back into them (docs/SAVE-WRITING.md).
     pub save_ids: Option<SaveIds>,
@@ -194,7 +203,9 @@ pub struct SaveIds {
 }
 
 impl StartingTown {
-    /// `FUN_1400a87d0` up to the seeding pass. `rng` is the game stream (`Random(seed)`).
+    /// A New Game's town, up to the seeding pass. `rng` is the game stream (`Random(seed)`).
+    ///
+    /// Original: `FUN_1400a87d0`.
     pub fn create(
         archive: &Archive,
         profile_ref: &str,
@@ -615,7 +626,7 @@ impl StartingTown {
 
     /// The trader boat template (`Template\\TraderBoat.rsc`): its CharacterDescription and
     /// its model's animation group.
-    pub(in crate::start) fn load_boat(
+    pub(in crate::town) fn load_boat(
         &mut self,
         archive: &Archive,
         reference: &str,
@@ -636,7 +647,7 @@ impl StartingTown {
 
     /// Every loaded template with a ValueDescription (`crate::mods::templates`, `FUN_140059fd0`),
     /// its raw material registered.
-    pub(in crate::start) fn load_trade_goods(&mut self, archive: &Archive) {
+    pub(in crate::town) fn load_trade_goods(&mut self, archive: &Archive) {
         if !self.construction.trade_goods.is_empty() {
             return;
         }
@@ -668,6 +679,3 @@ impl StartingTown {
         }
     }
 }
-
-#[cfg(test)]
-mod storage_fetch_tests;

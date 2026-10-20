@@ -1,0 +1,19 @@
+[package]
+name = "unbanished-sim"
+version.workspace = true
+description = "The Un-Banished core: a Banished 1.0.7 town with no drawing, sound or interface"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+# Test helpers (loading the game data, wild-animal access) for the app's own tests.
+test-support = []
+
+[dependencies]
+unbanished-formats = { path = "../formats" }
+unbanished-game = { path = "../game" }
+unbanished-mods = { path = "../mods" }
+web-time = "1"
+glam = "0.34"
+log = "0.4"

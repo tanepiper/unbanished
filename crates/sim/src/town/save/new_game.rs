@@ -1,19 +1,22 @@
-//! Saving a game that was not loaded from a save: the state starts empty and the writers fill
-//! it (docs/SAVE-WRITING.md, "New games").
+//! Saving a game that was not loaded from a save: the state starts empty and the writers fill it
+//! (docs/SAVE-WRITING.md, "New games").
 //!
-//! The loop's fields are the New Game settings (`FUN_14009af60`). The entity manager starts
-//! with no entities: its five bucket lists empty, the quotas `[50, 15, 8, 5, 2]` (`+0xa8`), the
-//! cursors 0. The terrain is the generated map's (`FUN_1400b59a0`'s block, version 6). The
-//! gameplay map's cells have no description (`u32::MAX`), and the town and managers are at
-//! their defaults, with the lists the writers fill entry by entry sized as the port's state.
-//! Every entity is then created by [`StartingTown::export_into`] (no saved ids).
+//! The loop's fields are the New Game settings. The entity manager starts with no entities: its
+//! five bucket lists empty, the quotas `[50, 15, 8, 5, 2]`, the cursors 0. The terrain is the
+//! generated map's (the map block, version 6). The gameplay map's cells have no
+//! description (`u32::MAX`), and the town and managers are at their defaults, with the lists the
+//! writers fill entry by entry sized as the port's state. Every entity is then created by
+//! [`crate::town::StartingTown::export_into`] (no saved ids).
+//!
+//! Original: `FUN_14009af60`, `FUN_1400b59a0`.
+// +0xa8
 
 use unbanished_formats::menu_scene::{MapComponent, SceneCamera};
 use unbanished_formats::savegame::{self, Fields, GameMapCell, GameState, ObjId, Value};
 use unbanished_formats::savegame_schema::{default_block, ACHIEVEMENTS, TOWN};
 
 use super::Refs;
-use crate::start::world_params::WorldParams;
+use crate::town::world_params::WorldParams;
 
 /// The game serializer's version (`FUN_14009af60`, 3 in every current save).
 const VERSION: u32 = 3;
@@ -23,7 +26,8 @@ const QUOTAS: [i32; 5] = [50, 15, 8, 5, 2];
 /// What the skeleton needs besides the settings.
 pub struct NewGame<'a> {
     pub params: &'a WorldParams,
-    /// `Game +0xd0`: 0 with disasters, `0xf0` without.
+    // Game +0xd0
+    /// `Game`: 0 with disasters, `0xf0` without.
     pub flags: u32,
     /// The terrain block.
     pub map: MapComponent,
@@ -169,8 +173,9 @@ pub fn state(n: NewGame) -> GameState {
     g
 }
 
+// +0x10
 /// One achievement's instance to save: its reference and, per goal, the goal's reference, its
-/// instance class, its value (`+0x10`: bit 0 met, bit 1 failed) and a TimeGoal's time.
+/// instance class, its value (: bit 0 met, bit 1 failed) and a TimeGoal's time.
 pub struct AchievementSave<'a> {
     pub reference: &'a str,
     pub goals: Vec<(&'a str, &'static str, i32, i64)>,
@@ -217,11 +222,12 @@ pub fn instance(g: &mut GameState, a: &AchievementSave) -> Option<ObjId> {
     Some(id)
 }
 
-/// The map ambience's entities (`FUN_1400a57c0`): a `RiverEffect.rsc:ambient` entity per river
-/// emitter and the `WindEffect.rsc:ambient` one (no bucket), and an
-/// `Environment.rsc:ambient` entity per region (bucket 2) with its cells and its two slots'
-/// effects and volumes. No sound plays in a new save's audio scene, so every slot's handle is 0.
-/// Returns the region entities, in region order.
+/// The map ambience's entities: a `RiverEffect.rsc:ambient` entity per river emitter and the
+/// `WindEffect.rsc:ambient` one (no bucket), and an `Environment.rsc:ambient` entity per region
+/// (bucket 2) with its cells and its two slots' effects and volumes. No sound plays in a new save's
+/// audio scene, so every slot's handle is 0. Returns the region entities, in region order.
+///
+/// Original: `FUN_1400a57c0`.
 pub fn ambience(
     archive: &unbanished_formats::pkg::Archive,
     g: &mut GameState,

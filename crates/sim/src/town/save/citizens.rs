@@ -1,13 +1,15 @@
 //! Saving, stage 3a (the inverse of `load::citizens`): births and deaths, each CitizenComponent
-//! (`FUN_140119630`) field by its offset, the entity's model, character, AI, carried goods and
-//! icons, the town's citizen list, the homes' families and the services' attendees.
+//! field by its offset, the entity's model, character, AI, carried goods and icons, the town's
+//! citizen list, the homes' families and the services' attendees.
+//!
+//! Original: `FUN_140119630`.
 
 use unbanished_formats::pkg::Archive;
 use unbanished_formats::savegame::{Fields, GameState, ObjId, Value};
 
 use super::create::{add_entity, new_entity, remove_entity};
 use super::{component, fields_mut, Ids, Refs};
-use crate::start::StartingTown;
+use crate::town::StartingTown;
 
 /// The citizens' template (vanilla `Template\Citizen.rsc`).
 const CITIZEN: &str = r"Template\Citizen.rsc:resource";
@@ -59,7 +61,7 @@ impl StartingTown {
     ) {
         // The disease list in the order `Agents::diseases` was read.
         let diseases: Vec<String> =
-            crate::start::read(archive, "Game/Disease/Diseases.rsc:resource")
+            crate::town::read(archive, "Game/Disease/Diseases.rsc:resource")
                 .and_then(|d| unbanished_formats::game::external_list(&d).ok())
                 .unwrap_or_default();
         let entity = |p: Option<usize>| p.and_then(|p| ids.entity(p));

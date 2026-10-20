@@ -1,14 +1,16 @@
 //! Saving: objects made since the load (docs/SAVE-WRITING.md). A new entity gets its
 //! ComponentEntity and one component per description of its template that makes one, in the
-//! template's order (`FUN_1400c8bf0`), each with its base (entity, flags, description) and
-//! default fields for the writer to fill.
+//! template's order, each with its base (entity, flags, description) and default fields for the
+//! writer to fill.
+//!
+//! Original: `FUN_1400c8bf0`.
 
 use unbanished_formats::crc::type_id;
 use unbanished_formats::pkg::Archive;
 use unbanished_formats::savegame::{GameState, ObjId, Value};
 
 use super::Refs;
-use crate::start::{normalise, read};
+use crate::town::{normalise, read};
 
 /// A description resource's component: `FooDescription` makes a `FooComponent` (by type id).
 fn component_for(description_type: u32) -> Option<&'static str> {
@@ -18,10 +20,7 @@ fn component_for(description_type: u32) -> Option<&'static str> {
 }
 
 /// A template's components in order, with each one's description path.
-pub(crate) fn template_components(
-    archive: &Archive,
-    template: &str,
-) -> Vec<(&'static str, String)> {
+pub fn template_components(archive: &Archive, template: &str) -> Vec<(&'static str, String)> {
     let Some(desc) = read(archive, &normalise(template))
         .and_then(|d| unbanished_formats::game::component_description(&d).ok())
     else {
@@ -45,13 +44,16 @@ pub(crate) fn template_components(
         .collect()
 }
 
-/// A component's capability bits as its constructor sets them (`Component +0x20`, saved in its
-/// base; docs/ENTITY-COMPONENT-LIFECYCLE.md): `0x80` setup, `0x01` activation, `0x02` removal,
-/// `0x04` update, `0x08` timed update, `0x10` another pass, `0x40` drawn. Each value is the one
-/// every saved component of the class has (`ModelComponent`'s `0x83` is also its constructor's,
-/// `FUN_14012a1f0`); the bits a component changes as it runs are set by the writers. A
-/// MapComponent placed on the map has `0x100000`.
-pub(crate) fn initial_flags(component: &str) -> u32 {
+// Component +0x20
+/// A component's capability bits as its constructor sets them (`Component`, saved in its base;
+/// docs/ENTITY-COMPONENT-LIFECYCLE.md): `0x80` setup, `0x01` activation, `0x02` removal, `0x04`
+/// update, `0x08` timed update, `0x10` another pass, `0x40` drawn. Each value is the one every
+/// saved component of the class has (`ModelComponent`'s `0x83` is also its constructor's); the bits
+/// a component changes as it runs are set by the writers. A MapComponent placed on the map has
+/// `0x100000`.
+///
+/// Original: `FUN_14012a1f0`.
+pub fn initial_flags(component: &str) -> u32 {
     match component {
         "AmbientEmitterComponent"
         | "DecalComponent"
@@ -91,9 +93,11 @@ pub(crate) fn initial_flags(component: &str) -> u32 {
     }
 }
 
-/// An entity's capability bits (`Entity +0x40`): its components' low 16 bits together
-/// (`FUN_1400c8940`).
-pub(crate) fn entity_flags(g: &GameState, entity: ObjId) -> Option<u32> {
+// Entity +0x40
+/// An entity's capability bits (`Entity`): its components' low 16 bits together.
+///
+/// Original: `FUN_1400c8940`.
+pub fn entity_flags(g: &GameState, entity: ObjId) -> Option<u32> {
     let o = g.objects.get(&entity)?;
     let Some(Value::List(l)) = o.fields.at("entity.components") else {
         return None;
@@ -109,7 +113,7 @@ pub(crate) fn entity_flags(g: &GameState, entity: ObjId) -> Option<u32> {
 
 /// A new entity of `template`: its ComponentEntity and components, linked both ways. Returns
 /// the ComponentEntity's id.
-pub(crate) fn new_entity(
+pub fn new_entity(
     archive: &Archive,
     g: &mut GameState,
     refs: &mut Refs,
@@ -164,7 +168,7 @@ pub(crate) fn new_entity(
 
 #[cfg(test)]
 mod tests {
-    use crate::start::load::tests_support::{archive, root};
+    use crate::town::load::tests_support::{archive, root};
 
     /// Every saved entity's components are what its template predicts, in order.
     #[test]
@@ -177,7 +181,7 @@ mod tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
+            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
             let mut checked = std::collections::BTreeMap::new();
             let mut wrong = std::collections::BTreeMap::new();
             for (_, e) in saved.entities() {
@@ -210,7 +214,7 @@ mod tests {
     }
 }
 
-impl crate::start::StartingTown {
+impl crate::town::StartingTown {
     /// New placed entities get their objects (appended to the entity list, their bucket and the
     /// schedules); dead ones leave the lists, swapping the last entry into their place as the
     /// original's lists do. Returns the extended id map.
@@ -219,7 +223,7 @@ impl crate::start::StartingTown {
         archive: &Archive,
         g: &mut GameState,
         refs: &mut Refs,
-        saved: &crate::start::SaveIds,
+        saved: &crate::town::SaveIds,
     ) -> super::Ids {
         let mut ids = super::Ids {
             entities: saved.entities.clone(),
@@ -251,9 +255,11 @@ impl crate::start::StartingTown {
     }
 }
 
-/// Append an entity to the entity manager (`FUN_1400c9d70`): its list, its bucket and its
-/// schedule (list index, bucket slot or −1, bucket, last update time).
-pub(crate) fn add_entity(g: &mut GameState, id: ObjId, bucket: usize, time: i64) {
+/// Append an entity to the entity manager: its list, its bucket and its schedule (list index,
+/// bucket slot or −1, bucket, last update time).
+///
+/// Original: `FUN_1400c9d70`.
+pub fn add_entity(g: &mut GameState, id: ObjId, bucket: usize, time: i64) {
     let k = g.entities.len() as i32;
     g.entities.push(Some(id));
     let slot = match g.buckets.get_mut(bucket) {
@@ -268,7 +274,7 @@ pub(crate) fn add_entity(g: &mut GameState, id: ObjId, bucket: usize, time: i64)
 
 /// Take an entity out of the entity manager's list and its bucket, the last entry of each
 /// moving into its place (its schedule's index and slot follow).
-pub(crate) fn remove_entity(g: &mut GameState, id: ObjId) {
+pub fn remove_entity(g: &mut GameState, id: ObjId) {
     let Some(k) = g.entities.iter().position(|&e| e == Some(id)) else {
         return;
     };

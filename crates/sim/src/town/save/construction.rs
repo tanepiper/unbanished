@@ -7,7 +7,7 @@ use unbanished_formats::savegame::{Fields, GameState, ObjId, Value};
 use unbanished_game::work::jobs::WorkKind;
 
 use super::{component, fields_mut, Ids, Refs};
-use crate::start::StartingTown;
+use crate::town::StartingTown;
 
 /// The `Ext` ids of a saved map's keys, in the saved order. The original keys these maps by
 /// object address, which the save records but nothing derives; the writer keeps that order and

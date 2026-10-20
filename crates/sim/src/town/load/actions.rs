@@ -1,11 +1,13 @@
 //! Stage 3b of loading a save (docs/SAVE-LOADING.md): each citizen's action stack
-//! (CharacterComponent `+0x48`, top `+0x60`, "on empty" `+0x58`, `FUN_14010ef80`). Every saved
-//! entry is one action and its started flag (`+0x18`); actions an entry linked (`+0x10`) are
-//! not saved.
+//! (CharacterComponent, top, "on empty"). Every saved entry is one action and its started flag;
+//! actions an entry linked are not saved.
 //!
-//! A citizen whose stack holds an action the port cannot rebuild (one aimed at an animal, or
-//! at a storage it does not know) starts with an empty stack instead, as one whose actions all
-//! finished would; the load log counts them.
+//! A citizen whose stack holds an action the port cannot rebuild (one aimed at an animal, or at a
+//! storage it does not know) starts with an empty stack instead, as one whose actions all finished
+//! would; the load log counts them.
+//!
+//! Original: `FUN_14010ef80`.
+// +0x18; +0x10; +0x48; +0x60; +0x58
 
 use std::collections::BTreeMap;
 
@@ -15,7 +17,7 @@ use unbanished_formats::savegame::{Fields, ObjId, Object, Value};
 use unbanished_game::behaviour::character::{Action, ActionStack, Component, Message, MoveTo};
 
 use super::super::{load_template, material_index, normalise, StartingTown};
-use crate::saves::saved::SavedGame;
+use crate::saved::SavedGame;
 
 fn int(f: &Fields, path: &str) -> i32 {
     f.i32(path).unwrap_or(0)
@@ -67,7 +69,7 @@ fn component(ty: u32) -> Option<Component> {
 impl StartingTown {
     /// Every citizen's stack, after its citizen, the sites, the works and the animals are
     /// restored.
-    pub(in crate::start) fn restore_actions(
+    pub(in crate::town) fn restore_actions(
         &mut self,
         archive: &Archive,
         saved: &SavedGame,
@@ -100,7 +102,7 @@ impl StartingTown {
     }
 
     /// A CharacterComponent's stack, or the type of the first action the port cannot rebuild.
-    pub(in crate::start) fn stack(
+    pub(in crate::town) fn stack(
         &mut self,
         archive: &Archive,
         saved: &SavedGame,

@@ -6,7 +6,7 @@ Port files:
 
 - `apps/game/src/ui/utility.rs`: `MapUi`.
 - `apps/game/src/gfx/render.rs`: `update_minimap` and `render_minimap`.
-- `apps/game/src/start.rs`: `minimap_overlay`.
+- `crates/sim/src/town/minimap.rs`: `minimap_overlay`.
 - `crates/ui`: the `Lines` kind.
 - `crates/formats`: `FrustumOutline`.
 

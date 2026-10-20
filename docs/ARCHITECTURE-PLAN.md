@@ -194,6 +194,14 @@ tools/refactor (split_impl.py, regroup.py) so code moves without being rewritten
    gameplay/commands.rs (`PlayerCommand` → `Command`, `execute`), gameplay/simulation.rs, the
    calendar/environment fields, and the world queries of gameplay/probe.rs. `GameplayLoop`
    holds `sim: Simulation`.
+   - 3a **done** (1a19346): `start::map::Map` holds the generated or saved map with no mesh
+     or textures; `view::world::World` builds on it.
+   - 3b **done**: `crates/sim` (`unbanished-sim`) holds the town (`town`, used by the app as
+     `start`), `saved` and `mods`. Its test helpers are behind the `test-support` feature,
+     which only the app's tests turn on. It depends on no GPU, window, UI, sound or network
+     crate.
+   - 3c: the `Simulation` type (commands, the step, calendar and environment fields, the
+     probe's world queries) and `GameplayLoop.sim`.
 4. `StepEvents` and read-only accessors replace direct field reads from presentation.
 5. New check in run.py `checks`: `cargo tree -p unbanished-sim` has no wgpu/winit/ui/gfx/audio/net;
    a test that loads a save with `unbanished-sim` alone (no GPU) and matches `--sim-digest`.

@@ -17,7 +17,9 @@ impl StartingTown {
         }
     }
 
-    /// FUN_1400c9560: run placed entities on their template's scheduled bucket.
+    /// Run placed entities on their template's scheduled bucket.
+    ///
+    /// Original: `FUN_1400c9560`.
     pub fn iterate(
         &mut self,
         terrain: &HeightGrid,
@@ -294,7 +296,8 @@ impl StartingTown {
         }
     }
 
-    /// The registered town storages (`Game +0xf0 +0x00/+0x10`), the ones the stock counts.
+    // Game +0xf0 +0x00/+0x10
+    /// The registered town storages (`Game`), the ones the stock counts.
     pub fn registered_storages(&self) -> Vec<Storage> {
         self.storage_sites
             .iter()
@@ -302,7 +305,9 @@ impl StartingTown {
             .collect()
     }
 
-    /// Adult counts per profession and each profession's workplace places (`FUN_14007ba70`).
+    /// Adult counts per profession and each profession's workplace places.
+    ///
+    /// Original: `FUN_14007ba70`.
     pub fn profession_counts(&self) -> (Vec<i32>, Vec<i32>) {
         let c = &self.construction;
         let mut counts = vec![0; c.professions.list.len().max(1)];

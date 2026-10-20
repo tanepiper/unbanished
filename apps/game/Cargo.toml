@@ -19,6 +19,7 @@ unbanished-audio = { path = "../../crates/audio" }
 unbanished-nexus = { path = "../../crates/nexus" }
 unbanished-net = { path = "../../crates/net" }
 unbanished-mods = { path = "../../crates/mods" }
+unbanished-sim = { path = "../../crates/sim" }
 wgpu = { version = "30", features = ["webgl"] }
 winit = "0.30"
 web-time = "1"
@@ -44,3 +45,6 @@ js-sys = "0.3"
 web-sys = { version = "0.3", features = ["Document", "Window", "Location", "Element", "HtmlCanvasElement", "HtmlInputElement", "File", "FileList", "Blob", "Event", "EventTarget", "Response", "UrlSearchParams", "Storage", "IdbFactory", "IdbDatabase", "IdbObjectStore", "IdbOpenDbRequest", "IdbRequest", "IdbTransaction", "IdbTransactionMode", "DomStringList", "Event", "BlobPropertyBag", "Url", "HtmlAnchorElement", "DragEvent", "DataTransfer", "Performance", "Headers", "Request", "RequestInit", "RequestMode", "Navigator", "StorageManager", "MediaQueryList"] }
 console_error_panic_hook = "0.1"
 console_log = "1"
+
+[dev-dependencies]
+unbanished-sim = { path = "../../crates/sim", features = ["test-support"] }

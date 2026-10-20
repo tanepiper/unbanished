@@ -39,6 +39,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
   are `UNBANISHED_*` (rename `BANISHED_*` in your own scripts). Your settings, kept game files and
   saves stay where they are.
 
+- The running town is its own crate, `unbanished-sim` (`crates/sim`): the town, its map, the save
+  as the game reads it and the mod lists, with no drawing, sound or interface. The game app draws
+  it. Nothing in the game changes.
+
 - The game's code is easier to find: `apps/game/src/main.rs` is split into `game.rs` (the
   `Game`), `app.rs` (the window) and `native.rs` (the commands without a window), and the
   browser page's style and scripts are in `apps/game/web/`. Nothing in the game changes.

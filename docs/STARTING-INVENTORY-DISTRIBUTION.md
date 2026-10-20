@@ -125,7 +125,7 @@ On Hard, the cart does not accept wood, stone or iron, so those caps place nothi
 
 - `crates/game/src/work/stock.rs` ports `FUN_140096b30`, the capacity checks and the stock-table
   mapping.
-- `apps/game/src/start.rs` fills the start structures' storages.
+- `crates/sim/src/town.rs` fills the start structures' storages.
 - The Status Bar reads the recomputed table.
 
 ### Inferred

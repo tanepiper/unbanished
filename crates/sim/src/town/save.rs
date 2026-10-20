@@ -11,13 +11,13 @@ mod actions;
 mod citizens;
 mod construction;
 mod create;
-pub(crate) mod new_game;
+pub mod new_game;
 mod producers;
 pub mod view_state;
 mod wildlife;
 
 /// The saved object of each entity and citizen, extended with what was made since the load.
-pub(crate) struct Ids {
+pub struct Ids {
     pub entities: Vec<Option<ObjId>>,
     pub citizens: Vec<Option<ObjId>>,
 }
@@ -34,12 +34,12 @@ impl Ids {
 
 /// The external reference table (`ExternalFactory::SerializeReferenceTable`) by path: a path
 /// the save does not have yet gets the next id.
-pub(crate) struct Refs {
+pub struct Refs {
     ids: std::collections::BTreeMap<String, u32>,
 }
 
 impl Refs {
-    pub(crate) fn new(g: &GameState) -> Refs {
+    pub fn new(g: &GameState) -> Refs {
         Refs {
             ids: g
                 .references
@@ -49,7 +49,7 @@ impl Refs {
         }
     }
 
-    pub(crate) fn id(&mut self, g: &mut GameState, path: &str) -> u32 {
+    pub fn id(&mut self, g: &mut GameState, path: &str) -> u32 {
         let key = normalise(path);
         if let Some(&id) = self.ids.get(&key) {
             return id;
@@ -62,7 +62,7 @@ impl Refs {
 }
 
 /// An entity's component of one type (its object id).
-pub(crate) fn component(g: &GameState, entity: ObjId, type_name: &str) -> Option<ObjId> {
+pub fn component(g: &GameState, entity: ObjId, type_name: &str) -> Option<ObjId> {
     let e = g.objects.get(&entity)?;
     match e.fields.at("entity.components") {
         Some(Value::List(items)) => items
@@ -105,7 +105,7 @@ fn finish_flags(g: &mut GameState) {
     }
 }
 
-pub(crate) fn fields_mut<'a>(
+pub fn fields_mut<'a>(
     g: &'a mut GameState,
     entity: ObjId,
     type_name: &str,
@@ -141,7 +141,7 @@ impl StartingTown {
         foreign: &[(usize, ObjId)],
     ) {
         // A new game has no saved objects: every entity is made.
-        let new_game = crate::start::SaveIds::default();
+        let new_game = crate::town::SaveIds::default();
         let saved = self.save_ids.as_ref().unwrap_or(&new_game);
         let mut refs = Refs::new(g);
         let mut ids = self.sync_entities(archive, g, &mut refs, saved);

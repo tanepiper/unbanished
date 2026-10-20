@@ -1,6 +1,8 @@
-//! A town's map without its drawing data: the New Game terrain pipeline (`FUN_1400b5700` →
-//! `FUN_1400b1980`) run with the bit-exact ports in `unbanished-game`, or a save's stored map.
-//! The drawing side (`view::world`) builds its mesh and textures on top of it.
+//! A town's map without its drawing data: the New Game terrain pipeline run with the bit-exact
+//! ports in `unbanished-game`, or a save's stored map. The drawing side (`view::world`) builds its
+//! mesh and textures on top of it.
+//!
+//! Original: `FUN_1400b5700`, `FUN_1400b1980`.
 
 use unbanished_formats::game::{
     environment_description, terrain_generator, EnvironmentDescription, TerrainGenerator,
@@ -22,16 +24,21 @@ pub struct Map {
     /// `size²` texels of `[dirt, rock, light, snow]` bytes (BGRA8 in memory).
     pub surface: Vec<u8>,
     pub environment: EnvironmentDescription,
-    /// MapComponent `+0x1e0`: the river centre lines in map coordinates. `FUN_1400b1980` fills
-    /// list `i` with the positions of generator path `i`'s 28-byte records, last to first
-    /// (verified against the saved paths of a generated map).
+    // +0x1e0
+    /// MapComponent: the river centre lines in map coordinates. List `i` holds the positions of
+    /// generator path `i`'s 28-byte records, last to first (verified against the saved paths of
+    /// a generated map).
+    ///
+    /// Original: `FUN_1400b1980`.
     pub river_paths: Vec<Vec<[f32; 2]>>,
-    /// The rivers' and lakes' surface (`FUN_1400b0730`).
+    /// The rivers' and lakes' surface.
+    ///
+    /// Original: `FUN_1400b0730`.
     pub water: WaterMesh,
 }
 
 /// A resource reference with its object name (`:resource` when it has none).
-pub(crate) fn with_object(reference: &str) -> String {
+pub fn with_object(reference: &str) -> String {
     let path = reference.replace('\\', "/");
     if path.contains(':') {
         path
@@ -90,8 +97,10 @@ impl Map {
     }
 
     /// A saved game's map: its stored terrain, surface, rivers and water instead of a
-    /// generated one (`FUN_1400b59a0` restores them; nothing is regenerated on load).
-    pub fn from_save(archive: &Archive, saved: &crate::saves::saved::SavedGame) -> Result<Map> {
+    /// generated one (the original restores them; nothing is regenerated on load).
+    ///
+    /// Original: `FUN_1400b59a0`.
+    pub fn from_save(archive: &Archive, saved: &crate::saved::SavedGame) -> Result<Map> {
         let map = saved
             .state
             .terrain_map

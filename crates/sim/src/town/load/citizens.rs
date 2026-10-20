@@ -1,11 +1,13 @@
-//! Stage 3a of loading a save (docs/SAVE-LOADING.md): the citizens. Each CitizenComponent
-//! (`FUN_140119630`) gives the citizen and its state; its entity's ModelComponent the body's
-//! place, CharacterComponent the walking state, CitizenAIComponent (`FUN_140114e30`) the AI,
-//! StorageComponent the goods carried and StatusIconComponent the icons. The homes' families,
-//! workplaces' workers and services' attendees follow.
+//! Stage 3a of loading a save (docs/SAVE-LOADING.md): the citizens. Each CitizenComponent gives the
+//! citizen and its state; its entity's ModelComponent the body's place, CharacterComponent the
+//! walking state, CitizenAIComponent the AI, StorageComponent the goods carried and
+//! StatusIconComponent the icons. The homes' families, workplaces' workers and services' attendees
+//! follow.
 //!
 //! Action stacks are not restored yet (stage 3b): every citizen starts with an empty stack and
 //! chooses a new activity on its first update, as one whose actions all finished would.
+//!
+//! Original: `FUN_140119630`, `FUN_140114e30`.
 
 use std::collections::BTreeMap;
 
@@ -15,7 +17,7 @@ use unbanished_game::people::citizens::{Citizen, CitizenRules};
 use unbanished_game::work::stock::{Item, Storage};
 
 use super::super::{material_index, normalise, StartingTown};
-use crate::saves::saved::SavedGame;
+use crate::saved::SavedGame;
 
 /// Citizen flag `0x400`: educated (`FUN_140116c70`).
 const EDUCATED: u32 = 0x400;
@@ -55,7 +57,7 @@ fn floats(f: &Fields, path: &str) -> Vec<f32> {
 
 /// The saved citizens in the town manager's registry order (`+0xa0`), and each
 /// CitizenComponent's index among them.
-pub(in crate::start) fn saved_citizens(
+pub(in crate::town) fn saved_citizens(
     saved: &SavedGame,
     rules: &CitizenRules,
 ) -> (Vec<Citizen>, BTreeMap<ObjId, usize>) {
@@ -117,7 +119,7 @@ pub(in crate::start) fn saved_citizens(
 
 impl StartingTown {
     /// The citizens' state, after the buildings (homes, workplaces, services) are restored.
-    pub(in crate::start) fn restore_citizens(
+    pub(in crate::town) fn restore_citizens(
         &mut self,
         archive: &Archive,
         saved: &SavedGame,

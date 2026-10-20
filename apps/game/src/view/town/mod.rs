@@ -57,3 +57,6 @@ impl TownView {
         }
     }
 }
+
+#[cfg(test)]
+mod storage_fetch_tests;

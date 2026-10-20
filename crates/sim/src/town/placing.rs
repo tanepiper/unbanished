@@ -147,9 +147,11 @@ pub(super) fn fence_run(
 }
 
 impl StartingTown {
-    /// A dragged area (CreateDrag: fields, orchards, the storage yard) over `rect` (`x, y, w,
-    /// h`): the entity, its zone over every cell, and its site (DragPlacementTool's apply,
-    /// `FUN_140100dd0`, through `removal_tool`; tests also place areas directly).
+    /// A dragged area (CreateDrag: fields, orchards, the storage yard) over `rect` (`x, y, w, h`):
+    /// the entity, its zone over every cell, and its site (DragPlacementTool's apply, through
+    /// `removal_tool`, tests also place areas directly).
+    ///
+    /// Original: `FUN_140100dd0`.
     pub fn place_area(
         &mut self,
         archive: &Archive,
@@ -195,11 +197,13 @@ impl StartingTown {
         Some(id)
     }
 
-    /// The fenced tool (FencedTool, vtable `0x140166a10`) dragged from cell `a` to cell `b`
-    /// with the shelter turned `rotation` quarter turns: slot `+0x70` (`FUN_1400e0960`) checks
-    /// the area, slot `+0x68` (`FUN_1400e02d0`) places the entity over it with its shelter,
-    /// corners and fence runs (its MultiObjectComponent's parts). The drag runs in
+    // vtable 0x140166a10; +0x70; +0x68
+    /// The fenced tool (FencedTool) dragged from cell `a` to cell `b` with the shelter turned
+    /// `rotation` quarter turns: slot checks the area, slot places the entity over it with its
+    /// shelter, corners and fence runs (its MultiObjectComponent's parts). The drag runs in
     /// `removal_tool`'s fenced mode. Returns the entity.
+    ///
+    /// Original: `FUN_1400e0960`, `FUN_1400e02d0`.
     pub fn place_fenced(
         &mut self,
         archive: &Archive,
@@ -333,8 +337,10 @@ impl StartingTown {
         Some(entity)
     }
 
-    /// `FUN_1400e0960`'s test of one cell: on the map, of an allowed type, no occupant but the
-    /// clear template's, no zone, and not too high.
+    /// On the map, of an allowed type, no occupant but the clear template's, no zone, and not too
+    /// high.
+    ///
+    /// Original: `FUN_1400e0960` (test of one cell).
     pub fn fenced_cell_ok(
         &self,
         d: &unbanished_formats::game::CreateFencedDescription,
@@ -439,7 +445,7 @@ impl StartingTown {
     }
 
     /// The animals' context over the town.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn with_wild<R>(
         &mut self,
         terrain: &HeightGrid,

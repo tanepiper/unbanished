@@ -21,7 +21,7 @@ use unbanished_game::work::road::RoadWork;
 use unbanished_game::work::stock::Item;
 
 use super::super::{load_template, material_index, normalise, StartingTown};
-use crate::saves::saved::SavedGame;
+use crate::saved::SavedGame;
 
 /// WorkComponent `+0x2c` with no kept priority.
 const NO_PRIORITY: i32 = i32::MIN;
@@ -75,7 +75,7 @@ pub(super) fn entity_or_component(
 }
 
 impl StartingTown {
-    pub(in crate::start) fn restore_construction(
+    pub(in crate::town) fn restore_construction(
         &mut self,
         archive: &Archive,
         saved: &SavedGame,
@@ -309,7 +309,7 @@ impl StartingTown {
     /// The job manager (`FUN_1400fe710`): every work in the id table, with the categories it is
     /// filed under, its profession from the profession map, and its claims and workers
     /// (`order` gives each CitizenComponent's citizen index). Called after the citizens.
-    pub(in crate::start) fn restore_jobs(
+    pub(in crate::town) fn restore_jobs(
         &mut self,
         archive: &Archive,
         saved: &SavedGame,

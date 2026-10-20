@@ -1,9 +1,9 @@
-use crate::start::load::tests_support::{archive, root};
+use crate::town::load::tests_support::{archive, root};
 use unbanished_formats::savegame::{Fields, GameState, Value};
 
 /// The differences between two game states: objects' fields (type, path, ours, theirs),
 /// map cells and schedules.
-pub(crate) fn diff(a: &GameState, b: &GameState) -> Vec<String> {
+pub fn diff(a: &GameState, b: &GameState) -> Vec<String> {
     fn walk(prefix: &str, a: &Fields, b: &Fields, out: &mut Vec<String>) {
         for ((n, va), (_, vb)) in a.0.iter().zip(&b.0) {
             let path = format!("{prefix}.{n}");
@@ -57,7 +57,7 @@ pub(crate) fn diff(a: &GameState, b: &GameState) -> Vec<String> {
 
 /// A save's state as the original holds it after loading: one more floor under each active
 /// FloorComponent (its load slot adds them again, `FUN_140124a10`).
-fn floors_added(saved: &crate::saves::saved::SavedGame) -> GameState {
+fn floors_added(saved: &crate::saved::SavedGame) -> GameState {
     let mut expected = saved.state.clone();
     let n = expected.map.size;
     for (_, e) in saved.entities() {
@@ -95,8 +95,8 @@ fn vanilla_saves_export_unchanged() {
         let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
             continue;
         };
-        let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
-        let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
+        let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+        let town = crate::town::StartingTown::from_save(&archive, &saved).unwrap();
         let mut g = saved.state.clone();
         town.export_into(&archive, &mut g);
         let ours = g.encode().unwrap();
@@ -132,10 +132,10 @@ fn a_simulated_town_reloads_as_saved() {
     let Ok(bytes) = std::fs::read(root().join("save-game").join("Save83.sav")) else {
         return;
     };
-    let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
-    let world = crate::start::map::Map::from_save(&archive, &saved).unwrap();
+    let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+    let world = crate::town::map::Map::from_save(&archive, &saved).unwrap();
     let grid = world.heights.grid();
-    let mut town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
+    let mut town = crate::town::StartingTown::from_save(&archive, &saved).unwrap();
     let mut rng = unbanished_game::random::Random::new(83);
     let dt = 1.0 / 30.0;
     for _ in 0..30 * 60 {
@@ -160,11 +160,11 @@ fn a_simulated_town_reloads_as_saved() {
     );
     assert!(changed.len() > 100, "the simulation changed little");
     let written = first.encode().unwrap();
-    let reloaded = crate::saves::saved::SavedGame {
+    let reloaded = crate::saved::SavedGame {
         state: GameState::decode(&written).unwrap(),
         metadata: saved.metadata.clone(),
     };
-    let again = crate::start::StartingTown::from_save(&archive, &reloaded).unwrap();
+    let again = crate::town::StartingTown::from_save(&archive, &reloaded).unwrap();
     assert_eq!(
         again.citizens.len(),
         town.citizens.iter().filter(|c| c.alive).count()
@@ -192,15 +192,15 @@ fn a_new_game_saves_and_reloads() {
         eprintln!("game data missing; skipping");
         return;
     };
-    let params = crate::start::world_params::WorldParams {
+    let params = crate::town::world_params::WorldParams {
         seed: 1234,
         start_condition_ref: r"Game\StartCondition\Medium.rsc:resource".into(),
         ..Default::default()
     };
-    let world = crate::start::map::Map::generate(&archive, &params).unwrap();
+    let world = crate::town::map::Map::generate(&archive, &params).unwrap();
     let grid = world.heights.grid();
     let mut rng = unbanished_game::random::Random::new(params.seed);
-    let mut town = crate::start::StartingTown::create(
+    let mut town = crate::town::StartingTown::create(
         &archive,
         &params.start_condition_ref,
         world.heights.size / 2,
@@ -249,7 +249,7 @@ fn a_new_game_saves_and_reloads() {
     });
     town.export_into(&archive, &mut first);
     let written = first.encode().unwrap();
-    let reloaded = crate::saves::saved::SavedGame {
+    let reloaded = crate::saved::SavedGame {
         state: GameState::decode(&written).unwrap(),
         metadata: unbanished_formats::save::SaveMetadata {
             name: String::new(),
@@ -261,8 +261,8 @@ fn a_new_game_saves_and_reloads() {
             wide: false,
         },
     };
-    let again = crate::start::StartingTown::from_save(&archive, &reloaded).unwrap();
-    let alive = |t: &crate::start::StartingTown| t.placed.iter().filter(|p| p.alive).count();
+    let again = crate::town::StartingTown::from_save(&archive, &reloaded).unwrap();
+    let alive = |t: &crate::town::StartingTown| t.placed.iter().filter(|p| p.alive).count();
     assert_eq!(alive(&again), alive(&town));
     assert_eq!(again.citizens.len(), town.citizens.len());
     assert_eq!(again.wildlife.animals.len(), town.wildlife.animals.len());

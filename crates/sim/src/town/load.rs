@@ -21,7 +21,7 @@ mod citizens;
 mod construction;
 mod producers;
 mod wildlife;
-use crate::saves::saved::SavedGame;
+use crate::saved::SavedGame;
 
 /// NaturalResourceComponent capability bits in the component flags (`Component +0x20`).
 const ALLOW_NEGATIVE: u32 = 0x10_0000;
@@ -649,8 +649,8 @@ mod stage2_tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
-            let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
+            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let town = crate::town::StartingTown::from_save(&archive, &saved).unwrap();
             let c = &town.construction;
 
             // The stock manager's counts are recomputed from storages (`FUN_14008f3a0`).
@@ -677,10 +677,7 @@ mod stage2_tests {
             let mut missing = machines.clone();
             for site in c.sites.values() {
                 let r = &town.templates[town.placed[site.entity].template].reference;
-                if let Some(i) = missing
-                    .iter()
-                    .position(|m| crate::start::normalise(m) == *r)
-                {
+                if let Some(i) = missing.iter().position(|m| crate::town::normalise(m) == *r) {
                     missing.remove(i);
                 }
             }
@@ -785,8 +782,8 @@ mod stage3_tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
-            let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
+            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let town = crate::town::StartingTown::from_save(&archive, &saved).unwrap();
             let n = saved
                 .state
                 .objects
@@ -880,8 +877,8 @@ mod stage3b_tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
-            let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
+            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let town = crate::town::StartingTown::from_save(&archive, &saved).unwrap();
             // Saved depths in the citizens' order (`top + 1`).
             let depths: Vec<usize> = match saved.state.town.at("town.citizens") {
                 Some(unbanished_formats::savegame::Value::List(cs)) => cs
@@ -960,8 +957,8 @@ mod stage3c_tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
-            let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
+            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let town = crate::town::StartingTown::from_save(&archive, &saved).unwrap();
             let count = |t: &str| {
                 saved
                     .state
@@ -1036,8 +1033,8 @@ mod stage3d_tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
-            let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
+            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let town = crate::town::StartingTown::from_save(&archive, &saved).unwrap();
             // FloorComponent slot `+0x58` (`FUN_140124a10`) on load: an active floor counts one
             // more on every cell under it (its mesh handle is not saved, so nothing is taken
             // away first), so the counts grow with every load in the original too.
@@ -1154,7 +1151,7 @@ mod stage4_tests {
             let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
                 continue;
             };
-            let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
+            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
             let climate = saved
                 .reference(saved.state.climate)
                 .unwrap()
@@ -1205,8 +1202,8 @@ mod stage4_tests {
     }
 }
 
-#[cfg(test)]
-pub(crate) mod tests_support {
+#[cfg(any(test, feature = "test-support"))]
+pub mod tests_support {
     use unbanished_formats::pkg::{Archive, Package};
 
     pub fn root() -> std::path::PathBuf {

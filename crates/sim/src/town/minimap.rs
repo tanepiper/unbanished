@@ -3,9 +3,12 @@
 use super::*;
 
 impl StartingTown {
-    /// The minimap overlay (`Game +0x148`): every live entity whose MapDescription has the
-    /// minimap flag (`+0x32`) fills its map rectangle with its colour (`FUN_140129680` →
-    /// `FUN_1400aa200`, rows flipped so the top row is north). RGBA bytes, `size²` pixels.
+    // +0x32; Game +0x148
+    /// The minimap overlay (`Game`): every live entity whose MapDescription has the minimap flag
+    /// fills its map rectangle with its colour (rows flipped so the top row is north). RGBA bytes,
+    /// `size²` pixels.
+    ///
+    /// Original: `FUN_140129680`, `FUN_1400aa200`.
     pub fn minimap_overlay(&self) -> Vec<u8> {
         let n = self.cells.size as i32;
         let mut out = vec![0u8; (n * n * 4) as usize];

@@ -1,11 +1,13 @@
 //! Stage 3c of loading a save (docs/SAVE-LOADING.md): wildlife, livestock and trader boats.
 //!
-//! The populations (`FUN_140054e00`), herds (`FUN_140127460`) and animals (AnimalComponent
-//! `FUN_14010c310`, WildAnimalComponent `FUN_1401337d0`, LivestockComponent `FUN_1401292e0`)
-//! become the port's `Wildlife` entries; their kinds are loaded from the templates as a New
-//! Game does. The pastures' livestock (`FUN_14012d410`), the town's pasture list (`+0x90`) and
-//! its livestock without a pasture (`+0x80`) follow. Trader boats (BoatComponent
-//! `FUN_140046f30`) keep their state, post, dock, route and place on it.
+//! The populations, herds and animals (AnimalComponent, WildAnimalComponent, LivestockComponent)
+//! become the port's `Wildlife` entries; their kinds are loaded from the templates as a New Game
+//! does. The pastures' livestock, the town's pasture list and its livestock without a pasture
+//! follow. Trader boats (BoatComponent) keep their state, post, dock, route and place on it.
+//!
+//! Original: `FUN_140054e00`, `FUN_140127460`, `FUN_14012d410`, `FUN_14010c310`,
+//! `FUN_1401337d0`, `FUN_1401292e0`, `FUN_140046f30`.
+// +0x90; +0x80
 
 use std::collections::BTreeMap;
 
@@ -16,7 +18,7 @@ use unbanished_game::nature::wildlife::{Animal, Herd, Livestock, Population};
 
 use super::super::{livestock_kind, normalise, wildlife_kinds, StartingTown};
 use super::construction::entity_or_component;
-use crate::saves::saved::SavedGame;
+use crate::saved::SavedGame;
 
 fn int(f: &Fields, path: &str) -> i32 {
     f.i32(path).unwrap_or(0)
@@ -52,7 +54,7 @@ fn vec3(f: &Fields, path: &str) -> Option<[f32; 3]> {
 }
 
 impl StartingTown {
-    pub(in crate::start) fn restore_wildlife(
+    pub(in crate::town) fn restore_wildlife(
         &mut self,
         archive: &Archive,
         saved: &SavedGame,

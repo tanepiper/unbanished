@@ -13,10 +13,14 @@ pub struct WorldParams {
     /// 0 Small, 1 Medium, 2 Large.
     pub size: usize,
     pub seed: u32,
-    /// The Disasters combo's first item (on): `Game +0xd0` starts 0, else `0xf0`
-    /// (`FUN_14009d530`).
+    // Game +0xd0
+    /// The Disasters combo's first item (on): `Game` starts 0, else `0xf0`.
+    ///
+    /// Original: `FUN_14009d530`.
     pub disasters: bool,
-    /// The scenario played (an index into `Game\Scenario\ScenarioList.rsc`, `FUN_1400b9a10`).
+    /// The scenario played (an index into `Game\Scenario\ScenarioList.rsc`).
+    ///
+    /// Original: `FUN_1400b9a10`.
     pub scenario: Option<usize>,
 }
 

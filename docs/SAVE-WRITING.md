@@ -1,7 +1,7 @@
 # Saving a game
 
 The port saves a town by writing its state back into the game state it was loaded from. The
-code is in `apps/game/src/start/save.rs` and its submodules. The writer then encodes the result
+code is in `crates/sim/src/town/save.rs` and its submodules. The writer then encodes the result
 (`GameState::encode`) and builds the `.sav` file (`Save::write`); see
 [SAVE-GAME-STATE.md](SAVE-GAME-STATE.md) and [SAVE-FORMAT-AND-RESTORE.md](SAVE-FORMAT-AND-RESTORE.md).
 
@@ -135,7 +135,7 @@ decodes and loads back with every citizen, stack, animal and work.
 
 ## New games
 
-`start/save/new_game.rs`. A game started with New Game has no saved state, so saving starts from
+`crates/sim/src/town/save/new_game.rs`. A game started with New Game has no saved state, so saving starts from
 an empty one:
 - **Loop fields:** the New Game settings, as references.
 - **Entity manager:** empty, with five bucket lists, quotas `[50, 15, 8, 5, 2]` and cursors 0.

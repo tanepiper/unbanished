@@ -113,7 +113,7 @@ The boat is drawn like a wild animal: its template's model (`BoatMesh`: the hull
 oars and the merchant, see [BOAT.md](BOAT.md)) at its ModelComponent's position and heading,
 which its CharacterComponent moves, posed by the state's clip from the template's animation
 group. Saves keep `model.position` and `model.yaw` for it (observed). The boat's map entry has no
-mesh index, so the port takes the model's only mesh (`apps/game/src/start/models.rs`). Until
+mesh index, so the port takes the model's only mesh (`apps/game/src/view/town/models.rs`). Until
 October 2026 the port moved the boat but did not draw it.
 
 ## The exchange

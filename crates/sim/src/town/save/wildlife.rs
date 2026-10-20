@@ -1,14 +1,15 @@
-//! Saving, stage 3c (the inverse of `load::wildlife`): populations (`FUN_140054e00`), herds
-//! (`FUN_140127460`), animals (AnimalComponent `FUN_14010c310`, WildAnimalComponent,
-//! LivestockComponent), pastures, the town's pasture and livestock lists, and trader boats
-//! (`FUN_140046f30`). Pointers are to the components the serializers check (a herd's animals
-//! are WildAnimalComponents, an animal's herd a HerdComponent).
+//! Saving, stage 3c (the inverse of `load::wildlife`): populations, herds, animals
+//! (AnimalComponent, WildAnimalComponent, LivestockComponent), pastures, the town's pasture and
+//! livestock lists, and trader boats. Pointers are to the components the serializers check (a
+//! herd's animals are WildAnimalComponents, an animal's herd a HerdComponent).
+//!
+//! Original: `FUN_140054e00`, `FUN_140127460`, `FUN_140046f30`, `FUN_14010c310`.
 
 use unbanished_formats::savegame::{Fields, GameState, ObjId, Value};
 
 use super::construction::like_saved;
 use super::{component, fields_mut, Ids, Refs};
-use crate::start::StartingTown;
+use crate::town::StartingTown;
 
 fn ptr_list(name: &'static str, ids: impl IntoIterator<Item = Option<ObjId>>) -> Value {
     Value::List(

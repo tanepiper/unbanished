@@ -1,9 +1,11 @@
-//! The mods: the list (`unbanished_mods::Modification`, shared with the mod manager), how a
-//! reload restarts the game, and what the loaded packages contain.
+//! The mods: the list (`unbanished_mods::Modification`, shared with the mod manager), how a reload
+//! restarts the game, and what the loaded packages contain.
 //!
-//! - **Loading** (`SetupFileSystem`, `0x1800b02d0`): the enabled mods join the game's packages
-//!   from the last in the list to the first (`Archive::add_mod`), then each one's
-//!   `<file>Resources.rsc:resource` is loaded (`formats::registry`).
+//! - **Loading** (`SetupFileSystem`): the enabled mods join the game's packages from the last in
+//!   the list to the first (`Archive::add_mod`), then each one's `<file>Resources.rsc:resource` is
+//!   loaded (`formats::registry`).
+//!
+//! Original: Runtime `0x1800b02d0`.
 
 use unbanished_formats::pkg::normalise;
 use unbanished_formats::registry::Registry;
@@ -12,11 +14,17 @@ use unbanished_formats::registry::Registry;
 pub use unbanished_mods::find;
 pub use unbanished_mods::{Mod, Modification};
 
-/// What a reload starts once the packages are set up again (`FUN_140072110`).
+/// What a reload starts once the packages are set up again.
+///
+/// Original: `FUN_140072110`.
 pub enum Reload {
-    /// The main menu (`FUN_1400b9c60`).
+    /// The main menu.
+    ///
+    /// Original: `FUN_1400b9c60`.
     Menu,
-    /// The game saved to memory just before (`Save::SavedState`, `FUN_1400b9ec0`).
+    /// The game saved to memory just before (`Save::SavedState`).
+    ///
+    /// Original: `FUN_1400b9ec0`.
     Game(Vec<u8>),
 }
 
@@ -43,7 +51,9 @@ pub fn loaded_of_type(class: &str) -> Option<Vec<String>> {
     })
 }
 
-/// How many raw materials are loaded (`FindNext` over RawMaterialDescription, `FUN_1400bdcf0`).
+/// How many raw materials are loaded (`FindNext` over RawMaterialDescription).
+///
+/// Original: `FUN_1400bdcf0`.
 pub fn raw_material_count(archive: &unbanished_formats::pkg::Archive) -> usize {
     loaded_of_type("RawMaterialDescription").map_or_else(
         || {
@@ -57,8 +67,10 @@ pub fn raw_material_count(archive: &unbanished_formats::pkg::Archive) -> usize {
     )
 }
 
-/// The loaded templates (ComponentDescription `:resource` objects, `FUN_140059fd0`): the game's
-/// in `Game/GameResources.rsc`'s order (inferred for the factory's), then the mods' others.
+/// The loaded templates (ComponentDescription `:resource` objects): the game's in
+/// `Game/GameResources.rsc`'s order (inferred for the factory's), then the mods' others.
+///
+/// Original: `FUN_140059fd0`.
 pub fn templates(archive: &unbanished_formats::pkg::Archive) -> Vec<String> {
     let mut list: Vec<String> = archive
         .read_ref("Game/GameResources.rsc:resource")
@@ -76,8 +88,11 @@ pub fn templates(archive: &unbanished_formats::pkg::Archive) -> Vec<String> {
     list
 }
 
-/// `FUN_1400ae570`: the loaded professions that are shown (`+0x4e`), by their sort priority
-/// (`+0x48`); before any game loaded, `Profession.rsc:professionList`.
+// +0x4e; +0x48
+/// The loaded professions that are shown, by their sort priority; before any game loaded,
+/// `Profession.rsc:professionList`.
+///
+/// Original: `FUN_1400ae570`.
 pub fn profession_list(archive: &unbanished_formats::pkg::Archive) -> Vec<String> {
     let read = |r: &str| {
         archive

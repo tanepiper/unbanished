@@ -5,7 +5,7 @@ use unbanished_formats::save::{Save, SaveMetadata};
 use unbanished_formats::savegame::{Fields, GameState, ObjId, Object, Value};
 use unbanished_formats::Result;
 
-use crate::view::world::WorldParams;
+use crate::town::world_params::WorldParams;
 
 pub struct SavedGame {
     pub state: GameState,
@@ -42,7 +42,9 @@ impl SavedGame {
         }
     }
 
-    /// The New Game settings the save was started with (`FUN_14009af60`'s loop fields).
+    /// The New Game settings the save was started with (the loop's fields).
+    ///
+    /// Original: `FUN_14009af60`.
     pub fn params(&self) -> WorldParams {
         let g = &self.state;
         let path = |id| self.reference(id).unwrap_or_default().to_string();
@@ -61,8 +63,9 @@ impl SavedGame {
         }
     }
 
-    /// The stock manager's slots (`+0x170`) and capacity records (`+0x180`) as saved in the
-    /// town manager's block: counts, previous counts, limits, cooldowns.
+    // +0x170; +0x180
+    /// The stock manager's slots and capacity records as saved in the town manager's block: counts,
+    /// previous counts, limits, cooldowns.
     pub fn stock_warnings(&self) -> unbanished_game::events::StockWarnings {
         let mut w = unbanished_game::events::StockWarnings::default();
         let town = &self.state.town;
@@ -104,7 +107,9 @@ impl SavedGame {
         c
     }
 
-    /// The environment controller's saved state onto `env` (`FUN_140099160`).
+    /// The environment controller's saved state onto `env`.
+    ///
+    /// Original: `FUN_140099160`.
     pub fn restore_environment(&self, env: &mut unbanished_game::nature::environment::Environment) {
         let m = &self.state.managers;
         let f = |k: &str| m.f32(&format!("environment.{k}")).unwrap_or(0.0);
@@ -143,7 +148,9 @@ impl SavedGame {
         );
     }
 
-    /// The event log (`FUN_14009a790`): the notify flags and every entry with its text.
+    /// The event log: the notify flags and every entry with its text.
+    ///
+    /// Original: `FUN_14009a790`.
     pub fn event_log(&self) -> unbanished_game::events::EventLog {
         let m = &self.state.managers;
         let mut log = unbanished_game::events::EventLog::default();
@@ -175,8 +182,8 @@ impl SavedGame {
         log
     }
 
-    /// The Town Info history (StockManager `+0x150`) and the time to the next sample
-    /// (`+0x198`).
+    // +0x198; +0x150
+    /// The Town Info history (StockManager) and the time to the next sample.
     pub fn statistics(&self) -> unbanished_game::work::tracker::Statistics {
         let town = &self.state.town;
         let mut s = unbanished_game::work::tracker::Statistics::default();
@@ -228,11 +235,13 @@ impl SavedGame {
 /// The preview a save carries: the size of the game's save sprite (every sample is 172×128).
 pub const PREVIEW_SIZE: (u32, u32) = (172, 128);
 
-/// The save's preview from a frame of the scene (`width × height` RGBA, no UI), as
-/// `SaveLoad::Draw` (Runtime `0x1800c5720`) makes it. It copies the frame, then draws the
-/// largest centred part with the sprite's aspect into a `PREVIEW_SIZE` buffer and reads it
-/// back as blue, green, red, alpha texels. The material's filter is assumed linear, without
-/// mipmaps. The original's alpha is the frame's own, mostly 0; the port writes 0.
+/// The save's preview from a frame of the scene (`width × height` RGBA, no UI), as `SaveLoad::Draw`
+/// makes it. It copies the frame, then draws the largest centred part with the sprite's aspect into
+/// a `PREVIEW_SIZE` buffer and reads it back as blue, green, red, alpha texels. The material's
+/// filter is assumed linear, without mipmaps. The original's alpha is the frame's own, mostly 0;
+/// the port writes 0.
+///
+/// Original: Runtime `0x1800c5720`.
 #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 pub fn preview(rgba: &[u8], width: u32, height: u32) -> Vec<u8> {
     let (pw, ph) = PREVIEW_SIZE;

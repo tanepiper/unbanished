@@ -4000,6 +4000,7 @@ dependencies = [
  "unbanished-mods",
  "unbanished-net",
  "unbanished-nexus",
+ "unbanished-sim",
  "unbanished-ui",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -4136,6 +4137,18 @@ dependencies = [
  "log",
  "tungstenite",
  "unbanished-net",
+]
+
+[[package]]
+name = "unbanished-sim"
+version = "0.4.0"
+dependencies = [
+ "glam",
+ "log",
+ "unbanished-formats",
+ "unbanished-game",
+ "unbanished-mods",
+ "web-time",
 ]
 
 [[package]]

@@ -1,9 +1,11 @@
-//! BridgeTool (`DragTool`, vtable `0x140167f20`): a bridge dragged across water. Its start
-//! (`FUN_140100c70`) keeps the template's CreateBridgeDescription; the drag's end follows the
-//! longer axis from its start (`FUN_140100be0`); the check (slot `+0x70`, `FUN_1401001c0` →
-//! `FUN_1401007a0`) wants bank, water, bank in a line with nothing in the way; the apply (slot
-//! `+0x68`, `FUN_1400ff1a0`) places the bridge entity over the water with its parts (a start
-//! piece at each end, pieces 8, 4, 2 or 1 long between). See docs/BRIDGES.md.
+//! BridgeTool (`DragTool`): a bridge dragged across water. Its start keeps the template's
+//! CreateBridgeDescription; the drag's end follows the longer axis from its start; the check wants
+//! bank, water, bank in a line with nothing in the way; the apply places the bridge entity over the
+//! water with its parts (a start piece at each end, pieces 8, 4, 2 or 1 long between). See
+//! docs/BRIDGES.md.
+//!
+//! Original: `FUN_140100c70`, `FUN_140100be0`, `FUN_1401001c0`, `FUN_1401007a0`, `FUN_1400ff1a0`.
+// vtable 0x140167f20; slot +0x70; slot +0x68
 
 use unbanished_formats::game::{create_bridge_description, CreateBridgeDescription};
 use unbanished_formats::pkg::Archive;
@@ -12,7 +14,8 @@ use unbanished_game::terrain::HeightGrid;
 
 use super::{normalise, read, StartingTown};
 
-/// The tool's template and description (`+0x38`) and the part templates (`+0x38..`).
+// +0x38; +0x38..
+/// The tool's template and description and the part templates.
 #[derive(Debug, Clone)]
 pub struct BridgeSpec {
     pub template: usize,
@@ -42,9 +45,11 @@ fn piece(cells: i32) -> i32 {
     }
 }
 
-/// `FUN_1400ff1a0`'s list of pieces for a bridge `length` cells long: a start piece (0, one
-/// cell) at each end; between them the longest piece that fits the inside, then from the middle
-/// outwards on each side pieces ever shorter.
+/// The list of pieces for a bridge `length` cells long: a start piece (0, one cell) at each
+/// end; between them the longest piece that fits the inside, then from the middle outwards on
+/// each side pieces ever shorter.
+///
+/// Original: `FUN_1400ff1a0`.
 pub fn pieces(length: i32) -> Vec<i32> {
     let inner = length - 2;
     let half = inner / 2;
@@ -76,7 +81,9 @@ pub fn pieces(length: i32) -> Vec<i32> {
 }
 
 impl StartingTown {
-    /// `FUN_140100c70`: the template's CreateBridgeDescription and part templates.
+    /// The template's CreateBridgeDescription and part templates.
+    ///
+    /// Original: `FUN_140100c70`.
     pub fn bridge_spec(&mut self, archive: &Archive, reference: &str) -> Option<BridgeSpec> {
         let key = normalise(reference);
         let desc =
@@ -96,8 +103,9 @@ impl StartingTown {
         })
     }
 
-    /// `FUN_140100be0`: the drag's end on the row or column of its start, whichever the cursor
-    /// is further along.
+    /// The drag's end on the row or column of its start, whichever the cursor is further along.
+    ///
+    /// Original: `FUN_140100be0`.
     pub fn bridge_end(&self, start: i32, cell: i32) -> i32 {
         let n = self.cells.size as i32;
         let (sx, sy) = (start % n, start / n);
@@ -109,11 +117,13 @@ impl StartingTown {
         }
     }
 
-    /// `FUN_1401007a0`: over the rectangle from `a` to `b`, in rows: banks (`+0x24`), then the
-    /// cells spanned (`+0x20`, at least one of `+0x2c`), then banks again, nothing standing on
-    /// any. From the first spanned cell to one past the span, and `+0x34` to each side (of the
-    /// `+0x30` types), no occupant, road or planned road. Returns whether it holds and the
-    /// span's length.
+    // +0x24; +0x20; +0x2c; +0x34; +0x30
+    /// Over the rectangle from `a` to `b`, in rows: banks, then the cells spanned (at least one
+    /// of), then banks again, nothing standing on any. From the first spanned cell to one past the
+    /// span, and to each side (of the types), no occupant, road or planned road. Returns whether it
+    /// holds and the span's length.
+    ///
+    /// Original: `FUN_1401007a0`.
     pub fn bridge_check(&self, spec: &BridgeSpec, a: i32, b: i32) -> (bool, i32) {
         let d = &spec.desc;
         let c = &self.cells;
@@ -187,10 +197,12 @@ impl StartingTown {
         (ok, span)
     }
 
-    /// `FUN_1400ff1a0`: a drag from `a` toward `b` places the bridge: the entity of the tool's
-    /// template over the span (turned 90° when it runs along y), then each piece from the
-    /// first spanned cell on (the first start piece turned about, the last as it is), each its
-    /// MultiObject part, standing at water level between its end cells. Returns the entity.
+    /// A drag from `a` toward `b` places the bridge: the entity of the tool's template over the
+    /// span (turned 90° when it runs along y), then each piece from the first spanned cell on (the
+    /// first start piece turned about, the last as it is), each its MultiObject part, standing at
+    /// water level between its end cells. Returns the entity.
+    ///
+    /// Original: `FUN_1400ff1a0`.
     pub fn place_bridge(
         &mut self,
         archive: &Archive,
@@ -311,7 +323,7 @@ impl StartingTown {
 
     /// FloorComponent activation (`FUN_140124810` → `FUN_140124860`): the part's floor mesh,
     /// turned and placed as its model, over its MapComponent's cells.
-    pub(in crate::start) fn add_floor(&mut self, part: usize) {
+    pub(in crate::town) fn add_floor(&mut self, part: usize) {
         let p = &self.placed[part];
         let Some(floor) = self.templates[p.template].floor.clone() else {
             return;
@@ -323,9 +335,10 @@ impl StartingTown {
 }
 
 impl StartingTown {
-    /// The queued TerraformComponent digs and removals (`FUN_140057c70`, `FUN_140057cb0`) on
-    /// the terrain's heights (`width` samples a side), in order. Returns whether any height
-    /// changed (the terrain mesh is to be rebuilt).
+    /// The queued TerraformComponent digs and removals on the terrain's heights (`width` samples a
+    /// side), in order. Returns whether any height changed (the terrain mesh is to be rebuilt).
+    ///
+    /// Original: `FUN_140057c70`, `FUN_140057cb0`.
     pub fn apply_terraforms(&mut self, heights: &mut [i16], width: usize) -> bool {
         use unbanished_game::world::terraform::{harden, reshape, undo, Terraform};
         let mut changed = false;

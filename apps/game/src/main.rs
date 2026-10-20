@@ -22,14 +22,14 @@ mod global;
 mod keymap;
 mod loops;
 mod menu;
-mod mods;
+use unbanished_sim::mods;
 #[cfg(not(target_arch = "wasm32"))]
 mod native;
 mod platform;
 mod probe;
 mod saves;
 mod settings;
-mod start;
+use unbanished_sim::town as start;
 mod tools;
 mod ui;
 mod view;

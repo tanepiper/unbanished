@@ -1,14 +1,16 @@
-//! Saving, stage 3b (the inverse of `load::actions`): each character's stack (`+0x48`, top
-//! `+0x60`, "on empty" `+0x58`, `FUN_14010ef80`). An entry whose saved action at the same place
-//! has the same class keeps that object (its fields rewritten), so an untouched stack keeps its
-//! bits; others get a new object.
+//! Saving, stage 3b (the inverse of `load::actions`): each character's stack (top, "on empty"). An
+//! entry whose saved action at the same place has the same class keeps that object (its fields
+//! rewritten), so an untouched stack keeps its bits; others get a new object.
+//!
+//! Original: `FUN_14010ef80`.
+// +0x48; +0x60; +0x58
 
 use unbanished_formats::crc::type_id;
 use unbanished_formats::savegame::{Fields, GameState, ObjId, Value};
 use unbanished_game::behaviour::character::{Action, ActionStack, Component};
 
 use super::{component, Ids, Refs};
-use crate::start::StartingTown;
+use crate::town::StartingTown;
 
 /// The original's class for an action.
 fn action_type(a: &Action) -> &'static str {
