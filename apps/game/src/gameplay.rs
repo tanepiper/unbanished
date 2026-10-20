@@ -87,6 +87,9 @@ enum MenuDialog {
 pub struct GameplayLoop {
     params: WorldParams,
     view: Option<SceneView>,
+    /// The map's heights, which the simulation reads and changes (tunnels, flattening); the
+    /// scene view keeps a copy to draw.
+    heights: Option<unbanished_game::terrain::Heights>,
     environment_months: Vec<EnvironmentMonth>,
     /// EnvironmentDescription `+0x20`: what forms while it rains (`Template\Tornado.rsc`).
     environment_template: Option<String>,
@@ -315,6 +318,7 @@ impl GameplayLoop {
             rng: Random::new(params.seed),
             params,
             view: None,
+            heights: None,
             environment_months: Vec::new(),
             environment_template: None,
             screen: None,

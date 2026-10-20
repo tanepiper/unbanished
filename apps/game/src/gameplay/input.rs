@@ -65,11 +65,8 @@ impl GameplayLoop {
     pub(super) fn entity_at_cursor(&mut self, ctx: &mut Ctx) -> Option<Entity> {
         let (origin, direction) = self.cursor_ray(ctx.ui.screen)?;
         let town = self.town.as_ref()?;
-        let view = self.view.as_ref().unwrap();
-        let grid = unbanished_game::terrain::HeightGrid {
-            width: view.terrain.size + 1,
-            heights: &view.terrain.heights,
-        };
+        let heights = self.heights.as_ref().unwrap();
+        let grid = heights.grid();
         let ground = grid.intersect(origin.to_array(), direction.to_array(), 400.);
         let cell = ground
             .map(|(_, hit)| {
@@ -113,10 +110,11 @@ impl GameplayLoop {
         let n = town.cells.size as i32;
         let (lines, cells) = tool.overlay(n);
         if let Some(view) = self.view.as_mut() {
-            let grid = unbanished_game::terrain::HeightGrid {
-                width: view.terrain.size + 1,
-                heights: &view.terrain.heights,
-            };
+            let grid = self
+                .heights
+                .as_ref()
+                .expect("the heights come with the view")
+                .grid();
             let height = |x: f32, y: f32| {
                 let mut normal = [0.0; 3];
                 grid.ground(x, y, &mut normal)
@@ -283,10 +281,11 @@ impl GameplayLoop {
         );
         let near = inv.project_point3(ndc.extend(0.0));
         let far = inv.project_point3(ndc.extend(1.0));
-        let grid = unbanished_game::terrain::HeightGrid {
-            width: view.terrain.size + 1,
-            heights: &view.terrain.heights,
-        };
+        let grid = self
+            .heights
+            .as_ref()
+            .expect("the heights come with the view")
+            .grid();
         let below = |p: glam::Vec3| {
             let mut normal = [0.0; 3];
             p.z <= grid.ground(p.x, p.y, &mut normal)

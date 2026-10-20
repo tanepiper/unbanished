@@ -354,8 +354,10 @@ impl GameplayLoop {
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(super) fn new_game_state(&self) -> Option<unbanished_formats::savegame::GameState> {
         let mut map = self.new_map.clone()?;
+        if let Some(heights) = &self.heights {
+            map.heights = heights.values.clone();
+        }
         if let Some(view) = &self.view {
-            map.heights = view.terrain.heights.clone();
             map.surface = view.terrain.surface.clone();
         }
         let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);

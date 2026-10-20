@@ -13,10 +13,11 @@ impl GameplayLoop {
         ) else {
             return;
         };
-        let grid = unbanished_game::terrain::HeightGrid {
-            width: view.terrain.size + 1,
-            heights: &view.terrain.heights,
-        };
+        let grid = self
+            .heights
+            .as_ref()
+            .expect("the heights come with the view")
+            .grid();
         tool.hover(town, &grid, cell, self.rotation);
         // `FUN_1401050c0`: a new cell plays the move sound, at most every 0.05 s.
         if cell.is_some() && cell != self.placement_cell {
@@ -255,10 +256,11 @@ impl GameplayLoop {
         ) else {
             return;
         };
-        let grid = unbanished_game::terrain::HeightGrid {
-            width: view.terrain.size + 1,
-            heights: &view.terrain.heights,
-        };
+        let grid = self
+            .heights
+            .as_ref()
+            .expect("the heights come with the view")
+            .grid();
         let cells = tool.overlay(town, &grid, cell);
         view.cell_overlay = crate::gfx::selection_overlay::vertices(&cells, n, |x, y| {
             let mut normal = [0.0; 3];

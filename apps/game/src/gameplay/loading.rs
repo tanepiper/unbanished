@@ -133,6 +133,11 @@ impl GameplayLoop {
                         .get_or_insert_with(|| crate::audio::music::MusicPlayer::load(ctx.archive))
                         .first_track(ctx.audio, month, mood),
                 );
+                // The heights the simulation reads and changes; the view keeps a copy to draw.
+                self.heights = Some(unbanished_game::terrain::Heights {
+                    size: view.terrain.size,
+                    values: view.terrain.heights.clone(),
+                });
                 self.view = Some(view);
                 // The decals are built now too, so the renderer uploads them with the world;
                 // the first frame rebuilds them only if the town changed meanwhile. The sounds

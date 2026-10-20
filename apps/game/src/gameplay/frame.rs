@@ -190,10 +190,11 @@ impl GameplayLoop {
         }
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
         if let (Some(town), Some(view), true) = (&mut self.town, &mut self.view, runs) {
-            let grid = unbanished_game::terrain::HeightGrid {
-                width: view.terrain.size + 1,
-                heights: &view.terrain.heights,
-            };
+            let grid = self
+                .heights
+                .as_ref()
+                .expect("the heights come with the view")
+                .grid();
             {
                 let _p = crate::platform::perf::scope("smooth");
                 models_changed |= town.smooth(&grid, &mut self.rng);
@@ -256,10 +257,11 @@ impl GameplayLoop {
         }
         self.position_entity_window(ctx);
         if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
-            let grid = unbanished_game::terrain::HeightGrid {
-                width: view.terrain.size + 1,
-                heights: &view.terrain.heights,
-            };
+            let grid = self
+                .heights
+                .as_ref()
+                .expect("the heights come with the view")
+                .grid();
             view.highlight =
                 self.highlight
                     .geometry(ctx.archive, town, &grid, self.selection.selected);

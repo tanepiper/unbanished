@@ -70,13 +70,11 @@ impl GameplayLoop {
                 else {
                     return false;
                 };
-                let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_ref()) else {
+                let (Some(town), Some(heights)) = (self.town.as_ref(), self.heights.as_ref())
+                else {
                     return false;
                 };
-                let grid = unbanished_game::terrain::HeightGrid {
-                    width: view.terrain.size + 1,
-                    heights: &view.terrain.heights,
-                };
+                let grid = heights.grid();
                 let near = town.start;
                 if tool.find_clear_spot(town, &grid, near).is_none() {
                     return false;

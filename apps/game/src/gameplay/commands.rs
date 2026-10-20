@@ -134,11 +134,8 @@ impl GameplayLoop {
             PlayerCommand::ApplyQueued {
                 with_calendar: false,
             } => {
-                if let (Some(town), Some(view)) = (&mut self.town, &self.view) {
-                    let grid = unbanished_game::terrain::HeightGrid {
-                        width: view.terrain.size + 1,
-                        heights: &view.terrain.heights,
-                    };
+                if let (Some(town), Some(heights)) = (&mut self.town, &self.heights) {
+                    let grid = heights.grid();
                     town.apply_commands(&grid, &mut self.rng);
                 }
                 Outcome::None
@@ -176,18 +173,15 @@ impl GameplayLoop {
                 None => Outcome::None,
             },
             PlayerCommand::Drag(drag) => {
-                let (Some(tool), Some(town), Some(view)) = (
+                let (Some(tool), Some(town), Some(heights)) = (
                     self.drag_tools.get(&drag.template),
                     &mut self.town,
-                    &self.view,
+                    &self.heights,
                 ) else {
                     return Outcome::None;
                 };
                 let mut tool = tool.with_drag(&drag);
-                let grid = unbanished_game::terrain::HeightGrid {
-                    width: view.terrain.size + 1,
-                    heights: &view.terrain.heights,
-                };
+                let grid = heights.grid();
                 Outcome::Sound(tool.apply(archive, town, &grid))
             }
             PlayerCommand::PathQuery { entity } => {

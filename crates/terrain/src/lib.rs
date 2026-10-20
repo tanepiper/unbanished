@@ -9,12 +9,14 @@
 // collections at +0x18..+0x48, the Random at +0x58 and the size record pointer at +0xa28. Each
 // stage is checked against emulated ground truth (tools/emu/terrain_stages.py) and saved maps.
 
+mod heights;
 mod mesh;
 mod query;
 mod river;
 mod stages;
 mod surface;
 
+pub use heights::Heights;
 pub use mesh::{tile_indices, HeightGrid, TerrainMesh, TerrainVertex, TILE_CELLS, TILE_VERTS};
 pub use query::CellType;
 pub use river::{river_strip, water_mesh, WaterMesh};

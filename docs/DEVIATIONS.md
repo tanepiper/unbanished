@@ -40,7 +40,7 @@ Deviation: 61, Not ported: 4, Not traced: 1.
 ## `apps/game/src/gameplay/frame.rs`
 
 - [Deviation] [apps/game/src/gameplay/frame.rs:89](../apps/game/src/gameplay/frame.rs#L89): `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller. Deviation: in a multiplayer game the pause menu does not hold the shared game.
-- [Deviation] [apps/game/src/gameplay/frame.rs:283](../apps/game/src/gameplay/frame.rs#L283): AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets the game speed (`Game +0x120 → +0x34`) back to 1. Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on each player's own setting.
+- [Deviation] [apps/game/src/gameplay/frame.rs:285](../apps/game/src/gameplay/frame.rs#L285): AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets the game speed (`Game +0x120 → +0x34`) back to 1. Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on each player's own setting.
 
 ## `apps/game/src/gameplay/lockstep.rs`
 

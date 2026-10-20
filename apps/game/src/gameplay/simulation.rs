@@ -12,13 +12,10 @@ impl GameplayLoop {
     /// Applies the town's queued player commands and placed sites, with the calendar and
     /// weather they read.
     pub(super) fn apply_commands(&mut self) {
-        let (Some(town), Some(view)) = (&mut self.town, &self.view) else {
+        let (Some(town), Some(heights)) = (&mut self.town, &self.heights) else {
             return;
         };
-        let grid = unbanished_game::terrain::HeightGrid {
-            width: view.terrain.size + 1,
-            heights: &view.terrain.heights,
-        };
+        let grid = heights.grid();
         // The crop fields read the calendar (`Game +0x128`).
         town.construction.calendar = self.calendar.seconds();
         town.construction.year = self.calendar.year;
@@ -34,11 +31,8 @@ impl GameplayLoop {
         let mut models_changed = false;
         // Player commands and placed sites take effect between iterations.
         self.apply_commands();
-        if let (Some(town), Some(view)) = (&mut self.town, &self.view) {
-            let grid = unbanished_game::terrain::HeightGrid {
-                width: view.terrain.size + 1,
-                heights: &view.terrain.heights,
-            };
+        if let (Some(town), Some(heights)) = (&mut self.town, &self.heights) {
+            let grid = heights.grid();
             let temperature = self.environment.as_ref().map_or(0.0, |e| e.temperature);
             let changed = {
                 let _p = crate::platform::perf::scope("sim.town");
@@ -62,12 +56,16 @@ impl GameplayLoop {
         }
         // The tunnels' terraforming and the flattening under stamped footprints and roads, on
         // the terrain the town reads (`FUN_140057c70`, `FUN_1400a35b0`).
-        if let (Some(town), Some(view)) = (&mut self.town, &mut self.view) {
+        if let (Some(town), Some(heights)) = (&mut self.town, &mut self.heights) {
             let c = &town.construction;
             if !c.terraform_requests.is_empty() || !c.flatten_requests.is_empty() {
-                let width = view.terrain.width();
-                if town.apply_terraforms(&mut view.terrain.heights, width) {
-                    view.terrain.reshaped();
+                let width = heights.width();
+                if town.apply_terraforms(&mut heights.values, width) {
+                    // The scene view draws the new heights: its mesh follows.
+                    if let Some(view) = &mut self.view {
+                        view.terrain.heights.clone_from(&heights.values);
+                        view.terrain.reshaped();
+                    }
                 }
             }
         }
@@ -78,15 +76,12 @@ impl GameplayLoop {
         }
         // `FUN_1400999b0` step 6: the environment template's entity.
         if tornado {
-            if let (Some(town), Some(view), Some(reference)) = (
+            if let (Some(town), Some(heights), Some(reference)) = (
                 &mut self.town,
-                &self.view,
+                &self.heights,
                 self.environment_template.as_deref(),
             ) {
-                let grid = unbanished_game::terrain::HeightGrid {
-                    width: view.terrain.size + 1,
-                    heights: &view.terrain.heights,
-                };
+                let grid = heights.grid();
                 town.spawn_tornado(archive, reference, &grid, &mut self.rng);
                 models_changed = true;
             }
@@ -97,11 +92,8 @@ impl GameplayLoop {
             self.stock_warnings
                 .recompute(&town.registered_storages(), &town.materials);
             // StockManager::Update's commute optimisation (every 300 s).
-            if let Some(view) = &self.view {
-                let grid = unbanished_game::terrain::HeightGrid {
-                    width: view.terrain.size + 1,
-                    heights: &view.terrain.heights,
-                };
+            if let Some(heights) = &self.heights {
+                let grid = heights.grid();
                 town.update_commute(&grid, &mut self.rng, dt);
             }
             // The job manager's pass and clock (`FUN_14009b850`, after the stock update).
@@ -199,10 +191,11 @@ impl GameplayLoop {
             return;
         }
         self.decals_built = Some(key);
-        let grid = unbanished_game::terrain::HeightGrid {
-            width: view.terrain.size + 1,
-            heights: &view.terrain.heights,
-        };
+        let grid = self
+            .heights
+            .as_ref()
+            .expect("the heights come with the view")
+            .grid();
         let mut list = crate::gfx::building_decals::build(
             archive,
             &town.placed,
@@ -248,10 +241,11 @@ impl GameplayLoop {
         let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) else {
             return;
         };
-        let grid = unbanished_game::terrain::HeightGrid {
-            width: view.terrain.size + 1,
-            heights: &view.terrain.heights,
-        };
+        let grid = self
+            .heights
+            .as_ref()
+            .expect("the heights come with the view")
+            .grid();
         self.particles.drive(archive, town, &grid);
         if 0.0 < dt {
             self.particles.update(dt);
