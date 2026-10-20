@@ -4,8 +4,11 @@
 //!
 //! The game app draws and plays this town; tests and a server can run it with no window.
 
+pub mod command;
 pub mod mods;
 pub mod saved;
 pub mod simulation;
 pub mod timing;
+pub mod tools;
 pub mod town;
+pub mod transform;

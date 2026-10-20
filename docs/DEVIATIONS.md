@@ -69,7 +69,7 @@ Deviation: 62, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/gfx/selection_overlay.rs`
 
-- [Deviation] [apps/game/src/gfx/selection_overlay.rs:118](../apps/game/src/gfx/selection_overlay.rs#L118): Deviation: the quads sit this far above the terrain surface instead of relying on the original material's depth state (not traced), so they do not fight the terrain's depth.
+- [Deviation] [apps/game/src/gfx/selection_overlay.rs:84](../apps/game/src/gfx/selection_overlay.rs#L84): Deviation: the quads sit this far above the terrain surface instead of relying on the original material's depth state (not traced), so they do not fight the terrain's depth.
 
 ## `apps/game/src/gfx/shadow.rs`
 
@@ -105,7 +105,7 @@ Deviation: 62, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/tools/selection.rs`
 
-- [Deviation] [apps/game/src/tools/selection.rs:215](../apps/game/src/tools/selection.rs#L215): Deviation: the spatial grid's linked candidate order is creation order here. Only exactly coincident equal-distance hits can differ; the inclusive replacement is exact.
+- [Deviation] [apps/game/src/tools/selection.rs:137](../apps/game/src/tools/selection.rs#L137): Deviation: the spatial grid's linked candidate order is creation order here. Only exactly coincident equal-distance hits can differ; the inclusive replacement is exact.
 
 ## `apps/game/src/ui/mod_browse.rs`
 

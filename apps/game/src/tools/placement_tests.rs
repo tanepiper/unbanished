@@ -1,5 +1,9 @@
-use super::*;
+use super::placement_tool::*;
+use crate::start::StartingTown;
+use unbanished_formats::pkg::Archive;
 use unbanished_formats::pkg::Package;
+use unbanished_game::random::Random;
+use unbanished_game::terrain::HeightGrid;
 use unbanished_game::work::stock::stock_table;
 
 /// A wood house placed on clear ground near the start is supplied by laborers and built

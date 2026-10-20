@@ -1,6 +1,9 @@
-use super::*;
+use super::removal_tool::*;
+use crate::start::StartingTown;
+use unbanished_formats::pkg::Archive;
 use unbanished_formats::pkg::Package;
 use unbanished_game::random::Random;
+use unbanished_game::terrain::HeightGrid;
 
 /// ClearTree over the trees near the start: one marker per tree cell, laborers fell them,
 /// every marker removes itself, and ClearCancel takes markers away again.

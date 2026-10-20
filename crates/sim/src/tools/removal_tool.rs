@@ -1,22 +1,26 @@
-//! The removal tools (`RemovalTool : DragTool`, vtable `0x140168200`): ClearTree, ClearStone,
-//! ClearIron, ClearResources, ClearRoad, ClearBuildings, ClearCancel and ClearPriority, started
-//! by toolbar kind 1 for a template with a `CreateRemovalDescription`. See docs/JOBS.md.
+//! The removal tools (`RemovalTool: DragTool`): ClearTree, ClearStone, ClearIron, ClearResources,
+//! ClearRoad, ClearBuildings, ClearCancel and ClearPriority, started by toolbar kind 1 for a
+//! template with a `CreateRemovalDescription`. See docs/JOBS.md.
 //!
-//! - start (`+0x20`, `FUN_14010a0a0`): keep the template's CreateRemovalDescription (`+0x38`);
-//! - input (`+0x30`, DragTool `FUN_140101b80`): MouseLeft starts a drag at the cell under the
-//!   cursor; releasing on another cell applies it, releasing on the same cell waits for a second
-//!   click; a new end cell plays the move sound;
-//! - cancel (`+0x48`, `FUN_140101b10`): a drag in progress stops;
-//! - apply (`+0x68`, `FUN_140108ab0`): every cell of the rectangle, in rows;
-//! - draw (`+0x40`, `FUN_140109520`): each cell of the drag (or the hovered cell), marked when
-//!   the drag would do something there.
+//! - Start: keep the template's CreateRemovalDescription;
+//! - Input (DragTool): MouseLeft starts a drag at the cell under the cursor;
+//!   releasing on another cell applies it, releasing on the same cell waits for a second click; a
+//!   new end cell plays the move sound;
+//! - Cancel: a drag in progress stops;
+//! - Apply: every cell of the rectangle, in rows;
+//! - Draw: each cell of the drag (or the hovered cell), marked when the drag would do something
+//!   there.
 //!
 //! The original runs the tool between simulation iterations; the port does too (markers are
 //! activated before the next iteration, like placed buildings).
 //!
-//! RoadTool (`RoadTool : DragTool`, vtable `0x140168290`, for a template with a
-//! `CreateRoadDescription`) shares the DragTool input and runs here as the road mode: start
-//! `FUN_14010abb0`, apply `FUN_14010a200`, check `FUN_14010a4b0` (see docs/ROADS.md).
+//! RoadTool (`RoadTool: DragTool`, for a template with a `CreateRoadDescription`) shares the
+//! DragTool input and runs here as the road mode, with its own start, apply and check (see
+//! docs/ROADS.md).
+//!
+//! Original: `FUN_14010a0a0`, `FUN_140101b10`, `FUN_140108ab0`, `FUN_140109520`, `FUN_140101b80`,
+//! `FUN_14010abb0`, `FUN_14010a200`, `FUN_14010a4b0`.
+// vtable 0x140168200; +0x20; +0x38; +0x30; +0x48; +0x68; +0x40; vtable 0x140168290
 
 use unbanished_formats::game::{
     create_drag_description, create_removal_description, create_road_description,
@@ -26,7 +30,7 @@ use unbanished_formats::pkg::Archive;
 use unbanished_game::terrain::HeightGrid;
 use unbanished_game::world::placement::cell_admits;
 
-use crate::start::StartingTown;
+use crate::town::StartingTown;
 
 fn read(archive: &Archive, reference: &str) -> Option<Vec<u8>> {
     archive.read_ref(&reference.replace('\\', "/")).ok()
@@ -48,11 +52,17 @@ pub enum DragStep {
 /// What a press, move or release did (the caller plays the sound).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DragSound {
-    /// `FUN_1401050c0`.
+    /// The move sound.
+    ///
+    /// Original: `FUN_1401050c0`.
     Move,
-    /// `FUN_1401055c0`.
+    /// The sound of an applied drag.
+    ///
+    /// Original: `FUN_1401055c0`.
     Thunk,
-    /// `FUN_140105610`.
+    /// The error sound.
+    ///
+    /// Original: `FUN_140105610`.
     Error,
 }
 
@@ -65,13 +75,14 @@ pub struct RemovalTool {
     marker: Option<usize>,
     drag: Option<CreateDragDescription>,
     pub toolbar: Option<ToolbarDescription>,
-    /// DragTool `+0x28`: dragging; `+0x29`: released on the start cell, waiting for a click.
-    dragging: bool,
+    // +0x28; +0x29
+    /// DragTool: dragging;: released on the start cell, waiting for a click.
+    pub dragging: bool,
     waiting: bool,
-    /// `+0x2c` start cell, `+0x30` end cell, `+0x34` the end cell the move sound last played
-    /// for (−1).
-    start: i32,
-    end: i32,
+    // +0x2c; +0x30; +0x34
+    /// start cell, end cell, the end cell the move sound last played for (−1).
+    pub start: i32,
+    pub end: i32,
     sounded: i32,
     /// MouseLeft is held.
     held: bool,
@@ -79,7 +90,7 @@ pub struct RemovalTool {
     /// the cell type of the road template's MapDescription.
     road: Option<RoadSpec>,
     /// The bridge mode (BridgeTool `+0x38`): the CreateBridgeDescription and its parts.
-    bridge: Option<crate::start::BridgeSpec>,
+    bridge: Option<crate::town::BridgeSpec>,
     /// The area mode (DragPlacementTool `+0x38`, `+0x40`): the template, its
     /// CreateDragDescription and the template whose entities may stand in the way.
     area: Option<AreaSpec>,
@@ -88,13 +99,17 @@ pub struct RemovalTool {
         unbanished_formats::game::CreateFencedDescription,
         Option<usize>,
     )>,
-    /// The RotationSetting (`+0x50 → +0x10`) the fenced tool turns its shelter by.
+    // +0x50 → +0x10
+    /// The RotationSetting the fenced tool turns its shelter by.
     pub rotation: i32,
-    /// A RestrictPlayer setup's cells (game UI `+0x80`, corners `+0x98`/`+0x9c` as `(x0, y0,
-    /// x1, y1)`): the drag must cover exactly them (a road must run between those corners).
+    // +0x80; +0x98; +0x9c
+    /// A RestrictPlayer setup's cells (game UI, corners / as `(x0, y0, x1, y1)`): the drag must
+    /// cover exactly them (a road must run between those corners).
     pub restrict: Option<[i32; 4]>,
-    /// RoadTool `+0x40` (`FUN_14010ab60`): the path's Manhattan heuristic, on while
-    /// PathMethod (action `0x16`) is not held.
+    // +0x40
+    /// RoadTool: the path's Manhattan heuristic, on while PathMethod (action `0x16`) is not held.
+    ///
+    /// Original: `FUN_14010ab60`.
     pub manhattan: bool,
 }
 
@@ -115,10 +130,12 @@ struct RoadSpec {
 /// `0xa17`: the cell types a road crosses (0–2, 4, 9, 11); `0x5e0` the types its ends may not
 /// be (water, high and rough ground).
 const ROAD_MASK: u32 = 0xa17;
-const ROAD_ENDS: u32 = 0x5e0;
+pub const ROAD_ENDS: u32 = 0x5e0;
 
 impl RemovalTool {
-    /// `FUN_14010a0a0` (and the constructor `FUN_14010a190`).
+    /// Starts the drag tool for a template (removal, road, bridge, area or fence).
+    ///
+    /// Original: `FUN_14010a190`, `FUN_14010a0a0`.
     pub fn start(archive: &Archive, town: &mut StartingTown, reference: &str) -> Option<Self> {
         let file = reference.split(':').next()?.replace('\\', "/");
         let Some(data) = read(archive, &format!("{file}:createremoval")) else {
@@ -182,7 +199,7 @@ impl RemovalTool {
         let material = d
             .material
             .as_deref()
-            .and_then(|m| crate::start::material_index(archive, &mut town.materials, m));
+            .and_then(|m| crate::town::material_index(archive, &mut town.materials, m));
         let toolbar =
             read(archive, &format!("{file}:toolbar")).and_then(|d| toolbar_description(&d).ok());
         Some(RemovalTool {
@@ -356,7 +373,7 @@ impl RemovalTool {
     /// with no one on it, or, before the drag has length, a bank.
     fn bridge_cells(
         town: &StartingTown,
-        spec: &crate::start::BridgeSpec,
+        spec: &crate::town::BridgeSpec,
         a: i32,
         b: i32,
     ) -> Vec<(i32, i32, bool)> {
@@ -449,20 +466,22 @@ impl RemovalTool {
         rect != (x0, y0, x1, y1)
     }
 
-    /// Slot `+0x70` for the CreateBar while dragging (`FUN_140101b80`):
-    /// - RemovalTool (`FUN_1401093c0`) and DragPlacementTool (`FUN_140100fb0`, its check): the
-    ///   rectangle `W×H`, the requirements once;
-    /// - FencedTool (`FUN_1400e0960`): the rectangle, the requirements once per fence cell
-    ///   (`2(W + H) − 4`); 1 too small, 2 too large, 3 a cell that will not take it;
-    /// - RoadTool (`FUN_14010a4b0`): the road's length, the requirements per cell; without a
-    ///   road no size and message 1;
-    /// - BridgeTool (`FUN_1401001c0`): the span's length, the requirements per cell; else 3.
+    // +0x70
+    /// Slot for the CreateBar while dragging:
+    /// - RemovalTool and DragPlacementTool (its check): the rectangle `W×H`, the requirements once;
+    /// - FencedTool: the rectangle, the requirements once per fence cell (`2(W + H) − 4`); 1 too
+    ///   small, 2 too large, 3 a cell that will not take it;
+    /// - RoadTool: the road's length, the requirements per cell; without a road no size and message
+    ///   1;
+    /// - BridgeTool: the span's length, the requirements per cell; else 3.
+    ///
+    /// Original: `FUN_140101b80`, `FUN_1401093c0`, `FUN_140100fb0`, `FUN_1400e0960`, `FUN_14010a4b0`, `FUN_1401001c0`.
     pub fn drag_info(
         &self,
         town: &mut StartingTown,
         terrain: &HeightGrid,
-    ) -> Option<crate::ui::create_bar::DragInfo> {
-        use crate::ui::create_bar::DragInfo;
+    ) -> Option<crate::tools::drag_info::DragInfo> {
+        use crate::tools::drag_info::DragInfo;
         let (a, b) = self.drag_ends()?;
         let n = town.cells.size as i32;
         let (x0, x1) = ((a % n).min(b % n), (a % n).max(b % n));
@@ -542,8 +561,8 @@ impl RemovalTool {
 
     /// The drag as it stands, for `PlayerCommand::Drag`: the template, the cells and the
     /// settings `apply` reads.
-    pub fn drag_command(&self) -> crate::gameplay::commands::Drag {
-        crate::gameplay::commands::Drag {
+    pub fn drag_command(&self) -> crate::tools::drag::Drag {
+        crate::tools::drag::Drag {
             template: self.reference.clone(),
             start: self.start,
             end: self.end,
@@ -554,7 +573,7 @@ impl RemovalTool {
     }
 
     /// This tool with a drag's cells and settings, ready to `apply`.
-    pub fn with_drag(&self, drag: &crate::gameplay::commands::Drag) -> RemovalTool {
+    pub fn with_drag(&self, drag: &crate::tools::drag::Drag) -> RemovalTool {
         let mut tool = self.clone();
         tool.start = drag.start;
         tool.end = drag.end;
@@ -566,7 +585,7 @@ impl RemovalTool {
 
     /// Apply a drag from cell `start` to cell `end` (tests; the game goes through
     /// `PlayerCommand::Drag`).
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn drag(
         &mut self,
         archive: &Archive,
@@ -633,7 +652,9 @@ impl RemovalTool {
         self.finish(cell)
     }
 
-    /// `FUN_140101b10`: stop a drag in progress; false when there was none.
+    /// Stop a drag in progress; false when there was none.
+    ///
+    /// Original: `FUN_140101b10`.
     pub fn cancel(&mut self) -> bool {
         if !self.dragging {
             return false;
@@ -788,10 +809,12 @@ impl RemovalTool {
             .then_some(site.work_id)
     }
 
-    /// `FUN_140108ab0` over the dragged rectangle: markers, roads (`FUN_1400a1bd0`), cancels,
-    /// demolition (`FUN_140109b40` → `FUN_140123470`), priority. In the road mode
-    /// (`FUN_14010a200`), every cell of the road is planned (`FUN_1400a1e30`); the road decals
-    /// follow the road revision (`road_decals.rs`).
+    /// Applies the drag over the dragged rectangle: markers, roads, cancels, demolition, priority.
+    /// In the road mode, every cell of the road is planned; the road decals follow the road
+    /// revision (`road_decals.rs`).
+    ///
+    /// Original: `FUN_1400a1bd0`, `FUN_140109b40`, `FUN_140123470`, `FUN_14010a200`, `FUN_1400a1e30`,
+    /// `FUN_140108ab0`.
     pub fn apply(
         &mut self,
         archive: &Archive,
@@ -936,18 +959,18 @@ impl RemovalTool {
         DragSound::Thunk
     }
 
-    /// The overlay of [`Self::cells`]: the removal tools mark the cells they act on red with
-    /// the cross (`FUN_140109520`); the building tools draw green where the cell takes them
-    /// and red where not, the road's cells with frame 1 (`FUN_14010a660`), the bridge's
-    /// spanned cells too (`FUN_140100290`), the areas' and fences' plain (`FUN_140101310`,
-    /// `FUN_1400e1910`).
+    /// The overlay of [`Self::cells`]: the removal tools mark the cells they act on red with the
+    /// cross; the building tools draw green where the cell takes them and red where not, the road's
+    /// cells with frame 1, the bridge's spanned cells too, the areas' and fences' plain.
+    ///
+    /// Original: `FUN_140109520`, `FUN_14010a660`, `FUN_140100290`, `FUN_140101310`, `FUN_1400e1910`.
     pub fn overlay(
         &self,
         town: &mut StartingTown,
         terrain: &HeightGrid,
         hover: i32,
-    ) -> Vec<crate::gfx::selection_overlay::OverlayCell> {
-        use crate::gfx::selection_overlay::OverlayCell;
+    ) -> Vec<crate::tools::overlay::OverlayCell> {
+        use crate::tools::overlay::OverlayCell;
         let n = town.cells.size as i32;
         let cells = self.cells(town, terrain, hover);
         let builds = self.road.is_some()
@@ -979,7 +1002,9 @@ impl RemovalTool {
             .collect()
     }
 
-    /// `FUN_140109520`: the cells to draw, each with whether the drag would act on it.
+    /// The cells to draw, each with whether the drag would act on it.
+    ///
+    /// Original: `FUN_140109520`.
     pub fn cells(
         &self,
         town: &mut StartingTown,
@@ -1084,6 +1109,3 @@ impl RemovalTool {
         out
     }
 }
-
-#[cfg(test)]
-mod tests;

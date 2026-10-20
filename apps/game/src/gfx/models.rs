@@ -15,7 +15,7 @@ use upload::GpuGroup;
 
 use std::collections::HashMap;
 
-use glam::{Mat4, Quat, Vec3};
+use glam::{Mat4, Vec3};
 use unbanished_formats::menu_scene::MenuScene;
 use unbanished_formats::pkg::Archive;
 use unbanished_formats::skeleton::{bind_palette, inverse_bind, world_transforms, Transform};
@@ -241,16 +241,7 @@ pub struct SceneModels {
     textures: HashMap<String, ModelImage>,
 }
 
-/// A placement's transform: `FromYawPitchOffset(yaw, offset)` (yaw in degrees about z) with the
-/// per-axis scale the shaders read from the transform rows' `w` (placement floats 3..6).
-pub fn placement_matrix(position: [f32; 3], scale: [f32; 3], yaw: f32) -> [f32; 16] {
-    Mat4::from_scale_rotation_translation(
-        Vec3::from(scale),
-        Quat::from_rotation_z(yaw.to_radians()),
-        Vec3::from(position),
-    )
-    .to_cols_array()
-}
+pub use unbanished_sim::transform::placement_matrix;
 
 pub struct ModelRenderer {
     pipelines: [wgpu::RenderPipeline; 6],

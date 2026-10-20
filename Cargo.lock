@@ -4145,6 +4145,7 @@ version = "0.4.0"
 dependencies = [
  "glam",
  "log",
+ "serde",
  "unbanished-formats",
  "unbanished-game",
  "unbanished-mods",

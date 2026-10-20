@@ -124,8 +124,6 @@ pub struct GameplayLoop {
     /// The Achievement or Goal dialog opened from the pause menu.
     menu_dialog: Option<MenuDialog>,
     window_drag: Option<WindowDrag>,
-    /// `Game\Names\Cities` for the Map dialog's New Name (loaded when first wanted).
-    town_names: Option<unbanished_formats::names::NameDatabase>,
     /// The road kinds' decal materials, the templates' DecalDescriptions, and what the decals
     /// were built for (road revision, terrain revision, the entities' signature).
     road_materials: Vec<Option<String>>,
@@ -170,8 +168,6 @@ pub struct GameplayLoop {
     replaying: bool,
     /// The recording being written (`--record`).
     recorder: Option<recording::Recorder>,
-    /// The drag tools started so far, by template (`PlayerCommand::Drag` applies them).
-    drag_tools: std::collections::BTreeMap<String, RemovalTool>,
     /// A multiplayer game ([`lockstep`]): the turns, and the turns sealed to send.
     lockstep: Option<lockstep::Lockstep>,
     outbox: Vec<lockstep::Message>,
@@ -325,7 +321,6 @@ impl GameplayLoop {
             next_scenario: None,
             menu_dialog: None,
             window_drag: None,
-            town_names: None,
             road_materials: Vec::new(),
             decal_descriptions: Vec::new(),
             decals_built: None,
@@ -350,7 +345,6 @@ impl GameplayLoop {
             menu_paused: false,
             replaying: false,
             recorder: None,
-            drag_tools: Default::default(),
             lockstep: None,
             outbox: Vec::new(),
             slot_done: None,

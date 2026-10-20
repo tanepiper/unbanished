@@ -1,9 +1,9 @@
 # Bridges
 
 Port: `crates/sim/src/town/bridge.rs` (BridgeTool's check and apply, `StartingTown::place_bridge`),
-the bridge mode of `apps/game/src/tools/removal_tool.rs` (the drag and its overlay) and
+the bridge mode of `crates/sim/src/tools/removal_tool.rs` (the drag and its overlay) and
 `crates/game/src/world/floor.rs` (FloorComponent and the ground on a deck). Test:
-`a_bridge_spans_the_river` (`apps/game/src/tools/placement_tool.rs`).
+`a_bridge_spans_the_river` (`crates/sim/src/tools/placement_tool.rs`).
 
 ## CreateBridgeDescription
 

@@ -9,12 +9,6 @@ impl GameplayLoop {
         self.sim.month()
     }
 
-    /// Applies the town's queued player commands and placed sites (see
-    /// `Simulation::apply_commands`).
-    pub(super) fn apply_commands(&mut self) {
-        self.sim.apply_commands();
-    }
-
     /// One simulation iteration (`Simulation::iterate`), then what it changed for drawing and
     /// sound: its 3D effects wait for the next audio update, and the scene view's terrain
     /// follows new heights. Returns whether spawning or removal changed the model instances.

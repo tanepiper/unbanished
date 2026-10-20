@@ -207,6 +207,12 @@ tools/refactor (split_impl.py, regroup.py) so code moves without being rewritten
      `unbanished_sim::timing` lets the app's profiler time the step's parts. Left for A4:
      `PlayerCommand` → `Command` and its `execute`, and the probe's world queries.
 4. `StepEvents` and read-only accessors replace direct field reads from presentation.
+   - **Done**: the tools' core (`unbanished_sim::tools`: placement, removal and roads, paths,
+     `Entity`, and the overlay and drag data they report) and the player commands
+     (`unbanished_sim::command`: `PlayerCommand`, `Outcome`, `Simulation::execute`) are in the
+     sim. The app's `execute` routes a command to lockstep or the recording, handles the speed,
+     the pause and the town's new name, and passes the rest on. `StepEvents` came in A3c.
+     Read-only accessors wait for phase X, where the extension points define what they read.
 5. New check in run.py `checks`: `cargo tree -p unbanished-sim` has no wgpu/winit/ui/gfx/audio/net;
    a test that loads a save with `unbanished-sim` alone (no GPU) and matches `--sim-digest`.
 

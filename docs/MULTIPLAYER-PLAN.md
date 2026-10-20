@@ -42,7 +42,7 @@ The original game is the reference, and multiplayer is not in it. So:
 
 | Action | Where | Now |
 |---|---|---|
-| Place a building | `PlacementTool::place` (`apps/game/src/tools/placement_tool.rs`), called from the click in `gameplay.rs` | Pushes the entity, registers it, zones its cells and adds the site at once, then queues it in `construction.placed` |
+| Place a building | `PlacementTool::place` (`crates/sim/src/tools/placement_tool.rs`), called from the click in `gameplay.rs` | Pushes the entity, registers it, zones its cells and adds the site at once, then queues it in `construction.placed` |
 | Remove (drag) | `RemovalTool::finish` → `apply` (`removal_tool.rs`) | Marks objects and pushes `construction.destroy` and commands |
 | Roads (drag) | `tools.rs`: the drag tool, then `town.apply_commands` at once, paused or not (as the original's RoadTool does inside the input handler) | Commands, applied immediately |
 | Window buttons | `GameplayLoop::event` → `window_event`, then `apply_commands` if any were queued | Commands, applied right after the event, paused or not |
@@ -70,7 +70,7 @@ shared command, as speed does.
 
 ### 1. One command type, applied where it is now (done)
 
-Done in `apps/game/src/gameplay/commands.rs`: `PlayerCommand` and `GameplayLoop::execute`. Every
+Done in `crates/sim/src/command.rs` (`PlayerCommand`, `Simulation::execute`) and `apps/game/src/gameplay/commands.rs` (`GameplayLoop::execute`, which routes them). Every
 player action of the inventory above goes through it: window and Professions commands (`Town`),
 `Upgrade`, `StartTool`, `Place` (a `Placement`: template, cells, position, angle, variant and
 rules), `Drag` (a copy of the drag tool as the drag ended; the tools now say when to apply instead

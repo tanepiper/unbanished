@@ -575,7 +575,7 @@ impl super::GameplayLoop {
         g.menu_paused = self.menu_paused;
         g.speed = self.speed;
         g.paused = self.paused;
-        g.drag_tools = std::mem::take(&mut self.drag_tools);
+        g.sim.drag_tools = std::mem::take(&mut self.sim.drag_tools);
         g.remote_paths = std::mem::take(&mut self.remote_paths);
         g.path_tool = self.path_tool.take();
         g.outbox = std::mem::take(&mut self.outbox);

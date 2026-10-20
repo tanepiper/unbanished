@@ -1,9 +1,9 @@
 # Roads
 
 Port: `crates/game/src/work/road.rs` (planning, BuildRoad, CompleteRoad, taking a plan back), the
-road mode of `apps/game/src/tools/removal_tool.rs` (RoadTool and Remove Roads) and ClearArea's road
+road mode of `crates/sim/src/tools/removal_tool.rs` (RoadTool and Remove Roads) and ClearArea's road
 cells (`Sim::clear_try`). Test: `roads_are_built_upgraded_and_removed`
-(`apps/game/src/tools/placement_tool.rs`).
+(`crates/sim/src/tools/placement_tool.rs`).
 
 ## Cells
 

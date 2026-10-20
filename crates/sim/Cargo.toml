@@ -17,3 +17,4 @@ unbanished-mods = { path = "../mods" }
 web-time = "1"
 glam = "0.34"
 log = "0.4"
+serde = { version = "1", features = ["derive"] }

@@ -6,41 +6,7 @@
 
 use wgpu::util::DeviceExt;
 
-/// One cell of the overlay: map cell, strip frame (`+8`), ARGB colour (`+0xc`) and the
-/// frame's rotation in degrees (`+0x10`; the placement tool's arrows, 0 for the drag tools).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct OverlayCell {
-    pub x: i32,
-    pub y: i32,
-    pub frame: i32,
-    pub argb: u32,
-    pub rotation: i32,
-}
-
-impl OverlayCell {
-    /// `FUN_140109520`'s entry: `(-(acts) & 3, acts ? 0xffff0000 : 0x8000ff00)`.
-    pub fn removal(x: i32, y: i32, acts: bool) -> OverlayCell {
-        OverlayCell {
-            x,
-            y,
-            frame: if acts { 3 } else { 0 },
-            argb: if acts { 0xffff_0000 } else { 0x8000_ff00 },
-            rotation: 0,
-        }
-    }
-}
-
-/// One line of the overlay (`FUN_140105d90`'s first list, 0x20 bytes): from cell `a` to cell
-/// `b` (`+0`, `+0x14`), strip frame (`+8`), ARGB colour (`+0xc`), rotation (`+0x10`, 0 here)
-/// and half its width (`+0x1c`).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct OverlayLine {
-    pub a: (i32, i32),
-    pub b: (i32, i32),
-    pub frame: i32,
-    pub argb: u32,
-    pub width: f32,
-}
+pub use unbanished_sim::tools::overlay::{OverlayCell, OverlayLine};
 
 /// The lines of `FUN_140105d90`, drawn before the cells: each a quad between the two cells'
 /// centres on the ground, `width` either side; the frame's u runs across it, v along it.

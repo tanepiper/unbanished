@@ -1,12 +1,14 @@
-//! The building placement tool (`PlacementTool`, vtable `0x140168130`), started by toolbar kind 1
-//! (`FUN_1400be770` → `FUN_140108030`). See docs/BUILD-TOOLS.md.
+//! The building placement tool (`PlacementTool`), started by toolbar kind 1. See
+//! docs/BUILD-TOOLS.md.
 //!
-//! - start (`+0x20`, `FUN_140103a50`): read the template's createplaced, map, model and decal
-//!   descriptions and build a ghost mesh instance: `Rand(variant count)` from the game stream,
-//!   the variant's last (finished) mesh;
-//! - input (`+0x30`, `FUN_140103770`): StructureLeft/Right turn the shared RotationSetting,
-//!   StructureType cycles the variant (`FUN_140102e30`), MouseLeft places (`FUN_140102b20`);
-//! - hover (`+0x38`, `FUN_1401033b0`): footprint under the cursor, ghost transform, validity.
+//! - Start: read the template's createplaced, map, model and decal descriptions and build a ghost
+//!   mesh instance: `Rand(variant count)` from the game stream, the variant's last (finished) mesh;
+//! - Input: StructureLeft/Right turn the shared RotationSetting, StructureType cycles the variant,
+//!   MouseLeft places;
+//! - Hover: footprint under the cursor, ghost transform, validity.
+//!
+//! Original: `FUN_1400be770`, `FUN_140108030`, `FUN_140103a50`, `FUN_140103770`, `FUN_140102e30`, `FUN_140102b20`, `FUN_1401033b0`.
+// vtable 0x140168130; +0x20; +0x30; +0x38
 
 use unbanished_formats::game::{
     build_description, create_placed_description, map_description, model_description,
@@ -21,8 +23,8 @@ use unbanished_game::world::placement::{
     can_place, footprint, footprint_cell, PlacementRules, Rect, ROTATION_STEP,
 };
 
-use crate::gfx::models::placement_matrix;
-use crate::start::StartingTown;
+use crate::town::StartingTown;
+use crate::transform::placement_matrix;
 
 fn read(archive: &Archive, reference: &str) -> Option<Vec<u8>> {
     archive.read_ref(&reference.replace('\\', "/")).ok()
@@ -40,7 +42,7 @@ pub struct PlacementTool {
     /// `+0x64`: ghost variant.
     variant: usize,
     /// Current footprint, ghost position and validity.
-    rect: Option<Rect>,
+    pub rect: Option<Rect>,
     position: [f32; 3],
     valid: bool,
     pub toolbar: Option<ToolbarDescription>,
@@ -52,7 +54,9 @@ pub struct PlacementTool {
 }
 
 impl PlacementTool {
-    /// `FUN_140103a50`.
+    /// Starts the tool for a template: loads it and draws its first variant.
+    ///
+    /// Original: `FUN_140103a50`.
     pub fn start(
         archive: &Archive,
         town: &mut StartingTown,
@@ -118,7 +122,9 @@ impl PlacementTool {
             .clone()
     }
 
-    /// `FUN_140102e30`.
+    /// Shows the template's next model variant.
+    ///
+    /// Original: `FUN_140102e30`.
     pub fn next_variant(&mut self) {
         self.variant += 1;
         if self.variant >= self.model.variants.len() {
@@ -126,7 +132,9 @@ impl PlacementTool {
         }
     }
 
-    /// `FUN_1401033b0` / `FUN_140102ed0`: follow the cursor cell.
+    /// Follow the cursor cell.
+    ///
+    /// Original: `FUN_1401033b0`, `FUN_140102ed0`.
     pub fn hover(
         &mut self,
         town: &StartingTown,
@@ -210,8 +218,10 @@ impl PlacementTool {
         self.valid
     }
 
-    /// `FUN_1401033b0` → `FUN_140055d90`: with a RadiusDescription, its ring about the
-    /// footprint's centre cell (`x0 + (x1 − x0) / 2`, likewise y): cell, radius, material.
+    /// With a RadiusDescription, its ring about the footprint's centre cell (`x0 + (x1 − x0) / 2`,
+    /// likewise y): cell, radius, material.
+    ///
+    /// Original: `FUN_1401033b0`, `FUN_140055d90`.
     pub fn radius_decal(&self) -> Option<((i32, i32), i32, &str)> {
         let (r, material) = self.radius.as_ref()?;
         let rect = self.rect?;
@@ -222,10 +232,12 @@ impl PlacementTool {
         Some((cell, *r, material.as_str()))
     }
 
-    /// `FUN_140103190` → `FUN_140106850`: the footprint's overlay. Each cell is green where it
-    /// admits the building and red where not (yellow for the tutorial's target, `restrict`);
-    /// a `.` cell (the ground the entrance opens onto) shows the arrow (frame 2) turned the
-    /// entrance's way, or frame 1 for a building without one.
+    /// The footprint's overlay. Each cell is green where it admits the building and red where not
+    /// (yellow for the tutorial's target, `restrict`); a `.` cell (the ground the entrance opens
+    /// onto) shows the arrow (frame 2) turned the entrance's way, or frame 1 for a building without
+    /// one.
+    ///
+    /// Original: `FUN_140103190`, `FUN_140106850`.
     pub fn overlay(
         &self,
         town: &StartingTown,
@@ -233,7 +245,7 @@ impl PlacementTool {
         rect: Rect,
         degrees: i32,
         restrict: bool,
-    ) -> Vec<crate::gfx::selection_overlay::OverlayCell> {
+    ) -> Vec<crate::tools::overlay::OverlayCell> {
         let mut out = Vec::new();
         for y in rect.y0..=rect.y1 {
             for x in rect.x0..=rect.x1 {
@@ -257,7 +269,7 @@ impl PlacementTool {
                     (true, true) => 2,
                     (true, false) => 1,
                 };
-                out.push(crate::gfx::selection_overlay::OverlayCell {
+                out.push(crate::tools::overlay::OverlayCell {
                     x,
                     y,
                     frame,
@@ -279,7 +291,9 @@ impl PlacementTool {
         self.rect.map(|r| (r.width(), r.height()))
     }
 
-    /// The ghost's corners in world space (`FUN_140104080`).
+    /// The ghost's corners in world space.
+    ///
+    /// Original: `FUN_140104080`.
     pub fn ghost_corners(&self, rotation: i32) -> Option<Vec<glam::Vec3>> {
         let (_, matrix) = self.ghost(rotation)?;
         let (lo, hi) = self.bounds.get(self.variant).copied().flatten()?;
@@ -308,8 +322,10 @@ impl PlacementTool {
         ))
     }
 
-    /// The building a click would create (`FUN_140102b20`): the tool's footprint and ghost if
-    /// they are valid, turned by `rotation`; none otherwise.
+    /// The building a click would create: the tool's footprint and ghost if they are valid, turned
+    /// by `rotation`; none otherwise.
+    ///
+    /// Original: `FUN_140102b20`.
     pub fn placement(&self, rotation: i32) -> Option<Placement> {
         let rect = self.rect.filter(|_| self.valid)?;
         Some(Placement {
@@ -322,10 +338,11 @@ impl PlacementTool {
         })
     }
 
-    /// `FUN_140102b20`: create the building if the footprint is valid ([`place`]), then the
-    /// ghost shows the next variant. Returns the new entity. (The game goes through
-    /// `PlayerCommand::Place`.)
-    #[cfg(test)]
+    /// Create the building if the footprint is valid ([`place`]), then the ghost shows the next
+    /// variant. Returns the new entity. (The game goes through `PlayerCommand::Place`.)
+    ///
+    /// Original: `FUN_140102b20`.
+    #[cfg(any(test, feature = "test-support"))]
     pub fn place(
         &mut self,
         archive: &Archive,
@@ -360,10 +377,11 @@ pub struct Placement {
     pub rules: PlacementRules,
 }
 
-/// `FUN_140102b20`: create the building. It has no mesh until its BuildComponent starts
-/// building (`FUN_14010cfb0` shows mesh 0, the first stage). Its ZoneComponent reserves the
-/// footprint now (`FUN_1400a2830`); the map is stamped when the building is finished. Returns
-/// the new entity.
+/// Create the building. It has no mesh until its BuildComponent starts building (it then
+/// shows mesh 0, the first stage). Its ZoneComponent reserves the footprint now; the map is stamped
+/// when the building is finished. Returns the new entity.
+///
+/// Original: `FUN_1400a2830`, `FUN_140102b20`, `FUN_14010cfb0`.
 pub fn place(archive: &Archive, town: &mut StartingTown, p: &Placement) -> usize {
     let rect = p.rect;
     let id = town.placed.len();
@@ -390,6 +408,3 @@ pub fn place(archive: &Archive, town: &mut StartingTown, p: &Placement) -> usize
     town.add_site(archive, id);
     id
 }
-
-#[cfg(test)]
-mod construction_tests;

@@ -2,7 +2,7 @@
 
 Port: `crates/game/src/commerce/trade.rs` (TradeComponent, offers, automatic trading, TradeWork) and
 `crates/game/src/commerce/boat.rs` (BoatComponent). Test: `a_merchant_comes_by_boat`
-(`apps/game/src/tools/placement_tool.rs`).
+(`crates/sim/src/tools/placement_tool.rs`).
 
 ## TradeDescription
 

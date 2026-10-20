@@ -2,7 +2,10 @@
 //! random stream, the environment, the stock warnings, the statistics and the event log. The
 //! game app draws it and plays its sounds; [`Simulation::iterate`] runs one iteration.
 
+use std::collections::BTreeMap;
+
 use unbanished_formats::game::EnvironmentMonth;
+use unbanished_formats::names::NameDatabase;
 use unbanished_game::calendar::Calendar;
 use unbanished_game::events::{EventLog, StockWarnings};
 use unbanished_game::nature::environment::{Environment, YEAR_SECONDS};
@@ -10,6 +13,7 @@ use unbanished_game::random::Random;
 use unbanished_game::terrain::Heights;
 use unbanished_game::work::tracker::Statistics;
 
+use crate::tools::removal_tool::RemovalTool;
 use crate::town::StartingTown;
 
 mod step;
@@ -46,6 +50,10 @@ pub struct Simulation {
     pub statistics: Statistics,
     /// Updates begun since the game loaded (recordings and replays count by it).
     pub updates: u64,
+    /// The drag tools commands have started, by template, for `PlayerCommand::Drag`.
+    pub drag_tools: BTreeMap<String, RemovalTool>,
+    /// The town names the Map window draws from, read the first time they are wanted.
+    pub town_names: Option<NameDatabase>,
 }
 
 impl Simulation {
@@ -63,6 +71,8 @@ impl Simulation {
             stock_warnings: Default::default(),
             statistics: Default::default(),
             updates: 0,
+            drag_tools: BTreeMap::new(),
+            town_names: None,
         }
     }
 
