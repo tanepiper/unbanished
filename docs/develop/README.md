@@ -52,6 +52,7 @@ The full rules are in [AGENTS.md](../../AGENTS.md). These are the most important
 | `apps/viewer` | The asset browser (binary `banished-viewer`) |
 | `apps/cli` | Command-line tools (binary `banished-cli`) |
 | `apps/modmanager` | The mod manager (binary `banished-mods`) |
+| `apps/relay` | The multiplayer relay (binary `banished-relay`) |
 | `crates/core` | Exact maths, the game's random numbers, noise, game time |
 | `crates/terrain` | Map generation, the terrain mesh, ground queries |
 | `crates/path` | The pathfinder and the sector graph |
@@ -60,6 +61,7 @@ The full rules are in [AGENTS.md](../../AGENTS.md). These are the most important
 | `crates/ui` | The game's interface system |
 | `crates/gfx`, `crates/audio`, `crates/wma` | Shared rendering, sound playback, the WMA decoder |
 | `crates/mods`, `crates/nexus`, `crates/banishedinfo` | The mod list shared by the game and the mod manager; optional Nexus Mods and banishedinfo.com support |
+| `crates/net` | Multiplayer networking: the relay protocol and connection |
 | `tools/` | Data extraction, emulator checks, analysis and comparison scripts |
 | `docs/` | Research notes about the original game, and these pages |
 | `site/` | This website |

@@ -81,6 +81,7 @@ impl Connection {
         }
     }
 
+    /// Sends a message to the relay; messages wait until the connection is open.
     pub fn send(&mut self, message: ToRelay) {
         self.waiting.push(message);
         self.flush();
@@ -112,6 +113,7 @@ impl Connection {
         arrived
     }
 
+    /// The state of the connection, as of the last [`poll`](Self::poll).
     pub fn state(&self) -> &State {
         &self.state
     }

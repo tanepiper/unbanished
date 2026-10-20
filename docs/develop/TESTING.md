@@ -47,6 +47,32 @@ cargo test --release -p banished-game random                  # tests whose name
 Use `--release`. Some tests simulate many game days or read every resource, and they are slow in
 a debug build.
 
+## Replays, lockstep and multiplayer
+
+These scripts take a binary or a git revision (built clean with `tools/compat/build.sh`). Each
+exits with 0 when every game agrees, and keeps what it made in `target/compat/` when one does not.
+
+```bash
+tools/compat/replay.sh HEAD          # record games, replay them, compare the digests
+tools/compat/lockstep.sh HEAD        # players in one process, over a simulated network
+tools/compat/network.sh HEAD         # several game processes through a relay on this computer
+tools/compat/multiplayer.sh HEAD     # the Multiplayer window: host, join by code, play, leave
+```
+
+To record and replay a game yourself:
+
+```bash
+banished --boot-capture /tmp/last.png 40 --script "load save-game/Save83.sav@4.5" \
+  --record /tmp/game.rec --record-every 60
+banished --replay save-game/Save83.sav /tmp/game.rec      # exit 1 if the game differs
+```
+
+`--record` works with the windowed game too: it records the next game you load from a save. The
+[game's README](../../apps/game/README.md) describes `--record`, `--replay`, `--lockstep-test`,
+`--net-test` and `--sim-digest` in full. [CROSS-PLATFORM.md](../CROSS-PLATFORM.md) compares the
+native and browser builds, and [MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md) explains why these
+tests exist.
+
 ## Before every commit
 
 Run these checks. [AGENTS.md](../../AGENTS.md) has the same list.

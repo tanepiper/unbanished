@@ -70,6 +70,7 @@ Read its result: a sentence that listed fields by offset needs a person to rewri
 | `banished-wma` | [banished_wma](https://tanepiper.github.io/unbanished/api/banished_wma/index.html) |
 | `banished-mods` | [banished_mods](https://tanepiper.github.io/unbanished/api/banished_mods/index.html) |
 | `banished-banishedinfo` | [banished_banishedinfo](https://tanepiper.github.io/unbanished/api/banished_banishedinfo/index.html) |
+| `banished-net` | [banished_net](https://tanepiper.github.io/unbanished/api/banished_net/index.html) |
 | `banished-nexus` | [banished_nexus](https://tanepiper.github.io/unbanished/api/banished_nexus/index.html) |
 
 The apps (`banished`, `banished-viewer`, `banished-cli`) are programs, not libraries. Their

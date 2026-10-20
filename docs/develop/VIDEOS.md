@@ -150,6 +150,17 @@ The actions for `--hold` are the names of the key map: `RotateLeft`, `RotateRigh
 a street. Edge scrolling and the movement keys (`Forward`, `Back`, `Left`, `Right`) travel faster when the
 camera is further away, so zoom in for a slow, steady movement.
 
+Other capture options help with videos of the interface:
+
+| Option | Use |
+|---|---|
+| `--mouse-down X,Y@T`, `--move X,Y@T`, `--mouse-up X,Y@T` | A drag: a road, a field, a selection box |
+| `--text NAME=TEXT@T` | Type into an edit box, for example a town name |
+| `--realtime` | Run at the speed of the clock, for a capture that talks to a relay (multiplayer) |
+| `--scene-scale PART` | Draw the 3D world smaller and scale it up, as the browser's Resolution setting does |
+
+The [game's README](../../apps/game/README.md#headless-captures) lists every option.
+
 ### The cinematic camera
 
 The game's own camera can only do what a player can do. For close-ups and flights, a capture can

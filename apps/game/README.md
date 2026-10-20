@@ -2,7 +2,9 @@
 
 The game program of Un-Banished. It runs Banished 1.0.7 from the game data of your own copy: the
 splash screen, the main menu with its 3D scenes and music, new games, saved games, tutorials,
-scenarios, achievements, mods and options, as in the original.
+scenarios, achievements, mods and options, as in the original. It also has what the original
+does not: a Browse tab in the Mods menu for each mod site (Nexus Mods, and banishedinfo.com on the
+desktop) and Multiplayer on the main menu (see the [user guide](https://tanepiper.github.io/unbanished/guide/mods)).
 
 The package is `banished-app`; the program is `banished` (`banished.exe` on Windows). The same
 code builds for the desktop and, with Trunk, for the browser.
@@ -27,6 +29,11 @@ Without a path, the game looks for `WinData` next to the program, then for
 | `banished --version` (or `-V`) | Print the version, for example `Un-Banished 0.2.0-93be55d`, and stop |
 | `banished --boot-capture OUT.png SECONDS [OPTIONS]` | Run the game without a window for `SECONDS`, then save the frame |
 | `banished --capture OUT.png [OPTIONS]` | Generate a map and save a picture of it, without starting the game |
+| `--record FILE [--record-every N]` | With any of these, or with `banished [WINDATA]`: record the next game loaded from a save ([Recording and replaying](#recording-and-replaying)) |
+| `banished --replay SAVE FILE [UPDATES] [EVERY]` | Replay a recording from its save without a window, and check the game state |
+| `banished --sim-digest SAVE [UPDATES] [EVERY]` | Run a save without a window and print digests of the game state (see `--sim-digest` below) |
+| `banished --lockstep-test SAVE RECORDING …` | Players in one process over a simulated network ([Lockstep test](#lockstep-test)) |
+| `banished --net-test RELAY host\|join ROOM SAVE RECORDING PLAYERS …` | One player of a game through a relay, for `tools/compat/network.sh` |
 
 ## Environment variables
 
@@ -39,10 +46,15 @@ Without a path, the game looks for `WinData` next to the program, then for
 | `BANISHED_PROFILE` | `1` logs slow frames and frame-time summaries; `hitches` logs slow frames only. See [Performance](https://tanepiper.github.io/unbanished/develop/performance). |
 | `BANISHED_THREADS` | How many threads loading uses. The default is one for each CPU core; `1` loads on one thread. |
 | `RUST_LOG` | How much the log shows, for example `RUST_LOG=debug` |
+| `BANISHED_NEXUS_API_KEY` | Your Nexus Mods API key, for installs from the Browse tab. It wins over `NexusApiKey` in the settings file. |
+| `BANISHED_ROOM` | Tests: the room code the Multiplayer window asks the relay for |
+| `BANISHED_NET_CHECK` | Tests: how often (in updates) the multiplayer host compares the players' games |
 | `UNBANISHED_BUILD` | At build time: the build id in the version (see [Building](https://tanepiper.github.io/unbanished/develop/building#the-build-id)) |
 
 In the browser, `?data=URL` loads the game data from a folder on a server (for
-`tools/dev-web.sh`), and `?profile` turns on the frame profiler.
+`tools/dev-web.sh`), `?profile` turns on the frame profiler, and `?digest=SAVE_URL` (with
+`&updates=N&every=N`) runs a save and prints its digests, like `--sim-digest`. `?data=` and
+`?digest=` work only on a page served from this computer.
 
 ## Headless captures
 
@@ -70,6 +82,10 @@ more than once.
 | `--capture-size WxH` | The size of the frame. The default is 1280x800. |
 | `--ui-scale PERCENT` | The interface scale |
 | `--setting KEY=VALUE` | A stored setting by its original name, for example `VideoReflectionDetail=2` |
+| `--text NAME=TEXT@T` | Click the edit box called `NAME`, empty it and type `TEXT` (a room code, a town name) |
+| `--realtime` | Keep the frames to the clock instead of running as fast as possible (a capture that talks to a relay) |
+| `--scene-scale PART` | Draw the 3D world at that part of the frame's size, for example `0.5`, and scale it up; the interface stays sharp. It tests the browser's Resolution setting natively |
+| `--camera …`, `--camera-follow …` | The cinematic camera (see below) |
 
 If `--press` names an element that does not exist at that time, the log says
 `--press NAME: not found at T s`.

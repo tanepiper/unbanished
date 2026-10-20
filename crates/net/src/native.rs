@@ -31,6 +31,7 @@ impl Connection {
         }
     }
 
+    /// Sends a message to the relay (dropped once the connection is closed).
     pub fn send(&mut self, message: ToRelay) {
         let _ = self.out.send(message);
     }
@@ -57,6 +58,7 @@ impl Connection {
         out
     }
 
+    /// The state of the connection, as of the last [`poll`](Self::poll).
     pub fn state(&self) -> &State {
         &self.state
     }

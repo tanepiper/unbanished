@@ -63,7 +63,7 @@ cargo run --release -p banished-cli -- nexus install 19 --to path/to/WinData
 | `nexus install 'nxm://…' [--to WINDATA]` | Install from a Mod Manager Download link on the website |
 
 `--to` defaults to `game-data/original/WinData`. The user guide's
-[Mods from Nexus Mods](../../docs/USER-GUIDE.md#mods-from-nexus-mods-optional) explains the key,
+[Mods from Nexus Mods](../../docs/USER-GUIDE.md#mods-from-nexus-mods) explains the key,
 Premium and `nxm://` links. The library is [banished-nexus](../../crates/nexus/README.md).
 
 ## banishedinfo

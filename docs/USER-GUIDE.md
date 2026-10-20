@@ -289,7 +289,7 @@ tools/dev-web.sh --app game --release
 ```
 
 1. Open <http://127.0.0.1:8733/> in Chrome, Edge or Firefox.
-2. A **Load your game data** panel appears at the top left. Press **Choose files**. Select
+2. The loading screen appears. Press **Choose files**. Select
    **all four** `.pkg` files from `WinData` at the same time: `data0.pkg`, `data1.pkg`,
    `patch0.pkg` and `patch1.pkg`. To select several files, hold Ctrl (Cmd on a Mac).
 3. Click the game once. Then the game receives your keyboard input, and it can play sound.
@@ -310,6 +310,10 @@ If you ran `tools/extract-assets.sh`, you do not need to choose files. Open
 Android: the browser menu, then **Install app** or **Add to home screen**). It then opens in a
 window of its own, and starts without an internet connection. Your game files, saves and mods
 stay in the browser as before.
+
+**Sharp on every screen.** On screens with a high pixel density and a fractional scale (4K
+monitors, tablets, Samsung DeX), the menus and text are drawn on whole screen pixels, so they stay
+sharp.
 
 **Good to know**
 - It uses WebGPU when the browser supports it, and WebGL 2 when it does not.
@@ -430,6 +434,7 @@ play. It does what the Mods menu does, plus a few things the menu cannot:
   list again later;
 - search and install mods from Nexus Mods (the same key as below; you can also paste the key
   in the program, and it is saved in the settings file);
+- list, search and install mods from banishedinfo.com, with no account;
 - **Play**: save, then start Un-Banished with the same game data.
 
 Start it from the repository:
@@ -443,12 +448,33 @@ writes the same settings the game's Mods menu writes, so the game uses them when
 Close the game before you change mods here: the game writes its settings file when it closes, and
 would undo the changes. Mod lists are text files in `Documents/Banished/ModLists`.
 
+It has three tabs: **Installed mods** (your mods, their order and the mod lists), **Nexus Mods**
+and **banishedinfo.com** (each site's mods, with previews; **Install** puts a mod in `WinData`).
+
+<p align="center">
+  <img src="assets/screenshots/mod-manager.webp" alt="The mod manager's Installed mods tab: five mods, three of them on, and the details of the selected mod" width="720">
+</p>
+<p align="center">
+  <img src="assets/screenshots/mod-manager-nexus.webp" alt="The mod manager's Nexus Mods tab: the API key box, a search, and the most downloaded mods with previews" width="360">
+  <img src="assets/screenshots/mod-manager-banishedinfo.webp" alt="The mod manager's banishedinfo.com tab: a search, an order and a section, and mods with Install newest and Versions buttons" width="360">
+</p>
+
 ### Mods from Nexus Mods
 
 Banished's Steam version has a **Browse** tab in the Mods menu, for the Steam Workshop.
 Un-Banished has a Browse tab for each mod site instead: **Browse Nexus Mods** and, on the
 desktop, **Browse banishedinfo.com**. Both are shown by default. To hide one, add
 `ModBrowseNexus=false` or `ModBrowseBanishedInfo=false` to the [settings file](#settings).
+
+To reach them: on the main menu (or in the pause menu during a game), press **Mods**, then the
+tab at the top of the window. Each tab shows the site's most popular mods as tiles with a
+preview; type in the box and press the magnifying glass to search, choose an order in the list,
+and turn the pages with the arrows. **+** on a tile installs that mod.
+
+<p align="center">
+  <img src="assets/screenshots/mods-browse-nexus.webp" alt="The Mods menu's Browse Nexus Mods tab: a search box, the Most Popular order, and mods as tiles with previews and + buttons" width="420">
+  <img src="assets/screenshots/mods-browse-banishedinfo.webp" alt="The Mods menu's Browse banishedinfo.com tab, with the site's most popular mods as tiles" width="420">
+</p>
 
 You can search and look at [Nexus Mods](https://www.nexusmods.com/games/banished/mods) without an
 account. To install from it, give Un-Banished your own Nexus Mods API key:
@@ -479,7 +505,8 @@ Good to know:
 - Un-Banished installs the `.pkm` files from `.zip` downloads, and plain `.pkm` files. Some mods
   come as `.7z` or `.rar` files. For those, download the file from the website, unpack it, and
   put the `.pkm` file in `WinData` yourself.
-- The previews of the mods show on the desktop, not yet in the browser.
+- The previews of the mods (PNG, JPEG or WebP pictures) show on the desktop. The browser version
+  shows the list without previews.
 - The key stays on your computer, in the settings file or in the browser. Un-Banished sends it
   only to `api.nexusmods.com`, and only when you search, sign in or install.
 - Un-Banished is not yet a registered Nexus Mods application. Until it is, a personal key is
@@ -523,29 +550,44 @@ cargo run --release -p banished-cli -- banishedinfo install 34 --to path/to/WinD
 Un-Banished reads the site only when you list, search or install, and it names itself in each
 request. As for Nexus Mods, it installs `.zip` and `.pkm` downloads; unpack `.7z` and `.rar`
 files yourself.
+
 ## Command-line options
 
 To play, you need at most one argument: the `WinData` folder (`banished PATH`). The other
-commands draw one picture and then stop. They are for testing, and for the screenshots in these
-documents:
+commands run without a window and then stop. They are for testing, and for the screenshots and
+videos in these documents:
 
 | Command | Effect |
 |---|---|
 | `banished PATH` | play, reading the game data from this `WinData` folder |
 | `banished --version` | show the Un-Banished version (see [Version](#version)) and stop |
+| `banished --record FILE …` | record every command of the next game you load from a save (add it to any of the other commands, or to `banished PATH`) |
+| `banished --replay SAVE FILE` | play a recording again from its save, and check that the game comes out the same |
+| `banished --sim-digest SAVE` | run a save and print checksums of the game state, to compare with the browser version |
 | `banished --boot-capture FILE.png SECONDS` | start the game, run it for `SECONDS` and save that frame |
 | `banished --capture FILE.png [options]` | generate a map and save a picture of it |
 
 Options for the captures: `--seed N`, `--terrain NAME`, `--size 0|1|2`, `--month 0..11`,
 `--view overview`, `--ui-scale PERCENT` and `--setting KEY=VALUE` (a stored setting by its
 original name, such as `VideoReflectionDetail=2`). Captures do not use your saved settings.
+`--boot-capture` can also click, drag, type, move the camera and take screenshots at given
+times; the [game's README](../apps/game/README.md#headless-captures) lists every option, and
+[Recording videos](develop/VIDEOS.md) shows how to use them.
+
+The other programs:
+
+| Program | What it is |
+|---|---|
+| `banished-mods [PATH]` | the [mod manager](#the-mod-manager) |
+| `banished-cli nexus …`, `banished-cli banishedinfo …` | search and install mods from the command line (see [Mods](#mods) and the [CLI README](../apps/cli/README.md)) |
+| `banished-relay [ADDRESS]` | the multiplayer relay (see [Multiplayer](#multiplayer) and the [relay's README](../apps/relay/README.md)) |
 
 Environment variables: `BANISHED_USER_DIR` (the folder that holds `Save`), `BANISHED_SETTINGS`
 (the settings file), `RUST_LOG` (how much detail the log shows, for example `RUST_LOG=debug`),
 `BANISHED_PROFILE=1` (logs slow frames and frame-time summaries; in the browser, add `?profile`
 to the address), `BANISHED_THREADS=N` (how many threads loading uses; the default is one per
 CPU core, and 1 loads everything on one thread), `BANISHED_NEXUS_API_KEY` (your Nexus Mods API
-key; see [Mods from Nexus Mods](#mods-from-nexus-mods-optional)). See
+key; see [Mods from Nexus Mods](#mods-from-nexus-mods)). See
 [PERFORMANCE.md](PERFORMANCE.md).
 
 ## Version
@@ -561,7 +603,7 @@ You can see the version in these places:
 
 - `banished --version` shows it, for example `Un-Banished 0.2.0-1382712`.
 - The first line of the log, when the game starts.
-- In the browser: under the status line of the **Load your game data** panel, and in the
+- In the browser: at the foot of the loading screen, and in the
   browser's console.
 - On the website, at the bottom of the pages.
 
@@ -576,7 +618,7 @@ the command line, put the program next to `WinData`, or run `tools/extract-asset
 **`tools/extract-assets.sh` says that it cannot find Banished.** Set `BANISHED_DIR` to the folder
 that contains `WinData`, and run the script again.
 
-**The browser page still shows "Load your game data".** Select all four `.pkg` files at the same
+**The browser page still shows the loading screen.** Select all four `.pkg` files at the same
 time. If the page reports a parse error, one of the files is damaged or incomplete. In Steam,
 right-click Banished, choose **Properties → Installed Files → Verify integrity of game files**,
 and try again.
@@ -586,6 +628,14 @@ Linux, check that the Vulkan drivers are installed: `vulkaninfo` must show your 
 
 **There is no sound in the browser.** Browsers play sound only after you click or type on the
 page. Click the game once.
+
+**The browser version is slow.** In the game's Options, set **Resolution** to 75 % or 50 %, and
+lower the **Refresh rate**. A browser without WebGPU uses WebGL 2, which is slower; Chrome and Edge
+have WebGPU.
+
+**The first tutorial stops at the first house.** In versions before 0.3.0, the Wood House stayed
+greyed out after you opened the Housing menu (#11). Update Un-Banished; from 0.3.0, the click on
+the menu, or its key (F3), counts.
 
 **After an update, my Un-Banished settings look wrong.** Delete the settings file (see
 [Settings](#settings)).

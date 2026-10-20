@@ -8,6 +8,10 @@
 //! [`FromRelay::Data`]. Every WebSocket message is one value, encoded with postcard.
 //!
 //! Not in the original game, which has no multiplayer; see docs/MULTIPLAYER-PLAN.md, step 5.
+#![doc(
+    html_logo_url = "https://tanepiper.github.io/unbanished/assets/un-banished-icon.svg",
+    html_favicon_url = "https://tanepiper.github.io/unbanished/favicon.svg"
+)]
 
 use serde::{Deserialize, Serialize};
 
@@ -15,11 +19,22 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ToRelay {
     /// Open a room (the code it asks for, or a new one) and be its host, player 0.
-    Host { room: Option<String> },
+    Host {
+        /// The code to use, or none for a new one.
+        room: Option<String>,
+    },
     /// Join a room.
-    Join { room: String },
+    Join {
+        /// The room's code.
+        room: String,
+    },
     /// Data for one player, or for every other player in the room.
-    Send { to: Option<u8>, data: Vec<u8> },
+    Send {
+        /// The player it is for, or none for every other player.
+        to: Option<u8>,
+        /// The data; the relay does not read it.
+        data: Vec<u8>,
+    },
 }
 
 /// The relay to a game.
@@ -27,27 +42,36 @@ pub enum ToRelay {
 pub enum FromRelay {
     /// The room is open: its code (this game is player 0).
     Hosted {
+        /// The room's code.
         room: String,
     },
     /// This game joined the room as `player`.
     Joined {
+        /// The room's code.
         room: String,
+        /// This game's player number.
         player: u8,
     },
-    /// Another player came, or went.
+    /// Another player came into the room.
     PeerJoined {
+        /// Its player number.
         player: u8,
     },
+    /// Another player left the room.
     PeerLeft {
+        /// Its player number.
         player: u8,
     },
     /// Data from a player.
     Data {
+        /// The sender's player number.
         from: u8,
+        /// The data.
         data: Vec<u8>,
     },
     /// A request failed (no such room, ...).
     Error {
+        /// What went wrong.
         message: String,
     },
 }
@@ -65,8 +89,11 @@ pub fn decode<'a, T: Deserialize<'a>>(bytes: &'a [u8]) -> Result<T, String> {
 /// The state of a connection.
 #[derive(Debug, Clone, PartialEq)]
 pub enum State {
+    /// The connection is being made.
     Connecting,
+    /// The relay has answered.
     Open,
+    /// The connection is closed, for this reason.
     Closed(String),
 }
 

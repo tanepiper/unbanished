@@ -45,6 +45,9 @@ timings and the save files are the same.
 - 🌐 **Browser:** through WebAssembly. The page reads your game files on your computer. It does not upload them.
 - 💾 **Saves:** saves from the original game load without changes. Un-Banished uses the same save format and the same save folder.
 - 🧩 **Mods:** mods made with the BanishedKit (`.pkm` files) work through the Mods menu, as in the original.
+- 🔎 **Mod sites:** the Mods menu browses, searches and installs mods from [Nexus Mods](https://www.nexusmods.com/games/banished/mods) and, on the desktop, [banishedinfo.com](https://banishedinfo.com/mods/browse). A [mod manager](docs/USER-GUIDE.md#the-mod-manager) keeps mod lists and starts the game. *Not in the original.*
+- 👥 **Multiplayer:** several players can play one town together, on the desktop and in the browser, through a small relay server. *Not in the original.* See [Multiplayer](docs/USER-GUIDE.md#multiplayer).
+- 📱 **Install the browser version as an app**, and choose its resolution and frame rate for slow computers, tablets and phones.
 - 🎓 **Tutorials, scenarios and achievements** work as in the original.
 
 > [!IMPORTANT]
@@ -84,7 +87,8 @@ Un-Banished recorded them itself, without a window.
 **Beta.** The whole game runs. You can start a new game or load a save. Your town and its
 citizens live through the seasons, and every building and tool works. Trade, disasters, the
 event log, options, mods, tutorials and achievements also work. Map generation and most game
-rules are checked against the original, value by value.
+rules are checked against the original, value by value. Un-Banished also adds things the original
+does not have: mod sites in the Mods menu, a mod manager, and multiplayer.
 
 Some problems remain. They are listed in the
 [issues](https://github.com/tanepiper/unbanished/issues). [docs/DEVIATIONS.md](docs/DEVIATIONS.md)
@@ -160,7 +164,12 @@ version keeps its own saves inside the browser.
 
 **Do mods work?** Yes, mods made with the BanishedKit (`.pkm` files). On the desktop, put them in
 the `WinData` folder. In the browser, select them or drag them onto the page. Then turn them on
-in the Mods menu.
+in the Mods menu. The Mods menu can also find and install mods from Nexus Mods and (on the
+desktop) banishedinfo.com: see [Mods](docs/USER-GUIDE.md#mods).
+
+**Can I play with friends?** Yes, with Multiplayer on the main menu. Every player needs their own
+copy of Banished and the same version of Un-Banished. One player hosts a room on a relay and the
+others join with its code. See [Multiplayer](docs/USER-GUIDE.md#multiplayer).
 
 **Which browsers work?** We test in recent versions of Chrome and in Firefox Nightly (160), with
 both WebGPU and WebGL 2. Edge uses the same browser engine as Chrome, so it should work the same
@@ -182,12 +191,14 @@ The project is a Rust workspace:
 | [`apps/viewer`](apps/viewer/README.md) | A browser for the game's models, textures, sounds and dialogs |
 | [`apps/cli`](apps/cli/README.md) | Command-line helpers (for example, audio export) |
 | [`apps/modmanager`](apps/modmanager/README.md) | The mod manager (binary `banished-mods`) |
+| [`apps/relay`](apps/relay/README.md) | The multiplayer relay (binary `banished-relay`) |
 | [`crates/core`](crates/core/README.md) | Exact maths, the game's random numbers, noise and game time |
 | [`crates/terrain`](crates/terrain/README.md), [`crates/path`](crates/path/README.md) | Map generation and path finding, checked against the original |
 | [`crates/game`](crates/game/README.md) | The game rules, checked against the original |
 | [`crates/formats`](crates/formats/README.md) | Readers for the game's `.pkg`, `.crs`, mesh, texture, sound and save formats |
 | [`crates/ui`](crates/ui/README.md), [`crates/gfx`](crates/gfx/README.md), [`crates/audio`](crates/audio/README.md), [`crates/wma`](crates/wma/README.md) | Interface, rendering, audio, and the WMA decoder |
 | [`crates/mods`](crates/mods/README.md), [`crates/nexus`](crates/nexus/README.md), [`crates/banishedinfo`](crates/banishedinfo/README.md) | The mod list shared by the game and the mod manager; optional Nexus Mods and banishedinfo.com support (not part of the original game) |
+| [`crates/net`](crates/net/README.md) | Multiplayer networking: the relay protocol and a WebSocket connection (not part of the original game) |
 | `docs/` | Everything we learned about how the original works, and the [developer documentation](docs/develop/README.md) |
 | `tools/` | Data extraction, emulator checks, analysis scripts, screenshots and videos |
 

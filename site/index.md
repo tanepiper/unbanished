@@ -22,15 +22,19 @@ features:
   - title: The same game, exactly
     details: The same seed makes the same map. Citizens are born, work, age and die by the same rules, with the same numbers and the same timings as in Banished 1.0.7.
   - title: On every computer
-    details: Native on Windows, macOS (Apple Silicon and Intel) and Linux. The browser version runs on WebGPU or WebGL 2.
+    details: Native on Windows, macOS (Apple Silicon and Intel) and Linux. The browser version runs on WebGPU or WebGL 2, and installs as an app.
   - title: Your towns still load
     details: Un-Banished reads and writes the original save format, in the original save folder. Your old towns appear in the Load dialog.
-  - title: Mods work
-    details: Mods made with the BanishedKit load through the Mods menu, with the same order and conflict rules as the original.
-  - title: No original content
-    details: All code is new. No code, art, sound or text from the original is included. A copy of Banished is required.
-  - title: Free and open
-    details: The source code is on GitHub under the MIT or Apache-2.0 licence. Every finding about the original is written down.
+  - title: Mods, and where to find them
+    details: BanishedKit mods load as in the original. The Mods menu also browses and installs mods from Nexus Mods and banishedinfo.com, and a mod manager keeps mod lists.
+    link: /guide/mods
+    linkText: Mods
+  - title: Play together
+    details: Not in the original. Several players can build one town together, on the desktop and in the browser, through a small relay.
+    link: /guide/multiplayer
+    linkText: Multiplayer
+  - title: Free, open, and all new
+    details: All code is new, under the MIT or Apache-2.0 licence, with no code, art, sound or text from the original. A copy of Banished is required.
 ---
 
 <script setup>

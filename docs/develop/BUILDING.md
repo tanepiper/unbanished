@@ -1,7 +1,7 @@
 # Building
 
 This page explains how to build each part of Un-Banished from source: the game, the viewer, the
-command-line tools, the browser versions and this website. The [setup guide](../USER-GUIDE.md)
+command-line tools, the mod manager, the multiplayer relay, the browser versions and this website. The [setup guide](../USER-GUIDE.md)
 explains how to install Rust and Git on Windows, macOS and Linux.
 
 ## What you need
@@ -66,15 +66,20 @@ of the game is usable for stepping through code.
 
 The [game's README](../../apps/game/README.md) lists every command-line option.
 
-## The viewer and the command-line tools
+## The viewer, the command-line tools, the mod manager and the relay
 
 ```bash
 cargo run -p banished-viewer --release               # browse models, textures, sounds, dialogs
 cargo run -p banished-cli --release -- export-audio  # decode every sound to MP3 (needs FFmpeg)
+cargo run -p banished-cli --release -- nexus search terrain   # mods from Nexus Mods
+cargo run -p banished-modmanager --release -- path/to/WinData # the mod manager, banished-mods
+cargo run -p banished-relay --release                # the multiplayer relay, on 0.0.0.0:7780
 ```
 
-See the [viewer's README](../../apps/viewer/README.md) and the
-[command-line tools' README](../../apps/cli/README.md).
+See the READMEs of the [viewer](../../apps/viewer/README.md), the
+[command-line tools](../../apps/cli/README.md), the [mod manager](../../apps/modmanager/README.md)
+and the [relay](../../apps/relay/README.md). The mod manager's **Play** starts `banished` from
+beside itself (or from the `PATH`), so build both into the same `target/release` folder.
 
 ## The browser versions
 
