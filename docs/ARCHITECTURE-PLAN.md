@@ -128,7 +128,7 @@ Every phase keeps single player bit-identical. Gate for each: `tools/test/run.py
 touching multiplayer `tools/test/run.py replay lockstep network multiplayer`. Large moves use
 tools/refactor (split_impl.py, regroup.py) so code moves without being rewritten.
 
-**R. Rename the code to `unbanished` (first, mechanical, zero behaviour change).** — **Done** (a8c1e73).**
+**R. Rename the code to `unbanished` (first, mechanical, zero behaviour change).** — **Done** (a8c1e73).
 - Crates: `unbanished-core` → `unbanished-core`, and the same for terrain, path, game, formats,
   ui, gfx, audio, wma, mods, nexus, banishedinfo, net, and the apps (`unbanished-app` →
   `unbanished-app`, viewer, cli, modmanager, relay). Rust paths follow
