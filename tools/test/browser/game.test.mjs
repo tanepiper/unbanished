@@ -30,6 +30,34 @@ await run('game', [
     },
   },
   {
+    name: 'A fresh browser shows the full page as its Resolution',
+    needs: ['chrome', 'gamedata'],
+    async run(ctx) {
+      const url = await serveGame(ctx);
+      const b = await launch(ctx, 'chrome');
+      await b.open(`${url}/`);
+      await b.startWithFiles(gameFiles());
+      await b.press('ref:MainMenu text:Options');
+      await b.waitDialog('Options');
+      await b.press('ref:Options text:Video');
+      const [combo] = await b.probe('ui ref:Options comboResolution');
+      // The page is 1280x720 (lib.mjs VIEW); 100 % is the scene drawn without a setting.
+      equal(combo?.text, '1280x720', 'Resolution with no setting');
+    },
+  },
+  {
+    name: 'Firefox with WebGPU offered but no WebGPU canvas falls back to WebGL 2',
+    needs: ['firefox', 'gamedata'],
+    async run(ctx) {
+      const url = await serveGame(ctx);
+      // Headless Firefox offers navigator.gpu but gives the canvas no WebGPU context.
+      const b = await launch(ctx, 'firefox', { webgpu: true });
+      await b.open(`${url}/`);
+      await b.startWithFiles(gameFiles());
+      check(b.logs.some((l) => l.includes('using WebGL 2')), 'the game said it fell back to WebGL 2');
+    },
+  },
+  {
     name: 'The console object answers every command',
     needs: ['chrome', 'gamedata'],
     async run(ctx) {

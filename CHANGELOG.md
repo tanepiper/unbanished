@@ -45,6 +45,13 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Fixed
 
+- In the browser, **Options → Video → Resolution** showed the smallest size (50 % of the page)
+  when none had been chosen, although the game drew at the full page; pressing Ok could then
+  halve it. It now shows the full page size, as the game draws it.
+- The browser version starts with WebGL 2 when the browser offers WebGPU but cannot give the
+  page a WebGPU canvas (for example headless Firefox, or a blocked graphics card). It used to
+  stop on "Reading 4 package(s)…".
+
 - A save imported on the browser's start page could be lost: the page reloaded before the save
   was written to the browser's storage.
 - **Exit** in the browser version no longer leaves the page frozen (#18). The installed app

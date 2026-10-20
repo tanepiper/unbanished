@@ -165,7 +165,7 @@
      313
     ],
     "ref": "Dialog\\NewGame.rsc:comboTerrain",
-    "text": ""
+    "text": "Valleys"
    },
    {
     "enabled": true,
@@ -178,7 +178,7 @@
      343
     ],
     "ref": "Dialog\\NewGame.rsc:comboTerrainSize",
-    "text": ""
+    "text": "Small"
    },
    {
     "enabled": true,
@@ -191,7 +191,7 @@
      373
     ],
     "ref": "Dialog\\NewGame.rsc:comboClimate",
-    "text": ""
+    "text": "Fair"
    },
    {
     "enabled": true,
@@ -204,7 +204,7 @@
      403
     ],
     "ref": "Dialog\\NewGame.rsc:comboDisaster",
-    "text": ""
+    "text": "On"
    },
    {
     "enabled": true,
@@ -217,7 +217,7 @@
      433
     ],
     "ref": "Dialog\\NewGame.rsc:comboCondition",
-    "text": ""
+    "text": "Medium"
    }
   ],
   "t": 5.0

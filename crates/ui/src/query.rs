@@ -173,13 +173,16 @@ impl Ui {
         }
     }
 
-    /// An element's text: its own for text, labels and edits, its content's for a button.
+    /// An element's text: its own for text, labels and edits, its content's for a button, and
+    /// the shown choice for a combo.
     pub fn text_of(&self, id: NodeId) -> String {
         match &self.nodes[id].kind {
             Kind::Text(t) => t.text.clone(),
             Kind::Label { text, .. } => text.text.clone(),
             Kind::Button { content, .. } => content.map(|c| self.text_of(c)).unwrap_or_default(),
             Kind::Control(Control::Edit(e)) => e.text.text.clone(),
+            // A combo shows its choice on its button.
+            Kind::Control(Control::Combo { button, .. }) => self.text_of(*button),
             _ => String::new(),
         }
     }

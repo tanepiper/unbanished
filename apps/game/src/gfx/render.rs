@@ -340,7 +340,23 @@ impl Renderer {
         let size = window.inner_size();
         let instance =
             wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
-        let surface = instance.create_surface(window).expect("create surface");
+        let (instance, surface) = match instance.create_surface(window.clone()) {
+            Ok(surface) => (instance, surface),
+            // A browser can offer WebGPU (`navigator.gpu`) and still give the canvas no WebGPU
+            // context (headless Firefox, a blocked GPU). The canvas has no context yet, so it
+            // can still give a WebGL 2 one.
+            #[cfg(target_arch = "wasm32")]
+            Err(e) => {
+                log::warn!("no WebGPU canvas ({e}); using WebGL 2");
+                let mut desc = wgpu::InstanceDescriptor::new_without_display_handle_from_env();
+                desc.backends = wgpu::Backends::GL;
+                let gl = wgpu::Instance::new(desc);
+                let surface = gl.create_surface(window).expect("create surface");
+                (gl, surface)
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            Err(e) => panic!("create surface: {e}"),
+        };
         Self::init(
             &instance,
             Some(surface),

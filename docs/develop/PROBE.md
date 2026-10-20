@@ -131,7 +131,7 @@ Prefer text over names when you write a test: the names in the original's resour
 always what you would guess. The main menu's **Exit** is `buttonQuit`; in the pause menu
 **Quit** is `buttonMenu` and **Exit** is `buttonQuit`. `ui kind:button` lists the names.
 
-Each element in an answer has `name`, `text`, `kind`, `ref` (its resource), `rect` (left, top,
+Each element in an answer has `name`, `text` (for a combo, the choice it shows), `kind`, `ref` (its resource), `rect` (left, top,
 right, bottom in pixels after the last layout) and `enabled`; check boxes add `checked`, and
 sliders, scroll bars and progress bars add `value`.
 

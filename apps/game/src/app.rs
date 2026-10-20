@@ -345,11 +345,24 @@ impl ApplicationHandler<UserEvent> for App {
                         adapter.modes = modes.clone();
                     }
                 }
-                renderer.display.desktop = self
-                    .window
-                    .as_ref()
-                    .and_then(|w| w.current_monitor())
-                    .map(|m| (m.size().width as i32, m.size().height as i32));
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    renderer.display.desktop = self
+                        .window
+                        .as_ref()
+                        .and_then(|w| w.current_monitor())
+                        .map(|m| (m.size().width as i32, m.size().height as i32));
+                }
+                // Deviation: in the browser the "desktop" resolution, which an unset or unknown
+                // resolution falls back to (`GetDefaultResolution`), is the page's full size: the
+                // 100 % entry of the Resolution list, as the scene is drawn without a setting.
+                #[cfg(target_arch = "wasm32")]
+                {
+                    renderer.display.desktop = self.window.as_ref().map(|w| {
+                        let size = w.inner_size();
+                        (size.width as i32, size.height as i32)
+                    });
+                }
                 if let Some(s) = self.settings_mut() {
                     s.display = renderer.display.clone();
                 }
