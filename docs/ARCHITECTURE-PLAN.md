@@ -215,6 +215,17 @@ tools/refactor (split_impl.py, regroup.py) so code moves without being rewritten
      Read-only accessors wait for phase X, where the extension points define what they read.
 5. New check in run.py `checks`: `cargo tree -p unbanished-sim` has no wgpu/winit/ui/gfx/audio/net;
    a test that loads a save with `unbanished-sim` alone (no GPU) and matches `--sim-digest`.
+   - **Done**: run.py `checks` fails when `cargo tree -p unbanished-sim` (every target) lists
+     wgpu, winit, unbanished-ui, unbanished-gfx, unbanished-audio or unbanished-net.
+     `crates/sim/tests/headless.rs` loads Save83 with the sim alone (`Simulation::restore`,
+     `Map::from_save`, `StartingTown::from_save`), plays ten seconds, writes the state and
+     reloads it; two runs give the same bytes. It does not match `--sim-digest` yet: see 6.
+6. The frame's simulation update in the sim, so a headless run matches `--sim-digest`: the
+   speed loop, the smoothing after it, goals and achievements, and the life and site events.
+   The events carry translated strings into the event log (and so into the save), so the sim
+   takes a string lookup from the app. Loading moves too (`Simulation::from_save`,
+   `Simulation::new_game`: the map, the town and the environment). Then the headless test
+   compares with `--sim-digest` on Save83 and Driscola.
 
 **X. Extension points and features (after A, before B).** Define the extension points in the
 core as small traits/hooks (command sink, step hook, presentation hooks: menu entry, window or

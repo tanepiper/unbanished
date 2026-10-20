@@ -32,7 +32,6 @@ use saving::SaveTarget;
 
 use unbanished_formats::game::climate_generator;
 use unbanished_game::nature::environment::{Climate, Environment, YEAR_SECONDS};
-use unbanished_game::random::Random;
 use unbanished_game::scheduler::ticks;
 use unbanished_ui::{Event, Ui};
 
@@ -235,17 +234,7 @@ impl GameplayLoop {
         let mut g = Self::new(saved.params());
         // A save's scenario is its own (the Load dialog gives `FUN_1400b9ec0` −1).
         g.scenario_start = false;
-        let s = &saved.state;
-        if let Ok(state) = s.random_state.as_slice().try_into() {
-            g.sim.rng = Random::from_parts(s.random_index, state);
-        }
-        g.sim.calendar.year = s.managers.i32("calendar.value").unwrap_or(0).max(0) as u32;
-        if let Some(unbanished_formats::savegame::Value::I64(t)) = s.managers.at("calendar.time") {
-            g.sim.calendar.elapsed = *t;
-        }
-        g.sim.stock_warnings = saved.stock_warnings();
-        g.sim.events = saved.event_log();
-        g.sim.statistics = saved.statistics();
+        g.sim.restore(&saved);
         g.saved = Some(std::sync::Arc::new(saved));
         g
     }

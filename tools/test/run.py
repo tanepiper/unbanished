@@ -102,6 +102,13 @@ def suite_checks(ctx: Context) -> None:
     if (REPO / "docs/DEVIATIONS.md").read_text() != before:
         raise RuntimeError("docs/DEVIATIONS.md was out of date; it is updated now: stage it")
     sh([sys.executable, "tools/triage/doc_comments.py", "check"])
+    # The core depends on no drawing, window, interface, sound or network crate.
+    tree = sh(["cargo", "tree", "--offline", "-p", "unbanished-sim", "-e", "normal", "--prefix", "none",
+               "--target", "all"]).stdout
+    names = {line.split()[0] for line in tree.splitlines() if line.strip()}
+    banned = {"wgpu", "winit", "unbanished-ui", "unbanished-gfx", "unbanished-audio", "unbanished-net"}
+    if names & banned:
+        raise RuntimeError(f"unbanished-sim depends on {sorted(names & banned)}")
 
 
 def suite_unit(ctx: Context) -> None:
@@ -251,7 +258,7 @@ def compat(script: str, about: str) -> Callable[[Context], None]:
 
 
 SUITES = [
-    Suite("checks", "quick", "Formatting of changed Rust files, the deviation ledger, doc comments", suite_checks),
+    Suite("checks", "quick", "Formatting of changed Rust files, the deviation ledger, doc comments, the core's dependencies", suite_checks),
     Suite("unit", "quick", "Every Rust test in the workspace (unit, corpus, parity, saves)", suite_unit),
     Suite("wasm", "quick", "The browser build compiles with no warnings", suite_wasm),
     Suite("probe", "quick", "Probe scenarios give exactly their baselines (UI and town)", suite_probe),

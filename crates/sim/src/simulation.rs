@@ -76,6 +76,21 @@ impl Simulation {
         }
     }
 
+    /// Takes a save's random stream, calendar, stock warnings, event log and statistics.
+    pub fn restore(&mut self, saved: &crate::saved::SavedGame) {
+        let s = &saved.state;
+        if let Ok(state) = s.random_state.as_slice().try_into() {
+            self.rng = Random::from_parts(s.random_index, state);
+        }
+        self.calendar.year = s.managers.i32("calendar.value").unwrap_or(0).max(0) as u32;
+        if let Some(unbanished_formats::savegame::Value::I64(t)) = s.managers.at("calendar.time") {
+            self.calendar.elapsed = *t;
+        }
+        self.stock_warnings = saved.stock_warnings();
+        self.events = saved.event_log();
+        self.statistics = saved.statistics();
+    }
+
     /// The month: `floor(elapsed / 3600 × 12)`.
     pub fn month(&self) -> usize {
         ((self.calendar.seconds() / YEAR_SECONDS * MONTHS_PER_YEAR as f32) as usize)

@@ -21,7 +21,7 @@ tools/test/run.py --list           # every suite and what it checks
 
 | Tier | Suite | Checks | Time |
 |---|---|---|---|
-| quick | `checks` | changed Rust files are formatted, `docs/DEVIATIONS.md` is up to date, doc comments name no addresses | 1 s |
+| quick | `checks` | changed Rust files are formatted, `docs/DEVIATIONS.md` is up to date, doc comments name no addresses, `unbanished-sim` depends on no drawing, window, interface, sound or network crate | 2 s |
 | quick | `unit` | every Rust test in the workspace | 75 s |
 | quick | `wasm` | the browser build compiles with no warnings | 1–60 s |
 | quick | `probe` | the probe scenarios give exactly their baselines | 8 s |
@@ -108,6 +108,7 @@ game about 5 more; check several things in one test rather than loading the game
 | Corpus tests | `crates/formats/tests/` | Every resource of one type in your game data parses, and known values are correct |
 | Parity tests | `crates/game/tests/*_emu.rs` and others | The port gives the same bits as the original function, run in the emulator |
 | Save tests | `crates/game/tests/saves.rs`, `crates/formats/tests/savegame.rs` | Real save files load, and what the port computes matches what the original saved |
+| The core alone | `crates/sim/tests/headless.rs` | A save loads, plays ten seconds and is written again with `unbanished-sim` alone, with no window or GPU, and two runs end in the same state |
 | Determinism | `tools/triage/determinism.sh` | Two runs with the same seed draw identical frames |
 | Version comparison | `tools/compat/compare.sh` | Two versions produce identical saves and frames |
 | Native and browser | `unbanished --sim-digest` and the web build's `?digest=` | The same save runs to the same game state natively and in the browser ([CROSS-PLATFORM.md](../CROSS-PLATFORM.md)) |
