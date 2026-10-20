@@ -75,7 +75,7 @@ Deviation: 59, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/platform/nexus.rs`
 
-- [Deviation] [apps/game/src/platform/nexus.rs:1](../apps/game/src/platform/nexus.rs#L1): Nexus Mods for the Mods dialog's Browse tab: the API key, and the searches and installs run in the background (a thread natively, `fetch` in the browser), whose replies the dialog collects each frame with [`Nexus::poll`]. Deviation: the original's Browse tab is the Steam Workshop browser (`FUN_14006f790`, `FUN_14006dee0`); here it browses Nexus Mods, and only when the player has set an API key (`NexusApiKey` in the settings, or `BANISHED_NEXUS_API_KEY` natively).
+- [Deviation] [apps/game/src/platform/nexus.rs:1](../apps/game/src/platform/nexus.rs#L1): Nexus Mods for the Mods dialog's Browse tab: the API key, and the searches and installs run in the background (a thread natively, `fetch` in the browser), whose replies the dialog collects each frame with [`Nexus::poll`]. Deviation: the original's Browse tab is the Steam Workshop browser (`FUN_14006f790`, `FUN_14006dee0`); here it browses Nexus Mods. The tab shows by default and searches without an account; installing needs the player's own API key (`NexusApiKey` in the settings, or `BANISHED_NEXUS_API_KEY` natively).
 
 ## `apps/game/src/platform/paths.rs`
 

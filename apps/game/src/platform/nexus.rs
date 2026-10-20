@@ -3,8 +3,9 @@
 //! collects each frame with [`Nexus::poll`].
 //!
 //! Deviation: the original's Browse tab is the Steam Workshop browser (`FUN_14006f790`,
-//! `FUN_14006dee0`); here it browses Nexus Mods, and only when the player has set an API key
-//! (`NexusApiKey` in the settings, or `BANISHED_NEXUS_API_KEY` natively).
+//! `FUN_14006dee0`); here it browses Nexus Mods. The tab shows by default and searches without
+//! an account; installing needs the player's own API key (`NexusApiKey` in the settings, or
+//! `BANISHED_NEXUS_API_KEY` natively).
 
 #[cfg(target_arch = "wasm32")]
 use std::cell::RefCell;
