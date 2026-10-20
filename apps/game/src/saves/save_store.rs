@@ -38,8 +38,7 @@ impl Read {
 pub use imp::{delete, list, read, write};
 #[cfg(target_arch = "wasm32")]
 pub use imp::{
-    forget_mods, forget_packages, init, kept_package_names, store_mod, store_packages, stored_mods,
-    stored_packages,
+    init, kept_package_names, store_mod, store_packages, stored_mods, stored_packages, write_then,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -323,6 +322,29 @@ mod imp {
         });
     }
 
+    /// Keep a save as `write` does, and finish when it is stored (the start page's import).
+    pub async fn write_then(name: &str, bytes: &[u8]) -> Result<(), String> {
+        let ms = js_sys::Date::now();
+        let save = Save::parse(bytes).map_err(|e| e.to_string())?;
+        save.metadata().map_err(|e| e.to_string())?;
+        let (file, meta) = (
+            js_sys::Uint8Array::from(bytes),
+            meta_record(ms, &save.metadata),
+        );
+        let result = async {
+            let db = db().await?;
+            let stores = js_sys::Array::of2(&FILES.into(), &META.into());
+            let tx =
+                db.transaction_with_str_sequence_and_mode(&stores, IdbTransactionMode::Readwrite)?;
+            let key = JsValue::from_str(name);
+            done(&tx.object_store(FILES)?.put_with_key(&file, &key)?).await?;
+            done(&tx.object_store(META)?.put_with_key(&meta, &key)?).await?;
+            Ok::<_, JsValue>(())
+        }
+        .await;
+        result.map_err(|e| format!("{e:?}"))
+    }
+
     /// The names of the kept game files (only their names are read), handed to `then`.
     pub fn kept_package_names(then: impl FnOnce(Vec<String>) + 'static) {
         wasm_bindgen_futures::spawn_local(async move {
@@ -336,40 +358,6 @@ mod imp {
             }
             .await;
             then(result.unwrap_or_default());
-        });
-    }
-
-    /// Remove every kept mod, then call `then`.
-    pub fn forget_mods(then: impl FnOnce() + 'static) {
-        wasm_bindgen_futures::spawn_local(async move {
-            let result = async {
-                let db = db().await?;
-                let tx = db.transaction_with_str_and_mode(MODS, IdbTransactionMode::Readwrite)?;
-                done(&tx.object_store(MODS)?.clear()?).await?;
-                Ok::<_, JsValue>(())
-            }
-            .await;
-            if let Err(e) = result {
-                log::error!("removing the kept mods: {e:?}");
-            }
-            then();
-        });
-    }
-
-    /// Forget the kept game files, then call `then`.
-    pub fn forget_packages(then: impl FnOnce() + 'static) {
-        wasm_bindgen_futures::spawn_local(async move {
-            let result = async {
-                let db = db().await?;
-                let tx = db.transaction_with_str_and_mode(GAME, IdbTransactionMode::Readwrite)?;
-                done(&tx.object_store(GAME)?.clear()?).await?;
-                Ok::<_, JsValue>(())
-            }
-            .await;
-            if let Err(e) = result {
-                log::error!("forgetting the game files: {e:?}");
-            }
-            then();
         });
     }
 

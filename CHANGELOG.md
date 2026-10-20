@@ -12,9 +12,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
 ### Added
 
 - The browser version keeps the game files you choose, in this browser only, so you choose them
-  once (#17). Its start page then offers **Start the game**, **Forget the game files** and
-  **Remove the kept mods**, and still lets you choose other files or add mods. A checkbox under
-  **Choose files** turns it off.
+  once (#17). A checkbox under **Choose files** turns it off. With the files kept, the start page
+  shows **Start the game**, a **Help** button for the steps, and a manager with three tabs: the
+  kept game files (and **Forget**), the mods (on and off, their order, remove and add) and the
+  saves (download, delete and import `.sav` files).
 
 - `tools/videos.sh SAVE.sav filters` shows the orbit video in all four looks side by side: as
   drawn, sepia, grey and psychedelic. New videos for the website: the river flight in sepia and

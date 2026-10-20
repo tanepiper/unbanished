@@ -189,20 +189,18 @@ fn show(id: &str, visible: bool) {
     }
 }
 
-/// The game files kept from an earlier visit (#17). The loading screen stays the start page:
-/// it says the files are kept and offers Start the game, Forget the game files and Remove the
-/// kept mods; other files and more mods can still be chosen below. Not with `?data=`, which
-/// loads the files from the development server instead.
+/// The game files kept from an earlier visit (#17). The start page then shows Start the game
+/// and the manager instead of the steps (`body.has-kept`; its Help button shows the steps, for
+/// other files or more mods). Not with `?data=`, which loads the files from the development
+/// server instead.
 pub fn load_kept_packages(proxy: EventLoopProxy<UserEvent>) {
     if data_base().is_some() {
         return;
     }
     on_click("start-kept", move || {
         let proxy = proxy.clone();
-        for id in ["start-kept", "forget"] {
-            if let Some(b) = document().get_element_by_id(id) {
-                let _ = b.set_attribute("disabled", "");
-            }
+        if let Some(b) = document().get_element_by_id("start-kept") {
+            let _ = b.set_attribute("disabled", "");
         }
         set_status("Loading the game files kept in this browser…", false);
         crate::saves::save_store::stored_packages(move |packages| {
@@ -216,23 +214,6 @@ pub fn load_kept_packages(proxy: EventLoopProxy<UserEvent>) {
             let _ = proxy.send_event(UserEvent::Packages(packages));
         });
     });
-    on_click("forget", || {
-        set_status("Forgetting the kept game files…", false);
-        crate::saves::save_store::forget_packages(|| {
-            KEPT.with(|k| k.set(false));
-            show("kept", false);
-            set_status("The game files are forgotten. Choose them to play.", false);
-        });
-    });
-    on_click("forget-mods", || {
-        crate::saves::save_store::forget_mods(|| {
-            show("forget-mods", false);
-            set_status(
-                "The kept mods are removed. They are gone when the page opens again.",
-                false,
-            );
-        });
-    });
     crate::saves::save_store::kept_package_names(|names| {
         if names.is_empty() {
             return;
@@ -240,8 +221,63 @@ pub fn load_kept_packages(proxy: EventLoopProxy<UserEvent>) {
         log::info!("{} game files kept in browser storage", names.len());
         KEPT.with(|k| k.set(true));
         show("kept", true);
+        if let Some(body) = document().body() {
+            body.set_class_name(&format!("{} has-kept", body.class_name()));
+        }
         set_status("Ready. Press Start the game.", false);
     });
+}
+
+/// The start page's save import (the manager's "Import saves", #17): `.sav` files chosen in
+/// `#import-saves` are read by the game's own save reader (which also makes the record the Load
+/// dialog lists) and kept in the browser; then the page starts again with the manager open.
+pub fn install_save_import() {
+    let Some(input) = document()
+        .get_element_by_id("import-saves")
+        .and_then(|e| e.dyn_into::<web_sys::HtmlInputElement>().ok())
+    else {
+        return;
+    };
+    let target = input.clone();
+    let change = Closure::<dyn FnMut()>::new(move || {
+        let Some(list) = target.files() else { return };
+        let files: Vec<web_sys::File> = (0..list.length()).filter_map(|i| list.get(i)).collect();
+        target.set_value("");
+        wasm_bindgen_futures::spawn_local(async move {
+            let mut failed = Vec::new();
+            for file in files {
+                let name = file.name();
+                let stem = name
+                    .strip_suffix(".sav")
+                    .or_else(|| name.strip_suffix(".SAV"))
+                    .unwrap_or(&name)
+                    .to_string();
+                let bytes = match wasm_bindgen_futures::JsFuture::from(file.array_buffer()).await {
+                    Ok(buf) => js_sys::Uint8Array::new(&buf).to_vec(),
+                    Err(_) => {
+                        failed.push(name);
+                        continue;
+                    }
+                };
+                if let Err(e) = crate::saves::save_store::write_then(&stem, &bytes).await {
+                    log::error!("importing {name}: {e}");
+                    failed.push(name);
+                }
+            }
+            if failed.is_empty() {
+                if let Some(w) = web_sys::window() {
+                    let _ = w.location().reload();
+                }
+            } else {
+                set_status(
+                    &format!("Not a Banished save: {}", failed.join(", ")),
+                    false,
+                );
+            }
+        });
+    });
+    let _ = input.add_event_listener_with_callback("change", change.as_ref().unchecked_ref());
+    change.forget();
 }
 
 /// The stored mods, once read (`UserEvent::Mods`, empty when there are none).
@@ -249,7 +285,6 @@ pub fn load_stored_mods(proxy: EventLoopProxy<UserEvent>) {
     crate::saves::save_store::stored_mods(move |mods| {
         if !mods.is_empty() {
             log::info!("{} mods in browser storage", mods.len());
-            show("forget-mods", true);
         }
         let _ = proxy.send_event(UserEvent::Mods(mods));
     });

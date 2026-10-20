@@ -93,6 +93,36 @@
              color: var(--muted); font: 500 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
     .quiet:hover { color: var(--fg); border-color: var(--gold-lo); }
     .quiet:disabled { opacity: 0.55; cursor: progress; }
+    label.quiet { display: inline-block; }
+
+    /* Two start pages: the help (the steps) on a first visit, and Start with the manager when
+       game files are kept (body.has-kept, set by src/platform/web.rs); Help shows the steps. */
+    .manage { display: none; }
+    body.has-kept .manage { display: block; }
+    body.has-kept #steps { display: none; }
+    body.has-kept.show-help #steps { display: grid; margin-bottom: 22px; }
+
+    /* The manager. */
+    .manage { margin: 0 0 22px; border: 1px solid var(--line); border-radius: 12px; }
+    .manage > summary { cursor: pointer; padding: 12px 16px; font: 600 16px/1.3 var(--serif); color: var(--fg); }
+    .manage[open] > summary { border-bottom: 1px solid var(--line); }
+    .tabs { display: flex; gap: 6px; padding: 10px 16px 0; }
+    .tabs button { padding: 6px 12px; border: 1px solid var(--line); border-bottom: 0; border-radius: 8px 8px 0 0;
+                   background: transparent; color: var(--muted); cursor: pointer; font: 500 14px/1 system-ui, sans-serif; }
+    .tabs button[aria-selected="true"] { color: var(--fg); background: rgb(216 166 72 / 0.1); border-color: var(--gold-lo); }
+    .pane { padding: 12px 16px 14px; border-top: 1px solid var(--line); }
+    .rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    .rows li { display: flex; gap: 10px; align-items: center; padding: 7px 10px; border-radius: 8px;
+               background: rgb(255 255 255 / 0.03); font-size: 14px; }
+    .rows .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); }
+    .rows .meta { color: var(--faint); font-size: 12px; white-space: nowrap; }
+    .rows button, .rows a { padding: 4px 9px; border: 1px solid var(--line); border-radius: 6px; background: transparent;
+                            color: var(--muted); font: 500 12px/1 system-ui, sans-serif; cursor: pointer; text-decoration: none; }
+    .rows button:hover, .rows a:hover { color: var(--fg); border-color: var(--gold-lo); }
+    .rows input[type=checkbox] { accent-color: var(--gold); width: 16px; height: 16px; }
+    .rows .empty { color: var(--faint); background: none; }
+    .pane-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    .hidden-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
 
     .status-row { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
     #status { color: var(--muted); font-size: 14px; word-break: break-word; min-height: 1.55em; }
@@ -133,13 +163,42 @@
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
             Start the game
           </button>
-          <button id="forget" class="quiet" type="button">Forget the game files</button>
-          <button id="forget-mods" class="quiet" type="button" hidden>Remove the kept mods</button>
+          <button id="help-toggle" class="quiet" type="button" aria-expanded="false" aria-controls="steps">Help</button>
         </div>
-        <p class="drop">To use other game files, or to add mods, use the steps below.</p>
       </section>
 
-      <ol class="steps">
+      <!-- The manager (#17): what this browser keeps for the game. Plain JavaScript below; the
+           save import goes through the game (src/platform/web.rs, #import-saves). -->
+      <details id="manage" class="manage" open>
+        <summary>Manage the game files, mods and saves kept in this browser</summary>
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" data-tab="game" aria-selected="true">Game files</button>
+          <button type="button" role="tab" data-tab="mods" aria-selected="false">Mods</button>
+          <button type="button" role="tab" data-tab="saves" aria-selected="false">Saves</button>
+        </div>
+        <div class="pane" data-pane="game">
+          <ul id="m-game" class="rows"></ul>
+          <div class="pane-actions"><button id="m-forget-game" class="quiet" type="button">Forget the game files</button></div>
+        </div>
+        <div class="pane" data-pane="mods" hidden>
+          <p class="drop">On mods are used when the game starts. The order is the order they load in: a mod lower in the list wins.</p>
+          <ul id="m-mods" class="rows"></ul>
+          <div class="pane-actions">
+            <label class="quiet" for="add-mods">Add mods (.pkm)</label>
+            <input id="add-mods" class="hidden-input" type="file" accept=".pkm" multiple>
+          </div>
+        </div>
+        <div class="pane" data-pane="saves" hidden>
+          <ul id="m-saves" class="rows"></ul>
+          <div class="pane-actions">
+            <label class="quiet" for="import-saves">Import saves (.sav)</label>
+            <input id="import-saves" class="hidden-input" type="file" accept=".sav" multiple>
+          </div>
+          <p class="drop">Saves from the desktop version, or from the original game, can be imported. Download keeps a copy on your computer.</p>
+        </div>
+      </details>
+
+      <ol id="steps" class="steps">
         <li>
           <span class="num" aria-hidden="true">1</span>
           <div class="step">
@@ -191,6 +250,123 @@
       <div id="version"></div>
     </main>
   </div>
+  <script>
+    // The manager (#17): the game files, mods and saves this browser keeps, in the game's own
+    // IndexedDB database and settings. The game reads them once when the page opens, so every
+    // change reloads the page, with the manager open on the same tab.
+    (() => {
+      const DB = 'banished-wasm', VERSION = 3, SETTINGS = 'banished-wasm.settings';
+      const STORES = ['files', 'meta', 'mods', 'game'];
+      const $ = (id) => document.getElementById(id);
+      const size = (n) => n >= 1e6 ? (n / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1e3)) + ' KB';
+      const open = () => new Promise((resolve, reject) => {
+        const r = indexedDB.open(DB, VERSION);
+        r.onupgradeneeded = () => STORES.forEach((s) => r.result.objectStoreNames.contains(s) || r.result.createObjectStore(s));
+        r.onsuccess = () => resolve(r.result);
+        r.onerror = () => reject(r.error);
+      });
+      const req = (r) => new Promise((resolve, reject) => { r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+      async function all(store) {
+        const db = await open();
+        try {
+          const os = db.transaction(store).objectStore(store);
+          const [keys, values] = await Promise.all([req(os.getAllKeys()), req(os.getAll())]);
+          return keys.map((k, i) => [String(k), values[i]]);
+        } finally { db.close(); }
+      }
+      async function change(store, f) {
+        const db = await open();
+        try {
+          const tx = db.transaction(store, 'readwrite');
+          f(tx.objectStore(store));
+          await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+        } finally { db.close(); }
+      }
+      const settings = () => Object.fromEntries((localStorage.getItem(SETTINGS) || '').split('\n')
+        .filter((l) => l.includes('=')).map((l) => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()]));
+      const saveSettings = (s) => localStorage.setItem(SETTINGS, Object.keys(s).sort().map((k) => `${k}=${s[k]}`).join('\n') + '\n');
+      const reload = (tab) => { sessionStorage.setItem('ub-manage', tab); location.reload(); };
+      const row = (list, name, meta, ...controls) => {
+        const li = document.createElement('li');
+        const n = document.createElement('span'); n.className = 'name'; n.textContent = name;
+        const m = document.createElement('span'); m.className = 'meta'; m.textContent = meta;
+        li.append(...controls.filter((c) => c.lead), n, m, ...controls.filter((c) => !c.lead));
+        list.append(li);
+      };
+      const button = (text, onClick) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = text; b.onclick = onClick; return b; };
+      const empty = (list, text) => { const li = document.createElement('li'); li.className = 'empty'; li.textContent = text; list.append(li); };
+
+      async function showGame() {
+        const list = $('m-game'); list.replaceChildren();
+        const files = await all('game');
+        files.forEach(([name, blob]) => row(list, name, size(blob.size || 0)));
+        if (!files.length) empty(list, 'No game files are kept. Choose them below; they are kept for next time.');
+        $('m-forget-game').hidden = !files.length;
+      }
+      async function showMods() {
+        const list = $('m-mods'); list.replaceChildren();
+        const s = settings();
+        const mods = (await all('mods')).map(([name, bytes]) => ({ name, bytes,
+          on: s['ModEnabled_' + name] === 'true', index: Number(s['ModIndex_' + name] ?? 1e9) }))
+          .sort((a, b) => a.index - b.index || a.name.localeCompare(b.name));
+        const write = () => { const t = settings(); mods.forEach((m, i) => { t['ModEnabled_' + m.name] = String(m.on); t['ModIndex_' + m.name] = String(i); }); saveSettings(t); reload('mods'); };
+        mods.forEach((m, i) => {
+          const on = document.createElement('input'); on.type = 'checkbox'; on.checked = m.on; on.lead = true;
+          on.title = 'Use this mod'; on.onchange = () => { m.on = on.checked; write(); };
+          const up = button('↑', () => { [mods[i - 1], mods[i]] = [mods[i], mods[i - 1]]; write(); }); up.disabled = i === 0; up.title = 'Load earlier';
+          const down = button('↓', () => { [mods[i + 1], mods[i]] = [mods[i], mods[i + 1]]; write(); }); down.disabled = i === mods.length - 1; down.title = 'Load later';
+          const remove = button('Remove', async () => { await change('mods', (os) => os.delete(m.name)); const t = settings(); delete t['ModEnabled_' + m.name]; delete t['ModIndex_' + m.name]; saveSettings(t); reload('mods'); });
+          row(list, m.name, size(m.bytes.byteLength || m.bytes.length || 0), on, up, down, remove);
+        });
+        if (!mods.length) empty(list, 'No mods are kept. Add .pkm files here, or drop them on the page.');
+      }
+      async function showSaves() {
+        const list = $('m-saves'); list.replaceChildren();
+        const files = new Map(await all('files'));
+        const meta = await all('meta');
+        const saves = meta.map(([name, m]) => ({ name, when: new DataView(m.buffer, m.byteOffset, 8).getFloat64(0, true) }))
+          .sort((a, b) => b.when - a.when);
+        saves.forEach(({ name, when }) => {
+          const data = files.get(name);
+          const download = document.createElement('a'); download.textContent = 'Download';
+          download.href = '#'; download.onclick = (e) => { e.preventDefault();
+            const url = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }));
+            const a = document.createElement('a'); a.href = url; a.download = name + '.sav'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+          const remove = button('Delete', async () => {
+            if (!confirm(`Delete the save "${name}" from this browser?`)) return;
+            await change('files', (os) => os.delete(name)); await change('meta', (os) => os.delete(name)); reload('saves'); });
+          row(list, name, `${new Date(when).toLocaleString()} · ${size(data ? data.byteLength : 0)}`, download, remove);
+        });
+        if (!saves.length) empty(list, 'No saves yet. Saves you make in the game appear here; you can also import .sav files.');
+      }
+
+      function select(tab) {
+        document.querySelectorAll('#manage .tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+        document.querySelectorAll('#manage .pane').forEach((p) => { p.hidden = p.dataset.pane !== tab; });
+        ({ game: showGame, mods: showMods, saves: showSaves })[tab]().catch((e) => console.error('manager:', e));
+      }
+      addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('#manage .tabs button').forEach((b) => b.onclick = () => select(b.dataset.tab));
+        $('manage').addEventListener('toggle', () => $('manage').open && select(document.querySelector('#manage .tabs [aria-selected=true]').dataset.tab));
+        $('m-forget-game').onclick = async () => { await change('game', (os) => os.clear()); location.reload(); };
+        $('help-toggle').onclick = () => {
+          const on = document.body.classList.toggle('show-help');
+          $('help-toggle').setAttribute('aria-expanded', String(on));
+          $('help-toggle').textContent = on ? 'Hide help' : 'Help';
+        };
+        // The save import reloads the page from the game's side; reopen on the Saves tab.
+        $('import-saves').addEventListener('change', () => sessionStorage.setItem('ub-manage', 'saves'));
+        $('add-mods').onchange = async (e) => {
+          const files = [...e.target.files].filter((f) => /\.pkm$/i.test(f.name));
+          for (const f of files) { const bytes = new Uint8Array(await f.arrayBuffer()); await change('mods', (os) => os.put(bytes, f.name.replace(/\.pkm$/i, ''))); }
+          if (files.length) reload('mods');
+        };
+        const tab = sessionStorage.getItem('ub-manage') || (location.hash === '#manage' ? 'game' : null);
+        sessionStorage.removeItem('ub-manage');
+        if (tab) { $('manage').open = true; select(tab); }
+      });
+    })();
+  </script>
   <script>
     // The service worker lets the browser install Un-Banished as an app (sw.js, issue #13).
     if ('serviceWorker' in navigator) {
