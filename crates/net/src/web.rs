@@ -118,3 +118,17 @@ impl Connection {
         &self.state
     }
 }
+
+/// Dropped (Cancel, or a game that ends): the page's WebSocket closes, so the relay tells the
+/// others that this player left. Without this the socket stays open until the page closes.
+impl Drop for Connection {
+    fn drop(&mut self) {
+        if let Some(socket) = self.socket.take() {
+            socket.set_onopen(None);
+            socket.set_onmessage(None);
+            socket.set_onclose(None);
+            socket.set_onerror(None);
+            let _ = socket.close();
+        }
+    }
+}

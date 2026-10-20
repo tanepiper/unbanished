@@ -66,11 +66,21 @@ impl super::GameplayLoop {
         ctx: &mut crate::loops::Ctx,
         update: u32,
     ) -> Result<Digest, String> {
-        let state = self
+        let mut state = self
             .save_state(ctx.archive, ctx.ui)
-            .ok_or("no game state")?
-            .encode()
-            .map_err(|e| e.to_string())?;
+            .ok_or("no game state")?;
+        // A save also holds each player's own view, which is not the game: the camera, and the
+        // settings each building's window remembers (UIComponent). The digest leaves them out.
+        state.camera = self.saved.as_ref().and_then(|s| s.state.camera.clone());
+        for object in state.objects.values_mut() {
+            if object.type_name == "UIComponent" {
+                object.fields.set(
+                    "ui.pages",
+                    banished_formats::savegame::Value::List(Vec::new()),
+                );
+            }
+        }
+        let state = state.encode().map_err(|e| e.to_string())?;
         let town = self.town.as_ref().ok_or("no town")?;
         Ok(Digest {
             update,

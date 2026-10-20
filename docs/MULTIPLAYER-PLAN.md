@@ -295,9 +295,24 @@ all 19 checks after it. A manual run paused the guest process (SIGSTOP): the hos
 update 486 waited for player 2, and a camera turn held during the wait turned the view. Unit
 tests cover leaving (the slot, readiness, the host's checks) and a command given while waiting.
 
-Open: once, in about ten two-player runs, the host found the games different at the first check
-(update 60), resynced at 67, and they agreed after. Three repeats were clean; the cause is not
-known. A player cannot rejoin a running game. The room code cannot be copied from the window.
+**False desyncs.** The digest hashed the whole save, and a save also holds each player's own
+view: the camera, and the settings each building's window remembers (`UIComponent`). So a
+player who zoomed, or opened and closed a building's window, looked out of step, and the host
+resynced everybody, over and over while the camera moved. Record and replay in single player
+showed it: a run with only a zoom, and one with only a window opened and closed, each replayed
+to a different digest; `savegame_fields_diff` found the window settings the only other
+difference. The digest now leaves the camera and the window settings out (the saves are
+unchanged), and both runs replay identically. A two-player run with camera moves, window clicks
+and a house placed by each player then agreed on all 32 checks. This is the likely cause of the
+one unexplained desync seen earlier.
+
+**The browser.** A browser player joined a desktop host's room through the Multiplayer window
+on a local page and agreed with the host on 46 checks; when the host left, the browser played on
+and said so. Cancel in the browser's window did not close its connection, so its room stayed
+open until the page closed: the browser's connection now closes when it is dropped.
+
+Open: a player cannot rejoin a running game. The room code cannot be copied from the window.
+Player guide: [guide/MULTIPLAYER.md](guide/MULTIPLAYER.md).
 
 ### 7. Later: separate towns
 
