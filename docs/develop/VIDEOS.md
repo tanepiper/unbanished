@@ -223,7 +223,9 @@ and reflections of everything. A 1920 × 1080 frame takes about three times as l
 
 `FILTER` changes the colours of every video that `tools/videos.sh` makes, in FFmpeg after the
 game: `sepia`, `grey` or `psychedelic` (the hues turn through the colour wheel). The file name
-gets `-FILTER` at the end, for example `orbit-sepia.webm`.
+gets `-FILTER` at the end, for example `orbit-sepia.webm`. `tools/videos.sh SAVE.sav filters` shows the four looks
+side by side: it takes `orbit.webm` (make it first) and writes `filters.webm`, a 2 × 2 grid with
+each look labelled.
 
 ### 3. Queue one screenshot for each frame
 

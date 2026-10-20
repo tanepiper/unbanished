@@ -10,6 +10,7 @@
 #                                           # the cinematic camera (--camera, --camera-follow)
 #   tools/videos.sh save-game/Save83.sav farmer labourer vendor   # people at work, close up
 #   FILTER=sepia tools/videos.sh SAVE.sav orbit     # also: grey, psychedelic (adds -FILTER to the name)
+#   tools/videos.sh SAVE.sav filters        # orbit.webm (make it first) in all four looks, 2x2
 #
 # SAVE.sav is a town saved without mods; the town videos load it. They were first made from a
 # 116-citizen town in late summer (Save83). With another save, set CLICK=X,Y to a building in the
@@ -318,6 +319,28 @@ for name in "${names[@]}"; do
       "run_$name"
       encode 0 240 "scale=768:432:flags=lanczos" 42 "$name"
       poster "$([[ $name == farmer ]] && echo 60 || echo 120)" "$name"
+      ;;
+    filters)
+      # The orbit video in its four looks side by side: as drawn, sepia, grey and psychedelic
+      # (the FILTER colours above), labelled when FFmpeg has drawtext. Make orbit first.
+      src="$out/orbit.webm"
+      [[ -f $src ]] || { echo "filters: make orbit first ($src)" >&2; exit 1; }
+      label() { echo ""; }
+      if [[ $("$ffmpeg" -hide_banner -filters 2>/dev/null) == *" drawtext "* ]]; then
+        label() {
+          echo ",drawtext=$caption_font:text='$1':fontsize=18:fontcolor=white:x=12:y=h-th-10:shadowcolor=black@0.75:shadowx=2:shadowy=2"
+        }
+      fi
+      "$ffmpeg" -loglevel error -y -i "$src" -filter_complex \
+        "[0]trim=0:7,setpts=PTS-STARTPTS,scale=384:216:flags=lanczos,split=4[a][b][c][d];\
+[a]null$(label 'As drawn')[a2];\
+[b]colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131$(label 'Sepia')[b2];\
+[c]hue=s=0$(label 'Grey')[c2];\
+[d]hue=h=t*180:s=3,eq=contrast=1.25:saturation=1.5$(label 'Psychedelic')[d2];\
+[a2][b2]hstack[top];[c2][d2]hstack[bottom];[top][bottom]vstack,format=yuv420p" \
+        -c:v libvpx-vp9 -b:v 0 -crf 55 -row-mt 1 -an "$out/filters.webm"
+      "$ffmpeg" -loglevel error -y -ss 4 -i "$out/filters.webm" -frames:v 1 "$work/poster.png"
+      cwebp -quiet -q 75 "$work/poster.png" -o "$out/filters-poster.webp"
       ;;
     montage)
       # The home page's video, about 65 s: twelve shots from five saves, joined with 0.6 s
