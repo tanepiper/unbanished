@@ -57,6 +57,36 @@ Rules:
    multiplayer is today).
 4. **The dependency direction is checked**: the core crates never depend on an extension crate.
 
+## Hooks and modes (added 2026-10-20)
+
+The pattern is close to model–view–controller. The **model** is the core simulation
+(`unbanished-sim`): deterministic, changed only by `Command`s. The **controller** is the session
+layer, which decides when commands reach the model (at once in single player, in lockstep turns
+in multiplayer). The **view** is everything that reads the model: the presentation, the probe,
+overlays, a server. Multiplayer changes the game only through that translation layer.
+
+Things that reach into the running game come in two kinds:
+
+- **Observe hooks** run at fixed points of a step (before and after an update, when an event is
+  posted, when a building is finished) and can only read. They cannot change any result, so
+  they are always safe: the probe, metrics, overlays and recording use them. Built in phase X.
+- **Rule hooks** change the game at a fixed point (for example a mod's new resource rule or
+  event). They change results, so they follow the discipline of BanishedKit mods: deterministic,
+  run in a fixed, declared order, listed in the multiplayer `Hello` (every player must run the
+  same set) and recorded in saves. Designed and built in phase G, after the server.
+
+**Modes.** A runtime switch, **Pure Banished**, loads only the core and the original's own mod
+system (BanishedKit `.pkm` mods, which are part of Banished) and turns every extension and rule
+hook off. The **full** mode adds the extensions (multiplayer, the probe, mod sites, the browser
+shell) and, later, rule hooks. One program serves both; Pure Banished is what `compare.sh` and the
+vanilla suite check. The cargo features of phase X remain for builds that leave extensions out
+entirely.
+
+**Documentation.** Every extension point, hook and mode gets plain-English documentation with a
+worked example: what it is for, what it may and may not do, a small complete example, and how to
+test it. These live in docs/develop/ (one page per topic, linked from docs/ARCHITECTURE.md) and
+follow the project's style (short sentences, words that translate well).
+
 ## Target architecture
 
 ```
@@ -174,7 +204,14 @@ tab, overlay, camera override; platform services; headless runner) and move the 
 extensions behind them, each under its cargo feature: `probe` (probe.rs, gameplay/probe.rs,
 `--probe`, web/probe.js), `cinematic` (view/cinematic.rs), `mod-sites` (nexus, banishedinfo,
 mod_browse), `web-shell` (start page manager, exit), `replay`, `multiplayer` (today's code as is,
-reorganised in B). The Multiplayer button becomes a registered menu entry. New check in run.py:
+reorganised in B). The Multiplayer button becomes a registered menu entry. Observe hooks (before and after an
+update, on an event posted, on a building finished) with a test that a hook which reads
+everything leaves the game unchanged (compare.sh with a hook that reads every field). The
+**Pure Banished** switch (a launch option and a setting; the browser start page offers it too),
+with a suite that runs compare.sh between Pure Banished and the vanilla build. Docs:
+docs/develop/EXTENSIONS.md (the extension points, with an example extension),
+docs/develop/HOOKS.md (observe hooks, with an example that counts births), and a section on
+the two modes in the user guide. New check in run.py:
 `cargo build --no-default-features` for native and wasm32, and a `vanilla` suite that runs
 `compare.sh` between the vanilla build and the full build (identical saves and frames). One
 session per extension moved, smallest first (cinematic, probe, mod sites, web shell, replay).
@@ -196,6 +233,14 @@ resynced, the server restarts and the town resumes; all digests agree.
 **E. Server stage 2.** `--simulate WINDATA`: the server as a headless peer and authority.
 `server.sh --simulate`: same scenario, plus a game that advances with one player and the
 server's digests are the reference.
+
+**G. Rule hooks and a mod hook API (after E).** Rule hooks at fixed points of the step,
+deterministic and ordered, declared by the mod that adds them; listed in `Hello` and in saves;
+refused in Pure Banished. A small, versioned API for mods to use them (the language and the
+sandbox, for example WebAssembly plugins, are decided at the start of G). Proof: compare.sh is
+unchanged with no rule hooks; a test mod with one rule hook replays identically and two players
+with it stay in step; a player without it is refused at `Hello` with a readable reason. Docs:
+docs/develop/RULE-HOOKS.md and a mod author's guide, each with a complete example mod.
 
 **F. Docs.** docs/ARCHITECTURE.md (the core, the extension points, the features, the
 dependency rule, and a short "how to add an extension" guide with one worked example);
@@ -226,7 +271,7 @@ CHANGELOG; AGENTS.md map.
 
 ## How it will be built
 
-Each phase (R, A1…A5, X (one per extension), B, C, D, E, F) is one session with a written brief taken from this plan,
+Each phase (R, A1…A5, X (one per extension), B, C, D, E, G, F) is one session with a written brief taken from this plan,
 run one after another (R first, then A; within A in order). Thinking happens here; the
 build sessions follow the plan and stop to ask only if a gate fails for a reason the plan did
 not foresee.
