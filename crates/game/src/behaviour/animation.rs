@@ -431,6 +431,16 @@ pub mod shared {
         ENTRIES.with(|e| e.borrow_mut().clear());
     }
 
+    /// One town's shared instances, kept aside while another town on the same thread runs (a
+    /// lockstep test runs several towns in one process; on separate computers each has its own).
+    #[derive(Default)]
+    pub struct Table(Vec<Option<Entry>>);
+
+    /// Puts `table` in place of this thread's instances, and the thread's in `table`.
+    pub fn swap(table: &mut Table) {
+        ENTRIES.with(|e| std::mem::swap(&mut *e.borrow_mut(), &mut table.0));
+    }
+
     /// `GetInstanceId`: `entry << 8 | instance`.
     pub fn instance_id(group: &AnimationGroup, clip: usize) -> i32 {
         let key = group as *const AnimationGroup as usize;

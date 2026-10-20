@@ -14,6 +14,7 @@ pub(crate) mod commands;
 pub mod digest;
 mod hud;
 mod input;
+pub mod lockstep;
 pub mod recording;
 mod saving;
 mod simulation;
@@ -177,6 +178,14 @@ pub struct GameplayLoop {
     recorder: Option<recording::Recorder>,
     /// The drag tools started so far, by template (`PlayerCommand::Drag` applies them).
     drag_tools: std::collections::BTreeMap<String, RemovalTool>,
+    /// A multiplayer game ([`lockstep`]): the turns, and the turns sealed to send.
+    lockstep: Option<lockstep::Lockstep>,
+    outbox: Vec<lockstep::Turn>,
+    /// The slot carried out last, and the last sealed (lockstep).
+    slot_done: Option<u64>,
+    sealed: Option<u64>,
+    /// The other players' Path tools (a Path tool's pick depends on its last pick).
+    remote_paths: std::collections::BTreeMap<u8, crate::tools::path_tool::PathTool>,
     /// The Save and Load dialog over the pause menu.
     save_dialog: Option<crate::ui::save_dialog::SaveLoadDialog>,
     /// The Mods dialog over the pause menu (id 7).
@@ -350,6 +359,11 @@ impl GameplayLoop {
             replaying: false,
             recorder: None,
             drag_tools: Default::default(),
+            lockstep: None,
+            outbox: Vec::new(),
+            slot_done: None,
+            sealed: None,
+            remote_paths: Default::default(),
             save_dialog: None,
             mods_dialog: None,
             ambience: None,
@@ -631,6 +645,10 @@ impl GameLoop for GameplayLoop {
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
+        // Lockstep: the update waits for every player's turn of the slot before it.
+        if self.lockstep.is_some() && !self.lockstep_slot(ctx) {
+            return Next::Stay;
+        }
         // A recording's digest of the state this update begins with, every few updates.
         if self
             .recorder
@@ -677,9 +695,11 @@ impl GameLoop for GameplayLoop {
             options.update();
         }
         // `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller.
-        let pauses_game = match self.replaying {
-            true => self.menu_paused,
-            false => self.pause_menu.is_some(),
+        // Deviation: in a multiplayer game the pause menu does not hold the shared game.
+        let pauses_game = match (self.replaying, self.lockstep.is_some()) {
+            (true, _) => self.menu_paused,
+            (false, true) => false,
+            (false, false) => self.pause_menu.is_some(),
         };
         if !self.replaying && pauses_game != self.menu_paused {
             self.menu_paused = pauses_game;

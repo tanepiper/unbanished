@@ -132,7 +132,7 @@ saves the same game state and frame as one without recording); the 1,024-citizen
 profession change, 13 digests identical; `tools/compat/replay.sh` records and replays the four
 save scenarios. `compare.sh` against step 1's build: identical.
 
-### 3. Lockstep in one process
+### 3. Lockstep in one process (done)
 
 A multiplayer sink sends each command to be executed at update `N + D` on every computer, where
 `N` is the current update and `D` the input delay (6 updates, 100 ms, to start). An update runs
@@ -144,6 +144,32 @@ not, as window commands do now.
 Test it before any network: two or three `GameplayLoop`s in one process, joined by a simulated
 network with delay, jitter and loss, compared by digest every update. The Banished Multiplayer
 mod tests with several game instances the same way.
+
+Done in `apps/game/src/gameplay/lockstep.rs`. `Lockstep` keeps the turns: a command given while
+`c` updates have begun goes to slot `c + delay`; beginning an update seals the local player's turn
+for the slot `delay` ahead and puts it in the outbox; a slot is carried out, and the next update
+begins, only when every player's turn for it is there (`GameplayLoop::lockstep_slot`, called by
+`update`, which otherwise waits). Commands run by player, then in the order given. Another
+player's Path tool is kept for them; drag tools are kept by template for everybody. In a lockstep
+game the pause menu does not hold the game (a deviation; a replay still honours the recording's
+pauses).
+
+`banished --lockstep-test SAVE RECORDING [PLAYERS] [DELAY] [JITTER] [STALL] [SEED]` loads the save
+once per player in one process, splits the recording's commands between them (whoever starts a
+tool gives its commands; the next tool goes to the next player), and joins them by a simulated
+network: a turn arrives 1 to `1 + JITTER` ticks after it is sent, and each computer is too busy to
+update in STALL % of ticks. Digests every 60 updates must agree. `tools/compat/lockstep.sh`
+records the `actions` scenario and runs six settings.
+
+One thing was shared between towns in one process: the animation manager's instances
+(`behaviour::animation::shared`), one per thread as in the original's one per process, whose
+instance numbers are saved. The test gives each town its own table (`shared::swap`); on separate
+computers each has its own anyway.
+
+Proof: one player with no delay matches the recording's 27 digests (lockstep then carries the
+commands out where a replay does); 2 to 4 players with delays 0 to 10, jitter up to 30 ticks and
+computers busy up to 60% of the time agree on all digests, at most `delay` updates apart.
+`compare.sh` against step 2's build: identical.
 
 ### 4. Desync checks and resync
 

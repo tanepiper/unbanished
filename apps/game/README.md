@@ -151,6 +151,15 @@ banished --boot-capture /tmp/f.png 40 --script "load save-game/Save83.sav@4.5" .
 banished --replay save-game/Save83.sav /tmp/game.rec
 ```
 
+### Lockstep test
+
+`banished --lockstep-test SAVE RECORDING [PLAYERS] [DELAY] [JITTER] [STALL] [SEED]` plays a
+recording's commands, split between PLAYERS (default 3), in lockstep games joined by a simulated
+network: an input delay of DELAY updates (default 6), turns 1 to 1 + JITTER ticks late (default
+8), each computer too busy to update in STALL % of ticks (default 20), the network's random seed
+SEED. It prints `identical` when every player's game agrees, and exits with 1 when not.
+`tools/compat/lockstep.sh BINARY` runs it with six settings on the `actions` scenario.
+
 ### `--sim-digest`
 
 `banished --sim-digest SAVE [UPDATES] [EVERY]` loads a save without a window, runs it at speed

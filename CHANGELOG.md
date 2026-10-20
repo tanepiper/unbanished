@@ -37,6 +37,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
   `banished --replay SAVE FILE` plays it back without a window and checks that the game comes
   out the same. Every player action now goes through one command type, with no change to the
   game (steps 1 and 2 of [docs/MULTIPLAYER-PLAN.md](docs/MULTIPLAYER-PLAN.md)).
+- Lockstep, the core of a future multiplayer game: several players' games stay identical by
+  exchanging only their commands. `banished --lockstep-test` runs players in one process over a
+  simulated network (step 3).
 
 ## [0.2.0] - 2026-10-19
 

@@ -1704,6 +1704,76 @@ mod native {
         }
     }
 
+    /// `--lockstep-test SAVE RECORDING [PLAYERS] [DELAY] [JITTER] [STALL] [SEED]`: plays a
+    /// recording's commands, split between PLAYERS (default 3), in lockstep games joined by a
+    /// simulated network (`gameplay::lockstep::simulate`), and compares their digests. Exits
+    /// with 1 when the players disagree.
+    pub fn lockstep_test(args: &[String]) {
+        let (Some(save), Some(recording)) = (args.get(1), args.get(2)) else {
+            eprintln!("--lockstep-test SAVE RECORDING [PLAYERS] [DELAY] [JITTER] [STALL] [SEED]");
+            std::process::exit(2);
+        };
+        let number =
+            |i: usize, default: u64| args.get(i).and_then(|s| s.parse().ok()).unwrap_or(default);
+        let sim = crate::gameplay::lockstep::Simulation {
+            players: number(3, 3) as u8,
+            delay: number(4, 6),
+            jitter: number(5, 8),
+            stall: number(6, 20),
+            every: 60,
+            seed: number(7, 1),
+        };
+        let bytes = std::fs::read(save).expect("read the save");
+        let text = std::fs::read_to_string(recording).expect("read the recording");
+        let dir = data_dir(args);
+        let found = crate::mods::find(&dir);
+        let mut game = Game::with_mods(
+            read_packages(&dir),
+            found,
+            Some(dir),
+            crate::settings::Settings::default(),
+        )
+        .expect("game data");
+        game.audio.set_master_volume(0.0);
+        let start = std::time::Instant::now();
+        match crate::gameplay::lockstep::simulate(&mut game, &bytes, &text, sim, 0) {
+            Ok(r) => {
+                for d in &r.digests[0] {
+                    println!("{d}");
+                }
+                log::info!("simulated in {:.1} s", start.elapsed().as_secs_f32());
+                println!(
+                    "{sim:?}: {} ticks, players at most {} updates apart",
+                    r.ticks, r.lead
+                );
+                if r.recorded > 0 {
+                    match r.recorded_mismatch {
+                        Some((a, b)) => println!("DIFFERENT from the recording: {a} / {b}"),
+                        None => println!("{} recorded digests matched", r.recorded),
+                    }
+                }
+                match r.mismatch {
+                    Some((p, a, b)) => {
+                        println!("PLAYERS DISAGREE: player {p}");
+                        println!("  player 0 {a}");
+                        println!("  player {p} {b}");
+                        std::process::exit(1);
+                    }
+                    None if r.recorded_mismatch.is_some() => std::process::exit(1),
+                    None => println!(
+                        "identical: {} players agree on {} digests",
+                        sim.players,
+                        r.digests[0].len()
+                    ),
+                }
+            }
+            Err(e) => {
+                eprintln!("--lockstep-test: {e}");
+                std::process::exit(2);
+            }
+        }
+    }
+
     /// The generated-map capture from M5 (`--capture`).
     pub fn map_capture(args: &[String], out: &str) {
         use crate::view::scene::{Camera, SceneCamera, SceneView};
@@ -1789,6 +1859,7 @@ fn main() {
         }
         Some("--sim-digest") => return native::sim_digest(&args),
         Some("--replay") => return native::replay(&args),
+        Some("--lockstep-test") => return native::lockstep_test(&args),
         Some("--capture") => {
             let out = args.get(1).expect("--capture OUT.png [OPTIONS]");
             return native::map_capture(&args, out);
