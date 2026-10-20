@@ -28,6 +28,10 @@ const GUIDE = [
     sections: ['Saves', 'Settings'] },
   { path: '/guide/mods', title: 'Mods', description: 'Use BanishedKit mods, and get them from Nexus Mods if you like.',
     sections: ['Mods'] },
+  // The guide's short Multiplayer section: docs/guide/MULTIPLAYER.md (in PAGES) is written to the
+  // same path afterwards and replaces it, so links to the section open the full page.
+  { path: '/guide/multiplayer', title: 'Multiplayer', description: 'Build one town together.',
+    sections: ['Multiplayer'] },
   { path: '/guide/command-line', title: 'Command line and version', description: 'Command-line options, environment variables and the version number.',
     sections: ['Command-line options', 'Version'] },
   { path: '/guide/troubleshooting', title: 'Troubleshooting', description: 'What to do when something goes wrong, and how to report a difference.',
@@ -40,6 +44,7 @@ const PAGES = {
   'CHANGELOG.md': { path: '/changelog', title: 'Changelog', description: 'Every notable change, by version.' },
   'docs/PROCESS.md': { path: '/about/how-it-was-made', title: 'How it was made', description: 'How Ghidra, REA, an AI agent and a human rebuilt Banished.' },
   'docs/guide/PLAYING.md': { path: '/guide/playing', description: 'The first steps in a new town, with pictures and short videos.' },
+  'docs/guide/MULTIPLAYER.md': { path: '/guide/multiplayer', description: 'Build one town together: the relay, hosting, joining, and what is shared.' },
 
   'docs/develop/README.md': { path: '/develop/', description: 'Where to start as a developer.' },
   'docs/develop/BUILDING.md': { path: '/develop/building', description: 'Build the game, the viewer and the browser version.' },

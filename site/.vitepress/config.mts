@@ -45,6 +45,7 @@ const guideSidebar = [
       { text: 'Controls', link: '/guide/controls' },
       { text: 'Saves and settings', link: '/guide/saves' },
       { text: 'Mods', link: '/guide/mods' },
+      { text: 'Multiplayer', link: '/guide/multiplayer' },
       { text: 'The browser version', link: '/guide/browser' },
       { text: 'Command line and version', link: '/guide/command-line' },
       { text: 'Troubleshooting', link: '/guide/troubleshooting' },

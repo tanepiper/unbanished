@@ -386,26 +386,16 @@ To return to the default settings, delete this file. To use a different settings
 
 ## Multiplayer
 
-Not in the original game. Several players can play one town together. Each player needs their
-own copy of Banished, the same mods, and the same version of Un-Banished.
+Not in the original game. Several players can build one town together, each with their own copy
+of Banished and the same version of Un-Banished and the same mods. One player runs the relay
+(`cargo build -p banished-relay --release`, then `target/release/banished-relay`; port 7780).
+Everybody presses **Multiplayer** in the main menu and enters the relay's address. The host
+presses **Host** and gives the room code to the others, who press **Join**. Then the host presses
+**Start** and chooses a save.
 
-1. One player runs the relay, `banished-relay` (built with the game; `cargo run --release -p
-   banished-relay`). It listens on port 7780. The others must be able to reach that computer.
-2. Everybody opens **Multiplayer** on the main menu and enters the relay's address, for example
-   `ws://192.168.1.20:7780`. The game remembers it.
-3. The host leaves **Room Code** empty and presses **Host**. The window shows a code; give it to
-   the others.
-4. The others type the code and press **Join**.
-5. When everybody is in, the host presses **Start** and chooses a save. Everybody loads it and
-   the game begins.
-
-Every player can build, give orders, change the speed and pause; all of it applies to everybody.
-The pause menu does not stop the others. If the games ever differ, everybody reloads the host's
-game and goes on. A line at the foot of the screen shows which player you are, and says when the
-game waits for another player; you can still move the camera and use the windows meanwhile. If a
-player leaves, the others play on without them. If the host leaves, the game goes on, but the
-games are no longer compared. AutoSlow is always on in a multiplayer game. The game is not
-autosaved; the host can save it.
+[Multiplayer](guide/MULTIPLAYER.md) explains every step with pictures: the relay on a home
+network or the internet, what is shared, what happens when a player leaves, the browser, and
+what to do when something goes wrong.
 
 ## Mods
 
