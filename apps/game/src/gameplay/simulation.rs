@@ -1,142 +1,41 @@
-//! One simulation iteration and what follows it: commands, the town's update, decals, particles, weather, achievements and the event log.
+//! What follows each simulation iteration in the game app: its sounds and terrain changes,
+//! decals, particles, weather, achievements and the event log.
 
 use super::*;
 
 impl GameplayLoop {
-    /// `floor(elapsed / 3600 × 12)`.
+    /// The month (see `Simulation::month`).
     pub(super) fn month(&self) -> usize {
-        ((self.calendar.seconds() / YEAR_SECONDS * MONTHS_PER_YEAR as f32) as usize)
-            .min(MONTHS_PER_YEAR - 1)
+        self.sim.month()
     }
 
-    /// Applies the town's queued player commands and placed sites, with the calendar and
-    /// weather they read.
+    /// Applies the town's queued player commands and placed sites (see
+    /// `Simulation::apply_commands`).
     pub(super) fn apply_commands(&mut self) {
-        let (Some(town), Some(heights)) = (&mut self.town, &self.heights) else {
-            return;
-        };
-        let grid = heights.grid();
-        // The crop fields read the calendar (`Game +0x128`).
-        town.construction.calendar = self.calendar.seconds();
-        town.construction.year = self.calendar.year;
-        // Fire spreads less in rain (environment `+0x10`).
-        town.construction.precipitation = self.environment.as_ref().is_some_and(|e| e.state == 0);
-        town.apply_commands(&grid, &mut self.rng);
+        self.sim.apply_commands();
     }
 
-    /// Port of FUN_14009b850: entity scheduler, integer calendar, then environment.
-    /// Growth reads the prior environment temperature; weather draws follow entity callbacks.
-    /// Returns whether spawning/removal changed the model instances.
+    /// One simulation iteration (`Simulation::iterate`), then what it changed for drawing and
+    /// sound: its 3D effects wait for the next audio update, and the scene view's terrain
+    /// follows new heights. Returns whether spawning or removal changed the model instances.
     pub(super) fn iterate(&mut self, archive: &unbanished_formats::pkg::Archive, dt: f32) -> bool {
-        let mut models_changed = false;
-        // Player commands and placed sites take effect between iterations.
-        self.apply_commands();
-        if let (Some(town), Some(heights)) = (&mut self.town, &self.heights) {
-            let grid = heights.grid();
-            let temperature = self.environment.as_ref().map_or(0.0, |e| e.temperature);
-            let changed = {
-                let _p = crate::platform::perf::scope("sim.town");
-                town.iterate(&grid, &mut self.rng, dt, temperature)
-            };
-            // AnimationManager::Update runs inside the same iteration (FUN_14009b850).
-            let stock = std::array::from_fn(|i| {
-                (self.stock_warnings.count[i], self.stock_warnings.limits[i])
-            });
-            let changed = {
-                let _p = crate::platform::perf::scope("sim.citizens");
-                town.update_citizens(&grid, &mut self.rng, dt, temperature, stock)
-            } | changed;
-            // AnimAudioEvents that passed their draw: `PlayEffect3D(effect, 4)` at the entity.
-            for (entity, effect) in town.animation_events.drain(..) {
-                let p = town.placed[entity].position;
-                self.pending_sounds
-                    .push((glam::Vec3::new(p[0], p[1], p[2]), effect));
-            }
-            models_changed = changed;
+        let step = self.sim.iterate(archive, dt);
+        for (p, effect) in step.sounds {
+            self.pending_sounds.push((glam::Vec3::from(p), effect));
         }
-        // The tunnels' terraforming and the flattening under stamped footprints and roads, on
-        // the terrain the town reads (`FUN_140057c70`, `FUN_1400a35b0`).
-        if let (Some(town), Some(heights)) = (&mut self.town, &mut self.heights) {
-            let c = &town.construction;
-            if !c.terraform_requests.is_empty() || !c.flatten_requests.is_empty() {
-                let width = heights.width();
-                if town.apply_terraforms(&mut heights.values, width) {
-                    // The scene view draws the new heights: its mesh follows.
-                    if let Some(view) = &mut self.view {
-                        view.terrain.heights.clone_from(&heights.values);
-                        view.terrain.reshaped();
-                    }
-                }
+        if step.reshaped {
+            if let (Some(view), Some(heights)) = (&mut self.view, &self.sim.heights) {
+                view.terrain.heights.clone_from(&heights.values);
+                view.terrain.reshaped();
             }
         }
-        self.calendar.advance(ticks(dt));
-        let mut tornado = false;
-        if let Some(env) = &mut self.environment {
-            tornado = env.update(self.calendar.seconds(), dt, &mut self.rng);
-        }
-        // `FUN_1400999b0` step 6: the environment template's entity.
-        if tornado {
-            if let (Some(town), Some(heights), Some(reference)) = (
-                &mut self.town,
-                &self.heights,
-                self.environment_template.as_deref(),
-            ) {
-                let grid = heights.grid();
-                town.spawn_tornado(archive, reference, &grid, &mut self.rng);
-                models_changed = true;
-            }
-        }
-        // `FUN_140091780`: recompute stock (`FUN_14008f3a0`), then its warnings
-        // (`FUN_1400915d0`, posted through `FUN_14009aa50` at severity 3).
-        if let Some(town) = &mut self.town {
-            self.stock_warnings
-                .recompute(&town.registered_storages(), &town.materials);
-            // StockManager::Update's commute optimisation (every 300 s).
-            if let Some(heights) = &self.heights {
-                let grid = heights.grid();
-                town.update_commute(&grid, &mut self.rng, dt);
-            }
-            // The job manager's pass and clock (`FUN_14009b850`, after the stock update).
-            town.construction.jobs.step(ticks(dt));
-            // `FUN_14008fc00` every 75 s: the citizens and every stock slot.
-            let life = &town.agents.life;
-            let samples: Vec<unbanished_game::work::tracker::CitizenSample> = town
-                .citizens
-                .iter()
-                .zip(&town.agents.states)
-                .filter(|(c, _)| c.alive)
-                .map(|(c, s)| unbanished_game::work::tracker::CitizenSample {
-                    adult: life.adult_age() <= c.age,
-                    school: s.school.is_some(),
-                    health: s.health,
-                    happiness: s.happiness,
-                    educated: life.i(0x118) <= c.education,
-                    coat: s.clothing != 0,
-                })
-                .collect();
-            let (health_max, happiness_max) = (life.f(0x70), life.f(0xa4));
-            self.statistics.update(
-                ticks(dt),
-                &samples,
-                health_max,
-                happiness_max,
-                &self.stock_warnings.count,
-                &mut town.construction.counters,
-            );
-            let (month, year) = (self.month(), self.calendar.year as i32);
-            for kind in self.stock_warnings.check(ticks(dt)) {
-                // AutoSlow is applied once the frame's events are in (`slow_request`).
-                self.events
-                    .add(kind, 3, -1, month, year, Default::default(), true);
-            }
-        }
-        models_changed
+        step.models_changed
     }
 
     /// The map's decals when what they are built from changed: the entities' (`+0x1f0`,
     /// `FUN_1400b2310`), then the roads' (`FUN_1400b4840`).
     pub(super) fn refresh_decals(&mut self, archive: &unbanished_formats::pkg::Archive) {
-        let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) else {
+        let (Some(town), Some(view)) = (self.sim.town.as_ref(), self.view.as_mut()) else {
             return;
         };
         // Templates are added as they are first placed.
@@ -192,6 +91,7 @@ impl GameplayLoop {
         }
         self.decals_built = Some(key);
         let grid = self
+            .sim
             .heights
             .as_ref()
             .expect("the heights come with the view")
@@ -238,10 +138,11 @@ impl GameplayLoop {
         archive: &unbanished_formats::pkg::Archive,
         dt: f32,
     ) {
-        let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) else {
+        let (Some(town), Some(view)) = (self.sim.town.as_ref(), self.view.as_mut()) else {
             return;
         };
         let grid = self
+            .sim
             .heights
             .as_ref()
             .expect("the heights come with the view")
@@ -263,7 +164,7 @@ impl GameplayLoop {
     /// its effect's intensity, none with ShowWeather off (`FUN_1400999b0`).
     pub(super) fn refresh_weather(&mut self, ctx: &mut Ctx, dt: f32) {
         let show = ctx.settings.game.show_weather;
-        let (Some(view), Some(env)) = (self.view.as_mut(), self.environment.as_ref()) else {
+        let (Some(view), Some(env)) = (self.view.as_mut(), self.sim.environment.as_ref()) else {
             return;
         };
         view.weather.clear();
@@ -300,14 +201,14 @@ impl GameplayLoop {
         if 0 < ctx.archive.user_packs {
             return;
         }
-        let Some(town) = &self.town else { return };
+        let Some(town) = &self.sim.town else { return };
         // The TerrainGenerator's resource is named for the terrain.
         let terrain = format!(r"Game\Terrain\{}.rsc", self.params.terrain);
         let x = crate::achievements::GoalContext {
             town,
-            statistics: &self.statistics,
-            year: self.calendar.year,
-            year_seconds: self.calendar.seconds(),
+            statistics: &self.sim.statistics,
+            year: self.sim.calendar.year,
+            year_seconds: self.sim.calendar.seconds(),
             terrain: &terrain,
             climate: &self.params.climate_ref,
             size: self.params.size as i32,
@@ -322,8 +223,8 @@ impl GameplayLoop {
                 .persistence
                 .set_bool("Achievement", &a.title, true);
             ctx.settings.persistence.write();
-            let (month, year) = (self.month(), self.calendar.year as i32);
-            self.events.add(
+            let (month, year) = (self.month(), self.sim.calendar.year as i32);
+            self.sim.events.add(
                 0x19,
                 4,
                 -1,
@@ -339,8 +240,10 @@ impl GameplayLoop {
     /// log with `@2` the citizen's name, `@3` its role (profession, child or student) and `@4`
     /// the disease's or accident's name.
     pub(super) fn log_life_events(&mut self, ctx: &mut Ctx) {
-        let (month, year) = (self.month(), self.calendar.year as i32);
-        let Some(town) = &mut self.town else { return };
+        let (month, year) = (self.month(), self.sim.calendar.year as i32);
+        let Some(town) = &mut self.sim.town else {
+            return;
+        };
         let events = std::mem::take(&mut town.agents.events);
         if events.is_empty() {
             return;
@@ -374,7 +277,7 @@ impl GameplayLoop {
                 .map(|(t, k)| ctx.ui.res.string(t.as_deref(), &k))
                 .unwrap_or_default();
             let auto_slow = ctx.settings.game.auto_slow;
-            self.events.add(
+            self.sim.events.add(
                 e.kind,
                 e.severity,
                 -1,
@@ -389,8 +292,10 @@ impl GameplayLoop {
     /// The sites' events (`FUN_14009a2d0` with the entity): `@2` its toolbar name, at its
     /// map-rectangle centre cell (`FUN_14009a500`).
     pub(super) fn log_site_events(&mut self, ctx: &mut Ctx) {
-        let (month, year) = (self.month(), self.calendar.year as i32);
-        let Some(town) = &mut self.town else { return };
+        let (month, year) = (self.month(), self.sim.calendar.year as i32);
+        let Some(town) = &mut self.sim.town else {
+            return;
+        };
         let events = std::mem::take(&mut town.construction.site_events);
         for (kind, severity, e) in events {
             let Some(p) = town.placed.get(e) else {
@@ -408,7 +313,7 @@ impl GameplayLoop {
             let n = town.cells.size as i32;
             let cell = (p.cell.1 + (p.footprint.1 >> 1)) * n + p.cell.0 + (p.footprint.0 >> 1);
             let auto_slow = ctx.settings.game.auto_slow;
-            self.events.add(
+            self.sim.events.add(
                 kind,
                 severity,
                 cell,

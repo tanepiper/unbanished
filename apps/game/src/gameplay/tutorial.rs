@@ -306,7 +306,7 @@ impl GameplayLoop {
                 out.push((root, root));
             }
         }
-        let town = self.town.as_ref();
+        let town = self.sim.town.as_ref();
         for w in &self.entities.open {
             if let (Some(t), Some(town)) = (template, town) {
                 let name = w.entity.template(town).to_ascii_lowercase();
@@ -348,7 +348,7 @@ impl GameplayLoop {
             ctx.archive,
             &window,
             (x.max(0), 0),
-            self.town.as_ref().map_or(0, |t| t.cells.size as u32),
+            self.sim.town.as_ref().map_or(0, |t| t.cells.size as u32),
         );
         let Some(root) = root else { return };
         let f = |n: &str| ctx.ui.find(root, n);
@@ -600,7 +600,7 @@ impl GameplayLoop {
             self.tutorial_element(ctx.ui, point).map(Target::Element)
         } else if !component.is_empty() {
             // The `index`th entity of the template (stock manager `+0x160`).
-            self.town.as_ref().and_then(|town| {
+            self.sim.town.as_ref().and_then(|town| {
                 (0..town.placed.len())
                     .filter(|&e| {
                         town.placed[e].alive
@@ -716,7 +716,7 @@ impl GameplayLoop {
 
     /// An entity's position on the screen (`FUN_140105850`).
     fn screen_point(&self, screen: [i32; 2], e: usize) -> Option<(f32, f32)> {
-        let (town, view) = (self.town.as_ref()?, self.view.as_ref()?);
+        let (town, view) = (self.sim.town.as_ref()?, self.view.as_ref()?);
         if screen[0] <= 0 || screen[1] <= 0 {
             return None;
         }
@@ -734,7 +734,7 @@ impl GameplayLoop {
 
     /// The camera to the middle of the cells.
     fn focus_cells(&mut self, x0: i32, y0: i32, x1: i32, y1: i32) {
-        let Some(town) = &self.town else { return };
+        let Some(town) = &self.sim.town else { return };
         if x0 < 0 || y0 < 0 {
             return;
         }
@@ -783,7 +783,9 @@ impl GameplayLoop {
                     return false;
                 };
                 let id = class_id(class);
-                let Some(town) = &self.town else { return false };
+                let Some(town) = &self.sim.town else {
+                    return false;
+                };
                 self.entities.open.iter().any(|w| {
                     w.controllers.iter().any(|(c, _)| c.type_id == id)
                         && (component.is_empty()
@@ -797,7 +799,7 @@ impl GameplayLoop {
 
     /// `FUN_1400e4760`'s counts.
     fn goal_count(&self, ui: &Ui, _archive: &Archive, kind: i32, r: &str, path: &str) -> i32 {
-        let Some(town) = &self.town else { return 0 };
+        let Some(town) = &self.sim.town else { return 0 };
         let of_template =
             |e: usize| file(&town.templates[town.placed[e].template].reference) == file(r);
         let profession = || {
@@ -1054,10 +1056,10 @@ impl GameplayLoop {
         });
         if let Some(def) = tutorial.and_then(|t| load(ctx.archive, &t)) {
             // `Game +0xd0 |= 0x5f0`: no disasters, no saving.
-            if let Some(town) = &mut self.town {
+            if let Some(town) = &mut self.sim.town {
                 town.construction.game_flags |= 0x5f0;
             }
-            if let Some(env) = &mut self.environment {
+            if let Some(env) = &mut self.sim.environment {
                 env.game_flags |= 0x5f0;
             }
             self.start_tutorial(ctx, def);
@@ -1069,16 +1071,16 @@ impl GameplayLoop {
     pub(super) fn update_goal(&mut self, ctx: &mut Ctx, dt: f32, sim_dt: i64) {
         self.update_tutorial(ctx, dt);
         let done = self.tutorial.as_ref().is_some_and(|t| t.done());
-        let Some(town) = &self.town else { return };
+        let Some(town) = &self.sim.town else { return };
         let Some(goal) = self.goal.as_mut().filter(|g| !g.done) else {
             return;
         };
         let terrain = format!(r"Game\Terrain\{}.rsc", self.params.terrain);
         let x = crate::achievements::GoalContext {
             town,
-            statistics: &self.statistics,
-            year: self.calendar.year,
-            year_seconds: self.calendar.seconds(),
+            statistics: &self.sim.statistics,
+            year: self.sim.calendar.year,
+            year_seconds: self.sim.calendar.seconds(),
             terrain: &terrain,
             climate: &self.params.climate_ref,
             size: self.params.size as i32,
@@ -1093,8 +1095,8 @@ impl GameplayLoop {
         let d = &goal.achievement.desc;
         let title = ctx.ui.res.string(d.strings.as_deref(), &d.title);
         let kind = if met { 0x1a } else { 0x1b };
-        let (month, year) = (self.month(), self.calendar.year as i32);
-        self.events.add(
+        let (month, year) = (self.month(), self.sim.calendar.year as i32);
+        self.sim.events.add(
             kind,
             4,
             -1,

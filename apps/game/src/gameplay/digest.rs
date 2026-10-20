@@ -81,11 +81,11 @@ impl super::GameplayLoop {
             }
         }
         let state = state.encode().map_err(|e| e.to_string())?;
-        let town = self.town.as_ref().ok_or("no town")?;
+        let town = self.sim.town.as_ref().ok_or("no town")?;
         Ok(Digest {
             update,
-            year: self.calendar.year,
-            elapsed: self.calendar.elapsed,
+            year: self.sim.calendar.year,
+            elapsed: self.sim.calendar.elapsed,
             citizens: town.citizens.iter().filter(|c| c.alive).count(),
             crc: unbanished_formats::crc::crc32(state),
         })

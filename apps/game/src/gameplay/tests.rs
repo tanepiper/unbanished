@@ -33,7 +33,7 @@ fn selection_host_and_highlight_leave_simulation_unchanged() {
     let Some((mut game, mut gameplay)) = generated() else {
         return;
     };
-    let town = gameplay.town.as_ref().unwrap();
+    let town = gameplay.sim.town.as_ref().unwrap();
     let id = town
         .storage_sites
         .iter()
@@ -47,14 +47,14 @@ fn selection_host_and_highlight_leave_simulation_unchanged() {
     let position = glam::Vec3::from(town.placed[id].position);
     let origin = position + glam::Vec3::new(0., -12., 10.);
     let direction = (position + glam::Vec3::Z - origin).normalize();
-    let rng = gameplay.rng.clone();
-    let time = gameplay.calendar.elapsed;
+    let rng = gameplay.sim.rng.clone();
+    let time = gameplay.sim.calendar.elapsed;
     let before = format!(
         "{:?}{:?}{:?}",
         town.citizens, town.agents.states, town.storages
     );
     game.with_ctx(|_, ctx| {
-        let town = gameplay.town.as_ref().unwrap();
+        let town = gameplay.sim.town.as_ref().unwrap();
         assert_eq!(
             gameplay
                 .selection
@@ -105,9 +105,9 @@ fn selection_host_and_highlight_leave_simulation_unchanged() {
             );
         }
     });
-    let town = gameplay.town.as_ref().unwrap();
-    assert_eq!(rng, gameplay.rng);
-    assert_eq!(time, gameplay.calendar.elapsed);
+    let town = gameplay.sim.town.as_ref().unwrap();
+    assert_eq!(rng, gameplay.sim.rng);
+    assert_eq!(time, gameplay.sim.calendar.elapsed);
     assert_eq!(
         before,
         format!(
@@ -130,10 +130,10 @@ fn town_hall_window_reads_the_town() {
         }
         let root = ctx.ui.instantiate("Dialog\\TownHall.rsc:tabs").unwrap();
         let mut th = crate::ui::town_hall_ui::TownHallUi::bind(ctx.ui, ctx.archive, root);
-        let town = gameplay.town.as_ref().unwrap();
+        let town = gameplay.sim.town.as_ref().unwrap();
         let x = crate::ui::town_hall_ui::TownContext {
-            stock_counts: &gameplay.stock_warnings.count,
-            statistics: &gameplay.statistics,
+            stock_counts: &gameplay.sim.stock_warnings.count,
+            statistics: &gameplay.sim.statistics,
         };
         th.refresh(ctx.ui, ctx.archive, town, &x);
         let text = |name: &str| {
@@ -148,8 +148,11 @@ fn town_hall_window_reads_the_town() {
         };
         let alive = town.citizens.iter().filter(|c| c.alive).count();
         assert_eq!(text("numberCitizens"), alive.to_string());
-        assert!(!gameplay.statistics.series[0].is_empty(), "no sample yet");
-        assert_eq!(gameplay.statistics.series[0][0], alive as i32);
+        assert!(
+            !gameplay.sim.statistics.series[0].is_empty(),
+            "no sample yet"
+        );
+        assert_eq!(gameplay.sim.statistics.series[0][0], alive as i32);
     });
 }
 
@@ -168,7 +171,7 @@ fn trade_window_exchanges_with_the_merchant() {
         heights: &heights,
     };
     let id = game.with_ctx(|_, ctx| {
-        let town = gameplay.town.as_mut().unwrap();
+        let town = gameplay.sim.town.as_mut().unwrap();
         let mut rng = unbanished_game::random::Random::new(7);
         let mut tool = crate::tools::placement_tool::PlacementTool::start(
             ctx.archive,
@@ -199,7 +202,7 @@ fn trade_window_exchanges_with_the_merchant() {
         tool.hover(town, &terrain, Some(at), r);
         tool.place(ctx.archive, town, r).unwrap()
     });
-    let town = gameplay.town.as_mut().unwrap();
+    let town = gameplay.sim.town.as_mut().unwrap();
     // The next iteration activates the post (its TradeComponent).
     let mut rng = unbanished_game::random::Random::new(7);
     town.apply_commands(&terrain, &mut rng);
@@ -251,7 +254,7 @@ fn trade_window_exchanges_with_the_merchant() {
     ];
     town.storages[storage].add(logs, 30);
     game.with_ctx(|_, ctx| {
-        let town = gameplay.town.as_ref().unwrap();
+        let town = gameplay.sim.town.as_ref().unwrap();
         gameplay.entities.select(
             ctx.ui,
             gameplay.screen.as_mut().unwrap(),
@@ -295,7 +298,7 @@ fn trade_window_exchanges_with_the_merchant() {
                 buy: vec![(food, 4), (livestock, 2)],
             }
         );
-        let town = gameplay.town.as_mut().unwrap();
+        let town = gameplay.sim.town.as_mut().unwrap();
         let unassigned = town.wildlife.unassigned.len();
         town.construction.commands.push(c);
         let mut rng = unbanished_game::random::Random::new(7);
@@ -318,7 +321,7 @@ fn trade_window_exchanges_with_the_merchant() {
             0
         );
         // The window's amounts go back to none.
-        let town = gameplay.town.as_ref().unwrap();
+        let town = gameplay.sim.town.as_ref().unwrap();
         gameplay.entities.refresh(ctx.ui, ctx.archive, town);
         let left: Vec<_> = (0..ctx.ui.nodes.len())
             .filter(|&n| ctx.ui.descendant(root, n) && ctx.ui.node(n).name == "spinnerItemCount")
@@ -342,7 +345,7 @@ fn crop_window_lists_the_known_crops() {
         heights: &heights,
     };
     let id = game.with_ctx(|_, ctx| {
-        let town = gameplay.town.as_mut().unwrap();
+        let town = gameplay.sim.town.as_mut().unwrap();
         let n = town.cells.size as i32;
         let empty = |town: &crate::start::StartingTown, x: i32, y: i32| {
             (y..y + 6).all(|cy| {
@@ -371,7 +374,7 @@ fn crop_window_lists_the_known_crops() {
         )
         .expect("the field was not placed")
     });
-    let town = gameplay.town.as_mut().unwrap();
+    let town = gameplay.sim.town.as_mut().unwrap();
     let mut rng = unbanished_game::random::Random::new(7);
     town.apply_commands(&terrain, &mut rng);
     town.iterate(&terrain, &mut rng, 1.0 / 30.0, 50.0);
@@ -386,7 +389,7 @@ fn crop_window_lists_the_known_crops() {
         .collect();
     assert!(!crops.is_empty());
     game.with_ctx(|_, ctx| {
-        let town = gameplay.town.as_ref().unwrap();
+        let town = gameplay.sim.town.as_ref().unwrap();
         gameplay.entities.select(
             ctx.ui,
             gameplay.screen.as_mut().unwrap(),
@@ -481,7 +484,7 @@ fn windows_drag_by_their_title() {
             .title_at(ctx.ui, press.0 + 100, press.1 + 50)
             .is_some());
         // An entity window pins itself once dragged more than 5 pixels.
-        let town = gameplay.town.as_ref().unwrap();
+        let town = gameplay.sim.town.as_ref().unwrap();
         let barn = town.storage_sites[0].entity;
         gameplay.entities.select(
             ctx.ui,
@@ -571,12 +574,12 @@ fn achievements_read_the_town() {
     game.with_ctx(|_, ctx| {
         let list = crate::achievements::load(ctx.archive);
         assert_eq!(list.len(), 36);
-        let town = gameplay.town.as_ref().unwrap();
+        let town = gameplay.sim.town.as_ref().unwrap();
         let terrain = format!(r"Game\Terrain\{}.rsc", gameplay.params.terrain);
         let x = crate::achievements::GoalContext {
             town,
-            statistics: &gameplay.statistics,
-            year: gameplay.calendar.year,
+            statistics: &gameplay.sim.statistics,
+            year: gameplay.sim.calendar.year,
             year_seconds: 0.0,
             terrain: &terrain,
             climate: &gameplay.params.climate_ref,
@@ -699,7 +702,7 @@ fn the_placement_overlay_shows_validity_and_the_entrance() {
         return;
     };
     game.with_ctx(|_, ctx| {
-        let town = gameplay.town.as_mut().unwrap();
+        let town = gameplay.sim.town.as_mut().unwrap();
         let view = gameplay.view.as_ref().unwrap();
         let grid = unbanished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
@@ -709,7 +712,7 @@ fn the_placement_overlay_shows_validity_and_the_entrance() {
             ctx.archive,
             town,
             "Template\\WoodHouse.rsc:resource",
-            &mut gameplay.rng,
+            &mut gameplay.sim.rng,
         )
         .unwrap();
         let barn = town
@@ -766,9 +769,9 @@ fn work_radii_show_while_placing_and_selected() {
         };
         let base = count(&mut gameplay, ctx);
         assert!(gameplay.script(ctx, "tool Template/ForesterLodge.rsc"));
-        let start = gameplay.town.as_ref().unwrap().start;
+        let start = gameplay.sim.town.as_ref().unwrap().start;
         {
-            let town = gameplay.town.as_ref().unwrap();
+            let town = gameplay.sim.town.as_ref().unwrap();
             let view = gameplay.view.as_ref().unwrap();
             let grid = unbanished_game::terrain::HeightGrid {
                 width: view.terrain.size + 1,
@@ -800,7 +803,7 @@ fn follow_keeps_the_camera_on_the_citizen() {
         let entity = Entity::Citizen(0);
         {
             let (town, screen) = (
-                gameplay.town.as_ref().unwrap(),
+                gameplay.sim.town.as_ref().unwrap(),
                 gameplay.screen.as_mut().unwrap(),
             );
             gameplay
@@ -814,12 +817,12 @@ fn follow_keeps_the_camera_on_the_citizen() {
         for _ in 0..30 {
             gameplay.update(ctx, 1.0 / 30.0);
         }
-        let at = gameplay.town.as_ref().unwrap().citizens[0].position;
+        let at = gameplay.sim.town.as_ref().unwrap().citizens[0].position;
         let SceneCamera::Map(camera) = &gameplay.view.as_ref().unwrap().camera else {
             panic!("no map camera");
         };
         assert!((camera.target - glam::Vec2::new(at[0], at[1])).length() < 1e-3);
-        let name = gameplay.town.as_ref().unwrap().citizens[0].name.clone();
+        let name = gameplay.sim.town.as_ref().unwrap().citizens[0].name.clone();
         let screen = gameplay.screen.as_ref().unwrap();
         let shown = screen
             .dialogs
@@ -845,7 +848,7 @@ fn window_commands_apply_while_paused() {
         return;
     };
     game.with_ctx(|_, ctx| {
-        let town = gameplay.town.as_mut().unwrap();
+        let town = gameplay.sim.town.as_mut().unwrap();
         let view = gameplay.view.as_ref().unwrap();
         let grid = unbanished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
@@ -855,7 +858,7 @@ fn window_commands_apply_while_paused() {
             ctx.archive,
             town,
             "Template/ForesterLodge.rsc",
-            &mut gameplay.rng,
+            &mut gameplay.sim.rng,
         )
         .unwrap();
         let near = town.start;
@@ -864,7 +867,7 @@ fn window_commands_apply_while_paused() {
         gameplay.update(ctx, 1.0 / 30.0);
         gameplay.paused = true;
         let (town, screen) = (
-            gameplay.town.as_ref().unwrap(),
+            gameplay.sim.town.as_ref().unwrap(),
             gameplay.screen.as_mut().unwrap(),
         );
         gameplay
@@ -878,12 +881,15 @@ fn window_commands_apply_while_paused() {
         let down = ctx.ui.find(root, "jobCountDown").unwrap();
         let button = if ctx.ui.node(up).enabled { up } else { down };
         assert!(ctx.ui.node(button).enabled, "neither job button is enabled");
-        let time = gameplay.calendar.elapsed;
+        let time = gameplay.sim.calendar.elapsed;
         gameplay.event(ctx, Event::Clicked(button));
-        let town = gameplay.town.as_ref().unwrap();
+        let town = gameplay.sim.town.as_ref().unwrap();
         assert!(town.construction.commands.is_empty());
         gameplay.update(ctx, 1.0 / 30.0);
-        assert_eq!(gameplay.calendar.elapsed, time, "the game ran while paused");
+        assert_eq!(
+            gameplay.sim.calendar.elapsed, time,
+            "the game ran while paused"
+        );
         let now = crate::ui::utility::text_of(ctx.ui, count);
         assert_ne!(now, shown, "the window still shows the old most workers");
     });
@@ -907,7 +913,7 @@ fn the_path_tool_shows_commutes() {
         gameplay.startup(ctx);
         gameplay.start_tool(ctx, "Template\\UtilityPath.rsc:resource");
         assert!(gameplay.path_tool.is_some());
-        let town = gameplay.town.as_mut().unwrap();
+        let town = gameplay.sim.town.as_mut().unwrap();
         let c = town
             .agents
             .states
@@ -916,13 +922,13 @@ fn the_path_tool_shows_commutes() {
             .expect("a commuter in Save83");
         let workplace = town.agents.states[c].workplace.unwrap();
         let tool = gameplay.path_tool.as_mut().unwrap();
-        tool.pick(town, &mut gameplay.rng, Entity::Citizen(c));
+        tool.pick(town, &mut gameplay.sim.rng, Entity::Citizen(c));
         let (lines, cells) = tool.overlay(town.cells.size as i32);
         assert!(cells.len() >= 2, "{}", cells.len());
         assert!(!lines.is_empty());
         assert!(cells.iter().all(|c| c.frame == 4 && c.argb == 0xfffc_cc4c));
         // The workplace: every worker's commute, at least as many cells.
-        tool.pick(town, &mut gameplay.rng, Entity::Placed(workplace));
+        tool.pick(town, &mut gameplay.sim.rng, Entity::Placed(workplace));
         let (_, all) = tool.overlay(town.cells.size as i32);
         assert!(all.len() >= cells.len());
         gameplay.raw(ctx, RawInput::Escape);
@@ -947,7 +953,7 @@ fn crop_choices_have_icons() {
         gameplay.load(ctx);
         gameplay.startup(ctx);
         let field = {
-            let town = gameplay.town.as_ref().unwrap();
+            let town = gameplay.sim.town.as_ref().unwrap();
             town.placed
                 .iter()
                 .position(|p| p.alive && town.templates[p.template].reference.contains("CropField"))
@@ -955,7 +961,7 @@ fn crop_choices_have_icons() {
         };
         {
             let (town, screen) = (
-                gameplay.town.as_ref().unwrap(),
+                gameplay.sim.town.as_ref().unwrap(),
                 gameplay.screen.as_mut().unwrap(),
             );
             gameplay
@@ -1000,11 +1006,11 @@ fn the_limits_window_sets_the_stock_limits() {
             .map(|&s| crate::ui::building_ui::spinner_value(ctx.ui, s).unwrap())
             .collect();
         for v in &shown {
-            assert!(gameplay.stock_warnings.limits.contains(v), "{shown:?}");
+            assert!(gameplay.sim.stock_warnings.limits.contains(v), "{shown:?}");
         }
         crate::ui::building_ui::set_spinner(ctx.ui, spinners[0], 345);
         gameplay.event(ctx, Event::Changed(spinners[0]));
-        assert!(gameplay.stock_warnings.limits.contains(&345));
+        assert!(gameplay.sim.stock_warnings.limits.contains(&345));
     });
 }
 
@@ -1015,7 +1021,7 @@ fn start_structures_stamp_their_cells() {
     let Some((_, gameplay)) = generated() else {
         return;
     };
-    let town = gameplay.town.as_ref().unwrap();
+    let town = gameplay.sim.town.as_ref().unwrap();
     let n = town.cells.size;
     let mut checked = 0;
     for (e, p) in town.placed.iter().enumerate() {
@@ -1059,7 +1065,7 @@ fn roads_get_decals() {
             e.decals.iter().map(|d| d.vertices.len() / 20).sum()
         };
         let before = count(&gameplay);
-        let town = gameplay.town.as_mut().unwrap();
+        let town = gameplay.sim.town.as_mut().unwrap();
         let n = town.cells.size as i32;
         let (x, y) = (town.start.0 as i32, town.start.1 as i32 + 12);
         for dx in 0..6 {
@@ -1073,7 +1079,7 @@ fn roads_get_decals() {
             );
         }
         gameplay.update(ctx, 1.0 / 30.0);
-        let town = gameplay.town.as_ref().unwrap();
+        let town = gameplay.sim.town.as_ref().unwrap();
         let planned = (0..6)
             .filter(|dx| town.cells.road_kind[(y * n + x + dx) as usize] == 1)
             .count();
@@ -1091,7 +1097,7 @@ fn burning_buildings_get_particles() {
     };
     game.with_ctx(|_, ctx| {
         gameplay.update(ctx, 1.0 / 30.0);
-        let town = gameplay.town.as_mut().unwrap();
+        let town = gameplay.sim.town.as_mut().unwrap();
         let barn = town
             .storage_sites
             .iter()
@@ -1111,7 +1117,7 @@ fn burning_buildings_get_particles() {
                 .any(|b| b.material.contains("Fire"))
         };
         assert!(!fire(&gameplay));
-        let town = gameplay.town.as_mut().unwrap();
+        let town = gameplay.sim.town.as_mut().unwrap();
         town.construction
             .sites
             .get_mut(&barn)
@@ -1127,7 +1133,7 @@ fn burning_buildings_get_particles() {
         // Its FireDescription's emitter slot plays at the building.
         let (_, playing) = ctx.audio.scene.active();
         assert!(0 < playing);
-        let town = gameplay.town.as_mut().unwrap();
+        let town = gameplay.sim.town.as_mut().unwrap();
         town.construction
             .sites
             .get_mut(&barn)
@@ -1153,7 +1159,7 @@ fn starting_buildings_get_decals() {
     };
     game.with_ctx(|_, ctx| {
         gameplay.update(ctx, 1.0 / 30.0);
-        let town = gameplay.town.as_ref().unwrap();
+        let town = gameplay.sim.town.as_ref().unwrap();
         let with: Vec<usize> = (0..town.placed.len())
             .filter(|&i| {
                 town.placed[i].alive
@@ -1191,7 +1197,7 @@ fn destroy_window_buttons_send_commands() {
     let Some((mut game, mut gameplay)) = generated() else {
         return;
     };
-    let town = gameplay.town.as_ref().unwrap();
+    let town = gameplay.sim.town.as_ref().unwrap();
     let id = town
         .storage_sites
         .iter()
@@ -1203,7 +1209,7 @@ fn destroy_window_buttons_send_commands() {
         })
         .unwrap();
     game.with_ctx(|_, ctx| {
-        let town = gameplay.town.as_ref().unwrap();
+        let town = gameplay.sim.town.as_ref().unwrap();
         gameplay.entities.select(
             ctx.ui,
             gameplay.screen.as_mut().unwrap(),
@@ -1225,7 +1231,7 @@ fn destroy_window_buttons_send_commands() {
         use unbanished_game::work::professions::Command;
         let click = |gameplay: &mut GameplayLoop, ui: &unbanished_ui::Ui, n| match gameplay
             .entities
-            .click(ui, gameplay.town.as_ref().unwrap(), n)
+            .click(ui, gameplay.sim.town.as_ref().unwrap(), n)
         {
             Some(WorkPlaceClick::Command(c)) => Some(c),
             _ => None,
@@ -1251,7 +1257,7 @@ fn destroy_window_buttons_send_commands() {
         // A building standing: no damage text, the reclaim button shows.
         gameplay
             .entities
-            .refresh(ctx.ui, ctx.archive, gameplay.town.as_ref().unwrap());
+            .refresh(ctx.ui, ctx.archive, gameplay.sim.town.as_ref().unwrap());
         assert!(ctx.ui.node(reclaim).visible());
         assert!(!ctx.ui.node(rebuild).visible());
     });
@@ -1262,7 +1268,7 @@ fn status_bar_layout_open_close_and_draw_leave_simulation_unchanged() {
     let Some((mut game, mut gameplay)) = generated() else {
         return;
     };
-    let town = gameplay.town.as_mut().unwrap();
+    let town = gameplay.sim.town.as_mut().unwrap();
     let rules = town.agents.rules();
     for s in &mut town.agents.states {
         s.health = rules.health_max * 0.5;
@@ -1271,8 +1277,8 @@ fn status_bar_layout_open_close_and_draw_leave_simulation_unchanged() {
     }
     let people = town.citizens.len() as u32;
     let state = format!("{:?}", town.agents.states);
-    let rng = gameplay.rng.clone();
-    let time = gameplay.calendar.elapsed;
+    let rng = gameplay.sim.rng.clone();
+    let time = gameplay.sim.calendar.elapsed;
     let values = gameplay.status_values();
     assert_eq!(values.status, [people, 0, 0, 0, people, 0]);
     assert_eq!(values.stock[4], 40);
@@ -1303,11 +1309,11 @@ fn status_bar_layout_open_close_and_draw_leave_simulation_unchanged() {
             }
         }
     });
-    assert_eq!(rng, gameplay.rng);
-    assert_eq!(time, gameplay.calendar.elapsed);
+    assert_eq!(rng, gameplay.sim.rng);
+    assert_eq!(time, gameplay.sim.calendar.elapsed);
     assert_eq!(
         state,
-        format!("{:?}", gameplay.town.as_ref().unwrap().agents.states)
+        format!("{:?}", gameplay.sim.town.as_ref().unwrap().agents.states)
     );
 }
 
@@ -1357,18 +1363,18 @@ fn pause_menu_pauses_sounds_and_the_simulation() {
             assert!(ctx.audio.scene.is_paused(kind));
         }
         assert!(!ctx.audio.scene.is_paused(sound_type::UI));
-        let (rng, seconds) = (gameplay.rng.clone(), gameplay.calendar.seconds());
+        let (rng, seconds) = (gameplay.sim.rng.clone(), gameplay.sim.calendar.seconds());
         for _ in 0..3 {
             gameplay.update(ctx, 1.0 / 30.0);
         }
-        assert_eq!(gameplay.calendar.seconds(), seconds);
-        assert_eq!(format!("{:?}", gameplay.rng), format!("{rng:?}"));
+        assert_eq!(gameplay.sim.calendar.seconds(), seconds);
+        assert_eq!(format!("{:?}", gameplay.sim.rng), format!("{rng:?}"));
         // Escape is buttonResume's action.
         gameplay.raw(ctx, RawInput::Escape);
         assert!(gameplay.pause_menu.is_none());
         assert!(!ctx.audio.scene.is_paused(sound_type::MUSIC));
         gameplay.update(ctx, 1.0 / 30.0);
-        assert!(gameplay.calendar.seconds() > seconds);
+        assert!(gameplay.sim.calendar.seconds() > seconds);
     });
 }
 
@@ -1378,14 +1384,14 @@ fn rain_effect_drives_the_rain_emitter() {
         return;
     };
     assert_eq!(
-        gameplay.environment.as_ref().unwrap().fade_times[0],
+        gameplay.sim.environment.as_ref().unwrap().fade_times[0],
         Some(20.0)
     );
     game.with_ctx(|_, ctx| {
         ctx.audio.set_master_volume(0.0);
         gameplay.update(ctx, 1.0 / 30.0);
         let (_, before) = ctx.audio.scene.active();
-        gameplay.environment.as_mut().unwrap().effects[0] =
+        gameplay.sim.environment.as_mut().unwrap().effects[0] =
             Some(unbanished_game::nature::environment::WeatherEffect {
                 intensity: 0.5,
                 direction: 1.0,
@@ -1414,7 +1420,7 @@ fn rain_effect_drives_the_rain_emitter() {
         });
         assert_eq!(rain.count(), 1);
         // Rain stops and cannot start again in this step (whatever the stream draws).
-        let env = gameplay.environment.as_mut().unwrap();
+        let env = gameplay.sim.environment.as_mut().unwrap();
         env.effects[0] = None;
         env.fade_times[0] = None;
         gameplay.update(ctx, 1.0 / 30.0);
@@ -1433,7 +1439,7 @@ fn building_emitters_register_without_playing() {
     game.with_ctx(|_, ctx| {
         ctx.audio.set_master_volume(0.0);
         gameplay.update(ctx, 1.0 / 30.0);
-        let town = gameplay.town.as_ref().unwrap();
+        let town = gameplay.sim.town.as_ref().unwrap();
         let building = town
             .placed
             .iter()
@@ -1470,7 +1476,7 @@ fn event_ribbon_popup_and_goto() {
     let Some((mut game, mut gameplay)) = generated() else {
         return;
     };
-    let rng = gameplay.rng.clone();
+    let rng = gameplay.sim.rng.clone();
     game.with_ctx(|_, ctx| {
         let frame = |g: &mut GameplayLoop, ctx: &mut crate::loops::Ctx| {
             let screen = g.screen.as_mut().unwrap();
@@ -1479,18 +1485,21 @@ fn event_ribbon_popup_and_goto() {
             g.notify
                 .as_mut()
                 .unwrap()
-                .update(ctx.ui, screen, &g.events, 0.1, width)
+                .update(ctx.ui, screen, &g.sim.events, 0.1, width)
         };
         frame(&mut gameplay, ctx);
         // Low food (no cell), a fire at a cell, and a type-26 event (popup, icon 12).
         gameplay
+            .sim
             .events
             .add(22, 3, -1, 0, 1, Default::default(), false);
-        let n = gameplay.town.as_ref().unwrap().cells.size as i32;
+        let n = gameplay.sim.town.as_ref().unwrap().cells.size as i32;
         gameplay
+            .sim
             .events
             .add(31, 3, 70 * n + 30, 0, 1, Default::default(), false);
         gameplay
+            .sim
             .events
             .add(0x1a, 1, -1, 0, 1, Default::default(), false);
         assert!(frame(&mut gameplay, ctx));
@@ -1550,7 +1559,7 @@ fn event_ribbon_popup_and_goto() {
         };
         assert_eq!(c.target, glam::Vec2::new(30.0 - half, 70.0 - half));
     });
-    assert_eq!(rng, gameplay.rng);
+    assert_eq!(rng, gameplay.sim.rng);
 }
 
 #[test]
@@ -1558,7 +1567,7 @@ fn speed_loop_smooths_once_and_pause_still_updates_gpu_instances() {
     let Some((mut game, mut gameplay)) = generated() else {
         return;
     };
-    let town = gameplay.town.as_mut().expect("generated starting town");
+    let town = gameplay.sim.town.as_mut().expect("generated starting town");
     // Use the first scheduled tree so the quota visits it during this update. Deliberately
     // lag its visible scale to distinguish one smoothing pass from ten speed iterations.
     let id = town
@@ -1580,8 +1589,8 @@ fn speed_loop_smooths_once_and_pause_still_updates_gpu_instances() {
     game.with_ctx(|_, ctx| {
         gameplay.update(ctx, 0.5);
     });
-    assert_eq!(gameplay.calendar.elapsed, 5_000_000);
-    let town = gameplay.town.as_ref().unwrap();
+    assert_eq!(gameplay.sim.calendar.elapsed, 5_000_000);
+    let town = gameplay.sim.town.as_ref().unwrap();
     let value = town.placed[id].growth;
     let d = town.templates[town.placed[id].template]
         .growth
@@ -1606,8 +1615,8 @@ fn speed_loop_smooths_once_and_pause_still_updates_gpu_instances() {
     game.with_ctx(|_, ctx| {
         gameplay.update(ctx, 0.5);
     });
-    assert_eq!(gameplay.calendar.elapsed, 5_000_000);
-    let town = gameplay.town.as_ref().unwrap();
+    assert_eq!(gameplay.sim.calendar.elapsed, 5_000_000);
+    let town = gameplay.sim.town.as_ref().unwrap();
     assert_eq!(town.placed[id].growth.to_bits(), value.to_bits());
     let after_pause = town.placed[id].growth_state.as_ref().unwrap().smoothed;
     assert_eq!(
@@ -1632,7 +1641,7 @@ fn tree_expiry_plays_packaged_clip_and_removes_after_completion() {
     let Some((mut game, mut gameplay)) = generated() else {
         return;
     };
-    let town = gameplay.town.as_mut().unwrap();
+    let town = gameplay.sim.town.as_mut().unwrap();
     let id = town
         .placed
         .iter()
@@ -1669,14 +1678,14 @@ fn tree_expiry_plays_packaged_clip_and_removes_after_completion() {
         game.with_ctx(|_, ctx| {
             gameplay.update(ctx, 1.0 / 30.0);
         });
-        if gameplay.town.as_ref().unwrap().placed[id]
+        if gameplay.sim.town.as_ref().unwrap().placed[id]
             .animation
             .is_some()
         {
             break;
         }
     }
-    let p = &gameplay.town.as_ref().unwrap().placed[id];
+    let p = &gameplay.sim.town.as_ref().unwrap().placed[id];
     let playback = p
         .animation
         .as_ref()
@@ -1707,7 +1716,7 @@ fn tree_expiry_plays_packaged_clip_and_removes_after_completion() {
         let view = gameplay.view.as_ref().unwrap();
         renderer.set_scene(view);
         let rgba = renderer.capture(&crate::gfx::render::Frame {
-            terrain: Some(view.frame(renderer.aspect(), gameplay.calendar.seconds())),
+            terrain: Some(view.frame(renderer.aspect(), gameplay.sim.calendar.seconds())),
             clear: crate::CLEAR,
             ui: None,
         });
@@ -1735,7 +1744,7 @@ fn tree_expiry_plays_packaged_clip_and_removes_after_completion() {
             gameplay.update(ctx, 0.25);
         });
     }
-    let p = &gameplay.town.as_ref().unwrap().placed[id];
+    let p = &gameplay.sim.town.as_ref().unwrap().placed[id];
     assert_eq!(p.animation.as_ref().unwrap().elapsed, 2_250_000);
     assert_eq!(p.animation.as_ref().unwrap().sample_time, 2_000_000);
     assert!(p.alive);
@@ -1763,7 +1772,7 @@ fn tree_expiry_plays_packaged_clip_and_removes_after_completion() {
         gameplay.update(ctx, 1.0);
     });
     assert_eq!(
-        gameplay.town.as_ref().unwrap().placed[id]
+        gameplay.sim.town.as_ref().unwrap().placed[id]
             .animation
             .as_ref()
             .unwrap()
@@ -1776,25 +1785,25 @@ fn tree_expiry_plays_packaged_clip_and_removes_after_completion() {
     game.with_ctx(|_, ctx| {
         gameplay.update(ctx, 2.816666);
     });
-    let p = &gameplay.town.as_ref().unwrap().placed[id];
+    let p = &gameplay.sim.town.as_ref().unwrap().placed[id];
     assert_eq!(p.animation.as_ref().unwrap().elapsed, 5_066_665);
     assert!(p.alive);
     game.with_ctx(|_, ctx| {
         gameplay.update(ctx, 0.000_001_1);
     });
     assert_eq!(
-        gameplay.town.as_ref().unwrap().placed[id]
+        gameplay.sim.town.as_ref().unwrap().placed[id]
             .animation
             .as_ref()
             .unwrap()
             .elapsed,
         5_066_666
     );
-    assert!(gameplay.town.as_ref().unwrap().placed[id].alive);
+    assert!(gameplay.sim.town.as_ref().unwrap().placed[id].alive);
     game.with_ctx(|_, ctx| {
         gameplay.update(ctx, 0.000_001_1);
     });
-    let town = gameplay.town.as_ref().unwrap();
+    let town = gameplay.sim.town.as_ref().unwrap();
     assert_eq!(
         town.placed[id].animation.as_ref().unwrap().elapsed,
         5_066_667

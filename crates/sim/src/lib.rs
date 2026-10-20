@@ -6,4 +6,6 @@
 
 pub mod mods;
 pub mod saved;
+pub mod simulation;
+pub mod timing;
 pub mod town;

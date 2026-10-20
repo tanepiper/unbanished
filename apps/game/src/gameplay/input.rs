@@ -31,7 +31,7 @@ impl GameplayLoop {
 
     pub(super) fn select_at_cursor(&mut self, ctx: &mut Ctx) {
         let picked = self.entity_at_cursor(ctx);
-        let Some(town) = self.town.as_ref() else {
+        let Some(town) = self.sim.town.as_ref() else {
             return;
         };
         // `FUN_140102500`: under a RestrictPlayer setup only its template is selected.
@@ -64,8 +64,8 @@ impl GameplayLoop {
     /// field stays the occupant of the cells its trees and crops are the objects of.
     pub(super) fn entity_at_cursor(&mut self, ctx: &mut Ctx) -> Option<Entity> {
         let (origin, direction) = self.cursor_ray(ctx.ui.screen)?;
-        let town = self.town.as_ref()?;
-        let heights = self.heights.as_ref().unwrap();
+        let town = self.sim.town.as_ref()?;
+        let heights = self.sim.heights.as_ref().unwrap();
         let grid = heights.grid();
         let ground = grid.intersect(origin.to_array(), direction.to_array(), 400.);
         let cell = ground
@@ -98,12 +98,13 @@ impl GameplayLoop {
     /// paths (`FUN_1400e2880`).
     pub(super) fn path_click(&mut self, ctx: &mut Ctx) {
         let picked = self.entity_at_cursor(ctx);
-        let (Some(entity), true, true) = (picked, self.path_tool.is_some(), self.town.is_some())
+        let (Some(entity), true, true) =
+            (picked, self.path_tool.is_some(), self.sim.town.is_some())
         else {
             return;
         };
         self.execute(ctx.archive, PlayerCommand::PathQuery { entity });
-        let (Some(tool), Some(town)) = (self.path_tool.as_mut(), self.town.as_mut()) else {
+        let (Some(tool), Some(town)) = (self.path_tool.as_mut(), self.sim.town.as_mut()) else {
             return;
         };
         self.selection.selected = Some(entity);
@@ -111,6 +112,7 @@ impl GameplayLoop {
         let (lines, cells) = tool.overlay(n);
         if let Some(view) = self.view.as_mut() {
             let grid = self
+                .sim
                 .heights
                 .as_ref()
                 .expect("the heights come with the view")
@@ -131,7 +133,7 @@ impl GameplayLoop {
     pub(super) fn position_entity_window(&mut self, ctx: &mut Ctx) {
         let (Some(entity), Some(town), Some(view)) = (
             self.selection.selected,
-            self.town.as_ref(),
+            self.sim.town.as_ref(),
             self.view.as_ref(),
         ) else {
             return;
@@ -269,7 +271,7 @@ impl GameplayLoop {
     /// against the terrain (`FUN_1400afa00`); this marches the ray and refines the hit by
     /// bisection on the exact ground query.
     pub(super) fn cursor_cell(&self, screen: [i32; 2]) -> Option<(i32, i32)> {
-        let (view, town) = (self.view.as_ref()?, self.town.as_ref()?);
+        let (view, town) = (self.view.as_ref()?, self.sim.town.as_ref()?);
         if screen[0] <= 0 || screen[1] <= 0 {
             return None;
         }
@@ -282,6 +284,7 @@ impl GameplayLoop {
         let near = inv.project_point3(ndc.extend(0.0));
         let far = inv.project_point3(ndc.extend(1.0));
         let grid = self
+            .sim
             .heights
             .as_ref()
             .expect("the heights come with the view")
@@ -319,7 +322,7 @@ impl GameplayLoop {
     }
 
     pub(super) fn map_click(&self, ctx: &mut Ctx) -> Option<glam::Vec2> {
-        let size = self.town.as_ref()?.cells.size as u32;
+        let size = self.sim.town.as_ref()?.cells.size as u32;
         self.utility.map_click(ctx.ui, self.cursor, size)
     }
 
@@ -342,7 +345,7 @@ impl GameplayLoop {
                 self.execute(ctx.archive, PlayerCommand::SetSpeed(speed));
             }
             Action::Utility(template) => {
-                let map_size = self.town.as_ref().map_or(0, |t| t.cells.size as u32);
+                let map_size = self.sim.town.as_ref().map_or(0, |t| t.cells.size as u32);
                 let Some(screen) = self.screen.as_mut() else {
                     return;
                 };
@@ -351,7 +354,7 @@ impl GameplayLoop {
                     screen,
                     ctx.archive,
                     &template,
-                    Some(&self.events),
+                    Some(&self.sim.events),
                     map_size,
                 );
             }
@@ -432,14 +435,18 @@ impl GameplayLoop {
         }
         // A combo in a building's window (event `0x14`).
         if let Event::Selected(id, index) = event {
-            if self.entities.town_hall_select(ctx.ui, &self.statistics, id) {
+            if self
+                .entities
+                .town_hall_select(ctx.ui, &self.sim.statistics, id)
+            {
                 return Next::Stay;
             }
             let chosen = self
+                .sim
                 .town
                 .as_ref()
                 .and_then(|town| self.entities.select_item(ctx.ui, town, id, index));
-            if let (Some(WorkPlaceClick::Command(c)), Some(_)) = (chosen, &self.town) {
+            if let (Some(WorkPlaceClick::Command(c)), Some(_)) = (chosen, &self.sim.town) {
                 self.execute(ctx.archive, PlayerCommand::Town(c));
             }
             return Next::Stay;
@@ -514,7 +521,11 @@ impl GameplayLoop {
                 }
                 crate::ui::pause_menu::PauseClick::Map => {
                     self.load_town_names(ctx.archive);
-                    let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
+                    let flags = self
+                        .sim
+                        .town
+                        .as_ref()
+                        .map_or(0, |t| t.construction.game_flags);
                     if let Some(screen) = &mut self.screen {
                         self.menu_dialog = crate::view::map_params::MapParamsDialog::open(
                             ctx.ui,
@@ -559,7 +570,7 @@ impl GameplayLoop {
             return Next::Stay;
         }
         if let (Some(notify), Some(screen)) = (self.notify.as_mut(), self.screen.as_mut()) {
-            if let Some(goto) = notify.click(ctx.ui, screen, &self.events, id) {
+            if let Some(goto) = notify.click(ctx.ui, screen, &self.sim.events, id) {
                 if let Some(cell) = goto {
                     self.go_to(cell);
                 }
@@ -571,9 +582,9 @@ impl GameplayLoop {
             return Next::Stay;
         };
         let Some(action) = toolbar.click(ctx.ui, screen, id) else {
-            match self.utility.click(ctx.ui, id, &self.events, &values) {
+            match self.utility.click(ctx.ui, id, &self.sim.events, &values) {
                 Some(UtilityClick::ProfessionCount(profession, count)) => {
-                    if self.town.is_some() {
+                    if self.sim.town.is_some() {
                         let set = unbanished_game::work::professions::Command::SetCount {
                             profession,
                             count,
@@ -583,11 +594,11 @@ impl GameplayLoop {
                     return Next::Stay;
                 }
                 Some(UtilityClick::Notify(i, on)) => {
-                    self.events.notify[i] = on;
+                    self.sim.events.notify[i] = on;
                     return Next::Stay;
                 }
                 Some(UtilityClick::StockLimit(slot, limit)) => {
-                    self.stock_warnings.limits[slot] = limit;
+                    self.sim.stock_warnings.limits[slot] = limit;
                     return Next::Stay;
                 }
                 Some(UtilityClick::GoTo(cell)) => {
@@ -596,9 +607,11 @@ impl GameplayLoop {
                 }
                 Some(UtilityClick::ShowCitizen(citizen)) => {
                     // `FUN_140108510`: centre the camera on the citizen and select it.
-                    if let (Some(town), Some(view), Some(screen)) =
-                        (self.town.as_ref(), self.view.as_mut(), self.screen.as_mut())
-                    {
+                    if let (Some(town), Some(view), Some(screen)) = (
+                        self.sim.town.as_ref(),
+                        self.view.as_mut(),
+                        self.screen.as_mut(),
+                    ) {
                         let entity = Entity::Citizen(citizen);
                         if let SceneCamera::Map(camera) = &mut view.camera {
                             camera.target = entity.position(town).truncate();
@@ -616,6 +629,7 @@ impl GameplayLoop {
                 return Next::Stay;
             }
             let clicked = self
+                .sim
                 .town
                 .as_ref()
                 .and_then(|town| self.entities.click(ctx.ui, town, id));
@@ -631,12 +645,12 @@ impl GameplayLoop {
                 }
                 // ResourceLimitUI (`FUN_14007ccb0`): the slot's limit.
                 Some(WorkPlaceClick::StockLimit { slot, limit }) => {
-                    self.stock_warnings.limits[slot] = limit;
+                    self.sim.stock_warnings.limits[slot] = limit;
                     return Next::Stay;
                 }
                 Some(WorkPlaceClick::ShowBuilding(building)) => {
                     self.entities.pin_containing(ctx.ui, id);
-                    if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
+                    if let (Some(town), Some(view)) = (self.sim.town.as_ref(), self.view.as_mut()) {
                         let entity = Entity::Placed(building);
                         if let SceneCamera::Map(camera) = &mut view.camera {
                             camera.target = entity.position(town).truncate();
@@ -651,7 +665,7 @@ impl GameplayLoop {
                     // `FUN_140108510`: pin the asking window, centre the camera on the entity,
                     // then select it (`FUN_140102880`).
                     self.entities.pin_containing(ctx.ui, id);
-                    if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
+                    if let (Some(town), Some(view)) = (self.sim.town.as_ref(), self.view.as_mut()) {
                         let entity = Entity::Citizen(citizen);
                         if let SceneCamera::Map(camera) = &mut view.camera {
                             camera.target = entity.position(town).truncate();
@@ -680,7 +694,7 @@ impl GameplayLoop {
                 // workplace) and `0x226` (`FUN_140065270`: the home) open that building through
                 // `FUN_140108510`: the asking window pinned, the camera on it, selected.
                 let profession = ctx.ui.node(id).name == "buttonProfession";
-                let target = match (self.entities.entity_containing(ctx.ui, id), &self.town) {
+                let target = match (self.entities.entity_containing(ctx.ui, id), &self.sim.town) {
                     (Some(Entity::Citizen(c)), Some(town)) => {
                         let s = &town.agents.states[c];
                         if profession {
@@ -692,7 +706,7 @@ impl GameplayLoop {
                     _ => None,
                 };
                 if let (Some(building), Some(town), Some(view)) =
-                    (target, self.town.as_ref(), self.view.as_mut())
+                    (target, self.sim.town.as_ref(), self.view.as_mut())
                 {
                     self.entities.pin_containing(ctx.ui, id);
                     let entity = Entity::Placed(building);
@@ -708,7 +722,7 @@ impl GameplayLoop {
                 if let (Some(Entity::Citizen(c)), Some(owner), Some(town)) = (
                     self.entities.entity_containing(ctx.ui, id),
                     self.entities.root_containing(ctx.ui, id),
-                    self.town.as_ref(),
+                    self.sim.town.as_ref(),
                 ) {
                     if let Some(old) = self.follow.take() {
                         old.close(ctx.ui, screen);
@@ -720,7 +734,7 @@ impl GameplayLoop {
                 // EntityUI event `0x12` id `0x65` (`FUN_1400671d0`).
                 if let (Some(entity), Some(town), Some(view)) = (
                     self.entities.entity_containing(ctx.ui, id),
-                    self.town.as_ref(),
+                    self.sim.town.as_ref(),
                     self.view.as_mut(),
                 ) {
                     if let SceneCamera::Map(camera) = &mut view.camera {

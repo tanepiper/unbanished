@@ -107,7 +107,7 @@ impl GameplayLoop {
                 return Next::Stay;
             }
             RawInput::Click => {
-                if let (Some(tool), Some(_)) = (self.placement.as_ref(), self.town.as_ref()) {
+                if let (Some(tool), Some(_)) = (self.placement.as_ref(), self.sim.town.as_ref()) {
                     // `FUN_140102b20`: under a RestrictPlayer setup, only on its cells, turned.
                     let allowed =
                         Self::restrict_allows(self.restrict.as_ref(), tool, self.rotation);

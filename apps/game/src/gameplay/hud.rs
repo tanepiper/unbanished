@@ -16,7 +16,7 @@ impl GameplayLoop {
         let mut toolbar = Toolbar::load(archive, registry);
         toolbar.install(ui, &mut screen, keymap);
         self.toolbar = Some(toolbar);
-        self.notify = crate::ui::event_notify::EventNotify::open(ui, &mut screen, &self.events);
+        self.notify = crate::ui::event_notify::EventNotify::open(ui, &mut screen, &self.sim.events);
         {
             self.autosave =
                 crate::saves::autosave::AutoSave::open(ui, &mut screen, autosave_interval);
@@ -27,7 +27,7 @@ impl GameplayLoop {
 
     /// The values the Status Bar's FUN_14007eda0 reads from the starting town and environment.
     pub(super) fn status_values(&self) -> StatusValues {
-        let summary = self.town.as_ref().map_or_else(Default::default, |t| {
+        let summary = self.sim.town.as_ref().map_or_else(Default::default, |t| {
             unbanished_game::people::status::aggregate(
                 t.citizens
                     .iter()
@@ -44,14 +44,14 @@ impl GameplayLoop {
             )
         });
         StatusValues {
-            events: Some(self.events.clone()),
-            map_size: self.town.as_ref().map_or(0, |t| t.cells.size as u32),
+            events: Some(self.sim.events.clone()),
+            map_size: self.sim.town.as_ref().map_or(0, |t| t.cells.size as u32),
             frustum: self.frustum(),
             town_name: self.params.town_name.clone(),
-            year: self.calendar.year,
+            year: self.sim.calendar.year,
             month: self.month(),
-            temperature: self.environment.as_ref().map_or(0.0, |e| e.temperature),
-            weather: self.environment.as_ref().map_or(3, |e| e.state),
+            temperature: self.sim.environment.as_ref().map_or(0.0, |e| e.temperature),
+            weather: self.sim.environment.as_ref().map_or(3, |e| e.state),
             adults: summary.adults,
             students: summary.students,
             children: summary.children,
@@ -59,28 +59,35 @@ impl GameplayLoop {
             health: summary.health,
             happiness: summary.happiness,
             health_max: self
+                .sim
                 .town
                 .as_ref()
                 .map_or(1.0, |t| t.agents.rules().health_max),
             happiness_max: self
+                .sim
                 .town
                 .as_ref()
                 .map_or(1.0, |t| t.agents.rules().happiness),
             // Adults per profession (`FUN_14007ba70`, citizen `+0x1f0`) and workplace places.
-            professions: self.town.as_ref().map_or(vec![self.population().0], |t| {
-                t.profession_counts().0.iter().map(|&n| n as u32).collect()
-            }),
+            professions: self
+                .sim
+                .town
+                .as_ref()
+                .map_or(vec![self.population().0], |t| {
+                    t.profession_counts().0.iter().map(|&n| n as u32).collect()
+                }),
             profession_capacity: self
+                .sim
                 .town
                 .as_ref()
                 .map_or(Vec::new(), |t| t.profession_counts().1),
             // `FUN_14008f3a0`, recomputed from the town storages.
-            stock_limits: self.stock_warnings.limits,
-            stock: self.town.as_ref().map_or([0; 21], |t| {
+            stock_limits: self.sim.stock_warnings.limits,
+            stock: self.sim.town.as_ref().map_or([0; 21], |t| {
                 unbanished_game::work::stock::stock_table(&t.registered_storages(), &t.materials)
             }),
             show_celsius: self.show_celsius,
-            citizens: self.town.as_ref().map_or(Vec::new(), |t| {
+            citizens: self.sim.town.as_ref().map_or(Vec::new(), |t| {
                 t.citizens
                     .iter()
                     .zip(&t.agents.states)
@@ -96,7 +103,11 @@ impl GameplayLoop {
                     })
                     .collect()
             }),
-            game_flags: self.town.as_ref().map_or(0, |t| t.construction.game_flags),
+            game_flags: self
+                .sim
+                .town
+                .as_ref()
+                .map_or(0, |t| t.construction.game_flags),
             ..StatusValues::default()
         }
     }
@@ -110,7 +121,7 @@ impl GameplayLoop {
     pub(super) fn refresh_toolbar(&self, ui: &mut Ui) {
         let Some(toolbar) = &self.toolbar else { return };
         let count = |template: &str| -> i32 {
-            let Some(town) = &self.town else { return 0 };
+            let Some(town) = &self.sim.town else { return 0 };
             let key = crate::start::normalise(template).to_ascii_lowercase();
             town.construction
                 .sites
@@ -127,7 +138,7 @@ impl GameplayLoop {
     }
 
     pub(super) fn population(&self) -> (u32, u32, u32) {
-        self.town.as_ref().map_or((0, 0, 0), |t| {
+        self.sim.town.as_ref().map_or((0, 0, 0), |t| {
             unbanished_game::people::citizens::population(&t.citizens, &t.rules)
         })
     }

@@ -31,8 +31,6 @@ use input::DragInput;
 use saving::SaveTarget;
 
 use unbanished_formats::game::climate_generator;
-use unbanished_formats::game::EnvironmentMonth;
-use unbanished_game::calendar::Calendar;
 use unbanished_game::nature::environment::{Climate, Environment, YEAR_SECONDS};
 use unbanished_game::random::Random;
 use unbanished_game::scheduler::ticks;
@@ -53,6 +51,7 @@ use crate::ui::toolbar::{Action, Toolbar};
 use crate::ui::utility::{StatusValues, UtilityClick, UtilityWindows};
 use crate::view::scene::{Camera, SceneCamera, SceneView};
 use crate::view::world::{World, WorldParams};
+use unbanished_sim::simulation::Simulation;
 
 const MONTHS_PER_YEAR: usize = 12;
 const MONTH_SECONDS: f32 = YEAR_SECONDS / MONTHS_PER_YEAR as f32;
@@ -85,23 +84,14 @@ enum MenuDialog {
 }
 
 pub struct GameplayLoop {
+    /// The deterministic state: the town, heights, calendar, random stream, environment,
+    /// stock warnings, statistics, event log and update count.
+    pub sim: Simulation,
     params: WorldParams,
     view: Option<SceneView>,
-    /// The map's heights, which the simulation reads and changes (tunnels, flattening); the
-    /// scene view keeps a copy to draw.
-    heights: Option<unbanished_game::terrain::Heights>,
     /// What drawing the town needs beyond the town (its models' and icons' data).
     town_view: Option<crate::view::town::TownView>,
-    environment_months: Vec<EnvironmentMonth>,
-    /// EnvironmentDescription `+0x20`: what forms while it rains (`Template\Tornado.rsc`).
-    environment_template: Option<String>,
     screen: Option<Screen>,
-    /// Calendar (`Game/Game +0x128`): year count and time into the year.
-    calendar: Calendar,
-    /// The game's shared random stream (`Game/Game +0xd8`, `Random(seed)` in `FUN_14009bfd0`).
-    rng: Random,
-    environment: Option<Environment>,
-    town: Option<StartingTown>,
     /// Index into the original 1x, 2x, 5x, 10x simulation iteration values.
     speed: u8,
     paused: bool,
@@ -157,11 +147,6 @@ pub struct GameplayLoop {
     /// `+0xc0` / `+0xc1`: a screenshot asked for (`Some(with_ui)`).
     screenshot: Option<bool>,
     highlight: crate::gfx::highlight::Highlight,
-    /// The event log (`Game +0x138`) and the stock manager's warning state.
-    pub events: unbanished_game::events::EventLog,
-    stock_warnings: unbanished_game::events::StockWarnings,
-    /// The Town Info graphs' history (StockManager `+0x150`, sampled every 75 s).
-    statistics: unbanished_game::work::tracker::Statistics,
     /// The event ribbon (`Dialog/EventNotify.rsc`) and its popups.
     notify: Option<crate::ui::event_notify::EventNotify>,
     /// Screen aspect of the last frame (MapUI's frustum outline).
@@ -179,8 +164,6 @@ pub struct GameplayLoop {
     pending_save: Option<(SaveTarget, Option<String>, Option<Vec<u8>>)>,
     /// `Dialog/AutoSave.rsc`: the autosave timer and the saving spinner.
     autosave: Option<crate::saves::autosave::AutoSave>,
-    /// Updates begun since the game loaded (recordings and replays count by it).
-    updates: u64,
     /// The pause menu holds the game (in a replay: the recording says so).
     menu_paused: bool,
     /// A replay ([`recording::replay`]): the recording, not the interface, gives the commands.
@@ -258,15 +241,15 @@ impl GameplayLoop {
         g.scenario_start = false;
         let s = &saved.state;
         if let Ok(state) = s.random_state.as_slice().try_into() {
-            g.rng = Random::from_parts(s.random_index, state);
+            g.sim.rng = Random::from_parts(s.random_index, state);
         }
-        g.calendar.year = s.managers.i32("calendar.value").unwrap_or(0).max(0) as u32;
+        g.sim.calendar.year = s.managers.i32("calendar.value").unwrap_or(0).max(0) as u32;
         if let Some(unbanished_formats::savegame::Value::I64(t)) = s.managers.at("calendar.time") {
-            g.calendar.elapsed = *t;
+            g.sim.calendar.elapsed = *t;
         }
-        g.stock_warnings = saved.stock_warnings();
-        g.events = saved.event_log();
-        g.statistics = saved.statistics();
+        g.sim.stock_warnings = saved.stock_warnings();
+        g.sim.events = saved.event_log();
+        g.sim.statistics = saved.statistics();
         g.saved = Some(std::sync::Arc::new(saved));
         g
     }
@@ -274,7 +257,7 @@ impl GameplayLoop {
     /// `FUN_140108950` for every entity that went this update (a citizen died, a building or
     /// resource was removed): its window closes and, if it was the selection, it goes.
     fn close_removed_windows(&mut self, ui: &mut unbanished_ui::Ui) {
-        let (Some(town), Some(screen)) = (self.town.as_ref(), self.screen.as_mut()) else {
+        let (Some(town), Some(screen)) = (self.sim.town.as_ref(), self.screen.as_mut()) else {
             return;
         };
         let gone: Vec<Entity> = self
@@ -304,7 +287,7 @@ impl GameplayLoop {
         } else {
             std::mem::take(&mut self.entities.saved)
         };
-        let Some(town) = self.town.as_mut() else {
+        let Some(town) = self.sim.town.as_mut() else {
             return;
         };
         for (e, bytes) in settings {
@@ -316,18 +299,12 @@ impl GameplayLoop {
 
     pub fn new(params: WorldParams) -> Self {
         Self {
+            sim: Simulation::new(params.seed),
             scenario_start: params.scenario.is_some(),
-            rng: Random::new(params.seed),
             params,
             view: None,
-            heights: None,
             town_view: None,
-            environment_months: Vec::new(),
-            environment_template: None,
             screen: None,
-            calendar: Calendar::default(),
-            environment: None,
-            town: None,
             speed: 0,
             paused: false,
             toolbar: None,
@@ -362,9 +339,6 @@ impl GameplayLoop {
             path_tool: None,
             screenshot: None,
             highlight: Default::default(),
-            events: Default::default(),
-            stock_warnings: Default::default(),
-            statistics: Default::default(),
             notify: None,
             aspect: 1.6,
             music: None,
@@ -373,7 +347,6 @@ impl GameplayLoop {
             pending_sounds: Vec::new(),
             pending_save: None,
             autosave: None,
-            updates: 0,
             menu_paused: false,
             replaying: false,
             recorder: None,
@@ -426,7 +399,7 @@ impl GameplayLoop {
     /// `FUN_140067cd0` / `FUN_140068f00`: centre the camera on a cell
     /// (`x = cell % w - (w/2 - 0.5)`, likewise `y`; the original also takes the ground height).
     fn go_to(&mut self, cell: i32) {
-        let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) else {
+        let (Some(town), Some(view)) = (self.sim.town.as_ref(), self.view.as_mut()) else {
             return;
         };
         let n = town.cells.size as i32;
@@ -439,7 +412,11 @@ impl GameplayLoop {
     /// `FUN_1401071b0`: open the pause menu (pauses effects, ambience and music).
     fn open_pause_menu(&mut self, ctx: &mut Ctx) {
         if let (None, Some(screen)) = (&self.pause_menu, self.screen.as_mut()) {
-            let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
+            let flags = self
+                .sim
+                .town
+                .as_ref()
+                .map_or(0, |t| t.construction.game_flags);
             self.pause_menu = crate::ui::pause_menu::PauseMenu::open(
                 ctx.ui,
                 screen,
@@ -513,6 +490,7 @@ impl GameLoop for GameplayLoop {
     fn event(&mut self, ctx: &mut Ctx, event: Event) -> Next {
         let next = self.window_event(ctx, event);
         if self
+            .sim
             .town
             .as_ref()
             .is_some_and(|t| !t.construction.commands.is_empty())
@@ -591,7 +569,7 @@ impl GameLoop for GameplayLoop {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn town(&self) -> Option<&StartingTown> {
-        self.town.as_ref()
+        self.sim.town.as_ref()
     }
 }
 

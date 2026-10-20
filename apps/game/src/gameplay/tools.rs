@@ -8,12 +8,13 @@ impl GameplayLoop {
         let cell = self.cursor_cell(ctx.ui.screen);
         let (Some(tool), Some(town), Some(view)) = (
             self.placement.as_mut(),
-            self.town.as_mut(),
+            self.sim.town.as_mut(),
             self.view.as_mut(),
         ) else {
             return;
         };
         let grid = self
+            .sim
             .heights
             .as_ref()
             .expect("the heights come with the view")
@@ -102,12 +103,12 @@ impl GameplayLoop {
     /// citizen and its texts; it closes with its citizen window (`FUN_140065a90`) or citizen.
     pub(super) fn update_follow(&mut self, ctx: &mut Ctx) {
         let Some(f) = &self.follow else { return };
-        let target = self.town.as_ref().and_then(|t| f.target(t));
+        let target = self.sim.town.as_ref().and_then(|t| f.target(t));
         let (Some(target), true) = (target, self.entities.is_open(f.owner)) else {
             self.close_follow(ctx);
             return;
         };
-        if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
+        if let (Some(town), Some(view)) = (self.sim.town.as_ref(), self.view.as_mut()) {
             if let SceneCamera::Map(camera) = &mut view.camera {
                 camera.target = target;
             }
@@ -212,7 +213,7 @@ impl GameplayLoop {
     /// (`FUN_140106740`, −1 off the map).
     pub(super) fn removal_input(&mut self, ctx: &mut Ctx, input: DragInput) {
         let cell = self.cursor_cell(ctx.ui.screen);
-        let (Some(tool), Some(town)) = (self.removal.as_mut(), self.town.as_ref()) else {
+        let (Some(tool), Some(town)) = (self.removal.as_mut(), self.sim.town.as_ref()) else {
             return;
         };
         if self.view.is_none() {
@@ -254,12 +255,13 @@ impl GameplayLoop {
         }
         let (Some(tool), Some(town), Some(view)) = (
             self.removal.as_mut(),
-            self.town.as_mut(),
+            self.sim.town.as_mut(),
             self.view.as_mut(),
         ) else {
             return;
         };
         let grid = self
+            .sim
             .heights
             .as_ref()
             .expect("the heights come with the view")
@@ -341,7 +343,7 @@ impl GameplayLoop {
         if let (Some(bar), Some(screen)) = (self.create_bar.take(), self.screen.as_mut()) {
             bar.close(ctx.ui, screen);
         }
-        if let (Some(town), Some(view)) = (self.town.as_mut(), self.view.as_mut()) {
+        if let (Some(town), Some(view)) = (self.sim.town.as_mut(), self.view.as_mut()) {
             town.ghost = None;
             if let Some(models) = &mut view.models {
                 self.town_view

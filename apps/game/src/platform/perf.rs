@@ -99,6 +99,10 @@ pub fn frame_begin() {
         let mut p = p.borrow_mut();
         if p.on {
             p.frame_start = Some(now_ms());
+            if p.frame == 0 {
+                // The simulation's own parts ("sim.town", "sim.citizens") are timed too.
+                unbanished_sim::timing::set(|name| Box::new(scope(name)));
+            }
         }
     });
 }

@@ -255,7 +255,7 @@ impl GameplayLoop {
         // Waiting a moment (half a second) is normal; longer is shown.
         let mut text = if net.waiting >= 30 {
             let missing: Vec<String> = l
-                .missing(self.updates)
+                .missing(self.sim.updates)
                 .iter()
                 .map(|p| (p + 1).to_string())
                 .collect();
@@ -281,7 +281,7 @@ impl GameplayLoop {
             }
         }
         if text.starts_with("Waiting") != net.shown.starts_with("Waiting") {
-            log::info!("multiplayer: update {}: {text}", self.updates);
+            log::info!("multiplayer: update {}: {text}", self.sim.updates);
         }
         if text != net.shown {
             ui.set_text(line, &text);
@@ -407,7 +407,7 @@ impl NetPeer {
         let g = self.game.as_mut()?;
         let ready = g.lockstep_slot(ctx);
         g.net_send();
-        ready.then_some(g.updates)
+        ready.then_some(g.sim.updates)
     }
 
     /// At an update boundary: the host's resync, then the digest checks.
@@ -689,7 +689,7 @@ impl Script {
     pub fn give(&mut self, player: usize, g: &mut GameplayLoop, ctx: &mut Ctx) {
         while self.inputs[player]
             .front()
-            .is_some_and(|(u, _, _)| *u <= g.updates)
+            .is_some_and(|(u, _, _)| *u <= g.sim.updates)
         {
             match self.inputs[player].pop_front().unwrap() {
                 (_, Some(command), _) => g.give(ctx.archive, command),
@@ -758,7 +758,7 @@ pub fn simulate(
             for p in 0..players {
                 let busy = net.borrow_mut().random(100) < sim.stall;
                 let peer = &mut peers[p];
-                if peer.game.as_ref().is_none_or(|g| g.updates > last) || busy {
+                if peer.game.as_ref().is_none_or(|g| g.sim.updates > last) || busy {
                     continue;
                 }
                 shared::swap(&mut tables[p]);
@@ -769,7 +769,7 @@ pub fn simulate(
                     };
                     if let Some((who, at)) = corrupt {
                         if who as usize == p && update >= at {
-                            peer.game.as_mut().unwrap().rng =
+                            peer.game.as_mut().unwrap().sim.rng =
                                 unbanished_game::random::Random::new(0xbad5eed);
                             corrupt = None;
                         }
@@ -801,7 +801,7 @@ pub fn simulate(
                 .iter()
                 .flat_map(|p| p.game.as_ref())
                 .fold((u64::MAX, 0), |(lo, hi), g| {
-                    (lo.min(g.updates), hi.max(g.updates))
+                    (lo.min(g.sim.updates), hi.max(g.sim.updates))
                 });
             report.lead = report.lead.max(high - low);
             report.ticks += 1;
@@ -844,12 +844,12 @@ pub fn first_mismatch(digests: &[Vec<Digest>], resyncs: &[u64]) -> Option<(u8, D
 impl GameplayLoop {
     /// Updates begun since the game loaded.
     pub fn updates(&self) -> u64 {
-        self.updates
+        self.sim.updates
     }
 
     /// A test's desync: the game's `Random` scrambled.
     pub fn scramble(&mut self) {
-        self.rng = unbanished_game::random::Random::new(0xbad5eed);
+        self.sim.rng = unbanished_game::random::Random::new(0xbad5eed);
     }
 
     /// [`super::digest`]'s digest of the game now.
@@ -929,7 +929,7 @@ impl JoinSession {
                 let Some(g) = peer.game.as_ref() else {
                     return Ok(false);
                 };
-                if g.updates > target {
+                if g.sim.updates > target {
                     return Ok(true);
                 }
                 let Some(update) = peer.begin(ctx) else {
@@ -951,7 +951,7 @@ impl JoinSession {
             .peer
             .as_ref()
             .and_then(|p| p.game.as_ref())
-            .map_or(0, |g| g.updates);
+            .map_or(0, |g| g.sim.updates);
         match outcome {
             Ok(true) => {
                 self.done = true;

@@ -111,16 +111,16 @@ impl GameplayLoop {
         // them out in the same order.
         if !self.carrying_out {
             if let Some(l) = &mut self.lockstep {
-                l.give(self.updates, command);
+                l.give(self.sim.updates, command);
                 return Outcome::Queued;
             }
         }
         if let Some(r) = &mut self.recorder {
-            r.command(self.updates, &command);
+            r.command(self.sim.updates, &command);
         }
         match command {
             PlayerCommand::Town(command) => {
-                if let Some(town) = &mut self.town {
+                if let Some(town) = &mut self.sim.town {
                     town.construction.commands.push(command);
                 }
                 Outcome::None
@@ -134,14 +134,14 @@ impl GameplayLoop {
             PlayerCommand::ApplyQueued {
                 with_calendar: false,
             } => {
-                if let (Some(town), Some(heights)) = (&mut self.town, &self.heights) {
+                if let (Some(town), Some(heights)) = (&mut self.sim.town, &self.sim.heights) {
                     let grid = heights.grid();
-                    town.apply_commands(&grid, &mut self.rng);
+                    town.apply_commands(&grid, &mut self.sim.rng);
                 }
                 Outcome::None
             }
             PlayerCommand::Upgrade { entity, template } => {
-                if let Some(town) = &mut self.town {
+                if let Some(town) = &mut self.sim.town {
                     if let Some(t) = town.load_template(archive, &template) {
                         town.site_template(archive, t);
                         town.construction.commands.push(Command::Upgrade {
@@ -153,10 +153,10 @@ impl GameplayLoop {
                 Outcome::None
             }
             PlayerCommand::StartTool { template } => {
-                let Some(town) = &mut self.town else {
+                let Some(town) = &mut self.sim.town else {
                     return Outcome::Tool(None);
                 };
-                let tool = match PlacementTool::start(archive, town, &template, &mut self.rng) {
+                let tool = match PlacementTool::start(archive, town, &template, &mut self.sim.rng) {
                     Some(t) => Some(Tool::Placement(t)),
                     None => match RemovalTool::start(archive, town, &template) {
                         Some(t) => {
@@ -168,15 +168,15 @@ impl GameplayLoop {
                 };
                 Outcome::Tool(tool)
             }
-            PlayerCommand::Place(p) => match &mut self.town {
+            PlayerCommand::Place(p) => match &mut self.sim.town {
                 Some(town) => Outcome::Placed(placement_tool::place(archive, town, &p)),
                 None => Outcome::None,
             },
             PlayerCommand::Drag(drag) => {
                 let (Some(tool), Some(town), Some(heights)) = (
                     self.drag_tools.get(&drag.template),
-                    &mut self.town,
-                    &self.heights,
+                    &mut self.sim.town,
+                    &self.sim.heights,
                 ) else {
                     return Outcome::None;
                 };
@@ -185,8 +185,9 @@ impl GameplayLoop {
                 Outcome::Sound(tool.apply(archive, town, &grid))
             }
             PlayerCommand::PathQuery { entity } => {
-                if let (Some(tool), Some(town)) = (self.path_tool.as_mut(), self.town.as_mut()) {
-                    tool.pick(town, &mut self.rng, entity);
+                if let (Some(tool), Some(town)) = (self.path_tool.as_mut(), self.sim.town.as_mut())
+                {
+                    tool.pick(town, &mut self.sim.rng, entity);
                 }
                 Outcome::None
             }
@@ -196,7 +197,7 @@ impl GameplayLoop {
             } {
                 Some(db) => Outcome::Name(unbanished_game::people::names::town_name(
                     db,
-                    &mut self.rng,
+                    &mut self.sim.rng,
                     max_length / 3 * 2,
                 )),
                 None => Outcome::None,

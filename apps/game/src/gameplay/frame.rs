@@ -28,7 +28,7 @@ impl GameplayLoop {
             self.net_send();
             self.refresh_players_line(ctx.ui, held);
             if !held {
-                match self.net_boundary(ctx, self.updates) {
+                match self.net_boundary(ctx, self.sim.updates) {
                     Ok(Some((bytes, update))) => return self.switch_reload(ctx, &bytes, update),
                     Ok(None) => {}
                     Err(e) => log::error!("multiplayer: {e}"),
@@ -40,15 +40,15 @@ impl GameplayLoop {
             && self
                 .recorder
                 .as_ref()
-                .is_some_and(|r| r.every > 0 && self.updates % r.every == 0)
+                .is_some_and(|r| r.every > 0 && self.sim.updates % r.every == 0)
         {
-            match self.digest(ctx, self.updates as u32) {
+            match self.digest(ctx, self.sim.updates as u32) {
                 Ok(d) => self.recorder.as_mut().unwrap().digest(d),
                 Err(e) => log::warn!("recording: {e}"),
             }
         }
         if !held {
-            self.updates += 1;
+            self.sim.updates += 1;
         }
         if let Some(d) = self.mods_dialog.as_mut() {
             d.poll(ctx.ui, ctx.settings, ctx.mods);
@@ -96,7 +96,7 @@ impl GameplayLoop {
         if !self.replaying && pauses_game != self.menu_paused {
             self.menu_paused = pauses_game;
             if let Some(r) = &mut self.recorder {
-                r.menu_pause(self.updates - 1, pauses_game);
+                r.menu_pause(self.sim.updates - 1, pauses_game);
             }
         }
         // Controller FUN_140107b70 → FUN_140104390: the camera eases toward its zoom and pitch
@@ -189,15 +189,16 @@ impl GameplayLoop {
             self.refresh_weather(ctx, dt * iterations as f32);
         }
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
-        if let (Some(town), Some(view), true) = (&mut self.town, &mut self.view, runs) {
+        if let (Some(town), Some(view), true) = (&mut self.sim.town, &mut self.view, runs) {
             let grid = self
+                .sim
                 .heights
                 .as_ref()
                 .expect("the heights come with the view")
                 .grid();
             {
                 let _p = crate::platform::perf::scope("smooth");
-                models_changed |= town.smooth(&grid, &mut self.rng);
+                models_changed |= town.smooth(&grid, &mut self.sim.rng);
             }
             self.ambience_stale |= models_changed;
             if models_changed {
@@ -213,7 +214,7 @@ impl GameplayLoop {
         self.utility.update(ctx.ui, &self.status_values());
         if let (Some(notify), Some(screen)) = (self.notify.as_mut(), self.screen.as_mut()) {
             let width = self.toolbar.as_ref().map_or(0, |t| t.width(ctx.ui));
-            if notify.update(ctx.ui, screen, &self.events, dt, width) {
+            if notify.update(ctx.ui, screen, &self.sim.events, dt, width) {
                 // `Scene::PlayEffect(WarningEffect, 1)`.
                 ctx.audio.play(
                     ctx.archive,
@@ -222,16 +223,16 @@ impl GameplayLoop {
                 );
             }
         }
-        if let Some(town) = &self.town {
+        if let Some(town) = &self.sim.town {
             let town_ctx = crate::ui::town_hall_ui::TownContext {
-                stock_counts: &self.stock_warnings.count,
-                statistics: &self.statistics,
+                stock_counts: &self.sim.stock_warnings.count,
+                statistics: &self.sim.statistics,
             };
             self.entities.refresh_with(
                 ctx.ui,
                 ctx.archive,
                 town,
-                &self.stock_warnings.limits,
+                &self.sim.stock_warnings.limits,
                 &self.params.town_name,
                 Some(&town_ctx),
             );
@@ -240,7 +241,7 @@ impl GameplayLoop {
         // merchant while its window is open.
         let open = self.entities.trade_windows();
         if open != self.trade_held {
-            if self.town.is_some() {
+            if self.sim.town.is_some() {
                 use unbanished_game::{commerce::trade::TradeSetting, work::professions::Command};
                 let closed = self.trade_held.iter().filter(|e| !open.contains(e));
                 let opened = open.iter().filter(|e| !self.trade_held.contains(e));
@@ -259,8 +260,9 @@ impl GameplayLoop {
             self.trade_held = open;
         }
         self.position_entity_window(ctx);
-        if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
+        if let (Some(town), Some(view)) = (self.sim.town.as_ref(), self.view.as_mut()) {
             let grid = self
+                .sim
                 .heights
                 .as_ref()
                 .expect("the heights come with the view")
@@ -300,7 +302,7 @@ impl GameplayLoop {
         // Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on
         // each player's own setting.
         let auto_slow = ctx.settings.game.auto_slow || self.lockstep.is_some();
-        if std::mem::take(&mut self.events.slow_request) && auto_slow {
+        if std::mem::take(&mut self.sim.events.slow_request) && auto_slow {
             self.speed = 0;
         }
         self.move_cooldown -= dt;
@@ -309,13 +311,16 @@ impl GameplayLoop {
             self.update_audio(ctx, dt);
         }
         let month = self.month();
-        let into_month = (self.calendar.seconds() - month as f32 * MONTH_SECONDS) / MONTH_SECONDS;
-        if let (Some(view), Some(from)) = (self.view.as_mut(), self.environment_months.get(month)) {
+        let into_month =
+            (self.sim.calendar.seconds() - month as f32 * MONTH_SECONDS) / MONTH_SECONDS;
+        if let (Some(view), Some(from)) =
+            (self.view.as_mut(), self.sim.environment_months.get(month))
+        {
             // `FUN_140098f90`: blend this month's lighting towards the next.
-            let to = &self.environment_months[(month + 1) % self.environment_months.len()];
+            let to = &self.sim.environment_months[(month + 1) % self.sim.environment_months.len()];
             view.lighting = Lighting::between_months(from, to, into_month);
             // With ShowWeather, each running effect pulls the lighting towards its own.
-            if let (true, Some(env)) = (ctx.settings.game.show_weather, &self.environment) {
+            if let (true, Some(env)) = (ctx.settings.game.show_weather, &self.sim.environment) {
                 for (slot, p) in self.precipitation.iter().enumerate() {
                     let (Some(p), Some(Some(e))) = (p, env.effects.get(slot)) else {
                         continue;
@@ -323,7 +328,7 @@ impl GameplayLoop {
                     view.lighting.toward_weather(&p.desc, e.intensity);
                 }
             }
-            if let Some(env) = &self.environment {
+            if let Some(env) = &self.sim.environment {
                 let s = env.season;
                 view.lighting.user = glam::Vec4::new(s.snow, s.autumn, s.leaf_loss, s.rain);
             }

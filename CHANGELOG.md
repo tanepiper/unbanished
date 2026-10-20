@@ -41,7 +41,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 - The running town is its own crate, `unbanished-sim` (`crates/sim`): the town, its map, the save
   as the game reads it and the mod lists, with no drawing, sound or interface. The game app draws
-  it. Nothing in the game changes.
+  it. Its `Simulation` holds the game's deterministic state and runs each iteration.
+  Nothing in the game changes.
 
 - The game's code is easier to find: `apps/game/src/main.rs` is split into `game.rs` (the
   `Game`), `app.rs` (the window) and `native.rs` (the commands without a window), and the

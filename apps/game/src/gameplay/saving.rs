@@ -60,7 +60,7 @@ impl GameplayLoop {
         };
         self.save_achievements(&mut g);
         g.town_name = self.params.town_name.clone();
-        if let Some(town) = &self.town {
+        if let Some(town) = &self.sim.town {
             // A new game's map ambience (a loaded one keeps its own entities), made first so
             // its regions take the scheduler entries the town keeps for them.
             let mut foreign = Vec::new();
@@ -79,11 +79,12 @@ impl GameplayLoop {
                 town.export_into_with(archive, &mut g, &foreign);
             }
         }
-        g.random_index = self.rng.index();
-        g.random_state = self.rng.state().to_vec();
+        g.random_index = self.sim.rng.index();
+        g.random_state = self.sim.rng.state().to_vec();
         g.managers
-            .set_i32("calendar.value", self.calendar.year as i32);
-        g.managers.set_time("calendar.time", self.calendar.elapsed);
+            .set_i32("calendar.value", self.sim.calendar.year as i32);
+        g.managers
+            .set_time("calendar.time", self.sim.calendar.elapsed);
         if let (Some(view), Some(c)) = (&self.view, g.camera.as_mut()) {
             if let SceneCamera::Map(camera) = &view.camera {
                 c.target[0] = camera.target.x;
@@ -105,7 +106,7 @@ impl GameplayLoop {
                 }
             }
         }
-        if let Some(env) = &self.environment {
+        if let Some(env) = &self.sim.environment {
             let m = &mut g.managers;
             let ((baseline, baseline_target), (bias, bias_target), slice) = env.saved();
             m.set_i32("environment.state", env.state);
@@ -136,10 +137,11 @@ impl GameplayLoop {
         }
         // The event log keeps each entry's text (`FUN_14009a790`).
         let m = &mut g.managers;
-        for (k, n) in self.events.notify.iter().enumerate() {
+        for (k, n) in self.sim.events.notify.iter().enumerate() {
             m.set_bool(&format!("event_log.notify_{k}"), *n);
         }
         let entries: Vec<Fields> = self
+            .sim
             .events
             .entries
             .iter()
@@ -158,6 +160,7 @@ impl GameplayLoop {
         m.set("event_log.entries", Value::List(entries));
         let t = &mut g.town;
         let history: Vec<Fields> = self
+            .sim
             .statistics
             .series
             .iter()
@@ -173,9 +176,9 @@ impl GameplayLoop {
                 t.set("town.history", Value::List(history));
             }
         }
-        t.set_time("town.time_198", self.statistics.timer);
+        t.set_time("town.time_198", self.sim.statistics.timer);
         if let Some(Value::List(slots)) = t.at_mut("town.stock") {
-            let w = &self.stock_warnings;
+            let w = &self.sim.stock_warnings;
             for (k, s) in slots.iter_mut().enumerate().take(w.count.len()) {
                 s.set_i32("count", w.count[k]);
                 s.set_i32("previous", w.previous[k]);
@@ -185,7 +188,7 @@ impl GameplayLoop {
         }
         if let Some(Value::List(records)) = t.at_mut("town.capacity_records") {
             for (r, &(used, capacity, cooldown)) in
-                records.iter_mut().zip(&self.stock_warnings.capacity)
+                records.iter_mut().zip(&self.sim.stock_warnings.capacity)
             {
                 r.set_i32("used", used);
                 r.set_i32("capacity", capacity);
@@ -263,7 +266,11 @@ impl GameplayLoop {
     /// a tutorial (flag bit 10) or a save runs (`FUN_14005e820`).
     pub(super) fn update_autosave(&mut self, ctx: &mut Ctx, dt: f32) {
         let interval = ctx.settings.game.autosave_interval;
-        let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
+        let flags = self
+            .sim
+            .town
+            .as_ref()
+            .map_or(0, |t| t.construction.game_flags);
         let dialog_saving = self.save_dialog.as_ref().is_some_and(|d| d.saving());
         let can_save = self.pause_menu.is_none()
             && flags & 0x400 == 0
@@ -333,7 +340,7 @@ impl GameplayLoop {
         let Some((n, terrain)) = &self.save_minimap else {
             return;
         };
-        let overlay: Vec<u32> = self.town.as_ref().map_or_else(Vec::new, |t| {
+        let overlay: Vec<u32> = self.sim.town.as_ref().map_or_else(Vec::new, |t| {
             t.minimap_overlay()
                 .chunks(4)
                 .map(|p| {
@@ -354,22 +361,26 @@ impl GameplayLoop {
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(super) fn new_game_state(&self) -> Option<unbanished_formats::savegame::GameState> {
         let mut map = self.new_map.clone()?;
-        if let Some(heights) = &self.heights {
+        if let Some(heights) = &self.sim.heights {
             map.heights = heights.values.clone();
         }
         if let Some(view) = &self.view {
             map.surface = view.terrain.surface.clone();
         }
-        let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
+        let flags = self
+            .sim
+            .town
+            .as_ref()
+            .map_or(0, |t| t.construction.game_flags);
         Some(crate::start::save::new_game::state(
             crate::start::save::new_game::NewGame {
                 params: &self.params,
                 flags,
                 map,
-                effects: self.environment.as_ref().map_or(0, |e| e.effects.len()),
-                history: self.statistics.series.len(),
-                stock: self.stock_warnings.count.len(),
-                capacity: self.stock_warnings.capacity.len(),
+                effects: self.sim.environment.as_ref().map_or(0, |e| e.effects.len()),
+                history: self.sim.statistics.series.len(),
+                stock: self.sim.stock_warnings.count.len(),
+                capacity: self.sim.stock_warnings.capacity.len(),
             },
         ))
     }

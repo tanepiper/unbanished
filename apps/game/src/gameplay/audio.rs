@@ -20,8 +20,12 @@ impl GameplayLoop {
             .music
             .get_or_insert_with(|| crate::audio::music::MusicPlayer::load(ctx.archive));
         music.update(ctx.audio, ctx.archive, month, mood);
-        let temperature = self.environment.as_ref().map_or(50.0, |e| e.temperature);
-        if let Some(town) = &self.town {
+        let temperature = self
+            .sim
+            .environment
+            .as_ref()
+            .map_or(50.0, |e| e.temperature);
+        if let Some(town) = &self.sim.town {
             match &mut self.ambience {
                 None => {
                     self.ambience = Some(crate::audio::ambience::Ambience::create(
@@ -49,7 +53,7 @@ impl GameplayLoop {
         // the game option ShowWeather (`+0x16`) off the effects and their emitters are removed.
         // ShowWeather also gates the weather lighting blend (`FUN_140098f90`, in `update`).
         let show_weather = ctx.settings.game.show_weather;
-        if let (Some(a), Some(env)) = (&mut self.ambience, &self.environment) {
+        if let (Some(a), Some(env)) = (&mut self.ambience, &self.sim.environment) {
             for (slot, (_, ambient)) in self.weather.iter().enumerate().take(2) {
                 let intensity = env.effects[slot]
                     .filter(|_| show_weather)

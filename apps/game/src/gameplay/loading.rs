@@ -34,8 +34,8 @@ impl GameplayLoop {
                 if saved.is_none() {
                     self.new_map = Some(new_map(&world));
                 }
-                self.environment_months = world.environment.months;
-                self.environment_template = world.environment.template.clone();
+                self.sim.environment_months = world.environment.months;
+                self.sim.environment_template = world.environment.template.clone();
                 log::info!(
                     "{} terrain ready for {} ({}, {})",
                     world.profile.name,
@@ -56,7 +56,7 @@ impl GameplayLoop {
                         &self.params.start_condition_ref,
                         world.terrain.size / 2,
                         &grid,
-                        &mut self.rng,
+                        &mut self.sim.rng,
                     ),
                 };
                 // Inferred: the camera opens over the start point (not yet traced).
@@ -102,9 +102,9 @@ impl GameplayLoop {
                     view.models = Some(town_view.models(town, ctx.archive));
                     self.town_view = Some(town_view);
                 }
-                self.town = town;
+                self.sim.town = town;
                 // A new game's ambience regions join the entity manager's bucket 2.
-                if let (None, Some(town)) = (&saved, &mut self.town) {
+                if let (None, Some(town)) = (&saved, &mut self.sim.town) {
                     let regions = crate::audio::ambience::region_count(
                         ctx.archive,
                         &self.params.start_condition_ref,
@@ -112,7 +112,7 @@ impl GameplayLoop {
                     );
                     town.register_ambience(regions);
                 }
-                if let Some(town) = &mut self.town {
+                if let Some(town) = &mut self.sim.town {
                     town.construction.game_flags = match &saved {
                         Some(s) => s.state.flags,
                         None if self.params.disasters => 0,
@@ -125,6 +125,7 @@ impl GameplayLoop {
                 // the first music track; the emitters and the music still start on the first
                 // gameplay frame (`update_audio`).
                 let mut effects = self
+                    .sim
                     .town
                     .as_ref()
                     .map(|town| crate::audio::ambience::preload_effects(ctx.archive, town))
@@ -136,7 +137,7 @@ impl GameplayLoop {
                         .first_track(ctx.audio, month, mood),
                 );
                 // The heights the simulation reads and changes; the view keeps a copy to draw.
-                self.heights = Some(unbanished_game::terrain::Heights {
+                self.sim.heights = Some(unbanished_game::terrain::Heights {
                     size: view.terrain.size,
                     values: view.terrain.heights.clone(),
                 });
@@ -178,7 +179,7 @@ impl GameplayLoop {
                     env.game_flags = saved.state.flags;
                     saved.restore_environment(&mut env);
                 }
-                self.environment = Some(env);
+                self.sim.environment = Some(env);
             }
             Err(e) => log::error!("{reference}: {e}"),
         }

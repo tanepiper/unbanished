@@ -434,7 +434,7 @@ impl super::GameplayLoop {
     /// The local player gives a command: in lockstep it waits for its slot.
     pub fn give(&mut self, archive: &unbanished_formats::pkg::Archive, command: PlayerCommand) {
         match &mut self.lockstep {
-            Some(l) => l.give(self.updates, command),
+            Some(l) => l.give(self.sim.updates, command),
             None => {
                 self.execute(archive, command);
             }
@@ -456,7 +456,7 @@ impl super::GameplayLoop {
     /// Before an update: seals the local turn `delay` slots ahead (once), and carries out the
     /// slot of the updates begun so far if every player's turn is here. False while waiting.
     pub fn lockstep_slot(&mut self, ctx: &mut crate::loops::Ctx) -> bool {
-        let slot = self.updates;
+        let slot = self.sim.updates;
         if self.slot_done == Some(slot) {
             return true;
         }
@@ -583,7 +583,7 @@ impl super::GameplayLoop {
         if let Some(net) = &mut g.net {
             net.forget_line();
         }
-        g.updates = update;
+        g.sim.updates = update;
         g.slot_done = Some(update);
         g.boundary_done = Some(update);
         if let Some(mut l) = self.lockstep.take() {

@@ -44,13 +44,13 @@ impl GameplayLoop {
                 let (Some(template), Some(screen)) = (words.next(), self.screen.as_mut()) else {
                     return false;
                 };
-                let map_size = self.town.as_ref().map_or(0, |t| t.cells.size as u32);
+                let map_size = self.sim.town.as_ref().map_or(0, |t| t.cells.size as u32);
                 self.utility.toggle(
                     ctx.ui,
                     screen,
                     ctx.archive,
                     template,
-                    Some(&self.events),
+                    Some(&self.sim.events),
                     map_size,
                 );
                 return true;
@@ -58,7 +58,7 @@ impl GameplayLoop {
             // `place TEMPLATE`: place a building on the first clear spot near the start.
             Some("place") => {
                 let (Some(template), true, true) =
-                    (words.next(), self.town.is_some(), self.view.is_some())
+                    (words.next(), self.sim.town.is_some(), self.view.is_some())
                 else {
                     return false;
                 };
@@ -70,7 +70,8 @@ impl GameplayLoop {
                 else {
                     return false;
                 };
-                let (Some(town), Some(heights)) = (self.town.as_ref(), self.heights.as_ref())
+                let (Some(town), Some(heights)) =
+                    (self.sim.town.as_ref(), self.sim.heights.as_ref())
                 else {
                     return false;
                 };
@@ -86,13 +87,13 @@ impl GameplayLoop {
                     },
                     None => None,
                 };
-                let Some(town) = self.town.as_ref() else {
+                let Some(town) = self.sim.town.as_ref() else {
                     return false;
                 };
                 let cell = placed.map(|e| (town.placed[e].cell, town.start));
                 log::info!("script placed {template} as {placed:?} (cell, start: {cell:?})");
                 if let Some(models) = self.view.as_mut().and_then(|v| v.models.as_mut()) {
-                    if let Some(town) = &self.town {
+                    if let Some(town) = &self.sim.town {
                         self.town_view
                             .as_ref()
                             .expect("the town view comes with the town")
@@ -106,7 +107,7 @@ impl GameplayLoop {
                 let (Some(template), Some(r), true, true) = (
                     words.next(),
                     words.next().and_then(|w| w.parse::<i32>().ok()),
-                    self.town.is_some(),
+                    self.sim.town.is_some(),
                     self.view.is_some(),
                 ) else {
                     return false;
@@ -118,7 +119,7 @@ impl GameplayLoop {
                 else {
                     return false;
                 };
-                let Some(town) = self.town.as_ref() else {
+                let Some(town) = self.sim.town.as_ref() else {
                     return false;
                 };
                 let n = town.cells.size as i32;
@@ -132,7 +133,7 @@ impl GameplayLoop {
                     ..tool.drag_command()
                 };
                 self.execute(ctx.archive, PlayerCommand::Drag(drag));
-                let Some(town) = self.town.as_ref() else {
+                let Some(town) = self.sim.town.as_ref() else {
                     return false;
                 };
                 let roads: Vec<i32> = (0..town.cells.road_kind.len() as i32)
@@ -169,7 +170,8 @@ impl GameplayLoop {
             }
             // `select`: select the most recently placed entity (EditTool::Select).
             Some("select") => {
-                let (Some(town), Some(screen)) = (self.town.as_ref(), self.screen.as_mut()) else {
+                let (Some(town), Some(screen)) = (self.sim.town.as_ref(), self.screen.as_mut())
+                else {
                     return false;
                 };
                 // `select citizen N`: the N-th living citizen; `select profession NAME N`: the
@@ -216,7 +218,7 @@ impl GameplayLoop {
                 let (Some(profession), Some(count), Some(_)) = (
                     words.next().and_then(|w| w.parse().ok()),
                     words.next().and_then(|w| w.parse().ok()),
-                    self.town.as_ref(),
+                    self.sim.town.as_ref(),
                 ) else {
                     return false;
                 };
@@ -231,8 +233,9 @@ impl GameplayLoop {
             return false;
         };
         let cell = words.next().and_then(|c| c.parse().ok()).unwrap_or(-1);
-        let (month, year) = (self.month(), self.calendar.year as i32);
-        self.events
+        let (month, year) = (self.month(), self.sim.calendar.year as i32);
+        self.sim
+            .events
             .add(kind, 3, cell, month, year, Default::default(), false);
         true
     }

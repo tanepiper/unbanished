@@ -40,7 +40,7 @@ impl GameplayLoop {
         what: &str,
         filter: Option<&str>,
     ) -> Option<Result<Value, String>> {
-        let Some(town) = self.town.as_ref() else {
+        let Some(town) = self.sim.town.as_ref() else {
             return matches!(
                 what,
                 "town" | "buildings" | "citizens" | "animals" | "stock"
