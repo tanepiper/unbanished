@@ -1,10 +1,14 @@
-# Multiplayer: a plan that leaves the game unchanged
+# Multiplayer: design and progress
 
-This is a plan, not a finding: how Un-Banished could let several players run one town together,
-without changing the single-player game in any way. Nothing here is built yet. The evidence it
-rests on is in [CROSS-PLATFORM.md](CROSS-PLATFORM.md) (native and browser builds simulate
-identically) and in the code paths named below. The design follows the same idea as the
-Banished Multiplayer mod for the original game (github.com/BarryBareth/banished-multiplayer):
+How Un-Banished lets several players run one town together, without changing the single-player
+game in any way. Steps 1 to 6 below are built and tested: player commands, recording and
+replay, lockstep, desync checks and resync, the WebSocket relay, and the Multiplayer window with
+the players line. Step 7 (a town for each player) is not started. Each step lists how it was
+proved. For players, [guide/MULTIPLAYER.md](guide/MULTIPLAYER.md) explains how to play.
+
+The evidence it rests on is in [CROSS-PLATFORM.md](CROSS-PLATFORM.md) (native and browser builds
+simulate identically) and in the code paths named below. The design follows the same idea as
+the Banished Multiplayer mod for the original game (github.com/BarryBareth/banished-multiplayer):
 deterministic lockstep, where every player runs the whole simulation and only the players'
 commands travel.
 
