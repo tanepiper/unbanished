@@ -68,6 +68,10 @@ save holds the same game state and every frame is the same.
 - Builds before 0.2.0 do not have the `speed N` capture command (they run at speed 1), and
   their headless saves can land on a different frame from run to run. Compare such builds only
   with themselves.
+- Builds before 0.3.0 ignore `--mouse-down` and `--mouse-up`, so they skip the `actions`
+  scenario's drags and its game comes out different. Compare `actions` only between 0.3.0 and
+  later builds (for example, from 6416b7a); name the other scenarios when the base is older:
+  `tools/compat/compare.sh v0.2.0 HEAD new-game small-town medium-town large-town`.
 - The tools compare Un-Banished with Un-Banished. Whether the original game loads a save written
   by Un-Banished is not verified yet.
 - Timings in the scenarios are capture time, which runs faster than real time; the results
