@@ -260,6 +260,117 @@
   font-weight: 600;
 }
 
+/* Frame rates by town and game speed (FpsGrid). */
+.ub-fps {
+  margin: 20px 0 28px;
+}
+.ub-fps__grid {
+  display: grid;
+  gap: 8px;
+}
+.ub-fps__row {
+  display: grid;
+  grid-template-columns: 1.3fr repeat(3, 1fr);
+  gap: 8px;
+}
+.ub-fps__head {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vp-c-text-2);
+}
+.ub-fps__head > div:not(:first-child) {
+  text-align: center;
+}
+.ub-fps__town {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 10px 12px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background: var(--vp-c-bg-soft);
+  font-size: 15px;
+}
+.ub-fps__town span {
+  font-size: 13px;
+  color: var(--vp-c-text-2);
+}
+.ub-fps__tile {
+  --ub-fps: var(--vp-c-success-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 10px 8px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background: var(--vp-c-bg-soft);
+}
+.ub-fps__tile--near {
+  --ub-fps: var(--vp-c-warning-1);
+}
+.ub-fps__tile--low {
+  --ub-fps: var(--vp-c-danger-1);
+}
+.ub-fps__label {
+  display: none;
+}
+.ub-fps__fps {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ub-fps);
+}
+.ub-fps__word,
+.ub-fps__note {
+  font-size: 12px;
+  color: var(--vp-c-text-2);
+  text-align: center;
+}
+.ub-fps__bar {
+  width: 100%;
+  height: 5px;
+  margin: 4px 0;
+  border-radius: 3px;
+  background: var(--vp-c-divider);
+}
+.ub-fps__bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--ub-fps);
+}
+.ub-fps figcaption {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--vp-c-text-2);
+}
+/* On a phone, each town is a row of three small tiles under its name. */
+@media (max-width: 640px) {
+  .ub-fps__head {
+    display: none;
+  }
+  .ub-fps__row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .ub-fps__town {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .ub-fps__label {
+    display: block;
+    font-size: 11px;
+    color: var(--vp-c-text-2);
+  }
+  .ub-fps__fps {
+    font-size: 22px;
+  }
+}
+
 .ub-posts {
   display: grid;
   gap: 28px;

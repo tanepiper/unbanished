@@ -1,13 +1,24 @@
 ---
 name: banished-blog
-description: Write or edit a release post for the website's blog (site/blog/), in the project's editorial style - a few high-level stories, one per feature, with pictures and films made by Un-Banished, closed by a short changelog list. Use when preparing a release's blog post, or when changing an existing post.
+description: Write or edit a post for the website's blog (site/blog/) - a release post (a few high-level stories, one per feature, closed by a short changelog list) or an article (behind the scenes - how we test, measure or build the game), with pictures and films made by Un-Banished. Use when preparing a release's post, writing an article, or changing an existing post.
 ---
 
-# Write a release post
+# Write a blog post
 
-Each release has one post in `site/blog/`, named `X-Y-Z-<release-name>.md`, for example
-`0-3-0-neighbours.md`. It tells the player what is new in a few stories, in the style of the
-patch notes of games such as No Man's Sky. The full list of changes stays in `CHANGELOG.md`.
+The blog has two kinds of post:
+
+- **Release posts.** Each release has one, named `X-Y-Z-<release-name>.md`, for example
+  `0-3-0-neighbours.md`. It tells the player what is new in a few stories, in the style of the
+  patch notes of games such as No Man's Sky. The full list of changes stays in `CHANGELOG.md`.
+  Its front matter has `version`.
+- **Articles**, at any time, named `<subject>.md`, for example `measuring-speed.md`: one subject
+  from behind the scenes, such as how we measure the game's speed, with what we found. Its front
+  matter has `kind` (for example `Behind the scenes`) and no `version`; the banner and the blog
+  list show the kind in place of the version. Give `date` a time
+  (`2026-10-20T22:00:00Z`) when another post has the same day, so the newest comes first.
+
+The rules below apply to both. An article has no "Also in" list: it ends with links to the
+detailed documents and to the post before it.
 
 ## Editorial rules
 
@@ -54,9 +65,11 @@ patch notes of games such as No Man's Sky. The full list of changes stays in `CH
 | `<Shot src poster alt caption />` | One picture or film |
 | `<div class="ub-shots">` around several `<Shot>` | Pictures side by side |
 | `<BeforeAfter unit :rows />` | Before-and-after numbers as bars |
+| `<FpsGrid caption :columns :rows />` | Frame rates as tiles, a row per town and a column per speed (green at 59 or more, amber from 45, red below) |
 
-The front matter has `title`, `name`, `version`, `date`, `cover`, `summary` (the card's text)
-and `description` (for search engines). `site/blog/posts.data.ts` lists the posts.
+The front matter has `title`, `name`, `version` (release posts) or `kind` (articles), `date`,
+`cover`, `summary` (the card's text) and `description` (for search engines). `<ReleaseHero>`
+takes `version` or `kind` in the same way. `site/blog/posts.data.ts` lists the posts.
 
 ## Check before landing
 

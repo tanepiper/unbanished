@@ -233,6 +233,29 @@ half a 60 fps frame even natively; the browser runs it on one thread in WebAssem
 to 28 fps in Chrome. The scene refresh (models, ambience, particles) costs 4 ms every update
 whatever the speed, and is the next largest CPU cost.
 
+## Where the time goes in a 1,024-citizen town (2026-10-20)
+
+Driscola (`save-game/Save200.sav`, 1,024 citizens, 650 buildings), a headless capture at
+1920 × 1080 with the default video settings and `UNBANISHED_PROFILE=1`, 62 s; the third 600-frame
+summary. The summary's phase times are sums per capture frame (two updates and one draw); the
+update phases below are halved to one update, the draw is per picture.
+
+| Phase | Speed 1 | Speed 10 |
+|---|---|---|
+| `sim.iterate` | 1.8 ms | 15.9 ms |
+| of which `sim.citizens` | 1.2 ms | 11.7 ms |
+| of which `sim.town` | 0.4 ms | 2.2 ms |
+| `refresh_models` + `audio` + `refresh_particles` | 5.7 ms | 5.5 ms |
+| `draw` on the CPU (without `draw.gpu`) | 4.3 ms | 4.1 ms |
+| `draw.gpu` | 9.9 ms | 15.3 ms |
+| Capture frame, median | 30.3 ms | 64.2 ms |
+
+At speed 1 the scene refresh costs about three times the simulation; at speed 10 the
+simulation alone is about one 60 fps frame. These agree with the frame rates measured the same
+day: Driscola at 58 / 40 / 26 fps on the desktop with the GPU waited for (86 / 56 / 40 with CPU
+and GPU overlapped), and 60 / 26 / 22 fps in Chrome at speeds 1 / 5 / 10. The blog post
+[Sixty a second](https://tanepiper.github.io/unbanished/blog/measuring-speed) presents these results for players.
+
 ## Opportunities
 
 Ranked by expected gain against risk to 1:1 behaviour. "Measured" figures come from the samply

@@ -8,6 +8,7 @@ import WorkLoop from './components/WorkLoop.vue'
 import ReleaseHero from './components/ReleaseHero.vue'
 import Shot from './components/Shot.vue'
 import BeforeAfter from './components/BeforeAfter.vue'
+import FpsGrid from './components/FpsGrid.vue'
 import PostList from './components/PostList.vue'
 import './custom.css'
 
@@ -22,6 +23,7 @@ export default {
     app.component('ReleaseHero', ReleaseHero)
     app.component('Shot', Shot)
     app.component('BeforeAfter', BeforeAfter)
+    app.component('FpsGrid', FpsGrid)
     app.component('PostList', PostList)
   },
 } satisfies Theme
