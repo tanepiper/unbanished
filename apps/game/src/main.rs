@@ -1658,6 +1658,52 @@ mod native {
         }
     }
 
+    /// `--replay SAVE RECORDING [UPDATES] [EVERY]`: replays a recording (`--record`) from its
+    /// save without a window and compares the game state with the recorded digests
+    /// (`gameplay::recording`). Exits with 1 when they differ.
+    pub fn replay(args: &[String]) {
+        let (Some(save), Some(recording)) = (args.get(1), args.get(2)) else {
+            eprintln!("--replay SAVE RECORDING [UPDATES] [EVERY]");
+            std::process::exit(2);
+        };
+        let updates = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(0);
+        let every = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(0);
+        let bytes = std::fs::read(save).expect("read the save");
+        let text = std::fs::read_to_string(recording).expect("read the recording");
+        let dir = data_dir(args);
+        let found = crate::mods::find(&dir);
+        let mut game = Game::with_mods(
+            read_packages(&dir),
+            found,
+            Some(dir),
+            crate::settings::Settings::default(),
+        )
+        .expect("game data");
+        game.audio.set_master_volume(0.0);
+        let start = std::time::Instant::now();
+        match crate::gameplay::recording::replay(&mut game, &bytes, &text, updates, every) {
+            Ok(r) => {
+                for d in &r.digests {
+                    println!("{d}");
+                }
+                log::info!("replayed in {:.1} s", start.elapsed().as_secs_f32());
+                match r.mismatch {
+                    Some((recorded, replayed)) => {
+                        println!("DIFFERENT from the recording");
+                        println!("  recorded {recorded}");
+                        println!("  replayed {replayed}");
+                        std::process::exit(1);
+                    }
+                    None => println!("identical: {} recorded digests matched", r.compared),
+                }
+            }
+            Err(e) => {
+                eprintln!("--replay: {e}");
+                std::process::exit(2);
+            }
+        }
+    }
+
     /// The generated-map capture from M5 (`--capture`).
     pub fn map_capture(args: &[String], out: &str) {
         use crate::view::scene::{Camera, SceneCamera, SceneView};
@@ -1726,6 +1772,15 @@ fn main() {
         return;
     }
     log::info!("{}", platform::version::NAME_VERSION);
+    // `--record FILE [--record-every N]`: record the next game loaded from a save.
+    if let Some(path) = args.windows(2).find(|w| w[0] == "--record").map(|w| &w[1]) {
+        let every = args
+            .windows(2)
+            .find(|w| w[0] == "--record-every")
+            .and_then(|w| w[1].parse().ok())
+            .unwrap_or(0);
+        gameplay::recording::request(path.into(), every);
+    }
     match args.first().map(String::as_str) {
         Some("--boot-capture") => {
             let out = args.get(1).expect("--boot-capture OUT.png SECONDS");
@@ -1733,6 +1788,7 @@ fn main() {
             return native::boot_capture(&args, out, seconds);
         }
         Some("--sim-digest") => return native::sim_digest(&args),
+        Some("--replay") => return native::replay(&args),
         Some("--capture") => {
             let out = args.get(1).expect("--capture OUT.png [OPTIONS]");
             return native::map_capture(&args, out);

@@ -106,12 +106,31 @@ through the UI with `--press`, `--click-at` and `--script` (place, remove, a roa
 buttons, trade, speed). Before this step the scenarios must cover each action; they are written
 first, against the current build.
 
-### 2. Record and replay
+### 2. Record and replay (done)
 
 Write each executed command with the update it ran at (`--record FILE`), and replay a recording
 from the same save (`--replay FILE`), comparing digests. This is lockstep without a network: if a
 replay of a recorded game gives the same digests, the commands carry everything that changes the
 town. A bug report could carry a save and a recording.
+
+Done in `apps/game/src/gameplay/recording.rs`. A recording is JSON lines (serde): the start, each
+`PlayerCommand` with its update, the updates the pause menu held the game (`MenuPause`, which
+stops the simulation in the original and is not a command), and a digest every `--record-every`
+updates. `--replay SAVE FILE` loads the save without a window, carries the commands out at their
+updates (a tool a command starts becomes the current one, as in the interface), and compares
+digests. To make every command replayable:
+
+- the queued commands' flush after a window event or a drag is a command (`ApplyQueued`), so it
+  is recorded where it happened;
+- `Drag` carries the template, cells and settings, and applies the drag tool `StartTool` made for
+  that template; `StartTool` also starts the Path tool;
+- `RandomTownName` reads the town names itself (before, the Map window read them when it opened).
+
+Proof: the `actions` scenario recorded and replayed, 27 digests identical (and the recorded run
+saves the same game state and frame as one without recording); the 1,024-citizen town at speed
+10 for 3,600 updates (36,000 simulation iterations) with placements, clearing, demolishing and a
+profession change, 13 digests identical; `tools/compat/replay.sh` records and replays the four
+save scenarios. `compare.sh` against step 1's build: identical.
 
 ### 3. Lockstep in one process
 

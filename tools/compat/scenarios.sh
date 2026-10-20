@@ -21,6 +21,10 @@
 #                 build with `--mouse-down` / `--mouse-up` (0.3.0 and later).
 #   continue:PATH a save made by another version (PATH), 25 s at speed 5 (backward compatibility)
 #
+# RECORD_DIR=DIR also records each scenario that loads a save (`--record DIR/<scenario>.rec
+# --record-every 60`), for tools/compat/replay.sh. With GNU timeout installed (`gtimeout`,
+# Homebrew's coreutils), a run that takes more than 15 minutes is stopped.
+#
 # Needs game-data/ (tools/extract-assets.sh) and the saves in save-game/ (local, git-ignored).
 # Builds before 0.2.0 lack the `speed` script command (they run at speed 1) and may save on a
 # GPU-dependent frame; compare them only with themselves.
@@ -34,9 +38,14 @@ out="$(cd "$out" && pwd)"
 scenarios=("$@")
 [[ ${#scenarios[@]} -eq 0 ]] && scenarios=(new-game small-town medium-town large-town actions)
 
+limit=()
+if command -v gtimeout >/dev/null; then limit=(gtimeout 900); fi
+
 run() { # name seconds speed args...
   local name="$1" secs="$2" speed="$3"
   shift 3
+  local record=()
+  [[ -n ${RECORD_DIR:-} ]] && record=(--record "$RECORD_DIR/$name.rec" --record-every 60)
   local dir="$out/.$name"
   rm -rf "$dir" && mkdir -p "$dir/user"
   # The data folder is passed explicitly: a binary built by build.sh would otherwise look in the
@@ -44,8 +53,8 @@ run() { # name seconds speed args...
   (
     cd "$repo"
     BANISHED_SEED=1234 BANISHED_USER_DIR="$dir/user" BANISHED_SETTINGS="$dir/settings.txt" \
-      "$bin" --boot-capture "$out/$name.png" "$((secs + 2))" --capture-size 1280x800 \
-      "$@" --script "speed $speed@10" --script "toggle_pause@$secs" \
+      ${limit[@]+"${limit[@]}"} "$bin" --boot-capture "$out/$name.png" "$((secs + 2))" \
+      --capture-size 1280x800 ${record[@]+"${record[@]}"} "$@" --script "speed $speed@10" --script "toggle_pause@$secs" \
       --script "save $out/$name.sav@$((secs + 1))" "$repo/game-data/original/WinData" \
       >"$out/$name.log" 2>&1 || true
   )

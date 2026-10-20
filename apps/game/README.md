@@ -136,6 +136,21 @@ BANISHED_USER_DIR=/tmp/frames banished --boot-capture last.png 24 \
   --script "load save-game/Save83.sav@4.5" "${args[@]}"
 ```
 
+### Recording and replaying
+
+`--record FILE` (with any run, a capture or the windowed game) records the next game loaded from a
+save: every player command with the update it was given in, as JSON lines. `--record-every N`
+adds a digest of the game state every N updates. `banished --replay SAVE FILE [UPDATES] [EVERY]`
+loads the save without a window, carries the commands out at the same updates, and compares the
+digests: it prints `identical` or the first that differs, and exits with 1 when one does.
+`tools/compat/replay.sh BINARY` records and replays the compatibility scenarios.
+
+```bash
+banished --boot-capture /tmp/f.png 40 --script "load save-game/Save83.sav@4.5" ... \
+  --record /tmp/game.rec --record-every 60
+banished --replay save-game/Save83.sav /tmp/game.rec
+```
+
 ### `--sim-digest`
 
 `banished --sim-digest SAVE [UPDATES] [EVERY]` loads a save without a window, runs it at speed

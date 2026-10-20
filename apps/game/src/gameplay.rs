@@ -14,6 +14,7 @@ pub(crate) mod commands;
 pub mod digest;
 mod hud;
 mod input;
+pub mod recording;
 mod saving;
 mod simulation;
 mod tools;
@@ -166,6 +167,16 @@ pub struct GameplayLoop {
     pending_save: Option<(SaveTarget, Option<String>, Option<Vec<u8>>)>,
     /// `Dialog/AutoSave.rsc`: the autosave timer and the saving spinner.
     autosave: Option<crate::saves::autosave::AutoSave>,
+    /// Updates begun since the game loaded (recordings and replays count by it).
+    updates: u64,
+    /// The pause menu holds the game (in a replay: the recording says so).
+    menu_paused: bool,
+    /// A replay ([`recording::replay`]): the recording, not the interface, gives the commands.
+    replaying: bool,
+    /// The recording being written (`--record`).
+    recorder: Option<recording::Recorder>,
+    /// The drag tools started so far, by template (`PlayerCommand::Drag` applies them).
+    drag_tools: std::collections::BTreeMap<String, RemovalTool>,
     /// The Save and Load dialog over the pause menu.
     save_dialog: Option<crate::ui::save_dialog::SaveLoadDialog>,
     /// The Mods dialog over the pause menu (id 7).
@@ -334,6 +345,11 @@ impl GameplayLoop {
             pending_sounds: Vec::new(),
             pending_save: None,
             autosave: None,
+            updates: 0,
+            menu_paused: false,
+            replaying: false,
+            recorder: None,
+            drag_tools: Default::default(),
             save_dialog: None,
             mods_dialog: None,
             ambience: None,
@@ -608,9 +624,25 @@ impl GameLoop for GameplayLoop {
             self.achievement_manager.restore(&self.achievements, saved);
         }
         self.start_scenario(ctx);
+        // `--record`: a game loaded from a save is recorded from its first update.
+        if self.saved.is_some() && !self.replaying {
+            self.recorder = recording::take_request();
+        }
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
+        // A recording's digest of the state this update begins with, every few updates.
+        if self
+            .recorder
+            .as_ref()
+            .is_some_and(|r| r.every > 0 && self.updates % r.every == 0)
+        {
+            match self.digest(ctx, self.updates as u32) {
+                Ok(d) => self.recorder.as_mut().unwrap().digest(d),
+                Err(e) => log::warn!("recording: {e}"),
+            }
+        }
+        self.updates += 1;
         if let Some(d) = self.mods_dialog.as_mut() {
             d.poll(ctx.ui, ctx.settings, ctx.mods);
         }
@@ -645,7 +677,16 @@ impl GameLoop for GameplayLoop {
             options.update();
         }
         // `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller.
-        let pauses_game = self.pause_menu.is_some();
+        let pauses_game = match self.replaying {
+            true => self.menu_paused,
+            false => self.pause_menu.is_some(),
+        };
+        if !self.replaying && pauses_game != self.menu_paused {
+            self.menu_paused = pauses_game;
+            if let Some(r) = &mut self.recorder {
+                r.menu_pause(self.updates - 1, pauses_game);
+            }
+        }
         // Controller FUN_140107b70 → FUN_140104390: the camera eases toward its zoom and pitch
         // targets every frame.
         if ctx.app_paused {
@@ -871,7 +912,10 @@ impl GameLoop for GameplayLoop {
             .as_ref()
             .is_some_and(|t| !t.construction.commands.is_empty())
         {
-            self.apply_commands();
+            let flush = PlayerCommand::ApplyQueued {
+                with_calendar: true,
+            };
+            self.execute(ctx.archive, flush);
         }
         next
     }
@@ -1178,19 +1222,25 @@ impl GameLoop for GameplayLoop {
             }
             // `place TEMPLATE`: place a building on the first clear spot near the start.
             Some("place") => {
-                let (Some(template), Some(town), Some(view)) =
-                    (words.next(), self.town.as_mut(), self.view.as_ref())
+                let (Some(template), true, true) =
+                    (words.next(), self.town.is_some(), self.view.is_some())
                 else {
+                    return false;
+                };
+                let start = PlayerCommand::StartTool {
+                    template: template.to_string(),
+                };
+                let Outcome::Tool(Some(Tool::Placement(mut tool))) =
+                    self.execute(ctx.archive, start)
+                else {
+                    return false;
+                };
+                let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_ref()) else {
                     return false;
                 };
                 let grid = banished_game::terrain::HeightGrid {
                     width: view.terrain.size + 1,
                     heights: &view.terrain.heights,
-                };
-                let Some(mut tool) =
-                    PlacementTool::start(ctx.archive, town, template, &mut self.rng)
-                else {
-                    return false;
                 };
                 let near = town.start;
                 if tool.find_clear_spot(town, &grid, near).is_none() {
@@ -1217,15 +1267,22 @@ impl GameLoop for GameplayLoop {
             }
             // `remove TEMPLATE RADIUS`: drag a removal tool over the square around the start.
             Some("remove") => {
-                let (Some(template), Some(r), Some(town), Some(())) = (
+                let (Some(template), Some(r), true, true) = (
                     words.next(),
                     words.next().and_then(|w| w.parse::<i32>().ok()),
-                    self.town.as_mut(),
-                    self.view.is_some().then_some(()),
+                    self.town.is_some(),
+                    self.view.is_some(),
                 ) else {
                     return false;
                 };
-                let Some(tool) = RemovalTool::start(ctx.archive, town, template) else {
+                let start = PlayerCommand::StartTool {
+                    template: template.to_string(),
+                };
+                let Outcome::Tool(Some(Tool::Removal(tool))) = self.execute(ctx.archive, start)
+                else {
+                    return false;
+                };
+                let Some(town) = self.town.as_ref() else {
                     return false;
                 };
                 let n = town.cells.size as i32;
@@ -1233,10 +1290,12 @@ impl GameLoop for GameplayLoop {
                 let clamp = |v: i32| v.clamp(0, n - 1);
                 let a = clamp(y - r) * n + clamp(x - r);
                 let b = clamp(y + r) * n + clamp(x + r);
-                self.execute(
-                    ctx.archive,
-                    PlayerCommand::Drag(Box::new(tool.dragged(a, b))),
-                );
+                let drag = crate::gameplay::commands::Drag {
+                    start: a,
+                    end: b,
+                    ..tool.drag_command()
+                };
+                self.execute(ctx.archive, PlayerCommand::Drag(drag));
                 let Some(town) = self.town.as_ref() else {
                     return false;
                 };

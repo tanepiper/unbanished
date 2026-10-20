@@ -514,14 +514,7 @@ impl GameplayLoop {
                     }
                 }
                 crate::ui::pause_menu::PauseClick::Map => {
-                    if self.town_names.is_none() {
-                        self.town_names = ctx
-                            .archive
-                            .read("Game/Names/Cities_resource.crs")
-                            .and_then(|b| banished_formats::names::NameDatabase::read(&b))
-                            .map_err(|e| log::error!("town names: {e}"))
-                            .ok();
-                    }
+                    self.load_town_names(ctx.archive);
                     let flags = self.town.as_ref().map_or(0, |t| t.construction.game_flags);
                     if let Some(screen) = &mut self.screen {
                         self.menu_dialog = crate::view::map_params::MapParamsDialog::open(

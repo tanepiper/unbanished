@@ -15,7 +15,7 @@ pub const ROTATION_STEP: f32 = 90.0;
 pub const HEIGHT_TOLERANCE: f32 = 1000.0;
 
 /// A cell rectangle, inclusive.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Rect {
     /// The first column.
     pub x0: i32,
@@ -86,7 +86,7 @@ pub fn footprint_index(i: i32, j: i32, w: i32, h: i32, degrees: i32) -> usize {
 }
 
 /// The `CreatePlacedDescription` and `MapDescription` values placement reads.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PlacementRules {
     // +0x20
     /// Allowed cell types (bit per type) when no per-character table applies.

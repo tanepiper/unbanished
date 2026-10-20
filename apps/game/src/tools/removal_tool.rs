@@ -540,12 +540,27 @@ impl RemovalTool {
         Some(rect(1, if restricted { 3 } else { 0 }))
     }
 
-    /// The tool as a drag from cell `start` to cell `end` would apply it (scripted runs hand
-    /// it to `PlayerCommand::Drag`).
-    pub fn dragged(&self, start: i32, end: i32) -> RemovalTool {
+    /// The drag as it stands, for `PlayerCommand::Drag`: the template, the cells and the
+    /// settings `apply` reads.
+    pub fn drag_command(&self) -> crate::gameplay::commands::Drag {
+        crate::gameplay::commands::Drag {
+            template: self.reference.clone(),
+            start: self.start,
+            end: self.end,
+            rotation: self.rotation,
+            restrict: self.restrict,
+            manhattan: self.manhattan,
+        }
+    }
+
+    /// This tool with a drag's cells and settings, ready to `apply`.
+    pub fn with_drag(&self, drag: &crate::gameplay::commands::Drag) -> RemovalTool {
         let mut tool = self.clone();
-        tool.start = start;
-        tool.end = end;
+        tool.start = drag.start;
+        tool.end = drag.end;
+        tool.rotation = drag.rotation;
+        tool.restrict = drag.restrict;
+        tool.manhattan = drag.manhattan;
         tool
     }
 

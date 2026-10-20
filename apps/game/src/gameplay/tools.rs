@@ -164,9 +164,11 @@ impl GameplayLoop {
         let start = PlayerCommand::StartTool {
             template: template.to_string(),
         };
+        let mut path = None;
         match self.execute(ctx.archive, start) {
             Outcome::Tool(Some(Tool::Placement(t))) => self.placement = Some(t),
             Outcome::Tool(Some(Tool::Removal(t))) => self.removal = Some(t),
+            Outcome::Tool(Some(Tool::Path(t))) => path = Some(t),
             _ => {}
         }
         // A DragTool opens its CreateBar only while dragging (`FUN_140104eb0`).
@@ -186,7 +188,7 @@ impl GameplayLoop {
             self.selection.selected = None;
         }
         if self.placement.is_none() && self.removal.is_none() {
-            self.path_tool = crate::tools::path_tool::PathTool::start(ctx.archive, template);
+            self.path_tool = path;
         }
         if self.placement.is_none() && self.removal.is_none() && self.path_tool.is_none() {
             log::info!("{template}: no tool for it");
@@ -217,7 +219,7 @@ impl GameplayLoop {
         // The drag applies inside the input handler, as the original's tools do.
         let sound = match step {
             Some(DragStep::Apply) => {
-                let drag = PlayerCommand::Drag(Box::new(tool.clone()));
+                let drag = PlayerCommand::Drag(tool.drag_command());
                 match self.execute(ctx.archive, drag) {
                     Outcome::Sound(s) => Some(s),
                     _ => None,
@@ -226,6 +228,16 @@ impl GameplayLoop {
             Some(DragStep::Sound(s)) => Some(s),
             None => None,
         };
+        // The original's tools act inside the input handler: RoadTool's apply
+        // (`FUN_14010a200`) plans each cell (`FUN_1400a1e30`) and rebuilds the road decals
+        // (`FUN_1400b4840`) there and then, paused or not. The port queues the commands;
+        // applying them now is the order the next iteration would apply them in.
+        if sound.is_some() {
+            let flush = PlayerCommand::ApplyQueued {
+                with_calendar: false,
+            };
+            self.execute(ctx.archive, flush);
+        }
         let (Some(tool), Some(town), Some(view)) = (
             self.removal.as_mut(),
             self.town.as_mut(),
@@ -237,13 +249,6 @@ impl GameplayLoop {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
         };
-        // The original's tools act inside the input handler: RoadTool's apply
-        // (`FUN_14010a200`) plans each cell (`FUN_1400a1e30`) and rebuilds the road decals
-        // (`FUN_1400b4840`) there and then, paused or not. The port queues the commands;
-        // applying them now is the order the next iteration would apply them in.
-        if sound.is_some() {
-            town.apply_commands(&grid, &mut self.rng);
-        }
         let cells = tool.overlay(town, &grid, cell);
         view.cell_overlay = crate::gfx::selection_overlay::vertices(&cells, n, |x, y| {
             let mut normal = [0.0; 3];

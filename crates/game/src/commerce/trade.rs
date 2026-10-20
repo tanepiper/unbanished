@@ -439,7 +439,7 @@ pub fn merchant_list(
 }
 
 /// What the trade window changes on the post's TradeComponent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TradeSetting {
     // +0x60
     /// Storage tab spinner `2000 + i`: what to keep at the post.

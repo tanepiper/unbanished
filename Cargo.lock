@@ -516,6 +516,8 @@ dependencies = [
  "log",
  "png",
  "pollster",
+ "serde",
+ "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -574,6 +576,7 @@ dependencies = [
  "banished-formats",
  "banished-path",
  "banished-terrain",
+ "serde",
 ]
 
 [[package]]

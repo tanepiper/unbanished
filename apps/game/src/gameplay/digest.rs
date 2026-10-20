@@ -12,7 +12,7 @@ use crate::loops::GameLoop;
 /// One digest: after `update` updates (each one 1/60 s at speed 10, so ten simulation
 /// iterations), the year, the time in the year in ticks, the living citizens, and the CRC-32 of
 /// the encoded game state.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Digest {
     pub update: u32,
     pub year: u32,
@@ -61,7 +61,11 @@ pub fn run(
 }
 
 impl super::GameplayLoop {
-    fn digest(&self, ctx: &mut crate::loops::Ctx, update: u32) -> Result<Digest, String> {
+    pub(super) fn digest(
+        &self,
+        ctx: &mut crate::loops::Ctx,
+        update: u32,
+    ) -> Result<Digest, String> {
         let state = self
             .save_state(ctx.archive, ctx.ui)
             .ok_or("no game state")?

@@ -344,7 +344,7 @@ impl PlacementTool {
 }
 
 /// A building to create: what a placement click hands over (`PlayerCommand::Place`).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Placement {
     /// The template.
     pub template: usize,

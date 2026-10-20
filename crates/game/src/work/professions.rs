@@ -192,7 +192,7 @@ pub struct Worker {
 }
 
 /// A player action on professions, applied by the simulation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Command {
     /// ProfessionUI spinner `300 + profession` set to `count`.
     ///

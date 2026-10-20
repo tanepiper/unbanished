@@ -11,3 +11,4 @@ banished-core = { path = "../core" }
 banished-path = { path = "../path" }
 banished-terrain = { path = "../terrain" }
 banished-formats = { path = "../formats" }
+serde = { version = "1", features = ["derive"] }
