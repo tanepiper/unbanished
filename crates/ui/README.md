@@ -108,6 +108,7 @@ delivers an event to every controller on the element or on one of its parents.
 | `src/text.rs` | Text layout |
 | `src/document.rs` | Documents with markup |
 | `src/resources.rs` | A cache of sprite sheets, fonts, element descriptions and strings |
+| `src/query.rs` | `Query`: find shown elements by name, text, kind or dialog (`Ui::query`, `Ui::info`), for tests and the game's [probe](../../docs/develop/PROBE.md); not in the original |
 
 ## Tests
 

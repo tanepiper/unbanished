@@ -204,7 +204,7 @@ The project is a Rust workspace:
 
 ```bash
 tools/extract-assets.sh              # copy your game data into game-data/ (git ignores it)
-cargo test --release                 # tests that need game data are skipped if game-data/ is missing
+tools/test/run.py                    # the quick tests; tests that need game data are skipped without it
 cargo run -p banished-viewer --release
 ```
 

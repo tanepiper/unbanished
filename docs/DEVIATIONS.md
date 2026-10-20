@@ -10,6 +10,11 @@ Deviation: 60, Not ported: 4, Not traced: 1.
 
 - [Deviation] [apps/game/src/achievements.rs:1](../apps/game/src/achievements.rs#L1): Achievements (Runtime `Achievement::AchievementManager`, `AchievementInstance`, `GoalList`, `GoalInstance`; the goal classes in the Application). See docs/ACHIEVEMENTS.md. `Game/Achievement/AchievementList.rsc` lists the achievements; each has goals. A goal's state (`Goal` slot `+0x40`, `GoalInstance::CheckGoalState`) is 0 not met, 1 met or 2 failed; a failed goal stays failed (`GoalInstance::Update`). The manager (`Update` `0x18009f1e0`) checks one achievement not yet awarded each frame in turn, its goals updated with the time since its last check; with every goal met and none failed it is awarded (`SetAchievementMet`) and the game logs event `0x19` (`FUN_14009be30`). Deviation: the original keeps what is awarded in Steam's user stats; the port keeps it in the settings store (`Achievement<title>`).
 
+## `apps/game/src/app.rs`
+
+- [Deviation] [apps/game/src/app.rs:117](../apps/game/src/app.rs#L117): The display modes of the window's monitor, largest first (`Adapter::FindDisplayMode` lists). Deviation: the browser offers the page's size at 100, 75 and 50 % (the scene is drawn at that size and scaled to the page, `Renderer::set_scene_scale`) and frame-rate limits of 30 to 120 per second (issue #15).
+- [Deviation] [apps/game/src/app.rs:213](../apps/game/src/app.rs#L213): Deviation: in the browser, Fullscreen asks the browser to show the page full screen (winit waits for the next click or key if the browser needs one) instead of changing the display mode.
+
 ## `apps/game/src/audio/ambience.rs`
 
 - [Deviation] [apps/game/src/audio/ambience.rs:1](../apps/game/src/audio/ambience.rs#L1): Map ambience placed by `FUN_1400a57c0` (see docs/STARTING-AUDIO-EMITTERS.md, docs/AUDIO.md): - one `Audio/Effects/Environment.rsc:ambient` per `int_150`-cell square region. Its AmbientEnvironmentComponent (`FUN_140043c70`) weighs the region's cells against the description's terrain classes (cell-type mask, optional entity template, weight), picks the heaviest, and feeds its warm and cold effects to the two emitter slots at `t` and `1 - t`, where `t` is the temperature's place in the description's fade range; - one `Audio/Effects/WindEffect.rsc:ambient` at height `float_170`. Also the Rain effect's emitter (`FUN_140099790`) and the emitters of placed entities whose template has an `ambientemitter` component (fire, crowd, tornado). Emitters of the same SoundEffect share one 3D effect (`FindEffect3D`, `AddEmitter`), which plays at the loudest emitter in reach. Deviations: the original registers these as entities in the entity manager (bucket 2 for the environment); the port keeps them as an audio-only layer and re-weighs a region when the map changes instead of on its scheduled visit. River emitters: one `Audio/Effects/RiverEffect.rsc:ambient` every `float_130` units along the river paths (MapComponent `+0x1e0`, see `World::river_paths`).
@@ -17,6 +22,11 @@ Deviation: 60, Not ported: 4, Not traced: 1.
 ## `apps/game/src/audio/sound.rs`
 
 - [Deviation] [apps/game/src/audio/sound.rs:1](../apps/game/src/audio/sound.rs#L1): The game's audio: the 64-channel `Device`, the `Audio::Scene` above it, loaded SoundEffects, and the UI sound slots (`UserInterface::SetSound`, set from the global sounds of `FUN_14009f280` by `FUN_1400778f0`). See docs/AUDIO.md. Deviation: the original passes the game's Random (`Game +0xd8`) to `Scene::Update` and the music player, at moments that depend on the frame rate and on when sounds end. The port gives audio its own Random so that the simulation stays reproducible.
+
+## `apps/game/src/game.rs`
+
+- [Deviation] [apps/game/src/game.rs:33](../apps/game/src/game.rs#L33): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
+- [Deviation] [apps/game/src/game.rs:42](../apps/game/src/game.rs#L42): A capture's cinematic camera this frame: eye, target and vertical field of view ([`view::cinematic`]). Deviation: not in the original; drawing only, set by captures.
 
 ## `apps/game/src/gameplay.rs`
 
@@ -63,11 +73,7 @@ Deviation: 60, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/main.rs`
 
-- [Deviation] [apps/game/src/main.rs:83](../apps/game/src/main.rs#L83): Deviation: the original also draws between steps (`MainLoop::Frame`'s `+0x38 / +0x48` handed to `Renderer::Draw`, models and poses blending their `InterpolatedState`); the port draws the last step, which differs only on displays faster than 60 Hz.
-- [Deviation] [apps/game/src/main.rs:115](../apps/game/src/main.rs#L115): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
-- [Deviation] [apps/game/src/main.rs:124](../apps/game/src/main.rs#L124): A capture's cinematic camera this frame: eye, target and vertical field of view ([`view::cinematic`]). Deviation: not in the original; drawing only, set by captures.
-- [Deviation] [apps/game/src/main.rs:906](../apps/game/src/main.rs#L906): The display modes of the window's monitor, largest first (`Adapter::FindDisplayMode` lists). Deviation: the browser offers the page's size at 100, 75 and 50 % (the scene is drawn at that size and scaled to the page, `Renderer::set_scene_scale`) and frame-rate limits of 30 to 120 per second (issue #15).
-- [Deviation] [apps/game/src/main.rs:1002](../apps/game/src/main.rs#L1002): Deviation: in the browser, Fullscreen asks the browser to show the page full screen (winit waits for the next click or key if the browser needs one) instead of changing the display mode.
+- [Deviation] [apps/game/src/main.rs:91](../apps/game/src/main.rs#L91): Deviation: the original also draws between steps (`MainLoop::Frame`'s `+0x38 / +0x48` handed to `Renderer::Draw`, models and poses blending their `InterpolatedState`); the port draws the last step, which differs only on displays faster than 60 Hz.
 
 ## `apps/game/src/menu.rs`
 

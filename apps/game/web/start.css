@@ -1,0 +1,121 @@
+/* The browser start page (index.html): the loading card, the steps, the kept files and the
+   manager. Inlined into the page by trunk (rel="inline"). */
+:root {
+  color-scheme: dark;
+  --bg: #0e0b08; --card: rgb(23 18 13 / 0.86); --line: #3a3026;
+  --fg: #ece4d3; --muted: #bdb39f; --faint: #8d8574;
+  --gold-hi: #f4dc9a; --gold: #d8a648; --gold-lo: #9c6a24;
+  --serif: 'EB Garamond', Georgia, 'Times New Roman', serif;
+}
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+             font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+canvas#game { display: block; width: 100vw; height: 100vh; outline: none; touch-action: none; }
+a { color: var(--gold); text-decoration: none; }
+a:hover { color: var(--gold-hi); text-decoration: underline; }
+code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--gold-hi);
+       background: rgb(255 255 255 / 0.06); padding: 1px 5px; border-radius: 4px; word-break: break-word; }
+
+/* The whole loading screen covers the canvas until the game runs. */
+#panel { position: fixed; inset: 0; z-index: 10; overflow-y: auto; display: flex;
+         align-items: center; justify-content: center; padding: 32px 16px; box-sizing: border-box; }
+#panel[hidden] { display: none; }
+.backdrop, .backdrop::after { position: fixed; inset: 0; }
+.backdrop { background: var(--bg) url("montage-poster.webp") center / cover no-repeat;
+            animation: drift 40s ease-in-out infinite alternate; transform-origin: 60% 40%; }
+.backdrop::after { content: ""; background:
+  radial-gradient(ellipse at center, rgb(14 11 8 / 0.55) 0%, rgb(14 11 8 / 0.92) 70%),
+  linear-gradient(180deg, rgb(14 11 8 / 0.3), rgb(14 11 8 / 0.85)); }
+@keyframes drift { from { transform: scale(1.04) translate(0, 0); } to { transform: scale(1.14) translate(-2%, 1.5%); } }
+
+.card { position: relative; width: 100%; max-width: 620px; padding: 28px 32px 22px;
+        background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+        box-shadow: 0 30px 80px rgb(0 0 0 / 0.55); backdrop-filter: blur(6px); box-sizing: border-box; }
+.logo { display: block; width: 100%; max-width: 360px; height: auto; margin: 0 auto 4px; }
+.tagline { margin: 0 0 22px; text-align: center; font: italic 500 21px/1.3 var(--serif); color: var(--muted); }
+
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+ol.steps > li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: start; }
+.num { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+       font: 600 15px/1 var(--serif); color: #1b130a;
+       background: linear-gradient(180deg, var(--gold-hi), var(--gold) 55%, var(--gold-lo)); }
+.step h2 { margin: 2px 0 2px; font: 600 19px/1.3 var(--serif); color: var(--fg); }
+.step p { margin: 0; color: var(--muted); font-size: 14px; }
+.paths { margin: 6px 0 0; padding: 0; list-style: none; font-size: 13px; color: var(--faint); display: grid; gap: 3px; }
+
+/* The file input stays in the page for screen readers and the keyboard; its label is the button. */
+#packages { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.pick { display: inline-flex; align-items: center; gap: 10px; margin-top: 8px; padding: 11px 20px;
+        border-radius: 999px; cursor: pointer; font: 600 16px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: #1b130a; background: linear-gradient(180deg, var(--gold-hi), var(--gold) 60%, #c28d38);
+        box-shadow: 0 6px 18px rgb(216 166 72 / 0.25); transition: transform 0.12s, box-shadow 0.12s; }
+.pick:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgb(216 166 72 / 0.35); }
+.pick svg { width: 18px; height: 18px; }
+.step:focus-within .pick { outline: 2px solid var(--gold-hi); outline-offset: 3px; }
+.step:has(#packages:disabled) .pick { opacity: 0.55; cursor: progress; transform: none; }
+.drop { margin-top: 8px; font-size: 13px; color: var(--faint); }
+.keep { display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.keep input { accent-color: var(--gold); width: 16px; height: 16px; }
+
+/* Kept game files: the start page's own Start button. */
+.kept { margin: 0 0 22px; padding: 16px 18px; border: 1px solid var(--gold-lo); border-radius: 12px;
+        background: rgb(216 166 72 / 0.07); }
+.kept h2 { margin: 0 0 4px; font: 600 19px/1.3 var(--serif); color: var(--fg); }
+.kept > p { margin: 0; color: var(--muted); font-size: 14px; }
+.kept-actions { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-top: 12px; }
+.kept-actions .pick { margin-top: 0; border: 0; }
+.kept-actions .pick:disabled { opacity: 0.55; cursor: progress; transform: none; }
+.quiet { padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: transparent;
+         color: var(--muted); font: 500 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
+.quiet:hover { color: var(--fg); border-color: var(--gold-lo); }
+.quiet:disabled { opacity: 0.55; cursor: progress; }
+label.quiet { display: inline-block; }
+
+/* Two start pages: the help (the steps) on a first visit, and Start with the manager when
+   game files are kept (body.has-kept, set by src/platform/web.rs); Help shows the steps. */
+.manage { display: none; }
+body.has-kept .manage { display: block; }
+body.has-kept #steps { display: none; }
+body.has-kept.show-help #steps { display: grid; margin-bottom: 22px; }
+
+/* The manager. */
+.manage { margin: 0 0 22px; border: 1px solid var(--line); border-radius: 12px; }
+.manage > summary { cursor: pointer; padding: 12px 16px; font: 600 16px/1.3 var(--serif); color: var(--fg); }
+.manage[open] > summary { border-bottom: 1px solid var(--line); }
+.tabs { display: flex; gap: 6px; padding: 10px 16px 0; }
+.tabs button { padding: 6px 12px; border: 1px solid var(--line); border-bottom: 0; border-radius: 8px 8px 0 0;
+               background: transparent; color: var(--muted); cursor: pointer; font: 500 14px/1 system-ui, sans-serif; }
+.tabs button[aria-selected="true"] { color: var(--fg); background: rgb(216 166 72 / 0.1); border-color: var(--gold-lo); }
+.pane { padding: 12px 16px 14px; border-top: 1px solid var(--line); }
+.rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.rows li { display: flex; gap: 10px; align-items: center; padding: 7px 10px; border-radius: 8px;
+           background: rgb(255 255 255 / 0.03); font-size: 14px; }
+.rows .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); }
+.rows .meta { color: var(--faint); font-size: 12px; white-space: nowrap; }
+.rows button, .rows a { padding: 4px 9px; border: 1px solid var(--line); border-radius: 6px; background: transparent;
+                        color: var(--muted); font: 500 12px/1 system-ui, sans-serif; cursor: pointer; text-decoration: none; }
+.rows button:hover, .rows a:hover { color: var(--fg); border-color: var(--gold-lo); }
+.rows input[type=checkbox] { accent-color: var(--gold); width: 16px; height: 16px; }
+.rows .empty { color: var(--faint); background: none; }
+.pane-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.hidden-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+
+.status-row { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+#status { color: var(--muted); font-size: 14px; word-break: break-word; min-height: 1.55em; }
+.bar { position: relative; height: 3px; margin-top: 8px; overflow: hidden; border-radius: 3px; background: #2a2219; }
+.bar::before { content: ""; position: absolute; inset: 0; width: 35%;
+               background: linear-gradient(90deg, transparent, var(--gold), transparent);
+               animation: sweep 1.8s ease-in-out infinite; }
+@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+
+nav.links { margin-top: 18px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; font-size: 13px; }
+.fine { margin: 12px 0 0; text-align: center; font-size: 12px; color: var(--faint); }
+#version { margin-top: 4px; text-align: center; font-size: 12px; color: var(--faint); }
+
+@media (max-width: 520px) {
+  .card { padding: 22px 18px 18px; }
+  .tagline { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .backdrop, .bar::before { animation: none; }
+  .pick { transition: none; }
+}

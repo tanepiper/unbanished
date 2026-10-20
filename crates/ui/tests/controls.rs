@@ -712,3 +712,47 @@ fn an_edit_that_allows_a_colon_takes_it() {
         _ => unreachable!(),
     }
 }
+
+#[test]
+fn queries_find_the_main_menu_buttons_by_name_text_and_kind() {
+    use banished_ui::Query;
+    let Some(mut ui) = game_ui() else { return };
+    let root = ui.instantiate(r"Dialog\MainMenu.rsc:main").unwrap();
+    ui.layout_dialog(root, [0, 0, 1280, 720]);
+    let q = |ui: &Ui, text: &str| -> Vec<String> {
+        ui.query(&[root], &Query::parse(text).unwrap())
+            .into_iter()
+            .map(|id| ui.nodes[id].name.clone())
+            .collect()
+    };
+    // The buttons in tree order; the Exit button is called buttonQuit in the resource.
+    let buttons = q(&ui, "kind:button");
+    assert_eq!(buttons.first().map(String::as_str), Some("buttonNew"));
+    assert_eq!(buttons.last().map(String::as_str), Some("buttonQuit"));
+    // A button's text is its label's: both match, the button first, so a click takes the button.
+    assert_eq!(
+        q(&ui, "text:exit"),
+        ["buttonQuit", "labelQuit"],
+        "text ignores letter case"
+    );
+    assert_eq!(
+        q(&ui, "kind:button text:Exit"),
+        ["labelQuit"],
+        "later steps look inside"
+    );
+    assert_eq!(q(&ui, "ref:MainMenu buttonLoad"), ["buttonLoad"]);
+    assert!(
+        q(&ui, "ref:Options buttonLoad").is_empty(),
+        "ref: limits the dialog"
+    );
+    let info = ui.info(ui.find(root, "buttonNew").unwrap());
+    assert_eq!(
+        (info.kind, info.text.as_str(), info.enabled),
+        ("button", "New", true)
+    );
+    // A hidden element and everything inside it are skipped.
+    let load = ui.find(root, "buttonLoad").unwrap();
+    ui.nodes[load].flags |= format::flags::HIDDEN;
+    assert!(q(&ui, "buttonLoad").is_empty());
+    assert!(q(&ui, "text:Load").is_empty());
+}

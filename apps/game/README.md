@@ -246,7 +246,11 @@ controller or dialog has its own module.
 
 | Path | What it contains |
 |---|---|
-| `src/main.rs` | The program: windows, events, the headless captures |
+| `src/main.rs` | The program's start: the modules, the shared constants and `main` for the desktop and the browser |
+| `src/game.rs` | `Game`: the resources, the loop chain, and the input and drawing every platform shares |
+| `src/app.rs` | The windowed game: the winit application, its window, renderer and events |
+| `src/native.rs` | The commands without a window: `--boot-capture` (with `--probe`), `--capture`, `--sim-digest`, `--replay`, the lockstep and network tests |
+| `src/probe.rs` | The [probe](../../docs/develop/PROBE.md): find and press interface elements and read the town, headless and in the browser (`window.unbanished`) |
 | `src/loops.rs` | The engine loops: `MainLoop`, the loaders, `Screen` with its dialogs |
 | `src/menu.rs` | The main menu and its dialogs |
 | `src/gameplay.rs`, `src/gameplay/` | The game loop (`GameplayLoop`), split by topic: `simulation`, `input`, `tools`, `hud`, `audio`, `saving`, `tutorial` |
@@ -259,7 +263,8 @@ controller or dialog has its own module.
 | `src/gfx/` | Rendering: the renderer (`render/`: frames, uploads, render targets, lighting, the minimap, captures), models, decals, particles, shadows, highlights, screenshots, `terrain.wgsl` |
 | `src/audio/` | Music, ambience and sound effects |
 | `src/tools/` | The placement, removal and path tools, selection, following a citizen |
-| `src/platform/` | Desktop and browser differences, paths, the profiler |
+| `src/platform/` | Desktop and browser differences, paths, the profiler; `web.rs` is the browser page's glue (file picker, kept files, save import, Exit) |
+| `index.html`, `web/`, `pwa/` | The browser page: its markup, the start page's style (`web/start.css`), the manager (`web/manager.js`), the console helper (`web/probe.js`), and the app manifest and service worker |
 | `src/settings.rs`, `src/keymap.rs` | The settings file and the key bindings |
 
 [Port a behaviour](https://tanepiper.github.io/unbanished/develop/guides/port) explains the engine loops and the dialogs.

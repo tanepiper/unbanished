@@ -32,6 +32,12 @@ The version is the engine's own (`banished --version`). The Banished version in 
   version in headless Chrome and Firefox: the start page, the manager, Exit and Quit, and a new
   game that must match the desktop version's.
 
+### Changed
+
+- The game's code is easier to find: `apps/game/src/main.rs` is split into `game.rs` (the
+  `Game`), `app.rs` (the window) and `native.rs` (the commands without a window), and the
+  browser page's style and scripts are in `apps/game/web/`. Nothing in the game changes.
+
 ### Fixed
 
 - A save imported on the browser's start page could be lost: the page reloaded before the save

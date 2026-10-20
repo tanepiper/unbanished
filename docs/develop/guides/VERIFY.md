@@ -5,6 +5,16 @@ that you opened and inspected. A successful build is not evidence that a change 
 
 ## Run the tests
 
+Start with the test runner. It runs the suites in tiers, each with a known outcome, and says
+which ones it skipped and why ([Testing](../TESTING.md#test-suites)):
+
+```bash
+tools/test/run.py                        # quick: format, ledger, cargo test, wasm, probe baselines
+tools/test/run.py determinism browser    # when the change touches the game, its interface or the web page
+```
+
+To run part of the Rust tests:
+
 ```bash
 cargo test --release                                        # the whole workspace
 cargo test --release -p banished-formats --test toolbar     # one test file
@@ -68,6 +78,10 @@ tools/dev-web.sh --app game --release     # http://127.0.0.1:8733/?data=/game-da
 
 Open the page and read the browser console for errors. Sound starts only after the first click
 on the page; this is a rule of the browsers.
+
+`tools/test/run.py browser` builds the page and drives it in headless Chrome and Firefox. In
+the console of a running game, `unbanished.help()` lists the [probe](../PROBE.md) commands, for
+example `await unbanished.ui('kind:button')` or `await unbanished.town()`.
 
 ## Check that the game is still deterministic
 

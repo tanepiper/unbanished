@@ -122,7 +122,10 @@ separated by spaces. Each step looks inside what the step before it found.
 The kinds are `button`, `text`, `label`, `image`, `group`, `ribbon`, `border`, `list`,
 `viewport`, and for controls `check`, `slider`, `scroll`, `edit`, `combo`, `spinner`, `tabs`,
 `table`, `container`, `progress` and a few more. Only shown elements count: a hidden element and
-everything inside it are skipped. Dialogs are searched from the top one down.
+everything inside it are skipped. Dialogs are searched from the top one down, and the matches
+come in tree order. A button's text is the text of the label inside it, so `text:Exit` finds
+both the button and its label; the button comes first, and `click` takes the first usable match,
+so `click text:Exit` presses the button.
 
 Prefer text over names when you write a test: the names in the original's resources are not
 always what you would guess. The main menu's **Exit** is `buttonQuit`; in the pause menu
