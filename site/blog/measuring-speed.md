@@ -37,6 +37,29 @@ Goldfoothill is a player's town in its 83rd year with 565 people, and Driscola i
 people, 650 buildings and around 28,000 objects that a player built in the original game back in
 2015.
 
+<div class="ub-shots">
+<Shot
+  src="/assets/screenshots/speed-testwood.webp"
+  alt="Testwood, a new game in winter: a storehouse and a stockpile in the snow, with nineteen settlers around them"
+  caption="Testwood - a new game, 19 settlers and a stockpile."
+/>
+<Shot
+  src="/assets/screenshots/speed-fort-ponchartrain.webp"
+  alt="Fort Ponchartrain in late summer: a market of coloured stalls between wooden houses and fields"
+  caption="Fort Ponchartrain - 116 people around their market."
+/>
+<Shot
+  src="/assets/screenshots/speed-goldfoothill.webp"
+  alt="Goldfoothill in winter: snow-covered houses, a fishing dock and a stone bridge over a half-frozen river"
+  caption="Goldfoothill - 565 people, in its 83rd winter."
+/>
+<Shot
+  src="/assets/screenshots/speed-driscola.webp"
+  alt="Driscola: rows of houses, orchards, fields and a market seen from above"
+  caption="Driscola - 1,024 people and around 28,000 objects."
+/>
+</div>
+
 <FpsGrid
   caption="In the browser: Chrome with WebGPU, in a 1280 × 720 page, on a MacBook Pro with an Apple M3. Real frames, counted for 20 seconds. A slow frame takes more than 20 ms."
   :rows="[
@@ -111,6 +134,13 @@ At 10× speed the simulation on its own fills a whole frame. The game runs ten s
 for every picture, and most of that time goes on the citizens deciding what to do next and
 finding their way there.
 
+<Shot
+  src="/assets/videos/driscola-ten-times.webm"
+  poster="/assets/videos/driscola-ten-times-poster.webp"
+  alt="Driscola's church square at ten times speed: citizens hurry along the paths, and late in the clip the grass turns to snow"
+  caption="Driscola's church square at 10× speed - every one of those hurrying people is simulated ten times for each picture you see."
+/>
+
 The surprise was at normal speed. Refreshing what you see costs about three times as much as the
 simulation - every step, the game rebuilds its list of models to draw, updates the sounds around
 the camera and moves the smoke and dust along, whatever the speed, even though very little of it
@@ -131,6 +161,13 @@ the processor's time. Most buildings never move, so most of that work is wasted.
 rebuilding only the groups that changed once already, but growing trees nudge almost every group
 a little on every step, so the comparison cost more than it saved. A cheaper way to know what has
 actually changed is the next attempt; sounds and smoke can follow the same pattern.
+
+<Shot
+  src="/assets/videos/goldfoothill-storehouses.webm"
+  poster="/assets/videos/goldfoothill-storehouses-poster.webp"
+  alt="Snow falls on a row of snow-covered storehouses beside a fishing dock in Goldfoothill"
+  caption="Nothing in this picture moves except the snow, yet the game rebuilds its list of these storehouses on every step."
+/>
 
 The citizens are next. Every step, each citizen's view of the town's buildings and stock is built
 again from nothing, although most of it is the same as before. Keeping those views and only
