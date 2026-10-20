@@ -39,7 +39,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
   game (steps 1 and 2 of [docs/MULTIPLAYER-PLAN.md](docs/MULTIPLAYER-PLAN.md)).
 - Lockstep, the core of a future multiplayer game: several players' games stay identical by
   exchanging only their commands. `banished --lockstep-test` runs players in one process over a
-  simulated network (step 3).
+  simulated network (step 3). The host compares the players' games every 600 updates and, when
+  they differ, everybody reloads the host's save and goes on (step 4).
 
 ## [0.2.0] - 2026-10-19
 

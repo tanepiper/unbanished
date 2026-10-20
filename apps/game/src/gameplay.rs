@@ -180,10 +180,9 @@ pub struct GameplayLoop {
     drag_tools: std::collections::BTreeMap<String, RemovalTool>,
     /// A multiplayer game ([`lockstep`]): the turns, and the turns sealed to send.
     lockstep: Option<lockstep::Lockstep>,
-    outbox: Vec<lockstep::Turn>,
-    /// The slot carried out last, and the last sealed (lockstep).
+    outbox: Vec<lockstep::Message>,
+    /// The slot carried out last (lockstep).
     slot_done: Option<u64>,
-    sealed: Option<u64>,
     /// The other players' Path tools (a Path tool's pick depends on its last pick).
     remote_paths: std::collections::BTreeMap<u8, crate::tools::path_tool::PathTool>,
     /// The Save and Load dialog over the pause menu.
@@ -362,7 +361,6 @@ impl GameplayLoop {
             lockstep: None,
             outbox: Vec::new(),
             slot_done: None,
-            sealed: None,
             remote_paths: Default::default(),
             save_dialog: None,
             mods_dialog: None,

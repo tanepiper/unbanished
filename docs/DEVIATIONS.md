@@ -21,7 +21,7 @@ Deviation: 53, Not ported: 4, Not traced: 1.
 ## `apps/game/src/gameplay.rs`
 
 - [Deviation] [apps/game/src/gameplay.rs:55](../apps/game/src/gameplay.rs#L55): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
-- [Deviation] [apps/game/src/gameplay.rs:697](../apps/game/src/gameplay.rs#L697): `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller. Deviation: in a multiplayer game the pause menu does not hold the shared game.
+- [Deviation] [apps/game/src/gameplay.rs:695](../apps/game/src/gameplay.rs#L695): `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller. Deviation: in a multiplayer game the pause menu does not hold the shared game.
 
 ## `apps/game/src/gameplay/digest.rs`
 
@@ -29,7 +29,7 @@ Deviation: 53, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/gameplay/lockstep.rs`
 
-- [Deviation] [apps/game/src/gameplay/lockstep.rs:1](../apps/game/src/gameplay/lockstep.rs#L1): Deterministic lockstep: several players run the same game, each on their own computer, and only their commands travel. See docs/MULTIPLAYER-PLAN.md, step 3. The game counts updates since it loaded. A command a player gives while `c` updates have begun is carried out in slot `c + delay` on every computer: after update `c + delay` and before the next. When a player begins an update it seals its commands for the slot `delay` ahead into a [`Turn`] and sends it. A computer carries a slot out, and begins the next update, only once it holds every player's turn for that slot; the commands run by player, then in the order given. The first `delay` slots are empty for everyone. Deviation: not in the original, which has no multiplayer. A single-player game has no lockstep and carries each command out at once ([`super::commands`]).
+- [Deviation] [apps/game/src/gameplay/lockstep.rs:1](../apps/game/src/gameplay/lockstep.rs#L1): Deterministic lockstep: several players run the same game, each on their own computer, and only their commands travel. See docs/MULTIPLAYER-PLAN.md, step 3. The game counts updates since it loaded. A command a player gives while `c` updates have begun is carried out in slot `c + delay` on every computer: after update `c + delay` and before the next. When a player begins an update it seals its commands for the slot `delay` ahead into a [`Turn`] and sends it. A computer carries a slot out, and begins the next update, only once it holds every player's turn for that slot; the commands run by player, then in the order given. The first `delay` slots are empty for everyone. Deviation: not in the original, which has no multiplayer. A single-player game has no lockstep and carries each command out at once ([`super::commands`]). Until the network (step 5) joins browsers, only the command-line test drives it.
 
 ## `apps/game/src/gameplay/recording.rs`
 

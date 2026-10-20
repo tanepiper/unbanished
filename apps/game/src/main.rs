@@ -1704,13 +1704,17 @@ mod native {
         }
     }
 
-    /// `--lockstep-test SAVE RECORDING [PLAYERS] [DELAY] [JITTER] [STALL] [SEED]`: plays a
-    /// recording's commands, split between PLAYERS (default 3), in lockstep games joined by a
-    /// simulated network (`gameplay::lockstep::simulate`), and compares their digests. Exits
-    /// with 1 when the players disagree.
+    /// `--lockstep-test SAVE RECORDING [PLAYERS] [DELAY] [JITTER] [STALL] [SEED] [CHECK]
+    /// [CORRUPT]`: plays a recording's commands, split between PLAYERS (default 3), in lockstep
+    /// games joined by a simulated network (`gameplay::lockstep::simulate`), and compares their
+    /// digests. The host checks digests every CHECK updates (default 600, 0 none) and resyncs
+    /// the players from its save when they differ; CORRUPT `PLAYER:UPDATE` scrambles one
+    /// player's game there, to test that. Exits with 1 when the players disagree at the end.
     pub fn lockstep_test(args: &[String]) {
         let (Some(save), Some(recording)) = (args.get(1), args.get(2)) else {
-            eprintln!("--lockstep-test SAVE RECORDING [PLAYERS] [DELAY] [JITTER] [STALL] [SEED]");
+            eprintln!(
+                "--lockstep-test SAVE RECORDING [PLAYERS] [DELAY] [JITTER] [STALL] [SEED] [CHECK] [CORRUPT]"
+            );
             std::process::exit(2);
         };
         let number =
@@ -1721,6 +1725,11 @@ mod native {
             jitter: number(5, 8),
             stall: number(6, 20),
             every: 60,
+            check: number(8, 600),
+            corrupt: args.get(9).and_then(|s| {
+                let (p, u) = s.split_once(':')?;
+                Some((p.parse().ok()?, u.parse().ok()?))
+            }),
             seed: number(7, 1),
         };
         let bytes = std::fs::read(save).expect("read the save");
@@ -1745,6 +1754,10 @@ mod native {
                 println!(
                     "{sim:?}: {} ticks, players at most {} updates apart",
                     r.ticks, r.lead
+                );
+                println!(
+                    "desyncs found at updates {:?}, resyncs at {:?}",
+                    r.desyncs, r.resyncs
                 );
                 if r.recorded > 0 {
                     match r.recorded_mismatch {

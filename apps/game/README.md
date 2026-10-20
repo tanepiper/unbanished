@@ -157,7 +157,10 @@ banished --replay save-game/Save83.sav /tmp/game.rec
 recording's commands, split between PLAYERS (default 3), in lockstep games joined by a simulated
 network: an input delay of DELAY updates (default 6), turns 1 to 1 + JITTER ticks late (default
 8), each computer too busy to update in STALL % of ticks (default 20), the network's random seed
-SEED. It prints `identical` when every player's game agrees, and exits with 1 when not.
+SEED. Then CHECK, how often the host compares the players' digests (default 600 updates, 0 for
+never), and CORRUPT, `PLAYER:UPDATE`, which scrambles one player's game there: the host must find
+it and resync everybody from its save. It prints the desyncs and resyncs, and `identical` when
+every player's game agrees at the end; it exits with 1 when not.
 `tools/compat/lockstep.sh BINARY` runs it with six settings on the `actions` scenario.
 
 ### `--sim-digest`

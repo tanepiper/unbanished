@@ -171,7 +171,7 @@ commands out where a replay does); 2 to 4 players with delays 0 to 10, jitter up
 computers busy up to 60% of the time agree on all digests, at most `delay` updates apart.
 `compare.sh` against step 2's build: identical.
 
-### 4. Desync checks and resync
+### 4. Desync checks and resync (done)
 
 Every 600 updates each player sends its digest. On a mismatch, or when a player joins, the host
 writes the game (`GameplayLoop::save_file`), sends it, and everybody loads it and continues from
@@ -180,6 +180,30 @@ that update. The host's autosave and saves are the only ones written.
 For diagnosis, a ring of the last few thousand random draws with their callers, written out on a
 mismatch, finds the first difference (the mod's `ringdiff` idea). Digests per part of the state
 (citizens, buildings, stock, wildlife) narrow it down further.
+
+Done in `apps/game/src/gameplay/lockstep.rs`. Every `check` updates (600 by default) each player
+sends the host a `Message::Digest` of its game, made at an update boundary. When the host holds
+every player's digest of an update and they differ, it writes its game at its next boundary
+(`save_file`) and sends `Message::Save`; everybody, the host included, loads it and goes on from
+that update (`GameplayLoop::reloaded`). Loading on every computer, not only on the others, means
+nothing that lives only in memory can keep the games apart.
+
+The lockstep goes on across the reload: a computer that was ahead puts the turns it already
+carried out after the save back (`Lockstep::rewind`, from a history of the last 4,096 slots); one
+that was behind seals the local turns it skipped (`seal_through`), so nobody waits for them. The
+tools, the speed and the pause carry over (they are not in saves and are the same everywhere).
+Each resync starts a new epoch; a digest from an older epoch is ignored, so a digest made before
+the resync cannot call for another.
+
+`--lockstep-test` takes the check interval and a corruption, `PLAYER:UPDATE`, which scrambles that
+player's game `Random` there. Proof (`tools/compat/lockstep.sh`, eight settings): without a
+corruption no desync is found and no resync happens; player 1 scrambled at update 400 is found at
+the check of 480 and resynced at 485, and the three players agree on every digest after it;
+player 3 of four scrambled at 1,000 is found at 1,020 and resynced at 1,026. With the checks off,
+the same corruption leaves the players disagreeing from update 420, so the comparison is real.
+
+Joining a running game uses the same save; it needs the players to agree on the slot from which
+the new player's turns are wanted, and is left for the network step.
 
 ### 5. Network
 
