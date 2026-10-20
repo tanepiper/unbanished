@@ -13,7 +13,7 @@
 //!   (wrapped at 360) and it and `animatedImage` show while a save runs (`SaveLoad` operation
 //!   4, also one from the Save dialog).
 
-use banished_ui::{NodeId, Ui};
+use unbanished_ui::{NodeId, Ui};
 
 use crate::loops::Screen;
 

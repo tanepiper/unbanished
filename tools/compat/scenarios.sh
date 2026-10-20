@@ -52,7 +52,9 @@ run() { # name seconds speed args...
   # checkout it was built in, which is gone.
   (
     cd "$repo"
-    BANISHED_SEED=1234 BANISHED_USER_DIR="$dir/user" BANISHED_SETTINGS="$dir/settings.txt" \
+    # Builds before the rename to unbanished read BANISHED_*, later ones UNBANISHED_*: set both,
+    # so an old build never falls back to the player's own settings and saves.
+    UNBANISHED_SEED=1234 BANISHED_SEED=1234 UNBANISHED_USER_DIR="$dir/user" BANISHED_USER_DIR="$dir/user" UNBANISHED_SETTINGS="$dir/settings.txt" BANISHED_SETTINGS="$dir/settings.txt" \
       ${limit[@]+"${limit[@]}"} "$bin" --boot-capture "$out/$name.png" "$((secs + 2))" \
       --capture-size 1280x800 ${record[@]+"${record[@]}"} "$@" --script "speed $speed@10" --script "toggle_pause@$secs" \
       --script "save $out/$name.sav@$((secs + 1))" "$repo/game-data/original/WinData" \

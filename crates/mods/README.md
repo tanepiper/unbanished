@@ -1,4 +1,4 @@
-# banished-mods
+# unbanished-mods
 
 The mod list of Banished 1.0.7 (`IO::Modification`), shared by the Un-Banished game and its mod
 manager, so both read and write the same settings in the same way.
@@ -12,11 +12,11 @@ manager, so both read and write the same settings in the same way.
 | `find` | The `.pkm` files in a folder (native) |
 
 ```rust,ignore
-use banished_mods::{text::TextSettings, Modification};
+use unbanished_mods::{text::TextSettings, Modification};
 
-let path = banished_mods::text::settings_path().unwrap();
+let path = unbanished_mods::text::settings_path().unwrap();
 let mut settings = TextSettings::load(&path)?;
-let mut mods = Modification::refresh(banished_mods::find("WinData".as_ref()), &settings);
+let mut mods = Modification::refresh(unbanished_mods::find("WinData".as_ref()), &settings);
 mods.enable(0, true);
 mods.save_list(&mut settings);
 settings.save(&path)?;

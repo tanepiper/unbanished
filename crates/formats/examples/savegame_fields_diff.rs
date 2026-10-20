@@ -1,8 +1,8 @@
 //! Where two saves' game states differ, field by field (analysis helper): the top-level blocks,
 //! then each object's fields. Pairs with `savegame_same`, which only says whether they differ.
-//! `cargo run -p banished-formats --example savegame_fields_diff -- A.sav B.sav [LIMIT]`
-use banished_formats::save::Save;
-use banished_formats::savegame::GameState;
+//! `cargo run -p unbanished-formats --example savegame_fields_diff -- A.sav B.sav [LIMIT]`
+use unbanished_formats::save::Save;
+use unbanished_formats::savegame::GameState;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();

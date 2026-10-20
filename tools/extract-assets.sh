@@ -2,15 +2,15 @@
 # Extract your own copy of Banished's game data into game-data/ (git-ignored).
 #
 #   tools/extract-assets.sh                 # auto-detect the Steam install
-#   BANISHED_DIR=/path/to/Banished tools/extract-assets.sh
+#   UNBANISHED_DIR=/path/to/Banished tools/extract-assets.sh
 #
-# BANISHED_DIR is the folder containing WinData/ and the original binaries.
+# UNBANISHED_DIR is the folder containing WinData/ and the original binaries.
 set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 
 candidates=(
-  "${BANISHED_DIR:-}"
+  "${UNBANISHED_DIR:-}"
   "$HOME/Library/Application Support/Steam/steamapps/common/Banished"
   "$HOME/Library/Application Support/Steam/Steam.AppBundle/Steam/Contents/MacOS/steamapps/content/app_242920/depot_242921"
   "$HOME/.steam/steam/steamapps/common/Banished"
@@ -24,7 +24,7 @@ for dir in "${candidates[@]}"; do
 done
 if [[ -z "$game" ]]; then
   echo "Could not find Banished (looked for WinData/data0.pkg)." >&2
-  echo "Set BANISHED_DIR to the game folder and try again." >&2
+  echo "Set UNBANISHED_DIR to the game folder and try again." >&2
   exit 1
 fi
 
@@ -51,7 +51,7 @@ echo "Wrote $out/MANIFEST.sha256"
 
 # Audio is xWMA, which browsers cannot play; decode it to MP3 when FFmpeg is available.
 if command -v ffmpeg >/dev/null && command -v cargo >/dev/null; then
-  (cd "$repo" && cargo run -q --release -p banished-cli -- export-audio) || echo "Audio export failed." >&2
+  (cd "$repo" && cargo run -q --release -p unbanished-cli -- export-audio) || echo "Audio export failed." >&2
 else
   echo "Skipping audio export (needs ffmpeg and cargo)." >&2
 fi

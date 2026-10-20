@@ -1,4 +1,4 @@
-# banished-banishedinfo
+# unbanished-banishedinfo
 
 Optional [banishedinfo.com](https://banishedinfo.com/mods/browse) support for Un-Banished: list
 and search the site's Banished mods, read a mod's versions, and install the `.pkm` packages of a
@@ -18,13 +18,13 @@ when the player lists, searches or installs. The site sends no CORS headers, so 
 builds can use it (feature `native`).
 
 ```rust,ignore
-use banished_banishedinfo::{native::Client, Sort};
+use unbanished_banishedinfo::{native::Client, Sort};
 
 let client = Client::new("0.2.0");
 for m in client.list(Sort::Downloads, "", 0, 20)? {
     println!("{} {} by {}", m.id, m.title, m.author);
 }
-let m = banished_banishedinfo::Mod::with_id(34);
+let m = unbanished_banishedinfo::Mod::with_id(34);
 let newest = client.versions(&m)?.remove(0);
 client.install(&newest, "WinData".as_ref(), |_, _| {})?;
 ```

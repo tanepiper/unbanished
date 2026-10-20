@@ -21,7 +21,7 @@ impl ModelRenderer {
                 format!(
                     "{}{}{SHADER}",
                     crate::gfx::scene_gfx::GLOBALS_WGSL,
-                    banished_gfx::skin::SKIN_WGSL
+                    unbanished_gfx::skin::SKIN_WGSL
                 )
                 .into(),
             ),
@@ -119,13 +119,13 @@ impl ModelRenderer {
                 cache: None,
             })
         };
-        let skin_layout = banished_gfx::skin::skin_layout(device, true);
+        let skin_layout = unbanished_gfx::skin::skin_layout(device, true);
         let skinned_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("skinned models"),
             bind_group_layouts: &[Some(globals_layout), Some(&layout), Some(&skin_layout)],
             immediate_size: 0,
         });
-        let skin_attributes = banished_gfx::skin::skinned_attributes();
+        let skin_attributes = unbanished_gfx::skin::skinned_attributes();
         let make_skinned = |vs: &str| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some(vs),
@@ -136,7 +136,7 @@ impl ModelRenderer {
                     compilation_options: Default::default(),
                     buffers: &[
                         Some(wgpu::VertexBufferLayout {
-                            array_stride: banished_formats::types::SKINNED_STRIDE as u64,
+                            array_stride: unbanished_formats::types::SKINNED_STRIDE as u64,
                             step_mode: wgpu::VertexStepMode::Vertex,
                             attributes: &skin_attributes,
                         }),
@@ -203,7 +203,7 @@ impl ModelRenderer {
         ];
         let skinned_buffers = [
             Some(wgpu::VertexBufferLayout {
-                array_stride: banished_formats::types::SKINNED_STRIDE as u64,
+                array_stride: unbanished_formats::types::SKINNED_STRIDE as u64,
                 step_mode: wgpu::VertexStepMode::Vertex,
                 attributes: &skin_attributes,
             }),
@@ -272,7 +272,7 @@ impl ModelRenderer {
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             ..crate::gfx::scene_gfx::material_sampler(wgpu::AddressMode::Repeat)
         });
-        let white = banished_gfx::upload_rgba_as(
+        let white = unbanished_gfx::upload_rgba_as(
             device,
             queue,
             "white",

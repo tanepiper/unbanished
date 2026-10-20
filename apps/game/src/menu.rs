@@ -4,7 +4,7 @@
 //! finds `Audio/Music/Menu.rsc`; Startup (`FUN_1400a0e00`) plays the music; the `MainMenuDialog`
 //! (`FUN_1400b91a0`) maps buttons to actions and adds `Dialog/BuildId.rsc`.
 
-use banished_ui::{Control, Event, Kind, NodeId, Ui};
+use unbanished_ui::{Control, Event, Kind, NodeId, Ui};
 
 use crate::gfx::render::Lighting;
 use crate::loops::{Ctx, DialogLoaderLoop, GameLoop, Next, RawInput, Screen, View};
@@ -35,7 +35,7 @@ pub struct MenuLoop {
     condition_items: Vec<usize>,
     terrain_items: Vec<usize>,
     /// `Game/Names/Cities.ndb`.
-    town_names: Option<banished_formats::names::NameDatabase>,
+    town_names: Option<unbanished_formats::names::NameDatabase>,
     /// `+0xb62`: `Application::IsPaused` of the last frame.
     app_paused: bool,
     /// The Options dialog while it is open (`MainMenuDialog` element id 4).
@@ -168,10 +168,10 @@ impl MenuLoop {
         // `FUN_140075ba0`: `FUN_14009ef90(rng, (editName max length / 3) · 2)`. The dialog's
         // own clock-seeded stream (`+0x118`) is the engine default `Random()` here.
         let max_length = match &ctx.ui.node(edit).kind {
-            banished_ui::Kind::Control(banished_ui::Control::Edit(e)) => e.max_length as i32,
+            unbanished_ui::Kind::Control(unbanished_ui::Control::Edit(e)) => e.max_length as i32,
             _ => 30,
         };
-        let name = banished_game::people::names::town_name(db, ctx.rng, max_length / 3 * 2);
+        let name = unbanished_game::people::names::town_name(db, ctx.rng, max_length / 3 * 2);
         ctx.ui.set_text(edit, &name);
     }
 
@@ -282,8 +282,8 @@ impl MenuLoop {
             .and_then(|e| edit_text(ctx.ui, e))
             .and_then(|t| t.trim().parse::<i64>().ok())
             .unwrap_or(0) as u32;
-        // Scripted runs: `BANISHED_SEED` fixes the world seed.
-        let seed = std::env::var("BANISHED_SEED")
+        // Scripted runs: `UNBANISHED_SEED` fixes the world seed.
+        let seed = unbanished_formats::env::var("SEED")
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(seed);
@@ -324,9 +324,9 @@ impl MenuLoop {
 }
 
 /// `FUN_14009fe00`: load `Game/MenuScene/Scene{index}.rsc` and set up its camera and lighting.
-fn load_menu_scene(ctx: &mut Ctx, index: u32) -> banished_formats::Result<SceneView> {
+fn load_menu_scene(ctx: &mut Ctx, index: u32) -> unbanished_formats::Result<SceneView> {
     let reference = format!("Game/MenuScene/Scene{index}.rsc:resource");
-    let scene = banished_formats::menu_scene::menu_scene(&ctx.archive.read_ref(&reference)?)?;
+    let scene = unbanished_formats::menu_scene::menu_scene(&ctx.archive.read_ref(&reference)?)?;
     let models = crate::gfx::models::SceneModels::from_menu_scene(ctx.archive, &scene);
     let extras = crate::view::scene_assets::SceneExtras::from_map(
         ctx.archive,
@@ -355,7 +355,7 @@ fn load_menu_scene(ctx: &mut Ctx, index: u32) -> banished_formats::Result<SceneV
     };
     // Same layout as an EnvironmentMonth: ambient, sun, fog colours; fog start, end, maximum;
     // sun yaw and pitch.
-    let mut lighting = Lighting::from_month(&banished_formats::game::EnvironmentMonth {
+    let mut lighting = Lighting::from_month(&unbanished_formats::game::EnvironmentMonth {
         ambient_color: scene.colors[0],
         sun_color: scene.colors[1],
         fog_color: scene.colors[2],
@@ -455,13 +455,13 @@ impl GameLoop for MenuLoop {
         match ctx
             .archive
             .read("Game/Names/Cities_resource.crs")
-            .and_then(|bytes| banished_formats::names::NameDatabase::read(&bytes))
+            .and_then(|bytes| unbanished_formats::names::NameDatabase::read(&bytes))
         {
             Ok(database) => self.town_names = Some(database),
             Err(e) => log::error!("town names: {e}"),
         }
         self.scene_index = ctx.rng.rand_below(MENU_SCENES);
-        if let Some(forced) = std::env::var("BANISHED_MENU_SCENE")
+        if let Some(forced) = unbanished_formats::env::var("MENU_SCENE")
             .ok()
             .and_then(|v| v.parse().ok())
         {
@@ -469,9 +469,9 @@ impl GameLoop for MenuLoop {
         }
         // `FUN_14009fe00`: the menu music SoundEffect, loaded with the scene. It decodes on
         // another thread while the scene loads (native); nothing plays until `startup`.
-        let archive: &banished_formats::pkg::Archive = ctx.archive;
-        let (music, scene) = banished_formats::par::join(
-            || banished_audio::EffectCache::prepare(archive, &[MENU_MUSIC]),
+        let archive: &unbanished_formats::pkg::Archive = ctx.archive;
+        let (music, scene) = unbanished_formats::par::join(
+            || unbanished_audio::EffectCache::prepare(archive, &[MENU_MUSIC]),
             || load_menu_scene(ctx, self.scene_index),
         );
         match scene {
@@ -575,7 +575,7 @@ impl GameLoop for MenuLoop {
             return false;
         };
         match std::fs::read(path.trim())
-            .map_err(|e| banished_formats::Error::Format(e.to_string()))
+            .map_err(|e| unbanished_formats::Error::Format(e.to_string()))
             .and_then(|b| crate::saves::saved::SavedGame::parse(&b))
         {
             Ok(saved) => {

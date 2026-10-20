@@ -12,8 +12,8 @@ use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
-use banished_net::{FromRelay, State, ToRelay};
-use banished_ui::{Control, Kind, NodeId, Ui};
+use unbanished_net::{FromRelay, State, ToRelay};
+use unbanished_ui::{Control, Kind, NodeId, Ui};
 
 use crate::gameplay::lockstep::Message;
 use crate::gameplay::network::{Link, RelayLink, Shared};
@@ -29,10 +29,10 @@ pub const DEFAULT_RELAY: &str = "ws://127.0.0.1:7780";
 const DELAY: u64 = 6;
 const CHECK: u64 = 600;
 
-/// The host's check interval: `BANISHED_NET_CHECK` (tests) or [`CHECK`].
+/// The host's check interval: `UNBANISHED_NET_CHECK` (tests) or [`CHECK`].
 fn check_interval() -> u64 {
     #[cfg(not(target_arch = "wasm32"))]
-    if let Some(n) = std::env::var("BANISHED_NET_CHECK")
+    if let Some(n) = unbanished_formats::env::var("NET_CHECK")
         .ok()
         .and_then(|v| v.parse().ok())
     {
@@ -203,11 +203,11 @@ impl MultiplayerDialog {
     }
 
     fn connect(&mut self, relay: &str, code: String) {
-        let mut link = RelayLink::new(banished_net::Connection::connect(relay));
+        let mut link = RelayLink::new(unbanished_net::Connection::connect(relay));
         if code.is_empty() {
-            // `BANISHED_ROOM` asks the relay for that code (tests).
+            // `UNBANISHED_ROOM` asks the relay for that code (tests).
             #[cfg(not(target_arch = "wasm32"))]
-            let room = std::env::var("BANISHED_ROOM").ok();
+            let room = unbanished_formats::env::var("ROOM").ok();
             #[cfg(target_arch = "wasm32")]
             let room = None;
             link.request(ToRelay::Host { room });

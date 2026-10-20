@@ -3,7 +3,7 @@
 Un-Banished reads and writes the save files of Banished 1.0.7. A town saved by the original
 loads in Un-Banished, and the save folder is the same (`Documents/Banished/Save`). This page
 explains what a save file contains. The readers are in
-[banished-formats](../../crates/formats/README.md) (`save`, `savegame`, `savegame_schema`).
+[unbanished-formats](../../crates/formats/README.md) (`save`, `savegame`, `savegame_schema`).
 
 ## The container
 
@@ -46,7 +46,7 @@ separate table of objects; the order of the file is the order in which the game 
 
 ## How the port reads and writes it
 
-`banished_formats::savegame` decodes every block of the game state. For each kind of object, it
+`unbanished_formats::savegame` decodes every block of the game state. For each kind of object, it
 has a *schema* (in `savegame_schema`) that follows the original's serialiser field by field. Two
 checks prove it:
 
@@ -64,9 +64,9 @@ animals and boats; and last the environment, the weather and the event log. See
 ## Tools
 
 ```bash
-cargo run -q --release -p banished-formats --example savegame_check -- save-game/*.sav
-cargo run -q --release -p banished-formats --example savegame_same -- a.sav b.sav
-cargo run -q --release -p banished-formats --example savegame_fields_diff -- a.sav b.sav
+cargo run -q --release -p unbanished-formats --example savegame_check -- save-game/*.sav
+cargo run -q --release -p unbanished-formats --example savegame_same -- a.sav b.sav
+cargo run -q --release -p unbanished-formats --example savegame_fields_diff -- a.sav b.sav
 ```
 
 `savegame_same` and `savegame_fields_diff` are used to prove that a change to the engine does not

@@ -105,7 +105,7 @@ fn checks_match_the_runtime() {
 /// again leaves every goal instance as saved.
 #[test]
 fn saved_achievements_read_back() {
-    use banished_formats::savegame::Value;
+    use unbanished_formats::savegame::Value;
     let Some(archive) = archive() else {
         return;
     };

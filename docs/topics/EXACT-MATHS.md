@@ -2,7 +2,7 @@
 
 Un-Banished must give the same results as the original, to the last bit. This page explains why
 that is hard, and what the port does about it. The code is in
-[banished-core](../../crates/core/README.md).
+[unbanished-core](../../crates/core/README.md).
 
 ## Why "close" is not enough
 
@@ -26,16 +26,16 @@ double, and truncation where it converts with `cvttss2si`.
 
 The original calls the Microsoft C runtime for `sinf`, `cosf`, `acosf` and `atan2f`. These
 functions can give a different last bit from Rust's `f32::sin` and its relatives. So
-`banished_core::crt` ports the C runtime's own algorithms, and simulation code uses them. The
+`unbanished_core::crt` ports the C runtime's own algorithms, and simulation code uses them. The
 test `crt_math` compares them with the original functions, run in the emulator.
 
-`banished_core::math` builds the engine's vector helpers on top of them: normalising a vector,
+`unbanished_core::math` builds the engine's vector helpers on top of them: normalising a vector,
 the heading of a direction, and the engine's `Transform` (a rotation and an offset).
 
 ## Random numbers
 
 The engine's random number generator, `System::Random`, is a Mersenne Twister (MT19937): an
-index and 624 words of state. `banished_core::random::Random` is the same generator, with the
+index and 624 words of state. `unbanished_core::random::Random` is the same generator, with the
 same seed set-up and the same helper functions:
 
 | Function | Range | Original |

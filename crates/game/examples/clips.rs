@@ -1,5 +1,5 @@
 //! List an animation group's clips with their root motion (analysis helper).
-use banished_formats::pkg::{Archive, Package};
+use unbanished_formats::pkg::{Archive, Package};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -10,7 +10,8 @@ fn main() {
             archive.add(Package::parse(d).unwrap());
         }
     }
-    let g = banished_formats::types::animation_group(&archive.read_ref(&args[2]).unwrap()).unwrap();
+    let g =
+        unbanished_formats::types::animation_group(&archive.read_ref(&args[2]).unwrap()).unwrap();
     for (i, c) in g.clips.iter().enumerate() {
         let root = c.frames.first().map(|f| f[0].translation);
         println!(

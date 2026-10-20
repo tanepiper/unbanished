@@ -1,5 +1,5 @@
 [package]
-name = "banished-viewer"
+name = "unbanished-viewer"
 version.workspace = true
 description = "Model and texture viewer for Banished game data (native and WebGPU/WebGL2)"
 edition.workspace = true
@@ -7,12 +7,12 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-banished-formats = { path = "../../crates/formats" }
-banished-ui = { path = "../../crates/ui" }
-banished-wma = { path = "../../crates/wma" }
-banished-gfx = { path = "../../crates/gfx" }
-banished-game = { path = "../../crates/game" }
-banished-audio = { path = "../../crates/audio" }
+unbanished-formats = { path = "../../crates/formats" }
+unbanished-ui = { path = "../../crates/ui" }
+unbanished-wma = { path = "../../crates/wma" }
+unbanished-gfx = { path = "../../crates/gfx" }
+unbanished-game = { path = "../../crates/game" }
+unbanished-audio = { path = "../../crates/audio" }
 wgpu = { version = "30", features = ["webgl"] }
 winit = "0.30"
 web-time = "1"

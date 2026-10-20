@@ -163,15 +163,21 @@ pub fn install_from(
 }
 
 /// The environment variable that holds an API key; it wins over the settings file.
-pub const KEY_VARIABLE: &str = "BANISHED_NEXUS_API_KEY";
+pub const KEY_VARIABLE: &str = "UNBANISHED_NEXUS_API_KEY";
+
+/// The value of `UNBANISHED_<name>` (as `unbanished_formats::env::var`, which this crate does
+/// not depend on).
+fn env_var(name: &str) -> Result<String, std::env::VarError> {
+    std::env::var(format!("UNBANISHED_{name}"))
+}
 
 /// The settings file's key for the API key (the file is `key=value` lines).
 pub const KEY_SETTING: &str = "NexusApiKey";
 
-/// The game's settings file: `BANISHED_SETTINGS` if set, else `settings.txt` in the
+/// The game's settings file: `UNBANISHED_SETTINGS` if set, else `settings.txt` in the
 /// `banished-wasm` folder of the platform's configuration folder (as the game reads it).
 pub fn settings_path() -> Option<PathBuf> {
-    if let Ok(p) = std::env::var("BANISHED_SETTINGS") {
+    if let Ok(p) = env_var("SETTINGS") {
         return (!p.is_empty()).then(|| PathBuf::from(p));
     }
     let base = if cfg!(target_os = "windows") {
@@ -189,7 +195,7 @@ pub fn settings_path() -> Option<PathBuf> {
 /// The API key: [`KEY_VARIABLE`], else the [`KEY_SETTING`] line of the settings file. An
 /// empty value counts as none.
 pub fn stored_key() -> Option<String> {
-    if let Ok(k) = std::env::var(KEY_VARIABLE) {
+    if let Ok(k) = env_var("NEXUS_API_KEY") {
         let k = k.trim();
         return (!k.is_empty()).then(|| k.to_string());
     }

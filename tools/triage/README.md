@@ -16,7 +16,7 @@ Deterministic helpers for deciding what to trace, port or check next. All read l
 | `deviations.py [--check]` | Every comment marking a deviation or unported piece, as `docs/DEVIATIONS.md` |
 | `determinism.sh [SECS] [SEED]` | Do two runs with the same seed render identical frames? |
 | `tools/reference/` (`save.sh`, `windows.swift`, README) | Reference frames of the original game streamed via Steam Remote Play, filed locally for comparison |
-| `cargo run -p banished-app --example imgdiff -- A.png B.png` | How and where do two screenshots differ (MAE, PSNR, mismatch %, bounding box, 4×4 grid, heat map; `--resize`, `--ignore x,y,w,h`, `--crop-a/--crop-b x,y,w,h`, `--blur R` for streamed references, `--json`)? |
+| `cargo run -p unbanished-app --example imgdiff -- A.png B.png` | How and where do two screenshots differ (MAE, PSNR, mismatch %, bounding box, 4×4 grid, heat map; `--resize`, `--ignore x,y,w,h`, `--crop-a/--crop-b x,y,w,h`, `--blur R` for streamed references, `--json`)? |
 
 "Traced" means the address appears in `docs/`, `crates/`, `apps/` or `tools/`, so naming the
 original function in a doc or a code comment is what marks it done. Small functions that only
@@ -50,10 +50,10 @@ trace = RngTrace(emu); emu.call(0x1400aa000, ...); trace.write('orig.rng')
 
 ```rust
 // port
-banished_game::random::trace::start();
+unbanished_game::random::trace::start();
 /* ... same inputs ... */
-let draws = banished_game::random::trace::take();
-banished_game::random::trace::write(Path::new("port.rng"), &draws)?;
+let draws = unbanished_game::random::trace::take();
+unbanished_game::random::trace::write(Path::new("port.rng"), &draws)?;
 ```
 
 `python3 tools/triage/rngdiff.py orig.rng port.rng` prints the first divergence with the call

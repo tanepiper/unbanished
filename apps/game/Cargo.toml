@@ -1,5 +1,5 @@
 [package]
-name = "banished-app"
+name = "unbanished-app"
 version.workspace = true
 description = "The Banished reimplementation: world generation and rendering on wgpu (native and web)"
 edition.workspace = true
@@ -7,18 +7,18 @@ license.workspace = true
 repository.workspace = true
 
 [[bin]]
-name = "banished"
+name = "unbanished"
 path = "src/main.rs"
 
 [dependencies]
-banished-formats = { path = "../../crates/formats" }
-banished-game = { path = "../../crates/game" }
-banished-ui = { path = "../../crates/ui" }
-banished-gfx = { path = "../../crates/gfx" }
-banished-audio = { path = "../../crates/audio" }
-banished-nexus = { path = "../../crates/nexus" }
-banished-net = { path = "../../crates/net" }
-banished-mods = { path = "../../crates/mods" }
+unbanished-formats = { path = "../../crates/formats" }
+unbanished-game = { path = "../../crates/game" }
+unbanished-ui = { path = "../../crates/ui" }
+unbanished-gfx = { path = "../../crates/gfx" }
+unbanished-audio = { path = "../../crates/audio" }
+unbanished-nexus = { path = "../../crates/nexus" }
+unbanished-net = { path = "../../crates/net" }
+unbanished-mods = { path = "../../crates/mods" }
 wgpu = { version = "30", features = ["webgl"] }
 winit = "0.30"
 web-time = "1"
@@ -33,9 +33,9 @@ env_logger = "0.11"
 pollster = "1"
 png = "0.18"
 jiff = { version = "0.2", default-features = false, features = ["std", "tz-system"] }
-banished-nexus = { path = "../../crates/nexus", features = ["native"] }
-banished-net = { path = "../../crates/net", features = ["native"] }
-banished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"] }
+unbanished-nexus = { path = "../../crates/nexus", features = ["native"] }
+unbanished-net = { path = "../../crates/net", features = ["native"] }
+unbanished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.129"

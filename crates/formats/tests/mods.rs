@@ -1,9 +1,9 @@
 //! Mod packages (`.pkm`) and the loaded-resource registry, against downloaded mods kept in the
 //! git-ignored `game-data/mods/downloads` (skipped when absent).
 
-use banished_formats::crc::type_id;
-use banished_formats::pkg::{Archive, Package};
-use banished_formats::registry::{roots, Registry};
+use unbanished_formats::crc::type_id;
+use unbanished_formats::pkg::{Archive, Package};
+use unbanished_formats::registry::{roots, Registry};
 
 fn root() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -70,9 +70,9 @@ fn the_registry_holds_the_game_and_its_mods() {
 /// depth-first walk that reads one resource at a time.
 #[test]
 fn the_registry_matches_a_walk_in_order() {
-    use banished_formats::pkg::ref_to_entry;
-    use banished_formats::registry::references;
     use std::collections::{BTreeMap, BTreeSet};
+    use unbanished_formats::pkg::ref_to_entry;
+    use unbanished_formats::registry::references;
     let Some(a) = base() else {
         return;
     };
@@ -96,7 +96,7 @@ fn the_registry_matches_a_walk_in_order() {
         let Ok(data) = a.read(&ref_to_entry(&k)) else {
             continue;
         };
-        let Ok(header) = banished_formats::crs::header(&data) else {
+        let Ok(header) = unbanished_formats::crs::header(&data) else {
             continue;
         };
         let written = if r.contains(':') {

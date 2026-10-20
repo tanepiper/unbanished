@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lockstep in one process (docs/MULTIPLAYER-PLAN.md, step 3): record the `actions` scenario, then
 # play its commands, split between players, in lockstep games joined by a simulated network with
-# delay, jitter and busy computers (`banished --lockstep-test`). Every setting must keep the
+# delay, jitter and busy computers (`unbanished --lockstep-test`). Every setting must keep the
 # players identical; one player with no delay must also match the recording (a replay).
 #
 #   tools/compat/lockstep.sh BINARY
@@ -35,7 +35,9 @@ for s in "${settings[@]}"; do
   corruption=()
   [[ $corrupt == - ]] || corruption=("$corrupt")
   log="$out/$players-$delay-$jitter-$stall-$seed-$check-${corrupt/:/@}"
-  BANISHED_USER_DIR="$out/user" BANISHED_SETTINGS="$out/settings.txt" \
+  # Builds before the rename to unbanished read BANISHED_*, later ones UNBANISHED_*: set both,
+  # so an old build never falls back to the player's own settings and saves.
+  UNBANISHED_USER_DIR="$out/user" BANISHED_USER_DIR="$out/user" UNBANISHED_SETTINGS="$out/settings.txt" BANISHED_SETTINGS="$out/settings.txt" \
     ${limit[@]+"${limit[@]}"} "$bin" --lockstep-test save-game/Save83.sav "$out/recordings/actions.rec" \
     "$players" "$delay" "$jitter" "$stall" "$seed" "$check" ${corruption[@]+"${corruption[@]}"} \
     "$repo/game-data/original/WinData" >"$log.out" 2>"$log.log" || true

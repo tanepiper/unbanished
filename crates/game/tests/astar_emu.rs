@@ -1,8 +1,8 @@
 //! `pathfind::Pathfinder::find` against the original A* (`tools/emu/astar.py`; skipped without
 //! its output in game-data/derived/emu).
 
-use banished_game::pathfind::{Pathfinder, WALKABLE};
-use banished_game::terrain::CellType;
+use unbanished_game::pathfind::{Pathfinder, WALKABLE};
+use unbanished_game::terrain::CellType;
 
 #[test]
 fn matches_the_original() {

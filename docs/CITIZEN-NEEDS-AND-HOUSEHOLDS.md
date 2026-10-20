@@ -433,7 +433,7 @@ The vertex shader (`NormalSkin_charactervs`, variant 0) works as follows:
 The shipped weights sum to 253..255/255 (CitizenMaleMesh: 32, 177 and 178 vertices). A
 4×4 blend followed by the placement matrix would scale each vertex's share of the world
 translation by that sum, shearing citizens away from the map origin. The shared WGSL
-(`banished_gfx::skin::skin_point`) therefore takes the skinned point with `w = 1` before the
+(`unbanished_gfx::skin::skin_point`) therefore takes the skinned point with `w = 1` before the
 placement, as the original does.
 
 The port skins citizens on the GPU:
@@ -447,7 +447,7 @@ The port skins citizens on the GPU:
 
 The viewer uses the same `SKIN_WGSL`, attributes and palette code.
 
-The material classification and the atlas rule live in `banished_gfx::material`. The viewer uses
+The material classification and the atlas rule live in `unbanished_gfx::material`. The viewer uses
 them too (outfit 0), and also uses the same verified pose sampler for animation playback.
 
 Not ported yet:

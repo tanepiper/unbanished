@@ -95,14 +95,14 @@ pub struct OverlayTexture {
     pub rgba: Vec<u8>,
 }
 
-pub fn load_texture(archive: &banished_formats::pkg::Archive) -> Option<OverlayTexture> {
-    let mi = banished_formats::types::material_instance(
+pub fn load_texture(archive: &unbanished_formats::pkg::Archive) -> Option<OverlayTexture> {
+    let mi = unbanished_formats::types::material_instance(
         &archive.read_ref("Terrain/Selection.rsc:resource").ok()?,
     )
     .ok()?;
     let image = mi.texture("diffuse")?.replace('\\', "/");
-    let img = banished_formats::types::image_buffer(&archive.read_ref(&image).ok()?).ok()?;
-    let rgba = banished_formats::texture::decode_rgba(
+    let img = unbanished_formats::types::image_buffer(&archive.read_ref(&image).ok()?).ok()?;
+    let rgba = unbanished_formats::texture::decode_rgba(
         img.format,
         img.width,
         img.height,
@@ -317,7 +317,7 @@ impl OverlayRenderer {
         }
         if self.texture.is_none() {
             let Some(t) = texture else { return };
-            let view = banished_gfx::upload_rgba(
+            let view = unbanished_gfx::upload_rgba(
                 device,
                 queue,
                 "Terrain/Selection",

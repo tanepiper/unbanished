@@ -10,18 +10,18 @@ set -euo pipefail
 
 site="$(cd "$(dirname "$0")/.." && pwd)"
 repo="$(cd "$site/.." && pwd)"
-crates=(banished-core banished-terrain banished-path banished-game banished-formats banished-ui
-  banished-gfx banished-audio banished-wma banished-mods banished-nexus
-  banished-banishedinfo banished-net)
+crates=(unbanished-core unbanished-terrain unbanished-path unbanished-game unbanished-formats unbanished-ui
+  unbanished-gfx unbanished-audio unbanished-wma unbanished-mods unbanished-nexus
+  unbanished-banishedinfo unbanished-net)
 
 args=()
 for c in "${crates[@]}"; do args+=(-p "$c"); done
 export CARGO_TARGET_DIR="$repo/target/api"
 # The dark theme by default, with the website's colours (api-header.html).
 export RUSTDOCFLAGS="--default-theme=dark --html-in-header $site/scripts/api-header.html"
-# banished-nexus, banished-banishedinfo and banished-net with `native`, so their native parts
+# unbanished-nexus, unbanished-banishedinfo and unbanished-net with `native`, so their native parts
 # (sending requests, installing, the native socket) are shown.
-cargo doc --manifest-path "$repo/Cargo.toml" --no-deps --lib "${args[@]}" --features banished-nexus/native,banished-banishedinfo/native,banished-net/native
+cargo doc --manifest-path "$repo/Cargo.toml" --no-deps --lib "${args[@]}" --features unbanished-nexus/native,unbanished-banishedinfo/native,unbanished-net/native
 
 out="$site/public/api"
 rm -rf "$out"
@@ -30,19 +30,19 @@ cp -R "$CARGO_TARGET_DIR/doc" "$out"
 # rustdoc writes no page for the folder itself; add one that lists the crates.
 describe() {
   case "$1" in
-    banished-core) echo "Exact maths, the game's random numbers, Perlin noise, game time and the calendar." ;;
-    banished-terrain) echo "Map generation from a seed, the terrain mesh, rivers, ground height and cell types." ;;
-    banished-path) echo "The A* pathfinder, walkable regions and the sector graph." ;;
-    banished-game) echo "The game rules: citizens, jobs, buildings, farming, trade, nature and disasters." ;;
-    banished-formats) echo "Readers for the game's packages, resources and save files." ;;
-    banished-ui) echo "The game's interface system: elements, layout, text, controls and input." ;;
-    banished-gfx) echo "Rendering shared by the game and the viewer, with wgpu." ;;
-    banished-audio) echo "Sound decoding and playback: the 64-channel device and the sound scene." ;;
-    banished-wma) echo "A decoder for Windows Media Audio v2, the codec of the game's sounds." ;;
-    banished-mods) echo "The mod list shared by the game and the mod manager: packages, order and conflicts." ;;
-    banished-banishedinfo) echo "Optional banishedinfo.com support: list and search its Banished mods and install them." ;;
-    banished-net) echo "Multiplayer networking: the relay protocol and a WebSocket connection, natively and in the browser." ;;
-    banished-nexus) echo "Optional Nexus Mods support: search Banished mods and install their packages." ;;
+    unbanished-core) echo "Exact maths, the game's random numbers, Perlin noise, game time and the calendar." ;;
+    unbanished-terrain) echo "Map generation from a seed, the terrain mesh, rivers, ground height and cell types." ;;
+    unbanished-path) echo "The A* pathfinder, walkable regions and the sector graph." ;;
+    unbanished-game) echo "The game rules: citizens, jobs, buildings, farming, trade, nature and disasters." ;;
+    unbanished-formats) echo "Readers for the game's packages, resources and save files." ;;
+    unbanished-ui) echo "The game's interface system: elements, layout, text, controls and input." ;;
+    unbanished-gfx) echo "Rendering shared by the game and the viewer, with wgpu." ;;
+    unbanished-audio) echo "Sound decoding and playback: the 64-channel device and the sound scene." ;;
+    unbanished-wma) echo "A decoder for Windows Media Audio v2, the codec of the game's sounds." ;;
+    unbanished-mods) echo "The mod list shared by the game and the mod manager: packages, order and conflicts." ;;
+    unbanished-banishedinfo) echo "Optional banishedinfo.com support: list and search its Banished mods and install them." ;;
+    unbanished-net) echo "Multiplayer networking: the relay protocol and a WebSocket connection, natively and in the browser." ;;
+    unbanished-nexus) echo "Optional Nexus Mods support: search Banished mods and install their packages." ;;
   esac
 }
 {

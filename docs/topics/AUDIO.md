@@ -3,7 +3,7 @@
 Banished has music, ambient sounds (forest, river, wind, rain), sound effects in the world
 (animals, work, fire, tornadoes) and interface sounds. Un-Banished plays all of them from the
 original files, on the desktop and in the browser. This page explains the parts. The code is in
-[banished-audio](../../crates/audio/README.md) and [banished-wma](../../crates/wma/README.md).
+[unbanished-audio](../../crates/audio/README.md) and [unbanished-wma](../../crates/wma/README.md).
 
 <p align="center">
   <img src="../assets/screenshots/viewer-audio.webp" alt="The viewer's Audio mode, playing a chicken sound" width="720">
@@ -16,7 +16,7 @@ data in **xWMA**: Windows Media Audio version 2, in a container that Microsoft's
 16 music tracks are *streamed*: their data is in a separate raw entry (`.str`) in the package.
 
 Browsers cannot play xWMA, and no Rust library decoded WMA v2. So Un-Banished has its own
-decoder, `banished-wma`: pure Rust, no dependencies, no `unsafe`, and it builds for WebAssembly.
+decoder, `unbanished-wma`: pure Rust, no dependencies, no `unsafe`, and it builds for WebAssembly.
 A test decodes every sound of the game and compares it with FFmpeg's decoder; the
 signal-to-noise ratio must be at least 60 dB.
 
@@ -62,4 +62,4 @@ starts its Web Audio context on the first click. Until then, no sound plays.
 - [AUDIO.md](../AUDIO.md): the device, the scene and the effects in detail.
 - [STARTING-AUDIO-EMITTERS.md](../STARTING-AUDIO-EMITTERS.md): the emitters of a new town.
 - [The viewer](../../apps/viewer/README.md): listen to every sound of the game.
-- [banished-cli](../../apps/cli/README.md): export every sound to MP3.
+- [unbanished-cli](../../apps/cli/README.md): export every sound to MP3.

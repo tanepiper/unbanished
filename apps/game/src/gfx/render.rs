@@ -25,10 +25,10 @@ use video::{present_mode, BACKENDS};
 
 use std::sync::Arc;
 
-use banished_formats::texture::decode_rgba;
-use banished_formats::types::ImageBuffer;
-use banished_game::terrain::TILE_VERTS;
 use glam::{Mat4, Vec3, Vec4};
+use unbanished_formats::texture::decode_rgba;
+use unbanished_formats::types::ImageBuffer;
+use unbanished_game::terrain::TILE_VERTS;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
@@ -95,7 +95,7 @@ pub struct SceneFrame {
 pub struct Frame<'a> {
     pub terrain: Option<SceneFrame>,
     pub clear: wgpu::Color,
-    pub ui: Option<(&'a banished_ui::Ui, &'a [banished_ui::Quad])>,
+    pub ui: Option<(&'a unbanished_ui::Ui, &'a [unbanished_ui::Quad])>,
 }
 
 struct TerrainGpu {
@@ -112,7 +112,7 @@ struct TerrainGpu {
 
 /// The box around each tile's vertices, in the terrain shader's world space (`x`, `y` in
 /// cells, the height / 256).
-fn tile_bounds(mesh: &banished_game::terrain::TerrainMesh) -> Vec<(Vec3, Vec3)> {
+fn tile_bounds(mesh: &unbanished_game::terrain::TerrainMesh) -> Vec<(Vec3, Vec3)> {
     mesh.vertices
         .chunks(TILE_VERTS * TILE_VERTS)
         .map(|tile| {
@@ -186,7 +186,7 @@ pub struct Renderer {
     pub display: crate::settings::DisplayInfo,
     pub video: VideoSettings,
     models_revision: u64,
-    ui: banished_gfx::UiRenderer,
+    ui: unbanished_gfx::UiRenderer,
     models: crate::gfx::models::ModelRenderer,
     extras: SceneExtrasRenderer,
     decals_revision: u64,
@@ -196,7 +196,7 @@ pub struct Renderer {
     weather: crate::gfx::particle_gfx::WeatherRenderer,
     pending_weather: Vec<crate::view::weather::WeatherBatch>,
     weather_textures:
-        std::collections::HashMap<String, Option<banished_formats::types::ImageBuffer>>,
+        std::collections::HashMap<String, Option<unbanished_formats::types::ImageBuffer>>,
     cell_overlay: crate::gfx::selection_overlay::OverlayRenderer,
     pending_overlay: Vec<crate::gfx::selection_overlay::OverlayVertex>,
     overlay_texture: Option<crate::gfx::selection_overlay::OverlayTexture>,
@@ -736,8 +736,8 @@ impl Renderer {
         let weather =
             crate::gfx::particle_gfx::WeatherRenderer::new(&device, &queue, &globals_layout);
         let cell_overlay = crate::gfx::selection_overlay::OverlayRenderer::new(&device);
-        let mut ui = banished_gfx::UiRenderer::new(&device, format, DEPTH_FORMAT);
-        let white = banished_gfx::upload_rgba_as(
+        let mut ui = unbanished_gfx::UiRenderer::new(&device, format, DEPTH_FORMAT);
+        let white = unbanished_gfx::upload_rgba_as(
             &device,
             &queue,
             "white",

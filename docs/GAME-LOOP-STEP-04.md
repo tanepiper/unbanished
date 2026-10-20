@@ -97,6 +97,6 @@ ambient emitters remain unported.
   `48.0` from the executable.
 - `crates/formats/src/game.rs` decodes the twelve `EnvironmentMonth` records and the environment
   weather-slot references, plus the `ClimateGenerator` wire record.
-- `cargo run -p banished-formats --bin climate_info -- game-data/extracted/Game/Climate/{Mild,Fair,Harsh}_resource.crs`
+- `cargo run -p unbanished-formats --bin climate_info -- game-data/extracted/Game/Climate/{Mild,Fair,Harsh}_resource.crs`
   prints the month cutoffs and remaining settings; `environment_info` prints the effect/audio slots.
 - [GAME-LOOP-STEP-03.md](GAME-LOOP-STEP-03.md) records the calendar state and speed scaling.

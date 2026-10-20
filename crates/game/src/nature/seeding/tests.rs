@@ -1,6 +1,6 @@
 use super::*;
 use crate::scheduler::ticks;
-use banished_formats::game::ModelVariant;
+use unbanished_formats::game::ModelVariant;
 
 /// FUN_1400a5750: the occupant answers for the cell before the object. An orchard is the
 /// occupant of the cells its trees are the objects of; a construction site is an occupant

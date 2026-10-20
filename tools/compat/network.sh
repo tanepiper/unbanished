@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # Multiplayer over a real network (docs/MULTIPLAYER-PLAN.md, step 5): start a relay
-# (banished-relay) on this computer, record the `actions` scenario, and run several game
-# processes as the players of one room (`banished --net-test`). The host starts the game from its
+# (unbanished-relay) on this computer, record the `actions` scenario, and run several game
+# processes as the players of one room (`unbanished --net-test`). The host starts the game from its
 # save; the others get it over the network. Each plays its share of the recording; their digests
 # must be identical. A second run scrambles player 1's game: the host must find it and resync.
 #
-#   tools/compat/network.sh BINARY [RELAY_BINARY]     # default relay: target/release/banished-relay
+#   tools/compat/network.sh BINARY [RELAY_BINARY]     # default relay: target/release/unbanished-relay
 #
 # Exit 0 when every run agrees. Results stay in target/compat/network/<binary> on failure.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
 bin="${1:?usage: tools/compat/network.sh BINARY [RELAY_BINARY]}"
-relay="${2:-target/release/banished-relay}"
+relay="${2:-target/release/unbanished-relay}"
 out="target/compat/network/$(basename "$bin")"
 rm -rf "$out" && mkdir -p "$out/recordings"
 RECORD_DIR="$(cd "$out/recordings" && pwd)" tools/compat/scenarios.sh "$bin" "$out/runs" actions
@@ -31,7 +31,9 @@ run() { # name players corrupt-player corrupt-update
     local role=join extra=()
     ((p == 0)) && role=host
     ((p == who)) && extra=("$at")
-    BANISHED_USER_DIR="$out/$name/user$p" BANISHED_SETTINGS="$out/$name/settings$p.txt" \
+    # Builds before the rename to unbanished read BANISHED_*, later ones UNBANISHED_*: set both,
+    # so an old build never falls back to the player's own settings and saves.
+    UNBANISHED_USER_DIR="$out/$name/user$p" BANISHED_USER_DIR="$out/$name/user$p" UNBANISHED_SETTINGS="$out/$name/settings$p.txt" BANISHED_SETTINGS="$out/$name/settings$p.txt" \
       ${limit[@]+"${limit[@]}"} "$bin" --net-test "ws://127.0.0.1:$port" "$role" "$name" \
       save-game/Save83.sav "$recording" "$players" 6 120 ${extra[@]+"${extra[@]}"} \
       "$repo/game-data/original/WinData" >"$out/$name/p$p.out" 2>"$out/$name/p$p.log" &

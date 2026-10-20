@@ -20,7 +20,7 @@ use crate::work::construction::{run, BuildWork, Callbacks, Controller};
 use crate::work::jobs::{Jobs, Work, WorkKind};
 use crate::work::professions::icon;
 
-/// A resolved [`banished_formats::game::DestroyDescription`].
+/// A resolved [`unbanished_formats::game::DestroyDescription`].
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct DestroyTemplate {
     // +0x20

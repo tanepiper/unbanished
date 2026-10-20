@@ -19,8 +19,8 @@ pub struct Persistence {
     stored: bool,
 }
 
-/// The mod list (`banished_mods`) reads and writes the same values.
-impl banished_mods::Settings for Persistence {
+/// The mod list (`unbanished_mods`) reads and writes the same values.
+impl unbanished_mods::Settings for Persistence {
     fn get_bool(&self, section: &str, name: &str, value: &mut bool) {
         Persistence::get_bool(self, section, name, value);
     }
@@ -563,10 +563,10 @@ mod storage {
     use std::path::PathBuf;
 
     /// The platform configuration directory: `%APPDATA%`, `~/Library/Application Support` or
-    /// `$XDG_CONFIG_HOME` (`~/.config`). `BANISHED_SETTINGS` names the file directly (tests,
+    /// `$XDG_CONFIG_HOME` (`~/.config`). `UNBANISHED_SETTINGS` names the file directly (tests,
     /// captures).
     fn path() -> Option<PathBuf> {
-        if let Ok(p) = std::env::var("BANISHED_SETTINGS") {
+        if let Ok(p) = unbanished_formats::env::var("SETTINGS") {
             return (!p.is_empty()).then(|| PathBuf::from(p));
         }
         let base = if cfg!(target_os = "windows") {

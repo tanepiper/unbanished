@@ -17,7 +17,7 @@ pub struct SiteTemplate {
     pub work: i32,
     // +0x2c
     /// ClearAreaDescription: present, flatten/stamp flag.
-    pub clear: Option<banished_formats::game::ClearAreaDescription>,
+    pub clear: Option<unbanished_formats::game::ClearAreaDescription>,
     // +0x24
     /// WorkDescription (most workers once built).
     pub max_workers: i32,
@@ -42,7 +42,7 @@ pub struct SiteTemplate {
     /// ModelDescription meshes per variant (construction stages, the last finished).
     pub meshes: Vec<usize>,
     /// ResidenceDescription.
-    pub residence: Option<banished_formats::game::ResidenceDescription>,
+    pub residence: Option<unbanished_formats::game::ResidenceDescription>,
     /// AttendanceDescription capacity.
     pub attendance: Option<i32>,
     /// HerbalistDescription (gatherer, herbalist), resolved.
@@ -56,11 +56,11 @@ pub struct SiteTemplate {
     /// ForesterDescription, resolved.
     pub forester: Option<crate::production::forester::ForesterTemplate>,
     /// HappinessDescription.
-    pub happiness: Option<banished_formats::game::HappinessDescription>,
+    pub happiness: Option<unbanished_formats::game::HappinessDescription>,
     /// FishingDescription, resolved.
     pub fishing: Option<crate::production::fishing::FishingTemplate>,
     /// HuntDescription.
-    pub hunt: Option<banished_formats::game::HuntDescription>,
+    pub hunt: Option<unbanished_formats::game::HuntDescription>,
     /// CropFieldDescription.
     pub crop_field: Option<crate::production::farm::CropFieldTemplate>,
     /// OrchardDescription.
@@ -69,21 +69,21 @@ pub struct SiteTemplate {
     /// PastureDescription: the stock slot of its products' limit.
     pub pasture: Option<i32>,
     /// DiseaseDescription (fields, orchards, pastures).
-    pub disease: Option<banished_formats::game::DiseaseDescription>,
+    pub disease: Option<unbanished_formats::game::DiseaseDescription>,
     /// CemeteryDescription's tombstone template and its TombstoneDescription.
     pub cemetery: Option<crate::people::cemetery::CemeteryTemplate>,
     /// MarketDescription.
-    pub market: Option<banished_formats::game::MarketDescription>,
+    pub market: Option<unbanished_formats::game::MarketDescription>,
     // ModelComponent +0x5c
     /// StatusIconDescription (presentation), and the finished model's height its icons stand on
     /// (`ModelComponent`).
-    pub status_icon: Option<banished_formats::game::StatusIconDescription>,
+    pub status_icon: Option<unbanished_formats::game::StatusIconDescription>,
     /// The height of the status icon above the building, if it has one.
     pub icon_height: Option<f32>,
     /// DestroyDescription, resolved.
     pub destroy: Option<crate::work::destroy::DestroyTemplate>,
     /// FireDescription (`Template\Common.rsc:fire*`).
-    pub fire: Option<banished_formats::game::FireDescription>,
+    pub fire: Option<unbanished_formats::game::FireDescription>,
     /// ImmigrationDescription, resolved.
     pub immigration: Option<crate::people::immigration::ImmigrationTemplate>,
     /// TradeDescription, resolved.
@@ -95,7 +95,7 @@ pub struct SiteTemplate {
     pub material_templates: Vec<Option<usize>>,
 }
 
-/// A resolved [`banished_formats::game::ConsumeProduceDescription`].
+/// A resolved [`unbanished_formats::game::ConsumeProduceDescription`].
 #[derive(Debug, Clone, Default)]
 pub struct ProduceTemplate {
     /// The recipes.
@@ -400,8 +400,8 @@ pub struct Construction {
     /// `Game/Names/Male` and `Female`, for the merchants' names.
     pub names: Option<
         std::sync::Arc<(
-            banished_formats::names::NameDatabase,
-            banished_formats::names::NameDatabase,
+            unbanished_formats::names::NameDatabase,
+            unbanished_formats::names::NameDatabase,
         )>,
     >,
     /// The town manager's known crops, orchard trees and livestock, as placed-object templates.

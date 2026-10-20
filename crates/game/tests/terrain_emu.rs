@@ -2,9 +2,9 @@
 //! Produce it with `tools/emu/terrain_stages.py game-data/derived/emu/valleys-small-290 290 ...`;
 //! the test is skipped when that git-ignored folder is absent.
 
-use banished_game::terrain::{Generator, HeightGrid, SizeRecord, TerrainMesh};
-use banished_game::world::map::Map;
 use std::path::{Path, PathBuf};
+use unbanished_game::terrain::{Generator, HeightGrid, SizeRecord, TerrainMesh};
+use unbanished_game::world::map::Map;
 
 fn truth_dir(name: &str) -> Option<PathBuf> {
     let d = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -282,7 +282,7 @@ fn river_strips_valleys_small_290() {
             .map(|k| u16::from_le_bytes([bytes[at + 2 * k], bytes[at + 2 * k + 1]]))
             .collect();
         at += 2 * ic;
-        let (got_v, got_i) = banished_game::terrain::river_strip(path);
+        let (got_v, got_i) = unbanished_game::terrain::river_strip(path);
         let got_v: Vec<[u32; 4]> = got_v.iter().map(|v| v.map(f32::to_bits)).collect();
         let first = got_v.iter().zip(&want_v).position(|(a, b)| a != b);
         assert!(
@@ -307,7 +307,7 @@ fn water_mesh_valleys_small_1() {
     let mut g = Generator::new(SizeRecord::from_wire(VALLEYS_SMALL), 1);
     g.run(|_, _| {});
     let heights = g.heights();
-    let mesh = banished_game::terrain::water_mesh(&g.paths, &g.lakes, &heights, g.size as usize);
+    let mesh = unbanished_game::terrain::water_mesh(&g.paths, &g.lakes, &heights, g.size as usize);
     assert_eq!(mesh.rivers.len(), g.paths.len());
     assert_eq!(mesh.lakes.len(), g.lakes.len());
     let (mut index, mut vertex) = (0, 0);

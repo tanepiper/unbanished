@@ -9,7 +9,7 @@
 //! Original: `FUN_14004f020`, `FUN_1400507d0`.
 // vtable 0x14015fc50; vtable 0x140160140
 
-use banished_formats::game::CharacterDescription;
+use unbanished_formats::game::CharacterDescription;
 
 use crate::behaviour::character::{Action, Character, MoveTo};
 use crate::scheduler::ticks;

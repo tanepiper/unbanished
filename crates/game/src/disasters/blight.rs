@@ -5,7 +5,7 @@
 //! thing, until it runs its course or nothing is left.
 // vtable 0x14015f3b0
 
-use banished_formats::game::DiseaseDescription;
+use unbanished_formats::game::DiseaseDescription;
 
 use crate::nature::wildlife::HUNTED;
 use crate::scheduler::ticks;

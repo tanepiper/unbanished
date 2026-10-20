@@ -32,8 +32,8 @@ base="$(binary "$base_arg")"
 new="$(binary "$new_arg")"
 runs="target/compat/runs/$(basename "$base")-vs-$(basename "$new")"
 rm -rf "$runs" && mkdir -p "$runs"
-cargo build -q --offline --release -p banished-app --example imgdiff
-cargo build -q --offline --release -p banished-formats --example savegame_same
+cargo build -q --offline --release -p unbanished-app --example imgdiff
+cargo build -q --offline --release -p unbanished-formats --example savegame_same
 failed=0
 
 same() { # label dirA dirB

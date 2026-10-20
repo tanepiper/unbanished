@@ -33,26 +33,26 @@ use templates::{load_template, professions};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use banished_formats::game::{
+use unbanished_formats::game::{
     citizen_description, component_description, create_placed_description, growth_description,
     map_description, map_generator, model_description, natural_resource_description,
     particle_description, radius_description, raw_material_description, spawn_description,
     storage_description, storage_location_description, MapGenerator,
 };
-use banished_formats::names::NameDatabase;
-use banished_formats::pkg::Archive;
-use banished_game::behaviour::agents::{Agents, CitizenRulesAi};
-use banished_game::behaviour::ai::Thresholds;
-use banished_game::nature::seeding::{Cells, Placed, ScheduledComponent, Seeder, Template};
-use banished_game::people::citizens::{Citizen, CitizenRules, Households};
-use banished_game::random::Random;
-use banished_game::scheduler::EntityScheduler;
-use banished_game::terrain::HeightGrid;
-use banished_game::work::stock::{distribute, RawMaterial, Storage, StorageSite};
-use banished_game::world::map::Map;
+use unbanished_formats::names::NameDatabase;
+use unbanished_formats::pkg::Archive;
+use unbanished_game::behaviour::agents::{Agents, CitizenRulesAi};
+use unbanished_game::behaviour::ai::Thresholds;
+use unbanished_game::nature::seeding::{Cells, Placed, ScheduledComponent, Seeder, Template};
+use unbanished_game::people::citizens::{Citizen, CitizenRules, Households};
+use unbanished_game::random::Random;
+use unbanished_game::scheduler::EntityScheduler;
+use unbanished_game::terrain::HeightGrid;
+use unbanished_game::work::stock::{distribute, RawMaterial, Storage, StorageSite};
+use unbanished_game::world::map::Map;
 
-use banished_game::work::construction::{Construction, Controller, Site, SiteTemplate};
-use banished_game::work::professions::{Profession, Professions, WorkPlace};
+use unbanished_game::work::construction::{Construction, Controller, Site, SiteTemplate};
+use unbanished_game::work::professions::{Profession, Professions, WorkPlace};
 
 mod bridge;
 pub(crate) mod load;
@@ -132,18 +132,18 @@ struct TownParts {
     scheduler: EntityScheduler<usize>,
     removed: Vec<usize>,
     animation_events: Vec<(usize, String)>,
-    wildlife: banished_game::nature::wildlife::Wildlife,
+    wildlife: unbanished_game::nature::wildlife::Wildlife,
     known: Vec<usize>,
     known_materials: Vec<usize>,
-    water: banished_game::disasters::fire::Water,
+    water: unbanished_game::disasters::fire::Water,
 }
 
 pub struct StartingTown {
     /// Citizen StatusIconDescription and the male/female mesh box heights (model `+0x5c`).
-    citizen_icons: Option<banished_formats::game::StatusIconDescription>,
+    citizen_icons: Option<unbanished_formats::game::StatusIconDescription>,
     citizen_heights: [f32; 2],
     /// Professions CitizenUI names (laborer, child, student), by resource key.
-    archive_professions: Vec<(String, banished_formats::game::Profession)>,
+    archive_professions: Vec<(String, unbanished_formats::game::Profession)>,
     pub start: (i32, i32),
     pub citizens: Vec<Citizen>,
     pub rules: CitizenRules,
@@ -163,22 +163,22 @@ pub struct StartingTown {
     pub(crate) ambience_handles: Vec<usize>,
     removed: Vec<usize>,
     pub animation_events: Vec<(usize, String)>,
-    pub(crate) citizen_model: Option<banished_formats::game::ModelDescription>,
+    pub(crate) citizen_model: Option<unbanished_formats::game::ModelDescription>,
     /// The nomad templates' NomadDescription materials (men, women).
     nomad_materials: HashMap<usize, [Option<String>; 2]>,
     /// ShowTool's meshes: CitizenDescription `+0x138` (`FUN_14011c880`), and each citizen
     /// mesh's nodes with its `tool` node (`GraphicsMesh::GetNodeIndexFromName`).
     tool_meshes: Vec<Option<String>>,
-    citizen_bones: Vec<Option<(Vec<banished_formats::types::Bone>, usize)>>,
+    citizen_bones: Vec<Option<(Vec<unbanished_formats::types::Bone>, usize)>>,
     /// Carried goods' meshes and scales by raw material (its template's first mesh,
     /// RawMaterialDescription `+0x50`), filled when the models are built.
     carry_models: std::cell::RefCell<HashMap<usize, Option<(String, f32)>>>,
     /// Each variant's animation group (`Models\Citizen\CitizenAnims.rsc`).
-    pub(crate) citizen_anims: Vec<Option<Arc<banished_formats::types::AnimationGroup>>>,
+    pub(crate) citizen_anims: Vec<Option<Arc<unbanished_formats::types::AnimationGroup>>>,
     /// The citizens' CharacterComponent and CitizenAIComponent (docs/CITIZEN-AI.md).
     pub agents: Agents,
     /// Wild animals, their herds and populations (docs/WILDLIFE-POPULATION.md).
-    pub wildlife: banished_game::nature::wildlife::Wildlife,
+    pub wildlife: unbanished_game::nature::wildlife::Wildlife,
     /// The placement tool's ghost (`PlacementTool +0x68`): mesh and transform.
     pub ghost: Option<(String, [f32; 16])>,
     /// The job manager, professions, workplaces and construction sites (docs/JOBS.md).
@@ -196,11 +196,11 @@ pub struct StartingTown {
 /// its CitizenComponent.
 #[derive(Debug, Clone, Default)]
 pub struct SaveIds {
-    pub entities: Vec<Option<banished_formats::savegame::ObjId>>,
-    pub citizens: Vec<banished_formats::savegame::ObjId>,
+    pub entities: Vec<Option<unbanished_formats::savegame::ObjId>>,
+    pub citizens: Vec<unbanished_formats::savegame::ObjId>,
     /// Saved entities the town does not model (the map ambience, skipped templates): their
     /// scheduler handle and ComponentEntity.
-    pub foreign: Vec<(usize, banished_formats::savegame::ObjId)>,
+    pub foreign: Vec<(usize, unbanished_formats::savegame::ObjId)>,
 }
 
 impl StartingTown {
@@ -213,7 +213,7 @@ impl StartingTown {
         rng: &mut Random,
     ) -> Option<StartingTown> {
         // A new game: no shared animation instances (`AnimationManager`).
-        banished_game::behaviour::animation::shared::reset();
+        unbanished_game::behaviour::animation::shared::reset();
         let profile: MapGenerator = map_generator(&read(archive, profile_ref)?)
             .map_err(|e| log::warn!("{profile_ref}: {e}"))
             .ok()?;
@@ -238,7 +238,7 @@ impl StartingTown {
             .collect();
         let mut cells = Cells::new(map_size, map.types);
         // The map's setup files the shore cells as water sources (`FUN_1400a43f0`).
-        let water = banished_game::disasters::fire::Water::new(&cells);
+        let water = unbanished_game::disasters::fire::Water::new(&cells);
         let mut placed = Vec::new();
         let mut removed = Vec::new();
         let mut animation_events = Vec::new();
@@ -267,19 +267,19 @@ impl StartingTown {
             rng,
         );
         // `FUN_1400a5eb0`: the wildlife populations (deer) and their herds.
-        let mut wildlife = banished_game::nature::wildlife::Wildlife::default();
+        let mut wildlife = unbanished_game::nature::wildlife::Wildlife::default();
         // The households' CharacterComponents activate as they are made, before any animal
         // (`FUN_14010ee90`): first in the characters' tree.
         let radius = read(
             archive,
             &normalise(&profile.citizen).replace(":resource", ":character"),
         )
-        .and_then(|d| banished_formats::game::character_description(&d).ok())
+        .and_then(|d| unbanished_formats::game::character_description(&d).ok())
         .unwrap_or_default()
         .radius;
         for (i, c) in citizens.iter().enumerate() {
             wildlife.tree.insert(
-                banished_game::behaviour::character_tree::Who::Citizen(i),
+                unbanished_game::behaviour::character_tree::Who::Citizen(i),
                 c.position,
                 radius,
             );
@@ -287,7 +287,7 @@ impl StartingTown {
         let populations =
             wildlife_kinds(archive, &profile.populations, &mut templates, &mut wildlife);
         for t in populations {
-            banished_game::nature::wildlife::Wild {
+            unbanished_game::nature::wildlife::Wild {
                 wildlife: &mut wildlife,
                 placed: &mut placed,
                 templates: &templates,
@@ -335,7 +335,7 @@ impl StartingTown {
                 .get(r)
                 .and_then(|t| livestock_kind(archive, t, &mut templates, &mut wildlife))
             {
-                banished_game::nature::wildlife::Wild {
+                unbanished_game::nature::wildlife::Wild {
                     wildlife: &mut wildlife,
                     placed: &mut placed,
                     templates: &templates,
@@ -409,10 +409,10 @@ impl StartingTown {
             water,
         } = parts;
         let citizen_model = read(archive, r"Template\Citizen.rsc:model")
-            .and_then(|d| banished_formats::game::model_description(&d).ok());
+            .and_then(|d| unbanished_formats::game::model_description(&d).ok());
         let citizen_ref = normalise(citizen);
         let character = read(archive, &citizen_ref.replace(":resource", ":character"))
-            .and_then(|d| banished_formats::game::character_description(&d).ok())
+            .and_then(|d| unbanished_formats::game::character_description(&d).ok())
             .unwrap_or_default();
         let ai_rules = read(archive, &citizen_ref.replace(":resource", ":citizen"))
             .and_then(|d| citizen_description(&d).ok())
@@ -447,7 +447,7 @@ impl StartingTown {
                     .first()
                     .cloned()
                     .and_then(|r| read(archive, &r))
-                    .and_then(|d| banished_formats::game::profession(&d).ok())
+                    .and_then(|d| unbanished_formats::game::profession(&d).ok())
                     .is_some_and(|p| p.flag_4c),
             })
             .unwrap_or_default();
@@ -470,7 +470,7 @@ impl StartingTown {
         for i in 0..citizens.len() {
             if let Some(s) = wildlife
                 .tree
-                .slot_of(banished_game::behaviour::character_tree::Who::Citizen(i))
+                .slot_of(unbanished_game::behaviour::character_tree::Who::Citizen(i))
             {
                 agents.set_tree_slot(i, s);
             }
@@ -478,17 +478,17 @@ impl StartingTown {
         if let Some(d) = read(archive, &citizen_ref.replace(":resource", ":citizen"))
             .and_then(|d| citizen_description(&d).ok())
         {
-            agents.life = banished_game::people::life::LifeRules::new(&d);
+            agents.life = unbanished_game::people::life::LifeRules::new(&d);
         }
         agents.diseases = read(archive, "Game/Disease/Diseases.rsc:resource")
-            .and_then(|d| banished_formats::game::external_list(&d).ok())
+            .and_then(|d| unbanished_formats::game::external_list(&d).ok())
             .unwrap_or_default()
             .iter()
             .filter_map(|r| read(archive, &normalise(r)))
-            .filter_map(|d| banished_formats::game::disease(&d).ok())
+            .filter_map(|d| unbanished_formats::game::disease(&d).ok())
             .collect();
         agents.carry = read(archive, "Game/Profession/Profession.rsc:laborer")
-            .and_then(|d| banished_formats::game::profession(&d).ok())
+            .and_then(|d| unbanished_formats::game::profession(&d).ok())
             .map_or(0, |p| p.value_50);
         let names = ["Male", "Female"].map(|n| {
             archive
@@ -504,18 +504,18 @@ impl StartingTown {
             .iter()
             .filter_map(|k| {
                 read(archive, &format!("Game/Profession/Profession.rsc:{k}"))
-                    .and_then(|d| banished_formats::game::profession(&d).ok())
+                    .and_then(|d| unbanished_formats::game::profession(&d).ok())
                     .map(|p| (k.to_string(), p))
             })
             .collect();
         let citizen_icons = read(archive, &citizen_ref.replace(":resource", ":statusicon"))
-            .and_then(|d| banished_formats::game::status_icon_description(&d).ok());
+            .and_then(|d| unbanished_formats::game::status_icon_description(&d).ok());
         let citizen_heights = [0, 1].map(|v| {
             citizen_model
                 .as_ref()
                 .and_then(|m| m.variants.get(v)?.meshes.first()?.clone())
                 .and_then(|r| read(archive, &normalise(&r)))
-                .and_then(|d| banished_formats::types::graphics_mesh(&d).ok())
+                .and_then(|d| unbanished_formats::types::graphics_mesh(&d).ok())
                 .map_or(0.0, |m| m.bounds_max[2] - m.bounds_min[2])
         });
         let mut town = StartingTown {
@@ -612,7 +612,7 @@ impl StartingTown {
             site.machine.pending = 2;
             let map = self.templates[self.placed[e].template].map.clone();
             let p = &self.placed[e];
-            let rect = banished_game::world::placement::Rect {
+            let rect = unbanished_game::world::placement::Rect {
                 x0: p.cell.0,
                 y0: p.cell.1,
                 x1: p.cell.0 + p.footprint.0 - 1,
@@ -620,7 +620,7 @@ impl StartingTown {
             };
             let degrees = p.yaw as i32;
             if let Some(map) = map {
-                let rules = banished_game::world::placement::PlacementRules {
+                let rules = unbanished_game::world::placement::PlacementRules {
                     mask: 0,
                     masks: Vec::new(),
                     mask_chars: String::new(),
@@ -630,7 +630,7 @@ impl StartingTown {
                     cell_type: map.cell_type as u8,
                 };
                 if !map.no_stamp {
-                    banished_game::world::placement::stamp(
+                    unbanished_game::world::placement::stamp(
                         &mut self.cells,
                         &rules,
                         rect,
@@ -638,7 +638,7 @@ impl StartingTown {
                         e,
                     );
                 }
-                banished_game::world::placement::zone(&mut self.cells, &rules, rect, degrees, e);
+                unbanished_game::world::placement::zone(&mut self.cells, &rules, rect, degrees, e);
             }
         }
     }
@@ -653,13 +653,13 @@ impl StartingTown {
         let template = self.load_template(archive, reference)?;
         let file = normalise(reference).replace(":resource", ":character");
         let character = read(archive, &file)
-            .and_then(|d| banished_formats::game::character_description(&d).ok())?;
+            .and_then(|d| unbanished_formats::game::character_description(&d).ok())?;
         if let Some(Some(g)) = self.templates[template].animations.first() {
             self.wildlife.groups.insert((template, 0), g.clone());
         }
         self.wildlife.boat_kinds.insert(
             template,
-            banished_game::commerce::boat::BoatKind { character },
+            unbanished_game::commerce::boat::BoatKind { character },
         );
         Some(template)
     }
@@ -677,7 +677,7 @@ impl StartingTown {
                 continue;
             }
             let Some(value) = read(archive, &r.replace(":resource", ":value"))
-                .and_then(|d| banished_formats::game::value_description(&d).ok())
+                .and_then(|d| unbanished_formats::game::value_description(&d).ok())
             else {
                 continue;
             };
@@ -690,7 +690,7 @@ impl StartingTown {
                 .flatten();
             self.construction
                 .trade_goods
-                .push(banished_game::commerce::trade::TradeGood {
+                .push(unbanished_game::commerce::trade::TradeGood {
                     template,
                     material,
                     value,

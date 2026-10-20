@@ -41,11 +41,11 @@ Full details: `docs/FINDINGS.md` §2–3, `tools/crs/crs.py`.
    select entries by normalised name, parse every one, assert a sane count (`names.len() > N`)
    and spot-check a known value.
    ```bash
-   cargo test --release -p banished-formats --test <name>
+   cargo test --release -p unbanished-formats --test <name>
    ```
 5. **Optional inspector** `crates/formats/examples/<name>_info.rs` printing `{:#?}` for a reference
    (pattern: `dialog_info.rs`):
-   `cargo run -p banished-formats --example dialog_info -- game-data/original/WinData "Dialog/Toolbar.rsc:resource"`.
+   `cargo run -p unbanished-formats --example dialog_info -- game-data/original/WinData "Dialog/Toolbar.rsc:resource"`.
 6. Document the layout (field table, versions, which type ids) in a `docs/` topic file.
 
 ## Pitfalls

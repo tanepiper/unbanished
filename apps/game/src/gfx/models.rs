@@ -15,17 +15,17 @@ use upload::GpuGroup;
 
 use std::collections::HashMap;
 
-use banished_formats::menu_scene::MenuScene;
-use banished_formats::pkg::Archive;
-use banished_formats::skeleton::{bind_palette, inverse_bind, world_transforms, Transform};
-use banished_formats::texture::decode_rgba;
-use banished_formats::types::{
+use glam::{Mat4, Quat, Vec3};
+use unbanished_formats::menu_scene::MenuScene;
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::skeleton::{bind_palette, inverse_bind, world_transforms, Transform};
+use unbanished_formats::texture::decode_rgba;
+use unbanished_formats::types::{
     graphics_mesh, image_buffer, material_instance, Bone, ImageBuffer, STATIC_STRIDE,
 };
-use glam::{Mat4, Quat, Vec3};
 use wgpu::util::DeviceExt;
 
-pub use banished_gfx::material::MaterialKind;
+pub use unbanished_gfx::material::MaterialKind;
 
 mod culling;
 pub(crate) use culling::Frustum;
@@ -164,12 +164,12 @@ impl ModelGroup {
             for instance in &instances {
                 let palette = match &instance.locals {
                     Some(locals) if locals.len() == self.bones.len() => {
-                        banished_formats::skeleton::palette(&self.bones, &placed_pose(locals))
+                        unbanished_formats::skeleton::palette(&self.bones, &placed_pose(locals))
                     }
                     _ => self.default_palette.clone(),
                 };
                 self.skins
-                    .extend(banished_gfx::skin::palette_matrices(&palette));
+                    .extend(unbanished_gfx::skin::palette_matrices(&palette));
             }
             self.instances = instances.iter().map(|i| i.matrix).collect();
         } else {
@@ -306,7 +306,7 @@ fn skin_buffer(
             resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                 buffer: &buffer,
                 offset: 0,
-                size: wgpu::BufferSize::new(banished_gfx::skin::PALETTE_BYTES),
+                size: wgpu::BufferSize::new(unbanished_gfx::skin::PALETTE_BYTES),
             }),
         }],
     });

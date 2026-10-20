@@ -5,9 +5,9 @@
 //! screen's right edge less 464, and each frame the current step's setups update and its goals
 //! are tested; when they are all met the setups exit and the next step is entered.
 
-use banished_formats::pkg::Archive;
-use banished_formats::scenario::{self, ImageExtra, TutorialPart};
-use banished_ui::{Kind, NodeId, Ui};
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::scenario::{self, ImageExtra, TutorialPart};
+use unbanished_ui::{Kind, NodeId, Ui};
 
 use super::GameplayLoop;
 use crate::loops::Ctx;
@@ -234,7 +234,7 @@ impl Tutorial {
 
 /// `CRC32` of a controller class's UTF-16 name.
 fn class_id(name: &str) -> u32 {
-    banished_formats::crc::type_id(name)
+    unbanished_formats::crc::type_id(name)
 }
 
 fn file(r: &str) -> String {
@@ -243,7 +243,7 @@ fn file(r: &str) -> String {
 
 /// `FUN_1400e7720`: lock or unlock an element and everything in it.
 fn set_locked(ui: &mut Ui, n: NodeId, locked: bool) {
-    use banished_formats::ui::flags::LOCKED;
+    use unbanished_formats::ui::flags::LOCKED;
     let node = ui.node_mut(n);
     if locked {
         node.flags |= LOCKED;
@@ -395,7 +395,7 @@ impl GameplayLoop {
             }
         }
         if let Some(table) = ui.table {
-            if let Kind::Control(banished_ui::Control::Table { cells, rows, .. }) =
+            if let Kind::Control(unbanished_ui::Control::Table { cells, rows, .. }) =
                 &mut ctx.ui.node_mut(table).kind
             {
                 cells.clear();
@@ -405,7 +405,7 @@ impl GameplayLoop {
                 let Some(cell) = self.image_element(ctx, image) else {
                     continue;
                 };
-                if let Kind::Control(banished_ui::Control::Table {
+                if let Kind::Control(unbanished_ui::Control::Table {
                     cells,
                     rows,
                     columns,
@@ -993,7 +993,7 @@ pub struct GameGoal {
 pub fn scenarios(archive: &Archive) -> Vec<(String, scenario::Scenario)> {
     let read = |r: &str| archive.read_ref(&r.replace('\\', "/")).ok();
     let Some(list) = read("Game/Scenario/ScenarioList.rsc:resource")
-        .and_then(|d| banished_formats::game::external_list(&d).ok())
+        .and_then(|d| unbanished_formats::game::external_list(&d).ok())
     else {
         return Vec::new();
     };
@@ -1114,7 +1114,7 @@ impl GameplayLoop {
 /// when it is not −1.
 pub fn scenario_game(
     ui: &mut Ui,
-    archive: &banished_formats::pkg::Archive,
+    archive: &unbanished_formats::pkg::Archive,
     global: Option<&crate::global::GlobalData>,
     s: &scenario::Scenario,
     index: usize,

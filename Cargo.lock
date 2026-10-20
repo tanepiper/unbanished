@@ -495,217 +495,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
-name = "banished-app"
-version = "0.4.0"
-dependencies = [
- "banished-audio",
- "banished-banishedinfo",
- "banished-formats",
- "banished-game",
- "banished-gfx",
- "banished-mods",
- "banished-net",
- "banished-nexus",
- "banished-ui",
- "bytemuck",
- "console_error_panic_hook",
- "console_log",
- "env_logger",
- "glam",
- "jiff",
- "js-sys",
- "log",
- "png",
- "pollster",
- "serde",
- "serde_json",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "web-time",
- "wgpu",
- "winit",
-]
-
-[[package]]
-name = "banished-audio"
-version = "0.4.0"
-dependencies = [
- "banished-formats",
- "banished-wma",
- "glam",
- "js-sys",
- "log",
- "rodio",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
-name = "banished-banishedinfo"
-version = "0.4.0"
-dependencies = [
- "banished-nexus",
- "serde_json",
- "ureq",
-]
-
-[[package]]
-name = "banished-cli"
-version = "0.4.0"
-dependencies = [
- "banished-banishedinfo",
- "banished-formats",
- "banished-nexus",
- "serde_json",
-]
-
-[[package]]
-name = "banished-core"
-version = "0.4.0"
-
-[[package]]
-name = "banished-formats"
-version = "0.4.0"
-
-[[package]]
-name = "banished-game"
-version = "0.4.0"
-dependencies = [
- "banished-core",
- "banished-formats",
- "banished-path",
- "banished-terrain",
- "serde",
-]
-
-[[package]]
-name = "banished-gfx"
-version = "0.4.0"
-dependencies = [
- "banished-formats",
- "banished-ui",
- "bytemuck",
- "log",
- "wgpu",
-]
-
-[[package]]
-name = "banished-modmanager"
-version = "0.4.0"
-dependencies = [
- "banished-banishedinfo",
- "banished-mods",
- "banished-nexus",
- "eframe",
- "png",
-]
-
-[[package]]
-name = "banished-mods"
-version = "0.4.0"
-dependencies = [
- "banished-formats",
- "image-webp",
- "log",
- "png",
- "zune-core",
- "zune-jpeg",
-]
-
-[[package]]
-name = "banished-net"
-version = "0.4.0"
-dependencies = [
- "js-sys",
- "log",
- "postcard",
- "serde",
- "tungstenite",
- "wasm-bindgen",
- "web-sys",
-]
-
-[[package]]
-name = "banished-nexus"
-version = "0.4.0"
-dependencies = [
- "flate2",
- "serde_json",
- "ureq",
- "zip",
-]
-
-[[package]]
-name = "banished-path"
-version = "0.4.0"
-dependencies = [
- "banished-core",
- "banished-terrain",
-]
-
-[[package]]
-name = "banished-relay"
-version = "0.4.0"
-dependencies = [
- "banished-net",
- "env_logger",
- "log",
- "tungstenite",
-]
-
-[[package]]
-name = "banished-terrain"
-version = "0.4.0"
-dependencies = [
- "banished-core",
- "banished-formats",
-]
-
-[[package]]
-name = "banished-ui"
-version = "0.4.0"
-dependencies = [
- "banished-formats",
- "log",
-]
-
-[[package]]
-name = "banished-viewer"
-version = "0.4.0"
-dependencies = [
- "banished-audio",
- "banished-formats",
- "banished-game",
- "banished-gfx",
- "banished-ui",
- "banished-wma",
- "bytemuck",
- "console_error_panic_hook",
- "console_log",
- "env_logger",
- "glam",
- "js-sys",
- "log",
- "png",
- "pollster",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "web-time",
- "wgpu",
- "winit",
-]
-
-[[package]]
-name = "banished-wma"
-version = "0.4.0"
-dependencies = [
- "banished-formats",
-]
-
-[[package]]
 name = "base64"
 version = "0.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4185,6 +3974,218 @@ dependencies = [
  "memoffset",
  "tempfile",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "unbanished-app"
+version = "0.4.0"
+dependencies = [
+ "bytemuck",
+ "console_error_panic_hook",
+ "console_log",
+ "env_logger",
+ "glam",
+ "jiff",
+ "js-sys",
+ "log",
+ "png",
+ "pollster",
+ "serde",
+ "serde_json",
+ "unbanished-audio",
+ "unbanished-banishedinfo",
+ "unbanished-formats",
+ "unbanished-game",
+ "unbanished-gfx",
+ "unbanished-mods",
+ "unbanished-net",
+ "unbanished-nexus",
+ "unbanished-ui",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "web-time",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
+name = "unbanished-audio"
+version = "0.4.0"
+dependencies = [
+ "glam",
+ "js-sys",
+ "log",
+ "rodio",
+ "unbanished-formats",
+ "unbanished-wma",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
+name = "unbanished-banishedinfo"
+version = "0.4.0"
+dependencies = [
+ "serde_json",
+ "unbanished-nexus",
+ "ureq",
+]
+
+[[package]]
+name = "unbanished-cli"
+version = "0.4.0"
+dependencies = [
+ "serde_json",
+ "unbanished-banishedinfo",
+ "unbanished-formats",
+ "unbanished-nexus",
+]
+
+[[package]]
+name = "unbanished-core"
+version = "0.4.0"
+
+[[package]]
+name = "unbanished-formats"
+version = "0.4.0"
+
+[[package]]
+name = "unbanished-game"
+version = "0.4.0"
+dependencies = [
+ "serde",
+ "unbanished-core",
+ "unbanished-formats",
+ "unbanished-path",
+ "unbanished-terrain",
+]
+
+[[package]]
+name = "unbanished-gfx"
+version = "0.4.0"
+dependencies = [
+ "bytemuck",
+ "log",
+ "unbanished-formats",
+ "unbanished-ui",
+ "wgpu",
+]
+
+[[package]]
+name = "unbanished-modmanager"
+version = "0.4.0"
+dependencies = [
+ "eframe",
+ "png",
+ "unbanished-banishedinfo",
+ "unbanished-formats",
+ "unbanished-mods",
+ "unbanished-nexus",
+]
+
+[[package]]
+name = "unbanished-mods"
+version = "0.4.0"
+dependencies = [
+ "image-webp",
+ "log",
+ "png",
+ "unbanished-formats",
+ "zune-core",
+ "zune-jpeg",
+]
+
+[[package]]
+name = "unbanished-net"
+version = "0.4.0"
+dependencies = [
+ "js-sys",
+ "log",
+ "postcard",
+ "serde",
+ "tungstenite",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "unbanished-nexus"
+version = "0.4.0"
+dependencies = [
+ "flate2",
+ "serde_json",
+ "ureq",
+ "zip",
+]
+
+[[package]]
+name = "unbanished-path"
+version = "0.4.0"
+dependencies = [
+ "unbanished-core",
+ "unbanished-terrain",
+]
+
+[[package]]
+name = "unbanished-relay"
+version = "0.4.0"
+dependencies = [
+ "env_logger",
+ "log",
+ "tungstenite",
+ "unbanished-net",
+]
+
+[[package]]
+name = "unbanished-terrain"
+version = "0.4.0"
+dependencies = [
+ "unbanished-core",
+ "unbanished-formats",
+]
+
+[[package]]
+name = "unbanished-ui"
+version = "0.4.0"
+dependencies = [
+ "log",
+ "unbanished-formats",
+]
+
+[[package]]
+name = "unbanished-viewer"
+version = "0.4.0"
+dependencies = [
+ "bytemuck",
+ "console_error_panic_hook",
+ "console_log",
+ "env_logger",
+ "glam",
+ "js-sys",
+ "log",
+ "png",
+ "pollster",
+ "unbanished-audio",
+ "unbanished-formats",
+ "unbanished-game",
+ "unbanished-gfx",
+ "unbanished-ui",
+ "unbanished-wma",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "web-time",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
+name = "unbanished-wma"
+version = "0.4.0"
+dependencies = [
+ "unbanished-formats",
 ]
 
 [[package]]

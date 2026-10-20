@@ -49,8 +49,8 @@ The details that drift are the ones that cause differences later:
 
 - **Float order.** Float addition and multiplication are not associative. Write the terms in the
   original's order.
-- **Runtime maths.** In simulation code, use `banished_core::crt` (`sinf`, `cosf`, `acosf`,
-  `atan2f`) and `banished_core::math` (normalise, heading, `Transform`), not Rust's `f32`
+- **Runtime maths.** In simulation code, use `unbanished_core::crt` (`sinf`, `cosf`, `acosf`,
+  `atan2f`) and `unbanished_core::math` (normalise, heading, `Transform`), not Rust's `f32`
   methods. Rust's `f32::sin` can give a different last bit.
 - **Game time.** `System::Time` is integer microseconds. Convert with `scheduler::seconds` and
   `scheduler::ticks`.
@@ -85,18 +85,18 @@ The game's windows are resources (`Dialog/*.rsc`). To port one:
 
 1. Look at the resource: its element names, ids, templates and alignment.
    ```bash
-   cargo run -p banished-formats --example dialog_info -- game-data/original/WinData \
+   cargo run -p unbanished-formats --example dialog_info -- game-data/original/WinData \
      "Dialog/Toolbar.rsc:resource"
    ```
 2. Instantiate it through the screen. Find its elements **by name**, as the original does
    (`screen.find(ui, dialog, "toolbarContent")`), never by their position in the tree.
-3. Use the helpers of `banished_ui::Ui` (`set_text`, `set_table_child`, `set_images`, `checked`,
+3. Use the helpers of `unbanished_ui::Ui` (`set_text`, `set_table_child`, `set_images`, `checked`,
    `set_checked`, …). If a helper is missing, add a general one to `crates/ui/src/controls.rs`,
    with a test in `crates/ui/tests/controls.rs`.
 4. Strings come from string tables (`UI::String(table, key)`); sprites come from sprite sheets
    (`ui.res.sprite(sheet, name)`).
 5. Handle events: drain them with `drain_events` and dispatch on the original element ids and
-   event codes that the trace recorded. Note that `banished_ui::pointer_button` **returns** the
+   event codes that the trace recorded. Note that `unbanished_ui::pointer_button` **returns** the
    click event; it does not queue it.
 
 ## Work in small slices
@@ -104,7 +104,7 @@ The game's windows are resources (`Dialog/*.rsc`). To port one:
 1. Read the trace document again. List the functions to port and their addresses.
 2. Make the smallest piece work from end to end first, for example "the toolbar's first level
    is visible". Then add the rest.
-3. Build often: `cargo build --release -p banished-app`, or `-p banished-ui` for a crate.
+3. Build often: `cargo build --release -p unbanished-app`, or `-p unbanished-ui` for a crate.
 4. Verify ([Verify](VERIFY.md)), then document and commit ([Document and land](LAND.md)), for
    each slice, not only at the end.
 

@@ -15,7 +15,7 @@ impl GameplayLoop {
         let (Some(town), Some(view)) = (&mut self.town, &self.view) else {
             return;
         };
-        let grid = banished_game::terrain::HeightGrid {
+        let grid = unbanished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
         };
@@ -30,12 +30,12 @@ impl GameplayLoop {
     /// Port of FUN_14009b850: entity scheduler, integer calendar, then environment.
     /// Growth reads the prior environment temperature; weather draws follow entity callbacks.
     /// Returns whether spawning/removal changed the model instances.
-    pub(super) fn iterate(&mut self, archive: &banished_formats::pkg::Archive, dt: f32) -> bool {
+    pub(super) fn iterate(&mut self, archive: &unbanished_formats::pkg::Archive, dt: f32) -> bool {
         let mut models_changed = false;
         // Player commands and placed sites take effect between iterations.
         self.apply_commands();
         if let (Some(town), Some(view)) = (&mut self.town, &self.view) {
-            let grid = banished_game::terrain::HeightGrid {
+            let grid = unbanished_game::terrain::HeightGrid {
                 width: view.terrain.size + 1,
                 heights: &view.terrain.heights,
             };
@@ -83,7 +83,7 @@ impl GameplayLoop {
                 &self.view,
                 self.environment_template.as_deref(),
             ) {
-                let grid = banished_game::terrain::HeightGrid {
+                let grid = unbanished_game::terrain::HeightGrid {
                     width: view.terrain.size + 1,
                     heights: &view.terrain.heights,
                 };
@@ -98,7 +98,7 @@ impl GameplayLoop {
                 .recompute(&town.registered_storages(), &town.materials);
             // StockManager::Update's commute optimisation (every 300 s).
             if let Some(view) = &self.view {
-                let grid = banished_game::terrain::HeightGrid {
+                let grid = unbanished_game::terrain::HeightGrid {
                     width: view.terrain.size + 1,
                     heights: &view.terrain.heights,
                 };
@@ -108,12 +108,12 @@ impl GameplayLoop {
             town.construction.jobs.step(ticks(dt));
             // `FUN_14008fc00` every 75 s: the citizens and every stock slot.
             let life = &town.agents.life;
-            let samples: Vec<banished_game::work::tracker::CitizenSample> = town
+            let samples: Vec<unbanished_game::work::tracker::CitizenSample> = town
                 .citizens
                 .iter()
                 .zip(&town.agents.states)
                 .filter(|(c, _)| c.alive)
-                .map(|(c, s)| banished_game::work::tracker::CitizenSample {
+                .map(|(c, s)| unbanished_game::work::tracker::CitizenSample {
                     adult: life.adult_age() <= c.age,
                     school: s.school.is_some(),
                     health: s.health,
@@ -143,7 +143,7 @@ impl GameplayLoop {
 
     /// The map's decals when what they are built from changed: the entities' (`+0x1f0`,
     /// `FUN_1400b2310`), then the roads' (`FUN_1400b4840`).
-    pub(super) fn refresh_decals(&mut self, archive: &banished_formats::pkg::Archive) {
+    pub(super) fn refresh_decals(&mut self, archive: &unbanished_formats::pkg::Archive) {
         let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) else {
             return;
         };
@@ -178,7 +178,7 @@ impl GameplayLoop {
                     .next()?
                     .replace('\\', "/");
                 let data = archive.read_ref(&format!("{file}:radius")).ok()?;
-                let (r, m) = banished_formats::game::radius_description(&data).ok()?;
+                let (r, m) = unbanished_formats::game::radius_description(&data).ok()?;
                 Some((r, m?))
             });
             if let Some((r, m)) = radius {
@@ -199,7 +199,7 @@ impl GameplayLoop {
             return;
         }
         self.decals_built = Some(key);
-        let grid = banished_game::terrain::HeightGrid {
+        let grid = unbanished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
         };
@@ -240,11 +240,15 @@ impl GameplayLoop {
 
     /// The ParticleComponents' slots against the town, their systems run by the game time
     /// (`FUN_140053490`, the manager's delta), and this frame's draws.
-    pub(super) fn refresh_particles(&mut self, archive: &banished_formats::pkg::Archive, dt: f32) {
+    pub(super) fn refresh_particles(
+        &mut self,
+        archive: &unbanished_formats::pkg::Archive,
+        dt: f32,
+    ) {
         let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) else {
             return;
         };
-        let grid = banished_game::terrain::HeightGrid {
+        let grid = unbanished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
         };
@@ -404,7 +408,7 @@ impl GameplayLoop {
                 .archive
                 .read_ref(&format!("{file}:toolbar"))
                 .ok()
-                .and_then(|d| banished_formats::game::toolbar_description(&d).ok())
+                .and_then(|d| unbanished_formats::game::toolbar_description(&d).ok())
                 .map(|t| ctx.ui.res.string(t.string_table.as_deref(), &t.name))
                 .unwrap_or_default();
             let n = town.cells.size as i32;

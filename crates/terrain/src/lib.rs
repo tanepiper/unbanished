@@ -19,14 +19,14 @@ pub use mesh::{tile_indices, HeightGrid, TerrainMesh, TerrainVertex, TILE_CELLS,
 pub use query::CellType;
 pub use river::{river_strip, water_mesh, WaterMesh};
 
-use banished_core::random::Random;
+use unbanished_core::random::Random;
 
 // The .crs wire order is +0x00..+0x20, then +0x28..+0x40, then +0x24 (FUN_1400211d0).
 /// The settings of one map size in a terrain profile: 17 values, in the order the game keeps them
 /// in memory. The first value is `n`, half the terrain's size in cells. The resource stores them
 /// in another order; [`SizeRecord::from_wire`] converts.
 ///
-/// [`banished_formats::game::TerrainGenerator`] reads a profile, with one size record for each
+/// [`unbanished_formats::game::TerrainGenerator`] reads a profile, with one size record for each
 /// map size (small, medium, large).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SizeRecord(pub [i32; 17]);
@@ -67,8 +67,8 @@ pub struct PathPoint {
 /// The map generator: it makes a terrain from a size record and a seed, in five stages.
 ///
 /// ```no_run
-/// # fn record() -> banished_terrain::SizeRecord { unimplemented!() }
-/// use banished_terrain::Generator;
+/// # fn record() -> unbanished_terrain::SizeRecord { unimplemented!() }
+/// use unbanished_terrain::Generator;
 ///
 /// let mut generator = Generator::new(record(), 290);
 /// generator.run(|_stage, _g| {});

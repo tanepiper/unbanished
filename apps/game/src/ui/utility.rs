@@ -9,9 +9,9 @@
 
 use std::collections::BTreeMap;
 
-use banished_formats::game::{external_list, profession, ui_description, UiDescription};
-use banished_formats::pkg::Archive;
-use banished_ui::{Kind, NodeId, Ui};
+use unbanished_formats::game::{external_list, profession, ui_description, UiDescription};
+use unbanished_formats::pkg::Archive;
+use unbanished_ui::{Kind, NodeId, Ui};
 
 use crate::loops::Screen;
 
@@ -142,7 +142,7 @@ impl EventLogUi {
     fn bind(
         ui: &mut Ui,
         root: NodeId,
-        log: Option<&banished_game::events::EventLog>,
+        log: Option<&unbanished_game::events::EventLog>,
     ) -> EventLogUi {
         let checks: Vec<NodeId> = ui
             .find(root, "notifybuttons")
@@ -154,7 +154,7 @@ impl EventLogUi {
         }
         let mut rows = Vec::new();
         if let Some(display) = ui.find(root, "display") {
-            if let Kind::Control(banished_ui::Control::Table { cells, rows: r, .. }) =
+            if let Kind::Control(unbanished_ui::Control::Table { cells, rows: r, .. }) =
                 &ui.node(display).kind
             {
                 for y in 0..r.len() {
@@ -180,7 +180,7 @@ impl EventLogUi {
         &mut self,
         ui: &Ui,
         node: NodeId,
-        log: &banished_game::events::EventLog,
+        log: &unbanished_game::events::EventLog,
     ) -> Option<UtilityClick> {
         if let Some(i) = self
             .checks
@@ -221,7 +221,7 @@ impl EventLogUi {
     }
 
     /// `FUN_140067da0`.
-    fn update(&self, ui: &mut Ui, log: &banished_game::events::EventLog) {
+    fn update(&self, ui: &mut Ui, log: &unbanished_game::events::EventLog) {
         let n = log.entries.len() as i64;
         let rows = self.rows.len() as i64;
         let base = (n - self.scroll as i64 - 1) - (rows - 1);
@@ -248,7 +248,7 @@ impl EventLogUi {
 }
 
 /// `FUN_14009a2d0`'s text: `FormatIndexed(events[type], season, year, @2, @3, @4)`.
-pub fn format_event(ui: &mut Ui, e: &banished_game::events::EventEntry) -> String {
+pub fn format_event(ui: &mut Ui, e: &unbanished_game::events::EventEntry) -> String {
     if let Some(text) = &e.text {
         return text.clone();
     }
@@ -272,7 +272,7 @@ pub fn format_event(ui: &mut Ui, e: &banished_game::events::EventEntry) -> Strin
 #[derive(Debug, Clone, Default)]
 pub struct StatusValues {
     /// The event log, for EventLogUI.
-    pub events: Option<banished_game::events::EventLog>,
+    pub events: Option<unbanished_game::events::EventLog>,
     /// MapUI: map size in cells and the camera's far corners on the ground (`FUN_14006cf10`).
     pub map_size: u32,
     pub frustum: Option<[[f32; 2]; 4]>,
@@ -380,7 +380,7 @@ impl StatusBar {
         // `FUN_14007f8a0` gives the six status icons element ids 100..105 and turns on flag
         // `0x10000` (`SetFlagsOnOff(0x10000, 0)`): each takes the mouse, a click its own event.
         for n in status_images.into_iter().flatten() {
-            ui.node_mut(n).flags |= banished_formats::ui::flags::MOUSE;
+            ui.node_mut(n).flags |= unbanished_formats::ui::flags::MOUSE;
         }
         let status_numbers = STATUS_NAMES.map(|s| with_text(ui, &format!("numberStatus{s}")));
         StatusBar {
@@ -491,7 +491,7 @@ impl StatusBar {
     pub(crate) fn set_meter(ui: &mut Ui, group: Option<NodeId>, value: f32, maximum: f32) {
         let Some(group) = group else { return };
         let icons = ui.node(group).children.clone();
-        let values = banished_game::people::status::meter(value, maximum, icons.len());
+        let values = unbanished_game::people::status::meter(value, maximum, icons.len());
         for (icon, (whole, half)) in icons.into_iter().zip(values) {
             if let Some(n) = ui.find(icon, "whole") {
                 ui.set_visible(n, whole);
@@ -519,7 +519,7 @@ struct ProfessionUi {
 /// Set a spinner's value and its number text.
 fn set_spinner(ui: &mut Ui, id: NodeId, value: i32) {
     let number = match &mut ui.node_mut(id).kind {
-        Kind::Control(banished_ui::Control::Spinner {
+        Kind::Control(unbanished_ui::Control::Spinner {
             parts, value: v, ..
         }) => {
             *v = value;
@@ -656,7 +656,7 @@ impl ProfessionUi {
             .position(|s| s.is_some_and(|s| s == node || ui.descendant(s, node)))?;
         let s = self.spinners[i]?;
         let value = match &ui.node(s).kind {
-            Kind::Control(banished_ui::Control::Spinner { value, .. }) => *value,
+            Kind::Control(unbanished_ui::Control::Spinner { value, .. }) => *value,
             _ => return None,
         };
         let count = |p: usize| values.professions.get(p).copied().unwrap_or(0) as i32;
@@ -722,7 +722,7 @@ impl HelpUi {
         // The container that scrolls the document.
         let container = (0..ui.nodes.len()).find(|&n| {
             ui.descendant(root, n)
-                && matches!(&ui.node(n).kind, Kind::Control(banished_ui::Control::Container {
+                && matches!(&ui.node(n).kind, Kind::Control(unbanished_ui::Control::Container {
                     content: Some(c), ..
                 }) if Some(*c) == document || document.is_some_and(|d| ui.descendant(*c, d)))
         });
@@ -753,14 +753,14 @@ impl HelpUi {
 
     fn scroll(&self, ui: &Ui) -> i32 {
         match self.container.map(|c| &ui.node(c).kind) {
-            Some(Kind::Control(banished_ui::Control::Container { offset, .. })) => offset[1],
+            Some(Kind::Control(unbanished_ui::Control::Container { offset, .. })) => offset[1],
             _ => 0,
         }
     }
 
     fn set_scroll(&self, ui: &mut Ui, y: i32) {
         if let Some(c) = self.container {
-            if let Kind::Control(banished_ui::Control::Container { offset, .. }) =
+            if let Kind::Control(unbanished_ui::Control::Container { offset, .. }) =
                 &mut ui.node_mut(c).kind
             {
                 offset[1] = y;
@@ -799,8 +799,8 @@ impl HelpUi {
     }
 
     /// `FUN_14006abf0`: the topic's combo (event `0x14`), a link, back or forward.
-    fn event(&mut self, ui: &mut Ui, event: banished_ui::Event) -> bool {
-        use banished_ui::Event;
+    fn event(&mut self, ui: &mut Ui, event: unbanished_ui::Event) -> bool {
+        use unbanished_ui::Event;
         match event {
             Event::Selected(n, i) if Some(n) == self.combo => {
                 self.open(ui, i);
@@ -886,7 +886,7 @@ impl UtilityWindows {
         screen: &mut Screen,
         archive: &Archive,
         template: &str,
-        log: Option<&banished_game::events::EventLog>,
+        log: Option<&unbanished_game::events::EventLog>,
         map_size: u32,
     ) {
         if let Some(i) = self.open.iter().position(|w| w.template == template) {
@@ -945,7 +945,7 @@ impl UtilityWindows {
             if let Some(t) = archive
                 .read_ref(&format!("{file}:toolbar"))
                 .ok()
-                .and_then(|d| banished_formats::game::toolbar_description(&d).ok())
+                .and_then(|d| unbanished_formats::game::toolbar_description(&d).ok())
             {
                 let text = ui.res.string(t.string_table.as_deref(), &t.name);
                 ui.set_text(title, &text);
@@ -1043,7 +1043,7 @@ impl UtilityWindows {
         &mut self,
         ui: &Ui,
         node: NodeId,
-        log: &banished_game::events::EventLog,
+        log: &unbanished_game::events::EventLog,
         values: &StatusValues,
     ) -> Option<UtilityClick> {
         for s in self.open.iter_mut().filter_map(|w| w.status_bar.as_mut()) {
@@ -1084,7 +1084,7 @@ impl UtilityWindows {
     }
 
     /// An event for an open Help window (its combo, links and buttons).
-    pub fn help_event(&mut self, ui: &mut Ui, event: banished_ui::Event) -> bool {
+    pub fn help_event(&mut self, ui: &mut Ui, event: unbanished_ui::Event) -> bool {
         self.open
             .iter_mut()
             .filter_map(|w| w.help.as_mut())
@@ -1159,12 +1159,12 @@ mod tests {
     fn status_icons_cycle_through_their_citizens() {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../game-data/original/WinData");
-        let mut archive = banished_formats::pkg::Archive::default();
+        let mut archive = unbanished_formats::pkg::Archive::default();
         for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
             let Ok(bytes) = std::fs::read(dir.join(name)) else {
                 return;
             };
-            archive.add(banished_formats::pkg::Package::parse(bytes).unwrap());
+            archive.add(unbanished_formats::pkg::Package::parse(bytes).unwrap());
         }
         let mut ui = Ui::new(std::rc::Rc::new(archive));
         // The template puts the icons (`groupEffects`) in the window's title.
@@ -1177,7 +1177,7 @@ mod tests {
         ui.add_child(root, effects);
         let mut bar = StatusBar::bind(&mut ui, root);
         let home = bar.status_images[0].unwrap();
-        assert!(ui.node(home).flags & banished_formats::ui::flags::MOUSE != 0);
+        assert!(ui.node(home).flags & unbanished_formats::ui::flags::MOUSE != 0);
         let mut values = StatusValues {
             citizens: vec![
                 (4, 0, true, 1),

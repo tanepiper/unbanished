@@ -9,7 +9,7 @@ pub(super) fn professions(archive: &Archive) -> Professions {
     let list: Vec<Profession> = list
         .iter()
         .map(|r| {
-            let p = read(archive, r).and_then(|d| banished_formats::game::profession(&d).ok());
+            let p = read(archive, r).and_then(|d| unbanished_formats::game::profession(&d).ok());
             Profession {
                 reference: r.clone(),
                 name: p.as_ref().map(|p| p.name.clone()).unwrap_or_default(),
@@ -36,8 +36,10 @@ pub(super) fn professions(archive: &Archive) -> Professions {
 
 /// A floor's picking mesh in model space: each submesh through its bind hierarchy (Runtime
 /// AddMesh, `180127b70`).
-pub(super) fn floor_triangles(mesh: &banished_formats::picking::PickingMesh) -> Vec<[[f32; 3]; 3]> {
-    use banished_formats::skeleton::Transform;
+pub(super) fn floor_triangles(
+    mesh: &unbanished_formats::picking::PickingMesh,
+) -> Vec<[[f32; 3]; 3]> {
+    use unbanished_formats::skeleton::Transform;
     let root = Transform {
         rotation: [0.0, 0.0, 0.0, 1.0],
         translation: [0.0; 3],
@@ -137,7 +139,7 @@ pub(super) fn load_template(
                                 .or_insert_with(|| {
                                     read(archive, reference)
                                         .and_then(|bytes| {
-                                            banished_formats::types::animation_group(&bytes).ok()
+                                            unbanished_formats::types::animation_group(&bytes).ok()
                                         })
                                         .map(Arc::new)
                                 })
@@ -155,7 +157,7 @@ pub(super) fn load_template(
                                     continue;
                                 }
                                 if let Some(a) = read(archive, r).and_then(|b| {
-                                    banished_formats::audio::anim_audio_event(&b).ok()
+                                    unbanished_formats::audio::anim_audio_event(&b).ok()
                                 }) {
                                     t.audio_events
                                         .push((r.to_string(), a.effect, a.probability));
@@ -176,9 +178,9 @@ pub(super) fn load_template(
             }
             "fruit" => {
                 if let Ok((months, best, range, pile)) =
-                    banished_formats::game::fruit_description(&data)
+                    unbanished_formats::game::fruit_description(&data)
                 {
-                    t.fruit = Some(banished_game::production::orchard::FruitTemplate {
+                    t.fruit = Some(unbanished_game::production::orchard::FruitTemplate {
                         months,
                         best,
                         range,
@@ -210,14 +212,14 @@ pub(super) fn load_template(
             "storagedisplay" => t.storage_display = true,
             "interact" => {
                 t.has_interact = true;
-                let list = banished_formats::game::interact_description(&data)
+                let list = unbanished_formats::game::interact_description(&data)
                     .ok()
                     .and_then(|i| i.points)
                     .and_then(|r| read(archive, &normalise(&r)))
-                    .and_then(|d| banished_formats::game::point_list(&d).ok());
+                    .and_then(|d| unbanished_formats::game::point_list(&d).ok());
                 let points = |category| {
                     list.as_ref().map_or(Vec::new(), |l| {
-                        banished_formats::game::interaction_points(l, category)
+                        unbanished_formats::game::interaction_points(l, category)
                             .iter()
                             .map(|p| p.position)
                             .collect()
@@ -227,7 +229,7 @@ pub(super) fn load_template(
                 t.build_points = points(1);
                 t.create_points = points(2);
                 t.use_yaws = list.as_ref().map_or(Vec::new(), |l| {
-                    banished_formats::game::interaction_points(l, 0)
+                    unbanished_formats::game::interaction_points(l, 0)
                         .iter()
                         .map(|p| p.yaw)
                         .collect()
@@ -241,21 +243,22 @@ pub(super) fn load_template(
                 });
             }
             "floor" => {
-                let d = banished_formats::game::floor_description(&data).ok();
+                let d = unbanished_formats::game::floor_description(&data).ok();
                 t.floor_on_activate = d.as_ref().is_some_and(|f| f.active);
                 t.floor = d
                     .and_then(|f| f.mesh)
                     .and_then(|m| read(archive, &normalise(&m)))
-                    .and_then(|d| banished_formats::picking::picking_mesh(&d).ok())
+                    .and_then(|d| unbanished_formats::picking::picking_mesh(&d).ok())
                     .map(|m| std::sync::Arc::new(floor_triangles(&m)))
             }
             "tracker" => t.tracker = true,
             "createfenced" => t.fenced_area = true,
             "trade" => t.trading_post = true,
             "tornado" => {
-                t.tornado = banished_formats::game::tornado_description(&data).ok().map(
-                    |(speed, min_distance, reach, interval, throw)| {
-                        banished_game::disasters::tornado::TornadoTemplate {
+                t.tornado = unbanished_formats::game::tornado_description(&data)
+                    .ok()
+                    .map(|(speed, min_distance, reach, interval, throw)| {
+                        unbanished_game::disasters::tornado::TornadoTemplate {
                             speed,
                             min_distance,
                             interval,
@@ -271,19 +274,18 @@ pub(super) fn load_template(
                                 .and_then(|p| p.slots.first().map(|s| s.fade))
                                 .unwrap_or(0),
                         }
-                    },
-                )
+                    })
             }
             "terraform" => {
                 let mesh = |m: &Option<String>| {
                     m.as_deref()
                         .and_then(|m| read(archive, &normalise(m)))
-                        .and_then(|d| banished_formats::picking::picking_mesh(&d).ok())
+                        .and_then(|d| unbanished_formats::picking::picking_mesh(&d).ok())
                         .and_then(|m| m.meshes.first().map(|s| Arc::new(s.vertices.clone())))
                 };
-                t.terraform = banished_formats::game::terraform_description(&data)
+                t.terraform = unbanished_formats::game::terraform_description(&data)
                     .ok()
-                    .map(|d| banished_game::world::terraform::TerraformTemplate {
+                    .map(|d| unbanished_game::world::terraform::TerraformTemplate {
                         floor: mesh(&d.floor),
                         floor_mask: d.floor_mask,
                         ceiling: mesh(&d.ceiling),
@@ -291,15 +293,15 @@ pub(super) fn load_template(
                     })
             }
             "quarry" => {
-                t.quarry = banished_formats::game::quarry_description(&data)
+                t.quarry = unbanished_formats::game::quarry_description(&data)
                     .ok()
                     .and_then(|d| {
                         let mesh = d
                             .mesh
                             .as_deref()
                             .and_then(|m| read(archive, &normalise(m)))
-                            .and_then(|d| banished_formats::picking::picking_mesh(&d).ok())?;
-                        Some(banished_game::production::quarry::QuarryTemplate {
+                            .and_then(|d| unbanished_formats::picking::picking_mesh(&d).ok())?;
+                        Some(unbanished_game::production::quarry::QuarryTemplate {
                             shallow: d.shallow,
                             deep: d.deep,
                             vertices: Arc::new(mesh.meshes.first()?.vertices.clone()),

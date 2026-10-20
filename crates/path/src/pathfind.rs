@@ -21,7 +21,7 @@
 use std::cmp::Reverse;
 use std::collections::{BTreeSet, VecDeque};
 
-use banished_terrain::CellType;
+use unbanished_terrain::CellType;
 
 /// Cell types a walker may enter (0–4, 9–11).
 pub const WALKABLE: u32 = 0xe1f;

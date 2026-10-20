@@ -113,7 +113,7 @@ runs.
   - the popup and its OK button;
   - the camera go-to;
   - an unchanged Random.
-- Capture: `BANISHED_SEED=1234 banished --boot-capture OUT 18 --press buttonNew@4.5
+- Capture: `UNBANISHED_SEED=1234 unbanished --boot-capture OUT 18 --press buttonNew@4.5
   --press buttonOk@5.0 --event 22@12 --event 31:20000@12.5 --event 30@13` shows three
   notifications sliding out left of the toolbar. `--event KIND[:CELL]@SECONDS` posts an event
   at severity 3. Type 26 opens the "scenario completed" popup.

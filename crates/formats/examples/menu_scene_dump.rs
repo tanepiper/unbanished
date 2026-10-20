@@ -1,6 +1,6 @@
 //! Summarise a main-menu scene's placed meshes (analysis helper).
-//! `cargo run -p banished-formats --example menu_scene_dump -- path/to/WinData [SCENE]`
-use banished_formats::pkg::{Archive, Package};
+//! `cargo run -p unbanished-formats --example menu_scene_dump -- path/to/WinData [SCENE]`
+use unbanished_formats::pkg::{Archive, Package};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -11,7 +11,7 @@ fn main() {
         archive.add(Package::parse(std::fs::read(dir.join(name)).unwrap()).unwrap());
     }
     let r = format!("Game/MenuScene/Scene{index}.rsc:resource");
-    let s = banished_formats::menu_scene::menu_scene(&archive.read_ref(&r).unwrap()).unwrap();
+    let s = unbanished_formats::menu_scene::menu_scene(&archive.read_ref(&r).unwrap()).unwrap();
     {
         let m = &s.map;
         let z: Vec<i16> = m
@@ -72,7 +72,7 @@ fn main() {
         let r = m.as_deref().unwrap_or("-");
         let info = archive
             .read_ref(&r.replace('\\', "/"))
-            .and_then(|d| banished_formats::types::graphics_mesh(&d))
+            .and_then(|d| unbanished_formats::types::graphics_mesh(&d))
             .map(|g| {
                 let ranges: Vec<i32> = g
                     .parts
@@ -90,7 +90,7 @@ fn main() {
         println!("{i:3} x{:5} {r} | {info}", counts[i]);
     }
     for name in ["ModelLayout", "ModelBillboardLayout"] {
-        let l = banished_formats::types::vertex_layout(
+        let l = unbanished_formats::types::vertex_layout(
             &archive
                 .read_ref(&format!("MeshLayout/{name}.rsc:resource"))
                 .unwrap(),
@@ -102,7 +102,7 @@ fn main() {
         "Models/NaturalResource/Tree/OakTreeMesh.rsc:resource",
         "Models/Rocks/Rock01Mesh.rsc:resource",
     ] {
-        let g = banished_formats::types::graphics_mesh(&archive.read_ref(m).unwrap()).unwrap();
+        let g = unbanished_formats::types::graphics_mesh(&archive.read_ref(m).unwrap()).unwrap();
         let p = &g.parts[0];
         let verts: i32 = p
             .ranges
@@ -122,7 +122,7 @@ fn main() {
     for m in s.meshes.iter().flatten() {
         let Ok(g) = archive
             .read_ref(&m.replace('\\', "/"))
-            .and_then(|d| banished_formats::types::graphics_mesh(&d))
+            .and_then(|d| unbanished_formats::types::graphics_mesh(&d))
         else {
             continue;
         };
@@ -130,7 +130,7 @@ fn main() {
             for mi in set.iter().flatten() {
                 let base = archive
                     .read_ref(&mi.replace('\\', "/"))
-                    .and_then(|d| banished_formats::types::material_instance(&d))
+                    .and_then(|d| unbanished_formats::types::material_instance(&d))
                     .ok()
                     .and_then(|i| i.material)
                     .unwrap_or_default();

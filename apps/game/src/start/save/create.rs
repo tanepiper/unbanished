@@ -3,16 +3,16 @@
 //! template's order (`FUN_1400c8bf0`), each with its base (entity, flags, description) and
 //! default fields for the writer to fill.
 
-use banished_formats::crc::type_id;
-use banished_formats::pkg::Archive;
-use banished_formats::savegame::{GameState, ObjId, Value};
+use unbanished_formats::crc::type_id;
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::savegame::{GameState, ObjId, Value};
 
 use super::Refs;
 use crate::start::{normalise, read};
 
 /// A description resource's component: `FooDescription` makes a `FooComponent` (by type id).
 fn component_for(description_type: u32) -> Option<&'static str> {
-    banished_formats::savegame_schema::type_names()
+    unbanished_formats::savegame_schema::type_names()
         .filter(|n| n.ends_with("Component"))
         .find(|n| type_id(&n.replace("Component", "Description")) == description_type)
 }
@@ -23,7 +23,7 @@ pub(crate) fn template_components(
     template: &str,
 ) -> Vec<(&'static str, String)> {
     let Some(desc) = read(archive, &normalise(template))
-        .and_then(|d| banished_formats::game::component_description(&d).ok())
+        .and_then(|d| unbanished_formats::game::component_description(&d).ok())
     else {
         return Vec::new();
     };
@@ -32,11 +32,11 @@ pub(crate) fn template_components(
         .flatten()
         .filter_map(|d| {
             let data = read(archive, &normalise(d))?;
-            let header = banished_formats::crs::header(&data).ok()?;
+            let header = unbanished_formats::crs::header(&data).ok()?;
             // Slot `+0x40` gives the component type; UIDescription's only with `+0x20` above 0
             // (`FUN_14003a040`).
             if header.type_id == type_id("UIDescription")
-                && banished_formats::game::ui_description(&data).map_or(true, |u| u.value <= 0)
+                && unbanished_formats::game::ui_description(&data).map_or(true, |u| u.value <= 0)
             {
                 return None;
             }
@@ -150,7 +150,7 @@ pub(crate) fn new_entity(
             components
                 .into_iter()
                 .map(|c| {
-                    banished_formats::savegame::Fields(vec![("component", Value::Ptr(Some(c)))])
+                    unbanished_formats::savegame::Fields(vec![("component", Value::Ptr(Some(c)))])
                 })
                 .collect(),
         ),

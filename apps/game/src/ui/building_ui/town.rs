@@ -23,7 +23,7 @@ pub struct ControlUi {
 
 /// `ControlUIConfig`: `+0x20` the control, `+0x24` the component's type id.
 pub(super) fn control_config(data: &[u8]) -> Option<(i32, u32)> {
-    use banished_formats::crs;
+    use unbanished_formats::crs;
     crs::parse(data, |r: &mut crs::Reader, _| {
         r.block(|r, _| Ok((r.i32()?, r.u32()?)))
     })
@@ -69,7 +69,7 @@ pub(crate) fn spinner_value(ui: &Ui, id: NodeId) -> Option<i32> {
 
 /// `StatusIconUIConfig` (one bool at `+0x20`, `_showOnMainPage`).
 pub(super) fn status_icon_config(data: &[u8]) -> Option<bool> {
-    use banished_formats::crs;
+    use unbanished_formats::crs;
     crs::parse(data, |r: &mut crs::Reader, _| r.block(|r, _| r.bool()))
         .ok()
         .map(|(_, v)| v)
@@ -77,7 +77,7 @@ pub(super) fn status_icon_config(data: &[u8]) -> Option<bool> {
 
 /// `ResourceLimitUIConfig` (one i32, the stock slot, at `+0x20`).
 pub(super) fn resource_limit_config(data: &[u8]) -> Option<usize> {
-    use banished_formats::crs;
+    use unbanished_formats::crs;
     crs::parse(data, |r: &mut crs::Reader, _| r.block(|r, _| r.i32()))
         .ok()
         .map(|(_, v)| v.clamp(0, 20) as usize)
@@ -125,7 +125,7 @@ impl ImmigrationUi {
             return None;
         };
         Some(WorkPlaceClick::Command(
-            banished_game::work::professions::Command::StateMessage { entity, message },
+            unbanished_game::work::professions::Command::StateMessage { entity, message },
         ))
     }
 }
@@ -158,7 +158,7 @@ impl ControlUi {
             return None;
         }
         Some(WorkPlaceClick::Command(
-            banished_game::work::professions::Command::Control {
+            unbanished_game::work::professions::Command::Control {
                 entity: entity?,
                 kind: self.kind,
                 index: self.index,

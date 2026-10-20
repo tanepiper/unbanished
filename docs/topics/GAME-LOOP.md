@@ -3,7 +3,7 @@
 This page explains how Banished runs from frame to frame: the engine loops, the simulation step,
 the game speeds, and how the work of thousands of objects is spread over frames. The engine code
 is in `apps/game/src/loops.rs` and `apps/game/src/gameplay.rs`; the rules it calls are in
-[banished-game](../../crates/game/README.md).
+[unbanished-game](../../crates/game/README.md).
 
 ## Engine loops
 
@@ -62,7 +62,7 @@ all of them in every iteration would be slow. So the entity manager puts objects
 | 4 | 2 |
 
 Each object receives the time since its own last update, so no time is lost. The order of the
-buckets, and the position in each, are part of the save. `banished_core::scheduler` reproduces
+buckets, and the position in each, are part of the save. `unbanished_core::scheduler` reproduces
 this.
 
 ## Time

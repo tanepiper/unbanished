@@ -12,7 +12,7 @@
 //!   `(max length / 3) × 2` characters on the game's Random (`Game +0xd8`, `FUN_14009ef90`); OK
 //!   (`FUN_14006bff0`) renames the town and closes; Cancel closes.
 
-use banished_ui::{Control, Kind, NodeId, Ui};
+use unbanished_ui::{Control, Kind, NodeId, Ui};
 
 use crate::loops::Screen;
 use crate::view::world::WorldParams;

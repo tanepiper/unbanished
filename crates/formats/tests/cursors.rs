@@ -1,7 +1,7 @@
 //! The pointer resources (`UI::Cursor`), using the player's packages when present.
 use std::path::PathBuf;
 
-use banished_formats::pkg::{Archive, Package};
+use unbanished_formats::pkg::{Archive, Package};
 
 #[test]
 fn every_cursor_names_its_sheet_and_hotspot() {
@@ -18,10 +18,10 @@ fn every_cursor_names_its_sheet_and_hotspot() {
         let data = archive
             .read_ref(&format!("Cursor/{name}.rsc:cursor"))
             .unwrap();
-        let c = banished_formats::ui::cursor(&data).unwrap();
+        let c = unbanished_formats::ui::cursor(&data).unwrap();
         let sheet = c.sprite_sheet.unwrap();
         assert_eq!(sheet, format!(r"Cursor\{name}.rsc:spriteSheet"));
-        let sheet = banished_formats::ui::sprite_sheet(
+        let sheet = unbanished_formats::ui::sprite_sheet(
             &archive.read_ref(&sheet.replace('\\', "/")).unwrap(),
         )
         .unwrap();

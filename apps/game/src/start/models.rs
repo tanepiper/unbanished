@@ -32,7 +32,7 @@ impl StartingTown {
                 cache.entry(item.material).or_insert_with(|| {
                     let r = &self.materials.get(item.material)?.reference;
                     let model = read(archive, &r.replace(":resource", ":model"))
-                        .and_then(|d| banished_formats::game::model_description(&d).ok())?;
+                        .and_then(|d| unbanished_formats::game::model_description(&d).ok())?;
                     let mesh = model.variants.first()?.meshes.first().cloned().flatten()?;
                     let scale = read(archive, &r.replace(":resource", ":rawmaterial"))
                         .and_then(|d| raw_material_description(&d).ok())
@@ -223,7 +223,7 @@ impl StartingTown {
                         .items
                         .iter()
                         .fold(
-                            None::<&banished_game::work::stock::Item>,
+                            None::<&unbanished_game::work::stock::Item>,
                             |best, it| match best {
                                 Some(b) if it.count <= b.count => Some(b),
                                 _ => Some(it),
@@ -242,17 +242,17 @@ impl StartingTown {
                 if let (Some((tool, scale)), Some(Some((bones, node)))) =
                     (attached, self.citizen_bones.get(variant))
                 {
-                    let mut pose: Vec<banished_formats::skeleton::Transform> = match &locals {
+                    let mut pose: Vec<unbanished_formats::skeleton::Transform> = match &locals {
                         Some(l) if l.len() == bones.len() => l.clone(),
                         _ => bones
                             .iter()
-                            .map(banished_formats::skeleton::local_bind)
+                            .map(unbanished_formats::skeleton::local_bind)
                             .collect(),
                     };
                     if let Some(root) = pose.first_mut() {
-                        *root = banished_formats::skeleton::Transform::IDENTITY;
+                        *root = unbanished_formats::skeleton::Transform::IDENTITY;
                     }
-                    let world = banished_formats::skeleton::world_transforms(bones, &pose);
+                    let world = unbanished_formats::skeleton::world_transforms(bones, &pose);
                     let mut placed = matrix;
                     placed[15] = 1.0;
                     let m = glam::Mat4::from_cols_array(&placed)

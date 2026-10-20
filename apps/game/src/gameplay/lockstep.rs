@@ -432,7 +432,7 @@ impl super::GameplayLoop {
     }
 
     /// The local player gives a command: in lockstep it waits for its slot.
-    pub fn give(&mut self, archive: &banished_formats::pkg::Archive, command: PlayerCommand) {
+    pub fn give(&mut self, archive: &unbanished_formats::pkg::Archive, command: PlayerCommand) {
         match &mut self.lockstep {
             Some(l) => l.give(self.updates, command),
             None => {

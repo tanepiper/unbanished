@@ -301,7 +301,7 @@ so that the next session knows about it.
 
 | Skill | Task |
 |---|---|
-| `banished` | The starting point: the ground rules, and which skill to use |
+| `unbanished` | The starting point: the ground rules, and which skill to use |
 | `banished-trace` | Find and understand an original function, constant or table |
 | `banished-emulate` | Run an original function in the emulator to get exact results |
 | `banished-format` | Read a new kind of resource or save-file block |

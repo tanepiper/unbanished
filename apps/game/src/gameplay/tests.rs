@@ -77,7 +77,7 @@ fn selection_host_and_highlight_leave_simulation_unchanged() {
             let pages = ctx.ui.find(root, "pages").unwrap();
             assert!(matches!(
                 ctx.ui.node(pages).kind,
-                banished_ui::Kind::Control(banished_ui::Control::Page { selected: 1, .. })
+                unbanished_ui::Kind::Control(unbanished_ui::Control::Page { selected: 1, .. })
             ));
             gameplay
                 .screen
@@ -88,7 +88,7 @@ fn selection_host_and_highlight_leave_simulation_unchanged() {
                 .pointer_move(80, 80, gameplay.screen.as_ref().unwrap().root);
             let _ = ctx.ui.draw(gameplay.screen.as_ref().unwrap().root);
             let view = gameplay.view.as_ref().unwrap();
-            let grid = banished_game::terrain::HeightGrid {
+            let grid = unbanished_game::terrain::HeightGrid {
                 width: view.terrain.size + 1,
                 heights: &view.terrain.heights,
             };
@@ -139,8 +139,10 @@ fn town_hall_window_reads_the_town() {
         let text = |name: &str| {
             let n = ctx.ui.find(root, name).unwrap();
             match &ctx.ui.node(n).kind {
-                banished_ui::Kind::Control(banished_ui::Control::Edit(e)) => e.text.text.clone(),
-                banished_ui::Kind::Text(t) => t.text.clone(),
+                unbanished_ui::Kind::Control(unbanished_ui::Control::Edit(e)) => {
+                    e.text.text.clone()
+                }
+                unbanished_ui::Kind::Text(t) => t.text.clone(),
                 _ => String::new(),
             }
         };
@@ -161,13 +163,13 @@ fn trade_window_exchanges_with_the_merchant() {
     };
     let view = gameplay.view.as_ref().unwrap();
     let heights = view.terrain.heights.clone();
-    let terrain = banished_game::terrain::HeightGrid {
+    let terrain = unbanished_game::terrain::HeightGrid {
         width: view.terrain.size + 1,
         heights: &heights,
     };
     let id = game.with_ctx(|_, ctx| {
         let town = gameplay.town.as_mut().unwrap();
-        let mut rng = banished_game::random::Random::new(7);
+        let mut rng = unbanished_game::random::Random::new(7);
         let mut tool = crate::tools::placement_tool::PlacementTool::start(
             ctx.archive,
             town,
@@ -199,7 +201,7 @@ fn trade_window_exchanges_with_the_merchant() {
     });
     let town = gameplay.town.as_mut().unwrap();
     // The next iteration activates the post (its TradeComponent).
-    let mut rng = banished_game::random::Random::new(7);
+    let mut rng = unbanished_game::random::Random::new(7);
     town.apply_commands(&terrain, &mut rng);
     town.iterate(&terrain, &mut rng, 1.0 / 30.0, 50.0);
     let material = |town: &crate::start::StartingTown, key: &str| {
@@ -236,12 +238,12 @@ fn trade_window_exchanges_with_the_merchant() {
     tr.timer = i64::MAX / 2;
     tr.keep.insert(logs, 30);
     tr.offers = vec![
-        banished_game::commerce::trade::Offer {
+        unbanished_game::commerce::trade::Offer {
             good: food,
             value: 2,
             amount: 10,
         },
-        banished_game::commerce::trade::Offer {
+        unbanished_game::commerce::trade::Offer {
             good: livestock,
             value: 1,
             amount: 2,
@@ -264,7 +266,7 @@ fn trade_window_exchanges_with_the_merchant() {
             .filter(|&n| ctx.ui.descendant(root, n) && ctx.ui.node(n).name == "spinnerItemCount")
             .collect();
         assert_eq!(spinners.len(), 3, "one sell row and two buy rows");
-        let value = banished_game::commerce::trade::sell_value(
+        let value = unbanished_game::commerce::trade::sell_value(
             &town.construction.trade_goods,
             &town.materials,
             town.construction.sites[&id].trade.as_ref().unwrap(),
@@ -287,7 +289,7 @@ fn trade_window_exchanges_with_the_merchant() {
         };
         assert_eq!(
             c,
-            banished_game::work::professions::Command::Exchange {
+            unbanished_game::work::professions::Command::Exchange {
                 entity: id,
                 sell: vec![(logs, sell)],
                 buy: vec![(food, 4), (livestock, 2)],
@@ -296,7 +298,7 @@ fn trade_window_exchanges_with_the_merchant() {
         let town = gameplay.town.as_mut().unwrap();
         let unassigned = town.wildlife.unassigned.len();
         town.construction.commands.push(c);
-        let mut rng = banished_game::random::Random::new(7);
+        let mut rng = unbanished_game::random::Random::new(7);
         town.apply_commands(&terrain, &mut rng);
         let s = &town.storages[storage];
         let food_m = town.construction.trade_goods[food].material.unwrap();
@@ -312,7 +314,7 @@ fn trade_window_exchanges_with_the_merchant() {
         assert_eq!(town.wildlife.unassigned.len(), unassigned + 2);
         let a = *town.wildlife.unassigned.last().unwrap();
         assert_eq!(
-            town.wildlife.animals[&a].flags & banished_game::nature::wildlife::WILD,
+            town.wildlife.animals[&a].flags & unbanished_game::nature::wildlife::WILD,
             0
         );
         // The window's amounts go back to none.
@@ -335,7 +337,7 @@ fn crop_window_lists_the_known_crops() {
     };
     let view = gameplay.view.as_ref().unwrap();
     let heights = view.terrain.heights.clone();
-    let terrain = banished_game::terrain::HeightGrid {
+    let terrain = unbanished_game::terrain::HeightGrid {
         width: view.terrain.size + 1,
         heights: &heights,
     };
@@ -348,7 +350,7 @@ fn crop_window_lists_the_known_crops() {
                     let i = (cy * n + cx) as usize;
                     cx < n
                         && cy < n
-                        && town.cells.types[i] == banished_game::terrain::CellType::GROUND
+                        && town.cells.types[i] == unbanished_game::terrain::CellType::GROUND
                         && town.cells.objects[i].is_none()
                         && town.cells.occupants[i].is_none()
                         && town.cells.flags[i] == 0
@@ -370,7 +372,7 @@ fn crop_window_lists_the_known_crops() {
         .expect("the field was not placed")
     });
     let town = gameplay.town.as_mut().unwrap();
-    let mut rng = banished_game::random::Random::new(7);
+    let mut rng = unbanished_game::random::Random::new(7);
     town.apply_commands(&terrain, &mut rng);
     town.iterate(&terrain, &mut rng, 1.0 / 30.0, 50.0);
     let crops: Vec<usize> = town
@@ -395,11 +397,11 @@ fn crop_window_lists_the_known_crops() {
         let root = gameplay.entities.open[0].root;
         let combo = ctx.ui.find(root, "selectResource").unwrap();
         let list = match &ctx.ui.node(combo).kind {
-            banished_ui::Kind::Control(banished_ui::Control::Combo { list, .. }) => *list,
+            unbanished_ui::Kind::Control(unbanished_ui::Control::Combo { list, .. }) => *list,
             _ => panic!("selectResource is not a combo"),
         };
         let items = match &ctx.ui.node(list).kind {
-            banished_ui::Kind::List(l) => l.items.clone(),
+            unbanished_ui::Kind::List(l) => l.items.clone(),
             _ => Vec::new(),
         };
         assert_eq!(items.len(), crops.len(), "{items:?}");
@@ -410,7 +412,7 @@ fn crop_window_lists_the_known_crops() {
             .expect("the choice sends nothing");
         assert!(matches!(
             chosen,
-            WorkPlaceClick::Command(banished_game::work::professions::Command::SetCrop {
+            WorkPlaceClick::Command(unbanished_game::work::professions::Command::SetCrop {
                 entity,
                 crop: Some(c),
             }) if entity == id && crops.contains(&c)
@@ -527,17 +529,17 @@ fn help_window_browses_the_pages() {
         let combo = ctx.ui.find(root, "comboTopic").expect("no help window");
         let doc = ctx.ui.find(root, "documentHelp").unwrap();
         let list = match &ctx.ui.node(combo).kind {
-            banished_ui::Kind::Control(banished_ui::Control::Combo { list, .. }) => *list,
+            unbanished_ui::Kind::Control(unbanished_ui::Control::Combo { list, .. }) => *list,
             _ => panic!("comboTopic is not a combo"),
         };
         let items = match &ctx.ui.node(list).kind {
-            banished_ui::Kind::List(l) => l.items.clone(),
+            unbanished_ui::Kind::List(l) => l.items.clone(),
             _ => Vec::new(),
         };
         assert_eq!(items.len(), 66);
         assert_eq!(items[0], "Contents");
-        let text = |ui: &banished_ui::Ui| match &ui.node(doc).kind {
-            banished_ui::Kind::Control(banished_ui::Control::Document(_)) => {
+        let text = |ui: &unbanished_ui::Ui| match &ui.node(doc).kind {
+            unbanished_ui::Kind::Control(unbanished_ui::Control::Document(_)) => {
                 format!("{:?}", ui.node(doc).kind)
             }
             _ => String::new(),
@@ -699,7 +701,7 @@ fn the_placement_overlay_shows_validity_and_the_entrance() {
     game.with_ctx(|_, ctx| {
         let town = gameplay.town.as_mut().unwrap();
         let view = gameplay.view.as_ref().unwrap();
-        let grid = banished_game::terrain::HeightGrid {
+        let grid = unbanished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
         };
@@ -768,7 +770,7 @@ fn work_radii_show_while_placing_and_selected() {
         {
             let town = gameplay.town.as_ref().unwrap();
             let view = gameplay.view.as_ref().unwrap();
-            let grid = banished_game::terrain::HeightGrid {
+            let grid = unbanished_game::terrain::HeightGrid {
                 width: view.terrain.size + 1,
                 heights: &view.terrain.heights,
             };
@@ -845,7 +847,7 @@ fn window_commands_apply_while_paused() {
     game.with_ctx(|_, ctx| {
         let town = gameplay.town.as_mut().unwrap();
         let view = gameplay.view.as_ref().unwrap();
-        let grid = banished_game::terrain::HeightGrid {
+        let grid = unbanished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
         };
@@ -964,7 +966,7 @@ fn crop_choices_have_icons() {
         let w = gameplay.entities.open.last().unwrap().root;
         let combo = ctx.ui.find(w, "selectResource").expect("selectResource");
         let list = crate::menu::combo_list(ctx.ui, combo).unwrap();
-        let banished_ui::Kind::List(data) = &ctx.ui.node(list).kind else {
+        let unbanished_ui::Kind::List(data) = &ctx.ui.node(list).kind else {
             panic!("no list");
         };
         assert!(!data.items.is_empty());
@@ -1061,14 +1063,14 @@ fn roads_get_decals() {
         let n = town.cells.size as i32;
         let (x, y) = (town.start.0 as i32, town.start.1 as i32 + 12);
         for dx in 0..6 {
-            town.construction
-                .commands
-                .push(banished_game::work::professions::Command::PlanRoad {
+            town.construction.commands.push(
+                unbanished_game::work::professions::Command::PlanRoad {
                     cell: y * n + x + dx,
                     kind: 1,
                     ty: 3,
                     material: None,
-                });
+                },
+            );
         }
         gameplay.update(ctx, 1.0 / 30.0);
         let town = gameplay.town.as_ref().unwrap();
@@ -1220,8 +1222,8 @@ fn destroy_window_buttons_send_commands() {
             ctx.ui.find(root, "buttonRebuild").unwrap(),
             ctx.ui.find(root, "buttonDestroy").unwrap(),
         );
-        use banished_game::work::professions::Command;
-        let click = |gameplay: &mut GameplayLoop, ui: &banished_ui::Ui, n| match gameplay
+        use unbanished_game::work::professions::Command;
+        let click = |gameplay: &mut GameplayLoop, ui: &unbanished_ui::Ui, n| match gameplay
             .entities
             .click(ui, gameplay.town.as_ref().unwrap(), n)
         {
@@ -1384,7 +1386,7 @@ fn rain_effect_drives_the_rain_emitter() {
         gameplay.update(ctx, 1.0 / 30.0);
         let (_, before) = ctx.audio.scene.active();
         gameplay.environment.as_mut().unwrap().effects[0] =
-            Some(banished_game::nature::environment::WeatherEffect {
+            Some(unbanished_game::nature::environment::WeatherEffect {
                 intensity: 0.5,
                 direction: 1.0,
             });
@@ -1407,7 +1409,7 @@ fn rain_effect_drives_the_rain_emitter() {
         let rain = g.entities.iter().flatten().filter(|&&e| {
             let o = &g.objects[&e];
             matches!(o.fields.at("entity.template"),
-                Some(banished_formats::savegame::Value::Ext(r))
+                Some(unbanished_formats::savegame::Value::Ext(r))
                     if g.references[r].contains("RainEffect"))
         });
         assert_eq!(rain.count(), 1);
@@ -1505,7 +1507,7 @@ fn event_ribbon_popup_and_goto() {
         let content = ctx.ui.find(root, "notifyContent").unwrap();
         let groups = ctx.ui.node(content).children.clone();
         assert_eq!(groups.len(), 6);
-        let visible = |ui: &banished_ui::Ui, n| ui.node(n).flags & 1 == 0;
+        let visible = |ui: &unbanished_ui::Ui, n| ui.node(n).flags & 1 == 0;
         let button: Vec<_> = groups
             .iter()
             .map(|&g| ctx.ui.find(g, "notifyButton").unwrap())
@@ -1709,7 +1711,7 @@ fn tree_expiry_plays_packaged_clip_and_removes_after_completion() {
             clear: crate::CLEAR,
             ui: None,
         });
-        if let Ok(directory) = std::env::var("BANISHED_CAPTURE_TREE_EXPIRY") {
+        if let Ok(directory) = unbanished_formats::env::var("CAPTURE_TREE_EXPIRY") {
             let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("../..")
                 .join(directory)
@@ -1801,7 +1803,7 @@ fn tree_expiry_plays_packaged_clip_and_removes_after_completion() {
     let index = cell.1 as usize * town.cells.size + cell.0 as usize;
     assert_eq!(town.cells.objects[index], None);
     let terrain = &gameplay.view.as_ref().unwrap().terrain;
-    let grid = banished_game::terrain::HeightGrid {
+    let grid = unbanished_game::terrain::HeightGrid {
         width: terrain.size + 1,
         heights: &terrain.heights,
     };

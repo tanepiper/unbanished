@@ -48,11 +48,11 @@ The full rules are in [AGENTS.md](../../AGENTS.md). These are the most important
 
 | Path | What it contains |
 |---|---|
-| `apps/game` | The game (binary `banished`) |
-| `apps/viewer` | The asset browser (binary `banished-viewer`) |
-| `apps/cli` | Command-line tools (binary `banished-cli`) |
-| `apps/modmanager` | The mod manager (binary `banished-mods`) |
-| `apps/relay` | The multiplayer relay (binary `banished-relay`) |
+| `apps/game` | The game (binary `unbanished`) |
+| `apps/viewer` | The asset browser (binary `unbanished-viewer`) |
+| `apps/cli` | Command-line tools (binary `unbanished-cli`) |
+| `apps/modmanager` | The mod manager (binary `unbanished-mods`) |
+| `apps/relay` | The multiplayer relay (binary `unbanished-relay`) |
 | `crates/core` | Exact maths, the game's random numbers, noise, game time |
 | `crates/terrain` | Map generation, the terrain mesh, ground queries |
 | `crates/path` | The pathfinder and the sector graph |

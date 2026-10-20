@@ -11,9 +11,9 @@ secs="${1:-16}"
 seed="${2:-1234}"
 extra_args=("${@:3}")
 out="$(mktemp -d "${TMPDIR:-/tmp}/determinism.XXXXXX")"
-cargo build -q --release -p banished-app --bin banished --example imgdiff
+cargo build -q --release -p unbanished-app --bin unbanished --example imgdiff
 for run in a b; do
-  BANISHED_SEED="$seed" ./target/release/banished --boot-capture "$out/$run.png" "$secs" \
+  UNBANISHED_SEED="$seed" ./target/release/unbanished --boot-capture "$out/$run.png" "$secs" \
     --press buttonNew@4.5 --press buttonOk@5.0 --wheel 8@9 --wheel 8@9.3 --wheel 6@9.6 \
     "${extra_args[@]}" >"$out/$run.log" 2>&1
   if grep -q 'not found at' "$out/$run.log"; then

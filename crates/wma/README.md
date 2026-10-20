@@ -1,4 +1,4 @@
-# banished-wma
+# unbanished-wma
 
 A decoder for Windows Media Audio version 2 (WMA v2, format tag `0x161`), written in Rust.
 WMA v2 is the codec inside xWMA files. Every sound in Banished is xWMA.
@@ -13,7 +13,7 @@ WMA v2 is the codec inside xWMA files. Every sound in Banished is xWMA.
 
 ```toml
 [dependencies]
-banished-wma = { path = "crates/wma" }
+unbanished-wma = { path = "crates/wma" }
 ```
 
 ### Decode a whole stream
@@ -23,9 +23,9 @@ sound: the number of channels, the sample rate, the average bytes per second, an
 size (`block_align`). `Params::xwma` sets the codec flags that xWMA implies.
 
 ```rust
-use banished_wma::{decode, Params};
+use unbanished_wma::{decode, Params};
 
-fn to_pcm(packets: &[u8]) -> Result<Vec<i16>, banished_wma::Error> {
+fn to_pcm(packets: &[u8]) -> Result<Vec<i16>, unbanished_wma::Error> {
     // 2 channels, 44,100 Hz, 6,000 bytes per second, 2,230-byte packets.
     let params = Params::xwma(2, 44_100, 6_000, 2_230);
     decode(&params, packets) // interleaved 16-bit samples
@@ -40,9 +40,9 @@ one extra frame that holds the final overlap.
 For streaming, use a `Decoder`. It writes float samples in the range -1 to 1.
 
 ```rust
-use banished_wma::{to_i16, Decoder, Params};
+use unbanished_wma::{to_i16, Decoder, Params};
 
-fn stream(params: &Params, packets: &[u8]) -> Result<Vec<i16>, banished_wma::Error> {
+fn stream(params: &Params, packets: &[u8]) -> Result<Vec<i16>, unbanished_wma::Error> {
     let mut decoder = Decoder::new(params)?;
     let mut pcm: Vec<f32> = Vec::new();
     for packet in packets.chunks(usize::from(params.block_align)) {
@@ -55,13 +55,13 @@ fn stream(params: &Params, packets: &[u8]) -> Result<Vec<i16>, banished_wma::Err
 
 ### Decode a sound from the game
 
-`banished-formats` reads the sound resource. `banished-audio` does both steps in one call
-(`banished_audio::load_sound`).
+`unbanished-formats` reads the sound resource. `unbanished-audio` does both steps in one call
+(`unbanished_audio::load_sound`).
 
 ```rust,ignore
-use banished_formats::pkg::Archive;
-use banished_formats::types::sound_buffer;
-use banished_wma::{decode, Params};
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::types::sound_buffer;
+use unbanished_wma::{decode, Params};
 
 fn chicken(archive: &Archive) -> Result<Vec<i16>, Box<dyn std::error::Error>> {
     let sound = sound_buffer(&archive.read_ref("Audio/Animal/Chicken.rsc:version0")?)?;
@@ -83,7 +83,7 @@ fn chicken(archive: &Archive) -> Result<Vec<i16>, Box<dyn std::error::Error>> {
 | `WMAV2`, `XWMA_FLAGS` | The format tag and the flags that xWMA implies |
 
 The full API documentation is at
-<https://tanepiper.github.io/unbanished/api/banished_wma/index.html>.
+<https://tanepiper.github.io/unbanished/api/unbanished_wma/index.html>.
 
 ## Source files
 
@@ -99,7 +99,7 @@ The full API documentation is at
 ## Tests
 
 ```bash
-cargo test --release -p banished-wma
+cargo test --release -p unbanished-wma
 ```
 
 `ffmpeg_parity` decodes every sound of your game and compares the result with FFmpeg. It skips

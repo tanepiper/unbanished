@@ -91,5 +91,5 @@ comparison.
   production, citizens, events and resource consumption.
 - Implement save/load, autosave and event notifications in the active game loop.
 
-Desktop and `wasm32-unknown-unknown` `cargo check -p banished-app` both pass for this slice. No
+Desktop and `wasm32-unknown-unknown` `cargo check -p unbanished-app` both pass for this slice. No
 interactive runtime capture was made in this change.

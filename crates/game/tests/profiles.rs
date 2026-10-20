@@ -1,8 +1,8 @@
 //! Decode the shipped New Game profiles from the player's own data (skipped without game-data/).
 
-use banished_formats::game::map_generator;
-use banished_formats::pkg::{Archive, Package};
 use std::path::PathBuf;
+use unbanished_formats::game::map_generator;
+use unbanished_formats::pkg::{Archive, Package};
 
 fn archive() -> Option<Archive> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../game-data/original/WinData");

@@ -103,13 +103,13 @@ fn threaded<T: Sync, R: Send>(
         .collect()
 }
 
-/// Threads to use: `BANISHED_THREADS` if set (1 runs everything in order), else the number
+/// Threads to use: `UNBANISHED_THREADS` if set (1 runs everything in order), else the number
 /// of cores.
 #[cfg(not(target_arch = "wasm32"))]
 fn threads() -> usize {
     static THREADS: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
     *THREADS.get_or_init(|| {
-        std::env::var("BANISHED_THREADS")
+        crate::env::var("THREADS")
             .ok()
             .and_then(|v| v.parse().ok())
             .filter(|&t: &usize| t >= 1)

@@ -3,7 +3,7 @@
 Banished ships its interface as data. Every window, button, list and tooltip is a resource in
 the `Dialog` folder of the packages, drawn with the game's own sprite sheets and fonts.
 Un-Banished does not draw its own copy of these windows. It loads the same resources and lays
-them out as the original engine does. The code is in [banished-ui](../../crates/ui/README.md),
+them out as the original engine does. The code is in [unbanished-ui](../../crates/ui/README.md),
 and the windows' behaviour is in `apps/game/src/ui/`.
 
 <p align="center">
@@ -38,7 +38,7 @@ pictures.
 ## Drawing and input
 
 The interface draws as a list of textured quads, in order, each with an optional clip rectangle.
-`banished-gfx` draws them with wgpu in one pipeline. The pointer and the keyboard go through the
+`unbanished-gfx` draws them with wgpu in one pipeline. The pointer and the keyboard go through the
 element tree: the element under the pointer is *hot*, a pressed button sends a click when it is
 released, and an edit box takes the keyboard focus.
 

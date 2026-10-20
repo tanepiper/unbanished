@@ -1,7 +1,7 @@
 //! Whether two saves hold exactly the same game state (the header's name, date and preview
 //! aside): exit 0 when the state bytes are equal, 1 otherwise, with the first difference.
-//! `cargo run -p banished-formats --example savegame_same -- A.sav B.sav`
-use banished_formats::save::Save;
+//! `cargo run -p unbanished-formats --example savegame_same -- A.sav B.sav`
+use unbanished_formats::save::Save;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();

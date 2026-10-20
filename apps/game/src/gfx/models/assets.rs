@@ -49,7 +49,7 @@ pub(super) fn load_groups(
     groups: &[(&str, &GroupMaterial, Option<&[Transform]>)],
     textures: &mut HashMap<String, ModelImage>,
 ) -> Vec<Option<ModelAsset>> {
-    let pending = banished_formats::par::map(groups, |&(mesh_ref, material, pose)| {
+    let pending = unbanished_formats::par::map(groups, |&(mesh_ref, material, pose)| {
         read_group(archive, mesh_ref, material, pose)
     });
     let mut missing: Vec<String> = Vec::new();
@@ -58,7 +58,7 @@ pub(super) fn load_groups(
             missing.push(r.to_string());
         }
     }
-    let images = banished_formats::par::map(&missing, |r| {
+    let images = unbanished_formats::par::map(&missing, |r| {
         image(archive, Some(r)).map(std::sync::Arc::new)
     });
     textures.extend(missing.into_iter().zip(images));
@@ -85,13 +85,13 @@ pub(super) fn read_group(
     let mesh = graphics_mesh(&archive.read_ref(&with_object(mesh_ref)).ok()?)
         .map_err(|e| log::warn!("{mesh_ref}: {e}"))
         .ok()?;
-    let world = banished_gfx::model::bind_world(&mesh);
+    let world = unbanished_gfx::model::bind_world(&mesh);
     // Every detail level (part) is loaded; `ModelRenderer::cull` picks one per instance and
     // pass. Only six shipped meshes have a second level (three rocks and three ores, switching
     // at 50 to 70 units); every other mesh has one level, up to 10,000.
     let first_part = mesh.parts.first()?;
     let mut set: Option<Vec<Option<String>>> =
-        banished_gfx::model::material_set(&mesh, material.set).map(<[_]>::to_vec);
+        unbanished_gfx::model::material_set(&mesh, material.set).map(<[_]>::to_vec);
     if let (Some(first), Some(list)) = (&material.first, set.as_mut()) {
         if let Some(m) = list.first_mut() {
             *m = Some(first.clone());
@@ -104,7 +104,7 @@ pub(super) fn read_group(
     // `Animation::GetPoseAtTime`), otherwise the bind pose.
     let default_palette = match pose {
         Some(locals) if locals.len() == mesh.bones.len() => {
-            banished_formats::skeleton::palette(&mesh.bones, locals)
+            unbanished_formats::skeleton::palette(&mesh.bones, locals)
         }
         _ => bind_palette(&mesh.bones),
     };
@@ -125,7 +125,7 @@ pub(super) fn read_group(
             };
             let mut indices = indices.to_vec();
             indices.resize(indices.len().next_multiple_of(4), 0);
-            let m = banished_gfx::model::range_material(&world, set, range, &mut |r| {
+            let m = unbanished_gfx::model::range_material(&world, set, range, &mut |r| {
                 material_instance(&archive.read_ref(&with_object(r)).ok()?).ok()
             });
             ranges.push(RangeData {
@@ -144,7 +144,7 @@ pub(super) fn read_group(
             textures.push([m.snow, m.damage, m.diffuse]);
         }
     }
-    let animation_bone = banished_gfx::model::animation_bone(first_part);
+    let animation_bone = unbanished_gfx::model::animation_bone(first_part);
     Some(PendingAsset {
         ao: mesh.parts.iter().map(|p| p.ao_texture.clone()).collect(),
         asset: ModelAsset {

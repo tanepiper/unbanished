@@ -1,8 +1,8 @@
 //! `pathfind::regions` against the original labelling (`tools/emu/regions.py`; skipped without
 //! its output in game-data/derived/emu).
 
-use banished_game::pathfind::regions;
-use banished_game::terrain::CellType;
+use unbanished_game::pathfind::regions;
+use unbanished_game::terrain::CellType;
 
 #[test]
 fn matches_the_original() {

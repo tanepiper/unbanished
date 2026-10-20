@@ -31,27 +31,27 @@ tools/test/baselines/` before committing.
 
 ```bash
 cargo test --release                                   # whole workspace
-cargo test --release -p banished-formats --test toolbar
-cargo test --release -p banished-game --test terrain_emu
+cargo test --release -p unbanished-formats --test toolbar
+cargo test --release -p unbanished-game --test terrain_emu
 ```
 Tests that need `game-data/` print a skip message and pass when it is missing — check the output
 actually ran the assertions (look for the skip text) before claiming coverage.
 
-## Headless captures of the game (`banished` = `banished-app`)
+## Headless captures of the game (`unbanished` = `unbanished-app`)
 
 Captures go to `game-data/derived/captures/` (git-ignored); open them with Read to inspect.
 
 ```bash
 # Boot flow: splash → loading → menu, capture at T seconds
-cargo run --release -p banished-app -- --boot-capture game-data/derived/captures/menu.png 4.5
-BANISHED_MENU_SCENE=3 cargo run --release -p banished-app -- --boot-capture …/scene3.png 4.5
+cargo run --release -p unbanished-app -- --boot-capture game-data/derived/captures/menu.png 4.5
+UNBANISHED_MENU_SCENE=3 cargo run --release -p unbanished-app -- --boot-capture …/scene3.png 4.5
 
 # Into a new game: press named UI elements at times (repeatable --press NAME@T)
-cargo run --release -p banished-app -- --boot-capture …/game.png 9 \
+cargo run --release -p unbanished-app -- --boot-capture …/game.png 9 \
   --press buttonNew@4.5 --press buttonOk@5.0
 
 # Map only, with generation options
-cargo run --release -p banished-app -- --capture …/map.png --view overview|ground \
+cargo run --release -p unbanished-app -- --capture …/map.png --view overview|ground \
   --seed 290 --terrain Valleys --size 0 --month 6
 ```
 `--press` warns `not found at T s` if the element name doesn't exist at that moment — treat that as
@@ -61,13 +61,13 @@ test a toolbar/sub-menu, chain presses by element name with ~0.3 s gaps after th
 ## Viewer
 
 ```bash
-cargo run --release -p banished-viewer -- --screenshot game-data/derived/captures/d.png dialogs MainMenu_resource
+cargo run --release -p unbanished-viewer -- --screenshot game-data/derived/captures/d.png dialogs MainMenu_resource
 ```
 
 ## Web (WASM)
 
 ```bash
-cargo build --release -p banished-app --target wasm32-unknown-unknown   # compile check
+cargo build --release -p unbanished-app --target wasm32-unknown-unknown   # compile check
 tools/dev-web.sh --app game --release     # serves http://127.0.0.1:8733/?data=/game-data/
 ```
 For an interactive check, open that URL in the built-in browser pane (launch config `game-web`)
@@ -90,7 +90,7 @@ are following along.
 
 - `tools/triage/determinism.sh [SECS] [SEED]`: two same-seed boot captures must be identical.
   Run it after touching simulation, AI or anything that draws from the game stream.
-- `cargo run -q --release -p banished-app --example imgdiff -- A.png B.png [--out heat.png]
+- `cargo run -q --release -p unbanished-app --example imgdiff -- A.png B.png [--out heat.png]
   [--resize] [--ignore x,y,w,h] [--json]`: MAE/PSNR, mismatch share, bounding box and a 4×4 grid
   of where frames differ; use it for before/after checks and against original-game screenshots.
 
@@ -98,7 +98,7 @@ are following along.
 
 Follow `docs/develop/VISUAL-CHANGES.md`. In short:
 - Predict first which objects change and when (e.g. `mesh_info` for mesh parts and distances).
-- `cp target/release/banished` to a scratch path and compare that copy; later builds overwrite it.
+- `cp target/release/unbanished` to a scratch path and compare that copy; later builds overwrite it.
 - `tools/compat/compare.sh HEAD <copy>` (run it alone, in the background; several minutes). Game
   state must be identical everywhere; `base/base` must be identical; "NOT COMPATIBLE" from frames
   alone is expected.

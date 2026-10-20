@@ -8,7 +8,7 @@ menu and the pause menu (`MainMenuDialog` element id 4 → `FUN_1400b8ee0`). The
 
 The original keeps its settings in the registry, one value per `"%s%s"` (section + key). The port
 uses the same names in a `KEY=VALUE` text file. Natively it is `banished-wasm/settings.txt` under
-`%APPDATA%`, `~/Library/Application Support` or `$XDG_CONFIG_HOME`; `BANISHED_SETTINGS` overrides
+`%APPDATA%`, `~/Library/Application Support` or `$XDG_CONFIG_HOME`; `UNBANISHED_SETTINGS` overrides
 the path. In the browser it is `localStorage["banished-wasm.settings"]`. Booleans are `true` or
 `false`.
 

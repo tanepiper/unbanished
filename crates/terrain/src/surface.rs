@@ -18,7 +18,7 @@
 // +0x140
 
 use super::Generator;
-use banished_core::noise::PerlinNoise;
+use unbanished_core::noise::PerlinNoise;
 
 const NOISE_SCALE: f32 = 0.25;
 const NOISE_OCTAVES: f32 = 4.0;
@@ -108,7 +108,7 @@ impl Generator {
             .enumerate()
             .map(|(y, row)| (y as i32, row))
             .collect();
-        banished_formats::par::map_mut(&mut rows, |(y, row)| {
+        unbanished_formats::par::map_mut(&mut rows, |(y, row)| {
             for x in 0..n {
                 row[x as usize] = surface_texel(&cells, &noise, n, x, *y);
             }

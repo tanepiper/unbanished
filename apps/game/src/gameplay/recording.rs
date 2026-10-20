@@ -3,7 +3,7 @@
 //! A recording starts when a save is loaded (`--record FILE`). Each line of the file is one
 //! JSON entry: the start, then every [`PlayerCommand`] with the update it was given in, the
 //! updates the pause menu held the game, and, every few updates (`--record-every N`), a digest of
-//! the game state ([`super::digest`]). `banished --replay SAVE FILE` loads the same save without a
+//! the game state ([`super::digest`]). `unbanished --replay SAVE FILE` loads the same save without a
 //! window, carries the commands out at the same updates, and compares its digests with the
 //! recorded ones. Equal digests show that the commands carry everything a player changes: the
 //! same save and the same commands give the same game. See docs/MULTIPLAYER-PLAN.md, step 2.
@@ -155,7 +155,7 @@ pub fn replay(
         .max(updates);
     let saved = crate::saves::saved::SavedGame::parse(save).map_err(|e| e.to_string())?;
     let mut gameplay = super::GameplayLoop::from_save(saved);
-    let step = banished_game::scheduler::seconds(crate::FRAME_STEP);
+    let step = unbanished_game::scheduler::seconds(crate::FRAME_STEP);
     game.with_ctx(|_, ctx| {
         gameplay.load(ctx);
         gameplay.startup(ctx);

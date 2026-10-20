@@ -38,7 +38,7 @@
 //! `+0xb8`: `Dialog\SpriteSheet.rsc` "SaveLoadEmpty", `FUN_1400a0e00`), which is the icon
 //! template's own sprite, so the slot keeps it.
 
-use banished_ui::{Control, Kind, NodeId, Ui};
+use unbanished_ui::{Control, Kind, NodeId, Ui};
 
 use crate::loops::Screen;
 use crate::ui::save_list::{self, SaveInfo};
@@ -365,7 +365,7 @@ impl SaveLoadDialog {
                 continue;
             };
             if let Some(n) = icon {
-                ui.node_mut(n).flags |= banished_formats::ui::flags::MOUSE;
+                ui.node_mut(n).flags |= unbanished_formats::ui::flags::MOUSE;
             }
             match &info.file {
                 // The new-save slot: the save sprite, the template's own ("SaveLoadEmpty").
@@ -423,7 +423,7 @@ impl SaveLoadDialog {
         ui: &mut Ui,
         screen: &mut Screen,
         audio: &mut crate::audio::sound::Audio,
-        archive: &banished_formats::pkg::Archive,
+        archive: &unbanished_formats::pkg::Archive,
         mods: &crate::mods::Modification,
         node: NodeId,
     ) -> Outcome {

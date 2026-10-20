@@ -2,9 +2,9 @@
 //! the result agrees with the older scanning parsers in `save.rs`, and encoding it gives the
 //! same bytes back; a whole `.sav` written from them reads back the same.
 
-use banished_formats::save::Save;
-use banished_formats::savegame::{Fields, GameState, ObjId, Value};
 use std::collections::BTreeSet;
+use unbanished_formats::save::Save;
+use unbanished_formats::savegame::{Fields, GameState, ObjId, Value};
 
 fn ptrs(fields: &Fields, out: &mut Vec<ObjId>) {
     for (_, v) in &fields.0 {

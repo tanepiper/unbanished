@@ -1,4 +1,4 @@
-# banished-game
+# unbanished-game
 
 The rules of Banished 1.0.7, ported to Rust: citizens and their lives, jobs and professions,
 construction, production, farming, trade, wildlife, the weather, and disasters. Each ported
@@ -31,16 +31,16 @@ It also re-exports the crates it builds on, so that one dependency is enough:
 
 | Path | Is the same as |
 |---|---|
-| `banished_game::{calendar, crt, math, noise, picking, random, scheduler}` | the modules of `banished-core` |
-| `banished_game::terrain` | the `banished-terrain` crate |
-| `banished_game::{pathfind, sectors}` | the modules of `banished-path` |
+| `unbanished_game::{calendar, crt, math, noise, picking, random, scheduler}` | the modules of `unbanished-core` |
+| `unbanished_game::terrain` | the `unbanished-terrain` crate |
+| `unbanished_game::{pathfind, sectors}` | the modules of `unbanished-path` |
 
 ## Use it
 
 ```toml
 [dependencies]
-banished-game = { path = "crates/game" }
-banished-formats = { path = "crates/formats" }
+unbanished-game = { path = "crates/game" }
+unbanished-formats = { path = "crates/formats" }
 ```
 
 ### Name a citizen
@@ -49,12 +49,12 @@ Names come from the game's name databases (`Game/Names/Male`, `Female` and `Citi
 seed gives the same names as the original.
 
 ```rust
-use banished_formats::names::NameDatabase;
-use banished_formats::pkg::Archive;
-use banished_game::people::names::generate;
-use banished_game::random::Random;
+use unbanished_formats::names::NameDatabase;
+use unbanished_formats::pkg::Archive;
+use unbanished_game::people::names::generate;
+use unbanished_game::random::Random;
 
-fn three_names(archive: &Archive) -> banished_formats::Result<Vec<String>> {
+fn three_names(archive: &Archive) -> unbanished_formats::Result<Vec<String>> {
     let db = NameDatabase::read(&archive.read_ref("Game/Names/Male.rsc:resource")?)?;
     let mut rng = Random::new(7);
     // A first name has 3 to 10 letters; a town name has 5 to 20.
@@ -70,8 +70,8 @@ where every cell within `radius` is buildable ground. The start condition profil
 radius (`map_generator(...).start_radius`).
 
 ```rust
-use banished_game::terrain::{Generator, HeightGrid};
-use banished_game::world::map::Map;
+use unbanished_game::terrain::{Generator, HeightGrid};
+use unbanished_game::world::map::Map;
 
 fn start_cell(generator: &Generator, radius: i32) -> (i32, i32) {
     let heights = generator.heights();
@@ -82,7 +82,7 @@ fn start_cell(generator: &Generator, radius: i32) -> (i32, i32) {
 }
 ```
 
-[banished-terrain](https://tanepiper.github.io/unbanished/reference/terrain) shows how to make the `Generator`.
+[unbanished-terrain](https://tanepiper.github.io/unbanished/reference/terrain) shows how to make the `Generator`.
 
 ### More
 
@@ -98,7 +98,7 @@ documents, then the module that ports the part you are interested in:
 ## Tests
 
 ```bash
-cargo test --release -p banished-game
+cargo test --release -p unbanished-game
 ```
 
 The unit tests run without game data. The tests in `tests/` compare with emulator output or with
@@ -113,7 +113,7 @@ data is missing. For example:
 | `astar_emu`, `regions_emu`, `sectors_emu` | Path finding |
 | `game_loop_emu`, `time_emu` | The simulation step and game time |
 | `growth_emu`, `storage_emu`, `equipment_emu` | Growth, storage and equipment |
-| `crt_math`, `transform`, `picking_emu` | The exact maths of `banished-core` |
+| `crt_math`, `transform`, `picking_emu` | The exact maths of `unbanished-core` |
 
 ## Example programs
 
@@ -125,4 +125,4 @@ generation, for comparison with the original (see
 ## The API
 
 The full API documentation is at
-<https://tanepiper.github.io/unbanished/api/banished_game/index.html>.
+<https://tanepiper.github.io/unbanished/api/unbanished_game/index.html>.

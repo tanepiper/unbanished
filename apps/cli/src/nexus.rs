@@ -1,23 +1,23 @@
-//! `banished-cli nexus`: search Banished mods on Nexus Mods and install them, with the
-//! player's API key (`BANISHED_NEXUS_API_KEY`, or `NexusApiKey=` in the game's settings file).
+//! `unbanished-cli nexus`: search Banished mods on Nexus Mods and install them, with the
+//! player's API key (`UNBANISHED_NEXUS_API_KEY`, or `NexusApiKey=` in the game's settings file).
 
 use std::path::PathBuf;
 
-use banished_nexus::api::{self, Sort};
-use banished_nexus::native::{self, Source, Step};
-use banished_nexus::nxm::NxmLink;
-use banished_nexus::App;
+use unbanished_nexus::api::{self, Sort};
+use unbanished_nexus::native::{self, Source, Step};
+use unbanished_nexus::nxm::NxmLink;
+use unbanished_nexus::App;
 
 const USAGE: &str = "usage:
-  banished-cli nexus whoami                    the account the API key belongs to
-  banished-cli nexus search [TEXT] [--sort downloads|endorsements|updated|name] [--page N]
-  banished-cli nexus files MOD_ID              a mod's files
-  banished-cli nexus install MOD_ID [FILE_ID] [--to WINDATA]
+  unbanished-cli nexus whoami                    the account the API key belongs to
+  unbanished-cli nexus search [TEXT] [--sort downloads|endorsements|updated|name] [--page N]
+  unbanished-cli nexus files MOD_ID              a mod's files
+  unbanished-cli nexus install MOD_ID [FILE_ID] [--to WINDATA]
                                                install a file (Premium); the main file by default
-  banished-cli nexus install 'nxm://banished/mods/…' [--to WINDATA]
+  unbanished-cli nexus install 'nxm://banished/mods/…' [--to WINDATA]
                                                install from a \"Mod Manager Download\" link
 
-The API key comes from BANISHED_NEXUS_API_KEY, or the NexusApiKey= line of the game's
+The API key comes from UNBANISHED_NEXUS_API_KEY, or the NexusApiKey= line of the game's
 settings file. Searches and file lists need no key.";
 
 fn app() -> App {
@@ -59,7 +59,7 @@ pub fn run(mut args: Vec<String>, default_dir: PathBuf) {
     let sort = option(&mut args, "--sort");
     let page = option(&mut args, "--page").map_or(1, |p| number(&p, "the page").max(1));
     let app = app();
-    let run = |r: &banished_nexus::Request, download| {
+    let run = |r: &unbanished_nexus::Request, download| {
         native::send(r, download).unwrap_or_else(|e| fail(&e.to_string()))
     };
     match args.first().map(String::as_str) {
@@ -156,7 +156,7 @@ pub fn run(mut args: Vec<String>, default_dir: PathBuf) {
                     }
                     println!("enable it in the game's Mods dialog");
                 }
-                Err(banished_nexus::Error::NeedsPremium) => {
+                Err(unbanished_nexus::Error::NeedsPremium) => {
                     let mod_id = match &source {
                         Source::File { mod_id, .. } => *mod_id,
                         Source::Link(l) => l.mod_id,
@@ -164,7 +164,7 @@ pub fn run(mut args: Vec<String>, default_dir: PathBuf) {
                     fail(&format!(
                         "this account needs Premium for direct downloads. Open {}, press \"Mod \
                          Manager Download\" on the file, copy the nxm:// link and run \
-                         `banished-cli nexus install 'nxm://…'`",
+                         `unbanished-cli nexus install 'nxm://…'`",
                         api::files_page(mod_id)
                     ))
                 }

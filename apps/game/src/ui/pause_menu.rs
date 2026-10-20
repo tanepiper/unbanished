@@ -19,7 +19,7 @@
 //! (3, mode 0) open `crate::ui::save_dialog::SaveLoadDialog`; Mod (7) opens
 //! `crate::ui::mod_ui::ModDialog`.
 
-use banished_ui::{NodeId, Ui};
+use unbanished_ui::{NodeId, Ui};
 
 use crate::audio::sound::{sound_type, Audio};
 use crate::loops::Screen;

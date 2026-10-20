@@ -233,7 +233,7 @@ impl Tool {
                         img.source
                     ));
                     if let Some(rgba) = rgba {
-                        let view = banished_gfx::upload_rgba(
+                        let view = unbanished_gfx::upload_rgba(
                             renderer.device(),
                             renderer.queue(),
                             &name,
@@ -423,7 +423,7 @@ impl Tool {
                 } else {
                     None
                 };
-                let pcm = banished_audio::decode(&sound, stream.as_deref())?;
+                let pcm = unbanished_audio::decode(&sound, stream.as_deref())?;
                 self.player.play(pcm, self.audio_looping)?;
                 if self.audio_seek_position > 0.0 {
                     self.player

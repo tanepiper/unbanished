@@ -26,7 +26,7 @@ tools/videos.sh RIVER.sav river fishing                 # a town with a bridge a
 tools/videos.sh "save-game/Save 47.sav" boat-shoulder fisher-closeup river-flight   # the cinematic camera
 tools/videos.sh save-game/Save83.sav farmer labourer vendor                        # people at work, close up
 FILTER=sepia tools/videos.sh SAVE.sav orbit             # with a colour filter: sepia, grey or psychedelic
-GAME=path/to/banished VIEWER=path/to/banished-viewer tools/videos.sh SAVE.sav   # without building
+GAME=path/to/banished VIEWER=path/to/unbanished-viewer tools/videos.sh SAVE.sav   # without building
 ```
 
 | Video | What it shows | How |
@@ -113,14 +113,14 @@ compared by their videos.
 Make single pictures first. A 20-second run takes about 5 seconds.
 
 ```bash
-export BANISHED_USER_DIR=/tmp/video/user BANISHED_SETTINGS=/tmp/video/settings.txt
-banished --boot-capture /tmp/video/shot.png 30 --capture-size 1280x720 \
+export UNBANISHED_USER_DIR=/tmp/video/user UNBANISHED_SETTINGS=/tmp/video/settings.txt
+unbanished --boot-capture /tmp/video/shot.png 30 --capture-size 1280x720 \
   --script "load save-game/Save83.sav@4.5" \
   --click-at 1060,470@14 --press buttonCenter@14.6 --press buttonClose@15.2 \
   --wheel 8@16 --wheel 8@16.2 --wheel 8@16.4
 ```
 
-- Always set `BANISHED_USER_DIR` and `BANISHED_SETTINGS` to a scratch folder. The frames are
+- Always set `UNBANISHED_USER_DIR` and `UNBANISHED_SETTINGS` to a scratch folder. The frames are
   written there, and your own saves and settings stay untouched.
 - The mouse wheel zooms towards the middle of the screen, not towards the pointer. To move the
   camera, click a building, press **Center** in its window (`buttonCenter`), then close the
@@ -172,7 +172,7 @@ choice of what to draw follow the new camera. The options are listed in the
 **A path of keyframes.** Each `--camera` gives where the camera is, what it looks at, and when:
 
 ```bash
-banished --boot-capture /tmp/video/last.png 30.4 --capture-size 1920x1080 \
+unbanished --boot-capture /tmp/video/last.png 30.4 --capture-size 1920x1080 \
   --script "load save-game/Save 47.sav@4.5" \
   --camera "-75,74,24>-15,70,0@20" --camera "-30,80,20>25,52,0@22" \
   --camera "10,66,17>62,20,0@24" --camera "105,-20,45>70,-20,0@30" "${shots[@]}"
@@ -201,7 +201,7 @@ open square of a market but the roof of the market's storehouse. A citizen under
 cannot be seen from anywhere near, so there the camera keeps its place.
 
 To place keyframes, log a subject's positions: run with
-`RUST_LOG=info,banished::view::cinematic=debug` and `--camera-follow`. A trader boat's positions
+`RUST_LOG=info,unbanished::view::cinematic=debug` and `--camera-follow`. A trader boat's positions
 trace the river; a citizen's lead to their workplace.
 
 Unlike the game camera, the cinematic camera does not depend on which frames are drawn: it moves
@@ -239,7 +239,7 @@ shots=()
 for i in $(seq 0 239); do
   shots+=(--script "screenshot@$(echo "scale=5; 14 + $i / 30 + 1 / 60" | bc)")
 done
-banished --boot-capture /tmp/video/last.png 22.1 --capture-size 1280x720 \
+unbanished --boot-capture /tmp/video/last.png 22.1 --capture-size 1280x720 \
   --script "load save-game/Save83.sav@4.5" "${shots[@]}"
 ls /tmp/video/user/Screenshots | wc -l       # must be 240
 ```
@@ -283,7 +283,7 @@ The viewer poses a model with an animation clip at a given time:
 ```bash
 for i in $(seq 0 73); do
   VIEWER_POSE="Walk@$(echo "scale=4; $i / 30" | bc)" VIEWER_ANIMS=Chicken \
-    banished-viewer --capture /tmp/chicken 'Animals\Chicken\ChickenMesh'
+    unbanished-viewer --capture /tmp/chicken 'Animals\Chicken\ChickenMesh'
   mv /tmp/chicken/Models_Animals_Chicken_ChickenMesh_resource.png /tmp/chicken/$(printf %03d $i).png
 done
 ffmpeg -framerate 30 -i /tmp/chicken/%03d.png -vf "format=yuv420p" -c:v libvpx-vp9 -b:v 0 -crf 34 chicken.webm

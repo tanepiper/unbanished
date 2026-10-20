@@ -1,7 +1,7 @@
-# banished-net
+# unbanished-net
 
 Un-Banished multiplayer networking: the protocol between a game and the relay
-([banished-relay](../../apps/relay/README.md)), and a WebSocket connection to the relay that works
+([unbanished-relay](../../apps/relay/README.md)), and a WebSocket connection to the relay that works
 natively and in the browser. The original Banished has no multiplayer; this is the port's own (see
 [MULTIPLAYER-PLAN.md](../../docs/MULTIPLAYER-PLAN.md), step 5).
 
@@ -14,10 +14,10 @@ natively and in the browser. The original Banished has no multiplayer; this is t
 | `State` | Connecting, open, or closed (with the reason) |
 
 The relay never reads the data: the game's own messages (its lockstep turns, digests and saves,
-`banished::gameplay::lockstep::Message`) travel inside `Send` and `Data`.
+`unbanished::gameplay::lockstep::Message`) travel inside `Send` and `Data`.
 
 ```rust,ignore
-use banished_net::{Connection, FromRelay, ToRelay};
+use unbanished_net::{Connection, FromRelay, ToRelay};
 
 let mut relay = Connection::connect("ws://127.0.0.1:7780");
 relay.send(ToRelay::Host { room: None });

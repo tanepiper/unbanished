@@ -2,7 +2,7 @@
 //! disassembled D3D9 programs (`SkyMaterial`, `RiverMaterial` with its lake vertex shader,
 //! `TerrainTiledSnowDecal`, `TerrainDecalBlend`, `TerrainDecal`). See docs/MENU-SCENE.md.
 
-use banished_formats::types::ImageBuffer;
+use unbanished_formats::types::ImageBuffer;
 use wgpu::util::DeviceExt;
 
 use crate::view::scene_assets::{DecalData, DecalKind, SceneExtras, SkyData, WaterData};
@@ -223,7 +223,7 @@ fn linear_view(
     img: &ImageBuffer,
     fallback: &wgpu::TextureView,
 ) -> wgpu::TextureView {
-    banished_gfx::upload_image_linear(device, queue, "scene texture", img)
+    unbanished_gfx::upload_image_linear(device, queue, "scene texture", img)
         .unwrap_or_else(|| fallback.clone())
 }
 
@@ -643,7 +643,7 @@ impl SceneExtrasRenderer {
             decal_pipeline("fs_blend"),
             decal_pipeline("fs_plain"),
         ];
-        let white = banished_gfx::upload_rgba_as(
+        let white = unbanished_gfx::upload_rgba_as(
             device,
             queue,
             "white",
@@ -761,7 +761,7 @@ impl SceneExtrasRenderer {
         queue: &wgpu::Queue,
         s: &SkyData,
     ) -> Option<SkyGpu> {
-        let cube = banished_gfx::upload_cube(device, queue, "sky", &s.cube)?;
+        let cube = unbanished_gfx::upload_cube(device, queue, "sky", &s.cube)?;
         let model = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("sky model"),
             size: 64,
@@ -805,10 +805,10 @@ impl SceneExtrasRenderer {
 
     fn upload_water(&self, device: &wgpu::Device, queue: &wgpu::Queue, w: &WaterData) -> WaterGpu {
         let view2d = |img: &ImageBuffer| {
-            banished_gfx::upload_image_linear(device, queue, "water", img)
+            unbanished_gfx::upload_image_linear(device, queue, "water", img)
                 .unwrap_or_else(|| self.white.clone())
         };
-        let highlight = banished_gfx::upload_cube(device, queue, "highlight", &w.highlight)
+        let highlight = unbanished_gfx::upload_cube(device, queue, "highlight", &w.highlight)
             .unwrap_or_else(|| {
                 let t = device.create_texture(&wgpu::TextureDescriptor {
                     label: Some("highlight"),

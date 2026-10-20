@@ -37,7 +37,7 @@ RESULTS = REPO / "target" / "test-results"
 WINDATA = Path(os.environ.get("UB_WINDATA", REPO / "game-data" / "original" / "WinData"))
 WEB_DIST = REPO / "target" / "test-web" / "game"
 BASELINES = REPO / "tools" / "test" / "baselines"
-GAME = REPO / "target" / "release" / "banished"
+GAME = REPO / "target" / "release" / "unbanished"
 
 
 class Skip(Exception):
@@ -82,7 +82,7 @@ def need_game_data() -> None:
 
 
 def build_game(ctx: Context) -> None:
-    sh(["cargo", "build", "-q", "--offline", "--release", "-p", "banished-app", "--bin", "banished"],
+    sh(["cargo", "build", "-q", "--offline", "--release", "-p", "unbanished-app", "--bin", "unbanished"],
        verbose=ctx.verbose)
 
 
@@ -119,7 +119,7 @@ def suite_unit(ctx: Context) -> None:
 
 def suite_wasm(ctx: Context) -> None:
     """The browser build compiles with no warnings."""
-    proc = sh(["cargo", "build", "--offline", "--release", "-p", "banished-app",
+    proc = sh(["cargo", "build", "--offline", "--release", "-p", "unbanished-app",
                "--target", "wasm32-unknown-unknown"])
     warnings = [l for l in proc.stderr.splitlines() if l.startswith("warning")]
     if warnings:
@@ -132,8 +132,8 @@ def run_scenario(name: str, spec: dict) -> list[dict]:
         tmp = Path(tmp)
         (tmp / "user").mkdir()
         out = tmp / "probe.jsonl"
-        env = {"BANISHED_USER_DIR": str(tmp / "user"), "BANISHED_SETTINGS": str(tmp / "settings.txt"),
-               "BANISHED_SEED": "1234"}
+        env = {"UNBANISHED_USER_DIR": str(tmp / "user"), "UNBANISHED_SETTINGS": str(tmp / "settings.txt"),
+               "UNBANISHED_SEED": "1234"}
         cmd = [str(GAME), "--boot-capture", str(tmp / "last.png"), str(spec["seconds"]),
                "--capture-size", "1280x720", *spec["args"], "--probe-out", str(out)]
         proc = sh(cmd, env=env, check=False)

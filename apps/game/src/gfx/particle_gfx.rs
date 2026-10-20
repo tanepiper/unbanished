@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use banished_formats::types::ImageBuffer;
+use unbanished_formats::types::ImageBuffer;
 use wgpu::util::DeviceExt;
 
 use crate::gfx::scene_gfx::{DEPTH_FORMAT, GLOBALS_WGSL, SCENE_FORMAT};
@@ -209,7 +209,7 @@ impl ParticleRenderer {
             })
         };
         let rgba = |label, pixel: [u8; 4]| {
-            banished_gfx::upload_rgba_as(
+            unbanished_gfx::upload_rgba_as(
                 device,
                 queue,
                 label,
@@ -259,7 +259,7 @@ impl ParticleRenderer {
             let view = |img: &Option<ImageBuffer>, fallback: &wgpu::TextureView| {
                 img.as_ref()
                     .and_then(|i| {
-                        banished_gfx::upload_image_linear(device, queue, "particle texture", i)
+                        unbanished_gfx::upload_image_linear(device, queue, "particle texture", i)
                     })
                     .unwrap_or_else(|| fallback.clone())
             };
@@ -569,7 +569,7 @@ impl WeatherRenderer {
             pipeline,
             layout,
             sampler: crate::gfx::scene_gfx::sampler(device, wgpu::AddressMode::ClampToEdge),
-            white: banished_gfx::upload_rgba_as(
+            white: unbanished_gfx::upload_rgba_as(
                 device,
                 queue,
                 "white",
@@ -617,7 +617,7 @@ impl WeatherRenderer {
             if !self.slots.get(&b.material).is_some_and(fits) {
                 let view = texture(&b.material)
                     .and_then(|i| {
-                        banished_gfx::upload_image_linear(device, queue, "weather texture", &i)
+                        unbanished_gfx::upload_image_linear(device, queue, "weather texture", &i)
                     })
                     .unwrap_or_else(|| self.white.clone());
                 let params = device.create_buffer(&wgpu::BufferDescriptor {

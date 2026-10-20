@@ -1,12 +1,12 @@
 //! Global game data loaded once at startup (`FUN_14009f280`, loader loop "Game/Global"): the New
 //! Game selector lists and the profiles they reference.
 
-use banished_formats::game::{
+use unbanished_formats::game::{
     climate_header, external_list, map_generator, terrain_generator, ClimateHeader, MapGenerator,
     TerrainGenerator,
 };
-use banished_formats::pkg::Archive;
-use banished_formats::Result;
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::Result;
 
 pub struct Choice<T> {
     /// Reference as stored in the list (e.g. `Game\Terrain\Valleys.rsc:resource`).

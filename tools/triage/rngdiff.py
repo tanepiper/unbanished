@@ -1,5 +1,5 @@
 """Compare two random-draw traces: the original (tools/emu/rng_trace.py) against the port
-(banished_game::random::trace). Each line is `kind<TAB>caller`; only the kinds and arguments
+(unbanished_game::random::trace). Each line is `kind<TAB>caller`; only the kinds and arguments
 are compared, the callers give context.
 
   python3 tools/triage/rngdiff.py original.rng port.rng [--context 6]

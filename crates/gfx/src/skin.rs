@@ -2,7 +2,7 @@
 //! bone palette uniform and its WGSL. The original's `NormalSkin_*vs` programs blend four bones
 //! from a palette of transforms (`tc_transform`, `c41`, four rows per bone).
 
-use banished_formats::skeleton::Transform;
+use unbanished_formats::skeleton::Transform;
 
 /// Bones per palette: the original's `tc_transform` is 208 constants from `c41`, four per bone
 /// (`NormalSkin_vs`), so 52; the largest shipped skeleton has 22, a mod's may have more.

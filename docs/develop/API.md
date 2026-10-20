@@ -59,28 +59,28 @@ Read its result: a sentence that listed fields by offset needs a person to rewri
 
 | Crate | API documentation |
 |---|---|
-| `banished-core` | [banished_core](https://tanepiper.github.io/unbanished/api/banished_core/index.html) |
-| `banished-terrain` | [banished_terrain](https://tanepiper.github.io/unbanished/api/banished_terrain/index.html) |
-| `banished-path` | [banished_path](https://tanepiper.github.io/unbanished/api/banished_path/index.html) |
-| `banished-game` | [banished_game](https://tanepiper.github.io/unbanished/api/banished_game/index.html) |
-| `banished-formats` | [banished_formats](https://tanepiper.github.io/unbanished/api/banished_formats/index.html) |
-| `banished-ui` | [banished_ui](https://tanepiper.github.io/unbanished/api/banished_ui/index.html) |
-| `banished-gfx` | [banished_gfx](https://tanepiper.github.io/unbanished/api/banished_gfx/index.html) |
-| `banished-audio` | [banished_audio](https://tanepiper.github.io/unbanished/api/banished_audio/index.html) |
-| `banished-wma` | [banished_wma](https://tanepiper.github.io/unbanished/api/banished_wma/index.html) |
-| `banished-mods` | [banished_mods](https://tanepiper.github.io/unbanished/api/banished_mods/index.html) |
-| `banished-banishedinfo` | [banished_banishedinfo](https://tanepiper.github.io/unbanished/api/banished_banishedinfo/index.html) |
-| `banished-net` | [banished_net](https://tanepiper.github.io/unbanished/api/banished_net/index.html) |
-| `banished-nexus` | [banished_nexus](https://tanepiper.github.io/unbanished/api/banished_nexus/index.html) |
+| `unbanished-core` | [unbanished_core](https://tanepiper.github.io/unbanished/api/unbanished_core/index.html) |
+| `unbanished-terrain` | [unbanished_terrain](https://tanepiper.github.io/unbanished/api/unbanished_terrain/index.html) |
+| `unbanished-path` | [unbanished_path](https://tanepiper.github.io/unbanished/api/unbanished_path/index.html) |
+| `unbanished-game` | [unbanished_game](https://tanepiper.github.io/unbanished/api/unbanished_game/index.html) |
+| `unbanished-formats` | [unbanished_formats](https://tanepiper.github.io/unbanished/api/unbanished_formats/index.html) |
+| `unbanished-ui` | [unbanished_ui](https://tanepiper.github.io/unbanished/api/unbanished_ui/index.html) |
+| `unbanished-gfx` | [unbanished_gfx](https://tanepiper.github.io/unbanished/api/unbanished_gfx/index.html) |
+| `unbanished-audio` | [unbanished_audio](https://tanepiper.github.io/unbanished/api/unbanished_audio/index.html) |
+| `unbanished-wma` | [unbanished_wma](https://tanepiper.github.io/unbanished/api/unbanished_wma/index.html) |
+| `unbanished-mods` | [unbanished_mods](https://tanepiper.github.io/unbanished/api/unbanished_mods/index.html) |
+| `unbanished-banishedinfo` | [unbanished_banishedinfo](https://tanepiper.github.io/unbanished/api/unbanished_banishedinfo/index.html) |
+| `unbanished-net` | [unbanished_net](https://tanepiper.github.io/unbanished/api/unbanished_net/index.html) |
+| `unbanished-nexus` | [unbanished_nexus](https://tanepiper.github.io/unbanished/api/unbanished_nexus/index.html) |
 
-The apps (`banished`, `banished-viewer`, `banished-cli`) are programs, not libraries. Their
+The apps (`unbanished`, `unbanished-viewer`, `unbanished-cli`) are programs, not libraries. Their
 READMEs describe how to use them.
 
 ## Build it yourself
 
 ```bash
-cargo doc --no-deps -p banished-formats --open      # one crate, opened in your browser
-RUSTDOCFLAGS="-W missing-docs" cargo doc --no-deps -p banished-ui   # list items without docs
+cargo doc --no-deps -p unbanished-formats --open      # one crate, opened in your browser
+RUSTDOCFLAGS="-W missing-docs" cargo doc --no-deps -p unbanished-ui   # list items without docs
 site/scripts/build-api.sh                           # all the libraries, into site/public/api/
 ```
 

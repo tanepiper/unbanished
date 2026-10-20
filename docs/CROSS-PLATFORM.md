@@ -19,8 +19,8 @@ The same code runs on both platforms:
 
 ```bash
 # Native
-BANISHED_USER_DIR=/tmp/digest BANISHED_SETTINGS=/tmp/digest/settings.txt \
-  banished --sim-digest save-game/Save83.sav 1200 60
+UNBANISHED_USER_DIR=/tmp/digest UNBANISHED_SETTINGS=/tmp/digest/settings.txt \
+  unbanished --sim-digest save-game/Save83.sav 1200 60
 
 # Browser (tools/dev-web.sh --app game --release; the save is fetched from the dev server)
 http://127.0.0.1:8733/?data=/game-data/&digest=/game-data/derived/digest/Save83.sav&updates=1200&every=60

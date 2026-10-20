@@ -8,16 +8,16 @@
 //!   StructureType cycles the variant (`FUN_140102e30`), MouseLeft places (`FUN_140102b20`);
 //! - hover (`+0x38`, `FUN_1401033b0`): footprint under the cursor, ghost transform, validity.
 
-use banished_formats::game::{
+use unbanished_formats::game::{
     build_description, create_placed_description, map_description, model_description,
     toolbar_description, BuildDescription, ModelDescription, ToolbarDescription,
 };
-use banished_formats::pkg::Archive;
-use banished_formats::types::graphics_mesh;
-use banished_game::nature::seeding::Placed;
-use banished_game::random::Random;
-use banished_game::terrain::HeightGrid;
-use banished_game::world::placement::{
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::types::graphics_mesh;
+use unbanished_game::nature::seeding::Placed;
+use unbanished_game::random::Random;
+use unbanished_game::terrain::HeightGrid;
+use unbanished_game::world::placement::{
     can_place, footprint, footprint_cell, PlacementRules, Rect, ROTATION_STEP,
 };
 
@@ -103,7 +103,7 @@ impl PlacementTool {
             build,
             bounds,
             radius: read(archive, &format!("{file}:radius"))
-                .and_then(|d| banished_formats::game::radius_description(&d).ok())
+                .and_then(|d| unbanished_formats::game::radius_description(&d).ok())
                 .and_then(|(r, m)| Some((r, m?))),
         })
     }
@@ -386,7 +386,7 @@ pub fn place(archive: &Archive, town: &mut StartingTown, p: &Placement) -> usize
     });
     // `FUN_1400c9d70`: register with the entity manager's buckets.
     town.register_entity(id);
-    banished_game::world::placement::zone(&mut town.cells, &p.rules, rect, p.degrees, id);
+    unbanished_game::world::placement::zone(&mut town.cells, &p.rules, rect, p.degrees, id);
     town.add_site(archive, id);
     id
 }

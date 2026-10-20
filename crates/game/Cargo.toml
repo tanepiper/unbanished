@@ -1,5 +1,5 @@
 [package]
-name = "banished-game"
+name = "unbanished-game"
 version.workspace = true
 description = "1:1 reimplementation of Banished's game logic (world generation, simulation)"
 edition.workspace = true
@@ -7,8 +7,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-banished-core = { path = "../core" }
-banished-path = { path = "../path" }
-banished-terrain = { path = "../terrain" }
-banished-formats = { path = "../formats" }
+unbanished-core = { path = "../core" }
+unbanished-path = { path = "../path" }
+unbanished-terrain = { path = "../terrain" }
+unbanished-formats = { path = "../formats" }
 serde = { version = "1", features = ["derive"] }

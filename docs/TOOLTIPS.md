@@ -69,7 +69,7 @@ The default codes come from `FUN_14009e7c0`: `Toolbar0..8` = keyboard 1..9 (F1..
 
 ## Verification
 
-- `BANISHED_SEED=1234 banished --boot-capture OUT 15 --press buttonNew@4.5 --press buttonOk@5.0
+- `UNBANISHED_SEED=1234 unbanished --boot-capture OUT 15 --press buttonNew@4.5 --press buttonOk@5.0
   --click-at 941,775@12 --move 985,775@14.5` shows "Roads and Bridges [F4]".
 - `--move 898,712@14.5` (the first housing entry) shows the build tooltip: house icon,
   "Wooden House [1]", the description, then ×16 logs and ×8 stone.

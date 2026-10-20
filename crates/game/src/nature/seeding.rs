@@ -8,7 +8,7 @@
 //!
 //! Original: `FUN_1400a87d0`, `FUN_1400a7490`, `FUN_1400a6780`.
 
-use banished_formats::game::{
+use unbanished_formats::game::{
     GrowthDescription, MapDescription, ModelDescription, NaturalResourceDescription,
     PlacedStructure,
 };
@@ -20,8 +20,8 @@ use crate::noise::PerlinNoise;
 use crate::random::Random;
 use crate::scheduler::{ticks, EntityScheduler};
 use crate::terrain::{CellType, HeightGrid};
-use banished_formats::types::AnimationGroup;
 use std::sync::Arc;
+use unbanished_formats::types::AnimationGroup;
 
 /// The descriptions of one template that seeding reads.
 #[derive(Debug, Clone)]

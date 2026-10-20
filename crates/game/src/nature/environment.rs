@@ -6,7 +6,7 @@
 //! (the update).
 // Game/Game +0x130
 
-use banished_formats::game::ClimateGenerator;
+use unbanished_formats::game::ClimateGenerator;
 
 use crate::noise::PerlinNoise;
 use crate::random::Random;

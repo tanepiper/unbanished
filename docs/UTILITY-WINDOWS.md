@@ -3,7 +3,7 @@
 This note covers how the toolbar's "reports" entries open their windows and how the Status Bar
 fills its values. The evidence is Ghidra pseudocode of the Steam x64 build (1.0.7), the Runtime DLL
 and the shipped `Template/*_ui.crs` resources. The port is `apps/game/src/ui/utility.rs`. The parser is
-`banished_formats::game::ui_description`; all 39 shipped `UIDescription` resources parse
+`unbanished_formats::game::ui_description`; all 39 shipped `UIDescription` resources parse
 (`crates/formats/tests/toolbar.rs`). Earlier traces are in
 [GAME-LOOP-STEP-07.md](GAME-LOOP-STEP-07.md) and [GAME-LOOP-STEP-10.md](GAME-LOOP-STEP-10.md).
 
@@ -126,7 +126,7 @@ The Status Bar opens with `--press reports@10 --click-at 474,713@10.3` at 1280×
 `tools/triage/determinism.sh` now accepts additional capture arguments after seconds/seed and
 fails if a named scripted control is missing. Use the same click sequence to verify this window.
 Opening the window exposed that town-name generation used the independent clock-seeded menu
-stream. The explicit `BANISHED_SEED` capture override now fixes that stream too; normal runs
+stream. The explicit `UNBANISHED_SEED` capture override now fixes that stream too; normal runs
 retain clock seeding. Opening/rendering the window never draws from either stream.
 
 Validation: `cargo test --workspace` passes 103 tests (two existing save tests ignored), and

@@ -10,7 +10,7 @@
 //!   `%sSave\%s.sav` in it.
 //!
 //! Deviation: Documents is `%USERPROFILE%\Documents` on Windows (a redirected Documents folder
-//! is not followed) and `~/Documents` elsewhere. `BANISHED_USER_DIR` names the `Banished` folder
+//! is not followed) and `~/Documents` elsewhere. `UNBANISHED_USER_DIR` names the `Banished` folder
 //! directly (tests, captures).
 #![cfg(not(target_arch = "wasm32"))]
 
@@ -38,7 +38,7 @@ pub fn data_dir(args: &[String]) -> PathBuf {
 
 /// `FileSystem::GetSaveDirectory`: `Documents/Banished`.
 pub fn user_dir() -> Option<PathBuf> {
-    if let Ok(dir) = std::env::var("BANISHED_USER_DIR") {
+    if let Ok(dir) = unbanished_formats::env::var("USER_DIR") {
         return (!dir.is_empty()).then(|| PathBuf::from(dir));
     }
     let home = if cfg!(target_os = "windows") {

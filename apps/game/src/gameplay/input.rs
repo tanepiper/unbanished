@@ -66,7 +66,7 @@ impl GameplayLoop {
         let (origin, direction) = self.cursor_ray(ctx.ui.screen)?;
         let town = self.town.as_ref()?;
         let view = self.view.as_ref().unwrap();
-        let grid = banished_game::terrain::HeightGrid {
+        let grid = unbanished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
         };
@@ -113,7 +113,7 @@ impl GameplayLoop {
         let n = town.cells.size as i32;
         let (lines, cells) = tool.overlay(n);
         if let Some(view) = self.view.as_mut() {
-            let grid = banished_game::terrain::HeightGrid {
+            let grid = unbanished_game::terrain::HeightGrid {
                 width: view.terrain.size + 1,
                 heights: &view.terrain.heights,
             };
@@ -283,7 +283,7 @@ impl GameplayLoop {
         );
         let near = inv.project_point3(ndc.extend(0.0));
         let far = inv.project_point3(ndc.extend(1.0));
-        let grid = banished_game::terrain::HeightGrid {
+        let grid = unbanished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
         };
@@ -575,7 +575,7 @@ impl GameplayLoop {
             match self.utility.click(ctx.ui, id, &self.events, &values) {
                 Some(UtilityClick::ProfessionCount(profession, count)) => {
                     if self.town.is_some() {
-                        let set = banished_game::work::professions::Command::SetCount {
+                        let set = unbanished_game::work::professions::Command::SetCount {
                             profession,
                             count,
                         };

@@ -18,13 +18,13 @@
 //! `CreateRoadDescription`) shares the DragTool input and runs here as the road mode: start
 //! `FUN_14010abb0`, apply `FUN_14010a200`, check `FUN_14010a4b0` (see docs/ROADS.md).
 
-use banished_formats::game::{
+use unbanished_formats::game::{
     create_drag_description, create_removal_description, create_road_description,
     toolbar_description, CreateDragDescription, CreateRemovalDescription, ToolbarDescription,
 };
-use banished_formats::pkg::Archive;
-use banished_game::terrain::HeightGrid;
-use banished_game::world::placement::cell_admits;
+use unbanished_formats::pkg::Archive;
+use unbanished_game::terrain::HeightGrid;
+use unbanished_game::world::placement::cell_admits;
 
 use crate::start::StartingTown;
 
@@ -85,7 +85,7 @@ pub struct RemovalTool {
     area: Option<AreaSpec>,
     /// The fenced mode (FencedTool): the CreateFencedDescription and its clear template.
     fenced: Option<(
-        banished_formats::game::CreateFencedDescription,
+        unbanished_formats::game::CreateFencedDescription,
         Option<usize>,
     )>,
     /// The RotationSetting (`+0x50 → +0x10`) the fenced tool turns its shelter by.
@@ -283,7 +283,7 @@ impl RemovalTool {
             });
             return Some(tool);
         }
-        let d = banished_formats::game::create_fenced_description(&read(
+        let d = unbanished_formats::game::create_fenced_description(&read(
             archive,
             &format!("{file}:createfenced"),
         )?)
@@ -740,7 +740,7 @@ impl RemovalTool {
         let t = town.cells.types[i].0;
         t == 0
             || t == 1
-            || town.cells.road_kind[i] != banished_game::work::road::NONE
+            || town.cells.road_kind[i] != unbanished_game::work::road::NONE
             || town.construction.pending_roads.contains_key(&(i as i32))
     }
 
@@ -772,7 +772,7 @@ impl RemovalTool {
             && !matches!(Self::shown_state(town, e), 3..=5)
     }
 
-    fn command(town: &mut StartingTown, command: banished_game::work::professions::Command) {
+    fn command(town: &mut StartingTown, command: unbanished_game::work::professions::Command) {
         if !town.construction.commands.contains(&command) {
             town.construction.commands.push(command);
         }
@@ -862,7 +862,7 @@ impl RemovalTool {
             };
             for cell in cells {
                 town.construction.commands.push(
-                    banished_game::work::professions::Command::PlanRoad {
+                    unbanished_game::work::professions::Command::PlanRoad {
                         cell,
                         kind: r.kind,
                         ty: r.ty,
@@ -888,7 +888,7 @@ impl RemovalTool {
                     if let Some(marker) = self.marker {
                         Self::command(
                             town,
-                            banished_game::work::professions::Command::ClearRoad {
+                            unbanished_game::work::professions::Command::ClearRoad {
                                 cell: i as i32,
                                 marker,
                             },
@@ -905,7 +905,7 @@ impl RemovalTool {
                         // The state machine's message 0: the demolition is called off.
                         Self::command(
                             town,
-                            banished_game::work::professions::Command::StateMessage {
+                            unbanished_game::work::professions::Command::StateMessage {
                                 entity: e,
                                 message: 0,
                             },
@@ -916,7 +916,7 @@ impl RemovalTool {
                     let entity = e.unwrap();
                     Self::command(
                         town,
-                        banished_game::work::professions::Command::Demolish { entity },
+                        unbanished_game::work::professions::Command::Demolish { entity },
                     );
                 }
                 if self.desc.priority {

@@ -2,8 +2,8 @@
 //! (`FUN_140119630`) field by its offset, the entity's model, character, AI, carried goods and
 //! icons, the town's citizen list, the homes' families and the services' attendees.
 
-use banished_formats::pkg::Archive;
-use banished_formats::savegame::{Fields, GameState, ObjId, Value};
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::savegame::{Fields, GameState, ObjId, Value};
 
 use super::create::{add_entity, new_entity, remove_entity};
 use super::{component, fields_mut, Ids, Refs};
@@ -60,7 +60,7 @@ impl StartingTown {
         // The disease list in the order `Agents::diseases` was read.
         let diseases: Vec<String> =
             crate::start::read(archive, "Game/Disease/Diseases.rsc:resource")
-                .and_then(|d| banished_formats::game::external_list(&d).ok())
+                .and_then(|d| unbanished_formats::game::external_list(&d).ok())
                 .unwrap_or_default();
         let entity = |p: Option<usize>| p.and_then(|p| ids.entity(p));
         let citizen = |c: Option<usize>| c.and_then(|c| ids.citizen(c));
@@ -181,7 +181,7 @@ impl StartingTown {
                 m.set("model.position", Value::F32s(ch.position.to_vec()));
                 if m.f32("model.yaw") != Some(ch.yaw) {
                     m.set_f32("model.yaw", ch.yaw);
-                    let q = banished_game::math::Transform::character_rotation(ch.yaw);
+                    let q = unbanished_game::math::Transform::character_rotation(ch.yaw);
                     m.set("model.rotation", Value::F32s(q.to_vec()));
                 }
             }

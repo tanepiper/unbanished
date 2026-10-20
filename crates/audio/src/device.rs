@@ -56,7 +56,7 @@ impl Sound {
 
     /// Load and decode a sound by resource reference (see [`crate::load_sound`]).
     pub fn load(
-        archive: &banished_formats::pkg::Archive,
+        archive: &unbanished_formats::pkg::Archive,
         reference: &str,
     ) -> Result<Sound, String> {
         let (pcm, looping) = crate::load_sound(archive, reference)?;
@@ -887,7 +887,7 @@ mod tests {
         assert_eq!(src.collect::<Vec<_>>(), vec![4.0, 5.0]);
     }
 
-    /// Needs an audio output: `cargo test -p banished-audio -- --ignored`.
+    /// Needs an audio output: `cargo test -p unbanished-audio -- --ignored`.
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     #[ignore]

@@ -1,8 +1,8 @@
-# banished-viewer
+# unbanished-viewer
 
 An asset browser for the game data of Banished. It shows the game's models (with their
 animations), textures, sounds and dialogs. It is drawn with the game's own interface system
-(`banished-ui`), so it also tests that system. It runs on the desktop and in the browser.
+(`unbanished-ui`), so it also tests that system. It runs on the desktop and in the browser.
 
 <p align="center">
   <img src="https://tanepiper.github.io/unbanished/assets/screenshots/viewer-models.webp" alt="The viewer in Models mode, showing the Town Hall model" width="860">
@@ -11,8 +11,8 @@ animations), textures, sounds and dialogs. It is drawn with the game's own inter
 ## Build and run
 
 ```bash
-cargo run -p banished-viewer --release                       # reads game-data/original/WinData
-cargo run -p banished-viewer --release -- /path/to/WinData   # or another WinData folder
+cargo run -p unbanished-viewer --release                       # reads game-data/original/WinData
+cargo run -p unbanished-viewer --release -- /path/to/WinData   # or another WinData folder
 ```
 
 In the browser:
@@ -59,8 +59,8 @@ Two commands draw without a window and stop. They read `game-data/original/WinDa
 
 | Command | What it does |
 |---|---|
-| `banished-viewer --screenshot FILE.png [MODE] [FILTER]` | Draw the whole viewer at 1400 × 860. `MODE` is `models`, `textures`, `audio` or `dialogs`. `FILTER` selects the first resource whose name contains it. |
-| `banished-viewer --capture OUT_DIR [FILTER …]` | Draw every mesh whose name contains one of the filters, alone, as a 512 × 512 PNG in `OUT_DIR` |
+| `unbanished-viewer --screenshot FILE.png [MODE] [FILTER]` | Draw the whole viewer at 1400 × 860. `MODE` is `models`, `textures`, `audio` or `dialogs`. `FILTER` selects the first resource whose name contains it. |
+| `unbanished-viewer --capture OUT_DIR [FILTER …]` | Draw every mesh whose name contains one of the filters, alone, as a 512 × 512 PNG in `OUT_DIR` |
 
 For `--capture`, two environment variables pose animated meshes:
 
@@ -71,11 +71,11 @@ For `--capture`, two environment variables pose animated meshes:
 
 ```bash
 # The screenshots on this page
-banished-viewer --screenshot models.png models TownHallMesh
-banished-viewer --screenshot dialogs.png dialogs MainMenu_resource
+unbanished-viewer --screenshot models.png models TownHallMesh
+unbanished-viewer --screenshot dialogs.png dialogs MainMenu_resource
 
 # Every chicken mesh, in the Walk clip at 0.5 seconds
-VIEWER_POSE=Walk@0.5 VIEWER_ANIMS=Chicken banished-viewer --capture chickens/ ChickenMesh
+VIEWER_POSE=Walk@0.5 VIEWER_ANIMS=Chicken unbanished-viewer --capture chickens/ ChickenMesh
 ```
 
 A sequence of `--capture` runs at increasing times gives the frames of an animation. The

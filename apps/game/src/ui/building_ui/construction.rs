@@ -186,7 +186,7 @@ impl DestroyUi {
     /// message 0: rebuild), `0x1773` `FUN_1401239a0` (state message 1: clear it).
     pub fn click(&self, node: NodeId, data: &EntityData) -> Option<WorkPlaceClick> {
         let entity = data.destroy?.entity;
-        use banished_game::work::professions::Command;
+        use unbanished_game::work::professions::Command;
         if Some(node) == self.reclaim {
             return Some(WorkPlaceClick::Command(Command::CancelDemolition {
                 entity,
@@ -357,7 +357,7 @@ impl BuildUi {
 
     /// Element 6000: `SetEnabled(+0x50 == 0)`.
     pub fn click(&self, id: NodeId, data: &EntityData) -> Option<WorkPlaceClick> {
-        use banished_game::work::professions::Command;
+        use unbanished_game::work::professions::Command;
         let b = data.build.as_ref()?;
         let enabled = b.enabled?;
         (Some(id) == self.pause).then_some(WorkPlaceClick::Command(Command::SetEnabled {

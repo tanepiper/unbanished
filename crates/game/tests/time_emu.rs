@@ -1,7 +1,7 @@
 //! `scheduler::ticks` and `scheduler::seconds` against the Runtime's `System::Time`
 //! (`tools/emu/time.py`; skipped without its output in game-data/derived/emu).
 
-use banished_game::scheduler::{seconds, ticks};
+use unbanished_game::scheduler::{seconds, ticks};
 
 #[test]
 fn matches_the_runtime() {

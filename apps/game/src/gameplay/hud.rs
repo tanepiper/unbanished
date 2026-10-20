@@ -7,8 +7,8 @@ impl GameplayLoop {
     pub(super) fn build_hud(
         &mut self,
         ui: &mut Ui,
-        archive: &banished_formats::pkg::Archive,
-        registry: &banished_formats::registry::Registry,
+        archive: &unbanished_formats::pkg::Archive,
+        registry: &unbanished_formats::registry::Registry,
         keymap: &crate::keymap::KeyMap,
         #[cfg_attr(target_arch = "wasm32", allow(unused_variables))] autosave_interval: i32,
     ) {
@@ -28,12 +28,12 @@ impl GameplayLoop {
     /// The values the Status Bar's FUN_14007eda0 reads from the starting town and environment.
     pub(super) fn status_values(&self) -> StatusValues {
         let summary = self.town.as_ref().map_or_else(Default::default, |t| {
-            banished_game::people::status::aggregate(
+            unbanished_game::people::status::aggregate(
                 t.citizens
                     .iter()
                     .zip(&t.agents.states)
                     .filter(|(c, _)| c.alive)
-                    .map(|(c, s)| banished_game::people::status::CitizenValue {
+                    .map(|(c, s)| unbanished_game::people::status::CitizenValue {
                         age: c.age,
                         adult_age: t.rules.adult_age,
                         school: c.school.is_some(),
@@ -77,7 +77,7 @@ impl GameplayLoop {
             // `FUN_14008f3a0`, recomputed from the town storages.
             stock_limits: self.stock_warnings.limits,
             stock: self.town.as_ref().map_or([0; 21], |t| {
-                banished_game::work::stock::stock_table(&t.registered_storages(), &t.materials)
+                unbanished_game::work::stock::stock_table(&t.registered_storages(), &t.materials)
             }),
             show_celsius: self.show_celsius,
             citizens: self.town.as_ref().map_or(Vec::new(), |t| {
@@ -128,7 +128,7 @@ impl GameplayLoop {
 
     pub(super) fn population(&self) -> (u32, u32, u32) {
         self.town.as_ref().map_or((0, 0, 0), |t| {
-            banished_game::people::citizens::population(&t.citizens, &t.rules)
+            unbanished_game::people::citizens::population(&t.citizens, &t.rules)
         })
     }
 
@@ -138,7 +138,7 @@ impl GameplayLoop {
         let Some((source, root, controllers)) = ctx.ui.new_tooltip() else {
             return;
         };
-        if !controllers.contains(&banished_ui::tooltip_controller::BUILD_REQUIREMENT) {
+        if !controllers.contains(&unbanished_ui::tooltip_controller::BUILD_REQUIREMENT) {
             return;
         }
         let Some((template, description)) =
@@ -151,7 +151,7 @@ impl GameplayLoop {
             .archive
             .read_ref(&format!("{file}:build"))
             .ok()
-            .and_then(|d| banished_formats::game::build_description(&d).ok());
+            .and_then(|d| unbanished_formats::game::build_description(&d).ok());
         crate::ui::create_bar::fill_requirements(
             ctx.ui,
             ctx.archive,

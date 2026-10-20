@@ -119,7 +119,7 @@ evidence; static traces are not claims of live-game behavior.
 - [x] Spatial AnimAudioEvent/SoundEffect dispatch (see [AUDIO.md](AUDIO.md)).
 - [ ] Shared/blended animation states.
 - [x] GPU-skin citizens with a per-instance bone palette (`MeshInstance::GetBones`), playing each
-  citizen's `Idle` clip; shared with the viewer (`banished_gfx::skin`). See
+  citizen's `Idle` clip; shared with the viewer (`unbanished_gfx::skin`). See
   [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md#skinning).
 - [ ] Port weather effects (rain/snow geometry, ambient audio, timed spawn) and connect weather to
   citizens, production, events, and resource consumption.

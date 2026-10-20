@@ -1,11 +1,11 @@
 //! Every shipped entity template and its model / natural-resource components parse completely
 //! (skipped without game-data/).
 
-use banished_formats::game::{
+use std::path::PathBuf;
+use unbanished_formats::game::{
     component_description, model_description, natural_resource_description,
 };
-use banished_formats::pkg::{Archive, Package};
-use std::path::PathBuf;
+use unbanished_formats::pkg::{Archive, Package};
 
 fn archive() -> Option<Archive> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../game-data/original/WinData");
@@ -22,7 +22,7 @@ fn archive() -> Option<Archive> {
 
 #[test]
 fn storage_search_descriptions_parse() {
-    use banished_formats::{
+    use unbanished_formats::{
         crc::type_id,
         crs,
         game::{radius_description, storage_location_description},
@@ -123,7 +123,7 @@ fn natural_resources_parse() {
 
 #[test]
 fn growth_spawn_map_parse() {
-    use banished_formats::game::{growth_description, map_description, spawn_description};
+    use unbanished_formats::game::{growth_description, map_description, spawn_description};
     let Some(archive) = archive() else { return };
     let growth = entries(&archive, "_growth.crs");
     assert_eq!(growth.len(), 22);
@@ -153,7 +153,7 @@ fn growth_spawn_map_parse() {
 
 #[test]
 fn create_placed_parse() {
-    use banished_formats::game::create_placed_description;
+    use unbanished_formats::game::create_placed_description;
     let Some(archive) = archive() else { return };
     let names = entries(&archive, "_createplaced.crs");
     assert!(names.len() > 40, "{}", names.len());
@@ -173,7 +173,7 @@ fn create_placed_parse() {
 
 #[test]
 fn raw_materials_and_storage_parse() {
-    use banished_formats::game::{raw_material_description, storage_description};
+    use unbanished_formats::game::{raw_material_description, storage_description};
     let Some(archive) = archive() else { return };
     for name in entries(&archive, "_rawmaterial.crs") {
         let r = raw_material_description(&archive.read(name).unwrap())
@@ -194,7 +194,7 @@ fn raw_materials_and_storage_parse() {
 
 #[test]
 fn citizen_description_parses() {
-    use banished_formats::game::citizen_description;
+    use unbanished_formats::game::citizen_description;
     let Some(archive) = archive() else { return };
     let c =
         citizen_description(&archive.read_ref("Template/Citizen.rsc:citizen").unwrap()).unwrap();
@@ -212,7 +212,7 @@ fn citizen_description_parses() {
 
 #[test]
 fn build_descriptions_parse() {
-    use banished_formats::game::build_description;
+    use unbanished_formats::game::build_description;
     let Some(archive) = archive() else { return };
     let names = entries(&archive, "_build.crs");
     assert!(names.len() >= 27, "{}", names.len());
@@ -227,7 +227,7 @@ fn build_descriptions_parse() {
 
 #[test]
 fn professions_parse() {
-    use banished_formats::game::{external_list, profession};
+    use unbanished_formats::game::{external_list, profession};
     let Some(archive) = archive() else { return };
     let list = external_list(
         &archive
@@ -249,7 +249,7 @@ fn character_descriptions_parse() {
     let mut n = 0;
     for name in entries(&archive, "_character.crs") {
         let data = archive.read(name).unwrap();
-        let c = banished_formats::game::character_description(&data)
+        let c = unbanished_formats::game::character_description(&data)
             .unwrap_or_else(|e| panic!("{name}: {e}"));
         if name.contains("Citizen_") {
             eprintln!("{name}: {c:?}");
@@ -264,16 +264,16 @@ fn interact_descriptions_resolve_points() {
     let Some(archive) = archive() else { return };
     let mut n = 0;
     for name in entries(&archive, "_interact.crs") {
-        let d = banished_formats::game::interact_description(&archive.read(name).unwrap())
+        let d = unbanished_formats::game::interact_description(&archive.read(name).unwrap())
             .unwrap_or_else(|e| panic!("{name}: {e}"));
         // A few (the Cemetery) have no points.
         let Some(r) = d.points else { continue };
         let file = r.split(':').next().unwrap().replace('\\', "/");
-        let list = banished_formats::game::point_list(
+        let list = unbanished_formats::game::point_list(
             &archive.read_ref(&format!("{file}:resource")).unwrap(),
         )
         .unwrap_or_else(|e| panic!("{name} {r}: {e}"));
-        let uses = banished_formats::game::interaction_points(&list, 0).len();
+        let uses = unbanished_formats::game::interaction_points(&list, 0).len();
         if name.contains("StorageBarn") || name.contains("StorageCart") {
             eprintln!("{name}: {r} use {uses} {:?}", list.points);
         }
@@ -287,7 +287,7 @@ fn status_icon_descriptions_parse() {
     let Some(archive) = archive() else { return };
     let mut n = 0;
     for name in entries(&archive, "_statusicon.crs") {
-        let d = banished_formats::game::status_icon_description(&archive.read(name).unwrap())
+        let d = unbanished_formats::game::status_icon_description(&archive.read(name).unwrap())
             .unwrap_or_else(|e| panic!("{name}: {e}"));
         assert!(d.sheet.is_some() && d.size > 0.0, "{name}");
         n += 1;
@@ -298,7 +298,7 @@ fn status_icon_descriptions_parse() {
 /// The removal tools' descriptions and every CreateDragDescription parse completely.
 #[test]
 fn removal_descriptions_parse() {
-    use banished_formats::{
+    use unbanished_formats::{
         crc::type_id,
         crs,
         game::{create_drag_description, create_removal_description},
@@ -346,7 +346,7 @@ fn removal_descriptions_parse() {
 /// Every shipped ConsumeProduceDescription parses completely (docs/SHIPPED-PRODUCTION-RECIPES.md).
 #[test]
 fn consume_produce_descriptions_parse() {
-    use banished_formats::{crc::type_id, crs, game::consume_produce_description};
+    use unbanished_formats::{crc::type_id, crs, game::consume_produce_description};
     let Some(archive) = archive() else { return };
     let mut found = Vec::new();
     for name in archive.names() {
@@ -385,7 +385,7 @@ fn consume_produce_descriptions_parse() {
 
 #[test]
 fn herbalist_and_auto_pickup_descriptions_parse() {
-    use banished_formats::{
+    use unbanished_formats::{
         crc::type_id,
         crs,
         game::{auto_pickup_description, herbalist_description},
@@ -433,7 +433,7 @@ fn herbalist_and_auto_pickup_descriptions_parse() {
 
 #[test]
 fn forester_description_parses() {
-    use banished_formats::game::forester_description;
+    use unbanished_formats::game::forester_description;
     let Some(archive) = archive() else { return };
     let d = forester_description(
         &archive
@@ -450,7 +450,7 @@ fn forester_description_parses() {
 
 #[test]
 fn happiness_descriptions_parse() {
-    use banished_formats::game::happiness_description;
+    use unbanished_formats::game::happiness_description;
     let Some(archive) = archive() else { return };
     let read = |n: &str| {
         happiness_description(
@@ -473,7 +473,7 @@ fn happiness_descriptions_parse() {
 
 #[test]
 fn fishing_description_parses() {
-    use banished_formats::game::fishing_description;
+    use unbanished_formats::game::fishing_description;
     let Some(archive) = archive() else { return };
     let d = fishing_description(
         &archive
@@ -490,7 +490,7 @@ fn fishing_description_parses() {
 
 #[test]
 fn wildlife_descriptions_parse() {
-    use banished_formats::game::{
+    use unbanished_formats::game::{
         animal_description, herd_description, hunt_description, population_description,
     };
     let Some(archive) = archive() else { return };
@@ -521,7 +521,7 @@ fn wildlife_descriptions_parse() {
 
 #[test]
 fn pasture_descriptions_parse() {
-    use banished_formats::game::{
+    use unbanished_formats::game::{
         animal_description, create_fenced_description, create_placed_description,
         livestock_description, pasture_description,
     };
@@ -563,7 +563,7 @@ fn pasture_descriptions_parse() {
 
 #[test]
 fn disease_descriptions_parse() {
-    use banished_formats::game::disease_description;
+    use unbanished_formats::game::disease_description;
     let Some(archive) = archive() else { return };
     let read = |r: &str| disease_description(&archive.read_ref(r).unwrap()).unwrap();
     let field = read("Template/CropField.rsc:disease");
@@ -582,7 +582,7 @@ fn disease_descriptions_parse() {
 
 #[test]
 fn cemetery_descriptions_parse() {
-    use banished_formats::game::{cemetery_description, tombstone_description};
+    use unbanished_formats::game::{cemetery_description, tombstone_description};
     let Some(archive) = archive() else { return };
     let read = |r: &str| archive.read_ref(r).unwrap();
     assert_eq!(
@@ -599,7 +599,7 @@ fn cemetery_descriptions_parse() {
 
 #[test]
 fn market_description_parses() {
-    use banished_formats::game::market_description;
+    use unbanished_formats::game::market_description;
     let Some(archive) = archive() else { return };
     let d = market_description(&archive.read_ref("Template/Market.rsc:market").unwrap()).unwrap();
     assert!((d.threshold - 0.99).abs() < 1e-6);
@@ -611,7 +611,7 @@ fn market_description_parses() {
 
 #[test]
 fn decal_descriptions_parse() {
-    use banished_formats::game::decal_description;
+    use unbanished_formats::game::decal_description;
     let Some(archive) = archive() else { return };
     let names = entries(&archive, "_decal.crs");
     assert_eq!(names.len(), 33);
@@ -633,7 +633,7 @@ fn decal_descriptions_parse() {
 
 #[test]
 fn particles_parse() {
-    use banished_formats::{crc::type_id, crs, game};
+    use unbanished_formats::{crc::type_id, crs, game};
     let Some(archive) = archive() else { return };
     let mut counts = (0, 0);
     for name in archive.names() {
@@ -667,11 +667,11 @@ fn particles_parse() {
 #[test]
 fn quarry_description_parses() {
     let Some(archive) = archive() else { return };
-    let q = banished_formats::game::quarry_description(
+    let q = unbanished_formats::game::quarry_description(
         &archive.read_ref("Template/Quarry.rsc:quarry").unwrap(),
     )
     .unwrap();
-    let mesh = banished_formats::picking::picking_mesh(
+    let mesh = unbanished_formats::picking::picking_mesh(
         &archive
             .read_ref(&q.mesh.clone().unwrap().replace('\\', "/"))
             .unwrap(),
@@ -679,7 +679,7 @@ fn quarry_description_parses() {
     .unwrap();
     assert_eq!((q.shallow, q.deep), (-1.4, -7.0));
     assert!(100 < mesh.meshes[0].vertices.len());
-    let cp = banished_formats::game::consume_produce_description(
+    let cp = unbanished_formats::game::consume_produce_description(
         &archive
             .read_ref("Template/Quarry.rsc:consumeproduce")
             .unwrap(),
@@ -691,7 +691,7 @@ fn quarry_description_parses() {
 /// Profession `+0x4d` (no disease while at work) is the doctor's alone.
 #[test]
 fn only_the_doctor_is_immune_at_work() {
-    use banished_formats::game::{external_list, profession};
+    use unbanished_formats::game::{external_list, profession};
     let Some(archive) = archive() else { return };
     let list = external_list(
         &archive
@@ -713,7 +713,7 @@ fn only_the_doctor_is_immune_at_work() {
 
 #[test]
 fn tornado_particles_parse() {
-    use banished_formats::game;
+    use unbanished_formats::game;
     let Some(archive) = archive() else { return };
     let t = game::tornado_particle(
         &archive

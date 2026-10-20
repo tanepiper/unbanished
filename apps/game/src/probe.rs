@@ -5,7 +5,7 @@
 //! | Command | Answer |
 //! |---|---|
 //! | `state` | the current loop (`Game/Menu`, `Game/Game`, …) and the open dialogs |
-//! | `ui QUERY` | every shown element matching the query ([`banished_ui::Query`]) |
+//! | `ui QUERY` | every shown element matching the query ([`unbanished_ui::Query`]) |
 //! | `click QUERY` | clicks the first usable match through the normal pointer path |
 //! | `combo NAME=ITEM` | selects a combo item by its text |
 //! | `type NAME=TEXT` | clicks an edit, empties it and types the text |
@@ -20,8 +20,8 @@
 //! game is the same game a player would get from the same input.
 
 use crate::Game;
-use banished_ui::Query;
 use serde_json::{json, Value};
+use unbanished_ui::Query;
 
 /// Run one probe command against `game`, laid out for a window of `size` physical pixels.
 pub fn run(game: &mut Game, size: (u32, u32), command: &str) -> Result<Value, String> {
@@ -100,7 +100,7 @@ fn state(game: &Game) -> Value {
 }
 
 /// The shown elements matching `query` in the current screen's dialogs, top dialog first.
-fn find(game: &mut Game, size: (u32, u32), query: &Query) -> Vec<banished_ui::NodeId> {
+fn find(game: &mut Game, size: (u32, u32), query: &Query) -> Vec<unbanished_ui::NodeId> {
     let size = game.logical(size);
     let Some(screen) = game.main.current().screen() else {
         return Vec::new();
@@ -110,7 +110,7 @@ fn find(game: &mut Game, size: (u32, u32), query: &Query) -> Vec<banished_ui::No
     game.ui.query(&roots, query)
 }
 
-fn element(game: &Game, id: banished_ui::NodeId) -> Value {
+fn element(game: &Game, id: unbanished_ui::NodeId) -> Value {
     let i = game.ui.info(id);
     let mut v = json!({
         "name": i.name,

@@ -1,4 +1,4 @@
-# banished-path
+# unbanished-path
 
 A port of Banished's path finding. It finds the cells a citizen or an animal walks along, and the
 "path rank" distance that the game uses to choose the nearest storage, job or resource. Both are
@@ -9,25 +9,25 @@ tested against output recorded from the original functions in the emulator.
 | `pathfind` | Walkable regions, the A* pathfinder over the cell grid, request checks, cost tables |
 | `sectors` | The sector graph: the map cut into 8 × 8-cell sectors, linked areas, and cached distances |
 
-`banished-game` re-exports both modules as `banished_game::pathfind` and
-`banished_game::sectors`.
+`unbanished-game` re-exports both modules as `unbanished_game::pathfind` and
+`unbanished_game::sectors`.
 
 ## Use it
 
 ```toml
 [dependencies]
-banished-path = { path = "crates/path" }
-banished-terrain = { path = "crates/terrain" }   # for CellType
+unbanished-path = { path = "crates/path" }
+unbanished-terrain = { path = "crates/terrain" }   # for CellType
 ```
 
 Cells are numbered row by row: cell `y * size + x` on a map of `size × size` cells. Each cell has
-a `CellType` from `banished-terrain`.
+a `CellType` from `unbanished-terrain`.
 
 ### Find a path
 
 ```rust
-use banished_path::pathfind::{regions, request, Pathfinder, WALKABLE};
-use banished_terrain::CellType;
+use unbanished_path::pathfind::{regions, request, Pathfinder, WALKABLE};
+use unbanished_terrain::CellType;
 
 fn walk(size: usize, types: &[CellType], from: i32, to: i32) -> Option<Vec<i32>> {
     // Label the connected walkable areas. A request between two areas fails at once.
@@ -54,8 +54,8 @@ is the same.
 ### Rank distances
 
 ```rust
-use banished_path::sectors::SectorGraph;
-use banished_terrain::CellType;
+use unbanished_path::sectors::SectorGraph;
+use unbanished_terrain::CellType;
 
 fn rank(size: usize, types: &[CellType], a: i32, b: i32) -> i32 {
     let mut graph = SectorGraph::new(size, types);
@@ -70,8 +70,8 @@ marked sectors before the next search. `age_cache(dt)` ages the cached distances
 ## Tests
 
 ```bash
-cargo test --release -p banished-path
-cargo test --release -p banished-game --test astar_emu --test regions_emu --test sectors_emu
+cargo test --release -p unbanished-path
+cargo test --release -p unbanished-game --test astar_emu --test regions_emu --test sectors_emu
 ```
 
 The `*_emu` tests compare with output from `tools/emu/astar.py`, `regions.py` and `sectors.py`,
@@ -80,7 +80,7 @@ and skip when it is missing.
 ## The API
 
 The full API documentation is at
-<https://tanepiper.github.io/unbanished/api/banished_path/index.html>.
+<https://tanepiper.github.io/unbanished/api/unbanished_path/index.html>.
 
 ## Related documents
 

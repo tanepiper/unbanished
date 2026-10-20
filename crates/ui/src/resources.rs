@@ -4,9 +4,9 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use banished_formats::pkg::Archive;
-use banished_formats::types;
-use banished_formats::ui::{self, Element, Font, SpriteSheet};
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::types;
+use unbanished_formats::ui::{self, Element, Font, SpriteSheet};
 
 /// Index of a sprite sheet in [`Resources::sheets`].
 pub type SheetId = usize;

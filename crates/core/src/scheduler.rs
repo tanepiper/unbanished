@@ -10,7 +10,7 @@
 //! stopped. Each entity receives the time since its own last visit, so no time is lost.
 //!
 //! ```
-//! use banished_core::scheduler::{seconds, ticks};
+//! use unbanished_core::scheduler::{seconds, ticks};
 //!
 //! assert_eq!(ticks(1.5), 1_500_000);
 //! assert_eq!(seconds(ticks(1.5)), 1.5);

@@ -3,7 +3,7 @@
 
 use std::{env, fs, process};
 
-use banished_formats::game::climate_generator;
+use unbanished_formats::game::climate_generator;
 
 fn main() {
     let paths: Vec<_> = env::args_os().skip(1).collect();

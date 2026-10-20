@@ -23,7 +23,7 @@ impl GameplayLoop {
                     .map(|(i, (w, _))| {
                         let r = w.as_deref()?.replace('\\', "/");
                         let data = ctx.archive.read_ref(&r).ok()?;
-                        let desc = banished_formats::weather::weather(&data).ok()?;
+                        let desc = unbanished_formats::weather::weather(&data).ok()?;
                         Some(crate::view::weather::Precipitation::new(
                             desc,
                             0x7ea7 + i as u32,
@@ -45,7 +45,7 @@ impl GameplayLoop {
                 );
                 // `FUN_1400a87d0`: start point, structures and natural resources, drawn from
                 // the game stream before anything else consumes it.
-                let grid = banished_game::terrain::HeightGrid {
+                let grid = unbanished_game::terrain::HeightGrid {
                     width: world.terrain.size + 1,
                     heights: &world.terrain.heights,
                 };
@@ -137,11 +137,11 @@ impl GameplayLoop {
                 // The decals are built now too, so the renderer uploads them with the world;
                 // the first frame rebuilds them only if the town changed meanwhile. The sounds
                 // decode on other threads meanwhile (native).
-                let archive: &banished_formats::pkg::Archive = ctx.archive;
+                let archive: &unbanished_formats::pkg::Archive = ctx.archive;
                 let effects: Vec<&str> = effects.iter().map(String::as_str).collect();
                 let effects = ctx.audio.missing_effects(&effects);
-                let (sounds, ()) = banished_formats::par::join(
-                    || banished_audio::EffectCache::prepare(archive, &effects),
+                let (sounds, ()) = unbanished_formats::par::join(
+                    || unbanished_audio::EffectCache::prepare(archive, &effects),
                     || self.refresh_decals(archive),
                 );
                 ctx.audio.add_prepared(sounds);
@@ -162,7 +162,7 @@ impl GameplayLoop {
                     env.fade_times[slot] = weather
                         .as_deref()
                         .and_then(|r| ctx.archive.read_ref(&r.replace('\\', "/")).ok())
-                        .and_then(|d| banished_formats::weather::weather(&d).ok())
+                        .and_then(|d| unbanished_formats::weather::weather(&d).ok())
                         .map(|w| w.fade_time);
                 }
                 // Disasters off stop tornadoes (`Game +0xd0` bit 7).

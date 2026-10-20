@@ -1,5 +1,5 @@
 [package]
-name = "banished-mods"
+name = "unbanished-mods"
 version.workspace = true
 description = "The Banished mod list shared by the Un-Banished game and its mod manager: the .pkm packages, which are enabled, their order and their conflicts"
 edition.workspace = true
@@ -7,7 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-banished-formats = { path = "../formats" }
+unbanished-formats = { path = "../formats" }
 log = "0.4"
 png = "0.18"
 zune-jpeg = "0.5.15"

@@ -6,9 +6,9 @@
 //! The kinds' materials are the road templates' DecalDescriptions (`Template\StoneRoad.rsc`,
 //! kind 0, and `Template\DirtRoad.rsc`, kind 1), the map's `+0x210` list.
 
-use banished_formats::pkg::Archive;
-use banished_game::nature::seeding::Cells;
-use banished_game::terrain::HeightGrid;
+use unbanished_formats::pkg::Archive;
+use unbanished_game::nature::seeding::Cells;
+use unbanished_game::terrain::HeightGrid;
 
 use crate::view::scene_assets::DecalData;
 
@@ -78,7 +78,7 @@ pub fn materials(archive: &Archive) -> Vec<Option<String>> {
     .iter()
     .map(|r| {
         let data = archive.read_ref(r).ok()?;
-        banished_formats::game::decal_description(&data)
+        unbanished_formats::game::decal_description(&data)
             .ok()?
             .materials
             .into_iter()

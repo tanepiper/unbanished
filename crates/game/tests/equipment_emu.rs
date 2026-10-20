@@ -1,5 +1,5 @@
-use banished_game::behaviour::agents::{CitizenRulesAi, CitizenState};
-use banished_game::behaviour::character::{Component, Message};
+use unbanished_game::behaviour::agents::{CitizenRulesAi, CitizenState};
+use unbanished_game::behaviour::character::{Component, Message};
 
 #[test]
 fn original_equipment_messages() {

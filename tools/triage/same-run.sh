@@ -15,13 +15,13 @@ save="$3"
 secs="${4:-40}"
 speed="${5:-10}"
 out="$(mktemp -d "${TMPDIR:-/tmp}/same-run.XXXXXX")"
-cargo build -q --release -p banished-app --example imgdiff
-cargo build -q --release -p banished-formats --example savegame_same
+cargo build -q --release -p unbanished-app --example imgdiff
+cargo build -q --release -p unbanished-formats --example savegame_same
 for run in base new; do
   bin="$base"
   [[ "$run" == new ]] && bin="$new"
   mkdir -p "$out/$run/user"
-  BANISHED_USER_DIR="$out/$run/user" BANISHED_SETTINGS="$out/$run/settings.txt" BANISHED_SEED=1234 \
+  UNBANISHED_USER_DIR="$out/$run/user" UNBANISHED_SETTINGS="$out/$run/settings.txt" UNBANISHED_SEED=1234 \
     "$bin" --boot-capture "$out/$run.png" "$((secs + 2))" --capture-size 1280x800 \
     --script "load $save@4.5" --script "speed $speed@10" \
     --script "toggle_pause@$secs" --script "save $out/$run.sav@$((secs + 1))" \

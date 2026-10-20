@@ -36,7 +36,7 @@ impl Ui {
         Some(id)
     }
 
-    pub(super) fn text_data(&mut self, t: &banished_formats::ui::Text) -> TextData {
+    pub(super) fn text_data(&mut self, t: &unbanished_formats::ui::Text) -> TextData {
         let font = t.font.as_deref().and_then(|f| self.res.font(f));
         let text = self.res.string(t.string_table.as_deref(), &t.text);
         TextData {

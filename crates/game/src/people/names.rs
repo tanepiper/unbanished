@@ -5,7 +5,7 @@
 //! while the candidate is a name the game ships), `FUN_1400aa130` (citizens), `FUN_14009ef90`
 //! (towns).
 
-use banished_formats::names::NameDatabase;
+use unbanished_formats::names::NameDatabase;
 
 use crate::random::Random;
 

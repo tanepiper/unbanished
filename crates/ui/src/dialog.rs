@@ -45,7 +45,7 @@ impl DialogInstance {
 impl Ui {
     /// Build a dialog from its resource, for example `Dialog/MainMenu.rsc:resource`.
     pub fn instantiate_dialog(&mut self, reference: &str) -> Option<DialogInstance> {
-        let d = banished_formats::ui::dialog(&self.res.archive.read_ref(reference).ok()?).ok()?;
+        let d = unbanished_formats::ui::dialog(&self.res.archive.read_ref(reference).ok()?).ok()?;
         // Ghidra Dialog::CreateElement (0x180115760): match the requested path identifier
         // against the named list; a null replacement suppresses that slot.
         let overrides: HashMap<_, _> = d

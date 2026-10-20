@@ -23,8 +23,8 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::Duration;
 
-use banished_formats::audio::SoundEffect;
 use glam::Vec3;
+use unbanished_formats::audio::SoundEffect;
 
 use crate::device::{Channel, PlayParams, Sound};
 
@@ -142,7 +142,7 @@ impl EffectCache {
     /// An effect by its reference, loaded and decoded the first time it is asked for.
     pub fn get(
         &mut self,
-        archive: &banished_formats::pkg::Archive,
+        archive: &unbanished_formats::pkg::Archive,
         reference: &str,
     ) -> Option<Rc<Effect>> {
         let key = reference.replace('/', "\\");
@@ -154,7 +154,7 @@ impl EffectCache {
 
     /// Load every effect of `references` that is not loaded yet, as [`EffectCache::get`] would
     /// one by one.
-    pub fn preload(&mut self, archive: &banished_formats::pkg::Archive, references: &[&str]) {
+    pub fn preload(&mut self, archive: &unbanished_formats::pkg::Archive, references: &[&str]) {
         let missing = self.missing(references);
         if !missing.is_empty() {
             self.add(Self::prepare(archive, &missing));
@@ -173,7 +173,7 @@ impl EffectCache {
     /// Read and decode effects without the cache, so that it can run on another thread while
     /// the caller loads something else. Each sound buffer decodes on its own (a pure function
     /// of its data), so all the buffers of all the effects decode in parallel (native).
-    pub fn prepare(archive: &banished_formats::pkg::Archive, references: &[&str]) -> Prepared {
+    pub fn prepare(archive: &unbanished_formats::pkg::Archive, references: &[&str]) -> Prepared {
         let mut keys: Vec<String> = Vec::new();
         for r in references {
             let key = r.replace('/', "\\");
@@ -186,7 +186,7 @@ impl EffectCache {
             .map(|key| {
                 let path = key.replace('\\', "/");
                 let bytes = archive.read_ref(&path).map_err(|_| None)?;
-                banished_formats::audio::sound_effect(&bytes).map_err(|e| Some(e.to_string()))
+                unbanished_formats::audio::sound_effect(&bytes).map_err(|e| Some(e.to_string()))
             })
             .collect();
         let buffers: Vec<Option<String>> = descs
@@ -195,7 +195,7 @@ impl EffectCache {
             .flat_map(|d| d.sounds.iter().flat_map(|s| &s.variants))
             .map(|v| Some(v.buffer.as_deref()?.replace('\\', "/")))
             .collect();
-        let decoded = banished_formats::par::map(&buffers, |r| {
+        let decoded = unbanished_formats::par::map(&buffers, |r| {
             r.as_deref().map(|r| crate::load_sound(archive, r))
         });
         Prepared {
@@ -708,7 +708,7 @@ impl Scene {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use banished_formats::audio::{EffectSound, SoundVariant};
+    use unbanished_formats::audio::{EffectSound, SoundVariant};
 
     #[derive(Default)]
     struct Fake {

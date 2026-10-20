@@ -8,7 +8,7 @@
 //! `sqrtf` are correctly rounded in both, so Rust's own functions give the same results.
 //!
 //! ```
-//! use banished_core::crt;
+//! use unbanished_core::crt;
 //!
 //! let s = crt::sinf(0.5);
 //! let angle = crt::atan2f(1.0, 2.0);

@@ -2,12 +2,12 @@
 
 use std::rc::Rc;
 
-use banished_formats::crc::type_id;
-use banished_formats::pkg::{Archive, Package};
-use banished_formats::types::{
+use unbanished_formats::crc::type_id;
+use unbanished_formats::pkg::{Archive, Package};
+use unbanished_formats::types::{
     self, AnimationClip, AnimationGroup, GraphicsMesh, ImageBuffer, MaterialInstance, SoundBuffer,
 };
-use banished_formats::{crs, Result};
+use unbanished_formats::{crs, Result};
 
 pub struct Assets {
     pub archive: Rc<Archive>,

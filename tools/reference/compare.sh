@@ -6,13 +6,13 @@
 #     REF        reference id under game-data/reference (e.g. seed-999518904/start-t0)
 #     SECONDS    simulated time of the port capture
 #     PORT-ARGS  scripted boot-capture options (--press, --combo, --wheel, --script ...);
-#                env such as BANISHED_SEED is passed through
+#                env such as UNBANISHED_SEED is passed through
 #
 # Black bars around the reference are removed first (a stream of the original at another aspect
 # ratio); pass --no-autocrop for frames whose UI is legitimately black at the edges (main menu).
 # Writes game-data/reference/compare/REF/{port.png,panels.png,heat.png,report.json} and prints
 # the report. Example:
-#   BANISHED_SEED=999518904 tools/reference/compare.sh seed-999518904/start-t0 \
+#   UNBANISHED_SEED=999518904 tools/reference/compare.sh seed-999518904/start-t0 \
 #     --ignore 0,0,120,130 -- 16 --press buttonNew@4.5 --combo comboTerrain=Mountains@4.8 \
 #     --combo comboTerrainSize=Small@4.8 --press buttonOk@5.0 --wheel -1@9 ...
 set -euo pipefail
@@ -33,7 +33,7 @@ secs="$1"; shift
 src="game-data/reference/$ref.png"
 out="game-data/reference/compare/$ref"
 mkdir -p "$out"
-cargo build -q --release -p banished-app --bin banished --example imgdiff
+cargo build -q --release -p unbanished-app --bin unbanished --example imgdiff
 diff=./target/release/examples/imgdiff
 if [[ $autocrop == 1 ]]; then
   crop="$($diff "$src" --print-crop)"
@@ -42,7 +42,7 @@ else
   crop="0,0,$size"
 fi
 IFS=, read -r _ _ w h <<<"$crop"
-./target/release/banished --boot-capture "$out/port.png" "$secs" --capture-size "${w}x${h}" "$@" \
+./target/release/unbanished --boot-capture "$out/port.png" "$secs" --capture-size "${w}x${h}" "$@" \
   >"$out/port.log" 2>&1
 $diff "$src" "$out/port.png" --crop-a "$crop" --blur 3 --threshold 32 ${ignore[@]+"${ignore[@]}"} \
   --out "$out/heat.png" --compose "$out/panels.png" --json | tee "$out/report.json"

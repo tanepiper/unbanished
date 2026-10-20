@@ -4,11 +4,11 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use banished_formats::crc::type_id;
-use banished_formats::crs;
-use banished_formats::pkg::{Archive, Package};
-use banished_formats::types::{self, SoundBuffer};
-use banished_wma::{Decoder, Params};
+use unbanished_formats::crc::type_id;
+use unbanished_formats::crs;
+use unbanished_formats::pkg::{Archive, Package};
+use unbanished_formats::types::{self, SoundBuffer};
+use unbanished_wma::{Decoder, Params};
 
 const MIN_SNR_DB: f64 = 60.0;
 

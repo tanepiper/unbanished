@@ -1,4 +1,4 @@
-# banished-nexus
+# unbanished-nexus
 
 Optional [Nexus Mods](https://www.nexusmods.com/games/banished/mods) support for Un-Banished.
 It is not part of the original game: Banished's Steam version browses the Steam Workshop in the
@@ -20,11 +20,11 @@ answer from its bytes. So the game sends them with `fetch` in the browser and wi
 
 ```toml
 [dependencies]
-banished-nexus = { path = "../../crates/nexus", features = ["native"] }
+unbanished-nexus = { path = "../../crates/nexus", features = ["native"] }
 ```
 
 ```rust,ignore
-use banished_nexus::{api, native, App};
+use unbanished_nexus::{api, native, App};
 
 let app = App::un_banished("0.2.0");
 // Searches need no key.
@@ -33,7 +33,7 @@ for m in &page.mods {
     println!("{} {} by {}", m.mod_id, m.name, m.author);
 }
 // Downloads need the player's key, and Premium or an nxm:// link.
-let key = native::stored_key().expect("set BANISHED_NEXUS_API_KEY");
+let key = native::stored_key().expect("set UNBANISHED_NEXUS_API_KEY");
 let files = api::parse_files(&native::send(&api::files(&app, 19), false)?)?;
 let file = api::main_file(&files).unwrap();
 let source = native::Source::File { mod_id: 19, file_id: file.file_id, file_name: file.file_name.clone() };
@@ -45,7 +45,7 @@ native::install_from(&app, &key, &source, "WinData".as_ref(), |_| {})?;
 Nexus Mods asks every application to send its name and version (`Application-Name`,
 `Application-Version`), which `api::headers` does. A personal API key is for testing and personal
 use; a public build of Un-Banished needs a registered application. The key stays with the player
-(the settings file, `BANISHED_NEXUS_API_KEY`, or the browser's storage) and is sent only to
+(the settings file, `UNBANISHED_NEXUS_API_KEY`, or the browser's storage) and is sent only to
 `api.nexusmods.com`.
 
 Of the 80 Banished mods listed in October 2026, the main file was a `.zip` for 62, a `.7z` for 7

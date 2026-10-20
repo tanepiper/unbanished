@@ -1,5 +1,5 @@
 [package]
-name = "banished-ui"
+name = "unbanished-ui"
 version.workspace = true
 description = "Reimplementation of the Banished UI system: element tree, layout, drawing and input"
 edition.workspace = true
@@ -7,5 +7,5 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-banished-formats = { path = "../formats" }
+unbanished-formats = { path = "../formats" }
 log = "0.4"

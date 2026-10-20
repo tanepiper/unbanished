@@ -224,7 +224,7 @@ pub fn boot_capture(args: &[String], out: &str, seconds: f32) {
             std::thread::sleep(ahead);
         }
         // A 1/30 s frame is two of `MainLoop::Frame`'s 1/60 s steps.
-        let step = banished_game::scheduler::seconds(FRAME_STEP);
+        let step = unbanished_game::scheduler::seconds(FRAME_STEP);
         platform::perf::frame_begin();
         for _ in 0..2 {
             let _p = platform::perf::scope("update");
@@ -511,7 +511,7 @@ pub fn lockstep_test(args: &[String]) {
 }
 
 /// `--net-test RELAY host|join ROOM SAVE RECORDING PLAYERS [DELAY] [CHECK] [CORRUPT]`: one
-/// player of a networked lockstep game through a relay (`banished-relay`). The host opens
+/// player of a networked lockstep game through a relay (`unbanished-relay`). The host opens
 /// ROOM, waits for PLAYERS, and starts the game from SAVE (joining players get it from the
 /// host and ignore SAVE); each plays its share of RECORDING's commands and prints its
 /// digests. CORRUPT `UPDATE` scrambles this player's game there. tools/compat/network.sh runs
@@ -547,23 +547,23 @@ pub fn net_test(args: &[String]) {
     .expect("game data");
     game.audio.set_master_volume(0.0);
     let link = std::rc::Rc::new(std::cell::RefCell::new(RelayLink::new(
-        banished_net::Connection::connect(relay),
+        unbanished_net::Connection::connect(relay),
     )));
     let request = match host {
-        true => banished_net::ToRelay::Host {
+        true => unbanished_net::ToRelay::Host {
             room: Some(room.clone()),
         },
-        false => banished_net::ToRelay::Join { room: room.clone() },
+        false => unbanished_net::ToRelay::Join { room: room.clone() },
     };
     link.borrow_mut().request(request);
     // Who this player is, and (the host) everybody there.
-    let wait = |what: &str, done: &mut dyn FnMut(&banished_net::FromRelay) -> bool| {
+    let wait = |what: &str, done: &mut dyn FnMut(&unbanished_net::FromRelay) -> bool| {
         let start = std::time::Instant::now();
         loop {
             let _ = crate::gameplay::network::Link::poll(&mut *link.borrow_mut());
             let events: Vec<_> = link.borrow_mut().events.drain(..).collect();
             for e in &events {
-                if let banished_net::FromRelay::Error { message } = e {
+                if let unbanished_net::FromRelay::Error { message } = e {
                     eprintln!("relay: {message}");
                     std::process::exit(2);
                 }
@@ -571,7 +571,7 @@ pub fn net_test(args: &[String]) {
                     return;
                 }
             }
-            if let banished_net::State::Closed(e) = link.borrow().state() {
+            if let unbanished_net::State::Closed(e) = link.borrow().state() {
                 eprintln!("relay: {e}");
                 std::process::exit(2);
             }
@@ -584,8 +584,8 @@ pub fn net_test(args: &[String]) {
     };
     let mut me = 0u8;
     wait("the room", &mut |e| match e {
-        banished_net::FromRelay::Hosted { .. } => true,
-        banished_net::FromRelay::Joined { player, .. } => {
+        unbanished_net::FromRelay::Hosted { .. } => true,
+        unbanished_net::FromRelay::Joined { player, .. } => {
             me = *player;
             true
         }
@@ -600,7 +600,7 @@ pub fn net_test(args: &[String]) {
         if host {
             let mut joined = 1;
             wait("the players", &mut |e| {
-                if let banished_net::FromRelay::PeerJoined { .. } = e {
+                if let unbanished_net::FromRelay::PeerJoined { .. } = e {
                     joined += 1;
                 }
                 joined >= players

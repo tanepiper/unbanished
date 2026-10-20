@@ -15,9 +15,9 @@
 //!   time range (`timeCombo`, id `0x1964`; `graphCombo`, `0x1965`).
 //! - Farming (`FUN_1400840c0` / `FUN_1400816f0`): the known crops, trees and livestock.
 
-use banished_formats::pkg::Archive;
-use banished_game::work::tracker::Statistics;
-use banished_ui::{Control, Kind, NodeId, Ui};
+use unbanished_formats::pkg::Archive;
+use unbanished_game::work::tracker::Statistics;
+use unbanished_ui::{Control, Kind, NodeId, Ui};
 
 use crate::start::StartingTown;
 use crate::ui::building_ui::WorkPlaceClick;
@@ -186,7 +186,7 @@ impl TownHallUi {
                     archive
                         .read_ref(&reference.replace('\\', "/"))
                         .ok()
-                        .and_then(|d| banished_formats::game::profession(&d).ok()),
+                        .and_then(|d| unbanished_formats::game::profession(&d).ok()),
                 ) {
                     let t = p.string_table.as_deref();
                     let text = ui.res.string(t, &p.name);
@@ -537,7 +537,7 @@ impl TownHallUi {
             let Some(v) = archive
                 .read_ref(&format!("{file}:value"))
                 .ok()
-                .and_then(|d| banished_formats::game::value_description(&d).ok())
+                .and_then(|d| unbanished_formats::game::value_description(&d).ok())
             else {
                 continue;
             };
@@ -547,11 +547,11 @@ impl TownHallUi {
         // The CRT qsort: by quantity, most first, then name (`FUN_140015f10` with
         // `FUN_140081af0`), or by name (`FUN_140015c10` with `FUN_140081be0`).
         if by_count {
-            banished_game::behaviour::ai::crt_qsort_less(&mut rows, |a, b| {
+            unbanished_game::behaviour::ai::crt_qsort_less(&mut rows, |a, b| {
                 b.2 < a.2 || (a.2 == b.2 && crate::ui::building_ui::str_less(&a.0, &b.0))
             });
         } else {
-            banished_game::behaviour::ai::crt_qsort_less(&mut rows, |a, b| {
+            unbanished_game::behaviour::ai::crt_qsort_less(&mut rows, |a, b| {
                 crate::ui::building_ui::str_less(&a.0, &b.0)
             });
         }
@@ -720,7 +720,7 @@ impl TownHallUi {
                     return None;
                 }
                 return Some(WorkPlaceClick::Command(
-                    banished_game::work::professions::Command::SetCount {
+                    unbanished_game::work::professions::Command::SetCount {
                         profession: i,
                         count: v.clamp(0, count + free),
                     },
@@ -791,7 +791,7 @@ fn spinner_value(ui: &Ui, id: NodeId) -> Option<i32> {
 /// `SelectDescription` (serializer `FUN_140055f90`): `+0x20` sprite sheet, `+0x28` sprite,
 /// `+0x30` string table, `+0x38` name.
 fn select_description(data: &[u8]) -> Option<(Option<String>, String, Option<String>, String)> {
-    use banished_formats::crs;
+    use unbanished_formats::crs;
     crs::parse(data, |r: &mut crs::Reader, _| {
         r.block(|r, _| {
             let v = (

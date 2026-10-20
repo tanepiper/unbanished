@@ -10,8 +10,8 @@
 
 use std::collections::HashMap;
 
-use banished_formats::pkg::Archive;
 use glam::{Mat4, Vec3};
+use unbanished_formats::pkg::Archive;
 
 use crate::gfx::models::placement_matrix;
 use crate::loops::{GameLoop, View};
@@ -269,7 +269,7 @@ impl Clearance {
             let bytes = archive
                 .read_ref(&crate::start::normalise(mesh).replace('\\', "/"))
                 .ok()?;
-            let m = banished_formats::types::graphics_mesh(&bytes).ok()?;
+            let m = unbanished_formats::types::graphics_mesh(&bytes).ok()?;
             Some((Vec3::from(m.bounds_min), Vec3::from(m.bounds_max)))
         })
     }

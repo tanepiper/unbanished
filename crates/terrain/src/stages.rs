@@ -1,7 +1,7 @@
 //! The five generation stages. Each function names the original it ports.
 
 use super::{Generator, PathPoint};
-use banished_core::noise::PerlinNoise;
+use unbanished_core::noise::PerlinNoise;
 
 /// `Math::Vector2::Normalize` (Runtime 0x18006d0d0): multiply by `1 / length`; zero stays zero.
 fn normalize(v: [f32; 2]) -> [f32; 2] {
@@ -261,7 +261,7 @@ impl Generator {
     fn place_hills(&mut self) {
         let r = self.record;
         let edge = ((r.at(0) >> 1) - 2) as f32;
-        let scatter = |rng: &mut banished_core::random::Random, lo: i32, hi: i32| -> [f32; 3] {
+        let scatter = |rng: &mut unbanished_core::random::Random, lo: i32, hi: i32| -> [f32; 3] {
             let radius = rng.rand_float() * (hi - lo) as f32 + lo as f32;
             let a = rng.rand_float_tol();
             let b = rng.rand_float_tol();

@@ -9,10 +9,10 @@
 
 use std::collections::BTreeMap;
 
-use banished_formats::pkg::Archive;
-use banished_formats::savegame::{Fields, ObjId, Value};
-use banished_game::behaviour::character::Character;
-use banished_game::nature::wildlife::{Animal, Herd, Livestock, Population};
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::savegame::{Fields, ObjId, Value};
+use unbanished_game::behaviour::character::Character;
+use unbanished_game::nature::wildlife::{Animal, Herd, Livestock, Population};
 
 use super::super::{livestock_kind, normalise, wildlife_kinds, StartingTown};
 use super::construction::entity_or_component;
@@ -58,7 +58,7 @@ impl StartingTown {
         saved: &SavedGame,
         index: &BTreeMap<ObjId, usize>,
     ) {
-        let template_ref = |e: &banished_formats::savegame::Object| {
+        let template_ref = |e: &unbanished_formats::savegame::Object| {
             saved.ext(&e.fields, "entity.template").map(normalise)
         };
         // The kinds, as a New Game loads them for its populations and livestock.
@@ -288,7 +288,7 @@ impl StartingTown {
                 .map_or(0, |m| int(&m.fields, "machine.state") as i8);
             self.wildlife.boats.insert(
                 entity,
-                banished_game::commerce::boat::Boat {
+                unbanished_game::commerce::boat::Boat {
                     template,
                     character,
                     state,

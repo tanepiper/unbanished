@@ -1,6 +1,6 @@
 //! Original Game/Game pause/speed guards, calendar and phase observations (game_loop.py).
-use banished_game::calendar::Calendar;
 use std::path::PathBuf;
+use unbanished_game::calendar::Calendar;
 
 #[test]
 fn calendar_and_phase_contract_match_original_loop() {

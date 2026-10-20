@@ -33,8 +33,8 @@ When two packages have an entry with the same name, the package with the higher 
 Mods (`.pkm` files, made with the BanishedKit) use the same format. The Mods menu decides their
 order, and a mod can replace only the entries that the game allows it to replace.
 
-In Un-Banished: `banished_formats::pkg::Archive`. See
-[banished-formats](../../crates/formats/README.md) and [MODS.md](../MODS.md).
+In Un-Banished: `unbanished_formats::pkg::Archive`. See
+[unbanished-formats](../../crates/formats/README.md) and [MODS.md](../MODS.md).
 
 ## Compiled resources
 
@@ -73,7 +73,7 @@ Each class has a `Serialize` function in the original program. It reads or write
 order, through the engine's binary reader. So the field order and types come from that function.
 A decoder is correct when it reads **every byte** of every block, for every resource of that
 class. Leftover bytes mean a missed field. The Python tools in `tools/crs/` check this over the
-whole game, and the Rust readers in `banished-formats` have tests that do the same.
+whole game, and the Rust readers in `unbanished-formats` have tests that do the same.
 
 [Decode a format](../develop/guides/FORMAT.md) explains how to add a reader for a class.
 

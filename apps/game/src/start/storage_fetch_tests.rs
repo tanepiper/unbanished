@@ -1,6 +1,6 @@
 use super::*;
-use banished_formats::pkg::Package;
-use banished_game::{behaviour::ai::activity, work::stock::stock_table};
+use unbanished_formats::pkg::Package;
+use unbanished_game::{behaviour::ai::activity, work::stock::stock_table};
 
 /// ShowTool (`FUN_14011c880`): a citizen's tool is drawn on its mesh's `tool` node, carried
 /// goods as their pile model; nothing with −1.
@@ -176,7 +176,7 @@ fn new_citizens_equip_from_registered_storage_then_loiter() {
         let mut stack = std::mem::take(&mut ch.stack);
         stack.clear(ch, group, &mut town.storages);
         ch.stack = stack;
-        town.agents.states[i] = banished_game::behaviour::agents::CitizenState {
+        town.agents.states[i] = unbanished_game::behaviour::agents::CitizenState {
             tool_status: 9,
             clothing_status: 9,
             job: 42,

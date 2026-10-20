@@ -7,11 +7,13 @@
 //! the speed readout (10), a sub-menu toggle (0), a build toggle (1) or a plain button (others).
 //! Build and utility entries take their icon and name from the template's toolbar component.
 
-use banished_formats::crc::type_id;
-use banished_formats::game::{toolbar_description, toolbar_item, ToolbarDescription, ToolbarItem};
-use banished_formats::pkg::Archive;
-use banished_formats::registry::Registry;
-use banished_ui::{Kind, NodeId, Ui};
+use unbanished_formats::crc::type_id;
+use unbanished_formats::game::{
+    toolbar_description, toolbar_item, ToolbarDescription, ToolbarItem,
+};
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::registry::Registry;
+use unbanished_ui::{Kind, NodeId, Ui};
 
 use crate::keymap::KeyMap;
 use crate::loops::Screen;
@@ -176,7 +178,7 @@ impl Toolbar {
             })
             .collect();
         // `FUN_1400220f0`: the CRT qsort by `order` (`+0x50`).
-        banished_game::behaviour::ai::crt_qsort_less(&mut list, |&a, &b| {
+        unbanished_game::behaviour::ai::crt_qsort_less(&mut list, |&a, &b| {
             self.entries[a].item.order < self.entries[b].item.order
         });
         list
@@ -316,7 +318,7 @@ impl Toolbar {
         }
         if matches!(
             ui.node(node).kind,
-            Kind::Control(banished_ui::Control::Check { .. })
+            Kind::Control(unbanished_ui::Control::Check { .. })
         ) {
             let on = ui.checked(node);
             ui.set_checked(node, !on);

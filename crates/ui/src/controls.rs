@@ -11,7 +11,7 @@ mod values;
 pub(crate) use paint::scroll_thumb;
 
 use crate::*;
-use banished_formats::ui::{self, ElementKind};
+use unbanished_formats::ui::{self, ElementKind};
 
 #[derive(Debug, Clone)]
 /// The state of a slider.

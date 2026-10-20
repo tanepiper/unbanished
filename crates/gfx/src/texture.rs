@@ -1,7 +1,7 @@
 //! Texture upload helpers.
 
-use banished_formats::texture::decode_rgba;
-use banished_formats::types::ImageBuffer;
+use unbanished_formats::texture::decode_rgba;
+use unbanished_formats::types::ImageBuffer;
 
 /// Upload RGBA8 mip levels as an sRGB texture.
 pub fn upload_rgba(

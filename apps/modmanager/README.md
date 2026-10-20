@@ -1,6 +1,6 @@
-# banished-modmanager
+# unbanished-modmanager
 
-The Un-Banished mod manager (binary `banished-mods`): a small desktop program to choose mods
+The Un-Banished mod manager (binary `unbanished-mods`): a small desktop program to choose mods
 before the game starts. It is not part of the original game.
 
 <p align="center">
@@ -17,23 +17,23 @@ before the game starts. It is not part of the original game.
 - Save and load named mod lists (`Documents/Banished/ModLists/NAME.txt`: one `+file` or `-file`
   line per mod, in order).
 - Search and install mods from Nexus Mods (the **Nexus Mods** tab; installs need the player's API
-  key; `banished-nexus`).
+  key; `unbanished-nexus`).
 - List, search and install mods from banishedinfo.com (the **banishedinfo.com** tab; no account;
-  `banished-banishedinfo`). Both site tabs show previews (PNG, JPEG or WebP).
-- Play: save, then start `banished` (beside this program, or on the `PATH`) with the same game
+  `unbanished-banishedinfo`). Both site tabs show previews (PNG, JPEG or WebP).
+- Play: save, then start `unbanished` (beside this program, or on the `PATH`) with the same game
   data.
 
 ```bash
-cargo run --release -p banished-modmanager -- path/to/WinData
+cargo run --release -p unbanished-modmanager -- path/to/WinData
 ```
 
-It reads the `.pkm` packages and writes the settings file through `banished-mods`, the same code
+It reads the `.pkm` packages and writes the settings file through `unbanished-mods`, the same code
 the game's Mods dialog uses, so both agree on what is enabled and in what order. The settings
 file is read again before each save, so values the game wrote are kept. Close the game first:
 the game writes the file when it closes.
 
 The window is made with [egui](https://github.com/emilk/egui) (eframe, OpenGL).
 
-For tests, `BANISHED_MODS_SCREENSHOT=out.png` saves the window after four seconds and quits;
-`BANISHED_MODS_TAB=nexus` (or `banishedinfo`) opens that site's tab and `BANISHED_MODS_SELECT=N` selects a mod.
-`BANISHED_SETTINGS` and `BANISHED_USER_DIR` work as for the game.
+For tests, `UNBANISHED_MODS_SCREENSHOT=out.png` saves the window after four seconds and quits;
+`UNBANISHED_MODS_TAB=nexus` (or `banishedinfo`) opens that site's tab and `UNBANISHED_MODS_SELECT=N` selects a mod.
+`UNBANISHED_SETTINGS` and `UNBANISHED_USER_DIR` work as for the game.

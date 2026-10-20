@@ -63,12 +63,12 @@ The full details are in [FINDINGS.md](../../FINDINGS.md), sections 2 and 3, and 
    return. Select the entries by their normalised name, parse every one, check the count
    (`names.len() > N`), and check one known value.
    ```bash
-   cargo test --release -p banished-formats --test <name>
+   cargo test --release -p unbanished-formats --test <name>
    ```
 5. **Optional: an inspector.** A small example program that prints a parsed resource helps the
    next person. `crates/formats/examples/dialog_info.rs` is a model:
    ```bash
-   cargo run -p banished-formats --example dialog_info -- game-data/original/WinData \
+   cargo run -p unbanished-formats --example dialog_info -- game-data/original/WinData \
      "Dialog/Toolbar.rsc:resource"
    ```
 6. **Document the layout** in a document in `docs/`: a table of the fields, the versions, and the

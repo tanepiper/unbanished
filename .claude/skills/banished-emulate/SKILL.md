@@ -43,7 +43,7 @@ allocator. API: `malloc(size)`, `write(addr, bytes)`, `read(addr, n)`, `u32/i32/
    compare exactly (`assert_eq!` on bits, `f32::to_bits`), and on failure report the first
    mismatching index plus a count.
    ```bash
-   cargo test --release -p banished-game --test <name>
+   cargo test --release -p unbanished-game --test <name>
    ```
 5. If not exact, bisect: emulate intermediate callees separately (`terrain_stages.py` dumps each
    generator stage) and compare stage by stage.
@@ -63,7 +63,7 @@ allocator. API: `malloc(size)`, `write(addr, bytes)`, `read(addr, n)`, `u32/i32/
 
 When a port consumes the game's `System::Random`, record the original's draws with
 `tools/emu/rng_trace.py` (`RngTrace(emu)` before `emu.call`) and the port's with
-`banished_game::random::trace::{start, take, write}`, then run
+`unbanished_game::random::trace::{start, take, write}`, then run
 `python3 tools/triage/rngdiff.py orig.rng port.rng`. It reports the first divergence with the
 original call site (function label + offset) next to the Rust file:line. See
 `tools/triage/README.md` and `crates/game/examples/rng_trace_names.rs`.

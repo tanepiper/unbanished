@@ -43,7 +43,7 @@ pub struct WorkPlaceInfo {
 
 /// A WorkPlaceUI element event (`FUN_14008ccb0`, event 0x12).
 pub enum WorkPlaceClick {
-    Command(banished_game::work::professions::Command),
+    Command(unbanished_game::work::professions::Command),
     /// 0x1454 (`FUN_14008cba0` → `FUN_140108510`): pin the window, show and select the worker.
     ShowWorker(usize),
     /// ResourceLimitUI: the stock manager's limit for a slot.
@@ -117,7 +117,7 @@ impl WorkPlaceUi {
     }
 
     pub fn click(&mut self, id: NodeId, data: &EntityData) -> Option<WorkPlaceClick> {
-        use banished_game::work::professions::Command;
+        use unbanished_game::work::professions::Command;
         let w = data.workplace.as_ref()?;
         let entity = w.entity;
         let command = if Some(id) == self.worker_up {

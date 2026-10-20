@@ -6,14 +6,14 @@ scenarios, achievements, mods and options, as in the original. It also has what 
 does not: a Browse tab in the Mods menu for each mod site (Nexus Mods, and banishedinfo.com on the
 desktop) and Multiplayer on the main menu (see the [user guide](https://tanepiper.github.io/unbanished/guide/mods)).
 
-The package is `banished-app`; the program is `banished` (`banished.exe` on Windows). The same
+The package is `unbanished-app`; the program is `unbanished` (`unbanished.exe` on Windows). The same
 code builds for the desktop and, with Trunk, for the browser.
 
 ## Build and play
 
 ```bash
-cargo build -p banished-app --release
-target/release/banished /path/to/Banished/WinData
+cargo build -p unbanished-app --release
+target/release/unbanished /path/to/Banished/WinData
 ```
 
 Without a path, the game looks for `WinData` next to the program, then for
@@ -25,30 +25,30 @@ Without a path, the game looks for `WinData` next to the program, then for
 
 | Command | What it does |
 |---|---|
-| `banished [WINDATA]` | Play, with the game data in `WINDATA` |
-| `banished --version` (or `-V`) | Print the version, for example `Un-Banished 0.2.0-93be55d`, and stop |
-| `banished --boot-capture OUT.png SECONDS [OPTIONS]` | Run the game without a window for `SECONDS`, then save the frame |
-| `banished --capture OUT.png [OPTIONS]` | Generate a map and save a picture of it, without starting the game |
-| `--record FILE [--record-every N]` | With any of these, or with `banished [WINDATA]`: record the next game loaded from a save ([Recording and replaying](#recording-and-replaying)) |
-| `banished --replay SAVE FILE [UPDATES] [EVERY]` | Replay a recording from its save without a window, and check the game state |
-| `banished --sim-digest SAVE [UPDATES] [EVERY]` | Run a save without a window and print digests of the game state (see `--sim-digest` below) |
-| `banished --lockstep-test SAVE RECORDING …` | Players in one process over a simulated network ([Lockstep test](#lockstep-test)) |
-| `banished --net-test RELAY host\|join ROOM SAVE RECORDING PLAYERS …` | One player of a game through a relay, for `tools/compat/network.sh` |
+| `unbanished [WINDATA]` | Play, with the game data in `WINDATA` |
+| `unbanished --version` (or `-V`) | Print the version, for example `Un-Banished 0.2.0-93be55d`, and stop |
+| `unbanished --boot-capture OUT.png SECONDS [OPTIONS]` | Run the game without a window for `SECONDS`, then save the frame |
+| `unbanished --capture OUT.png [OPTIONS]` | Generate a map and save a picture of it, without starting the game |
+| `--record FILE [--record-every N]` | With any of these, or with `unbanished [WINDATA]`: record the next game loaded from a save ([Recording and replaying](#recording-and-replaying)) |
+| `unbanished --replay SAVE FILE [UPDATES] [EVERY]` | Replay a recording from its save without a window, and check the game state |
+| `unbanished --sim-digest SAVE [UPDATES] [EVERY]` | Run a save without a window and print digests of the game state (see `--sim-digest` below) |
+| `unbanished --lockstep-test SAVE RECORDING …` | Players in one process over a simulated network ([Lockstep test](#lockstep-test)) |
+| `unbanished --net-test RELAY host\|join ROOM SAVE RECORDING PLAYERS …` | One player of a game through a relay, for `tools/compat/network.sh` |
 
 ## Environment variables
 
 | Variable | Effect |
 |---|---|
-| `BANISHED_USER_DIR` | The folder that holds `Save` and `Screenshots`. The default is `Documents/Banished`. |
-| `BANISHED_SETTINGS` | The settings file. The default is in the system's configuration folder (see [Saves and settings](https://tanepiper.github.io/unbanished/guide/saves)). |
-| `BANISHED_SEED` | Fixes the seed of new games and of the menu's own random numbers (for captures and tests) |
-| `BANISHED_MENU_SCENE` | Shows this main-menu scene (0 to 9) instead of a random one |
-| `BANISHED_PROFILE` | `1` logs slow frames and frame-time summaries; `hitches` logs slow frames only. See [Performance](https://tanepiper.github.io/unbanished/develop/performance). |
-| `BANISHED_THREADS` | How many threads loading uses. The default is one for each CPU core; `1` loads on one thread. |
+| `UNBANISHED_USER_DIR` | The folder that holds `Save` and `Screenshots`. The default is `Documents/Banished`. |
+| `UNBANISHED_SETTINGS` | The settings file. The default is in the system's configuration folder (see [Saves and settings](https://tanepiper.github.io/unbanished/guide/saves)). |
+| `UNBANISHED_SEED` | Fixes the seed of new games and of the menu's own random numbers (for captures and tests) |
+| `UNBANISHED_MENU_SCENE` | Shows this main-menu scene (0 to 9) instead of a random one |
+| `UNBANISHED_PROFILE` | `1` logs slow frames and frame-time summaries; `hitches` logs slow frames only. See [Performance](https://tanepiper.github.io/unbanished/develop/performance). |
+| `UNBANISHED_THREADS` | How many threads loading uses. The default is one for each CPU core; `1` loads on one thread. |
 | `RUST_LOG` | How much the log shows, for example `RUST_LOG=debug` |
-| `BANISHED_NEXUS_API_KEY` | Your Nexus Mods API key, for installs from the Browse tab. It wins over `NexusApiKey` in the settings file. |
-| `BANISHED_ROOM` | Tests: the room code the Multiplayer window asks the relay for |
-| `BANISHED_NET_CHECK` | Tests: how often (in updates) the multiplayer host compares the players' games |
+| `UNBANISHED_NEXUS_API_KEY` | Your Nexus Mods API key, for installs from the Browse tab. It wins over `NexusApiKey` in the settings file. |
+| `UNBANISHED_ROOM` | Tests: the room code the Multiplayer window asks the relay for |
+| `UNBANISHED_NET_CHECK` | Tests: how often (in updates) the multiplayer host compares the players' games |
 | `UNBANISHED_BUILD` | At build time: the build id in the version (see [Building](https://tanepiper.github.io/unbanished/develop/building#the-build-id)) |
 
 In the browser, `?data=URL` loads the game data from a folder on a server (for
@@ -60,7 +60,7 @@ In the browser, `?data=URL` loads the game data from a folder on a server (for
 
 Captures run the game without a window, at 30 frames per second of game time, as fast as the
 computer can. They play no sound, and they do not read your settings. They do write saves and
-screenshots, so set `BANISHED_USER_DIR` and `BANISHED_SETTINGS` to a scratch folder.
+screenshots, so set `UNBANISHED_USER_DIR` and `UNBANISHED_SETTINGS` to a scratch folder.
 
 ### `--boot-capture`
 
@@ -108,7 +108,7 @@ middle of the map, with `z` up; heading 0 faces `+y`.
 | `--camera-smooth SECONDS` | How slowly a following camera turns with its subject (default 0.6; it moves with the subject four times faster). |
 | `--camera-clear 0` | Let a following camera go through things. By default it looks at the buildings, trees and bridges around the subject (their picking meshes), and when one would come between them it moves in closer, or rises up to 8. |
 
-Run with `RUST_LOG=info,banished::view::cinematic=debug` to log the followed subject's position
+Run with `RUST_LOG=info,unbanished::view::cinematic=debug` to log the followed subject's position
 and heading at each step. It helps to place keyframes: a trader boat's positions trace the
 river.
 
@@ -137,20 +137,20 @@ river.
 
 ```bash
 # The main menu
-banished --boot-capture menu.png 4.5
+unbanished --boot-capture menu.png 4.5
 
 # A new game with seed 1234, zoomed in
-BANISHED_SEED=1234 banished --boot-capture new.png 16 \
+UNBANISHED_SEED=1234 unbanished --boot-capture new.png 16 \
   --press buttonNew@4.5 --press buttonOk@5.0 --wheel 8@9
 
 # A saved town at speed 5, with the map window open
-banished --boot-capture town.png 30 --capture-size 1600x900 \
+unbanished --boot-capture town.png 30 --capture-size 1600x900 \
   --script "load save-game/Save83.sav@4.5" --script "speed 5@6" \
   --script "open Template/UtilityMap.rsc@25"
 
 # A frame sequence for a video: one screenshot every 1/30 s from 20 to 24 s
 args=(); for i in $(seq 0 119); do args+=(--script "screenshot@$(echo "20 + $i / 30" | bc -l)"); done
-BANISHED_USER_DIR=/tmp/frames banished --boot-capture last.png 24 \
+UNBANISHED_USER_DIR=/tmp/frames unbanished --boot-capture last.png 24 \
   --script "load save-game/Save83.sav@4.5" "${args[@]}"
 ```
 
@@ -158,20 +158,20 @@ BANISHED_USER_DIR=/tmp/frames banished --boot-capture last.png 24 \
 
 `--record FILE` (with any run, a capture or the windowed game) records the next game loaded from a
 save: every player command with the update it was given in, as JSON lines. `--record-every N`
-adds a digest of the game state every N updates. `banished --replay SAVE FILE [UPDATES] [EVERY]`
+adds a digest of the game state every N updates. `unbanished --replay SAVE FILE [UPDATES] [EVERY]`
 loads the save without a window, carries the commands out at the same updates, and compares the
 digests: it prints `identical` or the first that differs, and exits with 1 when one does.
 `tools/compat/replay.sh BINARY` records and replays the compatibility scenarios.
 
 ```bash
-banished --boot-capture /tmp/f.png 40 --script "load save-game/Save83.sav@4.5" ... \
+unbanished --boot-capture /tmp/f.png 40 --script "load save-game/Save83.sav@4.5" ... \
   --record /tmp/game.rec --record-every 60
-banished --replay save-game/Save83.sav /tmp/game.rec
+unbanished --replay save-game/Save83.sav /tmp/game.rec
 ```
 
 ### Lockstep test
 
-`banished --lockstep-test SAVE RECORDING [PLAYERS] [DELAY] [JITTER] [STALL] [SEED]` plays a
+`unbanished --lockstep-test SAVE RECORDING [PLAYERS] [DELAY] [JITTER] [STALL] [SEED]` plays a
 recording's commands, split between PLAYERS (default 3), in lockstep games joined by a simulated
 network: an input delay of DELAY updates (default 6), turns 1 to 1 + JITTER ticks late (default
 8), each computer too busy to update in STALL % of ticks (default 20), the network's random seed
@@ -183,8 +183,8 @@ every player's game agrees at the end; it exits with 1 when not.
 
 ### Network test
 
-`banished --net-test RELAY host|join ROOM SAVE RECORDING PLAYERS [DELAY] [CHECK] [CORRUPT]` is one
-player of a game played through a relay (`banished-relay`): the host opens ROOM, waits for
+`unbanished --net-test RELAY host|join ROOM SAVE RECORDING PLAYERS [DELAY] [CHECK] [CORRUPT]` is one
+player of a game played through a relay (`unbanished-relay`): the host opens ROOM, waits for
 PLAYERS and starts the game from SAVE; the others join ROOM and get the save from the host. Each
 plays its share of RECORDING's commands and prints a digest every 60 updates; CORRUPT `UPDATE`
 scrambles this player's game there. `tools/compat/network.sh BINARY` runs a relay and three players
@@ -199,12 +199,12 @@ session (`gameplay/network.rs`, `NetState`): each update reads what arrived, car
 sends its turn and, at a check, the host compares digests. A resync fades to the loading screen
 and on to the host's save. The players line is the original's version footer without its logo.
 `tools/compat/multiplayer.sh BINARY` plays it from end to end with two headless games kept to the
-clock (`--realtime`); `--text NAME=TEXT@SECONDS` types into an edit, and `BANISHED_ROOM` asks the
+clock (`--realtime`); `--text NAME=TEXT@SECONDS` types into an edit, and `UNBANISHED_ROOM` asks the
 relay for a fixed room code.
 
 ### `--sim-digest`
 
-`banished --sim-digest SAVE [UPDATES] [EVERY]` loads a save without a window, runs it at speed
+`unbanished --sim-digest SAVE [UPDATES] [EVERY]` loads a save without a window, runs it at speed
 10 for `UPDATES` updates (default 1200, 200 s of game time) and prints a digest of the game state
 every `EVERY` updates (default 60): the time, the living citizens and the CRC-32 of everything
 the save would hold. The browser build does the same with
@@ -224,7 +224,7 @@ Generates a map and draws it, without the menus or the simulation.
 | `--view overview` | the whole map from above; without it, a view from the ground | ground |
 
 ```bash
-banished --capture map.png --view overview --seed 290 --terrain Valleys --size 0 --month 6
+unbanished --capture map.png --view overview --seed 290 --terrain Valleys --size 0 --month 6
 ```
 
 ## Example program: imgdiff
@@ -233,7 +233,7 @@ banished --capture map.png --view overview --seed 290 --terrain Valleys --size 0
 differ, where they are, and a heat map.
 
 ```bash
-cargo run -q --release -p banished-app --example imgdiff -- a.png b.png --out diff.png --json
+cargo run -q --release -p unbanished-app --example imgdiff -- a.png b.png --out diff.png --json
 ```
 
 Options: `--threshold N`, `--resize`, `--ignore x,y,w,h`, `--crop-a x,y,w,h`, `--autocrop-a`,

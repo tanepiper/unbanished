@@ -1,10 +1,10 @@
-//! Draws `banished_ui` quads: one alpha-blended pipeline, batches split by texture and scissor.
+//! Draws `unbanished_ui` quads: one alpha-blended pipeline, batches split by texture and scissor.
 
 use std::collections::HashMap;
 
-use banished_formats::texture::decode_rgba;
-use banished_formats::types;
-use banished_ui::{Quad, Texture, Ui};
+use unbanished_formats::texture::decode_rgba;
+use unbanished_formats::types;
+use unbanished_ui::{Quad, Texture, Ui};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -57,7 +57,7 @@ fn fs_logo(in: VsOut) -> @location(0) vec4<f32> {
 }
 "#;
 
-/// Draws the quads of `banished-ui` with wgpu: one alpha-blended pipeline (and one for the logo
+/// Draws the quads of `unbanished-ui` with wgpu: one alpha-blended pipeline (and one for the logo
 /// material), in batches split by texture and clip rectangle. It uploads each sprite sheet the
 /// first time a quad uses it.
 pub struct UiRenderer {
@@ -285,7 +285,7 @@ impl UiRenderer {
         self.time = seconds;
     }
 
-    /// Draw `quads` (from [`Ui::draw`](banished_ui::Ui::draw)) into `pass`, on a target of `size`
+    /// Draw `quads` (from [`Ui::draw`](unbanished_ui::Ui::draw)) into `pass`, on a target of `size`
     /// pixels.
     pub fn draw<'p>(
         &'p mut self,

@@ -1,13 +1,13 @@
 //! A generated map: the New Game terrain pipeline (`FUN_1400b5700` → `FUN_1400b1980`) run with the
-//! bit-exact ports in `banished-game`, plus the resources it is drawn with.
+//! bit-exact ports in `unbanished-game`, plus the resources it is drawn with.
 
-use banished_formats::game::{
+use unbanished_formats::game::{
     environment_description, terrain_generator, EnvironmentDescription, TerrainGenerator,
 };
-use banished_formats::pkg::Archive;
-use banished_formats::types::{image_buffer, material_instance, ImageBuffer};
-use banished_formats::Result;
-use banished_game::terrain::{Generator, HeightGrid, SizeRecord, TerrainMesh};
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::types::{image_buffer, material_instance, ImageBuffer};
+use unbanished_formats::Result;
+use unbanished_game::terrain::{Generator, HeightGrid, SizeRecord, TerrainMesh};
 
 pub struct WorldParams {
     pub town_name: String,
@@ -134,7 +134,7 @@ pub struct World {
     /// (verified against the saved paths of a generated map).
     pub river_paths: Vec<Vec<[f32; 2]>>,
     /// The rivers' and lakes' surface (`FUN_1400b0730`).
-    pub water: banished_game::terrain::WaterMesh,
+    pub water: unbanished_game::terrain::WaterMesh,
 }
 
 fn with_object(reference: &str) -> String {
@@ -156,7 +156,7 @@ fn texture(
         .find(|(name, _)| name == slot)
         .and_then(|(_, r)| r.clone())
         .ok_or_else(|| {
-            banished_formats::Error::Format(format!("terrain material has no {slot}"))
+            unbanished_formats::Error::Format(format!("terrain material has no {slot}"))
         })?;
     image_buffer(&archive.read_ref(&with_object(&reference))?)
 }
@@ -189,7 +189,7 @@ impl World {
             .iter()
             .map(|p| p.iter().rev().map(|q| q.pos).collect())
             .collect();
-        let water = banished_game::terrain::water_mesh(&g.paths, &g.lakes, &heights, size);
+        let water = unbanished_game::terrain::water_mesh(&g.paths, &g.lakes, &heights, size);
         let terrain = Terrain::new(archive, &profile.materials[0], size, heights, surface)?;
         let environment =
             environment_description(&archive.read_ref("Environment/Environment.rsc:resource")?)?;
@@ -209,7 +209,7 @@ impl World {
             .state
             .terrain_map
             .clone()
-            .ok_or_else(|| banished_formats::Error::Format("save has no terrain".into()))?;
+            .ok_or_else(|| unbanished_formats::Error::Format("save has no terrain".into()))?;
         let terrain_ref = saved.reference(saved.state.terrain).unwrap_or_default();
         // A mod's terrain profile may be missing: the saved map carries its own materials, so
         // the base Valleys profile stands in (the profile is only read for its materials).
@@ -238,7 +238,7 @@ impl World {
             terrain,
             environment,
             river_paths: map.river_paths,
-            water: banished_game::terrain::WaterMesh {
+            water: unbanished_game::terrain::WaterMesh {
                 vertices: map.water_vertices,
                 indices: map.water_indices,
                 rivers: map.river_ranges,

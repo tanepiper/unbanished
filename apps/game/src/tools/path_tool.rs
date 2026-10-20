@@ -19,7 +19,7 @@
 
 use std::collections::BTreeSet;
 
-use banished_game::random::Random;
+use unbanished_game::random::Random;
 
 use crate::gfx::selection_overlay::{OverlayCell, OverlayLine};
 use crate::start::StartingTown;
@@ -44,7 +44,7 @@ pub struct PathTool {
 
 impl PathTool {
     /// `FUN_140108030` for a template with a `CreatePathDescription`.
-    pub fn start(archive: &banished_formats::pkg::Archive, template: &str) -> Option<PathTool> {
+    pub fn start(archive: &unbanished_formats::pkg::Archive, template: &str) -> Option<PathTool> {
         let file = template.split(':').next()?.replace('\\', "/");
         archive.read_ref(&format!("{file}:createpath")).ok()?;
         Some(PathTool::default())
@@ -79,12 +79,12 @@ impl PathTool {
                 }
             }
         }
-        let views = banished_game::behaviour::agents::entity_views(
+        let views = unbanished_game::behaviour::agents::entity_views(
             &town.placed,
             &town.templates,
             &town.construction,
         );
-        let view = banished_game::behaviour::activities::TownView {
+        let view = unbanished_game::behaviour::activities::TownView {
             size: town.cells.size,
             types: &town.cells.types,
             regions: &[],

@@ -75,7 +75,7 @@ The UI crate's `Lines` kind draws the segments as one-pixel sprite quads.
 
 ## Verification
 
-- Capture: `BANISHED_SEED=999518904 banished --boot-capture OUT 12 --capture-size 1384x868
+- Capture: `UNBANISHED_SEED=999518904 unbanished --boot-capture OUT 12 --capture-size 1384x868
   --press buttonNew@4.5 --combo comboTerrain=Mountains@4.8 --combo comboTerrainSize=Small@4.8
   --press buttonOk@5.0 --script "open Template/UtilityMap.rsc@10"`.
 - Compared with `game-data/reference/seed-999518904/start-t0.png`:

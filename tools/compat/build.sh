@@ -9,7 +9,7 @@
 # exists is reused. The worktree is removed afterwards unless --keep is given.
 #
 # All revisions share one cargo target folder (target/compat/cargo), so dependencies are built
-# once. The build id is the commit (UNBANISHED_BUILD), so `banished --version` names it.
+# once. The build id is the commit (UNBANISHED_BUILD), so `unbanished --version` names it.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 rev="${1:?usage: tools/compat/build.sh REV [--keep]}"
@@ -26,12 +26,16 @@ src="$root/src/$sha"
 if [[ ! -d "$src" ]]; then
   git -C "$repo" worktree add --detach --quiet "$src" "$sha"
 fi
+# Revisions before the rename to `unbanished` (docs/ARCHITECTURE-PLAN.md, phase R) call the
+# package banished-app and the program banished: read both names from the revision itself.
+package="$(sed -n 's/^name = "\(.*\)"/\1/p' "$src/apps/game/Cargo.toml" | head -1)"
+program="$(sed -n '/^\[\[bin\]\]/,/^name/s/^name = "\(.*\)"/\1/p' "$src/apps/game/Cargo.toml" | head -1)"
 (
   cd "$src"
   UNBANISHED_BUILD="$sha" CARGO_TARGET_DIR="$root/cargo" \
-    cargo build --release --offline -p banished-app --bin banished >&2
+    cargo build --release --offline -p "$package" --bin "$program" >&2
 )
-cp "$root/cargo/release/banished" "$bin"
+cp "$root/cargo/release/$program" "$bin"
 if [[ "$keep" != "--keep" ]]; then
   git -C "$repo" worktree remove --force "$src"
 fi

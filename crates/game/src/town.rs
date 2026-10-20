@@ -24,7 +24,7 @@ mod work_host;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use banished_formats::types::AnimationGroup;
+use unbanished_formats::types::AnimationGroup;
 
 use crate::behaviour::activities::{EntityView, StorageGeometry, TownView};
 use crate::behaviour::agents::{CitizenRulesAi, CitizenState};
@@ -230,8 +230,8 @@ pub struct Sim<'s, 't> {
     pub pathfinder: &'s mut crate::pathfind::Pathfinder,
     /// The citizens' name databases (the merchants' names).
     pub names: Option<&'s (
-        banished_formats::names::NameDatabase,
-        banished_formats::names::NameDatabase,
+        unbanished_formats::names::NameDatabase,
+        unbanished_formats::names::NameDatabase,
     )>,
     /// The scheduled update's elapsed time (ticks) for the site callbacks.
     pub site_dt: i64,

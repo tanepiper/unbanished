@@ -1,6 +1,6 @@
 //! Print a Dialog resource (analysis helper).
-//! `cargo run -p banished-formats --example dialog_info -- path/to/WinData REFERENCE...`
-use banished_formats::pkg::{Archive, Package};
+//! `cargo run -p unbanished-formats --example dialog_info -- path/to/WinData REFERENCE...`
+use unbanished_formats::pkg::{Archive, Package};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -10,7 +10,7 @@ fn main() {
         archive.add(Package::parse(std::fs::read(dir.join(name)).unwrap()).unwrap());
     }
     for r in &args[2..] {
-        let d = banished_formats::ui::dialog(&archive.read_ref(r).unwrap()).unwrap();
+        let d = unbanished_formats::ui::dialog(&archive.read_ref(r).unwrap()).unwrap();
         println!("{r}: {d:#?}");
     }
 }

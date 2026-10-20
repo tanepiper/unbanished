@@ -2,7 +2,7 @@
 //! output in game-data/derived/emu): the quaternion, the transformed point and the turned
 //! heading and the inverse, bit for bit.
 
-use banished_game::math::Transform;
+use unbanished_game::math::Transform;
 
 #[test]
 fn matches_the_original() {

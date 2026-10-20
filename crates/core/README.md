@@ -1,4 +1,4 @@
-# banished-core
+# unbanished-core
 
 The exact foundations that the rest of Un-Banished builds on. Each part is a port of an engine
 function of Banished 1.0.7, and gives the same bits as the original:
@@ -14,7 +14,7 @@ function of Banished 1.0.7, and gives the same bits as the original:
 | `picking` | Ray–triangle intersection for selecting objects |
 
 The crate has no dependencies. It knows nothing about the game's rules or its data files.
-`banished-game` re-exports every module, so `banished_game::random` and `banished_core::random`
+`unbanished-game` re-exports every module, so `unbanished_game::random` and `unbanished_core::random`
 are the same module.
 
 ## Why it exists
@@ -28,7 +28,7 @@ Un-Banished uses `crt` and `math`, never Rust's own float functions.
 
 ```toml
 [dependencies]
-banished-core = { path = "crates/core" }
+unbanished-core = { path = "crates/core" }
 ```
 
 ### Random numbers
@@ -37,7 +37,7 @@ banished-core = { path = "crates/core" }
 the citizens' names all start from one.
 
 ```rust
-use banished_core::random::Random;
+use unbanished_core::random::Random;
 
 let mut rng = Random::new(1234);
 let a = rng.rand();                // any u32
@@ -55,7 +55,7 @@ To check that a port draws numbers in the same order as the original, record the
 `random::trace` (see [Emulate for exact numbers](https://tanepiper.github.io/unbanished/develop/guides/emulate)):
 
 ```rust
-use banished_core::random::{trace, Random};
+use unbanished_core::random::{trace, Random};
 
 trace::start();
 let mut rng = Random::new(7);
@@ -67,7 +67,7 @@ assert_eq!(draws.len(), 1);
 ### Exact float maths
 
 ```rust
-use banished_core::{crt, math};
+use unbanished_core::{crt, math};
 
 let s = crt::sinf(0.5);                    // the C runtime's sinf, bit for bit
 let angle = crt::atan2f(1.0, 2.0);
@@ -82,7 +82,7 @@ let heading = math::heading(0.0, 1.0);     // a 2D direction, in degrees
 ### Perlin noise
 
 ```rust
-use banished_core::noise::PerlinNoise;
+use unbanished_core::noise::PerlinNoise;
 
 // persistence, octaves, and the two seeds.
 let noise = PerlinNoise::new(0.5, 4.0, 17, 31);
@@ -95,7 +95,7 @@ The engine counts time in integer microseconds (`System::Time`). Convert to and 
 the original does:
 
 ```rust
-use banished_core::scheduler::{seconds, ticks};
+use unbanished_core::scheduler::{seconds, ticks};
 
 let t = ticks(1.5);          // 1,500,000
 let s = seconds(t);          // 1.5
@@ -107,8 +107,8 @@ buckets, each with a quota of entities per frame (`QUOTAS = [50, 15, 8, 5, 2]`).
 ### The calendar
 
 ```rust
-use banished_core::calendar::Calendar;
-use banished_core::scheduler::ticks;
+use unbanished_core::calendar::Calendar;
+use unbanished_core::scheduler::ticks;
 
 let mut calendar = Calendar::default();   // year 1
 calendar.advance(ticks(3600.0));          // one year of game time
@@ -118,7 +118,7 @@ assert_eq!(calendar.year, 2);
 ## The API
 
 The full API documentation is at
-<https://tanepiper.github.io/unbanished/api/banished_core/index.html>.
+<https://tanepiper.github.io/unbanished/api/unbanished_core/index.html>.
 
 ## Tests
 
@@ -127,8 +127,8 @@ The parity tests for this crate are in `crates/game/tests/` (for example `crt_ma
 from the original functions in the emulator, and skip when that output is missing.
 
 ```bash
-cargo test --release -p banished-core
-cargo test --release -p banished-game --test crt_math
+cargo test --release -p unbanished-core
+cargo test --release -p unbanished-game --test crt_math
 ```
 
 ## Related documents

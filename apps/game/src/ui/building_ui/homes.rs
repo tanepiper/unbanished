@@ -29,7 +29,7 @@ pub struct UpgradeUi {
 
 /// `UpgradeUIConfig`: `+0x20` the template to put in the building's place.
 pub(super) fn upgrade_config(data: &[u8]) -> Option<String> {
-    use banished_formats::crs;
+    use unbanished_formats::crs;
     crs::parse(data, |r: &mut crs::Reader, _| {
         r.block(|r, _| r.external_ref())
     })
@@ -46,7 +46,7 @@ impl ResidenceUi {
         // age and profession across each row.
         let mut by_row: std::collections::BTreeMap<usize, Vec<NodeId>> = Default::default();
         if let Some(t) = table {
-            if let banished_ui::Kind::Control(banished_ui::Control::Table { cells, .. }) =
+            if let unbanished_ui::Kind::Control(unbanished_ui::Control::Table { cells, .. }) =
                 &ui.node(t).kind
             {
                 for &(_, y, n) in cells {
@@ -142,7 +142,7 @@ impl UpgradeUi {
             archive
                 .read_ref(&format!("{file}:toolbar"))
                 .ok()
-                .and_then(|b| banished_formats::game::toolbar_description(&b).ok())
+                .and_then(|b| unbanished_formats::game::toolbar_description(&b).ok())
         });
         if let (Some(&image), Some(t)) = (ui.children(element).first(), toolbar) {
             if let Some(s) = ui.res.sprite(t.sprite_sheet.as_deref(), &t.sprite) {
@@ -183,7 +183,7 @@ mod tests {
             let Ok(bytes) = std::fs::read(dir.join(name)) else {
                 return;
             };
-            archive.add(banished_formats::pkg::Package::parse(bytes).unwrap());
+            archive.add(unbanished_formats::pkg::Package::parse(bytes).unwrap());
         }
         let mut ui = Ui::new(std::rc::Rc::new(archive));
         let element = ui.instantiate(r"Dialog\Residence.rsc:residence").unwrap();

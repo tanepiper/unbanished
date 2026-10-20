@@ -463,7 +463,7 @@ impl ApplicationHandler<UserEvent> for App {
                 let now = Instant::now();
                 // `MainLoop::Run` updates once before its first frame.
                 if self.last_frame.is_none() {
-                    game.update(banished_game::scheduler::seconds(FRAME_STEP));
+                    game.update(unbanished_game::scheduler::seconds(FRAME_STEP));
                 }
                 let elapsed = self.last_frame.map_or(0, |t| (now - t).as_micros() as i64);
                 self.last_frame = Some(now);
@@ -476,7 +476,7 @@ impl ApplicationHandler<UserEvent> for App {
                 }
                 while FRAME_STEP <= self.accumulated {
                     let _p = platform::perf::scope("update");
-                    game.update(banished_game::scheduler::seconds(FRAME_STEP));
+                    game.update(unbanished_game::scheduler::seconds(FRAME_STEP));
                     self.accumulated -= FRAME_STEP;
                     if game.quit_requested() {
                         break;

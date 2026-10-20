@@ -19,9 +19,13 @@ waste shows up as crashes and stutter. Look for such waste while you work, measu
 after, and fix it; `determinism.sh` and the emulator tests must still pass. A change like this is
 not a deviation.
 
-The code names keep the project's working name: crates `banished-*`, the binary `banished`, the
-settings folder `banished-wasm`. The product name is **Un-Banished**; don't rename code
-identifiers as part of unrelated work.
+The code is named `unbanished`: crates `unbanished-*`, the programs `unbanished`,
+`unbanished-mods`, `unbanished-cli` and `unbanished-relay`, environment variables `UNBANISHED_*`.
+Before 1.0 there is no backward-compatible naming; old names survive only where old builds or
+old data need them (`tools/compat` sets both for builds before the rename). Player-data names
+stay as they are, so nobody loses settings, kept game files or saves: the settings folder and
+the browser's storage are
+`banished-wasm`, and the save folder is the original's. The product name is **Un-Banished**.
 
 ## Non-negotiable rules
 
@@ -55,7 +59,7 @@ identifiers as part of unrelated work.
 ## Setup
 
 ```bash
-tools/extract-assets.sh            # copies your game into game-data/ (or BANISHED_DIR=… tools/extract-assets.sh)
+tools/extract-assets.sh            # copies your game into game-data/ (or UNBANISHED_DIR=… tools/extract-assets.sh)
 cargo test --release               # tests needing game data skip when it is missing
 tools/ghidra/export.sh             # optional, ~20 min: analysis/export/<binary>/decomp.c
 ```
@@ -73,12 +77,12 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 
 | Path | What |
 |---|---|
-| `apps/game` | The game (binary `banished`), by folder: `ui/` (windows, toolbar, dialogs), `gfx/` (renderer, models, decals, shadows, `*.wgsl`), `tools/` (placement, removal, roads, selection), `audio/` (sound, music, ambience), `view/` (scene, world view, particles, weather), `saves/`, `platform/` (paths, browser glue, version, profiler); at the root `main.rs`, `game.rs` (the `Game`), `app.rs` (the window), `native.rs` (headless commands), `probe.rs` (the [probe](docs/develop/PROBE.md)), `loops.rs` (engine loops), `menu.rs`, `gameplay.rs` + `gameplay/` (the town's loop: simulation, input, tools, HUD, audio, saving), `start.rs` + `start/` (new game, templates, frame update, models, load, save) |
+| `apps/game` | The game (binary `unbanished`), by folder: `ui/` (windows, toolbar, dialogs), `gfx/` (renderer, models, decals, shadows, `*.wgsl`), `tools/` (placement, removal, roads, selection), `audio/` (sound, music, ambience), `view/` (scene, world view, particles, weather), `saves/`, `platform/` (paths, browser glue, version, profiler); at the root `main.rs`, `game.rs` (the `Game`), `app.rs` (the window), `native.rs` (headless commands), `probe.rs` (the [probe](docs/develop/PROBE.md)), `loops.rs` (engine loops), `menu.rs`, `gameplay.rs` + `gameplay/` (the town's loop: simulation, input, tools, HUD, audio, saving), `start.rs` + `start/` (new game, templates, frame update, models, load, save) |
 | `apps/viewer` | Asset browser (models, textures, audio, dialogs) |
 | `apps/cli` | Command-line helpers |
-| `apps/modmanager` | The mod manager (binary `banished-mods`, egui): mods on and off, order, mod lists, Nexus Mods installs, Play |
-| `crates/core` | Bit-exact foundations: CRT maths (`crt`), `Random`, Perlin `noise`, `math` (`Transform`), game time (`scheduler`), `calendar`; `picking`; re-exported by `banished-game` |
-| `crates/terrain`, `crates/path` | The terrain generator, mesh and ground queries; the pathfinder, walkable regions and sector graph; re-exported by `banished-game` as `terrain`, `pathfind`, `sectors` |
+| `apps/modmanager` | The mod manager (binary `unbanished-mods`, egui): mods on and off, order, mod lists, Nexus Mods installs, Play |
+| `crates/core` | Bit-exact foundations: CRT maths (`crt`), `Random`, Perlin `noise`, `math` (`Transform`), game time (`scheduler`), `calendar`; `picking`; re-exported by `unbanished-game` |
+| `crates/terrain`, `crates/path` | The terrain generator, mesh and ground queries; the pathfinder, walkable regions and sector graph; re-exported by `unbanished-game` as `terrain`, `pathfind`, `sectors` |
 | `crates/game` | Bit-exact game rules, by folder: `people/` (citizens, lives, needs), `behaviour/` (agents, AI, characters, animation), `work/` (jobs, construction, production, stock), `production/` (farms, orchards, quarries, hunting…), `commerce/` (markets, trade), `nature/` (seeding, growth, wildlife, climate), `world/` (map, floors, placement), `disasters/`, plus `town.rs` + `town/` (the simulation context: sites, building, clearing, piles, storage, the job and building callbacks) and `events.rs` |
 | `crates/formats` | Dependency-free readers: `.pkg`, `.crs`, UI dialogs, gameplay resources, saves |
 | `crates/ui` | The game's UI system (element tree, layout, fonts, controls, input) |
@@ -86,7 +90,7 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 | `crates/mods` | The mod list (`Modification`, `IO::Modification`) shared by the game and the mod manager, and a text store for the settings file |
 | `crates/banishedinfo` | Optional banishedinfo.com support (not in the original): its mod list, search and versions, and installs; native only (the site sends no CORS headers) |
 | `crates/nexus` | Optional Nexus Mods support (not in the original): search, download links with the player's API key, `.pkm` install from archives; native transport behind the `native` feature |
-| `crates/net`, `apps/relay` | Multiplayer (not in the original): the relay protocol and a WebSocket connection, native and browser (`banished-net`); the relay with room codes (`banished-relay`). See `docs/MULTIPLAYER-PLAN.md` |
+| `crates/net`, `apps/relay` | Multiplayer (not in the original): the relay protocol and a WebSocket connection, native and browser (`unbanished-net`); the relay with room codes (`unbanished-relay`). See `docs/MULTIPLAYER-PLAN.md` |
 | `tools/emu` | Unicorn harness `pe_emu.py` and ground-truth generators for the tests |
 | `tools/ghidra` | Headless export scripts, `readdata.py` (constants), `vtable.py` |
 | `tools/triage` | `deviations.py`, `coverage.py` (uncited functions), `determinism.sh` |
@@ -95,7 +99,7 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 | `tools/compat` | Build any revision cleanly, play fixed scenarios, compare versions; see `docs/COMPATIBILITY.md` |
 | `tools/test` | The test runner `run.py` (tiers `quick`, `standard`, `long`), probe scenarios and baselines, and the headless browser tests; see `docs/develop/TESTING.md` |
 | `tools/refactor` | Scripts that move code without changing it: `regroup.py` (modules into folders), `split_tests.py` (test modules into files), `split_impl.py` (a type's methods into topic files, driven by a `*-split.json` plan) |
-| `tools/perf` | `samply_top.py` summarises samply profiles; see `docs/PERFORMANCE.md` for `BANISHED_PROFILE` |
+| `tools/perf` | `samply_top.py` summarises samply profiles; see `docs/PERFORMANCE.md` for `UNBANISHED_PROFILE` |
 | `tools/logo` | `make_logo.py` regenerates the logo, icon and favicon in `docs/assets/` |
 | `docs/` | Findings. Start with `FINDINGS.md`, `GAME-LOOP-CHECKLIST.md`, `PARITY-AUDIT.md` |
 
@@ -144,7 +148,7 @@ footer ("Version 1.0.7 - Build 170910") comes from the original's resources and 
   with `-dirty` for uncommitted changes to tracked files, else `GITHUB_SHA`, else `unknown`.
   `.github/workflows/site.yml` sets `UNBANISHED_BUILD`. The site footer uses the same rule
   (`site/.vitepress/config.mts`).
-- It appears in `banished --version`, the first log line, the browser's loading panel and the
+- It appears in `unbanished --version`, the first log line, the browser's loading panel and the
   site footer (`apps/game/src/platform/version.rs`). Do not add it to the original's menus unless the
   change is marked as a Deviation.
 - Bump the workspace version only for a release, in its own commit: the minor number for new
@@ -186,8 +190,8 @@ difference, find the exact cause (check the old build against itself too), then 
 revert. If it cannot be fixed, open an issue with the problem, the outcome, the suggested change
 and its impact, for a community vote.
 
-Captures and tests must not write the player's settings or saves (`BANISHED_SETTINGS`,
-`BANISHED_USER_DIR`).
+Captures and tests must not write the player's settings or saves (`UNBANISHED_SETTINGS`,
+`UNBANISHED_USER_DIR`).
 
 ## Committing
 

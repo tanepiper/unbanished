@@ -253,7 +253,7 @@ impl Ui {
                 // (e.g. `Dialog\StringTable.rsc:terrainSize`); code fills the other combos.
                 if let Some(items) = refs[2].as_deref().and_then(|r| {
                     let data = self.res.archive.read_ref(r).ok()?;
-                    banished_formats::ui::string_table(&data).ok()
+                    unbanished_formats::ui::string_table(&data).ok()
                 }) {
                     self.set_list_items(list, items.into_iter().map(|(_, v)| v).collect());
                 }

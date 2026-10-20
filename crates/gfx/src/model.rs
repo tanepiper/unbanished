@@ -2,8 +2,8 @@
 //! which material each range uses, which shader kind that is, its textures and its rigid node
 //! transform. GPU upload and skinning strategy stay with each app.
 
-use banished_formats::skeleton::{local_bind, world_transforms, Transform};
-use banished_formats::types::{DrawRange, GraphicsMesh, MaterialInstance, MeshPart};
+use unbanished_formats::skeleton::{local_bind, world_transforms, Transform};
+use unbanished_formats::types::{DrawRange, GraphicsMesh, MaterialInstance, MeshPart};
 
 use crate::material::MaterialKind;
 

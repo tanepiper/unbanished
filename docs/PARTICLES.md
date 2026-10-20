@@ -7,7 +7,7 @@ they do not touch the simulation.
 Port:
 - `apps/game/src/view/particles.rs`: the systems and the ParticleComponents;
 - `apps/game/src/gfx/particle_gfx.rs`: drawing;
-- `banished_formats::game::{particle_system, particle_description}`: parsing.
+- `unbanished_formats::game::{particle_system, particle_description}`: parsing.
 
 ## ParticleSystem (`ParticleSystems\*\*.rsc`)
 

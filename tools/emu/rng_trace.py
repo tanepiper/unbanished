@@ -9,7 +9,7 @@ Attach to an `Emu` before calling original code:
 
 Only outermost draws are recorded (RandFloat calling Rand() logs once), with the calling
 function named from tools/triage (names.tsv, class vtable roles) plus the call-site offset.
-Compare with the port's `banished_game::random::trace` output using tools/triage/rngdiff.py.
+Compare with the port's `unbanished_game::random::trace` output using tools/triage/rngdiff.py.
 """
 import bisect
 import os

@@ -1,8 +1,8 @@
 //! Event-log entries in real saves (`save-game/*.sav`, local only) against the port's colours,
 //! categories, icons and the text of events without arguments.
 
-use banished_formats::save::Save;
-use banished_game::events::{category, severity_color};
+use unbanished_formats::save::Save;
+use unbanished_game::events::{category, severity_color};
 
 #[test]
 fn saved_events_match() {

@@ -3,8 +3,8 @@
 //! A year is 3,600 seconds of game time, with twelve months of 300 seconds.
 //!
 //! ```
-//! use banished_core::calendar::Calendar;
-//! use banished_core::scheduler::ticks;
+//! use unbanished_core::calendar::Calendar;
+//! use unbanished_core::scheduler::ticks;
 //!
 //! let mut calendar = Calendar::default();
 //! calendar.advance(ticks(3600.0));

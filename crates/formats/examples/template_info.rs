@@ -1,6 +1,6 @@
 //! Print an entity template's component list (analysis helper).
-//! `cargo run -p banished-formats --example template_info -- path/to/WinData Template/X.rsc ...`
-use banished_formats::pkg::{Archive, Package};
+//! `cargo run -p unbanished-formats --example template_info -- path/to/WinData Template/X.rsc ...`
+use unbanished_formats::pkg::{Archive, Package};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -10,7 +10,7 @@ fn main() {
         archive.add(Package::parse(std::fs::read(dir.join(name)).unwrap()).unwrap());
     }
     for r in &args[2..] {
-        let t = banished_formats::game::component_description(
+        let t = unbanished_formats::game::component_description(
             &archive.read_ref(&format!("{r}:resource")).unwrap(),
         )
         .unwrap();
@@ -19,7 +19,7 @@ fn main() {
             let Ok(data) = archive.read_ref(&d.replace('\\', "/")) else {
                 continue;
             };
-            use banished_formats::game::*;
+            use unbanished_formats::game::*;
             if let Ok(v) = growth_description(&data) {
                 println!("  {d}: {v:?}");
             }

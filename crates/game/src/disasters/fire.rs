@@ -9,7 +9,7 @@
 //! Original: `FUN_1400055e0`, `FUN_14005da70`.
 // vtable 0x14015f480; vtable 0x1401676c0; vtable 0x140160fb0; Game +0xf0; +0x130; +0xe0; +0x140
 
-use banished_formats::game::FireDescription;
+use unbanished_formats::game::FireDescription;
 
 use crate::behaviour::character::{work_facing, Action, Component, Message, MoveTo};
 use crate::nature::seeding::Cells;

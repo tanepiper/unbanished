@@ -8,7 +8,7 @@
 //! Original: Runtime `0x180119860`, Runtime `0x180119500`.
 
 use crate::resources::{FontId, Resources};
-use banished_formats::ui::Sprite;
+use unbanished_formats::ui::Sprite;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlacedGlyph {
@@ -41,7 +41,7 @@ struct Line {
 /// dot: its period bitmap is centered on the x-height. All other missing printable characters
 /// use the replacement character or question mark, preserving a visible advance during wrapping.
 fn resolve_glyph(
-    font: &banished_formats::ui::Font,
+    font: &unbanished_formats::ui::Font,
     sprites: Option<&[Sprite]>,
     ch: char,
 ) -> Option<(usize, i32)> {
@@ -185,9 +185,9 @@ impl TextLayout {
 mod tests {
     use super::*;
     use crate::resources::{LoadedFont, LoadedSheet};
-    use banished_formats::pkg::Archive;
-    use banished_formats::ui::{Font, Sprite, SpriteSheet};
     use std::rc::Rc;
+    use unbanished_formats::pkg::Archive;
+    use unbanished_formats::ui::{Font, Sprite, SpriteSheet};
 
     fn resources() -> Resources {
         let mut res = Resources::new(Rc::new(Archive::default()));

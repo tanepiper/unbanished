@@ -1,6 +1,6 @@
-# banished-audio
+# unbanished-audio
 
-Sound for the game and the viewer. It decodes the game's sounds (xWMA, with `banished-wma`)
+Sound for the game and the viewer. It decodes the game's sounds (xWMA, with `unbanished-wma`)
 in the program itself, and plays them on a device with 64 channels, as the original
 `Audio::Device` does. On the desktop it plays through [rodio](https://github.com/RustAudio/rodio);
 in the browser it plays through Web Audio. No converted sound files are needed.
@@ -17,8 +17,8 @@ in the browser it plays through Web Audio. No converted sound files are needed.
 
 ```toml
 [dependencies]
-banished-audio = { path = "crates/audio" }
-banished-formats = { path = "crates/formats" }
+unbanished-audio = { path = "crates/audio" }
+unbanished-formats = { path = "crates/formats" }
 ```
 
 On Linux, the build needs the ALSA headers (`libasound2-dev` and `pkg-config`).
@@ -26,8 +26,8 @@ On Linux, the build needs the ALSA headers (`libasound2-dev` and `pkg-config`).
 ### Play a sound
 
 ```rust
-use banished_audio::{Device, PlayParams, Sound};
-use banished_formats::pkg::Archive;
+use unbanished_audio::{Device, PlayParams, Sound};
+use unbanished_formats::pkg::Archive;
 
 fn moo(archive: &Archive, device: &mut Device) -> Result<(), String> {
     let sound = Sound::load(archive, "Audio/Animal/Cow.rsc:version0")?;
@@ -51,10 +51,10 @@ after the player clicks or types on the page; `unlock` resumes the Web Audio con
 ### Decode without playing
 
 ```rust
-use banished_formats::pkg::Archive;
+use unbanished_formats::pkg::Archive;
 
 fn length(archive: &Archive) -> Result<f32, String> {
-    let (pcm, looping) = banished_audio::load_sound(archive, "Audio/Music/Menu.rsc:music")?;
+    let (pcm, looping) = unbanished_audio::load_sound(archive, "Audio/Music/Menu.rsc:music")?;
     let frames = pcm.samples.len() / pcm.channels as usize;
     println!("looping: {looping}");
     Ok(frames as f32 / pcm.sample_rate as f32)
@@ -75,7 +75,7 @@ See [AUDIO.md](https://github.com/tanepiper/unbanished/blob/main/docs/AUDIO.md) 
 ## Tests
 
 ```bash
-cargo test --release -p banished-audio
+cargo test --release -p unbanished-audio
 ```
 
 `tests/menu_music.rs` decodes the menu music from your game data, and skips without it.
@@ -83,10 +83,10 @@ cargo test --release -p banished-audio
 ## The API
 
 The full API documentation is at
-<https://tanepiper.github.io/unbanished/api/banished_audio/index.html>.
+<https://tanepiper.github.io/unbanished/api/unbanished_audio/index.html>.
 
 ## Related documents
 
 - [Audio](https://tanepiper.github.io/unbanished/topics/audio)
 - [AUDIO.md](https://github.com/tanepiper/unbanished/blob/main/docs/AUDIO.md)
-- [banished-wma](https://tanepiper.github.io/unbanished/reference/wma)
+- [unbanished-wma](https://tanepiper.github.io/unbanished/reference/wma)

@@ -58,7 +58,7 @@ impl ConsumeProduceUi {
                 if let Some(d) = archive
                     .read_ref(&format!("{file}:consumeproduce"))
                     .ok()
-                    .and_then(|b| banished_formats::game::consume_produce_description(&b).ok())
+                    .and_then(|b| unbanished_formats::game::consume_produce_description(&b).ok())
                 {
                     let labels = d
                         .recipes
@@ -72,7 +72,7 @@ impl ConsumeProduceUi {
                         .iter()
                         .map(|r| {
                             let file = r.output.as_deref()?.split(':').next()?.replace('\\', "/");
-                            let m = banished_formats::game::raw_material_description(
+                            let m = unbanished_formats::game::raw_material_description(
                                 &archive.read_ref(&format!("{file}:rawmaterial")).ok()?,
                             )
                             .ok()?;
@@ -101,7 +101,7 @@ impl ConsumeProduceUi {
         }
         let entity = data.produce.as_ref()?.0;
         Some(WorkPlaceClick::Command(
-            banished_game::work::professions::Command::SetRecipe {
+            unbanished_game::work::professions::Command::SetRecipe {
                 entity,
                 recipe: index as i32,
             },

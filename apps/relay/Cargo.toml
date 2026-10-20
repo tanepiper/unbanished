@@ -1,5 +1,5 @@
 [package]
-name = "banished-relay"
+name = "unbanished-relay"
 version.workspace = true
 description = "The Un-Banished multiplayer relay: rooms with codes, passing the players' messages on"
 edition.workspace = true
@@ -7,14 +7,14 @@ license.workspace = true
 repository.workspace = true
 
 [[bin]]
-name = "banished-relay"
+name = "unbanished-relay"
 path = "src/main.rs"
 
 [dependencies]
-banished-net = { path = "../../crates/net" }
+unbanished-net = { path = "../../crates/net" }
 tungstenite = "0.30"
 log = "0.4"
 env_logger = "0.11"
 
 [dev-dependencies]
-banished-net = { path = "../../crates/net", features = ["native"] }
+unbanished-net = { path = "../../crates/net", features = ["native"] }

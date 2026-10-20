@@ -1,11 +1,11 @@
 //! EntityUI hosts opened by EditTool::Select (FUN_140102880).
 use crate::ui::building_ui::{Controller, EntityData};
 use crate::{loops::Screen, start::StartingTown, tools::selection::Entity};
-use banished_formats::{
+use unbanished_formats::{
     game::{self, UiController},
     pkg::Archive,
 };
-use banished_ui::{Control, Kind, NodeId, Ui};
+use unbanished_ui::{Control, Kind, NodeId, Ui};
 
 pub struct EntityWindow {
     pub entity: Entity,
@@ -476,7 +476,7 @@ impl EntityWindows {
     pub fn town_hall_select(
         &mut self,
         ui: &mut Ui,
-        statistics: &banished_game::work::tracker::Statistics,
+        statistics: &unbanished_game::work::tracker::Statistics,
         node: NodeId,
     ) -> bool {
         let Some(w) = self.open.iter_mut().find(|w| ui.descendant(w.root, node)) else {
@@ -691,7 +691,7 @@ fn workplace_info(town: &StartingTown, p: usize) -> Option<crate::ui::building_u
 /// is cleared or built, 3 in states 3..=7 (damaged or being destroyed), else the
 /// UIDescription's page (`+0x40`), keeping page 4 once the player opened it.
 fn entity_page(town: &StartingTown, entity: Entity, finished: i32, active: i32) -> i32 {
-    use banished_game::work::construction::Controller as C;
+    use unbanished_game::work::construction::Controller as C;
     let Entity::Placed(p) = entity else {
         return finished;
     };
@@ -730,7 +730,7 @@ fn entity_page(town: &StartingTown, entity: Entity, finished: i32, active: i32) 
 
 /// What BuildUI (`FUN_1400b6f20`) reads for building `p`; `None` unless it is a site.
 fn build_info(town: &StartingTown, p: usize) -> Option<crate::ui::building_ui::BuildInfo> {
-    use banished_game::work::construction::Controller as C;
+    use unbanished_game::work::construction::Controller as C;
     let c = &town.construction;
     let site = c.sites.get(&p)?;
     let t = &c.templates[site.template];
@@ -759,7 +759,7 @@ fn build_info(town: &StartingTown, p: usize) -> Option<crate::ui::building_ui::B
         build,
         clear_total: if has_clear { site.clear_total } else { 0 },
         clear_remaining: if has_clear {
-            banished_game::town::clear_remaining(
+            unbanished_game::town::clear_remaining(
                 &town.cells.objects,
                 town.cells.size as i32,
                 &town.placed[p],
@@ -799,7 +799,7 @@ fn destroy_info(town: &StartingTown, p: usize) -> Option<crate::ui::building_ui:
 
 /// Slot `+0x68` of the `kind` component of `e` for control `index`: bit 0 enabled, bit 1 on.
 fn control_state(town: &StartingTown, e: usize, kind: u32, index: i32) -> u8 {
-    use banished_game::work::control::kind as k;
+    use unbanished_game::work::control::kind as k;
     let Some(site) = town.construction.sites.get(&e) else {
         return 0;
     };

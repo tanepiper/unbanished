@@ -16,7 +16,7 @@
 
 use std::collections::BTreeMap;
 
-use banished_formats::game::{CitizenDescription, Disease, ResidenceDescription};
+use unbanished_formats::game::{CitizenDescription, Disease, ResidenceDescription};
 
 use crate::behaviour::activities::TownView;
 use crate::behaviour::agents::CitizenState;

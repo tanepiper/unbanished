@@ -8,7 +8,7 @@ pub struct Game {
     /// The game's own packages, before the mods (`Archive::remove_after`).
     pub(crate) base_packages: usize,
     /// The resources loaded at startup (`formats::registry`).
-    pub(crate) registry: Rc<banished_formats::registry::Registry>,
+    pub(crate) registry: Rc<unbanished_formats::registry::Registry>,
     /// The mods (`IO::Modification`) and the folder they were found in.
     pub(crate) mods: mods::Modification,
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
@@ -38,7 +38,7 @@ pub struct Game {
     pub(crate) pointer: Option<(i32, i32)>,
     /// The software pointers (`FUN_1400a0e00`'s table, `Global +0x28`): Arrow, Hand,
     /// Hourglass, Move, Query and Place, each its sheet and hotspot once loaded.
-    pub(crate) cursors: Vec<Option<(banished_ui::SpriteRef, [i32; 2])>>,
+    pub(crate) cursors: Vec<Option<(unbanished_ui::SpriteRef, [i32; 2])>>,
     /// A capture's cinematic camera this frame: eye, target and vertical field of view
     /// ([`view::cinematic`]). Deviation: not in the original; drawing only, set by captures.
     pub(crate) cinematic: Option<(glam::Vec3, glam::Vec3, f32)>,
@@ -49,7 +49,7 @@ pub struct Game {
 pub(crate) fn load_mods(
     archive: &mut Archive,
     mods: &mut mods::Modification,
-) -> banished_formats::registry::Registry {
+) -> unbanished_formats::registry::Registry {
     mods.dirty = false;
     archive.user_packs = mods.load_order().len();
     for m in mods.load_order() {
@@ -61,8 +61,8 @@ pub(crate) fn load_mods(
             Err(e) => log::warn!("{}.pkm: {e}", m.file),
         }
     }
-    let roots = banished_formats::registry::roots(&mods.enabled_files());
-    banished_formats::registry::Registry::build(archive, &roots)
+    let roots = unbanished_formats::registry::roots(&mods.enabled_files());
+    unbanished_formats::registry::Registry::build(archive, &roots)
 }
 
 /// `Cursor/{name}.rsc:cursor`, in cursor index order.
@@ -113,7 +113,10 @@ pub(crate) fn reload_chain(next: Box<dyn loops::GameLoop>) -> MainLoop {
 pub(crate) fn clock_seed() -> u32 {
     // Scripted capture override: fix the separate engine/menu stream (town names, menu scene)
     // as well as the world seed. Normal System::Random() still seeds from the clock.
-    if let Ok(seed) = std::env::var("BANISHED_SEED").unwrap_or_default().parse() {
+    if let Ok(seed) = unbanished_formats::env::var("SEED")
+        .unwrap_or_default()
+        .parse()
+    {
         return seed;
     }
     let ms = web_time::SystemTime::now()
@@ -187,7 +190,7 @@ impl Game {
     /// The configurations' effects inside the game: the volumes (`Audio::Configuration`).
     pub(crate) fn apply_settings(&mut self) {
         let a = self.settings.audio;
-        self.audio.scene.volumes = banished_audio::scene::Volumes {
+        self.audio.scene.volumes = unbanished_audio::scene::Volumes {
             ui: a.ui,
             music: a.music,
             ambient: a.ambient,
@@ -198,7 +201,7 @@ impl Game {
     /// "Use Software Mouse" (`Input::Configuration +10`): the pointer is drawn by the game, at
     /// its image's own size, instead of by the system (`UserInterface::SetCursor` hands the
     /// cursor's sheet image and hotspot to the device).
-    pub(crate) fn cursor_quad(&mut self) -> Option<banished_ui::Quad> {
+    pub(crate) fn cursor_quad(&mut self) -> Option<unbanished_ui::Quad> {
         let (x, y) = self.pointer?;
         if self.cursors.is_empty() {
             self.cursors = CURSORS
@@ -208,11 +211,11 @@ impl Game {
                         .archive
                         .read_ref(&format!("Cursor/{name}.rsc:cursor"))
                         .ok()?;
-                    let c = banished_formats::ui::cursor(&data).ok()?;
+                    let c = unbanished_formats::ui::cursor(&data).ok()?;
                     let sheet_ref = c.sprite_sheet?.replace('\\', "/");
                     let sheet = self.ui.res.sheet(&sheet_ref)?;
                     let loaded = &self.ui.res.sheets[sheet].sheet;
-                    let sprite = banished_ui::SpriteRef {
+                    let sprite = unbanished_ui::SpriteRef {
                         sheet,
                         width: loaded.width,
                         height: loaded.height,
@@ -231,8 +234,8 @@ impl Game {
         let cursor = cursor.or_else(|| self.cursors.first().copied().flatten());
         let (sprite, [hx, hy]) = cursor?;
         let (x, y) = ((x - hx) as f32, (y - hy) as f32);
-        Some(banished_ui::Quad {
-            texture: banished_ui::Texture::Sheet(sprite.sheet),
+        Some(unbanished_ui::Quad {
+            texture: unbanished_ui::Texture::Sheet(sprite.sheet),
             rect: [x, y, x + sprite.width as f32, y + sprite.height as f32],
             uv: sprite.uv,
             color: [255; 4],
@@ -369,7 +372,7 @@ impl Game {
 
     /// A key pressed: `key` for the UI (focus, edit boxes, shortcuts), `code` the engine's
     /// keyboard code for the key map.
-    pub fn key(&mut self, key: Option<banished_ui::Key>, text: Option<&str>, code: Option<u8>) {
+    pub fn key(&mut self, key: Option<unbanished_ui::Key>, text: Option<&str>, code: Option<u8>) {
         self.audio.unlock();
         let handled = match (self.input_root(), key) {
             (Some(root), Some(key)) => {
@@ -456,7 +459,7 @@ impl Game {
 
     /// Click an element through the normal pointer path: move to its centre (after the last
     /// layout), press and release.
-    pub fn press_node(&mut self, id: banished_ui::NodeId) {
+    pub fn press_node(&mut self, id: unbanished_ui::NodeId) {
         let [x0, y0, x1, y1] = self.ui.node(id).rect;
         self.pointer_move_ui((x0 + x1) / 2, (y0 + y1) / 2);
         self.pointer_button(true);
@@ -489,7 +492,7 @@ impl Game {
             return false;
         };
         let index = match &self.ui.node(list).kind {
-            banished_ui::Kind::List(data) => {
+            unbanished_ui::Kind::List(data) => {
                 data.items.iter().position(|t| t.eq_ignore_ascii_case(item))
             }
             _ => None,
@@ -661,7 +664,7 @@ impl Game {
 }
 
 /// UI units to window pixels (`UserInterface::UIScaled` at draw time).
-pub(crate) fn scale_quads(quads: &mut [banished_ui::Quad], s: f32) {
+pub(crate) fn scale_quads(quads: &mut [unbanished_ui::Quad], s: f32) {
     if s == 1.0 {
         return;
     }
@@ -684,8 +687,8 @@ pub(crate) fn scale_quads(quads: &mut [banished_ui::Quad], s: f32) {
     }
 }
 
-pub(crate) fn ui_key(key: &Key, shift: bool) -> Option<banished_ui::Key> {
-    use banished_ui::Key as K;
+pub(crate) fn ui_key(key: &Key, shift: bool) -> Option<unbanished_ui::Key> {
+    use unbanished_ui::Key as K;
     Some(match key {
         Key::Named(NamedKey::Tab) => {
             if shift {

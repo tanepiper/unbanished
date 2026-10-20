@@ -1,7 +1,7 @@
 //! `crt` against the original C runtime maths (`tools/emu/crt_math.py`; skipped without its
 //! output in game-data/derived/emu): every result bit for bit (NaNs as NaNs).
 
-use banished_game::crt::{acosf, atan2f, cosf, sinf};
+use unbanished_game::crt::{acosf, atan2f, cosf, sinf};
 
 #[test]
 fn matches_the_original() {

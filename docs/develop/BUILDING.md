@@ -24,10 +24,10 @@ this folder. Copy your data into it once:
 
 ```bash
 tools/extract-assets.sh                              # looks in the usual Steam folders
-BANISHED_DIR="/path/to/Banished" tools/extract-assets.sh
+UNBANISHED_DIR="/path/to/Banished" tools/extract-assets.sh
 ```
 
-`BANISHED_DIR` is the folder that contains `WinData`. The script copies the four `.pkg` files to
+`UNBANISHED_DIR` is the folder that contains `WinData`. The script copies the four `.pkg` files to
 `game-data/original/WinData/`. For the research tools, it also does these things:
 
 - it copies the original program files (`.exe`, `.dll`) to `game-data/original/`;
@@ -54,12 +54,12 @@ git status --short    # the links must not appear
 ## The game
 
 ```bash
-cargo build -p banished-app --release
-target/release/banished                      # reads game-data/original/WinData
-target/release/banished /path/to/WinData     # or any other WinData folder
+cargo build -p unbanished-app --release
+target/release/unbanished                      # reads game-data/original/WinData
+target/release/unbanished /path/to/WinData     # or any other WinData folder
 ```
 
-The package is called `banished-app`; the program is called `banished`. Always build with
+The package is called `unbanished-app`; the program is called `unbanished`. Always build with
 `--release` to play: a debug build is too slow. The workspace builds its dependencies with
 optimisation even in debug builds (`[profile.dev.package."*"]` in `Cargo.toml`), so a debug build
 of the game is usable for stepping through code.
@@ -69,16 +69,16 @@ The [game's README](../../apps/game/README.md) lists every command-line option.
 ## The viewer, the command-line tools, the mod manager and the relay
 
 ```bash
-cargo run -p banished-viewer --release               # browse models, textures, sounds, dialogs
-cargo run -p banished-cli --release -- export-audio  # decode every sound to MP3 (needs FFmpeg)
-cargo run -p banished-cli --release -- nexus search terrain   # mods from Nexus Mods
-cargo run -p banished-modmanager --release -- path/to/WinData # the mod manager, banished-mods
-cargo run -p banished-relay --release                # the multiplayer relay, on 0.0.0.0:7780
+cargo run -p unbanished-viewer --release               # browse models, textures, sounds, dialogs
+cargo run -p unbanished-cli --release -- export-audio  # decode every sound to MP3 (needs FFmpeg)
+cargo run -p unbanished-cli --release -- nexus search terrain   # mods from Nexus Mods
+cargo run -p unbanished-modmanager --release -- path/to/WinData # the mod manager, unbanished-mods
+cargo run -p unbanished-relay --release                # the multiplayer relay, on 0.0.0.0:7780
 ```
 
 See the READMEs of the [viewer](../../apps/viewer/README.md), the
 [command-line tools](../../apps/cli/README.md), the [mod manager](../../apps/modmanager/README.md)
-and the [relay](../../apps/relay/README.md). The mod manager's **Play** starts `banished` from
+and the [relay](../../apps/relay/README.md). The mod manager's **Play** starts `unbanished` from
 beside itself (or from the `PATH`), so build both into the same `target/release` folder.
 
 ## The browser versions
@@ -103,7 +103,7 @@ game files.
 To check that the browser version compiles without starting a server:
 
 ```bash
-cargo build --release -p banished-app --target wasm32-unknown-unknown
+cargo build --release -p unbanished-app --target wasm32-unknown-unknown
 ```
 
 This build must finish with no warnings.
@@ -119,7 +119,7 @@ chooses it, in this order:
 3. the `GITHUB_SHA` environment variable;
 4. `unknown`.
 
-`banished --version` prints it.
+`unbanished --version` prints it.
 
 ## This website
 

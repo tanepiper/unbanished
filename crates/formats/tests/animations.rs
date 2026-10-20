@@ -1,7 +1,7 @@
 //! AnimationGroup playback metadata across the player's local package corpus.
-use banished_formats::pkg::{Archive, Package};
-use banished_formats::types::{animation_group, graphics_mesh};
 use std::path::PathBuf;
+use unbanished_formats::pkg::{Archive, Package};
+use unbanished_formats::types::{animation_group, graphics_mesh};
 
 #[test]
 fn animation_metadata_and_tree_geometry_parse() {

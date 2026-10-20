@@ -1,4 +1,4 @@
-use banished_game::picking::{point, triangle};
+use unbanished_game::picking::{point, triangle};
 
 #[test]
 fn original_ground_clips_selection_ray() {
@@ -13,7 +13,7 @@ fn original_ground_clips_selection_ray() {
         let p: Vec<_> = line.split('\t').collect();
         let v: Vec<f32> = p[0].split(',').map(|v| v.parse().unwrap()).collect();
         let heights: Vec<i16> = p[1].split(',').map(|v| v.parse().unwrap()).collect();
-        let grid = banished_game::terrain::HeightGrid {
+        let grid = unbanished_game::terrain::HeightGrid {
             width: 17,
             heights: &heights,
         };

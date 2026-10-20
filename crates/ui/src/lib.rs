@@ -21,8 +21,8 @@ use draw::modulate;
 
 use std::rc::Rc;
 
-use banished_formats::pkg::Archive;
-use banished_formats::ui::{flags, Element, ElementKind};
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::ui::{flags, Element, ElementKind};
 
 pub use controls::{Control, EditData, SliderData};
 pub use dialog::{Binding, DialogInstance};

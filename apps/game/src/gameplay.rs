@@ -30,13 +30,13 @@ use commands::{Outcome, PlayerCommand, Tool};
 use input::DragInput;
 use saving::SaveTarget;
 
-use banished_formats::game::climate_generator;
-use banished_formats::game::EnvironmentMonth;
-use banished_game::calendar::Calendar;
-use banished_game::nature::environment::{Climate, Environment, YEAR_SECONDS};
-use banished_game::random::Random;
-use banished_game::scheduler::ticks;
-use banished_ui::{Event, Ui};
+use unbanished_formats::game::climate_generator;
+use unbanished_formats::game::EnvironmentMonth;
+use unbanished_game::calendar::Calendar;
+use unbanished_game::nature::environment::{Climate, Environment, YEAR_SECONDS};
+use unbanished_game::random::Random;
+use unbanished_game::scheduler::ticks;
+use unbanished_ui::{Event, Ui};
 
 use crate::gfx::render::Lighting;
 use crate::keymap::id as keys;
@@ -66,7 +66,7 @@ const EDGE: i32 = 4;
 /// A dialog the pause menu opened.
 /// A window being dragged by its `borderTitle` (ToolUI `FUN_140081100` / `FUN_140080e80`).
 struct WindowDrag {
-    root: banished_ui::NodeId,
+    root: unbanished_ui::NodeId,
     /// A utility window's template (its corner is remembered), or an entity window.
     template: Option<String>,
     /// Where the button went down (`+0x50`), and the cursor's offset from the corner
@@ -130,11 +130,11 @@ pub struct GameplayLoop {
     menu_dialog: Option<MenuDialog>,
     window_drag: Option<WindowDrag>,
     /// `Game\Names\Cities` for the Map dialog's New Name (loaded when first wanted).
-    town_names: Option<banished_formats::names::NameDatabase>,
+    town_names: Option<unbanished_formats::names::NameDatabase>,
     /// The road kinds' decal materials, the templates' DecalDescriptions, and what the decals
     /// were built for (road revision, terrain revision, the entities' signature).
     road_materials: Vec<Option<String>>,
-    decal_descriptions: Vec<Option<std::sync::Arc<banished_formats::game::DecalDescription>>>,
+    decal_descriptions: Vec<Option<std::sync::Arc<unbanished_formats::game::DecalDescription>>>,
     decals_built: Option<(u32, u64, u64, Vec<((i32, i32), i32)>)>,
     /// Each template's RadiusDescription (`{file}:radius`): radius and material.
     radius_descriptions: std::collections::HashMap<usize, Option<(i32, String)>>,
@@ -153,10 +153,10 @@ pub struct GameplayLoop {
     screenshot: Option<bool>,
     highlight: crate::gfx::highlight::Highlight,
     /// The event log (`Game +0x138`) and the stock manager's warning state.
-    pub events: banished_game::events::EventLog,
-    stock_warnings: banished_game::events::StockWarnings,
+    pub events: unbanished_game::events::EventLog,
+    stock_warnings: unbanished_game::events::StockWarnings,
     /// The Town Info graphs' history (StockManager `+0x150`, sampled every 75 s).
-    statistics: banished_game::work::tracker::Statistics,
+    statistics: unbanished_game::work::tracker::Statistics,
     /// The event ribbon (`Dialog/EventNotify.rsc`) and its popups.
     notify: Option<crate::ui::event_notify::EventNotify>,
     /// Screen aspect of the last frame (MapUI's frustum outline).
@@ -222,7 +222,7 @@ pub struct GameplayLoop {
     /// A new game's terrain block, kept for saving: the generated surface, rivers, lakes and
     /// materials (the heights are taken from the terrain when saving, as tunnels change them).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    new_map: Option<banished_formats::menu_scene::MapComponent>,
+    new_map: Option<unbanished_formats::menu_scene::MapComponent>,
     /// The save this game was loaded from (docs/SAVE-LOADING.md); `None` for a New Game.
     saved: Option<std::sync::Arc<crate::saves::saved::SavedGame>>,
     /// The loop was given its scenario (`+0x15c` not −1, `FUN_14009d530`): a scenario's start,
@@ -256,7 +256,7 @@ impl GameplayLoop {
             g.rng = Random::from_parts(s.random_index, state);
         }
         g.calendar.year = s.managers.i32("calendar.value").unwrap_or(0).max(0) as u32;
-        if let Some(banished_formats::savegame::Value::I64(t)) = s.managers.at("calendar.time") {
+        if let Some(unbanished_formats::savegame::Value::I64(t)) = s.managers.at("calendar.time") {
             g.calendar.elapsed = *t;
         }
         g.stock_warnings = saved.stock_warnings();
@@ -268,7 +268,7 @@ impl GameplayLoop {
 
     /// `FUN_140108950` for every entity that went this update (a citizen died, a building or
     /// resource was removed): its window closes and, if it was the selection, it goes.
-    fn close_removed_windows(&mut self, ui: &mut banished_ui::Ui) {
+    fn close_removed_windows(&mut self, ui: &mut unbanished_ui::Ui) {
         let (Some(town), Some(screen)) = (self.town.as_ref(), self.screen.as_mut()) else {
             return;
         };
@@ -293,7 +293,7 @@ impl GameplayLoop {
     /// The windows' remembered settings to their entities' UIComponents: those of windows
     /// closed since (`OnClosed`), and with `all` every open window's as well
     /// (`UserInterface::SaveAllSettings`, before a game is saved).
-    fn store_window_settings(&mut self, ui: &banished_ui::Ui, all: bool) {
+    fn store_window_settings(&mut self, ui: &unbanished_ui::Ui, all: bool) {
         let settings = if all {
             self.entities.take_settings(ui)
         } else {
@@ -591,12 +591,12 @@ impl GameLoop for GameplayLoop {
 /// A generated world's terrain block (`FUN_1400b59a0`, version 6): its size, heights,
 /// surface, the rivers' and lakes' mesh with the profile's River and Lake materials, and the
 /// river lines; no decals yet.
-fn new_map(world: &World) -> banished_formats::menu_scene::MapComponent {
+fn new_map(world: &World) -> unbanished_formats::menu_scene::MapComponent {
     let t = &world.terrain;
     let size = t.size as i32;
     let w = &world.water;
     let material = |m: &str| Some(m.replace('/', "\\"));
-    banished_formats::menu_scene::MapComponent {
+    unbanished_formats::menu_scene::MapComponent {
         version: 6,
         dims: [size, size / 2, 32, 33, size + 1, 33 * 33],
         heights: t.heights.clone(),

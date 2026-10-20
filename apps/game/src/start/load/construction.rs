@@ -11,14 +11,14 @@
 
 use std::collections::BTreeMap;
 
-use banished_formats::pkg::Archive;
-use banished_formats::savegame::{Fields, ObjId, Value};
-use banished_game::work::construction::{
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::savegame::{Fields, ObjId, Value};
+use unbanished_game::work::construction::{
     BuildWork, ClearWork, Decal, Gather, PickupWork, Pile, ProduceWork,
 };
-use banished_game::work::jobs::{Work, WorkKind};
-use banished_game::work::road::RoadWork;
-use banished_game::work::stock::Item;
+use unbanished_game::work::jobs::{Work, WorkKind};
+use unbanished_game::work::road::RoadWork;
+use unbanished_game::work::stock::Item;
 
 use super::super::{load_template, material_index, normalise, StartingTown};
 use crate::saves::saved::SavedGame;
@@ -296,7 +296,7 @@ impl StartingTown {
                     count: int(&raw.fields, "raw.count"),
                     age: time(&raw.fields, "raw.age"),
                     work,
-                    mask: banished_game::town::pile_mask(self.materials[material].flags),
+                    mask: unbanished_game::town::pile_mask(self.materials[material].flags),
                     priority: None,
                     auto_pickup: None,
                     state: 0,
@@ -387,11 +387,11 @@ impl StartingTown {
             };
             // `HerbalistWork`-shaped state: the workers and the misses in a row (`+0x58`).
             let workers =
-                |misses: Option<&str>| banished_game::production::herbalist::HerbalistWork {
+                |misses: Option<&str>| unbanished_game::production::herbalist::HerbalistWork {
                     workers: citizens(&format!("{block}.citizens")),
                     misses: misses.map_or(0, |m| int(f, &format!("{block}.{m}"))),
                 };
-            let area = |crop: Option<usize>| banished_game::production::farm::AreaWork {
+            let area = |crop: Option<usize>| unbanished_game::production::farm::AreaWork {
                 claims: list(f, &format!("{block}.keyed"))
                     .iter()
                     .filter_map(|k| Some((int(k, "key"), citizen(k.ptr("citizen"))?)))
@@ -488,7 +488,7 @@ impl StartingTown {
                 "ClearStorage" => WorkKind::ClearStorage(workers(None)),
                 "FireWork" => WorkKind::Fire(workers(None)),
                 "FishingWork" => {
-                    WorkKind::Fishing(banished_game::production::fishing::FishingWork {
+                    WorkKind::Fishing(unbanished_game::production::fishing::FishingWork {
                         workers: list(f, "fishing.citizens")
                             .iter()
                             .map(|c| citizen(c.ptr("citizen")))
@@ -501,11 +501,11 @@ impl StartingTown {
                     })
                 }
                 "LocationWork" => {
-                    WorkKind::Location(banished_game::people::services::LocationWork {
+                    WorkKind::Location(unbanished_game::people::services::LocationWork {
                         worker: citizen(f.ptr("location.citizen")),
                     })
                 }
-                "TradeWork" => WorkKind::Trade(banished_game::commerce::trade::TradeWork {
+                "TradeWork" => WorkKind::Trade(unbanished_game::commerce::trade::TradeWork {
                     haulers: list(f, "trade.orders")
                         .iter()
                         .filter_map(|o| {
@@ -519,7 +519,7 @@ impl StartingTown {
                         })
                         .collect(),
                 }),
-                "MarketWork" => WorkKind::Market(banished_game::commerce::market::MarketWork {
+                "MarketWork" => WorkKind::Market(unbanished_game::commerce::market::MarketWork {
                     plans: list(f, "market.orders")
                         .iter()
                         .filter_map(|o| {

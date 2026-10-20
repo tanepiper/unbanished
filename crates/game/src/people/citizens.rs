@@ -4,7 +4,7 @@
 //!
 //! Original: `FUN_1400a62a0`, `FUN_1400a6510`, `FUN_14011c550`.
 
-use banished_formats::names::NameDatabase;
+use unbanished_formats::names::NameDatabase;
 
 use crate::people::names::citizen_name;
 use crate::random::Random;

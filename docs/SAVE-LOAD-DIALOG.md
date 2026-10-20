@@ -8,7 +8,7 @@ The original executable's folders, which the port uses natively so it can replac
 | What | Original | Port |
 |---|---|---|
 | Game data | `FileSystem::GetRootDirectory` (`0x1800ae5a0`, the executable's folder) + `GetPlatformName` "Win" + `GetBuildName` "Data": `WinData` | A folder on the command line, else `WinData` beside the executable, else the repository's `game-data/original/WinData` |
-| Saves | `FileSystem::GetSaveDirectory` (`0x1800adf20`): `SHGetFolderPathW(CSIDL_PERSONAL)` + `Banished\`, files `%sSave\%s.sav` | `Documents/Banished/Save/NAME.sav` (`%USERPROFILE%` or `$HOME`; a redirected Documents folder is not followed). `BANISHED_USER_DIR` names the `Banished` folder (tests) |
+| Saves | `FileSystem::GetSaveDirectory` (`0x1800adf20`): `SHGetFolderPathW(CSIDL_PERSONAL)` + `Banished\`, files `%sSave\%s.sav` | `Documents/Banished/Save/NAME.sav` (`%USERPROFILE%` or `$HOME`; a redirected Documents folder is not followed). `UNBANISHED_USER_DIR` names the `Banished` folder (tests) |
 | Settings | The registry, `Software\Shining Rock Software LLC\Banished` | Still the port's settings file (not yet the registry) |
 
 In the browser the saves are kept in IndexedDB (`save_store.rs`, database `banished-wasm`):

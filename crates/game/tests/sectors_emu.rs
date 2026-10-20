@@ -1,9 +1,9 @@
 //! `sectors::SectorGraph` against the original graph build, lazy rebuild and path-rank
 //! distance (`tools/emu/sectors.py`; skipped without its output in game-data/derived/emu).
 
-use banished_game::pathfind::{regions, WALKABLE, WATER};
-use banished_game::sectors::SectorGraph;
-use banished_game::terrain::CellType;
+use unbanished_game::pathfind::{regions, WALKABLE, WATER};
+use unbanished_game::sectors::SectorGraph;
+use unbanished_game::terrain::CellType;
 
 /// `FUN_1400a55c0` with mask `0xe1f`.
 fn reachable(types: &[CellType], region: &[u16], a: i32, b: i32) -> bool {

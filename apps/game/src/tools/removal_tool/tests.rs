@@ -1,6 +1,6 @@
 use super::*;
-use banished_formats::pkg::Package;
-use banished_game::random::Random;
+use unbanished_formats::pkg::Package;
+use unbanished_game::random::Random;
 
 /// ClearTree over the trees near the start: one marker per tree cell, laborers fell them,
 /// every marker removes itself, and ClearCancel takes markers away again.
@@ -175,7 +175,7 @@ fn clear_tree_marks_and_fells() {
     cancel.drag(&archive, &mut town, &terrain, cy * n + cx, cy * n + cx);
     assert_eq!(town.construction.destroy, [first]);
 
-    let mut warnings = banished_game::events::StockWarnings::default();
+    let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
     let mut done_at = None;
     for step in 0..30 * 60 * 10 {
@@ -186,7 +186,7 @@ fn clear_tree_marks_and_fells() {
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
-            .step(banished_game::scheduler::ticks(dt));
+            .step(unbanished_game::scheduler::ticks(dt));
         if step == 0 {
             assert!(!town.placed[first].alive, "cancelled marker still alive");
             assert_eq!(town.cells.occupants[(cy * n + cx) as usize], None);

@@ -7,7 +7,7 @@ use crate::{Error, GAME_DOMAIN};
 /// A parsed `nxm://` link.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NxmLink {
-    /// The game's domain (`banished`).
+    /// The game's domain (`unbanished`).
     pub game: String,
     /// The mod's id on Nexus Mods.
     pub mod_id: u32,

@@ -1,5 +1,5 @@
 [package]
-name = "banished-nexus"
+name = "unbanished-nexus"
 version.workspace = true
 description = "Optional Nexus Mods support for Un-Banished: search Banished mods, get download links with the player's API key, and install the .pkm packages they contain"
 edition.workspace = true

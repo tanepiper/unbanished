@@ -4,14 +4,14 @@ use super::*;
 
 impl Lighting {
     /// One month of `EnvironmentDescription`, as `FUN_140098da0` applies it.
-    pub fn from_month(m: &banished_formats::game::EnvironmentMonth) -> Lighting {
+    pub fn from_month(m: &unbanished_formats::game::EnvironmentMonth) -> Lighting {
         Lighting::between_months(m, m, 0.0)
     }
 
     /// Interpolate adjacent month records as `FUN_140098f90` does before applying the sun and fog.
     pub fn between_months(
-        from: &banished_formats::game::EnvironmentMonth,
-        to: &banished_formats::game::EnvironmentMonth,
+        from: &unbanished_formats::game::EnvironmentMonth,
+        to: &unbanished_formats::game::EnvironmentMonth,
         amount: f32,
     ) -> Lighting {
         let amount = amount.clamp(0.0, 1.0);
@@ -43,7 +43,7 @@ impl Lighting {
     /// ambient, `+0x64` sun, `+0x68` fog colours, `+0x6c..+0x74` fog start, end and most) pulls
     /// the lighting towards it by the effect's intensity (`FUN_140099ec0` without the sun's
     /// angles).
-    pub fn toward_weather(&mut self, w: &banished_formats::weather::Weather, amount: f32) {
+    pub fn toward_weather(&mut self, w: &unbanished_formats::weather::Weather, amount: f32) {
         let t = amount.clamp(0.0, 1.0);
         let blend = |a: f32, b: f32| a + (b - a) * t;
         self.ambient_color = self.ambient_color.lerp(color(w.colors[0]), t);

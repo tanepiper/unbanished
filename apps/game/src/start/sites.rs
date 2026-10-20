@@ -27,11 +27,11 @@ impl StartingTown {
             match d.rsplit(':').next().unwrap_or("") {
                 "cleararea" => {
                     t.controllers.push(Controller::ClearArea);
-                    t.clear = banished_formats::game::clear_area_description(&data).ok();
+                    t.clear = unbanished_formats::game::clear_area_description(&data).ok();
                 }
                 "workplace" => {
                     t.controllers.push(Controller::WorkPlace);
-                    t.profession = banished_formats::game::workplace_description(&data)
+                    t.profession = unbanished_formats::game::workplace_description(&data)
                         .ok()
                         .and_then(|w| w.profession)
                         .and_then(|p| {
@@ -46,7 +46,7 @@ impl StartingTown {
                 "build" => {
                     has_build = true;
                     t.controllers.push(Controller::Build);
-                    let b = banished_formats::game::build_description(&data).ok()?;
+                    let b = unbanished_formats::game::build_description(&data).ok()?;
                     t.work = b.work;
                     for (n, m) in b.materials {
                         let m = m?;
@@ -58,11 +58,11 @@ impl StartingTown {
                 }
                 "well" => t.controllers.push(Controller::Well),
                 "trade" => {
-                    if let Ok(d) = banished_formats::game::trade_description(&data) {
+                    if let Ok(d) = unbanished_formats::game::trade_description(&data) {
                         let boat = d.boat.as_deref().and_then(|r| self.load_boat(archive, r));
                         if let Some(boat) = boat {
                             self.load_trade_goods(archive);
-                            t.trade = Some(banished_game::commerce::trade::TradeTemplate {
+                            t.trade = Some(unbanished_game::commerce::trade::TradeTemplate {
                                 boat,
                                 merchants: d.merchants.clone(),
                                 rows: d.rows.clone(),
@@ -81,7 +81,7 @@ impl StartingTown {
                     }
                 }
                 "immigration" => {
-                    if let Ok(d) = banished_formats::game::immigration_description(&data) {
+                    if let Ok(d) = unbanished_formats::game::immigration_description(&data) {
                         let nomad = d.nomad.as_deref().and_then(|r| self.load_nomad(archive, r));
                         let required = d
                             .required
@@ -91,7 +91,7 @@ impl StartingTown {
                             .collect();
                         if let Some(nomad) = nomad {
                             t.immigration =
-                                Some(banished_game::people::immigration::ImmigrationTemplate {
+                                Some(unbanished_game::people::immigration::ImmigrationTemplate {
                                     nomad,
                                     population: d.population,
                                     required,
@@ -108,12 +108,12 @@ impl StartingTown {
                     }
                 }
                 name if name.starts_with("fire") => {
-                    t.fire = banished_formats::game::fire_description(&data).ok();
+                    t.fire = unbanished_formats::game::fire_description(&data).ok();
                 }
                 "multiobject" => t.controllers.push(Controller::MultiObject),
                 "destroy" => {
                     t.controllers.push(Controller::Destroy);
-                    let d = banished_formats::game::destroy_description(&data).ok()?;
+                    let d = unbanished_formats::game::destroy_description(&data).ok()?;
                     let replace = d
                         .replace
                         .as_deref()
@@ -125,7 +125,7 @@ impl StartingTown {
                             self.site_template(archive, r);
                         }
                     }
-                    t.destroy = Some(banished_game::work::destroy::DestroyTemplate {
+                    t.destroy = Some(unbanished_game::work::destroy::DestroyTemplate {
                         replace,
                         material: d.material,
                         decal: d.decal,
@@ -134,16 +134,16 @@ impl StartingTown {
                 }
                 "attendance" => {
                     t.controllers.push(Controller::Attendance);
-                    t.attendance = banished_formats::game::attendance_description(&data).ok();
+                    t.attendance = unbanished_formats::game::attendance_description(&data).ok();
                 }
                 "healer" => t.controllers.push(Controller::Healer),
                 "residence" => {
                     t.controllers.push(Controller::Residence);
-                    t.residence = banished_formats::game::residence_description(&data).ok();
+                    t.residence = unbanished_formats::game::residence_description(&data).ok();
                 }
                 "clearresource" => t.controllers.push(Controller::ClearResource),
                 "herbalist" => {
-                    let Ok(d) = banished_formats::game::herbalist_description(&data) else {
+                    let Ok(d) = unbanished_formats::game::herbalist_description(&data) else {
                         continue;
                     };
                     t.controllers.push(Controller::ResourceProduce);
@@ -151,27 +151,28 @@ impl StartingTown {
                     for r in d.resources.iter().flatten() {
                         resources.push(self.load_template(archive, r)?);
                     }
-                    t.herbalist = Some(banished_game::production::herbalist::HerbalistTemplate {
+                    t.herbalist = Some(unbanished_game::production::herbalist::HerbalistTemplate {
                         resources,
                         group: d.group,
                     });
                 }
                 "radius" => {
-                    t.radius = banished_formats::game::radius_description(&data)
+                    t.radius = unbanished_formats::game::radius_description(&data)
                         .ok()
                         .map(|(r, _)| r);
                 }
                 "happiness" => {
-                    if let Ok(d) = banished_formats::game::happiness_description(&data) {
+                    if let Ok(d) = unbanished_formats::game::happiness_description(&data) {
                         t.controllers.push(Controller::Happiness);
                         t.happiness = Some(d);
                     }
                 }
                 "cropfield" => {
-                    if let Ok((tend, group)) = banished_formats::game::crop_field_description(&data)
+                    if let Ok((tend, group)) =
+                        unbanished_formats::game::crop_field_description(&data)
                     {
                         t.controllers.push(Controller::CropField);
-                        t.crop_field = Some(banished_game::production::farm::CropFieldTemplate {
+                        t.crop_field = Some(unbanished_game::production::farm::CropFieldTemplate {
                             tend,
                             group,
                         });
@@ -180,16 +181,16 @@ impl StartingTown {
                 "absorbresource" => t.controllers.push(Controller::AbsorbResource),
                 "marketlocation" => t.controllers.push(Controller::MarketLocation),
                 "market" => {
-                    if let Ok(d) = banished_formats::game::market_description(&data) {
+                    if let Ok(d) = unbanished_formats::game::market_description(&data) {
                         t.controllers.push(Controller::ResourceProduce);
                         t.market = Some(d);
                     }
                 }
                 "statusicon" => {
-                    t.status_icon = banished_formats::game::status_icon_description(&data).ok();
+                    t.status_icon = unbanished_formats::game::status_icon_description(&data).ok();
                 }
                 "cemetery" => {
-                    let tombstone = banished_formats::game::cemetery_description(&data)
+                    let tombstone = unbanished_formats::game::cemetery_description(&data)
                         .ok()
                         .flatten()
                         .and_then(|r| {
@@ -197,13 +198,13 @@ impl StartingTown {
                             let life =
                                 read(archive, &normalise(&r).replace(":resource", ":tombstone"))
                                     .and_then(|d| {
-                                        banished_formats::game::tombstone_description(&d).ok()
+                                        unbanished_formats::game::tombstone_description(&d).ok()
                                     })
                                     .unwrap_or((60.0, 24.0));
                             Some((stone, life))
                         });
                     if let Some((stone, (life, range))) = tombstone {
-                        t.cemetery = Some(banished_game::people::cemetery::CemeteryTemplate {
+                        t.cemetery = Some(unbanished_game::people::cemetery::CemeteryTemplate {
                             tombstone: stone,
                             life,
                             range,
@@ -213,20 +214,20 @@ impl StartingTown {
                 }
                 "storagelocation" => t.controllers.push(Controller::StorageLocation),
                 "disease" => {
-                    t.disease = banished_formats::game::disease_description(&data).ok();
+                    t.disease = unbanished_formats::game::disease_description(&data).ok();
                 }
                 "pasture" => {
-                    if let Ok(group) = banished_formats::game::pasture_description(&data) {
+                    if let Ok(group) = unbanished_formats::game::pasture_description(&data) {
                         t.controllers.push(Controller::Pasture);
                         t.pasture = Some(group);
                     }
                 }
                 "orchard" => {
                     if let Ok((spacing, tend, group)) =
-                        banished_formats::game::orchard_description(&data)
+                        unbanished_formats::game::orchard_description(&data)
                     {
                         t.controllers.push(Controller::Orchard);
-                        t.orchard = Some(banished_game::production::orchard::OrchardTemplate {
+                        t.orchard = Some(unbanished_game::production::orchard::OrchardTemplate {
                             spacing,
                             tend,
                             group,
@@ -234,39 +235,39 @@ impl StartingTown {
                     }
                 }
                 "hunt" => {
-                    if let Ok(d) = banished_formats::game::hunt_description(&data) {
+                    if let Ok(d) = unbanished_formats::game::hunt_description(&data) {
                         t.controllers.push(Controller::ResourceProduce);
                         t.hunt = Some(d);
                     }
                 }
                 "fishing" => {
-                    let Ok(d) = banished_formats::game::fishing_description(&data) else {
+                    let Ok(d) = unbanished_formats::game::fishing_description(&data) else {
                         continue;
                     };
                     t.controllers.push(Controller::ResourceProduce);
                     let output = self.load_template(archive, d.output.as_deref()?)?;
-                    t.fishing = Some(banished_game::production::fishing::FishingTemplate {
+                    t.fishing = Some(unbanished_game::production::fishing::FishingTemplate {
                         output,
                         mask: d.mask,
                         group: d.group,
                     });
                 }
                 "forester" => {
-                    let Ok(d) = banished_formats::game::forester_description(&data) else {
+                    let Ok(d) = unbanished_formats::game::forester_description(&data) else {
                         continue;
                     };
                     t.controllers.push(Controller::ResourceProduce);
                     let tree = self.load_template(archive, d.tree.as_deref()?)?;
-                    t.forester = Some(banished_game::production::forester::ForesterTemplate {
+                    t.forester = Some(unbanished_game::production::forester::ForesterTemplate {
                         tree,
                         group: d.group,
                     });
                 }
                 "autopickup" => {
-                    t.auto_pickup = banished_formats::game::auto_pickup_description(&data).ok();
+                    t.auto_pickup = unbanished_formats::game::auto_pickup_description(&data).ok();
                 }
                 "consumeproduce" => {
-                    let Ok(d) = banished_formats::game::consume_produce_description(&data) else {
+                    let Ok(d) = unbanished_formats::game::consume_produce_description(&data) else {
                         continue;
                     };
                     t.controllers.push(Controller::ResourceProduce);
@@ -282,14 +283,14 @@ impl StartingTown {
                         let out = r.output.as_deref()?;
                         let output = self.load_template(archive, out)?;
                         let output_material = self.templates[output].pile_material?;
-                        recipes.push(banished_game::work::construction::Recipe {
+                        recipes.push(unbanished_game::work::construction::Recipe {
                             inputs,
                             output,
                             output_material,
                             group: r.group,
                         });
                     }
-                    t.produce = Some(banished_game::work::construction::ProduceTemplate {
+                    t.produce = Some(unbanished_game::work::construction::ProduceTemplate {
                         recipes,
                         cycles: d.cycles,
                         work_type: d.work_type,
@@ -300,7 +301,7 @@ impl StartingTown {
                     });
                 }
                 "work" => {
-                    if let Ok(w) = banished_formats::game::work_description(&data) {
+                    if let Ok(w) = unbanished_formats::game::work_description(&data) {
                         t.max_workers = w.max_workers;
                         t.per_area = w.per_area.then_some(w.area);
                         t.adjustable = w.flag_20;
@@ -337,7 +338,7 @@ impl StartingTown {
             .as_ref()
             .and_then(|m| m.variants.first()?.meshes.last()?.clone())
             .and_then(|r| read(archive, &normalise(&r)))
-            .and_then(|d| banished_formats::types::graphics_mesh(&d).ok())
+            .and_then(|d| unbanished_formats::types::graphics_mesh(&d).ok())
             .map(|m| m.bounds_max[2] - m.bounds_min[2]);
         self.construction.templates.push(t);
         Some(self.construction.templates.len() - 1)
@@ -359,7 +360,7 @@ impl StartingTown {
         let template = self.load_template(archive, reference)?;
         let file = normalise(reference).replace(":resource", ":character");
         let character = read(archive, &file)
-            .and_then(|d| banished_formats::game::character_description(&d).ok())?;
+            .and_then(|d| unbanished_formats::game::character_description(&d).ok())?;
         for (v, g) in self.templates[template].animations.iter().enumerate() {
             if let Some(g) = g {
                 self.wildlife.groups.insert((template, v), g.clone());
@@ -367,11 +368,11 @@ impl StartingTown {
         }
         self.wildlife.nomad_kinds.insert(
             template,
-            banished_game::people::immigration::NomadKind { character },
+            unbanished_game::people::immigration::NomadKind { character },
         );
         let file = normalise(reference).replace(":resource", ":nomad");
         if let Some((_, materials)) =
-            read(archive, &file).and_then(|d| banished_formats::game::nomad_description(&d).ok())
+            read(archive, &file).and_then(|d| unbanished_formats::game::nomad_description(&d).ok())
         {
             self.nomad_materials.insert(template, materials);
         }
@@ -400,7 +401,7 @@ impl StartingTown {
                 WorkPlace::new(t.profession, t.default_max_workers((w, h))),
             );
         }
-        let machine = banished_game::work::construction::Machine::new(t.controllers.clone());
+        let machine = unbanished_game::work::construction::Machine::new(t.controllers.clone());
         self.construction.sites.insert(
             entity,
             Site {
@@ -419,7 +420,7 @@ impl StartingTown {
                 produce: t
                     .produce
                     .as_ref()
-                    .map(|p| banished_game::work::construction::ProduceState {
+                    .map(|p| unbanished_game::work::construction::ProduceState {
                         disabled: false,
                         selector: p.selector,
                         weights: vec![1.0; p.recipes.len()],
@@ -430,26 +431,26 @@ impl StartingTown {
                             || t.forester.is_some()
                             || t.fishing.is_some()
                             || t.hunt.is_some())
-                        .then(banished_game::work::construction::ProduceState::default)
+                        .then(unbanished_game::work::construction::ProduceState::default)
                     }),
                 forester: t
                     .forester
                     .as_ref()
-                    .map(|_| banished_game::production::forester::Forester::default()),
+                    .map(|_| unbanished_game::production::forester::Forester::default()),
                 happiness_registered: false,
                 hunt_time: t.hunt.map(|_| 0),
                 crop_field: t
                     .crop_field
-                    .map(|_| banished_game::production::farm::CropField::default()),
+                    .map(|_| unbanished_game::production::farm::CropField::default()),
                 orchard: t
                     .orchard
-                    .map(|_| banished_game::production::orchard::Orchard::default()),
+                    .map(|_| unbanished_game::production::orchard::Orchard::default()),
                 fishing: t
                     .fishing
                     .as_ref()
-                    .map(|_| banished_game::production::fishing::Fishing::default()),
+                    .map(|_| unbanished_game::production::fishing::Fishing::default()),
                 auto_pickup: t.auto_pickup.map(|enabled| {
-                    banished_game::production::herbalist::AutoPickup {
+                    unbanished_game::production::herbalist::AutoPickup {
                         enabled,
                         works: Vec::new(),
                     }
@@ -460,23 +461,25 @@ impl StartingTown {
                 destroy: t
                     .destroy
                     .as_ref()
-                    .map(banished_game::work::destroy::Destroy::new),
+                    .map(unbanished_game::work::destroy::Destroy::new),
                 fire: t
                     .fire
-                    .map(|_| banished_game::disasters::fire::Fire::default()),
+                    .map(|_| unbanished_game::disasters::fire::Fire::default()),
                 // TradeComponent's activation names the merchants (`Sim::activate`).
                 trade: None,
                 immigration: t
                     .immigration
                     .as_ref()
-                    .map(|_| banished_game::people::immigration::Immigration::default()),
+                    .map(|_| unbanished_game::people::immigration::Immigration::default()),
                 home: None,
                 ui_settings: Vec::new(),
                 // DiseaseComponent's setup (`FUN_1400495b0`): on a pasture or not.
-                disease: t.disease.map(|_| banished_game::disasters::blight::Blight {
-                    pasture: t.pasture.is_some(),
-                    ..Default::default()
-                }),
+                disease: t
+                    .disease
+                    .map(|_| unbanished_game::disasters::blight::Blight {
+                        pasture: t.pasture.is_some(),
+                        ..Default::default()
+                    }),
             },
         );
         // PastureComponent's setup (`FUN_14012cf20`, no kind) over its MapComponent's area.
@@ -484,7 +487,7 @@ impl StartingTown {
             let (x, y) = self.placed[entity].cell;
             self.wildlife.pastures.insert(
                 entity,
-                banished_game::nature::wildlife::Pasture {
+                unbanished_game::nature::wildlife::Pasture {
                     area: [x as i16, y as i16, w as i16, h as i16],
                     ..Default::default()
                 },

@@ -37,7 +37,7 @@
 //! Not ported: the Steam build's Workshop browser (`FUN_14006dee0`, `FUN_14006f100`) and
 //! uploads, so Create and Update stay hidden.
 
-use banished_ui::{Kind, NodeId, Ui};
+use unbanished_ui::{Kind, NodeId, Ui};
 
 use crate::loops::Screen;
 use crate::mods::Modification;
@@ -428,7 +428,7 @@ fn open_details(ui: &mut Ui, screen: &mut Screen, mods: &Modification, i: usize)
     if let Some(n) = find(ui, "textResourceList") {
         let mut text = String::from("^jl^f0^c0^lb");
         for name in &m.names {
-            let key = banished_formats::pkg::normalise(name);
+            let key = unbanished_formats::pkg::normalise(name);
             let mut shared = false;
             let mut earlier = false;
             for (j, o) in conflicting.iter().filter(|(_, o)| o.enabled) {

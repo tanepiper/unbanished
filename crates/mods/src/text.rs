@@ -105,11 +105,11 @@ impl Settings for TextSettings {
     }
 }
 
-/// The game's settings file: `BANISHED_SETTINGS` if set, else `settings.txt` in the
+/// The game's settings file: `UNBANISHED_SETTINGS` if set, else `settings.txt` in the
 /// `banished-wasm` folder of the platform's configuration folder, as the game reads it.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn settings_path() -> Option<PathBuf> {
-    if let Ok(p) = std::env::var("BANISHED_SETTINGS") {
+    if let Ok(p) = unbanished_formats::env::var("SETTINGS") {
         return (!p.is_empty()).then(|| PathBuf::from(p));
     }
     let base = if cfg!(target_os = "windows") {

@@ -15,9 +15,9 @@ Captures are **local only** (`game-data/reference/`, git-ignored); never commit 
 2. File it: `tools/reference/save.sh <screenshot> ui/main-menu "1280x800 window, default UI"`.
 3. Capture the same view in the port (`--boot-capture` with scripted presses, see the
    `banished-verify` skill) and compare:
-   `cargo run -q --release -p banished-app --example imgdiff -- game-data/reference/ui/main-menu.png port.png --resize --blur 2 --out heat.png`.
+   `cargo run -q --release -p unbanished-app --example imgdiff -- game-data/reference/ui/main-menu.png port.png --resize --blur 2 --out heat.png`.
    To reproduce New Game settings chosen in the original, script the port's dialog:
-   `BANISHED_SEED=SEED banished --boot-capture OUT T --capture-size WxH --press buttonNew@4.5
+   `UNBANISHED_SEED=SEED unbanished --boot-capture OUT T --capture-size WxH --press buttonNew@4.5
    --combo comboTerrain=Mountains@4.8 --combo comboTerrainSize=Small@4.8 --press buttonOk@5.0`
    (`--combo NAME=ITEM@SECONDS` selects by the item's text).
    The stream is video-compressed: compare with `--blur 2` and a threshold around 24, and judge
@@ -33,7 +33,7 @@ the port at the remaining size with the scripted options, and writes `port.png`,
 
 ```bash
 W=$(python3 -c "print(' '.join(f'--wheel -1@{9+i*0.05:.2f}' for i in range(25)))")
-BANISHED_SEED=999518904 tools/reference/compare.sh seed-999518904/start-t0 --ignore 0,0,120,130 -- \
+UNBANISHED_SEED=999518904 tools/reference/compare.sh seed-999518904/start-t0 --ignore 0,0,120,130 -- \
   16 --press buttonNew@4.5 --combo comboTerrain=Mountains@4.8 --combo comboTerrainSize=Small@4.8 \
   --press buttonOk@5.0 ${=W}   # zsh; use $W in bash
 ```

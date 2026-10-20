@@ -1,7 +1,7 @@
 //! Floating clip and timeline controls for animated models.
 
-use banished_formats::ui::flags;
-use banished_ui::{Control, Kind, Node, NodeId, SpriteRef, Ui};
+use unbanished_formats::ui::flags;
+use unbanished_ui::{Control, Kind, Node, NodeId, SpriteRef, Ui};
 
 const FONT: &str = r"Font\FontMedium.rsc:resource";
 const FONT_SMALL: &str = r"Font\FontSmall.rsc:resource";

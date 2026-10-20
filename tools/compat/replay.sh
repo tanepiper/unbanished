@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Record the compatibility scenarios that load a save, then replay each recording from its save
-# without a window: every recorded digest of the game state must match (`banished --replay`).
+# without a window: every recorded digest of the game state must match (`unbanished --replay`).
 # This shows that the player commands carry everything a player changes
 # (docs/MULTIPLAYER-PLAN.md, step 2).
 #
@@ -36,7 +36,9 @@ for s in "${scenarios[@]}"; do
     failed=1
     continue
   fi
-  verdict="$(BANISHED_USER_DIR="$out/user" BANISHED_SETTINGS="$out/settings.txt" \
+  # Builds before the rename to unbanished read BANISHED_*, later ones UNBANISHED_*: set both,
+  # so an old build never falls back to the player's own settings and saves.
+  verdict="$(UNBANISHED_USER_DIR="$out/user" BANISHED_USER_DIR="$out/user" UNBANISHED_SETTINGS="$out/settings.txt" BANISHED_SETTINGS="$out/settings.txt" \
     ${limit[@]+"${limit[@]}"} "$bin" --replay "$(save_of "$s")" "$rec" "$repo/game-data/original/WinData" \
     2>"$out/$s.replay.log" | tail -1)" || true
   echo "  $s: $verdict"

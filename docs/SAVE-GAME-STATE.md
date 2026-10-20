@@ -17,7 +17,7 @@ writes the state back, and the result matches the original bytes exactly. Test:
 To check saves by hand:
 
 ```bash
-cargo run -q --release -p banished-formats --example savegame_check -- save-game/*.sav
+cargo run -q --release -p unbanished-formats --example savegame_check -- save-game/*.sav
 ```
 
 ## Primitives

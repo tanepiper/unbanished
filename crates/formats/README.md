@@ -1,4 +1,4 @@
-# banished-formats
+# unbanished-formats
 
 Readers for the files of Banished 1.0.7 and its engine: the `.pkg` packages, the compiled
 resources (`.crs`) inside them, and the save files (`.sav`). The crate has no dependencies, and
@@ -12,7 +12,7 @@ scenarios and more. It also reads and writes save files.
 
 ```toml
 [dependencies]
-banished-formats = { path = "crates/formats" }
+unbanished-formats = { path = "crates/formats" }
 ```
 
 ### Open the game's packages
@@ -22,10 +22,10 @@ packages hold an entry with the same name, the package with the higher priority 
 original.
 
 ```rust
-use banished_formats::pkg::{Archive, Package};
+use unbanished_formats::pkg::{Archive, Package};
 use std::path::Path;
 
-fn open(windata: &Path) -> banished_formats::Result<Archive> {
+fn open(windata: &Path) -> unbanished_formats::Result<Archive> {
     let mut archive = Archive::default();
     for name in ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"] {
         let bytes = std::fs::read(windata.join(name)).expect("read package");
@@ -45,9 +45,9 @@ resource as `Dialog/StringTable.rsc:toolBar`. `read` takes the entry name; `read
 game's reference.
 
 ```rust
-use banished_formats::pkg::Archive;
+use unbanished_formats::pkg::Archive;
 
-fn read(archive: &Archive) -> banished_formats::Result<Vec<u8>> {
+fn read(archive: &Archive) -> unbanished_formats::Result<Vec<u8>> {
     println!("{} entries", archive.names().len());
     archive.read_ref("Dialog/StringTable.rsc:toolBar") // one resource, decompressed
 }
@@ -59,10 +59,10 @@ Each resource type has a function that takes the bytes and returns a typed value
 checks the type id first, so it fails with an error if the bytes are another type.
 
 ```rust
-use banished_formats::pkg::Archive;
-use banished_formats::ui::string_table;
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::ui::string_table;
 
-fn toolbar_strings(archive: &Archive) -> banished_formats::Result<()> {
+fn toolbar_strings(archive: &Archive) -> unbanished_formats::Result<()> {
     for (key, text) in string_table(&archive.read_ref("Dialog/StringTable.rsc:toolBar")?)? {
         println!("{key} = {text}");
     }
@@ -73,10 +73,10 @@ fn toolbar_strings(archive: &Archive) -> banished_formats::Result<()> {
 A texture, decoded to RGBA for display:
 
 ```rust
-use banished_formats::pkg::Archive;
-use banished_formats::{crc::type_id, crs, texture::decode_rgba, types};
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::{crc::type_id, crs, texture::decode_rgba, types};
 
-fn first_texture(archive: &Archive) -> banished_formats::Result<Option<(u32, u32, Vec<u8>)>> {
+fn first_texture(archive: &Archive) -> unbanished_formats::Result<Option<(u32, u32, Vec<u8>)>> {
     for name in archive.names().into_iter().filter(|n| n.ends_with(".crs")) {
         let data = archive.read(name)?;
         // The type id is the CRC-32 of the class name in UTF-16LE.
@@ -94,9 +94,9 @@ fn first_texture(archive: &Archive) -> banished_formats::Result<Option<(u32, u32
 ### Read a save
 
 ```rust
-use banished_formats::save::Save;
+use unbanished_formats::save::Save;
 
-fn describe(bytes: &[u8]) -> banished_formats::Result<()> {
+fn describe(bytes: &[u8]) -> unbanished_formats::Result<()> {
     let save = Save::parse(bytes)?;
     let meta = save.metadata()?;
     let header = save.loop_header()?;
@@ -142,10 +142,10 @@ The crate has small programs that print what a resource or a save contains. They
 trace or port something. Each one takes the `WinData` folder (or a save) and a reference.
 
 ```bash
-cargo run -p banished-formats --example dialog_info -- game-data/original/WinData "Dialog/Toolbar.rsc:resource"
-cargo run -p banished-formats --example string_table -- game-data/original/WinData Dialog/StringTable.rsc:toolBar
-cargo run -p banished-formats --example template_info -- game-data/original/WinData Template/WoodHouse.rsc
-cargo run -p banished-formats --example savegame_same -- a.sav b.sav
+cargo run -p unbanished-formats --example dialog_info -- game-data/original/WinData "Dialog/Toolbar.rsc:resource"
+cargo run -p unbanished-formats --example string_table -- game-data/original/WinData Dialog/StringTable.rsc:toolBar
+cargo run -p unbanished-formats --example template_info -- game-data/original/WinData Template/WoodHouse.rsc
+cargo run -p unbanished-formats --example savegame_same -- a.sav b.sav
 ```
 
 | Example | What it prints |
@@ -169,12 +169,12 @@ cargo run -p banished-formats --example savegame_same -- a.sav b.sav
 | `savegame_works` | The jobs in a save's job manager |
 
 Two more programs are binaries: `climate_info` and `environment_info`
-(`cargo run -p banished-formats --bin climate_info -- …`).
+(`cargo run -p unbanished-formats --bin climate_info -- …`).
 
 ## Tests
 
 ```bash
-cargo test --release -p banished-formats
+cargo test --release -p unbanished-formats
 ```
 
 The corpus tests in `tests/` parse every resource of a type in your game data, and check known
@@ -183,7 +183,7 @@ values. They skip when `game-data/original/WinData` is missing.
 ## The API
 
 The full API documentation is at
-<https://tanepiper.github.io/unbanished/api/banished_formats/index.html>.
+<https://tanepiper.github.io/unbanished/api/unbanished_formats/index.html>.
 
 ## Related documents
 

@@ -155,7 +155,7 @@ impl Tool {
         ]
     }
 
-    pub fn frame<'a>(&'a self, quads: &'a [banished_ui::Quad]) -> Frame<'a> {
+    pub fn frame<'a>(&'a self, quads: &'a [unbanished_ui::Quad]) -> Frame<'a> {
         let vp = self.viewport();
         Frame {
             clear: if self.mode == Mode::Models {
@@ -176,7 +176,7 @@ impl Tool {
         }
     }
 
-    pub fn quads(&self) -> Vec<banished_ui::Quad> {
+    pub fn quads(&self) -> Vec<unbanished_ui::Quad> {
         self.ui.draw(self.root)
     }
 }

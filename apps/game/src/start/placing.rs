@@ -9,7 +9,7 @@ pub(super) type Cells4 = (i32, i32, i32, i32);
 /// rotation faces (or centred on a side), its turn (0, −90, 180, 90 degrees) and its centre
 /// (the middle of its corner cells, at the area's mean ground height, `FUN_140106c00`).
 pub(super) fn fenced_shelter(
-    d: &banished_formats::game::CreateFencedDescription,
+    d: &unbanished_formats::game::CreateFencedDescription,
     size: (i32, i32),
     (x0, y0, x1, y1): Cells4,
     rotation: i32,
@@ -212,7 +212,7 @@ impl StartingTown {
         let template = self.load_template(archive, reference)?;
         let key = normalise(reference);
         let d = read(archive, &key.replace(":resource", ":createfenced"))
-            .and_then(|d| banished_formats::game::create_fenced_description(&d).ok())?;
+            .and_then(|d| unbanished_formats::game::create_fenced_description(&d).ok())?;
         let mut parts = Vec::with_capacity(6);
         for p in &d.parts {
             parts.push(p.as_deref().and_then(|p| self.load_template(archive, p)));
@@ -226,7 +226,7 @@ impl StartingTown {
             archive,
             &normalise(&shelter).replace(":resource", ":createplaced"),
         )
-        .and_then(|d| banished_formats::game::create_placed_description(&d).ok())
+        .and_then(|d| unbanished_formats::game::create_placed_description(&d).ok())
         .map(|c| (c.width, c.height))?;
         let n = self.cells.size as i32;
         let (x0, x1) = (a.0.min(b.0), a.0.max(b.0));
@@ -245,7 +245,7 @@ impl StartingTown {
             }
         }
         let (s, yaw, centre) = fenced_shelter(&d, size, (x0, y0, x1, y1), rotation, |x, y| {
-            banished_game::town::floor_ground(
+            unbanished_game::town::floor_ground(
                 &self.cells.floors,
                 self.cells.size,
                 terrain,
@@ -337,7 +337,7 @@ impl StartingTown {
     /// clear template's, no zone, and not too high.
     pub fn fenced_cell_ok(
         &self,
-        d: &banished_formats::game::CreateFencedDescription,
+        d: &unbanished_formats::game::CreateFencedDescription,
         clear: Option<usize>,
         x: i32,
         y: i32,
@@ -382,13 +382,13 @@ impl StartingTown {
         let t = template?;
         let n = self.cells.size as i32;
         let (x, y, w, h) = rect;
-        let g0 = banished_game::town::floor_ground(
+        let g0 = unbanished_game::town::floor_ground(
             &self.cells.floors,
             self.cells.size,
             terrain,
             n * y + x,
         );
-        let g1 = banished_game::town::floor_ground(
+        let g1 = unbanished_game::town::floor_ground(
             &self.cells.floors,
             self.cells.size,
             terrain,
@@ -444,9 +444,9 @@ impl StartingTown {
         &mut self,
         terrain: &HeightGrid,
         rng: &mut Random,
-        f: impl FnOnce(&mut banished_game::nature::wildlife::Wild) -> R,
+        f: impl FnOnce(&mut unbanished_game::nature::wildlife::Wild) -> R,
     ) -> R {
-        let mut wild = banished_game::nature::wildlife::Wild {
+        let mut wild = unbanished_game::nature::wildlife::Wild {
             wildlife: &mut self.wildlife,
             placed: &mut self.placed,
             templates: &self.templates,

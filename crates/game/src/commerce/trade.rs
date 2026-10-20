@@ -7,7 +7,7 @@
 //! Original: `FUN_14005cd90`, `FUN_14005cfb0`.
 // vtable 0x140160df0
 
-use banished_formats::game::{Merchant, TradeRow, ValueDescription};
+use unbanished_formats::game::{Merchant, TradeRow, ValueDescription};
 
 use crate::scheduler::ticks;
 use crate::town::Sim;
@@ -120,8 +120,8 @@ impl Trade {
         t: &TradeTemplate,
         rng: &mut crate::random::Random,
         names: Option<&(
-            banished_formats::names::NameDatabase,
-            banished_formats::names::NameDatabase,
+            unbanished_formats::names::NameDatabase,
+            unbanished_formats::names::NameDatabase,
         )>,
     ) -> Trade {
         let orders = t

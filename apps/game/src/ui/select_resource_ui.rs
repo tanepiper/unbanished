@@ -17,9 +17,9 @@
 //! `Command::SetLimit`). The kind's list is enabled only while the pasture is
 //! empty.
 
-use banished_formats::pkg::Archive;
-use banished_game::work::professions::Command;
-use banished_ui::{Control, Kind, NodeId, Ui};
+use unbanished_formats::pkg::Archive;
+use unbanished_game::work::professions::Command;
+use unbanished_ui::{Control, Kind, NodeId, Ui};
 
 use crate::start::StartingTown;
 use crate::ui::building_ui::{text_of, WorkPlaceClick};
@@ -67,7 +67,7 @@ struct Select {
 }
 
 fn select_description(data: &[u8]) -> Option<Select> {
-    use banished_formats::crs;
+    use unbanished_formats::crs;
     crs::parse(data, |r: &mut crs::Reader, _| {
         r.block(|r, _| {
             let sheet = r.external_ref()?;
@@ -176,10 +176,10 @@ impl SelectResourceUi {
             let site = town.construction.sites.get(&e);
             let fill = match self.resource {
                 Resource::Crop => site.and_then(|s| s.crop_field.as_ref()).map_or(0.0, |f| {
-                    banished_game::production::farm::ripeness(f, &town.placed)
+                    unbanished_game::production::farm::ripeness(f, &town.placed)
                 }),
                 _ => site.and_then(|s| s.orchard.as_ref()).map_or(0.0, |o| {
-                    banished_game::production::orchard::ripeness(
+                    unbanished_game::production::orchard::ripeness(
                         o,
                         &town.cells.objects,
                         &town.construction.fruits,

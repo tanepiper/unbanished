@@ -1,6 +1,6 @@
 # Loading saves
 
-A `.sav` file is decoded completely by `banished_formats` (see
+A `.sav` file is decoded completely by `unbanished_formats` (see
 [SAVE-GAME-STATE.md](SAVE-GAME-STATE.md)). Loading turns that decoded state into the port's
 running game. It is done in stages:
 
@@ -17,7 +17,7 @@ The original Load dialog (`Dialog/SaveLoad.rsc`) is not ported yet. A load start
 loop's `load PATH` script command (native only):
 
 ```bash
-cargo run -p banished-app --release -- --boot-capture out.png 20 --script "load save-game/Save3.sav@5"
+cargo run -p unbanished-app --release -- --boot-capture out.png 20 --script "load save-game/Save3.sav@5"
 ```
 
 `MenuLoop` parses the file into a `SavedGame` (`apps/game/src/saves/saved.rs`) and switches, through a
@@ -373,5 +373,5 @@ lists two mods; `Save200` and `Auto-1` are 2015 saves made with mods.
 - a WoodHouse was completed;
 - 17 clear jobs finished, and some trees, rocks and ore were harvested.
 
-`cargo run -p banished-formats --example savegame_diff -- save-game/Save4.sav save-game/Save5.sav`
+`cargo run -p unbanished-formats --example savegame_diff -- save-game/Save4.sav save-game/Save5.sav`
 lists the differences.

@@ -2,9 +2,9 @@
 //! opened by `FUN_140104eb0`, filled by `FUN_14005f120` (OnOpened) and updated each hover by
 //! `FUN_140105130`. See docs/BUILD-TOOLS.md.
 
-use banished_formats::game::{raw_material_description, BuildDescription, ToolbarDescription};
-use banished_formats::pkg::Archive;
-use banished_ui::{Kind, NodeId, Ui};
+use unbanished_formats::game::{raw_material_description, BuildDescription, ToolbarDescription};
+use unbanished_formats::pkg::Archive;
+use unbanished_ui::{Kind, NodeId, Ui};
 
 use crate::loops::Screen;
 

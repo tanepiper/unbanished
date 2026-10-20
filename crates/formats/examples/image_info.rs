@@ -1,6 +1,6 @@
 //! Print an ImageBuffer's header and level sizes (analysis helper).
-//! `cargo run -p banished-formats --example image_info -- path/to/WinData REFERENCE`
-use banished_formats::pkg::{Archive, Package};
+//! `cargo run -p unbanished-formats --example image_info -- path/to/WinData REFERENCE`
+use unbanished_formats::pkg::{Archive, Package};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -11,7 +11,7 @@ fn main() {
     }
     for r in &args[2..] {
         let data = archive.read_ref(r).unwrap();
-        match banished_formats::types::image_buffer(&data) {
+        match unbanished_formats::types::image_buffer(&data) {
             Ok(img) => println!(
                 "{r}: {}x{} type {} format {:?} usage {} levels {:?}",
                 img.width,
@@ -22,7 +22,7 @@ fn main() {
                 img.levels.iter().map(|l| l.len()).collect::<Vec<_>>()
             ),
             Err(e) => {
-                let mi = banished_formats::types::material_instance(&data);
+                let mi = unbanished_formats::types::material_instance(&data);
                 println!("{r}: not an image ({e}); material instance: {mi:?}");
             }
         }

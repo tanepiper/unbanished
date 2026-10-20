@@ -1,5 +1,5 @@
 {
-  "_about": "Probe scenarios for tools/test/run.py probe. Each runs the game headless (banished --boot-capture) with these arguments, records the --probe answers and compares them with tools/test/baselines/<name>.json. Times are seconds of game capture time; the capture is 1280x720. See docs/develop/TESTING.md.",
+  "_about": "Probe scenarios for tools/test/run.py probe. Each runs the game headless (unbanished --boot-capture) with these arguments, records the --probe answers and compares them with tools/test/baselines/<name>.json. Times are seconds of game capture time; the capture is 1280x720. See docs/develop/TESTING.md.",
   "main-menu": {
     "about": "The main menu and the New Game dialog: their buttons, edits and combos.",
     "seconds": 6,

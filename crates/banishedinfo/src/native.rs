@@ -112,7 +112,7 @@ impl Client {
         version: &Version,
         progress: impl FnMut(u64, Option<u64>),
     ) -> Result<(String, Vec<u8>), Error> {
-        let limit = banished_nexus::install::MAX_PACKAGE * 2;
+        let limit = unbanished_nexus::install::MAX_PACKAGE * 2;
         let (final_url, data) = self.get(&version.file, limit, progress)?;
         Ok((crate::file_name(&final_url), data))
     }
@@ -126,8 +126,8 @@ impl Client {
         progress: impl FnMut(u64, Option<u64>),
     ) -> Result<Vec<PathBuf>, Error> {
         let (name, data) = self.download(version, progress)?;
-        let packages = banished_nexus::install::packages(&name, &data)
+        let packages = unbanished_nexus::install::packages(&name, &data)
             .map_err(|e| Error::Install(e.to_string()))?;
-        banished_nexus::native::install(dir, &packages).map_err(|e| Error::Install(e.to_string()))
+        unbanished_nexus::native::install(dir, &packages).map_err(|e| Error::Install(e.to_string()))
     }
 }

@@ -2,8 +2,8 @@
 //! `tools/emu/particle_slot.py`; skipped without its output in game-data/derived/emu): the same
 //! alpha after every step, and gone on the same step.
 
-use banished_game::disasters::tornado::Tornado;
-use banished_game::scheduler::seconds;
+use unbanished_game::disasters::tornado::Tornado;
+use unbanished_game::scheduler::seconds;
 
 #[test]
 fn matches_the_original() {

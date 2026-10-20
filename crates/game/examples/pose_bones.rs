@@ -1,8 +1,8 @@
 //! Print skeleton world positions for a clip at several times (analysis helper).
-use banished_formats::pkg::{Archive, Package};
-use banished_formats::skeleton::{local_bind, world_transforms};
-use banished_game::behaviour::animation::sample_pose;
-use banished_game::scheduler::ticks;
+use unbanished_formats::pkg::{Archive, Package};
+use unbanished_formats::skeleton::{local_bind, world_transforms};
+use unbanished_game::behaviour::animation::sample_pose;
+use unbanished_game::scheduler::ticks;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -12,8 +12,9 @@ fn main() {
         archive.add(Package::parse(std::fs::read(dir.join(name)).unwrap()).unwrap());
     }
     let mesh =
-        banished_formats::types::graphics_mesh(&archive.read_ref(&args[2]).unwrap()).unwrap();
-    let g = banished_formats::types::animation_group(&archive.read_ref(&args[3]).unwrap()).unwrap();
+        unbanished_formats::types::graphics_mesh(&archive.read_ref(&args[2]).unwrap()).unwrap();
+    let g =
+        unbanished_formats::types::animation_group(&archive.read_ref(&args[3]).unwrap()).unwrap();
     let clip = g.clips.iter().find(|c| c.name == args[4]).unwrap();
     let bind: Vec<_> = mesh.bones.iter().map(local_bind).collect();
     let wb = world_transforms(&mesh.bones, &bind);
@@ -27,10 +28,10 @@ fn main() {
     }
     {
         let pose = sample_pose(clip, 0, 0);
-        let pal = banished_formats::skeleton::palette(&mesh.bones, &pose);
+        let pal = unbanished_formats::skeleton::palette(&mesh.bones, &pose);
         let part = &mesh.parts[0];
         let v = &part.skinned_vertices;
-        let cpu = banished_formats::skeleton::skin_to_static(v, &pal);
+        let cpu = unbanished_formats::skeleton::skin_to_static(v, &pal);
         let mats: Vec<[f32; 16]> = pal.iter().map(|t| t.to_matrix()).collect();
         let mut worst = 0.0f32;
         for (k, vert) in v.chunks_exact(32).enumerate() {
@@ -61,7 +62,7 @@ fn main() {
                 .unwrap()
         );
     }
-    for (i, b) in banished_formats::skeleton::bind_palette(&mesh.bones)
+    for (i, b) in unbanished_formats::skeleton::bind_palette(&mesh.bones)
         .iter()
         .enumerate()
     {
@@ -69,7 +70,7 @@ fn main() {
     }
     for t in [0.0f32, 0.5, 1.0, 1.7, 2.5, 3.5] {
         let pose = sample_pose(clip, ticks(t), ticks(1.0 / 30.0));
-        let pal = banished_formats::skeleton::palette(&mesh.bones, &pose);
+        let pal = unbanished_formats::skeleton::palette(&mesh.bones, &pose);
         let worst: Vec<String> = (1..mesh.bones.len())
             .map(|i| {
                 let j = wb[i].apply([0.0; 3]);

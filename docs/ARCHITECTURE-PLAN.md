@@ -129,15 +129,17 @@ touching multiplayer `tools/test/run.py replay lockstep network multiplayer`. La
 tools/refactor (split_impl.py, regroup.py) so code moves without being rewritten.
 
 **R. Rename the code to `unbanished` (first, mechanical, zero behaviour change).**
-- Crates: `banished-core` → `unbanished-core`, and the same for terrain, path, game, formats,
-  ui, gfx, audio, wma, mods, nexus, banishedinfo, net, and the apps (`banished-app` →
+- Crates: `unbanished-core` → `unbanished-core`, and the same for terrain, path, game, formats,
+  ui, gfx, audio, wma, mods, nexus, banishedinfo, net, and the apps (`unbanished-app` →
   `unbanished-app`, viewer, cli, modmanager, relay). Rust paths follow
-  (`banished_game::` → `unbanished_game::`). New crates in later phases use the name from the
+  (`unbanished_game::` → `unbanished_game::`). New crates in later phases use the name from the
   start (`unbanished-sim`, `unbanished-session`, `unbanished-server`, extension crates).
-- Programs: `banished` → `unbanished`, `banished-mods` → `unbanished-mods`, `banished-cli` →
-  `unbanished-cli`, `banished-relay` → `unbanished-server` (in D).
-- Environment variables: `UNBANISHED_*` is read first, `BANISHED_*` still works (one helper,
-  e.g. `platform::env("USER_DIR")`), so scripts and players' setups keep working.
+- Programs: `unbanished` → `unbanished`, `unbanished-mods` → `unbanished-mods`, `unbanished-cli` →
+  `unbanished-cli`, `unbanished-relay` → `unbanished-server` (in D).
+- Environment variables: `UNBANISHED_*` only, with no fallback to the old names (decided
+  2026-10-20: before 1.0 there is no backward-compatible naming); one helper,
+  `unbanished_formats::env::var("USER_DIR")`, holds the prefix. `tools/compat` sets both names,
+  because it also runs builds from before the rename.
 - **Not renamed, on purpose:** what holds players' data: the settings folder `banished-wasm`,
   the browser's IndexedDB database `banished-wasm` and localStorage key
   `banished-wasm.settings`, the save folder (`Documents/Banished`, the original's), the original

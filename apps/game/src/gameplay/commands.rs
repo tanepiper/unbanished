@@ -9,9 +9,9 @@
 //! ([`super::recording`]), and a multiplayer game could carry each command out on every computer
 //! at the same update (docs/MULTIPLAYER-PLAN.md).
 
-use banished_formats::pkg::Archive;
-use banished_game::work::professions::Command;
 use serde::{Deserialize, Serialize};
+use unbanished_formats::pkg::Archive;
+use unbanished_game::work::professions::Command;
 
 use super::{GameplayLoop, SPEED_LEVELS};
 use crate::tools::path_tool::PathTool;
@@ -94,11 +94,11 @@ impl GameplayLoop {
     pub(super) fn load_town_names(
         &mut self,
         archive: &Archive,
-    ) -> Option<&banished_formats::names::NameDatabase> {
+    ) -> Option<&unbanished_formats::names::NameDatabase> {
         if self.town_names.is_none() {
             self.town_names = archive
                 .read("Game/Names/Cities_resource.crs")
-                .and_then(|b| banished_formats::names::NameDatabase::read(&b))
+                .and_then(|b| unbanished_formats::names::NameDatabase::read(&b))
                 .map_err(|e| log::error!("town names: {e}"))
                 .ok();
         }
@@ -135,7 +135,7 @@ impl GameplayLoop {
                 with_calendar: false,
             } => {
                 if let (Some(town), Some(view)) = (&mut self.town, &self.view) {
-                    let grid = banished_game::terrain::HeightGrid {
+                    let grid = unbanished_game::terrain::HeightGrid {
                         width: view.terrain.size + 1,
                         heights: &view.terrain.heights,
                     };
@@ -184,7 +184,7 @@ impl GameplayLoop {
                     return Outcome::None;
                 };
                 let mut tool = tool.with_drag(&drag);
-                let grid = banished_game::terrain::HeightGrid {
+                let grid = unbanished_game::terrain::HeightGrid {
                     width: view.terrain.size + 1,
                     heights: &view.terrain.heights,
                 };
@@ -200,7 +200,7 @@ impl GameplayLoop {
                 self.load_town_names(archive);
                 self.town_names.as_ref()
             } {
-                Some(db) => Outcome::Name(banished_game::people::names::town_name(
+                Some(db) => Outcome::Name(unbanished_game::people::names::town_name(
                     db,
                     &mut self.rng,
                     max_length / 3 * 2,

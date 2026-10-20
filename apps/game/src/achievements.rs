@@ -11,9 +11,9 @@
 //! Deviation: the original keeps what is awarded in Steam's user stats; the port keeps it in
 //! the settings store (`Achievement<title>`).
 
-use banished_formats::pkg::Archive;
-use banished_formats::scenario::{self, GoalKind};
-use banished_game::work::tracker::Statistics;
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::scenario::{self, GoalKind};
+use unbanished_game::work::tracker::Statistics;
 
 use crate::start::StartingTown;
 
@@ -61,7 +61,7 @@ pub struct GoalContext<'a> {
 pub fn load(archive: &Archive) -> Vec<Achievement> {
     let read = |r: &str| archive.read_ref(&r.replace('\\', "/")).ok();
     let Some(list) = read("Game/Achievement/AchievementList.rsc:resource")
-        .and_then(|d| banished_formats::game::external_list(&d).ok())
+        .and_then(|d| unbanished_formats::game::external_list(&d).ok())
     else {
         return Vec::new();
     };
@@ -160,7 +160,7 @@ fn known_of(archive: Option<&Archive>, town: &StartingTown, kind: i32) -> i32 {
 
 /// SelectDescription `+0x40`.
 fn select_kind(data: &[u8]) -> Option<i32> {
-    use banished_formats::crs;
+    use unbanished_formats::crs;
     crs::parse(data, |r: &mut crs::Reader, _| {
         r.block(|r, _| {
             r.external_ref()?;
@@ -196,7 +196,7 @@ fn stat(
             .filter(|(_, (c, _))| c.alive)
     };
     let working =
-        |c: &banished_game::people::citizens::Citizen| c.is_adult(rules) && c.school.is_none();
+        |c: &unbanished_game::people::citizens::Citizen| c.is_adult(rules) && c.school.is_none();
     let material = || town.materials.iter().position(|m| same(&m.reference, r));
     match kind {
         // `FUN_1400df8e0`: educated working adults.
@@ -419,7 +419,7 @@ fn sum(s: &Statistics, series: usize, from: i32, to: i32) -> i32 {
 
 /// `FUN_1400e0180`: the years (`× 3600` s) have passed, the time through `Time::AsSeconds`.
 pub fn time_goal_met(years: i32, time: i64) -> bool {
-    (years * 3600) as f32 <= banished_game::scheduler::seconds(time)
+    (years * 3600) as f32 <= unbanished_game::scheduler::seconds(time)
 }
 
 /// A goal's state (`Goal` slot `+0x40`; TimeGoalInstance `FUN_1400e0180`).
@@ -565,10 +565,10 @@ impl AchievementInstance {
 /// a reference is not among them).
 pub fn saved_instance(
     saved: &crate::saves::saved::SavedGame,
-    id: banished_formats::savegame::ObjId,
+    id: unbanished_formats::savegame::ObjId,
     a: &Achievement,
 ) -> Option<AchievementInstance> {
-    use banished_formats::savegame::Value;
+    use unbanished_formats::savegame::Value;
     let o = saved.object(id)?;
     let mut instance = AchievementInstance::new(a);
     let Some(Value::List(goals)) = o.fields.at("instance.goals.goals") else {
@@ -600,12 +600,12 @@ pub fn saved_instance(
 /// Writes `x` back into the saved `AchievementInstance` `id` of a loaded game: each goal
 /// instance's value and a TimeGoalInstance's time, matched as [`saved_instance`] reads them.
 pub fn write_instance(
-    g: &mut banished_formats::savegame::GameState,
-    id: banished_formats::savegame::ObjId,
+    g: &mut unbanished_formats::savegame::GameState,
+    id: unbanished_formats::savegame::ObjId,
     a: &Achievement,
     x: &AchievementInstance,
 ) {
-    use banished_formats::savegame::Value;
+    use unbanished_formats::savegame::Value;
     let goals: Vec<_> = match g
         .objects
         .get(&id)
@@ -665,7 +665,7 @@ impl AchievementManager {
     /// `AchievementManager::Persist` on load: the saved instances replace the new ones, each
     /// by its achievement's reference.
     pub fn restore(&mut self, list: &[Achievement], saved: &crate::saves::saved::SavedGame) {
-        use banished_formats::savegame::Value;
+        use unbanished_formats::savegame::Value;
         let Some(Value::List(items)) = saved.state.achievements.at("achievements.instances") else {
             return;
         };

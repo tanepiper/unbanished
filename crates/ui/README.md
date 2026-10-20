@@ -1,4 +1,4 @@
-# banished-ui
+# unbanished-ui
 
 A reimplementation of Banished's interface system (`UI::Element` and the classes around it, in
 `Runtime-steam-x64.dll`). The game ships its windows as resources (`Dialog/*.rsc`): trees of
@@ -14,22 +14,22 @@ list of textured quads that a renderer draws.
 - The crate contains no rules of the game. A dialog's controllers (the code behind a window) are
   the application's; the crate tells the application which controller is attached to which
   element.
-- It does not draw. `banished-gfx` draws its quads with wgpu.
+- It does not draw. `unbanished-gfx` draws its quads with wgpu.
 
 ## Use it
 
 ```toml
 [dependencies]
-banished-ui = { path = "crates/ui" }
-banished-formats = { path = "crates/formats" }
+unbanished-ui = { path = "crates/ui" }
+unbanished-formats = { path = "crates/formats" }
 ```
 
 ### Show a dialog
 
 ```rust
 use std::rc::Rc;
-use banished_formats::pkg::Archive;
-use banished_ui::{Quad, Ui};
+use unbanished_formats::pkg::Archive;
+use unbanished_ui::{Quad, Ui};
 
 fn main_menu(archive: Rc<Archive>) -> Option<Vec<Quad>> {
     let mut ui = Ui::new(archive);
@@ -52,7 +52,7 @@ texture coordinates, a colour, an optional clip rectangle and a rotation.
 ### Handle input
 
 ```rust
-use banished_ui::{Event, NodeId, Ui};
+use unbanished_ui::{Event, NodeId, Ui};
 
 fn click(ui: &mut Ui, root: NodeId, x: i32, y: i32) {
     ui.pointer_move(x, y, root);
@@ -69,12 +69,12 @@ fn click(ui: &mut Ui, root: NodeId, x: i32, y: i32) {
 
 `Event` is `Clicked`, `Selected` (a list item), `Changed` (a check box, slider or edit box),
 `Submitted` (Enter in an edit box) or `Link` (a link in a document). `ui.key(root, key)` passes a
-key press; `banished_ui::Key` lists the keys.
+key press; `unbanished_ui::Key` lists the keys.
 
 ### Change what a dialog shows
 
 ```rust
-use banished_ui::{NodeId, Ui};
+use unbanished_ui::{NodeId, Ui};
 
 fn fill(ui: &mut Ui, root: NodeId) {
     if let Some(title) = ui.find(root, "textTitle") {
@@ -118,7 +118,7 @@ delivers an event to every controller on the element or on one of its parents.
 ## Tests
 
 ```bash
-cargo test --release -p banished-ui
+cargo test --release -p unbanished-ui
 ```
 
 `tests/controls.rs` checks the controls with your game data, and skips without it.
@@ -126,7 +126,7 @@ cargo test --release -p banished-ui
 ## The API
 
 The full API documentation is at
-<https://tanepiper.github.io/unbanished/api/banished_ui/index.html>.
+<https://tanepiper.github.io/unbanished/api/unbanished_ui/index.html>.
 
 ## Related documents
 

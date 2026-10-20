@@ -17,8 +17,8 @@ To run part of the Rust tests:
 
 ```bash
 cargo test --release                                        # the whole workspace
-cargo test --release -p banished-formats --test toolbar     # one test file
-cargo test --release -p banished-game --test terrain_emu    # one parity test
+cargo test --release -p unbanished-formats --test toolbar     # one test file
+cargo test --release -p unbanished-game --test terrain_emu    # one parity test
 ```
 
 Tests that need `game-data/` print a message and pass when it is missing. Read the output and
@@ -27,27 +27,27 @@ check that the assertions really ran. [Testing](../TESTING.md) explains the kind
 ## Capture the game without a window
 
 The game can run headless and save a frame as a PNG. Keep the captures in
-`game-data/derived/captures/`, which Git ignores. Set `BANISHED_USER_DIR` and
-`BANISHED_SETTINGS` to a scratch folder so that captures never change your own saves or
+`game-data/derived/captures/`, which Git ignores. Set `UNBANISHED_USER_DIR` and
+`UNBANISHED_SETTINGS` to a scratch folder so that captures never change your own saves or
 settings.
 
 ```bash
 # The boot sequence: splash, loading, menu. Capture at 4.5 seconds.
-target/release/banished --boot-capture game-data/derived/captures/menu.png 4.5
+target/release/unbanished --boot-capture game-data/derived/captures/menu.png 4.5
 
 # Another menu scene (0 to 9)
-BANISHED_MENU_SCENE=3 target/release/banished --boot-capture game-data/derived/captures/scene3.png 4.5
+UNBANISHED_MENU_SCENE=3 target/release/unbanished --boot-capture game-data/derived/captures/scene3.png 4.5
 
 # A new game: press named interface elements at given times
-target/release/banished --boot-capture game-data/derived/captures/game.png 9 \
+target/release/unbanished --boot-capture game-data/derived/captures/game.png 9 \
   --press buttonNew@4.5 --press buttonOk@5.0
 
 # A saved town, at speed 5, with the Production Limits window open
-target/release/banished --boot-capture game-data/derived/captures/town.png 30 \
+target/release/unbanished --boot-capture game-data/derived/captures/town.png 30 \
   --script "load save-game/Save83.sav@4.5" --script "speed 5@12" --script "open Template/UtilityLimits.rsc@20"
 
 # A generated map without starting the game
-target/release/banished --capture game-data/derived/captures/map.png --view overview \
+target/release/unbanished --capture game-data/derived/captures/map.png --view overview \
   --seed 290 --terrain Valleys --size 0 --month 6
 ```
 
@@ -66,13 +66,13 @@ in the same way: one `screenshot` command for each frame. See [Recording videos]
 ## Capture the viewer
 
 ```bash
-target/release/banished-viewer --screenshot game-data/derived/captures/d.png dialogs MainMenu_resource
+target/release/unbanished-viewer --screenshot game-data/derived/captures/d.png dialogs MainMenu_resource
 ```
 
 ## Build and try the browser version
 
 ```bash
-cargo build --release -p banished-app --target wasm32-unknown-unknown   # must have 0 warnings
+cargo build --release -p unbanished-app --target wasm32-unknown-unknown   # must have 0 warnings
 tools/dev-web.sh --app game --release     # http://127.0.0.1:8733/?data=/game-data/
 ```
 
@@ -95,7 +95,7 @@ change to the simulation, the citizens' decisions, or anything that draws random
 ## Compare pictures
 
 ```bash
-cargo run -q --release -p banished-app --example imgdiff -- before.png after.png --out heat.png
+cargo run -q --release -p unbanished-app --example imgdiff -- before.png after.png --out heat.png
 ```
 
 `imgdiff` reports the mean error, the PSNR, the share of pixels that differ, where they are,

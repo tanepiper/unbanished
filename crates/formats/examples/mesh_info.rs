@@ -1,6 +1,6 @@
 //! Print a GraphicsMesh's parts, ranges and bounds (analysis helper).
-//! `cargo run -p banished-formats --example mesh_info -- path/to/WinData REFERENCE...`
-use banished_formats::pkg::{Archive, Package};
+//! `cargo run -p unbanished-formats --example mesh_info -- path/to/WinData REFERENCE...`
+use unbanished_formats::pkg::{Archive, Package};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -10,7 +10,7 @@ fn main() {
         archive.add(Package::parse(std::fs::read(dir.join(name)).unwrap()).unwrap());
     }
     for r in &args[2..] {
-        let g = banished_formats::types::graphics_mesh(&archive.read_ref(r).unwrap()).unwrap();
+        let g = unbanished_formats::types::graphics_mesh(&archive.read_ref(r).unwrap()).unwrap();
         println!(
             "{r}: bounds {:?}..{:?} bones {} materials {:?}",
             g.bounds_min,

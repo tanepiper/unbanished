@@ -158,7 +158,7 @@ player's Path tool is kept for them; drag tools are kept by template for everybo
 game the pause menu does not hold the game (a deviation; a replay still honours the recording's
 pauses).
 
-`banished --lockstep-test SAVE RECORDING [PLAYERS] [DELAY] [JITTER] [STALL] [SEED]` loads the save
+`unbanished --lockstep-test SAVE RECORDING [PLAYERS] [DELAY] [JITTER] [STALL] [SEED]` loads the save
 once per player in one process, splits the recording's commands between them (whoever starts a
 tool gives its commands; the next tool goes to the next player), and joins them by a simulated
 network: a turn arrives 1 to `1 + JITTER` ticks after it is sent, and each computer is too busy to
@@ -220,10 +220,10 @@ Messages: `Hello` (engine version and build, a hash of the game data and the mod
 match), `Turn { update, commands }`, `Digest { update, crc }`, `Save { update, bytes }` (join and
 resync), and later cursors and pings.
 
-Done. The relay is `apps/relay` (`banished-relay [ADDRESS]`, default `0.0.0.0:7780`): rooms with
+Done. The relay is `apps/relay` (`unbanished-relay [ADDRESS]`, default `0.0.0.0:7780`): rooms with
 six-letter codes, players numbered as they come (the host is 0), news of who comes and goes, and
 data passed on to one player or to all the others without being read. The protocol and a
-connection to it are `crates/net` (`banished-net`): one postcard-encoded value per WebSocket binary
+connection to it are `crates/net` (`unbanished-net`): one postcard-encoded value per WebSocket binary
 message; natively a background thread with tungstenite, in the browser the page's `WebSocket`.
 
 In the game, `gameplay/network.rs` holds a `Link` (the relay through `RelayLink`, or a simulated
@@ -236,7 +236,7 @@ in-process test (`--lockstep-test`) now runs on the same `NetPeer` code.
 Proof:
 
 - `tools/compat/network.sh` starts a relay and runs three game processes as the players of a room
-  (`banished --net-test`): the two that join get the save from the host; all agree on 26 digests
+  (`unbanished --net-test`): the two that join get the save from the host; all agree on 26 digests
   (1,567 updates in about 16 s). With player 1 scrambled at update 400, the host finds it at 480,
   resyncs at 481, and the three agree on the 18 digests after.
 - A browser tab joined the same kind of room as the third player

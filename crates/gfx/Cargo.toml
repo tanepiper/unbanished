@@ -1,5 +1,5 @@
 [package]
-name = "banished-gfx"
+name = "unbanished-gfx"
 version.workspace = true
 description = "Shared wgpu rendering for the Banished apps: UI quads and texture upload"
 edition.workspace = true
@@ -7,8 +7,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-banished-formats = { path = "../formats" }
-banished-ui = { path = "../ui" }
+unbanished-formats = { path = "../formats" }
+unbanished-ui = { path = "../ui" }
 wgpu = { version = "30", features = ["webgl"] }
 bytemuck = { version = "1.25", features = ["derive"] }
 log = "0.4"

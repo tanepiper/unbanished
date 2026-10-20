@@ -67,7 +67,7 @@ Pass a float argument as `F32(value)`, so that it goes into an `xmm` register.
    - Compare the bits exactly (`f32::to_bits`), not with a tolerance.
    - On a failure, report the first index that differs and how many differ.
    ```bash
-   cargo test --release -p banished-game --test terrain_emu
+   cargo test --release -p unbanished-game --test terrain_emu
    ```
 5. **If the result is not exact, divide the problem.** Emulate the inner functions on their own,
    and compare each stage. For example, `terrain_stages.py` writes the height grid after each of
@@ -80,9 +80,9 @@ in the same order and the same number as in the original, or every later number 
 
 1. Record the original's draws in the emulator: create `RngTrace(emu)` from
    `tools/emu/rng_trace.py` before `emu.call`, then write the trace.
-2. Record the port's draws with `banished_core::random::trace`:
+2. Record the port's draws with `unbanished_core::random::trace`:
    ```rust
-   use banished_core::random::trace;
+   use unbanished_core::random::trace;
    trace::start();
    // ... call the port with the same inputs ...
    let draws = trace::take();

@@ -99,8 +99,8 @@ pub(super) fn starting_goods(
 /// Each citizen model variant's animation group.
 pub(super) fn citizen_animations(
     archive: &Archive,
-    model: &banished_formats::game::ModelDescription,
-) -> Vec<Option<Arc<banished_formats::types::AnimationGroup>>> {
+    model: &unbanished_formats::game::ModelDescription,
+) -> Vec<Option<Arc<unbanished_formats::types::AnimationGroup>>> {
     model
         .variants
         .iter()
@@ -108,7 +108,7 @@ pub(super) fn citizen_animations(
             v.animations
                 .as_deref()
                 .and_then(|r| read(archive, r))
-                .and_then(|d| banished_formats::types::animation_group(&d).ok())
+                .and_then(|d| unbanished_formats::types::animation_group(&d).ok())
                 .map(Arc::new)
         })
         .collect()
@@ -117,14 +117,14 @@ pub(super) fn citizen_animations(
 /// Each citizen variant's mesh nodes and the index of its `tool` node.
 pub(super) fn citizen_tool_nodes(
     archive: &Archive,
-    model: &banished_formats::game::ModelDescription,
-) -> Vec<Option<(Vec<banished_formats::types::Bone>, usize)>> {
+    model: &unbanished_formats::game::ModelDescription,
+) -> Vec<Option<(Vec<unbanished_formats::types::Bone>, usize)>> {
     model
         .variants
         .iter()
         .map(|v| {
             let mesh = v.meshes.first().cloned().flatten()?;
-            let m = banished_formats::types::graphics_mesh(&read(archive, &mesh)?).ok()?;
+            let m = unbanished_formats::types::graphics_mesh(&read(archive, &mesh)?).ok()?;
             let tool = m.bones.iter().position(|b| b.name == "tool")?;
             Some((m.bones, tool))
         })
@@ -206,7 +206,7 @@ impl StartingTown {
     pub(super) fn schedule_citizens(&mut self) {
         /// `Template\Citizen.rsc`'s bucket.
         const CITIZEN_BUCKET: usize = 1;
-        let extra = banished_game::scheduler::EXTRA;
+        let extra = unbanished_game::scheduler::EXTRA;
         self.citizen_handles.resize(self.citizens.len(), None);
         for (c, citizen) in self.citizens.iter().enumerate() {
             match (citizen.alive, self.citizen_handles[c]) {
@@ -224,7 +224,7 @@ impl StartingTown {
     }
 
     /// The citizens' animation, characters and AI for one simulation iteration
-    /// (`banished_game::behaviour::agents`). `stock` is the stock manager's `(count, limit)` per slot.
+    /// (`unbanished_game::behaviour::agents`). `stock` is the stock manager's `(count, limit)` per slot.
     /// Returns whether any citizen is drawn.
     pub fn update_citizens(
         &mut self,
@@ -245,7 +245,7 @@ impl StartingTown {
                     .filter(|_| c.alive)
             })
             .collect();
-        let mut env = banished_game::town::Env {
+        let mut env = unbanished_game::town::Env {
             wildlife: &mut self.wildlife,
             cells: &mut self.cells,
             placed: &mut self.placed,
@@ -264,7 +264,7 @@ impl StartingTown {
         let names = self.names.as_ref();
         let mut newborn = |rng: &mut Random, mother: &Citizen, male: bool| match names {
             Some((m, f)) => {
-                banished_game::people::citizens::newborn(rng, &rules, m, f, mother, male)
+                unbanished_game::people::citizens::newborn(rng, &rules, m, f, mother, male)
             }
             None => Citizen {
                 male,
@@ -286,7 +286,7 @@ impl StartingTown {
         !self.citizens.is_empty()
     }
 
-    /// StockManager::Update's commute optimisation (`banished_game::behaviour::commute`) by `dt` seconds.
+    /// StockManager::Update's commute optimisation (`unbanished_game::behaviour::commute`) by `dt` seconds.
     pub fn update_commute(&mut self, terrain: &HeightGrid, rng: &mut Random, dt: f32) {
         let groups: Vec<_> = self
             .citizens
@@ -298,7 +298,7 @@ impl StartingTown {
                     .filter(|_| c.alive)
             })
             .collect();
-        let mut env = banished_game::town::Env {
+        let mut env = unbanished_game::town::Env {
             wildlife: &mut self.wildlife,
             cells: &mut self.cells,
             placed: &mut self.placed,
@@ -317,7 +317,7 @@ impl StartingTown {
             &self.citizens,
             &mut env,
             &groups,
-            banished_game::scheduler::ticks(dt),
+            unbanished_game::scheduler::ticks(dt),
         );
     }
 }

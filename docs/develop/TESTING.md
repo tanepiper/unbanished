@@ -110,9 +110,9 @@ game about 5 more; check several things in one test rather than loading the game
 | Save tests | `crates/game/tests/saves.rs`, `crates/formats/tests/savegame.rs` | Real save files load, and what the port computes matches what the original saved |
 | Determinism | `tools/triage/determinism.sh` | Two runs with the same seed draw identical frames |
 | Version comparison | `tools/compat/compare.sh` | Two versions produce identical saves and frames |
-| Native and browser | `banished --sim-digest` and the web build's `?digest=` | The same save runs to the same game state natively and in the browser ([CROSS-PLATFORM.md](../CROSS-PLATFORM.md)) |
+| Native and browser | `unbanished --sim-digest` and the web build's `?digest=` | The same save runs to the same game state natively and in the browser ([CROSS-PLATFORM.md](../CROSS-PLATFORM.md)) |
 | Multiplayer window | `tools/compat/multiplayer.sh` (`--realtime`, `--text`) | Headless games host and join a room through the Multiplayer window, start from the host's save and agree at every check; in `leave`, one of three quits and the other two play on |
-| Network | `tools/compat/network.sh` (`banished-relay`, `--net-test`) | Several game processes play one game through a relay and keep identical games; a scrambled one is resynced ([MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md)) |
+| Network | `tools/compat/network.sh` (`unbanished-relay`, `--net-test`) | Several game processes play one game through a relay and keep identical games; a scrambled one is resynced ([MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md)) |
 | Lockstep | `tools/compat/lockstep.sh` (`--lockstep-test`) | Players in one process, joined by a simulated network, keep identical games ([MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md)) |
 | Replays | `tools/compat/replay.sh` (`--record`, `--replay`) | A recorded game replays from its save to the same game state: the player commands carry every change ([MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md)) |
 
@@ -129,15 +129,15 @@ for example:
 
 ```bash
 .venv/bin/python tools/emu/terrain_stages.py game-data/derived/emu/valleys-small-290 290
-cargo test --release -p banished-game --test terrain_emu
+cargo test --release -p unbanished-game --test terrain_emu
 ```
 
 ## Running the tests
 
 ```bash
 cargo test --release                                          # the whole workspace
-cargo test --release -p banished-formats --test toolbar       # one test file
-cargo test --release -p banished-game random                  # tests whose name contains "random"
+cargo test --release -p unbanished-formats --test toolbar       # one test file
+cargo test --release -p unbanished-game random                  # tests whose name contains "random"
 ```
 
 Use `--release`. Some tests simulate many game days or read every resource, and they are slow in
@@ -158,9 +158,9 @@ tools/compat/multiplayer.sh HEAD     # the Multiplayer window: host, join by cod
 To record and replay a game yourself:
 
 ```bash
-banished --boot-capture /tmp/last.png 40 --script "load save-game/Save83.sav@4.5" \
+unbanished --boot-capture /tmp/last.png 40 --script "load save-game/Save83.sav@4.5" \
   --record /tmp/game.rec --record-every 60
-banished --replay save-game/Save83.sav /tmp/game.rec      # exit 1 if the game differs
+unbanished --replay save-game/Save83.sav /tmp/game.rec      # exit 1 if the game differs
 ```
 
 `--record` works with the windowed game too: it records the next game you load from a save. The
@@ -196,17 +196,17 @@ are below, if you want one on its own.
 The game can run without a window, for a fixed number of seconds, and save the last frame as a
 PNG. This is how changes to the interface, the rendering and the simulation are checked by eye.
 Headless captures do not read your settings, and they play no sound. To keep them away from your
-own saves, set `BANISHED_USER_DIR` and `BANISHED_SETTINGS` to a scratch folder.
+own saves, set `UNBANISHED_USER_DIR` and `UNBANISHED_SETTINGS` to a scratch folder.
 
 ```bash
 # The main menu, 4.5 seconds after start
-target/release/banished --boot-capture menu.png 4.5
+target/release/unbanished --boot-capture menu.png 4.5
 
 # A new game: press the New button, then OK, and capture at 16 seconds
-target/release/banished --boot-capture game.png 16 --press buttonNew@4.5 --press buttonOk@5.0
+target/release/unbanished --boot-capture game.png 16 --press buttonNew@4.5 --press buttonOk@5.0
 
 # A generated map seen from above, without starting the game
-target/release/banished --capture map.png --view overview --seed 290 --terrain Valleys --size 0
+target/release/unbanished --capture map.png --view overview --seed 290 --terrain Valleys --size 0
 ```
 
 The [game's README](../../apps/game/README.md#headless-captures) lists every option. If a
@@ -219,7 +219,7 @@ The `imgdiff` example compares two PNG files. It reports the mean error, the sha
 differ, where they are, and it can write a heat map.
 
 ```bash
-cargo run -q --release -p banished-app --example imgdiff -- a.png b.png --out diff.png
+cargo run -q --release -p unbanished-app --example imgdiff -- a.png b.png --out diff.png
 ```
 
 Useful options: `--threshold N` (the smallest difference that counts), `--ignore x,y,w,h` (mask
@@ -228,11 +228,11 @@ a region, for example the clock), `--resize` (compare pictures of different size
 
 ## Comparing two saves
 
-Two examples in `banished-formats` compare saves:
+Two examples in `unbanished-formats` compare saves:
 
 ```bash
-cargo run -q --release -p banished-formats --example savegame_same -- a.sav b.sav
-cargo run -q --release -p banished-formats --example savegame_fields_diff -- a.sav b.sav
+cargo run -q --release -p unbanished-formats --example savegame_same -- a.sav b.sav
+cargo run -q --release -p unbanished-formats --example savegame_fields_diff -- a.sav b.sav
 ```
 
 `savegame_same` says whether two saves hold the same game state; it ignores the date in the

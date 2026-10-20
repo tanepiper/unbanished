@@ -1,5 +1,5 @@
 //! Full shipped picking corpus; source data is optional and never embedded.
-use banished_formats::{
+use unbanished_formats::{
     crs, picking,
     pkg::{Archive, Package},
 };

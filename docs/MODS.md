@@ -133,7 +133,7 @@ Browse tab for each mod site, shown by default: `buttonBrowse` and `groupBrowse`
 and a copy of both added to `tabMod` (`TabElement::AddTab`) for the next.
 `ModBrowseNexus=false` and `ModBrowseBanishedInfo=false` hide a site. The Nexus Mods tab browses
 [Nexus Mods](https://www.nexusmods.com/games/banished/mods) through `crates/nexus`; installing
-needs an API key (`NexusApiKey` in the settings, or `BANISHED_NEXUS_API_KEY` natively), and
+needs an API key (`NexusApiKey` in the settings, or `UNBANISHED_NEXUS_API_KEY` natively), and
 without one Subscribe opens the mod's page and says so:
 
 - Searches use the public GraphQL API (no key); 50 results a page (*assumed* to match a Steam
@@ -155,11 +155,11 @@ through `crates/banishedinfo` (also a deviation). The site has no API: the clien
 `/mods/file/…` redirects to the file). Most Popular is the most downloaded, Most Recent the newest,
 and Subscribed lists the mods installed from it (`BanishedInfoMod_<file>=<id>`). It sends no CORS
 headers, so the browser build cannot use it. Previews (PNG, JPEG or WebP, whatever the file's name) are
-decoded by `banished_mods::preview`, on native builds.
+decoded by `unbanished_mods::preview`, on native builds.
 
 Test mods (git-ignored, from banishedinfo.com) live in `game-data/mods/downloads`.
 `game-data/modtest/WinData` links them beside the game's packages for captures:
 
 ```text
-banished --boot-capture out.png 6 game-data/modtest/WinData --setting ModEnabled_apiary=true --press buttonMod@4.5
+unbanished --boot-capture out.png 6 game-data/modtest/WinData --setting ModEnabled_apiary=true --press buttonMod@4.5
 ```

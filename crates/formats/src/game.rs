@@ -5,7 +5,7 @@
 //! Each resource has a struct and a reader function, for example [`ToolbarDescription`] and
 //! [`toolbar_description`]. The source is split into topic files (world, interface, entities,
 //! nature, particles, construction, goods, work, people and disasters), and everything is
-//! re-exported here, so every path is `banished_formats::game::NAME`.
+//! re-exported here, so every path is `unbanished_formats::game::NAME`.
 
 mod construction;
 mod disasters;

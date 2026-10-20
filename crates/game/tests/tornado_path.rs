@@ -1,8 +1,8 @@
 //! `tornado::displace` against the original's `FUN_1400592e0` (`tools/emu/tornado_path.py`;
 //! skipped without its output in game-data/derived/emu): the same 129 points, bit for bit.
 
-use banished_game::disasters::tornado::displace;
-use banished_game::random::Random;
+use unbanished_game::disasters::tornado::displace;
+use unbanished_game::random::Random;
 
 #[test]
 fn matches_the_original() {

@@ -13,7 +13,7 @@
 //!   0); Escape (action 8) closes it (`FUN_140069860`).
 //! - **Event** (`FUN_140069b90`): a click on id 100 closes it.
 
-use banished_ui::{NodeId, Ui};
+use unbanished_ui::{NodeId, Ui};
 
 use crate::loops::Screen;
 use crate::start::StartingTown;

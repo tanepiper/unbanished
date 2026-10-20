@@ -112,7 +112,7 @@ impl Ui {
                     self.nodes[id].kind,
                     Kind::Button { .. }
                         | Kind::Control(Control::Check { .. } | Control::Combo { .. })
-                ) || self.nodes[id].flags & banished_formats::ui::flags::MOUSE != 0;
+                ) || self.nodes[id].flags & unbanished_formats::ui::flags::MOUSE != 0;
                 if button && self.hot != Some(id) {
                     self.pressed = None;
                 }
@@ -416,7 +416,7 @@ impl Ui {
         if !self.nodes[id].usable() || !self.nodes[id].visible() {
             return None;
         }
-        if self.nodes[id].flags & banished_formats::ui::flags::MOUSE != 0 {
+        if self.nodes[id].flags & unbanished_formats::ui::flags::MOUSE != 0 {
             return Some(Event::Clicked(id));
         }
         match &mut self.nodes[id].kind {
@@ -664,7 +664,7 @@ impl Ui {
         out
     }
     fn interactive(&self, id: NodeId) -> bool {
-        if self.nodes[id].flags & banished_formats::ui::flags::MOUSE != 0 {
+        if self.nodes[id].flags & unbanished_formats::ui::flags::MOUSE != 0 {
             return true;
         }
         match &self.nodes[id].kind {

@@ -17,10 +17,10 @@
 
 use std::collections::BTreeMap;
 
-use banished_formats::game::{
+use unbanished_formats::game::{
     AnimalDescription, CharacterDescription, HerdDescription, PopulationDescription,
 };
-use banished_formats::types::AnimationGroup;
+use unbanished_formats::types::AnimationGroup;
 
 use crate::behaviour::animation::AnimationStack;
 use crate::behaviour::character::{Action, Character, MoveTo};

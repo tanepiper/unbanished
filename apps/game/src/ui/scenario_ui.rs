@@ -8,8 +8,8 @@
 //! (event 2), `selectSave` showing on the chosen one. `buttonOk` (`0x65`) is enabled once one
 //! is chosen and starts it (`FUN_14007d180`); `buttonCancel` (100) closes the dialog.
 
-use banished_formats::scenario::Scenario;
-use banished_ui::{Kind, NodeId, Ui};
+use unbanished_formats::scenario::Scenario;
+use unbanished_ui::{Kind, NodeId, Ui};
 
 use crate::loops::Screen;
 
@@ -59,7 +59,7 @@ impl ScenarioDialog {
                     continue;
                 };
                 ui.set_table_child(table, rows.len(), cell);
-                ui.node_mut(cell).flags |= banished_formats::ui::flags::MOUSE;
+                ui.node_mut(cell).flags |= unbanished_formats::ui::flags::MOUSE;
                 let a = &s.achievement;
                 if let Some(n) = ui.find(cell, "imageIcon") {
                     let sprite = ui.res.sprite(a.sprites.as_deref(), &a.sprite);

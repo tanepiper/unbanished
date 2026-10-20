@@ -2,7 +2,7 @@
 //! the fruit on orchard trees, trackers, floors, terraform points, tombstones and the crops'
 //! pile flag.
 
-use banished_formats::savegame::{Fields, GameState, Value};
+use unbanished_formats::savegame::{Fields, GameState, Value};
 
 use super::construction::{in_saved_order, like_saved, saved_order};
 use super::{component, fields_mut, Ids, Refs};
@@ -258,7 +258,7 @@ impl StartingTown {
         refs: &mut Refs,
         ids: &Ids,
         id: i32,
-        t: &banished_game::commerce::trade::Trade,
+        t: &unbanished_game::commerce::trade::Trade,
     ) {
         let good = |g: &mut GameState, refs: &mut Refs, k: usize| {
             let r = &self.templates[self.construction.trade_goods[k].template].reference;

@@ -27,7 +27,9 @@ impl StartingTown {
     ) -> bool {
         // `AnimationManager::Update` (`FUN_14009b850`): the shared animation instances, before
         // any character.
-        banished_game::behaviour::animation::shared::update(banished_game::scheduler::ticks(dt));
+        unbanished_game::behaviour::animation::shared::update(unbanished_game::scheduler::ticks(
+            dt,
+        ));
         // The wild animals' CharacterComponent (the bit-0x04 phase).
         self.agents.move_animals(
             &mut self.wildlife,
@@ -58,7 +60,7 @@ impl StartingTown {
             &mut |seeder, scheduler, id, elapsed| {
                 // TombstoneComponent (`FUN_140058130`).
                 if tombstones.contains_key(&id) {
-                    return banished_game::people::cemetery::tombstone_visit(
+                    return unbanished_game::people::cemetery::tombstone_visit(
                         tombstones,
                         seeder.cells,
                         seeder.placed,
@@ -70,7 +72,7 @@ impl StartingTown {
                 let p = &seeder.placed[id];
                 if let Some(f) = seeder.templates[p.template].fruit {
                     let fruit = fruits.entry(id).or_default();
-                    banished_game::production::orchard::ripen(
+                    unbanished_game::production::orchard::ripen(
                         fruit,
                         &f,
                         p.growth,
@@ -80,7 +82,7 @@ impl StartingTown {
                     );
                     return false;
                 }
-                let mut wild = banished_game::nature::wildlife::Wild {
+                let mut wild = unbanished_game::nature::wildlife::Wild {
                     wildlife: &mut *wildlife,
                     placed: seeder.placed,
                     templates: seeder.templates,
@@ -94,7 +96,7 @@ impl StartingTown {
             },
         );
         // The entity manager deletes the queued animals.
-        let buried = banished_game::nature::wildlife::Wild {
+        let buried = unbanished_game::nature::wildlife::Wild {
             wildlife: &mut self.wildlife,
             placed: &mut self.placed,
             templates: &self.templates,
@@ -120,7 +122,7 @@ impl StartingTown {
                     .filter(|_| c.alive)
             })
             .collect();
-        let mut env = banished_game::town::Env {
+        let mut env = unbanished_game::town::Env {
             wildlife: &mut self.wildlife,
             cells: &mut self.cells,
             placed: &mut self.placed,
@@ -140,7 +142,7 @@ impl StartingTown {
         // Citizens made from nomads take a name, appearance and lifespan as newborns do.
         let mut newborn = |rng: &mut Random, model: &Citizen, male: bool| match names {
             Some((m, f)) => {
-                banished_game::people::citizens::newborn(rng, &rules, m, f, model, male)
+                unbanished_game::people::citizens::newborn(rng, &rules, m, f, model, male)
             }
             None => Citizen {
                 male,
@@ -173,7 +175,7 @@ impl StartingTown {
             let cells = (0..w * h)
                 .map(|i| {
                     let cell = (p.cell.1 + i / w) * n + p.cell.0 + i % w;
-                    banished_game::town::floor_ground(
+                    unbanished_game::town::floor_ground(
                         &self.cells.floors,
                         self.cells.size,
                         terrain,
@@ -220,7 +222,7 @@ impl StartingTown {
                 scale: [1.0; 4],
             });
             self.register_entity(id);
-            let rules = banished_game::world::placement::PlacementRules {
+            let rules = unbanished_game::world::placement::PlacementRules {
                 mask: 0,
                 masks: Vec::new(),
                 mask_chars: String::new(),
@@ -229,14 +231,14 @@ impl StartingTown {
                 height: 0,
                 cell_type,
             };
-            let rect = banished_game::world::placement::Rect {
+            let rect = unbanished_game::world::placement::Rect {
                 x0: r.cell.0,
                 y0: r.cell.1,
                 x1: r.cell.0 + r.footprint.0 - 1,
                 y1: r.cell.1 + r.footprint.1 - 1,
             };
             let degrees = r.yaw as i32;
-            banished_game::world::placement::zone(&mut self.cells, &rules, rect, degrees, id);
+            unbanished_game::world::placement::zone(&mut self.cells, &rules, rect, degrees, id);
             if let Some(st) = self
                 .construction
                 .templates
@@ -250,7 +252,7 @@ impl StartingTown {
                     self.placed[id].mesh = mesh;
                 }
                 if stamps {
-                    banished_game::world::placement::stamp(
+                    unbanished_game::world::placement::stamp(
                         &mut self.cells,
                         &rules,
                         rect,

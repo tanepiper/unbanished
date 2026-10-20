@@ -9,17 +9,17 @@
 //! - tiled (fields, yards, pastures): the atlas tile follows which neighbours are inside the
 //!   rectangle, and the decal uv is the cell position, turned.
 //!
-//! The alpha is the description's until the entity is built (`banished_game::work::construction::
+//! The alpha is the description's until the entity is built (`unbanished_game::work::construction::
 //! Decal`), the material the component's.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use banished_formats::game::DecalDescription;
-use banished_formats::pkg::Archive;
-use banished_game::nature::seeding::{Placed, Template};
-use banished_game::terrain::HeightGrid;
-use banished_game::work::construction::Decal;
+use unbanished_formats::game::DecalDescription;
+use unbanished_formats::pkg::Archive;
+use unbanished_game::nature::seeding::{Placed, Template};
+use unbanished_game::terrain::HeightGrid;
+use unbanished_game::work::construction::Decal;
 
 use crate::gfx::road_decals::{tile_uv, tile_variant, vertex};
 use crate::view::scene_assets::{DecalCache, DecalData};
@@ -35,7 +35,7 @@ pub fn descriptions(
             let reference = t.reference.replace('\\', "/");
             let reference = reference.strip_suffix(":resource")?;
             let data = archive.read_ref(&format!("{reference}:decal")).ok()?;
-            banished_formats::game::decal_description(&data)
+            unbanished_formats::game::decal_description(&data)
                 .ok()
                 .map(Arc::new)
         })
@@ -79,7 +79,7 @@ impl Transform2 {
     /// `Transform2(Scalar, Vector2)` / `FromYawOffset` (Runtime `0x18007e770`, `0x1800792c0`):
     /// rows `(cos, sin)`, `(−sin, cos)` from the CRT's `sinf` and `cosf` of `degrees × D`.
     fn rotation(degrees: f32) -> Self {
-        let (s, c) = banished_game::math::sin_cos_deg(degrees);
+        let (s, c) = unbanished_game::math::sin_cos_deg(degrees);
         Transform2 {
             m: [c, s, -s, c],
             t: [0.0, 0.0],
@@ -385,7 +385,7 @@ mod tests {
 #[cfg(test)]
 mod scene_check {
     use super::*;
-    use banished_formats::pkg::{Archive, Package};
+    use unbanished_formats::pkg::{Archive, Package};
 
     /// The menu scenes' serialized map decals (`+0x1f0`) were meshed by the original:
     /// rebuilding each from its own entry gives the same uvs.
@@ -405,7 +405,7 @@ mod scene_check {
             let data = archive
                 .read_ref(&format!("Game/MenuScene/Scene{i}.rsc:resource"))
                 .unwrap();
-            let scene = banished_formats::menu_scene::menu_scene(&data).unwrap();
+            let scene = unbanished_formats::menu_scene::menu_scene(&data).unwrap();
             let heights = &scene.map.heights;
             let width = (heights.len() as f64).sqrt() as usize;
             let grid = HeightGrid { width, heights };

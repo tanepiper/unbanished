@@ -20,9 +20,9 @@
 //! builds only). Not ported:
 //! Unsubscribe, which stays hidden.
 
-use banished_nexus::api::{self, ModSummary, Sort};
-use banished_nexus::nxm::NxmLink;
-use banished_ui::{Control, Kind, NodeId, Ui};
+use unbanished_nexus::api::{self, ModSummary, Sort};
+use unbanished_nexus::nxm::NxmLink;
+use unbanished_ui::{Control, Kind, NodeId, Ui};
 
 use crate::platform::nexus::{self, Nexus, Reply, Task, PER_PAGE};
 use crate::settings::Persistence;

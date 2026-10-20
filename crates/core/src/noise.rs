@@ -6,7 +6,7 @@
 //! ([`crate::crt::cosf`]), so the values match the original to the last bit.
 //!
 //! ```
-//! use banished_core::noise::PerlinNoise;
+//! use unbanished_core::noise::PerlinNoise;
 //!
 //! let noise = PerlinNoise::new(0.5, 4.0, 17, 31);
 //! let value = noise.generate(12.5, 40.25);

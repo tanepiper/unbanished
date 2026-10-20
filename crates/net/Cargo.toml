@@ -1,5 +1,5 @@
 [package]
-name = "banished-net"
+name = "unbanished-net"
 version.workspace = true
 description = "Un-Banished multiplayer networking: the relay's protocol and a WebSocket connection to it, natively and in the browser"
 edition.workspace = true

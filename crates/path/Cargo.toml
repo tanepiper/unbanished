@@ -1,5 +1,5 @@
 [package]
-name = "banished-path"
+name = "unbanished-path"
 version.workspace = true
 description = "Bit-exact port of Banished's path finding: the A* pathfinder, walkable regions and the sector graph"
 edition.workspace = true
@@ -7,5 +7,5 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-banished-core = { path = "../core" }
-banished-terrain = { path = "../terrain" }
+unbanished-core = { path = "../core" }
+unbanished-terrain = { path = "../terrain" }

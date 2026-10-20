@@ -8,8 +8,8 @@
 //! `0x1800fd230`.
 
 use crate::scheduler::{seconds, ticks};
-use banished_formats::skeleton::Transform;
-use banished_formats::types::AnimationClip;
+use unbanished_formats::skeleton::Transform;
+use unbanished_formats::types::AnimationClip;
 
 /// Single, unique animation playback. Tree expiry starts from an empty animation state.
 /// Blended stacks and AnimationManager's shared instances require their separate lifecycle port.
@@ -216,7 +216,7 @@ pub struct AnimationStack {
 
 /// `AnimationGroup` `+0x48`: the blend time from `old` to `new` (`[new][old]`, the group's
 /// clips square), else the default (`+0x30`).
-fn blend_seconds(group: &banished_formats::types::AnimationGroup, old: usize, new: usize) -> f32 {
+fn blend_seconds(group: &unbanished_formats::types::AnimationGroup, old: usize, new: usize) -> f32 {
     let n = group.clips.len();
     group
         .blend_matrix
@@ -253,7 +253,7 @@ impl AnimationStack {
     /// Original: Runtime `0x1801007e0`.
     pub fn play(
         &mut self,
-        group: &banished_formats::types::AnimationGroup,
+        group: &unbanished_formats::types::AnimationGroup,
         clip: usize,
         start: i64,
     ) {
@@ -303,7 +303,7 @@ impl AnimationStack {
     /// Original: Runtime `0x1801003b0`, Runtime `0x1800ff4b0`.
     pub fn update(
         &mut self,
-        group: &banished_formats::types::AnimationGroup,
+        group: &unbanished_formats::types::AnimationGroup,
         dt: i64,
     ) -> Vec<usize> {
         let Some(top) = self.layers.first_mut() else {
@@ -380,7 +380,10 @@ impl AnimationStack {
     }
 
     /// The pose of the last update, or the newest layer's at its clock before any update.
-    pub fn pose(&self, group: &banished_formats::types::AnimationGroup) -> Option<Vec<Transform>> {
+    pub fn pose(
+        &self,
+        group: &unbanished_formats::types::AnimationGroup,
+    ) -> Option<Vec<Transform>> {
         if !self.pose.is_empty() {
             return Some(self.pose.clone());
         }
@@ -410,9 +413,9 @@ impl AnimationStack {
 /// Original: Runtime `0x1800fe260`, Runtime `0x1800fead0`, Runtime `0x1800fe200`.
 pub mod shared {
     use super::Playback;
-    use banished_formats::skeleton::Transform;
-    use banished_formats::types::{AnimationClip, AnimationGroup};
     use std::cell::RefCell;
+    use unbanished_formats::skeleton::Transform;
+    use unbanished_formats::types::{AnimationClip, AnimationGroup};
 
     struct Entry {
         group: usize,

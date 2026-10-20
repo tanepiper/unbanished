@@ -10,7 +10,7 @@ You can use it in three places, with the same commands:
 | Where | How |
 |---|---|
 | The browser's console | `await unbanished.town()`, `await unbanished.click('text:New')` |
-| A headless run | `banished --boot-capture last.png 20 --probe "town@16" --probe-out answers.jsonl` |
+| A headless run | `unbanished --boot-capture last.png 20 --probe "town@16" --probe-out answers.jsonl` |
 | The test suites | `tools/test/scenarios.json` and the browser tests in `tools/test/browser/` ([Testing](TESTING.md)) |
 
 The probe only reads the game, except for `click`, `type`, `combo` and `script`. These go
@@ -90,8 +90,8 @@ logged, and with `--probe-out FILE` also written to FILE as one JSON object per 
 `{"t": 16.0, "command": "town", "ok": {…}}`, or `"error"` in place of `"ok"`.
 
 ```bash
-BANISHED_USER_DIR=/tmp/ub-user BANISHED_SETTINGS=/tmp/ub-settings.txt BANISHED_SEED=1234 \
-target/release/banished --boot-capture /tmp/last.png 42 --capture-size 1280x720 \
+UNBANISHED_USER_DIR=/tmp/ub-user UNBANISHED_SETTINGS=/tmp/ub-settings.txt UNBANISHED_SEED=1234 \
+target/release/unbanished --boot-capture /tmp/last.png 42 --capture-size 1280x720 \
   --probe "click ref:MainMenu text:New@4.5" \
   --probe "type editName=Testwood@4.8" --probe "type editSeed=1234@4.9" \
   --probe "click ref:NewGame buttonOk@5" \
@@ -103,8 +103,8 @@ The capture runs as fast as the computer can draw it, not in real time: this exa
 about two seconds. Times are seconds of capture time, counted from the start; the main menu is
 ready at about 4.5 s, and a new game is running about 10 s after its Ok.
 
-`BANISHED_USER_DIR` and `BANISHED_SETTINGS` keep the run away from your own saves and settings.
-`BANISHED_SEED` fixes the game's random numbers, so two runs give the same answers.
+`UNBANISHED_USER_DIR` and `UNBANISHED_SETTINGS` keep the run away from your own saves and settings.
+`UNBANISHED_SEED` fixes the game's random numbers, so two runs give the same answers.
 
 ## Finding elements: queries
 

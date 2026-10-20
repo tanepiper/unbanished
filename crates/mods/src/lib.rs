@@ -24,7 +24,7 @@
 // The conflicts list is at Mod +0x70.
 use std::collections::BTreeSet;
 
-use banished_formats::pkg::{normalise, Package};
+use unbanished_formats::pkg::{normalise, Package};
 
 pub mod preview;
 pub mod text;
@@ -253,11 +253,11 @@ impl Modification {
     /// `SaveLoad::SaveMetaData`: each enabled mod as the save records it, its name, its file under
     /// the data directory (`WinData\<file>.pkm`, inferred from `GetPackDirectory`) and its crc,
     /// game version and author's version.
-    pub fn saved(&self) -> Vec<banished_formats::save::SavedMod> {
+    pub fn saved(&self) -> Vec<unbanished_formats::save::SavedMod> {
         self.mods
             .iter()
             .filter(|m| m.enabled)
-            .map(|m| banished_formats::save::SavedMod {
+            .map(|m| unbanished_formats::save::SavedMod {
                 name: m.name.clone(),
                 file: m.path(),
                 values: [m.crc, m.game_version, m.user_version],
@@ -270,7 +270,7 @@ impl Modification {
     /// made before game version 1.0.4.
     ///
     /// Original: `SaveLoad::CheckMod`, Runtime `0x1800c3900`.
-    pub fn check(&self, saved: &banished_formats::save::SavedMod) -> u32 {
+    pub fn check(&self, saved: &unbanished_formats::save::SavedMod) -> u32 {
         let stem = saved
             .file
             .rsplit(['\\', '/'])

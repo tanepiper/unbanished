@@ -213,7 +213,7 @@ impl ModelRenderer {
                         }
                     };
                     for &i in shown {
-                        let offset = (i as u64 * banished_gfx::skin::PALETTE_BYTES) as u32;
+                        let offset = (i as u64 * unbanished_gfx::skin::PALETTE_BYTES) as u32;
                         pass.set_bind_group(2, skin, &[offset]);
                         pass.draw_indexed(0..r.index_count, 0, i..i + 1);
                     }

@@ -39,7 +39,7 @@ installed by `FUN_14009d0d0`: Toolbar, EventNotify, AutoSave).
 
 ## Packaged dialogs (`crates/ui`)
 
-1. Inspect the resource: `cargo run -p banished-formats --example dialog_info -- game-data/original/WinData "Dialog/Toolbar.rsc:resource"`
+1. Inspect the resource: `cargo run -p unbanished-formats --example dialog_info -- game-data/original/WinData "Dialog/Toolbar.rsc:resource"`
    to see element names, ids, templates, alignment.
 2. Instantiate via the screen, then look elements up by **name** as the original does
    (`find("toolbarContent")`), never by tree position.
@@ -48,13 +48,13 @@ installed by `FUN_14009d0d0`: Toolbar, EventNotify, AutoSave).
    `crates/ui/tests/controls.rs`.
 4. Strings: `UI::String(table, key)` → the string-table lookup; sprites: `ui.res.sprite(sheet, name)`.
 5. Events: `drain_events` and dispatch on the original element ids / event codes recorded in the
-   trace doc. Note `banished_ui::pointer_button` **returns** the click event (not queued).
+   trace doc. Note `unbanished_ui::pointer_button` **returns** the click event (not queued).
 
 ## Workflow
 
 1. Re-read the trace doc; list the functions to port and their addresses.
 2. Implement the smallest end-to-end slice (e.g. toolbar root level visible) before the rest.
-3. Build often: `cargo build --release -p banished-app` (and `-p banished-ui` etc. for crates).
+3. Build often: `cargo build --release -p unbanished-app` (and `-p unbanished-ui` etc. for crates).
 4. Verify (`banished-verify`), then document and commit (`banished-land`) — per slice, not at the end.
 
 ## Pitfalls

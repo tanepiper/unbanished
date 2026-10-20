@@ -21,7 +21,7 @@ impl Renderer {
             self.render_minimap(*size, &view.lighting);
         }
         if self.minimap_overlay != *revision {
-            let texture = banished_gfx::upload_rgba_as(
+            let texture = unbanished_gfx::upload_rgba_as(
                 &self.device,
                 &self.queue,
                 "minimap overlay",

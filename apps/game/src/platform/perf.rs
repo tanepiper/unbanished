@@ -1,12 +1,12 @@
-//! Frame profiler for finding hitches. Off unless `BANISHED_PROFILE` is set (native) or the page
+//! Frame profiler for finding hitches. Off unless `UNBANISHED_PROFILE` is set (native) or the page
 //! has `?profile` (browser); when off, every call is a flag check.
 //!
 //! Each frame is split into named phases ([`scope`]). A frame much longer than usual is
 //! reported as a hitch with its slowest phases. Every 600 frames (10 s at 60 fps) a summary
 //! gives, per phase, the median, 95th percentile and worst time, and how often it ran.
 //!
-//! - `BANISHED_PROFILE=1`: hitches and summaries in the log.
-//! - `BANISHED_PROFILE=hitches`: hitches only.
+//! - `UNBANISHED_PROFILE=1`: hitches and summaries in the log.
+//! - `UNBANISHED_PROFILE=hitches`: hitches only.
 //!
 //! Nothing here changes the simulation: it only reads the clock.
 
@@ -58,7 +58,9 @@ impl Profiler {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn setting() -> Option<String> {
-    std::env::var("BANISHED_PROFILE").ok().filter(|v| v != "0")
+    unbanished_formats::env::var("PROFILE")
+        .ok()
+        .filter(|v| v != "0")
 }
 
 #[cfg(target_arch = "wasm32")]

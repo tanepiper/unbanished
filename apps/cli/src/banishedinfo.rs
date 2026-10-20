@@ -1,15 +1,15 @@
-//! `banished-cli banishedinfo`: list, search and install mods from banishedinfo.com.
+//! `unbanished-cli banishedinfo`: list, search and install mods from banishedinfo.com.
 
 use std::path::PathBuf;
 
-use banished_banishedinfo::native::Client;
-use banished_banishedinfo::{Mod, Sort, SECTIONS};
+use unbanished_banishedinfo::native::Client;
+use unbanished_banishedinfo::{Mod, Sort, SECTIONS};
 
 const USAGE: &str = "usage:
-  banished-cli banishedinfo list [--sort featured|downloads|trending|recent] [--section NAME] [--page N]
-  banished-cli banishedinfo search TEXT
-  banished-cli banishedinfo versions MOD_ID
-  banished-cli banishedinfo install MOD_ID [VERSION] [--to WINDATA]
+  unbanished-cli banishedinfo list [--sort featured|downloads|trending|recent] [--section NAME] [--page N]
+  unbanished-cli banishedinfo search TEXT
+  unbanished-cli banishedinfo versions MOD_ID
+  unbanished-cli banishedinfo install MOD_ID [VERSION] [--to WINDATA]
                                                install a version (the newest by default)
 
 Sections: audio, buildings, gameplay, maps, textures, translations, translated-mods.

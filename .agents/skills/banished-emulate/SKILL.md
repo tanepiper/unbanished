@@ -43,7 +43,7 @@ allocator. API: `malloc(size)`, `write(addr, bytes)`, `read(addr, n)`, `u32/i32/
    compare exactly (`assert_eq!` on bits, `f32::to_bits`), and on failure report the first
    mismatching index plus a count.
    ```bash
-   cargo test --release -p banished-game --test <name>
+   cargo test --release -p unbanished-game --test <name>
    ```
 5. If not exact, bisect: emulate intermediate callees separately (`terrain_stages.py` dumps each
    generator stage) and compare stage by stage.

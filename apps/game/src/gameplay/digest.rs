@@ -41,7 +41,7 @@ pub fn run(
 ) -> Result<Vec<Digest>, String> {
     let saved = crate::saves::saved::SavedGame::parse(save).map_err(|e| e.to_string())?;
     let mut gameplay = super::GameplayLoop::from_save(saved);
-    let step = banished_game::scheduler::seconds(crate::FRAME_STEP);
+    let step = unbanished_game::scheduler::seconds(crate::FRAME_STEP);
     game.with_ctx(|_, ctx| {
         gameplay.load(ctx);
         gameplay.startup(ctx);
@@ -76,7 +76,7 @@ impl super::GameplayLoop {
             if object.type_name == "UIComponent" {
                 object.fields.set(
                     "ui.pages",
-                    banished_formats::savegame::Value::List(Vec::new()),
+                    unbanished_formats::savegame::Value::List(Vec::new()),
                 );
             }
         }
@@ -87,7 +87,7 @@ impl super::GameplayLoop {
             year: self.calendar.year,
             elapsed: self.calendar.elapsed,
             citizens: town.citizens.iter().filter(|c| c.alive).count(),
-            crc: banished_formats::crc::crc32(state),
+            crc: unbanished_formats::crc::crc32(state),
         })
     }
 }

@@ -10,8 +10,8 @@ pub mod scene;
 pub use device::{pitch_ratio, Channel, Device, PlayParams, Slots, Sound, CHANNELS};
 pub use scene::{sound_type, Effect, EffectCache, Mixer, Prepared, Scene, Volumes};
 
-use banished_formats::pkg::Archive;
-use banished_formats::types::{self, SoundBuffer};
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::types::{self, SoundBuffer};
 
 /// Decoded samples.
 #[derive(Clone)]
@@ -27,14 +27,14 @@ pub struct Pcm {
 /// Decode a `SoundBuffer`; `stream` supplies the packets of streamed music (its `.str` entry).
 pub fn decode(sound: &SoundBuffer, stream: Option<&[u8]>) -> Result<Pcm, String> {
     let f = &sound.format;
-    let params = banished_wma::Params::xwma(
+    let params = unbanished_wma::Params::xwma(
         f.channels,
         f.sample_rate,
         f.avg_bytes_per_sec,
         f.block_align,
     );
     let packets = stream.unwrap_or(&sound.data);
-    let pcm = banished_wma::decode(&params, packets).map_err(|e| format!("decode: {e:?}"))?;
+    let pcm = unbanished_wma::decode(&params, packets).map_err(|e| format!("decode: {e:?}"))?;
     Ok(Pcm {
         channels: f.channels,
         sample_rate: f.sample_rate,

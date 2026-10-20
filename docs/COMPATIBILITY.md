@@ -33,12 +33,12 @@ they never touch the player's own files. They need `game-data/` and the test sav
 | `tools/compat/compare.sh BASE NEW [SCENARIO…]` | Builds both (or takes binaries), and checks: BASE against itself, NEW against BASE, and both continuing BASE's saves |
 | `tools/triage/same-run.sh BASE_BIN NEW_BIN SAVE` | A quick check of two binaries on one save |
 | `tools/triage/determinism.sh` | Two identical new-game runs must draw identical frames |
-| `savegame_same`, `savegame_fields_diff` (examples in `banished-formats`) | Whether two saves hold the same game state, and if not, which objects and fields differ |
-| `tools/compat/replay.sh BINARY [SCENARIO…]` | Records the scenarios that load a save (`--record`), then replays each recording from its save without a window (`banished --replay`); every recorded digest must match |
-| `tools/compat/lockstep.sh BINARY` | Plays the `actions` recording split between players joined by a simulated network with delay, jitter and busy computers (`banished --lockstep-test`); every setting must keep the players identical, and a scrambled player must be found and resynced |
-| `tools/compat/network.sh BINARY [RELAY]` | Starts a relay on this computer and runs several game processes as the players of one room (`banished --net-test`); their digests must be identical |
+| `savegame_same`, `savegame_fields_diff` (examples in `unbanished-formats`) | Whether two saves hold the same game state, and if not, which objects and fields differ |
+| `tools/compat/replay.sh BINARY [SCENARIO…]` | Records the scenarios that load a save (`--record`), then replays each recording from its save without a window (`unbanished --replay`); every recorded digest must match |
+| `tools/compat/lockstep.sh BINARY` | Plays the `actions` recording split between players joined by a simulated network with delay, jitter and busy computers (`unbanished --lockstep-test`); every setting must keep the players identical, and a scrambled player must be found and resynced |
+| `tools/compat/network.sh BINARY [RELAY]` | Starts a relay on this computer and runs several game processes as the players of one room (`unbanished --net-test`); their digests must be identical |
 | `tools/compat/multiplayer.sh BINARY [RELAY] [SCENARIO…]` | The Multiplayer window from end to end: headless games kept to the clock (`--realtime`) host a room and join it by typing its code (`--text`). Scenarios `two` and `leave` (a guest quits and the others play on) |
-| `banished --sim-digest SAVE [UPDATES] [EVERY]` | Prints digests of the game state while a save runs; the browser build's `?digest=` prints the same, to show that native and browser builds simulate identically ([CROSS-PLATFORM.md](CROSS-PLATFORM.md)) |
+| `unbanished --sim-digest SAVE [UPDATES] [EVERY]` | Prints digests of the game state while a save runs; the browser build's `?digest=` prints the same, to show that native and browser builds simulate identically ([CROSS-PLATFORM.md](CROSS-PLATFORM.md)) |
 
 ```bash
 tools/compat/compare.sh v0.2.0 HEAD                    # every scenario

@@ -6,7 +6,7 @@ use super::GameplayLoop;
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 
-/// The Status Bar's stock slots, in order (`banished_game::work::stock::STOCK_SLOTS`; the last
+/// The Status Bar's stock slots, in order (`unbanished_game::work::stock::STOCK_SLOTS`; the last
 /// ten are the custom slots that mods may use).
 const STOCK: [&str; 11] = [
     "wood", "stone", "iron", "firewood", "tools", "food", "herbs", "clothes", "alcohol", "coal",
@@ -80,7 +80,7 @@ impl GameplayLoop {
                     .values()
                     .filter(|s| !s.destroyed && town.placed[s.entity].alive);
                 let (built, building): (Vec<_>, Vec<_>) = sites.partition(|s| s.complete);
-                let name = |s: &&banished_game::work::construction::Site| {
+                let name = |s: &&unbanished_game::work::construction::Site| {
                     short(&town.templates[town.placed[s.entity].template].reference)
                 };
                 json!({

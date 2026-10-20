@@ -3,7 +3,7 @@
 
 use std::{env, fs, process};
 
-use banished_formats::game::environment_description;
+use unbanished_formats::game::environment_description;
 
 fn main() {
     let paths: Vec<_> = env::args_os().skip(1).collect();

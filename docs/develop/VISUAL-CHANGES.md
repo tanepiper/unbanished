@@ -21,7 +21,7 @@ confirm or refute the prediction. Without a prediction, any difference looks pla
 - Find the affected objects in the data. For meshes, the `mesh_info` example lists each part,
   its detail-level distance and its textures:
   ```bash
-  cargo run -q --release -p banished-formats --example mesh_info -- \
+  cargo run -q --release -p unbanished-formats --example mesh_info -- \
     game-data/original/WinData Models/Rocks/Rock01Mesh.rsc:resource
   ```
 - Note the condition that makes the change visible: a distance, a season, a video setting, a
@@ -32,11 +32,11 @@ confirm or refute the prediction. Without a prediction, any difference looks pla
 ## Step 1: keep a copy of your build
 
 The comparison runs for several minutes, and any `cargo build` in that time replaces
-`target/release/banished`. Copy the binary first and compare the copy:
+`target/release/unbanished`. Copy the binary first and compare the copy:
 
 ```bash
-cargo build --release -p banished-app
-cp target/release/banished /tmp/banished-new
+cargo build --release -p unbanished-app
+cp target/release/unbanished /tmp/banished-new
 ```
 
 ## Step 2: run the comparison
@@ -73,7 +73,7 @@ pixel in red.
 
 ```bash
 R=target/compat/runs/<base>-vs-<new>
-cargo run -q --release -p banished-app --example imgdiff -- \
+cargo run -q --release -p unbanished-app --example imgdiff -- \
   $R/base-1/small-town.png $R/new/small-town.png --out heat.png --json
 ```
 

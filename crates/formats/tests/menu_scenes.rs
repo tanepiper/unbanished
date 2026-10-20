@@ -1,8 +1,8 @@
 //! All ten main-menu scenes parse completely (skipped without game-data/).
 
-use banished_formats::menu_scene::menu_scene;
-use banished_formats::pkg::{Archive, Package};
 use std::path::PathBuf;
+use unbanished_formats::menu_scene::menu_scene;
+use unbanished_formats::pkg::{Archive, Package};
 
 #[test]
 fn menu_scenes_parse() {

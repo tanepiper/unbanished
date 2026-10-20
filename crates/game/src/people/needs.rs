@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 
-use banished_formats::types::AnimationGroup;
+use unbanished_formats::types::AnimationGroup;
 
 use crate::behaviour::activities::{StorageGeometry, TownView};
 use crate::behaviour::agents::CitizenState;

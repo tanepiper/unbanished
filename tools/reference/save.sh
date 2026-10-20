@@ -7,7 +7,7 @@
 #
 # Writes game-data/reference/NAME.png (converted with macOS sips; git-ignored, never commit)
 # and NAME.txt (source, capture time, size, note). Compare against the port with
-#   cargo run -q --release -p banished-app --example imgdiff -- \
+#   cargo run -q --release -p unbanished-app --example imgdiff -- \
 #     game-data/reference/NAME.png port.png --resize --blur 2 [--crop-a ..] [--crop-b ..]
 set -euo pipefail
 cd "$(dirname "$0")/../.."

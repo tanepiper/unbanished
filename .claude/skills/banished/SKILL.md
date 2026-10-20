@@ -33,7 +33,7 @@ behaviour, data formats, constants and UI match the original executable — not 
 | `crates/game` | Bit-exact game logic (Random, Perlin, terrain generator, surface, mesh, queries) |
 | `crates/ui` | The game's UI system (element tree, layout, fonts, controls, input, events) |
 | `crates/gfx`, `crates/audio`, `crates/wma` | wgpu UI renderer/uploads; xWMA playback; WMA v2 decoder |
-| `apps/game` (bin `banished`) | The game: `loops.rs` engine loops, `menu.rs`, `gameplay.rs`, `render.rs`, `scene*.rs`, `models.rs`, `world.rs`, `*.wgsl` |
+| `apps/game` (bin `unbanished`) | The game: `loops.rs` engine loops, `menu.rs`, `gameplay.rs`, `render.rs`, `scene*.rs`, `models.rs`, `world.rs`, `*.wgsl` |
 | `apps/viewer` | Asset browser (models, textures, audio, dialogs) |
 | `tools/ghidra` | Headless export scripts, `readdata.py` (constants), `vtable.py` |
 | `tools/emu` | Unicorn harness `pe_emu.py` + ground-truth generators |

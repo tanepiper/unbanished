@@ -1,4 +1,4 @@
-# banished-gfx
+# unbanished-gfx
 
 Rendering code that the game (`apps/game`) and the viewer (`apps/viewer`) share. It uses
 [wgpu](https://wgpu.rs), so it runs on Vulkan, Metal, DirectX 12, OpenGL, and in browsers on
@@ -6,7 +6,7 @@ WebGPU or WebGL 2.
 
 | Part | What it does |
 |---|---|
-| `UiRenderer` | Draws the quads of `banished-ui` in one alpha-blended pipeline, in batches split by texture and clip rectangle |
+| `UiRenderer` | Draws the quads of `unbanished-ui` in one alpha-blended pipeline, in batches split by texture and clip rectangle |
 | `upload_image`, `upload_rgba`, `upload_cube`, … | Upload the game's textures (`ImageBuffer`) to the GPU, with their mip levels |
 | `decode_levels` | Decode every level of a texture to RGBA8, for GPUs without BC texture support |
 | `material` | Which ported shader a model's material uses (`MaterialKind`), and the atlas of citizens' outfits |
@@ -20,9 +20,9 @@ crate holds only what both programs need.
 
 ```toml
 [dependencies]
-banished-gfx = { path = "crates/gfx" }
-banished-ui = { path = "crates/ui" }
-banished-formats = { path = "crates/formats" }
+unbanished-gfx = { path = "crates/gfx" }
+unbanished-ui = { path = "crates/ui" }
+unbanished-formats = { path = "crates/formats" }
 wgpu = "30"
 ```
 
@@ -33,8 +33,8 @@ quads from `Ui::draw`. The renderer uploads the sprite sheets that the quads use
 it sees them.
 
 ```rust
-use banished_gfx::UiRenderer;
-use banished_ui::{NodeId, Ui};
+use unbanished_gfx::UiRenderer;
+use unbanished_ui::{NodeId, Ui};
 
 fn draw_ui<'p>(
     renderer: &'p mut UiRenderer,
@@ -61,8 +61,8 @@ animated interface materials.
 ### Upload a texture
 
 ```rust
-use banished_formats::pkg::Archive;
-use banished_formats::types::image_buffer;
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::types::image_buffer;
 
 fn texture(
     device: &wgpu::Device,
@@ -71,7 +71,7 @@ fn texture(
     reference: &str,
 ) -> Option<wgpu::TextureView> {
     let image = image_buffer(&archive.read_ref(reference).ok()?).ok()?;
-    banished_gfx::upload_image(device, queue, reference, &image)
+    unbanished_gfx::upload_image(device, queue, reference, &image)
 }
 ```
 
@@ -90,4 +90,4 @@ often has no support for BC-compressed textures, and uploads the result as an sR
 ## The API
 
 The full API documentation is at
-<https://tanepiper.github.io/unbanished/api/banished_gfx/index.html>.
+<https://tanepiper.github.io/unbanished/api/unbanished_gfx/index.html>.

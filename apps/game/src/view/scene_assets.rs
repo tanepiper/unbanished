@@ -2,9 +2,9 @@
 //! the tiled terrain decals (roads, fields, footprints). Loaded from a `MapComponent` block, which
 //! menu scenes and save games share, so the in-game renderer can use the same data.
 
-use banished_formats::menu_scene::{Decal, MapComponent};
-use banished_formats::pkg::Archive;
-use banished_formats::types::{graphics_mesh, image_buffer, material_instance, ImageBuffer};
+use unbanished_formats::menu_scene::{Decal, MapComponent};
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::types::{graphics_mesh, image_buffer, material_instance, ImageBuffer};
 
 pub(crate) fn with_object(reference: &str) -> String {
     let path = reference.replace('\\', "/");
@@ -309,7 +309,7 @@ mod tests {
             let data = archive
                 .read_ref(&format!("Game/MenuScene/Scene{i}.rsc:resource"))
                 .unwrap();
-            let scene = banished_formats::menu_scene::menu_scene(&data).unwrap();
+            let scene = unbanished_formats::menu_scene::menu_scene(&data).unwrap();
             let decals = DecalData::load_all(&archive, &scene.map);
             let mut seen = std::collections::HashSet::new();
             let mut bytes = 0;

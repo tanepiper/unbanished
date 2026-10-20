@@ -32,7 +32,7 @@ pub const GONE_MESSAGE: i32 = 0xb;
 #[derive(Debug, Clone, Copy)]
 pub struct BoatKind {
     /// The character description.
-    pub character: banished_formats::game::CharacterDescription,
+    pub character: unbanished_formats::game::CharacterDescription,
 }
 
 // +0x28; +0x40; +0x4c; +0x50; +0x60; +0x70
@@ -187,7 +187,7 @@ impl Sim<'_, '_> {
     fn boat_group(
         &self,
         id: usize,
-    ) -> Option<std::sync::Arc<banished_formats::types::AnimationGroup>> {
+    ) -> Option<std::sync::Arc<unbanished_formats::types::AnimationGroup>> {
         let b = self.wildlife.boats.get(&id)?;
         self.wildlife.groups.get(&(b.template, 0)).cloned()
     }

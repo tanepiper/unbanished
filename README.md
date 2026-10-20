@@ -111,15 +111,15 @@ git clone https://github.com/tanepiper/unbanished.git
 cd unbanished
 
 # 2. Build it (this needs Rust: https://rustup.rs)
-cargo build -p banished-app --release
+cargo build -p unbanished-app --release
 
 # 3. Start it, and give it your game's WinData folder
-target/release/banished "/path/to/Banished/WinData"
+target/release/unbanished "/path/to/Banished/WinData"
 ```
 
-On Windows, step 3 is `target\release\banished.exe "C:\Program Files (x86)\Steam\steamapps\common\Banished\WinData"`.
+On Windows, step 3 is `target\release\unbanished.exe "C:\Program Files (x86)\Steam\steamapps\common\Banished\WinData"`.
 
-You can also copy the built `banished` file (`banished.exe` on Windows) into your Banished
+You can also copy the built `unbanished` file (`unbanished.exe` on Windows) into your Banished
 folder, next to `WinData`, and start it there. It then works like the original program and uses
 the same save folder.
 
@@ -187,11 +187,11 @@ The project is a Rust workspace:
 
 | Path | What it contains |
 |---|---|
-| [`apps/game`](apps/game/README.md) | The game (binary `banished`), for desktop and browser |
+| [`apps/game`](apps/game/README.md) | The game (binary `unbanished`), for desktop and browser |
 | [`apps/viewer`](apps/viewer/README.md) | A browser for the game's models, textures, sounds and dialogs |
 | [`apps/cli`](apps/cli/README.md) | Command-line helpers (for example, audio export) |
-| [`apps/modmanager`](apps/modmanager/README.md) | The mod manager (binary `banished-mods`) |
-| [`apps/relay`](apps/relay/README.md) | The multiplayer relay (binary `banished-relay`) |
+| [`apps/modmanager`](apps/modmanager/README.md) | The mod manager (binary `unbanished-mods`) |
+| [`apps/relay`](apps/relay/README.md) | The multiplayer relay (binary `unbanished-relay`) |
 | [`crates/core`](crates/core/README.md) | Exact maths, the game's random numbers, noise and game time |
 | [`crates/terrain`](crates/terrain/README.md), [`crates/path`](crates/path/README.md) | Map generation and path finding, checked against the original |
 | [`crates/game`](crates/game/README.md) | The game rules, checked against the original |
@@ -205,7 +205,7 @@ The project is a Rust workspace:
 ```bash
 tools/extract-assets.sh              # copy your game data into game-data/ (git ignores it)
 tools/test/run.py                    # the quick tests; tests that need game data are skipped without it
-cargo run -p banished-viewer --release
+cargo run -p unbanished-viewer --release
 ```
 
 Read **[AGENTS.md](AGENTS.md)** before you contribute, by hand or with an AI agent. It contains

@@ -12,7 +12,7 @@
 //!
 //! Deviation: the browser keeps saves and mods in its own storage, not in folders.
 
-use banished_formats::save::SaveMetadata;
+use unbanished_formats::save::SaveMetadata;
 
 /// A stored save: its name (the file name without `.sav`), its write time as a Windows file
 /// time (100 ns since 1601) and its metadata (`None` when it does not read).
@@ -44,7 +44,7 @@ pub use imp::{
 #[cfg(not(target_arch = "wasm32"))]
 mod imp {
     use super::{Entry, EPOCH_DIFFERENCE};
-    use banished_formats::save::Save;
+    use unbanished_formats::save::Save;
 
     fn file_time(t: std::time::SystemTime) -> u64 {
         let d = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
@@ -69,7 +69,7 @@ mod imp {
                 let name = path.file_stem()?.to_str()?.to_string();
                 let date = e.metadata().and_then(|m| m.modified()).map_or(0, file_time);
                 let metadata = std::fs::read(&path)
-                    .map_err(|e| banished_formats::Error::Format(e.to_string()))
+                    .map_err(|e| unbanished_formats::Error::Format(e.to_string()))
                     .and_then(|b| Save::read_metadata(&b))
                     .map_err(|e| log::warn!("{}: {e}", path.display()))
                     .ok();
@@ -119,7 +119,7 @@ mod imp {
     use std::cell::RefCell;
     use std::rc::Rc;
 
-    use banished_formats::save::{Save, SaveMetadata};
+    use unbanished_formats::save::{Save, SaveMetadata};
     use wasm_bindgen::prelude::*;
     use wasm_bindgen::JsCast;
     use wasm_bindgen_futures::JsFuture;

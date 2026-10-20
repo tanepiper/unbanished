@@ -1,9 +1,9 @@
 //! Developer tools for Banished game data. Outputs go to git-ignored folders under `game-data/`.
 //!
 //! ```text
-//! banished-cli export-audio [WINDATA] [OUT]   decode every SoundBuffer to MP3 via FFmpeg
-//! banished-cli nexus …                         search and install mods from Nexus Mods
-//! banished-cli banishedinfo …                   list, search and install mods from banishedinfo.com
+//! unbanished-cli export-audio [WINDATA] [OUT]   decode every SoundBuffer to MP3 via FFmpeg
+//! unbanished-cli nexus …                         search and install mods from Nexus Mods
+//! unbanished-cli banishedinfo …                   list, search and install mods from banishedinfo.com
 //! ```
 
 mod banishedinfo;
@@ -12,10 +12,10 @@ mod nexus;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use banished_formats::crc::type_id;
-use banished_formats::crs;
-use banished_formats::pkg::{Archive, Package};
-use banished_formats::types::{self, SoundBuffer};
+use unbanished_formats::crc::type_id;
+use unbanished_formats::crs;
+use unbanished_formats::pkg::{Archive, Package};
+use unbanished_formats::types::{self, SoundBuffer};
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -144,7 +144,7 @@ fn main() {
             banishedinfo::run(args[1..].to_vec(), root.join("game-data/original/WinData"))
         }
         _ => {
-            eprintln!("usage: banished-cli export-audio [WINDATA] [OUT]\n       banished-cli nexus …\n       banished-cli banishedinfo …");
+            eprintln!("usage: unbanished-cli export-audio [WINDATA] [OUT]\n       unbanished-cli nexus …\n       unbanished-cli banishedinfo …");
             std::process::exit(2);
         }
     }

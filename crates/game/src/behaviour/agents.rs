@@ -27,8 +27,8 @@ mod views;
 pub use views::entity_views;
 use views::{refresh_views, storage_of};
 
-use banished_formats::game::CharacterDescription;
-use banished_formats::types::AnimationGroup;
+use unbanished_formats::game::CharacterDescription;
+use unbanished_formats::types::AnimationGroup;
 
 use crate::behaviour::activities::{loiter, EntityView, StorageGeometry, TownView};
 use crate::behaviour::ai::{activity, CitizenAi, CitizenView, Thresholds};
@@ -285,7 +285,7 @@ pub struct Agents {
     pub events: Vec<crate::people::life::LifeEvent>,
     // GameGlobal +0xa8
     /// `Game/Disease/Diseases.rsc` (`GameGlobal`).
-    pub diseases: Vec<banished_formats::game::Disease>,
+    pub diseases: Vec<unbanished_formats::game::Disease>,
     // +0x1a8
     /// The town's disease level.
     pub town_disease: f32,

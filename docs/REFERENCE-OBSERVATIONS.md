@@ -13,7 +13,7 @@ at 1384×868 the port's UI is about 2.5× too large relative to the scene.
 
 ## Main menu (`ui/main-menu`)
 
-Port: `BANISHED_MENU_SCENE=6 banished --boot-capture OUT 4.5 --capture-size 3456x2168`;
+Port: `UNBANISHED_MENU_SCENE=6 unbanished --boot-capture OUT 4.5 --capture-size 3456x2168`;
 compare `imgdiff ui/main-menu.png OUT --resize --blur 3 --threshold 32 --compose panels.png`.
 
 - **Scene:** the original showed `Game/MenuScene/Scene6` (fields, orchard, three houses, well,
@@ -46,7 +46,7 @@ changed terrain/size before the capture). The description text under the combos 
 start condition's text.
 
 **Checked — world generation for this seed (match):** the port's
-`banished --capture OUT --seed 999518904 --terrain Mountains --size 0 --view overview` shows a
+`unbanished --capture OUT --seed 999518904 --terrain Mountains --size 0 --view overview` shows a
 river entering at the north edge, a lake just south-west of the centre with the river leaving
 south, a second small lake to its east, and mountains on all sides. The original's minimap
 after starting with these settings shows the same layout (`seed-999518904/start-t0`).
@@ -55,7 +55,7 @@ after starting with these settings shows the same layout (`seed-999518904/start-
 
 Original: Sevelockwell, seed 999518904, Mountains, Small, Fair, disasters On, Medium; captured
 at the start view (t0, minimap open) and about 20 s later (t1). Port:
-`BANISHED_SEED=999518904 banished --boot-capture OUT 12 --capture-size 1384x868 --press
+`UNBANISHED_SEED=999518904 unbanished --boot-capture OUT 12 --capture-size 1384x868 --press
 buttonNew@4.5 --combo comboTerrain=Mountains@4.8 --combo comboTerrainSize=Small@4.8 --press
 buttonOk@5.0`.
 

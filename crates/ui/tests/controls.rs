@@ -3,9 +3,9 @@ use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use banished_formats::pkg::{Archive, Package};
-use banished_formats::{crs, ui as format};
-use banished_ui::{Control, Event, Key, Kind, Node, NodeId, Ui};
+use unbanished_formats::pkg::{Archive, Package};
+use unbanished_formats::{crs, ui as format};
+use unbanished_ui::{Control, Event, Key, Kind, Node, NodeId, Ui};
 
 fn game_ui() -> Option<Ui> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../game-data/original/WinData");
@@ -621,7 +621,7 @@ fn combo_keyboard_browsing_keeps_popup_open_until_confirmation() {
     ));
     assert_eq!(
         ui.drain_events(),
-        vec![banished_ui::Event::Selected(root, 1)]
+        vec![unbanished_ui::Event::Selected(root, 1)]
     );
 }
 
@@ -715,7 +715,7 @@ fn an_edit_that_allows_a_colon_takes_it() {
 
 #[test]
 fn queries_find_the_main_menu_buttons_by_name_text_and_kind() {
-    use banished_ui::Query;
+    use unbanished_ui::Query;
     let Some(mut ui) = game_ui() else { return };
     let root = ui.instantiate(r"Dialog\MainMenu.rsc:main").unwrap();
     ui.layout_dialog(root, [0, 0, 1280, 720]);

@@ -8,12 +8,12 @@
 
 use std::rc::Rc;
 
-use banished_audio::{Device, Effect, EffectCache, Scene};
-use banished_formats::pkg::Archive;
-use banished_game::random::Random;
 use glam::Vec3;
+use unbanished_audio::{Device, Effect, EffectCache, Scene};
+use unbanished_formats::pkg::Archive;
+use unbanished_game::random::Random;
 
-pub use banished_audio::sound_type;
+pub use unbanished_audio::sound_type;
 
 /// UI sound slots (`UserInterface +0x98 + slot·8`): 2 begin drag, 3 end drag, 4 button down,
 /// 5 button up, 6 alert. Slots 2, 3 and 6 are set but never played in 1.0.7 (no caller of
@@ -71,8 +71,8 @@ impl Audio {
         self.cache.missing(references)
     }
 
-    /// Put effects decoded elsewhere ([`banished_audio::EffectCache::prepare`]) in the cache.
-    pub fn add_prepared(&mut self, prepared: banished_audio::Prepared) {
+    /// Put effects decoded elsewhere ([`unbanished_audio::EffectCache::prepare`]) in the cache.
+    pub fn add_prepared(&mut self, prepared: unbanished_audio::Prepared) {
         self.cache.add(prepared);
     }
 
@@ -144,7 +144,7 @@ impl Audio {
 #[allow(dead_code)] // For the citizen clips; wired once the citizen animation loop is free.
 pub fn anim_audio_events<'a>(
     archive: &Archive,
-    groups: impl IntoIterator<Item = &'a banished_formats::types::AnimationGroup>,
+    groups: impl IntoIterator<Item = &'a unbanished_formats::types::AnimationGroup>,
 ) -> Vec<(String, Option<String>, f32)> {
     let mut out: Vec<(String, Option<String>, f32)> = Vec::new();
     for group in groups {
@@ -158,7 +158,7 @@ pub fn anim_audio_events<'a>(
             if let Some(a) = archive
                 .read_ref(&r.replace('\\', "/"))
                 .ok()
-                .and_then(|b| banished_formats::audio::anim_audio_event(&b).ok())
+                .and_then(|b| unbanished_formats::audio::anim_audio_event(&b).ok())
             {
                 out.push((r.to_string(), a.effect, a.probability));
             }

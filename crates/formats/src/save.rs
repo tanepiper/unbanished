@@ -172,7 +172,7 @@ pub struct MapCell {
 }
 
 impl MapCell {
-    /// The cell's type (see `banished_terrain::CellType`).
+    /// The cell's type (see `unbanished_terrain::CellType`).
     pub fn cell_type(&self) -> u8 {
         self.bytes[1]
     }

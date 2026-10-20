@@ -123,8 +123,8 @@ pixel equivalence is claimed for these captures.
 The standing, falling and removed captures under
 `game-data/derived/captures/tree-expiry/` were opened and inspected: the selected pine stands,
 falls, and disappears while the surrounding terrain/trees remain visible. They are ignored local
-artifacts. Regenerate with `BANISHED_CAPTURE_TREE_EXPIRY=game-data/derived/captures/tree-expiry
-cargo test --release -p banished-app -- --nocapture`.
+artifacts. Regenerate with `UNBANISHED_CAPTURE_TREE_EXPIRY=game-data/derived/captures/tree-expiry
+cargo test --release -p unbanished-app -- --nocapture`.
 
 Full release workspace tests: **75 passed, 0 failed, 2 pre-existing save tests ignored**.
 The release WASM build passed. Browser interaction and original-settlement/save parity remain open.

@@ -51,10 +51,10 @@ mkdir -p "$out" "$clips_dir"
 
 # GAME and VIEWER take binaries that are already built (for example from tools/compat/build.sh).
 if [[ -z "${GAME:-}" || -z "${VIEWER:-}" ]]; then
-  cargo build -q --release -p banished-app -p banished-viewer --manifest-path "$repo/Cargo.toml"
+  cargo build -q --release -p unbanished-app -p unbanished-viewer --manifest-path "$repo/Cargo.toml"
 fi
-game="${GAME:-$repo/target/release/banished}"
-viewer="${VIEWER:-$repo/target/release/banished-viewer}"
+game="${GAME:-$repo/target/release/unbanished}"
+viewer="${VIEWER:-$repo/target/release/unbanished-viewer}"
 click="${CLICK:-1060,470}"
 # FFmpeg: FFMPEG if set, else Homebrew's ffmpeg-full (keg-only; it has drawtext for titles), else
 # the ffmpeg on the PATH.
@@ -137,7 +137,7 @@ town() {
     [[ $a == --move || $a == --click-at ]] && scale=1
     args+=("$a")
   done
-  BANISHED_USER_DIR="$work/user" BANISHED_SETTINGS="$work/settings.txt" \
+  UNBANISHED_USER_DIR="$work/user" UNBANISHED_SETTINGS="$work/settings.txt" \
     "$game" --boot-capture "$work/last.png" "$seconds" --capture-size "$capture" "${HQ[@]}" \
     --script "load $save@4.5" ${centre[@]+"${centre[@]}"} ${wheel[@]+"${wheel[@]}"} \
     ${args[@]+"${args[@]}"} >"$work/log.txt" 2>&1

@@ -3,10 +3,10 @@
 
 use std::path::PathBuf;
 
-use banished_formats::audio;
-use banished_formats::crc::type_id;
-use banished_formats::crs;
-use banished_formats::pkg::{Archive, Package};
+use unbanished_formats::audio;
+use unbanished_formats::crc::type_id;
+use unbanished_formats::crs;
+use unbanished_formats::pkg::{Archive, Package};
 
 fn archive() -> Option<Archive> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../game-data/original/WinData");
@@ -64,13 +64,13 @@ fn all_audio_resources_parse() {
 #[test]
 fn weather_descriptions_parse() {
     let Some(archive) = archive() else { return };
-    let rain = banished_formats::weather::weather(
+    let rain = unbanished_formats::weather::weather(
         &archive.read_ref("Environment/Rain.rsc:resource").unwrap(),
     )
     .unwrap();
     assert_eq!(rain.fade_time, 20.0);
     assert_eq!(rain.count, 625);
-    let snow = banished_formats::weather::weather(
+    let snow = unbanished_formats::weather::weather(
         &archive.read_ref("Environment/Snow.rsc:resource").unwrap(),
     )
     .unwrap();

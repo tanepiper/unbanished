@@ -28,14 +28,14 @@ pub struct SceneView {
     /// This frame's rain and snow, and their materials' textures.
     pub weather: Vec<crate::view::weather::WeatherBatch>,
     pub weather_textures:
-        std::collections::HashMap<String, Option<banished_formats::types::ImageBuffer>>,
+        std::collections::HashMap<String, Option<unbanished_formats::types::ImageBuffer>>,
     /// This frame's particles and the textures (diffuse, normal map) of their materials.
     pub particles: Vec<crate::view::particles::ParticleBatch>,
     pub particle_textures: std::collections::HashMap<
         String,
         (
-            Option<banished_formats::types::ImageBuffer>,
-            Option<banished_formats::types::ImageBuffer>,
+            Option<unbanished_formats::types::ImageBuffer>,
+            Option<unbanished_formats::types::ImageBuffer>,
         ),
     >,
 }

@@ -77,7 +77,7 @@ impl ModelRenderer {
                     if mips.is_empty() {
                         return white.clone();
                     }
-                    banished_gfx::upload_rgba_as(
+                    unbanished_gfx::upload_rgba_as(
                         device,
                         queue,
                         "model texture",

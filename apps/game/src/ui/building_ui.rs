@@ -30,10 +30,10 @@ pub use workplace::{WorkPlaceClick, WorkPlaceInfo, WorkPlaceUi};
 
 use std::collections::BTreeMap;
 
-use banished_formats::game::{raw_material_description, RawMaterialDescription};
-use banished_formats::pkg::Archive;
-use banished_game::work::stock::{RawMaterial, Storage};
-use banished_ui::{Control, Kind, NodeId, Ui};
+use unbanished_formats::game::{raw_material_description, RawMaterialDescription};
+use unbanished_formats::pkg::Archive;
+use unbanished_game::work::stock::{RawMaterial, Storage};
+use unbanished_ui::{Control, Kind, NodeId, Ui};
 
 /// CRC32 (UTF-16LE) of the controller class names.
 pub const STORAGE_UI: u32 = 0x6186b6a4;
@@ -353,7 +353,7 @@ mod tests {
             let Ok(bytes) = std::fs::read(dir.join(name)) else {
                 return;
             };
-            archive.add(banished_formats::pkg::Package::parse(bytes).unwrap());
+            archive.add(unbanished_formats::pkg::Package::parse(bytes).unwrap());
         }
         let d = archive
             .read_ref("Template/CropField.rsc:titleBuildStatus")
@@ -372,7 +372,7 @@ mod tests {
             let Ok(bytes) = std::fs::read(dir.join(name)) else {
                 return;
             };
-            archive.add(banished_formats::pkg::Package::parse(bytes).unwrap());
+            archive.add(unbanished_formats::pkg::Package::parse(bytes).unwrap());
         }
         let slot = |t: &str| {
             archive

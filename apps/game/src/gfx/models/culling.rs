@@ -7,8 +7,8 @@
 //! add (wind, leaf cards, skinned poses), so an instance is skipped only when none of its
 //! triangles can touch the pass's target: the frames are identical.
 
-use banished_formats::types::{SKINNED_STRIDE, STATIC_STRIDE};
 use glam::{Mat4, Vec3, Vec4};
+use unbanished_formats::types::{SKINNED_STRIDE, STATIC_STRIDE};
 
 use super::{MaterialKind, RangeData};
 

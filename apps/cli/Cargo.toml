@@ -1,5 +1,5 @@
 [package]
-name = "banished-cli"
+name = "unbanished-cli"
 version.workspace = true
 description = "Command-line tools for working with Banished game data"
 edition.workspace = true
@@ -7,11 +7,11 @@ license.workspace = true
 repository.workspace = true
 
 [[bin]]
-name = "banished-cli"
+name = "unbanished-cli"
 path = "src/main.rs"
 
 [dependencies]
-banished-formats = { path = "../../crates/formats" }
-banished-nexus = { path = "../../crates/nexus", features = ["native"] }
-banished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"] }
+unbanished-formats = { path = "../../crates/formats" }
+unbanished-nexus = { path = "../../crates/nexus", features = ["native"] }
+unbanished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"] }
 serde_json = "1"

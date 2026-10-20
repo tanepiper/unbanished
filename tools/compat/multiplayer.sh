@@ -17,7 +17,7 @@ set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
 bin="${1:?usage: tools/compat/multiplayer.sh BINARY [RELAY_BINARY]}"
-relay="${2:-target/release/banished-relay}"
+relay="${2:-target/release/unbanished-relay}"
 scenarios=("${@:3}")
 ((${#scenarios[@]})) || scenarios=(two leave)
 root="target/compat/multiplayer/$(basename "$bin")"
@@ -34,8 +34,10 @@ capture=(--capture-size 960x540 --realtime)
 failed=0
 
 host() { # dir room seconds
-  BANISHED_ROOM="$2" BANISHED_NET_CHECK=60 BANISHED_USER_DIR="$1/host" \
-    BANISHED_SETTINGS="$1/host.txt" ${limit[@]+"${limit[@]}"} "$bin" \
+  # Builds before the rename to unbanished read BANISHED_*, later ones UNBANISHED_*: set both,
+  # so an old build never falls back to the player's own settings and saves.
+  UNBANISHED_ROOM="$2" BANISHED_ROOM="$2" UNBANISHED_NET_CHECK=60 BANISHED_NET_CHECK=60 UNBANISHED_USER_DIR="$1/host" BANISHED_USER_DIR="$1/host" \
+    UNBANISHED_SETTINGS="$1/host.txt" BANISHED_SETTINGS="$1/host.txt" ${limit[@]+"${limit[@]}"} "$bin" \
     --boot-capture "$1/host.png" "$3" "${capture[@]}" \
     --press buttonMultiplayer@4.5 --text "numberSeed=$address@4.7" --press buttonOk@5 \
     --press buttonOk@14 --press buttonLoad@17 >"$1/host.out" 2>"$1/host.log"
@@ -43,7 +45,7 @@ host() { # dir room seconds
 guest() { # dir name room seconds [option...]
   local dir="$1" name="$2" room="$3" seconds="$4"
   shift 4
-  BANISHED_USER_DIR="$dir/$name" BANISHED_SETTINGS="$dir/$name.txt" ${limit[@]+"${limit[@]}"} \
+  UNBANISHED_USER_DIR="$dir/$name" BANISHED_USER_DIR="$dir/$name" UNBANISHED_SETTINGS="$dir/$name.txt" BANISHED_SETTINGS="$dir/$name.txt" ${limit[@]+"${limit[@]}"} \
     "$bin" --boot-capture "$dir/$name.png" "$seconds" "${capture[@]}" \
     --press buttonMultiplayer@6 --text "numberSeed=$address@6.2" --text "editName=$room@6.5" \
     --press buttonOk@7 --press buttonOk@9 --press buttonOk@11 "$@" \

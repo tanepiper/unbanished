@@ -5,9 +5,9 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{mpsc, Arc};
 
-use banished_banishedinfo::native::Client;
-use banished_banishedinfo::{Error, Mod, Sort, Version, SECTIONS};
 use eframe::egui::{self, Color32, RichText};
+use unbanished_banishedinfo::native::Client;
+use unbanished_banishedinfo::{Error, Mod, Sort, Version, SECTIONS};
 
 const PER_PAGE: u32 = 30;
 
@@ -42,7 +42,7 @@ pub struct BanishedInfoTab {
 
 /// Decode a thumbnail (PNG or JPEG) for egui.
 fn decode_image(bytes: &[u8]) -> Option<egui::ColorImage> {
-    let i = banished_mods::preview::decode(bytes)?;
+    let i = unbanished_mods::preview::decode(bytes)?;
     Some(egui::ColorImage::from_rgba_unmultiplied(
         [i.width as usize, i.height as usize],
         &i.rgba,

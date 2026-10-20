@@ -1,6 +1,6 @@
 //! The players' games over a network: a [`Link`] to the other players, and a [`NetPeer`] that
 //! drives one player's lockstep game over it (turns, the host's digest checks and resyncs, the
-//! start from the host's save). The link is the relay ([`RelayLink`], `banished-net`), or a
+//! start from the host's save). The link is the relay ([`RelayLink`], `unbanished-net`), or a
 //! simulated network in one process for tests ([`simulate`]). See docs/MULTIPLAYER-PLAN.md,
 //! steps 3 to 5.
 //!
@@ -46,7 +46,7 @@ pub struct NetState {
     pub driven: bool,
     /// The players line (its text element), and the updates in a row spent waiting for the
     /// other players' turns.
-    line: Option<banished_ui::NodeId>,
+    line: Option<unbanished_ui::NodeId>,
     waiting: u32,
     /// The line's text as last set.
     shown: String,
@@ -221,7 +221,7 @@ impl GameplayLoop {
 
     /// Deviation: the players line, at the foot of the screen in a multiplayer game. It is the
     /// original's version footer (`Dialog/BuildId.rsc`) without its logo.
-    pub(super) fn open_players_line(&mut self, ui: &mut banished_ui::Ui) {
+    pub(super) fn open_players_line(&mut self, ui: &mut unbanished_ui::Ui) {
         let (Some(net), Some(screen)) = (self.net.as_mut(), self.screen.as_mut()) else {
             return;
         };
@@ -240,7 +240,7 @@ impl GameplayLoop {
     }
 
     /// The line's text: who this player is, or that the game waits for the others.
-    pub(super) fn refresh_players_line(&mut self, ui: &mut banished_ui::Ui, waiting: bool) {
+    pub(super) fn refresh_players_line(&mut self, ui: &mut unbanished_ui::Ui, waiting: bool) {
         let (Some(net), Some(l)) = (self.net.as_mut(), self.lockstep.as_ref()) else {
             return;
         };
@@ -422,7 +422,7 @@ impl NetPeer {
 
     /// The update itself.
     pub fn update(&mut self, ctx: &mut Ctx) {
-        let step = banished_game::scheduler::seconds(crate::FRAME_STEP);
+        let step = unbanished_game::scheduler::seconds(crate::FRAME_STEP);
         if let Some(g) = &mut self.game {
             g.update(ctx, step);
         }
@@ -444,18 +444,18 @@ impl NetPeer {
     }
 }
 
-/// The relay ([`banished_net::Connection`]): each game message travels encoded inside the relay's
+/// The relay ([`unbanished_net::Connection`]): each game message travels encoded inside the relay's
 /// own messages.
 pub struct RelayLink {
-    connection: banished_net::Connection,
+    connection: unbanished_net::Connection,
     /// The relay's other news (who joined, errors), for the session to read.
-    pub events: Vec<banished_net::FromRelay>,
+    pub events: Vec<unbanished_net::FromRelay>,
     /// Players who left, for [`Link::left`].
     departed: Vec<u8>,
 }
 
 impl RelayLink {
-    pub fn new(connection: banished_net::Connection) -> RelayLink {
+    pub fn new(connection: unbanished_net::Connection) -> RelayLink {
         RelayLink {
             connection,
             events: Vec::new(),
@@ -463,36 +463,36 @@ impl RelayLink {
         }
     }
 
-    pub fn state(&self) -> &banished_net::State {
+    pub fn state(&self) -> &unbanished_net::State {
         self.connection.state()
     }
 
-    pub fn request(&mut self, request: banished_net::ToRelay) {
+    pub fn request(&mut self, request: unbanished_net::ToRelay) {
         self.connection.send(request);
     }
 }
 
 impl Link for RelayLink {
     fn send(&mut self, to: Option<u8>, message: &Message) {
-        let data = banished_net::encode(message);
+        let data = unbanished_net::encode(message);
         self.connection
-            .send(banished_net::ToRelay::Send { to, data });
+            .send(unbanished_net::ToRelay::Send { to, data });
     }
 
     fn poll(&mut self) -> Vec<(u8, Message)> {
         let mut out = Vec::new();
         for m in self.connection.poll() {
             match m {
-                banished_net::FromRelay::Data { from, data } => {
-                    match banished_net::decode::<Message>(&data) {
+                unbanished_net::FromRelay::Data { from, data } => {
+                    match unbanished_net::decode::<Message>(&data) {
                         Ok(message) => out.push((from, message)),
                         Err(e) => log::warn!("player {from}: {e}"),
                     }
                 }
-                banished_net::FromRelay::PeerLeft { player } => {
+                unbanished_net::FromRelay::PeerLeft { player } => {
                     self.departed.push(player);
                     self.events
-                        .push(banished_net::FromRelay::PeerLeft { player });
+                        .push(unbanished_net::FromRelay::PeerLeft { player });
                 }
                 other => self.events.push(other),
             }
@@ -729,7 +729,7 @@ pub fn simulate(
         peers.push(NetPeer::with_game(player as u8, g));
     }
     // Each town keeps its own shared animation instances, as on its own computer.
-    use banished_game::behaviour::animation::shared;
+    use unbanished_game::behaviour::animation::shared;
     let mut tables: Vec<shared::Table> = (0..players).map(|_| shared::Table::default()).collect();
     game.with_ctx(|_, ctx| {
         for (peer, table) in peers.iter_mut().zip(&mut tables) {
@@ -770,7 +770,7 @@ pub fn simulate(
                     if let Some((who, at)) = corrupt {
                         if who as usize == p && update >= at {
                             peer.game.as_mut().unwrap().rng =
-                                banished_game::random::Random::new(0xbad5eed);
+                                unbanished_game::random::Random::new(0xbad5eed);
                             corrupt = None;
                         }
                     }
@@ -849,7 +849,7 @@ impl GameplayLoop {
 
     /// A test's desync: the game's `Random` scrambled.
     pub fn scramble(&mut self) {
-        self.rng = banished_game::random::Random::new(0xbad5eed);
+        self.rng = unbanished_game::random::Random::new(0xbad5eed);
     }
 
     /// [`super::digest`]'s digest of the game now.
@@ -867,7 +867,7 @@ pub struct JoinSession {
     peer: Option<NetPeer>,
     target: u64,
     /// Its own shared animation instances, apart from the menu's behind the page.
-    table: banished_game::behaviour::animation::shared::Table,
+    table: unbanished_game::behaviour::animation::shared::Table,
     pub lines: Vec<String>,
     pub status: String,
     pub done: bool,
@@ -876,8 +876,8 @@ pub struct JoinSession {
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 impl JoinSession {
     pub fn new(relay: &str, room: &str, target: u64) -> JoinSession {
-        let mut link = RelayLink::new(banished_net::Connection::connect(relay));
-        link.request(banished_net::ToRelay::Join {
+        let mut link = RelayLink::new(unbanished_net::Connection::connect(relay));
+        link.request(unbanished_net::ToRelay::Join {
             room: room.to_string(),
         });
         JoinSession {
@@ -901,25 +901,25 @@ impl JoinSession {
             let events: Vec<_> = self.link.borrow_mut().events.drain(..).collect();
             for e in events {
                 match e {
-                    banished_net::FromRelay::Joined { player, .. } => {
+                    unbanished_net::FromRelay::Joined { player, .. } => {
                         let link = Box::new(Shared(self.link.clone()));
                         self.peer = Some(NetPeer::new(player, link, 0));
                         self.status = format!("player {player}: waiting for the host");
                     }
-                    banished_net::FromRelay::Error { message } => {
+                    unbanished_net::FromRelay::Error { message } => {
                         self.status = format!("relay: {message}");
                         self.done = true;
                     }
                     _ => {}
                 }
             }
-            if let banished_net::State::Closed(e) = self.link.borrow().state() {
+            if let unbanished_net::State::Closed(e) = self.link.borrow().state() {
                 self.status = format!("relay: {e}");
                 self.done = true;
             }
             return !self.done;
         }
-        use banished_game::behaviour::animation::shared;
+        use unbanished_game::behaviour::animation::shared;
         shared::swap(&mut self.table);
         let start = web_time::Instant::now();
         let (peer, target, lines) = (self.peer.as_mut().unwrap(), self.target, &mut self.lines);

@@ -13,7 +13,7 @@ impl GameplayLoop {
         ) else {
             return;
         };
-        let grid = banished_game::terrain::HeightGrid {
+        let grid = unbanished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
         };
@@ -32,12 +32,12 @@ impl GameplayLoop {
         }
         // `FUN_140103190`: the footprint's cells under the cursor, then (game UI `+0x80`) the
         // tutorial's target in yellow, with the building's footprint and its rotation.
-        let degrees = self.rotation * banished_game::world::placement::ROTATION_STEP as i32;
+        let degrees = self.rotation * unbanished_game::world::placement::ROTATION_STEP as i32;
         let mut cells = tool.rect().map_or_else(Vec::new, |rect| {
             tool.overlay(town, &grid, rect, degrees, false)
         });
         if let Some(r) = self.restrict.as_ref().filter(|r| !r.place.is_empty()) {
-            let rect = banished_game::world::placement::Rect {
+            let rect = unbanished_game::world::placement::Rect {
                 x0: r.rect[0],
                 y0: r.rect[1],
                 x1: r.rect[2],
@@ -255,7 +255,7 @@ impl GameplayLoop {
         ) else {
             return;
         };
-        let grid = banished_game::terrain::HeightGrid {
+        let grid = unbanished_game::terrain::HeightGrid {
             width: view.terrain.size + 1,
             heights: &view.terrain.heights,
         };
@@ -280,7 +280,7 @@ impl GameplayLoop {
                             .archive
                             .read_ref(&format!("{}:build", file.replace('\\', "/")))
                             .ok()
-                            .and_then(|d| banished_formats::game::build_description(&d).ok());
+                            .and_then(|d| unbanished_formats::game::build_description(&d).ok());
                         self.create_bar =
                             CreateBar::open(ctx.ui, screen, ctx.archive, t, build.as_ref());
                     }

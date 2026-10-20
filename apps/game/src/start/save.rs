@@ -3,7 +3,7 @@
 //! offsets; a value derived on load (a model's rotation from its yaw) is rewritten only when
 //! the port's value differs, so an untouched object keeps its exact bits.
 
-use banished_formats::savegame::{Fields, GameState, ObjId, Value};
+use unbanished_formats::savegame::{Fields, GameState, ObjId, Value};
 
 use super::{normalise, StartingTown};
 
@@ -123,7 +123,7 @@ fn f32s(f: &Fields, path: &str) -> Option<Vec<f32>> {
 impl StartingTown {
     /// Write the town into `g`, the game state it was loaded from: objects for what is new,
     /// what is gone dropped, then every field.
-    pub fn export_into(&self, archive: &banished_formats::pkg::Archive, g: &mut GameState) {
+    pub fn export_into(&self, archive: &unbanished_formats::pkg::Archive, g: &mut GameState) {
         let foreign = self
             .save_ids
             .as_ref()
@@ -135,7 +135,7 @@ impl StartingTown {
     /// and the saved ComponentEntity of each (a new game's ambience regions).
     pub fn export_into_with(
         &self,
-        archive: &banished_formats::pkg::Archive,
+        archive: &unbanished_formats::pkg::Archive,
         g: &mut GameState,
         foreign: &[(usize, ObjId)],
     ) {
@@ -362,7 +362,7 @@ impl StartingTown {
                     // The model's rotation: `FromYawPitchOffset(yaw, 0)` (`(-0, -0, -sin, cos)` of
                     // the half angle), bit for bit (a template's default is the identity's +0).
                     // Natural resources too: every one in the vanilla saves holds this.
-                    let q = banished_game::math::Transform::of_model(yaw, [0.0; 3]).q;
+                    let q = unbanished_game::math::Transform::of_model(yaw, [0.0; 3]).q;
                     let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
                     let stored = f32s(m, "model.rotation").map(|v| bits(&v));
                     if m.f32("model.yaw").map(f32::to_bits) != Some(yaw.to_bits())

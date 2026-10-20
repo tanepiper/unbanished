@@ -4,9 +4,9 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use banished_mods::text::{self, TextSettings};
-use banished_mods::Modification;
 use eframe::egui::{self, Color32, RichText};
+use unbanished_mods::text::{self, TextSettings};
+use unbanished_mods::Modification;
 
 use crate::banishedinfo_tab::BanishedInfoTab;
 use crate::launch;
@@ -35,8 +35,8 @@ pub struct App {
     lists: Vec<String>,
     nexus: NexusTab,
     banishedinfo: BanishedInfoTab,
-    /// Test captures: `BANISHED_MODS_SCREENSHOT=out.png` saves the window after a few seconds
-    /// and quits (`BANISHED_MODS_TAB=nexus` and `BANISHED_MODS_SELECT=N` set up the view).
+    /// Test captures: `UNBANISHED_MODS_SCREENSHOT=out.png` saves the window after a few seconds
+    /// and quits (`UNBANISHED_MODS_TAB=nexus` and `UNBANISHED_MODS_SELECT=N` set up the view).
     capture: Option<(PathBuf, std::time::Instant, bool)>,
 }
 
@@ -96,16 +96,16 @@ impl App {
             lists: launch::lists_dir().map_or_else(Vec::new, |d| lists::names(&d)),
             nexus: NexusTab::new(),
             banishedinfo: BanishedInfoTab::new(),
-            capture: std::env::var_os("BANISHED_MODS_SCREENSHOT")
+            capture: unbanished_formats::env::var_os("MODS_SCREENSHOT")
                 .map(|p| (PathBuf::from(p), std::time::Instant::now(), false)),
         };
         app.rescan();
-        match std::env::var("BANISHED_MODS_TAB").as_deref() {
+        match unbanished_formats::env::var("MODS_TAB").as_deref() {
             Ok("nexus") => app.tab = Tab::Nexus,
             Ok("banishedinfo") => app.tab = Tab::BanishedInfo,
             _ => {}
         }
-        app.selected = std::env::var("BANISHED_MODS_SELECT")
+        app.selected = unbanished_formats::env::var("MODS_SELECT")
             .ok()
             .and_then(|v| v.parse().ok());
         app
@@ -118,7 +118,7 @@ impl App {
                 self.settings = s;
             }
         }
-        self.mods = Modification::refresh(banished_mods::find(&self.dir), &self.settings);
+        self.mods = Modification::refresh(unbanished_mods::find(&self.dir), &self.settings);
         self.icons.clear();
         self.selected = None;
         self.status = format!("{} mods in {}", self.mods.mods.len(), self.dir.display());
@@ -128,7 +128,7 @@ impl App {
     /// The file is read again first, so values the game wrote since are kept.
     fn save(&mut self) -> bool {
         let Some(path) = self.settings_path.clone() else {
-            self.status = "No settings file: set BANISHED_SETTINGS".into();
+            self.status = "No settings file: set UNBANISHED_SETTINGS".into();
             return false;
         };
         let mut settings = TextSettings::load(&path).unwrap_or_default();

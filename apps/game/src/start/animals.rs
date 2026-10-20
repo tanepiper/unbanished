@@ -9,7 +9,7 @@ pub(super) fn animal_kind(
     reference: &str,
     template: usize,
     templates: &mut Vec<Template>,
-    wildlife: &mut banished_game::nature::wildlife::Wildlife,
+    wildlife: &mut unbanished_game::nature::wildlife::Wildlife,
 ) {
     let refs = description_refs(archive, reference);
     let find = |k: &str| {
@@ -17,8 +17,9 @@ pub(super) fn animal_kind(
             .find(|(key, _)| key == k)
             .and_then(|(_, r)| read(archive, &normalise(r)))
     };
-    let ad = find("animal").and_then(|d| banished_formats::game::animal_description(&d).ok());
-    let cd = find("character").and_then(|d| banished_formats::game::character_description(&d).ok());
+    let ad = find("animal").and_then(|d| unbanished_formats::game::animal_description(&d).ok());
+    let cd =
+        find("character").and_then(|d| unbanished_formats::game::character_description(&d).ok());
     let (Some(ad), Some(cd)) = (ad, cd) else {
         return;
     };
@@ -35,7 +36,7 @@ pub(super) fn animal_kind(
     }
     wildlife.animal_kinds.insert(
         template,
-        banished_game::nature::wildlife::AnimalKind {
+        unbanished_game::nature::wildlife::AnimalKind {
             desc: ad,
             materials,
             character: cd,
@@ -49,7 +50,7 @@ pub(super) fn livestock_kind(
     archive: &Archive,
     reference: &str,
     templates: &mut Vec<Template>,
-    wildlife: &mut banished_game::nature::wildlife::Wildlife,
+    wildlife: &mut unbanished_game::nature::wildlife::Wildlife,
 ) -> Option<usize> {
     let t = load_template(archive, reference, templates)?;
     if wildlife.livestock_kinds.contains_key(&t) {
@@ -61,14 +62,14 @@ pub(super) fn livestock_kind(
         .iter()
         .find(|(key, _)| key == "livestock")
         .and_then(|(_, r)| read(archive, &normalise(r)))
-        .and_then(|d| banished_formats::game::livestock_description(&d).ok())?;
+        .and_then(|d| unbanished_formats::game::livestock_description(&d).ok())?;
     let product = d
         .product
         .as_deref()
         .and_then(|p| load_template(archive, p, templates));
     wildlife.livestock_kinds.insert(
         t,
-        banished_game::nature::wildlife::LivestockKind {
+        unbanished_game::nature::wildlife::LivestockKind {
             product,
             interval: d.interval,
             group: d.group,
@@ -83,9 +84,9 @@ pub(super) fn wildlife_kinds(
     archive: &Archive,
     populations: &[String],
     templates: &mut Vec<Template>,
-    wildlife: &mut banished_game::nature::wildlife::Wildlife,
+    wildlife: &mut unbanished_game::nature::wildlife::Wildlife,
 ) -> Vec<usize> {
-    use banished_game::nature::wildlife::{HerdKind, PopulationKind};
+    use unbanished_game::nature::wildlife::{HerdKind, PopulationKind};
     let find = |refs: &[(String, String)], k: &str| {
         refs.iter()
             .find(|(key, _)| key == k)
@@ -98,7 +99,7 @@ pub(super) fn wildlife_kinds(
         };
         let refs = description_refs(archive, r);
         let Some(pd) = find(&refs, "population")
-            .and_then(|d| banished_formats::game::population_description(&d).ok())
+            .and_then(|d| unbanished_formats::game::population_description(&d).ok())
         else {
             continue;
         };
@@ -109,7 +110,7 @@ pub(super) fn wildlife_kinds(
         if let Some((href, ht)) = &herd {
             let hrefs = description_refs(archive, href);
             let hd = find(&hrefs, "herd")
-                .and_then(|d| banished_formats::game::herd_description(&d).ok());
+                .and_then(|d| unbanished_formats::game::herd_description(&d).ok());
             if let Some(hd) = hd {
                 let animal = hd
                     .animal

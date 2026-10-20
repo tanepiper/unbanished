@@ -3,7 +3,7 @@
 Usage: python3 tools/refactor/regroup.py CRATE_DIR ROOT CRATE_NAME PLAN.json [--dry-run]
 
 ROOT is the crate root file (`lib.rs` or `main.rs`); CRATE_NAME is how other crates name it
-(`banished_game`), or `-` for a binary. PLAN.json maps a group to its doc line, modules and
+(`unbanished_game`), or `-` for a binary. PLAN.json maps a group to its doc line, modules and
 any other files that move with them (shader sources a module includes):
   {"people": {"doc": "Citizens: ...", "modules": ["citizens", "life"], "files": []}, ...}
 

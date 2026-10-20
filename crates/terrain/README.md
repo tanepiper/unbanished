@@ -1,4 +1,4 @@
-# banished-terrain
+# unbanished-terrain
 
 A port of Banished's terrain: the map generator, the terrain mesh, the rivers, the ground height
 queries and the cell types. The same seed and settings give the same map as the original, bit for
@@ -18,8 +18,8 @@ and against the heights stored in real save files.
 
 ```toml
 [dependencies]
-banished-terrain = { path = "crates/terrain" }
-banished-formats = { path = "crates/formats" }   # to read the terrain profiles
+unbanished-terrain = { path = "crates/terrain" }
+unbanished-formats = { path = "crates/formats" }   # to read the terrain profiles
 ```
 
 ### Generate a map
@@ -28,11 +28,11 @@ A terrain profile (`Game/Terrain/Valleys.rsc` or `Game/Terrain/Mountains.rsc`) h
 record for each map size: small, medium and large. The generator takes a size record and a seed.
 
 ```rust
-use banished_formats::game::terrain_generator;
-use banished_formats::pkg::Archive;
-use banished_terrain::{Generator, SizeRecord};
+use unbanished_formats::game::terrain_generator;
+use unbanished_formats::pkg::Archive;
+use unbanished_terrain::{Generator, SizeRecord};
 
-fn generate(archive: &Archive, seed: u32) -> banished_formats::Result<Generator> {
+fn generate(archive: &Archive, seed: u32) -> unbanished_formats::Result<Generator> {
     let profile = terrain_generator(&archive.read_ref("Game/Terrain/Valleys.rsc:resource")?)?;
     let wire = profile.sizes[0]; // 0 small, 1 medium, 2 large
     let mut generator = Generator::new(SizeRecord::from_wire(wire), seed);
@@ -53,7 +53,7 @@ After `run`, the generator holds:
 ### Ask the ground
 
 ```rust
-use banished_terrain::{CellType, Generator, HeightGrid, TerrainMesh};
+use unbanished_terrain::{CellType, Generator, HeightGrid, TerrainMesh};
 
 fn inspect(generator: &Generator) {
     let heights = generator.heights();
@@ -101,13 +101,13 @@ The tests for this crate are in `crates/game/tests/`:
 Both skip when their data is missing.
 
 ```bash
-cargo test --release -p banished-game --test terrain_emu --test saves
+cargo test --release -p unbanished-game --test terrain_emu --test saves
 ```
 
 ## The API
 
 The full API documentation is at
-<https://tanepiper.github.io/unbanished/api/banished_terrain/index.html>.
+<https://tanepiper.github.io/unbanished/api/unbanished_terrain/index.html>.
 
 ## Related documents
 

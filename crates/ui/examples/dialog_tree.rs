@@ -2,13 +2,13 @@
 //! depth, to find the parts a window can reuse.
 //!
 //! ```text
-//! cargo run --release -p banished-ui --example dialog_tree -- 'Dialog/StandardDialog.rsc' [WINDATA]
+//! cargo run --release -p unbanished-ui --example dialog_tree -- 'Dialog/StandardDialog.rsc' [WINDATA]
 //! ```
 
 use std::rc::Rc;
 
-use banished_formats::pkg::{Archive, Package};
-use banished_ui::{Kind, NodeId, Ui};
+use unbanished_formats::pkg::{Archive, Package};
+use unbanished_ui::{Kind, NodeId, Ui};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();

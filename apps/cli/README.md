@@ -1,4 +1,4 @@
-# banished-cli
+# unbanished-cli
 
 Command-line tools for the game data of Banished. It has three commands: `export-audio`,
 `nexus` for mods from Nexus Mods, and `banishedinfo` for mods from banishedinfo.com.
@@ -9,7 +9,7 @@ Decodes every sound of the game (every `SoundBuffer` resource, including the str
 an MP3 file, and writes an index of them.
 
 ```bash
-cargo run -p banished-cli --release -- export-audio [WINDATA] [OUT]
+cargo run -p unbanished-cli --release -- export-audio [WINDATA] [OUT]
 ```
 
 | Argument | Default | Meaning |
@@ -37,7 +37,7 @@ The command stops with exit code 1 if any sound failed, and with exit code 2 if 
 are wrong.
 
 `tools/extract-assets.sh` runs this command when FFmpeg is installed. The game and the viewer do
-not need the MP3 files: they decode the sounds themselves with `banished-wma`. The files are for
+not need the MP3 files: they decode the sounds themselves with `unbanished-wma`. The files are for
 listening outside the game, and for comparison tests.
 
 Git ignores `game-data/`. Never commit the exported sounds.
@@ -46,12 +46,12 @@ Git ignores `game-data/`. Never commit the exported sounds.
 
 Search the Banished mods on [Nexus Mods](https://www.nexusmods.com/games/banished/mods) and
 install them into a `WinData` folder. This is not part of the original game, and it needs your
-own Nexus Mods API key for anything but searching (`BANISHED_NEXUS_API_KEY`, or `NexusApiKey=`
+own Nexus Mods API key for anything but searching (`UNBANISHED_NEXUS_API_KEY`, or `NexusApiKey=`
 in the game's settings file).
 
 ```bash
-cargo run --release -p banished-cli -- nexus search terrain
-cargo run --release -p banished-cli -- nexus install 19 --to path/to/WinData
+cargo run --release -p unbanished-cli -- nexus search terrain
+cargo run --release -p unbanished-cli -- nexus install 19 --to path/to/WinData
 ```
 
 | Command | Effect |
@@ -64,7 +64,7 @@ cargo run --release -p banished-cli -- nexus install 19 --to path/to/WinData
 
 `--to` defaults to `game-data/original/WinData`. The user guide's
 [Mods from Nexus Mods](../../docs/USER-GUIDE.md#mods-from-nexus-mods) explains the key,
-Premium and `nxm://` links. The library is [banished-nexus](../../crates/nexus/README.md).
+Premium and `nxm://` links. The library is [unbanished-nexus](../../crates/nexus/README.md).
 
 ## banishedinfo
 
@@ -73,8 +73,8 @@ List, search and install the Banished mods on
 No account is needed, and requests go to the site only when you run a command.
 
 ```bash
-cargo run --release -p banished-cli -- banishedinfo list --sort downloads
-cargo run --release -p banished-cli -- banishedinfo install 34 --to path/to/WinData
+cargo run --release -p unbanished-cli -- banishedinfo list --sort downloads
+cargo run --release -p unbanished-cli -- banishedinfo install 34 --to path/to/WinData
 ```
 
 | Command | Effect |
@@ -87,4 +87,4 @@ cargo run --release -p banished-cli -- banishedinfo install 34 --to path/to/WinD
 `MOD_ID` is the number in the mod's address. The sections are `audio`, `buildings`, `gameplay`,
 `maps`, `textures`, `translations` and `translated-mods`. `--to` defaults to
 `game-data/original/WinData`. The [Mods](../../docs/USER-GUIDE.md#mods) section of the user
-guide explains the rest, under "Mods from banishedinfo.com". The library is [banished-banishedinfo](../../crates/banishedinfo/README.md).
+guide explains the rest, under "Mods from banishedinfo.com". The library is [unbanished-banishedinfo](../../crates/banishedinfo/README.md).

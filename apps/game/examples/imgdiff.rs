@@ -1,7 +1,7 @@
 //! Compare two screenshots (for example an original-game capture against a `--boot-capture`).
 //!
 //! ```text
-//! cargo run -q --release -p banished-app --example imgdiff -- A.png B.png
+//! cargo run -q --release -p unbanished-app --example imgdiff -- A.png B.png
 //!     [--out diff.png] [--threshold 16] [--resize] [--ignore x,y,w,h]... [--json]
 //!     [--crop-a x,y,w,h | --autocrop-a] [--crop-b x,y,w,h] [--blur R] [--compose panels.png]
 //!     [--print-crop]

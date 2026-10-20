@@ -34,6 +34,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Changed
 
+- The code is renamed to `unbanished`: the crates are `unbanished-*` and the programs
+  `unbanished`, `unbanished-mods`, `unbanished-cli` and `unbanished-relay`. Environment variables
+  are `UNBANISHED_*` (rename `BANISHED_*` in your own scripts). Your settings, kept game files and
+  saves stay where they are.
+
 - The game's code is easier to find: `apps/game/src/main.rs` is split into `game.rs` (the
   `Game`), `app.rs` (the window) and `native.rs` (the commands without a window), and the
   browser page's style and scripts are in `apps/game/web/`. Nothing in the game changes.

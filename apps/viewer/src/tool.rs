@@ -1,4 +1,4 @@
-//! The asset browser, built with the reimplemented game UI (`banished_ui`) and the game's own
+//! The asset browser, built with the reimplemented game UI (`unbanished_ui`) and the game's own
 //! widget templates from `Dialog\SharedElements`.
 
 mod animation;
@@ -7,11 +7,11 @@ mod input;
 mod screen;
 mod select;
 
-use banished_formats::texture::decode_rgba;
-use banished_formats::types::AnimationClip;
-use banished_formats::ui::flags;
-use banished_ui::{DialogInstance, Event, Key, Kind, Node, NodeId, Ui};
 use glam::{Mat4, Vec3};
+use unbanished_formats::texture::decode_rgba;
+use unbanished_formats::types::AnimationClip;
+use unbanished_formats::ui::flags;
+use unbanished_ui::{DialogInstance, Event, Key, Kind, Node, NodeId, Ui};
 use web_time::Instant;
 
 use crate::assets::Assets;

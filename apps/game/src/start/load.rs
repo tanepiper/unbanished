@@ -5,14 +5,14 @@
 
 use std::collections::BTreeMap;
 
-use banished_formats::game::map_generator;
-use banished_formats::pkg::Archive;
-use banished_formats::savegame::{ObjId, Value};
-use banished_game::nature::growth::Growth;
-use banished_game::nature::seeding::{Cells, Placed};
-use banished_game::nature::spawn::Spawn;
-use banished_game::scheduler::EntityScheduler;
-use banished_game::terrain::CellType;
+use unbanished_formats::game::map_generator;
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::savegame::{ObjId, Value};
+use unbanished_game::nature::growth::Growth;
+use unbanished_game::nature::seeding::{Cells, Placed};
+use unbanished_game::nature::spawn::Spawn;
+use unbanished_game::scheduler::EntityScheduler;
+use unbanished_game::terrain::CellType;
 
 use super::{citizen_rules, load_template, read, StartingTown, TownParts};
 
@@ -28,8 +28,8 @@ const ALLOW_NEGATIVE: u32 = 0x10_0000;
 const REMOVAL_REQUESTED: u32 = 0x20_0000;
 
 /// Fallback when the save's citizen description is missing (as `households` uses).
-const RULES: banished_game::people::citizens::CitizenRules =
-    banished_game::people::citizens::CitizenRules {
+const RULES: unbanished_game::people::citizens::CitizenRules =
+    unbanished_game::people::citizens::CitizenRules {
         adult_age: 2.0,
         start_age: (2.2, 8.0),
         lifespan: (15.0, 3.0),
@@ -40,7 +40,7 @@ impl StartingTown {
     /// The town of a saved game. Entities without a map footprint (citizens, animals) are not
     /// restored yet.
     pub fn from_save(archive: &Archive, saved: &SavedGame) -> Option<StartingTown> {
-        banished_game::behaviour::animation::shared::reset();
+        unbanished_game::behaviour::animation::shared::reset();
         let g = &saved.state;
         // A mod's start condition may be missing; only its citizen template is read here,
         // so the base Medium profile stands in.
@@ -146,7 +146,7 @@ impl StartingTown {
             let growth_state = growth_component.and_then(|c| {
                 let smoothed = c.fields.f32("growth.growth")?;
                 if let Some(d) = &templates[template].growth {
-                    scale = banished_game::nature::growth::scale(smoothed, d.tall);
+                    scale = unbanished_game::nature::growth::scale(smoothed, d.tall);
                 }
                 Some(Growth {
                     maximum: c.fields.f32("growth.maximum")?,
@@ -229,7 +229,7 @@ impl StartingTown {
             index.insert(id, p);
         }
         let cells = restore_cells(archive, saved, n, &index, &mut templates);
-        let water = banished_game::disasters::fire::Water::new(&cells);
+        let water = unbanished_game::disasters::fire::Water::new(&cells);
         log::info!(
             "loaded {}: {} placed entities, {} templates; not restored yet: {skipped:?}",
             g.town_name,
@@ -295,7 +295,7 @@ impl StartingTown {
         index: &BTreeMap<ObjId, usize>,
         order: &BTreeMap<ObjId, usize>,
     ) {
-        use banished_game::behaviour::character_tree::Who;
+        use unbanished_game::behaviour::character_tree::Who;
         let mut found: Vec<(ObjId, Who)> = Vec::new();
         for (id, e) in saved.entities() {
             let Some(k) = saved.component(e, "CharacterComponent") else {
@@ -330,7 +330,7 @@ impl StartingTown {
                 w.tree.set_direction(ch.tree_slot, ch.direction);
             }
         }
-        fn who_alive(who: Who, citizens: &[banished_game::people::citizens::Citizen]) -> bool {
+        fn who_alive(who: Who, citizens: &[unbanished_game::people::citizens::Citizen]) -> bool {
             match who {
                 Who::Citizen(c) => citizens.get(c).is_some_and(|c| c.alive),
                 _ => true,
@@ -450,13 +450,13 @@ impl StartingTown {
 }
 
 /// The gameplay map's cells as `FUN_14001b570` wrote them (the 48-byte cell layout is in
-/// `banished_game::nature::seeding::Cells`).
+/// `unbanished_game::nature::seeding::Cells`).
 fn restore_cells(
     archive: &Archive,
     saved: &SavedGame,
     n: usize,
     index: &BTreeMap<ObjId, usize>,
-    templates: &mut Vec<banished_game::nature::seeding::Template>,
+    templates: &mut Vec<unbanished_game::nature::seeding::Template>,
 ) -> Cells {
     let map = &saved.state.map;
     let types = map.cells.iter().map(|c| CellType(c.bytes[1])).collect();
@@ -487,7 +487,7 @@ fn restore_cells(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use banished_formats::pkg::Package;
+    use unbanished_formats::pkg::Package;
 
     fn root() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -631,7 +631,7 @@ mod tests {
 #[cfg(test)]
 mod stage2_tests {
     use super::tests_support::*;
-    use banished_formats::savegame::Value;
+    use unbanished_formats::savegame::Value;
 
     #[test]
     fn vanilla_saves_restore_construction() {
@@ -654,7 +654,7 @@ mod stage2_tests {
             let c = &town.construction;
 
             // The stock manager's counts are recomputed from storages (`FUN_14008f3a0`).
-            let table = banished_game::work::stock::stock_table(
+            let table = unbanished_game::work::stock::stock_table(
                 &town.registered_storages(),
                 &town.materials,
             );
@@ -737,7 +737,7 @@ mod stage2_tests {
                 .jobs
                 .works
                 .values()
-                .filter(|w| matches!(w.kind, banished_game::work::jobs::WorkKind::Road(_)))
+                .filter(|w| matches!(w.kind, unbanished_game::work::jobs::WorkKind::Road(_)))
                 .count();
             assert_eq!(c.pending_roads.len(), roads, "{name}: planned roads");
             let listed = ["town.storages", "town.markets"]
@@ -862,7 +862,7 @@ mod stage3_tests {
 #[cfg(test)]
 mod stage3b_tests {
     use super::tests_support::*;
-    use banished_game::work::jobs::WorkKind;
+    use unbanished_game::work::jobs::WorkKind;
 
     #[test]
     fn vanilla_saves_restore_stacks_and_claims() {
@@ -884,7 +884,7 @@ mod stage3b_tests {
             let town = crate::start::StartingTown::from_save(&archive, &saved).unwrap();
             // Saved depths in the citizens' order (`top + 1`).
             let depths: Vec<usize> = match saved.state.town.at("town.citizens") {
-                Some(banished_formats::savegame::Value::List(cs)) => cs
+                Some(unbanished_formats::savegame::Value::List(cs)) => cs
                     .iter()
                     .map(|c| {
                         let character = c
@@ -1018,7 +1018,7 @@ mod stage3c_tests {
 #[cfg(test)]
 mod stage3d_tests {
     use super::tests_support::*;
-    use banished_formats::savegame::Value;
+    use unbanished_formats::savegame::Value;
 
     #[test]
     fn vanilla_saves_restore_producers() {
@@ -1136,7 +1136,7 @@ mod stage3d_tests {
 #[cfg(test)]
 mod stage4_tests {
     use super::tests_support::*;
-    use banished_formats::savegame::Value;
+    use unbanished_formats::savegame::Value;
 
     #[test]
     fn vanilla_saves_restore_environment_and_logs() {
@@ -1160,10 +1160,10 @@ mod stage4_tests {
                 .unwrap()
                 .replace('\\', "/");
             let generator =
-                banished_formats::game::climate_generator(&archive.read_ref(&climate).unwrap())
+                unbanished_formats::game::climate_generator(&archive.read_ref(&climate).unwrap())
                     .unwrap();
-            let mut env = banished_game::nature::environment::Environment::new(
-                banished_game::nature::environment::Climate::from(&generator),
+            let mut env = unbanished_game::nature::environment::Environment::new(
+                unbanished_game::nature::environment::Climate::from(&generator),
             );
             saved.restore_environment(&mut env);
             let m = &saved.state.managers;
@@ -1207,7 +1207,7 @@ mod stage4_tests {
 
 #[cfg(test)]
 pub(crate) mod tests_support {
-    use banished_formats::pkg::{Archive, Package};
+    use unbanished_formats::pkg::{Archive, Package};
 
     pub fn root() -> std::path::PathBuf {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")

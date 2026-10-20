@@ -1,7 +1,7 @@
 # Audio device
 
 The game and the viewer share one audio engine: `crates/audio`. It holds the decoding
-(`decode`, `load_sound`, xWMA through `banished-wma`), the `Sound` buffer, and the 64-channel
+(`decode`, `load_sound`, xWMA through `unbanished-wma`), the `Sound` buffer, and the 64-channel
 `Device`. The viewer's single-sound preview (`apps/viewer/src/player.rs`, used for play, pause,
 seek, loop and volume) is one channel on that `Device`. The game uses the `Device` directly
 through `Ctx.audio`.
@@ -121,7 +121,7 @@ The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e
   3D attenuation over emitters, pause and resume.
 - `crates/formats/tests/audio.rs`: every SoundEffect, MusicList, AnimAudioEvent and ambient
   description parses.
-- `banished-game` test `rain_fades_in_and_out`; `apps/game` tests
+- `unbanished-game` test `rain_fades_in_and_out`; `apps/game` tests
   `rain_effect_drives_the_rain_emitter` (the emitter follows the effect and leaves with it) and
   `building_emitters_register_without_playing` (registered silently; a started slot plays and
   stops); `crates/formats` test `weather_descriptions_parse`.

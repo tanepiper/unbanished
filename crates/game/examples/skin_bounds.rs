@@ -1,6 +1,6 @@
 //! Bounds of a skinned mesh in the bind pose and a clip pose (analysis helper).
-use banished_formats::pkg::{Archive, Package};
-use banished_game::behaviour::animation::sample_pose;
+use unbanished_formats::pkg::{Archive, Package};
+use unbanished_game::behaviour::animation::sample_pose;
 
 fn bounds(v: &[u8]) -> ([f32; 3], [f32; 3]) {
     let mut lo = [f32::MAX; 3];
@@ -25,20 +25,21 @@ fn main() {
         }
     }
     let mesh =
-        banished_formats::types::graphics_mesh(&archive.read_ref(&args[2]).unwrap()).unwrap();
-    let g = banished_formats::types::animation_group(&archive.read_ref(&args[3]).unwrap()).unwrap();
+        unbanished_formats::types::graphics_mesh(&archive.read_ref(&args[2]).unwrap()).unwrap();
+    let g =
+        unbanished_formats::types::animation_group(&archive.read_ref(&args[3]).unwrap()).unwrap();
     let clip = g.clips.iter().find(|c| c.name == args[4]).unwrap();
     let v = &mesh.parts[0].skinned_vertices;
-    let bind = banished_formats::skeleton::bind_palette(&mesh.bones);
+    let bind = unbanished_formats::skeleton::bind_palette(&mesh.bones);
     println!(
         "bind {:?}",
-        bounds(&banished_formats::skeleton::skin_to_static(v, &bind))
+        bounds(&unbanished_formats::skeleton::skin_to_static(v, &bind))
     );
     for t in [0i64, 1000, 100000] {
-        let pal = banished_formats::skeleton::palette(&mesh.bones, &sample_pose(clip, t, 0));
+        let pal = unbanished_formats::skeleton::palette(&mesh.bones, &sample_pose(clip, t, 0));
         println!(
             "t={t} {:?}",
-            bounds(&banished_formats::skeleton::skin_to_static(v, &pal))
+            bounds(&unbanished_formats::skeleton::skin_to_static(v, &pal))
         );
     }
     println!(

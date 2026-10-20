@@ -190,7 +190,7 @@ impl GameplayLoop {
         }
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
         if let (Some(town), Some(view), true) = (&mut self.town, &mut self.view, runs) {
-            let grid = banished_game::terrain::HeightGrid {
+            let grid = unbanished_game::terrain::HeightGrid {
                 width: view.terrain.size + 1,
                 heights: &view.terrain.heights,
             };
@@ -237,7 +237,7 @@ impl GameplayLoop {
         let open = self.entities.trade_windows();
         if open != self.trade_held {
             if self.town.is_some() {
-                use banished_game::{commerce::trade::TradeSetting, work::professions::Command};
+                use unbanished_game::{commerce::trade::TradeSetting, work::professions::Command};
                 let closed = self.trade_held.iter().filter(|e| !open.contains(e));
                 let opened = open.iter().filter(|e| !self.trade_held.contains(e));
                 let held: Vec<Command> = closed
@@ -256,7 +256,7 @@ impl GameplayLoop {
         }
         self.position_entity_window(ctx);
         if let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_mut()) {
-            let grid = banished_game::terrain::HeightGrid {
+            let grid = unbanished_game::terrain::HeightGrid {
                 width: view.terrain.size + 1,
                 heights: &view.terrain.heights,
             };

@@ -1,7 +1,7 @@
 //! List a save's job-manager works: id, type, entity's template, priority (analysis helper).
-//! `cargo run -p banished-formats --example savegame_works -- IN.sav`
-use banished_formats::save::Save;
-use banished_formats::savegame::{GameState, Value};
+//! `cargo run -p unbanished-formats --example savegame_works -- IN.sav`
+use unbanished_formats::save::Save;
+use unbanished_formats::savegame::{GameState, Value};
 
 fn main() {
     let path = std::env::args().nth(1).unwrap();

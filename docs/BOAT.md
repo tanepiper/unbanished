@@ -51,7 +51,7 @@ For the combined boat in its bind pose, reconstructed and stored bounds are:
 The greatest difference is 0.001745 units, consistent with the packed vertex precision. All
 eight skinned meshes now pass `skinned_bind_pose_matches_bounds`; the boat exclusion is removed.
 `decodes_all_supported_resources` also validates every draw range's local indices and base
-vertex against its selected stream across all 271 meshes. `cargo check -p banished-viewer`
+vertex against its selected stream across all 271 meshes. `cargo check -p unbanished-viewer`
 passes for the native target. A native Metal headless capture on Apple M3 Max was visually inspected:
 hull, cargo, both oars and merchant appear together. The original water mask effect is not reproduced.
 

@@ -2,7 +2,7 @@
 
 In Banished, the map comes from a seed. The same seed and the same settings always give the
 same map. Un-Banished makes the same maps, bit for bit. This page explains the steps. The code is
-in [banished-terrain](../../crates/terrain/README.md).
+in [unbanished-terrain](../../crates/terrain/README.md).
 
 ## The inputs
 

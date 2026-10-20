@@ -4,7 +4,7 @@
 //! (`FUN_140046f30`). Pointers are to the components the serializers check (a herd's animals
 //! are WildAnimalComponents, an animal's herd a HerdComponent).
 
-use banished_formats::savegame::{Fields, GameState, ObjId, Value};
+use unbanished_formats::savegame::{Fields, GameState, ObjId, Value};
 
 use super::construction::like_saved;
 use super::{component, fields_mut, Ids, Refs};
@@ -198,7 +198,7 @@ impl StartingTown {
         refs: &mut Refs,
         ids: &Ids,
         e: ObjId,
-        ch: &banished_game::behaviour::character::Character,
+        ch: &unbanished_game::behaviour::character::Character,
         variant: usize,
         mesh: usize,
     ) {
@@ -206,7 +206,7 @@ impl StartingTown {
             m.set("model.position", Value::F32s(ch.position.to_vec()));
             if m.f32("model.yaw") != Some(ch.yaw) {
                 m.set_f32("model.yaw", ch.yaw);
-                let q = banished_game::math::Transform::character_rotation(ch.yaw);
+                let q = unbanished_game::math::Transform::character_rotation(ch.yaw);
                 m.set("model.rotation", Value::F32s(q.to_vec()));
             }
             if mesh != usize::MAX {

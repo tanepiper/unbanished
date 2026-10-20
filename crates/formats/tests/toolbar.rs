@@ -1,8 +1,8 @@
 //! Every shipped toolbar entry parses completely (skipped without game-data/).
 
-use banished_formats::game::toolbar_item;
-use banished_formats::pkg::{Archive, Package};
 use std::path::PathBuf;
+use unbanished_formats::game::toolbar_item;
+use unbanished_formats::pkg::{Archive, Package};
 
 fn common_archive() -> Option<Archive> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../game-data/original/WinData");
@@ -35,7 +35,7 @@ fn toolbar_items_parse() {
         let item = toolbar_item(&archive.read(&n).unwrap()).unwrap_or_else(|e| panic!("{n}: {e}"));
         if let Some(t) = &item.template {
             let r = t.replace("resource", "toolbar").replace('\\', "/");
-            let d = banished_formats::game::toolbar_description(&archive.read_ref(&r).unwrap())
+            let d = unbanished_formats::game::toolbar_description(&archive.read_ref(&r).unwrap())
                 .unwrap_or_else(|e| panic!("{r}: {e}"));
             eprintln!(
                 "  {r}: sprite '{}' name '{}' tip '{}' {:?}",
@@ -59,7 +59,7 @@ fn ui_descriptions_parse() {
     for name in archive.names() {
         let path = name.replace('\\', "/");
         if path.starts_with("Template/") && path.ends_with("_ui.crs") {
-            let d = banished_formats::game::ui_description(&archive.read(name).unwrap())
+            let d = unbanished_formats::game::ui_description(&archive.read(name).unwrap())
                 .unwrap_or_else(|e| panic!("{name}: {e}"));
             println!("{name}: {d:?}");
             n += 1;

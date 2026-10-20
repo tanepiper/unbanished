@@ -2,11 +2,11 @@
 //! loading screen, then the main menu with its music. New Game enters the generated world with an
 //! interactive HUD, calendar, time controls and camera navigation.
 //!
-//! Native: `cargo run -p banished-app --release -- [path/to/WinData]`
+//! Native: `cargo run -p unbanished-app --release -- [path/to/WinData]`
 //! Web:    `tools/dev-web.sh --app game --release`, then open `/?data=/game-data/`.
 //! Captures (headless PNG):
-//!   `banished --boot-capture OUT.png SECONDS` runs the boot sequence for SECONDS of game time;
-//!   `banished --capture OUT.png [--seed N --terrain Valleys|Mountains --size 0|1|2 --month M
+//!   `unbanished --boot-capture OUT.png SECONDS` runs the boot sequence for SECONDS of game time;
+//!   `unbanished --capture OUT.png [--seed N --terrain Valleys|Mountains --size 0|1|2 --month M
 //!    --view overview|ground]` renders a generated map.
 //!
 //! On the map: middle drag to rotate, right click to cancel the tool, wheel to zoom,
@@ -37,9 +37,9 @@ mod view;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use banished_formats::pkg::{Archive, Package};
-use banished_game::random::Random;
-use banished_ui::Ui;
+use unbanished_formats::pkg::{Archive, Package};
+use unbanished_game::random::Random;
+use unbanished_ui::Ui;
 use web_time::Instant;
 
 /// The browser's resolution choices: parts of the page's size the scene is drawn at.

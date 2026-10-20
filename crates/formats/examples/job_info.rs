@@ -1,7 +1,7 @@
 //! Print the job-related descriptions of templates and the profession list (analysis helper).
-//! `cargo run -p banished-formats --example job_info -- path/to/WinData Template/WoodHouse.rsc`
-use banished_formats::game;
-use banished_formats::pkg::{Archive, Package};
+//! `cargo run -p unbanished-formats --example job_info -- path/to/WinData Template/WoodHouse.rsc`
+use unbanished_formats::game;
+use unbanished_formats::pkg::{Archive, Package};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

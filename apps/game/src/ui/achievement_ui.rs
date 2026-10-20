@@ -7,7 +7,7 @@
 //! are dimmed until then. `textComplete` shows the share awarded (`@0` percent, rounded).
 //! `buttonOk` (id 100) closes it.
 
-use banished_ui::{Kind, NodeId, Ui};
+use unbanished_ui::{Kind, NodeId, Ui};
 
 use crate::achievements::Achievement;
 use crate::loops::Screen;

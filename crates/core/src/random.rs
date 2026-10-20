@@ -8,7 +8,7 @@
 //! the index, then the words ([`Random::from_parts`] restores them).
 //!
 //! ```
-//! use banished_core::random::Random;
+//! use unbanished_core::random::Random;
 //!
 //! let mut rng = Random::new(1234);
 //! let die = rng.rand_range(1, 6);

@@ -1,7 +1,7 @@
 //! The main menu music decodes from the player's own data (skipped without game-data/).
 
-use banished_formats::pkg::{Archive, Package};
 use std::path::PathBuf;
+use unbanished_formats::pkg::{Archive, Package};
 
 #[test]
 fn menu_music_decodes() {
@@ -15,7 +15,7 @@ fn menu_music_decodes() {
         archive.add(Package::parse(bytes).unwrap());
     }
     let (pcm, looping) =
-        banished_audio::load_sound(&archive, "Audio\\Music\\Menu.rsc:music").unwrap();
+        unbanished_audio::load_sound(&archive, "Audio\\Music\\Menu.rsc:music").unwrap();
     let seconds = pcm.samples.len() as f32 / pcm.channels as f32 / pcm.sample_rate as f32;
     eprintln!(
         "menu music: {} ch, {} Hz, {seconds:.1} s, looping {looping}",

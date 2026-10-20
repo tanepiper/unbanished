@@ -8,10 +8,10 @@
 
 use std::rc::Rc;
 
-use banished_formats::pkg::Archive;
-use banished_formats::ui::flags;
-use banished_game::random::Random;
-use banished_ui::{DialogInstance, Event, Kind, Node, NodeId, Quad, Ui};
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::ui::flags;
+use unbanished_game::random::Random;
+use unbanished_ui::{DialogInstance, Event, Kind, Node, NodeId, Quad, Ui};
 
 use crate::global::GlobalData;
 
@@ -29,7 +29,7 @@ pub struct Ctx<'a> {
     /// The stored configurations the Options dialog edits.
     pub settings: &'a mut crate::settings::Settings,
     /// The resources loaded at startup, for the game's enumerations by type.
-    pub registry: &'a Rc<banished_formats::registry::Registry>,
+    pub registry: &'a Rc<unbanished_formats::registry::Registry>,
     /// The mods (`IO::Modification`).
     pub mods: &'a mut crate::mods::Modification,
     /// Set to reload the packages with the mods as they are now (`FUN_140072110`).
@@ -312,7 +312,7 @@ pub const MINIMAP_OVERLAY: u32 = 2;
 
 pub fn fade_quad(level: f32, size: (u32, u32)) -> Option<Quad> {
     (level > 0.0).then_some(Quad {
-        texture: banished_ui::Texture::External(WHITE),
+        texture: unbanished_ui::Texture::External(WHITE),
         rect: [0.0, 0.0, size.0 as f32, size.1 as f32],
         uv: [0.0, 0.0, 1.0, 1.0],
         color: [0, 0, 0, (level * 255.0) as u8],
@@ -408,7 +408,7 @@ impl MainLoop {
         }
     }
 
-    /// Deliver one UI event (pointer clicks are returned rather than queued by `banished_ui`).
+    /// Deliver one UI event (pointer clicks are returned rather than queued by `unbanished_ui`).
     pub fn inject(&mut self, ctx: &mut Ctx, event: Event) {
         if self.pending.is_none() {
             let next = self.current.event(ctx, event);
@@ -525,7 +525,7 @@ fn loading_details(ui: &mut Ui) -> Vec<String> {
     else {
         return Vec::new();
     };
-    banished_formats::ui::string_table(&data)
+    unbanished_formats::ui::string_table(&data)
         .map(|t| t.into_iter().map(|(_, v)| v).collect())
         .unwrap_or_default()
 }

@@ -4,11 +4,11 @@
     html_favicon_url = "https://tanepiper.github.io/unbanished/favicon.svg"
 )]
 
-/// The bit-exact foundations, from their own crate (`banished-core`).
-pub use banished_core::{calendar, crt, math, noise, picking, random, scheduler};
-/// Path finding (`banished-path`) and the terrain (`banished-terrain`), from their own crates.
-pub use banished_path::{pathfind, sectors};
-pub use banished_terrain as terrain;
+/// The bit-exact foundations, from their own crate (`unbanished-core`).
+pub use unbanished_core::{calendar, crt, math, noise, picking, random, scheduler};
+/// Path finding (`unbanished-path`) and the terrain (`unbanished-terrain`), from their own crates.
+pub use unbanished_path::{pathfind, sectors};
+pub use unbanished_terrain as terrain;
 
 pub mod behaviour;
 pub mod commerce;

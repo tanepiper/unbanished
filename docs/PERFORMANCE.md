@@ -8,21 +8,21 @@ from samply, on a MacBook Pro with an Apple M3 and 96 GB of memory, release buil
 
 ## Tools
 
-### Frame profiler (`BANISHED_PROFILE`)
+### Frame profiler (`UNBANISHED_PROFILE`)
 
 `apps/game/src/platform/perf.rs` times named phases of every frame. It is off by default and costs one
 flag check per phase when off.
 
 ```bash
-BANISHED_PROFILE=1 cargo run --release -p banished-app          # hitches and summaries
-BANISHED_PROFILE=hitches cargo run --release -p banished-app    # hitches only
+UNBANISHED_PROFILE=1 cargo run --release -p unbanished-app          # hitches and summaries
+UNBANISHED_PROFILE=hitches cargo run --release -p unbanished-app    # hitches only
 ```
 
 In the browser, add `?profile` to the page address. Headless captures work too, and draw
 every frame while profiling:
 
 ```bash
-BANISHED_PROFILE=1 target/release/banished --boot-capture /tmp/p.png 75 \
+UNBANISHED_PROFILE=1 target/release/unbanished --boot-capture /tmp/p.png 75 \
   --script "load path/to/Save.sav@4.5"
 ```
 
@@ -31,7 +31,7 @@ BANISHED_PROFILE=1 target/release/banished --boot-capture /tmp/p.png 75 \
   `hitch: frame 333 took 48.9 ms (median 4.3): draw.update_instances 44.6, ...`.
 - **Summary:** every 600 frames, each phase's median, 95th percentile and worst time.
 
-`BANISHED_THREADS=1` makes loading use one thread (the default is one per core), to compare
+`UNBANISHED_THREADS=1` makes loading use one thread (the default is one per core), to compare
 the parallel loading with the sequential one.
 
 The phases are `update`, `draw`, `sim.iterate`, `sim.town`, `sim.citizens`, `smooth`,
@@ -50,9 +50,9 @@ summarise or open the profile in the Firefox Profiler:
 
 ```bash
 CARGO_TARGET_DIR=target/profiling CARGO_PROFILE_RELEASE_DEBUG=line-tables-only \
-  cargo build --release -p banished-app
+  cargo build --release -p unbanished-app
 samply record --save-only --unstable-presymbolicate --rate 2000 -o /tmp/run.json.gz -- \
-  target/profiling/release/banished --boot-capture /tmp/p.png 60 --script "load SAVE@4.5"
+  target/profiling/release/unbanished --boot-capture /tmp/p.png 60 --script "load SAVE@4.5"
 python3 tools/perf/samply_top.py /tmp/run.json.gz --after 6 --top 30   # skip loading
 samply load /tmp/run.json.gz                                           # interactive view
 ```
@@ -108,7 +108,7 @@ Still the largest costs per update on this town: `refresh_models` (4.3 ms), `aud
 
 ## Drawing less (2026-10-19)
 
-Measured on the large town above with `BANISHED_PROFILE=1` and the new `draw.gpu` phase, at
+Measured on the large town above with `UNBANISHED_PROFILE=1` and the new `draw.gpu` phase, at
 1280 × 800. The GPU took 22.7 ms per frame (median). Every model and every terrain tile was
 drawn in all three passes: the sun's shadow map, the water reflection and the scene. A frame
 with one part left out at a time showed where the time went:
@@ -209,7 +209,7 @@ wood houses, 62 storage barns, 24 fields, 23 iron mines), 433 animals. It is kep
 
 The main menu runs at a steady 60 in both.
 
-**Desktop, profiled.** Headless captures at 1920×1080 with `BANISHED_PROFILE=1`, 80 s, the
+**Desktop, profiled.** Headless captures at 1920×1080 with `UNBANISHED_PROFILE=1`, 80 s, the
 second and third 600-frame summaries (after loading). The profiler waits for the GPU every
 frame, so its frame time is CPU and GPU added up; a window overlaps them. Per 1/60 s update
 (the profiler's per-frame sums halved, since a capture frame runs two updates):
@@ -262,7 +262,7 @@ Most fields do not change between updates.
 ### 3. Move loading work off the first frame (done: 490 ms → under 25 ms)
 
 Measured on `save-game/Save83.sav` (Fort Ponchartrain, 13 677 placed entities) with
-`BANISHED_PROFILE=1` and samply. The first gameplay frame took 490 ms: `audio` 417 ms,
+`UNBANISHED_PROFILE=1` and samply. The first gameplay frame took 490 ms: `audio` 417 ms,
 `draw.upload_decals` 38 ms, `refresh_decals` 19 ms. samply showed that almost all of `audio`
 was WMA decoding in `EffectCache::get`, not the emitters themselves:
 
@@ -288,7 +288,7 @@ gives identical frames.
 
 ### 4. Use more than one core for loading (native) (done)
 
-Measured with samply (`--before` on the load window) and `BANISHED_PROFILE=hitches`, with the
+Measured with samply (`--before` on the load window) and `UNBANISHED_PROFILE=hitches`, with the
 headless captures of `tools/triage/determinism.sh` (seed 1234) and `save-game/Save200.sav`
 (Driscola, a 15 MB save). Before the change, loading ran on one thread:
 
@@ -304,7 +304,7 @@ headless captures of `tools/triage/determinism.sh` (seed 1234) and `save-game/Sa
 | | about 335 ms | the same sound decoding |
 | | about 65 ms | meshes and their textures (`SceneModels::from_instances`) |
 
-`banished_formats::par` runs work that is a pure function of one item on several threads with
+`unbanished_formats::par` runs work that is a pure function of one item on several threads with
 `std::thread::scope` (no new dependency). Results come back in input order, so the output is
 the same as from one thread. Where it is used:
 
@@ -322,11 +322,11 @@ the same as from one thread. Where it is used:
   cache, are read in parallel; then the groups take their textures from the cache in order.
 - `Generator::surface_map`: the two `Random` draws come first, as before; then every texel is
   a function of the finished height grid, so the rows are computed in parallel. The emulator
-  test (`TERRAIN_STAGES=5 cargo test -p banished-game --test terrain_emu`) gives a bit-exact
+  test (`TERRAIN_STAGES=5 cargo test -p unbanished-game --test terrain_emu`) gives a bit-exact
   surface image for all four emulated maps.
 
 Nothing that draws from `Random` or depends on the order of work runs in parallel: the terrain
-stages, seeding and the simulation are unchanged. `BANISHED_THREADS=1` runs everything on one
+stages, seeding and the simulation are unchanged. `UNBANISHED_THREADS=1` runs everything on one
 thread and gives the same times as before the change.
 
 Results, median of five runs, milliseconds (the test machine has 14 cores: 10 performance, 4

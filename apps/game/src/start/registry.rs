@@ -12,7 +12,7 @@ impl StartingTown {
         if self.save_ids.is_some() || !self.ambience_handles.is_empty() {
             return;
         }
-        let foreign = banished_game::scheduler::FOREIGN;
+        let foreign = unbanished_game::scheduler::FOREIGN;
         self.ambience_handles = (0..regions)
             .map(|r| self.scheduler.register_extra(foreign + r, AMBIENCE_BUCKET))
             .collect();
@@ -26,7 +26,7 @@ impl StartingTown {
     /// A saved entity the town does not model, kept in its bucket (`FUN_1400c9d70`).
     pub(crate) fn register_foreign(&mut self, bucket: usize, n: usize) -> usize {
         self.scheduler
-            .register_extra(banished_game::scheduler::FOREIGN + n, bucket)
+            .register_extra(unbanished_game::scheduler::FOREIGN + n, bucket)
     }
 
     /// `FUN_1400c9d70`: register a new entity in its template's bucket.

@@ -1,9 +1,9 @@
-//! A loaded save (`.sav`): the decoded game state (`banished_formats::savegame`) and the lookups
+//! A loaded save (`.sav`): the decoded game state (`unbanished_formats::savegame`) and the lookups
 //! the gameplay loop builds its world and town from. See docs/SAVE-LOADING.md.
 
-use banished_formats::save::{Save, SaveMetadata};
-use banished_formats::savegame::{Fields, GameState, ObjId, Object, Value};
-use banished_formats::Result;
+use unbanished_formats::save::{Save, SaveMetadata};
+use unbanished_formats::savegame::{Fields, GameState, ObjId, Object, Value};
+use unbanished_formats::Result;
 
 use crate::view::world::WorldParams;
 
@@ -63,8 +63,8 @@ impl SavedGame {
 
     /// The stock manager's slots (`+0x170`) and capacity records (`+0x180`) as saved in the
     /// town manager's block: counts, previous counts, limits, cooldowns.
-    pub fn stock_warnings(&self) -> banished_game::events::StockWarnings {
-        let mut w = banished_game::events::StockWarnings::default();
+    pub fn stock_warnings(&self) -> unbanished_game::events::StockWarnings {
+        let mut w = unbanished_game::events::StockWarnings::default();
         let town = &self.state.town;
         if let Some(Value::List(slots)) = town.at("town.stock") {
             for (i, s) in slots.iter().enumerate().take(w.count.len()) {
@@ -93,8 +93,8 @@ impl SavedGame {
     }
 
     /// The stock slots' used and made counters since the last statistics sample.
-    pub fn stock_counters(&self) -> banished_game::work::tracker::StockCounters {
-        let mut c = banished_game::work::tracker::StockCounters::default();
+    pub fn stock_counters(&self) -> unbanished_game::work::tracker::StockCounters {
+        let mut c = unbanished_game::work::tracker::StockCounters::default();
         if let Some(Value::List(slots)) = self.state.town.at("town.stock") {
             for (i, s) in slots.iter().enumerate().take(c.used.len()) {
                 c.used[i] = s.i32("used").unwrap_or(0);
@@ -105,13 +105,13 @@ impl SavedGame {
     }
 
     /// The environment controller's saved state onto `env` (`FUN_140099160`).
-    pub fn restore_environment(&self, env: &mut banished_game::nature::environment::Environment) {
+    pub fn restore_environment(&self, env: &mut unbanished_game::nature::environment::Environment) {
         let m = &self.state.managers;
         let f = |k: &str| m.f32(&format!("environment.{k}")).unwrap_or(0.0);
         let i = |k: &str| m.i32(&format!("environment.{k}")).unwrap_or(0);
         let season = match m.at("environment.season") {
             Some(Value::F32s(v)) if v.len() == 4 => {
-                banished_game::nature::environment::SeasonValues {
+                unbanished_game::nature::environment::SeasonValues {
                     snow: v[0],
                     autumn: v[1],
                     leaf_loss: v[2],
@@ -124,7 +124,7 @@ impl SavedGame {
         if let Some(Value::List(items)) = m.at("environment.effects") {
             for (slot, e) in effects.iter_mut().zip(items) {
                 if matches!(e.get("active"), Some(Value::Bool(true))) {
-                    *slot = Some(banished_game::nature::environment::WeatherEffect {
+                    *slot = Some(unbanished_game::nature::environment::WeatherEffect {
                         intensity: e.f32("intensity").unwrap_or(0.0),
                         direction: e.f32("direction").unwrap_or(0.0),
                     });
@@ -144,9 +144,9 @@ impl SavedGame {
     }
 
     /// The event log (`FUN_14009a790`): the notify flags and every entry with its text.
-    pub fn event_log(&self) -> banished_game::events::EventLog {
+    pub fn event_log(&self) -> unbanished_game::events::EventLog {
         let m = &self.state.managers;
-        let mut log = banished_game::events::EventLog::default();
+        let mut log = unbanished_game::events::EventLog::default();
         for (k, n) in log.notify.iter_mut().enumerate() {
             if let Some(Value::Bool(b)) = m.at(&format!("event_log.notify_{k}")) {
                 *n = *b;
@@ -155,7 +155,7 @@ impl SavedGame {
         if let Some(Value::List(entries)) = m.at("event_log.entries") {
             log.entries = entries
                 .iter()
-                .map(|e| banished_game::events::EventEntry {
+                .map(|e| unbanished_game::events::EventEntry {
                     kind: e.i32("kind").unwrap_or(0),
                     severity: e.i32("severity").unwrap_or(0),
                     color: e.i32("color").unwrap_or(0) as u32,
@@ -177,9 +177,9 @@ impl SavedGame {
 
     /// The Town Info history (StockManager `+0x150`) and the time to the next sample
     /// (`+0x198`).
-    pub fn statistics(&self) -> banished_game::work::tracker::Statistics {
+    pub fn statistics(&self) -> unbanished_game::work::tracker::Statistics {
         let town = &self.state.town;
-        let mut s = banished_game::work::tracker::Statistics::default();
+        let mut s = unbanished_game::work::tracker::Statistics::default();
         if let Some(Value::List(series)) = town.at("town.history") {
             for (dst, src) in s.series.iter_mut().zip(series) {
                 if let Some(Value::U32s(v)) = src.get("values") {
@@ -285,8 +285,8 @@ mod tests {
     /// git-ignored `save-game/`.
     #[test]
     fn saved_rotations_follow_the_yaw() {
-        use banished_formats::savegame::Value;
-        use banished_game::math::Transform;
+        use unbanished_formats::savegame::Value;
+        use unbanished_game::math::Transform;
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../save-game");
         let Ok(list) = std::fs::read_dir(&dir) else {
             eprintln!("no saves; skipping");

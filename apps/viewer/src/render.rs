@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
-use banished_formats::skeleton::{bind_palette, world_transforms};
-use banished_formats::types::{AnimationClip, Bone, SKINNED_STRIDE, STATIC_STRIDE};
-use banished_gfx::material::{character_uv_transform, MaterialKind};
-use banished_gfx::{upload_image, upload_rgba};
 use glam::{Mat4, Vec3};
+use unbanished_formats::skeleton::{bind_palette, world_transforms};
+use unbanished_formats::types::{AnimationClip, Bone, SKINNED_STRIDE, STATIC_STRIDE};
+use unbanished_gfx::material::{character_uv_transform, MaterialKind};
+use unbanished_gfx::{upload_image, upload_rgba};
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
@@ -20,7 +20,7 @@ struct Globals {
     eye: [f32; 4],
 }
 
-use banished_gfx::skin::MAX_BONES;
+use unbanished_gfx::skin::MAX_BONES;
 
 struct GpuPart {
     vertices: wgpu::Buffer,
@@ -71,7 +71,7 @@ pub struct Renderer {
     sampler: wgpu::Sampler,
     white: wgpu::TextureView,
     pub backend: String,
-    pub ui: banished_gfx::UiRenderer,
+    pub ui: unbanished_gfx::UiRenderer,
 }
 
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -167,7 +167,7 @@ impl Renderer {
             source: wgpu::ShaderSource::Wgsl(
                 format!(
                     "{}{}",
-                    banished_gfx::skin::SKIN_WGSL,
+                    unbanished_gfx::skin::SKIN_WGSL,
                     include_str!("mesh.wgsl")
                 )
                 .into(),
@@ -220,7 +220,7 @@ impl Renderer {
                 },
             ],
         });
-        let skin_layout = banished_gfx::skin::skin_layout(&device, false);
+        let skin_layout = unbanished_gfx::skin::skin_layout(&device, false);
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("mesh"),
             bind_group_layouts: &[
@@ -248,7 +248,7 @@ impl Renderer {
                 shader_location: 2,
             },
         ];
-        let skinned_attributes = banished_gfx::skin::skinned_attributes();
+        let skinned_attributes = unbanished_gfx::skin::skinned_attributes();
         let pipeline = |stride: usize,
                         entry: &str,
                         attributes: &[wgpu::VertexAttribute],
@@ -359,7 +359,7 @@ impl Renderer {
         });
         let white = upload_rgba(&device, &queue, "white", 1, 1, &[vec![255; 4]]);
         let depth = depth_view(&device, width, height);
-        let ui = banished_gfx::UiRenderer::new(&device, format, DEPTH_FORMAT);
+        let ui = unbanished_gfx::UiRenderer::new(&device, format, DEPTH_FORMAT);
 
         Renderer {
             surface,
@@ -421,11 +421,11 @@ impl Renderer {
         upload_image(&self.device, &self.queue, reference, &img).map(|v| (v, aspect))
     }
 
-    pub fn load_mesh(&self, assets: &Assets, name: &str) -> banished_formats::Result<GpuMesh> {
+    pub fn load_mesh(&self, assets: &Assets, name: &str) -> unbanished_formats::Result<GpuMesh> {
         let mesh = assets.mesh(name)?;
         let mut parts = Vec::new();
-        let world = banished_gfx::model::bind_world(&mesh);
-        let set = banished_gfx::model::material_set(&mesh, 0);
+        let world = unbanished_gfx::model::bind_world(&mesh);
+        let set = unbanished_gfx::model::material_set(&mesh, 0);
         // Parts are detail levels; the asset browser displays the most detailed one.
         for part in mesh.parts.iter().take(1) {
             for range in &part.ranges {
@@ -434,7 +434,7 @@ impl Renderer {
                     continue;
                 }
                 // Shared with the game: material instance, shader kind, textures, rigid node.
-                let m = banished_gfx::model::range_material(&world, set, range, &mut |r| {
+                let m = unbanished_gfx::model::range_material(&world, set, range, &mut |r| {
                     assets
                         .material_instance(r)
                         .map_err(|e| log::warn!("{r}: {e}"))
@@ -447,7 +447,7 @@ impl Renderer {
                     .texture(assets, part.ao_texture.as_deref())
                     .map_or_else(|| self.white.clone(), |t| t.0);
                 // Character materials select one outfit of the atlas (the first here), with the
-                // same rule the game uses (`banished_gfx::material`).
+                // same rule the game uses (`unbanished_gfx::material`).
                 let uv_transform: [f32; 4] = if m.kind == MaterialKind::Character {
                     character_uv_transform(0)
                 } else {
@@ -531,7 +531,7 @@ impl Renderer {
                 });
             }
         }
-        let matrices = banished_gfx::skin::palette_matrices(&bind_palette(&mesh.bones));
+        let matrices = unbanished_gfx::skin::palette_matrices(&bind_palette(&mesh.bones));
         let skin_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -566,10 +566,10 @@ impl Renderer {
         {
             return;
         }
-        // The original's Animation::GetPoseAtTime, shared with the game (`banished_game`).
-        let locals = banished_game::behaviour::animation::sample_pose(
+        // The original's Animation::GetPoseAtTime, shared with the game (`unbanished_game`).
+        let locals = unbanished_game::behaviour::animation::sample_pose(
             clip,
-            banished_game::scheduler::ticks(seconds.max(0.0)),
+            unbanished_game::scheduler::ticks(seconds.max(0.0)),
             0,
         );
         if locals.len() != mesh.bones.len() {
@@ -585,10 +585,9 @@ impl Renderer {
                 );
             }
         }
-        let matrices = banished_gfx::skin::palette_matrices(&banished_formats::skeleton::palette(
-            &mesh.bones,
-            &locals,
-        ));
+        let matrices = unbanished_gfx::skin::palette_matrices(
+            &unbanished_formats::skeleton::palette(&mesh.bones, &locals),
+        );
         self.queue
             .write_buffer(&mesh.skin_buffer, 0, bytemuck::cast_slice(&matrices));
     }
@@ -803,7 +802,7 @@ pub struct Frame<'a> {
     pub eye: Vec3,
     /// Pixel rectangle (x, y, w, h) for the 3D view; the whole target when `None`.
     pub viewport: Option<[f32; 4]>,
-    pub ui: Option<(&'a banished_ui::Ui, &'a [banished_ui::Quad])>,
+    pub ui: Option<(&'a unbanished_ui::Ui, &'a [unbanished_ui::Quad])>,
     pub render_mode: RenderMode,
 }
 

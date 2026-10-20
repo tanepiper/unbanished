@@ -9,10 +9,10 @@
 
 use std::collections::BTreeMap;
 
-use banished_formats::pkg::Archive;
-use banished_formats::savegame::{Fields, ObjId, Object, Value};
-use banished_game::people::citizens::{Citizen, CitizenRules};
-use banished_game::work::stock::{Item, Storage};
+use unbanished_formats::pkg::Archive;
+use unbanished_formats::savegame::{Fields, ObjId, Object, Value};
+use unbanished_game::people::citizens::{Citizen, CitizenRules};
+use unbanished_game::work::stock::{Item, Storage};
 
 use super::super::{material_index, normalise, StartingTown};
 use crate::saves::saved::SavedGame;
@@ -144,7 +144,7 @@ impl StartingTown {
         // The disease list in the order `Agents::diseases` was read (`Game/Disease/Diseases.rsc`).
         let diseases: Vec<String> =
             super::super::read(archive, "Game/Disease/Diseases.rsc:resource")
-                .and_then(|d| banished_formats::game::external_list(&d).ok())
+                .and_then(|d| unbanished_formats::game::external_list(&d).ok())
                 .unwrap_or_default()
                 .iter()
                 .map(|r| normalise(r))
@@ -305,7 +305,7 @@ impl StartingTown {
                 let registered = self.construction.workforce.residences.contains(&e);
                 if let Some(site) = self.construction.sites.get_mut(&e) {
                     if let Some(desc) = self.construction.templates[site.template].residence {
-                        let mut home = banished_game::people::life::Home::new(desc, site.storage);
+                        let mut home = unbanished_game::people::life::Home::new(desc, site.storage);
                         if !families.is_empty() {
                             home.families = families;
                         }
@@ -346,7 +346,7 @@ impl StartingTown {
                     .and_then(|w| w.profession);
                 self.construction.attendance.insert(
                     e,
-                    banished_game::work::construction::Attendance {
+                    unbanished_game::work::construction::Attendance {
                         capacity,
                         attendees,
                         profession,

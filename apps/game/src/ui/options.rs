@@ -20,7 +20,7 @@
 //! `crate::saves::autosave` and auto slow-down the disaster slow-down.
 //! See docs/OPTIONS.md.
 
-use banished_ui::{Control, Event, Kind, NodeId, Ui};
+use unbanished_ui::{Control, Event, Kind, NodeId, Ui};
 
 use crate::keymap::{self, Binding, KeyMap};
 use crate::loops::{Ctx, Screen};
@@ -32,7 +32,7 @@ const BIND_DIALOG: &str = "Dialog/Options.rsc:inputBind";
 const BOUND_DIALOG: &str = "Dialog/Options.rsc:inputBound";
 const STRINGS: &str = "Dialog/StringTable.rsc";
 
-/// Escape's shortcut code in `banished_ui` (the Cancel button carries action 8, Escape).
+/// Escape's shortcut code in `unbanished_ui` (the Cancel button carries action 8, Escape).
 const ESCAPE: u32 = 27;
 
 /// `+0x190..+0x1ac`: the video configuration being edited.
@@ -131,7 +131,7 @@ fn table_text(ui: &Ui, table: &str, index: usize) -> String {
         .archive
         .read_ref(&format!("{STRINGS}:{table}"))
         .ok()
-        .and_then(|d| banished_formats::ui::string_table(&d).ok())
+        .and_then(|d| unbanished_formats::ui::string_table(&d).ok())
         .and_then(|t| t.into_iter().nth(index).map(|(_, v)| v))
         .unwrap_or_default()
 }
@@ -895,7 +895,7 @@ mod tests {
         // Never touch the player's stored settings.
         let file =
             std::env::temp_dir().join(format!("banished-options-{}.txt", std::process::id()));
-        std::env::set_var("BANISHED_SETTINGS", &file);
+        std::env::set_var("UNBANISHED_SETTINGS", &file);
         let packages = ["data1.pkg", "patch1.pkg", "patch0.pkg", "data0.pkg"]
             .into_iter()
             .filter_map(|n| std::fs::read(dir.join(n)).ok().map(|d| (n.to_owned(), d)))
@@ -961,7 +961,7 @@ mod tests {
             assert_eq!(o.event(ctx, &mut screen, Event::Clicked(o.el.ok.unwrap())), Outcome::Closed);
             assert!(ctx.settings.persistence.serialize().contains("InputForward=-1"));
         });
-        if let Ok(file) = std::env::var("BANISHED_SETTINGS") {
+        if let Ok(file) = unbanished_formats::env::var("SETTINGS") {
             let _ = std::fs::remove_file(file);
         }
     }

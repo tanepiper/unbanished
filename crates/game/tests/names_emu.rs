@@ -1,10 +1,10 @@
 //! Parity of the name generator with the original `FUN_1400aa000` under emulation
 //! (`tools/emu/names.py`). Skipped without game-data/.
 
-use banished_formats::names::NameDatabase;
-use banished_game::people::names::generate;
-use banished_game::random::Random;
 use std::path::PathBuf;
+use unbanished_formats::names::NameDatabase;
+use unbanished_game::people::names::generate;
+use unbanished_game::random::Random;
 
 #[test]
 fn names_match_the_original() {

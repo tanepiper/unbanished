@@ -1,13 +1,13 @@
 //! HighlightComponent 14004ce00 and Runtime EdgeMeshInstance 1800a3f20/1800a40a0.
 use crate::{start::StartingTown, tools::selection::Entity};
-use banished_formats::{
+use glam::Vec3;
+use std::collections::BTreeMap;
+use unbanished_formats::{
     picking::{self, EdgeMesh, HighlightDescription},
     pkg::Archive,
     skeleton::{self, Transform},
     types::{self, GraphicsMesh},
 };
-use glam::Vec3;
-use std::collections::BTreeMap;
 use wgpu::util::DeviceExt;
 
 #[repr(C)]
@@ -54,7 +54,7 @@ impl Highlight {
         &mut self,
         archive: &Archive,
         town: &StartingTown,
-        grid: &banished_game::terrain::HeightGrid<'_>,
+        grid: &unbanished_game::terrain::HeightGrid<'_>,
         entity: Option<Entity>,
     ) -> Geometry {
         let mut out = Geometry::default();
@@ -84,7 +84,7 @@ impl Highlight {
         &mut self,
         archive: &Archive,
         town: &StartingTown,
-        grid: &banished_game::terrain::HeightGrid<'_>,
+        grid: &unbanished_game::terrain::HeightGrid<'_>,
         entity: Entity,
         out: &mut Geometry,
     ) {

@@ -1,9 +1,9 @@
 //! The viewer's single-sound preview (play, pause, seek, loop, volume) on one channel of the
-//! shared `banished_audio::Device`, the same mixer the game uses.
+//! shared `unbanished_audio::Device`, the same mixer the game uses.
 
 use std::time::Duration;
 
-use banished_audio::{Channel, Device, Pcm, PlayParams, Sound};
+use unbanished_audio::{Channel, Device, Pcm, PlayParams, Sound};
 
 pub struct Player {
     device: Device,

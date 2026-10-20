@@ -1,16 +1,16 @@
-//! The mods: the list (`banished_mods::Modification`, shared with the mod manager), how a
+//! The mods: the list (`unbanished_mods::Modification`, shared with the mod manager), how a
 //! reload restarts the game, and what the loaded packages contain.
 //!
 //! - **Loading** (`SetupFileSystem`, `0x1800b02d0`): the enabled mods join the game's packages
 //!   from the last in the list to the first (`Archive::add_mod`), then each one's
 //!   `<file>Resources.rsc:resource` is loaded (`formats::registry`).
 
-use banished_formats::pkg::normalise;
-use banished_formats::registry::Registry;
+use unbanished_formats::pkg::normalise;
+use unbanished_formats::registry::Registry;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use banished_mods::find;
-pub use banished_mods::{Mod, Modification};
+pub use unbanished_mods::find;
+pub use unbanished_mods::{Mod, Modification};
 
 /// What a reload starts once the packages are set up again (`FUN_140072110`).
 pub enum Reload {
@@ -35,7 +35,7 @@ pub fn set_registry(r: std::rc::Rc<Registry>) {
 pub fn loaded_of_type(class: &str) -> Option<Vec<String>> {
     REGISTRY.with(|c| {
         c.borrow().as_ref().map(|r| {
-            r.of_type(banished_formats::crc::type_id(class))
+            r.of_type(unbanished_formats::crc::type_id(class))
                 .into_iter()
                 .map(str::to_string)
                 .collect()
@@ -44,7 +44,7 @@ pub fn loaded_of_type(class: &str) -> Option<Vec<String>> {
 }
 
 /// How many raw materials are loaded (`FindNext` over RawMaterialDescription, `FUN_1400bdcf0`).
-pub fn raw_material_count(archive: &banished_formats::pkg::Archive) -> usize {
+pub fn raw_material_count(archive: &unbanished_formats::pkg::Archive) -> usize {
     loaded_of_type("RawMaterialDescription").map_or_else(
         || {
             archive
@@ -59,11 +59,11 @@ pub fn raw_material_count(archive: &banished_formats::pkg::Archive) -> usize {
 
 /// The loaded templates (ComponentDescription `:resource` objects, `FUN_140059fd0`): the game's
 /// in `Game/GameResources.rsc`'s order (inferred for the factory's), then the mods' others.
-pub fn templates(archive: &banished_formats::pkg::Archive) -> Vec<String> {
+pub fn templates(archive: &unbanished_formats::pkg::Archive) -> Vec<String> {
     let mut list: Vec<String> = archive
         .read_ref("Game/GameResources.rsc:resource")
         .ok()
-        .and_then(|d| banished_formats::game::external_list(&d).ok())
+        .and_then(|d| unbanished_formats::game::external_list(&d).ok())
         .unwrap_or_default();
     if let Some(loaded) = loaded_of_type("ComponentDescription") {
         let known: std::collections::BTreeSet<String> = list.iter().map(|r| normalise(r)).collect();
@@ -78,12 +78,12 @@ pub fn templates(archive: &banished_formats::pkg::Archive) -> Vec<String> {
 
 /// `FUN_1400ae570`: the loaded professions that are shown (`+0x4e`), by their sort priority
 /// (`+0x48`); before any game loaded, `Profession.rsc:professionList`.
-pub fn profession_list(archive: &banished_formats::pkg::Archive) -> Vec<String> {
+pub fn profession_list(archive: &unbanished_formats::pkg::Archive) -> Vec<String> {
     let read = |r: &str| {
         archive
             .read_ref(&r.replace('\\', "/"))
             .ok()
-            .and_then(|d| banished_formats::game::profession(&d).ok())
+            .and_then(|d| unbanished_formats::game::profession(&d).ok())
     };
     match loaded_of_type("Profession") {
         Some(refs) => {
@@ -95,13 +95,13 @@ pub fn profession_list(archive: &banished_formats::pkg::Archive) -> Vec<String> 
                 })
                 .collect();
             // `FUN_14001f120`: the CRT qsort by sort priority (`+0x48`).
-            banished_game::behaviour::ai::crt_qsort_less(&mut v, |a, b| a.0 < b.0);
+            unbanished_game::behaviour::ai::crt_qsort_less(&mut v, |a, b| a.0 < b.0);
             v.into_iter().map(|(_, r)| r).collect()
         }
         None => archive
             .read_ref("Game/Profession/Profession.rsc:professionList")
             .ok()
-            .and_then(|d| banished_formats::game::external_list(&d).ok())
+            .and_then(|d| unbanished_formats::game::external_list(&d).ok())
             .unwrap_or_default(),
     }
 }

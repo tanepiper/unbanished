@@ -4,8 +4,8 @@
 //!
 //! The ribbon reads the event log only; its clicks return a cell for the camera.
 
-use banished_game::events::{severity_color, EventLog};
-use banished_ui::{NodeId, Ui};
+use unbanished_game::events::{severity_color, EventLog};
+use unbanished_ui::{NodeId, Ui};
 
 use crate::loops::Screen;
 

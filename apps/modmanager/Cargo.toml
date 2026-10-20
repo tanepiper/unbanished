@@ -1,5 +1,5 @@
 [package]
-name = "banished-modmanager"
+name = "unbanished-modmanager"
 version.workspace = true
 description = "The Un-Banished mod manager: turn mods on and off, set their order, keep mod lists, install from Nexus Mods and start the game"
 edition.workspace = true
@@ -7,12 +7,13 @@ license.workspace = true
 repository.workspace = true
 
 [[bin]]
-name = "banished-mods"
+name = "unbanished-mods"
 path = "src/main.rs"
 
 [dependencies]
-banished-mods = { path = "../../crates/mods" }
-banished-nexus = { path = "../../crates/nexus", features = ["native"] }
+unbanished-formats = { path = "../../crates/formats" }
+unbanished-mods = { path = "../../crates/mods" }
+unbanished-nexus = { path = "../../crates/nexus", features = ["native"] }
 png = "0.18"
-banished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"] }
+unbanished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"] }
 eframe = "0.37.0"

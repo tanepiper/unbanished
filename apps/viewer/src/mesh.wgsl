@@ -21,7 +21,7 @@ struct MaterialParams {
 };
 @group(1) @binding(3) var<uniform> material: MaterialParams;
 
-// The bone palette (`skin`, `skin_matrix`) comes from `banished_gfx::skin::SKIN_WGSL`.
+// The bone palette (`skin`, `skin_matrix`) comes from `unbanished_gfx::skin::SKIN_WGSL`.
 
 struct VsIn {
     @location(0) position: vec4<i32>,

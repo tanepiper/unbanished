@@ -5,16 +5,16 @@
 //! Deviation: the original's Browse tab is the Steam Workshop browser (`FUN_14006f790`,
 //! `FUN_14006dee0`); here it browses Nexus Mods. The tab shows by default and searches without
 //! an account; installing needs the player's own API key (`NexusApiKey` in the settings, or
-//! `BANISHED_NEXUS_API_KEY` natively).
+//! `UNBANISHED_NEXUS_API_KEY` natively).
 
 #[cfg(target_arch = "wasm32")]
 use std::cell::RefCell;
 #[cfg(target_arch = "wasm32")]
 use std::rc::Rc;
 
-use banished_nexus::api::{self, ModSummary, SearchPage, Sort, User};
-use banished_nexus::nxm::NxmLink;
-use banished_nexus::{App, Error, Request};
+use unbanished_nexus::api::{self, ModSummary, SearchPage, Sort, User};
+use unbanished_nexus::nxm::NxmLink;
+use unbanished_nexus::{App, Error, Request};
 
 /// The settings key (section and name) of the API key: `NexusApiKey=…`.
 pub const KEY_SECTION: &str = "Nexus";
@@ -109,7 +109,7 @@ pub fn sites(settings: &crate::settings::Persistence) -> Vec<(Site, String)> {
 /// The key, from the settings or (natively) the environment, which wins.
 pub fn key(settings: &crate::settings::Persistence) -> Option<String> {
     #[cfg(not(target_arch = "wasm32"))]
-    if let Ok(k) = std::env::var(banished_nexus::native::KEY_VARIABLE) {
+    if let Ok(k) = unbanished_formats::env::var("NEXUS_API_KEY") {
         let k = k.trim().to_string();
         return (!k.is_empty()).then_some(k);
     }
@@ -251,7 +251,7 @@ fn request(key: &str, task: &Task) -> Request {
 }
 
 /// The packages of an install as (file name without `.pkm`, bytes).
-fn stems(packages: Vec<banished_nexus::install::Package>) -> Vec<(String, Vec<u8>)> {
+fn stems(packages: Vec<unbanished_nexus::install::Package>) -> Vec<(String, Vec<u8>)> {
     packages
         .into_iter()
         .map(|p| (p.name[..p.name.len() - 4].to_string(), p.data))
@@ -265,7 +265,7 @@ fn native_task(
     task: Task,
     send: &std::sync::mpsc::Sender<Reply>,
 ) -> Reply {
-    use banished_nexus::native;
+    use unbanished_nexus::native;
     let Task::Install { mod_id, link } = &task else {
         return answer(&task, native::send(&request(key, &task), false));
     };
@@ -283,7 +283,7 @@ fn native_task(
         let data = native::download(&links[0], |done, total| {
             let _ = send.send(Reply::Progress(done, total));
         })?;
-        let packages = banished_nexus::install::packages(&file_name(&links[0]), &data)?;
+        let packages = unbanished_nexus::install::packages(&file_name(&links[0]), &data)?;
         if let Some(dir) = dir {
             native::install(dir, &packages)?;
         }
@@ -300,12 +300,14 @@ fn native_task(
 #[cfg(not(target_arch = "wasm32"))]
 fn preview(site: Site, mod_id: u32, url: &str) -> Reply {
     let bytes = match site {
-        Site::BanishedInfo => banished_banishedinfo::native::Client::new(env!("CARGO_PKG_VERSION"))
-            .image(url)
-            .ok(),
-        Site::Nexus => banished_nexus::native::download(url, |_, _| {}).ok(),
+        Site::BanishedInfo => {
+            unbanished_banishedinfo::native::Client::new(env!("CARGO_PKG_VERSION"))
+                .image(url)
+                .ok()
+        }
+        Site::Nexus => unbanished_nexus::native::download(url, |_, _| {}).ok(),
     };
-    match bytes.and_then(|b| banished_mods::preview::decode(&b)) {
+    match bytes.and_then(|b| unbanished_mods::preview::decode(&b)) {
         Some(i) => Reply::Preview(mod_id, i.width, i.height, i.rgba),
         None => Reply::Failed(String::new()),
     }
@@ -313,7 +315,7 @@ fn preview(site: Site, mod_id: u32, url: &str) -> Reply {
 
 /// A banishedinfo.com mod as the Browse tab shows mods.
 #[cfg(not(target_arch = "wasm32"))]
-fn summary_of(m: banished_banishedinfo::Mod) -> ModSummary {
+fn summary_of(m: unbanished_banishedinfo::Mod) -> ModSummary {
     ModSummary {
         mod_id: m.id,
         name: m.title,
@@ -335,7 +337,7 @@ fn banishedinfo_task(
     task: Task,
     send: &std::sync::mpsc::Sender<Reply>,
 ) -> Reply {
-    use banished_banishedinfo as bi;
+    use unbanished_banishedinfo as bi;
     let client = bi::native::Client::new(env!("CARGO_PKG_VERSION"));
     let page_of = |mods: Vec<bi::Mod>, page: u32, more: bool| {
         let count = mods.len() as u32;
@@ -371,10 +373,10 @@ fn banishedinfo_task(
             let (name, data) = client.download(&version, |done, total| {
                 let _ = send.send(Reply::Progress(done, total));
             })?;
-            let packages = banished_nexus::install::packages(&name, &data)
+            let packages = unbanished_nexus::install::packages(&name, &data)
                 .map_err(|e| bi::Error::Install(e.to_string()))?;
             if let Some(dir) = dir {
-                banished_nexus::native::install(dir, &packages)
+                unbanished_nexus::native::install(dir, &packages)
                     .map_err(|e| bi::Error::Install(e.to_string()))?;
             }
             Ok(Reply::Installed(mod_id, stems(packages)))
@@ -450,7 +452,7 @@ async fn web_task(key: &str, task: Task, inbox: &Rc<RefCell<Vec<Reply>>>) -> Rep
             body: None,
         };
         let data = fetch(&download, false).await?;
-        let packages = banished_nexus::install::packages(&file_name(&links[0]), &data)?;
+        let packages = unbanished_nexus::install::packages(&file_name(&links[0]), &data)?;
         // The browser's way of copying them into `WinData`, as for dropped mods.
         for p in &packages {
             crate::saves::save_store::store_mod(&p.name[..p.name.len() - 4], &p.data);

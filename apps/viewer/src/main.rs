@@ -1,10 +1,10 @@
 //! Banished asset browser: models, textures, audio and dialogs, drawn with the reimplemented game UI.
 //!
-//! Native:     `cargo run -p banished-viewer --release [-- path/to/WinData]`
+//! Native:     `cargo run -p unbanished-viewer --release [-- path/to/WinData]`
 //! Web:        `tools/dev-web.sh --release`, then open `/?data=/game-data/` or pick `.pkg` files.
-//! Screenshot: `banished-viewer --screenshot FILE.png [MODE] [FILTER]` renders the tool headlessly
+//! Screenshot: `unbanished-viewer --screenshot FILE.png [MODE] [FILTER]` renders the tool headlessly
 //!             (MODE is models|textures|audio|dialogs; FILTER picks the first matching entry).
-//! Capture:    `banished-viewer --capture OUT_DIR [FILTER ...]` renders meshes alone to PNGs.
+//! Capture:    `unbanished-viewer --capture OUT_DIR [FILTER ...]` renders meshes alone to PNGs.
 //!
 //! Controls: click modes and list entries, Up/Down to change entry, drag to orbit, wheel to zoom.
 
@@ -160,7 +160,7 @@ impl ApplicationHandler<UserEvent> for App {
                 return;
             }
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
-                use banished_ui::Key as UiKey;
+                use unbanished_ui::Key as UiKey;
                 let key = match &event.logical_key {
                     Key::Named(NamedKey::Tab) => Some(if self.shift {
                         UiKey::BackTab

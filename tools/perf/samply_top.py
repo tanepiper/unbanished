@@ -1,8 +1,8 @@
 """Summarise a samply profile: the functions with the most self and inclusive time.
 
 Usage:
-  samply record --save-only --unstable-presymbolicate -o OUT.json.gz -- ./target/profiling/release/banished ...
-  python3 tools/perf/samply_top.py OUT.json.gz [--thread banished] [--after SECONDS] [--before SECONDS]
+  samply record --save-only --unstable-presymbolicate -o OUT.json.gz -- ./target/profiling/release/unbanished ...
+  python3 tools/perf/samply_top.py OUT.json.gz [--thread unbanished] [--after SECONDS] [--before SECONDS]
                                     [--top 40] [--grep TEXT] [--callers FUNCTION]
 
 `--after`/`--before` keep the samples in a time window (seconds from the first sample), for
@@ -10,7 +10,7 @@ example to skip loading. `--grep` keeps only stacks that pass through a function
 TEXT. `--callers` lists who calls a function, by time. The script reads the `.syms.json` file
 that `--unstable-presymbolicate` writes next to the profile. Build with line tables for useful
 names: `CARGO_TARGET_DIR=target/profiling CARGO_PROFILE_RELEASE_DEBUG=line-tables-only
-cargo build --release -p banished-app`.
+cargo build --release -p unbanished-app`.
 """
 import argparse
 import bisect
@@ -115,7 +115,7 @@ def stacks(profile, thread, name):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("profile")
-    ap.add_argument("--thread", default="banished")
+    ap.add_argument("--thread", default="unbanished")
     ap.add_argument("--after", type=float, default=0.0)
     ap.add_argument("--before", type=float, default=1e18)
     ap.add_argument("--top", type=int, default=40)

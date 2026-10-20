@@ -23,8 +23,8 @@ pub use stack::ActionStack;
 
 // vtable 0x140168790; +0x40; +0x48; +0x30; +0x28 update; +0x58; +0x20; +0x38
 
-use banished_formats::game::CharacterDescription;
-use banished_formats::types::AnimationGroup;
+use unbanished_formats::game::CharacterDescription;
+use unbanished_formats::types::AnimationGroup;
 
 use crate::behaviour::animation::AnimationStack;
 use crate::pathfind::{self, Pathfinder};

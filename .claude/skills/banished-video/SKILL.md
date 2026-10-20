@@ -13,7 +13,7 @@ with FFmpeg. No Rust change is needed. The person-readable guide is `docs/develo
 
 ## Rules
 
-- Always set `BANISHED_USER_DIR` and `BANISHED_SETTINGS` to a scratch folder (the frames and any
+- Always set `UNBANISHED_USER_DIR` and `UNBANISHED_SETTINGS` to a scratch folder (the frames and any
   save go there; the player's own folders are never touched).
 - Frames go to scratch or `game-data/derived/` while you work. Only the finished, small WebM of
   Un-Banished's own frames may be committed, in `docs/assets/videos/` (AGENTS.md rule 1); never
@@ -26,8 +26,8 @@ with FFmpeg. No Rust change is needed. The person-readable guide is `docs/develo
 1. **Find the shot.** Make single `--boot-capture` PNGs first (cheap: ~5 s for a 20 s run) and
    open them. Typical set-up for a town:
    ```bash
-   export BANISHED_USER_DIR=$W/user BANISHED_SETTINGS=$W/settings.txt
-   banished --boot-capture $W/shot.png 30 --capture-size 1280x720 \
+   export UNBANISHED_USER_DIR=$W/user UNBANISHED_SETTINGS=$W/settings.txt
+   unbanished --boot-capture $W/shot.png 30 --capture-size 1280x720 \
      --script "load save-game/Save83.sav@4.5" \
      --click-at 1060,470@14 --press buttonCenter@14.6 --press buttonClose@15.2 \
      --wheel 8@16 --wheel 8@16.2 ...            # 28 wheel events reach the closest zoom
@@ -51,7 +51,7 @@ with FFmpeg. No Rust change is needed. The person-readable guide is `docs/develo
      `--camera-fov 50`, `--camera-smooth 0.6`. A follow keeps buildings, trees and bridges out
      of the line of sight (picking meshes; it moves in closer, else rises up to 8;
      `--camera-clear 0` turns it off). Find coordinates with
-     `RUST_LOG=info,banished::view::cinematic=debug` and a follow: it logs the subject's position
+     `RUST_LOG=info,unbanished::view::cinematic=debug` and a follow: it logs the subject's position
      each step (a boat's track is the river). Modes `boat-shoulder`, `fisher-closeup`,
      `river-flight` (for `Save 47`) and `farmer`, `labourer`, `vendor` (Save83, the `follow`
      helper: speed 2, rig `3.5,2.6,0.8,3,1.2`) in `tools/videos.sh` are the examples; each writes
@@ -73,7 +73,7 @@ with FFmpeg. No Rust change is needed. The person-readable guide is `docs/develo
      (`/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg`, installed) or `FFMPEG`. `TITLES=0` turns them
      off. `MONTAGE_CLIPS=DIR` keeps the shots, so re-titling takes seconds, not 10 minutes.
    - `--script "speed 10@T"` for time-lapses; `--script "open Template/UtilityMap.rsc@T"` for
-     windows; `BANISHED_SEED=N` with `--press buttonNew@4.5 --press buttonOk@5.0` for a new
+     windows; `UNBANISHED_SEED=N` with `--press buttonNew@4.5 --press buttonOk@5.0` for a new
      game.
 2. **Queue the frames.** One `--script "screenshot@T"` per frame (`screenshot ui@T` keeps the
    interface). Two rules make the timing exact:

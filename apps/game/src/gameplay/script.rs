@@ -73,7 +73,7 @@ impl GameplayLoop {
                 let (Some(town), Some(view)) = (self.town.as_ref(), self.view.as_ref()) else {
                     return false;
                 };
-                let grid = banished_game::terrain::HeightGrid {
+                let grid = unbanished_game::terrain::HeightGrid {
                     width: view.terrain.size + 1,
                     heights: &view.terrain.heights,
                 };
@@ -219,7 +219,8 @@ impl GameplayLoop {
                 ) else {
                     return false;
                 };
-                let set = banished_game::work::professions::Command::SetCount { profession, count };
+                let set =
+                    unbanished_game::work::professions::Command::SetCount { profession, count };
                 self.execute(ctx.archive, PlayerCommand::Town(set));
                 return true;
             }

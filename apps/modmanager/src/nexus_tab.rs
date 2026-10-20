@@ -4,12 +4,12 @@
 use std::path::Path;
 use std::sync::mpsc;
 
-use banished_mods::text::TextSettings;
-use banished_nexus::api::{self, ModSummary, Sort, User};
-use banished_nexus::native::{self, Source, Step};
-use banished_nexus::nxm::NxmLink;
-use banished_nexus::{App, Error};
 use eframe::egui::{self, Color32, RichText};
+use unbanished_mods::text::TextSettings;
+use unbanished_nexus::api::{self, ModSummary, Sort, User};
+use unbanished_nexus::native::{self, Source, Step};
+use unbanished_nexus::nxm::NxmLink;
+use unbanished_nexus::{App, Error};
 
 const PER_PAGE: u32 = 30;
 
@@ -93,7 +93,7 @@ impl NexusTab {
         self.spawn(ctx, move |_| {
             let image = native::download(&url, |_, _| {})
                 .ok()
-                .and_then(|b| banished_mods::preview::decode(&b))
+                .and_then(|b| unbanished_mods::preview::decode(&b))
                 .map(|i| {
                     egui::ColorImage::from_rgba_unmultiplied(
                         [i.width as usize, i.height as usize],

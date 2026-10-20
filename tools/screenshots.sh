@@ -32,7 +32,7 @@ if [[ "${1:-}" == "--visual-change" ]]; then
   for run in base-1:"$base" base-2:"$base" new:"$new"; do
     "$repo/tools/compat/scenarios.sh" "${run#*:}" "$work/${run%%:*}" "$scenario"
   done
-  cargo build -q --release -p banished-app --example imgdiff --manifest-path "$repo/Cargo.toml"
+  cargo build -q --release -p unbanished-app --example imgdiff --manifest-path "$repo/Cargo.toml"
   imgdiff="$repo/target/release/examples/imgdiff"
   a="$work/base-1/$scenario.png" b="$work/new/$scenario.png"
   "$imgdiff" "$a" "$work/base-2/$scenario.png" --out "$work/heat-base.png" --json && echo
@@ -61,10 +61,10 @@ trap 'rm -rf "$work"' EXIT
 
 mkdir -p "$work/user/Save" "$out"
 cp "$save" "$work/user/Save/"
-export BANISHED_USER_DIR="$work/user" BANISHED_SETTINGS="$work/settings.txt"
+export UNBANISHED_USER_DIR="$work/user" UNBANISHED_SETTINGS="$work/settings.txt"
 
-cargo build -q --release -p banished-app --manifest-path "$repo/Cargo.toml"
-game="$repo/target/release/banished"
+cargo build -q --release -p unbanished-app --manifest-path "$repo/Cargo.toml"
+game="$repo/target/release/unbanished"
 size=(--capture-size 1600x900)
 load=(--press buttonLoad@4.5 --press buttonLoad@5.5)
 

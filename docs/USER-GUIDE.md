@@ -176,7 +176,7 @@ In the terminal, run:
 ```bash
 git clone https://github.com/tanepiper/unbanished.git
 cd unbanished
-cargo build -p banished-app --release
+cargo build -p unbanished-app --release
 ```
 
 The first build downloads the libraries that Un-Banished uses, and takes a few minutes. Later
@@ -184,8 +184,8 @@ builds are much faster. When the build is complete, the game is in this file:
 
 | System | File |
 |---|---|
-| Windows | `target\release\banished.exe` |
-| macOS, Linux | `target/release/banished` |
+| Windows | `target\release\unbanished.exe` |
+| macOS, Linux | `target/release/unbanished` |
 
 To update Un-Banished later, run `git pull` in the same folder. Then run the `cargo build`
 command again.
@@ -214,16 +214,16 @@ There are three ways to start the game. Choose one.
 
 ```bash
 # Windows (PowerShell)
-target\release\banished.exe "C:\Program Files (x86)\Steam\steamapps\common\Banished\WinData"
+target\release\unbanished.exe "C:\Program Files (x86)\Steam\steamapps\common\Banished\WinData"
 
 # macOS
-target/release/banished ~/Library/Application\ Support/Steam/steamapps/common/Banished/WinData
+target/release/unbanished ~/Library/Application\ Support/Steam/steamapps/common/Banished/WinData
 
 # Linux
-target/release/banished ~/.steam/steam/steamapps/common/Banished/WinData
+target/release/unbanished ~/.steam/steam/steamapps/common/Banished/WinData
 ```
 
-**B. Put it next to the game.** Copy `banished.exe` (or `banished`) into your Banished folder,
+**B. Put it next to the game.** Copy `unbanished.exe` (or `unbanished`) into your Banished folder,
 next to `WinData`. Start it from there, or make a desktop shortcut to it. It then works like the
 original program. It finds `WinData` in the same folder, and it uses the same save folder as the
 original.
@@ -233,11 +233,11 @@ the project once. Then start the game with `cargo run`:
 
 ```bash
 tools/extract-assets.sh          # finds the usual Steam folders
-cargo run -p banished-app --release
+cargo run -p unbanished-app --release
 ```
 
 If your copy of Banished is in another place, run
-`BANISHED_DIR="/path/to/Banished" tools/extract-assets.sh`. `BANISHED_DIR` is the folder that
+`UNBANISHED_DIR="/path/to/Banished" tools/extract-assets.sh`. `UNBANISHED_DIR` is the folder that
 *contains* `WinData`. The script needs Python 3 and a `bash` shell. On Windows, use Git Bash.
 The script copies the files into `game-data/`. Git ignores this folder, so the files are never
 committed.
@@ -400,7 +400,7 @@ that you saved in the original game appear in the Load dialog. Autosaves work as
 (**Options → Game**). On Windows, the folder is `%USERPROFILE%\Documents\Banished\Save`. If you
 moved your Documents folder to another place, Un-Banished does not follow it.
 
-To keep your saves in another place, set `BANISHED_USER_DIR` to a folder. Un-Banished then uses
+To keep your saves in another place, set `UNBANISHED_USER_DIR` to a folder. Un-Banished then uses
 the `Save` folder inside it.
 
 ## Settings
@@ -416,13 +416,13 @@ file:
 | Browser | the browser's local storage for the page |
 
 To return to the default settings, delete this file. To use a different settings file, set
-`BANISHED_SETTINGS` to its path.
+`UNBANISHED_SETTINGS` to its path.
 
 ## Multiplayer
 
 Not in the original game. Several players can build one town together, each with their own copy
 of Banished and the same version of Un-Banished and the same mods. One player runs the relay
-(`cargo build -p banished-relay --release`, then `target/release/banished-relay`; port 7780).
+(`cargo build -p unbanished-relay --release`, then `target/release/unbanished-relay`; port 7780).
 Everybody presses **Multiplayer** in the main menu and enters the relay's address. The host
 presses **Host** and gives the room code to the others, who press **Join**. Then the host presses
 **Start** and chooses a save.
@@ -447,7 +447,7 @@ Also as in the original, you cannot earn achievements while mods are turned on.
 
 ### The mod manager
 
-`banished-mods` is a small desktop program, beside the game, to choose your mods before you
+`unbanished-mods` is a small desktop program, beside the game, to choose your mods before you
 play. It does what the Mods menu does, plus a few things the menu cannot:
 
 - turn mods on and off, all at once or one by one, and filter the list by name or author;
@@ -464,7 +464,7 @@ play. It does what the Mods menu does, plus a few things the menu cannot:
 Start it from the repository:
 
 ```bash
-cargo run --release -p banished-modmanager -- path/to/WinData
+cargo run --release -p unbanished-modmanager -- path/to/WinData
 ```
 
 Without a folder it uses `WinData` beside the program, then the folder you used last. **Save**
@@ -507,7 +507,7 @@ account. To install from it, give Un-Banished your own Nexus Mods API key:
    personal API key. Treat it like a password: do not share it.
 2. Give the key to Un-Banished in one of these ways:
    - add a line `NexusApiKey=YOUR_KEY` to the [settings file](#settings);
-   - or, on the desktop, set the environment variable `BANISHED_NEXUS_API_KEY`. It wins over
+   - or, on the desktop, set the environment variable `UNBANISHED_NEXUS_API_KEY`. It wins over
      the settings file;
    - or, in the browser, open the developer console on the game page and run
      `localStorage.setItem('banished-wasm.settings', (localStorage.getItem('banished-wasm.settings') || '') + '\nNexusApiKey=YOUR_KEY')`,
@@ -539,11 +539,11 @@ Good to know:
 The same works from the command line, with the same key:
 
 ```bash
-cargo run --release -p banished-cli -- nexus search terrain
+cargo run --release -p unbanished-cli -- nexus search terrain
 ```
 
 ```bash
-cargo run --release -p banished-cli -- nexus install 19 --to path/to/WinData
+cargo run --release -p unbanished-cli -- nexus install 19 --to path/to/WinData
 ```
 
 `nexus whoami` shows the account the key belongs to, `nexus files MOD_ID` lists a mod's files,
@@ -564,11 +564,11 @@ browser version cannot, because the site does not allow other web pages to read 
 - **Command line:**
 
 ```bash
-cargo run --release -p banished-cli -- banishedinfo list --sort downloads
+cargo run --release -p unbanished-cli -- banishedinfo list --sort downloads
 ```
 
 ```bash
-cargo run --release -p banished-cli -- banishedinfo install 34 --to path/to/WinData
+cargo run --release -p unbanished-cli -- banishedinfo install 34 --to path/to/WinData
 ```
 
 Un-Banished reads the site only when you list, search or install, and it names itself in each
@@ -581,20 +581,20 @@ Un-Banished is four programs. To play, you only need the first one, and at most 
 
 | Program | What it is for |
 |---|---|
-| `banished` | The game. With options, it also runs without a window: for screenshots, tests and recordings. |
-| `banished-mods` | The [mod manager](#the-mod-manager): turn mods on and off, set their order, then play. |
-| `banished-cli` | Mods from Nexus Mods and banishedinfo.com, and the game's sounds as MP3 files. |
-| `banished-relay` | The server that connects the players of a [multiplayer](#multiplayer) game. |
+| `unbanished` | The game. With options, it also runs without a window: for screenshots, tests and recordings. |
+| `unbanished-mods` | The [mod manager](#the-mod-manager): turn mods on and off, set their order, then play. |
+| `unbanished-cli` | Mods from Nexus Mods and banishedinfo.com, and the game's sounds as MP3 files. |
+| `unbanished-relay` | The server that connects the players of a [multiplayer](#multiplayer) game. |
 
 After `cargo build --release`, the programs are in `target/release/`. The examples below write
-`banished`; from the source folder, that is `target/release/banished` (on Windows,
-`target\release\banished.exe`).
+`unbanished`; from the source folder, that is `target/release/unbanished` (on Windows,
+`target\release\unbanished.exe`).
 
 ### Play
 
 ```bash
 banished                                   # find the game data by itself
-banished "C:\Games\Steam\steamapps\common\Banished\WinData"   # Windows
+unbanished "C:\Games\Steam\steamapps\common\Banished\WinData"   # Windows
 banished ~/Games/Banished/WinData          # macOS or Linux
 ```
 
@@ -605,7 +605,7 @@ makes). Your saves and settings are where [Saves and settings](#saves) says.
 ### See which version you have
 
 ```bash
-banished --version                         # for example: Un-Banished 0.4.0-dd814cb
+unbanished --version                         # for example: Un-Banished 0.4.0-dd814cb
 ```
 
 The [Version](#version) section explains the number. Give it when you report a problem.
@@ -619,23 +619,23 @@ you can script a whole visit to a town.
 
 ```bash
 # The main menu, 4.5 seconds after the start
-banished --boot-capture menu.png 4.5
+unbanished --boot-capture menu.png 4.5
 
 # A new game with the seed 1234: press New, then Ok, and look 16 seconds after the start
-BANISHED_SEED=1234 banished --boot-capture new-town.png 16 \
+UNBANISHED_SEED=1234 unbanished --boot-capture new-town.png 16 \
   --press buttonNew@4.5 --press buttonOk@5
 
 # One of your saves at speed 5, with the map window open, in a large picture
-banished --boot-capture my-town.png 30 --capture-size 1920x1080 \
+unbanished --boot-capture my-town.png 30 --capture-size 1920x1080 \
   --script "load save-game/Save83.sav@4.5" --script "speed 5@6" \
   --script "open Template/UtilityMap.rsc@25"
 
 # A picture of a map, without starting a game
-banished --capture map.png --view overview --seed 290 --terrain Valleys --size 0 --month 6
+unbanished --capture map.png --view overview --seed 290 --terrain Valleys --size 0 --month 6
 ```
 
 Runs without a window write saves and screenshots into your user folder. To keep them apart
-from your own, set `BANISHED_USER_DIR` and `BANISHED_SETTINGS` to a scratch folder, as in the
+from your own, set `UNBANISHED_USER_DIR` and `UNBANISHED_SETTINGS` to a scratch folder, as in the
 next example. The [game's README](../apps/game/README.md#headless-captures) lists every option,
 and [Recording videos](develop/VIDEOS.md) makes films from these runs.
 
@@ -646,8 +646,8 @@ writes the answer as JSON. It finds buttons by their text, and it can count the 
 buildings and animals. [The probe](develop/PROBE.md) describes every command.
 
 ```bash
-BANISHED_USER_DIR=/tmp/ub BANISHED_SETTINGS=/tmp/ub/settings.txt BANISHED_SEED=1234 \
-banished --boot-capture /tmp/last.png 20 \
+UNBANISHED_USER_DIR=/tmp/ub UNBANISHED_SETTINGS=/tmp/ub/settings.txt UNBANISHED_SEED=1234 \
+unbanished --boot-capture /tmp/last.png 20 \
   --probe "click text:New@4.5" --probe "click buttonOk@5" \
   --probe "town@16" --probe "citizens@16" --probe-out /tmp/answers.jsonl
 cat /tmp/answers.jsonl
@@ -664,15 +664,15 @@ game or in a run without a window. `--replay` plays the recording again from the
 checks that the town comes out the same.
 
 ```bash
-banished --record my-game.rec              # play; the next game you load is recorded
-banished --replay save-game/Save83.sav my-game.rec
+unbanished --record my-game.rec              # play; the next game you load is recorded
+unbanished --replay save-game/Save83.sav my-game.rec
 # identical      (or the first moment where the town differs; the exit code is then 1)
 ```
 
 ### Check that the browser and the desktop agree
 
 ```bash
-banished --sim-digest save-game/Save83.sav          # 200 seconds at speed 10, a checksum every second
+unbanished --sim-digest save-game/Save83.sav          # 200 seconds at speed 10, a checksum every second
 ```
 
 It prints a checksum of the whole town at regular times. The browser version prints the same
@@ -681,11 +681,11 @@ checksums for the same save (see [CROSS-PLATFORM.md](CROSS-PLATFORM.md)).
 ### Mods from the command line
 
 ```bash
-banished-cli nexus search terrain                    # Nexus Mods: search
-banished-cli nexus install 19 --to path/to/WinData   # install (needs your API key)
-banished-cli banishedinfo list --sort downloads      # banishedinfo.com: no account needed
-banished-cli banishedinfo install 34 --to path/to/WinData
-banished-mods path/to/WinData                        # the mod manager, with a window
+unbanished-cli nexus search terrain                    # Nexus Mods: search
+unbanished-cli nexus install 19 --to path/to/WinData   # install (needs your API key)
+unbanished-cli banishedinfo list --sort downloads      # banishedinfo.com: no account needed
+unbanished-cli banishedinfo install 34 --to path/to/WinData
+unbanished-mods path/to/WinData                        # the mod manager, with a window
 ```
 
 Without `--to`, mods go to `game-data/original/WinData`. See [Mods](#mods) and the
@@ -694,8 +694,8 @@ Without `--to`, mods go to `game-data/original/WinData`. See [Mods](#mods) and t
 ### Run a multiplayer relay
 
 ```bash
-banished-relay                       # listens on 0.0.0.0:7780, the default
-banished-relay 127.0.0.1:7780        # only for games on this computer
+unbanished-relay                       # listens on 0.0.0.0:7780, the default
+unbanished-relay 127.0.0.1:7780        # only for games on this computer
 ```
 
 [Multiplayer](#multiplayer) explains how players connect to it, and the
@@ -703,25 +703,25 @@ banished-relay 127.0.0.1:7780        # only for games on this computer
 
 ### Environment variables
 
-Set these before the command, for example `RUST_LOG=debug banished`, or with `set` (Windows
+Set these before the command, for example `RUST_LOG=debug unbanished`, or with `set` (Windows
 Command Prompt) or `$env:NAME = "value"` (PowerShell).
 
 | Variable | Effect |
 |---|---|
-| `BANISHED_USER_DIR` | The folder that holds `Save` and `Screenshots`. The default is `Documents/Banished`. |
-| `BANISHED_SETTINGS` | The settings file to use instead of your own. |
-| `BANISHED_SEED` | Fixes the random numbers of new games and of the menu, so two runs are the same. |
-| `BANISHED_MENU_SCENE` | Shows this main-menu scene, 0 to 9, instead of a random one. |
+| `UNBANISHED_USER_DIR` | The folder that holds `Save` and `Screenshots`. The default is `Documents/Banished`. |
+| `UNBANISHED_SETTINGS` | The settings file to use instead of your own. |
+| `UNBANISHED_SEED` | Fixes the random numbers of new games and of the menu, so two runs are the same. |
+| `UNBANISHED_MENU_SCENE` | Shows this main-menu scene, 0 to 9, instead of a random one. |
 | `RUST_LOG` | How much the log shows: `error`, `warn`, `info` (the default) or `debug`. |
-| `BANISHED_PROFILE` | `1` logs slow frames and frame-time summaries; `hitches` only slow frames. In the browser, add `?profile` to the address. See [Performance](PERFORMANCE.md). |
-| `BANISHED_THREADS` | How many threads loading uses. The default is one for each CPU core; `1` loads on one thread. |
-| `BANISHED_NEXUS_API_KEY` | Your Nexus Mods API key (see [Mods from Nexus Mods](#mods-from-nexus-mods)). |
+| `UNBANISHED_PROFILE` | `1` logs slow frames and frame-time summaries; `hitches` only slow frames. In the browser, add `?profile` to the address. See [Performance](PERFORMANCE.md). |
+| `UNBANISHED_THREADS` | How many threads loading uses. The default is one for each CPU core; `1` loads on one thread. |
+| `UNBANISHED_NEXUS_API_KEY` | Your Nexus Mods API key (see [Mods from Nexus Mods](#mods-from-nexus-mods)). |
 
 The [game's README](../apps/game/README.md#environment-variables) lists a few more, for tests.
 
 ## Version
 
-`banished --version` prints the version, for example `Un-Banished 0.4.0-dd814cb`:
+`unbanished --version` prints the version, for example `Un-Banished 0.4.0-dd814cb`:
 
 - `0.4.0` is the release: a released version, or the next one while it is being made (see the
   [changelog](../CHANGELOG.md)).
@@ -740,7 +740,7 @@ game data, and it never changes. When you report a problem, give both.
 **"No .pkg files found."** Un-Banished cannot find the game data. Give the `WinData` folder on
 the command line, put the program next to `WinData`, or run `tools/extract-assets.sh`.
 
-**`tools/extract-assets.sh` says that it cannot find Banished.** Set `BANISHED_DIR` to the folder
+**`tools/extract-assets.sh` says that it cannot find Banished.** Set `UNBANISHED_DIR` to the folder
 that contains `WinData`, and run the script again.
 
 **The browser page still shows the loading screen.** Select all four `.pkg` files at the same

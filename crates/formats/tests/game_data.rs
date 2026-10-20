@@ -1,10 +1,10 @@
 //! Decodes every supported resource in a real install. Skipped (passes trivially) when the
 //! git-ignored `game-data/original/WinData` folder is absent; run `tools/extract-assets.sh` first.
 
-use banished_formats::crc::type_id;
-use banished_formats::pkg::{Archive, Package};
-use banished_formats::{crs, types};
 use std::path::PathBuf;
+use unbanished_formats::crc::type_id;
+use unbanished_formats::pkg::{Archive, Package};
+use unbanished_formats::{crs, types};
 
 fn archive() -> Option<Archive> {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../game-data/original/WinData");
@@ -107,8 +107,8 @@ fn decodes_all_supported_resources() {
 /// Combined rigid and weighted geometry must reproduce every skinned mesh's stored bounds.
 #[test]
 fn skinned_bind_pose_matches_bounds() {
-    use banished_formats::skeleton::{bind_palette, local_bind, world_transforms};
-    use banished_formats::types::{POSITION_SCALE, SKINNED_STRIDE};
+    use unbanished_formats::skeleton::{bind_palette, local_bind, world_transforms};
+    use unbanished_formats::types::{POSITION_SCALE, SKINNED_STRIDE};
     let Some(archive) = archive() else { return };
     let mut checked = 0;
     for name in archive.names() {
@@ -179,7 +179,7 @@ fn skinned_bind_pose_matches_bounds() {
 /// Every UI resource decodes with exact block consumption.
 #[test]
 fn decodes_all_ui_resources() {
-    use banished_formats::ui;
+    use unbanished_formats::ui;
     let Some(archive) = archive() else { return };
     let mut counts = std::collections::BTreeMap::<&str, usize>::new();
     for name in archive.names() {
@@ -225,7 +225,7 @@ fn decodes_all_ui_resources() {
 fn residences_parse() {
     let Some(archive) = archive() else { return };
     for name in ["WoodHouse", "StoneHouse", "Hostel"] {
-        let d = banished_formats::game::residence_description(
+        let d = unbanished_formats::game::residence_description(
             &archive
                 .read_ref(&format!("Template/{name}.rsc:residence"))
                 .unwrap(),
@@ -239,7 +239,7 @@ fn residences_parse() {
 #[test]
 fn citizen_description_values() {
     let Some(archive) = archive() else { return };
-    let d = banished_formats::game::citizen_description(
+    let d = unbanished_formats::game::citizen_description(
         &archive.read_ref("Template/Citizen.rsc:citizen").unwrap(),
     )
     .unwrap();
@@ -252,7 +252,7 @@ fn citizen_description_values() {
 #[test]
 fn diseases_parse() {
     let Some(archive) = archive() else { return };
-    let list = banished_formats::game::external_list(
+    let list = unbanished_formats::game::external_list(
         &archive
             .read_ref("Game/Disease/Diseases.rsc:resource")
             .unwrap(),
@@ -260,8 +260,9 @@ fn diseases_parse() {
     .unwrap();
     assert_eq!(list.len(), 12);
     for r in list {
-        let d = banished_formats::game::disease(&archive.read_ref(&r.replace('\\', "/")).unwrap())
-            .unwrap();
+        let d =
+            unbanished_formats::game::disease(&archive.read_ref(&r.replace('\\', "/")).unwrap())
+                .unwrap();
         eprintln!("{r}: {d:?}");
         assert!(d.weight > 0.0);
     }

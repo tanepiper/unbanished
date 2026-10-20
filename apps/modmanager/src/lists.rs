@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use banished_mods::Modification;
+use unbanished_mods::Modification;
 
 /// A list's text for the mods as they are now.
 pub fn to_text(mods: &Modification) -> String {
@@ -86,14 +86,14 @@ pub fn file_name(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use banished_mods::text::TextSettings;
-    use banished_mods::Modification;
+    use unbanished_mods::text::TextSettings;
+    use unbanished_mods::Modification;
 
     /// The sample mods (git-ignored), or `None` without them.
     fn sample() -> Option<Modification> {
         let dir =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../game-data/mods/downloads");
-        let found = banished_mods::find(&dir);
+        let found = unbanished_mods::find(&dir);
         (found.len() >= 3).then(|| Modification::refresh(found, &TextSettings::default()))
     }
 

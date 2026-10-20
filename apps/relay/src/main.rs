@@ -4,10 +4,10 @@
 //! players in the order they come (the host is 0), tells everyone in the room who comes and goes,
 //! and passes each player's data on to one player or to all the others, without reading it. So
 //! nobody forwards a port: the host and the players all connect out to the relay. The protocol is
-//! in `banished-net`.
+//! in `unbanished-net`.
 //!
 //! ```text
-//! banished-relay [ADDRESS]      # default 0.0.0.0:7780
+//! unbanished-relay [ADDRESS]      # default 0.0.0.0:7780
 //! ```
 //!
 //! Not in the original game, which has no multiplayer; see docs/MULTIPLAYER-PLAN.md, step 5.
@@ -18,8 +18,8 @@ use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use banished_net::{decode, encode, FromRelay, ToRelay};
 use tungstenite::Message;
+use unbanished_net::{decode, encode, FromRelay, ToRelay};
 
 /// Rooms by code: each player's outgoing queue, by player number (None once they left).
 type Rooms = Arc<Mutex<HashMap<String, Vec<Option<Sender<FromRelay>>>>>>;
@@ -205,7 +205,7 @@ fn new_code(rooms: &HashMap<String, Vec<Option<Sender<FromRelay>>>>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use banished_net::Connection;
+    use unbanished_net::Connection;
 
     /// Waits for the next message on `c`.
     fn next(c: &mut Connection) -> FromRelay {

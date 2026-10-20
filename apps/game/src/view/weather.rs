@@ -9,9 +9,9 @@
 //! (`+0x40`). The alpha is the effect's intensity, faded with the depth between `+0x58`..`+0x54`
 //! and `+0x50`..`+0x4c`. Presentation only: the particles have their own Random.
 
-use banished_formats::weather::Weather;
-use banished_game::random::Random;
 use glam::{Mat4, Vec3};
+use unbanished_formats::weather::Weather;
+use unbanished_game::random::Random;
 
 #[derive(Clone, Copy, Debug)]
 struct Drop {

@@ -107,7 +107,7 @@ fn local_param(name: &str) -> Option<String> {
 
 /// `?digest=<save URL>&updates=N&every=M` (local pages only, as `?data=`): fetch a save to run
 /// without drawing, at speed 10, and show the simulation's digests (`gameplay::digest`), to
-/// compare with `banished --sim-digest` (docs/CROSS-PLATFORM.md).
+/// compare with `unbanished --sim-digest` (docs/CROSS-PLATFORM.md).
 pub fn load_digest_save(proxy: EventLoopProxy<UserEvent>) {
     let Some(url) = local_param("digest") else {
         return;

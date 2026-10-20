@@ -1,5 +1,5 @@
 //! Print a template's UIDescription: host, page and controllers (analysis helper).
-use banished_formats::pkg::{Archive, Package};
+use unbanished_formats::pkg::{Archive, Package};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -11,7 +11,7 @@ fn main() {
         }
     }
     for t in &args[2..] {
-        let d = banished_formats::game::ui_description(
+        let d = unbanished_formats::game::ui_description(
             &archive.read_ref(&format!("Template/{t}.rsc:ui")).unwrap(),
         )
         .unwrap();

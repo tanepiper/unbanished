@@ -17,7 +17,7 @@ pub(super) fn achievement_save<'a>(
     a: &'a crate::achievements::Achievement,
     instance: Option<&crate::achievements::AchievementInstance>,
 ) -> crate::start::save::new_game::AchievementSave<'a> {
-    use banished_formats::scenario::GoalKind;
+    use unbanished_formats::scenario::GoalKind;
     crate::start::save::new_game::AchievementSave {
         reference: &a.reference,
         goals: a
@@ -46,10 +46,10 @@ impl GameplayLoop {
     /// the loop's own state written back. `None` for a game not loaded from a save.
     pub fn save_state(
         &self,
-        archive: &banished_formats::pkg::Archive,
-        ui: &mut banished_ui::Ui,
-    ) -> Option<banished_formats::savegame::GameState> {
-        use banished_formats::savegame::{Fields, Value};
+        archive: &unbanished_formats::pkg::Archive,
+        ui: &mut unbanished_ui::Ui,
+    ) -> Option<unbanished_formats::savegame::GameState> {
+        use unbanished_formats::savegame::{Fields, Value};
         let mut g = match &self.saved {
             Some(saved) => saved.state.clone(),
             None => {
@@ -202,8 +202,8 @@ impl GameplayLoop {
     /// values. `name` replaces the town's (the autosave's `Autosave` string).
     pub fn save_file(
         &self,
-        archive: &banished_formats::pkg::Archive,
-        ui: &mut banished_ui::Ui,
+        archive: &unbanished_formats::pkg::Archive,
+        ui: &mut unbanished_ui::Ui,
         mods: &crate::mods::Modification,
         name: Option<&str>,
         preview: Option<Vec<u8>>,
@@ -213,7 +213,7 @@ impl GameplayLoop {
         let mut metadata = match &self.saved {
             Some(saved) => saved.metadata.clone(),
             // `SaveMetaData`'s block at version 3: the extension value is 2 and no mods.
-            None => banished_formats::save::SaveMetadata {
+            None => unbanished_formats::save::SaveMetadata {
                 name: String::new(),
                 width: 0,
                 height: 0,
@@ -231,7 +231,7 @@ impl GameplayLoop {
             metadata.height = h as i32;
             metadata.image = image;
         }
-        Some(banished_formats::save::Save::write(&metadata, &state))
+        Some(unbanished_formats::save::Save::write(&metadata, &state))
     }
 
     /// Write a save whose preview has been drawn.
@@ -328,8 +328,8 @@ impl GameplayLoop {
     /// for the save (`FUN_1400aa610`) and the overlay of placed buildings (`FUN_1400aa200`, as
     /// `0xAARRGGBB` texels).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    pub(super) fn save_minimap_images(&self, g: &mut banished_formats::savegame::GameState) {
-        use banished_formats::savegame::Value;
+    pub(super) fn save_minimap_images(&self, g: &mut unbanished_formats::savegame::GameState) {
+        use unbanished_formats::savegame::Value;
         let Some((n, terrain)) = &self.save_minimap else {
             return;
         };
@@ -352,7 +352,7 @@ impl GameplayLoop {
     /// A new game's state before the town and the loop are written into it
     /// (`crate::start::save::new_game`).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    pub(super) fn new_game_state(&self) -> Option<banished_formats::savegame::GameState> {
+    pub(super) fn new_game_state(&self) -> Option<unbanished_formats::savegame::GameState> {
         let mut map = self.new_map.clone()?;
         if let Some(view) = &self.view {
             map.heights = view.terrain.heights.clone();
@@ -376,10 +376,10 @@ impl GameplayLoop {
     /// The achievement instances (`AchievementManager::Persist`) and the game's goal
     /// (`+0x150`, its met flag `+0x158`). A loaded game's saved instances take the progress;
     /// a new game's are made.
-    pub(super) fn save_achievements(&self, g: &mut banished_formats::savegame::GameState) {
+    pub(super) fn save_achievements(&self, g: &mut unbanished_formats::savegame::GameState) {
         use crate::achievements::write_instance;
         use crate::start::save::new_game::{achievements, instance};
-        use banished_formats::savegame::Value;
+        use unbanished_formats::savegame::Value;
         if self.saved.is_some() {
             let items: Vec<_> = match g.achievements.at("achievements.instances") {
                 Some(Value::List(items)) => {

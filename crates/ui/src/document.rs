@@ -4,13 +4,13 @@
 //! Original: Runtime `0x1800d07b0`, Runtime `0x1800d0430`, Runtime `0x1800d0010`.
 use crate::controls::intersect;
 use crate::*;
-use banished_formats::ui;
-use banished_formats::{
+use std::collections::HashMap;
+use unbanished_formats::ui;
+use unbanished_formats::{
     crc::type_id,
     crs,
     error::{Error, Result},
 };
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Document {

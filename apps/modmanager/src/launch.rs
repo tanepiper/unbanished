@@ -31,11 +31,11 @@ pub fn pack_dir(args: &[String], remembered: Option<&str>) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../game-data/original/WinData")
 }
 
-/// The game's executable: `banished` beside this one (a release puts them together), else on
+/// The game's executable: `unbanished` beside this one (a release puts them together), else on
 /// the `PATH`.
 pub fn game_executable() -> PathBuf {
     let name = if cfg!(windows) {
-        "banished.exe"
+        "unbanished.exe"
     } else {
         "banished"
     };
@@ -54,9 +54,9 @@ pub fn start_game(dir: &Path) -> std::io::Result<()> {
 }
 
 /// Where named mod lists are kept: `Documents/Banished/ModLists` (beside the saves; see the
-/// game's `platform::paths::user_dir`, and `BANISHED_USER_DIR`).
+/// game's `platform::paths::user_dir`, and `UNBANISHED_USER_DIR`).
 pub fn lists_dir() -> Option<PathBuf> {
-    if let Ok(dir) = std::env::var("BANISHED_USER_DIR") {
+    if let Ok(dir) = unbanished_formats::env::var("USER_DIR") {
         return (!dir.is_empty()).then(|| PathBuf::from(dir).join("ModLists"));
     }
     let home = if cfg!(windows) {

@@ -4,7 +4,7 @@ In Banished, the player never controls a citizen directly. Each citizen decides 
 eat, get warm, fetch firewood for the home, go to work, visit the doctor. This page explains how
 that decision is made, and how it becomes walking and working. The code is in
 `crates/game/src/behaviour/` and `crates/game/src/people/`, and path finding in
-[banished-path](../../crates/path/README.md).
+[unbanished-path](../../crates/path/README.md).
 
 <video src="../assets/videos/citizens-market.webm" poster="../assets/videos/citizens-market-poster.webp" autoplay loop muted playsinline width="720"></video>
 

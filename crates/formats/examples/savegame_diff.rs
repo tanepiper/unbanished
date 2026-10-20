@@ -1,8 +1,8 @@
 //! Compare two saves' game state (analysis helper): clocks, Random, and object counts by type.
-//! `cargo run -p banished-formats --example savegame_diff -- A.sav B.sav`
-use banished_formats::save::Save;
-use banished_formats::savegame::{GameState, Value};
+//! `cargo run -p unbanished-formats --example savegame_diff -- A.sav B.sav`
 use std::collections::BTreeMap;
+use unbanished_formats::save::Save;
+use unbanished_formats::savegame::{GameState, Value};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
