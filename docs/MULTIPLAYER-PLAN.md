@@ -205,7 +205,7 @@ the same corruption leaves the players disagreeing from update 420, so the compa
 Joining a running game uses the same save; it needs the players to agree on the slot from which
 the new player's turns are wanted, and is left for the network step.
 
-### 5. Network
+### 5. Network (done)
 
 A `Transport` trait with one message stream per player. WebSocket works both natively and in the
 browser, so it is the first transport: a small relay (`apps/relay`, a Rust binary with room
@@ -215,6 +215,34 @@ connection (TCP or QUIC) and WebRTC between browsers can follow.
 Messages: `Hello` (engine version and build, a hash of the game data and the mod list, which must
 match), `Turn { update, commands }`, `Digest { update, crc }`, `Save { update, bytes }` (join and
 resync), and later cursors and pings.
+
+Done. The relay is `apps/relay` (`banished-relay [ADDRESS]`, default `0.0.0.0:7780`): rooms with
+six-letter codes, players numbered as they come (the host is 0), news of who comes and goes, and
+data passed on to one player or to all the others without being read. The protocol and a
+connection to it are `crates/net` (`banished-net`): one postcard-encoded value per WebSocket binary
+message; natively a background thread with tungstenite, in the browser the page's `WebSocket`.
+
+In the game, `gameplay/network.rs` holds a `Link` (the relay through `RelayLink`, or a simulated
+network for tests) and `NetPeer`, which drives one player's lockstep game over it: it receives
+turns, digests and saves, seals and sends its turns, and as the host checks digests and resyncs.
+A game starts with the host's `Message::Start`: its save, the players, the delay and the check
+interval. Every player, the host included, loads that save, so a joining player needs no file. The
+in-process test (`--lockstep-test`) now runs on the same `NetPeer` code.
+
+Proof:
+
+- `tools/compat/network.sh` starts a relay and runs three game processes as the players of a room
+  (`banished --net-test`): the two that join get the save from the host; all agree on 26 digests
+  (1,567 updates in about 16 s). With player 1 scrambled at update 400, the host finds it at 480,
+  resyncs at 481, and the three agree on the 18 digests after.
+- A browser tab joined the same kind of room as the third player
+  (`?net=ws://…&room=CODE&updates=N` on a local page): it received the host's 7.9 MB save over the
+  WebSocket and agreed with the native host and the native player on all 27 digests, through every
+  action of the recording. Native and browser players can share a game.
+
+Open: a public relay needs TLS (`wss://`) for the published `https://` site, by a reverse proxy in
+front of it; a player who leaves is not handled yet (the others wait); joining a game already
+running.
 
 ### 6. Interface
 

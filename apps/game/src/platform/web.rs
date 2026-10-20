@@ -99,9 +99,24 @@ pub fn load_digest_save(proxy: EventLoopProxy<UserEvent>) {
     });
 }
 
+/// `?net=RELAY&room=CODE&updates=N` (local pages only): join a relay room as a player of a
+/// networked test (`gameplay::network::JoinSession`).
+pub fn net_request() -> Option<(String, String, u64)> {
+    Some((
+        local_param("net")?,
+        local_param("room")?,
+        local_param("updates")?.parse().ok()?,
+    ))
+}
+
 /// The digests (or an error) in a `<pre id="digest">` at the end of the page, and the log.
 pub fn show_digest(text: &str) {
     log::info!("digest:\n{text}");
+    set_digest_text(text);
+}
+
+/// The text of the `<pre id="digest">`, without logging it (it changes every frame).
+pub fn set_digest_text(text: &str) {
     let doc = document();
     let pre = doc.get_element_by_id("digest").unwrap_or_else(|| {
         let pre = doc.create_element("pre").unwrap();

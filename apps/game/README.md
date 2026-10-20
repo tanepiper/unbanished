@@ -163,6 +163,17 @@ it and resync everybody from its save. It prints the desyncs and resyncs, and `i
 every player's game agrees at the end; it exits with 1 when not.
 `tools/compat/lockstep.sh BINARY` runs it with six settings on the `actions` scenario.
 
+### Network test
+
+`banished --net-test RELAY host|join ROOM SAVE RECORDING PLAYERS [DELAY] [CHECK] [CORRUPT]` is one
+player of a game played through a relay (`banished-relay`): the host opens ROOM, waits for
+PLAYERS and starts the game from SAVE; the others join ROOM and get the save from the host. Each
+plays its share of RECORDING's commands and prints a digest every 60 updates; CORRUPT `UPDATE`
+scrambles this player's game there. `tools/compat/network.sh BINARY` runs a relay and three players
+and compares them. In the browser build, a local page with
+`?data=/game-data/&net=ws://127.0.0.1:PORT&room=ROOM&updates=N` joins as a player (giving no
+commands) and shows its digests at the end of the page.
+
 ### `--sim-digest`
 
 `banished --sim-digest SAVE [UPDATES] [EVERY]` loads a save without a window, runs it at speed

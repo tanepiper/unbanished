@@ -1,0 +1,22 @@
+[package]
+name = "banished-net"
+version.workspace = true
+description = "Un-Banished multiplayer networking: the relay's protocol and a WebSocket connection to it, natively and in the browser"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+# The native connection (a background thread with tungstenite). The browser uses its WebSocket.
+native = ["dep:tungstenite"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+postcard = { version = "1.1", default-features = false, features = ["use-std"] }
+log = "0.4"
+tungstenite = { version = "0.30", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.129"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["WebSocket", "MessageEvent", "BinaryType", "CloseEvent", "Event"] }

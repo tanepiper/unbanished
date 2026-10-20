@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/core", "crates/terrain", "crates/path", "crates/formats", "crates/wma", "crates/ui", "crates/game", "crates/gfx", "crates/audio", "crates/nexus", "crates/banishedinfo", "crates/mods", "apps/viewer", "apps/cli", "apps/modmanager", "apps/game"]
+members = ["crates/core", "crates/terrain", "crates/path", "crates/formats", "crates/wma", "crates/ui", "crates/game", "crates/gfx", "crates/audio", "crates/nexus", "crates/banishedinfo", "crates/mods", "crates/net", "apps/viewer", "apps/cli", "apps/modmanager", "apps/game", "apps/relay"]
 
 [workspace.package]
 # The Un-Banished engine version (not the Banished game version, 1.0.7). Every crate inherits it;

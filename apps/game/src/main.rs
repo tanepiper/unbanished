@@ -808,6 +808,9 @@ struct App {
     /// `?digest=`: the save, updates and interval, waiting for the game to start.
     #[cfg(target_arch = "wasm32")]
     pending_digest: Option<(Vec<u8>, u32, u32)>,
+    /// `?net=`: a networked test's joining player, once the game has started.
+    #[cfg(target_arch = "wasm32")]
+    net_session: Option<gameplay::network::JoinSession>,
     game: Option<Game>,
     last_frame: Option<Instant>,
     /// `Engine::MainLoop +0x38`: real time not yet stepped (ticks).
@@ -835,6 +838,8 @@ impl App {
             pending_mods: None,
             #[cfg(target_arch = "wasm32")]
             pending_digest: None,
+            #[cfg(target_arch = "wasm32")]
+            net_session: None,
             game: None,
             last_frame: None,
             accumulated: 0,
@@ -1188,6 +1193,27 @@ impl ApplicationHandler<UserEvent> for App {
                 if let (Some(last), Some(min)) = (self.last_frame, self.frame_interval) {
                     if Instant::now() - last < min {
                         return;
+                    }
+                }
+                // `?net=`: the networked test's player runs a few milliseconds each frame.
+                #[cfg(target_arch = "wasm32")]
+                {
+                    if self.net_session.is_none() {
+                        if let Some((relay, room, updates)) = platform::web::net_request() {
+                            self.net_session =
+                                Some(gameplay::network::JoinSession::new(&relay, &room, updates));
+                        }
+                    }
+                    if let Some(s) = &mut self.net_session {
+                        if !s.done {
+                            s.step(game, std::time::Duration::from_millis(30));
+                            let mut text = s.status.clone();
+                            for l in &s.lines {
+                                text.push('\n');
+                                text.push_str(l);
+                            }
+                            platform::web::set_digest_text(&text);
+                        }
                     }
                 }
                 platform::perf::frame_begin();
@@ -1719,7 +1745,7 @@ mod native {
         };
         let number =
             |i: usize, default: u64| args.get(i).and_then(|s| s.parse().ok()).unwrap_or(default);
-        let sim = crate::gameplay::lockstep::Simulation {
+        let sim = crate::gameplay::network::Simulation {
             players: number(3, 3) as u8,
             delay: number(4, 6),
             jitter: number(5, 8),
@@ -1745,7 +1771,7 @@ mod native {
         .expect("game data");
         game.audio.set_master_volume(0.0);
         let start = std::time::Instant::now();
-        match crate::gameplay::lockstep::simulate(&mut game, &bytes, &text, sim, 0) {
+        match crate::gameplay::network::simulate(&mut game, &bytes, &text, sim, 0) {
             Ok(r) => {
                 for d in &r.digests[0] {
                     println!("{d}");
@@ -1782,6 +1808,164 @@ mod native {
             }
             Err(e) => {
                 eprintln!("--lockstep-test: {e}");
+                std::process::exit(2);
+            }
+        }
+    }
+
+    /// `--net-test RELAY host|join ROOM SAVE RECORDING PLAYERS [DELAY] [CHECK] [CORRUPT]`: one
+    /// player of a networked lockstep game through a relay (`banished-relay`). The host opens
+    /// ROOM, waits for PLAYERS, and starts the game from SAVE (joining players get it from the
+    /// host and ignore SAVE); each plays its share of RECORDING's commands and prints its
+    /// digests. CORRUPT `UPDATE` scrambles this player's game there. tools/compat/network.sh runs
+    /// several and compares them.
+    pub fn net_test(args: &[String]) {
+        use crate::gameplay::network::{NetPeer, RelayLink, Script, Shared};
+        let usage =
+            "--net-test RELAY host|join ROOM SAVE RECORDING PLAYERS [DELAY] [CHECK] [CORRUPT]";
+        let (Some(relay), Some(role), Some(room), Some(save), Some(recording), Some(players)) = (
+            args.get(1),
+            args.get(2),
+            args.get(3),
+            args.get(4),
+            args.get(5),
+            args.get(6).and_then(|s| s.parse::<u8>().ok()),
+        ) else {
+            eprintln!("{usage}");
+            std::process::exit(2);
+        };
+        let number =
+            |i: usize, default: u64| args.get(i).and_then(|s| s.parse().ok()).unwrap_or(default);
+        let (delay, check) = (number(7, 6), number(8, 120));
+        let corrupt = args.get(9).and_then(|s| s.parse::<u64>().ok());
+        let host = role == "host";
+        let text = std::fs::read_to_string(recording).expect("read the recording");
+        let dir = data_dir(args);
+        let found = crate::mods::find(&dir);
+        let mut game = Game::with_mods(
+            read_packages(&dir),
+            found,
+            Some(dir),
+            crate::settings::Settings::default(),
+        )
+        .expect("game data");
+        game.audio.set_master_volume(0.0);
+        let link = std::rc::Rc::new(std::cell::RefCell::new(RelayLink::new(
+            banished_net::Connection::connect(relay),
+        )));
+        let request = match host {
+            true => banished_net::ToRelay::Host {
+                room: Some(room.clone()),
+            },
+            false => banished_net::ToRelay::Join { room: room.clone() },
+        };
+        link.borrow_mut().request(request);
+        // Who this player is, and (the host) everybody there.
+        let wait = |what: &str, done: &mut dyn FnMut(&banished_net::FromRelay) -> bool| {
+            let start = std::time::Instant::now();
+            loop {
+                let _ = crate::gameplay::network::Link::poll(&mut *link.borrow_mut());
+                let events: Vec<_> = link.borrow_mut().events.drain(..).collect();
+                for e in &events {
+                    if let banished_net::FromRelay::Error { message } = e {
+                        eprintln!("relay: {message}");
+                        std::process::exit(2);
+                    }
+                    if done(e) {
+                        return;
+                    }
+                }
+                if let banished_net::State::Closed(e) = link.borrow().state() {
+                    eprintln!("relay: {e}");
+                    std::process::exit(2);
+                }
+                if start.elapsed().as_secs() > 120 {
+                    eprintln!("waited too long for {what}");
+                    std::process::exit(2);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+        };
+        let mut me = 0u8;
+        wait("the room", &mut |e| match e {
+            banished_net::FromRelay::Hosted { .. } => true,
+            banished_net::FromRelay::Joined { player, .. } => {
+                me = *player;
+                true
+            }
+            _ => false,
+        });
+        log::info!("player {me} in room {room}");
+        let mut peer = NetPeer::new(me, Box::new(Shared(link.clone())), check);
+        let mut script = Script::new(&text, players as usize, delay, false).expect("the recording");
+        let last = script.last + delay + 1;
+        let start = std::time::Instant::now();
+        let outcome = game.with_ctx(|_, ctx| -> Result<Vec<String>, String> {
+            if host {
+                let mut joined = 1;
+                wait("the players", &mut |e| {
+                    if let banished_net::FromRelay::PeerJoined { .. } = e {
+                        joined += 1;
+                    }
+                    joined >= players
+                });
+                let bytes = std::fs::read(save).map_err(|e| e.to_string())?;
+                peer.host_start(ctx, bytes, players, delay)?;
+            }
+            let mut lines = Vec::new();
+            let mut corrupt = corrupt;
+            loop {
+                let arrived = peer.poll(ctx)?;
+                let Some(g) = peer.game.as_mut() else {
+                    if !arrived {
+                        std::thread::sleep(std::time::Duration::from_millis(2));
+                    }
+                    continue;
+                };
+                if g.updates() > last {
+                    break;
+                }
+                script.give(me as usize, g, ctx);
+                let Some(update) = peer.begin(ctx) else {
+                    if !arrived {
+                        std::thread::sleep(std::time::Duration::from_micros(500));
+                    }
+                    continue;
+                };
+                if corrupt.is_some_and(|at| update >= at) {
+                    peer.game.as_mut().unwrap().scramble();
+                    corrupt = None;
+                }
+                peer.boundary(ctx, update)?;
+                if update % 60 == 0 {
+                    // Printed at once, so that a run cut short can be compared too; after a
+                    // resync an update can come again, and its last line counts.
+                    let d = peer.game.as_ref().unwrap().state_digest(ctx, update)?;
+                    println!("{d}");
+                    lines.push(d.to_string());
+                }
+                peer.update(ctx);
+            }
+            // Let the last messages go out before the connection closes.
+            let linger = std::time::Instant::now();
+            while linger.elapsed().as_millis() < 1500 {
+                peer.poll(ctx)?;
+                peer.begin(ctx);
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            Ok(lines)
+        });
+        match outcome {
+            Ok(_) => {
+                println!("desyncs {:?} resyncs {:?}", peer.desyncs, peer.resyncs);
+                log::info!(
+                    "player {me}: {} updates in {:.1} s",
+                    last,
+                    start.elapsed().as_secs_f32()
+                );
+            }
+            Err(e) => {
+                eprintln!("--net-test: {e}");
                 std::process::exit(2);
             }
         }
@@ -1873,6 +2057,7 @@ fn main() {
         Some("--sim-digest") => return native::sim_digest(&args),
         Some("--replay") => return native::replay(&args),
         Some("--lockstep-test") => return native::lockstep_test(&args),
+        Some("--net-test") => return native::net_test(&args),
         Some("--capture") => {
             let out = args.get(1).expect("--capture OUT.png [OPTIONS]");
             return native::map_capture(&args, out);

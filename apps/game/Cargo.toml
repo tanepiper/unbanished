@@ -17,6 +17,7 @@ banished-ui = { path = "../../crates/ui" }
 banished-gfx = { path = "../../crates/gfx" }
 banished-audio = { path = "../../crates/audio" }
 banished-nexus = { path = "../../crates/nexus" }
+banished-net = { path = "../../crates/net" }
 banished-mods = { path = "../../crates/mods" }
 wgpu = { version = "30", features = ["webgl"] }
 winit = "0.30"
@@ -33,6 +34,7 @@ pollster = "1"
 png = "0.18"
 jiff = { version = "0.2", default-features = false, features = ["std", "tz-system"] }
 banished-nexus = { path = "../../crates/nexus", features = ["native"] }
+banished-net = { path = "../../crates/net", features = ["native"] }
 banished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

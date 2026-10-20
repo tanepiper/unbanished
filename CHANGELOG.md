@@ -41,6 +41,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
   exchanging only their commands. `banished --lockstep-test` runs players in one process over a
   simulated network (step 3). The host compares the players' games every 600 updates and, when
   they differ, everybody reloads the host's save and goes on (step 4).
+- A multiplayer relay, `banished-relay`, with room codes, and the game's WebSocket connection to
+  it, natively and in the browser (`banished-net`). Native and browser players have played one
+  game through it and stayed identical (step 5). There is no multiplayer menu yet.
 
 ## [0.2.0] - 2026-10-19
 

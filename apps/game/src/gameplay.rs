@@ -15,6 +15,7 @@ pub mod digest;
 mod hud;
 mod input;
 pub mod lockstep;
+pub mod network;
 pub mod recording;
 mod saving;
 mod simulation;

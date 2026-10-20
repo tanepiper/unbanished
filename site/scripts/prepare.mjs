@@ -76,6 +76,7 @@ const PAGES = {
   'apps/viewer/README.md': { path: '/reference/viewer', description: 'The asset browser, banished-viewer.' },
   'apps/cli/README.md': { path: '/reference/cli', description: 'Command-line tools, banished-cli.' },
   'apps/modmanager/README.md': { path: '/reference/modmanager', description: 'The mod manager, banished-mods.' },
+  'apps/relay/README.md': { path: '/reference/relay', description: 'The multiplayer relay, banished-relay.' },
   'crates/core/README.md': { path: '/reference/core', description: 'banished-core: exact maths, Random, noise, game time.' },
   'crates/terrain/README.md': { path: '/reference/terrain', description: 'banished-terrain: map generation and ground queries.' },
   'crates/path/README.md': { path: '/reference/path', description: 'banished-path: the A* pathfinder and the sector graph.' },
@@ -88,6 +89,7 @@ const PAGES = {
   'crates/mods/README.md': { path: '/reference/mods', description: 'banished-mods: the mod list shared by the game and the mod manager.' },
   'crates/banishedinfo/README.md': { path: '/reference/banishedinfo', description: 'banished-banishedinfo: optional banishedinfo.com support.' },
   'crates/nexus/README.md': { path: '/reference/nexus', description: 'banished-nexus: optional Nexus Mods support.' },
+  'crates/net/README.md': { path: '/reference/net', description: 'banished-net: the multiplayer relay protocol and connection.' },
 }
 
 /** VitePress's anchor for a heading anchor in GitHub style (a leading digit gets `_`). */
