@@ -169,4 +169,5 @@ first.
 ---
 
 **All changes:** [Changelog, version 0.3.0](/changelog) ·
-**Earlier:** [Boomtown, 0.2.0](/blog/0-2-0-boomtown)
+**Earlier:** [Boomtown, 0.2.0](/blog/0-2-0-boomtown) ·
+**Next:** [Sixty a second](/blog/measuring-speed)
