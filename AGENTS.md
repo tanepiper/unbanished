@@ -164,13 +164,20 @@ footer ("Version 1.0.7 - Build 170910") comes from the original's resources and 
 ## Before every commit
 
 ```bash
-cargo test --offline -q --workspace --release --no-fail-fast
-tools/triage/determinism.sh 22 1234
-cargo build --offline --release -p banished-app --target wasm32-unknown-unknown   # 0 warnings
 rustfmt --edition 2021 <the files you changed>
-python3 tools/triage/deviations.py                                                # stage docs/DEVIATIONS.md
+tools/test/run.py                     # quick tier, ~1½ min: format, ledger, cargo test, wasm, probe baselines
+tools/test/run.py determinism browser # ~3 min more, when the change touches the game, its UI or the web page
 tools/compat/compare.sh HEAD <your build or commit>   # if the change can touch the simulation
 ```
+
+`tools/test/run.py long` adds the website, replays, lockstep, network and multiplayer: run it
+before a release and after save, network or multiplayer work. The quick tier regenerates
+`docs/DEVIATIONS.md`; stage it if it changed. A probe baseline that changes
+(`tools/test/baselines/`) is a change in what the game does: find the cause, or record it with
+`--update-baselines` only when the change is intended. In tests and scripts, find and press
+things with the probe ([docs/develop/PROBE.md](docs/develop/PROBE.md)), not with pixel
+positions or fixed waits. [docs/develop/TESTING.md](docs/develop/TESTING.md) describes every
+suite.
 
 An optimisation or refactor must not change the game's results at all: same saves, same frames,
 same random numbers ([docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)). If the comparison finds a

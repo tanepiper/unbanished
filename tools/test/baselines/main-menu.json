@@ -1,0 +1,348 @@
+[
+ {
+  "command": "state",
+  "ok": {
+   "dialogs": [
+    "Dialog\\BuildId.rsc:main",
+    "Dialog\\MainMenu.rsc:main"
+   ],
+   "loop": "Game/Menu",
+   "quit": false
+  },
+  "t": 4.5
+ },
+ {
+  "command": "ui ref:MainMenu kind:button",
+  "ok": [
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonNew",
+    "rect": [
+     560,
+     219,
+     720,
+     249
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonNew",
+    "text": "New"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonLoad",
+    "rect": [
+     560,
+     255,
+     720,
+     285
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonLoad",
+    "text": "Load"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonMultiplayer",
+    "rect": [
+     560,
+     291,
+     720,
+     321
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonLoad",
+    "text": "Multiplayer"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonTutorial",
+    "rect": [
+     560,
+     327,
+     720,
+     357
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonTutorial",
+    "text": "Tutorials"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonAchievement",
+    "rect": [
+     560,
+     363,
+     720,
+     393
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonAchievement",
+    "text": "Achievements"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonOptions",
+    "rect": [
+     560,
+     399,
+     720,
+     429
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonOptions",
+    "text": "Options"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonMod",
+    "rect": [
+     560,
+     435,
+     720,
+     465
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonMod",
+    "text": "Mods"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonQuit",
+    "rect": [
+     560,
+     471,
+     720,
+     501
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonQuit",
+    "text": "Exit"
+   }
+  ],
+  "t": 4.5
+ },
+ {
+  "command": "click ref:MainMenu text:New",
+  "ok": {
+   "enabled": true,
+   "kind": "button",
+   "name": "buttonNew",
+   "rect": [
+    560,
+    219,
+    720,
+    249
+   ],
+   "ref": "Dialog\\MainMenu.rsc:buttonNew",
+   "text": "New"
+  },
+  "t": 4.6
+ },
+ {
+  "command": "state",
+  "ok": {
+   "dialogs": [
+    "Dialog\\NewGame.rsc:main",
+    "Dialog\\BuildId.rsc:main",
+    "Dialog\\MainMenu.rsc:main"
+   ],
+   "loop": "Game/Menu",
+   "quit": false
+  },
+  "t": 5.0
+ },
+ {
+  "command": "ui ref:NewGame kind:combo",
+  "ok": [
+   {
+    "enabled": true,
+    "kind": "combo",
+    "name": "comboTerrain",
+    "rect": [
+     581,
+     287,
+     741,
+     313
+    ],
+    "ref": "Dialog\\NewGame.rsc:comboTerrain",
+    "text": ""
+   },
+   {
+    "enabled": true,
+    "kind": "combo",
+    "name": "comboTerrainSize",
+    "rect": [
+     581,
+     317,
+     741,
+     343
+    ],
+    "ref": "Dialog\\NewGame.rsc:comboTerrainSize",
+    "text": ""
+   },
+   {
+    "enabled": true,
+    "kind": "combo",
+    "name": "comboClimate",
+    "rect": [
+     581,
+     347,
+     741,
+     373
+    ],
+    "ref": "Dialog\\NewGame.rsc:comboClimate",
+    "text": ""
+   },
+   {
+    "enabled": true,
+    "kind": "combo",
+    "name": "comboDisaster",
+    "rect": [
+     581,
+     377,
+     741,
+     403
+    ],
+    "ref": "Dialog\\NewGame.rsc:comboDisaster",
+    "text": ""
+   },
+   {
+    "enabled": true,
+    "kind": "combo",
+    "name": "comboCondition",
+    "rect": [
+     581,
+     407,
+     741,
+     433
+    ],
+    "ref": "Dialog\\NewGame.rsc:comboCondition",
+    "text": ""
+   }
+  ],
+  "t": 5.0
+ },
+ {
+  "command": "ui ref:NewGame kind:button",
+  "ok": [
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonNewName",
+    "rect": [
+     829,
+     231,
+     853,
+     255
+    ],
+    "ref": "Dialog\\NewGame.rsc:buttonNewName",
+    "text": ""
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonNewSeed",
+    "rect": [
+     829,
+     259,
+     853,
+     283
+    ],
+    "ref": "Dialog\\NewGame.rsc:buttonNewSeed",
+    "text": ""
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "",
+    "rect": [
+     581,
+     287,
+     741,
+     313
+    ],
+    "ref": "",
+    "text": "Valleys"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "",
+    "rect": [
+     581,
+     317,
+     741,
+     343
+    ],
+    "ref": "",
+    "text": "Small"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "",
+    "rect": [
+     581,
+     347,
+     741,
+     373
+    ],
+    "ref": "",
+    "text": "Fair"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "",
+    "rect": [
+     581,
+     377,
+     741,
+     403
+    ],
+    "ref": "",
+    "text": "On"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "",
+    "rect": [
+     581,
+     407,
+     741,
+     433
+    ],
+    "ref": "",
+    "text": "Medium"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonOk",
+    "rect": [
+     765,
+     505,
+     861,
+     531
+    ],
+    "ref": "Dialog\\SharedElements.rsc:buttonOk",
+    "text": "Ok"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonCancel",
+    "rect": [
+     665,
+     505,
+     761,
+     531
+    ],
+    "ref": "Dialog\\SharedElements.rsc:buttonCancel",
+    "text": "Cancel"
+   }
+  ],
+  "t": 5.0
+ }
+]

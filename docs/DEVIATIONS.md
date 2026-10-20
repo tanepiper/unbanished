@@ -20,9 +20,9 @@ Deviation: 60, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/gameplay.rs`
 
-- [Deviation] [apps/game/src/gameplay.rs:56](../apps/game/src/gameplay.rs#L56): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
-- [Deviation] [apps/game/src/gameplay.rs:741](../apps/game/src/gameplay.rs#L741): `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller. Deviation: in a multiplayer game the pause menu does not hold the shared game.
-- [Deviation] [apps/game/src/gameplay.rs:935](../apps/game/src/gameplay.rs#L935): AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets the game speed (`Game +0x120 → +0x34`) back to 1. Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on each player's own setting.
+- [Deviation] [apps/game/src/gameplay.rs:57](../apps/game/src/gameplay.rs#L57): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
+- [Deviation] [apps/game/src/gameplay.rs:742](../apps/game/src/gameplay.rs#L742): `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller. Deviation: in a multiplayer game the pause menu does not hold the shared game.
+- [Deviation] [apps/game/src/gameplay.rs:936](../apps/game/src/gameplay.rs#L936): AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets the game speed (`Game +0x120 → +0x34`) back to 1. Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on each player's own setting.
 
 ## `apps/game/src/gameplay/digest.rs`
 
@@ -63,11 +63,11 @@ Deviation: 60, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/main.rs`
 
-- [Deviation] [apps/game/src/main.rs:82](../apps/game/src/main.rs#L82): Deviation: the original also draws between steps (`MainLoop::Frame`'s `+0x38 / +0x48` handed to `Renderer::Draw`, models and poses blending their `InterpolatedState`); the port draws the last step, which differs only on displays faster than 60 Hz.
-- [Deviation] [apps/game/src/main.rs:114](../apps/game/src/main.rs#L114): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
-- [Deviation] [apps/game/src/main.rs:123](../apps/game/src/main.rs#L123): A capture's cinematic camera this frame: eye, target and vertical field of view ([`view::cinematic`]). Deviation: not in the original; drawing only, set by captures.
-- [Deviation] [apps/game/src/main.rs:899](../apps/game/src/main.rs#L899): The display modes of the window's monitor, largest first (`Adapter::FindDisplayMode` lists). Deviation: the browser offers the page's size at 100, 75 and 50 % (the scene is drawn at that size and scaled to the page, `Renderer::set_scene_scale`) and frame-rate limits of 30 to 120 per second (issue #15).
-- [Deviation] [apps/game/src/main.rs:995](../apps/game/src/main.rs#L995): Deviation: in the browser, Fullscreen asks the browser to show the page full screen (winit waits for the next click or key if the browser needs one) instead of changing the display mode.
+- [Deviation] [apps/game/src/main.rs:83](../apps/game/src/main.rs#L83): Deviation: the original also draws between steps (`MainLoop::Frame`'s `+0x38 / +0x48` handed to `Renderer::Draw`, models and poses blending their `InterpolatedState`); the port draws the last step, which differs only on displays faster than 60 Hz.
+- [Deviation] [apps/game/src/main.rs:115](../apps/game/src/main.rs#L115): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
+- [Deviation] [apps/game/src/main.rs:124](../apps/game/src/main.rs#L124): A capture's cinematic camera this frame: eye, target and vertical field of view ([`view::cinematic`]). Deviation: not in the original; drawing only, set by captures.
+- [Deviation] [apps/game/src/main.rs:906](../apps/game/src/main.rs#L906): The display modes of the window's monitor, largest first (`Adapter::FindDisplayMode` lists). Deviation: the browser offers the page's size at 100, 75 and 50 % (the scene is drawn at that size and scaled to the page, `Renderer::set_scene_scale`) and frame-rate limits of 30 to 120 per second (issue #15).
+- [Deviation] [apps/game/src/main.rs:1002](../apps/game/src/main.rs#L1002): Deviation: in the browser, Fullscreen asks the browser to show the page full screen (winit waits for the next click or key if the browser needs one) instead of changing the display mode.
 
 ## `apps/game/src/menu.rs`
 

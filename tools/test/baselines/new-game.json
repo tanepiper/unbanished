@@ -1,0 +1,349 @@
+[
+ {
+  "command": "click ref:MainMenu text:New",
+  "ok": {
+   "enabled": true,
+   "kind": "button",
+   "name": "buttonNew",
+   "rect": [
+    560,
+    219,
+    720,
+    249
+   ],
+   "ref": "Dialog\\MainMenu.rsc:buttonNew",
+   "text": "New"
+  },
+  "t": 4.5
+ },
+ {
+  "command": "type editName=Testwood",
+  "ok": {
+   "typed": "Testwood"
+  },
+  "t": 4.8
+ },
+ {
+  "command": "type editSeed=1234",
+  "ok": {
+   "typed": "1234"
+  },
+  "t": 4.9
+ },
+ {
+  "command": "click ref:NewGame buttonOk",
+  "ok": {
+   "enabled": true,
+   "kind": "button",
+   "name": "buttonOk",
+   "rect": [
+    765,
+    505,
+    861,
+    531
+   ],
+   "ref": "Dialog\\SharedElements.rsc:buttonOk",
+   "text": "Ok"
+  },
+  "t": 5.0
+ },
+ {
+  "command": "state",
+  "ok": {
+   "dialogs": [
+    "Dialog\\AutoSave.rsc:main",
+    "Dialog\\EventNotify.rsc:content",
+    "Dialog\\Toolbar.rsc:main"
+   ],
+   "loop": "Game/Game",
+   "quit": false
+  },
+  "t": 16.0
+ },
+ {
+  "command": "town",
+  "ok": {
+   "adults": 10,
+   "animals": 110,
+   "buildings": 2,
+   "children": 9,
+   "firewood": 200,
+   "food": 1800,
+   "happiness": 10.0,
+   "health": 10.0,
+   "month": 0,
+   "name": "Testwood",
+   "paused": false,
+   "population": 19,
+   "students": 0,
+   "year": 1
+  },
+  "t": 16.0
+ },
+ {
+  "command": "stock",
+  "ok": {
+   "alcohol": 0,
+   "clothes": 19,
+   "coal": 0,
+   "firewood": 200,
+   "food": 1800,
+   "herbs": 0,
+   "iron": 40,
+   "stone": 60,
+   "textile": 0,
+   "tools": 35,
+   "wood": 120
+  },
+  "t": 16.0
+ },
+ {
+  "command": "buildings",
+  "ok": {
+   "built": {
+    "by_name": {
+     "StorageBarn": 1,
+     "StorageYard": 1
+    },
+    "total": 2
+   },
+   "under_construction": {
+    "by_name": {},
+    "total": 0
+   }
+  },
+  "t": 16.0
+ },
+ {
+  "command": "citizens",
+  "ok": {
+   "adults": 10,
+   "by_profession": {
+    "laborer": 10
+   },
+   "children": 9,
+   "students": 0
+  },
+  "t": 16.0
+ },
+ {
+  "command": "animals",
+  "ok": {
+   "by_name": {
+    "WildAnimalDeer": 110
+   },
+   "total": 110
+  },
+  "t": 16.0
+ },
+ {
+  "command": "script speed 10",
+  "ok": {
+   "done": "speed 10"
+  },
+  "t": 16.5
+ },
+ {
+  "command": "town",
+  "ok": {
+   "adults": 10,
+   "animals": 109,
+   "buildings": 2,
+   "children": 9,
+   "firewood": 200,
+   "food": 1800,
+   "happiness": 10.0,
+   "health": 10.0,
+   "month": 0,
+   "name": "Testwood",
+   "paused": false,
+   "population": 19,
+   "students": 0,
+   "year": 1
+  },
+  "t": 40.0
+ },
+ {
+  "command": "stock",
+  "ok": {
+   "alcohol": 0,
+   "clothes": 11,
+   "coal": 0,
+   "firewood": 200,
+   "food": 1800,
+   "herbs": 0,
+   "iron": 40,
+   "stone": 60,
+   "textile": 0,
+   "tools": 30,
+   "wood": 120
+  },
+  "t": 40.0
+ },
+ {
+  "command": "citizens",
+  "ok": {
+   "adults": 10,
+   "by_profession": {
+    "laborer": 10
+   },
+   "children": 9,
+   "students": 0
+  },
+  "t": 40.0
+ },
+ {
+  "command": "animals",
+  "ok": {
+   "by_name": {
+    "WildAnimalDeer": 109
+   },
+   "total": 109
+  },
+  "t": 40.0
+ },
+ {
+  "command": "script pause",
+  "ok": {
+   "done": "pause"
+  },
+  "t": 41.0
+ },
+ {
+  "command": "state",
+  "ok": {
+   "dialogs": [
+    "Dialog\\Pause.rsc:content",
+    "Dialog\\AutoSave.rsc:main",
+    "Dialog\\EventNotify.rsc:content",
+    "Dialog\\Toolbar.rsc:main"
+   ],
+   "loop": "Game/Game",
+   "quit": false
+  },
+  "t": 41.5
+ },
+ {
+  "command": "ui ref:Pause.rsc kind:button",
+  "ok": [
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonResume",
+    "rect": [
+     560,
+     201,
+     720,
+     231
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonResume",
+    "text": "Resume"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonLoad",
+    "rect": [
+     560,
+     237,
+     720,
+     267
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonLoad",
+    "text": "Load"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonSave",
+    "rect": [
+     560,
+     273,
+     720,
+     303
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonSave",
+    "text": "Save"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonOptions",
+    "rect": [
+     560,
+     309,
+     720,
+     339
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonOptions",
+    "text": "Options"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonAchievement",
+    "rect": [
+     560,
+     345,
+     720,
+     375
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonAchievement",
+    "text": "Achievements"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonMod",
+    "rect": [
+     560,
+     381,
+     720,
+     411
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonMod",
+    "text": "Mods"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonMap",
+    "rect": [
+     560,
+     417,
+     720,
+     447
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonMap",
+    "text": "Map"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonMenu",
+    "rect": [
+     560,
+     453,
+     720,
+     483
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonMenu",
+    "text": "Quit"
+   },
+   {
+    "enabled": true,
+    "kind": "button",
+    "name": "buttonQuit",
+    "rect": [
+     560,
+     489,
+     720,
+     519
+    ],
+    "ref": "Dialog\\MainMenu.rsc:buttonQuit",
+    "text": "Exit"
+   }
+  ],
+  "t": 41.5
+ }
+]

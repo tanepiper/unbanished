@@ -8,6 +8,7 @@ mod controls;
 mod dialog;
 mod document;
 mod input;
+mod query;
 mod resources;
 mod text;
 
@@ -19,6 +20,7 @@ use banished_formats::ui::{flags, Element, ElementKind};
 pub use controls::{Control, EditData, SliderData};
 pub use dialog::{Binding, DialogInstance};
 pub use input::{tooltip_controller, Key};
+pub use query::{ElementInfo, Query, Step};
 pub use resources::{FontId, LoadedFont, LoadedSheet, Resources, SheetId, SpriteRef};
 pub use text::TextLayout;
 

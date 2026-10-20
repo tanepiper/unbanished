@@ -1,0 +1,39 @@
+{
+  "_about": "Probe scenarios for tools/test/run.py probe. Each runs the game headless (banished --boot-capture) with these arguments, records the --probe answers and compares them with tools/test/baselines/<name>.json. Times are seconds of game capture time; the capture is 1280x720. See docs/develop/TESTING.md.",
+  "main-menu": {
+    "about": "The main menu and the New Game dialog: their buttons, edits and combos.",
+    "seconds": 6,
+    "args": [
+      "--probe", "state@4.5",
+      "--probe", "ui ref:MainMenu kind:button@4.5",
+      "--probe", "click ref:MainMenu text:New@4.6",
+      "--probe", "state@5",
+      "--probe", "ui ref:NewGame kind:combo@5",
+      "--probe", "ui ref:NewGame kind:button@5"
+    ]
+  },
+  "new-game": {
+    "about": "A new game (seed 1234, Testwood): the town at the start and after four minutes at speed 10.",
+    "seconds": 42,
+    "args": [
+      "--probe", "click ref:MainMenu text:New@4.5",
+      "--probe", "type editName=Testwood@4.8",
+      "--probe", "type editSeed=1234@4.9",
+      "--probe", "click ref:NewGame buttonOk@5",
+      "--probe", "state@16",
+      "--probe", "town@16",
+      "--probe", "stock@16",
+      "--probe", "buildings@16",
+      "--probe", "citizens@16",
+      "--probe", "animals@16",
+      "--probe", "script speed 10@16.5",
+      "--probe", "town@40",
+      "--probe", "stock@40",
+      "--probe", "citizens@40",
+      "--probe", "animals@40",
+      "--probe", "script pause@41",
+      "--probe", "state@41.5",
+      "--probe", "ui ref:Pause.rsc kind:button@41.5"
+    ]
+  }
+}

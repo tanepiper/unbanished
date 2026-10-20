@@ -21,8 +21,21 @@ The version is the engine's own (`banished --version`). The Banished version in 
   drawn, sepia, grey and psychedelic. New videos for the website: the river flight in sepia and
   the trader's boat in grey.
 
+- **The probe**, a command language to look at and drive a running game: find interface
+  elements by name, text, kind or dialog, click them, and read the town (population,
+  professions, buildings, animals, stock). In the browser it is the console object `unbanished`
+  (`await unbanished.town()`); headless runs take `--probe "COMMAND@T"` and `--probe-out FILE`.
+  See [docs/develop/PROBE.md](docs/develop/PROBE.md).
+
+- **Test suites** with known outcomes: `tools/test/run.py` runs them in tiers (`quick`,
+  `standard`, `long`). New suites check probe answers against baselines, and drive the browser
+  version in headless Chrome and Firefox: the start page, the manager, Exit and Quit, and a new
+  game that must match the desktop version's.
+
 ### Fixed
 
+- A save imported on the browser's start page could be lost: the page reloaded before the save
+  was written to the browser's storage.
 - **Exit** in the browser version no longer leaves the page frozen (#18). The installed app
   closes its window; in a browser tab the game goes back to its start page, and on the Play page
   to the **Start the game** button.

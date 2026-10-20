@@ -16,6 +16,7 @@ mod hud;
 mod input;
 pub mod lockstep;
 pub mod network;
+mod probe;
 pub mod recording;
 mod saving;
 mod simulation;
@@ -1512,6 +1513,14 @@ impl GameLoop for GameplayLoop {
 
     fn view(&self) -> View<'_> {
         self.view.as_ref().map_or(View::None, View::World)
+    }
+
+    fn probe_world(
+        &self,
+        what: &str,
+        filter: Option<&str>,
+    ) -> Option<Result<serde_json::Value, String>> {
+        self.world_query(what, filter)
     }
 
     #[cfg(not(target_arch = "wasm32"))]

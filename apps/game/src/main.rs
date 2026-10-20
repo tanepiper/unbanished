@@ -22,6 +22,7 @@ mod loops;
 mod menu;
 mod mods;
 mod platform;
+mod probe;
 mod saves;
 mod settings;
 mod start;
@@ -531,11 +532,17 @@ impl Game {
             .rev()
             .find_map(|d| self.ui.find(d.root, name));
         let Some(id) = found else { return false };
+        self.press_node(id);
+        true
+    }
+
+    /// Click an element through the normal pointer path: move to its centre (after the last
+    /// layout), press and release.
+    pub fn press_node(&mut self, id: banished_ui::NodeId) {
         let [x0, y0, x1, y1] = self.ui.node(id).rect;
         self.pointer_move_ui((x0 + x1) / 2, (y0 + y1) / 2);
         self.pointer_button(true);
         self.pointer_button(false);
-        true
     }
 
     /// Scripted runs: select the combo item whose text is `item` (case-insensitive), as a
@@ -1251,6 +1258,12 @@ impl ApplicationHandler<UserEvent> for App {
                         break;
                     }
                 }
+                // Tests' probe commands (`window.unbanished.probe`), between updates and drawing.
+                #[cfg(target_arch = "wasm32")]
+                if let Some(w) = &self.window {
+                    let size = w.inner_size();
+                    probe::web::answer_pending(game, (size.width, size.height));
+                }
                 if game.quit_requested() {
                     #[cfg(target_arch = "wasm32")]
                     platform::web::exit_page();
@@ -1566,6 +1579,20 @@ mod native {
                 Some((cmd, at.parse().ok()?))
             })
             .collect();
+        // `--probe "COMMAND@SECONDS"` runs a probe command ([`probe`]) and writes its answer as a
+        // JSON line to the log, and to `--probe-out FILE` when given.
+        let mut probes: Vec<(String, f32)> = args
+            .windows(2)
+            .filter(|w| w[0] == "--probe")
+            .filter_map(|w| {
+                let (cmd, at) = w[1].rsplit_once('@')?;
+                Some((cmd.to_string(), at.parse().ok()?))
+            })
+            .collect();
+        let mut probe_out = args
+            .windows(2)
+            .find(|w| w[0] == "--probe-out")
+            .and_then(|w| std::fs::File::create(&w[1]).ok());
         // `--camera`, `--camera-follow` and their settings: the cinematic camera (drawing only).
         let mut cinematic = crate::view::cinematic::Cinematic::from_args(args);
         let dt = 1.0 / 30.0;
@@ -1622,6 +1649,22 @@ mod native {
                 }
                 if command.starts_with("screenshot") {
                     shot_frames = 5;
+                }
+                false
+            });
+            probes.retain(|(command, at)| {
+                if t < *at {
+                    return true;
+                }
+                let t = (f64::from(*at) * 1000.0).round() / 1000.0;
+                let answer = match probe::run(&mut game, size, command) {
+                    Ok(v) => serde_json::json!({ "t": t, "command": command, "ok": v }),
+                    Err(e) => serde_json::json!({ "t": t, "command": command, "error": e }),
+                };
+                log::info!("probe {answer}");
+                if let Some(f) = probe_out.as_mut() {
+                    use std::io::Write;
+                    let _ = writeln!(f, "{answer}");
                 }
                 false
             });

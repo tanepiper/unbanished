@@ -4,6 +4,102 @@ This page lists the kinds of tests in Un-Banished, how to run them, and the chec
 each commit. [Compatibility between versions](../COMPATIBILITY.md) describes the tools that
 compare two versions of the game.
 
+## Test suites
+
+`tools/test/run.py` runs the tests in suites, grouped in three tiers. Each suite has a known
+outcome on every computer with the same game data: fixed seeds, a fixed window and page size,
+throwaway settings, saves and browser profiles, and waits on the game's own state, never on the
+clock.
+
+```bash
+tools/test/run.py                  # quick: about 1½ minutes; run it before every commit
+tools/test/run.py standard         # quick, then determinism and the browser: about 4 minutes
+tools/test/run.py long             # everything: before a release, or after network or save work
+tools/test/run.py probe browser    # only these suites
+tools/test/run.py --list           # every suite and what it checks
+```
+
+| Tier | Suite | Checks | Time |
+|---|---|---|---|
+| quick | `checks` | changed Rust files are formatted, `docs/DEVIATIONS.md` is up to date, doc comments name no addresses | 1 s |
+| quick | `unit` | every Rust test in the workspace | 75 s |
+| quick | `wasm` | the browser build compiles with no warnings | 1–60 s |
+| quick | `probe` | the probe scenarios give exactly their baselines | 8 s |
+| standard | `determinism` | two new games with one seed draw identical frames | 25 s |
+| standard | `browser` | headless Chrome and Firefox: the start page, the manager, Exit and Quit | 2 min |
+| long | `site` | the website builds | 30 s |
+| long | `replay`, `lockstep`, `network`, `multiplayer` | the `tools/compat` scripts below | minutes each |
+
+A suite that needs something this computer lacks (game data, Chrome, Firefox, trunk) says so
+and is skipped, not failed. The summary goes to `target/test-results/summary.json`; a browser
+test that fails leaves a screenshot in `target/test-results/<suite>/`.
+
+### Probe scenarios and baselines
+
+The `probe` suite runs the scenarios in `tools/test/scenarios.json` headless. A scenario is a
+list of [probe](PROBE.md) commands at fixed times: click New, type a name and a seed, start the
+game, then ask for the town, its stock, its citizens and its animals. The answers are compared
+with `tools/test/baselines/<scenario>.json`, line by line. A difference prints as a diff, for
+example:
+
+```diff
+-  "food": 1800,
++  "food": 1795,
+```
+
+When a change is meant to change what the game does, record new baselines and review the diff
+before you commit them:
+
+```bash
+tools/test/run.py probe --update-baselines
+git diff tools/test/baselines/
+```
+
+An optimisation or refactor must not change any baseline ([Compatibility](../COMPATIBILITY.md)).
+To add a scenario, add an entry to `scenarios.json`, run with `--update-baselines`, read the
+new file and commit it. Keep each scenario under about 10 seconds.
+
+### Browser tests
+
+`tools/test/browser/*.test.mjs` drive the browser version in headless Chrome (through its
+DevTools protocol) and headless Firefox (through WebDriver BiDi). They need Node 22 or later and
+nothing else: no npm packages, no geckodriver. The `browser` suite builds the game into
+`target/test-web/game` with trunk and serves it on a free local port.
+
+A test finds and presses things with the [probe](PROBE.md), not with pixel positions:
+
+```js
+import { gameFiles, launch, run, serveGame } from './lib.mjs';
+
+await run('example', [
+  {
+    name: 'A new game starts with ten laborers',
+    needs: ['chrome', 'gamedata'],
+    async run(ctx) {
+      const url = await serveGame(ctx);
+      const b = await launch(ctx, 'chrome');      // or 'firefox'
+      await b.open(`${url}/`);
+      await b.startWithFiles(gameFiles());        // choose the four files, wait for the menu
+      await b.newGame(1234, 'Testwood');          // fixed seed and name
+      const c = await b.probe('citizens');
+      if (c.by_profession.laborer !== 10) throw new Error(`laborers: ${c.by_profession.laborer}`);
+    },
+  },
+]);
+```
+
+Useful helpers in `lib.mjs`: `press(query)` clicks; `pressAndLeave(query)` clicks a button that
+reloads or closes the page (Exit); `waitLoop('Game/Game')`, `waitDialog('Pause.rsc')`,
+`waitMenu()` and `waitFor(expression)` wait for state; `expectReload(action)` waits for the page
+to reload after the start page's manager changes something; `key('Escape')` sends a key;
+`launch(ctx, 'chrome', { standalone: true })` makes the page behave as an installed app.
+Each test gets its own browser and profile, which are removed afterwards. Run one file with
+`node tools/test/browser/exit.test.mjs`, and only the tests whose names contain a word with
+`UB_TEST_ONLY=Firefox node tools/test/browser/exit.test.mjs`.
+
+Keep each test under about 20 seconds. Loading the game files takes about 5 seconds and a new
+game about 5 more; check several things in one test rather than loading the game again.
+
 ## Kinds of tests
 
 | Kind | Where | What it checks |
@@ -75,17 +171,18 @@ tests exist.
 
 ## Before every commit
 
-Run these checks. [AGENTS.md](../../AGENTS.md) has the same list.
+[AGENTS.md](../../AGENTS.md) has the same list.
 
 ```bash
-cargo test --offline -q --workspace --release --no-fail-fast
-tools/triage/determinism.sh 22 1234
-cargo build --offline --release -p banished-app --target wasm32-unknown-unknown   # 0 warnings
 rustfmt --edition 2021 <the files you changed>
-python3 tools/triage/deviations.py                     # then stage docs/DEVIATIONS.md
-python3 tools/triage/doc_comments.py check            # no addresses in the rendered docs
+tools/test/run.py                                      # quick: checks, unit, wasm, probe
+tools/test/run.py determinism browser                  # if the change touches the game or the browser page
 tools/compat/compare.sh HEAD <your build or commit>    # if the change can touch the simulation
 ```
+
+The quick tier runs `cargo test`, the browser build, `deviations.py` (stage
+`docs/DEVIATIONS.md` if it changed) and `doc_comments.py check` for you. The commands it runs
+are below, if you want one on its own.
 
 - `determinism.sh SECONDS SEED` starts a new game twice with the same seed, zooms the camera
   and compares the two frames. Any difference means that something is not deterministic: an

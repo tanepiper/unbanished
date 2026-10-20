@@ -340,6 +340,11 @@ close itself, so **Exit** goes back to the start page; on the Play page it goes 
   <img src="assets/screenshots/browser-pause-menu.webp" alt="The pause menu in the browser version, with Quit and Exit at the bottom" width="640">
 </p>
 
+**For the curious: the console.** While the game runs in a browser, its developer console
+(F12) has an object called `unbanished` that answers questions about your town, for example
+`await unbanished.town()` or `await unbanished.citizens()`. `unbanished.help()` lists what it
+can do, and [The probe](develop/PROBE.md) explains it with examples.
+
 **Sharp on every screen.** On screens with a high pixel density and a fractional scale (4K
 monitors, tablets, Samsung DeX), the menus and text are drawn on whole screen pixels, so they stay
 sharp.
@@ -572,62 +577,163 @@ files yourself.
 
 ## Command-line options
 
-To play, you need at most one argument: the `WinData` folder (`banished PATH`). The other
-commands run without a window and then stop. They are for testing, and for the screenshots and
-videos in these documents:
+Un-Banished is four programs. To play, you only need the first one, and at most one argument.
 
-| Command | Effect |
+| Program | What it is for |
 |---|---|
-| `banished PATH` | play, reading the game data from this `WinData` folder |
-| `banished --version` | show the Un-Banished version (see [Version](#version)) and stop |
-| `banished --record FILE …` | record every command of the next game you load from a save (add it to any of the other commands, or to `banished PATH`) |
-| `banished --replay SAVE FILE` | play a recording again from its save, and check that the game comes out the same |
-| `banished --sim-digest SAVE` | run a save and print checksums of the game state, to compare with the browser version |
-| `banished --boot-capture FILE.png SECONDS` | start the game, run it for `SECONDS` and save that frame |
-| `banished --capture FILE.png [options]` | generate a map and save a picture of it |
+| `banished` | The game. With options, it also runs without a window: for screenshots, tests and recordings. |
+| `banished-mods` | The [mod manager](#the-mod-manager): turn mods on and off, set their order, then play. |
+| `banished-cli` | Mods from Nexus Mods and banishedinfo.com, and the game's sounds as MP3 files. |
+| `banished-relay` | The server that connects the players of a [multiplayer](#multiplayer) game. |
 
-Options for the captures: `--seed N`, `--terrain NAME`, `--size 0|1|2`, `--month 0..11`,
-`--view overview`, `--ui-scale PERCENT` and `--setting KEY=VALUE` (a stored setting by its
-original name, such as `VideoReflectionDetail=2`). Captures do not use your saved settings.
-`--boot-capture` can also click, drag, type, move the camera and take screenshots at given
-times; the [game's README](../apps/game/README.md#headless-captures) lists every option, and
-[Recording videos](develop/VIDEOS.md) shows how to use them.
+After `cargo build --release`, the programs are in `target/release/`. The examples below write
+`banished`; from the source folder, that is `target/release/banished` (on Windows,
+`target\release\banished.exe`).
 
-The other programs:
+### Play
 
-| Program | What it is |
+```bash
+banished                                   # find the game data by itself
+banished "C:\Games\Steam\steamapps\common\Banished\WinData"   # Windows
+banished ~/Games/Banished/WinData          # macOS or Linux
+```
+
+Without a folder, the game looks for `WinData` next to the program, then for
+`game-data/original/WinData` in the source folder (the copy that `tools/extract-assets.sh`
+makes). Your saves and settings are where [Saves and settings](#saves) says.
+
+### See which version you have
+
+```bash
+banished --version                         # for example: Un-Banished 0.4.0-dd814cb
+```
+
+The [Version](#version) section explains the number. Give it when you report a problem.
+
+### Pictures and runs without a window
+
+`--boot-capture FILE SECONDS` starts the game without a window, runs it for `SECONDS` and saves
+the last frame as a PNG. It does not run in real time: 40 seconds of game take a few seconds.
+Options at a time `@T` (seconds from the start) click, type, move the camera or run commands, so
+you can script a whole visit to a town.
+
+```bash
+# The main menu, 4.5 seconds after the start
+banished --boot-capture menu.png 4.5
+
+# A new game with the seed 1234: press New, then Ok, and look 16 seconds after the start
+BANISHED_SEED=1234 banished --boot-capture new-town.png 16 \
+  --press buttonNew@4.5 --press buttonOk@5
+
+# One of your saves at speed 5, with the map window open, in a large picture
+banished --boot-capture my-town.png 30 --capture-size 1920x1080 \
+  --script "load save-game/Save83.sav@4.5" --script "speed 5@6" \
+  --script "open Template/UtilityMap.rsc@25"
+
+# A picture of a map, without starting a game
+banished --capture map.png --view overview --seed 290 --terrain Valleys --size 0 --month 6
+```
+
+Runs without a window write saves and screenshots into your user folder. To keep them apart
+from your own, set `BANISHED_USER_DIR` and `BANISHED_SETTINGS` to a scratch folder, as in the
+next example. The [game's README](../apps/game/README.md#headless-captures) lists every option,
+and [Recording videos](develop/VIDEOS.md) makes films from these runs.
+
+### Ask the game questions: the probe
+
+`--probe "COMMAND@T"` asks the running game a question at time `T`, or presses a button, and
+writes the answer as JSON. It finds buttons by their text, and it can count the town's people,
+buildings and animals. [The probe](develop/PROBE.md) describes every command.
+
+```bash
+BANISHED_USER_DIR=/tmp/ub BANISHED_SETTINGS=/tmp/ub/settings.txt BANISHED_SEED=1234 \
+banished --boot-capture /tmp/last.png 20 \
+  --probe "click text:New@4.5" --probe "click buttonOk@5" \
+  --probe "town@16" --probe "citizens@16" --probe-out /tmp/answers.jsonl
+cat /tmp/answers.jsonl
+# {"command":"town","ok":{"name":"…","population":19,"adults":10,"children":9,"food":1800,…},"t":16.0}
+# {"command":"citizens","ok":{"adults":10,"by_profession":{"laborer":10},…},"t":16.0}
+```
+
+In the browser, the same commands work in the developer console, as `await unbanished.town()`.
+
+### Record a game and play it back
+
+`--record FILE` records every command of the next game you load from a save: in the windowed
+game or in a run without a window. `--replay` plays the recording again from the same save and
+checks that the town comes out the same.
+
+```bash
+banished --record my-game.rec              # play; the next game you load is recorded
+banished --replay save-game/Save83.sav my-game.rec
+# identical      (or the first moment where the town differs; the exit code is then 1)
+```
+
+### Check that the browser and the desktop agree
+
+```bash
+banished --sim-digest save-game/Save83.sav          # 200 seconds at speed 10, a checksum every second
+```
+
+It prints a checksum of the whole town at regular times. The browser version prints the same
+checksums for the same save (see [CROSS-PLATFORM.md](CROSS-PLATFORM.md)).
+
+### Mods from the command line
+
+```bash
+banished-cli nexus search terrain                    # Nexus Mods: search
+banished-cli nexus install 19 --to path/to/WinData   # install (needs your API key)
+banished-cli banishedinfo list --sort downloads      # banishedinfo.com: no account needed
+banished-cli banishedinfo install 34 --to path/to/WinData
+banished-mods path/to/WinData                        # the mod manager, with a window
+```
+
+Without `--to`, mods go to `game-data/original/WinData`. See [Mods](#mods) and the
+[CLI README](../apps/cli/README.md).
+
+### Run a multiplayer relay
+
+```bash
+banished-relay                       # listens on 0.0.0.0:7780, the default
+banished-relay 127.0.0.1:7780        # only for games on this computer
+```
+
+[Multiplayer](#multiplayer) explains how players connect to it, and the
+[relay's README](../apps/relay/README.md) how to run it on a server.
+
+### Environment variables
+
+Set these before the command, for example `RUST_LOG=debug banished`, or with `set` (Windows
+Command Prompt) or `$env:NAME = "value"` (PowerShell).
+
+| Variable | Effect |
 |---|---|
-| `banished-mods [PATH]` | the [mod manager](#the-mod-manager) |
-| `banished-cli nexus …`, `banished-cli banishedinfo …` | search and install mods from the command line (see [Mods](#mods) and the [CLI README](../apps/cli/README.md)) |
-| `banished-relay [ADDRESS]` | the multiplayer relay (see [Multiplayer](#multiplayer) and the [relay's README](../apps/relay/README.md)) |
+| `BANISHED_USER_DIR` | The folder that holds `Save` and `Screenshots`. The default is `Documents/Banished`. |
+| `BANISHED_SETTINGS` | The settings file to use instead of your own. |
+| `BANISHED_SEED` | Fixes the random numbers of new games and of the menu, so two runs are the same. |
+| `BANISHED_MENU_SCENE` | Shows this main-menu scene, 0 to 9, instead of a random one. |
+| `RUST_LOG` | How much the log shows: `error`, `warn`, `info` (the default) or `debug`. |
+| `BANISHED_PROFILE` | `1` logs slow frames and frame-time summaries; `hitches` only slow frames. In the browser, add `?profile` to the address. See [Performance](PERFORMANCE.md). |
+| `BANISHED_THREADS` | How many threads loading uses. The default is one for each CPU core; `1` loads on one thread. |
+| `BANISHED_NEXUS_API_KEY` | Your Nexus Mods API key (see [Mods from Nexus Mods](#mods-from-nexus-mods)). |
 
-Environment variables: `BANISHED_USER_DIR` (the folder that holds `Save`), `BANISHED_SETTINGS`
-(the settings file), `RUST_LOG` (how much detail the log shows, for example `RUST_LOG=debug`),
-`BANISHED_PROFILE=1` (logs slow frames and frame-time summaries; in the browser, add `?profile`
-to the address), `BANISHED_THREADS=N` (how many threads loading uses; the default is one per
-CPU core, and 1 loads everything on one thread), `BANISHED_NEXUS_API_KEY` (your Nexus Mods API
-key; see [Mods from Nexus Mods](#mods-from-nexus-mods)). See
-[PERFORMANCE.md](PERFORMANCE.md).
+The [game's README](../apps/game/README.md#environment-variables) lists a few more, for tests.
 
 ## Version
 
-Un-Banished has its own version number, for example `0.2.0-1382712`. The first part is the
-release: a released version, or the next release while it is in development (see
-[CHANGELOG.md](../CHANGELOG.md)). The second part is the build: the first seven characters of the git commit the program
-was built from. `-dirty` at the end means that the program was built with changes that were not
-committed. `unknown` means that the build could not be found, for example in a build from a
-source archive without git.
+`banished --version` prints the version, for example `Un-Banished 0.4.0-dd814cb`:
 
-You can see the version in these places:
+- `0.4.0` is the release: a released version, or the next one while it is being made (see the
+  [changelog](../CHANGELOG.md)).
+- `dd814cb` is the build: the first seven characters of the git commit it was built from.
+  `-dirty` at the end means that it was built with changes that were not committed, and
+  `unknown` that the commit could not be found (for example, a build from a source archive).
 
-- `banished --version` shows it, for example `Un-Banished 0.2.0-1382712`.
-- The first line of the log, when the game starts.
-- In the browser: at the foot of the loading screen, and in the
-  browser's console.
-- On the website, at the bottom of the pages.
+The version is also on the first line of the log, at the foot of the browser's loading screen,
+in the browser's console, and at the bottom of every page of the website.
 
 The main menu shows "Version 1.0.7 - Build 170910". That is the version of Banished, from the
-game data. It does not change. Give both versions when you report a problem.
+game data, and it never changes. When you report a problem, give both.
 
 ## Troubleshooting
 

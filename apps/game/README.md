@@ -86,6 +86,8 @@ more than once.
 | `--realtime` | Keep the frames to the clock instead of running as fast as possible (a capture that talks to a relay) |
 | `--scene-scale PART` | Draw the 3D world at that part of the frame's size, for example `0.5`, and scale it up; the interface stays sharp. It tests the browser's Resolution setting natively |
 | `--camera …`, `--camera-follow …` | The cinematic camera (see below) |
+| `--probe "COMMAND@T"` | Run a [probe](../../docs/develop/PROBE.md) command: find elements (`ui text:New`), click them (`click ref:Pause.rsc text:Exit`), or read the town (`town`, `citizens`, `stock`). The answer is logged as JSON |
+| `--probe-out FILE` | Also write every probe answer to `FILE`, one JSON object per line |
 
 If `--press` names an element that does not exist at that time, the log says
 `--press NAME: not found at T s`.

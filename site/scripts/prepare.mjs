@@ -32,10 +32,10 @@ const GUIDE = [
   // same path afterwards and replaces it, so links to the section open the full page.
   { path: '/guide/multiplayer', title: 'Multiplayer', description: 'Build one town together.',
     sections: ['Multiplayer'] },
-  { path: '/guide/command-line', title: 'Command line and version', description: 'Command-line options, environment variables and the version number.',
-    sections: ['Command-line options', 'Version'] },
-  { path: '/guide/troubleshooting', title: 'Troubleshooting', description: 'What to do when something goes wrong, and how to report a difference.',
-    sections: ['Troubleshooting', 'Reporting a difference from the original'] },
+  { path: '/guide/command-line', title: 'Command line', description: 'Play, take pictures, ask the game questions, record games, mods and the relay, from the command line.',
+    sections: ['Command-line options'] },
+  { path: '/guide/troubleshooting', title: 'Troubleshooting', description: 'What to do when something goes wrong, your version, and how to report a difference.',
+    sections: ['Troubleshooting', 'Version', 'Reporting a difference from the original'] },
 ]
 
 // Repository files that have a page of their own on the site.
@@ -48,7 +48,8 @@ const PAGES = {
 
   'docs/develop/README.md': { path: '/develop/', description: 'Where to start as a developer.' },
   'docs/develop/BUILDING.md': { path: '/develop/building', description: 'Build the game, the viewer and the browser version.' },
-  'docs/develop/TESTING.md': { path: '/develop/testing', description: 'The tests, the checks before a commit, and headless captures.' },
+  'docs/develop/TESTING.md': { path: '/develop/testing', description: 'The test suites, the checks before a commit, and headless captures.' },
+  'docs/develop/PROBE.md': { path: '/develop/probe', title: 'The probe', description: 'Look at and drive a running game: queries for the UI and the town, in the console and in tests.' },
   'docs/COMPATIBILITY.md': { path: '/develop/compatibility', description: 'The tools that prove two versions play alike.' },
   'docs/PERFORMANCE.md': { path: '/develop/performance', description: 'How to measure and profile Un-Banished.' },
   'AGENTS.md': { path: '/develop/contributing', title: 'Contributing', description: 'The project rules for people and AI agents.' },

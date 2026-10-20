@@ -8,6 +8,25 @@ description: Verify Banished reimplementation changes — cargo tests (with game
 Prefer evidence you can look at: a test result or a PNG you have opened with the Read tool.
 Never report "works" from a build alone.
 
+## The test runner (start here)
+
+```bash
+tools/test/run.py                     # quick: format, ledger, cargo test, wasm, probe baselines (~1½ min)
+tools/test/run.py determinism browser # the game's frames, and the browser page in Chrome and Firefox (~3 min)
+tools/test/run.py long                # everything; before a release
+tools/test/run.py --list
+```
+Each suite has a known outcome; one that cannot run here says why and is skipped. Use the quick
+tier for every change, add `determinism browser` when the change touches the game, its UI or
+the web page, and `long` only now and then. `docs/develop/TESTING.md` has the details.
+
+To check the game's state in a headless run, use the probe instead of reading pixels:
+`--probe "ui ref:Pause.rsc kind:button@14" --probe "town@16" --probe-out answers.jsonl`.
+In a browser test, `b.probe('town')`, `b.press('text:Exit')`, `b.waitLoop('Game/Game')`
+(`tools/test/browser/lib.mjs`). See `docs/develop/PROBE.md`. When a change is meant to alter
+the game, run `tools/test/run.py probe --update-baselines` and review `git diff
+tools/test/baselines/` before committing.
+
 ## Tests
 
 ```bash
