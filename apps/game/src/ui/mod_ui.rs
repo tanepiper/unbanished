@@ -78,8 +78,8 @@ pub struct ModDialog {
     confirm: Option<NodeId>,
     /// The details dialog while it is open.
     details: Option<NodeId>,
-    /// The Browse tab, when a Nexus Mods API key is set.
-    browse: Option<Browse>,
+    /// The Browse tabs, one per mod site.
+    browse: Vec<Browse>,
 }
 
 /// What the dialog asks of its owner.
@@ -172,9 +172,9 @@ impl ModDialog {
             }
             lines.push(l);
         }
-        // The build without Steam hides the Browse tab and the Workshop progress; with a Nexus
-        // Mods key the tab browses Nexus Mods instead (`mod_browse`).
-        let browse = Browse::open(ui, root, settings, pack_dir);
+        // The build without Steam hides the Browse tab and the Workshop progress; here a Browse
+        // tab for each mod site takes its place (`mod_browse`).
+        let browse = Browse::open_all(ui, root, settings, pack_dir);
         let d = ModDialog {
             root,
             lines,
@@ -254,7 +254,7 @@ impl ModDialog {
             mods.revert(settings);
             return Outcome::Closed;
         }
-        if let Some(b) = &mut self.browse {
+        for b in &mut self.browse {
             match b.click(ui, settings, mods, node) {
                 // `buttonUpdateReload`: reload with the new mods.
                 Some(true) => {
@@ -323,8 +323,10 @@ impl ModDialog {
         index: usize,
     ) {
         if self.details.is_none() && self.confirm.is_none() {
-            if let Some(b) = &mut self.browse {
-                b.selected(ui, settings, mods, node, index);
+            for b in &mut self.browse {
+                if b.selected(ui, settings, mods, node, index) {
+                    break;
+                }
             }
         }
     }
@@ -337,7 +339,7 @@ impl ModDialog {
         settings: &mut crate::settings::Settings,
         mods: &mut Modification,
     ) {
-        if let Some(b) = &mut self.browse {
+        for b in &mut self.browse {
             let before = mods.mods.len();
             b.poll(ui, &mut settings.persistence, mods);
             if mods.mods.len() != before {

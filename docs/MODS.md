@@ -128,9 +128,13 @@ The sort list's entries come from the layout: Most Popular, Most Recent and Subs
 are "Updating mod @0...", "@0% complete" and "Mod updates are ready.", and the reload button's
 tooltip says new mods are used after a reload, or the next time a game or the menu loads.
 
-Deviation (`apps/game/src/ui/mod_browse.rs`, `apps/game/src/platform/nexus.rs`): with an API key
-(`NexusApiKey` in the settings, or `BANISHED_NEXUS_API_KEY` natively), the tab browses
-[Nexus Mods](https://www.nexusmods.com/games/banished/mods) through `crates/nexus`:
+Deviation (`apps/game/src/ui/mod_browse.rs`, `apps/game/src/platform/nexus.rs`): the dialog has a
+Browse tab for each mod site, shown by default: `buttonBrowse` and `groupBrowse` for the first,
+and a copy of both added to `tabMod` (`TabElement::AddTab`) for the next.
+`ModBrowseNexus=false` and `ModBrowseBanishedInfo=false` hide a site. The Nexus Mods tab browses
+[Nexus Mods](https://www.nexusmods.com/games/banished/mods) through `crates/nexus`; installing
+needs an API key (`NexusApiKey` in the settings, or `BANISHED_NEXUS_API_KEY` natively), and
+without one Subscribe opens the mod's page and says so:
 
 - Searches use the public GraphQL API (no key); 50 results a page (*assumed* to match a Steam
   UGC page). Most Popular sorts by downloads, Most Recent by update time, and Subscribed lists
@@ -144,9 +148,8 @@ Deviation (`apps/game/src/ui/mod_browse.rs`, `apps/game/src/platform/nexus.rs`):
 - The tab's label says "Browse Nexus Mods". Previews fill `imageModPreview` on native builds
   (PNG, JPEG or WebP; Nexus Mods' CDN serves WebP). Not ported: Unsubscribe (hidden), and `.7z` and `.rar` archives (the player unpacks them).
 
-With `ModBrowseSource=banishedinfo` in the settings (native builds), the same tab shows
-[banishedinfo.com](https://banishedinfo.com/mods/browse) instead, through `crates/banishedinfo`
-(also a deviation). The site has no API: the client uses the JSON list its browse page loads
+The second tab (native builds) shows [banishedinfo.com](https://banishedinfo.com/mods/browse),
+through `crates/banishedinfo` (also a deviation). The site has no API: the client uses the JSON list its browse page loads
 (`/mods/ajax?action=mods&start&count&section&sort`), the results its search page carries
 (`var mods = […]`), and the version links of a mod's page (`/mods/download/<id>-<name>/<n>`, whose
 `/mods/file/…` redirects to the file). Most Popular is the most downloaded, Most Recent the newest,

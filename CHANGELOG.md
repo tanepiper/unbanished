@@ -51,6 +51,9 @@ browser; and a blog. The performance work is described in
 
 ### Changed
 
+- Dialogs lay out faster: each element is measured once per frame instead of again for
+  every level of nesting. The Mods menu with both Browse tabs went from 70 ms to 7 ms a frame.
+  Every dialog looks exactly as before.
 - The engine version is now 0.2.0 (shown as `0.2.0-<build>` until the release).
 - No freeze when the town appears after loading: the ambient sounds, the first music track
   and the decals are now prepared behind the loading screen (about 0.5 s on a large town).
@@ -78,12 +81,10 @@ browser; and a blog. The performance work is described in
 
 - A mod manager, `banished-mods`: turn mods on and off and set their order before the game
   starts, keep named mod lists, install mods from Nexus Mods, and start the game.
-- banishedinfo.com support on the desktop: list, search and install its mods in the mod
-  manager, in `banished-cli banishedinfo`, and in the game's Browse tab with
-  `ModBrowseSource=banishedinfo`.
-- Optional Nexus Mods support. With your own Nexus Mods API key, the Mods menu's Browse tab
-  (the Steam version's Workshop browser) searches and installs Banished mods from Nexus Mods,
-  and `banished-cli nexus` does the same from the command line. See "Mods from Nexus Mods" in
+- Mod sites in the Mods menu: a Browse tab (the Steam version's Workshop browser) for Nexus
+  Mods and, on the desktop, one for banishedinfo.com, both shown by default. Searching needs no
+  account; installing from Nexus Mods needs your own API key. `banished-cli nexus` and
+  `banished-cli banishedinfo` do the same from the command line. See "Mods from Nexus Mods" in
   the user guide.
 - `tools/compat/`: build any version in a clean checkout, play a fixed set of scenarios (a new
   game, small, medium and large towns, and continuing another version's saves), and check that

@@ -1119,6 +1119,7 @@ impl Ui {
         let Some((_, root)) = self.tooltip_instance else {
             return;
         };
+        self.begin_size_pass();
         self.compute_size(root);
         let [w, h] = self.nodes[root].size;
         // `BeginToolTip` / `UpdateToolTip`: `SetUpperLeft(x, y − height, false)`, the tooltip

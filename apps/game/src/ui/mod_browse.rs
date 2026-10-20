@@ -9,13 +9,15 @@
 //! `groupProgress` shows a download (`textUpdate`, `progressUpdate` with `textProgress`) and
 //! then `ribbonUpdateAvailable` with `buttonUpdateReload`.
 //!
-//! Deviation: the results come from Nexus Mods, and the tab is shown only with an API key
-//! (`platform::nexus`). The sort list keeps the original's three entries: Most Popular (most
+//! Deviation: there is a Browse tab for each mod site (`platform::nexus::sites`), Nexus Mods and
+//! (native builds) banishedinfo.com, shown by default. The sort list keeps the original's three entries: Most Popular (most
 //! downloaded), Most Recent (most recently updated) and Subscribed (the mods installed from
-//! Nexus Mods). Subscribe installs the mod's main file with a Premium account; otherwise it
+//! the site). Installing from Nexus Mods needs an API key; without one Subscribe opens the mod's
+//! page. Subscribe installs the mod's main file with a Premium account; otherwise it
 //! opens the mod's files page, whose "Mod Manager Download" gives an `nxm://` link, and a link
-//! pasted into the search box installs that file. The tab's label reads "Browse Nexus Mods".
-//! Previews show the sites' thumbnails (PNG or JPEG, native builds only). Not ported:
+//! pasted into the search box installs that file. The tabs' labels read "Browse Nexus Mods" and
+//! "Browse banishedinfo.com". Previews show the sites' thumbnails (PNG, JPEG or WebP, native
+//! builds only). Not ported:
 //! Unsubscribe, which stays hidden.
 
 use banished_nexus::api::{self, ModSummary, Sort};
@@ -108,24 +110,65 @@ fn edit_text(ui: &Ui, n: Option<NodeId>) -> String {
 }
 
 impl Browse {
-    /// Fill the Browse tab under `root` (the Mods dialog) and start the first search, or hide
-    /// the tab when no API key is set.
-    pub fn open(
+    /// One Browse tab per site (`nexus::sites`): the original's `buttonBrowse` and `groupBrowse`
+    /// for the first, and a copy of both added to `tabMod` for each other site. Without sites
+    /// the tab and the progress are hidden, as in the build without Steam.
+    pub fn open_all(
         ui: &mut Ui,
         root: NodeId,
         settings: &Persistence,
         dir: Option<std::path::PathBuf>,
-    ) -> Option<Browse> {
+    ) -> Vec<Browse> {
+        let sites = nexus::sites(settings);
+        let header = ui.find(root, "buttonBrowse");
         let group = ui.find(root, "groupBrowse");
-        let progress_group = ui.find(root, "groupProgress");
-        let source = nexus::source(settings);
-        let (Some((site, key)), Some(group)) = (source, group) else {
-            // The build without Steam: no Browse tab and no Workshop progress.
+        let tabs = ui.find(root, "tabMod");
+        let (Some(header), Some(group), Some(tabs), false) =
+            (header, group, tabs, sites.is_empty())
+        else {
             show(ui, ui.find(root, "buttonBrowse"), false);
-            show(ui, progress_group, false);
-            return None;
+            show(ui, ui.find(root, "groupProgress"), false);
+            return Vec::new();
         };
-        if let Some(label) = ui.find(root, "labelBrowse") {
+        let (header_ref, group_ref) = (
+            ui.node(header).reference.clone(),
+            ui.node(group).reference.clone(),
+        );
+        let mut out = Vec::new();
+        for (i, (site, key)) in sites.into_iter().enumerate() {
+            let (header, group) = if i == 0 {
+                (header, group)
+            } else {
+                let (Some(h), Some(g)) = (ui.instantiate(&header_ref), ui.instantiate(&group_ref))
+                else {
+                    continue;
+                };
+                ui.add_tab(tabs, h, g);
+                (h, g)
+            };
+            if let Some(b) = Browse::open(ui, root, settings, dir.clone(), site, key, header, group)
+            {
+                out.push(b);
+            }
+        }
+        out
+    }
+
+    /// Fill one Browse tab (`header` and its page `group`) for `site` and start its first
+    /// search.
+    #[allow(clippy::too_many_arguments)]
+    fn open(
+        ui: &mut Ui,
+        root: NodeId,
+        settings: &Persistence,
+        dir: Option<std::path::PathBuf>,
+        site: nexus::Site,
+        key: String,
+        header: NodeId,
+        group: NodeId,
+    ) -> Option<Browse> {
+        let progress_group = ui.find(root, "groupProgress");
+        if let Some(label) = ui.find(header, "labelBrowse") {
             ui.set_text(label, site.label());
         }
         let browser = ui.instantiate(BROWSER)?;
@@ -286,6 +329,21 @@ impl Browse {
     /// Start installing `mod_id` (or the file a link names).
     fn install(&mut self, ui: &mut Ui, mod_id: u32, name: String, link: Option<NxmLink>) {
         if self.installing.is_some() {
+            return;
+        }
+        if !self.nexus.can_install() {
+            // Nexus Mods without a key: the mod's page, and what installing needs.
+            nexus::open_in_browser(&api::files_page(mod_id));
+            show(ui, self.progress_group, true);
+            show(ui, self.ribbon_progress, true);
+            show(ui, self.ribbon_available, false);
+            if let Some((n, _)) = &self.text_update {
+                ui.set_text(
+                    *n,
+                    "Installing from Nexus Mods needs your API key: add NexusApiKey to the settings.",
+                );
+            }
+            show(ui, self.text_progress.as_ref().map(|t| t.0), false);
             return;
         }
         if link.is_none() && self.premium == Some(false) {

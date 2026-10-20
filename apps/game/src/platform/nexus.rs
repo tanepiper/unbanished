@@ -88,14 +88,21 @@ impl Site {
     }
 }
 
-/// Which site the Browse tab shows, if any: banishedinfo.com when `ModBrowseSource=banishedinfo`
-/// (native builds), else Nexus Mods when an API key is set. Returns the site and its key.
-pub fn source(settings: &crate::settings::Persistence) -> Option<(Site, String)> {
-    #[cfg(not(target_arch = "wasm32"))]
-    if settings.get_text("Mod", "BrowseSource").as_deref() == Some("banishedinfo") {
-        return Some((Site::BanishedInfo, String::new()));
+/// The sites the Mods dialog browses, each with its own Browse tab, in this order: Nexus Mods
+/// (searching needs no key; installing needs `NexusApiKey`), then banishedinfo.com (native
+/// builds). `ModBrowseNexus=false` or `ModBrowseBanishedInfo=false` in the settings hides one.
+/// Returns each site and its key (empty when there is none).
+pub fn sites(settings: &crate::settings::Persistence) -> Vec<(Site, String)> {
+    let off = |name: &str| settings.get_text("Mod", name).as_deref() == Some("false");
+    let mut out = Vec::new();
+    if !off("BrowseNexus") {
+        out.push((Site::Nexus, key(settings).unwrap_or_default()));
     }
-    key(settings).map(|k| (Site::Nexus, k))
+    #[cfg(not(target_arch = "wasm32"))]
+    if !off("BrowseBanishedInfo") {
+        out.push((Site::BanishedInfo, String::new()));
+    }
+    out
 }
 
 /// The key, from the settings or (natively) the environment, which wins.
@@ -153,6 +160,11 @@ impl Nexus {
         self.site
     }
 
+    /// Whether installing works: banishedinfo.com always, Nexus Mods with an API key.
+    pub fn can_install(&self) -> bool {
+        self.site == Site::BanishedInfo || !self.key.is_empty()
+    }
+
     /// The replies that have arrived since the last call.
     pub fn poll(&self) -> Vec<Reply> {
         #[cfg(not(target_arch = "wasm32"))]
@@ -164,8 +176,10 @@ impl Nexus {
     /// Start `task` in the background.
     pub fn start(&self, task: Task) {
         let key = self.key.clone();
-        // banishedinfo.com has no accounts; previews are decoded natively only.
-        if self.site == Site::BanishedInfo && matches!(task, Task::Validate)
+        // banishedinfo.com has no accounts, nor does Nexus Mods without a key; previews are
+        // decoded natively only.
+        if (self.site == Site::BanishedInfo || self.key.is_empty())
+            && matches!(task, Task::Validate)
             || cfg!(target_arch = "wasm32") && matches!(task, Task::Preview { .. })
         {
             return;

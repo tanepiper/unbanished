@@ -248,6 +248,9 @@ pub struct Node {
     pub size: [i32; 2],
     /// Layout rectangle: left, top, right, bottom.
     pub rect: [i32; 4],
+    /// The layout pass whose `size` this is (`Ui::size_pass`): a node is measured once per
+    /// pass, however many of its ancestors ask for its size.
+    sized_pass: u32,
 }
 
 impl Node {
@@ -275,6 +278,7 @@ impl Node {
             rotation: 0.0,
             size: [0; 2],
             rect: [0; 4],
+            sized_pass: 0,
         }
     }
 
@@ -325,6 +329,8 @@ pub struct Ui {
     pressed: Option<NodeId>,
     focus: Option<NodeId>,
     input_root: Option<NodeId>,
+    /// The current layout pass, for [`Node::sized_pass`].
+    size_pass: u32,
     tooltip_instance: Option<(NodeId, NodeId)>,
     /// `UserInterface::Play` requests (sound slots: 4 button down, 5 button up/click, 3 drop),
     /// drained by the application.
@@ -360,6 +366,7 @@ impl Ui {
             pressed: None,
             focus: None,
             input_root: None,
+            size_pass: 1,
             tooltip_instance: None,
             tooltip_opened: None,
             sounds: Vec::new(),
@@ -370,7 +377,8 @@ impl Ui {
     }
 
     /// Add an element, and return its id.
-    pub fn add(&mut self, node: Node) -> NodeId {
+    pub fn add(&mut self, mut node: Node) -> NodeId {
+        node.sized_pass = 0;
         self.nodes.push(node);
         self.nodes.len() - 1
     }
@@ -809,8 +817,18 @@ impl Ui {
         [w, h]
     }
 
-    /// `ComputeSize` for each element class.
+    /// Start a layout pass: every node is measured again, once.
+    fn begin_size_pass(&mut self) {
+        self.size_pass = self.size_pass.wrapping_add(1).max(1);
+    }
+
+    /// `ComputeSize` for each element class. Within one layout pass a node's size is computed
+    /// once: a size depends only on the node and its children, which a pass does not change,
+    /// and nested layouts ask for their children's sizes both to measure and to arrange.
     fn compute_size(&mut self, id: NodeId) {
+        if self.nodes[id].sized_pass == self.size_pass {
+            return;
+        }
         let children = self.nodes[id].children.clone();
         let size = match self.nodes[id].kind.clone() {
             Kind::Group => {
@@ -976,6 +994,7 @@ impl Ui {
         if let Some(b) = self.nodes[id].border {
             self.compute_size(b);
         }
+        self.nodes[id].sized_pass = self.size_pass;
     }
 
     fn layout_text(&self, t: &mut TextData) {
@@ -1040,6 +1059,7 @@ impl Ui {
 
     /// Size and lay out `root` inside the given rectangle.
     pub fn layout(&mut self, root: NodeId, rect: [i32; 4]) {
+        self.begin_size_pass();
         self.compute_size(root);
         self.compute_layout(root, rect[0], rect[1], rect[2], rect[3]);
     }
@@ -1049,6 +1069,7 @@ impl Ui {
     ///
     /// Original: Runtime `0x180116620`.
     pub fn layout_dialog(&mut self, root: NodeId, rect: [i32; 4]) {
+        self.begin_size_pass();
         self.compute_size(root);
         if !matches!(self.nodes[root].kind, Kind::Group) {
             self.compute_layout(root, rect[0], rect[1], rect[2], rect[3]);

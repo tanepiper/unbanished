@@ -420,11 +420,15 @@ writes the same settings the game's Mods menu writes, so the game uses them when
 Close the game before you change mods here: the game writes its settings file when it closes, and
 would undo the changes. Mod lists are text files in `Documents/Banished/ModLists`.
 
-### Mods from Nexus Mods (optional)
+### Mods from Nexus Mods
 
 Banished's Steam version has a **Browse** tab in the Mods menu, for the Steam Workshop.
-Un-Banished can show this tab for [Nexus Mods](https://www.nexusmods.com/games/banished/mods)
-instead. The tab is off until you give Un-Banished your own Nexus Mods API key.
+Un-Banished has a Browse tab for each mod site instead: **Browse Nexus Mods** and, on the
+desktop, **Browse banishedinfo.com**. Both are shown by default. To hide one, add
+`ModBrowseNexus=false` or `ModBrowseBanishedInfo=false` to the [settings file](#settings).
+
+You can search and look at [Nexus Mods](https://www.nexusmods.com/games/banished/mods) without an
+account. To install from it, give Un-Banished your own Nexus Mods API key:
 
 1. Sign in on nexusmods.com. Open your account settings, then **API Keys**, and copy your
    personal API key. Treat it like a password: do not share it.
@@ -472,7 +476,7 @@ cargo run --release -p banished-cli -- nexus install 19 --to path/to/WinData
 and `nexus install 'nxm://…'` installs from a Mod Manager Download link.
 
 
-### Mods from banishedinfo.com (optional, desktop)
+### Mods from banishedinfo.com (desktop)
 
 [banishedinfo.com](https://banishedinfo.com/mods/browse) is a fan site with many Banished mods.
 It needs no account. Un-Banished can list, search and install its mods on the desktop. The
@@ -481,9 +485,8 @@ browser version cannot, because the site does not allow other web pages to read 
 - **Mod manager:** open the **banishedinfo.com** tab. Choose an order (Featured, Most
   downloaded, Popular today, Newest) and a section, or search. **Install newest** installs the
   newest version; **Versions…** lists the others.
-- **Game:** add the line `ModBrowseSource=banishedinfo` to the [settings file](#settings). The
-  Mods menu's Browse tab then shows banishedinfo.com instead of Nexus Mods. **Most Popular** is
-  the most downloaded, **Most Recent** the newest, and **+** installs the newest version.
+- **Game:** open **Mods** and choose **Browse banishedinfo.com**. **Most Popular** is the most
+  downloaded, **Most Recent** the newest, and **+** installs the newest version.
 - **Command line:**
 
 ```bash
