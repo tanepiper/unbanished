@@ -92,5 +92,5 @@ an identical game state. During the player-command change (0.3.0) the build befo
 differed from itself once (a level difference of 1 of 255, in under 0.001% of the frame), and
 once the continuation of a large-town save differed by up to 6 between the builds; run again,
 both matched exactly. The cause is in the drawing, not the simulation, and is not found yet
-(open question). A frame-only difference in `large-town` should be repeated, and checked against
+([issue #16](https://github.com/tanepiper/unbanished/issues/16)). A frame-only difference in `large-town` should be repeated, and checked against
 the old build compared with itself, before it is blamed on a change.
