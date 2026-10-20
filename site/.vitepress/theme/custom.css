@@ -424,3 +424,13 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* The lightbox (lightbox.ts, PhotoSwipe): VitePress limits every video to its parent's width, and
+   PhotoSwipe's slide has none, so the limit is lifted there. */
+.pswp video {
+  max-width: none;
+}
+/* Pictures and videos that open in the lightbox. */
+[data-lightbox] {
+  cursor: zoom-in;
+}

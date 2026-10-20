@@ -1,6 +1,8 @@
 import DefaultTheme from 'vitepress/theme'
 import type { Theme } from 'vitepress'
-import { h } from 'vue'
+import { h, nextTick, onMounted, watch } from 'vue'
+import { useRoute } from 'vitepress'
+import { lightbox } from './lightbox'
 import PlayGame from './components/PlayGame.vue'
 import Gallery from './components/Gallery.vue'
 import HeroVideo from './components/HeroVideo.vue'
@@ -16,6 +18,13 @@ export default {
   extends: DefaultTheme,
   // The home page's hero shows the montage video in place of an image.
   Layout: () => h(DefaultTheme.Layout, null, { 'home-hero-image': () => h(HeroVideo) }),
+  // Every picture and video opens in a lightbox (lightbox.ts), on the first page and after each
+  // page change.
+  setup() {
+    const route = useRoute()
+    onMounted(lightbox)
+    watch(() => route.path, () => nextTick(lightbox))
+  },
   enhanceApp({ app }) {
     app.component('PlayGame', PlayGame)
     app.component('Gallery', Gallery)

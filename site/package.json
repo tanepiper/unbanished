@@ -10,5 +10,9 @@
   },
   "devDependencies": {
     "vitepress": "^1.6.4"
+  },
+  "dependencies": {
+    "photoswipe": "^5.4.4",
+    "photoswipe-video-plugin": "^1.0.2"
   }
 }
