@@ -76,7 +76,8 @@ game year. A lockstep design could therefore mix native and browser
 players, as long as these stay true and the remaining local random draws are separated:
 starting the placement tool, the Path tool's pick and one menu click draw from the simulation's
 `Random` on the local computer only (1:1 with the original), and would have to become commands
-or use a generator of their own.
+or use a generator of their own. [MULTIPLAYER-PLAN.md](MULTIPLAYER-PLAN.md) describes how, without
+changing the single-player game.
 
 ## Open questions
 
