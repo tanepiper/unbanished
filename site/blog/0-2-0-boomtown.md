@@ -228,4 +228,5 @@ If something does not play like the original, please
 ---
 
 **All changes:** [Changelog, version 0.2.0](/changelog) ·
-**Earlier:** [First Settlers, 0.1.0](/blog/0-1-0-first-settlers)
+**Earlier:** [First Settlers, 0.1.0](/blog/0-1-0-first-settlers) ·
+**Next:** [Neighbours, 0.3.0](/blog/0-3-0-neighbours)
