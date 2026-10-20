@@ -51,6 +51,8 @@ pub struct MenuLoop {
     save_dialog: Option<crate::ui::save_dialog::SaveLoadDialog>,
     /// The Mods dialog (`MainMenuDialog` id 7, `FUN_1400b8370`).
     mods_dialog: Option<crate::ui::mod_ui::ModDialog>,
+    /// The Multiplayer window (not in the original).
+    multiplayer: Option<crate::ui::multiplayer::MultiplayerDialog>,
 }
 
 /// Shared settings defaults (`FUN_140042850`) before `Game/Last*` persistence is applied:
@@ -81,6 +83,7 @@ impl MenuLoop {
             load: None,
             save_dialog: None,
             mods_dialog: None,
+            multiplayer: None,
         }
     }
 
@@ -376,6 +379,33 @@ fn load_menu_scene(ctx: &mut Ctx, index: u32) -> banished_formats::Result<SceneV
 }
 
 /// `UI::TextElement::SetParameter`: replace `@0`, `@1`, … in a text element.
+/// Deviation: a Multiplayer button under Load (the original has no multiplayer). It is a copy of
+/// the Load button with its own name and label.
+fn add_multiplayer_button(ui: &mut Ui, screen: &Screen, dialog: usize) {
+    let (Some(list), Some(load)) = (
+        screen.find(ui, dialog, "buttonList"),
+        screen.find(ui, dialog, "buttonLoad"),
+    ) else {
+        return;
+    };
+    let reference = ui.node(load).reference.clone();
+    let Some(button) = ui.instantiate(&reference) else {
+        log::warn!("menu: no copy of {reference}");
+        return;
+    };
+    ui.node_mut(button).name = "buttonMultiplayer".into();
+    if let Some(label) = ui.find(button, "labelLoadGame") {
+        ui.node_mut(label).name = "labelMultiplayer".into();
+        ui.set_text(label, "Multiplayer");
+    }
+    let children = &mut ui.node_mut(list).children;
+    let at = children
+        .iter()
+        .position(|&c| c == load)
+        .map_or(children.len(), |i| i + 1);
+    children.insert(at, button);
+}
+
 fn set_parameters(ui: &mut Ui, id: NodeId, values: &[&str]) {
     let text = match &ui.node(id).kind {
         Kind::Text(t) | Kind::Label { text: t, .. } => t.text.clone(),
@@ -456,7 +486,9 @@ impl GameLoop for MenuLoop {
 
     fn startup(&mut self, ctx: &mut Ctx) {
         let mut screen = Screen::new(ctx.ui);
-        screen.add_dialog(ctx.ui, MENU_DIALOG);
+        if let Some(d) = screen.add_dialog(ctx.ui, MENU_DIALOG) {
+            add_multiplayer_button(ctx.ui, &screen, d);
+        }
         if let Some(d) = screen.add_dialog(ctx.ui, BUILD_ID_DIALOG) {
             if let Some(notice) = screen.find(ctx.ui, d, "textBuildNotice") {
                 set_parameters(ctx.ui, notice, &[VERSION, BUILD_ID]);
@@ -504,9 +536,25 @@ impl GameLoop for MenuLoop {
         if let Some(options) = &mut self.options {
             options.update();
         }
+        let mut bytes = None;
         if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
             let outcome = d.update(ctx.ui, screen, dt);
+            if matches!(outcome, crate::ui::save_dialog::Outcome::Load(_)) {
+                bytes = d.bytes.take();
+            }
             self.save_outcome(outcome);
+        }
+        if let (Some(mp), Some(screen)) = (self.multiplayer.as_mut(), self.screen.as_mut()) {
+            // The host's save starts the game for every player.
+            let outcome = match (self.load.take(), bytes) {
+                (Some(_), Some(bytes)) => mp.host_start(ctx.ui, screen, bytes),
+                _ => mp.update(ctx.ui, screen),
+            };
+            if let crate::ui::multiplayer::Outcome::Start(game) = outcome {
+                self.multiplayer = None;
+                let screen_ref = format!("Dialog/Loading.rsc:gameLoad{}", ctx.rng.rand_below(12));
+                return Next::Switch(Box::new(DialogLoaderLoop::new(screen_ref, 0.5, game)));
+            }
         }
         if let Some(saved) = self.load.take() {
             log::info!("loading {}", saved.metadata.name);
@@ -554,6 +602,13 @@ impl GameLoop for MenuLoop {
                 let outcome = d.escape(ctx.ui, screen);
                 self.save_outcome(outcome);
             }
+            return Next::Stay;
+        }
+        if let (Some(mp), Some(screen), RawInput::Escape) =
+            (self.multiplayer.as_mut(), self.screen.as_mut(), &input)
+        {
+            mp.close(ctx.ui, screen);
+            self.multiplayer = None;
             return Next::Stay;
         }
         if let (Some(options), Some(screen)) = (&mut self.options, &mut self.screen) {
@@ -604,6 +659,24 @@ impl GameLoop for MenuLoop {
         if let (Some(options), Some(screen)) = (&mut self.options, &mut self.screen) {
             if options.event(ctx, screen, event) == crate::ui::options::Outcome::Closed {
                 self.options = None;
+            }
+            return Next::Stay;
+        }
+        if let (Some(mp), Some(screen)) = (self.multiplayer.as_mut(), self.screen.as_mut()) {
+            use crate::ui::multiplayer::Outcome;
+            if let Event::Clicked(id) = event {
+                match mp.click(ctx.ui, screen, &mut ctx.settings.persistence, id) {
+                    Outcome::Closed => self.multiplayer = None,
+                    Outcome::ChooseSave => {
+                        self.save_dialog = crate::ui::save_dialog::SaveLoadDialog::open(
+                            ctx.ui, screen, true, false,
+                        );
+                        if let Some(d) = &mut self.save_dialog {
+                            d.keep_bytes = true;
+                        }
+                    }
+                    Outcome::Stay | Outcome::Start(_) => {}
+                }
             }
             return Next::Stay;
         }
@@ -684,6 +757,14 @@ impl GameLoop for MenuLoop {
             if let Some(screen) = &mut self.screen {
                 self.save_dialog =
                     crate::ui::save_dialog::SaveLoadDialog::open(ctx.ui, screen, true, false);
+            }
+        } else if self.is(ctx.ui, 0, "buttonMultiplayer", id) {
+            if let Some(screen) = &mut self.screen {
+                self.multiplayer = crate::ui::multiplayer::MultiplayerDialog::open(
+                    ctx.ui,
+                    screen,
+                    &ctx.settings.persistence,
+                );
             }
         } else if self.is(ctx.ui, 0, "buttonQuit", id) {
             return Next::Quit;

@@ -945,9 +945,11 @@ impl Ui {
         let mut changed = false;
         // `EditElement::SelectCharacter`: the keys of a US keyboard give printable ASCII but
         // `:` and `;`; each goes in while the text is shorter than its most and the edit
-        // takes it.
+        // takes it. Deviation: an edit whose allowed characters name `:` or `;` takes them (the
+        // Multiplayer window's relay address); the original's edits never name them.
         for ch in text.chars() {
-            let typable = (' '..='~').contains(&ch) && ch != ':' && ch != ';';
+            let typable =
+                (' '..='~').contains(&ch) && (!matches!(ch, ':' | ';') || e.allowed.contains(ch));
             if !typable
                 || e.text.text.chars().count() >= e.max_length
                 || (!e.allowed.is_empty() && !e.allowed.contains(ch))

@@ -174,6 +174,16 @@ and compares them. In the browser build, a local page with
 `?data=/game-data/&net=ws://127.0.0.1:PORT&room=ROOM&updates=N` joins as a player (giving no
 commands) and shows its digests at the end of the page.
 
+### Multiplayer window
+
+The Multiplayer button on the main menu opens `ui/multiplayer.rs`. A game started there holds its
+session (`gameplay/network.rs`, `NetState`): each update reads what arrived, carries out the slot,
+sends its turn and, at a check, the host compares digests. A resync fades to the loading screen
+and on to the host's save. The players line is the original's version footer without its logo.
+`tools/compat/multiplayer.sh BINARY` plays it from end to end with two headless games kept to the
+clock (`--realtime`); `--text NAME=TEXT@SECONDS` types into an edit, and `BANISHED_ROOM` asks the
+relay for a fixed room code.
+
 ### `--sim-digest`
 
 `banished --sim-digest SAVE [UPDATES] [EVERY]` loads a save without a window, runs it at speed

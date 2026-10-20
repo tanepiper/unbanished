@@ -505,6 +505,18 @@ impl Game {
         }
     }
 
+    /// Click the named edit, empty it and type `text` (scripted runs).
+    pub fn type_into(&mut self, name: &str, text: &str, size: (u32, u32)) -> bool {
+        if !self.press(name, size) {
+            return false;
+        }
+        let Some(edit) = self.ui.focused() else {
+            return false;
+        };
+        self.ui.set_text(edit, "");
+        self.ui.text_input(text)
+    }
+
     /// Click the named control through the normal pointer path (scripted runs): lay out the
     /// screen at `size`, move to the control's centre, press and release.
     pub fn press(&mut self, name: &str, size: (u32, u32)) -> bool {
@@ -1472,6 +1484,16 @@ mod native {
                 Some((name.to_string(), at.parse().ok()?))
             })
             .collect();
+        // `--text NAME=TEXT@SECONDS` clicks the named edit, empties it and types TEXT.
+        let mut texts: Vec<(String, String, f32)> = args
+            .windows(2)
+            .filter(|w| w[0] == "--text")
+            .filter_map(|w| {
+                let (what, at) = w[1].rsplit_once('@')?;
+                let (name, text) = what.split_once('=')?;
+                Some((name.to_string(), text.to_string(), at.parse().ok()?))
+            })
+            .collect();
         // `--move X,Y@SECONDS` moves the cursor; `--click-at X,Y@SECONDS` also presses and
         // releases the left button there; `--mouse-down` and `--mouse-up` move there and press
         // or release it, for drags (with `--move` between).
@@ -1546,9 +1568,18 @@ mod native {
         let mut cinematic = crate::view::cinematic::Cinematic::from_args(args);
         let dt = 1.0 / 30.0;
         let mut t = 0.0;
+        // `--realtime`: frames keep to the clock (a capture that talks to a relay).
+        let realtime = args
+            .iter()
+            .any(|a| a == "--realtime")
+            .then(std::time::Instant::now);
         // Frames left to draw for a scripted screenshot's readback.
         let mut shot_frames = 0;
         while t < seconds {
+            if let Some(start) = realtime {
+                let ahead = std::time::Duration::from_secs_f32(t).saturating_sub(start.elapsed());
+                std::thread::sleep(ahead);
+            }
             // A 1/30 s frame is two of `MainLoop::Frame`'s 1/60 s steps.
             let step = banished_game::scheduler::seconds(FRAME_STEP);
             platform::perf::frame_begin();
@@ -1640,6 +1671,15 @@ mod native {
                 }
                 if !game.press(name, size) {
                     log::warn!("--press {name}: not found at {t:.2} s");
+                }
+                false
+            });
+            texts.retain(|(name, text, at)| {
+                if t < *at {
+                    return true;
+                }
+                if !game.type_into(name, text, size) {
+                    log::warn!("--text {name}: not typed at {t:.2} s");
                 }
                 false
             });
@@ -1957,7 +1997,7 @@ mod native {
         });
         match outcome {
             Ok(_) => {
-                println!("desyncs {:?} resyncs {:?}", peer.desyncs, peer.resyncs);
+                println!("desyncs {:?} resyncs {:?}", peer.desyncs(), peer.resyncs());
                 log::info!(
                     "player {me}: {} updates in {:.1} s",
                     last,

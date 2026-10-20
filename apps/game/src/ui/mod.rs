@@ -7,6 +7,7 @@ pub mod entity_ui;
 pub mod event_notify;
 pub mod mod_browse;
 pub mod mod_ui;
+pub mod multiplayer;
 pub mod options;
 pub mod pause_menu;
 pub mod save_dialog;

@@ -159,13 +159,21 @@ impl GameplayLoop {
     pub(super) fn start_tool(&mut self, ctx: &mut Ctx, template: &str) {
         // `FUN_140108030`: the tool class that handles one of the template's
         // descriptions (CreatePlacedDescription, CreateRemovalDescription, ...).
-        self.removal = None;
-        self.placement = None;
         let start = PlayerCommand::StartTool {
             template: template.to_string(),
         };
-        let mut path = None;
         match self.execute(ctx.archive, start) {
+            Outcome::Queued => {}
+            outcome => self.tool_started(ctx, template, outcome),
+        }
+    }
+
+    /// The tool a StartTool command started becomes the current one.
+    pub(super) fn tool_started(&mut self, ctx: &mut Ctx, template: &str, outcome: Outcome) {
+        self.removal = None;
+        self.placement = None;
+        let mut path = None;
+        match outcome {
             Outcome::Tool(Some(Tool::Placement(t))) => self.placement = Some(t),
             Outcome::Tool(Some(Tool::Removal(t))) => self.removal = Some(t),
             Outcome::Tool(Some(Tool::Path(t))) => path = Some(t),
@@ -220,6 +228,8 @@ impl GameplayLoop {
         let sound = match step {
             Some(DragStep::Apply) => {
                 let drag = PlayerCommand::Drag(tool.drag_command());
+                // In lockstep the sound comes with the slot ([`Self::local_outcome`]), and the
+                // queued commands apply in the next iteration on every computer.
                 match self.execute(ctx.archive, drag) {
                     Outcome::Sound(s) => Some(s),
                     _ => None,
@@ -309,19 +319,8 @@ impl GameplayLoop {
                 }
             }
         }
-        let sound = match sound {
-            Some(DragSound::Move) if self.move_cooldown > 0.0 => None,
-            Some(DragSound::Move) => {
-                self.move_cooldown = 0.05;
-                Some(crate::audio::sound::global::PLACEMENT_MOVE)
-            }
-            Some(DragSound::Thunk) => Some(crate::audio::sound::global::PLACEMENT_THUNK),
-            Some(DragSound::Error) => Some(crate::audio::sound::global::PLACEMENT_ERROR),
-            None => None,
-        };
         if let Some(sound) = sound {
-            ctx.audio
-                .play(ctx.archive, sound, crate::audio::sound::sound_type::UI);
+            self.play_drag_sound(ctx, sound);
         }
     }
 
@@ -343,5 +342,22 @@ impl GameplayLoop {
                 town.refresh_models(ctx.archive, models);
             }
         }
+    }
+}
+
+impl GameplayLoop {
+    /// A drag tool's sound (the move sound at most every 0.05 s).
+    pub(super) fn play_drag_sound(&mut self, ctx: &mut Ctx, sound: DragSound) {
+        let sound = match sound {
+            DragSound::Move if self.move_cooldown > 0.0 => return,
+            DragSound::Move => {
+                self.move_cooldown = 0.05;
+                crate::audio::sound::global::PLACEMENT_MOVE
+            }
+            DragSound::Thunk => crate::audio::sound::global::PLACEMENT_THUNK,
+            DragSound::Error => crate::audio::sound::global::PLACEMENT_ERROR,
+        };
+        ctx.audio
+            .play(ctx.archive, sound, crate::audio::sound::sound_type::UI);
     }
 }

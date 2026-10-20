@@ -683,3 +683,24 @@ fn blank_build_slots_line_up() {
     assert_eq!(ui.nodes[last].rect[1], ui.nodes[kids[1]].rect[1]);
     assert_eq!(ui.nodes[last].rect[3], ui.nodes[kids[1]].rect[3]);
 }
+
+#[test]
+fn an_edit_that_allows_a_colon_takes_it() {
+    let Some(mut ui) = game_ui() else { return };
+    let root = ui.group();
+    let edit = ui.instantiate(r"Dialog\NewGame.rsc:editName").unwrap();
+    ui.add_child(root, edit);
+    ui.layout(root, [0, 0, 640, 100]);
+    if let Kind::Control(Control::Edit(e)) = &mut ui.nodes[edit].kind {
+        e.allowed = (' '..='~').collect();
+        e.max_length = 40;
+        e.text.text.clear();
+        e.cursor = 0;
+    }
+    assert!(ui.key(root, Key::Tab));
+    assert!(ui.text_input("ws://127.0.0.1:7780"));
+    match &ui.nodes[edit].kind {
+        Kind::Control(Control::Edit(e)) => assert_eq!(e.text.text, "ws://127.0.0.1:7780"),
+        _ => unreachable!(),
+    }
+}

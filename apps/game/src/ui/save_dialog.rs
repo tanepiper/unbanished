@@ -99,6 +99,9 @@ pub struct SaveLoadDialog {
     in_game: bool,
     confirm: Option<(Confirm, NodeId)>,
     el: Elements,
+    /// Keep the file of the save loaded (a multiplayer host sends it to the players).
+    pub keep_bytes: bool,
+    pub bytes: Option<Vec<u8>>,
 }
 
 #[derive(Default)]
@@ -165,6 +168,8 @@ impl SaveLoadDialog {
             in_game,
             confirm: None,
             el,
+            keep_bytes: false,
+            bytes: None,
         };
         d.start(Operation::List, LIST_TIME);
         d.listing = true;
@@ -193,10 +198,17 @@ impl SaveLoadDialog {
         if let Some(read) = &mut self.reading {
             if let Some(result) = read.poll() {
                 self.reading = None;
+                let keep = self.keep_bytes;
                 match result.and_then(|b| {
-                    crate::saves::saved::SavedGame::parse(&b).map_err(|e| e.to_string())
+                    let saved = crate::saves::saved::SavedGame::parse(&b);
+                    saved
+                        .map(|s| (s, keep.then_some(b)))
+                        .map_err(|e| e.to_string())
                 }) {
-                    Ok(saved) => self.load = Some(saved),
+                    Ok((saved, bytes)) => {
+                        self.load = Some(saved);
+                        self.bytes = bytes;
+                    }
                     Err(e) => {
                         log::error!("load: {e}");
                         self.operation = None;

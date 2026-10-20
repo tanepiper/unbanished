@@ -43,7 +43,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
   they differ, everybody reloads the host's save and goes on (step 4).
 - A multiplayer relay, `banished-relay`, with room codes, and the game's WebSocket connection to
   it, natively and in the browser (`banished-net`). Native and browser players have played one
-  game through it and stayed identical (step 5). There is no multiplayer menu yet.
+  game through it and stayed identical (step 5).
+- Multiplayer from the main menu: a Multiplayer button opens a window to host a room on a relay
+  or join one with its code. The host starts the game from one of its saves, and every player
+  plays the same town; the speed and the pause are shared, and a line at the foot of the screen
+  shows the players (step 6). The button is not in the original game.
 
 ## [0.2.0] - 2026-10-19
 

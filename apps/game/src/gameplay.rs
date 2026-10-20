@@ -184,6 +184,13 @@ pub struct GameplayLoop {
     outbox: Vec<lockstep::Message>,
     /// The slot carried out last (lockstep).
     slot_done: Option<u64>,
+    /// A multiplayer game's session ([`network`]), and the update boundary it last handled.
+    net: Option<network::NetState>,
+    boundary_done: Option<u64>,
+    /// Commands of a lockstep slot are being carried out (others go to the lockstep).
+    carrying_out: bool,
+    /// Replaced by a resync's save: it waits for the switch.
+    retired: bool,
     /// The other players' Path tools (a Path tool's pick depends on its last pick).
     remote_paths: std::collections::BTreeMap<u8, crate::tools::path_tool::PathTool>,
     /// The Save and Load dialog over the pause menu.
@@ -363,6 +370,10 @@ impl GameplayLoop {
             outbox: Vec::new(),
             slot_done: None,
             remote_paths: Default::default(),
+            net: None,
+            boundary_done: None,
+            carrying_out: false,
+            retired: false,
             save_dialog: None,
             mods_dialog: None,
             ambience: None,
@@ -637,6 +648,9 @@ impl GameLoop for GameplayLoop {
             self.achievement_manager.restore(&self.achievements, saved);
         }
         self.start_scenario(ctx);
+        if self.net.is_some() {
+            self.open_players_line(ctx.ui);
+        }
         // `--record`: a game loaded from a save is recorded from its first update.
         if self.saved.is_some() && !self.replaying {
             self.recorder = recording::take_request();
@@ -644,9 +658,32 @@ impl GameLoop for GameplayLoop {
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
-        // Lockstep: the update waits for every player's turn of the slot before it.
-        if self.lockstep.is_some() && !self.lockstep_slot(ctx) {
+        if self.retired {
             return Next::Stay;
+        }
+        // A multiplayer game: what the other players sent, then the slot before this update
+        // (which waits for every player's turn), the turns to send, and the host's checks.
+        let online = self.net.as_ref().is_some_and(|n| !n.driven);
+        if online {
+            if let (_, Some((bytes, update))) = self.net_poll() {
+                return self.switch_reload(ctx, &bytes, update);
+            }
+        }
+        if self.lockstep.is_some() && !self.lockstep_slot(ctx) {
+            if online {
+                self.net_send();
+                self.refresh_players_line(ctx.ui, true);
+            }
+            return Next::Stay;
+        }
+        if online {
+            self.net_send();
+            self.refresh_players_line(ctx.ui, false);
+            match self.net_boundary(ctx, self.updates) {
+                Ok(Some((bytes, update))) => return self.switch_reload(ctx, &bytes, update),
+                Ok(None) => {}
+                Err(e) => log::error!("multiplayer: {e}"),
+            }
         }
         // A recording's digest of the state this update begins with, every few updates.
         if self
@@ -669,7 +706,10 @@ impl GameLoop for GameplayLoop {
         self.close_removed_windows(ctx.ui);
         {
             self.finish_save(ctx);
-            self.update_autosave(ctx, dt);
+            // A multiplayer game is not autosaved (the host saves it for a resync).
+            if self.net.is_none() {
+                self.update_autosave(ctx, dt);
+            }
             if let Some(next) = self.update_save_dialog(ctx, dt) {
                 return next;
             }
@@ -1047,9 +1087,12 @@ impl GameLoop for GameplayLoop {
                         Self::restrict_allows(self.restrict.as_ref(), tool, self.rotation);
                     // `FUN_1401055c0` / `FUN_140105610`: thunk on placement, error otherwise.
                     let placement = tool.placement(self.rotation).filter(|_| allowed);
+                    // In lockstep the placement waits for its slot; it was checked here, and
+                    // every computer places it.
                     let placed = match placement {
                         Some(p) => match self.execute(ctx.archive, PlayerCommand::Place(p)) {
-                            Outcome::Placed(id) => Some(id),
+                            Outcome::Placed(id) => Some(Some(id)),
+                            Outcome::Queued => Some(None),
                             _ => None,
                         },
                         None => None,
@@ -1062,7 +1105,7 @@ impl GameLoop for GameplayLoop {
                     }
                     let sound = match placed {
                         Some(id) => {
-                            log::info!("placed {} as entity {id}", tool.reference);
+                            log::info!("placed {} as entity {id:?}", tool.reference);
                             crate::audio::sound::global::PLACEMENT_THUNK
                         }
                         None => {

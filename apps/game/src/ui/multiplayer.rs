@@ -1,0 +1,349 @@
+//! The Multiplayer window: host a room on a relay or join one, wait for the players, and start
+//! the game from the host's save. Not in the original, which has no multiplayer (see
+//! docs/MULTIPLAYER-PLAN.md, step 6).
+//!
+//! Deviation: the window is new. It is built from the original's Map dialog
+//! (`Dialog/MapParams.rsc`) with its rows given new labels, so it looks like the game's own
+//! windows. The room code goes in the town name's edit and the relay's address in the seed's.
+//! OK is Host while the code is empty and Join with a code; the host's becomes Start once a
+//! player has joined, and Start asks for the save to play (the Load dialog).
+
+use std::cell::RefCell;
+use std::collections::BTreeSet;
+use std::rc::Rc;
+
+use banished_net::{FromRelay, State, ToRelay};
+use banished_ui::{Control, Kind, NodeId, Ui};
+
+use crate::gameplay::lockstep::Message;
+use crate::gameplay::network::{Link, RelayLink, Shared};
+use crate::gameplay::GameplayLoop;
+use crate::loops::Screen;
+use crate::settings::Persistence;
+
+const DIALOG: &str = "Dialog/MapParams.rsc:resource";
+/// The relay used when the settings name none.
+pub const DEFAULT_RELAY: &str = "ws://127.0.0.1:7780";
+/// Updates between a player's command and its slot (100 ms), and between the host's checks
+/// (10 s).
+const DELAY: u64 = 6;
+const CHECK: u64 = 600;
+
+/// The host's check interval: `BANISHED_NET_CHECK` (tests) or [`CHECK`].
+fn check_interval() -> u64 {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(n) = std::env::var("BANISHED_NET_CHECK")
+        .ok()
+        .and_then(|v| v.parse().ok())
+    {
+        return n;
+    }
+    CHECK
+}
+
+/// What a click or an update asks of the menu.
+pub enum Outcome {
+    Stay,
+    Closed,
+    /// The host chose Start: the menu opens the Load dialog for the save to play.
+    ChooseSave,
+    /// The game starts.
+    Start(Box<GameplayLoop>),
+}
+
+enum Role {
+    Idle,
+    Hosting { players: BTreeSet<u8> },
+    Joined { player: u8 },
+}
+
+pub struct MultiplayerDialog {
+    pub root: NodeId,
+    code: Option<NodeId>,
+    relay: Option<NodeId>,
+    players: Option<NodeId>,
+    status: Option<NodeId>,
+    ok: Option<NodeId>,
+    cancel: Option<NodeId>,
+    link: Option<Rc<RefCell<RelayLink>>>,
+    role: Role,
+    message: String,
+}
+
+fn edit_text(ui: &Ui, edit: Option<NodeId>) -> String {
+    match edit.map(|e| &ui.node(e).kind) {
+        Some(Kind::Control(Control::Edit(e))) => e.text.text.trim().to_string(),
+        _ => String::new(),
+    }
+}
+
+impl MultiplayerDialog {
+    pub fn open(ui: &mut Ui, screen: &mut Screen, settings: &Persistence) -> Option<Self> {
+        let index = screen.add_modal(ui, DIALOG)?;
+        let root = screen.dialogs[index].root;
+        let find = |ui: &Ui, n: &str| ui.find(root, n);
+        for (element, text) in [
+            ("labelTitle", "Multiplayer"),
+            ("descName", "Room Code"),
+            ("descSeed", "Relay"),
+            ("descTerrain", "Players"),
+            ("descTerrainSize", "Status"),
+        ] {
+            if let Some(n) = find(ui, element) {
+                ui.set_text(n, text);
+            }
+        }
+        for element in [
+            "buttonNewName",
+            "descClimate",
+            "textClimate",
+            "descDisaster",
+            "textDisaster",
+            "descCondition",
+            "textCondition",
+        ] {
+            if let Some(n) = find(ui, element) {
+                ui.set_visible(n, false);
+            }
+        }
+        let code = find(ui, "editName");
+        if let Some(e) = code {
+            ui.set_text(e, "");
+            if let Kind::Control(Control::Edit(d)) = &mut ui.node_mut(e).kind {
+                d.max_length = 12;
+                // A town name takes no digits; a code is letters and digits.
+                d.allowed = ('A'..='Z').chain('a'..='z').chain('0'..='9').collect();
+            }
+        }
+        // The seed's edit takes digits only; the address is text.
+        let relay = find(ui, "numberSeed");
+        if let Some(e) = relay {
+            if let Kind::Control(Control::Edit(d)) = &mut ui.node_mut(e).kind {
+                d.numeric = false;
+                d.range = None;
+                // Printable ASCII with `:` (which edits otherwise refuse) for `ws://host:port`.
+                d.allowed = (' '..='~').collect();
+                d.max_length = 120;
+            }
+            let address = settings
+                .get_text("Multiplayer", "Relay")
+                .unwrap_or_else(|| DEFAULT_RELAY.to_string());
+            ui.set_text(e, &address);
+        }
+        let d = MultiplayerDialog {
+            root,
+            code,
+            relay,
+            players: find(ui, "textTerrain"),
+            status: find(ui, "textTerrainSize"),
+            ok: find(ui, "buttonOk"),
+            cancel: find(ui, "buttonCancel"),
+            link: None,
+            role: Role::Idle,
+            message: "Leave the code empty to host a room.".into(),
+        };
+        d.refresh(ui);
+        Some(d)
+    }
+
+    /// The room code, the players and the status; OK's label and whether it can be pressed.
+    fn refresh(&self, ui: &mut Ui) {
+        let (players, ok, enabled) = match &self.role {
+            Role::Idle => {
+                let join = !edit_text(ui, self.code).is_empty();
+                let label = if join { "Join" } else { "Host" };
+                (String::new(), label, !edit_text(ui, self.relay).is_empty())
+            }
+            Role::Hosting { players, .. } => (list(players), "Start", players.len() > 1),
+            Role::Joined { player, .. } => (format!("You are player {}", player + 1), "Ok", false),
+        };
+        if let Some(n) = self.players {
+            ui.set_text(n, &players);
+        }
+        if let Some(n) = self.status {
+            ui.set_text(n, &self.message);
+        }
+        if let Some(n) = self.ok {
+            ui.set_text(n, ok);
+            ui.node_mut(n).enabled = enabled;
+        }
+    }
+
+    pub fn click(
+        &mut self,
+        ui: &mut Ui,
+        screen: &mut Screen,
+        settings: &mut Persistence,
+        node: NodeId,
+    ) -> Outcome {
+        let is = |b: Option<NodeId>| b.is_some_and(|b| ui.descendant(b, node));
+        if is(self.cancel) {
+            self.close(ui, screen);
+            return Outcome::Closed;
+        }
+        if is(self.ok) && ui.node(self.ok.unwrap()).enabled {
+            match &self.role {
+                Role::Idle => {
+                    let relay = edit_text(ui, self.relay);
+                    let code = edit_text(ui, self.code).to_uppercase();
+                    settings.set_text("Multiplayer", "Relay", &relay);
+                    settings.write();
+                    log::info!("multiplayer: connecting to {relay}");
+                    self.connect(&relay, code);
+                }
+                Role::Hosting { .. } => {
+                    log::info!("multiplayer: choosing the save to play");
+                    return Outcome::ChooseSave;
+                }
+                Role::Joined { .. } => {}
+            }
+        }
+        self.refresh(ui);
+        Outcome::Stay
+    }
+
+    fn connect(&mut self, relay: &str, code: String) {
+        let mut link = RelayLink::new(banished_net::Connection::connect(relay));
+        if code.is_empty() {
+            // `BANISHED_ROOM` asks the relay for that code (tests).
+            #[cfg(not(target_arch = "wasm32"))]
+            let room = std::env::var("BANISHED_ROOM").ok();
+            #[cfg(target_arch = "wasm32")]
+            let room = None;
+            link.request(ToRelay::Host { room });
+            self.message = format!("Opening a room on {relay}...");
+        } else {
+            link.request(ToRelay::Join { room: code.clone() });
+            self.message = format!("Joining {code}...");
+        }
+        self.link = Some(Rc::new(RefCell::new(link)));
+    }
+
+    /// Each frame: what the relay and the host sent.
+    pub fn update(&mut self, ui: &mut Ui, screen: &mut Screen) -> Outcome {
+        let Some(link) = self.link.clone() else {
+            self.refresh(ui);
+            return Outcome::Stay;
+        };
+        let arrived = Link::poll(&mut *link.borrow_mut());
+        let events: Vec<_> = link.borrow_mut().events.drain(..).collect();
+        for e in events {
+            match (e, &mut self.role) {
+                (FromRelay::Hosted { room }, _) => {
+                    self.message = format!("Room {room} is open. Give the code to the players.");
+                    if let Some(c) = self.code {
+                        ui.set_text(c, &room);
+                    }
+                    self.role = Role::Hosting {
+                        players: BTreeSet::from([0]),
+                    };
+                }
+                (FromRelay::Joined { room, player }, _) => {
+                    self.message = format!("In room {room}. Waiting for the host to start.");
+                    self.role = Role::Joined { player };
+                }
+                (FromRelay::PeerJoined { player }, Role::Hosting { players, .. }) => {
+                    players.insert(player);
+                }
+                (FromRelay::PeerLeft { player }, Role::Hosting { players, .. }) => {
+                    players.remove(&player);
+                }
+                (FromRelay::Error { message }, _) => {
+                    self.message = format!("The relay: {message}");
+                    self.link = None;
+                    self.role = Role::Idle;
+                }
+                _ => {}
+            }
+        }
+        if let State::Closed(e) = link.borrow().state() {
+            self.message = format!("No connection: {e}");
+            self.link = None;
+            self.role = Role::Idle;
+        }
+        let mut outcome = Outcome::Stay;
+        if let Role::Joined { player, .. } = self.role {
+            for (_, message) in arrived {
+                if let Message::Start {
+                    players,
+                    delay,
+                    check,
+                    bytes,
+                } = message
+                {
+                    match self.game(player, players, delay, check, &bytes) {
+                        Ok(g) => outcome = Outcome::Start(Box::new(g)),
+                        Err(e) => self.message = format!("The host's save: {e}"),
+                    }
+                    break;
+                }
+            }
+        }
+        if let Outcome::Start(_) = outcome {
+            self.close(ui, screen);
+        } else {
+            self.refresh(ui);
+        }
+        outcome
+    }
+
+    /// The host starts the game from the save `bytes` for everybody in the room.
+    pub fn host_start(&mut self, ui: &mut Ui, screen: &mut Screen, bytes: Vec<u8>) -> Outcome {
+        let Role::Hosting { players, .. } = &self.role else {
+            return Outcome::Stay;
+        };
+        // The relay numbers players as they come; the lockstep counts them from 0 without gaps.
+        let count = players.iter().max().map_or(1, |&p| p + 1);
+        let Some(link) = self.link.clone() else {
+            return Outcome::Stay;
+        };
+        let check = check_interval();
+        let start = Message::Start {
+            players: count,
+            delay: DELAY,
+            check,
+            bytes,
+        };
+        link.borrow_mut().send(None, &start);
+        let Message::Start { bytes, .. } = start else {
+            unreachable!()
+        };
+        match self.game(0, count, DELAY, check, &bytes) {
+            Ok(g) => {
+                self.close(ui, screen);
+                Outcome::Start(Box::new(g))
+            }
+            Err(e) => {
+                self.message = format!("The save: {e}");
+                self.refresh(ui);
+                Outcome::Stay
+            }
+        }
+    }
+
+    fn game(
+        &mut self,
+        player: u8,
+        players: u8,
+        delay: u64,
+        check: u64,
+        bytes: &[u8],
+    ) -> Result<GameplayLoop, String> {
+        let saved = crate::saves::saved::SavedGame::parse(bytes).map_err(|e| e.to_string())?;
+        let link = self.link.take().ok_or("no connection")?;
+        let mut g = GameplayLoop::from_save(saved);
+        g.join_lockstep(player, players, delay);
+        g.join_network(Box::new(Shared(link)), check);
+        log::info!("multiplayer: player {player} of {players} starts");
+        Ok(g)
+    }
+
+    pub fn close(&mut self, ui: &mut Ui, screen: &mut Screen) {
+        screen.remove_root(ui, self.root);
+    }
+}
+
+fn list(players: &BTreeSet<u8>) -> String {
+    let names: Vec<String> = players.iter().map(|p| format!("{}", p + 1)).collect();
+    format!("{} ({})", players.len(), names.join(", "))
+}

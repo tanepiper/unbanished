@@ -357,9 +357,12 @@ impl super::GameplayLoop {
         if !l.ready(slot) {
             return false;
         }
-        for (player, command) in l.take(slot) {
+        let commands = l.take(slot);
+        self.carrying_out = true;
+        for (player, command) in commands {
             self.execute_from(ctx, player, command);
         }
+        self.carrying_out = false;
         self.slot_done = Some(slot);
         true
     }
@@ -370,13 +373,12 @@ impl super::GameplayLoop {
         use super::commands::{Outcome, Tool};
         let local = self.lockstep.as_ref().is_none_or(|l| l.player == player);
         if local {
-            if let Outcome::Tool(Some(tool)) = self.execute(ctx.archive, command) {
-                match tool {
-                    Tool::Placement(t) => self.placement = Some(t),
-                    Tool::Removal(t) => self.removal = Some(t),
-                    Tool::Path(t) => self.path_tool = Some(t),
-                }
-            }
+            let template = match &command {
+                PlayerCommand::StartTool { template } => Some(template.clone()),
+                _ => None,
+            };
+            let outcome = self.execute(ctx.archive, command);
+            self.local_outcome(ctx, template.as_deref(), outcome);
             return;
         }
         let mine = std::mem::replace(&mut self.path_tool, self.remote_paths.remove(&player));
@@ -385,6 +387,29 @@ impl super::GameplayLoop {
         }
         if let Some(t) = std::mem::replace(&mut self.path_tool, mine) {
             self.remote_paths.insert(player, t);
+        }
+    }
+}
+
+impl super::GameplayLoop {
+    /// What the local player's command did, now that its slot ran: the tool it started, the
+    /// sound of a drag, a random town name for the town window.
+    fn local_outcome(
+        &mut self,
+        ctx: &mut crate::loops::Ctx,
+        template: Option<&str>,
+        outcome: super::commands::Outcome,
+    ) {
+        use super::commands::Outcome;
+        match outcome {
+            Outcome::Tool(_) => self.tool_started(ctx, template.unwrap_or(""), outcome),
+            Outcome::Sound(s) => self.play_drag_sound(ctx, s),
+            Outcome::Name(name) => {
+                if let Some(super::MenuDialog::Map(m)) = &self.menu_dialog {
+                    m.set_name(ctx.ui, &name);
+                }
+            }
+            Outcome::None | Outcome::Placed(_) | Outcome::Queued => {}
         }
     }
 }
@@ -400,10 +425,40 @@ impl super::GameplayLoop {
         bytes: &[u8],
         update: u64,
     ) -> Result<super::GameplayLoop, String> {
-        let saved = crate::saves::saved::SavedGame::parse(bytes).map_err(|e| e.to_string())?;
-        let mut g = super::GameplayLoop::from_save(saved);
+        let mut g = self.reloading(bytes, update)?;
         g.load(ctx);
         g.startup(ctx);
+        Ok(g)
+    }
+
+    /// The real game's resync: it fades to the loading screen and on to the host's save.
+    pub(super) fn switch_reload(
+        &mut self,
+        ctx: &mut crate::loops::Ctx,
+        bytes: &[u8],
+        update: u64,
+    ) -> crate::loops::Next {
+        match self.reloading(bytes, update) {
+            Ok(g) => {
+                log::info!("multiplayer: resyncing from the host's save at update {update}");
+                crate::loops::Next::Switch(Box::new(crate::loops::DialogLoaderLoop::new(
+                    format!("Dialog/Loading.rsc:gameLoad{}", ctx.rng.rand_below(12)),
+                    0.0,
+                    Box::new(g),
+                )))
+            }
+            Err(e) => {
+                log::error!("multiplayer: the host's save: {e}");
+                crate::loops::Next::Stay
+            }
+        }
+    }
+
+    /// [`Self::reloaded`] without loading: the game to switch to (the real game shows the loading
+    /// screen meanwhile). This game is left retired.
+    pub fn reloading(&mut self, bytes: &[u8], update: u64) -> Result<super::GameplayLoop, String> {
+        let saved = crate::saves::saved::SavedGame::parse(bytes).map_err(|e| e.to_string())?;
+        let mut g = super::GameplayLoop::from_save(saved);
         g.autosave = None;
         g.replaying = self.replaying;
         g.menu_paused = self.menu_paused;
@@ -413,8 +468,13 @@ impl super::GameplayLoop {
         g.remote_paths = std::mem::take(&mut self.remote_paths);
         g.path_tool = self.path_tool.take();
         g.outbox = std::mem::take(&mut self.outbox);
+        g.net = self.net.take();
+        if let Some(net) = &mut g.net {
+            net.forget_line();
+        }
         g.updates = update;
         g.slot_done = Some(update);
+        g.boundary_done = Some(update);
         if let Some(mut l) = self.lockstep.take() {
             l.rewind(update);
             l.epoch += 1;
@@ -423,6 +483,7 @@ impl super::GameplayLoop {
             g.outbox.extend(sealed.into_iter().map(Message::Turn));
             g.lockstep = Some(l);
         }
+        self.retired = true;
         Ok(g)
     }
 }

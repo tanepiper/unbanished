@@ -244,11 +244,38 @@ Open: a public relay needs TLS (`wss://`) for the published `https://` site, by 
 front of it; a player who leaves is not handled yet (the others wait); joining a game already
 running.
 
-### 6. Interface
+### 6. Interface (done)
 
 A Multiplayer window (host, join with a room code, the relay address), a bar with the players,
-and the speed and pause shared. New dialogs are the port's own (as the mod manager is), never
-changes to the original's.
+and the speed and pause shared.
+
+Done. The main menu has a Multiplayer button under Load (a copy of the Load button, marked as a
+Deviation; the player chose an always-visible button over a hidden option). The window
+(`ui/multiplayer.rs`) is the original's Map dialog with new labels: the room code in the town
+name's edit, the relay's address in the seed's (saved in the settings as `MultiplayerRelay`),
+the players and the status in two text rows. OK reads Host while the code is empty and Join with
+a code; the host's becomes Start once a player is in, and Start opens the Load dialog for the save
+to play. Every player, the host included, then loads that save.
+
+The session moved from `NetPeer` into the game (`NetState` in `GameplayLoop`), so the real game
+loop runs it: each update reads the messages, carries out its slot, sends the local turn and,
+as the host, checks digests. A resync builds the reloaded game and fades to it through the
+loading screen. In a multiplayer game every player command waits for its slot (`execute`
+returns `Outcome::Queued`), including the speed and the pause, which are therefore shared; the
+outcome a player needs (the tool started, a drag's sound, a random town name) is applied when
+the slot runs. A placement plays its sound when the click is accepted. The game is not
+autosaved. A players line at the foot of the screen (the original's version footer without its
+logo) says which player this is, or that the game waits for the others.
+
+Proof: `tools/compat/multiplayer.sh` runs a relay and two headless games kept to the clock. The
+host hosts room TEST, the guest types the code and joins, the host presses Start and picks its
+save, and the guest changes the speed during the game. The host's checks every 60 updates all
+agreed (24 checks in 45 s). `tools/compat/lockstep.sh` and `network.sh` still pass on the new
+code, and the single-player game is unchanged (`compare.sh`).
+
+Open: while the game waits for another player's turn the whole update waits, so the view and
+the windows stop too (for a moment at the usual delay of 6 updates); a player who leaves is not
+handled yet; the room code cannot be copied from the window.
 
 ### 7. Later: separate towns
 

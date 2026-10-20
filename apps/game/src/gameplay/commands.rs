@@ -76,6 +76,9 @@ pub enum Outcome {
     Sound(DragSound),
     /// A town name.
     Name(String),
+    /// A multiplayer game: the command waits for its lockstep slot, and its outcome comes then
+    /// ([`GameplayLoop::local_outcome`]).
+    Queued,
 }
 
 /// A placement, drag or path tool.
@@ -104,6 +107,14 @@ impl GameplayLoop {
 
     /// Carries out a player's command now, and writes it to the recording if there is one.
     pub(super) fn execute(&mut self, archive: &Archive, command: PlayerCommand) -> Outcome {
+        // In lockstep the player's commands wait for their slot, when every computer carries
+        // them out in the same order.
+        if !self.carrying_out {
+            if let Some(l) = &mut self.lockstep {
+                l.give(self.updates, command);
+                return Outcome::Queued;
+            }
+        }
         if let Some(r) = &mut self.recorder {
             r.command(self.updates, &command);
         }

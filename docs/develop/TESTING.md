@@ -15,6 +15,7 @@ compare two versions of the game.
 | Determinism | `tools/triage/determinism.sh` | Two runs with the same seed draw identical frames |
 | Version comparison | `tools/compat/compare.sh` | Two versions produce identical saves and frames |
 | Native and browser | `banished --sim-digest` and the web build's `?digest=` | The same save runs to the same game state natively and in the browser ([CROSS-PLATFORM.md](../CROSS-PLATFORM.md)) |
+| Multiplayer window | `tools/compat/multiplayer.sh` (`--realtime`, `--text`) | Two headless games host and join a room through the Multiplayer window, start from the host's save and agree at every check |
 | Network | `tools/compat/network.sh` (`banished-relay`, `--net-test`) | Several game processes play one game through a relay and keep identical games; a scrambled one is resynced ([MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md)) |
 | Lockstep | `tools/compat/lockstep.sh` (`--lockstep-test`) | Players in one process, joined by a simulated network, keep identical games ([MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md)) |
 | Replays | `tools/compat/replay.sh` (`--record`, `--replay`) | A recorded game replays from its save to the same game state: the player commands carry every change ([MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md)) |

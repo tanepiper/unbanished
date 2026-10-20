@@ -380,6 +380,26 @@ file:
 To return to the default settings, delete this file. To use a different settings file, set
 `BANISHED_SETTINGS` to its path.
 
+## Multiplayer
+
+Not in the original game. Several players can play one town together. Each player needs their
+own copy of Banished, the same mods, and the same version of Un-Banished.
+
+1. One player runs the relay, `banished-relay` (built with the game; `cargo run --release -p
+   banished-relay`). It listens on port 7780. The others must be able to reach that computer.
+2. Everybody opens **Multiplayer** on the main menu and enters the relay's address, for example
+   `ws://192.168.1.20:7780`. The game remembers it.
+3. The host leaves **Room Code** empty and presses **Host**. The window shows a code; give it to
+   the others.
+4. The others type the code and press **Join**.
+5. When everybody is in, the host presses **Start** and chooses a save. Everybody loads it and
+   the game begins.
+
+Every player can build, give orders, change the speed and pause; all of it applies to everybody.
+The pause menu does not stop the others. If the games ever differ, everybody reloads the host's
+game and goes on. A line at the foot of the screen shows which player you are, and says when the
+game waits for another player. The game is not autosaved; the host can save it.
+
 ## Mods
 
 Un-Banished loads mods made with the BanishedKit (`.pkm` files), as Banished 1.0.7 does.
