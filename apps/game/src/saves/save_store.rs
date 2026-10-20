@@ -37,7 +37,10 @@ impl Read {
 
 pub use imp::{delete, list, read, write};
 #[cfg(target_arch = "wasm32")]
-pub use imp::{init, store_mod, stored_mods};
+pub use imp::{
+    forget_mods, forget_packages, init, kept_package_names, store_mod, store_packages, stored_mods,
+    stored_packages,
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 mod imp {
@@ -129,8 +132,10 @@ mod imp {
     const FILES: &str = "files";
     const META: &str = "meta";
     const MODS: &str = "mods";
+    /// The game files (`.pkg`) the player chose, kept so they need not be chosen again (#17).
+    const GAME: &str = "game";
     /// Version 2 added the mods store.
-    const VERSION: u32 = 2;
+    const VERSION: u32 = 3;
 
     thread_local! {
         static DB: RefCell<Option<IdbDatabase>> = const { RefCell::new(None) };
@@ -170,7 +175,7 @@ mod imp {
                 .result()
                 .and_then(|r| r.dyn_into::<IdbDatabase>())
             {
-                for store in [FILES, META, MODS] {
+                for store in [FILES, META, MODS, GAME] {
                     if !db.object_store_names().contains(store) {
                         let _ = db.create_object_store(store);
                     }
@@ -258,6 +263,113 @@ mod imp {
                 log::error!("mod storage: {e:?}");
                 Vec::new()
             }));
+        });
+    }
+
+    /// Keep the chosen game files (`.pkg`) for the next visit, in place of any kept before.
+    /// The browser's own file objects are stored, so the data is not copied into the game's
+    /// memory; the browser is asked to keep them even when space runs low.
+    pub fn store_packages(files: Vec<web_sys::File>) {
+        wasm_bindgen_futures::spawn_local(async move {
+            let result = async {
+                let db = db().await?;
+                let tx = db.transaction_with_str_and_mode(GAME, IdbTransactionMode::Readwrite)?;
+                let store = tx.object_store(GAME)?;
+                done(&store.clear()?).await?;
+                for file in &files {
+                    done(&store.put_with_key(file, &JsValue::from_str(&file.name()))?).await?;
+                }
+                Ok::<_, JsValue>(())
+            }
+            .await;
+            match result {
+                Ok(()) => log::info!("kept {} game files in browser storage", files.len()),
+                Err(e) => log::error!("keeping the game files: {e:?}"),
+            }
+            if let Some(storage) = web_sys::window().map(|w| w.navigator().storage()) {
+                if let Ok(promise) = storage.persist() {
+                    let _ = JsFuture::from(promise).await;
+                }
+            }
+        });
+    }
+
+    /// The kept game files, `(file name, bytes)`, handed to `then` (empty when none are kept
+    /// or they cannot be read).
+    pub fn stored_packages(then: impl FnOnce(Vec<(String, Vec<u8>)>) + 'static) {
+        wasm_bindgen_futures::spawn_local(async move {
+            let result = async {
+                let db = db().await?;
+                let tx = db.transaction_with_str(GAME)?;
+                let store = tx.object_store(GAME)?;
+                let keys: js_sys::Array = done(&store.get_all_keys()?).await?.dyn_into()?;
+                let values: js_sys::Array = done(&store.get_all()?).await?.dyn_into()?;
+                let mut packages = Vec::new();
+                for (k, v) in keys.iter().zip(values.iter()) {
+                    let (Some(name), Ok(blob)) = (k.as_string(), v.dyn_into::<web_sys::Blob>())
+                    else {
+                        continue;
+                    };
+                    let buf = JsFuture::from(blob.array_buffer()).await?;
+                    packages.push((name, js_sys::Uint8Array::new(&buf).to_vec()));
+                }
+                Ok::<_, JsValue>(packages)
+            }
+            .await;
+            then(result.unwrap_or_else(|e| {
+                log::error!("kept game files: {e:?}");
+                Vec::new()
+            }));
+        });
+    }
+
+    /// The names of the kept game files (only their names are read), handed to `then`.
+    pub fn kept_package_names(then: impl FnOnce(Vec<String>) + 'static) {
+        wasm_bindgen_futures::spawn_local(async move {
+            let result = async {
+                let db = db().await?;
+                let tx = db.transaction_with_str(GAME)?;
+                let keys: js_sys::Array = done(&tx.object_store(GAME)?.get_all_keys()?)
+                    .await?
+                    .dyn_into()?;
+                Ok::<_, JsValue>(keys.iter().filter_map(|k| k.as_string()).collect())
+            }
+            .await;
+            then(result.unwrap_or_default());
+        });
+    }
+
+    /// Remove every kept mod, then call `then`.
+    pub fn forget_mods(then: impl FnOnce() + 'static) {
+        wasm_bindgen_futures::spawn_local(async move {
+            let result = async {
+                let db = db().await?;
+                let tx = db.transaction_with_str_and_mode(MODS, IdbTransactionMode::Readwrite)?;
+                done(&tx.object_store(MODS)?.clear()?).await?;
+                Ok::<_, JsValue>(())
+            }
+            .await;
+            if let Err(e) = result {
+                log::error!("removing the kept mods: {e:?}");
+            }
+            then();
+        });
+    }
+
+    /// Forget the kept game files, then call `then`.
+    pub fn forget_packages(then: impl FnOnce() + 'static) {
+        wasm_bindgen_futures::spawn_local(async move {
+            let result = async {
+                let db = db().await?;
+                let tx = db.transaction_with_str_and_mode(GAME, IdbTransactionMode::Readwrite)?;
+                done(&tx.object_store(GAME)?.clear()?).await?;
+                Ok::<_, JsValue>(())
+            }
+            .await;
+            if let Err(e) = result {
+                log::error!("forgetting the game files: {e:?}");
+            }
+            then();
         });
     }
 

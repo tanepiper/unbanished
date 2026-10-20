@@ -163,11 +163,93 @@ pub fn load_from_query(proxy: EventLoopProxy<UserEvent>) {
     });
 }
 
+thread_local! {
+    /// Whether game files are kept in this browser (the loading screen's Start button).
+    static KEPT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Calls `f` when the element `id` is clicked.
+fn on_click(id: &str, f: impl FnMut() + 'static) {
+    let Some(el) = document().get_element_by_id(id) else {
+        return;
+    };
+    let click = Closure::<dyn FnMut()>::new(f);
+    let _ = el.add_event_listener_with_callback("click", click.as_ref().unchecked_ref());
+    click.forget();
+}
+
+/// Show or hide the element `id`.
+fn show(id: &str, visible: bool) {
+    if let Some(el) = document().get_element_by_id(id) {
+        let _ = if visible {
+            el.remove_attribute("hidden")
+        } else {
+            el.set_attribute("hidden", "")
+        };
+    }
+}
+
+/// The game files kept from an earlier visit (#17). The loading screen stays the start page:
+/// it says the files are kept and offers Start the game, Forget the game files and Remove the
+/// kept mods; other files and more mods can still be chosen below. Not with `?data=`, which
+/// loads the files from the development server instead.
+pub fn load_kept_packages(proxy: EventLoopProxy<UserEvent>) {
+    if data_base().is_some() {
+        return;
+    }
+    on_click("start-kept", move || {
+        let proxy = proxy.clone();
+        for id in ["start-kept", "forget"] {
+            if let Some(b) = document().get_element_by_id(id) {
+                let _ = b.set_attribute("disabled", "");
+            }
+        }
+        set_status("Loading the game files kept in this browser…", false);
+        crate::saves::save_store::stored_packages(move |packages| {
+            if packages.is_empty() {
+                set_status(
+                    "The kept game files could not be read. Choose them again.",
+                    false,
+                );
+                return;
+            }
+            let _ = proxy.send_event(UserEvent::Packages(packages));
+        });
+    });
+    on_click("forget", || {
+        set_status("Forgetting the kept game files…", false);
+        crate::saves::save_store::forget_packages(|| {
+            KEPT.with(|k| k.set(false));
+            show("kept", false);
+            set_status("The game files are forgotten. Choose them to play.", false);
+        });
+    });
+    on_click("forget-mods", || {
+        crate::saves::save_store::forget_mods(|| {
+            show("forget-mods", false);
+            set_status(
+                "The kept mods are removed. They are gone when the page opens again.",
+                false,
+            );
+        });
+    });
+    crate::saves::save_store::kept_package_names(|names| {
+        if names.is_empty() {
+            return;
+        }
+        log::info!("{} game files kept in browser storage", names.len());
+        KEPT.with(|k| k.set(true));
+        show("kept", true);
+        set_status("Ready. Press Start the game.", false);
+    });
+}
+
 /// The stored mods, once read (`UserEvent::Mods`, empty when there are none).
 pub fn load_stored_mods(proxy: EventLoopProxy<UserEvent>) {
     crate::saves::save_store::stored_mods(move |mods| {
         if !mods.is_empty() {
             log::info!("{} mods in browser storage", mods.len());
+            show("forget-mods", true);
         }
         let _ = proxy.send_event(UserEvent::Mods(mods));
     });
@@ -250,11 +332,27 @@ pub fn install_file_picker(proxy: EventLoopProxy<UserEvent>) {
         // Permit selecting the same files again after a read or parse error.
         target.set_value("");
         if files.is_empty() {
-            set_status(
-                "Select one or more .pkg files from your WinData folder.",
-                false,
-            );
+            // Only mods: with kept game files, that is all the player wanted.
+            if KEPT.with(|k| k.get()) {
+                set_status(
+                    "Mods added. Press Start the game when you are ready.",
+                    false,
+                );
+            } else {
+                set_status(
+                    "Select one or more .pkg files from your WinData folder.",
+                    false,
+                );
+            }
             return;
+        }
+        // "Keep the game files in this browser" (#17): kept for the next visit.
+        let keep = document()
+            .get_element_by_id("keep")
+            .and_then(|e| e.dyn_into::<web_sys::HtmlInputElement>().ok())
+            .is_none_or(|k| k.checked());
+        if keep {
+            crate::saves::save_store::store_packages(files.clone());
         }
         target.set_disabled(true);
         let input = target.clone();

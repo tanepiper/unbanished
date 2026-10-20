@@ -78,6 +78,21 @@
     .step:focus-within .pick { outline: 2px solid var(--gold-hi); outline-offset: 3px; }
     .step:has(#packages:disabled) .pick { opacity: 0.55; cursor: progress; transform: none; }
     .drop { margin-top: 8px; font-size: 13px; color: var(--faint); }
+    .keep { display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 13px; color: var(--muted); cursor: pointer; }
+    .keep input { accent-color: var(--gold); width: 16px; height: 16px; }
+
+    /* Kept game files: the start page's own Start button. */
+    .kept { margin: 0 0 22px; padding: 16px 18px; border: 1px solid var(--gold-lo); border-radius: 12px;
+            background: rgb(216 166 72 / 0.07); }
+    .kept h2 { margin: 0 0 4px; font: 600 19px/1.3 var(--serif); color: var(--fg); }
+    .kept > p { margin: 0; color: var(--muted); font-size: 14px; }
+    .kept-actions { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-top: 12px; }
+    .kept-actions .pick { margin-top: 0; border: 0; }
+    .kept-actions .pick:disabled { opacity: 0.55; cursor: progress; transform: none; }
+    .quiet { padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: transparent;
+             color: var(--muted); font: 500 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
+    .quiet:hover { color: var(--fg); border-color: var(--gold-lo); }
+    .quiet:disabled { opacity: 0.55; cursor: progress; }
 
     .status-row { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
     #status { color: var(--muted); font-size: 14px; word-break: break-word; min-height: 1.55em; }
@@ -109,6 +124,21 @@
       <img class="logo" src="un-banished-logo.svg" alt="Un-Banished" width="823" height="260">
       <p class="tagline">Banished, rebuilt from scratch, in your browser</p>
 
+      <!-- Shown when game files are kept in this browser (src/platform/web.rs, #17). -->
+      <section id="kept" class="kept" hidden aria-labelledby="kept-title">
+        <h2 id="kept-title">Your game files are kept in this browser</h2>
+        <p>They are kept only in this browser on this computer, and never uploaded.</p>
+        <div class="kept-actions">
+          <button id="start-kept" class="pick" type="button">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            Start the game
+          </button>
+          <button id="forget" class="quiet" type="button">Forget the game files</button>
+          <button id="forget-mods" class="quiet" type="button" hidden>Remove the kept mods</button>
+        </div>
+        <p class="drop">To use other game files, or to add mods, use the steps below.</p>
+      </section>
+
       <ol class="steps">
         <li>
           <span class="num" aria-hidden="true">1</span>
@@ -133,6 +163,7 @@
             </label>
             <input id="packages" type="file" accept=".pkg,.pkm" multiple aria-describedby="package-hint status">
             <p id="package-hint" class="drop">The files stay in your browser. Nothing is uploaded.</p>
+            <label class="keep"><input id="keep" type="checkbox" checked> Keep them in this browser, so you need not choose them next time</label>
           </div>
         </li>
         <li>

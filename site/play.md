@@ -24,6 +24,16 @@ This is the full game, built for WebAssembly. It is the same code as the desktop
   <img src="/assets/screenshots/browser-loading.webp" alt="The browser version's loading screen: where to find WinData, the Choose files button, and how to add mods" width="640">
 </p>
 
+**Next time.** The game keeps the four game files in this browser, so you choose them only
+once (uncheck **Keep them in this browser** if you do not want that). When you open the game
+again, its start page says your game files are kept. Press **Start the game**, or:
+- **Forget the game files** to remove them from the browser and choose files again;
+- **Remove the kept mods** to remove the mods kept in the browser;
+- choose other game files, or add mods, with the steps below as before.
+
+The files are kept only in this browser on this computer, in the site's own storage, and are
+never uploaded. Clearing the site's data in the browser removes them too, with the saves.
+
 To find the `WinData` folder, or to get the game files on a Mac or a Linux PC, read
 [Find your game data](/guide/#_4-find-your-game-data) and
 [Getting the game files](/guide/#getting-the-game-files) in the setup guide.

@@ -2131,6 +2131,7 @@ fn main() {
     let proxy = event_loop.create_proxy();
     platform::web::install_file_picker(proxy.clone());
     platform::web::load_from_query(proxy.clone());
+    platform::web::load_kept_packages(proxy.clone());
     platform::web::load_digest_save(proxy.clone());
     // The saves in browser storage (their metadata, for the Save and Load dialogs).
     saves::save_store::init();

@@ -294,6 +294,16 @@ tools/dev-web.sh --app game --release
    `patch0.pkg` and `patch1.pkg`. To select several files, hold Ctrl (Cmd on a Mac).
 3. Click the game once. Then the game receives your keyboard input, and it can play sound.
 
+**Next time.** The game keeps the four game files in this browser, so you choose them only
+once (uncheck **Keep them in this browser** if you do not want that). When you open the game
+again, its start page says your game files are kept. Press **Start the game**, or:
+- **Forget the game files** to remove them from the browser and choose files again;
+- **Remove the kept mods** to remove the mods kept in the browser;
+- choose other game files, or add mods, with the steps below as before.
+
+The files are kept only in this browser on this computer, in the site's own storage, and are
+never uploaded. Clearing the site's data in the browser removes them too, with the saves.
+
 If you ran `tools/extract-assets.sh`, you do not need to choose files. Open
 <http://127.0.0.1:8733/?data=/game-data/> instead. This address loads your copied game data.
 
