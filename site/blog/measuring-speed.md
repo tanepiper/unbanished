@@ -4,8 +4,8 @@ name: Sixty a second
 kind: Behind the scenes
 date: 2026-10-20T22:00:00Z
 cover: /assets/videos/thaw-at-speed-ten-poster.webp
-summary: Does Un-Banished draw 60 frames a second? We measured four towns, from a new game to 1,024 citizens, in the browser and on the desktop. Here is how we test, what we found, and where the next gains are.
-description: How Un-Banished measures its speed in the browser and on the desktop, the frame rates of four towns at three game speeds, where the time goes, and where the game can still become faster.
+summary: Does Un-Banished draw 60 frames a second? We measured four towns, from a new game of 19 people up to a city of 1,024, in the browser and on the desktop - with the answers, and where the time is still going.
+description: How Un-Banished measures its own speed in the browser and on the desktop, the frame rates of four towns at three game speeds, and where the time goes.
 outline: [2, 2]
 ---
 
@@ -15,25 +15,27 @@ outline: [2, 2]
   date="2026-10-20T22:00:00Z"
   video="/assets/videos/thaw-at-speed-ten.webm"
   poster="/assets/videos/thaw-at-speed-ten-poster.webp"
-  alt="A winter town by a river at ten times speed: the snow melts, the river opens and the fields turn green in a few seconds"
+  alt="A winter town by a river at ten times speed, thawing from snow to green fields in a few seconds"
 />
 
 <p class="ub-lead">
-A city builder should feel smooth: 60 pictures a second, even when the town is large and the game
-runs fast. Does Un-Banished manage that? We measured four towns at three game speeds, in a
-browser and on the desktop. This post shows how we measure, what we found, and where the game
-can still become faster. And every change we make to go faster must leave the game exactly as it
-was, to the last bit.
+Goldfoothill is in its 83rd year. It has 565 people, 164 wooden houses and 23 iron mines, and
+when I set it running at ten times speed in Chrome, it managed 28 frames a second. A new town of
+twenty settlers runs smoothly in almost anything - big towns at high speed are where a city
+builder is really tested. So I wanted a straight answer to a simple question: does Un-Banished
+draw 60 frames a second?
 </p>
 
-## Does it reach 60?
+## The short answer
 
-At normal speed, yes: every town we tested holds 60 frames a second in the browser. At 5× and 10×
-speed, the small towns still do, but the large towns fall behind.
+At normal speed, yes - every town we tested holds 60 frames a second in the browser. Turn the
+speed up to 5× or 10× - small towns keep up, but big ones start to fall behind.
 
-We used four towns. Testwood is a new game (seed 1234) with 19 people. Fort Ponchartrain has 116
-people. Goldfoothill is a player's town in its 83rd year, with 565 people. Driscola, built in the
-original game in 2015, has 1,024 people, 650 buildings and about 28,000 objects.
+To get there we picked four towns that cover the range of how people actually play. Testwood is
+a brand new game (seed 1234) with 19 settlers. Fort Ponchartrain is a young town of 116 people.
+Goldfoothill is a player's town in its 83rd year with 565 people, and Driscola is a city of 1,024
+people, 650 buildings and around 28,000 objects that a player built in the original game back in
+2015.
 
 <FpsGrid
   caption="In the browser: Chrome with WebGPU, in a 1280 × 720 page, on a MacBook Pro with an Apple M3. Real frames, counted for 20 seconds. A slow frame takes more than 20 ms."
@@ -45,12 +47,12 @@ original game in 2015, has 1,024 people, 650 buildings and about 28,000 objects.
   ]"
 />
 
-Firefox draws with WebGL 2 instead of WebGPU. In Goldfoothill it gets 58 frames a second at
-normal speed, 28 at 5× and 23 at 10×.
+Firefox draws with WebGL 2 rather than WebGPU, and it pays for it at speed. In Goldfoothill it
+still manages 58 frames a second at normal speed, but falls to 28 at 5× and 23 at 10×.
 
-On the desktop the game is faster. The first number is the slowest case, where the processor
-and the graphics card take turns. In a window they work side by side, and the second number is
-that case.
+The desktop version is quicker across the board. Each tile shows two numbers - the large one is
+the worst case, where processor and graphics card wait on each other, while the smaller
+one is closer to what you get in a real window, where the two work side by side.
 
 <FpsGrid
   caption="On the desktop: the same Mac, 1920 × 1080, measured by the game's own frame profiler. A monitor shows at most its refresh rate, usually 60."
@@ -62,38 +64,40 @@ that case.
   ]"
 />
 
-So 7 of the 12 browser tests reach 60, and 10 of the 12 desktop tests do in a window. What is
-left is the large towns at high speed.
+Seven of the twelve browser tests reach 60, and ten of the twelve desktop tests do in a window.
+What is left over is the large towns at high speed.
 
 ## How we measure
 
-We measure in two ways, because they answer two different questions.
+There are really two questions here - what does the player see, and where does the time go - and
+they need different tools.
 
-**Real frames, in a real browser.** A test script starts Chrome or Firefox, opens the game,
-gives it the game files and a save, and presses the buttons a player would press. It drives the
-game through the [probe](/develop/probe), a small command language that finds buttons and reads
-the town. When the town is running, the page counts every frame it shows for 20 seconds. That
-gives the frame rate a player sees, and how many frames are slow.
+For the first, a test script starts Chrome or Firefox, opens the game, hands it the game files
+and a save, and then plays it the way a person would, by pressing buttons. It does this through
+the [probe](/develop/probe), a small command language built into the game that can find buttons
+on screen and read the state of the town. Once the town is running, the page counts every frame
+it actually shows for 20 seconds. That gives the frame rate a player would see, along with how
+many of those frames were slow.
 
-**Where the time goes, on the desktop.** The game has its own frame profiler. When it is on, it
-times each part of every frame: the simulation, the citizens, the models, the sound, the
-particles, the drawing on the processor and the work of the graphics card. Every 600 frames it
-writes a summary. We run it without a window, with the same save and the same script each time,
-so two runs can be compared. To see which functions take the time, we also use a sampling
-profiler, [samply](https://github.com/mstange/samply).
+For the second, the game has its own frame profiler. When it is switched on it times every part
+of every frame - the simulation, the citizens, the models, the sound, the particles, the
+processor's work preparing each picture, plus the graphics card's time drawing it - and writes a
+summary every 600 frames. We run it without a window, with an identical save and script every
+time, so one run can be laid next to another. When we need to know which functions are
+taking the time, a sampling profiler called [samply](https://github.com/mstange/samply) fills in
+the detail.
 
-**Faster, but the same game.** Un-Banished must play exactly like Banished. So a change that
-makes the game faster must not change anything a player can see: not one save, not one frame,
-not one random number. Before a speed-up goes in, a tool builds the old and the new version,
-plays the same towns in both, and compares every save and every picture. If one byte differs,
-the change does not go in. [Compatibility between versions](/develop/compatibility) explains how
-it works.
+Un-Banished has to play exactly like Banished, so a faster version must not change a single
+save, a single frame or a single random number. Before any speed-up goes in, a tool builds old and new versions side by side, plays the
+same towns in both, then compares every save and every picture byte for byte. If anything differs, the
+change does not go in - [compatibility between versions](/develop/compatibility) explains how
+that works.
 
 ## Where the time goes
 
-Driscola is the hardest test, so we profiled it at normal speed and at 10× speed. A frame at 60
-frames a second has 16.7 ms for one step of the game and one picture. These are the times on the
-desktop:
+Driscola is the hardest of the four, so I profiled it at normal speed and at 10×. At 60 frames a
+second there are 16.7 ms for one step of the game and one picture, and this is how that time was
+spent on the desktop:
 
 | Part of a step | Normal speed | 10× speed |
 |---|---|---|
@@ -103,47 +107,55 @@ desktop:
 | Preparing the picture (processor) | 4.3 ms | 4.1 ms |
 | Drawing the picture (graphics card) | 9.9 ms | 15.3 ms |
 
-Three things stand out:
+At 10× speed the simulation on its own fills a whole frame. The game runs ten steps of the town
+for every picture, and most of that time goes on the citizens deciding what to do next and
+finding their way there.
 
-- **At 10× speed, the simulation alone fills a frame.** The game runs ten steps of the town in
-  each frame, and most of that time is the citizens deciding what to do and finding their way.
-- **At normal speed, refreshing what you see costs three times the simulation.** Every step, the
-  game rebuilds the list of models to draw, updates the sounds around the camera and moves the
-  smoke and dust. It does this whatever the speed, and most of it has not changed since the last
-  step.
-- **The browser feels it most.** In the browser the game runs on one processor core, in
-  WebAssembly, which is slower than native code. On the desktop, loading already uses every core.
+The surprise was at normal speed. Refreshing what you see costs about three times as much as the
+simulation - every step, the game rebuilds its list of models to draw, updates the sounds around
+the camera and moves the smoke and dust along, whatever the speed, even though very little of it
+has changed since the step before.
 
-## Where we can go faster
+The browser feels all of this the most. There, the game runs in WebAssembly on a single
+processor core, which is slower than native code, while on the desktop the loading already
+spreads across every core the machine has.
 
-These are the gains we have found, with an estimate of each from the profiles. Each one must
-pass the same test: the same saves and the same pictures as before.
+## Where it can go faster
 
-- **Citizens who remember.** Every step, each citizen's view of the town's buildings and stock
-  is built again from the start, although most of it has not changed. Keeping those views, and
-  updating only what changed, would save about a tenth of the processor's time. The order in
-  which the citizens think must stay exactly the same, so this one needs care.
-- **Rebuild the picture only where the town changed.** The list of models to draw is built
-  again every step, grouped by name, and sent to the graphics card again: together about a
-  quarter of the processor's time. Most buildings do not move. We tried to rebuild only the
-  changed groups once, but growing trees change almost every group a little every step. A
-  cheaper way to know what changed is the next attempt. The sounds and the smoke can follow the
-  same idea.
-- **Two things at once.** The simulation must stay in one line, step after step, so that every
-  computer gets the same town. But the work around it, such as refreshing the models and
-  preparing the picture, can run on another core while the next step of the town runs.
-- **Threads in the browser.** A web page can use more than one core only when the server sends
-  two special headers, and the site's host cannot send them. The browser version can now be
-  installed as an app, and its service worker can add those headers itself. Then the browser can
-  use the same parallel loading as the desktop.
-- **A lighter load on the graphics card.** The game already skips everything outside the view.
-  The ground decals and the sun's shadows are the next largest costs, and can be culled in the
-  same way.
-- **Smaller wins.** A faster method for the game's internal lookup tables (about 6 % of the
-  processor's time), and less copying of lists from frame to frame.
+The profiles point at a handful of places where there is still time to win back. Each of them has
+to pass the same test as everything before - identical saves, identical pictures.
 
-We will measure again after each of these, with the same four towns and the same scripts, and
-show the results here.
+The biggest is the picture of the town. The list of models to draw is built from scratch every
+step, grouped by name and sent to the graphics card again, which adds up to about a quarter of
+the processor's time. Most buildings never move, so most of that work is wasted. We have tried
+rebuilding only the groups that changed once already, but growing trees nudge almost every group
+a little on every step, so the comparison cost more than it saved. A cheaper way to know what has
+actually changed is the next attempt; sounds and smoke can follow the same pattern.
+
+The citizens are next. Every step, each citizen's view of the town's buildings and stock is built
+again from nothing, although most of it is the same as before. Keeping those views and only
+updating what changed would save about a tenth of the processor's time. This one needs care,
+because the order in which citizens think is part of the game, and it has to stay exactly as it
+is.
+
+The simulation itself has to stay in one line, step after step - that is what keeps every
+computer in a multiplayer game on the same town. The work around it doesn't, though. Refreshing
+the models and preparing the picture could run on another core while the next step of the town
+is being worked out.
+
+In the browser, a page can only use more than one core if the server sends two particular
+headers, which the site's host cannot send. Now that the browser version installs as
+an app, its service worker can add those headers itself, and that would let the browser load in
+parallel the way the desktop already does.
+
+Then there are the smaller wins. The graphics card already skips everything outside the view,
+but ground markings and sun shadows are now its largest costs, and could be trimmed the same
+way. A faster method for the game's internal lookup tables would save around 6 %
+of the processor's time, and there is some copying of lists from frame to frame that does not
+need to happen.
+
+We will measure again after each change, using identical towns and scripts, then publish the
+results here.
 
 ---
 

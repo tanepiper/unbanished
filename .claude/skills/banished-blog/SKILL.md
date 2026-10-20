@@ -35,8 +35,12 @@ detailed documents and to the post before it.
    modelled on.
 5. **No bug stories.** Do not tell how a bug was found, reported or fixed. Fixes go in the list
    at the end, as one line each, phrased as what works now.
-6. **Plain English** that translates well: short sentences, common words, no idioms or puns in
-   the body text. A playful title is fine.
+6. **The author's voice**, as on [tane.dev](https://tane.dev): first person ("I", and "we" for
+   the project), prose paragraphs rather than bullet lists, spaced hyphens " - " for asides,
+   British spelling, concrete facts and examples, plain headings. Open on a real case, not a
+   slogan. Avoid AI-ish phrasing: clauses chained with "and the ..." (grep the post for it and
+   rewrite each one), neat lists of three, signposts ("Here is how", "Three things stand out")
+   and clichés. A playful title is fine.
 7. **The ending:** an optional `## What is next`, a short paragraph, then `## Also in X.Y.Z`, a
    short list of the smaller changes and fixes, each a bold phrase and one sentence. The footer
    links to the changelog and to the posts before and after; when adding a post, add the
