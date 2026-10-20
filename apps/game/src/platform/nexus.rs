@@ -38,7 +38,7 @@ pub enum Task {
     Installed(Vec<u32>),
     /// Install a mod's main file (Premium), or the file an `nxm://` link names.
     Install { mod_id: u32, link: Option<NxmLink> },
-    /// A mod's preview image, when it is a PNG (banishedinfo.com's thumbnails; native).
+    /// A mod's preview image (PNG or JPEG; native builds).
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     Preview { mod_id: u32, url: String },
 }
@@ -177,7 +177,7 @@ impl Nexus {
             let site = self.site;
             std::thread::spawn(move || {
                 let reply = match (site, task) {
-                    (_, Task::Preview { mod_id, url }) => preview(mod_id, &url),
+                    (site, Task::Preview { mod_id, url }) => preview(site, mod_id, &url),
                     (Site::Nexus, task) => native_task(&key, dir.as_deref(), task, &send),
                     (Site::BanishedInfo, task) => banishedinfo_task(dir.as_deref(), task, &send),
                 };
@@ -281,36 +281,19 @@ fn native_task(
     }
 }
 
-/// Download and decode a PNG preview (the thumbnails are small; at most 4 MB are read).
+/// Download and decode a preview (PNG or JPEG; at most 4 MB are read).
 #[cfg(not(target_arch = "wasm32"))]
-fn preview(mod_id: u32, url: &str) -> Reply {
-    let client = banished_banishedinfo::native::Client::new(env!("CARGO_PKG_VERSION"));
-    let decoded = (|| {
-        let bytes = client.image(url).ok()?;
-        let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-        decoder.set_transformations(png::Transformations::normalize_to_color8());
-        let mut reader = decoder.read_info().ok()?;
-        let mut buf = vec![0; reader.output_buffer_size()?];
-        let info = reader.next_frame(&mut buf).ok()?;
-        let (w, h) = (info.width as usize, info.height as usize);
-        let rgba: Vec<u8> = match info.color_type {
-            png::ColorType::Rgba => buf[..w * h * 4].to_vec(),
-            png::ColorType::Rgb => buf[..w * h * 3]
-                .chunks(3)
-                .flat_map(|p| [p[0], p[1], p[2], 255])
-                .collect(),
-            png::ColorType::GrayscaleAlpha => buf[..w * h * 2]
-                .chunks(2)
-                .flat_map(|p| [p[0], p[0], p[0], p[1]])
-                .collect(),
-            png::ColorType::Grayscale => {
-                buf[..w * h].iter().flat_map(|&g| [g, g, g, 255]).collect()
-            }
-            png::ColorType::Indexed => return None,
-        };
-        Some(Reply::Preview(mod_id, w as u32, h as u32, rgba))
-    })();
-    decoded.unwrap_or_else(|| Reply::Failed(String::new()))
+fn preview(site: Site, mod_id: u32, url: &str) -> Reply {
+    let bytes = match site {
+        Site::BanishedInfo => banished_banishedinfo::native::Client::new(env!("CARGO_PKG_VERSION"))
+            .image(url)
+            .ok(),
+        Site::Nexus => banished_nexus::native::download(url, |_, _| {}).ok(),
+    };
+    match bytes.and_then(|b| banished_mods::preview::decode(&b)) {
+        Some(i) => Reply::Preview(mod_id, i.width, i.height, i.rgba),
+        None => Reply::Failed(String::new()),
+    }
 }
 
 /// A banishedinfo.com mod as the Browse tab shows mods.

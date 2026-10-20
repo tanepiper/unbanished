@@ -141,8 +141,9 @@ Deviation (`apps/game/src/ui/mod_browse.rs`, `apps/game/src/platform/nexus.rs`):
 - Downloads show in `groupProgress`. The `.pkm` files of a `.zip` (or a bare `.pkm`) are written
   to the pack directory natively and to IndexedDB in the browser, join the list
   (`Modification::add`, as dropped mods do) and need a reload, through `buttonUpdateReload`.
-- The tab's label says "Browse Nexus Mods". Not ported: previews (`imageModPreview` is hidden),
-  Unsubscribe (hidden), and `.7z` and `.rar` archives (the player unpacks them).
+- The tab's label says "Browse Nexus Mods". Previews fill `imageModPreview` on native builds
+  when the image is PNG or JPEG; Nexus Mods serves its thumbnails as WebP, which is not decoded
+  yet. Not ported: Unsubscribe (hidden), and `.7z` and `.rar` archives (the player unpacks them).
 
 With `ModBrowseSource=banishedinfo` in the settings (native builds), the same tab shows
 [banishedinfo.com](https://banishedinfo.com/mods/browse) instead, through `crates/banishedinfo`
@@ -151,8 +152,8 @@ With `ModBrowseSource=banishedinfo` in the settings (native builds), the same ta
 (`var mods = […]`), and the version links of a mod's page (`/mods/download/<id>-<name>/<n>`, whose
 `/mods/file/…` redirects to the file). Most Popular is the most downloaded, Most Recent the newest,
 and Subscribed lists the mods installed from it (`BanishedInfoMod_<file>=<id>`). It sends no CORS
-headers, so the browser build cannot use it. Previews show when a thumbnail is a PNG; many are
-JPEG files named `.png` and are not shown yet.
+headers, so the browser build cannot use it. Previews (PNG or JPEG, whatever the file's name) are decoded
+by `banished_mods::preview`, on native builds.
 
 Test mods (git-ignored, from banishedinfo.com) live in `game-data/mods/downloads`.
 `game-data/modtest/WinData` links them beside the game's packages for captures:

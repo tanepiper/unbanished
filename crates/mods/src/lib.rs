@@ -26,6 +26,7 @@ use std::collections::BTreeSet;
 
 use banished_formats::pkg::{normalise, Package};
 
+pub mod preview;
 pub mod text;
 
 /// Where the mod list reads and writes its settings: the game's `Persistence`, or a

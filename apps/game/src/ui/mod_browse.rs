@@ -15,8 +15,8 @@
 //! Nexus Mods). Subscribe installs the mod's main file with a Premium account; otherwise it
 //! opens the mod's files page, whose "Mod Manager Download" gives an `nxm://` link, and a link
 //! pasted into the search box installs that file. The tab's label reads "Browse Nexus Mods".
-//! Previews show for PNG thumbnails (banishedinfo.com, native builds); Nexus Mods' are JPEG and
-//! are not shown. Not ported: Unsubscribe, which stays hidden.
+//! Previews show the sites' thumbnails (PNG or JPEG, native builds only). Not ported:
+//! Unsubscribe, which stays hidden.
 
 use banished_nexus::api::{self, ModSummary, Sort};
 use banished_nexus::nxm::NxmLink;
@@ -266,10 +266,10 @@ impl Browse {
                 ui.node_mut(t).tooltip = format!("{} (by {})\n{}", m.name, m.author, m.summary);
             }
             show(ui, ui.find(group, "buttonUnsubscribe"), false);
-            // The loading image stands in for a preview until one arrives (PNG thumbnails only).
+            // The loading image stands in for a preview until one arrives.
             let preview = ui.find(group, "imageModPreview");
             show(ui, preview, false);
-            if let Some(url) = m.thumbnail.as_ref().filter(|u| u.ends_with(".png")) {
+            if let Some(url) = &m.thumbnail {
                 self.nexus.start(Task::Preview {
                     mod_id: m.mod_id,
                     url: url.clone(),

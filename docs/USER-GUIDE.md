@@ -438,7 +438,7 @@ Good to know:
 - Un-Banished installs the `.pkm` files from `.zip` downloads, and plain `.pkm` files. Some mods
   come as `.7z` or `.rar` files. For those, download the file from the website, unpack it, and
   put the `.pkm` file in `WinData` yourself.
-- The previews of the mods are not shown yet.
+- The previews of Nexus mods are not shown yet (banishedinfo.com's are).
 - The key stays on your computer, in the settings file or in the browser. Un-Banished sends it
   only to `api.nexusmods.com`, and only when you search, sign in or install.
 - Un-Banished is not yet a registered Nexus Mods application. Until it is, a personal key is

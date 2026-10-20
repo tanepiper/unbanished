@@ -40,28 +40,13 @@ pub struct BanishedInfoTab {
     receive: mpsc::Receiver<Msg>,
 }
 
-/// Decode a PNG thumbnail.
-fn decode_png(bytes: &[u8]) -> Option<egui::ColorImage> {
-    let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-    decoder.set_transformations(png::Transformations::normalize_to_color8());
-    let mut reader = decoder.read_info().ok()?;
-    let mut buf = vec![0; reader.output_buffer_size()?];
-    let info = reader.next_frame(&mut buf).ok()?;
-    let (w, h) = (info.width as usize, info.height as usize);
-    let rgba: Vec<u8> = match info.color_type {
-        png::ColorType::Rgba => buf[..w * h * 4].to_vec(),
-        png::ColorType::Rgb => buf[..w * h * 3]
-            .chunks(3)
-            .flat_map(|p| [p[0], p[1], p[2], 255])
-            .collect(),
-        png::ColorType::GrayscaleAlpha => buf[..w * h * 2]
-            .chunks(2)
-            .flat_map(|p| [p[0], p[0], p[0], p[1]])
-            .collect(),
-        png::ColorType::Grayscale => buf[..w * h].iter().flat_map(|&g| [g, g, g, 255]).collect(),
-        png::ColorType::Indexed => return None,
-    };
-    Some(egui::ColorImage::from_rgba_unmultiplied([w, h], &rgba))
+/// Decode a thumbnail (PNG or JPEG) for egui.
+fn decode_image(bytes: &[u8]) -> Option<egui::ColorImage> {
+    let i = banished_mods::preview::decode(bytes)?;
+    Some(egui::ColorImage::from_rgba_unmultiplied(
+        [i.width as usize, i.height as usize],
+        &i.rgba,
+    ))
 }
 
 impl BanishedInfoTab {
@@ -126,7 +111,7 @@ impl BanishedInfoTab {
         self.thumbnails.insert(url.to_string(), None);
         let url = url.to_string();
         self.spawn(ctx, move |c, _| {
-            let image = c.image(&url).ok().and_then(|b| decode_png(&b));
+            let image = c.image(&url).ok().and_then(|b| decode_image(&b));
             Msg::Thumbnail(url, image)
         });
         None

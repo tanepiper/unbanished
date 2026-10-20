@@ -9,3 +9,6 @@ repository.workspace = true
 [dependencies]
 banished-formats = { path = "../formats" }
 log = "0.4"
+png = "0.18"
+zune-jpeg = "0.5.15"
+zune-core = "0.5"

@@ -604,6 +604,9 @@ version = "0.3.0"
 dependencies = [
  "banished-formats",
  "log",
+ "png",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]
