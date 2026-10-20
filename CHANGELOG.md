@@ -9,6 +9,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-20
+
 Multiplayer: several players play one town together, on the desktop or in the browser, through
 a small relay, while single-player games stay exactly as before. Also mods from banishedinfo.com,
 a browser version that installs as an app, and the fix for the first tutorial.
@@ -212,6 +214,7 @@ of Banished 1.0.7.
   [docs/DEVIATIONS.md](docs/DEVIATIONS.md) and in the
   [issues](https://github.com/tanepiper/unbanished/issues).
 
-[Unreleased]: https://github.com/tanepiper/unbanished/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/tanepiper/unbanished/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/tanepiper/unbanished/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/tanepiper/unbanished/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tanepiper/unbanished/releases/tag/v0.1.0
