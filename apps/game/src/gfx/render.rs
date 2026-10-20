@@ -158,6 +158,11 @@ pub struct Renderer {
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     format: wgpu::TextureFormat,
     size: (u32, u32),
+    /// The 3D scene's size: the window's times [`Renderer::set_scene_scale`]'s factor. The
+    /// scene's targets have this size; the copy to the window scales it up, and the
+    /// interface is drawn at the window's size.
+    scene_size: (u32, u32),
+    scene_scale: f32,
     targets: Targets,
     terrain_pipeline: wgpu::RenderPipeline,
     terrain_depth_pipeline: wgpu::RenderPipeline,
@@ -726,7 +731,13 @@ impl Renderer {
             wgpu::TextureFormat::Rgba8Unorm,
         );
         ui.set_external(&device, crate::loops::WHITE, &white);
-        let targets = Targets::new(&device, (width, height), &blit_layout, &blit_sampler);
+        let targets = Targets::new(
+            &device,
+            (width, height),
+            (width, height),
+            &blit_layout,
+            &blit_sampler,
+        );
         Renderer {
             blocking_readback: false,
             device,
@@ -734,6 +745,8 @@ impl Renderer {
             surface,
             format,
             size: (width, height),
+            scene_size: (width, height),
+            scene_scale: 1.0,
             targets,
             terrain_pipeline,
             terrain_depth_pipeline,
@@ -788,8 +801,34 @@ impl Renderer {
             config.height = height;
             surface.configure(&self.device, config);
         }
+        self.resize_scene();
+    }
+
+    /// Draw the 3D scene at `scale` (0.25 to 1) of the window's size and scale it up to the
+    /// window; the interface stays at the window's size. Deviation: a browser setting (the
+    /// Options resolution list there), so slower devices can draw fewer pixels; natively
+    /// the scale is always 1.
+    pub fn set_scene_scale(&mut self, scale: f32) {
+        let scale = scale.clamp(0.25, 1.0);
+        if scale != self.scene_scale {
+            self.scene_scale = scale;
+            self.resize_scene();
+        }
+    }
+
+    fn resize_scene(&mut self) {
+        let s = self.scene_scale;
+        let size = (
+            ((self.size.0 as f32 * s).round() as u32).max(1),
+            ((self.size.1 as f32 * s).round() as u32).max(1),
+        );
+        if size == self.scene_size && self.targets_size() == size && !self.screen_resized() {
+            return;
+        }
+        self.scene_size = size;
         self.targets = Targets::new(
             &self.device,
+            self.scene_size,
             self.size,
             &self.blit_layout,
             &self.blit_sampler,
@@ -803,6 +842,17 @@ impl Renderer {
 
     pub fn size(&self) -> (u32, u32) {
         self.size
+    }
+
+    fn targets_size(&self) -> (u32, u32) {
+        let s = self.targets.scene.size();
+        (s.width, s.height)
+    }
+
+    /// Whether the window's size differs from the screen depth's (made with the targets).
+    fn screen_resized(&self) -> bool {
+        let s = self.targets.screen_depth.texture().size();
+        (s.width, s.height) != self.size
     }
 
     pub fn aspect(&self) -> f32 {

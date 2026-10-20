@@ -3,9 +3,12 @@
 use super::*;
 
 impl Targets {
+    /// `size` is the 3D scene's; `screen` the window's, for the depth of the passes drawn
+    /// straight to the window (the copy of the scene, the interface, the minimap).
     pub(super) fn new(
         device: &wgpu::Device,
         size: (u32, u32),
+        screen: (u32, u32),
         blit_layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler,
     ) -> Targets {
@@ -92,7 +95,7 @@ impl Targets {
             screen_depth: view(&texture(
                 device,
                 "screen depth",
-                size,
+                screen,
                 DEPTH_FORMAT,
                 U::RENDER_ATTACHMENT,
             )),

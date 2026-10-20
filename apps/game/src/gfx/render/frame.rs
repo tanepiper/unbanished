@@ -252,8 +252,8 @@ impl Renderer {
                     t.scene.as_image_copy(),
                     t.frame_copy.as_image_copy(),
                     wgpu::Extent3d {
-                        width: self.size.0,
-                        height: self.size.1,
+                        width: self.scene_size.0,
+                        height: self.scene_size.1,
                         depth_or_array_layers: 1,
                     },
                 );
@@ -281,7 +281,7 @@ impl Renderer {
                 t.scene_target(),
                 &t.depth,
                 scene,
-                self.size.0,
+                self.scene_size.0,
             );
             self.cell_overlay.prepare(
                 &self.device,

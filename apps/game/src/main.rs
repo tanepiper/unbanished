@@ -36,6 +36,13 @@ use banished_formats::pkg::{Archive, Package};
 use banished_game::random::Random;
 use banished_ui::Ui;
 use web_time::Instant;
+
+/// The browser's resolution choices: parts of the page's size the scene is drawn at.
+#[cfg(target_arch = "wasm32")]
+const WEB_SCENE_SCALES: [f32; 3] = [1.0, 0.75, 0.5];
+/// The browser's frame-rate limits, in frames per second.
+#[cfg(target_arch = "wasm32")]
+const WEB_FRAME_RATES: [i32; 4] = [30, 60, 90, 120];
 use winit::application::ApplicationHandler;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
@@ -722,7 +729,18 @@ fn scale_quads(quads: &mut [banished_ui::Quad], s: f32) {
         return;
     }
     for q in quads {
-        q.rect = q.rect.map(|v| v * s);
+        // Whole device pixels: the corner and the size are rounded, so a bitmap glyph or image
+        // starts on a pixel and equal ones get equal widths. Unrounded, a fractional scale
+        // (a pixel ratio of 2.625 on some tablets) put most glyphs between pixels, and the
+        // linear filtering smeared them (issue #12).
+        let [x0, y0, x1, y1] = q.rect;
+        let (left, top) = ((x0 * s).round(), (y0 * s).round());
+        q.rect = [
+            left,
+            top,
+            left + ((x1 - x0) * s).round(),
+            top + ((y1 - y0) * s).round(),
+        ];
         if let Some(c) = &mut q.clip {
             *c = c.map(|v| (v as f32 * s).round() as i32);
         }
@@ -801,6 +819,10 @@ struct App {
     settings: Option<settings::Settings>,
     /// The settings revision whose video and input configuration the window shows.
     applied: u32,
+    /// The browser's frame-rate limit (the Options refresh rate there): frames that come
+    /// sooner after the last are skipped.
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+    frame_interval: Option<std::time::Duration>,
 }
 
 impl App {
@@ -821,6 +843,7 @@ impl App {
             shift: false,
             settings: Some(settings::Settings::load()),
             applied: 0,
+            frame_interval: None,
         }
     }
 
@@ -857,12 +880,27 @@ impl App {
     }
 
     /// The display modes of the window's monitor, largest first (`Adapter::FindDisplayMode`
-    /// lists). The browser offers only the canvas size.
+    /// lists). Deviation: the browser offers the page's size at 100, 75 and 50 % (the scene
+    /// is drawn at that size and scaled to the page, `Renderer::set_scene_scale`) and frame-rate
+    /// limits of 30 to 120 per second (issue #15).
     fn display_modes(&self) -> Vec<settings::DisplayMode> {
         let mut modes: Vec<settings::DisplayMode> = Vec::new();
         let Some(window) = &self.window else {
             return modes;
         };
+        #[cfg(target_arch = "wasm32")]
+        {
+            let size = window.inner_size();
+            for part in WEB_SCENE_SCALES {
+                modes.push(settings::DisplayMode {
+                    width: (size.width as f32 * part).round() as i32,
+                    height: (size.height as f32 * part).round() as i32,
+                    refresh: WEB_FRAME_RATES.iter().map(|&r| (r, 1)).collect(),
+                });
+            }
+            modes.sort_by_key(|m| (m.width, m.height));
+        }
+        #[cfg(not(target_arch = "wasm32"))]
         if let Some(monitor) = window.current_monitor() {
             for m in monitor.video_modes() {
                 let (w, h) = (m.size().width as i32, m.size().height as i32);
@@ -901,6 +939,14 @@ impl App {
     /// current settings: fullscreen, window size, present mode, cursor clipping; a new renderer
     /// when the interface, adapter, filtering or shadow resolution changed.
     fn apply_settings(&mut self) {
+        // The browser opens the game in its page, never full screen, so there the setting
+        // starts unchecked until the player changes it in Options (issue #14).
+        #[cfg(target_arch = "wasm32")]
+        if self.applied == 0 {
+            if let Some(s) = self.settings_mut() {
+                s.video.fullscreen = false;
+            }
+        }
         let (Some(window), Some(settings)) = (self.window.clone(), self.settings()) else {
             return;
         };
@@ -908,7 +954,38 @@ impl App {
         let clip = settings.input.mouse_clipping;
         let mouse_display = settings.input.mouse_display;
         self.applied = settings.revision;
-        // Deviation: the browser keeps its canvas; Fullscreen and the resolution apply natively.
+        // In the browser, the resolution is the scene's share of the page (snapped to one of
+        // the offered parts), and the refresh rate a frame-rate limit.
+        #[cfg(target_arch = "wasm32")]
+        {
+            let page = window.inner_size().width.max(1) as f32;
+            let part = if video.width > 0 {
+                let r = video.width as f32 / page;
+                WEB_SCENE_SCALES
+                    .into_iter()
+                    .min_by(|a, b| (a - r).abs().total_cmp(&(b - r).abs()))
+                    .unwrap_or(1.0)
+            } else {
+                1.0
+            };
+            if let Some(renderer) = &mut self.renderer {
+                renderer.set_scene_scale(part);
+            }
+            let rate = video.refresh_n as f32 / video.refresh_d.max(1) as f32;
+            self.frame_interval =
+                (rate >= 1.0).then(|| std::time::Duration::from_secs_f32(0.97 / rate));
+        }
+        // Deviation: in the browser, Fullscreen asks the browser to show the page full screen
+        // (winit waits for the next click or key if the browser needs one) instead of
+        // changing the display mode.
+        #[cfg(target_arch = "wasm32")]
+        if video.fullscreen != window.fullscreen().is_some() {
+            window.set_fullscreen(
+                video
+                    .fullscreen
+                    .then_some(winit::window::Fullscreen::Borderless(None)),
+            );
+        }
         #[cfg(not(target_arch = "wasm32"))]
         {
             window.set_fullscreen(fullscreen(&window, &video));
@@ -1104,6 +1181,13 @@ impl ApplicationHandler<UserEvent> for App {
                     let size = w.inner_size();
                     if (size.width, size.height) != renderer.size() {
                         renderer.resize(size.width, size.height);
+                    }
+                }
+                // The browser's frame-rate limit: skip this frame if it came too soon.
+                #[cfg(target_arch = "wasm32")]
+                if let (Some(last), Some(min)) = (self.last_frame, self.frame_interval) {
+                    if Instant::now() - last < min {
+                        return;
                     }
                 }
                 platform::perf::frame_begin();
@@ -1329,6 +1413,15 @@ mod native {
             gfx::render::VideoSettings::from(&game.settings.video),
         ));
         renderer.blocking_readback = true;
+        // `--scene-scale PART` draws the 3D scene at that part of the frame's size (the browser's
+        // resolution setting), to check it without a browser.
+        if let Some(part) = args
+            .windows(2)
+            .find(|w| w[0] == "--scene-scale")
+            .and_then(|w| w[1].parse::<f32>().ok())
+        {
+            renderer.set_scene_scale(part);
+        }
         // The Options dialog lists the capture device with one mode, the capture size.
         game.settings.display = renderer.display.clone();
         for adapter in game

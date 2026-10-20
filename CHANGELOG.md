@@ -15,9 +15,18 @@ The version is the engine's own (`banished --version`). The Banished version in 
   opened it, but the tutorial did not see the click, so the Wood House stayed greyed out (#11).
   A click on a toolbar menu button, or its key (F3), now counts. Every earlier version, in the
   browser and on the desktop, has this problem.
+- The browser version: the interface is sharper on high-resolution screens with a fractional
+  pixel ratio, such as 4K tablets and Samsung DeX: every image and letter now starts on a whole
+  screen pixel (#12). Full screen works in the game's own tab (Options, Fullscreen), and the
+  Play page's full-screen frame fills the screen (#14).
 
 ### Added
 
+- The browser version can be installed as an app (Chrome, Edge, Android), and then opens in its
+  own window and starts without a network (#13).
+- The browser version's Options choose a resolution for the 3D world (100, 75 or 50 % of the
+  page) and a frame-rate limit (30 to 120 per second) (#15). Captures can test the resolution
+  natively with `--scene-scale PART`.
 - The home page montage has titles: it opens on "Un-Banished", names each shot, and ends on a
   card. `tools/videos.sh` adds titles with FFmpeg's `drawtext` when the installed FFmpeg has it
   (see Titles in [docs/develop/VIDEOS.md](docs/develop/VIDEOS.md)).

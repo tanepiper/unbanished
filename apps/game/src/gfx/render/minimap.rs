@@ -37,7 +37,13 @@ impl Renderer {
     }
 
     pub(super) fn render_minimap(&mut self, n: u32, lighting: &Lighting) {
-        let targets = Targets::new(&self.device, (n, n), &self.blit_layout, &self.blit_sampler);
+        let targets = Targets::new(
+            &self.device,
+            (n, n),
+            (n, n),
+            &self.blit_layout,
+            &self.blit_sampler,
+        );
         let half = n as f32 * 0.5;
         let eye = Vec3::new(0.0, 0.0, 100.0);
         use glam::camera::rh::{proj::directx::orthographic, view::look_at_mat4};

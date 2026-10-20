@@ -147,6 +147,16 @@ function fullscreen() {
   border-radius: 12px;
   background: #000;
 }
+/* Full screen: the whole screen, whatever the browser's own full-screen styles do with the
+   frame's aspect ratio and height limit (issue #14). */
+.stage iframe:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+}
 .bar {
   display: flex;
   flex-wrap: wrap;

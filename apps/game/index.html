@@ -9,6 +9,13 @@
   <link data-trunk rel="icon" href="../../docs/assets/un-banished-icon-small.svg" />
   <link data-trunk rel="copy-file" href="../../docs/assets/un-banished-logo.svg" />
   <link data-trunk rel="copy-file" href="../../docs/assets/videos/montage-poster.webp" />
+  <!-- Installing as an app (issue #13): the manifest, its icons and the service worker. -->
+  <link data-trunk rel="copy-file" href="pwa/manifest.webmanifest" />
+  <link data-trunk rel="copy-file" href="pwa/sw.js" />
+  <link data-trunk rel="copy-file" href="pwa/icon-192.png" />
+  <link data-trunk rel="copy-file" href="pwa/icon-512.png" />
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,500;0,600;1,500&display=swap">
@@ -153,5 +160,11 @@
       <div id="version"></div>
     </main>
   </div>
+  <script>
+    // The service worker lets the browser install Un-Banished as an app (sw.js, issue #13).
+    if ('serviceWorker' in navigator) {
+      addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+  </script>
 </body>
 </html>

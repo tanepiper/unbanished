@@ -297,6 +297,20 @@ tools/dev-web.sh --app game --release
 If you ran `tools/extract-assets.sh`, you do not need to choose files. Open
 <http://127.0.0.1:8733/?data=/game-data/> instead. This address loads your copied game data.
 
+**Full screen, resolution and frame rate.** In the game's Options:
+- **Fullscreen** shows the game full screen. The browser starts the game in its page, so this
+  box starts unchecked; check it to go full screen, and press Esc to leave. On the Play page, the
+  **Full screen** button below the game does the same.
+- **Resolution** draws the 3D world at 100 %, 75 % or 50 % of the page's size. A lower value is
+  faster on slow computers, tablets and phones; the menus and text stay sharp.
+- **Refresh rate** limits the frames per second: 30, 60, 90 or 120. A lower value saves battery
+  and keeps devices cooler.
+
+**Install as an app.** In Chrome or Edge, the address bar offers to install Un-Banished (on
+Android: the browser menu, then **Install app** or **Add to home screen**). It then opens in a
+window of its own, and starts without an internet connection. Your game files, saves and mods
+stay in the browser as before.
+
 **Good to know**
 - It uses WebGPU when the browser supports it, and WebGL 2 when it does not.
 - The browser keeps your saves, settings and mods in its storage for this page (see below). If
