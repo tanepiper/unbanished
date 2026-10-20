@@ -1073,8 +1073,14 @@ impl GameLoop for GameplayLoop {
                 else {
                     return Next::Stay;
                 };
-                if let Some(Some(action)) = toolbar.press_action(ctx.ui, screen, a as i32) {
-                    self.run_action(ctx, action);
+                if let Some((node, action)) = toolbar.press_action(ctx.ui, screen, a as i32) {
+                    // A key press counts as pressing its button for the tutorial's goals.
+                    if let (Some(t), true) = (self.tutorial.as_mut(), ctx.ui.node(node).usable()) {
+                        t.pressed.push(node);
+                    }
+                    if let Some(action) = action {
+                        self.run_action(ctx, action);
+                    }
                 }
                 self.update_hud(ctx.ui);
                 return Next::Stay;

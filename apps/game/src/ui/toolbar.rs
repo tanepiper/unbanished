@@ -295,13 +295,15 @@ impl Toolbar {
     }
 
     /// A key-map action pressed (`Toolbar0..8`, `Tool0..9`, `Camera0..4`): act as a click on
-    /// the shown button holding it. Check-style buttons toggle first, as a click would.
+    /// the shown button holding it. Check-style buttons toggle first, as a click would. Returns
+    /// the button and its action. A button the tutorial has locked does nothing (*inferred*:
+    /// the tutorial offers a key only for the button it leaves usable).
     pub fn press_action(
         &mut self,
         ui: &mut Ui,
         screen: &mut Screen,
         action: i32,
-    ) -> Option<Option<Action>> {
+    ) -> Option<(NodeId, Option<Action>)> {
         let node = self
             .popup
             .iter()
@@ -309,8 +311,8 @@ impl Toolbar {
             .flat_map(|l| l.buttons.iter().zip(&l.actions))
             .find(|(_, a)| **a == Some(action))
             .map(|(&(n, _), _)| n)?;
-        if !ui.node(node).enabled {
-            return Some(None);
+        if !ui.node(node).usable() {
+            return Some((node, None));
         }
         if matches!(
             ui.node(node).kind,
@@ -319,7 +321,7 @@ impl Toolbar {
             let on = ui.checked(node);
             ui.set_checked(node, !on);
         }
-        Some(self.click(ui, screen, node))
+        Some((node, self.click(ui, screen, node)))
     }
 
     fn text_node(ui: &Ui, root: NodeId) -> Option<NodeId> {

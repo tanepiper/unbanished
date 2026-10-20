@@ -1815,3 +1815,74 @@ fn tree_expiry_plays_packaged_clip_and_removes_after_completion() {
         "tree Remove clip, per-instance pose, pause and exact-duration cleanup verified on GPU"
     );
 }
+
+/// Issue #11: a pointer click on a toolbar menu button is a toggle (`Event::Changed`), not a
+/// click; the tutorial must count it as pressing the button. The first tutorial then goes from
+/// "select the Housing menu" (step 9) to the wood house (10) and to placing it (11).
+#[test]
+fn the_tutorial_counts_toggled_toolbar_buttons_as_pressed() {
+    let Some((mut game, _)) = generated() else {
+        return;
+    };
+    let mut gameplay = None;
+    game.with_ctx(|_, ctx| {
+        let list = scenarios(ctx.archive);
+        let first = list
+            .iter()
+            .position(|(r, _)| r.contains("GettingStarted"))
+            .unwrap();
+        let mut g = scenario_game(
+            ctx.ui,
+            ctx.archive,
+            ctx.global.as_ref(),
+            &list[first].1,
+            first,
+        );
+        g.load(ctx);
+        g.startup(ctx);
+        gameplay = Some(g);
+    });
+    let mut gameplay = gameplay.unwrap();
+    game.with_ctx(|_, ctx| {
+        gameplay.update(ctx, 1.0 / 30.0);
+        for _ in 1..=9 {
+            let next = gameplay
+                .tutorial
+                .as_ref()
+                .unwrap()
+                .ui
+                .clone()
+                .unwrap()
+                .next
+                .unwrap();
+            gameplay.event(ctx, Event::Clicked(next));
+            gameplay.update(ctx, 1.0 / 30.0);
+        }
+        assert_eq!(gameplay.tutorial.as_ref().unwrap().step, 9);
+        let housing = gameplay
+            .toolbar
+            .as_ref()
+            .unwrap()
+            .button(ctx.ui, "housing")
+            .unwrap();
+        gameplay.event(ctx, Event::Changed(housing));
+        for _ in 0..10 {
+            gameplay.update(ctx, 1.0 / 30.0);
+        }
+        assert_eq!(
+            gameplay.tutorial.as_ref().unwrap().step,
+            10,
+            "the Housing toggle was not seen"
+        );
+        let wood = gameplay
+            .toolbar
+            .as_ref()
+            .unwrap()
+            .button(ctx.ui, "woodhouse")
+            .unwrap();
+        assert!(ctx.ui.node(wood).usable(), "the wood house stays locked");
+        gameplay.event(ctx, Event::Changed(wood));
+        gameplay.update(ctx, 1.0 / 30.0);
+        assert_eq!(gameplay.tutorial.as_ref().unwrap().step, 11);
+    });
+}

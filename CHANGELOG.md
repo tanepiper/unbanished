@@ -9,6 +9,13 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+### Fixed
+
+- The first tutorial (Getting Started) stopped at its first house: clicking the Housing menu
+  opened it, but the tutorial did not see the click, so the Wood House stayed greyed out (#11).
+  A click on a toolbar menu button, or its key (F3), now counts. Every earlier version, in the
+  browser and on the desktop, has this problem.
+
 ### Added
 
 - The home page montage has titles: it opens on "Un-Banished", names each shot, and ends on a

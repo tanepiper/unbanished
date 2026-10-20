@@ -403,7 +403,11 @@ impl GameplayLoop {
             }
             return Next::Stay;
         }
-        if let (Event::Clicked(id), Some(t)) = (event, self.tutorial.as_mut()) {
+        // `FUN_1400e41b0`'s "pressed": a click, or a toggle (the toolbar's menu buttons are check
+        // controls, which send Changed). Recording only clicks left a pointer press on Housing
+        // unseen, so the first tutorial stopped at its first house (issue #11).
+        if let (Event::Clicked(id) | Event::Changed(id), Some(t)) = (event, self.tutorial.as_mut())
+        {
             t.pressed.push(id);
         }
         // TutorialUI's quit (`FUN_1400e8bb0`): back to the main menu.
