@@ -4,7 +4,7 @@ use super::*;
 
 /// `Template\X.rsc:resource` (profile lists omit the object name).
 /// `DAT_140178818`: children's model scale.
-pub(super) const CHILD_SCALE: f32 = 0.66;
+pub(crate) const CHILD_SCALE: f32 = 0.66;
 
 /// `FUN_1400a87d0` → `FUN_140097330` / `FUN_1400a73d0`: the profile's raw materials become the
 /// candidate list, then seven `(mask, cap)` passes of `FUN_140096b30` fill the town storages.
@@ -115,7 +115,7 @@ pub(super) fn citizen_animations(
 }
 
 /// Each citizen variant's mesh nodes and the index of its `tool` node.
-pub(super) fn citizen_tool_nodes(
+pub(crate) fn citizen_tool_nodes(
     archive: &Archive,
     model: &unbanished_formats::game::ModelDescription,
 ) -> Vec<Option<(Vec<unbanished_formats::types::Bone>, usize)>> {

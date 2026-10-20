@@ -17,17 +17,16 @@
 mod animals;
 mod citizens;
 mod frame;
-mod icons;
-mod models;
+mod minimap;
 mod placing;
+mod professions;
 mod registry;
 mod sites;
+mod smooth;
 mod templates;
 use animals::{livestock_kind, wildlife_kinds};
-use citizens::{
-    citizen_animations, citizen_rules, citizen_tool_nodes, grid_start, households, starting_goods,
-    CHILD_SCALE,
-};
+use citizens::{citizen_animations, citizen_rules, grid_start, households, starting_goods};
+pub(crate) use citizens::{citizen_tool_nodes, CHILD_SCALE};
 use templates::{load_template, professions};
 
 use std::collections::{BTreeMap, HashMap};
@@ -60,11 +59,8 @@ pub(crate) mod load;
 #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 pub(crate) mod save;
 mod tornado;
+pub(crate) mod world_params;
 pub use bridge::BridgeSpec;
-
-use crate::gfx::models::{
-    placement_matrix, GroupInstances, GroupMaterial, ModelInstance, SceneModels,
-};
 
 /// The raw material for `reference`, loading it into the town's list when new.
 pub fn material_index(
@@ -99,7 +95,7 @@ pub(crate) fn normalise(reference: &str) -> String {
     }
 }
 
-fn read(archive: &Archive, reference: &str) -> Option<Vec<u8>> {
+pub(crate) fn read(archive: &Archive, reference: &str) -> Option<Vec<u8>> {
     archive.read_ref(&reference.replace('\\', "/")).ok()
 }
 
@@ -139,11 +135,11 @@ struct TownParts {
 }
 
 pub struct StartingTown {
-    /// Citizen StatusIconDescription and the male/female mesh box heights (model `+0x5c`).
-    citizen_icons: Option<unbanished_formats::game::StatusIconDescription>,
-    citizen_heights: [f32; 2],
-    /// Professions CitizenUI names (laborer, child, student), by resource key.
-    archive_professions: Vec<(String, unbanished_formats::game::Profession)>,
+    /// The citizen template (`Template\\Citizen…:resource`), as the town was made with it; the
+    /// view reads its models and icons from it.
+    pub(crate) citizen: String,
+    /// The laborer, child and student professions (`start/professions.rs`).
+    pub(crate) archive_professions: Vec<(String, unbanished_formats::game::Profession)>,
     pub start: (i32, i32),
     pub citizens: Vec<Citizen>,
     pub rules: CitizenRules,
@@ -153,26 +149,19 @@ pub struct StartingTown {
     pub templates: Vec<Template>,
     pub placed: Vec<Placed>,
     pub cells: Cells,
-    scheduler: EntityScheduler<usize>,
+    pub(crate) scheduler: EntityScheduler<usize>,
     /// The last bucket pass's visits (`EntityScheduler::take_visits`), for the agents.
-    visits: Vec<(usize, i64)>,
+    pub(crate) visits: Vec<(usize, i64)>,
     /// Each citizen's entity in the scheduler (bucket 1, `FUN_1400c9d70`); `None` once dead.
     pub(crate) citizen_handles: Vec<Option<usize>>,
     /// The map ambience's region entities in the scheduler (bucket 2) for a new game, in
     /// region order (a saved game's are among `SaveIds::foreign`).
     pub(crate) ambience_handles: Vec<usize>,
-    removed: Vec<usize>,
+    pub(crate) removed: Vec<usize>,
     pub animation_events: Vec<(usize, String)>,
     pub(crate) citizen_model: Option<unbanished_formats::game::ModelDescription>,
     /// The nomad templates' NomadDescription materials (men, women).
-    nomad_materials: HashMap<usize, [Option<String>; 2]>,
-    /// ShowTool's meshes: CitizenDescription `+0x138` (`FUN_14011c880`), and each citizen
-    /// mesh's nodes with its `tool` node (`GraphicsMesh::GetNodeIndexFromName`).
-    tool_meshes: Vec<Option<String>>,
-    citizen_bones: Vec<Option<(Vec<unbanished_formats::types::Bone>, usize)>>,
-    /// Carried goods' meshes and scales by raw material (its template's first mesh,
-    /// RawMaterialDescription `+0x50`), filled when the models are built.
-    carry_models: std::cell::RefCell<HashMap<usize, Option<(String, f32)>>>,
+    pub(crate) nomad_materials: HashMap<usize, [Option<String>; 2]>,
     /// Each variant's animation group (`Models\Citizen\CitizenAnims.rsc`).
     pub(crate) citizen_anims: Vec<Option<Arc<unbanished_formats::types::AnimationGroup>>>,
     /// The citizens' CharacterComponent and CitizenAIComponent (docs/CITIZEN-AI.md).
@@ -184,9 +173,9 @@ pub struct StartingTown {
     /// The job manager, professions, workplaces and construction sites (docs/JOBS.md).
     pub construction: Construction,
     /// `Game/Names/Male` and `Female` (`FUN_1400aa130`), for births.
-    names: Option<(NameDatabase, NameDatabase)>,
+    pub(crate) names: Option<(NameDatabase, NameDatabase)>,
     /// Each StorageDisplay's cells on the ground, by rows (presentation only).
-    display_cells: BTreeMap<usize, Vec<[f32; 3]>>,
+    pub(crate) display_cells: BTreeMap<usize, Vec<[f32; 3]>>,
     /// For a town loaded from a save: the saved object each entity and citizen came from, so
     /// saving writes the town back into them (docs/SAVE-WRITING.md).
     pub save_ids: Option<SaveIds>,
@@ -508,19 +497,8 @@ impl StartingTown {
                     .map(|p| (k.to_string(), p))
             })
             .collect();
-        let citizen_icons = read(archive, &citizen_ref.replace(":resource", ":statusicon"))
-            .and_then(|d| unbanished_formats::game::status_icon_description(&d).ok());
-        let citizen_heights = [0, 1].map(|v| {
-            citizen_model
-                .as_ref()
-                .and_then(|m| m.variants.get(v)?.meshes.first()?.clone())
-                .and_then(|r| read(archive, &normalise(&r)))
-                .and_then(|d| unbanished_formats::types::graphics_mesh(&d).ok())
-                .map_or(0.0, |m| m.bounds_max[2] - m.bounds_min[2])
-        });
         let mut town = StartingTown {
-            citizen_icons,
-            citizen_heights,
+            citizen: citizen.to_string(),
             archive_professions,
             start,
             citizens,
@@ -541,15 +519,6 @@ impl StartingTown {
                 .as_ref()
                 .map(|m| citizen_animations(archive, m))
                 .unwrap_or_default(),
-            tool_meshes: read(archive, &citizen_ref.replace(":resource", ":citizen"))
-                .and_then(|d| citizen_description(&d).ok())
-                .map(|c| c.list)
-                .unwrap_or_default(),
-            citizen_bones: citizen_model
-                .as_ref()
-                .map(|m| citizen_tool_nodes(archive, m))
-                .unwrap_or_default(),
-            carry_models: Default::default(),
             citizen_model,
             nomad_materials: HashMap::new(),
             agents,

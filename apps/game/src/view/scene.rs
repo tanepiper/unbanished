@@ -3,6 +3,7 @@
 use glam::{Mat4, Vec2, Vec3, Vec4};
 
 use crate::gfx::render::Lighting;
+pub use crate::start::save::view_state::from_yaw_pitch;
 use crate::view::world::Terrain;
 
 /// A terrain with its camera and lighting. `id` changes whenever `terrain` does, so the renderer
@@ -144,12 +145,6 @@ impl SceneView {
             near: CLOSE,
         }
     }
-}
-
-/// `Math::Vector3::FromYawPitch` (degrees): the direction a camera with this yaw and pitch faces.
-pub fn from_yaw_pitch(yaw: f32, pitch: f32) -> Vec3 {
-    let (y, p) = (yaw.to_radians(), pitch.to_radians());
-    Vec3::new(-p.cos() * y.sin(), p.cos() * y.cos(), p.sin())
 }
 
 /// The game's projection (`FUN_14009db30`): `vfov` degrees vertically and `aspect × vfov`

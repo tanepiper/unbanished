@@ -13,6 +13,7 @@ mod construction;
 mod create;
 pub(crate) mod new_game;
 mod producers;
+pub mod view_state;
 mod wildlife;
 
 /// The saved object of each entity and citizen, extended with what was made since the load.

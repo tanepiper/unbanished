@@ -58,7 +58,10 @@ impl GameplayLoop {
         if ghost != town.ghost {
             town.ghost = ghost;
             if let Some(models) = &mut view.models {
-                town.refresh_models(ctx.archive, models);
+                self.town_view
+                    .as_ref()
+                    .expect("the town view comes with the town")
+                    .refresh_models(town, ctx.archive, models);
             }
         }
         // `FUN_140104080` / `FUN_140103e30`: the ghost's screen rectangle for the CreateBar.
@@ -341,7 +344,10 @@ impl GameplayLoop {
         if let (Some(town), Some(view)) = (self.town.as_mut(), self.view.as_mut()) {
             town.ghost = None;
             if let Some(models) = &mut view.models {
-                town.refresh_models(ctx.archive, models);
+                self.town_view
+                    .as_ref()
+                    .expect("the town view comes with the town")
+                    .refresh_models(town, ctx.archive, models);
             }
         }
     }

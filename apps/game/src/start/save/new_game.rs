@@ -13,7 +13,7 @@ use unbanished_formats::savegame::{self, Fields, GameMapCell, GameState, ObjId, 
 use unbanished_formats::savegame_schema::{default_block, ACHIEVEMENTS, TOWN};
 
 use super::Refs;
-use crate::view::world::WorldParams;
+use crate::start::world_params::WorldParams;
 
 /// The game serializer's version (`FUN_14009af60`, 3 in every current save).
 const VERSION: u32 = 3;
@@ -40,7 +40,7 @@ pub struct NewGame<'a> {
 /// (inferred from the saved cameras; the controller recomputes both every frame).
 pub fn camera(target: [f32; 2], yaw: f32, pitch: f32, distance: f32) -> SceneCamera {
     let (y, p) = (yaw.to_radians(), pitch.to_radians());
-    let direction = crate::view::scene::from_yaw_pitch(yaw, pitch);
+    let direction = super::view_state::from_yaw_pitch(yaw, pitch);
     let target3 = glam::Vec3::new(target[0], target[1], 0.0);
     let eye = target3 - direction * distance;
     let q = glam::Quat::from_rotation_z(y) * glam::Quat::from_rotation_x(-p);
@@ -225,7 +225,7 @@ pub fn instance(g: &mut GameState, a: &AchievementSave) -> Option<ObjId> {
 pub fn ambience(
     archive: &unbanished_formats::pkg::Archive,
     g: &mut GameState,
-    a: &crate::audio::ambience::AmbienceSave,
+    a: &super::view_state::AmbienceSave,
     time: i64,
 ) -> Vec<ObjId> {
     use super::create::{add_entity, new_entity};

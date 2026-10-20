@@ -93,7 +93,10 @@ impl GameplayLoop {
                 log::info!("script placed {template} as {placed:?} (cell, start: {cell:?})");
                 if let Some(models) = self.view.as_mut().and_then(|v| v.models.as_mut()) {
                     if let Some(town) = &self.town {
-                        town.refresh_models(ctx.archive, models);
+                        self.town_view
+                            .as_ref()
+                            .expect("the town view comes with the town")
+                            .refresh_models(town, ctx.archive, models);
                     }
                 }
                 return placed.is_some();

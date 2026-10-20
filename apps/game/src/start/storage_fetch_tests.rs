@@ -36,10 +36,12 @@ fn shown_tools_hang_on_the_tool_node() {
         &mut rng,
     )
     .unwrap();
-    assert_eq!(town.tool_meshes.len(), 11);
-    assert!(town.citizen_bones.iter().all(Option::is_some));
+    let town_view = crate::view::town::TownView::new(&archive, &town);
+    assert_eq!(town_view.tool_meshes.len(), 11);
+    assert!(town_view.citizen_bones.iter().all(Option::is_some));
     let tools = |town: &StartingTown, name: &str| -> Vec<[f32; 16]> {
-        town.model_instances()
+        town_view
+            .model_instances(town)
             .into_iter()
             .filter(|(m, ..)| m.contains(name))
             .flat_map(|(_, _, i, _)| i.into_iter().map(|i| i.matrix))
@@ -64,9 +66,9 @@ fn shown_tools_hang_on_the_tool_node() {
         .unwrap();
     town.agents.states[0].carried.add(log, 3);
     town.agents.states[0].shown_tool = -2;
-    town.cache_carry_models(&archive);
-    let carried: Vec<String> = town
-        .model_instances()
+    town_view.cache_carry_models(&town, &archive);
+    let carried: Vec<String> = town_view
+        .model_instances(&town)
         .into_iter()
         .map(|(m, ..)| m)
         .filter(|m| m.contains("RawMaterial") || m.contains("Wood") || m.contains("Log"))

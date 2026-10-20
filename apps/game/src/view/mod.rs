@@ -6,5 +6,6 @@ pub mod map_params;
 pub mod particles;
 pub mod scene;
 pub mod scene_assets;
+pub mod town;
 pub mod weather;
 pub mod world;

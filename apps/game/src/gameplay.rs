@@ -90,6 +90,8 @@ pub struct GameplayLoop {
     /// The map's heights, which the simulation reads and changes (tunnels, flattening); the
     /// scene view keeps a copy to draw.
     heights: Option<unbanished_game::terrain::Heights>,
+    /// What drawing the town needs beyond the town (its models' and icons' data).
+    town_view: Option<crate::view::town::TownView>,
     environment_months: Vec<EnvironmentMonth>,
     /// EnvironmentDescription `+0x20`: what forms while it rains (`Template\Tornado.rsc`).
     environment_template: Option<String>,
@@ -319,6 +321,7 @@ impl GameplayLoop {
             params,
             view: None,
             heights: None,
+            town_view: None,
             environment_months: Vec::new(),
             environment_template: None,
             screen: None,

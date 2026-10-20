@@ -3238,8 +3238,8 @@ fn a_house_burns_and_is_rebuilt() {
                 .cloned()
                 .flatten()
                 .unwrap();
-            assert!(town
-                .model_instances()
+            assert!(crate::view::town::TownView::new(&archive, &town)
+                .model_instances(&town)
                 .iter()
                 .any(|(m, g, i, _)| *m == mesh && g.set == 1 && !i.is_empty()));
         }
@@ -3379,8 +3379,8 @@ fn nomads_are_taken_in() {
         if state == 0x11 && !asked {
             asked = true;
             // The waiting nomads wear the NomadDescription's materials.
-            let worn: Vec<String> = town
-                .model_instances()
+            let worn: Vec<String> = crate::view::town::TownView::new(&archive, &town)
+                .model_instances(&town)
                 .into_iter()
                 .filter(|(_, _, i, _)| !i.is_empty())
                 .filter_map(|(_, g, _, _)| g.first)

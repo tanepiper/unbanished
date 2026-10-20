@@ -203,7 +203,10 @@ impl GameplayLoop {
             if models_changed {
                 if let Some(models) = &mut view.models {
                     let _p = crate::platform::perf::scope("refresh_models");
-                    town.refresh_models(ctx.archive, models);
+                    self.town_view
+                        .as_ref()
+                        .expect("the town view comes with the town")
+                        .refresh_models(town, ctx.archive, models);
                 }
             }
         }
@@ -265,14 +268,23 @@ impl GameplayLoop {
             view.highlight =
                 self.highlight
                     .geometry(ctx.archive, town, &grid, self.selection.selected);
-            view.status_icons = town.status_icons();
+            view.status_icons = self
+                .town_view
+                .as_ref()
+                .expect("the town view comes with the town")
+                .status_icons(town);
             // Repainted when entities change (MapComponent activation/removal).
             if models_changed || view.minimap_overlay.is_none() {
                 let revision = view.minimap_overlay.as_ref().map_or(0, |o| o.0) + 1;
                 view.minimap_overlay =
                     Some((revision, town.cells.size as u32, town.minimap_overlay()));
             }
-            for r in town.icon_sheet_refs() {
+            for r in self
+                .town_view
+                .as_ref()
+                .expect("the town view comes with the town")
+                .icon_sheet_refs(town)
+            {
                 if !view.icon_sheets.contains_key(&r) {
                     if let Some(sheet) = crate::gfx::status_icons::load_sheet(ctx.archive, &r) {
                         view.icon_sheets.insert(r, sheet);

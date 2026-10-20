@@ -32,6 +32,7 @@ use unbanished_formats::game::map_generator;
 use unbanished_formats::pkg::Archive;
 
 use crate::audio::sound::{sound_type, Audio};
+pub use crate::start::save::view_state::{AmbienceSave, RegionSave};
 use crate::start::StartingTown;
 
 const ENVIRONMENT: &str = "Audio/Effects/Environment.rsc";
@@ -144,24 +145,6 @@ impl Emitter {
                 .set_emitter_volume(handle, self.position, volume);
         }
     }
-}
-
-/// A region's AmbientEnvironmentComponent and emitter, for saving.
-pub struct RegionSave {
-    pub rect: (i32, i32, i32, i32),
-    pub position: [f32; 3],
-    /// The two slots' effects and volumes.
-    pub effects: [(Option<String>, f32); 2],
-}
-
-/// The map ambience's entities, for saving.
-pub struct AmbienceSave {
-    pub regions: Vec<RegionSave>,
-    pub wind: Option<[f32; 3]>,
-    pub rivers: Vec<[f32; 3]>,
-    /// The weather emitters while their effect lasts: the ambient file, the position and
-    /// the slots' volumes.
-    pub weather: Vec<(String, [f32; 3], Vec<f32>)>,
 }
 
 struct Region {

@@ -40,7 +40,7 @@ Deviation: 61, Not ported: 4, Not traced: 1.
 ## `apps/game/src/gameplay/frame.rs`
 
 - [Deviation] [apps/game/src/gameplay/frame.rs:89](../apps/game/src/gameplay/frame.rs#L89): `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller. Deviation: in a multiplayer game the pause menu does not hold the shared game.
-- [Deviation] [apps/game/src/gameplay/frame.rs:285](../apps/game/src/gameplay/frame.rs#L285): AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets the game speed (`Game +0x120 → +0x34`) back to 1. Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on each player's own setting.
+- [Deviation] [apps/game/src/gameplay/frame.rs:297](../apps/game/src/gameplay/frame.rs#L297): AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets the game speed (`Game +0x120 → +0x34`) back to 1. Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on each player's own setting.
 
 ## `apps/game/src/gameplay/lockstep.rs`
 
@@ -138,7 +138,7 @@ Deviation: 61, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/view/scene.rs`
 
-- [Deviation] [apps/game/src/view/scene.rs:113](../apps/game/src/view/scene.rs#L113): This frame seen from another camera: `eye` looking at `target` with a vertical field of view of `vfov` degrees. The game's own camera is left as it is; culling, shadows, the sky and the weather follow the frame's camera. Used by captures' cinematic camera ([`crate::view::cinematic`]). Deviation: not in the original; captures only (`--camera`, `--camera-follow`).
+- [Deviation] [apps/game/src/view/scene.rs:114](../apps/game/src/view/scene.rs#L114): This frame seen from another camera: `eye` looking at `target` with a vertical field of view of `vfov` degrees. The game's own camera is left as it is; culling, shadows, the sky and the weather follow the frame's camera. Used by captures' cinematic camera ([`crate::view::cinematic`]). Deviation: not in the original; captures only (`--camera`, `--camera-follow`).
 
 ## `crates/formats/src/pkg.rs`
 

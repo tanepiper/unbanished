@@ -1,36 +1,22 @@
-//! The town's models: smoothing, carried goods, storage displays and the model instances to draw.
+//! The town's models: carried goods, storage displays and the model instances to draw.
 
 use super::*;
 
-impl StartingTown {
-    /// FUN_1400c98a0's post-iteration phase; also runs when the toolbar pauses simulation.
-    pub fn smooth(&mut self, terrain: &HeightGrid, rng: &mut Random) -> bool {
-        Seeder {
-            templates: &self.templates,
-            terrain,
-            cells: &mut self.cells,
-            rng,
-            placed: &mut self.placed,
-            removed: &mut self.removed,
-            animation_events: &mut self.animation_events,
-        }
-        .smooth()
-    }
-
+impl TownView {
     /// Model instances of every placed entity, grouped by mesh.
-    pub fn models(&self, archive: &Archive) -> SceneModels {
-        self.cache_carry_models(archive);
-        SceneModels::from_instances(archive, self.model_instances())
+    pub fn models(&self, town: &StartingTown, archive: &Archive) -> SceneModels {
+        self.cache_carry_models(town, archive);
+        SceneModels::from_instances(archive, self.model_instances(town))
     }
 
     /// `FUN_14011c880` with −2: what a citizen carries shows as its most-held raw material's
     /// template's first mesh (variant 0), scaled by its RawMaterialDescription `+0x50`.
-    pub(super) fn cache_carry_models(&self, archive: &Archive) {
+    pub(crate) fn cache_carry_models(&self, town: &StartingTown, archive: &Archive) {
         let mut cache = self.carry_models.borrow_mut();
-        for s in &self.agents.states {
+        for s in &town.agents.states {
             for item in &s.carried.items {
                 cache.entry(item.material).or_insert_with(|| {
-                    let r = &self.materials.get(item.material)?.reference;
+                    let r = &town.materials.get(item.material)?.reference;
                     let model = read(archive, &r.replace(":resource", ":model"))
                         .and_then(|d| unbanished_formats::game::model_description(&d).ok())?;
                     let mesh = model.variants.first()?.meshes.first().cloned().flatten()?;
@@ -44,9 +30,9 @@ impl StartingTown {
     }
 
     /// Keep mesh/texture resources cached while GrowthComponent changes only instance scales.
-    pub fn refresh_models(&self, archive: &Archive, models: &mut SceneModels) {
-        self.cache_carry_models(archive);
-        models.update_instances(archive, self.model_instances());
+    pub fn refresh_models(&self, town: &StartingTown, archive: &Archive, models: &mut SceneModels) {
+        self.cache_carry_models(town, archive);
+        models.update_instances(archive, self.model_instances(town));
     }
 
     /// StorageDisplayComponent (`FUN_140057090`, update `FUN_140056d40` / `FUN_140056c10`):
@@ -56,25 +42,26 @@ impl StartingTown {
     /// empty.
     pub(super) fn storage_displays(
         &self,
+        town: &StartingTown,
         groups: &mut HashMap<(String, GroupMaterial), Vec<ModelInstance>>,
     ) {
-        let storages = self
+        let storages = town
             .storage_sites
             .iter()
             .map(|s| (s.entity, s.storage))
             .chain(
-                self.construction
+                town.construction
                     .sites
                     .values()
                     .map(|s| (s.entity, s.storage)),
             );
         let mut seen = std::collections::BTreeSet::new();
         for (e, storage) in storages {
-            let p = &self.placed[e];
-            if !p.alive || !self.templates[p.template].storage_display || !seen.insert(e) {
+            let p = &town.placed[e];
+            if !p.alive || !town.templates[p.template].storage_display || !seen.insert(e) {
                 continue;
             }
-            let Some(s) = self.storages.get(storage) else {
+            let Some(s) = town.storages.get(storage) else {
                 continue;
             };
             let (w, h) = p.footprint;
@@ -85,7 +72,7 @@ impl StartingTown {
                     continue;
                 }
                 // The material's pile template's model, variant 0.
-                let list = self
+                let list = town
                     .templates
                     .iter()
                     .find(|t| t.pile_material == Some(item.material) && t.model.is_some())
@@ -93,7 +80,7 @@ impl StartingTown {
                     .and_then(|m| m.variants.first())
                     .map(|v| v.meshes.clone())
                     .unwrap_or_default();
-                let size = self.materials[item.material].size;
+                let size = town.materials[item.material].size;
                 let share = (size * item.count) as f32 / s.capacity.max(1) as f32 * cells as f32;
                 let full = share as i32;
                 let pick = |fraction: f32| {
@@ -110,7 +97,7 @@ impl StartingTown {
                     meshes.push(pick(share - full as f32));
                 }
             }
-            let Some(ground) = self.display_cells.get(&e) else {
+            let Some(ground) = town.display_cells.get(&e) else {
                 continue;
             };
             for (i, mesh) in meshes.into_iter().enumerate() {
@@ -129,7 +116,7 @@ impl StartingTown {
         }
     }
 
-    pub(crate) fn model_instances(&self) -> Vec<GroupInstances> {
+    pub(crate) fn model_instances(&self, town: &StartingTown) -> Vec<GroupInstances> {
         // Placed entities, grouped by mesh and material set in placement order. A large town
         // has about 28,000 of them every frame, so each finds its group through a small table
         // per template (variant, mesh, set) instead of hashing a copy of the mesh name, and
@@ -138,15 +125,15 @@ impl StartingTown {
         let mut placed_groups: Vec<((String, GroupMaterial), Vec<ModelInstance>)> = Vec::new();
         let mut by_name: HashMap<(String, GroupMaterial), usize> = HashMap::new();
         let mut by_template: Vec<Vec<((usize, usize, usize), usize)>> =
-            vec![Vec::new(); self.templates.len()];
-        let mut sites = self.construction.sites.iter().peekable();
-        for (e, p) in self.placed.iter().enumerate() {
+            vec![Vec::new(); town.templates.len()];
+        let mut sites = town.construction.sites.iter().peekable();
+        for (e, p) in town.placed.iter().enumerate() {
             while sites.next_if(|(&k, _)| k < e).is_some() {}
             let site = sites.next_if(|(&k, _)| k == e).map(|(_, s)| s);
             if !p.alive {
                 continue;
             }
-            let Some(model) = &self.templates[p.template].model else {
+            let Some(model) = &town.templates[p.template].model else {
                 continue;
             };
             let Some(Some(mesh)) = model
@@ -159,7 +146,7 @@ impl StartingTown {
             // A damaged building's model shows the DestroyDescription's material set.
             let set = site
                 .filter(|s| s.destroy.as_ref().is_some_and(|d| d.damaged_look))
-                .and_then(|s| self.construction.templates[s.template].destroy)
+                .and_then(|s| town.construction.templates[s.template].destroy)
                 .map_or(0, |t| t.material.max(0) as usize);
             let key = (p.variant, p.mesh, set);
             let slots = &mut by_template[p.template];
@@ -178,7 +165,7 @@ impl StartingTown {
             placed_groups[group].1.push(ModelInstance {
                 matrix: placement_matrix(p.position, [p.scale[0], p.scale[1], p.scale[2]], p.yaw),
                 locals: p.animation.as_ref().and_then(|playback| {
-                    self.templates[p.template]
+                    town.templates[p.template]
                         .animations
                         .get(p.variant)
                         .and_then(Option::as_ref)
@@ -189,36 +176,36 @@ impl StartingTown {
         }
         let mut groups: HashMap<(String, GroupMaterial), Vec<ModelInstance>> =
             placed_groups.into_iter().collect();
-        self.storage_displays(&mut groups);
+        self.storage_displays(town, &mut groups);
         // Citizens: `Template/Citizen.rsc:model` variant 0 (men) or 1 (women); children use
         // the scale `DAT_140178818` (`FUN_14011a700`).
-        if let Some(model) = &self.citizen_model {
-            for (i, c) in self.citizens.iter().enumerate().filter(|(_, c)| c.alive) {
+        if let Some(model) = &town.citizen_model {
+            for (i, c) in town.citizens.iter().enumerate().filter(|(_, c)| c.alive) {
                 let variant = if c.male { 0 } else { 1 };
                 let Some(Some(mesh)) = model.variants.get(variant).and_then(|v| v.meshes.first())
                 else {
                     continue;
                 };
-                let s = if c.is_adult(&self.rules) {
+                let s = if c.is_adult(&town.rules) {
                     1.0
                 } else {
-                    CHILD_SCALE
+                    crate::start::CHILD_SCALE
                 };
                 // FUN_14011a5e0/FUN_14011a700 write the outfit (`+0x34`) into the mesh
                 // instance's `w`, read by the character shader from the root translation.
                 // CharacterComponent: model yaw (heading + yaw offset) and its animation.
-                let ch = self.agents.characters.get(i);
+                let ch = town.agents.characters.get(i);
                 let yaw = ch.map_or(0.0, |ch| ch.yaw);
                 let mut matrix = placement_matrix(c.position, [s, s, s], yaw);
                 matrix[15] = c.appearance as f32;
                 let locals = ch
-                    .zip(self.citizen_anims.get(variant).and_then(Option::as_ref))
+                    .zip(town.citizen_anims.get(variant).and_then(Option::as_ref))
                     .and_then(|(ch, g)| ch.animation.pose(g));
                 // ShowTool (`FUN_14011c880`): the tool's mesh, or the carried goods', on the
                 // citizen mesh's `tool` node (`Geometry::Attach`), at its scale.
-                let shown = self.agents.states.get(i).map_or(-1, |s| s.shown_tool);
+                let shown = town.agents.states.get(i).map_or(-1, |s| s.shown_tool);
                 let attached = match shown {
-                    -2 => self.agents.states[i]
+                    -2 => town.agents.states[i]
                         .carried
                         .items
                         .iter()
@@ -274,8 +261,8 @@ impl StartingTown {
         }
         // Wild animals: their model's variant and mesh, placed by their CharacterComponent,
         // scaled by age (`FUN_14010c7f0`).
-        for animal in self.wildlife.animals.values().filter(|a| !a.dying) {
-            let Some(model) = &self.templates[animal.template].model else {
+        for animal in town.wildlife.animals.values().filter(|a| !a.dying) {
+            let Some(model) = &town.templates[animal.template].model else {
                 continue;
             };
             let Some(Some(mesh)) = model
@@ -287,7 +274,7 @@ impl StartingTown {
             };
             let ch = &animal.character;
             let s = animal.scale;
-            let locals = self
+            let locals = town
                 .wildlife
                 .group(animal)
                 .and_then(|g| ch.animation.pose(g));
@@ -302,12 +289,12 @@ impl StartingTown {
         // Trader boats: their template's model (the hull, oars and merchant), placed and posed by
         // their CharacterComponent as the animals are (BoatComponent's entity keeps a
         // ModelComponent, `model.position` / `model.yaw` in saves; docs/TRADE.md "The boat").
-        for (&entity, boat) in &self.wildlife.boats {
-            let Some(model) = &self.templates[boat.template].model else {
+        for (&entity, boat) in &town.wildlife.boats {
+            let Some(model) = &town.templates[boat.template].model else {
                 continue;
             };
             // The boat's placed entry keeps no mesh (`usize::MAX`): its model has one.
-            let (variant, mesh) = self
+            let (variant, mesh) = town
                 .placed
                 .get(entity)
                 .map_or((0, 0), |p| (p.variant, p.mesh));
@@ -319,7 +306,7 @@ impl StartingTown {
                 continue;
             };
             let ch = &boat.character;
-            let locals = self
+            let locals = town
                 .wildlife
                 .groups
                 .get(&(boat.template, variant))
@@ -335,8 +322,8 @@ impl StartingTown {
         // Nomads: their template's model (men variant 0, women 1) with the NomadDescription's
         // material in place of material 0 (`FUN_140050990`), placed by their
         // CharacterComponent.
-        for nomad in self.wildlife.nomads.values() {
-            let Some(model) = &self.templates[nomad.template].model else {
+        for nomad in town.wildlife.nomads.values() {
+            let Some(model) = &town.templates[nomad.template].model else {
                 continue;
             };
             let Some(Some(mesh)) = model
@@ -347,14 +334,14 @@ impl StartingTown {
                 continue;
             };
             let ch = &nomad.character;
-            let locals = self
+            let locals = town
                 .wildlife
                 .groups
                 .get(&(nomad.template, nomad.variant))
                 .and_then(|g| ch.animation.pose(g));
             let material = GroupMaterial {
                 set: 0,
-                first: self
+                first: town
                     .nomad_materials
                     .get(&nomad.template)
                     .and_then(|m| m.get(nomad.variant).cloned().flatten()),
@@ -367,7 +354,7 @@ impl StartingTown {
                     locals,
                 });
         }
-        if let Some((mesh, matrix)) = &self.ghost {
+        if let Some((mesh, matrix)) = &town.ghost {
             groups
                 .entry((mesh.clone(), GroupMaterial::default()))
                 .or_default()

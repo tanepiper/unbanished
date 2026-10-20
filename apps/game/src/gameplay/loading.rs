@@ -98,7 +98,9 @@ impl GameplayLoop {
                 self.road_materials = crate::gfx::road_decals::materials(ctx.archive);
                 self.decal_descriptions.clear();
                 if let Some(town) = &town {
-                    view.models = Some(town.models(ctx.archive));
+                    let town_view = crate::view::town::TownView::new(ctx.archive, town);
+                    view.models = Some(town_view.models(town, ctx.archive));
+                    self.town_view = Some(town_view);
                 }
                 self.town = town;
                 // A new game's ambience regions join the entity manager's bucket 2.
