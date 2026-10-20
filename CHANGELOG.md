@@ -9,6 +9,19 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+Multiplayer: several players play one town together, on the desktop or in the browser, through
+a small relay, while single-player games stay exactly as before. Also mods from banishedinfo.com,
+a browser version that installs as an app, and the fix for the first tutorial.
+
+### Changed
+
+- Dialogs lay out faster: each element is measured once per frame instead of again for every
+  level of nesting. The Mods menu with both Browse tabs went from 70 ms to 7 ms a frame. Every
+  dialog looks exactly as before.
+- Mod sites in the Mods menu: a Browse tab for each site, shown by default: Nexus Mods and, on
+  the desktop, banishedinfo.com (it sends no CORS headers, so the browser cannot reach it).
+  Searching needs no account; installing from Nexus Mods needs your own API key.
+
 ### Fixed
 
 - The first tutorial (Getting Started) stopped at its first house: clicking the Housing menu
@@ -22,28 +35,6 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Added
 
-- The browser version can be installed as an app (Chrome, Edge, Android), and then opens in its
-  own window and starts without a network (#13).
-- The browser version's Options choose a resolution for the 3D world (100, 75 or 50 % of the
-  page) and a frame-rate limit (30 to 120 per second) (#15). Captures can test the resolution
-  natively with `--scene-scale PART`.
-- The home page montage has titles: it opens on "Un-Banished", names each shot, and ends on a
-  card. `tools/videos.sh` adds titles with FFmpeg's `drawtext` when the installed FFmpeg has it
-  (see Titles in [docs/develop/VIDEOS.md](docs/develop/VIDEOS.md)).
-- `banished --sim-digest SAVE` and the browser build's `?digest=` run a save without a window
-  and print digests of the game state, to check that native and browser builds simulate
-  identically. They do, on the saves tried ([docs/CROSS-PLATFORM.md](docs/CROSS-PLATFORM.md)).
-- Recordings: `--record FILE` writes every player command of a game loaded from a save, and
-  `banished --replay SAVE FILE` plays it back without a window and checks that the game comes
-  out the same. Every player action now goes through one command type, with no change to the
-  game (steps 1 and 2 of [docs/MULTIPLAYER-PLAN.md](docs/MULTIPLAYER-PLAN.md)).
-- Lockstep, the core of a future multiplayer game: several players' games stay identical by
-  exchanging only their commands. `banished --lockstep-test` runs players in one process over a
-  simulated network (step 3). The host compares the players' games every 600 updates and, when
-  they differ, everybody reloads the host's save and goes on (step 4).
-- A multiplayer relay, `banished-relay`, with room codes, and the game's WebSocket connection to
-  it, natively and in the browser (`banished-net`). Native and browser players have played one
-  game through it and stayed identical (step 5).
 - Multiplayer from the main menu: a Multiplayer button opens a window to host a room on a relay
   or join one with its code. The host starts the game from one of its saves, and every player
   plays the same town; the speed and the pause are shared, and a line at the foot of the screen
@@ -52,6 +43,36 @@ The version is the engine's own (`banished --version`). The Banished version in 
   working, and the line at the foot of the screen names the player it waits for. A player who
   leaves no longer stops the game: the others play on without them. A command given while the
   game waited was lost; it now goes into the next turn.
+- A multiplayer relay, `banished-relay`, with room codes, and the game's WebSocket connection to
+  it, natively and in the browser (`banished-net`). Native and browser players have played one
+  game through it and stayed identical (step 5).
+- Lockstep, the core of multiplayer: several players' games stay identical by
+  exchanging only their commands. `banished --lockstep-test` runs players in one process over a
+  simulated network (step 3). The host compares the players' games every 600 updates and, when
+  they differ, everybody reloads the host's save and goes on (step 4).
+- Mods from banishedinfo.com on the desktop: browse, search and install them in the game's
+  Browse tab, in the mod manager and with `banished-cli banishedinfo`.
+- Mod previews show in the Browse tabs and the mod manager: PNG, JPEG and WebP (Nexus Mods
+  sends WebP).
+- The browser version can be installed as an app (Chrome, Edge, Android), and then opens in its
+  own window and starts without a network (#13).
+- The browser version's Options choose a resolution for the 3D world (100, 75 or 50 % of the
+  page) and a frame-rate limit (30 to 120 per second) (#15). Captures can test the resolution
+  natively with `--scene-scale PART`.
+- Recordings: `--record FILE` writes every player command of a game loaded from a save, and
+  `banished --replay SAVE FILE` plays it back without a window and checks that the game comes
+  out the same. Every player action now goes through one command type, with no change to the
+  game (steps 1 and 2 of [docs/MULTIPLAYER-PLAN.md](docs/MULTIPLAYER-PLAN.md)).
+- `banished --sim-digest SAVE` and the browser build's `?digest=` run a save without a window
+  and print digests of the game state, to check that native and browser builds simulate
+  identically. They do, on the saves tried ([docs/CROSS-PLATFORM.md](docs/CROSS-PLATFORM.md)).
+- Test tools: a `tools/compat` scenario that plays through the interface (`actions`), and
+  `replay.sh`, `lockstep.sh`, `network.sh` and `multiplayer.sh`. Captures can press and release
+  the mouse (`--mouse-down`, `--mouse-up`), run in real time (`--realtime`) and type into an
+  edit box (`--text NAME=TEXT@SECONDS`).
+- The home page montage has titles: it opens on "Un-Banished", names each shot, and ends on a
+  card. `tools/videos.sh` adds titles with FFmpeg's `drawtext` when the installed FFmpeg has it
+  (see Titles in [docs/develop/VIDEOS.md](docs/develop/VIDEOS.md)).
 
 ## [0.2.0] - 2026-10-19
 
@@ -62,9 +83,6 @@ browser; and a blog. The performance work is described in
 
 ### Changed
 
-- Dialogs lay out faster: each element is measured once per frame instead of again for
-  every level of nesting. The Mods menu with both Browse tabs went from 70 ms to 7 ms a frame.
-  Every dialog looks exactly as before.
 - The engine version is now 0.2.0 (shown as `0.2.0-<build>` until the release).
 - No freeze when the town appears after loading: the ambient sounds, the first music track
   and the decals are now prepared behind the loading screen (about 0.5 s on a large town).
@@ -92,10 +110,9 @@ browser; and a blog. The performance work is described in
 
 - A mod manager, `banished-mods`: turn mods on and off and set their order before the game
   starts, keep named mod lists, install mods from Nexus Mods, and start the game.
-- Mod sites in the Mods menu: a Browse tab (the Steam version's Workshop browser) for Nexus
-  Mods and, on the desktop, one for banishedinfo.com, both shown by default. Searching needs no
-  account; installing from Nexus Mods needs your own API key. `banished-cli nexus` and
-  `banished-cli banishedinfo` do the same from the command line. See "Mods from Nexus Mods" in
+- Optional Nexus Mods support. With your own Nexus Mods API key, the Mods menu's Browse tab
+  (the Steam version's Workshop browser) searches and installs Banished mods from Nexus Mods,
+  and `banished-cli nexus` does the same from the command line. See "Mods from Nexus Mods" in
   the user guide.
 - `tools/compat/`: build any version in a clean checkout, play a fixed set of scenarios (a new
   game, small, medium and large towns, and continuing another version's saves), and check that
