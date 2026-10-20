@@ -248,6 +248,14 @@ fn overflowing_container_scrolls_content_and_preserves_its_clip() {
         ui.nodes[bar].rect[3] > ui.nodes[bar].rect[1],
         "overflow exposes a scrollbar"
     );
+    // `ScrollElement::ComputeLayout`: a vertical bar fills the height beside the view, not
+    // just its own minimum size.
+    let [_, _, mt, mb] = ui.nodes[bar].margins;
+    assert_eq!(
+        ui.nodes[bar].rect[3] - ui.nodes[bar].rect[1],
+        view[3] - view[1] - mt - mb,
+        "the scrollbar spans the view's height"
+    );
     let quads = ui.draw(root);
     let content_quads: Vec<_> = quads.iter().filter(|q| q.clip == Some(view)).collect();
     assert!(

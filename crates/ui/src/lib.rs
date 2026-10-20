@@ -1026,8 +1026,14 @@ impl Ui {
     }
 
     /// Generic placement shared by most `ComputeLayout` implementations.
-    fn place(&mut self, id: NodeId, mut l: i32, mut t: i32, r: i32, b: i32) {
+    fn place(&mut self, id: NodeId, l: i32, t: i32, r: i32, b: i32) {
+        self.place_filling(id, l, t, r, b, 0);
+    }
+
+    /// [`Ui::place`] with `fill` (`FILL_WIDTH`, `FILL_HEIGHT`) added to the node's own flags.
+    fn place_filling(&mut self, id: NodeId, mut l: i32, mut t: i32, r: i32, b: i32, fill: u32) {
         let n = &mut self.nodes[id];
+        let fill = n.flags | fill;
         let (mut w, mut h) = (n.size[0], n.size[1]);
         if r < w + l {
             l = r - w;
@@ -1038,10 +1044,10 @@ impl Ui {
         let [ml, mr, mt, mb] = n.margins;
         let (mut x, mut y) = (l + ml, t + mt);
         let (aw, ah) = ((r - mr) - x, (b - mb) - y);
-        if n.flags & flags::FILL_WIDTH != 0 {
+        if fill & flags::FILL_WIDTH != 0 {
             w = aw;
         }
-        if n.flags & flags::FILL_HEIGHT != 0 {
+        if fill & flags::FILL_HEIGHT != 0 {
             h = ah;
         }
         match n.alignment % 3 {
@@ -1184,8 +1190,18 @@ impl Ui {
     /// `ComputeLayout` for each element class.
     fn compute_layout(&mut self, id: NodeId, l: i32, t: i32, r: i32, b: i32) {
         let slot = [l, t, r, b];
-        if matches!(self.nodes[id].kind, Kind::Control(_)) {
-            self.place(id, l, t, r, b);
+        if let Kind::Control(c) = &self.nodes[id].kind {
+            // `ScrollElement::ComputeLayout` (Runtime 0x18011d7b0): a bar always fills its own
+            // axis (a vertical bar the height, a horizontal one the width); the flags only
+            // decide the other axis.
+            let fill = match c {
+                Control::Scroll { vertical: true, .. } => flags::FILL_HEIGHT,
+                Control::Scroll {
+                    vertical: false, ..
+                } => flags::FILL_WIDTH,
+                _ => 0,
+            };
+            self.place_filling(id, l, t, r, b, fill);
             self.layout_control(id);
         } else {
             match self.nodes[id].kind.clone() {

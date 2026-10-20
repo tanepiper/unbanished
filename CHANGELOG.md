@@ -21,6 +21,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
   drawn, sepia, grey and psychedelic. New videos for the website: the river flight in sepia and
   the trader's boat in grey.
 
+### Fixed
+
+- Scroll bars now fill the side of their list, as in the original. They were only as long as
+  their smallest size, so the thumb was tiny and sat in the middle of the list.
+
 ## [0.3.0] - 2026-10-20
 
 Multiplayer: several players play one town together, on the desktop or in the browser, through
