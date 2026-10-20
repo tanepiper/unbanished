@@ -336,6 +336,10 @@ stay in the browser as before.
 close itself, so **Exit** goes back to the start page; on the Play page it goes back to the
 **Start the game** button.
 
+<p align="center">
+  <img src="assets/screenshots/browser-pause-menu.webp" alt="The pause menu in the browser version, with Quit and Exit at the bottom" width="640">
+</p>
+
 **Sharp on every screen.** On screens with a high pixel density and a fractional scale (4K
 monitors, tablets, Samsung DeX), the menus and text are drawn on whole screen pixels, so they stay
 sharp.
