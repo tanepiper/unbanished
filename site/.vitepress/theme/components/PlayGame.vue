@@ -9,6 +9,10 @@ const frame = ref<HTMLIFrameElement | null>(null)
 
 onMounted(() => {
   touchOnly.value = window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(pointer: fine)').matches
+  // The game's Exit button asks the page to close the game (apps/game/src/platform/web.rs, #18).
+  window.addEventListener('message', (event) => {
+    if (event.origin === window.location.origin && event.data === 'un-banished-exit') stop()
+  })
 })
 
 function start() {

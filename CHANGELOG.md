@@ -23,6 +23,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Fixed
 
+- **Exit** in the browser version no longer leaves the page frozen (#18). The installed app
+  closes its window; in a browser tab the game goes back to its start page, and on the Play page
+  to the **Start the game** button.
 - Scroll bars now fill the side of their list, as in the original. They were only as long as
   their smallest size, so the thumb was tiny and sat in the middle of the list.
 

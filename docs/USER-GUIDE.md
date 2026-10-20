@@ -332,6 +332,10 @@ Android: the browser menu, then **Install app** or **Add to home screen**). It t
 window of its own, and starts without an internet connection. Your game files, saves and mods
 stay in the browser as before.
 
+**Exit.** In the installed app, **Exit** closes its window. In a browser tab, a page cannot
+close itself, so **Exit** goes back to the start page; on the Play page it goes back to the
+**Start the game** button.
+
 **Sharp on every screen.** On screens with a high pixel density and a fractional scale (4K
 monitors, tablets, Samsung DeX), the menus and text are drawn on whole screen pixels, so they stay
 sharp.

@@ -1252,6 +1252,8 @@ impl ApplicationHandler<UserEvent> for App {
                     }
                 }
                 if game.quit_requested() {
+                    #[cfg(target_arch = "wasm32")]
+                    platform::web::exit_page();
                     event_loop.exit();
                     return;
                 }

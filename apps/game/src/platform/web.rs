@@ -37,6 +37,52 @@ pub fn show_version(text: &str) {
     }
 }
 
+/// The message the game sends to the Play page around it when the player exits.
+const EXIT_MESSAGE: &str = "un-banished-exit";
+
+/// Leave the game after Exit (#18). An installed app closes its window, as the original closes
+/// the program. A page cannot close a tab the player opened, so otherwise the game goes back to
+/// its start page: on the Play page, the page around the game shows its Start button again; on
+/// its own, the page reloads.
+// Deviation: in the browser, Exit closes an installed app's window or returns to the start
+// page, since stopping the program would leave the page frozen on its last frame.
+pub fn exit_page() {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let installed = [
+        "standalone",
+        "minimal-ui",
+        "fullscreen",
+        "window-controls-overlay",
+    ]
+    .iter()
+    .any(|mode| {
+        window
+            .match_media(&format!("(display-mode: {mode})"))
+            .ok()
+            .flatten()
+            .is_some_and(|q| q.matches())
+    });
+    if installed {
+        let _ = window.close();
+        // `closed` is true at once when the browser agreed to close the window.
+        if window.closed().unwrap_or(false) {
+            return;
+        }
+    }
+    if let (Ok(Some(_)), Ok(Some(parent))) = (window.frame_element(), window.parent()) {
+        let origin = window.location().origin().unwrap_or_else(|_| "*".into());
+        if parent
+            .post_message(&JsValue::from_str(EXIT_MESSAGE), &origin)
+            .is_ok()
+        {
+            return;
+        }
+    }
+    let _ = window.location().reload();
+}
+
 /// `?data=<base>`: dev-server base URL for the git-ignored `game-data/` folder.
 ///
 /// Only honoured when the page itself is served from this machine (`tools/dev-web.sh`). On the
