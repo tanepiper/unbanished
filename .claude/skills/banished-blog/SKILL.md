@@ -15,7 +15,7 @@ patch notes of games such as No Man's Sky. The full list of changes stays in `CH
    mods, the browser version, speed in large towns, films of your town. Everything about that
    feature goes inside its story, even when it was several pieces of work. Multiplayer's rooms,
    its lockstep, its desync recovery and its players line are one story, not four.
-2. **Few stories.** Three to five, each with a picture or a film. A small feature that has no
+2. **Few stories.** Three to five, most with a picture or a film. A small feature that has no
    story of its own goes into the changelog list at the end, not into its own section.
 3. **High level.** Say what the player can do now and why it matters. Explain how it works only
    as far as a player finds it interesting (for example "the computers send only what the
