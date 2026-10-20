@@ -160,6 +160,32 @@ mod imp {
         JsFuture::from(promise).await
     }
 
+    /// A future that ends when `tx` has committed (`complete`), or fails when it aborts or
+    /// fails. A request's `success` comes before the commit: a page that reloads then can lose
+    /// the write. The handlers are set at once, so call this before the requests' awaits.
+    fn committed(tx: &web_sys::IdbTransaction) -> JsFuture {
+        let t = tx.clone();
+        let promise = js_sys::Promise::new(&mut |resolve, reject| {
+            let ok = Closure::once(move |_: web_sys::Event| {
+                let _ = resolve.call0(&JsValue::NULL);
+            });
+            let fail = reject.clone();
+            let err = Closure::once(move |_: web_sys::Event| {
+                let _ = fail.call1(&JsValue::NULL, &JsValue::from_str("transaction failed"));
+            });
+            let abort = Closure::once(move |_: web_sys::Event| {
+                let _ = reject.call1(&JsValue::NULL, &JsValue::from_str("transaction aborted"));
+            });
+            t.set_oncomplete(Some(ok.as_ref().unchecked_ref()));
+            t.set_onerror(Some(err.as_ref().unchecked_ref()));
+            t.set_onabort(Some(abort.as_ref().unchecked_ref()));
+            ok.forget();
+            err.forget();
+            abort.forget();
+        });
+        JsFuture::from(promise)
+    }
+
     async fn db() -> Result<IdbDatabase, JsValue> {
         if let Some(db) = DB.with(|d| d.borrow().clone()) {
             return Ok(db);
@@ -337,8 +363,11 @@ mod imp {
             let tx =
                 db.transaction_with_str_sequence_and_mode(&stores, IdbTransactionMode::Readwrite)?;
             let key = JsValue::from_str(name);
+            let finished = committed(&tx);
             done(&tx.object_store(FILES)?.put_with_key(&file, &key)?).await?;
             done(&tx.object_store(META)?.put_with_key(&meta, &key)?).await?;
+            // The page reloads after an import: only return once the write is on disk.
+            finished.await?;
             Ok::<_, JsValue>(())
         }
         .await;
