@@ -9,6 +9,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-21
+
 Ready-made downloads of the game for Windows, macOS and Linux. The program is now called
 Un-Banished More, and `--vanilla` replaces `--pure`.
 
@@ -362,7 +364,8 @@ of Banished 1.0.7.
   [docs/DEVIATIONS.md](docs/DEVIATIONS.md) and in the
   [issues](https://github.com/tanepiper/unbanished/issues).
 
-[Unreleased]: https://github.com/tanepiper/unbanished/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/tanepiper/unbanished/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/tanepiper/unbanished/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/tanepiper/unbanished/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tanepiper/unbanished/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/tanepiper/unbanished/compare/v0.1.0...v0.2.0
