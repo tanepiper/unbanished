@@ -11,6 +11,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Added
 
+- Rule hooks: small WebAssembly programs in the `Hooks` folder beside your saves that change
+  how the town plays, the same way on every computer. Saves list them, every player of a
+  multiplayer room needs the same ones, and Pure Banished never loads them.
+  [Writing a rule hook](docs/guide/WRITING-RULE-HOOKS.md) builds an example, a harvest festival.
+
 - [How Un-Banished is built](docs/ARCHITECTURE.md): the core and its extensions, the layers,
   one update step by step, multiplayer and the server. It and the extensions guide are on the
   website.

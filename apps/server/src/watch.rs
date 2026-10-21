@@ -54,9 +54,10 @@ impl GameData {
         })
     }
 
-    /// Whether a room whose host said `hello` can be watched with this data.
+    /// Whether a room whose host said `hello` can be watched with this data (the same data, and
+    /// no mods or rule hooks, which the server does not run).
     pub fn fits(&self, hello: &Hello) -> bool {
-        hello.data == self.data && hello.mods == self.mods
+        hello.data == self.data && hello.mods == self.mods && hello.hooks == 0
     }
 }
 
@@ -149,7 +150,9 @@ pub fn heard(s: &mut Shared, shared: &Arc<Mutex<Shared>>, room: &str, data: &[u8
             s.watchers.insert(room.to_string(), tx);
             s.relay.watch(room);
         } else {
-            log::info!("room {room}: other game data or mods; the players check each other");
+            log::info!(
+                "room {room}: other game data, mods or rule hooks; the players check each other"
+            );
         }
     }
     if let Some(tx) = s.watchers.get(room) {

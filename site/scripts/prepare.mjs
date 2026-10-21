@@ -44,6 +44,7 @@ const PAGES = {
   'CHANGELOG.md': { path: '/changelog', title: 'Changelog', description: 'Every notable change, by version.' },
   'docs/PROCESS.md': { path: '/about/how-it-was-made', title: 'How it was made', description: 'How Ghidra, REA, an AI agent and a human rebuilt Banished.' },
   'docs/guide/PLAYING.md': { path: '/guide/playing', description: 'The first steps in a new town, with pictures and short videos.' },
+  'docs/guide/WRITING-RULE-HOOKS.md': { path: '/guide/rule-hooks', description: 'Write a rule hook, a small WebAssembly program that changes how the town plays.' },
   'docs/guide/MULTIPLAYER.md': { path: '/guide/multiplayer', description: 'Build one town together: the relay, hosting, joining, and what is shared.' },
 
   'docs/develop/README.md': { path: '/develop/', description: 'Where to start as a developer.' },
@@ -51,6 +52,7 @@ const PAGES = {
   'docs/develop/TESTING.md': { path: '/develop/testing', description: 'The test suites, the checks before a commit, and headless captures.' },
   'docs/ARCHITECTURE.md': { path: '/develop/architecture', title: 'How Un-Banished is built', description: 'The core and its extensions: the layers, the rules, one update step by step, multiplayer and the server.' },
   'docs/develop/EXTENSIONS.md': { path: '/develop/extensions', title: 'Extensions', description: 'What Un-Banished adds, how to build without it, and how to write a new extension.' },
+  'docs/develop/RULE-HOOKS.md': { path: '/develop/rule-hooks', title: 'Rule hooks', description: 'Mods that change the game at a fixed point of each update: the API, determinism, saves and multiplayer.' },
   'docs/develop/PROBE.md': { path: '/develop/probe', title: 'The probe', description: 'Look at and drive a running game: queries for the UI and the town, in the console and in tests.' },
   'docs/COMPATIBILITY.md': { path: '/develop/compatibility', description: 'The tools that prove two versions play alike.' },
   'docs/PERFORMANCE.md': { path: '/develop/performance', description: 'How to measure and profile Un-Banished.' },
@@ -97,6 +99,7 @@ const PAGES = {
   'crates/mods/README.md': { path: '/reference/mods', description: 'unbanished-mods: the mod list shared by the game and the mod manager.' },
   'crates/banishedinfo/README.md': { path: '/reference/banishedinfo', description: 'unbanished-banishedinfo: optional banishedinfo.com support.' },
   'crates/nexus/README.md': { path: '/reference/nexus', description: 'unbanished-nexus: optional Nexus Mods support.' },
+  'crates/hooks/README.md': { path: '/reference/hooks', description: 'unbanished-hooks: rule hooks from WebAssembly plugins.' },
   'crates/net/README.md': { path: '/reference/net', description: 'unbanished-net: the multiplayer relay protocol and connection.' },
 }
 

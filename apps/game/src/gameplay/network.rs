@@ -89,6 +89,7 @@ impl NetState {
 pub fn hello(archive: &unbanished_formats::pkg::Archive) -> unbanished_net::Hello {
     let (data, mods) = archive.fingerprints();
     unbanished_net::Hello::new(crate::platform::version::NAME_VERSION, data, mods)
+        .with_hooks(crate::platform::rule_hooks::fingerprint())
 }
 
 impl GameplayLoop {

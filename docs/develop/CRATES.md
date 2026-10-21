@@ -36,6 +36,7 @@ explains how they fit together as layers.
 | [`unbanished-mods`](../../crates/mods/README.md) | The mod list (`IO::Modification`) shared by the game and the mod manager: the `.pkm` packages, which are enabled, their order and conflicts, and the settings file | formats |
 | [`unbanished-banishedinfo`](../../crates/banishedinfo/README.md) | Optional [banishedinfo.com](https://banishedinfo.com/mods/browse) support, not part of the original game: listing and searching the site's mods, their versions, and installing them (desktop only) | nexus (its installer); ureq with the `native` feature |
 | [`unbanished-net`](../../crates/net/README.md) | Multiplayer networking, not part of the original game: the protocol between a game and the server, the rooms' rules and checks, kept towns, and a WebSocket connection that works natively and in the browser | nothing (postcard; tungstenite with the `native` feature) |
+| [`unbanished-hooks`](../../crates/hooks/README.md) | Rule hooks from WebAssembly plugins, not part of the original game: loading and checking them, and running them after each iteration with a fixed budget | sim, game, formats; wasmi |
 | [`unbanished-nexus`](../../crates/nexus/README.md) | Optional Nexus Mods support, not part of the original game: searching Banished mods, download links with the player's API key, and the `.pkm` packages in a download | nothing (zip, serde_json; ureq with the `native` feature) |
 
 `unbanished-game` re-exports `unbanished-core`, `unbanished-terrain` and `unbanished-path`. For
@@ -46,7 +47,7 @@ example, `unbanished_game::random` is the same module as `unbanished_core::rando
 
 | Program | Uses |
 |---|---|
-| `unbanished` | sim, session, game, formats, ui, gfx, audio, mods, nexus, banishedinfo, net, server |
+| `unbanished` | sim, session, hooks, game, formats, ui, gfx, audio, mods, nexus, banishedinfo, net, server |
 | `unbanished-viewer` | game, formats, ui, gfx, audio, wma |
 | `unbanished-cli` | formats, nexus, banishedinfo |
 | `unbanished-mods` | formats, mods, nexus, banishedinfo |

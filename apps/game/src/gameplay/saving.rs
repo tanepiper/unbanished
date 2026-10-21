@@ -134,6 +134,10 @@ impl GameplayLoop {
         };
         metadata.name = name.unwrap_or(&self.params.town_name).to_string();
         metadata.mods = mods.saved();
+        // Deviation: a game with rule hooks lists them among its mods (`Hooks/NAME.wasm`).
+        metadata
+            .mods
+            .extend(crate::platform::rule_hooks::saved_entries());
         if let Some(image) = preview {
             let (w, h) = crate::saves::saved::PREVIEW_SIZE;
             metadata.width = w as i32;

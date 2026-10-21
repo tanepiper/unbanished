@@ -340,6 +340,8 @@ SUITES = [
           compat("server.sh", "Server")),
     Suite("server-simulate", "long", "The server runs each room's game itself and the players agree with it",
           compat("server.sh", "Server running the game", "--simulate")),
+    Suite("hooks", "long", "A rule hook changes the game the same way every time, and players with it stay in step",
+          compat("hooks.sh", "Rule hooks")),
 ]
 TIERS = {"quick": ["quick"], "standard": ["quick", "standard"], "long": ["quick", "standard", "long"]}
 

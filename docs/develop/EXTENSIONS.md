@@ -14,7 +14,9 @@ Three rules hold for every extension:
 2. **It never changes the core's results.** An extension may read the game and draw on the
    screen. It may send the game a player's command, as a player would. It may not change a rule,
    a number or the order of random draws. Anything that does is a `Deviation:` and only happens
-   in games where the extension is in use.
+   in games where the extension is in use. Rule hooks are the one extension made to change
+   rules, and they do it only through their own door, the same way on every computer
+   ([Rule hooks](RULE-HOOKS.md)).
 3. **The core never depends on it.** The simulation crate, `unbanished-sim`, depends on no
    drawing, window, interface, sound or network crate. The `checks` test suite fails if it does.
 
@@ -27,6 +29,7 @@ Three rules hold for every extension:
 | `mod-sites` | A Browse tab for each mod site (Nexus Mods, and banishedinfo.com natively) in the Mods window | `apps/game/src/ui/mod_browse.rs`, `apps/game/src/platform/nexus.rs`, `crates/nexus`, `crates/banishedinfo` |
 | `replay` | Recordings: `--record` writes a game's commands and digests, `--replay` plays them back | `apps/game/src/gameplay/recording.rs`, `crates/session` |
 | `multiplayer` | Lockstep games through a relay, the Multiplayer window and its main-menu button, and their tests (`--lockstep-test`, `--net-test`, the browser's `?net=`). It turns on `replay` | `apps/game/src/gameplay/{lockstep,network}.rs`, `apps/game/src/ui/multiplayer.rs`, `crates/session`, `crates/net` |
+| `rule-hooks` | WebAssembly plugins from the `Hooks` folder that change the game after each iteration ([Rule hooks](RULE-HOOKS.md)), native only | `apps/game/src/platform/rule_hooks.rs`, `crates/hooks` |
 
 The browser's start page and its manager are the web page itself, so they are not a cargo
 feature.
@@ -63,6 +66,7 @@ mods (`.pkm` files). Each extension's door asks `platform::mode::pure()` once an
 | `probe` | Every command answers `Pure Banished: the probe is off` |
 | `replay` | `--record` records nothing |
 | `cinematic` | `--camera` and `--camera-follow` do nothing |
+| `rule-hooks` | No plugins are loaded, whatever the `Hooks` folder holds |
 
 The test commands (`--replay`, `--lockstep-test`, `--net-test`) are not play, so they still
 run. A new extension checks `pure()` at its door too.
@@ -84,6 +88,7 @@ reaching into the game's code.
 | The game loop's extensions | A multiplayer game's and a recording's state, and the few questions the game loop asks them (begin an update, route a command, record it) | `apps/game/src/gameplay/extensions.rs` and its `extensions/` files |
 | Sessions | Decide when a player's commands are carried out: at once, or in their lockstep slot | `unbanished_session::session::Session` |
 | Strings | Give the simulation the game's text in the player's language | `unbanished_sim::strings::Strings` |
+| Rule hooks | Change the game after each iteration: read the date, the citizens and the stock, draw from the game's random stream, post events. The only door that may change results | `unbanished_sim::hooks::RuleHooks`, `Simulation::hooks` |
 
 ## Example: a new extension
 

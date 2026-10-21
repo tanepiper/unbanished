@@ -374,6 +374,19 @@ sandbox, for example WebAssembly plugins, are decided at the start of G). Proof:
 unchanged with no rule hooks; a test mod with one rule hook replays identically and two players
 with it stay in step; a player without it is refused at `Hello` with a readable reason. Docs:
 docs/develop/RULE-HOOKS.md and a mod author's guide, each with a complete example mod.
+   - **Done**: WebAssembly plugins run with wasmi (no floats, the `deterministic` feature,
+     2,000,000 fuel per call, 16 MiB of memory), from the `Hooks` folder in name order. The
+     core's door is `unbanished_sim::hooks` (`RuleHooks`, `HookContext`); `Simulation::iterate`
+     calls it at the end of each iteration. API version 1: the date, the citizens, the stock,
+     `random_below` from the game's own stream (moved into the plugin's store for the call) and
+     `post_event`. Protocol version 4: `Hello.hooks` is the plugins' fingerprint, and a player
+     whose hooks differ is refused with "this game's rule hooks differ from the host's"; the
+     server's own game takes no room with hooks. Saves list each hook as `Hooks/NAME.wasm` with
+     its CRC. `--pure` loads none. `tools/compat/hooks.sh` (run.py `hooks`): a test plugin
+     changes a save's digests, gives the same ones twice and none under `--pure`; two players
+     with it stay identical through a server; a player without it is refused. The example mod
+     is `examples/rule-hooks/harvest-festival`; the docs are
+     [RULE-HOOKS.md](develop/RULE-HOOKS.md) and [WRITING-RULE-HOOKS.md](guide/WRITING-RULE-HOOKS.md).
 
 **F. Docs.** docs/ARCHITECTURE.md (the core, the extension points, the features, the
 dependency rule, and a short "how to add an extension" guide with one worked example);

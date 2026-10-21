@@ -1,0 +1,18 @@
+[package]
+name = "harvest-festival"
+version = "1.0.0"
+description = "An example rule-hook mod for Un-Banished: a harvest festival every October"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Not part of the Un-Banished workspace: it builds on its own, for WebAssembly.
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+panic = "abort"

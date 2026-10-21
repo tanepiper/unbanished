@@ -104,6 +104,7 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 | `crates/banishedinfo` | Optional banishedinfo.com support (not in the original): its mod list, search and versions, and installs; native only (the site sends no CORS headers) |
 | `crates/nexus` | Optional Nexus Mods support (not in the original): search, download links with the player's API key, `.pkm` install from archives; native transport behind the `native` feature |
 | `crates/session` | The multiplayer and recording session (`unbanished-session`, not in the original): `Session` (single player, lockstep), lockstep turns and messages, the links to other players (relay, simulated), digests, recordings, and `watch::Watcher` (a room's town run by the server); the game loop's glue stays in `apps/game/src/gameplay/` (`extensions.rs` is its door) |
+| `crates/hooks` | Rule hooks (not in the original): WebAssembly plugins run with wasmi behind the core's `unbanished_sim::hooks` door (`unbanished-hooks`). See `docs/develop/RULE-HOOKS.md` |
 | `crates/net`, `apps/server` | Multiplayer (not in the original): the protocol, the rooms' rules (`rooms::Relay`), the checks, kept towns (`store`) and a WebSocket connection, native and browser (`unbanished-net`); the server program and library (`unbanished-server`: settings, health, the server's own games). See `docs/ARCHITECTURE.md` |
 | `tools/emu` | Unicorn harness `pe_emu.py` and ground-truth generators for the tests |
 | `tools/ghidra` | Headless export scripts, `readdata.py` (constants), `vtable.py` |

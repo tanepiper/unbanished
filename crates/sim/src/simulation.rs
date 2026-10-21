@@ -64,6 +64,8 @@ pub struct Simulation {
     /// The achievements (`Game/Achievement/AchievementList.rsc`) and their progress.
     pub achievements: Vec<Achievement>,
     pub achievement_manager: AchievementManager,
+    /// A mod's rule hooks, run after each iteration; none in the original game.
+    pub hooks: Option<Box<dyn crate::hooks::RuleHooks>>,
 }
 
 impl Simulation {
@@ -85,6 +87,7 @@ impl Simulation {
             town_names: None,
             achievements: Vec::new(),
             achievement_manager: Default::default(),
+            hooks: None,
         }
     }
 

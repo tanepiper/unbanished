@@ -50,6 +50,7 @@ Core           crates/sim       unbanished-sim      the running town: Simulation
 | `unbanished-net` | protocol | The protocol, the rooms' rules (`rooms::Relay`), the checks of the players' games, kept towns, a WebSocket connection |
 | `unbanished-server` | server | The server program and library: connections, health check, settings, the server's own games |
 | `unbanished-mods`, `unbanished-nexus`, `unbanished-banishedinfo` | presentation (extensions) | The mod list; the Nexus Mods and banishedinfo.com sites |
+| `unbanished-hooks` | core (extension) | Rule hooks from WebAssembly plugins, behind the core's `RuleHooks` door |
 
 ## The rules
 
@@ -124,10 +125,15 @@ player commands, step events, a timing hook, world queries, the camera, the Mods
 the strings, and the game loop's extension state. [Extensions](develop/EXTENSIONS.md) lists them
 with a worked example of a new extension.
 
-The doors today are **observe hooks**: they read the game, and cannot change a result. The
-timing hook (`unbanished_sim::timing`) and the step events are examples. **Rule hooks**, which
-would let a mod change a rule at a fixed point, are planned (phase G of the plan): they must be
-deterministic, run in a declared order, and be the same on every computer of a multiplayer game.
+Most doors are **observe hooks**: they read the game, and cannot change a result. The timing
+hook (`unbanished_sim::timing`) and the step events are examples. **Rule hooks**
+(`unbanished_sim::hooks`) let a mod change the game at a fixed point: after each iteration, a
+hook may read the date, the citizens and the stock, draw from the game's random stream and post
+events. They run from WebAssembly plugins (`unbanished-hooks`, with wasmi), with no floating
+point, in name order, with a fixed budget per call. A save lists them, `Hello` carries their
+fingerprint so every player of a room has the same ones, and Pure Banished loads none.
+[Rule hooks](develop/RULE-HOOKS.md) explains them; [Writing a rule hook](guide/WRITING-RULE-HOOKS.md)
+builds one.
 
 ## What keeps it honest
 
@@ -139,6 +145,7 @@ deterministic, run in a declared order, and be the same on every computer of a m
 | The `vanilla` and `features` suites | The game builds and plays the same with no extensions |
 | `replay`, `lockstep`, `network`, `multiplayer` | Recordings replay exactly; players stay identical over a simulated and a real network |
 | `server`, `server-simulate` | Resyncs, departures, new players, kept towns and the server's own game |
+| `hooks` | A rule hook changes the game the same way every time, players with it stay in step, and a player without it is refused |
 
 [Testing](develop/TESTING.md) shows how to run them.
 

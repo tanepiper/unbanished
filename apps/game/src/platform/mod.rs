@@ -7,6 +7,7 @@ pub mod mode;
 pub mod nexus;
 pub mod paths;
 pub mod perf;
+pub mod rule_hooks;
 pub mod version;
 #[cfg(target_arch = "wasm32")]
 pub mod web;

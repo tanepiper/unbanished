@@ -16,7 +16,7 @@
 use serde::{Deserialize, Serialize};
 
 /// The protocol version this crate speaks.
-pub const PROTOCOL: u16 = 3;
+pub const PROTOCOL: u16 = 4;
 
 /// Who a game is: the protocol it speaks, and what its players must share.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -29,6 +29,8 @@ pub struct Hello {
     pub data: u32,
     /// A fingerprint of the enabled mods, in their order.
     pub mods: u32,
+    /// A fingerprint of the rule hooks, in their order (0: none).
+    pub hooks: u32,
 }
 
 impl Hello {
@@ -39,7 +41,14 @@ impl Hello {
             engine: engine.to_string(),
             data,
             mods,
+            hooks: 0,
         }
+    }
+
+    /// This `Hello` with the rule hooks' fingerprint.
+    pub fn with_hooks(mut self, hooks: u32) -> Hello {
+        self.hooks = hooks;
+        self
     }
 
     /// Why a game saying `other` cannot play in a room with this one, if it cannot.
@@ -55,6 +64,11 @@ impl Hello {
         }
         if self.mods != other.mods {
             return Some("this game's mods differ from the host's: enable the same ones".into());
+        }
+        if self.hooks != other.hooks {
+            return Some(
+                "this game's rule hooks differ from the host's: use the same Hooks folder".into(),
+            );
         }
         None
     }

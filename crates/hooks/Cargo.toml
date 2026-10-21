@@ -1,0 +1,22 @@
+[package]
+name = "unbanished-hooks"
+version.workspace = true
+description = "Un-Banished's rule hooks: WebAssembly plugins that change the game at fixed points, deterministically"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+unbanished-sim = { path = "../sim" }
+unbanished-game = { path = "../game" }
+unbanished-formats = { path = "../formats" }
+log = "0.4"
+# Integer-only, validated, with fuel: see src/lib.rs. `deterministic` makes every computer give
+# the same results; `portable-dispatch` runs the same in every build (the faster dispatch relies
+# on the optimiser, and a debug build would run out of stack in a long loop).
+wasmi = { version = "2.0.0", default-features = false, features = ["std", "validate", "stable", "portable-dispatch", "deterministic"] }
+
+[dev-dependencies]
+# Test plugins are written as WebAssembly text (`examples/wat2wasm.rs` turns one into a file).
+wat = "1.245.1"
+wasmi = { version = "2.0.0", default-features = false, features = ["std", "validate", "stable", "portable-dispatch", "deterministic", "wat"] }

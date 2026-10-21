@@ -6,6 +6,7 @@
 
 pub mod achievements;
 pub mod command;
+pub mod hooks;
 pub mod mods;
 pub mod saved;
 pub mod simulation;

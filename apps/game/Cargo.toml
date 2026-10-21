@@ -13,7 +13,7 @@ path = "src/main.rs"
 # The extensions: what Un-Banished adds that Banished 1.0.7 does not have. Each one can be left
 # out; with none of them the game builds and plays as with all of them (docs/develop/EXTENSIONS.md).
 [features]
-default = ["cinematic", "mod-sites", "multiplayer", "probe", "replay"]
+default = ["cinematic", "mod-sites", "multiplayer", "probe", "replay", "rule-hooks"]
 # The cinematic camera for capture videos (`--camera`, `--camera-follow`), native only.
 cinematic = []
 # The probe: a query language to read and drive a running game (`--probe`, the browser's
@@ -21,6 +21,8 @@ cinematic = []
 probe = []
 # A Browse tab for each mod site (Nexus Mods, and banishedinfo.com natively) in the Mods window.
 mod-sites = ["dep:unbanished-nexus", "dep:unbanished-banishedinfo"]
+# Rule hooks: WebAssembly plugins from the player's Hooks folder that change the game.
+rule-hooks = ["dep:unbanished-hooks"]
 # Recordings: `--record` writes a game's commands and digests, `--replay` plays them back.
 replay = []
 # Multiplayer: lockstep games through a relay, the Multiplayer window, and their tests
@@ -42,6 +44,7 @@ unbanished-nexus = { path = "../../crates/nexus", optional = true }
 unbanished-net = { path = "../../crates/net", optional = true }
 unbanished-mods = { path = "../../crates/mods" }
 unbanished-sim = { path = "../../crates/sim" }
+unbanished-hooks = { path = "../../crates/hooks", optional = true }
 unbanished-session = { path = "../../crates/session", default-features = false }
 wgpu = { version = "30", features = ["webgl"] }
 winit = "0.30"

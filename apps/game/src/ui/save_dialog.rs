@@ -559,6 +559,8 @@ impl SaveLoadDialog {
             .iter()
             .enumerate()
             .skip(next)
+            // Deviation: a rule hook's entry is not a mod (`unbanished_sim::hooks`).
+            .filter(|(_, m)| !unbanished_sim::hooks::is_saved_hook(m))
             .find_map(|(i, m)| Some((i, m, mods.check(m))).filter(|c| c.2 != 0));
         if let Some((i, m, check)) = found {
             let dialog = match check {

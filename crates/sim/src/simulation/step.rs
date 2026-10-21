@@ -20,6 +20,27 @@ pub struct StepEvents {
 }
 
 impl Simulation {
+    /// The rule hooks after an iteration, if a mod has any (`crate::hooks`).
+    fn run_hooks(&mut self) {
+        let Some(mut hooks) = self.hooks.take() else {
+            return;
+        };
+        if let Some(town) = &self.town {
+            let month = self.month();
+            let citizens = town.citizens.iter().filter(|c| c.alive).count() as i32;
+            let mut cx = crate::hooks::HookContext::new(
+                &self.calendar,
+                month,
+                citizens,
+                &self.stock_warnings.count,
+                &mut self.rng,
+                &mut self.events,
+            );
+            hooks.after_iteration(&mut cx);
+        }
+        self.hooks = Some(hooks);
+    }
+
     /// One iteration: the entity scheduler, the integer calendar, then the environment.
     /// Growth reads the prior environment temperature; weather draws follow entity callbacks.
     ///
@@ -119,6 +140,7 @@ impl Simulation {
                     .add(kind, 3, -1, month, year, Default::default(), true);
             }
         }
+        self.run_hooks();
         out
     }
 }

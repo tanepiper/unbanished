@@ -27,3 +27,7 @@ __pycache__/
 # Rust
 /target/
 /dist/
+
+# Example rule-hook mods build on their own.
+/examples/**/target/
+/examples/**/Cargo.lock

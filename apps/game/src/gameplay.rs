@@ -435,6 +435,8 @@ impl GameLoop for GameplayLoop {
                 persistence.get_bool("Achievement", title, &mut v);
                 v && !multiplayer
             });
+        // Every computer loads the same hooks at the same point (multiplayer compares them).
+        crate::platform::rule_hooks::install(&mut self.sim);
         self.start_scenario(ctx);
         self.start_online(ctx);
         self.start_recording();
