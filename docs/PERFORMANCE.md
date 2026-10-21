@@ -371,9 +371,16 @@ What is left:
 
 - `stage4_downhill` (about 1 s on a small map) moves one drop at a time and each drop reads
   the heights the previous one wrote: it cannot run in parallel and stay 1:1.
-- `SavedGame::component` looks up an entity's components through its field list on every
-  call; caching the lookup would save most of 600 ms on a large save. That is single-thread
-  work, not parallelism.
+- Done after this item: `SavedGame::component` read the entity's `entity.components` field
+  (a search by name), looked up every component by number and compared type names, on each of
+  several hundred thousand calls while a save loads. `SavedGame` now builds a table once, on
+  the first lookup: per object number, the object's address and its components as (type name,
+  number), in the same order. A lookup is then a slice and a short scan. An object that is not
+  the save's own (a copy), or a save whose numbers are too sparse for the table, still reads
+  the field. A test compares the table with the field for every object of every save in
+  `save-game/` (about 735 000 components). Loading frame, median of five, before (707cfea) →
+  after: `Save200.sav` 827 → 536 ms, `Save83.sav` 459 → 363 ms. The captures of three saves
+  match the build before (Save200's differ by one level between runs of either build).
 - The first menu frame after the menu load opens the audio output (rodio and CoreAudio,
   about 85 ms, frame 94).
 - Browser: wasm threads need `SharedArrayBuffer`, which needs cross-origin isolation headers

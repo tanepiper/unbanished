@@ -63,10 +63,10 @@ fn a_save_plays_and_saves_with_the_core_alone() {
         "ten seconds changed nothing"
     );
     assert!(first == second, "two runs from the same save differ");
-    let reloaded = SavedGame {
-        state: unbanished_formats::savegame::GameState::decode(&first).unwrap(),
-        metadata: saved.metadata.clone(),
-    };
+    let reloaded = SavedGame::new(
+        unbanished_formats::savegame::GameState::decode(&first).unwrap(),
+        saved.metadata.clone(),
+    );
     let town = StartingTown::from_save(&archive, &reloaded).expect("the written state loads");
     assert_eq!(town.citizens.len(), alive);
 }

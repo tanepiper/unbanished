@@ -69,6 +69,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
   script commands), a character's actions (`character.rs`), the construction state machine
   (`construction.rs`), the viewer (`tool.rs`) and the model renderer (`models.rs`, whose shader is
   now `models/models.wgsl`).
+- Loading a save is faster: a town's buildings, people and trees find their parts in the save
+  through a table made once, instead of searching each time. A large town (15 MB save) loads
+  in 536 ms instead of 827 ms; the town is the same.
 
 ### Fixed
 

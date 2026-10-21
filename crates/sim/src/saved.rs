@@ -10,6 +10,21 @@ use crate::town::world_params::WorldParams;
 pub struct SavedGame {
     pub state: GameState,
     pub metadata: SaveMetadata,
+    /// Each entity's components as (type name, object), in the template's order, built on the
+    /// first lookup. Loading a large save asks for an entity's components several hundred
+    /// thousand times; reading `entity.components` again for every lookup took about 600 ms.
+    /// `state.objects` must not change once a lookup has been made.
+    components: std::sync::OnceLock<Option<ComponentIndex>>,
+}
+
+/// [`SavedGame::read_components`] for every object of a save, by object number (the numbers
+/// run from 1 without gaps in a written save).
+struct ComponentIndex {
+    /// Per object number: the object's address (to tell the save's own object from a copy),
+    /// and its run in `components`.
+    objects: Vec<(usize, u32, u32)>,
+    /// Every object's components as (type name, object), one run per object.
+    components: Vec<(&'static str, ObjId)>,
 }
 
 /// `Game\Climate\Fair.rsc:resource` → `Fair`.
@@ -23,10 +38,18 @@ impl SavedGame {
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub fn parse(bytes: &[u8]) -> Result<SavedGame> {
         let save = Save::parse(bytes)?;
-        Ok(SavedGame {
-            state: GameState::decode(&save.state)?,
-            metadata: save.metadata()?,
-        })
+        Ok(SavedGame::new(
+            GameState::decode(&save.state)?,
+            save.metadata()?,
+        ))
+    }
+
+    pub fn new(state: GameState, metadata: SaveMetadata) -> SavedGame {
+        SavedGame {
+            state,
+            metadata,
+            components: Default::default(),
+        }
     }
 
     /// An external reference id's path (`u32::MAX` is none).
@@ -215,6 +238,28 @@ impl SavedGame {
 
     /// An entity's components, in its template's order.
     pub fn components(&self, entity: &Object) -> Vec<&Object> {
+        match self.component_ids(entity) {
+            Some(ids) => ids.iter().filter_map(|&(_, id)| self.object(id)).collect(),
+            None => self.read_components(entity),
+        }
+    }
+
+    /// An entity's component of one type.
+    pub fn component<'a>(&'a self, entity: &'a Object, type_name: &str) -> Option<&'a Object> {
+        match self.component_ids(entity) {
+            Some(ids) => {
+                let &(_, id) = ids.iter().find(|(t, _)| *t == type_name)?;
+                self.object(id)
+            }
+            None => self
+                .read_components(entity)
+                .into_iter()
+                .find(|c| c.type_name == type_name),
+        }
+    }
+
+    /// The components the `entity.components` field names that are in the save, in order.
+    fn read_components(&self, entity: &Object) -> Vec<&Object> {
         match entity.fields.at("entity.components") {
             Some(Value::List(items)) => items
                 .iter()
@@ -224,11 +269,42 @@ impl SavedGame {
         }
     }
 
-    /// An entity's component of one type.
-    pub fn component<'a>(&'a self, entity: &'a Object, type_name: &str) -> Option<&'a Object> {
-        self.components(entity)
-            .into_iter()
-            .find(|c| c.type_name == type_name)
+    /// [`SavedGame::read_components`] for every object of the save, read once, as (type name,
+    /// object). `None` for an object that is not this save's own (its fields are read instead),
+    /// or when the save's object numbers are too sparse for the table.
+    fn component_ids(&self, entity: &Object) -> Option<&[(&'static str, ObjId)]> {
+        let index = self
+            .components
+            .get_or_init(|| {
+                let objects = &self.state.objects;
+                let last = *objects.keys().next_back().unwrap_or(&0);
+                if objects.keys().next().is_some_and(|&k| k < 0)
+                    || last as usize > 2 * objects.len() + 1024
+                {
+                    return None;
+                }
+                let mut index = ComponentIndex {
+                    objects: vec![(0, 0, 0); last as usize + 1],
+                    components: Vec::new(),
+                };
+                for (&id, o) in objects {
+                    let start = index.components.len() as u32;
+                    index.components.extend(
+                        self.read_components(o)
+                            .into_iter()
+                            .map(|c| (c.type_name, c.index)),
+                    );
+                    let len = index.components.len() as u32 - start;
+                    index.objects[id as usize] = (o as *const Object as usize, start, len);
+                }
+                Some(index)
+            })
+            .as_ref()?;
+        let &(address, start, len) = index.objects.get(usize::try_from(entity.index).ok()?)?;
+        if address != entity as *const Object as usize {
+            return None;
+        }
+        Some(&index.components[start as usize..(start + len) as usize])
     }
 }
 
@@ -283,6 +359,52 @@ mod tests {
     fn stems() {
         assert_eq!(super::stem(r"Game\Climate\Fair.rsc:resource"), "Fair");
         assert_eq!(super::stem("Game/Terrain/Valleys.rsc"), "Valleys");
+    }
+
+    /// The component index gives, for every object of every save in the git-ignored
+    /// `save-game/`, the same components in the same order as reading `entity.components`, and
+    /// the same first component of each type. Skipped without the saves.
+    #[test]
+    fn indexed_components_match_the_field() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../save-game");
+        let Ok(list) = std::fs::read_dir(&dir) else {
+            eprintln!("no saves; skipping");
+            return;
+        };
+        for entry in list.flatten() {
+            let Ok(bytes) = std::fs::read(entry.path()) else {
+                continue;
+            };
+            let Ok(saved) = super::SavedGame::parse(&bytes) else {
+                continue;
+            };
+            let mut checked = 0;
+            for o in saved.state.objects.values() {
+                let want = saved.read_components(o);
+                let got = saved.components(o);
+                assert!(
+                    want.len() == got.len()
+                        && want.iter().zip(&got).all(|(a, b)| std::ptr::eq(*a, *b)),
+                    "{:?}: object {}",
+                    entry.file_name(),
+                    o.index
+                );
+                for c in &want {
+                    let first = want.iter().find(|w| w.type_name == c.type_name).copied();
+                    let found = saved.component(o, c.type_name);
+                    assert!(first.zip(found).is_some_and(|(a, b)| std::ptr::eq(a, b)));
+                }
+                checked += want.len();
+            }
+            // An object that is not the save's own (a copy) reads its own field.
+            if let Some((_, e)) = saved.entities().next() {
+                assert!(saved.component_ids(e).is_some(), "the table is used");
+                let copy = e.clone();
+                assert!(saved.component_ids(&copy).is_none());
+                assert_eq!(saved.components(&copy).len(), saved.components(e).len());
+            }
+            eprintln!("{:?}: {checked} components", entry.file_name());
+        }
     }
 
     /// The vanilla saves' models hold the rotation the port computes from their yaw: a

@@ -160,10 +160,8 @@ fn a_simulated_town_reloads_as_saved() {
     );
     assert!(changed.len() > 100, "the simulation changed little");
     let written = first.encode().unwrap();
-    let reloaded = crate::saved::SavedGame {
-        state: GameState::decode(&written).unwrap(),
-        metadata: saved.metadata.clone(),
-    };
+    let reloaded =
+        crate::saved::SavedGame::new(GameState::decode(&written).unwrap(), saved.metadata.clone());
     let again = crate::town::StartingTown::from_save(&archive, &reloaded).unwrap();
     assert_eq!(
         again.citizens.len(),
@@ -249,9 +247,9 @@ fn a_new_game_saves_and_reloads() {
     });
     town.export_into(&archive, &mut first);
     let written = first.encode().unwrap();
-    let reloaded = crate::saved::SavedGame {
-        state: GameState::decode(&written).unwrap(),
-        metadata: unbanished_formats::save::SaveMetadata {
+    let reloaded = crate::saved::SavedGame::new(
+        GameState::decode(&written).unwrap(),
+        unbanished_formats::save::SaveMetadata {
             name: String::new(),
             width: 0,
             height: 0,
@@ -260,7 +258,7 @@ fn a_new_game_saves_and_reloads() {
             mods: Vec::new(),
             wide: false,
         },
-    };
+    );
     let again = crate::town::StartingTown::from_save(&archive, &reloaded).unwrap();
     let alive = |t: &crate::town::StartingTown| t.placed.iter().filter(|p| p.alive).count();
     assert_eq!(alive(&again), alive(&town));
