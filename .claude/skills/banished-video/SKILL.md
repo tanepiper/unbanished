@@ -90,7 +90,11 @@ with FFmpeg. No Rust change is needed. The person-readable guide is `docs/develo
    ffmpeg -framerate 30 -start_number 360 -i $W/user/Screenshots/Screenshot%d.bmp -frames:v 240 \
      -vf "crop=960:540:160:90,format=yuv420p" -c:v libvpx-vp9 -b:v 0 -crf 36 -row-mt 1 -an out.webm
    ```
-   Keep documentation videos small: 384–960 px wide, 2–12 s, CRF 34–42, under ~1 MB each.
+   Keep documentation videos small: 384–1280 px wide, 2–12 s, under ~1.5 MB each.
+   `tools/videos.sh` chooses each film's crf itself (its `vp9` function): the largest crf whose
+   VMAF reaches 93 (`VMAF_TARGET`), within the film's size limit. Use it, or its `vp9`
+   function's method, rather than a fixed crf. When measuring VMAF by hand, renumber the frames
+   on both inputs (`settb=1/30,setpts=N`), or WebM's millisecond times mis-pair them.
    Cropping the middle of a 1280x720 capture makes citizens larger than zooming can.
 4. **Animations of one model** come from the viewer, not the game: one `--capture` run per frame
    with `VIEWER_POSE=CLIP@SECONDS VIEWER_ANIMS=GROUP` (filters match the backslash entry name,

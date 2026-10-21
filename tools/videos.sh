@@ -61,6 +61,79 @@ click="${CLICK:-1060,470}"
 full="$(brew --prefix ffmpeg-full 2>/dev/null || true)"
 ffmpeg="${FFMPEG:-$([[ -x $full/bin/ffmpeg ]] && echo "$full/bin/ffmpeg" || echo ffmpeg)}"
 ffprobe="$(dirname "$(command -v "$ffmpeg")")/ffprobe"
+
+# Quality. Every film is VP9 WebM (every browser plays it). Its crf is chosen per film: the largest
+# crf (the smallest file) whose VMAF, measured against the frames before encoding, is at least
+# VMAF_TARGET (default 93). A crf search takes about six encodes. A film larger than its size limit
+# (limit_kb) gets a larger crf until it fits, and a note says how far its quality fell. Without
+# libvmaf in FFmpeg, or with VMAF_TARGET=0, each film keeps the fixed crf given with it.
+vmaf_target="${VMAF_TARGET:-93}"
+if [[ $vmaf_target != 0 && $("$ffmpeg" -hide_banner -filters 2>/dev/null) != *" libvmaf "* ]]; then
+  echo "no libvmaf in $ffmpeg: each film keeps its fixed crf (brew install ffmpeg-full)" >&2
+  vmaf_target=0
+fi
+cores="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)"
+
+# limit_kb NAME: the largest file a film may be (VIDEO_LIMIT_KB, default 1500).
+limit_kb() {
+  case "$1" in
+    chicken-walk) echo 200 ;;
+    big-town* | orbit*) echo 3000 ;;
+    montage*) echo 6000 ;;
+    *) echo "${VIDEO_LIMIT_KB:-1500}" ;;
+  esac
+}
+
+# vmaf FILE: FILE's VMAF against $work/ref.y4m, frame by frame (the frames are numbered again, since
+# WebM's millisecond times would pair the wrong frames).
+vmaf() {
+  "$ffmpeg" -i "$1" -i "$work/ref.y4m" -lavfi \
+    "[0:v]settb=1/30,setpts=N[a];[1:v]settb=1/30,setpts=N[b];[a][b]libvmaf=n_threads=$cores" \
+    -f null - 2>&1 | sed -n 's/.*VMAF score: \([0-9.]*\).*/\1/p'
+}
+
+# vp9 OUT NAME CRF FFMPEG_ARGS...: the frames FFMPEG_ARGS make (inputs and filters, ending in
+# yuv420p) as VP9 WebM at OUT, with the crf chosen as above (CRF: the fixed crf without VMAF).
+vp9() {
+  local out="$1" limit=$(($(limit_kb "$2") * 1024)) crf="$3"
+  shift 3
+  local enc=(-c:v libvpx-vp9 -b:v 0 -row-mt 1 -an)
+  if [[ $vmaf_target == 0 ]]; then
+    "$ffmpeg" -loglevel error -y "$@" "${enc[@]}" -crf "$crf" "$out"
+    return
+  fi
+  "$ffmpeg" -loglevel error -y "$@" -pix_fmt yuv420p -f yuv4mpegpipe "$work/ref.y4m"
+  try() { # try CRF: encode at CRF once, as $work/try-CRF.webm
+    [[ -f "$work/try-$1.webm" ]] ||
+      "$ffmpeg" -loglevel error -y -i "$work/ref.y4m" "${enc[@]}" -crf "$1" "$work/try-$1.webm"
+  }
+  local lo=15 hi=63 best=15 mid score
+  while ((lo <= hi)); do
+    mid=$(((lo + hi) / 2))
+    try "$mid"
+    score="$(vmaf "$work/try-$mid.webm")"
+    score="${score:-0}"
+    if (($(echo "$score >= $vmaf_target" | bc))); then best=$mid lo=$((mid + 1)); else hi=$((mid - 1)); fi
+  done
+  try "$best"
+  local note=""
+  if (($(stat -f %z "$work/try-$best.webm" 2>/dev/null || stat -c %s "$work/try-$best.webm") > limit)); then
+    # Over the limit: the smallest crf above it that fits.
+    lo=$((best + 1)) hi=63 best=63
+    while ((lo <= hi)); do
+      mid=$(((lo + hi) / 2))
+      try "$mid"
+      if (($(stat -f %z "$work/try-$mid.webm" 2>/dev/null || stat -c %s "$work/try-$mid.webm") <= limit)); then
+        best=$mid hi=$((mid - 1))
+      else lo=$((mid + 1)); fi
+    done
+    try "$best"
+    note=" (over $((limit / 1024)) KB at VMAF $vmaf_target)"
+  fi
+  mv "$work/try-$best.webm" "$out"
+  echo "$(basename "$out"): crf $best, VMAF $(vmaf "$out"), $(($(stat -f %z "$out" 2>/dev/null || stat -c %s "$out") / 1024)) KB$note" >&2
+  rm -f "$work"/try-*.webm "$work/ref.y4m"
+}
 # The montage's titles (drawtext): TITLE_FONT and CAPTION_FONT are font files; by default Georgia
 # Bold and Georgia Italic (macOS), else fontconfig's serif. TITLES=0 leaves them out.
 font() {
@@ -147,11 +220,11 @@ town() {
   fi
 }
 
-# encode START COUNT FILTER CRF OUT: frames START.. of the last town run, as VP9 WebM.
+# encode START COUNT FILTER CRF OUT: frames START.. of the last town run, as VP9 WebM (CRF: the
+# fixed crf when there is no VMAF; see vp9).
 encode() {
-  "$ffmpeg" -loglevel error -y -framerate 30 -start_number "$1" \
-    -i "$work/user/Screenshots/Screenshot%d.bmp" -frames:v "$2" -vf "$3$look,format=yuv420p" \
-    -c:v libvpx-vp9 -b:v 0 -crf "$4" -row-mt 1 -an "$out/$5${FILTER:+-$FILTER}.webm"
+  vp9 "$out/$5${FILTER:+-$FILTER}.webm" "$5" "$4" -framerate 30 -start_number "$1" \
+    -i "$work/user/Screenshots/Screenshot%d.bmp" -frames:v "$2" -vf "$3$look,format=yuv420p"
 }
 
 # poster FRAME OUT [CROP]: frame FRAME of the last town run as OUT-poster.webp (768x432), the
@@ -237,9 +310,8 @@ for name in "${names[@]}"; do
           "$viewer" --capture "$work/pose" 'Animals\Chicken\ChickenMesh' >/dev/null 2>&1
         mv "$work/pose/Models_Animals_Chicken_ChickenMesh_resource.png" "$work/chicken/$(printf %03d "$i").png"
       done
-      "$ffmpeg" -loglevel error -y -framerate 30 -i "$work/chicken/%03d.png" \
-        -vf "scale=384:384,format=yuv420p" -c:v libvpx-vp9 -b:v 0 -crf 34 -row-mt 1 -an \
-        "$out/chicken-walk.webm"
+      vp9 "$out/chicken-walk.webm" chicken-walk 34 -framerate 30 -i "$work/chicken/%03d.png" \
+        -vf "scale=384:384,format=yuv420p"
       ;;
     citizens-market | zoom-into-town)
       # One run makes both videos.
@@ -333,14 +405,13 @@ for name in "${names[@]}"; do
           echo ",drawtext=$caption_font:text='$1':fontsize=18:fontcolor=white:x=12:y=h-th-10:shadowcolor=black@0.75:shadowx=2:shadowy=2"
         }
       fi
-      "$ffmpeg" -loglevel error -y -i "$src" -filter_complex \
+      vp9 "$out/filters.webm" filters 55 -i "$src" -filter_complex \
         "[0]trim=0:7,setpts=PTS-STARTPTS,scale=384:216:flags=lanczos,split=4[a][b][c][d];\
 [a]null$(label 'As drawn')[a2];\
 [b]colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131$(label 'Sepia')[b2];\
 [c]hue=s=0$(label 'Grey')[c2];\
 [d]hue=h=t*180:s=3,eq=contrast=1.25:saturation=1.5$(label 'Psychedelic')[d2];\
-[a2][b2]hstack[top];[c2][d2]hstack[bottom];[top][bottom]vstack,format=yuv420p" \
-        -c:v libvpx-vp9 -b:v 0 -crf 55 -row-mt 1 -an "$out/filters.webm"
+[a2][b2]hstack[top];[c2][d2]hstack[bottom];[top][bottom]vstack,format=yuv420p"
       "$ffmpeg" -loglevel error -y -ss 4 -i "$out/filters.webm" -frames:v 1 "$work/poster.png"
       cwebp -quiet -q 75 "$work/poster.png" -o "$out/filters-poster.webp"
       ;;
@@ -414,8 +485,8 @@ for name in "${names[@]}"; do
         echo "no drawtext in $ffmpeg: the montage has no titles (brew install ffmpeg-full)" >&2
       fi
       graph+="[$prev]fade=t=in:d=0.8,fade=t=out:st=$(echo "$end - 0.8" | bc):d=0.8$titles$look[out]"
-      "$ffmpeg" -loglevel error -y "${inputs[@]}" -filter_complex "$graph" -map "[out]" \
-        -c:v libvpx-vp9 -b:v 0 -crf 50 -row-mt 1 -an "$out/montage${FILTER:+-$FILTER}.webm"
+      vp9 "$out/montage${FILTER:+-$FILTER}.webm" montage 50 "${inputs[@]}" -filter_complex "$graph" \
+        -map "[out]"
       # The poster shown until the video loads: the frame at 3 s, under the title.
       "$ffmpeg" -loglevel error -y -ss 3 -i "$out/montage${FILTER:+-$FILTER}.webm" -frames:v 1 "$work/poster.png"
       cwebp -quiet -q 70 "$work/poster.png" -o "$out/montage${FILTER:+-$FILTER}-poster.webp"

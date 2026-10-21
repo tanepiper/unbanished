@@ -97,7 +97,7 @@ function in the script makes one title: text, font, size, position, start and en
 `cwebp` makes the poster images.
 
 The script needs your game data in `game-data/`, a save of a town without mods, FFmpeg with
-VP9 (libvpx), `bc` and `cwebp`. Every town video is drawn at 1920 × 1080 with the highest video
+VP9 (libvpx) and VMAF (libvmaf, in Homebrew's `ffmpeg-full`), `bc` and `cwebp`. Every town video is drawn at 1920 × 1080 with the highest video
 settings and scaled down, and has a poster, `NAME-poster.webp`. The town videos centre the camera
 on a building in the middle of the town by clicking it. With a different save, set `CLICK=X,Y`
 to a building there (pixels in a 1280 × 720 frame; the script scales them to the capture size).
@@ -263,8 +263,31 @@ ffmpeg -framerate 30 -start_number 0 -i /tmp/video/user/Screenshots/Screenshot%d
 - `-start_number N -frames:v COUNT` chooses a part of the frames.
 - `crop=960:540:160:90` takes the middle of a 1280 × 720 frame. Citizens then look larger than
   the closest zoom can make them.
-- For the documentation, keep each video short (2 to 12 seconds) and small (under about 1 MB):
-  384 to 960 pixels wide, with `-crf` from 34 to 42.
+- For the documentation, keep each video short (2 to 12 seconds) and small (under about 1.5 MB):
+  384 to 1280 pixels wide.
+
+**Quality.** `tools/videos.sh` does not use one `-crf` for every film. A busy shot (a turning
+camera over a forest) needs a lower crf than a calm one to look as good, so the script chooses
+each film's crf: it writes the film's frames once without loss, then searches crf 15 to 63
+(about six encodes) for the largest crf, the smallest file, whose
+[VMAF](https://github.com/Netflix/vmaf) score against those frames is at least 93. VMAF scores a
+video from 0 to 100 as a viewer would judge it; around 93 the difference from the original is
+hard to see. A film over its size limit (1.5 MB; 3 MB for `big-town` and `orbit`, 6 MB for the
+montage) gets a larger crf until it fits, and the script says how far its quality fell. Each
+film prints its crf, its VMAF and its size. `VMAF_TARGET` changes the target; `VMAF_TARGET=0`, or
+an FFmpeg without libvmaf, uses each film's old fixed crf. `VIDEO_LIMIT_KB` changes the default
+limit.
+
+The films are VP9 in WebM because every browser plays it. We compared encoders on 10 s of
+lossless 1280 × 720 frames (a fast camera turn over trees): two-pass VP9 and libvpx's slowest
+setting improved VMAF by under 0.5 for three to five times the encode time, so the script uses one
+pass. AV1 (SVT-AV1) gave the same VMAF in an 18 % smaller file, but Safari plays AV1 only on Apple
+chips with an AV1 decoder (M3, A17 Pro and later). VideoToolbox, the Mac's hardware encoder,
+makes H.264, HEVC and ProRes, not WebM.
+
+When you measure VMAF yourself, number the frames again on both sides
+(`settb=1/30,setpts=N`): WebM stores times in milliseconds, and FFmpeg would otherwise pair a
+film's frames with the wrong reference frames and report a much lower score.
 
 ### 5. Check it
 
