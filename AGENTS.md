@@ -103,8 +103,8 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 | `crates/mods` | The mod list (`Modification`, `IO::Modification`) shared by the game and the mod manager, and a text store for the settings file |
 | `crates/banishedinfo` | Optional banishedinfo.com support (not in the original): its mod list, search and versions, and installs; native only (the site sends no CORS headers) |
 | `crates/nexus` | Optional Nexus Mods support (not in the original): search, download links with the player's API key, `.pkm` install from archives; native transport behind the `native` feature |
-| `crates/session` | The multiplayer and recording session (`unbanished-session`, not in the original): lockstep turns and messages, the links to other players (relay, simulated), digests, recordings; the game loop's glue stays in `apps/game/src/gameplay/` |
-| `crates/net`, `apps/server` | Multiplayer (not in the original): the relay protocol and a WebSocket connection, native and browser (`unbanished-net`); the relay with room codes (`unbanished-server`). See `docs/MULTIPLAYER-PLAN.md` |
+| `crates/session` | The multiplayer and recording session (`unbanished-session`, not in the original): `Session` (single player, lockstep), lockstep turns and messages, the links to other players (relay, simulated), digests, recordings, and `watch::Watcher` (a room's town run by the server); the game loop's glue stays in `apps/game/src/gameplay/` (`extensions.rs` is its door) |
+| `crates/net`, `apps/server` | Multiplayer (not in the original): the protocol, the rooms' rules (`rooms::Relay`), the checks, kept towns (`store`) and a WebSocket connection, native and browser (`unbanished-net`); the server program and library (`unbanished-server`: settings, health, the server's own games). See `docs/ARCHITECTURE.md` |
 | `tools/emu` | Unicorn harness `pe_emu.py` and ground-truth generators for the tests |
 | `tools/ghidra` | Headless export scripts, `readdata.py` (constants), `vtable.py` |
 | `tools/triage` | `deviations.py`, `coverage.py` (uncited functions), `determinism.sh` |
@@ -115,7 +115,7 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 | `tools/refactor` | Scripts that move code without changing it: `regroup.py` (modules into folders), `split_tests.py` (test modules into files), `split_impl.py` (a type's methods into topic files, driven by a `*-split.json` plan) |
 | `tools/perf` | `samply_top.py` summarises samply profiles; see `docs/PERFORMANCE.md` for `UNBANISHED_PROFILE` |
 | `tools/logo` | `make_logo.py` regenerates the logo, icon and favicon in `docs/assets/` |
-| `docs/` | Findings. Start with `FINDINGS.md`, `GAME-LOOP-CHECKLIST.md`, `PARITY-AUDIT.md` |
+| `docs/` | Findings. Start with `FINDINGS.md`, `GAME-LOOP-CHECKLIST.md`, `PARITY-AUDIT.md`; how the code is built: `ARCHITECTURE.md` |
 
 Before starting, read `docs/GAME-LOOP-CHECKLIST.md` and grep `docs/` for the addresses or
 resources you are about to touch: much has already been traced.

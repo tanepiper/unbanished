@@ -49,6 +49,8 @@ const PAGES = {
   'docs/develop/README.md': { path: '/develop/', description: 'Where to start as a developer.' },
   'docs/develop/BUILDING.md': { path: '/develop/building', description: 'Build the game, the viewer and the browser version.' },
   'docs/develop/TESTING.md': { path: '/develop/testing', description: 'The test suites, the checks before a commit, and headless captures.' },
+  'docs/ARCHITECTURE.md': { path: '/develop/architecture', title: 'How Un-Banished is built', description: 'The core and its extensions: the layers, the rules, one update step by step, multiplayer and the server.' },
+  'docs/develop/EXTENSIONS.md': { path: '/develop/extensions', title: 'Extensions', description: 'What Un-Banished adds, how to build without it, and how to write a new extension.' },
   'docs/develop/PROBE.md': { path: '/develop/probe', title: 'The probe', description: 'Look at and drive a running game: queries for the UI and the town, in the console and in tests.' },
   'docs/COMPATIBILITY.md': { path: '/develop/compatibility', description: 'The tools that prove two versions play alike.' },
   'docs/PERFORMANCE.md': { path: '/develop/performance', description: 'How to measure and profile Un-Banished.' },

@@ -6,6 +6,15 @@ replay, lockstep, desync checks and resync, the WebSocket relay, and the Multipl
 the players line. Step 7 (a town for each player) is not started. Each step lists how it was
 proved. For players, [guide/MULTIPLAYER.md](guide/MULTIPLAYER.md) explains how to play.
 
+**Since then** the work went on as phases B to E of [ARCHITECTURE-PLAN.md](ARCHITECTURE-PLAN.md),
+and [ARCHITECTURE.md](ARCHITECTURE.md) describes the result: the session code is its own crate
+(`unbanished-session`), the relay became `unbanished-server`, the protocol is versioned (a
+`Hello` that refuses a game of another version, data or mods), the server checks the players'
+towns itself, players can join a running game, rooms can keep their towns, the desktop game can
+be the server, and the server can run each room's game with its operator's own game data. The
+steps below describe the first version; where they name the relay or the host's checks, the
+server now does that work.
+
 The evidence it rests on is in [CROSS-PLATFORM.md](CROSS-PLATFORM.md) (native and browser builds
 simulate identically) and in the code paths named below. The design follows the same idea as
 the Banished Multiplayer mod for the original game (github.com/BarryBareth/banished-multiplayer):
@@ -334,8 +343,12 @@ town works.
   game can start from a save the host writes, which needs no comparison.
 - **Speed.** The slowest computer sets the pace. A large town at speed 10 in the browser may not
   keep up; the game would have to slow everybody down or warn.
-- **Same data.** Every player needs the same game data and mods. The `Hello` hash checks it; the
-  game data cannot be sent, as each player supplies their own copy.
+- **Same data.** Every player needs the same game data and mods. The `Hello` fingerprints check
+  it (done: a game unlike the host is refused, with the reason); the game data cannot be sent,
+  as each player supplies their own copy.
+- **Achievements.** A player's achievements already won used to change their town's digest, so
+  players with different achievements differed at every check. Fixed: in a multiplayer game
+  every player counts achievements from none won.
 - **Hidden reads.** Anything in the simulation that reads local state (the camera, an open window,
   the frame rate) would split the games. Step 3's in-process test finds those; none are known.
 

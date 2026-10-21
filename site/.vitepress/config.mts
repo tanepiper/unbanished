@@ -126,6 +126,8 @@ export default defineConfig({
           text: 'Develop',
           items: [
             { text: 'Start here', link: '/develop/' },
+            { text: 'How Un-Banished is built', link: '/develop/architecture' },
+            { text: 'Extensions', link: '/develop/extensions' },
             { text: 'Building', link: '/develop/building' },
             { text: 'Testing', link: '/develop/testing' },
             { text: 'The probe', link: '/develop/probe' },

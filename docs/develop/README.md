@@ -20,6 +20,7 @@ function it came from.
 |---|---|
 | Build the game, the viewer and the browser version | [Building](BUILDING.md) |
 | Run the tests and the checks before a commit | [Testing](TESTING.md) |
+| Understand how the code fits together | [How Un-Banished is built](../ARCHITECTURE.md) |
 | Add something the original does not have, or build without it | [Extensions](EXTENSIONS.md) |
 | Check that a change does not change the game's results | [Compatibility between versions](../COMPATIBILITY.md) |
 | Measure speed and memory | [Performance](../PERFORMANCE.md) |
@@ -53,16 +54,18 @@ The full rules are in [AGENTS.md](../../AGENTS.md). These are the most important
 | `apps/viewer` | The asset browser (binary `unbanished-viewer`) |
 | `apps/cli` | Command-line tools (binary `unbanished-cli`) |
 | `apps/modmanager` | The mod manager (binary `unbanished-mods`) |
-| `apps/server` | The multiplayer relay (binary `unbanished-server`) |
+| `apps/server` | The multiplayer server (binary `unbanished-server`) |
 | `crates/core` | Exact maths, the game's random numbers, noise, game time |
 | `crates/terrain` | Map generation, the terrain mesh, ground queries |
 | `crates/path` | The pathfinder and the sector graph |
 | `crates/game` | The game rules |
+| `crates/sim` | The running town, with no drawing, sound or interface (the core) |
+| `crates/session` | Sessions, lockstep, recordings, the server's own copy of a game |
 | `crates/formats` | Readers for the game's files |
 | `crates/ui` | The game's interface system |
 | `crates/gfx`, `crates/audio`, `crates/wma` | Shared rendering, sound playback, the WMA decoder |
 | `crates/mods`, `crates/nexus`, `crates/banishedinfo` | The mod list shared by the game and the mod manager; optional Nexus Mods and banishedinfo.com support |
-| `crates/net` | Multiplayer networking: the relay protocol and connection |
+| `crates/net` | Multiplayer networking: the protocol, the rooms' rules and the connection |
 | `tools/` | Data extraction, emulator checks, analysis and comparison scripts |
 | `docs/` | Research notes about the original game, and these pages |
 | `site/` | This website |

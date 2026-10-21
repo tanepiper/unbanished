@@ -380,6 +380,14 @@ dependency rule, and a short "how to add an extension" guide with one worked exa
 AGENTS.md: a rule that new behaviour not in the original is an extension behind a feature;
 MULTIPLAYER-PLAN.md updated; guide: running a server (binary, Docker, desktop, TLS);
 CHANGELOG; AGENTS.md map.
+   - **Done**: [ARCHITECTURE.md](ARCHITECTURE.md) explains the core and its extensions in plain
+     English: the layers and what each crate holds, the four rules, one update step by step,
+     multiplayer and the server, doors and hooks, the checks that keep it honest, and where to
+     start reading. It and [develop/EXTENSIONS.md](develop/EXTENSIONS.md) are on the website.
+     The crate list (`develop/CRATES.md`, with the real dependencies), the README, the
+     developer index, AGENTS.md's map and MULTIPLAYER-PLAN.md are up to date. The server's
+     README covers running it as a program, in Docker, from the desktop game and behind TLS.
+     Left in the plan: phase G (rule hooks and the mod API).
 
 ## Critical files
 

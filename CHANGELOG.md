@@ -11,6 +11,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Added
 
+- [How Un-Banished is built](docs/ARCHITECTURE.md): the core and its extensions, the layers,
+  one update step by step, multiplayer and the server. It and the extensions guide are on the
+  website.
+
 - Multiplayer: the server can run each room's game itself (`simulate = DIR`, with the operator's
   own copy of the game data). Its game then decides every check, and a player whose town differs
   goes on from the server's.

@@ -191,15 +191,17 @@ The project is a Rust workspace:
 | [`apps/viewer`](apps/viewer/README.md) | A browser for the game's models, textures, sounds and dialogs |
 | [`apps/cli`](apps/cli/README.md) | Command-line helpers (for example, audio export) |
 | [`apps/modmanager`](apps/modmanager/README.md) | The mod manager (binary `unbanished-mods`) |
-| [`apps/server`](apps/server/README.md) | The multiplayer relay (binary `unbanished-server`) |
+| [`apps/server`](apps/server/README.md) | The multiplayer server (binary `unbanished-server`), which the desktop game can also run itself |
 | [`crates/core`](crates/core/README.md) | Exact maths, the game's random numbers, noise and game time |
 | [`crates/terrain`](crates/terrain/README.md), [`crates/path`](crates/path/README.md) | Map generation and path finding, checked against the original |
 | [`crates/game`](crates/game/README.md) | The game rules, checked against the original |
+| `crates/sim` | The running town with no drawing, sound or interface: the core the game and the server run |
+| `crates/session` | When players' commands are carried out (single player, lockstep), recordings, and the server's own copy of a game |
 | [`crates/formats`](crates/formats/README.md) | Readers for the game's `.pkg`, `.crs`, mesh, texture, sound and save formats |
 | [`crates/ui`](crates/ui/README.md), [`crates/gfx`](crates/gfx/README.md), [`crates/audio`](crates/audio/README.md), [`crates/wma`](crates/wma/README.md) | Interface, rendering, audio, and the WMA decoder |
 | [`crates/mods`](crates/mods/README.md), [`crates/nexus`](crates/nexus/README.md), [`crates/banishedinfo`](crates/banishedinfo/README.md) | The mod list shared by the game and the mod manager; optional Nexus Mods and banishedinfo.com support (not part of the original game) |
-| [`crates/net`](crates/net/README.md) | Multiplayer networking: the relay protocol and a WebSocket connection (not part of the original game) |
-| `docs/` | Everything we learned about how the original works, and the [developer documentation](docs/develop/README.md) |
+| [`crates/net`](crates/net/README.md) | Multiplayer networking: the protocol, the rooms' rules and a WebSocket connection (not part of the original game) |
+| `docs/` | Everything we learned about how the original works, [how Un-Banished is built](docs/ARCHITECTURE.md), and the [developer documentation](docs/develop/README.md) |
 | `tools/` | Data extraction, emulator checks, analysis scripts, screenshots and videos |
 
 ```bash
