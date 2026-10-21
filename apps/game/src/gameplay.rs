@@ -59,7 +59,8 @@ use unbanished_sim::simulation::Simulation;
 const MONTHS_PER_YEAR: usize = 12;
 const MONTH_SECONDS: f32 = YEAR_SECONDS / MONTHS_PER_YEAR as f32;
 /// Simulation iterations per frame (`Game/Game +0x120 → +0x34`).
-const SPEED_LEVELS: [u32; 4] = [1, 2, 5, 10];
+// The game speeds (shared with the server's watcher, which runs the same frames).
+use unbanished_session::watch::SPEED_LEVELS;
 /// `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and
 /// within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's
 /// window pixels, which differ when the UI is scaled.
@@ -424,11 +425,15 @@ impl GameLoop for GameplayLoop {
             ctx.settings.game.autosave_interval,
         );
         let persistence = &ctx.settings.persistence;
+        // Deviation: in a multiplayer game every player counts the achievements from none won,
+        // so every player's game (and its digest) is the same whatever each has won before; one
+        // won is still kept in the player's own settings.
+        let multiplayer = self.in_lockstep();
         self.sim
             .load_achievements(ctx.archive, self.saved.as_deref(), |title| {
                 let mut v = false;
                 persistence.get_bool("Achievement", title, &mut v);
-                v
+                v && !multiplayer
             });
         self.start_scenario(ctx);
         self.start_online(ctx);

@@ -310,11 +310,11 @@ def suite_site(ctx: Context) -> None:
     sh(["npm", "--prefix", "site", "run", "build"])
 
 
-def compat(script: str, about: str) -> Callable[[Context], None]:
+def compat(script: str, about: str, *extra: str) -> Callable[[Context], None]:
     def run(ctx: Context) -> None:
         need_game_data()
         build_game(ctx)
-        out = sh([f"tools/compat/{script}", str(GAME)]).stdout.strip().splitlines()
+        out = sh([f"tools/compat/{script}", str(GAME), *extra]).stdout.strip().splitlines()
         ctx.notes.append(out[-1] if out else "")
     run.__doc__ = about
     return run
@@ -338,6 +338,8 @@ SUITES = [
           compat("multiplayer.sh", "Multiplayer")),
     Suite("server", "long", "The server: a resync, a departure, a new player, a restart that resumes the town",
           compat("server.sh", "Server")),
+    Suite("server-simulate", "long", "The server runs each room's game itself and the players agree with it",
+          compat("server.sh", "Server running the game", "--simulate")),
 ]
 TIERS = {"quick": ["quick"], "standard": ["quick", "standard"], "long": ["quick", "standard", "long"]}
 

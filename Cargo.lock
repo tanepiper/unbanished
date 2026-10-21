@@ -4138,7 +4138,9 @@ dependencies = [
  "env_logger",
  "log",
  "tungstenite",
+ "unbanished-formats",
  "unbanished-net",
+ "unbanished-session",
 ]
 
 [[package]]
@@ -4148,6 +4150,8 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+ "unbanished-formats",
+ "unbanished-game",
  "unbanished-net",
  "unbanished-sim",
 ]

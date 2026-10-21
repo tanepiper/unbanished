@@ -4,7 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::checks::{Checks, Verdict};
+use crate::checks::{Checks, Verdict, SERVER};
 use crate::protocol::{FromRelay, Hello, RoomInfo, ToRelay, PROTOCOL};
 use crate::store::{keepable, Kept, Store};
 
@@ -29,21 +29,33 @@ struct Room {
     players: Vec<Option<Client>>,
     /// The players' digests.
     checks: Checks,
+    /// The server runs this room's game: its digests are the reference.
+    watched: bool,
 }
 
 impl Room {
-    /// The numbers of the players in the room.
+    /// The numbers of the players in the room, and the server's when it runs the game.
     fn present(&self) -> Vec<u8> {
         let numbered = self.players.iter().enumerate();
-        numbered
+        let mut present: Vec<u8> = numbered
             .filter(|(_, c)| c.is_some())
             .map(|(p, _)| p as u8)
-            .collect()
+            .collect();
+        // The server's own game, when it runs one, is checked with the players'.
+        if self.watched {
+            present.push(SERVER);
+        }
+        present
     }
 
     /// A check's verdict, told to every player; when the players differ, the one with the game
-    /// to keep is also asked for its save.
-    fn judged(&self, room: &str, update: u64, verdict: Verdict) -> Vec<(Client, FromRelay)> {
+    /// to keep is also asked for its save. The messages, and whether the server's own game is the one to keep (its save is wanted).
+    fn judged(
+        &self,
+        room: &str,
+        update: u64,
+        verdict: Verdict,
+    ) -> (Vec<(Client, FromRelay)>, bool) {
         let agree = verdict == Verdict::Agree;
         let mut out: Vec<(Client, FromRelay)> = self
             .players
@@ -57,12 +69,15 @@ impl Room {
                 log::warn!(
                     "room {room}: the players differ at update {update}; player {from}'s game is kept"
                 );
+                if from == SERVER {
+                    return (out, true);
+                }
                 if let Some(c) = self.players.get(from as usize).copied().flatten() {
                     out.push((c, FromRelay::SaveWanted { update }));
                 }
             }
         }
-        out
+        (out, false)
     }
 }
 
@@ -82,6 +97,8 @@ pub struct Relay {
     pub max_rooms: usize,
     /// Where rooms' towns are kept, if the server keeps them.
     store: Option<Box<dyn Store>>,
+    /// Rooms whose server-run game is the one to keep: the server sends their saves.
+    server_saves: Vec<String>,
 }
 
 impl Relay {
@@ -93,6 +110,7 @@ impl Relay {
             seed: seed | 1,
             max_rooms: usize::MAX,
             store: None,
+            server_saves: Vec::new(),
         }
     }
 
@@ -110,6 +128,63 @@ impl Relay {
     /// How many games are connected.
     pub fn game_count(&self) -> usize {
         self.games.len()
+    }
+
+    /// The room and player number of a connected game, if it is in a room.
+    pub fn room_of(&self, client: Client) -> Option<(String, u8)> {
+        self.games.get(&client)?.room.clone()
+    }
+
+    /// The `Hello` of a room's host.
+    pub fn host_hello(&self, room: &str) -> Option<&Hello> {
+        self.rooms.get(room).map(|r| &r.host)
+    }
+
+    /// The games in a room.
+    pub fn members(&self, room: &str) -> Vec<Client> {
+        self.rooms
+            .get(room)
+            .map(|r| r.players.iter().flatten().copied().collect())
+            .unwrap_or_default()
+    }
+
+    /// The server runs this room's game: its digests are the reference from now on.
+    pub fn watch(&mut self, room: &str) {
+        if let Some(r) = self.rooms.get_mut(room) {
+            r.watched = true;
+        }
+    }
+
+    /// The server's own digest of a room's game (see [`Relay::watch`]): the messages the
+    /// check gives.
+    pub fn server_digest(
+        &mut self,
+        room: &str,
+        epoch: u32,
+        update: u64,
+        crc: u32,
+    ) -> Vec<(Client, FromRelay)> {
+        let Some(r) = self.rooms.get_mut(room) else {
+            return Vec::new();
+        };
+        let present = r.present();
+        log::debug!(
+            "room {room}: the server's digest of update {update} (epoch {epoch}): {crc:08x}"
+        );
+        let Some((update, verdict)) = r.checks.digest(SERVER, epoch, update, crc, &present) else {
+            return Vec::new();
+        };
+        let (out, server) = r.judged(room, update, verdict);
+        if server {
+            self.server_saves.push(room.to_string());
+        }
+        out
+    }
+
+    /// The rooms whose server-run game is to be kept since the last call: the server sends each
+    /// its save.
+    pub fn take_server_saves(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.server_saves)
     }
 
     /// A game connected.
@@ -187,6 +262,7 @@ impl Relay {
                         host: hello,
                         players: vec![Some(client)],
                         checks: Checks::default(),
+                        watched: false,
                     },
                 );
                 log::info!("room {room} opened");
@@ -275,7 +351,11 @@ impl Relay {
                 if let Some((update, verdict)) =
                     r.checks.digest(player, epoch, update, crc, &present)
                 {
-                    reply.out = r.judged(&room, update, verdict);
+                    let (out, server) = r.judged(&room, update, verdict);
+                    reply.out = out;
+                    if server {
+                        self.server_saves.push(room);
+                    }
                 }
             }
             ToRelay::Send { to, data } => {
@@ -321,7 +401,11 @@ impl Relay {
             // The checks no longer wait for the player who left.
             let present = r.present();
             for (update, verdict) in r.checks.left(&present) {
-                out.extend(r.judged(&room, update, verdict));
+                let (messages, server) = r.judged(&room, update, verdict);
+                out.extend(messages);
+                if server {
+                    self.server_saves.push(room.clone());
+                }
             }
             if r.players.iter().all(Option::is_none) {
                 self.rooms.remove(&room);

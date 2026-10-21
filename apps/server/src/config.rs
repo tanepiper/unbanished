@@ -5,6 +5,7 @@
 //! address = 0.0.0.0:7780     # where to listen
 //! max_rooms = 100            # the most rooms open at once
 //! rooms = /var/lib/unbanished  # keep each room's town here (none: rooms are not kept)
+//! simulate = /srv/banished/WinData  # run each room's game with this game data (none: don't)
 //! ```
 
 /// The server's settings.
@@ -16,6 +17,8 @@ pub struct Config {
     pub max_rooms: usize,
     /// The folder that keeps each room's town between games; none keeps nothing.
     pub rooms: Option<std::path::PathBuf>,
+    /// The game data (`WinData`) to run each room's game with; none runs no game.
+    pub simulate: Option<std::path::PathBuf>,
 }
 
 impl Default for Config {
@@ -24,12 +27,13 @@ impl Default for Config {
             address: "0.0.0.0:7780".into(),
             max_rooms: 100,
             rooms: None,
+            simulate: None,
         }
     }
 }
 
 impl Config {
-    /// The settings from the command line: `[ADDRESS] [--config FILE]`. The file's values come
+    /// The settings from the command line: `[ADDRESS] [--config FILE] [--simulate DIR]`. The file's values come
     /// first; an address on the command line replaces its address.
     pub fn from_args(args: &[String]) -> Result<Config, String> {
         let mut config = Config::default();
@@ -41,6 +45,13 @@ impl Config {
                     let path = args.get(i + 1).ok_or("--config needs a file")?;
                     let text = std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
                     config.read(&text).map_err(|e| format!("{path}: {e}"))?;
+                    i += 1;
+                }
+                "--simulate" => {
+                    let dir = args
+                        .get(i + 1)
+                        .ok_or("--simulate needs the game data folder")?;
+                    config.simulate = Some(dir.into());
                     i += 1;
                 }
                 a if a.starts_with("--") => return Err(format!("unknown option {a}")),
@@ -73,6 +84,7 @@ impl Config {
                         .map_err(|_| format!("line {}: max_rooms is a number", n + 1))?
                 }
                 "rooms" => self.rooms = Some(value.into()),
+                "simulate" => self.simulate = Some(value.into()),
                 other => return Err(format!("line {}: unknown setting {other}", n + 1)),
             }
         }

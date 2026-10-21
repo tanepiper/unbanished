@@ -34,3 +34,64 @@ pub fn format_event(strings: &mut dyn Strings, e: &EventEntry) -> String {
     }
     out
 }
+
+/// The game's string tables, read from the archive as they are first wanted: the answers the
+/// interface gives, for a simulation with no interface (a server).
+pub struct ArchiveStrings<'a> {
+    archive: &'a unbanished_formats::pkg::Archive,
+    tables: std::collections::HashMap<String, Option<Vec<(String, String)>>>,
+}
+
+impl<'a> ArchiveStrings<'a> {
+    /// The string tables of `archive`.
+    pub fn new(archive: &'a unbanished_formats::pkg::Archive) -> ArchiveStrings<'a> {
+        ArchiveStrings {
+            archive,
+            tables: Default::default(),
+        }
+    }
+
+    fn table(&mut self, table: &str) -> Option<&Vec<(String, String)>> {
+        let archive = self.archive;
+        self.tables
+            .entry(table.to_string())
+            .or_insert_with(|| {
+                archive
+                    .read_ref(table)
+                    .and_then(|d| unbanished_formats::ui::string_table(&d))
+                    .ok()
+            })
+            .as_ref()
+    }
+}
+
+impl Strings for ArchiveStrings<'_> {
+    fn string(&mut self, table: Option<&str>, key: &str) -> String {
+        let Some(table) = table else {
+            return key.to_string();
+        };
+        // `StringTable::GetText(name)`: a name the table lacks is an empty string; without a
+        // table the name is the text.
+        match self.table(table) {
+            // A name the table holds twice gives its last text, as the interface's map does.
+            Some(t) => t
+                .iter()
+                .rev()
+                .find(|(k, _)| k == key)
+                .map(|(_, v)| v.clone())
+                .unwrap_or_default(),
+            None => key.to_string(),
+        }
+    }
+
+    fn string_at(&mut self, table: &str, index: i32) -> String {
+        let Some(t) = self.table(table) else {
+            return String::new();
+        };
+        usize::try_from(index)
+            .ok()
+            .and_then(|i| t.get(i))
+            .map(|(_, v)| v.clone())
+            .unwrap_or_default()
+    }
+}

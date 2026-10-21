@@ -7,3 +7,4 @@ pub mod link;
 pub mod lockstep;
 pub mod recording;
 pub mod session;
+pub mod watch;

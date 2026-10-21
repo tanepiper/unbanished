@@ -31,7 +31,7 @@ tools/test/run.py --list           # every suite and what it checks
 | standard | `features` | the game builds with no extensions, natively and for the browser, with no warnings ([Extensions](EXTENSIONS.md)) | 15 s–5 min |
 | long | `site` | the website builds | 30 s |
 | long | `vanilla` | the build with no extensions plays every compatibility scenario exactly as the full build | 4 min |
-| long | `replay`, `lockstep`, `network`, `multiplayer`, `server` | the `tools/compat` scripts below | minutes each |
+| long | `replay`, `lockstep`, `network`, `multiplayer`, `server`, `server-simulate` | the `tools/compat` scripts below | minutes each |
 
 A suite that needs something this computer lacks (game data, Chrome, Firefox, trunk) says so
 and is skipped, not failed. The summary goes to `target/test-results/summary.json`; a browser
@@ -117,7 +117,7 @@ game about 5 more; check several things in one test rather than loading the game
 | Native and browser | `unbanished --sim-digest` and the web build's `?digest=` | The same save runs to the same game state natively and in the browser ([CROSS-PLATFORM.md](../CROSS-PLATFORM.md)) |
 | Multiplayer window | `tools/compat/multiplayer.sh` (`--realtime`, `--text`) | Headless games host and join a room through the Multiplayer window, start from the host's save and agree at every check; in `leave`, one of three quits and the other two play on |
 | Network | `tools/compat/network.sh` (`unbanished-server`, `--net-test`) | Several game processes play one game through a server and keep identical games; a scrambled one is resynced; a third player who joins the running game has the host's game ([MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md)) |
-| Server | `tools/compat/server.sh` (`unbanished-server` with kept rooms, `--net-test`) | Three players: one is scrambled and resynced, one leaves, a new one joins; the server keeps the town, restarts, and the host goes on from the kept town with another player; every digest agrees |
+| Server | `tools/compat/server.sh` (`unbanished-server` with kept rooms, `--net-test`) | Three players: one is scrambled and resynced, one leaves, a new one joins; the server keeps the town, restarts, and the host goes on from the kept town with another player; every digest agrees. With `--simulate` the server runs the game itself: two players agree with it at every check, and the scrambled player goes on from the server's save |
 | Lockstep | `tools/compat/lockstep.sh` (`--lockstep-test`) | Players in one process, joined by a simulated network, keep identical games ([MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md)) |
 | Replays | `tools/compat/replay.sh` (`--record`, `--replay`) | A recorded game replays from its save to the same game state: the player commands carry every change ([MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md)) |
 

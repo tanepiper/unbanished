@@ -29,6 +29,7 @@ line replaces the file's.
 address = 0.0.0.0:7780       # where to listen
 max_rooms = 100              # the most rooms open at once (the default)
 rooms = /var/lib/unbanished  # keep each room's town here (without it, nothing is kept)
+simulate = /srv/banished/WinData  # run each room's game with this game data (see below)
 ```
 
 With `rooms`, the server keeps each room's town: the host's game sends it a save when the game
@@ -38,6 +39,16 @@ later is told it has a town, and **Start** in the Multiplayer window goes on fro
 asking for a save. Only codes of letters and digits (at most 16) are kept. In a container, give
 the folder a volume: the image has `/rooms` for it, so `docker run -v unbanished-rooms:/rooms`
 with `rooms = /rooms` in the settings file.
+
+## Running the game on the server
+
+With `simulate = DIR` (or `--simulate DIR`), naming a copy of Banished's `WinData`, the server
+runs each room's game itself, with no window. Bring your own game data: the server never sends
+it anywhere. It gets every player's messages and plays the town update by update as each
+player's game does. Its digests then decide every check: when a player's game differs from the
+server's, the server sends its own save and the players go on from it. A room whose host has
+other game data or mods is not run; its players check each other as without the setting. The
+server's game takes about as much memory as one player's (the game data and one town).
 
 `GET /health` on the same port is a plain HTTP request that answers `ok rooms=N games=N`. Use it
 for a container's health check or a proxy's.
@@ -87,6 +98,7 @@ Players then enter `wss://play.example.org` as the server in the Multiplayer win
 | `src/serve.rs` | One game's connection: its requests go to the rooms, and the rooms' messages come back |
 | `src/config.rs` | The command line and the settings file |
 | `src/health.rs` | `GET /health` |
+| `src/watch.rs` | The server's own games (`simulate`): a thread per room with `unbanished_session::watch::Watcher` |
 | `Dockerfile` | The container image |
 
 The rooms themselves are `unbanished_net::rooms::Relay`, a state machine with no sockets that the

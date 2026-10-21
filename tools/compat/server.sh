@@ -10,17 +10,29 @@
 #      again with --resume and goes on from the kept town with a second player; their digests
 #      agree.
 #
-#   tools/compat/server.sh BINARY [SERVER_BINARY]   # default server: built from this checkout
+#   tools/compat/server.sh BINARY [SERVER_BINARY] [--simulate]
+#
+# The default server is built from this checkout. With --simulate the server runs each room's
+# game itself from this checkout's game data (its `simulate` setting): a first run with no
+# scramble must agree with the server at every check, with no resync, and the scrambled player
+# is resynced from the server's own save.
 #
 # Exit 0 when everything agrees. Results stay in target/compat/server/<binary> when it does not.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
-bin="${1:?usage: tools/compat/server.sh BINARY [SERVER_BINARY]}"
-server="${2:-target/release/unbanished-server}"
+simulate=0
+args=()
+for a in "$@"; do
+  if [[ $a == --simulate ]]; then simulate=1; else args+=("$a"); fi
+done
+bin="${args[0]:?usage: tools/compat/server.sh BINARY [SERVER_BINARY] [--simulate]}"
+server="${args[1]:-target/release/unbanished-server}"
 # The default server is built from this checkout, so it never runs a stale one.
-if [[ -z "${2:-}" ]]; then cargo build -q --offline --release -p unbanished-server; fi
-out="target/compat/server/$(basename "$bin")"
+if [[ -z "${args[1]:-}" ]]; then cargo build -q --offline --release -p unbanished-server; fi
+suffix=""
+if [[ $simulate == 1 ]]; then suffix="-simulate"; fi
+out="target/compat/server/$(basename "$bin")$suffix"
 rm -rf "$out" && mkdir -p "$out/recordings" "$out/rooms"
 RECORD_DIR="$(cd "$out/recordings" && pwd)" tools/compat/scenarios.sh "$bin" "$out/runs" actions
 recording="$out/recordings/actions.rec"
@@ -28,6 +40,9 @@ limit=()
 if command -v gtimeout >/dev/null; then limit=(gtimeout 900); fi
 port=$((7900 + RANDOM % 100))
 printf 'address = 127.0.0.1:%s\nrooms = %s\n' "$port" "$(cd "$out/rooms" && pwd)" >"$out/server.conf"
+if [[ $simulate == 1 ]]; then
+  printf 'simulate = %s\n' "$repo/game-data/original/WinData" >>"$out/server.conf"
+fi
 server_pid=
 start_server() { # log
   "$server" --config "$out/server.conf" >"$1" 2>&1 &
@@ -52,6 +67,27 @@ digests() { awk -v a="${2:-0}" '$1 == "update" && $2 > a { last[$2] = $0 } END {
 # Every digest of player file $2 (after update $3) is the host's ($1).
 same() { ! grep -Fxvq -f <(digests "$1" "$3") <(digests "$2" "$3"); }
 
+# 0. With --simulate: two players and the server's own game agree at every check.
+if [[ $simulate == 1 ]]; then
+  dir="$out/agree" && mkdir -p "$dir" && pids=()
+  start_server "$dir/server.log"
+  player "$dir" 0 host 2
+  sleep 1
+  player "$dir" 1 join 2
+  ok=1
+  for pid in "${pids[@]}"; do wait "$pid" || ok=0; done
+  same "$dir/p0.out" "$dir/p1.out" 0 || ok=0
+  grep -q "the server runs the game" "$dir/server.log" || ok=0
+  agreed="$(grep -c "the players agree" "$dir/server.log" || true)"
+  ((agreed >= 5)) || ok=0
+  grep -q "differ" "$dir/server.log" && ok=0
+  grep -q "resyncs \[\]" "$dir/p0.out" || ok=0
+  echo "  agree: the server's game and two players agreed at $agreed checks: $([[ $ok == 1 ]] && echo identical || echo DIFFERENT)"
+  [[ $ok == 1 ]] || failed=1
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+fi
+
 # 1. Play: a scramble, a departure, a new player.
 dir="$out/play" && mkdir -p "$dir" && pids=()
 start_server "$dir/server.log"
@@ -68,6 +104,10 @@ player "$dir" 3 join 3
 ok=1
 for pid in "${pids[@]}"; do wait "$pid" || ok=0; done
 after="$(sed -n 's/.*resyncs \[\(.*\)\]/\1/p' "$dir/p0.out" | tr ',' '\n' | tail -1 | tr -d ' ')"
+# With --simulate the server resyncs the players from its own game.
+if [[ $simulate == 1 ]]; then
+  after="$(sed -n "s/.*go on from the server's game at update \([0-9]*\).*/\1/p" "$dir/server.log" | tail -1)"
+fi
 for p in 1 2 3; do same "$dir/p0.out" "$dir/p$p.out" "${after:-0}" || ok=0; done
 [[ -n "$after" ]] || ok=0 # the scrambled player was resynced
 grep -q "leaves at update" "$dir/p1.log" || ok=0

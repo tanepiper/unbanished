@@ -71,11 +71,18 @@ impl Checks {
     }
 }
 
+/// The server's own game, when it runs one: its digests are the game to keep.
+pub const SERVER: u8 = u8::MAX;
+
 /// The verdict on one update's digests, by player.
 fn verdict(digests: &[(u8, u32)]) -> Verdict {
     let first = digests[0].1;
     if digests.iter().all(|&(_, c)| c == first) {
         return Verdict::Agree;
+    }
+    // A server that runs the game keeps its own.
+    if digests.iter().any(|&(p, _)| p == SERVER) {
+        return Verdict::Differ { from: SERVER };
     }
     let mut counts: BTreeMap<u32, usize> = BTreeMap::new();
     for &(_, c) in digests {
@@ -116,6 +123,17 @@ mod tests {
         // Players 1 and 2 agree, the host differs: player 1 sends its save.
         let v = c.digest(2, 0, 600, 2, &[0, 1, 2]);
         assert_eq!(v, Some((600, Verdict::Differ { from: 1 })));
+    }
+
+    #[test]
+    fn the_servers_own_game_is_kept() {
+        let mut c = Checks::default();
+        let present = [0, 1, SERVER];
+        c.digest(0, 0, 600, 1, &present);
+        c.digest(1, 0, 600, 1, &present);
+        // Both players agree with each other, and not with the server: the server's is kept.
+        let v = c.digest(SERVER, 0, 600, 2, &present);
+        assert_eq!(v, Some((600, Verdict::Differ { from: SERVER })));
     }
 
     #[test]

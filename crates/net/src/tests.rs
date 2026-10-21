@@ -295,3 +295,47 @@ fn a_server_that_keeps_rooms_gives_the_town_back() {
     };
     assert_eq!(again.poll(), [kept]);
 }
+
+#[test]
+fn a_watched_room_keeps_the_servers_game() {
+    use super::rooms::Relay;
+    let mut relay = Relay::new(1);
+    for c in 0..3 {
+        relay.connect(c);
+        relay.handle(c, ToRelay::Hello(hello()));
+    }
+    relay.handle(
+        0,
+        ToRelay::Host {
+            room: Some("WATCH".into()),
+            password: None,
+        },
+    );
+    for c in 1..3 {
+        relay.handle(
+            c,
+            ToRelay::Join {
+                room: "WATCH".into(),
+                password: None,
+            },
+        );
+    }
+    relay.watch("WATCH");
+    // The players' digests first (player 2 differs), the server's last.
+    for (c, crc) in [(0, 7), (1, 7), (2, 8)] {
+        let reply = relay.handle(
+            c,
+            ToRelay::Digest {
+                epoch: 0,
+                update: 480,
+                crc,
+            },
+        );
+        assert!(reply.out.is_empty(), "the check waits for the server");
+    }
+    let out = relay.server_digest("WATCH", 0, 480, 7);
+    assert!(out
+        .iter()
+        .all(|(_, m)| matches!(m, FromRelay::Checked { agree: false, .. })));
+    assert_eq!(relay.take_server_saves(), ["WATCH"]);
+}

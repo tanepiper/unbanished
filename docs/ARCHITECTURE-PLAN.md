@@ -354,6 +354,18 @@ resynced, the server restarts and the town resumes; all digests agree.
 **E. Server stage 2.** `--simulate WINDATA`: the server as a headless peer and authority.
 `server.sh --simulate`: same scenario, plus a game that advances with one player and the
 server's digests are the reference.
+   - **Done**: `simulate = DIR` (or `--simulate DIR`). The server loads the operator's game data
+     once and, for each room whose host has the same data and no mods, runs the game on a
+     thread (`unbanished_session::watch::Watcher`, `apps/server/src/watch.rs`). It is not a
+     lockstep player (it sends no turns, so it never holds anyone up): it hears every message
+     a player sends the room and repeats the game app's frame update by update. Its digests
+     join each check as player 255 and always win; when the players differ from it, it sends
+     its own save (and reloads from it, as the players do). Event text comes from the archive
+     (`unbanished_sim::strings::ArchiveStrings`, checked against the interface's). A multiplayer
+     game now counts achievements from none won for every player (a Deviation), or players with
+     different achievements would differ. `server.sh --simulate` (run.py `server-simulate`):
+     two players agree with the server at every check with no resync; a scrambled player is
+     resynced from the server's save; the departure, the new player and the restart pass too.
 
 **G. Rule hooks and a mod hook API (after E).** Rule hooks at fixed points of the step,
 deterministic and ordered, declared by the mod that adds them; listed in `Hello` and in saves;

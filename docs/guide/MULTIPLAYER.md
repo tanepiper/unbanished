@@ -147,7 +147,8 @@ camera and use the windows. After half a second the line says whom the game wait
 ## When the towns differ
 
 Every 10 seconds the server compares all players' towns. If one differs, the server keeps the town
-most players have (the host's, if as many have one as the other), and every player reloads it,
+most players have (the host's, if as many have one as the other), or, on a server that runs the
+game itself (its `simulate` setting), the server's own town, and every player reloads it,
 behind a short loading screen. The game goes on from there. Nothing is lost except the moment it
 takes. This should be rare: the server already refuses a player whose version of Un-Banished,
 game files or mods differ from the host's.

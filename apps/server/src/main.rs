@@ -36,5 +36,15 @@ fn main() {
         unbanished_net::PROTOCOL,
         config.address
     );
-    unbanished_server::run(listener, &config);
+    let game = unbanished_server::load_game(&config).unwrap_or_else(|e| {
+        eprintln!("simulate: {e}");
+        std::process::exit(1);
+    });
+    if let Some(dir) = &config.simulate {
+        log::info!(
+            "running each room's game with the game data in {}",
+            dir.display()
+        );
+    }
+    unbanished_server::run_with(listener, &config, game);
 }

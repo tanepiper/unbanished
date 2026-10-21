@@ -15,6 +15,8 @@ path = "src/main.rs"
 
 [dependencies]
 unbanished-net = { path = "../../crates/net" }
+unbanished-session = { path = "../../crates/session", default-features = false }
+unbanished-formats = { path = "../../crates/formats" }
 tungstenite = "0.30"
 log = "0.4"
 env_logger = "0.11"

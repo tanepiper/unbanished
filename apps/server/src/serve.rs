@@ -3,21 +3,25 @@
 use std::collections::HashMap;
 use std::net::TcpStream;
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tungstenite::Message;
 use unbanished_net::rooms::{Client, Relay};
 use unbanished_net::{decode, encode, FromRelay, ToRelay};
 
-/// The rooms, and each connected game's outgoing queue.
+/// The rooms, each connected game's outgoing queue, and the server's own games.
 pub struct Shared {
     pub relay: Relay,
     pub queues: HashMap<Client, Sender<FromRelay>>,
+    /// The operator's game data (`simulate`), to run rooms' games with.
+    pub game: Option<crate::watch::GameData>,
+    /// The rooms whose game the server runs, by room code.
+    pub watchers: HashMap<String, Sender<crate::watch::In>>,
 }
 
 impl Shared {
-    fn deliver(&self, out: Vec<(Client, FromRelay)>) {
+    pub fn deliver(&self, out: Vec<(Client, FromRelay)>) {
         for (to, message) in out {
             if let Some(q) = self.queues.get(&to) {
                 let _ = q.send(message);
@@ -27,7 +31,7 @@ impl Shared {
 }
 
 /// One connection: read what the game sends, write what is queued for it.
-pub fn serve(stream: TcpStream, client: Client, shared: &Mutex<Shared>) -> Result<(), String> {
+pub fn serve(stream: TcpStream, client: Client, shared: &Arc<Mutex<Shared>>) -> Result<(), String> {
     let _ = stream.set_nodelay(true);
     let mut socket = tungstenite::accept(stream).map_err(|e| e.to_string())?;
     socket
@@ -47,8 +51,22 @@ pub fn serve(stream: TcpStream, client: Client, shared: &Mutex<Shared>) -> Resul
                 Ok(Message::Binary(bytes)) => {
                     let request = decode::<ToRelay>(&bytes)?;
                     let mut s = shared.lock().unwrap();
+                    let at = s.relay.room_of(client);
+                    // What the server's own game of the room needs to hear.
+                    let heard = match (&request, &at) {
+                        (ToRelay::Send { to: None, data }, Some(_)) => Some(data.clone()),
+                        _ => None,
+                    };
+                    let leaving = matches!(request, ToRelay::Leave);
                     let reply = s.relay.handle(client, request);
                     s.deliver(reply.out);
+                    if let (Some(data), Some((room, _))) = (heard, &at) {
+                        crate::watch::heard(&mut s, shared, room, &data);
+                    }
+                    if let (true, Some((room, player))) = (leaving, &at) {
+                        crate::watch::left(&mut s, room, *player);
+                    }
+                    crate::watch::saves_wanted(&mut s);
                     drop(s);
                     if reply.close {
                         drain(&mut socket, &outgoing)?;
@@ -69,9 +87,14 @@ pub fn serve(stream: TcpStream, client: Client, shared: &Mutex<Shared>) -> Resul
     })();
     // Gone: the others hear of it, and an empty room closes.
     let mut s = shared.lock().unwrap();
+    let at = s.relay.room_of(client);
     let out = s.relay.disconnect(client);
     s.queues.remove(&client);
     s.deliver(out);
+    if let Some((room, player)) = at {
+        crate::watch::left(&mut s, &room, player);
+    }
+    crate::watch::saves_wanted(&mut s);
     result
 }
 

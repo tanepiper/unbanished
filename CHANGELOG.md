@@ -11,6 +11,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Added
 
+- Multiplayer: the server can run each room's game itself (`simulate = DIR`, with the operator's
+  own copy of the game data). Its game then decides every check, and a player whose town differs
+  goes on from the server's.
+
 - Multiplayer: the desktop game can be the server. Host with the server address left at
   `ws://127.0.0.1:7780`, and if no server runs there the game starts one and shows the address
   the other players enter.
@@ -56,6 +60,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
   game that must match the desktop version's.
 
 ### Changed
+
+- Multiplayer: every player counts achievements from none won in a multiplayer game, so players
+  with different achievements no longer see their towns reloaded at every check. An achievement
+  won in a multiplayer game is still kept in the player's own settings.
 
 - The multiplayer relay is now `unbanished-server` (folder `apps/server`). It reads a settings
   file (`--config FILE`), answers `GET /health` on its port, can cap the open rooms, and comes

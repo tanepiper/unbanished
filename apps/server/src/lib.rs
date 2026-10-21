@@ -21,6 +21,7 @@
 pub mod config;
 mod health;
 mod serve;
+pub mod watch;
 
 use std::net::TcpListener;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -30,6 +31,12 @@ use unbanished_net::rooms::Relay;
 
 pub use config::Config;
 use serve::Shared;
+pub use watch::GameData;
+
+/// The game data of the `simulate` setting, if it names a folder.
+pub fn load_game(config: &Config) -> Result<Option<GameData>, String> {
+    config.simulate.as_deref().map(GameData::load).transpose()
+}
 
 /// Listens at `config.address` and serves on a thread of its own: the desktop game hosting a
 /// game. The address it listens at.
@@ -48,6 +55,12 @@ pub fn spawn(config: Config) -> std::io::Result<std::net::SocketAddr> {
 
 /// Serves every connection to `listener`, each on its own thread.
 pub fn run(listener: TcpListener, config: &Config) {
+    run_with(listener, config, None);
+}
+
+/// [`run`], running each room's game with `game` (the `simulate` setting's data, loaded by
+/// [`load_game`]).
+pub fn run_with(listener: TcpListener, config: &Config, game: Option<watch::GameData>) {
     let seed = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(1, |d| d.as_nanos() as u64);
@@ -60,6 +73,8 @@ pub fn run(listener: TcpListener, config: &Config) {
     let shared = Arc::new(Mutex::new(Shared {
         relay,
         queues: Default::default(),
+        game,
+        watchers: Default::default(),
     }));
     let next = Arc::new(AtomicU64::new(0));
     for stream in listener.incoming() {

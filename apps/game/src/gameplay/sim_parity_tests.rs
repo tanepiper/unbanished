@@ -1,6 +1,7 @@
 //! The simulation alone plays a save as the game does: `Simulation::from_save` and
-//! `Simulation::frame`, with no window, view or interface, give the digests of
-//! `--sim-digest` (`digest::run`, the whole game loop).
+//! `Simulation::frame`, with no window, view or interface (the strings read straight from the
+//! archive, as a server reads them), give the digests of `--sim-digest` (`digest::run`, the
+//! whole game loop).
 
 use unbanished_sim::simulation::Simulation;
 
@@ -36,8 +37,9 @@ fn sim_digests(game: &mut crate::Game, save: &[u8], updates: u32, every: u32) ->
         sim.load_achievements(ctx.archive, Some(&saved), |_| false);
         let auto_slow = ctx.settings.game.auto_slow;
         let mut speed = 3;
-        let mut strings = crate::ui::strings::UiStrings(&mut ctx.ui.res);
-        let digest = |sim: &Simulation, strings: &mut crate::ui::strings::UiStrings| {
+        // The server's strings (no interface): the digests must still be the game's.
+        let mut strings = unbanished_sim::strings::ArchiveStrings::new(ctx.archive);
+        let digest = |sim: &Simulation, strings: &mut unbanished_sim::strings::ArchiveStrings| {
             let mut state = sim.saved_state(ctx.archive, strings, &saved, &params.town_name);
             for object in state.objects.values_mut() {
                 if object.type_name == "UIComponent" {
@@ -91,4 +93,45 @@ fn the_simulation_alone_plays_a_save_as_the_game_does() {
             "{name}: the simulation alone differs from the game"
         );
     }
+}
+
+#[test]
+fn the_archives_strings_are_the_interfaces() {
+    use unbanished_sim::strings::{ArchiveStrings, Strings};
+    let Some(mut game) = game() else { return };
+    game.with_ctx(|_, ctx| {
+        let mut ours = ArchiveStrings::new(ctx.archive);
+        let achievements = unbanished_sim::achievements::load(ctx.archive);
+        let mut theirs = crate::ui::strings::UiStrings(&mut ctx.ui.res);
+        let mut compared = 0;
+        for i in -1..200 {
+            for table in [
+                "Dialog/StringTable.rsc:events",
+                "Dialog/StringTable.rsc:seasons",
+            ] {
+                assert_eq!(
+                    ours.string_at(table, i),
+                    theirs.string_at(table, i),
+                    "{table} {i}"
+                );
+                compared += 1;
+            }
+        }
+        for a in &achievements {
+            let (t, k) = (a.desc.strings.as_deref(), a.desc.title.as_str());
+            assert_eq!(ours.string(t, k), theirs.string(t, k), "{k}");
+            compared += 1;
+        }
+        for t in [
+            None,
+            Some("Dialog/StringTable.rsc:events"),
+            Some("No/Such.rsc:table"),
+        ] {
+            assert_eq!(
+                ours.string(t, "nothing here"),
+                theirs.string(t, "nothing here")
+            );
+        }
+        assert!(compared > 400, "{compared}");
+    });
 }
