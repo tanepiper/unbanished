@@ -198,4 +198,5 @@ results here.
 
 **Details:** [Performance](/develop/performance), with every measurement ·
 [Compatibility between versions](/develop/compatibility) ·
-**Earlier:** [Neighbours, 0.3.0](/blog/0-3-0-neighbours)
+**Earlier:** [Neighbours, 0.3.0](/blog/0-3-0-neighbours) ·
+**Next:** [Harvest, 0.4.0](/blog/0-4-0-harvest)

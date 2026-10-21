@@ -4,6 +4,7 @@
 #   tools/videos.sh SAVE.sav [NAME...]      # NAME: chicken-walk citizens-market zoom-into-town seasons
 #   tools/videos.sh save-game/Save83.sav montage   # the home page's 65 s montage (five saves, see below)
 #   tools/videos.sh LARGE.sav big-town      # a large town, the camera circling its church
+#   tools/videos.sh AUTUMN.sav autumn-orbit # a 16:9 banner: the camera circling a town in autumn
 #   tools/videos.sh SAVE.sav orbit follow-citizen   # the camera circles the town; it follows a citizen
 #   tools/videos.sh RIVER.sav river fishing  # along a river from a bridge; fishers on their dock
 #   tools/videos.sh "save-game/Save 47.sav" boat-shoulder fisher-closeup river-flight
@@ -78,7 +79,7 @@ cores="$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)"
 limit_kb() {
   case "$1" in
     chicken-walk) echo 200 ;;
-    big-town* | orbit*) echo 3000 ;;
+    big-town* | orbit* | autumn-orbit*) echo 3000 ;;
     montage*) echo 6000 ;;
     *) echo "${VIDEO_LIMIT_KB:-1500}" ;;
   esac
@@ -330,6 +331,14 @@ for name in "${names[@]}"; do
       run_seasons 0.75 240
       encode 0 240 "scale=768:432:flags=lanczos" 40 seasons
       poster 150 seasons
+      ;;
+    autumn-orbit)
+      # A 16:9 banner: the town at the building at $click (Save83 played on into Autumn), zoomed
+      # in part way and circled for 10 s at 1280x720, with the toolbar left out.
+      frames 21 "$step" 300
+      ZOOM=18 town 31.5 --hold RotateRight@21-31.2 --hold PitchUp@21-21.5 "${shots[@]}"
+      encode 0 300 "$middle,scale=1280:720:flags=lanczos" 52 autumn-orbit
+      poster 150 autumn-orbit "$middle"
       ;;
     big-town)
       # A large town (Save200, Driscola) at normal speed, so that no smoke or weather drifts
