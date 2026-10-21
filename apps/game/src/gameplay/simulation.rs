@@ -188,134 +188,31 @@ impl GameplayLoop {
         }
     }
 
-    /// `AchievementManager::Update(dt × iterations)` after the frame's iterations; one awarded
-    /// is stored and logged (event `0x19`, `FUN_14009be30`, `@2` its title). Nothing is
-    /// checked, nor any time gathered, while user pack files are enabled (`FileSystem +0x38`).
+    /// The achievements after the frame's iterations (`Simulation::update_achievements`); one
+    /// awarded is kept in the settings store (`Achievement<title>`).
     pub(super) fn update_achievements(&mut self, ctx: &mut Ctx, dt: i64) {
-        if 0 < ctx.archive.user_packs {
-            return;
-        }
-        let Some(town) = &self.sim.town else { return };
-        // The TerrainGenerator's resource is named for the terrain.
-        let terrain = format!(r"Game\Terrain\{}.rsc", self.params.terrain);
-        let x = crate::achievements::GoalContext {
-            town,
-            statistics: &self.sim.statistics,
-            year: self.sim.calendar.year,
-            year_seconds: self.sim.calendar.seconds(),
-            terrain: &terrain,
-            climate: &self.params.climate_ref,
-            size: self.params.size as i32,
-        };
-        let won = self
-            .achievement_manager
-            .update(&self.achievements, dt, &x, Some(ctx.archive));
+        let won = self.sim.update_achievements(
+            ctx.archive,
+            &mut crate::ui::strings::UiStrings(&mut ctx.ui.res),
+            &self.params,
+            dt,
+        );
         if let Some(i) = won {
-            let a = &self.achievements[i].desc;
-            let title = ctx.ui.res.string(a.strings.as_deref(), &a.title);
+            let title = &self.sim.achievements[i].desc.title;
             ctx.settings
                 .persistence
-                .set_bool("Achievement", &a.title, true);
+                .set_bool("Achievement", title, true);
             ctx.settings.persistence.write();
-            let (month, year) = (self.month(), self.sim.calendar.year as i32);
-            self.sim.events.add(
-                0x19,
-                4,
-                -1,
-                month,
-                year,
-                [title, String::new(), String::new()],
-                false,
-            );
         }
     }
 
-    /// `FUN_140118fc0`: the citizens' births, deaths and coming of age posted to the event
-    /// log with `@2` the citizen's name, `@3` its role (profession, child or student) and `@4`
-    /// the disease's or accident's name.
-    pub(super) fn log_life_events(&mut self, ctx: &mut Ctx) {
-        let (month, year) = (self.month(), self.sim.calendar.year as i32);
-        let Some(town) = &mut self.sim.town else {
-            return;
-        };
-        let events = std::mem::take(&mut town.agents.events);
-        if events.is_empty() {
-            return;
-        }
-        for e in events {
-            let Some(c) = town.citizens.get(e.citizen) else {
-                continue;
-            };
-            let state = &town.agents.states[e.citizen];
-            let child = c.age < town.rules.adult_age;
-            let key = if c.school.is_some() {
-                Some("student")
-            } else if child {
-                Some("child")
-            } else {
-                None
-            };
-            let role = match key {
-                Some(k) => town.profession(k).map(|p| (p.string_table, p.name)),
-                None => town
-                    .construction
-                    .professions
-                    .list
-                    .get(state.profession)
-                    .map(|p| (p.string_table.clone(), p.name.clone())),
-            }
-            .map(|(t, k)| ctx.ui.res.string(t.as_deref(), &k))
-            .unwrap_or_default();
-            let extra = e
-                .extra
-                .map(|(t, k)| ctx.ui.res.string(t.as_deref(), &k))
-                .unwrap_or_default();
-            let auto_slow = ctx.settings.game.auto_slow;
-            self.sim.events.add(
-                e.kind,
-                e.severity,
-                -1,
-                month,
-                year,
-                [c.name.clone(), role, extra],
-                auto_slow,
-            );
-        }
-    }
-
-    /// The sites' events (`FUN_14009a2d0` with the entity): `@2` its toolbar name, at its
-    /// map-rectangle centre cell (`FUN_14009a500`).
-    pub(super) fn log_site_events(&mut self, ctx: &mut Ctx) {
-        let (month, year) = (self.month(), self.sim.calendar.year as i32);
-        let Some(town) = &mut self.sim.town else {
-            return;
-        };
-        let events = std::mem::take(&mut town.construction.site_events);
-        for (kind, severity, e) in events {
-            let Some(p) = town.placed.get(e) else {
-                continue;
-            };
-            let reference = &town.templates[p.template].reference;
-            let file = reference.split(':').next().unwrap_or("");
-            let name = ctx
-                .archive
-                .read_ref(&format!("{file}:toolbar"))
-                .ok()
-                .and_then(|d| unbanished_formats::game::toolbar_description(&d).ok())
-                .map(|t| ctx.ui.res.string(t.string_table.as_deref(), &t.name))
-                .unwrap_or_default();
-            let n = town.cells.size as i32;
-            let cell = (p.cell.1 + (p.footprint.1 >> 1)) * n + p.cell.0 + (p.footprint.0 >> 1);
-            let auto_slow = ctx.settings.game.auto_slow;
-            self.sim.events.add(
-                kind,
-                severity,
-                cell,
-                month,
-                year,
-                [name, String::new(), String::new()],
-                auto_slow,
-            );
-        }
+    /// The citizens' life events and the sites' events, posted to the event log (see
+    /// `Simulation::log_life_events` and `Simulation::log_site_events`).
+    pub(super) fn log_events(&mut self, ctx: &mut Ctx) {
+        let auto_slow = ctx.settings.game.auto_slow;
+        let mut strings = crate::ui::strings::UiStrings(&mut ctx.ui.res);
+        self.sim.log_life_events(&mut strings, auto_slow);
+        self.sim
+            .log_site_events(ctx.archive, &mut strings, auto_slow);
     }
 }

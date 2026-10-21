@@ -226,6 +226,18 @@ tools/refactor (split_impl.py, regroup.py) so code moves without being rewritten
    takes a string lookup from the app. Loading moves too (`Simulation::from_save`,
    `Simulation::new_game`: the map, the town and the environment). Then the headless test
    compares with `--sim-digest` on Save83 and Driscola.
+   - **Done** (for loaded games): `Simulation::from_save` loads a save with no drawing data;
+     `Simulation::frame` runs a frame (the speed's iterations, the achievements, the smoothing,
+     the life and site events, AutoSlow); `Simulation::saved_state` and `write_state` write
+     what a save keeps. The game's text comes through `unbanished_sim::strings::Strings`, which
+     the app answers from its string tables (`ui::strings::UiStrings`). The achievements moved
+     to `unbanished_sim::achievements`; the app only keeps what was awarded in its settings.
+     `gameplay/sim_parity_tests.rs` plays Save83 and Goldfoothill both ways for 300 updates
+     and the digests match `--sim-digest` at every check (Driscola needs its missing mods
+     answered, so it is not in the test). The app still runs the frame's steps itself, with
+     the drawing and a scenario's goal between them; the parity test keeps the two in step.
+     Left for later: `Simulation::new_game` (a new game's ambience regions are counted by the
+     app's audio code) and a scenario's goal.
 
 **X. Extension points and features (after A, before B).** Define the extension points in the
 core as small traits/hooks (command sink, step hook, presentation hooks: menu entry, window or

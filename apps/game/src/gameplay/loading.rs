@@ -112,15 +112,8 @@ impl GameplayLoop {
                     );
                     town.register_ambience(regions);
                 }
-                if let Some(town) = &mut self.sim.town {
-                    town.construction.game_flags = match &saved {
-                        Some(s) => s.state.flags,
-                        None if self.params.disasters => 0,
-                        None => 0xf0,
-                    };
-                    // The trader boats' way (MapComponent `+0x1e0`'s first river).
-                    town.construction.river = self.river_paths.first().cloned().unwrap_or_default();
-                }
+                self.sim
+                    .settle_town(saved.as_deref(), &self.params, &self.river_paths);
                 // The ambience's sounds decode now, behind the loading screen, together with
                 // the first music track; the emitters and the music still start on the first
                 // gameplay frame (`update_audio`).
@@ -157,31 +150,11 @@ impl GameplayLoop {
             Err(e) => log::error!("world generation failed: {e}"),
         }
         // `FUN_14009bfd0` → `FUN_140099300`: bind the environment to the selected climate.
-        let reference = self.params.climate_ref.replace('\\', "/");
-        match ctx
-            .archive
-            .read_ref(&reference)
-            .and_then(|d| climate_generator(&d))
+        if let Err(e) =
+            self.sim
+                .bind_environment(ctx.archive, &self.params, &self.weather, saved.as_deref())
         {
-            Ok(c) => {
-                let mut env = Environment::new(Climate::from(&c));
-                // The weather list's descriptions (`Weather +0x5c`: fade time).
-                for (slot, (weather, _)) in self.weather.iter().enumerate().take(2) {
-                    env.fade_times[slot] = weather
-                        .as_deref()
-                        .and_then(|r| ctx.archive.read_ref(&r.replace('\\', "/")).ok())
-                        .and_then(|d| unbanished_formats::weather::weather(&d).ok())
-                        .map(|w| w.fade_time);
-                }
-                // Disasters off stop tornadoes (`Game +0xd0` bit 7).
-                env.game_flags = if self.params.disasters { 0 } else { 0xf0 };
-                if let Some(saved) = &self.saved {
-                    env.game_flags = saved.state.flags;
-                    saved.restore_environment(&mut env);
-                }
-                self.sim.environment = Some(env);
-            }
-            Err(e) => log::error!("{reference}: {e}"),
+            log::error!("{}: {e}", self.params.climate_ref);
         }
     }
 }

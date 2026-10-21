@@ -13,11 +13,18 @@ use unbanished_game::random::Random;
 use unbanished_game::terrain::Heights;
 use unbanished_game::work::tracker::Statistics;
 
+use crate::achievements::{Achievement, AchievementManager};
 use crate::tools::removal_tool::RemovalTool;
 use crate::town::StartingTown;
 
+mod achieve;
+mod frame;
+mod load;
+mod log;
+mod save;
 mod step;
 
+pub use frame::FrameEvents;
 pub use step::StepEvents;
 
 const MONTHS_PER_YEAR: usize = 12;
@@ -54,6 +61,9 @@ pub struct Simulation {
     pub drag_tools: BTreeMap<String, RemovalTool>,
     /// The town names the Map window draws from, read the first time they are wanted.
     pub town_names: Option<NameDatabase>,
+    /// The achievements (`Game/Achievement/AchievementList.rsc`) and their progress.
+    pub achievements: Vec<Achievement>,
+    pub achievement_manager: AchievementManager,
 }
 
 impl Simulation {
@@ -73,6 +83,8 @@ impl Simulation {
             updates: 0,
             drag_tools: BTreeMap::new(),
             town_names: None,
+            achievements: Vec::new(),
+            achievement_manager: Default::default(),
         }
     }
 
@@ -95,6 +107,18 @@ impl Simulation {
     pub fn month(&self) -> usize {
         ((self.calendar.seconds() / YEAR_SECONDS * MONTHS_PER_YEAR as f32) as usize)
             .min(MONTHS_PER_YEAR - 1)
+    }
+
+    /// The phase after the frame's iterations, run once even at speed zero (the town's
+    /// `smooth`). Returns whether the model instances changed.
+    ///
+    /// Original: `FUN_14009b850`.
+    pub fn smooth(&mut self) -> bool {
+        let (Some(town), Some(heights)) = (&mut self.town, &self.heights) else {
+            return false;
+        };
+        let _p = crate::timing::scope("smooth");
+        town.smooth(&heights.grid(), &mut self.rng)
     }
 
     /// Applies the town's queued player commands and placed sites, with the calendar and

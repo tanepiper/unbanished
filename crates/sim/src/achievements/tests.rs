@@ -1,5 +1,5 @@
 use super::*;
-use crate::start::load::tests_support::{archive, root};
+use crate::town::load::tests_support::{archive, root};
 
 /// The manager, goal lists and TimeGoals against the Runtime's over scripted goal states
 /// (`tools/emu/achievements.py`; skipped without its output in game-data/derived/emu):
@@ -121,7 +121,7 @@ fn saved_achievements_read_back() {
         let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
             continue;
         };
-        let saved = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
+        let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
         let mut m = AchievementManager {
             awarded: vec![false; list.len()],
             instances: list.iter().map(AchievementInstance::new).collect(),

@@ -6,10 +6,6 @@ original or stops short of it.
 
 Deviation: 62, Not ported: 4, Not traced: 1.
 
-## `apps/game/src/achievements.rs`
-
-- [Deviation] [apps/game/src/achievements.rs:1](../apps/game/src/achievements.rs#L1): Achievements (Runtime `Achievement::AchievementManager`, `AchievementInstance`, `GoalList`, `GoalInstance`; the goal classes in the Application). See docs/ACHIEVEMENTS.md. `Game/Achievement/AchievementList.rsc` lists the achievements; each has goals. A goal's state (`Goal` slot `+0x40`, `GoalInstance::CheckGoalState`) is 0 not met, 1 met or 2 failed; a failed goal stays failed (`GoalInstance::Update`). The manager (`Update` `0x18009f1e0`) checks one achievement not yet awarded each frame in turn, its goals updated with the time since its last check; with every goal met and none failed it is awarded (`SetAchievementMet`) and the game logs event `0x19` (`FUN_14009be30`). Deviation: the original keeps what is awarded in Steam's user stats; the port keeps it in the settings store (`Achievement<title>`).
-
 ## `apps/game/src/app.rs`
 
 - [Deviation] [apps/game/src/app.rs:117](../apps/game/src/app.rs#L117): The display modes of the window's monitor, largest first (`Adapter::FindDisplayMode` lists). Deviation: the browser offers the page's size at 100, 75 and 50 % (the scene is drawn at that size and scaled to the page, `Renderer::set_scene_scale`) and frame-rate limits of 30 to 120 per second (issue #15).
@@ -31,7 +27,7 @@ Deviation: 62, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/gameplay.rs`
 
-- [Deviation] [apps/game/src/gameplay.rs:59](../apps/game/src/gameplay.rs#L59): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
+- [Deviation] [apps/game/src/gameplay.rs:58](../apps/game/src/gameplay.rs#L58): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
 
 ## `apps/game/src/gameplay/digest.rs`
 
@@ -40,7 +36,7 @@ Deviation: 62, Not ported: 4, Not traced: 1.
 ## `apps/game/src/gameplay/frame.rs`
 
 - [Deviation] [apps/game/src/gameplay/frame.rs:89](../apps/game/src/gameplay/frame.rs#L89): `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller. Deviation: in a multiplayer game the pause menu does not hold the shared game.
-- [Deviation] [apps/game/src/gameplay/frame.rs:299](../apps/game/src/gameplay/frame.rs#L299): AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets the game speed (`Game +0x120 → +0x34`) back to 1. Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on each player's own setting.
+- [Deviation] [apps/game/src/gameplay/frame.rs:290](../apps/game/src/gameplay/frame.rs#L290): AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets the game speed (`Game +0x120 → +0x34`) back to 1. Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on each player's own setting.
 
 ## `apps/game/src/gameplay/lockstep.rs`
 
@@ -227,6 +223,10 @@ Deviation: 62, Not ported: 4, Not traced: 1.
 ## `crates/mods/src/lib.rs`
 
 - [Deviation] [crates/mods/src/lib.rs:84](../crates/mods/src/lib.rs#L84): `+0x58`: where it is, under the data directory (`WinData\<file>.pkm`). Deviation: the original shows the full path.
+
+## `crates/sim/src/achievements.rs`
+
+- [Deviation] [crates/sim/src/achievements.rs:1](../crates/sim/src/achievements.rs#L1): Achievements (Runtime `Achievement::AchievementManager`, `AchievementInstance`, `GoalList`, `GoalInstance`; the goal classes in the Application). See docs/ACHIEVEMENTS.md. `Game/Achievement/AchievementList.rsc` lists the achievements; each has goals. A goal's state (`GoalInstance::CheckGoalState`) is 0 not met, 1 met or 2 failed; a failed goal stays failed (`GoalInstance::Update`). The manager's `Update` checks one achievement not yet awarded each frame in turn, its goals updated with the time since its last check; with every goal met and none failed it is awarded (`SetAchievementMet`) and the game logs event `0x19`. Deviation: the original keeps what is awarded in Steam's user stats; the port keeps it in the settings store (`Achievement<title>`).
 
 ## `crates/sim/src/town/map.rs`
 

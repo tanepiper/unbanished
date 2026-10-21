@@ -500,11 +500,11 @@ impl GameplayLoop {
                 }
                 crate::ui::pause_menu::PauseClick::Achievement => {
                     if let Some(screen) = &mut self.screen {
-                        let awarded = self.achievement_manager.awarded.clone();
+                        let awarded = self.sim.achievement_manager.awarded.clone();
                         if let Some(d) = crate::ui::achievement_ui::AchievementDialog::open(
                             ctx.ui,
                             screen,
-                            &self.achievements,
+                            &self.sim.achievements,
                         ) {
                             d.refresh(ctx.ui, &awarded);
                             self.menu_dialog = Some(MenuDialog::Achievements(d));

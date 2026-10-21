@@ -2,11 +2,12 @@
 //! `GoalInstance`; the goal classes in the Application). See docs/ACHIEVEMENTS.md.
 //!
 //! `Game/Achievement/AchievementList.rsc` lists the achievements; each has goals. A goal's state
-//! (`Goal` slot `+0x40`, `GoalInstance::CheckGoalState`) is 0 not met, 1 met or 2 failed; a
-//! failed goal stays failed (`GoalInstance::Update`). The manager (`Update` `0x18009f1e0`)
-//! checks one achievement not yet awarded each frame in turn, its goals updated with the time
-//! since its last check; with every goal met and none failed it is awarded
-//! (`SetAchievementMet`) and the game logs event `0x19` (`FUN_14009be30`).
+//! (`GoalInstance::CheckGoalState`) is 0 not met, 1 met or 2 failed; a failed goal stays failed
+//! (`GoalInstance::Update`). The manager's `Update` checks one achievement not yet awarded each
+//! frame in turn, its goals updated with the time since its last check; with every goal met and
+//! none failed it is awarded (`SetAchievementMet`) and the game logs event `0x19`.
+//!
+//! Original: `FUN_14009be30`, Runtime `0x18009f1e0`.
 //!
 //! Deviation: the original keeps what is awarded in Steam's user stats; the port keeps it in
 //! the settings store (`Achievement<title>`).
@@ -15,7 +16,7 @@ use unbanished_formats::pkg::Archive;
 use unbanished_formats::scenario::{self, GoalKind};
 use unbanished_game::work::tracker::Statistics;
 
-use crate::start::StartingTown;
+use crate::town::StartingTown;
 
 /// An achievement and its goals.
 #[derive(Debug, Clone)]
@@ -35,8 +36,8 @@ pub enum GoalState {
     Failed = 2,
 }
 
-/// `GoalInstance`: `+0x10` bit 0 met, bit 1 failed; TimeGoalInstance `+0x20` the time the
-/// other goals have held.
+// +0x10; +0x20
+/// `GoalInstance`: bit 0 met, bit 1 failed; TimeGoalInstance the time the other goals have held.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct GoalInstance {
     pub met: bool,
@@ -48,10 +49,12 @@ pub struct GoalInstance {
 pub struct GoalContext<'a> {
     pub town: &'a StartingTown,
     pub statistics: &'a Statistics,
-    /// `Game +0x128`: the year, and the seconds into it.
+    // Game +0x128
+    /// `Game`: the year, and the seconds into it.
     pub year: u32,
     pub year_seconds: f32,
-    /// The game's terrain and climate (`Game +0x48`, `+0x50`) and size (`Game +0x34`).
+    // +0x50; Game +0x48; Game +0x34
+    /// The game's terrain and climate (`Game`) and size (`Game`).
     pub terrain: &'a str,
     pub climate: &'a str,
     pub size: i32,
@@ -417,12 +420,17 @@ fn sum(s: &Statistics, series: usize, from: i32, to: i32) -> i32 {
     v[from as usize..=to as usize].iter().sum()
 }
 
-/// `FUN_1400e0180`: the years (`× 3600` s) have passed, the time through `Time::AsSeconds`.
+/// The years (`× 3600` s) have passed, the time through `Time::AsSeconds`.
+///
+/// Original: `FUN_1400e0180`.
 pub fn time_goal_met(years: i32, time: i64) -> bool {
     (years * 3600) as f32 <= unbanished_game::scheduler::seconds(time)
 }
 
-/// A goal's state (`Goal` slot `+0x40`; TimeGoalInstance `FUN_1400e0180`).
+// Goal slot +0x40
+/// A goal's state (`CheckGoalState`; a time goal's comes from its time).
+///
+/// Original: `FUN_1400e0180`.
 pub fn check(
     goal: &scenario::Goal,
     instance: &GoalInstance,
@@ -499,8 +507,10 @@ impl AchievementInstance {
         }
     }
 
-    /// `GoalList::Update`: each goal in turn (a TimeGoal's time first grows, back to none
-    /// unless the others are met, `FUN_1400e0100`), then `GoalInstance::Update`.
+    /// Each goal in turn (a TimeGoal's time first grows, back to none unless the others are met),
+    /// then `GoalInstance::Update`.
+    ///
+    /// Original: `GoalList::Update`, `FUN_1400e0100`.
     pub fn update(
         &mut self,
         a: &Achievement,
@@ -560,11 +570,13 @@ impl AchievementInstance {
     }
 }
 
-/// A saved `AchievementInstance` (`0x18009efa0`) for `a`: each saved goal instance's value
-/// (`+0x10`) and a TimeGoalInstance's time, matched to `a`'s goals by reference (in order when
-/// a reference is not among them).
+// +0x10
+/// A saved `AchievementInstance` for `a`: each saved goal instance's value and a TimeGoalInstance's
+/// time, matched to `a`'s goals by reference (in order when a reference is not among them).
+///
+/// Original: Runtime `0x18009efa0`.
 pub fn saved_instance(
-    saved: &crate::saves::saved::SavedGame,
+    saved: &crate::saved::SavedGame,
     id: unbanished_formats::savegame::ObjId,
     a: &Achievement,
 ) -> Option<AchievementInstance> {
@@ -634,8 +646,9 @@ pub fn write_instance(
     }
 }
 
-/// `AchievementManager`: `+0x78` awarded, `+0x88` the instances, `+0xa0` the time since each
-/// was last checked, `+0xb0` the next to check.
+// +0x78; +0x88; +0xa0; +0xb0
+/// `AchievementManager`: awarded, the instances, the time since each was last checked, the next to
+/// check.
 #[derive(Debug, Clone, Default)]
 pub struct AchievementManager {
     pub awarded: Vec<bool>,
@@ -645,15 +658,10 @@ pub struct AchievementManager {
 }
 
 impl AchievementManager {
-    pub fn new(list: &[Achievement], settings: &crate::settings::Persistence) -> Self {
-        let awarded = list
-            .iter()
-            .map(|a| {
-                let mut v = false;
-                settings.get_bool("Achievement", &a.desc.title, &mut v);
-                v
-            })
-            .collect();
+    /// A manager for `list`; `awarded` says whether the achievement with this title was
+    /// awarded before (the game app reads its settings store).
+    pub fn new(list: &[Achievement], awarded: impl Fn(&str) -> bool) -> Self {
+        let awarded = list.iter().map(|a| awarded(&a.desc.title)).collect();
         AchievementManager {
             awarded,
             instances: list.iter().map(AchievementInstance::new).collect(),
@@ -664,7 +672,7 @@ impl AchievementManager {
 
     /// `AchievementManager::Persist` on load: the saved instances replace the new ones, each
     /// by its achievement's reference.
-    pub fn restore(&mut self, list: &[Achievement], saved: &crate::saves::saved::SavedGame) {
+    pub fn restore(&mut self, list: &[Achievement], saved: &crate::saved::SavedGame) {
         use unbanished_formats::savegame::Value;
         let Some(Value::List(items)) = saved.state.achievements.at("achievements.instances") else {
             return;

@@ -12,7 +12,7 @@
 //! On the map: middle drag to rotate, right click to cancel the tool, wheel to zoom,
 //! WASD/arrows to move, Escape for the pause menu.
 
-mod achievements;
+use unbanished_sim::achievements;
 mod app;
 mod audio;
 mod game;

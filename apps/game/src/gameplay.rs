@@ -30,8 +30,7 @@ use commands::{Outcome, PlayerCommand, Tool};
 use input::DragInput;
 use saving::SaveTarget;
 
-use unbanished_formats::game::climate_generator;
-use unbanished_game::nature::environment::{Climate, Environment, YEAR_SECONDS};
+use unbanished_game::nature::environment::YEAR_SECONDS;
 use unbanished_game::scheduler::ticks;
 use unbanished_ui::{Event, Ui};
 
@@ -111,8 +110,6 @@ pub struct GameplayLoop {
     /// The trading posts whose trade window is open (TradeComponent `+0x71`).
     trade_held: Vec<usize>,
     /// The achievement list and the manager checking it (`Achievement::AchievementManager`).
-    achievements: Vec<crate::achievements::Achievement>,
-    achievement_manager: crate::achievements::AchievementManager,
     /// The tutorial running (`TutorialInstance`) and the RestrictPlayer setup in force (game UI
     /// `+0x80`).
     tutorial: Option<tutorial::Tutorial>,
@@ -302,8 +299,6 @@ impl GameplayLoop {
             cursor_seen: false,
             held: [false; keys::COUNT],
             trade_held: Vec::new(),
-            achievements: Vec::new(),
-            achievement_manager: Default::default(),
             tutorial: None,
             restrict: None,
             goal: None,
@@ -443,14 +438,13 @@ impl GameLoop for GameplayLoop {
             &ctx.settings.keymap,
             ctx.settings.game.autosave_interval,
         );
-        self.achievements = crate::achievements::load(ctx.archive);
-        self.achievement_manager = crate::achievements::AchievementManager::new(
-            &self.achievements,
-            &ctx.settings.persistence,
-        );
-        if let Some(saved) = &self.saved {
-            self.achievement_manager.restore(&self.achievements, saved);
-        }
+        let persistence = &ctx.settings.persistence;
+        self.sim
+            .load_achievements(ctx.archive, self.saved.as_deref(), |title| {
+                let mut v = false;
+                persistence.get_bool("Achievement", title, &mut v);
+                v
+            });
         self.start_scenario(ctx);
         if self.net.is_some() {
             self.open_players_line(ctx.ui);
@@ -606,5 +600,7 @@ fn center_target(town: &StartingTown, entity: Entity) -> glam::Vec2 {
     }
 }
 
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod sim_parity_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests;

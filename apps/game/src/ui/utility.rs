@@ -249,22 +249,7 @@ impl EventLogUi {
 
 /// `FUN_14009a2d0`'s text: `FormatIndexed(events[type], season, year, @2, @3, @4)`.
 pub fn format_event(ui: &mut Ui, e: &unbanished_game::events::EventEntry) -> String {
-    if let Some(text) = &e.text {
-        return text.clone();
-    }
-    let template = ui.res.string_at("Dialog/StringTable.rsc:events", e.kind);
-    let season = ui
-        .res
-        .string_at("Dialog/StringTable.rsc:seasons", e.month as i32);
-    let mut out = template;
-    for (i, v) in [season, e.year.to_string()]
-        .into_iter()
-        .chain(e.args.iter().cloned())
-        .enumerate()
-    {
-        out = out.replace(&format!("@{i}"), &v);
-    }
-    out
+    unbanished_sim::strings::format_event(&mut crate::ui::strings::UiStrings(&mut ui.res), e)
 }
 
 /// Game values shown by the Status Bar (`FUN_14007eda0` reads them from the town, calendar,

@@ -189,19 +189,11 @@ impl GameplayLoop {
             self.refresh_weather(ctx, dt * iterations as f32);
         }
         // FUN_14009b850 runs this phase once after the speed loop, even at speed zero.
-        if let (Some(town), Some(view), true) = (&mut self.sim.town, &mut self.view, runs) {
-            let grid = self
-                .sim
-                .heights
-                .as_ref()
-                .expect("the heights come with the view")
-                .grid();
-            {
-                let _p = crate::platform::perf::scope("smooth");
-                models_changed |= town.smooth(&grid, &mut self.sim.rng);
-            }
+        if runs && self.view.is_some() && self.sim.town.is_some() {
+            models_changed |= self.sim.smooth();
             self.ambience_stale |= models_changed;
-            if models_changed {
+            if let (true, Some(town), Some(view)) = (models_changed, &self.sim.town, &mut self.view)
+            {
                 if let Some(models) = &mut view.models {
                     let _p = crate::platform::perf::scope("refresh_models");
                     self.town_view
@@ -294,8 +286,7 @@ impl GameplayLoop {
                 }
             }
         }
-        self.log_life_events(ctx);
-        self.log_site_events(ctx);
+        self.log_events(ctx);
         // AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage
         // (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets
         // the game speed (`Game +0x120 → +0x34`) back to 1.

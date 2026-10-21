@@ -14,6 +14,7 @@ pub mod save_dialog;
 pub mod save_list;
 pub mod scenario_ui;
 pub mod select_resource_ui;
+pub mod strings;
 pub mod toolbar;
 pub mod town_hall_ui;
 pub mod trade_ui;
