@@ -25,9 +25,9 @@ detailed documents and to the post before it.
 1. **One story per feature.** Each `##` section is one feature a player would name: multiplayer,
    mods, the browser version, speed in large towns, films of your town. Everything about that
    feature goes inside its story, even when it was several pieces of work. Multiplayer's rooms,
-   its lockstep, its desync recovery and its players line are one story, not four.
+   its lockstep, its desync recovery and its players line make one story.
 2. **Few stories.** Three to five, most with a picture or a film. A small feature that has no
-   story of its own goes into the changelog list at the end, not into its own section.
+   story of its own goes into the changelog list at the end.
 3. **High level.** Say what the player can do now and why it matters. Explain how it works only
    as far as a player finds it interesting (for example "the computers send only what the
    players do"). Leave the details to the guide and link to it.
@@ -37,9 +37,10 @@ detailed documents and to the post before it.
    at the end, as one line each, phrased as what works now.
 6. **The author's voice**, as on [tane.dev](https://tane.dev): first person ("I", and "we" for
    the project), prose paragraphs rather than bullet lists, spaced hyphens " - " for asides,
-   British spelling, concrete facts and examples, plain headings. Open on a real case, not a
-   slogan. Avoid AI-ish phrasing: clauses chained with "and the ..." (grep the post for it and
-   rewrite each one), neat lists of three, signposts ("Here is how", "Three things stand out")
+   British spelling, concrete facts and examples, plain headings. Open on a real case. Avoid
+   AI-ish phrasing: clauses chained with "and the ..." (grep the post for it and rewrite each
+   one), a summary clause that reveals its content after a colon, closing contrasts such as
+   "measured, not guessed", neat lists of three, signposts ("Here is how", "Three things stand out")
    and clichés. A playful title is fine.
 7. **The ending:** an optional `## What is next`, a short paragraph, then `## Also in X.Y.Z`, a
    short list of the smaller changes and fixes, each a bold phrase and one sentence. The footer

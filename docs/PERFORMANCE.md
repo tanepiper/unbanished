@@ -391,8 +391,8 @@ What is left:
 
 At normal speed the simulation (`sim.iterate`) takes about 0.9 ms a frame; at the highest speed
 it runs many iterations per frame. The simulation itself must stay single-threaded and in order
-(`Random` order, iteration order). What can move is the work around it: building render lists,
-particles, ambience and UI could run on another thread while the next simulation step runs.
+(`Random` order, iteration order). Building render lists, particles, ambience and UI could run on another thread while the next
+simulation step runs.
 
 - Measure at the highest speed first; do this only if the simulation dominates there.
 - Risk: medium (data shared between threads), none for the rules if the simulation is untouched.

@@ -21,8 +21,8 @@ outline: [2, 2]
 <p class="ub-lead">
 Every town in Banished starts with a few families and a pile of supplies. Some towns grow into
 cities of a thousand people, and that is where the original game starts to struggle. Version
-0.2.0 is about those big towns. They now run twice as fast, and they play exactly the same as
-before: not one save, not one frame of the game has changed.
+0.2.0 is about those big towns. They now run twice as fast. They play exactly the same as before,
+with the same saves and the same frames.
 </p>
 
 ## Big towns, twice as fast

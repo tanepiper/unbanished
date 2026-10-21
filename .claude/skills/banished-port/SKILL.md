@@ -57,7 +57,7 @@ installed by `FUN_14009d0d0`: Toolbar, EventNotify, AutoSave).
 1. Re-read the trace doc; list the functions to port and their addresses.
 2. Implement the smallest end-to-end slice (e.g. toolbar root level visible) before the rest.
 3. Build often: `cargo build --release -p unbanished-app` (and `-p unbanished-ui` etc. for crates).
-4. Verify (`banished-verify`), then document and commit (`banished-land`) — per slice, not at the end.
+4. Verify (`banished-verify`), then document and commit (`banished-land`) after each slice.
 
 ## Pitfalls
 

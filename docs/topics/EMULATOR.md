@@ -64,8 +64,8 @@ There are about 30 such scripts.
 
 Reading decompiled code is not enough for numeric work. Ghidra's pseudocode can hide the float
 precision, the order of operations, truncation and loop bounds, and any of these can change the
-last bit of a result. Running the original removes the guesswork: the port is right when it
-matches, and the first mismatch shows where it is wrong.
+last bit of a result. Running the original settles these questions. The port is right when its
+results match. The first mismatch shows where it is wrong.
 
 ## Read more
 

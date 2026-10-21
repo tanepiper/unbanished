@@ -15,7 +15,7 @@ As multiplayer grows (joining running games, rejoining, servers), every change r
 single-player game.
 
 The user's direction (decided): think of the app as a **core** (Banished 1.0.7, 1:1, always
-works) with **everything else built around it**, not only multiplayer but any extension of
+works) with **everything else built around it**: multiplayer and any other extension of
 the engine; **split the core first**; then a **client/server protocol**
 where a server is first a **coordinator** (no game data) and later an optional **simulating
 authority**; servers run as **one binary / Docker** and **from inside the desktop game**.

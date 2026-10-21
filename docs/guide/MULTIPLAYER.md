@@ -2,8 +2,8 @@
 
 Several players can build one town together. Each player sees the same town and can build, give
 orders, change the speed and pause, and every change happens for everybody. The original
-Banished has no multiplayer: this is a part of Un-Banished that is not in the original game, and
-it never changes a single-player game.
+Banished has no multiplayer. Multiplayer is a part of Un-Banished that is not in the original
+game. It never changes a single-player game.
 
 <video src="../assets/videos/multiplayer.webm" poster="../assets/videos/multiplayer-poster.webp" autoplay loop muted playsinline width="720"></video>
 

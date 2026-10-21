@@ -106,7 +106,7 @@ The game's windows are resources (`Dialog/*.rsc`). To port one:
    is visible". Then add the rest.
 3. Build often: `cargo build --release -p unbanished-app`, or `-p unbanished-ui` for a crate.
 4. Verify ([Verify](VERIFY.md)), then document and commit ([Document and land](LAND.md)), for
-   each slice, not only at the end.
+   each slice.
 
 ## Rules for the browser
 

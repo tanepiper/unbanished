@@ -11,7 +11,7 @@ Rust + wgpu. It runs natively and in the browser (WASM) on the player's own game
 the behaviour, data formats, constants, timings and interface match the original executable,
 down to float rounding where the simulation depends on it. It is not "inspired by".
 
-1:1 applies to what the player can observe, not to how the port is built inside. Where it changes
+1:1 applies to what the player can observe. The port may be built differently inside. Where it changes
 nothing observable (rules, numbers, Random order, saves, visuals), make the port efficient in
 memory, CPU and GPU: share assets instead of copying them per instance, upload each texture
 once, avoid rebuilding unchanged data every frame. The browser build runs in a 4 GB wasm heap, so

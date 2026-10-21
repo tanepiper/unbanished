@@ -97,4 +97,4 @@ git pull --rebase --autostash && git push
 If the rebase has a conflict in files that you did not touch, stop and ask. Do not resolve
 someone else's work.
 
-Commit and push after each piece of work that is complete and verified, not only at the end.
+Commit and push after each piece of work that is complete and verified.

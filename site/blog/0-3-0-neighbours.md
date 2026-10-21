@@ -19,8 +19,8 @@ outline: [2, 2]
 />
 
 <p class="ub-lead">
-Banished was always a quiet game for one: a handful of families, a long winter, and you. In
-Un-Banished 0.3.0 your town can have neighbours. Several players can now build one town together,
+Banished has always been a game for one player. In Un-Banished 0.3.0 your town can have
+neighbours. Several players can now build one town together,
 each on their own computer, or in a browser. And the single-player game is still exactly the
 game it was.
 </p>
@@ -61,12 +61,12 @@ what the players *do*: "place a house here", "two more farmers", "faster". Every
 the whole town itself, and because Un-Banished computes the game exactly, to the last bit, every
 computer arrives at the same town. Even a desktop and a browser do.
 
-If anything ever makes one town differ, the game notices: the players compare a short
-fingerprint of their towns about every ten seconds. If one differs, everybody loads the host's
+The players' games compare a short fingerprint of their towns about every ten seconds, so the
+game notices if the towns ever differ. If one differs, everybody loads the host's
 town and plays on from there, in step again. If a player leaves, the others carry on.
 
 Every player needs their own copy of Banished, the same mods and the same version of
-Un-Banished. The relay that connects the players comes with the game: one player, or a small
+Un-Banished. The relay that connects the players comes with the game. One player, or a small
 server, runs it. The [Multiplayer guide](/guide/multiplayer) explains every step, from running
 the relay to playing over the internet.
 

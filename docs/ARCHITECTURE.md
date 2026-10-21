@@ -96,8 +96,8 @@ check (`apps/game/src/gameplay/sim_parity_tests.rs`).
 
 ## Multiplayer and the server
 
-Multiplayer is lockstep: every computer runs the whole town, and only the players' commands
-travel. A command given at update `u` is carried out at slot `u + delay` on every computer, so all
+Multiplayer is lockstep. Every computer runs the whole town. Only the players' commands
+travel between them. A command given at update `u` is carried out at slot `u + delay` on every computer, so all
 towns stay identical without sending the town itself.
 
 The server (`unbanished-server`) holds no game data unless its operator gives it some.

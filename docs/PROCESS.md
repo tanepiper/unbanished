@@ -69,7 +69,7 @@ REA (Reverse Engineer Anything) is a toolkit that lets an AI agent inspect a fin
 its files, its functions, its strings, and its behaviour while it runs. It also gives a strict
 way of working:
 
-- Study the program that was actually shipped, not a guess about it.
+- Study the program that was actually shipped.
 - Connect every claim to evidence: an address, a value, or an observation.
 - Keep a list of open questions instead of filling gaps with guesses.
 
@@ -161,8 +161,8 @@ pseudocode.
 
 ### 4. Measure: run the original code
 
-Reading code can be wrong. Small details matter: the order of a calculation changes the last digit
-of a decimal number, and in a simulation small errors grow over time. So for any function with
+Reading code can be wrong. The order of a calculation can change the last digit of a decimal
+number. In a simulation, small errors grow over time. So for any function with
 numbers in it, the agent measured the original directly.
 
 For this the project has its own emulator, `tools/emu/pe_emu.py`, built on the
@@ -345,8 +345,8 @@ sessions follow them without being told again.
 - **Every check is automatic and repeatable.** The tests, the emulator and the comparisons run
   without a window, with a fixed seed and a scratch save folder. Their answer is yes or no, so
   the agent can check its own work.
-- **Evidence is written down, not remembered.** Findings go into `docs/` and the shared name
-  files, not into one session's conversation. Any session can continue the work.
+- **Evidence is written down.** Findings go into `docs/` and the shared name files, where
+  every session can read them. Any session can continue the work.
 - **Mechanical changes are checked by the machine.** When code is only moved, the compiler, the
   tests, the determinism check and the version comparison must all agree before a commit.
 - **The human owns the rules.** A session may suggest a rule, but the human approves it. Sessions

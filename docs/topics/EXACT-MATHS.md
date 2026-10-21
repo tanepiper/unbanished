@@ -9,8 +9,8 @@ that is hard, and what the port does about it. The code is in
 Banished's simulation feeds its results back into itself. The map generator adds noise values,
 and the sum decides where a river runs. A citizen compares two distances, and the smaller one
 decides where it walks. If a single float has a different last bit, a comparison can go the
-other way. From then on, the game is different: a different map, a different path, a different
-town after an hour.
+other way. After that the map, the paths and, an hour later, the whole town
+can differ.
 
 So the port does not aim for "the same within a tolerance". It aims for identical bits, and the
 tests compare bits (`f32::to_bits`), not values.
@@ -59,7 +59,7 @@ the port's, and `tools/triage/rngdiff.py` names the first draw that differs. See
 
 ## Sorting
 
-The citizens sort their choices with the C runtime's `qsort`. That sort is not stable: two equal
+The citizens sort their choices with the C runtime's `qsort`. That sort is not stable. Two equal
 items can come out in either order, depending on the algorithm. The order is visible in the
 game, so `behaviour::ai::crt_qsort_by` reproduces the same algorithm (median of three, with an
 insertion sort below 9 items).

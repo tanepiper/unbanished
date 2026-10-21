@@ -7,7 +7,7 @@ the one before it. This document describes the rule and the tools that check it.
 
 A change may make the engine faster, smaller or cleaner. It may not change the game's results:
 the simulation, the random numbers, what a save contains, or what is drawn. "Not change" means
-identical, bit for bit, not "close enough".
+identical, bit for bit.
 
 When a check finds a difference:
 

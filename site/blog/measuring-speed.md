@@ -22,8 +22,7 @@ outline: [2, 2]
 Goldfoothill is in its 83rd year. It has 565 people, 164 wooden houses and 23 iron mines, and
 when I set it running at ten times speed in Chrome, it managed 28 frames a second. A new town of
 twenty settlers runs smoothly in almost anything - big towns at high speed are where a city
-builder is really tested. So I wanted a straight answer to a simple question: does Un-Banished
-draw 60 frames a second?
+builder is really tested. So I wanted to know whether Un-Banished draws 60 frames a second.
 </p>
 
 ## The short answer

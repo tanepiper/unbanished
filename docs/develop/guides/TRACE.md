@@ -1,8 +1,8 @@
 # 1. Trace a behaviour
 
 Tracing means finding the original functions that do something, and understanding them well
-enough to port them. The evidence is static: you read the decompiled pseudocode, the
-disassembly and the program's data. You do not run the program.
+enough to port them. The evidence is static. You read the decompiled pseudocode, the
+disassembly and the program's data, and you do not run the program.
 
 Label every conclusion in one of three ways:
 
@@ -36,7 +36,7 @@ So when you name the original function in a comment or a document, it is marked 
 
 ## Step 1: read a function
 
-Use `tools/triage/decomp.py` to read a function. It is easier to read than the raw export: it
+Use `tools/triage/decomp.py` to read a function. It is easier to read than the raw export. It
 names the calls, the global values (with float constants written out), the virtual function
 tables and the known structure fields.
 

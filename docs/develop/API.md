@@ -14,8 +14,8 @@ The READMEs are short and written by hand. They explain the purpose of a crate, 
 that most callers need, and how to use them, with examples. They do not try to list everything.
 
 The API documentation is complete, because every public item has its doc comment next to it.
-So it is generated, not summarised by hand: a hand-written copy of every public item would go
-out of date after the next change. Each crate's first page in the API documentation is its
+So it is generated from the code. A hand-written copy of every public item would go out of
+date after the next change. Each crate's first page in the API documentation is its
 README (`#![doc = include_str!("../README.md")]`), so the README's examples also run as doc tests
 and stay correct.
 

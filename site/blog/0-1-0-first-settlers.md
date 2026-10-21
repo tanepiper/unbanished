@@ -20,7 +20,7 @@ outline: [2, 2]
 
 <p class="ub-lead">
 A few families arrive in a valley with a cart of supplies, and the winter is coming. That is
-how every game of Banished starts. It is also how this project started: with an empty folder
+how every game of Banished starts. This project also started small, with an empty folder
 and a copy of the finished game. Version 0.1.0 is the first time the whole game runs on its new
 engine, on your computer or in your browser.
 </p>
@@ -66,8 +66,8 @@ in an emulator and comparing every value.
 Then the citizens live their whole lives: they are born, grow up, start families, work, eat, get
 cold, get sick and grow old. They farm fields and orchards, herd animals, hunt, fish, gather,
 build roads and bridges, and trade with the merchants who come up the river. The animals are
-there too, every chicken with its walk. And the seasons turn as they did: the fields go golden,
-the snow comes, and the town waits for spring.
+there too, every chicken with its walk. The seasons turn as they did in the original. The fields
+go golden, then the snow comes.
 
 <div class="ub-shots">
 <Shot
@@ -98,8 +98,8 @@ history. Mods made with the BanishedKit (`.pkm` files) work too, through the Mod
 
 ## Built from evidence
 
-We did not have the source code of Banished. We had the finished program. So every part of
-Un-Banished started with evidence: we read the original's machine code with Ghidra, ran its
+We did not have the source code of Banished. We had the finished program. So for every part
+of Un-Banished we read the original's machine code with Ghidra, ran its
 functions in an emulator to get exact results, and then wrote new code that gives the same
 results. About 1,600 original functions are named in the code next to the new code that
 replaces them. The whole story is in [How it was made](/about/how-it-was-made).
