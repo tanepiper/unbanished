@@ -45,6 +45,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Changed
 
+- The multiplayer relay is now `unbanished-server` (folder `apps/server`). It reads a settings
+  file (`--config FILE`), answers `GET /health` on its port, can cap the open rooms, and comes
+  with a Dockerfile. Its README shows how to put TLS in front of it with Caddy for browser
+  players.
+
 - Multiplayer protocol version 1: a game tells the relay its version, game data and mods first.
   A relay or a host of another version, or with other game data or mods, refuses it and says
   why. Rooms can have a password, and a game can list the open rooms. Update the relay with the

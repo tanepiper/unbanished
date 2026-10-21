@@ -17,7 +17,7 @@ both screens.*
 - **The same version of Un-Banished** on every computer, and **the same mods**, in the same order.
   The game does not check this yet. If the versions or the mods differ, the towns soon differ,
   and the game keeps reloading the host's town (see [When the towns differ](#when-the-towns-differ)).
-- **A relay**: a small program, `unbanished-relay`, that passes messages between the players. One
+- **A relay**: a small program, `unbanished-server`, that passes messages between the players. One
   player, or a server, runs it. See [Run the relay](#run-the-relay).
 - **A save to play.** A multiplayer game starts from one of the host's saves. To start a new
   town, start it in single player, save it, and host that save.
@@ -38,21 +38,21 @@ The relay is part of Un-Banished. Build it in the same folder as the game (see t
 [setup guide](../USER-GUIDE.md#3-download-and-build-un-banished)):
 
 ```bash
-cargo build -p unbanished-relay --release
+cargo build -p unbanished-server --release
 ```
 
-The relay is then `target/release/unbanished-relay` (`target\release\unbanished-relay.exe` on
+The relay is then `target/release/unbanished-server` (`target\release\unbanished-server.exe` on
 Windows). Start it in a terminal:
 
 ```bash
-target/release/unbanished-relay
+target/release/unbanished-server
 ```
 
 It listens on port **7780** on every network interface, and writes a line for each room that
 opens or closes. To use another address or port, give it as the only option:
 
 ```bash
-target/release/unbanished-relay 0.0.0.0:9000
+target/release/unbanished-server 0.0.0.0:9000
 ```
 
 Leave the terminal open while you play. Press Ctrl+C to stop the relay.

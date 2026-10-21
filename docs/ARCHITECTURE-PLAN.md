@@ -30,7 +30,7 @@ editing core code paths. Multiplayer is one extension; the others already exist:
 
 | Extension (today) | Where it lives now | Extension points it needs |
 |---|---|---|
-| Multiplayer (session, network, server) | gameplay/{lockstep,network}.rs, crates/net, apps/relay | command sink, step hook, save/load, digest, menu entry, overlay |
+| Multiplayer (session, network, server) | gameplay/{lockstep,network}.rs, crates/net, apps/server | command sink, step hook, save/load, digest, menu entry, overlay |
 | Recording and replay | gameplay/recording.rs | command sink, step hook, save/load, digest |
 | The probe and test hooks | probe.rs, gameplay/probe.rs, `--probe`, `window.unbanished` | read-only queries, input injection, headless runner |
 | Cinematic camera and video filters | view/cinematic.rs, tools/videos.sh | camera override, headless runner |
@@ -137,7 +137,7 @@ ping) and *game* (`Start`, `Turn`, `Digest`, `Save`, `Join{from_update}`, `Rejoi
 `Leave`). Transports: WebSocket (native thread + browser, as now) and in-memory (tests).
 Before 1.0 there is no compatibility promise; v1 replaces the relay protocol in one cut.
 
-**L4 Server — `unbanished-server`** (grows out of apps/relay).
+**L4 Server — `unbanished-server`** (grows out of apps/server).
 - *Stage 1, coordinator (no game data):* rooms and lobby; keeps the latest save and the turn
   log since it; compares digests itself (majority, ties to the host) and asks a matching player
   for a save to resync; join mid-game and rejoin (send save + turns since); rooms persist on
@@ -165,7 +165,7 @@ tools/refactor (split_impl.py, regroup.py) so code moves without being rewritten
   (`unbanished_game::` → `unbanished_game::`). New crates in later phases use the name from the
   start (`unbanished-sim`, `unbanished-session`, `unbanished-server`, extension crates).
 - Programs: `unbanished` → `unbanished`, `unbanished-mods` → `unbanished-mods`, `unbanished-cli` →
-  `unbanished-cli`, `unbanished-relay` → `unbanished-server` (in D).
+  `unbanished-cli`, `unbanished-server` → `unbanished-server` (in D).
 - Environment variables: `UNBANISHED_*` only, with no fallback to the old names (decided
   2026-10-20: before 1.0 there is no backward-compatible naming); one helper,
   `unbanished_formats::env::var("USER_DIR")`, holds the prefix. `tools/compat` sets both names,
@@ -311,6 +311,11 @@ arbitration, join/rejoin, persistence, config, Dockerfile, docs; the Multiplayer
 "Host on this computer" and rejoin. New suite `tools/compat/server.sh` (long tier): a server
 and three headless players — join, play, one leaves and rejoins mid-game, a scrambled player is
 resynced, the server restarts and the town resumes; all digests agree.
+   - **D1 done**: the relay is `apps/server` (`unbanished-server`): a settings file
+     (`--config`), `GET /health`, `max_rooms`, a Dockerfile (not built here: it downloads the
+     base images) with a `.dockerignore` that keeps game data out, and the README covers TLS
+     through Caddy. Modules: `config`, `health`, `serve`. The compat scripts build the server
+     they start.
 
 **E. Server stage 2.** `--simulate WINDATA`: the server as a headless peer and authority.
 `server.sh --simulate`: same scenario, plus a game that advances with one player and the
@@ -335,7 +340,7 @@ CHANGELOG; AGENTS.md map.
 - apps/game/src/gameplay.rs, gameplay/{simulation,commands,lockstep,network,recording,probe}.rs
 - apps/game/src/start.rs and start/* (models.rs, icons.rs, save/new_game.rs)
 - apps/game/src/view/scene.rs (terrain heights), apps/game/src/saves/saved.rs
-- crates/net/src/{lib,native,web}.rs, apps/relay/src/main.rs
+- crates/net/src/{lib,native,web}.rs, apps/server/src/main.rs
 - tools/test/run.py (dependency check, new suites), tools/compat/*.sh
 
 ## Verification

@@ -1,7 +1,7 @@
 # unbanished-net
 
 Un-Banished multiplayer networking: the protocol between a game and the relay
-([unbanished-relay](../../apps/relay/README.md)), and a WebSocket connection to the relay that works
+([unbanished-server](../../apps/server/README.md)), and a WebSocket connection to the relay that works
 natively and in the browser. The original Banished has no multiplayer; this is the port's own (see
 [MULTIPLAYER-PLAN.md](../../docs/MULTIPLAYER-PLAN.md), step 5).
 

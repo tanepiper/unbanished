@@ -82,7 +82,7 @@ const PAGES = {
   'apps/viewer/README.md': { path: '/reference/viewer', description: 'The asset browser, unbanished-viewer.' },
   'apps/cli/README.md': { path: '/reference/cli', description: 'Command-line tools, unbanished-cli.' },
   'apps/modmanager/README.md': { path: '/reference/modmanager', description: 'The mod manager, unbanished-mods.' },
-  'apps/relay/README.md': { path: '/reference/relay', description: 'The multiplayer relay, unbanished-relay.' },
+  'apps/server/README.md': { path: '/reference/server', description: 'The multiplayer relay, unbanished-server.' },
   'crates/core/README.md': { path: '/reference/core', description: 'unbanished-core: exact maths, Random, noise, game time.' },
   'crates/terrain/README.md': { path: '/reference/terrain', description: 'unbanished-terrain: map generation and ground queries.' },
   'crates/path/README.md': { path: '/reference/path', description: 'unbanished-path: the A* pathfinder and the sector graph.' },

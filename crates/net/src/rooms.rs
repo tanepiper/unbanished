@@ -1,5 +1,5 @@
 //! The relay's rooms, as a state machine with no sockets or threads: a request from a game goes
-//! in, and the messages for each game come out. The relay program (`apps/relay`), the in-memory
+//! in, and the messages for each game come out. The relay program (`apps/server`), the in-memory
 //! transport ([`crate::memory`]) and tests use the same rules.
 
 use std::collections::BTreeMap;
@@ -39,6 +39,8 @@ pub struct Relay {
     games: BTreeMap<Client, Game>,
     /// The state of the room-code generator.
     seed: u64,
+    /// The most rooms open at once; a host beyond it is refused.
+    pub max_rooms: usize,
 }
 
 impl Relay {
@@ -48,7 +50,18 @@ impl Relay {
             rooms: BTreeMap::new(),
             games: BTreeMap::new(),
             seed: seed | 1,
+            max_rooms: usize::MAX,
         }
+    }
+
+    /// How many rooms are open.
+    pub fn room_count(&self) -> usize {
+        self.rooms.len()
+    }
+
+    /// How many games are connected.
+    pub fn game_count(&self) -> usize {
+        self.games.len()
     }
 
     /// A game connected.
@@ -110,6 +123,10 @@ impl Relay {
                     return reply;
                 }
                 let hello = game.hello.clone().expect("said Hello");
+                if self.rooms.len() >= self.max_rooms {
+                    refuse(&mut reply, "the server is full: try again later".into());
+                    return reply;
+                }
                 let room = room.unwrap_or_else(|| self.new_code());
                 if self.rooms.contains_key(&room) {
                     refuse(&mut reply, format!("room {room} is in use"));

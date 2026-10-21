@@ -212,7 +212,7 @@ the new player's turns are wanted, and is left for the network step.
 ### 5. Network (done)
 
 A `Transport` trait with one message stream per player. WebSocket works both natively and in the
-browser, so it is the first transport: a small relay (`apps/relay`, a Rust binary with room
+browser, so it is the first transport: a small relay (`apps/server`, a Rust binary with room
 codes) that the host and players connect out to, so nobody forwards ports. A direct native
 connection (TCP or QUIC) and WebRTC between browsers can follow.
 
@@ -220,7 +220,7 @@ Messages: `Hello` (engine version and build, a hash of the game data and the mod
 match), `Turn { update, commands }`, `Digest { update, crc }`, `Save { update, bytes }` (join and
 resync), and later cursors and pings.
 
-Done. The relay is `apps/relay` (`unbanished-relay [ADDRESS]`, default `0.0.0.0:7780`): rooms with
+Done. The relay is `apps/server` (`unbanished-server [ADDRESS]`, default `0.0.0.0:7780`): rooms with
 six-letter codes, players numbered as they come (the host is 0), news of who comes and goes, and
 data passed on to one player or to all the others without being read. The protocol and a
 connection to it are `crates/net` (`unbanished-net`): one postcard-encoded value per WebSocket binary

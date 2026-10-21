@@ -1,4 +1,4 @@
-//! The Un-Banished multiplayer relay: a WebSocket server with rooms.
+//! The Un-Banished multiplayer server: a WebSocket relay with rooms.
 //!
 //! A game says Hello (its protocol, engine, game data and mods); a host opens a room and gets its
 //! code; players join with the code (and the room's password, if it has one), and a game unlike
@@ -9,62 +9,55 @@
 //! `unbanished-net` (`protocol`, `rooms`).
 //!
 //! ```text
-//! unbanished-relay [ADDRESS]      # default 0.0.0.0:7780
+//! unbanished-server [ADDRESS] [--config FILE]     # default 0.0.0.0:7780
 //! ```
+//!
+//! `GET /health` on the same port answers `ok` with the rooms and games ([`health`]).
 //!
 //! Not in the original game, which has no multiplayer; see docs/MULTIPLAYER-PLAN.md, step 5.
 
-use std::collections::HashMap;
-use std::net::{TcpListener, TcpStream};
+mod config;
+mod health;
+mod serve;
+
+use std::net::TcpListener;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
-use tungstenite::Message;
-use unbanished_net::rooms::{Client, Relay};
-use unbanished_net::{decode, encode, FromRelay, ToRelay};
+use unbanished_net::rooms::Relay;
 
-/// The rooms, and each connected game's outgoing queue.
-struct Shared {
-    relay: Relay,
-    queues: HashMap<Client, Sender<FromRelay>>,
-}
-
-impl Shared {
-    fn deliver(&self, out: Vec<(Client, FromRelay)>) {
-        for (to, message) in out {
-            if let Some(q) = self.queues.get(&to) {
-                let _ = q.send(message);
-            }
-        }
-    }
-}
+use config::Config;
+use serve::Shared;
 
 fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-    let address = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "0.0.0.0:7780".into());
-    let listener = TcpListener::bind(&address).unwrap_or_else(|e| {
-        eprintln!("{address}: {e}");
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let config = Config::from_args(&args).unwrap_or_else(|e| {
+        eprintln!("{e}");
+        std::process::exit(2);
+    });
+    let listener = TcpListener::bind(&config.address).unwrap_or_else(|e| {
+        eprintln!("{}: {e}", config.address);
         std::process::exit(1);
     });
     log::info!(
-        "relay (protocol {}) listening on ws://{address}",
-        unbanished_net::PROTOCOL
+        "server (protocol {}) listening on ws://{}",
+        unbanished_net::PROTOCOL,
+        config.address
     );
-    run(listener);
+    run(listener, &config);
 }
 
 /// Serves every connection to `listener`, each on its own thread.
-fn run(listener: TcpListener) {
+fn run(listener: TcpListener, config: &Config) {
     let seed = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(1, |d| d.as_nanos() as u64);
+    let mut relay = Relay::new(seed);
+    relay.max_rooms = config.max_rooms;
     let shared = Arc::new(Mutex::new(Shared {
-        relay: Relay::new(seed),
-        queues: HashMap::new(),
+        relay,
+        queues: Default::default(),
     }));
     let next = Arc::new(AtomicU64::new(0));
     for stream in listener.incoming() {
@@ -72,85 +65,30 @@ fn run(listener: TcpListener) {
         let shared = shared.clone();
         let client = next.fetch_add(1, Ordering::Relaxed);
         std::thread::spawn(move || {
+            let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(5)));
+            if health::is_check(&stream) {
+                let s = shared.lock().unwrap();
+                let (rooms, games) = (s.relay.room_count(), s.relay.game_count());
+                drop(s);
+                health::answer(stream, rooms, games);
+                return;
+            }
             let peer = stream
                 .peer_addr()
                 .map(|a| a.to_string())
                 .unwrap_or_default();
-            if let Err(e) = serve(stream, client, &shared) {
+            if let Err(e) = serve::serve(stream, client, &shared) {
                 log::info!("{peer}: {e}");
             }
         });
     }
 }
 
-/// One connection: read what the game sends, write what is queued for it.
-fn serve(stream: TcpStream, client: Client, shared: &Mutex<Shared>) -> Result<(), String> {
-    let _ = stream.set_nodelay(true);
-    let mut socket = tungstenite::accept(stream).map_err(|e| e.to_string())?;
-    socket
-        .get_ref()
-        .set_read_timeout(Some(Duration::from_millis(2)))
-        .map_err(|e| e.to_string())?;
-    let (queue, outgoing) = channel::<FromRelay>();
-    {
-        let mut s = shared.lock().unwrap();
-        s.relay.connect(client);
-        s.queues.insert(client, queue);
-    }
-    let result = (|| -> Result<(), String> {
-        loop {
-            drain(&mut socket, &outgoing)?;
-            match socket.read() {
-                Ok(Message::Binary(bytes)) => {
-                    let request = decode::<ToRelay>(&bytes)?;
-                    let mut s = shared.lock().unwrap();
-                    let reply = s.relay.handle(client, request);
-                    s.deliver(reply.out);
-                    drop(s);
-                    if reply.close {
-                        drain(&mut socket, &outgoing)?;
-                        let _ = socket.close(None);
-                        return Ok(());
-                    }
-                }
-                Ok(Message::Close(_)) => return Ok(()),
-                Ok(_) => {}
-                Err(tungstenite::Error::Io(e))
-                    if matches!(
-                        e.kind(),
-                        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
-                    ) => {}
-                Err(e) => return Err(e.to_string()),
-            }
-        }
-    })();
-    // Gone: the others hear of it, and an empty room closes.
-    let mut s = shared.lock().unwrap();
-    let out = s.relay.disconnect(client);
-    s.queues.remove(&client);
-    s.deliver(out);
-    result
-}
-
-fn drain(
-    socket: &mut tungstenite::WebSocket<TcpStream>,
-    outgoing: &Receiver<FromRelay>,
-) -> Result<(), String> {
-    loop {
-        match outgoing.try_recv() {
-            Ok(m) => socket
-                .send(Message::Binary(encode(&m).into()))
-                .map_err(|e| e.to_string())?,
-            Err(TryRecvError::Empty) => return Ok(()),
-            Err(TryRecvError::Disconnected) => return Err("queue closed".into()),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use unbanished_net::Connection;
+    use std::time::Duration;
+    use unbanished_net::{Connection, FromRelay, ToRelay};
 
     /// Waits for the next message on `c`.
     fn next(c: &mut Connection) -> FromRelay {
@@ -175,7 +113,7 @@ mod tests {
     fn a_host_and_two_players_pass_data() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let url = format!("ws://{}", listener.local_addr().unwrap());
-        std::thread::spawn(move || run(listener));
+        std::thread::spawn(move || run(listener, &Config::default()));
         let mut host = greeted(&url);
         host.send(ToRelay::Host {
             room: Some("TESTER".into()),
@@ -250,5 +188,20 @@ mod tests {
                 other => panic!("{other:?}"),
             }
         }
+    }
+
+    #[test]
+    fn a_health_check_answers_ok() {
+        use std::io::{Read, Write};
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        std::thread::spawn(move || run(listener, &Config::default()));
+        let mut s = std::net::TcpStream::connect(address).unwrap();
+        s.write_all(b"GET /health HTTP/1.1\r\nHost: x\r\n\r\n")
+            .unwrap();
+        let mut answer = String::new();
+        s.read_to_string(&mut answer).unwrap();
+        assert!(answer.starts_with("HTTP/1.1 200 OK"), "{answer}");
+        assert!(answer.ends_with("ok rooms=0 games=0\n"), "{answer}");
     }
 }

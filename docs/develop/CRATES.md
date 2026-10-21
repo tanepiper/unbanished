@@ -11,7 +11,7 @@ purpose, how to use it, and examples.
 | [`unbanished-viewer`](../../apps/viewer/README.md) | `unbanished-viewer` | Browses the game's models, animations, textures, sounds and dialogs. |
 | [`unbanished-cli`](../../apps/cli/README.md) | `unbanished-cli` | Command-line tools for the game data: it decodes every sound to MP3, and searches and installs mods from Nexus Mods and banishedinfo.com. |
 | [`unbanished-mods`](../../apps/modmanager/README.md) | `unbanished-modmanager` | The mod manager, a small desktop program: turn mods on and off, set their order, keep mod lists, install from Nexus Mods and banishedinfo.com, and start the game. Not part of the original game. |
-| [`unbanished-relay`](../../apps/relay/README.md) | `unbanished-relay` | The multiplayer relay: a small WebSocket server with rooms, which passes the players' data on. Not part of the original game. See [Multiplayer](../USER-GUIDE.md#multiplayer). |
+| [`unbanished-server`](../../apps/server/README.md) | `unbanished-server` | The multiplayer relay: a small WebSocket server with rooms, which passes the players' data on. Not part of the original game. See [Multiplayer](../USER-GUIDE.md#multiplayer). |
 
 <p align="center">
   <img src="https://tanepiper.github.io/unbanished/assets/screenshots/mod-manager.webp" alt="The mod manager, unbanished-mods, with five mods, three of them on" width="720">
@@ -47,7 +47,7 @@ example, `unbanished_game::random` is the same module as `unbanished_core::rando
 | `unbanished-viewer` | game, formats, ui, gfx, audio, wma |
 | `unbanished-cli` | formats, nexus, banishedinfo |
 | `unbanished-mods` | mods, nexus, banishedinfo |
-| `unbanished-relay` | net |
+| `unbanished-server` | net |
 
 The libraries form layers. A crate uses only crates in the layers below it:
 

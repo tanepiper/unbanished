@@ -179,7 +179,7 @@ export default defineConfig({
             { text: 'unbanished-viewer', link: '/reference/viewer' },
             { text: 'unbanished-cli', link: '/reference/cli' },
             { text: 'unbanished-mods (mod manager)', link: '/reference/modmanager' },
-            { text: 'unbanished-relay (multiplayer)', link: '/reference/relay' },
+            { text: 'unbanished-server (multiplayer)', link: '/reference/server' },
           ],
         },
         {

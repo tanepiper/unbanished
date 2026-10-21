@@ -71,12 +71,12 @@ cargo run -p unbanished-viewer --release               # browse models, textures
 cargo run -p unbanished-cli --release -- export-audio  # decode every sound to MP3 (needs FFmpeg)
 cargo run -p unbanished-cli --release -- nexus search terrain   # mods from Nexus Mods
 cargo run -p unbanished-modmanager --release -- path/to/WinData # the mod manager, unbanished-mods
-cargo run -p unbanished-relay --release                # the multiplayer relay, on 0.0.0.0:7780
+cargo run -p unbanished-server --release                # the multiplayer relay, on 0.0.0.0:7780
 ```
 
 See the READMEs of the [viewer](../../apps/viewer/README.md), the
 [command-line tools](../../apps/cli/README.md), the [mod manager](../../apps/modmanager/README.md)
-and the [relay](../../apps/relay/README.md). The mod manager's **Play** starts `unbanished` from
+and the [relay](../../apps/server/README.md). The mod manager's **Play** starts `unbanished` from
 beside itself (or from the `PATH`), so build both into the same `target/release` folder.
 
 ## The browser versions

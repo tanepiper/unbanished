@@ -519,7 +519,7 @@ pub fn lockstep_test(args: &[String]) {
 }
 
 /// `--net-test RELAY host|join ROOM SAVE RECORDING PLAYERS [DELAY] [CHECK] [CORRUPT]`: one
-/// player of a networked lockstep game through a relay (`unbanished-relay`). The host opens
+/// player of a networked lockstep game through a relay (`unbanished-server`). The host opens
 /// ROOM, waits for PLAYERS, and starts the game from SAVE (joining players get it from the
 /// host and ignore SAVE); each plays its share of RECORDING's commands and prints its
 /// digests. CORRUPT `UPDATE` scrambles this player's game there. tools/compat/network.sh runs

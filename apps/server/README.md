@@ -1,26 +1,78 @@
-# unbanished-relay
+# unbanished-server
 
-The Un-Banished multiplayer relay: a small WebSocket server with rooms. A game first says Hello:
-the protocol version, its engine version, and fingerprints of its game data and mods. A relay of
-another protocol version refuses it with the reason. A host opens a room (with a password if it
-wants) and gets its code; players join with the code. A player whose engine, data or mods differ
-from the host's is refused, and told which. The relay numbers the players in the order they come
-(the host is 0), tells everyone in the room who comes and goes, and passes each player's data on
-to one player or to all the others, without reading it. So nobody forwards a port: the host and
-the players all connect out to the relay. The protocol and the room rules are in
-[unbanished-net](../../crates/net/README.md).
+The Un-Banished multiplayer server. Today it is a relay: a small WebSocket server with rooms. It
+holds no game data and runs no game; the players bring their own copy of Banished. Later it also
+checks the players' games and keeps rooms between sessions
+([ARCHITECTURE-PLAN.md](../../docs/ARCHITECTURE-PLAN.md), phase D).
+
+A game first says Hello: the protocol version, its engine version, and fingerprints of its game
+data and mods. A server of another protocol version refuses it with the reason. A host opens a
+room (with a password if it wants) and gets its code; players join with the code. A player whose
+engine, data or mods differ from the host's is refused, and told which. The server numbers the
+players in the order they come (the host is 0), tells everyone in the room who comes and goes,
+and passes each player's data on to one player or to all the others, without reading it. So
+nobody forwards a port: the host and the players all connect out to the server. The protocol and
+the room rules are in [unbanished-net](../../crates/net/README.md).
+
+## Run it
 
 ```bash
-cargo run --release -p unbanished-relay -- 0.0.0.0:7780     # the default address
+cargo run --release -p unbanished-server                       # listens on 0.0.0.0:7780
+cargo run --release -p unbanished-server -- 127.0.0.1:7780     # only games on this computer
+cargo run --release -p unbanished-server -- --config server.conf
 ```
 
-Each connection has a thread; a room closes when its last player leaves. The relay speaks plain
-`ws://`. A page served over `https://` (the published site) may only open `wss://`, so a public relay
-needs TLS in front of it (a reverse proxy such as Caddy or nginx).
+A settings file has one `key = value` per line; `#` starts a comment. An address on the command
+line replaces the file's.
+
+```text
+address = 0.0.0.0:7780     # where to listen
+max_rooms = 100            # the most rooms open at once (the default)
+```
+
+`GET /health` on the same port is a plain HTTP request that answers `ok rooms=N games=N`. Use it
+for a container's health check or a proxy's.
+
+```bash
+curl http://127.0.0.1:7780/health
+```
+
+## In a container
+
+The image holds only the server. Build it from the repository's root; the `.dockerignore` there
+keeps the game's files, saves and analysis out of the build.
+
+```bash
+docker build -f apps/server/Dockerfile -t unbanished-server .
+docker run -p 7780:7780 unbanished-server
+```
+
+## Players in the browser: TLS
+
+The server speaks plain `ws://`. The desktop game can use that directly. A page served over
+`https://`, like the published Play page, may only open `wss://`. So a server for browser players
+needs TLS in front of it, from a reverse proxy. With [Caddy](https://caddyserver.com), which gets
+a certificate by itself, this `Caddyfile` is enough:
+
+```text
+play.example.org {
+    reverse_proxy 127.0.0.1:7780
+}
+```
+
+Players then enter `wss://play.example.org` as the server in the Multiplayer window.
+
+## The code
 
 | Source | What it holds |
 |---|---|
-| `src/main.rs` | The listener, one thread per connection, each game's outgoing queue, and a test of a host and two players over sockets. The rooms themselves are `unbanished_net::rooms::Relay` |
+| `src/main.rs` | Start-up and the listener, one thread per connection; tests of a host and two players over sockets, and of the health check |
+| `src/serve.rs` | One game's connection: its requests go to the rooms, and the rooms' messages come back |
+| `src/config.rs` | The command line and the settings file |
+| `src/health.rs` | `GET /health` |
+| `Dockerfile` | The container image |
 
-`tools/compat/network.sh` starts a relay and plays several games through it. See
+The rooms themselves are `unbanished_net::rooms::Relay`, a state machine with no sockets that the
+tests also run in one process. `tools/compat/network.sh` and `tools/compat/multiplayer.sh` start
+a server and play several games through it. See
 [MULTIPLAYER-PLAN.md](../../docs/MULTIPLAYER-PLAN.md), step 5.

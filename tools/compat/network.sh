@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # Multiplayer over a real network (docs/MULTIPLAYER-PLAN.md, step 5): start a relay
-# (unbanished-relay) on this computer, record the `actions` scenario, and run several game
+# (unbanished-server) on this computer, record the `actions` scenario, and run several game
 # processes as the players of one room (`unbanished --net-test`). The host starts the game from its
 # save; the others get it over the network. Each plays its share of the recording; their digests
 # must be identical. A second run scrambles player 1's game: the host must find it and resync.
 #
-#   tools/compat/network.sh BINARY [RELAY_BINARY]     # default relay: target/release/unbanished-relay
+#   tools/compat/network.sh BINARY [RELAY_BINARY]     # default relay: target/release/unbanished-server
 #
 # Exit 0 when every run agrees. Results stay in target/compat/network/<binary> on failure.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
 bin="${1:?usage: tools/compat/network.sh BINARY [RELAY_BINARY]}"
-relay="${2:-target/release/unbanished-relay}"
+relay="${2:-target/release/unbanished-server}"
+# The default server is built from this checkout, so it never runs a stale one.
+if [[ -z "${2:-}" ]]; then cargo build -q --offline --release -p unbanished-server; fi
 out="target/compat/network/$(basename "$bin")"
 rm -rf "$out" && mkdir -p "$out/recordings"
 RECORD_DIR="$(cd "$out/recordings" && pwd)" tools/compat/scenarios.sh "$bin" "$out/runs" actions

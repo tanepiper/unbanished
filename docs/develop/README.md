@@ -53,7 +53,7 @@ The full rules are in [AGENTS.md](../../AGENTS.md). These are the most important
 | `apps/viewer` | The asset browser (binary `unbanished-viewer`) |
 | `apps/cli` | Command-line tools (binary `unbanished-cli`) |
 | `apps/modmanager` | The mod manager (binary `unbanished-mods`) |
-| `apps/relay` | The multiplayer relay (binary `unbanished-relay`) |
+| `apps/server` | The multiplayer relay (binary `unbanished-server`) |
 | `crates/core` | Exact maths, the game's random numbers, noise, game time |
 | `crates/terrain` | Map generation, the terrain mesh, ground queries |
 | `crates/path` | The pathfinder and the sector graph |

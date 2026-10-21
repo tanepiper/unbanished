@@ -1,5 +1,5 @@
 [package]
-name = "unbanished-relay"
+name = "unbanished-server"
 version.workspace = true
 description = "The Un-Banished multiplayer relay: rooms with codes, passing the players' messages on"
 edition.workspace = true
@@ -7,7 +7,7 @@ license.workspace = true
 repository.workspace = true
 
 [[bin]]
-name = "unbanished-relay"
+name = "unbanished-server"
 path = "src/main.rs"
 
 [dependencies]

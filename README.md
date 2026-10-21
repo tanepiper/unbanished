@@ -191,7 +191,7 @@ The project is a Rust workspace:
 | [`apps/viewer`](apps/viewer/README.md) | A browser for the game's models, textures, sounds and dialogs |
 | [`apps/cli`](apps/cli/README.md) | Command-line helpers (for example, audio export) |
 | [`apps/modmanager`](apps/modmanager/README.md) | The mod manager (binary `unbanished-mods`) |
-| [`apps/relay`](apps/relay/README.md) | The multiplayer relay (binary `unbanished-relay`) |
+| [`apps/server`](apps/server/README.md) | The multiplayer relay (binary `unbanished-server`) |
 | [`crates/core`](crates/core/README.md) | Exact maths, the game's random numbers, noise and game time |
 | [`crates/terrain`](crates/terrain/README.md), [`crates/path`](crates/path/README.md) | Map generation and path finding, checked against the original |
 | [`crates/game`](crates/game/README.md) | The game rules, checked against the original |

@@ -1,7 +1,7 @@
 //! Un-Banished multiplayer networking: the protocol between a game and the relay, and a WebSocket
 //! connection to the relay that works natively and in the browser.
 //!
-//! The relay (`apps/relay`) keeps rooms. A game says [`Hello`] (the protocol version, its engine,
+//! The relay (`apps/server`) keeps rooms. A game says [`Hello`] (the protocol version, its engine,
 //! fingerprints of its game data and mods), then hosts a room and gets its code, or joins one
 //! with the code. The relay numbers the players in the order they come (the host is 0), refuses
 //! a game that differs from the host with the reason, and passes their data on, to one player or

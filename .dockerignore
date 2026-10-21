@@ -1,0 +1,12 @@
+# Never send the original game's material, saves or analysis to a container build.
+game-data
+analysis
+save-game
+*.sav
+*.pkg
+*.pkm
+target
+site/node_modules
+.venv
+.env
+.claude

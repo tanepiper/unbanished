@@ -26,7 +26,7 @@ crate, `unbanished-sim`, never depends on an extension or on drawing, windows, t
 or the network.
 
 The code is named `unbanished`: crates `unbanished-*`, the programs `unbanished`,
-`unbanished-mods`, `unbanished-cli` and `unbanished-relay`, environment variables `UNBANISHED_*`.
+`unbanished-mods`, `unbanished-cli` and `unbanished-server`, environment variables `UNBANISHED_*`.
 Before 1.0 there is no backward-compatible naming; old names survive only where old builds or
 old data need them (`tools/compat` sets both for builds before the rename). Player-data names
 stay as they are, so nobody loses settings, kept game files or saves: the settings folder and
@@ -104,7 +104,7 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 | `crates/banishedinfo` | Optional banishedinfo.com support (not in the original): its mod list, search and versions, and installs; native only (the site sends no CORS headers) |
 | `crates/nexus` | Optional Nexus Mods support (not in the original): search, download links with the player's API key, `.pkm` install from archives; native transport behind the `native` feature |
 | `crates/session` | The multiplayer and recording session (`unbanished-session`, not in the original): lockstep turns and messages, the links to other players (relay, simulated), digests, recordings; the game loop's glue stays in `apps/game/src/gameplay/` |
-| `crates/net`, `apps/relay` | Multiplayer (not in the original): the relay protocol and a WebSocket connection, native and browser (`unbanished-net`); the relay with room codes (`unbanished-relay`). See `docs/MULTIPLAYER-PLAN.md` |
+| `crates/net`, `apps/server` | Multiplayer (not in the original): the relay protocol and a WebSocket connection, native and browser (`unbanished-net`); the relay with room codes (`unbanished-server`). See `docs/MULTIPLAYER-PLAN.md` |
 | `tools/emu` | Unicorn harness `pe_emu.py` and ground-truth generators for the tests |
 | `tools/ghidra` | Headless export scripts, `readdata.py` (constants), `vtable.py` |
 | `tools/triage` | `deviations.py`, `coverage.py` (uncited functions), `determinism.sh` |

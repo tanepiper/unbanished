@@ -185,7 +185,7 @@ every player's game agrees at the end; it exits with 1 when not.
 ### Network test
 
 `unbanished --net-test RELAY host|join ROOM SAVE RECORDING PLAYERS [DELAY] [CHECK] [CORRUPT]` is one
-player of a game played through a relay (`unbanished-relay`): the host opens ROOM, waits for
+player of a game played through a relay (`unbanished-server`): the host opens ROOM, waits for
 PLAYERS and starts the game from SAVE; the others join ROOM and get the save from the host. Each
 plays its share of RECORDING's commands and prints a digest every 60 updates; CORRUPT `UPDATE`
 scrambles this player's game there. `tools/compat/network.sh BINARY` runs a relay and three players

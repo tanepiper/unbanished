@@ -422,7 +422,7 @@ To return to the default settings, delete this file. To use a different settings
 
 Not in the original game. Several players can build one town together, each with their own copy
 of Banished and the same version of Un-Banished and the same mods. One player runs the relay
-(`cargo build -p unbanished-relay --release`, then `target/release/unbanished-relay`; port 7780).
+(`cargo build -p unbanished-server --release`, then `target/release/unbanished-server`; port 7780).
 Everybody presses **Multiplayer** in the main menu and enters the relay's address. The host
 presses **Host** and gives the room code to the others, who press **Join**. Then the host presses
 **Start** and chooses a save.
@@ -584,7 +584,7 @@ Un-Banished is four programs. To play, you only need the first one, and at most 
 | `unbanished` | The game. With options, it also runs without a window: for screenshots, tests and recordings. |
 | `unbanished-mods` | The [mod manager](#the-mod-manager): turn mods on and off, set their order, then play. |
 | `unbanished-cli` | Mods from Nexus Mods and banishedinfo.com, and the game's sounds as MP3 files. |
-| `unbanished-relay` | The server that connects the players of a [multiplayer](#multiplayer) game. |
+| `unbanished-server` | The server that connects the players of a [multiplayer](#multiplayer) game. |
 
 After `cargo build --release`, the programs are in `target/release/`. The examples below write
 `unbanished`; from the source folder, that is `target/release/unbanished` (on Windows,
@@ -705,12 +705,12 @@ Without `--to`, mods go to `game-data/original/WinData`. See [Mods](#mods) and t
 ### Run a multiplayer relay
 
 ```bash
-unbanished-relay                       # listens on 0.0.0.0:7780, the default
-unbanished-relay 127.0.0.1:7780        # only for games on this computer
+unbanished-server                       # listens on 0.0.0.0:7780, the default
+unbanished-server 127.0.0.1:7780        # only for games on this computer
 ```
 
 [Multiplayer](#multiplayer) explains how players connect to it, and the
-[relay's README](../apps/relay/README.md) how to run it on a server.
+[relay's README](../apps/server/README.md) how to run it on a server.
 
 ### Environment variables
 
