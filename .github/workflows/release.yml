@@ -1,6 +1,6 @@
 # Release a version of Un-Banished. Started by hand (Actions → Release → Run workflow, or
-# `gh workflow run release.yml -f version=0.2.0 -f next=0.3.0`). It checks the version, runs the
-# tests and the browser build, then:
+# `gh workflow run release.yml -f version=0.2.0 -f next=0.3.0`). It checks the version and the
+# changelog (run the Tests workflow first: the release does not run the tests), then:
 #   1. renames the changelog's Unreleased section to [VERSION] - DATE (its notes unchanged), puts a
 #      new empty Unreleased section above it, and commits "Release VERSION";
 #   2. tags that commit vVERSION (annotated);
@@ -9,11 +9,10 @@
 #   5. publishes a GitHub release from the tag, with the changelog section as its notes and a link
 #      to the version's blog post (site/blog/*.md with `version: VERSION`), if there is one;
 #   6. starts the Site workflow, so the website shows the new changelog and version;
-#   7. builds the game, Un-Banished More (`unbanished`, with every stable extension and no
-#      unstable one), on Windows, macOS (Apple silicon and Intel) and Linux, and attaches a zip
-#      for each to the release.
-# With dry_run, it does everything except push and publish, shows the release notes in the
-# run's summary, and keeps the zips as the run's artifacts instead.
+#   7. starts the Binaries workflow, which builds the game for each system from the tag and
+#      attaches a zip for each to the release.
+# With dry_run, it does everything except push and publish, and shows the release notes in the
+# run's summary.
 # The steps that edit files are in tools/release/release.py; AGENTS.md ("Versions") has the rules.
 name: Release
 
@@ -54,28 +53,6 @@ jobs:
       - name: Check the next version
         run: |
           [[ "${{ inputs.next }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "next: not X.Y.Z"; exit 1; }
-
-      - name: Install Rust with the WebAssembly target
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Cache the Rust build
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: release
-
-      # The sound libraries' build scripts need the ALSA headers.
-      - name: Install the ALSA headers
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
-
-      # Tests that need the original game data skip without it (game-data/ is never in the
-      # repository), so this checks everything that can be checked without it.
-      - name: Run the tests
-        run: cargo test --workspace --release --no-fail-fast
-
-      - name: Build the browser version
-        run: RUSTFLAGS="-D warnings" cargo build --release -p unbanished-app --target wasm32-unknown-unknown
 
   release:
     needs: check
@@ -136,79 +113,13 @@ jobs:
             --title "$(cat "$RUNNER_TEMP/title.txt")" \
             --notes-file "$RUNNER_TEMP/notes.md"
 
-      # Pushes made with the workflow's token start no other workflows, so start the site's.
+      # Pushes made with the workflow's token start no other workflows, so start the site's and
+      # the builds of the game (Binaries), which attach a zip for each system to the release.
       - name: Rebuild the website
         if: ${{ !inputs.dry_run }}
         run: gh workflow run site.yml --ref main
 
-  # The game for each system, built from the release's tag (main in a dry run, which has no tag).
-  binaries:
-    needs: release
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: windows-latest, name: windows-x64, exe: unbanished.exe }
-          - { os: macos-15, name: macos-arm64, exe: unbanished }
-          - { os: macos-15-intel, name: macos-x64, exe: unbanished }
-          - { os: ubuntu-latest, name: linux-x64, exe: unbanished }
-    runs-on: ${{ matrix.os }}
-    env:
-      VERSION: ${{ inputs.version }}
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.dry_run && 'main' || format('v{0}', inputs.version) }}
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache the Rust build
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: binaries-${{ matrix.name }}
-
-      # The sound libraries' build scripts need the ALSA headers.
-      - name: Install the ALSA headers
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
-
-      # The default features: Un-Banished More, every stable extension, no unstable one.
-      - name: Build the game
-        shell: bash
-        run: UNBANISHED_BUILD="$(git rev-parse --short=7 HEAD)" cargo build --release --locked -p unbanished-app --bin unbanished
-
-      - name: Make the zip
-        shell: bash
-        run: |
-          dir="unbanished-$VERSION-${{ matrix.name }}"
-          mkdir "$dir"
-          cp "target/release/${{ matrix.exe }}" LICENSE-MIT LICENSE-APACHE "$dir/"
-          {
-            echo "Un-Banished More $VERSION (${{ matrix.name }})"
-            echo
-            echo "A 1:1 reimplementation of Banished 1.0.7. It needs your own copy of Banished:"
-            echo "see https://tanepiper.github.io/unbanished/guide/ to set it up."
-            echo
-            echo "Run '${{ matrix.exe }}' to play Un-Banished More, with every extension."
-            echo "Run '${{ matrix.exe }} --vanilla' to play the original game and its own mods only."
-            echo
-            echo "The program is not signed. On macOS, allow it once with:"
-            echo "  xattr -d com.apple.quarantine ${{ matrix.exe }}"
-            echo "On Windows, SmartScreen may warn: choose More info, then Run anyway."
-          } > "$dir/README.txt"
-          if [[ "$RUNNER_OS" == Windows ]]; then 7z a "$dir.zip" "$dir" >/dev/null; else zip -qr "$dir.zip" "$dir"; fi
-          echo "ZIP=$dir.zip" >> "$GITHUB_ENV"
-
-      - name: Attach the zip to the release
+      - name: Build the game for each system
         if: ${{ !inputs.dry_run }}
-        shell: bash
-        run: gh release upload "v$VERSION" "$ZIP" --clobber
+        run: gh workflow run binaries.yml --ref main -f version="$VERSION"
 
-      - name: Keep the zip with the run
-        if: ${{ inputs.dry_run }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ZIP }}
-          path: ${{ env.ZIP }}

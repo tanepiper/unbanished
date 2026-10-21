@@ -1,0 +1,37 @@
+# Run the workspace's tests and the browser build, without the original game data: tests that
+# need it skip (game-data/ is never in the repository). Start it by hand (Actions → Tests → Run
+# workflow, or `gh workflow run tests.yml`), for example before a release: the Release workflow
+# does not run the tests. tools/test/run.py runs the full suites on a computer with the game.
+name: Tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust with the WebAssembly target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache the Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: tests
+
+      # The sound libraries' build scripts need the ALSA headers.
+      - name: Install the ALSA headers
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+
+      - name: Run the tests
+        run: cargo test --workspace --release --no-fail-fast
+
+      - name: Build the browser version
+        run: RUSTFLAGS="-D warnings" cargo build --release -p unbanished-app --target wasm32-unknown-unknown

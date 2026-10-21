@@ -175,15 +175,17 @@ footer ("Version 1.0.7 - Build 170910") comes from the original's resources and 
   player or contributor would notice.
 - **Releasing `X.Y.Z`:** run the Release workflow (`.github/workflows/release.yml`), only when
   the user asks for the release: `gh workflow run release.yml -f version=X.Y.Z -f next=X.Y+1.0`
-  (add `-f dry_run=true` to check and see the notes without pushing anything). It runs the tests
-  and the browser build, renames `Unreleased` to `[X.Y.Z] - DATE` with its compare link, commits
-  and tags `vX.Y.Z` (annotated), sets the workspace version to the next version in a second
-  commit, pushes, publishes a GitHub release with the changelog section as its notes (and a link
-  to the version's blog post in `site/blog/`), rebuilds the website, and attaches the game
-  (Un-Banished More: default features, no unstable ones) as a zip for Windows, macOS (Apple silicon
-  and Intel) and Linux. Before it, write the
-  Unreleased section's opening line and the blog post (the `banished-blog` skill); `tools/release/release.py` holds the
-  steps, so you can try them on a scratch copy.
+  (add `-f dry_run=true` to check and see the notes without pushing anything). It does not run
+  the tests: run the Tests workflow (`gh workflow run tests.yml`) first if they are wanted. It
+  renames `Unreleased` to `[X.Y.Z] - DATE` with its compare link, commits and tags `vX.Y.Z`
+  (annotated), sets the workspace version to the next version in a second commit, pushes,
+  publishes a GitHub release with the changelog section as its notes (and a link to the
+  version's blog post in `site/blog/`), rebuilds the website, and starts the Binaries workflow.
+  That builds the game (Un-Banished More: default features, no unstable ones) from the tag and
+  attaches a zip for Windows, macOS (Apple silicon and Intel) and Linux; start it by hand
+  (`gh workflow run binaries.yml -f version=X.Y.Z`) to build a release again. Before a release,
+  write the Unreleased section's opening line; `tools/release/release.py` holds the steps, so
+  you can try them on a scratch copy.
 
 ## Before every commit
 
