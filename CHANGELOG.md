@@ -9,10 +9,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
-Rule hooks: mods can change how a town plays, the same way on every computer. Multiplayer gets a
-real server that keeps each room's town, lets players join a running game and can run the town
-itself, and the desktop game can be that server. Also Pure Banished (the original with nothing
-added), a browser version that keeps your game files, and faster loading.
+Rule hooks: mods can change how a town plays, the same way on every computer. Multiplayer now
+has a server: it keeps each room's town, lets players join a game that has started, and can run
+the town itself. The desktop game can be the server. Also Pure Banished (the original game with
+no extensions), a browser version that keeps your game files, and faster loading.
 
 ### Added
 
