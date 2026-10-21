@@ -10,3 +10,10 @@ site/node_modules
 .venv
 .env
 .claude
+# Not needed to build the server: the website, history, docs and their pictures and films.
+.git
+site
+docs
+dist
+.agents
+.github

@@ -347,8 +347,9 @@ resynced, the server restarts and the town resumes; all digests agree.
      (`platform::host_here`). `tools/compat/server.sh` (run.py's `server` suite, long tier):
      three players, a scrambled one resynced, one who leaves, one who joins; the server keeps
      the town, restarts on the same folder, and the host goes on from the kept town with
-     another player; every digest agrees. With that, phase D is done. The Docker image has not
-     been built here (it downloads the base images).
+     another player; every digest agrees. With that, phase D is done. The Docker image was
+     built and checked (143 MB): it runs as `nobody`, answers its health check (`healthy`),
+     keeps rooms in a `/rooms` volume, and a host resumed a kept town after a restart.
 
 **E. Server stage 2.** `--simulate WINDATA`: the server as a headless peer and authority.
 `server.sh --simulate`: same scenario, plus a game that advances with one player and the
