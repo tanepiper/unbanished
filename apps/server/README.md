@@ -46,6 +46,13 @@ for a container's health check or a proxy's.
 curl http://127.0.0.1:7780/health
 ```
 
+## In the desktop game
+
+The server is also a library: the desktop game runs it on a thread to host a game itself
+(`unbanished_server::spawn`). A host who opens a room at `ws://127.0.0.1:PORT` with no server
+running there gets one, listening on every network of the computer. See the
+[multiplayer guide](../../docs/guide/MULTIPLAYER.md).
+
 ## In a container
 
 The image holds only the server. Build it from the repository's root; the `.dockerignore` there
@@ -75,7 +82,8 @@ Players then enter `wss://play.example.org` as the server in the Multiplayer win
 
 | Source | What it holds |
 |---|---|
-| `src/main.rs` | Start-up and the listener, one thread per connection; tests of a host and two players over sockets, and of the health check |
+| `src/lib.rs` | The listener, one thread per connection, and `spawn` (the server on a thread, for the desktop game); tests of a host and two players over sockets, and of the health check |
+| `src/main.rs` | The program: the settings, then `run` |
 | `src/serve.rs` | One game's connection: its requests go to the rooms, and the rooms' messages come back |
 | `src/config.rs` | The command line and the settings file |
 | `src/health.rs` | `GET /health` |

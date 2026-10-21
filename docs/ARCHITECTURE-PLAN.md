@@ -341,6 +341,14 @@ resynced, the server restarts and the town resumes; all digests agree.
      16, become file names. The Multiplayer window, hosting a room with a kept town, goes on
      from it at **Start**. A server restart keeps the towns: the end-to-end check is in
      `server.sh` (D4).
+   - **D4 done**: the server is a library too (`unbanished_server::spawn`). A desktop host who
+     opens a room at `ws://127.0.0.1:PORT` (or `localhost`) with no server there starts one on a
+     thread, listening on every network, and the window shows the address the others enter
+     (`platform::host_here`). `tools/compat/server.sh` (run.py's `server` suite, long tier):
+     three players, a scrambled one resynced, one who leaves, one who joins; the server keeps
+     the town, restarts on the same folder, and the host goes on from the kept town with
+     another player; every digest agrees. With that, phase D is done. The Docker image has not
+     been built here (it downloads the base images).
 
 **E. Server stage 2.** `--simulate WINDATA`: the server as a headless peer and authority.
 `server.sh --simulate`: same scenario, plus a game that advances with one player and the

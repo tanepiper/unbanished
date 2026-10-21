@@ -11,6 +11,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Added
 
+- Multiplayer: the desktop game can be the server. Host with the server address left at
+  `ws://127.0.0.1:7780`, and if no server runs there the game starts one and shows the address
+  the other players enter.
+
 - Multiplayer: a server can keep each room's town between games (its `rooms` setting names the
   folder). The host's game gives it the town every minute; a host who opens the room again later
   goes on from it.

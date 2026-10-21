@@ -32,6 +32,16 @@ The game is exact enough that every computer then has the same town.
 The first player is the **host**. The host chooses the save, and every 10 seconds compares the
 towns of all players. The relay only passes messages on; it does not run the game.
 
+## Host on this computer
+
+The desktop game can be the server itself. In the Multiplayer window, leave the server address
+at `ws://127.0.0.1:7780` (or any `ws://localhost:PORT`) and press **OK** without a room code. If no
+server runs there, the game starts one, open to your network, and the window shows the address
+the other players enter, for example `ws://192.168.1.20:7780`. Your computer's firewall may ask
+whether the game may accept connections: allow it for players on your network. Players on the
+internet need the port forwarded on your router, as below. The browser version cannot be the
+server: it can only join.
+
 ## Run the relay
 
 The relay is part of Un-Banished. Build it in the same folder as the game (see the

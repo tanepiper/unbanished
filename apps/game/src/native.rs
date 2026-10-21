@@ -543,6 +543,13 @@ pub fn net_test(args: &[String]) {
         |i: usize, default: u64| args.get(i).and_then(|s| s.parse().ok()).unwrap_or(default);
     let (delay, check) = (number(7, 6), number(8, 120));
     let corrupt = args.get(9).and_then(|s| s.parse::<u64>().ok());
+    // `--leave-at N`: this player leaves the game at update N. `--resume`: the host goes on
+    // from the room's town kept by the server, if it has one, instead of SAVE.
+    let leave_at = args
+        .windows(2)
+        .find(|w| w[0] == "--leave-at")
+        .and_then(|w| w[1].parse::<u64>().ok());
+    let resume = args.iter().any(|a| a == "--resume");
     let host = role == "host";
     let text = std::fs::read_to_string(recording).expect("read the recording");
     let dir = data_dir(args);
@@ -597,8 +604,12 @@ pub fn net_test(args: &[String]) {
         }
     };
     let mut me = 0u8;
+    let mut kept = None;
     wait("the room", &mut |e| match e {
-        unbanished_net::FromRelay::Hosted { .. } => true,
+        unbanished_net::FromRelay::Hosted { kept: k, .. } => {
+            kept = *k;
+            true
+        }
         unbanished_net::FromRelay::Joined { player, .. } => {
             me = *player;
             true
@@ -619,7 +630,22 @@ pub fn net_test(args: &[String]) {
                 }
                 joined >= players
             });
-            let bytes = std::fs::read(save).map_err(|e| e.to_string())?;
+            let bytes = match kept.filter(|_| resume) {
+                Some(update) => {
+                    link.borrow_mut().request(unbanished_net::ToRelay::Fetch);
+                    let mut town = Vec::new();
+                    wait("the kept town", &mut |e| match e {
+                        unbanished_net::FromRelay::Kept { bytes, .. } => {
+                            town = bytes.clone();
+                            true
+                        }
+                        _ => false,
+                    });
+                    log::info!("resuming the room's town kept at update {update}");
+                    town
+                }
+                None => std::fs::read(save).map_err(|e| e.to_string())?,
+            };
             peer.host_start(ctx, bytes, players, delay)?;
         }
         let mut lines = Vec::new();
@@ -642,6 +668,10 @@ pub fn net_test(args: &[String]) {
                 }
                 continue;
             };
+            if leave_at.is_some_and(|at| update >= at) {
+                log::info!("player {me} leaves at update {update}");
+                break;
+            }
             if corrupt.is_some_and(|at| update >= at) {
                 peer.game.as_mut().unwrap().scramble();
                 corrupt = None;

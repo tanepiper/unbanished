@@ -72,6 +72,8 @@ pub struct MultiplayerDialog {
     early: Vec<(u8, Message)>,
     /// The host: the update of the room's kept town from the last game, if the server has one.
     kept: Option<u64>,
+    /// The address of the server this game started for its room, for the others to enter.
+    here: Option<String>,
     role: Role,
     message: String,
 }
@@ -145,6 +147,7 @@ impl MultiplayerDialog {
             hello: crate::gameplay::network::hello(archive),
             early: Vec::new(),
             kept: None,
+            here: None,
             root,
             code,
             relay,
@@ -224,6 +227,15 @@ impl MultiplayerDialog {
     }
 
     fn connect(&mut self, relay: &str, code: String) {
+        // Hosting at this computer's own address, with no server running there: the game
+        // starts one (desktop only) and says where the others reach it.
+        #[cfg(not(target_arch = "wasm32"))]
+        let here = match crate::platform::host_here::local_port(relay) {
+            Some(port) if code.is_empty() => crate::platform::host_here::start(port),
+            _ => None,
+        };
+        #[cfg(target_arch = "wasm32")]
+        let here: Option<String> = None;
         let mut link = RelayLink::new(
             unbanished_net::Connection::connect(relay),
             self.hello.clone(),
@@ -239,6 +251,7 @@ impl MultiplayerDialog {
                 password: None,
             });
             self.message = format!("Opening a room on {relay}...");
+            self.here = here;
         } else {
             link.request(ToRelay::Join {
                 room: code.clone(),
@@ -270,6 +283,10 @@ impl MultiplayerDialog {
                         ),
                         None => format!("Room {room} is open. Give the code to the players."),
                     };
+                    if let Some(here) = &self.here {
+                        self.message +=
+                            &format!(" This computer is the server: players enter {here}.");
+                    }
                     if let Some(c) = self.code {
                         ui.set_text(c, &room);
                     }

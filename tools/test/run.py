@@ -336,6 +336,8 @@ SUITES = [
     Suite("network", "long", "Game processes through a relay stay identical", compat("network.sh", "Network")),
     Suite("multiplayer", "long", "Host, join, play and leave through the Multiplayer window",
           compat("multiplayer.sh", "Multiplayer")),
+    Suite("server", "long", "The server: a resync, a departure, a new player, a restart that resumes the town",
+          compat("server.sh", "Server")),
 ]
 TIERS = {"quick": ["quick"], "standard": ["quick", "standard"], "long": ["quick", "standard", "long"]}
 

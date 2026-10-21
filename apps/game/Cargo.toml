@@ -25,7 +25,12 @@ mod-sites = ["dep:unbanished-nexus", "dep:unbanished-banishedinfo"]
 replay = []
 # Multiplayer: lockstep games through a relay, the Multiplayer window, and their tests
 # (`--lockstep-test`, `--net-test`, the browser's `?net=`).
-multiplayer = ["replay", "dep:unbanished-net", "unbanished-session/relay"]
+multiplayer = [
+    "replay",
+    "dep:unbanished-net",
+    "dep:unbanished-server",
+    "unbanished-session/relay",
+]
 
 [dependencies]
 unbanished-formats = { path = "../../crates/formats" }
@@ -54,6 +59,7 @@ png = "0.18"
 jiff = { version = "0.2", default-features = false, features = ["std", "tz-system"] }
 unbanished-nexus = { path = "../../crates/nexus", features = ["native"], optional = true }
 unbanished-net = { path = "../../crates/net", features = ["native"], optional = true }
+unbanished-server = { path = "../server", optional = true }
 unbanished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"], optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
