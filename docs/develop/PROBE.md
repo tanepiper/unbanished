@@ -101,7 +101,7 @@ target/release/unbanished --boot-capture /tmp/last.png 42 --capture-size 1280x72
 
 The capture runs as fast as the computer can draw it, not in real time: this example takes
 about two seconds. Times are seconds of capture time, counted from the start; the main menu is
-ready at about 4.5 s, and a new game is running about 10 s after its Ok.
+ready at about 4.5 s. A new game is running about 10 s after its Ok.
 
 `UNBANISHED_USER_DIR` and `UNBANISHED_SETTINGS` keep the run away from your own saves and settings.
 `UNBANISHED_SEED` fixes the game's random numbers, so two runs give the same answers.
@@ -122,10 +122,10 @@ separated by spaces. Each step looks inside what the step before it found.
 The kinds are `button`, `text`, `label`, `image`, `group`, `ribbon`, `border`, `list`,
 `viewport`, and for controls `check`, `slider`, `scroll`, `edit`, `combo`, `spinner`, `tabs`,
 `table`, `container`, `progress` and a few more. Only shown elements count: a hidden element and
-everything inside it are skipped. Dialogs are searched from the top one down, and the matches
-come in tree order. A button's text is the text of the label inside it, so `text:Exit` finds
-both the button and its label; the button comes first, and `click` takes the first usable match,
-so `click text:Exit` presses the button.
+everything inside it are skipped. Dialogs are searched from the top one down. The matches come
+in tree order. A button's text is the text of the label inside it, so `text:Exit` finds
+both the button and its label; the button comes first. `click` takes the first usable match, so
+`click text:Exit` presses the button.
 
 Prefer text over names when you write a test: the names in the original's resources are not
 always what you would guess. The main menu's **Exit** is `buttonQuit`; in the pause menu

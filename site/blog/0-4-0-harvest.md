@@ -97,8 +97,8 @@ The relay is now a server, `unbanished-server`. With it:
   caption="Hosting from the desktop game. The window shows the address the other players enter."
 />
 
-You do not need a separate computer. Host from the desktop game with the default address, and
-the game starts a server itself and shows the address the other players enter. For a server
+You do not need a separate computer. Host from the desktop game with the default address. The
+game starts a server itself and shows the address the other players enter. For a server
 that runs all the time, there is a settings file, a health check and a Dockerfile. The
 [Multiplayer guide](/guide/multiplayer) and the [server's page](/reference/server) have the
 details.

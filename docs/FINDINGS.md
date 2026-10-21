@@ -175,7 +175,7 @@ ARGB colour (default white), id, then border, tooltip-dialog and string-table re
 
 **Fonts** (`Font::Serialize` v2): an int code-point→glyph map and per-glyph `(a, c, b, d)` metrics.
 The pen advances `a` plus the previous glyph's `c`; the glyph is `b` wide and raised by `d`. Glyph
-bitmaps are sprites in the font's sprite sheet, and a sheet's image is a `MaterialInstance` `diffuse`
+bitmaps are sprites in the font's sprite sheet. A sheet's image is a `MaterialInstance` `diffuse`
 texture. The font baseline is `size - descent`, traced from `TextElement::Draw` and
 `Font::ComputeLineLayout`, rather than estimated from glyphs. The original fonts cover code points up
 to 169 (©). A missing middle dot uses a centered period bitmap; other missing characters use a visible

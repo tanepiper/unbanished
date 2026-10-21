@@ -39,9 +39,10 @@ Runtime string address in the current crosswalk.
 
 The `CitizenDescription` row joins type ID `0xe16728ca`, observed in
 `Template/Citizen_citizen.crs`, to the Application string at `0x140168978`, the static type-info
-global `DAT_1401cf190`, and registration function `0x140154650`. Its parent is `Description`; its
-allocating callback is `0x140030ad0`, and its in-place callback is the Ghidra label at
-`0x140030b10`. These are binary identities: the global and callback addresses must be qualified by
+global `DAT_1401cf190`, and registration function `0x140154650`. Its parent is `Description`;
+its allocating callback is `0x140030ad0`. Its in-place callback is the Ghidra label at
+`0x140030b10`. These are binary identities: the global and callback addresses must be qualified
+by
 the Application image hash recorded in the entity lifecycle trace.
 
 The serialized ID identifies the external resource class. A `BaseTypeInfo` global is a static

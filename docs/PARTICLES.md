@@ -65,8 +65,8 @@ The game ships six systems:
 8. **Cone azimuth.**
 
 The velocity is `(−cos e · sin a, cos e · cos a, sin e) × speed`. `Transform::FromDirection`
-leaves it as is for the shipped `+Y` direction. The colour starts at the start colour, and the
-alpha starts at 0.
+leaves it as is for the shipped `+Y` direction. The colour starts at the start colour. The alpha
+starts at 0.
 
 **Each particle per update.** All the changes go by the frame time squared, as in the original:
 - `v = (v + force × amount × scale × dt²) × kept`, then the position moves by `v·dt`;

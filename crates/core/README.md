@@ -21,7 +21,7 @@ are the same module.
 
 Banished's simulation depends on float rounding. For example, the map generator adds noise
 values and the result decides where a river runs. Rust's `f32::sin` and the C runtime's `sinf`
-can differ in the last bit, and that is enough to change a map. So simulation code in
+can differ in the last bit. That is enough to change a map. So simulation code in
 Un-Banished uses `crt` and `math`, never Rust's own float functions.
 
 ## Use it

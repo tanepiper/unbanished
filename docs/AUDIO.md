@@ -45,9 +45,9 @@ The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e
   and variants; each variant has a buffer, a pitch range in semitones and a volume. The max
   length is 0 when a buffer loops. All 46 shipped effects parse.
 - **2D effects:** 256 slots (`0x70` bytes). Each update, every sound whose start falls in
-  `[previous elapsed, elapsed + dt)` starts once. Its variant is `Rand() % n`, its pitch is
-  `min + (max - min) · Rand() · 2^-32`, and its volume is
-  `variant × effect volume (set by 3D) × type volume`. Running sounds follow volume changes.
+  `[previous elapsed, elapsed + dt)` starts once. Its variant is `Rand() % n`, its pitch is `min
+  + (max - min) · Rand() · 2^-32`. Its volume is `variant × effect volume (set by 3D) × type
+  volume`. Running sounds follow volume changes.
   When every sound has ended (the Device's end callback), the effect frees itself and the 3D
   effect it served.
 - **Sound types** (the `Configuration` volumes; type 0 never plays):

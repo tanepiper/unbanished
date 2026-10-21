@@ -28,8 +28,8 @@ ticks, matching the calendar object at Game `+0x128`; it no longer accumulates r
 5. After the iterations, the bit-0x10 follow-up pass, camera work and UI/audio work.
 
 The previous Rust driver ran calendar/environment before entities. It now follows the original
-order: natural resources see the previous environment temperature, and their RNG draws precede
-that iteration's weather draws. Toolbar pause yields zero iterations but still allows follow-up
+order: natural resources see the previous environment temperature. Their RNG draws precede that
+iteration's weather draws. Toolbar pause yields zero iterations but still allows follow-up
 smoothing. Original modal UI pause skips both simulation and follow-up; gameplay pause dialogs
 and their modal controller wiring are still unported.
 

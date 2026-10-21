@@ -74,7 +74,7 @@ are `DateTime::AsString` (`0x1800c7d40`): the local date and time joined with a 
 - **Saving** (`FUN_14005e820`): the save runs unless the pause menu is open, the game is a tutorial (flag bit 10), or a save
   is already running. It writes `Auto.sav` and names it with `globalNames:Autosave` ("Auto Save").
   The operation takes at least 1 s.
-- **Spinner:** `savingImage` turns at 90° a second, and it and `animatedImage` show while any save runs.
+- **Spinner:** `savingImage` turns at 90° a second. It and `animatedImage` show while any save runs.
 
 The Save dialog leaves the autosave out; the Load dialog lists it.
 

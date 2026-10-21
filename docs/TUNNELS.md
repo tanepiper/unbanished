@@ -24,8 +24,8 @@ pieces (type 11, stamped when the ClearArea is done) are walkable.
 
 Its ClearAreaDescription (`Template\Tunnel_cleararea`) sets the instant flag (`+0x2d`). When
 clearing starts (`FUN_14011ce30`), `FUN_14011d230` removes every other entity on the span's
-cells at once (`FUN_1400c8370`). So trees and rocks in a tunnel's path vanish without a
-clearing work, and its supply starts on the first update. Mods can set the flag on any
+cells at once (`FUN_1400c8370`). So trees and rocks in a tunnel's path vanish without a clearing
+work. Its supply starts on the first update. Mods can set the flag on any
 building.
 
 ## TerraformComponent

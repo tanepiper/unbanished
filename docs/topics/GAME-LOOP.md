@@ -38,7 +38,7 @@ emulator:
 2. After the iterations: the follow-up pass (for example, the smooth growth of trees), the
    camera, the interface and the sound.
 
-The order matters. For example, trees see the temperature of the previous iteration, and their
+The order matters. For example, trees see the temperature of the previous iteration. Their
 random draws come before that iteration's weather draws.
 
 ## Game speed and pause
@@ -67,8 +67,8 @@ this.
 
 ## Time
 
-The engine counts time in integer microseconds. A year is 3,600 seconds of game time at speed 1,
-and it has twelve months. [Exact maths and random numbers](EXACT-MATHS.md#game-time) explains the
+The engine counts time in integer microseconds. A year is 3,600 seconds of game time at speed 1.
+It has twelve months. [Exact maths and random numbers](EXACT-MATHS.md#game-time) explains the
 conversions.
 
 ## Headless runs

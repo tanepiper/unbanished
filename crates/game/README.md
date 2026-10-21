@@ -6,7 +6,7 @@ function names the original function it came from, keeps the original's order of
 its float precision, and draws random numbers in the same order. Tests compare the results with
 output from the original functions in the emulator, and with real save files.
 
-The crate has no graphics, windows or sound, and it is deterministic: the same inputs and the
+The crate has no graphics, windows or sound. It is deterministic: the same inputs and the
 same seed always give the same results. The game program (`apps/game`) owns the town's state
 and calls these rules every simulation step.
 

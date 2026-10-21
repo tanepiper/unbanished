@@ -256,9 +256,9 @@ selected recipe has a nonempty resource array, also inserts a
 in `0x1400c4440`. The action collection is stack-like: append helper
 `0x1400ca9b0` increments its current entry index and stores at that index;
 update helper `0x1400ca120` starts from the current index and decrements it when
-an entry completes. Consequently, among those entries the most recently
-appended action is processed first, and an earlier entry can resume after newer
-entries are popped. This is a LIFO scheduling fact; it does not by itself
+an entry completes. Consequently, among those entries the most recently appended action is
+processed first. An earlier entry can resume after newer entries are popped. This is a LIFO
+scheduling fact; it does not by itself
 establish the full order of callbacks inside each action chain.
 
 `0x1400ca120` also exposes the raw action status handling. It marks each action

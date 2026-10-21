@@ -46,7 +46,7 @@ citizen does not try the same failed thing again at once.
 New citizens have no tool and no coat. So the first choices of an adult are: fetch a tool, fetch
 a coat, work, and wander.
 
-The shuffle uses the shared game random numbers, and the sort is the C runtime's unstable
+The shuffle uses the shared game random numbers. The sort is the C runtime's unstable
 `qsort`. Both are reproduced exactly, because the order decides which citizen does what (see
 [Exact maths and random numbers](EXACT-MATHS.md)).
 
@@ -86,8 +86,8 @@ distance. These distances are cached for 120 seconds of game time.
 ## Lives
 
 Citizens are born, grow up, go to school, work, form households, have children, grow old and
-die. They need food of several kinds, firewood and clothing, and their health and happiness
-depend on them. These rules are in `crates/game/src/people/`; see
+die. They need food of several kinds, firewood and clothing. Their health and happiness depend
+on them. These rules are in `crates/game/src/people/`; see
 [CITIZEN-LIFE.md](../CITIZEN-LIFE.md) and
 [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](../CITIZEN-NEEDS-AND-HOUSEHOLDS.md).
 

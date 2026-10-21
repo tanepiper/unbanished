@@ -32,8 +32,8 @@ vendor's plan. Cancel (`FUN_1400f7170`) clears every vendor's stack. Refresh
    - what the market holds;
    - what is on its way (the plans);
    - what the town's ordinary storages hold, except workshops' (ConsumeProduce).
-4. **Category values.** The fill is `(held + on its way) / room`, and the ratio is that over
-   the share. The room left is `room × share − held − on its way`.
+4. **Category values.** The fill is `(held + on its way) / room`. The ratio is that over the
+   share. The room left is `room × share − held − on its way`.
 5. **Too much.** For each category holding more than twice its share, in order: the
    market's goods of it above 1.25 times the share. As much as the vendor carries goes to a
    storage that takes it (`FUN_140092a60`, depositing, not the market), from a random use

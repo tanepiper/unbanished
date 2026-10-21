@@ -31,7 +31,7 @@ A package (`.pkg`) is an archive of entries. Its table of contents and its entri
 
 When two packages have an entry with the same name, the package with the higher priority wins.
 Mods (`.pkm` files, made with the BanishedKit) use the same format. The Mods menu decides their
-order, and a mod can replace only the entries that the game allows it to replace.
+order. A mod can replace only the entries that the game allows it to replace.
 
 In Un-Banished: `unbanished_formats::pkg::Archive`. See
 [unbanished-formats](../../crates/formats/README.md) and [MODS.md](../MODS.md).

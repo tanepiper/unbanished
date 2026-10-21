@@ -83,8 +83,8 @@ The keys follow the engine's letter codes: A = `0x17` up to Z = `0x30`, so `0x28
 - **Size:** `CreatePlacedDescription +0x44 × +0x48`. Rotation 1 or 3 swaps the sides.
 - **Centring:** an odd side spans `c − (s−1)/2 .. c + (s−1)/2`; an even side spans
   `c − s/2 + 1 .. c + s/2`.
-- **Map edges:** a footprint outside the map is rejected, and the left column must be at least 1.
-- **Yaw:** rotation × 90 (`DAT_140178904`).
+- **Map edges:** a footprint outside the map is rejected. The left column must be at least 1. -
+  **Yaw:** rotation × 90 (`DAT_140178904`).
 - **Position:** the midpoint of the ground at the two corner cells, using the cell positions
   without the half-cell offset. Its z is forced to 0.
 

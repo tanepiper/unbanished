@@ -60,8 +60,8 @@ None of this was added for the check; it follows from how the port is built.
 - **One thread.** The simulation, the pathfinder included, runs on one thread on every platform.
 - **Exact maths.** Simulation code uses the port's own `crt` (`sinf`, `cosf`, `acosf`,
   `atan2f`) and `math` functions, which give the original's bits, instead of the platform's
-  maths library. Rust does not fuse multiply and add on its own, and WebAssembly's `f32` and
-  `f64` operations are IEEE 754 with the same rounding as native code.
+  maths library. Rust does not fuse multiply and add on its own. WebAssembly's `f32` and `f64`
+  operations are IEEE 754 with the same rounding as native code.
 - **Ordered data.** Entities are indices, and the simulation's maps are ordered (`BTreeMap`), so
   iteration order never depends on memory addresses or hash seeds.
 - **Its own random numbers.** The simulation draws from the game's `Random`, whose state is in

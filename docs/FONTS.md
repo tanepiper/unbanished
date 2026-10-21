@@ -61,8 +61,8 @@ An actual glyph from a supplied font always takes precedence. For missing glyphs
 `TextLayout::missing_characters` reports the distinct absent input characters and
 debug logging reports substitutions. A font with neither a direct glyph nor a
 replacement cannot draw that character, but it is still recorded in this list.
-This does not add full Unicode coverage: arbitrary scripts remain represented by
-replacement glyphs, and the synthesized middle dot is an approximation.
+This does not add full Unicode coverage: arbitrary scripts remain represented by replacement
+glyphs. The synthesized middle dot is an approximation.
 
 The focused tests cover serialized baseline/descent, multiline spacing, middle
 dot placement, direct Unicode glyph precedence, replacement width and wrapping,

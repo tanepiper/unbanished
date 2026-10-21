@@ -137,8 +137,8 @@ needs an API key (`NexusApiKey` in the settings, or `UNBANISHED_NEXUS_API_KEY` n
 without one Subscribe opens the mod's page and says so:
 
 - Searches use the public GraphQL API (no key); 50 results a page (*assumed* to match a Steam
-  UGC page). Most Popular sorts by downloads, Most Recent by update time, and Subscribed lists
-  the mods installed from Nexus Mods, recorded as `NexusMod_<file>=<mod id>` in the settings.
+  UGC page). Most Popular sorts by downloads, Most Recent by update time. Subscribed lists the
+  mods installed from Nexus Mods, recorded as `NexusMod_<file>=<mod id>` in the settings.
 - Subscribe gets the mod's newest main file. A Premium account gets a download link at once.
   Other accounts get the mod's files page in the browser; the page's "Mod Manager Download"
   gives an `nxm://` link, and a link pasted into `textSearch` installs that file.
@@ -152,8 +152,9 @@ The second tab (native builds) shows [banishedinfo.com](https://banishedinfo.com
 through `crates/banishedinfo` (also a deviation). The site has no API: the client uses the JSON list its browse page loads
 (`/mods/ajax?action=mods&start&count&section&sort`), the results its search page carries
 (`var mods = […]`), and the version links of a mod's page (`/mods/download/<id>-<name>/<n>`, whose
-`/mods/file/…` redirects to the file). Most Popular is the most downloaded, Most Recent the newest,
-and Subscribed lists the mods installed from it (`BanishedInfoMod_<file>=<id>`). It sends no CORS
+`/mods/file/…` redirects to the file). Most Popular is the most downloaded, Most Recent the
+newest. Subscribed lists the mods installed from it (`BanishedInfoMod_<file>=<id>`). It sends no
+CORS
 headers, so the browser build cannot use it. Previews (PNG, JPEG or WebP, whatever the file's name) are
 decoded by `unbanished_mods::preview`, on native builds.
 

@@ -3,8 +3,8 @@
 Banished ships its interface as data. Every window, button, list and tooltip is a resource in
 the `Dialog` folder of the packages, drawn with the game's own sprite sheets and fonts.
 Un-Banished does not draw its own copy of these windows. It loads the same resources and lays
-them out as the original engine does. The code is in [unbanished-ui](../../crates/ui/README.md),
-and the windows' behaviour is in `apps/game/src/ui/`.
+them out as the original engine does. The code is in [unbanished-ui](../../crates/ui/README.md).
+The windows' behaviour is in `apps/game/src/ui/`.
 
 <p align="center">
   <img src="../assets/screenshots/viewer-dialogs.webp" alt="The main menu dialog, drawn by the viewer" width="720">
@@ -18,7 +18,7 @@ spinners, scroll bars, progress bars, graphs, edit boxes, and documents with mar
 has a name (for example `buttonNew`), margins, a minimum size, an alignment, and a reference to
 its sprites or its font.
 
-A dialog can replace parts of itself with other resources by name (*substitutions*), and it can
+A dialog can replace parts of itself with other resources by name (*substitutions*). It can
 attach *controllers* to elements. A controller is game code: for example, the code that fills
 the Town Hall's tables. The resource only says which controller goes where.
 
@@ -40,7 +40,7 @@ pictures.
 The interface draws as a list of textured quads, in order, each with an optional clip rectangle.
 `unbanished-gfx` draws them with wgpu in one pipeline. The pointer and the keyboard go through the
 element tree: the element under the pointer is *hot*, a pressed button sends a click when it is
-released, and an edit box takes the keyboard focus.
+released. An edit box takes the keyboard focus.
 
 ## How the game uses it
 

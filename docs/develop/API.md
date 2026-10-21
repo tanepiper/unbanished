@@ -6,7 +6,8 @@ The libraries of Un-Banished are documented in two ways:
   functions, and gives examples. Start there. [Apps and crates](CRATES.md) links to every README.
 - **The Rust API documentation.** `cargo doc` generates it from the doc comments in the source
   code. It lists every public module, type and function. The website publishes it at
-  [/api/](https://tanepiper.github.io/unbanished/api/index.html), and it is rebuilt after each push to `main`.
+  [/api/](https://tanepiper.github.io/unbanished/api/index.html). It is rebuilt after each push
+  to `main`.
 
 ## Why both
 

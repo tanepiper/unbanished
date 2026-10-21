@@ -34,8 +34,8 @@ something goes wrong. To learn what the project is, read the [README](../README.
 
 ### Getting the game files
 
-Banished was released only for Windows. But Un-Banished needs only the game's data files, and
-these files work on any system.
+Banished was released only for Windows. But Un-Banished needs only the game's data files. These
+files work on any system.
 
 - **On Windows**, install the game from Steam or GOG in the normal way. Then go to
   [step 2](#2-download-it-or-install-the-build-tools).
@@ -233,7 +233,7 @@ target/release/unbanished ~/.steam/steam/steamapps/common/Banished/WinData
 
 **B. Put it next to the game.** Copy `unbanished.exe` (or `unbanished`) into your Banished folder,
 next to `WinData`. Start it from there, or make a desktop shortcut to it. It then works like the
-original program. It finds `WinData` in the same folder, and it uses the same save folder as the
+original program. It finds `WinData` in the same folder. It uses the same save folder as the
 original.
 
 **C. Start it from the source folder.** This way is for contributors. Copy your game data into
@@ -300,7 +300,7 @@ tools/dev-web.sh --app game --release
 2. The loading screen appears. Press **Choose files**. Select
    **all four** `.pkg` files from `WinData` at the same time: `data0.pkg`, `data1.pkg`,
    `patch0.pkg` and `patch1.pkg`. To select several files, hold Ctrl (Cmd on a Mac).
-3. Click the game once. Then the game receives your keyboard input, and it can play sound.
+3. Click the game once. Then the game receives your keyboard input. It can play sound.
 
 **Next time.** The game keeps the four game files in this browser, so you choose them only
 once (uncheck **Keep them in this browser** if you do not want that). When you open the game
@@ -458,8 +458,8 @@ Also as in the original, you cannot earn achievements while mods are turned on.
 A rule hook is a small program from a mod that changes how the town plays: for example, a
 festival every autumn. Banished 1.0.7 has nothing like it. Put rule hooks (`.wasm` files) in the
 `Hooks` folder beside your saves (`Documents/Banished/Hooks`); every town you start or load uses
-them, and its saves list them. In multiplayer every player needs the same `Hooks` folder. A vanilla run
-(`--vanilla`) never loads them, and the browser version does not load them yet. To write
+them. Its saves list them. In multiplayer every player needs the same `Hooks` folder. A vanilla
+run (`--vanilla`) never loads them. The browser version does not load them yet. To write
 one, read [Writing a rule hook](guide/WRITING-RULE-HOOKS.md).
 
 ### The mod manager
@@ -670,7 +670,7 @@ and [Recording videos](develop/VIDEOS.md) makes films from these runs.
 ### Ask the game questions: the probe
 
 `--probe "COMMAND@T"` asks the running game a question at time `T`, or presses a button, and
-writes the answer as JSON. It finds buttons by their text, and it can count the town's people,
+writes the answer as JSON. It finds buttons by their text. It can count the town's people,
 buildings and animals. [The probe](develop/PROBE.md) describes every command.
 
 ```bash
@@ -761,7 +761,7 @@ The version is also on the first line of the log, at the foot of the browser's l
 in the browser's console, and at the bottom of every page of the website.
 
 The main menu shows "Version 1.0.7 - Build 170910". That is the version of Banished, from the
-game data, and it never changes. When you report a problem, give both.
+game data. It never changes. When you report a problem, give both.
 
 ## Troubleshooting
 

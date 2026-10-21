@@ -29,8 +29,8 @@ storage.
 
 ## The first year
 
-Your citizens are not controlled one by one. You choose what to build and which jobs to
-fill, and the citizens do the work. They need food, firewood, a home, clothing and tools. Winter
+Your citizens are not controlled one by one. You choose what to build and which jobs to fill.
+The citizens do the work. They need food, firewood, a home, clothing and tools. Winter
 is the dangerous time: citizens who are cold or hungry become ill and can die.
 
 A common order for the first buildings:
@@ -57,7 +57,7 @@ citizens do each job.
 ## Citizens at work
 
 Citizens walk between their homes, their work places, the storage and the market. They carry
-what they make to storage, and they take food, firewood and clothing home.
+what they make to storage. They take food, firewood and clothing home.
 
 <video src="../assets/videos/citizens-market.webm" poster="../assets/videos/citizens-market-poster.webp" autoplay loop muted playsinline width="720"></video>
 

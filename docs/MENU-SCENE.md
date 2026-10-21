@@ -13,8 +13,8 @@ while the next loads on a background thread:
 
 1. A `LoaderLoop` named "Game/Global" (`FUN_14009f280`). It loads the New Game lists and UI sounds.
 2. A `DialogLoaderLoopT("Dialog/ShiningRock.rsc")`, the splash, shown for at least 2.0 s.
-3. A `DialogLoaderLoopT("Dialog/Loading.rsc")`, shown for at least 0.5 s. It has a spinner, and
-   every 2 s `descText` shows `StringTable:loadingDetails[Rand(count - 1) + 1]`.
+3. A `DialogLoaderLoopT("Dialog/Loading.rsc")`, shown for at least 0.5 s. It has a spinner.
+   Every 2 s `descText` shows `StringTable:loadingDetails[Rand(count - 1) + 1]`.
 4. The menu loop (vtable `0x140165120`, resource group "Game/Menu").
 
 The splash and loading loops fade in from black when they start (`FUN_14009e470`). Once loading

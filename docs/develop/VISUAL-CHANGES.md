@@ -93,13 +93,12 @@ scenario. `tools/screenshots.sh --visual-change a94ca1d c128977` makes them agai
 
 *The old build against the new. Red marks every changed pixel: only the grey rocks (top and
 right) and the iron ore piles (left of the houses). Buildings, trees, terrain, water and the
-interface did not change. `mismatch_pct` 0.275, `max_delta` 80, and the game state is
-identical.*
+interface did not change. `mismatch_pct` 0.275, `max_delta` 80. The game state is identical.*
 
 Open the heat map and check every red area against your prediction. Each one must sit on an
 object you predicted. A red area anywhere else (a building, the terrain, the interface) is a bug
 or a missed prediction; find out which before you continue. Also make a heat map of `base-1`
-against `base-2`. It must have no red at all, and it shows the reader that the comparison is
+against `base-2`. It must have no red at all. It shows the reader that the comparison is
 repeatable.
 
 <p align="center">

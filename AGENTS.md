@@ -32,8 +32,8 @@ The code is named `unbanished`: crates `unbanished-*`, the programs `unbanished`
 Before 1.0 there is no backward-compatible naming; old names survive only where old builds or
 old data need them (`tools/compat` sets both for builds before the rename). Player-data names
 stay as they are, so nobody loses settings, kept game files or saves: the settings folder and
-the browser's storage are
-`banished-wasm`, and the save folder is the original's. The product name is **Un-Banished**.
+the browser's storage are `banished-wasm`. The save folder is the original's. The product name
+is **Un-Banished**.
 
 ## Non-negotiable rules
 

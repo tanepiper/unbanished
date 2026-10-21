@@ -6,9 +6,9 @@ that is hard, and what the port does about it. The code is in
 
 ## Why "close" is not enough
 
-Banished's simulation feeds its results back into itself. The map generator adds noise values,
-and the sum decides where a river runs. A citizen compares two distances, and the smaller one
-decides where it walks. If a single float has a different last bit, a comparison can go the
+Banished's simulation feeds its results back into itself. The map generator adds noise values.
+The sum decides where a river runs. A citizen compares two distances. The smaller one decides
+where it walks. If a single float has a different last bit, a comparison can go the
 other way. After that the map, the paths and, an hour later, the whole town
 can differ.
 

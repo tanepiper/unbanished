@@ -1,7 +1,7 @@
 # Recording videos
 
 Un-Banished can record short videos of itself without a window. Nobody needs to sit at the
-screen, and an AI agent can do it in the same way as a person. The videos in this documentation
+screen. An AI agent can do it in the same way as a person. The videos in this documentation
 were made like this, by `tools/videos.sh`.
 
 The method needs no special video code. It uses two features that already exist:
@@ -218,8 +218,8 @@ and scaled down. In `tools/videos.sh` this is the `HQ` list:
 ```
 
 That is 4× antialiasing, 16× anisotropic filtering, 2048 × 2048 shadow maps, high shadow quality
-and reflections of everything. A 1920 × 1080 frame takes about three times as long as a
-1280 × 720 one, and each BMP is 6 MB, so 300 frames need about 2 GB of scratch space.
+and reflections of everything. A 1920 × 1080 frame takes about three times as long as a 1280 ×
+720 one. Each BMP is 6 MB, so 300 frames need about 2 GB of scratch space.
 
 `FILTER` changes the colours of every video that `tools/videos.sh` makes, in FFmpeg after the
 game: `sepia`, `grey` or `psychedelic` (the hues turn through the colour wheel). The file name
@@ -247,7 +247,7 @@ ls /tmp/video/user/Screenshots | wc -l       # must be 240
 `screenshot` saves the frame without the interface; `screenshot ui` keeps it.
 
 **Draw every frame from before the camera moves.** A headless run draws a frame only when
-something asks for one, and the camera's smooth movement depends on the frames that are drawn.
+something asks for one. The camera's smooth movement depends on the frames that are drawn.
 If nothing is drawn for some seconds, the camera jumps when drawing starts again, then moves
 slowly to its place. So start the screenshots at the first click or wheel event, and drop the
 early frames when you encode.
@@ -286,8 +286,8 @@ chips with an AV1 decoder (M3, A17 Pro and later). VideoToolbox, the Mac's hardw
 makes H.264, HEVC and ProRes, not WebM.
 
 When you measure VMAF yourself, number the frames again on both sides
-(`settb=1/30,setpts=N`): WebM stores times in milliseconds, and FFmpeg would otherwise pair a
-film's frames with the wrong reference frames and report a much lower score.
+(`settb=1/30,setpts=N`): WebM stores times in milliseconds. FFmpeg would otherwise pair a film's
+frames with the wrong reference frames and report a much lower score.
 
 ### 5. Check it
 
@@ -297,7 +297,7 @@ Make a sheet of a few frames and look at it:
 ffmpeg -i video.webm -vf "select='not(mod(n\,40))',scale=320:180,tile=6x1" -frames:v 1 sheet.png
 ```
 
-The frames must change where you expect motion, and the camera must not jump.
+The frames must change where you expect motion. The camera must not jump.
 
 ## Animations of one model
 

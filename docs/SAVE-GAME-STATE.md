@@ -6,9 +6,9 @@ it in one pass (`FUN_14009af60`). The port decodes every block of it in
 `crates/formats/src/savegame.rs`, with one schema per object type in
 `crates/formats/src/savegame_schema.rs`.
 
-All eleven sample saves decode completely, including two from a 2015 build, and each block is
-consumed exactly. `GameState::encode`
-writes the state back, and the result matches the original bytes exactly. Test:
+All eleven sample saves decode completely, including two from a 2015 build. Each block is
+consumed exactly. `GameState::encode` writes the state back. The result matches the original
+bytes exactly. Test:
 `crates/formats/tests/savegame.rs` (local only, since `save-game/` is git-ignored). It also checks:
 - the decoded map cells, heights, seed and event log against the older scanning parsers in
   `save.rs`;
@@ -43,7 +43,7 @@ cargo run -q --release -p unbanished-formats --example savegame_check -- save-ga
   terrain block is version 4 (no decal materials); `MapComponent::version` keeps the version
   for writing.
 - **Bools.** One byte. Some bools in the samples are uninitialised memory (`0x48`, `0x80`). The
-  game reads them as true. The decoder keeps such a byte as `Value::I8`, and a decal keeps its
+  game reads them as true. The decoder keeps such a byte as `Value::I8`. A decal keeps its
   `flag_bytes`, so writing reproduces it.
 - **Time.** An `i64`.
 - **Vector3.** Three `f32`.

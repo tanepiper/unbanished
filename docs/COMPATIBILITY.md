@@ -1,7 +1,7 @@
 # Compatibility between versions
 
-Un-Banished must play exactly like Banished 1.0.7, and every new version must play exactly like
-the one before it. This document describes the rule and the tools that check it.
+Un-Banished must play exactly like Banished 1.0.7. Every new version must play exactly like the
+one before it. This document describes the rule and the tools that check it.
 
 ## The rule
 
@@ -65,8 +65,8 @@ save holds the same game state and every frame is the same.
 
 ### Limits
 
-- Builds before 0.2.0 do not have the `speed N` capture command (they run at speed 1), and
-  their headless saves can land on a different frame from run to run. Compare such builds only
+- Builds before 0.2.0 do not have the `speed N` capture command (they run at speed 1). Their
+  headless saves can land on a different frame from run to run. Compare such builds only
   with themselves.
 - Builds before 0.3.0 ignore `--mouse-down` and `--mouse-up`, so they skip the `actions`
   scenario's drags and its game comes out different. Compare `actions` only between 0.3.0 and

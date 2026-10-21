@@ -1,7 +1,7 @@
 # Save files
 
 Un-Banished reads and writes the save files of Banished 1.0.7. A town saved by the original
-loads in Un-Banished, and the save folder is the same (`Documents/Banished/Save`). This page
+loads in Un-Banished. The save folder is the same (`Documents/Banished/Save`). This page
 explains what a save file contains. The readers are in
 [unbanished-formats](../../crates/formats/README.md) (`save`, `savegame`, `savegame_schema`).
 
@@ -53,8 +53,8 @@ checks prove it:
 - every block of every sample save is read to its last byte;
 - writing the decoded state back gives exactly the original bytes.
 
-Saves from a 2015 build of the game also load. Those builds wrote all text as UTF-16, and the
-port keeps track of that so it writes them back the same way.
+Saves from a 2015 build of the game also load. Those builds wrote all text as UTF-16. The port
+keeps track of that so it writes them back the same way.
 
 Loading a save into the running game happens in stages: the terrain, the map cells and the
 placed objects; then storage, buildings, construction and jobs; then the citizens, their actions,

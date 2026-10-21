@@ -85,7 +85,7 @@ Un-Banished recorded them itself, without a window.
 ## Status
 
 **Beta.** The whole game runs. You can start a new game or load a save. Your town and its
-citizens live through the seasons, and every building and tool works. Trade, disasters, the
+citizens live through the seasons. Every building and tool works. Trade, disasters, the
 event log, options, mods, tutorials and achievements also work. Map generation and most game
 rules are checked against the original, value by value. Un-Banished also adds things the original
 does not have: mod sites in the Mods menu, a mod manager, and multiplayer.
@@ -150,8 +150,8 @@ The default controls are the same as in the original game. You can change them i
 
 ## FAQ
 
-**Is this a crack or a pirated copy?** No. Un-Banished contains no game code, art, sound or text,
-and it cannot run without your own copy of the game. It is an independent, non-commercial
+**Is this a crack or a pirated copy?** No. Un-Banished contains no game code, art, sound or
+text. It cannot run without your own copy of the game. It is an independent, non-commercial
 project.
 
 **How was it made without the source code?** Ghidra turned the game's machine code into

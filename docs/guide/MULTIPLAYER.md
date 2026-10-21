@@ -1,7 +1,7 @@
 # Multiplayer
 
 Several players can build one town together. Each player sees the same town and can build, give
-orders, change the speed and pause, and every change happens for everybody. The original
+orders, change the speed and pause. Every change happens for everybody. The original
 Banished has no multiplayer. Multiplayer is a part of Un-Banished that is not in the original
 game. It never changes a single-player game.
 
@@ -15,8 +15,9 @@ both screens.*
 - **Your own copy of Banished** on every computer. Un-Banished does not send the game files to
   other players; each player reads their own.
 - **The same version of Un-Banished** on every computer, and **the same mods**, in the same order.
-  The game does not check this yet. If the versions or the mods differ, the towns soon differ,
-  and the game keeps reloading the host's town (see [When the towns differ](#when-the-towns-differ)).
+  The game does not check this yet. If the versions or the mods differ, the towns soon differ.
+  The game keeps reloading the host's town (see [When the towns
+  differ](#when-the-towns-differ)).
 - **A relay**: a small program, `unbanished-server`, that passes messages between the players. One
   player, or a server, runs it. See [Run the relay](#run-the-relay).
 - **A save to play.** A multiplayer game starts from one of the host's saves. To start a new
@@ -36,8 +37,8 @@ towns of all players. The relay only passes messages on; it does not run the gam
 
 The desktop game can be the server itself. In the Multiplayer window, leave the server address
 at `ws://127.0.0.1:7780` (or any `ws://localhost:PORT`) and press **OK** without a room code. If no
-server runs there, the game starts one, open to your network, and the window shows the address
-the other players enter, for example `ws://192.168.1.20:7780`. Your computer's firewall may ask
+server runs there, the game starts one, open to your network. The window shows the address the
+other players enter, for example `ws://192.168.1.20:7780`. Your computer's firewall may ask
 whether the game may accept connections: allow it for players on your network. Players on the
 internet need the port forwarded on your router, as below. The browser version cannot be the
 server: it can only join.
@@ -156,7 +157,7 @@ game files or mods differ from the host's.
 ## When a player leaves
 
 A player leaves by quitting the game, by leaving to the main menu, or when their connection
-breaks. The others play on without them, and the line says who has left.
+breaks. The others play on without them. The line says who has left.
 
 If the **host** leaves, the others also play on, and the server still compares the towns. But
 nobody new can join any more: the host is the one who brings new players in.
@@ -176,8 +177,8 @@ multiplayer game from the save.
 ## Join a game that has started
 
 While the host is in the game, anyone can join it with the room code, as before the start. The
-game pauses for a moment for everyone: every player reloads the town as it is now, behind a short
-loading screen, and the new player starts from the same town. They play from then on like
+game pauses for a moment for everyone: every player reloads the town as it is now, behind a
+short loading screen. The new player starts from the same town. They play from then on like
 everyone else.
 
 ## Saving

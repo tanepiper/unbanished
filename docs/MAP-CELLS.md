@@ -27,8 +27,8 @@ cell's two triangles with Möller–Trumbore intersection (`FUN_1400afce0`, epsi
 the saved `i16` heights `/ 256`. With corners A `(x, y)`, B `(x+1, y)`, C `(x+1, y+1)`,
 D `(x, y+1)`, the triangles match the render mesh: even `(x + y)` gives (A, B, D) then (B, C, D);
 odd gives (A, B, C) then (A, C, D). A hit on the first triangle shortens the ray for the second.
-The second test writes `t` as soon as its barycentric checks pass, even if `t` is then rejected,
-and the final height uses that last `t`. The normal is `normalize(e1 × e2)` of the last accepted
+The second test writes `t` as soon as its barycentric checks pass, even if `t` is then rejected.
+The final height uses that last `t`. The normal is `normalize(e1 × e2)` of the last accepted
 triangle. With no hit the height is 0.
 
 ## Natural cell types (`FUN_1400a3790`)

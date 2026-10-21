@@ -15,7 +15,7 @@ Three rules hold for every extension:
    screen. It may send the game a player's command, as a player would. It may not change a rule,
    a number or the order of random draws. Anything that does is a `Deviation:` and only happens
    in games where the extension is in use. Rule hooks are the one extension made to change
-   rules, and they do it only through their own door, the same way on every computer
+   rules. They do it only through their own door, the same way on every computer
    ([Rule hooks](RULE-HOOKS.md)).
 3. **The core never depends on it.** The simulation crate, `unbanished-sim`, depends on no
    drawing, window, interface, sound or network crate. The `checks` test suite fails if it does.

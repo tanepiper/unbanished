@@ -1,8 +1,8 @@
 # 1. Trace a behaviour
 
 Tracing means finding the original functions that do something, and understanding them well
-enough to port them. The evidence is static. You read the decompiled pseudocode, the
-disassembly and the program's data, and you do not run the program.
+enough to port them. The evidence is static. You read the decompiled pseudocode, the disassembly
+and the program's data. You do not run the program.
 
 Label every conclusion in one of three ways:
 
@@ -85,7 +85,7 @@ Start from something concrete that you can search for:
 
 ## Step 3: decompile what Ghidra missed
 
-Some functions are reached only through tables, and the bulk export does not include them.
+Some functions are reached only through tables. The bulk export does not include them.
 Decompile them on demand in the existing Ghidra project:
 
 ```bash

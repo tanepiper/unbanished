@@ -288,8 +288,9 @@ gameplay/network.rs and gameplay/recording.rs; `Local`, `Lockstep`, `Replay` beh
      and its menu button have a stand-in (`ui/multiplayer_off.rs`), so the menu's code is the
      same in both builds. `unbanished-session`'s relay link is its `relay` feature. Every
      combination builds with no warnings.
-   - **Vanilla runs done**: `--vanilla` (the browser's `?vanilla`) sets `platform::mode::vanilla()`,
-     and each extension's door checks it: no Multiplayer button, no Browse tabs, no probe, no
+   - **Vanilla runs done**: `--vanilla` (the browser's `?vanilla`) sets
+     `platform::mode::vanilla()`. Each extension's door checks it: no Multiplayer button, no
+     Browse tabs, no probe, no
      recording, no cinematic camera. With that, phase X is done.
 
 **C. Protocol v1.** Versioned `Hello` handshake (rejects mismatched engine, data or mods with a
@@ -343,10 +344,10 @@ resynced, the server restarts and the town resumes; all digests agree.
      `server.sh` (D4).
    - **D4 done**: the server is a library too (`unbanished_server::spawn`). A desktop host who
      opens a room at `ws://127.0.0.1:PORT` (or `localhost`) with no server there starts one on a
-     thread, listening on every network, and the window shows the address the others enter
+     thread, listening on every network. The window shows the address the others enter
      (`platform::host_here`). `tools/compat/server.sh` (run.py's `server` suite, long tier):
      three players, a scrambled one resynced, one who leaves, one who joins; the server keeps
-     the town, restarts on the same folder, and the host goes on from the kept town with
+     the town, restarts on the same folder. The host goes on from the kept town with
      another player; every digest agrees. With that, phase D is done. The Docker image was
      built and checked (143 MB): it runs as `nobody`, answers its health check (`healthy`),
      keeps rooms in a `/rooms` volume, and a host resumed a kept town after a restart.
@@ -379,8 +380,8 @@ docs/develop/RULE-HOOKS.md and a mod author's guide, each with a complete exampl
      core's door is `unbanished_sim::hooks` (`RuleHooks`, `HookContext`); `Simulation::iterate`
      calls it at the end of each iteration. API version 1: the date, the citizens, the stock,
      `random_below` from the game's own stream (moved into the plugin's store for the call) and
-     `post_event`. Protocol version 4: `Hello.hooks` is the plugins' fingerprint, and a player
-     whose hooks differ is refused with "this game's rule hooks differ from the host's"; the
+     `post_event`. Protocol version 4: `Hello.hooks` is the plugins' fingerprint. A player whose
+     hooks differ is refused with "this game's rule hooks differ from the host's"; the
      server's own game takes no room with hooks. Saves list each hook as `Hooks/NAME.wasm` with
      its CRC. `--vanilla` loads none. `tools/compat/hooks.sh` (run.py `hooks`): a test plugin
      changes a save's digests, gives the same ones twice and none under `--vanilla`; two players

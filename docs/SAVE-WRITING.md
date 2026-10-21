@@ -11,7 +11,7 @@ offset. A loaded town remembers the saved object each entity and citizen came fr
 
 A value the load derives is rewritten only when the port's value differs, so an untouched
 object keeps its exact bits. A model's rotation is one: saves show `(0, 0, −sin(yaw/2),
-cos(yaw/2))`, and it is recomputed only when the yaw changes.
+cos(yaw/2))`. It is recomputed only when the yaw changes.
 
 ## Checking it against the original
 
@@ -111,7 +111,7 @@ loop's own state:
 - the stock slots and capacity records.
 
 `GameplayLoop::save_file` encodes it and builds the file with the loaded save's metadata. The
-`save PATH` script command (native) writes it. Load Save83, run a few seconds, save, and the file
+`save PATH` script command (native) writes it. Load Save83, run a few seconds, save. The file
 decodes and loads back with every citizen, stack, animal and work.
 
 **Metadata** (`SaveMetaData`, Runtime `0x1800c3d00`):

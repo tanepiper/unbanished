@@ -43,7 +43,7 @@ straight line to 0 at its outer radius, measured from the camera. *Emitters* are
 tied to places: a river, a forest, a field, a burning house. An effect with several emitters
 plays at the volume of the loudest one.
 
-Every sound has a type, and each type has its volume in **Options → Audio**:
+Every sound has a type. Each type has its volume in **Options → Audio**:
 
 | Type | Sound | Default volume |
 |---|---|---|

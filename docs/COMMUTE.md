@@ -41,8 +41,8 @@ update, so the homes and jobs passes never come.
   - its rank is `Map::PathRank(a, b, 0)`, which stores nothing;
   - 0 or 1 (an unsigned test, so −1 stays) become `(int)sqrtf(dy² + dx²)` in cells;
   - the rank goes into the map under the cells' region pair.
-- **Finishing.** When the index passes 0, the homes pass runs, then the jobs pass, and the pairs
-  are cleared.
+- **Finishing.** When the index passes 0, the homes pass runs, then the jobs pass. The pairs are
+  cleared.
 
 ## Homes (`FUN_1400db770`)
 

@@ -146,8 +146,8 @@ cargo test --release -p unbanished-formats --test toolbar       # one test file
 cargo test --release -p unbanished-game random                  # tests whose name contains "random"
 ```
 
-Use `--release`. Some tests simulate many game days or read every resource, and they are slow in
-a debug build.
+Use `--release`. Some tests simulate many game days or read every resource. They are slow in a
+debug build.
 
 ## Replays, lockstep and multiplayer
 
@@ -201,7 +201,7 @@ are below, if you want one on its own.
 
 The game can run without a window, for a fixed number of seconds, and save the last frame as a
 PNG. This is how changes to the interface, the rendering and the simulation are checked by eye.
-Headless captures do not read your settings, and they play no sound. To keep them away from your
+Headless captures do not read your settings. They play no sound. To keep them away from your
 own saves, set `UNBANISHED_USER_DIR` and `UNBANISHED_SETTINGS` to a scratch folder.
 
 ```bash

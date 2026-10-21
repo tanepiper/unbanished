@@ -68,6 +68,6 @@ asks AutoSlow to slow the game.
   before the tornado's update because the template lists `particle` first). It starts at 0 and
   rises at `1 / fade` (`FUN_140053fc0`); at the end of the line it falls at `−(1 / fade)`
   (`FUN_140054080(0)`). Each visit adds `AsSeconds(dt) × rate` as a float. Above 1 it stays at
-  1; at 0 or below the slot goes, and the tornado's next check removes the entity.
-- Its victims among the citizens die in the citizens' pass of the same iteration.
+  1; at 0 or below the slot goes. The tornado's next check removes the entity. - Its victims
+  among the citizens die in the citizens' pass of the same iteration.
 - The sound follows it, and its volume follows the particle slot's alpha.

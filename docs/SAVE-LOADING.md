@@ -173,9 +173,8 @@ Action stacks and work claims are stage 3b, below.
 The town manager's lists hold either entities (`+0x00..+0x30`) or a component of one (the
 sites, healers, cemeteries, happiness and attendance lists). Both resolve to the entity.
 
-Test: `start::load::stage3_tests::vanilla_saves_restore_citizens`. Every citizen is restored,
-and the relations are consistent:
-- a citizen with a family slot is in that home's family;
+Test: `start::load::stage3_tests::vanilla_saves_restore_citizens`. Every citizen is restored.
+The relations are consistent: - a citizen with a family slot is in that home's family;
 - spouses point at each other;
 - dependents name their guardian;
 - workplaces and workers agree both ways.
@@ -340,8 +339,8 @@ Test: `start::load::stage3d_tests::vanilla_saves_restore_producers`.
   clock (`+0x190`).
 
 Test: `start::load::stage4_tests::vanilla_saves_restore_environment_and_logs`.
-- **Temperature and snow.** The restored temperature is the saved one, and the snow cover
-  agrees with it (`clamp(32 − temperature)`, `FUN_1400988f0`), which checks the field mapping.
+- **Temperature and snow.** The restored temperature is the saved one. The snow cover agrees
+  with it (`clamp(32 − temperature)`, `FUN_1400988f0`), which checks the field mapping.
 - **Event log.** Every entry is restored with its text (Save83 has 200).
 - **History.** The Town Info history is restored (1035 samples per series in Save83).
 

@@ -66,8 +66,9 @@ gesture reproduction, so a persistent runtime regression remains unresolved.
 
 The game keeps the UI's last hovered control while a loop changes its screen. If the menu is
 replaced by gameplay under a stationary cursor, there may be no new cursor-move event before the
-next mouse press. In that case the old menu button can still be marked as the hit target, and the
-first left drag is incorrectly captured by the UI instead of rotating the camera. The native event
+next mouse press. In that case the old menu button can still be marked as the hit target. The
+first left drag is incorrectly captured by the UI instead of rotating the camera. The native
+event
 handler now refreshes the pointer hit target against the current loop immediately before deciding
 whether a left press starts a camera drag. This is a source-traced regression fix; it has not yet
 been confirmed in an interactive runtime.

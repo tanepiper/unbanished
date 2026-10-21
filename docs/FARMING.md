@@ -20,8 +20,8 @@ footprint, then go through 1 to 2.
 
 - **Cells** (`FUN_14011f7e0`). Each cell holds `+0` the map cell, `+4` its state (0 to plant,
   1 growing, 2 done), `+8` the crop, and `+0x18` whether harvesting it leaves a pile. Every
-  `RawMaterialDescription +0x4c`-th cell gets a pile, and the flags are shuffled with
-  `Rand(count)` swaps. Entering planting lifts the field's map stamp (`FUN_140129c20` →
+  `RawMaterialDescription +0x4c`-th cell gets a pile. The flags are shuffled with `Rand(count)`
+  swaps. Entering planting lifts the field's map stamp (`FUN_140129c20` →
   `FUN_1400a33b0`), so crops can stand on its cells.
 - **Messages** (`FUN_140120020`):
   - 0: a cell was planted. It becomes growing, and its crop's NaturalResource `+0x2d`
@@ -52,8 +52,8 @@ Complete frees the cells. Fail frees them and marks them to do again. Refresh do
 for cells whose worker lost the task. Cancel clears the workers' stacks.
 
 Verification: `placement_tool::construction_tests::farmers_plant_tend_and_harvest_a_field`.
-A 6 × 6 field near the start is given a known crop in spring. One farmer plants it in about
-95 s, tends it, harvests it once ripe, and the crop is stored.
+A 6 × 6 field near the start is given a known crop in spring. One farmer plants it in about 95
+s, tends it, harvests it once ripe. The crop is stored.
 
 Not ported:
 - crop disease (DiseaseComponent, `FUN_1400491a0`);
@@ -264,6 +264,6 @@ Not ported:
 The updates run every iteration with the sites (see [JOBS.md](JOBS.md)).
 
 Verification: `placement_tool::construction_tests::blight_withers_a_field_and_spreads`. Two 10
-× 10 wheat fields; the first is made sick (with 200 spread intervals banked). Its crops
-wither, the second field catches it, and the event is posted.
+× 10 wheat fields; the first is made sick (with 200 spread intervals banked). Its crops wither,
+the second field catches it. The event is posted.
 

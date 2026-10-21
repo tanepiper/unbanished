@@ -12,8 +12,8 @@ Un-Banished is two things.
 - The **core** is Banished 1.0.7, rebuilt one to one: the town's rules and numbers, its saves,
   and the original interface, drawing and sound. It must always behave exactly as the original.
 - An **extension** is anything Un-Banished adds that the original does not have: multiplayer, the
-  server, recordings, the probe, the mod sites, the cinematic camera. Each one can be left out,
-  and none may change the core's results.
+  server, recordings, the probe, the mod sites, the cinematic camera. Each one can be left out.
+  None may change the core's results.
 
 The code follows a pattern close to model–view–controller:
 
@@ -91,7 +91,7 @@ The game runs 60 updates a second. Each update, in a single-player game:
 
 Loading and saving go through the core too: `Simulation::from_save` loads a save with no drawing
 data, and `Simulation::write_state` writes what a save keeps. A test plays two real saves both
-ways, through the simulation alone and through the whole game, and their digests match at every
+ways, through the simulation alone and through the whole game. Their digests match at every
 check (`apps/game/src/gameplay/sim_parity_tests.rs`).
 
 ## Multiplayer and the server
@@ -133,7 +133,7 @@ hook (`unbanished_sim::timing`) and the step events are examples. **Rule hooks**
 hook may read the date, the citizens and the stock, draw from the game's random stream and post
 events. They run from WebAssembly plugins (`unbanished-hooks`, with wasmi), with no floating
 point, in name order, with a fixed budget per call. A save lists them, `Hello` carries their
-fingerprint so every player of a room has the same ones, and a vanilla run loads none.
+fingerprint so every player of a room has the same ones. A vanilla run loads none.
 [Rule hooks](develop/RULE-HOOKS.md) explains them; [Writing a rule hook](guide/WRITING-RULE-HOOKS.md)
 builds one.
 

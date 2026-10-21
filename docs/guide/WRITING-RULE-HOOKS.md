@@ -5,7 +5,7 @@ can read the date, the number of citizens and the stock, roll the game's dice, a
 the event log. This page builds a complete example, a harvest festival every autumn, from an
 empty folder to a line in your town's event log.
 
-Rule hooks are an Un-Banished extension: Banished 1.0.7 has nothing like them, and a vanilla run
+Rule hooks are an Un-Banished extension: Banished 1.0.7 has nothing like them. A vanilla run
 (`--vanilla`) never loads them. How they work inside the game is in
 [Rule hooks](../develop/RULE-HOOKS.md).
 

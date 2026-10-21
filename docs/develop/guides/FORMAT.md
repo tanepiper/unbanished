@@ -34,8 +34,8 @@ The full details are in [FINDINGS.md](../../FINDINGS.md), sections 2 and 3, and 
    `tools/schema/types.json`. Then find the class's `Serialize` function in the Runtime or the
    Application ([Trace](TRACE.md)). Write down every read, in order, with its type and the
    version checks (`if (version > 1)`).
-2. **Write a prototype in Python.** Python is faster to change, and the tools can run it over
-   every file of the type. Add a decoder to `tools/crs/types/<area>.py`:
+2. **Write a prototype in Python.** Python is faster to change. The tools can run it over every
+   file of the type. Add a decoder to `tools/crs/types/<area>.py`:
    ```python
    from ..crs import decoder
    from .ui import ext

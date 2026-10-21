@@ -20,7 +20,7 @@ outline: [2, 2]
 
 <p class="ub-lead">
 Every town in Banished starts with a few families and a pile of supplies. Some towns grow into
-cities of a thousand people, and that is where the original game starts to struggle. Version
+cities of a thousand people. That is where the original game starts to struggle. Version
 0.2.0 is about those big towns. They now run twice as fast. They play exactly the same as before,
 with the same saves and the same frames.
 </p>
@@ -56,15 +56,14 @@ picture gets only the trees, houses and pieces of ground that it can see.
   src="/assets/videos/orbit.webm"
   poster="/assets/videos/orbit-poster.webp"
   alt="The camera circles slowly around a market full of coloured stalls"
-  caption="Every building that turns out of view is no longer drawn. You cannot see the difference, and that is the point."
-/>
+  caption="Every building that turns out of view is no longer drawn. You cannot see the difference. That is the point." />
 
 Loading is faster too. On a computer with more than one processor core, the game's pictures,
 sounds and models are now decoded on all the cores at the same time, so starting the game and
 loading a save take 20 to 55 % less time. And when a town appears after loading, it no longer
 stops for half a second to prepare its sounds: that now happens behind the loading screen.
 
-How do we know that nothing changed? Un-Banished must play exactly like Banished, and every new
+How do we know that nothing changed? Un-Banished must play exactly like Banished. Every new
 version must play exactly like the one before it, bit for bit. A new tool, `tools/compat`,
 builds two versions side by side, plays the same towns in both and compares every saved game
 and every picture. It also lets each version continue the other's saves. Every change in 0.2.0
@@ -91,7 +90,7 @@ See [Mods](/guide/mods) in the guide.
 ## People at work, up close
 
 Every film in this post was recorded by Un-Banished itself, without a window: the game runs, a
-script moves the camera, and each frame is saved and joined into a film. The game's own camera
+script moves the camera. Each frame is saved and joined into a film. The game's own camera
 stays high above the town, as in the original, so for this release the recordings got a camera
 of their own. It can fly along any path, or ride behind a citizen, a boat or an animal and look
 where they are going. When a roof or a tree comes between the camera and its subject, it moves
@@ -162,8 +161,8 @@ GPU. If something does not play like the original, please
 - **Rocks and ore** far from the camera use their simpler model, as in the original.
 - **The trader's boat** is drawn on the river, with its hull, cargo, oars and merchant.
 - **Smaller pieces of code:** the exact maths, the terrain and the path finding are now their own
-  libraries (`banished-core`, `banished-terrain`, `banished-path`), and the largest files are
-  split by topic. The game does not change.
+  libraries (`banished-core`, `banished-terrain`, `banished-path`). The largest files are split
+  by topic. The game does not change.
 - **More documentation:** the website has new [Guide](/guide/), [Develop](/develop/),
   [Topics](/topics/) and [Reference](/reference/) sections, every app and library has a README,
   and the Rust API documentation is written in plain English.

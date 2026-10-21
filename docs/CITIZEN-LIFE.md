@@ -11,7 +11,7 @@ Per simulation iteration, for each citizen: the CitizenComponent update (`FUN_14
 the CitizenAIComponent's (the template's component order). A citizen queued for deletion skips
 its AI (entity flag `0x400`). When an action sequence ends, the AI's message handler
 (`FUN_140114810`) first runs the CitizenComponent update with zero time, then the AI. The
-character is idle at that moment, and that is when hunger, cold and old age can kill
+character is idle at that moment. That is when hunger, cold and old age can kill
 (`stack_top + 1 < 1`). Deaths are processed after every citizen has updated
 (`FUN_140119170`, the removal slot).
 
@@ -43,7 +43,7 @@ Deaths (`FUN_14011c2a0`): the family is flagged (`0x2` for old age, `0x80` other
 when buried), the log gets the reason, the entity is queued. Removal: the character's actions
 are abandoned (works fail), the citizen leaves school, doctor, chapel, home and guardian; a
 widow(er) takes the dependents, else children die (reason 4) and older dependents leave; the
-partner is single again; the workplace is left, and a laborer takes over the profession
+partner is single again; the workplace is left. A laborer takes over the profession
 (`Town::Hire`, event 0xf, or 0x10 when nobody can).
 
 ### Health (`FUN_140117e60`)
@@ -118,8 +118,8 @@ original's `Rand(1)` is always 0), or the guardian, and idles `RandFloat · 7 + 
 
 ## Happiness buildings (`crates/game/src/people/happiness.rs`)
 
-HappinessComponent is a controller. Its table is `FUN_14004b570`, and its interface vtable
-is `0x14015f6a0`.
+HappinessComponent is a controller. Its table is `FUN_14004b570`. Its interface vtable is
+`0x14015f6a0`.
 
 | Piece | Original | Port |
 |---|---|---|
@@ -132,7 +132,7 @@ is `0x14015f6a0`.
 | Loiter target (`FUN_14004b080`, `FUN_14008eea0`) | A registered building that is not kind 5. The pick is `Rand(count)` over those whose first use point is within path rank `2 · range` and reachable | yes |
 
 Happiness (`FUN_140117fb0`) reads the home entrance cell's layers. Layers 0–4 count one
-each when nonzero, layer 5 subtracts its value, and the total is at least 0; a shared home
+each when nonzero, layer 5 subtracts its value. The total is at least 0; a shared home
 gets a quarter of it. The entrance is `FUN_14008d480`, which draws `Rand(n)` for homes with
 several use points.
 
@@ -170,9 +170,9 @@ iteration becomes a loitering target in the next one.
     grave, turned as the cemetery.
   - Without one, the bit is 2 for old age (−8), else `0x80` (−4).
 - **Tombstones** (TombstoneComponent) stand for `(+0x20 + RandFloat × +0x24)` × 300 s: 60 to
-  84 months (`FUN_1400581c0`). Their scheduled update (`FUN_140058130`) then removes them, and
-  the grave is free again.
-- The port decides the grave at the death, with the original's draws. It places the
+  84 months (`FUN_1400581c0`). Their scheduled update (`FUN_140058130`) then removes them. The
+  grave is free again. - The port decides the grave at the death, with the original's draws. It
+  places the
   tombstone (and draws its lifetime) after the citizens' update. The debug flag that stops
   deaths (`Game +0xd0` bit 8) is not ported.
 

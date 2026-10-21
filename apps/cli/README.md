@@ -45,8 +45,8 @@ Git ignores `game-data/`. Never commit the exported sounds.
 ## nexus
 
 Search the Banished mods on [Nexus Mods](https://www.nexusmods.com/games/banished/mods) and
-install them into a `WinData` folder. This is not part of the original game, and it needs your
-own Nexus Mods API key for anything but searching (`UNBANISHED_NEXUS_API_KEY`, or `NexusApiKey=`
+install them into a `WinData` folder. This is not part of the original game. It needs your own
+Nexus Mods API key for anything but searching (`UNBANISHED_NEXUS_API_KEY`, or `NexusApiKey=`
 in the game's settings file).
 
 ```bash

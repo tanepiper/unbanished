@@ -94,7 +94,7 @@ slot records `count +0, limit +8`):
 | 6 herbs | 8 |
 
 Then `Rand(n)` on the game stream picks one list (`Rand(0)` draws nothing and the list is
-empty), and its categories are tried in order with `TryList(…, by distance, emergency)`.
+empty). Its categories are tried in order with `TryList(…, by distance, emergency)`.
 Inferred category meanings: 10/11/12 clearing logs/stone/iron (ClearArea), 13 construction,
 14 fire.
 
@@ -324,7 +324,7 @@ Ordinary storages (`+0x00`) then markets (`+0x10`), skipping `exclude`: a Storag
 accepted flags (`desc +0x20`, else storage `+0x3c`) must include the material's; mode 0 needs
 `available >= count`, mode 1 `fits`. Rank `PathRank(entrance, cell)` (entrance draws Rand with
 several use points); on a strict improvement the target point (`FUN_140132aa0` slot scan, or
-`FUN_14004f710` for markets) must exist with its rank below the best, and the best becomes the
+`FUN_14004f710` for markets) must exist with its rank below the best. The best becomes the
 entrance rank.
 
 ## Clearing, piles and drop-off
@@ -427,7 +427,7 @@ redirect)`, start `FUN_1400cc7d0`). Every material, or the one asked for, goes i
 the action was made for: as many as carried, up to the count, when they fit (`FUN_1400ccaf0`).
 - When they do not fit, an action made with `redirect` (the haul `FUN_1400c4c60`) searches for
   another storage from the citizen's cell (`FUN_140092a60`, put). If one is found, the action
-  points there, a MoveTo is pushed (walk 1, mask `0xe1f`, a random speed), and the action starts
+  points there, a MoveTo is pushed (walk 1, mask `0xe1f`, a random speed). The action starts
   again when the walk ends. If none is found, the goods are left as a loose pile and the action
   fails.
 - A loose pile (`FUN_1400ccd90`) goes on the nearest cell within six of the citizen
@@ -452,8 +452,8 @@ The port pushes the walk after the start returns (`World::pushes`), which stops 
   AbsorbResource, ClearArea and StorageLocation. The initial state is 0 (AbsorbResource's slot
   `+0x80`).
 - **AbsorbResourceComponent** (table `FUN_14002f5d0`). Its only state, 0, has an update
-  (`FUN_14010ae20`): every pile on the footprint, by rows, goes into the yard's storage when
-  it fits (`FUN_140132250` / `FUN_1401324d0`), and the pile entity is removed. Logs left by
+  (`FUN_14010ae20`): every pile on the footprint, by rows, goes into the yard's storage when it
+  fits (`FUN_140132250` / `FUN_1401324d0`). The pile entity is removed. Logs left by
   clearing a yard placed over trees end up stored in it.
 - **StorageDisplayComponent** (activate `FUN_140057090`, update `FUN_140056d40` →
   `FUN_140056c10`) is presentation:
@@ -566,8 +566,8 @@ Try (`FUN_1400f3880`):
    - have a reachable `NearestAllowedNeighbour(.., 0xe07)` toward the citizen.
 
    A hit starts the removal sequence (`FUN_1400c7380`) with the auto-pickup flag set. The
-   citizen gets the job flags, the misses reset, and the worker joins the set.
-4. **Otherwise**, with more misses than draws, the worker drops off what it carries (2), or
+    citizen gets the job flags, the misses reset. The worker joins the set. 4. **Otherwise**,
+    with more misses than draws, the worker drops off what it carries (2), or
    gets 0 when it carries nothing. Below that, it waits (`FUN_1400c7960`: PlayAnimation 0 for
    0.25 s, then CompleteTask), joins the set and counts a miss.
 
@@ -630,8 +630,8 @@ Not ported:
 - the toggle buttons (the toggles default on);
 - the status icon.
 
-Verification: `placement_tool::construction_tests::foresters_plant_and_cut`. Two foresters
-plant a sapling, cut a tree, and the logs are picked up.
+Verification: `placement_tool::construction_tests::foresters_plant_and_cut`. Two foresters plant
+a sapling, cut a tree. The logs are picked up.
 
 ## Fishermen (`FishingComponent`, `FishingWork`)
 
@@ -709,8 +709,8 @@ Port: `crates/game/src/production/hunt.rs`; the notify is in `crates/game/src/be
   When the attack is set up, the animal stops and is flagged (`FUN_14010c730`), its herd
   moves on, and the lodge's time resets.
 
-Verification: `placement_tool::construction_tests::hunters_take_deer`. Two hunters from a
-lodge near the start take a deer, and its venison is left.
+Verification: `placement_tool::construction_tests::hunters_take_deer`. Two hunters from a lodge
+near the start take a deer. Its venison is left.
 
 ## Removal tools (`RemovalTool : DragTool`, vtable `0x140168200`)
 

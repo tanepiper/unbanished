@@ -50,8 +50,8 @@ size, spawn rate, distance, or inventory quantities.
 
 The population, herd and animal components are ported. Their scheduled updates run in the
 entity scheduler's bucket pass (`Seeder::iterate_with`). The animals' CharacterComponent
-moves them in the bit-0x04 phase (`Agents::move_animals`), and they are drawn like citizens
-from their character.
+moves them in the bit-0x04 phase (`Agents::move_animals`). They are drawn like citizens from
+their character.
 
 | Piece | Original | Behaviour |
 |---|---|---|

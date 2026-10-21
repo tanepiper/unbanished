@@ -16,8 +16,8 @@ are listed separately at the end.
      FrustumOutline and CaptureBox; the toolbar's and achievement's "well" files are other types.
    - **The remaining controllers and dialogs are covered below.**
 2. **Every dialog controller used by the game's data:** the type-id hash was searched for across
-   the extracted resources, and every reports-row utility window was opened in the port.
-3. **The release toolbar** (reference capture) against the port's.
+   the extracted resources. Every reports-row utility window was opened in the port. 3. **The
+   release toolbar** (reference capture) against the port's.
 4. **Functions:** 9,834 in the Application, of which the port's code and docs cite 1,630.
    - Above `0x140130000` the code is almost all the C runtime and libraries.
    - In the game range (`0x140040000`–`0x140130000`) there are 1,172 uncited functions, about
@@ -112,7 +112,7 @@ order changes nothing.
 ## Engine maths the simulation depends on (2026-10-17)
 
 Replaced engine pieces were checked for whether the simulation's numbers depend on them.
-These do, and each is now ported bit for bit:
+These do. Each is now ported bit for bit: 
 - **CRT trigonometry** (`crates/core/src/crt.rs`): MSVC's `sinf` (`FUN_140137160`, Runtime
   `0x18012a620`), `cosf`, `acosf` and the Runtime's table-driven `atan2f` (`0x180128f10`, a
   table of `atan(k/256)` rounded down) are not correctly rounded. A correctly rounded `sin` gives

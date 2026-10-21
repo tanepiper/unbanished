@@ -179,9 +179,8 @@ lowest `0x140008830` route rank. The rank's units and tie behavior remain
 unresolved. In the shipped `Citizen_citizen` resource, the three external
 references at description offsets `+0x20`, `+0x28` and `+0x30` serialize in the
 order `ProfessionTeacher`, `ProfessionPriest` and `ProfessionDoctor`. The shipped
-`SchoolHouse_resource` contains both `attendance` and `workplace` component
-descriptions, and its workplace resource is
-`Game\Profession\Profession.rsc:teacher`. This ties the `+0x208` provider
+`SchoolHouse_resource` contains both `attendance` and `workplace` component descriptions. Its
+workplace resource is `Game\Profession\Profession.rsc:teacher`. This ties the `+0x208` provider
 lookup to a school building configured with the teacher workplace description.
 
 The other two CitizenDescription keys use the same provider search helper:
@@ -192,9 +191,9 @@ pairs `+0x30` with slot `+0x228`. In the shipped resources those keys are
 assigned; disease recovery `0x140117880` changes its probability when `+0x228`
 is assigned. The shipped Chapel, DoctorHouse and SchoolHouse resource templates
 each include both `workplace` and `attendance` descriptions. Their workplace
-resources point to `ProfessionPriest`, `ProfessionDoctor` and `ProfessionTeacher`
-respectively, and their attendance resources are `Chapel_attendance`,
-`DoctorHouse_attendance` and `SchoolHouse_attendance`. This confirms the three
+resources point to `ProfessionPriest`, `ProfessionDoctor` and `ProfessionTeacher` respectively.
+Their attendance resources are `Chapel_attendance`, `DoctorHouse_attendance` and
+`SchoolHouse_attendance`. This confirms the three
 service-slot mappings in shipped data.
 
 `AttendanceDescription` capacity is the integer at `+0x20`; constructor
@@ -243,8 +242,8 @@ counted events it subtracts `1 - count/3`. Hunger/cold event bits 1/2 each subtr
 1. An adult without the additional bit `0x4` and without the attendance at
 `+0x208` loses `0.25`. The result is clamped to `[0, D[0x70]]`, then health-event
 bits are cleared. Global no-health debug bit 3 instead sets maximum health and
-returns. Bit `0x4` is deliberately left unnamed: its producers include issuing
-need actions, and its complete meaning is not yet established.
+returns. Bit `0x4` is deliberately left unnamed: its producers include issuing need actions. Its
+complete meaning is not yet established.
 
 The happiness helper applies recorded negative/positive events, builds a target
 from other event bits, food variety, residence-area contributions, and attendance
@@ -389,7 +388,7 @@ The shipped citizen description gives adult age 2.0, starting ages 2.2–4.0 and
 the description's age units. A Medium start makes 5 couples and 0 to 25 children, for example
 10 / 0 / 5.
 
-The port is in `crates/game/src/people/citizens.rs`, and the Status Bar shows its population.
+The port is in `crates/game/src/people/citizens.rs`. The Status Bar shows its population.
 
 ### Drawing citizens
 

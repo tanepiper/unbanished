@@ -56,7 +56,7 @@ that a save file stores.
 
 ## How it was proved
 
-The terrain was the first large part ported, and it set the method for the rest:
+The terrain was the first large part ported. It set the method for the rest:
 
 1. The original's generator was run in the emulator with many seeds and sizes.
    `tools/emu/terrain_stages.py` wrote the grid after each of the five stages.

@@ -131,7 +131,7 @@ load it normalizes delimiters and reconnects paths through the external factory.
 first block's bytes exactly.
 
 In `Save2`, the reference-table block starts at expanded offset `0x0c`, has size `0x7c22c`, and
-ends at `0x7c244`. Its count is 5,479; IDs are sequential from 1, every path is unique, and the
+ends at `0x7c244`. Its count is 5,479; IDs are sequential from 1, every path is unique. The
 first entries are `Audio\Animal\Chicken.rsc:event`, `Audio\Animal\Chicken.rsc:resource`, and
 `Audio\Animal\Chicken.rsc:version0`. The next block is a small version 0 block at `0x7c244`; its
 role is not assigned yet.

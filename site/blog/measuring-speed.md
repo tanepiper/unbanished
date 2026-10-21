@@ -32,7 +32,7 @@ speed up to 5× or 10× - small towns keep up, but big ones start to fall behind
 
 To get there we picked four towns that cover the range of how people actually play. Testwood is
 a brand new game (seed 1234) with 19 settlers. Fort Ponchartrain is a young town of 116 people.
-Goldfoothill is a player's town in its 83rd year with 565 people, and Driscola is a city of 1,024
+Goldfoothill is a player's town in its 83rd year with 565 people. Driscola is a city of 1,024
 people, 650 buildings and around 28,000 objects that a player built in the original game back in
 2015.
 
@@ -118,7 +118,7 @@ that works.
 ## Where the time goes
 
 Driscola is the hardest of the four, so I profiled it at normal speed and at 10×. At 60 frames a
-second there are 16.7 ms for one step of the game and one picture, and this is how that time was
+second there are 16.7 ms for one step of the game and one picture. This is how that time was
 spent on the desktop:
 
 | Part of a step | Normal speed | 10× speed |
@@ -130,7 +130,7 @@ spent on the desktop:
 | Drawing the picture (graphics card) | 9.9 ms | 15.3 ms |
 
 At 10× speed the simulation on its own fills a whole frame. The game runs ten steps of the town
-for every picture, and most of that time goes on the citizens deciding what to do next and
+for every picture. Most of that time goes on the citizens deciding what to do next and
 finding their way there.
 
 <Shot
@@ -171,8 +171,7 @@ actually changed is the next attempt; sounds and smoke can follow the same patte
 The citizens are next. Every step, each citizen's view of the town's buildings and stock is built
 again from nothing, although most of it is the same as before. Keeping those views and only
 updating what changed would save about a tenth of the processor's time. This one needs care,
-because the order in which citizens think is part of the game, and it has to stay exactly as it
-is.
+because the order in which citizens think is part of the game. It has to stay exactly as it is.
 
 The simulation itself has to stay in one line, step after step - that is what keeps every
 computer in a multiplayer game on the same town. The work around it doesn't, though. Refreshing
@@ -181,7 +180,7 @@ is being worked out.
 
 In the browser, a page can only use more than one core if the server sends two particular
 headers, which the site's host cannot send. Now that the browser version installs as
-an app, its service worker can add those headers itself, and that would let the browser load in
+an app, its service worker can add those headers itself. That would let the browser load in
 parallel the way the desktop already does.
 
 Then there are the smaller wins. The graphics card already skips everything outside the view,

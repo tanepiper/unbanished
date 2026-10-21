@@ -82,7 +82,7 @@ with FFmpeg. No Rust change is needed. The person-readable guide is `docs/develo
      frame as its neighbour (one run gave 137 files for 180 commands);
    - **draw every frame from before the camera moves** (start the screenshots at the first
      click or wheel, and drop the early frames when encoding). A headless run draws only when
-     something asks for a frame, and the camera's easing depends on the drawn frames: a camera
+     something asks for a frame. The camera's easing depends on the drawn frames: a camera
      that was not drawn for seconds jumps, then drifts.
    For a time-lapse, use a longer step instead of 1/30 (seasons: 0.75 s at speed 10).
 3. **Encode** (VP9 needs yuv420p; the BMPs are RGB):

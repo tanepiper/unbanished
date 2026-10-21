@@ -60,7 +60,7 @@ In the browser, `?data=URL` loads the game data from a folder on a server (for
 ## Headless captures
 
 Captures run the game without a window, at 30 frames per second of game time, as fast as the
-computer can. They play no sound, and they do not read your settings. They do write saves and
+computer can. They play no sound. They do not read your settings. They do write saves and
 screenshots, so set `UNBANISHED_USER_DIR` and `UNBANISHED_SETTINGS` to a scratch folder.
 
 ### `--boot-capture`
@@ -242,7 +242,7 @@ Options: `--threshold N`, `--resize`, `--ignore x,y,w,h`, `--crop-a x,y,w,h`, `-
 
 ## How the code is organised
 
-The game follows the original's structure: one engine loop runs at a time, and each original
+The game follows the original's structure: one engine loop runs at a time. Each original
 controller or dialog has its own module.
 
 | Path | What it contains |

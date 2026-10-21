@@ -75,9 +75,9 @@ with an entity owner, `:entity` host, tab attachments and active page. See
   16 tool, 32 disease. An icon and its count are hidden while no citizen has that bit.
 - **Hearts and stars:** these show the average health (`+0x50`) and happiness (`+0x80`), through
   `FUN_14006b830`, with the citizen description's scale.
-- **Year and season:** `numberYear` shows the calendar year, and `textSeason` shows
-  `seasons:Month{n}`.
-- **Temperature:** it reads the environment controller's temperature (`+0x18`, °F). It is
+- **Year and season:** `numberYear` shows the calendar year. `textSeason` shows
+  `seasons:Month{n}`. - **Temperature:** it reads the environment controller's temperature
+  (`+0x18`, °F). It is
   converted to °C if "Show Celsius" is set, then truncated.
 - **Weather:** the weather image is the environment state (`+0x10`). State 0 at 32° or below
   becomes 4 (Snow). The images are indexed Rain, Cloudy, PartlySunny, Sunny, Snow.

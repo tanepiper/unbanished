@@ -38,7 +38,7 @@ The phases are `update`, `draw`, `sim.iterate`, `sim.town`, `sim.citizens`, `smo
 `refresh_models`, `refresh_decals`, `refresh_particles`, `refresh_weather`, `audio`,
 `draw.set_scene`, `draw.update_instances`, `draw.upload_decals` and `draw.gpu`. `draw.gpu` is
 the time the GPU takes for the frame: while profiling (native only), the renderer waits for the
-GPU after each frame, and a headless capture draws each frame into a scratch target so that the
+GPU after each frame. A headless capture draws each frame into a scratch target so that the
 GPU work happens as in a window. Add more with
 `let _p = crate::perf::scope("name");` at the start of a block.
 

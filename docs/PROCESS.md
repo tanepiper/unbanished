@@ -204,9 +204,9 @@ The project checks the new code in four ways:
   repository.
 - **Determinism.** `tools/triage/determinism.sh` runs the same new game twice with the same seed
   and checks that the two pictures are identical. This catches hidden randomness.
-- **Save files.** Saves from the original game must load, and their contents must read back
-  correctly.
-- **Pictures of the real game.** The original runs on a Windows PC and streams to a Mac with Steam
+- **Save files.** Saves from the original game must load. Their contents must read back
+  correctly. - **Pictures of the real game.** The original runs on a Windows PC and streams to a
+  Mac with Steam
   Remote Play. The agent takes screenshots of both games in the same situation and compares them
   with an image-difference tool.
 
@@ -220,7 +220,7 @@ message says what was traced and how it was checked.
 
 ## An example: the name generator
 
-Every citizen in Banished has a name, and each new town gets a name too. The names look real but
+Every citizen in Banished has a name. Each new town gets a name too. The names look real but
 are invented. The game builds each name one letter at a time. A database lists, for every group of
 four letters, which letters may come next. The game picks one of them at random, moves on by one
 letter, and repeats. Here is how that part was rebuilt.
@@ -386,8 +386,8 @@ At the time of writing (19 October 2026):
 The process is careful, but it is not perfect.
 
 - **Not everything is measured.** Many functions are checked in the emulator, but not all.
-  Some behaviour comes only from reading, and some of that reading may be wrong.
-- **Some differences are known.** [DEVIATIONS.md](DEVIATIONS.md) lists every place where the new
+  Some behaviour comes only from reading. Some of that reading may be wrong. - **Some
+  differences are known.** [DEVIATIONS.md](DEVIATIONS.md) lists every place where the new
   code knowingly differs from the original, and why.
 - **Some details are still open.** [PARITY-AUDIT.md](PARITY-AUDIT.md) shows what has been checked,
   and the [issues](https://github.com/tanepiper/unbanished/issues) show known problems.

@@ -91,8 +91,9 @@ children, so an element unlocked inside a locked dialog works.
 
 ## The highlight (`TutorialHighlightDialog`, `Dialog/TutorialHighlight.rsc`)
 
-Bind `FUN_1400e54f0` finds `glowGroup`, `glow` and `arrow`. Each frame (`FUN_1400e54b0`) the glow
-is hidden, and the arrow is placed and turned by `-angle` about its centre (`SpriteContext::Flush`:
+Bind `FUN_1400e54f0` finds `glowGroup`, `glow` and `arrow`. Each frame (`FUN_1400e54b0`) the
+glow is hidden. The arrow is placed and turned by `-angle` about its centre
+(`SpriteContext::Flush`:
 `x·cos − y·sin`, `x·sin + y·cos`, `Math::Scalar::Sin` is `FUN_18012a620`). It bobs by
 `sin(t·π)·8` pixels. Placement depends on the target:
 - **An element** (`+0x40`, `FUN_1400e4f90`): the arrow's box is a square of the sprite's width,

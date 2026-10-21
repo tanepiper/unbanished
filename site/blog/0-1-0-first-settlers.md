@@ -19,7 +19,7 @@ outline: [2, 2]
 />
 
 <p class="ub-lead">
-A few families arrive in a valley with a cart of supplies, and the winter is coming. That is
+A few families arrive in a valley with a cart of supplies. The winter is coming. That is
 how every game of Banished starts. This project also started small, with an empty folder
 and a copy of the finished game. Version 0.1.0 is the first time the whole game runs on its new
 engine, on your computer or in your browser.

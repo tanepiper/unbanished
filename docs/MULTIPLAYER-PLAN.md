@@ -170,7 +170,7 @@ pauses).
 `unbanished --lockstep-test SAVE RECORDING [PLAYERS] [DELAY] [JITTER] [STALL] [SEED]` loads the save
 once per player in one process, splits the recording's commands between them (whoever starts a
 tool gives its commands; the next tool goes to the next player), and joins them by a simulated
-network: a turn arrives 1 to `1 + JITTER` ticks after it is sent, and each computer is too busy to
+network: a turn arrives 1 to `1 + JITTER` ticks after it is sent. Each computer is too busy to
 update in STALL % of ticks. Digests every 60 updates must agree. `tools/compat/lockstep.sh`
 records the `actions` scenario and runs six settings.
 
@@ -282,7 +282,7 @@ logo) says which player this is, or that the game waits for the others.
 
 Proof: `tools/compat/multiplayer.sh` runs a relay and two headless games kept to the clock. The
 host hosts room TEST, the guest types the code and joins, the host presses Start and picks its
-save, and the guest changes the speed during the game. The host's checks every 60 updates all
+save. The guest changes the speed during the game. The host's checks every 60 updates all
 agreed (24 checks in 45 s). `tools/compat/lockstep.sh` and `network.sh` still pass on the new
 code, and the single-player game is unchanged (`compare.sh`).
 
@@ -295,11 +295,11 @@ one computer to the next. A command given while waiting goes into the next turn 
 game (a Deviation), so the speed does not depend on each player's own setting. After half a
 second of waiting the line names the players waited for.
 
-**Leaving.** The relay passes on everything a player sent before the news that they left, and
-each computer gets its messages in order. So every computer holds the same turns from that
-player, and each takes them out of the game from the slot after their last turn, with no message
-of its own (`Lockstep::leave`). The host stops waiting for their digests, and the line says who
-has left. If the host leaves, the others play on without checks. Players who joined the lobby and
+**Leaving.** The relay passes on everything a player sent before the news that they left. Each
+computer gets its messages in order. So every computer holds the same turns from that player.
+Each takes them out of the game from the slot after their last turn, with no message
+of its own (`Lockstep::leave`). The host stops waiting for their digests. The line says who has
+left. If the host leaves, the others play on without checks. Players who joined the lobby and
 left before the start are named in `Message::Start` (`absent`).
 
 Proof: `tools/compat/multiplayer.sh` has a second scenario, `leave`: the host and two guests, of
@@ -308,14 +308,14 @@ all 19 checks after it. A manual run paused the guest process (SIGSTOP): the hos
 update 486 waited for player 2, and a camera turn held during the wait turned the view. Unit
 tests cover leaving (the slot, readiness, the host's checks) and a command given while waiting.
 
-**False desyncs.** The digest hashed the whole save, and a save also holds each player's own
-view: the camera, and the settings each building's window remembers (`UIComponent`). So a
+**False desyncs.** The digest hashed the whole save. A save also holds each player's own view:
+the camera, and the settings each building's window remembers (`UIComponent`). So a
 player who zoomed, or opened and closed a building's window, looked out of step, and the host
 resynced everybody, over and over while the camera moved. Record and replay in single player
 showed it: a run with only a zoom, and one with only a window opened and closed, each replayed
 to a different digest; `savegame_fields_diff` found the window settings the only other
 difference. The digest now leaves the camera and the window settings out (the saves are
-unchanged), and both runs replay identically. A two-player run with camera moves, window clicks
+unchanged). Both runs replay identically. A two-player run with camera moves, window clicks
 and a house placed by each player then agreed on all 32 checks. This is the likely cause of the
 one unexplained desync seen earlier.
 

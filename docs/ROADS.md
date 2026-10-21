@@ -59,7 +59,7 @@ ends the work on parameter 1; fail, cancel and refresh (`FUN_1400e95f0`, `FUN_14
 **CompleteRoad** (vtable `0x140165f80`, start `FUN_1400cad20` → `FUN_1400a1b10(cell, byte,
 type)`): to type 2 the cell loses its road (`+0x28` one less, `+0x2a = 0xff`, `+0x2b = 0`);
 otherwise `+0x2b` takes the byte and the terrain is flattened under the cell (`FUN_1400a35b0`).
-The cell takes the type, leaves the planned set, and the road mesh is rebuilt.
+The cell takes the type, leaves the planned set. The road mesh is rebuilt.
 
 ## Taking a road back
 

@@ -11,8 +11,9 @@ Port: `apps/game/src/achievements.rs` (checking), `achievement_ui.rs` (the dialo
 
 ## Checking (`AchievementManager::Update`, `0x18009f1e0`)
 
-After each frame's iterations the game calls `Update(dt × iterations)` (`FUN_14009b850`). Nothing
-happens, and no time is gathered, while user pack files (mods) are enabled (`FileSystem +0x38`,
+After each frame's iterations the game calls `Update(dt × iterations)` (`FUN_14009b850`).
+Nothing happens. No time is gathered, while user pack files (mods) are enabled (`FileSystem
++0x38`,
 `AreUserPackFilesEnabled`). Every
 achievement not yet awarded gathers the time; the next one not awarded (`+0xb0`, in turn) has
 its goals updated with it (`GoalList::Update`), and with every goal met and none failed it is

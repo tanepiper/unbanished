@@ -45,9 +45,9 @@ sees it happen.
 />
 </div>
 
-In the game, a line at the foot of the screen says which player you are. When the game waits
-for a slower computer, it names the player, and you can still move the camera and use the
-windows meanwhile.
+In the game, a line at the foot of the screen says which player you are. When the game waits for
+a slower computer, it names the player. You can still move the camera and use the windows
+meanwhile.
 
 <Shot
   src="/assets/screenshots/multiplayer-players-line.webp"
@@ -114,8 +114,8 @@ The browser version now behaves more like a real app:
 
 ## Films of your town
 
-Every video on this website was filmed by Un-Banished itself, with no window open: the game runs,
-a script moves the camera, and each frame becomes part of a film. Now those films can have a
+Every video on this website was filmed by Un-Banished itself, with no window open: the game
+runs, a script moves the camera. Each frame becomes part of a film. Now those films can have a
 look of their own. The video tool has three colour filters: **sepia**, **grey** and
 **psychedelic**, which turns every colour slowly around the colour wheel.
 

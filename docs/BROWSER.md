@@ -52,8 +52,8 @@ The final integrated WASM release was rebuilt and these three playback checks
 were repeated after the audio cleanup changes. Selecting the packages again
 closed the old AudioContext. Separate picker checks confirmed cancellation
 preserved the panel, unrelated files were rejected, invalid packages reported
-a parse error with the input enabled, the same invalid package triggered a new
-load on reselection, and an injected File read rejection displayed its filename
+a parse error with the input enabled, the same invalid package triggered a new load on
+reselection. An injected File read rejection displayed its filename
 and re-enabled the chooser. `node --check tools/browser-smoke.js` passed.
 
 The integrated dialog preview was also exercised in Chrome: Options switched
