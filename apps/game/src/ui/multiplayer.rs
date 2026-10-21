@@ -70,6 +70,8 @@ pub struct MultiplayerDialog {
     hello: unbanished_net::Hello,
     /// What arrived before the start (a running game's turns, for a player who joins it).
     early: Vec<(u8, Message)>,
+    /// The host: the update of the room's kept town from the last game, if the server has one.
+    kept: Option<u64>,
     role: Role,
     message: String,
 }
@@ -142,6 +144,7 @@ impl MultiplayerDialog {
         let d = MultiplayerDialog {
             hello: crate::gameplay::network::hello(archive),
             early: Vec::new(),
+            kept: None,
             root,
             code,
             relay,
@@ -202,6 +205,13 @@ impl MultiplayerDialog {
                     log::info!("multiplayer: connecting to {relay}");
                     self.connect(&relay, code);
                 }
+                // A room with a kept town goes on from it; otherwise the host chooses a save.
+                Role::Hosting { .. } if self.kept.is_some() => {
+                    if let Some(link) = &self.link {
+                        link.borrow_mut().request(ToRelay::Fetch);
+                    }
+                    self.message = "Fetching the room's town...".into();
+                }
                 Role::Hosting { .. } => {
                     log::info!("multiplayer: choosing the save to play");
                     return Outcome::ChooseSave;
@@ -247,10 +257,19 @@ impl MultiplayerDialog {
         };
         let arrived = Link::poll(&mut *link.borrow_mut());
         let events: Vec<_> = link.borrow_mut().events.drain(..).collect();
+        let mut kept_town = None;
         for e in events {
             match (e, &mut self.role) {
-                (FromRelay::Hosted { room }, _) => {
-                    self.message = format!("Room {room} is open. Give the code to the players.");
+                // The room's kept town: the game goes on from it.
+                (FromRelay::Kept { bytes, .. }, Role::Hosting { .. }) => kept_town = Some(bytes),
+                (FromRelay::Hosted { room, kept, .. }, _) => {
+                    self.kept = kept;
+                    self.message = match kept {
+                        Some(_) => format!(
+                            "Room {room} is open, with its town from the last game: Start goes on from it."
+                        ),
+                        None => format!("Room {room} is open. Give the code to the players."),
+                    };
                     if let Some(c) = self.code {
                         ui.set_text(c, &room);
                     }
@@ -275,6 +294,9 @@ impl MultiplayerDialog {
                 }
                 _ => {}
             }
+        }
+        if let Some(bytes) = kept_town {
+            return self.host_start(ui, screen, bytes);
         }
         if let State::Closed(e) = link.borrow().state() {
             self.message = format!("No connection: {e}");
@@ -319,6 +341,8 @@ impl MultiplayerDialog {
             return Outcome::Stay;
         };
         let check = check_interval();
+        // A server that keeps rooms keeps the town from its start.
+        link.borrow_mut().keep(0, &bytes);
         let start = Message::Start {
             players: count,
             delay: DELAY,

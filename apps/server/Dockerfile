@@ -16,6 +16,8 @@ RUN cargo build --release --locked -p unbanished-server
 
 FROM debian:trixie-slim
 COPY --from=build /src/target/release/unbanished-server /usr/local/bin/unbanished-server
+# A folder for kept rooms (the `rooms` setting); a named volume mounted here takes its owner.
+RUN mkdir -p /rooms && chown nobody:nogroup /rooms
 USER nobody
 EXPOSE 7780
 # `GET /health` answers `ok` on the game port.

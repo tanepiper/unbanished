@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 
 use crate::checks::{Checks, Verdict};
 use crate::protocol::{FromRelay, Hello, RoomInfo, ToRelay, PROTOCOL};
+use crate::store::{keepable, Kept, Store};
 
 /// A game connected to the relay, by a number the caller gives it.
 pub type Client = u64;
@@ -79,6 +80,8 @@ pub struct Relay {
     seed: u64,
     /// The most rooms open at once; a host beyond it is refused.
     pub max_rooms: usize,
+    /// Where rooms' towns are kept, if the server keeps them.
+    store: Option<Box<dyn Store>>,
 }
 
 impl Relay {
@@ -89,7 +92,14 @@ impl Relay {
             games: BTreeMap::new(),
             seed: seed | 1,
             max_rooms: usize::MAX,
+            store: None,
         }
+    }
+
+    /// Keeps the rooms' towns in `store`.
+    pub fn with_store(mut self, store: Box<dyn Store>) -> Relay {
+        self.store = Some(store);
+        self
     }
 
     /// How many rooms are open.
@@ -180,9 +190,21 @@ impl Relay {
                     },
                 );
                 log::info!("room {room} opened");
-                reply
-                    .out
-                    .push((client, FromRelay::Hosted { room: room.clone() }));
+                let keeps = self.store.is_some() && keepable(&room);
+                let kept = self
+                    .store
+                    .as_ref()
+                    .filter(|_| keeps)
+                    .and_then(|s| s.load(&room))
+                    .map(|k| k.update);
+                reply.out.push((
+                    client,
+                    FromRelay::Hosted {
+                        room: room.clone(),
+                        keeps,
+                        kept,
+                    },
+                ));
                 self.games.get_mut(&client).expect("connected").room = Some((room, 0));
             }
             ToRelay::Join { room, password } => {
@@ -222,6 +244,26 @@ impl Relay {
                 self.games.get_mut(&client).expect("connected").room = Some((room, player));
             }
             ToRelay::Leave => reply.out = self.leave(client),
+            // Only a room's host keeps its town, and only on a server that keeps rooms.
+            ToRelay::Keep { update, bytes } => {
+                if let (Some((room, 0)), Some(store)) = (game.room.clone(), self.store.as_mut()) {
+                    store.keep(&room, Kept { update, bytes });
+                    log::info!("room {room}: kept the town at update {update}");
+                }
+            }
+            ToRelay::Fetch => {
+                let kept = match (&game.room, &self.store) {
+                    (Some((room, _)), Some(store)) => store.load(room),
+                    _ => None,
+                };
+                let message = match kept {
+                    Some(Kept { update, bytes }) => FromRelay::Kept { update, bytes },
+                    None => FromRelay::Error {
+                        message: "this room has no kept town".into(),
+                    },
+                };
+                reply.out.push((client, message));
+            }
             ToRelay::Digest { epoch, update, crc } => {
                 let Some((room, player)) = game.room.clone() else {
                     return reply;

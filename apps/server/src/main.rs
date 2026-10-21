@@ -55,6 +55,10 @@ fn run(listener: TcpListener, config: &Config) {
         .map_or(1, |d| d.as_nanos() as u64);
     let mut relay = Relay::new(seed);
     relay.max_rooms = config.max_rooms;
+    if let Some(dir) = &config.rooms {
+        log::info!("keeping rooms' towns in {}", dir.display());
+        relay = relay.with_store(Box::new(unbanished_net::store::FolderStore(dir.clone())));
+    }
     let shared = Arc::new(Mutex::new(Shared {
         relay,
         queues: Default::default(),
@@ -122,7 +126,9 @@ mod tests {
         assert_eq!(
             next(&mut host),
             FromRelay::Hosted {
-                room: "TESTER".into()
+                room: "TESTER".into(),
+                keeps: false,
+                kept: None
             }
         );
         let mut a = greeted(&url);

@@ -32,6 +32,17 @@ impl MemoryRelay {
         })))
     }
 
+    /// An empty relay that keeps rooms' towns in `store`.
+    pub fn with_store(seed: u64, store: Box<dyn crate::store::Store>) -> MemoryRelay {
+        let relay = MemoryRelay::new(seed);
+        {
+            let mut inner = relay.0.borrow_mut();
+            let r = std::mem::replace(&mut inner.relay, Relay::new(seed));
+            inner.relay = r.with_store(store);
+        }
+        relay
+    }
+
     /// A new game's connection to it.
     pub fn connect(&self) -> MemoryConnection {
         let mut inner = self.0.borrow_mut();

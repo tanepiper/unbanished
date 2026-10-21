@@ -20,6 +20,7 @@ pub mod checks;
 pub mod memory;
 mod protocol;
 pub mod rooms;
+pub mod store;
 
 pub use protocol::{decode, encode, FromRelay, Hello, RoomInfo, ToRelay, PROTOCOL};
 

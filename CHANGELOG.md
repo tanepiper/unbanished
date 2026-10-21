@@ -11,6 +11,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Added
 
+- Multiplayer: a server can keep each room's town between games (its `rooms` setting names the
+  folder). The host's game gives it the town every minute; a host who opens the room again later
+  goes on from it.
+
 - Multiplayer: a player can join a game that has already started, while its host is in it. A
   player who left can come back the same way. Everybody reloads the town as it is, and the new
   player starts from it.

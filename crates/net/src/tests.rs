@@ -92,7 +92,9 @@ fn players_list_host_join_and_pass_data() {
     assert_eq!(
         host.poll(),
         [FromRelay::Hosted {
-            room: "TESTER".into()
+            room: "TESTER".into(),
+            keeps: false,
+            kept: None
         }]
     );
     let mut a = greeted(&relay, hello());
@@ -242,4 +244,54 @@ fn the_server_asks_the_majority_for_a_save() {
         agree: true,
     };
     assert!(players.iter_mut().all(|p| p.poll() == [agree.clone()]));
+}
+
+#[test]
+fn a_server_that_keeps_rooms_gives_the_town_back() {
+    let relay = MemoryRelay::with_store(1, Box::new(super::store::MemoryStore::default()));
+    let mut host = greeted(&relay, hello());
+    host.send(ToRelay::Host {
+        room: Some("KEPT".into()),
+        password: None,
+    });
+    let hosted = FromRelay::Hosted {
+        room: "KEPT".into(),
+        keeps: true,
+        kept: None,
+    };
+    assert_eq!(host.poll(), [hosted]);
+    // A player who is not the host cannot keep the town.
+    let mut guest = greeted(&relay, hello());
+    guest.send(ToRelay::Join {
+        room: "KEPT".into(),
+        password: None,
+    });
+    guest.send(ToRelay::Keep {
+        update: 5,
+        bytes: vec![9],
+    });
+    host.send(ToRelay::Keep {
+        update: 600,
+        bytes: vec![1, 2],
+    });
+    drop(guest);
+    drop(host);
+    // The room closed; a host who opens it again finds its town.
+    let mut again = greeted(&relay, hello());
+    again.send(ToRelay::Host {
+        room: Some("KEPT".into()),
+        password: None,
+    });
+    let hosted = FromRelay::Hosted {
+        room: "KEPT".into(),
+        keeps: true,
+        kept: Some(600),
+    };
+    assert_eq!(again.poll(), [hosted]);
+    again.send(ToRelay::Fetch);
+    let kept = FromRelay::Kept {
+        update: 600,
+        bytes: vec![1, 2],
+    };
+    assert_eq!(again.poll(), [kept]);
 }

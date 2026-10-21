@@ -43,7 +43,13 @@ pub struct NetState {
     leaving: Vec<u8>,
     /// The host: players joining the running game, and the update to send each its save at.
     joining: Vec<(u8, u64)>,
+    /// Whether the server may keep this room's town: the host gives it a save every
+    /// [`KEEP_EVERY`] updates until the server says it keeps none.
+    keeps: bool,
 }
+
+/// How often the host gives a server that keeps rooms its town: every minute of play.
+const KEEP_EVERY: u64 = 3600;
 
 impl NetState {
     /// The players line belongs to the screen it was on.
@@ -154,6 +160,7 @@ impl GameplayLoop {
             shown: String::new(),
             leaving: Vec::new(),
             joining: Vec::new(),
+            keeps: true,
         });
     }
 
@@ -282,6 +289,11 @@ impl GameplayLoop {
             return Ok(None);
         }
         self.online.boundary_done = Some(update);
+        let host = self
+            .online
+            .lockstep
+            .as_ref()
+            .is_some_and(|l| l.lockstep.player == 0);
         // The host resyncs when its own check failed; any player when the server asked it.
         if self.online.net.as_ref().unwrap().resync_wanted {
             let bytes = self
@@ -295,6 +307,9 @@ impl GameplayLoop {
                 bytes: bytes.clone(),
             };
             net.link.send(None, &save);
+            if host {
+                net.link.keep(update, &bytes);
+            }
             return Ok(Some((bytes, update)));
         }
         // A player joining the running game gets the save of the update before its first slot,
@@ -342,7 +357,19 @@ impl GameplayLoop {
                     player + 1
                 );
             }
+            net.link.keep(update, &bytes);
             return Ok(Some((bytes, update)));
+        }
+        // A server that keeps rooms gets the host's town every minute of play.
+        if host && update > 0 && update % KEEP_EVERY == 0 {
+            let keeps = self.online.net.as_ref().is_some_and(|n| n.keeps);
+            if keeps {
+                let bytes = self
+                    .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
+                    .ok_or("the host could not save its town to keep")?;
+                let net = self.online.net.as_mut().unwrap();
+                net.keeps = net.link.keep(update, &bytes);
+            }
         }
         let check = self.online.net.as_ref().unwrap().check;
         if check > 0 && update > 0 && update % check == 0 {
@@ -505,6 +532,10 @@ impl NetPeer {
         players: u8,
         delay: u64,
     ) -> Result<(), String> {
+        // A server that keeps rooms keeps the town from its start.
+        if let Some(link) = &mut self.link {
+            link.keep(0, &bytes);
+        }
         let start = Message::Start {
             players,
             delay,

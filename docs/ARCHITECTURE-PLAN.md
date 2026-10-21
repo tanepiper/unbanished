@@ -332,6 +332,15 @@ resynced, the server restarts and the town resumes; all digests agree.
      order; after any reload the drag tools start again by template and the Path tools start
      afresh. The newcomer keeps what arrived before its `Start`. A player who left joins again
      the same way, as a new player number. `network.sh` gains a `late` run.
+   - **D3b done**: rooms kept on disk, only when the server's settings name a folder
+     (`rooms = DIR`). Protocol 3: `Hosted` says whether the server keeps rooms and whether
+     this code has a kept town; the host sends `Keep` (its save) at the start, at every resync
+     or join, and every 3600 updates; `Fetch` answers `Kept`. The room rules take a `Store`
+     (`unbanished_net::store`: a folder store writes `CODE.sav` and `CODE.update` beside and
+     renames them over, a memory store for tests); only codes of letters and digits, at most
+     16, become file names. The Multiplayer window, hosting a room with a kept town, goes on
+     from it at **Start**. A server restart keeps the towns: the end-to-end check is in
+     `server.sh` (D4).
 
 **E. Server stage 2.** `--simulate WINDATA`: the server as a headless peer and authority.
 `server.sh --simulate`: same scenario, plus a game that advances with one player and the

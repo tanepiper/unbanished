@@ -5,17 +5,18 @@ Un-Banished multiplayer networking: the protocol between a game and the relay
 natively and in the browser. The original Banished has no multiplayer; this is the port's own (see
 [MULTIPLAYER-PLAN.md](../../docs/MULTIPLAYER-PLAN.md), step 5).
 
-Protocol version 2. A game's first message is `Hello`; the relay answers `Welcome`, or an
+Protocol version 3. A game's first message is `Hello`; the relay answers `Welcome`, or an
 `Error` with the reason when the versions differ.
 
 | Item | What it is |
 |---|---|
 | `PROTOCOL`, `Hello` | The protocol version, and who a game is: the protocol, its engine version, and fingerprints of its game data and mods (`Archive::fingerprints`). `Hello::differs` says why two games cannot share a room |
-| `ToRelay` | A game to the relay: `Hello`, `ListRooms`, `Host` a room (a code or a new one, and a password or none), `Join` one (with its password), `Leave`, `Send` data to one player or to every other player, `Ping`, and `Digest` (the game state's digest, for the server's check) |
-| `FromRelay` | The relay to a game: `Welcome`, `Rooms`, `Hosted`, `Joined` (with the player number), `PeerJoined`, `PeerLeft`, `Data` (with the sender), `Pong`, `SaveWanted` (this game is the one to keep: send the others a save), `Error` (with the reason) |
+| `ToRelay` | A game to the relay: `Hello`, `ListRooms`, `Host` a room (a code or a new one, and a password or none), `Join` one (with its password), `Leave`, `Send` data to one player or to every other player, `Ping`, `Digest` (the game state's digest, for the server's check), `Keep` (the host's town, for a server that keeps rooms) and `Fetch` (the room's kept town) |
+| `FromRelay` | The relay to a game: `Welcome`, `Rooms`, `Hosted` (and whether the server keeps rooms, and this room's kept town), `Kept`, `Joined` (with the player number), `PeerJoined`, `PeerLeft`, `Data` (with the sender), `Pong`, `SaveWanted` (this game is the one to keep: send the others a save), `Error` (with the reason) |
 | `encode`, `decode` | One value as one WebSocket binary message (postcard). A cut-off or unknown message decodes to an error |
 | `checks::Checks` | The server's check of a room's digests: the players agree, or the game most of them have is kept (the host's on a tie) |
 | `rooms::Relay` | The relay's rules with no sockets: a request goes in, the messages for each game come out. The relay program and the tests use it |
+| `store` | Where a server keeps rooms' towns: `Store`, `FolderStore` (a folder of `CODE.sav` files), `MemoryStore`, and `keepable` (which codes may name a file) |
 | `memory::MemoryRelay` | A relay and its connections in one process, for tests |
 | `Connection` | A connection to a relay: `connect(url)`, `send`, `poll`, `state`. Natively (feature `native`) a background thread holds the socket (tungstenite); in the browser it is the page's `WebSocket` |
 | `State` | Connecting, open, or closed (with the reason) |

@@ -16,7 +16,7 @@
 use serde::{Deserialize, Serialize};
 
 /// The protocol version this crate speaks.
-pub const PROTOCOL: u16 = 2;
+pub const PROTOCOL: u16 = 3;
 
 /// Who a game is: the protocol it speaks, and what its players must share.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -103,6 +103,16 @@ pub enum ToRelay {
     },
     /// Is the relay there? It answers [`FromRelay::Pong`] with the same number.
     Ping(u32),
+    /// The host's town, for the server to keep (when it keeps rooms): the save made when
+    /// `update` updates had begun.
+    Keep {
+        /// The update the save was made at.
+        update: u64,
+        /// The save file's bytes.
+        bytes: Vec<u8>,
+    },
+    /// The town the server keeps for this room: it answers [`FromRelay::Kept`].
+    Fetch,
     /// A digest of this game's state when `update` updates had begun, made in `epoch` (the
     /// resyncs it has been through), for the server's check.
     Digest {
@@ -129,6 +139,17 @@ pub enum FromRelay {
     Hosted {
         /// The room's code.
         room: String,
+        /// Whether the server keeps rooms' towns: the host sends it its saves ([`ToRelay::Keep`]).
+        keeps: bool,
+        /// The update of the town kept for this room from an earlier game, if there is one.
+        kept: Option<u64>,
+    },
+    /// The town kept for this room.
+    Kept {
+        /// The update the save was made at.
+        update: u64,
+        /// The save file's bytes.
+        bytes: Vec<u8>,
     },
     /// This game joined the room as `player`.
     Joined {

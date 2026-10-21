@@ -4,6 +4,7 @@
 //! # unbanished-server.conf
 //! address = 0.0.0.0:7780     # where to listen
 //! max_rooms = 100            # the most rooms open at once
+//! rooms = /var/lib/unbanished  # keep each room's town here (none: rooms are not kept)
 //! ```
 
 /// The server's settings.
@@ -13,6 +14,8 @@ pub struct Config {
     pub address: String,
     /// The most rooms open at once.
     pub max_rooms: usize,
+    /// The folder that keeps each room's town between games; none keeps nothing.
+    pub rooms: Option<std::path::PathBuf>,
 }
 
 impl Default for Config {
@@ -20,6 +23,7 @@ impl Default for Config {
         Config {
             address: "0.0.0.0:7780".into(),
             max_rooms: 100,
+            rooms: None,
         }
     }
 }
@@ -68,6 +72,7 @@ impl Config {
                         .parse()
                         .map_err(|_| format!("line {}: max_rooms is a number", n + 1))?
                 }
+                "rooms" => self.rooms = Some(value.into()),
                 other => return Err(format!("line {}: unknown setting {other}", n + 1)),
             }
         }
@@ -82,8 +87,9 @@ mod tests {
     #[test]
     fn a_settings_file_and_the_command_line() {
         let mut c = Config::default();
-        c.read("# comment\naddress = 127.0.0.1:9000  # here\n\nmax_rooms = 3\n")
+        c.read("# comment\naddress = 127.0.0.1:9000  # here\n\nmax_rooms = 3\nrooms = kept\n")
             .unwrap();
+        assert_eq!(c.rooms.as_deref(), Some(std::path::Path::new("kept")));
         assert_eq!(c.address, "127.0.0.1:9000");
         assert_eq!(c.max_rooms, 3);
         assert!(c.read("colour = blue").is_err());

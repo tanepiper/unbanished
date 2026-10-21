@@ -153,6 +153,15 @@ nobody new can join any more: the host is the one who brings new players in.
 A player who left can join again with the room code, as for a game that has started (below). They
 come back as a new player number.
 
+## Play again another day
+
+A server whose settings keep rooms (its `rooms` setting, see the
+[server's README](../../apps/server/README.md)) keeps each room's town: the host's game gives it
+the town every minute. When everybody has left, the town stays on the server. To go on, the host
+opens a room with the same code: the Multiplayer window says the room has its town from the last
+game, and **Start** goes on from it. Without that setting, save the game as usual and start a new
+multiplayer game from the save.
+
 ## Join a game that has started
 
 While the host is in the game, anyone can join it with the room code, as before the start. The
