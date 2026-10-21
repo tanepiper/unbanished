@@ -274,9 +274,15 @@ gameplay/network.rs and gameplay/recording.rs; `Local`, `Lockstep`, `Replay` beh
      shared and simulated links, `Digest`, and a recording's `Entry` and `Recorder`. The game
      loop's glue (joining, slots, resyncs, `NetState` with its players line, `NetPeer`, the
      test harnesses) stays in `apps/game/src/gameplay/` and re-exports the moved types.
-   - B2: the `Session` trait (`Local`, `Lockstep`, `Replay`) driving a `Simulation`, so the
-     glue leaves the game loop; then the `replay` and `multiplayer` features, the Multiplayer
-     button as a menu entry, and the Pure Banished switch.
+   - **B2 done**: `unbanished_session::session::Session` says when a game carries out its
+     players' commands: `give` (now, or held for its slot), `slot` (the commands before an
+     update, or wait), `take_outbox`. `Local` carries everything out at once;
+     `LockstepSession` owns the `Lockstep`, the outbox and the last slot, and `resynced` picks
+     up after a resync. The game loop holds an `Option<LockstepSession>` and asks it; a server
+     can drive a `Simulation` with the same session. Replays stay a driver of their own
+     (`recording::replay`), since the recording also holds menu pauses and digests.
+   - B3: the `replay` and `multiplayer` features (the game loop's multiplayer fields behind
+     one door), the Multiplayer button as a menu entry, and the Pure Banished switch.
 
 **C. Protocol v1.** Versioned `Hello` handshake (rejects mismatched engine, data or mods with a
 readable reason), lobby/game split, `Join{from_update}`, `Rejoin`, `Ping`. In-memory transport.

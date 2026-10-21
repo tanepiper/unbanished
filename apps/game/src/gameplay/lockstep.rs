@@ -4,7 +4,8 @@
 //! Deviation: not in the original, which has no multiplayer.
 #![cfg_attr(target_arch = "wasm32", allow(dead_code))]
 
-pub use unbanished_session::lockstep::{Lockstep, Message, Turn};
+pub use unbanished_session::lockstep::{Message, Turn};
+use unbanished_session::session::{LockstepSession, Session};
 
 use super::commands::PlayerCommand;
 use crate::loops::GameLoop;
@@ -13,13 +14,15 @@ impl super::GameplayLoop {
     /// Plays this game in lockstep as `player` of `players`, with an input delay of `delay`
     /// updates.
     pub fn join_lockstep(&mut self, player: u8, players: u8, delay: u64) {
-        self.lockstep = Some(Lockstep::new(player, players, delay));
+        self.lockstep = Some(LockstepSession::new(player, players, delay));
     }
 
     /// The local player gives a command: in lockstep it waits for its slot.
     pub fn give(&mut self, archive: &unbanished_formats::pkg::Archive, command: PlayerCommand) {
         match &mut self.lockstep {
-            Some(l) => l.give(self.sim.updates, command),
+            Some(l) => {
+                l.give(self.sim.updates, command);
+            }
             None => {
                 self.execute(archive, command);
             }
@@ -28,38 +31,32 @@ impl super::GameplayLoop {
 
     /// The messages since the last call, to send to the other players.
     pub fn take_outbox(&mut self) -> Vec<Message> {
-        std::mem::take(&mut self.outbox)
+        self.lockstep
+            .as_mut()
+            .map_or_else(Vec::new, |l| l.take_outbox())
     }
 
     /// Another player's turn arrives.
     pub fn receive_turn(&mut self, turn: Turn) {
         if let Some(l) = &mut self.lockstep {
-            l.receive(turn);
+            l.lockstep.receive(turn);
         }
     }
 
     /// Before an update: seals the local turn `delay` slots ahead (once), and carries out the
     /// slot of the updates begun so far if every player's turn is here. False while waiting.
     pub fn lockstep_slot(&mut self, ctx: &mut crate::loops::Ctx) -> bool {
-        let slot = self.sim.updates;
-        if self.slot_done == Some(slot) {
-            return true;
-        }
         let Some(l) = &mut self.lockstep else {
             return true;
         };
-        let sealed = l.seal_through(slot);
-        self.outbox.extend(sealed.into_iter().map(Message::Turn));
-        if !l.ready(slot) {
+        let Some(commands) = l.slot(self.sim.updates) else {
             return false;
-        }
-        let commands = l.take(slot);
+        };
         self.carrying_out = true;
         for (player, command) in commands {
             self.execute_from(ctx, player, command);
         }
         self.carrying_out = false;
-        self.slot_done = Some(slot);
         true
     }
 
@@ -67,7 +64,7 @@ impl super::GameplayLoop {
     /// kept for the other player (their Path tool; drag tools are kept by template for all).
     fn execute_from(&mut self, ctx: &mut crate::loops::Ctx, player: u8, command: PlayerCommand) {
         use super::commands::{Outcome, Tool};
-        let local = self.lockstep.as_ref().is_none_or(|l| l.player == player);
+        let local = self.lockstep.as_ref().is_none_or(|l| l.player() == player);
         if local {
             let template = match &command {
                 PlayerCommand::StartTool { template } => Some(template.clone()),
@@ -163,20 +160,14 @@ impl super::GameplayLoop {
         g.sim.drag_tools = std::mem::take(&mut self.sim.drag_tools);
         g.remote_paths = std::mem::take(&mut self.remote_paths);
         g.path_tool = self.path_tool.take();
-        g.outbox = std::mem::take(&mut self.outbox);
         g.net = self.net.take();
         if let Some(net) = &mut g.net {
             net.forget_line();
         }
         g.sim.updates = update;
-        g.slot_done = Some(update);
         g.boundary_done = Some(update);
         if let Some(mut l) = self.lockstep.take() {
-            l.rewind(update);
-            l.epoch += 1;
-            l.forget_checks();
-            let sealed = l.seal_through(update);
-            g.outbox.extend(sealed.into_iter().map(Message::Turn));
+            l.resynced(update);
             g.lockstep = Some(l);
         }
         self.retired = true;

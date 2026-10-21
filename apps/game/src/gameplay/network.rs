@@ -90,7 +90,7 @@ impl GameplayLoop {
     /// start.
     pub fn start_lockstep(&mut self, player: u8, players: u8, delay: u64, absent: &[u8]) {
         self.join_lockstep(player, players, delay);
-        if let Some(l) = &mut self.lockstep {
+        if let Some(l) = self.lockstep.as_mut().map(|s| &mut s.lockstep) {
             for &p in absent {
                 l.leave(p);
             }
@@ -123,7 +123,7 @@ impl GameplayLoop {
                     update,
                     crc,
                 } => {
-                    let l = self.lockstep.as_mut();
+                    let l = self.lockstep.as_mut().map(|s| &mut s.lockstep);
                     let agree = l.and_then(|l| l.check_in(player, epoch, update, crc));
                     self.net.as_mut().unwrap().checked(update, agree);
                 }
@@ -137,7 +137,7 @@ impl GameplayLoop {
         // Who left, once every turn they sent is in.
         let leaving = std::mem::take(&mut self.net.as_mut().unwrap().leaving);
         for player in leaving {
-            let Some(l) = self.lockstep.as_mut() else {
+            let Some(l) = self.lockstep.as_mut().map(|s| &mut s.lockstep) else {
                 continue;
             };
             let (from, checks) = l.leave(player);
@@ -171,7 +171,10 @@ impl GameplayLoop {
             return Ok(None);
         }
         self.boundary_done = Some(update);
-        let host = self.lockstep.as_ref().is_some_and(|l| l.player == 0);
+        let host = self
+            .lockstep
+            .as_ref()
+            .is_some_and(|l| l.lockstep.player == 0);
         if host && self.net.as_ref().unwrap().resync_wanted {
             let bytes = self
                 .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
@@ -189,7 +192,7 @@ impl GameplayLoop {
         let check = self.net.as_ref().unwrap().check;
         if check > 0 && update > 0 && update % check == 0 {
             let crc = self.digest(ctx, update as u32)?.crc;
-            let l = self.lockstep.as_mut().ok_or("no lockstep")?;
+            let l = &mut self.lockstep.as_mut().ok_or("no lockstep")?.lockstep;
             let (player, epoch) = (l.player, l.epoch);
             let agree = (player == 0).then(|| l.check(0, update, crc)).flatten();
             let net = self.net.as_mut().unwrap();
@@ -230,7 +233,10 @@ impl GameplayLoop {
 
     /// The line's text: who this player is, or that the game waits for the others.
     pub(super) fn refresh_players_line(&mut self, ui: &mut unbanished_ui::Ui, waiting: bool) {
-        let (Some(net), Some(l)) = (self.net.as_mut(), self.lockstep.as_ref()) else {
+        let (Some(net), Some(l)) = (
+            self.net.as_mut(),
+            self.lockstep.as_ref().map(|s| &s.lockstep),
+        ) else {
             return;
         };
         net.waiting = if waiting {

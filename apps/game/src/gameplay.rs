@@ -165,11 +165,9 @@ pub struct GameplayLoop {
     replaying: bool,
     /// The recording being written (`--record`).
     recorder: Option<recording::Recorder>,
-    /// A multiplayer game ([`lockstep`]): the turns, and the turns sealed to send.
-    lockstep: Option<lockstep::Lockstep>,
-    outbox: Vec<lockstep::Message>,
-    /// The slot carried out last (lockstep).
-    slot_done: Option<u64>,
+    /// A multiplayer game's session ([`lockstep`]): the turns, the turns sealed to send and the
+    /// slot carried out last. A single-player game has none and carries commands out at once.
+    lockstep: Option<unbanished_session::session::LockstepSession>,
     /// A multiplayer game's session ([`network`]), and the update boundary it last handled.
     net: Option<network::NetState>,
     boundary_done: Option<u64>,
@@ -331,8 +329,6 @@ impl GameplayLoop {
             replaying: false,
             recorder: None,
             lockstep: None,
-            outbox: Vec::new(),
-            slot_done: None,
             remote_paths: Default::default(),
             net: None,
             boundary_done: None,
