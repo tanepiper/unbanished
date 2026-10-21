@@ -13,74 +13,14 @@
 // Recording and replaying run from the command line; the browser build only carries the types.
 #![cfg_attr(target_arch = "wasm32", allow(dead_code))]
 
-use serde::{Deserialize, Serialize};
-
 use super::commands::{Outcome, PlayerCommand, Tool};
 use super::digest::Digest;
 use crate::loops::GameLoop;
+pub use unbanished_session::recording::{Entry, Recorder};
 
 /// One line of a recording. `update` counts the updates since the save was loaded: a command
 /// with update `n` was given after `n` updates had begun, and a digest with update `n` is the
 /// state when the next update begins.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Entry {
-    /// The engine that recorded it.
-    Start {
-        engine: String,
-    },
-    Command {
-        update: u64,
-        command: PlayerCommand,
-    },
-    /// From the start of update `update + 1`, the pause menu holds (or no longer holds) the game.
-    MenuPause {
-        update: u64,
-        paused: bool,
-    },
-    Digest(Digest),
-}
-
-/// A recording being written.
-pub struct Recorder {
-    out: Box<dyn std::io::Write>,
-    /// A digest every this many updates (0: none).
-    pub every: u64,
-}
-
-impl Recorder {
-    pub fn new(mut out: Box<dyn std::io::Write>, every: u64) -> Recorder {
-        let start = Entry::Start {
-            engine: crate::platform::version::NAME_VERSION.to_string(),
-        };
-        write(&mut out, &start);
-        Recorder { out, every }
-    }
-
-    pub fn command(&mut self, update: u64, command: &PlayerCommand) {
-        let entry = Entry::Command {
-            update,
-            command: command.clone(),
-        };
-        write(&mut self.out, &entry);
-    }
-
-    pub fn menu_pause(&mut self, update: u64, paused: bool) {
-        write(&mut self.out, &Entry::MenuPause { update, paused });
-    }
-
-    pub fn digest(&mut self, digest: Digest) {
-        write(&mut self.out, &Entry::Digest(digest));
-    }
-}
-
-fn write(out: &mut Box<dyn std::io::Write>, entry: &Entry) {
-    let line = serde_json::to_string(entry).expect("an entry encodes");
-    if let Err(e) = writeln!(out, "{line}").and_then(|_| out.flush()) {
-        log::error!("recording: {e}");
-    }
-}
-
 /// The recording asked for on the command line (`--record FILE`, `--record-every N`), for the
 /// next game loaded from a save.
 #[cfg(not(target_arch = "wasm32"))]
@@ -101,6 +41,7 @@ pub fn take_request() -> Option<Recorder> {
                 log::info!("recording to {}", path.display());
                 Some(Recorder::new(
                     Box::new(std::io::BufWriter::new(file)),
+                    crate::platform::version::NAME_VERSION,
                     every,
                 ))
             }

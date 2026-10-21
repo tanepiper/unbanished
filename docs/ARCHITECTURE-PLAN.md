@@ -269,6 +269,14 @@ session per extension moved, smallest first (cinematic, probe, mod sites, web sh
 **B. Session layer.** Create `crates/session`: move gameplay/lockstep.rs, the session half of
 gameplay/network.rs and gameplay/recording.rs; `Local`, `Lockstep`, `Replay` behind `Session`.
 `--lockstep-test`, `--net-test`, `--replay` run on it. Gate adds lockstep/network/replay suites.
+   - **B1 done**: `crates/session` (`unbanished-session`) holds what needs no game loop: the
+     lockstep turns, messages and `Lockstep` (with its tests), the `Link` trait and the relay,
+     shared and simulated links, `Digest`, and a recording's `Entry` and `Recorder`. The game
+     loop's glue (joining, slots, resyncs, `NetState` with its players line, `NetPeer`, the
+     test harnesses) stays in `apps/game/src/gameplay/` and re-exports the moved types.
+   - B2: the `Session` trait (`Local`, `Lockstep`, `Replay`) driving a `Simulation`, so the
+     glue leaves the game loop; then the `replay` and `multiplayer` features, the Multiplayer
+     button as a menu entry, and the Pure Banished switch.
 
 **C. Protocol v1.** Versioned `Hello` handshake (rejects mismatched engine, data or mods with a
 readable reason), lobby/game split, `Join{from_update}`, `Rejoin`, `Ping`. In-memory transport.

@@ -4000,6 +4000,7 @@ dependencies = [
  "unbanished-mods",
  "unbanished-net",
  "unbanished-nexus",
+ "unbanished-session",
  "unbanished-sim",
  "unbanished-ui",
  "wasm-bindgen",
@@ -4137,6 +4138,17 @@ dependencies = [
  "log",
  "tungstenite",
  "unbanished-net",
+]
+
+[[package]]
+name = "unbanished-session"
+version = "0.4.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "unbanished-net",
+ "unbanished-sim",
 ]
 
 [[package]]

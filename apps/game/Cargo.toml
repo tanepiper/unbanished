@@ -32,6 +32,7 @@ unbanished-nexus = { path = "../../crates/nexus", optional = true }
 unbanished-net = { path = "../../crates/net" }
 unbanished-mods = { path = "../../crates/mods" }
 unbanished-sim = { path = "../../crates/sim" }
+unbanished-session = { path = "../../crates/session" }
 wgpu = { version = "30", features = ["webgl"] }
 winit = "0.30"
 web-time = "1"
