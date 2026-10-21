@@ -58,12 +58,26 @@ pub enum Message {
     /// The host starts the game: its save, the players, the input delay and how often the
     /// host compares digests.
     /// `absent`: players numbered by the relay who left before the start.
+    /// `update` and `epoch`: 0 at the start; for a player who joins a running game, the update
+    /// the save was made at and the resyncs the others have been through.
     Start {
         players: u8,
         delay: u64,
         check: u64,
         absent: Vec<u8>,
         bytes: Vec<u8>,
+        update: u64,
+        epoch: u32,
+        /// For a player who joins a running game, what every computer shares but a save does
+        /// not hold: the speed, the pause, and the drag tools started (by template).
+        speed: u8,
+        paused: bool,
+        tools: Vec<String>,
+    },
+    /// A player joins the running game: every computer waits for its turns from slot `from` on.
+    Grow {
+        player: u8,
+        from: u64,
     },
 }
 
@@ -94,6 +108,8 @@ pub struct Lockstep {
     pub epoch: u32,
     /// Players who left, and the first slot without them.
     left: BTreeMap<u8, u64>,
+    /// Players who joined the running game, and the first slot with them.
+    joined: BTreeMap<u8, u64>,
 }
 
 impl Lockstep {
@@ -109,6 +125,7 @@ impl Lockstep {
             checks: BTreeMap::new(),
             epoch: 0,
             left: BTreeMap::new(),
+            joined: BTreeMap::new(),
         }
     }
 
@@ -132,7 +149,7 @@ impl Lockstep {
         let complete: Vec<u64> = self
             .checks
             .iter()
-            .filter(|(_, held)| self.all_in(held))
+            .filter(|(&u, held)| self.all_in(u, held))
             .map(|(&u, _)| u)
             .collect();
         let results = complete.into_iter().map(|u| (u, self.agree(u))).collect();
@@ -145,8 +162,34 @@ impl Lockstep {
     }
 
     /// Every player still here has sent a digest.
-    fn all_in(&self, held: &BTreeMap<u8, u32>) -> bool {
-        (0..self.players).all(|p| held.contains_key(&p) || self.left.contains_key(&p))
+    fn all_in(&self, update: u64, held: &BTreeMap<u8, u32>) -> bool {
+        (0..self.players)
+            .all(|p| held.contains_key(&p) || self.left.contains_key(&p) || !self.counts(p, update))
+    }
+
+    /// Whether player `p` takes part in slot (or update) `slot`: a player who joined the running
+    /// game does from its first slot on.
+    fn counts(&self, p: u8, slot: u64) -> bool {
+        self.joined.get(&p).is_none_or(|&from| slot >= from)
+    }
+
+    /// The players who left, for a player who joins the running game.
+    pub fn absent(&self) -> Vec<u8> {
+        self.left.keys().copied().collect()
+    }
+
+    /// Player `player` joins the running game: its turns are waited for from slot `from` on.
+    pub fn add(&mut self, player: u8, from: u64) {
+        self.players = self.players.max(player + 1);
+        self.joined.insert(player, from);
+    }
+
+    /// This computer joins a running game, loaded from a save made when `update` updates had
+    /// begun and its slot had run, after `epoch` resyncs: its first turn is for slot
+    /// `update + 1`.
+    pub fn start_at(&mut self, update: u64, epoch: u32) {
+        self.sealed = (update + 1).checked_sub(self.delay + 1);
+        self.epoch = epoch;
     }
 
     fn agree(&mut self, update: u64) -> bool {
@@ -197,7 +240,7 @@ impl Lockstep {
             return None;
         }
         self.checks.entry(update).or_default().insert(player, crc);
-        if !self.all_in(&self.checks[&update]) {
+        if !self.all_in(update, &self.checks[&update]) {
             return None;
         }
         Some(self.agree(update))
@@ -248,6 +291,7 @@ impl Lockstep {
         (0..self.players).all(|p| {
             turns.is_some_and(|t| t.contains_key(&p))
                 || self.left.get(&p).is_some_and(|&from| slot >= from)
+                || !self.counts(p, slot)
         })
     }
 
@@ -260,6 +304,7 @@ impl Lockstep {
         (0..self.players)
             .filter(|p| !turns.is_some_and(|t| t.contains_key(p)))
             .filter(|p| self.left.get(p).is_none_or(|&from| slot < from))
+            .filter(|&p| self.counts(p, slot))
             .collect()
     }
 

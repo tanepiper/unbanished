@@ -18,6 +18,10 @@ pub trait Link {
     fn left(&mut self) -> Vec<u8> {
         Vec::new()
     }
+    /// The players who joined the room since the last call.
+    fn joined(&mut self) -> Vec<u8> {
+        Vec::new()
+    }
     /// Sends this game's digest of `update` (made in `epoch`) to a server that checks the
     /// players' games. False when there is no such server, and the host checks instead.
     fn send_digest(&mut self, _epoch: u32, _update: u64, _crc: u32) -> bool {
@@ -34,6 +38,8 @@ pub struct RelayLink {
     pub events: Vec<unbanished_net::FromRelay>,
     /// Players who left, for [`Link::left`].
     departed: Vec<u8>,
+    /// Players who joined, for [`Link::joined`].
+    arrived: Vec<u8>,
 }
 
 #[cfg(feature = "relay")]
@@ -48,6 +54,7 @@ impl RelayLink {
             connection,
             events: Vec::new(),
             departed: Vec::new(),
+            arrived: Vec::new(),
         }
     }
 
@@ -85,6 +92,11 @@ impl Link for RelayLink {
                 unbanished_net::FromRelay::Checked { update, agree } => {
                     out.push((u8::MAX, Message::Checked { update, agree }));
                 }
+                unbanished_net::FromRelay::PeerJoined { player } => {
+                    self.arrived.push(player);
+                    self.events
+                        .push(unbanished_net::FromRelay::PeerJoined { player });
+                }
                 unbanished_net::FromRelay::PeerLeft { player } => {
                     self.departed.push(player);
                     self.events
@@ -94,6 +106,10 @@ impl Link for RelayLink {
             }
         }
         out
+    }
+
+    fn joined(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.arrived)
     }
 
     fn send_digest(&mut self, epoch: u32, update: u64, crc: u32) -> bool {
@@ -123,6 +139,10 @@ impl<L: Link> Link for Shared<L> {
 
     fn left(&mut self) -> Vec<u8> {
         self.0.borrow_mut().left()
+    }
+
+    fn joined(&mut self) -> Vec<u8> {
+        self.0.borrow_mut().joined()
     }
 
     fn send_digest(&mut self, epoch: u32, update: u64, crc: u32) -> bool {

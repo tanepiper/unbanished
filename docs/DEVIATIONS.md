@@ -45,7 +45,7 @@ Deviation: 68, Not ported: 4, Not traced: 1.
 ## `apps/game/src/gameplay/network.rs`
 
 - [Deviation] [apps/game/src/gameplay/network.rs:1](../apps/game/src/gameplay/network.rs#L1): The players' games over a network: a [`Link`] to the other players, and a [`NetPeer`] that drives one player's lockstep game over it (turns, the host's digest checks and resyncs, the start from the host's save). The link is the relay ([`RelayLink`], `unbanished-net`), or a simulated network in one process for tests ([`simulate`]). See docs/MULTIPLAYER-PLAN.md, steps 3 to 5. Deviation: not in the original, which has no multiplayer. The browser joins through the same code once a page asks for it; until then parts are unused.
-- [Deviation] [apps/game/src/gameplay/network.rs:252](../apps/game/src/gameplay/network.rs#L252): Deviation: the players line, at the foot of the screen in a multiplayer game. It is the original's version footer (`Dialog/BuildId.rsc`) without its logo.
+- [Deviation] [apps/game/src/gameplay/network.rs:381](../apps/game/src/gameplay/network.rs#L381): Deviation: the players line, at the foot of the screen in a multiplayer game. It is the original's version footer (`Dialog/BuildId.rsc`) without its logo.
 
 ## `apps/game/src/gameplay/recording.rs`
 
@@ -115,7 +115,7 @@ Deviation: 68, Not ported: 4, Not traced: 1.
 ## `apps/game/src/ui/multiplayer.rs`
 
 - [Deviation] [apps/game/src/ui/multiplayer.rs:1](../apps/game/src/ui/multiplayer.rs#L1): The Multiplayer window: host a room on a relay or join one, wait for the players, and start the game from the host's save. Not in the original, which has no multiplayer (see docs/MULTIPLAYER-PLAN.md, step 6). Deviation: the window is new. It is built from the original's Map dialog (`Dialog/MapParams.rsc`) with its rows given new labels, so it looks like the game's own windows. The room code goes in the town name's edit and the relay's address in the seed's. OK is Host while the code is empty and Join with a code; the host's becomes Start once a player has joined, and Start asks for the save to play (the Load dialog).
-- [Deviation] [apps/game/src/ui/multiplayer.rs:373](../apps/game/src/ui/multiplayer.rs#L373): Deviation: a Multiplayer button under Load (the original has no multiplayer). It is a copy of the Load button with its own name and label.
+- [Deviation] [apps/game/src/ui/multiplayer.rs:370](../apps/game/src/ui/multiplayer.rs#L370): Deviation: a Multiplayer button under Load (the original has no multiplayer). It is a copy of the Load button with its own name and label.
 
 ## `apps/game/src/ui/multiplayer_off.rs`
 

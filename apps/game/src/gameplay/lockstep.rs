@@ -165,9 +165,11 @@ impl super::GameplayLoop {
         g.menu_paused = self.menu_paused;
         g.speed = self.speed;
         g.paused = self.paused;
-        g.sim.drag_tools = std::mem::take(&mut self.sim.drag_tools);
-        g.online.remote_paths = std::mem::take(&mut self.online.remote_paths);
-        g.path_tool = self.path_tool.take();
+        // The drag tools start again on the reloaded town, so that their templates are the
+        // same on every computer, a joining player's too. The Path tools start afresh.
+        g.online.tools = std::mem::take(&mut self.sim.drag_tools)
+            .into_keys()
+            .collect();
         g.online.net = self.online.net.take();
         if let Some(net) = &mut g.online.net {
             net.forget_line();

@@ -41,6 +41,8 @@ pub struct NetState {
     shown: String,
     /// Players who left, not yet taken out of the lockstep (a resync's save came first).
     leaving: Vec<u8>,
+    /// The host: players joining the running game, and the update to send each its save at.
+    joining: Vec<(u8, u64)>,
 }
 
 impl NetState {
@@ -83,12 +85,62 @@ pub fn hello(archive: &unbanished_formats::pkg::Archive) -> unbanished_net::Hell
     unbanished_net::Hello::new(crate::platform::version::NAME_VERSION, data, mods)
 }
 
+impl GameplayLoop {
+    /// The game the host's [`Message::Start`] starts for `player`: its save, the lockstep (for
+    /// a player joining a running game, at the save's update and epoch) and the network.
+    /// `early` are the messages that came before the start (turns of a running game).
+    pub fn from_start(
+        player: u8,
+        start: Message,
+        link: Box<dyn Link>,
+        early: Vec<(u8, Message)>,
+    ) -> Result<GameplayLoop, String> {
+        let Message::Start {
+            players,
+            delay,
+            check,
+            absent,
+            bytes,
+            update,
+            epoch,
+            speed,
+            paused,
+            tools,
+        } = start
+        else {
+            return Err("not a start".into());
+        };
+        let saved = crate::saves::saved::SavedGame::parse(&bytes).map_err(|e| e.to_string())?;
+        let mut g = GameplayLoop::from_save(saved);
+        g.start_lockstep(player, players, delay, &absent);
+        if update > 0 {
+            if let Some(l) = g.online.lockstep.as_mut() {
+                l.start_at(update, epoch);
+            }
+            g.sim.updates = update;
+            g.online.boundary_done = Some(update);
+            g.speed = speed;
+            g.paused = paused;
+            g.online.tools = tools;
+        }
+        g.join_network(link, check);
+        // The others reload the same save as a resync: this player started from it already.
+        let early = early
+            .into_iter()
+            .filter(|(_, m)| !matches!(m, Message::Save { update: u, .. } if *u <= update));
+        g.online.net.as_mut().unwrap().inbox.extend(early);
+        Ok(g)
+    }
+}
+
 /// A resync's save and the update it was made at: the game is to be replaced by it.
 pub type Reload = (Vec<u8>, u64);
 
 impl GameplayLoop {
     /// Plays this (lockstep) game over `link`.
-    pub fn join_network(&mut self, link: Box<dyn Link>, check: u64) {
+    pub fn join_network(&mut self, mut link: Box<dyn Link>, check: u64) {
+        // Players who came before the start are in it; only later ones join a running game.
+        link.joined();
         self.online.net = Some(NetState {
             link,
             check,
@@ -101,6 +153,7 @@ impl GameplayLoop {
             waiting: 0,
             shown: String::new(),
             leaving: Vec::new(),
+            joining: Vec::new(),
         });
     }
 
@@ -161,6 +214,13 @@ impl GameplayLoop {
                     return (true, Some((bytes, update)));
                 }
                 Message::Start { .. } => log::warn!("a start in a game already started"),
+                // A player joins the running game: its turns count from slot `from`.
+                Message::Grow { player, from } => {
+                    if let Some(l) = self.online.lockstep.as_mut() {
+                        l.lockstep.add(player, from);
+                    }
+                    log::info!("multiplayer: player {} joins from slot {from}", player + 1);
+                }
             }
         }
         // Who left, once every turn they sent is in.
@@ -177,6 +237,28 @@ impl GameplayLoop {
             let net = self.online.net.as_mut().unwrap();
             for (update, agree) in checks {
                 net.checked(update, Some(agree));
+            }
+        }
+        // Who joined the running game: the host brings them in (the others hear it in `Grow`).
+        let updates = self.sim.updates;
+        let net = self.online.net.as_mut().unwrap();
+        let joined = net.link.joined();
+        if let Some(l) = self
+            .online
+            .lockstep
+            .as_mut()
+            .filter(|l| l.lockstep.player == 0)
+        {
+            for player in joined {
+                // Every turn for slot `from` on is sealed after the newcomer was in the room:
+                // a player seals slot S during update S - delay, which it reaches only after
+                // the host passed update S - 2 delay - 1. And no player has run slot `from`
+                // yet: none is more than `delay` updates ahead of the host.
+                let from = updates + 2 * l.lockstep.delay + 2;
+                l.lockstep.add(player, from);
+                net.link.send(None, &Message::Grow { player, from });
+                net.joining.push((player, from - 1));
+                log::info!("multiplayer: player {} joins from slot {from}", player + 1);
             }
         }
         (any, None)
@@ -213,6 +295,53 @@ impl GameplayLoop {
                 bytes: bytes.clone(),
             };
             net.link.send(None, &save);
+            return Ok(Some((bytes, update)));
+        }
+        // A player joining the running game gets the save of the update before its first slot,
+        // as its start.
+        let due: Vec<u8> = {
+            let net = self.online.net.as_mut().unwrap();
+            let due = net
+                .joining
+                .iter()
+                .filter(|&&(_, at)| at == update)
+                .map(|&(p, _)| p)
+                .collect();
+            net.joining.retain(|&(_, at)| at > update);
+            due
+        };
+        if !due.is_empty() {
+            // Everybody goes on from one save: the others reload it (a resync), and the newcomer
+            // starts from it. So every town has its templates in the same order.
+            let bytes = self
+                .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
+                .ok_or("the host could not save for a joining player")?;
+            let l = &self.online.lockstep.as_ref().ok_or("no lockstep")?.lockstep;
+            let start = Message::Start {
+                players: l.players,
+                delay: l.delay,
+                check: self.online.net.as_ref().unwrap().check,
+                absent: l.absent(),
+                bytes: bytes.clone(),
+                update,
+                epoch: l.epoch + 1,
+                speed: self.speed,
+                paused: self.paused,
+                tools: self.sim.drag_tools.keys().cloned().collect(),
+            };
+            let net = self.online.net.as_mut().unwrap();
+            let save = Message::Save {
+                update,
+                bytes: bytes.clone(),
+            };
+            net.link.send(None, &save);
+            for player in due {
+                net.link.send(Some(player), &start);
+                log::info!(
+                    "multiplayer: player {} starts at update {update}",
+                    player + 1
+                );
+            }
             return Ok(Some((bytes, update)));
         }
         let check = self.online.net.as_ref().unwrap().check;
@@ -338,6 +467,8 @@ pub struct NetPeer {
     /// The link until the game starts; then the game holds it.
     link: Option<Box<dyn Link>>,
     check: u64,
+    /// What arrived before the start (a running game's turns, for a player who joins it).
+    early: Vec<(u8, Message)>,
 }
 
 impl NetPeer {
@@ -347,6 +478,7 @@ impl NetPeer {
             game: None,
             link: Some(link),
             check,
+            early: Vec::new(),
         }
     }
 
@@ -360,6 +492,7 @@ impl NetPeer {
             game: Some(game),
             link: None,
             check: 0,
+            early: Vec::new(),
         }
     }
 
@@ -378,32 +511,29 @@ impl NetPeer {
             check: self.check,
             absent: Vec::new(),
             bytes,
+            update: 0,
+            epoch: 0,
+            speed: 0,
+            paused: false,
+            tools: Vec::new(),
         };
         if let Some(link) = &mut self.link {
             link.send(None, &start);
         }
-        self.start(ctx, start)
+        self.start(ctx, start, Vec::new())
     }
 
-    fn start(&mut self, ctx: &mut Ctx, start: Message) -> Result<(), String> {
-        let Message::Start {
-            players,
-            delay,
-            check,
-            absent,
-            bytes,
-        } = start
-        else {
-            return Ok(());
-        };
-        let saved = crate::saves::saved::SavedGame::parse(&bytes).map_err(|e| e.to_string())?;
-        let mut g = GameplayLoop::from_save(saved);
-        g.start_lockstep(self.player, players, delay, &absent);
+    fn start(
+        &mut self,
+        ctx: &mut Ctx,
+        start: Message,
+        early: Vec<(u8, Message)>,
+    ) -> Result<(), String> {
+        let link = self.link.take().ok_or("no link")?;
+        let mut g = GameplayLoop::from_start(self.player, start, link, early)?;
         g.load(ctx);
         g.startup(ctx);
         g.autosave = None;
-        let link = self.link.take().ok_or("no link")?;
-        g.join_network(link, check);
         g.online.net.as_mut().unwrap().driven = true;
         self.game = Some(g);
         log::info!("player {} started", self.player);
@@ -418,11 +548,16 @@ impl NetPeer {
             };
             let arrived = link.poll();
             let any = !arrived.is_empty();
-            for (_, message) in arrived {
+            let mut arrived = arrived.into_iter();
+            while let Some((from, message)) = arrived.next() {
                 if matches!(message, Message::Start { .. }) {
-                    self.start(ctx, message)?;
+                    // What came before the start (a running game's turns), and after it.
+                    let mut early = std::mem::take(&mut self.early);
+                    early.extend(arrived);
+                    self.start(ctx, message, early)?;
                     break;
                 }
+                self.early.push((from, message));
             }
             return Ok(any);
         };
@@ -566,8 +701,12 @@ impl Script {
         Ok(script)
     }
 
-    /// Gives `player`'s commands of the updates begun so far.
+    /// Gives `player`'s commands of the updates begun so far. A player the recording was not
+    /// split for (one who joined the running game) gives none.
     pub fn give(&mut self, player: usize, g: &mut GameplayLoop, ctx: &mut Ctx) {
+        if player >= self.inputs.len() {
+            return;
+        }
         while self.inputs[player]
             .front()
             .is_some_and(|(u, _, _)| *u <= g.sim.updates)

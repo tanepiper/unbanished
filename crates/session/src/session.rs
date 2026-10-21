@@ -66,6 +66,13 @@ impl LockstepSession {
         }
     }
 
+    /// This computer joins a running game from a save made when `update` updates had begun and
+    /// its slot had run, after `epoch` resyncs (`Lockstep::start_at`).
+    pub fn start_at(&mut self, update: u64, epoch: u32) {
+        self.lockstep.start_at(update, epoch);
+        self.slot_done = Some(update);
+    }
+
     /// The game was replaced by a resync's save, made when `update` updates had begun and its
     /// slot had run. The turns of later slots are held again, the checks start over, and the
     /// local turns up to `update` are sealed if they were not (for a computer that was behind).
@@ -148,5 +155,51 @@ mod tests {
         let mut s = LockstepSession::new(0, 2, 1);
         assert!(s.slot(0).is_some());
         assert!(s.slot(1).is_none(), "player 2's turn for slot 1 is missing");
+    }
+
+    #[test]
+    fn a_player_who_joins_is_waited_for_from_its_first_slot() {
+        // Two players, delay 1; player 2 joins from slot 10.
+        let mut host = LockstepSession::new(0, 2, 1);
+        host.lockstep.add(2, 10);
+        for slot in 0..10 {
+            host.lockstep.receive(crate::lockstep::Turn {
+                player: 1,
+                slot,
+                commands: Vec::new(),
+            });
+            assert!(
+                host.slot(slot).is_some(),
+                "slot {slot} waits for nobody new"
+            );
+        }
+        host.lockstep.receive(crate::lockstep::Turn {
+            player: 1,
+            slot: 10,
+            commands: Vec::new(),
+        });
+        assert!(host.slot(10).is_none(), "slot 10 waits for the new player");
+        assert_eq!(host.lockstep.missing(10), [2]);
+    }
+
+    #[test]
+    fn a_joining_computer_seals_from_the_slot_after_the_save() {
+        let mut late = LockstepSession::new(2, 3, 6);
+        late.start_at(100, 4);
+        assert_eq!(late.lockstep.epoch, 4);
+        assert!(
+            late.slot(100).is_some_and(|c| c.is_empty()),
+            "the save's slot has run"
+        );
+        late.slot(101);
+        let slots: Vec<u64> = late
+            .take_outbox()
+            .into_iter()
+            .filter_map(|m| match m {
+                Message::Turn(t) => Some(t.slot),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(slots, (101..=107).collect::<Vec<_>>());
     }
 }

@@ -68,6 +68,8 @@ pub struct MultiplayerDialog {
     link: Option<Rc<RefCell<RelayLink>>>,
     /// Who this game is, for the relay.
     hello: unbanished_net::Hello,
+    /// What arrived before the start (a running game's turns, for a player who joins it).
+    early: Vec<(u8, Message)>,
     role: Role,
     message: String,
 }
@@ -139,6 +141,7 @@ impl MultiplayerDialog {
         }
         let d = MultiplayerDialog {
             hello: crate::gameplay::network::hello(archive),
+            early: Vec::new(),
             root,
             code,
             relay,
@@ -280,21 +283,19 @@ impl MultiplayerDialog {
         }
         let mut outcome = Outcome::Stay;
         if let Role::Joined { player, .. } = self.role {
-            for (_, message) in arrived {
-                if let Message::Start {
-                    players,
-                    delay,
-                    check,
-                    absent,
-                    bytes,
-                } = message
-                {
-                    match self.game(player, players, delay, check, &absent, &bytes) {
+            let mut arrived = arrived.into_iter();
+            while let Some((from, message)) = arrived.next() {
+                if matches!(message, Message::Start { .. }) {
+                    // What came before the start (a running game's turns), and after it.
+                    let mut early = std::mem::take(&mut self.early);
+                    early.extend(arrived);
+                    match self.game(player, message, early) {
                         Ok(g) => outcome = Outcome::Start(Box::new(g)),
                         Err(e) => self.message = format!("The host's save: {e}"),
                     }
                     break;
                 }
+                self.early.push((from, message));
             }
         }
         if let Outcome::Start(_) = outcome {
@@ -322,14 +323,16 @@ impl MultiplayerDialog {
             players: count,
             delay: DELAY,
             check,
-            absent: absent.clone(),
+            absent,
             bytes,
+            update: 0,
+            epoch: 0,
+            speed: 0,
+            paused: false,
+            tools: Vec::new(),
         };
         link.borrow_mut().send(None, &start);
-        let Message::Start { bytes, .. } = start else {
-            unreachable!()
-        };
-        match self.game(0, count, DELAY, check, &absent, &bytes) {
+        match self.game(0, start, Vec::new()) {
             Ok(g) => {
                 self.close(ui, screen);
                 Outcome::Start(Box::new(g))
@@ -345,18 +348,12 @@ impl MultiplayerDialog {
     fn game(
         &mut self,
         player: u8,
-        players: u8,
-        delay: u64,
-        check: u64,
-        absent: &[u8],
-        bytes: &[u8],
+        start: Message,
+        early: Vec<(u8, Message)>,
     ) -> Result<GameplayLoop, String> {
-        let saved = crate::saves::saved::SavedGame::parse(bytes).map_err(|e| e.to_string())?;
         let link = self.link.take().ok_or("no connection")?;
-        let mut g = GameplayLoop::from_save(saved);
-        g.start_lockstep(player, players, delay, absent);
-        g.join_network(Box::new(Shared(link)), check);
-        log::info!("multiplayer: player {} of {players} starts", player + 1);
+        let g = GameplayLoop::from_start(player, start, Box::new(Shared(link)), early)?;
+        log::info!("multiplayer: player {} starts", player + 1);
         Ok(g)
     }
 

@@ -323,6 +323,15 @@ resynced, the server restarts and the town resumes; all digests agree.
      it sends at its next update boundary as the host did. Digests carry the resync epoch, so
      one from before a resync is never compared with one after. A game without such a server
      (the one-process lockstep test) still has the host check (`Link::send_digest` is false).
+   - **D3a done**: joining a running game, on by default. The host hears of a newcomer at
+     update J and announces it to everyone (`Grow { player, from: S }`, S = J + 2·delay + 2:
+     every turn for slot S on is sent once the newcomer is in the room, and nobody has run slot
+     S yet). At update S − 1 the host sends its save to the others (a resync) and a `Start` at
+     that update to the newcomer, with the speed, the pause and the drag tools a save does not
+     hold. Everyone goes on from that one save, so every town has its templates in the same
+     order; after any reload the drag tools start again by template and the Path tools start
+     afresh. The newcomer keeps what arrived before its `Start`. A player who left joins again
+     the same way, as a new player number. `network.sh` gains a `late` run.
 
 **E. Server stage 2.** `--simulate WINDATA`: the server as a headless peer and authority.
 `server.sh --simulate`: same scenario, plus a game that advances with one player and the

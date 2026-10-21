@@ -11,6 +11,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Added
 
+- Multiplayer: a player can join a game that has already started, while its host is in it. A
+  player who left can come back the same way. Everybody reloads the town as it is, and the new
+  player starts from it.
+
 - For contributors and agents: `tools/worktree-setup.sh` links the game data, saves, Ghidra
   analysis and Python environment into a git worktree in one step; `tools/re-setup.sh` checks
   and installs the reverse-engineering toolchain and writes `.env`, which every tool now reads

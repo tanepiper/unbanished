@@ -17,6 +17,9 @@ pub struct Online {
     pub retired: bool,
     /// The other players' Path tools (a Path tool's pick depends on its last pick).
     pub remote_paths: std::collections::BTreeMap<u8, crate::tools::path_tool::PathTool>,
+    /// The drag tools to start again on a town loaded from a save (a resync or a join), by
+    /// template: every computer starts the same ones, in the same order, on the same town.
+    pub tools: Vec<String>,
 }
 
 impl GameplayLoop {
@@ -24,6 +27,16 @@ impl GameplayLoop {
     pub(in crate::gameplay) fn start_online(&mut self, ctx: &mut Ctx) {
         if self.online.net.is_some() {
             self.open_players_line(ctx.ui);
+        }
+        for template in std::mem::take(&mut self.online.tools) {
+            let Some(town) = self.sim.town.as_mut() else {
+                break;
+            };
+            if let Some(t) =
+                crate::tools::removal_tool::RemovalTool::start(ctx.archive, town, &template)
+            {
+                self.sim.drag_tools.insert(template, t);
+            }
         }
     }
 

@@ -62,9 +62,44 @@ run() { # name players corrupt-player corrupt-update
   echo "  $name: $players players, $count digests compared after update $after; $resyncs: $([[ $ok == 1 ]] && echo identical || echo DIFFERENT)"
   [[ $ok == 1 ]] || failed=1
 }
-mkdir -p "$out/three" "$out/scrambled"
+# A player who joins the running game: two start it, a third joins once the host is past
+# update 300. Its digests, from the update it started at, must be the host's.
+late() {
+  local name=late p pids=() dir="$out/late"
+  start_player() { # player role
+    UNBANISHED_USER_DIR="$dir/user$1" BANISHED_USER_DIR="$dir/user$1" UNBANISHED_SETTINGS="$dir/settings$1.txt" BANISHED_SETTINGS="$dir/settings$1.txt" \
+      ${limit[@]+"${limit[@]}"} "$bin" --net-test "ws://127.0.0.1:$port" "$2" "$name" \
+      save-game/Save83.sav "$recording" 2 6 120 \
+      "$repo/game-data/original/WinData" >"$dir/p$1.out" 2>"$dir/p$1.log" &
+    pids+=($!)
+  }
+  start_player 0 host
+  sleep 1
+  start_player 1 join
+  local waited=0
+  until grep -q '^update    300' "$dir/p0.out" 2>/dev/null || ((waited > 600)); do
+    sleep 0.1
+    waited=$((waited + 1))
+  done
+  start_player 2 join
+  local ok=1
+  for pid in "${pids[@]}"; do wait "$pid" || ok=0; done
+  digests() { awk '$1 == "update" { last[$2] = $0 } END { for (u in last) print last[u] }' "$1" | sort -n -k2; }
+  diff <(digests "$dir/p0.out") <(digests "$dir/p1.out") >/dev/null || ok=0
+  local late_lines first
+  late_lines="$(digests "$dir/p2.out" | wc -l | tr -d ' ')"
+  first="$(digests "$dir/p2.out" | head -1 | awk '{print $2}')"
+  ((late_lines > 0)) || ok=0
+  # Every digest of the late player is the host's of the same update.
+  grep -Fxvq -f <(digests "$dir/p0.out") <(digests "$dir/p2.out") && ok=0
+  grep -q "resyncs \[\]" "$dir/p0.out" || ok=0
+  echo "  late: 2 players, a third from update ${first:-none}; $late_lines of its digests compared: $([[ $ok == 1 ]] && echo identical || echo DIFFERENT)"
+  [[ $ok == 1 ]] || failed=1
+}
+mkdir -p "$out/three" "$out/scrambled" "$out/late"
 run three 3 -1 0
 run scrambled 3 1 400
+late
 if [[ $failed == 0 ]]; then
   echo "network identical: $(basename "$bin")"
   rm -rf "$out"

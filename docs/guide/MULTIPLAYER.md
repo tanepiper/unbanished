@@ -136,22 +136,29 @@ camera and use the windows. After half a second the line says whom the game wait
 
 ## When the towns differ
 
-Every 10 seconds the host compares all players' towns. If one differs, every player reloads the
-host's town, behind a short loading screen, and the game goes on from there. Nothing is lost
-except the moment it takes. This should be rare. If it happens again and again, the players
-probably have different versions of Un-Banished or different mods.
+Every 10 seconds the server compares all players' towns. If one differs, the server keeps the town
+most players have (the host's, if as many have one as the other), and every player reloads it,
+behind a short loading screen. The game goes on from there. Nothing is lost except the moment it
+takes. This should be rare: the server already refuses a player whose version of Un-Banished,
+game files or mods differ from the host's.
 
 ## When a player leaves
 
 A player leaves by quitting the game, by leaving to the main menu, or when their connection
 breaks. The others play on without them, and the line says who has left.
 
-If the **host** leaves, the others also play on, but nobody compares the towns any more, and the
-line says so. If the towns then differ, nothing reloads them; save, and start again with a new
-host.
+If the **host** leaves, the others also play on, and the server still compares the towns. But
+nobody new can join any more: the host is the one who brings new players in.
 
-A player who left cannot join the same game again. To continue together, save the game, and
-start a new multiplayer game from that save.
+A player who left can join again with the room code, as for a game that has started (below). They
+come back as a new player number.
+
+## Join a game that has started
+
+While the host is in the game, anyone can join it with the room code, as before the start. The
+game pauses for a moment for everyone: every player reloads the town as it is now, behind a short
+loading screen, and the new player starts from the same town. They play from then on like
+everyone else.
 
 ## Saving
 
@@ -192,9 +199,10 @@ relay address. Native players can use the same `wss://` address.
 
 ## Limits today
 
-- The game does not check that every player has the same version and the same mods.
-- A player who leaves cannot join again; nobody can join a game that has started.
-- There is no public relay, and the relay has no passwords.
+- Nobody can join a game that has started once its host has left.
+- There is no public server. The server can give a room a password, but the Multiplayer window
+  cannot set one yet.
+- When the towns are reloaded (a difference, or a new player), a player's open Path tool closes.
 - The room code cannot be copied from the window; read it out or type it.
 - The published site is served over `https://`, so it can join only a `wss://` relay, and there
   is no public one yet.
@@ -207,7 +215,7 @@ relay address. Native players can use the same `wss://` address.
 | **No connection: …** in the window | The relay is not running, or the address is wrong, or a firewall blocks port 7780. Check that the relay's terminal is open, the address starts with `ws://` (or `wss://`) and has the right port, and that the relay computer allows the port. |
 | **The relay: no room …** | The code is wrong, or the host has not pressed Host yet, or the room has closed. Check the code and press Join again. |
 | The host's **Start** stays grey | No other player is in the room yet. |
-| A player waits at **Waiting for the host to start** | The host has not pressed Start, or has not chosen a save yet. A player who joins after the game has started waits here for ever: they cannot join that game. |
+| A player waits at **Waiting for the host to start** | The host has not pressed Start, or has not chosen a save yet. If the game has started, its host has left: nobody can bring new players in. |
 | **Waiting for player N** at the foot of the screen for a long time | That player's computer is slow, paused by the system, or its connection is very slow. If they have left, the game goes on by itself once the relay sees it. |
 | The loading screen appears now and then during the game | The towns differed and everybody reloaded the host's town. Check that all players have the same version of Un-Banished and the same mods. |
 | The browser cannot connect to `ws://…` | A page served over `https://` cannot use `ws://`. Use a `wss://` relay (see [In the browser](#in-the-browser)). |
