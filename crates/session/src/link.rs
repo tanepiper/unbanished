@@ -18,6 +18,11 @@ pub trait Link {
     fn left(&mut self) -> Vec<u8> {
         Vec::new()
     }
+    /// Sends this game's digest of `update` (made in `epoch`) to a server that checks the
+    /// players' games. False when there is no such server, and the host checks instead.
+    fn send_digest(&mut self, _epoch: u32, _update: u64, _crc: u32) -> bool {
+        false
+    }
 }
 
 /// The relay ([`unbanished_net::Connection`]): each game message travels encoded inside the relay's
@@ -73,6 +78,13 @@ impl Link for RelayLink {
                         Err(e) => log::warn!("player {from}: {e}"),
                     }
                 }
+                // The server's request is the game's message, from the server (255).
+                unbanished_net::FromRelay::SaveWanted { update } => {
+                    out.push((u8::MAX, Message::SaveWanted { update }));
+                }
+                unbanished_net::FromRelay::Checked { update, agree } => {
+                    out.push((u8::MAX, Message::Checked { update, agree }));
+                }
                 unbanished_net::FromRelay::PeerLeft { player } => {
                     self.departed.push(player);
                     self.events
@@ -82,6 +94,12 @@ impl Link for RelayLink {
             }
         }
         out
+    }
+
+    fn send_digest(&mut self, epoch: u32, update: u64, crc: u32) -> bool {
+        let digest = unbanished_net::ToRelay::Digest { epoch, update, crc };
+        self.connection.send(digest);
+        true
     }
 
     fn left(&mut self) -> Vec<u8> {
@@ -105,6 +123,10 @@ impl<L: Link> Link for Shared<L> {
 
     fn left(&mut self) -> Vec<u8> {
         self.0.borrow_mut().left()
+    }
+
+    fn send_digest(&mut self, epoch: u32, update: u64, crc: u32) -> bool {
+        self.0.borrow_mut().send_digest(epoch, update, crc)
     }
 }
 

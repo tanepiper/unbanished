@@ -16,6 +16,7 @@
     html_favicon_url = "https://tanepiper.github.io/unbanished/favicon.svg"
 )]
 
+pub mod checks;
 pub mod memory;
 mod protocol;
 pub mod rooms;

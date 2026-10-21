@@ -50,6 +50,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
   with a Dockerfile. Its README shows how to put TLS in front of it with Caddy for browser
   players.
 
+- Multiplayer protocol version 2: the server checks that the players still play the same game.
+  Every player sends it a digest of its game; when they differ, the server keeps the game most
+  players have (the host's when it is a tie) and asks a player who has it to send the others its
+  save. Before, the host checked, and its own game was always the one kept.
 - Multiplayer protocol version 1: a game tells the relay its version, game data and mods first.
   A relay or a host of another version, or with other game data or mods, refuses it and says
   why. Rooms can have a password, and a game can list the open rooms. Update the relay with the

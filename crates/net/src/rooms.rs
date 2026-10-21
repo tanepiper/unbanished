@@ -4,6 +4,7 @@
 
 use std::collections::BTreeMap;
 
+use crate::checks::{Checks, Verdict};
 use crate::protocol::{FromRelay, Hello, RoomInfo, ToRelay, PROTOCOL};
 
 /// A game connected to the relay, by a number the caller gives it.
@@ -25,6 +26,43 @@ struct Room {
     host: Hello,
     /// The players by number; `None` once they left.
     players: Vec<Option<Client>>,
+    /// The players' digests.
+    checks: Checks,
+}
+
+impl Room {
+    /// The numbers of the players in the room.
+    fn present(&self) -> Vec<u8> {
+        let numbered = self.players.iter().enumerate();
+        numbered
+            .filter(|(_, c)| c.is_some())
+            .map(|(p, _)| p as u8)
+            .collect()
+    }
+
+    /// A check's verdict, told to every player; when the players differ, the one with the game
+    /// to keep is also asked for its save.
+    fn judged(&self, room: &str, update: u64, verdict: Verdict) -> Vec<(Client, FromRelay)> {
+        let agree = verdict == Verdict::Agree;
+        let mut out: Vec<(Client, FromRelay)> = self
+            .players
+            .iter()
+            .flatten()
+            .map(|&c| (c, FromRelay::Checked { update, agree }))
+            .collect();
+        match verdict {
+            Verdict::Agree => log::info!("room {room}: the players agree at update {update}"),
+            Verdict::Differ { from } => {
+                log::warn!(
+                    "room {room}: the players differ at update {update}; player {from}'s game is kept"
+                );
+                if let Some(c) = self.players.get(from as usize).copied().flatten() {
+                    out.push((c, FromRelay::SaveWanted { update }));
+                }
+            }
+        }
+        out
+    }
 }
 
 #[derive(Default)]
@@ -138,6 +176,7 @@ impl Relay {
                         password,
                         host: hello,
                         players: vec![Some(client)],
+                        checks: Checks::default(),
                     },
                 );
                 log::info!("room {room} opened");
@@ -183,6 +222,20 @@ impl Relay {
                 self.games.get_mut(&client).expect("connected").room = Some((room, player));
             }
             ToRelay::Leave => reply.out = self.leave(client),
+            ToRelay::Digest { epoch, update, crc } => {
+                let Some((room, player)) = game.room.clone() else {
+                    return reply;
+                };
+                let Some(r) = self.rooms.get_mut(&room) else {
+                    return reply;
+                };
+                let present = r.present();
+                if let Some((update, verdict)) =
+                    r.checks.digest(player, epoch, update, crc, &present)
+                {
+                    reply.out = r.judged(&room, update, verdict);
+                }
+            }
             ToRelay::Send { to, data } => {
                 let Some((room, from)) = game.room.clone() else {
                     return reply;
@@ -222,6 +275,11 @@ impl Relay {
             r.players[player as usize] = None;
             for &p in r.players.iter().flatten() {
                 out.push((p, FromRelay::PeerLeft { player }));
+            }
+            // The checks no longer wait for the player who left.
+            let present = r.present();
+            for (update, verdict) in r.checks.left(&present) {
+                out.extend(r.judged(&room, update, verdict));
             }
             if r.players.iter().all(Option::is_none) {
                 self.rooms.remove(&room);

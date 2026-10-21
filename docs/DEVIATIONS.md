@@ -45,7 +45,7 @@ Deviation: 68, Not ported: 4, Not traced: 1.
 ## `apps/game/src/gameplay/network.rs`
 
 - [Deviation] [apps/game/src/gameplay/network.rs:1](../apps/game/src/gameplay/network.rs#L1): The players' games over a network: a [`Link`] to the other players, and a [`NetPeer`] that drives one player's lockstep game over it (turns, the host's digest checks and resyncs, the start from the host's save). The link is the relay ([`RelayLink`], `unbanished-net`), or a simulated network in one process for tests ([`simulate`]). See docs/MULTIPLAYER-PLAN.md, steps 3 to 5. Deviation: not in the original, which has no multiplayer. The browser joins through the same code once a page asks for it; until then parts are unused.
-- [Deviation] [apps/game/src/gameplay/network.rs:222](../apps/game/src/gameplay/network.rs#L222): Deviation: the players line, at the foot of the screen in a multiplayer game. It is the original's version footer (`Dialog/BuildId.rsc`) without its logo.
+- [Deviation] [apps/game/src/gameplay/network.rs:252](../apps/game/src/gameplay/network.rs#L252): Deviation: the players line, at the foot of the screen in a multiplayer game. It is the original's version footer (`Dialog/BuildId.rsc`) without its logo.
 
 ## `apps/game/src/gameplay/recording.rs`
 

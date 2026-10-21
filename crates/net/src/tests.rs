@@ -191,3 +191,55 @@ fn a_game_unlike_the_host_is_refused_with_the_reason() {
     }
     assert!(host.poll().is_empty(), "the host heard of nobody");
 }
+
+#[test]
+fn the_server_asks_the_majority_for_a_save() {
+    let relay = MemoryRelay::new(1);
+    let mut host = greeted(&relay, hello());
+    host.send(ToRelay::Host {
+        room: Some("CHECKS".into()),
+        password: None,
+    });
+    host.poll();
+    let mut players = vec![host];
+    for _ in 0..2 {
+        let mut c = greeted(&relay, hello());
+        c.send(ToRelay::Join {
+            room: "CHECKS".into(),
+            password: None,
+        });
+        players.push(c);
+    }
+    for p in players.iter_mut() {
+        p.poll();
+    }
+    // Players 0 and 2 agree; player 1 differs.
+    for (p, crc) in [(0, 7), (1, 8), (2, 7)] {
+        players[p].send(ToRelay::Digest {
+            epoch: 0,
+            update: 600,
+            crc,
+        });
+    }
+    let differ = FromRelay::Checked {
+        update: 600,
+        agree: false,
+    };
+    let wanted = FromRelay::SaveWanted { update: 600 };
+    assert_eq!(players[0].poll(), [differ.clone(), wanted]);
+    assert_eq!(players[1].poll(), [differ.clone()]);
+    assert_eq!(players[2].poll(), [differ]);
+    // After the resync (epoch 1) they agree: nobody is asked.
+    for p in 0..3 {
+        players[p].send(ToRelay::Digest {
+            epoch: 1,
+            update: 1200,
+            crc: 9,
+        });
+    }
+    let agree = FromRelay::Checked {
+        update: 1200,
+        agree: true,
+    };
+    assert!(players.iter_mut().all(|p| p.poll() == [agree.clone()]));
+}

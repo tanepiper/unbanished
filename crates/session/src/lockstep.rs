@@ -37,6 +37,18 @@ pub enum Message {
         update: u64,
         crc: u32,
     },
+    /// The server found the players' games different at `update`, and this game is the one to
+    /// keep: it sends the others its save at the next update boundary (from the server, not a
+    /// player).
+    SaveWanted {
+        update: u64,
+    },
+    /// The server's check of `update`: whether every player's game was the same (from the
+    /// server, not a player).
+    Checked {
+        update: u64,
+        agree: bool,
+    },
     /// The host's game, saved when `update` updates had begun and its slot had run: everybody
     /// loads it and goes on from there (a resync).
     Save {

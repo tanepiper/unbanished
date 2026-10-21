@@ -316,6 +316,13 @@ resynced, the server restarts and the town resumes; all digests agree.
      base images) with a `.dockerignore` that keeps game data out, and the README covers TLS
      through Caddy. Modules: `config`, `health`, `serve`. The compat scripts build the server
      they start.
+   - **D2 done**: the server checks the games (protocol 2). Each player sends it its digest
+     (`ToRelay::Digest`); `unbanished_net::checks::Checks` decides once every player in the
+     room has sent one: they agree, or the game most players have is kept (the host's on a
+     tie) and the lowest-numbered player with it is asked for its save (`SaveWanted`), which
+     it sends at its next update boundary as the host did. Digests carry the resync epoch, so
+     one from before a resync is never compared with one after. A game without such a server
+     (the one-process lockstep test) still has the host check (`Link::send_digest` is false).
 
 **E. Server stage 2.** `--simulate WINDATA`: the server as a headless peer and authority.
 `server.sh --simulate`: same scenario, plus a game that advances with one player and the

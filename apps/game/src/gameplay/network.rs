@@ -51,6 +51,17 @@ impl NetState {
         self.shown.clear();
     }
 
+    /// The server's check of `update`: the same log lines as the host's own check, and a
+    /// difference among the desyncs (the server picks who resyncs).
+    fn noted(&mut self, update: u64, agree: bool) {
+        if agree {
+            log::info!("multiplayer: the players agree at update {update}");
+        } else {
+            log::warn!("multiplayer: the players differ at update {update}");
+            self.desyncs.push(update);
+        }
+    }
+
     /// The host's check of `update`, once every player's digest is in.
     fn checked(&mut self, update: u64, agree: Option<bool>) {
         match agree {
@@ -134,6 +145,17 @@ impl GameplayLoop {
                     let agree = l.and_then(|l| l.check_in(player, epoch, update, crc));
                     self.online.net.as_mut().unwrap().checked(update, agree);
                 }
+                // The server found the games different, and this one is to be kept.
+                Message::SaveWanted { update } => {
+                    let net = self.online.net.as_mut().unwrap();
+                    net.resync_wanted = true;
+                    log::info!("multiplayer: the server keeps this game from update {update}");
+                }
+                // The server's check: logged, and a difference noted; the server asks the
+                // player whose game is kept for its save.
+                Message::Checked { update, agree } => {
+                    self.online.net.as_mut().unwrap().noted(update, agree);
+                }
                 Message::Save { update, bytes } => {
                     self.online.net.as_mut().unwrap().inbox = arrived;
                     return (true, Some((bytes, update)));
@@ -178,15 +200,11 @@ impl GameplayLoop {
             return Ok(None);
         }
         self.online.boundary_done = Some(update);
-        let host = self
-            .online
-            .lockstep
-            .as_ref()
-            .is_some_and(|l| l.lockstep.player == 0);
-        if host && self.online.net.as_ref().unwrap().resync_wanted {
+        // The host resyncs when its own check failed; any player when the server asked it.
+        if self.online.net.as_ref().unwrap().resync_wanted {
             let bytes = self
                 .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
-                .ok_or("the host could not save")?;
+                .ok_or("this player could not save")?;
             let net = self.online.net.as_mut().unwrap();
             net.resync_wanted = false;
             net.resyncs.push(update);
@@ -202,6 +220,18 @@ impl GameplayLoop {
             let crc = self.digest(ctx, update as u32)?.crc;
             let l = &mut self.online.lockstep.as_mut().ok_or("no lockstep")?.lockstep;
             let (player, epoch) = (l.player, l.epoch);
+            // A server that checks the games gets every player's digest, the host's too.
+            if self
+                .online
+                .net
+                .as_mut()
+                .unwrap()
+                .link
+                .send_digest(epoch, update, crc)
+            {
+                return Ok(None);
+            }
+            let l = &mut self.online.lockstep.as_mut().ok_or("no lockstep")?.lockstep;
             let agree = (player == 0).then(|| l.check(0, update, crc)).flatten();
             let net = self.online.net.as_mut().unwrap();
             if player == 0 {

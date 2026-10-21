@@ -5,8 +5,10 @@
 //! the lobby: list the rooms, host one (with a password if wanted), join one, leave, ping. The
 //! players of one room must run the same engine, the same game data and the same mods; the relay
 //! compares each joining game's `Hello` with the host's and says what differs. Inside a room the
-//! game's own messages (lockstep turns, digests, saves) travel as [`ToRelay::Send`] and
-//! [`FromRelay::Data`], which the relay never reads.
+//! game's own messages (lockstep turns, saves) travel as [`ToRelay::Send`] and
+//! [`FromRelay::Data`], which the relay never reads. The digests of the players' games go to the
+//! server itself ([`ToRelay::Digest`]): it compares them (`crate::checks`) and, when the players
+//! differ, asks one whose game most players share for its save ([`FromRelay::SaveWanted`]).
 //!
 //! Before Un-Banished 1.0 a new protocol version replaces the old one; there is no
 //! compatibility between versions.
@@ -14,7 +16,7 @@
 use serde::{Deserialize, Serialize};
 
 /// The protocol version this crate speaks.
-pub const PROTOCOL: u16 = 1;
+pub const PROTOCOL: u16 = 2;
 
 /// Who a game is: the protocol it speaks, and what its players must share.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -101,6 +103,16 @@ pub enum ToRelay {
     },
     /// Is the relay there? It answers [`FromRelay::Pong`] with the same number.
     Ping(u32),
+    /// A digest of this game's state when `update` updates had begun, made in `epoch` (the
+    /// resyncs it has been through), for the server's check.
+    Digest {
+        /// The resyncs this game has been through.
+        epoch: u32,
+        /// The update.
+        update: u64,
+        /// The CRC-32 of the game state.
+        crc: u32,
+    },
 }
 
 /// The relay to a game.
@@ -144,6 +156,19 @@ pub enum FromRelay {
     },
     /// The answer to [`ToRelay::Ping`].
     Pong(u32),
+    /// The server's check of `update`, to every player in the room: the games agree, or not.
+    Checked {
+        /// The update checked.
+        update: u64,
+        /// Whether every player's game was the same.
+        agree: bool,
+    },
+    /// The players' games differed at `update`, and this game is the one to keep: send the
+    /// others a save at the next update boundary.
+    SaveWanted {
+        /// The update where the games differed.
+        update: u64,
+    },
     /// A request failed, with the reason (no such room, a wrong password, another version...).
     Error {
         /// What went wrong, for the player to read.
