@@ -195,6 +195,7 @@ pub fn boot_capture(args: &[String], out: &str, seconds: f32) {
         .collect();
     // `--probe "COMMAND@SECONDS"` runs a probe command ([`probe`]) and writes its answer as a
     // JSON line to the log, and to `--probe-out FILE` when given.
+    #[cfg(feature = "probe")]
     let mut probes: Vec<(String, f32)> = args
         .windows(2)
         .filter(|w| w[0] == "--probe")
@@ -203,11 +204,13 @@ pub fn boot_capture(args: &[String], out: &str, seconds: f32) {
             Some((cmd.to_string(), at.parse().ok()?))
         })
         .collect();
+    #[cfg(feature = "probe")]
     let mut probe_out = args
         .windows(2)
         .find(|w| w[0] == "--probe-out")
         .and_then(|w| std::fs::File::create(&w[1]).ok());
     // `--camera`, `--camera-follow` and their settings: the cinematic camera (drawing only).
+    #[cfg(feature = "cinematic")]
     let mut cinematic = crate::view::cinematic::Cinematic::from_args(args);
     let dt = 1.0 / 30.0;
     let mut t = 0.0;
@@ -231,6 +234,7 @@ pub fn boot_capture(args: &[String], out: &str, seconds: f32) {
             game.update(step);
         }
         t += dt;
+        #[cfg(feature = "cinematic")]
         if let Some(c) = cinematic.as_mut() {
             game.cinematic = c.step(t, dt, game.main.current(), &game.archive);
         }
@@ -264,6 +268,7 @@ pub fn boot_capture(args: &[String], out: &str, seconds: f32) {
             }
             false
         });
+        #[cfg(feature = "probe")]
         probes.retain(|(command, at)| {
             if t < *at {
                 return true;

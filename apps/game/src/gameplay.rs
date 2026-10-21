@@ -18,6 +18,7 @@ mod input;
 mod loading;
 pub mod lockstep;
 pub mod network;
+#[cfg(feature = "probe")]
 mod probe;
 mod raw_input;
 pub mod recording;
@@ -536,6 +537,7 @@ impl GameLoop for GameplayLoop {
         self.view.as_ref().map_or(View::None, View::World)
     }
 
+    #[cfg(feature = "probe")]
     fn probe_world(
         &self,
         what: &str,
@@ -544,7 +546,7 @@ impl GameLoop for GameplayLoop {
         self.world_query(what, filter)
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(feature = "cinematic", not(target_arch = "wasm32")))]
     fn town(&self) -> Option<&StartingTown> {
         self.sim.town.as_ref()
     }

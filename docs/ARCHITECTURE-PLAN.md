@@ -256,6 +256,15 @@ the two modes in the user guide. New check in run.py:
 `cargo build --no-default-features` for native and wasm32, and a `vanilla` suite that runs
 `compare.sh` between the vanilla build and the full build (identical saves and frames). One
 session per extension moved, smallest first (cinematic, probe, mod sites, web shell, replay).
+   - **Started**: `cinematic`, `probe` and `mod-sites` are cargo features of the game, on by
+     default. The doors that exist are listed in docs/develop/EXTENSIONS.md (commands, step
+     events, timing, world queries, the camera, the Mods window's tabs, strings), with a worked
+     example. run.py has a `features` suite (standard: no extensions, native and wasm, 0
+     warnings) and a `vanilla` suite (long: compare.sh between the build without extensions and
+     the full build; identical). `replay` and `multiplayer` become features in B, when their
+     code leaves the game loop. The browser's start page is the web page itself, not a
+     feature. Still to do in X: the Pure Banished runtime switch, and the Multiplayer button as
+     a registered menu entry.
 
 **B. Session layer.** Create `crates/session`: move gameplay/lockstep.rs, the session half of
 gameplay/network.rs and gameplay/recording.rs; `Local`, `Lockstep`, `Replay` behind `Session`.

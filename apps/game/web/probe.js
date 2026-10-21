@@ -6,7 +6,7 @@
 (() => {
   function probe(command, timeout = 10000) {
     const b = window.wasmBindings;
-    if (!b || !b.unbanishedProbe) return Promise.reject(new Error('the game is not loaded'));
+    if (!b || !b.unbanishedProbe) return Promise.reject(new Error('the game is not loaded, or was built without the probe'));
     const id = b.unbanishedProbe(command);
     const end = Date.now() + timeout;
     return new Promise((resolve, reject) => {

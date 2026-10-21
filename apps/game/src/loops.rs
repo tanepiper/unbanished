@@ -98,6 +98,7 @@ pub trait GameLoop {
     }
     /// A world query for tests and scripted runs ([`crate::probe`]): `None` when this loop has
     /// no answer for `what`.
+    #[cfg(feature = "probe")]
     fn probe_world(
         &self,
         _what: &str,
@@ -106,7 +107,7 @@ pub trait GameLoop {
         None
     }
     /// The town being played, for captures' cinematic camera ([`crate::view::cinematic`]).
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(feature = "cinematic", not(target_arch = "wasm32")))]
     fn town(&self) -> Option<&crate::start::StartingTown> {
         None
     }

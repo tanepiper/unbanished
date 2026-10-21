@@ -133,6 +133,33 @@ def suite_wasm(ctx: Context) -> None:
         raise RuntimeError(f"{len(warnings)} warnings:\n" + "\n".join("      " + w for w in warnings[:10]))
 
 
+# A build with no extensions (`--no-default-features`), in its own target folder so that it
+# never replaces the full build the other suites run.
+VANILLA_DIR = REPO / "target" / "vanilla"
+
+
+def suite_features(ctx: Context) -> None:
+    """The game builds with no extensions, natively and for the browser, with no warnings."""
+    for target in ([], ["--target", "wasm32-unknown-unknown"]):
+        proc = sh(["cargo", "build", "--offline", "--release", "-p", "unbanished-app", "--no-default-features",
+                   "--target-dir", str(VANILLA_DIR), *target])
+        warnings = [l for l in proc.stderr.splitlines() if l.startswith("warning")]
+        if warnings:
+            where = "browser" if target else "native"
+            raise RuntimeError(f"{len(warnings)} warnings ({where}):\n" + "\n".join("      " + w for w in warnings[:10]))
+
+
+def suite_vanilla(ctx: Context) -> None:
+    """The build with no extensions plays every scenario exactly as the full build."""
+    need_game_data()
+    build_game(ctx)
+    sh(["cargo", "build", "-q", "--offline", "--release", "-p", "unbanished-app", "--bin", "unbanished",
+        "--no-default-features", "--target-dir", str(VANILLA_DIR)], verbose=ctx.verbose)
+    out = sh(["tools/compat/compare.sh", str(GAME), str(VANILLA_DIR / "release" / "unbanished")]
+             ).stdout.strip().splitlines()
+    ctx.notes.append(out[-1].split(": ")[0] + ": identical" if out else "")
+
+
 def run_scenario(name: str, spec: dict) -> list[dict]:
     """Run one probe scenario headless and return its answers."""
     with tempfile.TemporaryDirectory(prefix="ub-probe-") as tmp:
@@ -264,7 +291,9 @@ SUITES = [
     Suite("probe", "quick", "Probe scenarios give exactly their baselines (UI and town)", suite_probe),
     Suite("determinism", "standard", "Two runs with one seed draw identical frames", suite_determinism),
     Suite("browser", "standard", "Headless Chrome and Firefox: start page, manager, Exit, Quit", suite_browser),
+    Suite("features", "standard", "The game builds with no extensions (native and browser)", suite_features),
     Suite("site", "long", "The website builds", suite_site),
+    Suite("vanilla", "long", "The build with no extensions plays exactly as the full build", suite_vanilla),
     Suite("replay", "long", "Recorded games replay to the same state", compat("replay.sh", "Replays")),
     Suite("lockstep", "long", "Players over a simulated network stay identical", compat("lockstep.sh", "Lockstep")),
     Suite("network", "long", "Game processes through a relay stay identical", compat("network.sh", "Network")),

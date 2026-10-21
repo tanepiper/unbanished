@@ -27,7 +27,7 @@ Deviation: 62, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/gameplay.rs`
 
-- [Deviation] [apps/game/src/gameplay.rs:58](../apps/game/src/gameplay.rs#L58): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
+- [Deviation] [apps/game/src/gameplay.rs:59](../apps/game/src/gameplay.rs#L59): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
 
 ## `apps/game/src/gameplay/digest.rs`
 
@@ -73,7 +73,7 @@ Deviation: 62, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/main.rs`
 
-- [Deviation] [apps/game/src/main.rs:91](../apps/game/src/main.rs#L91): Deviation: the original also draws between steps (`MainLoop::Frame`'s `+0x38 / +0x48` handed to `Renderer::Draw`, models and poses blending their `InterpolatedState`); the port draws the last step, which differs only on displays faster than 60 Hz.
+- [Deviation] [apps/game/src/main.rs:92](../apps/game/src/main.rs#L92): Deviation: the original also draws between steps (`MainLoop::Frame`'s `+0x38 / +0x48` handed to `Renderer::Draw`, models and poses blending their `InterpolatedState`); the port draws the last step, which differs only on displays faster than 60 Hz.
 
 ## `apps/game/src/menu.rs`
 

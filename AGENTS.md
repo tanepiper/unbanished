@@ -19,6 +19,12 @@ waste shows up as crashes and stutter. Look for such waste while you work, measu
 after, and fix it; `determinism.sh` and the emulator tests must still pass. A change like this is
 not a deviation.
 
+Anything Un-Banished adds that the original does not have (the probe, the mod sites, the cinematic
+camera, multiplayer) is an **extension**: its own files behind a cargo feature, reaching the game
+only through the doors listed in [docs/develop/EXTENSIONS.md](docs/develop/EXTENSIONS.md). The core
+crate, `unbanished-sim`, never depends on an extension or on drawing, windows, the interface, sound
+or the network.
+
 The code is named `unbanished`: crates `unbanished-*`, the programs `unbanished`,
 `unbanished-mods`, `unbanished-cli` and `unbanished-relay`, environment variables `UNBANISHED_*`.
 Before 1.0 there is no backward-compatible naming; old names survive only where old builds or

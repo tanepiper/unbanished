@@ -483,7 +483,7 @@ impl ApplicationHandler<UserEvent> for App {
                     }
                 }
                 // Tests' probe commands (`window.unbanished.probe`), between updates and drawing.
-                #[cfg(target_arch = "wasm32")]
+                #[cfg(all(feature = "probe", target_arch = "wasm32"))]
                 if let Some(w) = &self.window {
                     let size = w.inner_size();
                     probe::web::answer_pending(game, (size.width, size.height));

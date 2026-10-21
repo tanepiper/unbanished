@@ -10,13 +10,25 @@ repository.workspace = true
 name = "unbanished"
 path = "src/main.rs"
 
+# The extensions: what Un-Banished adds that Banished 1.0.7 does not have. Each one can be left
+# out; with none of them the game builds and plays as with all of them (docs/develop/EXTENSIONS.md).
+[features]
+default = ["cinematic", "mod-sites", "probe"]
+# The cinematic camera for capture videos (`--camera`, `--camera-follow`), native only.
+cinematic = []
+# The probe: a query language to read and drive a running game (`--probe`, the browser's
+# `window.unbanished`), for tests and scripts. See docs/develop/PROBE.md.
+probe = []
+# A Browse tab for each mod site (Nexus Mods, and banishedinfo.com natively) in the Mods window.
+mod-sites = ["dep:unbanished-nexus", "dep:unbanished-banishedinfo"]
+
 [dependencies]
 unbanished-formats = { path = "../../crates/formats" }
 unbanished-game = { path = "../../crates/game" }
 unbanished-ui = { path = "../../crates/ui" }
 unbanished-gfx = { path = "../../crates/gfx" }
 unbanished-audio = { path = "../../crates/audio" }
-unbanished-nexus = { path = "../../crates/nexus" }
+unbanished-nexus = { path = "../../crates/nexus", optional = true }
 unbanished-net = { path = "../../crates/net" }
 unbanished-mods = { path = "../../crates/mods" }
 unbanished-sim = { path = "../../crates/sim" }
@@ -34,9 +46,9 @@ env_logger = "0.11"
 pollster = "1"
 png = "0.18"
 jiff = { version = "0.2", default-features = false, features = ["std", "tz-system"] }
-unbanished-nexus = { path = "../../crates/nexus", features = ["native"] }
+unbanished-nexus = { path = "../../crates/nexus", features = ["native"], optional = true }
 unbanished-net = { path = "../../crates/net", features = ["native"] }
-unbanished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"] }
+unbanished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"], optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.129"

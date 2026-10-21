@@ -1,6 +1,6 @@
 //! What the game shows of a town: the scene and its assets, the world view, particles, weather and the map parameters.
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(feature = "cinematic", not(target_arch = "wasm32")))]
 pub mod cinematic;
 pub mod map_params;
 pub mod particles;

@@ -34,6 +34,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Changed
 
+- The extensions (the probe, the mod sites' Browse tabs and the cinematic camera) are cargo
+  features, on by default. `--no-default-features` builds the game without them, and a test
+  checks that it then plays exactly as the full build. See
+  [docs/develop/EXTENSIONS.md](docs/develop/EXTENSIONS.md).
+
 - The code is renamed to `unbanished`: the crates are `unbanished-*` and the programs
   `unbanished`, `unbanished-mods`, `unbanished-cli` and `unbanished-relay`. Environment variables
   are `UNBANISHED_*` (rename `BANISHED_*` in your own scripts). Your settings, kept game files and

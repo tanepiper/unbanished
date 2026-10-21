@@ -26,6 +26,7 @@ use unbanished_sim::mods;
 #[cfg(not(target_arch = "wasm32"))]
 mod native;
 mod platform;
+#[cfg(feature = "probe")]
 mod probe;
 mod saves;
 mod settings;

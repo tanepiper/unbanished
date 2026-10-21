@@ -5,7 +5,9 @@ pub mod building_ui;
 pub mod create_bar;
 pub mod entity_ui;
 pub mod event_notify;
+#[cfg(feature = "mod-sites")]
 pub mod mod_browse;
+pub mod mod_sites;
 pub mod mod_ui;
 pub mod multiplayer;
 pub mod options;

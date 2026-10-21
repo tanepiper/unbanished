@@ -27,7 +27,9 @@ tools/test/run.py --list           # every suite and what it checks
 | quick | `probe` | the probe scenarios give exactly their baselines | 8 s |
 | standard | `determinism` | two new games with one seed draw identical frames | 25 s |
 | standard | `browser` | headless Chrome and Firefox: the start page, the manager, Exit and Quit | 2 min |
+| standard | `features` | the game builds with no extensions, natively and for the browser, with no warnings ([Extensions](EXTENSIONS.md)) | 15 s–5 min |
 | long | `site` | the website builds | 30 s |
+| long | `vanilla` | the build with no extensions plays every compatibility scenario exactly as the full build | 4 min |
 | long | `replay`, `lockstep`, `network`, `multiplayer` | the `tools/compat` scripts below | minutes each |
 
 A suite that needs something this computer lacks (game data, Chrome, Firefox, trunk) says so

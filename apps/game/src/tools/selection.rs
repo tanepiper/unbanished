@@ -75,7 +75,7 @@ impl Selection {
     /// from both ends (only front faces count, so an end inside the object still meets its
     /// outside). None when the object has no picking mesh. For captures' cinematic camera
     /// ([`crate::view::cinematic`]); not in the original.
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(feature = "cinematic", not(target_arch = "wasm32")))]
     pub(crate) fn blocks(
         &mut self,
         archive: &Archive,

@@ -20,6 +20,7 @@ function it came from.
 |---|---|
 | Build the game, the viewer and the browser version | [Building](BUILDING.md) |
 | Run the tests and the checks before a commit | [Testing](TESTING.md) |
+| Add something the original does not have, or build without it | [Extensions](EXTENSIONS.md) |
 | Check that a change does not change the game's results | [Compatibility between versions](../COMPATIBILITY.md) |
 | Measure speed and memory | [Performance](../PERFORMANCE.md) |
 | Prove that a change to the picture changes only what it should | [Changing what is drawn](VISUAL-CHANGES.md) |
