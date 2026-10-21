@@ -34,8 +34,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Changed
 
-- The extensions (the probe, the mod sites' Browse tabs and the cinematic camera) are cargo
-  features, on by default. `--no-default-features` builds the game without them, and a test
+- The extensions (multiplayer, recordings, the probe, the mod sites' Browse tabs and the
+  cinematic camera) are cargo features, on by default. `--no-default-features` builds the game without them, and a test
   checks that it then plays exactly as the full build. See
   [docs/develop/EXTENSIONS.md](docs/develop/EXTENSIONS.md).
 

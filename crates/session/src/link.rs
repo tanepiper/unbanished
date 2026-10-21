@@ -1,5 +1,5 @@
-//! The ways to the other players: a [`Link`], the relay ([`RelayLink`]), a shared link, and
-//! a simulated network in one process for tests ([`SimNet`]).
+//! The ways to the other players: a [`Link`], the relay (`RelayLink`, the `relay` feature), a
+//! shared link, and a simulated network in one process for tests ([`SimNet`]).
 //!
 //! Deviation: not in the original, which has no multiplayer.
 
@@ -22,6 +22,7 @@ pub trait Link {
 
 /// The relay ([`unbanished_net::Connection`]): each game message travels encoded inside the relay's
 /// own messages.
+#[cfg(feature = "relay")]
 pub struct RelayLink {
     connection: unbanished_net::Connection,
     /// The relay's other news (who joined, errors), for the session to read.
@@ -30,6 +31,7 @@ pub struct RelayLink {
     departed: Vec<u8>,
 }
 
+#[cfg(feature = "relay")]
 impl RelayLink {
     pub fn new(connection: unbanished_net::Connection) -> RelayLink {
         RelayLink {
@@ -48,6 +50,7 @@ impl RelayLink {
     }
 }
 
+#[cfg(feature = "relay")]
 impl Link for RelayLink {
     fn send(&mut self, to: Option<u8>, message: &Message) {
         let data = unbanished_net::encode(message);

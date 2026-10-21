@@ -101,7 +101,7 @@ pub fn replay(
         gameplay.load(ctx);
         gameplay.startup(ctx);
         gameplay.autosave = None;
-        gameplay.replaying = true;
+        gameplay.recording.replaying = true;
         let mut out = Replay {
             digests: Vec::new(),
             mismatch: None,

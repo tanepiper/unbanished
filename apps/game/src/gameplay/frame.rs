@@ -6,47 +6,13 @@ use super::*;
 impl GameplayLoop {
     /// `GameLoop::update`: one frame of the game.
     pub(super) fn update_frame(&mut self, ctx: &mut Ctx, dt: f32) -> Next {
-        if self.retired {
-            return Next::Stay;
-        }
-        // A multiplayer game: what the other players sent, then the slot before this update
-        // (which waits for every player's turn), the turns to send, and the host's checks.
-        let online = self.net.as_ref().is_some_and(|n| !n.driven);
-        if online {
-            if let (_, Some((bytes, update))) = self.net_poll() {
-                return self.switch_reload(ctx, &bytes, update);
-            }
-        }
-        // Held: the slot waits for another player's turn. The view and the windows go on, but
-        // nothing that changes the town runs, so every computer runs it the same number of times.
-        let held = self.lockstep.is_some() && !self.lockstep_slot(ctx);
-        if held && !online {
-            // A driven test game ([`network::NetPeer`]) only updates when its slot is ready.
-            return Next::Stay;
-        }
-        if online {
-            self.net_send();
-            self.refresh_players_line(ctx.ui, held);
-            if !held {
-                match self.net_boundary(ctx, self.sim.updates) {
-                    Ok(Some((bytes, update))) => return self.switch_reload(ctx, &bytes, update),
-                    Ok(None) => {}
-                    Err(e) => log::error!("multiplayer: {e}"),
-                }
-            }
-        }
-        // A recording's digest of the state this update begins with, every few updates.
-        if !held
-            && self
-                .recorder
-                .as_ref()
-                .is_some_and(|r| r.every > 0 && self.sim.updates % r.every == 0)
-        {
-            match self.digest(ctx, self.sim.updates as u32) {
-                Ok(d) => self.recorder.as_mut().unwrap().digest(d),
-                Err(e) => log::warn!("recording: {e}"),
-            }
-        }
+        // A multiplayer game: what the other players sent, the slot before this update, the
+        // turns to send and the host's checks. Held: the slot waits for another player's turn.
+        let held = match self.begin_online(ctx) {
+            Ok(held) => held,
+            Err(next) => return next,
+        };
+        self.record_digest(ctx, held);
         if !held {
             self.sim.updates += 1;
         }
@@ -60,7 +26,7 @@ impl GameplayLoop {
         {
             self.finish_save(ctx);
             // A multiplayer game is not autosaved (the host saves it for a resync).
-            if self.net.is_none() {
+            if !self.online() {
                 self.update_autosave(ctx, dt);
             }
             if let Some(next) = self.update_save_dialog(ctx, dt) {
@@ -88,16 +54,14 @@ impl GameplayLoop {
         }
         // `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller.
         // Deviation: in a multiplayer game the pause menu does not hold the shared game.
-        let pauses_game = match (self.replaying, self.lockstep.is_some()) {
+        let pauses_game = match (self.replaying(), self.in_lockstep()) {
             (true, _) => self.menu_paused,
             (false, true) => false,
             (false, false) => self.pause_menu.is_some(),
         };
-        if !self.replaying && pauses_game != self.menu_paused {
+        if !self.replaying() && pauses_game != self.menu_paused {
             self.menu_paused = pauses_game;
-            if let Some(r) = &mut self.recorder {
-                r.menu_pause(self.sim.updates - 1, pauses_game);
-            }
+            self.record_menu_pause(self.sim.updates - 1, pauses_game);
         }
         // Controller FUN_140107b70 → FUN_140104390: the camera eases toward its zoom and pitch
         // targets every frame.
@@ -292,7 +256,7 @@ impl GameplayLoop {
         // the game speed (`Game +0x120 → +0x34`) back to 1.
         // Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on
         // each player's own setting.
-        let auto_slow = ctx.settings.game.auto_slow || self.lockstep.is_some();
+        let auto_slow = ctx.settings.game.auto_slow || self.in_lockstep();
         if std::mem::take(&mut self.sim.events.slow_request) && auto_slow {
             self.speed = 0;
         }

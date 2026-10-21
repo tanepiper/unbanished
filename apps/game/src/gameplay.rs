@@ -12,15 +12,19 @@
 mod audio;
 pub(crate) mod commands;
 pub mod digest;
+mod extensions;
 mod frame;
 mod hud;
 mod input;
 mod loading;
+#[cfg(feature = "multiplayer")]
 pub mod lockstep;
+#[cfg(feature = "multiplayer")]
 pub mod network;
 #[cfg(feature = "probe")]
 mod probe;
 mod raw_input;
+#[cfg(feature = "replay")]
 pub mod recording;
 mod saving;
 mod script;
@@ -161,22 +165,12 @@ pub struct GameplayLoop {
     autosave: Option<crate::saves::autosave::AutoSave>,
     /// The pause menu holds the game (in a replay: the recording says so).
     menu_paused: bool,
-    /// A replay ([`recording::replay`]): the recording, not the interface, gives the commands.
-    replaying: bool,
-    /// The recording being written (`--record`).
-    recorder: Option<recording::Recorder>,
-    /// A multiplayer game's session ([`lockstep`]): the turns, the turns sealed to send and the
-    /// slot carried out last. A single-player game has none and carries commands out at once.
-    lockstep: Option<unbanished_session::session::LockstepSession>,
-    /// A multiplayer game's session ([`network`]), and the update boundary it last handled.
-    net: Option<network::NetState>,
-    boundary_done: Option<u64>,
-    /// Commands of a lockstep slot are being carried out (others go to the lockstep).
-    carrying_out: bool,
-    /// Replaced by a resync's save: it waits for the switch.
-    retired: bool,
-    /// The other players' Path tools (a Path tool's pick depends on its last pick).
-    remote_paths: std::collections::BTreeMap<u8, crate::tools::path_tool::PathTool>,
+    /// A multiplayer game's state (the `multiplayer` extension, [`extensions`]).
+    #[cfg_attr(not(feature = "multiplayer"), allow(dead_code))]
+    online: extensions::Online,
+    /// A recording being written or replayed (the `replay` extension, [`extensions`]).
+    #[cfg_attr(not(feature = "replay"), allow(dead_code))]
+    recording: extensions::Recording,
     /// The Save and Load dialog over the pause menu.
     save_dialog: Option<crate::ui::save_dialog::SaveLoadDialog>,
     /// The Mods dialog over the pause menu (id 7).
@@ -326,14 +320,8 @@ impl GameplayLoop {
             pending_save: None,
             autosave: None,
             menu_paused: false,
-            replaying: false,
-            recorder: None,
-            lockstep: None,
-            remote_paths: Default::default(),
-            net: None,
-            boundary_done: None,
-            carrying_out: false,
-            retired: false,
+            online: Default::default(),
+            recording: Default::default(),
             save_dialog: None,
             mods_dialog: None,
             ambience: None,
@@ -443,13 +431,8 @@ impl GameLoop for GameplayLoop {
                 v
             });
         self.start_scenario(ctx);
-        if self.net.is_some() {
-            self.open_players_line(ctx.ui);
-        }
-        // `--record`: a game loaded from a save is recorded from its first update.
-        if self.saved.is_some() && !self.replaying {
-            self.recorder = recording::take_request();
-        }
+        self.start_online(ctx);
+        self.start_recording();
     }
 
     fn update(&mut self, ctx: &mut Ctx, dt: f32) -> Next {

@@ -379,32 +379,6 @@ fn load_menu_scene(ctx: &mut Ctx, index: u32) -> unbanished_formats::Result<Scen
 }
 
 /// `UI::TextElement::SetParameter`: replace `@0`, `@1`, … in a text element.
-/// Deviation: a Multiplayer button under Load (the original has no multiplayer). It is a copy of
-/// the Load button with its own name and label.
-fn add_multiplayer_button(ui: &mut Ui, screen: &Screen, dialog: usize) {
-    let (Some(list), Some(load)) = (
-        screen.find(ui, dialog, "buttonList"),
-        screen.find(ui, dialog, "buttonLoad"),
-    ) else {
-        return;
-    };
-    let reference = ui.node(load).reference.clone();
-    let Some(button) = ui.instantiate(&reference) else {
-        log::warn!("menu: no copy of {reference}");
-        return;
-    };
-    ui.node_mut(button).name = "buttonMultiplayer".into();
-    if let Some(label) = ui.find(button, "labelLoadGame") {
-        ui.node_mut(label).name = "labelMultiplayer".into();
-        ui.set_text(label, "Multiplayer");
-    }
-    let children = &mut ui.node_mut(list).children;
-    let at = children
-        .iter()
-        .position(|&c| c == load)
-        .map_or(children.len(), |i| i + 1);
-    children.insert(at, button);
-}
 
 fn set_parameters(ui: &mut Ui, id: NodeId, values: &[&str]) {
     let text = match &ui.node(id).kind {
@@ -487,7 +461,7 @@ impl GameLoop for MenuLoop {
     fn startup(&mut self, ctx: &mut Ctx) {
         let mut screen = Screen::new(ctx.ui);
         if let Some(d) = screen.add_dialog(ctx.ui, MENU_DIALOG) {
-            add_multiplayer_button(ctx.ui, &screen, d);
+            crate::ui::multiplayer::add_menu_button(ctx.ui, &screen, d);
         }
         if let Some(d) = screen.add_dialog(ctx.ui, BUILD_ID_DIALOG) {
             if let Some(notice) = screen.find(ctx.ui, d, "textBuildNotice") {

@@ -14,12 +14,12 @@ impl super::GameplayLoop {
     /// Plays this game in lockstep as `player` of `players`, with an input delay of `delay`
     /// updates.
     pub fn join_lockstep(&mut self, player: u8, players: u8, delay: u64) {
-        self.lockstep = Some(LockstepSession::new(player, players, delay));
+        self.online.lockstep = Some(LockstepSession::new(player, players, delay));
     }
 
     /// The local player gives a command: in lockstep it waits for its slot.
     pub fn give(&mut self, archive: &unbanished_formats::pkg::Archive, command: PlayerCommand) {
-        match &mut self.lockstep {
+        match &mut self.online.lockstep {
             Some(l) => {
                 l.give(self.sim.updates, command);
             }
@@ -31,14 +31,15 @@ impl super::GameplayLoop {
 
     /// The messages since the last call, to send to the other players.
     pub fn take_outbox(&mut self) -> Vec<Message> {
-        self.lockstep
+        self.online
+            .lockstep
             .as_mut()
             .map_or_else(Vec::new, |l| l.take_outbox())
     }
 
     /// Another player's turn arrives.
     pub fn receive_turn(&mut self, turn: Turn) {
-        if let Some(l) = &mut self.lockstep {
+        if let Some(l) = &mut self.online.lockstep {
             l.lockstep.receive(turn);
         }
     }
@@ -46,17 +47,17 @@ impl super::GameplayLoop {
     /// Before an update: seals the local turn `delay` slots ahead (once), and carries out the
     /// slot of the updates begun so far if every player's turn is here. False while waiting.
     pub fn lockstep_slot(&mut self, ctx: &mut crate::loops::Ctx) -> bool {
-        let Some(l) = &mut self.lockstep else {
+        let Some(l) = &mut self.online.lockstep else {
             return true;
         };
         let Some(commands) = l.slot(self.sim.updates) else {
             return false;
         };
-        self.carrying_out = true;
+        self.online.carrying_out = true;
         for (player, command) in commands {
             self.execute_from(ctx, player, command);
         }
-        self.carrying_out = false;
+        self.online.carrying_out = false;
         true
     }
 
@@ -64,7 +65,11 @@ impl super::GameplayLoop {
     /// kept for the other player (their Path tool; drag tools are kept by template for all).
     fn execute_from(&mut self, ctx: &mut crate::loops::Ctx, player: u8, command: PlayerCommand) {
         use super::commands::{Outcome, Tool};
-        let local = self.lockstep.as_ref().is_none_or(|l| l.player() == player);
+        let local = self
+            .online
+            .lockstep
+            .as_ref()
+            .is_none_or(|l| l.player() == player);
         if local {
             let template = match &command {
                 PlayerCommand::StartTool { template } => Some(template.clone()),
@@ -74,12 +79,15 @@ impl super::GameplayLoop {
             self.local_outcome(ctx, template.as_deref(), outcome);
             return;
         }
-        let mine = std::mem::replace(&mut self.path_tool, self.remote_paths.remove(&player));
+        let mine = std::mem::replace(
+            &mut self.path_tool,
+            self.online.remote_paths.remove(&player),
+        );
         if let Outcome::Tool(Some(Tool::Path(t))) = self.execute(ctx.archive, command) {
             self.path_tool = Some(t);
         }
         if let Some(t) = std::mem::replace(&mut self.path_tool, mine) {
-            self.remote_paths.insert(player, t);
+            self.online.remote_paths.insert(player, t);
         }
     }
 }
@@ -153,24 +161,24 @@ impl super::GameplayLoop {
         let saved = crate::saves::saved::SavedGame::parse(bytes).map_err(|e| e.to_string())?;
         let mut g = super::GameplayLoop::from_save(saved);
         g.autosave = None;
-        g.replaying = self.replaying;
+        g.recording.replaying = self.recording.replaying;
         g.menu_paused = self.menu_paused;
         g.speed = self.speed;
         g.paused = self.paused;
         g.sim.drag_tools = std::mem::take(&mut self.sim.drag_tools);
-        g.remote_paths = std::mem::take(&mut self.remote_paths);
+        g.online.remote_paths = std::mem::take(&mut self.online.remote_paths);
         g.path_tool = self.path_tool.take();
-        g.net = self.net.take();
-        if let Some(net) = &mut g.net {
+        g.online.net = self.online.net.take();
+        if let Some(net) = &mut g.online.net {
             net.forget_line();
         }
         g.sim.updates = update;
-        g.boundary_done = Some(update);
-        if let Some(mut l) = self.lockstep.take() {
+        g.online.boundary_done = Some(update);
+        if let Some(mut l) = self.online.lockstep.take() {
             l.resynced(update);
-            g.lockstep = Some(l);
+            g.online.lockstep = Some(l);
         }
-        self.retired = true;
+        self.online.retired = true;
         Ok(g)
     }
 }

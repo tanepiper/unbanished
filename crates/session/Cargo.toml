@@ -6,12 +6,17 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+default = ["relay"]
+# The link through the relay (`unbanished-net`).
+relay = ["dep:unbanished-net"]
+
 [dependencies]
 unbanished-sim = { path = "../sim" }
-unbanished-net = { path = "../net" }
+unbanished-net = { path = "../net", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 log = "0.4"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-unbanished-net = { path = "../net", features = ["native"] }
+unbanished-net = { path = "../net", features = ["native"], optional = true }

@@ -71,7 +71,7 @@ pub type Reload = (Vec<u8>, u64);
 impl GameplayLoop {
     /// Plays this (lockstep) game over `link`.
     pub fn join_network(&mut self, link: Box<dyn Link>, check: u64) {
-        self.net = Some(NetState {
+        self.online.net = Some(NetState {
             link,
             check,
             resync_wanted: false,
@@ -90,7 +90,7 @@ impl GameplayLoop {
     /// start.
     pub fn start_lockstep(&mut self, player: u8, players: u8, delay: u64, absent: &[u8]) {
         self.join_lockstep(player, players, delay);
-        if let Some(l) = self.lockstep.as_mut().map(|s| &mut s.lockstep) {
+        if let Some(l) = self.online.lockstep.as_mut().map(|s| &mut s.lockstep) {
             for &p in absent {
                 l.leave(p);
             }
@@ -99,14 +99,14 @@ impl GameplayLoop {
 
     /// The session, if this is a multiplayer game.
     pub fn net(&self) -> Option<&NetState> {
-        self.net.as_ref()
+        self.online.net.as_ref()
     }
 
     /// Handles what arrived: turns, and (the host) the players' digests. A resync's save stops
     /// it and is returned; what came after it waits for the reloaded game. True when anything
     /// arrived.
     pub fn net_poll(&mut self) -> (bool, Option<Reload>) {
-        let Some(net) = &mut self.net else {
+        let Some(net) = &mut self.online.net else {
             return (false, None);
         };
         let mut arrived: std::collections::VecDeque<(u8, Message)> = net.inbox.drain(..).collect();
@@ -123,21 +123,21 @@ impl GameplayLoop {
                     update,
                     crc,
                 } => {
-                    let l = self.lockstep.as_mut().map(|s| &mut s.lockstep);
+                    let l = self.online.lockstep.as_mut().map(|s| &mut s.lockstep);
                     let agree = l.and_then(|l| l.check_in(player, epoch, update, crc));
-                    self.net.as_mut().unwrap().checked(update, agree);
+                    self.online.net.as_mut().unwrap().checked(update, agree);
                 }
                 Message::Save { update, bytes } => {
-                    self.net.as_mut().unwrap().inbox = arrived;
+                    self.online.net.as_mut().unwrap().inbox = arrived;
                     return (true, Some((bytes, update)));
                 }
                 Message::Start { .. } => log::warn!("a start in a game already started"),
             }
         }
         // Who left, once every turn they sent is in.
-        let leaving = std::mem::take(&mut self.net.as_mut().unwrap().leaving);
+        let leaving = std::mem::take(&mut self.online.net.as_mut().unwrap().leaving);
         for player in leaving {
-            let Some(l) = self.lockstep.as_mut().map(|s| &mut s.lockstep) else {
+            let Some(l) = self.online.lockstep.as_mut().map(|s| &mut s.lockstep) else {
                 continue;
             };
             let (from, checks) = l.leave(player);
@@ -145,7 +145,7 @@ impl GameplayLoop {
                 "multiplayer: player {} left; the game goes on from slot {from}",
                 player + 1
             );
-            let net = self.net.as_mut().unwrap();
+            let net = self.online.net.as_mut().unwrap();
             for (update, agree) in checks {
                 net.checked(update, Some(agree));
             }
@@ -156,7 +156,7 @@ impl GameplayLoop {
     /// Sends the sealed turns.
     pub fn net_send(&mut self) {
         let outbox = self.take_outbox();
-        if let Some(net) = &mut self.net {
+        if let Some(net) = &mut self.online.net {
             for message in outbox {
                 net.link.send(None, &message);
             }
@@ -167,19 +167,20 @@ impl GameplayLoop {
     /// sent, and returned for its own game), then every player sends the host its digest when
     /// one is due.
     pub fn net_boundary(&mut self, ctx: &mut Ctx, update: u64) -> Result<Option<Reload>, String> {
-        if self.net.is_none() || self.boundary_done == Some(update) {
+        if self.online.net.is_none() || self.online.boundary_done == Some(update) {
             return Ok(None);
         }
-        self.boundary_done = Some(update);
+        self.online.boundary_done = Some(update);
         let host = self
+            .online
             .lockstep
             .as_ref()
             .is_some_and(|l| l.lockstep.player == 0);
-        if host && self.net.as_ref().unwrap().resync_wanted {
+        if host && self.online.net.as_ref().unwrap().resync_wanted {
             let bytes = self
                 .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
                 .ok_or("the host could not save")?;
-            let net = self.net.as_mut().unwrap();
+            let net = self.online.net.as_mut().unwrap();
             net.resync_wanted = false;
             net.resyncs.push(update);
             let save = Message::Save {
@@ -189,13 +190,13 @@ impl GameplayLoop {
             net.link.send(None, &save);
             return Ok(Some((bytes, update)));
         }
-        let check = self.net.as_ref().unwrap().check;
+        let check = self.online.net.as_ref().unwrap().check;
         if check > 0 && update > 0 && update % check == 0 {
             let crc = self.digest(ctx, update as u32)?.crc;
-            let l = &mut self.lockstep.as_mut().ok_or("no lockstep")?.lockstep;
+            let l = &mut self.online.lockstep.as_mut().ok_or("no lockstep")?.lockstep;
             let (player, epoch) = (l.player, l.epoch);
             let agree = (player == 0).then(|| l.check(0, update, crc)).flatten();
-            let net = self.net.as_mut().unwrap();
+            let net = self.online.net.as_mut().unwrap();
             if player == 0 {
                 net.checked(update, agree);
             } else {
@@ -214,7 +215,7 @@ impl GameplayLoop {
     /// Deviation: the players line, at the foot of the screen in a multiplayer game. It is the
     /// original's version footer (`Dialog/BuildId.rsc`) without its logo.
     pub(super) fn open_players_line(&mut self, ui: &mut unbanished_ui::Ui) {
-        let (Some(net), Some(screen)) = (self.net.as_mut(), self.screen.as_mut()) else {
+        let (Some(net), Some(screen)) = (self.online.net.as_mut(), self.screen.as_mut()) else {
             return;
         };
         let Some(d) = screen.add_dialog(ui, "Dialog/BuildId.rsc:resource") else {
@@ -234,8 +235,8 @@ impl GameplayLoop {
     /// The line's text: who this player is, or that the game waits for the others.
     pub(super) fn refresh_players_line(&mut self, ui: &mut unbanished_ui::Ui, waiting: bool) {
         let (Some(net), Some(l)) = (
-            self.net.as_mut(),
-            self.lockstep.as_ref().map(|s| &s.lockstep),
+            self.online.net.as_mut(),
+            self.online.lockstep.as_ref().map(|s| &s.lockstep),
         ) else {
             return;
         };
@@ -286,7 +287,7 @@ impl GameplayLoop {
 
     /// The host found a desync it has not resynced yet.
     pub fn resync_pending(&self) -> bool {
-        self.net.as_ref().is_some_and(|n| n.resync_wanted)
+        self.online.net.as_ref().is_some_and(|n| n.resync_wanted)
     }
 }
 
@@ -314,7 +315,7 @@ impl NetPeer {
 
     /// A peer whose game is already loaded and joined to its network (the in-process test).
     pub fn with_game(player: u8, mut game: GameplayLoop) -> NetPeer {
-        if let Some(net) = &mut game.net {
+        if let Some(net) = &mut game.online.net {
             net.driven = true;
         }
         NetPeer {
@@ -366,7 +367,7 @@ impl NetPeer {
         g.autosave = None;
         let link = self.link.take().ok_or("no link")?;
         g.join_network(link, check);
-        g.net.as_mut().unwrap().driven = true;
+        g.online.net.as_mut().unwrap().driven = true;
         self.game = Some(g);
         log::info!("player {} started", self.player);
         Ok(())
@@ -581,7 +582,7 @@ pub fn simulate(
             g.load(ctx);
             g.startup(ctx);
             g.autosave = None;
-            g.replaying = replay;
+            g.recording.replaying = replay;
             shared::swap(table);
         }
         let mut report = Report {

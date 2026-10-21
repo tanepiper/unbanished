@@ -389,6 +389,7 @@ pub fn sim_digest(args: &[String]) {
 /// `--replay SAVE RECORDING [UPDATES] [EVERY]`: replays a recording (`--record`) from its
 /// save without a window and compares the game state with the recorded digests
 /// (`gameplay::recording`). Exits with 1 when they differ.
+#[cfg(feature = "replay")]
 pub fn replay(args: &[String]) {
     let (Some(save), Some(recording)) = (args.get(1), args.get(2)) else {
         eprintln!("--replay SAVE RECORDING [UPDATES] [EVERY]");
@@ -438,6 +439,7 @@ pub fn replay(args: &[String]) {
 /// digests. The host checks digests every CHECK updates (default 600, 0 none) and resyncs
 /// the players from its save when they differ; CORRUPT `PLAYER:UPDATE` scrambles one
 /// player's game there, to test that. Exits with 1 when the players disagree at the end.
+#[cfg(feature = "multiplayer")]
 pub fn lockstep_test(args: &[String]) {
     let (Some(save), Some(recording)) = (args.get(1), args.get(2)) else {
         eprintln!(
@@ -521,6 +523,7 @@ pub fn lockstep_test(args: &[String]) {
 /// host and ignore SAVE); each plays its share of RECORDING's commands and prints its
 /// digests. CORRUPT `UPDATE` scrambles this player's game there. tools/compat/network.sh runs
 /// several and compares them.
+#[cfg(feature = "multiplayer")]
 pub fn net_test(args: &[String]) {
     use crate::gameplay::network::{NetPeer, RelayLink, Script, Shared};
     let usage = "--net-test RELAY host|join ROOM SAVE RECORDING PLAYERS [DELAY] [CHECK] [CORRUPT]";

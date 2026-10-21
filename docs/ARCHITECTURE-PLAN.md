@@ -281,8 +281,13 @@ gameplay/network.rs and gameplay/recording.rs; `Local`, `Lockstep`, `Replay` beh
      up after a resync. The game loop holds an `Option<LockstepSession>` and asks it; a server
      can drive a `Simulation` with the same session. Replays stay a driver of their own
      (`recording::replay`), since the recording also holds menu pauses and digests.
-   - B3: the `replay` and `multiplayer` features (the game loop's multiplayer fields behind
-     one door), the Multiplayer button as a menu entry, and the Pure Banished switch.
+   - **B3 done**: `replay` and `multiplayer` are features (`multiplayer` turns on `replay`).
+     The game loop's multiplayer and recording fields are two structs behind one door
+     (`gameplay/extensions.rs`: begin an update, route and record a command, whether it is
+     online or in lockstep), with empty stand-ins without the features. The Multiplayer window
+     and its menu button have a stand-in (`ui/multiplayer_off.rs`), so the menu's code is the
+     same in both builds. `unbanished-session`'s relay link is its `relay` feature. Every
+     combination builds with no warnings. Still to do: the Pure Banished runtime switch.
 
 **C. Protocol v1.** Versioned `Hello` handshake (rejects mismatched engine, data or mods with a
 readable reason), lobby/game split, `Join{from_update}`, `Rejoin`, `Ping`. In-memory transport.

@@ -9,6 +9,10 @@ pub mod event_notify;
 pub mod mod_browse;
 pub mod mod_sites;
 pub mod mod_ui;
+#[cfg(feature = "multiplayer")]
+pub mod multiplayer;
+#[cfg(not(feature = "multiplayer"))]
+#[path = "multiplayer_off.rs"]
 pub mod multiplayer;
 pub mod options;
 pub mod pause_menu;

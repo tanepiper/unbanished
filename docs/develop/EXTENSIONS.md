@@ -25,10 +25,11 @@ Three rules hold for every extension:
 | `cinematic` | The camera for capture videos (`--camera`, `--camera-follow`), native only | `apps/game/src/view/cinematic.rs` |
 | `probe` | The probe: read and drive a running game (`--probe`, the browser's `window.unbanished`) | `apps/game/src/probe.rs`, `apps/game/src/gameplay/probe.rs`, [PROBE.md](PROBE.md) |
 | `mod-sites` | A Browse tab for each mod site (Nexus Mods, and banishedinfo.com natively) in the Mods window | `apps/game/src/ui/mod_browse.rs`, `apps/game/src/platform/nexus.rs`, `crates/nexus`, `crates/banishedinfo` |
+| `replay` | Recordings: `--record` writes a game's commands and digests, `--replay` plays them back | `apps/game/src/gameplay/recording.rs`, `crates/session` |
+| `multiplayer` | Lockstep games through a relay, the Multiplayer window and its main-menu button, and their tests (`--lockstep-test`, `--net-test`, the browser's `?net=`). It turns on `replay` | `apps/game/src/gameplay/{lockstep,network}.rs`, `apps/game/src/ui/multiplayer.rs`, `crates/session`, `crates/net` |
 
-Multiplayer and recordings (replays) are extensions too. They become features when they move
-into their own crate (phase B of the plan). The browser's start page and its manager are the
-web page itself, so they are not a cargo feature.
+The browser's start page and its manager are the web page itself, so they are not a cargo
+feature.
 
 ## Building without extensions
 
@@ -63,6 +64,8 @@ reaching into the game's code.
 | World queries | Read the town as JSON (the probe uses it) | `GameLoop::probe_world` |
 | Camera | Draw a frame from another camera (the cinematic camera uses it) | `Game::cinematic` |
 | Mods window tabs | Add tabs to the Mods window (the mod sites use it) | `apps/game/src/ui/mod_sites.rs` |
+| The game loop's extensions | A multiplayer game's and a recording's state, and the few questions the game loop asks them (begin an update, route a command, record it) | `apps/game/src/gameplay/extensions.rs` and its `extensions/` files |
+| Sessions | Decide when a player's commands are carried out: at once, or in their lockstep slot | `unbanished_session::session::Session` |
 | Strings | Give the simulation the game's text in the player's language | `unbanished_sim::strings::Strings` |
 
 ## Example: a new extension
@@ -115,7 +118,9 @@ cannot change the game. Here is the whole extension.
 
 Keep an extension's code in its own files. A `#[cfg(feature = "...")]` belongs on the module and
 on the one line that calls into it, not spread through the game's code. If you need many of
-them, the extension needs a door: add one, as `mod_sites.rs` does for the Mods window.
+them, the extension needs a door: add one, as `mod_sites.rs` does for the Mods window. Another
+way is a stand-in: `ui/multiplayer_off.rs` has the Multiplayer window's type with no value, so
+the main menu's code is the same in both builds and the window simply never opens.
 
 ## Testing
 

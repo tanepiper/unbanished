@@ -352,3 +352,30 @@ fn list(players: &BTreeSet<u8>) -> String {
     let names: Vec<String> = players.iter().map(|p| format!("{}", p + 1)).collect();
     format!("{} ({})", players.len(), names.join(", "))
 }
+
+/// Deviation: a Multiplayer button under Load (the original has no multiplayer). It is a copy of
+/// the Load button with its own name and label.
+pub fn add_menu_button(ui: &mut Ui, screen: &Screen, dialog: usize) {
+    let (Some(list), Some(load)) = (
+        screen.find(ui, dialog, "buttonList"),
+        screen.find(ui, dialog, "buttonLoad"),
+    ) else {
+        return;
+    };
+    let reference = ui.node(load).reference.clone();
+    let Some(button) = ui.instantiate(&reference) else {
+        log::warn!("menu: no copy of {reference}");
+        return;
+    };
+    ui.node_mut(button).name = "buttonMultiplayer".into();
+    if let Some(label) = ui.find(button, "labelLoadGame") {
+        ui.node_mut(label).name = "labelMultiplayer".into();
+        ui.set_text(label, "Multiplayer");
+    }
+    let children = &mut ui.node_mut(list).children;
+    let at = children
+        .iter()
+        .position(|&c| c == load)
+        .map_or(children.len(), |i| i + 1);
+    children.insert(at, button);
+}

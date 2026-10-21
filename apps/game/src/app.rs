@@ -40,6 +40,7 @@ pub(crate) struct App {
     pub(crate) pending_digest: Option<(Vec<u8>, u32, u32)>,
     /// `?net=`: a networked test's joining player, once the game has started.
     #[cfg(target_arch = "wasm32")]
+    #[cfg(feature = "multiplayer")]
     pub(crate) net_session: Option<gameplay::network::JoinSession>,
     pub(crate) game: Option<Game>,
     pub(crate) last_frame: Option<Instant>,
@@ -69,6 +70,7 @@ impl App {
             #[cfg(target_arch = "wasm32")]
             pending_digest: None,
             #[cfg(target_arch = "wasm32")]
+            #[cfg(feature = "multiplayer")]
             net_session: None,
             game: None,
             last_frame: None,
@@ -439,7 +441,7 @@ impl ApplicationHandler<UserEvent> for App {
                     }
                 }
                 // `?net=`: the networked test's player runs a few milliseconds each frame.
-                #[cfg(target_arch = "wasm32")]
+                #[cfg(all(feature = "multiplayer", target_arch = "wasm32"))]
                 {
                     if self.net_session.is_none() {
                         if let Some((relay, room, updates)) = platform::web::net_request() {

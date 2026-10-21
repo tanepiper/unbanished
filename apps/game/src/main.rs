@@ -103,6 +103,7 @@ fn main() {
     }
     log::info!("{}", platform::version::NAME_VERSION);
     // `--record FILE [--record-every N]`: record the next game loaded from a save.
+    #[cfg(feature = "replay")]
     if let Some(path) = args.windows(2).find(|w| w[0] == "--record").map(|w| &w[1]) {
         let every = args
             .windows(2)
@@ -118,8 +119,11 @@ fn main() {
             return native::boot_capture(&args, out, seconds);
         }
         Some("--sim-digest") => return native::sim_digest(&args),
+        #[cfg(feature = "replay")]
         Some("--replay") => return native::replay(&args),
+        #[cfg(feature = "multiplayer")]
         Some("--lockstep-test") => return native::lockstep_test(&args),
+        #[cfg(feature = "multiplayer")]
         Some("--net-test") => return native::net_test(&args),
         Some("--capture") => {
             let out = args.get(1).expect("--capture OUT.png [OPTIONS]");

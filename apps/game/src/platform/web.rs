@@ -147,6 +147,7 @@ pub fn load_digest_save(proxy: EventLoopProxy<UserEvent>) {
 
 /// `?net=RELAY&room=CODE&updates=N` (local pages only): join a relay room as a player of a
 /// networked test (`gameplay::network::JoinSession`).
+#[cfg(feature = "multiplayer")]
 pub fn net_request() -> Option<(String, String, u64)> {
     Some((
         local_param("net")?,
