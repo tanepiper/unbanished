@@ -1,0 +1,193 @@
+use super::memory::{MemoryConnection, MemoryRelay};
+use super::*;
+
+fn hello() -> Hello {
+    Hello::new("Un-Banished 0.4.0-test", 0x1234, 0x5678)
+}
+
+/// A connection that has said Hello and been welcomed.
+fn greeted(relay: &MemoryRelay, hello: Hello) -> MemoryConnection {
+    let mut c = relay.connect();
+    c.send(ToRelay::Hello(hello));
+    assert_eq!(c.poll(), [FromRelay::Welcome { protocol: PROTOCOL }]);
+    c
+}
+
+#[test]
+fn values_round_trip() {
+    let values = [
+        ToRelay::Hello(hello()),
+        ToRelay::ListRooms,
+        ToRelay::Host {
+            room: None,
+            password: Some("pw".into()),
+        },
+        ToRelay::Join {
+            room: "ABCDEF".into(),
+            password: None,
+        },
+        ToRelay::Leave,
+        ToRelay::Send {
+            to: Some(2),
+            data: vec![1, 2, 3],
+        },
+        ToRelay::Ping(7),
+    ];
+    for v in values {
+        assert_eq!(decode::<ToRelay>(&encode(&v)).unwrap(), v);
+    }
+    let big = FromRelay::Data {
+        from: 1,
+        data: vec![7; 1 << 20],
+    };
+    let bytes = encode(&big);
+    assert!(bytes.len() < (1 << 20) + 16, "{}", bytes.len());
+    assert_eq!(decode::<FromRelay>(&bytes).unwrap(), big);
+}
+
+#[test]
+fn a_cut_off_message_is_an_error() {
+    let bytes = encode(&ToRelay::Hello(hello()));
+    for n in 0..bytes.len() {
+        assert!(
+            decode::<ToRelay>(&bytes[..n]).is_err(),
+            "{n} of {} bytes",
+            bytes.len()
+        );
+    }
+    assert!(decode::<ToRelay>(&[0xff, 0xff, 0xff]).is_err());
+}
+
+#[test]
+fn a_game_of_another_protocol_is_refused_with_the_reason() {
+    let relay = MemoryRelay::new(1);
+    let mut c = relay.connect();
+    let mut old = hello();
+    old.protocol = PROTOCOL + 1;
+    c.send(ToRelay::Hello(old));
+    let FromRelay::Error { message } = &c.poll()[0] else {
+        panic!("not refused");
+    };
+    assert!(message.contains("protocol"), "{message}");
+    assert!(matches!(c.state(), State::Closed(_)));
+}
+
+#[test]
+fn a_game_says_hello_first() {
+    let relay = MemoryRelay::new(1);
+    let mut c = relay.connect();
+    c.send(ToRelay::ListRooms);
+    assert!(matches!(&c.poll()[0], FromRelay::Error { .. }));
+    assert!(matches!(c.state(), State::Closed(_)));
+}
+
+#[test]
+fn players_list_host_join_and_pass_data() {
+    let relay = MemoryRelay::new(1);
+    let mut host = greeted(&relay, hello());
+    host.send(ToRelay::Host {
+        room: Some("TESTER".into()),
+        password: None,
+    });
+    assert_eq!(
+        host.poll(),
+        [FromRelay::Hosted {
+            room: "TESTER".into()
+        }]
+    );
+    let mut a = greeted(&relay, hello());
+    a.send(ToRelay::ListRooms);
+    let room = RoomInfo {
+        code: "TESTER".into(),
+        players: 1,
+        password: false,
+    };
+    assert_eq!(a.poll(), [FromRelay::Rooms(vec![room])]);
+    a.send(ToRelay::Join {
+        room: "TESTER".into(),
+        password: None,
+    });
+    let joined = FromRelay::Joined {
+        room: "TESTER".into(),
+        player: 1,
+    };
+    assert_eq!(a.poll(), [joined]);
+    assert_eq!(host.poll(), [FromRelay::PeerJoined { player: 1 }]);
+    host.send(ToRelay::Send {
+        to: None,
+        data: vec![9],
+    });
+    assert_eq!(
+        a.poll(),
+        [FromRelay::Data {
+            from: 0,
+            data: vec![9]
+        }]
+    );
+    a.send(ToRelay::Ping(3));
+    assert_eq!(a.poll(), [FromRelay::Pong(3)]);
+    a.send(ToRelay::Leave);
+    assert_eq!(host.poll(), [FromRelay::PeerLeft { player: 1 }]);
+    drop(host);
+    a.send(ToRelay::ListRooms);
+    assert_eq!(
+        a.poll(),
+        [FromRelay::Rooms(Vec::new())],
+        "an empty room closes"
+    );
+}
+
+#[test]
+fn a_room_checks_its_password() {
+    let relay = MemoryRelay::new(1);
+    let mut host = greeted(&relay, hello());
+    host.send(ToRelay::Host {
+        room: Some("LOCKED".into()),
+        password: Some("secret".into()),
+    });
+    host.poll();
+    let mut a = greeted(&relay, hello());
+    for password in [None, Some("wrong".to_string())] {
+        a.send(ToRelay::Join {
+            room: "LOCKED".into(),
+            password,
+        });
+        assert!(matches!(&a.poll()[0], FromRelay::Error { .. }));
+    }
+    a.send(ToRelay::Join {
+        room: "LOCKED".into(),
+        password: Some("secret".into()),
+    });
+    assert!(matches!(&a.poll()[0], FromRelay::Joined { player: 1, .. }));
+}
+
+#[test]
+fn a_game_unlike_the_host_is_refused_with_the_reason() {
+    let relay = MemoryRelay::new(1);
+    let mut host = greeted(&relay, hello());
+    host.send(ToRelay::Host {
+        room: Some("ROOMAB".into()),
+        password: None,
+    });
+    host.poll();
+    let other = [
+        (
+            "version",
+            Hello::new("Un-Banished 0.5.0-other", 0x1234, 0x5678),
+        ),
+        ("data", Hello::new("Un-Banished 0.4.0-test", 0x9999, 0x5678)),
+        ("mods", Hello::new("Un-Banished 0.4.0-test", 0x1234, 0x9999)),
+    ];
+    for (what, h) in other {
+        let mut c = greeted(&relay, h);
+        c.send(ToRelay::Join {
+            room: "ROOMAB".into(),
+            password: None,
+        });
+        let FromRelay::Error { message } = &c.poll()[0] else {
+            panic!("{what}: not refused");
+        };
+        assert!(message.contains(what), "{what}: {message}");
+    }
+    assert!(host.poll().is_empty(), "the host heard of nobody");
+}

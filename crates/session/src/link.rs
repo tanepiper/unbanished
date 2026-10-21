@@ -33,7 +33,12 @@ pub struct RelayLink {
 
 #[cfg(feature = "relay")]
 impl RelayLink {
-    pub fn new(connection: unbanished_net::Connection) -> RelayLink {
+    /// A link through `connection`, which first tells the relay who this game is.
+    pub fn new(
+        mut connection: unbanished_net::Connection,
+        hello: unbanished_net::Hello,
+    ) -> RelayLink {
+        connection.send(unbanished_net::ToRelay::Hello(hello));
         RelayLink {
             connection,
             events: Vec::new(),

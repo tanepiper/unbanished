@@ -738,6 +738,7 @@ impl GameLoop for MenuLoop {
                     ctx.ui,
                     screen,
                     &ctx.settings.persistence,
+                    ctx.archive,
                 );
             }
         } else if self.is(ctx.ui, 0, "buttonQuit", id) {

@@ -557,12 +557,17 @@ pub fn net_test(args: &[String]) {
     game.audio.set_master_volume(0.0);
     let link = std::rc::Rc::new(std::cell::RefCell::new(RelayLink::new(
         unbanished_net::Connection::connect(relay),
+        crate::gameplay::network::hello(&game.archive),
     )));
     let request = match host {
         true => unbanished_net::ToRelay::Host {
             room: Some(room.clone()),
+            password: None,
         },
-        false => unbanished_net::ToRelay::Join { room: room.clone() },
+        false => unbanished_net::ToRelay::Join {
+            room: room.clone(),
+            password: None,
+        },
     };
     link.borrow_mut().request(request);
     // Who this player is, and (the host) everybody there.

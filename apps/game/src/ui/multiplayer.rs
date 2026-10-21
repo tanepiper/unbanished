@@ -66,6 +66,8 @@ pub struct MultiplayerDialog {
     ok: Option<NodeId>,
     cancel: Option<NodeId>,
     link: Option<Rc<RefCell<RelayLink>>>,
+    /// Who this game is, for the relay.
+    hello: unbanished_net::Hello,
     role: Role,
     message: String,
 }
@@ -78,7 +80,12 @@ fn edit_text(ui: &Ui, edit: Option<NodeId>) -> String {
 }
 
 impl MultiplayerDialog {
-    pub fn open(ui: &mut Ui, screen: &mut Screen, settings: &Persistence) -> Option<Self> {
+    pub fn open(
+        ui: &mut Ui,
+        screen: &mut Screen,
+        settings: &Persistence,
+        archive: &unbanished_formats::pkg::Archive,
+    ) -> Option<Self> {
         let index = screen.add_modal(ui, DIALOG)?;
         let root = screen.dialogs[index].root;
         let find = |ui: &Ui, n: &str| ui.find(root, n);
@@ -131,6 +138,7 @@ impl MultiplayerDialog {
             ui.set_text(e, &address);
         }
         let d = MultiplayerDialog {
+            hello: crate::gameplay::network::hello(archive),
             root,
             code,
             relay,
@@ -203,17 +211,26 @@ impl MultiplayerDialog {
     }
 
     fn connect(&mut self, relay: &str, code: String) {
-        let mut link = RelayLink::new(unbanished_net::Connection::connect(relay));
+        let mut link = RelayLink::new(
+            unbanished_net::Connection::connect(relay),
+            self.hello.clone(),
+        );
         if code.is_empty() {
             // `UNBANISHED_ROOM` asks the relay for that code (tests).
             #[cfg(not(target_arch = "wasm32"))]
             let room = unbanished_formats::env::var("ROOM").ok();
             #[cfg(target_arch = "wasm32")]
             let room = None;
-            link.request(ToRelay::Host { room });
+            link.request(ToRelay::Host {
+                room,
+                password: None,
+            });
             self.message = format!("Opening a room on {relay}...");
         } else {
-            link.request(ToRelay::Join { room: code.clone() });
+            link.request(ToRelay::Join {
+                room: code.clone(),
+                password: None,
+            });
             self.message = format!("Joining {code}...");
         }
         self.link = Some(Rc::new(RefCell::new(link)));

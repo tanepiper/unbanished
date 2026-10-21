@@ -1,10 +1,12 @@
 //! The Un-Banished multiplayer relay: a WebSocket server with rooms.
 //!
-//! A host opens a room and gets its code; players join with the code. The relay numbers the
-//! players in the order they come (the host is 0), tells everyone in the room who comes and goes,
-//! and passes each player's data on to one player or to all the others, without reading it. So
-//! nobody forwards a port: the host and the players all connect out to the relay. The protocol is
-//! in `unbanished-net`.
+//! A game says Hello (its protocol, engine, game data and mods); a host opens a room and gets its
+//! code; players join with the code (and the room's password, if it has one), and a game unlike
+//! the host is refused with the reason. The relay numbers the players in the order they come
+//! (the host is 0), tells everyone in the room who comes and goes, and passes each player's data
+//! on to one player or to all the others, without reading it. So nobody forwards a port: the host
+//! and the players all connect out to the relay. The protocol and the room rules are in
+//! `unbanished-net` (`protocol`, `rooms`).
 //!
 //! ```text
 //! unbanished-relay [ADDRESS]      # default 0.0.0.0:7780
@@ -14,15 +16,30 @@
 
 use std::collections::HashMap;
 use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tungstenite::Message;
+use unbanished_net::rooms::{Client, Relay};
 use unbanished_net::{decode, encode, FromRelay, ToRelay};
 
-/// Rooms by code: each player's outgoing queue, by player number (None once they left).
-type Rooms = Arc<Mutex<HashMap<String, Vec<Option<Sender<FromRelay>>>>>>;
+/// The rooms, and each connected game's outgoing queue.
+struct Shared {
+    relay: Relay,
+    queues: HashMap<Client, Sender<FromRelay>>,
+}
+
+impl Shared {
+    fn deliver(&self, out: Vec<(Client, FromRelay)>) {
+        for (to, message) in out {
+            if let Some(q) = self.queues.get(&to) {
+                let _ = q.send(message);
+            }
+        }
+    }
+}
 
 fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -33,22 +50,33 @@ fn main() {
         eprintln!("{address}: {e}");
         std::process::exit(1);
     });
-    log::info!("relay listening on ws://{address}");
+    log::info!(
+        "relay (protocol {}) listening on ws://{address}",
+        unbanished_net::PROTOCOL
+    );
     run(listener);
 }
 
 /// Serves every connection to `listener`, each on its own thread.
 fn run(listener: TcpListener) {
-    let rooms: Rooms = Arc::default();
+    let seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(1, |d| d.as_nanos() as u64);
+    let shared = Arc::new(Mutex::new(Shared {
+        relay: Relay::new(seed),
+        queues: HashMap::new(),
+    }));
+    let next = Arc::new(AtomicU64::new(0));
     for stream in listener.incoming() {
         let Ok(stream) = stream else { continue };
-        let rooms = rooms.clone();
+        let shared = shared.clone();
+        let client = next.fetch_add(1, Ordering::Relaxed);
         std::thread::spawn(move || {
             let peer = stream
                 .peer_addr()
                 .map(|a| a.to_string())
                 .unwrap_or_default();
-            if let Err(e) = serve(stream, &rooms) {
+            if let Err(e) = serve(stream, client, &shared) {
                 log::info!("{peer}: {e}");
             }
         });
@@ -56,7 +84,7 @@ fn run(listener: TcpListener) {
 }
 
 /// One connection: read what the game sends, write what is queued for it.
-fn serve(stream: TcpStream, rooms: &Rooms) -> Result<(), String> {
+fn serve(stream: TcpStream, client: Client, shared: &Mutex<Shared>) -> Result<(), String> {
     let _ = stream.set_nodelay(true);
     let mut socket = tungstenite::accept(stream).map_err(|e| e.to_string())?;
     socket
@@ -64,14 +92,26 @@ fn serve(stream: TcpStream, rooms: &Rooms) -> Result<(), String> {
         .set_read_timeout(Some(Duration::from_millis(2)))
         .map_err(|e| e.to_string())?;
     let (queue, outgoing) = channel::<FromRelay>();
-    let mut me: Option<(String, u8)> = None;
+    {
+        let mut s = shared.lock().unwrap();
+        s.relay.connect(client);
+        s.queues.insert(client, queue);
+    }
     let result = (|| -> Result<(), String> {
         loop {
             drain(&mut socket, &outgoing)?;
             match socket.read() {
                 Ok(Message::Binary(bytes)) => {
                     let request = decode::<ToRelay>(&bytes)?;
-                    handle(request, rooms, &queue, &mut me);
+                    let mut s = shared.lock().unwrap();
+                    let reply = s.relay.handle(client, request);
+                    s.deliver(reply.out);
+                    drop(s);
+                    if reply.close {
+                        drain(&mut socket, &outgoing)?;
+                        let _ = socket.close(None);
+                        return Ok(());
+                    }
                 }
                 Ok(Message::Close(_)) => return Ok(()),
                 Ok(_) => {}
@@ -85,19 +125,10 @@ fn serve(stream: TcpStream, rooms: &Rooms) -> Result<(), String> {
         }
     })();
     // Gone: the others hear of it, and an empty room closes.
-    if let Some((room, player)) = me {
-        let mut rooms = rooms.lock().unwrap();
-        if let Some(players) = rooms.get_mut(&room) {
-            players[player as usize] = None;
-            for p in players.iter().flatten() {
-                let _ = p.send(FromRelay::PeerLeft { player });
-            }
-            if players.iter().all(Option::is_none) {
-                rooms.remove(&room);
-                log::info!("room {room} closed");
-            }
-        }
-    }
+    let mut s = shared.lock().unwrap();
+    let out = s.relay.disconnect(client);
+    s.queues.remove(&client);
+    s.deliver(out);
     result
 }
 
@@ -112,92 +143,6 @@ fn drain(
                 .map_err(|e| e.to_string())?,
             Err(TryRecvError::Empty) => return Ok(()),
             Err(TryRecvError::Disconnected) => return Err("queue closed".into()),
-        }
-    }
-}
-
-fn handle(
-    request: ToRelay,
-    rooms: &Rooms,
-    queue: &Sender<FromRelay>,
-    me: &mut Option<(String, u8)>,
-) {
-    let mut rooms = rooms.lock().unwrap();
-    match request {
-        ToRelay::Host { room } => {
-            let room = room.unwrap_or_else(|| new_code(&rooms));
-            if rooms
-                .get(&room)
-                .is_some_and(|p| p.iter().any(Option::is_some))
-            {
-                let message = format!("room {room} is in use");
-                let _ = queue.send(FromRelay::Error { message });
-                return;
-            }
-            rooms.insert(room.clone(), vec![Some(queue.clone())]);
-            log::info!("room {room} opened");
-            let _ = queue.send(FromRelay::Hosted { room: room.clone() });
-            *me = Some((room, 0));
-        }
-        ToRelay::Join { room } => {
-            let Some(players) = rooms.get_mut(&room) else {
-                let message = format!("no room {room}");
-                let _ = queue.send(FromRelay::Error { message });
-                return;
-            };
-            let player = players.len() as u8;
-            for p in players.iter().flatten() {
-                let _ = p.send(FromRelay::PeerJoined { player });
-            }
-            players.push(Some(queue.clone()));
-            log::info!("room {room}: player {player} joined");
-            let _ = queue.send(FromRelay::Joined {
-                room: room.clone(),
-                player,
-            });
-            *me = Some((room, player));
-        }
-        ToRelay::Send { to, data } => {
-            let Some((room, from)) = me.as_ref() else {
-                return;
-            };
-            let Some(players) = rooms.get(room) else {
-                return;
-            };
-            for (p, q) in players.iter().enumerate() {
-                let wanted = match to {
-                    Some(t) => p == t as usize,
-                    None => p != *from as usize,
-                };
-                if let (true, Some(q)) = (wanted, q) {
-                    let _ = q.send(FromRelay::Data {
-                        from: *from,
-                        data: data.clone(),
-                    });
-                }
-            }
-        }
-    }
-}
-
-/// A new room code: six letters, not in use.
-fn new_code(rooms: &HashMap<String, Vec<Option<Sender<FromRelay>>>>) -> String {
-    let mut seed = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(1, |d| d.as_nanos() as u64)
-        | 1;
-    loop {
-        let code: String = (0..6)
-            .map(|_| {
-                seed ^= seed << 13;
-                seed ^= seed >> 7;
-                seed ^= seed << 17;
-                // Letters that cannot be mistaken for each other or for digits.
-                b"ABCDEFGHJKLMNPQRSTUVWXYZ"[(seed % 24) as usize] as char
-            })
-            .collect();
-        if !rooms.contains_key(&code) {
-            return code;
         }
     }
 }
@@ -218,14 +163,23 @@ mod tests {
         panic!("nothing arrived: {:?}", c.state());
     }
 
+    /// A connection that has said Hello and been welcomed.
+    fn greeted(url: &str) -> Connection {
+        let mut c = Connection::connect(url);
+        c.send(ToRelay::Hello(unbanished_net::Hello::new("test", 1, 2)));
+        assert!(matches!(next(&mut c), FromRelay::Welcome { .. }));
+        c
+    }
+
     #[test]
     fn a_host_and_two_players_pass_data() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let url = format!("ws://{}", listener.local_addr().unwrap());
         std::thread::spawn(move || run(listener));
-        let mut host = Connection::connect(&url);
+        let mut host = greeted(&url);
         host.send(ToRelay::Host {
             room: Some("TESTER".into()),
+            password: None,
         });
         assert_eq!(
             next(&mut host),
@@ -233,9 +187,10 @@ mod tests {
                 room: "TESTER".into()
             }
         );
-        let mut a = Connection::connect(&url);
+        let mut a = greeted(&url);
         a.send(ToRelay::Join {
             room: "TESTER".into(),
+            password: None,
         });
         assert_eq!(
             next(&mut a),
@@ -245,9 +200,10 @@ mod tests {
             }
         );
         assert_eq!(next(&mut host), FromRelay::PeerJoined { player: 1 });
-        let mut b = Connection::connect(&url);
+        let mut b = greeted(&url);
         b.send(ToRelay::Join {
             room: "TESTER".into(),
+            password: None,
         });
         assert!(matches!(next(&mut b), FromRelay::Joined { player: 2, .. }));
         // To everyone else, and to one player; a big message too.
@@ -279,9 +235,10 @@ mod tests {
             }
         );
         // A room that does not exist.
-        let mut c = Connection::connect(&url);
+        let mut c = greeted(&url);
         c.send(ToRelay::Join {
             room: "NOROOM".into(),
+            password: None,
         });
         assert!(matches!(next(&mut c), FromRelay::Error { .. }));
         // A player leaving.

@@ -295,6 +295,16 @@ gameplay/network.rs and gameplay/recording.rs; `Local`, `Lockstep`, `Replay` beh
 **C. Protocol v1.** Versioned `Hello` handshake (rejects mismatched engine, data or mods with a
 readable reason), lobby/game split, `Join{from_update}`, `Rejoin`, `Ping`. In-memory transport.
 Unit tests: round trips, bad versions, truncated messages.
+   - **Done** (the lobby half): `unbanished-net` speaks protocol 1. A game says `Hello`
+     (protocol, engine version, fingerprints of its game data and mods from
+     `Archive::fingerprints`); a relay of another version refuses it with the reason, and a
+     room refuses a player unlike its host and says what differs (version, data or mods). The
+     lobby has `ListRooms`, a room password, `Leave` and `Ping`. The relay's rules are a
+     library (`rooms::Relay`, no sockets), used by the relay program and by an in-memory
+     transport (`memory::MemoryRelay`); tests cover round trips, cut-off messages, a wrong
+     version, a wrong password, unlike players and the lobby. `RelayLink::new` sends the game's
+     `Hello` first. The game half (`Join{from_update}`, `Rejoin`) comes with the server in D,
+     which is the first thing to answer them.
 
 **D. Server stage 1 + desktop hosting.** apps/server (relay folded in): coordinator, digest
 arbitration, join/rejoin, persistence, config, Dockerfile, docs; the Multiplayer window gains

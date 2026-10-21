@@ -262,6 +262,8 @@ pub struct Archive {
     /// `IO::FileSystem`: the user pack files (enabled mods) the packages were set up with
     /// (`AddUserPackFile`, `AreUserPackFilesEnabled`).
     pub user_packs: usize,
+    /// How many of the packages are mods (added last, with [`Archive::add_mod`]).
+    mods: usize,
 }
 
 impl Archive {
@@ -283,6 +285,7 @@ impl Archive {
             }
         }
         self.packages.push(pkg);
+        self.mods += 1;
     }
 
     // +0xac
@@ -310,6 +313,25 @@ impl Archive {
         self.packages.push(pkg);
     }
 
+    /// Fingerprints of the game's packages and of the mods (not in the original): the CRC-32 of
+    /// every entry's name and size, package by package in load order. Two games with the same
+    /// data and the same mods in the same order have the same fingerprints; multiplayer compares
+    /// them before players share a game.
+    pub fn fingerprints(&self) -> (u32, u32) {
+        let game = self.packages.len() - self.mods;
+        let print = |packages: &[Package]| {
+            let mut c = !0u32;
+            for p in packages {
+                for e in &p.entries {
+                    c = crate::crc::crc32_raw(c, e.name.as_bytes());
+                    c = crate::crc::crc32_raw(c, &(e.size as u64).to_le_bytes());
+                }
+            }
+            !c
+        };
+        (print(&self.packages[..game]), print(&self.packages[game..]))
+    }
+
     /// How many packages are loaded (the game's first, then the mods).
     pub fn package_count(&self) -> usize {
         self.packages.len()
@@ -320,6 +342,7 @@ impl Archive {
     pub fn remove_after(&mut self, keep: usize) {
         let packages: Vec<Package> = std::mem::take(&mut self.packages);
         self.index.clear();
+        self.mods = 0;
         for p in packages.into_iter().take(keep) {
             self.add(p);
         }

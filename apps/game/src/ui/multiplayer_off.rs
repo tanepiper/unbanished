@@ -22,7 +22,12 @@ pub enum MultiplayerDialog {}
 
 impl MultiplayerDialog {
     /// Never opens.
-    pub fn open(_ui: &mut Ui, _screen: &mut Screen, _settings: &Persistence) -> Option<Self> {
+    pub fn open(
+        _ui: &mut Ui,
+        _screen: &mut Screen,
+        _settings: &Persistence,
+        _archive: &unbanished_formats::pkg::Archive,
+    ) -> Option<Self> {
         None
     }
 

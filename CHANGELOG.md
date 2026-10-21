@@ -45,6 +45,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Changed
 
+- Multiplayer protocol version 1: a game tells the relay its version, game data and mods first.
+  A relay or a host of another version, or with other game data or mods, refuses it and says
+  why. Rooms can have a password, and a game can list the open rooms. Update the relay with the
+  game: they must speak the same protocol.
+
 - The extensions (multiplayer, recordings, the probe, the mod sites' Browse tabs and the
   cinematic camera) are cargo features, on by default. `--no-default-features` builds the game without them, and a test
   checks that it then plays exactly as the full build. See

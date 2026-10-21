@@ -65,6 +65,13 @@ impl NetState {
     }
 }
 
+/// Who this game is, for the relay: the protocol, the engine's version, and fingerprints of the
+/// game data and the mods (`Archive::fingerprints`).
+pub fn hello(archive: &unbanished_formats::pkg::Archive) -> unbanished_net::Hello {
+    let (data, mods) = archive.fingerprints();
+    unbanished_net::Hello::new(crate::platform::version::NAME_VERSION, data, mods)
+}
+
 /// A resync's save and the update it was made at: the game is to be replaced by it.
 pub type Reload = (Vec<u8>, u64);
 
@@ -719,10 +726,11 @@ pub struct JoinSession {
 
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 impl JoinSession {
-    pub fn new(relay: &str, room: &str, target: u64) -> JoinSession {
-        let mut link = RelayLink::new(unbanished_net::Connection::connect(relay));
+    pub fn new(relay: &str, room: &str, target: u64, hello: unbanished_net::Hello) -> JoinSession {
+        let mut link = RelayLink::new(unbanished_net::Connection::connect(relay), hello);
         link.request(unbanished_net::ToRelay::Join {
             room: room.to_string(),
+            password: None,
         });
         JoinSession {
             link: Rc::new(RefCell::new(link)),

@@ -445,8 +445,12 @@ impl ApplicationHandler<UserEvent> for App {
                 {
                     if self.net_session.is_none() {
                         if let Some((relay, room, updates)) = platform::web::net_request() {
-                            self.net_session =
-                                Some(gameplay::network::JoinSession::new(&relay, &room, updates));
+                            self.net_session = Some(gameplay::network::JoinSession::new(
+                                &relay,
+                                &room,
+                                updates,
+                                gameplay::network::hello(&game.archive),
+                            ));
                         }
                     }
                     if let Some(s) = &mut self.net_session {
