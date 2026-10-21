@@ -50,6 +50,23 @@ The same flags work for the browser build (`--target wasm32-unknown-unknown`). W
 Without `probe`, `--probe` does nothing and `window.unbanished` answers that the game was built
 without it.
 
+## Pure Banished: every extension off while the game runs
+
+A build with extensions can still play without them. Start it with `--pure` (in the browser,
+add `?pure` to the address) and the run is Pure Banished: only the core and the original's own
+mods (`.pkm` files). Each extension's door asks `platform::mode::pure()` once and stays shut:
+
+| Extension | In a Pure Banished run |
+|---|---|
+| `multiplayer` | The main menu has no Multiplayer button |
+| `mod-sites` | The Mods window hides its Browse tab, as without the feature |
+| `probe` | Every command answers `Pure Banished: the probe is off` |
+| `replay` | `--record` records nothing |
+| `cinematic` | `--camera` and `--camera-follow` do nothing |
+
+The test commands (`--replay`, `--lockstep-test`, `--net-test`) are not play, so they still
+run. A new extension checks `pure()` at its door too.
+
 ## The doors into the game
 
 An extension reaches the game only through a few doors. Each is small and owned by the core

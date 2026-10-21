@@ -593,14 +593,25 @@ After `cargo build --release`, the programs are in `target/release/`. The exampl
 ### Play
 
 ```bash
-banished                                   # find the game data by itself
+unbanished                                 # find the game data by itself
 unbanished "C:\Games\Steam\steamapps\common\Banished\WinData"   # Windows
-banished ~/Games/Banished/WinData          # macOS or Linux
+unbanished ~/Games/Banished/WinData        # macOS or Linux
 ```
 
 Without a folder, the game looks for `WinData` next to the program, then for
 `game-data/original/WinData` in the source folder (the copy that `tools/extract-assets.sh`
 makes). Your saves and settings are where [Saves and settings](#saves) says.
+
+### Pure Banished: the original game only
+
+```bash
+unbanished --pure
+```
+
+In the browser, add `?pure` to the game's address. Pure Banished plays only the original game
+and its own mods (`.pkm` files). Everything Un-Banished adds is off for that run: there is no
+Multiplayer button, the Mods window has no Browse tabs for mod sites, and the probe, recordings
+and the video camera do nothing. Your settings, saves and mods stay as they are.
 
 ### See which version you have
 

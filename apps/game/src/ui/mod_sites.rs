@@ -1,6 +1,7 @@
 //! The Mods window's Browse tabs, one per mod site (the `mod-sites` extension,
-//! [`crate::ui::mod_browse`]). In a build without it the window has none: the Browse tab and
-//! the Workshop progress are hidden, as in the original's build without Steam.
+//! [`crate::ui::mod_browse`]). In a build without it, or a Pure Banished run, the window has
+//! none: the Browse tab and the Workshop progress are hidden, as in the original's build
+//! without Steam.
 
 use unbanished_ui::{NodeId, Ui};
 
@@ -24,20 +25,20 @@ impl Sites {
         pack_dir: Option<std::path::PathBuf>,
     ) -> Sites {
         #[cfg(feature = "mod-sites")]
-        {
-            Sites {
+        if !crate::platform::mode::pure() {
+            return Sites {
                 tabs: Browse::open_all(ui, root, settings, pack_dir),
+            };
+        }
+        let _ = (settings, pack_dir);
+        for name in ["buttonBrowse", "groupProgress"] {
+            if let Some(n) = ui.find(root, name) {
+                ui.set_visible(n, false);
             }
         }
-        #[cfg(not(feature = "mod-sites"))]
-        {
-            let _ = (settings, pack_dir);
-            for name in ["buttonBrowse", "groupProgress"] {
-                if let Some(n) = ui.find(root, name) {
-                    ui.set_visible(n, false);
-                }
-            }
-            Sites {}
+        Sites {
+            #[cfg(feature = "mod-sites")]
+            tabs: Vec::new(),
         }
     }
 

@@ -211,7 +211,8 @@ pub fn boot_capture(args: &[String], out: &str, seconds: f32) {
         .and_then(|w| std::fs::File::create(&w[1]).ok());
     // `--camera`, `--camera-follow` and their settings: the cinematic camera (drawing only).
     #[cfg(feature = "cinematic")]
-    let mut cinematic = crate::view::cinematic::Cinematic::from_args(args);
+    let mut cinematic =
+        crate::view::cinematic::Cinematic::from_args(args).filter(|_| !platform::mode::pure());
     let dt = 1.0 / 30.0;
     let mut t = 0.0;
     // `--realtime`: frames keep to the clock (a capture that talks to a relay).

@@ -92,6 +92,14 @@ pub fn data_base() -> Option<String> {
     local_param("data")
 }
 
+/// `?pure`: a Pure Banished run (`platform::mode`), on any host.
+pub fn pure_requested() -> bool {
+    web_sys::window()
+        .and_then(|w| w.location().search().ok())
+        .and_then(|s| web_sys::UrlSearchParams::new_with_str(&s).ok())
+        .is_some_and(|p| p.has("pure"))
+}
+
 /// A query parameter of a page served from this machine; none on any other host.
 fn local_param(name: &str) -> Option<String> {
     let location = web_sys::window()?.location();

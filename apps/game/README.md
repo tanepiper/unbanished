@@ -26,6 +26,7 @@ Without a path, the game looks for `WinData` next to the program, then for
 | Command | What it does |
 |---|---|
 | `unbanished [WINDATA]` | Play, with the game data in `WINDATA` |
+| `unbanished --pure [WINDATA]` | Play Pure Banished: the original game and its own mods, with every extension off ([docs/develop/EXTENSIONS.md](../../docs/develop/EXTENSIONS.md)) |
 | `unbanished --version` (or `-V`) | Print the version, for example `Un-Banished 0.2.0-93be55d`, and stop |
 | `unbanished --boot-capture OUT.png SECONDS [OPTIONS]` | Run the game without a window for `SECONDS`, then save the frame |
 | `unbanished --capture OUT.png [OPTIONS]` | Generate a map and save a picture of it, without starting the game |

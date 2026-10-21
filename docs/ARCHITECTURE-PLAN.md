@@ -287,7 +287,10 @@ gameplay/network.rs and gameplay/recording.rs; `Local`, `Lockstep`, `Replay` beh
      online or in lockstep), with empty stand-ins without the features. The Multiplayer window
      and its menu button have a stand-in (`ui/multiplayer_off.rs`), so the menu's code is the
      same in both builds. `unbanished-session`'s relay link is its `relay` feature. Every
-     combination builds with no warnings. Still to do: the Pure Banished runtime switch.
+     combination builds with no warnings.
+   - **Pure Banished done**: `--pure` (the browser's `?pure`) sets `platform::mode::pure()`,
+     and each extension's door checks it: no Multiplayer button, no Browse tabs, no probe, no
+     recording, no cinematic camera. With that, phase X is done.
 
 **C. Protocol v1.** Versioned `Hello` handshake (rejects mismatched engine, data or mods with a
 readable reason), lobby/game split, `Join{from_update}`, `Rejoin`, `Ping`. In-memory transport.

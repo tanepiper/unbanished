@@ -19,6 +19,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
   emulator gained C runtime stand-ins and clearer errors. The generic version of this harness,
   for any game, is https://github.com/tanepiper/reverse-engineer-games.
 
+- **Pure Banished**: `unbanished --pure` (in the browser, `?pure` in the address) plays only the
+  original game and its own mods, with everything Un-Banished adds turned off for that run.
+
 - The browser version keeps the game files you choose, in this browser only, so you choose them
   once (#17). A checkbox under **Choose files** turns it off. With the files kept, the start page
   shows **Start the game**, a **Help** button for the steps, and a manager with three tabs: the

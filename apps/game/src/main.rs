@@ -102,6 +102,9 @@ fn main() {
         return;
     }
     log::info!("{}", platform::version::NAME_VERSION);
+    if args.iter().any(|a| a == "--pure") {
+        platform::mode::set_pure();
+    }
     // `--record FILE [--record-every N]`: record the next game loaded from a save.
     #[cfg(feature = "replay")]
     if let Some(path) = args.windows(2).find(|w| w[0] == "--record").map(|w| &w[1]) {
@@ -152,6 +155,9 @@ fn main() {
     let _ = console_log::init_with_level(log::Level::Info);
     log::info!("{}", platform::version::NAME_VERSION);
     platform::web::show_version(platform::version::NAME_VERSION);
+    if platform::web::pure_requested() {
+        platform::mode::set_pure();
+    }
     let event_loop = EventLoop::<UserEvent>::with_user_event()
         .build()
         .expect("event loop");
