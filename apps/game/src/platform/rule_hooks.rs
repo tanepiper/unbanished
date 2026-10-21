@@ -1,13 +1,13 @@
 //! The player's rule hooks (not in the original): WebAssembly plugins from the `Hooks` folder of
 //! the player's data (`Documents/Banished/Hooks`), loaded into every game in the order of their
-//! names (`unbanished-hooks`). Pure Banished loads none, and the browser has no such folder.
+//! names (`unbanished-hooks`). A vanilla run loads none, and the browser has no such folder.
 //!
 //! Deviation: not in the original, which has no rule hooks.
 
 /// The plugins of the `Hooks` folder: name and bytes, in the order of their names.
 pub fn files() -> Vec<(String, Vec<u8>)> {
     #[cfg(all(feature = "rule-hooks", not(target_arch = "wasm32")))]
-    if !crate::platform::mode::pure() {
+    if !crate::platform::mode::vanilla() {
         if let Some(dir) = crate::platform::paths::user_dir() {
             return unbanished_hooks::Plugins::files(&dir.join("Hooks"));
         }

@@ -175,7 +175,7 @@ VANILLA_DIR = REPO / "target" / "vanilla"
 
 
 def suite_features(ctx: Context) -> None:
-    """The game builds with no extensions, natively and for the browser, with no warnings."""
+    """The game builds with no extensions (native and browser) and with the unstable ones, with no warnings."""
     for target in ([], ["--target", "wasm32-unknown-unknown"]):
         proc = sh(["cargo", "build", "--offline", "--release", "-p", "unbanished-app", "--no-default-features",
                    "--target-dir", str(VANILLA_DIR), *target])
@@ -183,6 +183,11 @@ def suite_features(ctx: Context) -> None:
         if warnings:
             where = "browser" if target else "native"
             raise RuntimeError(f"{len(warnings)} warnings ({where}):\n" + "\n".join("      " + w for w in warnings[:10]))
+    # Every unstable extension too: it must build, though no release contains it.
+    proc = sh(["cargo", "check", "--offline", "--release", "-p", "unbanished-app", "--features", "unstable"])
+    warnings = [l for l in proc.stderr.splitlines() if l.startswith("warning")]
+    if warnings:
+        raise RuntimeError(f"{len(warnings)} warnings (unstable):\n" + "\n".join("      " + w for w in warnings[:10]))
 
 
 def suite_vanilla(ctx: Context) -> None:
@@ -328,7 +333,7 @@ SUITES = [
     Suite("probe", "quick", "Probe scenarios give exactly their baselines (UI and town)", suite_probe),
     Suite("determinism", "standard", "Two runs with one seed draw identical frames", suite_determinism),
     Suite("browser", "standard", "Headless Chrome and Firefox: start page, manager, Exit, Quit", suite_browser),
-    Suite("features", "standard", "The game builds with no extensions (native and browser)", suite_features),
+    Suite("features", "standard", "The game builds with no extensions (native and browser), and with the unstable ones", suite_features),
     Suite("site", "long", "The website builds", suite_site),
     Suite("vanilla", "long", "The build with no extensions plays exactly as the full build", suite_vanilla),
     Suite("replay", "long", "Recorded games replay to the same state", compat("replay.sh", "Replays")),

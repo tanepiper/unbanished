@@ -101,9 +101,11 @@ useful help you can give.
 
 ## Get started
 
-There are no ready-made downloads yet, so you build Un-Banished yourself. It takes three steps
-and about five minutes. The **[setup guide](docs/USER-GUIDE.md)** explains every step for
-Windows, macOS and Linux.
+From version 0.5.0, each [release](https://github.com/tanepiper/unbanished/releases) has a
+ready-made download for Windows, macOS (Apple silicon and Intel) and Linux: unpack the zip and
+run `unbanished`. You can also build Un-Banished yourself. It takes three steps and about five
+minutes. The **[setup guide](docs/USER-GUIDE.md)** explains every step for Windows, macOS and
+Linux.
 
 ```bash
 # 1. Download the code

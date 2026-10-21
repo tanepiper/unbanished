@@ -16,7 +16,7 @@ impl GameplayLoop {
     /// At start-up: a recording asked for on the command line (`--record`: a game loaded from
     /// a save is recorded from its first update).
     pub(in crate::gameplay) fn start_recording(&mut self) {
-        if crate::platform::mode::pure() {
+        if crate::platform::mode::vanilla() {
             return;
         }
         if self.saved.is_some() && !self.recording.replaying {

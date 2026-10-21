@@ -75,10 +75,10 @@ Things that reach into the running game come in two kinds:
   run in a fixed, declared order, listed in the multiplayer `Hello` (every player must run the
   same set) and recorded in saves. Designed and built in phase G, after the server.
 
-**Modes.** A runtime switch, **Pure Banished**, loads only the core and the original's own mod
+**Modes.** A runtime switch, **vanilla**, loads only the core and the original's own mod
 system (BanishedKit `.pkm` mods, which are part of Banished) and turns every extension and rule
 hook off. The **full** mode adds the extensions (multiplayer, the probe, mod sites, the browser
-shell) and, later, rule hooks. One program serves both; Pure Banished is what `compare.sh` and the
+shell) and, later, rule hooks. One program serves both; a vanilla run is what `compare.sh` and the
 vanilla suite check. The cargo features of phase X remain for builds that leave extensions out
 entirely.
 
@@ -248,8 +248,8 @@ mod_browse), `web-shell` (start page manager, exit), `replay`, `multiplayer` (to
 reorganised in B). The Multiplayer button becomes a registered menu entry. Observe hooks (before and after an
 update, on an event posted, on a building finished) with a test that a hook which reads
 everything leaves the game unchanged (compare.sh with a hook that reads every field). The
-**Pure Banished** switch (a launch option and a setting; the browser start page offers it too),
-with a suite that runs compare.sh between Pure Banished and the vanilla build. Docs:
+**vanilla** switch (a launch option and a setting; the browser start page offers it too),
+with a suite that runs compare.sh between a vanilla run and the vanilla build. Docs:
 docs/develop/EXTENSIONS.md (the extension points, with an example extension),
 docs/develop/HOOKS.md (observe hooks, with an example that counts births), and a section on
 the two modes in the user guide. New check in run.py:
@@ -263,7 +263,7 @@ session per extension moved, smallest first (cinematic, probe, mod sites, web sh
      warnings) and a `vanilla` suite (long: compare.sh between the build without extensions and
      the full build; identical). `replay` and `multiplayer` become features in B, when their
      code leaves the game loop. The browser's start page is the web page itself, not a
-     feature. Still to do in X: the Pure Banished runtime switch, and the Multiplayer button as
+     feature. Still to do in X: the vanilla runtime switch, and the Multiplayer button as
      a registered menu entry.
 
 **B. Session layer.** Create `crates/session`: move gameplay/lockstep.rs, the session half of
@@ -288,7 +288,7 @@ gameplay/network.rs and gameplay/recording.rs; `Local`, `Lockstep`, `Replay` beh
      and its menu button have a stand-in (`ui/multiplayer_off.rs`), so the menu's code is the
      same in both builds. `unbanished-session`'s relay link is its `relay` feature. Every
      combination builds with no warnings.
-   - **Pure Banished done**: `--pure` (the browser's `?pure`) sets `platform::mode::pure()`,
+   - **Vanilla runs done**: `--vanilla` (the browser's `?vanilla`) sets `platform::mode::vanilla()`,
      and each extension's door checks it: no Multiplayer button, no Browse tabs, no probe, no
      recording, no cinematic camera. With that, phase X is done.
 
@@ -369,7 +369,7 @@ server's digests are the reference.
 
 **G. Rule hooks and a mod hook API (after E).** Rule hooks at fixed points of the step,
 deterministic and ordered, declared by the mod that adds them; listed in `Hello` and in saves;
-refused in Pure Banished. A small, versioned API for mods to use them (the language and the
+refused in a vanilla run. A small, versioned API for mods to use them (the language and the
 sandbox, for example WebAssembly plugins, are decided at the start of G). Proof: compare.sh is
 unchanged with no rule hooks; a test mod with one rule hook replays identically and two players
 with it stay in step; a player without it is refused at `Hello` with a readable reason. Docs:
@@ -382,8 +382,8 @@ docs/develop/RULE-HOOKS.md and a mod author's guide, each with a complete exampl
      `post_event`. Protocol version 4: `Hello.hooks` is the plugins' fingerprint, and a player
      whose hooks differ is refused with "this game's rule hooks differ from the host's"; the
      server's own game takes no room with hooks. Saves list each hook as `Hooks/NAME.wasm` with
-     its CRC. `--pure` loads none. `tools/compat/hooks.sh` (run.py `hooks`): a test plugin
-     changes a save's digests, gives the same ones twice and none under `--pure`; two players
+     its CRC. `--vanilla` loads none. `tools/compat/hooks.sh` (run.py `hooks`): a test plugin
+     changes a save's digests, gives the same ones twice and none under `--vanilla`; two players
      with it stay identical through a server; a player without it is refused. The example mod
      is `examples/rule-hooks/harvest-festival`; the docs are
      [RULE-HOOKS.md](develop/RULE-HOOKS.md) and [WRITING-RULE-HOOKS.md](guide/WRITING-RULE-HOOKS.md).

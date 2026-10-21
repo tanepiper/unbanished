@@ -13,7 +13,14 @@ path = "src/main.rs"
 # The extensions: what Un-Banished adds that Banished 1.0.7 does not have. Each one can be left
 # out; with none of them the game builds and plays as with all of them (docs/develop/EXTENSIONS.md).
 [features]
-default = ["cinematic", "mod-sites", "multiplayer", "probe", "replay", "rule-hooks"]
+default = ["more"]
+# Un-Banished More: every stable extension. The program and its releases are built with it;
+# `--vanilla` turns all of them off for one run.
+more = ["cinematic", "mod-sites", "multiplayer", "probe", "replay", "rule-hooks"]
+# Extensions still in development: each is a feature named `unstable-NAME`, listed here, and is in
+# no release. Build with `--features unstable` (all of them) or `--features unstable-NAME`. When
+# one is stable, rename it and move it into `more`.
+unstable = []
 # The cinematic camera for capture videos (`--camera`, `--camera-follow`), native only.
 cinematic = []
 # The probe: a query language to read and drive a running game (`--probe`, the browser's

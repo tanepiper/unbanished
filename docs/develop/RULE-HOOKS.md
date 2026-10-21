@@ -8,7 +8,7 @@ explains how they work inside the game and what keeps them deterministic. To wri
 [Writing a rule hook](../guide/WRITING-RULE-HOOKS.md).
 
 Deviation: a game with rule hooks plays differently from the original. With no plugins (the
-default) and always in Pure Banished (`--pure`), the step is exactly the original's.
+default) and always in a vanilla run (`--vanilla`), the step is exactly the original's.
 
 ## Where a hook runs
 
@@ -115,16 +115,16 @@ matches the host's, and tells a player who differs:
 The server's own game (`simulate`) loads no plugins, so a room with rule hooks is not simulated
 by the server; its players' checks still work, by majority.
 
-## Pure Banished
+## Vanilla runs
 
-`--pure` (or `?pure` in the browser) loads no plugins, whatever the `Hooks` folder holds.
+`--vanilla` (or `?vanilla` in the browser) loads no plugins, whatever the `Hooks` folder holds.
 
 ## Checks
 
 | Check | What it proves |
 |---|---|
 | `crates/hooks/src/tests.rs` | A plugin draws from the game's stream and posts events; two runs from one seed agree; floats, other imports and other API versions are refused; a plugin with no end runs out of fuel and is switched off; the fingerprint follows the plugins and their order; the example mod celebrates on the first iteration of Autumn and nowhere else |
-| `tools/compat/hooks.sh` (the `hooks` suite) | With a test plugin, a save gives other digests than without it, the same ones twice, and the same as without it under `--pure`; two players with it stay identical through a server; a player without it is refused, with the reason |
+| `tools/compat/hooks.sh` (the `hooks` suite) | With a test plugin, a save gives other digests than without it, the same ones twice, and the same as without it under `--vanilla`; two players with it stay identical through a server; a player without it is refused, with the reason |
 | `tools/compat/compare.sh` | With no plugins, the game plays every scenario exactly as before |
 
 ## Open questions

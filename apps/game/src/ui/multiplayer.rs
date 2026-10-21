@@ -411,7 +411,7 @@ fn list(players: &BTreeSet<u8>) -> String {
 /// Deviation: a Multiplayer button under Load (the original has no multiplayer). It is a copy of
 /// the Load button with its own name and label.
 pub fn add_menu_button(ui: &mut Ui, screen: &Screen, dialog: usize) {
-    if crate::platform::mode::pure() {
+    if crate::platform::mode::vanilla() {
         return;
     }
     let (Some(list), Some(load)) = (

@@ -9,7 +9,7 @@ something goes wrong. To learn what the project is, read the [README](../README.
 **Setup**
 
 1. [Check what you need](#1-check-what-you-need)
-2. [Install the build tools](#2-install-the-build-tools)
+2. [Download it, or install the build tools](#2-download-it-or-install-the-build-tools)
 3. [Download and build Un-Banished](#3-download-and-build-un-banished)
 4. [Find your game data](#4-find-your-game-data)
 5. [Play](#5-play)
@@ -38,7 +38,7 @@ Banished was released only for Windows. But Un-Banished needs only the game's da
 these files work on any system.
 
 - **On Windows**, install the game from Steam or GOG in the normal way. Then go to
-  [step 2](#2-install-the-build-tools).
+  [step 2](#2-download-it-or-install-the-build-tools).
 - **On a Mac or a Linux PC**, Steam and GOG do not install a Windows-only game in the normal
   way. Use one of the methods below.
 
@@ -114,10 +114,18 @@ If you have **GOG Galaxy** on a Windows PC, you can also install Banished there.
 computer, with a USB stick or over your network. Un-Banished needs only the four `.pkg` files
 (about 165 MB).
 
-## 2. Install the build tools
+## 2. Download it, or install the build tools
 
-Un-Banished is written in [Rust](https://www.rust-lang.org/). There are no ready-made downloads
-yet. You install Rust once, and Rust builds the game for you. Choose your system:
+**Ready-made downloads.** From version 0.5.0, each
+[release](https://github.com/tanepiper/unbanished/releases) has a zip for Windows, macOS (Apple
+silicon and Intel) and Linux. Unpack it, then go on to [4. Find your game data](#4-find-your-game-data):
+the program in the zip is `unbanished` (`unbanished.exe` on Windows). The program is not signed:
+
+- on macOS, allow it once in the terminal: `xattr -d com.apple.quarantine unbanished`;
+- on Windows, SmartScreen may warn about it: choose **More info**, then **Run anyway**.
+
+**Build it yourself.** Un-Banished is written in [Rust](https://www.rust-lang.org/). You install
+Rust once, and Rust builds the game for you. Choose your system:
 
 <details>
 <summary><strong>Windows</strong></summary>
@@ -450,8 +458,8 @@ Also as in the original, you cannot earn achievements while mods are turned on.
 A rule hook is a small program from a mod that changes how the town plays: for example, a
 festival every autumn. Banished 1.0.7 has nothing like it. Put rule hooks (`.wasm` files) in the
 `Hooks` folder beside your saves (`Documents/Banished/Hooks`); every town you start or load uses
-them, and its saves list them. In multiplayer every player needs the same `Hooks` folder. Pure
-Banished (`--pure`) never loads them, and the browser version does not load them yet. To write
+them, and its saves list them. In multiplayer every player needs the same `Hooks` folder. A vanilla run
+(`--vanilla`) never loads them, and the browser version does not load them yet. To write
 one, read [Writing a rule hook](guide/WRITING-RULE-HOOKS.md).
 
 ### The mod manager
@@ -611,13 +619,13 @@ Without a folder, the game looks for `WinData` next to the program, then for
 `game-data/original/WinData` in the source folder (the copy that `tools/extract-assets.sh`
 makes). Your saves and settings are where [Saves and settings](#saves) says.
 
-### Pure Banished: the original game only
+### Vanilla: the original game only
 
 ```bash
-unbanished --pure
+unbanished --vanilla
 ```
 
-In the browser, add `?pure` to the game's address. Pure Banished plays only the original game
+In the browser, add `?vanilla` to the game's address. A vanilla run plays only the original game
 and its own mods (`.pkm` files). Everything Un-Banished adds is off for that run: there is no
 Multiplayer button, the Mods window has no Browse tabs for mod sites, and the probe, recordings
 and the video camera do nothing. Your settings, saves and mods stay as they are.

@@ -86,7 +86,7 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/platform/mode.rs`
 
-- [Deviation] [apps/game/src/platform/mode.rs:1](../apps/game/src/platform/mode.rs#L1): Pure Banished: a run with only the core, the original game and its own mods (BanishedKit `.pkm` files). Every extension built into the program stays off: no Multiplayer button, no Browse tabs for mod sites, no probe, no recording and no cinematic camera. It is chosen when the program starts: `--pure` on the command line, `?pure` in the browser's address. Deviation: not in the original, which has no extensions to turn off.
+- [Deviation] [apps/game/src/platform/mode.rs:1](../apps/game/src/platform/mode.rs#L1): A vanilla run: a run with only the core, the original game and its own mods (BanishedKit `.pkm` files). Every extension built into the program stays off: no Multiplayer button, no Browse tabs for mod sites, no probe, no recording and no cinematic camera. It is chosen when the program starts: `--vanilla` on the command line, `?vanilla` in the browser's address. Deviation: not in the original, which has no extensions to turn off.
 
 ## `apps/game/src/platform/nexus.rs`
 
@@ -98,7 +98,7 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/platform/rule_hooks.rs`
 
-- [Deviation] [apps/game/src/platform/rule_hooks.rs:1](../apps/game/src/platform/rule_hooks.rs#L1): The player's rule hooks (not in the original): WebAssembly plugins from the `Hooks` folder of the player's data (`Documents/Banished/Hooks`), loaded into every game in the order of their names (`unbanished-hooks`). Pure Banished loads none, and the browser has no such folder. Deviation: not in the original, which has no rule hooks.
+- [Deviation] [apps/game/src/platform/rule_hooks.rs:1](../apps/game/src/platform/rule_hooks.rs#L1): The player's rule hooks (not in the original): WebAssembly plugins from the `Hooks` folder of the player's data (`Documents/Banished/Hooks`), loaded into every game in the order of their names (`unbanished-hooks`). A vanilla run loads none, and the browser has no such folder. Deviation: not in the original, which has no rule hooks.
 
 ## `apps/game/src/platform/web.rs`
 
@@ -277,7 +277,7 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 ## `crates/sim/src/hooks.rs`
 
-- [Deviation] [crates/sim/src/hooks.rs:1](../crates/sim/src/hooks.rs#L1): The door for rule hooks (not in the original): code from a mod that changes the game at a fixed point of the step. The simulation calls its [`RuleHooks`] after every iteration, with a [`HookContext`]: a narrow view of the town with what a hook may read and do. A rule hook changes the game's results, so it must behave the same on every computer: it gets integers only, draws from the game's own random stream in a fixed order, and runs in the order the hooks were declared. With no hooks (the default, and always in Pure Banished) the step is exactly the original's. `unbanished-hooks` runs hooks from WebAssembly plugins. Deviation: not in the original, which has no rule hooks; a game with hooks plays differently.
+- [Deviation] [crates/sim/src/hooks.rs:1](../crates/sim/src/hooks.rs#L1): The door for rule hooks (not in the original): code from a mod that changes the game at a fixed point of the step. The simulation calls its [`RuleHooks`] after every iteration, with a [`HookContext`]: a narrow view of the town with what a hook may read and do. A rule hook changes the game's results, so it must behave the same on every computer: it gets integers only, draws from the game's own random stream in a fixed order, and runs in the order the hooks were declared. With no hooks (the default, and always in a vanilla run) the step is exactly the original's. `unbanished-hooks` runs hooks from WebAssembly plugins. Deviation: not in the original, which has no rule hooks; a game with hooks plays differently.
 
 ## `crates/sim/src/town/map.rs`
 

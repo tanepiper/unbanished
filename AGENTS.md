@@ -21,7 +21,9 @@ not a deviation.
 
 Anything Un-Banished adds that the original does not have (the probe, the mod sites, the cinematic
 camera, multiplayer) is an **extension**: its own files behind a cargo feature, reaching the game
-only through the doors listed in [docs/develop/EXTENSIONS.md](docs/develop/EXTENSIONS.md). The core
+only through the doors listed in [docs/develop/EXTENSIONS.md](docs/develop/EXTENSIONS.md). A new
+extension starts as an `unstable-NAME` feature, which no release contains, and moves into the
+default `more` feature when it is stable. `--vanilla` turns every extension off for one run. The core
 crate, `unbanished-sim`, never depends on an extension or on drawing, windows, the interface, sound
 or the network.
 
@@ -177,7 +179,9 @@ footer ("Version 1.0.7 - Build 170910") comes from the original's resources and 
   and the browser build, renames `Unreleased` to `[X.Y.Z] - DATE` with its compare link, commits
   and tags `vX.Y.Z` (annotated), sets the workspace version to the next version in a second
   commit, pushes, publishes a GitHub release with the changelog section as its notes (and a link
-  to the version's blog post in `site/blog/`), and rebuilds the website. Before it, write the
+  to the version's blog post in `site/blog/`), rebuilds the website, and attaches the game
+  (Un-Banished More: default features, no unstable ones) as a zip for Windows, macOS (Apple silicon
+  and Intel) and Linux. Before it, write the
   Unreleased section's opening line and the blog post (the `banished-blog` skill); `tools/release/release.py` holds the
   steps, so you can try them on a scratch copy.
 

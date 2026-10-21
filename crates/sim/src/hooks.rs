@@ -4,7 +4,7 @@
 //!
 //! A rule hook changes the game's results, so it must behave the same on every computer: it gets
 //! integers only, draws from the game's own random stream in a fixed order, and runs in the order
-//! the hooks were declared. With no hooks (the default, and always in Pure Banished) the step is
+//! the hooks were declared. With no hooks (the default, and always in a vanilla run) the step is
 //! exactly the original's. `unbanished-hooks` runs hooks from WebAssembly plugins.
 //!
 //! Deviation: not in the original, which has no rule hooks; a game with hooks plays differently.

@@ -1,5 +1,5 @@
 //! The Mods window's Browse tabs, one per mod site (the `mod-sites` extension,
-//! [`crate::ui::mod_browse`]). In a build without it, or a Pure Banished run, the window has
+//! [`crate::ui::mod_browse`]). In a build without it, or a vanilla run, the window has
 //! none: the Browse tab and the Workshop progress are hidden, as in the original's build
 //! without Steam.
 
@@ -25,7 +25,7 @@ impl Sites {
         pack_dir: Option<std::path::PathBuf>,
     ) -> Sites {
         #[cfg(feature = "mod-sites")]
-        if !crate::platform::mode::pure() {
+        if !crate::platform::mode::vanilla() {
             return Sites {
                 tabs: Browse::open_all(ui, root, settings, pack_dir),
             };

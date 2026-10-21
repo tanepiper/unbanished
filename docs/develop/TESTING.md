@@ -28,7 +28,7 @@ tools/test/run.py --list           # every suite and what it checks
 | quick | `probe` | the probe scenarios give exactly their baselines | 8 s |
 | standard | `determinism` | two new games with one seed draw identical frames | 25 s |
 | standard | `browser` | headless Chrome and Firefox: the start page, the manager, Exit and Quit | 2 min |
-| standard | `features` | the game builds with no extensions, natively and for the browser, with no warnings ([Extensions](EXTENSIONS.md)) | 15 s–5 min |
+| standard | `features` | the game builds with no extensions, natively and for the browser, and with the unstable ones, with no warnings ([Extensions](EXTENSIONS.md)) | 15 s–5 min |
 | long | `site` | the website builds | 30 s |
 | long | `vanilla` | the build with no extensions plays every compatibility scenario exactly as the full build | 4 min |
 | long | `replay`, `lockstep`, `network`, `multiplayer`, `server`, `server-simulate`, `hooks` | the `tools/compat` scripts below | minutes each |
@@ -118,7 +118,7 @@ game about 5 more; check several things in one test rather than loading the game
 | Multiplayer window | `tools/compat/multiplayer.sh` (`--realtime`, `--text`) | Headless games host and join a room through the Multiplayer window, start from the host's save and agree at every check; in `leave`, one of three quits and the other two play on |
 | Network | `tools/compat/network.sh` (`unbanished-server`, `--net-test`) | Several game processes play one game through a server and keep identical games; a scrambled one is resynced; a third player who joins the running game has the host's game ([MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md)) |
 | Server | `tools/compat/server.sh` (`unbanished-server` with kept rooms, `--net-test`) | Three players: one is scrambled and resynced, one leaves, a new one joins; the server keeps the town, restarts, and the host goes on from the kept town with another player; every digest agrees. With `--simulate` the server runs the game itself: two players agree with it at every check, and the scrambled player goes on from the server's save |
-| Rule hooks | `tools/compat/hooks.sh` (a test plugin, `tools/test/hooks/every-minute.wat`) | A save played with the plugin gives other digests than without it, the same ones twice, and the same as without it under `--pure`; two players with it stay identical through a server; a player without it is refused with the reason ([Rule hooks](RULE-HOOKS.md)) |
+| Rule hooks | `tools/compat/hooks.sh` (a test plugin, `tools/test/hooks/every-minute.wat`) | A save played with the plugin gives other digests than without it, the same ones twice, and the same as without it under `--vanilla`; two players with it stay identical through a server; a player without it is refused with the reason ([Rule hooks](RULE-HOOKS.md)) |
 | Lockstep | `tools/compat/lockstep.sh` (`--lockstep-test`) | Players in one process, joined by a simulated network, keep identical games ([MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md)) |
 | Replays | `tools/compat/replay.sh` (`--record`, `--replay`) | A recorded game replays from its save to the same game state: the player commands carry every change ([MULTIPLAYER-PLAN.md](../MULTIPLAYER-PLAN.md)) |
 

@@ -19,7 +19,7 @@ const SITE = 'https://tanepiper.github.io/unbanished/'
 const GUIDE_FILE = 'docs/USER-GUIDE.md'
 const GUIDE = [
   { path: '/guide/', title: 'Setup guide', description: 'Install Un-Banished and start playing.', intro: true,
-    sections: ['1. Check what you need', '2. Install the build tools', '3. Download and build Un-Banished', '4. Find your game data', '5. Play'] },
+    sections: ['1. Check what you need', '2. Download it, or install the build tools', '3. Download and build Un-Banished', '4. Find your game data', '5. Play'] },
   { path: '/guide/browser', title: 'The browser version', description: 'Play in a web browser, or run the browser version yourself.',
     sections: ['Play in the browser'] },
   { path: '/guide/controls', title: 'Controls', description: 'The default keys and mouse actions.',

@@ -3,7 +3,7 @@
 # tools/test/hooks/every-minute.wat, that draws from the game's random stream once a game minute:
 #
 #   1. --sim-digest on a save: the hook changes the game (other digests than without it), two
-#      runs with it give the same digests, and Pure Banished (--pure) ignores it;
+#      runs with it give the same digests, and a vanilla run (--vanilla) ignores it;
 #   2. two players with the hook play through a server and stay in step;
 #   3. a player without the hook is refused by the room, with the reason.
 #
@@ -33,13 +33,13 @@ digests() { # user-dir [extra arguments]
 without="$(digests "$out/without")"
 with1="$(digests "$out/with")"
 with2="$(digests "$out/with")"
-pure="$(digests "$out/with" --pure)"
+vanilla="$(digests "$out/with" --vanilla)"
 ok=1
 [[ "$with1" == "$with2" ]] || ok=0
 [[ "$with1" != "$without" ]] || ok=0
-[[ "$pure" == "$without" ]] || ok=0
+[[ "$vanilla" == "$without" ]] || ok=0
 grep -q "rule hooks: every-minute" "$out/with/log.txt" || ok=0
-echo "  save: the hook changes the game, twice the same, ignored when pure: $([[ $ok == 1 ]] && echo identical || echo DIFFERENT)"
+echo "  save: the hook changes the game, twice the same, ignored in a vanilla run: $([[ $ok == 1 ]] && echo identical || echo DIFFERENT)"
 [[ $ok == 1 ]] || failed=1
 
 # 2 and 3. Two players with the hook; a third without it.

@@ -9,6 +9,19 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+### Added
+
+- Each release has ready-made downloads: a zip with the game for Windows, macOS (Apple silicon
+  and Intel) and Linux.
+- Extensions still in development are `unstable-*` cargo features, which no release contains.
+
+### Changed
+
+- The program is **Un-Banished More**: every stable extension, as before. `unbanished --version`
+  says so.
+- Pure Banished is now called vanilla: `--vanilla` (in the browser, `?vanilla`) replaces
+  `--pure`, and plays the original game and its own mods only.
+
 ## [0.4.0] - 2026-10-21
 
 Rule hooks: mods can change how a town plays, the same way on every computer. Multiplayer now

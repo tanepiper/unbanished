@@ -60,8 +60,10 @@ Core           crates/sim       unbanished-sim      the running town: Simulation
 2. **The core never depends on an extension.** Extensions reach the game only through a few
    doors ([Extensions](develop/EXTENSIONS.md#the-doors-into-the-game)).
 3. **Every extension can be left out.** Each is a cargo feature; with all of them off, the game
-   builds and plays exactly as with all of them on (the `vanilla` suite). At run time, `--pure`
-   turns them all off for one run (Pure Banished).
+   builds and plays exactly as with all of them on (the `vanilla` suite). The default feature,
+   `more`, holds every stable extension: that build is **Un-Banished More**, the program every
+   release ships. At run time, `--vanilla` turns them all off for one run. Extensions still in
+   development are `unstable-*` features, which no release contains.
 4. **No change of results.** A change to how the code is built must leave saves, frames and
    random numbers exactly as they were ([COMPATIBILITY.md](COMPATIBILITY.md)). Anything that
    behaves differently on purpose is marked `Deviation:` and listed in
@@ -131,7 +133,7 @@ hook (`unbanished_sim::timing`) and the step events are examples. **Rule hooks**
 hook may read the date, the citizens and the stock, draw from the game's random stream and post
 events. They run from WebAssembly plugins (`unbanished-hooks`, with wasmi), with no floating
 point, in name order, with a fixed budget per call. A save lists them, `Hello` carries their
-fingerprint so every player of a room has the same ones, and Pure Banished loads none.
+fingerprint so every player of a room has the same ones, and a vanilla run loads none.
 [Rule hooks](develop/RULE-HOOKS.md) explains them; [Writing a rule hook](guide/WRITING-RULE-HOOKS.md)
 builds one.
 

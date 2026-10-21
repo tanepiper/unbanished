@@ -34,6 +34,23 @@ Three rules hold for every extension:
 The browser's start page and its manager are the web page itself, so they are not a cargo
 feature.
 
+## Un-Banished More, vanilla and unstable features
+
+| Feature | What it is |
+|---|---|
+| `more` (the default) | Every stable extension above. A build with it is **Un-Banished More**: the program `unbanished`, the browser version, and every release |
+| `unstable` | Every extension still in development. Each is a feature `unstable-NAME`, listed in `unstable` in `apps/game/Cargo.toml`, and is in no release |
+
+So one program serves both ways to play. `unbanished` is Un-Banished More, and
+`unbanished --vanilla` (in the browser, `?vanilla`) plays the original game and its own mods only,
+with every extension off for that run ([below](#vanilla-every-extension-off-while-the-game-runs)).
+`unbanished --version` says which build it is: `Un-Banished More 0.5.0-…`, or `Un-Banished 0.5.0-…`
+for a build without `more`.
+
+A new extension starts as `unstable-NAME`: it builds only with
+`--features unstable-NAME` (or `--features unstable`), so released programs never contain
+unfinished code. When it is ready, rename it, move it into `more`, and add it to the table above.
+
 ## Building without extensions
 
 Leave all of them out:
@@ -53,23 +70,23 @@ The same flags work for the browser build (`--target wasm32-unknown-unknown`). W
 Without `probe`, `--probe` does nothing and `window.unbanished` answers that the game was built
 without it.
 
-## Pure Banished: every extension off while the game runs
+## Vanilla: every extension off while the game runs
 
-A build with extensions can still play without them. Start it with `--pure` (in the browser,
-add `?pure` to the address) and the run is Pure Banished: only the core and the original's own
-mods (`.pkm` files). Each extension's door asks `platform::mode::pure()` once and stays shut:
+A build with extensions can still play without them. Start it with `--vanilla` (in the browser,
+add `?vanilla` to the address) and the run is vanilla: only the core and the original's own
+mods (`.pkm` files). Each extension's door asks `platform::mode::vanilla()` once and stays shut:
 
-| Extension | In a Pure Banished run |
+| Extension | In a vanilla run |
 |---|---|
 | `multiplayer` | The main menu has no Multiplayer button |
 | `mod-sites` | The Mods window hides its Browse tab, as without the feature |
-| `probe` | Every command answers `Pure Banished: the probe is off` |
+| `probe` | Every command answers `vanilla run: the probe is off` |
 | `replay` | `--record` records nothing |
 | `cinematic` | `--camera` and `--camera-follow` do nothing |
 | `rule-hooks` | No plugins are loaded, whatever the `Hooks` folder holds |
 
 The test commands (`--replay`, `--lockstep-test`, `--net-test`) are not play, so they still
-run. A new extension checks `pure()` at its door too.
+run. A new extension checks `vanilla()` at its door too.
 
 ## The doors into the game
 

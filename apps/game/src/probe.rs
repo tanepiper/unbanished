@@ -25,8 +25,8 @@ use unbanished_ui::Query;
 
 /// Run one probe command against `game`, laid out for a window of `size` physical pixels.
 pub fn run(game: &mut Game, size: (u32, u32), command: &str) -> Result<Value, String> {
-    if crate::platform::mode::pure() {
-        return Err("Pure Banished: the probe is off".into());
+    if crate::platform::mode::vanilla() {
+        return Err("vanilla run: the probe is off".into());
     }
     let command = command.trim();
     let (verb, rest) = command.split_once(' ').unwrap_or((command, ""));
