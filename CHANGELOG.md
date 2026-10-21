@@ -9,6 +9,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-21
+
 Rule hooks: mods can change how a town plays, the same way on every computer. Multiplayer now
 has a server: it keeps each room's town, lets players join a game that has started, and can run
 the town itself. The desktop game can be the server. Also Pure Banished (the original game with
@@ -344,7 +346,8 @@ of Banished 1.0.7.
   [docs/DEVIATIONS.md](docs/DEVIATIONS.md) and in the
   [issues](https://github.com/tanepiper/unbanished/issues).
 
-[Unreleased]: https://github.com/tanepiper/unbanished/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/tanepiper/unbanished/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/tanepiper/unbanished/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tanepiper/unbanished/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/tanepiper/unbanished/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tanepiper/unbanished/releases/tag/v0.1.0
