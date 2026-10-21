@@ -111,6 +111,42 @@ def suite_checks(ctx: Context) -> None:
         raise RuntimeError(f"unbanished-sim depends on {sorted(names & banned)}")
 
 
+def suite_harness(ctx: Context) -> None:
+    """The agent harness: every Python and shell tool parses, the skills point at real paths,
+    and, when this computer has them, the emulator and the decompile tool work."""
+    tools = [p for p in (REPO / "tools").rglob("*.py") if "node_modules" not in p.parts]
+    for p in tools:
+        try:
+            compile(p.read_text(encoding="utf-8"), str(p), "exec")
+        except SyntaxError as e:
+            raise RuntimeError(f"{p.relative_to(REPO)}:{e.lineno}: {e.msg}") from e
+    scripts = [p for p in (REPO / "tools").rglob("*.sh") if "node_modules" not in p.parts]
+    for p in scripts:
+        sh(["bash", "-n", str(p)])
+    sh([sys.executable, "tools/triage/skills_check.py"])
+    ctx.notes.append(f"{len(tools)} Python tools, {len(scripts)} shell scripts, skills")
+    venv = REPO / ".venv" / "bin" / "python"
+    exe = REPO / "game-data" / "original" / "Application-steam-x64.exe"
+    if venv.exists() and exe.exists():
+        # The emulator loads the game and its engine DLL and links the game's imports.
+        out = sh([str(venv), "-c", (
+            "import sys; sys.path.insert(0, 'tools/emu'); from pe_emu import Emu; "
+            "emu = Emu('game-data/original/Application-steam-x64.exe', 'game-data/original/Runtime-steam-x64.dll'); "
+            "print('emulator ok', len(emu.exports))")]).stdout
+        if "emulator ok" not in out:
+            raise RuntimeError(f"the emulator did not load the binaries: {out}")
+        ctx.notes.append("emulator loads the binaries")
+    else:
+        ctx.notes.append("emulator not checked (no .venv or game data)")
+    if (REPO / "analysis" / "export" / "Application-steam-x64.exe" / "decomp.c").exists():
+        out = sh([sys.executable, "tools/triage/decomp.py", "0x1400aa000"]).stdout
+        if "Names::Generate" not in out:
+            raise RuntimeError("tools/triage/decomp.py did not label FUN_1400aa000 as Names::Generate")
+        ctx.notes.append("decomp.py reads the export")
+    else:
+        ctx.notes.append("decomp.py not checked (no Ghidra export)")
+
+
 def suite_unit(ctx: Context) -> None:
     """Every Rust test in the workspace (unit, corpus, parity and save tests)."""
     proc = sh(["cargo", "test", "--offline", "-q", "--workspace", "--release", "--no-fail-fast"],
@@ -286,6 +322,7 @@ def compat(script: str, about: str) -> Callable[[Context], None]:
 
 SUITES = [
     Suite("checks", "quick", "Formatting of changed Rust files, the deviation ledger, doc comments, the core's dependencies", suite_checks),
+    Suite("harness", "quick", "The agent harness: tools parse, skills point at real paths, emulator and decompile tool work", suite_harness),
     Suite("unit", "quick", "Every Rust test in the workspace (unit, corpus, parity, saves)", suite_unit),
     Suite("wasm", "quick", "The browser build compiles with no warnings", suite_wasm),
     Suite("probe", "quick", "Probe scenarios give exactly their baselines (UI and town)", suite_probe),

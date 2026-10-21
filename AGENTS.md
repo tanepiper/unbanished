@@ -46,7 +46,8 @@ the browser's storage are
    own frames in `docs/assets/videos/`, made with `tools/videos.sh`. Add to either only when
    the docs need it, and keep each file small.
 2. **Evidence before code.** Every ported behaviour cites the original function it came from.
-   A guess is marked *inferred* or *assumed* in the comment and the docs. Check against the
+   A claim read in the code is *observed*; one produced by running the original (the emulator)
+   is *measured*; a guess is marked *inferred* or *assumed* in the comment and the docs. Check against the
    decompile or the emulator; don't invent behaviour. Doc comments (`///`, `//!`) are what
    rustdoc shows, so write them in plain English and end each ported item's doc with one line
    ``Original: `FUN_1400be680` ``. Offsets, vtable slots and `DAT_` constants go in ordinary
@@ -65,14 +66,19 @@ the browser's storage are
 ## Setup
 
 ```bash
+tools/worktree-setup.sh            # in a git worktree: link game-data, save-game, analysis, .venv, .env from the main checkout
 tools/extract-assets.sh            # copies your game into game-data/ (or UNBANISHED_DIR=… tools/extract-assets.sh)
+tools/re-setup.sh [--install]      # checks (and installs) Ghidra, JDK 21, objdump, Node, .venv with unicorn and pefile; writes .env
 cargo test --release               # tests needing game data skip when it is missing
 tools/ghidra/export.sh             # optional, ~20 min: analysis/export/<binary>/decomp.c
 ```
 
-- Ghidra 12.1.x with JDK 21 (`brew install ghidra` on macOS;
-  `GHIDRA_INSTALL_DIR=/opt/homebrew/opt/ghidra/libexec`).
-- Python emulator dependencies live in `.venv` (`unicorn`, `pefile`).
+- Ghidra 12.1.x with JDK 21. Their folders go in `.env` (`GHIDRA_INSTALL_DIR`, `JAVA_HOME`),
+  which `tools/re-setup.sh` writes and every tool reads (`tools/re-env.sh`, `tools/re_env.py`).
+- REA (`rea-agents`, https://github.com/morluto/rea) starts from the project `.mcp.json` in
+  Claude Code; `tools/re-setup.sh --rea` shows its registration plan for other agents.
+- The generic method these skills follow, for any game, is
+  https://github.com/tanepiper/reverse-engineer-games.
 - Web builds: `rustup target add wasm32-unknown-unknown`, `cargo install trunk`, then
   `tools/dev-web.sh --app game --release`.
 
@@ -178,7 +184,7 @@ footer ("Version 1.0.7 - Build 170910") comes from the original's resources and 
 
 ```bash
 rustfmt --edition 2021 <the files you changed>
-tools/test/run.py                     # quick tier, ~1½ min: format, ledger, cargo test, wasm, probe baselines
+tools/test/run.py                     # quick tier, ~1½ min: format, ledger, harness, cargo test, wasm, probe baselines
 tools/test/run.py determinism browser # ~3 min more, when the change touches the game, its UI or the web page
 tools/compat/compare.sh HEAD <your build or commit>   # if the change can touch the simulation
 ```

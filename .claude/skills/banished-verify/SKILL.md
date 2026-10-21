@@ -11,7 +11,7 @@ Never report "works" from a build alone.
 ## The test runner (start here)
 
 ```bash
-tools/test/run.py                     # quick: format, ledger, cargo test, wasm, probe baselines (~1½ min)
+tools/test/run.py                     # quick: format, ledger, harness, cargo test, wasm, probe baselines (~1½ min)
 tools/test/run.py determinism browser # the game's frames, and the browser page in Chrome and Firefox (~3 min)
 tools/test/run.py long                # everything; before a release
 tools/test/run.py --list
@@ -112,9 +112,9 @@ Follow `docs/develop/VISUAL-CHANGES.md`. In short:
 
 ## Working in a git worktree
 
-A worktree has no `game-data/`, `save-game/` or `analysis/`. Symlink them from the main checkout
-and add `/game-data`, `/save-game`, `/analysis` to `$(git rev-parse --git-common-dir)/info/exclude`
-(a symlink is not matched by the `/game-data/` rule). See `docs/develop/BUILDING.md`.
+A worktree has no `game-data/`, `save-game/`, `analysis/`, `.venv` or `.env`. Run
+`tools/worktree-setup.sh` first: it links each from the main checkout and keeps the links out of
+git. See `docs/develop/BUILDING.md`.
 
 ## Against the original game (Steam Remote Play)
 

@@ -19,7 +19,8 @@ behaviour, data formats, constants and UI match the original executable — not 
 2. **Evidence before code.** Every ported behaviour cites the original function it came from: the
    doc comment is plain English and ends with ``Original: `FUN_1400be680`.``; offsets, vtables and
    `DAT_` constants go in `//` comments (rustdoc does not show them). If a value or rule is a
-   guess, say `inferred`/`assumed` in the comment and the doc.
+   guess, say `inferred`/`assumed` in the comment and the doc; a value produced by running the
+   original under the emulator is *measured* (name the script and inputs).
 3. **Other sessions edit this repo concurrently.** Stage only your own files/hunks; never
    `git add -A`, never revert changes you did not make. See `banished-land`.
 4. **Back up as you go.** Commit and push to `origin main` after each coherent piece of work.
@@ -45,9 +46,21 @@ behaviour, data formats, constants and UI match the original executable — not 
 Binaries: `Application-steam-x64.exe` (game logic, base `0x140000000`), `Runtime-steam-x64.dll`
 (engine, base `0x180000000`, exports mangled C++ names), `VideoDX9/DX11` (renderer backends).
 
-Setup if missing: `tools/extract-assets.sh` (populates `game-data/`), `tools/ghidra/export.sh`
-(~20 min, populates `analysis/export`). Ghidra: `GHIDRA_INSTALL_DIR=/opt/homebrew/opt/ghidra/libexec`,
-JDK 21. Python emu deps live in `.venv` (`unicorn`, `pefile`).
+Setup:
+
+```bash
+tools/worktree-setup.sh     # in a git worktree (agents usually are): links game-data, save-game,
+                            # analysis, .venv and .env from the main checkout
+tools/re-setup.sh           # checks Ghidra, JDK 21, objdump, Node, .venv; --install adds what is missing
+tools/extract-assets.sh     # in the main checkout, if game-data/ is missing
+tools/ghidra/export.sh      # ~20 min, if analysis/export is missing
+```
+
+Ghidra and Java are found through `.env` (`GHIDRA_INSTALL_DIR`, `JAVA_HOME`), never hard-coded.
+REA (the `mcp__rea__*` tools) starts from the project `.mcp.json`: use it for quick, cited answers
+about one function (`open_binary`, `analyze_function`, `procedure_callers`, `xrefs`) and the text
+export for broad searches. The generic method behind these skills, for any game, is
+https://github.com/tanepiper/reverse-engineer-games (its `re-*` skills).
 
 ## Which skill for which task
 

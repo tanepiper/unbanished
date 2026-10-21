@@ -11,13 +11,17 @@ tile mesh, ground ray cast, cell types and start point. Use it whenever "close e
 ## Setup
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install unicorn pefile   # once
+tools/re-setup.sh --install    # once: .venv with unicorn and pefile (in a worktree: tools/worktree-setup.sh)
 ```
 `pe_emu.Emu(exe, dll)` loads `Application-steam-x64.exe` and `Runtime-steam-x64.dll` at their
 preferred bases, links exe imports to DLL exports, stubs OS imports and replaces the engine
-allocator. API: `malloc(size)`, `write(addr, bytes)`, `read(addr, n)`, `u32/i32/u64/f32s`,
-`call(addr, *args)` (Windows x64 ABI, returns `rax`), `call_f32` (returns `xmm0`),
-`hook_function(addr, name, handler)` to stub a callee.
+allocator. API: `malloc(size)`, `write(addr, bytes)`, `read(addr, n)`, `bytes_in(data)` (copy in,
+get the address), `u8/u32/i32/u64/f32s`, `cstr(addr)`, `call(addr, *args)` (Windows x64 ABI,
+returns `rax`; wrap floats in `F32(x)` or `F64(x)`), `call_f32` (returns `xmm0`), `call_i32`
+(signed), `hook_function(addr, name, handler)` to stub a callee. Common C runtime imports
+(malloc, calloc, realloc, free, memset, memcpy, memmove, strlen) and kernel32 locks have working
+stand-ins in `OS_STUBS`; any other OS import stops the run with its name. An invalid memory
+access names the binary and offset (`exe+0x9be55`) of the instruction that made it.
 
 ## Steps
 

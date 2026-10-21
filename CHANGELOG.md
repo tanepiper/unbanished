@@ -11,6 +11,14 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Added
 
+- For contributors and agents: `tools/worktree-setup.sh` links the game data, saves, Ghidra
+  analysis and Python environment into a git worktree in one step; `tools/re-setup.sh` checks
+  and installs the reverse-engineering toolchain and writes `.env`, which every tool now reads
+  instead of fixed install paths; `tools/ghidra/run.sh` runs one-off Ghidra jobs; `.mcp.json`
+  starts REA in Claude Code; a `harness` test suite checks the tools and the skills; and the
+  emulator gained C runtime stand-ins and clearer errors. The generic version of this harness,
+  for any game, is https://github.com/tanepiper/reverse-engineer-games.
+
 - The browser version keeps the game files you choose, in this browser only, so you choose them
   once (#17). A checkbox under **Choose files** turns it off. With the files kept, the start page
   shows **Start the game**, a **Help** button for the steps, and a manager with three tabs: the

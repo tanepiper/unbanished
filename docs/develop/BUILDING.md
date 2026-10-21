@@ -38,18 +38,16 @@ UNBANISHED_DIR="/path/to/Banished" tools/extract-assets.sh
 ### In a second checkout (git worktree)
 
 A `git worktree` (AI coding agents often work in one) has none of the ignored folders. Link
-them to the main checkout instead of copying them, and tell Git to ignore the links. A link is
-a file to Git, so the `/game-data/` rule in `.gitignore` does not match it:
+them to the main checkout instead of copying them:
 
 ```bash
-main=/path/to/main/checkout
-for d in game-data save-game analysis; do ln -s "$main/$d" "$d"; done
-exclude="$(git rev-parse --git-common-dir)/info/exclude"
-for d in game-data save-game analysis; do grep -qx "/$d" "$exclude" || echo "/$d" >> "$exclude"; done
-git status --short    # the links must not appear
+tools/worktree-setup.sh
 ```
 
-`info/exclude` is shared by every worktree of the repository and is never committed.
+It links `game-data`, `save-game`, `analysis`, `.venv` and `.env` (each one the main checkout
+has) and adds the links to the repository's `info/exclude`: a link is a file to Git, so the
+`/game-data/` rule in `.gitignore` does not match it. `info/exclude` is shared by every worktree
+of the repository and is never committed. Running it again changes nothing.
 
 ## The game
 

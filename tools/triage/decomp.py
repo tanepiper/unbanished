@@ -25,8 +25,11 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ghidra_index import CALL, ROOT, IMAGES, Index, norm  # noqa: E402
 
-GHIDRA = '/opt/homebrew/opt/ghidra/libexec/support/analyzeHeadless'
-JAVA_HOME = '/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home'
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from re_env import analyze_headless, java_home  # noqa: E402  (.env, then the usual places)
+
+GHIDRA = analyze_headless()
+JAVA_HOME = java_home()
 PROJECTS = {
     'Application-steam-x64.exe': ('analysis/gameplay-project', 'banished-gameplay'),
     'Runtime-steam-x64.dll': ('analysis/runtime-identity-project', 'banished-runtime'),
@@ -162,7 +165,8 @@ def headless(binary, addr):
     if not os.path.exists(out):
         project, name = PROJECTS[binary]
         env = dict(os.environ, JAVA_HOME=JAVA_HOME)
-        subprocess.run([GHIDRA, os.path.join(ROOT, project), name, '-process', binary,
+        # The real path: Ghidra rejects a project path with a dot folder (.claude/worktrees/...).
+        subprocess.run([GHIDRA, os.path.realpath(os.path.join(ROOT, project)), name, '-process', binary,
                         '-noanalysis', '-readOnly', '-scriptPath',
                         os.path.join(ROOT, 'tools/ghidra'), '-postScript',
                         'ExportAddressBatch.java', out, f'0x{addr}'],

@@ -6,7 +6,8 @@ description: Static reverse engineering of the original Banished binaries with t
 # Trace behaviour in the original binary
 
 Static evidence only: never claim the game "does" something at runtime unless it was emulated
-(`banished-emulate`) or observed. Label conclusions **observed** (read in code/data), **inferred**,
+(`banished-emulate`) or observed. Label conclusions **observed** (read in code/data), **measured**
+(run under the emulator), **inferred**,
 or **unknown**.
 
 ## 0. Check what is already known
@@ -66,23 +67,23 @@ Work outward from something concrete — a resource path, string, type name, or 
 ## 2. Decompile something Ghidra missed or got wrong
 
 Callbacks reached only through tables are often not functions in the bulk export. Decompile
-on demand in the existing project (no re-analysis):
+on demand in the already analysed project (no re-analysis, about a minute of start-up, so batch):
 
 ```bash
-G=/opt/homebrew/opt/ghidra/libexec
-JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
-"$G/support/analyzeHeadless" analysis/gameplay-project banished-gameplay \
-  -process Application-steam-x64.exe -noanalysis -scriptPath tools/ghidra \
-  -postScript ExportAddressBatch.java analysis/<topic>.txt 0x1400be770 0x1400be680
+python3 tools/triage/decomp.py 0x1400be770 --headless          # one function, cached in analysis/triage-cache
+tools/ghidra/run.sh exe decompile analysis/notes/ai.txt 0x1400be770 0x1400be680   # several, creating missing functions
+tools/ghidra/run.sh dll named     analysis/notes/random.txt Random::Rand          # by name substring (good for Runtime)
+tools/ghidra/run.sh exe refs      analysis/notes/game.txt 0x1401cbdd8             # every reference, with its function
+tools/ghidra/run.sh exe vtable    analysis/notes/vt.txt Citizen 0x140165120 40    # a vtable's slots
 ```
-Analysed projects present locally (find others with `find analysis -name '*.gpr'`):
-`analysis/gameplay-project banished-gameplay` (exe), `analysis/runtime-identity-project
-banished-runtime` (Runtime DLL), `analysis/save-project banished-save`. `tools/ghidra/export.sh`
-creates `analysis/ghidra-project banished` (all four binaries) if you need a fresh one.
-Ghidra holds a lock per project: don't run two headless jobs on the same project at once.
-Other scripts: `ExportNamedFunctions.java OUT term…` (by name substring, good for Runtime),
-`ExportVtableSlots.java OUT label 0xTABLE count …`, `ExportAddressRefs.java`. Output goes to
-`analysis/` (ignored). One headless run takes ~1 min of startup — batch addresses.
+
+`exe` is the analysed `analysis/gameplay-project` (Application), `dll` the
+`analysis/runtime-identity-project` (Runtime); `--project DIR NAME` picks another (for example
+`analysis/save-project banished-save`; list them with `find analysis -name '*.gpr'`).
+`tools/ghidra/export.sh` creates `analysis/ghidra-project banished` (all four binaries) if you
+need a fresh one. Ghidra holds a lock per project: don't run two jobs on the same project at
+once. Output goes to `analysis/` (ignored). Ghidra and Java come from `.env`
+(`tools/re-setup.sh`).
 
 ## 3. Verify against disassembly when it matters
 

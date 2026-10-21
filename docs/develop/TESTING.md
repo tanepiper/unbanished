@@ -21,6 +21,7 @@ tools/test/run.py --list           # every suite and what it checks
 
 | Tier | Suite | Checks | Time |
 |---|---|---|---|
+| quick | `harness` | every Python and shell tool in `tools/` parses; every skill's front matter is valid, AGENTS.md lists every skill, and every repository path a skill mentions exists (`tools/triage/skills_check.py`); with game data and `.venv`, the emulator loads the binaries; with the Ghidra export, `decomp.py` reads it | 1 s |
 | quick | `checks` | changed Rust files are formatted, `docs/DEVIATIONS.md` is up to date, doc comments name no addresses, `unbanished-sim` depends on no drawing, window, interface, sound or network crate | 2 s |
 | quick | `unit` | every Rust test in the workspace | 75 s |
 | quick | `wasm` | the browser build compiles with no warnings | 1–60 s |
@@ -178,7 +179,7 @@ tests exist.
 
 ```bash
 rustfmt --edition 2021 <the files you changed>
-tools/test/run.py                                      # quick: checks, unit, wasm, probe
+tools/test/run.py                                      # quick: checks, harness, unit, wasm, probe
 tools/test/run.py determinism browser                  # if the change touches the game or the browser page
 tools/compat/compare.sh HEAD <your build or commit>    # if the change can touch the simulation
 ```

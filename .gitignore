@@ -20,6 +20,8 @@
 __pycache__/
 *.pyc
 .venv/
+# Local tool paths (tools/re-setup.sh writes them)
+/.env
 .DS_Store
 
 # Rust

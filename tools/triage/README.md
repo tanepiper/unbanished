@@ -13,6 +13,7 @@ Deterministic helpers for deciding what to trace, port or check next. All read l
 | `fnindex.py find TERM` | Which functions use a string or a registered class name (`CitizenAIComponent`)? |
 | `fnindex.py coverage` | How much of the binary is traced, and which component families are untouched? |
 | `tools/emu/rng_trace.py` + `rngdiff.py ORIG PORT` | Does the port draw from `System::Random` in the same order as the original? (see below) |
+| `skills_check.py` | Do the agent skills still point at real paths, with valid front matter, all listed in AGENTS.md? (the `harness` test suite runs it) |
 | `deviations.py [--check]` | Every comment marking a deviation or unported piece, as `docs/DEVIATIONS.md` |
 | `determinism.sh [SECS] [SEED]` | Do two runs with the same seed render identical frames? |
 | `tools/reference/` (`save.sh`, `windows.swift`, README) | Reference frames of the original game streamed via Steam Remote Play, filed locally for comparison |
