@@ -119,6 +119,7 @@ impl<'a> HookContext<'a> {
         );
         if let Some(entry) = self.events.entries.last_mut() {
             entry.text = Some(text.to_string());
+            entry.dated = true;
         }
     }
 }

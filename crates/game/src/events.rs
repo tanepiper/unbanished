@@ -66,6 +66,10 @@ pub struct EventEntry {
     ///
     /// Original: `FUN_14009a790`.
     pub text: Option<String>,
+    /// Whether `text` is shown after the event's season and year, as the game's own lines are
+    /// ("Autumn 22: …"): a rule hook's line. Deviation: not in the original, which has no rule
+    /// hooks.
+    pub dated: bool,
 }
 
 /// The event log: its entries and which categories notify the player.
@@ -147,6 +151,7 @@ impl EventLog {
         };
         self.entries.push(EventEntry {
             text: None,
+            dated: false,
             kind,
             severity,
             color: severity_color(severity),

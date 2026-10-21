@@ -2,7 +2,7 @@
 
 A rule hook is a small program that runs inside Un-Banished after every update of the town. It
 can read the date, the number of citizens and the stock, roll the game's dice, and post lines to
-the event log. This page builds a complete example, a harvest festival every October, from an
+the event log. This page builds a complete example, a harvest festival every autumn, from an
 empty folder to a line in your town's event log.
 
 Rule hooks are an Un-Banished extension: Banished 1.0.7 has nothing like them, and Pure Banished
@@ -20,7 +20,7 @@ This guide uses Rust.
 ## The example: a harvest festival
 
 The whole mod is in the repository, in `examples/rule-hooks/harvest-festival`. On the first
-update of October, if the town has people and food, it posts "The town holds its harvest
+update of Autumn, if the town has people and food, it posts "The town holds its harvest
 festival." One year in four, decided by the game's own dice, it adds a second line about a
 bountiful harvest.
 
@@ -78,13 +78,14 @@ pub extern "C" fn api_version() -> i32 {
 ### 4. Do something after each update
 
 The game calls `after_iteration` after every update, 60 times a second of game time. Game time is
-in microseconds: a month is 300,000,000 and one update is 16,666. October is the tenth month, so
-its first update starts at 9 × 300,000,000:
+in microseconds: a month is 300,000,000 and one update is 16,666. The game's
+twelve months run from Early Spring (0) to Late Winter (11); Autumn is month 7, so its first
+update starts at 7 × 300,000,000:
 
 ```rust
 const FOOD: i32 = 5;
 const MONTH: i64 = 300_000_000;
-const OCTOBER: i64 = 9 * MONTH;
+const AUTUMN: i64 = 7 * MONTH;
 const ITERATION: i64 = 16_666;
 
 fn post(severity: i32, text: &str) {
@@ -94,7 +95,7 @@ fn post(severity: i32, text: &str) {
 #[no_mangle]
 pub extern "C" fn after_iteration() {
     let now = unsafe { time_in_year() };
-    if !(OCTOBER..OCTOBER + ITERATION).contains(&now) {
+    if !(AUTUMN..AUTUMN + ITERATION).contains(&now) {
         return;
     }
     let (food, people) = unsafe { (stock(FOOD), citizens()) };
@@ -130,7 +131,7 @@ your Banished data, beside `Save`:
 | macOS and Linux | `~/Documents/Banished/Hooks` |
 
 Start a town, or load one. The game's log, in the terminal you started it from, says
-`rule hooks: harvest_festival`. When October comes, the festival is in the event log.
+`rule hooks: harvest_festival`. When Autumn comes, the festival is in the event log.
 
 ## The rules
 

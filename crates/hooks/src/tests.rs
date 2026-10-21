@@ -123,9 +123,9 @@ fn the_fingerprint_follows_the_plugins_and_their_order() {
 }
 
 /// The example mod (examples/rule-hooks/harvest-festival), when it has been built: it celebrates
-/// on the first iteration of October and nowhere else.
+/// on the first iteration of Autumn and nowhere else.
 #[test]
-fn the_example_mod_holds_its_festival_in_october() {
+fn the_example_mod_holds_its_festival_in_autumn() {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
         "../../examples/rule-hooks/harvest-festival/target/wasm32-unknown-unknown/release/harvest_festival.wasm",
     );
@@ -143,24 +143,24 @@ fn the_example_mod_holds_its_festival_in_october() {
         let mut stock = [0; 21];
         stock[5] = 300;
         let mut rng = Random::new(seed);
-        let mut cx = HookContext::new(&calendar, 9, 40, &stock, &mut rng, &mut events);
+        let mut cx = HookContext::new(&calendar, 7, 40, &stock, &mut rng, &mut events);
         hooks.after_iteration(&mut cx);
         events.entries.len()
     };
-    let october = 9 * 300_000_000;
+    let autumn = 7 * 300_000_000;
     assert_eq!(
-        posted(&mut hooks, october - 1, 1),
+        posted(&mut hooks, autumn - 1, 1),
         0,
-        "the end of September"
+        "the end of Late Summer"
     );
     assert_eq!(
-        posted(&mut hooks, october + 16_666, 1),
+        posted(&mut hooks, autumn + 16_666, 1),
         0,
-        "the second iteration of October"
+        "the second iteration of Autumn"
     );
-    // On the first iteration of October: the festival, and in some years a second line.
+    // On the first iteration of Autumn: the festival, and in some years a second line.
     let lines: Vec<usize> = (0..40)
-        .map(|seed| posted(&mut hooks, october, seed))
+        .map(|seed| posted(&mut hooks, autumn, seed))
         .collect();
     assert!(lines.iter().all(|&n| n == 1 || n == 2), "{lines:?}");
     assert!(lines.contains(&2) && lines.contains(&1), "{lines:?}");

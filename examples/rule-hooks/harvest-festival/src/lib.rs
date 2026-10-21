@@ -1,6 +1,6 @@
-//! An example rule-hook mod for Un-Banished: a harvest festival every October.
+//! An example rule-hook mod for Un-Banished: a harvest festival every autumn.
 //!
-//! On the first iteration of October, if the town has food, the festival is posted to the event
+//! On the first iteration of Autumn, if the town has food, the festival is posted to the event
 //! log. One year in four (the game's own dice decide, so every player sees the same) the harvest
 //! is called bountiful as well.
 //!
@@ -27,8 +27,8 @@ extern "C" {
 const FOOD: i32 = 5;
 /// A year is 3,600 s of game time, a month 300 s; times are in microseconds.
 const MONTH: i64 = 300_000_000;
-/// October, the tenth month.
-const OCTOBER: i64 = 9 * MONTH;
+/// Autumn, the eighth month of the game's twelve (from Early Spring, 0).
+const AUTUMN: i64 = 7 * MONTH;
 /// One iteration of the game: 1/60 s.
 const ITERATION: i64 = 16_666;
 
@@ -46,8 +46,8 @@ pub extern "C" fn api_version() -> i32 {
 #[no_mangle]
 pub extern "C" fn after_iteration() {
     let now = unsafe { time_in_year() };
-    // Only on the first iteration of October.
-    if !(OCTOBER..OCTOBER + ITERATION).contains(&now) {
+    // Only on the first iteration of Autumn.
+    if !(AUTUMN..AUTUMN + ITERATION).contains(&now) {
         return;
     }
     let (food, people) = unsafe { (stock(FOOD), citizens()) };

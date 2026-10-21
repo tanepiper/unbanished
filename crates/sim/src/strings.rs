@@ -19,11 +19,18 @@ pub trait Strings {
 ///
 /// Original: `FUN_14009a2d0`.
 pub fn format_event(strings: &mut dyn Strings, e: &EventEntry) -> String {
-    if let Some(text) = &e.text {
-        return text.clone();
+    const SEASONS: &str = "Dialog/StringTable.rsc:seasons";
+    match &e.text {
+        // A rule hook's line, after its date as the events table's lines put it ("@0 @1: ").
+        Some(text) if e.dated => {
+            let season = strings.string_at(SEASONS, e.month as i32);
+            return format!("{season} {}: {text}", e.year);
+        }
+        Some(text) => return text.clone(),
+        None => {}
     }
     let template = strings.string_at("Dialog/StringTable.rsc:events", e.kind);
-    let season = strings.string_at("Dialog/StringTable.rsc:seasons", e.month as i32);
+    let season = strings.string_at(SEASONS, e.month as i32);
     let mut out = template;
     for (i, v) in [season, e.year.to_string()]
         .into_iter()

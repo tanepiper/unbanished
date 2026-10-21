@@ -199,6 +199,7 @@ impl SavedGame {
                         Some(Value::Str(t)) => Some(t.clone()),
                         _ => None,
                     },
+                    dated: false,
                 })
                 .collect();
         }

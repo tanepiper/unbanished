@@ -123,7 +123,7 @@ by the server; its players' checks still work, by majority.
 
 | Check | What it proves |
 |---|---|
-| `crates/hooks/src/tests.rs` | A plugin draws from the game's stream and posts events; two runs from one seed agree; floats, other imports and other API versions are refused; a plugin with no end runs out of fuel and is switched off; the fingerprint follows the plugins and their order; the example mod celebrates on the first iteration of October and nowhere else |
+| `crates/hooks/src/tests.rs` | A plugin draws from the game's stream and posts events; two runs from one seed agree; floats, other imports and other API versions are refused; a plugin with no end runs out of fuel and is switched off; the fingerprint follows the plugins and their order; the example mod celebrates on the first iteration of Autumn and nowhere else |
 | `tools/compat/hooks.sh` (the `hooks` suite) | With a test plugin, a save gives other digests than without it, the same ones twice, and the same as without it under `--pure`; two players with it stay identical through a server; a player without it is refused, with the reason |
 | `tools/compat/compare.sh` | With no plugins, the game plays every scenario exactly as before |
 

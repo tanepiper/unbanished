@@ -448,7 +448,7 @@ Also as in the original, you cannot earn achievements while mods are turned on.
 ### Rule hooks
 
 A rule hook is a small program from a mod that changes how the town plays: for example, a
-festival every October. Banished 1.0.7 has nothing like it. Put rule hooks (`.wasm` files) in the
+festival every autumn. Banished 1.0.7 has nothing like it. Put rule hooks (`.wasm` files) in the
 `Hooks` folder beside your saves (`Documents/Banished/Hooks`); every town you start or load uses
 them, and its saves list them. In multiplayer every player needs the same `Hooks` folder. Pure
 Banished (`--pure`) never loads them, and the browser version does not load them yet. To write

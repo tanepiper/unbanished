@@ -1,7 +1,7 @@
 [package]
 name = "harvest-festival"
 version = "1.0.0"
-description = "An example rule-hook mod for Un-Banished: a harvest festival every October"
+description = "An example rule-hook mod for Un-Banished: a harvest festival every autumn"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 publish = false
