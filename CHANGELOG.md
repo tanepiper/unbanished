@@ -9,6 +9,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+Ready-made downloads of the game for Windows, macOS and Linux. The program is now called
+Un-Banished More, and `--vanilla` replaces `--pure`.
+
 ### Added
 
 - Each release has ready-made downloads: a zip with the game for Windows, macOS (Apple silicon

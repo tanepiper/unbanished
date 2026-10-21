@@ -116,7 +116,7 @@ computer, with a USB stick or over your network. Un-Banished needs only the four
 
 ## 2. Download it, or install the build tools
 
-**Ready-made downloads.** From version 0.5.0, each
+**Ready-made downloads.** From version 0.4.1, each
 [release](https://github.com/tanepiper/unbanished/releases) has a zip for Windows, macOS (Apple
 silicon and Intel) and Linux. Unpack it, then go on to [4. Find your game data](#4-find-your-game-data):
 the program in the zip is `unbanished` (`unbanished.exe` on Windows). The program is not signed:
