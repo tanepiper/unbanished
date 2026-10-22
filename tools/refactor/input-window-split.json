@@ -1,0 +1,5 @@
+{"file": "apps/game/src/gameplay/input.rs", "type": "GameplayLoop",
+ "modules": {
+  "window_event": {"doc": "The window's events in the town: the pointer, the wheel and keys, for the interface, the tools and the camera.",
+   "methods": ["window_event"]}
+ }}
