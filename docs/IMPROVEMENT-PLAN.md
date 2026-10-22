@@ -90,11 +90,13 @@ stand-in types of a build without multiplayer. The seventh, `anim_audio_events` 
 sound code, was left over from before the simulation took over animation sounds, and is
 removed.
 
-**4. Large files.** Split the files over 800 lines by topic with `tools/refactor`
-(`split_tests.py`, `split_impl.py`). The code moves and is not rewritten. Start with the test
-files (`placement_tests.rs`, `gameplay/tests.rs`), then `wildlife.rs`, `life.rs`, `town/load.rs`
-and `ui/input.rs`. Data tables such as `wma/src/tables.rs` stay as they are. Gate: compare.sh
-identical, and the same number of tests.
+**4. Large files.** In progress. Split so far: the placement and game-loop tests, `wildlife.rs`,
+`life.rs`, `town/load.rs`'s tests, `ui/input.rs`, `seeding.rs`, `removal_tool.rs`, formats'
+`ui.rs`, `tutorial.rs`, `utility.rs` and the WMA tables (9,318 lines into eight files). No Rust
+file may now pass 500 lines: the quick tier checks it with `tools/test/file_size.py`. The 86 files
+over 500 lines on 2026-10-22 are listed in `tools/test/large-files.txt`, the largest first. Each
+may only shrink, and its line goes when it is split. Gate for each split: compare.sh identical,
+and the same number of tests.
 
 **5. A renderer crate.** Move the renderer (`apps/game/src/gfx`: pipelines, models, terrain,
 decals, shadows, particles) into `crates/gfx`, or into a new `unbanished-render`. The game keeps

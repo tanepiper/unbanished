@@ -22,7 +22,7 @@ tools/test/run.py --list           # every suite and what it checks
 | Tier | Suite | Checks | Time |
 |---|---|---|---|
 | quick | `harness` | every Python and shell tool in `tools/` parses; every skill's front matter is valid, AGENTS.md lists every skill, and every repository path a skill mentions exists (`tools/triage/skills_check.py`); with game data and `.venv`, the emulator loads the binaries; with the Ghidra export, `decomp.py` reads it | 1 s |
-| quick | `checks` | changed Rust files are formatted, `docs/DEVIATIONS.md` is up to date, doc comments name no addresses, `unbanished-sim` depends on no drawing, window, interface, sound or network crate | 2 s |
+| quick | `checks` | no Rust file passes 500 lines (`tools/test/file_size.py`; the files in `tools/test/large-files.txt` may only shrink), changed Rust files are formatted, `docs/DEVIATIONS.md` is up to date, doc comments name no addresses, `unbanished-sim` depends on no drawing, window, interface, sound or network crate | 2 s |
 | quick | `unit` | every Rust test in the workspace | 75 s |
 | quick | `wasm` | the browser build compiles with no warnings | 1–60 s |
 | quick | `lint` | Clippy finds nothing in the workspace or the browser build; warnings are errors. The rules allowed on purpose are in `[workspace.lints.clippy]` in the root `Cargo.toml`, each with its reason | 2 s–3 min |

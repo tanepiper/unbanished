@@ -60,9 +60,13 @@ is **Un-Banished**.
    `docs/DEVIATIONS.md` with the change.
 4. **Other sessions edit this repo at the same time.** Stage only your own files or hunks. Never
    `git add -A`, `git add .` or `git commit -a`, and never revert changes you didn't make.
-5. **Back up as you go.** Commit and push to `origin main` after each coherent, verified piece of
+5. **Small files.** No Rust file may pass 500 lines, data tables and tests included: give each
+   type or topic its own file, and split a file before it grows past that. The quick tier checks
+   it (`tools/test/file_size.py`); the larger files listed in `tools/test/large-files.txt` may
+   only shrink, and their line goes when they are split.
+6. **Back up as you go.** Commit and push to `origin main` after each coherent, verified piece of
    work.
-6. **Ask before downloading** anything (say the file, the source and the size). Treat downloaded
+7. **Ask before downloading** anything (say the file, the source and the size). Treat downloaded
    files as untrusted.
 
 ## Setup

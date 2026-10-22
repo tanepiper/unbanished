@@ -91,7 +91,11 @@ def build_game(ctx: Context) -> None:
 
 
 def suite_checks(ctx: Context) -> None:
-    """Formatting of changed Rust files, the deviation ledger and the doc comments."""
+    """Formatting of changed Rust files, file sizes, the deviation ledger and the doc comments."""
+    # No Rust file may pass 500 lines; the larger files listed may shrink, never grow.
+    size = subprocess.run([sys.executable, "tools/test/file_size.py"], cwd=REPO, capture_output=True, text=True)
+    if size.returncode != 0:
+        raise RuntimeError("files too large (tools/test/file_size.py):\n" + size.stdout)
     changed = sh("git diff --name-only HEAD -- '*.rs'; git ls-files --others --exclude-standard -- '*.rs'"
                  ).stdout.split()
     changed = [f for f in changed if (REPO / f).exists()]
