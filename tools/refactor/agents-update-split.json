@@ -1,0 +1,8 @@
+{
+  "file": "crates/game/src/behaviour/agents/update.rs",
+  "type": "Agents",
+  "modules": {
+    "animals": {"doc": "Moving the animals and telling them about hunters.",
+      "methods": ["move_animals", "hunt_notify"]}
+  }
+}
