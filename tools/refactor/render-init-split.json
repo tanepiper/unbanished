@@ -1,0 +1,7 @@
+{"file": "apps/game/src/gfx/render.rs", "type": "Renderer",
+ "modules": {
+  "init": {"doc": "Creating the renderer: the device, the surface, the pipelines and the targets.",
+   "methods": ["init"]},
+  "size": {"doc": "The window's and the scene's sizes, and resizing the targets.",
+   "methods": ["resize", "set_scene_scale", "resize_scene", "size", "targets_size", "screen_resized", "aspect"]}
+ }}
