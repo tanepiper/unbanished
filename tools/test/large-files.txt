@@ -1,26 +1,17 @@
 # Rust files over 500 lines when tools/test/file_size.py came in, with their length
 # then. Each may shrink, never grow. Split them, and remove the line.
-1021 apps/game/src/gameplay/network.rs
-975 apps/game/src/gfx/scene_gfx.rs
-968 apps/game/src/ui/options.rs
-950 apps/game/src/ui/entity_ui.rs
 920 crates/audio/src/device.rs
-897 apps/game/src/view/particles.rs
-891 apps/game/src/tools/placement_tests/farming.rs
 877 apps/game/src/gfx/render.rs
-846 apps/game/src/tools/placement_tests/building.rs
 838 crates/audio/src/scene.rs
 837 apps/viewer/src/render.rs
 829 crates/wma/src/decoder.rs
 807 apps/game/src/ui/town_hall_ui.rs
-801 apps/game/src/gameplay/tests/windows.rs
 792 apps/game/src/menu.rs
 770 apps/game/src/native.rs
 758 crates/ui/tests/controls.rs
 757 apps/game/src/view/cinematic.rs
 751 apps/game/src/gameplay/input.rs
 744 apps/game/src/gfx/particle_gfx.rs
-740 apps/game/src/tools/placement_tests/people.rs
 716 apps/game/src/game.rs
 713 apps/game/src/audio/ambience.rs
 655 crates/ui/src/input/pointer.rs
@@ -29,11 +20,8 @@
 621 apps/game/src/ui/trade_ui.rs
 617 apps/game/src/app.rs
 612 apps/game/src/ui/save_dialog.rs
-602 apps/game/src/tools/placement_tests/transport.rs
 594 apps/game/src/gameplay.rs
-585 apps/game/src/tools/placement_tests/work.rs
 570 apps/game/src/loops.rs
-554 apps/game/src/tools/placement_tests/nature.rs
 549 apps/modmanager/src/app.rs
 545 apps/game/src/gfx/highlight.rs
 536 apps/game/src/ui/mod_browse.rs
