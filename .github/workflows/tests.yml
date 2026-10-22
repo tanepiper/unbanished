@@ -1,14 +1,32 @@
-# Run the workspace's tests and the browser build, without the original game data: tests that
-# need it skip (game-data/ is never in the repository). Start it by hand (Actions → Tests → Run
-# workflow, or `gh workflow run tests.yml`), for example before a release: the Release workflow
-# does not run the tests. tools/test/run.py runs the full suites on a computer with the game.
+# Check every push to main and every pull request: formatting, Clippy (warnings are errors), the
+# workspace's tests and the browser build. It runs without the original game data: tests that
+# need it skip (game-data/ is never in the repository). It can also be started by hand (Actions →
+# Tests → Run workflow, or `gh workflow run tests.yml`), for example before a release: the
+# Release workflow does not run the tests. tools/test/run.py runs the full suites on a computer
+# with the game.
 name: Tests
 
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'site/**'
+      - '**/*.md'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'site/**'
+      - '**/*.md'
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# A newer push to the same branch replaces a run still in progress.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -20,6 +38,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
 
       - name: Cache the Rust build
         uses: Swatinem/rust-cache@v2
@@ -29,6 +48,14 @@ jobs:
       # The sound libraries' build scripts need the ALSA headers.
       - name: Install the ALSA headers
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+
+      - name: Check the formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: |
+          cargo clippy --release --workspace --all-targets -- -D warnings
+          cargo clippy --release -p unbanished-app --target wasm32-unknown-unknown -- -D warnings
 
       - name: Run the tests
         run: cargo test --workspace --release --no-fail-fast
