@@ -121,22 +121,27 @@ const CONTROLLER: Op = Block("controller", 0, &[]);
 /// `ResourceProduceComponent::Serialize` (`FUN_140130970`): switched off (`+0x48`).
 const RESOURCE_PRODUCE: Op = Sub(&[BASE, CONTROLLER, Block("produce", 0, &[Bool("disabled")])]);
 
+// Runtime FUN_18005d610, one 0x38-byte entry each: the group +0x00, the clip +0x08, the speed
+// +0x10, the clock +0x18, the blend time +0x20 and what is left of it +0x28, the shared instance
+// +0x0c, and +0x30.
+/// One layer of an `AnimationState` (newest first): the animation group, the clip, the speed, the
+/// clip's clock, the blend time and the blend time left while a newer layer covers it, the shared
+/// instance an instanced clip follows (−1 for none), and whether the layer has been updated once.
+pub const ANIMATION_STATE: &[Op] = &[
+    Ext("animation"),
+    I32("clip"),
+    F32("speed"),
+    Time("elapsed"),
+    Time("blend"),
+    Time("left"),
+    I32("instance"),
+    Bool("started"),
+];
+
 /// `Graphics::MeshInstance::Serialize` (`0x180101f10`): `AnimationState` entries
 /// (`FUN_18005d610`), its flag, then the material references.
 const MESH_INSTANCE: Op = Sub(&[
-    List(
-        "animations",
-        &[
-            Ext("animation"),
-            I32("index"),
-            F32("speed"),
-            Time("time0"),
-            Time("time1"),
-            Time("time2"),
-            I32("flags"),
-            Bool("looping"),
-        ],
-    ),
+    List("animations", ANIMATION_STATE),
     Bool("animating"),
     List("materials", &[Ext("material")]),
 ]);

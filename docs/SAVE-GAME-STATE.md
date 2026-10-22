@@ -70,7 +70,17 @@ cargo run -q --release -p unbanished-formats --example savegame_check -- save-ga
      bit 1 failed), a `TimeGoalInstance` (`FUN_1400e0200`: then a `Time` block), or a
      `FinishTutorialInstance` (`FUN_1400dd0c0`: then the tutorial's pointer). These objects share
      the object factory's index space with the game's.
-   - `AnimationManager::Serialize` (`0x1800fea20`), raw: a count, then animated mesh slots.
+   - `AnimationManager::Serialize` (`0x1800fea20`), decoded (`GameState::animations`): the
+     shared instances of instanced clips (walks, idles, most work clips). A count, then one
+     0x30-byte entry per slot (`FUN_18005d130`): the animation group, the clip (`+0x08`, −1 for a
+     free slot), the number of users (`+0x0c`), the instances (`FUN_18005cd90`) and the nodes
+     (`FUN_18005cbf0`: a name, an index and two transforms each). An instance (0x48 bytes) holds an
+     animation state of its own (the same entries as a ModelComponent's, `FUN_18005d610`), a flag,
+     a list of transform pairs (`FUN_18005cd00`), a vector and its pose (`FUN_18005a2f0`: a
+     rotation and a translation per node). A layer's shared instance (`+0x0c` of its entry) is
+     `slot << 8 | instance`. Save83 has 20 slots, the last one free. The user counts are high
+     (137,119 on the citizens' idle clip) and do not match the number of characters playing them.
+     *Inferred:* users that leave without `FreeInstanceId` are never counted down.
    - `Audio::Scene::Serialize` (`0x1800e28a0`), raw: the pool size (4096 in every save), then
      every slot (`FUN_180053110`: position, a value, the effect, a time, a value, the volume and
      a counted list of 16-byte points), then 5 bytes (`00 00 01 01 01` in every save).
@@ -141,11 +151,9 @@ cargo run -q --release -p unbanished-formats --example savegame_check -- save-ga
 
 ## Gaps
 
-- **Engine blocks.** The achievement, animation and audio-scene blocks are carried as raw
-  bytes. To decode them, the next serializers to follow are:
-  - Runtime `FUN_18000a2e0` (achievements);
-  - `FUN_18005d130` (animations);
-  - `FUN_180053110` (audio-scene sounds).
+- **Engine blocks.** The audio-scene block is carried as raw bytes. To decode it, the next
+  serializer to follow is `FUN_180053110` (its sounds). The achievements and the animations are
+  decoded.
 - **Old versions.** Older-version branches are in the schemas where they were simple, but only
   the samples' versions have been exercised. Map versions below 3 are rejected.
 - **Real-game load.** `Save::write` builds the whole `.sav` file (see

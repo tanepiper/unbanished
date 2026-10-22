@@ -24,7 +24,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::crs::{Reader, Writer, BLOCK_END, BLOCK_START};
 use crate::error::{format_err, Error, Result};
-use crate::savegame_schema::{schema_for, Cond, Op, ACHIEVEMENTS, TOWN};
+use crate::savegame_schema::{schema_for, Cond, Op, ACHIEVEMENTS, ANIMATIONS, TOWN};
 
 // Internal +0x08
 /// An object's factory index (`Internal`).
@@ -100,9 +100,10 @@ pub struct GameState {
     pub entity_manager_version: u32,
     /// `AchievementManager::Persist`: the achievement instances.
     pub achievements: Fields,
-    /// The animations: a whole block (markers included) carried through undecoded. An empty one
-    /// (a new game) is written as the engine's empty state ([`empty_animations`]).
-    pub animations: Vec<u8>,
+    /// `AnimationManager::Serialize`: the shared instances of instanced clips
+    /// ([`ANIMATIONS`](crate::savegame_schema::ANIMATIONS)). Empty (a new game) is written as the
+    /// engine's empty state ([`empty_animations`]).
+    pub animations: Fields,
     /// The sound scene: a whole block carried through undecoded. An empty one is written as the engine's empty state ([`empty_audio_scene`]).
     pub audio_scene: Vec<u8>,
     /// The game camera.
@@ -219,10 +220,9 @@ impl GameState {
             g.town_name = d.r.string()?;
             g.goal_done = d.r.bool()?;
             g.goal = d.ptr()?;
-            // Kept as written: `AchievementManager::Persist`, `AnimationManager::Serialize` and
-            // `Audio::Scene::Serialize` (engine side, not yet decoded).
+            // `Audio::Scene::Serialize` is kept as written (engine side, not yet decoded).
             d.ops_into(&[ACHIEVEMENTS], 0, &mut g.achievements)?;
-            g.animations = d.raw_block()?;
+            d.ops_into(&[ANIMATIONS], 0, &mut g.animations)?;
             g.audio_scene = d.raw_block()?;
             g.camera = Some(crate::menu_scene::read_camera(&mut d.r)?);
             d.block(|d, version| {
@@ -297,10 +297,10 @@ impl GameState {
         e.w.bool(self.goal_done);
         e.ptr(self.goal)?;
         e.ops(&[ACHIEVEMENTS], 0, &self.achievements)?;
-        if self.animations.is_empty() {
+        if self.animations.0.is_empty() {
             e.w.bytes(&empty_animations());
         } else {
-            e.w.bytes(&self.animations);
+            e.ops(&[ANIMATIONS], 0, &self.animations)?;
         }
         if self.audio_scene.is_empty() {
             e.w.bytes(&empty_audio_scene());

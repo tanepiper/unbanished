@@ -8,6 +8,57 @@ use super::*;
 /// Original: `Achievement::AchievementManager::Persist`, Runtime `0x18009f4a0`.
 pub const ACHIEVEMENTS: Op = Block("achievements", 0, &[List("instances", &[Ptr("instance")])]);
 
+// Runtime FUN_18005d130: per 0x30-byte entry the group +0x00, the clip +0x08, the users +0x0c,
+// the instances (+0x20, FUN_18005cd90, 0x48 bytes each) and the nodes (+0x10, FUN_18005cbf0).
+// An instance: its AnimationState (FUN_18005d610), a flag, the transform pairs (FUN_18005cd00),
+// a vector, then the pose (FUN_18005a2f0).
+/// `Graphics::AnimationManager`: the shared instances of instanced clips. Each entry is one
+/// group's clip with its number of users; each of its instances is an animation state of its own
+/// with its pose, which the characters playing that clip follow.
+///
+/// Original: `AnimationManager::Serialize`, Runtime `0x1800fea20`.
+pub const ANIMATIONS: Op = Block(
+    "animations",
+    0,
+    &[List(
+        "entries",
+        &[
+            Ext("group"),
+            I32("clip"),
+            I32("users"),
+            List(
+                "instances",
+                &[
+                    List("states", super::ANIMATION_STATE),
+                    Bool("flag"),
+                    List(
+                        "pairs",
+                        &[
+                            F32s("rotation", 4),
+                            F32s("translation", 3),
+                            F32s("rotation_2", 4),
+                            F32s("translation_2", 3),
+                        ],
+                    ),
+                    F32s("vector", 3),
+                    List("pose", &[F32s("rotation", 4), F32s("translation", 3)]),
+                ],
+            ),
+            List(
+                "nodes",
+                &[
+                    Str("name"),
+                    I32("parent"),
+                    F32s("rotation", 4),
+                    F32s("translation", 3),
+                    F32s("rotation_2", 4),
+                    F32s("translation_2", 3),
+                ],
+            ),
+        ],
+    )],
+);
+
 // Game +0xf0
 /// The town manager (version 6), `Game`: the registries of buildings and people by kind, the
 /// professions' workers, the stock targets and the statistics.
