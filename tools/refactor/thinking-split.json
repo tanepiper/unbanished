@@ -1,0 +1,8 @@
+{
+  "file": "crates/game/src/behaviour/agents/thinking.rs",
+  "type": "Agents",
+  "modules": {
+    "delivery": {"doc": "Delivering a citizen's messages and actions.",
+      "methods": ["deliver"]}
+  }
+}
