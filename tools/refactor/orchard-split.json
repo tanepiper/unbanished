@@ -1,0 +1,10 @@
+{
+  "file": "crates/game/src/production/orchard.rs",
+  "type": "Sim",
+  "modules": {
+    "states": {"doc": "An orchard's states: planting, tending, harvesting, clearing and their work lists.",
+      "methods": ["orchard_enter9", "orchard_plant_work", "orchard_update9", "orchard_enter10", "orchard_tend_work", "orchard_exit_work", "orchard_update10", "orchard_enter12", "orchard_update12", "orchard_enter11", "orchard_update11", "orchard_enter14", "orchard_exit14", "orchard_update14"]},
+    "work": {"doc": "An orchard's work: planting trees, tending them and picking fruit.",
+      "methods": ["plant_orchard_try", "plant_orchard_refresh", "plant_orchard_done", "tend_orchard_try", "pick_fruit_try", "pick_sequence", "pick_done"]}
+  }
+}
