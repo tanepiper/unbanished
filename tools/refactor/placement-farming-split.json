@@ -1,0 +1,2 @@
+{"topics": {"fields": ["farmers_plant_tend_and_harvest_a_field", "blight_withers_a_field_and_spreads"], "orchards": ["arborists_plant_tend_and_pick_an_orchard"], "pastures": ["herdsmen_keep_a_pasture", "a_pasture_gathers_eggs"]},
+ "doc": {"fields": "//! Crop fields: planting, tending and harvesting, and blight.", "orchards": "//! Orchards: planting, tending and picking.", "pastures": "//! Pastures: herding livestock and gathering eggs."}}
