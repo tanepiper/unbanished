@@ -1,0 +1,6 @@
+{"file": "crates/audio/src/scene.rs", "type": "Scene",
+ "modules": {
+  "effects": {"doc": "Sound effects and their cache: loading, preparing and adding effects.",
+    "items": ["Effect", "EffectCache", "Prepared"], "impls": ["impl Effect {", "impl EffectCache {"]},
+  "emitters": {"doc": "3D effects and their emitters: playing, finding and stopping them, and the emitters' positions and volumes.",
+    "methods": ["effect3d_mut", "play_effect_3d", "find_effect_3d", "add_emitter", "remove_emitter", "move_emitter", "set_emitter_volume", "emitter_count", "stop_effect_3d"]}}}
