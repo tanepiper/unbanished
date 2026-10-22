@@ -8,6 +8,8 @@
 mod deals;
 mod visits;
 
+pub use visits::{next_merchant, trade_row};
+
 // vtable 0x140160df0
 
 use unbanished_formats::game::{Merchant, TradeRow, ValueDescription};

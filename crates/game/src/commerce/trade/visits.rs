@@ -2,6 +2,31 @@
 
 use super::*;
 
+// The rows are at TradeDescription +0x58 (count +0x60, 0x14 bytes each); the population is
+// Game +0xf0 → +0xa8.
+/// The trade row for a population: the first row whose population it is below, or the last row
+/// (also when the population is below 0).
+///
+/// Measured: `tools/emu/trade_timer.py` (the original on 2,000 cases).
+///
+/// Original: `FUN_14005be50`.
+pub fn trade_row(rows: &[TradeRow], population: i32) -> usize {
+    rows.iter()
+        .position(|r| 0 <= population && population < r.population)
+        .unwrap_or(rows.len().saturating_sub(1))
+}
+
+// Row +0x4 months, +0x8 range; the result goes to TradeComponent +0x78.
+/// The time to the next merchant: the row's months plus `RandFloatTol` × its range, × 300 s.
+///
+/// Measured: `tools/emu/trade_timer.py` (the original on 2,000 cases).
+///
+/// Original: `FUN_14005bdb0`.
+pub fn next_merchant(row: &TradeRow, rng: &mut crate::random::Random) -> i64 {
+    let f = rng.rand_float_tol();
+    ticks((f * row.range + row.months) * PERIOD)
+}
+
 impl Sim<'_, '_> {
     /// TradeComponent's activation (slot `+0x30`, `FUN_14005cb30`): the post joins the town's
     /// and its merchants get their names (`FUN_14005cb80`).
@@ -30,17 +55,15 @@ impl Sim<'_, '_> {
         self.sites.get_mut(&e)?.trade.as_mut()
     }
 
-    /// `FUN_14005be50`: the first row whose population the town is below (else the last).
+    /// The trade row for the town's population now.
+    ///
+    /// Original: `FUN_14005be50`.
     pub(super) fn trade_row(&self, d: &TradeTemplate) -> usize {
-        d.rows
-            .iter()
-            .position(|r| 0 <= self.population && self.population < r.population)
-            .unwrap_or(d.rows.len().saturating_sub(1))
+        trade_row(&d.rows, self.population)
     }
 
     /// State 2 enter (`FUN_14005b530`): with the post's workplace on and no work yet, its
-    /// TradeWork; the time to the next merchant (`FUN_14005bdb0`: the row's months ±
-    /// `RandFloatTol ×` its range, × 300 s).
+    /// TradeWork; then the time to the next merchant.
     pub(crate) fn trade_enter2(&mut self, jobs: &mut crate::work::jobs::Jobs, e: usize) {
         let id = self.sites[&e].work_id;
         if !jobs.works.contains_key(&id)
@@ -51,9 +74,7 @@ impl Sim<'_, '_> {
         let Some(d) = self.trade_desc(e).cloned() else {
             return;
         };
-        let row = d.rows[self.trade_row(&d)];
-        let f = self.rng.rand_float_tol();
-        let t = ticks((f * row.range + row.months) * PERIOD);
+        let t = next_merchant(&d.rows[self.trade_row(&d)], self.rng);
         if let Some(tr) = self.trade(e) {
             tr.timer = t;
         }

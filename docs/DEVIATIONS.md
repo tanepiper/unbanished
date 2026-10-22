@@ -197,7 +197,7 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 ## `crates/game/src/commerce/trade/visits.rs`
 
-- [Deviation] [crates/game/src/commerce/trade/visits.rs:180](../crates/game/src/commerce/trade/visits.rs#L180): Deviation: a merchant with nothing to sell brings nothing (the original reads an empty list).
+- [Deviation] [crates/game/src/commerce/trade/visits.rs:201](../crates/game/src/commerce/trade/visits.rs#L201): Deviation: a merchant with nothing to sell brings nothing (the original reads an empty list).
 
 ## `crates/game/src/events.rs`
 
