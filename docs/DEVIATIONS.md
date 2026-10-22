@@ -311,4 +311,4 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 ## `crates/ui/src/input/pointer.rs`
 
-- [Deviation] [crates/ui/src/input/pointer.rs:216](../crates/ui/src/input/pointer.rs#L216): Deviation: the original keeps the drag flag after a release far away (until a release near it); the port ends the drag there.
+- [Deviation] [crates/ui/src/input/pointer.rs:218](../crates/ui/src/input/pointer.rs#L218): Deviation: the original keeps the drag flag after a release far away (until a release near it); the port ends the drag there.

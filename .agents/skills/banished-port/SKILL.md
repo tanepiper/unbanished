@@ -45,7 +45,7 @@ installed by `FUN_14009d0d0`: Toolbar, EventNotify, AutoSave).
    (`find("toolbarContent")`), never by tree position.
 3. Use the `Ui` helpers (`set_text`, `set_table_child`, `set_images`, `checked`/`set_checked`, …);
    add a generic helper to `crates/ui/src/controls.rs` if one is missing, with a test in
-   `crates/ui/tests/controls.rs`.
+   `crates/ui/tests/controls/`.
 4. Strings: `UI::String(table, key)` → the string-table lookup; sprites: `ui.res.sprite(sheet, name)`.
 5. Events: `drain_events` and dispatch on the original element ids / event codes recorded in the
    trace doc. Note `unbanished_ui::pointer_button` **returns** the click event (not queued).

@@ -198,7 +198,7 @@ delivers events to host callbacks. The viewer supplies mode shortcuts 1–4 and 
 Enter/Escape. `TextDescription` field 0x8c is an ellipsis width, **not a keyboard binding**; the preceding
 booleans are shadow and wrapping. Text shadows and ellipsis now follow those decoded fields.
 
-`crates/ui/tests/controls.rs` exercises all 1,439 element resources and actual Options/NewGame controls,
+`crates/ui/tests/controls/` exercises all 1,439 element resources and actual Options/NewGame controls,
 plus dropdown selection, clipping, Unicode edits, numeric limits, hidden/disabled input, tooltips,
 named substitutions and binding dispatch. Document tests process 790 shipped strings and all 192
 SpriteCapture resources. Native Metal captures were inspected, and Chrome exercised tabs, sliders,

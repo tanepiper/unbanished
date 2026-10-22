@@ -1,0 +1,3 @@
+{"file": "crates/ui/src/document.rs", "type": "Ui",
+ "modules": {"layout": {"doc": "Laying out a document: its items in rows, wrapped to the element's width.",
+   "methods": ["layout_document", "document_item", "document_end_row"]}}}

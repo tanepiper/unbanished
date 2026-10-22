@@ -121,7 +121,7 @@ delivers an event to every controller on the element or on one of its parents.
 cargo test --release -p unbanished-ui
 ```
 
-`tests/controls.rs` checks the controls with your game data, and skips without it.
+`tests/controls/` checks the controls with your game data, and skips without it.
 
 ## The API
 

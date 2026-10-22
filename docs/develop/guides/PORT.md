@@ -92,7 +92,7 @@ The game's windows are resources (`Dialog/*.rsc`). To port one:
    (`screen.find(ui, dialog, "toolbarContent")`), never by their position in the tree.
 3. Use the helpers of `unbanished_ui::Ui` (`set_text`, `set_table_child`, `set_images`, `checked`,
    `set_checked`, …). If a helper is missing, add a general one to `crates/ui/src/controls.rs`,
-   with a test in `crates/ui/tests/controls.rs`.
+   with a test in `crates/ui/tests/controls/`.
 4. Strings come from string tables (`UI::String(table, key)`); sprites come from sprite sheets
    (`ui.res.sprite(sheet, name)`).
 5. Handle events: drain them with `drain_events` and dispatch on the original element ids and

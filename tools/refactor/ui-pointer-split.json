@@ -1,0 +1,3 @@
+{"file": "crates/ui/src/input/pointer.rs", "type": "Ui",
+ "modules": {"events": {"doc": "Dragging controls, scrolling a bar's parent, activating a control and routing events up the tree.",
+   "methods": ["drag_control", "scroll_parent", "activate", "route_event"]}}}
