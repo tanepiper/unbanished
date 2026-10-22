@@ -1,0 +1,7 @@
+{"topics": {
+  "objects": ["storage_search_descriptions_parse", "templates_parse", "models_parse", "natural_resources_parse", "growth_spawn_map_parse", "create_placed_parse", "raw_materials_and_storage_parse", "build_descriptions_parse", "removal_descriptions_parse", "decal_descriptions_parse", "particles_parse", "tornado_particles_parse"],
+  "people": ["citizen_description_parses", "professions_parse", "character_descriptions_parse", "interact_descriptions_resolve_points", "status_icon_descriptions_parse", "happiness_descriptions_parse", "disease_descriptions_parse", "cemetery_descriptions_parse", "only_the_doctor_is_immune_at_work"],
+  "work": ["consume_produce_descriptions_parse", "herbalist_and_auto_pickup_descriptions_parse", "forester_description_parses", "fishing_description_parses", "wildlife_descriptions_parse", "pasture_descriptions_parse", "market_description_parses", "quarry_description_parses"]},
+ "doc": {"objects": "//! Templates, models, nature, storage, construction, removal, decals and particles.",
+  "people": "//! Citizens, professions, characters, interaction points, status icons, happiness, disease and cemeteries.",
+  "work": "//! The workplaces' descriptions: produce, herbalists, foresters, fishing, wildlife, pastures, markets and quarries."}}
