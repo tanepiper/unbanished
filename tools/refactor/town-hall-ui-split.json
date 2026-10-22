@@ -1,0 +1,11 @@
+{"file": "apps/game/src/ui/town_hall_ui.rs", "type": "TownHallUi",
+ "modules": {
+  "bind": {"doc": "Binding the town hall window, and its saved settings.",
+   "methods": ["settings", "apply_settings", "bind"]},
+  "pages": {"doc": "The overview, professions, production and agriculture pages.",
+   "methods": ["overview", "professions", "production", "agriculture"]},
+  "inventory": {"doc": "The inventory page and the descriptions of its selected goods.",
+   "methods": ["inventory"], "items": ["select_description"]},
+  "graph": {"doc": "The graph page: the statistics over time.",
+   "methods": ["graph"], "items": ["sum"]}
+ }}
