@@ -1,0 +1,16 @@
+{
+  "file": "apps/game/src/ui/utility.rs",
+  "type": "UtilityWindows",
+  "modules": {
+    "map": {"doc": "The map window: binding it, drawing the town on it, and a click on it.",
+      "items": ["MapUi"], "impls": ["impl MapUi {"]},
+    "event_log": {"doc": "The event log window: its rows, its notification checkboxes, a click on a row, and the text of an event.",
+      "items": ["EventLogUi", "format_event"], "impls": ["impl EventLogUi {"]},
+    "status_bar": {"doc": "The status bar: the values it shows, its icons and meters.",
+      "items": ["StatusValues", "StatusBar", "text_of", "set_parameters"], "impls": ["impl StatusBar {"]},
+    "professions": {"doc": "The professions window: its rows and spinners, going to a worker and changing a profession's count.",
+      "items": ["ProfessionUi", "set_spinner"], "impls": ["impl ProfessionUi {"]},
+    "help": {"doc": "The help window: its pages and scrolling.",
+      "items": ["HelpUi"], "impls": ["impl HelpUi {"]}
+  }
+}
