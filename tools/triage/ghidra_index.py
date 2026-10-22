@@ -3,7 +3,8 @@
 Knows, per binary: every function's size and body text, callers/callees, string literals,
 global references, registered class types (`BaseTypeInfo` registrations: name, parent,
 factory), constructors and vtables (with slots), typed constant reads, project mentions
-("traced") and analyst labels from `tools/triage/names.tsv`.
+("traced") and analyst labels from `tools/triage/names.tsv`, then the labels made from the port's
+citations in `tools/triage/names-from-port.tsv` (cite_labels.py).
 
 Only derived facts are printed by the tools; decompiled text stays local.
 """
@@ -14,6 +15,8 @@ import struct
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 NAMES = os.path.join(ROOT, 'tools', 'triage', 'names.tsv')
+# Labels made from the port's `Original: FUN_` citations (cite_labels.py); names.tsv wins.
+PORT_NAMES = os.path.join(ROOT, 'tools', 'triage', 'names-from-port.tsv')
 IMAGES = {
     'Application-steam-x64.exe': 'game-data/original/Application-steam-x64.exe',
     'Runtime-steam-x64.dll': 'game-data/original/Runtime-steam-x64.dll',
@@ -103,13 +106,15 @@ def load_fields():
 
 def load_names():
     names = {}
-    if os.path.exists(NAMES):
-        for line in open(NAMES):
+    for path in (NAMES, PORT_NAMES):
+        if not os.path.exists(path):
+            continue
+        for line in open(path):
             if line.startswith('#') or not line.strip():
                 continue
             cols = line.rstrip('\n').split('\t')
             if len(cols) >= 2:
-                names[cols[0].lower().removeprefix('0x')] = cols[1]
+                names.setdefault(cols[0].lower().removeprefix('0x'), cols[1])
     return names
 
 
@@ -174,7 +179,7 @@ class Index:
             for dirpath, dirs, files in os.walk(os.path.join(ROOT, top)):
                 dirs[:] = [d for d in dirs if d not in ('target', '__pycache__')]
                 for fn in files:
-                    if fn == 'names.tsv' or not fn.endswith(('.md', '.rs', '.py', '.wgsl', '.tsv')):
+                    if fn in ('names.tsv', 'names-from-port.tsv') or not fn.endswith(('.md', '.rs', '.py', '.wgsl', '.tsv')):
                         continue
                     path = os.path.join(dirpath, fn)
                     try:

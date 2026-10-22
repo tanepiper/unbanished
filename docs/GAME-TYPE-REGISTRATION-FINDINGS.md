@@ -49,6 +49,24 @@ The serialized ID identifies the external resource class. A `BaseTypeInfo` globa
 registration record in the executable, not an allocated component pointer. The runtime object
 pointer layer is still separate and requires a field, owner, and lifetime observation.
 
+## An independent check of the type ids
+
+GameFrame's `tools/triage/hashnames.py` was run over all 5,812 extracted resources, taking
+candidate names from the strings of `Application-steam-x64.exe` and `Runtime-steam-x64.dll`,
+with no hint about the hash. It found CRC-32 of the UTF-16 class name on its own: 6,323 aligned
+values matched, against 629 expected by chance. It named 169 of the 170 type ids in
+`GAME-TYPE-REGISTRATIONS.tsv`. The one it missed in that scan, `TutorialImage` (`0x00305aa7`), is
+named when asked for directly (`--value 0x00305aa7`): the scan leaves out values below 2^24, which
+are too common in data to count. The run also named classes whose hashes occur inside resources
+without being registered resource types, such as `ResourceLimitUI`, `BuildUI`, `DestroyUI`,
+`StatusIconUI` and `ConsumeProduceComponent`; each is already described in these documents.
+(*Measured*, 2026-10-22.)
+
+```bash
+python3 $GAMEFRAME/tools/triage/hashnames.py game-data/extracted --aligned \
+  --names-from game-data/original/Application-steam-x64.exe --names-from game-data/original/Runtime-steam-x64.dll
+```
+
 ## Limits and next mapping step
 
 This catalog does not claim all 170 class registrations have been located across both binaries.

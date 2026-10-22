@@ -102,6 +102,13 @@ def suite_checks(ctx: Context) -> None:
     if (REPO / "docs/DEVIATIONS.md").read_text() != before:
         raise RuntimeError("docs/DEVIATIONS.md was out of date; it is updated now: stage it")
     sh([sys.executable, "tools/triage/doc_comments.py", "check"])
+    # The labels made from the port's citations stay current (tools/triage/cite_labels.py).
+    port_labels = REPO / "tools/triage/names-from-port.tsv"
+    before = port_labels.read_text() if port_labels.exists() else ""
+    sh([sys.executable, "tools/triage/cite_labels.py", ".", "--existing", "tools/triage/names.tsv", "--no-lines",
+        "--out", str(port_labels)])
+    if port_labels.read_text() != before:
+        raise RuntimeError("tools/triage/names-from-port.tsv was out of date; it is updated now: stage it")
     # The core depends on no drawing, window, interface, sound or network crate.
     tree = sh(["cargo", "tree", "--offline", "-p", "unbanished-sim", "-e", "normal", "--prefix", "none",
                "--target", "all"]).stdout

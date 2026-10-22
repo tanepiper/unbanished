@@ -32,6 +32,9 @@ view in both, pass `--resize` when resolutions differ and `--ignore` for the UI 
   shows them instead of `FUN_` names. Vtable slots of registered classes are named
   automatically (`CitizenAIComponent::slot+0x48`, base defaults as `Component::slot+0x28
   (default, 42 classes)`), and one-type component lookups as `get<Type>`.
+- `names-from-port.tsv`: labels made from the port's ``Original: `FUN_…` `` citations by
+  `cite_labels.py` (from GameFrame). The tools read it after `names.tsv`, so a hand-made label
+  wins. Do not edit it: the quick test tier regenerates it and fails when it was out of date.
 - `fields.tsv`: struct fields (`class offset name [pointee class]`). `decomp.py` names
   `param_1 + 0xNN` in that class's methods and follows typed pointers
   (`citizen.description.hungry_urgent`).

@@ -9,6 +9,13 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+### Added
+
+- Function labels made from the port's own citations (`tools/triage/names-from-port.tsv`): the
+  decompile tools now name 703 original functions, up from 226.
+- A comparison of the project with GameFrame's standard, and what GameFrame's tools found in the
+  game's files ([docs/develop/GAMEFRAME.md](docs/develop/GAMEFRAME.md)).
+
 ## [0.4.1] - 2026-10-21
 
 Ready-made downloads of the game for Windows, macOS and Linux. The program is now called

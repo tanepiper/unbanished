@@ -28,6 +28,7 @@ function it came from.
 | Record a video of the game without a window | [Recording videos](VIDEOS.md) |
 | Know the project rules | [Contributing (AGENTS.md)](../../AGENTS.md) |
 | Port a behaviour of the original game | [Development guides](guides/README.md) |
+| Compare the project with GameFrame's standard, and use its tools here | [Un-Banished and GameFrame](GAMEFRAME.md) |
 | Learn how a part of the game works | [Topics](../topics/README.md) |
 | Use one of the libraries | [Apps and crates](CRATES.md) and the [API documentation](API.md) |
 
