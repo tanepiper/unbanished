@@ -1,0 +1,2 @@
+{"topics": {"workshops": ["workshops_make_their_goods", "the_commute_run_keeps_the_professions", "cutter_yard_makes_firewood"], "services": ["a_well_registers_its_happiness", "vendors_stock_a_market"]},
+ "doc": {"workshops": "//! Workshops and their workers: goods, firewood and the commute.", "services": "//! Services: wells and markets."}}
