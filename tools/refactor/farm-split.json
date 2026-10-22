@@ -1,0 +1,10 @@
+{
+  "file": "crates/game/src/production/farm.rs",
+  "type": "Sim",
+  "modules": {
+    "planting": {"doc": "A crop field's planting and tending work.",
+      "methods": ["plant_try", "crop_planted", "plant_crop_sequence", "tend_try", "tend_sequence"]},
+    "harvest": {"doc": "A crop field's harvest work and the area work's callbacks.",
+      "methods": ["harvest_try", "harvest_sequence", "area_complete", "area_fail", "area_refresh", "area_workers"]}
+  }
+}
