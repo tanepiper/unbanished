@@ -1,0 +1,7 @@
+{"file": "apps/game/src/ui/save_dialog.rs", "type": "SaveLoadDialog",
+ "modules": {
+  "list": {"doc": "The list of saves: refreshing and filling it.",
+   "methods": ["refresh", "fill"]},
+  "files": {"doc": "Asking to confirm, and saving, loading and deleting a save.",
+   "methods": ["ask", "save", "load", "delete"]}
+ }}
