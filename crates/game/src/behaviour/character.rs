@@ -232,14 +232,7 @@ impl World<'_> {
         let Some((profession, years, odds)) = self.accident_odds else {
             return false;
         };
-        if odds <= 0.0 {
-            *self.accident_timer = 0;
-            return false;
-        }
-        let period = years * 12.0 * 300.0;
-        let since = crate::scheduler::seconds(*self.accident_timer);
-        *self.accident_timer = 0;
-        if self.rng.rand_float() < since / (period * odds) {
+        if crate::chance::once_in_years(self.accident_timer, years, odds, self.rng) {
             *self.accident = Some(profession);
             return true;
         }

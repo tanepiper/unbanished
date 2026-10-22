@@ -11,6 +11,7 @@ pub use unbanished_path::{pathfind, sectors};
 pub use unbanished_terrain as terrain;
 
 pub mod behaviour;
+pub mod chance;
 pub mod commerce;
 pub mod disasters;
 pub mod events;

@@ -236,14 +236,10 @@ impl Sim<'_, '_> {
     /// `FUN_1400ae760(timer, [years, odds], rng)`: one in `years × 12 × 300 s × odds` per
     /// second since the last check; the time restarts.
     fn odds(&mut self, e: usize, years: f32, odds: f32) -> bool {
-        let f = self.fire(e).unwrap();
-        let elapsed = seconds(f.timer);
-        f.timer = 0;
-        if odds <= 0.0 {
-            return false;
-        }
-        let span = years * 12.0 * PERIOD;
-        self.rng.rand_float() < elapsed / (span * odds)
+        let mut timer = self.fire(e).unwrap().timer;
+        let happens = crate::chance::once_in_years(&mut timer, years, odds, self.rng);
+        self.fire(e).unwrap().timer = timer;
+        happens
     }
 
     // +0x17

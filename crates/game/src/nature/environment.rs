@@ -262,14 +262,7 @@ impl Environment {
         if RAIN_SNOW_THRESHOLD < self.temperature && self.state == 0 && self.game_flags & 0x80 == 0
         {
             let (years, odds) = self.climate.tornado;
-            if odds <= 0.0 {
-                self.tornado_timer = 0;
-                return false;
-            }
-            let period = years * 12.0 * 300.0;
-            let since = crate::scheduler::seconds(self.tornado_timer);
-            self.tornado_timer = 0;
-            return rng.rand_float() < since / (period * odds);
+            return crate::chance::once_in_years(&mut self.tornado_timer, years, odds, rng);
         }
         false
     }
