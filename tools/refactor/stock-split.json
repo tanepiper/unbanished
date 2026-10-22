@@ -1,0 +1,8 @@
+{
+  "file": "crates/game/src/work/stock.rs",
+  "type": "Storage",
+  "modules": {
+    "search": {"doc": "Finding a storage: one with room, scanning them all, and one holding a material.",
+      "items": ["find_storage", "scan_storages", "find_material_storage"]}
+  }
+}
