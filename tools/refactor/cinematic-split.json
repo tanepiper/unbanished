@@ -1,0 +1,8 @@
+{"file": "apps/game/src/view/cinematic.rs", "type": "Cinematic",
+ "modules": {
+  "keyframes": {"doc": "Camera paths: keyframes and the curve through them.",
+   "items": ["Keyframe", "vector", "path", "catmull_rom"], "impls": ["impl Keyframe {"]},
+  "clearance": {"doc": "Keeping the camera clear of what would hide its subject.",
+   "items": ["Clearance", "NEAR_OBJECTS", "MOST_LIFT", "LIFT_STEP", "Obstacle", "crosses", "inside", "box_blocks", "lift"],
+   "impls": ["impl Clearance {\n    fn mesh_bounds", "impl Clearance {\n    /// Whether", "impl Obstacle {"]}
+ }}
