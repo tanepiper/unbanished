@@ -135,9 +135,10 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// DiseaseComponent's scheduled update of every site that has one.
+    /// DiseaseComponent's scheduled update of every site that has one. A sick site counts down,
+    /// kills now and then, and spreads; a healthy one checks whether it falls sick.
     ///
-    /// Original: `FUN_1400494f0`.
+    /// Original: `FUN_1400494f0`, and `FUN_1400491a0` for a sick site.
     pub fn update_blight(&mut self, visits: &[(usize, i64)]) {
         for &(e, dt) in visits {
             if !self.sites.get(&e).is_some_and(|s| s.disease.is_some()) {
@@ -256,8 +257,10 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// The spread: a random cell within `radius` of the centre; the field or pasture there,
-    /// growing the same thing, falls sick.
+    /// The spread: a random cell within `radius` of the centre (the x offset drawn first); the
+    /// field or pasture there, growing the same thing, falls sick.
+    ///
+    /// Original: `FUN_1400491a0` (its spread loop).
     fn spread_blight(&mut self, e: usize, d: &DiseaseDescription) {
         let n = self.size as i32;
         let (x, y) = self.placed[e].cell;

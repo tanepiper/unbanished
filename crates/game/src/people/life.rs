@@ -16,7 +16,7 @@ mod death;
 mod health;
 mod households;
 mod services;
-pub use health::outbreak_check;
+pub use health::{immunity_after, outbreak_check, recovers};
 pub use households::{update_home, warm_at};
 
 // The CitizenDescription is at citizen +0x288.

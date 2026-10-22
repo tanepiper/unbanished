@@ -54,6 +54,7 @@
 140048100	Controller::Cemetery	crates/game/src/work/construction.rs
 140048160	cemetery_description	crates/formats/src/game/people.rs
 140048250	CreateFencedDescription	crates/formats/src/game/construction.rs
+1400491a0	Sim::spread_blight	crates/game/src/disasters/blight.rs
 1400494f0	Sim::update_blight	crates/game/src/disasters/blight.rs
 1400497a0	DiseaseDescription	crates/formats/src/game/people.rs
 140049910	Sim::update_fires	crates/game/src/disasters/fire.rs
@@ -451,8 +452,8 @@
 140117470	People::set_guardian	crates/game/src/people/life/households.rs
 1401176b0	warm_at	crates/game/src/people/life/households.rs
 140117730	CitizenState::message	crates/game/src/behaviour/agents.rs
-140117880	Disease::recovery	crates/formats/src/game/people.rs
-140117940	Disease::spread_chance	crates/formats/src/game/people.rs
+140117880	immunity_after	crates/game/src/people/life/health.rs
+140117940	People::spread	crates/game/src/people/life/health.rs
 140117af0	Disease::weight	crates/formats/src/game/people.rs
 140117ca0	People::disease	crates/game/src/people/life/health.rs
 140118340	People::update	crates/game/src/people/life/update.rs

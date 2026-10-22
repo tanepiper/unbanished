@@ -273,18 +273,16 @@ impl People<'_, '_> {
     /// `FUN_140117880`: when the illness ends, recover (immune for `D[0x9c]` minutes) or die.
     pub(super) fn recover(&mut self, c: usize) -> bool {
         let r = self.rules;
-        let x = self.rng.rand_float();
         let s = &self.states[c];
-        let doctor = if s.doctor.is_some() { r.f(0x128) } else { 1.0 };
         let recovery = s
             .disease
             .and_then(|d| self.diseases.get(d))
             .map_or(1.0, |d| d.recovery);
-        let lives = 1.0 / recovery / doctor < x;
+        let lives = recovers(r, recovery, s.doctor.is_some(), self.rng);
         if lives {
             let s = &mut self.states[c];
             s.spread = 0;
-            s.immunity = ticks(r.f(0x9c) * MINUTE);
+            s.immunity = immunity_after(r);
             s.disease = None;
             s.sick = false;
         }
@@ -330,4 +328,26 @@ pub fn outbreak_check(
     *clock = 0;
     let span = a * 12.0 * MINUTE * b;
     rng.rand_float() < seconds(elapsed) / span
+}
+
+// Doctor: citizen +0x228; the doctor's factor is D+0x128; the disease's recovery is +0x40.
+/// Whether a citizen whose illness has ended recovers: one `RandFloat` drawn first, then the
+/// citizen lives when one over the disease's recovery, over the doctor's factor (1 without a
+/// doctor), is below it.
+///
+/// Measured: `tools/emu/recovery.py` (the original on 2,000 cases).
+///
+/// Original: `FUN_140117880`.
+pub fn recovers(r: &LifeRules, recovery: f32, doctor: bool, rng: &mut Random) -> bool {
+    let x = rng.rand_float();
+    let factor = if doctor { r.f(0x128) } else { 1.0 };
+    1.0 / recovery / factor < x
+}
+
+// D+0x9c, written to citizen +0x70.
+/// The immunity a citizen has after recovering: `D[0x9c]` × 300 s.
+///
+/// Original: `FUN_140117880`.
+pub fn immunity_after(r: &LifeRules) -> i64 {
+    ticks(r.f(0x9c) * MINUTE)
 }
