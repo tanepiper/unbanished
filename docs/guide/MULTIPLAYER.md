@@ -82,9 +82,10 @@ they need no port forwarding.
 
 There is no public relay yet: somebody in the group must run one.
 
-**Security.** The relay has no passwords. Anybody who knows the relay's address and the room code
-can join a room before the host starts the game. `ws://` is not encrypted. For a relay on the
-internet, prefer a TLS proxy and `wss://` (see [In the browser](#in-the-browser)).
+**Security.** The server can give a room a password, and refuses a player who gives the wrong
+one. The Multiplayer window cannot set a password yet, so in practice anybody who knows the
+server's address and the room code can join a room. `ws://` is not encrypted. For a server on
+the internet, prefer a TLS proxy and `wss://` (see [In the browser](#in-the-browser)).
 
 ## Host a game
 
