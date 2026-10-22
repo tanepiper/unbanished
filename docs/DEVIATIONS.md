@@ -163,9 +163,9 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 - [Deviation] [crates/game/src/behaviour/agents.rs:1](../crates/game/src/behaviour/agents.rs#L1): The citizens' CharacterComponent and CitizenAIComponent run together each simulation iteration. See docs/CITIZEN-AI.md. Order per iteration: animations advance, every character runs its actions and moves, "sequence finished" messages run the AI again with zero time, then the AI updates. The citizens' scheduled components (CitizenComponent, CitizenAIComponent and the CharacterComponent's notify) run for the citizens bucket 1 visited this iteration, with the time since each one's last visit; so do the sites' state machines, fires, blight, hunts, attendance, residences and piles in bucket 3 (`town::Env::visits`). Deviation: these run after the bucket pass (system by system, each in visiting order) instead of interleaved with it entity by entity, so random draws can come in another order. This file holds the agents' state and set-up; the rest is split by topic: `update` (the iteration), `thinking` (the AI), `lives`, `commands`, `paths` and `views`. `FUN_140114810` (sequence finished); `FUN_1400c9560` (the buckets).
 
-## `crates/game/src/behaviour/agents/update.rs`
+## `crates/game/src/behaviour/agents/update/animals.rs`
 
-- [Deviation] [crates/game/src/behaviour/agents/update.rs:285](../crates/game/src/behaviour/agents/update.rs#L285): The wild animals' character update: animate, run the actions, turn and move. Deviation: the entity manager runs these updates in the order of a tree keyed by the entity's address; the port takes them in the order they were made, which a growing heap usually gives too. tree at manager `+0x68` (`FUN_1400c90a0`).
+- [Deviation] [crates/game/src/behaviour/agents/update/animals.rs:6](../crates/game/src/behaviour/agents/update/animals.rs#L6): The wild animals' character update: animate, run the actions, turn and move. Deviation: the entity manager runs these updates in the order of a tree keyed by the entity's address; the port takes them in the order they were made, which a growing heap usually gives too. tree at manager `+0x68` (`FUN_1400c90a0`).
 
 ## `crates/game/src/behaviour/animation.rs`
 
@@ -183,9 +183,9 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 - [Deviation] [crates/game/src/behaviour/character_tree.rs:229](../crates/game/src/behaviour/character_tree.rs#L229): Deviation: the original follows a character whose component sits at a higher address; the port takes the one put in the tree later.
 
-## `crates/game/src/commerce/trade.rs`
+## `crates/game/src/commerce/trade/visits.rs`
 
-- [Deviation] [crates/game/src/commerce/trade.rs:330](../crates/game/src/commerce/trade.rs#L330): Deviation: a merchant with nothing to sell brings nothing (the original reads an empty list).
+- [Deviation] [crates/game/src/commerce/trade/visits.rs:180](../crates/game/src/commerce/trade/visits.rs#L180): Deviation: a merchant with nothing to sell brings nothing (the original reads an empty list).
 
 ## `crates/game/src/events.rs`
 
