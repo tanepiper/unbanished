@@ -1,0 +1,10 @@
+{
+  "file": "crates/game/src/work/construction/site.rs",
+  "type": "SiteTemplate",
+  "modules": {
+    "progress": {"doc": "A site's construction progress (ConstructionComponent).",
+      "items": ["Construction"]},
+    "work": {"doc": "A site's attendance, piles and the work it offers: clearing, pickup, gathering and building.",
+      "items": ["Attendance", "Pile", "ClearWork", "PickupWork", "Gather", "BuildWork"]}
+  }
+}
