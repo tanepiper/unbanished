@@ -212,7 +212,7 @@ def main():
     text = annotate(ix, '\n'.join(collapse_arrays(lines)), addr)
     cls = ix.owner_class(addr)
     if cls:
-        print(f'// fields of {cls} from tools/triage/fields.tsv')
+        print(f'// fields of {cls} from labels/fields.tsv')
         text = annotate_fields(ix, text, cls)
     print(text)
 

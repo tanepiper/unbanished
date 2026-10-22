@@ -3,8 +3,8 @@
 Knows, per binary: every function's size and body text, callers/callees, string literals,
 global references, registered class types (`BaseTypeInfo` registrations: name, parent,
 factory), constructors and vtables (with slots), typed constant reads, project mentions
-("traced") and analyst labels from `tools/triage/names.tsv`, then the labels made from the port's
-citations in `tools/triage/names-from-port.tsv` (cite_labels.py).
+("traced") and analyst labels from `labels/names.tsv`, then the labels made from the port's
+citations in `labels/names-from-port.tsv` (cite_labels.py).
 
 Only derived facts are printed by the tools; decompiled text stays local.
 """
@@ -14,9 +14,9 @@ import re
 import struct
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-NAMES = os.path.join(ROOT, 'tools', 'triage', 'names.tsv')
+NAMES = os.path.join(ROOT, 'labels', 'names.tsv')
 # Labels made from the port's `Original: FUN_` citations (cite_labels.py); names.tsv wins.
-PORT_NAMES = os.path.join(ROOT, 'tools', 'triage', 'names-from-port.tsv')
+PORT_NAMES = os.path.join(ROOT, 'labels', 'names-from-port.tsv')
 IMAGES = {
     'Application-steam-x64.exe': 'game-data/original/Application-steam-x64.exe',
     'Runtime-steam-x64.dll': 'game-data/original/Runtime-steam-x64.dll',
@@ -88,7 +88,7 @@ class Image:
         return struct.unpack_from(fmt, self.data, off)[0]
 
 
-FIELDS = os.path.join(ROOT, 'tools', 'triage', 'fields.tsv')
+FIELDS = os.path.join(ROOT, 'labels', 'fields.tsv')
 
 
 def load_fields():

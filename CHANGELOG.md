@@ -11,8 +11,12 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Added
 
-- Function labels made from the port's own citations (`tools/triage/names-from-port.tsv`): the
-  decompile tools now name 703 original functions, up from 226.
+- Function labels made from the port's own citations (`labels/names-from-port.tsv`): the
+  decompile tools now name 703 original functions, up from 226. The label files moved from
+  `tools/triage/` to `labels/`.
+- GameFrame's Claude Code plugin is enabled for the project: its skills, its 18 agents and its
+  gates, which stop game material and decompiled code from reaching git. `tools/gf.sh` runs its
+  tools from here, and `docs/CHECKLIST.md` gives the project's state in GameFrame's format.
 - A comparison of the project with GameFrame's standard, and what GameFrame's tools found in the
   game's files ([docs/develop/GAMEFRAME.md](docs/develop/GAMEFRAME.md)).
 

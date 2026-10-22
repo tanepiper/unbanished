@@ -21,11 +21,11 @@ ls analysis/                                        # earlier one-off dumps (loc
 
 Prefer `python3 tools/triage/decomp.py ADDR` over grepping decomp.c: it names calls (labels,
 class vtable roles, `get<Type>`), constants (`DAT_1401787d4 /* 0.05f */`), vtables and struct
-fields from `tools/triage/fields.tsv`, and collapses CheckPtr/array-append boilerplate
+fields from `labels/fields.tsv`, and collapses CheckPtr/array-append boilerplate
 (`--asm`, `--raw`, `--headless` when the bulk export lacks a function). `types.py class NAME`
 gives factory, size, constructor and every vtable slot with its lifecycle meaning; `types.py
 owner ADDR` says which class a function belongs to. Record new function labels in
-`tools/triage/names.tsv` and fields in `tools/triage/fields.tsv`.
+`labels/names.tsv` and fields in `labels/fields.tsv`.
 
 `tools/triage/fnindex.py` (see `tools/triage/README.md`) answers the routine questions fast:
 `info ADDR` (callers, callees, types, strings, traced?), `frontier ADDR --depth 2` (untraced

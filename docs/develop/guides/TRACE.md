@@ -48,8 +48,8 @@ python3 tools/triage/types.py class CitizenAIComponent  # a class: size, factory
 python3 tools/triage/types.py owner 0x1400be770         # which class this function belongs to
 ```
 
-When you identify a function or a field, add a line to `tools/triage/names.tsv` (functions) or
-`tools/triage/fields.tsv` (fields). Every tool then shows your name instead of `FUN_…` or
+When you identify a function or a field, add a line to `labels/names.tsv` (functions) or
+`labels/fields.tsv` (fields). Every tool then shows your name instead of `FUN_…` or
 `+0x44`. This helps everyone who reads the code after you.
 
 ## Step 2: find an entry point

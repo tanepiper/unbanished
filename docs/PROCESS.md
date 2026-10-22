@@ -279,7 +279,7 @@ added. This is what we mean when we say the harness improved itself.
 |---|---|---|
 | Rules | The rule book every session reads first | [AGENTS.md](../AGENTS.md) |
 | Skills | Step-by-step guides, one for each kind of task | `.claude/skills/` |
-| Shared notes | Names for original functions and struct fields, used by every tool | `tools/triage/names.tsv`, `fields.tsv` |
+| Shared notes | Names for original functions and struct fields, used by every tool | `labels/names.tsv`, `labels/fields.tsv` |
 | Triage tools | Programs that answer "what does this function do?" and "what should we do next?" | `tools/triage/` |
 | Checks | Tests and comparisons that say yes or no without a human | `tools/emu/`, `tools/triage/`, `tools/compat/` |
 | Findings | What was learned, written down with evidence | `docs/` |

@@ -8,6 +8,9 @@
 *.str
 *.sav
 
+# The player's save games. Local only.
+/save-game/
+
 # Decompiler output reproduces the original program code. Local only.
 # Populate with tools/ghidra/export.sh.
 /analysis/
