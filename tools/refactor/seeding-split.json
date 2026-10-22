@@ -1,0 +1,12 @@
+{
+  "file": "crates/game/src/nature/seeding.rs",
+  "type": "Seeder",
+  "modules": {
+    "start": {"doc": "A new map's start: the start structures, the first seeding of trees, rocks and ore from Perlin noise, and registering what is placed.",
+      "methods": ["place_structures", "seed", "perlin", "construct", "position", "set_growth", "register", "density_ok"]},
+    "spawning": {"doc": "Spawning: where a child may grow, spawning one from a parent, planting, a template's spawn state, periodic and scheduled spawns, and removing an entity.",
+      "methods": ["spawn_spot_ok", "spawn", "spawn_child", "plant", "spawn_state", "periodic_spawn", "scheduled_spawn", "remove"]},
+    "growth": {"doc": "Growth: the iteration over scheduled entities, a scheduled growth step, smoothing and animation.",
+      "methods": ["iterate", "iterate_with", "scheduled_growth", "smooth", "animate"]}
+  }
+}
