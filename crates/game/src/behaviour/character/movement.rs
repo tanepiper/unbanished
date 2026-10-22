@@ -42,7 +42,9 @@ pub struct MoveTo {
 }
 
 impl MoveTo {
-    /// A `MoveTo` action.
+    /// A `MoveTo` action. A speed below 0 draws a factor of 1 ± 0.1; any other speed is kept.
+    ///
+    /// Measured: `tools/emu/move_speed.py` (the original on 2,000 speeds, NaN and −0 among them).
     ///
     /// Original: `FUN_1400ce640`.
     pub fn new(
@@ -60,10 +62,11 @@ impl MoveTo {
             walk,
             stand,
             mode,
-            speed: if speed >= 0.0 {
-                speed
-            } else {
+            // comiss + jbe at 0x1400ce746: a NaN keeps its value, like 0 or more.
+            speed: if speed < 0.0 {
                 rng.rand_float_tol() * 0.1 + 1.0
+            } else {
+                speed
             },
             following: false,
             pending: None,

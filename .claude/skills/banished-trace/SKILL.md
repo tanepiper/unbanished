@@ -128,5 +128,8 @@ in `analysis/`. Never paste pseudocode or disassembly into `docs/` or source.
   `:object` suffix (`Game/Toolbar.rsc:resource`). Normalise before comparing.
 - Several functions share boilerplate (allocator, string ctor); identify `FUN_` thunks to Runtime
   via `functions.tsv` (`RUNTIME-STEAM-X64.DLL::…`).
+- Ghidra writes `comiss` + `jbe` as `if (0.0 <= x)`, but `jbe` is also taken when `x` is NaN,
+  so the original keeps a NaN where that C would not. Port the branch the jump takes
+  (`if x < 0.0 { … } else { keep }`), as in `MoveTo::new` (`FUN_1400ce640`).
 - A trace of a code path is not proof it runs; find the caller chain up to a loop/vtable.
 - For large or subtle numeric logic, stop guessing and emulate (`banished-emulate`).

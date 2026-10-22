@@ -189,7 +189,7 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 ## `crates/game/src/behaviour/character/movement.rs`
 
-- [Deviation] [crates/game/src/behaviour/character/movement.rs:182](../crates/game/src/behaviour/character/movement.rs#L182): Deviation: a walk restored from a save plays its walk clip again and faces its next cell on its first update. The original restores the clip with the animation block (`AnimationManager::Serialize`, `FUN_18005d130`), which the port does not decode yet; without a walking clip the body has no root motion, never reaches the next cell, and the citizen stands still for good.
+- [Deviation] [crates/game/src/behaviour/character/movement.rs:185](../crates/game/src/behaviour/character/movement.rs#L185): Deviation: a walk restored from a save plays its walk clip again and faces its next cell on its first update. The original restores the clip with the animation block (`AnimationManager::Serialize`, `FUN_18005d130`), which the port does not decode yet; without a walking clip the body has no root motion, never reaches the next cell, and the citizen stands still for good.
 
 ## `crates/game/src/behaviour/character_tree.rs`
 
