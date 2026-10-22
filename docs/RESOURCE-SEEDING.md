@@ -142,7 +142,7 @@ The remaining steps:
   The yard has no model, so the Medium profile draws once (barn) and Easy draws seven times.
 
 The new descriptions parse completely across the shipped data
-(`crates/formats/tests/templates.rs`): `ComponentDescription`, `ModelDescription`,
+(`crates/formats/tests/templates/`): `ComponentDescription`, `ModelDescription`,
 `NaturalResourceDescription`, `GrowthDescription`, `SpawnDescription` and `MapDescription`.
 
 ## Port

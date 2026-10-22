@@ -96,7 +96,8 @@ removed.
 file may now pass 500 lines: the quick tier checks it with `tools/test/file_size.py`. The 86 files
 over 500 lines on 2026-10-22 are listed in `tools/test/large-files.txt`, the largest first. Each
 may only shrink, and its line goes when it is split. Gate for each split: compare.sh identical,
-and the same number of tests.
+and the same number of tests. On 2026-10-22 every listed file outside `apps/game` and `crates/game`
+was split below the limit.
 
 **5. A renderer crate.** Move the renderer (`apps/game/src/gfx`: pipelines, models, terrain,
 decals, shadows, particles) into `crates/gfx`, or into a new `unbanished-render`. The game keeps

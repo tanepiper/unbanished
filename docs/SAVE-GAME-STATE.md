@@ -4,7 +4,7 @@ This covers the second payload of a `.sav` file, the game state (see
 [SAVE-FORMAT-AND-RESTORE.md](SAVE-FORMAT-AND-RESTORE.md) for the container). The game loop writes
 it in one pass (`FUN_14009af60`). The port decodes every block of it in
 `crates/formats/src/savegame.rs`, with one schema per object type in
-`crates/formats/src/savegame_schema.rs`.
+`crates/formats/src/savegame_schema/`.
 
 All eleven sample saves decode completely, including two from a 2015 build. Each block is
 consumed exactly. `GameState::encode` writes the state back. The result matches the original

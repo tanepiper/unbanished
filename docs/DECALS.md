@@ -25,7 +25,7 @@ The serializer writes, in order:
 | `+0x25` bool | Set only by `Clear`. |
 
 Thirty-three templates have one. `formats::game::decal_description` parses all of them, and
-`crates/formats/tests/templates.rs` checks this.
+`crates/formats/tests/templates/` checks this.
 
 ## DecalComponent (vtable `0x140169400`, 0x38 bytes)
 

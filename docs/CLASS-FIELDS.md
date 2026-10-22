@@ -12,7 +12,7 @@ unless the row says *inferred*. The decompile tools (`tools/triage/decomp.py`,
    vtable. Slot `+0x18` is the serializer.
 2. The serializer gives each saved field with its type (`int`, `float`, `bool`, `System::Time`, a
    pointer checked with `IsDerivedFrom`, or a description reference). The save format in
-   `crates/formats/src/savegame_schema.rs` gives the same fields in the same order.
+   `crates/formats/src/savegame_schema/` gives the same fields in the same order.
 3. The constructor gives the fields that are not saved, and the starting values.
 4. `decomp_query.py layout` over the class's methods gives the remaining offsets and their sizes.
    The Rust structs that port each class, and the functions they cite, give names.
@@ -70,7 +70,7 @@ There is no single Building class. The Entity rows come from
 | CitizenComponent | `+0x240` family slot | The constructor does not write it | `newborn` sets -1 | Open question below |
 | CitizenComponent | `+0x28` name, `+0x40` lifespan | Saved as a string and a float. `People::update` (`FUN_140118340`) reads the lifespan | `Citizen::name` and `Citizen::lifespan` say "Not identified yet" | Doc comments only |
 | BuildComponent | `+0x50` | Saved, and set to 0 by the constructor | Not ported (the save schema reads it as `flag_50`) | None known. No reader was found |
-| StorageComponent | `+0x38`, `+0x3c` | Capacity, then accepted flags (the activate slot `FUN_140131b10` writes both) | `Storage` agrees | The comment on the schema entry in `savegame_schema.rs` puts "capacity" at `+0x3c`. Comment only |
+| StorageComponent | `+0x38`, `+0x3c` | Capacity, then accepted flags (the activate slot `FUN_140131b10` writes both) | `Storage` agrees | The comment on the schema entry in `savegame_schema/` puts "capacity" at `+0x3c`. Comment only |
 | StateMachineComponent | `+0x52` pending | The constructor sets 0. Setup sets the first controller's starting state | `Machine::new` sets it from the first controller | None. The comment on `Machine` writes `+10` for `+0xa` |
 
 The CitizenComponent constructor sets the tool status (`+0xa8`) to -1 and the clothing status

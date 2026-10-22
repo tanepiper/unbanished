@@ -1,12 +1,2 @@
 # Rust files over 500 lines when tools/test/file_size.py came in, with their length
 # then. Each may shrink, never grow. Split them, and remove the line.
-920 crates/audio/src/device.rs
-838 crates/audio/src/scene.rs
-837 apps/viewer/src/render.rs
-829 crates/wma/src/decoder.rs
-758 crates/ui/tests/controls.rs
-655 crates/ui/src/input/pointer.rs
-650 crates/ui/src/document.rs
-549 apps/modmanager/src/app.rs
-521 apps/viewer/src/main.rs
-502 apps/viewer/src/tool.rs

@@ -15,7 +15,7 @@ draws. Port: `apps/game/src/gfx/status_icons.rs`, fed by `StartingTown::status_i
 | `+0x2c` | height offset, not serialized | always 1.0 |
 | `+0x30` | screen-constant size | 1 |
 
-All 31 shipped descriptions parse (`crates/formats/tests/templates.rs`).
+All 31 shipped descriptions parse (`crates/formats/tests/templates/`).
 
 ## Geometry
 

@@ -684,7 +684,7 @@
 1800e0ad0	device	crates/audio/src/device.rs
 1800e0d70	device_3	crates/audio/src/device.rs
 1800e0ff0	device_2	crates/audio/src/device.rs
-1800e1700	Scene::play_effect_3d	crates/audio/src/scene.rs
+1800e1700	Scene::play_effect_3d	crates/audio/src/scene/emitters.rs
 1800e17b0	Scene::play_effect	crates/audio/src/scene.rs
 1800e1f10	Scene::update	crates/audio/src/scene.rs
 1800e28a0	empty_audio_scene	crates/formats/src/savegame.rs
