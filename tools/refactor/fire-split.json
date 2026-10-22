@@ -1,0 +1,8 @@
+{
+  "file": "crates/game/src/disasters/fire.rs",
+  "type": "Sim",
+  "modules": {
+    "fighting": {"doc": "Fighting a fire: finding water, the firefighter's work and the wells' bucket lines.",
+      "methods": ["water_search", "water_block", "fire_try", "fire_sequence", "well_join"]}
+  }
+}
