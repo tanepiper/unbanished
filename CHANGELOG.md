@@ -19,6 +19,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
   less, as in the original; this changes which random numbers later events get.
 - A sick citizen passes the disease to one healthy citizen nearby at each spread, as in the
   original, instead of to every healthy citizen in range. Epidemics now grow more slowly.
+- A citizen fetching food or firewood for home sets out with the same walking speeds as in the
+  original. The port chose the goods before it made the walks, so the random numbers came in
+  another order.
 
 ### Added
 

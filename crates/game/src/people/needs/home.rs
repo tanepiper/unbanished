@@ -181,6 +181,10 @@ impl Needs<'_, '_> {
             return false;
         };
         let target = self.point(home);
+        // `FUN_1400c4c60` builds the walks home and to the storage before any item is chosen, and
+        // each draws its speed: those two draws come before the items' draws.
+        let walk_home = MoveTo::new(target, 4, 0, WALKABLE, 0, -1.0, self.rng);
+        let walk_source = MoveTo::new(from, 1, 0, WALKABLE, 0, -1.0, self.rng);
         // As many units as the larger of the laborer's carry and the free carried capacity.
         let free = who.state.carried.capacity - who.state.carried.used(self.materials);
         let mut room = self.carry.max(free);
@@ -225,8 +229,7 @@ impl Needs<'_, '_> {
             },
         );
         stack.push(who.ch, who.group, perform(face_target, 6));
-        let walk = MoveTo::new(target, 4, 0, WALKABLE, 0, -1.0, self.rng);
-        stack.push(who.ch, who.group, Action::move_to(walk));
+        stack.push(who.ch, who.group, Action::move_to(walk_home));
         stack.push(who.ch, who.group, perform(face_source, 7));
         stack.push(who.ch, who.group, Action::ShowTool(-2));
         stack.push(
@@ -239,8 +242,7 @@ impl Needs<'_, '_> {
             },
         );
         stack.push(who.ch, who.group, perform(face_source, 6));
-        let walk = MoveTo::new(from, 1, 0, WALKABLE, 0, -1.0, self.rng);
-        stack.push(who.ch, who.group, Action::move_to(walk));
+        stack.push(who.ch, who.group, Action::move_to(walk_source));
         who.ch.stack = stack;
         who.state.health_events |= 4;
         who.state.job = -1;
