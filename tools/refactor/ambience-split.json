@@ -1,0 +1,7 @@
+{"file": "apps/game/src/audio/ambience.rs", "type": "Ambience",
+ "modules": {
+  "emitter": {"doc": "One ambient sound emitter and its slots: starting, moving, fading and stopping them.",
+   "items": ["Slot", "Emitter", "load_emitter", "empty_emitter"], "impls": ["impl Emitter {"]},
+  "entities": {"doc": "The sounds of entities: buildings, citizens and tornadoes.",
+   "methods": ["sync_entities", "follow_tornadoes", "drive_entities", "set_entity_slot", "start_entity_slot", "stop_entity_slot", "entity_emitters"]}
+ }}
