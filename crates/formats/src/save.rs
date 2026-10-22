@@ -1,6 +1,12 @@
 //! Banished save files (`.sav`): container, game-state stream, and the fields needed to check
 //! world generation. Layout notes are in docs/SAVE-FORMAT-AND-RESTORE.md.
 
+mod events;
+mod map;
+use events::{parse_event_block, skip_rest};
+pub use events::{SavedEvent, SavedEventLog};
+pub use map::{MapCell, MapCells, MapHeights};
+
 use crate::crs::{Reader, Writer};
 use crate::error::{format_err, Error, Result};
 use crate::stream;
@@ -138,95 +144,10 @@ pub struct LoopHeader {
     pub size_index: i32,
 }
 
-/// The map component's terrain grid.
-///
-/// Original: `FUN_1400b59a0`.
-#[derive(Debug, Clone)]
-pub struct MapHeights {
-    /// Samples per side (`2n + 1`).
-    pub width: usize,
-    /// The heights, row by row: height × 256.
-    pub heights: Vec<i16>,
-}
-
-/// One cell of the gameplay map, as a save stores it (the cell is 48 bytes in memory).
-///
-/// Original: `FUN_14001b570`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MapCell {
-    // +0x00; +0x08
-    /// Whether the two object pointers are set.
-    pub objects: [bool; 2],
-    // +0x10
-    /// External reference id at (`u32::MAX` when unset).
-    pub external: u32,
-    // +0x1c..+0x25
-    /// Bytes.
-    pub flags: [u8; 9],
-    // +0x26
-    /// Not identified yet.
-    pub value: u16,
-    // +0x29; +0x28..+0x2d
-    /// Bytes; `[1]` is the cell type.
-    pub bytes: [u8; 6],
-}
-
-impl MapCell {
-    /// The cell's type (see `unbanished_terrain::CellType`).
-    pub fn cell_type(&self) -> u8 {
-        self.bytes[1]
-    }
-}
-
-/// The gameplay map (serializer version 4): `size × size` cells covering the centre of the terrain
-/// (the terrain grid is twice as wide).
-///
-/// Original: `FUN_1400a45d0`.
-#[derive(Debug, Clone)]
-pub struct MapCells {
-    /// The number of cells on each side.
-    pub size: usize,
-    /// The cells, row by row.
-    pub cells: Vec<MapCell>,
-    // +0x90
-    /// The nine values that end the map block.
-    pub trailer: [i16; 9],
-}
-
 fn u32_at(b: &[u8], at: usize) -> Result<u32> {
     b.get(at..at + 4)
         .map(|s| u32::from_le_bytes(s.try_into().unwrap()))
         .ok_or(Error::Truncated { at, wanted: 4 })
-}
-
-// Game +0x138
-/// One saved event-log entry (`Game`, 0x28 bytes in memory).
-#[derive(Debug, Clone, PartialEq)]
-pub struct SavedEvent {
-    /// The colour of the entry, `0xAARRGGBB`.
-    pub color: u32,
-    /// The text.
-    pub text: String,
-    /// The kind of event.
-    pub kind: i32,
-    /// How serious the event is.
-    pub severity: i32,
-    /// The map cell it happened at (-1 for none).
-    pub cell: i32,
-    /// The category the log filters by.
-    pub category: i32,
-    /// The icon.
-    pub icon: i32,
-}
-
-// +0x10..+0x15
-/// The event log block: six notify flags, then the entries.
-#[derive(Debug, Clone)]
-pub struct SavedEventLog {
-    /// Which categories show a notification.
-    pub notify: [bool; 6],
-    /// The entries, oldest first.
-    pub entries: Vec<SavedEvent>,
 }
 
 impl Save {
@@ -463,69 +384,4 @@ impl Save {
             trailer,
         })
     }
-}
-
-fn skip_rest(r: &mut Reader) {
-    let rest = r.remaining();
-    let _ = r.bytes(rest);
-}
-
-fn parse_event_block(b: &[u8]) -> Option<SavedEventLog> {
-    let u32_at = |o: usize| {
-        b.get(o..o + 4)
-            .map(|s| u32::from_le_bytes(s.try_into().unwrap()))
-    };
-    // `aaaaaaaa | size | body | bbbbbbbb`; the body starts with the version.
-    let size = u32_at(4)? as usize;
-    if size < 14 || u32_at(8 + size)? != 0xbbbb_bbbb || u32_at(8)? != 1 {
-        return None;
-    }
-    let body = &b[8..8 + size];
-    if body[4..10].iter().any(|&v| v > 1) {
-        return None;
-    }
-    let notify: [bool; 6] = std::array::from_fn(|i| body[4 + i] == 1);
-    let mut o = 10;
-    let rd = |o: &mut usize| -> Option<u32> {
-        let v = body.get(*o..*o + 4)?;
-        *o += 4;
-        Some(u32::from_le_bytes(v.try_into().unwrap()))
-    };
-    let count = rd(&mut o)? as usize;
-    if count > 100_000 {
-        return None;
-    }
-    let mut entries = Vec::with_capacity(count);
-    for _ in 0..count {
-        let color = rd(&mut o)?;
-        let len = rd(&mut o)?;
-        // The length counts the terminating NUL; without the 8-bit flag the text is UTF-16
-        // (2015 builds).
-        let text = if len & 0x8000_0000 != 0 {
-            let n = (len & 0x7fff_ffff) as usize;
-            let text = body.get(o..o + n.checked_sub(1)?)?;
-            o += n;
-            String::from_utf8_lossy(text).into_owned()
-        } else {
-            let n = len as usize;
-            let units: Vec<u16> = body
-                .get(o..o + 2 * n.checked_sub(1)?)?
-                .chunks_exact(2)
-                .map(|c| u16::from_le_bytes([c[0], c[1]]))
-                .collect();
-            o += 2 * n;
-            String::from_utf16_lossy(&units)
-        };
-        let mut i = || rd(&mut o).map(|v| v as i32);
-        entries.push(SavedEvent {
-            color,
-            text,
-            kind: i()?,
-            severity: i()?,
-            cell: i()?,
-            category: i()?,
-            icon: i()?,
-        });
-    }
-    (o == body.len()).then_some(SavedEventLog { notify, entries })
 }

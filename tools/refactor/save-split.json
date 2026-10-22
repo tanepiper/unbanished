@@ -1,0 +1,6 @@
+{"file": "crates/formats/src/save.rs", "type": "Save",
+ "modules": {
+  "map": {"doc": "The map blocks of a save: the heights and the cells.",
+    "items": ["MapHeights", "MapCell", "MapCells"], "impls": ["impl MapCell {"]},
+  "events": {"doc": "The event log of a save: its entries and the reader of its block.",
+    "items": ["SavedEvent", "SavedEventLog", "skip_rest", "parse_event_block"]}}}

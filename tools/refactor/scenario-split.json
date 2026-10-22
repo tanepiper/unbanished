@@ -1,0 +1,3 @@
+{"file": "crates/formats/src/scenario.rs", "type": "Scenario",
+ "modules": {"tutorial": {"doc": "Tutorials: their steps and the parts (text, images, goals) a step shows.",
+   "items": ["Tutorial", "TutorialStep", "TutorialPart", "ImageExtra", "tutorial_part"]}}}
