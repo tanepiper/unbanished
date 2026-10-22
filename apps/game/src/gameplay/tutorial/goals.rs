@@ -46,7 +46,9 @@ impl GameplayLoop {
                 })
             }
             // `FUN_1400e4620`.
-            Goal::Speed(s) => !self.paused && super::super::SPEED_LEVELS[self.speed as usize] as i32 == *s,
+            Goal::Speed(s) => {
+                !self.paused && super::super::SPEED_LEVELS[self.speed as usize] as i32 == *s
+            }
         }
     }
 

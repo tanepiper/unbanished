@@ -1,0 +1,8 @@
+{"file": "apps/game/src/gameplay/tutorial.rs", "type": "GameplayLoop",
+ "modules": {
+  "window": {"doc": "The tutorial window and the dialog elements a step's text and images point at.",
+   "methods": ["dialog_roots", "tutorial_element", "controller_elements", "open_tutorial_window", "image_element", "refresh_tutorial_ui"],
+   "items": ["is_image", "is_text", "find_kind"]},
+  "setup": {"doc": "A step's setup: entering, updating and leaving it, the locked controls and the closed dialogs.",
+   "methods": ["setup_enter", "setup_update", "setup_exit", "apply_locks", "close_dialogs"]}
+ }}
