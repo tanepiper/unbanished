@@ -148,6 +148,8 @@
 14005b530	Callback::TradeEnter2	crates/game/src/work/construction.rs
 14005b640	Sim::exchange_2	crates/game/src/commerce/trade/deals.rs
 14005bba0	Sim::trade_message_3	crates/game/src/commerce/trade/visits.rs
+14005bdb0	next_merchant	crates/game/src/commerce/trade/visits.rs
+14005be50	Sim::trade_row	crates/game/src/commerce/trade/visits.rs
 14005c960	Sim::toggle_trade_work	crates/game/src/commerce/trade/visits.rs
 14005cb80	Trade::new	crates/game/src/commerce/trade.rs
 14005cd90	trade	crates/game/src/commerce/trade.rs
@@ -205,6 +207,7 @@
 140098470	Climate	crates/game/src/nature/environment.rs
 1400987a0	Disease	crates/formats/src/game/people.rs
 1400988f0	SeasonValues	crates/game/src/nature/environment.rs
+140098ac0	Environment::next_weather	crates/game/src/nature/environment.rs
 140099160	Environment::restore	crates/game/src/nature/environment.rs
 140099300	Environment::new_2	crates/game/src/nature/environment.rs
 140099430	Environment::new	crates/game/src/nature/environment.rs

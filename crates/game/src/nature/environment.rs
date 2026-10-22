@@ -367,8 +367,12 @@ impl Environment {
         };
     }
 
-    /// `FUN_140098ac0`: at slices 0 and 24 reseed the noise and pick new annual targets, then
-    /// draw the weather state from the month's biased cutoffs.
+    /// At slices 0 and 24, reseed the noise and pick new annual targets. Then draw the weather
+    /// state from the month's biased cutoffs, and move the level up or down.
+    ///
+    /// Measured: `tools/emu/weather_pick.py` (the original on 2,000 cases).
+    ///
+    /// Original: `FUN_140098ac0`.
     fn next_weather(&mut self, slice: i32, rng: &mut Random) {
         if slice == 0 || slice == 24 {
             let first = rng.rand();

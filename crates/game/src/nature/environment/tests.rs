@@ -87,3 +87,74 @@ fn leaves_and_autumn() {
     env.update_season(300.0 * 8.0);
     assert_eq!(env.season.leaf_loss, 1.0);
 }
+
+/// The weather pick and yearly reseed against the original (`FUN_140098ac0` under the emulator,
+/// `tools/emu/weather_pick.py`). Skips when the ground truth has not been made.
+#[test]
+fn original_weather_pick() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../game-data/derived/emu/weather_pick/cases.tsv");
+    let Ok(data) = std::fs::read_to_string(path) else {
+        eprintln!("weather pick ground truth missing; skipping");
+        return;
+    };
+    let (mut count, mut reseeded) = (0, 0);
+    for line in data.lines().skip(1) {
+        let p: Vec<&str> = line.split('\t').collect();
+        let f = |i: usize| p[i].parse::<f32>().unwrap();
+        let u = |i: usize| p[i].parse::<u32>().unwrap();
+        let cuts: Vec<f32> = p[7].split(',').map(|m| m.parse().unwrap()).collect();
+        let mut months = [[0.0; 4]; 12];
+        for (m, row) in months.iter_mut().enumerate() {
+            row.copy_from_slice(&cuts[m * 4..m * 4 + 4]);
+        }
+        let mut env = Environment::new(Climate {
+            baseline: f(4),
+            baseline_range: f(5),
+            bias_range: f(6),
+            months,
+            ..fair()
+        });
+        env.level = p[2].parse().unwrap();
+        env.bias = f(3);
+        env.baseline_target = -1.0;
+        env.bias_target = -1.0;
+        let before = env.noise;
+        let mut rng = Random::new(u(0));
+        let slice = weather_slice(crate::scheduler::seconds(p[1].parse().unwrap()));
+        env.next_weather(slice, &mut rng);
+        assert_eq!(
+            env.state,
+            p[8].parse::<i32>().unwrap(),
+            "case {count}: state"
+        );
+        assert_eq!(
+            env.level,
+            p[9].parse::<i32>().unwrap(),
+            "case {count}: level"
+        );
+        assert_eq!(
+            env.baseline_target.to_bits(),
+            u(10),
+            "case {count}: baseline"
+        );
+        assert_eq!(env.bias_target.to_bits(), u(11), "case {count}: bias");
+        if p[12] != "ee".repeat(16) {
+            let n = env.noise;
+            let mine: Vec<u8> = [n.persistence.to_bits(), n.octaves.to_bits()]
+                .into_iter()
+                .chain([n.seed_x as u32, n.seed_y as u32])
+                .flat_map(u32::to_le_bytes)
+                .collect();
+            let hex: String = mine.iter().map(|b| format!("{b:02x}")).collect();
+            assert_eq!(hex, p[12], "case {count}: noise");
+            reseeded += 1;
+        } else {
+            assert_eq!(env.noise, before, "case {count}: noise kept");
+        }
+        assert_eq!(rng.rand(), u(13), "case {count}: draws");
+        count += 1;
+    }
+    assert!(count > 0);
+    eprintln!("{count} weather picks match the original ({reseeded} reseeded)");
+}
