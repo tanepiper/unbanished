@@ -1,89 +1,238 @@
-# Known struct fields of original classes: class, offset (hex), name, pointee class (optional).
-# decomp.py names `param_1 + off` in the class's methods and follows one level of typed pointers.
-# Add a row whenever a field is identified; cite the evidence in docs/.
-CitizenAIComponent	0x10	entity
-CitizenAIComponent	0x28	current_activity
-CitizenAIComponent	0x2c	queued_activity
-CitizenAIComponent	0x30	urgent_eating
-CitizenAIComponent	0x31	urgent_warming
-CitizenAIComponent	0x38	citizen	CitizenComponent
-CitizenAIComponent	0x40	cooldown[0]
-CitizenAIComponent	0x48	cooldown[1]
-CitizenAIComponent	0x50	cooldown[2]
-CitizenAIComponent	0x58	cooldown[3]
-CitizenAIComponent	0x60	cooldown[4]
-CitizenAIComponent	0x68	cooldown[5]
-CitizenAIComponent	0x70	cooldown[6]
-CitizenAIComponent	0x78	cooldown[7]
-CitizenAIComponent	0x80	cooldown[8]
-CitizenAIComponent	0x88	cooldown[9]
-CitizenAIComponent	0x90	cooldown[10]
-CitizenAIComponent	0x98	cooldown[11]
-CitizenAIComponent	0xa0	cooldown[12]
-CitizenAIComponent	0xa8	cooldown[13]
-CitizenAIComponent	0xb0	cooldown[14]
-CitizenAIComponent	0xb8	cooldown[15]
-CitizenAIComponent	0xc0	since_loiter
-CitizenAIComponent	0xc8	carrying_time
-CitizenComponent	0x10	entity
-CitizenComponent	0x28	name
-CitizenComponent	0x34	appearance
-CitizenComponent	0x38	sex
-CitizenComponent	0x3c	age
-CitizenComponent	0x40	death_age
-CitizenComponent	0x44	hunger
-CitizenComponent	0x48	cold
-CitizenComponent	0x4c	reproduction_timer
-CitizenComponent	0x50	health
-CitizenComponent	0x54	health_events
-CitizenComponent	0x58	health_timer
-CitizenComponent	0x68	disease
-CitizenComponent	0x70	disease_duration
-CitizenComponent	0x78	disease_spread_timer
-CitizenComponent	0x80	happiness
-CitizenComponent	0x88	state_flags
-CitizenComponent	0x90	happiness_timer
-CitizenComponent	0x98	foods_eaten
-CitizenComponent	0xac	tool_uses
-CitizenComponent	0xb0	supply_errand
-CitizenComponent	0x1e0	clothing
-CitizenComponent	0x1e4	insulation
-CitizenComponent	0x1e8	clothing_timer
-CitizenComponent	0x208	school
-CitizenComponent	0x210	education
-CitizenComponent	0x218	school_time
-CitizenComponent	0x220	school_accepted
-CitizenComponent	0x228	doctor
-CitizenComponent	0x230	priest
-CitizenComponent	0x238	home
-CitizenComponent	0x250	spouse	CitizenComponent
-CitizenComponent	0x278	character	CharacterComponent
-CitizenComponent	0x288	description	CitizenDescription
-CitizenDescription	0x44	adult_age
-CitizenDescription	0x74	health_low
-CitizenDescription	0xb4	happy_low
-CitizenDescription	0xb8	happy_unhappy
-CitizenDescription	0xbc	loiter_range
-CitizenDescription	0xc0	hunger_rate
-CitizenDescription	0xc8	hungry
-CitizenDescription	0xcc	hungry_urgent
-CitizenDescription	0xd0	hunger_max
-CitizenDescription	0xe8	cold
-CitizenDescription	0xec	cold_urgent
-CitizenDescription	0xf0	cold_max
-CitizenDescription	0xf4	warm_temperature
-CharacterComponent	0x10	entity
-CharacterComponent	0x28	flag_28
-CharacterComponent	0x2c	direction
-CharacterComponent	0x38	speed
-CharacterComponent	0x3c	target_heading
-CharacterComponent	0x40	registry_handle
-CharacterComponent	0x48	stack
-CharacterComponent	0x58	on_empty
-CharacterComponent	0x60	stack_top
-CharacterComponent	0x68	model	ModelComponent
-CharacterComponent	0x70	picking
-CharacterComponent	0x78	description	CharacterDescription
+# Fields of original classes: class, offset (hex), name, type, evidence.
+# Type is a class name for a pointer to that class (decomp.py follows one level of these), a
+# scalar (i8, u8, bool, i32, u32, f32, Time = System::Time in microseconds), String, an embedded
+# structure (MeshInstance, Vector3, Controller), or X[] for a pointer to an array of X whose count
+# is the next field. Component subclasses repeat the base rows, because decomp.py does not follow
+# inheritance. Evidence names the functions that read or write the field; *inferred* marks a guess.
+# Findings: docs/CLASS-FIELDS.md.
+Entity	0x10	manager	EntityManager	docs/ENTITY-COMPONENT-LIFECYCLE.md; entity constructor FUN_1400c8bf0; registration FUN_1400c9d70 writes it
+Entity	0x18	index	i32	docs/ENTITY-COMPONENT-LIFECYCLE.md; entity constructor FUN_1400c8bf0 (-1); FUN_1400c9d70 writes it; FUN_1400c8db0 swap-removes by it
+Entity	0x1c	bucket_index	u24	docs/ENTITY-COMPONENT-LIFECYCLE.md; entity constructor FUN_1400c8bf0 (0xffffff); FUN_1400c9d70
+Entity	0x1f	bucket	u8	FUN_1400c9d70 (from the template +0x20); the save reads it back
+Entity	0x20	last_update	Time	FUN_1400c9d70; the bucket loop takes manager_time minus it for slot +0x48
+Entity	0x28	template	ComponentDescription	docs/ENTITY-COMPONENT-LIFECYCLE.md; entity constructor FUN_1400c8bf0
+Entity	0x30	components	Component[]	docs/ENTITY-COMPONENT-LIFECYCLE.md; entity constructor FUN_1400c8bf0; FUN_1400c8b50 scans it by type id; StateMachineComponent::Setup FUN_140130b70
+Entity	0x38	component_count	i32	docs/ENTITY-COMPONENT-LIFECYCLE.md; entity constructor FUN_1400c8bf0; FUN_1400c8b50; FUN_140130b70
+Entity	0x40	capabilities	u32	FUN_1400c8940 (low 16 bits from the components); bit 0x400 is teardown (FUN_1400c8370, FUN_14011c880 tests it)
+Component	0x10	entity	Entity	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; IsDerivedFrom Entity check in FUN_14011de80
+Component	0x18	description	Description	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80 (FUN_140032670 on +0x18)
+Component	0x20	capabilities	u32	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; each subclass constructor ORs its slot bits in; FUN_1400c8940 merges them into Entity +0x40
+ControllerComponent	0x10	entity	Entity	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; IsDerivedFrom Entity check in FUN_14011de80
+ControllerComponent	0x18	description	Description	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80 (FUN_140032670 on +0x18)
+ControllerComponent	0x20	capabilities	u32	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; each subclass constructor ORs its slot bits in; FUN_1400c8940 merges them into Entity +0x40
+ControllerComponent	0x28	controller	Controller	subclass constructors (FUN_1401347b0, FUN_14012f770, FUN_14010e490, FUN_140123150, FUN_14011d470) (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain; ControllerComponent slot +0x88 returns it
+ControllerComponent	0x30	controller_prev	Controller	subclass constructors (FUN_1401347b0, FUN_14012f770, FUN_14010e490, FUN_140123150, FUN_14011d470) (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain (writes +0x8 of the next interface)
+ControllerComponent	0x38	controller_next	Controller	subclass constructors (FUN_1401347b0, FUN_14012f770, FUN_14010e490, FUN_140123150, FUN_14011d470) (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain (writes +0x10 of the previous interface)
+ControllerComponent	0x40	controller_owner	ControllerComponent	subclass constructors (FUN_1401347b0, FUN_14012f770, FUN_14010e490, FUN_140123150, FUN_14011d470) sets it to the component itself
+Controller	0x0	vtable	ptr	set by every ControllerComponent constructor (for example FUN_1401347b0) and StateMachineComponent FUN_140130f00
+Controller	0x8	prev	Controller	StateMachineComponent::Setup FUN_140130b70
+Controller	0x10	next	Controller	StateMachineComponent::Setup FUN_140130b70
+Controller	0x18	owner	ControllerComponent	ControllerComponent constructors write the component itself here (component +0x40)
+CitizenComponent	0x10	entity	Entity	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; IsDerivedFrom Entity check in FUN_14011de80
+CitizenComponent	0x18	description	Description	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80 (FUN_140032670 on +0x18)
+CitizenComponent	0x20	capabilities	u32	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; constructor FUN_140119c40 ORs its slot bits in; FUN_1400c8940 merges them into Entity +0x40
+CitizenComponent	0x28	name	String	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0x30	job	i32	serialize FUN_140119630; constructor FUN_140119c40 (-1)
+CitizenComponent	0x34	appearance	i32	serialize FUN_140119630 (last field); constructor FUN_140119c40
+CitizenComponent	0x38	sex	i32	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0x3c	age	f32	serialize FUN_140119630; constructor FUN_140119c40; People::update FUN_140118340; FUN_1401195c0 compares it with CitizenDescription +0x44
+CitizenComponent	0x40	lifespan	f32	serialize FUN_140119630; constructor FUN_140119c40; People::update FUN_140118340
+CitizenComponent	0x44	hunger	f32	serialize FUN_140119630; constructor FUN_140119c40; People::update FUN_140118340; CitizenAI::BuildCandidates FUN_140113170
+CitizenComponent	0x48	cold	f32	serialize FUN_140119630; constructor FUN_140119c40; People::update FUN_140118340; CitizenAI::BuildCandidates FUN_140113170
+CitizenComponent	0x4c	reproduction	f32	serialize FUN_140119630; constructor FUN_140119c40; People::update FUN_140118340
+CitizenComponent	0x50	health	f32	serialize FUN_140119630; setup FUN_140119520 (CitizenDescription +0x6c); People::update FUN_140118340
+CitizenComponent	0x54	health_events	u32	serialize FUN_140119630; constructor FUN_140119c40; People::update FUN_140118340
+CitizenComponent	0x58	health_timer	Time	serialize FUN_140119630; constructor FUN_140119c40; People::update FUN_140118340
+CitizenComponent	0x60	disease_clock	Time	serialize FUN_140119630; constructor FUN_140119c40; People::update FUN_140118340
+CitizenComponent	0x68	disease	Disease	serialize FUN_140119630 (FUN_1400310f0); constructor FUN_140119c40; People::update FUN_140118340
+CitizenComponent	0x70	disease_left	Time	serialize FUN_140119630; constructor FUN_140119c40; People::update FUN_140118340 (illness left while sick, immunity left after)
+CitizenComponent	0x78	disease_spread_timer	Time	serialize FUN_140119630; constructor FUN_140119c40; People::update FUN_140118340
+CitizenComponent	0x80	happiness	f32	serialize FUN_140119630; setup FUN_140119520 (CitizenDescription +0xa4); happiness step FUN_140117fb0
+CitizenComponent	0x84	work_for_happiness	i32	happiness step FUN_140117fb0 reads it against _workForHappiness; no store found in the Application, so it stays 0 (*inferred* name)
+CitizenComponent	0x88	state_flags	u32	serialize FUN_140119630; constructor FUN_140119c40; People::update FUN_140118340; FUN_140116c70 (0x400 educated)
+CitizenComponent	0x90	happiness_timer	Time	serialize FUN_140119630; constructor FUN_140119c40; People::update FUN_140118340
+CitizenComponent	0x98	foods_eaten	i32[]	serialize FUN_140119630 (FUN_140001bb0); constructor FUN_140119c40
+CitizenComponent	0xa0	foods_eaten_count	i32	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0xa8	tool_status	i32	serialize FUN_140119630 (from version 1); constructor FUN_140119c40 (-1); CitizenState::message_2 FUN_1401152b0
+CitizenComponent	0xac	tool_uses	i32	serialize FUN_140119630; constructor FUN_140119c40; CitizenState::message_2 FUN_1401152b0
+CitizenComponent	0xb0	supply_errand	u32	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0xb8	tool_mesh	MeshInstance	constructor FUN_140119c40 (Graphics::MeshInstance constructor); hide tool FUN_14011cbb0 detaches it
+CitizenComponent	0x1d8	shown_tool	i32	serialize FUN_140119630; constructor FUN_140119c40 (-1); show tool FUN_14011c880 writes it; hide tool FUN_14011cbb0 (-1); activate FUN_1401195c0
+CitizenComponent	0x1dc	tool_scene_handle	i32	constructor FUN_140119c40 (-1); show tool FUN_14011c880; hide tool FUN_14011cbb0 (Graphics::Scene::RemoveObject)
+CitizenComponent	0x1e0	clothing_status	i32	serialize FUN_140119630 (from version 2); constructor FUN_140119c40 (4); CitizenState::message FUN_140117730
+CitizenComponent	0x1e4	clothing	i32	serialize FUN_140119630; constructor FUN_140119c40; CitizenState::message FUN_140117730; People::update FUN_140118340 (warmth)
+CitizenComponent	0x1e8	clothing_timer	Time	serialize FUN_140119630; constructor FUN_140119c40; CitizenState::message FUN_140117730
+CitizenComponent	0x1f0	profession	ProfessionDescription	serialize FUN_140119630 (FUN_140018a30); constructor FUN_140119c40; Workforce::find_workplace_3 FUN_140115450 (reads ProfessionDescription +0x4c)
+CitizenComponent	0x1f8	accident	ProfessionDescription	serialize FUN_140119630 (FUN_140018a30); constructor FUN_140119c40; Citizen::InjuryCheck FUN_14011bb20 (*inferred* type)
+CitizenComponent	0x200	accident_timer	Time	constructor FUN_140119c40; Citizen::InjuryCheck FUN_14011bb20; not saved
+CitizenComponent	0x208	school	AttendanceComponent	serialize FUN_140119630; constructor FUN_140119c40; FUN_1401195c0
+CitizenComponent	0x210	education	i32	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0x218	school_time	Time	serialize FUN_140119630 (from version 3); constructor FUN_140119c40
+CitizenComponent	0x220	school_accepted	bool	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0x228	doctor	AttendanceComponent	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0x230	priest	AttendanceComponent	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0x238	home	Entity	serialize FUN_140119630; constructor FUN_140119c40; Citizen::HomeHasFood FUN_14011abb0
+CitizenComponent	0x240	home_slot	i32	serialize FUN_140119630; the constructor does not set it
+CitizenComponent	0x248	workplace	Entity	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0x250	spouse	CitizenComponent	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0x258	guardian	CitizenComponent	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0x260	dependents_head	CitizenComponent	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0x268	dependents_next	CitizenComponent	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0x270	dependents_prev	CitizenComponent	serialize FUN_140119630; constructor FUN_140119c40
+CitizenComponent	0x278	character	CharacterComponent	serialize FUN_140119630; setup FUN_140119520; show tool FUN_14011c880
+CitizenComponent	0x280	status_icon	StatusIconComponent	serialize FUN_140119630; setup FUN_140119520
+CitizenComponent	0x288	description	CitizenDescription	serialize FUN_140119630 (FUN_1400312f0); setup FUN_140119520; FUN_1401195c0
+CitizenAIComponent	0x10	entity	Entity	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; IsDerivedFrom Entity check in FUN_14011de80
+CitizenAIComponent	0x18	description	Description	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80 (FUN_140032670 on +0x18)
+CitizenAIComponent	0x20	capabilities	u32	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; constructor FUN_140115040 ORs its slot bits in; FUN_1400c8940 merges them into Entity +0x40
+CitizenAIComponent	0x28	current_activity	i32	serialize FUN_140114e30 (from version 2); CitizenAi::tick FUN_1401148b0; CitizenAI::Choose FUN_140113060
+CitizenAIComponent	0x2c	queued_activity	i32	serialize FUN_140114e30; constructor FUN_140115040 (-1); CitizenAI::Choose FUN_140113060
+CitizenAIComponent	0x30	urgent_eating	bool	serialize FUN_140114e30 (from version 1); CitizenAi::tick FUN_1401148b0
+CitizenAIComponent	0x31	urgent_warming	bool	serialize FUN_140114e30 (from version 1); CitizenAi::tick FUN_1401148b0
+CitizenAIComponent	0x38	citizen	CitizenComponent	serialize FUN_140114e30; setup FUN_140114df0
+CitizenAIComponent	0x40	cooldown[0]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0x48	cooldown[1]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0x50	cooldown[2]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0x58	cooldown[3]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0x60	cooldown[4]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0x68	cooldown[5]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0x70	cooldown[6]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0x78	cooldown[7]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0x80	cooldown[8]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0x88	cooldown[9]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0x90	cooldown[10]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0x98	cooldown[11]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0xa0	cooldown[12]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0xa8	cooldown[13]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0xb0	cooldown[14]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0xb8	cooldown[15]	Time	serialize FUN_140114e30 (a loop: 14 before version 5, 16 after); CitizenAI::Dispatch FUN_1401146c0 (indexed by activity)
+CitizenAIComponent	0xc0	since_loiter	Time	serialize FUN_140114e30 (from version 3); constructor FUN_140115040; Activity::Loiter FUN_14010fa30
+CitizenAIComponent	0xc8	carrying_time	Time	serialize FUN_140114e30 (from version 4); constructor FUN_140115040
+CharacterComponent	0x10	entity	Entity	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; IsDerivedFrom Entity check in FUN_14011de80
+CharacterComponent	0x18	description	Description	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80 (FUN_140032670 on +0x18)
+CharacterComponent	0x20	capabilities	u32	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; constructor FUN_14010f1f0 ORs its slot bits in; FUN_1400c8940 merges them into Entity +0x40
+CharacterComponent	0x28	flag_28	bool	serialize FUN_14010ef80
+CharacterComponent	0x2c	direction	Vector3	serialize FUN_14010ef80; constructor FUN_14010f1f0
+CharacterComponent	0x38	speed	f32	serialize FUN_14010ef80; constructor FUN_14010f1f0
+CharacterComponent	0x3c	target_heading	f32	serialize FUN_14010ef80; Character::Face FUN_14010f530
+CharacterComponent	0x40	registry_handle	u32	serialize FUN_14010ef80 (re-registered on load through FUN_140018e00)
+CharacterComponent	0x48	stack	Action[]	serialize FUN_14010ef80; constructor FUN_14010f1f0
+CharacterComponent	0x50	stack_count	i32	serialize FUN_14010ef80; constructor FUN_14010f1f0
+CharacterComponent	0x58	on_empty	Action	serialize FUN_14010ef80; constructor FUN_14010f1f0
+CharacterComponent	0x60	stack_top	i32	serialize FUN_14010ef80; constructor FUN_14010f1f0
+CharacterComponent	0x68	model	ModelComponent	serialize FUN_14010ef80; Character::PlayClip FUN_14010f6c0
+CharacterComponent	0x70	picking	PickingComponent	serialize FUN_14010ef80
+CharacterComponent	0x78	description	CharacterDescription	serialize FUN_14010ef80 (on load, from the component description)
+CitizenDescription	0x44	adult_age	f32	serializer FUN_140119dd0; CitizenComponent activate FUN_1401195c0; People::update FUN_140118340
+CitizenDescription	0x6c	start_health	f32	serializer FUN_140119dd0; CitizenComponent setup FUN_140119520
+CitizenDescription	0x74	health_low	f32	serializer FUN_140119dd0; CitizenAI::BuildCandidates FUN_140113170
+CitizenDescription	0xa4	start_happiness	f32	serializer FUN_140119dd0; CitizenComponent setup FUN_140119520
+CitizenDescription	0xb4	happy_low	f32	serializer FUN_140119dd0; CitizenAI::BuildCandidates FUN_140113170
+CitizenDescription	0xb8	happy_unhappy	f32	serializer FUN_140119dd0; CitizenAI::BuildCandidates FUN_140113170
+CitizenDescription	0xbc	loiter_range	i32	serializer FUN_140119dd0; Activity::Loiter FUN_14010fa30
+CitizenDescription	0xc0	hunger_rate	f32	serializer FUN_140119dd0; People::update FUN_140118340
+CitizenDescription	0xc8	hungry	f32	serializer FUN_140119dd0; CitizenAI::BuildCandidates FUN_140113170
+CitizenDescription	0xcc	hungry_urgent	f32	serializer FUN_140119dd0; CitizenAI::BuildCandidates FUN_140113170; Activity::Eat FUN_140112250; People::update FUN_140118340
+CitizenDescription	0xd0	hunger_max	f32	serializer FUN_140119dd0; People::update FUN_140118340
+CitizenDescription	0xe8	cold	f32	serializer FUN_140119dd0; CitizenAI::BuildCandidates FUN_140113170
+CitizenDescription	0xec	cold_urgent	f32	serializer FUN_140119dd0; CitizenAI::BuildCandidates FUN_140113170; Activity::Warm FUN_140112790; People::update FUN_140118340
+CitizenDescription	0xf0	cold_max	f32	serializer FUN_140119dd0; People::update FUN_140118340
+CitizenDescription	0xf4	warm_temperature	f32	serializer FUN_140119dd0; People::update FUN_140118340
+StorageComponent	0x10	entity	Entity	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; IsDerivedFrom Entity check in FUN_14011de80
+StorageComponent	0x18	description	Description	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80 (FUN_140032670 on +0x18)
+StorageComponent	0x20	capabilities	u32	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; constructor FUN_140131da0 ORs its slot bits in; FUN_1400c8940 merges them into Entity +0x40
+StorageComponent	0x28	items	StorageItem[]	serialize FUN_140131c00; constructor FUN_140131da0; activate FUN_140131b10; Storage::used FUN_1401323e0; Storage::add FUN_1401324d0; Storage::remove FUN_140132620; Storage::reserve FUN_1400cb980
+StorageComponent	0x30	item_count	i32	serialize FUN_140131c00; Storage::used FUN_1401323e0; Storage::add FUN_1401324d0; Storage::remove FUN_140132620; Storage::unreserve FUN_1400cb300
+StorageComponent	0x34	item_capacity	i32	Storage::add FUN_1401324d0 and Storage::reserve FUN_1400cb980 write it when the array grows (*inferred*: the array's allocated size)
+StorageComponent	0x38	capacity	i32	serialize FUN_140131c00; activate FUN_140131b10 (StorageDescription +0x24, times the footprint area when +0x20 is set); Storage::fits FUN_140132250
+StorageComponent	0x3c	accepts	u32	serialize FUN_140131c00 (version 0 copies StorageDescription +0x28); activate FUN_140131b10; Storage::fits_2 FUN_140131a30 (against RawMaterial +0x5c)
+StorageItem	0x0	material	RawMaterialDescription	serialize FUN_140131c00 (FUN_140002340); Storage::used FUN_1401323e0
+StorageItem	0x8	count	i32	serialize FUN_140131c00; Storage::used FUN_1401323e0 (size times count)
+StorageItem	0xc	reserved	i32	serialize FUN_140131c00; Storage::reserve FUN_1400cb980; Storage::unreserve FUN_1400cb300
+StorageDescription	0x20	scale_by_area	bool	activate FUN_140131b10
+StorageDescription	0x21	starts_stocked	bool	activate FUN_140131b10 (fills the storage only when set; *inferred* name)
+StorageDescription	0x24	capacity	i32	activate FUN_140131b10
+StorageDescription	0x28	accepts	u32	activate FUN_140131b10; serialize FUN_140131c00 (version 0)
+StorageDescription	0x30	initial_items	StorageItem[]	activate FUN_140131b10 (16-byte entries: material, count)
+StorageDescription	0x38	initial_item_count	i32	activate FUN_140131b10
+WorkPlaceComponent	0x10	entity	Entity	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; IsDerivedFrom Entity check in FUN_14011de80
+WorkPlaceComponent	0x18	description	Description	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80 (FUN_140032670 on +0x18)
+WorkPlaceComponent	0x20	capabilities	u32	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; constructor FUN_1401347b0 ORs its slot bits in; FUN_1400c8940 merges them into Entity +0x40
+WorkPlaceComponent	0x28	controller	Controller	constructor FUN_1401347b0 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain; ControllerComponent slot +0x88 returns it
+WorkPlaceComponent	0x30	controller_prev	Controller	constructor FUN_1401347b0 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain (writes +0x8 of the next interface)
+WorkPlaceComponent	0x38	controller_next	Controller	constructor FUN_1401347b0 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain (writes +0x10 of the previous interface)
+WorkPlaceComponent	0x40	controller_owner	WorkPlaceComponent	constructor FUN_1401347b0 sets it to the component itself
+WorkPlaceComponent	0x48	profession	ProfessionDescription	serialize FUN_1401345f0 (FUN_140018a30; version 0 takes WorkPlaceDescription +0x20); constructor FUN_1401347b0
+WorkPlaceComponent	0x50	enabled	bool	serialize FUN_1401345f0; constructor FUN_1401347b0 (1)
+WorkPlaceComponent	0x58	workers	CitizenComponent[]	serialize FUN_1401345f0; constructor FUN_1401347b0
+WorkPlaceComponent	0x60	worker_count	i32	serialize FUN_1401345f0; constructor FUN_1401347b0
+ResidenceComponent	0x10	entity	Entity	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; IsDerivedFrom Entity check in FUN_14011de80
+ResidenceComponent	0x18	description	Description	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80 (FUN_140032670 on +0x18)
+ResidenceComponent	0x20	capabilities	u32	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; constructor FUN_14012f770 ORs its slot bits in; FUN_1400c8940 merges them into Entity +0x40
+ResidenceComponent	0x28	controller	Controller	constructor FUN_14012f770 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain; ControllerComponent slot +0x88 returns it
+ResidenceComponent	0x30	controller_prev	Controller	constructor FUN_14012f770 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain (writes +0x8 of the next interface)
+ResidenceComponent	0x38	controller_next	Controller	constructor FUN_14012f770 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain (writes +0x10 of the previous interface)
+ResidenceComponent	0x40	controller_owner	ResidenceComponent	constructor FUN_14012f770 sets it to the component itself
+ResidenceComponent	0x48	fuel_time	Time	serialize FUN_14012f640; constructor FUN_14012f770
+ResidenceComponent	0x50	families	Family[]	serialize FUN_14012f640 (FUN_1400385b0, 16-byte entries); constructor FUN_14012f770; Sim::residence_clear_storage FUN_14012ee40
+ResidenceComponent	0x58	family_count	i32	serialize FUN_14012f640; constructor FUN_14012f770; Sim::residence_clear_storage FUN_14012ee40
+Family	0x0	citizens	CitizenComponent[]	ResidenceComponent serialize FUN_1400385b0
+Family	0x8	count	i32	ResidenceComponent serialize FUN_1400385b0
+BuildComponent	0x10	entity	Entity	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; IsDerivedFrom Entity check in FUN_14011de80
+BuildComponent	0x18	description	Description	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80 (FUN_140032670 on +0x18)
+BuildComponent	0x20	capabilities	u32	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; constructor FUN_14010e490 ORs its slot bits in; FUN_1400c8940 merges them into Entity +0x40
+BuildComponent	0x28	controller	Controller	constructor FUN_14010e490 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain; ControllerComponent slot +0x88 returns it
+BuildComponent	0x30	controller_prev	Controller	constructor FUN_14010e490 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain (writes +0x8 of the next interface)
+BuildComponent	0x38	controller_next	Controller	constructor FUN_14010e490 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain (writes +0x10 of the previous interface)
+BuildComponent	0x40	controller_owner	BuildComponent	constructor FUN_14010e490 sets it to the component itself
+BuildComponent	0x48	progress	i32	BuildComponent::Serialize FUN_14010e250; constructor FUN_14010e490
+BuildComponent	0x4c	stages	i32	BuildComponent::Serialize FUN_14010e250; constructor FUN_14010e490 (1)
+BuildComponent	0x50	flag_50	bool	BuildComponent::Serialize FUN_14010e250; constructor FUN_14010e490
+BuildComponent	0x58	models	ModelComponent[]	BuildComponent::Serialize FUN_14010e250; constructor FUN_14010e490
+BuildComponent	0x60	model_count	i32	BuildComponent::Serialize FUN_14010e250; constructor FUN_14010e490
+BuildComponent	0x68	pickings	PickingComponent[]	BuildComponent::Serialize FUN_14010e250; constructor FUN_14010e490
+BuildComponent	0x70	picking_count	i32	BuildComponent::Serialize FUN_14010e250; constructor FUN_14010e490
+WorkComponent	0x10	entity	Entity	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; IsDerivedFrom Entity check in FUN_14011de80
+WorkComponent	0x18	description	Description	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80 (FUN_140032670 on +0x18)
+WorkComponent	0x20	capabilities	u32	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; constructor FUN_140133cf0 ORs its slot bits in; FUN_1400c8940 merges them into Entity +0x40
+WorkComponent	0x28	work_id	i32	serialize FUN_140133be0; constructor FUN_140133cf0 (-1)
+WorkComponent	0x2c	kept_priority	i32	serialize FUN_140133be0 (from version 2); constructor FUN_140133cf0 (0x80000000, none)
+WorkComponent	0x30	max_workers	i32	serialize FUN_140133be0 (from version 1); constructor FUN_140133cf0 (0)
+StateMachineComponent	0x10	entity	Entity	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; IsDerivedFrom Entity check in FUN_14011de80
+StateMachineComponent	0x18	description	Description	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80 (FUN_140032670 on +0x18)
+StateMachineComponent	0x20	capabilities	u32	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; constructor FUN_140130f00 ORs its slot bits in; FUN_1400c8940 merges them into Entity +0x40
+StateMachineComponent	0x28	controller	Controller	constructor FUN_140130f00; StateMachineComponent::Setup FUN_140130b70 (head of the chain)
+StateMachineComponent	0x30	controller_prev	Controller	constructor FUN_140130f00
+StateMachineComponent	0x38	controller_next	Controller	constructor FUN_140130f00; FUN_140130b70
+StateMachineComponent	0x40	controller_owner	StateMachineComponent	constructor FUN_140130f00
+StateMachineComponent	0x48	current	Controller	constructor FUN_140130f00 (its own interface); StateMachine::Run FUN_1400aeb30 takes a pointer to this field
+StateMachineComponent	0x50	state	i8	serialize FUN_140130e10; constructor FUN_140130f00 (-1); StateMachine::Run FUN_1400aeb30 (as +0x8 of its argument)
+StateMachineComponent	0x51	state_index	i8	serialize FUN_140130e10; constructor FUN_140130f00 (-1); StateMachine::Run FUN_1400aeb30 (as +0x9)
+StateMachineComponent	0x52	pending	i8	serialize FUN_140130e10; constructor FUN_140130f00 (0); StateMachineComponent::Setup FUN_140130b70 (the first controller's initial state, slot +0x80); StateMachine::Run FUN_1400aeb30 (as +0xa)
+StateMachineComponent	0x53	transition	i8	serialize FUN_140130e10; constructor FUN_140130f00 (-1); StateMachine::Run FUN_1400aeb30 (as +0xb)
+DestroyComponent	0x10	entity	Entity	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; IsDerivedFrom Entity check in FUN_14011de80
+DestroyComponent	0x18	description	Description	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80 (FUN_140032670 on +0x18)
+DestroyComponent	0x20	capabilities	u32	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; constructor FUN_140123150 ORs its slot bits in; FUN_1400c8940 merges them into Entity +0x40
+DestroyComponent	0x28	controller	Controller	constructor FUN_140123150 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain; ControllerComponent slot +0x88 returns it
+DestroyComponent	0x30	controller_prev	Controller	constructor FUN_140123150 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain (writes +0x8 of the next interface)
+DestroyComponent	0x38	controller_next	Controller	constructor FUN_140123150 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain (writes +0x10 of the previous interface)
+DestroyComponent	0x40	controller_owner	DestroyComponent	constructor FUN_140123150 sets it to the component itself
+DestroyComponent	0x48	time	Time	serialize FUN_140123020; constructor FUN_140123150
+DestroyComponent	0x50	damaged	bool	serialize FUN_140123020; constructor FUN_140123150; DestroyComponent::IsDamaged FUN_140123b60
+DestroyComponent	0x51	refund	bool	serialize FUN_140123020; constructor FUN_140123150
+DestroyComponent	0x54	count	i32	serialize FUN_140123020; constructor FUN_140123150
+DestroyComponent	0x58	target	i32	serialize FUN_140123020; constructor FUN_140123150
+DestroyComponent	0x60	rebuild	ComponentDescription	serialize FUN_140123020 (FUN_140002340); constructor FUN_140123150
+ClearAreaComponent	0x10	entity	Entity	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; IsDerivedFrom Entity check in FUN_14011de80
+ClearAreaComponent	0x18	description	Description	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80 (FUN_140032670 on +0x18)
+ClearAreaComponent	0x20	capabilities	u32	Component::Serialize FUN_14011de80; Component constructor FUN_14011dd80; constructor FUN_14011d470 ORs its slot bits in; FUN_1400c8940 merges them into Entity +0x40
+ClearAreaComponent	0x28	controller	Controller	constructor FUN_14011d470 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain; ControllerComponent slot +0x88 returns it
+ClearAreaComponent	0x30	controller_prev	Controller	constructor FUN_14011d470 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain (writes +0x8 of the next interface)
+ClearAreaComponent	0x38	controller_next	Controller	constructor FUN_14011d470 (sets the interface vtable and the owner); StateMachineComponent::Setup FUN_140130b70 links the chain (writes +0x10 of the previous interface)
+ClearAreaComponent	0x40	controller_owner	ClearAreaComponent	constructor FUN_14011d470 sets it to the component itself
+ClearAreaComponent	0x48	clear_total	i32	serialize FUN_14011d390; constructor FUN_14011d470
+StatusIconComponent	0xf0	bits	u32	serialize FUN_1401314c0; constructor FUN_140131590
+# Other classes (rows kept from earlier traces; evidence in docs/).
 CharacterDescription	0x20	radius
 CharacterDescription	0x24	yaw_offset
 CharacterDescription	0x28	turn_keep
