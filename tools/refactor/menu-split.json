@@ -1,0 +1,11 @@
+{"file": "apps/game/src/menu.rs", "type": "MenuLoop",
+ "modules": {
+  "new_game": {"doc": "The new game dialog: its name, seed and description, and starting the game.",
+   "methods": ["open_new_game", "save_outcome", "new_town_name", "refresh_description", "new_seed", "close_new_game", "start_game"]},
+  "controls": {"doc": "Reading and setting the menu dialogs' text, combos and edits.",
+   "items": ["set_parameters", "combo_list", "combo_index", "select_combo", "edit_text"]},
+  "scene": {"doc": "Loading the main menu's background scene.",
+   "items": ["load_menu_scene"]},
+  "game_loop": {"doc": "The main menu as an engine loop: loading, updating and its events.",
+   "impls": ["impl GameLoop for MenuLoop {"]}
+ }}
