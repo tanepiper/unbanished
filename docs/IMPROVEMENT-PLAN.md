@@ -27,6 +27,10 @@ The update (commits `d255331` and `cbfb6cb`, report in
 1. **Citations that give no label.** 542 citations are in module notes or inside function bodies,
    so `cite_labels.py` cannot attach them to an item. Move each one onto the item that ports the
    function. Gate: the quick tier, and more labels in `names-from-port.tsv`.
+   *Done:* most of them were on struct fields, enum variants and constants, which the tool did
+   not read. It now reads them, and module notes name their module, ranked below every item.
+   531 of the 542 give a label; `names-from-port.tsv` went from 477 to 727 labels, and the traced
+   share of the Application's own code from 31.3 % to 37.9 %.
 2. **Fields of the main classes.** `labels/fields.tsv` is almost empty. Recover the fields of
    Citizen, Building and Storage with GameFrame's `decomp_query.py layout`, with evidence for each
    field. Gate: each row cites the functions that read or write the field.

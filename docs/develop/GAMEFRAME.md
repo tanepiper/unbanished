@@ -46,7 +46,7 @@ port's citations.
 |---|---|
 | Labels for every function the project has identified | `tools/triage/cite_labels.py` (from GameFrame) reads the port's ``Original: `FUN_…` `` citations and writes `labels/names-from-port.tsv`: 477 more labels, named after the Rust item that cites each function. The decompile tools read it after `labels/names.tsv`, so a label written by hand wins. Labelled code in the Application binary rose from 10.2 % to 28.2 % of all its code by size, 703 functions. The quick test tier regenerates the file and fails when it was out of date |
 | Library code apart from the game's code | `tools/triage/library.py` names the C runtime, the Steam stub and the unnamed exception funclets in `labels/library.tsv`, from Ghidra's Function ID matches and the link order: 292 functions in the Application and 682 in the Runtime ([LIBRARY-CODE.md](../LIBRARY-CODE.md)) |
-| One coverage figure | "Traced" means labelled, in `names.tsv` or `names-from-port.tsv`. `fnindex.py coverage` reports the traced share of the game's own code, with library code apart: 31.3 % of the Application's own code on 2026-10-22 ([CHECKLIST.md](../CHECKLIST.md), "Coverage"). The earlier 68 % counted every function named anywhere in the code or the docs, over all the code |
+| One coverage figure | "Traced" means labelled, in `names.tsv` or `names-from-port.tsv`. `fnindex.py coverage` reports the traced share of the game's own code, with library code apart: 37.9 % of the Application's own code on 2026-10-22 ([CHECKLIST.md](../CHECKLIST.md), "Coverage"). The earlier 68 % counted every function named anywhere in the code or the docs, over all the code |
 | Labels in `labels/` | `names.tsv`, `fields.tsv` and `names-from-port.tsv` moved from `tools/triage/` to `labels/`, where GameFrame's tools look. Every tool, skill and guide here was updated |
 | GameFrame's skills and agents | `.claude/settings.json` enables GameFrame's Claude Code plugin: its `re-*` skills and its 18 agents. The `banished-*` skills stay the first choice for this game ([AGENTS.md](../../AGENTS.md), "GameFrame") |
 | The gates | The plugin's hooks stop a commit or a written file that would add game material or decompiled code. The project's settings also refuse force-adding, `git add -A`, `git add .`, `git commit -a` and force-pushing, as AGENTS.md already required |
@@ -56,8 +56,7 @@ port's citations.
 
 The project's licences (Apache 2.0 and MIT) are its own choice and stay as they are; GameFrame's
 template offers Apache 2.0 and CC0 as defaults, which a project may change. The next
-improvements are in [CHECKLIST.md](../CHECKLIST.md), "Labels and evidence": moving the 542
-citations that are not on an item, and recovering the fields of the main classes.
+improvements are in [CHECKLIST.md](../CHECKLIST.md), "Labels and evidence".
 
 ## How to run GameFrame's tools here
 

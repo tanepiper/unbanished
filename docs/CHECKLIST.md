@@ -46,22 +46,23 @@ code or the docs without a label is reported as cited, and is not yet traced.
 
 | 2026-10-22 | Own code | Traced | Cited, no label | Library code | Exception funclets |
 |---|---|---|---|---|---|
-| Application | 4,487 functions, 1,165,653 bytes | **621 functions, 31.3 %** | 1,434 functions, 44.4 % | 292 functions, 64,545 bytes | 5,056 functions, 73,373 bytes |
-| Runtime | 6,858 functions, 968,747 bytes | **67 functions, 3.3 %** | 276 functions, 10.1 % | 682 functions, 144,503 bytes | 7,576 functions, 106,378 bytes |
+| Application | 4,487 functions, 1,165,653 bytes | **823 functions, 37.9 %** | 1,242 functions, 37.8 % | 292 functions, 64,545 bytes | 5,056 functions, 73,373 bytes |
+| Runtime | 6,858 functions, 968,747 bytes | **97 functions, 6.3 %** | 246 functions, 7.1 % | 682 functions, 144,503 bytes | 7,576 functions, 106,378 bytes |
 
 The Runtime's figure is low because the port cites most engine functions by their exported
 names (`System::Random`), which give no label.
 
 ## Labels and evidence
 
-- [x] Function labels from the port's citations: `labels/names-from-port.tsv`, 477 labels
-  (`tools/triage/cite_labels.py`)
+- [x] Function labels from the port's citations: `labels/names-from-port.tsv`, 727 labels
+  (`tools/triage/cite_labels.py`). Citations on struct fields, enum variants, constants and
+  module notes give labels too; a function's or a type's own name wins
 - [x] Library code named by signature: 292 functions in the Application and 682 in the Runtime,
   with evidence for each (`labels/library.tsv`, `tools/triage/library.py`,
   [LIBRARY-CODE.md](LIBRARY-CODE.md)). Ghidra's Function ID matched 197 and 456 of them
 - [x] One coverage figure from one tool (`fnindex.py coverage`, "Coverage" above)
-- [ ] Move the 542 citations that are not on an item (module notes, notes inside bodies) onto the
-  item that ports the function, so each one gives a label
+- [x] Citations that gave no label: 531 of the 542 now give one (fields, variants, constants and
+  module notes are read). 11 notes inside function bodies remain
 - [x] Fields of the main classes: the citizen (CitizenComponent, CitizenAIComponent,
   CharacterComponent, CitizenDescription), the storage, the building components (WorkPlace,
   Residence, Build, Work, StateMachine, Destroy, ClearArea) and the Entity, Component and

@@ -15,8 +15,10 @@ struct, an enum or a class, in Rust, C, C++, Python, JavaScript or TypeScript.
 
 - When one item cites several functions, the first gets the item's name and the others get the
   name with _2, _3 and so on after it.
-- A citation that is not followed by an item (a module's comment, a note in a body) is counted and
-  left out.
+- A citation in a Rust module's note (`//!`) names the module (the file, or its folder for mod.rs,
+  lib.rs and main.rs). A function's or a type's name wins over a field's, a variant's or a
+  constant's, and any of them wins over a module's.
+- A citation that is not followed by an item (a note in a body) is counted and left out.
 - --existing names.tsv: addresses already labelled there by hand are left out, so a person's label
   always wins.
 - --out FILE writes the labels (address, label, evidence as file:line); without it they are printed.
@@ -45,31 +47,54 @@ ITEM = [
     re.compile(r'^\s*(?:static\s+|inline\s+|virtual\s+)*[A-Za-z_][\w:<>,\s\*&]*?\s+\**([A-Za-z_][\w:]*)\s*\([^;]*$'),
 ]
 IMPL = re.compile(r'^(\s*)impl(?:<[^>]*>)?\s+(?:[\w:<>]+\s+for\s+)?([A-Za-z_]\w*)')
+# Rust blocks whose members can carry a citation: a struct's fields, an enum's variants, a
+# module's or a trait's items.
+BLOCK = re.compile(r'^(\s*)(?:pub(?:\([^)]*\))?\s+)?(struct|enum|mod|trait|union)\s+([A-Za-z_]\w*)[^;]*\{\s*$')
+FIELD = re.compile(r'^\s*(?:pub(?:\([^)]*\))?\s+)?([a-z_]\w*)\s*:(?!:)')
+VARIANT = re.compile(r'^\s*([A-Z]\w*)\s*(?:[,({=]|$)')
+CONST = re.compile(r'^\s*(?:pub(?:\([^)]*\))?\s+)?(?:const|static)\s+(?:mut\s+)?([A-Za-z_]\w*)\s*:')
 
 
 def items(lines):
-    """For each line, the item it declares (or None), with Rust methods named Type::method."""
-    out, impls = [], []
+    """For each line, the item it declares (or None). Rust methods are named Type::method, struct
+    fields Type::field, enum variants Enum::Variant, constants in a block Block::NAME. Each name
+    comes with its rank: 0 for a function or a type, 1 for a field, a variant or a constant, which
+    only mention a function that something else ports."""
+    out, blocks = [], []  # blocks: (indent, name, kind)
     for line in lines:
-        m = IMPL.match(line)
-        if m:
-            impls.append((len(m.group(1)), m.group(2)))
-            out.append(None)
-            continue
         indent = len(line) - len(line.lstrip())
         if line.strip() and line.strip() != '}' and not COMMENT.match(line):
-            while impls and indent <= impls[-1][0]:
-                impls.pop()
-        name = None
+            while blocks and indent <= blocks[-1][0]:
+                blocks.pop()
+        m = IMPL.match(line)
+        if m:
+            blocks.append((len(m.group(1)), m.group(2), 'impl'))
+            out.append(None)
+            continue
+        name, rank = None, 1
+        inside = blocks[-1] if blocks and indent > blocks[-1][0] else None
         if not COMMENT.match(line):
-            for pat in ITEM:
-                m = pat.match(line)
-                if m:
-                    name = m.group(1)
-                    break
-        if name and impls and indent > impls[-1][0] and '::' not in name:
-            name = f'{impls[-1][1]}::{name}'
-        out.append(name)
+            if inside and inside[2] == 'struct':
+                m = FIELD.match(line)
+                name = m and m.group(1)
+            elif inside and inside[2] == 'enum':
+                m = VARIANT.match(line)
+                name = m and m.group(1)
+            if not name:
+                m = CONST.match(line)
+                name = m and m.group(1)
+            if not name:
+                for pat in ITEM:
+                    m = pat.match(line)
+                    if m:
+                        name, rank = m.group(1), 0
+                        break
+        if name and inside and '::' not in name:
+            name = f'{inside[1]}::{name}'
+        out.append((name, rank) if name else None)
+        m = BLOCK.match(line)
+        if m and not COMMENT.match(line):
+            blocks.append((len(m.group(1)), m.group(3), m.group(2)))
     return out
 
 
@@ -88,6 +113,8 @@ def scan(root, lines_too=True):
             except OSError:
                 continue
             names = items(lines)
+            stem = os.path.splitext(f)[0]
+            module = os.path.basename(base) if stem in ('mod', 'lib', 'main') else stem
             for i, line in enumerate(lines):
                 if not COMMENT.match(line):
                     continue
@@ -98,7 +125,12 @@ def scan(root, lines_too=True):
                 if not addrs:
                     continue
                 if line.lstrip().startswith('//!'):
-                    skipped += len(addrs)
+                    # A module's note: the module's name, last in rank (2), so that a function, a
+                    # type, a field or a variant citing the same address wins.
+                    rel = os.path.relpath(path, root)
+                    for k, addr in enumerate(addrs):
+                        labels.append((addr, 2, module if k == 0 else f'{module}_{k + 1}',
+                                       f'{rel}:{i + 1}' if lines_too else rel))
                     continue
                 name = None
                 for j in range(i + 1, min(i + 40, len(lines))):
@@ -110,9 +142,10 @@ def scan(root, lines_too=True):
                 if not name:
                     skipped += len(addrs)
                     continue
+                name, rank = name
                 rel = os.path.relpath(path, root)
                 for k, addr in enumerate(addrs):
-                    labels.append((addr, name if k == 0 else f'{name}_{k + 1}', f'{rel}:{i + 1}' if lines_too else rel))
+                    labels.append((addr, rank, name if k == 0 else f'{name}_{k + 1}', f'{rel}:{i + 1}' if lines_too else rel))
     return labels, skipped
 
 
@@ -127,7 +160,8 @@ def load(path):
 
 def render(labels, existing):
     seen, rows = set(), []
-    for addr, name, where in sorted(labels):
+    # Per address: a function's or a type's name first (rank 0), then the first name in order.
+    for addr, _, name, where in sorted(labels):
         if addr in existing or addr in seen:
             continue
         seen.add(addr)

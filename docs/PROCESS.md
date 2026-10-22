@@ -374,7 +374,7 @@ At the time of writing (19 October 2026):
 | | |
 |---|---|
 | Lines of Rust | about 130,000 |
-| Original functions traced (with a label, see [CHECKLIST.md](CHECKLIST.md), "Coverage") | 621 of the Application's 4,487 own functions on 22 October, 31.3 % of its own code by size. Another 44.4 % is named in the code or the docs without a label |
+| Original functions traced (with a label, see [CHECKLIST.md](CHECKLIST.md), "Coverage") | 823 of the Application's 4,487 own functions on 22 October, 37.9 % of its own code by size. Another 37.8 % is named in the code or the docs without a label |
 | Resource types identified | 170 of 170 |
 | Emulator scripts that capture ground truth | 32 |
 | Test files that compare with emulator results | 22 |
