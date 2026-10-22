@@ -1,0 +1,8 @@
+{
+  "file": "crates/game/src/behaviour/commute.rs",
+  "type": "Sim",
+  "modules": {
+    "jobs": {"doc": "Moving citizens to jobs nearer their homes: scoring a job and reassigning workers.",
+      "methods": ["job_score", "home_cell", "place_profession", "assign", "commute_jobs"]}
+  }
+}
