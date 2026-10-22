@@ -361,8 +361,17 @@ impl Character {
     }
 
     /// `Graphics::AnimationManager::Update`: advance the clip; the root delta moves the body.
-    pub fn animate(&mut self, group: &AnimationGroup, dt: f32) {
-        self.animation.update(group, ticks(dt));
+    /// Returns the event resources the newest clip fired (its sounds, for
+    /// [`AnimationSounds::fire`](crate::behaviour::sounds::AnimationSounds::fire)).
+    pub fn animate(&mut self, group: &AnimationGroup, dt: f32) -> Vec<String> {
+        let fired = self.animation.update(group, ticks(dt));
+        let Some(clip) = self.animation.clip().and_then(|c| group.clips.get(c)) else {
+            return Vec::new();
+        };
+        fired
+            .into_iter()
+            .filter_map(|i| clip.events.get(i)?.resource.clone())
+            .collect()
     }
 
     /// Root motion of the last animation step (`MeshInstance::RootAnimationOffset`).

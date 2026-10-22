@@ -32,6 +32,7 @@ impl StartingTown {
         unbanished_game::behaviour::animation::shared::update(unbanished_game::scheduler::ticks(
             dt,
         ));
+        self.agents.sounds.learn(&self.templates);
         // The wild animals' CharacterComponent (the bit-0x04 phase).
         self.agents.move_animals(
             &mut self.wildlife,

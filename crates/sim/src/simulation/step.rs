@@ -68,6 +68,7 @@ impl Simulation {
             for (entity, effect) in town.animation_events.drain(..) {
                 out.sounds.push((town.placed[entity].position, effect));
             }
+            out.sounds.append(&mut town.agents.sounds.fired);
             out.models_changed = changed;
         }
         // The tunnels' terraforming and the flattening under stamped footprints and roads, on

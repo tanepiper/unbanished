@@ -165,6 +165,13 @@ impl StartingTown {
         };
         town.resolve_piles(archive);
         town.schedule_citizens();
+        // The citizens' clips name their sound events through CitizenAnims, outside any template.
+        let groups: Vec<_> = town.citizen_anims.iter().flatten().cloned().collect();
+        super::templates::anim_audio_events(
+            archive,
+            groups.iter().map(|g| &**g),
+            &mut town.agents.sounds.events,
+        );
         // CitizenDescription `+0x20/+0x28/+0x30`: the teacher's, priest's and doctor's
         // professions.
         if let Some(d) = read(archive, &citizen_ref.replace(":resource", ":citizen"))

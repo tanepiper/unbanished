@@ -7,3 +7,4 @@ pub mod animation;
 pub mod character;
 pub mod character_tree;
 pub mod commute;
+pub mod sounds;

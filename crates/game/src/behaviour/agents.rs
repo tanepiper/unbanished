@@ -316,6 +316,8 @@ pub struct Agents {
     /// How far `Cells::sector_marks` has been taken in.
     marks_seen: usize,
     rules: CitizenRulesAi,
+    /// The sound events the citizens' and animals' clips fire.
+    pub sounds: crate::behaviour::sounds::AnimationSounds,
 }
 
 impl Agents {
@@ -375,6 +377,7 @@ impl Agents {
             types_seen: cells.types_revision,
             marks_seen: cells.sector_marks.len(),
             rules,
+            sounds: Default::default(),
         }
     }
 

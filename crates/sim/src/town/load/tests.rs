@@ -135,3 +135,50 @@ fn vanilla_saves_restore_their_placed_entities() {
         );
     }
 }
+
+/// The citizens' tools and the livestock make sounds from their clips' events, and each one
+/// fired draws from the game's random numbers (`FUN_14008d310`). A loaded town knows the
+/// citizens' events, and a minute of play fires some.
+#[test]
+fn characters_fire_their_animation_sounds() {
+    let Some(archive) = archive() else {
+        eprintln!("game data missing; skipping");
+        return;
+    };
+    let Ok(bytes) = std::fs::read(root().join("save-game/Goldfoothill.sav")) else {
+        eprintln!("Goldfoothill.sav missing; skipping");
+        return;
+    };
+    let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+    let world = crate::town::map::Map::from_save(&archive, &saved).unwrap();
+    let grid = world.heights.grid();
+    let mut town = StartingTown::from_save(&archive, &saved).unwrap();
+    let tools = town
+        .agents
+        .sounds
+        .events
+        .iter()
+        .filter(|(r, _, _)| r.starts_with("Audio\\Tool"))
+        .count();
+    assert!(
+        tools > 0,
+        "no tool sounds in {:?}",
+        town.agents.sounds.events
+    );
+    let mut rng = unbanished_game::random::Random::new(83);
+    let dt = 1.0 / 30.0;
+    let mut fired = 0;
+    for _ in 0..30 * 60 {
+        town.apply_commands(&grid, &mut rng);
+        town.iterate(&grid, &mut rng, dt, 50.0);
+        let stock = [(0, 0); 21];
+        town.update_citizens(&grid, &mut rng, dt, 50.0, stock);
+        fired += town.agents.sounds.fired.len();
+        town.agents.sounds.fired.clear();
+    }
+    assert!(fired > 0, "no character sound fired");
+    eprintln!(
+        "{} sound events ({tools} tools); {fired} character sounds in a minute",
+        town.agents.sounds.events.len()
+    );
+}

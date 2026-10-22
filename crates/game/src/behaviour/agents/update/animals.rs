@@ -65,7 +65,9 @@ impl Agents {
                 accident_timer: &mut accident_timer,
                 accident_odds: None,
             };
-            animal.character.animate(&group, dt);
+            let position = animal.character.position;
+            let fired = animal.character.animate(&group, dt);
+            self.sounds.fire(&fired, position, world.rng);
             animal.character.update(&mut world, &group, dt);
             let ch = &animal.character;
             wildlife
@@ -110,7 +112,9 @@ impl Agents {
                 accident_timer: &mut accident_timer,
                 accident_odds: None,
             };
-            boat.character.animate(&group, dt);
+            let position = boat.character.position;
+            let fired = boat.character.animate(&group, dt);
+            self.sounds.fire(&fired, position, world.rng);
             boat.character.update(&mut world, &group, dt);
             let ch = &boat.character;
             wildlife
@@ -155,7 +159,9 @@ impl Agents {
                 accident_timer: &mut accident_timer,
                 accident_odds: None,
             };
-            nomad.character.animate(&group, dt);
+            let position = nomad.character.position;
+            let fired = nomad.character.animate(&group, dt);
+            self.sounds.fire(&fired, position, world.rng);
             nomad.character.update(&mut world, &group, dt);
             let ch = &nomad.character;
             wildlife

@@ -75,6 +75,14 @@ fn gatherers_harvest_wild_food() {
             .count()
     };
     let wild_before = wild(&town);
+    // The wild plants at the start: gathering takes some of them (new ones keep growing, so the
+    // count alone can rise over a long run).
+    let first: Vec<usize> = (0..town.placed.len())
+        .filter(|&e| {
+            let p = &town.placed[e];
+            p.alive && !p.removal_requested && kinds.contains(&p.template)
+        })
+        .collect();
     let dt = 1.0 / 30.0;
     let (mut built_at, mut harvested_at, mut stored_at) = (None, None, None);
     let mut seen = std::collections::BTreeSet::new();
@@ -127,7 +135,12 @@ fn gatherers_harvest_wild_food() {
     assert!(harvested_at.is_some(), "nothing was gathered");
     assert!(auto > 0, "the AutoPickup recorded no pile");
     assert!(stored_at.is_some(), "no gathered pile was picked up");
-    assert!(wild(&town) < wild_before);
+    assert!(
+        first
+            .iter()
+            .any(|&e| !town.placed[e].alive || town.placed[e].removal_requested),
+        "no wild plant was gathered"
+    );
     assert_reservations_held(&town);
 }
 

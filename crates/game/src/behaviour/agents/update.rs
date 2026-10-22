@@ -62,7 +62,9 @@ impl Agents {
         let adult = self.adults(citizens);
         for (ch, group) in self.characters.iter_mut().zip(groups) {
             if let Some(g) = group {
-                ch.animate(g, dt);
+                let position = ch.position;
+                let fired = ch.animate(g, dt);
+                self.sounds.fire(&fired, position, env.rng);
             }
         }
         // The citizens' CharacterComponents in the characters' tree: the dead leave it

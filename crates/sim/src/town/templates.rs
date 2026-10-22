@@ -147,24 +147,8 @@ pub(super) fn load_template(
                         })
                         .collect();
                     // The AnimAudioEvents the clips reference.
-                    for group in t.animations.iter().flatten() {
-                        for clip in &group.clips {
-                            for event in &clip.events {
-                                let Some(r) = event.resource.as_deref() else {
-                                    continue;
-                                };
-                                if t.audio_events.iter().any(|(e, _, _)| e == r) {
-                                    continue;
-                                }
-                                if let Some(a) = read(archive, r).and_then(|b| {
-                                    unbanished_formats::audio::anim_audio_event(&b).ok()
-                                }) {
-                                    t.audio_events
-                                        .push((r.to_string(), a.effect, a.probability));
-                                }
-                            }
-                        }
-                    }
+                    let groups: Vec<_> = t.animations.iter().flatten().cloned().collect();
+                    anim_audio_events(archive, groups.iter().map(|g| &**g), &mut t.audio_events);
                 }
             }
             "naturalresource" => {
@@ -346,5 +330,31 @@ impl StartingTown {
         let t = load_template(archive, reference, &mut self.templates);
         self.resolve_piles(archive);
         t
+    }
+}
+
+/// The `AnimAudioEvent`s the groups' clips name, each once, added to `out`: the event resource,
+/// its SoundEffect and its probability.
+pub(super) fn anim_audio_events<'g>(
+    archive: &Archive,
+    groups: impl Iterator<Item = &'g unbanished_formats::types::AnimationGroup>,
+    out: &mut Vec<(String, Option<String>, f32)>,
+) {
+    for group in groups {
+        for clip in &group.clips {
+            for event in &clip.events {
+                let Some(r) = event.resource.as_deref() else {
+                    continue;
+                };
+                if out.iter().any(|(e, _, _)| e == r) {
+                    continue;
+                }
+                if let Some(a) = read(archive, r)
+                    .and_then(|b| unbanished_formats::audio::anim_audio_event(&b).ok())
+                {
+                    out.push((r.to_string(), a.effect, a.probability));
+                }
+            }
+        }
     }
 }
