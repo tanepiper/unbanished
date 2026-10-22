@@ -123,20 +123,27 @@ fn vanilla_saves_export_unchanged() {
 }
 
 /// A town run for a minute after loading, saved, and loaded again writes the same state:
-/// everything the simulation changed is written in a form the load reads back.
+/// everything the simulation changed is written in a form the load reads back. Save83 (116
+/// citizens) and Goldfoothill (565 citizens, fishing docks, markets, trade).
 #[test]
 fn a_simulated_town_reloads_as_saved() {
     let Some(archive) = archive() else {
         eprintln!("game data missing; skipping");
         return;
     };
-    let Ok(bytes) = std::fs::read(root().join("save-game").join("Save83.sav")) else {
-        return;
-    };
-    let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
-    let world = crate::town::map::Map::from_save(&archive, &saved).unwrap();
+    for name in ["Save83.sav", "Goldfoothill.sav"] {
+        let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
+            continue;
+        };
+        reloads_as_saved(&archive, name, &bytes);
+    }
+}
+
+fn reloads_as_saved(archive: &unbanished_formats::pkg::Archive, name: &str, bytes: &[u8]) {
+    let saved = crate::saved::SavedGame::parse(bytes).unwrap();
+    let world = crate::town::map::Map::from_save(archive, &saved).unwrap();
     let grid = world.heights.grid();
-    let mut town = crate::town::StartingTown::from_save(&archive, &saved).unwrap();
+    let mut town = crate::town::StartingTown::from_save(archive, &saved).unwrap();
     let mut rng = unbanished_game::random::Random::new(83);
     let dt = 1.0 / 30.0;
     for _ in 0..30 * 60 {
@@ -150,34 +157,39 @@ fn a_simulated_town_reloads_as_saved() {
             .step(unbanished_game::scheduler::ticks(dt));
     }
     let mut first = saved.state.clone();
-    town.export_into(&archive, &mut first);
+    town.export_into(archive, &mut first);
     // The minute changed the town: positions, needs, stacks, works.
     let changed = diff(&first, &floors_added(&saved));
     eprintln!(
-        "{} fields changed by simulating; {} objects ({} saved)",
+        "{name}: {} fields changed by simulating; {} objects ({} saved)",
         changed.len(),
         first.objects.len(),
         saved.state.objects.len()
     );
-    assert!(changed.len() > 100, "the simulation changed little");
+    assert!(changed.len() > 100, "{name}: the simulation changed little");
     let written = first.encode().unwrap();
     let reloaded =
         crate::saved::SavedGame::new(GameState::decode(&written).unwrap(), saved.metadata.clone());
-    let again = crate::town::StartingTown::from_save(&archive, &reloaded).unwrap();
+    let again = crate::town::StartingTown::from_save(archive, &reloaded).unwrap();
     assert_eq!(
         again.citizens.len(),
-        town.citizens.iter().filter(|c| c.alive).count()
+        town.citizens.iter().filter(|c| c.alive).count(),
+        "{name}"
     );
-    assert_eq!(again.wildlife.animals.len(), town.wildlife.animals.len());
+    assert_eq!(
+        again.wildlife.animals.len(),
+        town.wildlife.animals.len(),
+        "{name}"
+    );
     let mut second = reloaded.state.clone();
-    again.export_into(&archive, &mut second);
+    again.export_into(archive, &mut second);
     let lines = diff(&second, &floors_added(&reloaded));
     for line in lines.iter().take(20) {
-        eprintln!("{line}");
+        eprintln!("{name}: {line}");
     }
     assert!(
         lines.is_empty(),
-        "{} differences after reloading",
+        "{name}: {} differences after reloading",
         lines.len()
     );
 }
