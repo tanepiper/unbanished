@@ -1,0 +1,12 @@
+{
+  "file": "crates/formats/src/savegame.rs",
+  "type": "GameState",
+  "modules": {
+    "fields": {"doc": "An object's or block's values: the field list and its path lookups.",
+      "items": ["Value", "Fields"], "impls": ["impl Fields {"]},
+    "decoder": {"doc": "The reader of the game-state stream: pointers, blocks, the map and the schema interpreter.",
+      "items": ["Decoder", "err"], "impls": ["impl Decoder<'_> {"]},
+    "encoder": {"doc": "The writer of the game-state stream: pointers, blocks, the map and the schema interpreter.",
+      "items": ["Encoder"], "impls": ["impl Encoder<'_> {"]}
+  }
+}
