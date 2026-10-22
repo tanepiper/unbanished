@@ -1,0 +1,7 @@
+{"file": "apps/game/src/native.rs", "type": "Native",
+ "modules": {
+  "boot": {"doc": "The headless boot capture: start the game, press buttons and take screenshots.",
+   "items": ["boot_capture"]},
+  "network": {"doc": "The headless lockstep and network tests.",
+   "items": ["lockstep_test", "net_test"]}
+ }}
