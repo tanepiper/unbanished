@@ -1,0 +1,8 @@
+{
+  "file": "crates/game/src/people/life.rs",
+  "type": "People",
+  "modules": {
+    "update": {"doc": "A citizen's update: ageing, needs, health and the events they raise.",
+      "methods": ["update"]}
+  }
+}
