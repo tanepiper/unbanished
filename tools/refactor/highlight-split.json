@@ -1,0 +1,5 @@
+{"file": "apps/game/src/gfx/highlight.rs", "type": "Highlight",
+ "modules": {
+  "renderer": {"doc": "Drawing the highlight's edges: the shader and its pipeline.",
+   "items": ["SHADER", "HighlightRenderer"], "impls": ["impl HighlightRenderer {"]}
+ }}
