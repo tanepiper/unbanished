@@ -1,0 +1,14 @@
+{
+  "file": "crates/formats/src/ui.rs",
+  "type": "Element",
+  "modules": {
+    "dialogs": {"doc": "Dialog resources: a dialog's root element and the bindings of its named elements.",
+      "items": ["DialogBinding", "Dialog", "dialog"]},
+    "sprites": {"doc": "Sprite sheets and cursors: the named regions of a texture, and a cursor's image and hot spot.",
+      "items": ["Sprite", "SpriteSheet", "sprite_sheet", "Cursor", "cursor"],
+      "impls": ["impl SpriteSheet {"]},
+    "fonts": {"doc": "Fonts and string tables: a font's glyphs and metrics, and a table's keyed strings.",
+      "items": ["Font", "font", "string_table"],
+      "impls": ["impl Font {"]}
+  }
+}
