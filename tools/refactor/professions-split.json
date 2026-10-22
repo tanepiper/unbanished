@@ -1,0 +1,12 @@
+{
+  "file": "crates/game/src/work/professions.rs",
+  "type": "Workforce",
+  "modules": {
+    "commands": {"doc": "The player's commands on professions and workplaces, and applying them.",
+      "items": ["Command"], "methods": ["apply"]},
+    "hiring": {"doc": "Hiring and firing: a free workplace, who takes a job and who leaves one.",
+      "methods": ["free_workplace", "hire", "family_member", "nearest_laborer", "largest_family", "fire"]},
+    "settings": {"doc": "Counts, capacity and the player's settings per profession and workplace, and choosing a workplace.",
+      "methods": ["counts", "capacity", "set_count", "set_max_workers", "set_enabled", "find_workplace", "should_move", "clear_workers"]}
+  }
+}
