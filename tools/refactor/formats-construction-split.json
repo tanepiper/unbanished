@@ -1,0 +1,3 @@
+{"file": "crates/formats/src/game/construction.rs", "type": "BuildDescription",
+ "modules": {"build": {"doc": "Build, destroy and clear-area descriptions: the work of putting up and taking down.",
+   "items": ["BuildDescription", "build_description", "DestroyDescription", "destroy_description", "ClearAreaDescription", "clear_area_description"]}}}

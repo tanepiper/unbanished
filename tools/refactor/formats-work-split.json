@@ -1,0 +1,3 @@
+{"file": "crates/formats/src/game/work.rs", "type": "Profession",
+ "modules": {"produce": {"doc": "Consume-produce descriptions: the recipes a workplace turns inputs into outputs with.",
+   "items": ["ProduceRecipe", "ConsumeProduceDescription", "consume_produce_description"]}}}
