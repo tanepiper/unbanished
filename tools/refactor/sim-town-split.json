@@ -1,0 +1,3 @@
+{"file": "crates/sim/src/town.rs", "type": "StartingTown",
+ "modules": {"assemble": {"doc": "Assembling a new town from its parts, and building its starting structures.",
+   "methods": ["assemble", "build_structures"]}}}

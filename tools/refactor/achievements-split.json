@@ -1,0 +1,6 @@
+{"file": "crates/sim/src/achievements.rs", "type": "AchievementManager",
+ "modules": {
+  "stats": {"doc": "The town statistics a goal counts: buildings and people by kind, the statistic series.",
+    "items": ["known_of", "select_kind", "stat", "sum"]},
+  "persist": {"doc": "Achievement instances in a save: reading them back and writing them.",
+    "items": ["saved_instance", "write_instance"]}}}
