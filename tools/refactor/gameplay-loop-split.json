@@ -1,0 +1,5 @@
+{"file": "apps/game/src/gameplay.rs", "type": "GameplayLoop",
+ "modules": {
+  "game_loop": {"doc": "The town's game as an engine loop: loading, updating, events and the probe's view.",
+   "impls": ["impl GameLoop for GameplayLoop {"]}
+ }}
