@@ -1,0 +1,6 @@
+{"file": "apps/game/src/loops.rs", "type": "MainLoop",
+ "modules": {
+  "loaders": {"doc": "The loading loops: the plain loader and the one that shows a loading dialog.",
+   "items": ["LoaderLoop", "DialogLoaderLoop", "loading_details"],
+   "impls": ["impl LoaderLoop {", "impl GameLoop for LoaderLoop {", "impl DialogLoaderLoop {", "impl GameLoop for DialogLoaderLoop {"]}
+ }}
