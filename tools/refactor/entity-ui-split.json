@@ -1,0 +1,11 @@
+{"file": "apps/game/src/ui/entity_ui.rs", "type": "EntityWindows",
+ "modules": {
+  "refresh": {"doc": "Refreshing the open entity windows from the town.",
+   "methods": ["refresh", "refresh_with"]},
+  "windows": {"doc": "Finding, pinning, closing and placing the open entity windows.",
+   "methods": ["root_containing", "is_open", "entity_containing", "town_hall_select", "toggle_page", "pin_containing", "close_containing", "take_settings", "pin", "window_at", "close_entity", "retire", "position"]},
+  "info": {"doc": "What an entity window shows: citizens, workplaces, construction, produce and residents.",
+   "items": ["citizen_info", "workplace_info", "build_info", "destroy_info", "produce_info", "immigration_info", "residents"]},
+  "state": {"doc": "The page and control states of an entity window, and its trackers and cemetery counts.",
+   "items": ["entity_page", "control_state", "tracker_lists", "cemetery_counts"]}
+ }}
