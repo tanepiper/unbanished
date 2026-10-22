@@ -1,0 +1,9 @@
+{"file": "apps/game/src/gameplay/network.rs", "type": "GameplayLoop",
+ "modules": {
+  "turns": {"doc": "A networked game's turns: polling and sending messages, the host's checks at a turn boundary and resyncs.",
+   "methods": ["net_poll", "net_send", "net_boundary", "resync_pending"]},
+  "peer": {"doc": "One player's game in a multiplayer session, driven a step at a time.",
+   "items": ["NetPeer"], "impls": ["impl NetPeer {"]},
+  "simulate": {"doc": "A lockstep test in one process: players joined by a simulated network, and its report.",
+   "items": ["Simulation", "Report", "Script", "simulate", "first_mismatch"], "impls": ["impl Script {"]}
+ }}
