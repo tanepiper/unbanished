@@ -1,0 +1,7 @@
+{"file": "apps/game/src/ui/trade_ui.rs", "type": "TradeUi",
+ "modules": {
+  "build": {"doc": "Building the trade window's rows: the storage, what to sell and what to buy.",
+   "methods": ["build_storage", "build_sell", "build_buy"]},
+  "refresh": {"doc": "Refreshing the trade window from the town and the merchant.",
+   "methods": ["refresh"]}
+ }}
