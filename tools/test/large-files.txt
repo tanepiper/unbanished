@@ -1,33 +1,12 @@
 # Rust files over 500 lines when tools/test/file_size.py came in, with their length
 # then. Each may shrink, never grow. Split them, and remove the line.
 920 crates/audio/src/device.rs
-877 apps/game/src/gfx/render.rs
 838 crates/audio/src/scene.rs
 837 apps/viewer/src/render.rs
 829 crates/wma/src/decoder.rs
-807 apps/game/src/ui/town_hall_ui.rs
-792 apps/game/src/menu.rs
-770 apps/game/src/native.rs
 758 crates/ui/tests/controls.rs
-757 apps/game/src/view/cinematic.rs
-751 apps/game/src/gameplay/input.rs
-744 apps/game/src/gfx/particle_gfx.rs
-716 apps/game/src/game.rs
-713 apps/game/src/audio/ambience.rs
 655 crates/ui/src/input/pointer.rs
 650 crates/ui/src/document.rs
-645 apps/game/src/settings.rs
-621 apps/game/src/ui/trade_ui.rs
-617 apps/game/src/app.rs
-612 apps/game/src/ui/save_dialog.rs
-594 apps/game/src/gameplay.rs
-570 apps/game/src/loops.rs
 549 apps/modmanager/src/app.rs
-545 apps/game/src/gfx/highlight.rs
-536 apps/game/src/ui/mod_browse.rs
 521 apps/viewer/src/main.rs
-517 apps/game/src/gameplay/tutorial.rs
-516 apps/game/src/gfx/shadow.rs
-503 apps/game/src/saves/save_store.rs
 502 apps/viewer/src/tool.rs
-501 apps/game/src/platform/nexus.rs

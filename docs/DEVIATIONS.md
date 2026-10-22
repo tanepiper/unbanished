@@ -8,9 +8,12 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/app.rs`
 
-- [Deviation] [apps/game/src/app.rs:119](../apps/game/src/app.rs#L119): The display modes of the window's monitor, largest first (`Adapter::FindDisplayMode` lists). Deviation: the browser offers the page's size at 100, 75 and 50 % (the scene is drawn at that size and scaled to the page, `Renderer::set_scene_scale`) and frame-rate limits of 30 to 120 per second (issue #15).
-- [Deviation] [apps/game/src/app.rs:215](../apps/game/src/app.rs#L215): Deviation: in the browser, Fullscreen asks the browser to show the page full screen (winit waits for the next click or key if the browser needs one) instead of changing the display mode.
-- [Deviation] [apps/game/src/app.rs:358](../apps/game/src/app.rs#L358): Deviation: in the browser the "desktop" resolution, which an unset or unknown resolution falls back to (`GetDefaultResolution`), is the page's full size: the 100 % entry of the Resolution list, as the scene is drawn without a setting.
+- [Deviation] [apps/game/src/app.rs:121](../apps/game/src/app.rs#L121): The display modes of the window's monitor, largest first (`Adapter::FindDisplayMode` lists). Deviation: the browser offers the page's size at 100, 75 and 50 % (the scene is drawn at that size and scaled to the page, `Renderer::set_scene_scale`) and frame-rate limits of 30 to 120 per second (issue #15).
+- [Deviation] [apps/game/src/app.rs:217](../apps/game/src/app.rs#L217): Deviation: in the browser, Fullscreen asks the browser to show the page full screen (winit waits for the next click or key if the browser needs one) instead of changing the display mode.
+
+## `apps/game/src/app/handler.rs`
+
+- [Deviation] [apps/game/src/app/handler.rs:57](../apps/game/src/app/handler.rs#L57): Deviation: in the browser the "desktop" resolution, which an unset or unknown resolution falls back to (`GetDefaultResolution`), is the page's full size: the 100 % entry of the Resolution list, as the scene is drawn without a setting.
 
 ## `apps/game/src/audio/ambience.rs`
 
@@ -22,13 +25,12 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/game.rs`
 
-- [Deviation] [apps/game/src/game.rs:33](../apps/game/src/game.rs#L33): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
-- [Deviation] [apps/game/src/game.rs:42](../apps/game/src/game.rs#L42): A capture's cinematic camera this frame: eye, target and vertical field of view ([`view::cinematic`]). Deviation: not in the original; drawing only, set by captures.
+- [Deviation] [apps/game/src/game.rs:37](../apps/game/src/game.rs#L37): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
+- [Deviation] [apps/game/src/game.rs:46](../apps/game/src/game.rs#L46): A capture's cinematic camera this frame: eye, target and vertical field of view ([`view::cinematic`]). Deviation: not in the original; drawing only, set by captures.
 
 ## `apps/game/src/gameplay.rs`
 
-- [Deviation] [apps/game/src/gameplay.rs:64](../apps/game/src/gameplay.rs#L64): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
-- [Deviation] [apps/game/src/gameplay.rs:428](../apps/game/src/gameplay.rs#L428): Deviation: in a multiplayer game every player counts the achievements from none won, so every player's game (and its digest) is the same whatever each has won before; one won is still kept in the player's own settings.
+- [Deviation] [apps/game/src/gameplay.rs:66](../apps/game/src/gameplay.rs#L66): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
 
 ## `apps/game/src/gameplay/digest.rs`
 
@@ -38,6 +40,10 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 - [Deviation] [apps/game/src/gameplay/frame.rs:55](../apps/game/src/gameplay/frame.rs#L55): `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller. Deviation: in a multiplayer game the pause menu does not hold the shared game.
 - [Deviation] [apps/game/src/gameplay/frame.rs:255](../apps/game/src/gameplay/frame.rs#L255): AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets the game speed (`Game +0x120 → +0x34`) back to 1. Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on each player's own setting.
+
+## `apps/game/src/gameplay/game_loop.rs`
+
+- [Deviation] [apps/game/src/gameplay/game_loop.rs:23](../apps/game/src/gameplay/game_loop.rs#L23): Deviation: in a multiplayer game every player counts the achievements from none won, so every player's game (and its digest) is the same whatever each has won before; one won is still kept in the player's own settings.
 
 ## `apps/game/src/gameplay/lockstep.rs`
 
@@ -60,9 +66,9 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 - [Deviation] [apps/game/src/gfx/models/culling.rs:147](../apps/game/src/gfx/models/culling.rs#L147): Deviation: the original takes the union of the instance's current and previous world boxes (`+0x4c` and `+0x64`, the previous one copied in `Geometry::Clean`); the port has only the current one. They are the same for every mesh with more than one level (rocks and ores do not move).
 
-## `apps/game/src/gfx/render.rs`
+## `apps/game/src/gfx/render/size.rs`
 
-- [Deviation] [apps/game/src/gfx/render.rs:823](../apps/game/src/gfx/render.rs#L823): Draw the 3D scene at `scale` (0.25 to 1) of the window's size and scale it up to the window; the interface stays at the window's size. Deviation: a browser setting (the Options resolution list there), so slower devices can draw fewer pixels; natively the scale is always 1.
+- [Deviation] [apps/game/src/gfx/render/size.rs:20](../apps/game/src/gfx/render/size.rs#L20): Draw the 3D scene at `scale` (0.25 to 1) of the window's size and scale it up to the window; the interface stays at the window's size. Deviation: a browser setting (the Options resolution list there), so slower devices can draw fewer pixels; natively the scale is always 1.
 
 ## `apps/game/src/gfx/screenshot.rs`
 
@@ -110,7 +116,7 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 ## `apps/game/src/settings.rs`
 
-- [Deviation] [apps/game/src/settings.rs:559](../apps/game/src/settings.rs#L559): Deviation: the original keeps these values in the registry; the port writes the same names to a settings file natively and to localStorage in the browser.
+- [Deviation] [apps/game/src/settings.rs:332](../apps/game/src/settings.rs#L332): Deviation: the original keeps these values in the registry; the port writes the same names to a settings file natively and to localStorage in the browser.
 
 ## `apps/game/src/tools/selection.rs`
 
@@ -119,7 +125,10 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 ## `apps/game/src/ui/mod_browse.rs`
 
 - [Deviation] [apps/game/src/ui/mod_browse.rs:1](../apps/game/src/ui/mod_browse.rs#L1): The Mods dialog's Browse tab, backed by Nexus Mods instead of the Steam Workshop. The elements are the original's. The Steam build fills `groupBrowse` with `Dialog/Mod.rsc:browser` (`FUN_14006f790`): `textSearch`, `buttonSearch`, `comboSort`, `comboPage`, `buttonPrevPage` and `buttonNextPage`, `tableResult`, `textResultNone`, `textResultError` and `imageWorking`. Each result is a `Dialog/Mod.rsc:searchResultGroup` in the table (`FUN_14006dee0`): `textModTitle` (its parameter is the title), the preview (`groupModPreview`), `buttonSubscribe` and `buttonUnsubscribe`. Below the tabs, `groupProgress` shows a download (`textUpdate`, `progressUpdate` with `textProgress`) and then `ribbonUpdateAvailable` with `buttonUpdateReload`. Deviation: there is a Browse tab for each mod site (`platform::nexus::sites`), Nexus Mods and (native builds) banishedinfo.com, shown by default. The sort list keeps the original's three entries: Most Popular (most downloaded), Most Recent (most recently updated) and Subscribed (the mods installed from the site). Installing from Nexus Mods needs an API key; without one Subscribe opens the mod's page. Subscribe installs the mod's main file with a Premium account; otherwise it opens the mod's files page, whose "Mod Manager Download" gives an `nxm://` link, and a link pasted into the search box installs that file. The tabs' labels read "Browse Nexus Mods" and "Browse banishedinfo.com". Previews show the sites' thumbnails (PNG, JPEG or WebP, native builds only). Not ported: Unsubscribe, which stays hidden.
-- [Deviation] [apps/game/src/ui/mod_browse.rs:312](../apps/game/src/ui/mod_browse.rs#L312): The loading image stands in for a preview until one arrives.
+
+## `apps/game/src/ui/mod_browse/results.rs`
+
+- [Deviation] [apps/game/src/ui/mod_browse/results.rs:79](../apps/game/src/ui/mod_browse/results.rs#L79): The loading image stands in for a preview until one arrives.
 
 ## `apps/game/src/ui/mod_ui.rs`
 
@@ -141,7 +150,10 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 ## `apps/game/src/ui/save_dialog.rs`
 
 - [Deviation] [apps/game/src/ui/save_dialog.rs:1](../apps/game/src/ui/save_dialog.rs#L1): The Save and Load dialog: `Dialog/SaveLoad.rsc` (vtable `0x140165d10`). Native builds. - **Opening** (constructor `FUN_1400bd740`, bind `FUN_1400bd1d0`): `+0xb8` is the mode (1 Load, 0 Save), `+0xc0` the selection (0). Its buttons get ids Save 1, Load 2, Cancel 0 (action 8, so Escape closes), Delete 3. It asks `SaveLoad` for the list (operation 1, argument −2 saving or −3 loading, at least 0.75 s; [`crate::ui::save_list::list`]). - **Each frame** (`FUN_1400bce80`): while an operation runs the spinner turns 180° a second. When none runs it finishes what was started: a new list fills the table (`+0xbb`), a save (`+0xb9`) closes the dialog, a load (`+0xba`) closes it and starts the game, a delete (`+0xbc`) lists again. - **Refresh** (`FUN_1400bbd50`): `labelLoad`/`buttonLoad` show when loading, `labelSave`/`buttonSave` when saving. With nothing running `mainPage` shows the list (page 1): Load is usable on a readable save (status 2), the selected save has its highlight (`selectSave`) instead of its border. While one runs it shows page 0 with the spinner and "Please wait" (listing), "Loading" or "Saving", and the buttons are not usable. - **The table** (`FUN_1400bc1b0`): `max(count, 6) + 2` rounded down to threes cells of the `icon` template, three a row, plus a row. A save shows its preview (`imageSaveIcon`, which takes the mouse with id `4 + index`), its name and its date, or "Corrupt" and a dimmed preview (`0xff808080`) with `imageCorrupt` when it does not read. Unused cells show only a faint border (`0x80ffffff`) and icon (`0x20ffffff`). - **Events** (`FUN_1400bbcb0`): event 2 on an icon selects it (UI sound 4 when it changes, `FUN_1400bbc60`); Cancel closes; Save (`FUN_1400bb4a0`) asks `confirmSave` over an existing file and saves (operation 4, at least 1.5 s) under the town's name, into a new `Save%i` for the new-save slot; Load (`FUN_1400bb6b0`) asks `confirmLoad` while a game runs, then for each mod the save names that `SaveLoad::CheckMod` finds missing (1), out of date (2), of another version (3) or changed (4) `modsMissing`, `modsOutOfDate`, `modsVersion` or `modsChanged` with its name, file and `"%i (%s)"` version, and loads (operation 2, at least 1.5 s); Delete (`FUN_1400bb320`) asks `confirmDelete` and deletes (operation 5). - The saves are read and written through [`crate::saves::save_store`]: a load waits for the file's bytes as well as its shortest time (in the browser the read is asynchronous). - The confirmations are message boxes (vtable `0x1401625c0`, `FUN_14006daa0`: Cancel 0, Ok 1, Yes 2, No 3); `ShowDialog` returns the button and only Yes goes on. Deviations: the original runs `ShowDialog` as a nested loop; the port keeps the step waiting for the answer. The new-save slot shows the save sprite (`SaveLoad +0x60`, set from the global data's `+0xb8`: `Dialog\SpriteSheet.rsc` "SaveLoadEmpty", `FUN_1400a0e00`), which is the icon template's own sprite, so the slot keeps it.
-- [Deviation] [apps/game/src/ui/save_dialog.rs:562](../apps/game/src/ui/save_dialog.rs#L562): Deviation: a rule hook's entry is not a mod (`unbanished_sim::hooks`).
+
+## `apps/game/src/ui/save_dialog/files.rs`
+
+- [Deviation] [apps/game/src/ui/save_dialog/files.rs:68](../apps/game/src/ui/save_dialog/files.rs#L68): Deviation: a rule hook's entry is not a mod (`unbanished_sim::hooks`).
 
 ## `apps/game/src/ui/save_list.rs`
 
