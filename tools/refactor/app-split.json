@@ -1,0 +1,5 @@
+{"file": "apps/game/src/app.rs", "type": "App",
+ "modules": {
+  "handler": {"doc": "The window's events, as winit hands them to the application.",
+   "impls": ["impl ApplicationHandler<UserEvent> for App {"]}
+ }}
