@@ -38,6 +38,12 @@ Un-Banished More, and `--vanilla` replaces `--pure`.
 - Pure Banished is now called vanilla: `--vanilla` (in the browser, `?vanilla`) replaces
   `--pure`, and plays the original game and its own mods only.
 
+### Fixed
+
+- A new citizen starts with the original's tool status (-1) and clothing status (4), instead of 0.
+  The tool and coat achievements count these citizens as the original does, and saves hold the
+  same values ([docs/CLASS-FIELDS.md](docs/CLASS-FIELDS.md)).
+
 ## [0.4.0] - 2026-10-21
 
 Rule hooks: mods can change how a town plays, the same way on every computer. Multiplayer now

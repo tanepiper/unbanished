@@ -67,13 +67,18 @@ There is no single Building class. The Entity rows come from
 
 | Class | Field | Original | Port | Effect |
 |---|---|---|---|---|
-| CitizenComponent | `+0xa8` tool status | The constructor sets -1 | `CitizenState::newborn` sets 0 | In the original, a working citizen without a tool counts for the tool achievement (`tool_status < 0` in `crates/sim/src/achievements.rs`). The save holds -1 until the citizen gets a tool |
-| CitizenComponent | `+0x1e0` clothing status | The constructor sets 4 | `CitizenState::newborn` sets 0 | The coat achievement counts status 4 as both kinds of coat. A new citizen counts in the original until its first coat |
 | CitizenComponent | `+0x240` family slot | The constructor does not write it | `newborn` sets -1 | Open question below |
 | CitizenComponent | `+0x28` name, `+0x40` lifespan | Saved as a string and a float. `People::update` (`FUN_140118340`) reads the lifespan | `Citizen::name` and `Citizen::lifespan` say "Not identified yet" | Doc comments only |
 | BuildComponent | `+0x50` | Saved, and set to 0 by the constructor | Not ported (the save schema reads it as `flag_50`) | None known. No reader was found |
 | StorageComponent | `+0x38`, `+0x3c` | Capacity, then accepted flags (the activate slot `FUN_140131b10` writes both) | `Storage` agrees | The comment on the schema entry in `savegame_schema.rs` puts "capacity" at `+0x3c`. Comment only |
 | StateMachineComponent | `+0x52` pending | The constructor sets 0. Setup sets the first controller's starting state | `Machine::new` sets it from the first controller | None. The comment on `Machine` writes `+10` for `+0xa` |
+
+The CitizenComponent constructor sets the tool status (`+0xa8`) to -1 and the clothing status
+(`+0x1e0`) to 4. `CitizenState::newborn` and the starting citizens in `Agents::new` used 0 for
+both, and now use the constructor's values. The achievements count both values: a working citizen
+with a tool status below 0 counts for the tool goal, and clothing status 4 counts for both kinds of
+coat. `tools/compat/compare.sh` against the build before the change found only these two fields
+different, in citizens that had no tool or coat yet.
 
 The earlier rows named `+0x1e0` "clothing" and `+0x1e4` "insulation". The serializer saves
 `+0x1e4` first, then the time at `+0x1e8`, then `+0x1e0` from version 2. Message 6 and 7 in

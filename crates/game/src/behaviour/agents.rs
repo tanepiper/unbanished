@@ -230,6 +230,9 @@ impl CitizenState {
     pub fn newborn(rules: &crate::people::life::LifeRules) -> CitizenState {
         CitizenState {
             job: -1,
+            // The constructor's values: -1 tool status, 4 clothing status.
+            tool_status: -1,
+            clothing_status: 4,
             shown_tool: -1,
             home_slot: -1,
             health: rules.f(0x6c),
@@ -323,6 +326,9 @@ impl Agents {
             .iter()
             .map(|_| CitizenState {
                 job: -1,
+                // As `newborn`: the constructor `FUN_140119c40` sets these.
+                tool_status: -1,
+                clothing_status: 4,
                 shown_tool: -1,
                 home_slot: -1,
                 health: rules.health,
