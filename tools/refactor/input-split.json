@@ -1,0 +1,13 @@
+{
+  "file": "crates/ui/src/input.rs",
+  "type": "Ui",
+  "modules": {
+    "pointer": {"doc": "The pointer: moving and pressing, dragging controls and scroll bars, the wheel, which element is hit, and routing an event to the element that takes it.",
+      "methods": ["pointer_move", "pointer_button", "drag_control", "scroll_parent", "activate", "route_event", "wheel", "update_containers", "active_nodes", "interactive", "hit"]},
+    "keyboard": {"doc": "The keyboard: keys and shortcuts, typing into an edit, committing an edit and the caret.",
+      "methods": ["key", "text_input", "commit_edit", "update_caret"],
+      "items": ["byte_index", "to_integer"]},
+    "tooltip": {"doc": "Tooltips: which element shows one, placing it, its text's parameters and drawing it.",
+      "methods": ["update_states", "hovered_tooltip", "tooltip_source", "update_tooltip", "place_tooltip", "new_tooltip", "set_parameters", "draw_tooltip"]}
+  }
+}
