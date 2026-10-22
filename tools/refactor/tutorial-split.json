@@ -1,0 +1,15 @@
+{
+  "file": "apps/game/src/gameplay/tutorial.rs",
+  "type": "GameplayLoop",
+  "modules": {
+    "definition": {"doc": "A tutorial's definition as the game data gives it: its steps, their setup, goals and images, read from the tutorial's parts.",
+      "items": ["Setup", "Goal", "Image", "Step", "TutorialDef", "part", "load"]},
+    "highlight": {"doc": "The tutorial's highlight: which element or cells a step points at, placing the highlight on screen and focusing the camera.",
+      "methods": ["update_highlight", "close_highlight", "place_highlight", "screen_point", "focus_cells"]},
+    "goals": {"doc": "A step's goals: whether each one is met, and the counts some of them wait for.",
+      "methods": ["goal_met", "goal_count"]},
+    "scenarios": {"doc": "Scenarios: the game's goal, starting a scenario's game, and checking its goal as the town runs.",
+      "methods": ["start_scenario", "update_goal"],
+      "items": ["GameGoal", "scenarios", "scenario_game", "scenario_params"]}
+  }
+}
