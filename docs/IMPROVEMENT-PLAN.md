@@ -127,4 +127,14 @@ browser build before and after.
 
 ## Open questions
 
+- **One iteration's order.** `FUN_1400c9560` runs the every-iteration set (bit `0x04`) first,
+  then visits buckets 0 to 4 in turn, and runs each visited entity's scheduled components
+  (bit `0x08`, slot `+0x48`) together, in their array's order (*observed*). The port runs the
+  natural resources' and animals' visits in a pass of their own, then the characters' actions,
+  the sites' systems one after another (bucket 3) and the citizens last (bucket 1). Random draws
+  come in another order. One dispatcher over the visits, in order, would fix it. It touches every
+  result, and nothing here can check it against the original running. Saves of one town made by
+  the original a known number of iterations apart (see SAVE-WRITING.md, `--sim-continue`) can
+  measure it once vanilla pairs exist: the Driscola pair is modded.
+
 - Does the viewer need the game's materials (snow, seasons, damage), or only its models?

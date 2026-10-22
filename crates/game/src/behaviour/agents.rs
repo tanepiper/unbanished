@@ -11,6 +11,10 @@
 //!
 //! Deviation: these run after the bucket pass (system by system, each in visiting order)
 //! instead of interleaved with it entity by entity, so random draws can come in another order.
+//! The order of the buckets differs too: the sites' systems (bucket 3) run before the citizens
+//! (bucket 1), where the original visits buckets 0 to 4 in turn and runs each visited entity's
+//! scheduled components together, in their array's order (observed, see below). The
+//! natural resources' and animals' scheduled updates run in a pass of their own before both.
 //!
 //! This file holds the agents' state and set-up; the rest is split by topic: `update` (the
 //! iteration), `thinking` (the AI), `lives`, `commands`, `paths` and `views`.
@@ -18,6 +22,8 @@
 //! Original: `AnimationManager::Update`; the entity manager's bit-`0x04` components;
 //! `FUN_140114810` (sequence finished); `FUN_1400c9560` (the buckets).
 
+// The bucket order: FUN_1400c9560 loops over buckets 0 to 4 and dispatches slot +0x48 to each
+// visited entity's bit-0x08 components in array order, stopping at entity flag 0x400.
 mod commands;
 mod lives;
 mod paths;
