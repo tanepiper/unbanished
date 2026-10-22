@@ -1,0 +1,2 @@
+{"topics": {"families": ["a_family_moves_in_stocks_the_house_and_has_a_child", "citizens_starve_without_food", "a_teacher_staffs_the_school_and_a_student_learns"], "deaths": ["the_dead_are_buried_in_the_cemetery", "a_builder_dies_in_an_accident"], "newcomers": ["nomads_are_taken_in", "a_merchant_comes_by_boat"]},
+ "doc": {"families": "//! Families: moving in, children, hunger and school.", "deaths": "//! Deaths: accidents and burials in the cemetery.", "newcomers": "//! Newcomers: nomads and merchants."}}
