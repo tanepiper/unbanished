@@ -1,0 +1,8 @@
+{
+  "file": "crates/game/src/behaviour/character/actions.rs",
+  "type": "Action",
+  "modules": {
+    "start": {"doc": "Starting an action: what each kind of action does when it begins.",
+      "methods": ["start"]}
+  }
+}
