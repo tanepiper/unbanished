@@ -18,6 +18,7 @@ mod death;
 mod health;
 mod households;
 mod services;
+pub use health::outbreak_check;
 pub use households::{update_home, warm_at};
 
 // The CitizenDescription is at citizen +0x288.
@@ -74,6 +75,16 @@ impl LifeRules {
         for &o in d.fields.keys() {
             r.fields.insert(o, d.f(o));
             r.ints.insert(o, d.i(o));
+        }
+        r
+    }
+
+    /// Rules from description values by offset, for tests and tools.
+    pub fn from_values(values: &[(u32, f32)]) -> LifeRules {
+        let mut r = LifeRules::default();
+        for &(o, v) in values {
+            r.fields.insert(o, v);
+            r.ints.insert(o, v as i32);
         }
         r
     }

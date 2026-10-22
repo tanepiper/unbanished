@@ -124,27 +124,27 @@ impl People<'_, '_> {
         s.happiness = h.max(0.0).min(r.f(0xa4));
     }
 
-    /// `FUN_140117ca0`: false when the disease kills the citizen.
+    /// The citizen's disease update: the check for an outbreak when healthy
+    /// ([`outbreak_check`]), else the illness running its course and spreading; false when the
+    /// disease kills the citizen.
+    ///
+    /// Original: `FUN_140117ca0`.
     pub(super) fn disease(&mut self, c: usize, dt: i64) -> bool {
         let r = self.rules;
         match self.states[c].disease {
             None => {
                 let s = &mut self.states[c];
-                s.immunity = (s.immunity - dt).max(0);
-                let weak = 1.0 - s.health / r.f(0x70);
-                let a = (r.f(0x84) - r.f(0x7c)) * weak + r.f(0x7c);
-                let b = (r.f(0x88) - r.f(0x80)) * weak + r.f(0x80);
-                let a = (r.f(0x8c) - a) * self.town_disease + a;
-                let b = (r.f(0x90) - b) * self.town_disease + b;
-                // Odds of 0 or less clear the clock first; the draw is made either way.
-                if b <= 0.0 {
-                    s.disease_clock = 0;
-                }
-                let elapsed = s.disease_clock;
-                s.disease_clock = 0;
-                let span = a * 12.0 * MINUTE * b;
-                let x = self.rng.rand_float();
-                if x < seconds(elapsed) / span {
+                let health = s.health;
+                let falls_ill = outbreak_check(
+                    r,
+                    health,
+                    &mut s.immunity,
+                    &mut s.disease_clock,
+                    self.town_disease,
+                    dt,
+                    self.rng,
+                );
+                if falls_ill {
                     self.outbreak(c);
                 }
                 true
@@ -287,4 +287,42 @@ impl People<'_, '_> {
         self.leave_service(c, service::DOCTOR, false);
         lives
     }
+}
+
+// The weakness is 1 − health / D+0x70; the odds mix D+0x7c..+0x90 by it and by the town's disease.
+/// The disease check of a citizen with no disease: the immunity runs down by `dt`, and the odds
+/// come from the citizen's weakness and the town's disease. With odds of 0 or less the clock is
+/// cleared and nothing is drawn. Otherwise one `RandFloat` against the time on the clock over the
+/// odds' span, and the clock is cleared. True when the citizen falls ill (the caller starts the
+/// outbreak).
+///
+/// Measured: `tools/emu/disease_check.py` (2,000 cases; the original draws exactly when the
+/// odds are above 0).
+///
+/// Original: `FUN_140117ca0` (its first branch).
+pub fn outbreak_check(
+    r: &LifeRules,
+    health: f32,
+    immunity: &mut i64,
+    clock: &mut i64,
+    town_disease: f32,
+    dt: i64,
+    rng: &mut Random,
+) -> bool {
+    // CitizenComponent +0x70.
+    *immunity = (*immunity - dt).max(0);
+    let weak = 1.0 - health / r.f(0x70);
+    let a = (r.f(0x84) - r.f(0x7c)) * weak + r.f(0x7c);
+    let b = (r.f(0x88) - r.f(0x80)) * weak + r.f(0x80);
+    let a = (r.f(0x8c) - a) * town_disease + a;
+    let b = (r.f(0x90) - b) * town_disease + b;
+    // CitizenComponent +0x60: odds of 0 or less clear the clock and return before the draw.
+    if b <= 0.0 {
+        *clock = 0;
+        return false;
+    }
+    let elapsed = *clock;
+    *clock = 0;
+    let span = a * 12.0 * MINUTE * b;
+    rng.rand_float() < seconds(elapsed) / span
 }

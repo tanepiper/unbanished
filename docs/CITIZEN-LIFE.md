@@ -67,8 +67,10 @@ real save.
 ### Disease (`FUN_140117ca0`)
 
 Healthy: immunity counts down. The risk mixes `D[0x7c..0x90]` by weakness
-(`1 − health/D[0x70]`) and the town's visitor risk (`+0x1a8`). Every update draws `RandFloat`,
-and the citizen falls ill when it is below `elapsed / (a · 12 · 300 · b)`. Only one outbreak
+(`1 − health/D[0x70]`) and the town's visitor risk (`+0x1a8`). With odds `b` of 0 or less the
+clock (`+0x60`) is cleared and the update returns before drawing (*observed* at `0x140117d7c`,
+*measured* on 2,000 emulated cases with `tools/emu/disease_check.py`). Otherwise it draws
+`RandFloat`, and the citizen falls ill when it is below `elapsed / (a · 12 · 300 · b)`. Only one outbreak
 runs at a time (`FUN_14008e890`). The disease is picked by weight from
 `Game/Disease/Diseases.rsc` (`FUN_140117af0`), with event 0xb at severity 3. Illness lasts
 `(RandFloatTol · D[0x98] + D[0x94]) · 300` s. Every `spread_interval · 300` s a

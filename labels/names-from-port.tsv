@@ -454,7 +454,7 @@
 140117880	Disease::recovery	crates/formats/src/game/people.rs
 140117940	Disease::spread_chance	crates/formats/src/game/people.rs
 140117af0	Disease::weight	crates/formats/src/game/people.rs
-140117ca0	Disease::spread_interval	crates/formats/src/game/people.rs
+140117ca0	People::disease	crates/game/src/people/life/health.rs
 140118340	People::update	crates/game/src/people/life/update.rs
 140118fc0	LifeEvent	crates/game/src/people/life.rs
 140119170	People::bury	crates/game/src/people/life/death.rs

@@ -201,7 +201,8 @@ picking.
   `FUN_140117ca0`, infection `FUN_14011c060`, recovery `FUN_140117880`, death `FUN_14011c2a0`,
   the cemetery search `FUN_14008ec10` and the home search `FUN_140116340`. Fixed: status icon 3
   (no workplace) was never set; a disease spreads to every healthy citizen about the sick one
-  (`FUN_140117940`), not to the first; a disease check with no odds still draws; entrances and
+  (`FUN_140117940`), not to the first; a disease check with odds of 0 or less clears its clock without drawing (an earlier fix made
+  it draw; the machine code and 2,000 emulated cases say it does not); entrances and
   interaction points count MultiObject parts' points; fence parts stand at z 0.
 
 ## Gaps in shipped vanilla features

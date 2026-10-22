@@ -15,6 +15,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
   when the game was saved.
 - Older saves (2015) load the citizens who were eating from their own hands; their actions were
   dropped before. Their models keep the rotations they were saved with.
+- A healthy citizen's disease check no longer draws a random number when the odds are 0 or
+  less, as in the original; this changes which random numbers later events get.
 
 ### Added
 
