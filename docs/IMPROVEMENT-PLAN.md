@@ -66,20 +66,24 @@ The update (commits `d255331` and `cbfb6cb`, report in
 Each step is one session, or a few. The order puts the cheap checks first, because they protect
 every later step.
 
-**1. Clippy as a gate.** Allow the lints that conflict with exactness where they apply, with a
+**1. Clippy as a gate.** Done (`b94b206`). Allow the lints that conflict with exactness where they apply, with a
 comment that gives the reason: `approx_constant` and `excessive_precision` on constants copied
 from the original, `neg_multiply` and `nonminimal_bool` where the original's order of operations
 is kept. Fix the other warnings. Add `cargo clippy --workspace --all-targets -- -D warnings` to the
 quick tier. Gate: compare.sh identical, and Clippy clean.
 
-**2. CI on every push and pull request.** Run formatting, Clippy, `cargo test` and the browser
+**2. CI on every push and pull request.** Done (`896f4e2`). Run formatting, Clippy, `cargo test` and the browser
 build on every push to `main` and on every pull request. Tests that need game data already skip
 without it. Several sessions push to `main` at once, so this catches a broken build within
 minutes. Gate: the workflow passes on `main`.
 
-**3. Dead-code allowances.** Replace each `#[allow(dead_code)]` with the `cfg` of the features
-that use the item, or remove the item. Gate: the features suite builds every feature set with
-no warnings.
+**3. Dead-code allowances.** Done. Of the 50 allowances, 43 mark code that only the native build or
+only the browser build uses (`cfg_attr(target_arch = …)`), or that one feature set leaves unused.
+They stay: moving such struct fields behind `#[cfg]` would spread `cfg` to every place that
+builds the struct. Six of the seven unconditional ones keep the original's full tables and the
+stand-in types of a build without multiplayer. The seventh, `anim_audio_events` in the game's
+sound code, was left over from before the simulation took over animation sounds, and is
+removed.
 
 **4. Large files.** Split the files over 800 lines by topic with `tools/refactor`
 (`split_tests.py`, `split_impl.py`). The code moves and is not rewritten. Start with the test

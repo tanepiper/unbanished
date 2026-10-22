@@ -138,31 +138,3 @@ impl Audio {
         self.rng.clone().rand_below(n)
     }
 }
-
-/// The `AnimAudioEvent`s the clips of `groups` reference: (event resource, SoundEffect,
-/// probability), as `FUN_14008d310` reads them (`+0x20` effect, `+0x28` probability).
-#[allow(dead_code)] // For the citizen clips; wired once the citizen animation loop is free.
-pub fn anim_audio_events<'a>(
-    archive: &Archive,
-    groups: impl IntoIterator<Item = &'a unbanished_formats::types::AnimationGroup>,
-) -> Vec<(String, Option<String>, f32)> {
-    let mut out: Vec<(String, Option<String>, f32)> = Vec::new();
-    for group in groups {
-        for event in group.clips.iter().flat_map(|c| &c.events) {
-            let Some(r) = event.resource.as_deref() else {
-                continue;
-            };
-            if out.iter().any(|(e, _, _)| e == r) {
-                continue;
-            }
-            if let Some(a) = archive
-                .read_ref(&r.replace('\\', "/"))
-                .ok()
-                .and_then(|b| unbanished_formats::audio::anim_audio_event(&b).ok())
-            {
-                out.push((r.to_string(), a.effect, a.probability));
-            }
-        }
-    }
-    out
-}
