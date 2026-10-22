@@ -1,0 +1,11 @@
+{"file": "apps/game/src/ui/options.rs", "type": "OptionsDialog",
+ "modules": {
+  "controls": {"doc": "Reading and setting the dialog's controls: combos, sliders, checks, tabs and strings.",
+   "items": ["table_text", "key_name", "action_name", "combo_selected", "fill_combo", "set_combo", "set_slider", "slider", "check", "set_check", "active_tab", "set_active_tab", "slider_value"]},
+  "fill": {"doc": "Filling the video page's lists and the key list from the settings.",
+   "methods": ["fill_video", "fill_adapters", "fill_resolutions", "fill_refresh", "fill_antialias", "fill_filters", "refresh_keys", "name_text"]},
+  "rebind": {"doc": "Rebinding a key: the bind dialogs and the key they wait for.",
+   "methods": ["start_rebind", "close_rebind", "rebind_click", "set_key_text", "released", "escape"]},
+  "events": {"doc": "The dialog's events: changed combos, and applying or cancelling the changes.",
+   "methods": ["event", "combo_changed", "apply", "apply_video", "cancel"]}
+ }}
