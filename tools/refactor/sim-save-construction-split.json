@@ -1,0 +1,3 @@
+{"file": "crates/sim/src/town/save/construction.rs", "type": "StartingTown",
+ "modules": {"jobs": {"doc": "Exporting the job manager and the fields of each job's work.",
+   "items": ["work_type"], "methods": ["work_fields", "export_jobs"]}}}

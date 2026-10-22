@@ -1,0 +1,5 @@
+{"file": "crates/sim/src/town/load/construction.rs", "type": "StartingTown",
+ "modules": {"piles": {"doc": "Restoring the piles of raw material from a save.",
+   "methods": ["restore_piles"]},
+  "jobs": {"doc": "Restoring the job manager: every work, its categories, profession, claims and workers.",
+   "methods": ["restore_jobs"]}}}

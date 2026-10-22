@@ -1,0 +1,3 @@
+{"file": "crates/sim/src/town/load.rs", "type": "StartingTown",
+ "modules": {"state": {"doc": "Restoring the character tree, the water, the schedule and the map cells from a save.",
+   "methods": ["restore_character_tree", "restore_water", "restore_schedule"], "items": ["restore_cells"]}}}
