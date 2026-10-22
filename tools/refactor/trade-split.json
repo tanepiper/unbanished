@@ -1,0 +1,10 @@
+{
+  "file": "crates/game/src/commerce/trade.rs",
+  "type": "Sim",
+  "modules": {
+    "visits": {"doc": "A trading post's states: a merchant's arrival, stay and departure, its messages and the goods it brings.",
+      "methods": ["trade_activate", "trade_desc", "trade", "trade_row", "trade_enter2", "trade_update2", "trade_leave", "trade_enter13", "trade_exit13", "trade_update13", "trade_message", "merchant_goods", "toggle_trade_work"]},
+    "deals": {"doc": "Trading: risk, automatic trades, discovering goods, the player's exchanges, livestock, the settings and the trader's work.",
+      "methods": ["trade_risk", "trade_automatically", "discover", "exchange", "trade_livestock", "trade_setting", "trade_try"]}
+  }
+}
