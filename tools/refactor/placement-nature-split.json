@@ -1,0 +1,2 @@
+{"topics": {"gathering": ["gatherers_harvest_wild_food", "foresters_plant_and_cut", "fishermen_land_fish"], "animals": ["deer_herds_start_and_wander", "hunters_take_deer"]},
+ "doc": {"gathering": "//! Gatherers, foresters and fishermen.", "animals": "//! Deer herds and hunters."}}
