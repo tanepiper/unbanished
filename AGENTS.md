@@ -213,7 +213,7 @@ footer ("Version 1.0.7 - Build 170910") comes from the original's resources and 
 
 ```bash
 rustfmt --edition 2021 <the files you changed>
-tools/test/run.py                     # quick tier, ~1½ min: format, ledger, harness, cargo test, wasm, probe baselines
+tools/test/run.py                     # quick tier, ~2 min: format, ledger, harness, cargo test, wasm, Clippy, probe baselines
 tools/test/run.py determinism browser # ~3 min more, when the change touches the game, its UI or the web page
 tools/compat/compare.sh HEAD <your build or commit>   # if the change can touch the simulation
 ```

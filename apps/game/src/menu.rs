@@ -379,7 +379,6 @@ fn load_menu_scene(ctx: &mut Ctx, index: u32) -> unbanished_formats::Result<Scen
 }
 
 /// `UI::TextElement::SetParameter`: replace `@0`, `@1`, … in a text element.
-
 fn set_parameters(ui: &mut Ui, id: NodeId, values: &[&str]) {
     let text = match &ui.node(id).kind {
         Kind::Text(t) | Kind::Label { text: t, .. } => t.text.clone(),

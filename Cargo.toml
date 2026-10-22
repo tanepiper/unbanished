@@ -2,6 +2,26 @@
 resolver = "2"
 members = ["crates/core", "crates/terrain", "crates/path", "crates/formats", "crates/wma", "crates/ui", "crates/game", "crates/gfx", "crates/audio", "crates/nexus", "crates/banishedinfo", "crates/mods", "crates/net", "crates/sim", "crates/session", "crates/hooks", "apps/viewer", "apps/cli", "apps/modmanager", "apps/game", "apps/server"]
 
+# Clippy runs in the quick test tier with warnings as errors. These rules are allowed for the
+# whole workspace, because following them would change what the port computes or move it away
+# from the original's code:
+[workspace.lints.clippy]
+# f32::clamp, min and max treat NaN differently from the original's comparisons.
+manual_clamp = "allow"
+# `!(a < b)` and `a < b` differ when a value is NaN; the port keeps the original's comparison.
+neg_cmp_op_on_partial_ord = "allow"
+# Index loops, `x * -1.0` and `x >= y + 1` mirror the original's code and order of operations.
+needless_range_loop = "allow"
+neg_multiply = "allow"
+int_plus_one = "allow"
+# Constants are written as read from the original's data, with every digit.
+excessive_precision = "allow"
+# Style only: types and functions follow the original's shapes and arguments.
+type_complexity = "allow"
+too_many_arguments = "allow"
+large_enum_variant = "allow"
+chunks_exact_to_as_chunks = "allow"
+
 [workspace.package]
 # The Un-Banished engine version (not the Banished game version, 1.0.7). Every crate inherits it;
 # apps/game/build.rs adds the build id. AGENTS.md says when to change it.

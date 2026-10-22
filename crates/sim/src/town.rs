@@ -255,7 +255,6 @@ impl StartingTown {
         seeder.place_structures(&structures, start.0, start.1);
         let structure_count = seeder.placed.len();
         seeder.seed(&list, start.0, start.1, radius * radius);
-        drop(seeder);
         let mut scheduler = EntityScheduler::default();
         for (id, p) in placed.iter().enumerate() {
             scheduler.register(id, p.bucket);

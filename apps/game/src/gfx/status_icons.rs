@@ -319,7 +319,7 @@ impl StatusIconRenderer {
                     name,
                     s.width,
                     s.height,
-                    &[s.rgba.clone()],
+                    std::slice::from_ref(&s.rgba),
                 );
                 let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: Some(name),

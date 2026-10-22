@@ -25,6 +25,7 @@ tools/test/run.py --list           # every suite and what it checks
 | quick | `checks` | changed Rust files are formatted, `docs/DEVIATIONS.md` is up to date, doc comments name no addresses, `unbanished-sim` depends on no drawing, window, interface, sound or network crate | 2 s |
 | quick | `unit` | every Rust test in the workspace | 75 s |
 | quick | `wasm` | the browser build compiles with no warnings | 1–60 s |
+| quick | `lint` | Clippy finds nothing in the workspace or the browser build; warnings are errors. The rules allowed on purpose are in `[workspace.lints.clippy]` in the root `Cargo.toml`, each with its reason | 2 s–3 min |
 | quick | `probe` | the probe scenarios give exactly their baselines | 8 s |
 | standard | `determinism` | two new games with one seed draw identical frames | 25 s |
 | standard | `browser` | headless Chrome and Firefox: the start page, the manager, Exit and Quit | 2 min |

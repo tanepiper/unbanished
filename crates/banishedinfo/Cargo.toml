@@ -6,6 +6,9 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[lints]
+workspace = true
+
 [features]
 default = []
 # Blocking HTTP (ureq) for native builds. The site sends no CORS headers, so browsers cannot use it.

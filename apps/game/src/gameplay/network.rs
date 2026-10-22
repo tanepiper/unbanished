@@ -188,7 +188,7 @@ impl GameplayLoop {
         let Some(net) = &mut self.online.net else {
             return (false, None);
         };
-        let mut arrived: std::collections::VecDeque<(u8, Message)> = net.inbox.drain(..).collect();
+        let mut arrived: std::collections::VecDeque<(u8, Message)> = std::mem::take(&mut net.inbox);
         arrived.extend(net.link.poll());
         let left = net.link.left();
         net.leaving.extend(left);
@@ -362,7 +362,7 @@ impl GameplayLoop {
             return Ok(Some((bytes, update)));
         }
         // A server that keeps rooms gets the host's town every minute of play.
-        if host && update > 0 && update % KEEP_EVERY == 0 {
+        if host && update > 0 && update.is_multiple_of(KEEP_EVERY) {
             let keeps = self.online.net.as_ref().is_some_and(|n| n.keeps);
             if keeps {
                 let bytes = self
@@ -373,7 +373,7 @@ impl GameplayLoop {
             }
         }
         let check = self.online.net.as_ref().unwrap().check;
-        if check > 0 && update > 0 && update % check == 0 {
+        if check > 0 && update > 0 && update.is_multiple_of(check) {
             let crc = self.digest(ctx, update as u32)?.crc;
             let l = &mut self.online.lockstep.as_mut().ok_or("no lockstep")?.lockstep;
             let (player, epoch) = (l.player, l.epoch);
@@ -951,7 +951,7 @@ impl JoinSession {
         }
         if self.peer.is_none() {
             let _ = Link::poll(&mut *self.link.borrow_mut());
-            let events: Vec<_> = self.link.borrow_mut().events.drain(..).collect();
+            let events = std::mem::take(&mut self.link.borrow_mut().events);
             for e in events {
                 match e {
                     unbanished_net::FromRelay::Joined { player, .. } => {

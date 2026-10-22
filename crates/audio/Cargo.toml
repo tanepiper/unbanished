@@ -6,6 +6,9 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 unbanished-formats = { path = "../formats" }
 unbanished-wma = { path = "../wma" }

@@ -343,10 +343,9 @@ impl Save {
                 let n = r.count()?;
                 (0..n).map(|_| Ok((r.u32()?, r.string()?))).collect()
             })
-            .map(|refs| {
+            .inspect(|_refs| {
                 // Skip the rest of the outer block; only the table is needed.
                 skip_rest(r);
-                refs
             })
         })
     }

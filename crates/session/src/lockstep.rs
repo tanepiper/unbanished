@@ -471,7 +471,7 @@ mod tests {
             }
         }
         for updates in 0..4 {
-            assert!(!a.ready(updates + 2) || updates + 2 < 2);
+            assert!(!a.ready(updates + 2));
             a.seal(updates);
             assert!(a.ready(updates + 2));
         }

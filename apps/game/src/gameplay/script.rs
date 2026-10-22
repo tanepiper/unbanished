@@ -123,7 +123,7 @@ impl GameplayLoop {
                     return false;
                 };
                 let n = town.cells.size as i32;
-                let (x, y) = (town.start.0 as i32, town.start.1 as i32);
+                let (x, y) = (town.start.0, town.start.1);
                 let clamp = |v: i32| v.clamp(0, n - 1);
                 let a = clamp(y - r) * n + clamp(x - r);
                 let b = clamp(y + r) * n + clamp(x + r);

@@ -314,7 +314,7 @@ impl SaveLoadDialog {
         self.cells.clear();
         let Some(table) = self.el.table else { return };
         let count = self.saves.len();
-        let cells = (count.max(6) + 2) / 3 * 3;
+        let cells = count.max(6).div_ceil(3) * 3;
         // `TableElement::SetSize(cells / 3 + 1, 3)`.
         if let Kind::Control(Control::Table {
             cells: c,

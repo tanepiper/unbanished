@@ -547,7 +547,7 @@ mod web {
             if channels == 0
                 || pcm.sample_rate == 0
                 || pcm.samples.is_empty()
-                || pcm.samples.len() % channels != 0
+                || !pcm.samples.len().is_multiple_of(channels)
             {
                 return Err(
                     "PCM must contain complete frames with a channel count and sample rate".into(),
@@ -559,14 +559,14 @@ mod web {
                 .create_buffer(channels as u32, frames, pcm.sample_rate as f32)
                 .map_err(err)?;
             for ch in 0..channels {
-                let mut plane: Vec<f32> = pcm
+                let plane: Vec<f32> = pcm
                     .samples
                     .iter()
                     .skip(ch)
                     .step_by(channels)
                     .copied()
                     .collect();
-                buffer.copy_to_channel(&mut plane, ch as i32).map_err(err)?;
+                buffer.copy_to_channel(&plane, ch as i32).map_err(err)?;
             }
             *sound.web.borrow_mut() = Some(buffer.clone());
             Ok(buffer)

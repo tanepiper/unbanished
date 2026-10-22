@@ -269,7 +269,7 @@ impl MultiplayerDialog {
             return Outcome::Stay;
         };
         let arrived = Link::poll(&mut *link.borrow_mut());
-        let events: Vec<_> = link.borrow_mut().events.drain(..).collect();
+        let events = std::mem::take(&mut link.borrow_mut().events);
         let mut kept_town = None;
         for e in events {
             match (e, &mut self.role) {

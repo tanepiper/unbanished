@@ -20,13 +20,11 @@ pub fn decode(buf: &[u8]) -> Result<Vec<u8>> {
             .ok_or(crate::Error::Truncated { at, wanted: n })
     };
     let count = u32::from_le_bytes(rd(0, 4)?.try_into().unwrap()) as usize;
-    let table_end = 4usize
-        .checked_add(
-            count
-                .checked_mul(8)
-                .ok_or(crate::Error::Format("block count overflow".into()))?,
-        )
-        .unwrap_or(usize::MAX);
+    let table_end = 4usize.saturating_add(
+        count
+            .checked_mul(8)
+            .ok_or(crate::Error::Format("block count overflow".into()))?,
+    );
     if table_end > buf.len() {
         return format_err("block table exceeds stream");
     }

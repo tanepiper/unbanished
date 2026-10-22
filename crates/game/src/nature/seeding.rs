@@ -358,7 +358,7 @@ impl<'a> Seeder<'a> {
         let h = self
             .cells
             .floors
-            .ground_normal(self.cells.size, &self.terrain, x, y, &mut normal);
+            .ground_normal(self.cells.size, self.terrain, x, y, &mut normal);
         (h, normal[2])
     }
 
@@ -547,10 +547,10 @@ impl<'a> Seeder<'a> {
         }
         let (px, py) = self.cell_position(i);
         let mut normal = [0.0f32; 3];
-        let h =
-            self.cells
-                .floors
-                .ground_normal(self.cells.size, &self.terrain, px, py, &mut normal);
+        let h = self
+            .cells
+            .floors
+            .ground_normal(self.cells.size, self.terrain, px, py, &mut normal);
         SPAWN_NORMAL <= normal[2] && (h - 0.0).abs() <= SPAWN_HEIGHT_TOLERANCE
     }
 
@@ -595,9 +595,7 @@ impl<'a> Seeder<'a> {
         let parent_template = self.placed[parent].template;
         let child = self.templates[parent_template].spawn[entry].0;
         let (px, py) = self.placed[parent].cell;
-        let Some(g) = self.templates[child].growth.clone() else {
-            return None;
-        };
+        let g = self.templates[child].growth.clone()?;
         if self.rng.rand_float() > ONE / g.spawn_one_in as f32 {
             return None;
         }

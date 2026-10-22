@@ -108,7 +108,6 @@ impl GameplayLoop {
                 .town
                 .as_ref()
                 .map_or(0, |t| t.construction.game_flags),
-            ..StatusValues::default()
         }
     }
 

@@ -51,7 +51,7 @@ impl super::GameplayLoop {
             .ok_or("no game state")?;
         // A save also holds each player's own view, which is not the game: the camera, and the
         // settings each building's window remembers (UIComponent). The digest leaves them out.
-        state.camera = self.saved.as_ref().and_then(|s| s.state.camera.clone());
+        state.camera = self.saved.as_ref().and_then(|s| s.state.camera);
         for object in state.objects.values_mut() {
             if object.type_name == "UIComponent" {
                 object.fields.set(

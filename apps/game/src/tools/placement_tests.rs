@@ -1742,8 +1742,10 @@ fn herdsmen_keep_a_pasture() {
             .commands
             .push(unbanished_game::work::professions::Command::SetCount { profession, count });
     }
-    let mut warnings = unbanished_game::events::StockWarnings::default();
-    warnings.limits = [100_000; 21];
+    let mut warnings = unbanished_game::events::StockWarnings {
+        limits: [100_000; 21],
+        ..Default::default()
+    };
     let dt = 1.0 / 30.0;
     let (mut built_at, mut penned_at, mut bred_at, mut born_at, mut culled_at) =
         (None, None, None, None, None);
@@ -2206,8 +2208,10 @@ fn a_pasture_gathers_eggs() {
             profession: builder,
             count: 3,
         });
-    let mut warnings = unbanished_game::events::StockWarnings::default();
-    warnings.limits = [100_000; 21];
+    let mut warnings = unbanished_game::events::StockWarnings {
+        limits: [100_000; 21],
+        ..Default::default()
+    };
     let dt = 1.0 / 30.0;
     let (mut built_at, mut laid_at, mut stored_at) = (None, None, None);
     let mut seen = std::collections::BTreeSet::new();
@@ -2632,8 +2636,10 @@ fn the_dead_are_buried_in_the_cemetery() {
             profession: builder,
             count: 4,
         });
-    let mut warnings = unbanished_game::events::StockWarnings::default();
-    warnings.limits = [100_000; 21];
+    let mut warnings = unbanished_game::events::StockWarnings {
+        limits: [100_000; 21],
+        ..Default::default()
+    };
     let dt = 1.0 / 30.0;
     let (mut built_at, mut buried_at) = (None, None);
     let mut widow = None;
@@ -3950,7 +3956,7 @@ fn a_tunnel_goes_through_a_hill() {
         .unwrap();
         let heights = world.terrain.heights.clone();
         let width = world.terrain.width();
-        let mut rng = Random::new(seed as u32);
+        let mut rng = Random::new(seed);
         let terrain = HeightGrid {
             width,
             heights: &heights,

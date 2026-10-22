@@ -289,7 +289,7 @@ impl OverlayRenderer {
                 "Terrain/Selection",
                 t.width,
                 t.height,
-                &[t.rgba.clone()],
+                std::slice::from_ref(&t.rgba),
             );
             self.texture = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("cell overlay texture"),

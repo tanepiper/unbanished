@@ -1067,7 +1067,7 @@ fn roads_get_decals() {
         let before = count(&gameplay);
         let town = gameplay.sim.town.as_mut().unwrap();
         let n = town.cells.size as i32;
-        let (x, y) = (town.start.0 as i32, town.start.1 as i32 + 12);
+        let (x, y) = (town.start.0, town.start.1 + 12);
         for dx in 0..6 {
             town.construction.commands.push(
                 unbanished_game::work::professions::Command::PlanRoad {

@@ -192,7 +192,7 @@ impl ModelGroup {
                 }
                 // Runtime UpdateNodes (0x1800ff4b0) extracts root movement, then replaces the root
                 // pose with the placement transform. Tree root movement is zero in shipped clips.
-                let world = world_transforms(&self.bones, &placed_pose(&locals));
+                let world = world_transforms(&self.bones, &placed_pose(locals));
                 // The existing range uniform contains the bind node transform. Cancel that bind
                 // frame in the instance transform before applying this instance's animated node.
                 let correction = world[bone].mul(&inverse_bind(&self.bones[bone]));

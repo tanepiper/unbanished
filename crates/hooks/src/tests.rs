@@ -117,7 +117,7 @@ fn the_fingerprint_follows_the_plugins_and_their_order() {
         fingerprint(&[b, a.clone()])
     );
     assert_ne!(
-        fingerprint(&[a.clone()]),
+        fingerprint(std::slice::from_ref(&a)),
         fingerprint(&[("a".to_string(), vec![1u8, 3])])
     );
 }

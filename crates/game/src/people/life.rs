@@ -1028,9 +1028,7 @@ impl People<'_, '_> {
                 if o == c || self.citizens[o].age < adult || self.states[o].school.is_some() {
                     continue;
                 }
-                let Some(h) = self.states[o].home else {
-                    return None;
-                };
+                let h = self.states[o].home?;
                 if single && self.homes.get(&h).is_some_and(|h| h.families.len() > 1) {
                     return None;
                 }

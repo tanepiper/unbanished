@@ -36,7 +36,7 @@ impl Agents {
             jobs.drain(&mut sim);
         }
         let mut queue = commands.into_iter();
-        while let Some(command) = queue.next() {
+        for command in queue.by_ref() {
             match command {
                 crate::work::professions::Command::SetCrop { entity, crop } => {
                     if sim.wildlife.pastures.contains_key(&entity) {

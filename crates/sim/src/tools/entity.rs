@@ -14,7 +14,7 @@ pub enum Entity {
 }
 
 impl Entity {
-    pub fn template<'a>(self, town: &'a StartingTown) -> &'a str {
+    pub fn template(self, town: &StartingTown) -> &str {
         match self {
             Self::Placed(i) => &town.templates[town.placed[i].template].reference,
             Self::Citizen(_) => "Template/Citizen.rsc:resource",

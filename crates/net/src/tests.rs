@@ -229,7 +229,7 @@ fn the_server_asks_the_majority_for_a_save() {
     };
     let wanted = FromRelay::SaveWanted { update: 600 };
     assert_eq!(players[0].poll(), [differ.clone(), wanted]);
-    assert_eq!(players[1].poll(), [differ.clone()]);
+    assert_eq!(players[1].poll(), std::slice::from_ref(&differ));
     assert_eq!(players[2].poll(), [differ]);
     // After the resync (epoch 1) they agree: nobody is asked.
     for p in 0..3 {

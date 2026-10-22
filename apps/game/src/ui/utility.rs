@@ -468,7 +468,7 @@ impl StatusBar {
         Self::set_meter(ui, self.hearts, v.health, v.health_max);
         Self::set_meter(ui, self.stars, v.happiness, v.happiness_max);
         if let Some(title) = &self.title {
-            set_parameters(ui, title, &[v.town_name.clone()]);
+            set_parameters(ui, title, std::slice::from_ref(&v.town_name));
         }
     }
 
@@ -1052,15 +1052,13 @@ impl UtilityWindows {
         {
             return Some(UtilityClick::ProfessionCount(i, v));
         }
-        if let Some(c) = self
+        if let Some(crate::ui::building_ui::WorkPlaceClick::StockLimit { slot, limit }) = self
             .open
             .iter()
             .flat_map(|w| &w.limits)
             .find_map(|l| l.click(ui, node))
         {
-            if let crate::ui::building_ui::WorkPlaceClick::StockLimit { slot, limit } = c {
-                return Some(UtilityClick::StockLimit(slot, limit));
-            }
+            return Some(UtilityClick::StockLimit(slot, limit));
         }
         self.open
             .iter_mut()

@@ -166,54 +166,6 @@ pub fn new_entity(
     Some(entity)
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::town::load::tests_support::{archive, root};
-
-    /// Every saved entity's components are what its template predicts, in order.
-    #[test]
-    fn templates_predict_the_saved_components() {
-        let Some(archive) = archive() else {
-            eprintln!("game data missing; skipping");
-            return;
-        };
-        for name in ["Save5.sav", "Save83.sav"] {
-            let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
-                continue;
-            };
-            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
-            let mut checked = std::collections::BTreeMap::new();
-            let mut wrong = std::collections::BTreeMap::new();
-            for (_, e) in saved.entities() {
-                let Some(t) = saved.ext(&e.fields, "entity.template") else {
-                    continue;
-                };
-                if checked.contains_key(t) {
-                    continue;
-                }
-                let have: Vec<&str> = saved.components(e).iter().map(|c| c.type_name).collect();
-                let ours: Vec<&str> = super::template_components(&archive, t)
-                    .iter()
-                    .map(|c| c.0)
-                    .collect();
-                checked.insert(t.to_string(), ());
-                if have != ours {
-                    wrong.insert(t.to_string(), (have, ours));
-                }
-            }
-            for (t, (have, ours)) in &wrong {
-                eprintln!("{name} {t}:\n  saved {have:?}\n  ours  {ours:?}");
-            }
-            assert!(
-                wrong.is_empty(),
-                "{name}: {} of {} templates differ",
-                wrong.len(),
-                checked.len()
-            );
-        }
-    }
-}
-
 impl crate::town::StartingTown {
     /// New placed entities get their objects (appended to the entity list, their bucket and the
     /// schedules); dead ones leave the lists, swapping the last entry into their place as the
@@ -295,6 +247,54 @@ pub fn remove_entity(g: &mut GameState, id: ObjId) {
                     g.schedules[m].1 = slot as i32;
                 }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::town::load::tests_support::{archive, root};
+
+    /// Every saved entity's components are what its template predicts, in order.
+    #[test]
+    fn templates_predict_the_saved_components() {
+        let Some(archive) = archive() else {
+            eprintln!("game data missing; skipping");
+            return;
+        };
+        for name in ["Save5.sav", "Save83.sav"] {
+            let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
+                continue;
+            };
+            let saved = crate::saved::SavedGame::parse(&bytes).unwrap();
+            let mut checked = std::collections::BTreeMap::new();
+            let mut wrong = std::collections::BTreeMap::new();
+            for (_, e) in saved.entities() {
+                let Some(t) = saved.ext(&e.fields, "entity.template") else {
+                    continue;
+                };
+                if checked.contains_key(t) {
+                    continue;
+                }
+                let have: Vec<&str> = saved.components(e).iter().map(|c| c.type_name).collect();
+                let ours: Vec<&str> = super::template_components(&archive, t)
+                    .iter()
+                    .map(|c| c.0)
+                    .collect();
+                checked.insert(t.to_string(), ());
+                if have != ours {
+                    wrong.insert(t.to_string(), (have, ours));
+                }
+            }
+            for (t, (have, ours)) in &wrong {
+                eprintln!("{name} {t}:\n  saved {have:?}\n  ours  {ours:?}");
+            }
+            assert!(
+                wrong.is_empty(),
+                "{name}: {} of {} templates differ",
+                wrong.len(),
+                checked.len()
+            );
         }
     }
 }

@@ -176,6 +176,16 @@ def suite_wasm(ctx: Context) -> None:
         raise RuntimeError(f"{len(warnings)} warnings:\n" + "\n".join("      " + w for w in warnings[:10]))
 
 
+def suite_lint(ctx: Context) -> None:
+    """Clippy finds nothing in the workspace, or in the browser build (warnings are errors)."""
+    for args in (["--workspace", "--all-targets"], ["-p", "unbanished-app", "--target", "wasm32-unknown-unknown"]):
+        proc = subprocess.run(["cargo", "clippy", "--offline", "--release", *args, "--message-format=short",
+                               "--", "-D", "warnings"], cwd=REPO, capture_output=True, text=True)
+        if proc.returncode != 0:
+            found = [l for l in proc.stderr.splitlines() if ": error" in l or ": warning" in l]
+            raise RuntimeError(f"{len(found)} findings:\n" + "\n".join("      " + l for l in found[:15]))
+
+
 # A build with no extensions (`--no-default-features`), in its own target folder so that it
 # never replaces the full build the other suites run.
 VANILLA_DIR = REPO / "target" / "vanilla"
@@ -337,6 +347,7 @@ SUITES = [
     Suite("harness", "quick", "The agent harness: tools parse, skills point at real paths, emulator and decompile tool work", suite_harness),
     Suite("unit", "quick", "Every Rust test in the workspace (unit, corpus, parity, saves)", suite_unit),
     Suite("wasm", "quick", "The browser build compiles with no warnings", suite_wasm),
+    Suite("lint", "quick", "Clippy finds nothing, natively or in the browser build", suite_lint),
     Suite("probe", "quick", "Probe scenarios give exactly their baselines (UI and town)", suite_probe),
     Suite("determinism", "standard", "Two runs with one seed draw identical frames", suite_determinism),
     Suite("browser", "standard", "Headless Chrome and Firefox: start page, manager, Exit, Quit", suite_browser),

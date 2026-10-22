@@ -87,7 +87,7 @@ impl Plugin {
 
     /// Runs the plugin's `after_iteration`, if it has one.
     pub fn after_iteration(&mut self, cx: &mut HookContext<'_>) {
-        let Some(f) = self.after_iteration.clone() else {
+        let Some(f) = self.after_iteration else {
             return;
         };
         if self.stopped {
@@ -103,7 +103,7 @@ impl Plugin {
         let result = self
             .store
             .set_fuel(FUEL)
-            .and_then(|_| f.call(&mut self.store, ()).map_err(Into::into));
+            .and_then(|_| f.call(&mut self.store, ()));
         let h = self.store.data_mut();
         cx.swap_random(&mut h.rng);
         for (severity, text) in std::mem::take(&mut h.events) {

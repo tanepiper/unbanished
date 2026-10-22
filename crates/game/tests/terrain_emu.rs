@@ -53,7 +53,7 @@ fn floats(b: &[u8]) -> Vec<u32> {
 
 /// Compare the stage-2 records (paths, lake-shaping points, lake centres) bit for bit.
 /// The truth files are written after all stages, so only fields stage 2 sets are compared.
-fn check_records(dir: &PathBuf, g: &Generator) {
+fn check_records(dir: &Path, g: &Generator) {
     let b = std::fs::read(dir.join("paths.bin")).unwrap();
     let mut at = 0;
     let n = read_i32(&b, &mut at) as usize;

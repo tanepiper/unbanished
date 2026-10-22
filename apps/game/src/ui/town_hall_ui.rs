@@ -622,9 +622,7 @@ impl TownHallUi {
             let mut line = Vec::new();
             let mut from = have - points * step;
             if have / step < points {
-                for _ in 0..points - have / step {
-                    line.push(0);
-                }
+                line.extend(std::iter::repeat_n(0, (points - have / step) as usize));
                 from = 0;
             }
             let mut i = from.max(0);

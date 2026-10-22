@@ -582,7 +582,7 @@ pub fn net_test(args: &[String]) {
         let start = std::time::Instant::now();
         loop {
             let _ = crate::gameplay::network::Link::poll(&mut *link.borrow_mut());
-            let events: Vec<_> = link.borrow_mut().events.drain(..).collect();
+            let events = std::mem::take(&mut link.borrow_mut().events);
             for e in &events {
                 if let unbanished_net::FromRelay::Error { message } = e {
                     eprintln!("relay: {message}");

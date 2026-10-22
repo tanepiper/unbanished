@@ -362,7 +362,7 @@ impl Scene {
             return 0;
         };
         self.counter = self.counter.wrapping_add(1);
-        let handle = (i as u32) * 2 | self.counter << 9;
+        let handle = ((i as u32) * 2) | (self.counter << 9);
         self.effects[i] = Some(Effect2D {
             effect: effect.clone(),
             kind,
@@ -410,7 +410,7 @@ impl Scene {
         }
         let Some(i) = free else { return 0 };
         self.counter = self.counter.wrapping_add(1);
-        let handle = (i as u32) * 2 | 1 | self.counter << 13;
+        let handle = ((i as u32) * 2) | 1 | self.counter << 13;
         self.effects3d[i] = Some(Effect3D {
             position: at,
             kind,

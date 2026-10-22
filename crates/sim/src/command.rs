@@ -184,17 +184,17 @@ impl Simulation {
                 }
                 Outcome::None
             }
-            PlayerCommand::RandomTownName { max_length } => match {
+            PlayerCommand::RandomTownName { max_length } => {
                 self.load_town_names(archive);
-                self.town_names.as_ref()
-            } {
-                Some(db) => Outcome::Name(unbanished_game::people::names::town_name(
-                    db,
-                    &mut self.rng,
-                    max_length / 3 * 2,
-                )),
-                None => Outcome::None,
-            },
+                match self.town_names.as_ref() {
+                    Some(db) => Outcome::Name(unbanished_game::people::names::town_name(
+                        db,
+                        &mut self.rng,
+                        max_length / 3 * 2,
+                    )),
+                    None => Outcome::None,
+                }
+            }
             PlayerCommand::RenameTown { .. }
             | PlayerCommand::SetSpeed(_)
             | PlayerCommand::SetPaused(_) => Outcome::None,

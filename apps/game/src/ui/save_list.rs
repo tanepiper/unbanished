@@ -52,7 +52,7 @@ pub fn list(saving: bool) -> Vec<SaveInfo> {
         .into_iter()
         .filter(|e| !(saving && e.name == AUTO_SAVE))
         .collect();
-    files.sort_by(|a, b| b.date.cmp(&a.date));
+    files.sort_by_key(|f| std::cmp::Reverse(f.date));
     let mut out = Vec::new();
     if saving {
         out.push(SaveInfo {

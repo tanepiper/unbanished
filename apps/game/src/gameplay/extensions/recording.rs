@@ -32,7 +32,7 @@ impl GameplayLoop {
                 .recording
                 .recorder
                 .as_ref()
-                .is_some_and(|r| r.every > 0 && self.sim.updates % r.every == 0)
+                .is_some_and(|r| r.every > 0 && self.sim.updates.is_multiple_of(r.every))
         {
             match self.digest(ctx, self.sim.updates as u32) {
                 Ok(d) => self.recording.recorder.as_mut().unwrap().digest(d),

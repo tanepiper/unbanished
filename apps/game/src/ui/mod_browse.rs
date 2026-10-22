@@ -505,7 +505,7 @@ impl Browse {
                     for r in self.results.iter().filter(|r| r.summary.mod_id == mod_id) {
                         if let Some(n) = r.preview {
                             if let Kind::Image { sprite: s, .. } = &mut ui.node_mut(n).kind {
-                                *s = Some(sprite.clone());
+                                *s = Some(sprite);
                             }
                             ui.set_visible(n, true);
                         }

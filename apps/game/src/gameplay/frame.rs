@@ -243,9 +243,10 @@ impl GameplayLoop {
                 .expect("the town view comes with the town")
                 .icon_sheet_refs(town)
             {
-                if !view.icon_sheets.contains_key(&r) {
-                    if let Some(sheet) = crate::gfx::status_icons::load_sheet(ctx.archive, &r) {
-                        view.icon_sheets.insert(r, sheet);
+                if let std::collections::btree_map::Entry::Vacant(e) = view.icon_sheets.entry(r) {
+                    if let Some(sheet) = crate::gfx::status_icons::load_sheet(ctx.archive, e.key())
+                    {
+                        e.insert(sheet);
                     }
                 }
             }

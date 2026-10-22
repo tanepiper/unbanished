@@ -40,21 +40,12 @@ impl Tracker {
 
 // +0xc; +0x10
 /// The stock manager's slot counters since the last sample (of each slot).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct StockCounters {
     /// The amount used, per slot.
     pub used: [i32; 21],
     /// The amount made, per slot.
     pub made: [i32; 21],
-}
-
-impl Default for StockCounters {
-    fn default() -> Self {
-        StockCounters {
-            used: [0; 21],
-            made: [0; 21],
-        }
-    }
 }
 
 impl Sim<'_, '_> {

@@ -19,6 +19,11 @@
 //! `FUN_140136560` (`cosf`, Runtime `0x1801295a0`), `FUN_140136090` (`acosf`), Runtime
 //! `0x180128f10` (`atan2f`, behind `Vector3::Heading`).
 
+// The constants below are the runtime's own, written as read from its data. Some are close to
+// the standard library's constants, or have more digits than an f32 or f64 holds; they stay as
+// read, so each one can be checked against the address it came from.
+#![allow(clippy::approx_constant, clippy::excessive_precision)]
+
 const fn d(bits: u64) -> f64 {
     f64::from_bits(bits)
 }
