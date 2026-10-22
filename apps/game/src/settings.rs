@@ -8,6 +8,11 @@
 //! same names in a text file (`name=value` lines) in the platform's configuration directory, or
 //! in the browser's local storage.
 
+mod display;
+mod video;
+pub use display::{Adapter, DisplayInfo, DisplayMode, GraphicsInterface};
+pub use video::VideoConfig;
+
 use std::collections::BTreeMap;
 
 /// The settings store.
@@ -114,114 +119,6 @@ impl Persistence {
             Self::key(section, name),
             if value { "true" } else { "false" }.to_string(),
         );
-    }
-}
-
-/// `Video::Configuration` (Runtime `0x1800f9760`, saved by `0x1800f9560`).
-#[derive(Debug, Clone, PartialEq)]
-pub struct VideoConfig {
-    /// `+0`: the "Settings" flag.
-    pub settings: bool,
-    /// `+4`: renderer (the original's DX9/DX11 interface index; the port's graphics backend).
-    pub interface: i32,
-    /// `+8`.
-    pub adapter: i32,
-    /// `+0xc/+0x10`: fullscreen resolution (−1: the desktop's).
-    pub width: i32,
-    pub height: i32,
-    /// `+0x14/+0x18`, `+0x1c/+0x20`: the window's position and size (−1: default).
-    pub window_x: i32,
-    pub window_y: i32,
-    pub window_width: i32,
-    pub window_height: i32,
-    /// `+0x24`: multisample mode (0 none, n: n+1 samples).
-    pub multisample: i32,
-    /// `+0x28`: texture filter (−1 bilinear, 0 trilinear, n anisotropic n×).
-    pub texture_filter: i32,
-    /// `+0x2c`: shadow resolution (0 high, 1 medium, 2 low: the map is `2048 >> n`).
-    pub shadow_scalar: i32,
-    /// `+0x30`: shadow quality (0 none … 3 high).
-    pub shader_detail: i32,
-    /// `+0x34`: reflections (0 none, 1 terrain, 2 everything).
-    pub reflection_detail: i32,
-    /// `+0x38/+0x3c`: refresh rate numerator and denominator.
-    pub refresh_n: i32,
-    pub refresh_d: i32,
-    /// `+0x40`, `+0x41`.
-    pub fullscreen: bool,
-    pub vsync: bool,
-}
-
-impl Default for VideoConfig {
-    fn default() -> Self {
-        VideoConfig {
-            settings: false,
-            interface: 1,
-            adapter: 0,
-            width: -1,
-            height: -1,
-            window_x: -1,
-            window_y: -1,
-            window_width: -1,
-            window_height: -1,
-            multisample: 1,
-            texture_filter: 0,
-            shadow_scalar: 1,
-            shader_detail: 2,
-            reflection_detail: 1,
-            refresh_n: 60,
-            refresh_d: 1,
-            fullscreen: true,
-            vsync: true,
-        }
-    }
-}
-
-impl VideoConfig {
-    pub fn load(p: &Persistence) -> VideoConfig {
-        let mut c = VideoConfig::default();
-        let s = "Video";
-        p.get_bool(s, "Settings", &mut c.settings);
-        p.get_int(s, "Interface", &mut c.interface);
-        p.get_int(s, "Adapter", &mut c.adapter);
-        p.get_int(s, "Width", &mut c.width);
-        p.get_int(s, "Height", &mut c.height);
-        p.get_int(s, "WindowWidth", &mut c.window_width);
-        p.get_int(s, "WindowHeight", &mut c.window_height);
-        p.get_int(s, "WindowX", &mut c.window_x);
-        p.get_int(s, "WindowY", &mut c.window_y);
-        p.get_int(s, "RefreshN", &mut c.refresh_n);
-        p.get_int(s, "RefreshD", &mut c.refresh_d);
-        p.get_int(s, "Multisample", &mut c.multisample);
-        p.get_bool(s, "Fullscreen", &mut c.fullscreen);
-        p.get_bool(s, "VSync", &mut c.vsync);
-        p.get_int(s, "TextureFilter", &mut c.texture_filter);
-        p.get_int(s, "ShadowScalar", &mut c.shadow_scalar);
-        p.get_int(s, "ShaderDetail", &mut c.shader_detail);
-        p.get_int(s, "ReflectionDetail", &mut c.reflection_detail);
-        c
-    }
-
-    pub fn save(&self, p: &mut Persistence) {
-        let s = "Video";
-        p.set_int(s, "Interface", self.interface);
-        p.set_int(s, "Adapter", self.adapter);
-        p.set_int(s, "Width", self.width);
-        p.set_int(s, "Height", self.height);
-        p.set_int(s, "WindowWidth", self.window_width);
-        p.set_int(s, "WindowHeight", self.window_height);
-        p.set_int(s, "WindowX", self.window_x);
-        p.set_int(s, "WindowY", self.window_y);
-        p.set_int(s, "RefreshN", self.refresh_n);
-        p.set_int(s, "RefreshD", self.refresh_d);
-        p.set_int(s, "Multisample", self.multisample);
-        p.set_bool(s, "Fullscreen", self.fullscreen);
-        p.set_bool(s, "VSync", self.vsync);
-        p.set_int(s, "TextureFilter", self.texture_filter);
-        p.set_int(s, "ShadowScalar", self.shadow_scalar);
-        p.set_int(s, "ShaderDetail", self.shader_detail);
-        p.set_int(s, "ReflectionDetail", self.reflection_detail);
-        p.set_bool(s, "Settings", self.settings);
     }
 }
 
@@ -432,130 +329,6 @@ impl Settings {
     }
 }
 
-/// `Video::Device::DisplayMode`: a resolution and its refresh rates (numerator, denominator).
-#[derive(Debug, Clone, PartialEq)]
-pub struct DisplayMode {
-    pub width: i32,
-    pub height: i32,
-    pub refresh: Vec<(i32, i32)>,
-}
-
-/// `Video::Device::Adapter` (0x38 bytes): its name and display modes.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Adapter {
-    pub name: String,
-    pub modes: Vec<DisplayMode>,
-}
-
-/// `Video::GraphicsInterface`: a renderer (the original lists DirectX 9 and 11; the port lists
-/// the wgpu backends) and its adapters.
-#[derive(Debug, Clone, PartialEq)]
-pub struct GraphicsInterface {
-    pub name: String,
-    pub adapters: Vec<Adapter>,
-}
-
-/// The video device's capabilities as the Options dialog lists them.
-#[derive(Debug, Clone, PartialEq)]
-pub struct DisplayInfo {
-    pub interfaces: Vec<GraphicsInterface>,
-    /// `GetMultisampleModeCount` / `IsMultisampleModeSupported`: entry `n` is `n + 1` samples.
-    pub multisample: Vec<bool>,
-    /// `Device +0x98`: the largest anisotropy.
-    pub max_anisotropy: i32,
-    /// The desktop's resolution (`GetDefaultResolution` reads `EnumDisplaySettings`).
-    pub desktop: Option<(i32, i32)>,
-}
-
-impl Default for DisplayInfo {
-    /// A device that offers only the current window: one interface, adapter and mode.
-    fn default() -> Self {
-        DisplayInfo {
-            interfaces: vec![GraphicsInterface {
-                name: "Default".into(),
-                adapters: vec![Adapter {
-                    name: "Default".into(),
-                    modes: vec![DisplayMode {
-                        width: 1280,
-                        height: 720,
-                        refresh: vec![(60, 1)],
-                    }],
-                }],
-            }],
-            multisample: vec![true],
-            max_anisotropy: 0,
-            desktop: None,
-        }
-    }
-}
-
-impl DisplayInfo {
-    pub fn modes(&self, interface: i32, adapter: i32) -> &[DisplayMode] {
-        self.interfaces
-            .get(interface.max(0) as usize)
-            .and_then(|i| i.adapters.get(adapter.max(0) as usize))
-            .map_or(&[], |a| &a.modes)
-    }
-
-    /// `Video::Device::ValidateConfiguration` (`0x1800f9bc0`). An interface or adapter out of
-    /// range becomes 0; an unknown resolution becomes the desktop's
-    /// (`GetDefaultResolution`, else the first mode); an unknown refresh rate the first with
-    /// the same whole hertz, else the first; an unsupported sample count none; a filter above
-    /// the largest anisotropy that maximum.
-    #[allow(clippy::too_many_arguments)]
-    pub fn validate(
-        &self,
-        interface: &mut i32,
-        adapter: &mut i32,
-        width: &mut i32,
-        height: &mut i32,
-        refresh: &mut (i32, i32),
-        multisample: &mut i32,
-        filter: &mut i32,
-    ) {
-        if *interface < 0 || *interface as usize >= self.interfaces.len() {
-            *interface = 0;
-        }
-        let adapters = self
-            .interfaces
-            .get(*interface as usize)
-            .map_or(0, |i| i.adapters.len());
-        if *adapter < 0 || *adapter as usize >= adapters {
-            *adapter = 0;
-        }
-        let modes = self.modes(*interface, *adapter);
-        let find = |w: i32, h: i32| modes.iter().find(|m| m.width == w && m.height == h);
-        let mode = find(*width, *height)
-            .or_else(|| self.desktop.and_then(|(w, h)| find(w, h)))
-            .or(modes.first());
-        if let Some(m) = mode {
-            *width = m.width;
-            *height = m.height;
-            if !m.refresh.contains(refresh) {
-                let hz = |(n, d): (i32, i32)| n / d.max(1);
-                *refresh = m
-                    .refresh
-                    .iter()
-                    .copied()
-                    .find(|&r| hz(r) == hz(*refresh))
-                    .or(m.refresh.first().copied())
-                    .unwrap_or(*refresh);
-            }
-        }
-        let supported = usize::try_from(*multisample)
-            .ok()
-            .and_then(|i| self.multisample.get(i))
-            .copied()
-            .unwrap_or(false);
-        if !supported {
-            *multisample = 0;
-        }
-        if *filter > self.max_anisotropy {
-            *filter = self.max_anisotropy;
-        }
-    }
-}
-
 // Deviation: the original keeps these values in the registry; the port writes the same names to
 // a settings file natively and to localStorage in the browser.
 #[cfg(not(target_arch = "wasm32"))]
@@ -616,30 +389,4 @@ mod storage {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn round_trip_keeps_the_original_names() {
-        let mut s = Settings::default();
-        s.game.ui_scale = 125;
-        s.audio.music = 30;
-        s.video.shadow_scalar = 2;
-        s.video.save(&mut s.persistence);
-        s.audio.save(&mut s.persistence);
-        s.game.save(&mut s.persistence);
-        let text = s.persistence.serialize();
-        assert!(text.contains("GameUIScale=125"));
-        assert!(text.contains("AudioMusicVolume=30"));
-        assert!(text.contains("VideoShadowScalar=2"));
-        let mut p = Persistence::default();
-        p.parse(&text);
-        assert_eq!(GameOptions::load(&p).ui_scale, 125);
-        assert_eq!(AudioConfig::load(&p).music, 30);
-        assert_eq!(VideoConfig::load(&p).shadow_scalar, 2);
-        assert_eq!(
-            GameOptions::load(&Persistence::default()),
-            GameOptions::default()
-        );
-    }
-}
+mod tests;

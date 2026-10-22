@@ -1,0 +1,7 @@
+{"file": "apps/game/src/settings.rs", "type": "Settings",
+ "modules": {
+  "video": {"doc": "The video configuration (`Video::Configuration`).",
+   "items": ["VideoConfig"], "impls": ["impl Default for VideoConfig {", "impl VideoConfig {"]},
+  "display": {"doc": "What the display offers: its modes, adapters and graphics interfaces.",
+   "items": ["DisplayMode", "Adapter", "GraphicsInterface", "DisplayInfo"], "impls": ["impl Default for DisplayInfo {", "impl DisplayInfo {"]}
+ }}
