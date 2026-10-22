@@ -1,0 +1,15 @@
+{
+  "file": "crates/game/src/people/life.rs",
+  "type": "People",
+  "modules": {
+    "households": {"doc": "Households: homes and their residents, guardians and dependents, finding a home and a partner, pregnancy and births, and a home's warmth and stock.",
+      "methods": ["set_home", "add_resident", "remove_resident", "set_guardian", "add_dependent", "remove_dependent", "find_partner", "find_home", "pregnancy", "give_birth"],
+      "items": ["warm_at", "update_home"]},
+    "services": {"doc": "Workplaces and services: looking for a workplace, choosing and leaving a service (school, chapel, healer, tavern), lessons and treatment.",
+      "methods": ["search_workplace", "rank", "accepts", "find_service", "join_service", "leave_service", "lesson", "treated"]},
+    "death": {"doc": "Death and burial: dying with a reason, finding a cemetery and a free grave, and burying.",
+      "methods": ["die", "find_cemetery", "free_grave", "bury"]},
+    "health": {"doc": "Health, happiness and disease: their update, an outbreak, infection, spreading and recovery.",
+      "methods": ["health", "happiness", "disease", "outbreak", "infect", "spread", "recover"]}
+  }
+}
