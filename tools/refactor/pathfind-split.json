@@ -1,0 +1,2 @@
+{"file": "crates/path/src/pathfind.rs", "type": "Pathfinder",
+ "modules": {"regions": {"doc": "Walkable regions: flood fills that number the connected walkable areas.", "items": ["regions", "fill"]}}}

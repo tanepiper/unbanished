@@ -1,0 +1,2 @@
+{"file": "crates/core/src/crt.rs", "type": "Crt",
+ "modules": {"atan_table": {"doc": "The arctangent table of the C runtime's `atan2f`, as bit patterns.", "items": ["ATAN_TABLE"]}}}

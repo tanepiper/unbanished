@@ -12,6 +12,9 @@
 //!
 //! See [Citizens](https://tanepiper.github.io/unbanished/topics/citizens) for how citizens use it.
 
+mod regions;
+pub use regions::regions;
+
 // Original: regions FUN_1400a1950 / FUN_1400a1640 (map cell +0x26); the path manager at map
 // +0x68 (FUN_1400abcc0), whose worker thread runs queued commands (FUN_1400ab900: 0 walk mask,
 // 1 per-type cost, 4 search options, 5 find path); A* FUN_14001d760 / FUN_14001d9a0; request
@@ -40,65 +43,6 @@ pub fn bit(t: CellType) -> u32 {
 /// Whether a walker may enter a cell of this type (the test [`regions`] labels by).
 pub fn walkable(t: CellType) -> bool {
     bit(t) & WALKABLE != 0
-}
-
-/// Label connected walkable cells in scan order, starting at 1 (0 = none).
-///
-/// Original: `FUN_1400a1950`.
-pub fn regions(size: usize, types: &[CellType]) -> Vec<u16> {
-    let mut region = vec![0u16; types.len()];
-    let mut id: u16 = 1;
-    for i in 0..types.len() {
-        if bit(types[i]) & WALKABLE != 0 && region[i] == 0 {
-            fill(size, types, &mut region, i, id);
-            id = id.wrapping_add(1);
-        }
-    }
-    region
-}
-
-/// `FUN_1400a1640`: FIFO scanline fill. A run is widened by one cell for the rows above and
-/// below only when that cell is strictly inside the row (`row_start < left - 1`,
-/// `right + 1 < row_end`), so runs touch diagonal neighbours except at the map edge.
-fn fill(size: usize, types: &[CellType], region: &mut [u16], start: usize, id: u16) {
-    let n = size as i32;
-    let walk = |c: i32| bit(types[c as usize]) & WALKABLE != 0;
-    let mut queue = VecDeque::from([start as i32]);
-    while let Some(c) = queue.pop_front() {
-        let row = c / n;
-        let (row_start, row_end) = (n * row, (row + 1) * n - 1);
-        if region[c as usize] != 0 || !walk(c) {
-            continue;
-        }
-        let mut left = c;
-        while left - 1 >= row_start && walk(left - 1) {
-            left -= 1;
-        }
-        let mut right = c;
-        while right + 1 <= row_end && walk(right + 1) {
-            right += 1;
-        }
-        for k in left..=right {
-            region[k as usize] = id;
-        }
-        if row_start < left - 1 {
-            left -= 1;
-        }
-        if right + 1 < row_end {
-            right += 1;
-        }
-        for (ok, step) in [(row > 0, -n), (row < n - 1, n)] {
-            if !ok {
-                continue;
-            }
-            for u in left..=right {
-                let k = u + step;
-                if region[k as usize] == 0 && walk(k) {
-                    queue.push_back(k);
-                }
-            }
-        }
-    }
 }
 
 // +0x470
@@ -489,52 +433,4 @@ pub fn nearest_neighbour(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn grid(rows: &[&str]) -> (usize, Vec<CellType>) {
-        // Rows are given top (high y) first; '.' ground, '#' water, '=' road.
-        let n = rows.len();
-        let mut t = vec![CellType(2); n * n];
-        for (r, row) in rows.iter().enumerate() {
-            let y = n - 1 - r;
-            for (x, ch) in row.chars().enumerate() {
-                t[y * n + x] = match ch {
-                    '#' => CellType(8),
-                    '=' => CellType(1),
-                    _ => CellType(2),
-                };
-            }
-        }
-        (n, t)
-    }
-
-    #[test]
-    fn regions_split_by_water() {
-        let (n, t) = grid(&["..#..", "..#..", "..#..", "..#..", "..#.."]);
-        let r = regions(n, &t);
-        assert_eq!(r[0], 1);
-        assert_eq!(r[3], 2);
-        assert_eq!(r[2], 0);
-    }
-
-    #[test]
-    fn path_goes_around_water_and_prefers_roads() {
-        let (n, t) = grid(&[".....", ".###.", ".....", ".....", "....."]);
-        let r = regions(n, &t);
-        let mut pf = Pathfinder::new(n, &t);
-        pf.set_mode(0);
-        let from = (3 * n) as i32; // (0, 3)
-        let to = (3 * n + 4) as i32; // (4, 3), across the water row
-        let p = request(&mut pf, &t, &r, WALKABLE, from, to).unwrap();
-        assert_eq!(*p.first().unwrap(), from);
-        assert_eq!(*p.last().unwrap(), to);
-        assert!(p.iter().all(|&c| t[c as usize] != CellType(8)));
-        // Unreachable across a full water column.
-        let (n, t) = grid(&["..#..", "..#..", "..#..", "..#..", "..#.."]);
-        let r = regions(n, &t);
-        let mut pf = Pathfinder::new(n, &t);
-        pf.set_mode(0);
-        assert!(request(&mut pf, &t, &r, WALKABLE, 0, 4).is_none());
-    }
-}
+mod tests;

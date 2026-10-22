@@ -1,0 +1,3 @@
+{"file": "crates/path/src/sectors.rs", "type": "SectorGraph",
+ "modules": {"search": {"doc": "Searches over the sector graph: the open list, node paths and distances, and the distance cache.",
+   "methods": ["push", "node_path", "node_distance", "distance", "cache_store", "evict_oldest", "age_cache"]}}}

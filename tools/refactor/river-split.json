@@ -1,0 +1,2 @@
+{"file": "crates/terrain/src/river.rs", "type": "WaterMesh",
+ "modules": {"water": {"doc": "The water mesh of a river: its vertices and its strip.", "items": ["WaterMesh", "water_vertex", "water_mesh"]}}}

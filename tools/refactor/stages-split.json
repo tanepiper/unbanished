@@ -1,0 +1,2 @@
+{"file": "crates/terrain/src/stages.rs", "type": "Generator",
+ "modules": {"hills": {"doc": "Placing hills and stamping their shapes into the height field.", "methods": ["place_hills", "stamp"]}}}
