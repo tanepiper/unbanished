@@ -5,7 +5,8 @@
       "source": {
         "source": "github",
         "repo": "tanepiper/game-frame"
-      }
+      },
+      "autoUpdate": true
     }
   },
   "enabledPlugins": {
