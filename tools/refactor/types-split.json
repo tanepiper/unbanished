@@ -1,0 +1,15 @@
+{
+  "file": "crates/formats/src/types.rs",
+  "type": "GraphicsMesh",
+  "modules": {
+    "image": {"doc": "Image buffers: the pixel formats, the faces and the mip levels of a texture.",
+      "items": ["ImageFormat", "ImageBuffer"], "impls": ["impl ImageFormat {", "impl ImageBuffer {"]},
+    "mesh": {"doc": "Graphics meshes: parts, draw ranges, bones and the vertex strides.",
+      "items": ["DrawRange", "MeshPart", "Bone", "GraphicsMesh", "STATIC_STRIDE", "SKINNED_STRIDE", "POSITION_SCALE"],
+      "impls": ["impl MeshPart {", "impl GraphicsMesh {"]},
+    "animation": {"doc": "Animation groups: clips, events and blends.",
+      "items": ["AnimationClip", "AnimationEvent", "AnimationBlend", "AnimationGroup"], "impls": ["impl AnimationGroup {"]},
+    "sound": {"doc": "Sound buffers: the wave format and the xWMA data of a sound.",
+      "items": ["WaveFormat", "SoundBuffer"], "impls": ["impl SoundBuffer {"]}
+  }
+}
