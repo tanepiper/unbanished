@@ -1,0 +1,7 @@
+{"file": "apps/game/src/ui/mod_browse.rs", "type": "Browse",
+ "modules": {
+  "results": {"doc": "Searching for mods and showing the results.",
+   "methods": ["search", "search_with", "show_results", "selected"]},
+  "install": {"doc": "Installing a mod: the download, the link it needs and the replies.",
+   "methods": ["install", "needs_link", "poll"]}
+ }}
