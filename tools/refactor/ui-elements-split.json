@@ -1,0 +1,10 @@
+{
+  "file": "crates/formats/src/ui.rs",
+  "type": "Element",
+  "modules": {
+    "kinds": {"doc": "The element classes' own data: buttons, text, labels, documents, layouts and table cells.",
+      "items": ["Button", "Text", "Label", "ElementKind", "DocumentText", "LayoutItem", "TableCell"]},
+    "read": {"doc": "The readers of each element class's resource body.",
+      "items": ["read_button", "read_text", "read_group", "read_image", "read_element"]}
+  }
+}
