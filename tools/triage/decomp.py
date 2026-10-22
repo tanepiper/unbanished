@@ -95,8 +95,9 @@ def annotate(ix, text, own=None):
         if a == own:
             return m.group(0)
         lab = ix.label(a)
-        mark = '' if a in ix.traced else ' untraced'
-        return f'FUN_{a}' + (f' /* {lab}{mark} */' if lab else (' /* untraced */' if mark else ''))
+        st = ix.status(a)
+        mark = '' if st == 'traced' else f' {st}'
+        return f'FUN_{a}' + (f' /* {lab}{mark} */' if lab else (f' /* {st} */' if mark else ''))
 
     def dat(m):
         a = m.group(2)

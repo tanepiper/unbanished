@@ -24,6 +24,9 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ghidra_index import is_handler_name, load_library  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BINARIES = {
     "Application": "Application-steam-x64.exe",
@@ -102,19 +105,21 @@ def main():
         short = name.split("::")
         return len(short) >= 2 and "::".join(short[-2:]) in names
 
-    def is_library(name, kind):
-        return kind == "thunk" or "::" in name and not name.startswith("FUN_") and (
-            name.split("::")[0] in ("std", "Concurrency") or "RUNTIME" in name
-        )
+    library = load_library()
+
+    def is_library(name, kind, addr=None):
+        # labels/library.tsv (library.py): the C runtime, the Steam stub, unnamed funclets.
+        return kind == "thunk" or addr in library or is_handler_name(name) or "RUNTIME" in name
 
     covered = {a for a in funcs if is_cited(a)}
-    print(f"{binary}: {len(funcs)} functions, {len(covered)} cited", file=sys.stderr)
+    print(f"{binary}: {len(funcs)} functions, {len(covered)} cited "
+          "(the coverage figure is fnindex.py coverage)", file=sys.stderr)
     missed = {}
     for caller in covered:
         for callee in graph.get(caller, ()):
             if callee in funcs and callee not in covered:
                 size, name, kind = funcs[callee]
-                if size >= args.min_size and not is_library(name, kind):
+                if size >= args.min_size and not is_library(name, kind, callee):
                     missed.setdefault(callee, set()).add(caller)
     rows = sorted(missed.items(), key=lambda kv: (-funcs[kv[0]][0]))
     print("# uncited, called from cited functions: address\tsize\tname\tcallers")
@@ -125,7 +130,7 @@ def main():
         rest = [
             a for a in funcs
             if a not in covered and a not in missed and funcs[a][0] >= args.min_size
-            and not is_library(funcs[a][1], funcs[a][2])
+            and not is_library(funcs[a][1], funcs[a][2], a)
         ]
         print("# uncited, not called from cited functions")
         for a in sorted(rest, key=lambda a: -funcs[a][0]):

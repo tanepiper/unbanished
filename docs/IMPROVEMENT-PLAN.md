@@ -34,9 +34,13 @@ The update (commits `d255331` and `cbfb6cb`, report in
    C++ standard library. GameFrame's guide on compiled code shows how to name them by signature
    (Ghidra's Function ID). Naming them separates the game's own code from library code in every
    coverage figure. Gate: a count of the functions named this way, in CHECKLIST.md.
+   *Done:* `tools/triage/library.py` names 292 functions in the Application and 682 in the
+   Runtime in `labels/library.tsv` ([LIBRARY-CODE.md](LIBRARY-CODE.md)).
 4. **One coverage figure.** CHECKLIST.md and the case study say 68 % of the game's code is traced.
    Labels cover 28.2 %. The two figures measure different things (`coverage.py` counts citations,
    the labels need an item). Define "traced" once, and report one figure from one tool.
+   *Done:* traced means labelled. `fnindex.py coverage` reports 31.3 % of the Application's own
+   code, with library code apart ([CHECKLIST.md](CHECKLIST.md), "Coverage").
 5. **GameFrame's case study** still says `--pure`. That is a fix in GameFrame, not here.
 
 ## Part 2: the code
@@ -110,5 +114,4 @@ browser build before and after.
 
 ## Open questions
 
-- How many of the 9,846 functions are library code? The answer changes every coverage figure.
 - Does the viewer need the game's materials (snow, seasons, damage), or only its models?

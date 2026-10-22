@@ -4,7 +4,9 @@ Knows, per binary: every function's size and body text, callers/callees, string 
 global references, registered class types (`BaseTypeInfo` registrations: name, parent,
 factory), constructors and vtables (with slots), typed constant reads, project mentions
 ("traced") and analyst labels from `labels/names.tsv`, then the labels made from the port's
-citations in `labels/names-from-port.tsv` (cite_labels.py).
+citations in `labels/names-from-port.tsv` (cite_labels.py), then the library code in
+`labels/library.tsv` (library.py). `category()` sorts every function into the game's own code,
+library code, exception handlers and thunks, for the coverage figures.
 
 Only derived facts are printed by the tools; decompiled text stays local.
 """
@@ -17,6 +19,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 NAMES = os.path.join(ROOT, 'labels', 'names.tsv')
 # Labels made from the port's `Original: FUN_` citations (cite_labels.py); names.tsv wins.
 PORT_NAMES = os.path.join(ROOT, 'labels', 'names-from-port.tsv')
+# The C runtime, the Steam stub and unnamed funclets (library.py); read last.
+LIBRARY = os.path.join(ROOT, 'labels', 'library.tsv')
 IMAGES = {
     'Application-steam-x64.exe': 'game-data/original/Application-steam-x64.exe',
     'Runtime-steam-x64.dll': 'game-data/original/Runtime-steam-x64.dll',
@@ -104,9 +108,46 @@ def load_fields():
     return fields
 
 
+def is_handler_name(name):
+    """Exception funclets Ghidra named: `Unwind@`, `Catch@`, and `$filt$`/`$fin$` blocks."""
+    return name.startswith(('Unwind@', 'Catch@', 'Catch_All@')) or '$filt$' in name \
+        or '$fin$' in name or 'filt$0' in name or 'fin$0' in name
+
+
+def is_thunk_name(name):
+    """Import thunks (`RUNTIME-STEAM-X64.DLL::...`) and Ghidra's jump thunks."""
+    return '.DLL::' in name or name.startswith('thunk_')
+
+
+def load_library():
+    """`address -> (label, kind, evidence)` from library.tsv."""
+    rows = {}
+    if os.path.exists(LIBRARY):
+        for line in open(LIBRARY):
+            if line.startswith('#') or not line.strip():
+                continue
+            cols = line.rstrip('\n').split('\t')
+            if len(cols) >= 4:
+                rows[cols[0]] = (cols[1], cols[2], cols[3])
+    return rows
+
+
+def load_labelled():
+    """Addresses with a label in names.tsv or names-from-port.tsv: the traced functions."""
+    found = set()
+    for path in (NAMES, PORT_NAMES):
+        if not os.path.exists(path):
+            continue
+        for line in open(path):
+            if line.startswith('#') or not line.strip():
+                continue
+            found.add(line.split('\t', 1)[0].lower().removeprefix('0x'))
+    return found
+
+
 def load_names():
     names = {}
-    for path in (NAMES, PORT_NAMES):
+    for path in (NAMES, PORT_NAMES, LIBRARY):
         if not os.path.exists(path):
             continue
         for line in open(path):
@@ -168,6 +209,8 @@ class Index:
         self.types = {d: v[0] for d, v in self.classes.items()}
         self.traced = self._mentions()
         self.names = load_names()
+        self.library = load_library()
+        self.labelled = load_labelled()
         self.fields = load_fields()
         self.image = Image(IMAGES[binary]) if binary in IMAGES and os.path.exists(
             os.path.join(ROOT, IMAGES[binary])) else None
@@ -179,7 +222,7 @@ class Index:
             for dirpath, dirs, files in os.walk(os.path.join(ROOT, top)):
                 dirs[:] = [d for d in dirs if d not in ('target', '__pycache__')]
                 for fn in files:
-                    if fn in ('names.tsv', 'names-from-port.tsv') or not fn.endswith(('.md', '.rs', '.py', '.wgsl', '.tsv')):
+                    if fn in ('names.tsv', 'names-from-port.tsv', 'library.py') or not fn.endswith(('.md', '.rs', '.py', '.wgsl', '.tsv')):
                         continue
                     path = os.path.join(dirpath, fn)
                     try:
@@ -192,6 +235,27 @@ class Index:
         return found
 
     # ---- naming -------------------------------------------------------------------------
+
+    def category(self, fn):
+        """'game', 'library', 'handler' (exception funclets) or 'thunk'."""
+        n = self.name.get(fn, '')
+        if is_handler_name(n):
+            return 'handler'
+        if is_thunk_name(n):
+            return 'thunk'
+        if fn in self.library:
+            return self.library[fn][1]
+        return 'game'
+
+    def status(self, fn):
+        """'traced' (labelled), 'cited' (mentioned, no label), 'untraced', or the category of
+        code that is not the game's own ('library', 'handler', 'thunk')."""
+        cat = self.category(fn)
+        if cat != 'game':
+            return cat
+        if fn in self.labelled:
+            return 'traced'
+        return 'cited' if fn in self.traced else 'untraced'
 
     def type_names(self, fn):
         return sorted({self.types[d] for d in self.dats.get(fn, ()) if d in self.types})
@@ -224,8 +288,7 @@ class Index:
 
     def describe(self, fn):
         lab = self.label(fn)
-        mark = 'traced' if fn in self.traced else 'untraced'
-        return f'{fn}{" " + lab if lab else ""} ({self.size.get(fn, 0)} bytes, {mark})'
+        return f'{fn}{" " + lab if lab else ""} ({self.size.get(fn, 0)} bytes, {self.status(fn)})'
 
     # ---- classes and vtables ------------------------------------------------------------
 

@@ -76,7 +76,9 @@ def items(lines):
 def scan(root, lines_too=True):
     labels, skipped = [], 0
     for base, dirs, files in os.walk(root):
-        dirs[:] = sorted(d for d in dirs if d not in ('target', 'build', 'node_modules', '.git'))
+        # Dot folders hold copies (.claude/worktrees) and tool state; GameFrame skips them too.
+        dirs[:] = sorted(d for d in dirs if d not in ('target', 'build', 'node_modules')
+                         and not d.startswith('.'))
         for f in sorted(files):
             if not f.endswith(EXTS):
                 continue

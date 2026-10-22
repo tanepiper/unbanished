@@ -228,3 +228,5 @@
 1400cffe0	RemoveNaturalResource::Start	docs/JOBS.md
 1400caad0	AnimateNaturalResource::Start	docs/JOBS.md
 1400ceda0	PickupRawMaterial::Start	docs/JOBS.md
+140042810	WinMain	docs/LIBRARY-CODE.md
+1800a0ac0	DllMain	docs/LIBRARY-CODE.md

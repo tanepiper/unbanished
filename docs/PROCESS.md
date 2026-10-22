@@ -326,6 +326,7 @@ next time. The table shows real examples from the project's history.
 | Raw Ghidra output is hard to read: calls, fields and constants have no names | `decomp.py` names calls, fields, vtables and float constants. `names.tsv` and `fields.tsv` collect every name an agent finds (now 230 functions and 146 fields) | 15 Oct |
 | Hard to choose what to work on next | `fnindex.py hot` and `frontier` list the untraced functions that matter most | 15 Oct |
 | "Is this function done?" had no clear answer | A function counts as traced when its address is named in the code or the docs. `coverage.py` and `fnindex.py coverage` count them | 15–17 Oct |
+| Two coverage figures answered one question: 68 % cited, 28 % labelled | A function counts as traced when it has a label. `library.py` names the C runtime, and `fnindex.py coverage` reports the traced share of the game's own code with library code apart | 22 Oct |
 | Random numbers drawn in a different order make a town grow differently | `rng_trace.py` records the original's draws in the emulator. `rngdiff.py` compares them with the port's draws | 15 Oct |
 | Intentional differences were scattered through the code | Every difference has a `Deviation:` comment. `deviations.py` collects them into [DEVIATIONS.md](DEVIATIONS.md) | 15 Oct |
 | Hard to compare pictures with the original game | Reference frames are streamed from the original on Windows (Steam Remote Play). `imgdiff` measures how two screenshots differ | 15 Oct |
@@ -373,7 +374,7 @@ At the time of writing (19 October 2026):
 | | |
 |---|---|
 | Lines of Rust | about 130,000 |
-| Original functions traced (named in the code or the docs) | 2,050 of 9,846, which is 68 % of the game's code by size |
+| Original functions traced (with a label, see [CHECKLIST.md](CHECKLIST.md), "Coverage") | 621 of the Application's 4,487 own functions on 22 October, 31.3 % of its own code by size. Another 44.4 % is named in the code or the docs without a label |
 | Resource types identified | 170 of 170 |
 | Emulator scripts that capture ground truth | 32 |
 | Test files that compare with emulator results | 22 |

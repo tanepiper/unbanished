@@ -11,7 +11,8 @@ Deterministic helpers for deciding what to trace, port or check next. All read l
 | `fnindex.py frontier ADDR --depth N` | Which untraced functions does this feature still depend on, largest first? |
 | `fnindex.py hot` | Which untraced functions are called most by already-traced code (best next targets)? |
 | `fnindex.py find TERM` | Which functions use a string or a registered class name (`CitizenAIComponent`)? |
-| `fnindex.py coverage` | How much of the binary is traced, and which component families are untouched? |
+| `fnindex.py coverage` | How much of the binary's own code is traced, how much is library code, and which component families are untouched? The project's one coverage figure |
+| `library.py [--report]` | Which functions are the C runtime, the Steam stub or unnamed exception funclets? Writes `labels/library.tsv` from the Ghidra export ([LIBRARY-CODE.md](../../docs/LIBRARY-CODE.md)) |
 | `tools/emu/rng_trace.py` + `rngdiff.py ORIG PORT` | Does the port draw from `System::Random` in the same order as the original? (see below) |
 | `skills_check.py` | Do the agent skills still point at real paths, with valid front matter, all listed in AGENTS.md? (the `harness` test suite runs it) |
 | `deviations.py [--check]` | Every comment marking a deviation or unported piece, as `docs/DEVIATIONS.md` |
@@ -19,9 +20,12 @@ Deterministic helpers for deciding what to trace, port or check next. All read l
 | `tools/reference/` (`save.sh`, `windows.swift`, README) | Reference frames of the original game streamed via Steam Remote Play, filed locally for comparison |
 | `cargo run -p unbanished-app --example imgdiff -- A.png B.png` | How and where do two screenshots differ (MAE, PSNR, mismatch %, bounding box, 4×4 grid, heat map; `--resize`, `--ignore x,y,w,h`, `--crop-a/--crop-b x,y,w,h`, `--blur R` for streamed references, `--json`)? |
 
-"Traced" means the address appears in `docs/`, `crates/`, `apps/` or `tools/`, so naming the
-original function in a doc or a code comment is what marks it done. Small functions that only
-look up one component type are labelled `get<Type>` and left out of `frontier`/`hot`.
+"Traced" means the function has a label: a hand label in `labels/names.tsv` or a label from a
+ported item's citation in `labels/names-from-port.tsv` (the definition is in
+[CHECKLIST.md](../../docs/CHECKLIST.md)). A function whose address appears in `docs/`, `crates/`,
+`apps/` or `tools/` without a label is shown as `cited`; `frontier` and `hot` leave out both, and
+library code. Small functions that only look up one component type are labelled `get<Type>` and
+left out of `frontier`/`hot`.
 
 `imgdiff` is the basis for comparing against screenshots of the original game: capture the same
 view in both, pass `--resize` when resolutions differ and `--ignore` for the UI clock or cursor.
@@ -35,6 +39,9 @@ view in both, pass `--resize` when resolutions differ and `--ignore` for the UI 
 - `labels/names-from-port.tsv`: labels made from the port's ``Original: `FUN_…` `` citations by
   `cite_labels.py` (from GameFrame). The tools read it after `names.tsv`, so a hand-made label
   wins. Do not edit it: the quick test tier regenerates it and fails when it was out of date.
+- `labels/library.tsv`: the C runtime, the Steam stub and unnamed funclets (`address label kind
+  evidence`), made by `library.py`. The tools read it last, and coverage counts it apart. Do not
+  edit it: run `library.py` again after a new export.
 - `labels/fields.tsv`: struct fields (`class offset name [pointee class]`). `decomp.py` names
   `param_1 + 0xNN` in that class's methods and follows typed pointers
   (`citizen.description.hungry_urgent`).

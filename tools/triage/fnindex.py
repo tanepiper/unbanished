@@ -9,7 +9,8 @@ Usage:
   python3 tools/triage/fnindex.py frontier 0x1401146c0 --depth 2
                                                         # untraced functions reachable from here
   python3 tools/triage/fnindex.py find CitizenAIComponent  # functions using a string/type name
-  python3 tools/triage/fnindex.py coverage                 # traced share overall and by type
+  python3 tools/triage/fnindex.py coverage                 # the coverage figure (traced = labelled),
+                                                        # library code apart, and by type
   python3 tools/triage/fnindex.py hot --limit 30           # untraced functions most called by
                                                         # traced ones (good next targets)
 Options: --binary Application-steam-x64.exe (default) or Runtime-steam-x64.dll.
@@ -56,7 +57,7 @@ def cmd_frontier(ix, args):
                 continue
             seen[c] = d + 1
             queue.append(c)
-            if (c not in ix.traced and not ix.name.get(c, '').startswith('RUNTIME')
+            if (c not in ix.traced and ix.category(c) == 'game'
                     and not ix.accessor(c)):
                 rows.append((d + 1, -ix.size.get(c, 0), c))
     rows.sort()
@@ -78,18 +79,41 @@ def cmd_find(ix, args):
 
 
 def cmd_coverage(ix, args):
-    fns = [f for f in ix.size if not ix.name.get(f, '').startswith('RUNTIME')]
-    traced = [f for f in fns if f in ix.traced]
-    total_b = sum(ix.size[f] for f in fns)
-    traced_b = sum(ix.size[f] for f in traced)
-    print(f'{len(traced)}/{len(fns)} functions traced '
-          f'({traced_b * 100 / max(total_b, 1):.1f}% of code bytes)')
+    """The project's one coverage figure. A function is traced when it has a label: a hand label
+    in labels/names.tsv (with its evidence doc) or a label from a ported item's `Original:`
+    citation in labels/names-from-port.tsv. The share is of the binary's own code by size, with
+    library code (labels/library.tsv), exception funclets and thunks counted apart."""
+    groups = collections.defaultdict(list)
+    for f in ix.size:
+        groups[ix.category(f)].append(f)
+    own = groups['game']
+    traced = [f for f in own if f in ix.labelled]
+    cited = [f for f in own if f not in ix.labelled and f in ix.traced]
+    total_b = sum(ix.size[f] for f in own)
+
+    def share(fns):
+        b = sum(ix.size[f] for f in fns)
+        return f'{len(fns):,} functions, {b:,} bytes ({b * 100 / max(total_b, 1):.1f} %)'
+
+    print(f'{ix.binary}: {len(ix.size):,} functions')
+    print(f'  own code: {len(own):,} functions, {total_b:,} bytes')
+    print(f'    traced (labelled): {share(traced)}')
+    print(f'    cited in code or docs, no label yet: {share(cited)}')
+    print(f'    not traced: {share([f for f in own if f not in ix.labelled and f not in ix.traced])}')
+    evidence = collections.Counter(ix.library[f][2] for f in groups['library'])
+    lib_b = sum(ix.size[f] for f in groups['library'])
+    print(f'  library code: {len(groups["library"]):,} functions, {lib_b:,} bytes ('
+          + ', '.join(f'{e} {n}' for e, n in sorted(evidence.items())) + ')')
+    for g, title in (('handler', 'exception funclets'), ('thunk', 'thunks')):
+        print(f'  {title}: {len(groups[g]):,} functions, {sum(ix.size[f] for f in groups[g]):,} bytes')
+    if args.limit <= 0:
+        return
     by_type = collections.Counter()
     by_type_traced = collections.Counter()
-    for f in fns:
+    for f in own:
         for t in ix.type_names(f):
             by_type[t] += ix.size[f]
-            if f in ix.traced:
+            if f in ix.labelled:
                 by_type_traced[t] += ix.size[f]
     print('by class type touched (bytes traced / total), least covered first:')
     rows = sorted(by_type, key=lambda t: (by_type_traced[t] / by_type[t], -by_type[t]))
@@ -102,7 +126,7 @@ def cmd_hot(ix, args):
     score = collections.Counter()
     for f in ix.traced:
         for c in ix.callees.get(f, ()):
-            if (c not in ix.traced and not ix.name.get(c, '').startswith('RUNTIME')
+            if (c not in ix.traced and ix.category(c) == 'game'
                     and not ix.accessor(c)):
                 score[c] += 1
     print('untraced functions called most by traced code:')

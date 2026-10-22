@@ -34,11 +34,37 @@ work are in [GAME-LOOP-CHECKLIST.md](GAME-LOOP-CHECKLIST.md). The parity of each
   rest ([GAME-LOOP-CHECKLIST.md](GAME-LOOP-CHECKLIST.md), "Remaining reverse-engineering work"
   and "Remaining port work")
 
+## Coverage
+
+A function is **traced** when it has a label: a hand label in `labels/names.tsv`, which names
+the doc with its evidence, or a label from a ported item's ``Original: `FUN_…` `` citation in
+`labels/names-from-port.tsv`. The coverage figure is the traced share of the binary's own code,
+by size. Library code (`labels/library.tsv`, [LIBRARY-CODE.md](LIBRARY-CODE.md)), the
+compiler's exception funclets and thunks are counted apart. `python3 tools/triage/fnindex.py
+coverage` reports it, and no other tool gives a coverage figure. A function that is named in the
+code or the docs without a label is reported as cited, and is not yet traced.
+
+| 2026-10-22 | Own code | Traced | Cited, no label | Library code | Exception funclets |
+|---|---|---|---|---|---|
+| Application | 4,487 functions, 1,165,653 bytes | **621 functions, 31.3 %** | 1,434 functions, 44.4 % | 292 functions, 64,545 bytes | 5,056 functions, 73,373 bytes |
+| Runtime | 6,858 functions, 968,747 bytes | **67 functions, 3.3 %** | 276 functions, 10.1 % | 682 functions, 144,503 bytes | 7,576 functions, 106,378 bytes |
+
+The Runtime's figure is low because the port cites most engine functions by their exported
+names (`System::Random`), which give no label.
+
 ## Labels and evidence
 
 - [x] Function labels from the port's citations: `labels/names-from-port.tsv`, 477 labels
   (`tools/triage/cite_labels.py`)
+- [x] Library code named by signature: 292 functions in the Application and 682 in the Runtime,
+  with evidence for each (`labels/library.tsv`, `tools/triage/library.py`,
+  [LIBRARY-CODE.md](LIBRARY-CODE.md)). Ghidra's Function ID matched 197 and 456 of them
+- [x] One coverage figure from one tool (`fnindex.py coverage`, "Coverage" above)
 - [ ] Move the 542 citations that are not on an item (module notes, notes inside bodies) onto the
   item that ports the function, so each one gives a label
-- [ ] Recover the fields of the main classes (Citizen, Building, Storage) with GameFrame's
-  `decomp_query.py layout`, and add them to `labels/fields.tsv` with evidence
+- [x] Fields of the main classes: the citizen (CitizenComponent, CitizenAIComponent,
+  CharacterComponent, CitizenDescription), the storage, the building components (WorkPlace,
+  Residence, Build, Work, StateMachine, Destroy, ClearArea) and the Entity, Component and
+  ControllerComponent bases. 227 rows in `labels/fields.tsv`, each with its type and the functions
+  that read or write it ([CLASS-FIELDS.md](CLASS-FIELDS.md), which also lists where the port
+  differs)
