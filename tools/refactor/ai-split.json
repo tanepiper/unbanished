@@ -1,0 +1,8 @@
+{
+  "file": "crates/game/src/behaviour/ai.rs",
+  "type": "CitizenAi",
+  "modules": {
+    "qsort": {"doc": "The C runtime's `qsort`, whose unstable order the game's sorting depends on.",
+      "items": ["crt_qsort", "crt_qsort_less", "crt_qsort_by"]}
+  }
+}
