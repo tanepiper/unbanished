@@ -1,0 +1,10 @@
+{
+  "file": "crates/game/src/people/needs.rs",
+  "type": "Needs",
+  "modules": {
+    "home": {"doc": "Needs met at home or from storage: eating, getting warm and stocking the home.",
+      "methods": ["eat", "warm", "stock_home"]},
+    "services": {"doc": "Needs met elsewhere: school, the doctor, herbs and play.",
+      "methods": ["school", "doctor", "herbs", "play"]}
+  }
+}
