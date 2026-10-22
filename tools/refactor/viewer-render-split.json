@@ -1,0 +1,6 @@
+{"file": "apps/viewer/src/render.rs", "type": "Renderer",
+ "modules": {
+  "mesh": {"doc": "Loading meshes and their textures to the GPU, and posing a skinned mesh.",
+    "methods": ["texture", "load_mesh", "set_animation_pose"]},
+  "draw": {"doc": "Drawing a frame to the window or to a captured image.",
+    "methods": ["capture", "draw"], "items": ["Frame", "RenderMode", "CLEAR_SKY", "CLEAR_DARK"], "impls": ["impl RenderMode {"]}}}

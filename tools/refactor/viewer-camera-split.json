@@ -1,0 +1,3 @@
+{"file": "apps/viewer/src/tool.rs", "type": "Tool",
+ "modules": {"camera": {"doc": "The orbit camera: its eye and its view-projection matrix.",
+   "items": ["Camera"], "impls": ["impl Camera {"]}}}

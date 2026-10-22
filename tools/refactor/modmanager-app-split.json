@@ -1,0 +1,3 @@
+{"file": "apps/modmanager/src/app.rs", "type": "App",
+ "modules": {"installed": {"doc": "The Installed tab: the list of mods and the selected mod's details.",
+   "methods": ["installed_tab", "details"]}}}
