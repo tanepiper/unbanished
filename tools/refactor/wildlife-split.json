@@ -1,0 +1,16 @@
+{
+  "file": "crates/game/src/nature/wildlife.rs",
+  "type": "Wild",
+  "modules": {
+    "population": {"doc": "Populations: their cells' capacity and count, regrowth every period, and the herds a population starts.",
+      "methods": ["start_population", "update_population"],
+      "impls": ["impl Population {"]},
+    "herds": {"doc": "Herds: their area within a block, spawning and regrowing their animals, and moving home.",
+      "methods": ["herd_area", "retarget", "spawn_herd", "regrow_herd", "update_herd", "all_home", "join"],
+      "items": ["inside", "area_around", "nearest_ground"]},
+    "animals": {"doc": "Animals: creating and placing them, their schedule, one update (wander, idle, grow up, die), and being hunted.",
+      "methods": ["create", "place", "new_animal", "pick_variant", "insert_animal", "register_animal", "register_animal_in", "rescale", "scheduled", "update_animal", "restack", "hunted", "idle", "rehome"]},
+    "livestock": {"doc": "Livestock: roaming until a pasture takes them, penning, breeding and births, trade, release and burial.",
+      "methods": ["update_livestock", "assign", "turn_wild", "pen", "fill", "births", "give_birth", "start_livestock", "trade_livestock", "mark_breeder", "release", "bury"]}
+  }
+}
