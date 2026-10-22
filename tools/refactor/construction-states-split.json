@@ -1,0 +1,8 @@
+{
+  "file": "crates/game/src/work/construction/states.rs",
+  "type": "Controller",
+  "modules": {
+    "production": {"doc": "The state tables of the producing and service controllers: fields, orchards, markets, storage, pastures and resources.",
+      "items": ["CROP_FIELD", "ORCHARD", "MARKET_LOCATION", "CEMETERY", "ABSORB_RESOURCE", "STORAGE_LOCATION", "PASTURE", "HAPPINESS", "CLEAR_RESOURCE", "RESOURCE_PRODUCE"]}
+  }
+}
