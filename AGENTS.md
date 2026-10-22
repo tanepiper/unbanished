@@ -223,6 +223,9 @@ tools/test/run.py determinism browser # ~3 min more, when the change touches the
 tools/compat/compare.sh HEAD <your build or commit>   # if the change can touch the simulation
 ```
 
+Other sessions share `target/release`. Before `compare.sh`, copy your build to a file of your
+own (for example in your scratchpad) and compare that copy.
+
 `tools/test/run.py long` adds the website, replays, lockstep, network and multiplayer: run it
 before a release and after save, network or multiplayer work. The quick tier regenerates
 `docs/DEVIATIONS.md`; stage it if it changed. A probe baseline that changes

@@ -187,6 +187,12 @@ tools/test/run.py determinism browser                  # if the change touches t
 tools/compat/compare.sh HEAD <your build or commit>    # if the change can touch the simulation
 ```
 
+Other sessions may build and test in the same checkout at the same time, and they share
+`target/release/unbanished`. Copy your build to a file of your own (in your scratchpad, with a
+name of your own) and give `compare.sh` that copy, so another session's build cannot replace it
+during the run. Each run's results folder is named after the binary's full path, so runs of
+different copies stay apart ([Compatibility between versions](../COMPATIBILITY.md), "Limits").
+
 The quick tier runs `cargo test`, the browser build, `deviations.py` (stage
 `docs/DEVIATIONS.md` if it changed) and `doc_comments.py check` for you. The commands it runs
 are below, if you want one on its own.

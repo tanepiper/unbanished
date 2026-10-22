@@ -12,9 +12,10 @@
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
+source tools/compat/run-name.sh
 arg="${1:?usage: tools/compat/lockstep.sh BINARY}"
 if [[ -x "$arg" && -f "$arg" ]]; then bin="$arg"; else bin="$(tools/compat/build.sh "$arg")"; fi
-out="target/compat/lockstep/$(basename "$bin")"
+out="target/compat/lockstep/$(run_name "$bin")"
 rm -rf "$out" && mkdir -p "$out/recordings"
 RECORD_DIR="$(cd "$out/recordings" && pwd)" tools/compat/scenarios.sh "$bin" "$out/runs" actions
 limit=()

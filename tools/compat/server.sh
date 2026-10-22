@@ -17,10 +17,11 @@
 # scramble must agree with the server at every check, with no resync, and the scrambled player
 # is resynced from the server's own save.
 #
-# Exit 0 when everything agrees. Results stay in target/compat/server/<binary> when it does not.
+# Exit 0 when everything agrees. Results stay in target/compat/server/<binary>-<hash> when it does not.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
+source tools/compat/run-name.sh
 simulate=0
 args=()
 for a in "$@"; do
@@ -32,7 +33,7 @@ server="${args[1]:-target/release/unbanished-server}"
 if [[ -z "${args[1]:-}" ]]; then cargo build -q --offline --release -p unbanished-server; fi
 suffix=""
 if [[ $simulate == 1 ]]; then suffix="-simulate"; fi
-out="target/compat/server/$(basename "$bin")$suffix"
+out="target/compat/server/$(run_name "$bin")$suffix"
 rm -rf "$out" && mkdir -p "$out/recordings" "$out/rooms"
 RECORD_DIR="$(cd "$out/recordings" && pwd)" tools/compat/scenarios.sh "$bin" "$out/runs" actions
 recording="$out/recordings/actions.rec"

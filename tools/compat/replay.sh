@@ -7,16 +7,17 @@
 #   tools/compat/replay.sh BINARY [SCENARIO...]     # default: small-town medium-town large-town actions
 #
 # BINARY is a game binary (or a git revision, built clean with tools/compat/build.sh). Exit 0 when
-# every replay matches. Results stay in target/compat/replays/<binary>.
+# every replay matches. Results stay in target/compat/replays/<binary>-<hash>.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
+source tools/compat/run-name.sh
 arg="${1:?usage: tools/compat/replay.sh BINARY [SCENARIO...]}"
 shift
 scenarios=("$@")
 [[ ${#scenarios[@]} -eq 0 ]] && scenarios=(small-town medium-town large-town actions)
 if [[ -x "$arg" && -f "$arg" ]]; then bin="$arg"; else bin="$(tools/compat/build.sh "$arg")"; fi
-out="target/compat/replays/$(basename "$bin")"
+out="target/compat/replays/$(run_name "$bin")"
 rm -rf "$out" && mkdir -p "$out/recordings"
 RECORD_DIR="$(cd "$out/recordings" && pwd)" tools/compat/scenarios.sh "$bin" "$out/runs" "${scenarios[@]}"
 limit=()

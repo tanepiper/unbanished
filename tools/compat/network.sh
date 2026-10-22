@@ -7,15 +7,16 @@
 #
 #   tools/compat/network.sh BINARY [RELAY_BINARY]     # default relay: target/release/unbanished-server
 #
-# Exit 0 when every run agrees. Results stay in target/compat/network/<binary> on failure.
+# Exit 0 when every run agrees. Results stay in target/compat/network/<binary>-<hash> on failure.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
+source tools/compat/run-name.sh
 bin="${1:?usage: tools/compat/network.sh BINARY [RELAY_BINARY]}"
 relay="${2:-target/release/unbanished-server}"
 # The default server is built from this checkout, so it never runs a stale one.
 if [[ -z "${2:-}" ]]; then cargo build -q --offline --release -p unbanished-server; fi
-out="target/compat/network/$(basename "$bin")"
+out="target/compat/network/$(run_name "$bin")"
 rm -rf "$out" && mkdir -p "$out/recordings"
 RECORD_DIR="$(cd "$out/recordings" && pwd)" tools/compat/scenarios.sh "$bin" "$out/runs" actions
 recording="$out/recordings/actions.rec"

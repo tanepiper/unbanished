@@ -11,12 +11,13 @@
 #      (`imgdiff`) with BASE's;
 #   3. checks backward compatibility: BASE and NEW both continue each save BASE wrote, and the
 #      results must again be identical.
-# Exit 0 when everything matches. Results stay in target/compat/runs/<base>-<new>.
+# Exit 0 when everything matches. Results stay in target/compat/runs/<base>-vs-<new>, each named by run-name.sh.
 #
 # Example: tools/compat/compare.sh v0.2.0 HEAD
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
+source tools/compat/run-name.sh
 base_arg="${1:?usage: tools/compat/compare.sh BASE NEW [SCENARIO...]}"
 new_arg="${2:?usage: tools/compat/compare.sh BASE NEW [SCENARIO...]}"
 shift 2
@@ -30,7 +31,7 @@ binary() {
 }
 base="$(binary "$base_arg")"
 new="$(binary "$new_arg")"
-runs="target/compat/runs/$(basename "$base")-vs-$(basename "$new")"
+runs="target/compat/runs/$(run_name "$base")-vs-$(run_name "$new")"
 rm -rf "$runs" && mkdir -p "$runs"
 cargo build -q --offline --release -p unbanished-app --example imgdiff
 cargo build -q --offline --release -p unbanished-formats --example savegame_same

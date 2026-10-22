@@ -22,6 +22,18 @@ if [[ -x "$bin" ]]; then
   exit 0
 fi
 mkdir -p "$root/bin" "$root/src"
+# Several sessions may ask for the same revision at once: one builds, the others wait for it. A
+# lock left by a build that was killed is removed after an hour.
+lock="$root/bin/.lock-$sha"
+until mkdir "$lock" 2>/dev/null; do
+  if [[ -n "$(find "$lock" -maxdepth 0 -mmin +60 2>/dev/null)" ]]; then rmdir "$lock" 2>/dev/null || true; fi
+  sleep 2
+done
+trap 'rmdir "$lock" 2>/dev/null || true' EXIT
+if [[ -x "$bin" ]]; then
+  echo "$bin"
+  exit 0
+fi
 src="$root/src/$sha"
 if [[ ! -d "$src" ]]; then
   git -C "$repo" worktree add --detach --quiet "$src" "$sha"
@@ -35,7 +47,8 @@ program="$(sed -n '/^\[\[bin\]\]/,/^name/s/^name = "\(.*\)"/\1/p' "$src/apps/gam
   UNBANISHED_BUILD="$sha" CARGO_TARGET_DIR="$root/cargo" \
     cargo build --release --offline -p "$package" --bin "$program" >&2
 )
-cp "$root/cargo/release/$program" "$bin"
+# Copied, then moved into place, so nobody runs a half-copied binary.
+cp "$root/cargo/release/$program" "$bin.part" && mv "$bin.part" "$bin"
 if [[ "$keep" != "--keep" ]]; then
   git -C "$repo" worktree remove --force "$src"
 fi

@@ -9,12 +9,13 @@
 #
 #   tools/compat/hooks.sh BINARY
 #
-# Exit 0 when all hold. Results stay in target/compat/hooks/<binary> when they do not.
+# Exit 0 when all hold. Results stay in target/compat/hooks/<binary>-<hash> when they do not.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
+source tools/compat/run-name.sh
 bin="${1:?usage: tools/compat/hooks.sh BINARY}"
-out="target/compat/hooks/$(basename "$bin")"
+out="target/compat/hooks/$(run_name "$bin")"
 rm -rf "$out" && mkdir -p "$out/with/Hooks" "$out/without"
 cargo run -q --offline -p unbanished-hooks --example wat2wasm \
   tools/test/hooks/every-minute.wat "$out/with/Hooks/every-minute.wasm"

@@ -72,6 +72,15 @@ save holds the same game state and every frame is the same.
   scenario's drags and its game comes out different. Compare `actions` only between 0.3.0 and
   later builds (for example, from 6416b7a); name the other scenarios when the base is older:
   `tools/compat/compare.sh v0.2.0 HEAD new-game small-town medium-town large-town`.
+- **Several sessions at once.** Other sessions may run the same tools in the same checkout at
+  the same time. Each run keeps its results in a folder named by the binary's file name and a
+  short hash of its full path (`tools/compat/run-name.sh`), so two binaries with the same file
+  name in different folders do not share one. `build.sh` builds a revision once: a second
+  session that asks for the same revision waits for the first. Before this, two sessions that
+  each tested a binary called `unbanished-haul` wrote into one folder. Each run deleted the
+  other's saves, and the report showed "NO SAVE" or "missing" for scenarios that had played
+  correctly. When a report shows those, look for another comparison running
+  (`ps aux | grep compare.sh`) before looking for a crash.
 - The tools compare Un-Banished with Un-Banished. Whether the original game loads a save written
   by Un-Banished is not verified yet.
 - Timings in the scenarios are capture time, which runs faster than real time; the results

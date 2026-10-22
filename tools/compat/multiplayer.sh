@@ -16,13 +16,14 @@
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
+source tools/compat/run-name.sh
 bin="${1:?usage: tools/compat/multiplayer.sh BINARY [RELAY_BINARY]}"
 relay="${2:-target/release/unbanished-server}"
 # The default server is built from this checkout, so it never runs a stale one.
 if [[ -z "${2:-}" ]]; then cargo build -q --offline --release -p unbanished-server; fi
 scenarios=("${@:3}")
 ((${#scenarios[@]})) || scenarios=(two leave)
-root="target/compat/multiplayer/$(basename "$bin")"
+root="target/compat/multiplayer/$(run_name "$bin")"
 rm -rf "$root" && mkdir -p "$root"
 limit=()
 if command -v gtimeout >/dev/null; then limit=(gtimeout 300); fi
