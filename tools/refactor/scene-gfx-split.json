@@ -1,0 +1,11 @@
+{"file": "apps/game/src/gfx/scene_gfx.rs", "type": "SceneExtrasRenderer",
+ "modules": {
+  "pipelines": {"doc": "Bind group entries, samplers, the sample count and the scene pipelines.",
+   "items": ["tex_entry", "sampler_entry", "sampler", "TEXTURE_FILTER", "set_texture_filter", "material_sampler", "PipelineSpec", "SAMPLES", "set_samples", "samples", "multisample", "pipeline", "linear_view"]},
+  "sky": {"doc": "The sky: its shader, its cube mesh, and drawing it.",
+   "items": ["SKY_WGSL", "SkyGpu"], "methods": ["upload_sky", "place_sky", "draw_sky"]},
+  "water": {"doc": "Rivers and lakes: their shader, their meshes, and drawing them.",
+   "items": ["WATER_WGSL", "WaterGpu"], "methods": ["water_level", "upload_water", "draw_water"]},
+  "decals": {"doc": "Terrain decals: their shader, their meshes, and drawing them.",
+   "items": ["DECAL_WGSL", "DecalGpu"], "methods": ["upload_decals", "draw_decals"]}
+ }}
