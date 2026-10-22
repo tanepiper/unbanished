@@ -89,7 +89,13 @@ impl Sim<'_, '_> {
     /// The burials decided this update: the grave becomes plain ground and gets a tombstone turned
     /// as the cemetery, which lasts its tombstone description's time and stamps its cell.
     ///
+    /// Deviation: the original makes the tombstone inside the death itself, so its lifetime's
+    /// `RandFloat` comes right after the grave's draw. The port makes the tombstones later in the
+    /// update, after the sites' systems, so that draw comes later.
+    ///
     /// Original: `FUN_1400473f0`; the tombstone's set-up `FUN_1400581c0`.
+    // FUN_14011c2a0 calls FUN_1400473f0 at once; its entity constructor (FUN_1400c8bf0) runs
+    // the TombstoneComponent's setup (slot +0x20, FUN_1400581c0), which draws the lifetime.
     pub fn place_burials(&mut self) {
         for (cemetery, cell) in std::mem::take(self.burials) {
             let Some(t) = self
