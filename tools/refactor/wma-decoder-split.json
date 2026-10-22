@@ -1,0 +1,26 @@
+{
+ "file": "crates/wma/src/decoder.rs",
+ "type": "Decoder",
+ "modules": {
+  "spectrum": {
+   "doc": "A block's spectrum: the exponents, the coefficients by run and level, the noise fill and the window.",
+   "methods": [
+    "decode_spectrum",
+    "decode_exponents",
+    "dequantise_with_noise",
+    "window"
+   ],
+   "items": [
+    "CoefTables",
+    "COEF_TABLES",
+    "run_level"
+   ]
+  },
+  "layout": {
+   "doc": "The block layout of a stream: the block sizes and the coefficient band edges for each.",
+   "items": [
+    "layout"
+   ]
+  }
+ }
+}
