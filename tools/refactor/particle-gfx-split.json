@@ -1,0 +1,5 @@
+{"file": "apps/game/src/gfx/particle_gfx.rs", "type": "ParticleRenderer",
+ "modules": {
+  "weather": {"doc": "Rain and snow: their shader, their slots, and drawing them once per visible tile.",
+   "items": ["WEATHER_WGSL", "WeatherGpu", "WeatherRenderer"], "impls": ["impl WeatherRenderer {"]}
+ }}
