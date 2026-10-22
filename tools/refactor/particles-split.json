@@ -1,0 +1,7 @@
+{"file": "apps/game/src/view/particles.rs", "type": "Particles",
+ "modules": {
+  "instance": {"doc": "One running particle system: spawning, moving and drawing its particles.",
+   "items": ["Particle", "from_direction", "rotate", "Instance"], "impls": ["impl Instance {"]},
+  "drive": {"doc": "Starting and stopping the systems that buildings, citizens and disasters ask for.",
+   "impls": ["impl Particles {\n    fn node"]}
+ }}
