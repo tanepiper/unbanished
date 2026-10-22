@@ -198,8 +198,8 @@ footer ("Version 1.0.7 - Build 170910") comes from the original's resources and 
 - **Releasing `X.Y.Z`:** run the Release workflow (`.github/workflows/release.yml`), only when
   the user asks for the release: `gh workflow run release.yml -f version=X.Y.Z -f next=X.Y+1.0`
   (add `-f dry_run=true` to check and see the notes without pushing anything). It does not run
-  the tests: the Tests workflow runs them on every push to `main` and every pull request, and
-  `gh workflow run tests.yml` runs them by hand. It
+  the tests: run `tools/test/run.py` locally before it. The Tests workflow runs only by hand
+  (`gh workflow run tests.yml`), to save GitHub's minutes. It
   renames `Unreleased` to `[X.Y.Z] - DATE` with its compare link, commits and tags `vX.Y.Z`
   (annotated), sets the workspace version to the next version in a second commit, pushes,
   publishes a GitHub release with the changelog section as its notes (and a link to the

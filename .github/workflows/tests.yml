@@ -1,32 +1,15 @@
-# Check every push to main and every pull request: formatting, Clippy (warnings are errors), the
-# workspace's tests and the browser build. It runs without the original game data: tests that
-# need it skip (game-data/ is never in the repository). It can also be started by hand (Actions →
-# Tests → Run workflow, or `gh workflow run tests.yml`), for example before a release: the
-# Release workflow does not run the tests. tools/test/run.py runs the full suites on a computer
-# with the game.
+# Formatting, Clippy (warnings are errors), the workspace's tests and the browser build, without
+# the original game data (tests that need it skip). It runs only when started by hand (Actions →
+# Tests → Run workflow, or `gh workflow run tests.yml`): the checks run on our own computers with
+# tools/test/run.py, which has the game data and every suite, so GitHub's minutes are not spent
+# on every push. The Release workflow does not run the tests.
 name: Tests
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - 'site/**'
-      - '**/*.md'
-  pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - 'site/**'
-      - '**/*.md'
   workflow_dispatch:
 
 permissions:
   contents: read
-
-# A newer push to the same branch replaces a run still in progress.
-concurrency:
-  group: tests-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   test:

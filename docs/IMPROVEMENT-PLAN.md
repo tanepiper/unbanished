@@ -76,7 +76,8 @@ from the original, `neg_multiply` and `nonminimal_bool` where the original's ord
 is kept. Fix the other warnings. Add `cargo clippy --workspace --all-targets -- -D warnings` to the
 quick tier. Gate: compare.sh identical, and Clippy clean.
 
-**2. CI on every push and pull request.** Done (`896f4e2`). Run formatting, Clippy, `cargo test` and the browser
+**2. CI on every push and pull request.** Tried (`896f4e2`) and taken back: GitHub's minutes are
+not spent on every push. The Tests workflow now has formatting and Clippy, and runs by hand. Run formatting, Clippy, `cargo test` and the browser
 build on every push to `main` and on every pull request. Tests that need game data already skip
 without it. Several sessions push to `main` at once, so this catches a broken build within
 minutes. Gate: the workflow passes on `main`.
@@ -118,7 +119,8 @@ browser build before and after.
   `gameframe-msvc-crt`). Un-Banished keeps its own `crates/wma`, `crt` and `crt_qsort_by`. The two
   develop on their own, with no check between them.
 - **Clippy.** Warnings fail the quick tier (`-D warnings`).
-- **CI.** It runs on every push to `main` and on every pull request.
+- **CI.** Checks run locally with `tools/test/run.py`. The Tests workflow on GitHub runs only by
+  hand, so GitHub's minutes are not spent on every push.
 
 ## Open questions
 
