@@ -74,7 +74,7 @@ clock (`+0x60`) is cleared and the update returns before drawing (*observed* at 
 runs at a time (`FUN_14008e890`). The disease is picked by weight from
 `Game/Disease/Diseases.rsc` (`FUN_140117af0`), with event 0xb at severity 3. Illness lasts
 `(RandFloatTol · D[0x98] + D[0x94]) · 300` s. Every `spread_interval · 300` s a
-`spread_chance` draw infects every other healthy citizen within `spread_radius` (the characters' tree, `FUN_140097e60` with the CitizenComponent type, in its order; `FUN_140117940`). At the end
+`spread_chance` draw offers the disease to one citizen: the first other citizen with no disease within `spread_radius`, in the characters' tree's order (`FUN_140097e60` with the CitizenComponent type; `FUN_140117940`). The loop ends after that one offer (0x140117aae), even when the citizen turns it away (immune, or a doctor at work, `FUN_14011c060`). At the end
 the citizen dies when `RandFloat ≤ 1/recovery/(D[0x128] with a doctor)`, else recovers, immune
 for `D[0x9c] · 300` s.
 

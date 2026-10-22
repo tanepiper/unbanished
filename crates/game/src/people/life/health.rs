@@ -232,9 +232,13 @@ impl People<'_, '_> {
         self.join_service(c, service::DOCTOR, None);
     }
 
-    /// `FUN_140117940`: with the disease's odds, every other citizen within its radius of the
-    /// sick one (`FUN_140097e60` with the CitizenComponent type, in the characters' tree's
-    /// order) who is not sick catches it (`FUN_14011c060`, which turns away the immune).
+    // Only one: after the call to FUN_14011c060 (0x140117aae) the loop exits.
+    /// With the disease's odds, the first other citizen within its radius of the sick one (in the
+    /// characters' tree's order) who is not sick is offered it. That citizen may still turn it
+    /// away (immune, or a doctor at work). Nobody further in the list is tried.
+    ///
+    /// Original: `FUN_140117940` (the tree query is `FUN_140097e60` with the CitizenComponent
+    /// type; the offer is `FUN_14011c060`).
     pub(super) fn spread(&mut self, c: usize) {
         let Some(d) = self.states[c].disease else {
             return;
@@ -258,10 +262,11 @@ impl People<'_, '_> {
                 _ => None,
             })
             .collect();
-        for i in near {
-            if self.states.get(i).is_some_and(|s| s.disease.is_none()) {
-                self.infect(i, d);
-            }
+        if let Some(i) = near
+            .into_iter()
+            .find(|&i| self.states.get(i).is_some_and(|s| s.disease.is_none()))
+        {
+            self.infect(i, d);
         }
     }
 

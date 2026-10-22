@@ -6,9 +6,7 @@
 //! the original.
 //!
 //! Deviations: the entity references the original keeps (home, partner, guardian, dependents)
-//! are citizen and entity indices; the dependents' ring is a vector in ring order. Disease
-//! spread visits the citizens within the radius in registration order where the original asks
-//! its spatial index.
+//! are citizen and entity indices; the dependents' ring is a vector in ring order.
 //!
 //! Original: `CitizenComponent` (vtable `0x1401689a0`), `ResidenceComponent` (vtable
 //! `0x14016a6a0`); disease spread `FUN_140117940`.

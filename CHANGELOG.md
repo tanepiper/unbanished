@@ -17,6 +17,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
   dropped before. Their models keep the rotations they were saved with.
 - A healthy citizen's disease check no longer draws a random number when the odds are 0 or
   less, as in the original; this changes which random numbers later events get.
+- A sick citizen passes the disease to one healthy citizen nearby at each spread, as in the
+  original, instead of to every healthy citizen in range. Epidemics now grow more slowly.
 
 ### Added
 

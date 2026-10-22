@@ -226,7 +226,7 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 ## `crates/game/src/people/life.rs`
 
-- [Deviation] [crates/game/src/people/life.rs:1](../crates/game/src/people/life.rs#L1): The lives of citizens and their homes: needs, age, death, health, happiness, disease, homes, partners and births. See [Citizens](https://tanepiper.github.io/unbanished/topics/citizens), docs/CITIZEN-NEEDS-AND-HOUSEHOLDS.md and docs/CITIZEN-LIFE.md. The citizen description is kept as a table by offset, so the port reads the same values as the original. Deviations: the entity references the original keeps (home, partner, guardian, dependents) are citizen and entity indices; the dependents' ring is a vector in ring order. Disease spread visits the citizens within the radius in registration order where the original asks its spatial index. `0x14016a6a0`); disease spread `FUN_140117940`.
+- [Deviation] [crates/game/src/people/life.rs:1](../crates/game/src/people/life.rs#L1): The lives of citizens and their homes: needs, age, death, health, happiness, disease, homes, partners and births. See [Citizens](https://tanepiper.github.io/unbanished/topics/citizens), docs/CITIZEN-NEEDS-AND-HOUSEHOLDS.md and docs/CITIZEN-LIFE.md. The citizen description is kept as a table by offset, so the port reads the same values as the original. Deviations: the entity references the original keeps (home, partner, guardian, dependents) are citizen and entity indices; the dependents' ring is a vector in ring order. `0x14016a6a0`); disease spread `FUN_140117940`.
 
 ## `crates/game/src/people/life/death.rs`
 
