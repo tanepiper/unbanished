@@ -206,13 +206,19 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 ## `crates/game/src/nature/wildlife.rs`
 
-- [Deviation] [crates/game/src/nature/wildlife.rs:494](../crates/game/src/nature/wildlife.rs#L494): Deviation: a zero space would divide by zero in the original.
-- [Deviation] [crates/game/src/nature/wildlife.rs:1183](../crates/game/src/nature/wildlife.rs#L1183): Deviation: a zero interval would never leave the loop in the original.
+- [Deviation] [crates/game/src/nature/wildlife.rs:372](../crates/game/src/nature/wildlife.rs#L372): Deviation: a zero space would divide by zero in the original.
+
+## `crates/game/src/nature/wildlife/livestock.rs`
+
+- [Deviation] [crates/game/src/nature/wildlife/livestock.rs:28](../crates/game/src/nature/wildlife/livestock.rs#L28): Deviation: a zero interval would never leave the loop in the original.
 
 ## `crates/game/src/people/life.rs`
 
-- [Deviation] [crates/game/src/people/life.rs:1](../crates/game/src/people/life.rs#L1): The lives of citizens and their homes: needs, age, death, health, happiness, disease, homes, partners and births. See [Citizens](https://tanepiper.github.io/unbanished/topics/citizens), docs/CITIZEN-NEEDS-AND-HOUSEHOLDS.md and docs/CITIZEN-LIFE.md. The citizen description is kept as a table by offset, so the port reads the same values as the original. Deviations: the entity references the original keeps (home, partner, guardian, dependents) are citizen and entity indices; the dependents' ring is a vector in ring order. Disease spread visits the citizens within the radius in registration order where the original asks its spatial index. `0x14016a6a0`); disease spread `FUN_140117940`. The CitizenDescription is at citizen +0x288.
-- [Not ported] [crates/game/src/people/life.rs:591](../crates/game/src/people/life.rs#L591): Game +0xd0 Queue the citizen's death (`reason`) and tell the family. When the citizen is buried in a cemetery (found from the home's entrance, else from where the citizen stands), the family's bit is `0x40`; otherwise it is `2` for old age, else `0x80`. Not ported: the debug flag that stops deaths (`Game` bit 8).
+- [Deviation] [crates/game/src/people/life.rs:1](../crates/game/src/people/life.rs#L1): The lives of citizens and their homes: needs, age, death, health, happiness, disease, homes, partners and births. See [Citizens](https://tanepiper.github.io/unbanished/topics/citizens), docs/CITIZEN-NEEDS-AND-HOUSEHOLDS.md and docs/CITIZEN-LIFE.md. The citizen description is kept as a table by offset, so the port reads the same values as the original. Deviations: the entity references the original keeps (home, partner, guardian, dependents) are citizen and entity indices; the dependents' ring is a vector in ring order. Disease spread visits the citizens within the radius in registration order where the original asks its spatial index. `0x14016a6a0`); disease spread `FUN_140117940`.
+
+## `crates/game/src/people/life/death.rs`
+
+- [Not ported] [crates/game/src/people/life/death.rs:6](../crates/game/src/people/life/death.rs#L6): Game +0xd0 Queue the citizen's death (`reason`) and tell the family. When the citizen is buried in a cemetery (found from the home's entrance, else from where the citizen stands), the family's bit is `0x40`; otherwise it is `2` for old age, else `0x80`. Not ported: the debug flag that stops deaths (`Game` bit 8).
 
 ## `crates/game/src/production/fishing.rs`
 
@@ -287,7 +293,10 @@ Deviation: 77, Not ported: 4, Not traced: 1.
 
 - [Deviation] [crates/terrain/src/query.rs:79](../crates/terrain/src/query.rs#L79): Where a ray first hits the ground, no farther than `maximum`: the distance and the point. The game uses it to stop picking at the ground. Deviation: the port tests every cell in the rectangle the ray crosses, where the original walks the cells along the ray.
 
-## `crates/ui/src/input.rs`
+## `crates/ui/src/input/keyboard.rs`
 
-- [Deviation] [crates/ui/src/input.rs:305](../crates/ui/src/input.rs#L305): Deviation: the original keeps the drag flag after a release far away (until a release near it); the port ends the drag there.
-- [Deviation] [crates/ui/src/input.rs:946](../crates/ui/src/input.rs#L946): `EditElement::SelectCharacter`: the keys of a US keyboard give printable ASCII but `:` and `;`; each goes in while the text is shorter than its most and the edit takes it. Deviation: an edit whose allowed characters name `:` or `;` takes them (the Multiplayer window's relay address); the original's edits never name them.
+- [Deviation] [crates/ui/src/input/keyboard.rs:227](../crates/ui/src/input/keyboard.rs#L227): `EditElement::SelectCharacter`: the keys of a US keyboard give printable ASCII but `:` and `;`; each goes in while the text is shorter than its most and the edit takes it. Deviation: an edit whose allowed characters name `:` or `;` takes them (the Multiplayer window's relay address); the original's edits never name them.
+
+## `crates/ui/src/input/pointer.rs`
+
+- [Deviation] [crates/ui/src/input/pointer.rs:216](../crates/ui/src/input/pointer.rs#L216): Deviation: the original keeps the drag flag after a release far away (until a release near it); the port ends the drag there.
