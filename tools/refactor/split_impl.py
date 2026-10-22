@@ -125,7 +125,7 @@ def main():
     for name, spec in plan["modules"].items():
         methods, items = [], []
         for meth in spec.get("methods", []):
-            start, end = find_item(s, rf"^    (?:pub(?:\([a-z]+\))? )?fn {meth}\b", f"method {meth}")
+            start, end = find_item(s, rf"^    (?:pub(?:\([a-z]+\))? )?(?:async )?fn {meth}\b", f"method {meth}")
             text = s[start:end]
             methods.append(publish(text, "    ") if not re.search(r"^\s*pub", text.split("fn ")[0].splitlines()[-1]) else text)
             s = s[:start] + s[end:]
