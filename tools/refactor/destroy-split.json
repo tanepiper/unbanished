@@ -1,0 +1,8 @@
+{
+  "file": "crates/game/src/work/destroy.rs",
+  "type": "Sim",
+  "modules": {
+    "states": {"doc": "A building's states while it is emptied, torn down, burnt or collapsing.",
+      "methods": ["destroy_enter3", "destroy_enter4", "storage_empty", "destroy_update4", "destroy_enter5", "destroy_update5", "destroy_enter6", "destroy_update6", "destroy_exit6", "damaged_look", "collapse"]}
+  }
+}
