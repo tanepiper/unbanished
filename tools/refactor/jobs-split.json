@@ -1,0 +1,10 @@
+{
+  "file": "crates/game/src/work/jobs.rs",
+  "type": "Jobs",
+  "modules": {
+    "queue": {"doc": "Removing, prioritising and finishing work in the job lists.",
+      "methods": ["remove", "drain", "prioritize", "change_profession"]},
+    "offers": {"doc": "Offering work to a citizen: the job lists in order, emergencies and sorting by distance.",
+      "methods": ["try_one", "offer_one", "assign_work", "assign_emergency", "try_list", "sort", "offer"]}
+  }
+}
