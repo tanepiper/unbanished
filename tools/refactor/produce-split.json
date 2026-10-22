@@ -1,0 +1,25 @@
+{
+  "file": "crates/game/src/work/produce.rs",
+  "type": "Sim",
+  "modules": {
+    "cycle": {
+      "doc": "A producer's work cycle: taking a job, resuming it, and taking each input.",
+      "methods": [
+        "produce_try",
+        "produce_resume",
+        "produce_cycle",
+        "produce_taken"
+      ]
+    },
+    "sequence": {
+      "doc": "A producer's action sequence, the raw materials it makes, and the work callbacks.",
+      "methods": [
+        "produce_sequence",
+        "create_raw_material",
+        "produce_refresh",
+        "produce_complete",
+        "produce_cancel"
+      ]
+    }
+  }
+}
