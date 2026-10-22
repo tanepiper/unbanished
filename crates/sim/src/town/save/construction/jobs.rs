@@ -323,6 +323,13 @@ impl StartingTown {
                         f.set("pickup.claimer", Value::Ptr(pile.claimer.and_then(citizen)));
                     }
                 }
+                // The citizens are slots by use point (`FUN_1400ef380` frees slot `param & 0xf`),
+                // not a set: written as they are, empty slots in place.
+                WorkKind::Fishing(_) => {
+                    for (path, value) in extra {
+                        f.set(&path, value);
+                    }
+                }
                 _ => {
                     for (path, value) in extra {
                         let value = like_saved(f.at(&path), value);

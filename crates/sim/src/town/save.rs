@@ -147,7 +147,7 @@ impl StartingTown {
         let mut ids = self.sync_entities(archive, g, &mut refs, saved);
         self.sync_citizens(archive, g, &mut refs, &mut ids);
         g.entity_time = self.scheduler.time;
-        self.export_entities(g, &ids.entities);
+        self.export_entities(g, &ids.entities, &saved.entities);
         self.export_cells(g, &ids.entities);
         self.export_construction(g, &mut refs, &ids);
         self.export_citizens(archive, g, &mut refs, &ids);
@@ -307,7 +307,12 @@ impl StartingTown {
 
     /// Stage 1: the placed entities' map, model, natural resource, growth and spawning, and
     /// each entity's bucket (its schedule's third value).
-    fn export_entities(&self, g: &mut GameState, entities: &[Option<ObjId>]) {
+    fn export_entities(
+        &self,
+        g: &mut GameState,
+        entities: &[Option<ObjId>],
+        loaded: &[Option<ObjId>],
+    ) {
         // The schedules are in the entity manager's order.
         let order: std::collections::BTreeMap<ObjId, usize> = g
             .entities
@@ -351,15 +356,22 @@ impl StartingTown {
                 fields_mut(g, id, "ModelComponent")
             };
             if let Some(m) = model {
-                if f32s(m, "model.position").as_deref() != Some(&placed.position[..]) {
+                let moved = f32s(m, "model.position").as_deref() != Some(&placed.position[..]);
+                if moved {
                     m.set("model.position", Value::F32s(placed.position.to_vec()));
                 }
+                // An entity loaded from the save that has not moved or turned keeps the rotation
+                // it was saved with: the model's serializer writes back what it read, whatever
+                // made it (saves of older versions hold other rotations).
+                let kept = !moved
+                    && loaded.get(p).copied().flatten() == Some(id)
+                    && m.f32("model.yaw").map(f32::to_bits) == Some(placed.yaw.to_bits());
                 // A fenced area's model is never placed: yaw 0, the identity.
                 let yaw = if area { 0.0 } else { placed.yaw };
                 if area {
                     m.set("model.rotation", Value::F32s(vec![0.0, 0.0, 0.0, 1.0]));
                     m.set_f32("model.yaw", 0.0);
-                } else {
+                } else if !kept {
                     // The model's rotation: `FromYawPitchOffset(yaw, 0)` (`(-0, -0, -sin, cos)` of
                     // the half angle), bit for bit (a template's default is the identity's +0).
                     // Natural resources too: every one in the vanilla saves holds this.

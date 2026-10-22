@@ -91,6 +91,7 @@ fn vanilla_saves_export_unchanged() {
         "Save4.sav",
         "Save5.sav",
         "Save83.sav",
+        "Goldfoothill.sav",
     ] {
         let Ok(bytes) = std::fs::read(root().join("save-game").join(name)) else {
             continue;

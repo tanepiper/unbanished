@@ -122,6 +122,7 @@ fn main() {
             return native::boot_capture(&args, out, seconds);
         }
         Some("--sim-digest") => return native::sim_digest(&args),
+        Some("--sim-continue") => return native::sim_continue(&args),
         #[cfg(feature = "replay")]
         Some("--replay") => return native::replay(&args),
         #[cfg(feature = "multiplayer")]

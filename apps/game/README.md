@@ -33,6 +33,7 @@ Without a path, the game looks for `WinData` next to the program, then for
 | `--record FILE [--record-every N]` | With any of these, or with `unbanished [WINDATA]`: record the next game loaded from a save ([Recording and replaying](#recording-and-replaying)) |
 | `unbanished --replay SAVE FILE [UPDATES] [EVERY]` | Replay a recording from its save without a window, and check the game state |
 | `unbanished --sim-digest SAVE [UPDATES] [EVERY]` | Run a save without a window and print digests of the game state (see `--sim-digest` below) |
+| `unbanished --sim-continue SAVE ITERATIONS OUT.sav` | Run a save for an exact number of simulation iterations (the fixed step, one per frame) without a window, and write the result as a save, to compare with another save field by field (`savegame_fields_diff`) |
 | `unbanished --lockstep-test SAVE RECORDING …` | Players in one process over a simulated network ([Lockstep test](#lockstep-test)) |
 | `unbanished --net-test RELAY host\|join ROOM SAVE RECORDING PLAYERS …` | One player of a game through a relay, for `tools/compat/network.sh` |
 

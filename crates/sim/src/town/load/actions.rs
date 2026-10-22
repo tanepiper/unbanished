@@ -110,6 +110,7 @@ impl StartingTown {
         character: &Object,
     ) -> Result<ActionStack, String> {
         let f = &character.fields;
+        let owner = f.ptr("base.entity");
         let top = int(f, "character.stack_top");
         let mut entries = Vec::new();
         for slot in list(f, "character.stack")
@@ -120,13 +121,13 @@ impl StartingTown {
                 continue;
             };
             let action = self
-                .action(archive, saved, index, a)
+                .action(archive, saved, index, owner, a)
                 .ok_or_else(|| a.type_name.to_string())?;
             entries.push((action, flag(&a.fields, "action.started")));
         }
         let on_empty = match f.ptr("character.on_empty").and_then(|a| saved.object(a)) {
             Some(a) => Some(
-                self.action(archive, saved, index, a)
+                self.action(archive, saved, index, owner, a)
                     .ok_or_else(|| a.type_name.to_string())?,
             ),
             None => None,
@@ -140,6 +141,7 @@ impl StartingTown {
         archive: &Archive,
         saved: &SavedGame,
         index: &BTreeMap<ObjId, usize>,
+        owner: Option<ObjId>,
         a: &Object,
     ) -> Option<Action> {
         let f = &a.fields;
@@ -220,11 +222,14 @@ impl StartingTown {
                 ty: int(f, "road.ty") as u8,
                 built: int(f, "road.built") as u8,
             },
-            // No entity: what the citizen carries (`usize::MAX`, `FUN_1400cb880` on its own
-            // StorageComponent), for example food eaten from its hands.
+            // No entity, or the citizen's own: what the citizen carries (`usize::MAX`,
+            // `FUN_1400cb880` on its own StorageComponent), for example food eaten from its
+            // hands. The 1.0.7 saves hold no entity; older saves (Driscola, 2015) hold the
+            // citizen's own.
             "ConsumeRawMaterial" => Action::ConsumeStoredRawMaterial {
                 storage: match f.ptr("consume.entity") {
                     None => usize::MAX,
+                    Some(e) if Some(e) == owner => usize::MAX,
                     Some(_) => storage(self, "consume.entity")?,
                 },
                 items: items(self, "consume.items")?,

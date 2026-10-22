@@ -9,6 +9,13 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+### Fixed
+
+- Saves of fishing docks keep each fisher in their slot. Empty slots were moved to the front
+  when the game was saved.
+- Older saves (2015) load the citizens who were eating from their own hands; their actions were
+  dropped before. Their models keep the rotations they were saved with.
+
 ### Added
 
 - Function labels made from the port's own citations (`labels/names-from-port.tsv`): the

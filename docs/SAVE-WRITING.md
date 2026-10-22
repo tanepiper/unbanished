@@ -11,12 +11,14 @@ offset. A loaded town remembers the saved object each entity and citizen came fr
 
 A value the load derives is rewritten only when the port's value differs, so an untouched
 object keeps its exact bits. A model's rotation is one: saves show `(0, 0, −sin(yaw/2),
-cos(yaw/2))`. It is recomputed only when the yaw changes.
+cos(yaw/2))`. A loaded entity that has not moved or turned keeps its saved rotation exactly. A
+moved or turned entity, or a new one, gets `FromYawPitchOffset(yaw, 0)`. Older saves (Driscola,
+2015) hold rotations with `+0` zeros and other last bits, which the port used to rewrite.
 
 ## Checking it against the original
 
-The check is `start::save::tests::vanilla_saves_export_unchanged`. Each vanilla save is loaded
-and written straight back. The encoded state must equal the original byte for byte, except for
+The check is `start::save::tests::vanilla_saves_export_unchanged`. Each vanilla save (Save2 to
+Save5, Save83 and Goldfoothill, 565 citizens) is loaded and written straight back. The encoded state must equal the original byte for byte, except for
 the floor counts under active floors: the original's FloorComponent load slot (`FUN_140124a10`)
 adds one there, so a save written straight after a load holds one more. A wrongly inverted field
 changes the bytes. The test then lists the differing objects and fields.
@@ -92,6 +94,14 @@ What the identity check turned up:
   - the trading post (`FUN_14005c6b0`). Its kept goods are a map keyed by the material's
     address, written in the saved order.
 - Loading now also restores a boat's `flag_28` and a tracker's or orchard's year `−1`.
+- **Fishing slots** (`FishingWork`): the citizens are slots indexed by use point (`FUN_1400ef380`
+  frees slot `param & 0xf`), with empty slots in between. They were written through the
+  address-ordered set rule (`like_saved`), which moved every empty slot to the front. They are
+  now written as they are. Goldfoothill showed it.
+- **Eating from the citizen's own hands** (`ConsumeRawMaterial`): the 1.0.7 saves hold no entity;
+  Driscola (2015) holds the citizen's own entity. Both mean the citizen's own storage
+  (`FUN_1400cb880`). The load took the citizen for a storage it could not find, and started 27
+  citizens' stacks empty. Both forms now load, and a saved action that held the citizen keeps it.
 - **The entity manager's clock** (the first value of its block, the scheduler's time), now also restored on load.
 
 `a_simulated_town_reloads_as_saved` loads Save83 and runs it for a minute, which changes about

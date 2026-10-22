@@ -3,9 +3,11 @@
 //! and network tests.
 
 mod boot;
+mod continue_save;
 #[cfg(feature = "multiplayer")]
 mod network;
 pub use boot::boot_capture;
+pub use continue_save::sim_continue;
 #[cfg(feature = "multiplayer")]
 pub use network::{lockstep_test, net_test};
 

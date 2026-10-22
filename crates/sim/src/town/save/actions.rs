@@ -239,10 +239,19 @@ impl StartingTown {
                 items: list,
                 reserved,
             } => {
-                set.push((
-                    "consume.entity",
-                    Value::Ptr(self.storage_entity(ids, *storage)),
-                ));
+                // What the citizen carries has no entity, or, in a saved action that held it,
+                // the citizen's own (older saves), which stays.
+                let own = *storage == usize::MAX
+                    && g.objects
+                        .get(&id)
+                        .and_then(|o| o.fields.ptr("consume.entity"))
+                        == Some(owner.entity);
+                if !own {
+                    set.push((
+                        "consume.entity",
+                        Value::Ptr(self.storage_entity(ids, *storage)),
+                    ));
+                }
                 set.push(("consume.items", items(g, refs, list)));
                 set.push(("consume.flag_38", Value::Bool(*reserved)));
             }
