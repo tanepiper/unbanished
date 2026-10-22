@@ -1,0 +1,12 @@
+{
+  "file": "crates/sim/src/tools/removal_tool.rs",
+  "type": "RemovalTool",
+  "modules": {
+    "starting": {"doc": "Starting a removal, road, bridge or area tool from its description, and the cells each one covers.",
+      "methods": ["start", "start_road", "start_bridge", "start_area", "area_check", "area_cell", "bridge_cells", "road_cells", "road_path"]},
+    "dragging": {"doc": "Dragging: the drag's ends and rectangle, its information, its command, pressing, moving, releasing and cancelling, and its sounds.",
+      "methods": ["drag_ends", "off_restrict", "drag_info", "drag_command", "with_drag", "drag", "press", "motion", "release", "cancel", "track", "finish", "rect"]},
+    "applying": {"doc": "Applying a drag: which entities it marks, cancels, clears or demolishes, the commands it gives, and the overlay of its cells.",
+      "methods": ["entity_at", "marks", "cancels", "clears_road", "has_destroy", "shown_state", "demolishes", "command", "work_of", "apply", "overlay", "cells"]}
+  }
+}
