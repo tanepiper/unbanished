@@ -1,0 +1,8 @@
+{"file": "apps/game/src/game.rs", "type": "Game",
+ "modules": {
+  "input": {"doc": "The player's input: the pointer, the wheel, keys, and the probe's presses and typing.",
+   "methods": ["pointer_move", "pointer_move_ui", "pointer_button", "wheel", "drag", "key", "pressed_mouse", "released", "type_into", "press", "press_node", "select_combo"],
+   "items": ["ui_key"]},
+  "draw": {"doc": "Drawing a frame: the scene, the interface and the cursor.",
+   "methods": ["cursor_quad", "draw"], "items": ["scale_quads"]}
+ }}
