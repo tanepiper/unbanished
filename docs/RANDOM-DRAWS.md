@@ -71,6 +71,13 @@ order, the conditions that skip them, and the arithmetic on the result.
 | `FUN_1400fa960` | Tending a field or an orchard | Match: `Rand(count)` for the cell or tree, after the same worker test |
 | `FUN_14011f7e0` | A crop field enters state 9 and shuffles its cells | Match: `Rand(n)` for each position whenever n is above 0, so one cell still draws (unlike the workplace shuffles, which need two) |
 | `FUN_14012bcb0` | A pasture leaves its product piles | Match: each pass takes a pile's worth off what was produced, rescans the points, skips a pile, clears anything else and makes one pile, whose `RandTol(2) × 90°` turn is drawn after the entity is made |
+| `FUN_14005bee0` | A merchant's goods | Match: `Rand(merchants)`, then one `Rand(goods)` per lot over a list that does not shrink, with the same amounts and the 1.25 for ordered goods |
+| `FUN_14004e540` | A band of immigrants arrives from a map edge | Match: `Rand(4)` for the edge, then one `Rand(n)` for the free coordinate (drawn first on edges 2 and 3), ten tries; then the band's size |
+| `FUN_1400f3880` | A herbalist looks for a plant | Match: `RandTol` pairs until inside the circle; the original's column test can never hold, and the port keeps that |
+| `FUN_1400f7840` | Tending a pasture | Match: `Rand(h)` for the row, then `Rand(w)` for the column |
+| `FUN_1400fb210` | A trade work offer | Match: `Rand(points)` before each haul, in both branches |
+| `FUN_1400f5450` | A market work offer | Match: two `Rand(point count)` over the market's own points and then its parts', at the same places as `market_point`; the same worker test (`max <= plans`) |
+| `FUN_140113170` | The AI's candidate list | Match: a `Rand(count)` swap at each position, then the CRT `qsort` (`tools/emu/candidate_sort.py`) |
 | `FUN_1400a7490` | The starting buildings from the start condition | Match: the entity is made first (only the model's setup can draw, when its variant is random), then one `Rand(variant count)` for each building with a model, as `place_structures` does after `construct` |
 | `FUN_14010b8f0` | A wild animal's update: breeding, home, idle or a walk in its area | Match in every branch: `Rand(4)` only inside its area, rows drawn before columns, the first offset on y, a new area after 10 tries, `Rand(3) + 1` without ground, the idle time's `RandFloat` |
 | `FUN_1400ecd10` | A production cycle (ConsumeProduce slot `+0x20`) | Match: the recipe pick (`FUN_14011e940`) before `Rand(slots)`; each haul (`FUN_1400c4c60`) makes the walk to the target before the walk back, as `Sim::haul` does |
@@ -79,7 +86,7 @@ order, the conditions that skip them, and the arithmetic on the result.
 
 ## Not yet compared
 
-The rest of the 51 ported functions, and the start of a new game: the resource seeding
+Every other ported function has been read against the original. What is left is the start of a new game: the resource seeding
 (`FUN_1400a6780`), the households (`FUN_1400a62a0`, `FUN_1400a6510`), the deer and livestock
 (`FUN_1400a5fe0`) and the start-condition set-up (`FUN_1400a87d0`). docs/RESOURCE-SEEDING.md
 specifies their draws from the code. They make entities through the component system, which the
