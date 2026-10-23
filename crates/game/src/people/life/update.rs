@@ -3,7 +3,9 @@
 use super::*;
 
 impl People<'_, '_> {
-    /// One scheduled update of citizen `c` over `dt`.
+    // Game +0xd0 bits 1, 2, 9
+    /// One scheduled update of citizen `c` over `dt`. Not ported: the debug flags that turn
+    /// hunger and cold off and make every adult educated.
     ///
     /// Original: `FUN_140118340`.
     pub fn update(&mut self, c: usize, dt: i64) {
