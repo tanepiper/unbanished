@@ -98,6 +98,15 @@ found this way and fixed:
 | An animal's lifespan, `FUN_14010c220` | The AnimalComponent's setup draws the lifespan (`RandFloatTol`) inside the entity constructor, right after the model's variant (the model comes first in every animal template). The port drew it at registration, after the offsets, the heading and the age, so every deer had another deer's age and lifespan. Livestock bought at a trading post got age 0, because its age is half the lifespan drawn at that point | Fixed: all 16 herds of `Save2` match field for field |
 | The start structures, `FUN_1400a7490` | The barn and the house are built at once and hold their cells (occupant and type) before the deer population starts. Its capacity (`FUN_1400544b0`) leaves out a population cell with an occupant, so the herd whose block holds the town picks its target from 60 cells, where the port offered 64 | Fixed: the port marks their footprints right after placing them |
 
+A second pass compared every walk, animal, herd, citizen and work action of the two saves
+field by field. It found that a herd's deer alternate between male and female after a random
+first (the flag is flipped after each, `0x1401267d9`, `0x140126cb0`), that an educated starting
+citizen also has its school done (`+0x220`, `FUN_14011c550`), and four values the port's saves
+wrote wrongly (the citizen's links to its CharacterComponent and StatusIconComponent, `+0x1d8`
+and the home slot as the constructor `FUN_140119c40` leaves them, and PerformWork `+0x44`, −1
+from `FUN_1400ceb80`). With those fixed, 170 of the 172 objects compared are identical; the two
+left are the walks made after the audio's draws described below.
+
 After these, every object type has the same count in both towns, and the random state is 29
 draws behind `Save2`'s (25 behind `Save3`'s). The first walk that differs is the 16th citizen's,
 the first one made in the second iteration (bucket 1 visits 15 citizens an iteration). Adding 11

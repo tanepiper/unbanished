@@ -135,6 +135,10 @@ pub fn new_entity(
         if name == "NaturalResourceComponent" {
             f.set_bool("natural.flag_2d", true);
         }
+        // The citizen's constructor (`FUN_140119c40`) sets `+0x1d8` to −1.
+        if name == "CitizenComponent" {
+            f.set_i32("citizen.value_1d8", -1);
+        }
         components.push(c);
     }
     // A character's model animates (update bit `0x04`).

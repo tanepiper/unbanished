@@ -135,7 +135,16 @@ impl StartingTown {
         let t = action_type(action);
         let id = match reuse {
             Some(r) if g.objects.get(&r).is_some_and(|o| o.type_name == t) => r,
-            _ => g.new_object(t)?,
+            _ => {
+                let id = g.new_object(t)?;
+                // PerformWork's constructor (`FUN_1400ceb80`) sets `+0x44` to −1.
+                if t == "PerformWork" {
+                    if let Some(o) = g.objects.get_mut(&id) {
+                        o.fields.set_i32("perform.value_44", -1);
+                    }
+                }
+                id
+            }
         };
         // The values that need the game state or the reference table first.
         let entity = |p: usize| ids.entity(p);

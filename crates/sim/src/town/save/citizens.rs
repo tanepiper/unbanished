@@ -178,6 +178,13 @@ impl StartingTown {
                 }
             }
             let Some(e) = entity_of(g, id) else { continue };
+            // The citizen's own CharacterComponent and StatusIconComponent (as `Save2` stores them).
+            let character = super::component(g, e, "CharacterComponent");
+            let icon = super::component(g, e, "StatusIconComponent");
+            if let Some(f) = g.objects.get_mut(&id).map(|o| &mut o.fields) {
+                f.set("citizen.character", Value::Ptr(character));
+                f.set("citizen.status_icon", Value::Ptr(icon));
+            }
             let ch = &self.agents.characters[c];
             // The group the citizen plays (by sex), for a model that saved no states yet.
             let group = self

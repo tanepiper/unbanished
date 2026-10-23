@@ -145,7 +145,8 @@ impl Wild<'_, '_> {
             area[2] as i32,
             area[3] as i32,
         );
-        let male = self.rng.rand_below(2) == 0;
+        // The first animal's sex; the rest alternate (`sete` after each, `0x1401267d9`).
+        let mut male = self.rng.rand_below(2) == 0;
         let n = self.n();
         for _ in 0..count {
             let x = x0 + self.rng.rand_below(w.max(0) as u32) as i32;
@@ -163,6 +164,7 @@ impl Wild<'_, '_> {
             let Some(a) = self.insert_animal(hk.animal, variant, position, yaw, male) else {
                 return;
             };
+            male = !male;
             let life = self.wildlife.animal_kinds[&hk.animal].desc.life;
             let age = self.rng.rand_float() * life;
             if let Some(animal) = self.wildlife.animals.get_mut(&a) {
@@ -182,7 +184,8 @@ impl Wild<'_, '_> {
     pub(super) fn regrow_herd(&mut self, h: usize, target: i32) {
         let template = self.wildlife.herds[h].template;
         let hk = self.wildlife.herd_kinds[&template].clone();
-        let male = self.rng.rand_below(2) == 0;
+        // The first animal's sex; the rest alternate (`sete` after each, `0x140126cb0`).
+        let mut male = self.rng.rand_below(2) == 0;
         while (self.wildlife.herds[h].animals.len() as i32) < target {
             // The entity is made first (`FUN_1400c8bf0`), so its variant's draw comes before the
             // offsets and the heading.
@@ -198,6 +201,7 @@ impl Wild<'_, '_> {
             let Some(a) = self.insert_animal(hk.animal, variant, position, yaw, male) else {
                 return;
             };
+            male = !male;
             self.join(a, h);
             self.register_animal(a);
         }

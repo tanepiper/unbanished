@@ -17,6 +17,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
 - A new game's herds pick the same places as in the original: the starting barn and house hold
   their ground from the start, so deer are not placed under them.
 - Saves of wild trees, rocks and herbs keep the original's "keep piles" flag set.
+- A herd's deer alternate between male and female, as in the original. Every deer of a herd
+  had the same sex before.
+- The starting adults count as having finished school, as in the original.
+- Saves link each citizen to its character and status icon, and new citizens and work actions
+  get the original's default values.
 
 - Saves of fishing docks keep each fisher in their slot. Empty slots were moved to the front
   when the game was saved.

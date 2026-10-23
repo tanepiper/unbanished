@@ -240,7 +240,8 @@ impl CitizenState {
             tool_status: -1,
             clothing_status: 4,
             shown_tool: -1,
-            home_slot: -1,
+            // `+0x240` is left at the allocator's 0; leaving a home sets −1 (`FUN_14011b8a0`).
+            home_slot: 0,
             health: rules.f(0x6c),
             happiness: rules.f(0xa4),
             ..Default::default()
@@ -332,13 +333,15 @@ impl Agents {
     ) -> Agents {
         let mut states: Vec<CitizenState> = citizens
             .iter()
-            .map(|_| CitizenState {
+            .map(|c| CitizenState {
                 job: -1,
                 // As `newborn`: the constructor `FUN_140119c40` sets these.
                 tool_status: -1,
                 clothing_status: 4,
                 shown_tool: -1,
-                home_slot: -1,
+                home_slot: 0,
+                // `FUN_14011c550`: an educated citizen starts with its school done (`+0x220`).
+                schooled: c.educated,
                 health: rules.health,
                 happiness: rules.happiness,
                 carried: carried.clone(),

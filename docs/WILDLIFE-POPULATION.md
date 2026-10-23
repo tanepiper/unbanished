@@ -65,8 +65,9 @@ their character.
 | Animal setup and activation | | Lifespan `RandFloatTol · 0.5 + 3` (`FUN_14010c220`), drawn in the entity constructor right after the model's variant. The home is where it stands, and its area is around it (`FUN_14010c0f0`). Then the update runs with no time, so a deer already past its lifespan dies at once |
 | Animal update (`FUN_14010b8f0`) | | Age grows by `dt / 3600`, and past the lifespan the deer is removed. The model grows from a third of full size to full size by the adult age (`FUN_14010c7f0`). When idle and its timer has run out: a lost home (not ground, or holding an object) is replaced by the nearest free ground (`FUN_14010b4f0`). Out of its area, or 1 in 4 otherwise, it walks to random ground in the area (MoveTo walk 0, stand 1, mask 0xf9f); else it idles clip `Rand(4)` (or `Rand(3) + 1`) for `RandFloat · 4 + 4` s (`FUN_14010b720`) |
 
-The herd's sex flag (`Rand(2) == 0`) is drawn once per spawn and gives males the variant's
-second mesh. Seed 1234 Medium starts 64 herds with 460 deer. Blocks without habitat lose
+The first deer's sex (`Rand(2) == 0` for male) is drawn once per spawn or regrowth; the
+following deer alternate (the flag is flipped after each, at `0x1401267d9` and `0x140126cb0`).
+Males get the variant's second mesh. Seed 1234 Medium starts 64 herds with 460 deer. Blocks without habitat lose
 their herd at its first update.
 
 Not ported:
