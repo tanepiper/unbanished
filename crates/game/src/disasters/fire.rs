@@ -350,7 +350,8 @@ impl Sim<'_, '_> {
             let cx = self.rng.rand_range(x0, x1);
             let cy = self.rng.rand_range(y0, y1);
             let cell = cy * n + cx;
-            // Below the map the original reads outside it; nothing burns there.
+            // Deviation: a cell above the map's first row (the rows' range is not clamped at 0)
+            // makes the original read outside the cell array; nothing burns there here.
             let other = (0 <= cell && cell < n * n)
                 .then(|| self.cells.occupants[cell as usize])
                 .flatten();
