@@ -385,13 +385,21 @@ impl Character {
         })
     }
 
+    // Description +0x24 yaw offset, +0x28 turn_keep; character +0x3c target heading.
+    /// Turn toward the target heading the shortest way round, keeping `turn_keep` of the angle
+    /// left; within 0.1° the character faces the target at once.
+    ///
+    /// Original: `FUN_14010e990` (its turn).
     fn turn(&mut self) {
         // Turn: keep `turn_keep` of the remaining angle (shortest way round).
         let desc = self.desc;
         let current = self.yaw - desc.yaw_offset;
         let mut diff = self.target_heading - current;
-        if diff.abs() >= 180.0 {
-            diff = if diff <= 0.0 {
+        // ja at 0x14010eaae and jbe at 0x14010eab4: a NaN difference is wrapped, by + 360.
+        // The same as `|d| >= 180` and `d <= 0` for every other value.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        if !(diff.abs() < 180.0) {
+            diff = if !(diff > 0.0) {
                 diff + 360.0
             } else {
                 -(360.0 - diff)
