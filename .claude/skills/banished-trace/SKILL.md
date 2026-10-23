@@ -128,6 +128,8 @@ in `analysis/`. Never paste pseudocode or disassembly into `docs/` or source.
   `:object` suffix (`Game/Toolbar.rsc:resource`). Normalise before comparing.
 - Several functions share boilerplate (allocator, string ctor); identify `FUN_` thunks to Runtime
   via `functions.tsv` (`RUNTIME-STEAM-X64.DLL::…`).
+- `python3 tools/triage/nan_jumps.py --hazards ADDR` lists a function's float comparisons whose
+  jump runs for NaN (or whose `!=` is true for it); check each against the port's test.
 - Ghidra writes `comiss` + `jbe` as `if (0.0 <= x)`, but `jbe` is also taken when `x` is NaN,
   so the original keeps a NaN where that C would not. Port the branch the jump takes
   (`if x < 0.0 { … } else { keep }`), as in `MoveTo::new` (`FUN_1400ce640`).

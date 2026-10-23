@@ -115,7 +115,7 @@ Binaries under study: `Application-steam-x64.exe` (game logic, base `0x140000000
 | `crates/net`, `apps/server` | Multiplayer (not in the original): the protocol, the rooms' rules (`rooms::Relay`), the checks, kept towns (`store`) and a WebSocket connection, native and browser (`unbanished-net`); the server program and library (`unbanished-server`: settings, health, the server's own games). See `docs/ARCHITECTURE.md` |
 | `tools/emu` | Unicorn harness `pe_emu.py` and ground-truth generators for the tests |
 | `tools/ghidra` | Headless export scripts, `readdata.py` (constants), `vtable.py` |
-| `tools/triage` | `deviations.py`, `coverage.py` (uncited functions), `determinism.sh`, `cite_labels.py` (labels from citations), `draw_sites.py` (every function that draws from the game's Random; see `docs/RANDOM-DRAWS.md`) |
+| `tools/triage` | `deviations.py`, `coverage.py` (uncited functions), `determinism.sh`, `cite_labels.py` (labels from citations), `draw_sites.py` (every function that draws from the game's Random; see `docs/RANDOM-DRAWS.md`), `nan_jumps.py` (each float comparison of a function and which way a NaN goes) |
 | `labels/` | Names of original functions (`names.tsv` by hand, `names-from-port.tsv` generated) and struct fields (`fields.tsv`), read by every decompile tool here and in GameFrame |
 | `tools/gf.sh` | Runs GameFrame's tools from this folder |
 | `tools/github`, `.github/` | `sync-labels.sh` (the label set), issue forms, PR template |

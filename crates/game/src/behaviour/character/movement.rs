@@ -191,7 +191,9 @@ impl MoveTo {
                     ch.position[0] - self.target[0],
                     ch.position[1] - self.target[1],
                 ];
-                if (d[0] * d[0] + d[1] * d[1]).sqrt() >= ARRIVE {
+                // jbe at 0x1400cdc61: still away, or a NaN distance, keeps walking.
+                #[allow(clippy::neg_cmp_op_on_partial_ord)]
+                if !((d[0] * d[0] + d[1] * d[1]).sqrt() < ARRIVE) {
                     ch.face(self.target);
                     return Status::Running;
                 }

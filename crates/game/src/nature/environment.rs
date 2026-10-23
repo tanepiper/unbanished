@@ -292,7 +292,9 @@ impl Environment {
     /// below). An unwanted existing slot fades out and forces the state to 3; a wanted missing
     /// slot starts at intensity 0 fading in and sets the state to 0.
     fn switch_effects(&mut self) {
-        let snow = self.temperature <= RAIN_SNOW_THRESHOLD;
+        // setbe at 0x140099c54: 34 °F or below, or a NaN temperature, snows.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        let snow = !(RAIN_SNOW_THRESHOLD < self.temperature);
         for i in 0..2 {
             let on = WEATHER_EFFECTS && self.state == 0 && snow == (i == 1);
             if !on {
@@ -318,7 +320,9 @@ impl Environment {
         if !weather_enabled || self.state != 0 {
             return None;
         }
-        Some(if self.temperature <= RAIN_SNOW_THRESHOLD {
+        // As the setbe at 0x140099c54: a NaN temperature snows.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        Some(if !(RAIN_SNOW_THRESHOLD < self.temperature) {
             1
         } else {
             0

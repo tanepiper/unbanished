@@ -205,7 +205,9 @@ impl Wild<'_, '_> {
         // A breeding male: once grown, young every `breed` years and up to as much again.
         let animal = self.wildlife.animals.get_mut(&a).unwrap();
         if animal.male && animal.flags & BIRTH == 0 && animal.flags & BREEDER != 0 {
-            if animal.breed != 0 || animal.age <= d.adult {
+            // jbe at 0x14010ba12: not grown, or a NaN age, draws no breeding time.
+            #[allow(clippy::neg_cmp_op_on_partial_ord)]
+            if animal.breed != 0 || !(d.adult < animal.age) {
                 if 0 < animal.breed {
                     animal.breed -= dt;
                     if animal.breed <= 0 {
