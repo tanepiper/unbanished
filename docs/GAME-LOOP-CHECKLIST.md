@@ -45,10 +45,12 @@ evidence; static traces are not claims of live-game behavior.
   Remove/Animate sequence. They are the road work, ClearArea, the forester and the herbalist
   (`work/road.rs`, `town/clearing.rs`, `production/forester.rs`, `production/herbalist.rs`); the
   resource's animation flag selects the fall before the removal (`Sim::removal_sequence`).
-- [ ] Find the consumers of the category counter at `NaturalResourceComponent +0x10`; correlate it
-  and the map-cell transition bytes with a decoded save before assigning gameplay meanings. The
-  byte `+0x2d` is known: whether removing the resource leaves its pile (`keep_piles`), set by a crop
-  field, cleared by blight (`FUN_1400484a0`) and read by the removal sequence.
+- [x] Find producers of `NaturalResourceComponent` byte `+0x2d` and consumers of the category
+  counter at `+0x10`. The byte is whether removing the resource leaves its pile (`keep_piles`), set
+  by a crop field, cleared by blight (`FUN_1400484a0`) and read by the removal sequence. The
+  counter is not in the component: it is `+0x10` of the stock manager's slot entry, what was made
+  since the last sample (`+0xc` is what was used), read by the town information's samples
+  (`StockCounters` in `work/tracker.rs`, [TOWN-INFO.md](TOWN-INFO.md)).
 - [x] Trace town storage search, shared inventory ledgers, reservations and New Game tool/clothing
   fetch sequences. Verify search/geometry/ledger/equipment messages against original functions;
   see [CITIZEN-AI.md](CITIZEN-AI.md#storage-loose-piles-and-inventories).
