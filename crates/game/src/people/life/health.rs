@@ -3,11 +3,11 @@
 use super::*;
 
 impl People<'_, '_> {
-    // Game +0xd0 bit 3
     /// Health from the last interval's events, at most the description's maximum. Not ported:
     /// the debug flag that keeps every citizen's health full.
     ///
     /// Original: `FUN_140117e60`.
+    // Game +0xd0 bit 3
     pub(super) fn health(&mut self, c: usize) {
         let r = self.rules;
         let adult = self.adult(c) && self.states[c].school.is_none();

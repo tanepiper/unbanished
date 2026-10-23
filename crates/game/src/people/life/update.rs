@@ -3,11 +3,11 @@
 use super::*;
 
 impl People<'_, '_> {
-    // Game +0xd0 bits 1, 2, 9
     /// One scheduled update of citizen `c` over `dt`. Not ported: the debug flags that turn
     /// hunger and cold off and make every adult educated.
     ///
     /// Original: `FUN_140118340`.
+    // Game +0xd0 bits 1, 2, 9
     pub fn update(&mut self, c: usize, dt: i64) {
         let r = self.rules;
         let secs = seconds(dt);

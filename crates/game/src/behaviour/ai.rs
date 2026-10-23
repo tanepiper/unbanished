@@ -324,8 +324,8 @@ impl CitizenAi {
     /// The scheduled update. `busy` is the character's "has actions" test; `run` dispatches an
     /// activity (see [`CitizenAi::choose`]). `home_meal` is the citizen's hunger after eating from
     /// the home's storage, when [`CitizenAi::hunger_branch`] held and the home had food: the urgent
-    /// choice is then made only if the citizen is still urgently hungry. The per-profession
-    /// inventory size and model refresh are the caller's.
+    /// choice is then made only if the citizen is still urgently hungry. Before the normal choice,
+    /// `run` is asked for [`activity::REFRESH`] (the carried storage's size and the model).
     ///
     /// Original: `FUN_14011a7b0`, `FUN_140114c70`, `FUN_140114d60`, `FUN_1401148b0`.
     #[allow(clippy::too_many_arguments)]

@@ -238,11 +238,11 @@ Deviation: 78, Not ported: 7, Not traced: 1.
 
 ## `crates/game/src/people/life/health.rs`
 
-- [Not ported] [crates/game/src/people/life/health.rs:6](../crates/game/src/people/life/health.rs#L6): Game +0xd0 bit 3 Health from the last interval's events, at most the description's maximum. Not ported: the debug flag that keeps every citizen's health full.
+- [Not ported] [crates/game/src/people/life/health.rs:6](../crates/game/src/people/life/health.rs#L6): Health from the last interval's events, at most the description's maximum. Not ported: the debug flag that keeps every citizen's health full. Game +0xd0 bit 3
 
 ## `crates/game/src/people/life/update.rs`
 
-- [Not ported] [crates/game/src/people/life/update.rs:6](../crates/game/src/people/life/update.rs#L6): Game +0xd0 bits 1, 2, 9 One scheduled update of citizen `c` over `dt`. Not ported: the debug flags that turn hunger and cold off and make every adult educated.
+- [Not ported] [crates/game/src/people/life/update.rs:6](../crates/game/src/people/life/update.rs#L6): One scheduled update of citizen `c` over `dt`. Not ported: the debug flags that turn hunger and cold off and make every adult educated. Game +0xd0 bits 1, 2, 9
 
 ## `crates/game/src/production/fishing.rs`
 
