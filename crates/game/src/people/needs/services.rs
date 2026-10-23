@@ -25,8 +25,9 @@ impl Needs<'_, '_> {
     }
 
     /// Activity 5: with a doctor, be treated (message 5); without one, or when the doctor cannot
-    /// be reached, rest at a home that can be reached. Like the original, it reports "not
-    /// started" after a treatment visit.
+    /// be reached, rest at a home that can be reached. A homeless citizen whose doctor cannot be
+    /// reached still makes the visit, to the centre of the map. Like the original, it reports
+    /// "not started" after a treatment visit.
     ///
     /// Original: `FUN_140112c60`.
     pub fn doctor(&mut self, who: &mut Who, me: usize) -> bool {
@@ -44,26 +45,25 @@ impl Needs<'_, '_> {
                 None => false,
             };
         };
-        match self.nearest_point(doctor, cell) {
-            Some(target) => {
-                self.visit(who, target, 5, self.life.f(0x124));
-                false
-            }
+        let target = match self.nearest_point(doctor, cell) {
+            Some(target) => target,
             None => {
                 // `FUN_14011ae80`, then home.
                 who.state.doctor = None;
                 if let Some(a) = self.attendance.get_mut(&doctor) {
                     a.attendees.retain(|&x| x != me);
                 }
-                match who.state.home {
-                    Some(h) => {
-                        self.rest_at_home(who, h);
-                        true
-                    }
-                    None => false,
+                if let Some(h) = who.state.home {
+                    self.rest_at_home(who, h);
+                    return true;
                 }
+                // Without a home the original falls through to the visit with the point search's
+                // untouched output, the zeroed vector: the citizen walks to the map's centre.
+                [0.0; 3]
             }
-        }
+        };
+        self.visit(who, target, 5, self.life.f(0x124));
+        false
     }
 
     /// Activity 4: take herbs from the nearest storage to the nearest herbalist with a worker, and
