@@ -246,6 +246,7 @@ impl People<'_, '_> {
         let Some(disease) = self.diseases.get(d).cloned() else {
             return;
         };
+        // The draw comes before the tree is asked.
         let x = self.rng.rand_float();
         if disease.spread_chance < x {
             return;
@@ -262,11 +263,17 @@ impl People<'_, '_> {
                 _ => None,
             })
             .collect();
-        if let Some(i) = near
-            .into_iter()
-            .find(|&i| self.states.get(i).is_some_and(|s| s.disease.is_none()))
-        {
-            self.infect(i, d);
+        let listed: Vec<(bool, bool)> = near
+            .iter()
+            .map(|&i| {
+                (
+                    false,
+                    self.states.get(i).is_none_or(|s| s.disease.is_some()),
+                )
+            })
+            .collect();
+        if let Some(k) = spread_target(&listed) {
+            self.infect(near[k], d);
         }
     }
 
@@ -350,4 +357,15 @@ pub fn recovers(r: &LifeRules, recovery: f32, doctor: bool, rng: &mut Random) ->
 /// Original: `FUN_140117880`.
 pub fn immunity_after(r: &LifeRules) -> i64 {
     ticks(r.f(0x9c) * MINUTE)
+}
+
+/// Which of the citizens near a sick one is offered the disease, from the characters' tree's
+/// list in its order: each entry is (the sick citizen itself, has a disease). The first that is
+/// neither, or none. Only one is ever offered, even when it then turns the disease away.
+///
+/// Measured: `tools/emu/disease_spread.py` (the original on 2,000 lists).
+///
+/// Original: `FUN_140117940`.
+pub fn spread_target(listed: &[(bool, bool)]) -> Option<usize> {
+    listed.iter().position(|&(own, sick)| !own && !sick)
 }

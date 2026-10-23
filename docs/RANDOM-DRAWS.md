@@ -25,6 +25,7 @@ the measured ones. On 2026-10-23 it lists 70 functions: 16 measured, 51 ported, 
 | `FUN_1400ae760` | A chance of once in a span of years (injury, tornado, fire that starts by itself) | `tools/emu/once_in_years.py` |
 | `FUN_140117ca0` | A healthy citizen's disease check; no draw when the odds are 0 or less | `tools/emu/disease_check.py` |
 | `FUN_140117880` | The end of an illness: recover or die | `tools/emu/recovery.py` |
+| `FUN_140117940` | A sick citizen passes the disease on: one draw, then at most one citizen offered it | `tools/emu/disease_spread.py` |
 | `FUN_1400ce640` | A walk's speed factor; a NaN speed is kept with no draw | `tools/emu/move_speed.py` |
 | `FUN_14005be50`, `FUN_14005bdb0` | A trading post's row and the time to the next merchant | `tools/emu/trade_timer.py` |
 | `FUN_140098ac0` | The weather pick and the yearly climate reseed | `tools/emu/weather_pick.py` |
