@@ -87,7 +87,7 @@ fn scheduled_growth_and_smoothing_match_original_bits() {
         assert_eq!(got, expected, "growth case: {line}");
         total += 1;
     }
-    assert_eq!(total, 15_360);
+    assert_eq!(total, 30_720);
     eprintln!("{total} growth/transition/smoothing cases matched original bits");
 }
 
@@ -114,7 +114,7 @@ fn initialization_retains_original_timer_and_scale() {
         assert_eq!(got, expected, "initialization case: {line}");
         total += 1;
     }
-    assert_eq!(total, 480);
+    assert_eq!(total, 800);
     eprintln!("{total} growth initialization cases matched original bits");
 }
 

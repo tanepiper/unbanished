@@ -4,7 +4,8 @@ Usage: .venv/bin/python tools/emu/growth.py OUT_DIR
 
 Writes growth.tsv (initialization, scheduled growth, spawn interval counts, map transition and
 visual smoothing) and scheduler.tsv (five-bucket visits). Dumps stay under game-data/derived/emu.
-Rendering, entity spawning and owner-mask callbacks are stubbed; arithmetic and interval branches
+NaN temperatures, values, maxima and fractions are among the cases. Rendering, entity
+spawning and owner-mask callbacks are stubbed; arithmetic and interval branches
 execute in the original functions. System::Timer::Startup establishes its original microsecond ticks.
 """
 import itertools
@@ -62,8 +63,8 @@ def main(out_dir):
 
     rows = []
     for rate, seasonal, temperature, value, maximum, dt, timer, tall, allow, disabled in itertools.product(
-        (2.0, -2.0), (0, 1), (20.0, 32.0, 50.0, 60.0, 100.0),
-        (0.0, 0.75, 1.0, 1.5), (1.0, 4.0, -1.0),
+        (2.0, -2.0), (0, 1), (20.0, 32.0, 50.0, 60.0, 100.0, float('nan')),
+        (0.0, 0.75, 1.0, 1.5, float('nan')), (1.0, 4.0, -1.0, float('nan')),
         (0.0, 0.25, 300.0, 901.0), (0, 300_000_000), (0, 1), (0, 1), (0, 1)):
         emu.write(description, bytes(0x68))
         f32(description + 0x28, rate)
@@ -102,8 +103,8 @@ def main(out_dir):
                       timer, tall, allow, disabled])) + '\t' + '\t'.join(output))
     # Initial fraction/maximum and randomized timer, including both scale shapes.
     init = []
-    for seed, maximum, fraction, tall in itertools.product(range(1, 21), (1.0, 4.0, -1.0),
-                                                          (0.0, 0.15, 0.5, 1.0), (0, 1)):
+    for seed, maximum, fraction, tall in itertools.product(range(1, 21), (1.0, 4.0, -1.0, float('nan')),
+                                                          (0.0, 0.15, 0.5, 1.0, float('nan')), (0, 1)):
         emu.call(emu.exports['??0Random@System@@QEAA@I@Z'], random, seed)
         emu.write(description + 0x64, bytes([tall]))
         f32(component + 0x4c, maximum)

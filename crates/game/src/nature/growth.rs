@@ -59,7 +59,7 @@ impl Growth {
         rng: &mut Random,
     ) -> (Self, f32, [f32; 4]) {
         let value = fraction * maximum;
-        let smoothed = value.min(1.0);
+        let smoothed = cap(value);
         let timer = ticks(rng.rand_float() * d.timer_months as f32 * MONTH_SECONDS);
         (
             Self {
@@ -148,8 +148,12 @@ impl Growth {
         if !self.smoothing {
             return false;
         }
-        let target = value.min(1.0).max(d.f60);
-        let interpolating = (target - self.smoothed).abs() >= EPSILON;
+        // jbe at 0x1401253b7: a floor of `f60`, which keeps a NaN target.
+        let t = cap(value);
+        let target = if d.f60 > t { d.f60 } else { t };
+        // seta at 0x1401253e2: close only when below the epsilon, so a NaN goes on smoothing.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        let interpolating = !(EPSILON > (target - self.smoothed).abs());
         self.smoothed = if interpolating {
             self.smoothed * OLD_WEIGHT + target * NEW_WEIGHT
         } else {
@@ -162,6 +166,16 @@ impl Growth {
             self.smoothing = false;
         }
         changed
+    }
+}
+
+// jbe at 0x1401262c3 and 0x1401253a6: a value of 1 or less, or NaN, is kept.
+/// A growth value capped at 1; a NaN stays NaN (`f32::min` would give 1).
+fn cap(value: f32) -> f32 {
+    if value > 1.0 {
+        1.0
+    } else {
+        value
     }
 }
 
