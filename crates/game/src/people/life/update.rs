@@ -12,7 +12,9 @@ impl People<'_, '_> {
         let r = self.rules;
         let secs = seconds(dt);
         let adult_age = r.adult_age();
-        let was_child = self.citizens[c].age < adult_age || self.states[c].school.is_some();
+        // jb at 0x14011839e: a NaN age counts as a child.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        let was_child = !(adult_age <= self.citizens[c].age) || self.states[c].school.is_some();
         let age = secs * r.f(0x40) + self.citizens[c].age;
         self.citizens[c].age = age;
         {
@@ -50,7 +52,9 @@ impl People<'_, '_> {
             s.cold = 0.0;
         }
         s.hunger += secs * r.f(0xc0) / HOUR;
-        if r.f(0xf4) <= self.temperature {
+        // jbe at 0x14011852b: warm enough, or a NaN temperature, clears the cold.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        if !(self.temperature < r.f(0xf4)) {
             s.cold = 0.0;
         } else {
             let rate = r.f(0xdc + 4 * s.clothing.clamp(0, 2) as u32);
@@ -142,7 +146,9 @@ impl People<'_, '_> {
                 }
             }
         }
-        let child = self.citizens[c].age < adult_age || self.states[c].school.is_some();
+        // jb at 0x1401189a8 and 0x140118a71: a NaN age counts as a child.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        let child = !(adult_age <= self.citizens[c].age) || self.states[c].school.is_some();
         // A child without a home follows its guardian's.
         if child && self.idle[c] && self.states[c].home.is_none() {
             if let Some(g) = self.citizens[c].parent {

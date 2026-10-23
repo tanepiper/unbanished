@@ -204,8 +204,10 @@ impl People<'_, '_> {
     /// The birth part of `FUN_140118340`.
     pub(super) fn pregnancy(&mut self, c: usize, secs: f32) {
         let r = self.rules;
+        // jb at 0x140118d5d: a NaN age is skipped, as a child's is.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
         if self.citizens[c].male
-            || self.citizens[c].age < r.adult_age()
+            || !(r.adult_age() <= self.citizens[c].age)
             || self.states[c].school.is_some()
         {
             return;
@@ -215,25 +217,28 @@ impl People<'_, '_> {
             s.reproduction = 0.0;
         }
         let t = s.reproduction;
-        if t <= 0.0 {
-            if t < 0.0 {
-                s.reproduction = t + secs;
-                if 0.0 <= t + secs {
-                    s.reproduction = 0.0;
-                }
-            }
-        } else {
+        // jbe at 0x140118dda: only a time above 0 counts down; a NaN one is left as it is.
+        if 0.0 < t {
             s.reproduction = t - secs;
             if t - secs <= 0.0 {
                 let health = s.health;
                 let threshold = (health / r.f(0x70)) * (r.f(0x64) - r.f(0x68)) + r.f(0x68);
-                if threshold <= self.rng.rand_float() {
+                // jbe at 0x140118e2a: a NaN threshold gives a birth.
+                #[allow(clippy::neg_cmp_op_on_partial_ord)]
+                let born = !(self.rng.rand_float() < threshold);
+                if born {
                     self.give_birth(c);
                     let cooldown = self.rng.rand_float() * r.f(0x60) + r.f(0x5c);
                     self.states[c].reproduction = -cooldown;
                 } else if self.die(c, reason::CHILDBIRTH, None) {
                     return;
                 }
+            }
+        } else if t < 0.0 {
+            // The time after a birth counts up to 0.
+            s.reproduction = t + secs;
+            if 0.0 <= t + secs {
+                s.reproduction = 0.0;
             }
         }
         let s = &self.states[c];
