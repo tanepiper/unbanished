@@ -98,11 +98,11 @@ The Status Bar ([UTILITY-WINDOWS.md](UTILITY-WINDOWS.md)) shows:
     weather-state draw and the level;
   - the gameplay loop drives it once per simulation iteration and feeds `pc_userPosition` and the
     Status Bar from it.
-- **Deviation: shared random stream.** The game stream (`Game +0xd8`) is `Random(seed)`, but in the
-  original the new-game seeding consumes it first: structures, rocks, ore and trees, households,
-  deer, crops and livestock (see [RESOURCE-SEEDING.md](RESOURCE-SEEDING.md)). Citizens and other
-  managers draw from it during play too. Until those are ported, the port's environment draws start
-  at a different stream position than the original's.
+- **Shared random stream.** The environment draws from the game's stream (`Game +0xd8`), after the
+  new-game seeding (structures, rocks, ore and trees, households, deer, crops and livestock; see
+  [RESOURCE-SEEDING.md](RESOURCE-SEEDING.md)) and alongside every other draw during play. All of
+  these are ported; [RANDOM-DRAWS.md](RANDOM-DRAWS.md) lists how each was checked. The new-game
+  seeding is not yet checked against a save from the original.
 - **Ported:** the effect slots' intensity, direction and state forcing
   (`Environment::effects`, `fade_times` from the `Weather` descriptions), the renderer's rain
   value, and the rain ambient emitter (`apps/game/src/audio/ambience.rs`).
@@ -130,4 +130,9 @@ effect's Weather record pulls the lighting towards its own by the effect's inten
 `+0x68` fog colours, and `+0x6c`, `+0x70`, `+0x74` fog start, end and most. The sun's angles
 `+0x78`, `+0x7c` are not blended. Port: `Lighting::toward_weather`.
 
-- **Not ported:** save/load of the controller state (`FUN_140099160`).
+- **Ported:** save/load of the controller state (`FUN_140099160`, `Environment::restore` and
+  `Environment::saved`). Deviation: the temperature noise is not in the save; after a load the
+  original keeps its constructor's clock-seeded field until the next reseed, and the port a fixed
+  seed.
+- Every function of the game that reads the environment (`Game +0x130`) is ported, apart from the
+  debug window's (`FUN_140061140`, `FUN_140061200`, `FUN_140061e90`, `FUN_1400620e0`).

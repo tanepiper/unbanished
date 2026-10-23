@@ -127,8 +127,11 @@ evidence; static traces are not claims of live-game behavior.
 - [x] GPU-skin citizens with a per-instance bone palette (`MeshInstance::GetBones`), playing each
   citizen's `Idle` clip; shared with the viewer (`unbanished_gfx::skin`). See
   [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md#skinning).
-- [ ] Port weather effects (rain/snow geometry, ambient audio, timed spawn) and connect weather to
-  citizens, production, events, and resource consumption.
+- [x] Port weather effects (rain/snow geometry, ambient audio, timed spawn) and connect weather to
+  citizens, production, events, and resource consumption. The precipitation, its material, the
+  fades, the rain ambience, weather lighting and tornadoes are ported, and every function of the
+  game that reads the environment (`Game +0x130`) is cited apart from the debug window's; see
+  [ENVIRONMENT.md](ENVIRONMENT.md).
 - [x] Add save/load, autosave, and event notifications to the active gameplay loop
   (`apps/game/src/gameplay.rs`, `saves/`, the event log in `crates/game/src/events.rs`).
 - [ ] Verify the new-game flow in browser and desktop builds, including camera behavior after the
