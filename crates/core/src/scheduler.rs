@@ -55,6 +55,9 @@ struct Entity<T> {
     live: bool,
 }
 
+/// The bucket of a handle held free by [`EntityScheduler::register_at`] until its entity registers.
+const FREE: usize = usize::MAX;
+
 /// Handles of entities registered with [`EntityScheduler::register_extra`] start here, so that
 /// a placed entity's handle stays its index. The game gives such entities values from here too:
 /// citizens `EXTRA + citizen`, and entities the town does not model (the map ambience, a
@@ -118,6 +121,49 @@ impl<T: Copy> EntityScheduler<T> {
         id
     }
 
+    /// [`register`](Self::register) at handle `id`: the entity's own index, whatever the
+    /// order the entities are registered in. Indices below `id` not yet registered are held
+    /// free until they are. The port makes some entities first and registers them at the end
+    /// of the iteration (piles), while others register as they are made (spawned trees), so
+    /// handing out the next free handle gave a tree a pile's handle and its bucket.
+    ///
+    /// Original: `FUN_1400c9d70`.
+    pub fn register_at(&mut self, id: usize, value: T, bucket: usize) -> usize {
+        assert!(
+            bucket < 5 || bucket == 6,
+            "invalid component-description bucket"
+        );
+        while self.entities.len() < id {
+            self.entities.push(Entity {
+                value,
+                bucket: FREE,
+                slot: 0,
+                last_time: self.time,
+                live: false,
+            });
+        }
+        let slot = if bucket < 5 {
+            let slot = self.buckets[bucket].len();
+            self.buckets[bucket].push(id);
+            slot
+        } else {
+            0
+        };
+        let entity = Entity {
+            value,
+            bucket,
+            slot,
+            last_time: self.time,
+            live: true,
+        };
+        if id < self.entities.len() {
+            self.entities[id] = entity;
+        } else {
+            self.entities.push(entity);
+        }
+        id
+    }
+
     /// [`register`](Self::register) in the extra handle space (from [`EXTRA`]): the same
     /// buckets, cursors and timing, without taking a placed entity's index.
     pub fn register_extra(&mut self, value: T, bucket: usize) -> usize {
@@ -152,7 +198,7 @@ impl<T: Copy> EntityScheduler<T> {
         if handle >= EXTRA {
             handle - EXTRA < self.extra.len()
         } else {
-            handle < self.entities.len()
+            self.entities.get(handle).is_some_and(|e| e.bucket != FREE)
         }
     }
 
@@ -360,5 +406,21 @@ mod tests {
                 .collect::<Vec<_>>(),
             [0, 2]
         );
+    }
+
+    /// A pile made first and registered at the end of the iteration keeps its own handle and
+    /// bucket when a tree made after it registers at once.
+    #[test]
+    fn registering_out_of_order_keeps_each_handle_and_bucket() {
+        let mut scheduler = EntityScheduler::default();
+        scheduler.register_at(0, 0usize, 4);
+        assert!(!scheduler.contains(1));
+        assert_eq!(scheduler.register_at(2, 2, 4), 2);
+        assert!(!scheduler.contains(1));
+        assert_eq!(scheduler.register_at(1, 1, 3), 1);
+        assert!(scheduler.contains(1));
+        assert_eq!(scheduler.bucket(4), &[0, 2]);
+        assert_eq!(scheduler.bucket(3), &[1]);
+        assert_eq!(scheduler.schedule(1).0, 3);
     }
 }

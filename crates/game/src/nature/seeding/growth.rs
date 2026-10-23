@@ -114,8 +114,11 @@ impl Seeder<'_> {
             if !disabled {
                 for _ in 0..result.spawn_attempts {
                     if let Some(child) = self.periodic_spawn(id) {
-                        let handle = scheduler
-                            .register(child, self.templates[self.placed[child].template].bucket);
+                        let handle = scheduler.register_at(
+                            child,
+                            child,
+                            self.templates[self.placed[child].template].bucket,
+                        );
                         debug_assert_eq!(handle, child);
                         changed = true;
                     }

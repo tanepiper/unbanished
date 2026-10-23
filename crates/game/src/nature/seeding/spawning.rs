@@ -235,7 +235,7 @@ impl Seeder<'_> {
         for (entry, count) in attempts {
             for _ in 0..count {
                 if let Some(child) = self.spawn_child(id, entry, false, disabled) {
-                    let handle = scheduler.register(child, self.placed[child].bucket);
+                    let handle = scheduler.register_at(child, child, self.placed[child].bucket);
                     debug_assert_eq!(handle, child);
                     changed = true;
                 }

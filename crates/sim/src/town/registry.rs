@@ -59,7 +59,11 @@ impl StartingTown {
     ///
     /// Original: `FUN_1400c9d70`.
     pub fn register_entity(&mut self, id: usize) {
-        let handle = self.scheduler.register(id, self.placed[id].bucket);
+        // A spawned resource registered itself as it was made.
+        if self.scheduler.contains(id) {
+            return;
+        }
+        let handle = self.scheduler.register_at(id, id, self.placed[id].bucket);
         debug_assert_eq!(handle, id);
     }
 

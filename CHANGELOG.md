@@ -11,6 +11,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Fixed
 
+- Trees that spring up in the same moment a pile is left behind are no longer swapped with it in
+  the game's update order. The tree was updated as a building site and the pile as a tree, and
+  every entity made after them got the wrong slot.
 - A walker starts moving one update later, when its path has come back, as in the original.
   Citizens and animals were one update early, so their steps and footstep sounds came early too.
 - Destroyed buildings, picked-up piles and cleared resources leave the entity manager's

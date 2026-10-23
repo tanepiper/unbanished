@@ -7,7 +7,9 @@ impl Wild<'_, '_> {
     /// entry registered in its template's bucket.
     pub(super) fn create(&mut self, template: usize, position: [f32; 3]) -> usize {
         let id = self.place(template, position);
-        let handle = self.scheduler.register(id, self.templates[template].bucket);
+        let handle = self
+            .scheduler
+            .register_at(id, id, self.templates[template].bucket);
         debug_assert_eq!(handle, id);
         id
     }
