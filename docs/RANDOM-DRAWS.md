@@ -61,11 +61,12 @@ order, the conditions that skip them, and the arithmetic on the result.
 | `FUN_140111d60` | Fetching herbs; the item is chosen before the walks, as in the port | Match |
 | `FUN_140049a90`, `FUN_140049910` | A fire spreads: a cell near the building, then its odds | Match. The rows' range is not clamped at 0 in the original, which then reads outside the map; the port burns nothing there (a Deviation) |
 | `FUN_14004ff60` | A nomad wanders to a cell near its camp | Match, with the first offset on y and the second on x |
+| `FUN_140126420`, `FUN_140126920` | A herd's animals are made, and a herd grows back | Differed: the original makes each animal (whose deer model draws its variant, `FUN_140129f90`) before the offsets and the heading. The port made it after them. Fixed |
 
 ## Not yet compared
 
 The rest of the 51 ported functions. The larger ones still to read are `FUN_14008eea0` (happiness near a place), `FUN_1400c5b60` (a building
-sequence), `FUN_140126420` (herds), `FUN_14010b8f0` (a wild animal), `FUN_1400a7490` (placed
+sequence), `FUN_14010b8f0` (a wild animal), `FUN_1400a7490` (placed
 descriptions), `FUN_1400ecd10` (a production cycle) and the start of a game (`FUN_1400a6780`,
 `FUN_1400a62a0`, `FUN_1400a5fe0`).
 

@@ -37,19 +37,6 @@ impl Wild<'_, '_> {
         id
     }
 
-    /// `FUN_1400c8bf0` of an animal template and `FUN_14010c8d0`: placed with its model and
-    /// character, wild; a male takes the variant's second mesh.
-    pub(super) fn new_animal(
-        &mut self,
-        template: usize,
-        position: [f32; 3],
-        yaw: f32,
-        male: bool,
-    ) -> Option<usize> {
-        let variant = self.pick_variant(template)?;
-        self.insert_animal(template, variant, position, yaw, male)
-    }
-
     /// `FUN_1400c8bf0`'s ModelComponent: the variant (random when the model says so) and its
     /// mesh.
     pub(super) fn pick_variant(&mut self, template: usize) -> Option<(usize, usize)> {
@@ -66,8 +53,8 @@ impl Wild<'_, '_> {
         Some((variant, mesh))
     }
 
-    /// The animal of [`Wild::new_animal`] with its variant chosen (`FUN_14010c8d0`: placed,
-    /// turned, wild; a male takes the variant's second mesh).
+    /// A new animal of `template` with the variant [`Wild::pick_variant`] chose
+    /// (`FUN_14010c8d0`: placed, turned, wild; a male takes the variant's second mesh).
     pub(super) fn insert_animal(
         &mut self,
         template: usize,

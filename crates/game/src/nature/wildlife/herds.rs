@@ -150,12 +150,17 @@ impl Wild<'_, '_> {
         for _ in 0..count {
             let x = x0 + self.rng.rand_below(w.max(0) as u32) as i32;
             let y = y0 + self.rng.rand_below(hh.max(0) as u32) as i32;
+            // The entity is made here (`FUN_1400c8bf0`): its model's setup draws the variant
+            // before the offsets and the heading.
+            let Some(variant) = self.pick_variant(hk.animal) else {
+                return;
+            };
             let base = self.ground(n * y + x);
             let dy = self.rng.rand_float_tol();
             let dx = self.rng.rand_float_tol();
             let position = [base[0] + dx * 0.4, base[1] + dy * 0.4, base[2]];
             let yaw = self.rng.rand_float_tol() * 180.0;
-            let Some(a) = self.new_animal(hk.animal, position, yaw, male) else {
+            let Some(a) = self.insert_animal(hk.animal, variant, position, yaw, male) else {
                 return;
             };
             let life = self.wildlife.animal_kinds[&hk.animal].desc.life;
@@ -179,13 +184,18 @@ impl Wild<'_, '_> {
         let hk = self.wildlife.herd_kinds[&template].clone();
         let male = self.rng.rand_below(2) == 0;
         while (self.wildlife.herds[h].animals.len() as i32) < target {
+            // The entity is made first (`FUN_1400c8bf0`), so its variant's draw comes before the
+            // offsets and the heading.
+            let Some(variant) = self.pick_variant(hk.animal) else {
+                return;
+            };
             let area = hk.desc.area as f32;
             let base = self.ground(self.wildlife.herds[h].target);
             let dy = self.rng.rand_float_tol();
             let dx = self.rng.rand_float_tol();
             let position = [base[0] + dx * area, base[1] + dy * area, base[2]];
             let yaw = self.rng.rand_float_tol() * 180.0;
-            let Some(a) = self.new_animal(hk.animal, position, yaw, male) else {
+            let Some(a) = self.insert_animal(hk.animal, variant, position, yaw, male) else {
                 return;
             };
             self.join(a, h);
