@@ -7,8 +7,8 @@
 //! - [`nearest_neighbour`] finds the allowed cell next to a cell that is nearest to a target.
 //!
 //! The original solves paths on a worker thread, and a walker polls for the result. The port
-//! solves a path when it is requested; the walker still reads the result on its next update, so
-//! the timing is the same.
+//! solves a path when it is requested; the walker reads the result in a later iteration, not in
+//! the update that follows its start in the same pass, so the timing is the same.
 //!
 //! See [Citizens](https://tanepiper.github.io/unbanished/topics/citizens) for how citizens use it.
 

@@ -11,6 +11,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Fixed
 
+- A walker starts moving one update later, when its path has come back, as in the original.
+  Citizens and animals were one update early, so their steps and footstep sounds came early too.
 - Destroyed buildings, picked-up piles and cleared resources leave the entity manager's
   turns at once, as in the original. Before, they kept their turn, so the rest of a town's
   buildings, trees and animals were updated less often the longer a game ran.

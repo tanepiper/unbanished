@@ -33,6 +33,9 @@ pub struct MoveTo {
     pub following: bool,
     /// Pending request result (`+0x20/+0x24`); available on the next update.
     pending: Option<Option<Vec<i32>>>,
+    /// The request was made by this pass's start, which the action stack follows with an update
+    /// at once. The original's worker thread has not answered by then, so that update waits.
+    fresh: bool,
     /// `+0x60` index, `+0x64` count, `+0x68` cells.
     index: i32,
     count: i32,
@@ -68,6 +71,7 @@ impl MoveTo {
             },
             following: false,
             pending: None,
+            fresh: false,
             index: -1,
             count: 0,
             path: [0; PATH_CELLS],
@@ -104,6 +108,7 @@ impl MoveTo {
             speed,
             following,
             pending: None,
+            fresh: false,
             index,
             count: n as i32,
             path: cells,
@@ -160,6 +165,7 @@ impl MoveTo {
             return Status::Done;
         }
         self.request(ch.position, world);
+        self.fresh = self.pending.is_some();
         if self.index < 0 {
             return match self.pending {
                 Some(Some(_)) => Status::Running,
@@ -217,6 +223,11 @@ impl MoveTo {
             self.index = -1;
             return Status::Running;
         }
+        // Measured: Save2's citizens start their walk clip one iteration after the port did when
+        // the path was collected in the pass that asked for it.
+        if self.pending.is_some() && std::mem::take(&mut self.fresh) {
+            return Status::Running;
+        }
         if let Some(result) = self.pending.take() {
             let Some(path) = result else {
                 return Status::Failed;
@@ -232,7 +243,10 @@ impl MoveTo {
             ch.play(self.walk, group, 1.0);
             return Status::Running;
         }
-        match self.start(ch, world, group) {
+        // A re-plan from an update is collected on the next update.
+        let status = self.start(ch, world, group);
+        self.fresh = false;
+        match status {
             Status::Failed => Status::Failed,
             _ => Status::Running,
         }
