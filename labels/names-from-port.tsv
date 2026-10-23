@@ -551,6 +551,7 @@
 140129430	LivestockDescription	crates/formats/src/game/work.rs
 140129a30	MapDescription	crates/formats/src/game/world.rs
 140129f90	ModelDescription_2	crates/formats/src/game/entities.rs
+14012a040	finish_models	crates/sim/src/town/save/models.rs
 14012a1f0	initial_flags	crates/sim/src/town/save/create.rs
 14012a290	ModelDescription	crates/formats/src/game/entities.rs
 14012a4f0	DestroyDescription_2	crates/formats/src/game/construction/build.rs

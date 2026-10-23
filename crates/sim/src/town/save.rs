@@ -12,6 +12,7 @@ mod animation;
 mod citizens;
 mod construction;
 mod create;
+mod models;
 pub mod new_game;
 mod producers;
 pub mod view_state;
@@ -160,6 +161,7 @@ impl StartingTown {
         }
         self.export_schedule(g, &ids, foreign);
         self.export_animations(g, &mut refs);
+        models::finish_models(archive, g, &mut refs);
         finish_flags(g);
     }
 
@@ -419,6 +421,10 @@ impl StartingTown {
             if let (Some(sp), Some(f)) = (&placed.spawn_state, fields_mut(g, id, "SpawnComponent"))
             {
                 if let Some(Value::List(items)) = f.at_mut("spawn.timers") {
+                    // A new game's objects start with no entries: one per spawn entry.
+                    items.resize_with(sp.timers.len(), || {
+                        unbanished_formats::savegame::Fields(vec![("timer", Value::I64(0))])
+                    });
                     for (item, &t) in items.iter_mut().zip(&sp.timers) {
                         item.set_time("timer", t);
                     }

@@ -361,7 +361,12 @@ impl Agents {
         Agents {
             characters: citizens
                 .iter()
-                .map(|c| Character::new(desc, c.position, scale(c)))
+                .map(|c| {
+                    // Activation (`FUN_14010ee90`) faces the target heading the model's yaw.
+                    let mut ch = Character::new(desc, c.position, scale(c));
+                    ch.target_heading = ch.yaw;
+                    ch
+                })
                 .collect(),
             ais: citizens.iter().map(|_| CitizenAi::default()).collect(),
             states,

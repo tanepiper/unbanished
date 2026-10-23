@@ -212,6 +212,8 @@ impl Agents {
     /// CharacterComponent activation (`FUN_14010ee90`): citizen `i` joins the characters' tree.
     pub(super) fn join_tree(&mut self, i: usize, env: &mut Env) {
         let ch = &mut self.characters[i];
+        // `+0x3c` takes the model's yaw.
+        ch.target_heading = ch.yaw;
         if ch.tree_slot < 0 {
             ch.tree_slot = env.wildlife.tree.insert(
                 crate::behaviour::character_tree::Who::Citizen(i),

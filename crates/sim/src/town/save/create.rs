@@ -126,8 +126,19 @@ pub fn new_entity(
         let Some(c) = g.new_object(name) else {
             continue;
         };
+        // A particle component has one slot for each of its description's systems, all off
+        // (*observed* on `Save3`'s barn).
+        let particle_slots = (name == "ParticleComponent")
+            .then(|| read(archive, &normalise(&description)))
+            .flatten()
+            .and_then(|d| unbanished_formats::game::particle_description(&d).ok())
+            .map(|p| p.slots.len());
         let description = refs.id(g, &description);
         let f = &mut g.objects.get_mut(&c).unwrap().fields;
+        if let Some(n) = particle_slots {
+            let off = unbanished_formats::savegame::Fields(vec![("on", Value::Bool(false))]);
+            f.set("particle.slots", Value::List(vec![off; n]));
+        }
         f.set("base.entity", Value::Ptr(Some(entity)));
         f.set_i32("base.description", description as i32);
         f.set_i32("base.flags", initial_flags(name) as i32);
@@ -153,6 +164,7 @@ pub fn new_entity(
             }
         }
     }
+    link_components(g, entity, &components);
     let f = &mut g.objects.get_mut(&entity).unwrap().fields;
     f.set_i32("entity.template", template_id as i32);
     f.set_i32("entity.flags", 0);
@@ -255,6 +267,55 @@ pub fn remove_entity(g: &mut GameState, id: ObjId) {
                     g.schedules[m].1 = slot as i32;
                 }
             }
+        }
+    }
+}
+
+/// The links a new entity's components hold to each other, as the original's saves have them
+/// (*observed* on `Save3`: every entity of a new game): a picking's entity, a character's model
+/// and picking, a growth's natural resource and model, a citizen AI's citizen, and a build
+/// component's lists of the entity's model and picking.
+fn link_components(g: &mut GameState, entity: ObjId, components: &[ObjId]) {
+    let find = |g: &GameState, name: &str| {
+        components
+            .iter()
+            .copied()
+            .find(|c| g.objects[c].type_name == name)
+    };
+    let model = find(g, "ModelComponent");
+    let picking = find(g, "PickingComponent");
+    let natural = find(g, "NaturalResourceComponent");
+    let citizen = find(g, "CitizenComponent");
+    let one = |key: &'static str, c: Option<ObjId>| {
+        Value::List(
+            c.into_iter()
+                .map(|c| unbanished_formats::savegame::Fields(vec![(key, Value::Ptr(Some(c)))]))
+                .collect(),
+        )
+    };
+    for &c in components {
+        let o = g.objects.get_mut(&c).unwrap();
+        let f = &mut o.fields;
+        match o.type_name {
+            "PickingComponent" => {
+                f.set("picking.entity", Value::Ptr(Some(entity)));
+            }
+            "CharacterComponent" => {
+                f.set("character.model", Value::Ptr(model));
+                f.set("character.picking", Value::Ptr(picking));
+            }
+            "GrowthComponent" => {
+                f.set("growth.natural", Value::Ptr(natural));
+                f.set("growth.model", Value::Ptr(model));
+            }
+            "CitizenAIComponent" => {
+                f.set("ai.citizen", Value::Ptr(citizen));
+            }
+            "BuildComponent" => {
+                f.set("build.models", one("model", model));
+                f.set("build.pickings", one("picking", picking));
+            }
+            _ => {}
         }
     }
 }

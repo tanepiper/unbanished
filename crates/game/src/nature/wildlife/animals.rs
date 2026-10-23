@@ -121,7 +121,10 @@ impl Wild<'_, '_> {
         };
         debug_assert_eq!(e, a);
         self.wildlife.kinds.insert(a, Kind::Animal);
-        // CharacterComponent's start (`FUN_14010ee90`): into the tree.
+        // CharacterComponent's start (`FUN_14010ee90`): the target heading takes the model's yaw
+        // (`+0x3c`), then into the tree.
+        let ch = &mut self.wildlife.animals.get_mut(&a).unwrap().character;
+        ch.target_heading = ch.yaw;
         let ch = &self.wildlife.animals[&a].character;
         let slot = self.wildlife.tree.insert(
             crate::behaviour::character_tree::Who::Animal(a),

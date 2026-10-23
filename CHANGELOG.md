@@ -28,6 +28,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
 - The starting adults count as having finished school, as in the original.
 - Saves link each citizen to its character and status icon, and new citizens and work actions
   get the original's default values.
+- Standing deer and citizens keep the heading they started with, as in the original, instead
+  of turning to face north.
+- Saves of a new game hold each model's materials and the links between an entity's parts, as
+  the original's do.
 
 - Saves of fishing docks keep each fisher in their slot. Empty slots were moved to the front
   when the game was saved.

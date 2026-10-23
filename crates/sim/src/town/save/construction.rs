@@ -86,8 +86,18 @@ impl StartingTown {
             if let Some(w) = fields_mut(g, id, "WorkComponent") {
                 w.set_i32("work.work_id", site.work_id);
                 w.set_i32("work.kept_priority", site.work_priority.unwrap_or(i32::MIN));
-                if let Some(wp) = c.workforce.workplaces.get(&e) {
-                    w.set_i32("work.most_workers", wp.max_workers);
+                // Activation stores `MaxWorkers` (`FUN_140133bc0` → `FUN_140133a90`) for every
+                // work component; a workplace's count can be changed later.
+                let most = match c.workforce.workplaces.get(&e) {
+                    Some(wp) => Some(wp.max()),
+                    None if w.i32("work.most_workers") == Some(0) => c
+                        .templates
+                        .get(site.template)
+                        .map(|t| t.default_max_workers(self.placed[e].footprint)),
+                    None => None,
+                };
+                if let Some(most) = most {
+                    w.set_i32("work.most_workers", most);
                 }
             }
             if let Some(f) = fields_mut(g, id, "ClearAreaComponent") {
