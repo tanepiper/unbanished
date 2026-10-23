@@ -97,7 +97,8 @@ order. Completed entities select UIDescription `+0x40` as their active `pages` p
 different entity closes the prior unpinned host, while pinned hosts remain. Closing and pinning
 operate only on presentation state. Titles use the citizen name or the template's localized
 toolbar name. Unsupported controller refresh is logged with its numeric id. The shipped storage
-tab and capacity/header elements are present, but their live values are pending slice C.
+tab and capacity/header elements show the storage's live goods and fill (`StorageUi`,
+`StorageCapacityUi` in `apps/game/src/ui/building_ui/storage.rs`).
 
 Selection, window creation, layout and highlight generation accept no mutable town or game
 Random. Input changes these presentation objects before `FUN_14009b850`'s simulation phase;

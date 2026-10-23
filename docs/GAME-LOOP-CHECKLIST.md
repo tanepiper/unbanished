@@ -54,17 +54,20 @@ evidence; static traces are not claims of live-game behavior.
 - [x] Trace town storage search, shared inventory ledgers, reservations and New Game tool/clothing
   fetch sequences. Verify search/geometry/ledger/equipment messages against original functions;
   see [CITIZEN-AI.md](CITIZEN-AI.md#storage-loose-piles-and-inventories).
-- [ ] Complete production, harvest, storage, and stock updates from resource entities through the
-  Status Bar counters. Existing status flags and fixed-stride stock layout are only partially
-  identified; see steps 8-9.
+- [x] Complete production, harvest, storage, and stock updates from resource entities through the
+  Status Bar counters: the stock manager's slots (count, limit, used `+0xc`, made `+0x10`;
+  `StockCounters` in `work/tracker.rs`) feed the Status Bar and the town information
+  ([TOWN-INFO.md](TOWN-INFO.md)).
 - [x] Trace selection ray/terrain priority, picking triangle ranking, HighlightComponent edge
   assets/stencil passes and entity UIDescription hosts. See [SELECTION.md](SELECTION.md).
 - [ ] Complete start-condition application beyond the traced structures, household creation,
   inventory and natural-resource seeding: residence assignment, wildlife and other populations.
-- [ ] Complete climate precipitation geometry/effects and ambient audio beyond the traced and
-  ported temperature, weather-state, threshold and seasonal controllers.
+- [x] Complete climate precipitation geometry/effects and ambient audio beyond the traced and
+  ported temperature, weather-state, threshold and seasonal controllers (see the weather item
+  below and [ENVIRONMENT.md](ENVIRONMENT.md)).
 - [ ] Extend beyond natural resources into citizen/job scheduling, movement, needs, production,
-  consumption, events, and entity removal.
+  consumption, events, and entity removal. All are ported; what is left is the order of one
+  iteration's scheduled components (the entity buckets, issue #22).
 
 ## Remaining port work
 
@@ -76,8 +79,9 @@ evidence; static traces are not claims of live-game behavior.
   read-only integration check; acceleration/host limits are explicit in [SELECTION.md](SELECTION.md).
 - [x] Slices C/D (read-only parts): StorageUI, StorageCapacityUI, StatusIconUI, WorkPlaceUI
   visibility and CitizenUI with live values. See [BUILDING-WINDOWS.md](BUILDING-WINDOWS.md).
-- [ ] Slice C/D commands and BuildUI/DestroyUI/Residence/Upgrade (need construction and
-  profession assignment).
+- [x] Slice C/D commands and BuildUI/DestroyUI/Residence/Upgrade (need construction and
+  profession assignment): `apps/game/src/ui/building_ui/` (`BuildUi`, `DestroyUi`, `ResidenceUi`,
+  `UpgradeUi`, storage and workplace windows with live values).
 - [x] Slice F: event log, stock warnings, notification ribbon, popups, Event Log checkboxes and
   go-to ([EVENT-LOG.md](EVENT-LOG.md)); slice G: Map window and minimap
   ([MAP-WINDOW.md](MAP-WINDOW.md)); slice H: tooltip controllers and toolbar hotkey names
@@ -101,15 +105,16 @@ evidence; static traces are not claims of live-game behavior.
   fetching and equipment messages at New Game. Original-function parity and seeded integration
   checks are recorded in [CITIZEN-AI.md](CITIZEN-AI.md).
 - [ ] Complete citizen activities/jobs/needs and bucket scheduling; deer, crops, orchards, livestock,
-  building decals and footprints.
+  building decals and footprints. All are ported except the bucket scheduling's order (issue #22).
 - [x] Replace the compact HUD with the packaged toolbar and Status Bar controllers. See
   [IN-GAME-TOOLBAR.md](IN-GAME-TOOLBAR.md) and [UTILITY-WINDOWS.md](UTILITY-WINDOWS.md).
 - [x] Building placement tool: ghost, rotation, variants, original validity and placement of
   construction sites. See [BUILD-TOOLS.md](BUILD-TOOLS.md).
 - [x] Construction: job manager, professions (ProfessionUI spinners), sites gathering materials
   and builders building, completion. See [JOBS.md](JOBS.md).
-- [ ] Add drag/road/removal tools, the ClearArea work, the remaining utility-window controllers,
-  and the original pause/options dialogs.
+- [x] Add drag/road/removal tools, the ClearArea work, the remaining utility-window controllers,
+  and the original pause/options dialogs (`apps/game/src/tools/`, `town/clearing.rs`,
+  `ui/utility/`, `ui/pause_menu.rs`, `ui/options/`).
 - [x] Port the environment controller (temperature, weather state, level, snow/autumn/leaf values)
   and run it per simulation iteration after the calendar. See [ENVIRONMENT.md](ENVIRONMENT.md).
 - [x] Connect seeded natural resources to scheduled growth, periodic same-template spawning,
