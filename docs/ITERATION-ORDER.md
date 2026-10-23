@@ -106,6 +106,27 @@ at every step, and each step's commit says why.
    port's stand-in for the address order).
 4. **Deletions.** Queue every deletion and run them after bucket 4.
 
+## Measured on a pair of the original's saves
+
+`Save4` and `Save5` are one vanilla town (Seminola) saved twice by the original. Measured with
+`save_random_distance` (an example in `crates/formats`):
+
+| | The original (`Save5`) | The port (`--sim-continue Save4 6360`) |
+|---|---|---|
+| Entity-manager time | +105,995,760 µs, exactly 6,360 iterations of 16,666 µs | the same |
+| Draws from the game's Random | 101,012 | 100,925 |
+| Build progress of the two sites under way | 30 and 45 | 30 and 45 |
+| Clearing jobs left | 257 | 257 |
+| Bucket-2 cursor (no entity added or removed) | 224 | 224 |
+
+The pair is not order-free: `Save5` has a second WoodHouse site at progress 0 that `Save4`
+does not have, so the player placed it between the saves. The port cannot know when, so the 87
+missing draws include that placement and its effects. The bucket-3 and bucket-4 cursors differ
+(15 and 939 against 292 and 929) because entities were removed at different times in the two
+runs. The visit loop (`FUN_1400c9560`) and the removal (`FUN_1400c8db0`) are the same as the
+port's: the count is read once, a cursor at or past the end starts again at 0, and a removal
+swaps in the bucket's last entity without moving the cursor.
+
 ## Open questions
 
 - The bit-`0x04` set's order is by entity address, which the port cannot reproduce; creation
@@ -113,3 +134,5 @@ at every step, and each step's commit says why.
 - Where FireComponent sits in a building's component array (it is added after the template's
   components, but the exact place is not traced), which decides whether a building's fire runs
   before or after its state machine on a visit.
+- Steps 3 and 4 still need an order-free pair: two saves of one town with nothing placed or
+  changed between them.

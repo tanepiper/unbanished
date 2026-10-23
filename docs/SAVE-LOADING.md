@@ -378,10 +378,14 @@ them, and a warning is logged on load):
 The vanilla saves `Save2` to `Save5` and `Save83` are the reference for loading. `Save 47`
 lists two mods; `Save200` and `Auto-1` are 2015 saves made with mods.
 
-`Save4` and `Save5` are the same town (Seminola) about 106 game seconds apart. Between them:
+`Save4` and `Save5` are the same town (Seminola) 6,360 iterations (105.99576 game seconds) apart.
+Between them:
 - the roads under construction were finished;
-- a WoodHouse was completed;
+- the player placed a second WoodHouse site (template `Template\WoodHouse.rsc`, progress 0);
 - 17 clear jobs finished, and some trees, rocks and ore were harvested.
 
 `cargo run -p unbanished-formats --example savegame_diff -- save-game/Save4.sav save-game/Save5.sav`
-lists the differences.
+lists the differences. A number freed in `Save4` can belong to a different object in `Save5` (the new
+WoodHouse is 25973, a PerformWork action in `Save4`), so the same number is not always the same
+object. [ITERATION-ORDER.md](ITERATION-ORDER.md) compares the pair
+with the port.
