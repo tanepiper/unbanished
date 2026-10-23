@@ -17,6 +17,9 @@
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// A noise field: its persistence, octaves and two seeds.
+///
+/// Measured: `tools/emu/perlin.py` (4,000 values, the temperature's settings and others, bit
+/// for bit).
 pub struct PerlinNoise {
     /// How much each octave adds: octave `i` is scaled by `persistence` to the power `i`.
     pub persistence: f32,
