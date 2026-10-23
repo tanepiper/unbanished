@@ -62,6 +62,7 @@ order, the conditions that skip them, and the arithmetic on the result.
 | `FUN_140049a90`, `FUN_140049910` | A fire spreads: a cell near the building, then its odds | Match. The rows' range is not clamped at 0 in the original, which then reads outside the map; the port burns nothing there (a Deviation) |
 | `FUN_14004ff60` | A nomad wanders to a cell near its camp | Match, with the first offset on y and the second on x |
 | `FUN_1400c5b60` | A builder's sequence at a build point | Match: `Rand(2)`, then the walk's speed |
+| `FUN_1400a7490` | The starting buildings from the start condition | Match: the entity is made first (only the model's setup can draw, when its variant is random), then one `Rand(variant count)` for each building with a model, as `place_structures` does after `construct` |
 | `FUN_14010b8f0` | A wild animal's update: breeding, home, idle or a walk in its area | Match in every branch: `Rand(4)` only inside its area, rows drawn before columns, the first offset on y, a new area after 10 tries, `Rand(3) + 1` without ground, the idle time's `RandFloat` |
 | `FUN_1400ecd10` | A production cycle (ConsumeProduce slot `+0x20`) | Match: the recipe pick (`FUN_14011e940`) before `Rand(slots)`; each haul (`FUN_1400c4c60`) makes the walk to the target before the walk back, as `Sim::haul` does |
 | `FUN_14008eea0` | A happiness place near a cell, for loitering | Match: candidates in registry order, the same path-rank arguments (`cell`, then the use point) and fallback, `Rand(count)` only with candidates |
@@ -69,8 +70,17 @@ order, the conditions that skip them, and the arithmetic on the result.
 
 ## Not yet compared
 
-The rest of the 51 ported functions. The larger ones still to read are `FUN_1400a7490` (placed descriptions) and the start of a game (`FUN_1400a6780`,
-`FUN_1400a62a0`, `FUN_1400a5fe0`).
+The rest of the 51 ported functions, and the start of a new game: the resource seeding
+(`FUN_1400a6780`), the households (`FUN_1400a62a0`, `FUN_1400a6510`), the deer and livestock
+(`FUN_1400a5fe0`) and the start-condition set-up (`FUN_1400a87d0`). docs/RESOURCE-SEEDING.md
+specifies their draws from the code. They make entities through the component system, which the
+emulator cannot run, so the check they need is a save the original makes right after starting a
+new game with a known seed, compared with the port's new game from the same seed.
+
+Only three components draw in their setup (slot `+0x20`, run inside the entity constructor
+`FUN_1400c8bf0`): the model's variant (`FUN_140129f90`), a tombstone's lifetime (`FUN_1400581c0`)
+and `CreateNaturalResource` (`FUN_1400cbb20`). Wherever the original makes an entity, these draws
+come at that point.
 
 ## The order within an iteration
 
