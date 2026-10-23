@@ -62,6 +62,10 @@ evidence; static traces are not claims of live-game behavior.
   assets/stencil passes and entity UIDescription hosts. See [SELECTION.md](SELECTION.md).
 - [ ] Complete start-condition application beyond the traced structures, household creation,
   inventory and natural-resource seeding: residence assignment, wildlife and other populations.
+  The start up to iteration 63 is now checked against the original's own new-game saves (Save2,
+  Save3; [RANDOM-DRAWS.md](RANDOM-DRAWS.md)): the seeding, the households, the deer population
+  and all 16 herds match field for field. Residence assignment is still open: no citizen has a
+  home by iteration 63 in either game.
 - [x] Complete climate precipitation geometry/effects and ambient audio beyond the traced and
   ported temperature, weather-state, threshold and seasonal controllers (see the weather item
   below and [ENVIRONMENT.md](ENVIRONMENT.md)).
