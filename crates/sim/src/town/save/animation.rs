@@ -32,10 +32,17 @@ pub(super) fn write_layers(model: &mut Fields, stack: &AnimationStack, fallback:
         Some(Value::List(states)) => states.first().and_then(|s| s.get("animation")).cloned(),
         _ => None,
     };
+    let had_none = group.is_none();
     let Some(group) = group.or(fallback.map(Value::Ext)) else {
         return;
     };
-    let states = stack.layers.iter().map(|l| state(&group, l)).collect();
+    let states: Vec<Fields> = stack.layers.iter().map(|l| state(&group, l)).collect();
+    // A model given its first layers here (a new game's) is playing them. Inferred: the
+    // original's saves have `animating` set on a model with layers (Save2: all 115, Save5:
+    // 116 of 117, Save83: 376 of 381), and the few exceptions are kept as loaded.
+    if had_none && !states.is_empty() {
+        model.set_bool("model.animating", true);
+    }
     model.set("model.animations", Value::List(states));
 }
 

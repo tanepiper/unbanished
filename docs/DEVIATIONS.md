@@ -320,7 +320,7 @@ Deviation: 80, Not ported: 7, Not traced: 1.
 
 ## `crates/sim/src/town/save/animation.rs`
 
-- [Not ported] [crates/sim/src/town/save/animation.rs:73](../crates/sim/src/town/save/animation.rs#L73): AnimationManager entries (FUN_18005d130): group +0x00, clip +0x08, users +0x0c, the instances +0x20 (FUN_18005cd90) and the nodes +0x10 (FUN_18005cbf0). The shared instances into the save's animation block, slot by slot: each entry's group, clip and users, and each instance's clock, speed, pose and root movement. A free slot is written free. Not ported: the group's nodes (its skeleton's bind transforms) and each instance's model-space transforms are not kept here. A slot keeps those it was saved with; a slot the save did not hold for this group copies them from one that it did, and writes none when there is no such slot.
+- [Not ported] [crates/sim/src/town/save/animation.rs:80](../crates/sim/src/town/save/animation.rs#L80): AnimationManager entries (FUN_18005d130): group +0x00, clip +0x08, users +0x0c, the instances +0x20 (FUN_18005cd90) and the nodes +0x10 (FUN_18005cbf0). The shared instances into the save's animation block, slot by slot: each entry's group, clip and users, and each instance's clock, speed, pose and root movement. A free slot is written free. Not ported: the group's nodes (its skeleton's bind transforms) and each instance's model-space transforms are not kept here. A slot keeps those it was saved with; a slot the save did not hold for this group copies them from one that it did, and writes none when there is no such slot.
 
 ## `crates/terrain/src/query.rs`
 

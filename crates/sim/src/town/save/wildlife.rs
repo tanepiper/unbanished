@@ -106,14 +106,23 @@ impl StartingTown {
                 f.set("livestock.pasture", Value::Ptr(pasture));
                 f.set_time("livestock.timer", l.timer);
             }
+            // A new game's animal, which has no saved layers yet, plays its model variant's
+            // group. A loaded model without layers keeps none (Goldfoothill has such animals).
+            let group = self.templates[animal.template]
+                .model
+                .as_ref()
+                .and_then(|m| m.variants.get(animal.variant))
+                .and_then(|v| v.animations.clone())
+                .filter(|_| self.save_ids.is_none())
+                .map(|a| refs.id(g, &a));
             self.export_body(
                 g,
                 refs,
                 ids,
                 e,
                 &animal.character,
-                animal.variant,
-                animal.mesh,
+                (animal.variant, animal.mesh),
+                group,
             );
         }
         for (&p, pasture) in &w.pastures {
@@ -186,7 +195,7 @@ impl StartingTown {
             if let Some(f) = fields_mut(g, e, "StateMachineComponent") {
                 f.set_i32("machine.state", boat.state as i32);
             }
-            self.export_body(g, refs, ids, e, &boat.character, 0, usize::MAX);
+            self.export_body(g, refs, ids, e, &boat.character, (0, usize::MAX), None);
         }
     }
 
@@ -200,12 +209,12 @@ impl StartingTown {
         ids: &Ids,
         e: ObjId,
         ch: &unbanished_game::behaviour::character::Character,
-        variant: usize,
-        mesh: usize,
+        (variant, mesh): (usize, usize),
+        group: Option<u32>,
     ) {
         if let Some(m) = fields_mut(g, e, "ModelComponent") {
             m.set("model.position", Value::F32s(ch.position.to_vec()));
-            super::animation::write_layers(m, &ch.animation, None);
+            super::animation::write_layers(m, &ch.animation, group);
             if m.f32("model.yaw") != Some(ch.yaw) {
                 m.set_f32("model.yaw", ch.yaw);
                 let q = unbanished_game::math::Transform::character_rotation(ch.yaw);
