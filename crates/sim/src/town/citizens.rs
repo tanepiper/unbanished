@@ -286,8 +286,7 @@ impl StartingTown {
                 .map(|v| v.iter().map(|&(_, value, e)| (value, e)).collect())
                 .unwrap_or_default()
         };
-        let (_, citizen_visits) =
-            unbanished_game::behaviour::agents::Agents::split_visits(&bucket(1, &self.visits));
+        let bucket_1 = bucket(1, &self.visits);
         let (site_visits, _) =
             unbanished_game::behaviour::agents::Agents::split_visits(&bucket(3, &self.visits));
         // FUN_1400c9560: the every-iteration phase (bit 0x04), then buckets 1 to 4 in turn,
@@ -300,7 +299,7 @@ impl StartingTown {
                 &mut self.citizens,
                 &mut env,
                 &groups,
-                &citizen_visits,
+                &bucket_1,
                 &mut newborn,
             );
         }

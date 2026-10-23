@@ -100,9 +100,8 @@ at every step, and each step's commit says why.
 2. **One bucket, entity by entity.** Done. Bucket 3 (`Agents::visit_sites`) runs each visited
    entity's components in its template's order: disease, fire, the state machine (with a
    residence's state-2 work, `FUN_14012ee40`), hunt, attendance, a pile's age. Buckets 1 and 4
-   were already entity by entity. Left over: the nomads' and boats' CharacterComponent notify
-   (their only scheduled component) runs every iteration in `update_nomads` and `update_boats`,
-   not on their bucket-1 visit.
+   were already entity by entity, and a nomad's CharacterComponent notify (its only scheduled
+   component; boats have none) runs on its bucket-1 visit, among the citizens' in visiting order.
 3. **One every-iteration set.** Run the bit-`0x04` phase entity by entity in creation order (the
    port's stand-in for the address order).
 4. **Deletions.** Queue every deletion and run them after bucket 4.

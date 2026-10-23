@@ -271,8 +271,9 @@ impl Agents {
         }
     }
 
-    /// Bucket 1's visits (the citizens, as citizen indices), in visiting order, each with the time
-    /// since its last visit: the character's notify, CitizenComponent, then CitizenAIComponent.
+    /// Bucket 1's visits (the scheduler's values: citizens from `EXTRA`, nomads by entity), in
+    /// visiting order, each with the time since its last visit: a citizen's character notify,
+    /// CitizenComponent, then CitizenAIComponent; a nomad's character notify.
     ///
     /// Original: `FUN_1400c9560` (bucket 1).
     pub fn visit_citizens(
@@ -280,14 +281,28 @@ impl Agents {
         citizens: &mut Vec<Citizen>,
         env: &mut Env,
         groups: &[Option<&AnimationGroup>],
-        citizen_visits: &[(usize, i64)],
+        visits: &[(usize, i64)],
         newborn: &mut dyn FnMut(&mut Random, &Citizen, bool) -> Citizen,
     ) {
         let mut entities = entity_views(env.placed, env.templates, env.construction);
         let adult = self.adults(citizens);
-        // The citizens bucket 1 visited this iteration, in its order, each with the time since
-        // its last visit (`FUN_1400c9560`).
-        for &(i, elapsed) in citizen_visits {
+        let (extra, foreign) = (crate::scheduler::EXTRA, crate::scheduler::FOREIGN);
+        // Bucket 1 in its visiting order, each with the time since its last visit
+        // (`FUN_1400c9560`).
+        for &(v, elapsed) in visits {
+            if v < extra {
+                // A nomad's CharacterComponent notify (`FUN_14010e950`): MoveTo's follow check
+                // (`FUN_1400cde40`). Its other components have no scheduled update.
+                if let Some(nomad) = env.wildlife.nomads.get_mut(&v) {
+                    let following = env.wildlife.tree.follows(nomad.character.tree_slot);
+                    nomad.character.stack.notify_moves(following);
+                }
+                continue;
+            }
+            if v >= foreign {
+                continue;
+            }
+            let i = v - extra;
             if i >= self.ais.len()
                 || groups.get(i).copied().flatten().is_none()
                 || !citizens[i].alive

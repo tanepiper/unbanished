@@ -13,8 +13,7 @@
 //!
 //! Deviation: the every-iteration phase runs one kind at a time (the animals, then the models,
 //! then the citizens, then the sites); the original runs it entity by entity, in its set's order.
-//! The nomads' and boats' CharacterComponent notify runs every iteration, not on their bucket
-//! visit. Animals and sites are also deleted at other points than citizens. See
+//! Animals and sites are also deleted at other points than citizens. See
 //! docs/ITERATION-ORDER.md, steps 3 and 4, and issue #22.
 //!
 //! This file holds the agents' state and set-up; the rest is split by topic: `update` (the

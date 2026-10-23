@@ -111,12 +111,8 @@ impl Sim<'_, '_> {
     pub fn update_nomads(&mut self, dt: i64) {
         let ids: Vec<usize> = self.wildlife.nomads.keys().copied().collect();
         for id in ids {
-            // CharacterComponent's scheduled notify (`FUN_14010e950`): MoveTo's follow check
-            // (`FUN_1400cde40`).
-            if let Some(nomad) = self.wildlife.nomads.get_mut(&id) {
-                let following = self.wildlife.tree.follows(nomad.character.tree_slot);
-                nomad.character.stack.notify_moves(following);
-            }
+            // The CharacterComponent's scheduled notify runs on the nomad's bucket-1 visit
+            // (`Agents::visit_citizens`).
             let Some(nomad) = self.wildlife.nomads.get(&id) else {
                 continue;
             };
