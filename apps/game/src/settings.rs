@@ -131,13 +131,17 @@ pub struct AudioConfig {
     pub effect: i32,
 }
 
+// The original's defaults: UI 100, music 50, ambient 100, effects 100.
 impl Default for AudioConfig {
+    /// Deviation: every volume defaults to 0 for now, so that test runs and other games started
+    /// without a settings file are never heard (the original's defaults are 100, 50, 100 and
+    /// 100). A player's saved settings keep their own volumes.
     fn default() -> Self {
         AudioConfig {
-            ui: 100,
-            music: 50,
-            ambient: 100,
-            effect: 100,
+            ui: 0,
+            music: 0,
+            ambient: 0,
+            effect: 0,
         }
     }
 }
