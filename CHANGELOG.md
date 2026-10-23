@@ -9,6 +9,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-23
+
 A town now runs in the original's order and keeps more of what the original saves. Each step
 updates citizens, buildings, trees and animals in the original's order. A loaded game keeps
 each character's animation. Many rules that drew random numbers in another order, or treated edge
@@ -450,7 +452,8 @@ of Banished 1.0.7.
   [docs/DEVIATIONS.md](docs/DEVIATIONS.md) and in the
   [issues](https://github.com/tanepiper/unbanished/issues).
 
-[Unreleased]: https://github.com/tanepiper/unbanished/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/tanepiper/unbanished/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/tanepiper/unbanished/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/tanepiper/unbanished/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/tanepiper/unbanished/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tanepiper/unbanished/compare/v0.2.0...v0.3.0
