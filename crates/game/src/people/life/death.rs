@@ -22,7 +22,12 @@ impl People<'_, '_> {
             Some(cemetery) => {
                 if let Some(slot) = self.free_grave(cemetery) {
                     let cell = self.sites[&cemetery].graves[slot];
-                    self.burials.push((cemetery, cell));
+                    // FUN_1400473f0 makes the tombstone here; its setup (FUN_1400581c0) draws the
+                    // lifetime right after the grave's draw.
+                    let life = self.site_templates[self.sites[&cemetery].template]
+                        .cemetery
+                        .map_or(0, |t| crate::people::cemetery::tombstone_life(&t, self.rng));
+                    self.burials.push((cemetery, cell, life));
                 }
                 0x40
             }
@@ -79,7 +84,7 @@ impl People<'_, '_> {
             let cell = graves[i];
             let taken = self.town.objects[cell as usize]
                 .is_some_and(|o| self.tombstones.contains_key(&o))
-                || self.burials.iter().any(|&(_, b)| b == cell);
+                || self.burials.iter().any(|&(_, b, _)| b == cell);
             !taken
         })
     }

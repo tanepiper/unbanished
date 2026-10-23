@@ -316,8 +316,11 @@ pub struct People<'a, 'b> {
     pub cemeteries: &'a [usize],
     /// The tombstones standing, with the time each one stays.
     pub tombstones: &'a BTreeMap<usize, i64>,
-    /// Burials decided this update (cemetery, grave cell); the tombstones follow.
-    pub burials: &'a mut Vec<(usize, i32)>,
+    /// Burials decided this update (cemetery, grave cell, the tombstone's lifetime); the
+    /// tombstones follow.
+    pub burials: &'a mut Vec<(usize, i32, i64)>,
+    /// The site templates (a cemetery's tombstone description).
+    pub site_templates: &'a [crate::work::construction::SiteTemplate],
     /// The path-rank cache.
     pub sectors: &'a mut crate::sectors::SectorGraph,
     /// The ground's heights.

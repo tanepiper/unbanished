@@ -240,7 +240,7 @@ pub struct Sim<'s, 't> {
     /// The tombstones, with the time each one stays.
     pub tombstones: &'s mut BTreeMap<usize, i64>,
     /// The burials waiting: `(cemetery, cell)`.
-    pub burials: &'s mut Vec<(usize, i32)>,
+    pub burials: &'s mut Vec<(usize, i32, i64)>,
     /// The buildings that have a site record.
     pub site_list: &'s mut Vec<usize>,
     /// The job events from this update.

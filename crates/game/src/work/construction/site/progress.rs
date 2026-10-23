@@ -75,7 +75,7 @@ pub struct Construction {
     /// TombstoneComponents and the time each has left.
     pub tombstones: BTreeMap<usize, i64>,
     /// Burials decided at a death (cemetery, grave cell), placed after the citizens' update.
-    pub burials: Vec<(usize, i32)>,
+    pub burials: Vec<(usize, i32, i64)>,
     /// Entities a DestroyComponent puts in a torn-down building's place, created by the town after
     /// the update.
     ///

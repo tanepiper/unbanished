@@ -48,7 +48,7 @@ order, the conditions that skip them, and the arithmetic on the result.
 | `FUN_140117940` | A sick citizen passes the disease on | Differed: the original offers it to one citizen only (the loop exits after the call at `0x140117aae`). Fixed in `9385b0f` |
 | `FUN_1401108b0`, `FUN_140111160` | Fetching firewood and food for home | Differed: the original makes both walks (`FUN_1400c4c60`, each drawing a speed) before it chooses the goods. Fixed in `8d19bc0` |
 | `FUN_14008d310` | An animation's sound event | Differed: the port drew only for trees; citizens' tools and livestock draw too (`MeshInstance::Update`, Runtime `0x180103090`). Fixed in `08cc127`; the order within the iteration is part of issue #22 |
-| `FUN_1400581c0` | A tombstone's lifetime | The formula matches; the original draws it inside the death (`FUN_14011c2a0` → `FUN_1400473f0` → the entity constructor's setup). The port draws it later. Issue #23 |
+| `FUN_1400581c0` | A tombstone's lifetime | Differed: the original draws it inside the death (`FUN_14011c2a0` → `FUN_1400473f0` → the entity constructor's setup), right after the grave's draw; the port drew it later in the update. Fixed (issue #23): `People::die` draws it and the burial carries it |
 | `FUN_1400475c0`, `FUN_14008ec10` | A free grave and the cemetery search | Match, including `Rand(0)`, which draws nothing |
 | `FUN_140048f70`, `FUN_1400484a0`, `FUN_1400491a0` | Blight: the chance, a crop that withers, the spread | Match |
 | `FUN_14004db00` | An immigration wait | Match |

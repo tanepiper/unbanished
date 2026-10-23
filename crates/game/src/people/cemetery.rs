@@ -28,6 +28,15 @@ pub struct CemeteryTemplate {
     pub range: f32,
 }
 
+// TombstoneDescription +0x20 life, +0x24 range; the result goes to TombstoneComponent +0x28.
+/// How long a tombstone stays: `(RandFloat × range + life)` × 300 s. The original draws it in the
+/// TombstoneComponent's setup, while the citizen dies.
+///
+/// Original: `FUN_1400581c0`.
+pub fn tombstone_life(t: &CemeteryTemplate, rng: &mut crate::random::Random) -> i64 {
+    ticks((rng.rand_float() * t.range + t.life) * PERIOD)
+}
+
 impl Sim<'_, '_> {
     /// Activation (`FUN_140047b60`): the cells inside the fence (one in from the map
     /// rectangle) on every other row along the gate's side, except the two lines in front of
@@ -87,17 +96,11 @@ impl Sim<'_, '_> {
     }
 
     /// The burials decided this update: the grave becomes plain ground and gets a tombstone turned
-    /// as the cemetery, which lasts its tombstone description's time and stamps its cell.
+    /// as the cemetery, which lasts the time drawn at the death and stamps its cell.
     ///
-    /// Deviation: the original makes the tombstone inside the death itself, so its lifetime's
-    /// `RandFloat` comes right after the grave's draw. The port makes the tombstones later in the
-    /// update, after the sites' systems, so that draw comes later.
-    ///
-    /// Original: `FUN_1400473f0`; the tombstone's set-up `FUN_1400581c0`.
-    // FUN_14011c2a0 calls FUN_1400473f0 at once; its entity constructor (FUN_1400c8bf0) runs
-    // the TombstoneComponent's setup (slot +0x20, FUN_1400581c0), which draws the lifetime.
+    /// Original: `FUN_1400473f0`.
     pub fn place_burials(&mut self) {
-        for (cemetery, cell) in std::mem::take(self.burials) {
+        for (cemetery, cell, life) in std::mem::take(self.burials) {
             let Some(t) = self
                 .sites
                 .get(&cemetery)
@@ -135,8 +138,7 @@ impl Sim<'_, '_> {
                 animation: None,
                 scale: [1.0; 4],
             });
-            let life = (self.rng.rand_float() * t.range + t.life) * PERIOD;
-            self.tombstones.insert(id, ticks(life));
+            self.tombstones.insert(id, life);
             self.stamp(id);
             *self.models_dirty = true;
         }
