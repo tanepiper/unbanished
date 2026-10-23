@@ -150,4 +150,5 @@ town, at fixed points in each update, and to load them in the browser version.
 ---
 
 **All changes:** [Changelog, version 0.4.0](/changelog) ·
-**Earlier:** [Sixty a second](/blog/measuring-speed)
+**Earlier:** [Sixty a second](/blog/measuring-speed) ·
+**Next:** [In Step](/blog/0-5-0-in-step)
