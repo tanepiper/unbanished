@@ -76,7 +76,7 @@ pub fn run(game: &mut Game, size: (u32, u32), command: &str) -> Result<Value, St
                 ))
             }
         }
-        "town" | "stock" | "buildings" | "citizens" | "animals" => {
+        "town" | "stock" | "buildings" | "citizens" | "animals" | "camera" => {
             let filter = (!rest.is_empty()).then_some(rest);
             game.main
                 .current()

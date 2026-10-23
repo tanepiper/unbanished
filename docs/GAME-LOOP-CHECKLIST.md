@@ -140,8 +140,10 @@ evidence; static traces are not claims of live-game behavior.
 - [x] Add save/load, autosave, and event notifications to the active gameplay loop
   (`apps/game/src/gameplay.rs`, `saves/`, the event log in `crates/game/src/events.rs`).
 - [ ] Verify the new-game flow in browser and desktop builds, including camera behavior after the
-  fade. Capture the failing platform and gesture, then confirm camera rotation, middle-drag pan,
-  wheel zoom, and keyboard movement.
+  fade. The browser is checked by `tools/test/browser/game.test.mjs` (a new game, then W moves the
+  camera, E and a middle drag turn it, the wheel zooms; the probe's `camera` query reads it). The
+  desktop build feeds the same input functions (`Game::key`, `wheel`, `drag`) but has no test
+  that sends raw input yet. Middle drag turns the camera (the User Guide's controls); nothing pans.
 
 ## Evidence and verification limits
 

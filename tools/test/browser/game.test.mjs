@@ -3,7 +3,7 @@
 // tools/test/run.py browser, or alone: node tools/test/browser/game.test.mjs
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { check, equal, gameFiles, launch, repo, run, serveGame } from './lib.mjs';
+import { check, equal, gameFiles, launch, repo, run, serveGame, sleep } from './lib.mjs';
 
 // The native run's answers at 16 s, a few seconds after its new game started.
 const baseline = JSON.parse(readFileSync(join(repo, 'tools/test/baselines/new-game.json'), 'utf8'));
@@ -75,6 +75,51 @@ await run('game', [
       await b.waitDialog('NewGame');
       const combos = await b.eval("unbanished.ui('ref:NewGame kind:combo').then((l) => l.length)");
       check(combos >= 5, `the New Game dialog has its combos (${combos})`);
+    },
+  },
+  {
+    name: 'After a new game the camera moves, turns and zooms with the keys, the wheel and the middle button',
+    needs: ['chrome', 'gamedata'],
+    async run(ctx) {
+      const url = await serveGame(ctx);
+      const b = await launch(ctx, 'chrome');
+      await b.open(`${url}/`);
+      await b.startWithFiles(gameFiles());
+      await b.newGame(1234, 'Testwood');
+      const camera = () => b.probe('camera');
+      // Past the fade from black: wait until the camera has stopped easing.
+      let last = null;
+      for (let i = 0; i < 150; i++) {
+        const c = await camera();
+        if (last && JSON.stringify(c) === JSON.stringify(last)) break;
+        last = c;
+        await sleep(200);
+      }
+      const [w, h] = await b.eval('[window.innerWidth, window.innerHeight]');
+      const [cx, cy] = [Math.round(w / 2), Math.round(h / 2)];
+      const near = (a, c) => Math.abs(a - c) < 1e-3;
+
+      let before = await camera();
+      await b.holdKey('w', 800);
+      let after = await camera();
+      check(!(near(after.x, before.x) && near(after.y, before.y)),
+        `W moves the camera (${before.x},${before.y} → ${after.x},${after.y})`);
+      check(near(after.yaw, before.yaw), 'W does not turn the camera');
+
+      before = after;
+      await b.holdKey('e', 800);
+      after = await camera();
+      check(!near(after.yaw, before.yaw), `E turns the camera (yaw ${before.yaw} → ${after.yaw})`);
+
+      before = after;
+      await b.wheel(cx, cy, -240);
+      after = await camera();
+      check(!near(after.zoom, before.zoom), `the wheel zooms (target ${before.zoom} → ${after.zoom})`);
+
+      before = after;
+      await b.drag('middle', cx, cy, cx + 200, cy);
+      after = await camera();
+      check(!near(after.yaw, before.yaw), `a middle drag turns the camera (yaw ${before.yaw} → ${after.yaw})`);
     },
   },
 ]);

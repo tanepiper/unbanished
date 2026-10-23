@@ -150,6 +150,7 @@ sliders, scroll bars and progress bars add `value`.
 | `buildings [FILTER]` | buildings counted by template, built and under construction | no |
 | `citizens [FILTER]` | adults, students, children, and the working adults by profession | no |
 | `animals [FILTER]` | animals counted by template | no |
+| `camera` | the game camera: its pivot `x`, `y` on the ground, `yaw`, `pitch`, `distance`, and the `zoom` distance it eases towards | no |
 
 FILTER keeps the names that contain it (letter case ignored): `buildings house`,
 `animals deer`. Counts are sorted by name, so the same town always gives the same JSON. In the

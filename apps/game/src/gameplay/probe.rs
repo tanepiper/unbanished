@@ -34,12 +34,15 @@ fn counts(names: impl Iterator<Item = String>, filter: Option<&str>) -> Value {
 
 impl GameplayLoop {
     /// Answer a world query: `town`, `buildings [FILTER]`, `citizens [FILTER]`,
-    /// `animals [FILTER]` or `stock`. `None` when `what` is not a world query.
+    /// `animals [FILTER]`, `stock` or `camera`. `None` when `what` is not a world query.
     pub(crate) fn world_query(
         &self,
         what: &str,
         filter: Option<&str>,
     ) -> Option<Result<Value, String>> {
+        if what == "camera" {
+            return Some(self.camera_query());
+        }
         let Some(town) = self.sim.town.as_ref() else {
             return matches!(
                 what,
@@ -120,6 +123,28 @@ impl GameplayLoop {
             _ => return None,
         };
         Some(Ok(value))
+    }
+}
+
+impl GameplayLoop {
+    /// The game camera: its pivot on the ground, heading, pitch and distance (and the zoom it
+    /// eases towards), for tests of the camera controls.
+    fn camera_query(&self) -> Result<Value, String> {
+        let Some(crate::view::scene::SceneView {
+            camera: crate::view::scene::SceneCamera::Map(c),
+            ..
+        }) = &self.view
+        else {
+            return Err("no map camera".into());
+        };
+        Ok(json!({
+            "x": c.target.x,
+            "y": c.target.y,
+            "yaw": c.yaw,
+            "pitch": c.pitch,
+            "distance": c.distance,
+            "zoom": c.distance_target,
+        }))
     }
 }
 

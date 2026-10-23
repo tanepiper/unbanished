@@ -301,6 +301,39 @@ class Chrome extends Browser {
     await sleep(300);
   }
 
+  /** Hold a letter key (`'w'`) down for `ms`, as a player holds a camera key. */
+  async holdKey(letter, ms) {
+    const key = letter.toLowerCase();
+    const code = `Key${key.toUpperCase()}`;
+    const vk = key.toUpperCase().charCodeAt(0);
+    await this.raw('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: vk });
+    await sleep(ms);
+    await this.raw('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: vk });
+    await sleep(300);
+  }
+
+  /** Turn the mouse wheel at (x, y): a negative `deltaY` rolls it away from the player. */
+  async wheel(x, y, deltaY) {
+    await this.raw('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+    await this.raw('Input.dispatchMouseEvent', { type: 'mouseWheel', x, y, deltaX: 0, deltaY });
+    await sleep(300);
+  }
+
+  /** Drag with `button` (`'middle'`, `'left'`, `'right'`) from (x0, y0) to (x1, y1) in steps. */
+  async drag(button, x0, y0, x1, y1, steps = 10) {
+    const buttons = { left: 1, right: 2, middle: 4 }[button];
+    await this.raw('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0, y: y0 });
+    await this.raw('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y: y0, button, buttons, clickCount: 1 });
+    for (let i = 1; i <= steps; i++) {
+      const x = x0 + ((x1 - x0) * i) / steps;
+      const y = y0 + ((y1 - y0) * i) / steps;
+      await this.raw('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button, buttons });
+      await sleep(30);
+    }
+    await this.raw('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x1, y: y1, button, buttons: 0, clickCount: 1 });
+    await sleep(300);
+  }
+
   async screenshot(file) {
     const { data } = await this.raw('Page.captureScreenshot', { format: 'png' });
     mkdirSync(dirname(file), { recursive: true });
