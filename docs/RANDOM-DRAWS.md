@@ -140,5 +140,9 @@ entity buckets in turn and runs each entity's components together.
 
 ## Open questions
 
-- The order of the animated meshes in `MeshInstance::Update`'s pass (the animation manager's
-  list), which decides the order of the sound events' draws.
+- The sound events' draws have no pass of their own. The ModelComponent's every-iteration
+  update (`FUN_140129e30`, bit `0x04`) calls `MeshInstance::Update` through the mesh's vtable,
+  which fires the clip's events (*observed*). A citizen, an animal or a boat lists its
+  ModelComponent before its CharacterComponent, so each one draws for its sounds just before its
+  character runs; the port does the same. Their order between entities is the every-iteration
+  set's (by address), step 3 of issue #22.

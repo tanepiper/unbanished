@@ -11,6 +11,12 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Fixed
 
+- Destroyed buildings, picked-up piles and cleared resources leave the entity manager's
+  turns at once, as in the original. Before, they kept their turn, so the rest of a town's
+  buildings, trees and animals were updated less often the longer a game ran.
+- Each citizen draws for its animation sounds just before it moves, as in the original,
+  instead of all citizens' sounds first.
+
 - A new game's deer get the same ages and lifespans as in the original. Each animal's lifespan
   is drawn when the animal is made, before its position and age. Livestock bought from a
   merchant are now up to half their lifespan old, not newborn.

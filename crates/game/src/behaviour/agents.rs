@@ -1,8 +1,9 @@
 //! The citizens' CharacterComponent and CitizenAIComponent run together each simulation
 //! iteration. See docs/CITIZEN-AI.md.
 //!
-//! Order per iteration: animations advance, every character runs its actions and moves, "sequence
-//! finished" messages run the AI again with zero time, then the AI updates.
+//! Order per iteration: each citizen's model advances its clip (and draws for its sound events),
+//! then its character runs its actions and moves; "sequence finished" messages run the AI again
+//! with zero time, then the AI updates.
 //!
 //! One iteration runs in the entity manager's order (docs/ITERATION-ORDER.md): the every-
 //! iteration phase (bit `0x04`: the citizens' characters, then the sites' state machines, nomads,

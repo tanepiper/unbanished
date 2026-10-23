@@ -38,12 +38,15 @@ impl AnimationSounds {
     /// generator against the event's probability; when it passes, its sound plays at the
     /// character. An event that is not a sound draws nothing.
     ///
-    /// Deviation: the original updates every animated mesh in one pass at the start of the
-    /// iteration, in the animation manager's order, so these draws come before any entity's
-    /// update. The port draws for each citizen as its clip advances, and for each animal just
-    /// before that animal's own update; the trees' draws come with the natural resources.
+    /// The draws come with each entity's model update in the every-iteration phase, just before
+    /// its character runs, as in the original.
     ///
-    /// Original: `FUN_14008d310`.
+    /// Deviation: the original runs that phase entity by entity in its set's order (by address,
+    /// step 3 of issue #22). The port runs one kind at a time (citizens, animals, boats,
+    /// nomads), each in its own order, and the trees' draws come with the natural resources.
+    ///
+    /// Original: `FUN_14008d310`, called through `MeshInstance::Update` from the
+    /// ModelComponent's every-iteration update (`FUN_140129e30`).
     pub fn fire(&mut self, resources: &[String], position: [f32; 3], rng: &mut Random) {
         for r in resources {
             let Some((_, effect, probability)) = self.events.iter().find(|(e, _, _)| e == r) else {

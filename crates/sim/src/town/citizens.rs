@@ -321,6 +321,9 @@ impl StartingTown {
         for id in before..self.placed.len() {
             self.register_entity(id);
         }
+        // The deletions: one made and deleted in this iteration joins and leaves again, last in
+        // its bucket, so no other entity moves.
+        self.remove_dead_entities();
         self.apply_rebuilds();
         self.apply_storage_changes();
         self.place_displays(terrain);

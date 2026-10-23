@@ -360,8 +360,8 @@ impl Character {
         self.walk(world, group);
     }
 
-    /// `Graphics::AnimationManager::Update`: advance the clip; the root delta moves the body.
-    /// Returns the event resources the newest clip fired (its sounds, for
+    /// The model's mesh update: advance the clip; the root delta moves the body when the
+    /// character walks. Returns the event resources the newest clip fired (its sounds, for
     /// [`AnimationSounds::fire`](crate::behaviour::sounds::AnimationSounds::fire)).
     pub fn animate(&mut self, group: &AnimationGroup, dt: f32) -> Vec<String> {
         let fired = self.animation.update(group, ticks(dt));

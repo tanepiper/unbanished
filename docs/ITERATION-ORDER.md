@@ -104,7 +104,16 @@ at every step, and each step's commit says why.
    component; boats have none) runs on its bucket-1 visit, among the citizens' in visiting order.
 3. **One every-iteration set.** Run the bit-`0x04` phase entity by entity in creation order (the
    port's stand-in for the address order).
-4. **Deletions.** Queue every deletion and run them after bucket 4.
+4. **Deletions.** Done in part. Destroyed sites, picked-up piles, cleared resources and every
+   other deleted entity now leave their buckets at the end of the iteration
+   (`StartingTown::remove_dead_entities`). Before, only the seeder's removals, the animals and
+   the citizens left them. A destroyed site or pile stayed in its bucket and took one of the
+   bucket's visits each time its turn came. After two minutes of Save83, 21 of bucket 3's 225
+   entries and 48 of bucket 4's were such entities, so the living ones were visited less often
+   than in the original, more so the longer a town ran. The seeder's removals keep their request order
+   and the rest go in bucket order; the two orders differ only when two entities of one bucket
+   are deleted in the same iteration (a Deviation in `registry.rs`). The components' removal
+   slots still run kind by kind.
 
 ## Measured on a pair of the original's saves
 

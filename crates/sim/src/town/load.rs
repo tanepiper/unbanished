@@ -331,6 +331,10 @@ mod stage4_tests;
 #[cfg(test)]
 mod animation_tests;
 
+/// The deletions: no deleted entity stays in its bucket.
+#[cfg(test)]
+mod deletion_tests;
+
 #[cfg(any(test, feature = "test-support"))]
 pub mod tests_support {
     use unbanished_formats::pkg::{Archive, Package};

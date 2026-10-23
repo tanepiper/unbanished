@@ -63,13 +63,6 @@ impl Agents {
         let mut entities = entity_views(env.placed, env.templates, env.construction);
         let mut animating = crate::town::animating(env.placed, env.templates);
         let adult = self.adults(citizens);
-        for (ch, group) in self.characters.iter_mut().zip(groups) {
-            if let Some(g) = group {
-                let position = ch.position;
-                let fired = ch.animate(g, dt);
-                self.sounds.fire(&fired, position, env.rng);
-            }
-        }
         // The citizens' CharacterComponents in the characters' tree: the dead leave it
         // (`FUN_14010ee50`), the new join it (`FUN_14010ee90`), in index order.
         // Births, bands and deaths join and leave it on the spot (`join_tree`, `remove`); this
@@ -97,6 +90,16 @@ impl Agents {
         }
         for i in 0..self.characters.len() {
             let Some(group) = groups[i] else { continue };
+            // The citizen's ModelComponent comes before its CharacterComponent in the entity's
+            // components, and the entity manager runs them together (bit 0x04): the mesh update
+            // (FUN_140129e30, MeshInstance::Update) advances the clip and draws for its sound
+            // events, then the character runs.
+            {
+                let ch = &mut self.characters[i];
+                let position = ch.position;
+                let fired = ch.animate(group, dt);
+                self.sounds.fire(&fired, position, env.rng);
+            }
             let mut messages = Vec::new();
             let mut used = Vec::new();
             {

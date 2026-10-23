@@ -33,6 +33,28 @@ impl StartingTown {
             .register_extra(unbanished_game::scheduler::FOREIGN + n, bucket)
     }
 
+    // FUN_1400c9560 step 4 (FUN_1400c8db0): every entity queued for deletion (entity flag 0x400)
+    // leaves its bucket, its place taken by the bucket's last entity.
+    /// The deletions of the iteration: every scheduled entity that is no longer alive leaves its
+    /// bucket. Before, a destroyed site, a picked-up pile or a cleared resource stayed in its
+    /// bucket and took one of its visits each time its turn came.
+    ///
+    /// Deviation: the original deletes in the order the deletions were asked for. Here the seeder's
+    /// removals go in that order and the rest in their buckets' order, which differs only when two
+    /// entities of one bucket are deleted in the same iteration (the bucket's order after the
+    /// swaps then differs).
+    ///
+    /// Original: `FUN_1400c8db0`.
+    pub(super) fn remove_dead_entities(&mut self) {
+        let dead: Vec<usize> = (0..unbanished_game::scheduler::QUOTAS.len())
+            .flat_map(|b| self.scheduler.bucket(b).to_vec())
+            .filter(|&h| self.placed.get(h).is_some_and(|p| !p.alive))
+            .collect();
+        for h in dead {
+            self.scheduler.remove(h);
+        }
+    }
+
     /// Register a new entity in its template's bucket.
     ///
     /// Original: `FUN_1400c9d70`.
