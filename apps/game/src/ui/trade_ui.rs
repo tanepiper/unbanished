@@ -123,7 +123,10 @@ fn set_number(ui: &mut Ui, n: Option<NodeId>, v: i32) {
 }
 
 /// `SpinnerElement::SetMinMax(0, most)`, then `SetIncrement` by the most: 1 up to 20, 5 up
-/// to 50, 20 up to 100; above that the increment stays as it was.
+/// to 50, 20 up to 100; above that the increment stays as it was. The original's sell rows
+/// get their most here only while the merchant is docked and buys the good.
+///
+/// Original: `FUN_140088250`.
 fn set_most(ui: &mut Ui, spinner: NodeId, most: i32) {
     ui.set_spinner_range(spinner, 0, most);
     let s = if most < 0x15 {
