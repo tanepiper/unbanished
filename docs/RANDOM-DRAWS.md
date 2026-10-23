@@ -102,9 +102,20 @@ After these, every object type has the same count in both towns, and the random 
 draws behind `Save2`'s (25 behind `Save3`'s). The first walk that differs is the 16th citizen's,
 the first one made in the second iteration (bucket 1 visits 15 citizens an iteration). Adding 11
 draws at the end of the first iteration gives both later walks their original speeds, so the
-original draws 11 more between the 15th citizen's walk and the 16th's: in buckets 2 to 4 of the
-first iteration, or in the second iteration's every-iteration set or bucket 0. That is still to
-find.
+original draws 11 more between the 15th citizen's walk and the 16th's. The weather's draws of
+the first iteration come just before that point and match (`Save2`'s baseline and bias targets
+are the port's to the last bit), so the 11 come after the environment's update. The original's
+game loop (`FUN_14009b850`) then runs the stock manager, the post-iteration pass and the music
+player (`FUN_1400a95b0`, which draws `Rand(n)` from the game's Random), and the audio scene
+draws from the same Random. The port gives audio its own Random (a Deviation in
+`apps/game/src/audio/sound.rs`), so these draws, which depend on the frame rate and on when
+sounds end, are the expected remainder.
+
+To repeat the comparison: start a new game with `UNBANISHED_SEED` set to the save's seed (and
+the same terrain, with the probe's `combo comboTerrain=…`), pause and save it with the capture
+script, run `--sim-continue` up to the original save's iteration (its entity time divided by
+16,666 µs), then run `save_random_distance` on the two saves. The temperature is not comparable
+after a load: neither game saves its noise.
 
 Four components draw in their setup (slot `+0x20`, run inside the entity constructor
 `FUN_1400c8bf0`): the model's variant (`FUN_140129f90`), an animal's lifespan
