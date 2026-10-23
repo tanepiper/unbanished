@@ -88,7 +88,7 @@ impl People<'_, '_> {
         if f >> 0x12 & 1 != 0 {
             h += 0.5;
         }
-        h = h.max(0.0).min(r.f(0xa4));
+        h = clamp_happiness(h, r.f(0xa4));
         let mut target = 0.0;
         if f & 4 == 0 {
             target += 1.0;
@@ -122,13 +122,14 @@ impl People<'_, '_> {
             target += 1.0;
         }
         let target = target * 0.125 * r.f(0xa4);
-        if h < target {
+        // The original's tests, in its order (a NaN target takes the step up).
+        if !(target <= h) {
             h += 0.5;
-        } else if target < h {
+        } else if !(h <= target) {
             // Through a double (`DAT_140178868` is 0.5 as a double).
             h = (h as f64 - 0.5) as f32;
         }
-        s.happiness = h.max(0.0).min(r.f(0xa4));
+        s.happiness = clamp_happiness(h, r.f(0xa4));
     }
 
     /// The citizen's disease update: the check for an outbreak when healthy
@@ -375,4 +376,17 @@ pub fn immunity_after(r: &LifeRules) -> i64 {
 /// Original: `FUN_140117940`.
 pub fn spread_target(listed: &[(bool, bool)]) -> Option<usize> {
     listed.iter().position(|&(own, sick)| !own && !sick)
+}
+
+/// Happiness kept in `0..=max` the original's way: below 0 becomes 0 (negative zero and NaN stay),
+/// then above `max` becomes `max`.
+///
+/// Original: `FUN_140117fb0`.
+fn clamp_happiness(h: f32, max: f32) -> f32 {
+    let h = if h < 0.0 { 0.0 } else { h };
+    if max < h {
+        max
+    } else {
+        h
+    }
 }

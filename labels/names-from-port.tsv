@@ -459,6 +459,8 @@
 140117940	People::spread	crates/game/src/people/life/health.rs
 140117af0	Disease::weight	crates/formats/src/game/people.rs
 140117ca0	People::disease	crates/game/src/people/life/health.rs
+140117e60	People::health	crates/game/src/people/life/health.rs
+140117fb0	clamp_happiness	crates/game/src/people/life/health.rs
 140118340	People::update	crates/game/src/people/life/update.rs
 140118fc0	LifeEvent	crates/game/src/people/life.rs
 140119170	People::bury	crates/game/src/people/life/death.rs
