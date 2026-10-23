@@ -26,6 +26,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
   Each sound event draws a random number in the original, so towns now take the same draws.
 - New wild herds take the same random numbers as in the original: the deer's model picks its
   variant before the animal's place and heading are drawn.
+- A trading post's merchants get women's and men's names as in the original; the port had the
+  two the wrong way round.
 - A loaded game keeps each character's animation: the clip it was playing, its time and the
   shared clocks the walks follow. Walks under way go on as saved, and men and women share the
   same walking clocks, as in the original. Saves write the animation back.

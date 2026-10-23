@@ -117,8 +117,8 @@ pub struct Trade {
 }
 
 impl Trade {
-    /// The activation: every merchant a name (`Rand(2)` picks the sex) and no order; every category
-    /// no automatic trade.
+    /// The activation: every merchant a name (`Rand(2)`: 0 gives a woman's name, else a man's)
+    /// and no order; every category no automatic trade.
     ///
     /// Original: `FUN_14005cb80`.
     pub fn new(
@@ -133,9 +133,10 @@ impl Trade {
             .merchants
             .iter()
             .map(|_| {
-                let male = rng.rand_below(2) == 0;
+                // `sete` after `Rand(2)` (0x14005cbfe): 0 sets FUN_1400aa130's female flag.
+                let female = rng.rand_below(2) == 0;
                 let name = names.map_or(String::new(), |(m, f)| {
-                    crate::people::names::citizen_name(if male { m } else { f }, rng)
+                    crate::people::names::citizen_name(if female { f } else { m }, rng)
                 });
                 Order {
                     name,

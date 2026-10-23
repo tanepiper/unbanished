@@ -62,6 +62,13 @@ order, the conditions that skip them, and the arithmetic on the result.
 | `FUN_140049a90`, `FUN_140049910` | A fire spreads: a cell near the building, then its odds | Match. The rows' range is not clamped at 0 in the original, which then reads outside the map; the port burns nothing there (a Deviation) |
 | `FUN_14004ff60` | A nomad wanders to a cell near its camp | Match, with the first offset on y and the second on x |
 | `FUN_1400c5b60` | A builder's sequence at a build point | Match: `Rand(2)`, then the walk's speed |
+| `FUN_14005cb80` | A trading post's merchants get names | Differed: `Rand(2)` of 0 sets the female flag of `FUN_1400aa130` (`sete` at `0x14005cbfe`); the port gave a man's name for 0. The name generator draws from the game's Random, so the draws after it differed too. Fixed |
+| `FUN_14008e940`, `FUN_14008eb70` | Shuffling a profession's workplaces, and the residences | Match: `Rand(n)` for each position, a swap when it differs, nothing below two |
+| `FUN_14010b720` | A wild animal idles, and may turn | Match: the first `RandFloatTol` on y, the second on x |
+| `FUN_1400486d0` | Blight kills an animal in a pasture | Match: up to 50 `Rand(count)`; the first animal no one hunts goes at once |
+| `FUN_14011c060` | A citizen is offered a disease | Match: one `RandFloatTol` for how long it lasts |
+| `FUN_140050b00` | A nomad joins the town as a citizen | Match: the age, then `Rand(1)` for education. `Rand(1)` is always 0, so a nomad never arrives educated, in the original too |
+| `FUN_1400fa960` | Tending a field or an orchard | Match: `Rand(count)` for the cell or tree, after the same worker test |
 | `FUN_1400a7490` | The starting buildings from the start condition | Match: the entity is made first (only the model's setup can draw, when its variant is random), then one `Rand(variant count)` for each building with a model, as `place_structures` does after `construct` |
 | `FUN_14010b8f0` | A wild animal's update: breeding, home, idle or a walk in its area | Match in every branch: `Rand(4)` only inside its area, rows drawn before columns, the first offset on y, a new area after 10 tries, `Rand(3) + 1` without ground, the idle time's `RandFloat` |
 | `FUN_1400ecd10` | A production cycle (ConsumeProduce slot `+0x20`) | Match: the recipe pick (`FUN_14011e940`) before `Rand(slots)`; each haul (`FUN_1400c4c60`) makes the walk to the target before the walk back, as `Sim::haul` does |
