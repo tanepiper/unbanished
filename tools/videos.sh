@@ -36,6 +36,8 @@
 # 116-citizen town (Save83), a large autumn town (Save200), a young town (Save5) and a winter town
 # (Save1). With other saves, change them.
 set -euo pipefail
+# No run is ever heard (crates/audio keeps the volume at 0).
+export UNBANISHED_MUTE=1
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 save="$(cd "$(dirname "${1:?usage: tools/videos.sh SAVE.sav [NAME...]}")" && pwd)/$(basename "$1")"

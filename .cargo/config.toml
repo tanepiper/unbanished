@@ -1,0 +1,5 @@
+# Every game that cargo starts in this repository (cargo run, cargo test) is silent: people work
+# next to these runs, in meetings too. Set UNBANISHED_MUTE=0 to hear a game started with cargo;
+# cargo leaves a variable that is already set alone. Released binaries are not affected.
+[env]
+UNBANISHED_MUTE = "1"

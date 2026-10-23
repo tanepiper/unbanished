@@ -16,6 +16,8 @@
 # the rocks and ore of the small town) the region before, after and in the heat map, side by
 # side and enlarged without smoothing. Needs ImageMagick (`magick`) as well.
 set -euo pipefail
+# No run is ever heard (crates/audio keeps the volume at 0).
+export UNBANISHED_MUTE=1
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 

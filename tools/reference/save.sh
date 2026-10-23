@@ -10,6 +10,8 @@
 #   cargo run -q --release -p unbanished-app --example imgdiff -- \
 #     game-data/reference/NAME.png port.png --resize --blur 2 [--crop-a ..] [--crop-b ..]
 set -euo pipefail
+# No run is ever heard (crates/audio keeps the volume at 0).
+export UNBANISHED_MUTE=1
 cd "$(dirname "$0")/../.."
 src="$1"; name="$2"; shift 2
 out="game-data/reference/$name"

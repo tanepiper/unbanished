@@ -9,6 +9,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+A town now runs in the original's order and keeps more of what the original saves. Each step
+updates citizens, buildings, trees and animals in the original's order. A loaded game keeps
+each character's animation. Many rules that drew random numbers in another order, or treated edge
+cases differently, now give the original's results.
+
 ### Fixed
 
 - Trees that spring up in the same moment a pile is left behind are no longer swapped with it in
@@ -21,7 +26,6 @@ The version is the engine's own (`banished --version`). The Banished version in 
   buildings, trees and animals were updated less often the longer a game ran.
 - Each citizen draws for its animation sounds just before it moves, as in the original,
   instead of all citizens' sounds first.
-
 - A new game's deer get the same ages and lifespans as in the original. Each animal's lifespan
   is drawn when the animal is made, before its position and age. Livestock bought from a
   merchant are now up to half their lifespan old, not newborn.
@@ -37,7 +41,6 @@ The version is the engine's own (`banished --version`). The Banished version in 
   of turning to face north.
 - Saves of a new game hold each model's materials and the links between an entity's parts, as
   the original's do.
-
 - Saves of fishing docks keep each fisher in their slot. Empty slots were moved to the front
   when the game was saved.
 - Older saves (2015) load the citizens who were eating from their own hands; their actions were
@@ -68,9 +71,15 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Added
 
+- More of the original measured under the emulator: every kind of Random call, the Perlin
+  noise, vector normalising, the shuffles, the recipe pick, a citizen's health and happiness,
+  an orchard's ripening and the seasonal values, NaN and edge cases among the inputs.
+- `tools/triage/nan_jumps.py` lists a function's float comparisons and which way a NaN goes at
+  each one; issue #25 tracks the review of every simulation function with it.
+- `.cargo/config.toml` keeps every game started with cargo silent, and the browser game takes
+  `&mute`.
 - Tests, the compatibility tools and the browser tests are silent: `UNBANISHED_MUTE=1` keeps the
   game's sound at volume 0, and the test browsers start muted.
-
 - Function labels made from the port's own citations (`labels/names-from-port.tsv`): the
   decompile tools now name 703 original functions, up from 226. The label files moved from
   `tools/triage/` to `labels/`.

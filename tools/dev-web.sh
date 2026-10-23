@@ -3,6 +3,8 @@
 # trunk's proxy: the viewer on http://127.0.0.1:8731/?data=/game-data/ (default) or, with
 # `--app game`, the game on http://127.0.0.1:8733/?data=/game-data/. Never deploy this proxy.
 set -euo pipefail
+# No run is ever heard (crates/audio keeps the volume at 0).
+export UNBANISHED_MUTE=1
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 data="$repo/game-data/original/WinData"
 [[ -f "$data/data0.pkg" ]] || { echo "Run tools/extract-assets.sh first." >&2; exit 1; }
@@ -19,5 +21,6 @@ fi
 cd "$repo/apps/$app"
 # Separate target dir: avoids lock contention with other cargo builds in the workspace.
 export CARGO_TARGET_DIR="$repo/target/web"
-echo "$app: http://127.0.0.1:$port/?data=/game-data/"
+# `&mute` keeps the game silent (crates/audio, the web Device); drop it to hear the game.
+echo "$app: http://127.0.0.1:$port/?data=/game-data/&mute"
 trunk serve "$@"

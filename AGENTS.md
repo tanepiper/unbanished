@@ -244,11 +244,14 @@ and its impact, for a community vote.
 Captures and tests must not write the player's settings or saves (`UNBANISHED_SETTINGS`,
 `UNBANISHED_USER_DIR`).
 
-Tests must never be heard: people work next to these runs, in meetings too. `tools/test/run.py`,
-the `tools/compat` scripts and `determinism.sh` set `UNBANISHED_MUTE=1`, which keeps the native
-game's volume at 0; the browser tests start Chrome with `--mute-audio` and Firefox at volume 0.
-Set `UNBANISHED_MUTE=1` yourself for any game you start by hand (`--sim-continue`, captures,
-`cargo run`), and mute a browser tab that plays the game.
+Tests must never be heard: people work next to these runs, in meetings too. `UNBANISHED_MUTE=1`
+keeps the native game's volume at 0. `.cargo/config.toml` sets it for every `cargo run` and
+`cargo test` here, and `tools/test/run.py`, the `tools/compat` scripts, `determinism.sh`,
+`screenshots.sh`, `videos.sh` and `tools/reference` set it too. The game's own test builds are
+silent without it. Set it yourself for a built binary you start by hand (`--sim-continue`,
+captures). In a browser, open the game with `&mute` (`tools/dev-web.sh` prints that address);
+the browser tests start Chrome with `--mute-audio` and Firefox at volume 0. To hear a game,
+set `UNBANISHED_MUTE=0` or drop `&mute`.
 
 ## Committing
 

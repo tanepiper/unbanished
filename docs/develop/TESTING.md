@@ -187,10 +187,12 @@ tools/test/run.py determinism browser                  # if the change touches t
 tools/compat/compare.sh HEAD <your build or commit>    # if the change can touch the simulation
 ```
 
-No test is ever heard. The runners set `UNBANISHED_MUTE=1`, which keeps the native game's sound
-at volume 0 whatever the game asks for (`crates/audio`, `Device`). The browser tests start Chrome
-with `--mute-audio` and Firefox with `media.volume_scale` at 0. Set the variable yourself for a
-game you start by hand.
+No test is ever heard. `UNBANISHED_MUTE=1` keeps the native game's sound at volume 0 whatever
+the game asks for (`crates/audio`, `Device`). `.cargo/config.toml` sets it for every `cargo run`
+and `cargo test` in the repository, and the runners and scripts set it for the binaries they
+start. In the browser the page option `&mute` does the same (`tools/dev-web.sh` prints the
+address with it), and the browser tests start Chrome with `--mute-audio` and Firefox with
+`media.volume_scale` at 0. Set `UNBANISHED_MUTE=0`, or drop `&mute`, to hear the game.
 
 Other sessions may build and test in the same checkout at the same time, and they share
 `target/release/unbanished`. Copy your build to a file of your own (in your scratchpad, with a

@@ -36,15 +36,34 @@ pub struct Device {
     master_gain: Option<web_sys::GainNode>,
     voices: Slots<Voice>,
     master: f32,
+    /// Kept at volume 0 for good (`?mute`).
+    silent: bool,
+}
+
+/// Whether the page was opened with `?mute` (or `&mute`; `mute=0` is off): tests and dev pages
+/// keep the game silent this way, as `UNBANISHED_MUTE` does for the native game.
+fn muted() -> bool {
+    let search = web_sys::window()
+        .and_then(|w| w.location().search().ok())
+        .unwrap_or_default();
+    search
+        .trim_start_matches('?')
+        .split('&')
+        .any(|kv| match kv.split_once('=') {
+            Some((k, v)) => k == "mute" && v != "0",
+            None => kv == "mute",
+        })
 }
 
 impl Default for Device {
     fn default() -> Self {
+        let silent = muted();
         Device {
             context: None,
             master_gain: None,
             voices: Slots::default(),
-            master: 1.0,
+            master: if silent { 0.0 } else { 1.0 },
+            silent,
         }
     }
 }
@@ -311,7 +330,7 @@ impl Device {
     }
 
     pub fn set_master_volume(&mut self, volume: f32) {
-        self.master = volume.max(0.0);
+        self.master = if self.silent { 0.0 } else { volume.max(0.0) };
         if let Some(g) = &self.master_gain {
             g.gain().set_value(self.master);
         }
