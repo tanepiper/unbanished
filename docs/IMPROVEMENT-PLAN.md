@@ -45,7 +45,8 @@ The update (commits `d255331` and `cbfb6cb`, report in
    the labels need an item). Define "traced" once, and report one figure from one tool.
    *Done:* traced means labelled. `fnindex.py coverage` reports 31.3 % of the Application's own
    code, with library code apart ([CHECKLIST.md](CHECKLIST.md), "Coverage").
-5. **GameFrame's case study** still says `--pure`. That is a fix in GameFrame, not here.
+5. **GameFrame's case study** said `--pure`. *Done* in GameFrame (`5a802ee`), with the
+   current counts and the float lessons.
 
 ## Part 2: the code
 
