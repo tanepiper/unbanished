@@ -69,6 +69,8 @@ order, the conditions that skip them, and the arithmetic on the result.
 | `FUN_14011c060` | A citizen is offered a disease | Match: one `RandFloatTol` for how long it lasts |
 | `FUN_140050b00` | A nomad joins the town as a citizen | Match: the age, then `Rand(1)` for education. `Rand(1)` is always 0, so a nomad never arrives educated, in the original too |
 | `FUN_1400fa960` | Tending a field or an orchard | Match: `Rand(count)` for the cell or tree, after the same worker test |
+| `FUN_14011f7e0` | A crop field enters state 9 and shuffles its cells | Match: `Rand(n)` for each position whenever n is above 0, so one cell still draws (unlike the workplace shuffles, which need two) |
+| `FUN_14012bcb0` | A pasture leaves its product piles | Match: each pass takes a pile's worth off what was produced, rescans the points, skips a pile, clears anything else and makes one pile, whose `RandTol(2) × 90°` turn is drawn after the entity is made |
 | `FUN_1400a7490` | The starting buildings from the start condition | Match: the entity is made first (only the model's setup can draw, when its variant is random), then one `Rand(variant count)` for each building with a model, as `place_structures` does after `construct` |
 | `FUN_14010b8f0` | A wild animal's update: breeding, home, idle or a walk in its area | Match in every branch: `Rand(4)` only inside its area, rows drawn before columns, the first offset on y, a new area after 10 tries, `Rand(3) + 1` without ground, the idle time's `RandFloat` |
 | `FUN_1400ecd10` | A production cycle (ConsumeProduce slot `+0x20`) | Match: the recipe pick (`FUN_14011e940`) before `Rand(slots)`; each haul (`FUN_1400c4c60`) makes the walk to the target before the walk back, as `Sim::haul` does |
