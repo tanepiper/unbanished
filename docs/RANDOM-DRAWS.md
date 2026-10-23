@@ -120,6 +120,14 @@ draws from the same Random. The port gives audio its own Random (a Deviation in
 `apps/game/src/audio/sound.rs`), so these draws, which depend on the frame rate and on when
 sounds end, are the expected remainder.
 
+With those 11 draws added at the end of the first iteration, every walk of `Save2` has the
+original's speed and path, and all 17 citizens are identical to the last bit at iteration 63:
+position, heading, speed, action stack and animation clock. 75 of the 98 deer are identical too.
+The other 23 are off by about 0.01 in position and a fraction of a degree in heading. Their
+wander targets are drawn from the game's Random after the 18 draws still missing at that point,
+which come from the audio as well and are spread over several iterations, so a single insertion
+does not account for them.
+
 To repeat the comparison: start a new game with `UNBANISHED_SEED` set to the save's seed (and
 the same terrain, with the probe's `combo comboTerrain=…`), pause and save it with the capture
 script, run `--sim-continue` up to the original save's iteration (its entity time divided by
