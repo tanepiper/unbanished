@@ -337,34 +337,8 @@ impl Environment {
 
     /// `FUN_1400988f0`: snow cover, autumn tint, leaf loss and rain for the shaders.
     fn update_season(&mut self, elapsed: f32) {
-        let clamp = |v: f32| v.clamp(0.0, 1.0);
-        let snow = clamp((self.temperature - FREEZING) * -1.0);
-        let month = elapsed / MONTH_SECONDS;
-        let autumn = if month >= 6.0 {
-            clamp((month - 6.0) / 1.5)
-        } else {
-            0.0
-        };
-        let leaf_loss = if month < 0.5 {
-            1.0 - clamp(month / 0.5)
-        } else if month <= 7.5 {
-            0.0
-        } else {
-            clamp((month - 7.5) * 2.0)
-        };
-        let rain = self.effects.iter().flatten().fold(0.0f32, |m, e| {
-            if m < e.intensity {
-                e.intensity
-            } else {
-                m
-            }
-        });
-        self.season = SeasonValues {
-            snow,
-            autumn,
-            leaf_loss,
-            rain,
-        };
+        let intensities: Vec<f32> = self.effects.iter().flatten().map(|e| e.intensity).collect();
+        self.season = season_values(self.temperature, elapsed, &intensities);
     }
 
     /// At slices 0 and 24, reseed the noise and pick new annual targets. Then draw the weather
@@ -406,6 +380,45 @@ impl Environment {
             _ => {}
         }
         self.level = self.level.clamp(0, 5);
+    }
+}
+
+// Environment +0x18 temperature; +0x1c..+0x28 the values; the effects at +0x50 (count +0x58),
+// each one's intensity at +0xc0.
+/// The renderer's seasonal values for a temperature and a time into the year: snow below 32 °F,
+/// the autumn tint from month 6, the leaves lost after month 7.5 and before month 0.5, and the
+/// rain as the strongest weather effect's intensity.
+///
+/// Measured: `tools/emu/season.py` (the original on 2,000 cases).
+///
+/// Original: `FUN_1400988f0`.
+pub fn season_values(temperature: f32, elapsed: f32, intensities: &[f32]) -> SeasonValues {
+    let clamp = |v: f32| v.clamp(0.0, 1.0);
+    // `(t − 32) × −1` with mulss: −0 at 32 °F, and a NaN comes out unchanged. LLVM turns a
+    // multiply by −1 into a negation, which would flip a NaN's sign, so a NaN is left as it is.
+    let d = temperature - FREEZING;
+    let snow = clamp(if d.is_nan() { d } else { -d });
+    let month = elapsed / MONTH_SECONDS;
+    let autumn = if month >= 6.0 {
+        clamp((month - 6.0) / 1.5)
+    } else {
+        0.0
+    };
+    let leaf_loss = if month < 0.5 {
+        1.0 - clamp(month / 0.5)
+    } else if month <= 7.5 {
+        0.0
+    } else {
+        clamp((month - 7.5) * 2.0)
+    };
+    let rain = intensities
+        .iter()
+        .fold(0.0f32, |m, &i| if m < i { i } else { m });
+    SeasonValues {
+        snow,
+        autumn,
+        leaf_loss,
+        rain,
     }
 }
 

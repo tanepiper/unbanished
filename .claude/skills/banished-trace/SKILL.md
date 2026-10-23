@@ -131,5 +131,8 @@ in `analysis/`. Never paste pseudocode or disassembly into `docs/` or source.
 - Ghidra writes `comiss` + `jbe` as `if (0.0 <= x)`, but `jbe` is also taken when `x` is NaN,
   so the original keeps a NaN where that C would not. Port the branch the jump takes
   (`if x < 0.0 { … } else { keep }`), as in `MoveTo::new` (`FUN_1400ce640`).
+- A multiply by `-1` (`mulss` with `DAT_140178984`) returns a NaN unchanged, but LLVM turns `x * -1.0`
+  into a negation, which flips a NaN's sign bit. Port it as `if x.is_nan() { x } else { -x }` (not
+  `c - x`, which loses the `-0` the multiply gives), as in `season_values` (`FUN_1400988f0`).
 - A trace of a code path is not proof it runs; find the caller chain up to a loop/vtable.
 - For large or subtle numeric logic, stop guessing and emulate (`banished-emulate`).
