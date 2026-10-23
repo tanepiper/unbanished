@@ -35,5 +35,26 @@
       "--probe", "state@41.5",
       "--probe", "ui ref:Pause.rsc kind:button@41.5"
     ]
+  },
+  "camera": {
+    "about": "After a new game: the camera before and after holding W (moves), holding E (turns), two wheel steps (zooms) and a 200-pixel drag with the rotate button (turns), sent as the desktop window handler sends them.",
+    "seconds": 24,
+    "args": [
+      "--probe", "click ref:MainMenu text:New@4.5",
+      "--probe", "type editName=Testwood@4.8",
+      "--probe", "type editSeed=1234@4.9",
+      "--probe", "click ref:NewGame buttonOk@5",
+      "--probe", "camera@16",
+      "--probe", "key w down@16.2",
+      "--probe", "key w up@17.2",
+      "--probe", "camera@18",
+      "--probe", "key e down@18.2",
+      "--probe", "key e up@19.2",
+      "--probe", "camera@20",
+      "--probe", "wheel 2@20.2",
+      "--probe", "camera@22",
+      "--probe", "drag 200 0@22.2",
+      "--probe", "camera@23"
+    ]
   }
 }

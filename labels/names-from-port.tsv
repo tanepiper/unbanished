@@ -128,7 +128,7 @@
 140057cb0	StartingTown::apply_terraforms_2	crates/sim/src/town/bridge.rs
 140058000	TerraformDescription	crates/formats/src/game/construction.rs
 140058130	tombstone_visit	crates/game/src/people/cemetery.rs
-1400581c0	Sim::place_burials_2	crates/game/src/people/cemetery.rs
+1400581c0	tombstone_description_2	crates/formats/src/game/people.rs
 140058380	tombstone_description	crates/formats/src/game/people.rs
 140058630	Sim::update_tornadoes	crates/game/src/disasters/tornado.rs
 1400589a0	Tornado::throw	crates/game/src/disasters/tornado.rs

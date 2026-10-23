@@ -150,6 +150,9 @@ sliders, scroll bars and progress bars add `value`.
 | `buildings [FILTER]` | buildings counted by template, built and under construction | no |
 | `citizens [FILTER]` | adults, students, children, and the working adults by profession | no |
 | `animals [FILTER]` | animals counted by template | no |
+| `key LETTER down\|up` | a letter key pressed or released, as the window handler sends it (so held keys, such as W or E for the camera, act between the two) | as the key |
+| `wheel STEPS` | mouse-wheel steps (positive zooms in) | as the wheel |
+| `drag DX DY` | the mouse's movement while the rotate button (the middle button) is held | as the drag |
 | `camera` | the game camera: its pivot `x`, `y` on the ground, `yaw`, `pitch`, `distance`, and the `zoom` distance it eases towards | no |
 
 FILTER keeps the names that contain it (letter case ignored): `buildings house`,

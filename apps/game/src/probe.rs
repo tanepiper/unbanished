@@ -54,6 +54,43 @@ pub fn run(game: &mut Game, size: (u32, u32), command: &str) -> Result<Value, St
             game.press_node(id);
             Ok(info)
         }
+        // Raw input, as the window handler sends it: a letter key down or up, wheel steps, and
+        // the mouse's movement while the rotate button (the middle button) is held.
+        "key" => {
+            let (letter, how) = rest.split_once(' ').ok_or("key LETTER down|up")?;
+            let letter = letter.to_ascii_lowercase();
+            let c = letter
+                .chars()
+                .next()
+                .filter(|c| c.is_ascii_lowercase() && letter.len() == 1);
+            let Some(c) = c else {
+                return Err(format!("key {rest}: a letter a to z"));
+            };
+            // `keyNames:Keyboard23` is A, in order to Z (`keymap::keyboard_code`).
+            let code = 23 + (c as u8 - b'a');
+            match how.trim() {
+                "down" => game.key(None, None, Some(code)),
+                "up" => game.released((crate::keymap::KEYBOARD, code)),
+                _ => return Err(format!("key {rest}: down or up")),
+            }
+            Ok(json!({ "key": letter, "code": code }))
+        }
+        "wheel" => {
+            let steps: f32 = rest
+                .parse()
+                .map_err(|_| format!("wheel {rest}: a number"))?;
+            game.wheel(steps);
+            Ok(json!({ "wheel": steps }))
+        }
+        "drag" => {
+            let (dx, dy) = rest.split_once(' ').ok_or("drag DX DY")?;
+            let (dx, dy): (f32, f32) = (
+                dx.trim().parse().map_err(|_| "drag DX DY")?,
+                dy.trim().parse().map_err(|_| "drag DX DY")?,
+            );
+            game.drag(dx, dy);
+            Ok(json!({ "drag": [dx, dy] }))
+        }
         "combo" => {
             let (name, item) = rest.split_once('=').ok_or("combo NAME=ITEM")?;
             game.select_combo(name.trim(), item.trim(), size)

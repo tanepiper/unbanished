@@ -1,0 +1,159 @@
+[
+ {
+  "command": "click ref:MainMenu text:New",
+  "ok": {
+   "enabled": true,
+   "kind": "button",
+   "name": "buttonNew",
+   "rect": [
+    560,
+    219,
+    720,
+    249
+   ],
+   "ref": "Dialog\\MainMenu.rsc:buttonNew",
+   "text": "New"
+  },
+  "t": 4.5
+ },
+ {
+  "command": "type editName=Testwood",
+  "ok": {
+   "typed": "Testwood"
+  },
+  "t": 4.8
+ },
+ {
+  "command": "type editSeed=1234",
+  "ok": {
+   "typed": "1234"
+  },
+  "t": 4.9
+ },
+ {
+  "command": "click ref:NewGame buttonOk",
+  "ok": {
+   "enabled": true,
+   "kind": "button",
+   "name": "buttonOk",
+   "rect": [
+    765,
+    505,
+    861,
+    531
+   ],
+   "ref": "Dialog\\SharedElements.rsc:buttonOk",
+   "text": "Ok"
+  },
+  "t": 5.0
+ },
+ {
+  "command": "camera",
+  "ok": {
+   "distance": 25.0,
+   "pitch": -35.39773941040039,
+   "x": 38.5,
+   "y": -22.5,
+   "yaw": 0.0,
+   "zoom": 25.0
+  },
+  "t": 16.0
+ },
+ {
+  "command": "key w down",
+  "ok": {
+   "code": 45,
+   "key": "w"
+  },
+  "t": 16.2
+ },
+ {
+  "command": "key w up",
+  "ok": {
+   "code": 45,
+   "key": "w"
+  },
+  "t": 17.2
+ },
+ {
+  "command": "camera",
+  "ok": {
+   "distance": 25.0,
+   "pitch": -35.39773941040039,
+   "x": 38.5,
+   "y": -7.864233016967773,
+   "yaw": 0.0,
+   "zoom": 25.0
+  },
+  "t": 18.0
+ },
+ {
+  "command": "key e down",
+  "ok": {
+   "code": 27,
+   "key": "e"
+  },
+  "t": 18.2
+ },
+ {
+  "command": "key e up",
+  "ok": {
+   "code": 27,
+   "key": "e"
+  },
+  "t": 19.2
+ },
+ {
+  "command": "camera",
+  "ok": {
+   "distance": 25.0,
+   "pitch": -35.39773941040039,
+   "x": 38.5,
+   "y": -7.864233016967773,
+   "yaw": 89.99636840820312,
+   "zoom": 25.0
+  },
+  "t": 20.0
+ },
+ {
+  "command": "wheel 2",
+  "ok": {
+   "wheel": 2.0
+  },
+  "t": 20.2
+ },
+ {
+  "command": "camera",
+  "ok": {
+   "distance": 20.000051498413086,
+   "pitch": -33.75001525878906,
+   "x": 38.5,
+   "y": -7.864233016967773,
+   "yaw": 89.99636840820312,
+   "zoom": 20.0
+  },
+  "t": 22.0
+ },
+ {
+  "command": "drag 200 0",
+  "ok": {
+   "drag": [
+    200.0,
+    0.0
+   ]
+  },
+  "t": 22.2
+ },
+ {
+  "command": "camera",
+  "ok": {
+   "distance": 20.000003814697266,
+   "pitch": -33.75001525878906,
+   "x": 38.5,
+   "y": -7.864233016967773,
+   "yaw": 49.996368408203125,
+   "zoom": 20.0
+  },
+  "t": 23.0
+ }
+]
