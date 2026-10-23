@@ -126,7 +126,9 @@ fn herdsmen_keep_a_pasture() {
         .and_then(|&m| town.templates[m].pile_material);
     let mut culled = 0;
     let mut herd = usize::MAX;
-    for step in 0..30 * 60 * 40 {
+    // 50 minutes: the first cull comes when the herd passes its limit, which depends on the
+    // citizens' whole day (it came at about 32 minutes before meals at home, 46 after).
+    for step in 0..30 * 60 * 50 {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 60.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));

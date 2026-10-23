@@ -435,7 +435,7 @@
 14010f2a0	CharacterDescription	crates/formats/src/game/entities.rs
 14010f3e0	CharacterDescription_2	crates/formats/src/game/entities.rs
 14010f5b0	Character::flag_28	crates/game/src/behaviour/character.rs
-1401148b0	CitizenAi::tick	crates/game/src/behaviour/ai.rs
+1401148b0	CitizenAi::hunger_branch	crates/game/src/behaviour/ai.rs
 140114c70	CitizenAi::update_2	crates/game/src/behaviour/ai.rs
 140114d60	CitizenAi::update_3	crates/game/src/behaviour/ai.rs
 140114e30	citizens_2	crates/sim/src/town/load/citizens.rs

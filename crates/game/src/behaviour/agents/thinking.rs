@@ -273,6 +273,27 @@ impl Agents {
             ..Default::default()
         };
         let rules = self.rules;
+        // `FUN_1401148b0`: urgently hungry with food stored at home, the citizen eats from it
+        // (`FUN_14011a7b0`, after `FUN_14012fea0`'s count) before any urgent choice.
+        let home_meal = if self.ais[i].hunger_branch(dt, &view, &rules.thresholds) {
+            self.states[i]
+                .home
+                .and_then(|h| env.construction.homes.get(&h))
+                .map(|h| h.storage)
+                .filter(|&st| crate::people::life::stored(&env.storages[st], env.materials, 5) > 0)
+                .map(|st| {
+                    crate::people::life::eat(
+                        &mut self.states[i],
+                        &mut env.storages[st],
+                        env.materials,
+                        env.rng,
+                        &mut env.construction.counters,
+                    );
+                    self.states[i].hunger
+                })
+        } else {
+            None
+        };
         let mut ai = std::mem::take(&mut self.ais[i]);
         let busy = self.characters[i].stack.is_active();
         // The AI draws from the same stream the activities do.
@@ -282,6 +303,7 @@ impl Agents {
             &view,
             &rules.thresholds,
             &mut rng,
+            home_meal,
             || busy,
             |ai, a, rng| {
                 std::mem::swap(env.rng, rng);

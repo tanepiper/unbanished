@@ -303,18 +303,35 @@ impl CitizenAi {
         }
     }
 
+    /// Whether this update's hunger branch is taken: urgently hungry, no urgent activity running or
+    /// current, and the urgent meal's cooldown out after this update's `dt`. The caller then eats
+    /// from the home's storage first when it holds food ([`CitizenAi::update`]'s `home_meal`).
+    ///
+    /// Original: `FUN_1401148b0`.
+    pub fn hunger_branch(&self, dt: i64, view: &CitizenView, d: &Thresholds) -> bool {
+        let urgent_running = (self.eating && self.current == EAT_URGENT)
+            || (self.warming && self.current == WARM_URGENT);
+        let in_urgent = self.current == EAT_URGENT || self.current == WARM_URGENT;
+        let cooldown = (self.cooldowns[EAT_URGENT as usize] - dt).max(0);
+        !(view.hunger <= d.hungry_urgent || urgent_running || in_urgent || cooldown > 0)
+    }
+
     // +0x60 >= 0
     /// The scheduled update. `busy` is the character's "has actions" test; `run` dispatches an
-    /// activity (see [`CitizenAi::choose`]). Eating from a stocked home before an urgent choice and
-    /// the per-profession inventory size and model refresh are the caller's.
+    /// activity (see [`CitizenAi::choose`]). `home_meal` is the citizen's hunger after eating from
+    /// the home's storage, when [`CitizenAi::hunger_branch`] held and the home had food: the urgent
+    /// choice is then made only if the citizen is still urgently hungry. The per-profession
+    /// inventory size and model refresh are the caller's.
     ///
     /// Original: `FUN_14011a7b0`, `FUN_140114c70`, `FUN_140114d60`, `FUN_1401148b0`.
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
         &mut self,
         dt: i64,
         view: &CitizenView,
         d: &Thresholds,
         rng: &mut Random,
+        home_meal: Option<f32>,
         busy: impl Fn() -> bool,
         mut run: impl FnMut(&mut CitizenAi, u32, &mut Random) -> bool,
     ) {
@@ -331,9 +348,20 @@ impl CitizenAi {
                 self.eating = false;
             }
         } else {
-            self.choose(view, d, true, rng, &mut run);
-            self.eating = self.current == EAT_URGENT;
+            // `FUN_14011a7b0` ate from the home's storage first; still urgently hungry?
+            let hunger = home_meal.unwrap_or(view.hunger);
+            if d.hungry_urgent < hunger {
+                let fed = CitizenView { hunger, ..*view };
+                self.choose(&fed, d, true, rng, &mut run);
+                self.eating = self.current == EAT_URGENT;
+            }
         }
+        // The rest reads the citizen's hunger as it is now, after any meal at home.
+        let fed = CitizenView {
+            hunger: home_meal.unwrap_or(view.hunger),
+            ..*view
+        };
+        let view = &fed;
         // `bVar4` is computed once, before the hunger choice.
         let in_urgent = self.current == EAT_URGENT || self.current == WARM_URGENT;
         if view.cold <= d.cold_urgent
