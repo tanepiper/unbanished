@@ -40,12 +40,15 @@ evidence; static traces are not claims of live-game behavior.
 
 ## Remaining reverse-engineering work
 
-- [ ] Resolve the four `FUN_1400c7380` callers (`FUN_1400e9660`, `FUN_1400eb3b0`, `FUN_1400f0390`,
+- [x] Resolve the four `FUN_1400c7380` callers (`FUN_1400e9660`, `FUN_1400eb3b0`, `FUN_1400f0390`,
   and `FUN_1400f3880`) to named resource/job transitions and determine what selects the
-  Remove/Animate sequence.
-- [ ] Find producers of `NaturalResourceComponent` byte `+0x2d` and consumers of the category
-  counter at `+0x10`; correlate those fields and the map-cell transition bytes with a decoded save
-  before assigning gameplay meanings.
+  Remove/Animate sequence. They are the road work, ClearArea, the forester and the herbalist
+  (`work/road.rs`, `town/clearing.rs`, `production/forester.rs`, `production/herbalist.rs`); the
+  resource's animation flag selects the fall before the removal (`Sim::removal_sequence`).
+- [ ] Find the consumers of the category counter at `NaturalResourceComponent +0x10`; correlate it
+  and the map-cell transition bytes with a decoded save before assigning gameplay meanings. The
+  byte `+0x2d` is known: whether removing the resource leaves its pile (`keep_piles`), set by a crop
+  field, cleared by blight (`FUN_1400484a0`) and read by the removal sequence.
 - [x] Trace town storage search, shared inventory ledgers, reservations and New Game tool/clothing
   fetch sequences. Verify search/geometry/ledger/equipment messages against original functions;
   see [CITIZEN-AI.md](CITIZEN-AI.md#storage-loose-piles-and-inventories).
@@ -117,13 +120,15 @@ evidence; static traces are not claims of live-game behavior.
 - [x] Port ongoing SpawnComponent cross-template spawning (`Seeder::scheduled_spawn`; see
   [RESOURCE-SEEDING.md](RESOURCE-SEEDING.md)).
 - [x] Spatial AnimAudioEvent/SoundEffect dispatch (see [AUDIO.md](AUDIO.md)).
-- [ ] Shared/blended animation states.
+- [x] Shared/blended animation states: blend layers and the AnimationManager's shared instances
+  (`behaviour/animation.rs`, `behaviour/animation/shared.rs`), restored from saves.
 - [x] GPU-skin citizens with a per-instance bone palette (`MeshInstance::GetBones`), playing each
   citizen's `Idle` clip; shared with the viewer (`unbanished_gfx::skin`). See
   [CITIZEN-NEEDS-AND-HOUSEHOLDS.md](CITIZEN-NEEDS-AND-HOUSEHOLDS.md#skinning).
 - [ ] Port weather effects (rain/snow geometry, ambient audio, timed spawn) and connect weather to
   citizens, production, events, and resource consumption.
-- [ ] Add save/load, autosave, and event notifications to the active gameplay loop.
+- [x] Add save/load, autosave, and event notifications to the active gameplay loop
+  (`apps/game/src/gameplay.rs`, `saves/`, the event log in `crates/game/src/events.rs`).
 - [ ] Verify the new-game flow in browser and desktop builds, including camera behavior after the
   fade. Capture the failing platform and gesture, then confirm camera rotation, middle-drag pan,
   wheel zoom, and keyboard movement.
