@@ -33,6 +33,10 @@ TYPEINFO = re.compile(
     r'&DAT_([0-9a-f]+),"([A-Za-z_][A-Za-z0-9_]*)","([A-Za-z_][A-Za-z0-9_:]*)",[^,]*,\s*'
     r'(?:\(\w[^)]*\)\s*&?)?(?:FUN_|LAB_)?([0-9a-f]{9})?', re.S)
 VTABLE_ASSIGN = re.compile(r'= &PTR_(?:FUN|LAB)_([0-9a-f]+);')
+# The vtable stored at the object's start (`*param_1 = ...`). A class with more than one base
+# also stores a second vtable further in (`puVar1 = param_1 + 5; *puVar1 = ...`); its component
+# slots are the first one's.
+PRIMARY_VTABLE = re.compile(r'\*(?:\([^)]*\))?param_1 = &PTR_(?:FUN|LAB)_([0-9a-f]+);')
 ALLOC = re.compile(r'MemAlloc\(0x([0-9a-f]+),')
 MENTION = re.compile(r'(?<![0-9a-fA-F])(?:0x|FUN_|DAT_)?(1[48][0-9a-f]{7})(?![0-9a-fA-F])')
 
@@ -308,9 +312,10 @@ class Index:
             if c != factory:
                 ctor = c
                 break
-        vt = VTABLE_ASSIGN.findall(self.body.get(ctor, '')) if ctor else []
+        ctor_body = self.body.get(ctor, '') if ctor else ''
+        vt = PRIMARY_VTABLE.findall(ctor_body) or VTABLE_ASSIGN.findall(ctor_body)
         if not vt:
-            vt = VTABLE_ASSIGN.findall(body)
+            vt = PRIMARY_VTABLE.findall(body) or VTABLE_ASSIGN.findall(body)
         return (int(size.group(1), 16) if size else None, ctor, vt[-1] if vt else None)
 
     def vtable(self, va, limit=48):

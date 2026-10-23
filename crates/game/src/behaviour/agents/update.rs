@@ -215,8 +215,9 @@ impl Agents {
     }
 
     /// Bucket 3's visits (sites and piles), in visiting order, each with the time since its last
-    /// visit: the state machines' scheduled update, attendance, the piles' ages, hunts, blight,
-    /// fires, the residences' storage and the homes. `dt` is the iteration's time.
+    /// visit, entity by entity: blight, fire, the state machine's scheduled update (with a
+    /// residence's storage and hearth), hunt, attendance, and a pile's age. `dt` is the
+    /// iteration's time.
     ///
     /// Original: `FUN_1400c9560` (bucket 3).
     pub fn visit_sites(
@@ -229,37 +230,43 @@ impl Agents {
     ) {
         let entities = entity_views(env.placed, env.templates, env.construction);
         let adult = self.adults(citizens);
-        {
-            let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
-            sim.update_sites_visits(jobs, ticks(dt), site_visits);
-            sim.update_attendance(site_visits);
-            sim.age_piles(jobs, site_visits);
-            sim.update_hunts(site_visits);
-            sim.update_blight(site_visits);
-            sim.update_fires(jobs, site_visits);
-            jobs.drain(&mut sim);
-        }
-        // The residences' state-2 updates (`FUN_14012ee40`): the ClearStorage work, then the
-        // fire.
-        {
-            let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
-            sim.residence_clear_storage(jobs, site_visits);
-            jobs.drain(&mut sim);
-        }
-        {
-            let c = &mut *env.construction;
-            for &(e, elapsed) in site_visits {
-                let Some(home) = c.homes.get_mut(&e) else {
-                    continue;
-                };
-                crate::people::life::update_home(
-                    home,
-                    env.storages,
-                    env.materials,
-                    env.temperature,
-                    elapsed,
-                    &mut c.counters,
-                );
+        // Entity by entity, each visited entity's scheduled components in its template's order:
+        // DiseaseComponent and FireComponent come before the StateMachineComponent (a
+        // residence's state-2 work runs inside it), HuntComponent and AttendanceComponent after
+        // it; a pile has its RawMaterialComponent. Each system passes over entities it does not
+        // own.
+        for &visit in site_visits {
+            let one = [visit];
+            let (e, elapsed) = visit;
+            {
+                let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
+                sim.update_blight(&one);
+                sim.update_fires(jobs, &one);
+                sim.update_sites_visits(jobs, ticks(dt), &one);
+                // The residence's state-2 update (`FUN_14012ee40`): the ClearStorage work, then
+                // the fire.
+                sim.residence_clear_storage(jobs, &one);
+                jobs.drain(&mut sim);
+            }
+            {
+                let c = &mut *env.construction;
+                if let Some(home) = c.homes.get_mut(&e) {
+                    crate::people::life::update_home(
+                        home,
+                        env.storages,
+                        env.materials,
+                        env.temperature,
+                        elapsed,
+                        &mut c.counters,
+                    );
+                }
+            }
+            {
+                let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
+                sim.update_hunts(&one);
+                sim.update_attendance(&one);
+                sim.age_piles(jobs, &one);
+                jobs.drain(&mut sim);
             }
         }
     }

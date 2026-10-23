@@ -11,11 +11,11 @@
 //! then bucket 3's sites and piles ([`Agents::visit_sites`]), with the seeder's buckets 2 and 4
 //! between and after them, then the deletions ([`Agents::finish`]).
 //!
-//! Deviation: within a phase the port runs one kind at a time (the animals, then the models, then
-//! the citizens, then the sites) and, for sites, one system at a time over the visited sites; the
-//! original runs entity by entity, each entity's components in its template's order. Animals and
-//! sites are also deleted at other points than citizens. See docs/ITERATION-ORDER.md, steps 2 to
-//! 4, and issue #22.
+//! Deviation: the every-iteration phase runs one kind at a time (the animals, then the models,
+//! then the citizens, then the sites); the original runs it entity by entity, in its set's order.
+//! The nomads' and boats' CharacterComponent notify runs every iteration, not on their bucket
+//! visit. Animals and sites are also deleted at other points than citizens. See
+//! docs/ITERATION-ORDER.md, steps 3 and 4, and issue #22.
 //!
 //! This file holds the agents' state and set-up; the rest is split by topic: `update` (the
 //! iteration), `thinking` (the AI), `lives`, `commands`, `paths` and `views`.

@@ -38,19 +38,22 @@ No shipped template uses buckets 0 or 5.
 
 ### Which components run in each phase
 
-Bit `0x04` (every iteration; the slot `+0x40` is the component's own): CharacterComponent,
-ModelComponent, ParticleComponent, StateMachineComponent, WorkPlaceComponent, ClearAreaComponent,
-DestroyComponent, BuildComponent, ResidenceComponent, HappinessComponent, MarketLocationComponent,
-TradeComponent, CemeteryComponent, CropFieldComponent, OrchardComponent, MultiObjectComponent,
-NomadComponent, BoatComponent, TornadoComponent.
+Read from each component's primary vtable (the one its constructor stores at the object's start;
+`tools/triage/types.py class NAME`), against the defaults `FUN_14011df40` (`+0x40`) and
+`FUN_14011df50` (`+0x48`):
 
-Bit `0x08` (on a bucket visit; slot `+0x48`): CharacterComponent (`FUN_14010e950`, the action
-stack's notify), CitizenComponent (`FUN_140118340`), CitizenAIComponent (`FUN_1401148b0`),
-PopulationComponent (`FUN_1400549d0`), DiseaseComponent (`FUN_1400494f0`), HuntComponent
-(`FUN_140127c10`), RawMaterialComponent (`FUN_14012e600`), GrowthComponent (`FUN_140125520`),
-SpawnComponent (`FUN_140056430`), AnimalComponent (`FUN_14010b8f0`), LivestockComponent
-(`FUN_140129020`), TombstoneComponent (`FUN_140058130`), FireComponent (`FUN_140049910`).
-StateMachineComponent sets bit `0x08` too (its constructor sets `0xcd`).
+| Phase | Components with their own update |
+|---|---|
+| Every iteration (bit `0x04`, slot `+0x40`) | CharacterComponent (`FUN_14010e990`), ModelComponent (`FUN_140129e30`), ParticleComponent (`FUN_140053490`), StateMachineComponent (`FUN_140130b10`), StatusIconComponent (`FUN_1401310a0`), TornadoComponent (`FUN_140058630`) |
+| On a bucket visit (bit `0x08`, slot `+0x48`) | CharacterComponent (`FUN_14010e950`, the action stack's notify), StateMachineComponent (`FUN_140130af0`), CitizenComponent (`FUN_140118340`), CitizenAIComponent (`FUN_1401148b0`), AttendanceComponent (`FUN_140044cd0`), PopulationComponent (`FUN_1400549d0`), HerdComponent (`FUN_1401270c0`), DiseaseComponent (`FUN_1400494f0`), HuntComponent (`FUN_140127c10`), FireComponent (`FUN_140049910`), RawMaterialComponent (`FUN_14012e600`), GrowthComponent (`FUN_140125520`), SpawnComponent (`FUN_140056430`), FruitComponent (`FUN_14004a740`), AnimalComponent (`FUN_14010b8f0`), LivestockComponent (`FUN_140129020`), TombstoneComponent (`FUN_140058130`) |
+
+The state machine's two slots both run `FUN_1400aeb30`: `+0x40` with `scheduled` 0, `+0x48` with
+`scheduled` 1. ResidenceComponent, WorkPlaceComponent, HappinessComponent, BuildComponent,
+DestroyComponent, ClearAreaComponent, CropFieldComponent, OrchardComponent, PastureComponent,
+NomadComponent, BoatComponent, TradeComponent, CemeteryComponent, MarketLocationComponent and the
+rest have neither slot: they act through the state machine's state callbacks and messages.
+FireComponent is in no template; it is added to a building when it is built, after the template's
+components.
 
 So, for example, a citizen's visit runs its CharacterComponent's notify, then CitizenComponent,
 then CitizenAIComponent (the template's order: `character`, `citizen`, `citizenai`); a tree's runs
@@ -94,9 +97,12 @@ at every step, and each step's commit says why.
    tornadoes), then bucket 1 (`Agents::visit_citizens`), the seeder's buckets 0 to 2, bucket 3
    (`Agents::visit_sites`), the seeder's buckets 3 and 4, then the deletions
    (`Agents::finish`). Kinds stay grouped within a phase.
-2. **One bucket, entity by entity.** Within a bucket, run each visited entity's components in
-   its template's order (bucket 3: state machine, disease, hunt, fire, residence…; bucket 4:
-   growth, spawn, fruit, animal, tombstone).
+2. **One bucket, entity by entity.** Done. Bucket 3 (`Agents::visit_sites`) runs each visited
+   entity's components in its template's order: disease, fire, the state machine (with a
+   residence's state-2 work, `FUN_14012ee40`), hunt, attendance, a pile's age. Buckets 1 and 4
+   were already entity by entity. Left over: the nomads' and boats' CharacterComponent notify
+   (their only scheduled component) runs every iteration in `update_nomads` and `update_boats`,
+   not on their bucket-1 visit.
 3. **One every-iteration set.** Run the bit-`0x04` phase entity by entity in creation order (the
    port's stand-in for the address order).
 4. **Deletions.** Queue every deletion and run them after bucket 4.
@@ -105,6 +111,6 @@ at every step, and each step's commit says why.
 
 - The bit-`0x04` set's order is by entity address, which the port cannot reproduce; creation
   order is the closest stand-in (already a Deviation for animals).
-- StateMachineComponent's slot `+0x48` is the default, though its constructor sets bit `0x08`;
-  the port runs a scheduled state update for visited sites. Which state callbacks run on a visit
-  needs confirming.
+- Where FireComponent sits in a building's component array (it is added after the template's
+  components, but the exact place is not traced), which decides whether a building's fire runs
+  before or after its state machine on a visit.
