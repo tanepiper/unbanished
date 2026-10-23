@@ -3,7 +3,11 @@
 use super::*;
 
 impl People<'_, '_> {
-    /// `FUN_140117e60`: health from the last interval's events.
+    // Game +0xd0 bit 3
+    /// Health from the last interval's events, at most the description's maximum. Not ported:
+    /// the debug flag that keeps every citizen's health full.
+    ///
+    /// Original: `FUN_140117e60`.
     pub(super) fn health(&mut self, c: usize) {
         let r = self.rules;
         let adult = self.adult(c) && self.states[c].school.is_none();
@@ -31,7 +35,10 @@ impl People<'_, '_> {
         if s.health < 0.0 {
             s.health = 0.0;
         }
-        s.health = s.health.min(r.f(0x70));
+        // The original's `max < health` test (a NaN health stays, where `f32::min` would not).
+        if r.f(0x70) < s.health {
+            s.health = r.f(0x70);
+        }
         s.health_events = 0;
     }
 
