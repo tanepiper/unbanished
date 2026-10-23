@@ -19,6 +19,7 @@ pub(super) fn professions(archive: &Archive) -> Professions {
                 immune_at_work: p.as_ref().is_some_and(|p| p.flag_4d),
                 death: p.as_ref().map(|p| p.death.clone()).unwrap_or_default(),
                 accident: p.as_ref().map_or((0.0, 0.0), |p| (p.value_54, p.value_58)),
+                carry: p.as_ref().map_or(0, |p| p.value_50),
             }
         })
         .collect();

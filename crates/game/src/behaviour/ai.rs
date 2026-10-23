@@ -45,6 +45,10 @@ pub mod activity {
     pub const EAT_URGENT: u32 = 14;
     /// Get warm, when very cold.
     pub const WARM_URGENT: u32 = 15;
+    // FUN_140114c70 (the carried storage's size), FUN_140114d60 (the model).
+    /// Not an activity: `run` is asked to refresh the citizen before the normal choice (the
+    /// carried storage's size from the profession, and the model).
+    pub const REFRESH: u32 = u32::MAX;
 }
 use activity::*;
 
@@ -382,6 +386,8 @@ impl CitizenAi {
         if busy() {
             return;
         }
+        // `FUN_140114c70` and `FUN_140114d60`, then the normal choice.
+        run(self, REFRESH, rng);
         self.choose(view, d, false, rng, &mut run);
     }
 

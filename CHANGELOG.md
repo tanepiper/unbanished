@@ -33,6 +33,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
   piles, then trees, crops and animals. The port ran trees and animals first and citizens last.
 - A citizen who gets very hungry eats from their home's food first, as in the original, and only
   walks off to eat if still hungry.
+- Vendors and traders carry 500 at a time, as in the original; every citizen's load now follows
+  their profession. The port kept everyone at the citizen's 100.
 - A loaded game keeps each character's animation: the clip it was playing, its time and the
   shared clocks the walks follow. Walks under way go on as saved, and men and women share the
   same walking clocks, as in the original. Saves write the animation back.

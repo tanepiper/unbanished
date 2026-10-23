@@ -306,6 +306,23 @@ impl Agents {
             home_meal,
             || busy,
             |ai, a, rng| {
+                if a == activity::REFRESH {
+                    // `FUN_140114c70`: the carried storage takes the profession's size (`+0x50`)
+                    // when it differs and the citizen carries less than that.
+                    let s = &mut self.states[i];
+                    if let Some(carry) = env
+                        .construction
+                        .professions
+                        .list
+                        .get(s.profession)
+                        .map(|p| p.carry)
+                    {
+                        if s.carried.capacity != carry && s.carried.used(env.materials) < carry {
+                            s.carried.capacity = carry;
+                        }
+                    }
+                    return false;
+                }
                 std::mem::swap(env.rng, rng);
                 // `FUN_14011ada0` once for the home-stocking activities.
                 let home_reachable = (a == activity::HOME_FOOD || a == activity::HOME_FUEL) && {

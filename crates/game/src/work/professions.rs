@@ -71,6 +71,11 @@ pub struct Profession {
     ///
     /// Original: `FUN_1400ae760`.
     pub accident: (f32, f32),
+    // +0x50
+    /// How much a citizen of this profession carries (100; 500 for traders and vendors).
+    ///
+    /// Original: `FUN_140114c70`.
+    pub carry: i32,
 }
 
 // +0x20/+0x28; +0x30; +0x38; Game +0xb0; +0x40; +0x48
