@@ -10,35 +10,17 @@ impl People<'_, '_> {
     // Game +0xd0 bit 3
     pub(super) fn health(&mut self, c: usize) {
         let r = self.rules;
-        let adult = self.adult(c) && self.states[c].school.is_none();
+        let age = self.citizens[c].age;
+        let at_school = self.states[c].school.is_some();
         let s = &mut self.states[c];
-        let e = s.health_events;
-        let mut n = (e >> 8 & 1) + (e >> 6 & 1) + (e >> 5 & 1) + (e >> 4 & 1);
-        if e & 0x200 != 0 {
-            n += 1;
-        }
-        if e & 8 != 0 && e & 4 != 0 && 3 < n {
-            s.health += 0.5;
-        }
-        if e & 8 != 0 && e & 0x200 == 0 && n < 3 {
-            s.health -= 1.0 - n as f32 / 3.0;
-        }
-        if e & 1 != 0 {
-            s.health -= 1.0;
-        }
-        if e & 2 != 0 {
-            s.health -= 1.0;
-        }
-        if e & 4 == 0 && adult {
-            s.health -= 0.25;
-        }
-        if s.health < 0.0 {
-            s.health = 0.0;
-        }
-        // The original's `max < health` test (a NaN health stays, where `f32::min` would not).
-        if r.f(0x70) < s.health {
-            s.health = r.f(0x70);
-        }
+        s.health = health_after(
+            s.health_events,
+            s.health,
+            age,
+            r.adult_age(),
+            at_school,
+            r.f(0x70),
+        );
         s.health_events = 0;
     }
 
@@ -55,16 +37,53 @@ impl People<'_, '_> {
                 .and_then(|i| self.layers.get(i))
                 .copied()
                 .unwrap_or_default();
-            let v = (l[..5].iter().filter(|&&b| b != 0).count() as i32 - l[5] as i32).max(0);
-            if self.homes.get(&h).is_some_and(|h| h.families.len() > 1) {
-                v >> 2
-            } else {
-                v
-            }
+            let shared = self.homes.get(&h).is_some_and(|h| h.families.len() > 1);
+            home_bonus(&l, shared)
         });
         let s = &mut self.states[c];
-        let f = s.flags;
-        let mut h = s.happiness;
+        let foods = s.foods.len() as i32;
+        let (flags, happiness, field_84, priest) =
+            (s.flags, s.happiness, s.field_84, s.priest.is_some());
+        s.happiness = happiness_after(r, flags, happiness, field_84, foods, home_bonus, priest);
+    }
+}
+
+// Map cell +0x1c..+0x20 the five HappinessComponent layers, +0x21 the sixth (FUN_1400a4e60).
+/// The home's bonus to a citizen's happiness: how many of the entrance cell's first five
+/// happiness layers are set, less the sixth, at least 0; a quarter of that (rounded down) when the
+/// home holds more than one family.
+///
+/// Original: `FUN_140117fb0` (its home part).
+pub fn home_bonus(layers: &[u8], shared: bool) -> i32 {
+    let v = (layers[..5].iter().filter(|&&b| b != 0).count() as i32 - layers[5] as i32).max(0);
+    if shared {
+        v >> 2
+    } else {
+        v
+    }
+}
+
+// Citizen +0x80 happiness, +0x88 flags, +0x84, +0xa0 foods, +0x230 priest; D+0xa4 the maximum,
+// +0xa8 and +0xac the food variety, +0xb0 work for happiness.
+/// A citizen's happiness after its events: the events move it at once, then it steps half a
+/// point toward a target made of the needs met, the work, the food variety, the home's bonus and
+/// the chapel, scaled by an eighth of the maximum; it stays within 0 and the maximum.
+///
+/// Measured: `tools/emu/happiness.py` (the original on 2,000 cases).
+///
+/// Original: `FUN_140117fb0`.
+pub fn happiness_after(
+    r: &LifeRules,
+    flags: u32,
+    happiness: f32,
+    field_84: i32,
+    foods: i32,
+    home_bonus: Option<i32>,
+    priest: bool,
+) -> f32 {
+    {
+        let f = flags;
+        let mut h = happiness;
         if f & 2 != 0 {
             h -= 8.0;
         }
@@ -103,10 +122,9 @@ impl People<'_, '_> {
             // Citizen `+0x84` against `_workForHappiness` (`+0xb0`, 10): nothing in 1.0.7
             // writes `+0x84` (no store in the Application but the zeroed component), so the
             // original gives the half point every time, as here.
-            target += if s.field_84 < r.i(0xb0) { 0.5 } else { 1.0 };
+            target += if field_84 < r.i(0xb0) { 0.5 } else { 1.0 };
         }
         if f >> 0x10 & 1 != 0 {
-            let foods = s.foods.len() as i32;
             if r.i(0xa8) < foods {
                 if r.i(0xac) <= foods {
                     target += 1.0;
@@ -118,7 +136,7 @@ impl People<'_, '_> {
         if let Some(b) = home_bonus {
             target += b as f32;
         }
-        if s.priest.is_some() {
+        if priest {
             target += 1.0;
         }
         let target = target * 0.125 * r.f(0xa4);
@@ -129,9 +147,11 @@ impl People<'_, '_> {
             // Through a double (`DAT_140178868` is 0.5 as a double).
             h = (h as f64 - 0.5) as f32;
         }
-        s.happiness = clamp_happiness(h, r.f(0xa4));
+        clamp_happiness(h, r.f(0xa4))
     }
+}
 
+impl People<'_, '_> {
     /// The citizen's disease update: the check for an outbreak when healthy
     /// ([`outbreak_check`]), else the illness running its course and spreading; false when the
     /// disease kills the citizen.
@@ -389,4 +409,52 @@ fn clamp_happiness(h: f32, max: f32) -> f32 {
     } else {
         h
     }
+}
+
+// Citizen +0x50 health, +0x54 the interval's events, +0x3c age, +0x208 school; D+0x44 adult
+// age, D+0x70 the maximum.
+/// A citizen's health after an interval's events: up 0.5 for a good interval, down for a poor
+/// one, down 1 for each of the two worst events, down 0.25 for an adult not at school with no
+/// work done; then no lower than 0 and no higher than the maximum.
+///
+/// Measured: `tools/emu/health.py` (the original on 2,000 cases, NaN ages and healths among
+/// them).
+///
+/// Original: `FUN_140117e60`.
+pub fn health_after(
+    e: u32,
+    health: f32,
+    age: f32,
+    adult_age: f32,
+    at_school: bool,
+    max: f32,
+) -> f32 {
+    let mut health = health;
+    let mut n = (e >> 8 & 1) + (e >> 6 & 1) + (e >> 5 & 1) + (e >> 4 & 1);
+    if e & 0x200 != 0 {
+        n += 1;
+    }
+    if e & 8 != 0 && e & 4 != 0 && 3 < n {
+        health += 0.5;
+    }
+    if e & 8 != 0 && e & 0x200 == 0 && n < 3 {
+        health -= 1.0 - n as f32 / 3.0;
+    }
+    if e & 1 != 0 {
+        health -= 1.0;
+    }
+    if e & 2 != 0 {
+        health -= 1.0;
+    }
+    if e & 4 == 0 && adult_age <= age && !at_school {
+        health -= 0.25;
+    }
+    if health < 0.0 {
+        health = 0.0;
+    }
+    // The original's `max < health` test (a NaN health stays, where `f32::min` would not).
+    if max < health {
+        health = max;
+    }
+    health
 }

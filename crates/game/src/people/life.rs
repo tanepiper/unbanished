@@ -16,7 +16,10 @@ mod death;
 mod health;
 mod households;
 mod services;
-pub use health::{immunity_after, outbreak_check, recovers, spread_target};
+pub use health::{
+    happiness_after, health_after, home_bonus, immunity_after, outbreak_check, recovers,
+    spread_target,
+};
 pub use households::{update_home, warm_at};
 
 // The CitizenDescription is at citizen +0x288.
@@ -331,10 +334,6 @@ pub struct People<'a, 'b> {
 }
 
 impl People<'_, '_> {
-    fn adult(&self, c: usize) -> bool {
-        self.citizens[c].age >= self.rules.adult_age()
-    }
-
     fn cell(&self, c: usize) -> i32 {
         self.town.cell_of(self.citizens[c].position)
     }
