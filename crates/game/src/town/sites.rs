@@ -339,18 +339,25 @@ impl Sim<'_, '_> {
         run(self, jobs, entity, false, false);
     }
 
-    /// The sites' StateMachine updates: every site's bit-4 update with the iteration's time `dt`,
-    /// then the scheduled update of each site its bucket visited this iteration (`visits`, in
-    /// visiting order) with the time since its last visit.
+    /// The sites' StateMachine every-iteration update (bit `0x04`): every site, with the
+    /// iteration's time `dt`.
     ///
-    /// Original: `FUN_1400c9560`.
-    pub fn update_sites(&mut self, jobs: &mut Jobs, dt: i64, visits: &[(usize, i64)]) {
+    /// Original: `FUN_1400c9560` (the bit-`0x04` set).
+    pub fn update_sites_every(&mut self, jobs: &mut Jobs, dt: i64) {
         let ids: Vec<usize> = self.sites.keys().copied().collect();
         self.refresh_demolishing();
         self.site_dt = dt;
         for e in &ids {
             run(self, jobs, *e, false, true);
         }
+    }
+
+    /// The sites' StateMachine scheduled update: each site its bucket visited (`visits`, in
+    /// visiting order) with the time since its last visit; `dt` is the iteration's time, restored
+    /// after.
+    ///
+    /// Original: `FUN_1400c9560` (bucket 3).
+    pub fn update_sites_visits(&mut self, jobs: &mut Jobs, dt: i64, visits: &[(usize, i64)]) {
         for &(e, elapsed) in visits {
             if self.sites.get(&e).is_some_and(|s| !s.destroyed) {
                 self.site_dt = elapsed;
@@ -358,6 +365,12 @@ impl Sim<'_, '_> {
             }
         }
         self.site_dt = dt;
+    }
+
+    /// The sites queued for deletion leave, after every bucket.
+    ///
+    /// Original: `FUN_1400c9560` (its deletions).
+    pub fn remove_destroyed_sites(&mut self, jobs: &mut Jobs) {
         let destroyed: Vec<usize> = self
             .sites
             .iter()

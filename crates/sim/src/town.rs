@@ -157,8 +157,9 @@ pub struct StartingTown {
     pub placed: Vec<Placed>,
     pub cells: Cells,
     pub scheduler: EntityScheduler<usize>,
-    /// The last bucket pass's visits (`EntityScheduler::take_visits`), for the agents.
-    pub visits: Vec<(usize, i64)>,
+    /// This iteration's visits, one list per bucket (handle, value, time since the last visit),
+    /// taken in [`StartingTown::iterate`] and run in [`StartingTown::update_citizens`].
+    pub visits: Vec<Vec<(usize, usize, i64)>>,
     /// Each citizen's entity in the scheduler (bucket 1); `None` once dead.
     ///
     /// Original: `FUN_1400c9d70`.

@@ -99,9 +99,6 @@ pub struct Env<'a, 't> {
     // Game +0x130 → +0x18
     /// The environment's temperature.
     pub temperature: f32,
-    /// This iteration's bucket visits (`EntityScheduler::take_visits`): placed entities by
-    /// index, citizens from `scheduler::EXTRA`, each with the time since its last visit.
-    pub visits: &'a [(usize, i64)],
 }
 
 /// Everything a work slot or a state callback touches.

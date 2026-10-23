@@ -235,34 +235,41 @@ impl StartingTown {
         stock: [(i32, i32); 21],
     ) -> bool {
         let before = self.placed.len();
+        // The groups are shared (`Arc`): a copy of the list lets the phases borrow the town.
+        let anims = self.citizen_anims.clone();
         let groups: Vec<_> = self
             .citizens
             .iter()
             .map(|c| {
-                self.citizen_anims
+                anims
                     .get(usize::from(!c.male))
                     .and_then(Option::as_deref)
                     .filter(|_| c.alive)
             })
             .collect();
-        let mut env = unbanished_game::town::Env {
-            wildlife: &mut self.wildlife,
-            cells: &mut self.cells,
-            placed: &mut self.placed,
-            templates: &self.templates,
-            terrain,
-            materials: &self.materials,
-            storages: &mut self.storages,
-            sites: &self.storage_sites,
-            rng,
-            construction: &mut self.construction,
-            stock,
-            temperature,
-            visits: &self.visits,
-        };
+        // This iteration's Env over the town's parts (made again for each phase, as the
+        // seeder's phases borrow the same parts).
+        macro_rules! env {
+            () => {
+                unbanished_game::town::Env {
+                    wildlife: &mut self.wildlife,
+                    cells: &mut self.cells,
+                    placed: &mut self.placed,
+                    templates: &self.templates,
+                    terrain,
+                    materials: &self.materials,
+                    storages: &mut self.storages,
+                    sites: &self.storage_sites,
+                    rng: &mut *rng,
+                    construction: &mut self.construction,
+                    stock,
+                    temperature,
+                }
+            };
+        }
         let rules = self.rules;
-        let names = self.names.as_ref();
-        let mut newborn = |rng: &mut Random, mother: &Citizen, male: bool| match names {
+        let names = self.names.clone();
+        let mut newborn = |rng: &mut Random, mother: &Citizen, male: bool| match &names {
             Some((m, f)) => {
                 unbanished_game::people::citizens::newborn(rng, &rules, m, f, mother, male)
             }
@@ -272,8 +279,43 @@ impl StartingTown {
                 ..mother.clone()
             },
         };
-        self.agents
-            .update(&mut self.citizens, &mut env, &groups, dt, &mut newborn);
+        // The bucket visits as (value, time since the last visit), per bucket.
+        let bucket = |b: usize, visits: &[Vec<(usize, usize, i64)>]| -> Vec<(usize, i64)> {
+            visits
+                .get(b)
+                .map(|v| v.iter().map(|&(_, value, e)| (value, e)).collect())
+                .unwrap_or_default()
+        };
+        let (_, citizen_visits) =
+            unbanished_game::behaviour::agents::Agents::split_visits(&bucket(1, &self.visits));
+        let (site_visits, _) =
+            unbanished_game::behaviour::agents::Agents::split_visits(&bucket(3, &self.visits));
+        // FUN_1400c9560: the every-iteration phase (bit 0x04), then buckets 1 to 4 in turn,
+        // then the deletions.
+        {
+            let mut env = env!();
+            self.agents
+                .every_iteration(&mut self.citizens, &mut env, &groups, dt, &mut newborn);
+            self.agents.visit_citizens(
+                &mut self.citizens,
+                &mut env,
+                &groups,
+                &citizen_visits,
+                &mut newborn,
+            );
+        }
+        let mut changed = self.run_seeder_visits(terrain, rng, &[0, 1, 2], temperature);
+        {
+            let mut env = env!();
+            self.agents
+                .visit_sites(&mut self.citizens, &mut env, &groups, dt, &site_visits);
+        }
+        changed |= self.run_seeder_visits(terrain, rng, &[3, 4], temperature);
+        changed |= self.end_seeder_iteration(terrain, rng);
+        {
+            let mut env = env!();
+            self.agents.finish(&mut self.citizens, &mut env, &groups);
+        }
         self.visits.clear();
         self.schedule_citizens();
         // `FUN_1400c9d70`: piles left by cleared resources join the entity manager's buckets.
@@ -283,7 +325,7 @@ impl StartingTown {
         self.apply_rebuilds();
         self.apply_storage_changes();
         self.place_displays(terrain);
-        !self.citizens.is_empty()
+        changed || !self.citizens.is_empty()
     }
 
     /// StockManager::Update's commute optimisation (`unbanished_game::behaviour::commute`) by `dt` seconds.
@@ -311,7 +353,6 @@ impl StartingTown {
             construction: &mut self.construction,
             stock: [(0, 0); 21],
             temperature: 0.0,
-            visits: &[],
         };
         self.agents.update_commute(
             &self.citizens,

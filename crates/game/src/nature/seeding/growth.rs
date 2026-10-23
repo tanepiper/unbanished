@@ -31,31 +31,64 @@ impl Seeder<'_> {
         disabled: bool,
         visit: &mut dyn FnMut(&mut Seeder, &mut EntityScheduler<usize>, usize, i64) -> bool,
     ) -> bool {
+        let mut changed = self.begin_iteration(scheduler, dt);
+        for bucket in 0..5 {
+            let visits = scheduler.visit_bucket(bucket);
+            changed |= self.run_visits(scheduler, &visits, temperature, disabled, visit);
+        }
+        self.end_iteration(scheduler);
+        changed
+    }
+
+    /// The start of an iteration: the clock advances, then the models' every-iteration update
+    /// (bit `0x04`). True when the models changed.
+    ///
+    /// Original: `FUN_1400c9560`.
+    pub fn begin_iteration(&mut self, scheduler: &mut EntityScheduler<usize>, dt: f32) -> bool {
         scheduler.advance(dt);
         // FUN_1400c9560's bit-0x04 component phase precedes scheduled growth. Within a tree
         // the ModelComponent (FUN_140129e30) runs before NaturalResource (FUN_14012b110).
-        let mut changed = self.animate(ticks(dt));
-        for bucket in 0..5 {
-            for (_, id, elapsed) in scheduler.visit_bucket(bucket) {
-                // The citizens (bucket 1) are visited for the agents (`take_visits`).
-                if id >= crate::scheduler::EXTRA {
-                    continue;
-                }
-                changed |= self.scheduled_growth(scheduler, id, elapsed, temperature, disabled);
-                // SpawnComponent (`FUN_140056430`) follows Growth in the template's list.
-                changed |= self.scheduled_spawn(scheduler, id, elapsed, disabled);
-                // The entity's other scheduled components (FruitComponent after Growth,
-                // wildlife).
-                if self.placed[id].alive {
-                    changed |= visit(self, scheduler, id, elapsed);
-                }
+        self.animate(ticks(dt))
+    }
+
+    /// One bucket's visits (from [`EntityScheduler::visit_bucket`]), in order: each visited
+    /// entity's scheduled components the seeder owns (growth, spawning, then `visit` for the
+    /// others). Citizens (from `EXTRA`) are the agents' and are passed over. True when the models
+    /// changed.
+    ///
+    /// Original: `FUN_1400c9560`.
+    pub fn run_visits(
+        &mut self,
+        scheduler: &mut EntityScheduler<usize>,
+        visits: &[(usize, usize, i64)],
+        temperature: f32,
+        disabled: bool,
+        visit: &mut dyn FnMut(&mut Seeder, &mut EntityScheduler<usize>, usize, i64) -> bool,
+    ) -> bool {
+        let mut changed = false;
+        for &(_, id, elapsed) in visits {
+            if id >= crate::scheduler::EXTRA {
+                continue;
+            }
+            changed |= self.scheduled_growth(scheduler, id, elapsed, temperature, disabled);
+            // SpawnComponent (`FUN_140056430`) follows Growth in the template's list.
+            changed |= self.scheduled_spawn(scheduler, id, elapsed, disabled);
+            // The entity's other scheduled components (FruitComponent after Growth, wildlife).
+            if self.placed[id].alive {
+                changed |= visit(self, scheduler, id, elapsed);
             }
         }
-        // FUN_1400c9560 drains removal requests only after all five buckets.
+        changed
+    }
+
+    /// The end of an iteration: the entities queued for removal leave the buckets, after all
+    /// five buckets.
+    ///
+    /// Original: `FUN_1400c9560`.
+    pub fn end_iteration(&mut self, scheduler: &mut EntityScheduler<usize>) {
         for id in self.removed.drain(..) {
             scheduler.remove(id);
         }
-        changed
     }
 
     /// GrowthComponent's scheduled update for one visited entity; true when the models changed.

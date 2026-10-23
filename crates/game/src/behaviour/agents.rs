@@ -4,17 +4,18 @@
 //! Order per iteration: animations advance, every character runs its actions and moves, "sequence
 //! finished" messages run the AI again with zero time, then the AI updates.
 //!
-//! The citizens' scheduled components (CitizenComponent, CitizenAIComponent and the
-//! CharacterComponent's notify) run for the citizens bucket 1 visited this iteration, with the
-//! time since each one's last visit; so do the sites' state machines, fires, blight, hunts,
-//! attendance, residences and piles in bucket 3 (`town::Env::visits`).
+//! One iteration runs in the entity manager's order (docs/ITERATION-ORDER.md): the every-
+//! iteration phase (bit `0x04`: the citizens' characters, then the sites' state machines, nomads,
+//! boats and tornadoes; [`Agents::every_iteration`]), then bucket 1's citizens
+//! ([`Agents::visit_citizens`]: the character's notify, CitizenComponent, CitizenAIComponent),
+//! then bucket 3's sites and piles ([`Agents::visit_sites`]), with the seeder's buckets 2 and 4
+//! between and after them, then the deletions ([`Agents::finish`]).
 //!
-//! Deviation: these run after the bucket pass (system by system, each in visiting order)
-//! instead of interleaved with it entity by entity, so random draws can come in another order.
-//! The order of the buckets differs too: the sites' systems (bucket 3) run before the citizens
-//! (bucket 1), where the original visits buckets 0 to 4 in turn and runs each visited entity's
-//! scheduled components together, in their array's order (observed, see below). The
-//! natural resources' and animals' scheduled updates run in a pass of their own before both.
+//! Deviation: within a phase the port runs one kind at a time (the animals, then the models, then
+//! the citizens, then the sites) and, for sites, one system at a time over the visited sites; the
+//! original runs entity by entity, each entity's components in its template's order. Animals and
+//! sites are also deleted at other points than citizens. See docs/ITERATION-ORDER.md, steps 2 to
+//! 4, and issue #22.
 //!
 //! This file holds the agents' state and set-up; the rest is split by topic: `update` (the
 //! iteration), `thinking` (the AI), `lives`, `commands`, `paths` and `views`.

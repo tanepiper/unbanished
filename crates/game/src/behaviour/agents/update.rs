@@ -5,9 +5,26 @@ mod animals;
 use super::*;
 
 impl Agents {
-    /// One simulation iteration of every citizen. `groups[i]` is citizen `i`'s animation group
+    /// The bucket visits in `visits` split into the placed entities' (sites, piles) and the
+    /// citizens' (from `EXTRA`, as citizen indices), each in visiting order.
+    pub fn split_visits(visits: &[(usize, i64)]) -> (Vec<(usize, i64)>, Vec<(usize, i64)>) {
+        let (extra, foreign) = (crate::scheduler::EXTRA, crate::scheduler::FOREIGN);
+        let sites = visits.iter().copied().filter(|&(v, _)| v < extra).collect();
+        let citizens = visits
+            .iter()
+            .filter(|&&(v, _)| (extra..foreign).contains(&v))
+            .map(|&(v, e)| (v - extra, e))
+            .collect();
+        (sites, citizens)
+    }
+
+    /// The citizens' part of an iteration's every-iteration phase (bit `0x04`): the town step,
+    /// the job icons, every citizen's character (animation, actions, movement), then the sites'
+    /// state machines, nomads, boats and tornadoes. `groups[i]` is citizen `i`'s animation group
     /// (`None` for the dead); `newborn` makes a child, with its random draws.
-    pub fn update(
+    ///
+    /// Original: `FUN_1400c9560` (the bit-`0x04` set).
+    pub fn every_iteration(
         &mut self,
         citizens: &mut Vec<Citizen>,
         env: &mut Env,
@@ -16,20 +33,6 @@ impl Agents {
         newborn: &mut dyn FnMut(&mut Random, &Citizen, bool) -> Citizen,
     ) {
         self.sync_map(env.cells);
-        // This iteration's bucket visits: placed entities, and the citizens (from `EXTRA`).
-        let (extra, foreign) = (crate::scheduler::EXTRA, crate::scheduler::FOREIGN);
-        let site_visits: Vec<(usize, i64)> = env
-            .visits
-            .iter()
-            .copied()
-            .filter(|&(v, _)| v < extra)
-            .collect();
-        let citizen_visits: Vec<(usize, i64)> = env
-            .visits
-            .iter()
-            .filter(|&&(v, _)| (extra..foreign).contains(&v))
-            .map(|&(v, e)| (v - extra, e))
-            .collect();
         // The town step (`FUN_140091780`): the population, and the visitors' disease risk
         // running out.
         {
@@ -190,20 +193,13 @@ impl Agents {
             citizens[i].position = self.characters[i].position;
             self.deliver(i, messages, citizens, env, groups, &adult, &mut entities);
         }
-        // The sites' StateMachine updates (bit 4, then their bucket); the piles' ages
-        // (RawMaterialComponent's scheduled update, run every iteration here).
+        // The sites' state machines, nomads, boats and tornadoes (bit 0x04).
         {
             let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
-            sim.update_sites(jobs, ticks(dt), &site_visits);
+            sim.update_sites_every(jobs, ticks(dt));
             sim.update_nomads(ticks(dt));
             sim.update_boats();
-            sim.update_attendance(&site_visits);
-            sim.age_piles(jobs, &site_visits);
-            sim.update_hunts(&site_visits);
-            sim.update_blight(&site_visits);
-            sim.update_fires(jobs, &site_visits);
             sim.update_tornadoes(jobs, ticks(dt));
-            sim.place_burials();
             jobs.drain(&mut sim);
         }
         // The tornadoes' victims (`FUN_14011c2a0(citizen, 5)` from `FUN_140058d20`).
@@ -216,16 +212,43 @@ impl Agents {
                 people.die(c, crate::people::life::reason::TORNADO, None);
             });
         }
+    }
+
+    /// Bucket 3's visits (sites and piles), in visiting order, each with the time since its last
+    /// visit: the state machines' scheduled update, attendance, the piles' ages, hunts, blight,
+    /// fires, the residences' storage and the homes. `dt` is the iteration's time.
+    ///
+    /// Original: `FUN_1400c9560` (bucket 3).
+    pub fn visit_sites(
+        &mut self,
+        citizens: &mut [Citizen],
+        env: &mut Env,
+        groups: &[Option<&AnimationGroup>],
+        dt: f32,
+        site_visits: &[(usize, i64)],
+    ) {
+        let entities = entity_views(env.placed, env.templates, env.construction);
+        let adult = self.adults(citizens);
+        {
+            let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
+            sim.update_sites_visits(jobs, ticks(dt), site_visits);
+            sim.update_attendance(site_visits);
+            sim.age_piles(jobs, site_visits);
+            sim.update_hunts(site_visits);
+            sim.update_blight(site_visits);
+            sim.update_fires(jobs, site_visits);
+            jobs.drain(&mut sim);
+        }
         // The residences' state-2 updates (`FUN_14012ee40`): the ClearStorage work, then the
         // fire.
         {
             let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
-            sim.residence_clear_storage(jobs, &site_visits);
+            sim.residence_clear_storage(jobs, site_visits);
             jobs.drain(&mut sim);
         }
         {
             let c = &mut *env.construction;
-            for &(e, elapsed) in &site_visits {
+            for &(e, elapsed) in site_visits {
                 let Some(home) = c.homes.get_mut(&e) else {
                     continue;
                 };
@@ -239,9 +262,25 @@ impl Agents {
                 );
             }
         }
+    }
+
+    /// Bucket 1's visits (the citizens, as citizen indices), in visiting order, each with the time
+    /// since its last visit: the character's notify, CitizenComponent, then CitizenAIComponent.
+    ///
+    /// Original: `FUN_1400c9560` (bucket 1).
+    pub fn visit_citizens(
+        &mut self,
+        citizens: &mut Vec<Citizen>,
+        env: &mut Env,
+        groups: &[Option<&AnimationGroup>],
+        citizen_visits: &[(usize, i64)],
+        newborn: &mut dyn FnMut(&mut Random, &Citizen, bool) -> Citizen,
+    ) {
+        let mut entities = entity_views(env.placed, env.templates, env.construction);
+        let adult = self.adults(citizens);
         // The citizens bucket 1 visited this iteration, in its order, each with the time since
         // its last visit (`FUN_1400c9560`).
-        for &(i, elapsed) in &citizen_visits {
+        for &(i, elapsed) in citizen_visits {
             if i >= self.ais.len()
                 || groups.get(i).copied().flatten().is_none()
                 || !citizens[i].alive
@@ -271,6 +310,26 @@ impl Agents {
             }
             refresh_views(&mut entities, env);
             self.think(i, citizens, env, groups, &adult, &entities, elapsed);
+        }
+    }
+
+    /// The end of an iteration, after every bucket: destroyed sites leave, the burials' tombstones
+    /// are placed, and the queued citizens are deleted (each component's remove slot).
+    ///
+    /// Original: `FUN_1400c9560` (its deletions).
+    pub fn finish(
+        &mut self,
+        citizens: &mut Vec<Citizen>,
+        env: &mut Env,
+        groups: &[Option<&AnimationGroup>],
+    ) {
+        let entities = entity_views(env.placed, env.templates, env.construction);
+        let adult = self.adults(citizens);
+        {
+            let (mut sim, jobs) = self.sim(citizens, env, groups, &adult, &entities);
+            sim.remove_destroyed_sites(jobs);
+            sim.place_burials();
+            jobs.drain(&mut sim);
         }
         // The entity manager deletes the queued entities (each component's remove slot);
         // removals can queue more (orphaned children).

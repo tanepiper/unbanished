@@ -17,15 +17,17 @@ impl StartingTown {
         }
     }
 
-    /// Run placed entities on their template's scheduled bucket.
+    /// The start of one simulation iteration: the shared animations, then the every-iteration
+    /// phase of the animals' characters and the models, and each bucket's visits for this
+    /// iteration ([`StartingTown::update_citizens`] runs the rest). True when the models changed.
     ///
-    /// Original: `FUN_1400c9560`.
+    /// Original: `FUN_14009b850`, `FUN_1400c9560`.
     pub fn iterate(
         &mut self,
         terrain: &HeightGrid,
         rng: &mut Random,
         dt: f32,
-        temperature: f32,
+        _temperature: f32,
     ) -> bool {
         // `AnimationManager::Update` (`FUN_14009b850`): the shared animation instances, before
         // any character.
@@ -42,10 +44,6 @@ impl StartingTown {
             &self.materials,
             dt,
         );
-        let wildlife = &mut self.wildlife;
-        let fruits = &mut self.construction.fruits;
-        let tombstones = &mut self.construction.tombstones;
-        let calendar = self.construction.calendar;
         let changed = Seeder {
             templates: &self.templates,
             terrain,
@@ -55,51 +53,101 @@ impl StartingTown {
             removed: &mut self.removed,
             animation_events: &mut self.animation_events,
         }
-        .iterate_with(
-            &mut self.scheduler,
-            dt,
-            temperature,
-            false,
-            &mut |seeder, scheduler, id, elapsed| {
-                // TombstoneComponent (`FUN_140058130`).
-                if tombstones.contains_key(&id) {
-                    return unbanished_game::people::cemetery::tombstone_visit(
-                        tombstones,
-                        seeder.cells,
-                        seeder.placed,
-                        id,
-                        elapsed,
-                    );
-                }
-                // FruitComponent (`FUN_14004a740`) after the tree's growth.
-                let p = &seeder.placed[id];
-                if let Some(f) = seeder.templates[p.template].fruit {
-                    let fruit = fruits.entry(id).or_default();
-                    unbanished_game::production::orchard::ripen(
-                        fruit,
-                        &f,
-                        p.growth,
-                        elapsed,
-                        calendar,
-                        temperature,
-                    );
-                    return false;
-                }
-                let mut wild = unbanished_game::nature::wildlife::Wild {
-                    wildlife: &mut *wildlife,
-                    placed: seeder.placed,
-                    templates: seeder.templates,
-                    cells: seeder.cells,
-                    terrain: seeder.terrain,
-                    rng: seeder.rng,
-                    scheduler,
-                };
-                wild.scheduled(id, elapsed);
-                false
-            },
-        );
-        // The entity manager deletes the queued animals.
-        let buried = unbanished_game::nature::wildlife::Wild {
+        .begin_iteration(&mut self.scheduler, dt);
+        // Each bucket's visits, taken now: entities made during the visits wait for the next
+        // iteration, and deletions come after every bucket, so the lists do not change.
+        self.visits = (0..5).map(|b| self.scheduler.visit_bucket(b)).collect();
+        self.scheduler.take_visits();
+        changed
+    }
+
+    /// The seeder's part of the visits of `buckets`: growth, spawning, tombstones, fruit and
+    /// wildlife. True when the models changed.
+    pub(super) fn run_seeder_visits(
+        &mut self,
+        terrain: &HeightGrid,
+        rng: &mut Random,
+        buckets: &[usize],
+        temperature: f32,
+    ) -> bool {
+        let visits: Vec<Vec<(usize, usize, i64)>> = buckets
+            .iter()
+            .map(|&b| self.visits.get(b).cloned().unwrap_or_default())
+            .collect();
+        let wildlife = &mut self.wildlife;
+        let fruits = &mut self.construction.fruits;
+        let tombstones = &mut self.construction.tombstones;
+        let calendar = self.construction.calendar;
+        let mut seeder = Seeder {
+            templates: &self.templates,
+            terrain,
+            cells: &mut self.cells,
+            rng,
+            placed: &mut self.placed,
+            removed: &mut self.removed,
+            animation_events: &mut self.animation_events,
+        };
+        let mut visit = |seeder: &mut Seeder,
+                         scheduler: &mut EntityScheduler<usize>,
+                         id: usize,
+                         elapsed: i64| {
+            // TombstoneComponent (`FUN_140058130`).
+            if tombstones.contains_key(&id) {
+                return unbanished_game::people::cemetery::tombstone_visit(
+                    tombstones,
+                    seeder.cells,
+                    seeder.placed,
+                    id,
+                    elapsed,
+                );
+            }
+            // FruitComponent (`FUN_14004a740`) after the tree's growth.
+            let p = &seeder.placed[id];
+            if let Some(f) = seeder.templates[p.template].fruit {
+                let fruit = fruits.entry(id).or_default();
+                unbanished_game::production::orchard::ripen(
+                    fruit,
+                    &f,
+                    p.growth,
+                    elapsed,
+                    calendar,
+                    temperature,
+                );
+                return false;
+            }
+            let mut wild = unbanished_game::nature::wildlife::Wild {
+                wildlife: &mut *wildlife,
+                placed: seeder.placed,
+                templates: seeder.templates,
+                cells: seeder.cells,
+                terrain: seeder.terrain,
+                rng: seeder.rng,
+                scheduler,
+            };
+            wild.scheduled(id, elapsed);
+            false
+        };
+        let mut changed = false;
+        for v in &visits {
+            changed |= seeder.run_visits(&mut self.scheduler, v, temperature, false, &mut visit);
+        }
+        changed
+    }
+
+    /// The end of the bucket phase: the seeder's removals leave the buckets and the queued
+    /// animals are deleted. True when the models changed.
+    pub(super) fn end_seeder_iteration(&mut self, terrain: &HeightGrid, rng: &mut Random) -> bool {
+        Seeder {
+            templates: &self.templates,
+            terrain,
+            cells: &mut self.cells,
+            rng: &mut *rng,
+            placed: &mut self.placed,
+            removed: &mut self.removed,
+            animation_events: &mut self.animation_events,
+        }
+        .end_iteration(&mut self.scheduler);
+        unbanished_game::nature::wildlife::Wild {
             wildlife: &mut self.wildlife,
             placed: &mut self.placed,
             templates: &self.templates,
@@ -108,9 +156,7 @@ impl StartingTown {
             rng,
             scheduler: &mut self.scheduler,
         }
-        .bury();
-        self.visits = self.scheduler.take_visits();
-        changed | buried
+        .bury()
     }
 
     /// Player commands and newly placed sites (before an iteration).
@@ -138,7 +184,6 @@ impl StartingTown {
             construction: &mut self.construction,
             stock: [(0, 0); 21],
             temperature: 0.0,
-            visits: &[],
         };
         let rules = self.rules;
         let names = self.names.as_ref();

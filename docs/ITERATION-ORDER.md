@@ -58,7 +58,7 @@ GrowthComponent, then SpawnComponent.
 
 ## The port
 
-Today one iteration runs in two calls from `crates/sim/src/simulation/step.rs`:
+Before step 1 below, one iteration ran in two calls from `crates/sim/src/simulation/step.rs`:
 
 - `StartingTown::iterate` (`crates/sim/src/town/frame.rs`): the shared animations, the animals'
   characters (bit `0x04`), the clock, the natural resources' models (bit `0x04`), then buckets 0
@@ -88,10 +88,12 @@ Today one iteration runs in two calls from `crates/sim/src/simulation/step.rs`:
 Each step keeps the game running and passes the quick tier; the compatibility scenarios change
 at every step, and each step's commit says why.
 
-1. **Phases and bucket order.** Split `iterate` and `update_citizens` into the bit-`0x04` phase
-   (animals, models, citizens' characters, sites' state machines, nomads, boats, tornadoes) and
-   the bucket phase, and run the bucket phase as buckets 1, 2, 3, 4 with each bucket's visits
-   sent to the system that owns them. Kinds stay grouped within a phase.
+1. **Phases and bucket order.** Done. `StartingTown::iterate` runs the animals' characters and
+   the models and takes each bucket's visits; `StartingTown::update_citizens` runs
+   `Agents::every_iteration` (citizens' characters, sites' state machines, nomads, boats,
+   tornadoes), then bucket 1 (`Agents::visit_citizens`), the seeder's buckets 0 to 2, bucket 3
+   (`Agents::visit_sites`), the seeder's buckets 3 and 4, then the deletions
+   (`Agents::finish`). Kinds stay grouped within a phase.
 2. **One bucket, entity by entity.** Within a bucket, run each visited entity's components in
    its template's order (bucket 3: state machine, disease, hunt, fire, residence…; bucket 4:
    growth, spawn, fruit, animal, tombstone).

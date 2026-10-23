@@ -28,6 +28,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
   variant before the animal's place and heading are drawn.
 - A trading post's merchants get women's and men's names as in the original; the port had the
   two the wrong way round.
+- Each simulation step runs in the original's order: everything that updates every step first
+  (characters, buildings' states), then the citizens, then the deer population, then buildings and
+  piles, then trees, crops and animals. The port ran trees and animals first and citizens last.
 - A loaded game keeps each character's animation: the clip it was playing, its time and the
   shared clocks the walks follow. Walks under way go on as saved, and men and women share the
   same walking clocks, as in the original. Saves write the animation back.
