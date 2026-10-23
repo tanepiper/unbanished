@@ -71,6 +71,8 @@ pub struct Device {
     stream: Option<rodio::OutputStream>,
     voices: Slots<Voice>,
     master: f32,
+    /// Kept at volume 0 for good ([`Device::silence`], or `UNBANISHED_MUTE`).
+    silent: bool,
 }
 
 /// Whether `UNBANISHED_MUTE` is set: tests and tools set it so that no run is heard, whatever
@@ -85,6 +87,7 @@ impl Default for Device {
             stream: None,
             voices: Slots::default(),
             master: if muted() { 0.0 } else { 1.0 },
+            silent: muted(),
         }
     }
 }
@@ -240,10 +243,16 @@ impl Device {
 
     /// Scales every channel (always 0 with `UNBANISHED_MUTE` set).
     pub fn set_master_volume(&mut self, volume: f32) {
-        self.master = if muted() { 0.0 } else { volume.max(0.0) };
+        self.master = if self.silent { 0.0 } else { volume.max(0.0) };
         for (_, v) in self.voices.iter() {
             v.sink.set_volume(v.volume * self.master);
         }
+    }
+
+    /// Keep this device at volume 0 from now on, whatever volume is asked for later (tests).
+    pub fn silence(&mut self) {
+        self.silent = true;
+        self.set_master_volume(0.0);
     }
 
     /// Browsers start audio suspended until a user gesture; nothing to do natively.

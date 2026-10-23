@@ -43,8 +43,13 @@ pub struct Audio {
 
 impl Default for Audio {
     fn default() -> Self {
+        #[allow(unused_mut)]
+        let mut device = Device::default();
+        // The game's unit tests are never heard, however they are started.
+        #[cfg(all(test, not(target_arch = "wasm32")))]
+        device.silence();
         Audio {
-            device: Device::default(),
+            device,
             scene: Scene::default(),
             cache: EffectCache::default(),
             rng: Random::new(0x5eed),
