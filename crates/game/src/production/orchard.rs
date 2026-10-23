@@ -98,6 +98,9 @@ pub struct FruitTemplate {
 /// picked). A grown tree ripens at `1 / (months × 300)` per second scaled by `1 − ((t − best) /
 /// range)²` (0 outside the range, −10 at or below 32 °F).
 ///
+/// Measured: `tools/emu/ripen.py` (the original on 2,000 trees, NaN growths and ranges of 0
+/// among them).
+///
 /// Original: `FUN_14004a740`.
 pub fn ripen(f: &mut Fruit, d: &FruitTemplate, growth: f32, dt: i64, calendar: f32, t: f32) {
     let rate = 1.0 / (d.months * 300.0);
@@ -106,7 +109,9 @@ pub fn ripen(f: &mut Fruit, d: &FruitTemplate, growth: f32, dt: i64, calendar: f
         f.picked = false;
     }
     let distance = (t - d.best).abs() / d.range;
-    let weight = if !f.picked && 1.0 <= growth {
+    // ja at 0x14004a841 skips only when 1 > growth: a NaN growth counts as grown.
+    #[allow(clippy::neg_cmp_op_on_partial_ord)]
+    let weight = if !f.picked && !(growth < 1.0) {
         if !(0.0..=1.0).contains(&distance) {
             if t <= 32.0 {
                 -10.0
