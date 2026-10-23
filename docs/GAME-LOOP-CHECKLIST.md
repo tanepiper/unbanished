@@ -64,14 +64,17 @@ evidence; static traces are not claims of live-game behavior.
   inventory and natural-resource seeding: residence assignment, wildlife and other populations.
   The start up to iteration 63 is now checked against the original's own new-game saves (Save2,
   Save3; [RANDOM-DRAWS.md](RANDOM-DRAWS.md)): the seeding, the households, the deer population
-  and all 16 herds match field for field. Residence assignment is still open: no citizen has a
-  home by iteration 63 in either game.
+  and all 16 herds match field for field. Residence assignment is ported (`FUN_140115310`,
+  `FUN_14011b8a0`) but not yet checked against the original: no citizen has a home by iteration
+  63 in either game, so it needs a later save of a new town.
 - [x] Complete climate precipitation geometry/effects and ambient audio beyond the traced and
   ported temperature, weather-state, threshold and seasonal controllers (see the weather item
   below and [ENVIRONMENT.md](ENVIRONMENT.md)).
 - [ ] Extend beyond natural resources into citizen/job scheduling, movement, needs, production,
-  consumption, events, and entity removal. All are ported; what is left is the order of one
-  iteration's scheduled components (the entity buckets, issue #22).
+  consumption, events, and entity removal. All are ported. Of one iteration's order (issue #22)
+  the phases, the bucket order, bucket 3 entity by entity and the deletions are done
+  ([ITERATION-ORDER.md](ITERATION-ORDER.md)); the every-iteration set's order between entities
+  (by address in the original) is left, and needs an order-free pair of the original's saves.
 
 ## Remaining port work
 
@@ -109,7 +112,8 @@ evidence; static traces are not claims of live-game behavior.
   fetching and equipment messages at New Game. Original-function parity and seeded integration
   checks are recorded in [CITIZEN-AI.md](CITIZEN-AI.md).
 - [ ] Complete citizen activities/jobs/needs and bucket scheduling; deer, crops, orchards, livestock,
-  building decals and footprints. All are ported except the bucket scheduling's order (issue #22).
+  building decals and footprints. All are ported; of the bucket scheduling's order only the
+  every-iteration set's order between entities is left (issue #22, step 3).
 - [x] Replace the compact HUD with the packaged toolbar and Status Bar controllers. See
   [IN-GAME-TOOLBAR.md](IN-GAME-TOOLBAR.md) and [UTILITY-WINDOWS.md](UTILITY-WINDOWS.md).
 - [x] Building placement tool: ghost, rotation, variants, original validity and placement of
