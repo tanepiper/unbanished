@@ -62,13 +62,14 @@ order, the conditions that skip them, and the arithmetic on the result.
 | `FUN_140049a90`, `FUN_140049910` | A fire spreads: a cell near the building, then its odds | Match. The rows' range is not clamped at 0 in the original, which then reads outside the map; the port burns nothing there (a Deviation) |
 | `FUN_14004ff60` | A nomad wanders to a cell near its camp | Match, with the first offset on y and the second on x |
 | `FUN_1400c5b60` | A builder's sequence at a build point | Match: `Rand(2)`, then the walk's speed |
+| `FUN_14010b8f0` | A wild animal's update: breeding, home, idle or a walk in its area | Match in every branch: `Rand(4)` only inside its area, rows drawn before columns, the first offset on y, a new area after 10 tries, `Rand(3) + 1` without ground, the idle time's `RandFloat` |
+| `FUN_1400ecd10` | A production cycle (ConsumeProduce slot `+0x20`) | Match: the recipe pick (`FUN_14011e940`) before `Rand(slots)`; each haul (`FUN_1400c4c60`) makes the walk to the target before the walk back, as `Sim::haul` does |
 | `FUN_14008eea0` | A happiness place near a cell, for loitering | Match: candidates in registry order, the same path-rank arguments (`cell`, then the use point) and fallback, `Rand(count)` only with candidates |
 | `FUN_140126420`, `FUN_140126920` | A herd's animals are made, and a herd grows back | Differed: the original makes each animal (whose deer model draws its variant, `FUN_140129f90`) before the offsets and the heading. The port made it after them. Fixed |
 
 ## Not yet compared
 
-The rest of the 51 ported functions. The larger ones still to read are `FUN_14010b8f0` (a wild animal), `FUN_1400a7490` (placed
-descriptions), `FUN_1400ecd10` (a production cycle) and the start of a game (`FUN_1400a6780`,
+The rest of the 51 ported functions. The larger ones still to read are `FUN_1400a7490` (placed descriptions) and the start of a game (`FUN_1400a6780`,
 `FUN_1400a62a0`, `FUN_1400a5fe0`).
 
 ## The order within an iteration
