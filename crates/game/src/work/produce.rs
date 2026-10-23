@@ -63,6 +63,36 @@ pub(crate) struct ProduceResume {
     all_inputs: bool,
 }
 
+// ConsumeProduce +0x50 the selector, +0x58 the weights (count +0x60).
+/// The recipe a production cycle uses: the selected one; or, with the selector at −1 (any), one
+/// `RandFloat` over the weights, the first whose running sum passes the draw times their total;
+/// 0 for any other selector, or when no weight passes.
+///
+/// Measured: `tools/emu/recipe_pick.py` (the original on 2,000 cases).
+///
+/// Original: `FUN_14011e940`.
+pub fn pick_recipe(selector: i32, weights: &[f32], rng: &mut crate::random::Random) -> usize {
+    if selector >= 0 {
+        return selector as usize;
+    }
+    if selector != -1 {
+        return 0;
+    }
+    let mut total = 0.0f32;
+    for w in weights {
+        total += w;
+    }
+    let r = rng.rand_float();
+    let mut acc = 0.0f32;
+    for (i, w) in weights.iter().enumerate() {
+        acc += w;
+        if r * total < acc {
+            return i;
+        }
+    }
+    0
+}
+
 impl Sim<'_, '_> {
     fn recipes(&self, e: usize) -> Option<&crate::work::construction::ProduceTemplate> {
         let site = self.sites.get(&e)?;
@@ -74,23 +104,8 @@ impl Sim<'_, '_> {
         let Some(state) = self.sites.get(&e).and_then(|s| s.produce.as_ref()) else {
             return 0;
         };
-        if state.selector >= 0 {
-            return state.selector as usize;
-        }
-        if state.selector != -1 {
-            return 0;
-        }
-        let weights = state.weights.clone();
-        let total: f32 = weights.iter().sum();
-        let r = self.rng.rand_float();
-        let mut acc = 0.0;
-        for (i, w) in weights.iter().enumerate() {
-            acc += w;
-            if r * total < acc {
-                return i;
-            }
-        }
-        0
+        let (selector, weights) = (state.selector, state.weights.clone());
+        pick_recipe(selector, &weights, self.rng)
     }
 
     /// `FUN_1401282f0(interact, 0, i)`: use point `i` in the world and its heading: the

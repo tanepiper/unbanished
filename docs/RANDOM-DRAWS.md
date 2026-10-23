@@ -28,6 +28,8 @@ the measured ones. On 2026-10-23 it lists 70 functions: 16 measured, 51 ported, 
 | `FUN_140117940` | A sick citizen passes the disease on: one draw, then at most one citizen offered it | `tools/emu/disease_spread.py` |
 | `FUN_1400ce640` | A walk's speed factor; a NaN speed is kept with no draw | `tools/emu/move_speed.py` |
 | `FUN_14005be50`, `FUN_14005bdb0` | A trading post's row and the time to the next merchant | `tools/emu/trade_timer.py` |
+| `FUN_14008eb70`, `FUN_14008e940` | Shuffling the residences, and a profession's workplaces (the same loop) | `tools/emu/shuffle.py` |
+| `FUN_14011e940` | A production cycle's recipe, chosen by weight | `tools/emu/recipe_pick.py` |
 | `FUN_140098ac0` | The weather pick and the yearly climate reseed | `tools/emu/weather_pick.py` |
 | `FUN_140094410` | A storage's item choice | `tools/emu/storage.py` |
 | `FUN_14004f710`, `FUN_14008d480` | Storage geometry and an entrance cell | `tools/emu/storage_geometry.py` |
@@ -53,7 +55,6 @@ order, the conditions that skip them, and the arithmetic on the result.
 | `FUN_140048f70`, `FUN_1400484a0`, `FUN_1400491a0` | Blight: the chance, a crop that withers, the spread | Match |
 | `FUN_14004db00` | An immigration wait | Match |
 | `FUN_1401228d0` | A building being destroyed collapses | Match |
-| `FUN_14011e940` | A recipe chosen by weight | Match |
 | `FUN_14012cbf0` | A breeding animal in a pasture | Match |
 | `FUN_140054600`, `FUN_1401270c0` | A herd's population cell, and its rest | Match |
 | `FUN_1400fca20` | The emergency work lists | Match: the same nine stock lists in the same order |
@@ -64,7 +65,6 @@ order, the conditions that skip them, and the arithmetic on the result.
 | `FUN_14004ff60` | A nomad wanders to a cell near its camp | Match, with the first offset on y and the second on x |
 | `FUN_1400c5b60` | A builder's sequence at a build point | Match: `Rand(2)`, then the walk's speed |
 | `FUN_14005cb80` | A trading post's merchants get names | Differed: `Rand(2)` of 0 sets the female flag of `FUN_1400aa130` (`sete` at `0x14005cbfe`); the port gave a man's name for 0. The name generator draws from the game's Random, so the draws after it differed too. Fixed |
-| `FUN_14008e940`, `FUN_14008eb70` | Shuffling a profession's workplaces, and the residences | Match: `Rand(n)` for each position, a swap when it differs, nothing below two |
 | `FUN_14010b720` | A wild animal idles, and may turn | Match: the first `RandFloatTol` on y, the second on x |
 | `FUN_1400486d0` | Blight kills an animal in a pasture | Match: up to 50 `Rand(count)`; the first animal no one hunts goes at once |
 | `FUN_14011c060` | A citizen is offered a disease | Match: one `RandFloatTol` for how long it lasts |

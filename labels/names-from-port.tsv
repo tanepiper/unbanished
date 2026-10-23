@@ -491,6 +491,7 @@
 14011dfc0	ComponentDescription	crates/formats/src/game/entities.rs
 14011e1d0	WorkKind::Produce_2	crates/game/src/work/jobs.rs
 14011e5b0	ConsumeProduceDescription	crates/formats/src/game/work/produce.rs
+14011e940	pick_recipe	crates/game/src/work/produce.rs
 14011eaa0	CreateBridgeDescription	crates/formats/src/game/construction.rs
 14011ec20	CreateDragDescription	crates/formats/src/game/construction.rs
 14011eda0	CreatePlacedDescription	crates/formats/src/game/construction.rs
