@@ -99,8 +99,16 @@ impl StartingTown {
             let reuse = saved_stack.get(k).copied().flatten();
             list.push(self.action_object(g, refs, ids, owner, action, Some(*started), reuse));
         }
-        // The array keeps its saved length (unused slots null), at least the entries.
-        let len = saved_stack.len().max(list.len());
+        // The array keeps its saved length (unused slots null). It grows by doubling from 16
+        // slots (observed: every saved stack has 0, 16, 32 or 64 in Save5, Save83 and
+        // Goldfoothill, and one that ever held an action keeps at least 16).
+        let mut len = saved_stack.len();
+        if len < list.len() {
+            len = len.max(16);
+            while len < list.len() {
+                len *= 2;
+            }
+        }
         list.resize(len, None);
         let on_empty =
             on_empty.and_then(|a| self.action_object(g, refs, ids, owner, a, None, saved_on_empty));

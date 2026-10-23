@@ -193,8 +193,12 @@ impl StartingTown {
                 .and_then(Option::as_deref)
                 .filter(|a| !a.name.is_empty())
                 .map(|a| refs.id(g, &a.name));
+            let female = !self.citizens[c].male;
             if let Some(m) = fields_mut(g, e, "ModelComponent") {
                 m.set("model.position", Value::F32s(ch.position.to_vec()));
+                // `FUN_14011c550` → `FUN_14012a8a0(model, sex == 0, 0)`: a woman's model is
+                // variant 1, its first mesh.
+                m.set_i32("model.variant", female as i32);
                 super::animation::write_layers(m, &ch.animation, group);
                 if m.f32("model.yaw") != Some(ch.yaw) {
                     m.set_f32("model.yaw", ch.yaw);
