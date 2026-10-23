@@ -37,8 +37,6 @@ pub struct MoveTo {
     index: i32,
     count: i32,
     path: [i32; PATH_CELLS],
-    /// Set by [`MoveTo::restored`]: the first update plays the walk clip again.
-    resume: bool,
 }
 
 impl MoveTo {
@@ -73,7 +71,6 @@ impl MoveTo {
             index: -1,
             count: 0,
             path: [0; PATH_CELLS],
-            resume: false,
         }
     }
 
@@ -110,7 +107,6 @@ impl MoveTo {
             index,
             count: n as i32,
             path: cells,
-            resume: true,
         }
     }
 
@@ -182,15 +178,6 @@ impl MoveTo {
         world: &mut World,
         group: &AnimationGroup,
     ) -> Status {
-        // Deviation: a walk restored from a save plays its walk clip again and faces its next
-        // cell on its first update. The original restores the clip with the animation block
-        // (`AnimationManager::Serialize`, `FUN_18005d130`), which the port does not decode
-        // yet; without a walking clip the body has no root motion, never reaches the next
-        // cell, and the citizen stands still for good.
-        if std::mem::take(&mut self.resume) && self.index >= 0 && self.index < self.count {
-            self.face_waypoint(ch, world);
-            ch.play(self.walk, group, 1.0);
-        }
         if self.index != -1 {
             let here = world.cell(ch.position);
             if world.cell(self.target) == here {

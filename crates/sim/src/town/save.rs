@@ -8,6 +8,7 @@ use unbanished_formats::savegame::{Fields, GameState, ObjId, Value};
 use super::{normalise, StartingTown};
 
 mod actions;
+mod animation;
 mod citizens;
 mod construction;
 mod create;
@@ -158,6 +159,7 @@ impl StartingTown {
             self.export_water(g, &ids);
         }
         self.export_schedule(g, &ids, foreign);
+        self.export_animations(g, &mut refs);
         finish_flags(g);
     }
 

@@ -205,12 +205,24 @@ Every saved action maps onto a port action, field by field:
 A stack holding an action the port cannot rebuild yet starts empty and is counted in the
 load log.
 
-**Walks in progress.** The original restores each character's animation from the save's
-animation block (`AnimationManager::Serialize`, `FUN_18005d130`), which the port carries as raw
-bytes. A restored, started MoveTo therefore plays its walk clip again and faces its next cell on
-its first update (a deviation). Without it a walking citizen had no root motion and stood still
-for good: on one test save 12 of 17 citizens were frozen after loading, and a worker frozen this
-way never looked for work again (issue #4). HuntAnimal and RemoveAnimal wait for the animals (stage 3c).
+**Animation.** Each character's animation is restored as the original keeps it. Its layers come
+from its ModelComponent's animation state (`MeshInstance::Serialize`, `0x180101f10`, with
+`FUN_18005d610`): the clip, the clock, the speed, the blend and the blend left, the shared
+instance and whether the layer has run. The shared instances of instanced clips come from the
+animation block (`AnimationManager::Serialize`, `FUN_18005d130`), slot by slot, with their users
+and their clocks, so every saved instance id (`slot << 8 | instance`) names the same clock again.
+A walk under way therefore goes on with its clip and its direction. Before, the port did not
+read either, a walking citizen had no root motion and stood still for good (issue #4), and a
+restored walk had to play its clip again on its first update. All the walking citizens of the
+six vanilla saves move after loading (`load/animation_tests.rs`). A layer whose instance the save
+does not hold (a save the port wrote before this) plays on its own.
+
+The shared table is keyed by the group's resource, as the original's one object per resource:
+men and women play `CitizenAnims.rsc` through the same entries. The port read the group once per
+model variant and keyed the entries by the copy's address, so each sex had entries of its own and
+took other instances' clocks.
+
+HuntAnimal and RemoveAnimal wait for the animals (stage 3c).
 
 **Work claims.** The works now carry their citizens:
 - the gatherers', builders' and other workers' sets;
@@ -347,8 +359,7 @@ Test: `start::load::stage4_tests::vanilla_saves_restore_environment_and_logs`.
 ## Not restored yet
 
 - Nomads and tornadoes.
-- The engine-side blocks: achievements, animation states and the audio scene. The port
-  rebuilds its own animation and ambience.
+- The audio scene (engine side). The port rebuilds its own ambience.
 - The achievement block (AchievementManager::Persist, engine side) and the scenario goal
   object. No vanilla sample has a goal.
 - The ambient sound emitters. The port rebuilds map ambience from the terrain, as a New Game does.

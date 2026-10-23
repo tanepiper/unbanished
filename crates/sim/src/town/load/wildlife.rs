@@ -170,6 +170,9 @@ impl StartingTown {
             let mut character = Character::new(kind.character, position, scale);
             if let Some(m) = model {
                 character.yaw = m.fields.f32("model.yaw").unwrap_or(character.yaw);
+                if let Some(a) = super::animation::saved_layers(&m.fields) {
+                    character.animation = a;
+                }
             }
             if let Some(k) = saved.component(e, "CharacterComponent") {
                 if let Some(d) = vec3(&k.fields, "character.direction") {
@@ -273,6 +276,9 @@ impl StartingTown {
             let mut character = Character::new(kind.character, position, 1.0);
             if let Some(m) = saved.component(e, "ModelComponent") {
                 character.yaw = m.fields.f32("model.yaw").unwrap_or(character.yaw);
+                if let Some(a) = super::animation::saved_layers(&m.fields) {
+                    character.animation = a;
+                }
             }
             if let Some(k) = saved.component(e, "CharacterComponent") {
                 if let Some(d) = vec3(&k.fields, "character.direction") {

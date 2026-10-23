@@ -205,6 +205,7 @@ impl StartingTown {
     ) {
         if let Some(m) = fields_mut(g, e, "ModelComponent") {
             m.set("model.position", Value::F32s(ch.position.to_vec()));
+            super::animation::write_layers(m, &ch.animation, None);
             if m.f32("model.yaw") != Some(ch.yaw) {
                 m.set_f32("model.yaw", ch.yaw);
                 let q = unbanished_game::math::Transform::character_rotation(ch.yaw);

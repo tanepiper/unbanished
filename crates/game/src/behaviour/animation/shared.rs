@@ -20,7 +20,7 @@ use unbanished_formats::skeleton::Transform;
 use unbanished_formats::types::{AnimationClip, AnimationGroup};
 
 struct Entry {
-    group: usize,
+    group: String,
     clip: usize,
     users: i32,
     data: AnimationClip,
@@ -46,9 +46,86 @@ pub fn swap(table: &mut Table) {
     ENTRIES.with(|e| std::mem::swap(&mut *e.borrow_mut(), &mut table.0));
 }
 
+// Each instance's clock and speed come from its own AnimationState (FUN_18005cd90); the pose is
+// sampled again here and replaced by the next Update before any character reads it.
+/// One shared entry as a save holds it: the group and clip, the number of users, and each
+/// instance's clock and speed.
+pub struct Saved<'g> {
+    /// The animation group.
+    pub group: &'g AnimationGroup,
+    /// The clip.
+    pub clip: usize,
+    /// The users the original counted (characters that left without freeing stay counted).
+    pub users: i32,
+    /// Each instance's clock and speed.
+    pub instances: Vec<(i64, f32)>,
+}
+
+/// The shared instances of a saved game, slot by slot (`None` for a free slot), so that every
+/// saved instance id names the same entry and instance again.
+///
+/// Original: `AnimationManager::Serialize`, Runtime `0x1800fea20` (reading).
+pub fn restore(slots: Vec<Option<Saved>>) {
+    let entries = slots
+        .into_iter()
+        .map(|slot| {
+            let s = slot?;
+            let data = s.group.clips.get(s.clip)?.clone();
+            let instances = s
+                .instances
+                .into_iter()
+                .map(|(elapsed, speed)| {
+                    let mut p = Playback::new(s.clip, elapsed);
+                    p.speed = speed;
+                    let pose = p.pose(&data);
+                    (p, pose)
+                })
+                .collect();
+            Some(Entry {
+                group: key(s.group),
+                clip: s.clip,
+                users: s.users,
+                data,
+                instances,
+            })
+        })
+        .collect();
+    ENTRIES.with(|e| *e.borrow_mut() = entries);
+}
+
+/// The shared instances slot by slot (`None` for a free slot): each entry's group (its resource,
+/// the key requests match), clip, users and its instances' clocks.
+pub fn snapshot() -> Vec<Option<(String, usize, i32, Vec<Playback>)>> {
+    ENTRIES.with(|e| {
+        e.borrow()
+            .iter()
+            .map(|x| {
+                x.as_ref().map(|x| {
+                    (
+                        x.group.clone(),
+                        x.clip,
+                        x.users,
+                        x.instances.iter().map(|(p, _)| p.clone()).collect(),
+                    )
+                })
+            })
+            .collect()
+    })
+}
+
+/// The group's key: its resource, as the original's one object per resource; a group with no name
+/// (a test's) by its address.
+fn key(group: &AnimationGroup) -> String {
+    if group.name.is_empty() {
+        format!("@{:p}", group)
+    } else {
+        group.name.clone()
+    }
+}
+
 /// `GetInstanceId`: `entry << 8 | instance`.
 pub fn instance_id(group: &AnimationGroup, clip: usize) -> i32 {
-    let key = group as *const AnimationGroup as usize;
+    let key = key(group);
     ENTRIES.with(|e| {
         let mut entries = e.borrow_mut();
         let found = entries
@@ -72,7 +149,7 @@ pub fn instance_id(group: &AnimationGroup, clip: usize) -> i32 {
                     at += step;
                 }
                 let entry = Entry {
-                    group: key,
+                    group: key.clone(),
                     clip,
                     users: 0,
                     data,
@@ -127,6 +204,14 @@ pub fn update(dt: i64) {
             }
         }
     });
+}
+
+/// The poses of one slot's instances (none for a free slot).
+pub fn poses(slot: usize) -> Vec<Vec<Transform>> {
+    ENTRIES.with(|e| match e.borrow().get(slot) {
+        Some(Some(entry)) => entry.instances.iter().map(|(_, p)| p.clone()).collect(),
+        _ => Vec::new(),
+    })
 }
 
 /// `GetPose`.

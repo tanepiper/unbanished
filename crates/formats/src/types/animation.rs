@@ -79,6 +79,10 @@ pub struct AnimationGroup {
     // +0x48/+0x50
     /// Precompiled [new clip][previous clip] transition matrix.
     pub blend_matrix: Vec<f32>,
+    /// The resource it was read from, normalised, as its loader sets it (empty when unknown). The
+    /// original loads one object per resource (`ExternalFactory::FindOrLoad`), so this names the
+    /// group the way the original's pointer does.
+    pub name: String,
 }
 
 impl AnimationGroup {
@@ -172,7 +176,7 @@ impl AnimationGroup {
             let default_blend = r.f32()?;
             let blend_matrix_count = r.count()?;
             let blend_matrix = (0..blend_matrix_count).map(|_| r.f32()).collect::<Result<Vec<_>>>()?;
-            Ok(AnimationGroup { clips, default_blend, blends, blend_matrix })
+            Ok(AnimationGroup { clips, default_blend, blends, blend_matrix, name: String::new() })
         })
     }
 }

@@ -641,6 +641,7 @@
 180022280	length3	crates/core/src/math.rs
 180022300	normalize3_len	crates/core/src/math.rs
 180022990	from_yaw_pitch	crates/core/src/math.rs
+18005d610	saved_layers_2	crates/sim/src/town/load/animation.rs
 18005e620	Transform::inverse	crates/core/src/math.rs
 18006d0d0	normalize2	crates/core/src/math.rs
 18007ae20	picking_3	crates/formats/src/picking.rs
@@ -704,12 +705,13 @@
 1800fdf30	AnimationGroup::read	crates/formats/src/types/animation.rs
 1800fe200	shared_3	crates/game/src/behaviour/animation/shared.rs
 1800fe260	shared	crates/game/src/behaviour/animation/shared.rs
-1800fea20	empty_animations	crates/formats/src/savegame.rs
+1800fea20	StartingTown::export_animations	crates/sim/src/town/save/animation.rs
 1800fead0	shared_2	crates/game/src/behaviour/animation/shared.rs
 1800ff4b0	AnimationStack::update_2	crates/game/src/behaviour/animation.rs
 1801003b0	AnimationStack::update	crates/game/src/behaviour/animation.rs
 1801007e0	AnimationStack::play	crates/game/src/behaviour/animation.rs
 180101c40	GraphicsMesh::read	crates/formats/src/types/mesh.rs
+180101f10	AnimationStack::restored	crates/game/src/behaviour/animation.rs
 180102060	Playback::is_animating	crates/game/src/behaviour/animation.rs
 1801037b0	detail_level	apps/game/src/gfx/models/culling.rs
 180106300	MaterialInstance::read	crates/formats/src/types.rs

@@ -240,6 +240,16 @@ impl AnimationStack {
         }
     }
 
+    /// The layers a save holds, newest first, with no pose yet: the first update makes it.
+    ///
+    /// Original: `MeshInstance::Serialize`, Runtime `0x180101f10` (reading).
+    pub fn restored(layers: Vec<Layer>) -> Self {
+        Self {
+            layers,
+            pose: Vec::new(),
+        }
+    }
+
     /// The newest layer's clip.
     pub fn clip(&self) -> Option<usize> {
         self.layers.first().map(|l| l.playback.clip)

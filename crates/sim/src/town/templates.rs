@@ -141,7 +141,10 @@ pub(super) fn load_template(
                                         .and_then(|bytes| {
                                             unbanished_formats::types::animation_group(&bytes).ok()
                                         })
-                                        .map(Arc::new)
+                                        .map(|mut g| {
+                                            g.name = normalise(reference);
+                                            Arc::new(g)
+                                        })
                                 })
                                 .clone()
                         })

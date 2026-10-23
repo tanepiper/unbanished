@@ -179,8 +179,16 @@ impl StartingTown {
             }
             let Some(e) = entity_of(g, id) else { continue };
             let ch = &self.agents.characters[c];
+            // The group the citizen plays (by sex), for a model that saved no states yet.
+            let group = self
+                .citizen_anims
+                .get(usize::from(!self.citizens[c].male))
+                .and_then(Option::as_deref)
+                .filter(|a| !a.name.is_empty())
+                .map(|a| refs.id(g, &a.name));
             if let Some(m) = fields_mut(g, e, "ModelComponent") {
                 m.set("model.position", Value::F32s(ch.position.to_vec()));
+                super::animation::write_layers(m, &ch.animation, group);
                 if m.f32("model.yaw") != Some(ch.yaw) {
                     m.set_f32("model.yaw", ch.yaw);
                     let q = unbanished_game::math::Transform::character_rotation(ch.yaw);

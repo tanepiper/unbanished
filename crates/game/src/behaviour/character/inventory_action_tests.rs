@@ -7,6 +7,7 @@ fn clearing_pending_consumption_and_pickup_releases_reservations() {
         default_blend: 0.0,
         blends: vec![],
         blend_matrix: vec![],
+        name: String::new(),
     };
     let mut ch = Character::new(CharacterDescription::default(), [0.0; 3], 1.0);
     let mut storages = vec![Storage {

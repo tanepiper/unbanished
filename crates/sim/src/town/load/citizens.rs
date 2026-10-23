@@ -262,6 +262,9 @@ impl StartingTown {
                     ch.position = p;
                 }
                 ch.yaw = m.fields.f32("model.yaw").unwrap_or(ch.yaw);
+                if let Some(a) = super::animation::saved_layers(&m.fields) {
+                    ch.animation = a;
+                }
             }
             if let Some(k) = component("CharacterComponent") {
                 if let Ok(d) = <[f32; 3]>::try_from(floats(&k.fields, "character.direction")) {

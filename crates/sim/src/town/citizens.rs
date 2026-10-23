@@ -105,11 +105,11 @@ pub(super) fn citizen_animations(
         .variants
         .iter()
         .map(|v| {
-            v.animations
-                .as_deref()
-                .and_then(|r| read(archive, r))
-                .and_then(|d| unbanished_formats::types::animation_group(&d).ok())
-                .map(Arc::new)
+            let reference = v.animations.as_deref()?;
+            let mut group = read(archive, reference)
+                .and_then(|d| unbanished_formats::types::animation_group(&d).ok())?;
+            group.name = normalise(reference);
+            Some(Arc::new(group))
         })
         .collect()
 }

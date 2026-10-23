@@ -1,10 +1,10 @@
 use super::*;
 
-/// A walk restored from a save mid-way (index 1 of 3 cells) plays its walk clip and faces
-/// its next cell on the first update, once. Without the clip the body has no root motion
-/// and would never reach the next cell.
+/// A walk restored from a save mid-way (index 1 of 3 cells) goes on with the clip and the
+/// direction the character was saved with: the save's animation state holds the walk, so the
+/// first update neither plays a clip nor turns the character.
 #[test]
-fn a_restored_walk_plays_its_clip_and_faces_the_next_cell_once() {
+fn a_restored_walk_keeps_its_saved_clip_and_direction() {
     let n = 8;
     let types = vec![CellType(2); n * n];
     let none = vec![None; n * n];
@@ -22,6 +22,7 @@ fn a_restored_walk_plays_its_clip_and_faces_the_next_cell_once() {
         default_blend: 0.0,
         blends: vec![],
         blend_matrix: vec![],
+        name: String::new(),
     };
     let mut pathfinder = Pathfinder::new(n, &types);
     let mut rng = Random::new(1);
@@ -67,8 +68,8 @@ fn a_restored_walk_plays_its_clip_and_faces_the_next_cell_once() {
         world.cell_centre(here),
         1.0,
     );
-    ch.direction = [0.0; 3];
-    ch.play(stand, &group, 1.0);
+    ch.direction = [0.0, 1.0, 0.0];
+    ch.play(walk, &group, 1.0);
     let mut m = MoveTo::restored(
         world.cell_centre(end),
         walk,
@@ -82,10 +83,5 @@ fn a_restored_walk_plays_its_clip_and_faces_the_next_cell_once() {
     );
     assert_eq!(m.update(&mut ch, &mut world, &group), Status::Running);
     assert_eq!(ch.animation.clip(), Some(walk));
-    let to_next = world.cell_centre(next);
-    assert!(ch.direction[0] * (to_next[0] - ch.position[0]) > 0.0);
-    // Only the first update resumes: a clip played afterwards is left alone.
-    ch.play(stand, &group, 1.0);
-    m.update(&mut ch, &mut world, &group);
-    assert_eq!(ch.animation.clip(), Some(stand));
+    assert_eq!(ch.direction, [0.0, 1.0, 0.0]);
 }

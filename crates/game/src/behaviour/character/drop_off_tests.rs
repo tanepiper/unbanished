@@ -26,6 +26,7 @@ fn a_full_storage_redirects_or_drops_a_pile() {
         default_blend: 0.0,
         blends: vec![],
         blend_matrix: vec![],
+        name: String::new(),
     };
     for (found, redirect) in [(true, true), (false, true), (false, false)] {
         let mut pathfinder = Pathfinder::new(n, &types);

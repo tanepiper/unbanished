@@ -55,6 +55,14 @@ fn main() {
                 e.i32("clip"),
                 e.i32("users")
             );
+            if std::env::var_os("DETAIL").is_some() {
+                if let Some(Value::List(nodes)) = e.get("nodes") {
+                    println!("  nodes: {}", nodes.len());
+                    for n in nodes.iter().take(3) {
+                        println!("    {n:?}");
+                    }
+                }
+            }
             if let Some(Value::List(instances)) = e.get("instances") {
                 for (k, inst) in instances.iter().enumerate() {
                     let Some(Value::List(states)) = inst.get("states") else {
@@ -65,6 +73,16 @@ fn main() {
                         .map(|s| (s.i32("clip"), s.get("elapsed").cloned()))
                         .collect();
                     println!("  instance {k}: {clocks:?}");
+                    if std::env::var_os("DETAIL").is_some() {
+                        for key in ["flag", "pairs", "vector", "pose"] {
+                            match inst.get(key) {
+                                Some(Value::List(l)) => {
+                                    println!("    {key}: {} items, first {:?}", l.len(), l.first())
+                                }
+                                v => println!("    {key}: {v:?}"),
+                            }
+                        }
+                    }
                 }
             }
         }

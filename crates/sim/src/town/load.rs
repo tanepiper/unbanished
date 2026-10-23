@@ -20,6 +20,7 @@ use unbanished_game::terrain::CellType;
 use super::{citizen_rules, load_template, read, StartingTown, TownParts};
 
 mod actions;
+mod animation;
 mod citizens;
 mod construction;
 mod producers;
@@ -270,6 +271,7 @@ impl StartingTown {
         town.restore_jobs(archive, saved, &index, &order);
         town.restore_actions(archive, saved, &index, &order);
         town.restore_water(saved, &index);
+        town.restore_animations(saved);
         town.restore_character_tree(saved, &index, &order);
         let mut ids = super::SaveIds {
             entities: vec![None; town.placed.len()],
@@ -323,6 +325,11 @@ mod stage3d_tests;
 /// history.
 #[cfg(test)]
 mod stage4_tests;
+
+/// The animation of the vanilla saves: every character's layers as its model saved them, the
+/// shared instances slot by slot, and the walks under way still moving after loading.
+#[cfg(test)]
+mod animation_tests;
 
 #[cfg(any(test, feature = "test-support"))]
 pub mod tests_support {
