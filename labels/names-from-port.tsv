@@ -645,6 +645,7 @@
 18001eb60	qmul	crates/core/src/math.rs
 180022280	length3	crates/core/src/math.rs
 180022300	normalize3_len	crates/core/src/math.rs
+1800223c0	normalize3	crates/core/src/math.rs
 180022990	from_yaw_pitch	crates/core/src/math.rs
 18005d610	saved_layers_2	crates/sim/src/town/load/animation.rs
 18005e620	Transform::inverse	crates/core/src/math.rs
