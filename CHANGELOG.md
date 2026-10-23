@@ -11,6 +11,13 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Fixed
 
+- A new game's deer get the same ages and lifespans as in the original. Each animal's lifespan
+  is drawn when the animal is made, before its position and age. Livestock bought from a
+  merchant are now up to half their lifespan old, not newborn.
+- A new game's herds pick the same places as in the original: the starting barn and house hold
+  their ground from the start, so deer are not placed under them.
+- Saves of wild trees, rocks and herbs keep the original's "keep piles" flag set.
+
 - Saves of fishing docks keep each fisher in their slot. Empty slots were moved to the front
   when the game was saved.
 - Older saves (2015) load the citizens who were eating from their own hands; their actions were

@@ -85,19 +85,32 @@ order, the conditions that skip them, and the arithmetic on the result.
 | `FUN_14008eea0` | A happiness place near a cell, for loitering | Match: candidates in registry order, the same path-rank arguments (`cell`, then the use point) and fallback, `Rand(count)` only with candidates |
 | `FUN_140126420`, `FUN_140126920` | A herd's animals are made, and a herd grows back | Differed: the original makes each animal (whose deer model draws its variant, `FUN_140129f90`) before the offsets and the heading. The port made it after them. Fixed |
 
-## Not yet compared
+## The new game, compared with the original's saves
 
-Every other ported function has been read against the original. What is left is the start of a new game: the resource seeding
-(`FUN_1400a6780`), the households (`FUN_1400a62a0`, `FUN_1400a6510`), the deer and livestock
-(`FUN_1400a5fe0`) and the start-condition set-up (`FUN_1400a87d0`). docs/RESOURCE-SEEDING.md
-specifies their draws from the code. They make entities through the component system, which the
-emulator cannot run, so the check they need is a save the original makes right after starting a
-new game with a known seed, compared with the port's new game from the same seed.
+`Save2` and `Save3` are saves the original made 63 and 70 iterations into new games (seeds
+119484825 on Valleys and 907101598 on Mountains, Medium start, Fair climate). The port starts a
+new game with the same seed and settings, runs to the same iteration (`--sim-continue`) and is
+compared with `save_random_distance` and object by object. Two differences in the start were
+found this way and fixed:
 
-Only three components draw in their setup (slot `+0x20`, run inside the entity constructor
-`FUN_1400c8bf0`): the model's variant (`FUN_140129f90`), a tombstone's lifetime (`FUN_1400581c0`)
-and `CreateNaturalResource` (`FUN_1400cbb20`). Wherever the original makes an entity, these draws
-come at that point.
+| Where | What differed | Result |
+|---|---|---|
+| An animal's lifespan, `FUN_14010c220` | The AnimalComponent's setup draws the lifespan (`RandFloatTol`) inside the entity constructor, right after the model's variant (the model comes first in every animal template). The port drew it at registration, after the offsets, the heading and the age, so every deer had another deer's age and lifespan. Livestock bought at a trading post got age 0, because its age is half the lifespan drawn at that point | Fixed: all 16 herds of `Save2` match field for field |
+| The start structures, `FUN_1400a7490` | The barn and the house are built at once and hold their cells (occupant and type) before the deer population starts. Its capacity (`FUN_1400544b0`) leaves out a population cell with an occupant, so the herd whose block holds the town picks its target from 60 cells, where the port offered 64 | Fixed: the port marks their footprints right after placing them |
+
+After these, every object type has the same count in both towns, and the random state is 29
+draws behind `Save2`'s (25 behind `Save3`'s). The first walk that differs is the 16th citizen's,
+the first one made in the second iteration (bucket 1 visits 15 citizens an iteration). Adding 11
+draws at the end of the first iteration gives both later walks their original speeds, so the
+original draws 11 more between the 15th citizen's walk and the 16th's: in buckets 2 to 4 of the
+first iteration, or in the second iteration's every-iteration set or bucket 0. That is still to
+find.
+
+Four components draw in their setup (slot `+0x20`, run inside the entity constructor
+`FUN_1400c8bf0`): the model's variant (`FUN_140129f90`), an animal's lifespan
+(`FUN_14010c220`), a tombstone's lifetime (`FUN_1400581c0`) and `CreateNaturalResource`
+(`FUN_1400cbb20`). Wherever the original makes an entity, these draws come at that point, in its
+template's component order.
 
 ## The order within an iteration
 

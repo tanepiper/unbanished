@@ -115,7 +115,10 @@ The remaining steps:
 - **Stamping** (map activation `FUN_140129840` → `FUN_140129680` → `FUN_1400a30f0`): it runs only
   when the `MapDescription` stamp flag (`+0x30`) is set. Natural resources have an empty footprint
   and type 4, so their cell becomes type 4 and its `+0x08` points at the entity. Buildings (barn,
-  houses) have this flag clear, so placing the start structures does not change the cells.
+  houses) have this flag clear, so their map activation does not change the cells. They are
+  built at once, though, and hold their footprint's cells before the deer population starts
+  (*measured* on `Save2`: the town's herd picks its target as if the four population cells under
+  them had no capacity).
 - **Spawn** (`FUN_140056620`). For each entry whose `[lo, hi]` contains the parent's growth, it
   makes `(int)(growth / child +0x20) + 1` attempts of `FUN_1400560e0`. Each attempt:
   1. draws `RandFloat() ≤ 1 / child +0x48`;

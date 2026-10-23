@@ -64,7 +64,7 @@
   "command": "town",
   "ok": {
    "adults": 10,
-   "animals": 110,
+   "animals": 117,
    "buildings": 2,
    "children": 9,
    "firewood": 200,
@@ -84,7 +84,7 @@
   "command": "stock",
   "ok": {
    "alcohol": 0,
-   "clothes": 19,
+   "clothes": 17,
    "coal": 0,
    "firewood": 200,
    "food": 1800,
@@ -92,7 +92,7 @@
    "iron": 40,
    "stone": 60,
    "textile": 0,
-   "tools": 35,
+   "tools": 34,
    "wood": 120
   },
   "t": 16.0
@@ -130,9 +130,9 @@
   "command": "animals",
   "ok": {
    "by_name": {
-    "WildAnimalDeer": 110
+    "WildAnimalDeer": 117
    },
-   "total": 110
+   "total": 117
   },
   "t": 16.0
  },
@@ -147,7 +147,7 @@
   "command": "town",
   "ok": {
    "adults": 10,
-   "animals": 109,
+   "animals": 115,
    "buildings": 2,
    "children": 9,
    "firewood": 200,
@@ -196,9 +196,9 @@
   "command": "animals",
   "ok": {
    "by_name": {
-    "WildAnimalDeer": 109
+    "WildAnimalDeer": 115
    },
-   "total": 109
+   "total": 115
   },
   "t": 40.0
  },

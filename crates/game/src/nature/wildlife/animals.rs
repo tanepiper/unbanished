@@ -37,10 +37,12 @@ impl Wild<'_, '_> {
         id
     }
 
-    /// `FUN_1400c8bf0`'s ModelComponent: the variant (random when the model says so) and its
-    /// mesh.
-    pub(super) fn pick_variant(&mut self, template: usize) -> Option<(usize, usize)> {
-        self.wildlife.animal_kinds.get(&template)?;
+    /// The setups `FUN_1400c8bf0` runs when it makes an animal, in its template's order (the model
+    /// before the animal in every animal template): the ModelComponent's variant (random when the
+    /// model says so) and its mesh (`FUN_140129f90`), then the AnimalComponent's lifespan
+    /// (`FUN_14010c220`).
+    pub(super) fn pick_variant(&mut self, template: usize) -> Option<(usize, usize, f32)> {
+        let d = self.wildlife.animal_kinds.get(&template)?.desc.clone();
         let t = &self.templates[template];
         let (mut variant, mut mesh) = (0usize, 0usize);
         if let Some(m) = &t.model {
@@ -50,15 +52,16 @@ impl Wild<'_, '_> {
             }
             mesh = m.mesh.max(0) as usize;
         }
-        Some((variant, mesh))
+        let life = self.rng.rand_float_tol() * d.life_range + d.life;
+        Some((variant, mesh, life))
     }
 
-    /// A new animal of `template` with the variant [`Wild::pick_variant`] chose
+    /// A new animal of `template` with the variant and lifespan [`Wild::pick_variant`] chose
     /// (`FUN_14010c8d0`: placed, turned, wild; a male takes the variant's second mesh).
     pub(super) fn insert_animal(
         &mut self,
         template: usize,
-        (variant, mut mesh): (usize, usize),
+        (variant, mut mesh, life): (usize, usize, f32),
         position: [f32; 3],
         yaw: f32,
         male: bool,
@@ -84,7 +87,7 @@ impl Wild<'_, '_> {
                 area: [0; 4],
                 male,
                 age: 0.0,
-                life: 0.0,
+                life,
                 breed: 0,
                 livestock: self
                     .wildlife
@@ -101,8 +104,7 @@ impl Wild<'_, '_> {
         Some(id)
     }
 
-    /// `FUN_1400c9d70` for an animal: its entity, the setup (`FUN_14010c220`, the lifespan),
-    /// the activation (`FUN_14010c0f0`: home where it stands, its area around it, then the
+    /// `FUN_1400c9d70` for an animal: its entity and the activation (`FUN_14010c0f0`: home where it stands, its area around it, then the
     /// scheduled update with no time).
     pub(super) fn register_animal(&mut self, a: usize) {
         self.register_animal_in(a, true);
@@ -133,11 +135,9 @@ impl Wild<'_, '_> {
             .character
             .tree_slot = slot;
         let d = self.wildlife.animal_kinds[&template].desc.clone();
-        let life = self.rng.rand_float_tol() * d.life_range + d.life;
         let n = self.n();
         let cell = self.cell_of(position);
         let animal = self.wildlife.animals.get_mut(&a).unwrap();
-        animal.life = life;
         if animal.flags & WILD != 0 {
             animal.home = cell;
             animal.area = area_around(n, cell, d.area);

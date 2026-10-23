@@ -257,6 +257,9 @@ impl StartingTown {
         };
         seeder.place_structures(&structures, start.0, start.1);
         let structure_count = seeder.placed.len();
+        for (e, p) in seeder.placed.iter().enumerate() {
+            assemble::stamp_structure(seeder.cells, &templates, p, e);
+        }
         seeder.seed(&list, start.0, start.1, radius * radius);
         let mut scheduler = EntityScheduler::default();
         for (id, p) in placed.iter().enumerate() {

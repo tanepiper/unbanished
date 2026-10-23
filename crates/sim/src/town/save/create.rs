@@ -131,6 +131,10 @@ pub fn new_entity(
         f.set("base.entity", Value::Ptr(Some(entity)));
         f.set_i32("base.description", description as i32);
         f.set_i32("base.flags", initial_flags(name) as i32);
+        // The factory (`FUN_140036eb0`) sets `+0x2d`: a wild resource keeps its piles.
+        if name == "NaturalResourceComponent" {
+            f.set_bool("natural.flag_2d", true);
+        }
         components.push(c);
     }
     // A character's model animates (update bit `0x04`).

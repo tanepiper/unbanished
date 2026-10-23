@@ -213,36 +213,39 @@ impl StartingTown {
             site.complete = true;
             // Activation runs the machine from state 2.
             site.machine.pending = 2;
-            let map = self.templates[self.placed[e].template].map.clone();
-            let p = &self.placed[e];
-            let rect = unbanished_game::world::placement::Rect {
-                x0: p.cell.0,
-                y0: p.cell.1,
-                x1: p.cell.0 + p.footprint.0 - 1,
-                y1: p.cell.1 + p.footprint.1 - 1,
-            };
-            let degrees = p.yaw as i32;
-            if let Some(map) = map {
-                let rules = unbanished_game::world::placement::PlacementRules {
-                    mask: 0,
-                    masks: Vec::new(),
-                    mask_chars: String::new(),
-                    footprint: map.footprint.clone(),
-                    width: 0,
-                    height: 0,
-                    cell_type: map.cell_type as u8,
-                };
-                if !map.no_stamp {
-                    unbanished_game::world::placement::stamp(
-                        &mut self.cells,
-                        &rules,
-                        rect,
-                        degrees,
-                        e,
-                    );
-                }
-                unbanished_game::world::placement::zone(&mut self.cells, &rules, rect, degrees, e);
-            }
         }
     }
+}
+
+/// A start structure's footprint and zone on the map. The start structures are built at once
+/// (`Game |= 1`), so they hold their cells from the moment they are placed: the deer population's
+/// capacity (`FUN_1400544b0`), which counts a cell with an occupant as forbidden, already leaves
+/// out their population cells (*measured* on `Save2`, where herd 10's target is only reachable
+/// with the four population cells under the barn and the house left out).
+///
+/// Original: `FUN_1400a7490`, `FUN_14010cfb0`.
+pub(super) fn stamp_structure(cells: &mut Cells, templates: &[Template], p: &Placed, e: usize) {
+    let Some(map) = templates[p.template].map.clone() else {
+        return;
+    };
+    let rect = unbanished_game::world::placement::Rect {
+        x0: p.cell.0,
+        y0: p.cell.1,
+        x1: p.cell.0 + p.footprint.0 - 1,
+        y1: p.cell.1 + p.footprint.1 - 1,
+    };
+    let degrees = p.yaw as i32;
+    let rules = unbanished_game::world::placement::PlacementRules {
+        mask: 0,
+        masks: Vec::new(),
+        mask_chars: String::new(),
+        footprint: map.footprint.clone(),
+        width: 0,
+        height: 0,
+        cell_type: map.cell_type as u8,
+    };
+    if !map.no_stamp {
+        unbanished_game::world::placement::stamp(cells, &rules, rect, degrees, e);
+    }
+    unbanished_game::world::placement::zone(cells, &rules, rect, degrees, e);
 }

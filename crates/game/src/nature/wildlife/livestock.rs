@@ -263,8 +263,8 @@ impl Wild<'_, '_> {
     /// Livestock bought at a trading post, `count` animals at random between its first two create
     /// points (`a`, `b`), males and females in turn from a random first, turned at random; not
     /// wild, they keep to the cells between the points (`area`) until a pasture takes them. Each is
-    /// `RandFloat` × half its lifespan old, which is still unset here (before the setup), so none.
-    /// The owner registers the entities.
+    /// `RandFloat` × half its lifespan old (the lifespan is drawn when the entity is made). The
+    /// owner registers the entities.
     ///
     /// Original: `FUN_14005b640`.
     pub fn trade_livestock(
