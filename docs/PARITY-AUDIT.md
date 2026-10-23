@@ -121,6 +121,11 @@ These do. Each is now ported bit for bit:
   `floorf` and `sqrtf` already matched.
 - **Normalize, FromYawPitch and Heading** (`math.rs`): `v * (1 / length)` with zero left as is;
   `(−cos p · sin y, cos p · cos y, sin p)`; `atan2f(−x, y) · 57.29578`.
+  `Vector3::Normalize` (`0x180022300`; the version without the length, `0x1800223c0`, calls it)
+  and `Vector2::Normalize` (`0x18006d0d0`, `0x18006d280`) match bit for bit on 4,000 vectors,
+  tiny, huge (squares that overflow) and denormal parts among them (`tools/emu/normalize.py`).
+  The length is the CRT's `sqrtf`, which sends NaN and infinity to an error handler (not
+  emulated); a NaN length takes the divide branch in both.
 - **Model transforms** (`math::Transform`; `FromYawPitchOffset` `0x18007e540`, `operator*`
   `0x18001eae0`, `Quaternion::Rotate`, `Transform::Inverse` `0x18005e620`): every entity keeps a
   quaternion and an offset (`+0x148`, `+0x158`). Model-space points go through the quaternion,

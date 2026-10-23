@@ -33,6 +33,8 @@ pub fn length3(v: [f32; 3]) -> f32 {
 /// A 3D vector scaled to length 1 (times `1 / length`), and its length. A zero vector is returned
 /// as it is.
 ///
+/// Measured: `tools/emu/normalize.py` (4,000 vectors, tiny, huge and denormal parts among them).
+///
 /// Original: `Math::Vector3::Normalize`, Runtime `0x180022300`.
 pub fn normalize3_len(v: [f32; 3]) -> ([f32; 3], f32) {
     let l = length3(v);
@@ -43,12 +45,18 @@ pub fn normalize3_len(v: [f32; 3]) -> ([f32; 3], f32) {
     ([v[0] * inv, v[1] * inv, v[2] * inv], l)
 }
 
-/// A 3D vector scaled to length 1. A zero vector is returned as it is.
+/// A 3D vector scaled to length 1. A zero vector is returned as it is. The original's version
+/// without the length calls the one with it.
+///
+/// Original: `Math::Vector3::Normalize`, Runtime `0x1800223c0`.
 pub fn normalize3(v: [f32; 3]) -> [f32; 3] {
     normalize3_len(v).0
 }
 
+// The version with the length is Runtime 0x18006d280; both are measured.
 /// A 2D vector scaled to length 1. A zero vector is returned as it is.
+///
+/// Measured: `tools/emu/normalize.py` (with and without the length).
 ///
 /// Original: `Math::Vector2::Normalize`, Runtime `0x18006d0d0`.
 pub fn normalize2(v: [f32; 2]) -> [f32; 2] {
