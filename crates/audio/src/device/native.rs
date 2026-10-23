@@ -73,12 +73,18 @@ pub struct Device {
     master: f32,
 }
 
+/// Whether `UNBANISHED_MUTE` is set: tests and tools set it so that no run is heard, whatever
+/// volume the game asks for.
+fn muted() -> bool {
+    std::env::var_os("UNBANISHED_MUTE").is_some_and(|v| !v.is_empty() && v != "0")
+}
+
 impl Default for Device {
     fn default() -> Self {
         Device {
             stream: None,
             voices: Slots::default(),
-            master: 1.0,
+            master: if muted() { 0.0 } else { 1.0 },
         }
     }
 }
@@ -232,9 +238,9 @@ impl Device {
         }
     }
 
-    /// Scales every channel.
+    /// Scales every channel (always 0 with `UNBANISHED_MUTE` set).
     pub fn set_master_volume(&mut self, volume: f32) {
-        self.master = volume.max(0.0);
+        self.master = if muted() { 0.0 } else { volume.max(0.0) };
         for (_, v) in self.voices.iter() {
             v.sink.set_volume(v.volume * self.master);
         }

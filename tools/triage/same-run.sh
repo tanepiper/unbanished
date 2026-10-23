@@ -8,6 +8,8 @@
 # The saves are compared with the `savegame_same` example (game state, ignoring the header's
 # date), the frames with `imgdiff`. Exit 0 when both match.
 set -euo pipefail
+# No run is ever heard (crates/audio keeps the volume at 0).
+export UNBANISHED_MUTE=1
 cd "$(dirname "$0")/../.."
 base="$1"
 new="$2"

@@ -9,6 +9,8 @@
 # BINARY is a game binary (or a git revision, built clean with tools/compat/build.sh). Exit 0 when
 # every replay matches. Results stay in target/compat/replays/<binary>-<hash>.
 set -euo pipefail
+# No run is ever heard (crates/audio keeps the volume at 0).
+export UNBANISHED_MUTE=1
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
 source tools/compat/run-name.sh

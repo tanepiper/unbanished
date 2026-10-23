@@ -53,6 +53,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Added
 
+- Tests, the compatibility tools and the browser tests are silent: `UNBANISHED_MUTE=1` keeps the
+  game's sound at volume 0, and the test browsers start muted.
+
 - Function labels made from the port's own citations (`labels/names-from-port.tsv`): the
   decompile tools now name 703 original functions, up from 226. The label files moved from
   `tools/triage/` to `labels/`.

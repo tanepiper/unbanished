@@ -11,6 +11,8 @@
 #
 # Exit 0 when all hold. Results stay in target/compat/hooks/<binary>-<hash> when they do not.
 set -euo pipefail
+# No run is ever heard (crates/audio keeps the volume at 0).
+export UNBANISHED_MUTE=1
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
 source tools/compat/run-name.sh

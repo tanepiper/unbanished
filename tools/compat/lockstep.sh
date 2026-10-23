@@ -10,6 +10,8 @@
 # digest checks (every N updates, 0 none) and a corruption (PLAYER:UPDATE, - for none). A run with
 # a corruption must find the desync, resync the players from the host's save and end identical.
 set -euo pipefail
+# No run is ever heard (crates/audio keeps the volume at 0).
+export UNBANISHED_MUTE=1
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
 source tools/compat/run-name.sh

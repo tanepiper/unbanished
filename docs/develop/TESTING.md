@@ -187,6 +187,11 @@ tools/test/run.py determinism browser                  # if the change touches t
 tools/compat/compare.sh HEAD <your build or commit>    # if the change can touch the simulation
 ```
 
+No test is ever heard. The runners set `UNBANISHED_MUTE=1`, which keeps the native game's sound
+at volume 0 whatever the game asks for (`crates/audio`, `Device`). The browser tests start Chrome
+with `--mute-audio` and Firefox with `media.volume_scale` at 0. Set the variable yourself for a
+game you start by hand.
+
 Other sessions may build and test in the same checkout at the same time, and they share
 `target/release/unbanished`. Copy your build to a file of your own (in your scratchpad, with a
 name of your own) and give `compare.sh` that copy, so another session's build cannot replace it

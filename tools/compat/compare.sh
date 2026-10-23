@@ -15,6 +15,8 @@
 #
 # Example: tools/compat/compare.sh v0.2.0 HEAD
 set -euo pipefail
+# No run is ever heard (crates/audio keeps the volume at 0).
+export UNBANISHED_MUTE=1
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo"
 source tools/compat/run-name.sh

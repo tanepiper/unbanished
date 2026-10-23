@@ -208,7 +208,7 @@ class Chrome extends Browser {
     const b = new Chrome();
     b.profile = mkdtempSync(join(tmpdir(), 'ub-test-chrome-'));
     b.proc = spawn(path, [
-      '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${b.profile}`,
+      '--headless=new', '--mute-audio', '--remote-debugging-port=0', `--user-data-dir=${b.profile}`,
       '--enable-unsafe-webgpu', '--enable-gpu', '--use-angle=metal', '--ignore-gpu-blocklist',
       '--no-first-run', '--no-default-browser-check', '--disable-background-timer-throttling',
       '--disable-renderer-backgrounding', `--window-size=${VIEW.width},${VIEW.height}`, 'about:blank',
@@ -358,7 +358,9 @@ class Firefox extends Browser {
     const b = new Firefox();
     b.profile = mkdtempSync(join(tmpdir(), 'ub-test-firefox-'));
     // Headless Firefox offers WebGPU but gives no WebGPU canvas, so the tests use WebGL 2.
-    writeFileSync(join(b.profile, 'user.js'), webgpu ? '' : 'user_pref("dom.webgpu.enabled", false);\n');
+    // No sound: the game's audio must never be heard while tests run.
+    writeFileSync(join(b.profile, 'user.js'), 'user_pref("media.volume_scale", "0.0");\n'
+      + (webgpu ? '' : 'user_pref("dom.webgpu.enabled", false);\n'));
     b.proc = spawn(path, ['--headless', '--remote-debugging-port=0', '--profile', b.profile, '--no-remote',
       `--width=${VIEW.width}`, `--height=${VIEW.height}`],
       // Setting the page size through BiDi needs this.

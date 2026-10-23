@@ -11,6 +11,8 @@
 # All revisions share one cargo target folder (target/compat/cargo), so dependencies are built
 # once. The build id is the commit (UNBANISHED_BUILD), so `unbanished --version` names it.
 set -euo pipefail
+# No run is ever heard (crates/audio keeps the volume at 0).
+export UNBANISHED_MUTE=1
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 rev="${1:?usage: tools/compat/build.sh REV [--keep]}"
 keep="${2:-}"

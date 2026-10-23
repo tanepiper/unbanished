@@ -33,6 +33,8 @@ from pathlib import Path
 from typing import Callable
 
 REPO = Path(__file__).resolve().parents[2]
+# No test is ever heard: every game and tool started from here keeps its sound at volume 0.
+os.environ["UNBANISHED_MUTE"] = "1"
 RESULTS = REPO / "target" / "test-results"
 WINDATA = Path(os.environ.get("UB_WINDATA", REPO / "game-data" / "original" / "WinData"))
 WEB_DIST = REPO / "target" / "test-web" / "game"

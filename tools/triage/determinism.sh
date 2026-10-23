@@ -6,6 +6,8 @@
 # Usage: tools/triage/determinism.sh [SECONDS] [SEED] [extra capture arguments...]   (defaults 16, 1234)
 # Exit 0 when identical; prints the imgdiff report and keeps the frames otherwise.
 set -euo pipefail
+# No run is ever heard (crates/audio keeps the volume at 0).
+export UNBANISHED_MUTE=1
 cd "$(dirname "$0")/../.."
 secs="${1:-16}"
 seed="${2:-1234}"

@@ -29,6 +29,8 @@
 # Builds before 0.2.0 lack the `speed` script command (they run at speed 1) and may save on a
 # GPU-dependent frame; compare them only with themselves.
 set -euo pipefail
+# No run is ever heard (crates/audio keeps the volume at 0).
+export UNBANISHED_MUTE=1
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 bin="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 out="$2"
