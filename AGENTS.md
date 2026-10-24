@@ -1,5 +1,30 @@
 # AGENTS.md — working on Un-Banished
 
+## Before you continue: one GameFrame checkout (2026-10-24)
+
+Resolve this before any other work here, then delete this section and commit.
+
+GameFrame now has one checkout on this machine: `/Users/tanepiper/code/reverse-engineer-games`, the clone of
+https://github.com/tanepiper/game-frame. The clones in `~/code/pod-planet-of-death/game-frame`
+and `~/code/hardwar/game-frame`, and the link `~/re/game-frame`, are being removed. This
+project's `.env` already names the checkout (`GAMEFRAME_ROOT=/Users/tanepiper/code/reverse-engineer-games`).
+
+1. This project uses GameFrame through its Claude Code plugin and has no `./gameframe`
+   launcher. When you run GameFrame's tools or scripts, run them from `/Users/tanepiper/code/reverse-engineer-games`, with
+   `GAMEFRAME_PROJECT` set to this folder.
+2. If a session of this project changed GameFrame anywhere else (another clone, a copy, a
+   worktree of another clone), move that work into a git worktree of the one checkout, test it
+   there and merge it into its `main`. Do not push GameFrame from anywhere else.
+3. From now on, change GameFrame only in a worktree of that checkout:
+   `git -C /Users/tanepiper/code/reverse-engineer-games worktree add ../game-frame-NAME -b NAME`.
+
+GameFrame's `docs/working/environments.md` ("One GameFrame checkout") has the details.
+
+This is about where GameFrame itself lives, not about what a game may build. Keep building this
+game's own tools, crates, scripts and viewers here, as the game needs: each game is different.
+What would help any game (a tool fix, a format family, a pitfall, a know-how entry) goes back to
+GameFrame, through a worktree of the one checkout.
+
 Instructions for anyone changing this repository: human contributors and AI coding agents
 (Claude Code, Codex, Cursor and others). Players want the [README](README.md) and the
 [user guide](docs/USER-GUIDE.md) instead.
