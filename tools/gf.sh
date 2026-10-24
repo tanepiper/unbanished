@@ -7,21 +7,27 @@
 #
 # GameFrame's skills and agents come from its Claude Code plugin (.claude/settings.json). Their
 # commands name tools by GameFrame's paths (tools/triage/decomp_query.py ...): run those through
-# this script. It finds GameFrame in $GAMEFRAME_ROOT, then next to this repository
-# (../game-frame or ../reverse-engineer-games), then in ~/code. If none exists, clone it:
-#   git clone https://github.com/tanepiper/game-frame ../game-frame
-# The tools run in this folder, so their paths (game-data/, analysis/, labels/) are this
-# project's. GameFrame's decomp_query.py reads labels/names.tsv from here.
+# this script. It uses the machine's one GameFrame checkout: $GAMEFRAME_ROOT, from the
+# environment or this project's .env, else ~/code/game-frame or
+# ~/code/reverse-engineer-games. It never looks next to this repository: a second clone there
+# would fall behind. To change GameFrame, use a worktree of that checkout (AGENTS.md).
+# The tools run in this folder with GAMEFRAME_PROJECT set to it, so their paths (game-data/,
+# analysis/, labels/) are this project's. GameFrame's decomp_query.py reads labels/names.tsv
+# from here.
 set -euo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
-for d in "${GAMEFRAME_ROOT:-}" "$here/../game-frame" "$here/../reverse-engineer-games" \
-         "$HOME/code/game-frame" "$HOME/code/reverse-engineer-games"; do
+if [[ -z "${GAMEFRAME_ROOT:-}" && -f "$here/.env" ]]; then
+  GAMEFRAME_ROOT="$(sed -n 's/^GAMEFRAME_ROOT=//p' "$here/.env" | tail -1)"
+  GAMEFRAME_ROOT="${GAMEFRAME_ROOT/#\~/$HOME}"
+fi
+for d in "${GAMEFRAME_ROOT:-}" "$HOME/code/game-frame" "$HOME/code/reverse-engineer-games"; do
   if [[ -n "$d" && -f "$d/gameframe" && -d "$d/tools" ]]; then gf="$(cd "$d" && pwd)"; break; fi
 done
 if [[ -z "${gf:-}" ]]; then
-  echo "GameFrame not found: set GAMEFRAME_ROOT, or git clone https://github.com/tanepiper/game-frame ../game-frame" >&2
+  echo "GameFrame not found: set GAMEFRAME_ROOT in .env to the machine's one GameFrame checkout" >&2
   exit 1
 fi
+export GAMEFRAME_PROJECT="$here"
 python="$gf/.venv/bin/python"
 [[ -x "$python" ]] || python="python3"
 if [[ $# -eq 0 || "$1" == "help" || "$1" == "-h" ]]; then

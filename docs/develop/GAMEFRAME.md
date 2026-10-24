@@ -50,7 +50,7 @@ port's citations.
 | Labels in `labels/` | `names.tsv`, `fields.tsv` and `names-from-port.tsv` moved from `tools/triage/` to `labels/`, where GameFrame's tools look. Every tool, skill and guide here was updated |
 | GameFrame's skills and agents | `.claude/settings.json` enables GameFrame's Claude Code plugin: its `re-*` skills and its 18 agents. The `banished-*` skills stay the first choice for this game ([AGENTS.md](../../AGENTS.md), "GameFrame") |
 | The gates | The plugin's hooks stop a commit or a written file that would add game material or decompiled code. The project's settings also refuse force-adding, `git add -A`, `git add .`, `git commit -a` and force-pushing, as AGENTS.md already required |
-| GameFrame's toolkit | `tools/gf.sh` runs any GameFrame tool from this folder, from a clone of GameFrame (`GAMEFRAME_ROOT` or `../game-frame`) |
+| GameFrame's toolkit | `tools/gf.sh` runs any GameFrame tool from this folder, from the machine's one GameFrame checkout (`GAMEFRAME_ROOT` in `.env`) |
 | A checklist in GameFrame's format | [CHECKLIST.md](../CHECKLIST.md) gives the state by inventory, foundations, systems and labels, and links to [GAME-LOOP-CHECKLIST.md](../GAME-LOOP-CHECKLIST.md) for the details. GameFrame's session hook reads its open items |
 | Save games out of git | `/save-game/` added to `.gitignore` (`*.sav` was already ignored) |
 
@@ -60,9 +60,10 @@ improvements are in [CHECKLIST.md](../CHECKLIST.md), "Labels and evidence".
 
 ## How to run GameFrame's tools here
 
-Clone GameFrame next to this repository (`git clone https://github.com/tanepiper/game-frame
-../game-frame`), then run its tools from this folder with `tools/gf.sh`. In the commands below,
-`$GF` stands for that clone, as in the skills:
+Use the machine's one GameFrame checkout, named in `.env` as `GAMEFRAME_ROOT=/path/to/it`. Do
+not clone GameFrame next to this repository: a second clone falls behind. Run its
+tools from this folder with `tools/gf.sh`, which sets `GAMEFRAME_PROJECT` to this folder. In the
+commands below, `$GF` stands for that checkout, as in the skills:
 
 ```bash
 tools/gf.sh tools/triage/hashnames.py game-data/extracted --aligned \

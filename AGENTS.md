@@ -1,30 +1,5 @@
 # AGENTS.md — working on Un-Banished
 
-## Before you continue: one GameFrame checkout (2026-10-24)
-
-Resolve this before any other work here, then delete this section and commit.
-
-GameFrame now has one checkout on this machine: `/Users/tanepiper/code/reverse-engineer-games`, the clone of
-https://github.com/tanepiper/game-frame. The clones in `~/code/pod-planet-of-death/game-frame`
-and `~/code/hardwar/game-frame`, and the link `~/re/game-frame`, are being removed. This
-project's `.env` already names the checkout (`GAMEFRAME_ROOT=/Users/tanepiper/code/reverse-engineer-games`).
-
-1. This project uses GameFrame through its Claude Code plugin and has no `./gameframe`
-   launcher. When you run GameFrame's tools or scripts, run them from `/Users/tanepiper/code/reverse-engineer-games`, with
-   `GAMEFRAME_PROJECT` set to this folder.
-2. If a session of this project changed GameFrame anywhere else (another clone, a copy, a
-   worktree of another clone), move that work into a git worktree of the one checkout, test it
-   there and merge it into its `main`. Do not push GameFrame from anywhere else.
-3. From now on, change GameFrame only in a worktree of that checkout:
-   `git -C /Users/tanepiper/code/reverse-engineer-games worktree add ../game-frame-NAME -b NAME`.
-
-GameFrame's `docs/working/environments.md` ("One GameFrame checkout") has the details.
-
-This is about where GameFrame itself lives, not about what a game may build. Keep building this
-game's own tools, crates, scripts and viewers here, as the game needs: each game is different.
-What would help any game (a tool fix, a format family, a pitfall, a know-how entry) goes back to
-GameFrame, through a worktree of the one checkout.
-
 Instructions for anyone changing this repository: human contributors and AI coding agents
 (Claude Code, Codex, Cursor and others). Players want the [README](README.md) and the
 [user guide](docs/USER-GUIDE.md) instead.
@@ -100,7 +75,7 @@ is **Un-Banished**.
 tools/worktree-setup.sh            # in a git worktree: link game-data, save-game, analysis, .venv, .env from the main checkout
 tools/extract-assets.sh            # copies your game into game-data/ (or UNBANISHED_DIR=… tools/extract-assets.sh)
 tools/re-setup.sh [--install]      # checks (and installs) Ghidra, JDK 21, objdump, Node, .venv with unicorn and pefile; writes .env
-git clone https://github.com/tanepiper/game-frame ../game-frame   # GameFrame's toolkit, for tools/gf.sh and its skills
+# GameFrame: the machine's one checkout, named by GAMEFRAME_ROOT in .env (see "GameFrame" below)
 cargo test --release               # tests needing game data skip when it is missing
 tools/ghidra/export.sh             # optional, ~20 min: analysis/export/<binary>/decomp.c
 ```
@@ -186,8 +161,13 @@ reverse-engineering project ([docs/develop/GAMEFRAME.md](docs/develop/GAMEFRAME.
   stopped, and only `re-lander` among GameFrame's agents commits.
 
 GameFrame's skills name tools by GameFrame's paths. Run them with `tools/gf.sh`, for example
-`tools/gf.sh tools/triage/decomp_query.py fn 1400be770`; it finds a clone of GameFrame
-(`GAMEFRAME_ROOT`, or `../game-frame`). Labels are in `labels/`, where GameFrame's tools look:
+`tools/gf.sh tools/triage/decomp_query.py fn 1400be770`. It uses the machine's one GameFrame
+checkout, named by `GAMEFRAME_ROOT` in `.env`, and sets `GAMEFRAME_PROJECT` to this folder. Never
+clone GameFrame next to this project. To change GameFrame, work in a worktree of that checkout
+(`git -C "$GAMEFRAME_ROOT" worktree add ../game-frame-NAME -b NAME`), test there and merge into
+its `main`; GameFrame's `docs/working/environments.md` ("One GameFrame checkout") has the
+details. What helps any game (a tool fix, a format family, a pitfall) goes back to GameFrame
+this way. This game's own tools, crates and scripts stay here. Labels are in `labels/`, where GameFrame's tools look:
 `labels/names.tsv` and `labels/fields.tsv` by hand, `labels/names-from-port.tsv` generated from
 the port's citations. The project's state, in GameFrame's format, is
 [docs/CHECKLIST.md](docs/CHECKLIST.md).
