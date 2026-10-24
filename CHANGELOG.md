@@ -9,6 +9,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ## [Unreleased]
 
+### Added
+
+- The original Banished can run in the project's own emulated PC (`tools/reference/vm/`), so
+  agents can watch it, drive it and make saves without a Windows PC.
+
 ## [0.5.0] - 2026-10-23
 
 A town now runs in the original's order and keeps more of what the original saves. Each step

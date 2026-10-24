@@ -11,6 +11,9 @@
 # The player's save games. Local only.
 /save-game/
 
+# The emulated PC that runs the original (tools/live/emupc.py in GameFrame). Local only.
+/derived/
+
 # Decompiler output reproduces the original program code. Local only.
 # Populate with tools/ghidra/export.sh.
 /analysis/
