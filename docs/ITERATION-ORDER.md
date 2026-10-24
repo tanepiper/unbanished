@@ -136,6 +136,35 @@ runs. The visit loop (`FUN_1400c9560`) and the removal (`FUN_1400c8db0`) are the
 port's: the count is read once, a cursor at or past the end starts again at 0, and a removal
 swaps in the bucket's last entity without moving the cursor.
 
+## Measured on order-free pairs from the original
+
+On 2026-10-24 the original ran in the project's emulated PC (`tools/reference/README.md`) and made
+saves of one vanilla town (Glendontoocook, seed 135789927, Valleys, Small, Fair, disasters on,
+Medium) with no orders given between them. The saves are local, in `save-game/vm/`. Each pair was
+run in the port with `--sim-continue` for the same number of iterations, and the draws were
+counted with `save_random_distance` (*measured*).
+
+| Pair | Audio in the original | Iterations | Original's draws | Port's draws | Missing |
+|---|---|---|---|---|---|
+| A → B | on | 80 | 1,233 | 1,200 | 33 |
+| D → E | off | 90 | 1,380 | 1,350 | 30 |
+| E → F, two saves in a row | off | 0 | 8 | - | 8 |
+
+In both pairs every citizen, animal, tree, building and pile is identical in the port and the
+original. The only objects that differ are the ambient emitters' fade volumes and seven
+achievement goals, and in A → B one animal's `animating` flag. So the order of the every-iteration
+phase (step 3) changes nothing that a save holds over these 80 and 90 iterations.
+
+The missing draws come after the last iteration of each pair. Had they come between iterations,
+every later walk speed and deer wander target would have been drawn from other numbers, and those
+all match. So they come from what happens between the game running and the save being written.
+The pair with no iterations measures part of it: opening the Save window from the game menu and
+saving draws 8. The other 22 to 25 are *inferred* to come from opening the game menu while the town
+runs. They stay when XAudio2 cannot start (`UNBANISHED_VM_AUDIO=off`; `Audio::Device::Startup` at
+`1800e0cd0` carries on without a device), so they do not depend on the sound device. Within the
+iterations the port made the same draws as the original, in the same order (*inferred* from the
+matching towns).
+
 ## Open questions
 
 - The bit-`0x04` set's order is by entity address, which the port cannot reproduce; creation
@@ -143,5 +172,8 @@ swaps in the bucket's last entity without moving the cursor.
 - Where FireComponent sits in a building's component array (it is added after the template's
   components, but the exact place is not traced), which decides whether a building's fire runs
   before or after its state machine on a visit.
-- Steps 3 and 4 still need an order-free pair: two saves of one town with nothing placed or
-  changed between them.
+- Step 3's address order: the order-free pairs above show no difference in what a save holds over
+  90 iterations. A longer pair, or a town with more activity, may still show one.
+- Which code draws when the game menu opens over a running town (about 22 to 25 draws), and
+  when the Save window opens and saves (8). Neither changes the town, but a port that saves from
+  its own menu should make the same draws.

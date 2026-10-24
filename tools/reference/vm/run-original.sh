@@ -8,6 +8,10 @@ export DISPLAY=:1 WINEPREFIX=$HOME/.wine-banished LP_NATIVE_VECTOR_WIDTH=128
 # With the app id set, steam_api does not hand the start to steam.exe (which exits with 53).
 export SteamAppId=242920 SteamGameId=242920
 export WINEDEBUG=err+all,warn+seh,+timestamp
+# UNBANISHED_VM_AUDIO=off: XAudio2 cannot start, and Audio::Device::Startup (1800e0cd0) carries on
+# without a device. Then the audio makes no draws from the game's Random, which in the VM come far
+# more often per iteration than on a PC, and Wine's WMA decoder thread cannot hang the game.
+[[ ${UNBANISHED_VM_AUDIO:-on} == off ]] && export WINEDLLOVERRIDES="xaudio2_7=d"
 steam="$WINEPREFIX/drive_c/Program Files (x86)/Steam"
 # Patterns that cannot match this script's own command line.
 game='steamapps.common.Banished.Applicatio[n]'

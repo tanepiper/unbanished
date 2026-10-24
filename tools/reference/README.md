@@ -91,6 +91,14 @@ What each step fixed (all *measured*):
 | Stops after the splash, no CPU use | Steam's overlay crashes in `gameoverlayrenderer64.dll` | Rename `GameOverlayRenderer*.dll` (the script does) |
 | Access violation in `xaudio2_7.dll` | Wine has no WMA decoder for the game's xWMA sounds | `gstreamer1.0-libav`, and a silent ALSA `null` device |
 | Guest kernel panic (`int3` in `finish_task_switch`) | QEMU's software CPUs while the kernel patches itself | Restart the VM; use fewer CPUs if it comes back |
+| Game hangs at its menu, "main process heap section" timeouts | Wine's WMA decoder thread holds the heap lock | `UNBANISHED_VM_AUDIO=off bash run-original.sh` |
+| Buttons light up but do not press | The game polls its input about once every two seconds | Hold the button: `xdotool mousedown 1; sleep 2; xdotool mouseup 1`, and check that the screen changed |
+
+For saves meant to count random draws (`save_random_distance`), run with
+`UNBANISHED_VM_AUDIO=off`, so that Wine's WMA decoder cannot hang the game. Opening the game menu
+and saving draw from the game's Random too (about 30 draws, after the last iteration), so compare
+draw counts with that in mind: [ITERATION-ORDER.md](../../docs/ITERATION-ORDER.md) has the
+measured pairs.
 
 Saves the original makes go to its own save folder in the prefix (`Documents\Banished`); copy them
 out with `scp` into `save-game/`, which git ignores.
