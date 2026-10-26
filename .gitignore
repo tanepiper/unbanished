@@ -37,3 +37,11 @@ __pycache__/
 # Example rule-hook mods build on their own.
 /examples/**/target/
 /examples/**/Cargo.lock
+# Links into the GameFrame home (games/ID/): never commit them
+/game
+/media
+/saves
+/analysis
+/derived
+/game-data
+/save-game
