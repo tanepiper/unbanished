@@ -192,7 +192,9 @@ fn index3d(handle: u32) -> usize {
 
 /// `GetVolumeForPosition` (`0x1800e2720`).
 fn volume_for_position(at: Vec3, radius: f32, inner: f32, listener: Vec3) -> f32 {
-    let d = (at - listener).length();
+    // The terms in the original's order: y, then x, then z.
+    let v = at - listener;
+    let d = (v.y * v.y + v.x * v.x + v.z * v.z).sqrt();
     if radius < d {
         0.0
     } else if inner <= d {

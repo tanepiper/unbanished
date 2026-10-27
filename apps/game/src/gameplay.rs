@@ -12,6 +12,8 @@
 
 mod audio;
 pub(crate) mod commands;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod continue_game;
 pub mod digest;
 mod extensions;
 mod frame;

@@ -1,9 +1,9 @@
-//! `--sim-continue SAVE ITERATIONS OUT.sav [WINDATA] [--speed N] [--clock SECONDS]`: runs a save
-//! for an exact number of simulation iterations without a window, and writes the result as a
-//! save. With two saves of
-//! one town made by the original game a known number of iterations apart, the continued save can
-//! be compared field by field with the later one (`savegame_fields_diff`), which measures how far
-//! the port's simulation is from the original's.
+//! `--sim-continue SAVE ITERATIONS OUT.sav [WINDATA] [--speed N] [--clock SECONDS] [--draws FILE]
+//! [--game]`: runs a save for an exact number of simulation iterations without a window, and
+//! writes the result as a save. With two saves of one town made by the original game a known
+//! number of iterations apart, the continued save can be compared field by field with the later
+//! one (`savegame_fields_diff`), which measures how far the port's simulation is from the
+//! original's.
 //!
 //! Each frame runs `--speed` iterations (1 by default, as at speed 1), with the game's fixed step
 //! (`FRAME_STEP`). The speed matters: the steps after a frame's iterations draw from the game's
@@ -13,6 +13,14 @@
 //! `--clock` is the wall clock (seconds since 1970) when the original loaded the save. The
 //! original seeds a loaded game's temperature noise from it (`seed_noise_from_clock`), and the
 //! weather follows that noise until the next reseed. Without it the port keeps its fixed seed.
+//!
+//! `--draws` writes every draw from the game's Random during the iterations, one per line
+//! (`unbanished_game::random::trace`), for `tools/triage/rngdiff.py` to compare with the
+//! original's.
+//!
+//! `--game` runs the whole game loop instead of the simulation alone
+//! (`gameplay::continue_game`), so the music and the sounds draw from the town's Random as the
+//! original's do. Its speed must be one of the game's levels.
 
 use unbanished_sim::simulation::Simulation;
 use unbanished_sim::strings::ArchiveStrings;
@@ -20,7 +28,7 @@ use unbanished_sim::strings::ArchiveStrings;
 use super::*;
 
 pub fn sim_continue(args: &[String]) {
-    let usage = "--sim-continue SAVE ITERATIONS OUT.sav [WINDATA] [--speed N] [--clock SECONDS]";
+    let usage = "--sim-continue SAVE ITERATIONS OUT.sav [WINDATA] [--speed N] [--clock SECONDS] [--draws FILE] [--game]";
     let save = args.get(1).expect(usage);
     let iterations: u32 = args.get(2).and_then(|s| s.parse().ok()).expect(usage);
     let out = args.get(3).expect(usage);
@@ -32,6 +40,10 @@ pub fn sim_continue(args: &[String]) {
         .iter()
         .position(|a| a == "--clock")
         .map(|i| args.get(i + 1).and_then(|s| s.parse().ok()).expect(usage));
+    let draws = args
+        .iter()
+        .position(|a| a == "--draws")
+        .map(|i| args.get(i + 1).expect(usage));
     assert!(
         speed > 0 && iterations.is_multiple_of(speed),
         "ITERATIONS must be a multiple of --speed"
@@ -46,6 +58,21 @@ pub fn sim_continue(args: &[String]) {
         crate::settings::Settings::default(),
     )
     .expect("game data");
+    if args.iter().any(|a| a == "--game") {
+        game.audio.set_master_volume(0.0);
+        let draws = draws.map(std::path::Path::new);
+        match crate::gameplay::continue_game::run(
+            &mut game, &bytes, iterations, speed, clock, draws,
+        ) {
+            Ok(file) => std::fs::write(out, file).expect("write the save"),
+            Err(e) => {
+                eprintln!("--sim-continue --game: {e}");
+                std::process::exit(1);
+            }
+        }
+        log::info!("{iterations} iterations of {save} through the game loop written to {out}");
+        return;
+    }
     let saved = crate::saves::saved::SavedGame::parse(&bytes).expect("parse the save");
     let params = saved.params();
     let dt = unbanished_game::scheduler::seconds(crate::FRAME_STEP);
@@ -56,8 +83,16 @@ pub fn sim_continue(args: &[String]) {
             env.seed_noise_from_clock(clock);
         }
         let mut strings = ArchiveStrings::new(ctx.archive);
+        if draws.is_some() {
+            unbanished_game::random::trace::start();
+        }
         for _ in 0..iterations / speed {
             sim.frame(ctx.archive, &mut strings, &params, speed, dt, false);
+        }
+        if let Some(path) = draws {
+            let d = unbanished_game::random::trace::take();
+            unbanished_game::random::trace::write(std::path::Path::new(path), &d)
+                .expect("write the draws");
         }
         let state = sim.saved_state(ctx.archive, &mut strings, &saved, &params.town_name);
         unbanished_formats::save::Save::write(&saved.metadata, &state.encode().expect("encode"))

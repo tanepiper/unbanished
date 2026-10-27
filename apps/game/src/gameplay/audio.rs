@@ -24,7 +24,8 @@ impl GameplayLoop {
     }
 
     /// `FUN_14009b850`'s audio: the music player (`FUN_1400a95b0`), then
-    /// `Scene::Update(dt, dt × speed × 6, random, camera pivot, camera distance)`.
+    /// `Scene::Update(dt, dt × speed × 6, random, listener, camera distance)`, the listener being
+    /// the camera pivot at the eye's height.
     pub(super) fn update_audio(&mut self, ctx: &mut Ctx, dt: f32) {
         let (month, mood) = self.music_month_mood();
         let shared = self.audio_draws_from_game();
@@ -84,12 +85,16 @@ impl GameplayLoop {
         }
         let Some(SceneView {
             camera: SceneCamera::Map(camera),
+            terrain,
             ..
         }) = &self.view
         else {
             return;
         };
-        let listener = camera.target.extend(0.0);
+        // The listener is the pivot's x and y at the eye's height: `FUN_14009b850` copies the
+        // camera's Transform3 (`+0x98`) and takes z from its offset (`+0x2c`, the eye at
+        // `+0xc4`, as `FUN_140107c90` reads it). High eyes hear less of the far town.
+        let listener = camera.target.extend(camera.eye(terrain).z);
         // The step reads the iteration count (`+0x34`) whether or not the game is paused.
         let speed = SPEED_LEVELS[self.speed as usize] as f32;
         let random = shared.then_some(&mut self.sim.rng);

@@ -20,6 +20,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
 - `--sim-continue` takes `--speed N` (iterations per frame) and `--clock SECONDS` (the wall clock
   when the original loaded the save), so a pair of the original's saves can be run under the
   same conditions.
+- `--sim-continue --game` runs a save through the whole game loop, with the music and the sounds
+  drawing from the town's random numbers as the original's do, so its draws can be compared one
+  by one with the original's.
 
 ### Changed
 
@@ -27,6 +30,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
   draws 4, and the ambience and the music draw too. A game saved after using the game menu
   now keeps the same random state as the original. Multiplayer games, recordings and replays
   keep a separate Random for the sounds.
+
+### Fixed
+
+- The game hears its sounds from the camera's eye height, as the original does. Far sounds no
+  longer play when the camera is high, so a game draws the same random numbers as the original.
 - Rules that meet a NaN now take the same branch as the original's machine code (issue #25):
   citizens' urgent hunger and cold, school, orphans, recovery, the event log's roles and the
   status bar's counts, planting, the weather pick, a tornado's particles, animals' size,

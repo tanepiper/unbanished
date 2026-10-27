@@ -193,6 +193,30 @@ The autosave cannot make these pairs in the emulated PC. Its timer counts the fr
 (`FUN_14005ea80`), and the emulated PC runs about one frame a second, so five minutes of frames
 take hours.
 
+## Measured draw by draw in CrossOver
+
+The original also runs in CrossOver (bottle `Steam`, `xaudio2_7` disabled, so it plays no
+sound). There GameFrame's `winegdb` stops at the Runtime's `Random` entries and records each
+draw's caller and the generator's index (*measured* on 2026-10-27). The Runtime loads at
+`0x6fffe6db0000` in that bottle, not at its preferred base; the Application stays at
+`0x140000000`. Plain `Rand()` is left out of the breakpoints, because `Object::Internal::Internal`
+(Runtime `0x1800c2580`) draws it from a separate `Random` for every object made, thousands in a
+load. The game's own plain draws show as gaps in the index instead. The original's list from an
+autosave of a busy town (`04-Auto`, 57,130 draws) was compared with the port's
+(`--sim-continue … --game --draws`, `tools/triage/rngdiff.py`).
+
+| Draw | What differs | Cause |
+|---|---|---|
+| 18 | The original draws `Rand(15)` (`0x1400a98d2`, the music player) and then 16 plain draws | Without a sound device the music player and `Scene::Update` still draw from the town's Random. `--sim-continue` runs no audio, so it parts here at once; `--game` runs the whole game loop and makes these draws too |
+| 31 | The port starts fewer ambience sounds on the first frame | Fixed in part: the port's listener was on the ground. It is at the eye's height (see [AUDIO.md](AUDIO.md)), *measured* at 105.32 for this save's camera |
+| 31 | The original starts 7 sounds on the first frame (river, forest, field, wind, rain, the crowd and a farmer's hoe at (65.5, −2.5)); the port starts 5 and the crowd one frame later | Open: the original restores the working citizens' tool sounds with the save and hears the crowd at once; its ambience volumes also differ (wind 0.975 against 1, rain 1 with two emitters against 0.06 with one) |
+| 586 (sound draws left out) | The original's gatherer search (`FUN_1400f3880`) ends one attempt earlier than the port's | Open: it found a resource where the port found none |
+
+The particle systems draw from their own `Random` in both, so the port's list leaves them out
+too. Each load of the original takes its own path after the first frames: its sound draws
+depend on the frame times, and a later load of the same save drew other candidate cells for the
+same search. So a search's cells must be read in the same run as the draws.
+
 ## Open questions
 
 - The bit-`0x04` set's order is by entity address, which the port cannot reproduce; creation
@@ -205,3 +229,8 @@ take hours.
 - A pair made with a known number of clicks, to measure the 4 draws per click directly. The
   clicks in the emulated PC register only in part, so the counts above fit but are not
   measured click by click.
+- The gatherer search at draw 586 of the CrossOver pair: which cell the original accepted.
+  Breaking at `0x1400f3c3f` gives each candidate cell (`r12d`, with x in `ecx` and y in
+  `edx`); it must run in the same load as the draw trace.
+- The sounds the original starts on the first frame after a load (the crowd and the restored
+  tool sounds) and its ambience volumes.
