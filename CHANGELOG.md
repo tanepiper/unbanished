@@ -42,6 +42,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Fixed
 
+- A citizen who was eating when the game saved finishes the meal after a load. The port lost
+  the storage the meal came from.
 - A citizen's decision made when its actions ran out no longer calls the citizen back when its
   next actions run out. The original drops that call, so the next decision waits for the
   citizen's scheduled update. Citizens now decide on the same frames as in the original.

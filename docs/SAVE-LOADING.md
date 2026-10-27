@@ -193,7 +193,7 @@ Every saved action maps onto a port action, field by field:
 |---|---|
 | MoveTo | way, next cell, target, flags, clips, cost mode, following, speed |
 | PerformWork, PlayAnimation | clip, duration, elapsed |
-| SendComponentMessage | target component from its type id |
+| SendComponentMessage | target component from its type id; a Citizen message keeps its argument (`+0x28`, the home or storage), a site component its receiver (`+0x20`) |
 | ShowTool | the tool |
 | CompleteTask | work id `+0x30`, parameter `+0x34` |
 | CompleteRoad | cell, type `+0x24`, built byte `+0x28` |

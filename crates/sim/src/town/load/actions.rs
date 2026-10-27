@@ -199,9 +199,17 @@ impl StartingTown {
             },
             "SendComponentMessage" => {
                 let component = component(int(f, "send.component_type") as u32)?;
-                // Messages to the citizen's own components carry no entity in the port.
+                // `send.entity` (`+0x20`) is the entity whose component receives the message,
+                // `send.argument` (`+0x28`) the value it is given. The port's message holds the
+                // target site for a site's component, nothing for the AI, and for a Citizen
+                // message the argument: the home or storage it eats from, warms at or is
+                // treated at, if any.
                 let entity = match component {
-                    Component::Citizen | Component::CitizenAi => None,
+                    Component::CitizenAi => None,
+                    Component::Citizen => match f.ptr("send.argument") {
+                        None => None,
+                        Some(_) => Some(placed("send.argument")?),
+                    },
                     _ => Some(placed("send.entity")?),
                 };
                 Action::SendMessage(Message {

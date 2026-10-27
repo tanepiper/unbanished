@@ -213,7 +213,8 @@ autosave of a busy town (`04-Auto`, 57,130 draws) was compared with the port's
 | 586 (sound draws left out) | The original's gatherer search (`FUN_1400f3880`) ends one attempt earlier than the port's | The numbers differed, not the search: with the original's sound draws replayed (below) the search is the same |
 | 815 (sound draws replayed) | `Activity::Loiter` (`FUN_14010fa30`) draws `Rand(125)` in the original and `Rand(124)` in the port | The citizen picks one of 48 objects near it (`Rand(48)` the same on both sides), then a cell around it. The original keeps the 48 in a tree keyed by each object's `Object::Internal` address; the port keeps them in creation order. Of the port's 48, those at places 0 and 25 have 125 cells around them; the port took place 38 (124). So the two orders differ here (a Deviation) |
 | 1,025 (pick 815 set to place 0) | A citizen whose gatherer search found nothing decides again 5 iterations earlier in the port | Fixed. The search's wait (`FUN_1400c7960`) sets an "on empty" chain that calls the AI back. The original's SendComponentMessage action (start `FUN_1400d03c0`) calls the component at once, inside `ActionStack::RunOnEmpty` (`FUN_1400ca080`), which then deletes the chain at `+0x10`. A chain the AI set during that call goes with it. So a decision made from the "on empty" message ends with no message, and the next decision waits for the citizen's scheduled update. *Measured* with breakpoints on `CitizenAI::Choose` and the wait: decisions 16 and 21 or 22 frames apart in turn (frames 13, 34, 50, 72, 88…), which the port now gives too (13, 34, 50) |
-| 3,511 (pick 815 set to place 0) | The original eats from a home's storage first (13 `Rand(7)` and one `Rand(6)` in `Storage::find_item`, `FUN_140094410`, called from `FUN_14011a7b0`), then makes the citizen's choice; the port makes the choice with no meal | Open |
+| 3,511 (pick 815 set to place 0) | The original eats from a home's storage first (13 `Rand(7)` and one `Rand(6)` in `Storage::find_item`, `FUN_140094410`), then makes the citizen's choice; the port makes the choice with no meal | Fixed. The citizen was in the middle of a meal when the game saved. A saved SendComponentMessage holds the entity whose component receives it (`+0x20`) and the value it gives (`+0x28`). The port read the receiver, the citizen itself, for a Citizen message, so the loaded meal had no storage. It reads the value now |
+| 3,531 (pick 815 set to place 0) | `Activity::Loiter` draws `Rand(105)` in the original and `Rand(118)` in the port | Another pick from the address-keyed set (`Rand(31)` the same on both sides), as at draw 815 |
 
 To compare the simulation alone, `tools/triage/rng_split.py` splits the original's list. It
 keeps the draws to compare and writes, for each, how many sound draws the original made before
@@ -222,7 +223,7 @@ it: the gaps in the index and the music player's `Rand(15)`. `--sim-continue --d
 generators give the same numbers to the simulation. With that, the port matches the original
 for 814 draws of the simulation (about 20 iterations of this town). With the Loiter pick at
 draw 815 set by hand to one of the two places that give the original's draw (a check only; the
-port keeps creation order), it matches for 3,510 draws.
+port keeps creation order), it matches for 3,530 draws.
 
 The particle systems draw from their own `Random` in both, so the port's list leaves them out
 too. Each load of the original takes its own path after the first frames: its sound draws

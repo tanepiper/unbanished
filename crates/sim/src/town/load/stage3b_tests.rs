@@ -44,6 +44,21 @@ fn vanilla_saves_restore_stacks_and_claims() {
                 "{name}: stack of {c}"
             );
         }
+        // A meal in progress keeps the storage it eats from (the message's argument).
+        let mut meals = 0;
+        for ch in &town.agents.characters {
+            for (action, _) in ch.stack.saved().0 {
+                if let unbanished_game::behaviour::character::Action::SendMessage(m) = action {
+                    if m.component == unbanished_game::behaviour::character::Component::Citizen
+                        && m.message == 2
+                    {
+                        meals += 1;
+                        let site = m.entity.and_then(|e| town.construction.sites.get(&e));
+                        assert!(site.is_some(), "{name}: a meal with no storage");
+                    }
+                }
+            }
+        }
         let mut held = 0;
         for w in town.construction.jobs.works.values() {
             let workers: Vec<usize> = match &w.kind {
@@ -68,7 +83,7 @@ fn vanilla_saves_restore_stacks_and_claims() {
             }
         }
         eprintln!(
-            "{name}: {} stacks, {held} workers on their works",
+            "{name}: {} stacks, {held} workers on their works, {meals} meals",
             depths.len()
         );
     }
