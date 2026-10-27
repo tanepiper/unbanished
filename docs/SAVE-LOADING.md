@@ -341,6 +341,10 @@ Test: `start::load::stage3d_tests::vanilla_saves_restore_producers`.
   The temperature noise (`+0x34`) is not saved. After a load the original keeps its
   constructor's clock-seeded field until the next reseed (slice 0 or 24), so the weather until
   then cannot be reproduced even in the original. The port keeps its fixed seed (a deviation).
+  The clock is `_time64` in seconds (`System::Random::Random`, Runtime `0x1800ca790`). The
+  constructor builds two `Random`s from it and takes the first number of each, so both seeds
+  are the same number. With the clock of a load, `--sim-continue --clock` reproduces the
+  original's temperature to the bit (*measured* on `Save83`, clock 1793116942).
   `Game +0xd0` (disasters) comes from the save.
 - **Event log** (`FUN_14009a790`): the six notify flags, and every entry with its colour,
   type, severity, cell, category and icon. The original keeps only an entry's formatted text, so

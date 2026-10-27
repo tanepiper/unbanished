@@ -1046,6 +1046,7 @@
 1800ca5e0	Random::rand_range	crates/core/src/random.rs
 1800ca610	Random::rand_tol	crates/core/src/random.rs
 1800ca740	Random::new	crates/core/src/random.rs
+1800ca790	Environment::seed_noise_from_clock_2	crates/game/src/nature/environment.rs
 1800ca800	Random::rand	crates/core/src/random.rs
 1800ca870	Random::rand_float_tol	crates/core/src/random.rs
 1800ca8b0	Random::rand_below	crates/core/src/random.rs

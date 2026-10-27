@@ -210,7 +210,7 @@ Deviation: 79, Not ported: 7, Not traced: 1.
 ## `crates/game/src/nature/environment.rs`
 
 - [Deviation] [crates/game/src/nature/environment.rs:170](../crates/game/src/nature/environment.rs#L170): State +0x10, level +0x14, temperature +0x18, renderer values +0x1c, baseline +0x2c/+0x30, bias +0x44/+0x48, last slice +0x4c; each effect re-created by FUN_140099790 with its +0xc4 direction and +0xc0 intensity. The environment as a save stores it: the state, the level, the temperature, the renderer's values, the baseline, the bias, the last slice, and each weather effect that exists (made again on load with its direction and intensity). Deviation: the temperature noise (`+0x34`) is not saved; after a load the original keeps its constructor's clock-seeded field until the next reseed (slice 0 or 24). The port keeps its constructor's fixed seed.
-- [Deviation] [crates/game/src/nature/environment.rs:214](../crates/game/src/nature/environment.rs#L214): A new environment for a climate: state 0, level 4, and the climate's baseline. Deviation: the constructor seeds its first Perlin field from two clock-seeded `Random()`s; the first update always reseeds it (slice 0), so a fixed seed is used here.
+- [Deviation] [crates/game/src/nature/environment.rs:214](../crates/game/src/nature/environment.rs#L214): A new environment for a climate: state 0, level 4, and the climate's baseline. Deviation: the constructor seeds its first Perlin field from two clock-seeded `Random()`s; the first update always reseeds it (slice 0), so a fixed seed is used here. `seed_noise_from_clock` gives the original's field for a known clock.
 
 ## `crates/game/src/nature/growth.rs`
 

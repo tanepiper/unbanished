@@ -169,6 +169,30 @@ draws too. Within the
 iterations the port made the same draws as the original, in the same order (*inferred* from the
 matching towns).
 
+## Measured on a long pair with a load
+
+On 2026-10-27 the original loaded `Save83` (Fort Ponchartrain, 116 citizens, year 22, no mods)
+in the emulated PC with `UNBANISHED_VM_AUDIO=off`, ran without orders and was saved from the
+game menu (`save-game/vm/Fort-1.sav`) (*measured*).
+
+| | The original (`Fort-1`) | The port (`--sim-continue Save83 5480 --clock 1793116942`) |
+|---|---|---|
+| Entity-manager time | +91,329,680 µs, exactly 5,480 iterations | the same |
+| Draws from the game's Random | 137,107 | 154,706 (the same at `--speed 1` and `--speed 10`) |
+| Temperature | `0x4252ad49` | `0x4252ad49` |
+| Weather state and level | 0 (rain), 5 | 3, 3 |
+
+The original seeds a loaded game's temperature noise from the clock (see
+[SAVE-LOADING.md](SAVE-LOADING.md)). With that clock the port's temperature is the original's
+to the bit, so the noise is not what separates the two towns. The port makes 17,599 draws more,
+and the weather state drawn at slice 27 or 28 already differs, so the two runs part somewhere in
+the 5,480 iterations. Where is open: a chain of shorter pairs from one session of the original
+will place it.
+
+The autosave cannot make these pairs in the emulated PC. Its timer counts the frames' time
+(`FUN_14005ea80`), and the emulated PC runs about one frame a second, so five minutes of frames
+take hours.
+
 ## Open questions
 
 - The bit-`0x04` set's order is by entity address, which the port cannot reproduce; creation
@@ -177,7 +201,7 @@ matching towns).
   components, but the exact place is not traced), which decides whether a building's fire runs
   before or after its state machine on a visit.
 - Step 3's address order: the order-free pairs above show no difference in what a save holds over
-  90 iterations. A longer pair, or a town with more activity, may still show one.
+  90 iterations. The long pair above differs after 5,480 iterations, for a cause not yet found.
 - A pair made with a known number of clicks, to measure the 4 draws per click directly. The
   clicks in the emulated PC register only in part, so the counts above fit but are not
   measured click by click.

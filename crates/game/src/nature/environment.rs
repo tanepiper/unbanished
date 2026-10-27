@@ -217,6 +217,7 @@ impl Environment {
     ///
     /// Deviation: the constructor seeds its first Perlin field from two clock-seeded `Random()`s;
     /// the first update always reseeds it (slice 0), so a fixed seed is used here.
+    /// `seed_noise_from_clock` gives the original's field for a known clock.
     pub fn new(climate: Climate) -> Environment {
         Environment {
             state: 0,
@@ -235,6 +236,20 @@ impl Environment {
             game_flags: 0,
             climate,
         }
+    }
+
+    /// Seeds the temperature noise as the constructor does when the clock reads `clock`
+    /// (`_time64`, seconds since 1970). It builds two `Random`s from the clock and takes the first
+    /// number of each, so within one second both seeds are that number. A loaded game keeps this
+    /// field until the next reseed (slice 0 or 24). With the clock of the original's load, the
+    /// port's weather after a load is the original's.
+    ///
+    /// Original: `FUN_140099430`, with `System::Random::Random` (Runtime `0x1800ca790`).
+    pub fn seed_noise_from_clock(&mut self, clock: u32) {
+        let first = Random::new(clock).rand();
+        // Measured on 2026-10-27: the original loaded Save83 at clock 1793116942, and its
+        // temperature 5,480 iterations later is this field's to the last bit but one.
+        self.noise = PerlinNoise::new(NOISE_PERSISTENCE, NOISE_OCTAVES, first as i32, first as i32);
     }
 
     // Game/Game +0xd8; +0x70; FUN_1400ae760 (climate +0x108)

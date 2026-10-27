@@ -17,6 +17,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
   version GameFrame pins.
 - GameFrame's `rea_session` (`./gameframe run rea_session`) asks REA about the original's
   functions with the project's labels, and saves REA's answers as a snapshot in `analysis/rea/`.
+- `--sim-continue` takes `--speed N` (iterations per frame) and `--clock SECONDS` (the wall clock
+  when the original loaded the save), so a pair of the original's saves can be run under the
+  same conditions.
 
 ### Changed
 
