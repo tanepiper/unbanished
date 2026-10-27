@@ -1,0 +1,17 @@
+[package]
+name = "unbanished-frame"
+version = "0.1.0"
+description = "Un-Banished's launcher: GameFrame's frame in front of the game; finds Banished in Steam or a chosen folder and starts unbanished --frame-io"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Its own workspace, so Dioxus stays out of the game's build (as Hardwar's and POD's launchers
+# do). The root workspace excludes it.
+[workspace]
+
+[dependencies]
+gameframe-frame = { git = "https://github.com/tanepiper/game-frame", rev = "05068f7f71d13f2032fdc369e08e791e9173e0a1" }
+gameframe-frame-ui = { git = "https://github.com/tanepiper/game-frame", rev = "05068f7f71d13f2032fdc369e08e791e9173e0a1" }
+gameframe-library = { git = "https://github.com/tanepiper/game-frame", rev = "05068f7f71d13f2032fdc369e08e791e9173e0a1" }
+dioxus = { version = "0.7.10", default-features = false, features = ["lib", "launch", "desktop"] }

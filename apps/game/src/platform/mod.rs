@@ -8,6 +8,8 @@ pub mod nexus;
 pub mod paths;
 pub mod perf;
 pub mod rule_hooks;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod steam;
 pub mod version;
 #[cfg(target_arch = "wasm32")]
 pub mod web;

@@ -1,0 +1,33 @@
+{
+  "id": "unbanished",
+  "title": "Un-Banished",
+  "tagline": "Banished 1.0.7, rebuilt, on your own copy of the game. Choose the game and your files, then press Start.",
+  "scheme": "dark",
+  "preset": "xp",
+  "presets": ["xp", "win98", "vista", "aqua", "system7", "beos", "gnome2", "none"],
+  "start": "Start",
+  "links": [
+    { "text": "Website", "href": "https://tanepiper.github.io/banished-wasm/", "icon": "file" },
+    { "text": "Source code", "href": "https://github.com/tanepiper/banished-wasm", "icon": "github" },
+    { "text": "GameFrame", "href": "https://github.com/tanepiper/game-frame", "icon": "github", "place": "play" }
+  ],
+  "issues": [
+    { "text": "Report to Un-Banished", "repo": "tanepiper/banished-wasm" },
+    { "text": "Report to GameFrame", "repo": "tanepiper/game-frame" }
+  ],
+  "fine": "Banished is Shining Rock Software's (2014). Un-Banished ships none of its files: it reads your own copy where it is installed.",
+  "pages": [
+    { "path": "help", "title": "Help", "src": "help.md", "icon": "file" }
+  ],
+  "sections": [
+    {
+      "id": "game",
+      "kind": "game-data",
+      "label": "Banished's files",
+      "help": [
+        "Not kept here: the game reads your copy where it is installed. Choose it in Settings, under Game files."
+      ],
+      "accept": [".pkg"]
+    }
+  ]
+}

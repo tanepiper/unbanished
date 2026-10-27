@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
 members = ["crates/core", "crates/terrain", "crates/path", "crates/formats", "crates/wma", "crates/ui", "crates/game", "crates/gfx", "crates/audio", "crates/nexus", "crates/banishedinfo", "crates/mods", "crates/net", "crates/sim", "crates/session", "crates/hooks", "apps/viewer", "apps/cli", "apps/modmanager", "apps/game", "apps/server"]
+# The launcher (apps/frame) is its own workspace, so Dioxus stays out of the game's build.
+exclude = ["apps/frame"]
 
 # Clippy runs in the quick test tier with warnings as errors. These rules are allowed for the
 # whole workspace, because following them would change what the port computes or move it away

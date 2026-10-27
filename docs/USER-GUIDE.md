@@ -214,9 +214,13 @@ Un-Banished reads four files from your game's `WinData` folder: `data0.pkg`, `da
 > In Steam, right-click **Banished**, then choose **Manage → Browse local files**. Steam opens
 > the game's folder.
 
+When you give it no folder, Un-Banished looks in Steam by itself: Steam's library folders on
+Windows, macOS and Linux, and Steam for Windows in CrossOver bottles and Wine on a Mac or on
+Linux. `UNBANISHED_DIR`, the folder that holds `WinData`, is searched first.
+
 ## 5. Play
 
-There are three ways to start the game. Choose one.
+There are four ways to start the game. Choose one.
 
 **A. Give it the folder.** This way works on every system:
 
@@ -236,7 +240,19 @@ next to `WinData`. Start it from there, or make a desktop shortcut to it. It the
 original program. It finds `WinData` in the same folder. It uses the same save folder as the
 original.
 
-**C. Start it from the source folder.** This way is for contributors. Copy your game data into
+**C. Start it from the launcher (in development).** The launcher is a small window that opens
+before the game, made with [GameFrame](https://github.com/tanepiper/game-frame). In
+**Settings** you choose the game, **Banished 1.0.7** (exactly the original) or **Un-Banished**
+(with its extensions), and your copy of Banished: one found in Steam, or a folder you choose.
+Then press **Start** in **Play**. To install it from the source folder:
+
+```bash
+./gameframe install extra    # macOS: /Applications/GameFrame/Un-Banished More.app
+```
+
+[The launcher](develop/FRAME.md) explains how it works.
+
+**D. Start it from the source folder.** This way is for contributors. Copy your game data into
 the project once. Then start the game with `cargo run`:
 
 ```bash

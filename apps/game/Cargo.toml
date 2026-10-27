@@ -23,7 +23,10 @@ more = ["cinematic", "mod-sites", "multiplayer", "probe", "replay", "rule-hooks"
 # Extensions still in development: each is a feature named `unstable-NAME`, listed here, and is in
 # no release. Build with `--features unstable` (all of them) or `--features unstable-NAME`. When
 # one is stable, rename it and move it into `more`.
-unstable = []
+unstable = ["unstable-frame"]
+# GameFrame's frame: `unbanished --frame-io` answers the launcher in apps/frame
+# (docs/develop/FRAME.md), native only.
+unstable-frame = ["dep:gameframe-frame"]
 # The cinematic camera for capture videos (`--camera`, `--camera-follow`), native only.
 cinematic = []
 # The probe: a query language to read and drive a running game (`--probe`, the browser's
@@ -74,6 +77,8 @@ unbanished-nexus = { path = "../../crates/nexus", features = ["native"], optiona
 unbanished-net = { path = "../../crates/net", features = ["native"], optional = true }
 unbanished-server = { path = "../server", optional = true }
 unbanished-banishedinfo = { path = "../../crates/banishedinfo", features = ["native"], optional = true }
+# GameFrame's frame contract, at the revision apps/frame uses.
+gameframe-frame = { git = "https://github.com/tanepiper/game-frame", rev = "05068f7f71d13f2032fdc369e08e791e9173e0a1", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.129"

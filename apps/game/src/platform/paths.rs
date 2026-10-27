@@ -22,7 +22,8 @@ pub fn root_dir() -> Option<PathBuf> {
 }
 
 /// The game data: a folder given on the command line (`args` without the program), else `WinData` beside the executable,
-/// else the repository's extracted copy (development builds).
+/// else the repository's extracted copy (development builds), else the first copy found in
+/// Steam (`steam::installs`).
 pub fn data_dir(args: &[String]) -> PathBuf {
     if let Some(dir) = args
         .iter()
@@ -33,7 +34,22 @@ pub fn data_dir(args: &[String]) -> PathBuf {
     if let Some(dir) = root_dir().map(|r| r.join("WinData")).filter(|d| d.is_dir()) {
         return dir;
     }
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../game-data/original/WinData")
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../game-data/original/WinData");
+    if repository.is_dir() {
+        return repository;
+    }
+    // Deviation: the original reads only `WinData` beside itself; the port also finds Steam's.
+    match super::steam::installs().into_iter().next() {
+        Some(found) => {
+            log::info!(
+                "game data from {}: {}",
+                found.label,
+                found.win_data.display()
+            );
+            found.win_data
+        }
+        None => repository,
+    }
 }
 
 /// `FileSystem::GetSaveDirectory`: `Documents/Banished`.

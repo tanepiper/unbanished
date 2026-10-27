@@ -30,6 +30,7 @@ Three rules hold for every extension:
 | `replay` | Recordings: `--record` writes a game's commands and digests, `--replay` plays them back | `apps/game/src/gameplay/recording.rs`, `crates/session` |
 | `multiplayer` | Lockstep games through a relay, the Multiplayer window and its main-menu button, and their tests (`--lockstep-test`, `--net-test`, the browser's `?net=`). It turns on `replay` | `apps/game/src/gameplay/{lockstep,network}.rs`, `apps/game/src/ui/multiplayer.rs`, `crates/session`, `crates/net` |
 | `rule-hooks` | WebAssembly plugins from the `Hooks` folder that change the game after each iteration ([Rule hooks](RULE-HOOKS.md)), native only | `apps/game/src/platform/rule_hooks.rs`, `crates/hooks` |
+| `unstable-frame` | `unbanished --frame-io`, the game started by the launcher in GameFrame's frame (`apps/frame`, [The launcher](FRAME.md)), native only. Unstable: in no release yet | `apps/game/src/frame/`, `apps/frame` |
 
 The browser's start page and its manager are the web page itself, so they are not a cargo
 feature.
@@ -106,6 +107,7 @@ reaching into the game's code.
 | Sessions | Decide when a player's commands are carried out: at once, or in their lockstep slot | `unbanished_session::session::Session` |
 | Strings | Give the simulation the game's text in the player's language | `unbanished_sim::strings::Strings` |
 | Rule hooks | Change the game after each iteration: read the date, the citizens and the stock, draw from the game's random stream, post events. The only door that may change results | `unbanished_sim::hooks::RuleHooks`, `Simulation::hooks` |
+| The launcher | Take the program's arguments from the frame before the game starts, report the game's state, and stop it as its own quit does ([The launcher](FRAME.md)) | `frame::take_args` in `main.rs`, `about_to_wait` in `app/handler.rs` |
 
 ## Example: a new extension
 
