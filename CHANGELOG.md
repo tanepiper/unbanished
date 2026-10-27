@@ -15,6 +15,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
   agents can watch it, drive it and make saves without a Windows PC.
 - `./gameframe`, GameFrame's project launcher. It starts GameFrame's MCP server and REA at the
   version GameFrame pins.
+- GameFrame's `rea_session` (`./gameframe run rea_session`) asks REA about the original's
+  functions with the project's labels, and saves REA's answers as a snapshot in `analysis/rea/`.
 
 ## [0.5.0] - 2026-10-23
 

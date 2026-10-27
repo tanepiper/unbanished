@@ -59,7 +59,8 @@ tools/ghidra/export.sh      # ~20 min, if analysis/export is missing
 Ghidra and Java are found through `.env` (`GHIDRA_INSTALL_DIR`, `JAVA_HOME`), never hard-coded.
 REA (the `mcp__rea__*` tools) starts from the project `.mcp.json`: use it for quick, cited answers
 about one function (`open_binary`, `analyze_function`, `procedure_callers`, `xrefs`) and the text
-export for broad searches. The generic method behind these skills, for any game, is
+export for broad searches. `./gameframe run rea_session` runs REA from a script with the
+project's labels and a saved snapshot (banished-trace, section 2b). The generic method behind these skills, for any game, is
 https://github.com/tanepiper/reverse-engineer-games (its `re-*` skills).
 
 ## Which skill for which task

@@ -85,6 +85,30 @@ need a fresh one. Ghidra holds a lock per project: don't run two jobs on the sam
 once. Output goes to `analysis/` (ignored). Ghidra and Java come from `.env`
 (`tools/re-setup.sh`).
 
+## 2b. One function through REA, with the project's labels
+
+REA (`mcp__rea__*`) gives a cited dossier of one function: its body, callers, the references to
+it (a vtable slot shows as data), callees, and every memory read and write with the parameter it
+goes through. GameFrame's `rea_session` runs REA from a script with the labels from `labels/`
+(`names.tsv`, `names-from-port.tsv`, `library.tsv`; GameFrame's `re-rea` skill):
+
+```bash
+E=game-data/original/Application-steam-x64.exe
+./gameframe run rea_session fn $E 0x1400be770 0x1400be680     # summaries; dossiers in analysis/rea/fn/
+./gameframe run rea_session snapshot $E --file analysis/notes/hot.txt   # save answers for later
+./gameframe run rea_session labels $E                         # set_addresses_names input, in chunks
+```
+
+The first question of a session costs about 50 s, because REA has Ghidra import and analyse the
+binary then. A question answered before, in the same session or in the saved snapshot
+(`analysis/rea/Application-steam-x64.exe.snapshot.json`), takes 0.1 s. A new question after a
+snapshot costs the 50 s again. Each dossier adds 2 to 3 MB to the snapshot, so warm only the
+functions you return to. Renaming in REA throws the snapshot's answers away: `fn` applies the
+labels, so its pseudocode shows them, and pays the 50 s. `fn --snapshot-only` skips the renaming
+and answers warmed functions in 0.1 s, with the labels only in the printed summary. In the
+agent's own REA session, pass the `names` of each `analysis/rea/*-names-N.json` file to
+`set_addresses_names`. A dossier is large (about 1 MB), so read it with `jq`, never whole.
+
 ## 3. Verify against disassembly when it matters
 
 Ghidra pseudocode drops loop bounds, mis-types floats, merges stack slots and loses arguments to
