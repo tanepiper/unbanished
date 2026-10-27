@@ -31,8 +31,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
   terrain's dirt map.
 - `labels/names-from-port.tsv` also names the functions cited as a `FUN_` address in the
   comment directly above a function or a type, and follows an ``Original:`` list onto its next
-  line. It has 1,111 labels, and the traced share of the Application's own code rose from
-  38.3 % to 57.7 %.
+  line. It has 1,109 labels.
+- `labels/names.tsv` names the 116 confirmed class registrations and their factory callbacks
+  (`Class::RegisterTypeInfo`, `Class::Create`, `Class::CreateInPlace`), 311 labels from
+  `docs/GAME-TYPE-REGISTRATIONS.tsv` (`tools/triage/type_labels.py`). With both changes the
+  traced share of the Application's own code rose from 38.3 % to 59.7 %.
 
 ## [0.5.0] - 2026-10-23
 

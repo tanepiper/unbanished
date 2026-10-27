@@ -40,8 +40,6 @@
 140032270	Controller::ClearResource_2	crates/game/src/work/construction.rs
 140033050	ProduceRecipe	crates/formats/src/game/work/produce.rs
 140034520	destroy	crates/game/src/work/destroy.rs
-140037100	pasture_description	crates/formats/src/game/work.rs
-140039280	StatusIconDescription_2	crates/formats/src/game/interface.rs
 140042850	boot_chain	apps/game/src/game.rs
 140043070	Action::ShowTool	crates/game/src/behaviour/character/actions.rs
 140043500	Ambience::sync_entities	apps/game/src/audio/ambience/entities.rs

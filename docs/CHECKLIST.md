@@ -47,7 +47,7 @@ code or the docs without a label is reported as cited, and is not yet traced.
 
 | 2026-10-27 | Own code | Traced | Cited, no label | Library code | Exception funclets |
 |---|---|---|---|---|---|
-| Application | 4,487 functions, 1,165,653 bytes | **1,187 functions, 57.7 %** | 889 functions, 18.3 % | 292 functions, 64,545 bytes | 5,056 functions, 73,373 bytes |
+| Application | 4,487 functions, 1,165,653 bytes | **1,496 functions, 59.7 %** | 580 functions, 16.4 % | 292 functions, 64,545 bytes | 5,056 functions, 73,373 bytes |
 | Runtime | 6,858 functions, 968,747 bytes | **107 functions, 6.8 %** | 243 functions, 6.7 % | 682 functions, 144,503 bytes | 7,576 functions, 106,378 bytes |
 
 The Runtime's figure is low because the port cites most engine functions by their exported
@@ -55,12 +55,17 @@ names (`System::Random`), which give no label.
 
 ## Labels and evidence
 
-- [x] Function labels from the port's citations: `labels/names-from-port.tsv`, 1,111 labels
+- [x] Class registrations and factory callbacks: 311 labels in `labels/names.tsv`
+  (`Class::RegisterTypeInfo`, `Class::Create`, `Class::CreateInPlace`) from the 116 confirmed
+  rows of [GAME-TYPE-REGISTRATIONS.tsv](GAME-TYPE-REGISTRATIONS.tsv), written by
+  `tools/triage/type_labels.py`. 37 in-place callbacks are not functions in Ghidra's export and
+  have no label
+- [x] Function labels from the port's citations: `labels/names-from-port.tsv`, 1,109 labels
   (`tools/triage/cite_labels.py`). Citations on struct fields, enum variants, constants and
   module notes give labels too. A function's or a type's own name wins. A `FUN_` address in the
   comment directly above a function or a type gives a label when no ``Original:`` line names
-  that address. Most of the 889 functions still cited without a label are named in notes
-  inside function bodies, or only in the docs and the type tables
+  that address. Most of the 580 functions still cited without a label are named in notes
+  inside function bodies, or only in the docs
 - [x] Library code named by signature: 292 functions in the Application and 682 in the Runtime,
   with evidence for each (`labels/library.tsv`, `tools/triage/library.py`,
   [LIBRARY-CODE.md](LIBRARY-CODE.md)). Ghidra's Function ID matched 197 and 456 of them

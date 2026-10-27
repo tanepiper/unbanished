@@ -40,6 +40,9 @@ view in both, pass `--resize` when resolutions differ and `--ignore` for the UI 
   `cite_labels.py` (from GameFrame). With `--any --prefix FUN_` a `FUN_` address in the comment
   directly above a function or a type names it too, ranked below any ``Original:`` citation. The tools read it after `names.tsv`, so a hand-made label
   wins. Do not edit it: the quick test tier regenerates it and fails when it was out of date.
+- The class registrations and factory callbacks in `labels/names.tsv` (between its `Begin` and
+  `End` lines) come from `docs/GAME-TYPE-REGISTRATIONS.tsv`, written by `type_labels.py`. Run it
+  again after `tools/schema/export_type_registrations.py`; the quick test tier checks the block.
 - `labels/library.tsv`: the C runtime, the Steam stub and unnamed funclets (`address label kind
   evidence`), made by `library.py`. The tools read it last, and coverage counts it apart. Do not
   edit it: run `library.py` again after a new export.

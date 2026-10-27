@@ -109,6 +109,10 @@ def suite_checks(ctx: Context) -> None:
         raise RuntimeError("docs/DEVIATIONS.md was out of date; it is updated now: stage it")
     sh([sys.executable, "tools/triage/doc_comments.py", "check"])
     # The labels made from the port's citations stay current (tools/triage/cite_labels.py).
+    # The class registrations' labels in names.tsv follow docs/GAME-TYPE-REGISTRATIONS.tsv; the
+    # check needs the local Ghidra export.
+    if (REPO / "analysis/export/Application-steam-x64.exe/functions.tsv").exists():
+        sh([sys.executable, "tools/triage/type_labels.py", "--check"])
     port_labels = REPO / "labels/names-from-port.tsv"
     before = port_labels.read_text() if port_labels.exists() else ""
     # --notes: module notes name their module. --any --prefix FUN_: a `FUN_` address in the comment
