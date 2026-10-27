@@ -37,7 +37,8 @@ view in both, pass `--resize` when resolutions differ and `--ignore` for the UI 
   automatically (`CitizenAIComponent::slot+0x48`, base defaults as `Component::slot+0x28
   (default, 42 classes)`), and one-type component lookups as `get<Type>`.
 - `labels/names-from-port.tsv`: labels made from the port's ``Original: `FUN_…` `` citations by
-  `cite_labels.py` (from GameFrame). The tools read it after `names.tsv`, so a hand-made label
+  `cite_labels.py` (from GameFrame). With `--any --prefix FUN_` a `FUN_` address in the comment
+  directly above a function or a type names it too, ranked below any ``Original:`` citation. The tools read it after `names.tsv`, so a hand-made label
   wins. Do not edit it: the quick test tier regenerates it and fails when it was out of date.
 - `labels/library.tsv`: the C runtime, the Steam stub and unnamed funclets (`address label kind
   evidence`), made by `library.py`. The tools read it last, and coverage counts it apart. Do not

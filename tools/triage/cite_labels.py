@@ -4,7 +4,8 @@
 Make function labels from a reimplementation's citations: every item whose comment says
 "Original: FUN_xxxx" names that original function.
 
-Usage: cite_labels.py SOURCE_DIR [--existing names.tsv] [--no-lines] [--out FILE] [--check FILE]
+Usage: cite_labels.py SOURCE_DIR [--existing names.tsv] [--functions functions.tsv] [--any] [--prefix P]
+                      [--notes] [--module NAME [--segment SEG]] [--no-lines] [--out FILE] [--check FILE]
 
 GameFrame's rule is that every ported item names the original function it came from, in a
 comment such as `/// Original: FUN_1400be770` (or `// Original: 1400be770`). The port then knows
@@ -13,15 +14,37 @@ says FUN_1400be770. This tool reads the citations and writes a labels file: each
 gets the name of the item declared after the comment, a function, a method (Type::method), a
 struct, an enum or a class, in Rust, C, C++, Python, JavaScript or TypeScript.
 
+- In a git repository only tracked files are read, so decompiled code and game files in ignored
+  folders (analysis/, derived/, game/) are never read. Elsewhere hidden and build folders are
+  skipped.
+- An "Original:" list that ends with a comma goes on in the next comment line.
 - When one item cites several functions, the first gets the item's name and the others get the
   name with _2, _3 and so on after it.
-- A citation in a Rust module's note (`//!`) names the module (the file, or its folder for mod.rs,
-  lib.rs and main.rs). A function's or a type's name wins over a field's, a variant's or a
-  constant's, and any of them wins over a module's.
-- A citation that is not followed by an item (a note in a body) is counted and left out.
+- A citation on a struct's field, an enum's variant or a constant names Type::field,
+  Enum::Variant or Block::NAME. A function's or a type's name wins over these for the same
+  address, because a field or a variant only mentions a function that something else ports.
+- A citation that is not followed by an item (a module's comment, a note in a body) is counted and
+  left out.
+- --notes also reads a Rust module's note (`//!`): its citations name the module (the file, or its
+  folder for mod.rs, lib.rs and main.rs), ranked below every item's name.
 - --existing names.tsv: addresses already labelled there by hand are left out, so a person's label
   always wins.
 - --out FILE writes the labels (address, label, evidence as file:line); without it they are printed.
+- --functions FILE (Ghidra's functions.tsv from the export) keeps only addresses where a function
+  starts, which leaves out the ends of ranges and addresses inside functions.
+- --any counts the first address in a comment directly above an item, not only those after
+  "Original:", for ports that cite as `unit.Procedure` (1000:abf8). Use it with --functions.
+  Each function or type takes one such address; fields, variants and constants take none. An
+  "Original:" citation of the same address wins.
+- --prefix P, with --any: an address outside an "Original:" citation counts only when written
+  with P before it (--prefix FUN_). Ports that write instruction addresses as 0x1401259c5 and
+  functions as FUN_1401259c0 then need no functions.tsv, so the result is the same on every
+  machine.
+- --module NAME reads citations written as NAME:offset (an overlay or module and an offset in it,
+  `EL2MATH3:1cf5`) and gives the address as SEG:offset, Ghidra's numbering of that overlay
+  (--segment, 1000 by default). Run it once for each overlay, with --out labels/NAME.tsv:
+  decomp_query.py reads labels/<binary name>.tsv for that binary.
+  Other addresses are left out.
 - --no-lines gives the evidence as the file alone. A committed labels file then changes only when
   a citation or an item's name changes, not with every edit above it.
 - --check FILE exits 1 if FILE differs from what the tool would write, for a test that keeps the
@@ -32,6 +55,7 @@ library only.
 """
 import os
 import re
+import subprocess
 import sys
 
 EXTS = ('.rs', '.c', '.cc', '.cpp', '.h', '.hpp', '.py', '.js', '.ts', '.java', '.go', '.cs', '.pas')
@@ -55,7 +79,7 @@ VARIANT = re.compile(r'^\s*([A-Z]\w*)\s*(?:[,({=]|$)')
 CONST = re.compile(r'^\s*(?:pub(?:\([^)]*\))?\s+)?(?:const|static)\s+(?:mut\s+)?([A-Za-z_]\w*)\s*:')
 
 
-def items(lines):
+def items(lines, c_like=True):
     """For each line, the item it declares (or None). Rust methods are named Type::method, struct
     fields Type::field, enum variants Enum::Variant, constants in a block Block::NAME. Each name
     comes with its rank: 0 for a function or a type, 1 for a field, a variant or a constant, which
@@ -84,7 +108,9 @@ def items(lines):
                 m = CONST.match(line)
                 name = m and m.group(1)
             if not name:
-                for pat in ITEM:
+                # The last pattern, a C function declaration, also matches Rust and Python
+                # statements (`let Some(x) = f(`), so it is kept for the other languages.
+                for pat in ITEM if c_like else ITEM[:-1]:
                     m = pat.match(line)
                     if m:
                         name, rank = m.group(1), 0
@@ -98,54 +124,89 @@ def items(lines):
     return out
 
 
-def scan(root, lines_too=True):
-    labels, skipped = [], 0
-    for base, dirs, files in os.walk(root):
-        # Dot folders hold copies (.claude/worktrees) and tool state; GameFrame skips them too.
-        dirs[:] = sorted(d for d in dirs if d not in ('target', 'build', 'node_modules')
-                         and not d.startswith('.'))
-        for f in sorted(files):
-            if not f.endswith(EXTS):
+def source_files(root):
+    """The source files under ROOT: the tracked ones in a git repository, else a walk."""
+    try:
+        out = subprocess.run(['git', '-C', root, 'ls-files', '-z'], capture_output=True, check=True).stdout
+        return [os.path.join(root, f) for f in sorted(out.decode('utf-8', 'replace').split('\0')) if f.endswith(EXTS)]
+    except (OSError, subprocess.CalledProcessError):
+        found = []
+        for base, dirs, files in os.walk(root):
+            dirs[:] = sorted(d for d in dirs if d not in ('target', 'build', 'node_modules', 'analysis', 'derived')
+                             and not d.startswith('.'))
+            found += [os.path.join(base, f) for f in sorted(files) if f.endswith(EXTS)]
+        return found
+
+
+def scan(root, lines_too=True, any_address=False, module=None, segment='1000', starts=None,
+         notes=False, prefix=None):
+    mod = re.compile(r'\b' + re.escape(module) + r'(?:\.\w+)?:([0-9a-fA-F]{4})\b') if module else None
+    pre = re.compile(re.escape(prefix) + r'([0-9a-fA-F]{4,})\b') if prefix else None
+    labels, skipped, claimed = [], 0, set()
+    for path in source_files(root):
+        try:
+            lines = open(path, encoding='utf-8', errors='replace').read().split('\n')
+        except OSError:
+            continue
+        names = items(lines, not path.endswith(('.rs', '.py')))
+        rel = os.path.relpath(path, root)
+        base, f = os.path.split(path)
+        stem = os.path.splitext(f)[0]
+        module_name = os.path.basename(os.path.abspath(base)) if stem in ('mod', 'lib', 'main') else stem
+        where = lambda i: f'{rel}:{i + 1}' if lines_too else rel
+        for i, line in enumerate(lines):
+            if not COMMENT.match(line):
                 continue
-            path = os.path.join(base, f)
-            try:
-                lines = open(path, encoding='utf-8', errors='replace').read().split('\n')
-            except OSError:
+            m = CITE.search(line)
+            if not m and not (any_address or mod):
                 continue
-            names = items(lines)
-            stem = os.path.splitext(f)[0]
-            module = os.path.basename(base) if stem in ('mod', 'lib', 'main') else stem
-            for i, line in enumerate(lines):
-                if not COMMENT.match(line):
-                    continue
-                m = CITE.search(line)
-                if not m:
-                    continue
-                addrs = [a.lower().removeprefix('0x').replace('_', ':') for a in ADDR.findall(m.group(1))]
-                if not addrs:
-                    continue
-                if line.lstrip().startswith('//!'):
-                    # A module's note: the module's name, last in rank (2), so that a function, a
-                    # type, a field or a variant citing the same address wins.
-                    rel = os.path.relpath(path, root)
+            text = m.group(1) if m else line
+            # An "Original:" list that ends with a comma goes on in the next comment line.
+            k = i
+            while m and text.rstrip().endswith(',') and k + 1 < len(lines) and COMMENT.match(lines[k + 1]):
+                k += 1
+                text += ' ' + lines[k]
+            if mod:
+                addrs = [f'{segment}:{a.lower()}' for a in mod.findall(text)]
+            elif pre and not m:
+                addrs = [a.lower() for a in pre.findall(text)]
+            else:
+                addrs = [a.lower().removeprefix('0x').replace('_', ':') for a in ADDR.findall(text)]
+            if starts is not None:
+                addrs = [a for a in addrs if a in starts]
+            if any_address and not m:
+                addrs = addrs[:1]
+            if not addrs:
+                continue
+            if line.lstrip().startswith('//!'):
+                if notes and m:
+                    # A module's note: the module's name, ranked 2, below every item's name.
                     for k, addr in enumerate(addrs):
-                        labels.append((addr, 2, module if k == 0 else f'{module}_{k + 1}',
-                                       f'{rel}:{i + 1}' if lines_too else rel))
-                    continue
-                name = None
-                for j in range(i + 1, min(i + 40, len(lines))):
-                    if names[j]:
-                        name = names[j]
-                        break
-                    if lines[j].strip() and not COMMENT.match(lines[j]) and not lines[j].lstrip().startswith(('#[', '@')):
-                        break
-                if not name:
+                        labels.append((addr, 2, module_name if k == 0 else f'{module_name}_{k + 1}', where(i)))
+                else:
                     skipped += len(addrs)
+                continue
+            name = None
+            for j in range(i + 1, min(i + 40, len(lines))):
+                if names[j]:
+                    name = names[j]
+                    break
+                if lines[j].strip() and not COMMENT.match(lines[j]) and not lines[j].lstrip().startswith(('#[', '@')):
+                    break
+            if not name:
+                skipped += len(addrs)
+                continue
+            name, rank = name
+            if any_address and not m:
+                # A field, a variant or a constant only mentions a function ("zero in
+                # FUN_x's constructor"); without "Original:" only a function or a type ports it.
+                if rank or (path, j) in claimed:
                     continue
-                name, rank = name
-                rel = os.path.relpath(path, root)
-                for k, addr in enumerate(addrs):
-                    labels.append((addr, rank, name if k == 0 else f'{name}_{k + 1}', f'{rel}:{i + 1}' if lines_too else rel))
+                claimed.add((path, j))
+                # Below every "Original:" citation of the same address.
+                rank += 3
+            for k, addr in enumerate(addrs):
+                labels.append((addr, rank, name if k == 0 else f'{name}_{k + 1}', where(i)))
     return labels, skipped
 
 
@@ -176,7 +237,15 @@ def main(argv):
         print(__doc__)
         return 0
     opt = lambda name: argv[argv.index(name) + 1] if name in argv else None
-    labels, skipped = scan(argv[0], '--no-lines' not in argv)
+    starts = None
+    if opt('--functions'):
+        starts = set()
+        for row in open(opt('--functions'), encoding='utf-8', errors='replace'):
+            a = row.split('\t')[0].strip().lower().removeprefix('0x').replace('_', ':')
+            if a and not a.startswith('#'):
+                starts.add(a)
+    labels, skipped = scan(argv[0], '--no-lines' not in argv, '--any' in argv, opt('--module'), opt('--segment') or '1000',
+                           starts, '--notes' in argv, opt('--prefix'))
     text, n = render(labels, load(opt('--existing')))
     if opt('--check'):
         old = open(opt('--check'), encoding='utf-8').read() if os.path.exists(opt('--check')) else ''

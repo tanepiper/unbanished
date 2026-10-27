@@ -37,26 +37,30 @@ work are in [GAME-LOOP-CHECKLIST.md](GAME-LOOP-CHECKLIST.md). The parity of each
 ## Coverage
 
 A function is **traced** when it has a label: a hand label in `labels/names.tsv`, which names
-the doc with its evidence, or a label from a ported item's ``Original: `FUN_…` `` citation in
-`labels/names-from-port.tsv`. The coverage figure is the traced share of the binary's own code,
+the doc with its evidence, or a label from a ported item's citation in
+`labels/names-from-port.tsv`. A citation is an ``Original: `FUN_…` `` line, or a `FUN_` address
+in the comment directly above a function or a type. The coverage figure is the traced share of the binary's own code,
 by size. Library code (`labels/library.tsv`, [LIBRARY-CODE.md](LIBRARY-CODE.md)), the
 compiler's exception funclets and thunks are counted apart. `python3 tools/triage/fnindex.py
 coverage` reports it, and no other tool gives a coverage figure. A function that is named in the
 code or the docs without a label is reported as cited, and is not yet traced.
 
-| 2026-10-22 | Own code | Traced | Cited, no label | Library code | Exception funclets |
+| 2026-10-27 | Own code | Traced | Cited, no label | Library code | Exception funclets |
 |---|---|---|---|---|---|
-| Application | 4,487 functions, 1,165,653 bytes | **823 functions, 37.9 %** | 1,242 functions, 37.8 % | 292 functions, 64,545 bytes | 5,056 functions, 73,373 bytes |
-| Runtime | 6,858 functions, 968,747 bytes | **97 functions, 6.3 %** | 246 functions, 7.1 % | 682 functions, 144,503 bytes | 7,576 functions, 106,378 bytes |
+| Application | 4,487 functions, 1,165,653 bytes | **1,187 functions, 57.7 %** | 889 functions, 18.3 % | 292 functions, 64,545 bytes | 5,056 functions, 73,373 bytes |
+| Runtime | 6,858 functions, 968,747 bytes | **107 functions, 6.8 %** | 243 functions, 6.7 % | 682 functions, 144,503 bytes | 7,576 functions, 106,378 bytes |
 
 The Runtime's figure is low because the port cites most engine functions by their exported
 names (`System::Random`), which give no label.
 
 ## Labels and evidence
 
-- [x] Function labels from the port's citations: `labels/names-from-port.tsv`, 727 labels
+- [x] Function labels from the port's citations: `labels/names-from-port.tsv`, 1,111 labels
   (`tools/triage/cite_labels.py`). Citations on struct fields, enum variants, constants and
-  module notes give labels too; a function's or a type's own name wins
+  module notes give labels too. A function's or a type's own name wins. A `FUN_` address in the
+  comment directly above a function or a type gives a label when no ``Original:`` line names
+  that address. Most of the 889 functions still cited without a label are named in notes
+  inside function bodies, or only in the docs and the type tables
 - [x] Library code named by signature: 292 functions in the Application and 682 in the Runtime,
   with evidence for each (`labels/library.tsv`, `tools/triage/library.py`,
   [LIBRARY-CODE.md](LIBRARY-CODE.md)). Ghidra's Function ID matched 197 and 456 of them

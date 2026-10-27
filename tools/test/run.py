@@ -111,8 +111,10 @@ def suite_checks(ctx: Context) -> None:
     # The labels made from the port's citations stay current (tools/triage/cite_labels.py).
     port_labels = REPO / "labels/names-from-port.tsv"
     before = port_labels.read_text() if port_labels.exists() else ""
+    # --notes: module notes name their module. --any --prefix FUN_: a `FUN_` address in the comment
+    # directly above a function or a type names it too, below any "Original:" citation.
     sh([sys.executable, "tools/triage/cite_labels.py", ".", "--existing", "labels/names.tsv", "--no-lines",
-        "--out", str(port_labels)])
+        "--notes", "--any", "--prefix", "FUN_", "--out", str(port_labels)])
     if port_labels.read_text() != before:
         raise RuntimeError("labels/names-from-port.tsv was out of date; it is updated now: stage it")
     # The core depends on no drawing, window, interface, sound or network crate.
