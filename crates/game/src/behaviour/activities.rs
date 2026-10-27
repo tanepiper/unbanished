@@ -307,8 +307,10 @@ pub fn loiter(
     let mut pad = chosen.and_then(|e| town.entities[e].happiness).unwrap_or(6);
     if chosen.is_none() {
         // Scan 13 x 13 cells around the citizen (rows outer) for reachable map objects, then
-        // the home; pick one from the set. The original orders the set by object address; the
-        // port uses creation order.
+        // the home; pick one from the set.
+        // Deviation: the original's set is a tree keyed by each object's `Object::Internal`
+        // address, which depends on the allocator's history; the port uses creation order.
+        // Measured on the CrossOver pair (docs/ITERATION-ORDER.md): the pick differs at draw 815.
         let mut set = std::collections::BTreeSet::new();
         let (cx, cy) = (cell % n, cell / n);
         for y in cy - 6..=cy + 6 {

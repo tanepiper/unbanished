@@ -23,6 +23,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
 - `--sim-continue --game` runs a save through the whole game loop, with the music and the sounds
   drawing from the town's random numbers as the original's do, so its draws can be compared one
   by one with the original's.
+- `--sim-continue --replay-draws FILE` makes the original's sound draws before the port's, from a
+  list `tools/triage/rng_split.py` makes from the original's draw trace, so the simulation's own
+  draws can be compared with the original's number for number.
 
 ### Changed
 

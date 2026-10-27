@@ -18,6 +18,10 @@
 //! (`unbanished_game::random::trace`), for `tools/triage/rngdiff.py` to compare with the
 //! original's.
 //!
+//! `--replay-draws FILE` (with `--draws`) makes plain draws before each recorded draw, one number per line
+//! (`tools/triage/rng_split.py`): the original's sound draws, so the simulation gets the same
+//! numbers as the original's without running its sounds.
+//!
 //! `--game` runs the whole game loop instead of the simulation alone
 //! (`gameplay::continue_game`), so the music and the sounds draw from the town's Random as the
 //! original's do. Its speed must be one of the game's levels.
@@ -28,7 +32,7 @@ use unbanished_sim::strings::ArchiveStrings;
 use super::*;
 
 pub fn sim_continue(args: &[String]) {
-    let usage = "--sim-continue SAVE ITERATIONS OUT.sav [WINDATA] [--speed N] [--clock SECONDS] [--draws FILE] [--game]";
+    let usage = "--sim-continue SAVE ITERATIONS OUT.sav [WINDATA] [--speed N] [--clock SECONDS] [--draws FILE] [--replay-draws FILE] [--game]";
     let save = args.get(1).expect(usage);
     let iterations: u32 = args.get(2).and_then(|s| s.parse().ok()).expect(usage);
     let out = args.get(3).expect(usage);
@@ -85,6 +89,13 @@ pub fn sim_continue(args: &[String]) {
         let mut strings = ArchiveStrings::new(ctx.archive);
         if draws.is_some() {
             unbanished_game::random::trace::start();
+        }
+        if let Some(i) = args.iter().position(|a| a == "--replay-draws") {
+            let text = std::fs::read_to_string(args.get(i + 1).expect(usage)).expect("read");
+            let skips = text
+                .lines()
+                .map(|l| l.trim().parse::<u32>().expect("a number"));
+            unbanished_game::random::trace::replay(skips);
         }
         for _ in 0..iterations / speed {
             sim.frame(ctx.archive, &mut strings, &params, speed, dt, false);

@@ -42,6 +42,15 @@ pub mod trace {
     thread_local! {
         static LOG: RefCell<Option<Vec<Draw>>> = const { RefCell::new(None) };
         static DEPTH: Cell<u32> = const { Cell::new(0) };
+        static REPLAY: RefCell<std::collections::VecDeque<u32>> =
+            const { RefCell::new(std::collections::VecDeque::new()) };
+    }
+
+    /// While recording, make `skips[k]` plain draws before the `k`-th recorded draw. They stand
+    /// for draws the original made from the same generator outside the code being compared (its
+    /// sounds), so both generators give the same numbers to the rest.
+    pub fn replay(skips: impl IntoIterator<Item = u32>) {
+        REPLAY.with(|r| *r.borrow_mut() = skips.into_iter().collect());
     }
 
     /// Start recording on this thread (clears any previous log).
@@ -63,7 +72,10 @@ pub mod trace {
         std::fs::write(path, text)
     }
 
-    pub(super) struct Guard;
+    pub(super) struct Guard {
+        /// Plain draws to make first ([`replay`]).
+        pub(super) skip: u32,
+    }
 
     impl Drop for Guard {
         fn drop(&mut self) {
@@ -80,14 +92,16 @@ pub mod trace {
             d.set(v + 1);
             v == 0
         });
+        let mut skip = 0;
         if outer {
             LOG.with(|l| {
                 if let Some(log) = l.borrow_mut().as_mut() {
                     log.push(Draw { kind: kind(), at });
+                    skip = REPLAY.with(|r| r.borrow_mut().pop_front()).unwrap_or(0);
                 }
             });
         }
-        Guard
+        Guard { skip }
     }
 }
 
@@ -152,12 +166,21 @@ impl Random {
         }
     }
 
+    /// Plain draws standing for the original's draws outside the compared code
+    /// ([`trace::replay`]).
+    fn skip(&mut self, n: u32) {
+        for _ in 0..n {
+            self.rand();
+        }
+    }
+
     /// The next number, any `u32`.
     ///
     /// Original: `Rand()`, Runtime `0x1800ca800`.
     #[track_caller]
     pub fn rand(&mut self) -> u32 {
-        let _t = trace::enter(|| "Rand".into());
+        let g = trace::enter(|| "Rand".into());
+        self.skip(g.skip);
         if self.index == 0 {
             self.next_group();
         }
@@ -178,7 +201,8 @@ impl Random {
     /// Original: `Rand(unsigned int)`, Runtime `0x1800ca8b0`.
     #[track_caller]
     pub fn rand_below(&mut self, n: u32) -> u32 {
-        let _t = trace::enter(|| format!("Rand({n})"));
+        let g = trace::enter(|| format!("Rand({n})"));
+        self.skip(g.skip);
         if n == 0 {
             return 0;
         }
@@ -190,7 +214,8 @@ impl Random {
     /// Original: `Rand(int, int)`, Runtime `0x1800ca5e0`.
     #[track_caller]
     pub fn rand_range(&mut self, lo: i32, hi: i32) -> i32 {
-        let _t = trace::enter(|| format!("Rand({lo},{hi})"));
+        let g = trace::enter(|| format!("Rand({lo},{hi})"));
+        self.skip(g.skip);
         let r = self.rand();
         lo.wrapping_add((r % ((hi.wrapping_sub(lo) as u32).wrapping_add(1))) as i32)
     }
@@ -200,7 +225,8 @@ impl Random {
     /// Original: `RandTol(int)`, Runtime `0x1800ca610`.
     #[track_caller]
     pub fn rand_tol(&mut self, t: i32) -> i32 {
-        let _t = trace::enter(|| format!("RandTol({t})"));
+        let g = trace::enter(|| format!("RandTol({t})"));
+        self.skip(g.skip);
         let r = self.rand();
         (r % ((t as u32).wrapping_mul(2).wrapping_add(1))) as i32 - t
     }
@@ -210,7 +236,8 @@ impl Random {
     /// Original: `RandFloat()`, Runtime `0x1800ca5b0`.
     #[track_caller]
     pub fn rand_float(&mut self) -> f32 {
-        let _t = trace::enter(|| "RandFloat".into());
+        let g = trace::enter(|| "RandFloat".into());
+        self.skip(g.skip);
         self.rand() as f32 * 2.328_306_4e-10
     }
 
@@ -219,7 +246,8 @@ impl Random {
     /// Original: `RandFloatTol()`, Runtime `0x1800ca870`.
     #[track_caller]
     pub fn rand_float_tol(&mut self) -> f32 {
-        let _t = trace::enter(|| "RandFloatTol".into());
+        let g = trace::enter(|| "RandFloatTol".into());
+        self.skip(g.skip);
         1.0 - self.rand() as f32 * 2.328_306_4e-10 * 2.0
     }
 }
@@ -242,6 +270,22 @@ mod tests {
         assert!(log[0].at.file().ends_with("random.rs"));
         r.rand();
         assert!(trace::take().is_empty());
+    }
+
+    #[test]
+    fn replay_draws_before_recorded_draws() {
+        let mut expected = Random::new(1);
+        expected.rand();
+        let a = expected.rand_float();
+        expected.rand();
+        expected.rand();
+        let b = expected.rand_below(7);
+        let mut r = Random::new(1);
+        trace::start();
+        trace::replay([1, 2]);
+        assert_eq!(r.rand_float(), a);
+        assert_eq!(r.rand_below(7), b);
+        assert_eq!(trace::take().len(), 2);
     }
 
     #[test]

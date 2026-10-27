@@ -210,7 +210,15 @@ autosave of a busy town (`04-Auto`, 57,130 draws) was compared with the port's
 | 18 | The original draws `Rand(15)` (`0x1400a98d2`, the music player) and then 16 plain draws | Without a sound device the music player and `Scene::Update` still draw from the town's Random. `--sim-continue` runs no audio, so it parts here at once; `--game` runs the whole game loop and makes these draws too |
 | 31 | The port starts fewer ambience sounds on the first frame | Fixed in part: the port's listener was on the ground. It is at the eye's height (see [AUDIO.md](AUDIO.md)), *measured* at 105.32 for this save's camera |
 | 31 | The original starts 7 sounds on the first frame (river, forest, field, wind, rain, the crowd and a farmer's hoe at (65.5, −2.5)); the port starts 5 and the crowd one frame later | Open: the original restores the working citizens' tool sounds with the save and hears the crowd at once; its ambience volumes also differ (wind 0.975 against 1, rain 1 with two emitters against 0.06 with one) |
-| 586 (sound draws left out) | The original's gatherer search (`FUN_1400f3880`) ends one attempt earlier than the port's | Open: it found a resource where the port found none |
+| 586 (sound draws left out) | The original's gatherer search (`FUN_1400f3880`) ends one attempt earlier than the port's | The numbers differed, not the search: with the original's sound draws replayed (below) the search is the same |
+| 815 (sound draws replayed) | `Activity::Loiter` (`FUN_14010fa30`) draws `Rand(125)` in the original and `Rand(124)` in the port | The citizen picks one of 48 objects near it (`Rand(48)` the same on both sides), then a cell around it. The original keeps the 48 in a tree keyed by each object's `Object::Internal` address; the port keeps them in creation order. Of the port's 48, those at places 0 and 25 have 125 cells around them; the port took place 38 (124). So the two orders differ here (a Deviation) |
+
+To compare the simulation alone, `tools/triage/rng_split.py` splits the original's list. It
+keeps the draws to compare and writes, for each, how many sound draws the original made before
+it: the gaps in the index and the music player's `Rand(15)`. `--sim-continue --draws FILE
+--replay-draws SKIPS` makes those draws in the port before each recorded draw, so both
+generators give the same numbers to the simulation. With that, the port matches the original
+for 814 draws of the simulation (about 20 iterations of this town).
 
 The particle systems draw from their own `Random` in both, so the port's list leaves them out
 too. Each load of the original takes its own path after the first frames: its sound draws
@@ -229,8 +237,9 @@ same search. So a search's cells must be read in the same run as the draws.
 - A pair made with a known number of clicks, to measure the 4 draws per click directly. The
   clicks in the emulated PC register only in part, so the counts above fit but are not
   measured click by click.
-- The gatherer search at draw 586 of the CrossOver pair: which cell the original accepted.
-  Breaking at `0x1400f3c3f` gives each candidate cell (`r12d`, with x in `ecx` and y in
-  `edx`); it must run in the same load as the draw trace.
+- The order of `Object::Internal` addresses in a loaded game. It decides `Activity::Loiter`'s
+  pick (draw 815 of the CrossOver pair) and the other address-keyed trees. Whether a load from
+  the main menu right after start gives an order the port can reproduce (for example the
+  save's order or its reverse) is not measured.
 - The sounds the original starts on the first frame after a load (the crowd and the restored
   tool sounds) and its ambience volumes.
