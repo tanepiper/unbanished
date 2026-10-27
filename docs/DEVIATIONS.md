@@ -19,10 +19,6 @@ Deviation: 79, Not ported: 7, Not traced: 1.
 
 - [Deviation] [apps/game/src/audio/ambience.rs:1](../apps/game/src/audio/ambience.rs#L1): Map ambience placed by `FUN_1400a57c0` (see docs/STARTING-AUDIO-EMITTERS.md, docs/AUDIO.md): - one `Audio/Effects/Environment.rsc:ambient` per `int_150`-cell square region. Its AmbientEnvironmentComponent (`FUN_140043c70`) weighs the region's cells against the description's terrain classes (cell-type mask, optional entity template, weight), picks the heaviest, and feeds its warm and cold effects to the two emitter slots at `t` and `1 - t`, where `t` is the temperature's place in the description's fade range; - one `Audio/Effects/WindEffect.rsc:ambient` at height `float_170`. Also the Rain effect's emitter (`FUN_140099790`) and the emitters of placed entities whose template has an `ambientemitter` component (fire, crowd, tornado). Emitters of the same SoundEffect share one 3D effect (`FindEffect3D`, `AddEmitter`), which plays at the loudest emitter in reach. Deviations: the original registers these as entities in the entity manager (bucket 2 for the environment); the port keeps them as an audio-only layer and re-weighs a region when the map changes instead of on its scheduled visit. River emitters: one `Audio/Effects/RiverEffect.rsc:ambient` every `float_130` units along the river paths (MapComponent `+0x1e0`, see `World::river_paths`).
 
-## `apps/game/src/audio/sound.rs`
-
-- [Deviation] [apps/game/src/audio/sound.rs:1](../apps/game/src/audio/sound.rs#L1): The game's audio: the 64-channel `Device`, the `Audio::Scene` above it, loaded SoundEffects, and the UI sound slots (`UserInterface::SetSound`, set from the global sounds of `FUN_14009f280` by `FUN_1400778f0`). See docs/AUDIO.md. Deviation: the original passes the game's Random (`Game +0xd8`) to `Scene::Update` and the music player, at moments that depend on the frame rate and on when sounds end. The port gives audio its own Random so that the simulation stays reproducible.
-
 ## `apps/game/src/game.rs`
 
 - [Deviation] [apps/game/src/game.rs:37](../apps/game/src/game.rs#L37): The display's scale factor (1.0 for captures). Deviation: the UI is drawn at `os_scale × UIScale / 100` so a high-density display does not shrink it; the original knows only `UIScale` (`UserInterface +0xdc`).
@@ -31,6 +27,10 @@ Deviation: 79, Not ported: 7, Not traced: 1.
 ## `apps/game/src/gameplay.rs`
 
 - [Deviation] [apps/game/src/gameplay.rs:66](../apps/game/src/gameplay.rs#L66): `FUN_140104390`: the pointer scrolls within this many pixels of the left/top edge, and within `EDGE + 1` of the right/bottom edge. Deviation: UI units rather than the original's window pixels, which differ when the UI is scaled.
+
+## `apps/game/src/gameplay/audio.rs`
+
+- [Deviation] [apps/game/src/gameplay/audio.rs:15](../apps/game/src/gameplay/audio.rs#L15): Whether the music player and `Scene::Update` draw from the game's Random, as in the original (`FUN_14009b850` passes `Game +0xd8`): each sound that starts draws twice (`Audio::Scene::Update`, Runtime `0x1800e1f10`), so UI clicks, placement sounds and the ambience move the town's Random, at times that depend on the frame rate. Deviation: a multiplayer game, a recording, a replay and `--sim-digest` draw them from the audio's own Random, because clicks and frame times differ between computers and between runs, and the town must stay the same on each.
 
 ## `apps/game/src/gameplay/digest.rs`
 

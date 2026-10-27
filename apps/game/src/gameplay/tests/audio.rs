@@ -3,7 +3,7 @@
 use super::*;
 
 #[test]
-fn audio_plays_music_ambience_and_keeps_the_simulation_stream() {
+fn audio_plays_music_and_ambience() {
     let Some((mut game, mut gameplay)) = generated() else {
         return;
     };
@@ -52,6 +52,7 @@ fn pause_menu_pauses_sounds_and_the_simulation() {
         for _ in 0..3 {
             gameplay.update(ctx, 1.0 / 30.0);
         }
+        // No sound starts while the menu holds the game, so nothing draws.
         assert_eq!(gameplay.sim.calendar.seconds(), seconds);
         assert_eq!(format!("{:?}", gameplay.sim.rng), format!("{rng:?}"));
         // Escape is buttonResume's action.
@@ -60,6 +61,29 @@ fn pause_menu_pauses_sounds_and_the_simulation() {
         assert!(!ctx.audio.scene.is_paused(sound_type::MUSIC));
         gameplay.update(ctx, 1.0 / 30.0);
         assert!(gameplay.sim.calendar.seconds() > seconds);
+    });
+}
+
+/// A click in the pause menu plays ButtonDown and ButtonUp (one sound, one variant each), and
+/// `Scene::Update` draws twice for each from the game's Random: `Rand(1)`, then the pitch.
+#[test]
+fn a_click_in_the_pause_menu_draws_four_from_the_game_random() {
+    let Some((mut game, mut gameplay)) = generated() else {
+        return;
+    };
+    game.with_ctx(|_, ctx| {
+        ctx.audio.set_master_volume(0.0);
+        gameplay.update(ctx, 1.0 / 30.0);
+        gameplay.raw(ctx, RawInput::Escape);
+        gameplay.update(ctx, 1.0 / 30.0);
+        let mut expected = gameplay.sim.rng.clone();
+        ctx.audio.play_ui(ctx.archive, 4);
+        ctx.audio.play_ui(ctx.archive, 5);
+        gameplay.update(ctx, 1.0 / 30.0);
+        for _ in 0..4 {
+            expected.rand();
+        }
+        assert_eq!(format!("{:?}", gameplay.sim.rng), format!("{expected:?}"));
     });
 }
 

@@ -41,6 +41,11 @@ impl GameplayLoop {
         }
     }
 
+    /// A recording is being written.
+    pub(in crate::gameplay) fn recording(&self) -> bool {
+        self.recording.recorder.is_some()
+    }
+
     /// A replay: the recording gives the commands and the pauses.
     pub(in crate::gameplay) fn replaying(&self) -> bool {
         self.recording.replaying

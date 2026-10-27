@@ -29,6 +29,8 @@ pub fn run(
         gameplay.paused = false;
         // No autosave: it would wait for a drawn preview and write the player's saves.
         gameplay.autosave = None;
+        // The digests are the simulation's, as the server and a recording see it.
+        gameplay.audio_own_random = true;
         let mut out = vec![gameplay.digest(ctx, 0)?];
         for update in 1..=updates {
             gameplay.update(ctx, step);

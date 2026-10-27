@@ -5,6 +5,8 @@
 use unbanished_formats::audio::{music_list, MusicTrack};
 use unbanished_formats::pkg::Archive;
 
+use unbanished_game::random::Random;
+
 use crate::audio::sound::{sound_type, Audio};
 
 const TRACKS: &str = "Game/MusicTracks.rsc:resource";
@@ -72,27 +74,41 @@ impl MusicPlayer {
     }
 
     /// The effect of the track [`MusicPlayer::update`] would start now, without drawing from
-    /// the audio stream or playing anything. The loading screen decodes it into the effect
-    /// cache, so that the first gameplay frame does not. If the month or the mood changes
+    /// `random` or playing anything. The loading screen decodes it into the effect cache, so
+    /// that the first gameplay frame does not. If the month, the mood or the Random changes
     /// before that frame, `update` still makes its own choice.
-    pub fn first_track(&self, audio: &Audio, month: i32, mood: f32) -> Option<String> {
+    pub fn first_track(
+        &self,
+        audio: &Audio,
+        month: i32,
+        mood: f32,
+        random: Option<&Random>,
+    ) -> Option<String> {
         if audio.scene.is_effect_playing(self.handle) {
             return None;
         }
         let month = if month > 11 { 0 } else { month };
-        let peek = |n| audio.peek_rand_below(n);
+        let peek = |n| audio.peek_rand_below(n, random);
         let i = choose(&self.tracks, month, mood, self.last.as_deref(), peek)?;
         Some(self.tracks[i].effect.as_ref()?.replace('\\', "/"))
     }
 
-    /// `FUN_1400a95b0`. `month` is `(int)(seconds / 3600 × 12)`, 0 past 11.
-    pub fn update(&mut self, audio: &mut Audio, archive: &Archive, month: i32, mood: f32) {
+    /// `FUN_1400a95b0`. `month` is `(int)(seconds / 3600 × 12)`, 0 past 11. The choice draws
+    /// from `random`, the game's Random in a game.
+    pub fn update(
+        &mut self,
+        audio: &mut Audio,
+        archive: &Archive,
+        month: i32,
+        mood: f32,
+        random: Option<&mut Random>,
+    ) {
         if audio.scene.is_effect_playing(self.handle) {
             return;
         }
         let month = if month > 11 { 0 } else { month };
         let Some(i) = choose(&self.tracks, month, mood, self.last.as_deref(), |n| {
-            audio.rand_below(n)
+            audio.rand_below(n, random)
         }) else {
             return;
         };

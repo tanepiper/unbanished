@@ -2,9 +2,10 @@
 //! SoundEffects, and the UI sound slots (`UserInterface::SetSound`, set from the global sounds
 //! of `FUN_14009f280` by `FUN_1400778f0`). See docs/AUDIO.md.
 //!
-//! Deviation: the original passes the game's Random (`Game +0xd8`) to `Scene::Update` and the
-//! music player, at moments that depend on the frame rate and on when sounds end. The port
-//! gives audio its own Random so that the simulation stays reproducible.
+//! In a game, `Scene::Update` and the music player draw from the game's Random (`Game +0xd8`):
+//! two draws for each sound that starts, a UI click's included. The caller passes that Random;
+//! without it (the main menu, whose loop passes its own Random at `+0x168`) they draw from
+//! the audio's own.
 
 use std::rc::Rc;
 
@@ -120,9 +121,17 @@ impl Audio {
         }
     }
 
-    /// `Scene::Update(dt, step, random, listener, reach)`.
-    pub fn update(&mut self, dt: f32, step: f32, listener: Vec3, reach: f32) {
-        let rng = &mut self.rng;
+    /// `Scene::Update(dt, step, random, listener, reach)`. Each sound that starts draws from
+    /// `random`, the game's Random in a game, or else from the audio's own.
+    pub fn update(
+        &mut self,
+        dt: f32,
+        step: f32,
+        listener: Vec3,
+        reach: f32,
+        random: Option<&mut Random>,
+    ) {
+        let rng = random.unwrap_or(&mut self.rng);
         self.scene.update(
             &mut self.device,
             (dt as f64 * 1e6) as i64,
@@ -133,13 +142,14 @@ impl Audio {
         );
     }
 
-    /// A random number from the audio stream (music choice).
-    pub fn rand_below(&mut self, n: u32) -> u32 {
-        self.rng.rand_below(n)
+    /// A random number for the music choice: from `random`, the game's Random in a game, or
+    /// else from the audio's own.
+    pub fn rand_below(&mut self, n: u32, random: Option<&mut Random>) -> u32 {
+        random.unwrap_or(&mut self.rng).rand_below(n)
     }
 
     /// The number [`Audio::rand_below`] would give next, without drawing it.
-    pub fn peek_rand_below(&self, n: u32) -> u32 {
-        self.rng.clone().rand_below(n)
+    pub fn peek_rand_below(&self, n: u32, random: Option<&Random>) -> u32 {
+        random.unwrap_or(&self.rng).clone().rand_below(n)
     }
 }

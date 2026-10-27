@@ -174,6 +174,8 @@ pub struct GameplayLoop {
     /// A recording being written or replayed (the `replay` extension, [`extensions`]).
     #[cfg_attr(not(feature = "replay"), allow(dead_code))]
     recording: extensions::Recording,
+    /// The sounds draw from the audio's own Random, not the town's (`--sim-digest`).
+    audio_own_random: bool,
     /// The Save and Load dialog over the pause menu.
     save_dialog: Option<crate::ui::save_dialog::SaveLoadDialog>,
     /// The Mods dialog over the pause menu (id 7).
@@ -325,6 +327,7 @@ impl GameplayLoop {
             menu_paused: false,
             online: Default::default(),
             recording: Default::default(),
+            audio_own_random: false,
             save_dialog: None,
             mods_dialog: None,
             ambience: None,

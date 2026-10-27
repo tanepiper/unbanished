@@ -18,6 +18,13 @@ The version is the engine's own (`banished --version`). The Banished version in 
 - GameFrame's `rea_session` (`./gameframe run rea_session`) asks REA about the original's
   functions with the project's labels, and saves REA's answers as a snapshot in `analysis/rea/`.
 
+### Changed
+
+- In a game, the sounds draw from the town's random numbers, as in the original. Each click
+  draws 4, and the ambience and the music draw too. A game saved after using the game menu
+  now keeps the same random state as the original. Multiplayer games, recordings and replays
+  keep a separate Random for the sounds.
+
 ## [0.5.0] - 2026-10-23
 
 A town now runs in the original's order and keeps more of what the original saves. Each step

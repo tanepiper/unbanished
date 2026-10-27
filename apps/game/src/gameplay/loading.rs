@@ -124,10 +124,11 @@ impl GameplayLoop {
                     .map(|town| crate::audio::ambience::preload_effects(ctx.archive, town))
                     .unwrap_or_default();
                 let (month, mood) = self.music_month_mood();
+                let random = self.audio_draws_from_game().then_some(&self.sim.rng);
                 effects.extend(
                     self.music
                         .get_or_insert_with(|| crate::audio::music::MusicPlayer::load(ctx.archive))
-                        .first_track(ctx.audio, month, mood),
+                        .first_track(ctx.audio, month, mood, random),
                 );
                 // The heights the simulation reads and changes; the view keeps a copy to draw.
                 self.sim.heights = Some(unbanished_game::terrain::Heights {

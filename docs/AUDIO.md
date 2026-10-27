@@ -73,7 +73,7 @@ The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e
 |---|---|---|
 | Menu music `Audio/Music/Menu.rsc` | `FUN_1400a0e00` `PlayEffect(…, 2)`; menu `Scene::Update(dt, 0, …, origin, 0)` | `menu.rs` |
 | In-game music | `FUN_1400a95b0`: when the track has ended, a `Game/MusicTracks.rsc` track whose months hold the current month and whose mood range holds `(health/max + happiness/max)/2`; `Rand(n)`, the next one if it repeats the last | `music.rs` |
-| Scene update | `FUN_14009b850`: `Scene::Update(dt, dt × speed × 6, Random, camera pivot, eye–pivot distance)`; `speed` is the iteration count `+0x34`, read even while paused | `gameplay.rs` `update_audio` |
+| Scene update | `FUN_14009b850`: `Scene::Update(dt, dt × speed × 6, Random, camera pivot, eye–pivot distance)` with the game's Random (`Game +0xd8`); `speed` is the iteration count `+0x34`, read even while paused. Each sound of an effect's timeline that starts in the frame draws `Rand(variants)` (no draw with no variants) and then one number for the pitch (Runtime `0x1800e1f10`), for every type that is not paused. The main menu passes its own Random (`+0x168`) | `gameplay/audio.rs` `update_audio`, with the town's Random |
 | Pause menu | `FUN_1401071b0` opens `Dialog/Pause.rsc` as a `MainMenuDialog` bound to the game (toolbar Options, Escape, or the controller `FUN_140107b70` when the window loses focus). Its open (`FUN_1400b91a0`) pauses types 4, 3, 2; its close (`FUN_1400b9130`) resumes them. The dialog pauses the game (`PausesGame`, flags bit 0), so `FUN_14009b850` skips the simulation and the controller; music and `Scene::Update` keep running | `pause_menu.rs`, `gameplay.rs` |
 | Menu focus | `FUN_1400a0bb0`: while `Application::IsPaused` (the window lost focus: `+0x11` cleared on WM_KILLFOCUS) the menu pauses type 2 and does not update its scene | `menu.rs`; `Ctx::app_paused` from winit `Focused` |
 | UI clicks | `ButtonElement::Update`, `SliderElement::Update`, `ScrollElement::Update`: `Play(4)` on press, `Play(5)` on click; `ComboDialog::OnElementEvent` `Play(5)`; slots set by `FUN_1400778f0` (2 BeginDrag, 3 EndDrag, 4 ButtonDown, 5 ButtonUp, 6 Alert) | `Ui::sounds` → `Audio::play_ui` |
@@ -88,11 +88,12 @@ The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e
 
 ## Deviations
 
-- **Separate Random for audio.** `Scene::Update` and the music player take the game's Random
-  (`Game +0xd8`). Their draws happen once per frame, depending on frame timing and on when
-  sounds end, so the original's simulation stream is not reproducible there anyway. The port
-  gives audio its own Random so the simulation stays deterministic. The `AnimAudioEvent`
-  probability draw happens inside the simulation, so it stays on the game Random.
+- **Audio's own Random in multiplayer, recordings and replays.** In a game, `Scene::Update` and
+  the music player draw from the game's Random, as in the original. Every UI click (ButtonDown
+  and ButtonUp, one sound with one variant each) draws 4 numbers, and the ambience and the
+  effects draw at times that depend on the frame rate. A multiplayer game, a recording
+  (`--record`), a replay and `--sim-digest` use the audio's own Random instead, because each computer and each
+  run has other clicks and frame times, and the town must stay the same on each.
 - **Ambience as an audio layer.** The original registers the ambient emitters as entities in
   the entity manager (the environment in bucket 2). The port does not register them, and
   re-weighs a region when the map changes rather than on its scheduled visit.
@@ -128,6 +129,8 @@ The Scene plays `SoundEffect`s on the Device. Evidence: `Scene::Update` `0x1800e
 - `apps/game` test `pause_menu_pauses_sounds_and_the_simulation`: Escape opens the pause
   menu, which pauses types 2–4 (not UI) and leaves the calendar and the game Random untouched;
   Escape resumes.
-- `apps/game` test `audio_plays_music_ambience_and_keeps_the_simulation_stream`: a generated
-  start plays a music track and the ambience. `tools/triage/determinism.sh` stays identical.
+- `apps/game` test `audio_plays_music_and_ambience`: a generated start plays a music track and
+  the ambience.
+- `apps/game` test `a_click_in_the_pause_menu_draws_four_from_the_game_random`: a button down
+  and a button up in the pause menu move the town's Random by exactly 4 draws.
 - Both apps build for native and WASM.

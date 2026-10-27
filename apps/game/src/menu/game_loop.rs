@@ -73,14 +73,15 @@ impl GameLoop for MenuLoop {
             d.poll(ctx.ui, ctx.settings, ctx.mods);
         }
         // `FUN_1400a0bb0`: the music pauses while the application is paused (unfocused), and
-        // otherwise `Scene::Update(dt, 0, random, origin, 0)`.
+        // otherwise `Scene::Update(dt, 0, random, origin, 0)` with the menu's own Random
+        // (`+0x168`), which the audio's own stands for.
         if ctx.app_paused != self.app_paused {
             self.app_paused = ctx.app_paused;
             ctx.audio
                 .pause(crate::audio::sound::sound_type::MUSIC, ctx.app_paused);
         }
         if !ctx.app_paused {
-            ctx.audio.update(dt, 0.0, glam::Vec3::ZERO, 0.0);
+            ctx.audio.update(dt, 0.0, glam::Vec3::ZERO, 0.0, None);
         }
         if let Some(SceneView {
             camera: SceneCamera::Menu(camera),

@@ -95,10 +95,10 @@ What each step fixed (all *measured*):
 | Buttons light up but do not press | The game polls its input about once every two seconds | Hold the button: `xdotool mousedown 1; sleep 2; xdotool mouseup 1`, and check that the screen changed |
 
 For saves meant to count random draws (`save_random_distance`), run with
-`UNBANISHED_VM_AUDIO=off`, so that Wine's WMA decoder cannot hang the game. Opening the game menu
-and saving draw from the game's Random too (about 30 draws, after the last iteration), so compare
-draw counts with that in mind: [ITERATION-ORDER.md](../../docs/ITERATION-ORDER.md) has the
-measured pairs.
+`UNBANISHED_VM_AUDIO=off`, so that Wine's WMA decoder cannot hang the game. Every UI click
+draws 4 numbers from the game's Random (its two sounds, even without a sound device), and a
+press that registers only in part draws 2. Compare draw counts with that in mind:
+[ITERATION-ORDER.md](../../docs/ITERATION-ORDER.md) has the measured pairs.
 
 Saves the original makes go to its own save folder in the prefix (`Documents\Banished`); copy them
 out with `scp` into `save-game/`, which git ignores.

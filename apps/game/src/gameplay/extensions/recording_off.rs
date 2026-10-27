@@ -13,6 +13,11 @@ impl GameplayLoop {
     /// No digests to record.
     pub(in crate::gameplay) fn record_digest(&mut self, _ctx: &mut Ctx, _held: bool) {}
 
+    /// Nothing is recorded.
+    pub(in crate::gameplay) fn recording(&self) -> bool {
+        false
+    }
+
     /// Not a replay.
     pub(in crate::gameplay) fn replaying(&self) -> bool {
         false

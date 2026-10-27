@@ -116,9 +116,9 @@ the first iteration come just before that point and match (`Save2`'s baseline an
 are the port's to the last bit), so the 11 come after the environment's update. The original's
 game loop (`FUN_14009b850`) then runs the stock manager, the post-iteration pass and the music
 player (`FUN_1400a95b0`, which draws `Rand(n)` from the game's Random), and the audio scene
-draws from the same Random. The port gives audio its own Random (a Deviation in
-`apps/game/src/audio/sound.rs`), so these draws, which depend on the frame rate and on when
-sounds end, are the expected remainder.
+draws from the same Random. `--sim-continue` runs no audio, so these draws, which depend on
+the frame rate and on when sounds end, are the expected remainder. The game itself now makes
+them (see "The audio scene" below).
 
 With those 11 draws added at the end of the first iteration, every walk of `Save2` has the
 original's speed and path, and all 17 citizens are identical to the last bit at iteration 63:
@@ -139,6 +139,28 @@ Four components draw in their setup (slot `+0x20`, run inside the entity constru
 (`FUN_14010c220`), a tombstone's lifetime (`FUN_1400581c0`) and `CreateNaturalResource`
 (`FUN_1400cbb20`). Wherever the original makes an entity, these draws come at that point, in its
 template's component order.
+
+## The audio scene
+
+`Audio::Scene::Update` (Runtime `0x1800e1f10`) takes the Random it is given: the game's
+(`Game +0xd8`) in a game (`FUN_14009b850`), the menu's own (`+0x168`) in the main menu
+(`FUN_1400a0bb0`). For each effect whose type is not paused, each sound of its timeline whose
+start falls in the frame draws `Rand(variant count)`, skipped when there are no variants, and
+then one number for the pitch (*observed*). Every UI sound (ButtonDown, ButtonUp, Alert,
+Warning and the placement sounds) has one sound with one variant, so it draws 2. A click plays
+ButtonDown on the press and ButtonUp on the release, so it draws 4.
+
+The pause menu pauses types 2 to 4, and the UI type keeps running, so the clicks made in the
+game menu and the Save window draw from the game's Random while the town waits. The draws
+missing from the order-free pairs ([ITERATION-ORDER.md](ITERATION-ORDER.md)) fit this: 8 for
+two clicks, and 22 to 25 for the clicks of the menu with presses that registered only in part
+(*inferred*: the tool pressed each button up to four times, and the game reads input about
+every two seconds in the emulated PC). The music player (`FUN_1400a95b0`) draws `Rand(n)`
+when its track has ended, which explains one odd draw.
+
+The port draws them from the game's Random in a game (`gameplay/audio.rs`), and from the
+audio's own in the main menu, a multiplayer game, a recording and a replay. Test:
+`a_click_in_the_pause_menu_draws_four_from_the_game_random`.
 
 ## The order within an iteration
 

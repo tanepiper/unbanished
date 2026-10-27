@@ -12,14 +12,27 @@ impl GameplayLoop {
         (self.month() as i32, mood)
     }
 
+    /// Whether the music player and `Scene::Update` draw from the game's Random, as in the
+    /// original (`FUN_14009b850` passes `Game +0xd8`): each sound that starts draws twice
+    /// (`Audio::Scene::Update`, Runtime `0x1800e1f10`), so UI clicks, placement sounds and the
+    /// ambience move the town's Random, at times that depend on the frame rate.
+    // Deviation: a multiplayer game, a recording, a replay and `--sim-digest` draw them from
+    // the audio's own Random, because clicks and frame times differ between computers and
+    // between runs, and the town must stay the same on each.
+    pub(super) fn audio_draws_from_game(&self) -> bool {
+        !(self.audio_own_random || self.online() || self.recording() || self.replaying())
+    }
+
     /// `FUN_14009b850`'s audio: the music player (`FUN_1400a95b0`), then
     /// `Scene::Update(dt, dt × speed × 6, random, camera pivot, camera distance)`.
     pub(super) fn update_audio(&mut self, ctx: &mut Ctx, dt: f32) {
         let (month, mood) = self.music_month_mood();
+        let shared = self.audio_draws_from_game();
         let music = self
             .music
             .get_or_insert_with(|| crate::audio::music::MusicPlayer::load(ctx.archive));
-        music.update(ctx.audio, ctx.archive, month, mood);
+        let random = shared.then_some(&mut self.sim.rng);
+        music.update(ctx.audio, ctx.archive, month, mood, random);
         let temperature = self
             .sim
             .environment
@@ -79,7 +92,8 @@ impl GameplayLoop {
         let listener = camera.target.extend(0.0);
         // The step reads the iteration count (`+0x34`) whether or not the game is paused.
         let speed = SPEED_LEVELS[self.speed as usize] as f32;
+        let random = shared.then_some(&mut self.sim.rng);
         ctx.audio
-            .update(dt, dt * speed * 6.0, listener, camera.distance);
+            .update(dt, dt * speed * 6.0, listener, camera.distance, random);
     }
 }

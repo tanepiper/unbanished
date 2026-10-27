@@ -159,9 +159,13 @@ The missing draws come after the last iteration of each pair. Had they come betw
 every later walk speed and deer wander target would have been drawn from other numbers, and those
 all match. So they come from what happens between the game running and the save being written.
 The pair with no iterations measures part of it: opening the Save window from the game menu and
-saving draws 8. The other 22 to 25 are *inferred* to come from opening the game menu while the town
-runs. They stay when XAudio2 cannot start (`UNBANISHED_VM_AUDIO=off`; `Audio::Device::Startup` at
-`1800e0cd0` carries on without a device), so they do not depend on the sound device. Within the
+saving draws 8. The other 22 to 25 come with opening the game menu while the town runs. They
+stay when XAudio2 cannot start (`UNBANISHED_VM_AUDIO=off`; `Audio::Device::Startup` at
+`1800e0cd0` carries on without a device), so they do not depend on the sound device. They are
+the UI clicks' sounds: `Scene::Update` draws twice from the game's Random for each sound that
+starts, and the pause menu leaves UI sounds running, so each click draws 4 (*inferred* from the
+counts; see [RANDOM-DRAWS.md](RANDOM-DRAWS.md), "The audio scene"). The port now makes these
+draws too. Within the
 iterations the port made the same draws as the original, in the same order (*inferred* from the
 matching towns).
 
@@ -174,6 +178,6 @@ matching towns).
   before or after its state machine on a visit.
 - Step 3's address order: the order-free pairs above show no difference in what a save holds over
   90 iterations. A longer pair, or a town with more activity, may still show one.
-- Which code draws when the game menu opens over a running town (about 22 to 25 draws), and
-  when the Save window opens and saves (8). Neither changes the town, but a port that saves from
-  its own menu should make the same draws.
+- A pair made with a known number of clicks, to measure the 4 draws per click directly. The
+  clicks in the emulated PC register only in part, so the counts above fit but are not
+  measured click by click.
