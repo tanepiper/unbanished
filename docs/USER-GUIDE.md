@@ -240,11 +240,13 @@ next to `WinData`. Start it from there, or make a desktop shortcut to it. It the
 original program. It finds `WinData` in the same folder. It uses the same save folder as the
 original.
 
-**C. Start it from the launcher (in development).** The launcher is a small window that opens
+**C. Start it from the launcher.** The launcher is a small window that opens
 before the game, made with [GameFrame](https://github.com/tanepiper/game-frame). In
 **Settings** you choose the game, **Banished 1.0.7** (exactly the original) or **Un-Banished**
 (with its extensions), and your copy of Banished: one found in Steam, or a folder you choose.
-Then press **Start** in **Play**. To install it from the source folder:
+Then press **Start** in **Play**. Each release zip has it next to the game: run
+`unbanished-frame` (`unbanished-frame.exe` on Windows). To install it from the source folder
+as an application instead:
 
 ```bash
 ./gameframe install extra    # macOS: /Applications/GameFrame/Un-Banished More.app

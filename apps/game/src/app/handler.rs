@@ -313,10 +313,10 @@ impl ApplicationHandler<UserEvent> for App {
             w.request_redraw();
             // The launcher's door (apps/frame): running once there is a game; Stop in the
             // launcher ends it as the game's own quit does.
-            #[cfg(feature = "unstable-frame")]
+            #[cfg(all(feature = "frame", not(target_arch = "wasm32")))]
             crate::frame::link::running();
         }
-        #[cfg(feature = "unstable-frame")]
+        #[cfg(all(feature = "frame", not(target_arch = "wasm32")))]
         if crate::frame::link::stopping() {
             _event_loop.exit();
         }

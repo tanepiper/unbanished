@@ -1,3 +1,6 @@
+// A release build on Windows opens no console window beside the frame.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 //! Un-Banished's launcher: GameFrame's frame in front of the game (docs/develop/FRAME.md). The
 //! player chooses the game (Banished exactly, or Un-Banished with its extensions) and their
 //! copy of Banished's files (found in Steam, or a folder they choose); the launcher starts
@@ -9,8 +12,9 @@
 //! ```
 //!
 //! - `--unbanished PATH`: the game's program. The default is `unbanished` beside this program.
-//! - `--data DIR`: where the launcher keeps its settings (`settings.json`). The default is the
-//!   current folder, which `gameframe install` makes the install's data folder.
+//! - `--data DIR`: where the launcher keeps its settings (`settings.json`). The default is
+//!   `frame` in the game's settings folder ([`default_data`]); `gameframe install` passes the
+//!   install's own data folder.
 //! - `--frame` opens the window even when the player turned it off at start; `--no-frame`
 //!   starts the game at once with the window hidden.
 //! - `--preset NAME`: a ready-made theme until the player picks one in Settings (`none` for the
@@ -56,7 +60,7 @@ fn options(args: Vec<String>) -> Result<Options, String> {
         .unwrap_or_else(|| PathBuf::from(program_name()));
     let mut o = Options {
         unbanished: beside,
-        data: PathBuf::from("."),
+        data: default_data().unwrap_or_else(|| PathBuf::from(".")),
         preset: None,
         args: Vec::new(),
         game_args: Vec::new(),
@@ -78,6 +82,23 @@ fn options(args: Vec<String>) -> Result<Options, String> {
         }
     }
     Ok(o)
+}
+
+/// `frame` in the game's settings folder, `banished-wasm` in the platform's configuration
+/// folder: `%APPDATA%`, `~/Library/Application Support` or `$XDG_CONFIG_HOME` (`~/.config`).
+/// The same rule as the game's `settings::path` and `unbanished_mods::text::settings_path`.
+fn default_data() -> Option<PathBuf> {
+    let home = || std::env::var_os("HOME").map(PathBuf::from);
+    let base = if cfg!(windows) {
+        std::env::var_os("APPDATA").map(PathBuf::from)
+    } else if cfg!(target_os = "macos") {
+        home().map(|h| h.join("Library/Application Support"))
+    } else {
+        std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| home().map(|h| h.join(".config")))
+    }?;
+    Some(base.join("banished-wasm").join("frame"))
 }
 
 fn program_name() -> &'static str {

@@ -5,7 +5,7 @@
   "icon": "apps/game/pwa/icon-512.png",
   "vanilla": {
     "build": [
-      ["cargo", "build", "--release", "-p", "unbanished-app", "--no-default-features", "--features", "unstable-frame"],
+      ["cargo", "build", "--release", "-p", "unbanished-app", "--no-default-features", "--features", "frame"],
       ["cargo", "build", "--release", "--manifest-path", "apps/frame/Cargo.toml"]
     ],
     "programs": ["target/release/unbanished", "apps/frame/target/release/unbanished-frame"],
@@ -15,7 +15,7 @@
   "extra": {
     "name": "Un-Banished More",
     "build": [
-      ["cargo", "build", "--release", "-p", "unbanished-app", "--features", "unstable-frame"],
+      ["cargo", "build", "--release", "-p", "unbanished-app"],
       ["cargo", "build", "--release", "--manifest-path", "apps/frame/Cargo.toml"]
     ]
   }

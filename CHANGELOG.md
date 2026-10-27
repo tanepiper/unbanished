@@ -11,10 +11,10 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Added
 
-- A launcher in GameFrame's frame (`apps/frame`, feature `unstable-frame`, in no release yet). It
-  opens before the game, offers Banished 1.0.7 exactly or Un-Banished with its extensions, and
-  your copy of Banished from Steam or a folder you choose. `./gameframe install` installs it as
-  an application (`install.json`).
+- A launcher in GameFrame's frame (`unbanished-frame`, in every release zip next to the game;
+  feature `frame`, part of Un-Banished More). It opens before the game, offers Banished 1.0.7
+  exactly or Un-Banished with its extensions, and your copy of Banished from Steam or a folder
+  you choose. `./gameframe install` installs it as an application (`install.json`).
 - The game finds Banished in Steam by itself when it has no folder: Steam's libraries on
   Windows, macOS and Linux, and Steam for Windows in CrossOver bottles and Wine.
 - The original Banished can run in the project's own emulated PC (`tools/reference/vm/`), so

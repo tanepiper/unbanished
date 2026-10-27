@@ -4,8 +4,8 @@ Un-Banished can start in [GameFrame](https://github.com/tanepiper/game-frame)'s 
 launcher that GameFrame's other ports (POD, Hardwar) use. The frame opens first. The player
 chooses the game and their copy of Banished's files there, then presses Start, and the frame
 starts the game. The original has no launcher, so the whole of it is an extension: the
-`unstable-frame` feature and its own program in `apps/frame`. The core (`unbanished-sim`) never
-depends on it.
+`frame` feature (part of `more`, so in every release) and its own program in `apps/frame`. The
+core (`unbanished-sim`) never depends on it.
 
 GameFrame describes the contract in its `crates/frame/README.md` and the frame's views in
 `crates/frame-ui/README.md`. This page covers what Un-Banished does with them.
@@ -15,7 +15,7 @@ GameFrame describes the contract in its `crates/frame/README.md` and the frame's
 | Program | Where | What it does |
 |---|---|---|
 | `unbanished-frame` | `apps/frame/`, its own Cargo workspace | The frame's window (Dioxus): Play, Settings, a Help page and the event console. It starts `unbanished --frame-io` with GameFrame's `Respawn` and keeps its settings in `settings.json` in its data folder |
-| `unbanished --frame-io` | `apps/game/src/frame/`, feature `unstable-frame` | The kernel. It prints its manifest, answers the frame until `game.start`, then plays one game in its own window and ends |
+| `unbanished --frame-io` | `apps/game/src/frame/`, feature `frame` | The kernel. It prints its manifest, answers the frame until `game.start`, then plays one game in its own window and ends |
 
 They are two programs because the frame's window and the game's window each need the main
 thread on macOS, and winit makes its event loop only once in a process. `Respawn` starts the
@@ -72,7 +72,7 @@ link to file an issue.
 
 ## The doors
 
-The kernel reaches the game in three places, each behind `#[cfg(feature = "unstable-frame")]`:
+The kernel reaches the game in three places, each behind `#[cfg(feature = "frame")]`:
 
 - `main.rs`: `frame::take_args` turns `--frame-io` into the program's usual arguments (the data
   folder, `--vanilla`, the player's options) before anything else reads them, and reports the end.
@@ -110,28 +110,39 @@ bottle (`D:\Games`) maps to the bottle's `drive_d`. `UNBANISHED_DIR`, the folder
 
 | Build | Application | Game program |
 |---|---|---|
-| vanilla | Un-Banished | `unbanished` built with `--no-default-features --features unstable-frame` |
-| extra | Un-Banished More | `unbanished` built with `--features unstable-frame` (the default `more` included) |
+| vanilla | Un-Banished | `unbanished` built with `--no-default-features --features frame` |
+| extra | Un-Banished More | `unbanished` with the default features (`more`, which holds `frame`) |
 
 On macOS they go to `/Applications/GameFrame/NAME.app`, with their settings in
 `~/Library/Application Support/GameFrame/NAME`. On Windows and Linux GameFrame adds a Start menu
 or menu entry. Build each system's install on that system.
 
+## In the release zips
+
+The Binaries workflow (`.github/workflows/binaries.yml`) builds the launcher beside the game for
+each system and puts `unbanished-frame` (`unbanished-frame.exe` on Windows) next to
+`unbanished` in every zip. The README in the zip names the launcher first. On Linux the
+launcher needs WebKitGTK (`libwebkit2gtk-4.1`), as every Dioxus desktop program does.
+
+Started from a zip, the launcher keeps its settings in `frame/settings.json` in the game's own
+settings folder (`banished-wasm` under `%APPDATA%`, `~/Library/Application Support` or
+`~/.config`). `--data DIR` names another folder; `gameframe install` passes the install's own.
+
 ## Running it by hand
 
 ```bash
-cargo build --release -p unbanished-app --features unstable-frame
+cargo build --release -p unbanished-app
 cargo build --release --manifest-path apps/frame/Cargo.toml
 apps/frame/target/release/unbanished-frame --unbanished target/release/unbanished --data /tmp/frame
 apps/frame/target/release/unbanished-frame --no-frame -- --ui-scale 2
-cargo test -p unbanished-app --features unstable-frame frame::
+cargo test -p unbanished-app frame::
 cargo test --manifest-path apps/frame/Cargo.toml
 ```
 
 ## Not yet
 
-- The Binaries release workflow builds `unbanished` only. To ship the launcher it needs the
-  frame's build and both programs in each zip.
+- The Windows and Linux launchers have been built only by the workflow, not tried on those
+  systems.
 - The browser build has no frame. The browser's start page is the web page itself.
 - No way back to the frame from the running game (`frame.open` from the game's menu). The frame
   comes back when the game's window closes.

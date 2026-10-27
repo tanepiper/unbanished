@@ -30,7 +30,7 @@ Three rules hold for every extension:
 | `replay` | Recordings: `--record` writes a game's commands and digests, `--replay` plays them back | `apps/game/src/gameplay/recording.rs`, `crates/session` |
 | `multiplayer` | Lockstep games through a relay, the Multiplayer window and its main-menu button, and their tests (`--lockstep-test`, `--net-test`, the browser's `?net=`). It turns on `replay` | `apps/game/src/gameplay/{lockstep,network}.rs`, `apps/game/src/ui/multiplayer.rs`, `crates/session`, `crates/net` |
 | `rule-hooks` | WebAssembly plugins from the `Hooks` folder that change the game after each iteration ([Rule hooks](RULE-HOOKS.md)), native only | `apps/game/src/platform/rule_hooks.rs`, `crates/hooks` |
-| `unstable-frame` | `unbanished --frame-io`, the game started by the launcher in GameFrame's frame (`apps/frame`, [The launcher](FRAME.md)), native only. Unstable: in no release yet | `apps/game/src/frame/`, `apps/frame` |
+| `frame` | `unbanished --frame-io`, the game started by the launcher in GameFrame's frame (`apps/frame`, [The launcher](FRAME.md)), native only | `apps/game/src/frame/`, `apps/frame` |
 
 The browser's start page and its manager are the web page itself, so they are not a cargo
 feature.
@@ -85,6 +85,7 @@ mods (`.pkm` files). Each extension's door asks `platform::mode::vanilla()` once
 | `replay` | `--record` records nothing |
 | `cinematic` | `--camera` and `--camera-follow` do nothing |
 | `rule-hooks` | No plugins are loaded, whatever the `Hooks` folder holds |
+| `frame` | Unchanged: the launcher itself chooses the vanilla run (`--vanilla`) for Banished 1.0.7 |
 
 The test commands (`--replay`, `--lockstep-test`, `--net-test`) are not play, so they still
 run. A new extension checks `vanilla()` at its door too.

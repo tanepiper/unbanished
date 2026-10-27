@@ -15,7 +15,7 @@
 use unbanished_sim::achievements;
 mod app;
 mod audio;
-#[cfg(all(feature = "unstable-frame", not(target_arch = "wasm32")))]
+#[cfg(all(feature = "frame", not(target_arch = "wasm32")))]
 mod frame;
 mod game;
 mod gameplay;
@@ -105,7 +105,7 @@ fn main() {
     }
     log::info!("{}", platform::version::NAME_VERSION);
     // `--frame-io`: the launcher's game (apps/frame) takes its launch from the frame first.
-    #[cfg(feature = "unstable-frame")]
+    #[cfg(feature = "frame")]
     let Some(args) = frame::take_args(args) else {
         return;
     };
@@ -144,7 +144,7 @@ fn main() {
     }
     let packages = native::read_packages(&native::data_dir(&args));
     if packages.is_empty() {
-        #[cfg(feature = "unstable-frame")]
+        #[cfg(feature = "frame")]
         frame::link::ended("failed", "no .pkg files in the game's folder");
         eprintln!("No .pkg files found. Run tools/extract-assets.sh or pass the WinData folder.");
         std::process::exit(1);
@@ -157,7 +157,7 @@ fn main() {
     let dir = native::data_dir(&args);
     app.pending_mods = Some((mods::find(&dir), Some(dir)));
     event_loop.run_app(&mut app).expect("run app");
-    #[cfg(feature = "unstable-frame")]
+    #[cfg(feature = "frame")]
     frame::link::ended("stopped", "");
 }
 
