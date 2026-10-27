@@ -42,6 +42,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Fixed
 
+- A citizen's decision made when its actions ran out no longer calls the citizen back when its
+  next actions run out. The original drops that call, so the next decision waits for the
+  citizen's scheduled update. Citizens now decide on the same frames as in the original.
 - The game hears its sounds from the camera's eye height, as the original does. Far sounds no
   longer play when the camera is high, so a game draws the same random numbers as the original.
 - Rules that meet a NaN now take the same branch as the original's machine code (issue #25):

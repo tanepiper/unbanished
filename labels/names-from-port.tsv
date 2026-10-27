@@ -556,6 +556,7 @@
 1400cfcc0	Action::RemoveAnimal	crates/game/src/behaviour/character/actions.rs
 1400cff70	Sim::unclaim	crates/game/src/town/clearing.rs
 1400d02c0	Action::RemoveResource	crates/game/src/behaviour/character/actions.rs
+1400d03c0	ActionStack::end_on_empty	crates/game/src/behaviour/character/stack.rs
 1400d0830	river_5	crates/terrain/src/river.rs
 1400d0c20	river_4	crates/terrain/src/river.rs
 1400d0f00	river_2	crates/terrain/src/river.rs

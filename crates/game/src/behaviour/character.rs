@@ -468,4 +468,7 @@ mod inventory_action_tests;
 mod drop_off_tests;
 
 #[cfg(test)]
+mod on_empty_tests;
+
+#[cfg(test)]
 mod restored_move_tests;

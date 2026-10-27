@@ -20,6 +20,9 @@ pub struct ActionStack {
     ///
     /// Original: `FUN_1400caf90`.
     pub outbox: Vec<Message>,
+    /// The "on empty" chain ran in the last [`ActionStack::run`]; see
+    /// [`ActionStack::end_on_empty`].
+    ran_on_empty: bool,
 }
 
 impl ActionStack {
@@ -42,6 +45,7 @@ impl ActionStack {
                 })
                 .collect(),
             outbox: Vec::new(),
+            ran_on_empty: false,
         }
     }
 
@@ -175,6 +179,20 @@ impl ActionStack {
         }
     }
 
+    // SendComponentMessage's start calls the component at once (`FUN_1400d03c0`); `RunOnEmpty`
+    // then deletes the chain at `+0x10`.
+    /// Call after delivering the messages of the last [`ActionStack::run`]. The original delivers
+    /// the "on empty" chain's message as it starts it, then deletes the chain. A chain the
+    /// message's handler set meanwhile is deleted with it, so a decision made from that message
+    /// ends with no "on empty" message and waits for the next scheduled update.
+    ///
+    /// Original: `FUN_1400ca080`.
+    pub fn end_on_empty(&mut self) {
+        if std::mem::take(&mut self.ran_on_empty) {
+            self.on_empty.clear();
+        }
+    }
+
     /// Set the actions to run when the stack is empty.
     pub fn set_on_empty(&mut self, actions: Vec<Action>) {
         self.on_empty = actions
@@ -260,6 +278,7 @@ impl ActionStack {
             }
         }
         if self.chains.is_empty() && !self.on_empty.is_empty() {
+            self.ran_on_empty = true;
             for t in self.on_empty.iter_mut() {
                 t.started = true;
                 if t.action.start(ch, world, group) != Status::Running {

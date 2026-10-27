@@ -195,6 +195,7 @@ impl Agents {
             }
             citizens[i].position = self.characters[i].position;
             self.deliver(i, messages, citizens, env, groups, &adult, &mut entities);
+            self.characters[i].stack.end_on_empty();
         }
         // The sites' state machines, nomads, boats and tornadoes (bit 0x04).
         {
