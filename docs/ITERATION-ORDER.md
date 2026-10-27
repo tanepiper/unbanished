@@ -215,6 +215,7 @@ autosave of a busy town (`04-Auto`, 57,130 draws) was compared with the port's
 | 1,025 (pick 815 set to place 0) | A citizen whose gatherer search found nothing decides again 5 iterations earlier in the port | Fixed. The search's wait (`FUN_1400c7960`) sets an "on empty" chain that calls the AI back. The original's SendComponentMessage action (start `FUN_1400d03c0`) calls the component at once, inside `ActionStack::RunOnEmpty` (`FUN_1400ca080`), which then deletes the chain at `+0x10`. A chain the AI set during that call goes with it. So a decision made from the "on empty" message ends with no message, and the next decision waits for the citizen's scheduled update. *Measured* with breakpoints on `CitizenAI::Choose` and the wait: decisions 16 and 21 or 22 frames apart in turn (frames 13, 34, 50, 72, 88…), which the port now gives too (13, 34, 50) |
 | 3,511 (pick 815 set to place 0) | The original eats from a home's storage first (13 `Rand(7)` and one `Rand(6)` in `Storage::find_item`, `FUN_140094410`), then makes the citizen's choice; the port makes the choice with no meal | Fixed. The citizen was in the middle of a meal when the game saved. A saved SendComponentMessage holds the entity whose component receives it (`+0x20`) and the value it gives (`+0x28`). The port read the receiver, the citizen itself, for a Citizen message, so the loaded meal had no storage. It reads the value now |
 | 3,531 (pick 815 set to place 0) | `Activity::Loiter` draws `Rand(105)` in the original and `Rand(118)` in the port | Another pick from the address-keyed set (`Rand(31)` the same on both sides), as at draw 815 |
+| 5,791 (Loiter picks given, below) | The original draws a citizen's animation sound (`AnimAudioEvent::Fire`, `FUN_14008d310`) between two buildings' fire chances (`FUN_1400ae760`), before a disease check and another citizen's choice and hunt; the port draws it after that hunt | The every-iteration phase runs entity by entity in the order of its address-keyed set. The port runs one kind at a time (already a Deviation, `behaviour/sounds.rs`) |
 
 To compare the simulation alone, `tools/triage/rng_split.py` splits the original's list. It
 keeps the draws to compare and writes, for each, how many sound draws the original made before
@@ -224,6 +225,14 @@ generators give the same numbers to the simulation. With that, the port matches 
 for 814 draws of the simulation (about 20 iterations of this town). With the Loiter pick at
 draw 815 set by hand to one of the two places that give the original's draw (a check only; the
 port keeps creation order), it matches for 3,530 draws.
+
+`tools/triage/loiter_picks.py` reads a winegdb trace that also stops at `0x140110343` in
+`Activity::Loiter`, where the picked object's map rectangle is in registers. It writes the
+town's draws and the rectangle of each object Loiter picked from the set. `--sim-continue
+--loiter-picks FILE` then makes each of the port's picks take the set member with that
+rectangle (a check only; the port's own order stays creation order). With the 9 picks of a
+traced load of `04-Auto` (*measured* on 2026-10-28), the port matches the original for 5,790
+draws of the simulation, up to the every-iteration order above.
 
 The particle systems draw from their own `Random` in both, so the port's list leaves them out
 too. Each load of the original takes its own path after the first frames: its sound draws

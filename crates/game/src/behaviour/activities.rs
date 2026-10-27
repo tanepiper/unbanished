@@ -334,6 +334,8 @@ pub fn loiter(
         }
         if !set.is_empty() {
             let k = rng.rand_below(set.len() as u32) as usize;
+            // A comparison run may give the original's pick (`super::loiter_order`).
+            let k = super::loiter_order::place(k, set.iter().map(|&e| town.entities[e].rect));
             chosen = set.iter().nth(k).copied();
         }
     }

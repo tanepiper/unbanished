@@ -22,6 +22,10 @@
 //! (`tools/triage/rng_split.py`): the original's sound draws, so the simulation gets the same
 //! numbers as the original's without running its sounds.
 //!
+//! `--loiter-picks FILE` gives the map rectangle (`x y w h` per line) of each object the
+//! original's Loiter picked, in order (`tools/triage/loiter_picks.py`), so the comparison goes past
+//! the picks whose set order differs (`unbanished_game::behaviour::loiter_order`).
+//!
 //! `--game` runs the whole game loop instead of the simulation alone
 //! (`gameplay::continue_game`), so the music and the sounds draw from the town's Random as the
 //! original's do. Its speed must be one of the game's levels.
@@ -32,7 +36,7 @@ use unbanished_sim::strings::ArchiveStrings;
 use super::*;
 
 pub fn sim_continue(args: &[String]) {
-    let usage = "--sim-continue SAVE ITERATIONS OUT.sav [WINDATA] [--speed N] [--clock SECONDS] [--draws FILE] [--replay-draws FILE] [--game]";
+    let usage = "--sim-continue SAVE ITERATIONS OUT.sav [WINDATA] [--speed N] [--clock SECONDS] [--draws FILE] [--replay-draws FILE] [--loiter-picks FILE] [--game]";
     let save = args.get(1).expect(usage);
     let iterations: u32 = args.get(2).and_then(|s| s.parse().ok()).expect(usage);
     let out = args.get(3).expect(usage);
@@ -96,6 +100,17 @@ pub fn sim_continue(args: &[String]) {
                 .lines()
                 .map(|l| l.trim().parse::<u32>().expect("a number"));
             unbanished_game::random::trace::replay(skips);
+        }
+        if let Some(i) = args.iter().position(|a| a == "--loiter-picks") {
+            let text = std::fs::read_to_string(args.get(i + 1).expect(usage)).expect("read");
+            let picks = text.lines().map(|l| {
+                let v: Vec<i32> = l
+                    .split_whitespace()
+                    .map(|n| n.parse().expect("a number"))
+                    .collect();
+                (v[0], v[1], v[2], v[3])
+            });
+            unbanished_game::behaviour::loiter_order::set(picks);
         }
         for _ in 0..iterations / speed {
             sim.frame(ctx.archive, &mut strings, &params, speed, dt, false);

@@ -32,6 +32,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
 - `--sim-continue --replay-draws FILE` makes the original's sound draws before the port's, from a
   list `tools/triage/rng_split.py` makes from the original's draw trace, so the simulation's own
   draws can be compared with the original's number for number.
+- `--sim-continue --loiter-picks FILE` makes a loitering citizen pick the same objects as the
+  original did, from a list `tools/triage/loiter_picks.py` makes from a trace of the original,
+  so a comparison can go past the picks that depend on the original's memory addresses.
 
 ### Changed
 
