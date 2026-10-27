@@ -44,9 +44,12 @@ pub fn aggregate(citizens: impl IntoIterator<Item = CitizenValue>) -> TownStatus
     let mut result = TownStatus::default();
     let mut count = 0;
     for c in citizens {
+        // jb at 0x14007ee61: a NaN age counts as a child's.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        let child = !(c.adult_age <= c.age);
         if c.school {
             result.students += 1;
-        } else if c.age < c.adult_age {
+        } else if child {
             result.children += 1;
         } else {
             result.adults += 1;

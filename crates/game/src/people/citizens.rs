@@ -200,7 +200,9 @@ pub fn newborn(
 pub fn population(citizens: &[Citizen], rules: &CitizenRules) -> (u32, u32, u32) {
     let (mut adults, mut students, mut children) = (0, 0, 0);
     for c in citizens.iter().filter(|c| c.alive) {
-        if c.age < rules.adult_age || c.school.is_some() {
+        // jb at 0x14007ee61: a NaN age counts as a child's.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        if !(rules.adult_age <= c.age) || c.school.is_some() {
             if c.school.is_none() {
                 children += 1;
             } else {

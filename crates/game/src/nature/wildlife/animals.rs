@@ -162,7 +162,9 @@ impl Wild<'_, '_> {
             return;
         };
         let d = &self.wildlife.animal_kinds[&animal.template].desc;
-        let s = (animal.age / d.adult * 0.67 + 0.33).min(1.0);
+        // jbe at 0x14010c842: held at 1 above it; a NaN stays (`f32::min` would give 1).
+        let s = animal.age / d.adult * 0.67 + 0.33;
+        let s = if s > 1.0 { 1.0 } else { s };
         animal.scale = s;
         animal.character.scale = s;
     }

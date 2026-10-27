@@ -5,7 +5,9 @@ and the rate cleared; at 0 or below the slot goes (`FUN_1400532f0`, hooked).
 Usage: .venv/bin/python tools/emu/particle_slot.py OUT_DIR [COUNT]
 
 Writes `OUT_DIR/particle_slot.tsv`: one fade per line, `fade_ticks out_step` then the steps,
-each `dt:alpha_bits` (hex) or `dt:gone`.
+each `dt:alpha_bits` (hex) or `dt:gone`. Also writes `OUT_DIR/particle_slot_nan.tsv`: one step
+from a NaN, infinite or zero alpha or rate, `alpha_bits rate_bits dt` then `gone` or the alpha
+and rate bits after it (issue #25).
 """
 import os
 import random
@@ -64,6 +66,25 @@ def main(out_dir, count=400):
     with open(os.path.join(out_dir, 'particle_slot.tsv'), 'w') as f:
         f.write('\n'.join(rows) + '\n')
     print(f'wrote {len(rows)} fades')
+    nan, inf = float('nan'), float('inf')
+    special = []
+    for alpha in (nan, -nan, 0.0, -0.0, 0.5, 1.0, 2.0, -1.0, inf, -inf):
+        for rate in (nan, 0.0, 1.0, -1.0, inf, -inf):
+            for dt in (0, 16666):
+                emu.write(slots, struct.pack('<Qiif', system, 0, -1, rate))
+                emu.write(system + 0x7c, struct.pack('<f', alpha))
+                emu.write(time, struct.pack('<q', dt))
+                emu.call(UPDATE, comp, time, timeout_insns=5_000_000)
+                head = f"{struct.pack('>f', alpha).hex()} {struct.pack('>f', rate).hex()} {dt}"
+                if struct.unpack('<i', emu.read(slots + 8, 4))[0] < 0:
+                    special.append(f'{head}\tgone')
+                else:
+                    after = (emu.read(system + 0x7c, 4)[::-1].hex(),
+                             emu.read(slots + 0x10, 4)[::-1].hex())
+                    special.append(f'{head}\t{after[0]} {after[1]}')
+    with open(os.path.join(out_dir, 'particle_slot_nan.tsv'), 'w') as f:
+        f.write('\n'.join(special) + '\n')
+    print(f'wrote {len(special)} special steps')
 
 
 if __name__ == '__main__':

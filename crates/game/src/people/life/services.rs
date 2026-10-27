@@ -152,7 +152,10 @@ impl People<'_, '_> {
         let r = self.rules;
         let s = &mut self.states[c];
         self.citizens[c].education += 1;
-        if self.citizens[c].education < r.i(0x118) && seconds(s.school_time) <= r.f(0x11c) * HOUR {
+        // jbe at 0x140116cb8: a NaN time at school is not enough.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        let short = !(r.f(0x11c) * HOUR < seconds(s.school_time));
+        if self.citizens[c].education < r.i(0x118) && short {
             return;
         }
         s.flags |= 0x400;

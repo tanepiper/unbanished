@@ -199,10 +199,13 @@ pub fn scale(value: f32, tall: bool) -> [f32; 4] {
 /// Original: `FUN_140125940`.
 pub fn adjust_map_byte(previous: u8, adjustment: f32) -> u8 {
     let fraction = previous as f32 / 255.0; // DAT_14017892c
-    let next = if adjustment >= 0.0 {
+                                            // jbe at 0x1401259c5: an adjustment of 0 or more, or NaN, multiplies.
+    #[allow(clippy::neg_cmp_op_on_partial_ord)]
+    let next = if !(adjustment < 0.0) {
         fraction * fraction * adjustment
     } else {
         fraction - adjustment
     };
-    ((next * 255.0) as i32).clamp(0, 255) as u8
+    // cvttss2si at 0x1401259df, then jns: a NaN or out-of-range value is negative, so 0.
+    crate::crt::truncate(next * 255.0).clamp(0, 255) as u8
 }

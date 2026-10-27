@@ -5,6 +5,7 @@
 //! Original: the trackers, `FUN_140059930`.
 // Game +0xf0 → +0x170; +0xc; +0x10
 
+use crate::crt::truncate;
 use crate::town::Sim;
 
 // +0x28; +0x38; +0x48
@@ -122,15 +123,6 @@ impl Default for Statistics {
             series: vec![Vec::new(); SERIES],
             timer: 0,
         }
-    }
-}
-
-/// `cvttss2si`: out of range (and NaN) is `i32::MIN`.
-fn truncate(v: f32) -> i32 {
-    if v.is_nan() || v >= 2_147_483_648.0 || v < -2_147_483_648.0 {
-        i32::MIN
-    } else {
-        v as i32
     }
 }
 

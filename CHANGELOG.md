@@ -24,6 +24,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
   draws 4, and the ambience and the music draw too. A game saved after using the game menu
   now keeps the same random state as the original. Multiplayer games, recordings and replays
   keep a separate Random for the sounds.
+- Rules that meet a NaN now take the same branch as the original's machine code (issue #25):
+  citizens' urgent hunger and cold, school, orphans, recovery, the event log's roles and the
+  status bar's counts, planting, the weather pick, a tornado's particles, animals' size,
+  tree clusters, quarry digging, map growth, placement tests, the ground's ray test and the
+  terrain's dirt map.
 
 ## [0.5.0] - 2026-10-23
 

@@ -109,7 +109,9 @@ impl Sim<'_, '_> {
 
     /// State 2 update (`FUN_14011fd30`): switched on, warm and in spring (months 0–2), plant.
     pub(crate) fn crop_update2(&mut self, e: usize) {
-        if !self.field(e).is_some_and(|f| f.enabled) || self.temperature < WARM {
+        // jb at 0x14011fd6b: a NaN temperature is too cold to plant.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        if !self.field(e).is_some_and(|f| f.enabled) || !(WARM <= self.temperature) {
             return;
         }
         let month = self.month();

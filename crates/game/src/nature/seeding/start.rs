@@ -161,7 +161,9 @@ impl Seeder<'_> {
                         variant = 0;
                         for (k, c) in clusters.iter().enumerate() {
                             let v = c.generate(x as f32 * inv, y as f32 * inv);
-                            if nr.cluster_threshold <= v * HALF + HALF {
+                            // jbe at 0x1400a7221: at the threshold or above, or NaN, this one.
+                            #[allow(clippy::neg_cmp_op_on_partial_ord)]
+                            if !(v * HALF + HALF < nr.cluster_threshold) {
                                 variant = k;
                                 break;
                             }

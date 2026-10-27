@@ -150,7 +150,13 @@ pub fn cell_admits(
     let h = cells
         .floors
         .ground_normal(cells.size, terrain, px, py, &mut normal);
-    min_normal <= normal[2] && (h - reference).abs() <= tolerance
+    // jbe at 0x1400a4bc8: a NaN normal is flat enough.
+    #[allow(clippy::neg_cmp_op_on_partial_ord)]
+    let flat = !(normal[2] < min_normal);
+    // setbe at 0x1400a4c19: a NaN height is within the tolerance.
+    #[allow(clippy::neg_cmp_op_on_partial_ord)]
+    let level = !(tolerance < (h - reference).abs());
+    flat && level
 }
 
 /// Whether a building can be placed: every cell of its footprint admits it. This is the test the

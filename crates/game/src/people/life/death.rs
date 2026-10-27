@@ -106,7 +106,9 @@ impl People<'_, '_> {
             None => {
                 let adult = self.rules.adult_age();
                 for d in self.states[c].dependents.clone() {
-                    if self.citizens[d].age <= adult {
+                    // jbe at 0x14011927c: a NaN age dies orphaned, as a child does.
+                    #[allow(clippy::neg_cmp_op_on_partial_ord)]
+                    if !(adult < self.citizens[d].age) {
                         self.die(d, reason::ORPHANED, None);
                     } else {
                         self.set_guardian(d, None);

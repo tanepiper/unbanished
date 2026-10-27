@@ -8,7 +8,7 @@ disease's recovery +0x40, whether a doctor is set at +0x228, the description's d
 +0x128 and immunity +0x9c) and the outputs (the return value, the immunity +0x70 and spread timer
 +0x78 after, whether the disease +0x68 was cleared, and whether the game's Random moved). Leaving
 the doctor (FUN_14011ae80) is hooked: it only records the call. Some cases use a recovery or a
-doctor factor of 0 or less.
+doctor factor of 0 or less, or NaN.
 """
 import os
 import random
@@ -45,11 +45,11 @@ def main():
             seed = r.randrange(1, 1 << 31)
             recovery = f32(r.choice([r.uniform(0.5, 20.0), r.uniform(1.0, 3.0), 1.0]))
             if k % 20 == 0:
-                recovery = f32(r.choice([0.0, -r.uniform(0.1, 2.0)]))
+                recovery = f32(r.choice([0.0, -r.uniform(0.1, 2.0), float('nan')]))
             has_doctor = r.random() < 0.5
             factor = f32(r.choice([r.uniform(0.5, 4.0), 1.0, 2.0]))
             if k % 25 == 0:
-                factor = f32(r.choice([0.0, -1.0]))
+                factor = f32(r.choice([0.0, -1.0, float('nan')]))
             immunity = f32(r.uniform(0.0, 30.0))
             e.call(e.exports['??0Random@System@@QEAA@I@Z'], rng, seed)
             e.write(disease + 0x40, struct.pack('<f', recovery))

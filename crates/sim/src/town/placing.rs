@@ -373,7 +373,13 @@ impl StartingTown {
             .cells
             .floors
             .ground_normal(self.cells.size, terrain, px, py, &mut normal);
-        0.0 <= normal[2] && (z - 0.0).abs() <= 100.0
+        // ja at 0x1400e0bf2 and 0x1400e0c19 (a setbe at 0x1400e1da7 in the draw): a NaN normal
+        // or height passes.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        let facing_up = !(normal[2] < 0.0);
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        let near = !(100.0 < (z - 0.0).abs());
+        facing_up && near
     }
 
     /// `FUN_1400e1150`: a part over `rect` (`x, y, w, h`) at the middle of its corner cells'

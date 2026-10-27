@@ -373,10 +373,12 @@ pub fn outbreak_check(
 /// Measured: `tools/emu/recovery.py` (the original on 2,000 cases).
 ///
 /// Original: `FUN_140117880`.
+// jb at 0x1401178d3: a NaN odds recovers.
+#[allow(clippy::neg_cmp_op_on_partial_ord)]
 pub fn recovers(r: &LifeRules, recovery: f32, doctor: bool, rng: &mut Random) -> bool {
     let x = rng.rand_float();
     let factor = if doctor { r.f(0x128) } else { 1.0 };
-    1.0 / recovery / factor < x
+    !(x <= 1.0 / recovery / factor)
 }
 
 // D+0x9c, written to citizen +0x70.

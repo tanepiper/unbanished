@@ -292,6 +292,12 @@ pub fn shuffle_and_sort(list: &mut [Candidate], rng: &mut Random) {
     }
 }
 
+/// `value <= limit` as a `comiss` with `jbe` (or a `ja` not taken) decides it: true for a NaN.
+#[allow(clippy::neg_cmp_op_on_partial_ord)]
+fn at_most(value: f32, limit: f32) -> bool {
+    !(limit < value)
+}
+
 impl CitizenAi {
     /// Count cooldowns down, advance the loiter and carry clocks.
     ///
@@ -317,7 +323,8 @@ impl CitizenAi {
             || (self.warming && self.current == WARM_URGENT);
         let in_urgent = self.current == EAT_URGENT || self.current == WARM_URGENT;
         let cooldown = (self.cooldowns[EAT_URGENT as usize] - dt).max(0);
-        !(view.hunger <= d.hungry_urgent || urgent_running || in_urgent || cooldown > 0)
+        // jbe at 0x140114a1b: a NaN hunger is not urgent.
+        !(at_most(view.hunger, d.hungry_urgent) || urgent_running || in_urgent || cooldown > 0)
     }
 
     // +0x60 >= 0
@@ -343,12 +350,14 @@ impl CitizenAi {
         let urgent_running = (self.eating && self.current == EAT_URGENT)
             || (self.warming && self.current == WARM_URGENT);
         let in_urgent = self.current == EAT_URGENT || self.current == WARM_URGENT;
-        if view.hunger <= d.hungry_urgent
+        // jbe at 0x140114a1b: a NaN hunger is not urgent.
+        if at_most(view.hunger, d.hungry_urgent)
             || urgent_running
             || in_urgent
             || self.cooldowns[EAT_URGENT as usize] > 0
         {
-            if self.eating && view.hunger <= d.hungry_urgent {
+            // ja at 0x140114b49: a NaN hunger ends the urgent meal.
+            if self.eating && at_most(view.hunger, d.hungry_urgent) {
                 self.eating = false;
             }
         } else {
@@ -368,12 +377,14 @@ impl CitizenAi {
         let view = &fed;
         // `bVar4` is computed once, before the hunger choice.
         let in_urgent = self.current == EAT_URGENT || self.current == WARM_URGENT;
-        if view.cold <= d.cold_urgent
+        // jbe at 0x140114b75: a NaN cold is not urgent.
+        if at_most(view.cold, d.cold_urgent)
             || urgent_running
             || in_urgent
             || self.cooldowns[WARM_URGENT as usize] > 0
         {
-            if self.warming && view.cold <= d.cold_urgent {
+            // ja at 0x140114bce: a NaN cold ends the urgent warming.
+            if self.warming && at_most(view.cold, d.cold_urgent) {
                 self.warming = false;
             }
         } else {

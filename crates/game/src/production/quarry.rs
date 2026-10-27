@@ -16,6 +16,7 @@
 
 use std::sync::Arc;
 
+use crate::crt::truncate;
 use crate::nature::seeding::{Cells, Placed};
 use crate::terrain::{CellType, HeightGrid};
 
@@ -47,12 +48,16 @@ pub fn dig(heights: &mut [i16], width: usize, q: &QuarryTemplate, p: &Placed, fl
     for &v in q.vertices.iter() {
         // The entity transform (`+0x148`) times the vertex.
         let [x, y, z] = model.apply(v);
-        let z = (z + 0.0).max(floor);
-        let (gx, gy) = ((x + 0.25 + half) as i32, (y + 0.25 + half) as i32);
+        // jbe at 0x14005543c: raised to the floor; a NaN stays (`f32::max` would give the floor).
+        let z = z + 0.0;
+        let z = if floor > z { floor } else { z };
+        // cvttss2si at 0x140055469 and 0x14005546e: a NaN cell is i32::MIN, off the map.
+        let (gx, gy) = (truncate(x + 0.25 + half), truncate(y + 0.25 + half));
         if gx < 0 || gy < 0 || width as i32 <= gx || width as i32 <= gy {
             continue;
         }
-        let h = (z * HEIGHT_SCALE) as i32 as i16;
+        // cvttss2si at 0x140055455, low 16 bits stored.
+        let h = truncate(z * HEIGHT_SCALE) as i16;
         let cell = &mut heights[gy as usize * width + gx as usize];
         changed |= *cell != h;
         *cell = h;

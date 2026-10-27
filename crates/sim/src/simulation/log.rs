@@ -26,7 +26,9 @@ impl Simulation {
                 continue;
             };
             let state = &town.agents.states[e.citizen];
-            let child = c.age < town.rules.adult_age;
+            // jb at 0x140119002 (`FUN_140118fc0`): a NaN age is named as a child.
+            #[allow(clippy::neg_cmp_op_on_partial_ord)]
+            let child = !(town.rules.adult_age <= c.age);
             let key = if c.school.is_some() {
                 Some("student")
             } else if child {

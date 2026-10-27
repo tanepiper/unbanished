@@ -267,7 +267,7 @@ Deviation: 79, Not ported: 7, Not traced: 1.
 
 ## `crates/game/src/world/placement.rs`
 
-- [Not ported] [crates/game/src/world/placement.rs:252](../crates/game/src/world/placement.rs#L252): The occupant is cell +0x00, the zone count +0x28. Activate a zone: the entity becomes the occupant of every footprint cell that is not `.`, and each `.` cell counts one more zone. Not ported: the path grid's blocked bit (citizens' mode 0 does not honour it).
+- [Not ported] [crates/game/src/world/placement.rs:258](../crates/game/src/world/placement.rs#L258): The occupant is cell +0x00, the zone count +0x28. Activate a zone: the entity becomes the occupant of every footprint cell that is not `.`, and each `.` cell counts one more zone. Not ported: the path grid's blocked bit (citizens' mode 0 does not honour it).
 
 ## `crates/game/src/world/terraform.rs`
 
@@ -323,7 +323,7 @@ Deviation: 79, Not ported: 7, Not traced: 1.
 
 ## `crates/terrain/src/query.rs`
 
-- [Deviation] [crates/terrain/src/query.rs:79](../crates/terrain/src/query.rs#L79): Where a ray first hits the ground, no farther than `maximum`: the distance and the point. The game uses it to stop picking at the ground. Deviation: the port tests every cell in the rectangle the ray crosses, where the original walks the cells along the ray.
+- [Deviation] [crates/terrain/src/query.rs:80](../crates/terrain/src/query.rs#L80): Where a ray first hits the ground, no farther than `maximum`: the distance and the point. The game uses it to stop picking at the ground. Deviation: the port tests every cell in the rectangle the ray crosses, where the original walks the cells along the ray.
 
 ## `crates/ui/src/input/keyboard.rs`
 

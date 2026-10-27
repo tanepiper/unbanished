@@ -93,7 +93,9 @@ impl Tornado {
                 return;
             }
         }
-        if *alpha <= 0.0 {
+        // jbe at 0x140053793: an alpha of 0 or less, or NaN, ends the slot.
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
+        if !(0.0 < *alpha) {
             self.slot = None;
         }
     }

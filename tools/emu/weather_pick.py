@@ -50,6 +50,8 @@ def main():
                 time = r.randrange(0, 3600 * 1_000_000)
             level = r.randrange(-1, 7)
             bias = f32(r.uniform(-0.3, 0.3))
+            if k % 40 == 0:
+                bias = float('nan')
             baseline, baseline_range, bias_range = f32(r.uniform(20, 70)), f32(r.uniform(0, 30)), f32(r.uniform(0, 0.5))
             months = []
             for _ in range(12):

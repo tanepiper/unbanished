@@ -68,7 +68,8 @@ fn ray_triangle(
     }
     let hit = 1.0 / det * dot(e2, q);
     *t = hit;
-    if hit < 0.0 || tmax < hit {
+    // jb at 0x1400afe71 and 0x1400afe7b: a NaN distance is rejected.
+    if !(hit >= 0.0) || !(tmax >= hit) {
         return false;
     }
     *normal = normalize(cross(e1, e2));
@@ -276,5 +277,42 @@ impl CellType {
     /// Whether walkers cannot enter a cell of this type.
     pub fn blocks_movement(self) -> bool {
         (1u32 << self.0) & 0x1e0 != 0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `FUN_1400afce0`: a ray that meets a triangle at a NaN distance is rejected (`jb` at
+    /// 0x1400afe71), but the NaN is still written to `t`.
+    #[test]
+    fn a_nan_distance_misses_the_triangle() {
+        let (v0, v1, v2) = ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
+        let down = [0.0, 0.0, -1.0];
+        let (mut t, mut normal) = (0.0, [0.0; 3]);
+        assert!(ray_triangle(
+            [0.25, 0.25, 1.0],
+            down,
+            10.0,
+            v0,
+            v1,
+            v2,
+            &mut t,
+            &mut normal
+        ));
+        assert_eq!(t, 1.0);
+        let origin = [0.25, 0.25, f32::NAN];
+        assert!(!ray_triangle(
+            origin,
+            down,
+            10.0,
+            v0,
+            v1,
+            v2,
+            &mut t,
+            &mut normal
+        ));
+        assert!(t.is_nan());
     }
 }

@@ -181,7 +181,9 @@ impl StatusBar {
             temperature = (temperature - 32.0) * 5.0 / 9.0;
         }
         if let Some(t) = self.temperature {
-            ui.set_text(t, &(temperature as i32).to_string());
+            // cvttss2si at 0x14007f348: a NaN shows as i32::MIN.
+            let shown = unbanished_game::crt::truncate(temperature);
+            ui.set_text(t, &shown.to_string());
         }
         // The converted value is compared with 32, as in the original.
         let mut state = v.weather;

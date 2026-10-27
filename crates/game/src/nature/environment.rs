@@ -372,7 +372,8 @@ impl Environment {
         let sample = rng.rand_float();
         let month = &self.climate.months[(slice / 4) as usize];
         self.state = 0;
-        while !(sample < self.bias + month[self.state as usize]) {
+        // jb at 0x140098c75: below the threshold, or a NaN one, stops at this state.
+        while self.bias + month[self.state as usize] <= sample {
             self.state += 1;
             if self.state >= 3 {
                 break;

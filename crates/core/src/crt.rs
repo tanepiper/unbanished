@@ -1,5 +1,5 @@
 //! The float functions of the Microsoft C runtime, as the game calls them: [`sinf`], [`cosf`],
-//! [`acosf`] and [`atan2f`].
+//! [`acosf`] and [`atan2f`], and the compiler's float-to-integer conversion, [`truncate`].
 //!
 //! These functions are not correctly rounded, so their results can differ from Rust's `f32::sin`
 //! and its relatives in the last bit. That is enough to change the game's results. So this module
@@ -348,6 +348,26 @@ pub fn atan2f(y: f32, x: f32) -> f32 {
         r = -r;
     }
     r as f32
+}
+
+/// `(int)v` as the compiler writes it, with `cvttss2si`: it rounds towards zero, and a NaN or
+/// a value outside the `i32` range gives `i32::MIN`. Rust's `v as i32` gives 0 for a NaN and
+/// the nearest limit for a value out of range, so ported code that converts a float the game
+/// could leave NaN uses this.
+///
+/// ```
+/// use unbanished_core::crt::truncate;
+///
+/// assert_eq!(truncate(-2.7), -2);
+/// assert_eq!(truncate(f32::NAN), i32::MIN);
+/// assert_eq!(truncate(3e9), i32::MIN);
+/// ```
+pub fn truncate(v: f32) -> i32 {
+    if v.is_nan() || v >= 2_147_483_648.0 || v < -2_147_483_648.0 {
+        i32::MIN
+    } else {
+        v as i32
+    }
 }
 
 #[cfg(test)]

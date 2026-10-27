@@ -48,8 +48,12 @@ fn dot(a: Vec3, b: Vec3) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-/// `cvttss2si` to 64 bits, keeping the low byte.
+/// `cvttss2si` to 64 bits, keeping the low byte. A NaN or a value out of range converts to
+/// `i64::MIN`, whose low byte is 0 (`as i64` would saturate to `i64::MAX`).
 fn byte(v: f32) -> u32 {
+    if v.is_nan() || v >= 9_223_372_036_854_775_808.0 || v < -9_223_372_036_854_775_808.0 {
+        return 0;
+    }
     (v as i64 as u64 & 0xff) as u32
 }
 
@@ -120,11 +124,13 @@ impl Generator {
 /// One texel of `surface_map`: dirt from the noise below `LOW`, rock from the slope, both
 /// raised by height, then the light (occlusion over a radius of 10 cells times the smoothed
 /// normal's z).
+#[allow(clippy::neg_cmp_op_on_partial_ord)]
 fn surface_texel(cells: &[Cell], noise: &PerlinNoise, n: i32, x: i32, y: i32) -> u32 {
     let c = &cells[(y * n + x) as usize];
     let h = c.pos[2];
     let up = c.normal[2];
-    let mut r = if LOW <= h {
+    // jbe at 0x1400d4b70: a NaN height takes the noise.
+    let mut r = if !(LOW > h) {
         let v = noise.generate(x as f32 * NOISE_SCALE, y as f32 * NOISE_SCALE);
         let v = v * 0.5 + 0.5;
         byte(v * v * 255.0)
@@ -177,4 +183,19 @@ fn surface_texel(cells: &[Cell], noise: &PerlinNoise, n: i32, x: i32, y: i32) ->
     let smooth = normalize(smooth);
     let b = byte((1.0 - occlusion / count) * smooth[2] * 255.0);
     ((g & 0xff) << 8 | (r & 0xff)) | b << 16
+}
+
+#[cfg(test)]
+mod tests {
+    use super::byte;
+
+    /// `cvttss2si` to 64 bits: a NaN or a value out of range gives `i64::MIN`, low byte 0.
+    #[test]
+    fn byte_keeps_the_low_byte_of_cvttss2si() {
+        assert_eq!(byte(255.9), 255);
+        assert_eq!(byte(256.0), 0);
+        assert_eq!(byte(f32::NAN), 0);
+        assert_eq!(byte(1e30), 0);
+        assert_eq!(byte(f32::INFINITY), 0);
+    }
 }

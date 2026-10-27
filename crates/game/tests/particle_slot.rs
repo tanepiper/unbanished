@@ -54,3 +54,40 @@ fn matches_the_original() {
     assert!(fades > 0 && gone > 0);
     eprintln!("{fades} fades, {gone} gone");
 }
+
+/// One step from a NaN, infinite or zero alpha or rate (`particle_slot_nan.tsv`): the slot goes
+/// on the same steps, and the alpha and rate left are the original's to the bit.
+#[test]
+fn nan_and_infinite_slots_match_the_original() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../game-data/derived/emu/particle_slot_nan.tsv"
+    );
+    let Ok(text) = std::fs::read_to_string(path) else {
+        eprintln!("no emulator output; skipping");
+        return;
+    };
+    let bits = |s: &str| f32::from_bits(u32::from_str_radix(s, 16).unwrap());
+    let mut cases = 0;
+    for line in text.lines() {
+        let (head, want) = line.split_once('\t').unwrap();
+        let f: Vec<&str> = head.split(' ').collect();
+        let mut t = Tornado {
+            target: [0.0; 3],
+            path: Vec::new(),
+            index: 0,
+            timer: 0,
+            position: [0.0; 3],
+            emitting: true,
+            slot: Some((bits(f[0]), bits(f[1]))),
+        };
+        t.step_slot(f[2].parse().unwrap());
+        let got = match t.slot {
+            None => "gone".to_owned(),
+            Some((a, r)) => format!("{:08x} {:08x}", a.to_bits(), r.to_bits()),
+        };
+        assert_eq!(got, want, "{head}");
+        cases += 1;
+    }
+    assert_eq!(cases, 120);
+}
