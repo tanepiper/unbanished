@@ -13,6 +13,8 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 - The original Banished can run in the project's own emulated PC (`tools/reference/vm/`), so
   agents can watch it, drive it and make saves without a Windows PC.
+- `./gameframe`, GameFrame's project launcher. It starts GameFrame's MCP server and REA at the
+  version GameFrame pins.
 
 ## [0.5.0] - 2026-10-23
 

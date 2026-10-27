@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# GameFrame for this project. GameFrame's skills, agents, gates and MCP servers come from its
+# Claude Code plugin (.claude/settings.json). This command runs its toolkit on this project.
+#
+#   ./gameframe help                 GameFrame's commands: steps, skills, agents, tools, tool, run, find, doctor
+#   ./gameframe run NAME [ARGS]      run a tool or script, for example ./gameframe run peinfo game/GAME.EXE
+#   ./gameframe doctor [--install]   check and install the toolchain; makes .venv and .env here
+#   ./gameframe python FILE [ARGS]   run one of this project's Python scripts with GameFrame's tools
+#                                    on its path (import pe_emu, dos_emu, call_trace, reader ...)
+#   ./gameframe root                 print the GameFrame folder in use
+#   ./gameframe gate KIND            run GameFrame's gates (scripts/hooks/gate.py), for the hooks of
+#                                    Codex, Gemini CLI, Cursor and Copilot (scripts/clients.py)
+#   ./gameframe advise-hook AGENT    run GameFrame's know-how hook (scripts/hooks/advise.py) for
+#                                    the same agents' post-tool hooks
+#
+# GameFrame is found in $GAMEFRAME_ROOT (the environment, the project's .env, or the GameFrame
+# home's config.env: $GAMEFRAME_HOME, ~/gameframe), then in
+# ~/code/game-frame or ~/code/reverse-engineer-games, then the plugin's newest install in
+# ~/.claude/plugins/cache. Keep one GameFrame checkout on the machine and pin every project to it
+# in .env; change GameFrame in a worktree of that checkout (docs/working/environments.md). It
+# never looks next to the project. Tools run in this folder, and the scripts write here
+# (analysis/, .venv, .env): GAMEFRAME_PROJECT tells them where that is.
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+# The GameFrame checkout this project uses: GAMEFRAME_ROOT in its .env (git-ignored), read here
+# and in the main checkout, so the project's git worktrees use the same one.
+main="$(git -C "$here" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+main="${main%/.git}"
+home="${GAMEFRAME_HOME:-$HOME/gameframe}"
+for envf in "$here/.env" ${main:+"$main/.env"} "$home/config.env"; do
+  if [[ -z "${GAMEFRAME_ROOT:-}" && -f "$envf" ]]; then
+    v="$(sed -n 's/^GAMEFRAME_ROOT=//p' "$envf" | tail -1)"
+    if [[ -n "$v" ]]; then GAMEFRAME_ROOT="${v/#\~/$HOME}"; fi
+  fi
+done
+for d in "${GAMEFRAME_ROOT:-}" "$HOME/code/game-frame" "$HOME/code/reverse-engineer-games" \
+         $(ls -d "$HOME"/.claude/plugins/cache/game-frame/gameframe/*/ 2>/dev/null | sort -V -r); do
+  if [[ -n "$d" && -f "$d/gameframe" && -d "$d/tools" ]]; then gf="$(cd "$d" && pwd)"; break; fi
+done
+if [[ -z "${gf:-}" ]]; then
+  echo "GameFrame not found. Enable its Claude Code plugin (.claude/settings.json), set GAMEFRAME_ROOT," >&2
+  echo "in .env, or clone it once: git clone https://github.com/tanepiper/game-frame ~/code/game-frame" >&2
+  exit 1
+fi
+export GAMEFRAME_ROOT="$gf" GAMEFRAME_PROJECT="$here"
+if [[ -z "${PYTHON:-}" ]]; then
+  if [[ -x "$here/.venv/bin/python" ]]; then export PYTHON="$here/.venv/bin/python"
+  elif [[ -x "$gf/.venv/bin/python" ]]; then export PYTHON="$gf/.venv/bin/python"
+  elif [[ -x "$home/python/bin/python" ]]; then export PYTHON="$home/python/bin/python"; fi
+fi
+case "${1:-help}" in
+  root) echo "$gf" ;;
+  gate) shift; exec python3 "$gf/scripts/hooks/gate.py" "$@" ;;
+  advise-hook) shift; exec python3 "$gf/scripts/hooks/advise.py" "$@" ;;
+  python)
+    shift
+    export PYTHONPATH="$gf/tools/emu:$gf/tools/formats:$gf/tools/verify:$gf/tools/triage:$gf/tools/dos:$gf/tools/pe${PYTHONPATH:+:$PYTHONPATH}"
+    exec "${PYTHON:-python3}" "$@" ;;
+  *) exec "${PYTHON:-python3}" "$gf/gameframe" "$@" ;;
+esac

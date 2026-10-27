@@ -44,7 +44,7 @@ check java21 "find_java21" openjdk@21 openjdk-21-jdk "JDK 21 for Ghidra; or set 
 if [[ -n "$(find_ghidra)" ]]; then row ghidra ok "$(find_ghidra)"
 else row ghidra MISSING "https://github.com/NationalSecurityAgency/ghidra/releases; set GHIDRA_INSTALL_DIR in .env"; missing=$((missing + 1)); fi
 check objdump "objdump --version" binutils binutils "binutils or LLVM objdump"
-check node "node --version" node nodejs "Node.js 18+ (REA runs with npx)"
+check node "node --version" node nodejs "Node.js 22.23.4+ or 24.22.1+ (REA runs with npx)"
 if [[ ! -x "$RE_ROOT/.venv/bin/python" && $install == 1 ]]; then
   python3 -m venv "$RE_ROOT/.venv" && "$RE_ROOT/.venv/bin/pip" install -q unicorn pefile
 fi
@@ -61,7 +61,7 @@ if [[ -n "$(find_ghidra)" && -n "$(find_java21)" && ! -e "$RE_ROOT/.env" ]]; the
 fi
 if [[ $rea == 1 ]]; then
   echo; echo "REA registration plan (dry run; nothing changes):"
-  npx -y rea-agents@6.4.0 setup --client "${REA_CLIENT:-claude_code}" --dry-run || echo "  could not run REA's setup"
+  npx -y rea-agents@"${REA_MCP_VERSION:-6.7.0}" setup --client "${REA_CLIENT:-claude_code}" --dry-run || echo "  could not run REA's setup"
 fi
 echo
 if [[ $missing == 0 ]]; then echo "The toolchain is in place."; else echo "$missing missing: run tools/re-setup.sh --install"; exit 1; fi

@@ -51,6 +51,7 @@ port's citations.
 | GameFrame's skills and agents | `.claude/settings.json` enables GameFrame's Claude Code plugin: its `re-*` skills and its 18 agents. The `banished-*` skills stay the first choice for this game ([AGENTS.md](../../AGENTS.md), "GameFrame") |
 | The gates | The plugin's hooks stop a commit or a written file that would add game material or decompiled code. The project's settings also refuse force-adding, `git add -A`, `git add .`, `git commit -a` and force-pushing, as AGENTS.md already required |
 | GameFrame's toolkit | `tools/gf.sh` runs any GameFrame tool from this folder, from the machine's one GameFrame checkout (`GAMEFRAME_ROOT` in `.env`) |
+| GameFrame's launcher and MCP servers | `./gameframe` is GameFrame's project launcher. The plugin starts GameFrame's MCP server with `./gameframe serve`. REA starts from `.mcp.json` with `./gameframe mcp-provider rea`, at the version GameFrame pins (6.7.0 in October 2026) |
 | A checklist in GameFrame's format | [CHECKLIST.md](../CHECKLIST.md) gives the state by inventory, foundations, systems and labels, and links to [GAME-LOOP-CHECKLIST.md](../GAME-LOOP-CHECKLIST.md) for the details. GameFrame's session hook reads its open items |
 | Save games out of git | `/save-game/` added to `.gitignore` (`*.sav` was already ignored) |
 

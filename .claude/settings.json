@@ -16,6 +16,7 @@
   "permissions": {
     "allow": [
       "Bash(tools/gf.sh *)",
+      "Bash(./gameframe *)",
       "Bash(tools/test/run.py *)",
       "Bash(git status *)",
       "Bash(git diff *)",
