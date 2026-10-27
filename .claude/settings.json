@@ -4,7 +4,8 @@
     "game-frame": {
       "source": {
         "source": "github",
-        "repo": "tanepiper/game-frame"
+        "repo": "tanepiper/game-frame",
+        "ref": "main"
       },
       "autoUpdate": true
     }
