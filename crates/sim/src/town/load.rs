@@ -288,6 +288,15 @@ impl StartingTown {
         }
         town.restore_schedule(saved, &mut ids);
         town.save_ids = Some(ids);
+        // A separate towns game's owners come from the sidecar beside the save.
+        if let Some(owners) = &saved.owners {
+            for (p, &owner) in town.placed.iter_mut().zip(&owners.placed) {
+                p.owner = owner;
+            }
+            for (c, &owner) in town.citizens.iter_mut().zip(&owners.citizens) {
+                c.owner = owner;
+            }
+        }
         Some(town)
     }
 }

@@ -94,6 +94,8 @@ pub struct SaveLoadDialog {
     load: Option<crate::saves::saved::SavedGame>,
     /// The file being read for a load.
     reading: Option<crate::saves::save_store::Read>,
+    /// The file being read, whose owners sidecar goes with it.
+    reading_file: Option<String>,
     listing: bool,
     deleting: bool,
     /// `+200`: the spinner's angle.
@@ -165,6 +167,7 @@ impl SaveLoadDialog {
             saved: false,
             load: None,
             reading: None,
+            reading_file: None,
             listing: false,
             deleting: false,
             angle: 0.0,
@@ -196,14 +199,29 @@ impl SaveLoadDialog {
         screen.remove_root(ui, self.root);
     }
 
+    /// The loaded save's owners sidecar, for a separate towns room (none: empty).
+    pub fn owners(&self) -> Vec<u8> {
+        self.load
+            .as_ref()
+            .and_then(|s| s.owners.as_ref())
+            .map(|o| o.encode())
+            .unwrap_or_default()
+    }
+
     /// `FUN_1400bce80`, then the refresh `FUN_1400bbd50`.
     pub fn update(&mut self, ui: &mut Ui, screen: &mut Screen, dt: f32) -> Outcome {
         if let Some(read) = &mut self.reading {
             if let Some(result) = read.poll() {
                 self.reading = None;
                 let keep = self.keep_bytes;
+                let owners = self
+                    .reading_file
+                    .take()
+                    .and_then(|name| crate::saves::save_store::read_owners(&name))
+                    .unwrap_or_default();
                 match result.and_then(|b| {
-                    let saved = crate::saves::saved::SavedGame::parse(&b);
+                    let saved =
+                        crate::saves::saved::SavedGame::parse(&b).map(|s| s.with_owners(&owners));
                     saved
                         .map(|s| (s, keep.then_some(b)))
                         .map_err(|e| e.to_string())

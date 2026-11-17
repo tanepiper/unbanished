@@ -16,7 +16,7 @@
 use serde::{Deserialize, Serialize};
 
 /// The protocol version this crate speaks.
-pub const PROTOCOL: u16 = 4;
+pub const PROTOCOL: u16 = 5;
 
 /// Who a game is: the protocol it speaks, and what its players must share.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -124,6 +124,9 @@ pub enum ToRelay {
         update: u64,
         /// The save file's bytes.
         bytes: Vec<u8>,
+        /// A separate towns game's owners sidecar (docs/SEPARATE-TOWNS.md); empty in a shared
+        /// town game.
+        owners: Vec<u8>,
     },
     /// The town the server keeps for this room: it answers [`FromRelay::Kept`].
     Fetch,
@@ -164,6 +167,8 @@ pub enum FromRelay {
         update: u64,
         /// The save file's bytes.
         bytes: Vec<u8>,
+        /// A separate towns game's owners sidecar; empty in a shared town game.
+        owners: Vec<u8>,
     },
     /// This game joined the room as `player`.
     Joined {

@@ -94,17 +94,19 @@ impl GameLoop for MenuLoop {
             options.update();
         }
         let mut bytes = None;
+        let mut owners = Vec::new();
         if let (Some(d), Some(screen)) = (self.save_dialog.as_mut(), self.screen.as_mut()) {
             let outcome = d.update(ctx.ui, screen, dt);
             if matches!(outcome, crate::ui::save_dialog::Outcome::Load(_)) {
                 bytes = d.bytes.take();
+                owners = d.owners();
             }
             self.save_outcome(outcome);
         }
         if let (Some(mp), Some(screen)) = (self.multiplayer.as_mut(), self.screen.as_mut()) {
             // The host's save starts the game for every player.
             let outcome = match (self.load.take(), bytes) {
-                (Some(_), Some(bytes)) => mp.host_start(ctx.ui, screen, bytes),
+                (Some(_), Some(bytes)) => mp.host_start(ctx.ui, screen, bytes, owners),
                 _ => mp.update(ctx.ui, screen),
             };
             if let crate::ui::multiplayer::Outcome::Start(game) = outcome {

@@ -63,13 +63,20 @@ impl super::GameplayLoop {
             }
         }
         let state = state.encode().map_err(|e| e.to_string())?;
+        let mut crc = unbanished_formats::crc::crc32(state);
+        // In a separate towns game whose each entity is is part of the state, though the save
+        // cannot hold it: hash it after the save.
+        let owners = self.sim.owners();
+        if owners.players > 1 {
+            crc = !unbanished_formats::crc::crc32_raw(!crc, &owners.encode());
+        }
         let town = self.sim.town.as_ref().ok_or("no town")?;
         Ok(Digest {
             update,
             year: self.sim.calendar.year,
             elapsed: self.sim.calendar.elapsed,
             citizens: town.citizens.iter().filter(|c| c.alive).count(),
-            crc: unbanished_formats::crc::crc32(state),
+            crc,
         })
     }
 }

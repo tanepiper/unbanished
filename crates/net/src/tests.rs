@@ -269,10 +269,12 @@ fn a_server_that_keeps_rooms_gives_the_town_back() {
     guest.send(ToRelay::Keep {
         update: 5,
         bytes: vec![9],
+        owners: Vec::new(),
     });
     host.send(ToRelay::Keep {
         update: 600,
         bytes: vec![1, 2],
+        owners: vec![7],
     });
     drop(guest);
     drop(host);
@@ -292,6 +294,7 @@ fn a_server_that_keeps_rooms_gives_the_town_back() {
     let kept = FromRelay::Kept {
         update: 600,
         bytes: vec![1, 2],
+        owners: vec![7],
     };
     assert_eq!(again.poll(), [kept]);
 }

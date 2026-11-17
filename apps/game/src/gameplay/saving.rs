@@ -169,6 +169,36 @@ impl GameplayLoop {
             Ok(()) => log::info!("saved {path:?}"),
             Err(e) => log::error!("save {path:?}: {e}"),
         }
+        // A separate towns game's owners ride beside the save, not in it.
+        self.write_owners(&path);
+    }
+
+    /// Write (or remove) the owners sidecar of the save just written
+    /// (`docs/SEPARATE-TOWNS.md`): the original's format has no owner field.
+    fn write_owners(&self, path: &SaveTarget) {
+        let owners = self.sim.owners();
+        let bytes = owners.encode();
+        let result = match path {
+            SaveTarget::Store(name) if owners.separate() => {
+                crate::saves::save_store::write_owners(name, &bytes)
+            }
+            SaveTarget::Store(name) => {
+                crate::saves::save_store::delete_owners(name);
+                Ok(())
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            SaveTarget::File(path) if owners.separate() => {
+                std::fs::write(path.with_extension("owners"), &bytes).map_err(|e| e.to_string())
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            SaveTarget::File(path) => {
+                let _ = std::fs::remove_file(path.with_extension("owners"));
+                Ok(())
+            }
+        };
+        if let Err(e) = result {
+            log::error!("save owners {path:?}: {e}");
+        }
     }
 
     /// `Dialog/AutoSave.rsc`'s frame: at its interval, an autosave into `Auto.sav` named by the

@@ -53,8 +53,8 @@ impl GameplayLoop {
         // (which waits for every player's turn), the turns to send, and the host's checks.
         let online = self.online.net.as_ref().is_some_and(|n| !n.driven);
         if online {
-            if let (_, Some((bytes, update))) = self.net_poll() {
-                return Err(self.switch_reload(ctx, &bytes, update));
+            if let (_, Some(save)) = self.net_poll() {
+                return Err(self.switch_reload(ctx, &save));
             }
         }
         // Held: the slot waits for another player's turn. The view and the windows go on, but
@@ -69,9 +69,7 @@ impl GameplayLoop {
             self.refresh_players_line(ctx.ui, held);
             if !held {
                 match self.net_boundary(ctx, self.sim.updates) {
-                    Ok(Some((bytes, update))) => {
-                        return Err(self.switch_reload(ctx, &bytes, update))
-                    }
+                    Ok(Some(save)) => return Err(self.switch_reload(ctx, &save)),
                     Ok(None) => {}
                     Err(e) => log::error!("multiplayer: {e}"),
                 }

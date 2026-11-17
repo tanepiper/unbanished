@@ -12,6 +12,8 @@ pub struct Kept {
     pub update: u64,
     /// The save file's bytes.
     pub bytes: Vec<u8>,
+    /// A separate towns game's owners sidecar; empty in a shared town game.
+    pub owners: Vec<u8>,
 }
 
 /// Where rooms' towns are kept.
@@ -57,7 +59,12 @@ impl Store for FolderStore {
             .trim()
             .parse()
             .ok()?;
-        Some(Kept { update, bytes })
+        let owners = std::fs::read(self.0.join(format!("{code}.owners"))).unwrap_or_default();
+        Some(Kept {
+            update,
+            bytes,
+            owners,
+        })
     }
 
     fn keep(&mut self, code: &str, kept: Kept) {
@@ -73,6 +80,7 @@ impl Store for FolderStore {
         };
         let result = std::fs::create_dir_all(&self.0)
             .and_then(|_| write(format!("{code}.sav"), &kept.bytes))
+            .and_then(|_| write(format!("{code}.owners"), &kept.owners))
             .and_then(|_| write(format!("{code}.update"), kept.update.to_string().as_bytes()));
         if let Err(e) = result {
             log::error!("keeping room {code} in {}: {e}", self.0.display());
@@ -101,6 +109,7 @@ mod tests {
         let kept = Kept {
             update: 1200,
             bytes: vec![1, 2, 3],
+            owners: vec![4, 5],
         };
         store.keep("ROOM", kept.clone());
         assert_eq!(store.load("ROOM"), Some(kept));
@@ -109,6 +118,7 @@ mod tests {
             Kept {
                 update: 1,
                 bytes: Vec::new(),
+                owners: Vec::new(),
             },
         );
         assert!(!dir.parent().unwrap().join("ROOM.sav").exists());

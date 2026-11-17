@@ -15,6 +15,9 @@ pub struct SavedGame {
     /// thousand times; reading `entity.components` again for every lookup took about 600 ms.
     /// `state.objects` must not change once a lookup has been made.
     components: std::sync::OnceLock<Option<ComponentIndex>>,
+    /// A separate towns game's ownership, read from the sidecar beside the save
+    /// ([`crate::owners::Owners`]); None for a save without one.
+    pub owners: Option<crate::owners::Owners>,
 }
 
 /// [`SavedGame::read_components`] for every object of a save, by object number (the numbers
@@ -49,7 +52,14 @@ impl SavedGame {
             state,
             metadata,
             components: Default::default(),
+            owners: None,
         }
+    }
+
+    /// The save with the owners sidecar's bytes attached, when they decode.
+    pub fn with_owners(mut self, bytes: &[u8]) -> SavedGame {
+        self.owners = crate::owners::Owners::decode(bytes);
+        self
     }
 
     /// An external reference id's path (`u32::MAX` is none).

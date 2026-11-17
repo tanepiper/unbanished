@@ -131,10 +131,9 @@ impl super::GameplayLoop {
     pub fn reloaded(
         mut self,
         ctx: &mut crate::loops::Ctx,
-        bytes: &[u8],
-        update: u64,
+        save: &super::network::Reload,
     ) -> Result<super::GameplayLoop, String> {
-        let mut g = self.reloading(bytes, update)?;
+        let mut g = self.reloading(save)?;
         g.load(ctx);
         g.startup(ctx);
         Ok(g)
@@ -144,12 +143,14 @@ impl super::GameplayLoop {
     pub(super) fn switch_reload(
         &mut self,
         ctx: &mut crate::loops::Ctx,
-        bytes: &[u8],
-        update: u64,
+        save: &super::network::Reload,
     ) -> crate::loops::Next {
-        match self.reloading(bytes, update) {
+        match self.reloading(save) {
             Ok(g) => {
-                log::info!("multiplayer: resyncing from the host's save at update {update}");
+                log::info!(
+                    "multiplayer: resyncing from the host's save at update {}",
+                    save.update
+                );
                 crate::loops::Next::Switch(Box::new(crate::loops::DialogLoaderLoop::new(
                     format!("Dialog/Loading.rsc:gameLoad{}", ctx.rng.rand_below(12)),
                     0.0,
@@ -165,8 +166,13 @@ impl super::GameplayLoop {
 
     /// [`Self::reloaded`] without loading: the game to switch to (the real game shows the loading
     /// screen meanwhile). This game is left retired.
-    pub fn reloading(&mut self, bytes: &[u8], update: u64) -> Result<super::GameplayLoop, String> {
-        let saved = crate::saves::saved::SavedGame::parse(bytes).map_err(|e| e.to_string())?;
+    pub fn reloading(
+        &mut self,
+        save: &super::network::Reload,
+    ) -> Result<super::GameplayLoop, String> {
+        let saved = crate::saves::saved::SavedGame::parse(&save.bytes)
+            .map_err(|e| e.to_string())?
+            .with_owners(&save.owners);
         let mut g = super::GameplayLoop::from_save(saved);
         g.autosave = None;
         g.recording.replaying = self.recording.replaying;
@@ -182,10 +188,10 @@ impl super::GameplayLoop {
         if let Some(net) = &mut g.online.net {
             net.forget_line();
         }
-        g.sim.updates = update;
-        g.online.boundary_done = Some(update);
+        g.sim.updates = save.update;
+        g.online.boundary_done = Some(save.update);
         if let Some(mut l) = self.online.lockstep.take() {
-            l.resynced(update);
+            l.resynced(save.update);
             g.online.lockstep = Some(l);
         }
         self.online.retired = true;

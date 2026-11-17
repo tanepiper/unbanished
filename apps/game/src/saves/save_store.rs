@@ -35,7 +35,7 @@ impl Read {
     }
 }
 
-pub use imp::{delete, list, read, write};
+pub use imp::{delete, delete_owners, list, read, read_owners, write, write_owners};
 #[cfg(target_arch = "wasm32")]
 pub use imp::{
     init, kept_package_names, store_mod, store_packages, stored_mods, stored_packages, write_then,

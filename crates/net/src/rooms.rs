@@ -321,9 +321,20 @@ impl Relay {
             }
             ToRelay::Leave => reply.out = self.leave(client),
             // Only a room's host keeps its town, and only on a server that keeps rooms.
-            ToRelay::Keep { update, bytes } => {
+            ToRelay::Keep {
+                update,
+                bytes,
+                owners,
+            } => {
                 if let (Some((room, 0)), Some(store)) = (game.room.clone(), self.store.as_mut()) {
-                    store.keep(&room, Kept { update, bytes });
+                    store.keep(
+                        &room,
+                        Kept {
+                            update,
+                            bytes,
+                            owners,
+                        },
+                    );
                     log::info!("room {room}: kept the town at update {update}");
                 }
             }
@@ -333,7 +344,15 @@ impl Relay {
                     _ => None,
                 };
                 let message = match kept {
-                    Some(Kept { update, bytes }) => FromRelay::Kept { update, bytes },
+                    Some(Kept {
+                        update,
+                        bytes,
+                        owners,
+                    }) => FromRelay::Kept {
+                        update,
+                        bytes,
+                        owners,
+                    },
                     None => FromRelay::Error {
                         message: "this room has no kept town".into(),
                     },

@@ -112,6 +112,13 @@ impl Simulation {
             self.calendar.elapsed = *t;
         }
         self.stock_warnings[0] = saved.stock_warnings();
+        if let Some(owners) = &saved.owners {
+            // A separate towns game keeps each player's stock limits beside its save.
+            self.set_players(owners.players);
+            for (warnings, limits) in self.stock_warnings.iter_mut().zip(&owners.limits) {
+                warnings.limits = *limits;
+            }
+        }
         self.events = saved.event_log();
         self.statistics = saved.statistics();
     }
@@ -126,6 +133,22 @@ impl Simulation {
     /// The number of players, one in a single-player game.
     pub fn players(&self) -> u8 {
         self.stock_warnings.len() as u8
+    }
+
+    /// The game's ownership and stock limits, for a save's sidecar
+    /// ([`crate::owners::Owners`]).
+    pub fn owners(&self) -> crate::owners::Owners {
+        let town = self.town.as_ref();
+        crate::owners::Owners {
+            players: self.players(),
+            placed: town
+                .map(|t| t.placed.iter().map(|p| p.owner).collect())
+                .unwrap_or_default(),
+            citizens: town
+                .map(|t| t.citizens.iter().map(|c| c.owner).collect())
+                .unwrap_or_default(),
+            limits: self.stock_warnings.iter().map(|w| w.limits).collect(),
+        }
     }
 
     /// The month: `floor(elapsed / 3600 × 12)`.

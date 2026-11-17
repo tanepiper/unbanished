@@ -53,6 +53,30 @@ pub fn delete(name: &str) {
             log::error!("{}: {e}", path.display());
         }
     }
+    if let Some(path) = owners_path(name) {
+        let _ = std::fs::remove_file(&path);
+    }
+}
+
+/// A save's owners sidecar: `NAME.owners` beside `NAME.sav` (`docs/SEPARATE-TOWNS.md`).
+fn owners_path(name: &str) -> Option<std::path::PathBuf> {
+    Some(crate::platform::paths::save_file(name)?.with_extension("owners"))
+}
+
+pub fn write_owners(name: &str, bytes: &[u8]) -> Result<(), String> {
+    let path = owners_path(name).ok_or("no save folder")?;
+    std::fs::write(&path, bytes).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// A save's owners sidecar, if it has one that reads.
+pub fn read_owners(name: &str) -> Option<Vec<u8>> {
+    std::fs::read(owners_path(name)?).ok()
+}
+
+pub fn delete_owners(name: &str) {
+    if let Some(path) = owners_path(name) {
+        let _ = std::fs::remove_file(&path);
+    }
 }
 
 pub struct Read(Option<Result<Vec<u8>, String>>);
