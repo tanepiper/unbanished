@@ -114,8 +114,8 @@ pub fn replay(
             // the state the next update begins with.
             while let Some(entry) = next.next_if(|e| entry_update(e).is_none_or(|u| u <= update)) {
                 match entry {
-                    Entry::Command { command, .. } => {
-                        gameplay.replay_command(ctx, command.clone());
+                    Entry::Command { player, command, .. } => {
+                        gameplay.replay_command(ctx, player.unwrap_or(0), command.clone());
                     }
                     Entry::MenuPause { paused, .. } => gameplay.menu_paused = *paused,
                     Entry::Digest(recorded) => {
@@ -156,8 +156,8 @@ fn entry_update(entry: &Entry) -> Option<u64> {
 impl super::GameplayLoop {
     /// A recorded command, carried out as the interface would: a tool it starts becomes the
     /// current one.
-    fn replay_command(&mut self, ctx: &mut crate::loops::Ctx, command: PlayerCommand) {
-        if let Outcome::Tool(Some(tool)) = self.execute(ctx.archive, command) {
+    fn replay_command(&mut self, ctx: &mut crate::loops::Ctx, player: u8, command: PlayerCommand) {
+        if let Outcome::Tool(Some(tool)) = self.execute_as(ctx.archive, player, command) {
             match tool {
                 Tool::Placement(t) => self.placement = Some(t),
                 Tool::Removal(t) => self.removal = Some(t),

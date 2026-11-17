@@ -24,7 +24,7 @@ impl GameplayLoop {
     }
 
     /// Nothing to record.
-    pub(in crate::gameplay) fn record_command(&mut self, _command: &PlayerCommand) {}
+    pub(in crate::gameplay) fn record_command(&mut self, _player: u8, _command: &PlayerCommand) {}
 
     /// Nothing to record.
     pub(in crate::gameplay) fn record_menu_pause(&mut self, _update: u64, _paused: bool) {}

@@ -1,6 +1,7 @@
 use super::*;
 
 mod audio;
+mod commands;
 mod drawing;
 mod tools;
 mod tutorial;

@@ -114,14 +114,18 @@ impl Simulation {
         self.town_names.as_ref()
     }
 
-    /// Carries out a player's command now. `path_tool` is the Path tool a `PathQuery` picks
-    /// with. `RenameTown`, `SetSpeed` and `SetPaused` are the game app's and do nothing here.
+    /// Carries out a player's command now. `player` is whose command it is, which a separate
+    /// towns game reads to act on that player's town (step 7 of docs/MULTIPLAYER-PLAN.md).
+    /// `path_tool` is the Path tool a `PathQuery` picks with. `RenameTown`, `SetSpeed` and
+    /// `SetPaused` are the game app's and do nothing here.
     pub fn execute(
         &mut self,
         archive: &Archive,
+        player: u8,
         command: PlayerCommand,
         path_tool: Option<&mut PathTool>,
     ) -> Outcome {
+        self.acting_player = player;
         match command {
             PlayerCommand::Town(command) => {
                 if let Some(town) = &mut self.town {

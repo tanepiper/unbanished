@@ -17,6 +17,10 @@ pub enum Entry {
     },
     Command {
         update: u64,
+        /// Whose command it was in a multiplayer game; `None` in a single-player one, and in
+        /// a recording made before the number was written.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        player: Option<u8>,
         command: PlayerCommand,
     },
     /// From the start of update `update + 1`, the pause menu holds (or no longer holds) the game.
@@ -45,9 +49,10 @@ impl Recorder {
         Recorder { out, every }
     }
 
-    pub fn command(&mut self, update: u64, command: &PlayerCommand) {
+    pub fn command(&mut self, update: u64, player: Option<u8>, command: &PlayerCommand) {
         let entry = Entry::Command {
             update,
+            player,
             command: command.clone(),
         };
         write(&mut self.out, &entry);
@@ -66,5 +71,43 @@ fn write(out: &mut Box<dyn std::io::Write>, entry: &Entry) {
     let line = serde_json::to_string(entry).expect("an entry encodes");
     if let Err(e) = writeln!(out, "{line}").and_then(|_| out.flush()) {
         log::error!("recording: {e}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_multiplayer_command_keeps_its_player() {
+        let entry = Entry::Command {
+            update: 3,
+            player: Some(2),
+            command: PlayerCommand::SetPaused(true),
+        };
+        let line = serde_json::to_string(&entry).unwrap();
+        assert!(line.contains("\"player\":2"), "{line}");
+        let back: Entry = serde_json::from_str(&line).unwrap();
+        assert!(matches!(back, Entry::Command { player: Some(2), .. }));
+    }
+
+    #[test]
+    fn a_single_player_command_has_no_player() {
+        let entry = Entry::Command {
+            update: 3,
+            player: None,
+            command: PlayerCommand::SetPaused(true),
+        };
+        let line = serde_json::to_string(&entry).unwrap();
+        assert!(!line.contains("player"), "{line}");
+        let back: Entry = serde_json::from_str(&line).unwrap();
+        assert!(matches!(back, Entry::Command { player: None, .. }));
+    }
+
+    #[test]
+    fn an_old_recording_reads_as_single_player() {
+        let line = r#"{"command":{"update":3,"command":{"SetPaused":true}}}"#;
+        let back: Entry = serde_json::from_str(line).unwrap();
+        assert!(matches!(back, Entry::Command { player: None, .. }));
     }
 }

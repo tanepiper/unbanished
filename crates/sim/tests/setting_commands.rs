@@ -25,7 +25,7 @@ fn setting_commands_change_the_simulation() {
     let archive = Archive::default();
     let mut sim = Simulation::new(1);
     for command in commands() {
-        sim.execute(&archive, command, None);
+        sim.execute(&archive, 0, command, None);
     }
     assert_eq!(sim.stock_warnings.limits[3], 42);
     assert!(sim.events.notify[0]);
@@ -38,7 +38,7 @@ fn two_games_given_the_same_commands_agree() {
     let mut games = [Simulation::new(1), Simulation::new(1)];
     for sim in &mut games {
         for command in commands() {
-            sim.execute(&archive, command, None);
+            sim.execute(&archive, 0, command, None);
         }
     }
     assert_eq!(
@@ -55,6 +55,7 @@ fn a_slot_or_category_out_of_range_does_nothing() {
     let (limits, notify) = (sim.stock_warnings.limits, sim.events.notify);
     sim.execute(
         &archive,
+        0,
         PlayerCommand::SetStockLimit {
             slot: limits.len(),
             limit: 1,
@@ -63,6 +64,7 @@ fn a_slot_or_category_out_of_range_does_nothing() {
     );
     sim.execute(
         &archive,
+        0,
         PlayerCommand::SetNotify {
             category: notify.len(),
             on: !notify[0],
@@ -71,4 +73,18 @@ fn a_slot_or_category_out_of_range_does_nothing() {
     );
     assert_eq!(sim.stock_warnings.limits, limits);
     assert_eq!(sim.events.notify, notify);
+}
+
+#[test]
+fn a_command_carries_its_giver() {
+    let archive = Archive::default();
+    let mut sim = Simulation::new(1);
+    sim.execute(
+        &archive,
+        2,
+        PlayerCommand::SetStockLimit { slot: 0, limit: 7 },
+        None,
+    );
+    assert_eq!(sim.acting_player, 2);
+    assert_eq!(sim.stock_warnings.limits[0], 7);
 }

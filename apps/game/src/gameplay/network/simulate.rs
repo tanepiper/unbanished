@@ -212,11 +212,20 @@ impl Script {
             let entry: Entry =
                 serde_json::from_str(line).map_err(|e| format!("line {}: {e}", i + 1))?;
             match entry {
-                Entry::Command { update, command } => {
+                Entry::Command {
+                    update,
+                    player,
+                    command,
+                } => {
+                    // A recording of a multiplayer game says whose command it was. In a
+                    // single-player one the tools are split between the players: whoever
+                    // starts a tool gives its commands, and the next tool goes to the next
+                    // player.
                     if matches!(command, PlayerCommand::StartTool { .. }) {
                         owner = starts % players;
                         starts += 1;
                     }
+                    let owner = player.map_or(owner, |p| usize::from(p) % players);
                     script.last = script.last.max(update + delay + 1);
                     script.inputs[owner].push_back((update, Some(command), false));
                 }

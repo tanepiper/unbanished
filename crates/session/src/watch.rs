@@ -254,7 +254,7 @@ impl Watched {
             command => {
                 let mut tool = self.paths.remove(&player);
                 if let Outcome::Tool(Some(Tool::Path(t))) =
-                    self.sim.execute(archive, command, tool.as_mut())
+                    self.sim.execute(archive, player, command, tool.as_mut())
                 {
                     tool = Some(t);
                 }

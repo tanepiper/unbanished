@@ -18,15 +18,28 @@ impl GameplayLoop {
         self.sim.load_town_names(archive)
     }
 
-    /// Carries out a player's command now, and writes it to the recording if there is one.
-    pub(super) fn execute(&mut self, archive: &Archive, mut command: PlayerCommand) -> Outcome {
+    /// Carries out the local player's command now or, in lockstep, when its slot comes.
+    pub(super) fn execute(&mut self, archive: &Archive, command: PlayerCommand) -> Outcome {
+        self.execute_as(archive, self.player(), command)
+    }
+
+    /// Carries out `player`'s command: the local player's waits for its lockstep slot, while
+    /// another player's is carried out now, at the slot being replayed.
+    pub(super) fn execute_as(
+        &mut self,
+        archive: &Archive,
+        player: u8,
+        mut command: PlayerCommand,
+    ) -> Outcome {
         // In lockstep the player's commands wait for their slot, when every computer carries
         // them out in the same order.
-        match self.route(command) {
-            Some(now) => command = now,
-            None => return Outcome::Queued,
+        if player == self.player() {
+            match self.route(command) {
+                Some(now) => command = now,
+                None => return Outcome::Queued,
+            }
         }
-        self.record_command(&command);
+        self.record_command(player, &command);
         match command {
             PlayerCommand::RenameTown { name } => {
                 self.params.town_name = name;
@@ -40,7 +53,9 @@ impl GameplayLoop {
                 self.paused = paused;
                 Outcome::None
             }
-            command => self.sim.execute(archive, command, self.path_tool.as_mut()),
+            command => self
+                .sim
+                .execute(archive, player, command, self.path_tool.as_mut()),
         }
     }
 }

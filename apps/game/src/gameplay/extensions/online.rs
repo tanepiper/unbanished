@@ -90,6 +90,12 @@ impl GameplayLoop {
         self.online.lockstep.is_some()
     }
 
+    /// The local player's number: 0 unless the game is in lockstep.
+    pub(in crate::gameplay) fn player(&self) -> u8 {
+        use unbanished_session::session::Session;
+        self.online.lockstep.as_ref().map_or(0, |l| l.player())
+    }
+
     /// The local player's command: `Some` to carry out now, `None` when it waits for its
     /// lockstep slot, when every computer carries it out in the same order.
     pub(in crate::gameplay) fn route(&mut self, command: PlayerCommand) -> Option<PlayerCommand> {

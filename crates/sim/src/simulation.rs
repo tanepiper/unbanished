@@ -57,6 +57,10 @@ pub struct Simulation {
     pub statistics: Statistics,
     /// Updates begun since the game loaded (recordings and replays count by it).
     pub updates: u64,
+    /// The player whose command [`Simulation::execute`] is carrying out: 0 in a single-player
+    /// game, the command's giver in a multiplayer one. A separate towns game gives that
+    /// player's town (step 7 of docs/MULTIPLAYER-PLAN.md).
+    pub acting_player: u8,
     /// The drag tools commands have started, by template, for `PlayerCommand::Drag`.
     pub drag_tools: BTreeMap<String, RemovalTool>,
     /// The town names the Map window draws from, read the first time they are wanted.
@@ -83,6 +87,7 @@ impl Simulation {
             stock_warnings: Default::default(),
             statistics: Default::default(),
             updates: 0,
+            acting_player: 0,
             drag_tools: BTreeMap::new(),
             town_names: None,
             achievements: Vec::new(),

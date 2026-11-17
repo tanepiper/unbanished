@@ -63,7 +63,12 @@ impl super::GameplayLoop {
 
     /// Carries out a player's command. A tool it starts is the local player's current tool, or
     /// kept for the other player (their Path tool; drag tools are kept by template for all).
-    fn execute_from(&mut self, ctx: &mut crate::loops::Ctx, player: u8, command: PlayerCommand) {
+    pub(super) fn execute_from(
+        &mut self,
+        ctx: &mut crate::loops::Ctx,
+        player: u8,
+        command: PlayerCommand,
+    ) {
         use super::commands::{Outcome, Tool};
         let local = self
             .online
@@ -83,7 +88,7 @@ impl super::GameplayLoop {
             &mut self.path_tool,
             self.online.remote_paths.remove(&player),
         );
-        if let Outcome::Tool(Some(Tool::Path(t))) = self.execute(ctx.archive, command) {
+        if let Outcome::Tool(Some(Tool::Path(t))) = self.execute_as(ctx.archive, player, command) {
             self.path_tool = Some(t);
         }
         if let Some(t) = std::mem::replace(&mut self.path_tool, mine) {
