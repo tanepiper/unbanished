@@ -115,7 +115,7 @@ save as any other. Every player needs the same build, data and mods, as in a sha
 | 6 | Citizens and agents per owner: the swap at `Agents::sim`/`with_people`/`think` | done: two towns simulate apart, and the shared `Random` draws in one order |
 | 7 | Drawing and picking: every owner's entities drawn, only the local player's picked | done: `GameplayLoop::may_select`, `apps/game/src/gameplay/tests/towns.rs`; the pick filter is a no-op with one town |
 | 8 | Save and resync: ownership written beside the save, sent with `Message::Save` | done: a save of a two-town game reloads with the same owners; a resync agrees |
-| 9 | The lobby: the mode in `Message::Start`, refused by a build without it | done: `separate` in `Message::Start`; a mismatched save is refused; a `towns` scenario is written for `tools/compat/multiplayer.sh` (not yet run, see the gaps) |
+| 9 | The lobby: the mode in `Message::Start`, refused by a build without it | done: `separate` in `Message::Start`; a mismatched save is refused; `tools/compat/multiplayer.sh towns` plays a two-town room over a relay |
 | 10 | The end-to-end test: a room of two separate towns over a simulated network | done: `tools/compat/lockstep.sh` gains a separate-towns block; every digest agrees |
 
 Phases 3 to 6 are one change in spirit — the data model and its filters — and each ended with
@@ -130,6 +130,8 @@ On 2026-11-17, on the gaming PC (Linux, release build):
   found no desync and the players agreed on 11 digests. With player 1's `Random` corrupted at
   update 400 it was found at 420 and resynced, then agreed to the end.
 - The same settings on a single-town save played by two players (a shared town) agreed as before.
+- `tools/compat/multiplayer.sh towns` played a two-town room over a relay: the guest joined and
+  started from the host's two-town save, and the host's 27 checks all agreed with none differing.
 - `crate::sim`'s unit tests, the net, session and server tests, and the app's unit suite pass as
   on main (the app's five environment failures are the same: three audio tests, the burning
   buildings' particles, and a save-dependent bucket test).
@@ -147,8 +149,6 @@ On 2026-11-17, on the gaming PC (Linux, release build):
 - **Floors and clearing are shared**, so every player sees every player's roads and cleared land.
 - **The browser has no load path**, so it neither reads nor writes a sidecar; a separate towns
   game is native-only until the browser's save store gains one.
-- **The `towns` scenario of `tools/compat/multiplayer.sh`** was written but not run on the gaming
-  PC, which has no `save-game/`; it needs a machine with the save set, like the other scenarios.
 
 ## Open questions
 
