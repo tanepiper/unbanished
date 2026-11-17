@@ -89,7 +89,9 @@ impl Simulation {
         }
         t.set_time("town.time_198", self.statistics.timer);
         if let Some(Value::List(slots)) = t.at_mut("town.stock") {
-            let w = &self.stock_warnings[usize::from(self.local_player)];
+            // The game's stock, the same on every computer: a separate towns game's per-player
+            // limits ride in its owners sidecar instead.
+            let w = &self.stock_warnings[0];
             for (k, s) in slots.iter_mut().enumerate().take(w.count.len()) {
                 s.set_i32("count", w.count[k]);
                 s.set_i32("previous", w.previous[k]);
@@ -98,9 +100,8 @@ impl Simulation {
             }
         }
         if let Some(Value::List(records)) = t.at_mut("town.capacity_records") {
-            for (r, &(used, capacity, cooldown)) in records
-                .iter_mut()
-                .zip(&self.stock_warnings[usize::from(self.local_player)].capacity)
+            for (r, &(used, capacity, cooldown)) in
+                records.iter_mut().zip(&self.stock_warnings[0].capacity)
             {
                 r.set_i32("used", used);
                 r.set_i32("capacity", capacity);

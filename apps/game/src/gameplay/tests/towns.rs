@@ -106,11 +106,12 @@ fn the_digest_covers_who_owns_what() {
             g.startup(ctx);
             g
         };
-        // Two players: changing an owner changes the digest.
+        // Two towns: changing an owner changes the digest.
         let mut two = load(ctx);
+        two.sim.town.as_mut().unwrap().placed[0].owner = 1;
         two.sim.set_players(2);
         let before = two.digest(ctx, 0).unwrap().crc;
-        two.sim.town.as_mut().unwrap().placed[0].owner = 1;
+        two.sim.town.as_mut().unwrap().placed[0].owner = 0;
         assert_ne!(before, two.digest(ctx, 0).unwrap().crc);
         // One player: the owners ride in no digest.
         let mut one = load(ctx);

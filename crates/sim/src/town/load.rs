@@ -296,6 +296,7 @@ impl StartingTown {
             for (c, &owner) in town.citizens.iter_mut().zip(&owners.citizens) {
                 c.owner = owner;
             }
+            town.starts = owners.starts.clone();
         }
         Some(town)
     }

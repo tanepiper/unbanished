@@ -9,6 +9,8 @@
 #   two:   the host and one guest.
 #   leave: the host and two guests; the second guest quits during the game. The host and the
 #          other guest go on without it and still agree.
+#   towns: a separate towns game (docs/SEPARATE-TOWNS.md): the host's save has a town for each
+#          player, made by this build, and its owners sidecar goes beside it.
 #
 #   tools/compat/multiplayer.sh BINARY [RELAY_BINARY] [SCENARIO...]   # default: both scenarios
 #
@@ -24,7 +26,7 @@ relay="${2:-target/release/unbanished-server}"
 # The default server is built from this checkout, so it never runs a stale one.
 if [[ -z "${2:-}" ]]; then cargo build -q --offline --release -p unbanished-server; fi
 scenarios=("${@:3}")
-((${#scenarios[@]})) || scenarios=(two leave)
+((${#scenarios[@]})) || scenarios=(two leave towns)
 root="target/compat/multiplayer/$(run_name "$bin")"
 rm -rf "$root" && mkdir -p "$root"
 limit=()
@@ -62,7 +64,15 @@ run() { # two | leave
   local name="$1" dir="$root/$1" room ok=1 pids=()
   room="$(echo "$name" | tr '[:lower:]' '[:upper:]')"
   mkdir -p "$dir/host/Save" "$dir/guest1" "$dir/guest2"
-  cp save-game/Save83.sav "$dir/host/Save/"
+  if [[ $name == towns ]]; then
+    # A town for each player on one map, and the owners sidecar beside the save.
+    UNBANISHED_SEPARATE_TOWNS=2 tools/compat/scenarios.sh "$bin" "$root/towns-new-game" new-game \
+      >/dev/null 2>&1 || true
+    cp "$root/towns-new-game/new-game.sav" "$root/towns-new-game/new-game.owners" \
+      "$dir/host/Save/" 2>/dev/null || true
+  else
+    cp save-game/Save83.sav "$dir/host/Save/"
+  fi
   host "$dir" "$room" 50 &
   pids+=($!)
   guest "$dir" guest1 "$room" 50 --script "speed 5@30" &

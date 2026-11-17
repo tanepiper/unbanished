@@ -2,6 +2,16 @@
 
 use super::*;
 
+/// The players a New Game makes towns for: `UNBANISHED_SEPARATE_TOWNS` (a room's host makes one
+/// town per player, docs/SEPARATE-TOWNS.md), else 1.
+fn separate_towns() -> u8 {
+    unbanished_formats::env::var("SEPARATE_TOWNS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1)
+        .max(1)
+}
+
 impl MenuLoop {
     /// `FUN_140075ba0`: fill the selectors from the global lists (listed entries only, labelled
     /// from their string tables), apply the default selections and show the condition text.
@@ -212,8 +222,9 @@ impl MenuLoop {
             size: size_index,
             seed,
             scenario: None,
-            // The New Game menu starts one town; the lobby sets a mode's players.
-            players: 1,
+            // One town unless the command line asks for a separate towns game's
+            // (`UNBANISHED_SEPARATE_TOWNS`) for a room to host.
+            players: separate_towns(),
         };
         log::info!(
             "new game: {} / {} / {} terrain {} size {} seed {}",

@@ -65,6 +65,9 @@ pub struct Simulation {
     /// The player this computer is: whose stock, town hall and windows the interface shows.
     /// 0 outside lockstep.
     pub local_player: u8,
+    /// The players the game has (the room's count); 1 in a single-player game. A separate towns
+    /// game has one stock table per player, a shared town one table for its one town.
+    pub players: u8,
     /// The drag tools commands have started, by template, for `PlayerCommand::Drag`.
     pub drag_tools: BTreeMap<String, RemovalTool>,
     /// The town names the Map window draws from, read the first time they are wanted.
@@ -93,6 +96,7 @@ impl Simulation {
             updates: 0,
             acting_player: 0,
             local_player: 0,
+            players: 1,
             drag_tools: BTreeMap::new(),
             town_names: None,
             achievements: Vec::new(),
@@ -114,7 +118,14 @@ impl Simulation {
         self.stock_warnings[0] = saved.stock_warnings();
         if let Some(owners) = &saved.owners {
             // A separate towns game keeps each player's stock limits beside its save.
-            self.set_players(owners.players);
+            self.players = owners.players.max(1);
+            let towns = if owners.separate() {
+                usize::from(self.players)
+            } else {
+                1
+            };
+            self.stock_warnings
+                .resize(towns, unbanished_game::events::StockWarnings::default());
             for (warnings, limits) in self.stock_warnings.iter_mut().zip(&owners.limits) {
                 warnings.limits = *limits;
             }
@@ -123,16 +134,37 @@ impl Simulation {
         self.statistics = saved.statistics();
     }
 
-    /// How many players the game has: one in a single-player game, each with their own stock
-    /// limits and counts. A separate towns game sets it from its lobby.
+    /// How many players the game has (the room's count): one in a single-player game. A
+    /// separate towns game keeps one stock table per player; a shared town game's one town has
+    /// one table, whatever the number of players.
     pub fn set_players(&mut self, players: u8) {
+        self.players = players.max(1);
+        let towns = if self.separate() {
+            usize::from(self.players)
+        } else {
+            1
+        };
         self.stock_warnings
-            .resize(usize::from(players).max(1), StockWarnings::default());
+            .resize(towns, unbanished_game::events::StockWarnings::default());
     }
 
     /// The number of players, one in a single-player game.
     pub fn players(&self) -> u8 {
-        self.stock_warnings.len() as u8
+        self.players
+    }
+
+    /// Whether the game is a separate towns one: its town has a start per player, or anything
+    /// in it belongs to a player past the first. Derived from the town, so a save without its
+    /// owners sidecar reads as a shared town (or a single-player game).
+    pub fn separate(&self) -> bool {
+        self.town.as_ref().is_some_and(|t| t.separate())
+    }
+
+    /// The local player's stock: a shared town game has the one table this computer shows too.
+    pub fn local_stock(&self) -> &StockWarnings {
+        self.stock_warnings
+            .get(usize::from(self.local_player))
+            .unwrap_or(&self.stock_warnings[0])
     }
 
     /// The game's ownership and stock limits, for a save's sidecar
@@ -140,7 +172,7 @@ impl Simulation {
     pub fn owners(&self) -> crate::owners::Owners {
         let town = self.town.as_ref();
         crate::owners::Owners {
-            players: self.players(),
+            players: self.stock_warnings.len() as u8,
             placed: town
                 .map(|t| t.placed.iter().map(|p| p.owner).collect())
                 .unwrap_or_default(),
@@ -148,6 +180,7 @@ impl Simulation {
                 .map(|t| t.citizens.iter().map(|c| c.owner).collect())
                 .unwrap_or_default(),
             limits: self.stock_warnings.iter().map(|w| w.limits).collect(),
+            starts: town.map(|t| t.starts.clone()).unwrap_or_default(),
         }
     }
 

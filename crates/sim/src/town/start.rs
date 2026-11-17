@@ -241,6 +241,7 @@ impl StartingTown {
         );
         town.build_structures(archive, structure_count);
         town.place_displays(terrain);
+        town.starts = starts;
         Some(town)
     }
 }

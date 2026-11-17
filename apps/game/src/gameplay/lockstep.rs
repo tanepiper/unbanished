@@ -189,6 +189,7 @@ impl super::GameplayLoop {
             net.forget_line();
         }
         g.sim.updates = save.update;
+        g.sim.local_player = self.sim.local_player;
         g.online.boundary_done = Some(save.update);
         if let Some(mut l) = self.online.lockstep.take() {
             l.resynced(save.update);

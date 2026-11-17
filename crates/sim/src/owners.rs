@@ -21,6 +21,9 @@ pub struct Owners {
     pub citizens: Vec<u8>,
     /// Each player's stock limits, [`STOCK_SLOTS`] each.
     pub limits: Vec<[i32; STOCK_SLOTS]>,
+    /// Each player's start cell on the map, for the camera and the interface (empty when the
+    /// sidecar predates them).
+    pub starts: Vec<(i32, i32)>,
 }
 
 impl Owners {
@@ -46,6 +49,11 @@ impl Owners {
                 out.extend(limit.to_le_bytes());
             }
         }
+        out.extend((self.starts.len() as u32).to_le_bytes());
+        for (x, y) in &self.starts {
+            out.extend(x.to_le_bytes());
+            out.extend(y.to_le_bytes());
+        }
         out
     }
 
@@ -60,6 +68,10 @@ impl Owners {
         let placed = r.list()?;
         let citizens = r.list()?;
         let count = r.u32()? as usize;
+        // A corrupt length must not ask for an allocation the file cannot hold.
+        if count > 64 {
+            return None;
+        }
         let mut limits = Vec::with_capacity(count);
         for _ in 0..count {
             let mut l = [0i32; STOCK_SLOTS];
@@ -68,11 +80,20 @@ impl Owners {
             }
             limits.push(l);
         }
+        let count = r.u32()? as usize;
+        if count > 64 || r.0.len() < count * 8 {
+            return None;
+        }
+        let mut starts = Vec::with_capacity(count);
+        for _ in 0..count {
+            starts.push((r.i32()?, r.i32()?));
+        }
         Some(Owners {
             players,
             placed,
             citizens,
             limits,
+            starts,
         })
     }
 }
@@ -114,6 +135,7 @@ mod tests {
             placed: vec![0, 1, 0, 1, 7],
             citizens: vec![1, 0, 1],
             limits: vec![[3; STOCK_SLOTS], [9; STOCK_SLOTS]],
+            starts: vec![(10, 20), (30, 40)],
         };
         let bytes = owners.encode();
         assert_eq!(Owners::decode(&bytes), Some(owners));

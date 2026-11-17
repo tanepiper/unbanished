@@ -90,17 +90,17 @@ fn a_command_carries_its_giver() {
 }
 
 #[test]
-fn each_player_has_their_own_stock_limits() {
+fn a_shared_town_shares_its_stock_limits() {
+    // A shared town game has one town: every player's limit is that town's.
     let archive = Archive::default();
     let mut sim = Simulation::new(1);
     sim.set_players(2);
-    let first = sim.stock_warnings[0].limits[3];
+    assert_eq!(sim.stock_warnings.len(), 1);
     sim.execute(
         &archive,
         1,
         PlayerCommand::SetStockLimit { slot: 3, limit: 9 },
         None,
     );
-    assert_eq!(sim.stock_warnings[1].limits[3], 9);
-    assert_eq!(sim.stock_warnings[0].limits[3], first);
+    assert_eq!(sim.stock_warnings[0].limits[3], 9);
 }

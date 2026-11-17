@@ -181,14 +181,14 @@ impl GameplayLoop {
         }
         if let Some(town) = &self.sim.town {
             let town_ctx = crate::ui::town_hall_ui::TownContext {
-                stock_counts: &self.sim.stock_warnings[usize::from(self.sim.local_player)].count,
+                stock_counts: &self.sim.local_stock().count,
                 statistics: &self.sim.statistics,
             };
             self.entities.refresh_with(
                 ctx.ui,
                 ctx.archive,
                 town,
-                &self.sim.stock_warnings[usize::from(self.sim.local_player)].limits,
+                &self.sim.local_stock().limits,
                 &self.params.town_name,
                 Some(&town_ctx),
             );

@@ -82,7 +82,7 @@ impl GameplayLoop {
                 .as_ref()
                 .map_or(Vec::new(), |t| t.profession_counts().1),
             // `FUN_14008f3a0`, recomputed from the town storages.
-            stock_limits: self.sim.stock_warnings[usize::from(self.sim.local_player)].limits,
+            stock_limits: self.sim.local_stock().limits,
             stock: self.sim.town.as_ref().map_or([0; 21], |t| {
                 unbanished_game::work::stock::stock_table(&t.registered_storages(), &t.materials)
             }),

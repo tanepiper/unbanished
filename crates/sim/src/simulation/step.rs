@@ -32,7 +32,7 @@ impl Simulation {
                 &self.calendar,
                 month,
                 citizens,
-                &self.stock_warnings[usize::from(self.local_player)].count,
+                &self.stock_warnings[0].count,
                 &mut self.rng,
                 &mut self.events,
             );
@@ -129,19 +129,29 @@ impl Simulation {
                 })
                 .collect();
             let (health_max, happiness_max) = (life.f(0x70), life.f(0xa4));
+            // Every computer counts the same stock: the game's towns added up.
+            let mut counts = [0i32; unbanished_game::work::stock::STOCK_SLOTS];
+            for warnings in &self.stock_warnings {
+                for (count, c) in counts.iter_mut().zip(warnings.count) {
+                    *count += c;
+                }
+            }
             self.statistics.update(
                 ticks(dt),
                 &samples,
                 health_max,
                 happiness_max,
-                &self.stock_warnings[usize::from(self.local_player)].count,
+                &counts,
                 &mut town.construction.counters,
             );
             let (month, year) = (self.month(), self.calendar.year as i32);
-            for kind in self.stock_warnings[usize::from(self.local_player)].check(ticks(dt)) {
-                // AutoSlow is applied once the frame's events are in (`slow_request`).
-                self.events
-                    .add(kind, 3, -1, month, year, Default::default(), true);
+            // Each town's warnings go to the one log, so every computer posts them alike.
+            for player in 0..self.stock_warnings.len() {
+                for kind in self.stock_warnings[player].check(ticks(dt)) {
+                    // AutoSlow is applied once the frame's events are in (`slow_request`).
+                    self.events
+                        .add(kind, 3, -1, month, year, Default::default(), true);
+                }
             }
         }
         self.run_hooks();

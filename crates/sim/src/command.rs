@@ -127,7 +127,9 @@ impl Simulation {
     ) -> Outcome {
         self.acting_player = player;
         if let Some(town) = &mut self.town {
-            town.owner_of_command = player;
+            // Only a separate towns game's commands make one player's buildings; a shared town
+            // game's are the one town's, whoever gives them.
+            town.owner_of_command = if town.separate() { player } else { 0 };
         }
         match command {
             PlayerCommand::Town(command) => {

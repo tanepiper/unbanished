@@ -193,6 +193,9 @@ pub struct StartingTown {
     /// The player whose command is being carried out, which a new site, marker or fence part
     /// takes as its owner. 0 in a single-player game, and whenever nothing is being carried out.
     pub owner_of_command: u8,
+    /// Each player's start cell, in player order: a separate towns game's new game sets one per
+    /// player, and a save's owners sidecar brings them back (empty without one).
+    pub starts: Vec<(i32, i32)>,
     /// For a town loaded from a save: the saved object each entity and citizen came from, so
     /// saving writes the town back into them (docs/SAVE-WRITING.md).
     pub save_ids: Option<SaveIds>,
@@ -210,6 +213,15 @@ pub struct SaveIds {
 }
 
 impl StartingTown {
+    /// Whether this is a separate towns game's town: a start per player, or an entity or
+    /// citizen past the first player's (`docs/SEPARATE-TOWNS.md`). A save loaded without its
+    /// owners sidecar reads as a shared town.
+    pub fn separate(&self) -> bool {
+        self.starts.len() > 1
+            || self.placed.iter().any(|p| p.owner != 0)
+            || self.citizens.iter().any(|c| c.owner != 0)
+    }
+
     /// A New Game's town, up to the seeding pass. `rng` is the game stream (`Random(seed)`).
     ///
     /// Original: `FUN_1400a87d0`.

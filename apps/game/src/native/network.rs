@@ -32,6 +32,9 @@ pub fn lockstep_test(args: &[String]) {
         seed: number(7, 1),
     };
     let bytes = std::fs::read(save).expect("read the save");
+    // A separate towns game's owners ride beside the save.
+    let owners =
+        std::fs::read(std::path::Path::new(save).with_extension("owners")).unwrap_or_default();
     let text = std::fs::read_to_string(recording).expect("read the recording");
     let dir = data_dir(args);
     let found = crate::mods::find(&dir);
@@ -44,7 +47,7 @@ pub fn lockstep_test(args: &[String]) {
     .expect("game data");
     game.audio.set_master_volume(0.0);
     let start = std::time::Instant::now();
-    match crate::gameplay::network::simulate(&mut game, &bytes, &text, sim, 0) {
+    match crate::gameplay::network::simulate(&mut game, &bytes, &owners, &text, sim, 0) {
         Ok(r) => {
             for d in &r.digests[0] {
                 println!("{d}");
