@@ -41,9 +41,10 @@ stock_warnings`, `Simulation::events`). In a separate towns game they are one pe
    stock manager. Each player's town is walked in player order, so the random draws stay in one
    order for every computer.
 4. **One job market, filtered at the sort.** There is one `Jobs`; `Jobs::sort`
-   (`crates/game/src/work/jobs/offers.rs`) is the single place a job offer is chosen, so it
-   filters on the offer's owner there rather than in every caller. Same shape for stock: one
-   `StockManager`, filtered on the storage's owner.
+   (`crates/game/src/work/jobs/offers.rs:167`) is the single place a citizen's offers are
+   chosen — it already filters them by the employing entity — so the player's owner goes there
+   rather than in every caller. Same shape for stock: one `StockManager`, filtered on the
+   storage's owner.
 5. **Save.** The vanilla save has no owner field and must not grow one (1:1 with the original's
    format). Ownership is written beside it — see the open question below — and is part of the
    digest, unlike the camera and the window settings.
@@ -97,12 +98,15 @@ the single-player comparison identical, or it does not land.
 ## Open questions
 
 - **Where ownership is saved.** A vanilla save is the original's format, so an owner cannot ride
-  in it. Two ways: a sidecar file next to the save (simple; the host must send it with
-  `Message::Save`, which the protocol already allows) or a second block in the container the
-  engine writes around the saved game. *Assumed*: sidecar until the container is traced.
-- **The start.** `StartingTown::start` is one point. A separate towns new game needs one start
-  area per player. The map generator's scenario has four (docs/MAP-GENERATION.md); *inferred*
-  from the four corners the original's scenarios use.
+  in it. Two ways: a sidecar file next to the save, sent with `Message::Save` (which then
+  carries a second blob, and the protocol's version says so), or a second block in the
+  container the engine writes around the saved game. *Assumed*: the sidecar until the
+  container is traced.
+- **The start.** The original searches one start point from the map centre
+  (`FUN_1400a7bf0`, [RESOURCE-SEEDING.md](RESOURCE-SEEDING.md)), and the seeding pass runs around
+  it. A separate towns new game needs one per player and its own seeding pass at each. *Open*:
+  how to pick them (one per corner, or rings around the centre) without touching the
+  single-player search.
 - **Floors and clearing.** Each player's floors are on the shared cells, so a player sees another
   player's roads and cleared land. *Assumed*: shared, as the mod's map is one map.
 - **Wildlife and disasters.** Shared: whoever hunts takes from the same herd, and a tornado
