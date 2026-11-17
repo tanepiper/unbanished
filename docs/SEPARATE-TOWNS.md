@@ -118,8 +118,12 @@ save as any other. Every player needs the same build, data and mods, as in a sha
 | 9 | The lobby: the mode in `Message::Start`, refused by a build without it | done: `separate` in `Message::Start`; a mismatched save is refused; `tools/compat/multiplayer.sh towns` plays a two-town room over a relay |
 | 10 | The end-to-end test: a room of two separate towns over a simulated network | done: `tools/compat/lockstep.sh` gains a separate-towns block; every digest agrees |
 
-Phases 3 to 6 are one change in spirit — the data model and its filters — and each ended with
-the single-player comparison unchanged.
+Phases 3 to 6 are one change in spirit — the data model and its filters — and each ends with
+the single-player game drawing and saving the same: `StartingTown::create` is `create_for` with
+one player, which draws the same random numbers in the same order, and the new-game probe
+scenario matches its baseline except the `tools` count difference main already had. The full
+`compare.sh` run needs the project's save set, which the gaming PC does not have, so it was not
+run here.
 
 ## What a two-town game measured
 
@@ -132,9 +136,9 @@ On 2026-11-17, on the gaming PC (Linux, release build):
 - The same settings on a single-town save played by two players (a shared town) agreed as before.
 - `tools/compat/multiplayer.sh towns` played a two-town room over a relay: the guest joined and
   started from the host's two-town save, and the host's 27 checks all agreed with none differing.
-- `crate::sim`'s unit tests, the net, session and server tests, and the app's unit suite pass as
-  on main (the app's five environment failures are the same: three audio tests, the burning
-  buildings' particles, and a save-dependent bucket test).
+- `crate::sim`'s unit tests, the net, session and server tests, and the app's unit suite pass,
+  with the same environment failures as on main: three audio tests and the burning buildings'
+  particles in the app, and the save-dependent bucket test in `unbanished-sim`.
 
 ## Remaining gaps
 
