@@ -192,11 +192,13 @@ impl Simulation {
                 .collect();
             // In the save's own entity order, which a new save may have rearranged (the dead
             // leave their place to the last entity): owners follow their object, not a position.
+            // Only the owners past the first are listed: load gives the rest player 0.
             owners.placed = g
                 .entities
                 .iter()
                 .flatten()
                 .filter_map(|id| Some((*id, by_id.get(id).copied()?)))
+                .filter(|&(_, owner)| owner != 0)
                 .collect();
             owners.citizens = town
                 .agents
@@ -204,6 +206,7 @@ impl Simulation {
                 .iter()
                 .filter(|&&c| town.citizens.get(c).is_some_and(|c| c.alive))
                 .filter_map(|&c| Some((ids.citizen(c)?, town.citizens[c].owner)))
+                .filter(|&(_, owner)| owner != 0)
                 .collect();
         }
         owners

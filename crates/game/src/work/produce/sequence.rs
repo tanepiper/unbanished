@@ -110,7 +110,11 @@ impl Sim<'_, '_> {
             if let Some(at) = target {
                 let size = self.size as i32;
                 let yaw = self.rng.rand_tol(2) as f32 * 90.0;
-                let pile = self.spawn_pile(template, (at % size, at / size), n, yaw, None);
+                let owner = workplace.map_or_else(
+                    || self.owners.get(c).copied().unwrap_or(0),
+                    |w| self.placed[w].owner,
+                );
+                let pile = self.spawn_pile(template, (at % size, at / size), n, yaw, None, owner);
                 self.count_made(workplace, true, material, n);
                 // A workplace with an AutoPickupComponent (the hunter's lodge, orchards,
                 // pastures) takes the pile's work (`FUN_140045170`, once it is registered).

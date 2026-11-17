@@ -32,7 +32,10 @@ one, because every computer must post the same events in the same order to stay 
    first player. The owner is set when the command that creates the entity runs, from
    `Simulation::acting_player`, and it is what every pick below filters on. A single-player and
    a shared-town game stamp 0 whatever the command's player: their one town's buildings are the
-   town's.
+   town's. What a town makes on its own takes that town's owner: a pile takes the owner of the
+   citizen, workplace, pasture or demolished building that drops it, a grave its cemetery's, a
+   trader's boat its trading post's, nomads and the citizens they become their town hall's. The
+   world's things (natural resources, animals, a tornado) are owner 0.
 2. **The mode is derived from the town.** `StartingTown::separate()` is true when the town has a
    start per player or anything in it belongs to a player past the first; `Simulation::separate()`
    reads it. A shared town is one town and one stock table whatever the number of players; only a
@@ -90,7 +93,12 @@ Measured on 2026-11-17 (`.rs` files, matches of `.placed`, `.citizens`, `.materi
 The rule that keeps this tractable: a **pick** (a job, a storage, a free citizen, a target) is
 filtered by the acting player; a **lookup by id** (an entity the caller already holds) is not.
 Rendering draws every player's entities; picking with the mouse takes only the local player's
-(`GameplayLoop::may_select`), so another player's town is seen but not selected or opened.
+and the world's (`GameplayLoop::may_select`), so another player's town is seen but not selected
+or opened, while every player can open a tree, a deer or a tornado.
+
+Immigration is per town: a town hall calls nomads when its own town has the population and the
+required buildings, and the band's size reads that town's population and empty homes
+(`Construction::populations`, counted with the population each iteration).
 
 ## A new game, and how a room plays one
 
@@ -133,8 +141,9 @@ scenario ran: the others need the project's save set, which the gaming PC does n
 
 On 2026-11-17, on the gaming PC (Linux, release build):
 
-- A two-town New Game's save writes `NAME.owners` of 37,021 bytes for 7,324 placed entities, 39
-  citizens and 2 players (each entry is the object's id and its owner).
+- A two-town New Game's save writes a `NAME.owners` sidecar that lists only the entities and
+  citizens of players past the first (each entry is the object's id and its owner); the rest
+  load as player 0's.
 - `tools/compat/lockstep.sh`'s separate-towns block ran both of its settings through the
   script: with delay 6, jitter 8 and 20% stalled ticks no desync was found and the players agreed
   on 11 digests; with player 1's `Random` corrupted at update 400 it was found at 420 and

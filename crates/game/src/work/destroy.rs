@@ -413,7 +413,8 @@ impl Sim<'_, '_> {
                 {
                     let amount = left.min(100 / self.materials[material].size.max(1));
                     let yaw = self.rng.rand_tol(2) as f32 * QUARTER;
-                    self.spawn_pile(pile, (x + col, y + row), amount, yaw, None);
+                    let owner = self.placed[e].owner;
+                    self.spawn_pile(pile, (x + col, y + row), amount, yaw, None, owner);
                     left -= amount;
                 }
                 col += 1;

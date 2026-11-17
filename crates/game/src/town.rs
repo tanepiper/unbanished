@@ -191,6 +191,8 @@ pub struct Sim<'s, 't> {
     // +0xa8
     /// The town's population.
     pub population: i32,
+    /// Each player's population (`Construction::populations`).
+    pub populations: &'s [i32],
     // +0x1a8; +0x1a0
     /// The visitors' timer and the time of the last visitor.
     pub visitors: &'s mut (f32, i64),

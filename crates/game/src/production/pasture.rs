@@ -88,7 +88,8 @@ impl Sim<'_, '_> {
                     self.cells.objects[i] = None;
                 }
                 let yaw = self.rng.rand_tol(2) as f32 * 90.0;
-                let pile = self.spawn_pile(product, (cell % n, cell / n), amount, yaw, None);
+                let owner = self.placed[e].owner;
+                let pile = self.spawn_pile(product, (cell % n, cell / n), amount, yaw, None, owner);
                 // The pasture's tracker and the stock manager's count (`FUN_140059930`,
                 // `FUN_14008e460`).
                 self.count_made(Some(e), true, material, amount);

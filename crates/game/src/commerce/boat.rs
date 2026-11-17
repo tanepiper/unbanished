@@ -222,7 +222,8 @@ impl Sim<'_, '_> {
         let id = self.placed.len();
         let t = &self.templates[template];
         self.placed.push(crate::nature::seeding::Placed {
-            owner: 0,
+            // A separate towns game's boat visits its trading post's town.
+            owner: self.placed[post].owner,
             template,
             bucket: t.bucket,
             cell: (0, 0),

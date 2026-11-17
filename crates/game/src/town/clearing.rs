@@ -374,7 +374,8 @@ impl Sim<'_, '_> {
             return;
         }
         let yaw = self.rng.rand_tol(2) as f32 * 90.0;
-        let pile = self.spawn_pile(pile_t, cell, amount, yaw, priority);
+        let owner = self.owners.get(c).copied().unwrap_or(0);
+        let pile = self.spawn_pile(pile_t, cell, amount, yaw, priority, owner);
         // `FUN_14008e3c0`: made, for the citizen's workplace (`+0x248`) when the action's
         // `+0x30` is set.
         if let Some(m) = self.templates[pile_t].pile_material {

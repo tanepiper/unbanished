@@ -450,6 +450,7 @@ impl Agents {
                 game_flags: c.game_flags,
                 precipitation: c.precipitation,
                 population: c.population,
+                populations: &c.populations,
                 visitors: &mut c.visitors,
                 trading_posts: &mut c.trading_posts,
                 trade_value: &mut c.trade_value,

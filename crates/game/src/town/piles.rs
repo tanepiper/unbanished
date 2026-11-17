@@ -26,13 +26,15 @@ impl Sim<'_, '_> {
         };
         let yaw = self.rng.rand_tol(2) as f32 * 90.0;
         let n = self.size as i32;
-        self.spawn_pile(template, (at % n, at / n), count, yaw, None);
+        let owner = self.owners.get(c).copied().unwrap_or(0);
+        self.spawn_pile(template, (at % n, at / n), count, yaw, None, owner);
         *self.models_dirty = true;
     }
 
     /// A RawMaterialComponent pile entity (`FUN_1400c8bf0` of a pile template, `FUN_14012ec30`
     /// places it, turned `yaw`): stamped on its cell and activated with the next
-    /// [`Sim::activate_piles`].
+    /// [`Sim::activate_piles`]. `owner` is the player whose town dropped it: a separate
+    /// towns game offers its pickup only to that player's citizens.
     pub(crate) fn spawn_pile(
         &mut self,
         pile_t: usize,
@@ -40,6 +42,7 @@ impl Sim<'_, '_> {
         amount: i32,
         yaw: f32,
         priority: Option<i32>,
+        owner: u8,
     ) -> usize {
         let Some(material) = self.templates[pile_t].pile_material else {
             return usize::MAX;
@@ -56,7 +59,7 @@ impl Sim<'_, '_> {
             (m.variant.max(0) as usize, m.mesh.max(0) as usize)
         });
         self.placed.push(Placed {
-            owner: 0,
+            owner,
             template: pile_t,
             bucket: pt.bucket,
             cell,

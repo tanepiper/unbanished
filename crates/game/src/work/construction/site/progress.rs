@@ -93,6 +93,9 @@ pub struct Construction {
     // +0xa8
     /// Town manager: the population, set before each update.
     pub population: i32,
+    // Deviation: not in the original, which has one town.
+    /// The living citizens of each player (a separate towns game), set with `population`.
+    pub populations: Vec<i32>,
     // +0x1a8; +0x1a0
     /// Town manager /: the visitors' disease risk and how long it lasts.
     pub visitors: (f32, i64),

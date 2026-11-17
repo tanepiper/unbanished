@@ -76,6 +76,13 @@ fn a_saved_two_town_game_keeps_its_owners() {
             live.citizens.iter().map(|c| c.owner).collect(),
         );
         assert!(placed.contains(&1), "the second town has buildings");
+        // The sidecar names only what is not player 0's: load gives the rest player 0.
+        assert!(!owners.placed.is_empty() && !owners.citizens.is_empty());
+        assert!(owners
+            .placed
+            .iter()
+            .chain(&owners.citizens)
+            .all(|&(_, o)| o != 0));
         // A save read without its sidecar is a game whose owners are all 0.
         let plain = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
         assert!(plain.owners.is_none());
@@ -223,6 +230,20 @@ fn only_the_local_players_town_can_be_picked() {
     assert!(gameplay.may_select(town, Entity::Citizen(own)));
     assert!(!gameplay.may_select(town, Entity::Citizen(other)));
 
+    // The world's things are every player's: player 1 picks a tree, not player 0's buildings.
+    gameplay.sim.local_player = 1;
+    let town = gameplay.sim.town.as_ref().unwrap();
+    let natural =
+        |p: &unbanished_game::nature::seeding::Placed| town.templates[p.template].natural.is_some();
+    let tree = town.placed.iter().position(natural).expect("a tree");
+    assert!(gameplay.may_select(town, Entity::Placed(tree)));
+    let building = town
+        .placed
+        .iter()
+        .position(|p| p.owner == 0 && !natural(p) && town.templates[p.template].storage.is_some())
+        .expect("player 0's storage");
+    assert!(!gameplay.may_select(town, Entity::Placed(building)));
+
     // A shared town of two players has one town: either player picks any of it.
     let Some((_game, mut shared)) = generated_players(1) else {
         return;
@@ -289,5 +310,30 @@ fn a_room_refuses_a_save_of_the_other_mode() {
             vec![]
         )
         .is_ok());
+    });
+}
+
+/// Each town counts its own people, which its town hall's immigration reads.
+#[test]
+fn each_town_counts_its_own_population() {
+    let Some((mut game, mut gameplay)) = generated_players(2) else {
+        return;
+    };
+    game.with_ctx(|_, ctx| {
+        for _ in 0..30 {
+            gameplay.update(ctx, 1.0 / 30.0);
+        }
+        let town = gameplay.sim.town.as_ref().unwrap();
+        let count = |owner: u8| {
+            town.agents
+                .registry
+                .iter()
+                .filter(|&&c| town.citizens[c].owner == owner)
+                .count() as i32
+        };
+        let c = &town.construction;
+        assert_eq!(c.populations, vec![count(0), count(1)]);
+        assert_eq!(c.population, count(0) + count(1));
+        assert!(count(1) > 0, "the second town has people");
     });
 }
