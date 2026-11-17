@@ -49,14 +49,17 @@ impl GameplayLoop {
                     width: world.terrain.size + 1,
                     heights: &world.terrain.heights,
                 };
+                // A separate towns game counts each player's stock and offers separately.
+                self.sim.set_players(self.params.players);
                 let town = match &saved {
                     Some(s) => StartingTown::from_save(ctx.archive, s),
-                    None => StartingTown::create(
+                    None => StartingTown::create_for(
                         ctx.archive,
                         &self.params.start_condition_ref,
                         world.terrain.size / 2,
                         &grid,
                         &mut self.sim.rng,
+                        self.params.players,
                     ),
                 };
                 // Inferred: the camera opens over the start point (not yet traced).

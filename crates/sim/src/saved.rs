@@ -83,6 +83,9 @@ impl SavedGame {
             // `Game +0xd0`: 0 with disasters, `0xf0` without (`FUN_14009d530`).
             disasters: g.flags & 0xf0 == 0,
             scenario: (g.scenario >= 0).then_some(g.scenario as usize),
+            // A save's own blocks have no players; a separate towns game writes them beside it
+            // (docs/SEPARATE-TOWNS.md) and the loader sets this again.
+            players: 1,
         }
     }
 

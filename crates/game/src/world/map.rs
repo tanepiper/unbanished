@@ -71,4 +71,31 @@ impl Map {
             dist += ((radius * 3) / 4) as f32;
         }
     }
+
+    /// A start point at least `away` cells from every point in `taken`, searched as
+    /// [`Map::find_start`] does. A separate towns game gives each player one; the fallback (no
+    /// point far enough on the whole map) is the plain search's answer.
+    pub fn find_start_away(&self, radius: i32, taken: &[(i32, i32)], away: f32) -> (i32, i32) {
+        let centre = self.size as i32 >> 1;
+        let mut count = 4;
+        let mut dist = 0.0f32;
+        while dist <= self.size as f32 {
+            for i in 0..count {
+                let angle = i as f32 * (360.0 / count as f32);
+                let (sin, cos) = sin_cos_deg(angle);
+                let x = (cos * dist) as i32 + centre;
+                let y = (sin * dist) as i32 + centre;
+                let far = taken.iter().all(|&(tx, ty)| {
+                    let (dx, dy) = ((x - tx) as f32, (y - ty) as f32);
+                    dx * dx + dy * dy >= away * away
+                });
+                if far && self.is_clear(x, y, radius, radius * radius) {
+                    return (x, y);
+                }
+            }
+            count *= 2;
+            dist += ((radius * 3) / 4) as f32;
+        }
+        self.find_start(radius)
+    }
 }

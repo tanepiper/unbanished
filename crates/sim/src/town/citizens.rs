@@ -16,6 +16,7 @@ pub(super) fn starting_goods(
     profile: &MapGenerator,
     placed: &[Placed],
     templates: &[Template],
+    owner: u8,
 ) -> (Vec<RawMaterial>, Vec<Storage>, Vec<StorageSite>) {
     let mut materials = Vec::new();
     for r in &profile.raw_materials {
@@ -41,6 +42,9 @@ pub(super) fn starting_goods(
     let mut storages = Vec::new();
     let mut sites = Vec::new();
     for (entity, p) in placed.iter().enumerate() {
+        if p.owner != owner {
+            continue;
+        }
         let t = &templates[p.template];
         if !t.storage_location && !t.market_location {
             continue;
@@ -160,6 +164,7 @@ pub(super) fn households(
     profile: &MapGenerator,
     start: &[f32; 3],
     rng: &mut Random,
+    owner: u8,
 ) -> (Vec<Citizen>, CitizenRules) {
     let rules = citizen_rules(archive, &profile.citizen);
     let names = |n: &str| {
@@ -181,7 +186,7 @@ pub(super) fn households(
         );
     };
     let mut h = Households {
-        owner: 0,
+        owner,
         rules,
         male_names: &male,
         female_names: &female,

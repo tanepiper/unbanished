@@ -212,6 +212,8 @@ impl MenuLoop {
             size: size_index,
             seed,
             scenario: None,
+            // The New Game menu starts one town; the lobby sets a mode's players.
+            players: 1,
         };
         log::info!(
             "new game: {} / {} / {} terrain {} size {} seed {}",
