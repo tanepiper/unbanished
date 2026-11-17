@@ -3,8 +3,10 @@
 How Un-Banished lets several players run one town together, without changing the single-player
 game in any way. Steps 1 to 6 below are built and tested: player commands, recording and
 replay, lockstep, desync checks and resync, the WebSocket relay, and the Multiplayer window with
-the players line. Step 7 (a town for each player) is not started. Each step lists how it was
-proved. For players, [guide/MULTIPLAYER.md](guide/MULTIPLAYER.md) explains how to play.
+the players line. Step 7 (a town for each player) is designed in
+[SEPARATE-TOWNS.md](SEPARATE-TOWNS.md), and its first two phases are in: a resource limit and a
+notify flag are player commands, and every command carries the player who gave it. Each step
+lists how it was proved. For players, [guide/MULTIPLAYER.md](guide/MULTIPLAYER.md) explains how to play.
 
 **Since then** the work went on as phases B to E of [ARCHITECTURE-PLAN.md](ARCHITECTURE-PLAN.md),
 and [ARCHITECTURE.md](ARCHITECTURE.md) describes the result: the session code is its own crate
@@ -333,6 +335,14 @@ The mod's other mode gives each player a town on one map. In the port the town, 
 the wildlife are one `StartingTown`, so this needs an owner on every entity and per-player stock,
 jobs and statistics. It is a larger change than everything above and comes only after one shared
 town works.
+
+[SEPARATE-TOWNS.md](SEPARATE-TOWNS.md) has the design: which state is per player and which is
+shared, the one place a job and a storage are picked (so the filter is there, not in every
+caller), where the work is (a read count per area), the ten phases with the check each ends on,
+and the open questions (where ownership is saved, one start point per player, shared floors and
+wildlife, trade between towns). Two phases are done: `SetStockLimit` and `SetNotify` are
+`PlayerCommand`s — which also fixes a shared-town desync — and every command carries the player
+who gave it through the game loop, lockstep, the server and recordings.
 
 ## Risks and open questions
 
