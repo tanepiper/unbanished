@@ -81,7 +81,7 @@ entities, drawn but not selectable.
 | Phase | Work | Check |
 |---|---|---|
 | 1 | A resource limit and an event-log notification are `PlayerCommand`s | done: `crates/sim/tests/setting_commands.rs`, quick tier |
-| 2 | Every command says whose it is, through the game loop, lockstep, the server and recordings | done: `apps/game/src/gameplay/tests/commands.rs`, `crates/session/src/recording.rs` |
+| 2 | Every command says whose it is, through the game loop, lockstep, the server and recordings | done: `apps/game/src/gameplay/tests/commands.rs`, `crates/session/src/recording.rs`; a new-game recording made by the build before it has the same entries and replays identically |
 | 3 | `owner` on `Placed` and `Citizen`, set from `acting_player`, feature `unstable-separate-towns` | a two-owner headless town: two houses keep their owner through a save; single-player `compare.sh` identical, owners all 0 |
 | 4 | Stock per owner: `materials`, `storages`, the stock manager, limits and warnings | two towns' stock never mix; a player's limit does not apply to the other's |
 | 5 | Jobs per owner: `Jobs::sort`, professions, workplaces | a citizen takes only its owner's offers; the lockstep test's digests agree |
