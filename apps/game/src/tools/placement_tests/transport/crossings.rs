@@ -122,7 +122,7 @@ fn a_bridge_spans_the_river() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -169,7 +169,7 @@ fn a_bridge_spans_the_river() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -309,7 +309,7 @@ fn a_tunnel_goes_through_a_hill() {
             town.apply_commands(&terrain, rng);
             town.iterate(&terrain, rng, dt, 50.0);
             let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-            town.update_citizens(&terrain, rng, dt, 50.0, stock);
+            town.update_citizens(&terrain, rng, dt, 50.0, &[stock]);
         }
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction

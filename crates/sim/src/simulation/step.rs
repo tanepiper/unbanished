@@ -32,7 +32,7 @@ impl Simulation {
                 &self.calendar,
                 month,
                 citizens,
-                &self.stock_warnings.count,
+                &self.stock_warnings[usize::from(self.local_player)].count,
                 &mut self.rng,
                 &mut self.events,
             );
@@ -57,12 +57,14 @@ impl Simulation {
                 town.iterate(&grid, &mut self.rng, dt, temperature)
             };
             // AnimationManager::Update runs inside the same iteration (FUN_14009b850).
-            let stock = std::array::from_fn(|i| {
-                (self.stock_warnings.count[i], self.stock_warnings.limits[i])
-            });
+            let stock: Vec<[(i32, i32); 21]> = self
+                .stock_warnings
+                .iter()
+                .map(|w| std::array::from_fn(|i| (w.count[i], w.limits[i])))
+                .collect();
             let changed = {
                 let _p = timing::scope("sim.citizens");
-                town.update_citizens(&grid, &mut self.rng, dt, temperature, stock)
+                town.update_citizens(&grid, &mut self.rng, dt, temperature, &stock)
             } | changed;
             // AnimAudioEvents that passed their draw: `PlayEffect3D(effect, 4)` at the entity.
             for (entity, effect) in town.animation_events.drain(..) {
@@ -100,8 +102,9 @@ impl Simulation {
         // `FUN_140091780`: recompute stock (`FUN_14008f3a0`), then its warnings
         // (`FUN_1400915d0`, posted through `FUN_14009aa50` at severity 3).
         if let Some(town) = &mut self.town {
-            self.stock_warnings
-                .recompute(&town.registered_storages(), &town.materials);
+            for (player, warnings) in self.stock_warnings.iter_mut().enumerate() {
+                warnings.recompute(&town.registered_storages_of(player as u8), &town.materials);
+            }
             // StockManager::Update's commute optimisation (every 300 s).
             if let Some(heights) = &self.heights {
                 let grid = heights.grid();
@@ -131,11 +134,11 @@ impl Simulation {
                 &samples,
                 health_max,
                 happiness_max,
-                &self.stock_warnings.count,
+                &self.stock_warnings[usize::from(self.local_player)].count,
                 &mut town.construction.counters,
             );
             let (month, year) = (self.month(), self.calendar.year as i32);
-            for kind in self.stock_warnings.check(ticks(dt)) {
+            for kind in self.stock_warnings[usize::from(self.local_player)].check(ticks(dt)) {
                 // AutoSlow is applied once the frame's events are in (`slow_request`).
                 self.events
                     .add(kind, 3, -1, month, year, Default::default(), true);

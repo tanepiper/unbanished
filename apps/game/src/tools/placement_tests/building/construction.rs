@@ -65,7 +65,7 @@ fn wood_house_gets_built() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -172,7 +172,7 @@ fn wood_house_on_resources_gets_cleared_and_built() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -370,7 +370,7 @@ fn a_storage_yard_absorbs_its_logs_and_joins_the_town() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 60.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 60.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 60.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs

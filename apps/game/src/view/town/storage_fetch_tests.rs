@@ -135,7 +135,7 @@ fn new_citizens_equip_from_registered_storage_then_loiter() {
     // Each iteration: the bucket pass (it visits the citizens), then the citizens.
     for _ in 0..3600 {
         town.iterate(&terrain, &mut rng, 1.0 / 30.0, 0.0);
-        town.update_citizens(&terrain, &mut rng, 1.0 / 30.0, 0.0, [(1000, 0); 21]);
+        town.update_citizens(&terrain, &mut rng, 1.0 / 30.0, 0.0, &[[(1000, 0); 21]]);
     }
     let final_stock = stock_table(&town.storages, &town.materials);
     assert_eq!(initial[4] - final_stock[4], adults as i32);
@@ -190,7 +190,7 @@ fn new_citizens_equip_from_registered_storage_then_loiter() {
         town.agents.ais[i] = Default::default();
     }
     town.iterate(&terrain, &mut rng, 1.0 / 30.0, 0.0);
-    town.update_citizens(&terrain, &mut rng, 1.0 / 30.0, 0.0, [(1000, 0); 21]);
+    town.update_citizens(&terrain, &mut rng, 1.0 / 30.0, 0.0, &[[(1000, 0); 21]]);
     for (i, state) in town.agents.states.iter().enumerate() {
         assert_eq!(state.flags & 4, 4);
         assert_eq!(state.clothing_status, 0);

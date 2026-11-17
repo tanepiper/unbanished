@@ -50,8 +50,9 @@ pub struct Simulation {
     // Game +0x138
     /// The event log.
     pub events: EventLog,
-    /// The stock manager's warning state.
-    pub stock_warnings: StockWarnings,
+    /// Each player's stock: the counts, the previous counts, the limits and the warnings, by
+    /// player number. One entry in a single-player game.
+    pub stock_warnings: Vec<StockWarnings>,
     // StockManager +0x150
     /// The Town Info graphs' history, sampled every 75 s.
     pub statistics: Statistics,
@@ -61,6 +62,9 @@ pub struct Simulation {
     /// game, the command's giver in a multiplayer one. A separate towns game gives that
     /// player's town (step 7 of docs/MULTIPLAYER-PLAN.md).
     pub acting_player: u8,
+    /// The player this computer is: whose stock, town hall and windows the interface shows.
+    /// 0 outside lockstep.
+    pub local_player: u8,
     /// The drag tools commands have started, by template, for `PlayerCommand::Drag`.
     pub drag_tools: BTreeMap<String, RemovalTool>,
     /// The town names the Map window draws from, read the first time they are wanted.
@@ -84,10 +88,11 @@ impl Simulation {
             environment_months: Vec::new(),
             environment_template: None,
             events: Default::default(),
-            stock_warnings: Default::default(),
+            stock_warnings: vec![StockWarnings::default()],
             statistics: Default::default(),
             updates: 0,
             acting_player: 0,
+            local_player: 0,
             drag_tools: BTreeMap::new(),
             town_names: None,
             achievements: Vec::new(),
@@ -106,9 +111,21 @@ impl Simulation {
         if let Some(unbanished_formats::savegame::Value::I64(t)) = s.managers.at("calendar.time") {
             self.calendar.elapsed = *t;
         }
-        self.stock_warnings = saved.stock_warnings();
+        self.stock_warnings[0] = saved.stock_warnings();
         self.events = saved.event_log();
         self.statistics = saved.statistics();
+    }
+
+    /// How many players the game has: one in a single-player game, each with their own stock
+    /// limits and counts. A separate towns game sets it from its lobby.
+    pub fn set_players(&mut self, players: u8) {
+        self.stock_warnings
+            .resize(usize::from(players).max(1), StockWarnings::default());
+    }
+
+    /// The number of players, one in a single-player game.
+    pub fn players(&self) -> u8 {
+        self.stock_warnings.len() as u8
     }
 
     /// The month: `floor(elapsed / 3600 × 12)`.

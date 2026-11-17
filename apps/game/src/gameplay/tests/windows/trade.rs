@@ -202,10 +202,13 @@ fn the_limits_window_sets_the_stock_limits() {
             .map(|&s| crate::ui::building_ui::spinner_value(ctx.ui, s).unwrap())
             .collect();
         for v in &shown {
-            assert!(gameplay.sim.stock_warnings.limits.contains(v), "{shown:?}");
+            assert!(
+                gameplay.sim.stock_warnings[0].limits.contains(v),
+                "{shown:?}"
+            );
         }
         crate::ui::building_ui::set_spinner(ctx.ui, spinners[0], 345);
         gameplay.event(ctx, Event::Changed(spinners[0]));
-        assert!(gameplay.sim.stock_warnings.limits.contains(&345));
+        assert!(gameplay.sim.stock_warnings[0].limits.contains(&345));
     });
 }

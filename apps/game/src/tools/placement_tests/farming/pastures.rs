@@ -133,7 +133,7 @@ fn herdsmen_keep_a_pasture() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 60.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 60.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 60.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -350,7 +350,7 @@ fn a_pasture_gathers_eggs() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 60.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 60.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 60.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs

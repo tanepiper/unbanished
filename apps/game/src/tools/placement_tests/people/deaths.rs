@@ -87,7 +87,7 @@ fn the_dead_are_buried_in_the_cemetery() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 60.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 60.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 60.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -193,7 +193,7 @@ fn a_builder_dies_in_an_accident() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs

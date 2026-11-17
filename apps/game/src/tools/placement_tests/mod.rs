@@ -78,7 +78,7 @@ fn step(town: &mut StartingTown, terrain: &HeightGrid, rng: &mut Random, tempera
     town.iterate(terrain, rng, dt, temperature);
     let warnings = unbanished_game::events::StockWarnings::default();
     let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-    town.update_citizens(terrain, rng, dt, temperature, stock);
+    town.update_citizens(terrain, rng, dt, temperature, &[stock]);
     town.construction
         .jobs
         .step(unbanished_game::scheduler::ticks(dt));

@@ -19,6 +19,7 @@ mod geometry;
 mod orders;
 mod piles;
 mod sites;
+mod stock_table;
 mod storage;
 mod work_host;
 
@@ -94,8 +95,10 @@ pub struct Env<'a, 't> {
     pub rng: &'a mut Random,
     /// The construction manager.
     pub construction: &'a mut crate::work::construction::Construction,
-    /// The stock manager's `(count, limit)` per slot from the last recount.
-    pub stock: [(i32, i32); 21],
+    /// The stock manager's `(count, limit)` per slot from the last recount, per player.
+    pub stock: &'a [[(i32, i32); 21]],
+    /// Each citizen's player, by citizen index (`Citizen::owner`).
+    pub owners: &'a [u8],
     // Game +0x130 → +0x18
     /// The environment's temperature.
     pub temperature: f32,
@@ -137,8 +140,10 @@ pub struct Sim<'s, 't> {
     pub materials: &'s [RawMaterial],
     /// The game's random numbers.
     pub rng: &'s mut Random,
-    /// The stock manager's `(count, limit)` per slot from the last recount.
-    pub stock: [(i32, i32); 21],
+    /// The stock manager's `(count, limit)` per slot from the last recount, per player.
+    pub stock: &'s [[(i32, i32); 21]],
+    /// Each citizen's player, by citizen index (`Citizen::owner`).
+    pub owners: &'s [u8],
     /// The environment's temperature.
     pub temperature: f32,
     /// The professions.

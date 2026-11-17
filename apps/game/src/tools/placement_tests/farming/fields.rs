@@ -109,7 +109,7 @@ fn farmers_plant_tend_and_harvest_a_field() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 60.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 60.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 60.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -267,7 +267,7 @@ fn blight_withers_a_field_and_spreads() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 60.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 60.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 60.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs

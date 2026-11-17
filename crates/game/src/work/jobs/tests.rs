@@ -9,6 +9,9 @@ struct Host {
     workplace: Option<usize>,
     stock: [(i32, i32); 21],
     cells: BTreeMap<i32, i32>,
+    /// The player of the entities a work is at, and the citizen's own (0 unless a test sets it).
+    entity_owners: BTreeMap<usize, u8>,
+    citizen_owner: u8,
 }
 
 impl WorkHost for Host {
@@ -30,8 +33,14 @@ impl WorkHost for Host {
     fn rank(&mut self, _: i32, b: i32) -> i32 {
         self.cells.get(&b).copied().unwrap_or(b)
     }
-    fn stock(&self, slot: usize) -> (i32, i32) {
+    fn stock(&self, _citizen: usize, slot: usize) -> (i32, i32) {
         self.stock[slot]
+    }
+    fn entity_owner(&self, entity: usize) -> u8 {
+        self.entity_owners.get(&entity).copied().unwrap_or(0)
+    }
+    fn citizen_owner(&self, _citizen: usize) -> u8 {
+        self.citizen_owner
     }
     fn laborer(&self) -> usize {
         0
@@ -63,6 +72,8 @@ fn host() -> Host {
         workplace: None,
         stock: [(100, 100); 21],
         cells: BTreeMap::new(),
+        entity_owners: BTreeMap::new(),
+        citizen_owner: 0,
     }
 }
 
@@ -113,4 +124,23 @@ fn no_list_draws_nothing() {
     jobs.add(Work::new(5, 30, 0, WorkKind::Test(0)), 1 << 10, None);
     assert!(!jobs.assign_emergency(0, &mut h));
     assert_eq!(h.rng.rand(), Random::new(7).rand());
+}
+
+#[test]
+fn a_citizen_is_offered_only_its_players_work() {
+    let mut jobs = Jobs::default();
+    let mut h = host();
+    h.entity_owners.insert(6, 1);
+    let mine = jobs.add(Work::new(5, 10, 0, WorkKind::Test(0)), 1 << 13, None);
+    jobs.add(Work::new(6, 20, 0, WorkKind::Test(0)), 1 << 13, None);
+    // Player 0's citizen: the other player's workplace is not on its list.
+    jobs.assign_work(0, &mut h);
+    assert_eq!(h.offered, vec![mine]);
+    // Player 1's citizen sees that one only.
+    h.offered.clear();
+    h.citizen_owner = 1;
+    jobs.step(1);
+    jobs.assign_work(0, &mut h);
+    assert_eq!(h.offered.len(), 1);
+    assert_ne!(h.offered[0], mine);
 }

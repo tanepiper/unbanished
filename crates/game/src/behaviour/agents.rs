@@ -426,6 +426,7 @@ impl Agents {
                 materials: env.materials,
                 rng: &mut *env.rng,
                 stock: env.stock,
+                owners: env.owners,
                 temperature: env.temperature,
                 professions: &c.professions,
                 workforce: &mut c.workforce,

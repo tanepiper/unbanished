@@ -17,7 +17,7 @@ fn town_hall_window_reads_the_town() {
         let mut th = crate::ui::town_hall_ui::TownHallUi::bind(ctx.ui, ctx.archive, root);
         let town = gameplay.sim.town.as_ref().unwrap();
         let x = crate::ui::town_hall_ui::TownContext {
-            stock_counts: &gameplay.sim.stock_warnings.count,
+            stock_counts: &gameplay.sim.stock_warnings[0].count,
             statistics: &gameplay.sim.statistics,
         };
         th.refresh(ctx.ui, ctx.archive, town, &x);

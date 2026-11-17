@@ -15,6 +15,9 @@ impl super::GameplayLoop {
     /// updates.
     pub fn join_lockstep(&mut self, player: u8, players: u8, delay: u64) {
         self.online.lockstep = Some(LockstepSession::new(player, players, delay));
+        // The interface shows this player's town, and each player has their own stock.
+        self.sim.local_player = player;
+        self.sim.set_players(players);
     }
 
     /// The local player gives a command: in lockstep it waits for its slot.

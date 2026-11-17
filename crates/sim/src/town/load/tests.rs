@@ -172,7 +172,7 @@ fn characters_fire_their_animation_sounds() {
         town.apply_commands(&grid, &mut rng);
         town.iterate(&grid, &mut rng, dt, 50.0);
         let stock = [(0, 0); 21];
-        town.update_citizens(&grid, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&grid, &mut rng, dt, 50.0, &[stock]);
         fired += town.agents.sounds.fired.len();
         town.agents.sounds.fired.clear();
     }

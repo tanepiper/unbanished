@@ -59,7 +59,7 @@ fn deer_herds_start_and_wander() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
     }
     let moved = town
@@ -146,7 +146,7 @@ fn hunters_take_deer() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs

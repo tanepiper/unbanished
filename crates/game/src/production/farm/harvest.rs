@@ -9,7 +9,7 @@ impl Sim<'_, '_> {
         let group = self.site_templates[self.sites[&e].template]
             .crop_field
             .map_or(0, |d| d.group);
-        let (count_s, limit) = self.stock[group.clamp(0, 20) as usize];
+        let (count_s, limit) = self.stock_of(e)[group.clamp(0, 20) as usize];
         self.set_icon(e, crate::work::professions::icon::LIMIT, limit <= count_s);
         if limit <= count_s {
             return 1;

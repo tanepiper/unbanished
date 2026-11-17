@@ -289,8 +289,8 @@ impl GameplayLoop {
                 map,
                 effects: self.sim.environment.as_ref().map_or(0, |e| e.effects.len()),
                 history: self.sim.statistics.series.len(),
-                stock: self.sim.stock_warnings.count.len(),
-                capacity: self.sim.stock_warnings.capacity.len(),
+                stock: self.sim.stock_warnings[0].count.len(),
+                capacity: self.sim.stock_warnings[0].capacity.len(),
             },
         ))
     }

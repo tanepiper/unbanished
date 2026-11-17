@@ -19,5 +19,8 @@ pub mod nature;
 pub mod people;
 pub mod production;
 pub mod town;
+
+/// The players one game can have: the multiplayer code numbers them 0 to players - 1.
+pub const MAX_PLAYERS: usize = 8;
 pub mod work;
 pub mod world;

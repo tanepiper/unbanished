@@ -17,7 +17,7 @@ impl Sim<'_, '_> {
         let state = self.sites[&e].produce.clone().unwrap_or_default();
         // The stock limit of the recipe's group (all groups while choosing at random).
         let limited = |r: &Recipe, sim: &Sim| {
-            let (count, limit) = sim.stock[r.group.clamp(0, 20) as usize];
+            let (count, limit) = sim.stock_of(e)[r.group.clamp(0, 20) as usize];
             limit <= count
         };
         let is_limited = if state.selector < 0 {

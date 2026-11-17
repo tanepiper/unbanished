@@ -213,7 +213,9 @@ impl Simulation {
                 }
             }
             PlayerCommand::SetStockLimit { slot, limit } => {
-                if let Some(l) = self.stock_warnings.limits.get_mut(slot) {
+                let last = self.stock_warnings.len() - 1;
+                let warnings = &mut self.stock_warnings[usize::from(player).min(last)];
+                if let Some(l) = warnings.limits.get_mut(slot) {
                     *l = limit;
                 }
                 Outcome::None

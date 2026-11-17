@@ -19,7 +19,7 @@ fn a_command_is_carried_out_for_its_player() {
         };
         gameplay.execute_as(ctx.archive, 1, command);
         assert_eq!(gameplay.sim.acting_player, 1);
-        assert_eq!(gameplay.sim.stock_warnings.limits[2], 321);
+        assert_eq!(gameplay.sim.stock_warnings[0].limits[2], 321);
     });
 }
 
@@ -82,5 +82,42 @@ fn a_command_sets_the_towns_acting_player() {
         gameplay.execute_as(ctx.archive, 3, command);
         let town = gameplay.sim.town.as_ref().unwrap();
         assert_eq!(town.owner_of_command, 3);
+    });
+}
+
+/// Each player's stock is what their own storages hold.
+#[test]
+fn stock_belongs_to_the_players_who_own_the_storages() {
+    let Some((mut game, mut gameplay)) = generated() else {
+        return;
+    };
+    game.with_ctx(|_, ctx| {
+        gameplay.sim.set_players(2);
+        let sites: Vec<(usize, usize)> = gameplay
+            .sim
+            .town
+            .as_ref()
+            .unwrap()
+            .storage_sites
+            .iter()
+            .map(|s| (s.entity, s.storage))
+            .collect();
+        let count = |items: &[unbanished_game::work::stock::Item]| -> i32 {
+            items.iter().map(|i| i.count).sum()
+        };
+        let total: i32 = sites
+            .iter()
+            .map(|&(_, storage)| {
+                count(&gameplay.sim.town.as_ref().unwrap().storages[storage].items)
+            })
+            .sum();
+        assert!(total > 0, "the start's storages hold the starting goods");
+        for &(entity, _) in &sites {
+            gameplay.sim.town.as_mut().unwrap().placed[entity].owner = 1;
+        }
+        gameplay.update(ctx, 1.0 / 30.0);
+        let w = &gameplay.sim.stock_warnings;
+        assert_eq!(w[0].count.iter().sum::<i32>(), 0);
+        assert!(w[1].count.iter().sum::<i32>() > 0);
     });
 }

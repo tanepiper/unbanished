@@ -151,7 +151,7 @@ fn reloads_as_saved(archive: &unbanished_formats::pkg::Archive, name: &str, byte
         town.iterate(&grid, &mut rng, dt, 50.0);
         let warnings = unbanished_game::events::StockWarnings::default();
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&grid, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&grid, &mut rng, dt, 50.0, &[stock]);
         town.construction
             .jobs
             .step(unbanished_game::scheduler::ticks(dt));
@@ -225,7 +225,7 @@ fn a_new_game_saves_and_reloads() {
         town.iterate(&grid, &mut rng, dt, 50.0);
         let warnings = unbanished_game::events::StockWarnings::default();
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&grid, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&grid, &mut rng, dt, 50.0, &[stock]);
         town.construction
             .jobs
             .step(unbanished_game::scheduler::ticks(dt));

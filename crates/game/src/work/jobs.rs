@@ -208,8 +208,13 @@ pub trait WorkHost {
     fn works_anywhere(&self, profession: usize) -> bool;
     /// `FUN_1400a4ce0(map, a, b, 1)`, with the callers' fallback `n + (int)sqrtf(d²)`.
     fn rank(&mut self, a: i32, b: i32) -> i32;
-    /// The stock manager's `(count, limit)` per slot (`Game +0xf0 → +0x170`).
-    fn stock(&self, slot: usize) -> (i32, i32);
+    /// The stock manager's `(count, limit)` per slot (`Game +0xf0 → +0x170`), for the player
+    /// whose citizen `citizen` is.
+    fn stock(&self, citizen: usize, slot: usize) -> (i32, i32);
+    /// The player whose entity `entity` is (a work's building), 0 for the world's own.
+    fn entity_owner(&self, entity: usize) -> u8;
+    /// The player whose citizen `citizen` is.
+    fn citizen_owner(&self, citizen: usize) -> u8;
     /// The laborer and builder professions (`Game +0xb0 → +0x30/+0x38`).
     fn laborer(&self) -> usize;
     /// The builder profession.

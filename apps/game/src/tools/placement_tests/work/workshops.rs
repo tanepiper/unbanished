@@ -73,7 +73,7 @@ fn workshops_make_their_goods() {
             town.apply_commands(&terrain, &mut rng);
             town.iterate(&terrain, &mut rng, dt, 50.0);
             let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-            town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+            town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
             warnings.recompute(&town.registered_storages(), &town.materials);
             town.construction
                 .jobs
@@ -172,7 +172,7 @@ fn the_commute_run_keeps_the_professions() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -317,7 +317,7 @@ fn cutter_yard_makes_firewood() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs

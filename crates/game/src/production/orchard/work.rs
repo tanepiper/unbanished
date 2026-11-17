@@ -146,7 +146,7 @@ impl Sim<'_, '_> {
             return 1;
         }
         let group = self.orchard_desc(e).group;
-        let (count, limit) = self.stock[group.clamp(0, 20) as usize];
+        let (count, limit) = self.stock_of(e)[group.clamp(0, 20) as usize];
         self.set_icon(e, crate::work::professions::icon::LIMIT, limit <= count);
         if limit <= count {
             return 1;

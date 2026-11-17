@@ -182,7 +182,8 @@ impl StartingTown {
             sites: &self.storage_sites,
             rng,
             construction: &mut self.construction,
-            stock: [(0, 0); 21],
+            stock: &[[(0, 0); 21]],
+            owners: &[],
             temperature: 0.0,
         };
         let rules = self.rules;
@@ -346,6 +347,20 @@ impl StartingTown {
     // Game +0xf0 +0x00/+0x10
     /// The registered town storages (`Game`), the ones the stock counts.
     pub fn registered_storages(&self) -> Vec<Storage> {
+        self.registered_storages_of_all()
+    }
+
+    /// The registered storages of `owner`'s town, the ones its stock counts.
+    pub fn registered_storages_of(&self, owner: u8) -> Vec<Storage> {
+        self.storage_sites
+            .iter()
+            .filter(|s| self.placed.get(s.entity).is_none_or(|p| p.owner == owner))
+            .map(|s| self.storages[s.storage].clone())
+            .collect()
+    }
+
+    /// Every registered storage, whoever owns it.
+    fn registered_storages_of_all(&self) -> Vec<Storage> {
         self.storage_sites
             .iter()
             .map(|s| self.storages[s.storage].clone())

@@ -72,7 +72,7 @@ impl Sim<'_, '_> {
         let t = &self.site_templates[site.template];
         let Some(d) = t.hunt else { return 0 };
         let radius = t.radius.unwrap_or(0);
-        let (count, limit) = self.stock[d.group.clamp(0, 20) as usize];
+        let (count, limit) = self.stock_of(e)[d.group.clamp(0, 20) as usize];
         self.set_icon(e, crate::work::professions::icon::LIMIT, limit <= count);
         if limit <= count {
             return 1;
