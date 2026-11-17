@@ -1,4 +1,5 @@
 //! A separate towns game's ownership, written beside its save (docs/SEPARATE-TOWNS.md).
+//! Deviation: not in the original, which has no multiplayer and no owners to keep.
 //!
 //! The original's save format has no owner field and must not grow one, so whose each placed
 //! entity and citizen is travels in a sidecar file next to the save. A shared town game, and a

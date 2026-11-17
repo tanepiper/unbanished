@@ -3,8 +3,12 @@
 use super::*;
 
 /// The players a New Game makes towns for: `UNBANISHED_SEPARATE_TOWNS` (a room's host makes one
-/// town per player, docs/SEPARATE-TOWNS.md), else 1.
+/// town per player, docs/SEPARATE-TOWNS.md), else 1. A vanilla run, or a build without
+/// multiplayer, makes one town: a separate towns game is part of that extension.
 fn separate_towns() -> u8 {
+    if !cfg!(feature = "multiplayer") || crate::platform::mode::vanilla() {
+        return 1;
+    }
     unbanished_formats::env::var("SEPARATE_TOWNS")
         .ok()
         .and_then(|v| v.parse().ok())

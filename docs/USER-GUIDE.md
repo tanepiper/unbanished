@@ -453,6 +453,12 @@ Everybody presses **Multiplayer** in the main menu and enters the relay's addres
 presses **Host** and gives the room code to the others, who press **Join**. Then the host presses
 **Start** and chooses a save.
 
+A room can also give each player their own town on the same map. The host starts a New Game with
+`UNBANISHED_SEPARATE_TOWNS=2` set (or the number of players), saves it, and hosts that save as
+any other. Each player then builds in their own town and picks only its buildings and citizens;
+the others' towns are drawn but cannot be opened. The map, wildlife and weather stay shared. The
+owners ride in a small file beside the save (`NAME.owners`), so keep it with the save.
+
 [Multiplayer](guide/MULTIPLAYER.md) explains every step with pictures: the relay on a home
 network or the internet, what is shared, what happens when a player leaves, the browser, and
 what to do when something goes wrong.
@@ -762,6 +768,7 @@ Command Prompt) or `$env:NAME = "value"` (PowerShell).
 | `UNBANISHED_PROFILE` | `1` logs slow frames and frame-time summaries; `hitches` only slow frames. In the browser, add `?profile` to the address. See [Performance](PERFORMANCE.md). |
 | `UNBANISHED_THREADS` | How many threads loading uses. The default is one for each CPU core; `1` loads on one thread. |
 | `UNBANISHED_NEXUS_API_KEY` | Your Nexus Mods API key (see [Mods from Nexus Mods](#mods-from-nexus-mods)). |
+| `UNBANISHED_SEPARATE_TOWNS` | How many towns a New Game makes, one for each player in a separate towns multiplayer room (`2` for two players). The default is 1. |
 
 The [game's README](../apps/game/README.md#environment-variables) lists a few more, for tests.
 

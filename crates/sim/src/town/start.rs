@@ -3,6 +3,7 @@
 use super::*;
 
 impl StartingTown {
+    // Deviation: not in the original, which searches one start per map.
     /// [`StartingTown::create`] with `players` towns on the map: player 0's start is the
     /// original's search from the centre, each next one [`Map::find_start_away`] from the ones
     /// taken, and every player gets the profile's structures, a household and its own starting

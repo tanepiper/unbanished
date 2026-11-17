@@ -47,6 +47,8 @@ impl GameplayLoop {
                         .eq_ignore_ascii_case(r.select.split(':').next().unwrap_or(""))
             })
         });
+        // A separate towns game picks only this computer's own town.
+        let picked = picked.filter(|&e| self.may_select(town, e));
         if let Some(entity) = picked {
             if self.selection.selected != Some(entity) {
                 self.selection.selected = Some(entity);
@@ -56,6 +58,21 @@ impl GameplayLoop {
                         .select(ctx.ui, screen, ctx.archive, town, entity);
                 }
             }
+        }
+    }
+
+    // Deviation: not in the original, which has one player's town to pick from.
+    /// Whether this computer may select `e`: in a separate towns game only its own player's
+    /// buildings and citizens, which are otherwise drawn but not selectable
+    /// (docs/SEPARATE-TOWNS.md); in a single-player or shared town game, anything.
+    pub(super) fn may_select(&self, town: &StartingTown, e: Entity) -> bool {
+        if !self.sim.separate() {
+            return true;
+        }
+        let local = self.sim.local_player;
+        match e {
+            Entity::Placed(i) => town.placed.get(i).is_none_or(|p| p.owner == local),
+            Entity::Citizen(i) => town.citizens.get(i).is_none_or(|c| c.owner == local),
         }
     }
 

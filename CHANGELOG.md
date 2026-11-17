@@ -35,6 +35,13 @@ The version is the engine's own (`banished --version`). The Banished version in 
 - `--sim-continue --loiter-picks FILE` makes a loitering citizen pick the same objects as the
   original did, from a list `tools/triage/loiter_picks.py` makes from a trace of the original,
   so a comparison can go past the picks that depend on the original's memory addresses.
+- Multiplayer: separate towns, a town for each player on one map (not in the original; see
+  [docs/SEPARATE-TOWNS.md](docs/SEPARATE-TOWNS.md)). Create the save with
+  `UNBANISHED_SEPARATE_TOWNS=N` set and a New Game, then host it as any other save: each player
+  gets a start, a household and starting goods of their own, builds only in their own town, and
+  picks only its buildings and citizens, while the map, wildlife and Random stay shared. The
+  owners are written beside the save (`NAME.owners`) and travel with every resync, so a single
+  player game's save and the original's format are unchanged.
 
 ### Changed
 

@@ -2,6 +2,7 @@
 
 use super::generated_players;
 use crate::loops::GameLoop;
+use crate::tools::selection::Entity;
 
 /// Each player's structures stand together around their own start, far from the other's, and
 /// its households are theirs.
@@ -119,4 +120,39 @@ fn the_digest_covers_who_owns_what() {
         one.sim.town.as_mut().unwrap().placed[0].owner = 1;
         assert_eq!(before, one.digest(ctx, 0).unwrap().crc);
     });
+}
+
+/// A separate towns game picks only its own player's buildings and citizens, though every
+/// player's town is drawn; a shared town's are everyone's.
+#[test]
+fn only_the_local_players_town_can_be_picked() {
+    let Some((_game, mut gameplay)) = generated_players(2) else {
+        return;
+    };
+    gameplay.sim.local_player = 0;
+    let town = gameplay.sim.town.as_ref().unwrap();
+    let find = |owner: u8, citizens: bool| {
+        if citizens {
+            town.citizens.iter().position(|c| c.owner == owner)
+        } else {
+            town.placed.iter().position(|p| p.owner == owner)
+        }
+        .expect("an entity of that player")
+    };
+    let (own, other) = (find(0, false), find(1, false));
+    assert!(gameplay.may_select(town, Entity::Placed(own)));
+    assert!(!gameplay.may_select(town, Entity::Placed(other)));
+    let (own, other) = (find(0, true), find(1, true));
+    assert!(gameplay.may_select(town, Entity::Citizen(own)));
+    assert!(!gameplay.may_select(town, Entity::Citizen(other)));
+
+    // A shared town of two players has one town: either player picks any of it.
+    let Some((_game, mut shared)) = generated_players(1) else {
+        return;
+    };
+    shared.sim.set_players(2);
+    shared.sim.local_player = 1;
+    let town = shared.sim.town.as_ref().unwrap();
+    assert!(!shared.sim.separate());
+    assert!(shared.may_select(town, Entity::Placed(0)));
 }
