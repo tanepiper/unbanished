@@ -62,6 +62,16 @@ pub enum PlayerCommand {
     SetSpeed(u8),
     /// Pause or play.
     SetPaused(bool),
+    /// ResourceLimitUI's spinner: the stock manager's limit for a stock slot, which the
+    /// production limits read. A slot out of range does nothing.
+    ///
+    /// Original: `FUN_14007ccb0`.
+    SetStockLimit { slot: usize, limit: i32 },
+    /// The event log's check box for a category: whether its entries notify the player. A
+    /// category out of range does nothing.
+    ///
+    /// Original: `FUN_140067c80`.
+    SetNotify { category: usize, on: bool },
 }
 
 /// What a command gives back to the player who gave it.
@@ -194,6 +204,18 @@ impl Simulation {
                     )),
                     None => Outcome::None,
                 }
+            }
+            PlayerCommand::SetStockLimit { slot, limit } => {
+                if let Some(l) = self.stock_warnings.limits.get_mut(slot) {
+                    *l = limit;
+                }
+                Outcome::None
+            }
+            PlayerCommand::SetNotify { category, on } => {
+                if let Some(n) = self.events.notify.get_mut(category) {
+                    *n = on;
+                }
+                Outcome::None
             }
             PlayerCommand::RenameTown { .. }
             | PlayerCommand::SetSpeed(_)

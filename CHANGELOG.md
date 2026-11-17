@@ -45,6 +45,9 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Fixed
 
+- In a multiplayer game, a resource limit or an event-log notification a player changes now
+  changes on every player's computer. Before, it changed on that player's computer only, so
+  the towns drifted apart until the next resync. Recordings and replays keep these changes too.
 - A citizen who was eating when the game saved finishes the meal after a load. The port lost
   the storage the meal came from.
 - A citizen's decision made when its actions ran out no longer calls the citizen back when its

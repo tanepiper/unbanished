@@ -219,12 +219,12 @@ impl GameplayLoop {
                     }
                     return Next::Stay;
                 }
-                Some(UtilityClick::Notify(i, on)) => {
-                    self.sim.events.notify[i] = on;
+                Some(UtilityClick::Notify(category, on)) => {
+                    self.execute(ctx.archive, PlayerCommand::SetNotify { category, on });
                     return Next::Stay;
                 }
                 Some(UtilityClick::StockLimit(slot, limit)) => {
-                    self.sim.stock_warnings.limits[slot] = limit;
+                    self.execute(ctx.archive, PlayerCommand::SetStockLimit { slot, limit });
                     return Next::Stay;
                 }
                 Some(UtilityClick::GoTo(cell)) => {
@@ -271,7 +271,7 @@ impl GameplayLoop {
                 }
                 // ResourceLimitUI (`FUN_14007ccb0`): the slot's limit.
                 Some(WorkPlaceClick::StockLimit { slot, limit }) => {
-                    self.sim.stock_warnings.limits[slot] = limit;
+                    self.execute(ctx.archive, PlayerCommand::SetStockLimit { slot, limit });
                     return Next::Stay;
                 }
                 Some(WorkPlaceClick::ShowBuilding(building)) => {
