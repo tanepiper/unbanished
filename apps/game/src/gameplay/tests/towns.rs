@@ -1,6 +1,8 @@
 //! A separate towns game: a town for each player on one map (docs/SEPARATE-TOWNS.md).
 
 use super::generated_players;
+use crate::gameplay::lockstep::Message;
+use crate::gameplay::network::Link;
 use crate::loops::GameLoop;
 use crate::tools::selection::Entity;
 
@@ -155,4 +157,62 @@ fn only_the_local_players_town_can_be_picked() {
     let town = shared.sim.town.as_ref().unwrap();
     assert!(!shared.sim.separate());
     assert!(shared.may_select(town, Entity::Placed(0)));
+}
+
+/// A room whose mode, or number of players, does not match the save it starts from is refused
+/// with the reason; the matching one starts.
+#[test]
+fn a_room_refuses_a_save_of_the_other_mode() {
+    let Some((mut game, gameplay)) = generated_players(2) else {
+        return;
+    };
+    struct NoLink;
+    impl Link for NoLink {
+        fn send(&mut self, _to: Option<u8>, _message: &Message) {}
+        fn poll(&mut self) -> Vec<(u8, Message)> {
+            Vec::new()
+        }
+    }
+    game.with_ctx(|_, ctx| {
+        let bytes = gameplay
+            .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
+            .expect("a save");
+        let owners = gameplay.sim.owners().encode();
+        let start = |separate: bool, players: u8| Message::Start {
+            players,
+            delay: 6,
+            check: 60,
+            absent: Vec::new(),
+            bytes: bytes.clone(),
+            owners: owners.clone(),
+            separate,
+            update: 0,
+            epoch: 0,
+            speed: 0,
+            paused: false,
+            tools: Vec::new(),
+        };
+        // A two-town save in a shared town room: refused.
+        assert_eq!(
+            crate::gameplay::GameplayLoop::from_start(1, start(false, 2), Box::new(NoLink), vec![])
+                .err()
+                .as_deref(),
+            Some("the room's mode and its save disagree")
+        );
+        // A two-player save in a room of three: refused.
+        assert_eq!(
+            crate::gameplay::GameplayLoop::from_start(1, start(true, 3), Box::new(NoLink), vec![])
+                .err()
+                .as_deref(),
+            Some("the save does not have a town for every player")
+        );
+        // The save's own mode and players: the guest starts.
+        assert!(crate::gameplay::GameplayLoop::from_start(
+            1,
+            start(true, 2),
+            Box::new(NoLink),
+            vec![]
+        )
+        .is_ok());
+    });
 }

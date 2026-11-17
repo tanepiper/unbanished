@@ -112,30 +112,36 @@ save as any other. Every player needs the same build, data and mods, as in a sha
 | 3 | `owner` on `Placed` and `Citizen`, set from `acting_player` | done: a two-owner town, owners kept through a save; single-player owners all 0 |
 | 4 | Stock per owner: `materials`, `storages`, the stock manager, limits and warnings | done: two towns' stock never mix; a player's limit does not apply to the other's; one table in a shared town |
 | 5 | Jobs per owner: `Jobs::sort`, professions, workplaces | done: a citizen takes only its owner's offers; the lockstep test's digests agree |
-| 6 | Citizens and agents per owner: the swap at `Agents::sim`/`with_people`/`think` | done: two towns simulate apart, and the shared `Random` draws in one order |
+| 6 | Citizens and agents per owner: `Env` carries each citizen's owner and every player's stock, so a workplace's rules read its own player's table (`Sim::stock_of`, `stock_of_citizen`) | done: the two-town lockstep games agree on every digest, so the shared `Random` draws in one order; a citizen is offered only its own town's work |
 | 7 | Drawing and picking: every owner's entities drawn, only the local player's picked | done: `GameplayLoop::may_select`, `apps/game/src/gameplay/tests/towns.rs`; the pick filter is a no-op with one town |
 | 8 | Save and resync: ownership written beside the save, sent with `Message::Save` | done: a save of a two-town game reloads with the same owners; a resync agrees |
-| 9 | The lobby: the mode in `Message::Start`, refused by a build without it | done: `separate` in `Message::Start`; a mismatched save is refused; `tools/compat/multiplayer.sh towns` plays a two-town room over a relay |
-| 10 | The end-to-end test: a room of two separate towns over a simulated network | done: `tools/compat/lockstep.sh` gains a separate-towns block; every digest agrees |
+| 9 | The lobby: the mode in `Message::Start`, refused by a build without it | done: `separate` in `Message::Start`; `a_room_refuses_a_save_of_the_other_mode` checks both refusals and the matching start; `tools/compat/multiplayer.sh towns` plays a two-town room over a relay |
+| 10 | The end-to-end test: a room of two separate towns over a simulated network | done: `tools/compat/lockstep.sh`'s separate-towns block runs both settings: every digest agrees, and the corrupted player is found and resynced |
 
 Phases 3 to 6 are one change in spirit — the data model and its filters — and each ends with
 the single-player game drawing and saving the same: `StartingTown::create` is `create_for` with
-one player, which draws the same random numbers in the same order, and the new-game probe
-scenario matches its baseline except the `tools` count difference main already had. The full
-`compare.sh` run needs the project's save set, which the gaming PC does not have, so it was not
-run here.
+one player, which draws the same random numbers in the same order. `tools/compat/compare.sh
+ab22835 HEAD new-game` agrees at every step it checks: the base build against itself, the branch
+against the base, and both continuing the base's save, with identical game state and frame.
+`tools/triage/determinism.sh` finds the frames identical at 16 s. The probe's new-game scenario
+matches its baseline except the `tools` count difference main already had. Only the `new-game`
+scenario ran: the others need the project's save set, which the gaming PC does not have.
 
 ## What a two-town game measured
 
 On 2026-11-17, on the gaming PC (Linux, release build):
 
 - A two-town New Game's save writes `NAME.owners` of 7,580 bytes for 7,335 entities and 2 players.
-- `--lockstep-test` with that save and two players, with delay 6, jitter 8 and 20% stalled ticks,
-  found no desync and the players agreed on 11 digests. With player 1's `Random` corrupted at
-  update 400 it was found at 420 and resynced, then agreed to the end.
+- `tools/compat/lockstep.sh`'s separate-towns block ran both of its settings through the
+  script: with delay 6, jitter 8 and 20% stalled ticks no desync was found and the players agreed
+  on 11 digests; with player 1's `Random` corrupted at update 400 it was found at 420 and
+  resynced, then agreed to the end. (The script's shared-town settings still need its save set.)
 - The same settings on a single-town save played by two players (a shared town) agreed as before.
 - `tools/compat/multiplayer.sh towns` played a two-town room over a relay: the guest joined and
   started from the host's two-town save, and the host's 27 checks all agreed with none differing.
+- The two-town save run as one game peaks at 1.59 GB resident memory for 600 updates (7.8 s,
+  native release, no drawing); the lockstep test, which runs two complete games in one process,
+  peaks at 1.65 GB. The browser build's heap was not measured.
 - `crate::sim`'s unit tests, the net, session and server tests, and the app's unit suite pass,
   with the same environment failures as on main: three audio tests and the burning buildings'
   particles in the app, and the save-dependent bucket test in `unbanished-sim`.
@@ -158,8 +164,9 @@ On 2026-11-17, on the gaming PC (Linux, release build):
 
 - **Trade between towns.** The shared-town trade is with travelling merchants; between players
   nothing exists yet. Out of scope for the phases above.
-- **Memory.** N towns is N citizen lists in one process; the browser's 4 GB heap is the limit.
-  A two-town game's peak has not been measured yet.
+- **Memory.** N towns is N citizen lists in one process. A two-town game measures 1.59 GB
+  resident natively (the lockstep test with two complete games, 1.65 GB), within the browser's
+  4 GB heap but its own build was not measured.
 - **Floors and clearing.** Each player's floors are on the shared cells, and each player's
   buildings are stamped on them. *Assumed*: shared, as the mod's map is one map.
 - **Wildlife and disasters.** Shared: whoever hunts takes from the same herd, and a tornado
