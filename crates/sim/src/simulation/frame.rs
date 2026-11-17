@@ -59,14 +59,16 @@ impl Simulation {
         strings: &mut dyn Strings,
         saved: &SavedGame,
         town_name: &str,
-    ) -> GameState {
+    ) -> (GameState, crate::owners::Owners) {
         let mut g = saved.state.clone();
         self.write_loaded_achievements(&mut g);
         g.town_name = town_name.to_string();
+        let mut owners = self.owners_in(&g, None);
         if let Some(town) = &self.town {
-            town.export_into(archive, &mut g);
+            let ids = town.export_into(archive, &mut g);
+            owners = self.owners_in(&g, Some(&ids));
         }
         self.write_state(strings, &mut g);
-        g
+        (g, owners)
     }
 }

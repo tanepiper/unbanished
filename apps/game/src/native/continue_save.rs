@@ -120,7 +120,7 @@ pub fn sim_continue(args: &[String]) {
             unbanished_game::random::trace::write(std::path::Path::new(path), &d)
                 .expect("write the draws");
         }
-        let state = sim.saved_state(ctx.archive, &mut strings, &saved, &params.town_name);
+        let (state, _) = sim.saved_state(ctx.archive, &mut strings, &saved, &params.town_name);
         unbanished_formats::save::Save::write(&saved.metadata, &state.encode().expect("encode"))
     });
     std::fs::write(out, file).expect("write the save");

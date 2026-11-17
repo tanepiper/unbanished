@@ -182,8 +182,8 @@ impl Watcher {
             if g.boundary_done != Some(update) {
                 g.boundary_done = Some(update);
                 if std::mem::take(&mut g.save_wanted) {
-                    let bytes = g.save_file(&archive);
-                    let owners = g.sim.owners().encode();
+                    let (bytes, owners) = g.save_file(&archive);
+                    let owners = owners.encode();
                     events.push(Event::Save {
                         update,
                         bytes: bytes.clone(),
@@ -279,8 +279,14 @@ impl Watched {
         }
     }
 
-    /// The town's state, as each player's game encodes it for a digest.
-    fn state(&self, archive: &Archive) -> unbanished_formats::savegame::GameState {
+    /// The town's state, as each player's game encodes it for a digest, and its owners sidecar.
+    fn state(
+        &self,
+        archive: &Archive,
+    ) -> (
+        unbanished_formats::savegame::GameState,
+        unbanished_sim::owners::Owners,
+    ) {
         let mut strings = ArchiveStrings::new(archive);
         self.sim
             .saved_state(archive, &mut strings, &self.saved, &self.params.town_name)
@@ -289,7 +295,7 @@ impl Watched {
     /// The digest: the CRC-32 of the encoded state, with each player's own view (the
     /// buildings' windows) left out, as each player's digest leaves it out.
     fn digest(&self, archive: &Archive) -> u32 {
-        let mut state = self.state(archive);
+        let (mut state, owners) = self.state(archive);
         for object in state.objects.values_mut() {
             if object.type_name == "UIComponent" {
                 object.fields.set(
@@ -299,19 +305,22 @@ impl Watched {
             }
         }
         let mut crc = unbanished_formats::crc::crc32(state.encode().unwrap_or_default());
-        let owners = self.sim.owners();
         if owners.players > 1 {
             crc = !unbanished_formats::crc::crc32_raw(!crc, &owners.encode());
         }
         crc
     }
 
-    /// The town as a save file.
-    fn save_file(&self, archive: &Archive) -> Vec<u8> {
-        let state = self.state(archive).encode().unwrap_or_default();
+    /// The town as a save file, and its owners sidecar.
+    fn save_file(&self, archive: &Archive) -> (Vec<u8>, unbanished_sim::owners::Owners) {
+        let (state, owners) = self.state(archive);
+        let state = state.encode().unwrap_or_default();
         let mut metadata = self.saved.metadata.clone();
         metadata.name = self.params.town_name.clone();
         metadata.mods = Vec::new();
-        unbanished_formats::save::Save::write(&metadata, &state)
+        (
+            unbanished_formats::save::Save::write(&metadata, &state),
+            owners,
+        )
     }
 }

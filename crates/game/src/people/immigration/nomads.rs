@@ -31,7 +31,8 @@ impl Sim<'_, '_> {
         let id = self.placed.len();
         let t = &self.templates[template];
         self.placed.push(crate::nature::seeding::Placed {
-            owner: 0,
+            // The band belongs to the town whose hall called it (a separate towns game).
+            owner: self.placed.get(town_hall).map_or(0, |p| p.owner),
             template,
             bucket: t.bucket,
             cell: (

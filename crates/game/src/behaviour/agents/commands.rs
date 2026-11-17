@@ -239,6 +239,8 @@ impl Agents {
     ) {
         env.construction.nomads_admitted += band.len() as i32;
         let laborer = env.construction.professions.laborer;
+        // The band joins the town whose hall took it in (a separate towns game).
+        let owner = env.placed.get(entity).map_or(0, |p| p.owner);
         let r = self.life.clone();
         let (lo, hi) = (r.f(0x50), r.f(0x54));
         let mut make = |agents: &mut Self,
@@ -276,6 +278,7 @@ impl Agents {
             c.position = position;
             c.age = age;
             c.alive = true;
+            c.owner = owner;
             let id = citizens.len();
             citizens.push(c);
             let mut state = CitizenState::newborn(&r);

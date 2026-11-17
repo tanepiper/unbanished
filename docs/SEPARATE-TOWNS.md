@@ -57,9 +57,11 @@ one, because every computer must post the same events in the same order to stay 
    owner (`registered_storages_of`).
 6. **Save.** The vanilla save has no owner field and must not grow one (1:1 with the original's
    format). Ownership is written beside it, in `NAME.owners` next to `NAME.sav`: the magic
-   `UNBO\x01`, the players, each placed entity's and citizen's player, each player's stock limits
-   (`STOCK_SLOTS` each) and each player's start cell. A save read without one is a game with
-   every owner 0.
+   `UNBO\x02`, the players, each placed entity's and citizen's player keyed by its object id in
+   the save, each player's stock limits (`STOCK_SLOTS` each) and each player's start cell. The
+   key is the object, not a position, because a save drops what died and moves the last entity
+   into the free place: a position in the town's list and in the file name different things. A
+   save read without a sidecar is a game with every owner 0.
 7. **Digest.** Every player's save must hash the same, so ownership is in the digest and the
    camera is not, as today. A separate towns game hashes the owners' bytes after the state's
    CRC; a single-player game's digest is its state's CRC alone, unchanged.
@@ -131,7 +133,8 @@ scenario ran: the others need the project's save set, which the gaming PC does n
 
 On 2026-11-17, on the gaming PC (Linux, release build):
 
-- A two-town New Game's save writes `NAME.owners` of 7,580 bytes for 7,335 entities and 2 players.
+- A two-town New Game's save writes `NAME.owners` of 37,021 bytes for 7,324 placed entities, 39
+  citizens and 2 players (each entry is the object's id and its owner).
 - `tools/compat/lockstep.sh`'s separate-towns block ran both of its settings through the
   script: with delay 6, jitter 8 and 20% stalled ticks no desync was found and the players agreed
   on 11 digests; with player 1's `Random` corrupted at update 400 it was found at 420 and

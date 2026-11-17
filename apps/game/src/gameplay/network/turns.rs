@@ -130,13 +130,13 @@ impl GameplayLoop {
             .is_some_and(|l| l.lockstep.player == 0);
         // The host resyncs when its own check failed; any player when the server asked it.
         if self.online.net.as_ref().unwrap().resync_wanted {
-            let bytes = self
+            let (bytes, owners) = self
                 .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
                 .ok_or("this player could not save")?;
             let net = self.online.net.as_mut().unwrap();
             net.resync_wanted = false;
             net.resyncs.push(update);
-            let owners = self.sim.owners().encode();
+            let owners = owners.encode();
             let save = Message::Save {
                 update,
                 bytes: bytes.clone(),
@@ -168,11 +168,11 @@ impl GameplayLoop {
         if !due.is_empty() {
             // Everybody goes on from one save: the others reload it (a resync), and the newcomer
             // starts from it. So every town has its templates in the same order.
-            let bytes = self
+            let (bytes, owners) = self
                 .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
                 .ok_or("the host could not save for a joining player")?;
-            let owners = self.sim.owners().encode();
-            let separate = self.sim.owners().separate();
+            let separate = owners.separate();
+            let owners = owners.encode();
             let l = &self.online.lockstep.as_ref().ok_or("no lockstep")?.lockstep;
             let start = Message::Start {
                 players: l.players,
@@ -213,10 +213,10 @@ impl GameplayLoop {
         if host && update > 0 && update.is_multiple_of(KEEP_EVERY) {
             let keeps = self.online.net.as_ref().is_some_and(|n| n.keeps);
             if keeps {
-                let bytes = self
+                let (bytes, owners) = self
                     .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
                     .ok_or("the host could not save its town to keep")?;
-                let owners = self.sim.owners().encode();
+                let owners = owners.encode();
                 let net = self.online.net.as_mut().unwrap();
                 net.keeps = net.link.keep(update, &bytes, &owners);
             }

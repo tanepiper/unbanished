@@ -20,7 +20,7 @@ impl GameplayLoop {
                         self.store_window_settings(ctx.ui, true);
                         let saved = self.save_file(ctx.archive, ctx.ui, ctx.mods, None, None);
                         *ctx.reload_mods = Some(match saved {
-                            Some(bytes) => crate::mods::Reload::Game(bytes),
+                            Some((bytes, _)) => crate::mods::Reload::Game(bytes),
                             None => crate::mods::Reload::Menu,
                         });
                     }

@@ -288,13 +288,18 @@ impl StartingTown {
         }
         town.restore_schedule(saved, &mut ids);
         town.save_ids = Some(ids);
-        // A separate towns game's owners come from the sidecar beside the save.
+        // A separate towns game's owners come from the sidecar beside the save, by the saved
+        // object each names: the save's order, not the port's, decides a position.
         if let Some(owners) = &saved.owners {
-            for (p, &owner) in town.placed.iter_mut().zip(&owners.placed) {
-                p.owner = owner;
+            for &(id, owner) in &owners.placed {
+                if let Some(&p) = index.get(&id) {
+                    town.placed[p].owner = owner;
+                }
             }
-            for (c, &owner) in town.citizens.iter_mut().zip(&owners.citizens) {
-                c.owner = owner;
+            for &(id, owner) in &owners.citizens {
+                if let Some(&c) = order.get(&id) {
+                    town.citizens[c].owner = owner;
+                }
             }
             town.starts = owners.starts.clone();
         }

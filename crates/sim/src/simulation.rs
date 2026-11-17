@@ -168,20 +168,45 @@ impl Simulation {
     }
 
     /// The game's ownership and stock limits, for a save's sidecar
-    /// ([`crate::owners::Owners`]).
-    pub fn owners(&self) -> crate::owners::Owners {
+    /// ([`crate::owners::Owners`]): `g` is the state the town was written into and `ids` the
+    /// saved object of each entity and citizen that export made.
+    pub fn owners_in(
+        &self,
+        g: &unbanished_formats::savegame::GameState,
+        ids: Option<&crate::town::save::Ids>,
+    ) -> crate::owners::Owners {
         let town = self.town.as_ref();
-        crate::owners::Owners {
+        let mut owners = crate::owners::Owners {
             players: self.stock_warnings.len() as u8,
-            placed: town
-                .map(|t| t.placed.iter().map(|p| p.owner).collect())
-                .unwrap_or_default(),
-            citizens: town
-                .map(|t| t.citizens.iter().map(|c| c.owner).collect())
-                .unwrap_or_default(),
+            placed: Vec::new(),
+            citizens: Vec::new(),
             limits: self.stock_warnings.iter().map(|w| w.limits).collect(),
             starts: town.map(|t| t.starts.clone()).unwrap_or_default(),
+        };
+        if let (Some(town), Some(ids)) = (town, ids) {
+            let by_id: BTreeMap<_, _> = town
+                .placed
+                .iter()
+                .enumerate()
+                .filter_map(|(p, placed)| Some((ids.entity(p)?, placed.owner)))
+                .collect();
+            // In the save's own entity order, which a new save may have rearranged (the dead
+            // leave their place to the last entity): owners follow their object, not a position.
+            owners.placed = g
+                .entities
+                .iter()
+                .flatten()
+                .filter_map(|id| Some((*id, by_id.get(id).copied()?)))
+                .collect();
+            owners.citizens = town
+                .agents
+                .registry
+                .iter()
+                .filter(|&&c| town.citizens.get(c).is_some_and(|c| c.alive))
+                .filter_map(|&c| Some((ids.citizen(c)?, town.citizens[c].owner)))
+                .collect();
         }
+        owners
     }
 
     /// The month: `floor(elapsed / 3600 × 12)`.

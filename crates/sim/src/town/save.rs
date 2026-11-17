@@ -125,13 +125,18 @@ fn f32s(f: &Fields, path: &str) -> Option<Vec<f32>> {
 
 impl StartingTown {
     /// Write the town into `g`, the game state it was loaded from: objects for what is new,
-    /// what is gone dropped, then every field.
-    pub fn export_into(&self, archive: &unbanished_formats::pkg::Archive, g: &mut GameState) {
+    /// what is gone dropped, then every field. Returns the saved object of each entity and
+    /// citizen, which an owners sidecar keys its entries by.
+    pub fn export_into(
+        &self,
+        archive: &unbanished_formats::pkg::Archive,
+        g: &mut GameState,
+    ) -> Ids {
         let foreign = self
             .save_ids
             .as_ref()
             .map_or_else(Vec::new, |s| s.foreign.clone());
-        self.export_into_with(archive, g, &foreign);
+        self.export_into_with(archive, g, &foreign)
     }
 
     /// [`export_into`](Self::export_into), with the scheduler entities the town does not model
@@ -141,7 +146,7 @@ impl StartingTown {
         archive: &unbanished_formats::pkg::Archive,
         g: &mut GameState,
         foreign: &[(usize, ObjId)],
-    ) {
+    ) -> Ids {
         // A new game has no saved objects: every entity is made.
         let new_game = crate::town::SaveIds::default();
         let saved = self.save_ids.as_ref().unwrap_or(&new_game);
@@ -163,6 +168,7 @@ impl StartingTown {
         self.export_animations(g, &mut refs);
         models::finish_models(archive, g, &mut refs);
         finish_flags(g);
+        ids
     }
 
     /// The entity manager's buckets (`FUN_1400c9970`): each bucket's entities in the

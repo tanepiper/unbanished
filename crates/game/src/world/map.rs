@@ -73,29 +73,70 @@ impl Map {
     }
 
     /// A start point at least `away` cells from every point in `taken`, searched as
-    /// [`Map::find_start`] does. A separate towns game gives each player one; the fallback (no
-    /// point far enough on the whole map) is the plain search's answer.
+    /// [`Map::find_start`] does. A separate towns game gives each player one. When no clear
+    /// point is far enough, the one farthest from the taken points is used, so a small map
+    /// still never gives two players the same start.
     pub fn find_start_away(&self, radius: i32, taken: &[(i32, i32)], away: f32) -> (i32, i32) {
         let centre = self.size as i32 >> 1;
         let mut count = 4;
         let mut dist = 0.0f32;
+        // The clearest point seen, and its distance to the nearest taken one.
+        let mut best: Option<(f32, (i32, i32))> = None;
         while dist <= self.size as f32 {
             for i in 0..count {
                 let angle = i as f32 * (360.0 / count as f32);
                 let (sin, cos) = sin_cos_deg(angle);
                 let x = (cos * dist) as i32 + centre;
                 let y = (sin * dist) as i32 + centre;
-                let far = taken.iter().all(|&(tx, ty)| {
+                if !self.is_clear(x, y, radius, radius * radius) {
+                    continue;
+                }
+                let nearest = taken.iter().fold(f32::INFINITY, |near, &(tx, ty)| {
                     let (dx, dy) = ((x - tx) as f32, (y - ty) as f32);
-                    dx * dx + dy * dy >= away * away
+                    near.min(dx * dx + dy * dy)
                 });
-                if far && self.is_clear(x, y, radius, radius * radius) {
+                if nearest >= away * away {
                     return (x, y);
                 }
+                if best.is_none_or(|(b, _)| nearest > b) {
+                    best = Some((nearest, (x, y)));
+                }
             }
-            count *= 2;
+            count = (count * 2).min(256);
             dist += ((radius * 3) / 4) as f32;
         }
-        self.find_start(radius)
+        best.map_or_else(|| self.find_start(radius), |(_, point)| point)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ground(size: usize) -> Map {
+        Map {
+            size,
+            types: vec![CellType::GROUND; size * size],
+        }
+    }
+
+    /// A point far enough is used; when the map has none, the clearest point still differs from
+    /// the first town's.
+    #[test]
+    fn a_start_away_is_a_start_of_its_own() {
+        let map = ground(32);
+        let first = map.find_start(2);
+        let other = map.find_start_away(2, &[first], 10.0);
+        let (dx, dy) = ((other.0 - first.0) as f32, (other.1 - first.1) as f32);
+        assert!(
+            dx * dx + dy * dy >= 100.0,
+            "{other:?} is far from {first:?}"
+        );
+
+        let small = ground(8);
+        let first = small.find_start(2);
+        let other = small.find_start_away(2, &[first], 1000.0);
+        assert_ne!(other, first);
+        assert!(small.is_clear(other.0, other.1, 2, 4), "{other:?}");
     }
 }

@@ -72,7 +72,7 @@ Deviation: 89, Not ported: 7, Not traced: 1.
 
 ## `apps/game/src/gameplay/saving.rs`
 
-- [Deviation] [apps/game/src/gameplay/saving.rs:137](../apps/game/src/gameplay/saving.rs#L137): Deviation: a game with rule hooks lists them among its mods (`Hooks/NAME.wasm`).
+- [Deviation] [apps/game/src/gameplay/saving.rs:143](../apps/game/src/gameplay/saving.rs#L143): Deviation: a game with rule hooks lists them among its mods (`Hooks/NAME.wasm`).
 
 ## `apps/game/src/gfx/models/culling.rs`
 
@@ -340,7 +340,7 @@ Deviation: 89, Not ported: 7, Not traced: 1.
 
 ## `crates/sim/src/owners.rs`
 
-- [Deviation] [crates/sim/src/owners.rs:1](../crates/sim/src/owners.rs#L1): A separate towns game's ownership, written beside its save (docs/SEPARATE-TOWNS.md). Deviation: not in the original, which has no multiplayer and no owners to keep. The original's save format has no owner field and must not grow one, so whose each placed entity and citizen is travels in a sidecar file next to the save. A shared town game, and a single-player one, has every owner 0 and needs no sidecar.
+- [Deviation] [crates/sim/src/owners.rs:1](../crates/sim/src/owners.rs#L1): A separate towns game's ownership, written beside its save (docs/SEPARATE-TOWNS.md). Deviation: not in the original, which has no multiplayer and no owners to keep. The original's save format has no owner field and must not grow one, so whose each placed entity and citizen is travels in a sidecar file next to the save. A shared town game, and a single-player one, has every owner 0 and needs no sidecar. Each owner is keyed by the saved object itself, not its position: a save drops the entities that died and moves the last ones into their places, so positions mean different things before and after a load.
 
 ## `crates/sim/src/town/map.rs`
 

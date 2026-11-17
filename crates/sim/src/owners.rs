@@ -4,22 +4,27 @@
 //! The original's save format has no owner field and must not grow one, so whose each placed
 //! entity and citizen is travels in a sidecar file next to the save. A shared town game, and a
 //! single-player one, has every owner 0 and needs no sidecar.
+//!
+//! Each owner is keyed by the saved object itself, not its position: a save drops the entities
+//! that died and moves the last ones into their places, so positions mean different things
+//! before and after a load.
 
+use unbanished_formats::savegame::ObjId;
 use unbanished_game::work::stock::STOCK_SLOTS;
 
 /// The magic and version [`Owners::encode`] starts with.
-const MAGIC: &[u8; 5] = b"UNBO\x01";
+const MAGIC: &[u8; 5] = b"UNBO\x02";
 
 /// Whose each entity and citizen is, the number of players, and each player's stock limits.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Owners {
     /// The players the game has (1 in a single-player game).
     pub players: u8,
-    /// Each placed entity's player, by entity index; a list shorter than the town's leaves the
-    /// rest to player 0.
-    pub placed: Vec<u8>,
-    /// Each citizen's player, by citizen index.
-    pub citizens: Vec<u8>,
+    /// Each placed entity's player, by the entity's object id in the save; an entity the list
+    /// does not name belongs to player 0.
+    pub placed: Vec<(ObjId, u8)>,
+    /// Each citizen's player, by the citizen's object id in the save.
+    pub citizens: Vec<(ObjId, u8)>,
     /// Each player's stock limits, [`STOCK_SLOTS`] each.
     pub limits: Vec<[i32; STOCK_SLOTS]>,
     /// Each player's start cell on the map, for the camera and the interface (empty when the
@@ -32,8 +37,8 @@ impl Owners {
     /// the first, or the game has more than one player.
     pub fn separate(&self) -> bool {
         self.players > 1
-            || self.placed.iter().any(|&o| o != 0)
-            || self.citizens.iter().any(|&o| o != 0)
+            || self.placed.iter().any(|&(_, o)| o != 0)
+            || self.citizens.iter().any(|&(_, o)| o != 0)
     }
 
     /// The sidecar's bytes: the magic, then the fields, little endian.
@@ -42,7 +47,10 @@ impl Owners {
         out.push(self.players);
         for list in [&self.placed, &self.citizens] {
             out.extend((list.len() as u32).to_le_bytes());
-            out.extend(list);
+            for &(id, owner) in list {
+                out.extend(id.to_le_bytes());
+                out.push(owner);
+            }
         }
         out.extend((self.limits.len() as u32).to_le_bytes());
         for limits in &self.limits {
@@ -66,8 +74,8 @@ impl Owners {
             return None;
         }
         let players = r.take(1)?[0];
-        let placed = r.list()?;
-        let citizens = r.list()?;
+        let placed = r.pairs()?;
+        let citizens = r.pairs()?;
         let count = r.u32()? as usize;
         // A corrupt length must not ask for an allocation the file cannot hold.
         if count > 64 {
@@ -119,9 +127,19 @@ impl<'a> Reader<'a> {
         Some(i32::from_le_bytes(self.take(4)?.try_into().ok()?))
     }
 
-    fn list(&mut self) -> Option<Vec<u8>> {
+    /// A list of `(object, owner)` pairs.
+    fn pairs(&mut self) -> Option<Vec<(ObjId, u8)>> {
         let n = self.u32()? as usize;
-        Some(self.take(n)?.to_vec())
+        // Each pair is five bytes: a corrupt count must not ask for a huge allocation.
+        if self.0.len() < n.checked_mul(5)? {
+            return None;
+        }
+        let mut out = Vec::with_capacity(n);
+        for _ in 0..n {
+            let id = self.i32()?;
+            out.push((id, self.take(1)?[0]));
+        }
+        Some(out)
     }
 }
 
@@ -133,8 +151,8 @@ mod tests {
     fn what_was_written_reads_back() {
         let owners = Owners {
             players: 2,
-            placed: vec![0, 1, 0, 1, 7],
-            citizens: vec![1, 0, 1],
+            placed: vec![(10, 0), (11, 1), (12, 0), (13, 1)],
+            citizens: vec![(20, 1), (21, 0), (22, 1)],
             limits: vec![[3; STOCK_SLOTS], [9; STOCK_SLOTS]],
             starts: vec![(10, 20), (30, 40)],
         };
@@ -149,5 +167,9 @@ mod tests {
         // Truncated, and a file of something else entirely.
         assert_eq!(Owners::decode(&bytes[..bytes.len() - 1]), None);
         assert_eq!(Owners::decode(b"something else"), None);
+        // A list whose count outruns the file is refused, not allocated.
+        let mut huge = bytes.clone();
+        huge[6..10].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert_eq!(Owners::decode(&huge), None);
     }
 }

@@ -67,7 +67,7 @@ fn a_saved_two_town_game_keeps_its_owners() {
         return;
     };
     game.with_ctx(|_, ctx| {
-        let bytes = gameplay
+        let (bytes, owners) = gameplay
             .save_file(ctx.archive, ctx.ui, ctx.mods, Some("Two towns"), None)
             .expect("a save");
         let live = gameplay.sim.town.as_ref().unwrap();
@@ -79,7 +79,7 @@ fn a_saved_two_town_game_keeps_its_owners() {
         // A save read without its sidecar is a game whose owners are all 0.
         let plain = crate::saves::saved::SavedGame::parse(&bytes).unwrap();
         assert!(plain.owners.is_none());
-        let saved = plain.with_owners(&gameplay.sim.owners().encode());
+        let saved = plain.with_owners(&owners.encode());
         let town = unbanished_sim::town::StartingTown::from_save(ctx.archive, &saved).unwrap();
         assert_eq!(
             town.placed.iter().map(|p| p.owner).collect::<Vec<_>>(),
@@ -92,6 +92,81 @@ fn a_saved_two_town_game_keeps_its_owners() {
     });
 }
 
+/// A save after a death keeps each owner on its own entity: the save leaves the dead behind, so
+/// a position in the town's list no longer names the same thing in the file.
+#[test]
+fn a_saved_two_town_game_keeps_its_owners_across_deaths() {
+    let Some((mut game, gameplay)) = generated_players(2) else {
+        return;
+    };
+    game.with_ctx(|_, ctx| {
+        let mut gameplay = gameplay;
+        {
+            let town = gameplay.sim.town.as_mut().unwrap();
+            let dead = town
+                .placed
+                .iter()
+                .position(|p| town.templates[p.template].reference.contains("Tree"))
+                .expect("a tree");
+            assert_ne!(dead, town.placed.len() - 1, "a tree before the last entity");
+            town.placed[dead].alive = false;
+            let citizen = town
+                .citizens
+                .iter()
+                .position(|c| c.alive && c.owner == 0)
+                .expect("a citizen");
+            town.citizens[citizen].alive = false;
+        }
+        let (bytes, owners) = gameplay
+            .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
+            .expect("a save");
+        let live = gameplay.sim.town.as_ref().unwrap();
+        let placed: std::collections::BTreeSet<_> = live
+            .placed
+            .iter()
+            .filter(|p| p.alive)
+            .map(|p| {
+                (
+                    live.templates[p.template].reference.clone(),
+                    p.cell,
+                    p.owner,
+                )
+            })
+            .collect();
+        let people: std::collections::BTreeSet<_> = live
+            .citizens
+            .iter()
+            .filter(|c| c.alive)
+            .map(|c| (c.name.clone(), c.owner))
+            .collect();
+        let saved = crate::saves::saved::SavedGame::parse(&bytes)
+            .unwrap()
+            .with_owners(&owners.encode());
+        let town = unbanished_sim::town::StartingTown::from_save(ctx.archive, &saved).unwrap();
+        assert_eq!(town.citizens.len(), people.len());
+        let owner_of: std::collections::BTreeMap<_, _> = placed
+            .iter()
+            .map(|(reference, cell, owner)| ((reference.clone(), *cell), *owner))
+            .collect();
+        let mut seen = std::collections::BTreeSet::new();
+        for p in &town.placed {
+            let key = (town.templates[p.template].reference.clone(), p.cell);
+            match owner_of.get(&key) {
+                // The save's first entities are the map's own, which no player owns.
+                Some(&owner) => {
+                    assert_eq!(p.owner, owner, "{key:?}");
+                    seen.insert(key);
+                }
+                None => assert_eq!(p.owner, 0, "{key:?} belongs to no player"),
+            }
+        }
+        assert_eq!(seen.len(), owner_of.len(), "every alive entity came back");
+        for c in &town.citizens {
+            assert!(people.contains(&(c.name.clone(), c.owner)), "{}", c.name);
+        }
+    });
+}
+
 /// A separate towns game's digest answers to its owners; a single-player one leaves them out.
 #[test]
 fn the_digest_covers_who_owns_what() {
@@ -99,7 +174,7 @@ fn the_digest_covers_who_owns_what() {
         return;
     };
     game.with_ctx(|_, ctx| {
-        let bytes = gameplay
+        let (bytes, _) = gameplay
             .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
             .expect("a save");
         let load = |ctx: &mut crate::loops::Ctx| {
@@ -174,10 +249,10 @@ fn a_room_refuses_a_save_of_the_other_mode() {
         }
     }
     game.with_ctx(|_, ctx| {
-        let bytes = gameplay
+        let (bytes, sidecar) = gameplay
             .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
             .expect("a save");
-        let owners = gameplay.sim.owners().encode();
+        let owners = sidecar.encode();
         let start = |separate: bool, players: u8| Message::Start {
             players,
             delay: 6,

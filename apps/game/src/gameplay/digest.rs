@@ -48,7 +48,7 @@ impl super::GameplayLoop {
         ctx: &mut crate::loops::Ctx,
         update: u32,
     ) -> Result<Digest, String> {
-        let mut state = self
+        let (mut state, owners) = self
             .save_state(ctx.archive, ctx.ui)
             .ok_or("no game state")?;
         // A save also holds each player's own view, which is not the game: the camera, and the
@@ -66,7 +66,6 @@ impl super::GameplayLoop {
         let mut crc = unbanished_formats::crc::crc32(state);
         // In a separate towns game whose each entity is is part of the state, though the save
         // cannot hold it: hash it after the save.
-        let owners = self.sim.owners();
         if owners.players > 1 {
             crc = !unbanished_formats::crc::crc32_raw(!crc, &owners.encode());
         }
