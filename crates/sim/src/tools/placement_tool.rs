@@ -386,6 +386,7 @@ pub fn place(archive: &Archive, town: &mut StartingTown, p: &Placement) -> usize
     let rect = p.rect;
     let id = town.placed.len();
     town.placed.push(Placed {
+        owner: town.owner_of_command,
         template: p.template,
         bucket: town.templates[p.template].bucket,
         cell: (rect.x0, rect.y0),

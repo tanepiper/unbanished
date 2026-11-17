@@ -53,6 +53,7 @@ impl Seeder<'_> {
                 (variant, mesh)
             });
             self.placed.push(Placed {
+                owner: 0,
                 template: t,
                 bucket: self.templates[t].bucket,
                 cell: (x, y),
@@ -137,6 +138,7 @@ impl Seeder<'_> {
                         growth_state = Some(state);
                     }
                     let id = self.register(Placed {
+                        owner: 0,
                         template,
                         bucket: self.templates[template].bucket,
                         cell: (x, y),

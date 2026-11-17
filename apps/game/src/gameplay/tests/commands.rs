@@ -4,6 +4,7 @@
 
 use super::generated;
 use crate::gameplay::commands::PlayerCommand;
+use crate::loops::GameLoop;
 
 #[test]
 fn a_command_is_carried_out_for_its_player() {
@@ -12,7 +13,10 @@ fn a_command_is_carried_out_for_its_player() {
     };
     game.with_ctx(|_, ctx| {
         assert_eq!(gameplay.player(), 0);
-        let command = PlayerCommand::SetStockLimit { slot: 2, limit: 321 };
+        let command = PlayerCommand::SetStockLimit {
+            slot: 2,
+            limit: 321,
+        };
         gameplay.execute_as(ctx.archive, 1, command);
         assert_eq!(gameplay.sim.acting_player, 1);
         assert_eq!(gameplay.sim.stock_warnings.limits[2], 321);
@@ -35,5 +39,48 @@ fn a_remote_command_keeps_its_player() {
         gameplay.execute_from(ctx, 1, command);
         assert_eq!(gameplay.sim.acting_player, 1);
         assert!(!gameplay.sim.events.notify[2]);
+    });
+}
+
+/// What a player's command places belongs to that player; a single-player game's all belong to
+/// player 0, as before.
+#[test]
+fn a_placed_building_keeps_its_players_owner() {
+    let Some((mut game, mut gameplay)) = generated() else {
+        return;
+    };
+    game.with_ctx(|_, ctx| {
+        assert!(gameplay.script(ctx, "tool Template/ForesterLodge.rsc"));
+        let start = gameplay.sim.town.as_ref().unwrap().start;
+        let view = gameplay.view.as_ref().unwrap();
+        let grid = unbanished_game::terrain::HeightGrid {
+            width: view.terrain.size + 1,
+            heights: &view.terrain.heights,
+        };
+        let tool = gameplay.placement.as_mut().unwrap();
+        tool.hover(gameplay.sim.town.as_ref().unwrap(), &grid, Some(start), 0);
+        let placement = tool.placement(0).expect("a valid placement");
+        let town = gameplay.sim.town.as_mut().unwrap();
+        town.owner_of_command = 1;
+        let id = unbanished_sim::tools::placement_tool::place(ctx.archive, town, &placement);
+        assert_eq!(town.placed[id].owner, 1);
+        // Nothing is being carried out now: the next one is the world's own, owner 0.
+        town.owner_of_command = 0;
+        let other = unbanished_sim::tools::placement_tool::place(ctx.archive, town, &placement);
+        assert_eq!(town.placed[other].owner, 0);
+    });
+}
+
+/// A command carries its player into the town, which stamps what it creates.
+#[test]
+fn a_command_sets_the_towns_acting_player() {
+    let Some((mut game, mut gameplay)) = generated() else {
+        return;
+    };
+    game.with_ctx(|_, ctx| {
+        let command = PlayerCommand::SetStockLimit { slot: 1, limit: 7 };
+        gameplay.execute_as(ctx.archive, 3, command);
+        let town = gameplay.sim.town.as_ref().unwrap();
+        assert_eq!(town.owner_of_command, 3);
     });
 }

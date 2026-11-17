@@ -106,6 +106,7 @@ impl StartingTown {
                     .map_or(templates[template].bucket, |s| s.2 as usize);
                 let p = placed.len();
                 placed.push(Placed {
+                    owner: 0,
                     template,
                     bucket,
                     cell,
@@ -198,6 +199,7 @@ impl StartingTown {
             };
             let p = placed.len();
             placed.push(Placed {
+                owner: 0,
                 template,
                 bucket,
                 cell: (m("x"), m("y")),

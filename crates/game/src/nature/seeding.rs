@@ -132,6 +132,9 @@ pub enum ScheduledComponent {
 /// A placed entity.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Placed {
+    /// The player whose town placed it: 0 in a single-player game, and for everything the
+    /// world makes (natural resources, wildlife, weather). A shared-town game leaves it 0.
+    pub owner: u8,
     /// Index into the template table.
     pub template: usize,
     // +0x1f

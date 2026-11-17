@@ -84,6 +84,7 @@ impl Seeder<'_> {
         let (position, yaw) = self.position(child, n * y + x);
         let (state, growth, scale) = self.set_growth(child, max_growth, 0.0);
         let id = self.register(Placed {
+            owner: 0,
             template: child,
             bucket: self.templates[parent_template].bucket,
             cell: (x, y),
@@ -132,6 +133,7 @@ impl Seeder<'_> {
         let mesh = self.rng.rand_below(meshes as u32) as usize;
         let n = self.n();
         self.register(Placed {
+            owner: 0,
             template,
             bucket: self.templates[template].bucket,
             cell: (cell % n, cell / n),
@@ -185,6 +187,7 @@ impl Seeder<'_> {
             .len();
         let mesh = self.rng.rand_below(meshes as u32) as usize;
         Some(self.register(Placed {
+            owner: 0,
             template,
             bucket: self.templates[template].bucket,
             cell: (x, y),

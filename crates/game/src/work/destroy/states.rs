@@ -135,6 +135,7 @@ impl Sim<'_, '_> {
                     yaw += 360;
                 }
                 self.rebuilds.push(Rebuild {
+                    owner: self.placed[e].owner,
                     template,
                     cell,
                     footprint,

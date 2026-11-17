@@ -269,6 +269,7 @@ impl Agents {
                     parent: None,
                     school: None,
                     alive: true,
+                    owner: 0,
                 })
             };
             let mut c = newborn(rng, &template, male);

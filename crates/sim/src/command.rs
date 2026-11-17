@@ -126,6 +126,9 @@ impl Simulation {
         path_tool: Option<&mut PathTool>,
     ) -> Outcome {
         self.acting_player = player;
+        if let Some(town) = &mut self.town {
+            town.owner_of_command = player;
+        }
         match command {
             PlayerCommand::Town(command) => {
                 if let Some(town) = &mut self.town {

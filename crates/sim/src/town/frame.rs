@@ -253,6 +253,7 @@ impl StartingTown {
             let stamps = t.map.as_ref().is_some_and(|m| !m.no_stamp);
             let mesh = t.model.as_ref().map(|m| m.mesh.max(0) as usize);
             self.placed.push(Placed {
+                owner: r.owner,
                 template: r.template,
                 bucket,
                 cell: r.cell,

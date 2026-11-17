@@ -56,6 +56,7 @@ impl Sim<'_, '_> {
             (m.variant.max(0) as usize, m.mesh.max(0) as usize)
         });
         self.placed.push(Placed {
+            owner: 0,
             template: pile_t,
             bucket: pt.bucket,
             cell,

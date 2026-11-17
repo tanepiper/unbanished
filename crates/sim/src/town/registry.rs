@@ -87,6 +87,7 @@ impl StartingTown {
         let z = terrain.ground(px, py, &mut normal);
         let id = self.placed.len();
         self.placed.push(Placed {
+            owner: self.owner_of_command,
             template,
             bucket: self.templates[template].bucket,
             cell,
@@ -133,6 +134,7 @@ impl StartingTown {
         let z = terrain.ground(px, py, &mut normal);
         let id = self.placed.len();
         self.placed.push(Placed {
+            owner: self.owner_of_command,
             template,
             bucket: self.templates[template].bucket,
             cell,

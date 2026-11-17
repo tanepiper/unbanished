@@ -111,6 +111,7 @@ pub(in crate::town) fn saved_citizens(
                 parent: citizen(f, "guardian"),
                 school: None,
                 alive: true,
+                owner: 0,
             }
         })
         .collect();

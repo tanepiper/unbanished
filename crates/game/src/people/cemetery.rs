@@ -122,6 +122,7 @@ impl Sim<'_, '_> {
             }
             let id = self.placed.len();
             self.placed.push(crate::nature::seeding::Placed {
+                owner: 0,
                 template: t.tombstone,
                 bucket: template.bucket,
                 cell: (cell % n, cell / n),

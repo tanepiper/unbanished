@@ -181,6 +181,7 @@ pub(super) fn households(
         );
     };
     let mut h = Households {
+        owner: 0,
         rules,
         male_names: &male,
         female_names: &female,

@@ -31,6 +31,7 @@ impl Sim<'_, '_> {
         let id = self.placed.len();
         let t = &self.templates[template];
         self.placed.push(crate::nature::seeding::Placed {
+            owner: 0,
             template,
             bucket: t.bucket,
             cell: (

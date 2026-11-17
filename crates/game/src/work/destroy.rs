@@ -81,6 +81,8 @@ impl Destroy {
 /// Original: `FUN_1401215f0`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rebuild {
+    /// The player whose building it was.
+    pub owner: u8,
     /// The template.
     pub template: usize,
     /// The map cell.

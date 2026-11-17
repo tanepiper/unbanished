@@ -20,6 +20,7 @@ impl Wild<'_, '_> {
         let cell = self.cell_of(position);
         let n = self.n();
         self.placed.push(Placed {
+            owner: 0,
             template,
             bucket: self.templates[template].bucket,
             cell: (cell % n, cell / n),

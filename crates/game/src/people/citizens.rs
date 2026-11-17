@@ -63,6 +63,9 @@ pub struct Citizen {
     pub school: Option<usize>,
     /// False once the entity is deleted (the port keeps its index).
     pub alive: bool,
+    /// The player whose town the citizen belongs to: 0 in a single-player game. A newborn
+    /// inherits its mother's; a nomad takes the town hall's.
+    pub owner: u8,
 }
 
 impl Citizen {
@@ -74,6 +77,8 @@ impl Citizen {
 
 /// The starting households of a new town, as the start condition makes them.
 pub struct Households<'a> {
+    /// The player whose town these are (0 in a single-player game).
+    pub owner: u8,
     /// The citizen rules.
     pub rules: CitizenRules,
     /// The men's names.
@@ -132,6 +137,7 @@ impl Households<'_> {
             parent: None,
             school: None,
             alive: true,
+            owner: self.owner,
         });
         self.citizens.len() - 1
     }
@@ -191,6 +197,7 @@ pub fn newborn(
         parent: None,
         school: None,
         alive: true,
+        owner: mother.owner,
     }
 }
 
