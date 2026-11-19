@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check the agent skills against the repository, so they never send an agent to a dead path.
 
-Usage: python3 tools/triage/skills_check.py
+Usage: python3 -P tools/triage/skills_check.py
 
 Checks that:
 - every `.claude/skills/<name>/SKILL.md` starts with front matter whose `name` is the folder's

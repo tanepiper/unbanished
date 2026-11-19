@@ -14,7 +14,7 @@ Deterministic helpers for deciding what to trace, port or check next. All read l
 | `fnindex.py coverage` | How much of the binary's own code is traced, how much is library code, and which component families are untouched? The project's one coverage figure |
 | `library.py [--report]` | Which functions are the C runtime, the Steam stub or unnamed exception funclets? Writes `labels/library.tsv` from the Ghidra export ([LIBRARY-CODE.md](../../docs/LIBRARY-CODE.md)) |
 | `tools/emu/rng_trace.py` + `rngdiff.py ORIG PORT` | Does the port draw from `System::Random` in the same order as the original? (see below) |
-| `skills_check.py` | Do the agent skills still point at real paths, with valid front matter, all listed in AGENTS.md? (the `harness` test suite runs it) |
+| `skills_check.py` | Do the agent skills still point at real paths, with valid front matter, all listed in AGENTS.md? (the `harness` test suite runs it; run `python3 -P`, as the directory has a `types.py` that would shadow the standard one) |
 | `deviations.py [--check]` | Every comment marking a deviation or unported piece, as `docs/DEVIATIONS.md` |
 | `determinism.sh [SECS] [SEED]` | Do two runs with the same seed render identical frames? |
 | `tools/reference/` (`save.sh`, `windows.swift`, README) | Reference frames of the original game streamed via Steam Remote Play, filed locally for comparison |

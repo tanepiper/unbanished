@@ -95,7 +95,7 @@ def build_game(ctx: Context) -> None:
 def suite_checks(ctx: Context) -> None:
     """Formatting of changed Rust files, file sizes, the deviation ledger and the doc comments."""
     # No Rust file may pass 500 lines; the larger files listed may shrink, never grow.
-    size = subprocess.run([sys.executable, "tools/test/file_size.py"], cwd=REPO, capture_output=True, text=True)
+    size = subprocess.run([sys.executable, "-P", "tools/test/file_size.py"], cwd=REPO, capture_output=True, text=True)
     if size.returncode != 0:
         raise RuntimeError("files too large (tools/test/file_size.py):\n" + size.stdout)
     changed = sh("git diff --name-only HEAD -- '*.rs'; git ls-files --others --exclude-standard -- '*.rs'"
@@ -104,20 +104,20 @@ def suite_checks(ctx: Context) -> None:
     if changed:
         sh(["rustfmt", "--edition", "2021", "--check", *changed])
     before = (REPO / "docs/DEVIATIONS.md").read_text()
-    sh([sys.executable, "tools/triage/deviations.py"])
+    sh([sys.executable, "-P", "tools/triage/deviations.py"])
     if (REPO / "docs/DEVIATIONS.md").read_text() != before:
         raise RuntimeError("docs/DEVIATIONS.md was out of date; it is updated now: stage it")
-    sh([sys.executable, "tools/triage/doc_comments.py", "check"])
+    sh([sys.executable, "-P", "tools/triage/doc_comments.py", "check"])
     # The labels made from the port's citations stay current (tools/triage/cite_labels.py).
     # The class registrations' labels in names.tsv follow docs/GAME-TYPE-REGISTRATIONS.tsv; the
     # check needs the local Ghidra export.
     if (REPO / "analysis/export/Application-steam-x64.exe/functions.tsv").exists():
-        sh([sys.executable, "tools/triage/type_labels.py", "--check"])
+        sh([sys.executable, "-P", "tools/triage/type_labels.py", "--check"])
     port_labels = REPO / "labels/names-from-port.tsv"
     before = port_labels.read_text() if port_labels.exists() else ""
     # --notes: module notes name their module. --any --prefix FUN_: a `FUN_` address in the comment
     # directly above a function or a type names it too, below any "Original:" citation.
-    sh([sys.executable, "tools/triage/cite_labels.py", ".", "--existing", "labels/names.tsv", "--no-lines",
+    sh([sys.executable, "-P", "tools/triage/cite_labels.py", ".", "--existing", "labels/names.tsv", "--no-lines",
         "--notes", "--any", "--prefix", "FUN_", "--out", str(port_labels)])
     if port_labels.read_text() != before:
         raise RuntimeError("labels/names-from-port.tsv was out of date; it is updated now: stage it")
@@ -142,7 +142,7 @@ def suite_harness(ctx: Context) -> None:
     scripts = [p for p in (REPO / "tools").rglob("*.sh") if "node_modules" not in p.parts]
     for p in scripts:
         sh(["bash", "-n", str(p)])
-    sh([sys.executable, "tools/triage/skills_check.py"])
+    sh([sys.executable, "-P", "tools/triage/skills_check.py"])
     ctx.notes.append(f"{len(tools)} Python tools, {len(scripts)} shell scripts, skills")
     venv = REPO / ".venv" / "bin" / "python"
     exe = REPO / "game-data" / "original" / "Application-steam-x64.exe"
@@ -158,7 +158,7 @@ def suite_harness(ctx: Context) -> None:
     else:
         ctx.notes.append("emulator not checked (no .venv or game data)")
     if (REPO / "analysis" / "export" / "Application-steam-x64.exe" / "decomp.c").exists():
-        out = sh([sys.executable, "tools/triage/decomp.py", "0x1400aa000"]).stdout
+        out = sh([sys.executable, "-P", "tools/triage/decomp.py", "0x1400aa000"]).stdout
         if "Names::Generate" not in out:
             raise RuntimeError("tools/triage/decomp.py did not label FUN_1400aa000 as Names::Generate")
         ctx.notes.append("decomp.py reads the export")
