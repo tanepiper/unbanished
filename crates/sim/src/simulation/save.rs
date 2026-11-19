@@ -48,9 +48,15 @@ impl Simulation {
                 }
             }
         }
-        // The event log keeps each entry's text (`FUN_14009a790`).
+        // The event log keeps each entry's text (`FUN_14009a790`). Its notify flags are per
+        // player; the save holds the first set, which every computer agrees on.
         let m = &mut g.managers;
-        for (k, n) in self.events.notify.iter().enumerate() {
+        let notify = self
+            .notify
+            .first()
+            .copied()
+            .unwrap_or(unbanished_game::events::NOTIFY_DEFAULT);
+        for (k, n) in notify.iter().enumerate() {
             m.set_bool(&format!("event_log.notify_{k}"), *n);
         }
         let entries: Vec<Fields> = self

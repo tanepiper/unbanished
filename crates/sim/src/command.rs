@@ -134,7 +134,10 @@ impl Simulation {
         match command {
             PlayerCommand::Town(command) => {
                 if let Some(town) = &mut self.town {
-                    town.construction.commands.push(command);
+                    // The town's owner, not the giver: a shared town game's buildings are the
+                    // one town's (owner 0) whoever gives the command.
+                    let owner = town.owner_of_command;
+                    town.construction.commands.push((owner, command));
                 }
                 Outcome::None
             }
@@ -157,10 +160,14 @@ impl Simulation {
                 if let Some(town) = &mut self.town {
                     if let Some(t) = town.load_template(archive, &template) {
                         town.site_template(archive, t);
-                        town.construction.commands.push(Command::Upgrade {
-                            entity,
-                            template: t,
-                        });
+                        let owner = town.owner_of_command;
+                        town.construction.commands.push((
+                            owner,
+                            Command::Upgrade {
+                                entity,
+                                template: t,
+                            },
+                        ));
                     }
                 }
                 Outcome::None
@@ -223,7 +230,10 @@ impl Simulation {
                 Outcome::None
             }
             PlayerCommand::SetNotify { category, on } => {
-                if let Some(n) = self.events.notify.get_mut(category) {
+                // A separate towns game keeps one set per player; a shared town's one set is
+                // the town's, whoever toggles it.
+                let last = self.notify.len() - 1;
+                if let Some(n) = self.notify[usize::from(player).min(last)].get_mut(category) {
                     *n = on;
                 }
                 Outcome::None

@@ -107,8 +107,15 @@ impl RemovalTool {
         town: &mut StartingTown,
         command: unbanished_game::work::professions::Command,
     ) {
-        if !town.construction.commands.contains(&command) {
-            town.construction.commands.push(command);
+        if !town
+            .construction
+            .commands
+            .iter()
+            .any(|(_, c)| c == &command)
+        {
+            town.construction
+                .commands
+                .push((town.owner_of_command, command));
         }
     }
 
@@ -197,14 +204,16 @@ impl RemovalTool {
                 return DragSound::Error;
             };
             for cell in cells {
-                town.construction.commands.push(
+                let owner = town.owner_of_command;
+                town.construction.commands.push((
+                    owner,
                     unbanished_game::work::professions::Command::PlanRoad {
                         cell,
                         kind: r.kind,
                         ty: r.ty,
                         material: r.material,
                     },
-                );
+                ));
             }
             return DragSound::Thunk;
         }

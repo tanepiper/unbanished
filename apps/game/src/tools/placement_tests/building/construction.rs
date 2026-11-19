@@ -52,12 +52,13 @@ fn wood_house_gets_built() {
     let before = stock_table(&town.registered_storages(), &town.materials);
     let id = tool.place(&archive, &mut town, 0).unwrap();
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
     let mut done_at = None;
@@ -71,7 +72,7 @@ fn wood_house_gets_built() {
             .jobs
             .step(unbanished_game::scheduler::ticks(dt));
         if step == 1 {
-            let (counts, capacity) = town.profession_counts();
+            let (counts, capacity) = town.profession_counts(0);
             assert_eq!(counts[builder], 2);
             let points = town.templates[town.placed[id].template].build_points.len();
             assert!(points > 0);
@@ -100,7 +101,7 @@ fn wood_house_gets_built() {
     assert!(stamped > 0, "footprint not stamped");
     assert!(town.construction.jobs.is_empty());
     // Builders keep their profession without a workplace once the site is done.
-    assert_eq!(town.profession_counts().0[builder], 2);
+    assert_eq!(town.profession_counts(0).0[builder], 2);
     assert!(town.agents.states.iter().all(|s| s.workplace.is_none()));
     assert_reservations_held(&town);
 }
@@ -159,12 +160,13 @@ fn wood_house_on_resources_gets_cleared_and_built() {
     assert!(!resources.is_empty());
     let id = tool.place(&archive, &mut town, 0).unwrap();
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
     let (mut cleared_at, mut done_at, mut most_piles) = (None, None, 0);

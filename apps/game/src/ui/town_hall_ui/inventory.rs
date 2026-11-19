@@ -27,7 +27,13 @@ pub(super) fn select_description(
 impl TownHallUi {
     /// `FUN_140082a60` / `FUN_140081cc0`: every raw material held in storage (0), trading
     /// posts (1) or homes (2), by name or quantity.
-    pub(super) fn inventory(&mut self, ui: &mut Ui, archive: &Archive, town: &StartingTown) {
+    pub(super) fn inventory(
+        &mut self,
+        ui: &mut Ui,
+        archive: &Archive,
+        town: &StartingTown,
+        owner: u8,
+    ) {
         let kind = combo_index(ui, self.inventory_type);
         let by_count = combo_index(ui, self.sort) == 1;
         let mut held = vec![0i32; town.materials.len()];
@@ -48,21 +54,25 @@ impl TownHallUi {
                         .sites
                         .get(&s.entity)
                         .is_some_and(|x| x.trade.is_some());
-                    if !trading {
+                    if s.owner == owner && !trading {
                         add(s.storage);
                     }
                 }
             }
             1 => {
                 for &p in &town.construction.trading_posts {
-                    if let Some(site) = town.construction.sites.get(&p) {
-                        add(site.storage);
+                    if town.placed.get(p).is_some_and(|x| x.owner == owner) {
+                        if let Some(site) = town.construction.sites.get(&p) {
+                            add(site.storage);
+                        }
                     }
                 }
             }
             _ => {
-                for home in town.construction.homes.values() {
-                    add(home.storage);
+                for (&e, home) in &town.construction.homes {
+                    if town.placed.get(e).is_some_and(|p| p.owner == owner) {
+                        add(home.storage);
+                    }
                 }
             }
         }

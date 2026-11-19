@@ -36,7 +36,7 @@ impl Agents {
             jobs.drain(&mut sim);
         }
         let mut queue = commands.into_iter();
-        for command in queue.by_ref() {
+        for (owner, command) in queue.by_ref() {
             match command {
                 crate::work::professions::Command::SetCrop { entity, crop } => {
                     if sim.wildlife.pastures.contains_key(&entity) {
@@ -166,6 +166,10 @@ impl Agents {
             let cell = |c: usize| town.cell_of(characters[c].position);
             let professions = sim.professions;
             let anywhere = |p: usize| professions.works_anywhere(p);
+            let owner_list: &[u8] = sim.owners;
+            let owners = |c: usize| owner_list.get(c).copied().unwrap_or(0);
+            let placed: &[crate::nature::seeding::Placed] = &*sim.placed;
+            let entity_owner = |e: usize| placed.get(e).map_or(0, |p| p.owner);
             let sites = &*sim.sites;
             let priority = |e: usize| {
                 sites
@@ -175,18 +179,21 @@ impl Agents {
             };
             let mut search = crate::behaviour::activities::TownSearch {
                 town: &town,
+                owners: &owners,
                 cell: &cell,
                 anywhere: &anywhere,
                 priority: &priority,
                 rng: &mut *sim.rng,
             };
             sim.workforce.apply(
+                owner,
                 command,
                 &mut workers,
                 sim.professions,
                 sim.homes,
                 &mut geometry,
                 &mut search,
+                &entity_owner,
             );
             sim.set_workers(&workers);
         }

@@ -18,7 +18,7 @@ impl People<'_, '_> {
             Some(h) => self.town.point_cell(h),
             None => self.cell(c),
         };
-        let bit = match self.find_cemetery(from) {
+        let bit = match self.find_cemetery(from, self.citizens[c].owner) {
             Some(cemetery) => {
                 if let Some(slot) = self.free_grave(cemetery) {
                     let cell = self.sites[&cemetery].graves[slot];
@@ -52,12 +52,16 @@ impl People<'_, '_> {
     }
 
     /// `FUN_14008ec10`: the cemetery nearest `cell` by path rank (or `n + distance`) whose
-    /// use point can be reached and which has a free grave.
-    pub(super) fn find_cemetery(&mut self, cell: i32) -> Option<usize> {
+    /// use point can be reached and which has a free grave. A separate towns game's cemeteries
+    /// are `owner`'s.
+    pub(super) fn find_cemetery(&mut self, cell: i32, owner: u8) -> Option<usize> {
         let mut best = None;
         let mut nearest = i32::MAX;
         let n = self.town.size as i32;
         for &e in self.cemeteries {
+            if !self.town.entities.get(e).is_some_and(|v| v.owner == owner) {
+                continue;
+            }
             let to = self.town.point_cell(e);
             let mut rank = self.rank(cell, to);
             if rank < 0 {

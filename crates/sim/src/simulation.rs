@@ -53,6 +53,11 @@ pub struct Simulation {
     /// Each player's stock: the counts, the previous counts, the limits and the warnings, by
     /// player number. One entry in a single-player game.
     pub stock_warnings: Vec<StockWarnings>,
+    /// Each player's event-log notify flags (old age, deaths, disasters, storage, town, other),
+    /// by player number: the Event Log window's checkboxes. A separate towns game keeps one set
+    /// per player; a shared town game one set for its one town. The save writes the first set,
+    /// which every computer agrees on.
+    pub notify: Vec<[bool; 6]>,
     // StockManager +0x150
     /// The Town Info graphs' history, sampled every 75 s.
     pub statistics: Statistics,
@@ -92,6 +97,7 @@ impl Simulation {
             environment_template: None,
             events: Default::default(),
             stock_warnings: vec![StockWarnings::default()],
+            notify: vec![unbanished_game::events::NOTIFY_DEFAULT],
             statistics: Default::default(),
             updates: 0,
             acting_player: 0,
@@ -116,6 +122,8 @@ impl Simulation {
             self.calendar.elapsed = *t;
         }
         self.stock_warnings[0] = saved.stock_warnings();
+        let notify = saved.notify();
+        self.notify = vec![notify];
         if let Some(owners) = &saved.owners {
             // A separate towns game keeps each player's stock limits beside its save.
             self.players = owners.players.max(1);
@@ -129,14 +137,15 @@ impl Simulation {
             for (warnings, limits) in self.stock_warnings.iter_mut().zip(&owners.limits) {
                 warnings.limits = *limits;
             }
+            self.notify.resize(towns, notify);
         }
         self.events = saved.event_log();
         self.statistics = saved.statistics();
     }
 
     /// How many players the game has (the room's count): one in a single-player game. A
-    /// separate towns game keeps one stock table per player; a shared town game's one town has
-    /// one table, whatever the number of players.
+    /// separate towns game keeps one stock table and one set of notify flags per player; a
+    /// shared town game's one town has one table and one set, whatever the number of players.
     pub fn set_players(&mut self, players: u8) {
         self.players = players.max(1);
         let towns = if self.separate() {
@@ -146,6 +155,8 @@ impl Simulation {
         };
         self.stock_warnings
             .resize(towns, unbanished_game::events::StockWarnings::default());
+        self.notify
+            .resize(towns, unbanished_game::events::NOTIFY_DEFAULT);
     }
 
     /// The number of players, one in a single-player game.
@@ -165,6 +176,13 @@ impl Simulation {
         self.stock_warnings
             .get(usize::from(self.local_player))
             .unwrap_or(&self.stock_warnings[0])
+    }
+
+    /// The local player's event-log notify flags: a shared town game's one set too.
+    pub fn local_notify(&self) -> &[bool; 6] {
+        self.notify
+            .get(usize::from(self.local_player))
+            .unwrap_or(&self.notify[0])
     }
 
     /// The game's ownership and stock limits, for a save's sidecar

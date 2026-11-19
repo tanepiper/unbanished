@@ -38,7 +38,7 @@ fn a_remote_command_keeps_its_player() {
         };
         gameplay.execute_from(ctx, 1, command);
         assert_eq!(gameplay.sim.acting_player, 1);
-        assert!(!gameplay.sim.events.notify[2]);
+        assert!(!gameplay.sim.local_notify()[2]);
     });
 }
 

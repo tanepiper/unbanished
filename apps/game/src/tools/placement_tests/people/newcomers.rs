@@ -59,12 +59,13 @@ fn nomads_are_taken_in() {
     d.required.clear();
     d.population = 1;
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 4,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
     let before = town.citizens.iter().filter(|c| c.alive).count();
@@ -116,12 +117,13 @@ fn nomads_are_taken_in() {
                 !worn.is_empty() && worn.iter().all(|m| m.contains("Nomad")),
                 "{worn:?}"
             );
-            town.construction.commands.push(
+            town.construction.commands.push((
+                0,
                 unbanished_game::work::professions::Command::StateMessage {
                     entity: id,
                     message: 7,
                 },
-            );
+            ));
         }
         // Back to 2, which waits for the next band at once (0xf).
         if asked && state != 0x11 {
@@ -226,12 +228,13 @@ fn a_merchant_comes_by_boat() {
     tool.hover(&town, &terrain, Some(at), rotation);
     let id = tool.place(&archive, &mut town, rotation).unwrap();
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 4,
-        });
+        },
+    ));
     let st = town.construction.sites[&id].template;
     let food = town.construction.templates[st]
         .trade

@@ -179,6 +179,9 @@ impl Storage {
 /// Registration in the manager's ordinary (`+0/+8`) or market list.
 #[derive(Debug, Clone)]
 pub struct StorageSite {
+    /// The player whose town registered it: 0 in a single-player game. A separate towns game's
+    /// searches take only the acting player's sites.
+    pub owner: u8,
     /// The entity.
     pub entity: usize,
     /// Its storage.

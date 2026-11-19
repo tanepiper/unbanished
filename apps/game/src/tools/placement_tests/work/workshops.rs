@@ -47,12 +47,13 @@ fn workshops_make_their_goods() {
         tool.hover(&town, &terrain, spot, 0);
         let id = tool.place(&archive, &mut town, 0).unwrap();
         let builder = town.construction.professions.builder;
-        town.construction
-            .commands
-            .push(unbanished_game::work::professions::Command::SetCount {
+        town.construction.commands.push((
+            0,
+            unbanished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 3,
-            });
+            },
+        ));
         let site_template = town.construction.sites[&id].template;
         let recipes = town.construction.templates[site_template]
             .produce
@@ -83,12 +84,13 @@ fn workshops_make_their_goods() {
                 let profession = town.construction.workforce.workplaces[&id]
                     .description_profession
                     .expect("no profession");
-                town.construction.commands.push(
+                town.construction.commands.push((
+                    0,
                     unbanished_game::work::professions::Command::SetCount {
                         profession,
                         count: 2,
                     },
-                );
+                ));
             }
             made = town.construction.trackers.get(&id).map_or(0, |t| {
                 t.this_year
@@ -159,12 +161,13 @@ fn the_commute_run_keeps_the_professions() {
         .iter()
         .position(|p| p.reference.to_ascii_lowercase().ends_with(":cutter"))
         .unwrap();
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 4,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
     let mut staffed = false;
@@ -179,12 +182,13 @@ fn the_commute_run_keeps_the_professions() {
             .step(unbanished_game::scheduler::ticks(dt));
         if !staffed && town.construction.sites[&ids[0]].complete {
             staffed = true;
-            town.construction.commands.push(
+            town.construction.commands.push((
+                0,
                 unbanished_game::work::professions::Command::SetCount {
                     profession: cutter,
                     count: 2,
                 },
-            );
+            ));
         }
         if ids.iter().all(|e| town.construction.sites[e].complete)
             && town
@@ -295,12 +299,13 @@ fn cutter_yard_makes_firewood() {
         .iter()
         .position(|p| p.reference.to_ascii_lowercase().ends_with(":cutter"))
         .expect("no cutter profession");
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     let firewood = town
         .materials
         .iter()
@@ -326,12 +331,13 @@ fn cutter_yard_makes_firewood() {
             built_at = Some(step);
             let stocked = stock_table(&town.registered_storages(), &town.materials);
             logs_before = Some(stocked[0]);
-            town.construction.commands.push(
+            town.construction.commands.push((
+                0,
                 unbanished_game::work::professions::Command::SetCount {
                     profession: cutter,
                     count: 2,
                 },
-            );
+            ));
         }
         let piles: Vec<usize> = town
             .construction
@@ -371,13 +377,14 @@ fn cutter_yard_makes_firewood() {
     assert!(0 < made, "the tracker counted no firewood");
     // The work button (ControlUI → `FUN_140130a70`): idle, then producing again.
     for want in [0xe, 0xd] {
-        town.construction
-            .commands
-            .push(unbanished_game::work::professions::Command::Control {
+        town.construction.commands.push((
+            0,
+            unbanished_game::work::professions::Command::Control {
                 entity: id,
                 kind: unbanished_game::work::control::kind::CONSUME_PRODUCE,
                 index: 0,
-            });
+            },
+        ));
         town.apply_commands(&terrain, &mut rng);
         assert_eq!(town.construction.sites[&id].machine.state, want);
     }

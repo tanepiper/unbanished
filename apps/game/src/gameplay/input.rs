@@ -384,7 +384,7 @@ impl GameplayLoop {
                     screen,
                     ctx.archive,
                     &template,
-                    Some(&self.sim.events),
+                    self.sim.local_notify(),
                     map_size,
                 );
             }

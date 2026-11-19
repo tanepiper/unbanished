@@ -215,7 +215,7 @@ impl Sim<'_, '_> {
                 if 0 < self.states[c].carried.available(m) {
                     self.road_sequence(c, work, target, cell, ty, Some(m), None);
                 } else {
-                    let Some(found) = self.find_storage(m, 1, false, here) else {
+                    let Some(found) = self.find_storage(m, 1, false, here, self.owners[c]) else {
                         return 1;
                     };
                     let size = self.materials[m].size;

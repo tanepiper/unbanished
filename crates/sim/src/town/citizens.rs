@@ -54,6 +54,7 @@ pub(super) fn starting_goods(
         };
         let (w, h) = p.footprint;
         sites.push(StorageSite {
+            owner,
             entity,
             storage: storages.len(),
             location_flags: t.storage_location_flags,

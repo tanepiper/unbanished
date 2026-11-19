@@ -274,6 +274,7 @@ impl CitizenState {
 }
 
 struct TownStock<'a> {
+    owner: u8, // the citizen's player: searches take this town's storages
     materials: &'a [RawMaterial],
     storages: &'a mut [Storage],
     sites: &'a [StorageSite],

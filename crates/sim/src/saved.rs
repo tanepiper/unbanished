@@ -184,17 +184,26 @@ impl SavedGame {
         );
     }
 
-    /// The event log: the notify flags and every entry with its text.
+    /// The event log's notify flags (one set in the save; every player starts from it).
     ///
     /// Original: `FUN_14009a790`.
-    pub fn event_log(&self) -> unbanished_game::events::EventLog {
+    pub fn notify(&self) -> [bool; 6] {
         let m = &self.state.managers;
-        let mut log = unbanished_game::events::EventLog::default();
-        for (k, n) in log.notify.iter_mut().enumerate() {
+        let mut notify = unbanished_game::events::NOTIFY_DEFAULT;
+        for (k, n) in notify.iter_mut().enumerate() {
             if let Some(Value::Bool(b)) = m.at(&format!("event_log.notify_{k}")) {
                 *n = *b;
             }
         }
+        notify
+    }
+
+    /// The event log's entries with their text.
+    ///
+    /// Original: `FUN_14009a790`.
+    pub fn event_log(&self) -> unbanished_game::events::EventLog {
+        let mut log = unbanished_game::events::EventLog::default();
+        let m = &self.state.managers;
         if let Some(Value::List(entries)) = m.at("event_log.entries") {
             log.entries = entries
                 .iter()

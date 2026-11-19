@@ -127,12 +127,13 @@ fn hunters_take_deer() {
         .iter()
         .position(|p| p.reference.to_ascii_lowercase().ends_with(":hunter"))
         .expect("no hunter profession");
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     let venison = town
         .materials
         .iter()
@@ -153,12 +154,13 @@ fn hunters_take_deer() {
             .step(unbanished_game::scheduler::ticks(dt));
         if built_at.is_none() && town.construction.sites[&id].complete {
             built_at = Some(step);
-            town.construction.commands.push(
+            town.construction.commands.push((
+                0,
                 unbanished_game::work::professions::Command::SetCount {
                     profession: hunter,
                     count: 2,
                 },
-            );
+            ));
         }
         // The hunting time grows while staffed (it drops to 0 when a deer is taken).
         let time = town.construction.sites[&id].hunt_time.unwrap_or(0);

@@ -178,6 +178,7 @@ impl Agents {
             .zip(people.citizens.iter())
             .map(|(s, ci)| crate::work::professions::Worker {
                 adult: ci.alive && ci.age >= self.life.adult_age() && s.school.is_none(),
+                owner: ci.owner,
                 profession: s.profession,
                 workplace: s.workplace,
                 home: s.home,
@@ -203,6 +204,7 @@ impl Agents {
                 &k.homes,
                 &mut geometry,
                 env.rng,
+                citizens[c].owner,
             );
             match hired {
                 Some(h) => self.events.push(crate::people::life::LifeEvent {

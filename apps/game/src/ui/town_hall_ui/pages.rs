@@ -4,13 +4,13 @@ use super::*;
 
 impl TownHallUi {
     /// `FUN_140082500`.
-    pub(super) fn overview(&mut self, ui: &mut Ui, town: &StartingTown) {
+    pub(super) fn overview(&mut self, ui: &mut Ui, town: &StartingTown, owner: u8) {
         let life = &town.agents.life;
         let (mut adults, mut students, mut children, mut families) = (0, 0, 0, 0);
         let (mut educated, mut clothed) = (0.0f32, 0.0f32);
         let (mut health, mut happiness) = (0.0f32, 0.0f32);
         let living: Vec<usize> = (0..town.citizens.len())
-            .filter(|&c| town.citizens[c].alive)
+            .filter(|&c| town.citizens[c].alive && town.citizens[c].owner == owner)
             .collect();
         for &c in &living {
             let (citizen, s) = (&town.citizens[c], &town.agents.states[c]);
@@ -52,7 +52,13 @@ impl TownHallUi {
                 ui.set_text(m, &text);
             }
         }
-        set_number(ui, self.homes, town.construction.homes.len() as i32);
+        let homes = town
+            .construction
+            .homes
+            .keys()
+            .filter(|&&e| town.placed.get(e).is_some_and(|p| p.owner == owner))
+            .count();
+        set_number(ui, self.homes, homes as i32);
         set_number(ui, self.citizens, n);
         set_number(ui, self.adults, adults);
         set_number(ui, self.students, students);
@@ -86,9 +92,16 @@ impl TownHallUi {
     }
 
     /// `FUN_1400833c0`: each profession's workers, jobs and workplaces.
-    pub(super) fn professions(&mut self, ui: &mut Ui, town: &StartingTown) {
-        let (counts, places) = town.profession_counts();
+    pub(super) fn professions(&mut self, ui: &mut Ui, town: &StartingTown, owner: u8) {
+        let (counts, places) = town.profession_counts(owner);
         let registry = &town.construction.workforce.registry;
+        let locations = |profession: usize| {
+            registry.get(&profession).map_or(0, |list| {
+                list.iter()
+                    .filter(|&&e| town.placed.get(e).is_some_and(|p| p.owner == owner))
+                    .count() as i32
+            })
+        };
         let count = |p: usize| counts.get(p).copied().unwrap_or(0);
         for (i, row) in self.professions.iter().enumerate() {
             if let Some(s) = row.spinner {
@@ -105,13 +118,9 @@ impl TownHallUi {
                 ui.set_spinner_range(s, lo, hi);
             }
             set_number(ui, row.jobs, places.get(i).copied().unwrap_or(0));
-            set_number(
-                ui,
-                row.locations,
-                registry.get(&i).map_or(0, |w| w.len() as i32),
-            );
+            set_number(ui, row.locations, locations(i));
             if let Some(b) = row.goto {
-                ui.node_mut(b).enabled = registry.get(&i).is_some_and(|w| !w.is_empty());
+                ui.node_mut(b).enabled = locations(i) > 0;
             }
         }
     }

@@ -56,6 +56,7 @@ pub fn entity_views(
                 (site.happiness_registered && d.kind != 5).then_some(d.pad)
             });
             EntityView {
+                owner: p.owner,
                 alive: p.alive,
                 rect: if p.alive { rect } else { None },
                 use_points,

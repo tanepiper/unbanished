@@ -54,12 +54,13 @@ fn a_house_burns_and_is_rebuilt() {
     tool.hover(&town, &terrain, Some(spot), 0);
     let id = tool.place(&archive, &mut town, 0).unwrap();
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
     let (mut lit, mut fought, mut buckets) = (false, false, 0);
@@ -130,12 +131,13 @@ fn a_house_burns_and_is_rebuilt() {
                 town.cells.layer_totals[unbanished_game::disasters::fire::LAYER],
                 0
             );
-            town.construction.commands.push(
+            town.construction.commands.push((
+                0,
                 unbanished_game::work::professions::Command::StateMessage {
                     entity: id,
                     message: 0,
                 },
-            );
+            ));
         }
     }
     assert!(lit, "the house was not finished: {states:?}");
@@ -199,12 +201,13 @@ fn a_tornado_crosses_the_town() {
     tool.hover(&town, &terrain, Some(spot), 0);
     let house = tool.place(&archive, &mut town, 0).unwrap();
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
     let mut step = |town: &mut StartingTown, rng: &mut Random| {

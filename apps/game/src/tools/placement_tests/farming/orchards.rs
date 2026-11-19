@@ -72,12 +72,13 @@ fn arborists_plant_tend_and_pick_an_orchard() {
             &terrain,
         )
         .expect("the orchard was not placed");
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCrop {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCrop {
             entity: id,
             crop: Some(tree),
-        });
+        },
+    ));
     let arborist = town
         .construction
         .professions
@@ -85,12 +86,13 @@ fn arborists_plant_tend_and_pick_an_orchard() {
         .iter()
         .position(|p| p.reference.to_ascii_lowercase().ends_with(":farmer"))
         .expect("no farmer profession");
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: arborist,
             count: 2,
-        });
+        },
+    ));
     let fruit = town.templates[tree]
         .fruit
         .and_then(|f| f.pile)

@@ -258,7 +258,7 @@ impl GameplayLoop {
                 .sim
                 .town
                 .as_ref()
-                .and_then(|town| self.entities.click(ctx.ui, town, id));
+                .and_then(|town| self.entities.click(ctx.ui, town, self.sim.local_player, id));
             match clicked {
                 Some(WorkPlaceClick::Command(command)) => {
                     self.execute(ctx.archive, PlayerCommand::Town(command));

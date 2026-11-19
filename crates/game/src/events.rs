@@ -72,27 +72,19 @@ pub struct EventEntry {
     pub dated: bool,
 }
 
-/// The event log: its entries and which categories notify the player.
-#[derive(Debug, Clone)]
+// +0x10..+0x15
+/// The notify flags a new game starts with (old-age deaths off, the rest on), as in every
+/// inspected save. A separate towns game keeps one set per player (`Simulation::notify`), so
+/// these are not on the log itself.
+pub const NOTIFY_DEFAULT: [bool; 6] = [false, true, true, true, true, true];
+
+/// The event log: its entries.
+#[derive(Debug, Clone, Default)]
 pub struct EventLog {
     /// The entries.
     pub entries: Vec<EventEntry>,
-    // +0x10..+0x15
-    /// Notify flags per group (old age, deaths, disasters, storage, town, other), set by the Event
-    /// Log's checkboxes. Default as in every inspected save: old-age deaths off, the rest on.
-    pub notify: [bool; 6],
     /// Set when an event asks the game to slow down (option `AutoSlow`, types 11, 12, 30, 31).
     pub slow_request: bool,
-}
-
-impl Default for EventLog {
-    fn default() -> Self {
-        EventLog {
-            entries: Vec::new(),
-            notify: [false, true, true, true, true, true],
-            slow_request: false,
-        }
-    }
 }
 
 /// The colour of an event's severity, `0xAARRGGBB`.

@@ -16,7 +16,7 @@ fn windows_drag_by_their_title() {
             gameplay.screen.as_mut().unwrap(),
             ctx.archive,
             template,
-            None,
+            &unbanished_game::events::NOTIFY_DEFAULT,
             0,
         );
         gameplay
@@ -49,7 +49,7 @@ fn windows_drag_by_their_title() {
                 gameplay.screen.as_mut().unwrap(),
                 ctx.archive,
                 template,
-                None,
+                &unbanished_game::events::NOTIFY_DEFAULT,
                 0,
             );
         }
@@ -104,7 +104,7 @@ fn help_window_browses_the_pages() {
             gameplay.screen.as_mut().unwrap(),
             ctx.archive,
             r"Template\UtilityHelp.rsc:resource",
-            None,
+            &unbanished_game::events::NOTIFY_DEFAULT,
             0,
         );
         let root = gameplay.screen.as_ref().unwrap().root;
@@ -226,7 +226,7 @@ fn status_bar_layout_open_close_and_draw_leave_simulation_unchanged() {
                 gameplay.screen.as_mut().unwrap(),
                 ctx.archive,
                 "Template/StatusBar.rsc",
-                None,
+                &unbanished_game::events::NOTIFY_DEFAULT,
                 0,
             );
             gameplay.update_hud(ctx.ui);
@@ -263,10 +263,14 @@ fn event_ribbon_popup_and_goto() {
             let screen = g.screen.as_mut().unwrap();
             screen.layout(ctx.ui, (1280, 800));
             let width = g.toolbar.as_ref().unwrap().width(ctx.ui);
-            g.notify
-                .as_mut()
-                .unwrap()
-                .update(ctx.ui, screen, &g.sim.events, 0.1, width)
+            g.notify.as_mut().unwrap().update(
+                ctx.ui,
+                screen,
+                &g.sim.events,
+                g.sim.local_notify(),
+                0.1,
+                width,
+            )
         };
         frame(&mut gameplay, ctx);
         // Low food (no cell), a fire at a cell, and a type-26 event (popup, icon 12).

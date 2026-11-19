@@ -170,7 +170,14 @@ impl GameplayLoop {
         self.utility.update(ctx.ui, &self.status_values());
         if let (Some(notify), Some(screen)) = (self.notify.as_mut(), self.screen.as_mut()) {
             let width = self.toolbar.as_ref().map_or(0, |t| t.width(ctx.ui));
-            if notify.update(ctx.ui, screen, &self.sim.events, dt, width) {
+            if notify.update(
+                ctx.ui,
+                screen,
+                &self.sim.events,
+                self.sim.local_notify(),
+                dt,
+                width,
+            ) {
                 // `Scene::PlayEffect(WarningEffect, 1)`.
                 ctx.audio.play(
                     ctx.archive,
@@ -181,6 +188,7 @@ impl GameplayLoop {
         }
         if let Some(town) = &self.sim.town {
             let town_ctx = crate::ui::town_hall_ui::TownContext {
+                owner: self.sim.local_player,
                 stock_counts: &self.sim.local_stock().count,
                 statistics: &self.sim.statistics,
             };

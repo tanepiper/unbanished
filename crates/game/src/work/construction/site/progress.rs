@@ -23,8 +23,9 @@ pub struct Construction {
     pub site_list: Vec<usize>,
     /// Sites placed since the last iteration (activated before the next one).
     pub placed: Vec<usize>,
-    /// Player commands for the next iteration.
-    pub commands: Vec<Command>,
+    /// Player commands for the next iteration, each with the player whose command it was (a
+    /// separate towns game's queue may hold two players').
+    pub commands: Vec<(u8, Command)>,
     /// Loose raw-material piles (RawMaterialComponent), by entity.
     pub piles: BTreeMap<usize, Pile>,
     /// NaturalResourceComponent flag `0x100000`: a removal sequence holds the resource.

@@ -280,6 +280,7 @@ impl Sim<'_, '_> {
                     1,
                     false,
                     cell,
+                    self.placed[e].owner,
                     None,
                     &mut geometry,
                     self.rng,

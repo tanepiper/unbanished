@@ -60,12 +60,13 @@ fn gatherers_harvest_wild_food() {
         .iter()
         .position(|p| p.reference.to_ascii_lowercase().ends_with(":gatherer"))
         .expect("no gatherer profession");
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     warnings.limits[5] = 100_000;
     let wild = |town: &StartingTown| {
@@ -98,12 +99,13 @@ fn gatherers_harvest_wild_food() {
             .step(unbanished_game::scheduler::ticks(dt));
         if built_at.is_none() && town.construction.sites[&id].complete {
             built_at = Some(step);
-            town.construction.commands.push(
+            town.construction.commands.push((
+                0,
                 unbanished_game::work::professions::Command::SetCount {
                     profession: gatherer,
                     count: 2,
                 },
-            );
+            ));
         }
         let site = &town.construction.sites[&id];
         if let Some(a) = &site.auto_pickup {
@@ -201,12 +203,13 @@ fn foresters_plant_and_cut() {
         .iter()
         .position(|p| p.reference.to_ascii_lowercase().ends_with(":forester"))
         .expect("no forester profession");
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     warnings.limits[0] = 100_000;
     let saplings = |town: &StartingTown| {
@@ -231,12 +234,13 @@ fn foresters_plant_and_cut() {
         if built_at.is_none() && town.construction.sites[&id].complete {
             built_at = Some(step);
             base = saplings(&town);
-            town.construction.commands.push(
+            town.construction.commands.push((
+                0,
                 unbanished_game::work::professions::Command::SetCount {
                     profession: forester,
                     count: 2,
                 },
-            );
+            ));
         }
         if built_at.is_some() && planted_at.is_none() && saplings(&town) > base {
             planted_at = Some(step);
@@ -323,12 +327,13 @@ fn fishermen_land_fish() {
         .iter()
         .position(|p| p.reference.to_ascii_lowercase().ends_with(":fisherman"))
         .expect("no fisherman profession");
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     let fish = town
         .materials
         .iter()
@@ -349,12 +354,13 @@ fn fishermen_land_fish() {
             .step(unbanished_game::scheduler::ticks(dt));
         if built_at.is_none() && town.construction.sites[&id].complete {
             built_at = Some(step);
-            town.construction.commands.push(
+            town.construction.commands.push((
+                0,
                 unbanished_game::work::professions::Command::SetCount {
                     profession: fisherman,
                     count: 2,
                 },
-            );
+            ));
         }
         if town.construction.piles.values().any(|p| p.material == fish) {
             landed_at = Some(step);

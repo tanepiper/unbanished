@@ -54,6 +54,11 @@ The version is the engine's own (`banished --version`). The Banished version in 
 
 ### Fixed
 
+- In a separate towns game, each player's citizens keep to their own town: no one takes
+  another town's homes, jobs, school, chapel, doctor, healer, cemetery, storage, market or
+  loitering buildings, and the Town Hall and status bar show the local player's town.
+- In a separate towns game, an event-log checkbox belongs to the player who sets it; before,
+  it silenced or enabled that group for everyone.
 - In a multiplayer game, a resource limit or an event-log notification a player changes now
   changes on every player's computer. Before, it changed on that player's computer only, so
   the towns drifted apart until the next resync. Recordings and replays keep these changes too.

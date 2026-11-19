@@ -32,6 +32,9 @@ pub trait Search {
     fn priority(&self, workplace: usize) -> i32;
     /// `FUN_14011ada0`: the workplace's entrance can be reached from `cell`.
     fn reach(&mut self, cell: i32, workplace: usize) -> bool;
+    /// Whether citizen `c` and `entity` are the same player's: a separate towns game's
+    /// workplaces are per player, a single-player or shared-town game's are all player 0's.
+    fn same_owner(&self, citizen: usize, entity: usize) -> bool;
     /// The game's random generator (the reachability test and the hiring draw from it).
     fn rng(&mut self) -> &mut Random;
 }
@@ -193,6 +196,9 @@ pub struct Worker {
     // +0x208; desc+0x44 <= age
     /// `desc <= age` and no school: the citizens every search counts.
     pub adult: bool,
+    /// The citizen's player: 0 in a single-player game. A separate towns game's hiring takes
+    /// only the commanding town's citizens.
+    pub owner: u8,
     /// The profession.
     pub profession: usize,
     /// The workplace, if any.

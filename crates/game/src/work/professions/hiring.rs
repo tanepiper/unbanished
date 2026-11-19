@@ -3,16 +3,25 @@
 use super::*;
 
 impl Workforce {
-    /// Shuffle, then the first enabled workplace with a free place.
+    /// Shuffle, then the first enabled workplace with a free place. `owner` is the player whose
+    /// town hires: a separate towns game's workplaces are per player.
     ///
     /// Original: `FUN_1400925d0`.
-    pub fn free_workplace(&mut self, profession: usize, rng: &mut Random) -> Option<usize> {
+    pub fn free_workplace(
+        &mut self,
+        profession: usize,
+        rng: &mut Random,
+        owner: u8,
+        entity_owner: &dyn Fn(usize) -> u8,
+    ) -> Option<usize> {
         self.shuffle_workplaces(profession, rng);
         let list = self.registry.get(&profession)?;
-        list.iter().copied().find(|e| {
-            self.workplaces
-                .get(e)
-                .is_some_and(|w| (w.workers.len() as i32) < w.max() && w.enabled)
+        list.iter().copied().find(|&e| {
+            entity_owner(e) == owner
+                && self
+                    .workplaces
+                    .get(&e)
+                    .is_some_and(|w| (w.workers.len() as i32) < w.max() && w.enabled)
         })
     }
 
@@ -32,21 +41,25 @@ impl Workforce {
         homes: &BTreeMap<usize, Home>,
         map: &mut dyn StorageSearchMap,
         rng: &mut Random,
+        owner: u8,
     ) -> Option<usize> {
-        if let Some(c) = self.family_member(workers, laborer, profession, wp, homes, map, rng) {
+        if let Some(c) =
+            self.family_member(workers, laborer, profession, wp, homes, map, rng, owner)
+        {
             return Some(c);
         }
         if let Some(w) = wp {
-            if let Some(c) = self.nearest_laborer(workers, laborer, profession, w, map, rng) {
+            if let Some(c) = self.nearest_laborer(workers, laborer, profession, w, map, rng, owner)
+            {
                 return Some(c);
             }
         }
-        if let Some(c) = self.largest_family(workers, laborer, profession, wp, homes, rng) {
+        if let Some(c) = self.largest_family(workers, laborer, profession, wp, homes, rng, owner) {
             return Some(c);
         }
         let c = workers
             .iter()
-            .position(|w| w.adult && w.profession == laborer)?;
+            .position(|w| w.adult && w.profession == laborer && w.owner == owner)?;
         self.assign(workers, c, profession, wp);
         Some(c)
     }
@@ -64,14 +77,18 @@ impl Workforce {
         homes: &BTreeMap<usize, Home>,
         map: &mut dyn StorageSearchMap,
         rng: &mut Random,
+        owner: u8,
     ) -> Option<usize> {
         let target = wp.map_or(-1, |w| map.entrance(w, rng));
         let mut best = 0x7ffffff;
         let mut found: Option<(usize, usize)> = None;
-        let free =
-            |workers: &[Worker], m: usize| workers[m].adult && workers[m].profession == laborer;
+        let free = |workers: &[Worker], m: usize| {
+            workers[m].adult && workers[m].profession == laborer && workers[m].owner == owner
+        };
         for c in 0..workers.len() {
-            if !(workers[c].adult && workers[c].profession == profession) {
+            if !(workers[c].adult && workers[c].profession == profession)
+                || workers[c].owner != owner
+            {
                 continue;
             }
             let Some(home) = workers[c].home else {
@@ -117,12 +134,13 @@ impl Workforce {
         wp: usize,
         map: &mut dyn StorageSearchMap,
         rng: &mut Random,
+        owner: u8,
     ) -> Option<usize> {
         let target = map.entrance(wp, rng);
         let mut best = 0x7ffffff;
         let mut found = None;
         for (i, w) in workers.iter().enumerate() {
-            if !(w.adult && w.profession == laborer) {
+            if !(w.adult && w.profession == laborer) || w.owner != owner {
                 continue;
             }
             let Some(home) = w.home else { continue };
@@ -148,10 +166,12 @@ impl Workforce {
         wp: Option<usize>,
         homes: &BTreeMap<usize, Home>,
         rng: &mut Random,
+        owner: u8,
     ) -> Option<usize> {
         shuffle(&mut self.residences, rng);
-        let free =
-            |workers: &[Worker], m: usize| workers[m].adult && workers[m].profession == laborer;
+        let free = |workers: &[Worker], m: usize| {
+            workers[m].adult && workers[m].profession == laborer && workers[m].owner == owner
+        };
         let mut most = 0;
         let mut found = None;
         for &e in &self.residences {
@@ -173,7 +193,8 @@ impl Workforce {
     }
 
     /// One citizen of `profession` becomes a laborer: the first without a workplace, else the first
-    /// worker of the workplace with the most workers, else the first of that profession.
+    /// worker of the workplace with the most workers, else the first of that profession. `owner`
+    /// is the town whose workplaces and citizens count.
     ///
     /// Original: `FUN_140096650`.
     pub fn fire(
@@ -181,17 +202,21 @@ impl Workforce {
         workers: &mut [Worker],
         laborer: usize,
         profession: usize,
+        owner: u8,
+        entity_owner: &dyn Fn(usize) -> u8,
     ) -> Option<usize> {
-        if let Some(c) = workers
-            .iter()
-            .position(|w| w.adult && w.profession == profession && w.workplace.is_none())
-        {
+        if let Some(c) = workers.iter().position(|w| {
+            w.adult && w.profession == profession && w.workplace.is_none() && w.owner == owner
+        }) {
             self.assign(workers, c, laborer, None);
             return Some(c);
         }
         let mut most = 0;
         let mut chosen = None;
         for e in self.registry.get(&profession).into_iter().flatten() {
+            if entity_owner(*e) != owner {
+                continue;
+            }
             let n = self.workplaces.get(e).map_or(0, |w| w.workers.len());
             if most < n {
                 most = n;
@@ -205,7 +230,7 @@ impl Workforce {
         }
         let c = workers
             .iter()
-            .position(|w| w.adult && w.profession == profession)?;
+            .position(|w| w.adult && w.profession == profession && w.owner == owner)?;
         self.assign(workers, c, laborer, None);
         Some(c)
     }

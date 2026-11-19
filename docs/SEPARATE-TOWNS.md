@@ -20,11 +20,14 @@ town's state in two:
 | the job market, professions and workplaces | the calendar, the shared `Random`, the environment and weather |
 | stock: `materials`, `storages`, `storage_sites` | natural resource seeding and scheduled resources |
 | stock limits and warnings | disasters and tornadoes |
-| the start cell, the camera, open windows, window settings | the event log and its notify flags, statistics, achievements |
+| the event log's notify flags | the event log's entries, statistics, achievements |
+| the start cell, the camera, open windows, window settings | |
 
-The stock limit and the event log's notify flags are one per game (`Simulation::stock_warnings`,
-`Simulation::events`). A separate towns game has one stock table per player; the event log stays
-one, because every computer must post the same events in the same order to stay in step.
+The stock limit and the event log's notify flags are one per game
+(`Simulation::stock_warnings`, `Simulation::notify`). A separate towns game has one stock table
+and one set of notify flags per player; the event log's entries stay one, because every computer
+must post the same events in the same order to stay in step. The save writes the first player's
+notify flags (the vanilla file holds one set); the others start from it on load.
 
 ## The design
 
@@ -57,7 +60,12 @@ one, because every computer must post the same events in the same order to stay 
    (`crates/game/src/work/jobs/offers.rs:167`) is the single place a citizen's offers are
    chosen — it already filters them by the employing entity — so the player's owner goes there
    rather than in every caller. Same shape for stock: one storage list, filtered on the storage's
-   owner (`registered_storages_of`).
+   owner (`registered_storages_of`, `StorageSite::owner`, and the `owner` argument of the storage
+   searches). Every other pick a citizen makes is filtered the same way: its home, its spouse, its
+   workplace (professions and hiring), its school, chapel, doctor and healer, its cemetery, the
+   building it loiters at, and the storage it eats, warms, hauls or builds from.
+   `Search::same_owner`, `EntityView::owner` and `Workforce`'s `owner` and `entity_owner` carry
+   the answer.
 6. **Save.** The vanilla save has no owner field and must not grow one (1:1 with the original's
    format). Ownership is written beside it, in `NAME.owners` next to `NAME.sav`: the magic
    `UNBO\x02`, the players, each placed entity's and citizen's player keyed by its object id in
@@ -122,8 +130,8 @@ save as any other. Every player needs the same build, data and mods, as in a sha
 | 3 | `owner` on `Placed` and `Citizen`, set from `acting_player` | done: a two-owner town, owners kept through a save; single-player owners all 0 |
 | 4 | Stock per owner: `materials`, `storages`, the stock manager, limits and warnings | done: two towns' stock never mix; a player's limit does not apply to the other's; one table in a shared town |
 | 5 | Jobs per owner: `Jobs::sort`, professions, workplaces | done: a citizen takes only its owner's offers; the lockstep test's digests agree |
-| 6 | Citizens and agents per owner: `Env` carries each citizen's owner and every player's stock, so a workplace's rules read its own player's table (`Sim::stock_of`, `stock_of_citizen`) | done: the two-town lockstep games agree on every digest, so the shared `Random` draws in one order; a citizen is offered only its own town's work |
-| 7 | Drawing and picking: every owner's entities drawn, only the local player's picked | done: `GameplayLoop::may_select`, `apps/game/src/gameplay/tests/towns.rs`; the pick filter is a no-op with one town |
+| 6 | Citizens and agents per owner: `Env` carries each citizen's owner and every player's stock, so a workplace's rules read its own player's table (`Sim::stock_of`, `stock_of_citizen`) | done: the two-town lockstep games agree on every digest, so the shared `Random` draws in one order; a citizen is offered only its own town's work, home, spouse, school, chapel, doctor, healer, cemetery and loiter spot (`each_town_keeps_its_citizens`, which needs game data) |
+| 7 | Drawing and picking: every owner's entities drawn, only the local player's picked | done: `GameplayLoop::may_select`, `apps/game/src/gameplay/tests/towns.rs`; the pick filter is a no-op with one town. The Town Hall window shows the local player's counts, places, homes, citizens and inventory (`profession_counts(owner)`, `TownContext::owner`) |
 | 8 | Save and resync: ownership written beside the save, sent with `Message::Save` | done: a save of a two-town game reloads with the same owners; a resync agrees |
 | 9 | The lobby: the mode in `Message::Start`, refused by a build without it | done: `separate` in `Message::Start`; `a_room_refuses_a_save_of_the_other_mode` checks both refusals and the matching start; `tools/compat/multiplayer.sh towns` plays a two-town room over a relay |
 | 10 | The end-to-end test: a room of two separate towns over a simulated network | done: `tools/compat/lockstep.sh`'s separate-towns block runs both settings: every digest agrees, and the corrupted player is found and resynced |
@@ -160,9 +168,11 @@ On 2026-11-17, on the gaming PC (Linux, release build):
 
 ## Remaining gaps
 
-- **The event log and its notify flags are one per game.** A separate towns player's notify
-  checkbox turns off a group for everybody; a per-player log would need one log per player, all
-  posted in the same order, or a per-player filter at the window. *Open.*
+- **The event log's entries are one per game** (every town's warnings are posted to it, in one
+  order). Its notify flags are per player (`Simulation::notify`, `PlayerCommand::SetNotify`), so
+  one player's checkbox no longer silences another's ribbon; the save writes the first set,
+  which every computer agrees on. A per-player *log* would still need one log per player, all
+  posted in the same order, or a per-player filter at the window. *Open* for the entries only.
 - **Statistics are the towns added up.** The Town Info graphs show the game's total, not the
   local player's town. A per-player graph must still hash the same on every computer (the digest
   does not read them), so this is only an interface change. *Open.*

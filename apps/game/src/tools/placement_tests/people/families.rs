@@ -13,12 +13,13 @@ fn a_family_moves_in_stocks_the_house_and_has_a_child() {
         tool.hover(town, terrain, Some(spot), 0);
         let id = tool.place(archive, town, 0).unwrap();
         let builder = town.construction.professions.builder;
-        town.construction
-            .commands
-            .push(unbanished_game::work::professions::Command::SetCount {
+        town.construction.commands.push((
+            0,
+            unbanished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 2,
-            });
+            },
+        ));
         let mut built = false;
         for _ in 0..30 * 60 * 8 {
             step(town, terrain, rng, 50.0);
@@ -142,12 +143,13 @@ fn a_teacher_staffs_the_school_and_a_student_learns() {
         tool.hover(town, terrain, Some(spot), 0);
         let id = tool.place(archive, town, 0).unwrap();
         let builder = town.construction.professions.builder;
-        town.construction
-            .commands
-            .push(unbanished_game::work::professions::Command::SetCount {
+        town.construction.commands.push((
+            0,
+            unbanished_game::work::professions::Command::SetCount {
                 profession: builder,
                 count: 3,
-            });
+            },
+        ));
         let mut built = false;
         for _ in 0..30 * 60 * 12 {
             step(town, terrain, rng, 50.0);
@@ -159,9 +161,10 @@ fn a_teacher_staffs_the_school_and_a_student_learns() {
         assert!(built, "the school was not built");
         assert!(town.construction.attendance_list.contains(&id));
         let teacher = town.agents.life.services[0].expect("no teacher profession");
-        town.construction
-            .commands
-            .push(unbanished_game::work::professions::Command::AddWorker { entity: id });
+        town.construction.commands.push((
+            0,
+            unbanished_game::work::professions::Command::AddWorker { entity: id },
+        ));
         for _ in 0..60 {
             step(town, terrain, rng, 50.0);
         }

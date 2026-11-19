@@ -47,7 +47,7 @@ Deviation: 92, Not ported: 7, Not traced: 1.
 ## `apps/game/src/gameplay/frame.rs`
 
 - [Deviation] [apps/game/src/gameplay/frame.rs:55](../apps/game/src/gameplay/frame.rs#L55): `UserInterface::PausesGame`: FUN_14009b850 skips the simulation and the controller. Deviation: in a multiplayer game the pause menu does not hold the shared game.
-- [Deviation] [apps/game/src/gameplay/frame.rs:255](../apps/game/src/gameplay/frame.rs#L255): AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets the game speed (`Game +0x120 → +0x34`) back to 1. Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on each player's own setting.
+- [Deviation] [apps/game/src/gameplay/frame.rs:263](../apps/game/src/gameplay/frame.rs#L263): AutoSlow (settings `+0x17`): a fire, a blight, a tornado or a shortage (`FUN_14009a2d0`, `FUN_14009aa50`, `FUN_14009ac20` and the disasters themselves) sets the game speed (`Game +0x120 → +0x34`) back to 1. Deviation: in a multiplayer game AutoSlow is always on, so the speed does not depend on each player's own setting.
 
 ## `apps/game/src/gameplay/game_loop.rs`
 
@@ -194,7 +194,7 @@ Deviation: 92, Not ported: 7, Not traced: 1.
 
 ## `crates/game/src/behaviour/activities.rs`
 
-- [Deviation] [crates/game/src/behaviour/activities.rs:309](../crates/game/src/behaviour/activities.rs#L309): Scan 13 x 13 cells around the citizen (rows outer) for reachable map objects, then the home; pick one from the set. Deviation: the original's set is a tree keyed by each object's `Object::Internal` address, which depends on the allocator's history; the port uses creation order. Measured on the CrossOver pair (docs/ITERATION-ORDER.md): the pick differs at draw 815.
+- [Deviation] [crates/game/src/behaviour/activities.rs:324](../crates/game/src/behaviour/activities.rs#L324): Scan 13 x 13 cells around the citizen (rows outer) for reachable map objects, then the home; pick one from the set. Deviation: the original's set is a tree keyed by each object's `Object::Internal` address, which depends on the allocator's history; the port uses creation order. Measured on the CrossOver pair (docs/ITERATION-ORDER.md): the pick differs at draw 815.
 
 ## `crates/game/src/behaviour/agents.rs`
 
@@ -301,7 +301,7 @@ Deviation: 92, Not ported: 7, Not traced: 1.
 
 ## `crates/game/src/work/construction/site/progress.rs`
 
-- [Deviation] [crates/game/src/work/construction/site/progress.rs:96](../crates/game/src/work/construction/site/progress.rs#L96): Deviation: not in the original, which has one town. The living citizens of each player (a separate towns game), set with `population`.
+- [Deviation] [crates/game/src/work/construction/site/progress.rs:97](../crates/game/src/work/construction/site/progress.rs#L97): Deviation: not in the original, which has one town. The living citizens of each player (a separate towns game), set with `population`.
 
 ## `crates/game/src/world/placement.rs`
 

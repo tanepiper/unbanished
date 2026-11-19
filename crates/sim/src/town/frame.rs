@@ -171,6 +171,7 @@ impl StartingTown {
                     .filter(|_| c.alive)
             })
             .collect();
+        let owners: Vec<u8> = self.citizens.iter().map(|c| c.owner).collect();
         let mut env = unbanished_game::town::Env {
             wildlife: &mut self.wildlife,
             cells: &mut self.cells,
@@ -183,7 +184,7 @@ impl StartingTown {
             rng,
             construction: &mut self.construction,
             stock: &[[(0, 0); 21]],
-            owners: &[],
+            owners: &owners,
             temperature: 0.0,
         };
         let rules = self.rules;
@@ -331,6 +332,7 @@ impl StartingTown {
             }
             let t = &self.templates[self.placed[e].template];
             self.storage_sites.push(StorageSite {
+                owner: self.placed[e].owner,
                 entity: e,
                 storage: site.storage,
                 location_flags: t.storage_location_flags,
@@ -370,17 +372,24 @@ impl StartingTown {
     /// Adult counts per profession and each profession's workplace places.
     ///
     /// Original: `FUN_14007ba70`.
-    pub fn profession_counts(&self) -> (Vec<i32>, Vec<i32>) {
+    pub fn profession_counts(&self, owner: u8) -> (Vec<i32>, Vec<i32>) {
         let c = &self.construction;
         let mut counts = vec![0; c.professions.list.len().max(1)];
         for (citizen, state) in self.citizens.iter().zip(&self.agents.states) {
-            if citizen.alive && citizen.is_adult(&self.rules) && citizen.school.is_none() {
+            if citizen.owner == owner
+                && citizen.alive
+                && citizen.is_adult(&self.rules)
+                && citizen.school.is_none()
+            {
                 if let Some(n) = counts.get_mut(state.profession) {
                     *n += 1;
                 }
             }
         }
-        let capacity = (0..counts.len()).map(|p| c.workforce.capacity(p)).collect();
+        let entity_owner = |e: usize| self.placed.get(e).map_or(0, |p| p.owner);
+        let capacity = (0..counts.len())
+            .map(|p| c.workforce.capacity(p, owner, &entity_owner))
+            .collect();
         (counts, capacity)
     }
 }

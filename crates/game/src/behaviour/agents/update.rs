@@ -135,6 +135,7 @@ impl Agents {
                     (env.cells.size, env.terrain, env.sites, env.materials);
                 let floors = &env.cells.floors;
                 let sectors = &mut self.sectors;
+                let owner = citizens[i].owner;
                 let mut search = |storages: &[Storage],
                                   rng: &mut Random,
                                   m: usize,
@@ -156,6 +157,7 @@ impl Agents {
                         n,
                         true,
                         cell,
+                        owner,
                         None,
                         &mut geometry,
                         rng,

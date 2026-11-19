@@ -335,5 +335,77 @@ fn each_town_counts_its_own_population() {
         assert_eq!(c.populations, vec![count(0), count(1)]);
         assert_eq!(c.population, count(0) + count(1));
         assert!(count(1) > 0, "the second town has people");
+        // The town hall's professions are its own town's too.
+        let adults = |owner: u8| {
+            town.citizens
+                .iter()
+                .zip(&town.agents.states)
+                .filter(|(c, s)| {
+                    c.owner == owner && c.alive && c.is_adult(&town.rules) && s.school.is_none()
+                })
+                .count() as i32
+        };
+        for owner in 0..2 {
+            assert_eq!(
+                town.profession_counts(owner).0.iter().sum::<i32>(),
+                adults(owner)
+            );
+        }
+    });
+}
+
+/// Each town keeps its citizens to itself: no one lives, works, studies, worships or is treated
+/// in the other player's buildings, and every couple is one town's.
+#[test]
+fn each_town_keeps_its_citizens() {
+    let Some((mut game, mut gameplay)) = generated_players(2) else {
+        return;
+    };
+    game.with_ctx(|_, ctx| {
+        gameplay.paused = false;
+        gameplay.speed = 3;
+        for _ in 0..150 {
+            gameplay.update(ctx, 1.0 / 30.0);
+        }
+        let town = gameplay.sim.town.as_ref().unwrap();
+        let owner_of = |e: usize| town.placed.get(e).map_or(0, |p| p.owner);
+        let mut homed = [0; 2];
+        for (c, state) in town.agents.states.iter().enumerate() {
+            let Some(citizen) = town.citizens.get(c) else {
+                continue;
+            };
+            if !citizen.alive {
+                continue;
+            }
+            let owner = citizen.owner;
+            for (what, e) in [
+                ("home", state.home),
+                ("workplace", state.workplace),
+                ("school", state.school),
+                ("doctor", state.doctor),
+                ("chapel", state.priest),
+            ] {
+                if let Some(e) = e {
+                    assert_eq!(
+                        owner_of(e),
+                        owner,
+                        "citizen {c}'s {what} ({e}) is another town's"
+                    );
+                }
+            }
+            if state.home.is_some() {
+                homed[usize::from(owner.min(1))] += 1;
+            }
+            if let Some(s) = citizen.spouse {
+                assert_eq!(
+                    town.citizens[s].owner, owner,
+                    "citizen {c}'s spouse is another town's"
+                );
+            }
+        }
+        assert!(
+            homed[0] > 0 && homed[1] > 0,
+            "both towns' citizens found homes: {homed:?}"
+        );
     });
 }

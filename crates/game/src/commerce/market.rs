@@ -140,8 +140,13 @@ impl Sim<'_, '_> {
                 }
             }
         }
-        // What the town's storages hold (not the workshops').
-        for site in self.storage_sites.iter().filter(|s| s.radius.is_none()) {
+        // What the town's storages hold (not the workshops'), the market's own town's.
+        let market_owner = self.placed[e].owner;
+        for site in self
+            .storage_sites
+            .iter()
+            .filter(|s| s.radius.is_none() && s.owner == market_owner)
+        {
             if self.produces(site.entity) {
                 continue;
             }
@@ -186,7 +191,9 @@ impl Sim<'_, '_> {
                 if amount <= 0 {
                     continue;
                 }
-                let Some(found) = self.find_storage_excluding(m, amount, true, here, e) else {
+                let Some(found) =
+                    self.find_storage_excluding(m, amount, true, here, e, self.placed[e].owner)
+                else {
                     continue;
                 };
                 let source = self.market_point(e);
@@ -235,7 +242,7 @@ impl Sim<'_, '_> {
             .storage_sites
             .iter()
             .enumerate()
-            .filter(|(_, s)| s.radius.is_none())
+            .filter(|(_, s)| s.radius.is_none() && s.owner == market_owner)
             .map(|(k, s)| (k, s.entity, s.storage))
             .collect();
         for (k, entity, s) in sites {

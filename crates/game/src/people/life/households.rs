@@ -137,7 +137,8 @@ impl People<'_, '_> {
         let me = &self.citizens[c];
         self.registry.iter().copied().find(|&i| {
             let o = &self.citizens[i];
-            o.male != me.male
+            o.owner == me.owner
+                && o.male != me.male
                 && o.spouse.is_none()
                 && r.f(0x48) < o.age
                 && (o.age - me.age).abs() <= r.f(0x4c)
@@ -149,9 +150,14 @@ impl People<'_, '_> {
     /// shared home or homeless waits for one; else the first free family slot of a
     /// single-family residence reachable from `c`, else (with `shared`) the first shared one.
     pub(super) fn find_home(&mut self, c: usize, shared: bool) -> Option<(usize, i32)> {
+        // A separate towns game's homes are its own.
+        let owner = self.citizens[c].owner;
+        let ours =
+            |entities: &[EntityView], e: usize| entities.get(e).is_some_and(|v| v.owner == owner);
         if let Some(p) = self.citizens[c].spouse {
             if let Some(home) = self.states[p].home {
-                if self.reaches(c, home)
+                if ours(self.town.entities, home)
+                    && self.reaches(c, home)
                     && self.homes.get(&home).is_some_and(|h| h.families.len() < 2)
                 {
                     return Some((home, self.states[p].home_slot));
@@ -164,7 +170,11 @@ impl People<'_, '_> {
             let single = self.homes.get(&mine).is_some_and(|h| h.families.len() == 1);
             let adult = self.rules.adult_age();
             for &o in self.registry.iter() {
-                if o == c || self.citizens[o].age < adult || self.states[o].school.is_some() {
+                if o == c
+                    || self.citizens[o].owner != owner
+                    || self.citizens[o].age < adult
+                    || self.states[o].school.is_some()
+                {
                     continue;
                 }
                 let h = self.states[o].home?;
@@ -176,6 +186,9 @@ impl People<'_, '_> {
         let cell = self.cell(c);
         let mut fallback = None;
         for e in self.workforce.residences.clone() {
+            if !ours(self.town.entities, e) {
+                continue;
+            }
             let Some(home) = self.homes.get(&e) else {
                 continue;
             };

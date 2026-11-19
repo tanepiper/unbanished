@@ -42,12 +42,13 @@ fn a_well_registers_its_happiness() {
     tool.hover(&town, &terrain, spot, 0);
     let id = tool.place(&archive, &mut town, 0).unwrap();
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
     let mut registered_at = None;
@@ -163,9 +164,10 @@ fn vendors_stock_a_market() {
         .position(|p| p.reference.to_ascii_lowercase().ends_with(":vendor"))
         .expect("no vendor profession");
     for (profession, count) in [(builder, 4), (vendor, 2)] {
-        town.construction
-            .commands
-            .push(unbanished_game::work::professions::Command::SetCount { profession, count });
+        town.construction.commands.push((
+            0,
+            unbanished_game::work::professions::Command::SetCount { profession, count },
+        ));
     }
     let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
