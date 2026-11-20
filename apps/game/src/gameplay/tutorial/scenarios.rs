@@ -108,6 +108,8 @@ pub fn scenario_params(
         seed: s.i60 as u32,
         disasters: s.b68,
         scenario: Some(index),
+        // A tutorial is one player's.
+        players: 1,
     }
 }
 

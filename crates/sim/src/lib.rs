@@ -8,6 +8,7 @@ pub mod achievements;
 pub mod command;
 pub mod hooks;
 pub mod mods;
+pub mod owners;
 pub mod saved;
 pub mod simulation;
 pub mod strings;

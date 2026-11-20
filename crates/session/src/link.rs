@@ -22,9 +22,9 @@ pub trait Link {
     fn joined(&mut self) -> Vec<u8> {
         Vec::new()
     }
-    /// Gives the server the host's town to keep (a save made at `update`). False when the
-    /// server keeps no rooms.
-    fn keep(&mut self, _update: u64, _bytes: &[u8]) -> bool {
+    /// Gives the server the host's town to keep (a save made at `update`, with a separate
+    /// towns game's owners). False when the server keeps no rooms.
+    fn keep(&mut self, _update: u64, _bytes: &[u8], _owners: &[u8]) -> bool {
         false
     }
     /// Sends this game's digest of `update` (made in `epoch`) to a server that checks the
@@ -125,11 +125,14 @@ impl Link for RelayLink {
         std::mem::take(&mut self.arrived)
     }
 
-    fn keep(&mut self, update: u64, bytes: &[u8]) -> bool {
+    fn keep(&mut self, update: u64, bytes: &[u8], owners: &[u8]) -> bool {
         if self.keeps {
-            let bytes = bytes.to_vec();
-            self.connection
-                .send(unbanished_net::ToRelay::Keep { update, bytes });
+            let (bytes, owners) = (bytes.to_vec(), owners.to_vec());
+            self.connection.send(unbanished_net::ToRelay::Keep {
+                update,
+                bytes,
+                owners,
+            });
         }
         self.keeps
     }
@@ -167,8 +170,8 @@ impl<L: Link> Link for Shared<L> {
         self.0.borrow_mut().joined()
     }
 
-    fn keep(&mut self, update: u64, bytes: &[u8]) -> bool {
-        self.0.borrow_mut().keep(update, bytes)
+    fn keep(&mut self, update: u64, bytes: &[u8], owners: &[u8]) -> bool {
+        self.0.borrow_mut().keep(update, bytes, owners)
     }
 
     fn send_digest(&mut self, epoch: u32, update: u64, crc: u32) -> bool {

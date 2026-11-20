@@ -70,12 +70,13 @@ fn the_dead_are_buried_in_the_cemetery() {
         )
         .expect("the cemetery was not placed");
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 4,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings {
         limits: [100_000; 21],
         ..Default::default()
@@ -87,7 +88,7 @@ fn the_dead_are_buried_in_the_cemetery() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 60.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 60.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 60.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -180,12 +181,13 @@ fn a_builder_dies_in_an_accident() {
         .expect("no spot");
     tool.hover(&town, &terrain, Some(spot), 0);
     tool.place(&archive, &mut town, 0).unwrap();
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
     let mut events = Vec::new();
@@ -193,7 +195,7 @@ fn a_builder_dies_in_an_accident() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs

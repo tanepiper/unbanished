@@ -15,6 +15,9 @@ pub struct SavedGame {
     /// thousand times; reading `entity.components` again for every lookup took about 600 ms.
     /// `state.objects` must not change once a lookup has been made.
     components: std::sync::OnceLock<Option<ComponentIndex>>,
+    /// A separate towns game's ownership, read from the sidecar beside the save
+    /// ([`crate::owners::Owners`]); None for a save without one.
+    pub owners: Option<crate::owners::Owners>,
 }
 
 /// [`SavedGame::read_components`] for every object of a save, by object number (the numbers
@@ -49,7 +52,14 @@ impl SavedGame {
             state,
             metadata,
             components: Default::default(),
+            owners: None,
         }
+    }
+
+    /// The save with the owners sidecar's bytes attached, when they decode.
+    pub fn with_owners(mut self, bytes: &[u8]) -> SavedGame {
+        self.owners = crate::owners::Owners::decode(bytes);
+        self
     }
 
     /// An external reference id's path (`u32::MAX` is none).
@@ -83,6 +93,9 @@ impl SavedGame {
             // `Game +0xd0`: 0 with disasters, `0xf0` without (`FUN_14009d530`).
             disasters: g.flags & 0xf0 == 0,
             scenario: (g.scenario >= 0).then_some(g.scenario as usize),
+            // A save's own blocks have no players; a separate towns game writes them beside it
+            // (docs/SEPARATE-TOWNS.md) and the loader sets this again.
+            players: 1,
         }
     }
 
@@ -171,17 +184,26 @@ impl SavedGame {
         );
     }
 
-    /// The event log: the notify flags and every entry with its text.
+    /// The event log's notify flags (one set in the save; every player starts from it).
     ///
     /// Original: `FUN_14009a790`.
-    pub fn event_log(&self) -> unbanished_game::events::EventLog {
+    pub fn notify(&self) -> [bool; 6] {
         let m = &self.state.managers;
-        let mut log = unbanished_game::events::EventLog::default();
-        for (k, n) in log.notify.iter_mut().enumerate() {
+        let mut notify = unbanished_game::events::NOTIFY_DEFAULT;
+        for (k, n) in notify.iter_mut().enumerate() {
             if let Some(Value::Bool(b)) = m.at(&format!("event_log.notify_{k}")) {
                 *n = *b;
             }
         }
+        notify
+    }
+
+    /// The event log's entries with their text.
+    ///
+    /// Original: `FUN_14009a790`.
+    pub fn event_log(&self) -> unbanished_game::events::EventLog {
+        let mut log = unbanished_game::events::EventLog::default();
+        let m = &self.state.managers;
         if let Some(Value::List(entries)) = m.at("event_log.entries") {
             log.entries = entries
                 .iter()

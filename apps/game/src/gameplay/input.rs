@@ -47,6 +47,8 @@ impl GameplayLoop {
                         .eq_ignore_ascii_case(r.select.split(':').next().unwrap_or(""))
             })
         });
+        // A separate towns game picks only this computer's own town.
+        let picked = picked.filter(|&e| self.may_select(town, e));
         if let Some(entity) = picked {
             if self.selection.selected != Some(entity) {
                 self.selection.selected = Some(entity);
@@ -56,6 +58,32 @@ impl GameplayLoop {
                         .select(ctx.ui, screen, ctx.archive, town, entity);
                 }
             }
+        }
+    }
+
+    // Deviation: not in the original, which has one player's town to pick from.
+    /// Whether this computer may select `e`: in a separate towns game its own player's
+    /// buildings and citizens, and the world's (natural resources, animals, a tornado), which
+    /// are every player's; another player's are drawn but not selectable
+    /// (docs/SEPARATE-TOWNS.md). In a single-player or shared town game, anything.
+    pub(super) fn may_select(&self, town: &StartingTown, e: Entity) -> bool {
+        if !self.sim.separate() {
+            return true;
+        }
+        let local = self.sim.local_player;
+        let world = |i: usize, p: &unbanished_game::nature::seeding::Placed| {
+            let t = &town.templates[p.template];
+            p.owner == 0
+                && (t.natural.is_some()
+                    || t.tornado.is_some()
+                    || town.wildlife.animals.contains_key(&i))
+        };
+        match e {
+            Entity::Placed(i) => town
+                .placed
+                .get(i)
+                .is_none_or(|p| p.owner == local || world(i, p)),
+            Entity::Citizen(i) => town.citizens.get(i).is_none_or(|c| c.owner == local),
         }
     }
 
@@ -356,7 +384,7 @@ impl GameplayLoop {
                     screen,
                     ctx.archive,
                     &template,
-                    Some(&self.sim.events),
+                    self.sim.local_notify(),
                     map_size,
                 );
             }

@@ -86,6 +86,8 @@ impl Sim<'_, '_> {
         };
         let professions = self.professions;
         let anywhere = |p: usize| professions.works_anywhere(p);
+        let owner_list: &[u8] = self.owners;
+        let owners = |c: usize| owner_list.get(c).copied().unwrap_or(0);
         let sites = &*self.sites;
         let priority = |e: usize| {
             sites
@@ -95,6 +97,7 @@ impl Sim<'_, '_> {
         };
         let mut search = crate::behaviour::activities::TownSearch {
             town: &town,
+            owners: &owners,
             cell: &cell,
             anywhere: &anywhere,
             priority: &priority,

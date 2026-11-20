@@ -35,6 +35,13 @@ The version is the engine's own (`banished --version`). The Banished version in 
 - `--sim-continue --loiter-picks FILE` makes a loitering citizen pick the same objects as the
   original did, from a list `tools/triage/loiter_picks.py` makes from a trace of the original,
   so a comparison can go past the picks that depend on the original's memory addresses.
+- Multiplayer: separate towns, a town for each player on one map (not in the original; see
+  [docs/SEPARATE-TOWNS.md](docs/SEPARATE-TOWNS.md)). Create the save with
+  `UNBANISHED_SEPARATE_TOWNS=N` set and a New Game, then host it as any other save: each player
+  gets a start, a household and starting goods of their own, builds only in their own town, and
+  picks only its buildings and citizens, while the map, wildlife and Random stay shared. The
+  owners are written beside the save (`NAME.owners`) and travel with every resync, so a single
+  player game's save and the original's format are unchanged.
 
 ### Changed
 
@@ -42,9 +49,19 @@ The version is the engine's own (`banished --version`). The Banished version in 
   draws 4, and the ambience and the music draw too. A game saved after using the game menu
   now keeps the same random state as the original. Multiplayer games, recordings and replays
   keep a separate Random for the sounds.
+- A recording of a multiplayer game says whose command each entry was, so a replay carries it
+  out for that player. A single-player recording is unchanged, byte for byte.
 
 ### Fixed
 
+- In a separate towns game, each player's citizens keep to their own town: no one takes
+  another town's homes, jobs, school, chapel, doctor, healer, cemetery, storage, market or
+  loitering buildings, and the Town Hall and status bar show the local player's town.
+- In a separate towns game, an event-log checkbox belongs to the player who sets it; before,
+  it silenced or enabled that group for everyone.
+- In a multiplayer game, a resource limit or an event-log notification a player changes now
+  changes on every player's computer. Before, it changed on that player's computer only, so
+  the towns drifted apart until the next resync. Recordings and replays keep these changes too.
 - A citizen who was eating when the game saved finishes the meal after a load. The port lost
   the storage the meal came from.
 - A citizen's decision made when its actions ran out no longer calls the citizen back when its

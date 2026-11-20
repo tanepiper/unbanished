@@ -22,6 +22,9 @@ pub struct WorldParams {
     ///
     /// Original: `FUN_1400b9a10`.
     pub scenario: Option<usize>,
+    /// The players the town is for: one in a single-player game, and one town per player on
+    /// the same map in a separate towns game (docs/SEPARATE-TOWNS.md). The lobby sets it.
+    pub players: u8,
 }
 
 impl Default for WorldParams {
@@ -37,6 +40,7 @@ impl Default for WorldParams {
             seed: 290,
             disasters: true,
             scenario: None,
+            players: 1,
         }
     }
 }

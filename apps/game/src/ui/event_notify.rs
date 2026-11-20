@@ -78,6 +78,7 @@ impl NotifyState {
     pub fn update(
         &mut self,
         log: &EventLog,
+        notify: &[bool; 6],
         mut text: impl FnMut(usize) -> String,
         dt: f32,
     ) -> (Vec<usize>, bool) {
@@ -91,7 +92,7 @@ impl NotifyState {
         if self.last_seen < last {
             for i in (self.last_seen + 1).max(0)..=last {
                 let e = &log.entries[i as usize];
-                if e.severity <= 0 || !log.notify[notify_group(e.kind)] || e.category < 0 {
+                if e.severity <= 0 || !notify[notify_group(e.kind)] || e.category < 0 {
                     continue;
                 }
                 if e.icon >= 0 {
@@ -177,11 +178,13 @@ impl EventNotify {
         ui: &mut Ui,
         screen: &mut Screen,
         log: &EventLog,
+        notify: &[bool; 6],
         dt: f32,
         toolbar_width: i32,
     ) -> bool {
         let (popups, added) = self.state.update(
             log,
+            notify,
             |i| crate::ui::utility::format_event(ui, &log.entries[i]),
             dt,
         );
@@ -314,17 +317,32 @@ mod tests {
         let mut s = NotifyState::new(&log, 6);
         // An entry added before the first update is skipped.
         log.add(22, 3, -1, 0, 1, Default::default(), false);
-        s.update(&log, |_| String::new(), 0.0);
+        s.update(
+            &log,
+            &unbanished_game::events::NOTIFY_DEFAULT,
+            |_| String::new(),
+            0.0,
+        );
         assert!(s.notes.is_empty());
         let mut log = log_with(&[]);
         let mut s = NotifyState::new(&log, 6);
-        s.update(&log, |_| String::new(), 0.0);
+        s.update(
+            &log,
+            &unbanished_game::events::NOTIFY_DEFAULT,
+            |_| String::new(),
+            0.0,
+        );
         log.add(22, 3, -1, 0, 1, Default::default(), false);
         // Low food (storage group, severity 3), a coming of age (category -1), a tornado.
         log.add(22, 3, -1, 0, 1, Default::default(), false);
         log.add(9, 0, -1, 0, 1, Default::default(), false);
         log.add(30, 3, -1, 0, 1, Default::default(), false);
-        let (popups, added) = s.update(&log, |_| "Spring 1: x".into(), 0.0);
+        let (popups, added) = s.update(
+            &log,
+            &unbanished_game::events::NOTIFY_DEFAULT,
+            |_| "Spring 1: x".into(),
+            0.0,
+        );
         assert!(added && popups.is_empty());
         assert_eq!(
             s.notes.iter().map(|n| n.entry).collect::<Vec<_>>(),
@@ -332,16 +350,30 @@ mod tests {
         );
         assert_eq!(s.notes[0].text, "x");
         // Nothing new: no sound.
-        assert!(!s.update(&log, |_| String::new(), 29.0).1);
+        assert!(
+            !s.update(
+                &log,
+                &unbanished_game::events::NOTIFY_DEFAULT,
+                |_| String::new(),
+                29.0
+            )
+            .1
+        );
         assert_eq!(s.notes.len(), 3);
-        s.update(&log, |_| String::new(), 1.0);
+        s.update(
+            &log,
+            &unbanished_game::events::NOTIFY_DEFAULT,
+            |_| String::new(),
+            1.0,
+        );
         assert!(s.notes.is_empty());
     }
 
     #[test]
     fn disabled_group_and_capacity() {
         let mut log = log_with(&[]);
-        log.notify[3] = false;
+        let mut notify = unbanished_game::events::NOTIFY_DEFAULT;
+        notify[3] = false;
         let mut s = NotifyState::new(&log, 2);
         for _ in 0..4 {
             log.add(17, 3, -1, 0, 1, Default::default(), false);
@@ -349,7 +381,7 @@ mod tests {
         log.add(31, 3, -1, 0, 1, Default::default(), false);
         log.add(0x1a, 3, -1, 0, 1, Default::default(), false);
         log.add(0x1e, 3, -1, 0, 1, Default::default(), false);
-        let (popups, _) = s.update(&log, |_| String::new(), 0.0);
+        let (popups, _) = s.update(&log, &notify, |_| String::new(), 0.0);
         // Storage warnings are off; types 26 (icon 12) opens a popup; the oldest drops.
         assert_eq!(popups, vec![5]);
         assert_eq!(

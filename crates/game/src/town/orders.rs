@@ -7,9 +7,11 @@ impl Sim<'_, '_> {
     pub fn workers(&self) -> Vec<Worker> {
         self.states
             .iter()
+            .enumerate()
             .zip(self.adult)
-            .map(|(s, &adult)| Worker {
+            .map(|((c, s), &adult)| Worker {
                 adult,
+                owner: self.owners.get(c).copied().unwrap_or(0),
                 profession: s.profession,
                 workplace: s.workplace,
                 home: s.home,

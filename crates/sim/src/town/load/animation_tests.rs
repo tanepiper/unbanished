@@ -93,7 +93,7 @@ fn vanilla_saves_restore_animation() {
             town.iterate(&grid, &mut rng, dt, 50.0);
             let warnings = unbanished_game::events::StockWarnings::default();
             let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-            town.update_citizens(&grid, &mut rng, dt, 50.0, stock);
+            town.update_citizens(&grid, &mut rng, dt, 50.0, &[stock]);
         }
         let moved = walking
             .iter()

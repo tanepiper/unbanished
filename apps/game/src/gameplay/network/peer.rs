@@ -47,19 +47,24 @@ impl NetPeer {
         &mut self,
         ctx: &mut Ctx,
         bytes: Vec<u8>,
+        owners: Vec<u8>,
         players: u8,
         delay: u64,
     ) -> Result<(), String> {
         // A server that keeps rooms keeps the town from its start.
         if let Some(link) = &mut self.link {
-            link.keep(0, &bytes);
+            link.keep(0, &bytes, &owners);
         }
+        let separate =
+            unbanished_sim::owners::Owners::decode(&owners).is_some_and(|o| o.separate());
         let start = Message::Start {
             players,
             delay,
             check: self.check,
             absent: Vec::new(),
             bytes,
+            owners,
+            separate,
             update: 0,
             epoch: 0,
             speed: 0,
@@ -111,9 +116,9 @@ impl NetPeer {
             return Ok(any);
         };
         let (any, reload) = g.net_poll();
-        if let Some((bytes, update)) = reload {
+        if let Some(save) = reload {
             let old = self.game.take().unwrap();
-            self.game = Some(old.reloaded(ctx, &bytes, update)?);
+            self.game = Some(old.reloaded(ctx, &save)?);
         }
         Ok(any)
     }
@@ -130,9 +135,9 @@ impl NetPeer {
     /// At an update boundary: the host's resync, then the digest checks.
     pub fn boundary(&mut self, ctx: &mut Ctx, update: u64) -> Result<(), String> {
         let g = self.game.as_mut().ok_or("no game")?;
-        if let Some((bytes, update)) = g.net_boundary(ctx, update)? {
+        if let Some(save) = g.net_boundary(ctx, update)? {
             let old = self.game.take().unwrap();
-            self.game = Some(old.reloaded(ctx, &bytes, update)?);
+            self.game = Some(old.reloaded(ctx, &save)?);
         }
         Ok(())
     }

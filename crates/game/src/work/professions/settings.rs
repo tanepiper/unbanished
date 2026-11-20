@@ -3,12 +3,12 @@
 use super::*;
 
 impl Workforce {
-    /// Adults per profession.
+    /// Adults per profession, `owner`'s town's (a separate towns game's town hall).
     ///
     /// Original: `FUN_14007ba70` (counts).
-    pub fn counts(&self, workers: &[Worker], professions: usize) -> Vec<i32> {
+    pub fn counts(&self, workers: &[Worker], professions: usize, owner: u8) -> Vec<i32> {
         let mut out = vec![0; professions];
-        for w in workers.iter().filter(|w| w.adult) {
+        for w in workers.iter().filter(|w| w.adult && w.owner == owner) {
             if let Some(n) = out.get_mut(w.profession) {
                 *n += 1;
             }
@@ -16,23 +16,31 @@ impl Workforce {
         out
     }
 
-    /// The most workers of every enabled workplace of a profession.
+    /// The most workers of every enabled workplace of a profession, `owner`'s town's.
     ///
     /// Original: `FUN_14007ba70` ("of N").
-    pub fn capacity(&self, profession: usize) -> i32 {
+    pub fn capacity(
+        &self,
+        profession: usize,
+        owner: u8,
+        entity_owner: &dyn Fn(usize) -> u8,
+    ) -> i32 {
         self.registry
             .get(&profession)
             .into_iter()
             .flatten()
+            .filter(|e| entity_owner(**e) == owner)
             .filter_map(|e| self.workplaces.get(e))
             .filter(|w| w.enabled)
             .map(|w| w.max())
             .sum()
     }
 
-    /// Move the profession's count toward `count`, one citizen at a time.
+    /// Move the profession's count toward `count`, one citizen at a time. `owner` is the town
+    /// whose town hall sets it: only its workplaces and citizens are hired or fired.
     ///
     /// Original: `FUN_14007b890`.
+    #[allow(clippy::too_many_arguments)]
     pub fn set_count(
         &mut self,
         workers: &mut [Worker],
@@ -42,10 +50,12 @@ impl Workforce {
         homes: &BTreeMap<usize, Home>,
         map: &mut dyn StorageSearchMap,
         rng: &mut Random,
+        owner: u8,
+        entity_owner: &dyn Fn(usize) -> u8,
     ) {
-        let current = self.counts(workers, professions.list.len())[profession];
+        let current = self.counts(workers, professions.list.len(), owner)[profession];
         for _ in current..count {
-            let wp = self.free_workplace(profession, rng);
+            let wp = self.free_workplace(profession, rng, owner, entity_owner);
             self.hire(
                 workers,
                 professions.laborer,
@@ -54,10 +64,17 @@ impl Workforce {
                 homes,
                 map,
                 rng,
+                owner,
             );
         }
         for _ in count..current {
-            self.fire(workers, professions.laborer, profession);
+            self.fire(
+                workers,
+                professions.laborer,
+                profession,
+                owner,
+                entity_owner,
+            );
         }
     }
 
@@ -148,7 +165,7 @@ impl Workforce {
                 continue;
             };
             let free = w.max() - w.workers.len() as i32;
-            if free <= 0 || !w.enabled || !search.reach(cell, e) {
+            if free <= 0 || !w.enabled || !search.reach(cell, e) || !search.same_owner(c, e) {
                 continue;
             }
             if anywhere {
@@ -186,7 +203,7 @@ impl Workforce {
                 let Some(w) = self.workplaces.get(&e) else {
                     continue;
                 };
-                if !w.enabled || !search.reach(cell, e) {
+                if !w.enabled || !search.reach(cell, e) || !search.same_owner(c, e) {
                     continue;
                 }
                 let free = w.max() - w.workers.len() as i32;
@@ -208,6 +225,7 @@ impl Workforce {
         }
         list.into_iter().any(|e| {
             e != current
+                && search.same_owner(c, e)
                 && self
                     .workplaces
                     .get(&e)

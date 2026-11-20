@@ -28,7 +28,7 @@ use std::collections::BTreeMap;
 
 use unbanished_formats::game::{CitizenDescription, Disease, ResidenceDescription};
 
-use crate::behaviour::activities::TownView;
+use crate::behaviour::activities::{EntityView, TownView};
 use crate::behaviour::agents::CitizenState;
 use crate::pathfind::WALKABLE;
 use crate::people::citizens::Citizen;

@@ -109,7 +109,7 @@ impl Jobs {
                 lists.push(&[CONSTRUCTION]);
             }
             for (slot, categories) in EMERGENCY_LISTS {
-                let (count, limit) = host.stock(slot);
+                let (count, limit) = host.stock(citizen, slot);
                 if count <= limit / 10 {
                     lists.push(categories);
                 }
@@ -173,10 +173,16 @@ impl Jobs {
         host: &mut impl WorkHost,
     ) -> Vec<i32> {
         let from = host.cell(citizen);
-        let mut keyed: Vec<(i32, i32)> = set
+        // A citizen is offered only the work of its own player's town.
+        let mine = host.citizen_owner(citizen);
+        let mut works: Vec<&Work> = set
             .iter()
             .filter_map(|id| self.works.get(id))
             .filter(|w| owner.is_none_or(|o| w.entity == o))
+            .collect();
+        works.retain(|w| host.entity_owner(w.entity) == mine);
+        let mut keyed: Vec<(i32, i32)> = works
+            .into_iter()
             .map(|w| {
                 let key = if by_distance {
                     host.rank(from, w.cell)

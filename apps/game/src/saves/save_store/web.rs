@@ -332,6 +332,18 @@ pub fn write(name: &str, bytes: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+/// A separate towns game's owners sidecar: the browser build has no load path yet, so nothing
+/// reads it back (`docs/SEPARATE-TOWNS.md`).
+pub fn write_owners(_name: &str, _bytes: &[u8]) -> Result<(), String> {
+    Ok(())
+}
+
+pub fn read_owners(_name: &str) -> Option<Vec<u8>> {
+    None
+}
+
+pub fn delete_owners(_name: &str) {}
+
 pub fn delete(name: &str) {
     MIRROR.with(|m| m.borrow_mut().retain(|e| e.name != name));
     let name = name.to_string();

@@ -40,7 +40,7 @@ fn sim_digests(game: &mut crate::Game, save: &[u8], updates: u32, every: u32) ->
         // The server's strings (no interface): the digests must still be the game's.
         let mut strings = unbanished_sim::strings::ArchiveStrings::new(ctx.archive);
         let digest = |sim: &Simulation, strings: &mut unbanished_sim::strings::ArchiveStrings| {
-            let mut state = sim.saved_state(ctx.archive, strings, &saved, &params.town_name);
+            let (mut state, _) = sim.saved_state(ctx.archive, strings, &saved, &params.town_name);
             for object in state.objects.values_mut() {
                 if object.type_name == "UIComponent" {
                     object.fields.set(

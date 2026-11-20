@@ -49,12 +49,13 @@ fn an_empty_house_is_cleared() {
     tool.hover(&town, &terrain, Some(spot), 0);
     let id = tool.place(&archive, &mut town, 0).unwrap();
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     // Food the house can hold.
     let food = (0..town.materials.len())
         .find(|&m| unbanished_game::work::stock::stock_slot(town.materials[m].flags) == Some(5))
@@ -66,7 +67,7 @@ fn an_empty_house_is_cleared() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -150,12 +151,13 @@ fn a_house_is_torn_down() {
     tool.hover(&town, &terrain, Some(spot), 0);
     let id = tool.place(&archive, &mut town, 0).unwrap();
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     let mut removal = crate::tools::removal_tool::RemovalTool::start(
         &archive,
         &mut town,
@@ -174,7 +176,7 @@ fn a_house_is_torn_down() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -296,12 +298,13 @@ fn a_demolition_is_called_off() {
     tool.hover(&town, &terrain, Some(spot), 0);
     let id = tool.place(&archive, &mut town, 0).unwrap();
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 2,
-        });
+        },
+    ));
     let mut remove = crate::tools::removal_tool::RemovalTool::start(
         &archive,
         &mut town,
@@ -326,7 +329,7 @@ fn a_demolition_is_called_off() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs

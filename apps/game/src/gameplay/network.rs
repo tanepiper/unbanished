@@ -115,6 +115,8 @@ impl GameplayLoop {
             check,
             absent,
             bytes,
+            owners,
+            separate,
             update,
             epoch,
             speed,
@@ -124,7 +126,18 @@ impl GameplayLoop {
         else {
             return Err("not a start".into());
         };
-        let saved = crate::saves::saved::SavedGame::parse(&bytes).map_err(|e| e.to_string())?;
+        // Every computer runs the save's mode: a separate towns room needs one town per player,
+        // and a shared town room a save without them.
+        let saved = crate::saves::saved::SavedGame::parse(&bytes)
+            .map_err(|e| e.to_string())?
+            .with_owners(&owners);
+        let towns = saved.owners.as_ref().is_some_and(|o| o.separate());
+        if towns != separate {
+            return Err("the room's mode and its save disagree".into());
+        }
+        if separate && saved.owners.as_ref().is_some_and(|o| o.players != players) {
+            return Err("the save does not have a town for every player".into());
+        }
         let mut g = GameplayLoop::from_save(saved);
         g.start_lockstep(player, players, delay, &absent);
         if update > 0 {
@@ -148,7 +161,13 @@ impl GameplayLoop {
 }
 
 /// A resync's save and the update it was made at: the game is to be replaced by it.
-pub type Reload = (Vec<u8>, u64);
+#[derive(Debug, Clone, Default)]
+pub struct Reload {
+    pub bytes: Vec<u8>,
+    /// A separate towns game's owners sidecar; empty in a shared town game.
+    pub owners: Vec<u8>,
+    pub update: u64,
+}
 
 impl GameplayLoop {
     /// Plays this (lockstep) game over `link`.

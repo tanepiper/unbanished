@@ -25,6 +25,11 @@ impl GameplayLoop {
         false
     }
 
+    /// The only player.
+    pub(in crate::gameplay) fn player(&self) -> u8 {
+        0
+    }
+
     /// Every command is carried out at once.
     pub(in crate::gameplay) fn route(&mut self, command: PlayerCommand) -> Option<PlayerCommand> {
         Some(command)

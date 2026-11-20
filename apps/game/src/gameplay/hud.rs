@@ -32,7 +32,7 @@ impl GameplayLoop {
                 t.citizens
                     .iter()
                     .zip(&t.agents.states)
-                    .filter(|(c, _)| c.alive)
+                    .filter(|(c, _)| c.alive && c.owner == self.sim.local_player)
                     .map(|(c, s)| unbanished_game::people::status::CitizenValue {
                         age: c.age,
                         adult_age: t.rules.adult_age,
@@ -74,17 +74,24 @@ impl GameplayLoop {
                 .town
                 .as_ref()
                 .map_or(vec![self.population().0], |t| {
-                    t.profession_counts().0.iter().map(|&n| n as u32).collect()
+                    t.profession_counts(self.sim.local_player)
+                        .0
+                        .iter()
+                        .map(|&n| n as u32)
+                        .collect()
                 }),
             profession_capacity: self
                 .sim
                 .town
                 .as_ref()
-                .map_or(Vec::new(), |t| t.profession_counts().1),
+                .map_or(Vec::new(), |t| t.profession_counts(self.sim.local_player).1),
             // `FUN_14008f3a0`, recomputed from the town storages.
-            stock_limits: self.sim.stock_warnings.limits,
+            stock_limits: self.sim.local_stock().limits,
             stock: self.sim.town.as_ref().map_or([0; 21], |t| {
-                unbanished_game::work::stock::stock_table(&t.registered_storages(), &t.materials)
+                unbanished_game::work::stock::stock_table(
+                    &t.registered_storages_of(self.sim.local_player),
+                    &t.materials,
+                )
             }),
             show_celsius: self.show_celsius,
             citizens: self.sim.town.as_ref().map_or(Vec::new(), |t| {
@@ -92,7 +99,7 @@ impl GameplayLoop {
                     .iter()
                     .zip(&t.agents.states)
                     .enumerate()
-                    .filter(|(_, (c, _))| c.alive)
+                    .filter(|(_, (c, _))| c.alive && c.owner == self.sim.local_player)
                     .map(|(i, (c, s))| {
                         (
                             i,
@@ -129,6 +136,7 @@ impl GameplayLoop {
                     let p = &town.placed[e];
                     !s.destroyed
                         && p.alive
+                        && p.owner == self.sim.local_player
                         && town.templates[p.template].reference.to_ascii_lowercase() == key
                 })
                 .count() as i32

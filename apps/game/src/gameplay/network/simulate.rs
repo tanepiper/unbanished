@@ -51,10 +51,12 @@ pub struct Script {
 
 /// Loads `save` once for each player, splits the recording's commands between them
 /// ([`Script`]), and runs every game to `updates` (at least the recording's end) over a
-/// simulated network ([`SimNet`]). Player 0 is the host.
+/// simulated network ([`SimNet`]). Player 0 is the host. `owners` is the save's owners sidecar
+/// (a separate towns game, docs/SEPARATE-TOWNS.md); empty for a shared town.
 pub fn simulate(
     game: &mut crate::Game,
     save: &[u8],
+    owners: &[u8],
     recording: &str,
     sim: Simulation,
     updates: u64,
@@ -67,7 +69,9 @@ pub fn simulate(
     let net = SimNet::new(sim.jitter, sim.seed);
     let mut peers = Vec::new();
     for player in 0..players {
-        let saved = crate::saves::saved::SavedGame::parse(save).map_err(|e| e.to_string())?;
+        let saved = crate::saves::saved::SavedGame::parse(save)
+            .map_err(|e| e.to_string())?
+            .with_owners(owners);
         let mut g = GameplayLoop::from_save(saved);
         g.join_lockstep(player as u8, players as u8, sim.delay);
         let link = SimLink {
@@ -212,11 +216,20 @@ impl Script {
             let entry: Entry =
                 serde_json::from_str(line).map_err(|e| format!("line {}: {e}", i + 1))?;
             match entry {
-                Entry::Command { update, command } => {
+                Entry::Command {
+                    update,
+                    player,
+                    command,
+                } => {
+                    // A recording of a multiplayer game says whose command it was. In a
+                    // single-player one the tools are split between the players: whoever
+                    // starts a tool gives its commands, and the next tool goes to the next
+                    // player.
                     if matches!(command, PlayerCommand::StartTool { .. }) {
                         owner = starts % players;
                         starts += 1;
                     }
+                    let owner = player.map_or(owner, |p| usize::from(p) % players);
                     script.last = script.last.max(update + delay + 1);
                     script.inputs[owner].push_back((update, Some(command), false));
                 }

@@ -161,6 +161,8 @@ impl StartingTown {
             },
             names,
             display_cells: BTreeMap::new(),
+            owner_of_command: 0,
+            starts: Vec::new(),
             save_ids: None,
         };
         town.resolve_piles(archive);

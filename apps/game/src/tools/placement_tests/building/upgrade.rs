@@ -52,19 +52,21 @@ fn a_wood_house_is_upgraded_to_stone() {
         .load_template(&archive, r"Template\StoneHouse.rsc:resource")
         .unwrap();
     town.site_template(&archive, stone);
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::Upgrade {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::Upgrade {
             entity: house,
             template: stone,
-        });
+        },
+    ));
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 4,
-        });
+        },
+    ));
     let cell = town.placed[house].cell;
     let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
@@ -73,7 +75,7 @@ fn a_wood_house_is_upgraded_to_stone() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs

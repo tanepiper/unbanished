@@ -50,13 +50,29 @@ pub struct Simulation {
     // Game +0x138
     /// The event log.
     pub events: EventLog,
-    /// The stock manager's warning state.
-    pub stock_warnings: StockWarnings,
+    /// Each player's stock: the counts, the previous counts, the limits and the warnings, by
+    /// player number. One entry in a single-player game.
+    pub stock_warnings: Vec<StockWarnings>,
+    /// Each player's event-log notify flags (old age, deaths, disasters, storage, town, other),
+    /// by player number: the Event Log window's checkboxes. A separate towns game keeps one set
+    /// per player; a shared town game one set for its one town. The save writes the first set,
+    /// which every computer agrees on.
+    pub notify: Vec<[bool; 6]>,
     // StockManager +0x150
     /// The Town Info graphs' history, sampled every 75 s.
     pub statistics: Statistics,
     /// Updates begun since the game loaded (recordings and replays count by it).
     pub updates: u64,
+    /// The player whose command [`Simulation::execute`] is carrying out: 0 in a single-player
+    /// game, the command's giver in a multiplayer one. A separate towns game gives that
+    /// player's town (step 7 of docs/MULTIPLAYER-PLAN.md).
+    pub acting_player: u8,
+    /// The player this computer is: whose stock, town hall and windows the interface shows.
+    /// 0 outside lockstep.
+    pub local_player: u8,
+    /// The players the game has (the room's count); 1 in a single-player game. A separate towns
+    /// game has one stock table per player, a shared town one table for its one town.
+    pub players: u8,
     /// The drag tools commands have started, by template, for `PlayerCommand::Drag`.
     pub drag_tools: BTreeMap<String, RemovalTool>,
     /// The town names the Map window draws from, read the first time they are wanted.
@@ -80,9 +96,13 @@ impl Simulation {
             environment_months: Vec::new(),
             environment_template: None,
             events: Default::default(),
-            stock_warnings: Default::default(),
+            stock_warnings: vec![StockWarnings::default()],
+            notify: vec![unbanished_game::events::NOTIFY_DEFAULT],
             statistics: Default::default(),
             updates: 0,
+            acting_player: 0,
+            local_player: 0,
+            players: 1,
             drag_tools: BTreeMap::new(),
             town_names: None,
             achievements: Vec::new(),
@@ -101,9 +121,113 @@ impl Simulation {
         if let Some(unbanished_formats::savegame::Value::I64(t)) = s.managers.at("calendar.time") {
             self.calendar.elapsed = *t;
         }
-        self.stock_warnings = saved.stock_warnings();
+        self.stock_warnings[0] = saved.stock_warnings();
+        let notify = saved.notify();
+        self.notify = vec![notify];
+        if let Some(owners) = &saved.owners {
+            // A separate towns game keeps each player's stock limits beside its save.
+            self.players = owners.players.max(1);
+            let towns = if owners.separate() {
+                usize::from(self.players)
+            } else {
+                1
+            };
+            self.stock_warnings
+                .resize(towns, unbanished_game::events::StockWarnings::default());
+            for (warnings, limits) in self.stock_warnings.iter_mut().zip(&owners.limits) {
+                warnings.limits = *limits;
+            }
+            self.notify.resize(towns, notify);
+        }
         self.events = saved.event_log();
         self.statistics = saved.statistics();
+    }
+
+    /// How many players the game has (the room's count): one in a single-player game. A
+    /// separate towns game keeps one stock table and one set of notify flags per player; a
+    /// shared town game's one town has one table and one set, whatever the number of players.
+    pub fn set_players(&mut self, players: u8) {
+        self.players = players.max(1);
+        let towns = if self.separate() {
+            usize::from(self.players)
+        } else {
+            1
+        };
+        self.stock_warnings
+            .resize(towns, unbanished_game::events::StockWarnings::default());
+        self.notify
+            .resize(towns, unbanished_game::events::NOTIFY_DEFAULT);
+    }
+
+    /// The number of players, one in a single-player game.
+    pub fn players(&self) -> u8 {
+        self.players
+    }
+
+    /// Whether the game is a separate towns one: its town has a start per player, or anything
+    /// in it belongs to a player past the first. Derived from the town, so a save without its
+    /// owners sidecar reads as a shared town (or a single-player game).
+    pub fn separate(&self) -> bool {
+        self.town.as_ref().is_some_and(|t| t.separate())
+    }
+
+    /// The local player's stock: a shared town game has the one table this computer shows too.
+    pub fn local_stock(&self) -> &StockWarnings {
+        self.stock_warnings
+            .get(usize::from(self.local_player))
+            .unwrap_or(&self.stock_warnings[0])
+    }
+
+    /// The local player's event-log notify flags: a shared town game's one set too.
+    pub fn local_notify(&self) -> &[bool; 6] {
+        self.notify
+            .get(usize::from(self.local_player))
+            .unwrap_or(&self.notify[0])
+    }
+
+    /// The game's ownership and stock limits, for a save's sidecar
+    /// ([`crate::owners::Owners`]): `g` is the state the town was written into and `ids` the
+    /// saved object of each entity and citizen that export made.
+    pub fn owners_in(
+        &self,
+        g: &unbanished_formats::savegame::GameState,
+        ids: Option<&crate::town::save::Ids>,
+    ) -> crate::owners::Owners {
+        let town = self.town.as_ref();
+        let mut owners = crate::owners::Owners {
+            players: self.stock_warnings.len() as u8,
+            placed: Vec::new(),
+            citizens: Vec::new(),
+            limits: self.stock_warnings.iter().map(|w| w.limits).collect(),
+            starts: town.map(|t| t.starts.clone()).unwrap_or_default(),
+        };
+        if let (Some(town), Some(ids)) = (town, ids) {
+            let by_id: BTreeMap<_, _> = town
+                .placed
+                .iter()
+                .enumerate()
+                .filter_map(|(p, placed)| Some((ids.entity(p)?, placed.owner)))
+                .collect();
+            // In the save's own entity order, which a new save may have rearranged (the dead
+            // leave their place to the last entity): owners follow their object, not a position.
+            // Only the owners past the first are listed: load gives the rest player 0.
+            owners.placed = g
+                .entities
+                .iter()
+                .flatten()
+                .filter_map(|id| Some((*id, by_id.get(id).copied()?)))
+                .filter(|&(_, owner)| owner != 0)
+                .collect();
+            owners.citizens = town
+                .agents
+                .registry
+                .iter()
+                .filter(|&&c| town.citizens.get(c).is_some_and(|c| c.alive))
+                .filter_map(|&c| Some((ids.citizen(c)?, town.citizens[c].owner)))
+                .filter(|&(_, owner)| owner != 0)
+                .collect();
+        }
+        owners
     }
 
     /// The month: `floor(elapsed / 3600 × 12)`.

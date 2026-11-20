@@ -17,7 +17,7 @@ impl Sim<'_, '_> {
         let state = self.sites[&e].produce.clone().unwrap_or_default();
         // The stock limit of the recipe's group (all groups while choosing at random).
         let limited = |r: &Recipe, sim: &Sim| {
-            let (count, limit) = sim.stock[r.group.clamp(0, 20) as usize];
+            let (count, limit) = sim.stock_of(e)[r.group.clamp(0, 20) as usize];
             limit <= count
         };
         let is_limited = if state.selector < 0 {
@@ -73,8 +73,14 @@ impl Sim<'_, '_> {
                 self.drop_off(c);
                 return 2;
             }
-            let Some(found) = self.find_storage_excluding(material, amount, true, work.cell, e)
-            else {
+            let Some(found) = self.find_storage_excluding(
+                material,
+                amount,
+                true,
+                work.cell,
+                e,
+                self.placed[e].owner,
+            ) else {
                 continue;
             };
             if !self.reachable(citizen_cell, work.cell) {
@@ -120,8 +126,14 @@ impl Sim<'_, '_> {
                 continue;
             }
             all_inputs = false;
-            let Some(found) = self.find_storage_excluding(material, 1, false, citizen_cell, e)
-            else {
+            let Some(found) = self.find_storage_excluding(
+                material,
+                1,
+                false,
+                citizen_cell,
+                e,
+                self.placed[e].owner,
+            ) else {
                 continue;
             };
             let source_storage = found.storage;

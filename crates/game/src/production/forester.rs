@@ -78,7 +78,7 @@ impl Sim<'_, '_> {
         };
         let radius = t.radius.unwrap_or(0);
         let group = desc.group.clamp(0, 20) as usize;
-        let (count, limit) = self.stock[group];
+        let (count, limit) = self.stock_of(e)[group];
         self.set_icon(e, crate::work::professions::icon::LIMIT, limit <= count);
         let WorkKind::Forester(h) = &work.kind else {
             return 0;
@@ -162,7 +162,7 @@ impl Sim<'_, '_> {
             if self.templates[template].natural.is_none() {
                 continue;
             }
-            let (count, limit) = self.stock[group];
+            let (count, limit) = self.stock_of(e)[group];
             if count >= limit {
                 continue;
             }

@@ -53,8 +53,8 @@ impl GameplayLoop {
         // (which waits for every player's turn), the turns to send, and the host's checks.
         let online = self.online.net.as_ref().is_some_and(|n| !n.driven);
         if online {
-            if let (_, Some((bytes, update))) = self.net_poll() {
-                return Err(self.switch_reload(ctx, &bytes, update));
+            if let (_, Some(save)) = self.net_poll() {
+                return Err(self.switch_reload(ctx, &save));
             }
         }
         // Held: the slot waits for another player's turn. The view and the windows go on, but
@@ -69,9 +69,7 @@ impl GameplayLoop {
             self.refresh_players_line(ctx.ui, held);
             if !held {
                 match self.net_boundary(ctx, self.sim.updates) {
-                    Ok(Some((bytes, update))) => {
-                        return Err(self.switch_reload(ctx, &bytes, update))
-                    }
+                    Ok(Some(save)) => return Err(self.switch_reload(ctx, &save)),
                     Ok(None) => {}
                     Err(e) => log::error!("multiplayer: {e}"),
                 }
@@ -88,6 +86,12 @@ impl GameplayLoop {
     /// A game in lockstep: its commands wait for their slot.
     pub(in crate::gameplay) fn in_lockstep(&self) -> bool {
         self.online.lockstep.is_some()
+    }
+
+    /// The local player's number: 0 unless the game is in lockstep.
+    pub(in crate::gameplay) fn player(&self) -> u8 {
+        use unbanished_session::session::Session;
+        self.online.lockstep.as_ref().map_or(0, |l| l.player())
     }
 
     /// The local player's command: `Some` to carry out now, `None` when it waits for its

@@ -171,6 +171,7 @@ impl StartingTown {
         let z = terrain.ground(px, py, &mut normal);
         let id = self.placed.len();
         self.placed.push(Placed {
+            owner: self.owner_of_command,
             template,
             bucket: self.templates[template].bucket,
             cell: (x, y),
@@ -263,6 +264,7 @@ impl StartingTown {
         // `FUN_1400c8bf0` of the tool's template, its MapComponent over the area.
         let entity = self.placed.len();
         self.placed.push(Placed {
+            owner: self.owner_of_command,
             template,
             bucket: self.templates[template].bucket,
             cell: (x0, y0),
@@ -430,6 +432,7 @@ impl StartingTown {
         });
         let id = self.placed.len();
         self.placed.push(Placed {
+            owner: self.owner_of_command,
             template,
             bucket: t.bucket,
             cell: (rect.0, rect.1),

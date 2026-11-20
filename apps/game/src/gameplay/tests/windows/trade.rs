@@ -133,7 +133,8 @@ fn trade_window_exchanges_with_the_merchant() {
         let trade = ctx.ui.find(root, "buttonTrade").unwrap();
         assert!(value > 0);
         assert!(ctx.ui.node(trade).enabled, "the trade is not allowed");
-        let Some(WorkPlaceClick::Command(c)) = gameplay.entities.click(ctx.ui, town, trade) else {
+        let Some(WorkPlaceClick::Command(c)) = gameplay.entities.click(ctx.ui, town, 0, trade)
+        else {
             panic!("the trade button sends nothing");
         };
         assert_eq!(
@@ -146,7 +147,7 @@ fn trade_window_exchanges_with_the_merchant() {
         );
         let town = gameplay.sim.town.as_mut().unwrap();
         let unassigned = town.wildlife.unassigned.len();
-        town.construction.commands.push(c);
+        town.construction.commands.push((0, c));
         let mut rng = unbanished_game::random::Random::new(7);
         town.apply_commands(&terrain, &mut rng);
         let s = &town.storages[storage];
@@ -202,10 +203,13 @@ fn the_limits_window_sets_the_stock_limits() {
             .map(|&s| crate::ui::building_ui::spinner_value(ctx.ui, s).unwrap())
             .collect();
         for v in &shown {
-            assert!(gameplay.sim.stock_warnings.limits.contains(v), "{shown:?}");
+            assert!(
+                gameplay.sim.stock_warnings[0].limits.contains(v),
+                "{shown:?}"
+            );
         }
         crate::ui::building_ui::set_spinner(ctx.ui, spinners[0], 345);
         gameplay.event(ctx, Event::Changed(spinners[0]));
-        assert!(gameplay.sim.stock_warnings.limits.contains(&345));
+        assert!(gameplay.sim.stock_warnings[0].limits.contains(&345));
     });
 }

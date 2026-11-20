@@ -38,6 +38,14 @@ impl Agents {
         {
             let c = &mut *env.construction;
             c.population = self.registry.len() as i32;
+            c.populations.clear();
+            for &i in &self.registry {
+                let o = usize::from(citizens.get(i).map_or(0, |c| c.owner));
+                if c.populations.len() <= o {
+                    c.populations.resize(o + 1, 0);
+                }
+                c.populations[o] += 1;
+            }
             c.visitors.1 -= ticks(dt);
             if c.visitors.1 < 0 {
                 c.visitors = (0.0, 0);
@@ -127,6 +135,7 @@ impl Agents {
                     (env.cells.size, env.terrain, env.sites, env.materials);
                 let floors = &env.cells.floors;
                 let sectors = &mut self.sectors;
+                let owner = citizens[i].owner;
                 let mut search = |storages: &[Storage],
                                   rng: &mut Random,
                                   m: usize,
@@ -148,6 +157,7 @@ impl Agents {
                         n,
                         true,
                         cell,
+                        owner,
                         None,
                         &mut geometry,
                         rng,

@@ -97,11 +97,13 @@ impl Sim<'_, '_> {
     }
 
     /// `FUN_140044710` for the status icon 2 at `FUN_140044590`: every registered attendance
-    /// with the same profession is full.
+    /// with the same profession is full, in the building's own town.
     pub(crate) fn attendance_full(&self, e: usize) -> bool {
         let profession = |x: &usize| self.workforce.workplaces.get(x).and_then(|w| w.profession);
+        let owner = self.placed.get(e).map_or(0, |p| p.owner);
         !self.attendance_list.iter().any(|x| {
-            profession(x) == profession(&e)
+            self.placed.get(*x).is_some_and(|p| p.owner == owner)
+                && profession(x) == profession(&e)
                 && self
                     .attendance
                     .get(x)

@@ -307,7 +307,7 @@
 14007bf00	ProfessionUi::next_worker	apps/game/src/ui/utility/professions.rs
 14007c170	ProfessionUi	apps/game/src/ui/utility/professions.rs
 14007cb20	EntityWindows::radius_windows	apps/game/src/ui/entity_ui.rs
-14007ccb0	ResourceLimitUi::click	apps/game/src/ui/building_ui/town.rs
+14007ccb0	PlayerCommand::SetStockLimit	crates/sim/src/command.rs
 14007cda0	ResourceLimitUi::refresh	apps/game/src/ui/building_ui/town.rs
 14007ce40	ResourceLimitUi	apps/game/src/ui/building_ui/town.rs
 14007d0b0	ScenarioDialog::refresh	apps/game/src/ui/scenario_ui.rs

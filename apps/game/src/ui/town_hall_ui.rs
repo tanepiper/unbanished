@@ -33,6 +33,8 @@ use crate::ui::building_ui::WorkPlaceClick;
 pub struct TownContext<'a> {
     pub stock_counts: &'a [i32; 21],
     pub statistics: &'a Statistics,
+    /// The local player: a separate towns game's counts are its own town's.
+    pub owner: u8,
 }
 
 /// One sample every 75 s: 48 a year.
@@ -141,9 +143,9 @@ impl TownHallUi {
         town: &StartingTown,
         ctx: &TownContext,
     ) {
-        self.overview(ui, town);
+        self.overview(ui, town, ctx.owner);
         self.production(ui, town, ctx);
-        self.inventory(ui, archive, town);
+        self.inventory(ui, archive, town, ctx.owner);
         if !self.filled {
             self.filled = true;
             self.agriculture(ui, archive, town);
@@ -151,18 +153,24 @@ impl TownHallUi {
         // The per-frame slot (`FUN_140083a20`): the graph when a sample came in, the
         // professions.
         self.graph(ui, ctx.statistics, false);
-        self.professions(ui, town);
+        self.professions(ui, town, ctx.owner);
     }
 
     /// `FUN_140081650`: a spinner (`0x15`, `0x1966 + i`), a goto button (`0x12`,
     /// `0x1999 + i`) or a graph combo (`0x14`).
-    pub fn click(&mut self, ui: &Ui, town: &StartingTown, node: NodeId) -> Option<WorkPlaceClick> {
+    pub fn click(
+        &mut self,
+        ui: &Ui,
+        town: &StartingTown,
+        owner: u8,
+        node: NodeId,
+    ) -> Option<WorkPlaceClick> {
         for (i, row) in self.professions.iter().enumerate() {
             if row
                 .spinner
                 .is_some_and(|s| s == node || ui.descendant(s, node))
             {
-                let (counts, _) = town.profession_counts();
+                let (counts, _) = town.profession_counts(owner);
                 let v = spinner_value(ui, row.spinner?)?;
                 let free = counts.first().copied().unwrap_or(0);
                 let count = counts.get(i).copied().unwrap_or(0);
@@ -180,8 +188,16 @@ impl TownHallUi {
                 .goto
                 .is_some_and(|b| b == node || ui.descendant(b, node))
             {
-                // `FUN_140083170`: the next of the profession's workplaces.
-                let list = town.construction.workforce.registry.get(&i)?;
+                // `FUN_140083170`: the next of the profession's workplaces (its own town's).
+                let list: Vec<usize> = town
+                    .construction
+                    .workforce
+                    .registry
+                    .get(&i)?
+                    .iter()
+                    .copied()
+                    .filter(|&e| town.placed.get(e).is_some_and(|p| p.owner == owner))
+                    .collect();
                 if list.is_empty() {
                     return None;
                 }

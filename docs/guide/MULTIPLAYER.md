@@ -146,6 +146,24 @@ camera and use the windows. After half a second the line says whom the game wait
   <img src="../assets/screenshots/multiplayer-waiting.webp" alt="The players line while the game waits: Waiting for player 2" width="560">
 </p>
 
+## Separate towns
+
+A room can play the mod's other way: one town for each player, on the same map. The host starts a
+New Game with `UNBANISHED_SEPARATE_TOWNS=2` set (or the number of players), saves it, and hosts
+that save as any other. Each player starts with their own buildings, household and goods in their
+own corner of the map.
+
+| Action | In a separate towns game |
+|---|---|
+| Build, remove, roads, and every order in a building's window | In your own town |
+| Another player's buildings and citizens | Drawn, but you cannot pick them or open their windows |
+| The stock window, its limits and the stock counts | Your own town's |
+| The map, wildlife, weather and disasters | Shared |
+| The Town Info graphs and the Event Log's checkboxes | The whole game's, for everybody |
+
+Keep the `NAME.owners` file that sits beside the save: it says which town is whose, and a save
+without it loads as a shared town.
+
 ## When the towns differ
 
 Every 10 seconds the server compares all players' towns. If one differs, the server keeps the town
@@ -226,6 +244,7 @@ relay address. Native players can use the same `wss://` address.
   cannot set one yet.
 - When the towns are reloaded (a difference, or a new player), a player's open Path tool closes.
 - The room code cannot be copied from the window; read it out or type it.
+- Separate towns are native only: the browser has no load path, so it cannot host or join one.
 - The published site is served over `https://`, so it can join only a `wss://` relay, and there
   is no public one yet.
 - Tested with up to three players over the network, and four on one computer. More should work.

@@ -171,6 +171,7 @@ impl StartingTown {
                     .filter(|_| c.alive)
             })
             .collect();
+        let owners: Vec<u8> = self.citizens.iter().map(|c| c.owner).collect();
         let mut env = unbanished_game::town::Env {
             wildlife: &mut self.wildlife,
             cells: &mut self.cells,
@@ -182,7 +183,8 @@ impl StartingTown {
             sites: &self.storage_sites,
             rng,
             construction: &mut self.construction,
-            stock: [(0, 0); 21],
+            stock: &[[(0, 0); 21]],
+            owners: &owners,
             temperature: 0.0,
         };
         let rules = self.rules;
@@ -253,6 +255,7 @@ impl StartingTown {
             let stamps = t.map.as_ref().is_some_and(|m| !m.no_stamp);
             let mesh = t.model.as_ref().map(|m| m.mesh.max(0) as usize);
             self.placed.push(Placed {
+                owner: r.owner,
                 template: r.template,
                 bucket,
                 cell: r.cell,
@@ -329,6 +332,7 @@ impl StartingTown {
             }
             let t = &self.templates[self.placed[e].template];
             self.storage_sites.push(StorageSite {
+                owner: self.placed[e].owner,
                 entity: e,
                 storage: site.storage,
                 location_flags: t.storage_location_flags,
@@ -345,6 +349,20 @@ impl StartingTown {
     // Game +0xf0 +0x00/+0x10
     /// The registered town storages (`Game`), the ones the stock counts.
     pub fn registered_storages(&self) -> Vec<Storage> {
+        self.registered_storages_of_all()
+    }
+
+    /// The registered storages of `owner`'s town, the ones its stock counts.
+    pub fn registered_storages_of(&self, owner: u8) -> Vec<Storage> {
+        self.storage_sites
+            .iter()
+            .filter(|s| self.placed.get(s.entity).is_none_or(|p| p.owner == owner))
+            .map(|s| self.storages[s.storage].clone())
+            .collect()
+    }
+
+    /// Every registered storage, whoever owns it.
+    fn registered_storages_of_all(&self) -> Vec<Storage> {
         self.storage_sites
             .iter()
             .map(|s| self.storages[s.storage].clone())
@@ -354,17 +372,24 @@ impl StartingTown {
     /// Adult counts per profession and each profession's workplace places.
     ///
     /// Original: `FUN_14007ba70`.
-    pub fn profession_counts(&self) -> (Vec<i32>, Vec<i32>) {
+    pub fn profession_counts(&self, owner: u8) -> (Vec<i32>, Vec<i32>) {
         let c = &self.construction;
         let mut counts = vec![0; c.professions.list.len().max(1)];
         for (citizen, state) in self.citizens.iter().zip(&self.agents.states) {
-            if citizen.alive && citizen.is_adult(&self.rules) && citizen.school.is_none() {
+            if citizen.owner == owner
+                && citizen.alive
+                && citizen.is_adult(&self.rules)
+                && citizen.school.is_none()
+            {
                 if let Some(n) = counts.get_mut(state.profession) {
                     *n += 1;
                 }
             }
         }
-        let capacity = (0..counts.len()).map(|p| c.workforce.capacity(p)).collect();
+        let entity_owner = |e: usize| self.placed.get(e).map_or(0, |p| p.owner);
+        let capacity = (0..counts.len())
+            .map(|p| c.workforce.capacity(p, owner, &entity_owner))
+            .collect();
         (counts, capacity)
     }
 }

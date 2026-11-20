@@ -51,20 +51,26 @@ impl GameplayLoop {
                 };
                 let town = match &saved {
                     Some(s) => StartingTown::from_save(ctx.archive, s),
-                    None => StartingTown::create(
+                    None => StartingTown::create_for(
                         ctx.archive,
                         &self.params.start_condition_ref,
                         world.terrain.size / 2,
                         &grid,
                         &mut self.sim.rng,
+                        self.params.players,
                     ),
                 };
-                // Inferred: the camera opens over the start point (not yet traced).
+                // Inferred: the camera opens over the start point (not yet traced). A separate
+                // towns game opens over this computer's own town.
                 let mut camera = Camera::ground();
                 if let Some(town) = &town {
+                    let start = town
+                        .starts
+                        .get(usize::from(self.sim.local_player))
+                        .copied()
+                        .unwrap_or(town.start);
                     let c = (world.terrain.size / 4) as f32 - 0.5;
-                    camera.target =
-                        glam::Vec2::new(town.start.0 as f32 - c, town.start.1 as f32 - c);
+                    camera.target = glam::Vec2::new(start.0 as f32 - c, start.1 as f32 - c);
                 }
                 // A save restores its camera (`FUN_14009dd90`: target `+0x1c`, then yaw,
                 // pitch and distance).
@@ -103,6 +109,11 @@ impl GameplayLoop {
                     self.town_view = Some(town_view);
                 }
                 self.sim.town = town;
+                // A new separate towns game counts each player's stock and offers separately; a
+                // save's own players come from its owners sidecar and the room.
+                if saved.is_none() {
+                    self.sim.set_players(self.params.players);
+                }
                 // A new game's ambience regions join the entity manager's bucket 2.
                 if let (None, Some(town)) = (&saved, &mut self.sim.town) {
                     let regions = crate::audio::ambience::region_count(

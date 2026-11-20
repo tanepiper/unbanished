@@ -16,6 +16,7 @@ pub(super) fn starting_goods(
     profile: &MapGenerator,
     placed: &[Placed],
     templates: &[Template],
+    owner: u8,
 ) -> (Vec<RawMaterial>, Vec<Storage>, Vec<StorageSite>) {
     let mut materials = Vec::new();
     for r in &profile.raw_materials {
@@ -41,6 +42,9 @@ pub(super) fn starting_goods(
     let mut storages = Vec::new();
     let mut sites = Vec::new();
     for (entity, p) in placed.iter().enumerate() {
+        if p.owner != owner {
+            continue;
+        }
         let t = &templates[p.template];
         if !t.storage_location && !t.market_location {
             continue;
@@ -50,6 +54,7 @@ pub(super) fn starting_goods(
         };
         let (w, h) = p.footprint;
         sites.push(StorageSite {
+            owner,
             entity,
             storage: storages.len(),
             location_flags: t.storage_location_flags,
@@ -160,6 +165,7 @@ pub(super) fn households(
     profile: &MapGenerator,
     start: &[f32; 3],
     rng: &mut Random,
+    owner: u8,
 ) -> (Vec<Citizen>, CitizenRules) {
     let rules = citizen_rules(archive, &profile.citizen);
     let names = |n: &str| {
@@ -181,6 +187,7 @@ pub(super) fn households(
         );
     };
     let mut h = Households {
+        owner,
         rules,
         male_names: &male,
         female_names: &female,
@@ -232,7 +239,7 @@ impl StartingTown {
         rng: &mut Random,
         dt: f32,
         temperature: f32,
-        stock: [(i32, i32); 21],
+        stock: &[[(i32, i32); 21]],
     ) -> bool {
         let before = self.placed.len();
         // The groups are shared (`Arc`): a copy of the list lets the phases borrow the town.
@@ -247,6 +254,9 @@ impl StartingTown {
                     .filter(|_| c.alive)
             })
             .collect();
+        // Each citizen's player, which a rule's stock check reads (a citizen born during the
+        // phases reads player 0's table until the next iteration).
+        let owners: Vec<u8> = self.citizens.iter().map(|c| c.owner).collect();
         // This iteration's Env over the town's parts (made again for each phase, as the
         // seeder's phases borrow the same parts).
         macro_rules! env {
@@ -263,6 +273,7 @@ impl StartingTown {
                     rng: &mut *rng,
                     construction: &mut self.construction,
                     stock,
+                    owners: &owners,
                     temperature,
                 }
             };
@@ -353,7 +364,8 @@ impl StartingTown {
             sites: &self.storage_sites,
             rng,
             construction: &mut self.construction,
-            stock: [(0, 0); 21],
+            stock: &[[(0, 0); 21]],
+            owners: &[],
             temperature: 0.0,
         };
         self.agents.update_commute(

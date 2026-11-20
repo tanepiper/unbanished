@@ -60,12 +60,13 @@ fn roads_are_built_upgraded_and_removed() {
     let (x, y) = row.expect("no free row");
     let (a, b) = (y * n + x, y * n + x + 7);
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 4,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
     let mut run =
@@ -74,7 +75,7 @@ fn roads_are_built_upgraded_and_removed() {
                 town.apply_commands(&terrain, rng);
                 town.iterate(&terrain, rng, dt, 50.0);
                 let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-                town.update_citizens(&terrain, rng, dt, 50.0, stock);
+                town.update_citizens(&terrain, rng, dt, 50.0, &[stock]);
                 warnings.recompute(&town.registered_storages(), &town.materials);
                 town.construction
                     .jobs

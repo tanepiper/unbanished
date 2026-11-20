@@ -54,6 +54,9 @@ pub enum Message {
     Save {
         update: u64,
         bytes: Vec<u8>,
+        /// A separate towns game's owners sidecar (docs/SEPARATE-TOWNS.md); empty in a shared
+        /// town game.
+        owners: Vec<u8>,
     },
     /// The host starts the game: its save, the players, the input delay and how often the
     /// host compares digests.
@@ -66,6 +69,11 @@ pub enum Message {
         check: u64,
         absent: Vec<u8>,
         bytes: Vec<u8>,
+        /// A separate towns game's owners sidecar; empty in a shared town game.
+        owners: Vec<u8>,
+        /// The room's mode: every computer must run the save's own, so a game refuses a room
+        /// whose mode it does not have. All Un-Banished builds have both.
+        separate: bool,
         update: u64,
         epoch: u32,
         /// For a player who joins a running game, what every computer shares but a save does

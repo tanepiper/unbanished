@@ -274,7 +274,9 @@ impl MultiplayerDialog {
         for e in events {
             match (e, &mut self.role) {
                 // The room's kept town: the game goes on from it.
-                (FromRelay::Kept { bytes, .. }, Role::Hosting { .. }) => kept_town = Some(bytes),
+                (FromRelay::Kept { bytes, owners, .. }, Role::Hosting { .. }) => {
+                    kept_town = Some((bytes, owners))
+                }
                 (FromRelay::Hosted { room, kept, .. }, _) => {
                     self.kept = kept;
                     self.message = match kept {
@@ -312,8 +314,8 @@ impl MultiplayerDialog {
                 _ => {}
             }
         }
-        if let Some(bytes) = kept_town {
-            return self.host_start(ui, screen, bytes);
+        if let Some((bytes, owners)) = kept_town {
+            return self.host_start(ui, screen, bytes, owners);
         }
         if let State::Closed(e) = link.borrow().state() {
             self.message = format!("No connection: {e}");
@@ -345,8 +347,15 @@ impl MultiplayerDialog {
         outcome
     }
 
-    /// The host starts the game from the save `bytes` for everybody in the room.
-    pub fn host_start(&mut self, ui: &mut Ui, screen: &mut Screen, bytes: Vec<u8>) -> Outcome {
+    /// The host starts the game from the save `bytes` for everybody in the room, with its owners
+    /// sidecar `owners` (empty for a shared town).
+    pub fn host_start(
+        &mut self,
+        ui: &mut Ui,
+        screen: &mut Screen,
+        bytes: Vec<u8>,
+        owners: Vec<u8>,
+    ) -> Outcome {
         let Role::Hosting { players, .. } = &self.role else {
             return Outcome::Stay;
         };
@@ -358,14 +367,31 @@ impl MultiplayerDialog {
             return Outcome::Stay;
         };
         let check = check_interval();
+        // A save with a town for each player makes a separate towns room; a shared town room
+        // plays a save without them.
+        let towns = unbanished_sim::owners::Owners::decode(&owners);
+        let separate = towns.as_ref().is_some_and(|o| o.separate());
+        if let Some(o) = towns
+            .as_ref()
+            .filter(|o| o.separate() && o.players != count)
+        {
+            self.message = format!(
+                "This save has {} towns, and the room has {count} players.",
+                o.players
+            );
+            self.refresh(ui);
+            return Outcome::Stay;
+        }
         // A server that keeps rooms keeps the town from its start.
-        link.borrow_mut().keep(0, &bytes);
+        link.borrow_mut().keep(0, &bytes, &owners);
         let start = Message::Start {
             players: count,
             delay: DELAY,
             check,
             absent,
             bytes,
+            owners,
+            separate,
             update: 0,
             epoch: 0,
             speed: 0,

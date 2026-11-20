@@ -1,12 +1,19 @@
 use super::*;
 
 mod audio;
+mod commands;
 mod drawing;
 mod tools;
+mod towns;
 mod tutorial;
 mod windows;
 
 fn generated() -> Option<(crate::Game, GameplayLoop)> {
+    generated_players(1)
+}
+
+/// A game whose New Game made `players` towns on one map (docs/SEPARATE-TOWNS.md).
+fn generated_players(players: u8) -> Option<(crate::Game, GameplayLoop)> {
     let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../game-data/original/WinData");
     if !dir.join("data0.pkg").exists() {
@@ -25,6 +32,7 @@ fn generated() -> Option<(crate::Game, GameplayLoop)> {
         crate::Game::with_settings(packages, crate::settings::Settings::default()).unwrap();
     let mut gameplay = GameplayLoop::new(WorldParams {
         start_condition_ref: r"Game\StartCondition\Medium.rsc:resource".into(),
+        players,
         ..WorldParams::default()
     });
     game.with_ctx(|_, ctx| {

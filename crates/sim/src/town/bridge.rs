@@ -252,6 +252,7 @@ impl StartingTown {
         );
         let entity = self.placed.len();
         self.placed.push(Placed {
+            owner: self.owner_of_command,
             template: spec.template,
             bucket: self.templates[spec.template].bucket,
             cell: (rect.0, rect.1),

@@ -115,11 +115,19 @@ fn run(room: &str, mut watcher: Watcher, rx: Receiver<In>, shared: &Mutex<Shared
                         watcher.want_save();
                     }
                 }
-                Event::Save { update, bytes } => {
+                Event::Save {
+                    update,
+                    bytes,
+                    owners,
+                } => {
                     log::info!(
                         "room {room}: the players go on from the server's game at update {update}"
                     );
-                    let data = encode(&Message::Save { update, bytes });
+                    let data = encode(&Message::Save {
+                        update,
+                        bytes,
+                        owners,
+                    });
                     let out = s
                         .relay
                         .members(room)

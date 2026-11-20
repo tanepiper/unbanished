@@ -23,18 +23,14 @@ pub fn format_event(ui: &mut Ui, e: &unbanished_game::events::EventEntry) -> Str
 }
 
 impl EventLogUi {
-    /// OnOpened `FUN_140067fa0`. The checkboxes take the log's notify flags.
-    pub(super) fn bind(
-        ui: &mut Ui,
-        root: NodeId,
-        log: Option<&unbanished_game::events::EventLog>,
-    ) -> EventLogUi {
+    /// OnOpened `FUN_140067fa0`. The checkboxes take the local player's notify flags.
+    pub(super) fn bind(ui: &mut Ui, root: NodeId, notify: &[bool; 6]) -> EventLogUi {
         let checks: Vec<NodeId> = ui
             .find(root, "notifybuttons")
             .map(|n| ui.node(n).children.clone())
             .unwrap_or_default();
         for (i, &c) in checks.iter().enumerate() {
-            let on = log.map_or(i != 0, |l| l.notify[i]);
+            let on = notify.get(i).copied().unwrap_or(i != 0);
             ui.set_checked(c, on);
         }
         let mut rows = Vec::new();

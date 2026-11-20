@@ -88,6 +88,7 @@ fn original_storage_search_and_random() {
             let fields: Vec<_> = site.split(',').collect();
             let p = nums(fields[0]);
             sites.push(StorageSite {
+                owner: 0,
                 entity: k,
                 storage: k,
                 location_flags: p[6] as u32,
@@ -119,6 +120,7 @@ fn original_storage_search_and_random() {
             cols[1].parse().unwrap(),
             999,
             if cols[2] == "1" { 1000 } else { -1 },
+            0,
             &mut geometry,
             &mut random,
         );

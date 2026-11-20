@@ -15,6 +15,9 @@ impl super::GameplayLoop {
     /// updates.
     pub fn join_lockstep(&mut self, player: u8, players: u8, delay: u64) {
         self.online.lockstep = Some(LockstepSession::new(player, players, delay));
+        // The interface shows this player's town, and each player has their own stock.
+        self.sim.local_player = player;
+        self.sim.set_players(players);
     }
 
     /// The local player gives a command: in lockstep it waits for its slot.
@@ -63,7 +66,12 @@ impl super::GameplayLoop {
 
     /// Carries out a player's command. A tool it starts is the local player's current tool, or
     /// kept for the other player (their Path tool; drag tools are kept by template for all).
-    fn execute_from(&mut self, ctx: &mut crate::loops::Ctx, player: u8, command: PlayerCommand) {
+    pub(super) fn execute_from(
+        &mut self,
+        ctx: &mut crate::loops::Ctx,
+        player: u8,
+        command: PlayerCommand,
+    ) {
         use super::commands::{Outcome, Tool};
         let local = self
             .online
@@ -83,7 +91,7 @@ impl super::GameplayLoop {
             &mut self.path_tool,
             self.online.remote_paths.remove(&player),
         );
-        if let Outcome::Tool(Some(Tool::Path(t))) = self.execute(ctx.archive, command) {
+        if let Outcome::Tool(Some(Tool::Path(t))) = self.execute_as(ctx.archive, player, command) {
             self.path_tool = Some(t);
         }
         if let Some(t) = std::mem::replace(&mut self.path_tool, mine) {
@@ -123,10 +131,9 @@ impl super::GameplayLoop {
     pub fn reloaded(
         mut self,
         ctx: &mut crate::loops::Ctx,
-        bytes: &[u8],
-        update: u64,
+        save: &super::network::Reload,
     ) -> Result<super::GameplayLoop, String> {
-        let mut g = self.reloading(bytes, update)?;
+        let mut g = self.reloading(save)?;
         g.load(ctx);
         g.startup(ctx);
         Ok(g)
@@ -136,12 +143,14 @@ impl super::GameplayLoop {
     pub(super) fn switch_reload(
         &mut self,
         ctx: &mut crate::loops::Ctx,
-        bytes: &[u8],
-        update: u64,
+        save: &super::network::Reload,
     ) -> crate::loops::Next {
-        match self.reloading(bytes, update) {
+        match self.reloading(save) {
             Ok(g) => {
-                log::info!("multiplayer: resyncing from the host's save at update {update}");
+                log::info!(
+                    "multiplayer: resyncing from the host's save at update {}",
+                    save.update
+                );
                 crate::loops::Next::Switch(Box::new(crate::loops::DialogLoaderLoop::new(
                     format!("Dialog/Loading.rsc:gameLoad{}", ctx.rng.rand_below(12)),
                     0.0,
@@ -157,8 +166,13 @@ impl super::GameplayLoop {
 
     /// [`Self::reloaded`] without loading: the game to switch to (the real game shows the loading
     /// screen meanwhile). This game is left retired.
-    pub fn reloading(&mut self, bytes: &[u8], update: u64) -> Result<super::GameplayLoop, String> {
-        let saved = crate::saves::saved::SavedGame::parse(bytes).map_err(|e| e.to_string())?;
+    pub fn reloading(
+        &mut self,
+        save: &super::network::Reload,
+    ) -> Result<super::GameplayLoop, String> {
+        let saved = crate::saves::saved::SavedGame::parse(&save.bytes)
+            .map_err(|e| e.to_string())?
+            .with_owners(&save.owners);
         let mut g = super::GameplayLoop::from_save(saved);
         g.autosave = None;
         g.recording.replaying = self.recording.replaying;
@@ -174,10 +188,11 @@ impl super::GameplayLoop {
         if let Some(net) = &mut g.online.net {
             net.forget_line();
         }
-        g.sim.updates = update;
-        g.online.boundary_done = Some(update);
+        g.sim.updates = save.update;
+        g.sim.local_player = self.sim.local_player;
+        g.online.boundary_done = Some(save.update);
         if let Some(mut l) = self.online.lockstep.take() {
-            l.resynced(update);
+            l.resynced(save.update);
             g.online.lockstep = Some(l);
         }
         self.online.retired = true;

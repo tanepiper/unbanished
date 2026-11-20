@@ -51,7 +51,7 @@ pub fn run(
             let d = unbanished_game::random::trace::take();
             unbanished_game::random::trace::write(path, &d).map_err(|e| e.to_string())?;
         }
-        let state = gameplay
+        let (state, _) = gameplay
             .save_state(ctx.archive, ctx.ui)
             .ok_or("no game state")?;
         let state = state.encode().map_err(|e| e.to_string())?;

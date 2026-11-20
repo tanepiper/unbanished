@@ -97,6 +97,7 @@ fn template() -> Template {
 
 fn parent() -> Placed {
     Placed {
+        owner: 0,
         template: 0,
         bucket: 3,
         cell: (8, 8),

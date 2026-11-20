@@ -32,6 +32,9 @@ const STOCK_NOTHING: f32 = 300.0;
 pub struct Needs<'a, 'b> {
     /// A view of the town.
     pub town: &'a TownView<'b>,
+    /// The acting citizen's player: a separate towns game's searches take only its town's
+    /// buildings and storage sites.
+    pub owner: u8,
     /// The sector graph.
     pub sectors: &'a mut SectorGraph,
     /// The storage sites.
@@ -164,6 +167,7 @@ impl Needs<'_, '_> {
             category,
             cell,
             home_cell,
+            self.owner,
             &mut geometry,
             self.rng,
         )?;
@@ -214,6 +218,7 @@ impl Needs<'_, '_> {
                 0,
                 cell,
                 None,
+                self.owner,
                 best,
                 &mut geometry,
                 self.rng,
@@ -225,6 +230,15 @@ impl Needs<'_, '_> {
         }
         let residences: Vec<usize> = self.residences.to_vec();
         for e in residences {
+            // A separate towns game's empty homes are its own.
+            if !self
+                .town
+                .entities
+                .get(e)
+                .is_some_and(|v| v.owner == self.owner)
+            {
+                continue;
+            }
             let Some(home) = self.homes.get(&e) else {
                 continue;
             };

@@ -133,14 +133,32 @@ impl Sim<'_, '_> {
         let Some(d) = self.immigration_desc(e) else {
             return false;
         };
-        if self.population < d.population {
+        let owner = self.placed[e].owner;
+        if self.population_of(owner) < d.population {
             return false;
         }
+        // Deviation: a separate towns game counts only the hall's own town's buildings.
         d.required.iter().all(|&t| {
             self.sites.iter().any(|(&s, site)| {
-                !site.destroyed && self.placed[s].alive && self.placed[s].template == t
+                !site.destroyed
+                    && self.placed[s].alive
+                    && self.placed[s].template == t
+                    && self.placed[s].owner == owner
             })
         })
+    }
+
+    // Deviation: not in the original, which has one town.
+    /// The population of `owner`'s town: the whole town's in a game of one town.
+    fn population_of(&self, owner: u8) -> i32 {
+        if self.populations.len() <= 1 && owner == 0 {
+            self.population
+        } else {
+            self.populations
+                .get(usize::from(owner))
+                .copied()
+                .unwrap_or(0)
+        }
     }
 
     /// State 2 enter and update (`FUN_14004dbf0`, `FUN_14004db80`).
@@ -254,12 +272,15 @@ impl Sim<'_, '_> {
                 return;
             }
         };
-        let population = self.population;
+        // A separate towns game sizes the band by the hall's own town.
+        let owner = self.placed[e].owner;
+        let population = self.population_of(owner);
         let f = self.rng.rand_float();
         let free: i32 = self
             .workforce
             .residences
             .iter()
+            .filter(|&&r| self.placed.get(r).is_some_and(|p| p.owner == owner))
             .filter_map(|r| self.homes.get(r))
             .map(|h| h.families.iter().filter(|f| f.is_empty()).count() as i32)
             .sum();

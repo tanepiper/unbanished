@@ -28,8 +28,14 @@ impl WorkHost for Sim<'_, '_> {
     fn rank(&mut self, a: i32, b: i32) -> i32 {
         self.rank_or_distance(a, b)
     }
-    fn stock(&self, slot: usize) -> (i32, i32) {
-        self.stock[slot]
+    fn stock(&self, citizen: usize, slot: usize) -> (i32, i32) {
+        self.stock_of_citizen(citizen)[slot]
+    }
+    fn entity_owner(&self, entity: usize) -> u8 {
+        self.placed.get(entity).map_or(0, |p| p.owner)
+    }
+    fn citizen_owner(&self, citizen: usize) -> u8 {
+        self.owners.get(citizen).copied().unwrap_or(0)
     }
     fn laborer(&self) -> usize {
         self.professions.laborer

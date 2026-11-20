@@ -100,6 +100,7 @@ mod tests {
 
     fn placed() -> Placed {
         Placed {
+            owner: 0,
             template: 0,
             bucket: 0,
             cell: (2, 2),

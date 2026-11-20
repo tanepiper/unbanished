@@ -107,12 +107,13 @@ fn a_bridge_spans_the_river() {
         .collect();
     assert!(deck.iter().all(|&i| 0 < town.cells.floors.counts[i]));
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 4,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
     let mut supplied = false;
@@ -122,7 +123,7 @@ fn a_bridge_spans_the_river() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -161,15 +162,16 @@ fn a_bridge_spans_the_river() {
     let top = town.cells.floors.ground(town.cells.size, &terrain, x, y);
     assert!(bed < top, "deck {top} not above the bed {bed}");
     // Torn down, the water comes back.
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::Demolish { entity: id });
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::Demolish { entity: id },
+    ));
     let mut gone = false;
     for _ in 0..30 * 60 * 10 {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 50.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 50.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 50.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -291,12 +293,13 @@ fn a_tunnel_goes_through_a_hill() {
         .expect("no tunnel site");
     let parts = town.construction.sites[&id].parts.clone();
     let builder = town.construction.professions.builder;
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: builder,
             count: 4,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     let dt = 1.0 / 30.0;
     let original = heights.clone();
@@ -309,7 +312,7 @@ fn a_tunnel_goes_through_a_hill() {
             town.apply_commands(&terrain, rng);
             town.iterate(&terrain, rng, dt, 50.0);
             let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-            town.update_citizens(&terrain, rng, dt, 50.0, stock);
+            town.update_citizens(&terrain, rng, dt, 50.0, &[stock]);
         }
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
@@ -357,9 +360,10 @@ fn a_tunnel_goes_through_a_hill() {
         parts.len()
     );
     // Torn down, the ceiling's fill goes again.
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::Demolish { entity: id });
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::Demolish { entity: id },
+    ));
     let mut gone = false;
     for _ in 0..30 * 60 * 10 {
         step(&mut town, &mut heights, &mut rng);

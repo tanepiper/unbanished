@@ -122,6 +122,8 @@ impl Sim<'_, '_> {
             }
             let id = self.placed.len();
             self.placed.push(crate::nature::seeding::Placed {
+                // A separate towns game's grave is its cemetery's town's.
+                owner: self.placed[cemetery].owner,
                 template: t.tombstone,
                 bucket: template.bucket,
                 cell: (cell % n, cell / n),

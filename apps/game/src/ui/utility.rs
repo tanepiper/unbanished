@@ -115,7 +115,7 @@ impl UtilityWindows {
         screen: &mut Screen,
         archive: &Archive,
         template: &str,
-        log: Option<&unbanished_game::events::EventLog>,
+        notify: &[bool; 6],
         map_size: u32,
     ) {
         if let Some(i) = self.open.iter().position(|w| w.template == template) {
@@ -154,7 +154,7 @@ impl UtilityWindows {
                 0 | controller::TUTORIAL => {}
                 controller::STATUS_BAR => status_bar = Some(StatusBar::bind(ui, root)),
                 controller::PROFESSION => professions = Some(ProfessionUi::bind(ui, root, archive)),
-                controller::EVENT_LOG => event_log = Some(EventLogUi::bind(ui, root, log)),
+                controller::EVENT_LOG => event_log = Some(EventLogUi::bind(ui, root, notify)),
                 controller::MAP => map = Some(MapUi::bind(ui, root, map_size)),
                 controller::HELP => help = Some(HelpUi::bind(ui, root, archive)),
                 crate::ui::building_ui::RESOURCE_LIMIT_UI => {
@@ -212,7 +212,14 @@ impl UtilityWindows {
             return Some(w.root);
         }
         self.positions.insert(template.to_string(), at);
-        self.toggle(ui, screen, archive, template, None, map_size);
+        self.toggle(
+            ui,
+            screen,
+            archive,
+            template,
+            &unbanished_game::events::NOTIFY_DEFAULT,
+            map_size,
+        );
         self.open
             .iter()
             .find(|w| w.template == template)

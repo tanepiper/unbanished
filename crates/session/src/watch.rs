@@ -42,8 +42,13 @@ const WATCHER: u8 = u8::MAX;
 pub enum Event {
     /// The digest of the town when `update` updates had begun, made in `epoch`.
     Digest { epoch: u32, update: u64, crc: u32 },
-    /// The town's save at `update`, for the players to go on from (a resync).
-    Save { update: u64, bytes: Vec<u8> },
+    /// The town's save at `update`, for the players to go on from (a resync), with a separate
+    /// towns game's owners sidecar.
+    Save {
+        update: u64,
+        bytes: Vec<u8>,
+        owners: Vec<u8>,
+    },
 }
 
 /// The game being watched.
@@ -100,6 +105,7 @@ impl Watcher {
                 check,
                 absent,
                 bytes,
+                owners,
                 update: 0,
                 ..
             } if self.game.is_none() => {
@@ -107,7 +113,7 @@ impl Watcher {
                 for p in absent {
                     lockstep.lockstep.leave(p);
                 }
-                let (sim, saved) = self.load(&bytes)?;
+                let (sim, saved) = self.load(&bytes, &owners)?;
                 self.game = Some(Watched {
                     params: saved.params(),
                     sim,
@@ -122,7 +128,11 @@ impl Watcher {
                 });
                 log::info!("watching a game of {players} players");
             }
-            Message::Save { update, bytes } => self.reload(update, &bytes)?,
+            Message::Save {
+                update,
+                bytes,
+                owners,
+            } => self.reload(update, &bytes, &owners)?,
             Message::Turn(turn) => {
                 if let Some(g) = &mut self.game {
                     g.lockstep.lockstep.receive(turn);
@@ -172,13 +182,15 @@ impl Watcher {
             if g.boundary_done != Some(update) {
                 g.boundary_done = Some(update);
                 if std::mem::take(&mut g.save_wanted) {
-                    let bytes = g.save_file(&archive);
+                    let (bytes, owners) = g.save_file(&archive);
+                    let owners = owners.encode();
                     events.push(Event::Save {
                         update,
                         bytes: bytes.clone(),
+                        owners: owners.clone(),
                     });
                     // As every player does with a resync's save: go on from the save itself.
-                    self.reload(update, &bytes)?;
+                    self.reload(update, &bytes, &owners)?;
                     continue;
                 }
                 if g.check > 0 && update > 0 && update % g.check == 0 {
@@ -206,8 +218,10 @@ impl Watcher {
     }
 
     /// A save's town, loaded as each player's game loads it.
-    fn load(&self, bytes: &[u8]) -> Result<(Simulation, SavedGame), String> {
-        let saved = SavedGame::parse(bytes).map_err(|e| e.to_string())?;
+    fn load(&self, bytes: &[u8], owners: &[u8]) -> Result<(Simulation, SavedGame), String> {
+        let saved = SavedGame::parse(bytes)
+            .map_err(|e| e.to_string())?
+            .with_owners(owners);
         let mut sim = Simulation::from_save(&self.archive, &saved).map_err(|e| e.to_string())?;
         // As in every player's multiplayer game: the achievements count from none won.
         sim.load_achievements(&self.archive, Some(&saved), |_| false);
@@ -217,8 +231,8 @@ impl Watcher {
     /// The game goes on from a resync's save made at `update`, as each player's does: the
     /// lockstep, the speed and the pause go on, the drag tools start again by template on the
     /// new town, and the Path tools start afresh.
-    fn reload(&mut self, update: u64, bytes: &[u8]) -> Result<(), String> {
-        let (mut sim, saved) = self.load(bytes)?;
+    fn reload(&mut self, update: u64, bytes: &[u8], owners: &[u8]) -> Result<(), String> {
+        let (mut sim, saved) = self.load(bytes, owners)?;
         let Some(g) = self.game.as_mut() else {
             return Ok(());
         };
@@ -254,7 +268,7 @@ impl Watched {
             command => {
                 let mut tool = self.paths.remove(&player);
                 if let Outcome::Tool(Some(Tool::Path(t))) =
-                    self.sim.execute(archive, command, tool.as_mut())
+                    self.sim.execute(archive, player, command, tool.as_mut())
                 {
                     tool = Some(t);
                 }
@@ -265,8 +279,14 @@ impl Watched {
         }
     }
 
-    /// The town's state, as each player's game encodes it for a digest.
-    fn state(&self, archive: &Archive) -> unbanished_formats::savegame::GameState {
+    /// The town's state, as each player's game encodes it for a digest, and its owners sidecar.
+    fn state(
+        &self,
+        archive: &Archive,
+    ) -> (
+        unbanished_formats::savegame::GameState,
+        unbanished_sim::owners::Owners,
+    ) {
         let mut strings = ArchiveStrings::new(archive);
         self.sim
             .saved_state(archive, &mut strings, &self.saved, &self.params.town_name)
@@ -275,7 +295,7 @@ impl Watched {
     /// The digest: the CRC-32 of the encoded state, with each player's own view (the
     /// buildings' windows) left out, as each player's digest leaves it out.
     fn digest(&self, archive: &Archive) -> u32 {
-        let mut state = self.state(archive);
+        let (mut state, owners) = self.state(archive);
         for object in state.objects.values_mut() {
             if object.type_name == "UIComponent" {
                 object.fields.set(
@@ -284,15 +304,23 @@ impl Watched {
                 );
             }
         }
-        unbanished_formats::crc::crc32(state.encode().unwrap_or_default())
+        let mut crc = unbanished_formats::crc::crc32(state.encode().unwrap_or_default());
+        if owners.players > 1 {
+            crc = !unbanished_formats::crc::crc32_raw(!crc, &owners.encode());
+        }
+        crc
     }
 
-    /// The town as a save file.
-    fn save_file(&self, archive: &Archive) -> Vec<u8> {
-        let state = self.state(archive).encode().unwrap_or_default();
+    /// The town as a save file, and its owners sidecar.
+    fn save_file(&self, archive: &Archive) -> (Vec<u8>, unbanished_sim::owners::Owners) {
+        let (state, owners) = self.state(archive);
+        let state = state.encode().unwrap_or_default();
         let mut metadata = self.saved.metadata.clone();
         metadata.name = self.params.town_name.clone();
         metadata.mods = Vec::new();
-        unbanished_formats::save::Save::write(&metadata, &state)
+        (
+            unbanished_formats::save::Save::write(&metadata, &state),
+            owners,
+        )
     }
 }

@@ -16,6 +16,9 @@ pub type MapRect = (i32, i32, i32, i32);
 /// What activities need to know about one entity.
 #[derive(Debug, Clone, Default)]
 pub struct EntityView {
+    /// The player whose town owns it: 0 in a single-player game. A separate towns game's
+    /// citizens pick only their own town's buildings.
+    pub owner: u8,
     /// Whether it is still in the world.
     pub alive: bool,
     /// Has a MapComponent: its rectangle.
@@ -227,6 +230,8 @@ impl TownView<'_> {
 pub struct TownSearch<'a, 'b> {
     /// A view of the town.
     pub town: &'a TownView<'b>,
+    /// A citizen's player, for [`Search::same_owner`].
+    pub owners: &'a dyn Fn(usize) -> u8,
     /// A citizen's map cell.
     pub cell: &'a dyn Fn(usize) -> i32,
     /// A profession works anywhere.
@@ -250,6 +255,13 @@ impl crate::work::professions::Search for TownSearch<'_, '_> {
     fn reach(&mut self, cell: i32, workplace: usize) -> bool {
         self.town.can_reach(cell, workplace, self.rng)
     }
+    fn same_owner(&self, citizen: usize, entity: usize) -> bool {
+        let citizen = (self.owners)(citizen);
+        self.town
+            .entities
+            .get(entity)
+            .is_some_and(|e| e.owner == citizen)
+    }
     fn rng(&mut self) -> &mut Random {
         self.rng
     }
@@ -270,7 +282,8 @@ pub struct Loiter {
 
 // CitizenDescription +0xbc
 /// Activity 12: choose a spot near something to stand at. `cell` is the citizen's cell, `home` its
-/// home, `range` the citizen description's range. `ground(cell)` returns a cell's centre on the
+/// home, `owner` its player (a separate towns game's happiness buildings are its own town's),
+/// `range` the citizen description's range. `ground(cell)` returns a cell's centre on the
 /// ground; `rank(a, b)` is the path-rank distance.
 ///
 /// Original: `FUN_14010fa30`; the distance is `FUN_140008830`.
@@ -278,6 +291,7 @@ pub fn loiter(
     town: &TownView,
     cell: i32,
     home: Option<usize>,
+    owner: u8,
     range: i32,
     rng: &mut Random,
     ground: impl Fn(i32) -> [f32; 3],
@@ -293,15 +307,16 @@ pub fn loiter(
     // through its first use point.
     chosen = chosen.filter(|&e| {
         let v = &town.entities[e];
-        v.happiness.is_some()
+        v.owner == owner
+            && v.happiness.is_some()
             && v.use_points
                 .first()
                 .is_some_and(|&p| town.reachable(WALKABLE, cell, town.cell_of(p)))
     });
     if chosen.is_none() {
-        chosen = nearest_happiness(town, cell, range, rng, rank);
+        chosen = nearest_happiness(town, cell, owner, range, rng, rank);
         if chosen.is_none() && home_cell >= 0 {
-            chosen = nearest_happiness(town, home_cell, range, rng, rank);
+            chosen = nearest_happiness(town, home_cell, owner, range, rng, rank);
         }
     }
     let mut pad = chosen.and_then(|e| town.entities[e].happiness).unwrap_or(6);
@@ -321,7 +336,10 @@ pub fn loiter(
                 let Some(e) = town.object((n * y + x) as usize) else {
                     continue;
                 };
-                if town.entities[e].rect.is_some() && town.can_reach(cell, e, rng) {
+                if town.entities[e].owner == owner
+                    && town.entities[e].rect.is_some()
+                    && town.can_reach(cell, e, rng)
+                {
                     set.insert(e);
                 }
             }
@@ -387,6 +405,7 @@ pub fn loiter(
 fn nearest_happiness(
     town: &TownView,
     cell: i32,
+    owner: u8,
     range: i32,
     rng: &mut Random,
     rank: &mut dyn FnMut(i32, i32) -> i32,
@@ -397,7 +416,8 @@ fn nearest_happiness(
         if point < 0 {
             continue;
         }
-        if rank(cell, point) < range * 2
+        if town.entities[e].owner == owner
+            && rank(cell, point) < range * 2
             && town.reachable(WALKABLE, cell, point)
             && town.entities[e].happiness.is_some()
         {
@@ -408,4 +428,44 @@ fn nearest_happiness(
         return None;
     }
     Some(found[rng.rand_below(found.len() as u32) as usize])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A separate towns game's citizen loiters only at its own town's happiness buildings.
+    #[test]
+    fn a_loiter_takes_only_the_citizens_towns_buildings() {
+        let n = 8;
+        let types = vec![CellType(0); n * n];
+        let regions = vec![1u16; n * n];
+        let occupants = vec![None; n * n];
+        let objects = vec![None; n * n];
+        let floors = crate::world::floor::Floors::new(n * n);
+        let house = |owner: u8, x: i32, y: i32| EntityView {
+            owner,
+            rect: Some((x, y, 1, 1)),
+            happiness: Some(6),
+            ..Default::default()
+        };
+        // Both are in range; the first is the other town's.
+        let entities = vec![house(1, 3, 3), house(0, 5, 5)];
+        let happiness = [0, 1];
+        let town = TownView {
+            size: n,
+            types: &types,
+            regions: &regions,
+            occupants: &occupants,
+            objects: &objects,
+            floors: &floors,
+            entities: &entities,
+            happiness: &happiness,
+        };
+        let mut rank = |a: i32, b: i32| (a - b).abs();
+        let mut rng = Random::new(1);
+        let plan =
+            loiter(&town, 0, None, 0, 100, &mut rng, |_| [0.0; 3], &mut rank).expect("a loiter");
+        assert_eq!(plan.happiness, Some(1), "the citizen's own town's house");
+    }
 }

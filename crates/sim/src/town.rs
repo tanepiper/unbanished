@@ -29,6 +29,7 @@ mod professions;
 mod registry;
 mod sites;
 mod smooth;
+mod start;
 mod templates;
 use animals::{livestock_kind, wildlife_kinds};
 use citizens::{citizen_animations, citizen_rules, grid_start, households, starting_goods};
@@ -189,6 +190,12 @@ pub struct StartingTown {
     pub names: Option<(NameDatabase, NameDatabase)>,
     /// Each StorageDisplay's cells on the ground, by rows (presentation only).
     pub display_cells: BTreeMap<usize, Vec<[f32; 3]>>,
+    /// The player whose command is being carried out, which a new site, marker or fence part
+    /// takes as its owner. 0 in a single-player game, and whenever nothing is being carried out.
+    pub owner_of_command: u8,
+    /// Each player's start cell, in player order: a separate towns game's new game sets one per
+    /// player, and a save's owners sidecar brings them back (empty without one).
+    pub starts: Vec<(i32, i32)>,
     /// For a town loaded from a save: the saved object each entity and citizen came from, so
     /// saving writes the town back into them (docs/SAVE-WRITING.md).
     pub save_ids: Option<SaveIds>,
@@ -206,6 +213,15 @@ pub struct SaveIds {
 }
 
 impl StartingTown {
+    /// Whether this is a separate towns game's town: a start per player, or an entity or
+    /// citizen past the first player's (`docs/SEPARATE-TOWNS.md`). A save loaded without its
+    /// owners sidecar reads as a shared town.
+    pub fn separate(&self) -> bool {
+        self.starts.len() > 1
+            || self.placed.iter().any(|p| p.owner != 0)
+            || self.citizens.iter().any(|c| c.owner != 0)
+    }
+
     /// A New Game's town, up to the seeding pass. `rng` is the game stream (`Random(seed)`).
     ///
     /// Original: `FUN_1400a87d0`.
@@ -216,181 +232,7 @@ impl StartingTown {
         terrain: &HeightGrid,
         rng: &mut Random,
     ) -> Option<StartingTown> {
-        // A new game: no shared animation instances (`AnimationManager`).
-        unbanished_game::behaviour::animation::shared::reset();
-        let profile: MapGenerator = map_generator(&read(archive, profile_ref)?)
-            .map_err(|e| log::warn!("{profile_ref}: {e}"))
-            .ok()?;
-        let map = Map::new(map_size, terrain);
-        let radius = profile.start_radius;
-        let start = map.find_start(radius);
-        let mut templates = Vec::new();
-        let structures: Vec<_> = profile
-            .structures
-            .iter()
-            .map(|s| {
-                (
-                    s.clone(),
-                    load_template(archive, &s.template, &mut templates),
-                )
-            })
-            .collect();
-        let list: Vec<usize> = profile
-            .natural_resources
-            .iter()
-            .filter_map(|r| load_template(archive, r, &mut templates))
-            .collect();
-        let mut cells = Cells::new(map_size, map.types);
-        // The map's setup files the shore cells as water sources (`FUN_1400a43f0`).
-        let water = unbanished_game::disasters::fire::Water::new(&cells);
-        let mut placed = Vec::new();
-        let mut removed = Vec::new();
-        let mut animation_events = Vec::new();
-        let mut seeder = Seeder {
-            templates: &templates,
-            terrain,
-            cells: &mut cells,
-            rng,
-            placed: &mut placed,
-            removed: &mut removed,
-            animation_events: &mut animation_events,
-        };
-        seeder.place_structures(&structures, start.0, start.1);
-        let structure_count = seeder.placed.len();
-        for (e, p) in seeder.placed.iter().enumerate() {
-            assemble::stamp_structure(seeder.cells, &templates, p, e);
-        }
-        seeder.seed(&list, start.0, start.1, radius * radius);
-        let mut scheduler = EntityScheduler::default();
-        for (id, p) in placed.iter().enumerate() {
-            scheduler.register(id, p.bucket);
-        }
-        // `FUN_1400a62a0`: the starting households around the start cell centre.
-        let (citizens, rules) = households(
-            archive,
-            &profile,
-            &grid_start(map_size, terrain, start),
-            rng,
-        );
-        // `FUN_1400a5eb0`: the wildlife populations (deer) and their herds.
-        let mut wildlife = unbanished_game::nature::wildlife::Wildlife::default();
-        // The households' CharacterComponents activate as they are made, before any animal
-        // (`FUN_14010ee90`): first in the characters' tree.
-        let radius = read(
-            archive,
-            &normalise(&profile.citizen).replace(":resource", ":character"),
-        )
-        .and_then(|d| unbanished_formats::game::character_description(&d).ok())
-        .unwrap_or_default()
-        .radius;
-        for (i, c) in citizens.iter().enumerate() {
-            wildlife.tree.insert(
-                unbanished_game::behaviour::character_tree::Who::Citizen(i),
-                c.position,
-                radius,
-            );
-        }
-        let populations =
-            wildlife_kinds(archive, &profile.populations, &mut templates, &mut wildlife);
-        for t in populations {
-            unbanished_game::nature::wildlife::Wild {
-                wildlife: &mut wildlife,
-                placed: &mut placed,
-                templates: &templates,
-                cells: &cells,
-                terrain,
-                rng,
-                scheduler: &mut scheduler,
-            }
-            .start_population(t);
-        }
-        let (materials, storages, storage_sites) =
-            starting_goods(archive, &profile, &placed, &templates);
-        // `FUN_140097330`: the profile's raw materials are the first known.
-        let known_materials: Vec<usize> = (0..materials.len()).collect();
-        // `FUN_1400a87d0`'s end: random crops, orchard trees and livestock become known
-        // (`FUN_140096ef0`, once each).
-        let mut known = Vec::new();
-        for (list, picks) in [
-            (&profile.crops, profile.crop_picks),
-            (&profile.orchard_trees, profile.tree_picks),
-        ] {
-            for _ in 0..picks {
-                let r = rng.rand_below(list.len() as u32) as usize;
-                if let Some(t) = list
-                    .get(r)
-                    .and_then(|t| load_template(archive, t, &mut templates))
-                {
-                    if !known.contains(&t) {
-                        known.push(t);
-                    }
-                }
-            }
-        }
-        // Every livestock kind can be kept; the picks bring their starting animals
-        // (`FUN_1400a5fe0`) and become known.
-        for t in &profile.livestock {
-            livestock_kind(archive, t, &mut templates, &mut wildlife);
-        }
-        let at = grid_start(map_size, terrain, start);
-        let [dx, dy, spread] = profile.livestock_floats;
-        for _ in 0..profile.livestock_picks {
-            let r = rng.rand_below(profile.livestock.len() as u32) as usize;
-            if let Some(t) = profile
-                .livestock
-                .get(r)
-                .and_then(|t| livestock_kind(archive, t, &mut templates, &mut wildlife))
-            {
-                unbanished_game::nature::wildlife::Wild {
-                    wildlife: &mut wildlife,
-                    placed: &mut placed,
-                    templates: &templates,
-                    cells: &cells,
-                    terrain,
-                    rng,
-                    scheduler: &mut scheduler,
-                }
-                .start_livestock(
-                    t,
-                    profile.ints[0],
-                    [at[0] + dx, at[1] + dy, at[2]],
-                    spread,
-                );
-                if !known.contains(&t) {
-                    known.push(t);
-                }
-            }
-        }
-        log::info!(
-            "start {:?}: {} natural resources placed",
-            start,
-            placed.len()
-        );
-        let mut town = Self::assemble(
-            archive,
-            &profile.citizen,
-            TownParts {
-                start,
-                citizens,
-                rules,
-                materials,
-                storages,
-                storage_sites,
-                templates,
-                placed,
-                cells,
-                scheduler,
-                removed,
-                animation_events,
-                wildlife,
-                known,
-                known_materials,
-                water,
-            },
-        );
-        town.build_structures(archive, structure_count);
-        town.place_displays(terrain);
-        Some(town)
+        Self::create_for(archive, profile_ref, map_size, terrain, rng, 1)
     }
 
     /// The trader boat template (`Template\\TraderBoat.rsc`): its CharacterDescription and

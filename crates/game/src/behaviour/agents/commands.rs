@@ -36,7 +36,7 @@ impl Agents {
             jobs.drain(&mut sim);
         }
         let mut queue = commands.into_iter();
-        for command in queue.by_ref() {
+        for (owner, command) in queue.by_ref() {
             match command {
                 crate::work::professions::Command::SetCrop { entity, crop } => {
                     if sim.wildlife.pastures.contains_key(&entity) {
@@ -166,6 +166,10 @@ impl Agents {
             let cell = |c: usize| town.cell_of(characters[c].position);
             let professions = sim.professions;
             let anywhere = |p: usize| professions.works_anywhere(p);
+            let owner_list: &[u8] = sim.owners;
+            let owners = |c: usize| owner_list.get(c).copied().unwrap_or(0);
+            let placed: &[crate::nature::seeding::Placed] = &*sim.placed;
+            let entity_owner = |e: usize| placed.get(e).map_or(0, |p| p.owner);
             let sites = &*sim.sites;
             let priority = |e: usize| {
                 sites
@@ -175,18 +179,21 @@ impl Agents {
             };
             let mut search = crate::behaviour::activities::TownSearch {
                 town: &town,
+                owners: &owners,
                 cell: &cell,
                 anywhere: &anywhere,
                 priority: &priority,
                 rng: &mut *sim.rng,
             };
             sim.workforce.apply(
+                owner,
                 command,
                 &mut workers,
                 sim.professions,
                 sim.homes,
                 &mut geometry,
                 &mut search,
+                &entity_owner,
             );
             sim.set_workers(&workers);
         }
@@ -239,6 +246,8 @@ impl Agents {
     ) {
         env.construction.nomads_admitted += band.len() as i32;
         let laborer = env.construction.professions.laborer;
+        // The band joins the town whose hall took it in (a separate towns game).
+        let owner = env.placed.get(entity).map_or(0, |p| p.owner);
         let r = self.life.clone();
         let (lo, hi) = (r.f(0x50), r.f(0x54));
         let mut make = |agents: &mut Self,
@@ -269,12 +278,14 @@ impl Agents {
                     parent: None,
                     school: None,
                     alive: true,
+                    owner: 0,
                 })
             };
             let mut c = newborn(rng, &template, male);
             c.position = position;
             c.age = age;
             c.alive = true;
+            c.owner = owner;
             let id = citizens.len();
             citizens.push(c);
             let mut state = CitizenState::newborn(&r);

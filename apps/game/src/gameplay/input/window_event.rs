@@ -20,7 +20,7 @@ impl GameplayLoop {
                         self.store_window_settings(ctx.ui, true);
                         let saved = self.save_file(ctx.archive, ctx.ui, ctx.mods, None, None);
                         *ctx.reload_mods = Some(match saved {
-                            Some(bytes) => crate::mods::Reload::Game(bytes),
+                            Some((bytes, _)) => crate::mods::Reload::Game(bytes),
                             None => crate::mods::Reload::Menu,
                         });
                     }
@@ -219,12 +219,12 @@ impl GameplayLoop {
                     }
                     return Next::Stay;
                 }
-                Some(UtilityClick::Notify(i, on)) => {
-                    self.sim.events.notify[i] = on;
+                Some(UtilityClick::Notify(category, on)) => {
+                    self.execute(ctx.archive, PlayerCommand::SetNotify { category, on });
                     return Next::Stay;
                 }
                 Some(UtilityClick::StockLimit(slot, limit)) => {
-                    self.sim.stock_warnings.limits[slot] = limit;
+                    self.execute(ctx.archive, PlayerCommand::SetStockLimit { slot, limit });
                     return Next::Stay;
                 }
                 Some(UtilityClick::GoTo(cell)) => {
@@ -258,7 +258,7 @@ impl GameplayLoop {
                 .sim
                 .town
                 .as_ref()
-                .and_then(|town| self.entities.click(ctx.ui, town, id));
+                .and_then(|town| self.entities.click(ctx.ui, town, self.sim.local_player, id));
             match clicked {
                 Some(WorkPlaceClick::Command(command)) => {
                     self.execute(ctx.archive, PlayerCommand::Town(command));
@@ -271,7 +271,7 @@ impl GameplayLoop {
                 }
                 // ResourceLimitUI (`FUN_14007ccb0`): the slot's limit.
                 Some(WorkPlaceClick::StockLimit { slot, limit }) => {
-                    self.sim.stock_warnings.limits[slot] = limit;
+                    self.execute(ctx.archive, PlayerCommand::SetStockLimit { slot, limit });
                     return Next::Stay;
                 }
                 Some(WorkPlaceClick::ShowBuilding(building)) => {

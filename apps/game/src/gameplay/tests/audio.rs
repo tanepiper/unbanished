@@ -120,7 +120,7 @@ fn rain_effect_drives_the_rain_emitter() {
         assert_eq!(w.len(), 1);
         assert!(w[0].0.contains("RainEffect"), "{}", w[0].0);
         assert!((w[0].2[0] - 0.5).abs() < 0.01, "{:?}", w[0].2);
-        let g = gameplay.save_state(ctx.archive, ctx.ui).unwrap();
+        let (g, _) = gameplay.save_state(ctx.archive, ctx.ui).unwrap();
         let rain = g.entities.iter().flatten().filter(|&&e| {
             let o = &g.objects[&e];
             matches!(o.fields.at("entity.template"),

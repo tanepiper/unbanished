@@ -95,6 +95,7 @@ impl SaveLoadDialog {
             return Outcome::Stay;
         };
         self.reading = Some(crate::saves::save_store::read(&file));
+        self.reading_file = Some(file);
         self.start(Operation::Load, SAVE_LOAD_TIME);
         Outcome::Stay
     }

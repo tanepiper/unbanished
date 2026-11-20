@@ -38,6 +38,7 @@ impl StartingTown {
         );
         let id = self.placed.len();
         self.placed.push(Placed {
+            owner: 0,
             template,
             bucket: self.templates[template].bucket,
             cell,

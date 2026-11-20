@@ -32,6 +32,9 @@ pub fn lockstep_test(args: &[String]) {
         seed: number(7, 1),
     };
     let bytes = std::fs::read(save).expect("read the save");
+    // A separate towns game's owners ride beside the save.
+    let owners =
+        std::fs::read(std::path::Path::new(save).with_extension("owners")).unwrap_or_default();
     let text = std::fs::read_to_string(recording).expect("read the recording");
     let dir = data_dir(args);
     let found = crate::mods::find(&dir);
@@ -44,7 +47,7 @@ pub fn lockstep_test(args: &[String]) {
     .expect("game data");
     game.audio.set_master_volume(0.0);
     let start = std::time::Instant::now();
-    match crate::gameplay::network::simulate(&mut game, &bytes, &text, sim, 0) {
+    match crate::gameplay::network::simulate(&mut game, &bytes, &owners, &text, sim, 0) {
         Ok(r) => {
             for d in &r.digests[0] {
                 println!("{d}");
@@ -198,13 +201,17 @@ pub fn net_test(args: &[String]) {
                 }
                 joined >= players
             });
+            let mut owners = Vec::new();
             let bytes = match kept.filter(|_| resume) {
                 Some(update) => {
                     link.borrow_mut().request(unbanished_net::ToRelay::Fetch);
                     let mut town = Vec::new();
                     wait("the kept town", &mut |e| match e {
-                        unbanished_net::FromRelay::Kept { bytes, .. } => {
+                        unbanished_net::FromRelay::Kept {
+                            bytes, owners: o, ..
+                        } => {
                             town = bytes.clone();
+                            owners = o.clone();
                             true
                         }
                         _ => false,
@@ -212,9 +219,13 @@ pub fn net_test(args: &[String]) {
                     log::info!("resuming the room's town kept at update {update}");
                     town
                 }
-                None => std::fs::read(save).map_err(|e| e.to_string())?,
+                None => {
+                    let path = std::path::Path::new(save);
+                    owners = std::fs::read(path.with_extension("owners")).unwrap_or_default();
+                    std::fs::read(path).map_err(|e| e.to_string())?
+                }
             };
-            peer.host_start(ctx, bytes, players, delay)?;
+            peer.host_start(ctx, bytes, owners, players, delay)?;
         }
         let mut lines = Vec::new();
         let mut corrupt = corrupt;

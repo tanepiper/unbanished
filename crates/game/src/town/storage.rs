@@ -16,13 +16,17 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// `FUN_140092890`: does any registered storage take `count` of `material`?
-    pub(super) fn any_storage_fits(&self, material: usize, count: i32) -> bool {
-        self.storage_sites.iter().any(|s| {
-            let st = &self.storages[s.storage];
-            st.accepts & self.materials[material].flags != 0
-                && st.fits(self.materials, material, count)
-        })
+    /// `FUN_140092890`: does any registered storage take `count` of `material`? `owner` is the
+    /// player whose town asks: a separate towns game sees only its own sites.
+    pub(super) fn any_storage_fits(&self, material: usize, count: i32, owner: u8) -> bool {
+        self.storage_sites
+            .iter()
+            .filter(|s| s.owner == owner)
+            .any(|s| {
+                let st = &self.storages[s.storage];
+                st.accepts & self.materials[material].flags != 0
+                    && st.fits(self.materials, material, count)
+            })
     }
 
     /// `FUN_1400f83d0`: Pickup's slot `+0x20`. Takes this pile and every unclaimed pile within
@@ -45,7 +49,9 @@ impl Sim<'_, '_> {
         }
         let from = self.citizen_cell(c);
         let cell = work.cell;
-        if !self.any_storage_fits(pile.material, pile.count) {
+        // The pile belongs to the town that dropped it.
+        let owner = self.placed[e].owner;
+        if !self.any_storage_fits(pile.material, pile.count, owner) {
             return 1;
         }
         let Some(nb) = nearest_neighbour(self.size, &self.cells.types, cell, from, 0xe07) else {
@@ -57,7 +63,7 @@ impl Sim<'_, '_> {
         if !self.patience(work, c, nb, from, time) {
             return 0;
         }
-        let found = self.find_storage(pile.material, pile.count, true, nb);
+        let found = self.find_storage(pile.material, pile.count, true, nb, owner);
         let Some(found) = found else {
             return 1;
         };
@@ -128,13 +134,15 @@ impl Sim<'_, '_> {
         }
     }
 
-    /// `FUN_140092a60` from a cell (`put` finds a storage that takes the units).
+    /// `FUN_140092a60` from a cell (`put` finds a storage that takes the units). `owner` is the
+    /// player whose town searches: a separate towns game's storage sites are per player.
     pub(crate) fn find_storage(
         &mut self,
         material: usize,
         count: i32,
         put: bool,
         cell: i32,
+        owner: u8,
     ) -> Option<crate::work::stock::StorageMatch> {
         let town = TownView {
             size: self.size,
@@ -162,6 +170,7 @@ impl Sim<'_, '_> {
             count,
             put,
             cell,
+            owner,
             None,
             &mut geometry,
             self.rng,
@@ -176,6 +185,7 @@ impl Sim<'_, '_> {
         put: bool,
         cell: i32,
         exclude: usize,
+        owner: u8,
     ) -> Option<crate::work::stock::StorageMatch> {
         let town = TownView {
             size: self.size,
@@ -203,6 +213,7 @@ impl Sim<'_, '_> {
             count,
             put,
             cell,
+            owner,
             Some(exclude),
             &mut geometry,
             self.rng,
@@ -271,7 +282,7 @@ impl Sim<'_, '_> {
             {
                 continue;
             }
-            if let Some(f) = self.find_storage(material, count, true, from) {
+            if let Some(f) = self.find_storage(material, count, true, from, self.owners[c]) {
                 let entity = self.storage_sites[f.site].entity;
                 chosen.push((f.storage, f.target, entity));
             }
@@ -379,8 +390,14 @@ impl Sim<'_, '_> {
                 self.drop_off(c);
                 return 2;
             }
-            let Some(found) = self.find_storage_excluding(material, amount, true, work.cell, e)
-            else {
+            let Some(found) = self.find_storage_excluding(
+                material,
+                amount,
+                true,
+                work.cell,
+                e,
+                self.placed[e].owner,
+            ) else {
                 continue;
             };
             if !self.reachable(here, work.cell) {

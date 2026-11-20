@@ -292,7 +292,7 @@ impl Sim<'_, '_> {
                 continue;
             }
             amount = amount.min(avail);
-            let Some(found) = self.find_storage(m, amount, true, here) else {
+            let Some(found) = self.find_storage(m, amount, true, here, self.placed[e].owner) else {
                 continue;
             };
             let k = self.rng.rand_below(points as u32) as usize;
@@ -324,7 +324,7 @@ impl Sim<'_, '_> {
             return 2;
         }
         for (m, n) in fetch {
-            let Some(found) = self.find_storage(m, 1, false, here) else {
+            let Some(found) = self.find_storage(m, 1, false, here, self.placed[e].owner) else {
                 continue;
             };
             let avail = self.storages[found.storage].available(m);

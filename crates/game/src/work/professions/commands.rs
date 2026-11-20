@@ -178,15 +178,19 @@ pub enum Command {
 }
 
 impl Workforce {
-    /// Apply a UI command.
+    /// Apply a UI command. `owner` is the player whose command it is: a separate towns game's
+    /// professions and hiring are per player, and `entity_owner` says whose each building is.
+    #[allow(clippy::too_many_arguments)]
     pub fn apply(
         &mut self,
+        owner: u8,
         command: Command,
         workers: &mut [Worker],
         professions: &Professions,
         homes: &BTreeMap<usize, Home>,
         map: &mut dyn StorageSearchMap,
         search: &mut dyn Search,
+        entity_owner: &dyn Fn(usize) -> u8,
     ) {
         match command {
             Command::SetCount { profession, count } => self.set_count(
@@ -197,12 +201,15 @@ impl Workforce {
                 homes,
                 map,
                 search.rng(),
+                owner,
+                entity_owner,
             ),
             Command::AddWorker { entity } => {
                 let Some(p) = self.workplaces.get(&entity).and_then(|w| w.profession) else {
                     return;
                 };
-                let wp = self.free_workplace(p, search.rng());
+                let owner = entity_owner(entity);
+                let wp = self.free_workplace(p, search.rng(), owner, entity_owner);
                 self.hire(
                     workers,
                     professions.laborer,
@@ -211,11 +218,13 @@ impl Workforce {
                     homes,
                     map,
                     search.rng(),
+                    owner,
                 );
             }
             Command::RemoveWorker { entity } => {
                 if let Some(p) = self.workplaces.get(&entity).and_then(|w| w.profession) {
-                    self.fire(workers, professions.laborer, p);
+                    let owner = entity_owner(entity);
+                    self.fire(workers, professions.laborer, p, owner, entity_owner);
                 }
             }
             // The simulation answers this one with the building's state

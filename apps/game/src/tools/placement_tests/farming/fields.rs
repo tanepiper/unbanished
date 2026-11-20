@@ -75,12 +75,13 @@ fn farmers_plant_tend_and_harvest_a_field() {
             &terrain,
         )
         .expect("the field was not placed");
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCrop {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCrop {
             entity: id,
             crop: Some(crop),
-        });
+        },
+    ));
     let farmer = town
         .construction
         .professions
@@ -88,12 +89,13 @@ fn farmers_plant_tend_and_harvest_a_field() {
         .iter()
         .position(|p| p.reference.to_ascii_lowercase().ends_with(":farmer"))
         .expect("no farmer profession");
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: farmer,
             count: 2,
-        });
+        },
+    ));
     let material = town.templates[crop]
         .pile
         .and_then(|p| town.templates[p].pile_material)
@@ -109,7 +111,7 @@ fn farmers_plant_tend_and_harvest_a_field() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 60.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 60.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 60.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs
@@ -226,12 +228,13 @@ fn blight_withers_a_field_and_spreads() {
                 &terrain,
             )
             .expect("the field was not placed");
-        town.construction
-            .commands
-            .push(unbanished_game::work::professions::Command::SetCrop {
+        town.construction.commands.push((
+            0,
+            unbanished_game::work::professions::Command::SetCrop {
                 entity: id,
                 crop: Some(crop),
-            });
+            },
+        ));
         fields.push(id);
     }
     let farmer = town
@@ -241,12 +244,13 @@ fn blight_withers_a_field_and_spreads() {
         .iter()
         .position(|p| p.reference.to_ascii_lowercase().ends_with(":farmer"))
         .expect("no farmer profession");
-    town.construction
-        .commands
-        .push(unbanished_game::work::professions::Command::SetCount {
+    town.construction.commands.push((
+        0,
+        unbanished_game::work::professions::Command::SetCount {
             profession: farmer,
             count: 8,
-        });
+        },
+    ));
     let mut warnings = unbanished_game::events::StockWarnings::default();
     warnings.limits[5] = 100_000;
     let dt = 1.0 / 30.0;
@@ -267,7 +271,7 @@ fn blight_withers_a_field_and_spreads() {
         town.apply_commands(&terrain, &mut rng);
         town.iterate(&terrain, &mut rng, dt, 60.0);
         let stock = std::array::from_fn(|i| (warnings.count[i], warnings.limits[i]));
-        town.update_citizens(&terrain, &mut rng, dt, 60.0, stock);
+        town.update_citizens(&terrain, &mut rng, dt, 60.0, &[stock]);
         warnings.recompute(&town.registered_storages(), &town.materials);
         town.construction
             .jobs

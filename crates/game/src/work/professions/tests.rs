@@ -38,6 +38,7 @@ fn spinner_promotes_the_first_laborers_and_demotes_unattached_first() {
     let mut workers = vec![
         Worker {
             adult: false,
+            owner: 0,
             profession: 0,
             workplace: None,
             home: None,
@@ -46,6 +47,7 @@ fn spinner_promotes_the_first_laborers_and_demotes_unattached_first() {
     ];
     workers.extend((0..4).map(|_| Worker {
         adult: true,
+        owner: 0,
         profession: 0,
         workplace: None,
         home: None,
@@ -63,14 +65,16 @@ fn spinner_promotes_the_first_laborers_and_demotes_unattached_first() {
         &BTreeMap::new(),
         &mut Flat,
         &mut rng,
+        0,
+        &|_| 0,
     );
     // The first builder fills the site's free place; the second has no workplace.
     assert_eq!(workers[1].profession, 1);
     assert_eq!(workers[1].workplace, Some(10));
     assert_eq!(workers[2].profession, 1);
     assert_eq!(workers[2].workplace, None);
-    assert_eq!(force.counts(&workers, 3), vec![2, 2, 0]);
-    assert_eq!(force.capacity(1), 1);
+    assert_eq!(force.counts(&workers, 3, 0), vec![2, 2, 0]);
+    assert_eq!(force.capacity(1, 0, &|_| 0), 1);
     // Demotion takes the builder without a workplace first.
     force.set_count(
         &mut workers,
@@ -80,6 +84,8 @@ fn spinner_promotes_the_first_laborers_and_demotes_unattached_first() {
         &BTreeMap::new(),
         &mut Flat,
         &mut rng,
+        0,
+        &|_| 0,
     );
     assert_eq!(workers[2].profession, 0);
     assert_eq!(workers[1].profession, 1);
@@ -91,6 +97,8 @@ fn spinner_promotes_the_first_laborers_and_demotes_unattached_first() {
         &BTreeMap::new(),
         &mut Flat,
         &mut rng,
+        0,
+        &|_| 0,
     );
     assert_eq!(workers[1].profession, 0);
     assert_eq!(workers[1].workplace, None);
@@ -111,6 +119,9 @@ impl Search for Open {
     }
     fn reach(&mut self, _cell: i32, workplace: usize) -> bool {
         workplace != 99
+    }
+    fn same_owner(&self, _citizen: usize, _entity: usize) -> bool {
+        true
     }
     fn rng(&mut self) -> &mut Random {
         &mut self.0
@@ -159,6 +170,7 @@ fn evicted_workers_move_on() {
     let mut workers: Vec<Worker> = (0..3)
         .map(|_| Worker {
             adult: true,
+            owner: 0,
             profession: 2,
             workplace: None,
             home: None,
@@ -184,6 +196,7 @@ fn workplace_status_icons() {
     let mut workers: Vec<Worker> = (0..2)
         .map(|_| Worker {
             adult: true,
+            owner: 0,
             profession: 2,
             workplace: None,
             home: None,
@@ -208,4 +221,70 @@ fn workplace_status_icons() {
     w.set_enabled(&mut workers, 1, true, false, &mut search);
     w.set_enabled(&mut workers, 1, false, true, &mut search);
     assert_eq!(w.workplaces[&1].status, 1 << icon::BUILD_PAUSED);
+}
+
+#[test]
+fn hiring_takes_only_the_commanding_towns_citizens_and_workplaces() {
+    let p = professions();
+    let mut w = workforce(&[(10, 1, 2, 0), (20, 1, 2, 0)]);
+    let owners = |e: usize| if e == 20 { 1 } else { 0 };
+    let mut workers: Vec<Worker> = (0..4)
+        .map(|c| Worker {
+            adult: true,
+            owner: (c >= 2) as u8,
+            profession: 0,
+            workplace: None,
+            home: None,
+        })
+        .collect();
+    let mut rng = Random::new(1);
+    // Counts and places are the acting town's, not both towns'.
+    assert_eq!(w.counts(&workers, 2, 0), vec![2, 0]);
+    assert_eq!(w.counts(&workers, 2, 1), vec![2, 0]);
+    assert_eq!(w.capacity(1, 0, &owners), 2);
+    assert_eq!(w.capacity(1, 1, &owners), 2);
+    // Player 1's town hall asks for one farmer: their workplace and their citizen.
+    w.set_count(
+        &mut workers,
+        &p,
+        1,
+        1,
+        &BTreeMap::new(),
+        &mut Flat,
+        &mut rng,
+        1,
+        &owners,
+    );
+    assert_eq!(workers[2].profession, 1, "player 1's first laborer");
+    assert_eq!(workers[2].workplace, Some(20));
+    assert!(!w.workplaces[&10].workers.iter().any(|&c| c < 2));
+    assert_eq!(w.workplaces[&10].workers.len(), 0);
+    // Player 0's asks too: only theirs, at their own workplace.
+    w.set_count(
+        &mut workers,
+        &p,
+        1,
+        2,
+        &BTreeMap::new(),
+        &mut Flat,
+        &mut rng,
+        0,
+        &owners,
+    );
+    assert_eq!(workers[0].workplace, Some(10));
+    assert_eq!(w.workplaces[&20].workers, vec![2]);
+    // Firing player 0's farmer leaves player 1's alone.
+    w.set_count(
+        &mut workers,
+        &p,
+        1,
+        1,
+        &BTreeMap::new(),
+        &mut Flat,
+        &mut rng,
+        0,
+        &owners,
+    );
+    assert_eq!(workers[0].profession, 0);
+    assert_eq!(workers[2].profession, 1, "player 1 keeps their farmer");
 }

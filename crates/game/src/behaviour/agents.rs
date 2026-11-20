@@ -274,6 +274,7 @@ impl CitizenState {
 }
 
 struct TownStock<'a> {
+    owner: u8, // the citizen's player: searches take this town's storages
     materials: &'a [RawMaterial],
     storages: &'a mut [Storage],
     sites: &'a [StorageSite],
@@ -426,6 +427,7 @@ impl Agents {
                 materials: env.materials,
                 rng: &mut *env.rng,
                 stock: env.stock,
+                owners: env.owners,
                 temperature: env.temperature,
                 professions: &c.professions,
                 workforce: &mut c.workforce,
@@ -449,6 +451,7 @@ impl Agents {
                 game_flags: c.game_flags,
                 precipitation: c.precipitation,
                 population: c.population,
+                populations: &c.populations,
                 visitors: &mut c.visitors,
                 trading_posts: &mut c.trading_posts,
                 trade_value: &mut c.trade_value,

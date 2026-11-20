@@ -70,7 +70,7 @@ impl Sim<'_, '_> {
             return;
         };
         let amount = self.materials[material].pile_amount;
-        let (count, limit) = self.stock[lk.group.clamp(0, 20) as usize];
+        let (count, limit) = self.stock_of(e)[lk.group.clamp(0, 20) as usize];
         // Deviation: a zero pile size would never leave the loop in the original.
         while 0 < amount && amount < self.wildlife.pastures[&e].produced {
             self.wildlife.pastures.get_mut(&e).unwrap().produced -= amount;
@@ -88,7 +88,8 @@ impl Sim<'_, '_> {
                     self.cells.objects[i] = None;
                 }
                 let yaw = self.rng.rand_tol(2) as f32 * 90.0;
-                let pile = self.spawn_pile(product, (cell % n, cell / n), amount, yaw, None);
+                let owner = self.placed[e].owner;
+                let pile = self.spawn_pile(product, (cell % n, cell / n), amount, yaw, None, owner);
                 // The pasture's tracker and the stock manager's count (`FUN_140059930`,
                 // `FUN_14008e460`).
                 self.count_made(Some(e), true, material, amount);
@@ -327,7 +328,7 @@ impl Sim<'_, '_> {
             .get(&e)
             .and_then(|s| self.site_templates[s.template].pasture)
             .unwrap_or(5);
-        let (count, limit) = self.stock[group.clamp(0, 20) as usize];
+        let (count, limit) = self.stock_of(e)[group.clamp(0, 20) as usize];
         self.set_icon(e, crate::work::professions::icon::LIMIT, limit <= count);
         if limit <= count {
             return 1;

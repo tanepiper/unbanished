@@ -86,6 +86,15 @@ impl Needs<'_, '_> {
         let mut best = 0xffff;
         let mut healer = None;
         for &e in self.healers {
+            // A separate towns game's healers are its own.
+            if !self
+                .town
+                .entities
+                .get(e)
+                .is_some_and(|v| v.owner == self.owner)
+            {
+                continue;
+            }
             if self.workplaces.get(&e).is_none_or(|w| w.workers.is_empty()) {
                 continue;
             }

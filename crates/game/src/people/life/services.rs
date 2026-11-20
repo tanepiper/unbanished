@@ -9,6 +9,7 @@ impl People<'_, '_> {
         let town = self.town;
         let citizens = &*self.citizens;
         let cell = |i: usize| town.cell_of(citizens[i].position);
+        let owners = |c: usize| citizens.get(c).map_or(0, |c| c.owner);
         let professions = self.professions;
         let anywhere = |p: usize| professions.works_anywhere(p);
         let sites = self.sites;
@@ -20,6 +21,7 @@ impl People<'_, '_> {
         };
         let mut search = crate::behaviour::activities::TownSearch {
             town,
+            owners: &owners,
             cell: &cell,
             anywhere: &anywhere,
             priority: &priority,
@@ -76,6 +78,7 @@ impl People<'_, '_> {
         exclude: Option<usize>,
     ) -> Option<usize> {
         let profession = self.rules.services[service]?;
+        let owner = self.citizens[c].owner;
         let home = self.states[c]
             .home
             .map_or(-1, |h| self.town.entrance(h, self.rng));
@@ -85,6 +88,7 @@ impl People<'_, '_> {
             // The workplace's description profession (`FUN_140116e00` compares `+0x48`).
             if Some(e) == exclude
                 || self.workforce.workplaces.get(&e).and_then(|w| w.profession) != Some(profession)
+                || self.town.entities.get(e).is_none_or(|v| v.owner != owner)
                 || !self.accepts(e, c)
             {
                 continue;

@@ -16,6 +16,7 @@ impl Seeder<'_> {
         structures: &[(PlacedStructure, Option<usize>)],
         sx: i32,
         sy: i32,
+        owner: u8,
     ) {
         let n = self.n();
         let corner = |s: &Self, x: i32, y: i32| {
@@ -53,6 +54,7 @@ impl Seeder<'_> {
                 (variant, mesh)
             });
             self.placed.push(Placed {
+                owner,
                 template: t,
                 bucket: self.templates[t].bucket,
                 cell: (x, y),
@@ -137,6 +139,7 @@ impl Seeder<'_> {
                         growth_state = Some(state);
                     }
                     let id = self.register(Placed {
+                        owner: 0,
                         template,
                         bucket: self.templates[template].bucket,
                         cell: (x, y),

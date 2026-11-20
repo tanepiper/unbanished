@@ -17,8 +17,9 @@ fn town_hall_window_reads_the_town() {
         let mut th = crate::ui::town_hall_ui::TownHallUi::bind(ctx.ui, ctx.archive, root);
         let town = gameplay.sim.town.as_ref().unwrap();
         let x = crate::ui::town_hall_ui::TownContext {
-            stock_counts: &gameplay.sim.stock_warnings.count,
+            stock_counts: &gameplay.sim.stock_warnings[0].count,
             statistics: &gameplay.sim.statistics,
+            owner: 0,
         };
         th.refresh(ctx.ui, ctx.archive, town, &x);
         let text = |name: &str| {
@@ -219,7 +220,7 @@ fn destroy_window_buttons_send_commands() {
         use unbanished_game::work::professions::Command;
         let click = |gameplay: &mut GameplayLoop, ui: &unbanished_ui::Ui, n| match gameplay
             .entities
-            .click(ui, gameplay.sim.town.as_ref().unwrap(), n)
+            .click(ui, gameplay.sim.town.as_ref().unwrap(), 0, n)
         {
             Some(WorkPlaceClick::Command(c)) => Some(c),
             _ => None,

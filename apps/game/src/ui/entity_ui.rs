@@ -214,6 +214,7 @@ impl EntityWindows {
         &mut self,
         ui: &Ui,
         town: &StartingTown,
+        owner: u8,
         node: NodeId,
     ) -> Option<crate::ui::building_ui::WorkPlaceClick> {
         let w = self.open.iter_mut().find(|w| ui.descendant(w.root, node))?;
@@ -251,7 +252,7 @@ impl EntityWindows {
             Controller::Upgrade(c) => c.click(ui, node, p),
             Controller::Immigration(c) => c.click(node, p),
             Controller::Residence(c) => c.click(ui, node, &data),
-            Controller::TownHall(c) => c.click(ui, town, node),
+            Controller::TownHall(c) => c.click(ui, town, owner, node),
             Controller::Trade(c) => c.click(ui, node, p),
             Controller::SelectResource(c) => c.click(ui, node, p),
             _ => None,

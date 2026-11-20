@@ -63,6 +63,10 @@ tools/compat/multiplayer.sh HEAD                        # the Multiplayer window
 Each scenario pauses, saves and captures a frame at the end. A comparison passes only when every
 save holds the same game state and every frame is the same.
 
+Without the test saves, `new-game` makes one: `tools/compat/scenarios.sh BINARY OUT new-game`
+writes `OUT/new-game.sav`, and that save works as `continue:PATH` and as the save `--replay`
+reads. Only the town sizes and the `actions` positions need the maintainer's saves.
+
 ### Limits
 
 - Builds before 0.2.0 do not have the `speed N` capture command (they run at speed 1). Their

@@ -39,9 +39,20 @@ impl GameplayLoop {
                 Message::Checked { update, agree } => {
                     self.online.net.as_mut().unwrap().noted(update, agree);
                 }
-                Message::Save { update, bytes } => {
+                Message::Save {
+                    update,
+                    bytes,
+                    owners,
+                } => {
                     self.online.net.as_mut().unwrap().inbox = arrived;
-                    return (true, Some((bytes, update)));
+                    return (
+                        true,
+                        Some(Reload {
+                            bytes,
+                            owners,
+                            update,
+                        }),
+                    );
                 }
                 Message::Start { .. } => log::warn!("a start in a game already started"),
                 // A player joins the running game: its turns count from slot `from`.
@@ -119,21 +130,27 @@ impl GameplayLoop {
             .is_some_and(|l| l.lockstep.player == 0);
         // The host resyncs when its own check failed; any player when the server asked it.
         if self.online.net.as_ref().unwrap().resync_wanted {
-            let bytes = self
+            let (bytes, owners) = self
                 .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
                 .ok_or("this player could not save")?;
             let net = self.online.net.as_mut().unwrap();
             net.resync_wanted = false;
             net.resyncs.push(update);
+            let owners = owners.encode();
             let save = Message::Save {
                 update,
                 bytes: bytes.clone(),
+                owners: owners.clone(),
             };
             net.link.send(None, &save);
             if host {
-                net.link.keep(update, &bytes);
+                net.link.keep(update, &bytes, &owners);
             }
-            return Ok(Some((bytes, update)));
+            return Ok(Some(Reload {
+                bytes,
+                owners,
+                update,
+            }));
         }
         // A player joining the running game gets the save of the update before its first slot,
         // as its start.
@@ -151,9 +168,11 @@ impl GameplayLoop {
         if !due.is_empty() {
             // Everybody goes on from one save: the others reload it (a resync), and the newcomer
             // starts from it. So every town has its templates in the same order.
-            let bytes = self
+            let (bytes, owners) = self
                 .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
                 .ok_or("the host could not save for a joining player")?;
+            let separate = owners.separate();
+            let owners = owners.encode();
             let l = &self.online.lockstep.as_ref().ok_or("no lockstep")?.lockstep;
             let start = Message::Start {
                 players: l.players,
@@ -161,6 +180,8 @@ impl GameplayLoop {
                 check: self.online.net.as_ref().unwrap().check,
                 absent: l.absent(),
                 bytes: bytes.clone(),
+                owners: owners.clone(),
+                separate,
                 update,
                 epoch: l.epoch + 1,
                 speed: self.speed,
@@ -171,6 +192,7 @@ impl GameplayLoop {
             let save = Message::Save {
                 update,
                 bytes: bytes.clone(),
+                owners: owners.clone(),
             };
             net.link.send(None, &save);
             for player in due {
@@ -180,18 +202,23 @@ impl GameplayLoop {
                     player + 1
                 );
             }
-            net.link.keep(update, &bytes);
-            return Ok(Some((bytes, update)));
+            net.link.keep(update, &bytes, &owners);
+            return Ok(Some(Reload {
+                bytes,
+                owners,
+                update,
+            }));
         }
         // A server that keeps rooms gets the host's town every minute of play.
         if host && update > 0 && update.is_multiple_of(KEEP_EVERY) {
             let keeps = self.online.net.as_ref().is_some_and(|n| n.keeps);
             if keeps {
-                let bytes = self
+                let (bytes, owners) = self
                     .save_file(ctx.archive, ctx.ui, ctx.mods, None, None)
                     .ok_or("the host could not save its town to keep")?;
+                let owners = owners.encode();
                 let net = self.online.net.as_mut().unwrap();
-                net.keeps = net.link.keep(update, &bytes);
+                net.keeps = net.link.keep(update, &bytes, &owners);
             }
         }
         let check = self.online.net.as_ref().unwrap().check;

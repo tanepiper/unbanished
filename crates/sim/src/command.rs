@@ -62,6 +62,16 @@ pub enum PlayerCommand {
     SetSpeed(u8),
     /// Pause or play.
     SetPaused(bool),
+    /// ResourceLimitUI's spinner: the stock manager's limit for a stock slot, which the
+    /// production limits read. A slot out of range does nothing.
+    ///
+    /// Original: `FUN_14007ccb0`.
+    SetStockLimit { slot: usize, limit: i32 },
+    /// The event log's check box for a category: whether its entries notify the player. A
+    /// category out of range does nothing.
+    ///
+    /// Original: `FUN_140067c80`.
+    SetNotify { category: usize, on: bool },
 }
 
 /// What a command gives back to the player who gave it.
@@ -104,18 +114,30 @@ impl Simulation {
         self.town_names.as_ref()
     }
 
-    /// Carries out a player's command now. `path_tool` is the Path tool a `PathQuery` picks
-    /// with. `RenameTown`, `SetSpeed` and `SetPaused` are the game app's and do nothing here.
+    /// Carries out a player's command now. `player` is whose command it is, which a separate
+    /// towns game reads to act on that player's town (step 7 of docs/MULTIPLAYER-PLAN.md).
+    /// `path_tool` is the Path tool a `PathQuery` picks with. `RenameTown`, `SetSpeed` and
+    /// `SetPaused` are the game app's and do nothing here.
     pub fn execute(
         &mut self,
         archive: &Archive,
+        player: u8,
         command: PlayerCommand,
         path_tool: Option<&mut PathTool>,
     ) -> Outcome {
+        self.acting_player = player;
+        if let Some(town) = &mut self.town {
+            // Only a separate towns game's commands make one player's buildings; a shared town
+            // game's are the one town's, whoever gives them.
+            town.owner_of_command = if town.separate() { player } else { 0 };
+        }
         match command {
             PlayerCommand::Town(command) => {
                 if let Some(town) = &mut self.town {
-                    town.construction.commands.push(command);
+                    // The town's owner, not the giver: a shared town game's buildings are the
+                    // one town's (owner 0) whoever gives the command.
+                    let owner = town.owner_of_command;
+                    town.construction.commands.push((owner, command));
                 }
                 Outcome::None
             }
@@ -138,10 +160,14 @@ impl Simulation {
                 if let Some(town) = &mut self.town {
                     if let Some(t) = town.load_template(archive, &template) {
                         town.site_template(archive, t);
-                        town.construction.commands.push(Command::Upgrade {
-                            entity,
-                            template: t,
-                        });
+                        let owner = town.owner_of_command;
+                        town.construction.commands.push((
+                            owner,
+                            Command::Upgrade {
+                                entity,
+                                template: t,
+                            },
+                        ));
                     }
                 }
                 Outcome::None
@@ -194,6 +220,23 @@ impl Simulation {
                     )),
                     None => Outcome::None,
                 }
+            }
+            PlayerCommand::SetStockLimit { slot, limit } => {
+                let last = self.stock_warnings.len() - 1;
+                let warnings = &mut self.stock_warnings[usize::from(player).min(last)];
+                if let Some(l) = warnings.limits.get_mut(slot) {
+                    *l = limit;
+                }
+                Outcome::None
+            }
+            PlayerCommand::SetNotify { category, on } => {
+                // A separate towns game keeps one set per player; a shared town's one set is
+                // the town's, whoever toggles it.
+                let last = self.notify.len() - 1;
+                if let Some(n) = self.notify[usize::from(player).min(last)].get_mut(category) {
+                    *n = on;
+                }
+                Outcome::None
             }
             PlayerCommand::RenameTown { .. }
             | PlayerCommand::SetSpeed(_)

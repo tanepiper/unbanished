@@ -47,6 +47,7 @@ pub(super) fn run(
                 if tool { 2 } else { 4 },
                 cell,
                 home,
+                stock.owner,
                 &mut geometry,
                 rng,
             ) else {
@@ -155,6 +156,7 @@ pub(super) fn run(
                 town,
                 cell,
                 state.home,
+                stock.owner,
                 rules.loiter_range,
                 rng,
                 ground,
@@ -343,8 +345,7 @@ impl Agents {
                 };
                 let carrying = self.states[i].carried.used(env.materials) > 0;
                 let done = if (home_reachable || a == activity::HERBS) && carrying {
-                    // `FUN_140111160` / `FUN_1401108b0` / `FUN_140111d60`: first drop off what
-                    // is carried, then this activity again.
+                    // `FUN_140111160` / `FUN_1401108b0` / `FUN_140111d60`: drop off first, then again.
                     let (mut sim, jobs) = self.sim(citizens, env, groups, adult, entities);
                     sim.drop_off(i);
                     jobs.drain(&mut sim);
@@ -375,6 +376,7 @@ impl Agents {
                     };
                     let mut needs = crate::people::needs::Needs {
                         town: &town,
+                        owner: citizens[i].owner,
                         sectors: &mut self.sectors,
                         sites: env.sites,
                         storages: env.storages,
@@ -457,6 +459,7 @@ impl Agents {
                         happiness: &env.construction.happiness,
                     };
                     let mut stock = TownStock {
+                        owner: citizens[i].owner,
                         materials: env.materials,
                         storages: env.storages,
                         sites: env.sites,

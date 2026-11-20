@@ -45,7 +45,13 @@ impl MultiplayerDialog {
         match *self {}
     }
 
-    pub fn host_start(&mut self, _ui: &mut Ui, _screen: &mut Screen, _bytes: Vec<u8>) -> Outcome {
+    pub fn host_start(
+        &mut self,
+        _ui: &mut Ui,
+        _screen: &mut Screen,
+        _bytes: Vec<u8>,
+        _owners: Vec<u8>,
+    ) -> Outcome {
         match *self {}
     }
 

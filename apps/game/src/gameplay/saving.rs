@@ -43,12 +43,16 @@ pub(super) fn achievement_save<'a>(
 impl GameplayLoop {
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     /// The game state to save (docs/SAVE-WRITING.md): the loaded save's, with the town and
-    /// the loop's own state written back. `None` for a game not loaded from a save.
+    /// the loop's own state written back, and its owners sidecar. `None` for a game not loaded
+    /// from a save.
     pub fn save_state(
         &self,
         archive: &unbanished_formats::pkg::Archive,
         ui: &mut unbanished_ui::Ui,
-    ) -> Option<unbanished_formats::savegame::GameState> {
+    ) -> Option<(
+        unbanished_formats::savegame::GameState,
+        unbanished_sim::owners::Owners,
+    )> {
         let mut g = match &self.saved {
             Some(saved) => saved.state.clone(),
             None => {
@@ -59,6 +63,7 @@ impl GameplayLoop {
         };
         self.save_achievements(&mut g);
         g.town_name = self.params.town_name.clone();
+        let mut owners = self.sim.owners_in(&g, None);
         if let Some(town) = &self.sim.town {
             // A new game's map ambience (a loaded one keeps its own entities), made first so
             // its regions take the scheduler entries the town keeps for them.
@@ -72,11 +77,12 @@ impl GameplayLoop {
                 );
                 foreign = town.ambience_handles.iter().copied().zip(regions).collect();
             }
-            if self.saved.is_some() {
-                town.export_into(archive, &mut g);
+            let ids = if self.saved.is_some() {
+                town.export_into(archive, &mut g)
             } else {
-                town.export_into_with(archive, &mut g, &foreign);
-            }
+                town.export_into_with(archive, &mut g, &foreign)
+            };
+            owners = self.sim.owners_in(&g, Some(&ids));
         }
         if let (Some(view), Some(c)) = (&self.view, g.camera.as_mut()) {
             if let SceneCamera::Map(camera) = &view.camera {
@@ -101,7 +107,7 @@ impl GameplayLoop {
         }
         self.sim
             .write_state(&mut crate::ui::strings::UiStrings(&mut ui.res), &mut g);
-        Some(g)
+        Some((g, owners))
     }
 
     /// The whole `.sav` file of [`GameplayLoop::save_state`]. Its metadata (`SaveMetaData`,
@@ -116,8 +122,8 @@ impl GameplayLoop {
         mods: &crate::mods::Modification,
         name: Option<&str>,
         preview: Option<Vec<u8>>,
-    ) -> Option<Vec<u8>> {
-        let g = self.save_state(archive, ui)?;
+    ) -> Option<(Vec<u8>, unbanished_sim::owners::Owners)> {
+        let (g, owners) = self.save_state(archive, ui)?;
         let state = g.encode().map_err(|e| log::error!("save: {e}")).ok()?;
         let mut metadata = match &self.saved {
             Some(saved) => saved.metadata.clone(),
@@ -144,7 +150,10 @@ impl GameplayLoop {
             metadata.height = h as i32;
             metadata.image = image;
         }
-        Some(unbanished_formats::save::Save::write(&metadata, &state))
+        Some((
+            unbanished_formats::save::Save::write(&metadata, &state),
+            owners,
+        ))
     }
 
     /// Write a save whose preview has been drawn.
@@ -154,7 +163,7 @@ impl GameplayLoop {
             return;
         };
         self.store_window_settings(ctx.ui, true);
-        let Some(bytes) =
+        let Some((bytes, owners)) =
             self.save_file(ctx.archive, ctx.ui, ctx.mods, name.as_deref(), Some(image))
         else {
             log::error!("save: the game state could not be written");
@@ -168,6 +177,35 @@ impl GameplayLoop {
         match result {
             Ok(()) => log::info!("saved {path:?}"),
             Err(e) => log::error!("save {path:?}: {e}"),
+        }
+        // A separate towns game's owners ride beside the save, not in it.
+        self.write_owners(&path, &owners);
+    }
+
+    /// Write (or remove) the owners sidecar of the save just written
+    /// (`docs/SEPARATE-TOWNS.md`): the original's format has no owner field.
+    fn write_owners(&self, path: &SaveTarget, owners: &unbanished_sim::owners::Owners) {
+        let bytes = owners.encode();
+        let result = match path {
+            SaveTarget::Store(name) if owners.separate() => {
+                crate::saves::save_store::write_owners(name, &bytes)
+            }
+            SaveTarget::Store(name) => {
+                crate::saves::save_store::delete_owners(name);
+                Ok(())
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            SaveTarget::File(path) if owners.separate() => {
+                std::fs::write(path.with_extension("owners"), &bytes).map_err(|e| e.to_string())
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            SaveTarget::File(path) => {
+                let _ = std::fs::remove_file(path.with_extension("owners"));
+                Ok(())
+            }
+        };
+        if let Err(e) = result {
+            log::error!("save owners {path:?}: {e}");
         }
     }
 
@@ -289,8 +327,8 @@ impl GameplayLoop {
                 map,
                 effects: self.sim.environment.as_ref().map_or(0, |e| e.effects.len()),
                 history: self.sim.statistics.series.len(),
-                stock: self.sim.stock_warnings.count.len(),
-                capacity: self.sim.stock_warnings.capacity.len(),
+                stock: self.sim.stock_warnings[0].count.len(),
+                capacity: self.sim.stock_warnings[0].capacity.len(),
             },
         ))
     }

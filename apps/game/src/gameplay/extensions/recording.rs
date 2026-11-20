@@ -52,9 +52,12 @@ impl GameplayLoop {
     }
 
     /// Writes a command carried out to the recording.
-    pub(in crate::gameplay) fn record_command(&mut self, command: &PlayerCommand) {
+    pub(in crate::gameplay) fn record_command(&mut self, player: u8, command: &PlayerCommand) {
+        // Only a multiplayer recording says whose command it was: a single-player one keeps
+        // its old entries, byte for byte.
+        let player = self.in_lockstep().then_some(player);
         if let Some(r) = &mut self.recording.recorder {
-            r.command(self.sim.updates, command);
+            r.command(self.sim.updates, player, command);
         }
     }
 
